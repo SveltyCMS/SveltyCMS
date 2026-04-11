@@ -10,110 +10,110 @@
  * - Audit logging
  */
 
-import { auth } from '@src/databases/db';
-import { json } from '@sveltejs/kit';
-import { apiHandler } from '@utils/api-handler';
-import { AppError } from '@utils/error-handling';
-import { logger } from '@utils/logger.server';
-import { buildScimListResponse, buildScimUser, matchesScimFilter, parseScimFilter, scimError, validateScimAuth } from '@utils/scim-utils';
+import { auth } from "@src/databases/db";
+import type { DatabaseId } from "@src/databases/db-interface";
+import { json } from "@sveltejs/kit";
+import { apiHandler } from "@utils/api-handler";
+import { AppError } from "@utils/error-handling";
+import { logger } from "@utils/logger.server";
+import {
+  buildScimListResponse,
+  buildScimUser,
+  matchesScimFilter,
+  parseScimFilter,
+  scimError,
+  validateScimAuth,
+} from "@utils/scim-utils";
 
 export const GET = apiHandler(async ({ url, locals, request }) => {
-	// SCIM auth: Bearer token or admin session
-	const authResult = await validateScimAuth(request, locals);
-	if (!authResult.authenticated) {
-		return scimError(401, authResult.error || 'Unauthorized');
-	}
+  // SCIM auth: Bearer token or admin session
+  const authResult = await validateScimAuth(request, locals);
+  if (!authResult.authenticated) {
+    return scimError(401, authResult.error || "Unauthorized");
+  }
 
-	try {
-		if (!auth) {
-			throw new AppError('Authentication service not available', 500, 'AUTH_UNAVAILABLE');
-		}
+  const tenantId = authResult.tenantId;
 
-		// Pagination parameters (RFC 7644 §3.4.2.4)
-		const startIndex = Math.max(1, Number(url.searchParams.get('startIndex')) || 1);
-		const count = Math.min(200, Math.max(1, Number(url.searchParams.get('count')) || 100));
+  if (!auth) {
+    throw new AppError("Authentication service not available", 500, "AUTH_UNAVAILABLE");
+  }
 
-		// Filter support (RFC 7644 §3.4.2.2)
-		const filterString = url.searchParams.get('filter');
-		const filters = parseScimFilter(filterString);
+  // Pagination parameters (RFC 7644 §3.4.2.4)
+  const startIndex = Math.max(1, Number(url.searchParams.get("startIndex")) || 1);
+  const count = Math.min(200, Math.max(1, Number(url.searchParams.get("count")) || 100));
 
-		// Fetch users from database
-		const dbUsers = await auth.getAllUsers();
+  // Filter support (RFC 7644 §3.4.2.2)
+  const filterString = url.searchParams.get("filter");
+  const filters = parseScimFilter(filterString);
 
-		// Apply SCIM filters
-		const filteredUsers = dbUsers.filter((u: Record<string, any>) => matchesScimFilter(u, filters));
-		const totalResults = filteredUsers.length;
+  // Fetch users from database with tenant isolation
+  const dbUsers = await auth.getAllUsers(
+    { filter: { tenantId: tenantId as DatabaseId } },
+    { tenantId: tenantId as DatabaseId },
+  );
 
-		// Paginate
-		const paginatedUsers = filteredUsers.slice(startIndex - 1, startIndex - 1 + count);
+  // Apply SCIM filters
+  const filteredUsers = dbUsers.filter((u: Record<string, any>) => matchesScimFilter(u, filters));
+  const totalResults = filteredUsers.length;
 
-		// Map to SCIM format
-		const resources = paginatedUsers.map((u: Record<string, any>) => buildScimUser(u, url.origin));
+  // Paginate
+  const paginatedUsers = filteredUsers.slice(startIndex - 1, startIndex - 1 + count);
 
-		return json(buildScimListResponse(resources, totalResults, startIndex));
-	} catch (e) {
-		if (e instanceof AppError) {
-			throw e;
-		}
-		const error = e as Error;
-		logger.error('SCIM Users GET error', { error: e });
-		return scimError(500, error.message || 'Internal Server Error');
-	}
+  // Map to SCIM format
+  const resources = paginatedUsers.map((u: Record<string, any>) => buildScimUser(u, url.origin));
+
+  return json(buildScimListResponse(resources, totalResults, startIndex));
 });
 
 export const POST = apiHandler(async ({ request, url, locals }) => {
-	// SCIM auth: Bearer token or admin session
-	const authResult = await validateScimAuth(request, locals);
-	if (!authResult.authenticated) {
-		return scimError(401, authResult.error || 'Unauthorized');
-	}
+  // SCIM auth: Bearer token or admin session
+  const authResult = await validateScimAuth(request, locals);
+  if (!authResult.authenticated) {
+    return scimError(401, authResult.error || "Unauthorized");
+  }
 
-	try {
-		if (!auth) {
-			throw new AppError('Authentication service not available', 500, 'AUTH_UNAVAILABLE');
-		}
+  const tenantId = authResult.tenantId;
 
-		const body = await request.json();
+  if (!auth) {
+    throw new AppError("Authentication service not available", 500, "AUTH_UNAVAILABLE");
+  }
 
-		// Validate required fields
-		const email = body.userName || body.emails?.[0]?.value;
-		if (!email) {
-			return scimError(400, 'userName or emails[0].value is required', 'invalidValue');
-		}
+  const body = await request.json().catch(() => {
+    throw new AppError("Invalid JSON payload", 400, "INVALID_JSON");
+  });
 
-		// Validate email format
-		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-			return scimError(400, 'Invalid email format', 'invalidValue');
-		}
+  // Validate required fields
+  const email = body.userName || body.emails?.[0]?.value;
+  if (!email) {
+    return scimError(400, "userName or emails[0].value is required", "invalidValue");
+  }
 
-		// Check for duplicate
-		const existingUser = await auth.checkUser({ email });
-		if (existingUser) {
-			return scimError(409, 'User already exists', 'uniqueness');
-		}
+  // Validate email format
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return scimError(400, "Invalid email format", "invalidValue");
+  }
 
-		// Create user
-		const newUser = await auth.createUser({
-			email,
-			username: body.name?.givenName || body.displayName || email.split('@')[0],
-			password: body.password || crypto.randomUUID(),
-			role: 'user',
-			permissions: [],
-			isRegistered: true
-		});
+  // Check for duplicate in this tenant
+  const existingUser = await auth.checkUser({ email, tenantId: tenantId as DatabaseId });
+  if (existingUser) {
+    return scimError(409, "User already exists", "uniqueness");
+  }
 
-		if (!newUser) {
-			throw new Error('Failed to create user');
-		}
+  // Create user scoped to tenant
+  const newUser = await auth.createUser({
+    email,
+    username: body.name?.givenName || body.displayName || email.split("@")[0],
+    password: body.password || crypto.randomUUID(),
+    role: "user",
+    permissions: [],
+    isRegistered: true,
+    tenantId: tenantId as DatabaseId,
+  });
 
-		logger.info('SCIM User created', { userId: newUser._id, email });
-		return json(buildScimUser(newUser, url.origin), { status: 201 });
-	} catch (e) {
-		if (e instanceof AppError) {
-			throw e;
-		}
-		const error = e as Error;
-		logger.error('SCIM Users POST error', { error: e });
-		return scimError(400, error.message || 'Invalid request', 'invalidSyntax');
-	}
+  if (!newUser) {
+    throw new Error("Failed to create user");
+  }
+
+  logger.info("SCIM User created", { userId: newUser._id, email, tenantId });
+  return json(buildScimUser(newUser, url.origin), { status: 201 });
 });

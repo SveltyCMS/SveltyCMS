@@ -18,7 +18,7 @@
  */
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from "@utils/logger";
 
 /**
  * Argon2id configuration - Quantum-resistant password hashing
@@ -38,10 +38,10 @@ import { logger } from '@utils/logger';
  * This makes Argon2id secure against quantum attacks for decades to come.
  */
 const ARGON2_CONFIG = {
-	memory: 65_536, // 64 MB - Quantum-resistant memory requirement
-	time: 3, // 3 iterations - Computational complexity
-	parallelism: 4, // 4 parallel threads - CPU optimization
-	type: 2 // argon2id (hybrid: side-channel + GPU resistant)
+  memoryCost: 65_536, // 64 MB - Quantum-resistant memory requirement
+  timeCost: 3, // 3 iterations - Computational complexity
+  parallelism: 4, // 4 parallel threads - CPU optimization
+  type: 2, // argon2id (hybrid: side-channel + GPU resistant)
 } as const;
 
 /**
@@ -65,22 +65,22 @@ const ARGON2_CONFIG = {
  * @throws Error if hashing fails
  */
 export async function hashPassword(password: string): Promise<string> {
-	try {
-		const argon2 = await import('argon2');
+  try {
+    const argon2 = await import("argon2");
 
-		const hashedPassword = await argon2.hash(password, {
-			memoryCost: ARGON2_CONFIG.memory,
-			timeCost: ARGON2_CONFIG.time,
-			parallelism: ARGON2_CONFIG.parallelism,
-			type: argon2.argon2id
-		});
+    const hashedPassword = await argon2.hash(password, {
+      memoryCost: ARGON2_CONFIG.memoryCost,
+      timeCost: ARGON2_CONFIG.timeCost,
+      parallelism: ARGON2_CONFIG.parallelism,
+      type: argon2.argon2id,
+    });
 
-		logger.trace('Password hashed successfully');
-		return hashedPassword;
-	} catch (error) {
-		logger.error('Failed to hash password:', error);
-		throw new Error('Password hashing failed');
-	}
+    logger.trace("Password hashed successfully");
+    return hashedPassword;
+  } catch (error) {
+    logger.error("Failed to hash password:", error);
+    throw new Error("Password hashing failed");
+  }
 }
 
 /**
@@ -95,18 +95,21 @@ export async function hashPassword(password: string): Promise<string> {
  * @param plainPassword - The plain text password to verify
  * @returns Promise<boolean> - True if password matches, false otherwise
  */
-export async function verifyPassword(hashedPassword: string, plainPassword: string): Promise<boolean> {
-	try {
-		const argon2 = await import('argon2');
+export async function verifyPassword(
+  hashedPassword: string,
+  plainPassword: string,
+): Promise<boolean> {
+  try {
+    const argon2 = await import("argon2");
 
-		const isValid = await argon2.verify(hashedPassword, plainPassword);
+    const isValid = await argon2.verify(hashedPassword, plainPassword);
 
-		logger.trace('Password verification completed', { isValid });
-		return isValid;
-	} catch (error) {
-		logger.error('Password verification failed:', error);
-		return false;
-	}
+    logger.trace("Password verification completed", { isValid });
+    return isValid;
+  } catch (error) {
+    logger.error("Password verification failed:", error);
+    return false;
+  }
 }
 
 /**
@@ -127,21 +130,21 @@ export async function verifyPassword(hashedPassword: string, plainPassword: stri
  * @returns Promise<boolean> - True if rehashing is needed
  */
 export async function needsRehashing(hashedPassword: string): Promise<boolean> {
-	try {
-		const argon2 = await import('argon2');
+  try {
+    const argon2 = await import("argon2");
 
-		// Check if the hash uses our current secure parameters
-		// argon2.needsRehash will return true if the hash doesn't match our current settings
-		return argon2.needsRehash(hashedPassword, {
-			memoryCost: ARGON2_CONFIG.memory,
-			timeCost: ARGON2_CONFIG.time,
-			parallelism: ARGON2_CONFIG.parallelism
-		});
-	} catch (error) {
-		logger.error('Failed to check if password needs rehashing:', error);
-		// If we can't check, assume it needs rehashing for safety
-		return true;
-	}
+    // Check if the hash uses our current secure parameters
+    // argon2.needsRehash will return true if the hash doesn't match our current settings
+    return argon2.needsRehash(hashedPassword, {
+      memoryCost: ARGON2_CONFIG.memoryCost,
+      timeCost: ARGON2_CONFIG.timeCost,
+      parallelism: ARGON2_CONFIG.parallelism,
+    });
+  } catch (error) {
+    logger.error("Failed to check if password needs rehashing:", error);
+    // If we can't check, assume it needs rehashing for safety
+    return true;
+  }
 }
 
 /**
@@ -168,5 +171,5 @@ export async function needsRehashing(hashedPassword: string): Promise<boolean> {
  * @returns The current secure argon2 configuration
  */
 export function getPasswordConfig() {
-	return { ...ARGON2_CONFIG };
+  return { ...ARGON2_CONFIG };
 }

@@ -65,8 +65,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	let showConnectionStringHelper = $state(false);
 	let showAtlasHelper = $state(true); // Collapsible Atlas helper
 
+	import { SvelteSet } from 'svelte/reactivity';
+
 	// Track which fields have been touched (blurred)
-	let touchedFields = $state(new Set<string>());
+	let touchedFields = $state(new SvelteSet<string>());
 
 	// Real-time validation state (always computed, but only shown for touched fields)
 	let localValidationErrors = $state<ValidationErrors>({});
@@ -116,7 +118,6 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	}); // Handle field blur to mark as touched
 	function handleBlur(fieldName: string) {
 		touchedFields.add(fieldName);
-		touchedFields = touchedFields; // Trigger reactivity
 	} // Parse MongoDB connection string (Atlas or standard)
 	function parseMongoConnectionString(
 		connStr: string
@@ -251,20 +252,20 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		switch (dbConfig.type) {
 			case 'mongodb':
 				dbConfig.port = '27017';
-				if (!dbConfig.name) {
-					dbConfig.name = 'SveltyCMS';
+				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
+					dbConfig.name = 'sveltycms';
 				}
 				break;
 			case 'mariadb':
 				dbConfig.port = '3306';
-				if (!dbConfig.name) {
-					dbConfig.name = 'SveltyCMS';
+				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
+					dbConfig.name = 'sveltycms';
 				}
 				break;
 			case 'postgresql':
 				dbConfig.port = '5432';
-				if (!dbConfig.name) {
-					dbConfig.name = 'SveltyCMS';
+				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
+					dbConfig.name = 'sveltycms';
 				}
 				break;
 			case 'sqlite':
@@ -272,13 +273,13 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				dbConfig.host = 'config/database';
 				dbConfig.port = '';
 				if (!dbConfig.name || dbConfig.name === 'SveltyCMS' || dbConfig.name === 'SveltyCMS.db') {
-					dbConfig.name = 'SveltyCMS.db';
+					dbConfig.name = 'sveltycms.db';
 				}
 				break;
 			case 'mongodb+srv':
 				dbConfig.port = '';
-				if (!dbConfig.name) {
-					dbConfig.name = 'SveltyCMS';
+				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
+					dbConfig.name = 'sveltycms';
 				}
 				break;
 		}
@@ -287,7 +288,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	$effect(() => {
 		// Set default database name if empty
 		if (!dbConfig.name) {
-			dbConfig.name = 'SveltyCMS';
+			dbConfig.name = 'sveltycms';
 		}
 
 		unsupportedDbSelected = false; // All database types are now supported
@@ -687,6 +688,19 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					Connection Failed
 				</div>
 				<div class="mt-1">{errorMessage}</div>
+				{#if setupStore.wizard.lastDbTestResult?.hint}
+					<div class="mt-3 border-t border-white/20 pt-3 text-xs italic text-white/90">
+						<span class="font-bold uppercase tracking-wider text-white/50">Suggestion:</span>
+						<div class="mt-1 leading-relaxed">
+							{#each setupStore.wizard.lastDbTestResult.hint.split('\n') as step}
+								<div class="flex gap-2">
+									<span class="shrink-0 text-white/50">•</span>
+									<span>{step.replace(/^\d+\.\s*/, '')}</span>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
 			</div>
 		{/if}
 		{#if successMessage && !dbConfigChangedSinceTest}

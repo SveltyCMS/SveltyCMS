@@ -1,17 +1,17 @@
 ---
-path: 'docs/architecture/multi-tenancy.mdx'
-title: 'Multi-Tenancy Architecture'
-description: 'Architecture and implementation details of SveltyCMS Multi-Tenancy system.'
+path: "docs/architecture/multi-tenancy.mdx"
+title: "Multi-Tenancy Architecture"
+description: "Architecture and implementation details of SveltyCMS Multi-Tenancy system."
 order: 6
-icon: 'mdi:domain'
-author: 'admin'
-created: '2025-11-30'
-updated: '2026-03-03'
+icon: "mdi:domain"
+author: "SveltyCMS Team"
+created: "2025-11-30"
+updated: "2026-03-27"
 tags:
-  - 'architecture'
-  - 'multi-tenancy'
-  - 'database'
-  - 'security'
+  - "architecture"
+  - "multi-tenancy"
+  - "database"
+  - "security"
 ---
 
 # Multi-Tenancy Architecture
@@ -26,28 +26,28 @@ SveltyCMS treats tenants as first-class entities stored in the database. Each te
 
 ```typescript
 interface Tenant {
-	_id: string; // UUID
-	name: string;
-	status: 'active' | 'suspended' | 'pending';
-	ownerId?: string; // Link to owner User
-	plan: 'free' | 'pro' | 'enterprise';
+  _id: string; // UUID
+  name: string;
+  status: "active" | "suspended" | "pending";
+  ownerId?: string; // Link to owner User
+  plan: "free" | "pro" | "enterprise";
 
-	// Resource Quotas
-	quota: {
-		maxUsers: number;
-		maxStorageBytes: number;
-		maxCollections: number;
-	};
+  // Resource Quotas
+  quota: {
+    maxUsers: number;
+    maxStorageBytes: number;
+    maxCollections: number;
+  };
 
-	// Current Usage (Updated via Telemetry/Hooks)
-	usage: {
-		usersCount: number;
-		storageBytes: number;
-		collectionsCount: number;
-	};
+  // Current Usage (Updated via Telemetry/Hooks)
+  usage: {
+    usersCount: number;
+    storageBytes: number;
+    collectionsCount: number;
+  };
 
-	createdAt: string;
-	updatedAt: string;
+  createdAt: string;
+  updatedAt: string;
 }
 ```
 
@@ -94,18 +94,18 @@ Roles can be configured as either **global** or **tenant-specific**:
 ```typescript
 // Global Role (shared across all tenants)
 interface GlobalRole {
-	_id: string;
-	name: string;
-	permissions: string[];
-	tenantId?: undefined; // No tenantId = global
+  _id: string;
+  name: string;
+  permissions: string[];
+  tenantId?: undefined; // No tenantId = global
 }
 
 // Tenant-Specific Role
 interface TenantRole {
-	_id: string;
-	name: string;
-	permissions: string[];
-	tenantId: string; // Specific tenant ID
+  _id: string;
+  name: string;
+  permissions: string[];
+  tenantId: string; // Specific tenant ID
 }
 ```
 
@@ -124,7 +124,7 @@ await dbAdapter.auth.getAllRoles(tenantId);
 await dbAdapter.auth.getAllRoles(undefined);
 
 // Get tenant-specific roles
-await dbAdapter.auth.getAllRoles('tenant-123');
+await dbAdapter.auth.getAllRoles("tenant-123");
 ```
 
 ### Collections
@@ -134,18 +134,18 @@ Collections can be configured as **global** or **tenant-specific**:
 ```typescript
 // Global Collection (accessible to all tenants)
 interface GlobalCollection {
-	_id: string;
-	name: string;
-	nodeType: 'collection';
-	tenantId?: undefined; // No tenantId = global
+  _id: string;
+  name: string;
+  nodeType: "collection";
+  tenantId?: undefined; // No tenantId = global
 }
 
 // Tenant-Specific Collection
 interface TenantCollection {
-	_id: string;
-	name: string;
-	nodeType: 'collection';
-	tenantId: string; // Specific tenant ID
+  _id: string;
+  name: string;
+  nodeType: "collection";
+  tenantId: string; // Specific tenant ID
 }
 ```
 
@@ -159,11 +159,11 @@ All entries within a collection inherit the collection's isolation strategy:
 
 ```typescript
 interface CollectionEntry {
-	_id: string;
-	status?: 'published' | 'draft' | 'archived';
-	tenantId?: string; // Matches parent collection's tenantId
-	createdBy?: string;
-	updatedBy?: string;
+  _id: string;
+  status?: "published" | "draft" | "archived";
+  tenantId?: string; // Matches parent collection's tenantId
+  createdBy?: string;
+  updatedBy?: string;
 }
 ```
 
@@ -173,10 +173,10 @@ System settings support an explicit `isGlobal` flag:
 
 ```typescript
 interface SystemSetting {
-	key: string;
-	value: unknown;
-	isGlobal?: boolean; // true = shared across tenants
-	tenantId?: string; // undefined if isGlobal is true
+  key: string;
+  value: unknown;
+  isGlobal?: boolean; // true = shared across tenants
+  tenantId?: string; // undefined if isGlobal is true
 }
 ```
 
@@ -202,17 +202,24 @@ The `DatabaseAdapter` interface supports optional `tenantId` for most operations
 
 ```typescript
 interface IAuthAdapter {
-	// Roles
-	getAllRoles(tenantId?: string): Promise<Role[]>;
-	getRoleById(roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>>;
-	createRole(role: Role): Promise<DatabaseResult<Role>>;
-	updateRole(roleId: string, roleData: Partial<Role>, tenantId?: string): Promise<DatabaseResult<Role>>;
-	deleteRole(roleId: string, tenantId?: string): Promise<DatabaseResult<void>>;
+  // Roles
+  getAllRoles(tenantId?: string): Promise<Role[]>;
+  getRoleById(roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>>;
+  createRole(role: Role): Promise<DatabaseResult<Role>>;
+  updateRole(
+    roleId: string,
+    roleData: Partial<Role>,
+    tenantId?: string,
+  ): Promise<DatabaseResult<Role>>;
+  deleteRole(roleId: string, tenantId?: string): Promise<DatabaseResult<void>>;
 
-	// Users
-	getUserById(user_id: string, tenantId?: string): Promise<DatabaseResult<User | null>>;
-	getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<DatabaseResult<User | null>>;
-	// ...
+  // Users
+  getUserById(user_id: string, tenantId?: string): Promise<DatabaseResult<User | null>>;
+  getUserByEmail(criteria: {
+    email: string;
+    tenantId?: string;
+  }): Promise<DatabaseResult<User | null>>;
+  // ...
 }
 ```
 
@@ -234,7 +241,7 @@ Data isolation is enforced strictly via the `safeQuery` utility and Database Ada
 
    ```typescript
    // Example in MongoDB Adapter
-   const secureFilter = safeQuery({ status: 'active' }, currentTenantId);
+   const secureFilter = safeQuery({ status: "active" }, currentTenantId);
    // Result: { status: 'active', tenantId: 'tenant-123' }
    ```
 
@@ -245,11 +252,11 @@ Data isolation is enforced strictly via the `safeQuery` utility and Database Ada
    ```typescript
    // Internal system maintenance operating on global data
    const plugins = await dbAdapter.crud.findMany(
-   	'plugins',
-   	{},
-   	{
-   		tenantId: null // Explicit global scope
-   	}
+     "plugins",
+     {},
+     {
+       tenantId: null, // Explicit global scope
+     },
    );
    ```
 
@@ -289,11 +296,11 @@ Data isolation is enforced strictly via the `safeQuery` utility and Database Ada
    - When compiling collections, pass `tenantId` in `CompileOptions`:
      ```typescript
      await compile({
-     	tenantId: 'tenant-123', // Tenant-specific collection
-     	// or
-     	tenantId: null, // Global collection
-     	// or
-     	tenantId: undefined // No multi-tenancy (default)
+       tenantId: "tenant-123", // Tenant-specific collection
+       // or
+       tenantId: null, // Global collection
+       // or
+       tenantId: undefined, // No multi-tenancy (default)
      });
      ```
    - Compiled files include tenant metadata in header comments for debugging:
@@ -393,13 +400,22 @@ When switching from single-tenant to multi-tenant mode:
 
    ```typescript
    // Collections
-   db.collections.updateMany({ tenantId: { $exists: false } }, { $set: { tenantId: 'primary-tenant-id' } });
+   db.collections.updateMany(
+     { tenantId: { $exists: false } },
+     { $set: { tenantId: "primary-tenant-id" } },
+   );
 
    // Roles
-   db.roles.updateMany({ tenantId: { $exists: false } }, { $set: { tenantId: 'primary-tenant-id' } });
+   db.roles.updateMany(
+     { tenantId: { $exists: false } },
+     { $set: { tenantId: "primary-tenant-id" } },
+   );
 
    // Users
-   db.users.updateMany({ tenantId: { $exists: false } }, { $set: { tenantId: 'primary-tenant-id' } });
+   db.users.updateMany(
+     { tenantId: { $exists: false } },
+     { $set: { tenantId: "primary-tenant-id" } },
+   );
    ```
 
 3. **100% Separation**: After migration, all resources are fully isolated to the primary tenant by default
@@ -411,16 +427,16 @@ To share resources across tenants after migration, explicitly set `tenantId` to 
 ```typescript
 // Make a role global (shared across all tenants)
 await dbAdapter.auth.updateRole(
-	roleId,
-	{
-		tenantId: null
-	},
-	'primary-tenant-id'
+  roleId,
+  {
+    tenantId: null,
+  },
+  "primary-tenant-id",
 );
 
 // Make a collection global
 await dbAdapter.content.nodes.update(collectionPath, {
-	tenantId: null
+  tenantId: null,
 });
 ```
 
@@ -428,8 +444,8 @@ await dbAdapter.content.nodes.update(collectionPath, {
 
 ```typescript
 // Remove tenantId to make resource global
-await dbAdapter.crud.update('roles', roleId, {
-	tenantId: null // Explicitly set to null for global access
+await dbAdapter.crud.update("roles", roleId, {
+  tenantId: null, // Explicitly set to null for global access
 });
 ```
 
@@ -437,8 +453,8 @@ await dbAdapter.crud.update('roles', roleId, {
 
 ```typescript
 // Add tenantId to isolate resource
-await dbAdapter.crud.update('roles', roleId, {
-	tenantId: 'tenant-123'
+await dbAdapter.crud.update("roles", roleId, {
+  tenantId: "tenant-123",
 });
 ```
 
@@ -475,7 +491,7 @@ When enabling multi-tenancy:
 2. **Caching**: Use tenant-aware cache keys
 
    ```typescript
-   const cacheKey = tenantId ? `tenant:${tenantId}:roles` : 'global:roles';
+   const cacheKey = tenantId ? `tenant:${tenantId}:roles` : "global:roles";
    ```
 
 3. **Query Optimization**: Leverage global resources to reduce data duplication and improve query performance

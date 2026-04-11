@@ -1,0 +1,70 @@
+---
+path: "docs/tests/rbac-testing.mdx"
+title: "Role-Based Access Control (RBAC) Testing"
+description: "SveltyCMS role-based access control permission enforcement testing details."
+author: "SveltyCMS Team"
+created: "2025-12-16"
+updated: "2026-04-03"
+tags:
+  - "testing"
+  - "rbac"
+  - "security"
+  - "fail-closed"
+---
+
+**File**: `tests/unit/api/rbac.test.ts` (Unit)
+**File**: `tests/e2e/role-based-access.spec.ts` (E2E)
+
+## Test Scenarios
+
+### 1. Admin Role (Full Access)
+
+Tests that admin users can:
+
+- ✅ Access all system settings (`/config/system-settings`)
+- ✅ Manage users (`/config/user`)
+- ✅ Configure access management (`/config/accessManagement`)
+- ✅ Create invitation tokens (Email Token button visible)
+
+### 2. Developer Role (Limited Access)
+
+Tests that developer users:
+
+- ✅ CAN access system configuration
+- ✅ CAN access development tools and APIs
+- ❌ CANNOT manage users
+- ❌ CANNOT access user management pages
+
+**Expected Behavior**: Redirect or 403 Forbidden when accessing `/config/user`
+
+### 3. Editor Role (Content Only)
+
+Tests that editor users:
+
+- ✅ CAN access collections (`/collection`)
+- ✅ CAN create and edit content
+- ❌ CANNOT access system settings
+- ❌ CANNOT manage users
+- ❌ CANNOT access access management
+
+**Expected Behavior**: Redirect or 403 Forbidden for all config pages
+
+### 4. API Gatekeeper Enforcement
+
+All API endpoints are now protected by a central **Fail-Closed Dispatcher** in `src/routes/api/[...path]/+server.ts`. This layer ensures that:
+
+- ✅ Every request is checked against `ENDPOINT_PERMISSIONS`.
+- ✅ Users without the required permission receive a `403 Forbidden` response.
+- ✅ Unauthenticated users receive a `401 Unauthorized` response.
+- ✅ Unmapped endpoints are blocked by default.
+
+## Permission Matrix
+
+| Feature            | Admin | Developer | Editor |
+| :----------------- | :---- | :-------- | :----- |
+| System Settings    | ✅    | ✅        | ❌     |
+| User Management    | ✅    | ❌        | ❌     |
+| Access Management  | ✅    | ❌        | ❌     |
+| API Tools          | ✅    | ✅        | ❌     |
+| Content Management | ✅    | ✅        | ✅     |
+| Media Library      | ✅    | ✅        | ✅     |

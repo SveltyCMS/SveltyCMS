@@ -1,282 +1,347 @@
 ---
-path: 'docs/contributing/contributing-docs.mdx'
-title: 'Contributing to the Documentation'
-description: 'A comprehensive guide on how to contribute to the SveltyCMS documentation.'
+path: "docs/contributing/contributing-docs.mdx"
+title: "Contributing to the Documentation"
+description: "A comprehensive guide for all contributors — from fixing typos to writing deep technical references — covering style, structure, and process."
 order: 2
-icon: 'mdi:file-document-plus-outline'
-author: 'admin'
-created: '2025-09-28'
-updated: '2026-03-04'
+icon: "mdi:file-document-plus-outline"
+author: "SveltyCMS Team"
+created: "2025-09-28"
+updated: "2026-03-27"
 tags:
-  - 'documentation'
-  - 'contributing'
-  - 'mdx'
-  - 'guide'
+  - "documentation"
+  - "contributing"
+  - "mdx"
+  - "guide"
 ---
 
 # Documentation Contribution Guide
 
-High-quality documentation is the backbone of SveltyCMS. This guide provides a clear, actionable framework for all contributors—both human and AI—to create consistent, high-quality content.
+High-quality documentation is what makes SveltyCMS accessible to everyone — from first-time users to experienced engineers extending the core. This guide serves two audiences and is organized accordingly.
+
+**Jump to your section:**
+
+- 👥 **[For All Contributors](#for-all-contributors)** — Style, tone, and the writing approach that makes our docs excellent.
+- 🛠️ **[For Developers & AI Agents](#for-developers--ai-agents)** — Non-negotiable technical rules, canonical locations, frontmatter spec, and PR process.
 
 ---
 
-## The Golden Rules: Core Principles
+## For All Contributors
 
-All contributions **must** adhere to these foundational rules.
+You don't need to be a developer to improve SveltyCMS documentation. Typo fixes, clarity improvements, and outdated screenshots are just as valuable as new API references.
 
-> 1.  **MDX Only & Correct Locations**: All documentation files must be `.mdx` files and placed only in their designated canonical locations (see below).
-> 2.  **Centralized API Docs**: All API documentation **must** be located in `/docs/api/` to provide a single, unified reference.
-> 3.  **Current Functionality Only**: Document **only** what exists in the current codebase. Do not add documentation for planned features or unmerged changes.
-> 4.  **Assets in `/static/docs`**: All non-MDX assets (images, diagrams) **must** be placed in `/static/docs/` and referenced via an absolute path.
-> 5.  **Widget API Sync**: Any change to `src/routes/api/widgets/` or `src/stores/widget-store.svelte.ts` (add/remove/rename endpoint, response shape change) MUST update `/docs/api/Widget_API.mdx` in the same PR (refresh `updated`, status table, remove obsolete endpoints). Never leave docs out-of-sync.
+### Where to Start
 
----
+- **Typos & Grammar**: Every fix counts. If you spot it, fix it.
+- **Clarity**: If a step confused you, it will confuse others. Rewrite it.
+- **Outdated Info**: If the UI looks different from the docs, open an issue or a PR.
+- **Missing Examples**: If you solved a problem not covered in the docs, add it.
 
-## Canonical Documentation Locations
-
-To eliminate ambiguity, all documentation must be placed in one of the following locations. No other locations are permitted.
-
-### 1. API Documentation → `/docs/api/`
-
-- **What:** The complete reference for all REST API endpoints.
-- **Where:** `/docs/api/`
-- **Why:** Centralizes the entire API surface in one place for a holistic, easy-to-navigate user experience.
-
-### 2. Widget Documentation → `src/widgets/...`
-
-- **What:** Documentation for a specific widget.
-- **Where:** `src/widgets/core/[widget-folder]/[widget-name].mdx`
-- **Why:** Co-locating documentation with the widget's source code makes it self-contained and easier to maintain.
-
-### 3. General Documentation → `/docs/...`
-
-- **What:** All other guides, tutorials, and explanations (including this one).
-- **Where:** Sub-folders within `/docs/` (e.g., `/docs/guides/`, `/docs/contributing/`).
-- **Why:** Provides a central library for all topic-based information that isn't tied to a specific widget or API endpoint.
+> [!TIP]
+> **Quick Fixes**: For small corrections, you can edit any page directly on GitHub by navigating to the file and clicking the pencil icon. No local setup required.
 
 ---
 
-## Instructions for Documentation Creation
+### The "User-First" Writing Approach
 
-To maintain consistency and quality, all contributors should adhere to the following workflow and rules.
+When writing or rewriting any section, structure your content in this order:
 
-### Guiding Principles
+1. **The Goal** — What is a user (Content Creator, Admin, or Developer) trying to achieve? State it in one sentence.
+2. **The Solution** — Clear, step-by-step instructions (screenshots, code snippets) to achieve that goal.
+3. **The Mechanics** — _(Optional & Final)_ — Explain the architecture, state machines, or DB-agnostic adapters _after_ the goal is achieved. Never lead with mechanics for high-level guides.
 
-- **Act as an Expert:** Write as an expert technical writer for the SveltyCMS project.
-- **Goal:** Produce clear, accurate, and perfectly formatted documentation that is easy for all users to understand.
-- **Voice:** Professional, direct, and concise. Use American English.
-
-### Authoring Workflow
-
-1.  **Analyze Context:** Before writing, thoroughly analyze the request, existing code, and related documentation to understand the goal.
-2.  **Adhere to Rules:** Follow all rules in this guide, especially the **Golden Rules** and the **Frontmatter Guide**.
-3.  **Write Content:** Create the MDX content, focusing on clarity, accuracy, and practical examples.
-4.  **Validate Frontmatter:** Ensure the YAML frontmatter is complete, correct, and matches the file's location and content.
-5.  **Verify Paths:** Double-check that all asset and internal links use correct, absolute paths.
-
-### Core Authoring Rules
-
-- **ALWAYS** place documentation in the correct canonical location as defined above.
-- **ALWAYS** ensure the `path` field in the frontmatter is the exact, full path of the file from the project root.
-- **NEVER** create `.md` files. Only create `.mdx` files.
-- **NEVER** place images or other assets anywhere except `/static/docs/`.
+> [!IMPORTANT]
+> **Multi-Persona Balance**: Documentation is not just for developers. Every major guide (like Getting Started) must provide distinct paths for **Content Creators** (layout, workflows), **Administrators** (settings, permissions), and **Engineers** (setup, mechanics).
+>
+> **1:1 Technical Alignment**: Before documenting any function, endpoint, or component, find it in the `src/` directory first. Document the **actual** parameter names and behavior — not what you expect them to be. If the code and the existing docs disagree, the code is correct.
 
 ---
-
-## Documentation Structure Example
-
-This example shows the correct placement for different types of documentation.
-
-```
-# 1. General and API documentation in /docs
-docs/
-├── api/                              # API docs are ONLY here
-│   ├── index.mdx                     # API overview and authentication guide
-│   └── Authentication_2FA_API.mdx    # Two-factor authentication endpoints
-│   ├── Collection_API.mdx            # Collection CRUD operations
-│   ├── User_Token_Management_API.mdx # User and token management
-│   ├── Widget_API.mdx                # Widget management endpoints
-│   ├── Settings_API.mdx              # System settings endpoints
-│   ├── Media_API.mdx                 # Media upload and management
-│   └── ...                           # Other core Apis
-│
-└──  contributing/                    # Contributor documentation
-    ├── contributing-docs.mdx         # This file
-    ├── code-of-conduct.mdx           # Code of conduct
-    └── pull-requests.mdx             # PR guidelines
-
-# 2. Widget documentation in /src/widgets per Widget
-src/
-└── widgets/                          # All widget documentation
-│   ├── index.mdx                     # Widget system overview & 3-pillar architecture
-│   ├── Creating_Custom_Widgets.mdx   # Guide for creating widgets
-│   ├── Widget_Management_System.mdx  # Management features & lifecycle
-│   ├── Widget_Marketplace_System.mdx # Marketplace integration
-│   └── core/                         # Individual core widget docs
-│       ├── text.mdx                  # Text input widget
-│       ├── richText.mdx              # Rich text editor widget
-│       ├── mediaUpload.mdx           # Media upload widget
-│       ├── relation.mdx              # Relation widget
-│       └── ...                       # Other core widgets
-```
-
----
-
-## Frontmatter Guide
-
-Every MDX file must begin with a YAML frontmatter block enclosed by `---` lines. This metadata is critical for navigation, search, and display.
-
-### Required fields
-
-| Field       | Required | Purpose                                                                                        | Example Value                              |
-| ----------- | -------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| path        | Yes      | Full path from project root. Used for routing and identification.                              | `"docs/api/Authentication_2FA_API.mdx"`    |
-| title       | Yes      | Main heading (H1). Shown in navigation, browser tab, and search results.                       | `"Two-Factor Authentication API"`          |
-| description | Yes      | One-sentence summary for SEO and previews.                                                     | `"Complete 2FA API endpoint reference."`   |
-| order       | Yes      | Position in sidebar navigation relative to siblings. Lower numbers appear first.               | `2`                                        |
-| icon        | Yes      | Material Design Icon with `mdi:` prefix.                                                       | `"mdi:shield-lock"`                        |
-| author      | Yes      | GitHub username of original author.                                                            | `"admin"`                                  |
-| created     | Yes      | Creation date in YYYY-MM-DD format.                                                            | `"2025-10-05"`                             |
-| updated     | Yes      | Last significant update date. Update with every meaningful change.                             | `"2025-10-05"`                             |
-| tags        | Yes      | Array of relevant keywords for search and filtering. Use lowercase, kebab-case for multi-word. | `["api", "authentication", "2fa", "totp"]` |
-
----
-
-## Managing Assets (Images, Diagrams, Videos)
-
-All non-MDX files must be placed in the `/static/docs/` directory to keep documentation folders clean.
-
-### Rules
-
-- **Location**: `/static/docs/`
-- **Structure**: Mirror the `/docs/` directory structure
-- **Example**: Image for `/docs/api/Authentication_2FA_API.mdx` goes in `/static/docs/api/`
-
-### Referencing Assets
-
-Always use absolute paths from the root:
-
-```markdown
-![2FA Setup Flow](/docs/api/2fa-setup-flow.png)
-```
-
-### Asset Guidelines
-
-- **Formats**: PNG for screenshots, SVG for diagrams/icons
-- **Optimization**: Keep files under 500KB
-- **Naming**: Use descriptive kebab-case names (e.g., `api-authentication-flow.svg`)
-- **Alt Text**: Always provide meaningful alt text for accessibility
-
----
-
-## Content Best Practices
 
 ### Writing Style
 
-- **Clarity**: Use active voice, short sentences, plain language
-- **Structure**: Start with intro, use H2/H3 headings, end with summary or next steps
-- **Examples**: Provide practical code snippets and real-world examples
-- **Consistency**: Follow existing doc style. Use American English.
-- **Accessibility**: Add alt text, ensure good contrast, make content scannable
+- **Voice**: Professional, direct, and concise. Use American English.
+- **Active voice**: "Click Save" not "The Save button should be clicked."
+- **Short sentences**: One idea per sentence.
+- **Real examples**: Every concept should have a working code snippet or step-by-step scenario.
+- **Scannable structure**: Use H2/H3 headings, and end sections with a clear next step or summary.
 
-### MDX-Specific Guidance
+---
 
-- **Basic Markdown**: Use standard syntax (bold, italics, lists, links, code blocks with language tags)
-- **Code Blocks**: Always specify language for syntax highlighting:
+### When to Use a Mermaid Diagram
+
+Use a diagram when the relationship between **three or more components** is not immediately obvious from prose alone. Do not add diagrams for decoration.
+
+**Good candidates**: Authentication flows, middleware pipelines, provisioning sequences, state machines, cache layers.
+
+**Skip the diagram**: For a single API endpoint, a two-step process, or anything a one-sentence description handles clearly.
+
+---
+
+### MDX Formatting Features
+
+#### GitHub-Style Alerts
+
+Use these callouts to surface critical information. Do not overuse them — if everything is important, nothing is.
+
+```markdown
+> [!NOTE]
+> General information that provides useful context.
+
+> [!TIP]
+> A helpful shortcut or best practice.
+
+> [!IMPORTANT]
+> An essential requirement the user must not miss.
+
+> [!WARNING]
+> A potential pitfall or side effect to be aware of.
+
+> [!CAUTION]
+> A high-risk action that may cause data loss or breakage.
+```
+
+#### Mermaid Diagrams
 
 ````markdown
-```typescript
-// TypeScript code here
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant DB
+    Client->>API: Request + Token
+    API->>DB: Verify & Query
+    DB-->>API: Data
+    API-->>Client: JSON Response
 ```
 ````
 
-- **JSX Components**: Use sparingly, only for interactive elements
-- **Escaping**: Use backticks or HTML entities (`&lt;`, `&gt;`) for literal angle brackets
+#### Code Blocks
+
+Always specify the language for syntax highlighting:
+
+````markdown
+```typescript
+// TypeScript example
+const result = await db.collections.findOne({ id });
+```
+````
 
 ---
 
+## For Developers & AI Agents
+
+This section contains non-negotiable rules. All PRs are checked against these standards before review.
+
 ---
 
-## Review and Update Process
+### ⚠️ The Golden Rules
+
+These rules are enforced. A PR that violates them will not be merged.
+
+> 1. **MDX Only, Correct Locations**: All documentation files must be `.mdx`. No `.md` files. Files must be placed in their designated canonical location (see below) — no exceptions.
+> 2. **Centralized API Docs**: All API documentation **must** live in `/docs/api/`. API content scattered elsewhere will be rejected.
+> 3. **Current Functionality Only**: Document only what exists in the current codebase. Do not document planned features, unmerged branches, or aspirational behavior.
+> 4. **Comprehensive Indexing**: Index pages (e.g., `api/index.mdx`) must serve as a complete map. They **must** link to every child document in their category. A partial index that misses sub-pages is considered broken navigation.
+> 5. **Assets in `/static/docs/`**: All non-MDX assets (images, SVGs, diagrams) **must** be placed in `/static/docs/` and referenced via absolute paths. No assets in `/docs/` itself.
+> 6. **Widget API Sync Rule**: Any change to `src/routes/api/widgets/` or `src/stores/widget-store.svelte.ts` — adding, removing, or renaming an endpoint, or changing a response shape — **must** update `/docs/api/Widget_API.mdx` in the same PR. This means refreshing the `updated` date, updating the status table, and removing any obsolete endpoints. Never leave these out of sync.
+> 7. **Thin API Pattern**: All new API routes in `src/routes/api/` must follow the **Thin Wrapper** pattern. Logic should reside in the **Local SDK** (`src/routes/api/cms.ts`) or a dedicated service. The `+server.ts` file should only handle request parsing, calling `locals.cms`, and returning a JSON response.
+> 8. **Local SDK Alignment**: When adding or modifying core CMS functionality, ensure it is exposed through the `LocalCMS` class. Documentation for these features must highlight the performance benefits of using the Local SDK over external HTTP calls.
+
+---
+
+### Canonical Documentation Locations
+
+Place files only in these locations. No other locations are permitted.
+
+| Content Type       | Location                                           | Reason                                           |
+| :----------------- | :------------------------------------------------- | :----------------------------------------------- |
+| **API Reference**  | `/docs/api/`                                       | Single unified surface for all endpoint docs.    |
+| **General Guides** | `/docs/guides/`                                    | Central library for feature and workflow guides. |
+| **Architecture**   | `/docs/architecture/`                              | Internal mechanics and system design.            |
+| **Contributing**   | `/docs/contributing/`                              | Process and standards docs (like this file).     |
+| **Widget Docs**    | `src/widgets/core/{widget-name}/{widget-name}.mdx` | Co-located with source for maintainability.      |
+
+#### Canonical Structure Reference
+
+```
+SveltyCMS/
+├── docs/
+│   ├── api/                              # ALL API docs — no exceptions
+│   │   ├── index.mdx                     # API overview and auth guide
+│   │   ├── Authentication_2FA_API.mdx
+│   │   ├── Collection_API.mdx
+│   │   ├── Widget_API.mdx                # Must stay in sync with widget store
+│   │   ├── Settings_API.mdx
+│   │   ├── Media_API.mdx
+│   │   └── ...
+│   ├── architecture/                     # Internal mechanics
+│   ├── guides/                           # Feature guides and tutorials
+│   └── contributing/
+│       ├── contributing-docs.mdx         # This file
+│       ├── code-of-conduct.mdx
+│       └── pull-requests.mdx
+└── src/
+    └── widgets/
+        └── core/
+            ├── text/
+            │   └── text.mdx              # Co-located widget doc
+            ├── richText/
+            │   └── richText.mdx
+            └── ...
+```
+
+---
+
+### Frontmatter Specification
+
+Every `.mdx` file must begin with a complete YAML frontmatter block. All fields are required.
+
+| Field         | Type   | Purpose                                                                                                          | Example                                     |
+| :------------ | :----- | :--------------------------------------------------------------------------------------------------------------- | :------------------------------------------ |
+| `path`        | string | Full path from project root. Used for routing and identification. Must exactly match the file's actual location. | `"docs/api/Collection_API.mdx"`             |
+| `title`       | string | Main H1 heading. Shown in navigation, browser tab, and search results.                                           | `"Collection API"`                          |
+| `description` | string | One-sentence summary for SEO and link previews.                                                                  | `"CRUD operations for collection entries."` |
+| `order`       | number | Position in sidebar navigation relative to siblings. Lower = higher.                                             | `15`                                        |
+| `icon`        | string | Material Design Icon with `mdi:` prefix.                                                                         | `"mdi:api"`                                 |
+| `author`      | string | GitHub username of the original author.                                                                          | `"your-github-handle"`                      |
+| `created`     | string | Creation date in `YYYY-MM-DD` format. Set once, never change.                                                    | `"2025-10-05"`                              |
+| `updated`     | string | Date of last meaningful change. Update with every PR that modifies content.                                      | `"2026-03-27"`                              |
+| `tags`        | array  | Lowercase kebab-case keywords for search and filtering.                                                          | `["api", "collections", "crud"]`            |
+
+**Correct frontmatter example:**
+
+```yaml
+---
+path: "docs/api/Collection_API.mdx"
+title: "Content & Collections API"
+description: "REST API for managing content entries with multi-tenant isolation."
+order: 15
+icon: "mdi:database"
+author: "your-github-handle"
+created: "2026-01-10"
+updated: "2026-03-27"
+tags:
+  - "api"
+  - "collections"
+  - "crud"
+  - "rest"
+---
+```
+
+---
+
+### Asset Management
+
+All non-MDX files (images, screenshots, SVGs) must follow these rules:
+
+- **Location**: `/static/docs/` — mirror the `/docs/` directory structure beneath it.
+- **Example**: An image for `/docs/api/Collection_API.mdx` belongs in `/static/docs/api/`.
+- **Reference**: Always use absolute paths from the project root.
+
+```markdown
+![Collection API flow diagram](/docs/api/collection-api-flow.svg)
+```
+
+**File standards:**
+
+- **Format**: PNG for screenshots, SVG for diagrams and icons.
+- **Size**: Keep files under 500KB. Compress screenshots before committing.
+- **Naming**: Descriptive kebab-case (e.g., `saml-handshake-flow.svg`).
+- **Alt text**: Always required. Describe what the image conveys, not what it looks like.
+
+---
 
 ### Pull Request Workflow
 
-1. **Create Branch**: Make documentation changes in a feature branch
-2. **Run Linter**: Execute `bun ./docs/lint-docs.ts` and fix any errors
-3. **Verify CI Parity**: If code changes were made, run `bun run lint && bun run check && bun run test`
-4. **Submit PR**: Create pull request with descriptive title
-5. **Review**: Reviewers check for accuracy, clarity, and adherence to guidelines
-6. **Update `updated` field**: Change the date in frontmatter
-7. **Merge**: Once approved, changes are merged
+Documentation is treated with the same rigor as code. Every contribution passes through the same gates before it reaches `main`.
 
-### Updating Existing Docs
-
-- Always update the `updated` field in frontmatter
-- Keep changes focused on one topic per PR
-- Add a commit message explaining what changed
-
-### Versioning
-
-- Documentation is versioned with the code
-- Major changes may need release notes
-- Breaking API changes must be documented immediately
-
----
-
-## Checklist for New Documentation
-
-Before submitting a PR:
-
-- [ ] **Correct Location**: The file is in its designated canonical location.
-- [ ] Frontmatter is complete with all required fields.
-- [ ] `path` field matches actual file location.
-- [ ] Content is clear, accurate, and follows best practices.
-- [ ] Code examples are tested and working.
-- [ ] Assets are in `/static/docs/` with correct structure.
-- [ ] File is `.mdx` format (not `.md`).
-- [ ] Linter passes: `bun ./docs/lint-docs.ts`.
-- [ ] `updated` field reflects current date.
-- [ ] If widgets API or store changed: `docs/api/Widget_API.mdx` synced (status table & removed endpoints handled).
-- [ ] Tags are relevant and lowercase/kebab-case.
-- [ ] Links to other docs use correct paths.
-- [ ] Tested rendering in the CMS (if possible).
-
----
-
-## Tools and Validation
-
-### Frontmatter Linter
-
-To ensure all documentation is valid, run the linter before submitting a pull request. This tool checks files in both `docs/` and `src/widgets/`.
-
-```bash
-bun ./docs/lint-docs.ts
+```mermaid
+flowchart LR
+    A([✏️ Edit / Author]) --> B[Verify src/ Alignment]
+    B --> C{Widget API\nchanged?}
+    C -- Yes --> D[Update Widget_API.mdx\nin same PR]
+    C -- No --> E[Run Linter\nbun lint-docs.ts]
+    D --> E
+    E --> F{Code also\nchanged?}
+    F -- Yes --> G[Run CI Parity\nlint + check + test]
+    F -- No --> H[Open Pull Request]
+    G --> H
+    H --> I[Peer Review]
+    I --> J{Approved?}
+    J -- Changes needed --> A
+    J -- Yes --> K([🚀 Merged to main])
 ```
 
-This tool validates all `.mdx` files, reports errors, and identifies any `.md` files that need to be converted. A passing linter is a requirement for merging.
+1. **Branch**: Create a branch with a descriptive name.
 
-The linter will:
+   ```bash
+   git checkout -b docs/fix-collection-api-filter-params
+   ```
 
-- ✅ Validate all `.mdx` files in `docs/` and `src/widgets/` directories
-- 🔍 Detect `.md` files that need conversion to `.mdx`
-- ❌ Report frontmatter errors with helpful messages
-- 📊 Display summary with validation results
+2. **Verify source alignment**: If documenting code behavior, open the relevant file in `src/` and confirm every parameter name, return value, and sequence matches what you've written.
 
-**Always run the linter before submitting a PR.**
+3. **Lint**: Run the documentation linter and fix all errors before pushing.
+
+   ```bash
+   bun ./tests/lint-docs.ts
+   ```
+
+4. **CI parity** _(if code was also changed)_: Run the full check suite.
+
+   ```bash
+   bun run lint && bun run check && bun run test
+   ```
+
+5. **Update `updated` field**: Change the date in frontmatter to today's date.
+
+6. **Submit PR**: Use a clear title following the convention:
+
+   ```
+   docs: add filter operator reference to SCIM API
+   docs: fix outdated widget sync steps in troubleshooting
+   docs: overhaul getting-started for user-first structure
+   ```
+
+7. **AI agent commits**: If an AI agent authored or co-authored the content, include in the commit message:
+   ```
+   Co-Authored-By: Antigravity <agent@sveltycms.com>
+   ```
+
+---
+
+### Pre-Submission Checklist
+
+Before opening a PR, verify every item:
+
+- [ ] File is `.mdx` format — not `.md`
+- [ ] File is in its correct canonical location
+- [ ] `path` field in frontmatter matches the actual file path exactly
+- [ ] All required frontmatter fields are present and correctly typed
+- [ ] `updated` field reflects today's date
+- [ ] Content documents only current, existing functionality
+- [ ] Every parameter name and return value verified against `src/`
+- [ ] Code examples are tested and functional
+- [ ] Assets are in `/static/docs/` with mirrored directory structure
+- [ ] All asset references use absolute paths
+- [ ] Alt text provided for every image
+- [ ] Tags are lowercase and kebab-case
+- [ ] Internal links use correct canonical paths
+- [ ] Linter passes: `bun ./docs/lint-docs.ts`
+- [ ] **If `src/routes/api/widgets/` or `src/stores/widget-store.svelte.ts` changed**: `Widget_API.mdx` updated in this same PR (status table refreshed, obsolete endpoints removed, `updated` date changed)
+- [ ] Rendered correctly in the CMS preview (if available)
 
 ---
 
 ## Questions and Support
 
-- **Documentation Issues**: Open an issue on GitHub
-- **Unclear Guidelines**: Ask in GitHub Discussions
-- **Contribution Help**: Tag maintainers in your PR
+- **Unclear guidelines**: Ask in [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
+- **Documentation bugs**: Open a [GitHub Issue](https://github.com/SveltyCMS/SveltyCMS/issues)
+- **PR review help**: Tag a maintainer in your pull request
 
 ---
 
 ## Related Documents
 
-- [Code of Conduct](./code-of-conduct.mdx)
-- [Pull Request Guidelines](./pull-requests.mdx)
+- [Code of Conduct](../../CODE-OF-CONDUCT.md)
+- [Pull Request Guidelines](../../CONTRIBUTING.md)
 - [API Documentation](../api/index.mdx)
-- [Widget System](../widgets/index.mdx)
+- [Widget System Guide](../guides/development/widgets/index.mdx)

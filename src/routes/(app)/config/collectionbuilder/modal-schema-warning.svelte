@@ -21,47 +21,47 @@ Requires user confirmation before proceeding with changes that may cause data lo
 -->
 
 <script lang="ts">
-	import type { BreakingChange } from '@utils/collection-schema-warnings';
-	import { fade, slide } from 'svelte/transition';
+import type { BreakingChange } from "@utils/collection-schema-warnings";
+import { fade, slide } from "svelte/transition";
 
-	interface Props {
-		breakingChanges: BreakingChange[];
-		collectionName: string;
-		onCancel: () => void;
-		onConfirm: () => void;
+interface Props {
+	breakingChanges: BreakingChange[];
+	collectionName: string;
+	onCancel: () => void;
+	onConfirm: () => void;
+}
+
+let { breakingChanges, collectionName, onConfirm, onCancel }: Props = $props();
+
+// Separate data loss changes from other breaking changes
+const dataLossChanges = $derived(breakingChanges.filter((c) => c.dataLoss));
+const otherChanges = $derived(breakingChanges.filter((c) => !c.dataLoss));
+const hasDataLoss = $derived(dataLossChanges.length > 0);
+
+// Confirmation checkbox state (required for data loss)
+let confirmed = $state(false);
+const canProceed = $derived(!hasDataLoss || confirmed);
+
+// Icon mapping for change types
+const typeIcons: Record<string, string> = {
+	field_removed: "mdi:database-remove",
+	field_renamed: "mdi:form-textbox",
+	type_changed: "mdi:swap-horizontal",
+	required_added: "mdi:asterisk",
+	unique_added: "mdi:key-variant",
+};
+
+function handleConfirm() {
+	if (canProceed) {
+		onConfirm();
 	}
+}
 
-	let { breakingChanges, collectionName, onConfirm, onCancel }: Props = $props();
-
-	// Separate data loss changes from other breaking changes
-	const dataLossChanges = $derived(breakingChanges.filter((c) => c.dataLoss));
-	const otherChanges = $derived(breakingChanges.filter((c) => !c.dataLoss));
-	const hasDataLoss = $derived(dataLossChanges.length > 0);
-
-	// Confirmation checkbox state (required for data loss)
-	let confirmed = $state(false);
-	const canProceed = $derived(!hasDataLoss || confirmed);
-
-	// Icon mapping for change types
-	const typeIcons: Record<string, string> = {
-		field_removed: 'mdi:database-remove',
-		field_renamed: 'mdi:form-textbox',
-		type_changed: 'mdi:swap-horizontal',
-		required_added: 'mdi:asterisk',
-		unique_added: 'mdi:key-variant'
-	};
-
-	function handleConfirm() {
-		if (canProceed) {
-			onConfirm();
-		}
+function handleKeydown(e: KeyboardEvent) {
+	if (e.key === "Escape") {
+		onCancel();
 	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') {
-			onCancel();
-		}
-	}
+}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

@@ -1,14 +1,14 @@
 ---
-path: 'docs/architecture/login-error-handling.mdx'
+path: "docs/architecture/login-error-handling.mdx"
 title: Login Error Handling & Recovery
 description: How SveltyCMS handles database errors and provides recovery options for users
-author: 'SveltyCMS Team'
-created: '2025-12-16'
-updated: '2025-12-16'
+author: "SveltyCMS Team"
+created: "2025-12-16"
+updated: "2026-03-27"
 tags:
-  - 'architecture'
-  - 'error-handling'
-  - 'login'
+  - "architecture"
+  - "error-handling"
+  - "login"
 ---
 
 # Login Error Handling & Recovery
@@ -27,18 +27,18 @@ The login flow leverages the existing state management system for optimal perfor
 
 ```typescript
 // Check system state first - avoid unnecessary DB queries
-const { getSystemState, isServiceHealthy } = await import('@src/stores/system');
+const { getSystemState, isServiceHealthy } = await import("@src/stores/system");
 const systemState = getSystemState();
 
 // Fast path: System already knows it's in FAILED state
-if (systemState.overallState === 'FAILED') {
-	// Return error immediately without waiting for timeout
-	return showDatabaseError(lastFailure.reason);
+if (systemState.overallState === "FAILED") {
+  // Return error immediately without waiting for timeout
+  return showDatabaseError(lastFailure.reason);
 }
 
 // Fast path: Database service is marked unhealthy
-if (!isServiceHealthy('database')) {
-	return showDatabaseError(dbStatus.message);
+if (!isServiceHealthy("database")) {
+  return showDatabaseError(dbStatus.message);
 }
 ```
 
@@ -54,22 +54,22 @@ After checking state management, a lightweight database verification confirms se
 
 ```typescript
 async function checkDatabaseHealth(): Promise<{ healthy: boolean; reason?: string }> {
-	// Step 1: Check state management (instant, cached)
-	const systemState = getSystemState();
-	if (!isServiceHealthy('database')) {
-		return { healthy: false, reason: dbStatus.message };
-	}
+  // Step 1: Check state management (instant, cached)
+  const systemState = getSystemState();
+  if (!isServiceHealthy("database")) {
+    return { healthy: false, reason: dbStatus.message };
+  }
 
-	// Step 2: Verify database has data (quick query)
-	const rolesResult = await dbAdapter.roles.getAll();
-	if (rolesResult.data.length === 0) {
-		return {
-			healthy: false,
-			reason: 'Database is empty - setup may not have completed'
-		};
-	}
+  // Step 2: Verify database has data (quick query)
+  const rolesResult = await dbAdapter.roles.getAll();
+  if (rolesResult.data.length === 0) {
+    return {
+      healthy: false,
+      reason: "Database is empty - setup may not have completed",
+    };
+  }
 
-	return { healthy: true };
+  return { healthy: true };
 }
 ```
 
@@ -176,20 +176,20 @@ When configuration is corrupted or database was manually deleted:
 ```typescript
 // /src/routes/setup/reset/+server.ts
 export const POST: RequestHandler = async ({ locals }) => {
-	// Security check
-	const systemState = getSystemState();
-	const isAdmin = locals.user?.role === 'admin';
-	const isSystemFailed = systemState.overallState === 'FAILED';
+  // Security check
+  const systemState = getSystemState();
+  const isAdmin = locals.user?.role === "admin";
+  const isSystemFailed = systemState.overallState === "FAILED";
 
-	if (!isAdmin && !isSystemFailed) {
-		return json({ error: 'Unauthorized' }, { status: 403 });
-	}
+  if (!isAdmin && !isSystemFailed) {
+    return json({ error: "Unauthorized" }, { status: 403 });
+  }
 
-	// Delete config and clear cache
-	await unlink('config/private.ts');
-	clearPrivateConfigCache();
+  // Delete config and clear cache
+  await unlink("config/private.ts");
+  clearPrivateConfigCache();
 
-	return json({ success: true });
+  return json({ success: true });
 };
 ```
 
@@ -217,10 +217,10 @@ const systemState = getSystemState();
 // Check database service metrics
 const dbMetrics = systemState.services.database.metrics;
 console.log({
-	failureCount: dbMetrics.failureCount,
-	consecutiveFailures: dbMetrics.consecutiveFailures,
-	lastFailureAt: dbMetrics.lastFailureAt,
-	uptimePercentage: dbMetrics.uptimePercentage
+  failureCount: dbMetrics.failureCount,
+  consecutiveFailures: dbMetrics.consecutiveFailures,
+  lastFailureAt: dbMetrics.lastFailureAt,
+  uptimePercentage: dbMetrics.uptimePercentage,
 });
 ```
 
@@ -230,10 +230,10 @@ console.log({
 
 ```typescript
 // Wait for page load before checking for database form
-await page.waitForLoadState('networkidle');
+await page.waitForLoadState("networkidle");
 
 // Extended timeout for database configuration to appear
-await expect(page.getByRole('heading', { name: /database/i })).toBeVisible({ timeout: 30000 });
+await expect(page.getByRole("heading", { name: /database/i })).toBeVisible({ timeout: 30000 });
 ```
 
 **Why `networkidle`?**
@@ -278,8 +278,8 @@ await expect(page.getByRole('heading', { name: /database/i })).toBeVisible({ tim
 ## Related Documentation
 
 - [State Management Architecture](./state-management.mdx)
-- [Database Health Checks](./database-health.mdx)
-- [Setup Wizard](../guides/setup-wizard.mdx)
+- [Database Health Checks](./database/database-resilience.mdx)
+- [Setup Wizard](../guides/configuration/setup-wizard.mdx)
 - [Troubleshooting Guide](../troubleshooting.mdx)
 
 ## Future Enhancements

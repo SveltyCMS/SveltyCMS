@@ -8,23 +8,23 @@
  * - Type definitions for triggers, operations, and flows
  */
 
-export { automationService } from './automation-service';
-export { eventBus } from './event-bus';
+export { automationService } from "./automation-service";
+export { eventBus } from "./event-bus";
 export type {
-	AutomationEvent,
-	AutomationEventPayload,
-	AutomationFlow,
-	AutomationOperation,
-	AutomationTrigger,
-	ConditionOperationConfig,
-	EmailOperationConfig,
-	ExecutionLogEntry,
-	ExecutionStatus,
-	LogOperationConfig,
-	OperationConfig,
-	OperationType,
-	SetFieldOperationConfig,
-	TriggerType,
-	WebhookOperationConfig
-} from './types';
-export { AUTOMATION_EVENTS, OPERATION_TYPES } from './types';
+  AutomationEvent,
+  AutomationEventPayload,
+  AutomationFlow,
+  AutomationOperation,
+  AutomationTrigger,
+  ConditionOperationConfig,
+  EmailOperationConfig,
+  ExecutionLogEntry,
+  ExecutionStatus,
+  LogOperationConfig,
+  OperationConfig,
+  OperationType,
+  SetFieldOperationConfig,
+  TriggerType,
+  WebhookOperationConfig,
+} from "./types";
+export { AUTOMATION_EVENTS, OPERATION_TYPES } from "./types";

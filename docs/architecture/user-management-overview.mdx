@@ -1,20 +1,20 @@
 ---
-path: 'docs/architecture/user-management-overview.mdx'
-title: 'User Management System Overview'
-description: 'A comprehensive overview of the user page, admin area, audit logging, and two-factor authentication (2FA) system in SveltyCMS.'
+path: "docs/architecture/user-management-overview.mdx"
+title: "User Management System Overview"
+description: "A comprehensive overview of the user page, admin area, audit logging, and two-factor authentication (2FA) system in SveltyCMS."
 order: 4
-icon: 'mdi:account-group'
-author: 'admin'
-created: '2025-10-17'
-updated: '2025-10-17'
+icon: "mdi:account-group"
+author: "SveltyCMS Team"
+created: "2025-10-17"
+updated: "2026-03-27"
 tags:
-  - 'user-management'
-  - 'admin'
-  - 'authentication'
-  - '2fa'
-  - 'security'
-  - 'audit-logging'
-  - 'guide'
+  - "user-management"
+  - "admin"
+  - "authentication"
+  - "2fa"
+  - "security"
+  - "audit-logging"
+  - "guide"
 ---
 
 # User Management System Overview
@@ -228,44 +228,44 @@ The system tracks 24 different event types organized into key categories:
 ### Usage Examples
 
 ```typescript
-import { logAuditEvent, AuditEventType } from '@src/services/auditLogService';
+import { logAuditEvent, AuditEventType } from "@src/services/auditLogService";
 
 // Log a successful user login
 await logAuditEvent({
-	eventType: AuditEventType.USER_LOGIN,
-	severity: 'low',
-	actorId: user.id,
-	actorEmail: user.email,
-	action: 'User successfully logged in',
-	details: { loginMethod: 'email', userAgent: request.headers['user-agent'] },
-	ipAddress: request.ip,
-	result: 'success'
+  eventType: AuditEventType.USER_LOGIN,
+  severity: "low",
+  actorId: user.id,
+  actorEmail: user.email,
+  action: "User successfully logged in",
+  details: { loginMethod: "email", userAgent: request.headers["user-agent"] },
+  ipAddress: request.ip,
+  result: "success",
 });
 
 // Log a failed privilege escalation attempt
 await logAuditEvent({
-	eventType: AuditEventType.PRIVILEGE_ESCALATION,
-	severity: 'critical',
-	actorId: user.id,
-	actorEmail: user.email,
-	action: 'Attempted to access admin-only resource',
-	details: { requestedResource: '/admin/users', userRole: user.role },
-	ipAddress: request.ip,
-	result: 'failure',
-	errorDetails: 'Insufficient permissions'
+  eventType: AuditEventType.PRIVILEGE_ESCALATION,
+  severity: "critical",
+  actorId: user.id,
+  actorEmail: user.email,
+  action: "Attempted to access admin-only resource",
+  details: { requestedResource: "/admin/users", userRole: user.role },
+  ipAddress: request.ip,
+  result: "failure",
+  errorDetails: "Insufficient permissions",
 });
 
 // Log a collection data export
 await logAuditEvent({
-	eventType: AuditEventType.DATA_EXPORT,
-	severity: 'medium',
-	actorId: user.id,
-	actorEmail: user.email,
-	targetType: 'collection',
-	targetId: collection.id,
-	action: `Exported ${collection.name} collection data`,
-	details: { format: 'json', recordCount: exportedRecords.length },
-	result: 'success'
+  eventType: AuditEventType.DATA_EXPORT,
+  severity: "medium",
+  actorId: user.id,
+  actorEmail: user.email,
+  targetType: "collection",
+  targetId: collection.id,
+  action: `Exported ${collection.name} collection data`,
+  details: { format: "json", recordCount: exportedRecords.length },
+  result: "success",
 });
 ```
 

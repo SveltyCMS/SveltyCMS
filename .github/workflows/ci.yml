@@ -1,272 +1,478 @@
-name: Unit, Integration & E2E Black-Box-Tests
+name: CI
 
 on:
   push:
     branches: [main, next]
-    paths-ignore: ['**/*.md', '**/*.mdx', 'docs/**']
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".vscode/**"
   pull_request:
     branches: [main, next]
-    paths-ignore: ['**/*.md', '**/*.mdx', 'docs/**']
-  workflow_dispatch: {}
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
+env:
+  BUN_CACHE_DIR: .bun-cache
+  NODE_OPTIONS: "--no-warnings --no-deprecation"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
-  # security:
-  #   name: 🛡️ Security (CodeQL)
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     actions: read
-  #     contents: read
-  #     security-events: write
-  #   steps:
-  #     - uses: actions/checkout@v6
-
-  #     # Initialize CodeQL using v4. The correct unified identifier for JS/TS is 'javascript'
-  #     - name: Initialize CodeQL
-  #       uses: github/codeql-action/init@v4
-  #       with:
-  #         languages: javascript
-
-  #     - name: Perform CodeQL Analysis
-  #       uses: github/codeql-action/analyze@v4
-
-  unit-tests:
-    name: ⚡ Unit Tests
+  # ------------------------------------------------
+  # 1. Bootstrap (fast, produces artifacts)
+  # ------------------------------------------------
+  bootstrap:
+    name: 🏁 Bootstrap
     runs-on: ubuntu-latest
+    timeout-minutes: 8
+    outputs:
+      pw-version: ${{ steps.pw.outputs.version }}
     steps:
       - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v2
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-      - name: Sync SvelteKit
-        run: |
-          bun x svelte-kit sync
-          # Ensure generated types are fresh
-          rm -rf .svelte-kit/types
-          bun x svelte-kit sync
-      - name: Compile Paraglide
-        run: bun run paraglide
-      - name: Generate Config Stubs
-        run: |
-          mkdir -p config
-          echo "export const privateEnv = {}" > config/private.test.ts
-      - name: Run Linter
-        run: bun run lint
-      - name: Run Unit Tests
-        env:
-          TEST_MODE: true
-          NODE_ENV: test
-        run: bun run test:unit
-
-  build:
-    name: 🏗️ Production Build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v2
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-      - name: Compile Paraglide
-        run: bun run paraglide
-      - name: Generate Config Stubs
-        run: |
-          mkdir -p config
-          echo "export const privateEnv = {}" > config/private.test.ts
-      - name: Sync SvelteKit
-        run: |
-          bun x svelte-kit sync
-          rm -rf .svelte-kit/types
-          bun x svelte-kit sync
-      - name: Build
-        run: bun run build
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v6
         with:
-          name: sveltycms-build
-          # CRITICAL: v4+ artifact actions exclude hidden files by default.
-          # We need this enabled to actually upload the hidden `.svelte-kit` directory!
+          fetch-depth: 1
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/cache@v5
+        id: cache-bun
+        with:
+          path: |
+            .bun-cache
+            ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - run: mkdir -p ${{ env.BUN_CACHE_DIR }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --prefer-offline --cache-dir ${{ env.BUN_CACHE_DIR }}
+
+      - name: Verify Codegen
+        run: |
+          bun run paraglide
+          bun x svelte-kit sync
+
+      - name: Generate E2E Test Secret
+        run: |
+          mkdir -p tests/e2e/.auth
+          echo "SVELTYCMS_E2E_MASTER_SECRET_$(date +%s)" > tests/e2e/.auth/test-secret.txt
+
+      - id: pw
+        run: echo "version=$(bun x playwright --version | awk '{print $2}')" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: workspace-meta
+          include-hidden-files: true
+          path: |
+            src/paraglide
+            .svelte-kit
+            tests/e2e/.auth/test-secret.txt
+          retention-days: 1
+
+  # ------------------------------------------------
+  # 2. Quality gates (parallel)
+  # ------------------------------------------------
+  lint:
+    name: 🔎 Lint
+    needs: bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/download-artifact@v7
+        with: { name: workspace-meta }
+      - uses: actions/cache@v5
+        with:
+          path: |
+            .bun-cache
+            ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+      - run: bun run lint
+
+  check:
+    name: ✅ Type Check
+    needs: bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/download-artifact@v7
+        with: { name: workspace-meta }
+      - uses: actions/cache@v5
+        with:
+          path: |
+            .bun-cache
+            ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+      - run: bun run check
+
+  unit-vitest:
+    name: ⚡ Unit (Vitest)
+    needs: bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/download-artifact@v7
+        with: { name: workspace-meta }
+      - uses: actions/cache@v5
+        with:
+          path: |
+            .bun-cache
+            ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+      - run: bun run test:unit
+      - uses: codecov/codecov-action@v4
+        if: success()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: vitest
+
+  unit-bun:
+    name: ⚡ Unit (Bun)
+    needs: bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/download-artifact@v7
+        with: { name: workspace-meta }
+      - uses: actions/cache@v5
+        with:
+          path: |
+            .bun-cache
+            ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+      - run: bun run test:unit:bun
+      - uses: codecov/codecov-action@v4
+        if: success()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: bun
+
+  # ------------------------------------------------
+  # 3. Build (supports db-tests + e2e)
+  # ------------------------------------------------
+  build:
+    name: 🏗️ Build
+    needs: bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/download-artifact@v7
+        with: { name: workspace-meta }
+      - uses: actions/cache@v5
+        with:
+          path: |
+            .bun-cache
+            ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+      - run: bun run build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: build-output
           include-hidden-files: true
           path: |
             .svelte-kit/output
             build
-            package.json
-            bun.lock
+          retention-days: 1
 
-  integration:
-    name: '🔌 Integration (${{ matrix.database }})'
+  # ------------------------------------------------
+  # 4. Database Matrix Tests (with health checks)
+  # ------------------------------------------------
+  db-tests:
+    name: 🧪 DB (${{ matrix.db }})
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        database: [mongodb, mariadb, postgresql, sqlite]
-
+        db: [sqlite, mongodb, mariadb, postgresql]
+        include:
+          - db: sqlite
+            image: alpine # dummy
+            health: "true"
+          - db: mongodb
+            image: mongo:7
+            port: 27017
+            health: "mongosh --eval 'db.runCommand({ping:1})'"
+          - db: mariadb
+            image: mariadb:11
+            port: 3306
+            health: "mariadb-admin ping"
+          - db: postgresql
+            image: postgres:16
+            port: 5432
+            health: "pg_isready -U testuser"
     services:
       db:
-        # Flattened to single line to prevent illegal trailing spaces during evaluation
-        image: ${{ matrix.database == 'mongodb' && 'mongo:latest' || matrix.database == 'mariadb' && 'mariadb:11' || matrix.database == 'postgresql' && 'postgres:16' || 'redis:alpine' }}
+        image: ${{ matrix.image }}
+        ports:
+          - ${{ matrix.port && format('{0}:{0}', matrix.port) || '12345:12345' }}
         env:
-          MARIADB_ROOT_PASSWORD: root
-          MARIADB_DATABASE: sveltycms_test
-          MARIADB_USER: test
-          MARIADB_PASSWORD: test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: sveltycms_test
-        ports:
-          - ${{ matrix.database == 'mongodb' && '27017:27017' || matrix.database == 'mariadb' && '3306:3306' || matrix.database == 'postgresql' && '5432:5432' || '6379:6379' }}
-
-      mailhog:
-        image: mailhog/mailhog
-        ports:
-          # CRITICAL: YAML evaluates XX:XX as a sexagesimal (base-60) integer without quotes!
-          # This causes fatal validation errors. They MUST be strings.
-          - '1025:1025'
-          - '8025:8025'
-
-    env:
-      DB_TYPE: ${{ matrix.database }}
-      TEST_MODE: 'true'
-      API_BASE_URL: http://localhost:4173
-      # Specific DB configs for scripts
-      MONGODB_URI: mongodb://127.0.0.1:27017/sveltycms_test
-      MARIADB_URL: mysql://test:test@127.0.0.1:3306/sveltycms_test
-      POSTGRESQL_URL: postgresql://test:test@127.0.0.1:5432/sveltycms_test
+          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: ${{ matrix.db == 'mariadb' && 'yes' || '' }}
+          MARIADB_DATABASE: ${{ matrix.db == 'mariadb' && 'sveltycms_test' || '' }}
+          MARIADB_USER: ${{ matrix.db == 'mariadb' && 'testuser' || '' }}
+          MARIADB_PASSWORD: ${{ matrix.db == 'mariadb' && 'testpass' || '' }}
+          POSTGRES_USER: ${{ matrix.db == 'postgresql' && 'testuser' || '' }}
+          POSTGRES_PASSWORD: ${{ matrix.db == 'postgresql' && 'testpass' || '' }}
+          POSTGRES_DB: ${{ matrix.db == 'postgresql' && 'sveltycms_test' || '' }}
+          MONGO_INITDB_ROOT_USERNAME: ${{ matrix.db == 'mongodb' && 'testuser' || '' }}
+          MONGO_INITDB_ROOT_PASSWORD: ${{ matrix.db == 'mongodb' && 'testpass' || '' }}
+        options: >-
+          --health-cmd "${{ matrix.health }}"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-
-      - name: Download Build
-        uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
+        with: { name: workspace-meta }
+      - uses: actions/download-artifact@v7
+        with: { name: build-output }
+      - uses: actions/cache@v5
         with:
-          name: sveltycms-build
+          path: |
+            .bun-cache
+            ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
 
-      - name: Install Runtime Deps
-        run: bun install --frozen-lockfile
+      - name: Wait for DB
+        if: matrix.db != 'sqlite'
+        run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 60000
 
-      - name: ⏳ Wait for Services
-        run: |
-          if [ "${{ matrix.database }}" == "mongodb" ]; then bun x wait-on tcp:127.0.0.1:27017; fi
-          if [ "${{ matrix.database }}" == "mariadb" ]; then bun x wait-on tcp:127.0.0.1:3306; fi
-          if [ "${{ matrix.database }}" == "postgresql" ]; then bun x wait-on tcp:127.0.0.1:5432; fi
-          bun x wait-on tcp:127.0.0.1:1025
-          sleep 10 # Extra time for DB initialization
-
-      - name: 🧪 Run Black-Box Tests
+      - name: Run Integration Tests
         env:
-          DB_TYPE: ${{ matrix.database }}
+          DB_TYPE: ${{ matrix.db }}
           DB_HOST: 127.0.0.1
+          DB_PORT: ${{ matrix.port || '' }}
           DB_NAME: sveltycms_test
-          DB_USER: ${{ (matrix.database == 'mariadb' || matrix.database == 'postgresql') && 'test' || '' }}
-          DB_PASSWORD: ${{ (matrix.database == 'mariadb' || matrix.database == 'postgresql') && 'test' || '' }}
+          DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
+          DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
+          ADMIN_PASSWORD: Password123!
           TEST_MODE: true
         run: |
-          # 1. Start preview server in background
-          bun run preview > preview.log 2>&1 &
-          bun x wait-on http://localhost:4173/api/system/health --timeout 60000
+          if [ -f tests/e2e/.auth/test-secret.txt ]; then
+            export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+          fi
+          bun run scripts/run-integration-tests.ts --filter=${{ matrix.db }}
 
-          # 2. Run Setup Wizard via Playwright to generate config/private.test.ts naturally
-          bun x playwright install --with-deps chromium
-          bun x playwright test tests/e2e/setup-wizard.spec.ts --project=chromium
-
-          # 3. Now run the integration tests against the configured system
-          bun run scripts/run-integration-tests.ts
-        timeout-minutes: 15
-
-  e2e:
-    name: '🎭 E2E (${{ matrix.database }})'
-    needs: build
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        database: [mongodb, sqlite, mariadb, postgresql]
-
-    services:
-      db:
-        image: ${{ matrix.database == 'mongodb' && 'mongo:latest' || matrix.database == 'mariadb' && 'mariadb:11' || matrix.database == 'postgresql' && 'postgres:16' || 'redis:alpine' }}
-        env:
-          MARIADB_ROOT_PASSWORD: root
-          MARIADB_DATABASE: sveltycms_test
-          MARIADB_USER: test
-          MARIADB_PASSWORD: test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: sveltycms_test
-        ports:
-          - ${{ matrix.database == 'mongodb' && '27017:27017' || matrix.database == 'mariadb' && '3306:3306' || matrix.database == 'postgresql' && '5432:5432' || '6379:6379' }}
-      mailhog:
-        image: mailhog/mailhog
-        ports:
-          # Same fix for base-60 integer collision
-          - '1025:1025'
-          - '8025:8025'
-
-    steps:
-      - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v2
-
-      - name: Download Build
-        uses: actions/download-artifact@v6
-        with:
-          name: sveltycms-build
-
-      - name: Install Runtime Deps
-        run: bun install --frozen-lockfile
-
-      - name: Get Playwright version
-        id: playwright-version
-        run: echo "version=$(bun x playwright --version | awk '{print $2}')" >> $GITHUB_OUTPUT
-
-      - name: Cache Playwright Browsers
-        id: playwright-cache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
-
-      - name: Install Playwright Browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: bunx playwright install --with-deps chromium
-
-      - name: ⏳ Wait for Services
-        run: |
-          if [ "${{ matrix.database }}" == "mongodb" ]; then bun x wait-on tcp:127.0.0.1:27017; fi
-          if [ "${{ matrix.database }}" == "mariadb" ]; then bun x wait-on tcp:127.0.0.1:3306; fi
-          if [ "${{ matrix.database }}" == "postgresql" ]; then bun x wait-on tcp:127.0.0.1:5432; fi
-          bun x wait-on tcp:127.0.0.1:1025
-          sleep 10 # Extra time for DB initialization
-
-      - name: 🎭 Run Playwright E2E
-        env:
-          DB_TYPE: ${{ matrix.database }}
-          DB_HOST: 127.0.0.1
-          DB_NAME: sveltycms_test
-          DB_USER: ${{ (matrix.database == 'mariadb' || matrix.database == 'postgresql') && 'test' || '' }}
-          DB_PASSWORD: ${{ (matrix.database == 'mariadb' || matrix.database == 'postgresql') && 'test' || '' }}
-          TEST_MODE: true
-        run: |
-          bun run preview > preview.log 2>&1 &
-          bun x wait-on http://localhost:4173/api/system/health --timeout 60000
-          bun x playwright test tests/e2e/setup-wizard.spec.ts --project=chromium
-          bun x playwright test tests/e2e/role-based-access.spec.ts --project=chromium
-        timeout-minutes: 20
-
-      - name: Upload Playwright Report
-        uses: actions/upload-artifact@v6
+      - name: Upload Logs
         if: always()
+        uses: actions/upload-artifact@v7
         with:
-          name: playwright-report-${{ matrix.database }}
-          path: playwright-report/
-          retention-days: 14
-
-      - name: Upload Server Logs
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: preview-logs-${{ matrix.database }}
+          name: db-log-${{ matrix.db }}
           path: preview.log
           retention-days: 7
+
+  # ------------------------------------------------
+  # 5. E2E tests (Playwright sharded)
+  # ------------------------------------------------
+  e2e:
+    name: 🎭 E2E (${{ matrix.name }})
+    needs: [bootstrap, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: 1
+            name: "Wizard"
+          - shard: 2
+            name: "Auth"
+          - shard: 3
+            name: "Content"
+          - shard: 4
+            name: "System"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/download-artifact@v7
+        with: { name: workspace-meta }
+      - uses: actions/download-artifact@v7
+        with: { name: build-output }
+      - uses: actions/cache@v5
+        with:
+          path: |
+            .bun-cache
+            ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
+          restore-keys: playwright-${{ runner.os }}-
+
+      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+      - run: bun x playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        env:
+          DB_TYPE: sqlite
+          TEST_MODE: true
+          ADMIN_PASSWORD: Password123!
+          PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:4173
+        run: |
+          export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+          bun run preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
+          # Better waiting (health + setup)
+          for i in {1..90}; do
+            curl -s http://127.0.0.1:4173/api/system/health && break || sleep 1
+          done
+          bun run scripts/setup-system.ts
+          bun x playwright test --project=chromium --shard=${{ matrix.shard }}/4
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.name }}
+          path: playwright-report
+          retention-days: 14
+
+  # ------------------------------------------------
+  # 6. Benchmarks (runs after db-tests)
+  # ------------------------------------------------
+  benchmarks:
+    name: 📊 Benchmarks (${{ matrix.db }})
+    needs: [db-tests]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'run-benchmarks')
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [sqlite, mongodb, mariadb, postgresql]
+        include:
+          - db: sqlite
+            image: alpine # Dummy image
+          - db: mongodb
+            image: mongo:7
+            port: 27017
+          - db: mariadb
+            image: mariadb:11
+            port: 3306
+          - db: postgresql
+            image: postgres:16
+            port: 5432
+
+    services:
+      db:
+        image: ${{ matrix.image }}
+        ports:
+          - ${{ matrix.port && format('{0}:{0}', matrix.port) || '12345:12345' }}
+        env:
+          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: ${{ matrix.db == 'mariadb' && 'yes' || '' }}
+          MARIADB_DATABASE: ${{ matrix.db == 'mariadb' && 'sveltycms_test' || '' }}
+          MARIADB_USER: ${{ matrix.db == 'mariadb' && 'testuser' || '' }}
+          MARIADB_PASSWORD: ${{ matrix.db == 'mariadb' && 'testpass' || '' }}
+          POSTGRES_USER: ${{ matrix.db == 'postgresql' && 'testuser' || '' }}
+          POSTGRES_PASSWORD: ${{ matrix.db == 'postgresql' && 'testpass' || '' }}
+          POSTGRES_DB: ${{ matrix.db == 'postgresql' && 'sveltycms_test' || '' }}
+          MONGO_INITDB_ROOT_USERNAME: ${{ matrix.db == 'mongodb' && 'testuser' || '' }}
+          MONGO_INITDB_ROOT_PASSWORD: ${{ matrix.db == 'mongodb' && 'testpass' || '' }}
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: workspace-meta
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: build-output
+
+      - uses: actions/cache@v5
+        with:
+          path: |
+            .bun-cache
+            ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+
+      - name: Wait for DB
+        if: matrix.db != 'sqlite'
+        run: |
+          bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 120000
+          sleep 15
+
+      - name: Run System Setup (Black-Box)
+        env:
+          DB_TYPE: ${{ matrix.db }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ matrix.port }}
+          DB_NAME: sveltycms_test
+          DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
+          DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
+          TEST_MODE: true
+        run: |
+          # Start server in background
+          bun run preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
+          # Wait for server health using curl
+          for i in {1..60}; do curl -s http://127.0.0.1:4173/api/system/health && break || sleep 1; done
+          # Run system setup via API
+          bun run scripts/setup-system.ts
+
+      - name: Run Performance Suite
+        env:
+          DB_TYPE: ${{ matrix.db }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ matrix.port }}
+          DB_NAME: sveltycms_test
+          DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
+          DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
+          TEST_MODE: true
+        run: |
+          echo "### 📊 Performance Results ($DB_TYPE)" >> $GITHUB_STEP_SUMMARY
+
+          echo "#### ⚡ Middleware Hooks" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          bun test tests/benchmarks/hooks-performance.test.ts >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          echo "#### 💾 Raw Database CRUD" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          bun run tests/benchmarks/database-performance.ts >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          echo "#### 📡 REST API Throughput" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          bun test tests/benchmarks/rest-api-performance.test.ts >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-log-${{ matrix.db }}
+          path: preview.log

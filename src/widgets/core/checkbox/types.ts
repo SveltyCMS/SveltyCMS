@@ -7,20 +7,20 @@
  * Defines the properties unique to the Checkbox widget.
  */
 export interface CheckboxProps {
-	/**
-	 * Sets the color of the checkbox.
-	 * @default 'primary'
-	 */
-	color?: 'primary' | 'secondary' | 'accent';
+  /**
+   * Sets the color of the checkbox.
+   * @default 'primary'
+   */
+  color?: "primary" | "secondary" | "accent";
 
-	// Legend text for the Checkbox
-	legend?: string;
-	/**
-	 * Sets the size of the checkbox.
-	 * @default 'md'
-	 */
-	size?: 'sm' | 'md' | 'lg';
+  // Legend text for the Checkbox
+  legend?: string;
+  /**
+   * Sets the size of the checkbox.
+   * @default 'md'
+   */
+  size?: "sm" | "md" | "lg";
 
-	// Allow additional widget properties
-	[key: string]: unknown;
+  // Allow additional widget properties
+  [key: string]: unknown;
 }

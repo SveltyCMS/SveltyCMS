@@ -15,28 +15,37 @@
 -->
 
 <script lang="ts">
-	// Stores
+// Stores
 
-	import SiteName from '@src/components/site-name.svelte';
-	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
-	import { error_gofrontpage, error_page_moved, error_pagenotfound, error_skip_content, error_wrong } from '@src/paraglide/messages';
-	import { app } from '@src/stores/store.svelte';
-	import { page } from '$app/state';
+import SiteName from "@src/components/site-name.svelte";
+import SveltyCMSLogo from "@src/components/system/icons/svelty-cms-logo.svelte";
+import {
+	error_gofrontpage,
+	error_page_moved,
+	error_pagenotfound,
+	error_skip_content,
+	error_wrong,
+} from "@src/paraglide/messages";
+import { app } from "@src/stores/store.svelte";
+import { page } from "$app/state";
 
-	const size = 140;
-	const font = 0.9;
-	const repeat = 3;
-	const separator = ' • ';
+const size = 140;
+const font = 0.9;
+const repeat = 3;
+const separator = " • ";
 
-	const siteName = page.data?.settings?.SITE_NAME || 'SveltyCMS';
-	const combinedString = Array.from({ length: repeat }, () => siteName + separator).join('');
-	const array: string[] = combinedString.split('').filter((char) => char !== ' ');
-	const patternLength = array.length / repeat;
+const siteName = page.data?.settings?.SITE_NAME || "SveltyCMS";
+const combinedString = Array.from(
+	{ length: repeat },
+	() => siteName + separator,
+).join("");
+const array: string[] = combinedString.split("").filter((char) => char !== " ");
+const patternLength = array.length / repeat;
 
-	function isCMSChar(index: number): boolean {
-		const posInPattern = index % patternLength;
-		return posInPattern >= patternLength - 4 && posInPattern < patternLength - 1;
-	}
+function isCMSChar(index: number): boolean {
+	const posInPattern = index % patternLength;
+	return posInPattern >= patternLength - 4 && posInPattern < patternLength - 1;
+}
 </script>
 
 <svelte:head><title>{page.status} - {error_pagenotfound()} | {siteName}</title></svelte:head>

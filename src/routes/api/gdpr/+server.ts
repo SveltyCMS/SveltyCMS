@@ -8,51 +8,64 @@
  *
  */
 
-import { gdprService } from '@src/services/gdpr-service';
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { gdprService } from "@src/services/gdpr-service";
+import { json } from "@sveltejs/kit";
+import { apiHandler } from "@utils/api-handler";
+import { AppError } from "@utils/error-handling";
+import { logger } from "@utils/logger.server";
+import { getPrivateSettingSync } from "@src/services/settings-service";
 
-export const POST: RequestHandler = async ({ request, locals }) => {
-	// 1. Security Check
-	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
-	}
+export const POST = apiHandler(async ({ request, locals }) => {
+  // 1. Security Check
+  const { user, tenantId, isAdmin } = locals;
+  if (!user) {
+    throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
+  }
 
-	try {
-		const { action, userId, reason } = await request.json();
+  if (getPrivateSettingSync("MULTI_TENANT") && !tenantId) {
+    throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
+  }
 
-		if (!userId) {
-			return json({ error: 'User ID is required' }, { status: 400 });
-		}
+  try {
+    const { action, userId, reason } = await request.json();
 
-		// 2. Authorization Check: Only admins or the user themselves can perform these actions
-		const isSelf = locals.user._id.toString() === userId.toString();
-		if (!(locals.isAdmin || isSelf)) {
-			return json(
-				{
-					error: 'Forbidden: You can only perform this action on your own data'
-				},
-				{ status: 403 }
-			);
-		}
+    if (!userId) {
+      throw new AppError("User ID is required", 400, "MISSING_USER_ID");
+    }
 
-		if (action === 'export') {
-			const data = await gdprService.exportUserData(userId);
-			return json({ success: true, data });
-		}
+    // 2. Authorization Check: Only admins or the user themselves can perform these actions
+    const isSelf = user._id.toString() === userId.toString();
+    if (!(isAdmin || isSelf)) {
+      logger.warn(`Unauthorized GDPR action attempt by user ${user._id} on user ${userId}`);
+      throw new AppError(
+        "Forbidden: You can only perform this action on your own data or as an administrator.",
+        403,
+        "FORBIDDEN",
+      );
+    }
 
-		if (action === 'anonymize') {
-			const success = await gdprService.anonymizeUser(userId, reason || (isSelf ? 'User Self-Request' : 'Admin Manual Request'));
-			if (!success) {
-				return json({ error: 'Anonymization failed. Check server logs.' }, { status: 500 });
-			}
-			return json({ success: true });
-		}
+    // 3. Service Calls with tenant isolation
+    if (action === "export") {
+      const data = await gdprService.exportUserData(userId, tenantId!);
+      return json({ success: true, data });
+    }
 
-		return json({ error: 'Invalid action' }, { status: 400 });
-	} catch (err) {
-		const error = err as Error;
-		console.error('GDPR API Error:', error);
-		return json({ error: error.message || 'Internal Server Error' }, { status: 500 });
-	}
-};
+    if (action === "anonymize") {
+      const success = await gdprService.anonymizeUser(
+        userId,
+        tenantId!,
+        reason || (isSelf ? "User Self-Request" : "Admin Manual Request"),
+      );
+      if (!success) {
+        throw new AppError("Anonymization failed. Check server logs.", 500, "ANONYMIZATION_FAILED");
+      }
+      return json({ success: true });
+    }
+
+    throw new AppError("Invalid action", 400, "INVALID_ACTION");
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    logger.error("GDPR API Error:", err);
+    throw new AppError("Internal Server Error", 500, "GDPR_ERROR");
+  }
+});

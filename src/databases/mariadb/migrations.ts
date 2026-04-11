@@ -8,28 +8,30 @@
  * - Drop tables if they exist
  */
 
-import { logger } from '@utils/logger';
-import type mysql from 'mysql2/promise';
+import { logger } from "@utils/logger";
+import type mysql from "mysql2/promise";
 
 // Run migrations to create/update database schema
-export async function runMigrations(connection: mysql.Pool): Promise<{ success: boolean; error?: string }> {
-	try {
-		logger.info('Running database migrations...');
+export async function runMigrations(
+  connection: mysql.Pool,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    logger.info("Running database migrations...");
 
-		// For initial setup, we'll create tables directly using Drizzle's push
-		// This is simpler than maintaining migration files
-		// In production, you would use: await migrate(db, { migrationsFolder: './src/databases/mariadb/migrations' });
+    // For initial setup, we'll create tables directly using Drizzle's push
+    // This is simpler than maintaining migration files
+    // In production, you would use: await migrate(db, { migrationsFolder: './src/databases/mariadb/migrations' });
 
-		// Create tables if they don't exist
-		await createTablesIfNotExist(connection);
+    // Create tables if they don't exist
+    await createTablesIfNotExist(connection);
 
-		logger.info('✅ Database migrations completed successfully');
-		return { success: true };
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		logger.error('Migration failed:', message);
-		return { success: false, error: message };
-	}
+    logger.info("✅ Database migrations completed successfully");
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error("Migration failed:", message);
+    return { success: false, error: message };
+  }
 }
 
 /**
@@ -37,19 +39,22 @@ export async function runMigrations(connection: mysql.Pool): Promise<{ success: 
  * This is a pragmatic approach for initial implementation
  */
 async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
-	const queries = [
-		// Auth Users
-		`CREATE TABLE IF NOT EXISTS auth_users (
+  const queries = [
+    // Auth Users
+    `CREATE TABLE IF NOT EXISTS auth_users (
 			_id VARCHAR(36) PRIMARY KEY,
 			email VARCHAR(255) NOT NULL,
 			username VARCHAR(255),
 			password VARCHAR(255),
 			emailVerified BOOLEAN NOT NULL DEFAULT FALSE,
 			blocked BOOLEAN NOT NULL DEFAULT FALSE,
+			isAdmin BOOLEAN NOT NULL DEFAULT FALSE,
 			firstName VARCHAR(255),
 			lastName VARCHAR(255),
 			avatar TEXT,
 			roleIds JSON NOT NULL,
+			role VARCHAR(50) NOT NULL DEFAULT 'user',
+			isRegistered BOOLEAN NOT NULL DEFAULT FALSE,
 			tenantId VARCHAR(36),
 			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -58,8 +63,8 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			UNIQUE INDEX email_tenant_unique (email, tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// Auth Sessions
-		`CREATE TABLE IF NOT EXISTS auth_sessions (
+    // Auth Sessions
+    `CREATE TABLE IF NOT EXISTS auth_sessions (
 			_id VARCHAR(36) PRIMARY KEY,
 			user_id VARCHAR(36) NOT NULL,
 			expires DATETIME NOT NULL,
@@ -71,8 +76,8 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX tenant_idx (tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// Auth Tokens
-		`CREATE TABLE IF NOT EXISTS auth_tokens (
+    // Auth Tokens
+    `CREATE TABLE IF NOT EXISTS auth_tokens (
 			_id VARCHAR(36) PRIMARY KEY,
 			user_id VARCHAR(36) NOT NULL,
 			email VARCHAR(255) NOT NULL,
@@ -92,8 +97,8 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX tenant_idx (tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// Roles
-		`CREATE TABLE IF NOT EXISTS roles (
+    // Roles
+    `CREATE TABLE IF NOT EXISTS roles (
 			_id VARCHAR(36) PRIMARY KEY,
 			name VARCHAR(255) NOT NULL,
 			description TEXT,
@@ -108,8 +113,8 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX tenant_idx (tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// Content Nodes
-		`CREATE TABLE IF NOT EXISTS content_nodes (
+    // Content Nodes
+    `CREATE TABLE IF NOT EXISTS content_nodes (
 			_id VARCHAR(36) PRIMARY KEY,
 			path VARCHAR(500) NOT NULL,
 			parentId VARCHAR(36),
@@ -135,8 +140,8 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX tenant_idx (tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// Content Drafts
-		`CREATE TABLE IF NOT EXISTS content_drafts (
+    // Content Drafts
+    `CREATE TABLE IF NOT EXISTS content_drafts (
 			_id VARCHAR(36) PRIMARY KEY,
 			contentId VARCHAR(36) NOT NULL,
 			data JSON NOT NULL,
@@ -152,8 +157,8 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX tenant_idx (tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// Content Revisions
-		`CREATE TABLE IF NOT EXISTS content_revisions (
+    // Content Revisions
+    `CREATE TABLE IF NOT EXISTS content_revisions (
 			_id VARCHAR(36) PRIMARY KEY,
 			contentId VARCHAR(36) NOT NULL,
 			data JSON NOT NULL,
@@ -169,8 +174,8 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX tenant_idx (tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// Themes
-		`CREATE TABLE IF NOT EXISTS themes (
+    // Themes
+    `CREATE TABLE IF NOT EXISTS themes (
 			_id VARCHAR(36) PRIMARY KEY,
 			name VARCHAR(255) NOT NULL,
 			path VARCHAR(500) NOT NULL,
@@ -187,8 +192,8 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX tenant_idx (tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// Widgets
-		`CREATE TABLE IF NOT EXISTS widgets (
+    // Widgets
+    `CREATE TABLE IF NOT EXISTS widgets (
 			_id VARCHAR(36) PRIMARY KEY,
 			name VARCHAR(255) NOT NULL,
 			isActive BOOLEAN NOT NULL DEFAULT TRUE,
@@ -202,8 +207,8 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX tenant_idx (tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// Media Items
-		`CREATE TABLE IF NOT EXISTS media_items (
+    // Media Items
+    `CREATE TABLE IF NOT EXISTS media_items (
 			_id VARCHAR(36) PRIMARY KEY,
 			filename VARCHAR(500) NOT NULL,
 			originalFilename VARCHAR(500) NOT NULL,
@@ -227,8 +232,8 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX tenant_idx (tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// System Virtual Folders
-		`CREATE TABLE IF NOT EXISTS system_virtual_folders (
+    // System Virtual Folders
+    `CREATE TABLE IF NOT EXISTS system_virtual_folders (
 			_id VARCHAR(36) PRIMARY KEY,
 			name VARCHAR(500) NOT NULL,
 			path VARCHAR(1000) NOT NULL,
@@ -246,8 +251,8 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX tenant_idx (tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// System Preferences
-		`CREATE TABLE IF NOT EXISTS system_preferences (
+    // System Preferences
+    `CREATE TABLE IF NOT EXISTS system_preferences (
 			_id VARCHAR(36) PRIMARY KEY,
 			\`key\` VARCHAR(255) NOT NULL,
 			value JSON,
@@ -265,13 +270,13 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX tenant_idx (tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// Website Tokens
-		`CREATE TABLE IF NOT EXISTS website_tokens (
+    // Website Tokens
+    `CREATE TABLE IF NOT EXISTS website_tokens (
 			_id VARCHAR(36) PRIMARY KEY,
 			name VARCHAR(255) NOT NULL,
 			token VARCHAR(255) NOT NULL,
 			createdBy VARCHAR(36) NOT NULL,
-			permissions JSON NOT NULL DEFAULT ('[]'),
+			permissions JSON NOT NULL,
 			expiresAt DATETIME,
 			tenantId VARCHAR(36),
 			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -281,8 +286,24 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX tenant_idx (tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// Plugin: PageSpeed Results
-		`CREATE TABLE IF NOT EXISTS plugin_pagespeed_results (
+    // Tenants
+    `CREATE TABLE IF NOT EXISTS tenants (
+			_id VARCHAR(36) PRIMARY KEY,
+			name VARCHAR(255) NOT NULL,
+			ownerId VARCHAR(36) NOT NULL,
+			status VARCHAR(20) NOT NULL DEFAULT 'active',
+			plan VARCHAR(20) NOT NULL DEFAULT 'free',
+			quota JSON NOT NULL,
+			\`usage\` JSON NOT NULL,
+			settings JSON,
+			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX tenant_name_idx (name),
+			INDEX tenant_owner_idx (ownerId)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // Plugin: PageSpeed Results
+    `CREATE TABLE IF NOT EXISTS plugin_pagespeed_results (
 			_id VARCHAR(36) PRIMARY KEY,
 			entryId VARCHAR(36) NOT NULL,
 			collectionId VARCHAR(36) NOT NULL,
@@ -300,8 +321,8 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX device_idx (device)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// Plugin States
-		`CREATE TABLE IF NOT EXISTS plugin_states (
+    // Plugin States
+    `CREATE TABLE IF NOT EXISTS plugin_states (
 			_id VARCHAR(36) PRIMARY KEY,
 			pluginId VARCHAR(255) NOT NULL,
 			tenantId VARCHAR(36),
@@ -315,8 +336,8 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			UNIQUE INDEX plugin_tenant_unique (pluginId, tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-		// Plugin Migrations
-		`CREATE TABLE IF NOT EXISTS plugin_migrations (
+    // Plugin Migrations
+    `CREATE TABLE IF NOT EXISTS plugin_migrations (
 			_id VARCHAR(36) PRIMARY KEY,
 			pluginId VARCHAR(255) NOT NULL,
 			migrationId VARCHAR(255) NOT NULL,
@@ -328,12 +349,24 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX plugin_idx (pluginId),
 			INDEX tenant_idx (tenantId),
 			UNIQUE INDEX plugin_migration_unique (pluginId, migrationId, tenantId)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
-	];
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  ];
 
-	for (const query of queries) {
-		await connection.query(query);
-	}
+  for (const query of queries) {
+    await connection.query(query);
+  }
 
-	logger.info('All tables created/verified');
+  // Add isRegistered column if it doesn't exist (for existing databases)
+  try {
+    await connection.query(
+      `ALTER TABLE auth_users ADD COLUMN isRegistered BOOLEAN NOT NULL DEFAULT FALSE`,
+    );
+    await connection.query(
+      `ALTER TABLE auth_users ADD COLUMN role VARCHAR(50) NOT NULL DEFAULT 'user'`,
+    );
+  } catch {
+    // Column already exists or other error we can ignore
+  }
+
+  logger.info("All tables created/verified");
 }

@@ -11,386 +11,412 @@
  *
  * Note: Mocks are set up in preload.ts using globalThis for controllable state.
  */
-import { afterAll, beforeEach, describe, expect, it, mock } from 'bun:test';
-import type { RequestEvent } from '@sveltejs/kit';
-import { resetSystemState, setSystemState, updateServiceHealth, type ServiceName } from '@src/stores/system/state';
+import type { RequestEvent } from "@sveltejs/kit";
+import {
+  resetSystemState,
+  setSystemState,
+  updateServiceHealth,
+  type ServiceName,
+} from "@src/stores/system/state";
 
 // Disable TEST_MODE so the state machine logic actually runs (CI sets TEST_MODE=true)
 const originalTestMode = process.env.TEST_MODE;
 process.env.TEST_MODE = undefined;
 
-import { handleSystemState } from '@src/hooks/handle-system-state';
+import { handleSystemState } from "@src/hooks/handle-system-state";
+import { invalidateSetupCache } from "@utils/setup-check";
 
 /**
  * Helper to create a minimal RequestEvent for testing
  */
 function createMockEvent(pathname: string): RequestEvent {
-	return {
-		url: new URL(`http://localhost${pathname}`),
-		request: new Request(`http://localhost${pathname}`),
-		params: {},
-		route: { id: pathname },
-		locals: {},
-		cookies: {
-			get: () => undefined,
-			set: () => {},
-			delete: () => {},
-			serialize: () => '',
-			getAll: () => []
-		},
-		fetch: global.fetch,
-		getClientAddress: () => '127.0.0.1',
-		platform: undefined,
-		isDataRequest: false,
-		isSubRequest: false,
-		setHeaders: () => {}
-	} as unknown as RequestEvent;
+  return {
+    url: new URL(`http://localhost${pathname}`),
+    request: new Request(`http://localhost${pathname}`),
+    params: {},
+    route: { id: pathname },
+    locals: {},
+    cookies: {
+      get: () => undefined,
+      set: () => {},
+      delete: () => {},
+      serialize: () => "",
+      getAll: () => [],
+    },
+    fetch: global.fetch,
+    getClientAddress: () => "127.0.0.1",
+    platform: undefined,
+    isDataRequest: false,
+    isSubRequest: false,
+    setHeaders: () => {},
+  } as unknown as RequestEvent;
 }
 
 /**
  * Mock resolve function that returns a Response
  */
 const mockResolve = mock(() => {
-	return Promise.resolve(new Response('OK', { status: 200 }));
+  return Promise.resolve(new Response("OK", { status: 200 }));
 });
 
 /**
  * Helper to set mock system state
  */
-function setMockState(state: { overallState: string; services?: Record<string, any>; performanceMetrics?: { stateTransitions: any[] } }) {
-	resetSystemState();
+function setMockState(state: {
+  overallState: string;
+  services?: Record<string, any>;
+  performanceMetrics?: { stateTransitions: any[] };
+}) {
+  resetSystemState();
 
-	// First make all services healthy so we don't get stuck in INITIALIZING
-	const allServices: ServiceName[] = ['database', 'auth', 'cache', 'contentManager', 'themeManager', 'widgets'];
-	for (const service of allServices) {
-		updateServiceHealth(service, 'healthy', 'Mocked');
-	}
+  // First make all services healthy so we don't get stuck in INITIALIZING
+  const allServices: ServiceName[] = [
+    "database",
+    "auth",
+    "cache",
+    "contentSystem",
+    "themeManager",
+    "widgets",
+  ];
+  for (const service of allServices) {
+    updateServiceHealth(service, "healthy", "Mocked");
+  }
 
-	// Then apply overrides
-	if (state.services) {
-		for (const [service, config] of Object.entries(state.services)) {
-			updateServiceHealth(service as any, config.status, 'Mocked', config.error);
-		}
-	}
+  // Then apply overrides
+  if (state.services) {
+    for (const [service, config] of Object.entries(state.services)) {
+      updateServiceHealth(service as any, config.status, "Mocked", config.error);
+    }
+  }
 
-	// Finally force the overall state
-	if (state.overallState) {
-		setSystemState(state.overallState as any);
-	}
+  // Finally force the overall state
+  if (state.overallState) {
+    setSystemState(state.overallState as any);
+  }
 }
 
-describe('handleSystemState - State Machine Logic', () => {
-	beforeEach(() => {
-		// Reset mock state between tests
-		mockResolve.mockClear();
-		// Handled by setMockState now
-		(globalThis as any).__mockIsSetupComplete = true;
-		// Ensure TEST_MODE is disabled so state machine runs
-		process.env.TEST_MODE = undefined;
-		setMockState({ overallState: 'READY' });
-	});
+describe("handleSystemState - State Machine Logic", () => {
+  beforeEach(() => {
+    // Reset mock state between tests
+    mockResolve.mockClear();
+    // Handled by setMockState now
+    (globalThis as any).__mockIsSetupComplete = true;
+    // Ensure TEST_MODE is disabled so state machine runs
+    process.env.TEST_MODE = undefined;
+    (globalThis as any).__mockIsSetupComplete = true; // Still useful for some mocks
 
-	afterAll(() => {
-		// Restore TEST_MODE
-		if (originalTestMode !== undefined) {
-			process.env.TEST_MODE = originalTestMode;
-		}
-	});
+    // Invalidate setup cache to ensure re-check
+    invalidateSetupCache(false, true); // Force true
 
-	describe('READY state', () => {
-		beforeEach(() => {
-			setMockState({ overallState: 'READY' });
-			// Handled by setMockState now
-		});
+    setMockState({ overallState: "READY" });
+  });
 
-		it('should allow all routes when system is READY', async () => {
-			const event = createMockEvent('/dashboard');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+  afterAll(() => {
+    // Restore TEST_MODE
+    if (originalTestMode !== undefined) {
+      process.env.TEST_MODE = originalTestMode;
+    }
+  });
 
-			expect(response.status).toBe(200);
-			expect(mockResolve).toHaveBeenCalledWith(event);
-		});
+  describe("READY state", () => {
+    beforeEach(() => {
+      setMockState({ overallState: "READY" });
+      // Handled by setMockState now
+    });
 
-		it('should allow API routes when system is READY', async () => {
-			const event = createMockEvent('/api/collections/get');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+    it("should allow all routes when system is READY", async () => {
+      const event = createMockEvent("/dashboard");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-			expect(response.status).toBe(200);
-			expect(mockResolve).toHaveBeenCalledWith(event);
-		});
+      expect(response.status).toBe(200);
+      expect(mockResolve).toHaveBeenCalledWith(event);
+    });
 
-		it('should allow setup routes when system is READY', async () => {
-			const event = createMockEvent('/setup/database');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+    it("should allow API routes when system is READY", async () => {
+      const event = createMockEvent("/api/collections/get");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-			expect(response.status).toBe(200);
-			expect(mockResolve).toHaveBeenCalledWith(event);
-		});
-	});
+      expect(response.status).toBe(200);
+      expect(mockResolve).toHaveBeenCalledWith(event);
+    });
 
-	describe('DEGRADED state', () => {
-		beforeEach(() => {
-			setMockState({
-				overallState: 'DEGRADED',
-				services: {
-					cache: { status: 'unhealthy', lastCheck: new Date() },
-					database: { status: 'healthy', lastCheck: new Date() }
-				}
-			});
-			// Handled by setMockState now
-		});
+    it("should allow setup routes when system is READY", async () => {
+      const event = createMockEvent("/setup/database");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-		it('should allow requests when system is DEGRADED', async () => {
-			const event = createMockEvent('/dashboard');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+      expect(response.status).toBe(200);
+      expect(mockResolve).toHaveBeenCalledWith(event);
+    });
+  });
 
-			expect(response.status).toBe(200);
-			expect(mockResolve).toHaveBeenCalledWith(event);
-		});
+  describe("DEGRADED state", () => {
+    beforeEach(() => {
+      setMockState({
+        overallState: "DEGRADED",
+        services: {
+          cache: { status: "unhealthy", lastCheck: new Date() },
+          database: { status: "healthy", lastCheck: new Date() },
+        },
+      });
+      // Handled by setMockState now
+    });
 
-		it('should attach degraded services info to event.locals', async () => {
-			const event = createMockEvent('/api/collections');
-			await handleSystemState({ event, resolve: mockResolve });
+    it("should allow requests when system is DEGRADED", async () => {
+      const event = createMockEvent("/dashboard");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-			expect(event.locals.degradedServices).toBeDefined();
-			expect(event.locals.degradedServices).toContain('cache');
-			expect(event.locals.degradedServices).not.toContain('database');
-		});
+      expect(response.status).toBe(200);
+      expect(mockResolve).toHaveBeenCalledWith(event);
+    });
 
-		it('should allow health checks during DEGRADED state', async () => {
-			const event = createMockEvent('/api/system/health');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+    it("should attach degraded services info to event.locals", async () => {
+      const event = createMockEvent("/api/collections");
+      await handleSystemState({ event, resolve: mockResolve });
 
-			expect(response.status).toBe(200);
-		});
-	});
+      expect(event.locals.degradedServices).toBeDefined();
+      expect(event.locals.degradedServices).toContain("cache");
+      expect(event.locals.degradedServices).not.toContain("database");
+    });
 
-	describe('IDLE state', () => {
-		beforeEach(() => {
-			setMockState({ overallState: 'IDLE' });
-			// Handled by setMockState now
-			(globalThis as any).__mockIsSetupComplete = false;
-		});
+    it("should allow health checks during DEGRADED state", async () => {
+      const event = createMockEvent("/api/system/health");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-		it('should allow /setup routes during IDLE state', async () => {
-			const event = createMockEvent('/setup');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+      expect(response.status).toBe(200);
+    });
+  });
 
-			expect(response.status).toBe(200);
-			expect(mockResolve).toHaveBeenCalledWith(event);
-		});
+  describe("IDLE state", () => {
+    beforeEach(() => {
+      setMockState({ overallState: "IDLE" });
+      // Handled by setMockState now
+      (globalThis as any).__mockIsSetupComplete = false;
+    });
 
-		it('should allow /setup/database routes during IDLE state', async () => {
-			const event = createMockEvent('/setup/database');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+    it("should allow /setup routes during IDLE state", async () => {
+      const event = createMockEvent("/setup");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-			expect(response.status).toBe(200);
-			expect(mockResolve).toHaveBeenCalledWith(event);
-		});
+      expect(response.status).toBe(200);
+      expect(mockResolve).toHaveBeenCalledWith(event);
+    });
 
-		it('should allow health check routes during IDLE state', async () => {
-			const event = createMockEvent('/api/system/health');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+    it("should allow /setup/database routes during IDLE state", async () => {
+      const event = createMockEvent("/setup/database");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-			expect(response.status).toBe(200);
-		});
+      expect(response.status).toBe(200);
+      expect(mockResolve).toHaveBeenCalledWith(event);
+    });
 
-		it('should allow static assets during IDLE state', async () => {
-			const event = createMockEvent('/static/logo.png');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+    it("should allow health check routes during IDLE state", async () => {
+      const event = createMockEvent("/api/system/health");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-			expect(response.status).toBe(200);
-		});
+      expect(response.status).toBe(200);
+    });
 
-		it('should allow root path during IDLE state', async () => {
-			const event = createMockEvent('/');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+    it("should allow static assets during IDLE state", async () => {
+      const event = createMockEvent("/static/logo.png");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-			expect(response.status).toBe(200);
-		});
+      expect(response.status).toBe(200);
+    });
 
-		it('should block non-setup routes during IDLE state', async () => {
-			const event = createMockEvent('/dashboard');
+    it("should allow root path during IDLE state", async () => {
+      const event = createMockEvent("/");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-			try {
-				await handleSystemState({ event, resolve: mockResolve });
-				expect(true).toBe(false); // Should not reach here
-			} catch (err: unknown) {
-				const error = err as { status: number; body: { message: string } };
-				expect(error.status).toBe(503);
-				expect(error.body.message).toContain('starting up');
-			}
-		});
+      expect(response.status).toBe(200);
+    });
 
-		it('should block API routes (non-setup) during IDLE state', async () => {
-			const event = createMockEvent('/api/collections/get');
+    it("should block non-setup routes during IDLE state", async () => {
+      const event = createMockEvent("/dashboard");
 
-			// API routes return error Response via handleApiError instead of throwing
-			const response = await handleSystemState({ event, resolve: mockResolve });
-			expect(response.status).toBe(503);
-		});
-	});
+      try {
+        await handleSystemState({ event, resolve: mockResolve });
+        expect(true).toBe(false); // Should not reach here
+      } catch (err: any) {
+        // SvelteKit error() can throw an object with status and body, or just status/message in some environments
+        expect(err.status).toBe(503);
+        const msg = err.body?.message || err.message || "";
+        expect(msg).toMatch(/IDLE|restricted/i);
+      }
+    });
 
-	describe('INITIALIZING state', () => {
-		beforeEach(() => {
-			setMockState({ overallState: 'INITIALIZING' });
-			// Handled by setMockState now
-		});
+    it("should block API routes (non-setup) during IDLE state", async () => {
+      const event = createMockEvent("/api/collections/get");
 
-		it('should allow setup routes during INITIALIZING', async () => {
-			const event = createMockEvent('/setup/database');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+      // API routes return error Response via handleApiError instead of throwing
+      const response = await handleSystemState({ event, resolve: mockResolve });
+      expect(response.status).toBe(503);
+      const data = await response.json();
+      expect(data.message).toMatch(/IDLE|restricted/i);
+    });
+  });
 
-			expect(response.status).toBe(200);
-		});
+  describe("INITIALIZING state", () => {
+    beforeEach(() => {
+      setMockState({ overallState: "INITIALIZING" });
+      // Handled by setMockState now
+    });
 
-		it('should allow health checks during INITIALIZING', async () => {
-			const event = createMockEvent('/api/system/health');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+    it("should allow setup routes during INITIALIZING", async () => {
+      const event = createMockEvent("/setup/database");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-			expect(response.status).toBe(200);
-		});
+      expect(response.status).toBe(200);
+    });
 
-		it('should block regular routes during INITIALIZING', async () => {
-			const event = createMockEvent('/dashboard');
+    it("should allow health checks during INITIALIZING", async () => {
+      const event = createMockEvent("/api/system/health");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-			try {
-				await handleSystemState({ event, resolve: mockResolve });
-				expect(true).toBe(false);
-			} catch (err: unknown) {
-				const error = err as { status: number; body: { message: string } };
-				expect(error.status).toBe(503);
-				// The hook blocks with either "starting up" or "failed to initialize" message
-				expect(error.body.message).toMatch(/starting up|failed to initialize/i);
-			}
-		});
-	});
+      expect(response.status).toBe(200);
+    });
 
-	describe('FAILED state', () => {
-		beforeEach(() => {
-			setMockState({
-				overallState: 'FAILED',
-				services: {
-					database: {
-						status: 'unhealthy',
-						lastCheck: new Date(),
-						error: 'Connection timeout'
-					}
-				},
-				performanceMetrics: {
-					stateTransitions: [
-						{
-							from: 'INITIALIZING',
-							to: 'FAILED',
-							timestamp: Date.now(),
-							reason: 'Database connection failed'
-						}
-					]
-				}
-			});
-			// Handled by setMockState now
-		});
+    it("should block regular routes during INITIALIZING", async () => {
+      const event = createMockEvent("/dashboard");
 
-		it('should allow health checks even when FAILED', async () => {
-			const event = createMockEvent('/api/system/health');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+      try {
+        await handleSystemState({ event, resolve: mockResolve });
+        expect(true).toBe(false);
+      } catch (err: unknown) {
+        const error = err as { status: number; body: { message: string } };
+        expect(error.status).toBe(503);
+        // The hook blocks with either "starting up" or "failed to initialize" or "restricted" message
+        expect(error.body.message).toMatch(/starting up|failed to initialize|restricted/i);
+      }
+    });
+  });
 
-			expect(response.status).toBe(200);
-		});
+  describe("FAILED state", () => {
+    beforeEach(() => {
+      setMockState({
+        overallState: "FAILED",
+        services: {
+          database: {
+            status: "unhealthy",
+            lastCheck: new Date(),
+            error: "Connection timeout",
+          },
+        },
+        performanceMetrics: {
+          stateTransitions: [
+            {
+              from: "INITIALIZING",
+              to: "FAILED",
+              timestamp: Date.now(),
+              reason: "Database connection failed",
+            },
+          ],
+        },
+      });
+      // Handled by setMockState now
+    });
 
-		it('should allow dashboard health checks when FAILED', async () => {
-			const event = createMockEvent('/api/dashboard/health');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+    it("should allow health checks even when FAILED", async () => {
+      const event = createMockEvent("/api/system/health");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-			expect(response.status).toBe(200);
-		});
+      expect(response.status).toBe(200);
+    });
 
-		it('should allow well-known routes when FAILED', async () => {
-			// well-known routes should be allowed based on the final ready check in the hook
-			const event = createMockEvent('/.well-known/security.txt');
+    it("should allow dashboard health checks when FAILED", async () => {
+      const event = createMockEvent("/api/dashboard/health");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-			// In FAILED state, well-known is NOT in the allowedPaths list at line 182
-			// So it will throw 503. Update test to match actual behavior.
-			try {
-				await handleSystemState({ event, resolve: mockResolve });
-				// If it resolves, that's fine too
-				expect(mockResolve).toHaveBeenCalled();
-			} catch (err: unknown) {
-				const error = err as { status: number };
-				// FAILED state blocks most routes including well-known
-				expect(error.status).toBe(503);
-			}
-		});
+      expect(response.status).toBe(200);
+    });
 
-		it('should block all other routes when FAILED', async () => {
-			const event = createMockEvent('/dashboard');
+    it("should allow well-known routes when FAILED", async () => {
+      // well-known routes should be allowed based on the final ready check in the hook
+      const event = createMockEvent("/.well-known/security.txt");
 
-			try {
-				await handleSystemState({ event, resolve: mockResolve });
-				expect(true).toBe(false);
-			} catch (err: unknown) {
-				const error = err as { status: number; body: { message: string } };
-				expect(error.status).toBe(503);
-				// Accept any 503 message - the exact wording varies
-				expect(error.body.message).toBeDefined();
-			}
-		});
+      // In FAILED state, well-known is NOT in the allowedPaths list at line 182
+      // So it will throw 503. Update test to match actual behavior.
+      try {
+        await handleSystemState({ event, resolve: mockResolve });
+        // If it resolves, that's fine too
+        expect(mockResolve).toHaveBeenCalled();
+      } catch (err: unknown) {
+        const error = err as { status: number };
+        // FAILED state blocks most routes including well-known
+        expect(error.status).toBe(503);
+      }
+    });
 
-		it('should block setup routes when FAILED', async () => {
-			const event = createMockEvent('/setup');
+    it("should block all other routes when FAILED", async () => {
+      const event = createMockEvent("/dashboard");
 
-			try {
-				await handleSystemState({ event, resolve: mockResolve });
-				// Setup IS allowed in FAILED state (line 182)
-				expect(mockResolve).toHaveBeenCalled();
-			} catch (err: unknown) {
-				const error = err as { status: number };
-				expect(error.status).toBe(503);
-			}
-		});
+      try {
+        await handleSystemState({ event, resolve: mockResolve });
+        expect(true).toBe(false);
+      } catch (err: unknown) {
+        const error = err as { status: number; body: { message: string } };
+        expect(error.status).toBe(503);
+        // Accept any 503 message - the exact wording varies
+        expect(error.body.message).toBeDefined();
+      }
+    });
 
-		it('should block API routes when FAILED', async () => {
-			const event = createMockEvent('/api/collections');
+    it("should block setup routes when FAILED", async () => {
+      const event = createMockEvent("/setup");
 
-			// API routes return error Response via handleApiError instead of throwing
-			const response = await handleSystemState({ event, resolve: mockResolve });
-			expect(response.status).toBe(503);
-		});
-	});
+      try {
+        await handleSystemState({ event, resolve: mockResolve });
+        // Setup IS allowed in FAILED state (line 182)
+        expect(mockResolve).toHaveBeenCalled();
+      } catch (err: unknown) {
+        const error = err as { status: number };
+        expect(error.status).toBe(503);
+      }
+    });
 
-	describe('Route pattern matching', () => {
-		beforeEach(() => {
-			setMockState({ overallState: 'IDLE' });
-			// Handled by setMockState now
-			(globalThis as any).__mockIsSetupComplete = false;
-		});
+    it("should block API routes when FAILED", async () => {
+      const event = createMockEvent("/api/collections");
 
-		it('should allow /login during IDLE state', async () => {
-			const event = createMockEvent('/login');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+      // API routes return error Response via handleApiError instead of throwing
+      const response = await handleSystemState({ event, resolve: mockResolve });
+      expect(response.status).toBe(503);
+      const data = await response.json();
+      expect(data.message).toMatch(/FAILED|restricted/i);
+    });
+  });
 
-			expect(response.status).toBe(200);
-		});
+  describe("Route pattern matching", () => {
+    beforeEach(() => {
+      setMockState({ overallState: "IDLE" });
+      // Handled by setMockState now
+      (globalThis as any).__mockIsSetupComplete = false;
+    });
 
-		it('should allow /assets during IDLE state', async () => {
-			const event = createMockEvent('/assets/main.js');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+    it("should allow /login during IDLE state", async () => {
+      const event = createMockEvent("/login");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-			expect(response.status).toBe(200);
-		});
+      expect(response.status).toBe(200);
+    });
 
-		it('should allow /favicon.ico during IDLE state', async () => {
-			const event = createMockEvent('/favicon.ico');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+    it("should allow /assets during IDLE state", async () => {
+      const event = createMockEvent("/assets/main.js");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-			expect(response.status).toBe(200);
-		});
+      expect(response.status).toBe(200);
+    });
 
-		it('should allow SvelteKit internal routes (/_) during IDLE state', async () => {
-			const event = createMockEvent('/_app/immutable/assets/main.js');
-			const response = await handleSystemState({ event, resolve: mockResolve });
+    it("should allow /favicon.ico during IDLE state", async () => {
+      const event = createMockEvent("/favicon.ico");
+      const response = await handleSystemState({ event, resolve: mockResolve });
 
-			expect(response.status).toBe(200);
-		});
-	});
+      expect(response.status).toBe(200);
+    });
+
+    it("should allow SvelteKit internal routes (/_) during IDLE state", async () => {
+      const event = createMockEvent("/_app/immutable/assets/main.js");
+      const response = await handleSystemState({ event, resolve: mockResolve });
+
+      expect(response.status).toBe(200);
+    });
+  });
 });

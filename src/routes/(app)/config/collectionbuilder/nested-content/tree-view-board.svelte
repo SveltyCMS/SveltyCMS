@@ -24,912 +24,1004 @@
 - Enhanced visual feedback for drag & drop
 -->
 <script lang="ts">
-	import type { ContentNode, DatabaseId } from '@databases/db-interface';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import { sortContentNodes } from '@src/content/utils';
-	import { toast } from '@src/stores/toast.svelte.ts';
-	import { tick } from 'svelte';
-	import { flip } from 'svelte/animate';
-	import { dndzone, SHADOW_ITEM_MARKER_PROPERTY_NAME, TRIGGERS } from 'svelte-dnd-action';
-	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-	// Components
-	import TreeViewNode from './tree-view-node.svelte';
+import type { ContentNode, DatabaseId } from "@databases/db-interface";
+import SystemTooltip from "@src/components/system/system-tooltip.svelte";
+import { sortContentNodes } from "@src/content";
+import { toast } from "@src/stores/toast.svelte.ts";
+import { tick } from "svelte";
+import { flip } from "svelte/animate";
+import {
+	dndzone,
+	SHADOW_ITEM_MARKER_PROPERTY_NAME,
+	TRIGGERS,
+} from "svelte-dnd-action";
+import { SvelteMap, SvelteSet } from "svelte/reactivity";
+import { screen } from "@src/stores/screen-size-store.svelte.ts";
+// Components
+import TreeViewNode from "./tree-view-node.svelte";
 
-	export interface TreeViewItem extends Record<string, any> {
-		_id?: any;
-		icon?: string;
-		id: string;
-		isDraggable?: boolean;
-		isDropAllowed?: boolean;
-		name: string;
-		nodeType: 'category' | 'collection';
-		order?: number;
-		parent: string | null;
-		path: string;
-	}
+export interface TreeViewItem extends Record<string, any> {
+	_id?: any;
+	icon?: string;
+	id: string;
+	isDraggable?: boolean;
+	isDropAllowed?: boolean;
+	name: string;
+	nodeType: "category" | "collection";
+	order?: number;
+	parent: string | null;
+	path: string;
+}
 
-	interface Props {
-		contentNodes: ContentNode[];
-		/** Incremented by parent on save success so we rebuild from server order. */
-		structureKey?: number;
-		onDeleteNode?: (node: Partial<ContentNode>) => void;
-		onDuplicateNode?: (node: Partial<ContentNode>) => void;
-		onEditCategory: (category: Partial<ContentNode>) => void;
-		onNodeUpdate: (updatedNodes: ContentNode[]) => void;
-		/** Id of the single category selected for "add collection" (only one at a time). */
-		selectedCategoryId?: string | null;
-		/** Called when user clicks "Select" on a category. */
-		onSelectCategory?: (node: TreeViewItem) => void;
-	}
+interface Props {
+	contentNodes: ContentNode[];
+	/** Incremented by parent on save success so we rebuild from server order. */
+	structureKey?: number;
+	onDeleteNode?: (node: Partial<ContentNode>) => void;
+	onDuplicateNode?: (node: Partial<ContentNode>) => void;
+	onEditCategory: (category: Partial<ContentNode>) => void;
+	onNodeUpdate: (updatedNodes: ContentNode[]) => void;
+	/** Id of the single category selected for "add collection" (only one at a time). */
+	selectedCategoryId?: string | null;
+	/** Called when user clicks "Select" on a category. */
+	onSelectCategory?: (node: TreeViewItem) => void;
+}
 
-	let {
-		contentNodes = [],
-		structureKey = 0,
-		onNodeUpdate,
-		onEditCategory,
-		onDeleteNode,
-		onDuplicateNode,
-		selectedCategoryId = null,
-		onSelectCategory
-	}: Props = $props();
+let {
+	contentNodes = [],
+	structureKey = 0,
+	onNodeUpdate,
+	onEditCategory,
+	onDeleteNode,
+	onDuplicateNode,
+	selectedCategoryId = null,
+	onSelectCategory,
+}: Props = $props();
 
-	// Search and UI State
-	let searchText = $state('');
-	let treeRoots = $state<EnhancedTreeViewItem[]>([]);
-	let initialized = $state(false);
-	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
-	let expandedNodes = $state(new SvelteSet<string>());
-	let isDragging = $state(false);
-	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
-	let nodeSnapshot = $state(new SvelteMap<string, EnhancedTreeViewItem>());
-	let lastContentNodesHash = $state('');
-	/** Hash of the nodes we last sent in saveTreeData; skip rebuilding until contentNodes matches this (avoids revert on same-level or next move). */
-	let lastPushedHash = $state('');
-	/** Last structureKey we saw; when it changes, clear hash guards to force rebuild from server order. */
-	let lastStructureKey = $state(0);
-	let rebuildTimeout: ReturnType<typeof setTimeout> | null = null;
+// Search and UI State
+let searchText = $state("");
+let treeRoots = $state<EnhancedTreeViewItem[]>([]);
+let initialized = $state(false);
+// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+let expandedNodes = $state(new SvelteSet<string>());
+let isDragging = $state(false);
+// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+let nodeSnapshot = $state(new SvelteMap<string, EnhancedTreeViewItem>());
+let lastContentNodesHash = $state("");
+/** Hash of the nodes we last sent in saveTreeData; skip rebuilding until contentNodes matches this (avoids revert on same-level or next move). */
+let lastPushedHash = $state("");
+/** Last structureKey we saw; when it changes, clear hash guards to force rebuild from server order. */
+let lastStructureKey = $state(0);
+let rebuildTimeout: ReturnType<typeof setTimeout> | null = null;
 
-	// Accessibility State
-	let announcement = $state('');
-	let announcementId = $state(0);
-	let keyboardReorderMode = $state<string | null>(null);
-	let rovingTabIndex = $state<string | null>(null); // ID of node with tabindex="0"
+// Accessibility State
+let announcement = $state("");
+let announcementId = $state(0);
+let keyboardReorderMode = $state<string | null>(null);
+let rovingTabIndex = $state<string | null>(null); // ID of node with tabindex="0"
 
-	// Typeahead State
-	let typeaheadBuffer = $state('');
-	let typeaheadTimeout: ReturnType<typeof setTimeout> | null = null;
+// Typeahead State
+let typeaheadBuffer = $state("");
+let typeaheadTimeout: ReturnType<typeof setTimeout> | null = null;
 
-	// Enhanced Item Type
-	type EnhancedTreeViewItem = TreeViewItem & {
-		children: EnhancedTreeViewItem[];
-		level: number;
-		isDndShadowItem?: boolean;
+// Enhanced Item Type
+type EnhancedTreeViewItem = TreeViewItem & {
+	children: EnhancedTreeViewItem[];
+	level: number;
+	isDndShadowItem?: boolean;
+};
+
+// Cleanup effect to prevent memory leaks
+$effect(() => {
+	return () => {
+		if (rebuildTimeout) {
+			clearTimeout(rebuildTimeout);
+		}
+		if (typeaheadTimeout) {
+			clearTimeout(typeaheadTimeout);
+		}
 	};
+});
 
-	// Cleanup effect to prevent memory leaks
-	$effect(() => {
-		return () => {
-			if (rebuildTimeout) {
-				clearTimeout(rebuildTimeout);
-			}
-			if (typeaheadTimeout) {
-				clearTimeout(typeaheadTimeout);
-			}
-		};
-	});
-
-	// Initialize Tree from Props - with race condition protection
-	$effect(() => {
-		if (isDragging || !contentNodes.length) {
-			return;
-		}
-
-		// When parent signals fresh server data (e.g. after save), clear hash guards so we rebuild from server order
-		if (structureKey !== lastStructureKey) {
-			lastStructureKey = structureKey;
-			lastContentNodesHash = '';
-			lastPushedHash = '';
-		}
-
-		const currentHash =
-			contentNodes
-				.map((n) => `${n._id}:${n.parentId}:${n.order}`)
-				.sort()
-				.join('|') + contentNodes.length;
-
-		// Never rebuild from stale contentNodes when we've pushed an update that parent hasn't reflected yet
-		if (lastPushedHash && currentHash !== lastPushedHash) {
-			return;
-		}
-		// Parent synced (contentNodes matches what we sent); clear guard so server-driven updates can rebuild later
-		if (lastPushedHash && currentHash === lastPushedHash) {
-			lastPushedHash = '';
-		}
-
-		if (currentHash !== lastContentNodesHash) {
-			if (rebuildTimeout) {
-				clearTimeout(rebuildTimeout);
-			}
-
-			rebuildTimeout = setTimeout(() => {
-				lastContentNodesHash = currentHash;
-				lastPushedHash = '';
-
-				// Sort by parent then order so UI always reflects DB order (do not rely on array order)
-				const sortedNodes = [...contentNodes].sort((a, b) => {
-					const parentA = a.parentId != null ? String(a.parentId) : '';
-					const parentB = b.parentId != null ? String(b.parentId) : '';
-					if (parentA !== parentB) return parentA.localeCompare(parentB);
-					const orderDiff = (a.order ?? 0) - (b.order ?? 0);
-					if (orderDiff !== 0) return orderDiff;
-					return (a.name ?? '').localeCompare(b.name ?? '');
-				});
-
-				const flatItems: TreeViewItem[] = sortedNodes.map((n) => ({
-					id: String(n._id),
-					_id: n._id,
-					name: n.name,
-					nodeType: n.nodeType || (n as any).type || 'collection',
-					parent: n.parentId ? String(n.parentId) : null,
-					order: n.order ?? 0,
-					path: '', // Set below from id (path = id for root, parentPath.id for nested)
-					icon: n.icon,
-					slug: n.slug,
-					description: n.description,
-					isDraggable: true,
-					isDropAllowed: true
-				}));
-				const flatItemsWithPaths = recalculatePaths(flatItems);
-				treeRoots = buildTree(flatItemsWithPaths);
-
-				if (!initialized) {
-					initialized = true;
-					expandAll();
-				}
-
-				// Set initial roving tabindex to first node
-				if (!rovingTabIndex && treeRoots.length > 0) {
-					rovingTabIndex = treeRoots[0].id;
-				}
-
-				rebuildTimeout = null;
-			}, 50);
-		}
-	});
-
-	// Auto-expand on search
-	$effect(() => {
-		if (searchText.trim()) {
-			collectIdsToExpand(treeRoots, searchText.toLowerCase(), expandedNodes);
-		}
-	});
-
-	// --- Tree Building Helpers ---
-
-	function buildTree(flatItems: TreeViewItem[]): EnhancedTreeViewItem[] {
-		const itemMap = new SvelteMap<string, EnhancedTreeViewItem>();
-		flatItems.forEach((item) => {
-			itemMap.set(item.id, { ...item, children: [], level: 0 });
-		});
-
-		const roots: EnhancedTreeViewItem[] = [];
-
-		flatItems.forEach((item) => {
-			const enhanced = itemMap.get(item.id)!;
-			if (item.parent && itemMap.has(item.parent)) {
-				const parent = itemMap.get(item.parent)!;
-				parent.children.push(enhanced);
-				enhanced.level = parent.level + 1;
-			} else {
-				roots.push(enhanced);
-			}
-		});
-
-		roots.sort(sortContentNodes);
-		itemMap.forEach((node) => node.children.sort(sortContentNodes));
-
-		return roots;
+// Initialize Tree from Props - with race condition protection
+$effect(() => {
+	if (isDragging || !contentNodes.length) {
+		return;
 	}
 
-	function flattenTree(nodes: EnhancedTreeViewItem[], parentId: string | null = null): TreeViewItem[] {
-		let flat: TreeViewItem[] = [];
-
-		nodes.forEach((node, index) => {
-			const { children, level: _level, isDndShadowItem: _isDndShadowItem, ...rest } = node;
-			const newItem: TreeViewItem = { ...rest, parent: parentId, order: index };
-			flat.push(newItem);
-
-			if (children && children.length > 0) {
-				flat = flat.concat(flattenTree(children, node.id));
-			}
-		});
-
-		return flat;
+	// When parent signals fresh server data (e.g. after save), clear hash guards so we rebuild from server order
+	if (structureKey !== lastStructureKey) {
+		lastStructureKey = structureKey;
+		lastContentNodesHash = "";
+		lastPushedHash = "";
 	}
 
-	function findNode(nodes: EnhancedTreeViewItem[], id: string): EnhancedTreeViewItem | null {
-		for (const node of nodes) {
-			if (node.id === id) {
-				return node;
-			}
-			if (node.children) {
-				const found = findNode(node.children, id);
-				if (found) {
-					return found;
-				}
-			}
+	const currentHash =
+		contentNodes
+			.map((n) => `${n._id}:${n.parentId}:${n.order}`)
+			.sort()
+			.join("|") + contentNodes.length;
+
+	// Never rebuild from stale contentNodes when we've pushed an update that parent hasn't reflected yet
+	if (lastPushedHash && currentHash !== lastPushedHash) {
+		return;
+	}
+	// Parent synced (contentNodes matches what we sent); clear guard so server-driven updates can rebuild later
+	if (lastPushedHash && currentHash === lastPushedHash) {
+		lastPushedHash = "";
+	}
+
+	if (currentHash !== lastContentNodesHash) {
+		if (rebuildTimeout) {
+			clearTimeout(rebuildTimeout);
 		}
-		return null;
-	}
 
-	function getParent(rootNodes: EnhancedTreeViewItem[], childId: string): EnhancedTreeViewItem | null {
-		for (const node of rootNodes) {
-			if (node.children.some((c) => c.id === childId)) {
-				return node;
+		rebuildTimeout = setTimeout(() => {
+			lastContentNodesHash = currentHash;
+			lastPushedHash = "";
+
+			// Sort by parent then order so UI always reflects DB order (do not rely on array order)
+			const sortedNodes = [...contentNodes].sort((a, b) => {
+				const parentA = a.parentId != null ? String(a.parentId) : "";
+				const parentB = b.parentId != null ? String(b.parentId) : "";
+				if (parentA !== parentB) return parentA.localeCompare(parentB);
+				const orderDiff = (a.order ?? 0) - (b.order ?? 0);
+				if (orderDiff !== 0) return orderDiff;
+				return (a.name ?? "").localeCompare(b.name ?? "");
+			});
+
+			const flatItems: TreeViewItem[] = sortedNodes.map((n) => ({
+				id: String(n._id),
+				_id: n._id,
+				name: n.name,
+				nodeType: n.nodeType || (n as any).type || "collection",
+				parent: n.parentId ? String(n.parentId) : null,
+				order: n.order ?? 0,
+				path: "", // Set below from id (path = id for root, parentPath.id for nested)
+				icon: n.icon,
+				slug: n.slug,
+				description: n.description,
+				isDraggable: true,
+				isDropAllowed: true,
+			}));
+			const flatItemsWithPaths = recalculatePaths(flatItems);
+			treeRoots = buildTree(flatItemsWithPaths);
+
+			if (!initialized) {
+				initialized = true;
+				expandAll();
 			}
-			const found = getParent(node.children, childId);
+
+			// Set initial roving tabindex to first node
+			if (!rovingTabIndex && treeRoots.length > 0) {
+				rovingTabIndex = treeRoots[0].id;
+			}
+
+			rebuildTimeout = null;
+		}, 50);
+	}
+});
+
+// Auto-expand on search
+$effect(() => {
+	if (searchText.trim()) {
+		collectIdsToExpand(treeRoots, searchText.toLowerCase(), expandedNodes);
+	}
+});
+
+// --- Tree Building Helpers ---
+
+function buildTree(flatItems: TreeViewItem[]): EnhancedTreeViewItem[] {
+	const itemMap = new SvelteMap<string, EnhancedTreeViewItem>();
+	flatItems.forEach((item) => {
+		itemMap.set(item.id, { ...item, children: [], level: 0 });
+	});
+
+	const roots: EnhancedTreeViewItem[] = [];
+
+	flatItems.forEach((item) => {
+		const enhanced = itemMap.get(item.id)!;
+		if (item.parent && itemMap.has(item.parent)) {
+			const parent = itemMap.get(item.parent)!;
+			parent.children.push(enhanced);
+			enhanced.level = parent.level + 1;
+		} else {
+			roots.push(enhanced);
+		}
+	});
+
+	roots.sort(sortContentNodes);
+	itemMap.forEach((node) => node.children.sort(sortContentNodes));
+
+	return roots;
+}
+
+function flattenTree(
+	nodes: EnhancedTreeViewItem[],
+	parentId: string | null = null,
+): TreeViewItem[] {
+	let flat: TreeViewItem[] = [];
+
+	nodes.forEach((node, index) => {
+		const {
+			children,
+			level: _level,
+			isDndShadowItem: _isDndShadowItem,
+			...rest
+		} = node;
+		const newItem: TreeViewItem = { ...rest, parent: parentId, order: index };
+		flat.push(newItem);
+
+		if (children && children.length > 0) {
+			flat = flat.concat(flattenTree(children, node.id));
+		}
+	});
+
+	return flat;
+}
+
+function findNode(
+	nodes: EnhancedTreeViewItem[],
+	id: string,
+): EnhancedTreeViewItem | null {
+	for (const node of nodes) {
+		if (node.id === id) {
+			return node;
+		}
+		if (node.children) {
+			const found = findNode(node.children, id);
 			if (found) {
 				return found;
 			}
 		}
-		return null;
 	}
+	return null;
+}
 
-	function getVisibleNodes(nodes: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] {
-		const visible: EnhancedTreeViewItem[] = [];
+function getParent(
+	rootNodes: EnhancedTreeViewItem[],
+	childId: string,
+): EnhancedTreeViewItem | null {
+	for (const node of rootNodes) {
+		if (node.children.some((c) => c.id === childId)) {
+			return node;
+		}
+		const found = getParent(node.children, childId);
+		if (found) {
+			return found;
+		}
+	}
+	return null;
+}
 
-		function traverse(items: EnhancedTreeViewItem[]) {
-			for (const item of items) {
-				visible.push(item);
-				if (expandedNodes.has(item.id) && item.children?.length) {
-					traverse(item.children);
-				}
+function getVisibleNodes(
+	nodes: EnhancedTreeViewItem[],
+): EnhancedTreeViewItem[] {
+	const visible: EnhancedTreeViewItem[] = [];
+
+	function traverse(items: EnhancedTreeViewItem[]) {
+		for (const item of items) {
+			visible.push(item);
+			if (expandedNodes.has(item.id) && item.children?.length) {
+				traverse(item.children);
 			}
 		}
-
-		traverse(nodes);
-		return visible;
 	}
 
-	function collectIdsToExpand(nodes: EnhancedTreeViewItem[], search: string, ids: Set<string>): boolean {
-		let hasMatch = false;
-		for (const node of nodes) {
-			const matches = node.name.toLowerCase().includes(search);
-			const childHasMatch = collectIdsToExpand(node.children, search, ids);
-			if (childHasMatch || (matches && node.children.length > 0)) {
-				ids.add(node.id);
-				hasMatch = true;
-			}
-			if (matches) {
-				hasMatch = true;
-			}
+	traverse(nodes);
+	return visible;
+}
+
+function collectIdsToExpand(
+	nodes: EnhancedTreeViewItem[],
+	search: string,
+	ids: Set<string>,
+): boolean {
+	let hasMatch = false;
+	for (const node of nodes) {
+		const matches = node.name.toLowerCase().includes(search);
+		const childHasMatch = collectIdsToExpand(node.children, search, ids);
+		if (childHasMatch || (matches && node.children.length > 0)) {
+			ids.add(node.id);
+			hasMatch = true;
 		}
-		return hasMatch;
-	}
-
-	// Filtering Helper - simplified since we auto-expand matches
-	function isNodeVisible(node: EnhancedTreeViewItem, search: string): boolean {
-		if (!search) {
-			return true;
-		}
-		return node.name.toLowerCase().includes(search.toLowerCase());
-	}
-
-	// --- UI Actions ---
-
-	function expandAll() {
-		const recurse = (nodes: EnhancedTreeViewItem[]) => {
-			nodes.forEach((n) => {
-				expandedNodes.add(n.id);
-				recurse(n.children);
-			});
-		};
-		recurse(treeRoots);
-		announce('Expanded all categories');
-	}
-
-	function collapseAll() {
-		expandedNodes.clear();
-		announce('Collapsed all categories');
-	}
-
-	function clearSearch() {
-		searchText = '';
-		announce('Search cleared');
-	}
-
-	function toggleNode(id: string) {
-		if (expandedNodes.has(id)) {
-			expandedNodes.delete(id);
-			announce('Collapsed');
-		} else {
-			expandedNodes.add(id);
-			announce('Expanded');
+		if (matches) {
+			hasMatch = true;
 		}
 	}
+	return hasMatch;
+}
 
-	function announce(message: string) {
-		announcement = message;
-		announcementId++;
-		setTimeout(() => {
-			if (announcement === message) {
-				announcement = '';
-			}
-		}, 1000);
+// Filtering Helper - simplified since we auto-expand matches
+function isNodeVisible(node: EnhancedTreeViewItem, search: string): boolean {
+	if (!search) {
+		return true;
+	}
+	return node.name.toLowerCase().includes(search.toLowerCase());
+}
+
+// --- UI Actions ---
+
+function expandAll() {
+	const recurse = (nodes: EnhancedTreeViewItem[]) => {
+		nodes.forEach((n) => {
+			expandedNodes.add(n.id);
+			recurse(n.children);
+		});
+	};
+	recurse(treeRoots);
+	announce("Expanded all categories");
+}
+
+function collapseAll() {
+	expandedNodes.clear();
+	announce("Collapsed all categories");
+}
+
+function clearSearch() {
+	searchText = "";
+	announce("Search cleared");
+}
+
+function toggleNode(id: string) {
+	if (expandedNodes.has(id)) {
+		expandedNodes.delete(id);
+		announce("Collapsed");
+	} else {
+		expandedNodes.add(id);
+		announce("Expanded");
+	}
+}
+
+function announce(message: string) {
+	announcement = message;
+	announcementId++;
+	setTimeout(() => {
+		if (announcement === message) {
+			announcement = "";
+		}
+	}, 1000);
+}
+
+// --- Drag & Drop Handlers ---
+
+function handleRootConsider(e: CustomEvent) {
+	const { items, info } = e.detail;
+
+	if (info.trigger === "dragStarted") {
+		isDragging = true;
+		// Take snapshot of current tree state including all children
+		nodeSnapshot.clear();
+		takeSnapshot(treeRoots);
 	}
 
-	// --- Drag & Drop Handlers ---
+	// Rehydrate items from snapshot to preserve children
+	treeRoots = items.map((item: EnhancedTreeViewItem) => rehydrateItem(item));
+}
 
-	function handleRootConsider(e: CustomEvent) {
-		const { items, info } = e.detail;
+function handleNestedConsider(e: CustomEvent, parentId: string) {
+	const { items, info } = e.detail;
 
-		if (info.trigger === 'dragStarted') {
-			isDragging = true;
-			// Take snapshot of current tree state including all children
-			nodeSnapshot.clear();
-			takeSnapshot(treeRoots);
-		}
-
-		// Rehydrate items from snapshot to preserve children
-		treeRoots = items.map((item: EnhancedTreeViewItem) => rehydrateItem(item));
+	if (info.trigger === "dragStarted") {
+		isDragging = true;
+		nodeSnapshot.clear();
+		takeSnapshot(treeRoots);
 	}
 
-	function handleNestedConsider(e: CustomEvent, parentId: string) {
-		const { items, info } = e.detail;
-
-		if (info.trigger === 'dragStarted') {
-			isDragging = true;
-			nodeSnapshot.clear();
-			takeSnapshot(treeRoots);
-		}
-
-		const parent = findNode(treeRoots, parentId);
-		if (parent) {
-			// Rehydrate to preserve children
-			parent.children = items.map((item: EnhancedTreeViewItem) => rehydrateItem(item));
-			treeRoots = [...treeRoots]; // Trigger reactivity
-		}
+	const parent = findNode(treeRoots, parentId);
+	if (parent) {
+		// Rehydrate to preserve children
+		parent.children = items.map((item: EnhancedTreeViewItem) =>
+			rehydrateItem(item),
+		);
+		treeRoots = [...treeRoots]; // Trigger reactivity
 	}
+}
 
-	function handleFinalize(e: CustomEvent, targetParentId: string | null) {
-		const { items: newZoneItems, info } = e.detail;
-		// Only process the zone that received the drop. The zone that lost the item gets trigger DROPPED_INTO_ANOTHER.
-		if (info?.trigger === TRIGGERS.DROPPED_INTO_ANOTHER) return;
+function handleFinalize(e: CustomEvent, targetParentId: string | null) {
+	const { items: newZoneItems, info } = e.detail;
+	// Only process the zone that received the drop. The zone that lost the item gets trigger DROPPED_INTO_ANOTHER.
+	if (info?.trigger === TRIGGERS.DROPPED_INTO_ANOTHER) return;
 
-		// Get IDs of items being moved
-		const movingIds = new Set<string>(newZoneItems.map((i: EnhancedTreeViewItem) => i.id));
+	// Get IDs of items being moved
+	const movingIds = new Set<string>(
+		newZoneItems.map((i: EnhancedTreeViewItem) => i.id),
+	);
 
-		// CYCLE DETECTION: Prevent dropping parent into its own child
-		if (targetParentId && movingIds.size > 0) {
-			for (const movedId of movingIds) {
-				if (isAncestorOf(movedId, targetParentId, treeRoots)) {
-					const movedNode = findNode(treeRoots, movedId);
-					announce(`Cannot move "${movedNode?.name || 'item'}" into its own sub-category`);
+	// CYCLE DETECTION: Prevent dropping parent into its own child
+	if (targetParentId && movingIds.size > 0) {
+		for (const movedId of movingIds) {
+			if (isAncestorOf(movedId, targetParentId, treeRoots)) {
+				const movedNode = findNode(treeRoots, movedId);
+				announce(
+					`Cannot move "${movedNode?.name || "item"}" into its own sub-category`,
+				);
 
-					// Revert to snapshot
-					if (nodeSnapshot.size > 0) {
-						treeRoots = buildTree(flattenTree(Array.from(nodeSnapshot.values()).filter((n) => !n.parent)));
-					}
-					isDragging = false;
-					return;
-				}
-			}
-		}
-
-		// DUPLICATE NAME IN TARGET: No two siblings with same name (case-insensitive, trimmed)
-		const nameNorm = (name: unknown) =>
-			String(name ?? '')
-				.trim()
-				.toLowerCase();
-		for (const movedItem of newZoneItems) {
-			if (!movingIds.has(movedItem.id)) continue;
-			const movedName = nameNorm(movedItem.name);
-			if (!movedName) continue;
-			const hasDuplicate = newZoneItems.some((other: EnhancedTreeViewItem) => other.id !== movedItem.id && nameNorm(other.name) === movedName);
-			if (hasDuplicate) {
-				announce('A collection with this name already exists in the target category.');
-				toast.warning('A collection with this name already exists in the target category.');
+				// Revert to snapshot
 				if (nodeSnapshot.size > 0) {
-					treeRoots = buildTree(flattenTree(Array.from(nodeSnapshot.values()).filter((n) => !n.parent)));
+					treeRoots = buildTree(
+						flattenTree(
+							Array.from(nodeSnapshot.values()).filter((n) => !n.parent),
+						),
+					);
 				}
 				isDragging = false;
 				return;
 			}
 		}
-
-		// 1. Remove moving items from their current (old) positions in the tree
-		// This creates a "clean" tree where moved items only exist in newZoneItems
-		function cleanTree(nodes: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] {
-			return nodes
-				.filter((n) => !movingIds.has(n.id))
-				.map((n) => ({
-					...n,
-					children: cleanTree(n.children || [])
-				}));
-		}
-
-		const cleanedRoots = cleanTree(treeRoots);
-
-		// 2. Reconstruct the tree with moved items in their new location.
-		// Use children from cleanedRoots so the old parent doesn't keep the moved node.
-		let newTreeRoots: EnhancedTreeViewItem[];
-
-		if (targetParentId === null) {
-			// Dropped at root level - newZoneItems are the new roots.
-			newTreeRoots = newZoneItems.map((item: EnhancedTreeViewItem) => {
-				const fromCleaned = findNode(cleanedRoots, item.id);
-				return {
-					...item,
-					parent: null,
-					children: fromCleaned ? fromCleaned.children || [] : item.children || []
-				};
-			});
-		} else {
-			// Dropped into a parent - find target and update its children. Use children from cleanedRoots per item.
-			const updateTargetParent = (nodes: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] => {
-				return nodes.map((n) => {
-					if (n.id === targetParentId) {
-						return {
-							...n,
-							children: newZoneItems.map((item: EnhancedTreeViewItem) => {
-								const fromCleaned = findNode(cleanedRoots, item.id);
-								return {
-									...item,
-									parent: targetParentId,
-									children: fromCleaned ? fromCleaned.children || [] : item.children || []
-								};
-							})
-						};
-					}
-					return {
-						...n,
-						children: updateTargetParent(n.children || [])
-					};
-				});
-			};
-			newTreeRoots = updateTargetParent(cleanedRoots);
-		}
-
-		// Ensure moved items appear only in their new location: strip them from any other node's children
-		function stripMovedFromTreeExceptTarget(nodes: EnhancedTreeViewItem[], ids: Set<string>, targetParentId: string | null): EnhancedTreeViewItem[] {
-			return nodes.map((n) => {
-				const isDropTarget = targetParentId !== null && n.id === targetParentId;
-				const children = n.children || [];
-				const filtered = isDropTarget ? children : children.filter((c) => !ids.has(c.id));
-				return {
-					...n,
-					children: stripMovedFromTreeExceptTarget(filtered, ids, targetParentId)
-				};
-			});
-		}
-		newTreeRoots = stripMovedFromTreeExceptTarget(newTreeRoots, movingIds, targetParentId);
-
-		// Recompute path (and parent/order) for every node so moved items get correct path
-		const flatAfterMove = flattenTree(newTreeRoots);
-		const withPaths = recalculatePaths(flatAfterMove);
-		const treeWithPaths = buildTree(withPaths);
-		// Update state - JSON round-trip to strip proxies for svelte-dnd-action
-		treeRoots = JSON.parse(JSON.stringify(treeWithPaths)) as EnhancedTreeViewItem[];
-
-		// Save and notify parent (path/parentId already correct in treeRoots)
-		saveTreeData();
-
-		// Clear dragging state after a delay to let animations complete
-		setTimeout(() => {
-			isDragging = false;
-			nodeSnapshot.clear();
-		}, flipDurationMs + 50);
 	}
 
-	// Helper: Check if potentialAncestor is actually an ancestor of nodeId
-	function isAncestorOf(potentialAncestorId: string, nodeId: string, nodes: EnhancedTreeViewItem[]): boolean {
-		const targetNode = findNode(nodes, nodeId);
-		if (!targetNode) {
-			return false;
-		}
-
-		// Walk up from targetNode to see if we hit potentialAncestorId
-		let current: EnhancedTreeViewItem | null = targetNode;
-		const visited = new SvelteSet<string>();
-
-		while (current) {
-			if (current.id === potentialAncestorId) {
-				return true;
+	// DUPLICATE NAME IN TARGET: No two siblings with same name (case-insensitive, trimmed)
+	const nameNorm = (name: unknown) =>
+		String(name ?? "")
+			.trim()
+			.toLowerCase();
+	for (const movedItem of newZoneItems) {
+		if (!movingIds.has(movedItem.id)) continue;
+		const movedName = nameNorm(movedItem.name);
+		if (!movedName) continue;
+		const hasDuplicate = newZoneItems.some(
+			(other: EnhancedTreeViewItem) =>
+				other.id !== movedItem.id && nameNorm(other.name) === movedName,
+		);
+		if (hasDuplicate) {
+			announce(
+				"A collection with this name already exists in the target category.",
+			);
+			toast.warning(
+				"A collection with this name already exists in the target category.",
+			);
+			if (nodeSnapshot.size > 0) {
+				treeRoots = buildTree(
+					flattenTree(
+						Array.from(nodeSnapshot.values()).filter((n) => !n.parent),
+					),
+				);
 			}
-			if (visited.has(current.id)) {
-				break; // Cycle protection
-			}
-			visited.add(current.id);
-			current = getParent(nodes, current.id);
+			isDragging = false;
+			return;
 		}
+	}
 
+	// 1. Remove moving items from their current (old) positions in the tree
+	// This creates a "clean" tree where moved items only exist in newZoneItems
+	function cleanTree(nodes: EnhancedTreeViewItem[]): EnhancedTreeViewItem[] {
+		return nodes
+			.filter((n) => !movingIds.has(n.id))
+			.map((n) => ({
+				...n,
+				children: cleanTree(n.children || []),
+			}));
+	}
+
+	const cleanedRoots = cleanTree(treeRoots);
+
+	// 2. Reconstruct the tree with moved items in their new location.
+	// Use children from cleanedRoots so the old parent doesn't keep the moved node.
+	let newTreeRoots: EnhancedTreeViewItem[];
+
+	if (targetParentId === null) {
+		// Dropped at root level - newZoneItems are the new roots.
+		newTreeRoots = newZoneItems.map((item: EnhancedTreeViewItem) => {
+			const fromCleaned = findNode(cleanedRoots, item.id);
+			return {
+				...item,
+				parent: null,
+				children: fromCleaned
+					? fromCleaned.children || []
+					: item.children || [],
+			};
+		});
+	} else {
+		// Dropped into a parent - find target and update its children. Use children from cleanedRoots per item.
+		const updateTargetParent = (
+			nodes: EnhancedTreeViewItem[],
+		): EnhancedTreeViewItem[] => {
+			return nodes.map((n) => {
+				if (n.id === targetParentId) {
+					return {
+						...n,
+						children: newZoneItems.map((item: EnhancedTreeViewItem) => {
+							const fromCleaned = findNode(cleanedRoots, item.id);
+							return {
+								...item,
+								parent: targetParentId,
+								children: fromCleaned
+									? fromCleaned.children || []
+									: item.children || [],
+							};
+						}),
+					};
+				}
+				return {
+					...n,
+					children: updateTargetParent(n.children || []),
+				};
+			});
+		};
+		newTreeRoots = updateTargetParent(cleanedRoots);
+	}
+
+	// Ensure moved items appear only in their new location: strip them from any other node's children
+	function stripMovedFromTreeExceptTarget(
+		nodes: EnhancedTreeViewItem[],
+		ids: Set<string>,
+		targetParentId: string | null,
+	): EnhancedTreeViewItem[] {
+		return nodes.map((n) => {
+			const isDropTarget = targetParentId !== null && n.id === targetParentId;
+			const children = n.children || [];
+			const filtered = isDropTarget
+				? children
+				: children.filter((c) => !ids.has(c.id));
+			return {
+				...n,
+				children: stripMovedFromTreeExceptTarget(filtered, ids, targetParentId),
+			};
+		});
+	}
+	newTreeRoots = stripMovedFromTreeExceptTarget(
+		newTreeRoots,
+		movingIds,
+		targetParentId,
+	);
+
+	// Recompute path (and parent/order) for every node so moved items get correct path
+	const flatAfterMove = flattenTree(newTreeRoots);
+	const withPaths = recalculatePaths(flatAfterMove);
+	const treeWithPaths = buildTree(withPaths);
+	// Update state - JSON round-trip to strip proxies for svelte-dnd-action
+	treeRoots = JSON.parse(
+		JSON.stringify(treeWithPaths),
+	) as EnhancedTreeViewItem[];
+
+	// Save and notify parent (path/parentId already correct in treeRoots)
+	saveTreeData();
+
+	// Clear dragging state after a delay to let animations complete
+	setTimeout(() => {
+		isDragging = false;
+		nodeSnapshot.clear();
+	}, flipDurationMs + 50);
+}
+
+// Helper: Check if potentialAncestor is actually an ancestor of nodeId
+function isAncestorOf(
+	potentialAncestorId: string,
+	nodeId: string,
+	nodes: EnhancedTreeViewItem[],
+): boolean {
+	const targetNode = findNode(nodes, nodeId);
+	if (!targetNode) {
 		return false;
 	}
 
-	// Helper: Take snapshot of entire tree
-	function takeSnapshot(nodes: EnhancedTreeViewItem[]) {
-		nodes.forEach((node) => {
-			nodeSnapshot.set(node.id, {
-				...node,
-				children: [...(node.children || [])]
-			});
-			if (node.children?.length) {
-				takeSnapshot(node.children);
-			}
+	// Walk up from targetNode to see if we hit potentialAncestorId
+	let current: EnhancedTreeViewItem | null = targetNode;
+	const visited = new SvelteSet<string>();
+
+	while (current) {
+		if (current.id === potentialAncestorId) {
+			return true;
+		}
+		if (visited.has(current.id)) {
+			break; // Cycle protection
+		}
+		visited.add(current.id);
+		current = getParent(nodes, current.id);
+	}
+
+	return false;
+}
+
+// Helper: Take snapshot of entire tree
+function takeSnapshot(nodes: EnhancedTreeViewItem[]) {
+	nodes.forEach((node) => {
+		nodeSnapshot.set(node.id, {
+			...node,
+			children: [...(node.children || [])],
 		});
-	}
-
-	// Helper: Rehydrate single item from snapshot
-	function rehydrateItem(item: EnhancedTreeViewItem): EnhancedTreeViewItem {
-		const snap = nodeSnapshot.get(item.id);
-		if (snap) {
-			return {
-				...item,
-				children: snap.children.map((child) => rehydrateItem(child))
-			};
+		if (node.children?.length) {
+			takeSnapshot(node.children);
 		}
-		return { ...item, children: item.children || [] };
-	}
+	});
+}
 
-	function saveTreeData() {
-		const flatItems = flattenTree(treeRoots);
-		const withPaths = recalculatePaths(flatItems);
-		const nodes = toFlatContentNodes(withPaths);
-
-		const pushedHash =
-			nodes
-				.map((n) => `${n._id}:${n.parentId}:${n.order}`)
-				.sort()
-				.join('|') + nodes.length;
-
-		// Set hash and guard so we don't rebuild from stale contentNodes until parent syncs
-		lastContentNodesHash = pushedHash;
-		lastPushedHash = pushedHash;
-
-		onNodeUpdate(nodes);
-
-		// Delay releasing the dragging lock to ensure parent state updates
-		setTimeout(() => {
-			isDragging = false;
-		}, 100);
-	}
-
-	function recalculatePaths(items: TreeViewItem[]): TreeViewItem[] {
-		const itemMap = new SvelteMap<string, TreeViewItem>();
-		for (const item of items) {
-			itemMap.set(item.id, { ...item });
-		}
-
-		const childrenByParent = new SvelteMap<string, TreeViewItem[]>();
-		for (const item of items) {
-			const parentKey = item.parent || '__root__';
-			if (!childrenByParent.has(parentKey)) {
-				childrenByParent.set(parentKey, []);
-			}
-			childrenByParent.get(parentKey)!.push(itemMap.get(item.id)!);
-		}
-
-		// DO NOT SORT HERE. The items are already in the correct order from flattenTree which respects UI order.
-		// Sorting by sortContentNodes (which uses node.order) will use stale order values and break DnD.
-
-		function assignPaths(parentId: string | null, parentPath: string): void {
-			const key = parentId || '__root__';
-			const children = childrenByParent.get(key);
-			if (!children) return;
-
-			children.forEach((child, index) => {
-				const newPath = parentPath ? `${parentPath}.${child.id}` : child.id;
-				const item = itemMap.get(child.id);
-				if (item) {
-					item.path = newPath;
-					item.order = index;
-					item.parent = parentId;
-				}
-				assignPaths(child.id, newPath);
-			});
-		}
-
-		assignPaths(null, '');
-		return Array.from(itemMap.values());
-	}
-
-	function toFlatContentNodes(flatItems: TreeViewItem[]): ContentNode[] {
-		return flatItems.map((item) => {
-			return {
-				...item,
-				_id: item._id || item.id,
-				id: undefined,
-				// Send null for root so server persists it (undefined is omitted by JSON and DB keeps old parent).
-				parentId: item.parent != null ? item.parent : null,
-				name: item.name,
-				icon: item.icon,
-				nodeType: item.nodeType,
-				path: item.path,
-				order: item.order ?? 0,
-				parent: undefined,
-				text: undefined
-			} as unknown as ContentNode;
-		});
-	}
-
-	// --- Keyboard Navigation ---
-
-	function handleTreeKeyDown(e: KeyboardEvent) {
-		// Let keyboard reorder mode handle its own keys
-		if (keyboardReorderMode) {
-			return;
-		}
-
-		const visibleNodes = getVisibleNodes(treeRoots);
-		if (visibleNodes.length === 0) {
-			return;
-		}
-
-		const activeElement = document.activeElement?.closest('[data-item-id]') as HTMLElement | null;
-		const currentId = activeElement?.dataset.itemId;
-		let currentIndex = visibleNodes.findIndex((n) => n.id === currentId);
-
-		// If no focus yet, assume first
-		if (currentIndex === -1) {
-			currentIndex = 0;
-		}
-		const currentNode = visibleNodes[currentIndex];
-
-		let nextNode: EnhancedTreeViewItem | null = null;
-		let handled = true;
-
-		switch (e.key) {
-			case 'ArrowUp': {
-				e.preventDefault();
-				if (currentIndex > 0) {
-					nextNode = visibleNodes[currentIndex - 1];
-				}
-				break;
-			}
-
-			case 'ArrowDown': {
-				e.preventDefault();
-				if (currentIndex < visibleNodes.length - 1) {
-					nextNode = visibleNodes[currentIndex + 1];
-				}
-				break;
-			}
-
-			case 'ArrowLeft': {
-				e.preventDefault();
-				if (expandedNodes.has(currentNode.id) && currentNode.children?.length) {
-					toggleNode(currentNode.id);
-				} else {
-					const parent = getParent(treeRoots, currentNode.id);
-					if (parent) {
-						nextNode = parent;
-					}
-				}
-				break;
-			}
-
-			case 'ArrowRight': {
-				e.preventDefault();
-				if (!expandedNodes.has(currentNode.id) && currentNode.children?.length) {
-					toggleNode(currentNode.id);
-				} else if (currentNode.children?.length) {
-					nextNode = currentNode.children[0];
-				}
-				break;
-			}
-
-			case 'Home': {
-				e.preventDefault();
-				nextNode = visibleNodes[0] ?? null;
-				break;
-			}
-
-			case 'End': {
-				e.preventDefault();
-				nextNode = visibleNodes.at(-1) ?? null;
-				break;
-			}
-
-			case '*': {
-				e.preventDefault();
-				const parent = getParent(treeRoots, currentNode.id);
-				const siblings = parent ? parent.children : treeRoots;
-				siblings.forEach((s) => {
-					if (s.children?.length) {
-						expandedNodes.add(s.id);
-					}
-				});
-				announce('Expanded all siblings');
-				break;
-			}
-
-			default: {
-				// Typeahead search
-				if (e.key.length === 1 && e.key.match(/\S/)) {
-					handled = true;
-					handleTypeahead(e.key, visibleNodes, currentIndex);
-				} else {
-					handled = false;
-				}
-			}
-		}
-
-		if (nextNode) {
-			focusNode(nextNode.id);
-		}
-
-		if (handled) {
-			e.preventDefault();
-		}
-	}
-
-	function handleTypeahead(char: string, visibleNodes: EnhancedTreeViewItem[], currentIndex: number) {
-		typeaheadBuffer += char.toLowerCase();
-
-		if (typeaheadTimeout) {
-			clearTimeout(typeaheadTimeout);
-		}
-		typeaheadTimeout = setTimeout(() => {
-			typeaheadBuffer = '';
-		}, 500);
-
-		// Search from current position + 1, then wrap around
-		const searchNodes = [...visibleNodes.slice(currentIndex + 1), ...visibleNodes.slice(0, currentIndex + 1)];
-
-		const match = searchNodes.find((n) => n.name.toLowerCase().startsWith(typeaheadBuffer));
-
-		if (match) {
-			focusNode(match.id);
-			announce(`Jumped to ${match.name}`);
-		}
-	}
-
-	function focusNode(id: string) {
-		rovingTabIndex = id;
-		tick().then(() => {
-			const element = document.querySelector(`[data-item-id="${id}"] button`);
-			if (element) {
-				(element as HTMLElement).focus();
-				(element as HTMLElement).scrollIntoView({
-					behavior: 'smooth',
-					block: 'nearest'
-				});
-			}
-		});
-	}
-
-	// --- Keyboard Reordering ---
-
-	async function moveItem(itemId: string, direction: 'up' | 'down') {
-		const parent = getParent(treeRoots, itemId);
-		const list = parent ? parent.children : treeRoots;
-		const index = list.findIndex((i) => i.id === itemId);
-
-		if (index === -1) {
-			return;
-		}
-
-		const newIndex = direction === 'up' ? index - 1 : index + 1;
-		if (newIndex < 0 || newIndex >= list.length) {
-			return;
-		}
-
-		const item = list[index];
-		list.splice(index, 1);
-		list.splice(newIndex, 0, item);
-
-		if (parent) {
-			parent.children = [...parent.children];
-			treeRoots = [...treeRoots];
-		} else {
-			treeRoots = [...treeRoots];
-		}
-
-		saveTreeData();
-		announce(`Moved ${item.name} ${direction}`);
-		await tick();
-		focusNode(itemId);
-	}
-
-	async function moveItemUp(itemId: string) {
-		await moveItem(itemId, 'up');
-	}
-
-	async function moveItemDown(itemId: string) {
-		await moveItem(itemId, 'down');
-	}
-
-	async function moveItemToParent(itemId: string) {
-		const parent = getParent(treeRoots, itemId);
-		if (!parent) {
-			return;
-		}
-
-		const item = parent.children.find((i) => i.id === itemId);
-		if (!item) {
-			return;
-		}
-
-		const grandparent = getParent(treeRoots, parent.id);
-		const targetList = grandparent ? grandparent.children : treeRoots;
-		const nameNorm = (n: string) => (n ?? '').trim().toLowerCase();
-		const itemNameNorm = nameNorm(item.name ?? '');
-		if (itemNameNorm && targetList.some((sibling) => sibling.id !== item.id && nameNorm(sibling.name ?? '') === itemNameNorm)) {
-			toast.warning('A collection with this name already exists in the target category.');
-			announce('A collection with this name already exists in the target category.');
-			return;
-		}
-
-		parent.children = parent.children.filter((i) => i.id !== itemId);
-
-		const parentIndex = targetList.findIndex((i) => i.id === parent.id);
-		targetList.splice(parentIndex + 1, 0, item);
-
-		if (grandparent) {
-			grandparent.children = [...grandparent.children];
-			treeRoots = [...treeRoots];
-		} else {
-			treeRoots = [...treeRoots];
-		}
-
-		saveTreeData();
-		announce(`Moved ${item.name} to higher level`);
-		await tick();
-		focusNode(itemId);
-	}
-
-	// --- Smart Delete with Focus Management ---
-
-	function handleDeleteNode(node: Partial<ContentNode>) {
-		if (!node._id) {
-			return;
-		}
-
-		// Calculate next focus target before deletion
-		const visibleNodes = getVisibleNodes(treeRoots);
-		const currentIndex = visibleNodes.findIndex((n) => n.id === String(node._id));
-		let nextFocusId: string | null = null;
-
-		if (visibleNodes.length > 1) {
-			// Prefer next sibling, then previous, then parent
-			const nextIndex = currentIndex < visibleNodes.length - 1 ? currentIndex + 1 : Math.max(0, currentIndex - 1);
-			nextFocusId = visibleNodes[nextIndex]?.id || null;
-		} else if (treeRoots.length > 0) {
-			// If this was the last visible node, focus first root
-			nextFocusId = treeRoots[0]?.id;
-		}
-
-		// Execute delete
-		onDeleteNode?.(node);
-
-		// Restore focus after DOM update
-		if (nextFocusId) {
-			tick().then(() => {
-				rovingTabIndex = nextFocusId;
-				focusNode(nextFocusId!);
-				announce(`Deleted ${node.name}. Focus moved to next item.`);
-			});
-		} else {
-			announce(`Deleted ${node.name}. No items remaining.`);
-		}
-	}
-
-	// --- Helper ---
-
-	function toPartialContentNode(item: TreeViewItem): Partial<ContentNode> {
+// Helper: Rehydrate single item from snapshot
+function rehydrateItem(item: EnhancedTreeViewItem): EnhancedTreeViewItem {
+	const snap = nodeSnapshot.get(item.id);
+	if (snap) {
 		return {
-			_id: item._id || item.id,
-			name: item.name,
-			nodeType: item.nodeType,
-			parentId: (item.parent ?? undefined) as DatabaseId | undefined,
-			slug: item.slug,
-			description: item.description,
-			icon: item.icon,
-			path: item.path
+			...item,
+			children: snap.children.map((child) => rehydrateItem(child)),
 		};
 	}
+	return { ...item, children: item.children || [] };
+}
 
-	const flipDurationMs = 200;
+function saveTreeData() {
+	const flatItems = flattenTree(treeRoots);
+	const withPaths = recalculatePaths(flatItems);
+	const nodes = toFlatContentNodes(withPaths);
+
+	const pushedHash =
+		nodes
+			.map((n) => `${n._id}:${n.parentId}:${n.order}`)
+			.sort()
+			.join("|") + nodes.length;
+
+	// Set hash and guard so we don't rebuild from stale contentNodes until parent syncs
+	lastContentNodesHash = pushedHash;
+	lastPushedHash = pushedHash;
+
+	onNodeUpdate(nodes);
+
+	// Delay releasing the dragging lock to ensure parent state updates
+	setTimeout(() => {
+		isDragging = false;
+	}, 100);
+}
+
+function recalculatePaths(items: TreeViewItem[]): TreeViewItem[] {
+	const itemMap = new SvelteMap<string, TreeViewItem>();
+	for (const item of items) {
+		itemMap.set(item.id, { ...item });
+	}
+
+	const childrenByParent = new SvelteMap<string, TreeViewItem[]>();
+	for (const item of items) {
+		const parentKey = item.parent || "__root__";
+		if (!childrenByParent.has(parentKey)) {
+			childrenByParent.set(parentKey, []);
+		}
+		childrenByParent.get(parentKey)!.push(itemMap.get(item.id)!);
+	}
+
+	// DO NOT SORT HERE. The items are already in the correct order from flattenTree which respects UI order.
+	// Sorting by sortContentNodes (which uses node.order) will use stale order values and break DnD.
+
+	function assignPaths(parentId: string | null, parentPath: string): void {
+		const key = parentId || "__root__";
+		const children = childrenByParent.get(key);
+		if (!children) return;
+
+		children.forEach((child, index) => {
+			const newPath = parentPath ? `${parentPath}.${child.id}` : child.id;
+			const item = itemMap.get(child.id);
+			if (item) {
+				item.path = newPath;
+				item.order = index;
+				item.parent = parentId;
+			}
+			assignPaths(child.id, newPath);
+		});
+	}
+
+	assignPaths(null, "");
+	return Array.from(itemMap.values());
+}
+
+function toFlatContentNodes(flatItems: TreeViewItem[]): ContentNode[] {
+	return flatItems.map((item) => {
+		return {
+			...item,
+			_id: item._id || item.id,
+			id: undefined,
+			// Send null for root so server persists it (undefined is omitted by JSON and DB keeps old parent).
+			parentId: item.parent != null ? item.parent : null,
+			name: item.name,
+			icon: item.icon,
+			nodeType: item.nodeType,
+			path: item.path,
+			order: item.order ?? 0,
+			parent: undefined,
+			text: undefined,
+		} as unknown as ContentNode;
+	});
+}
+
+// --- Keyboard Navigation ---
+
+function handleTreeKeyDown(e: KeyboardEvent) {
+	// Let keyboard reorder mode handle its own keys
+	if (keyboardReorderMode) {
+		return;
+	}
+
+	const visibleNodes = getVisibleNodes(treeRoots);
+	if (visibleNodes.length === 0) {
+		return;
+	}
+
+	const activeElement = document.activeElement?.closest(
+		"[data-item-id]",
+	) as HTMLElement | null;
+	const currentId = activeElement?.dataset.itemId;
+	let currentIndex = visibleNodes.findIndex((n) => n.id === currentId);
+
+	// If no focus yet, assume first
+	if (currentIndex === -1) {
+		currentIndex = 0;
+	}
+	const currentNode = visibleNodes[currentIndex];
+
+	let nextNode: EnhancedTreeViewItem | null = null;
+	let handled = true;
+
+	switch (e.key) {
+		case "ArrowUp": {
+			e.preventDefault();
+			if (currentIndex > 0) {
+				nextNode = visibleNodes[currentIndex - 1];
+			}
+			break;
+		}
+
+		case "ArrowDown": {
+			e.preventDefault();
+			if (currentIndex < visibleNodes.length - 1) {
+				nextNode = visibleNodes[currentIndex + 1];
+			}
+			break;
+		}
+
+		case "ArrowLeft": {
+			e.preventDefault();
+			if (expandedNodes.has(currentNode.id) && currentNode.children?.length) {
+				toggleNode(currentNode.id);
+			} else {
+				const parent = getParent(treeRoots, currentNode.id);
+				if (parent) {
+					nextNode = parent;
+				}
+			}
+			break;
+		}
+
+		case "ArrowRight": {
+			e.preventDefault();
+			if (!expandedNodes.has(currentNode.id) && currentNode.children?.length) {
+				toggleNode(currentNode.id);
+			} else if (currentNode.children?.length) {
+				nextNode = currentNode.children[0];
+			}
+			break;
+		}
+
+		case "Home": {
+			e.preventDefault();
+			nextNode = visibleNodes[0] ?? null;
+			break;
+		}
+
+		case "End": {
+			e.preventDefault();
+			nextNode = visibleNodes.at(-1) ?? null;
+			break;
+		}
+
+		case "*": {
+			e.preventDefault();
+			const parent = getParent(treeRoots, currentNode.id);
+			const siblings = parent ? parent.children : treeRoots;
+			siblings.forEach((s) => {
+				if (s.children?.length) {
+					expandedNodes.add(s.id);
+				}
+			});
+			announce("Expanded all siblings");
+			break;
+		}
+
+		default: {
+			// Typeahead search
+			if (e.key.length === 1 && e.key.match(/\S/)) {
+				handled = true;
+				handleTypeahead(e.key, visibleNodes, currentIndex);
+			} else {
+				handled = false;
+			}
+		}
+	}
+
+	if (nextNode) {
+		focusNode(nextNode.id);
+	}
+
+	if (handled) {
+		e.preventDefault();
+	}
+}
+
+function handleTypeahead(
+	char: string,
+	visibleNodes: EnhancedTreeViewItem[],
+	currentIndex: number,
+) {
+	typeaheadBuffer += char.toLowerCase();
+
+	if (typeaheadTimeout) {
+		clearTimeout(typeaheadTimeout);
+	}
+	typeaheadTimeout = setTimeout(() => {
+		typeaheadBuffer = "";
+	}, 500);
+
+	// Search from current position + 1, then wrap around
+	const searchNodes = [
+		...visibleNodes.slice(currentIndex + 1),
+		...visibleNodes.slice(0, currentIndex + 1),
+	];
+
+	const match = searchNodes.find((n) =>
+		n.name.toLowerCase().startsWith(typeaheadBuffer),
+	);
+
+	if (match) {
+		focusNode(match.id);
+		announce(`Jumped to ${match.name}`);
+	}
+}
+
+function focusNode(id: string) {
+	rovingTabIndex = id;
+	tick().then(() => {
+		const element = document.querySelector(`[data-item-id="${id}"] button`);
+		if (element) {
+			(element as HTMLElement).focus();
+			(element as HTMLElement).scrollIntoView({
+				behavior: "smooth",
+				block: "nearest",
+			});
+		}
+	});
+}
+
+// --- Keyboard Reordering ---
+
+async function moveItem(itemId: string, direction: "up" | "down") {
+	const parent = getParent(treeRoots, itemId);
+	const list = parent ? parent.children : treeRoots;
+	const index = list.findIndex((i) => i.id === itemId);
+
+	if (index === -1) {
+		return;
+	}
+
+	const newIndex = direction === "up" ? index - 1 : index + 1;
+	if (newIndex < 0 || newIndex >= list.length) {
+		return;
+	}
+
+	const item = list[index];
+	list.splice(index, 1);
+	list.splice(newIndex, 0, item);
+
+	if (parent) {
+		parent.children = [...parent.children];
+		treeRoots = [...treeRoots];
+	} else {
+		treeRoots = [...treeRoots];
+	}
+
+	saveTreeData();
+	announce(`Moved ${item.name} ${direction}`);
+	await tick();
+	focusNode(itemId);
+}
+
+async function moveItemUp(itemId: string) {
+	await moveItem(itemId, "up");
+}
+
+async function moveItemDown(itemId: string) {
+	await moveItem(itemId, "down");
+}
+
+async function moveItemToParent(itemId: string) {
+	const parent = getParent(treeRoots, itemId);
+	if (!parent) {
+		return;
+	}
+
+	const item = parent.children.find((i) => i.id === itemId);
+	if (!item) {
+		return;
+	}
+
+	const grandparent = getParent(treeRoots, parent.id);
+	const targetList = grandparent ? grandparent.children : treeRoots;
+	const nameNorm = (n: string) => (n ?? "").trim().toLowerCase();
+	const itemNameNorm = nameNorm(item.name ?? "");
+	if (
+		itemNameNorm &&
+		targetList.some(
+			(sibling) =>
+				sibling.id !== item.id && nameNorm(sibling.name ?? "") === itemNameNorm,
+		)
+	) {
+		toast.warning(
+			"A collection with this name already exists in the target category.",
+		);
+		announce(
+			"A collection with this name already exists in the target category.",
+		);
+		return;
+	}
+
+	parent.children = parent.children.filter((i) => i.id !== itemId);
+
+	const parentIndex = targetList.findIndex((i) => i.id === parent.id);
+	targetList.splice(parentIndex + 1, 0, item);
+
+	if (grandparent) {
+		grandparent.children = [...grandparent.children];
+		treeRoots = [...treeRoots];
+	} else {
+		treeRoots = [...treeRoots];
+	}
+
+	saveTreeData();
+	announce(`Moved ${item.name} to higher level`);
+	await tick();
+	focusNode(itemId);
+}
+
+// --- Smart Delete with Focus Management ---
+
+function handleDeleteNode(node: Partial<ContentNode>) {
+	if (!node._id) {
+		return;
+	}
+
+	// Calculate next focus target before deletion
+	const visibleNodes = getVisibleNodes(treeRoots);
+	const currentIndex = visibleNodes.findIndex((n) => n.id === String(node._id));
+	let nextFocusId: string | null = null;
+
+	if (visibleNodes.length > 1) {
+		// Prefer next sibling, then previous, then parent
+		const nextIndex =
+			currentIndex < visibleNodes.length - 1
+				? currentIndex + 1
+				: Math.max(0, currentIndex - 1);
+		nextFocusId = visibleNodes[nextIndex]?.id || null;
+	} else if (treeRoots.length > 0) {
+		// If this was the last visible node, focus first root
+		nextFocusId = treeRoots[0]?.id;
+	}
+
+	// Execute delete
+	onDeleteNode?.(node);
+
+	// Restore focus after DOM update
+	if (nextFocusId) {
+		tick().then(() => {
+			rovingTabIndex = nextFocusId;
+			focusNode(nextFocusId!);
+			announce(`Deleted ${node.name}. Focus moved to next item.`);
+		});
+	} else {
+		announce(`Deleted ${node.name}. No items remaining.`);
+	}
+}
+
+// --- Helper ---
+
+function toPartialContentNode(item: TreeViewItem): Partial<ContentNode> {
+	return {
+		_id: item._id || item.id,
+		name: item.name,
+		nodeType: item.nodeType,
+		parentId: (item.parent ?? undefined) as DatabaseId | undefined,
+		slug: item.slug,
+		description: item.description,
+		icon: item.icon,
+		path: item.path,
+	};
+}
+
+const flipDurationMs = 200;
 </script>
 
 <!-- Accessibility: Live region for screen reader announcements -->
@@ -1071,7 +1163,7 @@
 			{#if item.children?.length > 0 || item.nodeType === 'category'}
 				<div
 					class="dnd-zone nested-zone mt-2"
-					style="margin-left: {Math.min(level + 1, 6) * 0.75}rem; padding-left: 0.5rem; border-left: 2px solid rgb(var(--color-surface-300));"
+					style="margin-left: {screen.isDesktop ? Math.min(level + 1, 6) * 0.75 : 0.4}rem; padding-left: 0.5rem; border-left: 2px solid rgb(var(--color-surface-300));"
 					use:dndzone={{
 						items: item.children || [],
 						flipDurationMs,

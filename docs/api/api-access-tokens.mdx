@@ -1,104 +1,113 @@
 ---
-path: 'docs/api/api-access-tokens.mdx'
-title: 'API & Website Tokens'
-description: 'Secure programmatic access to SveltyCMS APIs via Website Tokens and Access Tokens with Multi-Tenancy 2.0 support.'
-author: 'SveltyCMS Team'
-created: '2025-12-16'
-updated: '2026-03-05'
+path: "docs/api/api-access-tokens.mdx"
+title: "Invitation Tokens API Reference"
+description: "Reference for managing user invitation tokens — onboarding new team members with pre-assigned roles and automated emails."
+order: 12
+icon: "mdi:key-chain"
+author: "SveltyCMS Team"
+created: "2025-12-16"
+updated: "2026-04-01"
 tags:
-  - 'api'
-  - 'security'
-  - 'tokens'
-  - 'multi-tenancy'
+  - "api"
+  - "tokens"
+  - "invitations"
+  - "onboarding"
 ---
 
-# API & Website Tokens
+# Invitation Tokens API Reference
 
-SveltyCMS provides robust mechanisms for programmatic access, ensuring that external applications and integrations can interact with the CMS securely and with proper tenant isolation.
-
-## Token Types
-
-1.  **Website Tokens (Long-Lived)**: Designed for frontend applications (e.g., a SvelteKit or Next.js site fetching content). These are managed in **Config > Access Management**.
-2.  **API Access Tokens (Short/Medium-Lived)**: Designed for CI/CD pipelines, one-off scripts, or developer integrations.
-3.  **Invitation Tokens**: Single-use tokens for onboarding new users.
+Invitation tokens are single-use, time-limited keys used to onboard new users to SveltyCMS. They allow administrators to pre-assign roles and deliver secure registration links via email.
 
 ---
 
-## 🛡️ Website Tokens (Recommended)
+## ⚡ Quick Reference
 
-Website tokens are the primary way to connect headlessly. They are **Tenant-Aware** and **Scoped**.
+| Feature           | HTTP Endpoint                  | Local SDK Equivalent          |
+| :---------------- | :----------------------------- | :---------------------------- |
+| **Create Invite** | `POST /api/token/create-token` | `locals.cms.auth.createToken` |
+| **List Invites**  | `GET /api/token`               | `locals.cms.auth.listTokens`  |
+| **Revoke Invite** | `DELETE /api/token/[id]`       | `locals.cms.auth.revokeToken` |
 
-### Scoping
+---
 
-When creating a Website Token, you can define exactly what it can access:
+## 1. The Goal
 
-- **Collection-Level**: Restrict to specific collections (e.g., only `Posts` and `Products`).
-- **Action-Level**: Restrict to `Read-Only` or `Read/Write`.
-- **Environment**: Scoped to a specific `tenantId`.
+Invite a new team member to join a specific tenant with a predefined role (e.g., Editor) while ensuring they set their own secure password during registration.
 
-### Header Usage
+---
 
-```bash
-# Authorization Header
-GET /api/collections/posts
-Authorization: Bearer st_live_abc123...
+## 2. The Solution
+
+### Sending an Invite (Local SDK)
+
+Ideal for automated provisioning or custom admin tools.
+
+```typescript
+const invite = await locals.cms.auth.createToken({
+  email: "newhire@company.com",
+  role: "editor",
+  expiresIn: "2 days",
+});
+
+// The link sent in the email will be:
+// https://cms.com/login?invite_token=${invite.value}
 ```
 
----
+### Listing Active Invites
 
-## 🔑 Technical Implementation
-
-### Multi-Tenancy 2.0 Integration
-
-Tokens are validated by the `handleTokenResolution` middleware. The process is:
-
-1.  **Extract**: Middleware identifies the token from the `Authorization` header.
-2.  **Verify**: Token is checked against the database for the current `tenantId` (resolved via hostname).
-3.  **Hydrate**: If valid, `event.locals.user` is populated with a "Token User" object containing the associated role and permissions.
-4.  **Sandbox**: The request proceeds within the strict security boundaries of the resolved role.
-
-### Security Features
-
-- **SHA-256 Hashing**: Token values are never stored in plain text.
-- **Nonce-Based Validation**: Prevents replay attacks for sensitive operations.
-- **Audit Logging**: Every API request authenticated via token is logged with its unique token ID.
-
----
-
-## Accessing Tokens via API
-
-### List All Tokens
-
-**Endpoint:** `GET /api/token`
-**Auth:** Admin only (Tenant-scoped)
-
-### Create a Token
-
-**Endpoint:** `POST /api/token/createToken`
-**Auth:** Admin only
+**Endpoint**: `GET /api/token`
+**Response**:
 
 ```json
 {
-	"name": "Production Frontend",
-	"role": "editor",
-	"expiresAt": "2026-12-31T23:59:59Z"
+  "success": true,
+  "data": [{ "email": "test@test.com", "role": "user", "expires": "2026-04-03T..." }]
 }
 ```
 
 ---
 
-## Performance Metrics
+## 3. The Mechanics
 
-| Metric               | Performance                            |
-| :------------------- | :------------------------------------- |
-| **Token Validation** | < 1ms (Redis Cached)                   |
-| **RBAC Overhead**    | Negligible                             |
-| **Database Load**    | 0 (per request, after initial caching) |
+The invitation flow ensures that user identities are verified via email before an account is fully activated.
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant API as Token API
+    participant Mail as Email Service
+    participant User
+    participant Auth as handleAuthentication
+
+    Admin->>API: Create Invite (email, role)
+    API->>API: Generate Hashed Token
+    API->>Mail: Send Link with Raw Token
+    Mail-->>User: Email Notification
+
+    User->>Auth: Clicks link (/login?invite_token=...)
+    Auth->>Auth: Validate Token & Expiry
+    Auth-->>User: Show Registration Form
+
+    User->>Auth: Submit Password
+    Auth->>Auth: Create User + Consume Token
+    Auth-->>User: Session Established
+```
+
+### Expiration Policies
+
+Tokens must have an explicit expiration window. The following strings are supported:
+
+- `2 hrs`, `12 hrs`
+- `2 days`, `1 week`
+- `2 weeks`, `1 month`
+
+> [!IMPORTANT]
+> **One-per-Email**: SveltyCMS enforces a strict policy of one active invitation per email address. Attempting to create a second invite for the same email will return `409 CONFLICT`.
 
 ---
 
-## Troubleshooting
+## Related Documents
 
-- **401 Unauthorized**: Token mismatch, expired token, or token deactivated.
-- **403 Forbidden**: Token is valid but lacks permissions for the requested collection/action.
-- **404 Not Found**: Token ID does not exist in the current tenant's space.
+- [User Management API Reference](./user-management-api.mdx)
+- [Programmatic API Tokens Reference](./user-token-management-api.mdx)
+- [Email System Configuration](../guides/development/email-system.mdx)

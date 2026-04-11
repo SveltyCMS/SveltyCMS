@@ -1,357 +1,141 @@
 /**
- * @file src/routes/setup/errorClassifier.ts
- * @description Helper functions to classify and format database connection errors for the setup wizard UI.
+ * @file src/routes/setup/error-classifier.ts
+ * @description
+ * Intelligent error classification and mapping for the Setup Wizard.
+ * Translates low-level database and system errors into actionable user feedback.
  */
 
-import { logger } from '@utils/logger.server';
+import { logger } from "@utils/logger.server";
+
+export type DbErrorClassification =
+  | "CONNECTION_REFUSED"
+  | "AUTH_FAILED"
+  | "DB_NOT_FOUND"
+  | "HOST_UNREACHABLE"
+  | "INVALID_CONFIG"
+  | "DRIVER_MISSING"
+  | "PERMISSION_DENIED"
+  | "CASE_MISMATCH"
+  | "UNKNOWN"
+  | string;
 
 export interface ClassifiedError {
-	classification: string;
-	raw: string;
-	userFriendly: string;
+  classification: DbErrorClassification;
+  userFriendly: string;
+  hint?: string;
+  raw: string;
 }
 
+/**
+ * Custom error class used during the setup wizard to provide
+ * structured feedback to the frontend.
+ */
+export class SetupDatabaseError extends Error {
+  public readonly classification: DbErrorClassification;
+  public readonly hint?: string;
+  public readonly userFriendly: string;
+  public readonly details?: unknown;
+
+  constructor(classified: ClassifiedError, originalError?: unknown) {
+    super(classified.userFriendly);
+    this.name = "SetupDatabaseError";
+    this.classification = classified.classification;
+    this.userFriendly = classified.userFriendly;
+    this.hint = classified.hint;
+
+    if (originalError) {
+      this.cause = originalError;
+      this.details =
+        originalError instanceof Error
+          ? {
+              message: originalError.message,
+              name: originalError.name,
+              stack: process.env.NODE_ENV === "development" ? originalError.stack : undefined,
+            }
+          : originalError;
+    }
+
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, SetupDatabaseError);
+    }
+  }
+
+  public toClientPayload() {
+    return {
+      success: false,
+      error: this.userFriendly,
+      classification: this.classification,
+      hint: this.hint,
+      dbDoesNotExist:
+        this.classification === "DB_NOT_FOUND" || this.classification === "database_not_found",
+    };
+  }
+}
+
+/**
+ * Pure function that inspects a raw error and returns a structured ClassifiedError.
+ */
 export function classifyDatabaseError(
-	err: unknown,
-	engine: 'mongodb' | 'postgres' | 'mysql' | 'sqlite',
-	dbConfig?: { user?: string; password?: string; host?: string }
+  err: unknown,
+  engine: "mongodb" | "postgres" | "mysql" | "sqlite",
+  dbConfig?: { user?: string; password?: string; host?: string; name?: string },
 ): ClassifiedError {
-	const raw = err instanceof Error ? err.message : String(err);
-	const lower = raw.toLowerCase();
-	const code = (err as { code?: string | number })?.code ?? '';
+  const raw = err instanceof Error ? err.message : String(err);
+  const lower = raw.toLowerCase();
 
-	// Log the raw error for debugging
-	logger.error('🔍 Classifying database error:', { raw, lower, code, engine });
+  // MongoDB specific code 13297
+  const code = (err as { code?: string | number })?.code ?? "";
 
-	// 🎯 MongoDB Atlas specific errors (check first for most specific errors)
-	if (engine === 'mongodb' && dbConfig?.host && /^([a-zA-Z0-9-]+\.)*mongodb\.net$/.test(dbConfig.host.split(':')[0])) {
-		// TLS/SSL errors for Atlas
-		if (/tls|ssl|certificate|self[- ]?signed/i.test(lower)) {
-			return {
-				classification: 'atlas_tls_error',
-				raw,
-				userFriendly:
-					'MongoDB Atlas TLS/SSL connection error. This usually happens due to: 1) Network firewall blocking the connection, 2) Outdated Node.js TLS configuration, or 3) Certificate validation issues. Try adding "retryWrites=true&w=majority" to your connection options, or check your Node.js version (requires Node.js 18+, 20+, or 24+).'
-			};
-		}
-		// Common Atlas-specific issues
-		if (/ip.*whitelist|ip.*not.*allowed|network.*access|not.*authorized.*from.*ip/i.test(lower)) {
-			return {
-				classification: 'atlas_ip_whitelist',
-				raw,
-				userFriendly:
-					'Your IP address is not whitelisted in MongoDB Atlas. Go to Network Access in your Atlas dashboard and add your current IP address (0.0.0.0/0 for testing, or your specific IP for production).'
-			};
-		}
-		if (/cluster.*not.*found|hostname.*not.*found|srv.*lookup.*failed/i.test(lower)) {
-			return {
-				classification: 'atlas_cluster_not_found',
-				raw,
-				userFriendly: 'MongoDB Atlas cluster not found. Please check your connection string and ensure the cluster name is correct.'
-			};
-		}
-		if (/user.*not.*found|authentication.*failed.*user/i.test(lower)) {
-			return {
-				classification: 'atlas_user_not_found',
-				raw,
-				userFriendly:
-					'Database user not found in Atlas. Go to Database Access in your Atlas dashboard and create a database user with read/write permissions.'
-			};
-		}
-	}
+  logger.error("🔍 Classifying database error:", { raw, code, engine });
 
-	// 🔍 Authentication patterns (most specific first)
-	if (/authentication failed|auth.*fail|bad auth|authentication.*error/i.test(lower)) {
-		return {
-			classification: 'authentication_failed',
-			raw,
-			userFriendly: 'Authentication failed. Please check your username and password.'
-		};
-	}
-	if (/user.*not found|username.*not found|no.*user/i.test(lower)) {
-		return {
-			classification: 'user_not_found',
-			raw,
-			userFriendly: 'User not found. Please check your username.'
-		};
-	}
-	if (/wrong.*password|incorrect.*password|password.*incorrect|bad.*password/i.test(lower)) {
-		return {
-			classification: 'wrong_password',
-			raw,
-			userFriendly: 'Incorrect password. Please check your password.'
-		};
-	}
-	if (/no.*password|password.*required|password.*missing/i.test(lower)) {
-		return {
-			classification: 'password_required',
-			raw,
-			userFriendly: 'Password required. Please provide a password for this user.'
-		};
-	}
-	if (/command.*failed.*authentication|operation.*failed.*authentication|not.*authorized.*command|command.*not.*authorized/i.test(lower)) {
-		return {
-			classification: 'auth_required',
-			raw,
-			userFriendly: 'Authentication required. This database instance requires a username and password.'
-		};
-	}
-	if (/credentials.*required|authentication.*required|auth.*required|must.*authenticate/i.test(lower)) {
-		return {
-			classification: 'credentials_required',
-			raw,
-			userFriendly: 'Authentication required. Please provide your username and password.'
-		};
-	}
-	if (/not authorized|unauthorized|permission.*denied/i.test(lower)) {
-		return {
-			classification: 'not_authorized',
-			raw,
-			userFriendly: 'Not authorized. The user may lack necessary permissions for this database.'
-		};
-	}
-	if (/access.*denied|command.*not allowed|not allowed/i.test(lower)) {
-		return {
-			classification: 'access_denied',
-			raw,
-			userFriendly: 'Access denied. The user lacks permission to perform this operation.'
-		};
-	}
+  // 0. Case Mismatch (MongoDB specific 13297)
+  if (code === 13297 || lower.includes("db already exists with different case")) {
+    const existingName = lower.match(/already have: \[([^\]]+)\]/)?.[1] || "sveltycms";
+    return {
+      classification: "CASE_MISMATCH",
+      userFriendly: `Database "${dbConfig?.name}" conflicts with an existing database named "${existingName}".`,
+      hint: `MongoDB is case-sensitive on this system. You must either:\n1. Use the existing name: "${existingName}"\n2. Manually drop the existing "${existingName}" database from your MongoDB server if you want to use "${dbConfig?.name}".`,
+      raw,
+    };
+  }
 
-	// 🔍 Connection errors
-	if (/econnrefused|connection refused/i.test(lower) || code === 'ECONNREFUSED') {
-		return {
-			classification: 'connection_refused',
-			raw,
-			userFriendly: 'Connection refused. The database server may be down or unreachable.'
-		};
-	}
-	if (/enotfound|getaddrinfo|dns.*fail|host.*not.*found/i.test(lower) || code === 'ENOTFOUND') {
-		return {
-			classification: 'dns_not_found',
-			raw,
-			userFriendly: 'Host not found. Please check your hostname or IP address.'
-		};
-	}
-	if (/timed out|timeout|server selection timed out/i.test(lower)) {
-		return {
-			classification: 'timeout',
-			raw,
-			userFriendly: 'Connection timeout. Please check your connection and try again.'
-		};
-	}
-	if (/network.*error|network.*unreachable/i.test(lower)) {
-		return {
-			classification: 'network_error',
-			raw,
-			userFriendly: 'Network error. Please check your connection.'
-		};
-	}
+  // Common patterns
+  if (/authentication failed|auth.*fail|bad auth|authentication.*error/i.test(lower)) {
+    return {
+      classification: "AUTH_FAILED",
+      userFriendly: "Authentication failed. Please check your username and password.",
+      hint: "Verify your credentials and ensure the user has access to the target database.",
+      raw,
+    };
+  }
 
-	// 🔍 TLS/SSL errors
-	if (/tls|ssl|certificate/i.test(lower)) {
-		return {
-			classification: 'tls_error',
-			raw,
-			userFriendly: 'TLS/SSL connection error. Please check your connection security settings.'
-		};
-	}
+  if (/econnrefused|connection refused/i.test(lower) || code === "ECONNREFUSED") {
+    return {
+      classification: "CONNECTION_REFUSED",
+      userFriendly: "Connection refused. The database server may be down or unreachable.",
+      hint: `Check if your ${engine} service is running and accessible at ${dbConfig?.host}.`,
+      raw,
+    };
+  }
 
-	// 🔍 URI/Connection string errors
-	if (/uri malformed|invalid connection string|must begin with|invalid scheme/i.test(lower)) {
-		return {
-			classification: 'invalid_uri',
-			raw,
-			userFriendly: 'Invalid connection string format. Please check your connection URI.'
-		};
-	}
-	if (/unable to parse|invalid port|port.*invalid/i.test(lower)) {
-		return {
-			classification: 'invalid_port',
-			raw,
-			userFriendly: 'Invalid port number. Please check your port configuration.'
-		};
-	}
-	if (/invalid hostname|hostname.*invalid/i.test(lower)) {
-		return {
-			classification: 'invalid_hostname',
-			raw,
-			userFriendly: 'Invalid hostname. Please check your host configuration.'
-		};
-	}
+  if (
+    /database.*not found|db.*not found|unknown database/i.test(lower) ||
+    code === "3D000" ||
+    code === "ER_BAD_DB_ERROR"
+  ) {
+    return {
+      classification: "DB_NOT_FOUND",
+      userFriendly: `The database "${dbConfig?.name}" was not found.`,
+      hint: "SveltyCMS can attempt to create it for you if your user has sufficient permissions.",
+      raw,
+    };
+  }
 
-	// 🔍 Database-specific errors
-	if (/database.*not found|db.*not found/i.test(lower)) {
-		return {
-			classification: 'database_not_found',
-			raw,
-			userFriendly: 'Database not found. The database may not exist or you may lack permission to access it.'
-		};
-	}
-
-	// 🔍 Engine-specific refinements
-	switch (engine) {
-		case 'mongodb':
-			// MongoDB-specific patterns
-			if (/replica set|replicaset/i.test(lower)) {
-				return {
-					classification: 'replica_set_error',
-					raw,
-					userFriendly: 'Replica set configuration error. Please check your MongoDB cluster setup.'
-				};
-			}
-			if (/server.*selection.*error|no.*server.*available/i.test(lower)) {
-				return {
-					classification: 'server_selection_error',
-					raw,
-					userFriendly: 'Server selection failed. The MongoDB server may be unreachable.'
-				};
-			}
-			if (/sasl.*authentication|sasl.*auth.*fail|sasl.*error/i.test(lower)) {
-				return {
-					classification: 'sasl_auth_error',
-					raw,
-					userFriendly: 'SASL authentication failed. Please check your credentials and authentication method.'
-				};
-			}
-			if (/authentication.*database|authsource|auth.*source/i.test(lower)) {
-				return {
-					classification: 'auth_database_error',
-					raw,
-					userFriendly: 'Authentication database error. Please check your authentication source configuration.'
-				};
-			}
-			// Check for common MongoDB connection failures when auth is likely required
-			if (
-				/connection.*failed|server.*not.*available|could.*not.*connect/i.test(lower) &&
-				dbConfig &&
-				!dbConfig.user &&
-				!dbConfig.password &&
-				(dbConfig.host === 'localhost' || dbConfig.host === '127.0.0.1')
-			) {
-				return {
-					classification: 'likely_auth_required',
-					raw,
-					userFriendly: 'Connection failed. If your MongoDB instance requires authentication, please provide a username and password.'
-				};
-			}
-			if (/mongo|mongoose/i.test(lower)) {
-				return {
-					classification: 'mongodb_error',
-					raw,
-					userFriendly: 'MongoDB server error. Please check your connection settings and database configuration.'
-				};
-			}
-			break;
-
-		case 'postgres':
-			// PostgreSQL error codes
-			if (code === '28P01') {
-				return {
-					classification: 'authentication_failed',
-					raw,
-					userFriendly: 'Authentication failed. Please check your username and password.'
-				};
-			}
-			if (code === '3D000') {
-				return {
-					classification: 'database_not_found',
-					raw,
-					userFriendly: 'Database not found. Please check your database name.'
-				};
-			}
-			if (code === '28000') {
-				return {
-					classification: 'auth_required',
-					raw,
-					userFriendly: 'Authentication required. Please provide valid credentials.'
-				};
-			}
-			break;
-
-		case 'mysql':
-			// MySQL error codes and patterns
-			if (code === 'ER_ACCESS_DENIED_ERROR' || /access denied/i.test(lower)) {
-				return {
-					classification: 'authentication_failed',
-					raw,
-					userFriendly: 'Authentication failed. Please check your username and password.'
-				};
-			}
-			if (code === 'ER_DBACCESS_DENIED_ERROR') {
-				return {
-					classification: 'not_authorized',
-					raw,
-					userFriendly:
-						'Access denied to database. The user has a valid password but lacks permission to access this specific database. Please GRANT permissions or ensure the database exists.'
-				};
-			}
-			if (code === 'ER_BAD_DB_ERROR' || /unknown database/i.test(lower)) {
-				return {
-					classification: 'database_not_found',
-					raw,
-					userFriendly: 'Database not found. Please check your database name.'
-				};
-			}
-			break;
-
-		case 'sqlite':
-			// SQLite patterns
-			if (/no such file|file.*not.*found/i.test(lower)) {
-				return {
-					classification: 'file_not_found',
-					raw,
-					userFriendly: 'Database file not found. Please check the file path.'
-				};
-			}
-			if (/permission.*denied|access.*denied/i.test(lower)) {
-				return {
-					classification: 'permission_denied',
-					raw,
-					userFriendly: 'Permission denied. Please check file permissions.'
-				};
-			}
-			break;
-	}
-
-	// 🔍 Generic catch-all patterns
-	if (/auth|authentication|credential|password|username|user.*name/i.test(lower)) {
-		return {
-			classification: 'auth_general',
-			raw,
-			userFriendly: 'Authentication issue detected. Please check your username and password, or verify if authentication is required.'
-		};
-	}
-
-	// 🔍 Special case: Check if this might be an auth-required scenario
-	if (dbConfig && !dbConfig.user && !dbConfig.password) {
-		// No credentials provided - check for patterns that suggest auth is required
-		if (/connection.*failed|server.*not.*available|could.*not.*connect|failed.*to.*connect/i.test(lower)) {
-			if (dbConfig.host === 'localhost' || dbConfig.host === '127.0.0.1') {
-				return {
-					classification: 'likely_auth_required',
-					raw,
-					userFriendly: 'Connection failed. Your local MongoDB instance may require authentication. Please provide a username and password.'
-				};
-			}
-			return {
-				classification: 'likely_auth_required',
-				raw,
-				userFriendly: 'Connection failed. This database server likely requires authentication. Please provide a username and password.'
-			};
-		}
-	}
-
-	// 🔍 Fallback
-	logger.warn('Unclassified database error - providing raw error:', {
-		raw,
-		lower,
-		code,
-		engine
-	});
-	return {
-		classification: 'unknown',
-		raw,
-		userFriendly: `Database connection failed: ${raw}`
-	};
+  // Fallback to simpler classification if no specific pattern matches
+  return {
+    classification: code ? String(code) : "UNKNOWN",
+    userFriendly: `Database connection failed: ${raw}`,
+    hint: "Check the server logs for technical details.",
+    raw,
+  };
 }

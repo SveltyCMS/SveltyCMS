@@ -8,32 +8,32 @@
  * - Client-side compatible (no server deps)
  */
 
-import { logger } from '@utils/logger';
-import { sanitize } from '@utils/utils';
+import { logger } from "@utils/logger";
+import { sanitize } from "@utils/utils";
 
 /** Sanitize filename for safe upload/storage */
 export function sanitizedFilename(original: string): {
-	name: string;
-	ext: string;
+  name: string;
+  ext: string;
 } {
-	if (!original || typeof original !== 'string') {
-		throw new Error('Invalid filename');
-	}
+  if (!original || typeof original !== "string") {
+    throw new Error("Invalid filename");
+  }
 
-	const dot = original.lastIndexOf('.');
-	const name = dot > 0 ? original.slice(0, dot) : original;
-	const ext = dot > 0 ? original.slice(dot + 1).toLowerCase() : '';
+  const dot = original.lastIndexOf(".");
+  const name = dot > 0 ? original.slice(0, dot) : original;
+  const ext = dot > 0 ? original.slice(dot + 1).toLowerCase() : "";
 
-	logger.trace('Filename sanitized', { original, name, ext });
+  logger.trace("Filename sanitized", { original, name, ext });
 
-	return { name: sanitize(name), ext };
+  return { name: sanitize(name), ext };
 }
 
 /** Alias for backward compatibility */
 export function getSanitizedFileName(filename: string): {
-	fileNameWithoutExt: string;
-	ext: string;
+  fileNameWithoutExt: string;
+  ext: string;
 } {
-	const { name, ext } = sanitizedFilename(filename);
-	return { fileNameWithoutExt: name, ext };
+  const { name, ext } = sanitizedFilename(filename);
+  return { fileNameWithoutExt: name, ext };
 }

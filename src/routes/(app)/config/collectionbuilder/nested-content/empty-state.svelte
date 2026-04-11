@@ -5,17 +5,20 @@
 -->
 
 <script lang="ts">
-	import { collection_add, collection_addcategory } from '@src/paraglide/messages';
-	import { fade, scale } from 'svelte/transition';
-	import { publicEnv } from '@src/stores/global-settings.svelte';
+import {
+	collection_add,
+	collection_addcategory,
+} from "@src/paraglide/messages";
+import { fade, scale } from "svelte/transition";
+import { publicEnv } from "@src/stores/global-settings.svelte";
 
-	interface Props {
-		onAddCollection: () => void;
-		onAddCategory: () => void;
-		onLoadPreset?: () => void;
-	}
+interface Props {
+	onAddCollection: () => void;
+	onAddCategory: () => void;
+	onLoadPreset?: () => void;
+}
 
-	let { onAddCollection, onAddCategory, onLoadPreset }: Props = $props();
+let { onAddCollection, onAddCategory, onLoadPreset }: Props = $props();
 </script>
 
 <div class="flex flex-col items-center justify-center p-8 py-16 text-center" in:fade={{ duration: 400 }}>

@@ -6,94 +6,98 @@
  *   - Delete, block, and unblock users
  *   - Invite user via email and accept invitation
  */
-import { expect, test } from '@playwright/test';
-import { loginAsAdmin } from './helpers/auth';
+import { expect, test } from "@playwright/test";
+import { loginAsAdmin } from "./helpers/auth";
 
-test.describe('User Management Flow', () => {
-	test.setTimeout(120_000); // 2 min timeout
+test.describe("User Management Flow", () => {
+  test.setTimeout(120_000); // 2 min timeout
 
-	test('Admin Login', async ({ page }) => {
-		await loginAsAdmin(page);
-	});
+  test("Admin Login", async ({ page }) => {
+    await loginAsAdmin(page);
+  });
 
-	test('Read and Edit User Profile', async ({ page }) => {
-		// Login
-		await loginAsAdmin(page);
+  test("Read and Edit User Profile", async ({ page }) => {
+    // Login
+    await loginAsAdmin(page);
 
-		// Go to User Profile
-		await page.getByRole('link', { name: /user profile/i }).click();
+    // Go to User Profile
+    await page.getByRole("link", { name: /user profile/i }).click();
 
-		// ✅ READ operation - assert user profile visible
-		await expect(page.locator('h1')).toContainText(/user profile/i);
+    // ✅ READ operation - assert user profile visible
+    await expect(page.locator("h1")).toContainText(/user profile/i);
 
-		// ✅ UPDATE operation - Edit user info
-		await page.getByRole('button', { name: /edit/i }).click();
-		await page.getByPlaceholder(/username/i).fill('updatedUser');
-		await page.getByRole('button', { name: /save/i }).click();
+    // ✅ UPDATE operation - Edit user info
+    await page.getByRole("button", { name: /edit/i }).click();
+    await page.getByPlaceholder(/username/i).fill("updatedUser");
+    await page.getByRole("button", { name: /save/i }).click();
 
-		// Confirm update saved
-		await expect(page.locator('text=updatedUser')).toBeVisible();
-	});
+    // Confirm update saved
+    await expect(page.locator("text=updatedUser")).toBeVisible();
+  });
 
-	test('Delete, Block, and Unblock Users', async ({ page }) => {
-		// Login
-		await loginAsAdmin(page);
+  test("Delete, Block, and Unblock Users", async ({ page }) => {
+    // Login
+    await loginAsAdmin(page);
 
-		// Go to User Profile
-		await page.getByRole('link', { name: /user profile/i }).click();
+    // Go to User Profile
+    await page.getByRole("link", { name: /user profile/i }).click();
 
-		const actions = ['Delete', 'Block', 'Unblock'];
+    const actions = ["Delete", "Block", "Unblock"];
 
-		for (const action of actions) {
-			// Click dropdown button to open menu
-			await page.getByRole('button', { name: /open actions menu/i }).click();
+    for (const action of actions) {
+      // Click dropdown button to open menu
+      await page.getByRole("button", { name: /open actions menu/i }).click();
 
-			// Select action
-			await page.getByRole('menuitem', { name: new RegExp(action, 'i') }).click();
+      // Select action
+      await page.getByRole("menuitem", { name: new RegExp(action, "i") }).click();
 
-			// Click Confirm
-			await page.getByRole('button', { name: /confirm/i }).click();
+      // Click Confirm
+      await page.getByRole("button", { name: /confirm/i }).click();
 
-			// Optional: Wait for confirmation toast or success message
-			await expect(page.locator(`text=${action}`)).toBeVisible({
-				timeout: 5000
-			});
-		}
-	});
+      // Optional: Wait for confirmation toast or success message
+      await expect(page.locator(`text=${action}`)).toBeVisible({
+        timeout: 5000,
+      });
+    }
+  });
 
-	test('Invite User via Email and Accept Invitation', async ({ page }) => {
-		// Login
-		await loginAsAdmin(page);
+  test("Invite User via Email and Accept Invitation", async ({ page }) => {
+    // Login
+    await loginAsAdmin(page);
 
-		// Go to User Profile
-		await page.getByRole('link', { name: /user profile/i }).click();
+    // Go to User Profile
+    await page.getByRole("link", { name: /user profile/i }).click();
 
-		// Click on email user registration token
-		await page.getByRole('button', { name: /email user registration token/i }).click();
+    // Click on email user registration token
+    await page.getByRole("button", { name: /email user registration token/i }).click();
 
-		// Fill form
-		await page.fill('input[name="email"]', 'newuser@example.com');
-		await page.fill('input[name="username"]', 'newuser');
-		await page.selectOption('select[name="role"]', 'user');
-		await page.getByRole('button', { name: /save/i }).click();
+    // Fill form
+    await page.fill('input[name="email"]', "newuser@example.com");
+    await page.fill('input[name="username"]', "newuser");
+    await page.selectOption('select[name="role"]', "user");
+    await page.getByRole("button", { name: /save/i }).click();
 
-		// Assume invite sent, now simulate user following invite link
-		await page.goto('/signup?email=newuser@example.com&token=5tbv_AQui_vm6StL7SSEWA69-fzwhbbtiLfGbh_8x80');
+    // Assume invite sent, now simulate user following invite link
+    await page.goto(
+      "/signup?email=newuser@example.com&token=5tbv_AQui_vm6StL7SSEWA69-fzwhbbtiLfGbh_8x80",
+    );
 
-		// Check prefilled fields
-		await expect(page.locator('input[name="email"]')).toHaveValue('newuser@example.com');
-		await expect(page.locator('input[name="token"]')).toHaveValue('5tbv_AQui_vm6StL7SSEWA69-fzwhbbtiLfGbh_8x80');
+    // Check prefilled fields
+    await expect(page.locator('input[name="email"]')).toHaveValue("newuser@example.com");
+    await expect(page.locator('input[name="token"]')).toHaveValue(
+      "5tbv_AQui_vm6StL7SSEWA69-fzwhbbtiLfGbh_8x80",
+    );
 
-		// Fill remaining signup fields
-		await page.fill('input[name="username"]', 'newuser');
-		await page.fill('input[name="password"]', 'user@123!');
-		await page.fill('input[name="confirm_password"]', 'user@123!');
+    // Fill remaining signup fields
+    await page.fill('input[name="username"]', "newuser");
+    await page.fill('input[name="password"]', "user@123!");
+    await page.fill('input[name="confirm_password"]', "user@123!");
 
-		await page.getByRole('button', { name: /accept invitation and create account/i }).click();
+    await page.getByRole("button", { name: /accept invitation and create account/i }).click();
 
-		// Optional: Assert signup success
-		await expect(page.locator('text=Account created')).toBeVisible({
-			timeout: 10_000
-		});
-	});
+    // Optional: Assert signup success
+    await expect(page.locator("text=Account created")).toBeVisible({
+      timeout: 10_000,
+    });
+  });
 });

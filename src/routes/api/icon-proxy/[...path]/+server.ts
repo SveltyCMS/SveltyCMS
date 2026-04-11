@@ -27,22 +27,22 @@
 
 // Allowlist of trusted icon providers
 const ALLOWED_PROVIDERS = {
-	simpleicons: {
-		baseUrl: 'https://cdn.simpleicons.org',
-		// Maps: /api/icon-proxy/simpleicons/github → https://cdn.simpleicons.org/github
-		transform: (path: string) => `${path}`
-	},
-	iconify: {
-		baseUrl: 'https://api.iconify.design',
-		// Maps: /api/icon-proxy/iconify/mdi:account → https://api.iconify.design/mdi/account.svg
-		transform: (path: string) => {
-			const [collection, icon] = path.split(':');
-			return `${collection}/${icon}.svg`;
-		}
-	}
-	// Add more providers as needed:
-	// lucide: { baseUrl: 'https://unpkg.com/lucide-static@latest/icons', transform: (path) => `${path}.svg` },
-	// heroicons: { baseUrl: 'https://cdn.jsdelivr.net/npm/heroicons@2.0.18/24/outline', transform: (path) => `${path}.svg` }
+  simpleicons: {
+    baseUrl: "https://cdn.simpleicons.org",
+    // Maps: /api/icon-proxy/simpleicons/github → https://cdn.simpleicons.org/github
+    transform: (path: string) => `${path}`,
+  },
+  iconify: {
+    baseUrl: "https://api.iconify.design",
+    // Maps: /api/icon-proxy/iconify/mdi:account → https://api.iconify.design/mdi/account.svg
+    transform: (path: string) => {
+      const [collection, icon] = path.split(":");
+      return `${collection}/${icon}.svg`;
+    },
+  },
+  // Add more providers as needed:
+  // lucide: { baseUrl: 'https://unpkg.com/lucide-static@latest/icons', transform: (path) => `${path}.svg` },
+  // heroicons: { baseUrl: 'https://cdn.jsdelivr.net/npm/heroicons@2.0.18/24/outline', transform: (path) => `${path}.svg` }
 } as const;
 
 type ProviderKey = keyof typeof ALLOWED_PROVIDERS;
@@ -52,85 +52,89 @@ const iconCache = new Map<string, { data: Response; timestamp: number }>();
 const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
 
 // Unified Error Handling
-import { apiHandler } from '@utils/api-handler';
-import { AppError } from '@utils/error-handling';
+import { apiHandler } from "@utils/api-handler";
+import { AppError } from "@utils/error-handling";
 
 export const GET = apiHandler(async ({ params, fetch }) => {
-	const fullPath = params.path; // e.g., "simpleicons/github" or "iconify/mdi:account"
+  const fullPath = params.path; // e.g., "simpleicons/github" or "iconify/mdi:account"
 
-	if (!fullPath) {
-		throw new AppError('Icon path is required', 400, 'PATH_REQUIRED');
-	}
+  if (!fullPath) {
+    throw new AppError("Icon path is required", 400, "PATH_REQUIRED");
+  }
 
-	// Parse provider and icon path
-	const [provider, ...iconPathParts] = fullPath.split('/');
-	const iconPath = iconPathParts.join('/');
+  // Parse provider and icon path
+  const [provider, ...iconPathParts] = fullPath.split("/");
+  const iconPath = iconPathParts.join("/");
 
-	// Validate provider
-	if (!(provider && provider in ALLOWED_PROVIDERS)) {
-		throw new AppError(`Invalid icon provider. Allowed: ${Object.keys(ALLOWED_PROVIDERS).join(', ')}`, 400, 'INVALID_PROVIDER');
-	}
+  // Validate provider
+  if (!(provider && provider in ALLOWED_PROVIDERS)) {
+    throw new AppError(
+      `Invalid icon provider. Allowed: ${Object.keys(ALLOWED_PROVIDERS).join(", ")}`,
+      400,
+      "INVALID_PROVIDER",
+    );
+  }
 
-	if (!iconPath) {
-		throw new AppError('Icon path is required', 400, 'PATH_REQUIRED');
-	}
+  if (!iconPath) {
+    throw new AppError("Icon path is required", 400, "PATH_REQUIRED");
+  }
 
-	const providerConfig = ALLOWED_PROVIDERS[provider as ProviderKey];
-	const cacheKey = `${provider}:${iconPath}`;
+  const providerConfig = ALLOWED_PROVIDERS[provider as ProviderKey];
+  const cacheKey = `${provider}:${iconPath}`;
 
-	// Check cache first
-	const cached = iconCache.get(cacheKey);
-	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-		return cached.data.clone(); // Clone to avoid consuming the Response body
-	}
+  // Check cache first
+  const cached = iconCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data.clone(); // Clone to avoid consuming the Response body
+  }
 
-	// Build external URL
-	const transformedPath = providerConfig.transform(iconPath);
-	const externalUrl = `${providerConfig.baseUrl}/${transformedPath}`;
+  // Build external URL
+  const transformedPath = providerConfig.transform(iconPath);
+  const externalUrl = `${providerConfig.baseUrl}/${transformedPath}`;
 
-	try {
-		// Fetch icon from external provider
-		const response = await fetch(externalUrl, {
-			headers: {
-				'User-Agent': 'SveltyCMS-IconProxy/1.0'
-			}
-		});
+  try {
+    // Fetch icon from external provider
+    const response = await fetch(externalUrl, {
+      headers: {
+        "User-Agent": "SveltyCMS-IconProxy/1.0",
+      },
+    });
 
-		if (!response.ok) {
-			throw new AppError(`Failed to fetch icon from ${provider}`, response.status, 'FETCH_FAILED');
-		}
+    if (!response.ok) {
+      throw new AppError(`Failed to fetch icon from ${provider}`, response.status, "FETCH_FAILED");
+    }
 
-		// Determine content type (default to SVG if not provided)
-		const contentType = response.headers.get('content-type') || 'image/svg+xml';
+    // Determine content type (default to SVG if not provided)
+    const contentType = response.headers.get("content-type") || "image/svg+xml";
 
-		// Read response body
-		const iconData = await response.arrayBuffer();
+    // Read response body
+    const iconData = await response.arrayBuffer();
 
-		// Create new Response for caching and returning
-		const cachedResponse = new Response(iconData, {
-			status: 200,
-			headers: {
-				'Content-Type': contentType,
-				'Cache-Control': 'public, max-age=86400', // Client-side cache for 24 hours
-				'Access-Control-Allow-Origin': '*', // Allow CORS for icons
-				'X-Content-Type-Options': 'nosniff'
-			}
-		});
+    // Create new Response for caching and returning
+    const cachedResponse = new Response(iconData, {
+      status: 200,
+      headers: {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=86400", // Client-side cache for 24 hours
+        "Access-Control-Allow-Origin": "*", // Allow CORS for icons
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
 
-		// Store in cache
-		iconCache.set(cacheKey, {
-			data: cachedResponse.clone(),
-			timestamp: Date.now()
-		});
+    // Store in cache
+    iconCache.set(cacheKey, {
+      data: cachedResponse.clone(),
+      timestamp: Date.now(),
+    });
 
-		return cachedResponse;
-	} catch (err) {
-		console.error(`[Icon Proxy] Failed to fetch ${externalUrl}:`, err);
-		if (err instanceof AppError) {
-			throw err;
-		}
-		throw new AppError('Failed to fetch icon from external provider', 502, 'UPSTREAM_ERROR');
-	}
+    return cachedResponse;
+  } catch (err) {
+    console.error(`[Icon Proxy] Failed to fetch ${externalUrl}:`, err);
+    if (err instanceof AppError) {
+      throw err;
+    }
+    throw new AppError("Failed to fetch icon from external provider", 502, "UPSTREAM_ERROR");
+  }
 });
 
 /**

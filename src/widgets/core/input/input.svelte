@@ -194,7 +194,7 @@
 				value = {};
 			}
 			// Ensure value is treated as a new object for reactivity
-			value = { ...(value || {}), [LANGUAGE]: sanitized };
+			value = { ...value, [LANGUAGE]: sanitized };
 		} else {
 			value = sanitized;
 		}

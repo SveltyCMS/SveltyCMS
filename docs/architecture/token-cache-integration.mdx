@@ -1,14 +1,14 @@
 ---
-path: 'docs/architecture/token-cache-integration.mdx'
+path: "docs/architecture/token-cache-integration.mdx"
 title: Token System Cache Integration
 description: Technical details on how the Token System integrates with the SveltyCMS dual-layer cache.
-author: 'SveltyCMS Team'
-created: '2025-12-16'
-updated: '2025-12-16'
+author: "SveltyCMS Team"
+created: "2025-12-16"
+updated: "2026-03-27"
 tags:
-  - 'architecture'
-  - 'caching'
-  - 'tokens'
+  - "architecture"
+  - "caching"
+  - "tokens"
 ---
 
 # Token System Cache Integration
@@ -60,11 +60,11 @@ The `handleTokenResolution` middleware is placed **after** `handleAuthorization`
 ```typescript
 // src/hooks.server.ts
 export const handle = sequence(
-	// ...
-	handleAuthorization, // Sets event.locals.user & permissions
-	handleApiRequests, // (Optional) API caching
-	handleTokenResolution, // Resolves tokens using fresh context
-	addSecurityHeaders // CSP & Security
+  // ...
+  handleAuthorization, // Sets event.locals.user & permissions
+  handleApiRequests, // (Optional) API caching
+  handleTokenResolution, // Resolves tokens using fresh context
+  addSecurityHeaders, // CSP & Security
 );
 ```
 

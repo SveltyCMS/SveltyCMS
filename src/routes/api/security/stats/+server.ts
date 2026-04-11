@@ -1,196 +1,116 @@
 /**
  * @file src/routes/api/security/stats/+server.ts
- * @description Security statistics API endpoint for real-time monitoring
+ * @description
+ * API endpoint to retrieve security statistics and active incidents.
+ * Supports multi-tenancy by filtering data based on locals.tenantId.
  *
- * ### Features
- * - Real-time security metrics aggregation
- * - Threat level distribution analysis
- * - Performance metrics integration
- * - Rate limiting and access control
- * - Comprehensive security overview
- *
- * @security Admin-only endpoint with rate limiting
+ * Features:
+ * - Real-time security metrics from metricsService
+ * - Active incident tracking from securityResponseService
+ * - Overall security status calculation
+ * - Historical threat level distribution
  */
 
-import { hasApiPermission } from '@src/databases/auth/api-permissions';
-import { metricsService } from '@src/services/metrics-service';
-import { securityResponseService } from '@src/services/security-response-service';
-import { json } from '@sveltejs/kit';
-/**
- * GET /api/security/stats
- * Returns comprehensive security statistics for dashboard monitoring.
- */
-// Unified Error Handling
-import { apiHandler } from '@utils/api-handler';
-import { AppError } from '@utils/error-handling';
-import { logger } from '@utils/logger.server';
+import { json } from "@sveltejs/kit";
+import { apiHandler } from "@utils/api-handler";
+import { securityResponseService } from "@src/services/security-response-service";
+import type { SecurityIncident, ThreatIndicator } from "@src/services/security-types";
+import { metricsService } from "@src/services/metrics-service";
+import { hasApiPermission } from "@src/databases/auth/api-permissions";
+import { AppError } from "@utils/error-handling";
 
 /**
  * GET /api/security/stats
- * Returns comprehensive security statistics for dashboard monitoring.
+ * Returns security statistics, active incidents, and overall system status.
  */
-export const GET = apiHandler(async ({ locals, getClientAddress }) => {
-	try {
-		// Authorization check - admin only
-		if (!(locals.user && hasApiPermission(locals.user.role, 'security'))) {
-			logger.warn('Unauthorized security stats access attempt', {
-				userId: locals.user?._id,
-				role: locals.user?.role,
-				ip: getClientAddress()
-			});
-			throw new AppError('Unauthorized - Admin access required', 403, 'FORBIDDEN');
-		}
+export const GET = apiHandler(async ({ locals }) => {
+  // 1. Authorization Check (Admin only)
+  if (!locals.user || !hasApiPermission(locals.user.role, "security")) {
+    throw new AppError(
+      "Unauthorized: Admin access required for security statistics",
+      403,
+      "UNAUTHORIZED",
+    );
+  }
 
-		// Get security statistics from the security response service
-		const securityStats = securityResponseService.getSecurityStats();
+  const tenantId = locals.tenantId || undefined;
 
-		// Get general metrics from the metrics service
-		const metricsReport = metricsService.getReport();
+  // 2. Fetch data from services (concurrency for performance)
+  const [securityStats, metricsReport, activeIncidents] = await Promise.all([
+    securityResponseService.getSecurityStats(tenantId),
+    metricsService.getReport(tenantId),
+    securityResponseService.getActiveIncidents(tenantId),
+  ]);
 
-		// Generate recent security events (mock data for now - would come from event log)
-		const recentEvents = generateRecentSecurityEvents();
+  // 3. Calculate overall status
+  const overallStatus = calculateOverallSecurityStatus(
+    securityStats,
+    metricsReport,
+    activeIncidents.length,
+  );
 
-		// Compile comprehensive security overview
-		const response = {
-			timestamp: Date.now(),
-			overallStatus: calculateOverallSecurityStatus(securityStats, metricsReport),
+  // 4. Construct response
+  const response = {
+    tenantId: tenantId || "global",
+    timestamp: new Date().toISOString(),
+    overallStatus,
+    activeIncidents: securityStats.activeIncidents || activeIncidents.length,
+    totalIncidents: securityStats.totalIncidents || 0,
+    blockedIPs: securityStats.blockedIPs || 0,
+    throttledIPs: securityStats.throttledIPs || 0,
+    threatLevelDistribution: securityStats.threatLevelDistribution || {
+      none: 0,
+      low: 0,
+      medium: 0,
+      high: 0,
+      critical: 0,
+    },
+    metrics: {
+      cspViolations: metricsReport.security?.cspViolations || 0,
+      rateLimitViolations: metricsReport.security?.rateLimitViolations || 0,
+      authFailures: metricsReport.security?.authFailures || 0,
+    },
+    recentEvents: activeIncidents.slice(0, 10).map((incident: SecurityIncident) => ({
+      id: incident.id,
+      timestamp: incident.timestamp,
+      type: incident.threatLevel === "critical" ? "attack" : "incident",
+      severity: incident.threatLevel,
+      description: incident.indicators.map((i: ThreatIndicator) => i.evidence).join(", "),
+      clientIp: incident.clientIp,
+      status: incident.resolved ? "resolved" : "active",
+    })),
+  };
 
-			// Core security metrics
-			activeIncidents: securityStats.activeIncidents,
-			blockedIPs: securityStats.blockedIPs,
-			throttledIPs: securityStats.throttledIPs,
-			totalIncidents: securityStats.totalIncidents,
-
-			// Threat distribution
-			threatLevelDistribution: securityStats.threatLevelDistribution,
-
-			// Security events
-			cspViolations: metricsReport.security.cspViolations,
-			rateLimitHits: metricsReport.security.rateLimitViolations,
-			authFailures: metricsReport.security.authFailures,
-
-			// Recent activity
-			recentEvents: recentEvents.slice(0, 10), // Last 10 events
-
-			// Performance impact
-			securityOverhead: {
-				avgResponseTime: metricsReport.requests.avgResponseTime,
-				errorRate: metricsReport.requests.errorRate,
-				slowRequests: metricsReport.performance.slowRequests
-			},
-
-			// System health correlation
-			systemHealth: {
-				authSuccessRate: metricsReport.authentication.successRate,
-				cacheHitRate: metricsReport.api.cacheHitRate,
-				uptime: metricsReport.uptime
-			}
-		};
-
-		logger.debug('Security stats requested', {
-			userId: locals.user._id,
-			activeIncidents: securityStats.activeIncidents,
-			overallStatus: response.overallStatus
-		});
-
-		return json(response);
-	} catch (error) {
-		if (error instanceof AppError) {
-			throw error;
-		}
-		logger.error('Error fetching security stats:', error);
-		throw new AppError('Internal server error', 500, 'FETCH_FAILED');
-	}
+  return json(response);
 });
 
 /**
- * Calculate overall security status based on multiple factors.
+ * Calculates the overall security status based on various indicators.
  */
 function calculateOverallSecurityStatus(
-	securityStats: ReturnType<typeof securityResponseService.getSecurityStats>,
-	metricsReport: ReturnType<typeof metricsService.getReport>
-): 'safe' | 'low' | 'medium' | 'high' | 'critical' {
-	const { threatLevelDistribution, activeIncidents } = securityStats;
-	const { security } = metricsReport;
+  securityStats: any,
+  metricsReport: any,
+  activeCount: number,
+): "stable" | "warning" | "critical" {
+  const threatLevelDistribution = securityStats.threatLevelDistribution || {};
+  const activeIncidents = securityStats.activeIncidents || activeCount;
+  const securityMetrics = metricsReport.security || {};
 
-	// Critical indicators
-	if (threatLevelDistribution.critical > 0 || activeIncidents > 10) {
-		return 'critical';
-	}
+  // 1. Critical Status: Active critical incidents or very high volume of attacks
+  if ((threatLevelDistribution.critical || 0) > 0 || activeIncidents > 10) {
+    return "critical";
+  }
 
-	// High threat indicators
-	if (threatLevelDistribution.high > 0 || activeIncidents > 5 || security.cspViolations > 100 || security.authFailures > 50) {
-		return 'high';
-	}
+  // 2. Warning Status: High threat incidents or sustained anomalies
+  if (
+    (threatLevelDistribution.high || 0) > 0 ||
+    activeIncidents > 5 ||
+    (securityMetrics.authFailures || 0) > 50 ||
+    (securityMetrics.cspViolations || 0) > 100
+  ) {
+    return "warning";
+  }
 
-	// Medium threat indicators
-	if (threatLevelDistribution.medium > 0 || activeIncidents > 2 || security.rateLimitViolations > 50 || security.cspViolations > 20) {
-		return 'medium';
-	}
-
-	// Low threat indicators
-	if (threatLevelDistribution.low > 0 || activeIncidents > 0 || security.rateLimitViolations > 10 || security.authFailures > 10) {
-		return 'low';
-	}
-
-	return 'safe';
-}
-
-/**
- * Generate recent security events for the timeline.
- * In a real implementation, this would query an event log database.
- */
-function generateRecentSecurityEvents() {
-	const events: any[] = [];
-	const now = Date.now();
-
-	// This is mock data - replace with actual event log queries
-	const eventTypes = [
-		{
-			type: 'rate_limit',
-			severity: 'medium',
-			message: 'Rate limit exceeded for API endpoint'
-		},
-		{
-			type: 'auth_failure',
-			severity: 'low',
-			message: 'Invalid login attempt detected'
-		},
-		{
-			type: 'csp_violation',
-			severity: 'medium',
-			message: 'Content Security Policy violation reported'
-		},
-		{
-			type: 'threat_detected',
-			severity: 'high',
-			message: 'SQL injection pattern detected in request'
-		},
-		{
-			type: 'ip_blocked',
-			severity: 'high',
-			message: 'IP address automatically blocked due to threats'
-		}
-	];
-
-	// Generate 5-15 recent events
-	const eventCount = Math.floor(Math.random() * 10) + 5;
-	for (let i = 0; i < eventCount; i++) {
-		const eventTemplate = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-		events.push({
-			id: `evt_${now}_${i}`,
-			timestamp: now - i * 60_000 - Math.random() * 300_000, // Random time in last 5 minutes to 5 hours
-			type: eventTemplate.type,
-			severity: eventTemplate.severity,
-			message: eventTemplate.message,
-			ip: `192.168.1.${Math.floor(Math.random() * 255)}`,
-			details: {
-				userAgent: 'Mozilla/5.0...',
-				endpoint: '/api/data',
-				method: 'POST'
-			}
-		});
-	}
-
-	return events.sort((a, b) => b.timestamp - a.timestamp);
+  // 3. Stable: Normal operating conditions
+  return "stable";
 }

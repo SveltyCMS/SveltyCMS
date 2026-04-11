@@ -17,62 +17,64 @@
 -->
 
 <script lang="ts">
-	import { logger } from '@utils/logger';
-	import { toast } from '@src/stores/toast.svelte.ts';
+import { logger } from "@utils/logger";
+import { toast } from "@src/stores/toast.svelte.ts";
 
-	let remoteUrls: string[] = $state([]);
+let remoteUrls: string[] = $state([]);
 
-	function handleRemoteUrlInput(event: Event) {
-		const target = event.target as HTMLTextAreaElement | null;
-		if (target) {
-			remoteUrls = target.value.split('\n').filter((url) => url.trim() !== '');
-		}
+function handleRemoteUrlInput(event: Event) {
+	const target = event.target as HTMLTextAreaElement | null;
+	if (target) {
+		remoteUrls = target.value.split("\n").filter((url) => url.trim() !== "");
+	}
+}
+
+interface Props {
+	folder?: string;
+	onUploadComplete?: () => void;
+}
+
+const { onUploadComplete, folder = "global" }: Props = $props();
+
+async function uploadRemoteUrls() {
+	if (remoteUrls.length === 0) {
+		toast.warning("No URLs entered for upload");
+		return;
 	}
 
-	interface Props {
-		folder?: string;
-		onUploadComplete?: () => void;
-	}
+	const formData = new FormData();
+	formData.append("remoteUrls", JSON.stringify(remoteUrls));
+	formData.append("folder", folder);
 
-	const { onUploadComplete, folder = 'global' }: Props = $props();
+	try {
+		const response = await fetch("/mediagallery?/remoteUpload", {
+			method: "POST",
+			body: formData,
+		});
 
-	async function uploadRemoteUrls() {
-		if (remoteUrls.length === 0) {
-			toast.warning('No URLs entered for upload');
-			return;
+		if (!response.ok) {
+			throw new Error("Upload failed");
 		}
 
-		const formData = new FormData();
-		formData.append('remoteUrls', JSON.stringify(remoteUrls));
-		formData.append('folder', folder);
+		const result = await response.json();
+		console.log("Remote Upload Result:", result); // Debug log
 
-		try {
-			const response = await fetch('/mediagallery?/remoteUpload', {
-				method: 'POST',
-				body: formData
-			});
-
-			if (!response.ok) {
-				throw new Error('Upload failed');
+		if (result.type === "success" || result.success) {
+			toast.success("URLs uploaded successfully");
+			remoteUrls = []; // Clear the remote URLs array after successful upload
+			if (onUploadComplete) {
+				onUploadComplete();
 			}
-
-			const result = await response.json();
-			console.log('Remote Upload Result:', result); // Debug log
-
-			if (result.type === 'success' || result.success) {
-				toast.success('URLs uploaded successfully');
-				remoteUrls = []; // Clear the remote URLs array after successful upload
-				if (onUploadComplete) {
-					onUploadComplete();
-				}
-			} else {
-				throw new Error(result.error || 'Upload failed');
-			}
-		} catch (error) {
-			logger.error('Error uploading URLs:', error);
-			toast.error(`Error uploading URLs: ${error instanceof Error ? error.message : 'Unknown error'}`);
+		} else {
+			throw new Error(result.error || "Upload failed");
 		}
+	} catch (error) {
+		logger.error("Error uploading URLs:", error);
+		toast.error(
+			`Error uploading URLs: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
 	}
+}
 </script>
 
 <div class="space-y-4">

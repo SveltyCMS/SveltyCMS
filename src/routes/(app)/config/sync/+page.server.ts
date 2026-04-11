@@ -12,32 +12,32 @@
  * - Leverages the central authentication logic from `hooks.server.ts`.
  */
 
-import { error, redirect } from '@sveltejs/kit';
-import { logger } from '@utils/logger.server';
-import type { PageServerLoad } from './$types';
+import { error, redirect } from "@sveltejs/kit";
+import { logger } from "@utils/logger.server";
+import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
-	// 1. Get user from `locals`, populated by `hooks.server.ts`
-	const { user, isAdmin } = locals;
+  // 1. Get user from `locals`, populated by `hooks.server.ts`
+  const { user, isAdmin } = locals;
 
-	// 2. Authentication Check: Ensure a user is logged in.
-	if (!user) {
-		logger.warn('Unauthenticated access attempt to Configuration Manager');
-		throw redirect(302, '/login');
-	}
+  // 2. Authentication Check: Ensure a user is logged in.
+  if (!user) {
+    logger.warn("Unauthenticated access attempt to Configuration Manager");
+    throw redirect(302, "/login");
+  }
 
-	// 3. Authorization Check: Ensure the user is an administrator.
-	//    Configuration synchronization is a high-privilege operation.
-	if (!isAdmin) {
-		logger.warn(`Permission denied for user=${user._id} to access Configuration Manager.`);
-		throw error(403, 'Forbidden: You do not have permission to access this page.');
-	}
+  // 3. Authorization Check: Ensure the user is an administrator.
+  //    Configuration synchronization is a high-privilege operation.
+  if (!isAdmin) {
+    logger.warn(`Permission denied for user=${user._id} to access Configuration Manager.`);
+    throw error(403, "Forbidden: You do not have permission to access this page.");
+  }
 
-	// 4. Return safe data to the UI.
-	//    Only return non-sensitive information needed for display.
-	return {
-		user: {
-			email: user.email
-		}
-	};
+  // 4. Return safe data to the UI.
+  //    Only return non-sensitive information needed for display.
+  return {
+    user: {
+      email: user.email,
+    },
+  };
 };

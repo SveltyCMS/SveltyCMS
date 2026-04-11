@@ -23,33 +23,33 @@
  * }
  */
 
-import { getHealthCheckReport } from '@src/stores/system/reporting';
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { getHealthCheckReport } from "@src/stores/system/reporting";
+import { json } from "@sveltejs/kit";
+import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async () => {
-	try {
-		const healthReport = getHealthCheckReport();
+  try {
+    const healthReport = getHealthCheckReport();
 
-		// Map system state to HTTP status codes
-		// READY/WARMING/WARMED/DEGRADED = 200 (service is operational)
-		// INITIALIZING = 503 (service temporarily unavailable)
-		// FAILED/IDLE = 503 (service unavailable)
-		const operationalStates = ['READY', 'WARMING', 'WARMED', 'DEGRADED'];
-		const statusCode = operationalStates.includes(healthReport.overallStatus) ? 200 : 503;
+    // Map system state to HTTP status codes
+    // READY/WARMING/WARMED/DEGRADED = 200 (service is operational)
+    // INITIALIZING = 503 (service temporarily unavailable)
+    // FAILED/IDLE = 503 (service unavailable)
+    const operationalStates = ["READY", "WARMING", "WARMED", "DEGRADED"];
+    const statusCode = operationalStates.includes(healthReport.overallStatus) ? 200 : 503;
 
-		return json(healthReport, { status: statusCode });
-	} catch (error) {
-		// If health check itself fails, return minimal error response
-		return json(
-			{
-				overallStatus: 'FAILED',
-				timestamp: Date.now(),
-				uptime: 0,
-				components: {},
-				error: error instanceof Error ? error.message : 'Unknown error'
-			},
-			{ status: 503 }
-		);
-	}
+    return json(healthReport, { status: statusCode });
+  } catch (error) {
+    // If health check itself fails, return minimal error response
+    return json(
+      {
+        overallStatus: "FAILED",
+        timestamp: Date.now(),
+        uptime: 0,
+        components: {},
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 503 },
+    );
+  }
 };

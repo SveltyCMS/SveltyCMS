@@ -5,58 +5,58 @@
 Displays a GDPR-compliant cookie consent banner.
 -->
 <script lang="ts">
-	import Toggles from '@src/components/system/inputs/toggles.svelte';
-	import {
-		cookie_analytics_desc,
-		cookie_analytics_title,
-		cookie_button_accept,
-		cookie_button_customize,
-		cookie_button_reject,
-		cookie_button_save,
-		cookie_description,
-		cookie_heading,
-		cookie_marketing_desc,
-		cookie_marketing_title,
-		cookie_necessary_desc,
-		cookie_necessary_title
-	} from '@src/paraglide/messages';
-	import { consentStore } from '@src/stores/consent-store.svelte';
-	import { onMount } from 'svelte';
-	import { fade, slide } from 'svelte/transition';
+import Toggles from "@src/components/system/inputs/toggles.svelte";
+import {
+	cookie_analytics_desc,
+	cookie_analytics_title,
+	cookie_button_accept,
+	cookie_button_customize,
+	cookie_button_reject,
+	cookie_button_save,
+	cookie_description,
+	cookie_heading,
+	cookie_marketing_desc,
+	cookie_marketing_title,
+	cookie_necessary_desc,
+	cookie_necessary_title,
+} from "@src/paraglide/messages";
+import { consentStore } from "@src/stores/consent-store.svelte";
+import { onMount } from "svelte";
+import { fade, slide } from "svelte/transition";
 
-	let showBanner = $state(false);
-	let showDetails = $state(false);
+let showBanner = $state(false);
+let showDetails = $state(false);
 
-	// Local state for the details view before saving
-	let preferences = $state({
-		analytics: consentStore.analytics,
-		marketing: consentStore.marketing
-	});
+// Local state for the details view before saving
+let preferences = $state({
+	analytics: consentStore.analytics,
+	marketing: consentStore.marketing,
+});
 
-	onMount(() => {
-		// Show banner if user hasn't responded yet
-		if (!consentStore.responded) {
-			// Small delay for animation
-			setTimeout(() => {
-				showBanner = true;
-			}, 500);
-		}
-	});
-
-	function handleAcceptAll() {
-		consentStore.acceptAll();
-		showBanner = false;
+onMount(() => {
+	// Show banner if user hasn't responded yet
+	if (!consentStore.responded) {
+		// Small delay for animation
+		setTimeout(() => {
+			showBanner = true;
+		}, 500);
 	}
+});
 
-	function handleRejectAll() {
-		consentStore.rejectAll();
-		showBanner = false;
-	}
+function handleAcceptAll() {
+	consentStore.acceptAll();
+	showBanner = false;
+}
 
-	function handleSavePreferences() {
-		consentStore.update(preferences);
-		showBanner = false;
-	}
+function handleRejectAll() {
+	consentStore.rejectAll();
+	showBanner = false;
+}
+
+function handleSavePreferences() {
+	consentStore.update(preferences);
+	showBanner = false;
+}
 </script>
 
 {#if showBanner && !consentStore.responded}

@@ -8,149 +8,200 @@
  * - DELETE group/role
  */
 
-import { auth } from '@src/databases/db';
-import { SCIM_SCHEMAS } from '@src/types/scim';
-import type { ScimPatchRequest } from '@src/types/scim';
-import { json } from '@sveltejs/kit';
-import { apiHandler } from '@utils/api-handler';
-import { logger } from '@utils/logger.server';
-import { buildScimGroup, scimError, validateScimAuth } from '@utils/scim-utils';
+import { auth, dbAdapter } from "@src/databases/db";
+import type { DatabaseId } from "@src/content/types";
+import { SCIM_SCHEMAS } from "@src/types/scim";
+import type { ScimPatchRequest } from "@src/types/scim";
+import { json } from "@sveltejs/kit";
+import { apiHandler } from "@utils/api-handler";
+import { AppError } from "@utils/error-handling";
+import { logger } from "@utils/logger.server";
+import { buildScimGroup, scimError, validateScimAuth } from "@utils/scim-utils";
 
 // GET /api/scim/v2/Groups/{id} — Fetch a single group with members
 export const GET = apiHandler(async ({ params, url, locals, request }) => {
-	const authResult = await validateScimAuth(request, locals);
-	if (!authResult.authenticated) {
-		return scimError(401, authResult.error || 'Unauthorized');
-	}
+  const authResult = await validateScimAuth(request, locals);
+  if (!authResult.authenticated) {
+    return scimError(401, authResult.error || "Unauthorized");
+  }
 
-	const { id } = params;
-	if (!id || !auth) {
-		return scimError(400, 'Group ID is required', 'invalidValue');
-	}
+  const { id } = params;
+  const tenantId = authResult.tenantId;
 
-	try {
-		const roleResult = await auth.authInterface.getRoleById(id);
-		const role = roleResult?.success ? roleResult.data : null;
-		if (!role) {
-			return scimError(404, `Group ${id} not found`, 'invalidValue');
-		}
+  if (!id || !auth) {
+    return scimError(400, "Group ID is required", "invalidValue");
+  }
 
-		// Fetch members (users with this role)
-		const allUsers = await auth.getAllUsers();
-		const members = allUsers.filter((u: any) => u.role === role.name || u.role === role._id).map((u: any) => ({ _id: u._id, email: u.email }));
+  const roleResult = await auth.authInterface.getRoleById(id as any, { tenantId: tenantId as any });
+  const role = roleResult?.success ? roleResult.data : null;
+  if (!role) {
+    return scimError(404, `Group ${id} not found`, "invalidValue");
+  }
 
-		return json(buildScimGroup(role, url.origin, members));
-	} catch (e) {
-		logger.error('SCIM Groups GET by ID error', { error: e, groupId: id });
-		return scimError(500, 'Internal server error');
-	}
+  // Fetch members (users with this role) scoped to tenant - Optimizing to avoid OOM
+  const usersResult = await auth.authInterface.getAllUsers({
+    filter: {
+      tenantId,
+      $or: [{ role: role.name }, { role: role._id }],
+    },
+  });
+
+  const members = (usersResult.success ? usersResult.data : []).map((u: any) => ({
+    _id: u._id,
+    email: u.email,
+  }));
+
+  return json(buildScimGroup(role, url.origin, members));
 });
 
 // PATCH /api/scim/v2/Groups/{id} — Add/remove members
 export const PATCH = apiHandler(async ({ params, request, url, locals }) => {
-	const authResult = await validateScimAuth(request, locals);
-	if (!authResult.authenticated) {
-		return scimError(401, authResult.error || 'Unauthorized');
-	}
+  const authResult = await validateScimAuth(request, locals);
+  if (!authResult.authenticated) {
+    return scimError(401, authResult.error || "Unauthorized");
+  }
 
-	const { id } = params;
-	if (!id || !auth) {
-		return scimError(400, 'Group ID is required', 'invalidValue');
-	}
+  const { id } = params;
+  const tenantId = authResult.tenantId;
 
-	try {
-		const body: ScimPatchRequest = await request.json();
+  if (!id || !auth) {
+    return scimError(400, "Group ID is required", "invalidValue");
+  }
 
-		if (!body.schemas?.includes(SCIM_SCHEMAS.PATCH_OP)) {
-			return scimError(400, 'Request must include PatchOp schema', 'invalidValue');
-		}
+  const body: ScimPatchRequest = await request.json().catch(() => {
+    throw new AppError("Invalid JSON payload", 400, "INVALID_JSON");
+  });
 
-		const roleResult = await auth.authInterface.getRoleById(id);
-		const role = roleResult?.success ? roleResult.data : null;
-		if (!role) {
-			return scimError(404, `Group ${id} not found`, 'invalidValue');
-		}
+  if (!body.schemas?.includes(SCIM_SCHEMAS.PATCH_OP)) {
+    return scimError(400, "Request must include PatchOp schema", "invalidValue");
+  }
 
-		// Process operations
-		for (const op of body.Operations) {
-			const path = op.path?.toLowerCase();
+  const roleResult = await auth.authInterface.getRoleById(id as any, { tenantId: tenantId as any });
+  const role = roleResult?.success ? roleResult.data : null;
+  if (!role) {
+    return scimError(404, `Group ${id} not found`, "invalidValue");
+  }
 
-			if (path === 'members' || !path) {
-				if (op.op === 'add' && Array.isArray(op.value)) {
-					// Add members: assign this role to specified users
-					for (const member of op.value as Array<{ value: string }>) {
-						try {
-							await auth.updateUser(member.value, { role: role.name } as any);
-							logger.info('SCIM Group member added', { groupId: id, userId: member.value });
-						} catch {
-							logger.warn('SCIM Group member add failed', { groupId: id, userId: member.value });
-						}
-					}
-				} else if (op.op === 'remove' && Array.isArray(op.value)) {
-					// Remove members: revert to default role
-					for (const member of op.value as Array<{ value: string }>) {
-						try {
-							await auth.updateUser(member.value, { role: 'user' } as any);
-							logger.info('SCIM Group member removed', { groupId: id, userId: member.value });
-						} catch {
-							logger.warn('SCIM Group member remove failed', { groupId: id, userId: member.value });
-						}
-					}
-				} else if (op.op === 'replace' && typeof op.value === 'object' && op.value !== null) {
-					// Replace group displayName
-					const val = op.value as Record<string, any>;
-					if (val.displayName) {
-						await auth.authInterface.updateRole(id, { name: val.displayName } as any);
-						logger.info('SCIM Group renamed', { groupId: id, newName: val.displayName });
-					}
-				}
-			}
-		}
+  // Process operations
+  for (const op of body.Operations) {
+    const path = op.path?.toLowerCase();
 
-		// Return updated group
-		const updatedRoleResult = await auth.authInterface.getRoleById(id);
-		const updatedRole = updatedRoleResult?.success ? updatedRoleResult.data : null;
-		const allUsers = await auth.getAllUsers();
-		const members = allUsers
-			.filter((u: any) => u.role === (updatedRole?.name || role.name) || u.role === id)
-			.map((u: any) => ({ _id: u._id, email: u.email }));
+    if (path === "members" || !path) {
+      if (op.op === "add" && Array.isArray(op.value)) {
+        // Add members: assign this role to specified users using bulk update
+        const userIds = (op.value as Array<{ value: string }>).map((v) => v.value);
+        try {
+          if (dbAdapter) {
+            await dbAdapter.crud.updateMany(
+              "users",
+              { _id: { $in: userIds as any } },
+              { role: role.name } as any,
+              { tenantId: tenantId as any },
+            );
+            logger.info("SCIM Group members added in bulk", {
+              groupId: id,
+              count: userIds.length,
+              tenantId,
+            });
+          }
+        } catch (e) {
+          logger.warn("SCIM Group bulk member add failed", {
+            groupId: id,
+            error: e,
+          });
+        }
+      } else if (op.op === "remove" && Array.isArray(op.value)) {
+        // Remove members: revert to default role using bulk update
+        const userIds = (op.value as Array<{ value: string }>).map((v) => v.value);
+        try {
+          if (dbAdapter) {
+            await dbAdapter.crud.updateMany(
+              "users",
+              { _id: { $in: userIds as any } },
+              { role: "user" } as any,
+              { tenantId: tenantId as DatabaseId },
+            );
+            logger.info("SCIM Group members removed in bulk", {
+              groupId: id,
+              count: userIds.length,
+              tenantId,
+            });
+          }
+        } catch (e) {
+          logger.warn("SCIM Group bulk member remove failed", {
+            groupId: id,
+            error: e,
+          });
+        }
+      } else if (op.op === "replace" && typeof op.value === "object" && op.value !== null) {
+        // Replace group displayName
+        const val = op.value as Record<string, any>;
+        if (val.displayName) {
+          await auth.authInterface.updateRole(id as any, { name: val.displayName } as any, {
+            tenantId: tenantId as any,
+          });
+          logger.info("SCIM Group renamed", {
+            groupId: id,
+            newName: val.displayName,
+            tenantId,
+          });
+        }
+      }
+    }
+  }
 
-		return json(buildScimGroup(updatedRole || role, url.origin, members));
-	} catch (e) {
-		logger.error('SCIM Groups PATCH error', { error: e, groupId: id });
-		return scimError(500, 'Internal server error');
-	}
+  // Return updated group - Using optimized retrieval
+  const [updatedRoleResult, usersResult] = await Promise.all([
+    auth.authInterface.getRoleById(id as any, { tenantId: tenantId as any }),
+    auth.authInterface.getAllUsers({
+      filter: {
+        tenantId,
+        $or: [{ role: role.name }, { role: id }],
+      },
+    }),
+  ]);
+
+  const updatedRole = updatedRoleResult?.success ? updatedRoleResult.data : null;
+  const currentRole = updatedRole || role;
+
+  const members = (usersResult.success ? usersResult.data : []).map((u: any) => ({
+    _id: u._id,
+    email: u.email,
+  }));
+
+  return json(buildScimGroup(currentRole, url.origin, members));
 });
 
 // DELETE /api/scim/v2/Groups/{id} — Delete group/role
 export const DELETE = apiHandler(async ({ params, request, locals }) => {
-	const authResult = await validateScimAuth(request, locals);
-	if (!authResult.authenticated) {
-		return scimError(401, authResult.error || 'Unauthorized');
-	}
+  const authResult = await validateScimAuth(request, locals);
+  if (!authResult.authenticated) {
+    return scimError(401, authResult.error || "Unauthorized");
+  }
 
-	const { id } = params;
-	if (!id || !auth) {
-		return scimError(400, 'Group ID is required', 'invalidValue');
-	}
+  const { id } = params;
+  const tenantId = authResult.tenantId;
 
-	try {
-		const roleResult = await auth.authInterface.getRoleById(id);
-		const role = roleResult?.success ? roleResult.data : null;
-		if (!role) {
-			return scimError(404, `Group ${id} not found`, 'invalidValue');
-		}
+  if (!id || !auth) {
+    return scimError(400, "Group ID is required", "invalidValue");
+  }
 
-		// Prevent deletion of built-in admin role
-		if (role.name === 'admin' || role.isAdmin) {
-			return scimError(400, 'Cannot delete the admin role', 'mutability');
-		}
+  const roleResult = await auth.authInterface.getRoleById(id as any, { tenantId: tenantId as any });
+  const role = roleResult?.success ? roleResult.data : null;
+  if (!role) {
+    return scimError(404, `Group ${id} not found`, "invalidValue");
+  }
 
-		await auth.authInterface.deleteRole(id);
-		logger.info('SCIM Group deleted', { groupId: id, roleName: role.name });
-		return new Response(null, { status: 204 });
-	} catch (e) {
-		logger.error('SCIM Groups DELETE error', { error: e, groupId: id });
-		return scimError(500, 'Internal server error');
-	}
+  // Prevent deletion of built-in admin role
+  if (role.name === "admin" || role.isAdmin) {
+    return scimError(400, "Cannot delete the admin role", "mutability");
+  }
+
+  await auth.authInterface.deleteRole(id as DatabaseId, { tenantId: tenantId as DatabaseId });
+  logger.info("SCIM Group deleted", {
+    groupId: id,
+    roleName: role.name,
+    tenantId,
+  });
+  return new Response(null, { status: 204 });
 });

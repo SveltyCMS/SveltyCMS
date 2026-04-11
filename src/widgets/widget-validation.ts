@@ -14,102 +14,104 @@
  * - Dependency validation (required widgets available)
  */
 
-import type { FieldInstance, Layout, Schema } from '@src/content/types';
-import { logger } from '@utils/logger';
+import type { FieldInstance, Layout, Schema } from "@src/content/types";
+import { logger } from "@utils/logger";
 
 /**
  * Validate widgets in a collection schema
  * Logs at DEBUG level for validation results
  */
 export function validateSchemaWidgets(
-	schema: Schema,
-	activeWidgets: string[]
+  schema: Schema,
+  activeWidgets: string[],
 ): {
-	valid: boolean;
-	missingWidgets: string[];
-	suggestions: string[];
+  valid: boolean;
+  missingWidgets: string[];
+  suggestions: string[];
 } {
-	logger.trace('[WidgetValidation] Validating schema widgets', {
-		schema: schema.name,
-		activeWidgetsCount: activeWidgets.length
-	});
+  logger.trace("[WidgetValidation] Validating schema widgets", {
+    schema: schema.name,
+    activeWidgetsCount: activeWidgets.length,
+  });
 
-	const usedWidgets = extractWidgetsFromSchema(schema);
-	const missingWidgets = usedWidgets.filter((widget) => !activeWidgets.includes(widget));
+  const usedWidgets = extractWidgetsFromSchema(schema);
+  const missingWidgets = usedWidgets.filter((widget) => !activeWidgets.includes(widget));
 
-	const suggestions = missingWidgets.map((widget) => `Activate widget '${widget}' or replace with available alternative`);
+  const suggestions = missingWidgets.map(
+    (widget) => `Activate widget '${widget}' or replace with available alternative`,
+  );
 
-	const valid = missingWidgets.length === 0;
+  const valid = missingWidgets.length === 0;
 
-	logger.debug(`[WidgetValidation] Schema "${schema.name}" validation result`, {
-		valid,
-		missingWidgetsCount: missingWidgets.length,
-		missingWidgets
-	});
+  logger.debug(`[WidgetValidation] Schema "${schema.name}" validation result`, {
+    valid,
+    missingWidgetsCount: missingWidgets.length,
+    missingWidgets,
+  });
 
-	return {
-		valid,
-		missingWidgets,
-		suggestions
-	};
+  return {
+    valid,
+    missingWidgets,
+    suggestions,
+  };
 }
 
 // Validate widgets in a dashboard layout
 export function validateLayoutWidgets(
-	layout: Layout,
-	activeWidgets: string[]
+  layout: Layout,
+  activeWidgets: string[],
 ): {
-	valid: boolean;
-	invalidWidgets: string[];
-	cleanedLayout: Layout;
+  valid: boolean;
+  invalidWidgets: string[];
+  cleanedLayout: Layout;
 } {
-	const invalidWidgets: string[] = [];
-	const validPreferences = layout.preferences.filter((widget) => {
-		if (!activeWidgets.includes(widget.component)) {
-			invalidWidgets.push(widget.component);
-			return false;
-		}
-		return true;
-	});
+  const invalidWidgets: string[] = [];
+  const validPreferences = layout.preferences.filter((widget) => {
+    if (!activeWidgets.includes(widget.component)) {
+      invalidWidgets.push(widget.component);
+      return false;
+    }
+    return true;
+  });
 
-	return {
-		valid: invalidWidgets.length === 0,
-		invalidWidgets,
-		cleanedLayout: {
-			...layout,
-			preferences: validPreferences
-		}
-	};
+  return {
+    valid: invalidWidgets.length === 0,
+    invalidWidgets,
+    cleanedLayout: {
+      ...layout,
+      preferences: validPreferences,
+    },
+  };
 }
 
 // Extract widget names from schema fields
 function extractWidgetsFromSchema(schema: Schema): string[] {
-	const widgets: string[] = [];
+  const widgets: string[] = [];
 
-	for (const field of schema.fields as FieldInstance[]) {
-		if (field.widget) {
-			if (typeof field.widget === 'string') {
-				widgets.push(field.widget);
-			} else if (typeof field.widget === 'object' && 'Name' in field.widget) {
-				widgets.push(field.widget.Name);
-			}
-		}
-	}
+  for (const field of schema.fields as FieldInstance[]) {
+    if (field.widget) {
+      if (typeof field.widget === "string") {
+        widgets.push(field.widget);
+      } else if (typeof field.widget === "object" && "Name" in field.widget) {
+        widgets.push(field.widget.Name);
+      }
+    }
+  }
 
-	return Array.from(new Set(widgets));
+  return Array.from(new Set(widgets));
 }
 
 // Get widget dependencies for a collection
 export function getCollectionWidgetDependencies(schema: Schema): {
-	widgets: string[];
-	totalCount: number;
+  widgets: string[];
+  totalCount: number;
 } {
-	const widgets = extractWidgetsFromSchema(schema);
+  const widgets = extractWidgetsFromSchema(schema);
 
-	return {
-		widgets,
-		totalCount: widgets.length
-	};
+  return {
+    widgets,
+    totalCount: widgets.length,
+  };
 }
 
 /**
@@ -117,53 +119,53 @@ export function getCollectionWidgetDependencies(schema: Schema): {
  * Logs at WARN level if widget is in use
  */
 export function canSafelyDeactivateWidget(
-	widgetName: string,
-	allSchemas: Schema[],
-	allLayouts: Layout[]
+  widgetName: string,
+  allSchemas: Schema[],
+  allLayouts: Layout[],
 ): {
-	canDeactivate: boolean;
-	usedInCollections: string[];
-	usedInLayouts: string[];
+  canDeactivate: boolean;
+  usedInCollections: string[];
+  usedInLayouts: string[];
 } {
-	logger.trace('[WidgetValidation] Checking if widget can be safely deactivated', { widgetName });
+  logger.trace("[WidgetValidation] Checking if widget can be safely deactivated", { widgetName });
 
-	const usedInCollections: string[] = [];
-	const usedInLayouts: string[] = [];
+  const usedInCollections: string[] = [];
+  const usedInLayouts: string[] = [];
 
-	// Check collections
-	for (const schema of allSchemas) {
-		const schemaWidgets = extractWidgetsFromSchema(schema);
-		if (widgetName && schemaWidgets.includes(widgetName) && schema.name) {
-			usedInCollections.push(schema.name);
-		}
-	}
+  // Check collections
+  for (const schema of allSchemas) {
+    const schemaWidgets = extractWidgetsFromSchema(schema);
+    if (widgetName && schemaWidgets.includes(widgetName) && schema.name) {
+      usedInCollections.push(schema.name);
+    }
+  }
 
-	// Check layouts
-	for (const layout of allLayouts) {
-		const layoutWidgets = layout.preferences.map((p) => p.component);
-		if (layoutWidgets.includes(widgetName)) {
-			usedInLayouts.push(layout.name);
-		}
-	}
+  // Check layouts
+  for (const layout of allLayouts) {
+    const layoutWidgets = layout.preferences.map((p) => p.component);
+    if (layoutWidgets.includes(widgetName)) {
+      usedInLayouts.push(layout.name);
+    }
+  }
 
-	const canDeactivate = usedInCollections.length === 0 && usedInLayouts.length === 0;
+  const canDeactivate = usedInCollections.length === 0 && usedInLayouts.length === 0;
 
-	if (canDeactivate) {
-		logger.debug(`[WidgetValidation] Widget "${widgetName}" can be safely deactivated`);
-	} else {
-		logger.warn(`[WidgetValidation] Widget "${widgetName}" cannot be safely deactivated`, {
-			collectionsCount: usedInCollections.length,
-			layoutsCount: usedInLayouts.length,
-			collections: usedInCollections,
-			layouts: usedInLayouts
-		});
-	}
+  if (canDeactivate) {
+    logger.debug(`[WidgetValidation] Widget "${widgetName}" can be safely deactivated`);
+  } else {
+    logger.warn(`[WidgetValidation] Widget "${widgetName}" cannot be safely deactivated`, {
+      collectionsCount: usedInCollections.length,
+      layoutsCount: usedInLayouts.length,
+      collections: usedInCollections,
+      layouts: usedInLayouts,
+    });
+  }
 
-	return {
-		canDeactivate,
-		usedInCollections,
-		usedInLayouts
-	};
+  return {
+    canDeactivate,
+    usedInCollections,
+    usedInLayouts,
+  };
 }
 
 /**
@@ -173,32 +175,35 @@ export function canSafelyDeactivateWidget(
  * Logs at DEBUG level for troubleshooting
  */
 export function getAffectedCollections(widgetName: string, schemas: Schema[]): string[] {
-	logger.trace('[WidgetValidation] Checking affected collections for widget', {
-		widgetName
-	});
+  logger.trace("[WidgetValidation] Checking affected collections for widget", {
+    widgetName,
+  });
 
-	const affected: string[] = [];
+  const affected: string[] = [];
 
-	for (const schema of schemas) {
-		const schemaWidgets = extractWidgetsFromSchema(schema);
-		if (widgetName && schemaWidgets.includes(widgetName) && schema.name) {
-			affected.push(schema.name);
-			logger.trace('[WidgetValidation] Widget used in collection', {
-				widget: widgetName,
-				collection: schema.name
-			});
-		}
-	}
+  for (const schema of schemas) {
+    const schemaWidgets = extractWidgetsFromSchema(schema);
+    if (widgetName && schemaWidgets.includes(widgetName) && schema.name) {
+      affected.push(schema.name);
+      logger.trace("[WidgetValidation] Widget used in collection", {
+        widget: widgetName,
+        collection: schema.name,
+      });
+    }
+  }
 
-	if (affected.length > 0) {
-		logger.debug(`[WidgetValidation] Widget "${widgetName}" is used in ${affected.length} collection(s)`, {
-			collections: affected
-		});
-	} else {
-		logger.debug(`[WidgetValidation] Widget "${widgetName}" is not used in any collections`);
-	}
+  if (affected.length > 0) {
+    logger.debug(
+      `[WidgetValidation] Widget "${widgetName}" is used in ${affected.length} collection(s)`,
+      {
+        collections: affected,
+      },
+    );
+  } else {
+    logger.debug(`[WidgetValidation] Widget "${widgetName}" is not used in any collections`);
+  }
 
-	return affected;
+  return affected;
 }
 
 /**
@@ -211,66 +216,66 @@ export function getAffectedCollections(widgetName: string, schemas: Schema[]): s
  * - TRACE: Detailed validation flow
  */
 export function validateCollectionForRendering(
-	schema: Schema,
-	activeWidgets: string[]
+  schema: Schema,
+  activeWidgets: string[],
 ): {
-	canRender: boolean;
-	missingWidgets: string[];
-	fieldsWithIssues: Array<{ fieldName: string; widget: string; issue: string }>;
+  canRender: boolean;
+  missingWidgets: string[];
+  fieldsWithIssues: Array<{ fieldName: string; widget: string; issue: string }>;
 } {
-	logger.trace('[WidgetValidation] Validating collection for rendering', {
-		collection: schema.name,
-		activeWidgetsCount: activeWidgets.length,
-		fieldsCount: schema.fields?.length || 0
-	});
+  logger.trace("[WidgetValidation] Validating collection for rendering", {
+    collection: schema.name,
+    activeWidgetsCount: activeWidgets.length,
+    fieldsCount: schema.fields?.length || 0,
+  });
 
-	const usedWidgets = extractWidgetsFromSchema(schema);
-	const missingWidgets = usedWidgets.filter((widget) => !activeWidgets.includes(widget));
-	const fieldsWithIssues: Array<{
-		fieldName: string;
-		widget: string;
-		issue: string;
-	}> = [];
+  const usedWidgets = extractWidgetsFromSchema(schema);
+  const missingWidgets = usedWidgets.filter((widget) => !activeWidgets.includes(widget));
+  const fieldsWithIssues: Array<{
+    fieldName: string;
+    widget: string;
+    issue: string;
+  }> = [];
 
-	// Check each field for widget issues
-	for (const field of (schema.fields || []) as FieldInstance[]) {
-		const widgetName = typeof field.widget === 'string' ? field.widget : field.widget?.Name;
-		if (widgetName && !activeWidgets.includes(widgetName)) {
-			const fieldName = field.db_fieldName || field.label || 'unknown';
-			const issue = `Widget "${widgetName}" is inactive or missing. Content for this field cannot be rendered.`;
+  // Check each field for widget issues
+  for (const field of (schema.fields || []) as FieldInstance[]) {
+    const widgetName = typeof field.widget === "string" ? field.widget : field.widget?.Name;
+    if (widgetName && !activeWidgets.includes(widgetName)) {
+      const fieldName = field.db_fieldName || field.label || "unknown";
+      const issue = `Widget "${widgetName}" is inactive or missing. Content for this field cannot be rendered.`;
 
-			fieldsWithIssues.push({
-				fieldName,
-				widget: widgetName,
-				issue
-			});
+      fieldsWithIssues.push({
+        fieldName,
+        widget: widgetName,
+        issue,
+      });
 
-			// Log warning for each inactive widget (user-facing issue)
-			logger.warn(`[WidgetValidation] Inactive widget in collection "${schema.name}"`, {
-				field: fieldName,
-				widget: field.widget,
-				reason: 'Widget is not in active widgets list'
-			});
-		}
-	}
+      // Log warning for each inactive widget (user-facing issue)
+      logger.warn(`[WidgetValidation] Inactive widget in collection "${schema.name}"`, {
+        field: fieldName,
+        widget: field.widget,
+        reason: "Widget is not in active widgets list",
+      });
+    }
+  }
 
-	const canRender = missingWidgets.length === 0;
+  const canRender = missingWidgets.length === 0;
 
-	// Log validation result
-	if (canRender) {
-		logger.debug(`[WidgetValidation] Collection "${schema.name}" validation passed`, {
-			usedWidgetsCount: usedWidgets.length
-		});
-	} else {
-		logger.warn(`[WidgetValidation] Collection "${schema.name}" cannot render safely`, {
-			missingWidgets,
-			affectedFieldsCount: fieldsWithIssues.length
-		});
-	}
+  // Log validation result
+  if (canRender) {
+    logger.debug(`[WidgetValidation] Collection "${schema.name}" validation passed`, {
+      usedWidgetsCount: usedWidgets.length,
+    });
+  } else {
+    logger.warn(`[WidgetValidation] Collection "${schema.name}" cannot render safely`, {
+      missingWidgets,
+      affectedFieldsCount: fieldsWithIssues.length,
+    });
+  }
 
-	return {
-		canRender,
-		missingWidgets,
-		fieldsWithIssues
-	};
+  return {
+    canRender,
+    missingWidgets,
+    fieldsWithIssues,
+  };
 }

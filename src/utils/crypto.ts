@@ -25,24 +25,25 @@
  * @see https://csrc.nist.gov/projects/post-quantum-cryptography for PQC updates
  */
 
-import { logger } from '@utils/logger';
+import { logger } from "@utils/logger";
 
 // Import argon2 and crypto (server-side only)
-let argon2: typeof import('argon2') | null = null;
-let crypto: typeof import('crypto') | null = null;
+let argon2: typeof import("argon2") | null = null;
+let crypto: typeof import("crypto") | null = null;
 
 // Server-side environment detection
 // Note: We check for process.versions as well because some test environments (like Bun)
 // may mock the window object, which would cause typeof window === 'undefined' to be false.
-const isServer = typeof window === 'undefined' || (typeof process !== 'undefined' && process.versions != null);
+const isServer =
+  typeof window === "undefined" || (typeof process !== "undefined" && process.versions != null);
 
 if (isServer) {
-	try {
-		argon2 = await import('argon2');
-		crypto = await import('node:crypto');
-	} catch (error) {
-		logger.error('Failed to load cryptographic modules', { error });
-	}
+  try {
+    argon2 = await import("argon2");
+    crypto = await import("node:crypto");
+  } catch (error) {
+    logger.error("Failed to load cryptographic modules", { error });
+  }
 }
 
 /**
@@ -57,63 +58,36 @@ if (isServer) {
  * These settings provide a good balance between security and performance
  * while maintaining strong resistance against both classical and quantum attacks.
  */
+// Import shared password parameters from centralized utility
+import { getPasswordConfig } from "./password";
+const pgConfig = getPasswordConfig();
+
 export const argon2Config = {
-	// Memory cost in KiB (64 MB) - Makes attacks expensive even with quantum computers
-	memory: 65_536,
-	// Time cost (number of iterations) - Adds computational complexity
-	time: 3,
-	// Parallelism factor (number of threads) - Optimizes for modern CPUs
-	parallelism: 4,
-	// Use Argon2id (hybrid version - best for most use cases)
-	type: 2 as const, // argon2id
-	// Output hash length in bytes
-	hashLength: 32
+  // Memory cost in KiB (64 MB) - Makes attacks expensive even with quantum computers
+  memoryCost: pgConfig.memoryCost,
+  // Time cost (number of iterations) - Adds computational complexity
+  timeCost: pgConfig.timeCost,
+  // Parallelism factor (number of threads) - Optimizes for modern CPUs
+  parallelism: pgConfig.parallelism,
+  // Use Argon2id (hybrid version - best for most use cases)
+  type: pgConfig.type,
+  // Output hash length in bytes
+  hashLength: 32,
 };
 
 // AES-256-GCM encryption configuration
 // QUANTUM RESISTANCE: AES-256 provides 128-bit quantum security (Grover's algorithm)
 // which is still computationally infeasible (2^128 operations = billions of years)
 export const encryptionConfig = {
-	algorithm: 'aes-256-gcm' as const,
-	keyLength: 32, // 256 bits (128-bit quantum security)
-	ivLength: 16, // 128 bits
-	saltLength: 32, // 256 bits (128-bit quantum security)
-	authTagLength: 16 // 128 bits (provides data integrity)
+  algorithm: "aes-256-gcm" as const,
+  keyLength: 32, // 256 bits (128-bit quantum security)
+  ivLength: 16, // 128 bits
+  saltLength: 32, // 256 bits (128-bit quantum security)
+  authTagLength: 16, // 128 bits (provides data integrity)
 };
 
-/**
- * Hash a password using Argon2id
- *
- * @param password - Plain text password to hash
- * @returns Promise resolving to hashed password
- * @throws Error if argon2 is not available
- */
-export async function hashPassword(password: string): Promise<string> {
-	if (!argon2) {
-		throw new Error('Argon2 not available - server-side only');
-	}
-
-	return argon2.hash(password, {
-		...argon2Config,
-		type: argon2.argon2id
-	});
-}
-
-/**
- * Verify a password against its hash using Argon2
- *
- * @param password - Plain text password to verify
- * @param hash - Hashed password to compare against
- * @returns Promise resolving to true if password matches
- * @throws Error if argon2 is not available
- */
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-	if (!argon2) {
-		throw new Error('Argon2 not available - server-side only');
-	}
-
-	return argon2.verify(hash, password);
-}
+// Re-export centralized password utilities to maintain compatibility
+export { hashPassword, verifyPassword } from "./password";
 
 /**
  * Derive a cryptographic key from a password using Argon2
@@ -133,20 +107,20 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
  * @throws Error if argon2 is not available
  */
 export async function deriveKey(password: string, salt: Buffer): Promise<Buffer> {
-	if (!argon2) {
-		throw new Error('Argon2 not available - server-side only');
-	}
+  if (!argon2) {
+    throw new Error("Argon2 not available - server-side only");
+  }
 
-	// Use Argon2 to derive a raw key (not encoded)
-	const hash = await argon2.hash(password, {
-		...argon2Config,
-		type: argon2.argon2id,
-		salt,
-		raw: true
-	});
+  // Use Argon2 to derive a raw key (not encoded)
+  const hash = await argon2.hash(password, {
+    ...argon2Config,
+    type: argon2.argon2id,
+    salt,
+    raw: true,
+  });
 
-	// Ensure key is exactly 32 bytes for AES-256
-	return Buffer.from(hash).subarray(0, encryptionConfig.keyLength);
+  // Ensure key is exactly 32 bytes for AES-256
+  return Buffer.from(hash).subarray(0, encryptionConfig.keyLength);
 }
 
 /**
@@ -166,39 +140,42 @@ export async function deriveKey(password: string, salt: Buffer): Promise<Buffer>
  * @returns Base64-encoded encrypted data (salt + iv + authTag + ciphertext)
  * @throws Error if crypto modules are not available
  */
-export async function encryptData(data: Record<string, unknown>, password: string): Promise<string> {
-	if (!(crypto && argon2)) {
-		throw new Error('Crypto modules not available - server-side only');
-	}
+export async function encryptData(
+  data: Record<string, unknown>,
+  password: string,
+): Promise<string> {
+  if (!(crypto && argon2)) {
+    throw new Error("Crypto modules not available - server-side only");
+  }
 
-	// Generate random salt and IV
-	const salt = crypto.randomBytes(encryptionConfig.saltLength);
-	const iv = crypto.randomBytes(encryptionConfig.ivLength);
+  // Generate random salt and IV
+  const salt = crypto.randomBytes(encryptionConfig.saltLength);
+  const iv = crypto.randomBytes(encryptionConfig.ivLength);
 
-	// Derive key using Argon2 (more secure than PBKDF2)
-	const key = await deriveKey(password, salt);
+  // Derive key using Argon2 (more secure than PBKDF2)
+  const key = await deriveKey(password, salt);
 
-	// Create cipher
-	const cipher = crypto.createCipheriv(encryptionConfig.algorithm, key, iv);
+  // Create cipher
+  const cipher = crypto.createCipheriv(encryptionConfig.algorithm, key, iv);
 
-	// Encrypt data
-	const plaintext = JSON.stringify(data);
-	const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  // Encrypt data
+  const plaintext = JSON.stringify(data);
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
 
-	// Get authentication tag
-	const authTag = cipher.getAuthTag();
+  // Get authentication tag
+  const authTag = cipher.getAuthTag();
 
-	// Combine: salt + iv + authTag + encrypted data
-	const combined = Buffer.concat([salt, iv, authTag, encrypted]);
+  // Combine: salt + iv + authTag + encrypted data
+  const combined = Buffer.concat([salt, iv, authTag, encrypted]);
 
-	logger.debug('Data encrypted successfully', {
-		saltLength: salt.length,
-		ivLength: iv.length,
-		authTagLength: authTag.length,
-		encryptedLength: encrypted.length
-	});
+  logger.debug("Data encrypted successfully", {
+    saltLength: salt.length,
+    ivLength: iv.length,
+    authTagLength: authTag.length,
+    encryptedLength: encrypted.length,
+  });
 
-	return combined.toString('base64');
+  return combined.toString("base64");
 }
 
 /**
@@ -209,47 +186,50 @@ export async function encryptData(data: Record<string, unknown>, password: strin
  * @returns Decrypted data object
  * @throws Error if decryption fails or password is incorrect
  */
-export async function decryptData(encryptedData: string, password: string): Promise<Record<string, unknown>> {
-	if (!(crypto && argon2)) {
-		throw new Error('Crypto modules not available - server-side only');
-	}
+export async function decryptData(
+  encryptedData: string,
+  password: string,
+): Promise<Record<string, unknown>> {
+  if (!(crypto && argon2)) {
+    throw new Error("Crypto modules not available - server-side only");
+  }
 
-	try {
-		// Decode base64
-		const combined = Buffer.from(encryptedData, 'base64');
+  try {
+    // Decode base64
+    const combined = Buffer.from(encryptedData, "base64");
 
-		// Extract components
-		let offset = 0;
-		const salt = combined.subarray(offset, offset + encryptionConfig.saltLength);
-		offset += encryptionConfig.saltLength;
+    // Extract components
+    let offset = 0;
+    const salt = combined.subarray(offset, offset + encryptionConfig.saltLength);
+    offset += encryptionConfig.saltLength;
 
-		const iv = combined.subarray(offset, offset + encryptionConfig.ivLength);
-		offset += encryptionConfig.ivLength;
+    const iv = combined.subarray(offset, offset + encryptionConfig.ivLength);
+    offset += encryptionConfig.ivLength;
 
-		const authTag = combined.subarray(offset, offset + encryptionConfig.authTagLength);
-		offset += encryptionConfig.authTagLength;
+    const authTag = combined.subarray(offset, offset + encryptionConfig.authTagLength);
+    offset += encryptionConfig.authTagLength;
 
-		const encrypted = combined.subarray(offset);
+    const encrypted = combined.subarray(offset);
 
-		// Derive key using same password and salt
-		const key = await deriveKey(password, salt);
+    // Derive key using same password and salt
+    const key = await deriveKey(password, salt);
 
-		// Create decipher
-		const decipher = crypto.createDecipheriv(encryptionConfig.algorithm, key, iv);
-		decipher.setAuthTag(authTag);
+    // Create decipher
+    const decipher = crypto.createDecipheriv(encryptionConfig.algorithm, key, iv);
+    decipher.setAuthTag(authTag);
 
-		// Decrypt data
-		const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+    // Decrypt data
+    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
 
-		logger.debug('Data decrypted successfully', {
-			decryptedLength: decrypted.length
-		});
+    logger.debug("Data decrypted successfully", {
+      decryptedLength: decrypted.length,
+    });
 
-		return JSON.parse(decrypted.toString('utf8'));
-	} catch (error) {
-		logger.error('Decryption failed', { error });
-		throw new Error('Failed to decrypt data. Password may be incorrect or data corrupted.');
-	}
+    return JSON.parse(decrypted.toString("utf8"));
+  } catch (error) {
+    logger.error("Decryption failed", { error });
+    throw new Error("Failed to decrypt data. Password may be incorrect or data corrupted.");
+  }
 }
 
 /**
@@ -261,11 +241,11 @@ export async function decryptData(encryptedData: string, password: string): Prom
  * @throws Error if crypto is not available.
  */
 export function createChecksum(data: unknown): string {
-	if (!crypto) {
-		throw new Error('Crypto not available - server-side only');
-	}
-	const str = JSON.stringify(data);
-	return crypto.createHash('sha256').update(str).digest('hex');
+  if (!crypto) {
+    throw new Error("Crypto not available - server-side only");
+  }
+  const str = JSON.stringify(data);
+  return crypto.createHash("sha256").update(str).digest("hex");
 }
 
 /**
@@ -276,11 +256,11 @@ export function createChecksum(data: unknown): string {
  * @throws Error if crypto is not available
  */
 export function generateRandomToken(length = 32): string {
-	if (!crypto) {
-		throw new Error('Crypto not available - server-side only');
-	}
+  if (!crypto) {
+    throw new Error("Crypto not available - server-side only");
+  }
 
-	return crypto.randomBytes(length).toString('hex');
+  return crypto.randomBytes(length).toString("hex");
 }
 
 /**
@@ -290,11 +270,11 @@ export function generateRandomToken(length = 32): string {
  * @throws Error if crypto is not available
  */
 export function generateUUID(): string {
-	if (!crypto) {
-		throw new Error('Crypto not available - server-side only');
-	}
+  if (!crypto) {
+    throw new Error("Crypto not available - server-side only");
+  }
 
-	return crypto.randomUUID();
+  return crypto.randomUUID();
 }
 
 /**
@@ -303,5 +283,5 @@ export function generateUUID(): string {
  * @returns True if crypto and argon2 are available
  */
 export function isCryptoAvailable(): boolean {
-	return crypto !== null && argon2 !== null;
+  return crypto !== null && argon2 !== null;
 }

@@ -3,39 +3,53 @@
  * @description Central catalog for AI-native generative layouts using json-render-svelte.
  */
 
-import { schema, defineRegistry } from 'json-render-svelte';
-import type { WidgetDefinition } from '@widgets/types';
+import { schema, defineRegistry } from "json-render-svelte";
+import type { WidgetDefinition } from "@widgets/types";
 
 // Import basic components
-import VerticalLayout from './components/VerticalLayout.svelte';
-import HorizontalLayout from './components/HorizontalLayout.svelte';
-import Text from './components/Text.svelte';
+import VerticalLayout from "./components/vertical-layout.svelte";
+import HorizontalLayout from "./components/horizontal-layout.svelte";
+import Text from "./components/text.svelte";
 
 // The unified catalog containing all AI-generatable components.
 export const sveltyCatalog = schema.createCatalog({
-	components: {},
-	actions: {}
+  components: {},
+  actions: {},
 });
 
 // The registry that maps component names to Svelte components.
 const { registry } = defineRegistry(sveltyCatalog as any, {
-	components: {
-		VerticalLayout: VerticalLayout as any,
-		HorizontalLayout: HorizontalLayout as any,
-		Text: Text as any,
-		Control: Text as any // Fallback Control to Text for now
-	}
+  components: {
+    VerticalLayout: VerticalLayout as any,
+    HorizontalLayout: HorizontalLayout as any,
+    Text: Text as any,
+    Control: Text as any, // Fallback Control to Text for now
+  },
 });
 
 export const sveltyRegistry = registry as any;
 
 /**
  * Registers a widget into the generative catalog.
- * Note: Dynamic registration for AI prompts will be expanded in Q2.
  */
 export function registerForJsonRender(widget: WidgetDefinition) {
-	if (!widget.jsonRender) return;
+  if (!widget.jsonRender) return;
 
-	// In Q2, we will implement dynamic catalog expansion.
-	// For now, this preserves the widget's intent for generative layouts.
+  // 1. Add to the catalog schema so AI knows it exists
+  (sveltyCatalog.data as any).components[widget.Name] = {
+    props: {
+      value: { type: "any" },
+      field: { type: "object" },
+    },
+  };
+
+  // 2. Add to the registry so it can be rendered
+  // We use the displayComponent if available, or text fallback
+  if (widget.displayComponent) {
+    sveltyRegistry[widget.Name] = widget.displayComponent;
+  } else {
+    sveltyRegistry[widget.Name] = Text;
+  }
+
+  // console.log(`[JsonRender] Registered widget: ${widget.Name}`);
 }

@@ -11,32 +11,33 @@
  * - `createdBy`: User ID of the creator of the token
  */
 
-import { generateId } from '@src/databases/mongodb/methods/mongodb-utils';
-import type { WebsiteToken } from '@src/databases/schemas';
-import { nowISODateString } from '@utils/date-utils';
-import type { Model } from 'mongoose';
-import mongoose, { Schema } from 'mongoose';
+import { generateId } from "@src/databases/mongodb/methods/mongodb-utils";
+import type { WebsiteToken } from "@src/content/types";
+import { nowISODateString } from "@utils/date-utils";
+import type { Model } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 export const websiteTokenSchema = new Schema<WebsiteToken>(
-	{
-		_id: { type: String, required: true, default: () => generateId() },
-		name: { type: String, required: true },
-		token: { type: String, required: true, unique: true },
-		createdAt: { type: String, default: () => nowISODateString() },
-		updatedAt: { type: String, default: () => nowISODateString() },
-		createdBy: { type: String, required: true },
-		permissions: { type: [String], default: [] },
-		expiresAt: { type: String, required: false }
-	},
-	{
-		timestamps: true,
-		collection: 'system_website_tokens',
-		strict: true,
-		_id: false
-	}
+  {
+    _id: { type: String, required: true, default: () => generateId() },
+    name: { type: String, required: true },
+    token: { type: String, required: true, unique: true },
+    createdAt: { type: String, default: () => nowISODateString() },
+    updatedAt: { type: String, default: () => nowISODateString() },
+    createdBy: { type: String, required: true },
+    permissions: { type: [String], default: [] },
+    expiresAt: { type: String, required: false },
+  },
+  {
+    timestamps: true,
+    collection: "system_website_tokens",
+    strict: true,
+    _id: false,
+  },
 );
 
 websiteTokenSchema.index({ createdBy: 1 });
 
 export const WebsiteTokenModel =
-	(mongoose.models?.WebsiteToken as Model<WebsiteToken> | undefined) || mongoose.model<WebsiteToken>('WebsiteToken', websiteTokenSchema);
+  (mongoose.models?.WebsiteToken as Model<WebsiteToken> | undefined) ||
+  mongoose.model<WebsiteToken>("WebsiteToken", websiteTokenSchema);

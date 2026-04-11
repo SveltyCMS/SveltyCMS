@@ -17,47 +17,50 @@
 // import Input from '@components/system/inputs/input.svelte';
 // import Toggles from '@components/system/inputs/toggles.svelte';
 
-import type { FieldInstance } from '@src/content/types';
-import { widget_colorPicker_description } from '@src/paraglide/messages';
-import { createWidget } from '@src/widgets/widget-factory';
-import { minLength, optional, pipe, regex, string, type InferInput as ValibotInput } from 'valibot';
-import type { ColorPickerProps } from './types';
+import type { FieldInstance } from "@src/content/types";
+import { widget_colorPicker_description } from "@src/paraglide/messages";
+import { createWidget } from "@src/widgets/widget-factory";
+import { minLength, optional, pipe, regex, string, type InferInput as ValibotInput } from "valibot";
+import type { ColorPickerProps } from "./types";
 
 // The validation schema is a function to accommodate the `required` flag.
 const validationSchema = (field: FieldInstance) => {
-	// Base schema validates the hex color format.
-	const hexSchema = pipe(string(), regex(/^#[0-9a-f]{6}$/i, 'Must be a valid 6-digit hex code (e.g., #FF5733).'));
+  // Base schema validates the hex color format.
+  const hexSchema = pipe(
+    string(),
+    regex(/^#[0-9a-f]{6}$/i, "Must be a valid 6-digit hex code (e.g., #FF5733)."),
+  );
 
-	// If the field is required, ensure it's not an empty string before checking the format.
-	if (field.required) {
-		return pipe(string(), minLength(1, 'A color is required.'), hexSchema);
-	}
+  // If the field is required, ensure it's not an empty string before checking the format.
+  if (field.required) {
+    return pipe(string(), minLength(1, "A color is required."), hexSchema);
+  }
 
-	// If not required, allow an empty string or a valid hex code.
-	return optional(hexSchema, '');
+  // If not required, allow an empty string or a valid hex code.
+  return optional(hexSchema, "");
 };
 
 // Create the widget definition using the factory.
 const ColorPickerWidget = createWidget<ColorPickerProps>({
-	Name: 'ColorPicker',
-	Icon: 'ic:outline-colorize',
-	Description: widget_colorPicker_description(),
-	inputComponentPath: '/src/widgets/custom/color-picker/input.svelte',
-	displayComponentPath: '/src/widgets/custom/color-picker/display.svelte',
-	validationSchema,
+  Name: "ColorPicker",
+  Icon: "ic:outline-colorize",
+  Description: widget_colorPicker_description(),
+  inputComponentPath: "/src/widgets/custom/color-picker/input.svelte",
+  displayComponentPath: "/src/widgets/custom/color-picker/display.svelte",
+  validationSchema,
 
-	// Set widget-specific defaults. A color is a universal value.
-	defaults: {
-		translated: false
-	},
+  // Set widget-specific defaults. A color is a universal value.
+  defaults: {
+    translated: false,
+  },
 
-	// Define the UI for configuring this widget in the Collection Builder.
-	GuiSchema: {
-		label: { widget: 'Input', required: true },
-		db_fieldName: { widget: 'Input', required: false },
-		required: { widget: 'Toggles', required: false },
-		width: { widget: 'Input', required: false }
-	}
+  // Define the UI for configuring this widget in the Collection Builder.
+  GuiSchema: {
+    label: { widget: "Input", required: true },
+    db_fieldName: { widget: "Input", required: false },
+    required: { widget: "Toggles", required: false },
+    width: { widget: "Input", required: false },
+  },
 });
 
 export default ColorPickerWidget;

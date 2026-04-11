@@ -3,114 +3,124 @@
  * @description Playwright test configuration for SveltyCMS
  */
 
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+
+// Ensure .auth directory exists for secret sync
+const authDir = join(process.cwd(), "tests/e2e/.auth");
+if (!existsSync(authDir)) {
+  mkdirSync(authDir, { recursive: true });
+}
+
+// ✨ Synchronization: Use a file to share the secret across all Playwright workers
+// This prevents 403 errors when workers re-evaluate the config file.
+const SECRET_FILE = join(authDir, "test-secret.txt");
+let TEST_API_SECRET = process.env.TEST_API_SECRET;
+
+if (!TEST_API_SECRET) {
+  if (existsSync(SECRET_FILE)) {
+    TEST_API_SECRET = readFileSync(SECRET_FILE, "utf-8").trim();
+  } else {
+    TEST_API_SECRET = randomUUID();
+    writeFileSync(SECRET_FILE, TEST_API_SECRET);
+  }
+}
 
 // See https://playwright.dev/docs/test-configuration.
 export default defineConfig({
-	testDir: './tests/e2e',
-	testMatch: '**/*.{test,spec,spect}.ts',
-	/* Run tests in files in parallel */
-	fullyParallel: true,
-	/* Fail the build on CI if you accidentally left test.only in the source code. */
-	forbidOnly: !!process.env.CI,
-	/* Disable parallelism to avoid DB race conditions in setup tests */
-	workers: 1,
-	/* Reporter to use. See https://playwright.dev/docs/test-reporters */
-	reporter: [['html'], [process.env.CI ? 'github' : 'list']],
+  testDir: "./tests/e2e",
+  testMatch: "**/*.{test,spec,spect}.ts",
+  /* Maximum time one test can run for. */
+  timeout: 60 * 1000,
+  expect: {
+    /**
+     * Maximum time expect() should wait for the condition to be met.
+     * For example in `await expect(locator).toBeVisible();`
+     */
+    timeout: 10 * 1000,
+  },
+  /* Run tests in files in parallel */
+  fullyParallel: true,
+  /* Fail the build on CI if you accidentally left test.only in the source code. */
+  forbidOnly: !!process.env.CI,
+  /* Retry on CI only */
+  retries: process.env.CI ? 1 : 0,
+  /*
+   * ✨ Database-per-Worker Strategy:
+   * Enable parallelism. Each worker will use a unique SQLite file
+   * (e.g. cms_worker1.db) triggered by the x-test-worker-index header.
+   */
+  workers: process.env.CI ? 4 : undefined,
+  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
+  reporter: [["html"], [process.env.CI ? "github" : "list"]],
 
-	/* Set environment variables for tests */
-	use: {
-		/* Base URL to use in actions like `await page.goto('/')`. */
-		baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || (process.env.CI ? 'http://localhost:4173' : 'http://localhost:5173'),
+  /* Set environment variables for tests */
+  use: {
+    /* Base URL to use in actions like `await page.goto('/')`. */
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4173",
 
-		launchOptions: {
-			slowMo: Number.parseInt(process.env.SLOW_MO || '0', 10)
-		},
-		// Explicitly set PWDEBUG for local runs
-		// Set environment variables in your test runner or webServer configuration if needed
+    /* ✨ ISOLATION: Pass worker index and secure token to the server */
+    extraHTTPHeaders: {
+      "x-test-worker-index": process.env.TEST_WORKER_INDEX || "0",
+      "x-test-secret": TEST_API_SECRET,
+    },
 
-		/* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-		trace: 'on-first-retry',
-		video: 'retain-on-failure',
+    launchOptions: {
+      slowMo: Number.parseInt(process.env.SLOW_MO || "0", 10),
+    },
+    // Explicitly set PWDEBUG for local runs
+    // Set environment variables in your test runner or webServer configuration if needed
 
-		/* Bypass CSP in tests to allow MongoDB connections */
-		bypassCSP: true
-	},
+    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
+    trace: "on-first-retry",
+    video: "retain-on-failure",
 
-	/* Configure projects for major browsers */
-	projects: [
-		{
-			name: 'chromium',
-			use: {
-				...devices['Desktop Chrome'],
-				headless: !!process.env.CI // Always headless in CI
-			}
-		},
+    /* Bypass CSP in tests to allow MongoDB connections */
+    bypassCSP: true,
+  },
 
-		{
-			name: 'firefox',
-			use: {
-				...devices['Desktop Firefox'],
-				headless: !!process.env.CI
-			}
-		},
+  /* Configure projects for major browsers */
+  projects: [
+    {
+      name: "wizard",
+      testMatch: /setup-wizard\.spec\.ts/,
+    },
+    {
+      name: "auth-setup",
+      testMatch: /auth\.setup\.ts/,
+      dependencies: ["wizard"],
+      // Force sequential to avoid race conditions during auth bootstrapping
+      workers: 1,
+    },
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        headless: !!process.env.CI, // Always headless in CI
+      },
+      dependencies: ["auth-setup"],
+      testIgnore: [/setup-wizard\.spec\.ts/, /auth\.setup\.ts/],
+    },
+  ],
 
-		{
-			name: 'webkit',
-			use: {
-				...devices['Desktop Safari'],
-				headless: !!process.env.CI
-			}
-		},
-
-		/* Test against mobile viewports. */
-		{
-			name: 'Mobile Chrome',
-			use: {
-				...devices['Pixel 5'],
-				headless: !!process.env.CI
-			}
-		},
-		{
-			name: 'Mobile Safari',
-			use: {
-				...devices['iPhone 12'],
-				headless: !!process.env.CI
-			}
-		},
-
-		/* Test against branded browsers. */
-		{
-			name: 'Microsoft Edge',
-			use: {
-				...devices['Desktop Edge'],
-				channel: 'msedge',
-				headless: !!process.env.CI
-			}
-		},
-		{
-			name: 'Google Chrome',
-			use: {
-				...devices['Desktop Chrome'],
-				channel: 'chrome',
-				headless: !!process.env.CI
-			}
-		}
-	],
-
-	/* Run your local dev server before starting the tests */
-	// In CI, the workflow starts the server manually, so we only use webServer locally
-	...(process.env.CI
-		? {}
-		: {
-				webServer: {
-					command: 'bun install && bun dev --port 5173',
-					port: 5173,
-					timeout: 60_000, // Increased timeout to 1 minute
-					reuseExistingServer: true,
-					env: {
-						PLAYWRIGHT_TEST: 'true'
-					}
-				}
-			})
+  /* Run your local build server before starting the tests */
+  // In CI, the workflow starts the server manually, so we only use webServer locally
+  ...(process.env.CI
+    ? {}
+    : {
+        webServer: {
+          command: "bun run build && bun run preview --port 4173",
+          port: 4173,
+          timeout: 300_000, // Increased timeout to 5 minutes for build/preview
+          reuseExistingServer: true,
+          env: {
+            PLAYWRIGHT_TEST: "true",
+            TEST_MODE: "true",
+            MULTI_TENANT: "true",
+            TEST_API_SECRET: TEST_API_SECRET,
+          },
+        },
+      }),
 });

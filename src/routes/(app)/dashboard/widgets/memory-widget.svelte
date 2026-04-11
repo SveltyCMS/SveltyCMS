@@ -25,11 +25,11 @@ Features:
 - Enhanced debugging and logging
 -->
 <script lang="ts" module>
-	export const widgetMeta = {
-		name: 'Memory Usage',
-		icon: 'mdi:memory',
-		defaultSize: { w: 1, h: 2 }
-	};
+export const widgetMeta = {
+	name: "Memory Usage",
+	icon: "mdi:memory",
+	defaultSize: { w: 1, h: 2 },
+};
 </script>
 
 <script lang="ts">

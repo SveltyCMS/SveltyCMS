@@ -13,254 +13,276 @@ and CRUD actions. Enterprise-grade workflow management GUI.
 -->
 
 <script lang="ts">
-	import PageTitle from '@src/components/page-title.svelte';
-	import type { AutomationFlow } from '@src/services/automation/types';
-	import { AUTOMATION_EVENTS, OPERATION_TYPES } from '@src/services/automation/types';
-	import { toast } from '@src/stores/toast.svelte.ts';
-	import { onMount } from 'svelte';
-	import { slide } from 'svelte/transition';
-	import { goto } from '$app/navigation';
+import PageTitle from "@src/components/page-title.svelte";
+import type { AutomationFlow } from "@src/services/automation/types";
+import {
+	AUTOMATION_EVENTS,
+	OPERATION_TYPES,
+} from "@src/services/automation/types";
+import { toast } from "@src/stores/toast.svelte.ts";
+import { onMount } from "svelte";
+import { slide } from "svelte/transition";
+import { goto } from "$app/navigation";
 
-	let flows: AutomationFlow[] = $state([]);
-	let isLoading = $state(true);
-	let searchQuery = $state('');
-	let selectedIds = $state<string[]>([]);
+let flows: AutomationFlow[] = $state([]);
+let isLoading = $state(true);
+let searchQuery = $state("");
+let selectedIds = $state<string[]>([]);
 
-	let filteredFlows = $derived(
-		flows.filter((f) => f.name.toLowerCase().includes(searchQuery.toLowerCase()) || f.description?.toLowerCase().includes(searchQuery.toLowerCase()))
-	);
+let filteredFlows = $derived(
+	flows.filter(
+		(f) =>
+			f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			f.description?.toLowerCase().includes(searchQuery.toLowerCase()),
+	),
+);
 
-	let allSelected = $derived(filteredFlows.length > 0 && selectedIds.length === filteredFlows.length);
-	let someSelected = $derived(selectedIds.length > 0 && !allSelected);
+let allSelected = $derived(
+	filteredFlows.length > 0 && selectedIds.length === filteredFlows.length,
+);
+let someSelected = $derived(selectedIds.length > 0 && !allSelected);
 
-	async function loadFlows() {
-		isLoading = true;
-		try {
-			const res = await fetch('/api/automations');
-			const result = await res.json();
-			if (result.success) {
-				flows = result.data;
-			} else {
-				toast.error(result.error || 'Failed to load automations');
-			}
-		} catch (_err) {
-			toast.error('Error loading automations');
-		} finally {
-			isLoading = false;
-		}
-	}
-
-	async function toggleFlow(flow: AutomationFlow) {
-		try {
-			const res = await fetch(`/api/automations/${flow.id}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ active: !flow.active })
-			});
-			const result = await res.json();
-			if (result.success) {
-				flow.active = !flow.active;
-				toast.success(`${flow.name} ${flow.active ? 'activated' : 'paused'}`);
-			}
-		} catch (_err) {
-			toast.error('Failed to toggle automation');
-		}
-	}
-
-	async function deleteFlow(flow: AutomationFlow) {
-		if (!confirm(`Delete "${flow.name}"? This cannot be undone.`)) {
-			return;
-		}
-
-		try {
-			const res = await fetch(`/api/automations/${flow.id}`, {
-				method: 'DELETE'
-			});
-			const result = await res.json();
-			if (result.success) {
-				flows = flows.filter((f) => f.id !== flow.id);
-				toast.success('Automation deleted');
-			}
-		} catch (_err) {
-			toast.error('Failed to delete automation');
-		}
-	}
-
-	async function duplicateFlow(flow: AutomationFlow) {
-		try {
-			const res = await fetch('/api/automations', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					name: `${flow.name} (Copy)`,
-					description: flow.description,
-					active: false,
-					trigger: flow.trigger,
-					operations: flow.operations
-				})
-			});
-			const result = await res.json();
-			if (result.success) {
-				flows = [...flows, result.data];
-				toast.success('Automation duplicated');
-			}
-		} catch (_err) {
-			toast.error('Failed to duplicate');
-		}
-	}
-
-	async function bulkToggle(active: boolean) {
-		if (selectedIds.length === 0) return;
-		const count = selectedIds.length;
-		toast.info(`Updating ${count} automations...`);
-
-		try {
-			await Promise.all(
-				selectedIds.map((id) =>
-					fetch(`/api/automations/${id}`, {
-						method: 'PATCH',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ active })
-					})
-				)
-			);
-			flows = flows.map((f) => (selectedIds.includes(f.id) ? { ...f, active } : f));
-			toast.success(`${count} automations ${active ? 'activated' : 'paused'}`);
-			selectedIds = [];
-		} catch (_err) {
-			toast.error('Failed to update some automations');
-		}
-	}
-
-	async function bulkDelete() {
-		if (selectedIds.length === 0) return;
-		if (!confirm(`Delete ${selectedIds.length} automations? This cannot be undone.`)) return;
-
-		const count = selectedIds.length;
-		try {
-			await Promise.all(
-				selectedIds.map((id) =>
-					fetch(`/api/automations/${id}`, {
-						method: 'DELETE'
-					})
-				)
-			);
-			flows = flows.filter((f) => !selectedIds.includes(f.id));
-			toast.success(`${count} automations deleted`);
-			selectedIds = [];
-		} catch (_err) {
-			toast.error('Failed to delete some automations');
-		}
-	}
-
-	function toggleSelectAll() {
-		if (allSelected) {
-			selectedIds = [];
+async function loadFlows() {
+	isLoading = true;
+	try {
+		const res = await fetch("/api/automations");
+		const result = await res.json();
+		if (result.success) {
+			flows = result.data;
 		} else {
-			selectedIds = filteredFlows.map((f) => f.id);
+			toast.error(result.error || "Failed to load automations");
 		}
+	} catch (_err) {
+		toast.error("Error loading automations");
+	} finally {
+		isLoading = false;
+	}
+}
+
+async function toggleFlow(flow: AutomationFlow) {
+	try {
+		const res = await fetch(`/api/automations/${flow.id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ active: !flow.active }),
+		});
+		const result = await res.json();
+		if (result.success) {
+			flow.active = !flow.active;
+			toast.success(`${flow.name} ${flow.active ? "activated" : "paused"}`);
+		}
+	} catch (_err) {
+		toast.error("Failed to toggle automation");
+	}
+}
+
+async function deleteFlow(flow: AutomationFlow) {
+	if (!confirm(`Delete "${flow.name}"? This cannot be undone.`)) {
+		return;
 	}
 
-	function toggleSelect(id: string) {
-		if (selectedIds.includes(id)) {
-			selectedIds = selectedIds.filter((i) => i !== id);
+	try {
+		const res = await fetch(`/api/automations/${flow.id}`, {
+			method: "DELETE",
+		});
+		const result = await res.json();
+		if (result.success) {
+			flows = flows.filter((f) => f.id !== flow.id);
+			toast.success("Automation deleted");
+		}
+	} catch (_err) {
+		toast.error("Failed to delete automation");
+	}
+}
+
+async function duplicateFlow(flow: AutomationFlow) {
+	try {
+		const res = await fetch("/api/automations", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				name: `${flow.name} (Copy)`,
+				description: flow.description,
+				active: false,
+				trigger: flow.trigger,
+				operations: flow.operations,
+			}),
+		});
+		const result = await res.json();
+		if (result.success) {
+			flows = [...flows, result.data];
+			toast.success("Automation duplicated");
+		}
+	} catch (_err) {
+		toast.error("Failed to duplicate");
+	}
+}
+
+async function bulkToggle(active: boolean) {
+	if (selectedIds.length === 0) return;
+	const count = selectedIds.length;
+	toast.info(`Updating ${count} automations...`);
+
+	try {
+		await Promise.all(
+			selectedIds.map((id) =>
+				fetch(`/api/automations/${id}`, {
+					method: "PATCH",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ active }),
+				}),
+			),
+		);
+		flows = flows.map((f) =>
+			selectedIds.includes(f.id) ? { ...f, active } : f,
+		);
+		toast.success(`${count} automations ${active ? "activated" : "paused"}`);
+		selectedIds = [];
+	} catch (_err) {
+		toast.error("Failed to update some automations");
+	}
+}
+
+async function bulkDelete() {
+	if (selectedIds.length === 0) return;
+	if (
+		!confirm(`Delete ${selectedIds.length} automations? This cannot be undone.`)
+	)
+		return;
+
+	const count = selectedIds.length;
+	try {
+		await Promise.all(
+			selectedIds.map((id) =>
+				fetch(`/api/automations/${id}`, {
+					method: "DELETE",
+				}),
+			),
+		);
+		flows = flows.filter((f) => !selectedIds.includes(f.id));
+		toast.success(`${count} automations deleted`);
+		selectedIds = [];
+	} catch (_err) {
+		toast.error("Failed to delete some automations");
+	}
+}
+
+function toggleSelectAll() {
+	if (allSelected) {
+		selectedIds = [];
+	} else {
+		selectedIds = filteredFlows.map((f) => f.id);
+	}
+}
+
+function toggleSelect(id: string) {
+	if (selectedIds.includes(id)) {
+		selectedIds = selectedIds.filter((i) => i !== id);
+	} else {
+		selectedIds = [...selectedIds, id];
+	}
+}
+
+async function testFlow(flow: AutomationFlow) {
+	toast.info(`Testing "${flow.name}"...`);
+	try {
+		const res = await fetch(`/api/automations/${flow.id}/test`, {
+			method: "POST",
+		});
+		const result = await res.json();
+		if (result.success) {
+			const s = result.data;
+			toast[s.status === "success" ? "success" : "warning"](
+				`Test ${s.status}: ${s.operationResults.length} operations in ${s.duration}ms`,
+			);
 		} else {
-			selectedIds = [...selectedIds, id];
+			toast.error(result.error || "Test failed");
 		}
+	} catch (_err) {
+		toast.error("Test execution error");
 	}
+}
 
-	async function testFlow(flow: AutomationFlow) {
-		toast.info(`Testing "${flow.name}"...`);
-		try {
-			const res = await fetch(`/api/automations/${flow.id}/test`, {
-				method: 'POST'
-			});
-			const result = await res.json();
-			if (result.success) {
-				const s = result.data;
-				toast[s.status === 'success' ? 'success' : 'warning'](`Test ${s.status}: ${s.operationResults.length} operations in ${s.duration}ms`);
-			} else {
-				toast.error(result.error || 'Test failed');
-			}
-		} catch (_err) {
-			toast.error('Test execution error');
+function createNew() {
+	goto("/config/automations/new");
+}
+
+function editFlow(flow: AutomationFlow) {
+	goto(`/config/automations/${flow.id}`);
+}
+
+function getTriggerLabel(flow: AutomationFlow): string {
+	if (flow.trigger.type === "event") {
+		const events = flow.trigger.events || [];
+		if (events.length === 0) {
+			return "No events";
 		}
+		if (events.length === 1) {
+			const meta = AUTOMATION_EVENTS.find((e) => e.event === events[0]);
+			return meta?.label || events[0];
+		}
+		return `${events.length} events`;
 	}
-
-	function createNew() {
-		goto('/config/automations/new');
+	if (flow.trigger.type === "schedule") {
+		return flow.trigger.cronLabel || flow.trigger.cron || "Schedule";
 	}
+	return "Manual";
+}
 
-	function editFlow(flow: AutomationFlow) {
-		goto(`/config/automations/${flow.id}`);
+function getTriggerIcon(flow: AutomationFlow): string {
+	if (flow.trigger.type === "event") {
+		const events = flow.trigger.events || [];
+		if (events.length === 1) {
+			const meta = AUTOMATION_EVENTS.find((e) => e.event === events[0]);
+			return meta?.icon || "mdi:flash-outline";
+		}
+		return "mdi:flash-outline";
 	}
-
-	function getTriggerLabel(flow: AutomationFlow): string {
-		if (flow.trigger.type === 'event') {
-			const events = flow.trigger.events || [];
-			if (events.length === 0) {
-				return 'No events';
-			}
-			if (events.length === 1) {
-				const meta = AUTOMATION_EVENTS.find((e) => e.event === events[0]);
-				return meta?.label || events[0];
-			}
-			return `${events.length} events`;
-		}
-		if (flow.trigger.type === 'schedule') {
-			return flow.trigger.cronLabel || flow.trigger.cron || 'Schedule';
-		}
-		return 'Manual';
+	if (flow.trigger.type === "schedule") {
+		return "mdi:clock-outline";
 	}
+	return "mdi:gesture-tap";
+}
 
-	function getTriggerIcon(flow: AutomationFlow): string {
-		if (flow.trigger.type === 'event') {
-			const events = flow.trigger.events || [];
-			if (events.length === 1) {
-				const meta = AUTOMATION_EVENTS.find((e) => e.event === events[0]);
-				return meta?.icon || 'mdi:flash-outline';
-			}
-			return 'mdi:flash-outline';
-		}
-		if (flow.trigger.type === 'schedule') {
-			return 'mdi:clock-outline';
-		}
-		return 'mdi:gesture-tap';
+function getOperationsSummary(flow: AutomationFlow): string {
+	if (flow.operations.length === 0) {
+		return "No operations";
 	}
+	return flow.operations
+		.map((op) => {
+			const meta = OPERATION_TYPES.find((t) => t.type === op.type);
+			return meta?.label || op.type;
+		})
+		.join(" → ");
+}
 
-	function getOperationsSummary(flow: AutomationFlow): string {
-		if (flow.operations.length === 0) {
-			return 'No operations';
-		}
-		return flow.operations
-			.map((op) => {
-				const meta = OPERATION_TYPES.find((t) => t.type === op.type);
-				return meta?.label || op.type;
-			})
-			.join(' → ');
+function timeAgo(dateStr?: string): string {
+	if (!dateStr) {
+		return "Never";
 	}
-
-	function timeAgo(dateStr?: string): string {
-		if (!dateStr) {
-			return 'Never';
-		}
-		const diff = Date.now() - new Date(dateStr).getTime();
-		if (diff < 60_000) {
-			return 'Just now';
-		}
-		if (diff < 3_600_000) {
-			return `${Math.floor(diff / 60_000)}m ago`;
-		}
-		if (diff < 86_400_000) {
-			return `${Math.floor(diff / 3_600_000)}h ago`;
-		}
-		return `${Math.floor(diff / 86_400_000)}d ago`;
+	const diff = Date.now() - new Date(dateStr).getTime();
+	if (diff < 60_000) {
+		return "Just now";
 	}
+	if (diff < 3_600_000) {
+		return `${Math.floor(diff / 60_000)}m ago`;
+	}
+	if (diff < 86_400_000) {
+		return `${Math.floor(diff / 3_600_000)}h ago`;
+	}
+	return `${Math.floor(diff / 86_400_000)}d ago`;
+}
 
-	onMount(loadFlows);
+onMount(loadFlows);
 </script>
 
-<PageTitle name="Automations" icon="mdi:robot-outline" showBackButton={true} backUrl="/config" />
+<PageTitle
+	name="Automations"
+	icon="mdi:robot-outline"
+	showBackButton={true}
+	backUrl="/config"
+	helpUrl="/docs/guides/automation-system"
+/>
 
 <div class="wrapper p-4">
 	<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">

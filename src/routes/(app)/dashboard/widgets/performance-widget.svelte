@@ -5,12 +5,12 @@ Displays real-time system metrics integrated with the dashboard grid system
 -->
 
 <script lang="ts" module>
-	export const widgetMeta = {
-		name: 'Performance Monitor',
-		icon: 'mdi:chart-line',
-		description: 'Track system performance metrics',
-		defaultSize: { w: 1, h: 2 }
-	};
+export const widgetMeta = {
+	name: "Performance Monitor",
+	icon: "mdi:chart-line",
+	description: "Track system performance metrics",
+	defaultSize: { w: 1, h: 2 },
+};
 </script>
 
 <script lang="ts">

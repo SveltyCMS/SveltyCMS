@@ -1,20 +1,20 @@
 ---
-path: 'docs/architecture/configuration-management.mdx'
-title: 'SveltyCMS: Configuration Management'
-description: 'Architectural overview of the configuration synchronization system.'
+path: "docs/architecture/configuration-management.mdx"
+title: "SveltyCMS: Configuration Management"
+description: "Architectural overview of the configuration synchronization system."
 order: 1
-icon: 'mdi:cogs'
-author: 'admin'
-created: '2025-10-09'
-updated: '2025-10-09'
+icon: "mdi:cogs"
+author: "SveltyCMS Team"
+created: "2025-10-09"
+updated: "2026-03-27"
 tags:
-  - 'architecture'
-  - 'configuration'
-  - 'enterprise'
-  - 'sync'
+  - "architecture"
+  - "configuration"
+  - "enterprise"
+  - "sync"
 ---
 
-import { Callout } from 'nextra/components';
+import { Callout } from "nextra/components";
 
 # Configuration Management
 
@@ -35,8 +35,8 @@ The entire system is built on three foundational principles:
 A critical feature is the ability to manage dependencies between structural code (e.g., a widget) and environment-specific secrets (e.g., API keys stored in System Settings).
 
 <Callout type="info">
-	**Example:** A developer adds a `MapboxWidget` to the codebase. This widget requires a `MAPBOX_API_KEY` to function, which is a secret stored as a
-	System Setting in the database.
+  **Example:** A developer adds a `MapboxWidget` to the codebase. This widget requires a
+  `MAPBOX_API_KEY` to function, which is a secret stored as a System Setting in the database.
 </Callout>
 
 The system bridges this gap in three steps:
@@ -59,7 +59,7 @@ All exported configuration lives in a structured, version-controllable directory
 
 **Note:** Roles are stored in the `auth_roles` database collection and edited via `/config/accessManagement` or `/api/permission/update`.
 
-### The Unified API (`/api/config_sync`)
+### The Unified API (`/api/config-sync`)
 
 A single, secure endpoint orchestrates all actions:
 
@@ -70,4 +70,4 @@ A single, secure endpoint orchestrates all actions:
 ### The Two Workflows
 
 1.  **Development (Hot Sync):** Powered by your `vite.config.ts`, this provides a real-time "inner loop." When a developer changes a config file, the Vite watcher instantly triggers the compiler and reloads the server, providing immediate feedback.
-2.  **Deployment (Cold Sync):** Powered by the `/api/config_sync` endpoint, this provides a robust "outer loop." It's used by CI/CD pipelines or admins to bring a staging or production environment's database into perfect alignment with the codebase.
+2.  **Deployment (Cold Sync):** Powered by the `/api/config-sync` endpoint, this provides a robust "outer loop." It's used by CI/CD pipelines or admins to bring a staging or production environment's database into perfect alignment with the codebase.

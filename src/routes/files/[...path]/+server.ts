@@ -9,120 +9,149 @@
  * - **Error Handling:** Handles 'ENOENT' specifically for cleaner 404s.
  */
 
-import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
-import path from 'node:path';
-import { Readable } from 'node:stream';
-import { getPublicSettingSync } from '@src/services/settings-service';
-import { redirect } from '@sveltejs/kit';
+import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
+import path from "node:path";
+import { Readable } from "node:stream";
+import { getPublicSettingSync } from "@src/services/settings-service";
 // Unified Error Handling
-import { apiHandler } from '@utils/api-handler';
-import { AppError } from '@utils/error-handling';
-import { logger } from '@utils/logger.server';
-import { lookup } from 'mime-types';
+import { apiHandler } from "@utils/api-handler";
+import { AppError } from "@utils/error-handling";
+import { logger } from "@utils/logger.server";
+import { lookup } from "mime-types";
 
 export const GET = apiHandler(async ({ params, request }) => {
-	let filePath = params.path;
+  let filePath = params.path;
 
-	if (!filePath) {
-		logger.warn('File request missing path');
-		throw new AppError('File path is required', 400, 'MISSING_PATH');
-	}
+  if (!filePath) {
+    logger.warn("File request missing path");
+    throw new AppError("File path is required", 400, "MISSING_PATH");
+  }
 
-	// Clean up the path - remove any leading /files/ prefix that might have been doubled
-	if (filePath.startsWith('/files/') || filePath.startsWith('files/')) {
-		console.warn('[Files Route] Detected /files/ prefix in path, cleaning:', filePath);
-		filePath = filePath.replace(/^\/?files\//, '');
-	}
+  // Clean up the path - remove any leading /files/ prefix that might have been doubled
+  if (filePath.startsWith("/files/") || filePath.startsWith("files/")) {
+    console.warn("[Files Route] Detected /files/ prefix in path, cleaning:", filePath);
+    filePath = filePath.replace(/^\/?files\//, "");
+  }
 
-	// Check storage type
-	const storageType = getPublicSettingSync('MEDIA_STORAGE_TYPE');
+  // Check storage type
+  const storageType = getPublicSettingSync("MEDIA_STORAGE_TYPE");
 
-	// --- CLOUD STORAGE REDIRECT ---
-	if (storageType !== 'local') {
-		const cloudUrl = getPublicSettingSync('MEDIA_CLOUD_PUBLIC_URL') || getPublicSettingSync('MEDIASERVER_URL');
+  // --- BROWSER CACHE OPTIMIZATION (ETag / 304) ---
+  const ifNoneMatch = request.headers.get("if-none-match");
 
-		if (cloudUrl) {
-			const mediaFolder = getPublicSettingSync('MEDIA_FOLDER') || '';
-			const normalizedFolder = mediaFolder.replace(/^\.\//, '').replace(/^\/+/, '').replace(/\/+$/, '');
-			const baseUrl = cloudUrl.replace(/\/+$/, '');
-			const fullUrl = normalizedFolder ? `${baseUrl}/${normalizedFolder}/${filePath}` : `${baseUrl}/${filePath}`;
+  // --- CLOUD STORAGE REDIRECT ---
+  if (storageType !== "local") {
+    // Performance: Try to use ETag to avoid redirect if browser already has it
+    const { getMetadata } = await import("@src/utils/media/cloud-storage");
+    const metadata = await getMetadata(filePath);
 
-			logger.debug('Redirecting to cloud storage', {
-				filePath,
-				cloudUrl: fullUrl
-			});
-			throw redirect(307, fullUrl);
-		}
-		logger.error('Cloud storage configured but no public URL available', {
-			storageType
-		});
-		throw new AppError('Cloud storage URL not configured', 500, 'CLOUD_CONFIG_ERROR');
-	}
+    if (metadata?.etag && ifNoneMatch === metadata.etag) {
+      return new Response(null, { status: 304 });
+    }
 
-	// --- LOCAL STORAGE SERVING ---
-	const mediaFolder = getPublicSettingSync('MEDIA_FOLDER');
-	console.log('Files Route Debug:', { mediaFolder, filePath, storageType });
+    const cloudUrl =
+      getPublicSettingSync("MEDIA_CLOUD_PUBLIC_URL") || getPublicSettingSync("MEDIASERVER_URL");
 
-	if (!mediaFolder) {
-		logger.error('MEDIA_FOLDER not configured');
-		throw new AppError('Media storage not configured', 500, 'STORAGE_CONFIG_ERROR');
-	}
+    if (cloudUrl) {
+      const mediaFolder = getPublicSettingSync("MEDIA_FOLDER") || "";
+      const normalizedFolder = mediaFolder
+        .replace(/^\.\//, "")
+        .replace(/^\/+/, "")
+        .replace(/\/+$/, "");
+      const baseUrl = cloudUrl.replace(/\/+$/, "");
+      const fullUrl = normalizedFolder
+        ? `${baseUrl}/${normalizedFolder}/${filePath}`
+        : `${baseUrl}/${filePath}`;
 
-	const normalizedMediaFolder = mediaFolder.replace(/^\.\//, '').replace(/^\/+/, '');
-	const fullPath = path.join(process.cwd(), normalizedMediaFolder, filePath);
-	console.log('Files Route resolving:', fullPath);
+      logger.debug("Redirecting to cloud storage", {
+        filePath,
+        cloudUrl: fullUrl,
+      });
 
-	// Security: Directory Traversal Prevention
-	const resolvedPath = path.resolve(fullPath);
-	const allowedBasePath = path.resolve(process.cwd(), normalizedMediaFolder);
+      // Add ETag to redirect response to help future requests
+      return new Response(null, {
+        status: 307,
+        headers: {
+          Location: fullUrl,
+          ETag: metadata?.etag || "",
+          "Cache-Control": "public, max-age=31536000, immutable",
+        },
+      });
+    }
+    logger.error("Cloud storage configured but no public URL available", {
+      storageType,
+    });
+    throw new AppError("Cloud storage URL not configured", 500, "CLOUD_CONFIG_ERROR");
+  }
 
-	if (!resolvedPath.startsWith(allowedBasePath)) {
-		logger.warn('Directory traversal attempt detected', {
-			requestedPath: filePath,
-			resolvedPath
-		});
-		throw new AppError('Access denied', 403, 'ACCESS_DENIED');
-	}
+  // --- LOCAL STORAGE SERVING ---
+  const mediaFolder = getPublicSettingSync("MEDIA_FOLDER");
+  console.log("Files Route Debug:", { mediaFolder, filePath, storageType });
 
-	// Async Stat check (Non-blocking)
-	// We use standard try/catch here only for fs operations to throw specific AppErrors
-	let stats: any;
-	try {
-		stats = await stat(resolvedPath);
-	} catch (err: any) {
-		if (err.code === 'ENOENT') {
-			logger.debug('File not found', { path: params.path });
-			throw new AppError('File not found', 404, 'NOT_FOUND');
-		}
-		throw err;
-	}
+  if (!mediaFolder) {
+    logger.error("MEDIA_FOLDER not configured");
+    throw new AppError("Media storage not configured", 500, "STORAGE_CONFIG_ERROR");
+  }
 
-	if (!stats.isFile()) {
-		throw new AppError('Invalid file request', 400, 'INVALID_FILE');
-	}
+  const normalizedMediaFolder = mediaFolder.replace(/^\.\//, "").replace(/^\/+/, "");
+  const fullPath = path.join(process.cwd(), normalizedMediaFolder, filePath);
+  console.log("Files Route resolving:", fullPath);
 
-	// Browser Cache Optimization (304 Not Modified)
-	const lastModified = stats.mtime.toUTCString();
-	if (request.headers.get('if-modified-since') === lastModified) {
-		return new Response(null, { status: 304 });
-	}
+  // Security: Directory Traversal Prevention
+  const resolvedPath = path.resolve(fullPath);
+  const allowedBasePath = path.resolve(process.cwd(), normalizedMediaFolder);
 
-	// MIME Type
-	const mimeType = lookup(resolvedPath) || 'application/octet-stream';
+  if (!resolvedPath.startsWith(allowedBasePath)) {
+    logger.warn("Directory traversal attempt detected", {
+      requestedPath: filePath,
+      resolvedPath,
+    });
+    throw new AppError("Access denied", 403, "ACCESS_DENIED");
+  }
 
-	// STREAMING RESPONSE (Memory Efficient)
-	// We convert the Node stream to a Web ReadableStream for SvelteKit
-	const nodeStream = createReadStream(resolvedPath);
-	const stream = Readable.toWeb(nodeStream);
+  // Async Stat check (Non-blocking)
+  // We use standard try/catch here only for fs operations to throw specific AppErrors
+  let stats: any;
+  try {
+    stats = await stat(resolvedPath);
+  } catch (err: any) {
+    if (err.code === "ENOENT") {
+      logger.debug("File not found", { path: params.path });
+      throw new AppError("File not found", 404, "NOT_FOUND");
+    }
+    throw err;
+  }
 
-	return new Response(stream as any, {
-		status: 200,
-		headers: {
-			'Content-Type': mimeType,
-			'Content-Length': stats.size.toString(),
-			'Cache-Control': 'public, max-age=31536000, immutable',
-			'Last-Modified': lastModified
-		}
-	});
+  if (!stats.isFile()) {
+    throw new AppError("Invalid file request", 400, "INVALID_FILE");
+  }
+
+  // Local ETag calculation
+  const etag = `W/"${stats.size}-${stats.mtimeMs}"`;
+
+  // Browser Cache Optimization (304 Not Modified)
+  const lastModified = stats.mtime.toUTCString();
+  if (ifNoneMatch === etag || request.headers.get("if-modified-since") === lastModified) {
+    return new Response(null, { status: 304 });
+  }
+
+  // MIME Type
+  const mimeType = lookup(resolvedPath) || "application/octet-stream";
+
+  // STREAMING RESPONSE (Memory Efficient)
+  // We convert the Node stream to a Web ReadableStream for SvelteKit
+  const nodeStream = createReadStream(resolvedPath);
+  const stream = Readable.toWeb(nodeStream);
+
+  return new Response(stream as any, {
+    status: 200,
+    headers: {
+      "Content-Type": mimeType,
+      "Content-Length": stats.size.toString(),
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "Last-Modified": lastModified,
+      ETag: etag,
+    },
+  });
 });

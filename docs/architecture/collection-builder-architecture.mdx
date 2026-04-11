@@ -1,17 +1,17 @@
 ---
-path: 'docs/architecture/collection-builder-architecture.mdx'
-title: 'Collection Builder Architecture'
-description: 'Technical deep-dive into the Collection Builder architecture, explaining the reconciliation loop between Filesystem, Database, and UI.'
+path: "docs/architecture/collection-builder-architecture.mdx"
+title: "Collection Builder Architecture"
+description: "Technical deep-dive into the Collection Builder architecture, explaining the reconciliation loop between Filesystem, Database, and UI."
 order: 10
-icon: 'mdi:server-network'
-author: 'admin'
-created: '2026-01-31'
-updated: '2026-01-31'
+icon: "mdi:server-network"
+author: "SveltyCMS Team"
+created: "2026-01-31"
+updated: "2026-03-27"
 tags:
-  - 'architecture'
-  - 'collection-builder'
-  - 'content-manager'
-  - 'reconciliation'
+  - "architecture"
+  - "collection-builder"
+  - "content-manager"
+  - "reconciliation"
 ---
 
 # Collection Builder Architecture
@@ -33,13 +33,13 @@ graph TD
         FS_Compiler["Vite Compiler"]
     end
 
-    subgraph Server_Layer ["Server Layer (ContentManager)"]
+    subgraph Server_Layer ["Server Layer (ContentSystem)"]
         CM_Loader["Schema Loader"]
         CM_Reconcile["Reconciliation Logic"]
         CM_Validation["Path & Integrity Validation"]
     end
 
-    subgraph Database ["MongoDB (State Persistence)"]
+    subgraph Database ["Database (State Persistence)"]
         DB_Nodes["system_content_structure"]
         DB_IDs["Stable _ids"]
     end
@@ -86,13 +86,13 @@ The `config/collections` directory is the primary source of truth for **Collecti
 > [!NOTE]
 > **Categories (Folders)** are strictly structural metadata nodes (`nodeType: 'category'`). Unlike collections, categories do not correspond to files on disk. They exist exclusively within the database to organize the collections hierarchically.
 
-### 2. ContentManager (The Reconciliation Engine)
+### 2. ContentSystem (The Reconciliation Engine)
 
-Located at `src/content/content-manager.ts`, this singleton is responsible for bridging the gap between static files and dynamic database state.
+Located at `src/content/index.ts`, this singleton is responsible for bridging the gap between static files and dynamic database state.
 
 **Key responsibilities:**
 
-- **Startup Sync**: On boot, it scans `compiledCollections` and compares them against the `system_content_structure` collection in MongoDB.
+- **Startup Sync**: On boot, it scans `compiledCollections` and compares them against the `system_content_structure` table/collection in the active database adapter.
 - **Defensive Import**: It actively filters out "garbage" nodes from the database (e.g., nodes where `path` is a UUID instead of a valid file path) to prevent database corruption from looping back into the application state.
 - **ID Persistence**: It ensures that while the _structure_ comes from disk, the `_id` and relationship data (`parentId`, `order`) are preserved from the database.
 
@@ -106,7 +106,7 @@ Located in `src/utils/schema/` and `src/services/MigrationEngine.ts`, this layer
 
 ### 3. Database (State & Metadata)
 
-MongoDB stores the _metadata_ that cannot live in static files, specifically:
+The active database adapter stores the _metadata_ that cannot live in static files, specifically:
 
 - **`_id`**: The stable UUID for the collection.
 - **`parentId`**: Which category or folder the collection currently resides in.
@@ -121,13 +121,33 @@ The Collection Builder UI (`src/components/Collections.svelte`) uses a **Reactiv
 - **Render**: The UI renders the hierarchical tree based on this computed logical structure.
 - **Interaction**: Drag-and-drop operations do **not** mutate the tree structure directly. Instead, they emit updates to the flat list (e.g., `updateNode(id, { parentId: newParent })`), which triggers a server save and a reactive re-render.
 
+## ⌨️ Keyboard-Driven UX
+
+The Collection Builder is designed for rapid iteration using a unified hotkey system.
+
+### Standard Controls
+
+- `Mod + S`: Save the entire collection and trigger database reconciliation.
+- `Escape`: Cancel current operation or exit the builder shell.
+
+### BuzzForm (Visual Canvas)
+
+- `Delete`: Instantly remove the selected field from the canvas.
+- `Mod + D`: Duplicate the selected field, automatically generating a unique `db_fieldName`.
+
+### Widget Editor (Multi-Step)
+
+- `Mod + Enter`: Advance to the next configuration step or "Finish" the widget.
+- `Escape`: Navigate back to the previous step.
+
 ## Failure Scenarios & Recovery
 
-| Scenario                    | Handling                                                                                                                                   |
-| :-------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
-| **Orphaned Database Nodes** | The `ContentManager` validation logic detects nodes with invalid paths (not starting with `/`) and prevents them from loading into memory. |
-| **Disk/DB Mismatch**        | The Filesystem is treated as the "Definition of Done". If a collection is in DB but not Disk, it is flagged for removal.                   |
-| **Circular Dependencies**   | The `buildTree` logic includes cycle detection to prevent infinite recursion loop crashing the UI.                                         |
+| Scenario                      | Handling                                                                                                                       |
+| :---------------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
+| **Invalid Component Loaders** | The `createWidget` factory and TypeScript/Vite validate loaders at compile-time. Broken imports fail during build/development. |
+| **Orphaned Database Nodes**   | The `ContentSystem` validation logic detects nodes with invalid structure and prevents them from loading into memory.          |
+| **Disk/DB Mismatch**          | The Filesystem is treated as the "Definition of Done". If a collection is in DB but not Disk, it is flagged for removal.       |
+| **Circular Dependencies**     | The `buildTree` logic includes cycle detection to prevent infinite recursion loop crashing the UI.                             |
 
 ## Related Architecture
 

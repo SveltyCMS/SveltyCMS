@@ -3,14 +3,14 @@
  * @description FocalPoint widget registration
  */
 
-import type { EditorWidget } from '../registry';
-import Tool from './tool.svelte';
+import type { EditorWidget } from "../registry";
+import Tool from "./tool.svelte";
 
 export const editorWidget: EditorWidget = {
-	key: 'focalpoint',
-	title: 'Focal',
-	icon: 'mdi:target',
+  key: "focalpoint",
+  title: "Focal",
+  icon: "mdi:target",
 
-	tool: Tool as unknown as import('svelte').Component<Record<string, unknown>>,
-	controls: null as unknown as import('svelte').Component<Record<string, unknown>>
+  tool: Tool as unknown as import("svelte").Component<Record<string, unknown>>,
+  controls: null as unknown as import("svelte").Component<Record<string, unknown>>,
 };

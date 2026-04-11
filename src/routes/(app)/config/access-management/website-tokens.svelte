@@ -14,328 +14,347 @@
 -->
 
 <script lang="ts">
-	// Components
-	import TableFilter from '@src/components/system/table/table-filter.svelte';
-	import TablePagination from '@src/components/system/table/table-pagination.svelte';
-	import type { Permission, User } from '@src/databases/auth/types';
-	import type { WebsiteToken } from '@src/databases/schemas';
-	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
-	import { toast } from '@src/stores/toast.svelte.ts';
-	import { showConfirm } from '@utils/modal-utils';
-	import { onMount } from 'svelte';
-	import { flip } from 'svelte/animate';
-	import { SvelteDate, SvelteURLSearchParams } from 'svelte/reactivity';
-	import { dndzone } from 'svelte-dnd-action';
+// Components
+import TableFilter from "@src/components/system/table/table-filter.svelte";
+import TablePagination from "@src/components/system/table/table-pagination.svelte";
+import type { Permission, User } from "@src/databases/auth/types";
+import type { DatabaseId, WebsiteToken } from "@src/content/types";
+import {
+	globalLoadingStore,
+	loadingOperations,
+} from "@src/stores/loading-store.svelte.ts";
+import { toast } from "@src/stores/toast.svelte.ts";
+import { showConfirm } from "@utils/modal-utils";
+import { onMount } from "svelte";
+import { flip } from "svelte/animate";
+import { SvelteDate, SvelteURLSearchParams } from "svelte/reactivity";
+import { dndzone } from "svelte-dnd-action";
 
-	interface TableHeader {
-		id: string;
-		key: string;
-		label: string;
-		visible: boolean;
-	}
+interface TableHeader {
+	id: string;
+	key: string;
+	label: string;
+	visible: boolean;
+}
 
-	let { permissions = [] }: { permissions: Permission[] } = $props();
+let { permissions = [] }: { permissions: Permission[] } = $props();
 
-	// Website Access Tokens Data
-	let tokens: WebsiteToken[] = $state([]);
-	let users: User[] = $state([]);
+// Website Access Tokens Data
+let tokens: WebsiteToken[] = $state([]);
+let users: User[] = $state([]);
 
-	// User Map for display
-	const userMap = $derived(new Map(users.map((u) => [u._id, u.username || u.email])));
+// User Map for display
+const userMap = $derived(
+	new Map(users.map((u) => [u._id, u.username || u.email])),
+);
 
-	// Token Generation State
-	let newTokenName = $state('');
-	let selectedPermissions: string[] = $state([]);
-	let expirationOption = $state('90d');
-	let customExpirationDate = $state('');
-	let permissionSearchTerm = $state('');
+// Token Generation State
+let newTokenName = $state("");
+let selectedPermissions: string[] = $state([]);
+let expirationOption = $state("90d");
+let customExpirationDate = $state("");
+let permissionSearchTerm = $state("");
 
-	// Visibility / Display State
-	let showSecretMap: Record<string, boolean> = $state({});
-	let selectedTokens = $state(new Set<string>());
+// Visibility / Display State
+let showSecretMap: Record<string, boolean> = $state({});
+let selectedTokens = $state(new Set<string>());
 
-	// Filter state
-	let globalSearchValue = $state('');
-	let searchShow = $state(false);
-	let filterShow = $state(false);
-	let columnShow = $state(false);
-	let density = $state('normal');
-	let filters: Record<string, string | undefined> = $state({});
+// Filter state
+let globalSearchValue = $state("");
+let searchShow = $state(false);
+let filterShow = $state(false);
+let columnShow = $state(false);
+let density = $state("normal");
+let filters: Record<string, string | undefined> = $state({});
 
-	// Sorting and Pagination
-	let sorting = $state({ sortedBy: 'createdAt', isSorted: -1 }); // Sort by createdAt desc by default
-	let currentPage = $state(1);
-	let rowsPerPage = $state(10);
-	let totalItems = $state(0);
-	const pagesCount = $derived(Math.ceil(totalItems / rowsPerPage) || 1);
+// Sorting and Pagination
+let sorting = $state({ sortedBy: "createdAt", isSorted: -1 }); // Sort by createdAt desc by default
+let currentPage = $state(1);
+let rowsPerPage = $state(10);
+let totalItems = $state(0);
+const pagesCount = $derived(Math.ceil(totalItems / rowsPerPage) || 1);
 
-	const tableHeaders = [
-		{ label: 'Name', key: 'name' },
-		{ label: 'Token', key: 'token' },
-		{ label: 'Expiration', key: 'expiresAt' },
-		{ label: 'Created At', key: 'createdAt' },
-		{ label: 'Created By', key: 'createdBy' }
-	];
+const tableHeaders = [
+	{ label: "Name", key: "name" },
+	{ label: "Token", key: "token" },
+	{ label: "Expiration", key: "expiresAt" },
+	{ label: "Created At", key: "createdAt" },
+	{ label: "Created By", key: "createdBy" },
+];
 
-	// Column visibility
-	let displayTableHeaders = $state(tableHeaders.map((h) => ({ ...h, visible: true, id: `header-${h.key}` })));
-	let selectAllColumns = $state(true);
+// Column visibility
+let displayTableHeaders = $state(
+	tableHeaders.map((h) => ({ ...h, visible: true, id: `header-${h.key}` })),
+);
+let selectAllColumns = $state(true);
 
-	function handleDndConsider(event: CustomEvent) {
-		displayTableHeaders = event.detail.items;
-	}
+function handleDndConsider(event: CustomEvent) {
+	displayTableHeaders = event.detail.items;
+}
 
-	function handleDndFinalize(event: CustomEvent) {
-		displayTableHeaders = event.detail.items;
-	}
+function handleDndFinalize(event: CustomEvent) {
+	displayTableHeaders = event.detail.items;
+}
 
-	const filteredAvailablePermissions = $derived(
-		permissions.filter(
-			(p) => p.name.toLowerCase().includes(permissionSearchTerm.toLowerCase()) || p.action.toLowerCase().includes(permissionSearchTerm.toLowerCase())
-		)
+const filteredAvailablePermissions = $derived(
+	permissions.filter(
+		(p) =>
+			p.name.toLowerCase().includes(permissionSearchTerm.toLowerCase()) ||
+			p.action.toLowerCase().includes(permissionSearchTerm.toLowerCase()),
+	),
+);
+
+function handleCheckboxChange() {
+	const allColumnsVisible = displayTableHeaders.every(
+		(header) => header.visible,
 	);
+	displayTableHeaders = displayTableHeaders.map((header) => ({
+		...header,
+		visible: !allColumnsVisible,
+	}));
+	selectAllColumns = !allColumnsVisible;
+}
 
-	function handleCheckboxChange() {
-		const allColumnsVisible = displayTableHeaders.every((header) => header.visible);
-		displayTableHeaders = displayTableHeaders.map((header) => ({
-			...header,
-			visible: !allColumnsVisible
-		}));
-		selectAllColumns = !allColumnsVisible;
+function handleInputChange(value: string, headerKey: string) {
+	if (value) {
+		filters = { ...filters, [headerKey]: value };
+	} else {
+		const newFilters = { ...filters };
+		delete newFilters[headerKey];
+		filters = newFilters;
 	}
+}
 
-	function handleInputChange(value: string, headerKey: string) {
-		if (value) {
-			filters = { ...filters, [headerKey]: value };
+function toggleSelectAllPermissions() {
+	if (selectedPermissions.length === permissions.length) {
+		selectedPermissions = [];
+	} else {
+		selectedPermissions = permissions.map((p) => p._id);
+	}
+}
+
+onMount(async () => {
+	await Promise.all([fetchTokens(), fetchUsers()]);
+});
+
+async function fetchUsers() {
+	const usersRef = { value: users };
+	try {
+		const response = await fetch("/api/user");
+		if (response.ok) {
+			const result = await response.json();
+			usersRef.value = result.data;
 		} else {
-			const newFilters = { ...filters };
-			delete newFilters[headerKey];
-			filters = newFilters;
+			toast.error("Failed to fetch users");
 		}
+	} catch {
+		toast.error("An error occurred while fetching users");
 	}
+	users = usersRef.value;
+}
 
-	function toggleSelectAllPermissions() {
-		if (selectedPermissions.length === permissions.length) {
-			selectedPermissions = [];
-		} else {
-			selectedPermissions = permissions.map((p) => p._id);
-		}
-	}
+async function fetchTokens() {
+	const currentPageVal = currentPage;
+	const rowsPerPageVal = rowsPerPage;
+	const sortingVal = sorting;
+	const globalSearchValueVal = globalSearchValue;
+	const filtersVal = filters;
+	const tokensRef = { value: tokens };
+	const totalItemsRef = { value: totalItems };
 
-	onMount(async () => {
-		await Promise.all([fetchTokens(), fetchUsers()]);
-	});
-
-	async function fetchUsers() {
-		const usersRef = { value: users };
-		try {
-			const response = await fetch('/api/user');
-			if (response.ok) {
-				const result = await response.json();
-				usersRef.value = result.data;
-			} else {
-				toast.error('Failed to fetch users');
+	await globalLoadingStore.withLoading(
+		loadingOperations.tokenGeneration,
+		async () => {
+			const params = new SvelteURLSearchParams();
+			params.set("page", String(currentPageVal));
+			params.set("limit", String(rowsPerPageVal));
+			params.set("sort", sortingVal.sortedBy);
+			if (sortingVal.isSorted !== 0) {
+				params.set("order", sortingVal.isSorted === 1 ? "asc" : "desc");
 			}
-		} catch {
-			toast.error('An error occurred while fetching users');
-		}
-		users = usersRef.value;
-	}
 
-	async function fetchTokens() {
-		const currentPageVal = currentPage;
-		const rowsPerPageVal = rowsPerPage;
-		const sortingVal = sorting;
-		const globalSearchValueVal = globalSearchValue;
-		const filtersVal = filters;
-		const tokensRef = { value: tokens };
-		const totalItemsRef = { value: totalItems };
-
-		await globalLoadingStore.withLoading(
-			loadingOperations.tokenGeneration,
-			async () => {
-				const params = new SvelteURLSearchParams();
-				params.set('page', String(currentPageVal));
-				params.set('limit', String(rowsPerPageVal));
-				params.set('sort', sortingVal.sortedBy);
-				if (sortingVal.isSorted !== 0) {
-					params.set('order', sortingVal.isSorted === 1 ? 'asc' : 'desc');
-				}
-
-				if (globalSearchValueVal) {
-					params.set('search', globalSearchValueVal);
-				}
-
-				for (const [key, value] of Object.entries(filtersVal)) {
-					if (value) {
-						params.set(key, value);
-					}
-				}
-
-				try {
-					const response = await fetch(`/api/website-tokens?${params.toString()}`);
-					if (response.ok) {
-						const result = await response.json();
-						tokensRef.value = result.data;
-						totalItemsRef.value = result.pagination.totalItems;
-					} else {
-						toast.error('Failed to fetch tokens');
-					}
-				} catch {
-					toast.error('An error occurred while fetching tokens');
-				}
-			},
-			'Fetching website tokens'
-		);
-		tokens = tokensRef.value;
-		totalItems = totalItemsRef.value;
-	}
-
-	function getExpirationDate(): string | null {
-		if (expirationOption === 'never') {
-			return null;
-		}
-		if (expirationOption === 'custom') {
-			return customExpirationDate ? new SvelteDate(customExpirationDate).toISOString() : null;
-		}
-
-		const now = new SvelteDate();
-		switch (expirationOption) {
-			case '30d':
-				now.setDate(now.getDate() + 30);
-				break;
-			case '90d':
-				now.setDate(now.getDate() + 90);
-				break;
-			case '1y':
-				now.setFullYear(now.getFullYear() + 1);
-				break;
-		}
-		return now.toISOString();
-	}
-
-	function togglePermission(permissionId: string) {
-		if (selectedPermissions.includes(permissionId)) {
-			selectedPermissions = selectedPermissions.filter((id) => id !== permissionId);
-		} else {
-			selectedPermissions = [...selectedPermissions, permissionId];
-		}
-	}
-
-	async function generateToken() {
-		const currentNewTokenName = newTokenName;
-		if (!currentNewTokenName) {
-			toast.error('Please enter a name for the token.');
-			return;
-		}
-
-		try {
-			const response = await fetch('/api/website-tokens', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					name: currentNewTokenName,
-					permissions: selectedPermissions,
-					expiresAt: getExpirationDate()
-				})
-			});
-
-			if (response.ok) {
-				await fetchTokens();
-				toast.success(`Token generated for ${currentNewTokenName}`);
-				newTokenName = '';
-				selectedPermissions = [];
-				expirationOption = '90d';
-			} else if (response.status === 409) {
-				toast.error('A token with this name already exists');
-			} else {
-				toast.error('Failed to generate token');
+			if (globalSearchValueVal) {
+				params.set("search", globalSearchValueVal);
 			}
-		} catch {
-			toast.error('An error occurred while generating the token');
-		}
-	}
 
-	async function deleteToken(id: string, name: string) {
-		showConfirm({
-			title: 'Delete Token',
-			body: `Are you sure you want to delete the token "${name}"? This action cannot be undone.`,
-			onConfirm: async () => {
-				try {
-					const response = await fetch(`/api/website-tokens/${id}`, {
-						method: 'DELETE'
-					});
-
-					if (response.ok) {
-						await fetchTokens();
-						toast.success('Token deleted.');
-					} else {
-						toast.error('Failed to delete token');
-					}
-				} catch {
-					toast.error('An error occurred while deleting the token');
+			for (const [key, value] of Object.entries(filtersVal)) {
+				if (value) {
+					params.set(key, value);
 				}
 			}
-		});
-	}
 
-	async function bulkDeleteTokens() {
-		if (selectedTokens.size === 0) return;
-
-		showConfirm({
-			title: 'Bulk Delete Tokens',
-			body: `Are you sure you want to delete ${selectedTokens.size} selected tokens? This action cannot be undone.`,
-			onConfirm: async () => {
-				await globalLoadingStore.withLoading(
-					loadingOperations.tokenGeneration,
-					async () => {
-						try {
-							const deletePromises = Array.from(selectedTokens).map((id) => fetch(`/api/website-tokens/${id}`, { method: 'DELETE' }));
-							const results = await Promise.all(deletePromises);
-
-							const successCount = results.filter((r) => r.ok).length;
-							if (successCount > 0) {
-								toast.success(`${successCount} tokens deleted.`);
-								selectedTokens.clear();
-								await fetchTokens();
-							} else {
-								toast.error('Failed to delete selected tokens');
-							}
-						} catch {
-							toast.error('An error occurred during bulk deletion');
-						}
-					},
-					'Deleting multiple tokens'
+			try {
+				const response = await fetch(
+					`/api/website-tokens?${params.toString()}`,
 				);
+				if (response.ok) {
+					const result = await response.json();
+					tokensRef.value = result.data;
+					totalItemsRef.value = result.pagination.totalItems;
+				} else {
+					toast.error("Failed to fetch tokens");
+				}
+			} catch {
+				toast.error("An error occurred while fetching tokens");
 			}
+		},
+		"Fetching website tokens",
+	);
+	tokens = tokensRef.value;
+	totalItems = totalItemsRef.value;
+}
+
+function getExpirationDate(): string | null {
+	if (expirationOption === "never") {
+		return null;
+	}
+	if (expirationOption === "custom") {
+		return customExpirationDate
+			? new SvelteDate(customExpirationDate).toISOString()
+			: null;
+	}
+
+	const now = new SvelteDate();
+	switch (expirationOption) {
+		case "30d":
+			now.setDate(now.getDate() + 30);
+			break;
+		case "90d":
+			now.setDate(now.getDate() + 90);
+			break;
+		case "1y":
+			now.setFullYear(now.getFullYear() + 1);
+			break;
+	}
+	return now.toISOString();
+}
+
+function togglePermission(permissionId: string) {
+	if (selectedPermissions.includes(permissionId)) {
+		selectedPermissions = selectedPermissions.filter(
+			(id) => id !== permissionId,
+		);
+	} else {
+		selectedPermissions = [...selectedPermissions, permissionId];
+	}
+}
+
+async function generateToken() {
+	const currentNewTokenName = newTokenName;
+	if (!currentNewTokenName) {
+		toast.error("Please enter a name for the token.");
+		return;
+	}
+
+	try {
+		const response = await fetch("/api/website-tokens", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				name: currentNewTokenName,
+				permissions: selectedPermissions,
+				expiresAt: getExpirationDate(),
+			}),
 		});
-	}
 
-	function toggleTokenSelection(id: string) {
-		if (selectedTokens.has(id)) {
-			selectedTokens.delete(id);
+		if (response.ok) {
+			await fetchTokens();
+			toast.success(`Token generated for ${currentNewTokenName}`);
+			newTokenName = "";
+			selectedPermissions = [];
+			expirationOption = "90d";
+		} else if (response.status === 409) {
+			toast.error("A token with this name already exists");
 		} else {
-			selectedTokens.add(id);
+			toast.error("Failed to generate token");
 		}
+	} catch {
+		toast.error("An error occurred while generating the token");
 	}
+}
 
-	function toggleAllTokens() {
-		if (selectedTokens.size === tokens.length) {
-			selectedTokens.clear();
-		} else {
-			tokens.forEach((t) => selectedTokens.add(t._id));
-		}
-	}
+async function deleteToken(id: string, name: string) {
+	showConfirm({
+		title: "Delete Token",
+		body: `Are you sure you want to delete the token "${name}"? This action cannot be undone.`,
+		onConfirm: async () => {
+			try {
+				const response = await fetch(`/api/website-tokens/${id}`, {
+					method: "DELETE",
+				});
 
-	$effect(() => {
-		if (totalItems <= 1) {
-			return;
-		}
-		void currentPage;
-		void rowsPerPage;
-		void sorting;
-		fetchTokens();
+				if (response.ok) {
+					await fetchTokens();
+					toast.success("Token deleted.");
+				} else {
+					toast.error("Failed to delete token");
+				}
+			} catch {
+				toast.error("An error occurred while deleting the token");
+			}
+		},
 	});
+}
+
+async function bulkDeleteTokens() {
+	if (selectedTokens.size === 0) return;
+
+	showConfirm({
+		title: "Bulk Delete Tokens",
+		body: `Are you sure you want to delete ${selectedTokens.size} selected tokens? This action cannot be undone.`,
+		onConfirm: async () => {
+			await globalLoadingStore.withLoading(
+				loadingOperations.tokenGeneration,
+				async () => {
+					try {
+						const deletePromises = Array.from(selectedTokens).map((id) =>
+							fetch(`/api/website-tokens/${id}`, { method: "DELETE" }),
+						);
+						const results = await Promise.all(deletePromises);
+
+						const successCount = results.filter((r) => r.ok).length;
+						if (successCount > 0) {
+							toast.success(`${successCount} tokens deleted.`);
+							selectedTokens.clear();
+							await fetchTokens();
+						} else {
+							toast.error("Failed to delete selected tokens");
+						}
+					} catch {
+						toast.error("An error occurred during bulk deletion");
+					}
+				},
+				"Deleting multiple tokens",
+			);
+		},
+	});
+}
+
+function toggleTokenSelection(id: string) {
+	if (selectedTokens.has(id)) {
+		selectedTokens.delete(id);
+	} else {
+		selectedTokens.add(id);
+	}
+}
+
+function toggleAllTokens() {
+	if (selectedTokens.size === tokens.length) {
+		selectedTokens.clear();
+	} else {
+		tokens.forEach((t) => selectedTokens.add(t._id));
+	}
+}
+
+$effect(() => {
+	if (totalItems <= 1) {
+		return;
+	}
+	void currentPage;
+	void rowsPerPage;
+	void sorting;
+	fetchTokens();
+});
 </script>
 
 <div class="p-4">
@@ -589,7 +608,7 @@
 												<span class="opacity-50">Never</span>
 											{/if}
 										{:else if header.key === 'createdBy'}
-											{userMap.get(token.createdBy) || token.createdBy}
+											{userMap.get(token.createdBy as DatabaseId) || token.createdBy}
 										{:else}
 											{token[header.key as keyof WebsiteToken]}
 										{/if}

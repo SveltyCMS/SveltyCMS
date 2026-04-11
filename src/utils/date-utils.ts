@@ -9,34 +9,34 @@
  * - Database-agnostic date conversion helpers
  */
 
-import { logger } from '@utils/logger';
-import type { ISODateString } from '../content/types';
+import { logger } from "@utils/logger";
+import type { ISODateString } from "../content/types";
 
 // Type guard for ISODateString
 export function isISODateString(value: unknown): value is ISODateString {
-	if (typeof value !== 'string') {
-		return false;
-	}
-	const date = new Date(value);
-	return !Number.isNaN(date.getTime()) && date.toISOString() === value;
+  if (typeof value !== "string") {
+    return false;
+  }
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.toISOString() === value;
 }
 
 // Convert Date to ISODateString with validation
 export function dateToISODateString(date: Date): ISODateString {
-	const isoString = date.toISOString();
-	if (!isISODateString(isoString)) {
-		throw new Error('Invalid date conversion');
-	}
-	return isoString;
+  const isoString = date.toISOString();
+  if (!isISODateString(isoString)) {
+    throw new Error("Invalid date conversion");
+  }
+  return isoString;
 }
 
 // Convert string to ISODateString with validation
 export function stringToISODateString(dateString: string): ISODateString {
-	const date = new Date(dateString);
-	if (Number.isNaN(date.getTime())) {
-		throw new Error('Invalid date string');
-	}
-	return dateToISODateString(date);
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Invalid date string");
+  }
+  return dateToISODateString(date);
 }
 
 /**
@@ -55,55 +55,68 @@ export function stringToISODateString(dateString: string): ISODateString {
  * };
  */
 export function toISOString(value: unknown): ISODateString {
-	// Handle Date objects (common from ORMs and document databases)
-	if (value && typeof value === 'object' && 'toISOString' in value) {
-		return (value as Date).toISOString() as ISODateString;
-	}
-	// Handle already converted ISO strings (idempotent operation)
-	if (typeof value === 'string' && isISODateString(value)) {
-		return value;
-	}
-	// Handle timestamps or date strings
-	if (value) {
-		try {
-			return new Date(value as string | number).toISOString() as ISODateString;
-		} catch {
-			logger.warn('Failed to convert value to ISODateString, using current date', { value });
-		}
-	}
-	// Ultimate fallback: current date
-	return new Date().toISOString() as ISODateString;
+  // Handle Date-like objects (common from ORMs and document databases)
+  if (
+    value &&
+    typeof value === "object" &&
+    "toISOString" in value &&
+    typeof (value as any).toISOString === "function"
+  ) {
+    const date = value as any;
+    if (!Number.isNaN(date.getTime?.() ?? NaN)) {
+      return date.toISOString() as ISODateString;
+    }
+  }
+  // Handle already converted ISO strings (idempotent operation)
+  if (typeof value === "string" && isISODateString(value)) {
+    return value;
+  }
+  // Handle timestamps or date strings
+  if (value && (typeof value === "string" || typeof value === "number")) {
+    try {
+      const date = new Date(value);
+      if (!Number.isNaN(date.getTime())) {
+        return date.toISOString() as ISODateString;
+      }
+    } catch {
+      logger.warn("Failed to convert value to ISODateString, using current date", { value });
+    }
+  }
+  // Ultimate fallback: current date
+  return new Date().toISOString() as ISODateString;
 }
 
 /**
  * Validate and normalize date input
  * Accepts Date, ISODateString, number (timestamp in seconds or ms), or string
  */
-export function normalizeDateInput(dateInput: Date | ISODateString | number | string): ISODateString {
-	if (!dateInput) {
-		return dateToISODateString(new Date());
-	}
-	if (dateInput instanceof Date) {
-		return dateToISODateString(dateInput);
-	}
-	if (typeof dateInput === 'number') {
-		// If it's a 10-digit number, treat as seconds, else milliseconds
-		return dateToISODateString(new Date(dateInput < 1e12 ? dateInput * 1000 : dateInput));
-	}
-	if (typeof dateInput === 'string') {
-		// Try to parse as ISO string or number
-		const num = Number(dateInput);
-		if (!Number.isNaN(num)) {
-			return dateToISODateString(new Date(num < 1e12 ? num * 1000 : num));
-		}
-		return dateToISODateString(new Date(dateInput));
-	}
-	return dateToISODateString(new Date());
+export function normalizeDateInput(
+  dateInput: Date | ISODateString | number | string,
+): ISODateString {
+  if (!dateInput) {
+    return dateToISODateString(new Date());
+  }
+  if (dateInput instanceof Date) {
+    return dateToISODateString(dateInput);
+  }
+  if (typeof dateInput === "number") {
+    // If it's a 10-digit number, treat as seconds, else milliseconds
+    return dateToISODateString(new Date(dateInput < 1e12 ? dateInput * 1000 : dateInput));
+  }
+  if (typeof dateInput === "string") {
+    // Try to parse as ISO string or number
+    const num = Number(dateInput);
+    if (!Number.isNaN(num)) {
+      return dateToISODateString(new Date(num < 1e12 ? num * 1000 : num));
+    }
+    return dateToISODateString(new Date(dateInput));
+  }
+  return dateToISODateString(new Date());
 }
 
 // Current date as ISODateString
 export function nowISODateString(): ISODateString {
-	return dateToISODateString(new Date());
+  return dateToISODateString(new Date());
 }
 
 /**
@@ -112,7 +125,7 @@ export function nowISODateString(): ISODateString {
  * @returns A Date object
  */
 export function isoDateStringToDate(isoDate: ISODateString): Date {
-	return new Date(isoDate);
+  return new Date(isoDate);
 }
 
 /**
@@ -121,34 +134,44 @@ export function isoDateStringToDate(isoDate: ISODateString): Date {
  * @param pattern - Format pattern
  * @param fallback - Fallback string if date is invalid
  */
-export function formatDateString(dateInput: Date | number | string, pattern = 'yyyy-MM-dd', fallback = ''): string {
-	try {
-		let date: Date;
+export function formatDateString(
+  dateInput: Date | number | string,
+  pattern = "yyyy-MM-dd",
+  fallback = "",
+): string {
+  try {
+    let date: Date;
 
-		if (typeof dateInput === 'number') {
-			date = new Date(dateInput > 1e12 ? dateInput : dateInput * 1000);
-		} else if (typeof dateInput === 'string') {
-			date = new Date(dateInput);
-		} else {
-			date = dateInput;
-		}
+    if (typeof dateInput === "number") {
+      date = new Date(dateInput > 1e12 ? dateInput : dateInput * 1000);
+    } else if (typeof dateInput === "string") {
+      date = new Date(dateInput);
+    } else {
+      date = dateInput;
+    }
 
-		if (Number.isNaN(date.getTime())) {
-			return fallback;
-		}
+    if (Number.isNaN(date.getTime())) {
+      return fallback;
+    }
 
-		const yyyy = date.getFullYear().toString();
-		const MM = (date.getMonth() + 1).toString().padStart(2, '0');
-		const dd = date.getDate().toString().padStart(2, '0');
-		const HH = date.getHours().toString().padStart(2, '0');
-		const mm = date.getMinutes().toString().padStart(2, '0');
-		const ss = date.getSeconds().toString().padStart(2, '0');
+    const yyyy = date.getFullYear().toString();
+    const MM = (date.getMonth() + 1).toString().padStart(2, "0");
+    const dd = date.getDate().toString().padStart(2, "0");
+    const HH = date.getHours().toString().padStart(2, "0");
+    const mm = date.getMinutes().toString().padStart(2, "0");
+    const ss = date.getSeconds().toString().padStart(2, "0");
 
-		return pattern.replace('yyyy', yyyy).replace('MM', MM).replace('dd', dd).replace('HH', HH).replace('mm', mm).replace('ss', ss);
-	} catch (error) {
-		logger.error('Error formatting date string:', error);
-		return fallback;
-	}
+    return pattern
+      .replace("yyyy", yyyy)
+      .replace("MM", MM)
+      .replace("dd", dd)
+      .replace("HH", HH)
+      .replace("mm", mm)
+      .replace("ss", ss);
+  } catch (error) {
+    logger.error("Error formatting date string:", error);
+    return fallback;
+  }
 }
 
 /**
@@ -158,85 +181,87 @@ export function formatDateString(dateInput: Date | number | string, pattern = 'y
  * @param options - Intl.DateTimeFormat options
  */
 export function formatDisplayDate(
-	dateInput: Date | number | string,
-	locale = 'en',
-	options: Intl.DateTimeFormatOptions = {
-		year: 'numeric',
-		month: 'short',
-		day: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit'
-	}
+  dateInput: Date | number | string,
+  locale = "en",
+  options: Intl.DateTimeFormatOptions = {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  },
 ): string {
-	try {
-		let date: Date;
+  try {
+    let date: Date;
 
-		if (typeof dateInput === 'number') {
-			// Handle MongoDB timestamp (seconds vs milliseconds)
-			date = new Date(dateInput > 1e12 ? dateInput : dateInput * 1000);
-		} else if (typeof dateInput === 'string') {
-			date = new Date(dateInput);
-		} else {
-			date = dateInput;
-		}
+    if (typeof dateInput === "number") {
+      // Handle MongoDB timestamp (seconds vs milliseconds)
+      date = new Date(dateInput > 1e12 ? dateInput : dateInput * 1000);
+    } else if (typeof dateInput === "string") {
+      date = new Date(dateInput);
+    } else {
+      date = dateInput;
+    }
 
-		if (Number.isNaN(date.getTime())) {
-			return 'Invalid Date';
-		}
+    if (Number.isNaN(date.getTime())) {
+      return "Invalid Date";
+    }
 
-		return new Intl.DateTimeFormat(locale, options).format(date);
-	} catch (error) {
-		logger.error('Error formatting date:', error);
-		return 'Invalid Date';
-	}
+    return new Intl.DateTimeFormat(locale, options).format(date);
+  } catch (error) {
+    logger.error("Error formatting date:", error);
+    return "Invalid Date";
+  }
 }
+
+export const formatDate = formatDisplayDate;
 
 /**
  * Format date for display in a relative way (e.g. "2 hours ago")
  * @param dateInput - Date, timestamp or ISO string
  * @param locale - Locale to format for
  */
-export function formatRelativeDate(dateInput: Date | number | string, locale = 'en'): string {
-	try {
-		let date: Date;
+export function formatRelativeDate(dateInput: Date | number | string, locale = "en"): string {
+  try {
+    let date: Date;
 
-		if (typeof dateInput === 'number') {
-			// Handle MongoDB timestamp (seconds vs milliseconds)
-			date = new Date(dateInput > 1e12 ? dateInput : dateInput * 1000);
-		} else if (typeof dateInput === 'string') {
-			date = new Date(dateInput);
-		} else {
-			date = dateInput;
-		}
+    if (typeof dateInput === "number") {
+      // Handle MongoDB timestamp (seconds vs milliseconds)
+      date = new Date(dateInput > 1e12 ? dateInput : dateInput * 1000);
+    } else if (typeof dateInput === "string") {
+      date = new Date(dateInput);
+    } else {
+      date = dateInput;
+    }
 
-		if (Number.isNaN(date.getTime())) {
-			return 'Invalid Date';
-		}
+    if (Number.isNaN(date.getTime())) {
+      return "Invalid Date";
+    }
 
-		const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
-		const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+    const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
 
-		if (seconds < 60) {
-			return formatter.format(-seconds, 'second');
-		}
-		if (seconds < 3600) {
-			return formatter.format(-Math.floor(seconds / 60), 'minute');
-		}
-		if (seconds < 86_400) {
-			return formatter.format(-Math.floor(seconds / 3600), 'hour');
-		}
-		if (seconds < 2_592_000) {
-			return formatter.format(-Math.floor(seconds / 86_400), 'day');
-		}
-		if (seconds < 31_536_000) {
-			return formatter.format(-Math.floor(seconds / 2_592_000), 'month');
-		}
+    if (seconds < 60) {
+      return formatter.format(-seconds, "second");
+    }
+    if (seconds < 3600) {
+      return formatter.format(-Math.floor(seconds / 60), "minute");
+    }
+    if (seconds < 86_400) {
+      return formatter.format(-Math.floor(seconds / 3600), "hour");
+    }
+    if (seconds < 2_592_000) {
+      return formatter.format(-Math.floor(seconds / 86_400), "day");
+    }
+    if (seconds < 31_536_000) {
+      return formatter.format(-Math.floor(seconds / 2_592_000), "month");
+    }
 
-		return formatter.format(-Math.floor(seconds / 31_536_000), 'year');
-	} catch (error) {
-		logger.error('Error formatting relative date:', error);
-		return 'Invalid Date';
-	}
+    return formatter.format(-Math.floor(seconds / 31_536_000), "year");
+  } catch (error) {
+    logger.error("Error formatting relative date:", error);
+    return "Invalid Date";
+  }
 }
 
 /**
@@ -244,27 +269,27 @@ export function formatRelativeDate(dateInput: Date | number | string, locale = '
  * This function can be used in the Display component if the duration is stored in ISO format.
  */
 export function formatIsoDuration(isoDuration: string | undefined): string | undefined {
-	if (!isoDuration) {
-		return undefined;
-	}
+  if (!isoDuration) {
+    return undefined;
+  }
 
-	const regex = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/;
-	const matches = isoDuration.match(regex);
+  const regex = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/;
+  const matches = isoDuration.match(regex);
 
-	if (!matches) {
-		return undefined;
-	}
+  if (!matches) {
+    return undefined;
+  }
 
-	const hours = Number.parseInt(matches[1] || '0', 10);
-	const minutes = Number.parseInt(matches[2] || '0', 10);
-	const seconds = Number.parseInt(matches[3] || '0', 10);
+  const hours = Number.parseInt(matches[1] || "0", 10);
+  const minutes = Number.parseInt(matches[2] || "0", 10);
+  const seconds = Number.parseInt(matches[3] || "0", 10);
 
-	const parts: string[] = [];
-	if (hours > 0) {
-		parts.push(String(hours).padStart(2, '0'));
-	}
-	parts.push(String(minutes).padStart(2, '0'));
-	parts.push(String(seconds).padStart(2, '0'));
+  const parts: string[] = [];
+  if (hours > 0) {
+    parts.push(String(hours).padStart(2, "0"));
+  }
+  parts.push(String(minutes).padStart(2, "0"));
+  parts.push(String(seconds).padStart(2, "0"));
 
-	return parts.join(':');
+  return parts.join(":");
 }

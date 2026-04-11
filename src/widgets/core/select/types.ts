@@ -4,26 +4,26 @@
  */
 
 export interface SelectOption {
-	label: string;
-	value: string | number;
+  label: string;
+  value: string | number;
 }
 
 export interface SelectProps extends Record<string, any> {
-	/** Optional color theme for the select component */
-	color?: string;
+  /** Optional color theme for the select component */
+  color?: string;
 
-	/** Default value if none is selected */
-	default?: string | number;
+  /** Default value if none is selected */
+  default?: string | number;
 
-	/** Placeholder text when no value is selected */
-	placeholder?: string;
+  /** Placeholder text when no value is selected */
+  placeholder?: string;
 
-	/** Array of selectable options */
-	options: (string | SelectOption)[];
+  /** Array of selectable options */
+  options: (string | SelectOption)[];
 
-	/** Whether the field is required */
-	required?: boolean;
+  /** Whether the field is required */
+  required?: boolean;
 
-	/** Whether the field is translatable */
-	translated?: boolean;
+  /** Whether the field is translatable */
+  translated?: boolean;
 }

@@ -4,192 +4,203 @@
  * Uses shared helpers for authentication and environment setup.
  */
 
-import { beforeAll, describe, expect, it } from 'bun:test';
-import { getApiBaseUrl } from '../helpers/server';
-import { initializeTestEnvironment, prepareAuthenticatedContext, testFixtures } from '../helpers/test-setup';
+import { beforeAll, describe, expect, it } from "bun:test";
+import { getApiBaseUrl } from "../helpers/server";
+import {
+  initializeTestEnvironment,
+  prepareAuthenticatedContext,
+  testFixtures,
+} from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
 
-describe('User API Integration', () => {
-	let adminCookie: string;
+describe("User API Integration", () => {
+  let adminCookie: string;
 
-	// 1. ONE-TIME SETUP
-	beforeAll(async () => {
-		// Wait for server
-		await initializeTestEnvironment();
+  // 1. ONE-TIME SETUP
+  beforeAll(async () => {
+    // Wait for server
+    await initializeTestEnvironment();
 
-		// Ensure standard users (admin/editor) exist and get session
-		// This helper handles DB cleanup, user creation, and login
-		adminCookie = await prepareAuthenticatedContext();
-	});
+    // Ensure standard users (admin/editor) exist and get session
+    // This helper handles DB cleanup, user creation, and login
+    adminCookie = await prepareAuthenticatedContext();
+  });
 
-	// --- TEST SUITE 1: USER CREATION ---
-	describe('POST /api/user/create-user', () => {
-		it('should create a new user successfully', async () => {
-			// Use unique email to avoid DB conflicts
-			const uniqueEmail = `newuser_${Date.now()}@test.com`;
+  // --- TEST SUITE 1: USER CREATION ---
+  describe("POST /api/user/create-user", () => {
+    it("should create a new user successfully", async () => {
+      // Use unique email to avoid DB conflicts
+      const uniqueEmail = `newuser_${Date.now()}@test.com`;
 
-			const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Cookie: adminCookie // Requires admin to create users
-				},
-				body: JSON.stringify({
-					...testFixtures.users.admin,
-					email: uniqueEmail,
-					role: 'editor'
-				})
-			});
+      const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: adminCookie, // Requires admin to create users
+        },
+        body: JSON.stringify({
+          ...testFixtures.users.admin,
+          email: uniqueEmail,
+          role: "editor",
+        }),
+      });
 
-			const result = await response.json();
-			expect(response.status).toBe(201);
-			expect(result.email).toBe(uniqueEmail);
-		});
+      const result = await response.json();
+      expect(response.status).toBe(201);
+      expect(result).toMatchObject({
+        success: true,
+        data: {
+          email: uniqueEmail,
+        },
+      });
+    });
 
-		it('should reject invalid email format', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
-				body: JSON.stringify({
-					...testFixtures.users.admin,
-					email: 'invalid-email-format'
-				})
-			});
-			expect(response.status).toBe(400);
-		});
+    it("should reject invalid email format", async () => {
+      const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: adminCookie },
+        body: JSON.stringify({
+          ...testFixtures.users.admin,
+          email: "invalid-email-format",
+        }),
+      });
+      expect(response.status).toBe(400);
+    });
 
-		it('should reject mismatched passwords', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
-				body: JSON.stringify({
-					...testFixtures.users.admin,
-					email: `mismatch_${Date.now()}@test.com`,
-					confirmPassword: 'WrongPassword123!'
-				})
-			});
-			expect(response.status).toBe(400);
-		});
-	});
+    it("should reject mismatched passwords", async () => {
+      const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: adminCookie },
+        body: JSON.stringify({
+          ...testFixtures.users.admin,
+          email: `mismatch_${Date.now()}@test.com`,
+          confirmPassword: "WrongPassword123!",
+        }),
+      });
+      expect(response.status).toBe(400);
+    });
+  });
 
-	// --- TEST SUITE 2: AUTHENTICATION ---
-	describe('POST /api/user/login', () => {
-		it('should login with valid credentials (JSON)', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/user/login`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					email: testFixtures.users.admin.email,
-					password: testFixtures.users.admin.password
-				})
-			});
+  // --- TEST SUITE 2: AUTHENTICATION ---
+  describe("POST /api/user/login", () => {
+    it("should login with valid credentials (JSON)", async () => {
+      const response = await fetch(`${API_BASE_URL}/api/user/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: testFixtures.users.admin.email,
+          password: testFixtures.users.admin.password,
+        }),
+      });
 
-			expect(response.status).toBe(200);
-			expect(response.headers.get('set-cookie')).toBeDefined();
-		});
+      expect(response.status).toBe(200);
+      expect(response.headers.get("set-cookie")).toBeDefined();
+    });
 
-		it('should reject invalid credentials', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/user/login`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					email: testFixtures.users.admin.email,
-					password: 'WrongPassword123!'
-				})
-			});
-			expect(response.status).toBe(401);
-		});
-	});
+    it("should reject invalid credentials", async () => {
+      const response = await fetch(`${API_BASE_URL}/api/user/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: testFixtures.users.admin.email,
+          password: "WrongPassword123!",
+        }),
+      });
+      expect(response.status).toBe(401);
+    });
+  });
 
-	// --- TEST SUITE 3: ATTRIBUTE UPDATES ---
-	describe('PUT /api/user/update-user-attributes', () => {
-		it('should allow user to update their own name', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/user/update-user-attributes`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
-				body: JSON.stringify({
-					user_id: 'self',
-					newUserData: { username: 'UpdatedAdminName' }
-				})
-			});
-			expect(response.status).toBe(200);
+  // --- TEST SUITE 3: ATTRIBUTE UPDATES ---
+  describe("PUT /api/user/update-user-attributes", () => {
+    it("should allow user to update their own name", async () => {
+      const response = await fetch(`${API_BASE_URL}/api/user/update-user-attributes`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Cookie: adminCookie },
+        body: JSON.stringify({
+          user_id: "self",
+          newUserData: { username: "UpdatedAdminName" },
+        }),
+      });
+      expect(response.status).toBe(200);
 
-			// Verify
-			const verify = await fetch(`${API_BASE_URL}/api/user`, {
-				headers: { Cookie: adminCookie }
-			});
-			const result = await verify.json();
-			// /api/user returns { success: true, data: users[], pagination: ... }
-			const updatedUser = result.data.find((u: any) => u.username === 'UpdatedAdminName');
-			expect(updatedUser).toBeDefined();
-			expect(updatedUser.username).toBe('UpdatedAdminName');
-		});
+      // Verify
+      const verify = await fetch(`${API_BASE_URL}/api/user?raw=true`, {
+        headers: { Cookie: adminCookie },
+      });
+      const result = await verify.json();
+      // /api/user?raw=true returns the array of user objects directly
+      const updatedUser = result.find((u: any) => u.username === "UpdatedAdminName");
+      expect(updatedUser).toBeDefined();
+      expect(updatedUser.username).toBe("UpdatedAdminName");
+    });
 
-		it('should reject unauthorized token', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/user/update-user-attributes`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' }, // No Cookie
-				body: JSON.stringify({ user_id: 'self', newUserData: {} })
-			});
-			expect(response.status).toBe(401);
-		});
-	});
+    it("should reject unauthorized token", async () => {
+      const response = await fetch(`${API_BASE_URL}/api/user/update-user-attributes`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" }, // No Cookie
+        body: JSON.stringify({ user_id: "self", newUserData: {} }),
+      });
+      expect(response.status).toBe(401);
+    });
+  });
 
-	// --- TEST SUITE 4: AVATAR MANAGEMENT ---
-	describe('POST /api/user/save-avatar', () => {
-		it('should upload avatar using FormData', async () => {
-			// 1x1 Pixel Transparent PNG
-			const pngBytes = new Uint8Array([
-				0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-				0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00, 0x01,
-				0x00, 0x00, 0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82
-			]);
-			const file = new File([pngBytes], 'avatar.png', { type: 'image/png' });
+  // --- TEST SUITE 4: AVATAR MANAGEMENT ---
+  describe("POST /api/user/save-avatar", () => {
+    it("should upload avatar using FormData", async () => {
+      // 1x1 Pixel Transparent PNG
+      const pngBytes = new Uint8Array([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44,
+        0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f,
+        0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00,
+        0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
+        0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+      ]);
+      const file = new File([pngBytes], "avatar.png", { type: "image/png" });
 
-			const formData = new FormData();
-			formData.append('avatar', file);
+      const formData = new FormData();
+      formData.append("avatar", file);
 
-			const response = await fetch(`${API_BASE_URL}/api/user/save-avatar`, {
-				method: 'POST',
-				headers: { Cookie: adminCookie, Origin: API_BASE_URL },
-				body: formData
-			});
+      const response = await fetch(`${API_BASE_URL}/api/user/save-avatar`, {
+        method: "POST",
+        headers: { Cookie: adminCookie, Origin: API_BASE_URL },
+        body: formData,
+      });
 
-			expect(response.status).toBe(200);
-			const result = await response.json();
-			expect(result.avatarUrl).toBeDefined();
-		});
-	});
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.avatarUrl).toBeDefined();
+    });
+  });
 
-	// --- TEST SUITE 5: LIST USERS ---
-	describe('GET /api/user', () => {
-		it('should list users', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/user`, {
-				headers: { Cookie: adminCookie }
-			});
+  // --- TEST SUITE 5: LIST USERS ---
+  describe("GET /api/user", () => {
+    it("should list users", async () => {
+      const response = await fetch(`${API_BASE_URL}/api/user?raw=true`, {
+        headers: { Cookie: adminCookie },
+      });
 
-			const result = await response.json();
-			expect(response.status).toBe(200);
-			expect(Array.isArray(result.data)).toBe(true);
-			expect(result.data.length).toBeGreaterThan(0);
-		});
-	});
+      const result = await response.json();
+      expect(response.status).toBe(200);
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThan(0);
+    });
+  });
 
-	// --- TEST SUITE 6: LOGOUT ---
-	describe('POST /api/user/logout', () => {
-		it('should invalidate session', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/user/logout`, {
-				method: 'POST',
-				headers: { Cookie: adminCookie }
-			});
-			expect(response.status).toBe(200);
+  // --- TEST SUITE 6: LOGOUT ---
+  describe("POST /api/user/logout", () => {
+    it("should invalidate session", async () => {
+      const response = await fetch(`${API_BASE_URL}/api/user/logout`, {
+        method: "POST",
+        headers: { Cookie: adminCookie },
+      });
+      expect(response.status).toBe(200);
 
-			// Verify old cookie is dead - should return 401 Unauthorized
-			const check = await fetch(`${API_BASE_URL}/api/user`, {
-				headers: { Cookie: adminCookie }
-			});
-			expect(check.status).toBe(401);
-		});
-	});
+      // Verify old cookie is dead - should return 401 Unauthorized
+      const check = await fetch(`${API_BASE_URL}/api/user`, {
+        headers: { Cookie: adminCookie },
+      });
+      expect(check.status).toBe(401);
+    });
+  });
 });

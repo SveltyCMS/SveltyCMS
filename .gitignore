@@ -7,6 +7,7 @@
 package-lock.json
 bun.lockb
 node_modules
+.bun-cache
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
@@ -28,6 +29,8 @@ media/*
 mediaFolder/
 .compiledCollections/*
 .compiledCollections
+bundle-report.json
+.bundle-history.json
 
 logs/*
 *.pid
@@ -66,11 +69,7 @@ src/paraglide/**/*.js
 *.db-wal
 
 .idea
-.compiledCollections/Collections/Names.js
-.compiledCollections/Collections/Relation.js
-.compiledCollections/Collections/WidgetTest.js
-.compiledCollections/Collections/Posts/Names.js
-.compiledCollections/Collections/Posts/Posts.js
-.compiledCollections/Menu/Menu.js
 .mcp.json
 LOCAL.md
+bundle-report.json
+tests/benchmarks/results/*

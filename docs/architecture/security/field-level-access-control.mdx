@@ -1,0 +1,106 @@
+---
+path: "docs/architecture/security/field-level-access-control.mdx"
+title: "Field-Level Access Control (FLAC)"
+description: "Architecture of the zero-trust runtime enforcement for field-level security in SveltyCMS."
+order: 3
+icon: "mdi:shield-key"
+author: "SveltyCMS Team"
+created: "2026-04-11"
+updated: "2026-04-11"
+tags:
+  - "security"
+  - "flac"
+  - "rbac"
+  - "enforcement"
+---
+
+# Field-Level Access Control (FLAC)
+
+SveltyCMS implements a **Zero-Trust Runtime Enforcement** model for field-level security. Unlike traditional CMS platforms that only hide fields in the UI, SveltyCMS physically strips unauthorized data from the API response and strictly blocks unauthorized write attempts at the request modification layer.
+
+---
+
+## 🏗️ Architecture: The Fail-Closed Loop
+
+FLAC is integrated directly into the `modifyRequest` pipeline, ensuring that every piece of data — whether retrieved via REST, GraphQL, or the Local SDK — is sanitized based on the user's active role context.
+
+```mermaid
+graph TD
+    A[Incoming Request] --> B[Middleware: Identity & Roles]
+    B --> C[API Handler / Local SDK]
+    C --> D[modifyRequest Pipeline]
+    
+    subgraph FLAC Enforcement
+        D --> E{Operation?}
+        E -- "READ (GET)" --> F[Physical Field Stripping]
+        E -- "WRITE (POST/PATCH)" --> G[Strict Permission Guard]
+    end
+    
+    F --> H[Sanitized JSON Response]
+    G -- "Unauthorized" --> I[403 Forbidden + Audit Log]
+    G -- "Authorized" --> J[Proceed to Database]
+```
+
+---
+
+## 🛡️ Key Security Guarantees
+
+### 1. Physical Stripping (Read Protection)
+When an entry is fetched, the `enforceFieldAccess` utility compares the collection schema against the user's roles. If a field is restricted:
+- The key is **deleted** from the JSON object.
+- All localized variants (e.g., `title_de`, `title_fr`) are removed simultaneously.
+- The data never reaches the network, preventing metadata leakage.
+
+### 2. Strict Write Rejection
+If a user attempts to modify a field without the required `writeRoles`:
+- The system **throws an AppError(403)** immediately.
+- The entire transaction is aborted.
+- A `UNAUTHORIZED_ACCESS` event is triggered in the Audit Log.
+
+### 3. Fail-Closed Default
+If a field is marked as `private` or has `requiredAuth` enabled, the system defaults to **Deny All** if the user context is ambiguous or the role mapping is missing.
+
+---
+
+## ⚙️ Configuration
+
+FLAC is configured per-field in the **Collection Builder** under the **Permissions** tab.
+
+```typescript
+// Technical Representation in Schema
+{
+    db_fieldName: "internal_notes",
+    widget: widgets.Textarea,
+    permissions: {
+        visibility: "private",
+        requiredAuth: true,
+        readRoles: ["admin", "editor"],
+        writeRoles: ["admin"]
+    }
+}
+```
+
+### Permission Matrix
+
+| Visibility | Auth Required | Role Match | Result |
+| :--- | :--- | :--- | :--- |
+| `public` | No | N/A | Accessible to all. |
+| `public` | Yes | No | Stripped from response. |
+| `private` | Yes | Yes | Accessible to matched roles. |
+| `private` | Yes | No | **403 Forbidden on Write.** |
+
+---
+
+## 📊 Performance Impact
+
+The FLAC engine is optimized for high-throughput environments:
+- **O(N) Complexity**: Sanitization happens in a single pass over the field schema.
+- **Reference-Aware**: Uses `$state.snapshot()` patterns to ensure UI state remains pure during sanitization.
+- **Micro-telemetry**: Sanitization duration is tracked and bubbled up to the performance dashboard.
+
+---
+
+## 📚 Related Documentation
+- [Security Overview](./index.mdx)
+- [Role-Based Access Control (RBAC)](../admin-user-management.mdx)
+- [Audit Log System](../user-management-overview.mdx)

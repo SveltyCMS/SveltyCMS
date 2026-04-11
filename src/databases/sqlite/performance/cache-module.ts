@@ -1,6 +1,6 @@
 /**
- * @file src/databases/mariadb/performance/cache-module.ts
- * @description Cache module for MariaDB
+ * @file src/databases/sqlite/performance/cache-module.ts
+ * @description Cache module for SQLite
  *
  * Features:
  * - Get cache
@@ -8,35 +8,79 @@
  * - Delete cache
  * - Clear cache
  * - Invalidate collection
+ * - Invalidate category
  */
 
-import type { CacheOptions, DatabaseResult } from '../../db-interface';
-import type { AdapterCore } from '../adapter/adapter-core';
+import type { CacheOptions, DatabaseResult } from "../../db-interface";
+import type { AdapterCore } from "../adapter/adapter-core";
 
 export class CacheModule {
-	private readonly core: AdapterCore;
+  constructor(_core: AdapterCore) {}
 
-	constructor(core: AdapterCore) {
-		this.core = core;
-	}
+  async get<T>(key: string): Promise<DatabaseResult<T | null>> {
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    // We default to null tenant if not specified in key context, or assume key already includes it
+    const data = await cacheService.get<T>(key);
+    return { success: true, data };
+  }
 
-	async get<T>(_key: string): Promise<DatabaseResult<T | null>> {
-		return this.core.notImplemented('cache.get');
-	}
+  async set<T>(key: string, value: T, options?: CacheOptions): Promise<DatabaseResult<void>> {
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    // Extract tenantId and category from options if available in your system,
+    // or pass through to service which handles TTL.
+    await cacheService.set(key, value, options?.ttl || 0, undefined, (options as any)?.category);
+    return { success: true, data: undefined };
+  }
 
-	async set<T>(_key: string, _value: T, _options?: CacheOptions): Promise<DatabaseResult<void>> {
-		return this.core.notImplemented('cache.set');
-	}
+  async delete(key: string): Promise<DatabaseResult<void>> {
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    await cacheService.delete(key);
+    return { success: true, data: undefined };
+  }
 
-	async delete(_key: string): Promise<DatabaseResult<void>> {
-		return this.core.notImplemented('cache.delete');
-	}
+  async clear(tags?: string[]): Promise<DatabaseResult<void>> {
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    if (tags && tags.length > 0) {
+      await cacheService.clearByTags(tags);
+    } else {
+      await cacheService.invalidateAll();
+    }
+    return { success: true, data: undefined };
+  }
 
-	async clear(_tags?: string[]): Promise<DatabaseResult<void>> {
-		return this.core.notImplemented('cache.clear');
-	}
+  async invalidateCollection(
+    collection: string,
+    tenantId?: string | null,
+  ): Promise<DatabaseResult<void>> {
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    await cacheService.clearByTags([`collection:${collection}`], tenantId);
+    await this.incrementVersion(tenantId);
+    return { success: true, data: undefined };
+  }
 
-	async invalidateCollection(_collection: string): Promise<DatabaseResult<void>> {
-		return this.core.notImplemented('cache.invalidateCollection');
-	}
+  async invalidateCategory(
+    category: string,
+    tenantId?: string | null,
+  ): Promise<DatabaseResult<void>> {
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    // Clear all entries belonging to a specific category by tag
+    await cacheService.clearByTags([`category:${category}`], tenantId);
+    await this.incrementVersion(tenantId);
+    return { success: true, data: undefined };
+  }
+
+  async getVersion(tenantId?: string | null): Promise<DatabaseResult<number>> {
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    const version = await cacheService.get(`system:content_version`, tenantId);
+    return { success: true, data: (version as number) || 0 };
+  }
+
+  async incrementVersion(tenantId?: string | null): Promise<DatabaseResult<number>> {
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    const key = `system:content_version`;
+    const current = ((await cacheService.get(key, tenantId)) as number) || 0;
+    const next = current + 1;
+    await cacheService.set(key, next, 0, tenantId);
+    return { success: true, data: next };
+  }
 }

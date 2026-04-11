@@ -5,27 +5,31 @@
 -->
 
 <script lang="ts">
-	import { form_signup } from '@src/paraglide/messages';
+import { form_signup } from "@src/paraglide/messages";
 
-	let { show = $bindable(true), disabled = false, onClick = (_event: MouseEvent | KeyboardEvent) => {} } = $props();
+let {
+	show = $bindable(true),
+	disabled = false,
+	onClick = (_event: MouseEvent | KeyboardEvent) => {},
+} = $props();
 
-	function handleClick(event: MouseEvent) {
-		if (disabled) {
-			return;
-		}
+function handleClick(event: MouseEvent) {
+	if (disabled) {
+		return;
+	}
+	event.stopPropagation(); // Prevent event bubbling
+	onClick(event);
+}
+
+function handleKeyDown(event: KeyboardEvent) {
+	if (disabled) {
+		return;
+	}
+	if (event.key === "Enter") {
 		event.stopPropagation(); // Prevent event bubbling
 		onClick(event);
 	}
-
-	function handleKeyDown(event: KeyboardEvent) {
-		if (disabled) {
-			return;
-		}
-		if (event.key === 'Enter') {
-			event.stopPropagation(); // Prevent event bubbling
-			onClick(event);
-		}
-	}
+}
 </script>
 
 <div

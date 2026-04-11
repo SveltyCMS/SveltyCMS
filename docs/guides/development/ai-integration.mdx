@@ -1,36 +1,38 @@
 ---
-path: 'docs/guides/development/ai-integration.mdx'
-title: 'AI Integration & Local Knowledge Core'
-description: 'Guide to the high-performance local MPC Server and RAG pipeline.'
+path: "docs/guides/development/ai-integration.mdx"
+title: "AI Integration & Local Knowledge Core"
+description: "Guide to the high-performance local MPC Server and RAG pipeline."
 order: 50
-icon: 'mdi:robot'
-author: 'admin'
-created: '2026-02-07'
-updated: '2026-02-24'
+icon: "mdi:robot"
+author: "SveltyCMS Team"
+created: "2026-02-07"
+updated: "2026-03-27"
 tags:
-  - 'ai'
-  - 'mcp'
-  - 'rag'
-  - 'npu'
-  - 'lancedb'
+  - "ai"
+  - "mcp"
+  - "rag"
+  - "npu"
+  - "lancedb"
 ---
 
-# AI Integration & Local Knowledge Core (MPC)
+# AI Integration & Hosted Knowledge Core (MCP)
 
-SveltyCMS 2026 leverages a high-performance **Model Context Protocol (MCP)** server to provide AI agents with deep, real-time project knowledge.
+SveltyCMS 2026 leverages a fully implemented and hosted **Model Context Protocol (MCP)** server to provide AI agents with deep, real-time project knowledge.
 
 > [!TIP]
-> **Status:** Active. Your AI integration is powered by the **SveltyCMS Knowledge Core**.
+> **Status:** Fully Implemented. Your AI integration is powered by the **SveltyCMS Hosted Knowledge Core**.
 >
 > - **Hosted (Primary):** `https://mcp.sveltycms.com/mcp` (Cloud-native agentic memory)
-> - **Local (RAG):** Local environments using **LanceDB** and **hardware acceleration**.
+> - **Real-time Tools:** SSE-based live access to codebase, docs, and system schemas.
+> - **Local (RAG):** Fallback for local environments using **LanceDB**.
 
-### 1. Online MCP Server (https://mcp.sveltycms.com)
+### 1. Hosted MCP Server (mcp.sveltycms.com)
 
-The hosted Knowledge Core provides absolute project context for remote AI agents:
+The hosted Knowledge Core provides absolute project context for remote AI agents (Claude, ChatGPT, etc.):
 
-- **SSE Connection**: Uses standard Server-Sent Events for real-time tool access.
-- **Global Search**: Semantic search across the entire SveltyCMS ecosystem.
+- **Full SSE Protocol**: Uses standard Server-Sent Events for real-time tool access and discovery.
+- **Project-Wide Search**: Semantic search across the entire SveltyCMS ecosystem (Docs + Code).
+- **Schema Awareness**: Understands your specific collection schemas and widget configurations.
 - **Read-Only Safety**: Agents can study the codebase and docs but cannot modify data.
 
 ### 2. The Local Knowledge Core
@@ -48,9 +50,9 @@ When a user prompts the MCP Server or the local AI service to build a complex co
 
 #### Where Generative UI is Integrated:
 
-- **[Agentic Dashboard](./architecture/components/Dashboard.mdx)**: The main dashboard features an "AI Dashboard Mode" that bypasses manual grid configuration. It now supports **interactive re-prompting**, allowing users to refine the layout in real-time. A live status indicator confirms connection to the hosted Knowledge Core at `mcp.sveltycms.com`.
-- **[Collection Builder](./architecture/components/WidgetBuilder.mdx)**: Translates schema configurations into live preview specs for immediate visual feedback of your custom fields using the same rendering engine.
-- **[AI Service](./api/ai-service.mdx)**: The robust local `AIService` directly integrates with Ollama to expose the `generateLayoutSpec()` method, which utilizes a specialized catalog of components including `VerticalLayout`, `HorizontalLayout`, and `Text`.
+- **[Agentic Dashboard](../../architecture/index.mdx)**: The main dashboard features an "AI Dashboard Mode" that bypasses manual grid configuration. It now supports **interactive re-prompting**, allowing users to refine the layout in real-time. A live status indicator confirms connection to the hosted Knowledge Core at `mcp.sveltycms.com`.
+- **[Collection Builder](../../architecture/components/fields.mdx)**: Translates schema configurations into live preview specs for immediate visual feedback of your custom fields using the same rendering engine.
+- **[AI Service](../../api/real-time-events-api.mdx)**: The robust local `AIService` directly integrates with Ollama to expose the `generateLayoutSpec()` method, which utilizes a specialized catalog of components including `VerticalLayout`, `HorizontalLayout`, and `Text`.
 
 ---
 
@@ -64,14 +66,55 @@ SveltyCMS provides a suite of AI-native components registered in the `sveltyRegi
 
 ---
 
+## 4. Enterprise Awareness: Beyond Content
+
+In Q1 2026, the SveltyCMS Knowledge Core was updated to understand the CMS's own operational infrastructure. This allows AI agents to assist with high-level administrative and maintenance tasks.
+
+### 4.1 Trash & Recovery Logic
+
+The MCP server now indexes the Soft Delete "Mangle-on-Delete" patterns.
+
+- **AI Tooling**: Agents can help locate "lost" content by querying the Trash Bin via semantic search, even if the original slug was mangled (e.g., `my-post_DELETED_1742332800`).
+- **Context**: The AI understands that items in the trash are isolated from production APIs but restorable to their original state.
+
+### 4.2 Durable Webhook & DLQ Monitoring
+
+The Knowledge Core provides real-time visibility into the system's integration health.
+
+- **Poison Pill Detection**: AI agents can analyze failed webhook payloads in the Dead-Letter Queue (DLQ) and suggest fixes for 4xx errors (e.g., "The destination API rejected this JSON because the 'title' field was too long").
+- **Retry Strategy**: The AI can recommend manual retries for transient 5xx errors based on the high-resolution operation timing bubbled up through the DB adapters.
+
+### 4.3 Collaboration & State Handshaking
+
+The AI Assistant is aware of the binary Yjs collaboration state.
+
+- **Presence Awareness**: The AI understands which users are currently editing which documents via the SSE-based `yjs:sync` stream.
+- **Conflict Resolution**: When multiple users edit a complex document, the AI can analyze the Yjs state vector to explain how a specific merge was mathematically resolved.
+
+---
+
 ## Why AI Makes SveltyCMS Superior
 
-Most headless CMS platforms boast "AI Integration," but essentially just bolt a ChatGPT wrapper onto a rich text field. SveltyCMS is built from the ground up to be **Agentic**.
+Most headless CMS platforms boast "AI Integration," but essentially just boast a ChatGPT wrapper onto a rich text field. SveltyCMS is built from the ground up to be **Agentic**.
 
-1.  **Zero-Boilerplate Customization**: Need a highly specific dashboard for a niche real estate tenant? You no longer write manual Svelte code. The MCP understands your available widgets and generates the interface instantly via `json-render-svelte`.
-2.  **Plugin Superpowers**: Any [Marketplace Plugin](../plugin-architecture.mdx) that registers itself with `jsonRender: true` instantly becomes part of the AI's vocabulary, meaning third-party tools can be effortlessly composed into Generative Layouts.
-3.  **Local Privacy First**: By splitting knowledge (Hosted MCP Server) from inference (Local Ollama via `AIService`), enterprise users get the intelligence of the official docs without sending their private schema or dashboard data to third-party endpoints.
-4.  **Self-Healing & Understanding**: The MCP Server constantly indexes your `src/` and `docs/`, meaning SveltyCMS understands its own architecture.
+1.  **Bulk AI Content Localization**: SveltyCMS features a dedicated background utility for translating entire collections. Using the `/api/utils/translate-collection` endpoint, developers can dispatch a job that iterates through thousands of entries, identifying missing locales and autonomously generating high-quality translations while respecting field-level constraints.
+2.  **Zero-Boilerplate Customization**: Need a highly specific dashboard for a niche real estate tenant? You no longer write manual Svelte code. The MCP understands your available widgets and generates the interface instantly via `json-render-svelte`.
+3.  **Plugin Superpowers**: Any [Marketplace Plugin](../../architecture/plugin-architecture.mdx) that registers itself with `jsonRender: true` instantly becomes part of the AI's vocabulary, meaning third-party tools can be effortlessly composed into Generative Layouts.
+4.  **Local Privacy First**: By splitting knowledge (Hosted MCP Server) from inference (Local Ollama via `AIService`), enterprise users get the intelligence of the official docs without sending their private schema or dashboard data to third-party endpoints.
+5.  **Self-Healing & Understanding**: The MCP Server constantly indexes your `src/` and `docs/`, meaning SveltyCMS understands its own architecture.
+6.  **AI-Powered Migration**: The **[Smart Importer](../content/smart-importer.mdx)** uses the Knowledge Core to intelligently map legacy Drupal or WordPress schemas to modern Svelte widgets, drastically reducing the manual labor of content migration.
+
+## ⌨️ Keyboard Shortcuts (Efficiency)
+
+The AI Assistant is built for power users. Use the following shortcuts from anywhere in the CMS:
+
+| Shortcut              | Action                                                          |
+| :-------------------- | :-------------------------------------------------------------- |
+| `Mod + J`             | **Toggle Assistant**: Open or close the AI collaboration panel. |
+| `Mod + J` (when open) | **Focus Input**: Jump directly to the chat input field.         |
+| `Alt + 1`             | **Switch to Activity**: View the real-time system event stream. |
+| `Alt + 2`             | **Switch to Chat**: Return to the AI Assistant conversation.    |
+| `Escape`              | **Close**: Dismiss the panel instantly.                         |
 
 ---
 
@@ -91,11 +134,11 @@ Add this to your MCP configuration (e.g., `claude_desktop_config.json`):
 
 ```json
 {
-	"mcpServers": {
-		"sveltycms": {
-			"url": "https://mcp.sveltycms.com/mcp"
-		}
-	}
+  "mcpServers": {
+    "sveltycms": {
+      "url": "https://mcp.sveltycms.com/mcp"
+    }
+  }
 }
 ```
 

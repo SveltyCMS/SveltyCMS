@@ -1,17 +1,17 @@
 ---
-path: 'docs/tests/e2e-testing-guide.mdx'
-title: 'E2E Testing Guide'
-description: 'Guide for writing and running Playwright E2E tests with auth helper'
+path: "docs/tests/e2e-testing-guide.mdx"
+title: "E2E Testing Guide"
+description: "Guide for writing and running Playwright E2E tests with auth helper"
 order: 12
-icon: 'mdi:test-tube'
-author: 'admin'
-created: '2025-01-20'
-updated: '2025-01-20'
+icon: "mdi:test-tube"
+author: "SveltyCMS Team"
+created: "2025-01-20"
+updated: "2026-03-27"
 tags:
-  - 'testing'
-  - 'e2e'
-  - 'playwright'
-  - 'automation'
+  - "testing"
+  - "e2e"
+  - "playwright"
+  - "automation"
 ---
 
 # E2E Testing Guide
@@ -55,15 +55,15 @@ bun run scripts/test-smart.ts
 Avoid logging in via UI in every test. Use `loginAsAdmin` from `helpers/auth.ts`.
 
 ```typescript
-import { test, expect } from '@playwright/test';
-import { loginAsAdmin } from './helpers/auth';
+import { test, expect } from "@playwright/test";
+import { loginAsAdmin } from "./helpers/auth";
 
-test('Admin can access dashboard', async ({ page }) => {
-	// Logs in and waits for navigation to dashboard
-	await loginAsAdmin(page);
+test("Admin can access dashboard", async ({ page }) => {
+  // Logs in and waits for navigation to dashboard
+  await loginAsAdmin(page);
 
-	// Your test logic
-	await expect(page.getByText('Dashboard')).toBeVisible();
+  // Your test logic
+  await expect(page.getByText("Dashboard")).toBeVisible();
 });
 ```
 
@@ -91,8 +91,8 @@ For robust tests that don't break when CSS classes change, always use `data-test
 **In Playwright Test:**
 
 ```typescript
-await page.getByTestId('signin-email').fill('admin@example.com');
-await page.getByTestId('signin-submit').click();
+await page.getByTestId("signin-email").fill("admin@example.com");
+await page.getByTestId("signin-submit").click();
 ```
 
 Avoid using:
@@ -119,3 +119,35 @@ In GitHub Actions, E2E tests run in parallel with Unit and Integration tests.
 
 - Ensure `scripts/seed-test-db.ts` ran successfully.
 - Check `config/private.test.ts` exists (Isolated testing enforced).
+
+## Remote Playwright Testing
+
+You can run Playwright tests from your local machine against a remote SveltyCMS instance (e.g. running on a Plesk server) using an SSH tunnel.
+
+### Method 1: SSH Port Forwarding (Recommended)
+
+This method securely forwards your local port 5173 to the remote server's port 5173, making the remote app appear local.
+
+1.  **Open an SSH Tunnel** in a separate terminal window:
+
+    ```bash
+    # Forwards local 5173 -> remote 5173
+    ssh -L 5173:localhost:5173 user@your-remote-server.com
+    ```
+
+2.  **Run Playwright Locally**:
+    By default, `playwright.config.ts` is configured to reuse an existing server on port 5173.
+    ```bash
+    # Run tests against the tunnel
+    PLAYWRIGHT_TEST_BASE_URL=http://localhost:5173 npx playwright test
+    ```
+
+### Method 2: Direct URL
+
+If your remote server is publicly accessible (e.g. `https://dev.example.com` or a specific IP), you can point Playwright directly to it.
+
+```bash
+PLAYWRIGHT_TEST_BASE_URL=https://dev.example.com npx playwright test
+```
+
+> **Note**: Ensure the remote server is running in a mode that accepts connections (e.g. `bun dev --host` or a preview build) and that any firewalls allow traffic on the target port.

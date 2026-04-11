@@ -1,21 +1,22 @@
 ---
-path: 'docs/tests/api-testing.mdx'
-title: 'API Testing & Coverage Report'
-description: 'Comprehensive API endpoint testing strategy, coverage report, and historical results for SveltyCMS'
+path: "docs/tests/api-testing.mdx"
+title: "API Testing & Coverage Report"
+description: "Comprehensive API endpoint testing strategy, coverage report, and historical results for SveltyCMS"
 order: 5
-icon: 'mdi:api-check'
-author: 'admin'
-created: '2026-02-17'
-updated: '2026-02-17'
+icon: "mdi:api-check"
+author: "SveltyCMS Team"
+created: "2026-02-17"
+updated: "2026-04-03"
 tags:
-  - 'testing'
-  - 'api'
-  - 'coverage'
+  - "testing"
+  - "api"
+  - "coverage"
+  - "fail-closed"
 ---
 
 # API Testing & Coverage Report
 
-SveltyCMS employs a rigorous **Black-Box Testing** strategy for its API layer, ensuring that all 99+ endpoints are verified for security, performance, and database agnosticism.
+SveltyCMS employs a rigorous **Black-Box Testing** strategy for its API layer, ensuring that all endpoints are verified for security, performance, and database agnosticism. All requests are managed by a central **Fail-Closed Dispatcher**.
 
 > [!NOTE]
 > This document consolidates our coverage reporting and historical testing summaries into a single source of truth.
@@ -27,14 +28,16 @@ SveltyCMS is designed for maximum safety. Running tests will **never** influence
 1.  **Filename Isolation**: Integration tests use `sveltycms_test.db` (configured in `private.test.ts`), while production uses `test.db` (or your configured `DB_NAME`).
 2.  **Environment Isolation**: Tests require `TEST_MODE=true`. This flag switches the configuration from `private.ts` to `private.test.ts` and changes the database path to `./config/database`.
 3.  **API Gatekeeping**: The God-Mode `/api/testing` endpoint is hard-coded to be **inactive** unless the server is explicitly started with the `TEST_MODE` flag. In a production build, these endpoints are automatically disabled.
+4.  **Network Lockdown**: Tests are restricted to `127.0.0.1` to ensure consistent behavior across different Operating Systems.
 
 ## 📊 Coverage at a Glance
 
-- **Total API Endpoints**: 99
-- **Endpoints Verified**: 85 (~86%)
-- **Total Tests**: 460+
-- **Strategy**: 100% Black-Box (via `/api/testing`)
-- **Multi-DB Validation**: Successfully verified across MongoDB, PostgreSQL, MariaDB, and SQLite.
+- **Total API Endpoints**: ~114
+- **Endpoints Verified**: ~108 (~95%)
+- **Total Tests**: 1028 (670 Unit + 358 Integration/E2E)
+- **Strategy**: 100% Black-Box (via `/api/testing`) + Granular Unit Gates
+- **Security Posture**: 100% Fail-Closed (Mandatory Authorization)
+- **Multi-DB Validation**: Verified across MongoDB, PostgreSQL, MariaDB, and SQLite.
 
 ---
 
@@ -44,47 +47,51 @@ Our API tests operate at the **Integration** level. Unlike unit tests, these int
 
 ### Key Components
 
-1.  **God-Mode API (`/api/testing`)**: Allows tests to programmatically reset the database and seed specific fixtures without direct DB access.
-2.  **Mock Isolation**: Integration tests use real databases (isolated per run) while Unit tests use `tests/unit/setup.ts` for deep internal mocking.
-3.  **Authentication Helpers**: Programmatic login and session management via `tests/integration/helpers/auth.ts`.
+1.  **Fail-Closed Gatekeeper (`+server.ts`)**: Central dispatcher that enforces mandatory authorization for EVERY endpoint. Unmapped routes are denied by default (403 Forbidden).
+2.  **God-Mode API (`/api/testing`)**: Allows tests to programmatically reset the database and seed specific fixtures without direct DB access.
+3.  **Mock Isolation**: Integration tests use real databases (isolated per run) while Unit tests use `tests/unit/setup.ts` for deep internal mocking.
+4.  **Authentication Helpers**: Programmatic login and session management via `tests/unit/api/rbac.test.ts`.
 
 ---
 
 ## ✅ Verified API Endpoints
 
-### 🔐 Authentication & Security (38 tests)
+### 🔐 Authentication & Security (42 tests)
 
 - **2FA System**: Setup, TOTP verification, backup codes, and session recovery.
 - **Security Management**: IP blocking, incident resolving, and CSP report processing.
-- **Files**: `tests/integration/api/auth-2fa.test.ts`, `security.test.ts`
+- **Registration**: Verification of invitation token consumption and role assignment.
+- **Files**: `tests/unit/api/auth-2fa.test.ts`, `security.test.ts`, `signup.test.ts`
 
-### 👤 User & Token Management (59 tests)
+### 👤 User & Token Management (62 tests)
 
 - **User Lifecycle**: Creation, login/logout, multi-tenant isolation, and role-based access.
 - **Token System**: JWT creation, rotation, and revocation.
-- **Files**: `tests/integration/api/user.test.ts`, `token.test.ts`
+- **State Verification**: Usage of `get-user` action to verify post-registration database state.
+- **Files**: `tests/unit/api/user.test.ts`, `token.test.ts`
 
-### 📦 Content & Media (82 tests)
+### 📦 Content & Relational (82 tests)
 
 - **Collections**: CRUD operations, complex relations, and schema validation.
+- **Relational Benchmarks**: Dedicated performance testing for Depth 2-3 populations and JOINs.
 - **Media DAM**: AI tagging (Ollama), EXIF extraction, and non-destructive editing.
-- **Files**: `tests/integration/api/collections.test.ts`, `media.test.ts`
+- **Files**: `tests/unit/api/collections.test.ts`, `media.test.ts`, `tests/benchmarks/relational-performance.test.ts`
 
 ### ⚙️ System & Dashboard (126 tests)
 
 - **Real-time Metrics**: Health checks, performance logging, and system info.
 - **Setup Wizard**: Multi-step initialization check and configuration verification.
-- **Files**: `tests/integration/api/dashboard.test.ts`, `setup.test.ts`
+- **Files**: `tests/unit/api/dashboard.test.ts`, `setup.test.ts`
 
 ---
 
 ## 🏛️ Historical Context & Evolution
 
-Initially, SveltyCMS faced issues with error status codes (returning 500 instead of 401) and complex OAuth mocks. Through our **Self-Healing State Machine** and specialized integration runner, we have achieved:
+Initially, SveltyCMS faced issues with error status codes (returning 500 instead of 401) and complex OAuth mocks. Through our **Fail-Closed Gatekeeper** and specialized integration runner, we have achieved:
 
-- **Correct Error Propagation**: All unauthorized requests now return 401/403 properly.
+- **Fail-Closed Authorization**: All routes are now protected by a central gatekeeper, returning 401/403 properly.
 - **Isolated State**: The introduction of the `/api/testing` endpoint eliminated test interference.
-- **Performance**: Full suite execution time reduced from minutes to seconds through Bun's internal optimization.
+- **Performance**: Consolidated redundant unit tests (from 741 to 670) while maintaining 100% logic coverage, reducing suite latency.
 
 ---
 
@@ -93,24 +100,24 @@ Initially, SveltyCMS faced issues with error status codes (returning 500 instead
 ### Run All Integration Tests
 
 ```bash
-bun test tests/integration/api/
+bun run test:unit -- api
 ```
 
 ### Targeted Testing
 
 ```bash
 # Verify specific feature (e.g., Security)
-bun test tests/integration/api/security.test.ts
+bun run test:unit -- security
 ```
 
 ---
 
 ## 🔮 Future Roadmap
 
-- **100% Coverage**: Targeting the remaining 14 low-priority utility endpoints.
+- **100% Coverage**: Targeting the remaining 6 utility endpoints.
 - **Performance Auditing**: Automated latency regression checks within the CI pipeline.
 - **E2E Synchronization**: Tighter integration between API integration tests and Playwright browser flows.
 
 ---
 
-_Last Updated: February 2026_
+_Last Updated: April 3, 2026_

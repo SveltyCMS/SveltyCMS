@@ -9,36 +9,36 @@
  */
 
 export interface ActiveTokenInput {
-	/** The DOM input/textarea element */
-	element: HTMLInputElement | HTMLTextAreaElement | null;
-	/** Field metadata for context (e.g., token picker UI) */
-	field: {
-		name: string;
-		label?: string;
-		collection?: string;
-		[key: string]: unknown;
-	};
-	/** Optional custom insertion handler (e.g., for rich text editors) */
-	onInsert?: (token: string) => void;
+  /** The DOM input/textarea element */
+  element: HTMLInputElement | HTMLTextAreaElement | null;
+  /** Field metadata for context (e.g., token picker UI) */
+  field: {
+    name: string;
+    label?: string;
+    collection?: string;
+    [key: string]: unknown;
+  };
+  /** Optional custom insertion handler (e.g., for rich text editors) */
+  onInsert?: (token: string) => void;
 }
 
 class ActiveInputState {
-	#current = $state<ActiveTokenInput | null>(null);
+  #current = $state<ActiveTokenInput | null>(null);
 
-	/** The currently active input metadata */
-	get current() {
-		return this.#current;
-	}
+  /** The currently active input metadata */
+  get current() {
+    return this.#current;
+  }
 
-	/** Sets the active input state */
-	set(input: ActiveTokenInput | null) {
-		this.#current = input;
-	}
+  /** Sets the active input state */
+  set(input: ActiveTokenInput | null) {
+    this.#current = input;
+  }
 
-	/** Clears the active input and closes the picker */
-	clear() {
-		this.#current = null;
-	}
+  /** Clears the active input and closes the picker */
+  clear() {
+    this.#current = null;
+  }
 }
 
 /**

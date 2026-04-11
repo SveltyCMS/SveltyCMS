@@ -1,0 +1,109 @@
+/**
+ * @file tests/unit/api/token.test.ts
+ * @description Unit tests for registration tokens.
+ */
+
+import { describe, it, expect, vi } from "vitest";
+import type { RequestEvent } from "@sveltejs/kit";
+
+// Mock dependencies
+
+// Mock dependencies
+// Mock dependencies
+vi.mock("@src/databases/db", () => ({
+  dbAdapter: {
+    auth: {
+      getAllTokens: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      getTokenById: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      updateToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "token-id" } }),
+      createToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
+      deleteTokens: vi.fn().mockResolvedValue({ success: true, data: { deletedCount: 1 } }),
+    },
+    crud: {
+      findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
+      update: vi.fn().mockResolvedValue({ success: true }),
+      delete: vi.fn().mockResolvedValue({ success: true }),
+      count: vi.fn().mockResolvedValue({ success: true, data: 0 }),
+    },
+  },
+  getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+  getAuth: vi.fn(),
+}));
+
+vi.mock("@src/services/settings-service", () => ({
+  getPrivateSettingSync: vi.fn().mockReturnValue(false),
+  getPublicSettingSync: vi.fn().mockReturnValue(true),
+}));
+
+vi.mock("@utils/api-handler", () => ({
+  apiHandler: (fn: any) => fn,
+}));
+
+// Import raw dispatcher handler
+import { _handler as dispatcher } from "@src/routes/api/[...path]/+server";
+
+describe("Token API Unit Tests", () => {
+  const createMockEvent = (
+    method: string,
+    path: string,
+    body: any = {},
+    user: any = { _id: "u1", role: "admin" },
+    tenantId?: string,
+  ) => {
+    return {
+      url: new URL(`http://localhost/api/${path}`),
+      params: { path },
+      request: {
+        method,
+        json: vi.fn().mockResolvedValue(body),
+        headers: new Map(),
+      },
+      locals: {
+        user: { ...user, role: "admin", isAdmin: true },
+        tenantId: tenantId ?? "t1",
+        roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
+        dbAdapter: {
+          auth: {
+            getAllTokens: vi.fn().mockResolvedValue({ success: true, data: [] }),
+            getTokenById: vi.fn().mockResolvedValue({ success: true, data: {} }),
+            updateToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "token-id" } }),
+            createToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
+            deleteTokens: vi.fn().mockResolvedValue({ success: true, data: { deletedCount: 1 } }),
+          },
+          collections: {},
+          media: {},
+          widgets: {},
+          system: {},
+          crud: {
+            findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
+            insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
+          },
+        },
+      },
+      cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
+    } as unknown as RequestEvent;
+  };
+
+  it("should list tokens", async () => {
+    const event = createMockEvent("GET", "token");
+    const response = await dispatcher(event);
+    const result = await response.json();
+    expect(result.success).toBe(true);
+    expect(result.data).toBeDefined();
+    expect(Array.isArray(result.data.data)).toBe(true);
+  });
+
+  it("should create token", async () => {
+    const event = createMockEvent("POST", "token/create-token", {
+      email: "t@t.com",
+      expires: "2026-01-01",
+      role: "admin",
+    });
+    const response = await dispatcher(event);
+    const result = await response.json();
+    expect(result.success).toBe(true);
+    expect(result.token).toBeDefined();
+    expect(result.token.token).toMatch(/^[a-f0-9]{64}$/);
+  });
+});

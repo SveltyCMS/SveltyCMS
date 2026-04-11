@@ -1,21 +1,21 @@
 ---
-path: 'docs/architecture/initialization-workflow.mdx'
-title: 'SveltyCMS Complete Workflow Guide'
-description: 'Comprehensive guide covering installation, initialization, testing, and CI/CD workflows for SveltyCMS'
+path: "docs/architecture/initialization-workflow.mdx"
+title: "SveltyCMS Complete Workflow Guide"
+description: "Comprehensive guide covering installation, initialization, testing, and CI/CD workflows for SveltyCMS"
 order: 10
-icon: 'mdi:workflow'
-author: 'admin'
-created: '2025-10-14'
-updated: '2025-10-25'
+icon: "mdi:workflow"
+author: "SveltyCMS Team"
+created: "2025-10-14"
+updated: "2026-03-27"
 tags:
-  - 'architecture'
-  - 'initialization'
-  - 'setup'
-  - 'workflow'
-  - 'collections'
-  - 'installation'
-  - 'testing'
-  - 'ci-cd'
+  - "architecture"
+  - "initialization"
+  - "setup"
+  - "workflow"
+  - "collections"
+  - "installation"
+  - "testing"
+  - "ci-cd"
 ---
 
 # SveltyCMS Complete Workflow Guide
@@ -243,23 +243,23 @@ bun add pg
 Create `config/private.ts` in the project root:
 
 ```typescript
-import { createPrivateConfig } from '../src/utils/config';
+import { createPrivateConfig } from "../src/utils/config";
 
 export const privateEnv = createPrivateConfig({
-	// Database Configuration
-	DB_TYPE: 'mongodb',
-	DB_HOST: 'localhost',
-	DB_PORT: 27017,
-	DB_NAME: 'sveltycms',
-	DB_USER: 'admin',
-	DB_PASSWORD: 'your_secure_password',
+  // Database Configuration
+  DB_TYPE: "mongodb",
+  DB_HOST: "localhost",
+  DB_PORT: 27017,
+  DB_NAME: "sveltycms",
+  DB_USER: "admin",
+  DB_PASSWORD: "your_secure_password",
 
-	// Security (generate with: openssl rand -hex 32)
-	JWT_SECRET_KEY: 'your_generated_secret_here',
-	ENCRYPTION_KEY: 'your_encryption_key_here',
+  // Security (generate with: openssl rand -hex 32)
+  JWT_SECRET_KEY: "your_generated_secret_here",
+  ENCRYPTION_KEY: "your_encryption_key_here",
 
-	// Multi-Tenancy (optional)
-	MULTI_TENANT: false
+  // Multi-Tenancy (optional)
+  MULTI_TENANT: false,
 });
 ```
 
@@ -534,11 +534,11 @@ graph TB
         A12[User: Admin Form] --> A13[Action: completeSetup]
         A13 --> A14[Create Admin + Session]
         A13 --> A15[Init Global System]
-        A13 --> A16[ContentManager Init]
+        A13 --> A16[Content System Init]
         A16 --> A17[READY State]
     end
 
-    subgraph "Server Restart"
+    subgraph "Server Restart (Phased)"
         B1[Server Start] -->|private.ts exists| B2[Vite: Normal Mode]
         B2 --> B3[Scan Compiled Collections]
         B3 --> B4{For Each Collection}
@@ -548,11 +548,10 @@ graph TB
         B6 --> B8[First Request]
         B7 --> B8
         B8 --> B9[handleSystemState]
-        B9 --> B10[dbInitPromise]
-        B10 --> B11[Connect Database]
-        B11 --> B12[Load Settings]
-        B12 --> B13[Init Services]
-        B13 --> B14[READY State]
+        B9 --> B10[Boot Phase: SETUP]
+        B10 --> B11[Boot Phase: CORE]
+        B11 --> B12[Boot Phase: FULL]
+        B12 --> B13[READY State]
     end
 
     A17 -.->|Restart Server| B1
@@ -589,7 +588,7 @@ graph TB
     N --> O[Action: completeSetup]
     O --> P[Create Admin User]
     O --> Q[Initialize Global System]
-    O --> R[Initialize ContentManager]
+    O --> R[Initialize Content System]
     O --> S[Set Session Cookie]
 
     S --> T[Redirect to CMS]
@@ -618,21 +617,19 @@ graph TB
 
     H --> I[First HTTP Request]
     I --> J[handleSystemState]
-    J --> K[dbInitPromise]
-    K --> L[Load private.ts]
-    K --> M[Connect to Database]
-    K --> N[Load Settings]
-    K --> O[Initialize Services]
+    J --> K[Boot Phase: SETUP (Connection)]
+    K --> L[Boot Phase: CORE (Auth/Settings)]
+    L --> M[Boot Phase: FULL (Content/Widgets)]
+    M --> N[READY State]
 
-    O --> P[READY State]
-    P --> Q[ContentManager Auto-Init]
+    N --> Q[Content System Auto-Init]
     Q --> R[Register Collections]
 
     style A fill:#f0f0f0,stroke:#333,stroke-width:3px
     style B fill:#e0e0e0,stroke:#333,stroke-width:2px
     style G fill:#e0e0e0,stroke:#333,stroke-width:2px
     style H fill:#d0d0d0,stroke:#333,stroke-width:3px
-    style P fill:#d0d0d0,stroke:#333,stroke-width:4px
+    style N fill:#d0d0d0,stroke:#333,stroke-width:4px
 ```
 
 ---
@@ -668,15 +665,15 @@ sequenceDiagram
 
 ```typescript
 export const privateEnv = createPrivateConfig({
-	DB_TYPE: 'mongodb',
-	DB_HOST: '', // ← Empty values
-	DB_PORT: 27017,
-	DB_NAME: '', // ← Empty values
-	DB_USER: '',
-	DB_PASSWORD: '',
-	JWT_SECRET_KEY: '', // ← Empty
-	ENCRYPTION_KEY: '', // ← Empty
-	MULTI_TENANT: false
+  DB_TYPE: "mongodb",
+  DB_HOST: "", // ← Empty values
+  DB_PORT: 27017,
+  DB_NAME: "", // ← Empty values
+  DB_USER: "",
+  DB_PASSWORD: "",
+  JWT_SECRET_KEY: "", // ← Empty
+  ENCRYPTION_KEY: "", // ← Empty
+  MULTI_TENANT: false,
 });
 ```
 
@@ -832,13 +829,13 @@ Body: {
 
 ```json
 {
-	"success": true,
-	"message": "Connection successful",
-	"details": {
-		"authenticated": true,
-		"dbStats": { "collections": 0, "dataSize": 0 },
-		"warnings": []
-	}
+  "success": true,
+  "message": "Connection successful",
+  "details": {
+    "authenticated": true,
+    "dbStats": { "collections": 0, "dataSize": 0 },
+    "warnings": []
+  }
 }
 ```
 
@@ -889,18 +886,18 @@ Called when user clicks "Next" after successful DB test. This process now runs i
 // File: src/routes/setup?/seedDatabase.ts
 
 export async function seedCollectionsForSetup(dbAdapter) {
-	// 1. Scan filesystem for compiled collections
-	const { scanCompiledCollections } = await import('@src/content/collectionScanner');
-	const collections = await scanCompiledCollections();
+  // 1. Scan filesystem for compiled collections
+  const { scanCompiledCollections } = await import("@src/content/collectionScanner");
+  const collections = await scanCompiledCollections();
 
-	// 2. Register each collection as a model
-	for (const schema of collections) {
-		await dbAdapter.collection.createModel(schema);
-		// ⚠️ Creates MongoDB collection: collection_<uuid>
-	}
+  // 2. Register each collection as a model
+  for (const schema of collections) {
+    await dbAdapter.collection.createModel(schema);
+    // ⚠️ Creates MongoDB collection: collection_<uuid>
+  }
 
-	// 3. Return first collection for fast redirect
-	return { firstCollection: { name: 'Posts', path: '/Collections/Posts' } };
+  // 3. Return first collection for fast redirect
+  return { firstCollection: { name: "Posts", path: "/Collections/Posts" } };
 }
 ```
 
@@ -957,8 +954,8 @@ Called when user submits admin user form.
 └─────────────────────────────────────────────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────┐
-│ 5. Initialize ContentManager                       │
-│    - contentManager.initialize(undefined, true)    │
+│ 5. Initialize Content System                       │
+│    - contentSystem.initialize(undefined, true)    │
 │    - Loads collections from database               │
 │    - Builds content structure cache                │
 └─────────────────────────────────────────────────────┘
@@ -971,7 +968,7 @@ Called when user submits admin user form.
                         ↓
 ┌─────────────────────────────────────────────────────┐
 │ 7. Send welcome email (optional, non-fatal)       │
-│    - POST /api/sendMail                            │
+│    - POST /api/send-mail                            │
 └─────────────────────────────────────────────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────┐
@@ -992,12 +989,12 @@ Called when user submits admin user form.
 
 ```json
 {
-	"success": true,
-	"message": "Setup complete! Welcome to SveltyCMS! 🎉",
-	"redirectPath": "/en/Collections/Posts",
-	"loggedIn": true,
-	"requiresHardReload": false,
-	"requiresServerRestart": false
+  "success": true,
+  "message": "Setup complete! Welcome to SveltyCMS! 🎉",
+  "redirectPath": "/en/Collections/Posts",
+  "loggedIn": true,
+  "requiresHardReload": false,
+  "requiresServerRestart": false
 }
 ```
 
@@ -1078,13 +1075,13 @@ The compilation system uses **content hashing** and **UUID preservation** to avo
 // __HASH__:a7f3e9c2d8b1f4a6e3c9d2b8f1a4e6c3
 
 export const schema = {
-	_id: '550e8400-e29b-41d4-a716-446655440000', // ← UUID preserved!
-	name: 'Posts',
-	icon: 'bi:file-text',
-	fields: [
-		{ label: 'Title', db_fieldName: 'title', widget: 'text' },
-		{ label: 'Content', db_fieldName: 'content', widget: 'richtext' }
-	]
+  _id: "550e8400-e29b-41d4-a716-446655440000", // ← UUID preserved!
+  name: "Posts",
+  icon: "bi:file-text",
+  fields: [
+    { label: "Title", db_fieldName: "title", widget: "text" },
+    { label: "Content", db_fieldName: "content", widget: "richtext" },
+  ],
 };
 ```
 
@@ -1114,7 +1111,7 @@ export const schema = {
 └─────────────────────────────────────────────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────┐
-│ ContentManager auto-initializes on first access    │
+│ Content System auto-initializes on first access    │
 │  - Scans compiledCollections                       │
 │  - Registers collection models in database         │
 │  - Builds content structure cache                  │
@@ -1182,14 +1179,14 @@ UUIDs are assigned **once** at compilation and **preserved** across restarts.
 ```typescript
 // Extract UUID from compiled JS file
 function extractUUIDFromJs(content: string): string | null {
-	const match = content.match(/_id:\s*["']([^"']+)["']/);
-	return match ? match[1] : null;
+  const match = content.match(new RegExp("_id:\\s*" + "[\"']" + "([^\"'\\s]+)" + "[\"']"));
+  return match ? match[1] : null;
 }
 
 // Extract hash from compiled JS file
 function extractHashFromJs(content: string): string | null {
-	const match = content.match(/__HASH__:(\w+)/);
-	return match ? match[1] : null;
+  const match = content.match(/__HASH__:(\w+)/);
+  return match ? match[1] : null;
 }
 ```
 
@@ -1198,13 +1195,13 @@ function extractHashFromJs(content: string): string | null {
 ```typescript
 // Injects UUID into schema during compilation
 const schemaUuidTransformer =
-	(uuid: string): ts.TransformerFactory<ts.SourceFile> =>
-	(context) =>
-	(sourceFile) => {
-		// Finds: export const schema = { ... }
-		// Injects: _id: "uuid-here"
-		// Result: export const schema = { _id: "uuid-here", ... }
-	};
+  (uuid: string): ts.TransformerFactory<ts.SourceFile> =>
+  (context) =>
+  (sourceFile) => {
+    // Finds: export const schema = { ... }
+    // Injects: _id: "uuid-here"
+    // Result: export const schema = { _id: "uuid-here", ... }
+  };
 ```
 
 ---
@@ -1240,7 +1237,7 @@ const schemaUuidTransformer =
 | Service           | Purpose                      | File                              |
 | ----------------- | ---------------------------- | --------------------------------- |
 | `dbAdapter`       | Database abstraction layer   | `src/databases/db.ts`             |
-| `ContentManager`  | Collection management        | `src/content/content-manager.ts`  |
+| `contentSystem`   | Public system facade         | `src/content/index.ts`            |
 | `Auth`            | Authentication/authorization | `src/databases/auth/index.ts`     |
 | `SettingsService` | Settings cache management    | `src/services/settingsService.ts` |
 
@@ -1271,14 +1268,14 @@ IDLE → INITIALIZING → READY → DEGRADED → FAILED
 // File: src/stores/system.ts
 
 export function transitionTo(newState: SystemState, reason?: string) {
-	const oldState = state.overallState;
-	state.overallState = newState;
-	state.performanceMetrics.stateTransitions.push({
-		from: oldState,
-		to: newState,
-		timestamp: Date.now(),
-		reason
-	});
+  const oldState = state.overallState;
+  state.overallState = newState;
+  state.performanceMetrics.stateTransitions.push({
+    from: oldState,
+    to: newState,
+    timestamp: Date.now(),
+    reason,
+  });
 }
 ```
 
@@ -1317,8 +1314,8 @@ collection_550e8400-e29b-41d4-a716-446655440000  (Only one table)
 // File: src/routes/setup?/seedDatabase.ts
 
 for (const schema of collections) {
-	await dbAdapter.collection.createModel(schema);
-	// ⚠️ Potential race condition here
+  await dbAdapter.collection.createModel(schema);
+  // ⚠️ Potential race condition here
 }
 ```
 
@@ -1328,10 +1325,10 @@ for (const schema of collections) {
 // Add mutex or serial execution
 const results = [];
 for (const schema of collections) {
-	const result = await dbAdapter.collection.createModel(schema);
-	results.push(result);
-	// Add small delay to avoid race conditions
-	await new Promise((resolve) => setTimeout(resolve, 100));
+  const result = await dbAdapter.collection.createModel(schema);
+  results.push(result);
+  // Add small delay to avoid race conditions
+  await new Promise((resolve) => setTimeout(resolve, 100));
 }
 ```
 
@@ -1372,7 +1369,7 @@ sequenceDiagram
     participant U as User (Browser)
     participant API as Setup API
     participant DB as Database
-    participant CM as ContentManager
+    participant CS as Content System
 
     V->>V: Check private.ts (missing)
     V->>V: Create blank private.ts
@@ -1394,7 +1391,7 @@ sequenceDiagram
     U->>API: POST /setup?/completeSetup
     API->>DB: Create admin user + session
     API->>API: initializeWithFreshConfig()
-    API->>CM: Initialize ContentManager
+    API->>CS: Initialize Content System
     API->>API: Invalidate caches
     API-->>U: Setup complete + redirect + session cookie
 
@@ -1435,7 +1432,7 @@ sequenceDiagram
 
     CM->>V: Compilation complete
     V->>DB: Initialize database connection
-    V->>CM: Initialize ContentManager
+    V->>CS: Initialize Content System
     CM->>DB: Register collection models
 ```
 
@@ -1532,15 +1529,15 @@ tests/bun/
 ### Writing Tests
 
 ```typescript
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect } from "bun:test";
 
-describe('ContentService', () => {
-	it('should create content', async () => {
-		const content = await service.create({
-			title: 'Test Post'
-		});
-		expect(content.title).toBe('Test Post');
-	});
+describe("ContentService", () => {
+  it("should create content", async () => {
+    const content = await service.create({
+      title: "Test Post",
+    });
+    expect(content.title).toBe("Test Post");
+  });
 });
 ```
 
@@ -1683,33 +1680,33 @@ For CI/CD environments, SveltyCMS provides scripts that replicate the setup wiza
 Mimics `/setup?/seedDatabase` endpoint:
 
 ```javascript
-import { writePrivateConfig } from '../src/routes/setup/writePrivateConfig.js';
-import { initSystemFromSetup } from '../src/routes/setup/seed.js';
-import { getSetupDatabaseAdapter } from '../src/routes/setup/utils.js';
+import { writePrivateConfig } from "../src/routes/setup/writePrivateConfig.js";
+import { initSystemFromSetup } from "../src/routes/setup/seed.js";
+import { getSetupDatabaseAdapter } from "../src/routes/setup/utils.js";
 
 async function main() {
-	const dbConfig = {
-		type: 'mongodb',
-		host: process.env.MONGO_HOST || 'localhost',
-		port: parseInt(process.env.MONGO_PORT || '27017'),
-		name: process.env.MONGO_DB || 'SveltyCMS',
-		user: process.env.MONGO_USER || '',
-		password: process.env.MONGO_PASS || ''
-	};
+  const dbConfig = {
+    type: "mongodb",
+    host: process.env.MONGO_HOST || "localhost",
+    port: parseInt(process.env.MONGO_PORT || "27017"),
+    name: process.env.MONGO_DB || "SveltyCMS",
+    user: process.env.MONGO_USER || "",
+    password: process.env.MONGO_PASS || "",
+  };
 
-	// Write config/private.ts
-	await writePrivateConfig(dbConfig);
+  // Write config/private.ts
+  await writePrivateConfig(dbConfig);
 
-	// Connect and seed
-	const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
-	await initSystemFromSetup(dbAdapter);
+  // Connect and seed
+  const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
+  await initSystemFromSetup(dbAdapter);
 
-	await dbAdapter.disconnect();
+  await dbAdapter.disconnect();
 }
 
 main().catch((err) => {
-	console.error('❌ Seeding failed:', err);
-	process.exit(1);
+  console.error("❌ Seeding failed:", err);
+  process.exit(1);
 });
 ```
 
@@ -1730,43 +1727,43 @@ MONGO_HOST=localhost MONGO_PORT=27017 bun run scripts/seed-cms.js
 Mimics `/setup?/completeSetup` endpoint:
 
 ```javascript
-import { Auth } from '../src/databases/auth/index.js';
-import { getSetupDatabaseAdapter } from '../src/routes/setup/utils.js';
+import { Auth } from "../src/databases/auth/index.js";
+import { getSetupDatabaseAdapter } from "../src/routes/setup/utils.js";
 
 async function main() {
-	const dbConfig = {
-		/* same as seed-cms.js */
-	};
-	const admin = {
-		username: process.env.ADMIN_USER || 'admin',
-		email: process.env.ADMIN_EMAIL || 'admin@example.com',
-		password: process.env.ADMIN_PASS || 'Admin123!'
-	};
+  const dbConfig = {
+    /* same as seed-cms.js */
+  };
+  const admin = {
+    username: process.env.ADMIN_USER || "admin",
+    email: process.env.ADMIN_EMAIL || "admin@example.com",
+    password: process.env.ADMIN_PASS || "Admin123!",
+  };
 
-	const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
-	const auth = new Auth(dbAdapter);
+  const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
+  const auth = new Auth(dbAdapter);
 
-	try {
-		await auth.createUser({
-			...admin,
-			role: 'admin',
-			isActive: true
-		});
-		console.log('✅ Admin user created!');
-	} catch (error) {
-		if (error.message?.includes('duplicate')) {
-			console.log('ℹ️  Admin user already exists');
-		} else {
-			throw error;
-		}
-	}
+  try {
+    await auth.createUser({
+      ...admin,
+      role: "admin",
+      isActive: true,
+    });
+    console.log("✅ Admin user created!");
+  } catch (error) {
+    if (error.message?.includes("duplicate")) {
+      console.log("ℹ️  Admin user already exists");
+    } else {
+      throw error;
+    }
+  }
 
-	await dbAdapter.disconnect();
+  await dbAdapter.disconnect();
 }
 
 main().catch((err) => {
-	console.error('❌ Admin creation failed:', err);
-	process.exit(1);
+  console.error("❌ Admin creation failed:", err);
+  process.exit(1);
 });
 ```
 
@@ -1885,8 +1882,8 @@ The system is production-ready and fully automated for both local development an
 
 ### Database
 
-- [Core Infrastructure](/docs/database/core-infrastructure.mdx) - Database adapter system
-- [MongoDB Methods](/docs/database/mongodb-methods.mdx) - MongoDB-specific implementation
+- [Core Infrastructure](/docs/architecture/database/core-infrastructure.mdx) - Database adapter system
+- [MongoDB Methods](/docs/architecture/database/mongodb-methods.mdx) - MongoDB-specific implementation
 
 ### Guides
 
@@ -1904,7 +1901,7 @@ The system is production-ready and fully automated for both local development an
 | `vite.config.ts`                   | Build-time setup detection | Rarely                          |
 | `src/hooks.server.ts`              | Runtime request gatekeeper | When adding middleware          |
 | `src/databases/db.ts`              | Database initialization    | When adding adapters            |
-| `src/content/content-manager.ts`   | Collection management      | When changing collection logic  |
+| `src/content/index.ts`             | Collection management      | When changing collection logic  |
 | `src/utils/compilation/compile.ts` | Smart compilation          | When changing collection format |
 
 ### Key Concepts

@@ -1,92 +1,112 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/BuzzForm/BuzzForm.svelte
-@component
-**This component handles the BuzzForms**
-
-### Props
-- `fields` {any[]} - Array of fields
-- `selectedFieldId` {number | string | undefined} - ID of the selected field
-- `onNodeUpdate` {Function} - Callback function to handle node updates
-- `onSelectField` {Function} - Callback function to handle field selection
-- `onDelete` {Function} - Callback function to handle field deletion
-
-### Features
-- Drag and drop support for reassigning collections
--->
-
+@file src/routes/(app)/config/collectionbuilder/buzz-form/buzz-form.svelte
+@component BuzzForm Canvas & Inspector Shell
+ -->
 <script lang="ts">
-	import { collections, setTargetWidget } from '@src/stores/collection-store.svelte';
-	import { toast } from '@src/stores/toast.svelte.ts';
-	import { widgets } from '@src/stores/widget-store.svelte.ts';
-	import { asAny, getGuiFields } from '@utils/utils';
-	import BuzzFormCanvas from './buzz-form-canvas.svelte';
-	import FieldInspector from './field-inspector.svelte';
-	// Components
-	import WidgetSidebar from './widget-sidebar.svelte';
+import {
+	collections,
+	setTargetWidget,
+} from "@src/stores/collection-store.svelte";
+import { toast } from "@src/stores/toast.svelte.ts";
+import { widgets } from "@src/stores/widget-store.svelte.ts";
+import { asAny, getGuiFields } from "@utils/utils";
+import { registerHotkey } from "@src/utils/hotkeys";
+import { onMount } from "svelte";
+import BuzzFormCanvas from "./buzz-form-canvas.svelte";
+import FieldInspector from "./field-inspector.svelte";
+import WidgetSidebar from "./widget-sidebar.svelte";
 
-	let selectedFieldId = $state<number | string | undefined>(undefined);
+let selectedFieldId = $state<number | string | undefined>(undefined);
+const fields = $derived((collections.active?.fields as any[]) || []);
 
-	// Sync fields with collection store
-	const fields = $derived((collections.active?.fields as any[]) || []);
+onMount(() => {
+	// Canvas Hotkeys
+	registerHotkey(
+		"delete",
+		() => {
+			if (selectedFieldId !== undefined) handleDeleteField();
+		},
+		"Delete Selected Field",
+	);
 
-	function handleAddWidget(key: string) {
-		const widgetInstance = asAny<any>(widgets.widgetFunctions)[key];
-		if (widgetInstance) {
-			const newId = fields.length + 1;
-			const newField = {
-				id: newId,
-				label: `New ${key}`,
-				db_fieldName: `field_${newId}_${key.toLowerCase()}`,
-				widget: { key, Name: key } as any,
-				icon: widgetInstance.Icon || 'mdi:widgets',
-				GuiFields: getGuiFields({ key }, asAny(widgetInstance.GuiSchema)),
-				permissions: {},
-				required: false
-			};
+	registerHotkey(
+		"mod+d",
+		() => {
+			if (selectedFieldId !== undefined) handleDuplicateField();
+		},
+		"Duplicate Selected Field",
+	);
+});
 
-			if (collections.active) {
-				collections.active.fields = [...fields, newField];
-			}
+function handleAddWidget(key: string) {
+	const widgetInstance = asAny<any>(widgets.widgetFunctions)[key];
+	if (widgetInstance) {
+		const newId = fields.length + 1;
+		const newField = {
+			id: newId,
+			label: `New ${key}`,
+			db_fieldName: `field_${newId}_${key.toLowerCase()}`,
+			widget: { key, Name: key } as any,
+			icon: widgetInstance.Icon || "mdi:widgets",
+			GuiFields: getGuiFields({ key }, asAny(widgetInstance.GuiSchema)),
+			permissions: {},
+			required: false,
+		};
 
-			// Auto-select the new field
-			handleSelectField(newField);
-			toast.success(`Added ${key} field to canvas`);
-		}
-	}
-
-	function handleNodeUpdate(updatedItems: any[]) {
 		if (collections.active) {
-			// Update IDs to match new order (optional but cleaner)
-			collections.active.fields = updatedItems.map((item, index) => ({
-				...item,
-				id: index + 1
-			}));
+			collections.active.fields = [...fields, newField];
 		}
+		handleSelectField(newField);
+		toast.success(`Added ${key} to canvas`);
 	}
+}
 
-	function handleSelectField(field: any) {
-		selectedFieldId = field.id;
-		setTargetWidget(field);
+function handleNodeUpdate(updatedItems: any[]) {
+	if (collections.active) {
+		collections.active.fields = updatedItems.map((item, index) => ({
+			...item,
+			id: index + 1,
+		}));
 	}
+}
 
-	function handleDeleteField() {
-		if (selectedFieldId !== undefined && collections.active) {
-			const newFields = fields.filter((f) => f.id !== selectedFieldId);
-			collections.active.fields = newFields.map((f, i) => ({ ...f, id: i + 1 }));
-			selectedFieldId = undefined;
-			setTargetWidget({ permissions: {} });
-			toast.info('Field removed from canvas');
-		}
+function handleSelectField(field: any) {
+	selectedFieldId = field.id;
+	setTargetWidget(field);
+}
+
+function handleDeleteField() {
+	if (selectedFieldId !== undefined && collections.active) {
+		const newFields = fields.filter((f) => f.id !== selectedFieldId);
+		collections.active.fields = newFields.map((f, i) => ({ ...f, id: i + 1 }));
+		selectedFieldId = undefined;
+		setTargetWidget({ permissions: {} });
+		toast.info("Field removed from canvas");
 	}
+}
+
+function handleDuplicateField() {
+	if (selectedFieldId !== undefined && collections.active) {
+		const original = fields.find((f) => f.id === selectedFieldId);
+		if (!original) return;
+
+		const newId = fields.length + 1;
+		const duplicatedField = {
+			...structuredClone(original),
+			id: newId,
+			label: `${original.label} (Copy)`,
+			db_fieldName: `${original.db_fieldName}_copy`,
+		};
+
+		collections.active.fields = [...fields, duplicatedField];
+		handleSelectField(duplicatedField);
+		toast.success("Field duplicated");
+	}
+}
 </script>
 
 <div class="flex h-[calc(100vh-180px)] overflow-hidden rounded-2xl border border-surface-200-800 bg-white dark:bg-surface-900 shadow-xl">
-	<!-- Left: Widget Palette -->
 	<WidgetSidebar onAddWidget={handleAddWidget} />
-
-	<!-- Center: Design Canvas -->
 	<BuzzFormCanvas {fields} {selectedFieldId} onNodeUpdate={handleNodeUpdate} onSelectField={handleSelectField} />
-
-	<!-- Right: Property Inspector -->
-	<FieldInspector onDelete={handleDeleteField} />
+	<FieldInspector onDelete={handleDeleteField} onDuplicate={handleDuplicateField} />
 </div>

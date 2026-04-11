@@ -3,85 +3,94 @@
  * @description Client-safe relation token resolution and permission checking
  */
 
-import type { FieldInstance } from '@src/content/types';
-import { hasPermissionByAction } from '@src/databases/auth/permissions';
-import type { User } from '@src/databases/auth/types';
-import { logger } from '@utils/logger';
-import type { TokenContext } from './types';
+import type { FieldInstance } from "@src/content/types";
+import { hasPermissionByAction } from "@src/databases/auth/permissions";
+import type { User } from "@src/databases/auth/types";
+import { logger } from "@utils/logger";
+import type { TokenContext } from "./types";
 
 // Checks if user has read access to a collection
 export async function canAccessCollection(
-	user: User | undefined,
-	collectionId: string,
-	_tenantId?: string | null,
-	roles?: import('@src/databases/auth/types').Role[]
+  user: User | undefined,
+  collectionId: string,
+  _tenantId?: string | null,
+  roles?: import("@src/databases/auth/types").Role[],
 ): Promise<boolean> {
-	if (!user) {
-		return false;
-	}
+  if (!user) {
+    return false;
+  }
 
-	// Admins have access to everything
-	const userRole = roles?.find((r) => r._id === user.role);
-	if (userRole?.isAdmin) {
-		return true;
-	}
+  // Admins have access to everything
+  const userRole = roles?.find((r) => r._id === user.role);
+  if (userRole?.isAdmin) {
+    return true;
+  }
 
-	// Check collection-specific read permission
-	return hasPermissionByAction(user, 'read', 'collection', collectionId, roles);
+  // Check collection-specific read permission
+  return hasPermissionByAction(user, "read", "collection", collectionId, roles);
 }
 
 // Middleware-aware token resolution that respects user permissions
 export async function resolveRelationToken(
-	tokenPath: string,
-	context: TokenContext,
-	user: User | undefined,
-	tenantId?: string | null
+  tokenPath: string,
+  context: TokenContext,
+  user: User | undefined,
+  tenantId?: string | null,
 ): Promise<unknown> {
-	// Parse relation path: entry.manufacturer.name
-	const parts = tokenPath.split('.');
-	if (parts.length < 3 || parts[0] !== 'entry') {
-		return null;
-	}
+  // Parse relation path: entry.manufacturer.name
+  const parts = tokenPath.split(".");
+  if (parts.length < 3 || parts[0] !== "entry") {
+    return null;
+  }
 
-	const [, relationField, ...nestedPath] = parts;
-	const relationData = context.entry?.[relationField];
+  const [, relationField, ...nestedPath] = parts;
+  const relationData = context.entry?.[relationField];
 
-	if (!relationData) {
-		return null;
-	}
+  if (!relationData) {
+    return null;
+  }
 
-	// Security check: Verify user has access to the related collection
-	// This is enforced during token registration, but double-check at resolution time
-	const schema = context.collection;
-	if (schema) {
-		const field = (schema.fields as FieldInstance[]).find((f) => (f.db_fieldName || f.label) === relationField);
+  // Security check: Verify user has access to the related collection
+  // This is enforced during token registration, but double-check at resolution time
+  const schema = context.collection;
+  if (schema) {
+    const field = (schema.fields as FieldInstance[]).find(
+      (f) => (f.db_fieldName || f.label) === relationField,
+    );
 
-		if (field?.widget?.Name === 'Relation') {
-			const relatedCollectionId = (field.widget as unknown as { collection: string }).collection;
-			const hasAccess = await canAccessCollection(user, relatedCollectionId, tenantId, context.roles);
+    if (field?.widget?.Name === "Relation") {
+      const relatedCollectionId = (field.widget as unknown as { collection: string }).collection;
+      const hasAccess = await canAccessCollection(
+        user,
+        relatedCollectionId,
+        tenantId,
+        context.roles,
+      );
 
-			if (!hasAccess) {
-				logger.warn(`Unauthorized relation access attempt: user=${user?._id}, field=${relationField}`);
-				return '[Access Denied]';
-			}
-		}
-	}
+      if (!hasAccess) {
+        logger.warn(
+          `Unauthorized relation access attempt: user=${user?._id}, field=${relationField}`,
+        );
+        return "[Access Denied]";
+      }
+    }
+  }
 
-	// Navigate nested path
-	let value: unknown = relationData;
-	for (const key of nestedPath) {
-		if (Array.isArray(value)) {
-			value = value[0]; // For arrays, take first item
-		}
-		if (value && typeof value === 'object') {
-			value = (value as Record<string, unknown>)[key];
-		} else {
-			value = undefined;
-		}
-		if (value === undefined || value === null) {
-			break;
-		}
-	}
+  // Navigate nested path
+  let value: unknown = relationData;
+  for (const key of nestedPath) {
+    if (Array.isArray(value)) {
+      value = value[0]; // For arrays, take first item
+    }
+    if (value && typeof value === "object") {
+      value = (value as Record<string, unknown>)[key];
+    } else {
+      value = undefined;
+    }
+    if (value === undefined || value === null) {
+      break;
+    }
+  }
 
-	return value;
+  return value;
 }

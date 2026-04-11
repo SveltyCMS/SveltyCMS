@@ -1,0 +1,81 @@
+---
+path: "docs/tests/ci-performance-metrics.mdx"
+title: "CI/CD Performance & Bundle Size Analysis"
+description: "Documentation on monitoring bundle sizes and other performance metrics."
+author: "SveltyCMS Team"
+created: "2025-12-16"
+updated: "2026-04-03"
+tags:
+  - "testing"
+  - "performance"
+  - "ci-cd"
+  - "benchmarks"
+---
+
+# Bundle Size Analysis & Performance Metrics (April 2026)
+
+We actively monitor our application bundle size and API latency to prevent performance regressions. Our target is **sub-10ms database persistence** and **sub-1s cold starts**.
+
+## 📊 Enterprise Performance Matrix
+
+The **Enterprise Benchmark Matrix** is our primary tool for cross-database performance validation. It measures:
+
+- **REST API Latency**: E2E collection throughput.
+- **GraphQL Resolvers**: Efficiency and N+1 resolution.
+- **Relational Performance**: JOINs, population, and nested relations (Depth 2-3).
+- **Middleware Overhead**: Latency added by Security, Auth, and RBAC layers.
+- **Cold Start Time**: Server initialization latency.
+
+To run the full matrix across all supported databases:
+
+```bash
+bun run scripts/enterprise-matrix.ts
+```
+
+> [!NOTE]
+> This requires running Docker instances of MongoDB, PostgreSQL, and MariaDB.
+
+### Retention & Trend Analysis
+
+The matrix maintains a specialized retention policy to balance historical context with actionable trends:
+
+- **Trend Window**: Mermaid charts and trend indicators (🟢/🔴) analyze the **last 5 runs**.
+- **Historical Depth**: `history.json` persists up to **20 runs** per database variant before the oldest entries are pruned.
+- **Artifact Lifecycle**: Raw `.json` files in `tests/benchmarks/results/` are treated as temporary staging artifacts and are automatically cleaned up after documentation synchronization.
+
+## 🔗 Relational Performance Testing
+
+With the 2026 update, we've introduced specialized relational benchmarks to ensure that complex data structures remain performant:
+
+- **GQL Nested**: Tests Depth 2-3 relationship resolution.
+- **REST Relational Search**: Validates filtering by related fields via the aggregation engine.
+
+**File**: `tests/benchmarks/relational-performance.test.ts`
+
+## Running Analysis Locally
+
+To check the bundle size and basic performance locally:
+
+```bash
+bun run build:stats
+```
+
+This generates detailed reports including:
+
+- Size of each chunk (raw, gzipped, brotli).
+- Comparison with the previous build size.
+- Warnings reported if predefined performance budgets are exceeded.
+- An exported `bundle-report.json` designed for automated CI consumption.
+
+## 🧩 Widget Performance Auditing (Core & Custom)
+
+As part of the **Enterprise Matrix**, SveltyCMS performs a specialized overhead pass for widgets. This ensures that custom widgets do not introduce "Silent Regressions" into the core API.
+
+### The Audit Process:
+
+1. **Definition Pillar Profiling**: Measures the latency added by a widget's `modifyRequest` and `transform` logic in the server-side pipeline.
+2. **Aggregation Stress Test**: Verifies that custom `listSchemas` and search aggregations remain efficient as database sizes grow.
+3. **Core Baseline**: All custom widgets are measured against the **Input (Core)** baseline (~0.01ms overhead).
+
+> [!WARNING]
+> Custom widgets exceeding a **2ms per-field overhead** are flagged in the matrix as "Performance Hazards" and should be optimized using the **Vectorized Processing** patterns.

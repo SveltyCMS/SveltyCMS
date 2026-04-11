@@ -1,7 +1,7 @@
-import { contentManager } from '@src/content/content-manager';
-import type { Locale } from '@src/paraglide/runtime';
-import { logger } from '@utils/logger.server';
-import { SvelteMap } from 'svelte/reactivity';
+import { contentSystem } from "@src/content";
+import type { Locale } from "@src/paraglide/runtime";
+import { logger } from "@utils/logger.server";
+import { SvelteMap } from "svelte/reactivity";
 
 /**
  * Constructs a redirect URL to the first available collection, prefixed with the given language.
@@ -9,24 +9,28 @@ import { SvelteMap } from 'svelte/reactivity';
  * @param language The validated user language (e.g., 'en', 'de').
  */
 export async function fetchAndRedirectToFirstCollection(language: Locale): Promise<string | null> {
-	try {
-		logger.debug(`Fetching first collection path for language: ${language}`);
+  try {
+    logger.debug(`Fetching first collection path for language: ${language}`);
 
-		const firstCollection = await contentManager.getFirstCollection();
-		if (firstCollection?.path) {
-			// Ensure the collection path has a leading slash
-			const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
-			const redirectUrl = `/${language}${collectionPath}`;
-			logger.info(`Redirecting to first collection: ${firstCollection.name} at path: ${redirectUrl}`);
-			return redirectUrl;
-		}
+    const firstCollection = await contentSystem.getFirstCollection();
+    if (firstCollection?.path) {
+      // Ensure the collection path has a leading slash
+      const collectionPath = firstCollection.path.startsWith("/")
+        ? firstCollection.path
+        : `/${firstCollection.path}`;
+      const redirectUrl = `/${language}${collectionPath}`;
+      logger.info(
+        `Redirecting to first collection: ${firstCollection.name} at path: ${redirectUrl}`,
+      );
+      return redirectUrl;
+    }
 
-		logger.warn('No collections found via getFirstCollection(), returning null.');
-		return null; // Return null if no collections are configured
-	} catch (err) {
-		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
-		return null; // Return null on error
-	}
+    logger.warn("No collections found via getFirstCollection(), returning null.");
+    return null; // Return null if no collections are configured
+  } catch (err) {
+    logger.error("Error in fetchAndRedirectToFirstCollection:", err);
+    return null; // Return null on error
+  }
 }
 
 const cachedFirstCollectionPaths = new SvelteMap<Locale, { path: string; expiry: number }>();
@@ -38,24 +42,24 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
  * @param language The validated user language.
  */
 export async function getCachedFirstCollectionPath(language: Locale): Promise<string | null> {
-	const now = Date.now();
-	const cachedEntry = cachedFirstCollectionPaths.get(language);
+  const now = Date.now();
+  const cachedEntry = cachedFirstCollectionPaths.get(language);
 
-	// Return cached result if still valid
-	if (cachedEntry && now < cachedEntry.expiry) {
-		return cachedEntry.path;
-	}
+  // Return cached result if still valid
+  if (cachedEntry && now < cachedEntry.expiry) {
+    return cachedEntry.path;
+  }
 
-	// Fetch fresh data by calling the utility function
-	const result = await fetchAndRedirectToFirstCollection(language);
+  // Fetch fresh data by calling the utility function
+  const result = await fetchAndRedirectToFirstCollection(language);
 
-	// Cache the result if it's a valid path
-	if (result) {
-		cachedFirstCollectionPaths.set(language, {
-			path: result,
-			expiry: now + CACHE_DURATION
-		});
-	}
+  // Cache the result if it's a valid path
+  if (result) {
+    cachedFirstCollectionPaths.set(language, {
+      path: result,
+      expiry: now + CACHE_DURATION,
+    });
+  }
 
-	return result;
+  return result;
 }

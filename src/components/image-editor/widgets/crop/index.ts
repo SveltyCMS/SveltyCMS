@@ -6,12 +6,12 @@
  * - Crop
  * - Namespacing events to avoid conflicts with other tools
  */
-import type { Component } from 'svelte';
-import Tool from './tool.svelte';
+import type { Component } from "svelte";
+import Tool from "./tool.svelte";
 
 export default {
-	key: 'crop',
-	title: 'Crop',
-	icon: 'mdi:crop',
-	tool: Tool as unknown as Component<Record<string, unknown>>
+  key: "crop",
+  title: "Crop",
+  icon: "mdi:crop",
+  tool: Tool as unknown as Component<Record<string, unknown>>,
 };

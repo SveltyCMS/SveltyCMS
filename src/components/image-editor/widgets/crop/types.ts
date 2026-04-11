@@ -1,1 +1,1 @@
-export type CropShape = 'rectangle' | 'square' | 'circular';
+export type CropShape = "rectangle" | "square" | "circular";

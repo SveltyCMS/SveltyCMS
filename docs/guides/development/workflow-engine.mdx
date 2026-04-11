@@ -1,0 +1,86 @@
+---
+path: "docs/guides/development/workflow-engine.mdx"
+title: "Visual Workflow Engine"
+description: "Complete guide to building and managing content lifecycles using the visual FSM engine in SveltyCMS."
+order: 19
+icon: "mdi:state-machine"
+author: "SveltyCMS Team"
+created: "2026-03-14"
+updated: "2026-03-27"
+tags:
+  - "workflows"
+  - "fsm"
+  - "automation"
+  - "governance"
+---
+
+# Visual Workflow Engine
+
+The SveltyCMS Workflow Engine allows you to define complex, non-linear content lifecycles using a visual **Finite State Machine (FSM)** editor. This ensures strict governance and compliance across multi-stage editorial processes.
+
+---
+
+## 🏗️ Core Concepts
+
+### States
+
+A **State** represents a stage in the content lifecycle (e.g., `Draft`, `Legal Review`, `Live`).
+
+- **Start State**: The initial state for all new entries.
+- **Terminal States**: States from which no further transitions are possible (e.g., `Archived`).
+
+### Transitions
+
+**Transitions** define the valid paths between states.
+
+- **Triggers**: Actions that initiate a move (e.g., "Submit for Review").
+- **Guards**: Conditional logic that must pass for a transition to occur (e.g., "Requires valid SEO title").
+- **Actions**: Automated side effects (e.g., "Send notification to Legal team").
+
+---
+
+## 🎨 The Workflow Builder
+
+Located at **Config > Workflows**, the builder provides a node-based interface for architecting your lifecycles.
+
+### Creating a Workflow
+
+1. Click **New Workflow** and assign it to a collection.
+2. **Add States**: Use the canvas to place nodes for each stage.
+3. **Connect Nodes**: Drag from one state to another to create a transition.
+4. **Configure Details**: Click a transition to define its label, color, and requirements.
+
+### Integration with Content Editor
+
+Once active, the workflow replaces the standard "Publish" dropdown in the entry editor with a dynamic **Action Hub** matching the current state's valid transitions.
+
+---
+
+## 🔒 Governance & Security
+
+### Role-Based Transitions
+
+Restrict who can trigger specific transitions.
+
+- **Example**: Only users with the `Legal` role can transition content from `Legal Review` to `Ready for Publish`.
+
+### Signed Approval Links
+
+For external stakeholders without CMS access, the engine can generate HMAC-signed one-click approval links via the **Automation System**.
+
+---
+
+## 🤖 AI & Automation
+
+The Workflow Engine integrates deeply with:
+
+- **Automation System**: Automatically trigger workflows based on events.
+- **AI Agent**: Use the agent to "Analyze and advance" content based on quality checks.
+
+---
+
+## 📚 Related Documentation
+
+- **[Automation System](./automation-system.mdx)**: For triggering transitions via events.
+- **[Content System Architecture](../../architecture/index.mdx)**: For understanding node structures.
+- **[Access Management](../../architecture/security-plugin.mdx)**: For defining role permissions.

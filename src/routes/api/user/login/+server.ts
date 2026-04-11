@@ -1,123 +1,135 @@
 /** @file src/routes/api/user/login/+server.ts @description Quantum-resistant user authentication API endpoint features: [Argon2id password verification, AES-256-GCM session tokens, multi-tenant awareness, blocked user protection, user enumeration prevention] */
 
-import { getPrivateSettingSync } from '@src/services/settings-service';
-import { type HttpError, json } from '@sveltejs/kit';
+import { getPrivateSettingSync } from "@src/services/settings-service";
+import { type HttpError, json } from "@sveltejs/kit";
 // Unified Error Handling
-import { apiHandler } from '@utils/api-handler';
-import { AppError } from '@utils/error-handling';
+import { apiHandler } from "@utils/api-handler";
+import { AppError } from "@utils/error-handling";
 // System logger
-import { logger } from '@utils/logger.server';
+import { logger } from "@utils/logger.server";
 // Password utility
-import { verifyPassword } from '@utils/password';
+import { verifyPassword } from "@utils/password";
 
 async function getAuth() {
-	const { auth } = await import('@src/databases/db');
-	return auth;
+  const { auth } = await import("@src/databases/db");
+  return auth;
 }
 
 export const POST = apiHandler(async ({ request, cookies, locals }) => {
-	// The main try...catch block is for unexpected server errors (e.g., DB connection fails).
-	// Expected client errors (like 401) are handled by `throw error()`, which SvelteKit catches.
-	try {
-		const { user: existingUser, tenantId } = locals; // Destructure user and tenantId
+  // The main try...catch block is for unexpected server errors (e.g., DB connection fails).
+  // Expected client errors (like 401) are handled by `throw error()`, which SvelteKit catches.
+  try {
+    const { user: existingUser, tenantId } = locals; // Destructure user and tenantId
 
-		const auth = await getAuth();
-		if (!auth) {
-			logger.error('Authentication system is not initialized.');
-			throw new AppError('Internal Server Error: Auth system not initialized', 500, 'AUTH_SYS_ERROR');
-		}
+    const auth = await getAuth();
+    if (!auth) {
+      logger.error("Authentication system is not initialized.");
+      throw new AppError(
+        "Internal Server Error: Auth system not initialized",
+        500,
+        "AUTH_SYS_ERROR",
+      );
+    }
 
-		// In multi-tenant mode, a tenantId is required for login.
-		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-			logger.error('Login attempt failed: Tenant ID is missing in a multi-tenant setup.');
-			throw new AppError('Could not identify the tenant for this request.', 400, 'TENANT_REQUIRED');
-		} // Prevent an already authenticated user from trying to log in again.
+    // In multi-tenant mode, a tenantId is required for login.
+    if (getPrivateSettingSync("MULTI_TENANT") && !tenantId) {
+      logger.error("Login attempt failed: Tenant ID is missing in a multi-tenant setup.");
+      throw new AppError("Could not identify the tenant for this request.", 400, "TENANT_REQUIRED");
+    } // Prevent an already authenticated user from trying to log in again.
 
-		if (existingUser) {
-			logger.warn('Authenticated user attempted to log in again.', {
-				userId: existingUser._id
-			});
-			throw new AppError('You are already authenticated.', 400, 'ALREADY_AUTHENTICATED');
-		}
+    if (existingUser) {
+      logger.warn("Authenticated user attempted to log in again.", {
+        userId: existingUser._id,
+      });
+      throw new AppError("You are already authenticated.", 400, "ALREADY_AUTHENTICATED");
+    }
 
-		const { email, password } = await request.json();
+    const { email, password } = await request.json();
 
-		if (!(email && password)) {
-			throw new AppError('Email and password are required.', 400, 'MISSING_CREDENTIALS');
-		}
+    if (!(email && password)) {
+      throw new AppError("Email and password are required.", 400, "MISSING_CREDENTIALS");
+    }
 
-		// --- MULTI-TENANCY: Scope user lookup to the current tenant ---
-		const userLookupCriteria: { email: string; tenantId?: string | null } = { email };
-		if (getPrivateSettingSync('MULTI_TENANT')) {
-			userLookupCriteria.tenantId = tenantId;
-		}
-		const user = await auth.getUserByEmail(userLookupCriteria); // **SECURITY**: Use a generic error message for both non-existent users and wrong passwords.
-		// This prevents "user enumeration" attacks.
+    // --- MULTI-TENANCY: Scope user lookup to the current tenant ---
+    const userLookupCriteria: { email: string; tenantId?: string | null } = { email };
+    if (getPrivateSettingSync("MULTI_TENANT")) {
+      userLookupCriteria.tenantId = tenantId;
+    }
+    const user = await auth.getUserByEmail(userLookupCriteria); // **SECURITY**: Use a generic error message for both non-existent users and wrong passwords.
+    // This prevents "user enumeration" attacks.
 
-		if (!user?.password) {
-			logger.warn(`Login attempt failed: User not found or password not set for email: ${email}`, { tenantId });
-			throw new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS');
-		} // **SECURITY**: Check if the user account is blocked.
+    if (!user?.password) {
+      logger.warn(`Login attempt failed: User not found or password not set for email: ${email}`, {
+        tenantId,
+      });
+      throw new AppError("Invalid credentials.", 401, "INVALID_CREDENTIALS");
+    } // **SECURITY**: Check if the user account is blocked.
 
-		if (user.blocked) {
-			logger.warn(`Blocked user attempted to log in: ${email}`, {
-				userId: user._id,
-				tenantId
-			});
-			throw new AppError('Your account has been suspended. Please contact support.', 403, 'USER_BLOCKED');
-		}
+    if (user.blocked) {
+      logger.warn(`Blocked user attempted to log in: ${email}`, {
+        userId: user._id,
+        tenantId,
+      });
+      throw new AppError(
+        "Your account has been suspended. Please contact support.",
+        403,
+        "USER_BLOCKED",
+      );
+    }
 
-		// QUANTUM-RESISTANT PASSWORD VERIFICATION
-		// Uses Argon2id: Memory-hard algorithm that resists quantum speedup
-		// - 64 MB memory per verification limits quantum parallelization
-		// - Grover's algorithm provides no advantage for memory-bound operations
-		// - Secure against quantum computers for 15-30+ years
-		const isValidPassword = await verifyPassword(user.password, password);
+    // QUANTUM-RESISTANT PASSWORD VERIFICATION
+    // Uses Argon2id: Memory-hard algorithm that resists quantum speedup
+    // - 64 MB memory per verification limits quantum parallelization
+    // - Grover's algorithm provides no advantage for memory-bound operations
+    // - Secure against quantum computers for 15-30+ years
+    const isValidPassword = await verifyPassword(user.password, password);
 
-		if (!isValidPassword) {
-			logger.warn(`Login attempt failed: Invalid password for user: ${email}`, {
-				userId: user._id,
-				tenantId
-			});
-			throw new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS');
-		}
+    if (!isValidPassword) {
+      logger.warn(`Login attempt failed: Invalid password for user: ${email}`, {
+        userId: user._id,
+        tenantId,
+      });
+      throw new AppError("Invalid credentials.", 401, "INVALID_CREDENTIALS");
+    }
 
-		// Credentials are valid, create a session.
-		// The expiration should ideally come from a central config.
+    // Credentials are valid, create a session.
+    // The expiration should ideally come from a central config.
 
-		const session = await auth.createSession({
-			user_id: user._id,
-			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }), // Add tenantId to the session
-			expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as import('@databases/db-interface').ISODateString // 24-hour session
-		}); // Cache user in session store
+    const session = await auth.createSession({
+      user_id: user._id,
+      ...(getPrivateSettingSync("MULTI_TENANT") && { tenantId }), // Add tenantId to the session
+      expires: new Date(
+        Date.now() + 24 * 60 * 60 * 1000,
+      ).toISOString() as import("@databases/db-interface").ISODateString, // 24-hour session
+    }); // Cache user in session store
 
-		const sessionCookie = auth.createSessionCookie(session._id);
-		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes as any);
+    const sessionCookie = auth.createSessionCookie(session._id);
+    cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes as any);
 
-		logger.info(`User logged in successfully: ${user.email}`, {
-			userId: user._id,
-			tenantId
-		});
+    logger.info(`User logged in successfully: ${user.email}`, {
+      userId: user._id,
+      tenantId,
+    });
 
-		return json({ success: true, message: 'Login successful.' });
-	} catch (err) {
-		if (err instanceof AppError) {
-			throw err;
-		}
-		// This block now only catches unexpected errors or deliberate `throw error()` calls.
-		const httpError = err as HttpError;
-		const status = httpError.status || 500;
-		const message = httpError.body?.message || 'An unexpected error occurred during login.'; // We don't log 4xx errors as "errors" because they are expected client-side issues.
+    return json({ success: true, message: "Login successful." });
+  } catch (err) {
+    if (err instanceof AppError) {
+      throw err;
+    }
+    // This block now only catches unexpected errors or deliberate `throw error()` calls.
+    const httpError = err as HttpError;
+    const status = httpError.status || 500;
+    const message = httpError.body?.message || "An unexpected error occurred during login."; // We don't log 4xx errors as "errors" because they are expected client-side issues.
 
-		if (status >= 500) {
-			logger.error('Internal server error during login:', {
-				error: message,
-				stack: err instanceof Error ? err.stack : undefined,
-				status
-			});
-		} // Re-throw the error so SvelteKit can format the final response.
-		// Or return a JSON response for API clients.
+    if (status >= 500) {
+      logger.error("Internal server error during login:", {
+        error: message,
+        stack: err instanceof Error ? err.stack : undefined,
+        status,
+      });
+    } // Re-throw the error so SvelteKit can format the final response.
+    // Or return a JSON response for API clients.
 
-		throw new AppError(message, status, 'LOGIN_FAILED');
-	}
+    throw new AppError(message, status, "LOGIN_FAILED");
+  }
 });

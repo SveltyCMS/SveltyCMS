@@ -132,4 +132,12 @@ jobs:
         env:
           # The GITHUB_TOKEN is automatically provided by GitHub Actions.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # Uncomment if you decide to publish to npm.
+          # 💡 Phase 2: Enable NPM publishing once core is separated
+          # NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Upload Logs on Failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-preview-log
+          path: preview.log

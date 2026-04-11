@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 @file src/components/token-picker.svelte
 @component TokenPicker – Floating token selector and configurator for input fields
 
@@ -278,7 +278,7 @@
 			window.removeEventListener('mousemove', move);
 			window.removeEventListener('mouseup', stop);
 		};
-		node.addEventListener('mousedown', (e) => {
+		const onMouseDown = (e: MouseEvent) => {
 			if ((e.target as HTMLElement).closest('button')) {
 				return;
 			}
@@ -286,8 +286,9 @@
 			y = e.clientY;
 			window.addEventListener('mousemove', move);
 			window.addEventListener('mouseup', stop);
-		});
-		return { destroy: () => node.removeEventListener('mousedown', () => {}) };
+		};
+		node.addEventListener('mousedown', onMouseDown);
+		return { destroy: () => node.removeEventListener('mousedown', onMouseDown) };
 	}
 </script>
 

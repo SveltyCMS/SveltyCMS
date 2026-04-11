@@ -11,7 +11,7 @@
  * - **Metrics Integration**: Comprehensive tracking viametrics-service *
  *
  * ### Features
- * - Session rotation every 15 minutes for active users
+ * - Session rotation every 60 minutes for active users (optimized)
  * - WeakRef cache with LRU eviction (top 100 hot sessions)
  * - Tenant isolation enforcement (prevents cross-tenant access)
  * - Rate-limited refresh attempts (100/min per IP)
@@ -21,606 +21,427 @@
  * @prerequisite handleSystemState and handleSetup have already confirmed readiness
  */
 
-import type { ISODateString } from '@databases/db-interface';
-import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
-import type { User } from '@src/databases/auth/types';
-import { cacheService, SESSION_CACHE_TTL_MS } from '@src/databases/cache-service';
-import { auth, dbAdapter } from '@src/databases/db';
-import { seedDemoTenant } from '@src/routes/setup/seed';
-import { metricsService } from '@src/services/metrics-service';
-import { getSystemState } from '@src/stores/system/state';
-import type { Handle, RequestEvent } from '@sveltejs/kit';
-import { error } from '@sveltejs/kit';
-import { AppError, handleApiError } from '@utils/error-handling';
-import { logger } from '@utils/logger.server';
-import { RateLimiter } from 'sveltekit-rate-limiter/server';
-import { dev } from '$app/environment';
+import type { ISODateString } from "@databases/db-interface";
+import { generateCsrfToken } from "@utils/security/csrf-utils";
+import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
+import type { User } from "@src/databases/auth/types";
+import type { DatabaseId } from "../content/types";
+import { cacheService, SESSION_CACHE_TTL_MS } from "@src/databases/cache/cache-service";
+import { getDbInitPromise, auth, dbAdapter } from "@src/databases/db";
+import { metricsService } from "@src/services/metrics-service";
+import type { Handle, RequestEvent } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
+import { AppError, handleApiError } from "@utils/error-handling";
+import { logger } from "@utils/logger.server";
+import { RateLimiter } from "sveltekit-rate-limiter/server";
+import { isStaticOrInternalRequest, isPublicRoute } from "@utils/hook-utils";
+import { isBootstrapRoute } from "@utils/setup-check";
+import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getTenantIdFromHostname } from "@utils/tenant-utils";
+import { dev } from "$app/environment";
 
-// --- IN-MEMORY SESSION CACHE WITH WEAKREF-BASED CLEANUP ---
+// --- MODULE-LEVEL CACHES & STATE ---
+let multiTenantCached: boolean | null = null;
+let demoModeCached: boolean | null = null;
+let rotationRateLimiter: RateLimiter | null = null;
 
-/**
- * WeakRef-based session cache for automatic garbage collection.
- * This approach allows the JavaScript engine to clean up unused sessions
- * without requiring full iteration through the cache.
- *
- * Benefits:
- * - Lower memory overhead in high-traffic scenarios
- * - Automatic cleanup of unused sessions
- * - Better for clustered/edge environments
- * - No periodic setInterval cleanup needed
- */
-
-interface SessionCacheEntry {
-	timestamp: number;
-	user: User;
+function getCachedSettings() {
+  if (multiTenantCached === null) multiTenantCached = !!getPrivateSettingSync("MULTI_TENANT");
+  if (demoModeCached === null) demoModeCached = !!getPrivateSettingSync("DEMO");
+  return { multiTenant: multiTenantCached, isDemoMode: demoModeCached };
 }
 
 /**
- * Main session cache using WeakRef for automatic GC.
- * Each entry can be garbage collected when no longer referenced.
+ * Lazy initialization for the rotation rate limiter.
+ * This runs only once per server lifecycle when the first protected request arrives.
  */
-const sessionCache = new Map<string, WeakRef<SessionCacheEntry>>();
+function initRotationRateLimiter() {
+  if (rotationRateLimiter) return rotationRateLimiter;
+  rotationRateLimiter = new RateLimiter({
+    IP: [100, "m"],
+    cookie: {
+      name: "session_rotation_limit",
+      secret: getPrivateSettingSync("JWT_SECRET_KEY") || "fallback-dev-secret",
+      rate: [100, "m"],
+      preflight: true,
+    },
+  });
+  return rotationRateLimiter;
+}
 
-/**
- * FinalizationRegistry to track when cache entries are garbage collected.
- * This allows us to clean up the Map keys when values are GC'd.
- */
+// --- IN-MEMORY SESSION CACHE WITH WEAKREF-BASED CLEANUP ---
+
+interface SessionCacheEntry {
+  timestamp: number;
+  user: User;
+}
+
+const sessionCache = new Map<string, WeakRef<SessionCacheEntry>>();
 const sessionCacheRegistry = new FinalizationRegistry<string>((sessionId) => {
-	sessionCache.delete(sessionId);
-	logger.trace(`Session cache entry GC'd: ${sessionId.substring(0, 8)}...`);
+  sessionCache.delete(sessionId);
 });
 
-/**
- * Strong references to prevent immediate GC of recently accessed sessions.
- * This LRU-style cache keeps the most recent N sessions in memory.
- */
 const MAX_STRONG_REFS = 100;
 const strongRefs = new Map<string, SessionCacheEntry>();
-
-/**
- * Prevents frequent DB lookups for invalid sessions.
- */
 const lastRefreshAttempt = new Map<string, number>();
-
-/**
- * Tracks last session rotation time to prevent excessive rotation.
- * Key: sessionId, Value: timestamp of last rotation
- */
 const lastRotationAttempt = new Map<string, number>();
 
 /**
- * Session rotation interval: 15 minutes
- * Balances security (regular token refresh) with performance (reduced DB writes)
+ * Session rotation interval: 60 minutes
+ * Balances security (regular token refresh) with reduced database write impact.
  */
-const SESSION_ROTATION_INTERVAL_MS = 15 * 60 * 1000;
+const SESSION_ROTATION_INTERVAL_MS = 60 * 60 * 1000;
 
-// Server-side dedup for demo tenant generation.
-// Prevents parallel requests (before Set-Cookie propagates) from creating multiple tenants.
 const pendingDemoTenants = new Map<string, string>();
-
-/**
- * Rate limiter for session rotation to prevent abuse.
- * Initialized lazily within handleAuthentication to ensure settings are ready.
- */
-let rotationRateLimiter: RateLimiter | null = null;
 
 /**
  * Gets a session from the cache, handling WeakRef dereferencing.
  */
 function getSessionFromCache(sessionId: string): SessionCacheEntry | null {
-	const now = Date.now();
-
-	// Check strong references first (most recent)
-	const strongRef = strongRefs.get(sessionId);
-	if (strongRef && now - strongRef.timestamp < SESSION_CACHE_TTL_MS) {
-		return strongRef;
-	}
-
-	// Check weak references
-	const weakRef = sessionCache.get(sessionId);
-	if (weakRef) {
-		const entry = weakRef.deref();
-		if (entry && now - entry.timestamp < SESSION_CACHE_TTL_MS) {
-			// Promote to strong reference
-			addToStrongRefs(sessionId, entry);
-			return entry;
-		}
-	}
-
-	return null;
+  const now = Date.now();
+  const strongRef = strongRefs.get(sessionId);
+  if (strongRef && now - strongRef.timestamp < SESSION_CACHE_TTL_MS) {
+    return strongRef;
+  }
+  const weakRef = sessionCache.get(sessionId);
+  if (weakRef) {
+    const entry = weakRef.deref();
+    if (entry && now - entry.timestamp < SESSION_CACHE_TTL_MS) {
+      addToStrongRefs(sessionId, entry);
+      return entry;
+    }
+  }
+  return null;
 }
 
 /**
  * Sets a session in the cache with WeakRef.
  */
 function setSessionInCache(sessionId: string, entry: SessionCacheEntry): void {
-	// Add to strong refs (LRU)
-	addToStrongRefs(sessionId, entry);
-
-	// Add to weak refs with GC tracking
-	const weakRef = new WeakRef(entry);
-	sessionCache.set(sessionId, weakRef);
-	sessionCacheRegistry.register(entry, sessionId);
+  addToStrongRefs(sessionId, entry);
+  const weakRef = new WeakRef(entry);
+  sessionCache.set(sessionId, weakRef);
+  sessionCacheRegistry.register(entry, sessionId);
 }
 
 /**
  * Adds/updates a session in the strong reference LRU cache.
  */
 function addToStrongRefs(sessionId: string, entry: SessionCacheEntry): void {
-	// Remove if exists (for LRU re-insertion)
-	if (strongRefs.has(sessionId)) {
-		strongRefs.delete(sessionId);
-	}
-
-	// Add to end (most recent)
-	strongRefs.set(sessionId, entry);
-
-	// Evict oldest if over limit
-	if (strongRefs.size > MAX_STRONG_REFS) {
-		const firstKey = strongRefs.keys().next().value;
-		if (firstKey) {
-			strongRefs.delete(firstKey);
-		}
-	}
+  if (strongRefs.has(sessionId)) strongRefs.delete(sessionId);
+  strongRefs.set(sessionId, entry);
+  if (strongRefs.size > MAX_STRONG_REFS) {
+    const firstKey = strongRefs.keys().next().value;
+    if (firstKey) strongRefs.delete(firstKey);
+  }
 }
 
-// Periodic cleanup of expired strong references and lastRefreshAttempt
-if (typeof setInterval !== 'undefined') {
-	setInterval(
-		() => {
-			const now = Date.now();
-
-			// Clean expired strong refs
-			for (const [sessionId, data] of strongRefs.entries()) {
-				if (now - data.timestamp > SESSION_CACHE_TTL_MS) {
-					strongRefs.delete(sessionId);
-				}
-			}
-
-			// Clean old refresh attempts
-			for (const [sessionId, timestamp] of lastRefreshAttempt.entries()) {
-				if (now - timestamp > 300_000) {
-					// 5 minutes
-					lastRefreshAttempt.delete(sessionId);
-				}
-			}
-
-			// Clean old rotation attempts
-			for (const [sessionId, timestamp] of lastRotationAttempt.entries()) {
-				if (now - timestamp > SESSION_ROTATION_INTERVAL_MS * 2) {
-					lastRotationAttempt.delete(sessionId);
-				}
-			}
-
-			logger.trace(`Session cache cleanup: ${strongRefs.size} strong refs, ${sessionCache.size} weak refs`);
-		},
-		5 * 60 * 1000
-	);
+// Periodic cleanup
+if (typeof setInterval !== "undefined") {
+  setInterval(
+    () => {
+      const now = Date.now();
+      for (const [sessionId, data] of strongRefs.entries()) {
+        if (now - data.timestamp > SESSION_CACHE_TTL_MS) strongRefs.delete(sessionId);
+      }
+      for (const [sessionId, timestamp] of lastRefreshAttempt.entries()) {
+        if (now - timestamp > 300_000) lastRefreshAttempt.delete(sessionId);
+      }
+      for (const [sessionId, timestamp] of lastRotationAttempt.entries()) {
+        if (now - timestamp > SESSION_ROTATION_INTERVAL_MS * 2)
+          lastRotationAttempt.delete(sessionId);
+      }
+    },
+    5 * 60 * 1000,
+  );
 }
 
 // --- UTILITY FUNCTIONS ---
 
-/** Derives tenant ID from hostname */
-function getTenantIdFromHostname(hostname: string, multiTenant: boolean): string | null {
-	if (!multiTenant) {
-		return null;
-	}
-
-	if (hostname === 'localhost' || hostname.startsWith('127.0.0.1') || hostname.startsWith('192.168.')) {
-		return 'default';
-	}
-
-	const parts = hostname.split('.');
-	if (parts.length > 2 && !['www', 'app', 'api', 'cdn', 'static'].includes(parts[0])) {
-		return parts[0];
-	}
-
-	return null;
-}
-
 /** Multi-layer user session retrieval (in-memory → distributed → DB) */
-async function getUserFromSession(sessionId: string, tenantId?: string | null): Promise<User | null> {
-	const now = Date.now();
+async function getUserFromSession(
+  sessionId: string,
+  tenantId?: DatabaseId | null,
+): Promise<User | null> {
+  const now = Date.now();
+  const memCached = getSessionFromCache(sessionId);
+  if (memCached) return memCached.user;
 
-	// Layer 1: In-memory cache with WeakRef (fastest)
-	const memCached = getSessionFromCache(sessionId);
-	if (memCached) {
-		logger.trace(`Session cache hit (memory): ${sessionId.substring(0, 8)}...`);
-		return memCached.user;
-	}
+  try {
+    const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
+    const redisCached = await cacheService.get<SessionCacheEntry>(cacheKey, tenantId ?? undefined);
+    if (redisCached && now - redisCached.timestamp < SESSION_CACHE_TTL_MS) {
+      setSessionInCache(sessionId, redisCached);
+      return redisCached.user;
+    }
+  } catch (err) {
+    logger.warn(`Redis session read failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
-	// Layer 2: Distributed cache (Redis)
-	try {
-		const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
-		const redisCached = await cacheService.get<SessionCacheEntry>(cacheKey, tenantId);
-		if (redisCached && now - redisCached.timestamp < SESSION_CACHE_TTL_MS) {
-			setSessionInCache(sessionId, redisCached);
-			logger.trace(`Session cache hit (redis): ${sessionId.substring(0, 8)}...`);
-			return redisCached.user;
-		}
-	} catch (err) {
-		logger.warn(`Redis session read failed: ${err instanceof Error ? err.message : String(err)}`);
-	}
+  const lastAttempt = lastRefreshAttempt.get(sessionId);
+  if (lastAttempt && now - lastAttempt < 60_000) return null;
+  lastRefreshAttempt.set(sessionId, now);
 
-	// Layer 3: Database (source of truth)
-	const lastAttempt = lastRefreshAttempt.get(sessionId);
-	if (lastAttempt && now - lastAttempt < 60_000) {
-		return null; // 1-minute cooldown
-	}
-	lastRefreshAttempt.set(sessionId, now);
+  if (!auth) return null;
 
-	if (!auth) {
-		// Only log as error if system is ready, otherwise suppress or log as debug
-		const sysState = getSystemState();
-		if (sysState.overallState === 'READY' || sysState.overallState === 'DEGRADED') {
-			logger.error('Auth service unavailable, skipping session validation.');
-		} else {
-			logger.debug('Auth service not ready, skipping session validation.');
-		}
-		return null;
-	}
-
-	try {
-		const user = await auth.validateSession(sessionId);
-		if (user) {
-			const sessionData: SessionCacheEntry = { user, timestamp: now };
-			setSessionInCache(sessionId, sessionData);
-			const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
-			await cacheService
-				.set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId)
-				.catch((err) => logger.warn(`Session cache set failed: ${err.message}`));
-			logger.trace(`Session validated from DB: ${sessionId.substring(0, 8)}...`);
-			return user;
-		}
-	} catch (err) {
-		logger.error(`Session validation failed for ${sessionId.substring(0, 8)}: ${err instanceof Error ? err.message : String(err)}`);
-	}
-
-	return null;
+  try {
+    const user = await auth.validateSession(sessionId as DatabaseId);
+    if (user) {
+      const sessionData: SessionCacheEntry = { user, timestamp: now };
+      setSessionInCache(sessionId, sessionData);
+      const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
+      await cacheService
+        .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as DatabaseId)
+        .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
+      return user;
+    }
+  } catch (err) {
+    logger.error(`Session validation failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  return null;
 }
 
 /**
  * Handles automatic session rotation for security.
- * Rotates session tokens every 15 minutes for active users to prevent session hijacking.
- *
- * @param event - SvelteKit request event
- * @param user - Authenticated user object
- * @param oldSessionId - Current session ID
- * @returns Promise<void>
  */
-async function handleSessionRotation(event: RequestEvent, user: User, oldSessionId: string): Promise<void> {
-	const now = Date.now();
+async function handleSessionRotation(
+  event: RequestEvent,
+  user: User,
+  oldSessionId: string,
+): Promise<void> {
+  const now = Date.now();
+  const lastRotation = lastRotationAttempt.get(oldSessionId);
+  if (lastRotation && now - lastRotation < SESSION_ROTATION_INTERVAL_MS) return;
 
-	// Check if rotation is needed (15-minute interval)
-	const lastRotation = lastRotationAttempt.get(oldSessionId);
-	if (lastRotation && now - lastRotation < SESSION_ROTATION_INTERVAL_MS) {
-		return; // Too soon for rotation
-	}
+  const limiter = initRotationRateLimiter();
+  if (await limiter.isLimited(event)) return;
 
-	// Rate limit check
-	if (rotationRateLimiter && (await rotationRateLimiter.isLimited(event))) {
-		logger.debug(`Session rotation rate limited for session ${oldSessionId.substring(0, 8)}...`);
-		return;
-	}
+  try {
+    if (!(auth?.createSession && auth?.destroySession)) return;
 
-	// Attempt rotation
-	try {
-		if (!(auth?.createSession && auth?.destroySession)) {
-			logger.warn('Session rotation not supported by auth adapter');
-			return;
-		}
+    const newSession = await auth.createSession({
+      user_id: user._id as DatabaseId,
+      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() as ISODateString,
+      tenantId: event.locals.tenantId as DatabaseId,
+    });
 
-		// Create new session with same user
-		const newSession = await auth.createSession({
-			user_id: user._id,
-			expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() as ISODateString, // 30 days
-			tenantId: event.locals.tenantId
-		});
+    if (newSession && newSession._id !== oldSessionId) {
+      const newSessionId = newSession._id;
+      const isProd = !dev && process.env.TEST_MODE !== "true";
+      const isSecure =
+        event.url.protocol === "https:" || (event.url.hostname !== "localhost" && isProd);
+      const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
-		if (newSession && newSession._id !== oldSessionId) {
-			const newSessionId = newSession._id;
+      event.cookies.set(cookieName, newSessionId, {
+        path: "/",
+        httpOnly: true,
+        secure: isSecure,
+        sameSite: isSecure ? "strict" : "lax",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+      generateCsrfToken(event.cookies, isSecure);
 
-			// Update cookie with new session ID
-			event.cookies.set(SESSION_COOKIE_NAME, newSessionId, {
-				path: '/',
-				httpOnly: true,
-				secure: event.url.protocol === 'https:' || (event.url.hostname !== 'localhost' && !dev && process.env.TEST_MODE !== 'true'),
-				sameSite: 'lax',
-				maxAge: 60 * 60 * 24 * 30 // 30 days
-			});
+      await auth.destroySession(oldSessionId as DatabaseId).catch(() => {});
+      invalidateSessionCache(oldSessionId, event.locals.tenantId as DatabaseId);
+      setSessionInCache(newSessionId, { user, timestamp: now });
+      lastRotationAttempt.set(newSessionId, now);
+      event.locals.session_id = newSessionId;
+    }
+  } catch (err) {
+    logger.error(`Session rotation failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
 
-			// Destroy old session
-			await auth
-				.destroySession(oldSessionId)
-				.catch((err) => logger.warn(`Failed to destroy old session ${oldSessionId.substring(0, 8)}: ${err.message}`));
+/**
+ * Handles automatic demo tenant generation and seeding.
+ */
+async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: boolean) {
+  const { cookies, url, locals } = event;
+  const tenantIdFromCookie = cookies.get("demo_tenant_id") || null;
 
-			// Invalidate old session from all caches
-			invalidateSessionCache(oldSessionId, event.locals.tenantId);
+  if (tenantIdFromCookie) {
+    locals.tenantId = tenantIdFromCookie as DatabaseId;
+    return;
+  }
 
-			// Cache new session
-			const sessionData: SessionCacheEntry = { user, timestamp: now };
-			setSessionInCache(newSessionId, sessionData);
+  if (cookies.get(SESSION_COOKIE_NAME) && !isUserPresent) return;
 
-			const cacheKey = event.locals.tenantId ? `session:${event.locals.tenantId}:${newSessionId}` : `session:${newSessionId}`;
-			await cacheService
-				.set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), event.locals.tenantId)
-				.catch((err) => logger.warn(`Failed to cache rotated session: ${err.message}`));
+  const sessionKey = url.hostname;
+  const existing = pendingDemoTenants.get(sessionKey);
+  let tenantId: string;
 
-			// Update locals with new session ID
-			event.locals.session_id = newSessionId;
+  if (existing) {
+    tenantId = existing;
+  } else {
+    tenantId = crypto.randomUUID();
+    pendingDemoTenants.set(sessionKey, tenantId);
+    setTimeout(() => pendingDemoTenants.delete(sessionKey), 10_000);
 
-			// Track rotation
-			lastRotationAttempt.set(newSessionId, now);
+    try {
+      const { seedDemoTenant } = await import("@src/routes/setup/seed");
+      await seedDemoTenant(dbAdapter!, tenantId);
+    } catch (e) {
+      logger.error(`Failed to seed demo tenant ${tenantId}:`, e);
+    }
+  }
 
-			metricsService.incrementAuthValidations();
-			logger.info(`Session rotated for user ${user._id}: ${oldSessionId.substring(0, 8)}... → ${newSessionId.substring(0, 8)}...`);
-		}
-	} catch (err) {
-		// Non-fatal error - log but don't break the session
-		logger.error(`Session rotation failed for ${oldSessionId.substring(0, 8)}: ${err instanceof Error ? err.message : String(err)}`);
-
-		// If rotation fails due to invalid session, this is critical
-		if (err instanceof Error && err.message.includes('invalid')) {
-			event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-			event.locals.user = null;
-			event.locals.session_id = undefined;
-			invalidateSessionCache(oldSessionId, event.locals.tenantId);
-			throw new AppError('Session expired. Please log in again.', 401, 'SESSION_EXPIRED');
-		}
-	}
+  cookies.set("demo_tenant_id", tenantId, {
+    path: "/",
+    httpOnly: true,
+    secure: url.protocol === "https:",
+    sameSite: "lax",
+    maxAge: 3600,
+  });
+  locals.tenantId = tenantId as DatabaseId;
 }
 
 // --- MAIN HOOK ---
 
 export const handleAuthentication: Handle = async ({ event, resolve }) => {
-	const { locals, url, cookies } = event;
+  const { locals, url, cookies } = event;
+  const pathname = url.pathname;
 
-	// Dynamic imports for settings to avoid circular dependencies
-	const { getPrivateSettingSync } = await import('@src/services/settings-service');
+  // Initialize tenant context
+  locals.tenantId = null as any;
 
-	// Initialize rotation rate limiter if not already done
-	if (!rotationRateLimiter) {
-		rotationRateLimiter = new RateLimiter({
-			IP: [100, 'm'],
-			cookie: {
-				name: 'session_rotation_limit',
-				secret: getPrivateSettingSync('JWT_SECRET_KEY') || 'fallback-dev-secret',
-				rate: [100, 'm'],
-				preflight: true
-			}
-		});
-	}
+  if (isStaticOrInternalRequest(pathname)) return resolve(event);
 
-	// Skip internal or special requests
-	const ASSET_REGEX =
-		/^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|favicon\.ico|\.svelte-kit\/generated\/client\/nodes|.*\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map|json))/;
-	if (url.pathname.startsWith('/.well-known/') || url.pathname.startsWith('/_') || ASSET_REGEX.test(url.pathname)) {
-		return resolve(event);
-	}
+  // Ensure DB is initialized to at least CORE phase before proceeding with auth checks
+  await getDbInitPromise(false, "CORE");
 
-	// Skip public routes
-	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/settings/public', '/api/system/health'];
-	if (process.env.TEST_MODE === 'true') {
-		publicRoutes.push('/api/testing');
-	}
-	const isLocalizedPublic = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register|forgot-password)/.test(url.pathname);
+  // High-performance bypass for internal test orchestration
+  const testSecret = event.request.headers.get("x-test-secret");
+  if (process.env.TEST_MODE === "true" && testSecret) {
+    const expected = process.env.TEST_API_SECRET;
 
-	if (publicRoutes.some((r) => url.pathname.startsWith(r)) || isLocalizedPublic) {
-		return resolve(event);
-	}
+    if (expected && testSecret === expected) {
+      if (dbAdapter && auth) {
+        const adminEmail = event.request.headers.get("x-admin-email") || "admin@example.com";
+        const adminResult = await auth
+          .getUserByEmail({ email: adminEmail, tenantId: undefined }, { bypassTenantCheck: true })
+          .catch(() => null);
+        if (adminResult) {
+          locals.dbAdapter = dbAdapter;
+          locals.user = adminResult;
+          locals.permissions = adminResult.permissions || [];
+          return resolve(event);
+        } else if (!isBootstrapRoute(pathname)) {
+          console.log(`[AuthBypass] Admin user not found in DB for ${pathname}`);
+        }
+      } else if (!isBootstrapRoute(pathname)) {
+        console.log(`[AuthBypass] dbAdapter or auth not ready for ${pathname}`);
+      }
+    } else if (!isBootstrapRoute(pathname)) {
+      console.log(
+        `[AuthBypass] Secret mismatch for ${pathname}: got ${testSecret}, expected ${expected}`,
+      );
+    }
+  }
 
-	try {
-		// --- Setup Guard Removed ---
-		// handleSetup already handles unconfigured states, saving import overhead.
+  if (isPublicRoute(pathname, process.env.TEST_MODE === "true")) return resolve(event);
 
-		// Attach database adapter
-		locals.dbAdapter = dbAdapter;
-		if (!dbAdapter) {
-			logger.warn('Database adapter unavailable; system initializing.');
-			// During setup/initialization, skip authentication entirely
-			// handleSetup will enforce proper access control for setup routes
-			return await resolve(event);
-		}
+  try {
+    locals.dbAdapter = dbAdapter;
+    if (!dbAdapter) return await resolve(event);
 
-		// Step 1: Multi-tenancy (synchronous check)
-		const multiTenant = getPrivateSettingSync('MULTI_TENANT');
-		const isDemoMode = getPrivateSettingSync('DEMO');
+    const { multiTenant, isDemoMode } = getCachedSettings();
 
-		if (multiTenant) {
-			let tenantId: string | null = null;
+    if (multiTenant) {
+      if (isDemoMode) {
+        await handleDemoTenantAssignment(event, false);
+      } else {
+        locals.tenantId = getTenantIdFromHostname(url.hostname, true) as DatabaseId;
+      }
 
-			if (isDemoMode) {
-				// For demo mode, try to get tenantId from cookie first
-				tenantId = cookies.get('demo_tenant_id') || null;
+      const workerIndex = event.request.headers.get("x-test-worker-index");
+      if (process.env.TEST_MODE === "true" && workerIndex) {
+        locals.tenantId = `test-worker-${workerIndex}` as DatabaseId;
+      }
+    }
 
-				if (tenantId) {
-					logger.trace(`Existing demo tenant from cookie: ${tenantId}`);
-				} else {
-					// Server-side dedup: parallel requests from the same browser session
-					// arrive before the Set-Cookie response is sent back. Use the session
-					// cookie as a stable key to prevent multiple tenants being generated.
-					const sessionKey = cookies.get(SESSION_COOKIE_NAME) || url.hostname;
-					const existing = pendingDemoTenants.get(sessionKey);
-					if (existing) {
-						tenantId = existing;
-						logger.trace(`Reusing pending demo tenant for session: ${tenantId}`);
-					} else {
-						tenantId = crypto.randomUUID();
-						pendingDemoTenants.set(sessionKey, tenantId);
-						// Clean up after cookie has had time to propagate
-						setTimeout(() => pendingDemoTenants.delete(sessionKey), 10_000);
-						logger.info(`New demo tenant generated: ${tenantId}`);
+    const isProd = !dev && process.env.TEST_MODE !== "true";
+    const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
+    const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
-						// --- Trigger Tenant Seeding Here ---
-						try {
-							await seedDemoTenant(dbAdapter, tenantId);
-							logger.info(`✅ New demo tenant ${tenantId} seeded successfully.`);
-						} catch (e) {
-							logger.error(`Failed to seed demo tenant ${tenantId}:`, e);
-						}
-					}
+    const sessionId = cookies.get(cookieName) || cookies.get(SESSION_COOKIE_NAME);
+    if (sessionId) {
+      metricsService.incrementAuthValidations();
+      if (!auth) return await resolve(event);
 
-					// Set the cookie for future requests in this session
-					cookies.set('demo_tenant_id', tenantId, {
-						path: '/',
-						httpOnly: true,
-						secure: url.protocol === 'https:' || (url.hostname !== 'localhost' && !dev && process.env.TEST_MODE !== 'true'),
-						sameSite: 'lax',
-						maxAge: 60 * 60 // 60 minutes for a demo session to match cleanup TTL
-					});
-				}
-			} else {
-				// Standard multi-tenancy: resolve tenantId from hostname
-				tenantId = getTenantIdFromHostname(url.hostname, !!multiTenant);
-			}
+      const user = await getUserFromSession(sessionId as string, locals.tenantId as DatabaseId);
 
-			if (!tenantId) {
-				logger.error(`Tenant not found for hostname: ${url.hostname}`);
-				throw new AppError(`Tenant not found for hostname: ${url.hostname}`, 404, 'TENANT_NOT_FOUND');
-			}
-			locals.tenantId = tenantId;
-			logger.trace(`Tenant identified: ${tenantId}`);
-		}
+      if (isDemoMode && !locals.tenantId && !user) {
+        await handleDemoTenantAssignment(event, !!user);
+        generateCsrfToken(cookies, isSecure);
+      }
 
-		// Step 2: Session validation
-		const sessionId = cookies.get(SESSION_COOKIE_NAME);
-		if (sessionId) {
-			metricsService.incrementAuthValidations();
+      if (user) {
+        // --- NEW: Global Admin Exemption ---
+        // Global admins (no tenantId) are authorized to access any tenant path.
+        const isGlobalAdmin = !user.tenantId || user.tenantId === null;
+        if (
+          locals.tenantId &&
+          !isGlobalAdmin &&
+          user.tenantId &&
+          user.tenantId !== locals.tenantId
+        ) {
+          metricsService.incrementAuthFailures();
+          cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
+          throw new AppError("Tenant isolation violation", 403, "FORBIDDEN_TENANT");
+        }
+        locals.user = user;
+        locals.session_id = sessionId as DatabaseId;
+        locals.permissions = user.permissions || [];
+        await handleSessionRotation(event, user, sessionId);
+      } else {
+        metricsService.incrementAuthFailures();
+        cookies.delete(cookieName, { path: "/" });
+      }
+    }
 
-			// Check if auth service is ready before attempting validation
-			if (!auth) {
-				logger.debug('Auth service not ready during session validation - skipping validation but preserving cookie');
-				// Do NOT delete cookie here - allow retry on next request
-				return await resolve(event);
-			}
-
-			const user = await getUserFromSession(sessionId, locals.tenantId);
-			if (user) {
-				// Tenant isolation check
-				if (locals.tenantId && user.tenantId && user.tenantId !== locals.tenantId) {
-					logger.warn(`Tenant isolation violation: User ${user._id} (tenant: ${user.tenantId}) tried ${locals.tenantId}`);
-					metricsService.incrementAuthFailures();
-					cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-					throw new AppError('Access denied: Tenant isolation violation', 403, 'FORBIDDEN_TENANT');
-				}
-
-				// Set user in locals
-				locals.user = user;
-				locals.session_id = sessionId;
-				locals.permissions = user.permissions || [];
-				logger.trace(`User authenticated: ${user._id}`);
-
-				// Step 3: Automatic session rotation (security enhancement)
-				// Rotates session token every 15 minutes for active users
-				try {
-					// Bypass rate limiting for integration tests to avoid race conditions during parallel execution
-					const isTestMode = process.env.NODE_ENV === 'test' || process.env.TEST_MODE === 'true';
-
-					if (isTestMode || !(await rotationRateLimiter.isLimited(event))) {
-						await handleSessionRotation(event, user, sessionId);
-					} else {
-						logger.debug(`Session rotation rate limited for session ${sessionId.substring(0, 8)}...`);
-					}
-				} catch (rotationError) {
-					// Rotation errors are already handled in handleSessionRotation
-					// Just log additional context here if needed
-					if (rotationError instanceof Error && !rotationError.message.includes('Session expired')) {
-						logger.debug(`Non-critical rotation issue: ${rotationError.message}`);
-					}
-					// If it was "Session expired", it was likely rethrown or handled.
-					// If session rotation throws explicit error, we should probably let it bubble if strict.
-					// But handleSessionRotation usually handles its own errors unless critical.
-					// One critical path: "Session expired" error in rotation.
-				}
-			} else {
-				// Only delete cookie if auth was ready but session was invalid
-				// getUserFromSession returns null if session not found/expired OR if auth not ready
-				// But we checked !auth above, so here it means session is truly invalid
-				metricsService.incrementAuthFailures();
-				cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-				logger.trace(`Invalid session removed: ${sessionId.substring(0, 8)}...`);
-			}
-		}
-
-		return await resolve(event);
-	} catch (err) {
-		if (url.pathname.startsWith('/api/')) {
-			return handleApiError(err, event);
-		}
-
-		if (err instanceof AppError) {
-			throw error(err.status, err.message);
-		}
-
-		throw err;
-	}
+    return await resolve(event);
+  } catch (err) {
+    if (url.pathname.startsWith("/api/")) return handleApiError(err, event);
+    if (err instanceof AppError) throw error(err.status, err.message);
+    throw err;
+  }
 };
 
 // --- UTILITY EXPORTS ---
 
-/**
- * Invalidate a single session from all cache layers.
- * Use when logging out a user or detecting compromised sessions.
- *
- * @param sessionId - The session ID to invalidate
- * @param tenantId - Optional tenant ID for multi-tenant setups
- */
-export function invalidateSessionCache(sessionId: string, tenantId?: string | null): void {
-	sessionCache.delete(sessionId);
-	strongRefs.delete(sessionId);
-	lastRefreshAttempt.delete(sessionId);
-	lastRotationAttempt.delete(sessionId);
+export function invalidateSessionCache(sessionId: string, tenantId?: DatabaseId | null): void {
+  sessionCache.delete(sessionId);
+  strongRefs.delete(sessionId);
+  lastRefreshAttempt.delete(sessionId);
+  lastRotationAttempt.delete(sessionId);
 
-	const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
-	cacheService.delete(cacheKey, tenantId).catch((err) => logger.warn(`Failed to delete session from Redis: ${err.message}`));
-
-	logger.debug(`Session cache invalidated: ${sessionId.substring(0, 8)}...`);
+  const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
+  cacheService.delete(cacheKey, tenantId ?? undefined).catch(() => {});
 }
 
-/**
- * Clear session refresh cooldown to allow immediate validation.
- * Useful for testing or forced session validation.
- *
- * @param sessionId - The session ID to clear cooldown for
- */
 export function clearSessionRefreshAttempt(sessionId: string): void {
-	lastRefreshAttempt.delete(sessionId);
+  lastRefreshAttempt.delete(sessionId);
 }
 
-/**
- * Force session rotation for a specific session.
- * Useful for security responses or administrative actions.
- *
- * @param sessionId - The session ID to force rotation for
- */
 export function forceSessionRotation(sessionId: string): void {
-	lastRotationAttempt.delete(sessionId);
-	logger.info(`Forced rotation flag set for session ${sessionId.substring(0, 8)}...`);
+  lastRotationAttempt.delete(sessionId);
 }
 
-/**
- * Clears all session caches (maintenance only).
- * WARNING: This will force all users to re-authenticate on next request.
- * Only use during maintenance windows or security incidents.
- */
 export function clearAllSessionCaches(): void {
-	sessionCache.clear();
-	strongRefs.clear();
-	lastRefreshAttempt.clear();
-	lastRotationAttempt.clear();
-	logger.warn('⚠️  All session caches cleared - users will need to re-authenticate');
+  sessionCache.clear();
+  strongRefs.clear();
+  lastRefreshAttempt.clear();
+  lastRotationAttempt.clear();
+  multiTenantCached = null;
+  demoModeCached = null;
 }
 
-/**
- * Get session cache statistics for monitoring.
- * @returns Object containing cache sizes and metrics
- */
 export function getSessionCacheStats() {
-	return {
-		weakRefs: sessionCache.size,
-		strongRefs: strongRefs.size,
-		pendingRefreshes: lastRefreshAttempt.size,
-		pendingRotations: lastRotationAttempt.size,
-		maxStrongRefs: MAX_STRONG_REFS
-	};
+  return {
+    weakRefs: sessionCache.size,
+    strongRefs: strongRefs.size,
+    pendingRefreshes: lastRefreshAttempt.size,
+    pendingRotations: lastRotationAttempt.size,
+    maxStrongRefs: MAX_STRONG_REFS,
+  };
 }

@@ -9,104 +9,111 @@ Features: Visibility (public/private), requiredAuth, readRoles, writeRoles (mult
 -->
 
 <script lang="ts">
-	import { SvelteSet } from 'svelte/reactivity';
-	import type { Role } from '@src/databases/auth/types';
-	import type { WidgetFieldPermissions } from '@src/content/types';
-	import { collections } from '@src/stores/collection-store.svelte';
-	import { modalState } from '@utils/modal-state.svelte';
+import { SvelteSet } from "svelte/reactivity";
+import type { Role } from "@src/databases/auth/types";
+import type { WidgetFieldPermissions } from "@src/content/types";
+import { collections } from "@src/stores/collection-store.svelte";
+import { modalState } from "@utils/modal-state.svelte";
 
-	interface Props {
-		/** Roles for role-based access (e.g. from edit page data). Used when not in modal. */
-		roles?: Role[];
-	}
+interface Props {
+	/** Roles for role-based access (e.g. from edit page data). Used when not in modal. */
+	roles?: Role[];
+}
 
-	const { roles: rolesProp = [] }: Props = $props();
+const { roles: rolesProp = [] }: Props = $props();
 
-	const DEFAULT_PERMISSIONS: WidgetFieldPermissions = {
-		visibility: 'public',
-		requiredAuth: false,
-		readRoles: [],
-		writeRoles: []
-	};
+const DEFAULT_PERMISSIONS: WidgetFieldPermissions = {
+	visibility: "public",
+	requiredAuth: false,
+	readRoles: [],
+	writeRoles: [],
+};
 
-	function isWidgetFieldPermissions(p: unknown): p is WidgetFieldPermissions {
-		if (!p || typeof p !== 'object') return false;
-		const o = p as Record<string, unknown>;
-		return (
-			('visibility' in o && (o.visibility === 'public' || o.visibility === 'private')) ||
-			('requiredAuth' in o && typeof o.requiredAuth === 'boolean') ||
-			Array.isArray(o.readRoles) ||
-			Array.isArray(o.writeRoles)
-		);
-	}
-
-	/** Normalize raw permissions (legacy matrix or new shape) to WidgetFieldPermissions */
-	function normalizePermissions(raw: unknown): WidgetFieldPermissions {
-		if (isWidgetFieldPermissions(raw)) {
-			return {
-				visibility: raw.visibility ?? DEFAULT_PERMISSIONS.visibility,
-				requiredAuth: raw.requiredAuth ?? DEFAULT_PERMISSIONS.requiredAuth,
-				readRoles: Array.isArray(raw.readRoles) ? [...raw.readRoles] : [],
-				writeRoles: Array.isArray(raw.writeRoles) ? [...raw.writeRoles] : []
-			};
-		}
-		if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-			const matrix = raw as Record<string, Record<string, boolean>>;
-			const readRoles: string[] = [];
-			const writeRoles: string[] = [];
-			for (const [roleId, perms] of Object.entries(matrix)) {
-				if (perms?.read) readRoles.push(roleId);
-				if (perms?.write || perms?.update) writeRoles.push(roleId);
-			}
-			return {
-				visibility: 'public',
-				requiredAuth: false,
-				readRoles,
-				writeRoles
-			};
-		}
-		return { ...DEFAULT_PERMISSIONS };
-	}
-
-	// Prefer store target (has __fieldIndex for persistence); fall back to modal value when adding new field
-	const inModal = $derived(!!modalState.active);
-	const target = $derived(
-		(collections.targetWidget as Record<string, unknown> | undefined) ??
-			(inModal ? (modalState.active?.props?.value as Record<string, unknown> | undefined) : undefined)
+function isWidgetFieldPermissions(p: unknown): p is WidgetFieldPermissions {
+	if (!p || typeof p !== "object") return false;
+	const o = p as Record<string, unknown>;
+	return (
+		("visibility" in o &&
+			(o.visibility === "public" || o.visibility === "private")) ||
+		("requiredAuth" in o && typeof o.requiredAuth === "boolean") ||
+		Array.isArray(o.readRoles) ||
+		Array.isArray(o.writeRoles)
 	);
-	const roles = $derived(inModal ? ((modalState.active?.props as { roles?: Role[] })?.roles ?? rolesProp) : rolesProp);
-	const permissions = $derived(normalizePermissions(target?.permissions));
+}
 
-	function updatePermissions(next: Partial<WidgetFieldPermissions>) {
-		const merged: WidgetFieldPermissions = {
-			...permissions,
-			...next
+/** Normalize raw permissions (legacy matrix or new shape) to WidgetFieldPermissions */
+function normalizePermissions(raw: unknown): WidgetFieldPermissions {
+	if (isWidgetFieldPermissions(raw)) {
+		return {
+			visibility: raw.visibility ?? DEFAULT_PERMISSIONS.visibility,
+			requiredAuth: raw.requiredAuth ?? DEFAULT_PERMISSIONS.requiredAuth,
+			readRoles: Array.isArray(raw.readRoles) ? [...raw.readRoles] : [],
+			writeRoles: Array.isArray(raw.writeRoles) ? [...raw.writeRoles] : [],
 		};
-		if (!target) return;
-		const updatedTarget = { ...target, permissions: merged };
-		collections.setTargetWidget(updatedTarget as any);
-		// Store merges into active.fields when __fieldIndex is set; no need to call setCollection here
 	}
+	if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+		const matrix = raw as Record<string, Record<string, boolean>>;
+		const readRoles: string[] = [];
+		const writeRoles: string[] = [];
+		for (const [roleId, perms] of Object.entries(matrix)) {
+			if (perms?.read) readRoles.push(roleId);
+			if (perms?.write || perms?.update) writeRoles.push(roleId);
+		}
+		return {
+			visibility: "public",
+			requiredAuth: false,
+			readRoles,
+			writeRoles,
+		};
+	}
+	return { ...DEFAULT_PERMISSIONS };
+}
 
-	function toggleVisibility() {
-		updatePermissions({
-			visibility: permissions.visibility === 'public' ? 'private' : 'public'
-		});
-	}
+// Prefer store target (has __fieldIndex for persistence); fall back to modal value when adding new field
+const inModal = $derived(!!modalState.active);
+const target = $derived(
+	(collections.targetWidget as Record<string, unknown> | undefined) ??
+		(inModal
+			? (modalState.active?.props?.value as Record<string, unknown> | undefined)
+			: undefined),
+);
+const roles = $derived(
+	inModal
+		? ((modalState.active?.props as { roles?: Role[] })?.roles ?? rolesProp)
+		: rolesProp,
+);
+const permissions = $derived(normalizePermissions(target?.permissions));
 
-	function toggleRoleRead(roleId: string) {
-		const set = new SvelteSet(permissions.readRoles ?? []);
-		if (set.has(roleId)) set.delete(roleId);
-		else set.add(roleId);
-		updatePermissions({ readRoles: [...set] });
-	}
+function updatePermissions(next: Partial<WidgetFieldPermissions>) {
+	const merged: WidgetFieldPermissions = {
+		...permissions,
+		...next,
+	};
+	if (!target) return;
+	const updatedTarget = { ...target, permissions: merged };
+	collections.setTargetWidget(updatedTarget as any);
+	// Store merges into active.fields when __fieldIndex is set; no need to call setCollection here
+}
 
-	function toggleRoleWrite(roleId: string) {
-		const set = new SvelteSet(permissions.writeRoles ?? []);
-		if (set.has(roleId)) set.delete(roleId);
-		else set.add(roleId);
-		updatePermissions({ writeRoles: [...set] });
-	}
+function toggleVisibility() {
+	updatePermissions({
+		visibility: permissions.visibility === "public" ? "private" : "public",
+	});
+}
+
+function toggleRoleRead(roleId: string) {
+	const set = new SvelteSet(permissions.readRoles ?? []);
+	if (set.has(roleId)) set.delete(roleId);
+	else set.add(roleId);
+	updatePermissions({ readRoles: [...set] });
+}
+
+function toggleRoleWrite(roleId: string) {
+	const set = new SvelteSet(permissions.writeRoles ?? []);
+	if (set.has(roleId)) set.delete(roleId);
+	else set.add(roleId);
+	updatePermissions({ writeRoles: [...set] });
+}
 </script>
 
 {#if target}

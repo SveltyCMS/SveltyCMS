@@ -1,492 +1,115 @@
 ---
-path: 'docs/api/search-api.mdx'
-title: 'Search API'
-description: 'Complete API reference for full-text search across collections in SveltyCMS.'
-order: 9
-icon: 'mdi:magnify'
-author: 'admin'
-created: '2025-10-05'
-updated: '2025-10-05'
+path: "docs/api/search-api.mdx"
+title: "Search API Reference"
+description: "Programmatic interface for full-text and cross-collection search in SveltyCMS — query syntax, filtering, and performance."
+order: 44
+icon: "mdi:magnify-expand"
+author: "SveltyCMS Team"
+created: "2025-10-05"
+updated: "2026-04-01"
 tags:
-  - 'api'
-  - 'search'
-  - 'query'
-  - 'full-text'
+  - "api"
+  - "search"
+  - "query"
+  - "full-text"
 ---
 
-# Search API
+# Search API Reference
 
-## Overview
-
-The Search API provides powerful full-text search capabilities across collections. It supports advanced filtering, sorting, pagination, and permission-aware results.
-
-**Base Path:** `/api/search`
-
-## Authentication
-
-All search endpoints require authentication:
-
-```http
-Cookie: session=your-session-id
-```
-
-**Permissions Required:** Authenticated user (results filtered by permissions)
+The Search API is the primary **Content Delivery** interface for headless implementations. It provides a single `GET` endpoint to query content across one or multiple collections with substring matching, field-level filtering, and permission-aware results.
 
 ---
 
-## Endpoints
+## ⚡ Quick Start
 
-### 1. Global Search
+| Feature             | HTTP Endpoint                  | Local SDK Equivalent          |
+| :------------------ | :----------------------------- | :---------------------------- |
+| **Global Search**   | `GET /api/search?q=...`        | `locals.cms.collections.find` |
+| **Filtered Search** | `GET /api/search?filter={...}` | `locals.cms.queryBuilder`     |
 
-Searches across all or specified collections.
+---
 
-#### Request
+## 1. The Goal
 
-```http
-GET /api/search
-```
+Find specific content across the entire CMS or a subset of collections using natural language terms or exact field filters.
 
-**Query Parameters:**
+---
 
-- `q` (string, required) - Search query text
-- `collections` (string, optional) - Comma-separated collection names to search
-- `page` (number, optional) - Page number (1-based) - default: `1`
-- `limit` (number, optional) - Results per page (1-100) - default: `25`
-- `sortField` (string, optional) - Field to sort by - default: `updatedAt`
-- `sortDirection` (string, optional) - Sort direction (`asc`, `desc`) - default: `desc`
-- `filter` (string, optional) - JSON-encoded filter criteria
-- `status` (string, optional) - Filter by status (`published`, `draft`, `archived`)
+## 2. The Solution
 
-**Headers:**
+### External Headless Search
 
-```http
-Cookie: session=your-session-id
-```
+Ideal for search bars in React, Vue, or mobile applications.
 
-**Permissions Required:** Authenticated user
-
-#### Response
-
-**Success (200):**
+**Endpoint**: `GET /api/search?q=svelte&collections=posts,pages`
+**Response**:
 
 ```json
 {
-	"success": true,
-	"results": [
-		{
-			"_id": "entry123",
-			"collection": "posts",
-			"title": "Introduction to SveltyCMS",
-			"excerpt": "Learn how to use SveltyCMS...",
-			"author": "user123",
-			"status": "published",
-			"createdAt": "2025-10-01T10:00:00Z",
-			"updatedAt": "2025-10-05T14:30:00Z",
-			"score": 0.95
-		},
-		{
-			"_id": "entry124",
-			"collection": "pages",
-			"title": "About SveltyCMS",
-			"excerpt": "SveltyCMS is a headless CMS...",
-			"author": "user456",
-			"status": "published",
-			"createdAt": "2025-09-15T08:00:00Z",
-			"updatedAt": "2025-10-03T12:00:00Z",
-			"score": 0.87
-		}
-	],
-	"pagination": {
-		"page": 1,
-		"limit": 25,
-		"total": 42,
-		"totalPages": 2,
-		"hasNextPage": true,
-		"hasPreviousPage": false
-	},
-	"meta": {
-		"query": "SveltyCMS",
-		"collections": ["posts", "pages"],
-		"processingTime": "45ms"
-	}
+  "success": true,
+  "data": {
+    "items": [{ "_id": "123", "title": "Intro to Svelte", "collection": "posts" }],
+    "total": 1
+  }
 }
 ```
 
-**Empty Results (200):**
+### Local SDK (Recommended for SvelteKit)
 
-```json
-{
-	"success": true,
-	"results": [],
-	"pagination": {
-		"page": 1,
-		"limit": 25,
-		"total": 0,
-		"totalPages": 0
-	},
-	"meta": {
-		"query": "nonexistent",
-		"collections": ["posts"],
-		"processingTime": "12ms"
-	}
-}
-```
-
-**Error Responses:**
-
-```json
-// 401 Unauthorized
-{
-  "success": false,
-  "message": "Unauthorized"
-}
-
-// 400 Bad Request - Invalid filter
-{
-  "success": false,
-  "message": "Invalid filter parameter"
-}
-```
-
----
-
-### 2. Index Search
-
-Searches using full-text indexes for better performance.
-
-#### Request
-
-```http
-GET /api/index/search
-```
-
-**Query Parameters:**
-
-- `q` (string, required) - Search query
-- `collection` (string, required) - Collection to search
-- `fields` (string, optional) - Comma-separated fields to search
-- `limit` (number, optional) - Max results - default: `25`
-
-**Headers:**
-
-```http
-Cookie: session=your-session-id
-```
-
-**Permissions Required:** Authenticated user
-
-#### Response
-
-**Success (200):**
-
-```json
-{
-	"success": true,
-	"results": [
-		{
-			"_id": "entry123",
-			"title": "Search Result Title",
-			"content": "Content with matching query...",
-			"score": 0.95,
-			"highlights": {
-				"title": "Search <mark>Result</mark> Title",
-				"content": "Content with matching <mark>query</mark>..."
-			}
-		}
-	],
-	"total": 1,
-	"collection": "posts"
-}
-```
-
----
-
-## Search Features
-
-### Full-Text Search
-
-Searches across text fields with relevance scoring:
-
-```http
-GET /api/search?q=svelte+cms+headless
-```
-
-**Scoring Factors:**
-
-- Term frequency
-- Field weighting (title > content)
-- Document freshness
-- Exact vs partial matches
-
-### Field-Specific Search
-
-Search specific fields only:
-
-```http
-GET /api/search?q=author:john&collections=posts
-```
-
-### Advanced Filtering
-
-Combine search with filters:
-
-```http
-GET /api/search?q=cms&filter={"status":"published","author":"user123"}
-```
-
-### Date Range Search
-
-Filter by date ranges:
-
-```http
-GET /api/search?q=news&filter={"createdAt":{"$gte":"2025-01-01","$lte":"2025-12-31"}}
-```
-
----
-
-## Search Operators
-
-### Boolean Operators
-
-- **AND** - All terms must match: `svelte AND cms`
-- **OR** - Any term must match: `svelte OR cms`
-- **NOT** - Exclude terms: `cms NOT wordpress`
-
-### Wildcards
-
-- **Asterisk (\*)** - Multiple characters: `svelte*` matches "svelte", "sveltejs", "sveltekit"
-- **Question (?)** - Single character: `c?s` matches "cms", "css"
-
-### Phrase Search
-
-- **Quotes** - Exact phrase: `"headless cms"` matches exact phrase
-
-### Field Search
-
-- **Colon (:)** - Field-specific: `author:john` searches author field
-
----
-
-## Permission-Based Results
-
-Search results are automatically filtered by user permissions:
-
-### Admin Users
-
-- See all results regardless of status
-- Access to all collections
-
-### Non-Admin Users
-
-- Only see `published` content
-- Only collections they have `read` permission for
-- Cannot see others' draft content
-
-### Multi-Tenant Isolation
-
-- Results automatically scoped to user's tenant
-- Cross-tenant searches blocked
-
----
-
-## Database-Agnostic Implementation
-
-The Search API uses database-agnostic query methods:
+In your `+page.server.ts`, use the Local SDK to query the database directly with **0ms network overhead**.
 
 ```typescript
-// Uses QueryBuilder abstraction
-const queryBuilder = new QueryBuilder(dbAdapter);
+export const load = async ({ locals, url }) => {
+  const q = url.searchParams.get("q");
 
-// Search across collections
-const results = await queryBuilder
-	.collection(collectionName)
-	.search(searchQuery)
-	.filter(baseFilter)
-	.sort(sortField, sortDirection)
-	.paginate(page, limit)
-	.execute();
+  // High-performance internal search
+  const results = await locals.cms.collections.find("posts", {
+    filter: { title: { $regex: q, $options: "i" } },
+    limit: 10,
+  });
 
-// No direct database queries
-```
-
-**Search Methods:**
-
-- **MongoDB** - $text index and $regex queries
-- **PostgreSQL** - Full-text search with tsvector
-- **MySQL** - FULLTEXT indexes with MATCH AGAINST
-
-All abstracted through the adapter interface.
-
----
-
-## Multi-Tenancy Support
-
-When multi-tenant mode is enabled:
-
-- Search automatically scoped to tenant
-- Collections filtered by tenant
-- Results include tenant context
-
-**Tenant-Scoped Search:**
-
-```typescript
-const baseFilter = MULTI_TENANT ? { tenantId } : {};
-const results = await search(query, baseFilter);
+  return { results };
+};
 ```
 
 ---
 
-## Performance Optimization
+## 3. The Mechanics
 
-### Indexing Strategy
+The Search API executes queries **in parallel** across all authorized collections, applying a strict "Status Gate" to protect non-public data.
 
-Create text indexes for search fields:
+```mermaid
+sequenceDiagram
+    participant App as External App
+    participant API as Search API
+    participant Auth as Permission Layer
+    participant DB as Database Adapter
 
-```javascript
-// MongoDB
-db.collection('posts').createIndex({
-  title: 'text',
-  content: 'text',
-  excerpt: 'text'
-});
+    App->>API: GET /api/search?q=term
+    API->>Auth: Identify User & Tenant
+    Auth-->>API: Authorized Collections (Posts, Pages)
 
-// PostgreSQL
-CREATE INDEX posts_search_idx ON posts
-USING GIN (to_tsvector('english', title || ' ' || content));
+    par Query Posts
+        API->>DB: findMany(Posts, q, status:published)
+    and Query Pages
+        API->>DB: findMany(Pages, q, status:published)
+    end
+
+    DB-->>API: Results Array
+    API->>API: Flatten & Sort by updatedAt
+    API-->>App: JSON Payload (Items + Meta)
 ```
 
-### Caching
+### Status & Permission Gating
 
-- Popular searches cached for 5 minutes
-- Results cached by query hash
-- Invalidated on content updates
-
-### Pagination
-
-- Limit results to prevent performance issues
-- Use cursor-based pagination for large datasets
-- Default limit: 25, max: 100
+- **Public Users**: Are **always** restricted to `status: "published"`. Even if they pass `status: "draft"` in the URL, the system overrides it.
+- **Admins**: Can query any status (`draft`, `archived`, `scheduled`).
+- **Collection Access**: If a user lacks `read` permissions for a collection, that collection is silently excluded from the search results to prevent metadata leakage.
 
 ---
 
-## Search Analytics
+## Related Documents
 
-Track search queries for analytics:
-
-```json
-{
-	"query": "svelte cms",
-	"userId": "user123",
-	"timestamp": "2025-10-05T14:30:00Z",
-	"resultsCount": 42,
-	"clickedResult": "entry123"
-}
-```
-
----
-
-## Testing
-
-### JavaScript Example
-
-```javascript
-// Basic search
-const response = await fetch('/api/search?q=svelte&collections=posts', {
-	credentials: 'include'
-});
-const { results, pagination } = await response.json();
-
-// Advanced search with filters
-const advancedResponse = await fetch(
-	'/api/search?q=cms&filter=' +
-		encodeURIComponent(
-			JSON.stringify({
-				status: 'published',
-				author: 'user123'
-			})
-		) +
-		'&sortField=createdAt&sortDirection=desc',
-	{ credentials: 'include' }
-);
-
-// Paginated search
-for (let page = 1; page <= totalPages; page++) {
-	const pageResponse = await fetch(`/api/search?q=news&page=${page}&limit=10`, { credentials: 'include' });
-	const data = await pageResponse.json();
-	console.log(`Page ${page}:`, data.results.length, 'results');
-}
-```
-
-### cURL Example
-
-```bash
-# Simple search
-curl -X GET "https://cms.example.com/api/search?q=svelte" \
-  -H "Cookie: session=$SESSION"
-
-# Search specific collections
-curl -X GET "https://cms.example.com/api/search?q=cms&collections=posts,pages" \
-  -H "Cookie: session=$SESSION"
-
-# Advanced search with filters
-curl -X GET 'https://cms.example.com/api/search?q=news&filter={"status":"published"}' \
-  -H "Cookie: session=$SESSION"
-```
-
----
-
-## Search UI Components
-
-### Search Input with Autocomplete
-
-```svelte
-<script>
-	let query = '';
-	let results = [];
-
-	async function search() {
-		const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-		const data = await response.json();
-		results = data.results;
-	}
-
-	function debounce(fn, delay) {
-		let timeout;
-		return (...args) => {
-			clearTimeout(timeout);
-			timeout = setTimeout(() => fn(...args), delay);
-		};
-	}
-
-	const debouncedSearch = debounce(search, 300);
-</script>
-
-<input type="search" bind:value={query} on:input={debouncedSearch} placeholder="Search..." />
-
-{#each results as result}
-	<div class="result">
-		<h3>{result.title}</h3>
-		<p>{result.excerpt}</p>
-	</div>
-{/each}
-```
-
----
-
-## Related Documentation
-
-- [Collection API](/docs/api/collection-api.mdx)
-- [Database Architecture](/docs/dev-guide/database-methods-architecture)
-- [Query Optimization](/docs/dev-guide/query-optimization)
-- [Full-Text Indexing](/docs/admin/full-text-indexing)
-
----
-
-## Implementation Details
-
-For implementation details, see:
-
-- `src/routes/api/search/+server.ts` - Main search endpoint
-- `src/routes/api/index/search/+server.ts` - Index search
-- `src/utils/QueryBuilder.ts` - Query builder utility
-- `src/content/content-manager.ts` - Content manager
+- [Collection API Reference](./collection-api.mdx)
+- [GraphQL API Reference](./graphql-api.mdx)
+- [Local SDK vs HTTP API](./local-vs-http-api.mdx)

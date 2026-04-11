@@ -9,54 +9,73 @@
  * - Aggregations
  * - Admin Access Secured
  */
-import { json } from '@sveltejs/kit';
+import { json } from "@sveltejs/kit";
 
 // Mock Database for demonstration
 // In a real Receiver implementation, this would query the telemetry database.
 const MOCK_DB_DATA = Array.from({ length: 50 }, (_, i) => ({
-	id: crypto.randomUUID(),
-	domain: i % 5 === 0 ? 'internal.corporate.com' : `blog-${i}.example.com`,
-	version: i % 3 === 0 ? '0.5.0' : '0.4.9',
-	node_version: i % 2 === 0 ? 'v20.10.0' : 'v18.17.0',
-	db_type: i % 4 === 0 ? 'postgres' : 'mongodb',
-	country: ['US', 'DE', 'FR', 'GB', 'JP'][i % 5],
-	last_seen: new Date().toISOString(),
-	environment: i % 10 === 0 ? 'development' : 'production',
-	revenue_est: i % 5 === 0 ? '> $10M' : '< $1M'
+  id: crypto.randomUUID(),
+  domain: i % 5 === 0 ? "internal.corporate.com" : `blog-${i}.example.com`,
+  version: i % 3 === 0 ? "0.5.0" : "0.4.9",
+  node_version: i % 2 === 0 ? "v20.10.0" : "v18.17.0",
+  db_type: i % 4 === 0 ? "postgres" : "mongodb",
+  country: ["US", "DE", "FR", "GB", "JP"][i % 5],
+  last_seen: new Date().toISOString(),
+  environment: i % 10 === 0 ? "development" : "production",
+  revenue_est: i % 5 === 0 ? "> $10M" : "< $1M",
 }));
 
 // Unified Error Handling
-import { apiHandler } from '@utils/api-handler';
+import { apiHandler } from "@utils/api-handler";
 
 // ... (MOCK_DB_DATA definition)
 
+import { getPrivateSettingSync } from "@src/services/settings-service";
+import { AppError } from "@utils/error-handling";
+
 export const GET = apiHandler(async ({ locals }) => {
-	const isAdmin = locals.user?.isAdmin;
+  const { user } = locals;
+  const userRole = user?.role;
+  const isSuperAdmin = userRole === "super-admin";
+  const isMultiTenant = getPrivateSettingSync("MULTI_TENANT");
 
-	// 1. Calculate Aggregations
-	const stats = {
-		total_installs: MOCK_DB_DATA.length,
-		versions: aggregate(MOCK_DB_DATA, 'version'),
-		databases: aggregate(MOCK_DB_DATA, 'db_type'),
-		nodes: aggregate(MOCK_DB_DATA, 'node_version'),
-		countries: aggregate(MOCK_DB_DATA, 'country')
-	};
+  // SECURITY: In multi-tenant mode, telemetry stats are system-wide and require super-admin
+  if (isMultiTenant && !isSuperAdmin) {
+    logger.warn(`Unauthorized telemetry stats access attempt by user ${user?._id}`);
+    throw new AppError(
+      "Insufficient permissions: Only super-admins can view global telemetry statistics.",
+      403,
+      "FORBIDDEN",
+    );
+  }
 
-	const responseData = isAdmin ? { role: 'admin', aggregates: stats, raw_data: MOCK_DB_DATA } : { role: 'guest', aggregates: stats, raw_data: [] };
+  // 1. Calculate Aggregations
+  const stats = {
+    total_installs: MOCK_DB_DATA.length,
+    versions: aggregate(MOCK_DB_DATA, "version"),
+    databases: aggregate(MOCK_DB_DATA, "db_type"),
+    nodes: aggregate(MOCK_DB_DATA, "node_version"),
+    countries: aggregate(MOCK_DB_DATA, "country"),
+  };
 
-	return json({
-		success: true,
-		data: responseData,
-		message: 'Telemetry statistics retrieved (Mock)'
-	});
+  const responseData =
+    isSuperAdmin || !isMultiTenant
+      ? { role: "admin", aggregates: stats, raw_data: MOCK_DB_DATA }
+      : { role: "guest", aggregates: stats, raw_data: [] };
+
+  return json({
+    success: true,
+    data: responseData,
+    message: "Telemetry statistics retrieved (Mock)",
+  });
 });
 
 // Helper to group and count
 function aggregate(data: any[], key: string) {
-	const map = new Map();
-	data.forEach((item) => {
-		const val = item[key];
-		map.set(val, (map.get(val) || 0) + 1);
-	});
-	return Array.from(map.entries()).map(([label, count]) => ({ label, count }));
+  const map = new Map();
+  data.forEach((item) => {
+    const val = item[key];
+    map.set(val, (map.get(val) || 0) + 1);
+  });
+  return Array.from(map.entries()).map(([label, count]) => ({ label, count }));
 }

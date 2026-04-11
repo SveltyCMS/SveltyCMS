@@ -1,0 +1,155 @@
+---
+path: "docs/guides/development/widgets/index.mdx"
+title: "Widget System Overview"
+description: "Complete widget system overview covering 3-pillar architecture, management, and simplified navigation."
+order: 1
+icon: "mdi:widgets"
+author: "SveltyCMS Team"
+created: "2025-10-17"
+updated: "2026-03-27"
+tags:
+  - "developer"
+  - "widgets"
+  - "documentation"
+  - "architecture"
+---
+
+# Widget System Overview
+
+Welcome to the comprehensive SveltyCMS widget system documentation. The widget system is built on a modern **3-Pillar Architecture** providing type safety, performance optimization, and developer-friendly patterns.
+
+## 📚 Documentation Map
+
+| Guide                                                                   | Description                                                           |
+| :---------------------------------------------------------------------- | :-------------------------------------------------------------------- |
+| **[Architecture](../../../architecture/widgets/architecture.mdx)**      | Deep dive into the Factory Pattern, Runtime Discovery, and Data Flow. |
+| **[Development Guide](./development.mdx)**                              | Practical tutorial for building, testing, and translating widgets.    |
+| **[Marketplace](./marketplace.mdx)**                                    | Discovering, installing, and publishing widgets to the ecosystem.     |
+| **[Select Widget](../../../../src/widgets/core/select/readme.mdx)**     | Standard dropdown selection widget.                                   |
+| **[Repeater Widget](../../../../src/widgets/core/repeater/readme.mdx)** | Documentation for the core Repeater widget.                           |
+| **[Price Widget](../../../../src/widgets/custom/price/readme.mdx)**     | Documentation for the custom Price widget.                            |
+
+---
+
+## 🏗️ Core Concepts
+
+### The 3-Pillar Architecture
+
+Every widget in SveltyCMS follows a strict separation of concerns to ensure maintainability and performance:
+
+```mermaid
+graph TB
+    subgraph "Widget Structure"
+        D[📋 Definition<br/>index.ts]
+        I[✏️ Input Component<br/>input.svelte]
+        V[👁️ Display Component<br/>display.svelte]
+    end
+
+    D --> |"Configuration & Validation"| I
+    D --> |"Schema & Defaults"| V
+    I --> |"Interactive Editing"| U[User Interface]
+    V --> |"Read-only Display"| L[Lists & Views]
+
+    style D fill:#e1f5fe
+    style I fill:#f3e5f5
+    style V fill:#e8f5e8
+```
+
+1.  **Definition (`index.ts`)**: The immutable blueprint. Defines the schema, validation rules using Valibot, and default configuration.
+2.  **Input (`input.svelte`)**: The interactive editor used in the Content Manager. Handles user input, validation feedback, and two-way binding.
+3.  **Display (`display.svelte`)**: The lightweight read-only view. Optimized for lists, tables, and previews where interaction isn't needed.
+
+### Widget Categories
+
+- **Core Widgets**: Bundled with the system (e.g., Input, RichText, MediaUpload). Always available and cannot be disabled.
+- **Custom Widgets**: Optional extensions (e.g., SEO, ColorPicker). Can be enabled/disabled per tenant.
+- **Marketplace Widgets**: Downloadable widgets installed at runtime without server restarts.
+
+---
+
+## 🚀 Quick Start
+
+### Using Existing Widgets in Collections
+
+Defined in your collection schema `fields` array:
+
+```typescript
+import { widgets } from "@widgets";
+
+export default {
+  fields: [
+    widgets.Input({
+      label: "Title",
+      required: true,
+      translated: true, // Enable multilingual support
+    }),
+    widgets.RichText({
+      label: "Content",
+      toolbar: "full",
+    }),
+    widgets.MediaUpload({
+      label: "Featured Image",
+      accept: "image/*",
+    }),
+  ],
+};
+```
+
+### Creating a Simple Custom Widget
+
+Use the `createWidget` factory:
+
+```typescript
+// src/widgets/custom/rating/index.ts
+import { createWidget } from "@widgets/widget-factory";
+import * as v from "valibot";
+
+export default createWidget({
+  Name: "Rating",
+  Icon: "mdi:star",
+  Description: "5-star rating widget",
+  inputComponent: () => import("./input.svelte"),
+  displayComponent: () => import("./display.svelte"),
+
+  // Validation
+  validationSchema: v.number([v.minValue(1), v.maxValue(5)]),
+
+  defaults: {
+    value: 0,
+  },
+
+  // Enable AI-native generative layout support
+  jsonRender: true,
+});
+```
+
+---
+
+## 🛠️ System Features
+
+### Key Capabilities
+
+- ✅ **Type Safety**: Full TypeScript support throughout.
+- 🔄 **Runtime Ecosystem**: Widgets can be installed and loaded without rebuilding the application.
+- 🏢 **Multi-Tenant**: Different widget configurations per tenant.
+- 🗄️ **Database Agnostic**: Widgets work seamlessly with MongoDB, PostgreSQL, MySQL, and MariaDB via abstract adapters.
+- 🌍 **Multilingual**: Native support for `contentLanguage` in all text-based widgets.
+- 🧪 **Testable**: Standardized testing patterns for all pillars.
+- 🤖 **AI-Native Generative UI**: Widgets with the `jsonRender: true` flag are automatically registered in the central `json-render-svelte` catalog, allowing you to build dynamic, interactive layouts instantly through AI prompts.
+
+### Widget Management Interface
+
+Access `/config/widgetManagement` to:
+
+- View system health and widget statistics.
+- Enable/Disable widgets per tenant.
+- Browse and install widgets from the Marketplace.
+- Visualize the 3-Pillar implementation status.
+
+---
+
+## 🔗 Related Resources
+
+- **[Content Types](../collection-builder.mdx)**: Using widgets in collections.
+- **[API Development](../../../api/index.mdx)**: Widget API integration.
+- **[Security](../../../architecture/security/index.mdx)**: Widget security considerations.

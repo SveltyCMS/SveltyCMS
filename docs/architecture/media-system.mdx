@@ -1,41 +1,42 @@
 ---
-path: 'docs/architecture/media-system.mdx'
-title: 'Media System Architecture'
-description: 'In-depth technical architecture of the SveltyCMS Media & DAM Engine.'
+path: "docs/architecture/media-system.mdx"
+title: "Media System Architecture & Guide"
+description: "In-depth technical architecture and feature guide of the SveltyCMS Media & DAM Engine."
 order: 10
-icon: 'mdi:sitemap'
-author: 'admin'
-created: '2026-02-16'
-updated: '2026-02-16'
+icon: "mdi:sitemap"
+author: "SveltyCMS Team"
+created: "2026-02-16"
+updated: "2026-03-27"
 tags:
-  - 'architecture'
-  - 'media'
-  - 'dam'
-  - 'backend'
+  - "architecture"
+  - "media"
+  - "dam"
+  - "svelte5"
+  - "ai-tagging"
 ---
 
-# Media System Architecture
+# Media System Architecture & Guide
 
-The SveltyCMS Media system is designed as a high-performance, decoupled engine capable of handling enterprise-grade Digital Asset Management (DAM) needs. It separates storage concerns from processing logic and UI rendering.
+The SveltyCMS Media system is a decoupled, performance-first engine. Built with Svelte 5 and Sharp.js, it prioritizes native Node/Bun utilities over heavy third-party dependencies to ensure sub-millisecond latency and reduced bundle size.
 
 ---
 
 ## 🏗️ Layered Architecture
 
-The system follows a strict 3-layer architecture to ensure database and storage agnosticism.
+The system follows a strict 3-layer architecture to ensure storage and framework portability.
 
 ```mermaid
 graph TB
-    subgraph "Client Layer"
+    subgraph "Client Layer (Svelte 5 Runes)"
         UI[Media Gallery UI]
         UW[MediaUpload Widget]
         VGRID[virtual-media-grid.svelte]
-        TAG[tag-editor-modal.svelte]
+        EDITOR[ImageEditor Shell]
     end
 
     subgraph "API Layer (src/routes/api/media)"
         API1[GET /]
-        API2[POST /process]
+        API2[POST /edit]
         API3[POST /ai-tag]
         API4[GET /transform]
     end
@@ -50,67 +51,123 @@ graph TB
     subgraph "External Services"
         AIS[AIService.ts]
         DB[(Database)]
-        STORE[Storage: Local/S3/R2]
+        STORE[Storage: Local/S3/R2/Cloudinary]
     end
 
     UI --> VGRID
     VGRID --> API1
+    UI --> EDITOR
+    EDITOR --> API2
     API2 --> MS
     MS --> MPS
     MS --> MST
     MST --> CS
     MS --> DB
     CS --> STORE
-    MPS --> AIS
 ```
 
 ---
 
-## 📁 Key Components & File Structure
+## 📤 Media Upload & AI Processing Pipeline
 
-The "Media Engine" is consolidated within `src/utils/media/` for maximum modularity.
+The ingestion pipeline is designed to never block the user UI. Uploads execute critical persistence instantly, while heavy lifting (like AI tagging and image variants) runs asynchronously.
 
-### 1. Core Engine
+```mermaid
+sequenceDiagram
+    participant User
+    participant Gallery as Media Gallery / Upload
+    participant API as /api/media/process
+    participant Engine as MediaEngine
+    participant Storage as S3 / Local
+    participant AI as Local Ollama AI
 
-- **`mediaService.server.ts`**: The main entry point for all media business logic. Orchestrates uploads, versions, and metadata persistence.
-- **`mediaProcessing.server.ts`**: Handles technical analysis using Sharp.js. Extracts EXIF, IPTC, and XMP data and generates content hashes (SHA-256).
-- **`mediaStorage.server.ts`**: Abstraction layer for filesystem and cloud storage operations. Handles image resizing and path sanitization.
+    User->>Gallery: Drop Image
+    Gallery->>API: POST multipart/form-data
+    API->>Engine: Validate & Hash (Native SHA-256)
+    Engine->>Storage: Save Original File
+    Engine-->>API: ⚡ Return Success (0.17ms)
+    API-->>Gallery: Render Thumbnail
 
-### 2. Implementation Modules
+    note over Engine, AI: Background Job Processing
+    Engine->>Engine: Generate Variants (Sharp.js)
+    Engine->>AI: Analyze Image Content
+    AI-->>Engine: Return Tags & Descriptions
+    Engine->>Database: Update MediaItem Metadata
+```
 
-- **`cloudStorage.ts`**: Adapter for S3, Cloudflare R2, and Cloudinary.
-- **`mediaModels.ts`**: Centralized TypeScript interfaces for `MediaItem`, `MediaMetadata`, and `ResizedImage`.
-- **`advancedSearch.ts`**: Specialized logic for filtering media by complex criteria (camera model, dominant color, size ranges).
+### 1. High-Performance Client Rendering
+
+- **Virtual Scrolling**: `virtual-media-grid.svelte` handles 10,000+ files by rendering only visible items.
+- **Lazy Loading**: Images load only when visible using Intersection Observer.
+- **On-the-Fly Transforms**: Responsive images via `GET /api/media/transform` using Sharp.js.
+
+### 2. AI-Native Tagging (Ollama Integration)
+
+Unlike standard CMS platforms that use simple keyword matching, SveltyCMS features **native AI image analysis**.
+
+- **Fully Automated**: Triggers automatically during background job processing (`MediaService.saveMedia`).
+- **Privacy-First**: Uses local Ollama inference (`llava`), analyzing on your own infrastructure without exposing raw images to third-party APIs.
+
+### 3. Enterprise DAM Capabilities
+
+- **Batch Image Processor**: Apply Vivid, B&W, Sepia, and HDR filters to 100+ images simultaneously.
+- **Deep Metadata Extraction**: Automatically parses **EXIF, IPTC, and XMP** data into searchable database fields.
+- **Document Thumbnails**: Automated extraction of the first page of PDFs as a high-quality preview (Requires `imagemagick` and `ghostscript`).
+
+### 4. Performance-First Philosophy
+
+SveltyCMS has been optimized to remove legacy dependencies, replacing them with modern native counterparts:
+
+- **Decentralized Media Tier (WebGPU)**: SveltyCMS 2026 utilizes the client's raw hardware via **WebGPU/WASM** directly in the browser. Large images are immediately compressed, focal-cropped, and converted to WebP/AVIF _before_ hitting the network.
+- **Optimization Feedback**: The upload UI provides real-time "Optimization Score" metrics, showing exactly how much bandwidth was saved by client-side processing (often > 90%).
+- **Hashing**: Powered by native `crypto` (SHA-256).
+- **ID Generation**: Uses high-entropy `crypto.randomUUID()`.
+- **MIME Detection**: Implemented via **SlimSniffer**, a lightweight native Magic Byte inspector that replaces `file-type`.
+- **Type Safety**: Unified `CmsMediaMetadata` interface ensures strict database agnosticism across all adapters.
+
+### 5. Performance & Search Optimization
+
+SveltyCMS employs several advanced techniques to ensure the Media Hub scales to hundreds of thousands of assets:
+
+- **Trigram GIN Indexes (PostgreSQL)**: The `media_items` table utilizes GIN-based trigram indexes on the `filename` and `originalFilename` fields. This enables high-performance, case-insensitive partial searches (e.g., searching for "logo" within a filename), achieving O(log n) complexity instead of full table scans.
+- **Unified ETag Caching**: The `/files/[...path]` route implements a unified ETag strategy.
+  - **Local Storage**: Generates stable ETags based on file `mtimeMs` and `size`.
+  - **Cloud Storage**: Prefetches asset ETags (from S3/R2 metadata) to support **304 Not Modified** responses, avoiding redundant 307 redirects and saving client-side round-trips.
+- **Incremental Settings Reload**: System-wide media settings changes (like switching from Local to S3) are applied instantly via optimized `reinitializeSystem` logic, which reloads specific database settings without a destructive system reset.
 
 ---
 
-## 📤 Processing Pipeline
+## 🎨 Image Editor Integration
 
-When a file is uploaded (via `POST /api/media/process`), it follows this sequence:
+The gallery is deeply integrated with the canvas-based Image Editor:
 
-1.  **Binary Validation**: Inspects the buffer using `file-type` to detect the true MIME type, bypassing extension-only spoofing.
-2.  **Deduplication**: Generates a 20-character SHA-256 hash. If the hash exists in the database, the upload is cancelled to save storage.
-3.  **Metadata Extraction**:
-    - Full technical metadata (dimensions, format, color space).
-    - Deep DAM metadata (EXIF/IPTC/XMP) for photography assets.
-4.  **Transformation**:
-    - Generates standard thumbnails (`sm`: 600px, `md`: 900px, `lg`: 1200px).
-    - Converts to modern formats (WebP/AVIF) if configured in system settings.
-5.  **Persistence**: Saves the `MediaItem` document to the primary database and caches the result for sub-millisecond retrieval.
+- **Non-Destructive Editing**: Originals are preserved; edits are saved as variants.
+- **Interactive Focal Points**: Visual crosshair selection for art-directed cropping. This focal point is injected natively into our GraphQL API delivery.
+- **Watermarking**: Automatic application of collection-level watermark presets.
 
 ---
 
-## 🖼️ Document Processing
+## ⚡ Performance Benchmarks
 
-For non-image assets like PDFs, the system uses a hybrid approach:
-
-- **ImageMagick/Ghostscript**: Used as a fallback to render a high-quality JPG preview of the first page.
-- **Graceful Degradation**: If system tools are missing, the system automatically reverts to a lightweight SVG/Icon representation.
+For comprehensive performance details regarding media hashing, metadata extraction, and multi-scale resizing block times, please reference the central [Benchmarks Report](../project/benchmarks.mdx).
 
 ---
 
-## 📡 Performance Optimizations
+## ⌨️ Accessibility & Hotkeys
 
-1.  **Virtual Grid**: UI renders only visible items using a virtual list, maintaining 60FPS even with galleries of 10,000+ assets.
-2.  **Transform Proxy**: Image transformations are handled via a dedicated endpoint (`/api/media/transform`) which supports edge caching.
-3.  **Lazy Service Loading**: Heavy processing dependencies (like `sharp` and `file-type`) are imported dynamically within the service to reduce initial server startup time.
+The Media System implements **WCAG 3.0 Functional Performance** principles via a centralized hotkey manager.
+
+| Shortcut  | Action        | Scope              |
+| :-------- | :------------ | :----------------- |
+| `Mod + F` | Focus Search  | Gallery            |
+| `Mod + A` | Select All    | Gallery / Widget   |
+| `Mod + O` | Open Library  | MediaUpload Widget |
+| `Delete`  | Bulk Delete   | Gallery (Selected) |
+| `Escape`  | Clear Filters | Gallery / Editor   |
+| `Mod + Z` | Undo Edit     | ImageEditor        |
+
+---
+
+## 📚 API Reference
+
+For detailed developer endpoints (upload, transform, AI-tag, focal points), read the comprehensive [**Media API Reference**](../api/media-api.mdx).

@@ -11,300 +11,377 @@
  * - Graceful degradation & cleanup
  */
 
-if (typeof window !== 'undefined') {
-	throw new Error('logger.server.ts cannot be imported in browser code');
+if (typeof window !== "undefined" && typeof Bun === "undefined") {
+  throw new Error("logger.server.ts cannot be imported in browser code");
 }
 
-import * as crypto from 'node:crypto';
-import * as fs from 'node:fs';
-import * as promises from 'node:fs/promises';
-import * as path from 'node:path';
-import * as sp from 'node:stream/promises';
-import * as zlib from 'node:zlib';
+import * as crypto from "node:crypto";
+import * as fs from "node:fs";
+import * as promises from "node:fs/promises";
+import * as path from "node:path";
+import * as sp from "node:stream/promises";
+import * as zlib from "node:zlib";
 
 // Get LOG_LEVELS from environment variables directly (avoids Svelte store dependency)
-const LOG_LEVELS_RAW = process.env.LOG_LEVELS || import.meta.env?.VITE_LOG_LEVELS || 'fatal,error,warn,info';
-const LOG_LEVELS = LOG_LEVELS_RAW.split(',')
-	.map((l: string) => l.trim().toLowerCase())
-	.filter(Boolean);
-const DISABLED = LOG_LEVELS.includes('none');
+const LOG_LEVELS_RAW =
+  process.env.LOG_LEVELS || import.meta.env?.VITE_LOG_LEVELS || "fatal,error,warn,info";
+const LOG_LEVELS = LOG_LEVELS_RAW.split(",")
+  .map((l: string) => l.trim().toLowerCase())
+  .filter(Boolean);
+const DISABLED = LOG_LEVELS.includes("none");
+
+import { pc } from "@utils/native-utils";
 
 // Log levels
-type LogLevel = 'none' | 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
-const LEVELS: Record<LogLevel, { prio: number; color: string }> = {
-	none: { prio: 0, color: '' },
-	fatal: { prio: 1, color: '\x1b[35m' }, // magenta
-	error: { prio: 2, color: '\x1b[31m' }, // red
-	warn: { prio: 3, color: '\x1b[33m' }, // yellow
-	info: { prio: 4, color: '\x1b[32m' }, // green
-	debug: { prio: 5, color: '\x1b[34m' }, // blue
-	trace: { prio: 6, color: '\x1b[36m' } // cyan
+type LogLevel = "none" | "fatal" | "error" | "warn" | "info" | "debug" | "trace";
+const LEVELS: Record<LogLevel, { prio: number; color: (s: string) => string }> = {
+  none: { prio: 0, color: (s) => s },
+  fatal: { prio: 1, color: pc.magenta },
+  error: { prio: 2, color: pc.red },
+  warn: { prio: 3, color: pc.yellow },
+  info: { prio: 4, color: pc.green },
+  debug: { prio: 5, color: pc.blue },
+  trace: { prio: 6, color: pc.cyan },
 };
-
-const RESET = '\x1b[0m';
 export type LoggableValue = string | number | boolean | null | undefined | object | Date | Error;
 
 const maxPrio = DISABLED ? 0 : Math.max(...LOG_LEVELS.map((l) => LEVELS[l as LogLevel]?.prio ?? 0));
 
 // Icons
 const ICONS: Record<string, string> = {
-	FATAL: '✗',
-	ERROR: '✗',
-	WARN: '⚠',
-	INFO: '●',
-	DEBUG: '◆',
-	TRACE: '○'
+  FATAL: "✗",
+  ERROR: "✗",
+  WARN: "⚠",
+  INFO: "●",
+  DEBUG: "◆",
+  TRACE: "○",
 };
 
 // Message token highlighting
 const patterns = [
-	{ re: /\b\d+(\.\d+)?(ms|s)\b/g, color: '\x1b[32m' }, // durations
-	{
-		re: /([a-f0-9]{24}|[a-f0-9]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi,
-		color: '\x1b[33m'
-	}, // IDs/UUIDs
-	{ re: /\/api\/[^\s]+/g, color: '\x1b[36m' }, // API paths
-	{ re: /\b(true)\b/g, color: '\x1b[32m' },
-	{ re: /\b(false)\b/g, color: '\x1b[31m' },
-	{ re: /\b-?\d+\.?\d*\b/g, color: '\x1b[34m' }
+  { re: /\b\d+(\.\d+)?(ms|s)\b/g, color: pc.green }, // durations
+  {
+    re: /([a-f0-9]{24}|[a-f0-9]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi,
+    color: pc.yellow,
+  }, // IDs/UUIDs
+  { re: /\/api\/[^\s]+/g, color: pc.cyan }, // API paths
+  { re: /\b(true)\b/g, color: pc.green },
+  { re: /\b(false)\b/g, color: pc.red },
+  { re: /\b-?\d+\.?\d*\b/g, color: pc.blue },
 ];
 
 function colorMessage(msg: string): string {
-	let out = msg;
-	for (const { re, color } of patterns) {
-		out = out.replace(re, `${color}$&${RESET}`);
-	}
-	return out;
+  let out = msg;
+  for (const { re, color } of patterns) {
+    out = out.replace(re, (m) => color(m));
+  }
+  return out;
 }
 
 // Value formatting
 function formatValue(v: unknown): string {
-	if (v === null) {
-		return '\x1b[35mnull\x1b[0m';
-	}
-	if (v === undefined) {
-		return '\x1b[90mundefined\x1b[0m';
-	}
-	if (typeof v === 'boolean') {
-		return v ? '\x1b[32mtrue\x1b[0m' : '\x1b[31mfalse\x1b[0m';
-	}
-	if (typeof v === 'number') {
-		return `\x1b[34m${v}\x1b[0m`;
-	}
-	if (typeof v === 'string') {
-		return colorMessage(v);
-	}
-	if (v instanceof Date) {
-		return `\x1b[36m${v.toISOString()}\x1b[0m`;
-	}
-	if (Array.isArray(v)) {
-		return `\x1b[33m[${v.map(formatValue).join(', ')}]\x1b[0m`;
-	}
-	if (v instanceof Error) {
-		const parts = [`message: \x1b[31m${v.message}\x1b[0m`, `name: \x1b[31m${v.name}\x1b[0m`];
-		if ('code' in v) {
-			parts.push(`code: \x1b[31m${(v as { code: unknown }).code}\x1b[0m`);
-		}
-		return `\x1b[33m{${parts.join(', ')}}\x1b[0m`;
-	}
-	if (typeof v === 'object') {
-		const entries = Object.entries(v)
-			.map(([k, val]) => `${k}: ${formatValue(val)}`)
-			.join(', ');
-		return `\x1b[33m{${entries}}\x1b[0m`;
-	}
-	return String(v);
+  if (v === null) {
+    return pc.magenta("null");
+  }
+  if (v === undefined) {
+    return pc.gray("undefined");
+  }
+  if (typeof v === "boolean") {
+    return v ? pc.green("true") : pc.red("false");
+  }
+  if (typeof v === "number") {
+    return pc.blue(String(v));
+  }
+  if (typeof v === "string") {
+    return colorMessage(v);
+  }
+  if (v instanceof Date) {
+    return pc.cyan(v.toISOString());
+  }
+  if (Array.isArray(v)) {
+    return pc.yellow(`[${v.map(formatValue).join(", ")}]`);
+  }
+  if (v instanceof Error) {
+    const parts = [`message: ${pc.red(v.message)}`, `name: ${pc.red(v.name)}`];
+    if ("code" in v) {
+      parts.push(`code: ${pc.red(String((v as { code: unknown }).code))}`);
+    }
+    return pc.yellow(`{${parts.join(", ")}}`);
+  }
+  if (typeof v === "object") {
+    const entries = Object.entries(v as object)
+      .map(([k, val]) => `${k}: ${formatValue(val)}`)
+      .join(", ");
+    return pc.yellow(`{${entries}}`);
+  }
+  return String(v);
 }
 
 // Sensitive data masking
-const SENSITIVE = ['password', 'token', 'secret', 'key', 'authorization'];
-const EMAILS = ['email', 'mail'];
+const SENSITIVE = ["password", "token", "secret", "key", "authorization"];
+const EMAILS = ["email", "mail"];
 
 function mask(v: unknown, depth = 0): unknown {
-	if (depth > 10) {
-		return '[Depth]';
-	}
-	if (v === null || typeof v !== 'object') {
-		return v;
-	}
-	if (v instanceof Date || v instanceof RegExp) {
-		return v;
-	}
-	if (v instanceof Error) {
-		const plain: Record<string, unknown> = { message: v.message, name: v.name };
-		if (v.stack) {
-			plain.stack = v.stack;
-		}
-		if ('code' in v) {
-			plain.code = (v as { code: unknown }).code;
-		}
-		return mask(plain, depth + 1);
-	}
-	if (Array.isArray(v)) {
-		return v.map((item) => mask(item, depth + 1));
-	}
+  if (depth > 10) {
+    return "[Depth]";
+  }
+  if (v === null || typeof v !== "object") {
+    return v;
+  }
+  if (v instanceof Date || v instanceof RegExp) {
+    return v;
+  }
+  if (v instanceof Error) {
+    const plain: Record<string, unknown> = { message: v.message, name: v.name };
+    if (v.stack) {
+      plain.stack = v.stack;
+    }
+    if ("code" in v) {
+      plain.code = (v as { code: unknown }).code;
+    }
+    return mask(plain, depth + 1);
+  }
+  if (Array.isArray(v)) {
+    return v.map((item) => mask(item, depth + 1));
+  }
 
-	const masked: Record<string, unknown> = {};
-	for (const [k, val] of Object.entries(v)) {
-		const low = k.toLowerCase();
-		if (SENSITIVE.some((s) => low.includes(s))) {
-			masked[k] = '[REDACTED]';
-		} else if (EMAILS.some((e) => low.includes(e)) && typeof val === 'string') {
-			const [local, domain] = val.split('@');
-			masked[k] = domain ? `${local.slice(0, 2)}***@${domain}` : '***';
-		} else {
-			masked[k] = mask(val, depth + 1);
-		}
-	}
-	return masked;
+  const masked: Record<string, unknown> = {};
+  for (const [k, val] of Object.entries(v)) {
+    const low = k.toLowerCase();
+    if (SENSITIVE.some((s) => low.includes(s))) {
+      masked[k] = "[REDACTED]";
+    } else if (EMAILS.some((e) => low.includes(e)) && typeof val === "string") {
+      const [local, domain] = val.split("@");
+      masked[k] = domain ? `${local.slice(0, 2)}***@${domain}` : "***";
+    } else {
+      masked[k] = mask(val, depth + 1);
+    }
+  }
+  return masked;
 }
 
-let stream: import('node:fs').WriteStream | null = null;
-let lastHash = '';
-const HMAC_SECRET = process.env.LOG_CHAIN_SECRET || 'svelty-cms-default-log-secret';
+let stream: import("node:fs").WriteStream | null = null;
+let lastHash = "";
+const HMAC_SECRET = process.env.LOG_CHAIN_SECRET || "svelty-cms-default-log-secret";
 
 function calculateHash(prevHash: string, content: string): string {
-	return crypto
-		.createHmac('sha256', HMAC_SECRET)
-		.update(prevHash + content)
-		.digest('hex');
+  return crypto
+    .createHmac("sha256", HMAC_SECRET)
+    .update(prevHash + content)
+    .digest("hex");
 }
 
 async function ensureStream() {
-	const dir = 'logs';
-	const file = path.join(dir, 'app.log');
+  const dir = "logs";
+  const file = path.join(dir, "app.log");
 
-	if (!stream || stream.destroyed) {
-		await promises.mkdir(dir, { recursive: true });
+  if (!stream || stream.destroyed) {
+    await promises.mkdir(dir, { recursive: true });
 
-		// Initialize chain from existing file if possible
-		try {
-			const content = await promises.readFile(file, 'utf8');
-			const lines = content.trim().split('\n');
-			if (lines.length > 0) {
-				const lastLine = lines.at(-1);
-				if (lastLine) {
-					const match = lastLine.match(/\[CHAIN:([a-f0-9]{64})\]/);
-					if (match) {
-						lastHash = match[1];
-					}
-				}
-			}
-		} catch {
-			// Silent fail if file doesn't exist yet
-		}
+    // Initialize chain from existing file if possible
+    try {
+      const content = await promises.readFile(file, "utf8");
+      const lines = content.trim().split("\n");
+      if (lines.length > 0) {
+        const lastLine = lines.at(-1);
+        if (lastLine) {
+          const match = lastLine.match(/\[CHAIN:([a-f0-9]{64})\]/);
+          if (match) {
+            lastHash = match[1];
+          }
+        }
+      }
+    } catch {
+      // Silent fail if file doesn't exist yet
+    }
 
-		stream = fs.createWriteStream(file, { flags: 'a' });
-	}
-	return stream;
+    stream = fs.createWriteStream(file, { flags: "a" });
+  }
+  return stream;
 }
 
 async function rotate() {
-	const file = path.join('logs', 'app.log');
-	try {
-		const stat = await promises.stat(file);
-		if (stat.size < 5 * 1024 * 1024) {
-			return; // 5MB
-		}
+  const dir = "logs";
+  const file = path.join(dir, "app.log");
+  try {
+    const stat = await promises.stat(file);
+    if (stat.size < 5 * 1024 * 1024) {
+      return; // 5MB
+    }
 
-		if (stream) {
-			stream.end();
-		}
-		const ts = new Date().toISOString().replace(/[:.]/g, '-');
-		const rotated = `${file}.${ts}`;
-		await promises.rename(file, rotated);
-		await promises.writeFile(file, '');
-		lastHash = ''; // Reset chain for new file
+    if (stream) {
+      stream.end();
+    }
+    const ts = new Date().toISOString().replace(/[:.]/g, "-");
+    const rotated = `${file}.${ts}`;
+    await promises.rename(file, rotated);
+    await promises.writeFile(file, "");
+    lastHash = ""; // Reset chain for new file
 
-		const src = fs.createReadStream(rotated);
-		const dst = fs.createWriteStream(`${rotated}.gz`);
-		await sp.pipeline(src, zlib.createGzip(), dst);
-		await promises.unlink(rotated);
-	} catch (e: unknown) {
-		if (e && typeof e === 'object' && 'code' in e && e.code !== 'ENOENT') {
-			console.error('Rotation failed:', e);
-		}
-	}
+    const src = fs.createReadStream(rotated);
+    const dst = fs.createWriteStream(`${rotated}.gz`);
+    await sp.pipeline(src, zlib.createGzip(), dst);
+    await promises.unlink(rotated);
+
+    // Retention Policy: Keep only the 5 most recent rotated logs
+    const files = await promises.readdir(dir);
+    const logFiles = files
+      .filter((f) => f.startsWith("app.log.") && f.endsWith(".gz"))
+      .map((f) => ({
+        name: f,
+        time: fs.statSync(path.join(dir, f)).mtime.getTime(),
+      }))
+      .sort((a, b) => b.time - a.time);
+
+    if (logFiles.length > 5) {
+      for (const f of logFiles.slice(5)) {
+        await promises.unlink(path.join(dir, f.name));
+        console.debug(`[logger] Deleted old log file: ${f.name}`);
+      }
+    }
+  } catch (e: unknown) {
+    if (e && typeof e === "object" && "code" in e && e.code !== "ENOENT") {
+      console.error("Rotation failed:", e);
+    }
+  }
 }
 
 // Batch queue
 const queue: { level: LogLevel; msg: string; args: unknown[] }[] = [];
 let timeout: NodeJS.Timeout | null = null;
+let isFlushing = false;
 
-function flush() {
-	if (!queue.length) {
-		return;
-	}
-	const batch = queue.splice(0, queue.length);
+async function flush() {
+  if (!queue.length || isFlushing) {
+    return;
+  }
+  isFlushing = true;
+  const batch = queue.splice(0, queue.length);
 
-	ensureStream()
-		.then(async (s) => {
-			if (!s) {
-				return;
-			}
-			await rotate();
+  try {
+    const s = await ensureStream();
+    if (s) {
+      await rotate();
 
-			for (const e of batch) {
-				const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
-				const icon = ICONS[e.level.toUpperCase()] ?? '●';
-				const color = LEVELS[e.level].color;
-				const masked = e.args.map((a) => mask(a));
-				const args = masked.map(formatValue).join(' ');
-				const msg = colorMessage(e.msg);
+      for (const e of batch) {
+        const ts = new Date().toISOString().slice(0, 19).replace("T", " ");
+        const icon = ICONS[e.level.toUpperCase()] ?? "●";
+        const color = LEVELS[e.level].color;
+        const masked = e.args.map((a) => mask(a));
+        const args = masked.map(formatValue).join(" ");
+        const msg = colorMessage(e.msg);
 
-				const plainText = `${ts} [${e.level.toUpperCase().padEnd(5)}] ${e.msg} ${JSON.stringify(masked)}`;
-				lastHash = calculateHash(lastHash, plainText);
+        const plainText = `${ts} [${e.level.toUpperCase().padEnd(5)}] ${e.msg} ${JSON.stringify(masked)}`;
+        lastHash = calculateHash(lastHash, plainText);
 
-				const logLine = `${ts} ${color}${icon} [${e.level.toUpperCase().padEnd(5)}]${RESET} ${msg} ${args} [CHAIN:${lastHash}]\n`;
-				s.write(logLine);
-			}
-		})
-		.catch((err) => console.error('Log write failed:', err));
+        const logLine = `${ts} ${color(`${icon} [${e.level.toUpperCase().padEnd(5)}]`)} ${msg} ${args} [CHAIN:${lastHash}]\n`;
+        s.write(logLine);
+      }
+    }
+  } catch (err) {
+    console.error("Log write failed:", err);
+  } finally {
+    isFlushing = false;
+    // If more logs came in during flush, schedule another one
+    if (queue.length > 0 && !timeout) {
+      timeout = setTimeout(() => {
+        timeout = null;
+        flush();
+      }, 5000);
+    }
+  }
 }
 
+// De-duplication Cache (Enterprise Optimization)
+const dedupCache = new Map<string, { count: number; lastTs: number; lastLevel: LogLevel }>();
+const DEDUP_WINDOW_MS = 5000; // 5 seconds
+
 function enqueue(level: LogLevel, msg: string, args: unknown[]) {
-	if (DISABLED || LEVELS[level].prio > maxPrio) {
-		return;
-	}
+  if (DISABLED || LEVELS[level].prio > maxPrio) {
+    return;
+  }
 
-	const masked = args.map(mask);
-	const color = LEVELS[level].color;
-	const icon = ICONS[level.toUpperCase()] ?? '●';
-	const argsStr = masked.map(formatValue).join(' ');
-	const pretty = colorMessage(msg);
+  // Generate deduplication key from level, msg, and stable stringified args
+  const dedupKey = `${level}:${msg}:${JSON.stringify(args)}`;
+  const now = Date.now();
+  const cached = dedupCache.get(dedupKey);
 
-	const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
-	// One-line enforcement: strip newlines
-	const safeMsg = pretty.replace(/\r?\n/g, ' ');
-	const safeArgs = argsStr.replace(/\r?\n/g, ' ');
-	process.stdout.write(`${ts} ${color}${icon} [${level.toUpperCase().padEnd(5)}]${RESET} ${safeMsg} ${safeArgs}\n`);
+  if (cached && now - cached.lastTs < DEDUP_WINDOW_MS) {
+    cached.count++;
+    // Periodically flush dedup counts for very frequent logs
+    if (
+      cached.count === 10 ||
+      cached.count === 100 ||
+      cached.count === 1000 ||
+      cached.count % 2500 === 0
+    ) {
+      const ts = pc.gray(new Date(now).toISOString().slice(0, 19).replace("T", " "));
+      const color = LEVELS[level].color;
+      process.stdout.write(
+        `${ts} ${color(`[SUPPRESSED]`)} Suppressed ${cached.count} repeats of: ${msg}\n`,
+      );
+    }
+    return;
+  }
 
-	queue.push({ level, msg, args: masked });
-	if (queue.length >= 100) {
-		flush();
-	} else if (!timeout) {
-		timeout = setTimeout(() => {
-			timeout = null;
-			flush();
-		}, 5000);
-	}
+  if (cached && cached.count > 0) {
+    const ts = pc.gray(new Date(now).toISOString().slice(0, 19).replace("T", " "));
+    const color = LEVELS[level].color;
+    process.stdout.write(
+      `${ts} ${color(`[SUMMARY]`)} Previously suppressed ${cached.count} repeats of: ${msg}\n`,
+    );
+  }
+
+  dedupCache.set(dedupKey, { count: 0, lastTs: now, lastLevel: level });
+
+  const masked = args.map(mask);
+
+  // Enterprise optimization: Only write to stdout for high priority or if explicitly enabled
+  // This prevents console 'clogging' in high-traffic environments
+  const isHighPriority = LEVELS[level].prio <= LEVELS.warn.prio;
+  const forceStdout =
+    process.env.VERBOSE_STDOUT === "true" || process.env.NODE_ENV === "development";
+
+  if (isHighPriority || forceStdout) {
+    const color = LEVELS[level].color;
+    const icon = ICONS[level.toUpperCase()] ?? "●";
+    const argsStr = masked.map(formatValue).join(" ");
+    const pretty = colorMessage(msg);
+
+    const ts = pc.gray(new Date().toISOString().slice(0, 19).replace("T", " "));
+    const safeMsg = pretty.replace(/\r?\n/g, " ");
+    const safeArgs = argsStr.replace(/\r?\n/g, " ");
+    process.stdout.write(
+      `${ts} ${color(`${icon} [${level.toUpperCase().padEnd(5)}]`)} ${safeMsg} ${safeArgs}\n`,
+    );
+  }
+
+  queue.push({ level, msg, args: masked });
+  if (queue.length >= 100) {
+    flush();
+  } else if (!timeout) {
+    timeout = setTimeout(() => {
+      timeout = null;
+      flush();
+    }, 5000);
+  }
 }
 
 // Public logger
 export const logger = DISABLED
-	? {
-			fatal: () => {},
-			error: () => {},
-			warn: () => {},
-			info: () => {},
-			debug: () => {},
-			trace: () => {}
-		}
-	: {
-			fatal: (m: string, ...a: unknown[]) => enqueue('fatal', m, a),
-			error: (m: string, ...a: unknown[]) => enqueue('error', m, a),
-			warn: (m: string, ...a: unknown[]) => enqueue('warn', m, a),
-			info: (m: string, ...a: unknown[]) => enqueue('info', m, a),
-			debug: (m: string, ...a: unknown[]) => enqueue('debug', m, a),
-			trace: (m: string, ...a: unknown[]) => enqueue('trace', m, a)
-		};
+  ? {
+      fatal: () => {},
+      error: () => {},
+      warn: () => {},
+      info: () => {},
+      debug: () => {},
+      trace: () => {},
+    }
+  : {
+      fatal: (m: string, ...a: unknown[]) => enqueue("fatal", m, a),
+      error: (m: string, ...a: unknown[]) => enqueue("error", m, a),
+      warn: (m: string, ...a: unknown[]) => enqueue("warn", m, a),
+      info: (m: string, ...a: unknown[]) => enqueue("info", m, a),
+      debug: (m: string, ...a: unknown[]) => enqueue("debug", m, a),
+      trace: (m: string, ...a: unknown[]) => enqueue("trace", m, a),
+    };

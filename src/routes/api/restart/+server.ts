@@ -20,54 +20,54 @@
  * The actual restart command should be properly configured for your specific environment.
  */
 
-import { exec } from 'node:child_process';
-import { json } from '@sveltejs/kit';
+import { exec } from "node:child_process";
+import { json } from "@sveltejs/kit";
 // Unified Error Handling
-import { apiHandler } from '@utils/api-handler';
-import { AppError } from '@utils/error-handling';
+import { apiHandler } from "@utils/api-handler";
+import { AppError } from "@utils/error-handling";
 // type RequestHandler removed
-import { logger } from '@utils/logger.server';
+import { logger } from "@utils/logger.server";
 
 export const POST = apiHandler(async ({ request }) => {
-	const authHeader = request.headers.get('authorization');
-	const token = authHeader?.replace('Bearer ', '').trim();
+  const authHeader = request.headers.get("authorization");
+  const token = authHeader?.replace("Bearer ", "").trim();
 
-	if (!token || token !== process.env.ADMIN_RESTART_TOKEN) {
-		logger.warn('❌ Unauthorized restart attempt');
-		throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
-	}
+  if (!token || token !== process.env.ADMIN_RESTART_TOKEN) {
+    logger.warn("❌ Unauthorized restart attempt");
+    throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
+  }
 
-	try {
-		await restartServer();
-		logger.info('✅ Server restart initiated');
-		return json({ success: true });
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		logger.error('❌ Error during restart:', { error: message });
-		throw new AppError(message, 500, 'RESTART_FAILED');
-	}
+  try {
+    await restartServer();
+    logger.info("✅ Server restart initiated");
+    return json({ success: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error("❌ Error during restart:", { error: message });
+    throw new AppError(message, 500, "RESTART_FAILED");
+  }
 });
 
 async function restartServer(): Promise<void> {
-	return new Promise((resolve, reject) => {
-		const restartCommand = 'pm2 restart sveltycms-dev';
-		logger.info(`🔁 Executing: ${restartCommand}`);
+  return new Promise((resolve, reject) => {
+    const restartCommand = "pm2 restart sveltycms-dev";
+    logger.info(`🔁 Executing: ${restartCommand}`);
 
-		exec(restartCommand, (error, stdout, stderr) => {
-			if (error) {
-				logger.error('❌ Exec error:', { error: error.message });
-				return reject(error);
-			}
+    exec(restartCommand, (error, stdout, stderr) => {
+      if (error) {
+        logger.error("❌ Exec error:", { error: error.message });
+        return reject(error);
+      }
 
-			if (stdout) {
-				logger.info('📤 stdout:', { stdout });
-			}
-			if (stderr) {
-				logger.warn('📥 stderr:', { stderr });
-			}
+      if (stdout) {
+        logger.info("📤 stdout:", { stdout });
+      }
+      if (stderr) {
+        logger.warn("📥 stderr:", { stderr });
+      }
 
-			logger.info('✅ Restart command executed');
-			resolve();
-		});
-	});
+      logger.info("✅ Restart command executed");
+      resolve();
+    });
+  });
 }

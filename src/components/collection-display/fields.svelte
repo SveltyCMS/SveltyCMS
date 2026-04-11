@@ -42,6 +42,11 @@
 	import { showConfirm } from '@utils/modal-utils';
 	import WidgetLoader from './widget-loader.svelte';
 
+	import { Portal } from '@skeletonlabs/skeleton-svelte';
+	import RevisionDiffModal from './revision-diff-modal.svelte';
+
+	let isDiffModalOpen = $state(false);
+
 	// --- PERFORMANCE FIX: DYNAMIC WIDGET IMPORTS ---
 	// Lazy-load widgets for code-splitting (eager: false is default)
 	// Returns loader functions instead of eager-loaded components
@@ -530,12 +535,40 @@
 						</select>
 						<button class="preset-filled-primary-500 btn" onclick={handleRevert} disabled={!selectedRevision?.data}>
 							<iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon>
-							Revert
+							{applayout_version()}
+						</button>
+						<button class="preset-tonal-primary btn" onclick={() => (isDiffModalOpen = true)} disabled={!selectedRevision?.data}>
+							<iconify-icon icon="mdi:compare" class="mr-1"></iconify-icon>
+							Compare
 						</button>
 					</div>
 
+					{#if isDiffModalOpen && selectedRevision}
+						<Portal>
+							<div
+								class="fixed inset-0 z-[1000] flex items-center justify-center bg-surface-900/60 p-4 backdrop-blur-sm"
+								onclick={() => (isDiffModalOpen = false)}
+								onkeydown={(e) => e.key === 'Escape' && (isDiffModalOpen = false)}
+								role="button"
+								tabindex="-1"
+							>
+								<div onclick={(e) => e.stopPropagation()} role="presentation">
+									<RevisionDiffModal
+										oldData={selectedRevision.data}
+										newData={currentCollectionValue}
+										fields={derivedFields}
+										oldLabel="Revision ({new Date(selectedRevision.revision_at).toLocaleDateString()})"
+										newLabel="Current Content"
+										close={() => (isDiffModalOpen = false)}
+									/>
+								</div>
+							</div>
+						</Portal>
+					{/if}
+
 					<div class="rounded-lg border p-4 dark:text-surface-50">
-						<h3 class="mb-3 text-lg font-bold">Changes from Selected Revision</h3>
+						<h3 class="mb-3 text-lg font-bold">Quick Preview</h3>
+
 						{#if selectedRevision}
 							{@const diffObject = selectedRevision?.diff || null}
 							{#if diffObject && Object.keys(diffObject).length > 0}

@@ -1,20 +1,42 @@
 ---
-path: 'docs/tests/black-box-testing.mdx'
-title: 'Black-Box Testing Architecture'
-description: 'SveltyCMS strategic shift to 100% black-box integration testing for maximum security and database agnosticism.'
-author: 'SveltyCMS Team'
-created: '2026-02-15'
-updated: '2026-03-06'
+path: "docs/tests/black-box-testing.mdx"
+title: "Black-Box Testing Architecture"
+description: "SveltyCMS strategic shift to 100% black-box integration testing for maximum security and database agnosticism."
+author: "SveltyCMS Team"
+created: "2026-02-15"
+updated: "2026-04-03"
 tags:
-  - 'testing'
-  - 'architecture'
-  - 'security'
-  - 'black-box'
+  - "testing"
+  - "architecture"
+  - "security"
+  - "black-box"
 ---
 
 # Black-Box Testing Architecture
 
 SveltyCMS has pivoted to a **100% Black-Box Testing** strategy for all integration and E2E tests. This transition removes the reliance on internal code imports (`@src/*`) within test files, ensuring that the CMS is tested exactly as a user or API consumer would experience it.
+
+```mermaid
+graph TD
+    classDef testBed fill:#2c3e50,stroke:#34495e,stroke-width:2px,color:white;
+    classDef internal fill:#27ae60,stroke:#2ecc71,stroke-width:2px,color:white;
+    classDef server fill:#2980b9,stroke:#3498db,stroke-width:2px,color:white;
+    classDef security fill:#e74c3c,stroke:#c0392b,stroke-width:2px,color:white;
+
+    Runner[Integration Runner <br> 'bun run test:integration']:::testBed
+    GodMode[/God-Mode API: /api/testing\]:::security
+    Login[/Login API: /api/auth/login\]:::server
+    App[SvelteKit API & Pages]:::internal
+    DB[(Database Adapter <br> SQLite/Mongo/SQL)]:::internal
+
+    Runner -- 1. Orchestrate Setup & Wipe --> GodMode
+    Runner -- 2. Authenticate --> Login
+    Runner -- 3. Fetch/Submit Data --> App
+
+    GodMode -.-> DB
+    Login -.->|Generates State & Cookie| DB
+    App -.-> DB
+```
 
 ## Why Black-Box Testing?
 
@@ -25,6 +47,7 @@ By removing "backdoor" imports like `dbAdapter` or `Auth` from tests, we guarant
 - **No Side-Loading**: Tests cannot bypass security hooks or permission guards.
 - **Authentic RBAC**: Authentication is performed via real API calls (`/api/auth/login`), verifying the entire security handshake.
 - **Production Parity**: Tests run against a production-built `preview` server, catching SSR and build-specific issues that unit tests miss.
+- **Network Consistency**: Standardization on **`127.0.0.1:4173`** for all local testing avoids IPv6/IPv4 resolution inconsistencies across different OS environments.
 
 ### 2. 🧪 100% Database Agnosticism
 
@@ -49,21 +72,32 @@ To allow automated tests to manage state without internal imports, we expose a s
 **Endpoint**: `/api/testing`  
 **Guard**: Strictly enabled ONLY when `TEST_MODE=true` environment variable is set.
 
+### 🔒 Triple-Lock Security Guard
+
+To ensure this powerful endpoint never becomes a liability, it is protected by three layers of security:
+
+1.  **Build-Time Stripping**: The testing API is physically excluded from production builds. The code literally does not exist in the final artifact.
+2.  **Cryptographic Handshake**: Requires a `x-test-secret` header matching a unique UUID generated dynamically for each test run.
+3.  **Network Lock**: Strictly refuses any request not originating from `127.0.0.1` or `::1`.
+
 ### Available Actions
 
-| Action        | Description                                                              |
-| :------------ | :----------------------------------------------------------------------- |
-| `reset`       | Wipes the database (clears all collections/tables).                      |
-| `seed`        | Initializes default roles, permissions, and an Admin user.               |
-| `create-user` | Idempotently creates test users with specific roles (Editor, Developer). |
+| Action           | Description                                                              |
+| :--------------- | :----------------------------------------------------------------------- |
+| `reset`          | Wipes the database (clears all collections/tables).                      |
+| `seed`           | Initializes default roles, permissions, and an Admin user.               |
+| `create-user`    | Idempotently creates test users with specific roles (Editor, Developer). |
+| `get-user`       | Fetches a user by email for state verification.                          |
+| `get-user-count` | Returns the total number of registered users.                            |
+| `cleanup`        | Surgically wipes specific users or data without resetting the system.    |
 
 ---
 
 ## Test Execution Flow
 
 1. **Build**: `bun run build` generates the production bundle.
-2. **Preview**: `TEST_MODE=true bun run vite preview` starts the server.
-3. **Orchestrate**: Test helper calls `/api/testing` to prepare the database.
+2. **Preview**: `TEST_MODE=true bun run vite preview --port 4173` starts the server.
+3. **Orchestrate**: Test helper calls `/api/testing` (with secure handshake) to prepare the database.
 4. **Login**: Test helper calls `/api/auth/login` to obtain a session cookie.
 5. **Execute**: Bun/Playwright performs HTTP requests against the live endpoints.
 6. **Verify**: Assertions are made on JSON responses and HTTP status codes.
@@ -73,7 +107,7 @@ To allow automated tests to manage state without internal imports, we expose a s
 Every core endpoint is now triply-verified:
 
 - **Admin**: Verifies functionality.
-- **Restricted Role**: Verifies `403 Forbidden` (RBAC enforcement).
+- **Restricted Role**: Verifies `403 Forbidden` (RBAC enforcement) and redirection to `/forbidden`.
 - **Public**: Verifies `401 Unauthorized` (Auth enforcement).
 
 ### 🔄 2026 Redirection Logic
@@ -83,7 +117,44 @@ Black-box tests now explicitly verify the "Smart Onboarding" redirection flow:
 - **Empty CMS**: Verifies that Admins are redirected to `/config/collectionbuilder` immediately after login.
 - **Error Recovery**: Verifies that any failure during collection detection falls back to the root path `/` for a safe user experience.
 
+## 🛡️ Core Verification Principles
+
+To ensure our 100% black-box integration tests are robust, all current and future endpoint test suites MUST explicitly cover these critical boundaries:
+
+### 1. Multi-Tenancy Security Boundaries
+
+Endpoints managing sensitive data or authentication must be verified against rigorous multi-tenant isolation scenarios:
+
+- **Cross-Tenant Spoofing**: Prepare two separate tenant contexts (Tenant-A and Tenant-B). Attempt to execute `PUT`/`DELETE` operations against Tenant-A's resources while authenticated as Tenant-B. Assert the API strictly enforces a `403 Forbidden` response.
+- **Missing Context**: Dispatch requests lacking necessary tenant payload headers/locals and assert strict rejection (e.g. `500 TENANT_REQUIRED` or `400`).
+
+### 2. Cache Invalidation Verification (Preventing Stale UI)
+
+A common pitfall in headless architecture is failing to properly clear caches on mutation.
+
+- **Read-After-Write Consistency**: After a successful `PUT` or `DELETE` request, immediately issue a `GET` request to verify the stale cache was correctly bypassed/purged and the updated state is returned.
+- **Failure Gracefulness**: When possible via environmental simulation (like halting Redis), verify that cache deletion failures do not crash the primary mutation transaction (e.g., the API should still return `200 Success` despite an internal cache warning).
+
+### 3. Progressive Degradation & DB-Agnostic Fallbacks
+
+When falling back from unified interfaces to adapter-specific implementations (e.g., `TokenAdapter`), tests should verify both code paths:
+
+- Tests must pass successfully regardless of whether the primary unified interface handles the action or if the system safely falls back to dynamic adapter imports. This guarantees complete DB-agnostic operations.
+
+### 4. Direct Handler vs. Network Layer (MSW)
+
+For specialized testing of edge cases (e.g. injecting network failures or verifying ESM mocking with `vi.hoisted()`), these principles are mirrored in our White-Box Unit Tests. However, in the Black-Box suite, verify the _Network Layer_ explicitly (fetching via HTTP) to guarantee that SvelteKit's parsing, middleware chain, and payload validation operate as a single harmonious unit.
+
 ---
 
 > [!IMPORTANT]
 > **Safety Protocol**: Black-Box tests MUST use `config/private.test.ts`. The system includes hard-coded safety logic in `db.ts` that will terminate execution if a test attempt is detected against a production database.
+
+> [!IMPORTANT]
+> **No Backdoor Policy**: SveltyCMS has a zero-backdoor policy for security. Integration tests do NOT bypass authentication via:
+>
+> - ❌ API keys or bearer tokens
+> - ❌ Test-only bypass headers (e.g., `x-test-token`)
+> - ❌ Hardcoded credentials
+>
+> Tests authenticate like real users by calling `/api/auth/login` with seeded test credentials. The `/api/testing` endpoint is used only for state orchestration and is removed in production builds.

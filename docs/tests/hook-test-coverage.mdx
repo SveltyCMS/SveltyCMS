@@ -1,14 +1,15 @@
 ---
-path: 'docs/tests/hook-test-coverage.mdx'
+path: "docs/tests/hook-test-coverage.mdx"
 title: Hook Test Coverage
 description: Comprehensive testing documentation for all SveltyCMS middleware hooks
-author: 'SveltyCMS Team'
-created: '2025-12-16'
-updated: '2026-03-04'
+author: "SveltyCMS Team"
+created: "2025-12-16"
+updated: "2026-04-03"
 tags:
-  - 'testing'
-  - 'hooks'
-  - 'middleware'
+  - "testing"
+  - "hooks"
+  - "middleware"
+  - "fail-closed"
 ---
 
 # Hook Test Coverage
@@ -32,6 +33,17 @@ Complete test coverage for all 11 SvelteKit middleware hooks in the SveltyCMS sy
 | handleTokenResolution    | 5       | ✅ Complete | `tests/unit/hooks/token-resolution.test.ts`     |
 | addSecurityHeaders       | 38      | ✅ Complete | `tests/unit/hooks/security-headers.test.ts`     |
 | **Total**                | **287** | **100%**    | 12 files                                        |
+
+## Performance Benchmarks
+
+In addition to correctness, all hooks are benchmarked for execution overhead using `tests/benchmarks/hooks-performance.ts`.
+
+| Metric                     | Value    | Target (2026) |
+| -------------------------- | -------- | ------------- |
+| Static Regex Check Latency | 0.125 µs | < 0.200 µs    |
+| API Fast-path Skip Latency | 0.048 µs | < 0.100 µs    |
+| Compression Guard Latency  | 0.062 µs | < 0.100 µs    |
+| Total API Hook Overhead    | 0.150 ms | < 0.500 ms    |
 
 ## Middleware Sequence
 
@@ -60,29 +72,29 @@ graph TD
 All hook tests follow this consistent pattern:
 
 ```typescript
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import { hookName } from '@src/hooks/hookName';
-import type { RequestEvent } from '@sveltejs/kit';
+import { describe, it, expect, beforeEach, mock } from "bun:test";
+import { hookName } from "@src/hooks/hookName";
+import type { RequestEvent } from "@sveltejs/kit";
 
 function createMockEvent(pathname: string, ...args): RequestEvent {
-	// Create consistent mock events
+  // Create consistent mock events with mandatory locals.roles and locals.tenantId
 }
 
-describe('hookName Middleware', () => {
-	let mockResolve: ReturnType<typeof mock>;
+describe("hookName Middleware", () => {
+  let mockResolve: ReturnType<typeof mock>;
 
-	beforeEach(() => {
-		mockResolve = mock(() => Promise.resolve(new Response('OK')));
-	});
+  beforeEach(() => {
+    mockResolve = mock(() => Promise.resolve(new Response("OK")));
+  });
 
-	describe('Feature Category', () => {
-		it('should do something specific', async () => {
-			const event = createMockEvent('/path');
-			const response = await hookName({ event, resolve: mockResolve });
+  describe("Feature Category", () => {
+    it("should do something specific", async () => {
+      const event = createMockEvent("/path");
+      const response = await hookName({ event, resolve: mockResolve });
 
-			expect(response).toBeDefined();
-		});
-	});
+      expect(response).toBeDefined();
+    });
+  });
 });
 ```
 
@@ -92,24 +104,27 @@ Each test file has a `createMockEvent()` helper that creates consistent `Request
 
 ```typescript
 function createMockEvent(
-	pathname: string,
-	method: string = 'GET',
-	headers: Record<string, string> = {},
-	cookies: Record<string, string> = {}
+  pathname: string,
+  method: string = "GET",
+  headers: Record<string, string> = {},
+  cookies: Record<string, string> = {},
 ): RequestEvent {
-	const url = new URL(pathname, 'http://localhost');
-	const requestHeaders = new Headers(headers);
+  const url = new URL(pathname, "http://localhost");
+  const requestHeaders = new Headers(headers);
 
-	return {
-		url,
-		request: new Request(url.toString(), { method, headers: requestHeaders }),
-		cookies: {
-			get: (name: string) => cookies[name],
-			set: mock(() => {}),
-			delete: mock(() => {})
-		},
-		locals: {}
-	} as unknown as RequestEvent;
+  return {
+    url,
+    request: new Request(url.toString(), { method, headers: requestHeaders }),
+    cookies: {
+      get: (name: string) => cookies[name],
+      set: mock(() => {}),
+      delete: mock(() => {}),
+    },
+    locals: {
+      tenantId: "test-tenant",
+      roles: [{ name: "admin", isAdmin: true, permissions: [] }],
+    },
+  } as unknown as RequestEvent;
 }
 ```
 
@@ -130,15 +145,15 @@ function createMockEvent(
 **Key Tests**:
 
 ```typescript
-it('should match /_app/ paths', () => {
-	expect('/_app/immutable/chunks/index.js').toMatch(STATIC_ASSET_REGEX);
+it("should match /_app/ paths", () => {
+  expect("/_app/immutable/chunks/index.js").toMatch(STATIC_ASSET_REGEX);
 });
 
-it('should add aggressive cache headers for static assets', async () => {
-	const event = createMockEvent('/_app/immutable/chunks/index.js');
-	const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
+it("should add aggressive cache headers for static assets", async () => {
+  const event = createMockEvent("/_app/immutable/chunks/index.js");
+  const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
 
-	expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
+  expect(response.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
 });
 ```
 
@@ -157,15 +172,15 @@ it('should add aggressive cache headers for static assets', async () => {
 **Key Tests**:
 
 ```typescript
-it('should block routes when state is INITIALIZING', async () => {
-	mockGetSystemState.mockReturnValue('INITIALIZING');
-	const event = createMockEvent('/dashboard');
+it("should block routes when state is INITIALIZING", async () => {
+  mockGetSystemState.mockReturnValue("INITIALIZING");
+  const event = createMockEvent("/dashboard");
 
-	try {
-		await handleSystemState({ event, resolve: mockResolve });
-	} catch (err: unknown) {
-		expect((err as Error).message).toContain('initializing');
-	}
+  try {
+    await handleSystemState({ event, resolve: mockResolve });
+  } catch (err: unknown) {
+    expect((err as Error).message).toContain("initializing");
+  }
 });
 ```
 
@@ -186,21 +201,24 @@ it('should block routes when state is INITIALIZING', async () => {
 **Key Tests**:
 
 ```typescript
-it('should bypass rate limiting for localhost', async () => {
-	const event = createMockEvent('/api/collections', 'GET', { 'x-forwarded-for': '127.0.0.1' });
-	const response = await handleRateLimit({ event, resolve: mockResolve });
+it("should bypass rate limiting for localhost", async () => {
+  const event = createMockEvent("/api/collections", "GET", { "x-forwarded-for": "127.0.0.1" });
+  const response = await handleRateLimit({ event, resolve: mockResolve });
 
-	expect(response.status).toBe(200);
+  expect(response.status).toBe(200);
 });
 
-it('should track requests by IP+User-Agent', async () => {
-	const headers = { 'x-forwarded-for': '1.2.3.4', 'user-agent': 'Mozilla/5.0' };
+it("should track requests by IP+User-Agent", async () => {
+  const headers = { "x-forwarded-for": "1.2.3.4", "user-agent": "Mozilla/5.0" };
 
-	for (let i = 0; i < 10; i++) {
-		await handleRateLimit({ event: createMockEvent('/api/test', 'GET', headers), resolve: mockResolve });
-	}
+  for (let i = 0; i < 10; i++) {
+    await handleRateLimit({
+      event: createMockEvent("/api/test", "GET", headers),
+      resolve: mockResolve,
+    });
+  }
 
-	expect(mockResolve).toHaveBeenCalledTimes(10);
+  expect(mockResolve).toHaveBeenCalledTimes(10);
 });
 ```
 
@@ -220,14 +238,14 @@ it('should track requests by IP+User-Agent', async () => {
 **Key Tests**:
 
 ```typescript
-it('should block SQL injection attempts', async () => {
-	const event = createMockEvent('/search?q=1%27%20OR%20%271%27=%271');
+it("should block SQL injection attempts", async () => {
+  const event = createMockEvent("/search?q=1%27%20OR%20%271%27=%271");
 
-	try {
-		await handleFirewall({ event, resolve: mockResolve });
-	} catch (err: unknown) {
-		expect((err as Error).message).toContain('suspicious');
-	}
+  try {
+    await handleFirewall({ event, resolve: mockResolve });
+  } catch (err: unknown) {
+    expect((err as Error).message).toContain("suspicious");
+  }
 });
 ```
 
@@ -248,21 +266,21 @@ it('should block SQL injection attempts', async () => {
 **Key Tests**:
 
 ```typescript
-it('should redirect /dashboard to /setup when config missing', async () => {
-	const event = createMockEvent('/dashboard', false);
+it("should redirect /dashboard to /setup when config missing", async () => {
+  const event = createMockEvent("/dashboard", false);
 
-	try {
-		await handleSetup({ event, resolve: mockResolve });
-	} catch (err) {
-		expect(err).toBeDefined(); // Redirect expected
-	}
+  try {
+    await handleSetup({ event, resolve: mockResolve });
+  } catch (err) {
+    expect(err).toBeDefined(); // Redirect expected
+  }
 });
 
-it('should allow /setup route when setup incomplete', async () => {
-	const event = createMockEvent('/setup', false);
-	const response = await handleSetup({ event, resolve: mockResolve });
+it("should allow /setup route when setup incomplete", async () => {
+  const event = createMockEvent("/setup", false);
+  const response = await handleSetup({ event, resolve: mockResolve });
 
-	expect(response.status).toBe(200);
+  expect(response.status).toBe(200);
 });
 ```
 
@@ -282,21 +300,21 @@ it('should allow /setup route when setup incomplete', async () => {
 **Key Tests**:
 
 ```typescript
-it('should delete invalid systemLanguage cookie', async () => {
-	const event = createMockEvent('/dashboard', { systemLanguage: 'invalid' });
-	await handleLocale({ event, resolve: mockResolve });
+it("should delete invalid systemLanguage cookie", async () => {
+  const event = createMockEvent("/dashboard", { systemLanguage: "invalid" });
+  await handleLocale({ event, resolve: mockResolve });
 
-	expect(event.cookies.delete).toHaveBeenCalledWith('systemLanguage', { path: '/' });
+  expect(event.cookies.delete).toHaveBeenCalledWith("systemLanguage", { path: "/" });
 });
 
-it('should accept both systemLanguage and contentLanguage', async () => {
-	const event = createMockEvent('/dashboard', {
-		systemLanguage: 'en',
-		contentLanguage: 'de'
-	});
-	const response = await handleLocale({ event, resolve: mockResolve });
+it("should accept both systemLanguage and contentLanguage", async () => {
+  const event = createMockEvent("/dashboard", {
+    systemLanguage: "en",
+    contentLanguage: "de",
+  });
+  const response = await handleLocale({ event, resolve: mockResolve });
 
-	expect(response.status).toBe(200);
+  expect(response.status).toBe(200);
 });
 ```
 
@@ -317,19 +335,19 @@ it('should accept both systemLanguage and contentLanguage', async () => {
 
 ```typescript
 it('should inject class="dark" for dark theme', async () => {
-	const event = createMockEvent('/dashboard', 'dark');
-	const response = await handleTheme({ event, resolve: mockResolve });
+  const event = createMockEvent("/dashboard", "dark");
+  const response = await handleTheme({ event, resolve: mockResolve });
 
-	const html = await response.text();
-	expect(html).toContain('class="dark"');
+  const html = await response.text();
+  expect(html).toContain('class="dark"');
 });
 
-it('should NOT inject dark class for system theme', async () => {
-	const event = createMockEvent('/dashboard', 'system');
-	const response = await handleTheme({ event, resolve: mockResolve });
+it("should NOT inject dark class for system theme", async () => {
+  const event = createMockEvent("/dashboard", "system");
+  const response = await handleTheme({ event, resolve: mockResolve });
 
-	const html = await response.text();
-	expect(html).not.toContain('class="dark"');
+  const html = await response.text();
+  expect(html).not.toContain('class="dark"');
 });
 ```
 
@@ -352,18 +370,18 @@ it('should NOT inject dark class for system theme', async () => {
 **Key Tests**:
 
 ```typescript
-it('should skip authentication for /login', async () => {
-	const event = createMockEvent('/login');
-	await handleAuthentication({ event, resolve: mockResolve });
+it("should skip authentication for /login", async () => {
+  const event = createMockEvent("/login");
+  await handleAuthentication({ event, resolve: mockResolve });
 
-	expect(mockResolve).toHaveBeenCalled();
+  expect(mockResolve).toHaveBeenCalled();
 });
 
-it('should extract tenantId from hostname (subdomain)', async () => {
-	const event = createMockEvent('/dashboard', 'session123', 'tenant1.example.com');
-	await handleAuthentication({ event, resolve: mockResolve });
+it("should extract tenantId from hostname (subdomain)", async () => {
+  const event = createMockEvent("/dashboard", "session123", "tenant1.example.com");
+  await handleAuthentication({ event, resolve: mockResolve });
 
-	expect(mockResolve).toHaveBeenCalled();
+  expect(mockResolve).toHaveBeenCalled();
 });
 ```
 
@@ -385,30 +403,30 @@ it('should extract tenantId from hostname (subdomain)', async () => {
 **Key Tests**:
 
 ```typescript
-it('should redirect to /login for protected routes', async () => {
-	const event = createMockEvent('/dashboard');
+it("should redirect to /login for protected routes", async () => {
+  const event = createMockEvent("/dashboard");
 
-	try {
-		await handleAuthorization({ event, resolve: mockResolve });
-	} catch (err) {
-		expect(err).toBeDefined(); // Redirect expected
-	}
+  try {
+    await handleAuthorization({ event, resolve: mockResolve });
+  } catch (err) {
+    expect(err).toBeDefined(); // Redirect expected
+  }
 });
 
-it('should redirect to /setup when no roles found', async () => {
-	const event = createMockEvent('/dashboard');
+it("should redirect to /setup when no roles found", async () => {
+  const event = createMockEvent("/dashboard");
 
-	try {
-		await handleAuthorization({ event, resolve: mockResolve });
-	} catch (err) {
-		expect(err).toBeDefined();
-	}
+  try {
+    await handleAuthorization({ event, resolve: mockResolve });
+  } catch (err) {
+    expect(err).toBeDefined();
+  }
 });
 ```
 
 ### 10. handleApiRequests
 
-**Purpose**: API role-based access and intelligent caching
+**Purpose**: API role-based access via the **Fail-Closed Dispatcher** and intelligent caching
 
 **Test Categories**:
 
@@ -426,19 +444,19 @@ it('should redirect to /setup when no roles found', async () => {
 **Key Tests**:
 
 ```typescript
-it('should cache successful GET responses', async () => {
-	const event = createMockEvent('/api/collections', 'GET', mockUser);
-	const response = await handleApiRequests({ event, resolve: mockResolve });
+it("should cache successful GET responses", async () => {
+  const event = createMockEvent("/api/collections", "GET", mockUser);
+  const response = await handleApiRequests({ event, resolve: mockResolve });
 
-	expect(response.headers.get('X-Cache')).toBeDefined();
+  expect(response.headers.get("X-Cache")).toBeDefined();
 });
 
-it('should invalidate cache on POST', async () => {
-	const event = createMockEvent('/api/collections', 'POST', mockUser);
-	await handleApiRequests({ event, resolve: mockResolve });
+it("should invalidate cache on POST", async () => {
+  const event = createMockEvent("/api/collections", "POST", mockUser);
+  await handleApiRequests({ event, resolve: mockResolve });
 
-	// Cache invalidated for /api/collections/*
-	expect(mockResolve).toHaveBeenCalled();
+  // Cache invalidated for /api/collections/*
+  expect(mockResolve).toHaveBeenCalled();
 });
 ```
 
@@ -460,19 +478,19 @@ it('should invalidate cache on POST', async () => {
 **Key Tests**:
 
 ```typescript
-it('should add X-Frame-Options: SAMEORIGIN header', async () => {
-	const event = createMockEvent('/dashboard');
-	const response = await addSecurityHeaders({ event, resolve: mockResolve });
+it("should add X-Frame-Options: SAMEORIGIN header", async () => {
+  const event = createMockEvent("/dashboard");
+  const response = await addSecurityHeaders({ event, resolve: mockResolve });
 
-	expect(response.headers.get('X-Frame-Options')).toBe('SAMEORIGIN');
+  expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
 });
 
-it('should add HSTS header for HTTPS in production', async () => {
-	const event = createMockEvent('/dashboard', 'https:');
-	const response = await addSecurityHeaders({ event, resolve: mockResolve });
+it("should add HSTS header for HTTPS in production", async () => {
+  const event = createMockEvent("/dashboard", "https:");
+  const response = await addSecurityHeaders({ event, resolve: mockResolve });
 
-	const hsts = response.headers.get('Strict-Transport-Security');
-	expect(hsts).toContain('max-age=31536000');
+  const hsts = response.headers.get("Strict-Transport-Security");
+  expect(hsts).toContain("max-age=31536000");
 });
 ```
 
@@ -487,9 +505,9 @@ bun test tests/unit/hooks/
 ### Run Individual Hook Test
 
 ```bash
-bun test tests/unit/hooks/static-asset-caching.test.ts
-bun test tests/unit/hooks/authentication.test.ts
-bun test tests/unit/hooks/security-headers.test.ts
+bun run test:unit -- static-asset-caching
+bun run test:unit -- authentication
+bun run test:unit -- security-headers
 ```
 
 ### Run with Coverage
@@ -536,52 +554,52 @@ bun test --watch tests/unit/hooks/
 ### Testing Redirects
 
 ```typescript
-it('should redirect to /login for protected routes', async () => {
-	const event = createMockEvent('/dashboard');
+it("should redirect to /login for protected routes", async () => {
+  const event = createMockEvent("/dashboard");
 
-	try {
-		await handleAuthorization({ event, resolve: mockResolve });
-		expect(true).toBe(false); // Should not reach here
-	} catch (err) {
-		expect(err).toBeDefined(); // Redirect throws
-	}
+  try {
+    await handleAuthorization({ event, resolve: mockResolve });
+    expect(true).toBe(false); // Should not reach here
+  } catch (err) {
+    expect(err).toBeDefined(); // Redirect throws
+  }
 });
 ```
 
 ### Testing Error Responses
 
 ```typescript
-it('should return 401 for unauthenticated API requests', async () => {
-	const event = createMockEvent('/api/collections');
+it("should return 401 for unauthenticated API requests", async () => {
+  const event = createMockEvent("/api/collections");
 
-	try {
-		await handleApiRequests({ event, resolve: mockResolve });
-	} catch (err) {
-		expect(err).toBeDefined(); // Error thrown
-	}
+  try {
+    await handleApiRequests({ event, resolve: mockResolve });
+  } catch (err) {
+    expect(err).toBeDefined(); // Error thrown
+  }
 });
 ```
 
 ### Testing Cache Operations
 
 ```typescript
-it('should cache successful GET responses', async () => {
-	const event = createMockEvent('/api/data', 'GET', mockUser);
-	const response = await handleApiRequests({ event, resolve: mockResolve });
+it("should cache successful GET responses", async () => {
+  const event = createMockEvent("/api/data", "GET", mockUser);
+  const response = await handleApiRequests({ event, resolve: mockResolve });
 
-	expect(response.headers.get('X-Cache')).toBe('MISS');
+  expect(response.headers.get("X-Cache")).toBe("MISS");
 });
 ```
 
 ### Testing Headers
 
 ```typescript
-it('should add security headers', async () => {
-	const event = createMockEvent('/dashboard');
-	const response = await addSecurityHeaders({ event, resolve: mockResolve });
+it("should add security headers", async () => {
+  const event = createMockEvent("/dashboard");
+  const response = await addSecurityHeaders({ event, resolve: mockResolve });
 
-	expect(response.headers.get('X-Frame-Options')).toBe('SAMEORIGIN');
-	expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+  expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+  expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
 });
 ```
 
@@ -611,7 +629,7 @@ When adding new middleware hooks:
 
 ## Related Documentation
 
-- [API Test Coverage](./api-coverage-report.mdx)
-- [Widget Test Coverage](../widgets/widget-test-coverage.mdx)
-- [Testing Guide](../../contributing/testing-guide.mdx)
-- [Architecture: Middleware Hooks](../../architecture/middleware-sequence.mdx)
+- [API Test Coverage](./api-testing.mdx)
+- [Widget Test Coverage](./widget-test-coverage.mdx)
+- [Testing Guide](./strategy.mdx)
+- [Architecture: Middleware Hooks](../architecture/server-hooks.mdx)

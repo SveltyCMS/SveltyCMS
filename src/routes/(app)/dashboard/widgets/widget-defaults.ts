@@ -10,71 +10,71 @@
  * - static: Announcements, messages, configuration
  */
 
-export type WidgetCategory = 'monitoring' | 'logs' | 'content' | 'static';
+export type WidgetCategory = "monitoring" | "logs" | "content" | "static";
 
 export interface WidgetDefaults {
-	cacheKey?: (widgetId: string) => string;
-	cacheTTL?: number;
-	retryCount: number;
-	retryDelay: number;
-	showRefreshButton: boolean;
+  cacheKey?: (widgetId: string) => string;
+  cacheTTL?: number;
+  retryCount: number;
+  retryDelay: number;
+  showRefreshButton: boolean;
 }
 
 export const WIDGET_DEFAULTS: Record<WidgetCategory, WidgetDefaults> = {
-	// Real-time monitoring widgets (CPU, Memory, Cache, Performance)
-	monitoring: {
-		showRefreshButton: true,
-		cacheKey: undefined, // No cache - always fresh data
-		retryCount: 3,
-		retryDelay: 1000
-	},
+  // Real-time monitoring widgets (CPU, Memory, Cache, Performance)
+  monitoring: {
+    showRefreshButton: true,
+    cacheKey: undefined, // No cache - always fresh data
+    retryCount: 3,
+    retryDelay: 1000,
+  },
 
-	// Activity logs and recent events
-	logs: {
-		showRefreshButton: false, // Auto-poll only
-		cacheKey: undefined,
-		retryCount: 2,
-		retryDelay: 1000
-	},
+  // Activity logs and recent events
+  logs: {
+    showRefreshButton: false, // Auto-poll only
+    cacheKey: undefined,
+    retryCount: 2,
+    retryDelay: 1000,
+  },
 
-	// Content and media listings
-	content: {
-		showRefreshButton: false,
-		cacheKey: (id: string) => `content-${id}`,
-		cacheTTL: 120_000, // 2 minutes
-		retryCount: 3,
-		retryDelay: 1000
-	},
+  // Content and media listings
+  content: {
+    showRefreshButton: false,
+    cacheKey: (id: string) => `content-${id}`,
+    cacheTTL: 120_000, // 2 minutes
+    retryCount: 3,
+    retryDelay: 1000,
+  },
 
-	// Static content (messages, announcements)
-	static: {
-		showRefreshButton: false,
-		cacheKey: (id: string) => `static-${id}`,
-		cacheTTL: 300_000, // 5 minutes
-		retryCount: 3,
-		retryDelay: 2000
-	}
+  // Static content (messages, announcements)
+  static: {
+    showRefreshButton: false,
+    cacheKey: (id: string) => `static-${id}`,
+    cacheTTL: 300_000, // 5 minutes
+    retryCount: 3,
+    retryDelay: 2000,
+  },
 };
 
 /**
  * Get default configuration for a widget category
  */
 export function getWidgetDefaults(
-	category: WidgetCategory,
-	widgetId?: string
+  category: WidgetCategory,
+  widgetId?: string,
 ): Partial<{
-	showRefreshButton: boolean;
-	cacheKey: string | undefined;
-	cacheTTL: number;
-	retryCount: number;
-	retryDelay: number;
+  showRefreshButton: boolean;
+  cacheKey: string | undefined;
+  cacheTTL: number;
+  retryCount: number;
+  retryDelay: number;
 }> {
-	const defaults = WIDGET_DEFAULTS[category];
-	return {
-		showRefreshButton: defaults.showRefreshButton,
-		cacheKey: defaults.cacheKey && widgetId ? defaults.cacheKey(widgetId) : undefined,
-		cacheTTL: defaults.cacheTTL,
-		retryCount: defaults.retryCount,
-		retryDelay: defaults.retryDelay
-	};
+  const defaults = WIDGET_DEFAULTS[category];
+  return {
+    showRefreshButton: defaults.showRefreshButton,
+    cacheKey: defaults.cacheKey && widgetId ? defaults.cacheKey(widgetId) : undefined,
+    cacheTTL: defaults.cacheTTL,
+    retryCount: defaults.retryCount,
+    retryDelay: defaults.retryDelay,
+  };
 }

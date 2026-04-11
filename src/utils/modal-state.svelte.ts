@@ -27,36 +27,42 @@
  * - close: Emitted when the modal is closed
  */
 
-import type { Component } from 'svelte';
+import type { Component } from "svelte";
 
 export interface ModalStateItem {
-	component: Component;
-	props?: Record<string, any>;
-	response?: (r: any) => void;
+  component: Component;
+  props?: Record<string, any>;
+  response?: (r: any) => void;
 }
 
 class ModalState {
-	active = $state<ModalStateItem | null>(null);
+  active = $state<ModalStateItem | null>(null);
 
-	get isOpen() {
-		return this.active !== null;
-	}
+  get isOpen() {
+    return this.active !== null;
+  }
 
-	trigger(component: Component, props: Record<string, any> = {}, response?: (r: any) => void) {
-		this.active = { component, props, response };
-	}
+  set isOpen(value: boolean) {
+    if (!value) {
+      this.close();
+    }
+  }
 
-	// Updated close to handle value passing
-	close(value?: any) {
-		if (this.active?.response && value !== undefined) {
-			this.active.response(value);
-		}
-		this.active = null;
-	}
+  trigger(component: Component, props: Record<string, any> = {}, response?: (r: any) => void) {
+    this.active = { component, props, response };
+  }
 
-	clear() {
-		this.active = null;
-	}
+  // Updated close to handle value passing
+  close(value?: any) {
+    if (this.active?.response && value !== undefined) {
+      this.active.response(value);
+    }
+    this.active = null;
+  }
+
+  clear() {
+    this.active = null;
+  }
 }
 
 export const modalState = new ModalState();

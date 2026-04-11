@@ -9,27 +9,49 @@ Features:
 -->
 
 <script lang="ts">
-	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
-	import { collections } from '@src/stores/collection-store.svelte';
-	import { widgets } from '@src/stores/widget-store.svelte.ts';
-	import { asAny } from '@utils/utils';
+import InputSwitch from "@src/components/system/builder/input-switch.svelte";
+import { collections } from "@src/stores/collection-store.svelte";
+import { widgets } from "@src/stores/widget-store.svelte.ts";
+import { asAny } from "@utils/utils";
 
-	// Removed modalStore
+// Removed modalStore
 
-	// Define widget keys and excluded fields for specificity
-	const defaultFields = ['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'];
+// Define widget keys and excluded fields for specificity
+const defaultFields = [
+	"label",
+	"display",
+	"db_fieldName",
+	"required",
+	"translated",
+	"icon",
+	"helper",
+	"width",
+	"permissions",
+];
 
-	// Reactive statements to derive widget-related data
-	const currentWidgetName = $derived((collections.targetWidget as any)?.widget?.Name);
-	const currentGuiSchema = $derived(currentWidgetName ? (widgets.widgetFunctions[currentWidgetName] as any)?.GuiSchema || null : null);
-	const specificFields = $derived(currentGuiSchema ? Object.keys(currentGuiSchema).filter((key) => !defaultFields.includes(key)) : []);
+// Reactive statements to derive widget-related data
+const currentWidgetName = $derived(
+	(collections.targetWidget as any)?.widget?.Name,
+);
+const currentGuiSchema = $derived(
+	currentWidgetName
+		? (widgets.widgetFunctions[currentWidgetName] as any)?.GuiSchema || null
+		: null,
+);
+const specificFields = $derived(
+	currentGuiSchema
+		? Object.keys(currentGuiSchema).filter(
+				(key) => !defaultFields.includes(key),
+			)
+		: [],
+);
 
-	/** Updates the target widget property */
-	function handleUpdate(detail: { value: any }, property: string) {
-		const currentWidget = collections.targetWidget;
-		currentWidget[property] = detail.value;
-		collections.setTargetWidget(currentWidget);
-	}
+/** Updates the target widget property */
+function handleUpdate(detail: { value: any }, property: string) {
+	const currentWidget = collections.targetWidget;
+	currentWidget[property] = detail.value;
+	collections.setTargetWidget(currentWidget);
+}
 </script>
 
 {#if currentGuiSchema && specificFields.length > 0}

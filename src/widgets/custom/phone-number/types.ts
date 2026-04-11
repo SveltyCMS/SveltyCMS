@@ -11,14 +11,14 @@
  * Defines the properties unique to the PhoneNumber widget, configured in the collection builder.
  */
 export interface PhoneNumberProps {
-	/**
-	 * A custom regex string to validate the phone number format.
-	 * If not provided, a default international format is used.
-	 */
-	pattern?: string;
-	// Placeholder text for the input field
-	placeholder?: string;
+  /**
+   * A custom regex string to validate the phone number format.
+   * If not provided, a default international format is used.
+   */
+  pattern?: string;
+  // Placeholder text for the input field
+  placeholder?: string;
 
-	// Index signature to satisfy WidgetProps constraint
-	[key: string]: unknown;
+  // Index signature to satisfy WidgetProps constraint
+  [key: string]: unknown;
 }

@@ -3,71 +3,71 @@
  * @description Exposes Navigation tools to WebMCP
  */
 
-import { goto } from '$app/navigation';
-import { page } from '$app/state';
+import { goto } from "$app/navigation";
+import { page } from "$app/state";
 
 export function registerNavigationTools() {
-	const modelContext = window.navigator.modelContext;
+  const modelContext = window.navigator.modelContext;
 
-	if (!modelContext) {
-		return;
-	}
+  if (!modelContext) {
+    return;
+  }
 
-	// Tool: navigate_to
-	modelContext.registerTool({
-		name: 'navigate_to',
-		description: 'Navigate to a specific path in the Admin Dashboard.',
-		parameters: {
-			type: 'object',
-			properties: {
-				path: {
-					type: 'string',
-					description: 'The URL path to navigate to (must start with /)'
-				}
-			},
-			required: ['path']
-		},
-		execute: async ({ path }: { path: string }) => {
-			try {
-				await goto(path);
-				return {
-					content: [{ type: 'text', text: `Navigated to ${path}` }]
-				};
-			} catch (e: any) {
-				return {
-					isError: true,
-					content: [{ type: 'text', text: `Failed to navigate: ${e.message}` }]
-				};
-			}
-		}
-	} as any);
+  // Tool: navigate_to
+  modelContext.registerTool({
+    name: "navigate_to",
+    description: "Navigate to a specific path in the Admin Dashboard.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "The URL path to navigate to (must start with /)",
+        },
+      },
+      required: ["path"],
+    },
+    execute: async ({ path }: { path: string }) => {
+      try {
+        await goto(path);
+        return {
+          content: [{ type: "text", text: `Navigated to ${path}` }],
+        };
+      } catch (e: any) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: `Failed to navigate: ${e.message}` }],
+        };
+      }
+    },
+  } as any);
 
-	// Tool: get_current_route
-	modelContext.registerTool({
-		name: 'get_current_route',
-		description: 'Get the current URL path and parameters.',
-		parameters: {
-			type: 'object',
-			properties: {},
-			required: []
-		},
-		execute: async () => {
-			return {
-				content: [
-					{
-						type: 'text',
-						text: JSON.stringify(
-							{
-								path: page.url.pathname,
-								params: page.params,
-								query: Object.fromEntries(page.url.searchParams)
-							},
-							null,
-							2
-						)
-					}
-				]
-			};
-		}
-	} as any);
+  // Tool: get_current_route
+  modelContext.registerTool({
+    name: "get_current_route",
+    description: "Get the current URL path and parameters.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+    execute: async () => {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                path: page.url.pathname,
+                params: page.params,
+                query: Object.fromEntries(page.url.searchParams),
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    },
+  } as any);
 }

@@ -1,2 +1,4 @@
 [test]
-preload = ["./tests/unit/setup.ts"]
+# Global preloads for Bun test environments
+# Ensures platform shims like import.meta.glob and DOM fallbacks are always present
+preload = ["./tests/platform-shims.ts"]

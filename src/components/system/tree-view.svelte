@@ -356,7 +356,8 @@
 		}
 
 		const related = event?.relatedTarget as Node | null;
-		if (!(related && (event?.currentTarget as Node).contains(related))) {
+		const currentTarget = event?.currentTarget as Node | null;
+		if (!(related && currentTarget?.contains(related))) {
 			dragOverNode = null;
 			dropPosition = null;
 		}

@@ -1,16 +1,16 @@
 ---
-path: 'docs/architecture/hover-preloading.mdx'
+path: "docs/architecture/hover-preloading.mdx"
 title: Hover Preloading for Edit Mode
 description: Intelligent speculative loading strategy for enterprise CMS performance optimization
 category: architecture
 order: 6
-author: 'SveltyCMS Team'
-created: '2025-12-16'
-updated: '2025-12-16'
+author: "SveltyCMS Team"
+created: "2025-12-16"
+updated: "2026-03-27"
 tags:
-  - 'architecture'
-  - 'performance'
-  - 'preloading'
+  - "architecture"
+  - "performance"
+  - "preloading"
 ---
 
 # Hover Preloading for Edit Mode
@@ -50,23 +50,23 @@ const PRELOAD_CACHE_TTL = 30000; // ms - 30 second freshness window
 
 ```typescript
 function handleRowHoverStart(entryId: string) {
-	hoverPreloadTimeout = setTimeout(async () => {
-		// Preload after 600ms
-		await fetch(preloadUrl.toString(), {
-			method: 'GET',
-			credentials: 'include',
-			headers: {
-				'X-Preload': 'true'
-			}
-		});
-	}, PRELOAD_HOVER_DELAY);
+  hoverPreloadTimeout = setTimeout(async () => {
+    // Preload after 600ms
+    await fetch(preloadUrl.toString(), {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        "X-Preload": "true",
+      },
+    });
+  }, PRELOAD_HOVER_DELAY);
 }
 
 function handleRowHoverEnd() {
-	// Cancel if user moves away quickly
-	if (hoverPreloadTimeout) {
-		clearTimeout(hoverPreloadTimeout);
-	}
+  // Cancel if user moves away quickly
+  if (hoverPreloadTimeout) {
+    clearTimeout(hoverPreloadTimeout);
+  }
 }
 ```
 
@@ -78,17 +78,17 @@ function handleRowHoverEnd() {
 
 ```typescript
 const preloadedEntries = new Map<
-	string,
-	{
-		data: any;
-		timestamp: number;
-	}
+  string,
+  {
+    data: any;
+    timestamp: number;
+  }
 >();
 
 // Check if already preloaded and still fresh
 const cached = preloadedEntries.get(entryId);
 if (cached && Date.now() - cached.timestamp < PRELOAD_CACHE_TTL) {
-	return; // Skip preload
+  return; // Skip preload
 }
 ```
 
@@ -116,16 +116,16 @@ const cachedData = await cacheService.get(cacheKey);
 
 ```typescript
 $effect(() => {
-	const cleanupInterval = setInterval(() => {
-		const now = Date.now();
-		for (const [entryId, cached] of preloadedEntries.entries()) {
-			if (now - cached.timestamp > PRELOAD_CACHE_TTL) {
-				preloadedEntries.delete(entryId);
-			}
-		}
-	}, 10000); // Cleanup every 10 seconds
+  const cleanupInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [entryId, cached] of preloadedEntries.entries()) {
+      if (now - cached.timestamp > PRELOAD_CACHE_TTL) {
+        preloadedEntries.delete(entryId);
+      }
+    }
+  }, 10000); // Cleanup every 10 seconds
 
-	return () => clearInterval(cleanupInterval);
+  return () => clearInterval(cleanupInterval);
 });
 ```
 
@@ -188,10 +188,14 @@ const PRELOAD_CACHE_TTL = 30000; // 30 seconds
 ```typescript
 // Detect slow connections (future implementation)
 const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-const isSlowConnection = connection && (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g' || connection.saveData === true);
+const isSlowConnection =
+  connection &&
+  (connection.effectiveType === "slow-2g" ||
+    connection.effectiveType === "2g" ||
+    connection.saveData === true);
 
 if (isSlowConnection) {
-	return; // Skip preload on slow connections
+  return; // Skip preload on slow connections
 }
 ```
 
@@ -203,14 +207,14 @@ The preload integrates seamlessly with existing SSR:
 
 ```typescript
 // +page.server.ts detects edit parameter
-const editEntryId = url.searchParams.get('edit');
+const editEntryId = url.searchParams.get("edit");
 
 if (editEntryId) {
-	// Load single entry for editing
-	finalFilter._id = editEntryId;
+  // Load single entry for editing
+  finalFilter._id = editEntryId;
 
-	// Skip language projection (need full multilingual data)
-	// Cache with edit-specific key
+  // Skip language projection (need full multilingual data)
+  // Cache with edit-specific key
 }
 ```
 
@@ -232,7 +236,7 @@ if (editEntryId) {
 ```typescript
 // Only use goto() when you need to combine navigation with other logic
 const newUrl = new URL(page.url);
-newUrl.searchParams.set('edit', originalEntry._id);
+newUrl.searchParams.set("edit", originalEntry._id);
 goto(newUrl, { keepFocus: true });
 ```
 
@@ -336,7 +340,7 @@ console.log(`[Preload] Entry ${entryId.substring(0, 8)} preloaded`);
 
 ## Related Documentation
 
-- [URL Pattern Simplification](./url-pattern-simplification.mdx): Edit URL structure
+- [URL Pattern Implementation](./url-pattern.mdx): Edit URL structure
 - [Multilingual Data Loading](./multilingual-data-loading.mdx): Two-tier SSR strategy
 - [Cache System](./cache-system.mdx): Dual-layer caching architecture
 - [Collection Store Dataflow](./collection-store-dataflow.mdx): Data flow patterns

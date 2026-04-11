@@ -1,5 +1,5 @@
 /**
- * @file src\databases\webhook-wrapper.ts
+ * @file src/databases/webhook-wrapper.ts
  * @description A Smart Proxy wrapper for the Database Adapter to trigger webhooks centrally.
  * This ensures that all mutations (CRUD, Media) trigger the appropriate webhooks
  * regardless of which API route or service initiates the change.
@@ -8,276 +8,294 @@
  * (count, findOne, findMany, etc.) on class-based adapter instances.
  */
 
-import type { WebhookEvent } from '@src/services/webhook-service';
-import { logger } from '@utils/logger.server';
-import type { ICrudAdapter, IDBAdapter, IMediaAdapter } from './db-interface';
+import type { WebhookEvent } from "@src/services/webhook-service";
+import { logger } from "@utils/logger.server";
+import type { ICrudAdapter, IDBAdapter, IMediaAdapter } from "./db-interface";
 
 // Constants for identifying events
-const CONTENT_COLLECTION_PREFIX = 'collection_';
+const CONTENT_COLLECTION_PREFIX = "collection_";
 
 export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBAdapter> {
-	// Dynamically import webhookService to avoid circular dependency with db.ts
-	const { webhookService } = await import('@src/services/webhook-service');
+  // Dynamically import services to avoid circular dependency with db.ts
+  const [{ webhookService }, { eventBus }] = await Promise.all([
+    import("@src/services/webhook-service"),
+    import("@src/services/automation/event-bus"),
+  ]);
 
-	logger.info('🔌 Webhook Proxy Wrapper active on Database Adapter');
+  logger.info("🔌 Webhook & EventBus Proxy Wrapper active on Database Adapter");
 
-	// --- Wrap CRUD Operations (Lazy Access) ---
-	// Capture the original property value or getter before redefining
-	let originalCrud: ICrudAdapter | undefined;
+  // --- Helper: Wrap CRUD Operations ---
+  const wrapCrud = (capturedCrud: ICrudAdapter): ICrudAdapter => {
+    const wrappedMethods: Partial<ICrudAdapter> = {
+      insert: async (...args) => {
+        const res = await capturedCrud.insert(...args);
+        const collection = args[0] as string;
+        const options = args[2] as any;
+        const tenantId = options?.tenantId;
+        if (
+          res.success &&
+          (collection.startsWith(CONTENT_COLLECTION_PREFIX) || collection === "MediaItem")
+        ) {
+          const event: WebhookEvent = collection === "MediaItem" ? "media:upload" : "entry:create";
+          webhookService.trigger(event, { collection, data: res.data as any }, tenantId);
+          eventBus.emit(event as any, { collection, data: res.data as any, tenantId });
+        }
+        return res;
+      },
+      insertMany: async (...args) => {
+        const res = await capturedCrud.insertMany(...args);
+        const collection = args[0] as string;
+        const options = args[2] as any;
+        const tenantId = options?.tenantId;
+        if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
+          for (const item of res.data) {
+            webhookService.trigger("entry:create", { collection, data: item as any }, tenantId);
+            eventBus.emit("entry:create", { collection, data: item as any, tenantId });
+          }
+        }
+        return res;
+      },
+      update: async (...args) => {
+        const res = await capturedCrud.update(...args);
+        const collection = args[0] as string;
+        const id = args[1] as any;
+        const data = args[2] as any;
+        const options = args[3] as any;
+        const tenantId = options?.tenantId;
+        if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
+          let event: WebhookEvent = "entry:update";
+          if ("status" in (data as any)) {
+            if ((data as any).status === "publish") event = "entry:publish";
+            else if ((data as any).status === "unpublish") event = "entry:unpublish";
+          }
+          webhookService.trigger(
+            event,
+            { collection, id: id as any, data: res.data as any },
+            tenantId,
+          );
+          eventBus.emit(event as any, {
+            collection,
+            entryId: id as any,
+            data: res.data as any,
+            tenantId,
+          });
+        }
+        return res;
+      },
+      updateMany: async (...args) => {
+        const res = await capturedCrud.updateMany(...args);
+        const collection = args[0] as string;
+        const query = args[1] as any;
+        const data = args[2] as any;
+        const options = args[3] as any;
+        const tenantId = options?.tenantId;
+        if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
+          webhookService.trigger(
+            "entry:update",
+            {
+              collection,
+              query: query as any,
+              changes: data as any,
+              modifiedCount: res.data.modifiedCount,
+            },
+            tenantId,
+          );
+          eventBus.emit("entry:update", {
+            collection,
+            data: { query, changes: data, modifiedCount: res.data.modifiedCount },
+            tenantId,
+          });
+        }
+        return res;
+      },
+      delete: async (...args) => {
+        const res = await capturedCrud.delete(...args);
+        const collection = args[0] as string;
+        const id = args[1] as any;
+        const options = args[2] as any;
+        const tenantId = options?.tenantId;
+        if (
+          res.success &&
+          (collection.startsWith(CONTENT_COLLECTION_PREFIX) || collection === "MediaItem")
+        ) {
+          const event: WebhookEvent = collection === "MediaItem" ? "media:delete" : "entry:delete";
+          webhookService.trigger(event, { collection, id: id as any }, tenantId);
+          eventBus.emit(event as any, { collection, entryId: id as any, tenantId });
+        }
+        return res;
+      },
+      deleteMany: async (...args) => {
+        const res = await capturedCrud.deleteMany(...args);
+        const collection = args[0] as string;
+        const query = args[1] as any;
+        const options = args[2] as any;
+        const tenantId = options?.tenantId;
+        if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
+          webhookService.trigger(
+            "entry:delete",
+            { collection, query: query as any, deletedCount: res.data.deletedCount },
+            tenantId,
+          );
+          eventBus.emit("entry:delete", {
+            collection,
+            data: { query, deletedCount: res.data.deletedCount },
+            tenantId,
+          });
+        }
+        return res;
+      },
+      upsert: async (...args) => {
+        const res = await capturedCrud.upsert(...args);
+        const collection = args[0] as string;
+        const query = args[1] as any;
+        const options = args[3] as any;
+        const tenantId = options?.tenantId;
+        if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
+          webhookService.trigger(
+            "entry:update",
+            { collection, query: query as any, data: res.data },
+            tenantId,
+          );
+          eventBus.emit("entry:update", { collection, data: { query, data: res.data }, tenantId });
+        }
+        return res;
+      },
+    };
 
-	// Check instance first
-	if (Object.hasOwn(adapter, 'crud')) {
-		originalCrud = adapter.crud;
-	} else {
-		// Check prototype chain
-		let proto = Object.getPrototypeOf(adapter);
-		while (proto) {
-			const desc = Object.getOwnPropertyDescriptor(proto, 'crud');
-			if (desc) {
-				if (desc.get) {
-					originalCrud = desc.get.call(adapter);
-				} else {
-					originalCrud = desc.value;
-				}
-				break;
-			}
-			proto = Object.getPrototypeOf(proto);
-		}
-	}
+    return new Proxy(capturedCrud, {
+      get(target, prop, receiver) {
+        if (typeof prop === "string" && prop in wrappedMethods) {
+          return wrappedMethods[prop as keyof ICrudAdapter];
+        }
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+  };
 
-	if (!originalCrud) {
-		// Fallback for some adapter structures
-		const internalAdapter = adapter as unknown as Record<string, ICrudAdapter>;
-		originalCrud = internalAdapter._crud || internalAdapter._cachedCrud;
-	}
+  // --- Helper: Wrap Media Operations ---
+  const wrapMedia = (capturedMedia: IMediaAdapter): IMediaAdapter => {
+    const originalFiles = capturedMedia.files;
+    const wrappedFiles: Partial<IMediaAdapter["files"]> = {
+      upload: async (...args) => {
+        const res = await originalFiles.upload(...args);
+        const [, tenantId] = args as [any, any];
+        if (res.success) {
+          webhookService.trigger("media:upload", { data: res.data as any }, tenantId);
+          eventBus.emit("media:upload", { data: res.data as any, tenantId });
+        }
+        return res;
+      },
+      uploadMany: async (...args) => {
+        const res = await originalFiles.uploadMany(...args);
+        const [, tenantId] = args as [any[], any];
+        if (res.success) {
+          for (const file of res.data) {
+            webhookService.trigger("media:upload", { data: file as any }, tenantId);
+            eventBus.emit("media:upload", { data: file as any, tenantId });
+          }
+        }
+        return res;
+      },
+      delete: async (...args) => {
+        const res = await originalFiles.delete(...args);
+        const [id, tenantId] = args as [any, any];
+        if (res.success) {
+          webhookService.trigger("media:delete", { id }, tenantId);
+          eventBus.emit("media:delete", { entryId: id as any, tenantId });
+        }
+        return res;
+      },
+      deleteMany: async (...args) => {
+        const res = await originalFiles.deleteMany(...args);
+        const [ids, tenantId] = args as [any[], any];
+        if (res.success) {
+          webhookService.trigger("media:delete", { ids }, tenantId);
+          eventBus.emit("media:delete", { data: { ids }, tenantId });
+        }
+        return res;
+      },
+    };
 
-	if (originalCrud) {
-		const capturedCrud = originalCrud; // Closure capture
+    const filesProxy = new Proxy(originalFiles, {
+      get(fTarget, fProp, fReceiver) {
+        if (typeof fProp === "string" && fProp in wrappedFiles) {
+          return wrappedFiles[fProp as keyof IMediaAdapter["files"]];
+        }
+        const fValue = Reflect.get(fTarget, fProp, fReceiver);
+        return typeof fValue === "function" ? fValue.bind(fTarget) : fValue;
+      },
+    });
 
-		Object.defineProperty(adapter, 'crud', {
-			get(): ICrudAdapter {
-				// Define mutations to intercept
-				const wrappedMethods: Partial<ICrudAdapter> = {
-					// --- Explicitly Proxy Read Methods (Fix for Proxy ambiguity) ---
-					count: async (...args) => {
-						return await capturedCrud.count(...args);
-					},
-					findOne: async (...args) => {
-						return await capturedCrud.findOne(...args);
-					},
-					findMany: async (...args) => {
-						return await capturedCrud.findMany(...args);
-					},
-					findByIds: async (...args) => {
-						return await capturedCrud.findByIds(...args);
-					},
-					exists: async (...args) => {
-						return await capturedCrud.exists(...args);
-					},
-					aggregate: async (...args) => {
-						return await capturedCrud.aggregate(...args);
-					},
+    return new Proxy(capturedMedia, {
+      get(target, prop, receiver) {
+        if (prop === "files") return filesProxy;
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+  };
 
-					// --- Wrapped Mutation Methods ---
-					insert: async (...args) => {
-						const res = await capturedCrud.insert(...args);
-						const [collection] = args;
-						if (res.success && (collection.startsWith(CONTENT_COLLECTION_PREFIX) || collection === 'MediaItem')) {
-							const event: WebhookEvent = collection === 'MediaItem' ? 'media:upload' : 'entry:create';
-							webhookService.trigger(event, {
-								collection,
-								data: res.data
-							});
-						}
-						return res;
-					},
+  // --- Initial Wrapping for CRUD ---
+  let originalCrud: ICrudAdapter | undefined;
+  if (Object.hasOwn(adapter, "crud")) {
+    originalCrud = adapter.crud;
+  } else {
+    let proto = Object.getPrototypeOf(adapter);
+    while (proto) {
+      const desc = Object.getOwnPropertyDescriptor(proto, "crud");
+      if (desc) {
+        originalCrud = desc.get ? desc.get.call(adapter) : desc.value;
+        break;
+      }
+      proto = Object.getPrototypeOf(proto);
+    }
+  }
 
-					insertMany: async (...args) => {
-						const res = await capturedCrud.insertMany(...args);
-						const [collection] = args;
-						if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
-							for (const item of res.data) {
-								webhookService.trigger('entry:create', {
-									collection,
-									data: item
-								});
-							}
-						}
-						return res;
-					},
+  if (!originalCrud) {
+    const internalAdapter = adapter as unknown as Record<string, ICrudAdapter>;
+    originalCrud = internalAdapter._crud || internalAdapter._cachedCrud;
+  }
 
-					update: async (...args) => {
-						const res = await capturedCrud.update(...args);
-						const [collection, id, data] = args;
-						if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
-							let event: WebhookEvent = 'entry:update';
-							if ('status' in (data as any)) {
-								if ((data as any).status === 'publish') {
-									event = 'entry:publish';
-								} else if ((data as any).status === 'unpublish') {
-									event = 'entry:unpublish';
-								}
-							}
-							webhookService.trigger(event, { collection, id: id as any, data: res.data });
-						}
-						return res;
-					},
+  if (originalCrud) {
+    let crudProxy = wrapCrud(originalCrud);
+    Object.defineProperty(adapter, "crud", {
+      get: () => crudProxy,
+      set: (v: ICrudAdapter) => {
+        crudProxy = wrapCrud(v);
+      },
+      configurable: true,
+      enumerable: true,
+    });
+  }
 
-					updateMany: async (...args) => {
-						const res = await capturedCrud.updateMany(...args);
-						const [collection, query, data] = args;
-						if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
-							webhookService.trigger('entry:update', {
-								collection,
-								query: query as any,
-								changes: data as any,
-								modifiedCount: res.data.modifiedCount
-							});
-						}
-						return res;
-					},
+  // --- Initial Wrapping for Media ---
+  let originalMedia: IMediaAdapter | undefined;
+  if (Object.hasOwn(adapter, "media")) {
+    originalMedia = adapter.media;
+  } else {
+    let proto = Object.getPrototypeOf(adapter);
+    while (proto) {
+      const desc = Object.getOwnPropertyDescriptor(proto, "media");
+      if (desc) {
+        originalMedia = desc.get ? desc.get.call(adapter) : desc.value;
+        break;
+      }
+      proto = Object.getPrototypeOf(proto);
+    }
+  }
 
-					delete: async (...args) => {
-						const res = await capturedCrud.delete(...args);
-						const [collection, id] = args;
-						if (res.success && (collection.startsWith(CONTENT_COLLECTION_PREFIX) || collection === 'MediaItem')) {
-							const event: WebhookEvent = collection === 'MediaItem' ? 'media:delete' : 'entry:delete';
-							webhookService.trigger(event, { collection, id: id as any });
-						}
-						return res;
-					},
+  if (originalMedia) {
+    let mediaProxy = wrapMedia(originalMedia);
+    Object.defineProperty(adapter, "media", {
+      get: () => mediaProxy,
+      set: (v: IMediaAdapter) => {
+        mediaProxy = wrapMedia(v);
+      },
+      configurable: true,
+      enumerable: true,
+    });
+  }
 
-					deleteMany: async (...args) => {
-						const res = await capturedCrud.deleteMany(...args);
-						const [collection, query] = args;
-						if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
-							webhookService.trigger('entry:delete', {
-								collection,
-								query: query as any,
-								deletedCount: res.data.deletedCount
-							});
-						}
-						return res;
-					},
-
-					upsert: async (...args) => {
-						const res = await capturedCrud.upsert(...args);
-						const [collection, query] = args;
-						if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
-							webhookService.trigger('entry:update', {
-								collection,
-								query: query as any,
-								data: res.data
-							});
-						}
-						return res;
-					}
-				};
-
-				// Return Proxy to preserve all other methods (count, findOne, etc.)
-				return new Proxy(capturedCrud, {
-					get(target, prop, receiver) {
-						if (typeof prop === 'string' && prop in wrappedMethods) {
-							return wrappedMethods[prop as keyof ICrudAdapter];
-						}
-						const value = Reflect.get(target, prop, receiver);
-						return typeof value === 'function' ? value.bind(target) : value;
-					}
-				});
-			}
-		});
-	} else {
-		logger.warn('Could not wrap CRUD adapter - original object not found');
-	}
-
-	// --- Wrap Media Operations (Lazy Access) ---
-	let originalMedia: IMediaAdapter | undefined;
-
-	// Check instance first
-	if (Object.hasOwn(adapter, 'media')) {
-		originalMedia = adapter.media;
-	} else {
-		// Check prototype chain
-		let proto = Object.getPrototypeOf(adapter);
-		while (proto) {
-			const desc = Object.getOwnPropertyDescriptor(proto, 'media');
-			if (desc) {
-				if (desc.get) {
-					originalMedia = desc.get.call(adapter);
-				} else {
-					originalMedia = desc.value;
-				}
-				break;
-			}
-			proto = Object.getPrototypeOf(proto);
-		}
-	}
-
-	if (originalMedia) {
-		const capturedMedia = originalMedia; // Closure capture
-
-		Object.defineProperty(adapter, 'media', {
-			get(): IMediaAdapter {
-				const originalFiles = capturedMedia.files;
-
-				// Define mutations to intercept for files
-				const wrappedFiles: Partial<IMediaAdapter['files']> = {
-					upload: async (file) => {
-						const res = await originalFiles.upload(file);
-						if (res.success) {
-							webhookService.trigger('media:upload', { data: res.data });
-						}
-						return res;
-					},
-					uploadMany: async (files) => {
-						const res = await originalFiles.uploadMany(files);
-						if (res.success) {
-							for (const file of res.data) {
-								webhookService.trigger('media:upload', { data: file });
-							}
-						}
-						return res;
-					},
-					delete: async (id) => {
-						const res = await originalFiles.delete(id);
-						if (res.success) {
-							webhookService.trigger('media:delete', { id });
-						}
-						return res;
-					},
-					deleteMany: async (ids) => {
-						const res = await originalFiles.deleteMany(ids);
-						if (res.success) {
-							webhookService.trigger('media:delete', { ids });
-						}
-						return res;
-					}
-				};
-
-				// Return Proxy for media to preserve all methods, including wrapped files
-				return new Proxy(capturedMedia, {
-					get(target, prop, receiver) {
-						if (prop === 'files') {
-							// Wrap files object with its own proxy
-							return new Proxy(originalFiles, {
-								get(fTarget, fProp, fReceiver) {
-									if (typeof fProp === 'string' && fProp in wrappedFiles) {
-										return wrappedFiles[fProp as keyof IMediaAdapter['files']];
-									}
-									const fValue = Reflect.get(fTarget, fProp, fReceiver);
-									return typeof fValue === 'function' ? fValue.bind(fTarget) : fValue;
-								}
-							});
-						}
-						const value = Reflect.get(target, prop, receiver);
-						return typeof value === 'function' ? value.bind(target) : value;
-					}
-				});
-			}
-		});
-	} else {
-		logger.warn('Could not wrap Media adapter - original object not found');
-	}
-
-	return adapter;
+  return adapter;
 }

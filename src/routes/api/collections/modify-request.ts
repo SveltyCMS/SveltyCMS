@@ -14,146 +14,173 @@
  * - performance monitoring
  */
 
-import type { FieldInstance } from '@src/content/types';
+import type { FieldInstance } from "@src/content/types";
 // Types
-import type { User } from '@src/databases/auth/types';
-import type { CollectionModel } from '@src/databases/db-interface';
-import { widgets } from '@src/stores/widget-store.svelte';
-import { logger } from '@utils/logger.server';
-import { getFieldName } from '@utils/utils';
+import type { User } from "@src/databases/auth/types";
+import type { CollectionModel } from "@src/databases/db-interface";
+import { widgets } from "@src/stores/widget-store.svelte";
+import { logger } from "@utils/logger.server";
+import { getFieldName } from "@utils/utils";
 
 interface DataAccessor<T> {
-	get(): T;
-	update(newData: T): void;
+  get(): T;
+  update(newData: T): void;
 }
 
 interface EntryData {
-	_id?: string;
-	meta_data?: Record<string, unknown>;
-	[key: string]: unknown;
+  _id?: string;
+  meta_data?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 // Define the parameters for the function
 interface ModifyRequestParams {
-	collection: CollectionModel;
-	collectionName?: string;
-	data: EntryData[];
-	fields: FieldInstance[];
-	tenantId?: string | null; // Add tenantId for multi-tenancy
-	type: string;
-	user: User;
+  collection: CollectionModel;
+  collectionName?: string;
+  data: EntryData[];
+  fields: FieldInstance[];
+  tenantId?: string | null;
+  type: string;
+  user: User;
+  skipValidation?: boolean;
+  action?: string;
 }
 
+import { canAccessField, enforceFieldAccess } from "@src/utils/field-access";
+
 // Function to modify request data based on field widgets
-export async function modifyRequest({ data, fields, collection, user, type, tenantId, collectionName }: ModifyRequestParams) {
-	const start = performance.now();
-	try {
-		// User access is already validated by hooks
-		logger.trace(
-			`Startingmodify-requestfor type: ${type}, user: ${user._id}, collection: ${collectionName ?? (collection as unknown as { id?: string }).id ?? 'unknown'}, tenant: ${tenantId}`
-		);
+export async function modifyRequest({
+  data,
+  fields,
+  collection,
+  user,
+  type,
+  tenantId,
+  collectionName,
+  skipValidation = false,
+  action,
+}: ModifyRequestParams) {
+  const start = performance.now();
+  try {
+    const operation = type === "GET" ? "read" : "write";
 
-		for (const field of fields) {
-			const fieldStart = performance.now();
-			// Access widget from store
-			const widget = widgets.widgetFunctions[field.widget.Name];
-			const fieldName = getFieldName(field);
+    // 1. Initial FLAC Sanitization (Physical field stripping)
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (await enforceFieldAccess(fields, data[i], user, operation, {
+        collectionName,
+        tenantId,
+        entryId: (data[i] as any)._id,
+      })) as EntryData;
+    }
 
-			logger.trace(`Processing field: ${fieldName}, widget: ${field.widget.Name}`);
+    // User access is already validated by hooks
+    logger.trace(
+      `Starting modify-request for type: ${type}, user: ${user._id}, collection: ${collectionName ?? (collection as unknown as { id?: string }).id ?? "unknown"}, tenant: ${tenantId}, operation: ${operation}`,
+    );
 
-			// Resolve potential modify-request handler
-			const modifyFn = widget?.modifyRequest;
-			const modifyBatchFn = widget?.modifyRequestBatch;
+    // Optimize field iteration
+    for (const field of fields) {
+      // 2. Runtime FLAC Check (Skip widget logic if field is blocked)
+      if (!canAccessField(field, user, operation)) continue;
 
-			if (modifyBatchFn && typeof modifyBatchFn === 'function') {
-				// --- BATCH PROCESSING ---
-				logger.trace(`Processing batch for field: ${fieldName}, widget: ${field.widget.Name}`);
-				try {
-					const batchStart = performance.now();
+      const widget = widgets.widgetFunctions[field.widget.Name];
+      if (!widget) continue;
 
-					// Call batch function
-					const batchResults = await modifyBatchFn({
-						data: data as Record<string, unknown>[],
-						collection,
-						field,
-						user,
-						type,
-						tenantId,
-						collectionName
-					});
+      const modifyFn = widget.modifyRequest;
+      const modifyBatchFn = widget.modifyRequestBatch;
 
-					// Update data with results
-					if (Array.isArray(batchResults) && batchResults.length === data.length) {
-						data = batchResults as EntryData[];
-					} else {
-						logger.warn(`Batch processing for ${fieldName} returned invalid results length. Expected ${data.length}, got ${batchResults?.length}`);
-					}
+      if (!modifyFn && !modifyBatchFn) continue;
 
-					const batchDuration = performance.now() - batchStart;
-					logger.debug(`Batch processing for ${fieldName} completed in ${batchDuration.toFixed(2)}ms`);
-				} catch (batchError) {
-					const errorMessage = batchError instanceof Error ? batchError.message : 'Unknown batch error';
-					logger.error(`Batch widget error for field ${fieldName}: ${errorMessage}`);
-				}
-			} else if (modifyFn && typeof modifyFn === 'function') {
-				// --- INDIVIDUAL PROCESSING ---
-				data = await Promise.all(
-					data.map(async (entry: EntryData) => {
-						try {
-							const entryCopy = { ...entry };
-							const dataAccessor: DataAccessor<unknown> = {
-								get() {
-									return entryCopy[fieldName];
-								},
-								update(newData: unknown) {
-									entryCopy[fieldName] = newData;
-								}
-							};
+      const fieldName = getFieldName(field);
 
-							try {
-								await modifyFn({
-									collection,
-									field,
-									data: dataAccessor,
-									user,
-									type,
-									tenantId,
-									collectionName
-								});
-							} catch (widgetError) {
-								const errorMessage = widgetError instanceof Error ? widgetError.message : 'Unknown widget error';
-								const errorStack = widgetError instanceof Error ? widgetError.stack : '';
-								logger.error(`Widget error for field ${fieldName}: ${errorMessage}`, { stack: errorStack });
-							}
+      if (modifyBatchFn) {
+        // --- BATCH PROCESSING (Fastest) ---
+        try {
+          const batchResults = await modifyBatchFn({
+            data: data as Record<string, unknown>[],
+            collection,
+            field,
+            user,
+            type,
+            tenantId,
+            collectionName,
+            skipValidation,
+            action,
+          });
 
-							return entryCopy;
-						} catch (error) {
-							const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-							const errorStack = error instanceof Error ? error.stack : '';
-							logger.error(`Error processing entry: ${errorMessage}`, {
-								stack: errorStack
-							});
-							return entry;
-						}
-					})
-				);
+          if (Array.isArray(batchResults) && batchResults.length === data.length) {
+            for (let i = 0; i < data.length; i++) {
+              data[i] = batchResults[i] as EntryData;
+            }
+          }
+        } catch (batchError) {
+          logger.error(
+            `Batch widget error for field ${fieldName}: ${batchError instanceof Error ? batchError.message : batchError}`,
+          );
+        }
+      } else if (modifyFn) {
+        // --- VECTORIZED PROCESSING ---
+        const chunkSize = 100;
+        const totalItems = data.length;
 
-				const fieldDuration = performance.now() - fieldStart;
-				logger.trace(`Field ${fieldName} processed in ${fieldDuration.toFixed(2)}ms`);
-			}
-		}
+        for (let i = 0; i < totalItems; i += chunkSize) {
+          const chunk = data.slice(i, i + chunkSize);
 
-		const duration = performance.now() - start;
-		logger.info(`ModifyRequest completed in ${duration.toFixed(2)}ms for ${data.length} entries`);
+          // Process chunk in parallel
+          const results = await Promise.all(
+            chunk.map(async (entry) => {
+              try {
+                // Optimized: Only copy if we absolute must, but here we keep for safety
+                // but use a more efficient accessor
+                const entryCopy = { ...entry };
+                const dataAccessor: DataAccessor<unknown> = {
+                  get: () => entryCopy[fieldName],
+                  update: (newData) => {
+                    entryCopy[fieldName] = newData;
+                  },
+                };
 
-		return data;
-	} catch (error) {
-		const duration = performance.now() - start;
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`ModifyRequest failed after ${duration.toFixed(2)}ms: ${errorMessage}`, {
-			stack: errorStack
-		});
-		throw error;
-	}
+                await (modifyFn as any)({
+                  collection,
+                  field,
+                  data: dataAccessor,
+                  user,
+                  type,
+                  tenantId,
+                  collectionName,
+                  skipValidation,
+                  action,
+                });
+                return entryCopy;
+              } catch {
+                return entry;
+              }
+            }),
+          );
+
+          for (let j = 0; j < results.length; j++) {
+            data[i + j] = results[j];
+          }
+
+          // Yield sparingly
+          if (totalItems > 500 && i + chunkSize < totalItems) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
+        }
+      }
+    }
+
+    const duration = performance.now() - start;
+    logger.info(`ModifyRequest completed in ${duration.toFixed(2)}ms for ${data.length} entries`);
+
+    return data;
+  } catch (error) {
+    const duration = performance.now() - start;
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorStack = error instanceof Error ? error.stack : "";
+    logger.error(`ModifyRequest failed after ${duration.toFixed(2)}ms: ${errorMessage}`, {
+      stack: errorStack,
+    });
+    throw error;
+  }
 }

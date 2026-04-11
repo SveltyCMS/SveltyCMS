@@ -5,27 +5,31 @@
 -->
 
 <script lang="ts">
-	import { form_signin } from '@src/paraglide/messages';
+import { form_signin } from "@src/paraglide/messages";
 
-	let { show = $bindable(true), disabled = false, onClick = (_event: Event) => {} } = $props();
+let {
+	show = $bindable(true),
+	disabled = false,
+	onClick = (_event: Event) => {},
+} = $props();
 
-	function handleClick(event: MouseEvent) {
-		if (disabled) {
-			return;
-		}
+function handleClick(event: MouseEvent) {
+	if (disabled) {
+		return;
+	}
+	event.stopPropagation();
+	onClick(event); // Ensure onClick uses the event meaningfully
+}
+
+function handleKeyDown(event: KeyboardEvent) {
+	if (disabled) {
+		return;
+	}
+	if (event.key === "Enter") {
 		event.stopPropagation();
 		onClick(event); // Ensure onClick uses the event meaningfully
 	}
-
-	function handleKeyDown(event: KeyboardEvent) {
-		if (disabled) {
-			return;
-		}
-		if (event.key === 'Enter') {
-			event.stopPropagation();
-			onClick(event); // Ensure onClick uses the event meaningfully
-		}
-	}
+}
 </script>
 
 <div
@@ -39,6 +43,7 @@
 		onkeydown={handleKeyDown}
 		role="button"
 		aria-label="Go to Sign In"
+		data-testid="signin-icon"
 		tabindex={disabled ? -1 : 0}
 		class="flex cursor-pointer flex-col items-center"
 	>

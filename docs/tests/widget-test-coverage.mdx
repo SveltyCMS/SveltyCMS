@@ -1,17 +1,17 @@
 ---
-path: 'docs/tests/widget-test-coverage.mdx'
-title: 'Widget Test Coverage'
-description: 'Comprehensive widget testing documentation for SveltyCMS widget system'
-icon: 'mdi:widgets'
+path: "docs/tests/widget-test-coverage.mdx"
+title: "Widget Test Coverage"
+description: "Comprehensive widget testing documentation for SveltyCMS widget system"
+icon: "mdi:widgets"
 published: true
 order: 9
-author: 'SveltyCMS Team'
-created: '2025-12-16'
-updated: '2026-02-22'
+author: "SveltyCMS Team"
+created: "2025-12-16"
+updated: "2026-03-27"
 tags:
-  - 'testing'
-  - 'widgets'
-  - 'coverage'
+  - "testing"
+  - "widgets"
+  - "coverage"
 ---
 
 # Widget Test Coverage
@@ -66,15 +66,15 @@ Comprehensive test suite for SveltyCMS's widget system, covering core widgets, c
 
 ```typescript
 // Example: Input widget creation
-test('should create input widget with default parameters', () => {
-	const field = InputWidget({
-		label: 'Test Input',
-		db_fieldName: 'test_input'
-	});
+test("should create input widget with default parameters", () => {
+  const field = InputWidget({
+    label: "Test Input",
+    db_fieldName: "test_input",
+  });
 
-	expect(field.label).toBe('Test Input');
-	expect(field.widget.Name).toBe('Input');
-	expect(field.translated).toBe(true); // Default
+  expect(field.label).toBe("Test Input");
+  expect(field.widget.Name).toBe("Input");
+  expect(field.translated).toBe(true); // Default
 });
 ```
 
@@ -136,18 +136,18 @@ test('should create input widget with default parameters', () => {
 **Email Widget** (15 tests)
 
 ```typescript
-test('should validate correct email format', () => {
-	const field = EmailWidget({
-		label: 'Email',
-		required: true
-	});
+test("should validate correct email format", () => {
+  const field = EmailWidget({
+    label: "Email",
+    required: true,
+  });
 
-	const validEmails = ['test@example.com', 'user.name@domain.co.uk', 'first+last@company.org'];
+  const validEmails = ["test@example.com", "user.name@domain.co.uk", "first+last@company.org"];
 
-	validEmails.forEach((email) => {
-		const result = safeParse(schema, email);
-		expect(result.success).toBe(true);
-	});
+  validEmails.forEach((email) => {
+    const result = safeParse(schema, email);
+    expect(result.success).toBe(true);
+  });
 });
 ```
 
@@ -190,17 +190,17 @@ test('should validate correct email format', () => {
 **SEO Widget** (25 tests)
 
 ```typescript
-test('should enforce title length constraint', () => {
-	const schema = SeoWidget.validationSchema;
+test("should enforce title length constraint", () => {
+  const schema = SeoWidget.validationSchema;
 
-	// Title too long (> 60 chars)
-	const result = safeParse(schema, {
-		title: 'Very long title exceeding 60 characters...',
-		description: 'Description',
-		focusKeyword: 'keyword'
-	});
+  // Title too long (> 60 chars)
+  const result = safeParse(schema, {
+    title: "Very long title exceeding 60 characters...",
+    description: "Description",
+    focusKeyword: "keyword",
+  });
 
-	expect(result.success).toBe(false);
+  expect(result.success).toBe(false);
 });
 ```
 
@@ -280,22 +280,22 @@ test('should enforce title length constraint', () => {
 **Factory Pattern Tests** (20 tests)
 
 ```typescript
-test('should create widget with full configuration', () => {
-	const widget = createWidget({
-		Name: 'FullWidget',
-		Icon: 'mdi:test',
-		Description: 'A test widget',
-		inputComponentPath: '/test/input.svelte',
-		displayComponentPath: '/test/display.svelte',
-		validationSchema: string(),
-		defaults: {
-			color: 'primary',
-			size: 'md'
-		}
-	});
+test("should create widget with full configuration", () => {
+  const widget = createWidget({
+    Name: "FullWidget",
+    Icon: "mdi:test",
+    Description: "A test widget",
+    inputComponentPath: "/test/input.svelte",
+    displayComponentPath: "/test/display.svelte",
+    validationSchema: string(),
+    defaults: {
+      color: "primary",
+      size: "md",
+    },
+  });
 
-	expect(widget.Name).toBe('FullWidget');
-	expect(widget.__inputComponentPath).toBe('/test/input.svelte');
+  expect(widget.Name).toBe("FullWidget");
+  expect(widget.__inputComponentPath).toBe("/test/input.svelte");
 });
 ```
 
@@ -386,91 +386,91 @@ test('should create widget with full configuration', () => {
 ### 1. Widget Creation Pattern
 
 ```typescript
-test('should create widget with required parameters', () => {
-	const field = WidgetName({
-		label: 'Field Label',
-		db_fieldName: 'field_name',
-		required: true
-	});
+test("should create widget with required parameters", () => {
+  const field = WidgetName({
+    label: "Field Label",
+    db_fieldName: "field_name",
+    required: true,
+  });
 
-	expect(field.label).toBe('Field Label');
-	expect(field.db_fieldName).toBe('field_name');
-	expect(field.widget.Name).toBe('WidgetName');
+  expect(field.label).toBe("Field Label");
+  expect(field.db_fieldName).toBe("field_name");
+  expect(field.widget.Name).toBe("WidgetName");
 });
 ```
 
 ### 2. Validation Testing Pattern
 
 ```typescript
-test('should validate required field', () => {
-	const field = WidgetName({
-		label: 'Test',
-		required: true
-	});
+test("should validate required field", () => {
+  const field = WidgetName({
+    label: "Test",
+    required: true,
+  });
 
-	const schema = field.widget.validationSchema(field);
+  const schema = field.widget.validationSchema(field);
 
-	// Test invalid case
-	const invalid = safeParse(schema, '');
-	expect(invalid.success).toBe(false);
+  // Test invalid case
+  const invalid = safeParse(schema, "");
+  expect(invalid.success).toBe(false);
 
-	// Test valid case
-	const valid = safeParse(schema, 'value');
-	expect(valid.success).toBe(true);
+  // Test valid case
+  const valid = safeParse(schema, "value");
+  expect(valid.success).toBe(true);
 });
 ```
 
 ### 3. Multilingual Testing Pattern
 
 ```typescript
-test('should support translated data structure', () => {
-	const field = WidgetName({
-		label: 'Test',
-		translated: true
-	});
+test("should support translated data structure", () => {
+  const field = WidgetName({
+    label: "Test",
+    translated: true,
+  });
 
-	const data = {
-		en: 'English',
-		de: 'German',
-		fr: 'French'
-	};
+  const data = {
+    en: "English",
+    de: "German",
+    fr: "French",
+  };
 
-	const result = safeParse(schema, data);
-	expect(result.success).toBe(true);
+  const result = safeParse(schema, data);
+  expect(result.success).toBe(true);
 });
 ```
 
 ### 4. Database Aggregation Pattern
 
 ```typescript
-test('should generate filter aggregation', async () => {
-	const field = WidgetName({
-		label: 'Test',
-		db_fieldName: 'test_field'
-	});
+test("should generate filter aggregation", async () => {
+  const field = WidgetName({
+    label: "Test",
+    db_fieldName: "test_field",
+  });
 
-	const filters = await field.widget.aggregations.filters({
-		field,
-		filter: 'search term',
-		contentLanguage: 'en'
-	});
+  const filters = await field.widget.aggregations.filters({
+    field,
+    filter: "search term",
+    contentLanguage: "en",
+  });
 
-	expect(filters).toBeArray();
-	expect(filters[0].$match).toBeDefined();
+  expect(filters).toBeArray();
+  expect(filters[0].$match).toBeDefined();
 });
 ```
 
 ### 5. Widget Metadata Testing
 
 ```typescript
-test('should have complete metadata', () => {
-	const field = WidgetName({ label: 'Test' });
+test("should have complete metadata", () => {
+  const field = WidgetName({ label: "Test" });
 
-	expect(field.widget.Name).toBeDefined();
-	expect(field.widget.Icon).toBeDefined();
-	expect(field.widget.Description).toBeDefined();
-	expect(field.widget.inputComponentPath).toBeDefined();
-	expect(field.widget.displayComponentPath).toBeDefined();
+  expect(field.widget.Name).toBeDefined();
+  expect(field.widget.Icon).toBeDefined();
+  expect(field.widget.Description).toBeDefined();
+  expect(field.widget.inputComponentPath).toBeDefined();
+  expect(field.widget.displayComponentPath).toBeDefined();
 });
 ```
 
@@ -628,9 +628,9 @@ bun test tests/bun/widgets/widget-system.test.ts --test-name-pattern="Widget Fac
 
 ```typescript
 const widget = createWidget({
-	defaults: { color: 'blue' }
+  defaults: { color: "blue" },
 });
-const field = widget({ label: 'Test' });
+const field = widget({ label: "Test" });
 // field.color is undefined
 ```
 
@@ -649,7 +649,7 @@ const combinedProps = { ...config.defaults, ...fieldConfig };
 **Current Behavior**:
 
 ```typescript
-const field = widget({ label: 'My Field' });
+const field = widget({ label: "My Field" });
 // field.db_fieldName is undefined
 ```
 
@@ -674,7 +674,7 @@ const field = widget({ label: 'My Field' });
 const schema = RichTextWidget.validationSchema(field);
 
 // New (should work)
-const field = RichTextWidget({ label: 'Test', required: true });
+const field = RichTextWidget({ label: "Test", required: true });
 const schema = field.widget.validationSchema(field);
 ```
 
@@ -848,9 +848,9 @@ echo "✅ Widget tests passed"
 
 ## Related Documentation
 
-- [Widget System Overview](/docs/widgets/widget-system-overview.mdx) - High-level widget concepts
-- [Widget Architecture](/docs/widgets/widget-architecture.mdx) - Technical implementation
-- [Widget Development Guide](/docs/widgets/widget-development-guide.mdx) - Creating custom widgets
+- [Widget System Overview](/docs/guides/development/widgets/widget-system-overview.mdx) - High-level widget concepts
+- [Widget Architecture](/docs/architecture/widgets/architecture.mdx) - Technical implementation
+- [Widget Development Guide](/docs/guides/development/widgets/widget-development-guide.mdx) - Creating custom widgets
 - [API Test Coverage](/docs/tests/api-test-coverage.mdx) - API endpoint testing
 - [Utility Test Coverage](/docs/tests/utility-test-coverage.mdx) - Utility function testing
 - [Store Test Coverage](/docs/tests/store-test-coverage.mdx) - State management testing

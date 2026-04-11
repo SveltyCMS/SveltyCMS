@@ -20,10 +20,10 @@
 // import Input from '@components/system/inputs/input.svelte';
 // import Toggles from '@components/system/inputs/toggles.svelte';
 
-import { createWidget } from '@src/widgets/widget-factory';
-import { object, type InferInput as ValibotInput } from 'valibot';
+import { createWidget } from "@src/widgets/widget-factory";
+import { object, type InferInput as ValibotInput } from "valibot";
 
-import type { GroupProps } from './types';
+import type { GroupProps } from "./types";
 
 // Define the validation schema for the group data.
 // Groups can contain any data structure, so we use a flexible object schema.
@@ -31,40 +31,40 @@ const GROUP_VALIDATION_SCHEMA = object({});
 
 // Create the widget definition using the factory.
 const GroupWidget = createWidget<GroupProps>({
-	Name: 'Group',
-	Icon: 'mdi:folder-outline',
-	Description: 'Group related fields together',
+  Name: "Group",
+  Icon: "mdi:folder-outline",
+  Description: "Group related fields together",
 
-	// Define paths to the dedicated Svelte components.
-	inputComponentPath: '/src/widgets/core/group/input.svelte',
-	displayComponentPath: '/src/widgets/core/group/display.svelte',
+  // Define paths to the dedicated Svelte components.
+  inputComponentPath: "/src/widgets/core/group/input.svelte",
+  displayComponentPath: "/src/widgets/core/group/display.svelte",
 
-	// Assign the validation schema.
-	validationSchema: GROUP_VALIDATION_SCHEMA,
+  // Assign the validation schema.
+  validationSchema: GROUP_VALIDATION_SCHEMA,
 
-	// Set widget-specific defaults.
-	defaults: {
-		collapsible: false,
-		collapsed: false,
-		variant: 'default'
-	},
+  // Set widget-specific defaults.
+  defaults: {
+    collapsible: false,
+    collapsed: false,
+    variant: "default",
+  },
 
-	// Pass the GuiSchema directly into the widget's definition.
-	GuiSchema: {
-		label: { widget: 'Input', required: true },
-		groupTitle: { widget: 'Input', required: false },
-		collapsible: { widget: 'Toggles', required: false },
-		collapsed: { widget: 'Toggles', required: false },
-		variant: { widget: 'Input', required: false },
-		db_fieldName: { widget: 'Input', required: false },
-		icon: { widget: 'IconifyIconsPicker', required: false },
-		helper: { widget: 'Input', required: false },
-		width: { widget: 'Input', required: false },
-		permissions: { widget: 'PermissionsSetting', required: false }
-	},
+  // Pass the GuiSchema directly into the widget's definition.
+  GuiSchema: {
+    label: { widget: "Input", required: true },
+    groupTitle: { widget: "Input", required: false },
+    collapsible: { widget: "Toggles", required: false },
+    collapsed: { widget: "Toggles", required: false },
+    variant: { widget: "Input", required: false },
+    db_fieldName: { widget: "Input", required: false },
+    icon: { widget: "IconifyIconsPicker", required: false },
+    helper: { widget: "Input", required: false },
+    width: { widget: "Input", required: false },
+    permissions: { widget: "PermissionsSetting", required: false },
+  },
 
-	// Groups don't typically need database aggregations as they contain other widgets
-	aggregations: {}
+  // Groups don't typically need database aggregations as they contain other widgets
+  aggregations: {},
 });
 
 export default GroupWidget;

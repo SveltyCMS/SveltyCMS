@@ -5,47 +5,49 @@
 -->
 
 <script lang="ts">
-	// Using iconify-icon web component
-	// Modern widget system
-	import { widgets } from '@src/stores/widget-store.svelte.ts';
-	import { logger } from '@utils/logger';
-	// Skeleton Stores
-	import { modalState } from '@utils/modal-state.svelte';
-	import { onMount } from 'svelte';
+// Using iconify-icon web component
+// Modern widget system
+import { widgets } from "@src/stores/widget-store.svelte.ts";
+import { logger } from "@utils/logger";
+// Skeleton Stores
+import { modalState } from "@utils/modal-state.svelte";
+import { onMount } from "svelte";
 
-	// Props
-	interface Props {
-		/** Exposes parent props to this component. */
-		parent: any;
+// Props
+interface Props {
+	/** Exposes parent props to this component. */
+	parent: any;
+}
+const { parent }: Props = $props();
+
+// Define the search term variable
+let searchTerm: string = $state("");
+
+// Get available widgets from the modern store
+const availableWidgets = $derived(widgets.widgetFunctions || {});
+
+// Initialize widgets on mount
+onMount(async () => {
+	await widgets.initialize();
+});
+
+// We've created a custom submit function to pass the response and close the modal.
+function onFormSubmit(selected: any): void {
+	if (selected !== null) {
+		// close the modal and pass response
+		modalState.close({ selectedWidget: selected });
+	} else {
+		logger.error("No widget selected");
 	}
-	const { parent }: Props = $props();
+}
 
-	// Define the search term variable
-	let searchTerm: string = $state('');
+// Base Classes
+const cBase =
+	"card p-6 w-[95vw] max-w-7xl h-[90vh] flex flex-col shadow-2xl bg-white dark:bg-surface-800";
+const cHeader =
+	"text-3xl font-bold text-center mb-6 text-surface-900 dark:text-white";
 
-	// Get available widgets from the modern store
-	const availableWidgets = $derived(widgets.widgetFunctions || {});
-
-	// Initialize widgets on mount
-	onMount(async () => {
-		await widgets.initialize();
-	});
-
-	// We've created a custom submit function to pass the response and close the modal.
-	function onFormSubmit(selected: any): void {
-		if (selected !== null) {
-			// close the modal and pass response
-			modalState.close({ selectedWidget: selected });
-		} else {
-			logger.error('No widget selected');
-		}
-	}
-
-	// Base Classes
-	const cBase = 'card p-6 w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl bg-white dark:bg-surface-800';
-	const cHeader = 'text-3xl font-bold text-center mb-6 text-surface-900 dark:text-white';
-
-	// Tooltip not needed with new card design showing description
+// Tooltip not needed with new card design showing description
 </script>
 
 {#if modalState.active}

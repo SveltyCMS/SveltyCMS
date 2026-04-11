@@ -1,0 +1,90 @@
+---
+path: "docs/architecture/token-system.mdx"
+title: Token System
+description: Comprehensive guide to using the SveltyCMS Token System for dynamic content.
+author: "SveltyCMS Team"
+created: "2025-12-16"
+updated: "2026-03-27"
+tags:
+  - "content"
+  - "tokens"
+  - "dynamic-content"
+---
+
+# Token System
+
+The SveltyCMS Token System allows you to inject dynamic content into your entries, supporting fields from the current entry, related collections, user data, site configuration, and system values.
+
+## Syntax
+
+Tokens are enclosed in double curly braces: `{{ token_path }}`.
+
+Example: `{{ entry.title }}` resolves to the title of the current entry.
+
+### Modifiers
+
+You can transform token values using pipe modifiers: `{{ token | modifier(args) }}`.
+
+Example: `{{ system.now | date("MMM do, yyyy") }}` formats the current date.
+
+## Token Categories
+
+### Entry Tokens (`entry.*`)
+
+Access fields from the current entry.
+
+- `{{ entry.title }}`: The title field.
+- `{{ entry.slug }}`: The slug field.
+- **Relations**: Access fields from related collections.
+  - `{{ entry.author.name }}`: The name of the related author.
+  - `{{ entry.tags.count }}`: The number of related tags.
+
+### User Tokens (`user.*`)
+
+Access information about the current authenticated user.
+
+- `{{ user.name }}`: User's full name.
+- `{{ user.email }}`: User's email address.
+- `{{ user.role }}`: User's role (e.g., admin, editor).
+
+### Site Tokens (`site.*`)
+
+Access global site configuration values.
+
+- `{{ site.SITE_NAME }}`: The name of your website.
+- `{{ site.HOST_PROD }}`: Production URL.
+
+### System Tokens (`system.*`)
+
+Access dynamic system values.
+
+- `{{ system.now }}`: Current ISO timestamp.
+- `{{ system.year }}`: Current year (useful for copyright).
+
+## Visual Indicators & Validation
+
+fields that contain tokens are marked with a **code icon** <iconify-icon icon="mdi:code-braces" class="inline text-primary-500"></iconify-icon>.
+
+- **Valid**: The icon is blue/primary color.
+- **Invalid**: The icon is red/error color (e.g., unmatched braces). Hover over the icon to see the error message.
+
+## Security (RBAC)
+
+The Token System respects Role-Based Access Control (RBAC).
+
+- **Relations**: You can only access related content if you have `read` permission for that collection.
+- **User Data**: Sensitive user fields (password, hash, salt) are blocked.
+
+## Developer Notes
+
+### API Resolution
+
+Tokens are automatically resolved in JSON API responses (`/api/*`) via a dedicated middleware hook.
+
+> [!NOTE]
+> For Server-Side Rendered (SSR) pages using the `ContentSystem` directly, tokens may remain unresolved unless explicitly processed in the `load` function.
+
+### Caching
+
+Token definitions (the registry of what tokens exist for a collection) are cached for performance (**5 minutes**).
+Token _values_ are resolved in real-time and are NOT cached to ensure accuracy (especially for user/time-based tokens).

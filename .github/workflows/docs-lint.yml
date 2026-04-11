@@ -6,9 +6,9 @@ name: Docs Lint
 on:
   pull_request:
     paths:
-      - 'src/widgets/**/*.mdx' # Trigger only when docs or mdx change
-      - 'docs/**/*.mdx'
-      - 'docs/**/*.ts'
+      - "src/widgets/**/*.mdx" # Trigger only when docs or mdx change
+      - "docs/**/*.mdx"
+      - "docs/**/*.ts"
 
 # Set minimal permissions for all jobs in this workflow
 permissions:

@@ -13,17 +13,21 @@
 -->
 
 <script lang="ts">
-	interface Props {
-		globalSearchValue: string;
-		mediaTypes: { value: string; icon: string }[];
-		selectedMediaType: string;
-	}
+interface Props {
+	globalSearchValue: string;
+	mediaTypes: { value: string; icon: string }[];
+	selectedMediaType: string;
+}
 
-	let { globalSearchValue = $bindable(), selectedMediaType = $bindable(), mediaTypes }: Props = $props();
+let {
+	globalSearchValue = $bindable(),
+	selectedMediaType = $bindable(),
+	mediaTypes,
+}: Props = $props();
 
-	function clearSearch() {
-		globalSearchValue = '';
-	}
+function clearSearch() {
+	globalSearchValue = "";
+}
 </script>
 
 <div class="mb-8 flex w-full flex-col justify-center gap-1 md:hidden">

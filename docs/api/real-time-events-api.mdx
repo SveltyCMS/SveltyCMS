@@ -1,147 +1,120 @@
 ---
-path: 'docs/api/real-time-events-api.mdx'
-title: 'Real-Time Events API'
-description: 'API Reference for the Server-Sent Events (SSE) stream for real-time collaboration and system activities.'
+path: "docs/api/real-time-events-api.mdx"
+title: "Real-Time Events API Reference"
+description: "Server-Sent Events (SSE) reference for live collaboration, system-wide activity monitoring, and AI streaming."
 order: 15
-icon: 'mdi:pulse'
-author: 'admin'
-created: '2026-02-16'
-updated: '2026-02-16'
+icon: "mdi:pulse"
+author: "SveltyCMS Team"
+created: "2026-02-16"
+updated: "2026-04-01"
 tags:
-  - 'api'
-  - 'sse'
-  - 'real-time'
-  - 'collaboration'
+  - "api"
+  - "sse"
+  - "real-time"
+  - "collaboration"
 ---
 
-# Real-Time Events API
+# Real-Time Events API Reference
 
-SveltyCMS provides a persistent, real-time event stream using **Server-Sent Events (SSE)**. This API enables live collaboration features, system-wide activity monitoring, and real-time AI assistant tokens.
+SveltyCMS provides a persistent, real-time event stream using **Server-Sent Events (SSE)**. This API enables live collaboration features, system-wide activity monitoring, and real-time AI assistant tokens without the complexity of WebSockets.
 
-## Endpoint
+---
 
-```http
-GET /api/events
+## ⚡ Quick Reference
+
+| Feature          | HTTP Endpoint       | Local SDK Equivalent                             |
+| :--------------- | :------------------ | :----------------------------------------------- |
+| **Event Stream** | `GET /api/events`   | `import { pubSub } from "@src/services/pub-sub"` |
+| **Emit Event**   | N/A (Internal only) | `pubSub.publish(name, payload)`                  |
+
+---
+
+## 1. The Goal
+
+Receive instantaneous updates about content changes, system health, or AI generation progress in a web browser or external application.
+
+---
+
+## 2. The Solution
+
+### Browser Integration (EventSource)
+
+Establish a native connection to the SSE stream.
+
+```javascript
+const evtSource = new EventSource("/api/events", { withCredentials: true });
+
+evtSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log(`Received ${data.event}:`, data.payload);
+};
+
+evtSource.addEventListener("entryUpdated", (e) => {
+  const data = JSON.parse(e.data);
+  alert(`Post "${data.collection}" was updated!`);
+});
 ```
 
-## Description
+### Server-Side / Plugin Integration
 
-The `/api/events` endpoint establishes a long-lived HTTP connection. The server pushes updates to the client as they happen on the central `EventBus`.
+Within the CMS (plugins, hooks, or the Local SDK), use the internal `pubSub` service to listen for or trigger events with **zero network overhead**.
 
-### Event Flow Architecture
+```typescript
+import { pubSub } from "@src/services/pub-sub";
+
+// Listen for any entry update
+pubSub.subscribe("entryUpdated", (event) => {
+  console.log(`Entry ${event.id} in ${event.collection} changed.`);
+});
+```
+
+---
+
+## 3. The Mechanics
+
+The Real-Time Events API acts as a **Unidirectional Bridge** between the internal **`EventBus`** (powering SSE) and the external HTTP world. While the **`pubSub`** service handles typed GraphQL subscriptions, the **`eventBus`** provides the high-concurrency backplane required for hundreds of persistent SSE connections.
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant Server as SSE Endpoint (/api/events)
-    participant Bus as EventBus
-    participant System as System Services / AI
+    participant App as External App
+    participant SSE as Modular Handler (content.ts)
+    participant Bus as Internal EventBus (EventEmitter)
+    participant Core as CMS Core / AI Service
 
-    Client->>Server: GET /api/events (Authorization)
-    Server-->>Client: HTTP 200 (text/event-stream)
-    Server->>Bus: Subscribe to '*'
+    App->>SSE: GET /api/events (Keep-Alive)
+    SSE->>Bus: Subscribe to content:update
+    SSE-->>App: connected event
 
-    Note over Server, Client: Connection Active (Keep-Alive)
+    Core->>Bus: emit("content:update", { payload })
+    Bus->>SSE: notify(event)
+    SSE-->>App: data: { "event": "content:update", ... }
 
-    rect rgb(240, 240, 240)
-        Note over System, Client: Real-Time Event Dispatch
-        System->>Bus: emit('entry:publish', payload)
-        Bus->>Server: notify subscribers
-        Server->>Client: data: { "event": "entry:publish", ... }
-    end
-
-    loop Every 30s
-        Server->>Client: : heartbeat (Comment)
-    end
-
-    Client->>Server: Close Connection
-    Server->>Bus: Unsubscribe
+    Note over SSE, App: 30s Heartbeat (: keep-alive)
 ```
 
-### Why SSE instead of WebSockets?
+### Event Payload Structure
 
-- **Edge Compatibility**: Works natively with SvelteKit and Edge functions without complex proxying.
-- **Lower Overhead**: Uses standard HTTP/1.1 and HTTP/2 without the need for binary frame handling.
-- **Auto-Reconnection**: Browsers automatically attempt to reconnect if the stream is interrupted.
-- **Stateless Protocol**: Does not require sticky sessions on the load balancer.
+All events follow a consistent JSON envelope:
 
----
-
-## Authentication
-
-Authentication is **mandatory**. Requests without a valid session or API token will be rejected with a `401 Unauthorized` status.
-
-### Session Auth
-
-The browser automatically sends session cookies when using `new EventSource('/api/events')`.
-
-### Token Auth
-
-API tokens can be passed via the `Authorization: Bearer <token>` header (though standard `EventSource` browser API does not support custom headers; a polyfill or library like `fetch-event-source` is recommended for token-based auth).
+| Field       | Type     | Description                                               |
+| :---------- | :------- | :-------------------------------------------------------- |
+| `event`     | `string` | The unique event name (e.g., `entryUpdated`, `ai:token`). |
+| `timestamp` | `string` | ISO-8601 timestamp of when the event was emitted.         |
+| `payload`   | `object` | Event-specific data (IDs, snippets, user context).        |
+| `tenantId`  | `string` | ID of the tenant where the event originated.              |
 
 ---
 
-## Headers
+## Security & Performance
 
-To ensure reliable streaming, the following headers are used:
-
-| Header              | Value                    | Description                                                 |
-| :------------------ | :----------------------- | :---------------------------------------------------------- |
-| `Content-Type`      | `text/event-stream`      | Required for SSE identification.                            |
-| `Cache-Control`     | `no-cache, no-transform` | Prevents intermediaries from buffering or caching chunks.   |
-| `Connection`        | `keep-alive`             | Instructs the server to keep the TCP connection open.       |
-| `X-Accel-Buffering` | `no`                     | Bypasses Nginx proxy buffering (crucial for live delivery). |
+- **Automatic Cleanup**: Connections are strictly monitored. If a client disconnects, the server immediately unsubscribes from the internal bus to prevent memory leaks.
+- **Tenant Isolation**: Users only receive events for the `tenantId` associated with their session/token.
+- **WAF Friendly**: SSE uses standard HTTP/1.1 or HTTP/2, making it compatible with most Firewalls and Load Balancers that struggle with WebSockets.
 
 ---
 
-## Event Message Format
+## Related Documents
 
-Events are delivered as UTF-8 encoded JSON strings in the standard SSE format:
-
-```text
-data: {"event":"entry:publish","timestamp":"2026-02-16T14:30:00Z","user":{"id":"...","username":"admin"},"collection":"posts"}
-
-: heartbeat
-```
-
-### Event Types
-
-| Event             | Description                      | Payload Data                              |
-| :---------------- | :------------------------------- | :---------------------------------------- |
-| `connected`       | Initial connection confirmation. | `{ type: "connected", timestamp: "..." }` |
-| `entry:create`    | A new entry was created.         | `{ collection: string, user: User }`      |
-| `entry:publish`   | Content was published live.      | `{ collection: string, user: User }`      |
-| `chat:message`    | A chat message was sent.         | `{ text: string, room: string \| null }`  |
-| `ai:response`     | A chunk of AI-generated text.    | `{ text: string, done: boolean }`         |
-| `webhook:failure` | An automated webhook failed.     | `{ collection: string, url: string }`     |
-
----
-
-## Client Integration Example
-
-Using the built-in `collaboration-store` (Svelte 5):
-
-```typescript
-import { collaboration } from '@stores/collaboration-store.svelte';
-
-// Join a specific room (e.g. while editing a post)
-collaboration.joinRoom('entry:123456');
-
-// Send a message
-await collaboration.sendMessage('Hey team, what do you think of this draft?');
-
-// Access live activities
-console.log(collaboration.activities);
-```
-
----
-
-## Heartbeat
-
-To prevent connection timeouts by firewalls and load balancers, the server sends a `: heartbeat` comment every 30 seconds.
-
-## Limits & Performance
-
-- **Max Connections**: Limited by server resources and browser limits (usually 6-8 per domain).
-- **Latency**: Sub-10ms delivery after the event is emitted on the server.
-- **Buffering**: Up to 50 latest activities are buffered in the client-side store by default.
+- [GraphQL Subscriptions](./graphql-websocket-subscriptions.mdx)
+- [Audit Log Service](../architecture/admin-user-management.mdx)
+- [Collaboration Store Reference](../architecture/state-management.mdx)

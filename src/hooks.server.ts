@@ -6,162 +6,157 @@
  * all incoming server requests. The architecture emphasizes security, observability,
  * and performance with unified metrics collection and automated threat detection.
  *
- * Middleware Sequence:
- * 1. Static asset caching (performance optimization, skip all processing)
- * 2. System state validation (gatekeeper)
- * 3. Rate limiting (abuse prevention)
- * 4. Application firewall (threat detection)
- * 5. Setup completion enforcement (installation gate)
- * 6. Language preferences (i18n cookie synchronization)
- * 7. Theme management (SSR dark mode support)
- * 8. Authentication & session management (identity)
- * 9. Authorization & access control (security)
- * 10. API request handling (optional, commented out by default)
- * 11. Security headers with nonce-based CSP (defense in depth)
- *
- * Core Services:
- * - MetricsService: Unified performance & security monitoring
- * - SecurityResponseService: Automated threat detection & response
- *
- * Utility Exports:
- * - getHealthMetrics(): Returns comprehensive metrics report
- * - invalidateSessionCache(): Invalidates specific user session
- * - clearAllSessionCaches(): Clears all cached sessions
+ * Updated 2026-03-15:
+ * - Moved addSecurityHeaders to TOP of sequence → ensures headers on ALL responses,
+ *   including errors thrown by earlier middlewares (rate-limit 429, firewall blocks, etc.)
  */
-import { metricsService } from '@src/services/metrics-service';
-import type { Handle } from '@sveltejs/kit';
-import { sequence } from '@sveltejs/kit/hooks';
-import { logger } from '@utils/logger.server';
-import { building } from '$app/environment';
-import { addSecurityHeaders } from './hooks/add-security-headers';
-// API middleware for role-based access control and caching
-import { handleApiRequests } from './hooks/handle-api-requests';
-import { handleAuthentication } from './hooks/handle-authentication';
-import { handleAuthorization } from './hooks/handle-authorization';
-import { handleCompression } from './hooks/handle-compression';
-import { handleFirewall } from './hooks/handle-firewall';
-import { handleLocale } from './hooks/handle-locale';
-import { handleRateLimit } from './hooks/handle-rate-limit';
-import { handleSetup } from './hooks/handle-setup';
-import { handleStaticAssetCaching } from './hooks/handle-static-asset-caching';
-// --- Import enterprise middleware hooks ---
-import { handleSystemState } from './hooks/handle-system-state';
-import { handleTheme } from './hooks/handle-theme';
-import { handleTokenResolution } from './hooks/token-resolution';
+
+import { metricsService } from "@src/services/metrics-service";
+import type { Handle } from "@sveltejs/kit";
+import { sequence } from "@sveltejs/kit/hooks";
+import { logger } from "@utils/logger.server";
+import { building } from "$app/environment";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
+import os from "node:os";
+
+/**
+ * ✨ Hardware Optimization (Enterprise)
+ * Maximizes usage of available CPU cores for I/O and heavy processing.
+ */
+if (!building) {
+  const cores = os.cpus().length;
+  // Node/Bun I/O Thread Pool
+  process.env.UV_THREADPOOL_SIZE = String(cores);
+
+  // Sharp (Image Engine) Concurrency - targeting performance cores
+  import("sharp")
+    .then((sharp) => {
+      // Standard rule: match concurrency to physical cores (approx 33-50% of total logical cores on hybrid CPUs)
+      const physicalCores = Math.max(4, Math.floor(cores * 0.33));
+      sharp.default.concurrency(physicalCores);
+      logger.info(
+        `[System] Hardware optimized: ThreadPool=${cores} | SharpConcurrency=${physicalCores}`,
+      );
+    })
+    .catch(() => {
+      // Sharp might not be available in all environments
+    });
+}
+
+// ESM Shims for legacy CJS compatibility in production build
+if (typeof globalThis.__filename === "undefined") {
+  (globalThis as any).__filename = fileURLToPath(import.meta.url);
+}
+if (typeof globalThis.__dirname === "undefined") {
+  (globalThis as any).__dirname = dirname((globalThis as any).__filename);
+}
+
+import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
+import { handleCompression } from "./hooks/handle-compression";
+import { handleSecurity } from "./hooks/handle-security";
+import { handleSetup } from "./hooks/handle-setup";
+import { handleUserPreferences } from "./hooks/handle-user-preferences";
+import { handleAuthentication } from "./hooks/handle-authentication";
+import { handleAuthorization } from "./hooks/handle-authorization";
+import { handleLocalSdk } from "./hooks/handle-local-sdk";
+import { handleContentInitialization } from "./hooks/handle-content-initialization";
+import { handleApiRequests } from "./hooks/handle-api-requests";
+import { handleAuditLogging } from "./hooks/handle-audit-logging";
+import { handleTokenResolution } from "./hooks/token-resolution";
 
 // --- Server Startup Logic ---
 if (!building) {
-	/**
-	 * The main initialization logic (settings, DB connection) is handled
-	 * in `src/databases/db.ts` to ensure it runs once on server start.
-	 *
-	 * The system will transition through these states:
-	 * IDLE -> INITIALIZING -> READY (or DEGRADED/FAILED)
-	 *
-	 * The handleSystemState hook will block requests appropriately
-	 * based on the current state.
-	 */
-	// Static import ensures the module is loaded and initialization promise is created
-	import('@src/databases/db');
+  import("@src/databases/db");
 
-	// Inject server-side relation engine into TokenRegistry
+  // ✨ NEW: Smart initialization logic that respects the system state machine
+  // This ensures setup-wizard stays lean and non-critical services only start when needed.
+  import("@src/stores/system/state").then(({ overallState }) => {
+    let isServicesInitialized = false;
 
-	// Initialize Scheduler Service (Background Tasks)
-	import('@src/services/scheduler').then(({ scheduler }) => {
-		scheduler.start();
-	});
+    const unsubscribe = overallState.subscribe(async (state) => {
+      const readyStates = ["READY", "WARMING", "WARMED", "DEGRADED"];
+      if (readyStates.includes(state) && !isServicesInitialized) {
+        isServicesInitialized = true;
+        logger.info(`🚀 System reached ${state}. Initializing background services...`);
 
-	// Start telemetry heartbeat in background (Singleton pattern to survive HMR)
-	import('@utils/setup-check').then(({ isSetupComplete }) => {
-		if (!isSetupComplete()) {
-			return;
-		}
+        // Initialize Scheduler
+        const { scheduler } = await import("@src/services/scheduler");
+        scheduler.start();
 
-		import('@src/services/telemetry-service').then(({ telemetryService }) => {
-			// Define global type for TypeScript
-			const globalWithTelemetry = globalThis as typeof globalThis & {
-				__SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
-			};
+        // Initialize Automation
+        const { automationService } = await import("@src/services/automation");
+        automationService.init();
 
-			// Prevent duplicate intervals during Hot Module Replacement (HMR)
-			if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
-				logger.debug('Stopping old telemetry interval (HMR detected)');
-				clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
-			}
+        // Initialize Telemetry
+        const { telemetryService } = await import("@src/services/telemetry-service");
 
-			logger.info('📡 Initializing Telemetry Service...');
+        // ✨ ENTERPRISE: Start the Autonomous Watchdog
+        const { watchdog } = await import("@src/services/system/watchdog");
+        watchdog.start();
 
-			// Run initial check after a short delay
-			setTimeout(() => {
-				telemetryService.checkUpdateStatus().catch((err) => logger.error('Initial telemetry check failed', err));
-			}, 10_000);
+        // Start Content Watcher (dev only)
+        const { startContentWatcher } = await import("@src/content/content-watcher.server");
+        startContentWatcher();
 
-			// Schedule periodic checks (12 hours) and store ID in global
-			globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
-				() => {
-					telemetryService.checkUpdateStatus().catch((err) => logger.error('Periodic telemetry check failed', err));
-				},
-				1000 * 60 * 60 * 12
-			);
-		});
-	});
+        const globalWithTelemetry = globalThis as typeof globalThis & {
+          __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
+        };
 
-	logger.info('✅ DB module loaded. System will initialize on first request via handleSystemState.');
+        if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
+          logger.debug("Stopping old telemetry interval (HMR detected)");
+          clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
+        }
+
+        setTimeout(() => {
+          telemetryService
+            .checkUpdateStatus()
+            .catch((err) => logger.error("Initial telemetry check failed", err));
+        }, 10_000);
+
+        globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
+          () => {
+            telemetryService
+              .checkUpdateStatus()
+              .catch((err) => logger.error("Periodic telemetry check failed", err));
+          },
+          1000 * 60 * 60 * 12, // 12 hours
+        );
+
+        // Cleanup: Unsubscribe once services are initialized
+        unsubscribe();
+      }
+    });
+  });
+
+  logger.info("✅ DB module loaded. System will initialize background services when READY.");
 }
 
-// --- Middleware Sequence ---
+// --- Updated middleware sequence (security headers FIRST) ---
 const middleware: Handle[] = [
-	// 0. Compression (GZIP/Brotli) - Outer layer to compress final processed responses
-	handleCompression,
-
-	// 1. Static assets FIRST (skip all other processing for maximum performance)
-	handleStaticAssetCaching,
-
-	// 2. System state validation (enterprise gatekeeper with metrics)
-	handleSystemState,
-
-	// 3. Rate limiting (early protection against abuse)
-	handleRateLimit,
-
-	// 4. Application firewall (detect threats Nginx/CDN can't catch)
-	handleFirewall,
-
-	// 5. Setup completion enforcement (installation gate with tracking)
-	handleSetup,
-
-	// 6. Language preferences (i18n cookie synchronization)
-	handleLocale,
-
-	// 7. Theme management (SSR dark mode support)
-	handleTheme,
-
-	// 8. Authentication & session management (identity with security monitoring)
-	handleAuthentication,
-
-	// 9. Authorization & access control (permissions with threat detection)
-	handleAuthorization,
-
-	// 10. API request handling (role-based access control & caching)
-	handleApiRequests,
-
-	// 11. Token resolution for API responses
-	// CRITICAL: Must be AFTER handleAuthorization (needs locals.user, locals.roles)
-	//           and BEFORE addSecurityHeaders (modifies response body)
-	handleTokenResolution,
-
-	// 12. Essential security headers (defense in depth)
-	addSecurityHeaders
+  handleTurboPipeline, // ✨ CONSOLIDATED FAST-PATH (Headers, Asset Cache, State Gate, Test Isolation)
+  handleCompression,
+  handleSecurity,
+  handleSetup,
+  handleUserPreferences,
+  handleAuthentication,
+  handleAuthorization,
+  handleLocalSdk,
+  handleContentInitialization,
+  handleAuditLogging,
+  handleApiRequests,
+  handleTokenResolution,
 ];
 
-// --- Main Handle Export ---
 export const handle: Handle = sequence(...middleware);
 
 // --- Utility Functions for External Use ---
 export const getHealthMetrics = () => metricsService.getReport();
+
 export {
-	clearAllSessionCaches,
-	clearSessionRefreshAttempt,
-	forceSessionRotation,
-	getSessionCacheStats,
-	invalidateSessionCache
-} from './hooks/handle-authentication';
+  clearAllSessionCaches,
+  clearSessionRefreshAttempt,
+  forceSessionRotation,
+  getSessionCacheStats,
+  invalidateSessionCache,
+} from "./hooks/handle-authentication";

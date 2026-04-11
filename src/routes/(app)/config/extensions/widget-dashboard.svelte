@@ -11,223 +11,238 @@ Features:
 - Integrated marketplace tab
 -->
 <script lang="ts">
-	import { widgetStoreActions } from '@src/stores/widget-store.svelte.ts';
-	import { logger } from '@utils/logger';
-	// Using iconify-icon web component
-	import { onMount } from 'svelte';
-	import WidgetCard from './widget-card.svelte';
+import { widgetStoreActions } from "@src/stores/widget-store.svelte.ts";
+import { logger } from "@utils/logger";
+// Using iconify-icon web component
+import { onMount } from "svelte";
+import WidgetCard from "./widget-card.svelte";
 
-	// Props
-	const { data }: { data: any } = $props();
+// Props
+const { data }: { data: any } = $props();
 
-	// Define the Widget type
-	interface Widget {
-		canDisable: boolean;
-		dependencies: string[];
-		description?: string;
-		icon: string;
-		isActive: boolean;
-		isCore: boolean;
-		name: string;
-		pillar?: {
-			input?: { exists: boolean };
-			display?: { exists: boolean };
-		};
-	}
+// Define the Widget type
+interface Widget {
+	canDisable: boolean;
+	dependencies: string[];
+	description?: string;
+	icon: string;
+	isActive: boolean;
+	isCore: boolean;
+	name: string;
+	pillar?: {
+		input?: { exists: boolean };
+		display?: { exists: boolean };
+	};
+}
 
-	// State
-	let widgets: Widget[] = $state([]);
-	let isLoading = $state(true);
-	let searchQuery = $state('');
-	let activeFilter = $state('all');
-	let activeTab = $state('installed');
-	let error: string | null = $state(null);
+// State
+let widgets: Widget[] = $state([]);
+let isLoading = $state(true);
+let searchQuery = $state("");
+let activeFilter = $state("all");
+let activeTab = $state("installed");
+let error: string | null = $state(null);
 
-	// Get tenant info from page data or user session
-	const tenantId = $derived(data?.user?.tenantId || data?.tenantId || 'default-tenant');
+// Get tenant info from page data or user session
+const tenantId = $derived(
+	data?.user?.tenantId || data?.tenantId || "default-tenant",
+);
 
-	// User permissions
-	const userRole = $derived(data?.user?.role || 'user');
-	const userPermissions = $derived(data?.user?.permissions || []);
-	const canManageWidgets = $derived(
-		userRole === 'admin' || userRole === 'super-admin' || userPermissions.includes('manage_widgets') || userPermissions.includes('widget_management')
-	);
+// User permissions
+const userRole = $derived(data?.user?.role || "user");
+const userPermissions = $derived(data?.user?.permissions || []);
+const canManageWidgets = $derived(
+	userRole === "admin" ||
+		userRole === "super-admin" ||
+		userPermissions.includes("manage_widgets") ||
+		userPermissions.includes("widget_management"),
+);
 
-	// Computed stats
-	const stats = $derived({
-		total: widgets.length,
-		core: widgets.filter((w) => w.isCore).length,
-		custom: widgets.filter((w) => !w.isCore).length,
-		active: widgets.filter((w) => w.isActive).length,
-		inactive: widgets.filter((w) => !w.isActive).length,
-		withInput: widgets.filter((w) => w.pillar?.input?.exists).length,
-		withDisplay: widgets.filter((w) => w.pillar?.display?.exists).length
-	});
+// Computed stats
+const stats = $derived({
+	total: widgets.length,
+	core: widgets.filter((w) => w.isCore).length,
+	custom: widgets.filter((w) => !w.isCore).length,
+	active: widgets.filter((w) => w.isActive).length,
+	inactive: widgets.filter((w) => !w.isActive).length,
+	withInput: widgets.filter((w) => w.pillar?.input?.exists).length,
+	withDisplay: widgets.filter((w) => w.pillar?.display?.exists).length,
+});
 
-	// Filtered widgets
-	const filteredWidgets = $derived(
-		widgets.filter((widget) => {
-			// Search filter
-			const matchesSearch =
-				searchQuery === '' ||
-				widget.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				widget.description?.toLowerCase().includes(searchQuery.toLowerCase());
+// Filtered widgets
+const filteredWidgets = $derived(
+	widgets.filter((widget) => {
+		// Search filter
+		const matchesSearch =
+			searchQuery === "" ||
+			widget.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			widget.description?.toLowerCase().includes(searchQuery.toLowerCase());
 
-			// Category filter
-			let matchesFilter = false;
-			switch (activeFilter) {
-				case 'all':
-					matchesFilter = true;
-					break;
-				case 'core':
-					matchesFilter = widget.isCore;
-					break;
-				case 'custom':
-					matchesFilter = !widget.isCore;
-					break;
-				case 'active':
-					matchesFilter = widget.isActive;
-					break;
-				case 'inactive':
-					matchesFilter = !widget.isActive;
-					break;
-			}
-
-			return matchesSearch && matchesFilter;
-		})
-	);
-
-	onMount(() => {
-		loadWidgets();
-
-		// Keyboard shortcuts
-		const handleKeyboard = (e: KeyboardEvent) => {
-			// Ctrl/Cmd + F: Focus search
-			if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-				e.preventDefault();
-				(document.querySelector('input[type="text"]') as HTMLElement)?.focus();
-			}
-			// Escape: Clear search
-			if (e.key === 'Escape' && searchQuery) {
-				searchQuery = '';
-			}
-		};
-
-		window.addEventListener('keydown', handleKeyboard);
-
-		return () => {
-			window.removeEventListener('keydown', handleKeyboard);
-		};
-	});
-
-	async function loadWidgets() {
-		isLoading = true;
-		error = null;
-
-		try {
-			const response = await fetch(`/api/widgets/list?tenantId=${tenantId}`);
-
-			if (!response.ok) {
-				throw new Error(`Failed to load widgets: ${response.statusText}`);
-			}
-
-			const result = await response.json();
-			console.log('[WidgetDashboard] Full API response:', result);
-			console.log('[WidgetDashboard] result.widgets:', result.widgets);
-			console.log('[WidgetDashboard] result.data:', result.data);
-
-			// Try both result.widgets and result.data.widgets
-			widgets = result.widgets || result.data?.widgets || [];
-
-			console.info('Loaded widgets:', {
-				total: widgets.length,
-				core: widgets.filter((w) => w.isCore).length,
-				custom: widgets.filter((w) => !w.isCore).length
-			});
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load widgets';
-			logger.error('Error loading widgets:', err);
-		} finally {
-			isLoading = false;
+		// Category filter
+		let matchesFilter = false;
+		switch (activeFilter) {
+			case "all":
+				matchesFilter = true;
+				break;
+			case "core":
+				matchesFilter = widget.isCore;
+				break;
+			case "custom":
+				matchesFilter = !widget.isCore;
+				break;
+			case "active":
+				matchesFilter = widget.isActive;
+				break;
+			case "inactive":
+				matchesFilter = !widget.isActive;
+				break;
 		}
+
+		return matchesSearch && matchesFilter;
+	}),
+);
+
+onMount(() => {
+	loadWidgets();
+
+	// Keyboard shortcuts
+	const handleKeyboard = (e: KeyboardEvent) => {
+		// Ctrl/Cmd + F: Focus search
+		if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+			e.preventDefault();
+			(document.querySelector('input[type="text"]') as HTMLElement)?.focus();
+		}
+		// Escape: Clear search
+		if (e.key === "Escape" && searchQuery) {
+			searchQuery = "";
+		}
+	};
+
+	window.addEventListener("keydown", handleKeyboard);
+
+	return () => {
+		window.removeEventListener("keydown", handleKeyboard);
+	};
+});
+
+async function loadWidgets() {
+	isLoading = true;
+	error = null;
+
+	try {
+		const response = await fetch(`/api/widgets/list?tenantId=${tenantId}`);
+
+		if (!response.ok) {
+			throw new Error(`Failed to load widgets: ${response.statusText}`);
+		}
+
+		const result = await response.json();
+		console.log("[WidgetDashboard] Full API response:", result);
+		console.log("[WidgetDashboard] result.widgets:", result.widgets);
+		console.log("[WidgetDashboard] result.data:", result.data);
+
+		// Try both result.widgets and result.data.widgets
+		widgets = result.widgets || result.data?.widgets || [];
+
+		console.info("Loaded widgets:", {
+			total: widgets.length,
+			core: widgets.filter((w) => w.isCore).length,
+			custom: widgets.filter((w) => !w.isCore).length,
+		});
+	} catch (err) {
+		error = err instanceof Error ? err.message : "Failed to load widgets";
+		logger.error("Error loading widgets:", err);
+	} finally {
+		isLoading = false;
+	}
+}
+
+async function toggleWidget(widgetName: string) {
+	if (!canManageWidgets) {
+		alert(
+			"You do not have permission to manage widgets. Contact your administrator.",
+		);
+		return;
 	}
 
-	async function toggleWidget(widgetName: string) {
-		if (!canManageWidgets) {
-			alert('You do not have permission to manage widgets. Contact your administrator.');
+	try {
+		const widget = widgets.find((w) => w.name === widgetName);
+		if (!widget) {
 			return;
 		}
 
-		try {
-			const widget = widgets.find((w) => w.name === widgetName);
-			if (!widget) {
-				return;
-			}
+		const newStatus = !widget.isActive;
 
-			const newStatus = !widget.isActive;
+		const response = await fetch("/api/widgets/status", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"X-Tenant-ID": tenantId,
+			},
+			body: JSON.stringify({
+				widgetName,
+				isActive: newStatus,
+			}),
+		});
 
-			const response = await fetch('/api/widgets/status', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-Tenant-ID': tenantId
-				},
-				body: JSON.stringify({
-					widgetName,
-					isActive: newStatus
-				})
-			});
-
-			if (!response.ok) {
-				throw new Error(`Failed to update widget status: ${response.statusText}`);
-			}
-
-			// Force refresh: Clear cache and reload widget store + widget list
-			// This ensures the UI is perfectly in sync with database
-			await widgetStoreActions.initializeWidgets(tenantId);
-			await loadWidgets();
-
-			console.info(`Widget ${widgetName} ${newStatus ? 'activated' : 'deactivated'} - Store and UI refreshed`);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : 'Failed to update widget status';
-			logger.error('Error toggling widget:', err);
-			alert(`Error: ${message}`);
+		if (!response.ok) {
+			throw new Error(`Failed to update widget status: ${response.statusText}`);
 		}
+
+		// Force refresh: Clear cache and reload widget store + widget list
+		// This ensures the UI is perfectly in sync with database
+		await widgetStoreActions.initializeWidgets(tenantId);
+		await loadWidgets();
+
+		console.info(
+			`Widget ${widgetName} ${newStatus ? "activated" : "deactivated"} - Store and UI refreshed`,
+		);
+	} catch (err) {
+		const message =
+			err instanceof Error ? err.message : "Failed to update widget status";
+		logger.error("Error toggling widget:", err);
+		alert(`Error: ${message}`);
+	}
+}
+
+async function uninstallWidget(widgetName: string) {
+	if (!canManageWidgets) {
+		alert(
+			"You do not have permission to uninstall widgets. Contact your administrator.",
+		);
+		return;
 	}
 
-	async function uninstallWidget(widgetName: string) {
-		if (!canManageWidgets) {
-			alert('You do not have permission to uninstall widgets. Contact your administrator.');
-			return;
-		}
-
-		if (!confirm(`Are you sure you want to uninstall the widget "${widgetName}"?`)) {
-			return;
-		}
-
-		try {
-			const response = await fetch('/api/widgets/uninstall', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-Tenant-ID': tenantId
-				},
-				body: JSON.stringify({ widgetName })
-			});
-
-			if (!response.ok) {
-				throw new Error(`Failed to uninstall widget: ${response.statusText}`);
-			}
-
-			// Reload widgets after uninstallation
-			await loadWidgets();
-			console.info(`Widget ${widgetName} uninstalled`);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : 'Failed to uninstall widget';
-			logger.error('Error uninstalling widget:', err);
-			alert(`Error: ${message}`);
-		}
+	if (
+		!confirm(`Are you sure you want to uninstall the widget "${widgetName}"?`)
+	) {
+		return;
 	}
+
+	try {
+		const response = await fetch("/api/widgets/uninstall", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"X-Tenant-ID": tenantId,
+			},
+			body: JSON.stringify({ widgetName }),
+		});
+
+		if (!response.ok) {
+			throw new Error(`Failed to uninstall widget: ${response.statusText}`);
+		}
+
+		// Reload widgets after uninstallation
+		await loadWidgets();
+		console.info(`Widget ${widgetName} uninstalled`);
+	} catch (err) {
+		const message =
+			err instanceof Error ? err.message : "Failed to uninstall widget";
+		logger.error("Error uninstalling widget:", err);
+		alert(`Error: ${message}`);
+	}
+}
 </script>
 
 <div class="wrapper h-full max-h-screen space-y-6 overflow-y-auto p-4 pb-16">

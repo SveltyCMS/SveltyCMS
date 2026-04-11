@@ -1,642 +1,133 @@
 ---
-path: 'docs/api/export-import-api.mdx'
-title: 'Data Export and Import API'
-description: 'Complete API reference for exporting and importing data, collections, and settings in SveltyCMS.'
+path: "docs/api/export-import-api.mdx"
+title: "Export & Import API Reference"
+description: "High-performance data migration and backup interface for collections, settings, and full system snapshots."
 order: 7
-icon: 'mdi:database-export-outline'
-author: 'admin'
-created: '2025-10-05'
-updated: '2025-10-05'
+icon: "mdi:database-export-outline"
+author: "SveltyCMS Team"
+created: "2025-10-05"
+updated: "2026-04-01"
 tags:
-  - 'api'
-  - 'export'
-  - 'import'
-  - 'backup'
-  - 'migration'
+  - "api"
+  - "export"
+  - "import"
+  - "backup"
+  - "migration"
 ---
 
-# Data Export and Import API
+# Export & Import API Reference
 
-## Overview
-
-The Export/Import API provides endpoints for backing up, migrating, and restoring data in SveltyCMS. All operations use database-agnostic methods and support multi-tenancy.
-
-**Base Paths:**
-
-- `/api/systemsetting/*` - System settings export/import endpoints
-- `/api/import/full` - Import endpoint
-
-## Authentication
-
-All export/import endpoints require authentication:
-
-```http
-Cookie: session=your-session-id
-```
-
-**Permissions Required:** `admin` or `data:export`, `data:import`
+The Export & Import API provides a database-agnostic interface for moving data between SveltyCMS instances or external platforms. It supports both synchronous small-scale imports and asynchronous, job-queued large-scale migrations.
 
 ---
 
-## Export Endpoints
+## ⚡ Quick Start
 
-### 1. Full System Export
-
-Exports all system data including settings, collections, users, and media metadata.
-
-#### Request
-
-```http
-POST /api/systemsetting/export
-```
-
-**Query Parameters:**
-
-- `format` (string, optional) - Export format (`json`, `encrypted`) - default: `encrypted`
-- `includeMedia` (boolean, optional) - Include media file metadata - default: `true`
-- `includeUsers` (boolean, optional) - Include user data - default: `true`
-- `tenantId` (string, optional) - Filter by tenant (multi-tenant mode)
-
-**Headers:**
-
-```http
-Cookie: session=your-session-id
-```
-
-**Permissions Required:** `admin`
-
-#### Response
-
-**Success (200):**
-
-Returns an encrypted JSON file or plain JSON depending on format parameter.
-
-```json
-{
-  "success": true,
-  "export": {
-    "version": "1.0.0",
-    "exportedAt": "2025-10-05T14:30:00Z",
-    "exportedBy": "user123",
-    "tenantId": "default-tenant",
-    "data": {
-      "settings": {
-        "system": { ... },
-        "theme": { ... }
-      },
-      "collections": {
-        "posts": [ ... ],
-        "pages": [ ... ]
-      },
-      "users": [ ... ],
-      "media": [ ... ],
-      "widgets": [ ... ]
-    },
-    "metadata": {
-      "totalRecords": 1523,
-      "totalSize": "45.2 MB",
-      "collections": 5,
-      "users": 12,
-      "media": 342
-    }
-  }
-}
-```
-
-**Encrypted Format (default):**
-
-```json
-{
-	"success": true,
-	"data": "encrypted-base64-string...",
-	"metadata": {
-		"exportedAt": "2025-10-05T14:30:00Z",
-		"encrypted": true,
-		"algorithm": "aes-256-gcm"
-	}
-}
-```
-
-**Error Responses:**
-
-```json
-// 401 Unauthorized
-{
-  "success": false,
-  "message": "Unauthorized"
-}
-
-// 403 Forbidden
-{
-  "success": false,
-  "message": "Insufficient permissions"
-}
-
-// 500 Internal Server Error
-{
-  "success": false,
-  "message": "Export failed: Database connection error"
-}
-```
+| Feature                   | HTTP Endpoint                      | Local SDK Equivalent                        |
+| :------------------------ | :--------------------------------- | :------------------------------------------ |
+| **Import Data**           | `POST /api/import-data`            | `locals.cms.system.importer.importData`     |
+| **External Smart Import** | `POST /api/importer/external`      | `locals.cms.system.importer.importExternal` |
+| **Full System Export**    | `POST /api/system-settings/export` | `locals.cms.system.settings.getAll`         |
 
 ---
 
-### 2. Collection Export
+## 1. The Goal
 
-Exports data from a specific collection.
-
-#### Request
-
-```http
-GET /api/export/collection/[collectionName]
-```
-
-**Path Parameters:**
-
-- `collectionName` (string) - Name of the collection to export
-
-**Query Parameters:**
-
-- `format` (string, optional) - Export format (`json`, `csv`) - default: `json`
-- `filter` (string, optional) - JSON filter criteria
-- `limit` (number, optional) - Max records to export
-- `tenantId` (string, optional) - Filter by tenant
-
-**Headers:**
-
-```http
-Cookie: session=your-session-id
-```
-
-**Permissions Required:** `data:export` or collection-specific `read` permission
-
-#### Response
-
-**Success (200):**
-
-```json
-{
-	"success": true,
-	"collection": "posts",
-	"data": [
-		{
-			"_id": "post123",
-			"title": "Hello World",
-			"content": "Post content...",
-			"author": "user123",
-			"createdAt": "2025-10-01T10:00:00Z"
-		}
-	],
-	"count": 42,
-	"exportedAt": "2025-10-05T14:30:00Z"
-}
-```
-
-**CSV Format:**
-
-```csv
-_id,title,content,author,createdAt
-post123,"Hello World","Post content...","user123","2025-10-01T10:00:00Z"
-```
+Migrate content from an external source (CSV, JSON, WordPress, Drupal) or perform a full system backup while maintaining data integrity and multi-tenant isolation.
 
 ---
 
-## Import Endpoints
+## 2. The Solution
 
-### 1. Import Data
+### Standard Collection Import
 
-Imports data into collections from JSON.
+To import an array of items into a specific collection.
 
-#### Request
-
-```http
-POST /api/import/full
-```
-
-**Headers:**
-
-```http
-Cookie: session=your-session-id
-Content-Type: application/json
-```
-
-**Body:**
+**Endpoint**: `POST /api/import-data`
+**Payload**:
 
 ```json
 {
-	"collections": {
-		"posts": [
-			{
-				"title": "Imported Post",
-				"content": "Content...",
-				"author": "user123"
-			}
-		],
-		"pages": [
-			{
-				"title": "Imported Page",
-				"slug": "imported-page"
-			}
-		]
-	},
-	"options": {
-		"overwrite": false,
-		"validate": true,
-		"skipInvalid": true,
-		"batchSize": 100
-	}
+  "collectionName": "posts",
+  "data": [{ "title": "New Post", "content": "..." }],
+  "mode": "merge",
+  "duplicateStrategy": "skip"
 }
 ```
 
-**Options:**
+### Local SDK (Recommended for Migrations)
 
-- `overwrite` (boolean) - Overwrite existing records - default: `false`
-- `validate` (boolean) - Validate data against schema - default: `true`
-- `skipInvalid` (boolean) - Skip invalid entries - default: `true`
-- `batchSize` (number) - Records per batch - default: `100`
-
-**Permissions Required:** `admin` or `data:import`
-
-#### Response
-
-**Success (200):**
-
-```json
-{
-  "success": true,
-  "message": "Data import completed successfully",
-  "results": [
-    {
-      "collection": "posts",
-      "imported": 42,
-      "skipped": 3,
-      "errors": [
-        {
-          "index": 5,
-          "error": "Missing required field: title",
-          "entry": { ... }
-        }
-      ]
-    },
-    {
-      "collection": "pages",
-      "imported": 15,
-      "skipped": 0,
-      "errors": []
-    }
-  ],
-  "totalImported": 57,
-  "totalSkipped": 3,
-  "totalErrors": 1,
-  "duration": 1245
-}
-```
-
-**Error Responses:**
-
-```json
-// 400 Bad Request - Invalid format
-{
-  "success": false,
-  "message": "Invalid import data format. Expected collections object."
-}
-
-// 400 Bad Request - Validation errors
-{
-  "success": false,
-  "message": "Data validation failed",
-  "errors": [
-    {
-      "collection": "posts",
-      "index": 2,
-      "error": "Invalid field: publishedAt"
-    }
-  ]
-}
-
-// 500 Internal Server Error
-{
-  "success": false,
-  "message": "Import failed: Database write error"
-}
-```
-
----
-
-### 2. Full System Import
-
-Restores a full system backup.
-
-#### Request
-
-```http
-POST /api/systemsetting/import
-```
-
-**Headers:**
-
-```http
-Cookie: session=your-session-id
-Content-Type: application/json
-```
-
-**Body:**
-
-```json
-{
-	"data": "encrypted-backup-data-or-json",
-	"options": {
-		"overwrite": false,
-		"restoreSettings": true,
-		"restoreUsers": true,
-		"restoreMedia": true,
-		"restoreCollections": true
-	}
-}
-```
-
-**Permissions Required:** `admin` only
-
-#### Response
-
-**Success (200):**
-
-```json
-{
-	"success": true,
-	"message": "System restore completed",
-	"restored": {
-		"settings": 15,
-		"collections": 524,
-		"users": 12,
-		"media": 342
-	},
-	"duration": 5432,
-	"warnings": ["Some media files not found on disk"]
-}
-```
-
----
-
-## Export Formats
-
-### JSON Format
-
-Standard JSON format for all data types:
-
-```json
-{
-  "version": "1.0.0",
-  "exportedAt": "2025-10-05T14:30:00Z",
-  "data": { ... }
-}
-```
-
-### Encrypted Format
-
-Encrypted backup using AES-256-GCM:
-
-```json
-{
-	"encrypted": true,
-	"algorithm": "aes-256-gcm",
-	"data": "base64-encrypted-data",
-	"iv": "initialization-vector",
-	"tag": "authentication-tag"
-}
-```
-
-### CSV Format
-
-Available for collection exports:
-
-```csv
-_id,field1,field2,createdAt
-id1,"value1","value2","2025-10-05T14:30:00Z"
-```
-
----
-
-## Database-Agnostic Implementation
-
-The Export/Import API uses database-agnostic methods:
+Use the Local SDK for maximum performance when running migration scripts within SvelteKit.
 
 ```typescript
-// Export uses getAllSettings abstraction
-const settings = await getAllSettings();
-
-// Import uses database adapter
-await dbAdapter.collections.insertMany(collectionName, entries);
-
-// No direct database queries
+const result = await locals.cms.system.importer.importData({
+  collectionName: "products",
+  data: myProductArray,
+  async: true, // Dispatches to background job queue
+});
 ```
 
-**Supported Operations:**
+### AI-Powered External Import
 
-- Collection data export/import
-- Settings export/import
-- User data export/import
-- Media metadata export
+Automatically map fields from external CMS platforms to SveltyCMS collections.
 
-The actual database operations are handled by the adapter layer, making exports portable across different database systems.
+**Endpoint**: `POST /api/importer/external`
+**Payload**:
 
----
-
-## Multi-Tenancy Support
-
-When multi-tenant mode is enabled:
-
-- Each tenant's data is isolated
-- Exports are tenant-scoped
-- Cross-tenant imports are blocked
-- Tenant ID is included in export metadata
-
-**Tenant-Scoped Export:**
-
-```http
-GET /api/export/full?tenantId=tenant-abc
-```
-
-**Import Validation:**
-
-```typescript
-// Validates tenant context during import
-if (entry.tenantId !== user.tenantId) {
-	throw error(403, 'Cannot import data from different tenant');
+```json
+{
+  "sourceType": "wordpress",
+  "sourceUrl": "https://blog.com",
+  "contentType": "post",
+  "targetCollection": "blog_posts"
 }
 ```
 
 ---
 
-## Data Validation
+## 3. The Mechanics
 
-During import, data is validated:
+The import engine uses a **Hybrid Execution Model** to handle varying dataset sizes safely.
 
-1. **Schema Validation** - fields match collection schema
-2. **Type Checking** - Data types are correct
-3. **Required fields** - All required fields present
-4. **Reference Validation** - Foreign keys exist
-5. **Custom Validators** - Collection-specific rules
+```mermaid
+graph TD
+    A[Import Request] --> B{Items > 50?}
+    B -- No --> C[Synchronous Processing]
+    B -- Yes --> D[Job Queue Dispatch]
 
-**Validation Options:**
+    C --> E[Insert / Upsert]
+    D --> F[Worker: Process in Chunks]
 
-- `validate: true` - Strict validation (reject invalid)
-- `validate: false` - No validation (import as-is)
-- `skipInvalid: true` - Skip invalid, import valid
-- `skipInvalid: false` - Fail entire import if any invalid
+    E --> G[Cache Invalidation]
+    F --> G
 
----
-
-## Security Considerations
-
-### Access Control
-
-- Admin-only for full system exports
-- Collection-specific permissions for collection exports
-- Audit logging for all export/import operations
-
-### Data Encryption
-
-- Default encryption for sensitive data
-- Secure key management
-- Encrypted backup storage
-- Password-protected exports (optional)
-
-### Import Validation
-
-- Sanitize all imported data
-- Prevent code injection
-- Validate file uploads
-- Rate limiting on imports
-
----
-
-## Backup Best Practices
-
-### Regular Backups
-
-Schedule automated backups:
-
-```bash
-# Daily full backup
-0 2 * * * curl -X GET https://cms.example.com/api/export/full \
-  -H "Cookie: session=$SESSION" > backup-$(date +%Y%m%d).json.enc
+    G --> H[Update Content Version]
+    H --> I[Trigger SSE Events]
 ```
 
-### Backup Strategy
+### Import Modes & Strategies
 
-1. **Full Backup** - Weekly (all data)
-2. **Incremental** - Daily (changed data only)
-3. **Collection Backups** - Before major changes
-4. **Testing Restores** - Monthly verification
+| Parameter           | Options             | Description                                              |
+| :------------------ | :------------------ | :------------------------------------------------------- |
+| `mode`              | `merge`, `replace`  | `replace` clears the target collection before importing. |
+| `duplicateStrategy` | `skip`, `overwrite` | `overwrite` updates existing records based on `_id`.     |
+| `async`             | `true`, `false`     | Forces background processing regardless of size.         |
 
-### Storage
-
-- Store backups off-site
-- Multiple backup locations
-- Encrypted storage
-- Retention policy (30/90/365 days)
+> [!IMPORTANT]
+> **Payload Limits**: Requests exceeding 5MB should use the `async: true` flag. The system will automatically offload the payload to a temporary file-store to prevent memory exhaustion.
 
 ---
 
-## Migration Use Cases
+## Security & Isolation
 
-### 1. Database Migration
-
-Migrate from MongoDB to PostgreSQL:
-
-```bash
-# Export from MongoDB instance
-curl -X POST https://old.example.com/api/systemsetting/export > backup.json.enc
-
-# Import to PostgreSQL instance
-curl -X POST https://new.example.com/api/systemsetting/import \
-  -d @backup.json.enc
-```
-
-### 2. Staging to Production
-
-```bash
-# Export from staging
-curl -X GET https://staging.example.com/api/export/collection/posts > posts.json
-
-# Import to production
-curl -X POST https://production.example.com/api/importData \
-  -d @posts.json
-```
-
-### 3. Multi-Tenant Migration
-
-```bash
-# Export tenant data
-curl -X POST "https://cms.example.com/api/systemsetting/export?tenantId=tenant-a" \
-  > tenant-a-backup.json.enc
-
-# Import to new tenant
-curl -X POST https://new-cms.example.com/api/systemsetting/import \
-  -d @tenant-a-backup.json.enc
-```
+- **Tenant Lockdown**: Imports are strictly scoped to the current `tenantId`. Attempting to import data with a mismatched `tenantId` returns `403 FORBIDDEN`.
+- **Validation**: All imported data is passed through the **Widget Validation Layer** (Valibot) to ensure schema compliance.
+- **Audit Logging**: Every import operation creates a `SYSTEM_IMPORT` audit entry with the actor's ID and record count.
 
 ---
 
-## Testing
+## Related Documents
 
-### JavaScript Example
-
-```javascript
-// Export full system
-const exportResponse = await fetch('/api/export/full', {
-	method: 'POST',
-	headers: { 'Content-Type': 'application/json' },
-	body: JSON.stringify({ includeCollections: true })
-});
-const exportData = await exportResponse.json();
-
-// Download as file
-const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-	type: 'application/json'
-});
-const url = URL.createObjectURL(blob);
-const a = document.createElement('a');
-a.href = url;
-a.download = `backup-${new Date().toISOString()}.json`;
-a.click();
-
-// Import data
-const importResponse = await fetch('/api/systemsetting/import', {
-	method: 'POST',
-	credentials: 'include',
-	headers: { 'Content-Type': 'application/json' },
-	body: JSON.stringify({
-		data: exportData,
-		options: {
-			validate: true,
-			skipInvalid: true
-		}
-	})
-});
-
-const result = await importResponse.json();
-console.log(`Imported ${result.totalImported} records`);
-```
-
----
-
-## Related Documentation
-
-- [Database Architecture](/docs/dev-guide/database-methods-architecture)
-- [Collection System](/docs/api/collection-api.mdx)
-- [Settings Management](/docs/api/settings-api.mdx)
-- [Backup Automation](/docs/admin/backup-automation)
-
----
-
-## Implementation Details
-
-For implementation details, see:
-
-- `src/routes/api/systemsetting/export/+server.ts` - Full export endpoint
-- `src/routes/api/systemsetting/import/+server.ts` - Full import endpoint
-- `src/routes/api/importData/+server.ts` - Import endpoint
-- `src/utils/crypto.ts` - Encryption utilities
-- `src/databases/db-interface.ts` - Database adapter interface
+- [Smart Importer Architecture](../guides/content/smart-importer.mdx)
+- [Database Adapter Interface](../architecture/database/database-methods.mdx)
+- [Job Queue System](../architecture/configuration-management.mdx)

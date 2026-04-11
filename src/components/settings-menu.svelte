@@ -8,8 +8,8 @@ Sidebar navigation for System Settings
 <script lang="ts">
 	// Components
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import type { SettingGroup } from '@src/routes/(app)/config/systemsetting/settings-groups';
-	import { getSettingGroupsByRole } from '@src/routes/(app)/config/systemsetting/settings-groups';
+	import type { SettingGroup } from '@src/routes/(app)/config/system-settings/settings-groups';
+	import { getSettingGroupsByRole } from '@src/routes/(app)/config/system-settings/settings-groups';
 	// Stores
 	import { groupsNeedingConfig } from '@src/stores/config-store.svelte';
 	import { goto } from '$app/navigation';
@@ -56,9 +56,31 @@ Sidebar navigation for System Settings
 
 		goto(url.toString());
 	}
+
+    function goToMonitor() {
+        goto('/config/monitor');
+    }
 </script>
 
 <div class="mt-2 flex flex-col h-full bg-transparent">
+    <!-- Enterprise Monitor Button -->
+    <div class="mb-4">
+        <button
+            class="relative w-full cursor-pointer rounded-lg p-3 transition-all flex items-center shadow-sm border border-primary-500/20
+                {page.url.pathname === '/config/monitor' ? 'bg-primary-500 text-white' : 'bg-primary-500/10 hover:bg-primary-500/20 text-primary-600 dark:text-primary-400'}
+                {isFullSidebar ? 'justify-start gap-3' : 'justify-center'}"
+            onclick={goToMonitor}
+        >
+            <iconify-icon icon="mdi:shield-check-outline" width="24" class="shrink-0"></iconify-icon>
+            {#if isFullSidebar}
+                <div class="flex flex-col text-left">
+                    <span class="text-sm font-bold leading-tight">Enterprise Monitor</span>
+                    <span class="text-[10px] opacity-70 font-medium">Security & Health</span>
+                </div>
+            {/if}
+        </button>
+    </div>
+
 	<!-- Search -->
 	<div class="relative mb-2 {isFullSidebar ? 'w-full' : 'max-w-[135px]'}">
 		<input

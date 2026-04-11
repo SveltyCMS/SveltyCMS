@@ -1,95 +1,113 @@
 ---
-path: 'docs/architecture'
-title: 'Architecture Documentation'
-description: 'Technical documentation of SveltyCMS system architecture, design patterns, and implementation details'
-order: 10
-icon: 'mdi:layers-triple'
-author: 'admin'
-created: '2025-10-05'
-updated: '2026-02-14'
+path: "docs/architecture/index.mdx"
+title: "System Architecture"
+description: "The architectural blueprint of SveltyCMS — from the Svelte 5 (Runes) engine to the DB-agnostic adapter pattern."
+order: 1
+icon: "mdi:office-building-cog"
+author: "SveltyCMS Team"
+created: "2025-10-05"
+updated: "2026-03-28"
 tags:
-  - 'architecture'
-  - 'design'
-  - 'patterns'
-  - 'technical'
-  - 'ssr'
+  - "architecture"
+  - "svelte5"
+  - "backend"
+  - "design"
+  - "index"
 ---
 
-# SveltyCMS Architecture Documentation
+# System Architecture Overview
 
-Welcome to the SveltyCMS architecture documentation. This section provides a comprehensive technical overview of the system's design, patterns, and implementation details.
-
-## 🚀 Recommended Reading Path
-
-For new developers, we recommend reading these documents in order to build a strong understanding of the SveltyCMS architecture:
-
-1.  **[Code Structure & Organization](./code-structure.mdx)**: Start here for a high-level overview of the codebase.
-2.  **[Server Hooks & Middleware](./server-hooks.mdx)**: Understand how requests are processed.
-3.  **[System State & Health](./state-management.mdx)**: Learn about the application's lifecycle and health monitoring.
-4.  **[Database Core Infrastructure](/docs/database/core-infrastructure.mdx)**: Dive into the database-agnostic adapter pattern.
-5.  **[System Settings Architecture](./system-settings-architecture.mdx)**: See how dynamic configuration is managed.
+SveltyCMS is built with the **"High-Performance Edge"** philosophy: zero-runtime overhead, sub-1ms API hot-paths, and the **Self-Healing State Machine** for automated recovery.
 
 ---
 
-## 🏗️ Core Architecture
+## 🏗️ Core Engine & Lifecycle
 
-- **[Code Structure & Organization](./code-structure.mdx)**: A comprehensive overview of the codebase, core components, and key design patterns.
-- **[Server Hooks & Middleware](./server-hooks.mdx)**: An in-depth look at the enterprise-grade middleware pipeline that handles every request.
-- **[System State & Health](./state-management.mdx)**: A guide to the intelligent state machine that manages system readiness and health.
-- **[Initialization Workflow](./initialization-workflow.mdx)**: A complete guide to the application lifecycle, from first-time setup to server restarts.
+The heart of SveltyCMS — from the reactive Svelte 5 engine to the request processing pipeline.
 
----
-
-## 💾 Data & State
-
-- **[Database Core Infrastructure](/docs/database/core-infrastructure.mdx)**: The foundation of the database-agnostic architecture.
-- **[MongoDB Implementation](/docs/database/mongodb-implementation.mdx)**: A deep dive into the MongoDB-specific optimizations.
-  - **[Performance Architecture](/docs/database/performance-architecture.mdx)**: Complete performance implementation overview with caching, indexing, and field selection.
-  - **[Database Resilience](./database-resilience.mdx)**: Unified guide covering features, integration points, metrics, diagnostics, and planned enhancements.
-  - **[Database Methods](./database-methods.mdx)**: Database operation patterns and best practices.
-- **[System Settings Architecture](./system-settings-architecture.mdx)**: How dynamic settings are managed, cached, and synchronized.
-  - **[Configuration Management](./configuration-management.mdx)**: Configuration lifecycle and deployment strategies.
-- **[Cache System](./cache-system.mdx)**: The dual-layer caching strategy for high performance.
-  - **[Cache System (Database)](/docs/database/cache-system.mdx)**: Complete cache architecture with Redis + MongoDB dual-layer, 8 TTL categories, and performance monitoring.
-- **[Collection Store Dataflow](./collection-store-dataflow.mdx)**: The SSR architecture for collection/entry data management with server-side caching.
-- **[Content System Architecture](./content-system.mdx)**: Detailed overview of the Content Manager, Scanner, Index, and Reactive Content System.
-- **[Content Type System](./content-type-system.mdx)**: Dynamic content type definition and validation.
-- **[Multilingual Data Loading](./multilingual-data-loading.mdx)**: Two-tier SSR strategy for multilingual content with language-specific caching and translation progress tracking.
-  - **[Language Architecture](./language-architecture.mdx)**: Complete multilingual system implementation.
-- **[URL Pattern for Collection Editing](./url-pattern.mdx)**: Clean, semantic URL structure with flow diagrams and implementation details.
-- **[Hover Preloading](./hover-preloading.mdx)**: Intelligent speculative loading with connection awareness and predictive features.
-- **[Global Loading Store](./global-loading-store.mdx)**: Enterprise-grade loading state management with SSR safety.
-- [**Real-Time Events API**](../api/real-time-events-api.mdx): Server-Sent Events (SSE) stream for system activity and AI assistant tokens.
-- **[UI & Screen State Architecture](./ui-and-screen-state.mdx)**: Technical documentation of the responsive layout and visibility management system.
+- [⚙️ **Component Lifecycle**](./server-hooks.mdx) — The 15-stage middleware pipeline in SveltyCMS.
+- [🔄 **Initialization Workflow**](./initialization-workflow.mdx) — The step-by-step startup process for the CMS.
+- [🧪 **Self-Healing State**](./state-management.mdx) — The system's resilience state machine (IDLE → READY).
+- [📁 **Code Structure**](./code-structure.mdx) — Directory organization and internal module boundaries.
+- [🛡️ **Security Overview**](./security-plugin.mdx) — Protecting against SSRF, command injection, and CSRF.
 
 ---
 
-## 🔐 Security
+## 🗄️ Database & Data Architecture
 
-- **[Authentication System](./authentication-system.mdx)**: Enterprise-grade authentication with 3-layer caching, automatic session rotation, and multi-tenancy support.
-  - **[Login Error Handling](./login-error-handling.mdx)**: Comprehensive error handling for authentication flows.
-- **[Security Plugin](./security-plugin.mdx)**: The build-time plugin that prevents accidental exposure of private settings.
-- **[Cryptography Module](./cryptography-module.mdx)**: The enterprise-grade cryptography used for password hashing and data encryption.
-- **[Cloud Storage Implementation](./cloud-storage-implementation.mdx)**: Secure cloud storage integration patterns.
-- **[Telemetry & Ecosystem](./telemetry-ecology.mdx)**: How the active update check system works, including privacy controls and retry logic.
+Database agnosticism and unified data modeling.
 
----
-
-## 🧩 Features & Modules
-
-- **[Widget System Overview](../widgets/index.mdx)**: An introduction to the 3-Pillar widget architecture.
-  - **[Validation Instant Feedback](./validation-instant-feedback.mdx)**: Smart validation with instant save button disabling.
-- **[Dashboard System](./dashboard-system.mdx)**: The architecture of the customizable admin dashboard.
-- **[Image Editor](../guides/image-editor.mdx)**: Complete technical reference for the image editing system.
-- **[User Management Overview](./user-management-overview.mdx)**: A guide to the user management UI and features.
-  - **[Admin User Management](./admin-user-management.mdx)**: Comprehensive admin user management interface.
-- **[Logger Levels](./logger-levels.mdx)**: The performance-optimized logging system.
+- [📊 **Database Adapters**](./database/index.mdx) — Overview of the unified query abstraction.
+- [🍃 **MongoDB Implementation**](./database/mongodb-implementation.mdx) — Native Mongoose integration.
+- [🔌 **PostgreSQL Implementation**](./database/postgresql-implementation.mdx) — Native DDL and Drizzle integration.
+- [📦 **SQLite (Edge-Ready)**](./database/sqlite-implementation.mdx) — Native Bun driver for local deployments.
+- [🧬 **Content Type System**](./content-type-system.mdx) — Fields, widgets, and schema mapping.
+- [📋 **Validation & Feedback**](./validation-instant-feedback.mdx) — Real-time E2E verification logic.
 
 ---
 
-## 📦 UI Components
+## 📦 Content & Collections
 
-- **[entry-list MultiButton](./components/entry-list-multibutton.mdx)**: Enterprise-grade bulk action button with action queue, optimistic UI, and keyboard navigation.
-- **[entry-list](./components/entry-list.mdx)**: Collection data table with search, filtering, pagination, and hover preloading.
-- **[fields](./components/fields.mdx)**: Dynamic field renderer with widget loading, validation, and revision history.
-- **[schedule-modal](./components/schedule-modal.mdx)**: Scheduling modal for future publish/unpublish/delete actions.
+The modular reconciler and reactive content delivery system.
+
+- [📦 **Content System**](./content-system.mdx) — The modular reconciler, initializer, and reactive polling.
+- [🧱 **Collection Builder**](./collection-builder-architecture.mdx) — The UI-driven schema management engine.
+- [🧪 **Self-Healing State**](./state-management.mdx) — The system's resilience state machine (IDLE → READY).
+- [🗺️ **URL Patterns**](./url-pattern.mdx) — Dynamic routing and path resolution strategy.
+- [🚀 **Compilation Pipeline**](./compilation-pipeline.mdx) — Transform path for collection definitions.
+
+---
+
+## 🧩 Modularity & Extensions
+
+How SveltyCMS handles widgets, plugins, and custom logic.
+
+- [🧩 **Widget Architecture**](./widgets/architecture.mdx) — The 3-pillar strategy (Definition, Input, Display).
+- [🔌 **Plugin Architecture**](./plugin-architecture.mdx) — The hook-based extension system.
+- [📦 **Media Hub**](./media-system.mdx) — Storage adapters, AI processing, and focal point management.
+- [☁️ **Cloud Storage**](./cloud-storage-implementation.mdx) — Integration with AWS S3, Google Cloud, and DigitalOcean.
+
+---
+
+## 🌐 Multilingual & Internationalization
+
+Zero-runtime overhead internationalization using Paraglide JS.
+
+- [🌍 **Language Architecture**](./language-architecture.mdx) — Multi-locale routing and message compilation.
+- [🔤 **Data Loading**](./multilingual-data-loading.mdx) — How translated content is loaded efficiently.
+
+---
+
+## 🎨 Frontend & UI System
+
+Design tokens, screen state, and preloading strategies.
+
+- [💎 **Aesthetics & Design**](../contributing/style-guide-gui.mdx) — Modern UX principles and Skeleton.dev tokens.
+- [🖥️ **UI & Screen State**](./ui-and-screen-state.mdx) — Responsive layout management.
+- [💨 **Hover Preloading**](./hover-preloading.mdx) — Sub-millisecond navigation via predictive fetching.
+- [🛎️ **Toast & Notification**](./toast-system.mdx) — The global user feedback system.
+
+---
+
+## 🛡️ Authentication & User Management
+
+Identity, tenancy, and authorization flows.
+
+- [🔐 **Authentication System**](./authentication-system.mdx) — OAuth, 2FA, and passkey architecture.
+- [👥 **Multi-Tenancy**](./multi-tenancy.mdx) — Native `tenantId` scoping for physical data isolation.
+- [🏷️ **Tokens & Cache**](./token-cache-integration.mdx) — JWT management and session invalidation.
+- [👤 **User Overview**](./user-management-overview.mdx) — Role-based access control (RBAC).
+
+---
+
+## 📡 Monitoring & Telemetry
+
+System visibility and performance tracking.
+
+- [📡 **Telemetry Ecology**](./telemetry-ecology.mdx) — The global health and usage tracking network.
+- [📊 **Metrics Implementation**](./telemetry-server-implementation.mdx) — Back-end metric collection and reporting.
+- [📝 **Logger Levels**](./logger-levels.mdx) — Structured logging and error tracing.
+
+---
+
+**Next Steps**: Review the [Request Lifecycle](./server-hooks.mdx) to see how every API call is gated by the 15-stage middleware pipeline.

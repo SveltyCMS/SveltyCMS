@@ -1,0 +1,110 @@
+---
+path: docs/project/competitive-comparison.mdx
+title: Competitive Comparison
+description: A technical comparison of SveltyCMS vs Payload CMS, Strapi, and Directus.
+author: SveltyCMS Team
+created: 2026-03-21
+updated: 2026-03-21
+tags:
+  - comparison
+  - benchmarks
+  - payload
+  - strapi
+  - directus
+---
+
+# Competitive Comparison
+
+SveltyCMS is designed for developers who prioritize performance, security, and accessibility. By using Svelte 5 (Runes) and a database-agnostic architecture, we offer a highly competitive alternative to traditional React-based or GUI-heavy CMS platforms.
+
+## Comprehensive Comparison Matrix (March 2026)
+
+| CMS             | License / Cost                                        | Tech Stack                                                 | Approach                                           | Admin UI                                                    | Databases                                            | APIs                | Bundle Size / Perf                  | Maturity (2026)                                  | Best For                                                                  |
+| :-------------- | :---------------------------------------------------- | :--------------------------------------------------------- | :------------------------------------------------- | :---------------------------------------------------------- | :--------------------------------------------------- | :------------------ | :---------------------------------- | :----------------------------------------------- | :------------------------------------------------------------------------ |
+| **SveltyCMS**   | BSL 1.1 (free if finances < $1M; converts to MIT)     | SvelteKit 2 + Svelte 5, 5-Pillar Content Core, Drizzle ORM | Code-first + GUI collections                       | Svelte + Skeleton UI (native, very light)                   | Any SQL (Postgres, MySQL, SQLite, MariaDB) + MongoDB | REST + GraphQL Yoga | **~843 KB Brotli** (smallest)       | Early / in development (next branch)             | Performance-obsessed devs, Svelte ecosystem fans, enterprise-grade speed. |
+| **Sveltia CMS** | MIT (open source)                                     | Svelte (SPA)                                               | Git-based (Local)                                  | Svelte (Lightweight browser-based)                          | N/A (Git Repos)                                      | Git Pull/Push       | **< 500 KB** (lightest)             | High (rapid UX iterations)                       | Static sites, Git-centric workflows, zero-ops deployments.                |
+| **Payload CMS** | MIT (open source); Cloud paid tier                    | Next.js / React, Drizzle ORM                               | Code-first (GUI is secondary)                      | React (heavier, full Next.js rebuilds required for changes) | Postgres, MongoDB                                    | REST + GraphQL      | ~3-5 MB app bundle                  | Very mature, deeply funded, v3 launched          | React-heavy teams wanting strict code-first schema control.               |
+| **Directus**    | BSL 1.1 (free for non-cloud; enterprise paid)         | Vue.js, Node.js, Knex.js                                   | Engine-first (wraps existing SQL DBs)              | Vue.js (highly polished data studio)                        | Any SQL (Postgres, MySQL, SQLite, Oracle)            | REST + GraphQL      | Medium/Large                        | Highly mature (v11), massive enterprise adoption | Turning an existing messy SQL database into a clean API instantly.        |
+| **Strapi**      | Enterprise (Core is free; SSO, Audit Logs cost extra) | React, Node.js, Koa                                        | GUI-first (schemas saved as JSON)                  | React (Admin UI is its own separate app)                    | Postgres, MySQL, SQLite, MariaDB                     | REST + GraphQL      | Largest bundle; slowest cold starts | Very mature, massive community (v5)              | Non-technical content teams needing a basic GUI out-of-the-box.           |
+| **NodeHive**    | Paid SaaS (Open Source core available)                | Next.js, React                                             | Decoupled (acts more as a middleware/frontend hub) | React                                                       | Usually SaaS managed                                 | GraphQL             | Varies, relies on Next.js           | Growing, highly niche to Next.js                 | Agencies building Next.js sites exclusively.                              |
+
+### Key Performance Metrics Comparison (April 2026 Update)
+
+> [!IMPORTANT]
+> **Measurement Standard**: SveltyCMS metrics now follow **Percentile-Aware (p95)** benchmarking on modern Intel hardware (April 2026). This ensures we report real-world consistency, not just idealized averages.
+
+| Metric                   | SveltyCMS (Intel 2026)            | PayloadCMS (v3.x)              | Directus (v11.x)                   | Strapi (v5.x)            | Sveltia CMS         |
+| :----------------------- | :-------------------------------- | :----------------------------- | :--------------------------------- | :----------------------- | :------------------ |
+| **Avg API Read Latency** | **0.45–4.1 ms**                   | 4–12 ms (sub-10 ms co-located) | 3–18 ms (avg ~35 ms in some tests) | 6–25 ms (avg 120–150 ms) | N/A (Git-based)     |
+| **Avg Insert Latency**   | **0.17–0.72 ms**                  | 3–10 ms                        | 4–12 ms                            | 5–15 ms                  | N/A                 |
+| **Middleware Overhead**  | **1.2–3.5 µs** (27 µs total p95)  | ~115 µs                        | ~145 µs                            | ~180 µs                  | N/A (browser-based) |
+| **Throughput (RPS)**     | **3,000+ RPS** (Full Stack)       | ~900–2,100 RPS (REST/GraphQL)  | Lower (optimized ~ higher)         | 900–1,200 RPS (REST)     | N/A (static/Git)    |
+| **Media Upload**         | **0.12 ms** (async/background)    | 100–350 ms                     | 120–400 ms                         | 150–500 ms               | N/A                 |
+| **Cold Start**           | **~1.03 s** (Ready state)         | Variable (Next.js)             | ~5 s                               | ~8 s                     | Very fast (<300 ms) |
+| **Bundle Size (Brotli)** | **~842 KB** (smallest)            | 3–5 MB+                        | Medium/Large                       | Largest                  | <300–500 KB         |
+| Auth Latency             | **< 0.5 ms** (3-layer cache)      | Not specified                  | Not highlighted                    | Not highlighted          | Fast (GitHub OAuth) |
+| Real-time / Sync         | **Sub-10 ms** (WebSocket/Yjs)     | Good (with config)             | Supports WebSockets                | Limited                  | N/A (Git-based)     |
+| AI Extensibility         | **Native WebMCP Bridge**          | Strong via Cloud plugins       | Basic/Chat only                    | Extra/Paid Features      | N/A                 |
+| Workflows / Governance   | **Native RBAC Visual FSM**        | Enterprise Feature             | Native (Flows)                     | Enterprise Feature       | Local Git workflows |
+| Edge / Local SDK         | **Native** (locals.cms injection) | Strong in Next.js              | Not native                         | Not native               | N/A                 |
+
+> [!SOURCE]
+> Data comes from documented benchmarks (verified April 2026), public competitor claims, community reports, and independent comparisons. SveltyCMS shines in Svelte-native compiled paths, zero-VDOM, and local SDK injection.
+
+## Technical Advantages
+
+### 1. Concurrent Throughput & Real-World Scalability
+
+Are we faster? Yes, significantly, but more importantly, we are more **real**.
+
+In our previous tests, we measured raw adapter throughput hitting ~2,300 RPS on SQLite. Our April 2026 "Zero-Mock Production Audit" measures the **fully-loaded framework**. We now route requests through full Authentication, Session Validation, the 5-Pillar Hook pipelines, and the new **Vectorized `modifyRequest` pipeline**.
+
+Even with this realistic, heavy production workload, SveltyCMS sustains **over 3,000 requests per second** (aggregate) with a p95 latency of just **4.1ms**. That is blazing fast for a fully secured, multi-tenant capable CMS. Furthermore, our Cold Starts have improved dramatically, dropping from 1,600ms down to ~1,030ms.
+
+### 2. 5-Pillar Architecture & Zero-Runtime Overhead
+
+The architectural move to the **5-Pillar Content Core** and Svelte 5 Runes provides fundamental advantages:
+
+- **Vectorized Processing**: Refactored the core data transformation pipeline to support chunked batch processing, reducing function call overhead by **70%**.
+- **No Hydration Tax**: SveltyCMS minimizes the JavaScript sent to the client, leading to faster Time-to-Interactive.
+- **Fine-Grained Reactivity**: State updates are surgical, avoiding the "re-rendering everything" problem common in React/Vue platforms.
+
+### 3. Native Enterprise Security
+
+SveltyCMS treats security as a core feature, not a plugin:
+
+- **Fail-Closed API Dispatcher**: Exhaustive endpoint registration ensuring 100% security coverage by default. Unmapped routes are denied, eliminating "Shadow API" vulnerabilities.
+- **Crypto-Chained Audit Logs**: Tamper-evident logs (SHA-256) are standard, ensuring compliance with SOC 2 and GDPR.
+- **SCIM 2.0 & SAML**: Native support for automated user provisioning and enterprise SSO.
+- **Multi-Tenancy**: Native `tenantId` isolation at the database adapter level, preventing cross-tenant data leaks.
+
+### 4. Accessibility & UI Performance
+
+- **3-Pillar Performance Shield**: Isolated server-side widget logic protecting the API hot path from UI-driven lag.
+- **WCAG 3.0 Ready**: We prioritize accessibility as a functional requirement, adopting the latest Functional Performance patterns.
+
+## Competitive Context
+
+### 👥 The Contenders: Real-Time Collaboration Comparison
+
+The table below breaks down the core technical differences in how each platform handles real-time collaboration.
+
+| Platform       | Technology Stack          | Implementation Type     | Key Features                                                   | The "Best" For...                                          |
+| :------------- | :------------------------ | :---------------------- | :------------------------------------------------------------- | :--------------------------------------------------------- |
+| **SveltyCMS**  | Yjs CRDTs, Hocuspocus     | Deep Native Integration | Character-level sync, remote cursors, local-first architecture | Unmatched technical sophistication and future-proof sync.  |
+| **Directus**   | WebSockets, Redis         | Native Core Integration | Field-level locking, real-time presence                        | A stable, production-ready enterprise locking solution.    |
+| **Sanity**     | CRDT-based, Real-time API | Native & SaaS           | Real-time Studio, Live Content API                             | Fully-managed enterprise SaaS with native real-time.       |
+| **Payload**    | WebSockets (via Plugin)   | Community Plugin        | Document change events, custom rooms                           | Flexibility to add basic real-time to code-first CMS.      |
+| **Contentful** | Proprietary SaaS          | Native (SaaS)           | Simultaneous editing, version history                          | Reliable enterprise SaaS with standard real-time features. |
+| **Strapi**     | WebSockets (via Plugin)   | Community Plugin        | Event broadcasting (CUD operations)                            | Basic real-time event notifications for local setups.      |
+
+### Payload CMS
+
+Payload is a mature and powerful ecosystem, particularly with its v3 Next.js integration. It offers excellent developer experience and a robust cloud offering. SveltyCMS positions itself as a lighter, faster alternative for teams who prefer the Svelte ecosystem and require absolute performance at the edge.
+
+### Strapi & Directus
+
+Strapi and Directus excel at GUI-first content modeling and have large plugin marketplaces. SveltyCMS is a better fit for developers who prefer a **code-centric** approach with bi-directional GUI sync and sub-millisecond core logic.
+
+> [!NOTE]
+> All SveltyCMS metrics are based on our **[Performance Benchmarks](./benchmarks.mdx)** conducted on dedicated Ubuntu hardware. For raw results and methodology, visit the **[Benchmarks page](./benchmarks.mdx)**.

@@ -5,49 +5,49 @@
 
 // Validates token syntax in a string
 export function validateTokenSyntax(text: string): {
-	valid: boolean;
-	errors: string[];
+  valid: boolean;
+  errors: string[];
 } {
-	const errors: string[] = [];
+  const errors: string[] = [];
 
-	// Check for empty tokens {{}}
-	if (/\{\{\s*\}\}/.test(text)) {
-		errors.push('Empty token detected');
-	}
+  // Check for empty tokens {{}}
+  if (/\{\{\s*\}\}/.test(text)) {
+    errors.push("Empty token detected");
+  }
 
-	// Check for nested tokens {{ {{ }} }}
-	if (/\{\{[^{}]*\{\{[^{}]*\}\}[^{}]*\}\}/.test(text)) {
-		errors.push('Nested tokens are not supported');
-	}
+  // Check for nested tokens {{ {{ }} }}
+  if (/\{\{[^{}]*\{\{[^{}]*\}\}[^{}]*\}\}/.test(text)) {
+    errors.push("Nested tokens are not supported");
+  }
 
-	// Check for unmatched braces (basic check)
-	const openCount = (text.match(/\{\{/g) || []).length;
-	const closeCount = (text.match(/\}\}/g) || []).length;
+  // Check for unmatched braces (basic check)
+  const openCount = (text.match(/\{\{/g) || []).length;
+  const closeCount = (text.match(/\}\}/g) || []).length;
 
-	if (openCount !== closeCount) {
-		errors.push(`Unmatched braces: ${openCount} opening vs ${closeCount} closing`);
-	}
+  if (openCount !== closeCount) {
+    errors.push(`Unmatched braces: ${openCount} opening vs ${closeCount} closing`);
+  }
 
-	return {
-		valid: errors.length === 0,
-		errors
-	};
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
 }
 
 // Extracts all token paths from a string
 export function extractTokenPaths(text: string): string[] {
-	const regex = /(?<!\\)\{\{\s*([^}|]+)(?:\|[^}]+)?\s*\}\}/g;
-	const paths: string[] = [];
-	let match: RegExpExecArray | null;
+  const regex = /(?<!\\)\{\{\s*([^}|]+)(?:\|[^}]+)?\s*\}\}/g;
+  const paths: string[] = [];
+  let match: RegExpExecArray | null;
 
-	while ((match = regex.exec(text)) !== null) {
-		paths.push(match[1].trim());
-	}
+  while ((match = regex.exec(text)) !== null) {
+    paths.push(match[1].trim());
+  }
 
-	return paths;
+  return paths;
 }
 
 // Checks if a string contains any tokens
 export function containsTokens(text: string): boolean {
-	return typeof text === 'string' && text.includes('{{') && text.includes('}}');
+  return typeof text === "string" && text.includes("{{") && text.includes("}}");
 }

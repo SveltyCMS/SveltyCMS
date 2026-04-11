@@ -10,279 +10,283 @@
  * - POST /api/auth/2fa/backup-codes - Generate backup codes
  */
 
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { getApiBaseUrl, waitForServer } from '../helpers/server';
-import { cleanupTestDatabase, prepareAuthenticatedContext, testFixtures } from '../helpers/test-setup';
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { getApiBaseUrl, waitForServer } from "../helpers/server";
+import {
+  cleanupTestDatabase,
+  prepareAuthenticatedContext,
+  testFixtures,
+} from "../helpers/test-setup";
 
 const BASE_URL = getApiBaseUrl();
 let authCookie: string;
 let setupData: {
-	secret: string;
-	qrCodeURL: string;
-	backupCodes: string[];
+  secret: string;
+  qrCodeURL: string;
+  backupCodes: string[];
 } | null = null;
 let userId: string;
 
 beforeAll(async () => {
-	await waitForServer();
-	authCookie = await prepareAuthenticatedContext();
+  await waitForServer();
+  authCookie = await prepareAuthenticatedContext();
 
-	// Get user ID for verify endpoint
-	const userResponse = await fetch(`${BASE_URL}/api/user`, {
-		headers: { Cookie: authCookie }
-	});
-	const userData = await userResponse.json();
-	if (userData.data && userData.data.length > 0) {
-		userId = userData.data[0]._id;
-	}
+  // Get user ID for verify endpoint
+  const userResponse = await fetch(`${BASE_URL}/api/user`, {
+    headers: { Cookie: authCookie },
+  });
+  const userData = await userResponse.json();
+  if (userData.data && userData.data.length > 0) {
+    userId = userData.data[0]._id;
+  }
 });
 
 afterAll(async () => {
-	await cleanupTestDatabase();
+  await cleanupTestDatabase();
 });
 
-describe('2FA Authentication API - Setup', () => {
-	it('should initialize 2FA setup and return secret', async () => {
-		const response = await fetch(`${BASE_URL}/api/auth/2fa/setup`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			}
-		});
+describe("2FA Authentication API - Setup", () => {
+  it("should initialize 2FA setup and return secret", async () => {
+    const response = await fetch(`${BASE_URL}/api/auth/2fa/setup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: authCookie,
+      },
+    });
 
-		expect(response.status).toBe(200);
-		const result = await response.json();
+    expect(response.status).toBe(200);
+    const result = await response.json();
 
-		// API returns { success: true, data: { secret, qrCode, backupCodes }, message }
-		expect(result.success).toBe(true);
-		expect(result.data).toBeDefined();
+    // API returns { success: true, data: { secret, qrCode, backupCodes }, message }
+    expect(result.success).toBe(true);
+    expect(result.data).toBeDefined();
 
-		const { data } = result;
-		expect(data).toHaveProperty('secret');
-		expect(data).toHaveProperty('qrCodeURL');
-		expect(data).toHaveProperty('backupCodes');
+    const { data } = result;
+    expect(data).toHaveProperty("secret");
+    expect(data).toHaveProperty("qrCodeURL");
+    expect(data).toHaveProperty("backupCodes");
 
-		// Secret should be base32 encoded string
-		expect(typeof data.secret).toBe('string');
-		expect(data.secret.length).toBeGreaterThan(0);
+    // Secret should be base32 encoded string
+    expect(typeof data.secret).toBe("string");
+    expect(data.secret.length).toBeGreaterThan(0);
 
-		// QR code URL should be otpauth:// URL
-		expect(data.qrCodeURL).toMatch(/^otpauth:\/\//);
+    // QR code URL should be otpauth:// URL
+    expect(data.qrCodeURL).toMatch(/^otpauth:\/\//);
 
-		// Backup codes should be array of strings
-		expect(Array.isArray(data.backupCodes)).toBe(true);
-		expect(data.backupCodes.length).toBeGreaterThan(0);
+    // Backup codes should be array of strings
+    expect(Array.isArray(data.backupCodes)).toBe(true);
+    expect(data.backupCodes.length).toBeGreaterThan(0);
 
-		// Store for later tests
-		setupData = data;
-	});
+    // Store for later tests
+    setupData = data;
+  });
 
-	it('should require authentication for 2FA setup', async () => {
-		const response = await fetch(`${BASE_URL}/api/auth/2fa/setup`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' }
-		});
+  it("should require authentication for 2FA setup", async () => {
+    const response = await fetch(`${BASE_URL}/api/auth/2fa/setup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
 
-		expect(response.status).toBe(401);
-	});
+    expect(response.status).toBe(401);
+  });
 
-	it('should return 400 if 2FA already enabled', async () => {
-		// Note: This tests the case where 2FA is already enabled
-		// First setup was successful, trying again should fail with 400
-		// But since 2FA isn't actually enabled (verify-setup not called), it may return new setup data
-		const response = await fetch(`${BASE_URL}/api/auth/2fa/setup`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			}
-		});
+  it("should return 400 if 2FA already enabled", async () => {
+    // Note: This tests the case where 2FA is already enabled
+    // First setup was successful, trying again should fail with 400
+    // But since 2FA isn't actually enabled (verify-setup not called), it may return new setup data
+    const response = await fetch(`${BASE_URL}/api/auth/2fa/setup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: authCookie,
+      },
+    });
 
-		// Should return 200 with new setup data or 400 if already enabled
-		expect(response.status).toBe(200);
-	});
+    // Should return 200 with new setup data or 400 if already enabled
+    expect(response.status).toBe(200);
+  });
 });
 
-describe('2FA Authentication API - Verify Setup', () => {
-	it('should reject setup verification with invalid body', async () => {
-		const response = await fetch(`${BASE_URL}/api/auth/2fa/verify-setup`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			},
-			body: JSON.stringify({
-				code: '123456' // Wrong format - endpoint expects secret, verificationCode, backupCodes
-			})
-		});
+describe("2FA Authentication API - Verify Setup", () => {
+  it("should reject setup verification with invalid body", async () => {
+    const response = await fetch(`${BASE_URL}/api/auth/2fa/verify-setup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: authCookie,
+      },
+      body: JSON.stringify({
+        code: "123456", // Wrong format - endpoint expects secret, verificationCode, backupCodes
+      }),
+    });
 
-		// Should return 400 or 500 for invalid body schema
-		expect(response.status).toBeGreaterThanOrEqual(400);
-		expect(response.status).toBeLessThan(600);
-	});
+    // Should return 400 or 500 for invalid body schema
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(response.status).toBeLessThan(600);
+  });
 
-	it('should reject setup verification without authentication', async () => {
-		const response = await fetch(`${BASE_URL}/api/auth/2fa/verify-setup`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				secret: 'test',
-				verificationCode: '123456',
-				backupCodes: []
-			})
-		});
+  it("should reject setup verification without authentication", async () => {
+    const response = await fetch(`${BASE_URL}/api/auth/2fa/verify-setup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        secret: "test",
+        verificationCode: "123456",
+        backupCodes: [],
+      }),
+    });
 
-		expect(response.status).toBe(401);
-	});
+    expect(response.status).toBe(401);
+  });
 
-	it('should reject invalid verification code format', async () => {
-		if (!setupData) {
-			console.log('Skipping: setupData not available');
-			return;
-		}
+  it("should reject invalid verification code format", async () => {
+    if (!setupData) {
+      console.log("Skipping: setupData not available");
+      return;
+    }
 
-		const response = await fetch(`${BASE_URL}/api/auth/2fa/verify-setup`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			},
-			body: JSON.stringify({
-				secret: setupData.secret,
-				verificationCode: '000000', // Invalid TOTP code
-				backupCodes: setupData.backupCodes
-			})
-		});
+    const response = await fetch(`${BASE_URL}/api/auth/2fa/verify-setup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: authCookie,
+      },
+      body: JSON.stringify({
+        secret: setupData.secret,
+        verificationCode: "000000", // Invalid TOTP code
+        backupCodes: setupData.backupCodes,
+      }),
+    });
 
-		// Should return 400 for invalid code
-		expect(response.status).toBe(400);
-		const result = await response.json();
-		expect(result.message).toBeDefined();
-	});
+    // Should return 400 for invalid code
+    expect(response.status).toBe(400);
+    const result = await response.json();
+    expect(result.message).toBeDefined();
+  });
 });
 
-describe('2FA Authentication API - Verify Code', () => {
-	it('should require userId and code in body', async () => {
-		const response = await fetch(`${BASE_URL}/api/auth/2fa/verify`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			},
-			body: JSON.stringify({
-				code: '123456' // Missing userId
-			})
-		});
+describe("2FA Authentication API - Verify Code", () => {
+  it("should require userId and code in body", async () => {
+    const response = await fetch(`${BASE_URL}/api/auth/2fa/verify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: authCookie,
+      },
+      body: JSON.stringify({
+        code: "123456", // Missing userId
+      }),
+    });
 
-		// Should return error for invalid body
-		expect(response.status).toBeGreaterThanOrEqual(400);
-	});
+    // Should return error for invalid body
+    expect(response.status).toBeGreaterThanOrEqual(400);
+  });
 
-	it('should handle verification with valid body structure', async () => {
-		if (!userId) {
-			console.log('Skipping: userId not available');
-			return;
-		}
+  it("should handle verification with valid body structure", async () => {
+    if (!userId) {
+      console.log("Skipping: userId not available");
+      return;
+    }
 
-		const response = await fetch(`${BASE_URL}/api/auth/2fa/verify`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			},
-			body: JSON.stringify({
-				userId,
-				code: '123456'
-			})
-		});
+    const response = await fetch(`${BASE_URL}/api/auth/2fa/verify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: authCookie,
+      },
+      body: JSON.stringify({
+        userId,
+        code: "123456",
+      }),
+    });
 
-		// Returns 200 with success: false (invalid code) or 400 if 2FA not enabled on user
-		expect([200, 400]).toContain(response.status);
-		const result = await response.json();
-		expect(result).toHaveProperty('message');
-	});
+    // Returns 200 with success: false (invalid code) or 400 if 2FA not enabled on user
+    expect([200, 400]).toContain(response.status);
+    const result = await response.json();
+    expect(result).toHaveProperty("message");
+  });
 });
 
-describe('2FA Authentication API - Backup Codes', () => {
-	it('should require authentication for backup codes', async () => {
-		const response = await fetch(`${BASE_URL}/api/auth/2fa/backup-codes`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' }
-		});
+describe("2FA Authentication API - Backup Codes", () => {
+  it("should require authentication for backup codes", async () => {
+    const response = await fetch(`${BASE_URL}/api/auth/2fa/backup-codes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
 
-		expect(response.status).toBe(401);
-	});
+    expect(response.status).toBe(401);
+  });
 
-	it('should handle backup code generation request', async () => {
-		const response = await fetch(`${BASE_URL}/api/auth/2fa/backup-codes`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			}
-		});
+  it("should handle backup code generation request", async () => {
+    const response = await fetch(`${BASE_URL}/api/auth/2fa/backup-codes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: authCookie,
+      },
+    });
 
-		// May require 2FA to be enabled first - check response
-		if (response.ok) {
-			const data = await response.json();
-			expect(data).toHaveProperty('backupCodes');
-			expect(Array.isArray(data.backupCodes)).toBe(true);
-		} else {
-			// Should return 400 if 2FA not enabled
-			expect(response.status).toBe(400);
-		}
-	});
+    // May require 2FA to be enabled first - check response
+    if (response.ok) {
+      const data = await response.json();
+      expect(data).toHaveProperty("backupCodes");
+      expect(Array.isArray(data.backupCodes)).toBe(true);
+    } else {
+      // Should return 400 if 2FA not enabled
+      expect(response.status).toBe(400);
+    }
+  });
 });
 
-describe('2FA Authentication API - Disable', () => {
-	it('should require authentication to disable 2FA', async () => {
-		const response = await fetch(`${BASE_URL}/api/auth/2fa/disable`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				password: testFixtures.users.admin.password
-			})
-		});
+describe("2FA Authentication API - Disable", () => {
+  it("should require authentication to disable 2FA", async () => {
+    const response = await fetch(`${BASE_URL}/api/auth/2fa/disable`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        password: testFixtures.users.admin.password,
+      }),
+    });
 
-		expect(response.status).toBe(401);
-	});
+    expect(response.status).toBe(401);
+  });
 
-	it('should handle disable request when 2FA not enabled', async () => {
-		const response = await fetch(`${BASE_URL}/api/auth/2fa/disable`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			},
-			body: JSON.stringify({
-				password: testFixtures.users.admin.password
-			})
-		});
+  it("should handle disable request when 2FA not enabled", async () => {
+    const response = await fetch(`${BASE_URL}/api/auth/2fa/disable`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: authCookie,
+      },
+      body: JSON.stringify({
+        password: testFixtures.users.admin.password,
+      }),
+    });
 
-		// Should return 400 if 2FA not enabled, or 200 if it somehow is
-		if (response.ok) {
-			const data = await response.json();
-			expect(data.success).toBe(true);
-		} else {
-			expect(response.status).toBe(400);
-		}
-	});
+    // Should return 400 if 2FA not enabled, or 200 if it somehow is
+    if (response.ok) {
+      const data = await response.json();
+      expect(data.success).toBe(true);
+    } else {
+      expect(response.status).toBe(400);
+    }
+  });
 
-	it('should reject wrong password', async () => {
-		const response = await fetch(`${BASE_URL}/api/auth/2fa/disable`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: authCookie
-			},
-			body: JSON.stringify({
-				password: 'wrongpassword123!'
-			})
-		});
+  it("should reject wrong password", async () => {
+    const response = await fetch(`${BASE_URL}/api/auth/2fa/disable`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: authCookie,
+      },
+      body: JSON.stringify({
+        password: "wrongpassword123!",
+      }),
+    });
 
-		// Should return 400 or 401 for wrong password or 2FA not enabled
-		expect(response.status).toBeGreaterThanOrEqual(400);
-		expect(response.status).toBeLessThan(500);
-	});
+    // Should return 400 or 401 for wrong password or 2FA not enabled
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(response.status).toBeLessThan(500);
+  });
 });

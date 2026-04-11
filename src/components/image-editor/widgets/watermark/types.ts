@@ -4,12 +4,12 @@
  */
 
 export interface WatermarkData {
-	type: 'text' | 'image';
-	text: string;
-	imageUrl?: string;
-	x: number;
-	y: number;
-	opacity?: number;
-	fontSize?: number;
-	color?: string;
+  type: "text" | "image";
+  text: string;
+  imageUrl?: string;
+  x: number;
+  y: number;
+  opacity?: number;
+  fontSize?: number;
+  color?: string;
 }

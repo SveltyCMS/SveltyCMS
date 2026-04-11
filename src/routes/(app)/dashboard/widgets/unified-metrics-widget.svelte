@@ -26,12 +26,12 @@ Advanced performance monitoring widget integrating with the unifiedmetrics-servi
 -->
 
 <script lang="ts" module>
-	export const widgetMeta = {
-		name: 'Unified Metrics',
-		icon: 'mdi:chart-donut',
-		description: 'Comprehensive system performance and security metrics',
-		defaultSize: { w: 2, h: 3 }
-	};
+export const widgetMeta = {
+	name: "Unified Metrics",
+	icon: "mdi:chart-donut",
+	description: "Comprehensive system performance and security metrics",
+	defaultSize: { w: 2, h: 3 },
+};
 </script>
 
 <script lang="ts">

@@ -4,272 +4,269 @@
  * Scans files, queries DB, compares states, validates dependencies, and handles import/export.
  */
 
-import { createWriteStream } from 'node:fs';
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import { dbAdapter } from '@src/databases/db';
-import { createChecksum } from '@utils/crypto';
-import { logger } from '@utils/logger.server';
+import fs from "node:fs/promises";
+import path from "node:path";
+import { dbAdapter } from "@src/databases/db";
+import { createChecksum } from "@utils/crypto";
+import { logger } from "@utils/logger.server";
 
 interface ConfigEntity {
-	entity: Record<string, unknown>;
-	hash: string;
-	name: string;
-	type: string;
-	uuid: string;
+  entity: Record<string, unknown>;
+  hash: string;
+  name: string;
+  type: string;
+  uuid: string;
 }
 
 export interface ConfigSyncStatus {
-	changes: {
-		new: ConfigEntity[];
-		updated: ConfigEntity[];
-		deleted: ConfigEntity[];
-	};
-	status: 'in_sync' | 'changes_detected';
-	unmetRequirements: Array<{ key: string; value?: unknown }>;
+  changes: {
+    new: ConfigEntity[];
+    updated: ConfigEntity[];
+    deleted: ConfigEntity[];
+  };
+  status: "in_sync" | "changes_detected";
+  unmetRequirements: Array<{ key: string; value?: unknown }>;
 }
 
 class ConfigService {
-	/** Returns current sync status between filesystem and database. */
-	public async getStatus(): Promise<ConfigSyncStatus> {
-		logger.debug('Fetching configuration sync status...');
-		const [source, active] = await Promise.all([this.getSourceState(), this.getActiveState()]);
+  /** Returns current sync status between filesystem and database. */
+  public async getStatus(tenantId?: string): Promise<ConfigSyncStatus> {
+    logger.debug(`Fetching configuration sync status for tenant: ${tenantId || "global"}...`);
+    const [source, active] = await Promise.all([
+      this.getSourceState(tenantId),
+      this.getActiveState(tenantId),
+    ]);
 
-		logger.debug('Source state:', Array.from(source.values()));
-		logger.debug('Active state:', Array.from(active.values()));
+    const changes = this.compareStates(source, active);
+    const unmetRequirements = await this.checkForUnmetRequirements(source, tenantId);
 
-		const changes = this.compareStates(source, active);
-		logger.debug('Detected changes:', changes);
+    return {
+      status:
+        changes.new.length > 0 || changes.updated.length > 0 || changes.deleted.length > 0
+          ? "changes_detected"
+          : "in_sync",
+      changes,
+      unmetRequirements,
+    };
+  }
 
-		const unmetRequirements = await this.checkForUnmetRequirements(source);
-		logger.debug('Unmet requirements:', unmetRequirements);
+  /**
+   * Exports all configuration entities from DB to a timestamped folder.
+   */
+  public async performExport({
+    uuids,
+    tenantId,
+  }: {
+    uuids?: string[];
+    tenantId?: string;
+  } = {}): Promise<{ dirPath: string }> {
+    logger.info(`Exporting configuration for tenant: ${tenantId || "global"}...`);
+    const exportDir = path.resolve(
+      process.cwd(),
+      "config/backup",
+      `export_${tenantId || "global"}_${Date.now()}`,
+    );
+    await fs.mkdir(exportDir, { recursive: true });
 
-		return {
-			status: changes.new.length > 0 || changes.updated.length > 0 || changes.deleted.length > 0 ? 'changes_detected' : 'in_sync',
-			changes,
-			unmetRequirements
-		};
-	}
+    // Fetch active state for this specific tenant
+    const activeState = await this.getActiveState(tenantId);
+    const entities = {
+      collections: Array.from(activeState.values()).filter((e) => e.type === "collection"),
+    };
 
-	/**
-	 * Exports all configuration entities from DB to a timestamped folder.
-	 * Optimized for enterprise performance: parallel file writes, scalable for large datasets.
-	 */
-	public async performExport({ uuids }: { uuids?: string[] } = {}): Promise<{ dirPath: string }> {
-		logger.info('Exporting configuration...');
-		const exportDir = path.resolve(process.cwd(), 'config/backup', `export_${Date.now()}`);
-		await fs.mkdir(exportDir, { recursive: true });
+    // Write each entity type
+    await Promise.all(
+      Object.entries(entities).map(async ([key, list]) => {
+        const filtered = uuids?.length
+          ? (list as Array<{ uuid: string }>).filter((i) => uuids.includes(i.uuid))
+          : (list as unknown[]);
+        const filePath = path.join(exportDir, `${key}.json`);
+        await fs.writeFile(filePath, JSON.stringify(filtered, null, 2));
+      }),
+    );
 
-		// Fetch all entity types in parallel
-		// Note: Roles are database-only and not part of export/import sync
-		// TODO: Implement proper collection schema fetching via dbAdapter.collection API
-		const [collections] = await Promise.all([Promise.resolve([])]);
+    logger.info(`Configuration exported to ${exportDir}`);
+    return { dirPath: exportDir };
+  }
 
-		// Prepare entities map
-		const entities = { collections };
+  /** Imports configuration entities from filesystem into the database. */
+  public async performImport(
+    options: {
+      tenantId?: string;
+      changes?: {
+        new: ConfigEntity[];
+        updated: ConfigEntity[];
+        deleted: ConfigEntity[];
+      };
+    } = {},
+  ) {
+    const { tenantId } = options;
+    logger.info(`Performing configuration import for tenant: ${tenantId || "global"}...`);
+    let changes = options.changes;
 
-		// Write each entity type in parallel, streaming for large datasets
-		await Promise.all(
-			Object.entries(entities).map(async ([key, list]) => {
-				const filtered = uuids?.length ? (list as Array<{ uuid: string }>).filter((i) => uuids.includes(i.uuid)) : (list as unknown[]);
-				const filePath = path.join(exportDir, `${key}.json`);
-				// Stream write for large arrays
-				if (filtered.length > 10_000) {
-					const stream = createWriteStream(filePath);
-					stream.write('[\n');
-					for (let i = 0; i < filtered.length; i++) {
-						stream.write(JSON.stringify(filtered[i], null, 2));
-						if (i < filtered.length - 1) {
-							stream.write(',\n');
-						}
-					}
-					stream.write('\n]');
-					await new Promise((resolve, reject) => {
-						stream.end(resolve);
-						stream.on('error', reject);
-					});
-				} else {
-					await fs.writeFile(filePath, JSON.stringify(filtered, null, 2));
-				}
-			})
-		);
+    if (!changes) {
+      const status = await this.getStatus(tenantId);
+      changes = status.changes;
+    }
 
-		logger.info(`Configuration exported to ${exportDir}`);
-		return { dirPath: exportDir };
-	}
+    if (!dbAdapter) {
+      throw new Error("Database adapter not available.");
+    }
 
-	/** Imports configuration entities from filesystem into the database. */
-	public async performImport(
-		options: {
-			changes?: {
-				new: ConfigEntity[];
-				updated: ConfigEntity[];
-				deleted: ConfigEntity[];
-			};
-		} = {}
-	) {
-		logger.info('Performing configuration import...');
-		let changes = options.changes;
+    // 1. Handle New & Updated Entities
+    const toUpsert = [...changes.new, ...changes.updated];
+    for (const item of toUpsert) {
+      if (item.type === "collection") {
+        try {
+          // ✨ ISOLATION: Explicitly pass tenantId to upsert
+          await dbAdapter.crud.upsert(
+            "collections",
+            { name: item.name, ...(tenantId && { tenantId }) } as Record<string, unknown>,
+            { ...item.entity, ...(tenantId && { tenantId }) } as any,
+            tenantId as any,
+          );
+          logger.info(`Imported collection: ${item.name} for tenant ${tenantId || "global"}`);
+        } catch (err) {
+          logger.error(`Failed to import collection ${item.name}:`, err);
+        }
+      }
+    }
 
-		if (!changes) {
-			const status = await this.getStatus();
-			changes = status.changes;
-		}
+    // 2. Handle Deleted Entities
+    for (const item of changes.deleted) {
+      if (item.type === "collection") {
+        try {
+          // ✨ ISOLATION: Explicitly pass tenantId to delete
+          await dbAdapter.crud.delete(
+            "collections",
+            item.uuid as import("@src/databases/db-interface").DatabaseId,
+            tenantId as any,
+          );
+          logger.info(`Deleted collection: ${item.name} for tenant ${tenantId || "global"}`);
+        } catch (err) {
+          logger.error(`Failed to delete collection ${item.name}:`, err);
+        }
+      }
+    }
 
-		if (!dbAdapter) {
-			throw new Error('Database adapter not available.');
-		}
+    logger.info("Configuration import completed.");
+  }
 
-		// 1. Handle New & Updated Entities
-		const toUpsert = [...changes.new, ...changes.updated];
-		for (const item of toUpsert) {
-			if (item.type === 'collection') {
-				// Use the collection manager API if available, or direct DB manipulation
-				// For collections, we typically update the schema definition in the DB
-				try {
-					// Assuming 'collections' is the system collection for schemas
-					// We use the raw crud adapter to ensure we're hitting the DB directly
-					// Cast to BaseEntity to satisfy type check
-					await dbAdapter.crud.upsert(
-						'collections',
-						{ name: item.name } as Record<string, unknown>, // Query by name
-						item.entity as any // Entity shape is dynamic per collection
-					);
-					logger.info(`Imported collection: ${item.name}`);
-				} catch (err) {
-					logger.error(`Failed to import collection ${item.name}:`, err);
-				}
-			}
-			// Add handlers for other types (widgets, themes) here as needed
-		}
+  private async getSourceState(tenantId?: string): Promise<Map<string, ConfigEntity>> {
+    const state = new Map<string, ConfigEntity>();
+    const { contentSystem } = await import("@src/content");
+    await contentSystem.initialize(tenantId);
 
-		// 2. Handle Deleted Entities
-		for (const item of changes.deleted) {
-			if (item.type === 'collection') {
-				try {
-					// Cast string uuid to DatabaseId if needed
-					await dbAdapter.crud.delete('collections', item.uuid as import('@src/databases/db-interface').DatabaseId);
-					logger.info(`Deleted collection: ${item.name}`);
-				} catch (err) {
-					logger.error(`Failed to delete collection ${item.name}:`, err);
-				}
-			}
-		}
+    // 1. Scan Collections (scoped by tenantId)
+    const collections = await contentSystem.getCollections(tenantId);
+    for (const collection of collections) {
+      if (!(collection._id && collection.name)) {
+        continue;
+      }
+      const hash = createChecksum(collection);
+      state.set(collection._id, {
+        uuid: collection._id,
+        type: "collection",
+        name: collection.name,
+        hash,
+        entity: collection as unknown as Record<string, unknown>,
+      });
+    }
 
-		logger.info('Configuration import completed.');
-	}
+    return state;
+  }
 
-	private async getSourceState(): Promise<Map<string, ConfigEntity>> {
-		const state = new Map<string, ConfigEntity>();
-		const { contentManager } = await import('@src/content/content-manager');
-		await contentManager.initialize();
+  private async getActiveState(tenantId?: string): Promise<Map<string, ConfigEntity>> {
+    if (!dbAdapter) {
+      throw new Error("Database adapter not available.");
+    }
+    const state = new Map<string, ConfigEntity>();
 
-		// 1. Scan Collections
-		const collections = await contentManager.getCollections();
-		for (const collection of collections) {
-			if (!(collection._id && collection.name)) {
-				continue; // Skip if no _id or name
-			}
-			const hash = createChecksum(collection);
-			state.set(collection._id, {
-				uuid: collection._id,
-				type: 'collection',
-				name: collection.name,
-				hash,
-				entity: collection as unknown as Record<string, unknown>
-			});
-		}
+    try {
+      // ✨ ISOLATION: Explicitly pass tenantId to findMany options
+      const collectionsResult = await dbAdapter.crud.findMany(
+        "collections",
+        {},
+        {
+          tenantId: (tenantId as any) || undefined,
+        },
+      );
 
-		// Note: Roles are managed directly in the database via /api/permission/update
-		// They are not part of the filesystem config sync workflow
-		// TODO: Add calls for widgets, themes, etc.
-		return state;
-	}
+      if (collectionsResult.success && Array.isArray(collectionsResult.data)) {
+        for (const collection of collectionsResult.data as unknown as Record<string, unknown>[]) {
+          const id = String(collection._id || "");
+          const name = String(collection.name || "");
+          if (!(id && name)) {
+            continue;
+          }
+          const hash = createChecksum(collection);
+          state.set(id, {
+            uuid: id,
+            type: "collection",
+            name,
+            hash,
+            entity: collection,
+          });
+        }
+      }
+    } catch (err) {
+      logger.error(`Failed to fetch active state from DB for tenant ${tenantId}:`, err);
+    }
 
-	private async getActiveState(): Promise<Map<string, ConfigEntity>> {
-		if (!dbAdapter) {
-			throw new Error('Database adapter not available.');
-		}
-		const state = new Map<string, ConfigEntity>();
+    return state;
+  }
 
-		try {
-			// 1. Fetch Collections from DB
-			// We assume there is a system collection named 'collections' that stores schemas
-			const collectionsResult = await dbAdapter.crud.findMany('collections', {});
+  /** Compares filesystem and DB states → returns new, updated, deleted. */
+  private compareStates(source: Map<string, ConfigEntity>, active: Map<string, ConfigEntity>) {
+    const result = { new: [], updated: [], deleted: [] } as {
+      new: ConfigEntity[];
+      updated: ConfigEntity[];
+      deleted: ConfigEntity[];
+    };
 
-			if (collectionsResult.success && Array.isArray(collectionsResult.data)) {
-				for (const collection of collectionsResult.data as unknown as Record<string, unknown>[]) {
-					const id = String(collection._id || '');
-					const name = String(collection.name || '');
-					if (!(id && name)) {
-						continue;
-					}
-					const hash = createChecksum(collection);
-					state.set(id, {
-						uuid: id,
-						type: 'collection',
-						name,
-						hash,
-						entity: collection
-					});
-				}
-			}
-		} catch (err) {
-			logger.error('Failed to fetch active state from DB:', err);
-		}
+    for (const [uuid, s] of source.entries()) {
+      const a = active.get(uuid);
+      if (!a) {
+        result.new.push(s);
+      } else if (s.hash !== a.hash) {
+        result.updated.push(s);
+      }
+    }
+    for (const [uuid, a] of active.entries()) {
+      if (!source.has(uuid)) {
+        result.deleted.push(a);
+      }
+    }
+    return result;
+  }
 
-		return state;
-	}
+  /** Checks for missing system settings required by config entities. */
+  private async checkForUnmetRequirements(
+    source: Map<string, ConfigEntity>,
+    tenantId?: string,
+  ): Promise<Array<{ key: string; value?: unknown }>> {
+    if (!dbAdapter?.system.preferences) {
+      throw new Error("System preferences adapter unavailable.");
+    }
 
-	/** Compares filesystem and DB states → returns new, updated, deleted. */
-	private compareStates(source: Map<string, ConfigEntity>, active: Map<string, ConfigEntity>) {
-		const result = { new: [], updated: [], deleted: [] } as {
-			new: ConfigEntity[];
-			updated: ConfigEntity[];
-			deleted: ConfigEntity[];
-		};
+    const unmet: Array<{ key: string; value?: unknown }> = [];
+    for (const { entity } of source.values()) {
+      if (!Array.isArray(entity._requiredSettings)) {
+        continue;
+      }
 
-		for (const [uuid, s] of source.entries()) {
-			const a = active.get(uuid);
-			if (!a) {
-				result.new.push(s);
-			} else if (s.hash !== a.hash) {
-				result.updated.push(s);
-			}
-		}
-		for (const [uuid, a] of active.entries()) {
-			if (!source.has(uuid)) {
-				result.deleted.push(a);
-			}
-		}
-		return result;
-	}
+      for (const req of entity._requiredSettings) {
+        // ✨ ISOLATION: Pass tenantId as userId
+        const result = await dbAdapter.system.preferences.get(req.key, "system", tenantId as any);
+        if (!(result.success && result.data)) {
+          unmet.push(req);
+        }
+      }
+    }
 
-	/** Checks for missing system settings required by config entities. */
-	private async checkForUnmetRequirements(source: Map<string, ConfigEntity>): Promise<Array<{ key: string; value?: unknown }>> {
-		if (!dbAdapter?.system.preferences) {
-			throw new Error('System preferences adapter unavailable.');
-		}
-
-		const unmet: Array<{ key: string; value?: unknown }> = [];
-		for (const { entity } of source.values()) {
-			if (!Array.isArray(entity._requiredSettings)) {
-				continue;
-			}
-
-			for (const req of entity._requiredSettings) {
-				const result = await dbAdapter.system.preferences.get(req.key, 'system');
-				if (!(result.success && result.data)) {
-					unmet.push(req);
-				}
-			}
-		}
-
-		// Deduplicate by key
-		return [...new Map(unmet.map((i) => [i.key, i])).values()];
-	}
-
-	// Note: _scanDirectory method removed as it was unused
+    // Deduplicate by key
+    return [...new Map(unmet.map((i) => [i.key, i])).values()];
+  }
 }
 
 export const configService = new ConfigService();

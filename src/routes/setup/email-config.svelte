@@ -93,8 +93,10 @@
 	let testEmailSent = $state(false);
 	let showSuccessDetails = $state(true);
 	let showWhySmtp = $state(false);
+	import { SvelteSet } from 'svelte/reactivity';
+
 	const validationErrors = $state<Record<string, string>>({});
-	let touchedFields = $state(new Set<string>());
+	let touchedFields = $state(new SvelteSet<string>());
 	let localValidationErrors = $derived(() => validationResult().errors);
 
 	// SMTP Configuration is now bound to wizard.emailSettings
@@ -322,7 +324,6 @@
 	// Mark field as touched on blur
 	function handleBlur(fieldName: string) {
 		touchedFields.add(fieldName);
-		touchedFields = touchedFields;
 	}
 
 	// Legacy hostname validation for UI feedback

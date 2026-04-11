@@ -9,18 +9,18 @@
 
 // Defines the properties unique to the Currency widget, configured in the collection builder
 export interface CurrencyProps {
-	// The ISO 4217 currency code (e.g., 'EUR', 'USD', 'JPY') @default 'EUR'
-	currencyCode?: string;
+  // The ISO 4217 currency code (e.g., 'EUR', 'USD', 'JPY') @default 'EUR'
+  currencyCode?: string;
 
-	// The maximum allowed numeric value
-	maxValue?: number;
+  // The maximum allowed numeric value
+  maxValue?: number;
 
-	// The minimum allowed numeric value
-	minValue?: number;
+  // The minimum allowed numeric value
+  minValue?: number;
 
-	// A placeholder for the input field
-	placeholder?: string;
+  // A placeholder for the input field
+  placeholder?: string;
 
-	// Index signature to satisfy WidgetProps constraint
-	[key: string]: unknown;
+  // Index signature to satisfy WidgetProps constraint
+  [key: string]: unknown;
 }

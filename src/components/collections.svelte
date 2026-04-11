@@ -26,7 +26,7 @@ Provides an organized interface for navigating hierarchical content structures.
 	import TreeView from '@src/components/system/tree-view.svelte';
 	import type { ContentNode, Schema } from '@src/content/types';
 	import { type StatusType, StatusTypes } from '@src/content/types';
-	import { sortContentNodes } from '@src/content/utils';
+	import { sortContentNodes } from '@src/content/content-utils';
 	// Paraglide Messages
 	import { collection_no_collections_found, collections_search } from '@src/paraglide/messages';
 	import { collection, contentStructure, setMode } from '@src/stores/collection-store.svelte.ts';

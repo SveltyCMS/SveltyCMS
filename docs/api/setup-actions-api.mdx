@@ -1,161 +1,110 @@
 ---
-path: 'docs/api/setup-actions-api.mdx'
-title: 'Configuration & Setup Actions'
-description: 'Reference for SvelteKit Server Actions used for system configuration and setup, replacing traditional REST endpoints.'
+path: "docs/api/setup-actions-api.mdx"
+title: "Setup & Provisioning API Reference"
+description: "Reference for SvelteKit Server Actions and services used for system initialization, database seeding, and admin provisioning."
 order: 10
-icon: 'mdi:cog'
-author: 'admin'
-created: '2025-10-05'
-updated: '2026-02-06'
+icon: "mdi:cog"
+author: "SveltyCMS Team"
+created: "2025-10-05"
+updated: "2026-04-01"
 tags:
-  - 'api'
-  - 'configuration'
-  - 'setup'
-  - 'server-actions'
+  - "api"
+  - "setup"
+  - "provisioning"
+  - "initialization"
 ---
 
-# Configuration & Setup Actions
+# Setup & Provisioning API Reference
 
-## Overview
-
-SveltyCMS utilizes **SvelteKit Server Actions** (often referred to as "Remote Functions") for system setup and configuration. This approach offers several advantages over traditional REST APIs:
-
-- **Type Safety**: Fully typed communication between client and server.
-- **Progressive Enhancement**: Works even without JavaScript (though JS is recommended for the wizard).
-- **Security**: Built-in CSRF protection and origin validation.
-- **Headless Agnosticism**: Logic is decoupled from the specific transport layer, making it easier to adapt.
-
-**Base Path:** `/setup`
-
-## Setup Server Actions
-
-These actions are defined in `src/routes/setup/+page.server.ts`.
-
-### 1. `testDatabase`
-
-Tests the database connection settings.
-
-**Action Name:** `?/testDatabase`
-
-**Form Data:**
-
-| Field    | Type        | Description                      |
-| -------- | ----------- | -------------------------------- |
-| `config` | JSON String | Stringified configuration object |
-
-**Config Object:**
-
-```typescript
-{
-  type: 'mongodb' | 'mariadb' | 'postgresql';
-  host: string;
-  port: number;
-  name: string;
-  user?: string;
-  password?: string;
-  // ... other db-specific options
-}
-```
-
-**Returns:**
-
-- `success: boolean`
-- `message?: string`
-- `error?: string`
-- `details?: object` (on validation error)
-
-### 2. `seedDatabase`
-
-Initializes the database schema and writes the private configuration file.
-
-**Action Name:** `?/seedDatabase`
-
-**Form Data:**
-
-| Field    | Type        | Description                                      |
-| -------- | ----------- | ------------------------------------------------ |
-| `config` | JSON String | Stringified configuration object (same as above) |
-
-**Operations:**
-
-1. Writes `config/private.ts`.
-2. Initializes the database adapter.
-3. Seeds default system settings, themes, and roles.
-
-### 3. `completeSetup`
-
-Finalizes the setup process by creating the admin user and establishing a session.
-
-**Action Name:** `?/completeSetup`
-
-**Form Data:**
-
-| Field  | Type        | Description                                                  |
-| ------ | ----------- | ------------------------------------------------------------ |
-| `data` | JSON String | Object containing `database` config and `admin` user details |
-
-**Structure:**
-
-```typescript
-{
-  database: { ...dbConfig },
-  admin: {
-    username: string;
-    email: string;
-    password: string;
-  }
-}
-```
-
-**Operations:**
-
-1. Validates admin user data.
-2. Creates Admin User.
-3. Creates Session.
-4. Initializes Global System (`initializeWithConfig`).
-5. **Pre-warms Cache**: Calls `CollectionService` internally to load initial data.
-6. Returns redirect path (`/en/Collections`).
-
-### 4. `testEmail`
-
-Tests SMTP configuration by sending a verification email.
-
-**Action Name:** `?/testEmail`
-
-**Form Data:**
-
-| Field       | Type    | Description              |
-| ----------- | ------- | ------------------------ |
-| `host`      | string  | SMTP Host                |
-| `port`      | number  | SMTP Port                |
-| `user`      | string  | SMTP User                |
-| `password`  | string  | SMTP Password            |
-| `from`      | string  | Sender Address           |
-| `secure`    | boolean | Use TLS/SSL              |
-| `testEmail` | string  | Recipient for test email |
-
-### 5. `installDriver`
-
-Automatically installs missing database drivers (e.g., `mongoose`, `mysql2`).
-
-**Action Name:** `?/installDriver`
-
-**Form Data:**
-
-| Field    | Type   | Description              |
-| -------- | ------ | ------------------------ |
-| `dbType` | string | 'mongodb', 'mysql', etc. |
+The Setup API handles the critical first-run experience of SveltyCMS. Unlike the standard REST/GraphQL APIs, it uses **SvelteKit Server Actions** to securely manage database connectivity, schema seeding, and initial admin account creation before the full CMS engine is fully "hot."
 
 ---
 
-## Configuration Management
+## ⚡ Quick Reference
 
-Configuration management after setup is typically handled via the Admin Panel actions, which interact directly with the `SettingsService` and `DbAdapter`.
+| Action       | Form Action Path  | Description                                  |
+| :----------- | :---------------- | :------------------------------------------- |
+| **Test DB**  | `?/testDatabase`  | Verifies credentials and connectivity.       |
+| **Seed DB**  | `?/seedDatabase`  | Creates core tables/collections and roles.   |
+| **Finalize** | `?/completeSetup` | Creates the first admin and enables the CMS. |
 
-### Key Services
+---
 
-- **SettingsService**: Manages system-wide settings (stored in DB).
-- **ThemeService**: Manages active themes and customization.
-- **CacheService**: Manages TTL and cache invalidation.
+## 1. The Goal
 
-Use the internal service layers (`import ... from '@src/services/...'`) when extending functionality, rather than calling internal API endpoints.
+Initialize a fresh SveltyCMS instance by connecting to a database, seeding the required schema, and provisioning the primary administrative user.
+
+---
+
+## 2. The Solution
+
+### Initial Setup Wizard
+
+The setup process is typically handled by the built-in wizard at `/setup`. However, it can be triggered programmatically via form actions.
+
+**Example: Completing Setup**
+
+```html
+<form method="POST" action="/setup?/completeSetup">
+  <input
+    type="hidden"
+    name="data"
+    value='{"admin": {"email": "admin@test.com", "password": "..."}}'
+  />
+  <button>Finish Setup</button>
+</form>
+```
+
+### Post-Setup Verification (Local SDK)
+
+Once setup is complete, use the Local SDK to verify system health.
+
+```typescript
+// Check if the system is ready for traffic
+const health = await locals.cms.system.getHealth();
+console.log(`System Status: ${health.state}`);
+```
+
+---
+
+## 3. The Mechanics
+
+The Setup Engine operates in a **Pre-Boot State**, where it has minimal dependencies to ensure it can run even if the database is not yet configured.
+
+```mermaid
+sequenceDiagram
+    participant User as Admin / Script
+    participant Route as /setup (Server Action)
+    participant Setup as SetupService
+    participant DB as Database Engine
+    participant File as config/private.ts
+
+    User->>Route: POST ?/testDatabase
+    Route->>Setup: Ping Connection
+    Setup->>DB: Attempt Auth
+    DB-->>User: Success / Error
+
+    User->>Route: POST ?/seedDatabase
+    Route->>Setup: writeConfig + seed
+    Setup->>File: Write Database Credentials
+    Setup->>DB: Create Collections & Default Roles
+
+    User->>Route: POST ?/completeSetup
+    Route->>Setup: Create Admin User
+    Setup->>DB: Insert User (Role: Admin)
+    Setup-->>User: Redirect to /en/dashboard
+```
+
+### Security Guardrails
+
+- **Setup Lock**: Once the admin user is created and `config/private.ts` exists, the `/setup` route is **automatically disabled** and redirects to the login page.
+- **Credential Masking**: Database passwords are never echoed back in the action response.
+- **CSRF Protection**: Native SvelteKit form action tokens prevent unauthorized remote execution.
+
+---
+
+## Related Documents
+
+- [Installation Guide](../getting-started.mdx)
+- [Database Adapter Architecture](../architecture/database/database-methods.mdx)
+- [Multi-Tenant Provisioning](../architecture/multi-tenancy.mdx)

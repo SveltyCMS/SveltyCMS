@@ -1,0 +1,64 @@
+---
+path: docs/tests/strategy.mdx
+title: Testing Strategy – SveltyCMS (next branch)
+description: Overview of the testing layers, tools, and principles for SveltyCMS core development.
+author: SveltyCMS Team
+created: 2026-03-21
+updated: 2026-04-03
+tags:
+  - testing
+  - strategy
+  - architecture
+  - fail-closed
+sidebar_position: 1
+---
+
+# Modern Testing Pyramid for SveltyCMS (Vite+ Optimized)
+
+Goal: **fast feedback • deterministic • Fail-Closed security flows • 100% confidence on critical paths**
+
+We follow the classic test pyramid — but tuned for our **Vite+** based architecture:
+
+- **70–80%** fast white-box / unit tests (Vitest + Vite+) (~670 tests)
+- **15–20%** integration / API / component grey-box (Vitest + Vite+ + real DB slices) (~310 tests)
+- **5–10%** black-box E2E (Playwright + Vite+ Preview) (~48 scenarios)
+
+All layers **start from fresh/empty DB state** by default.
+
+```mermaid
+flowchart TD
+    A[Fresh DB\n(:memory: or per-shard /tmp/*.db)] --> B[Unit / White-box\nVitest 70–80%]
+    A --> C[Integration / Grey-box\nVitest + real SQLite 15–20%]
+    A --> D[Black-box E2E\nPlaywright 5–10%]
+
+    D --> E[Project: wizard\n→ setup-wizard.spec.ts\nFull UI install flow]
+    E --> F[Project: auth-setup\n→ reset + seed admin\n→ generate invites\n→ signup editor & author\n→ save 3× .json states]
+    F --> G[Project: chromium-sharded\n→ 3 shards parallel\n→ role-based CRUD\n→ RBAC matrix\n→ security / sign-out / lockout]
+
+    style B fill:#d4f4dd,stroke:#006600
+    style C fill:#fff3cd,stroke:#996600
+    style D fill:#f8d7da,stroke:#dc3545
+    style E fill:#e2e3ff,stroke:#4d4dff
+```
+
+## Core Principles (2026 edition)
+
+1. **Fresh by default** — no persistent state between tests/suites/shards
+2. **Wizard is tested first** (real UI flow → no shortcuts via /api/testing in this layer)
+3. **Invite-based role creation** — tests realistic signup/security flow (not direct DB inserts)
+4. **Storage states per role** → fast authenticated contexts without repeated logins
+5. **Sharding + workers** → CI E2E finishes in < 4 min even with 100+ scenarios
+6. **Enforced 100% coverage** on unit layer (Vitest thresholds)
+7. **Page Object Model** (POM) or **Fixtures + Helpers** for maintainable E2E
+8. **Trace on failure + HTML report** → debug in seconds
+9. **Fail-Closed API GATEKEEPER** — central validation in `+server.ts` is mandatory for all requests.
+
+## When to use each tool
+
+| Layer            | Tool           | When to use                                      | Speed (local)  | Speed (CI)         | DB state              |
+| ---------------- | -------------- | ------------------------------------------------ | -------------- | ------------------ | --------------------- |
+| Unit / Logic     | Vite+ / Vitest | Pure functions, stores, utils, Svelte components | < 0.1 s / test | < 10 s total (670) | Mocked / :memory:     |
+| Integration      | Vite+ / Vitest | API endpoints, Drizzle queries, server actions   | 1–5 s          | < 90 s (312)       | Real SQLite per suite |
+| E2E – Wizard     | Playwright     | First-time install flow (UI steps)               | 10–30 s        | 20–40 s            | Completely empty      |
+| E2E – Auth+Roles | Playwright     | Login, signup via invite, role switching         | —              | —                  | After wizard          |
+| E2E – Business   | Playwright     | CRUD, RBAC violations, security scenarios        | 5–15 s / test  | < 3 min sharded    | After auth setup      |

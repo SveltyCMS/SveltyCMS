@@ -1,667 +1,127 @@
 ---
-path: 'docs/api/user-management-api.mdx'
-title: 'User Management API'
-description: 'Complete API reference for user authentication, registration, and profile management in SveltyCMS.'
-order: 2
-icon: 'mdi:account-multiple'
-author: 'admin'
-created: '2025-10-05'
-updated: '2025-10-05'
+path: "docs/api/user-management-api.mdx"
+title: "User Management API Reference"
+description: "Complete API reference for SveltyCMS identity management — user listing, invitations, profile updates, and authentication."
+order: 45
+icon: "mdi:account-group-outline"
+author: "SveltyCMS Team"
+created: "2025-10-05"
+updated: "2026-04-01"
 tags:
-  - 'api'
-  - 'users'
-  - 'authentication'
-  - 'profile'
+  - "api"
+  - "users"
+  - "auth"
+  - "security"
 ---
 
-# User Management API
+# User Management API Reference
 
-## Overview
-
-The User Management API provides endpoints for user authentication, registration, profile management, and batch operations. All operations use database-agnostic methods and support multi-tenancy.
-
-**Base Path:** `/api/user`
-
-### Quantum Computing Security
-
-All password operations in this API use **quantum-resistant cryptography**:
-
-- **Argon2id**: Memory-hard password hashing that resists quantum speedup
-- **64 MB memory requirement**: Limits quantum computer parallelization
-- **No quantum advantage**: Grover's algorithm doesn't help with memory-bound operations
-- **Security timeline**: Secure against quantum computers for 15-30+ years
-
-See [Quantum Security Guide](/docs/architecture/quantum-security.mdx) for detailed analysis.
-
-## Authentication
-
-Most user endpoints require authentication except login and registration:
-
-```http
-Cookie: session=your-session-id
-```
+The User Management API is the core identity layer of SveltyCMS. It handles user authentication, profile management, role-based access control, and multi-tenant isolation.
 
 ---
 
-## Endpoints
+## ⚡ Quick Start
 
-### 1. User Login
-
-Authenticates a user and creates a session.
-
-#### Request
-
-```http
-POST /api/user/login
-```
-
-**Headers:**
-
-```http
-Content-Type: application/json
-```
-
-**Body:**
-
-```json
-{
-	"email": "user@example.com",
-	"password": "securePassword123"
-}
-```
-
-**Permissions Required:** None (public endpoint)
-
-#### Response
-
-**Success (200):**
-
-```json
-{
-	"success": true,
-	"user": {
-		"_id": "user123",
-		"email": "user@example.com",
-		"username": "john_doe",
-		"role": "editor",
-		"tenantId": "tenant-abc",
-		"isRegistered": true,
-		"blocked": false
-	},
-	"message": "Login successful"
-}
-```
-
-**Sets Cookie:**
-
-```http
-Set-Cookie: session=<session-id>; Path=/; HttpOnly; Secure; SameSite=Strict
-```
-
-**Error Responses:**
-
-```json
-// 400 Bad Request - Missing credentials
-{
-  "error": "Email and password are required."
-}
-
-// 401 Unauthorized - Invalid credentials
-{
-  "error": "Invalid credentials."
-}
-
-// 403 Forbidden - Account blocked
-{
-  "error": "Your account has been suspended. Please contact support."
-}
-
-// 400 Bad Request - Already authenticated
-{
-  "error": "You are already authenticated."
-}
-```
-
-**Security Features:**
-
-- Quantum-resistant password verification using Argon2id
-- 64 MB memory-hard hashing resists quantum speedup
-- Blocks login attempts for suspended accounts
-- Generic error messages prevent user enumeration
-- Multi-tenant scoped authentication
-- Secure session cookie creation (HttpOnly, Secure, SameSite)
-- Timing-safe password comparison prevents side-channel attacks
+| Feature            | HTTP Endpoint                            | Permission    | Local SDK Equivalent         |
+| :----------------- | :--------------------------------------- | :------------ | :--------------------------- |
+| **Login**          | `POST /api/user/login`                   | **Public**    | `locals.cms.auth.login`      |
+| **Get User**       | `GET /api/user/[id]`                     | `user:read`   | `locals.cms.auth.getUser`    |
+| **Update Profile** | `PATCH /api/user/update-user-attributes` | `user:update` | `locals.cms.auth.updateUser` |
+| **List Users**     | `GET /api/user`                          | `user:read`   | `locals.cms.auth.listUsers`  |
 
 ---
 
-### 2. User Logout
+## 1. The Goal
 
-Ends the current user session.
-
-#### Request
-
-```http
-POST /api/user/logout
-```
-
-**Headers:**
-
-```http
-Cookie: session=your-session-id
-```
-
-**Permissions Required:** Authenticated user
-
-#### Response
-
-**Success (200):**
-
-```json
-{
-	"success": true,
-	"message": "Logged out successfully"
-}
-```
-
-**Clears Cookie:**
-
-```http
-Set-Cookie: session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT
-```
+Manage the complete lifecycle of a user identity—from initial invitation and login to profile updates and account deactivation.
 
 ---
 
-### 3. Create User
+## 2. The Solution
 
-Creates a new user directly (admin only).
+### User Authentication (Login)
 
-#### Request
-
-```http
-POST /api/user/create-user
-```
-
-**Headers:**
-
-```http
-Cookie: session=your-session-id
-Content-Type: application/json
-```
-
-**Body:**
+**Endpoint**: `POST /api/user/login`
+**Payload**:
 
 ```json
-{
-	"email": "newuser@example.com",
-	"username": "new_user",
-	"password": "SecurePass123!",
-	"role": "editor"
-}
+{ "email": "admin@example.com", "password": "..." }
 ```
 
-**Permissions Required:** `admin` or `user:create`
+### Local SDK (Recommended for Hooks/Server)
 
-#### Response
-
-**Success (201):**
-
-```json
-{
-	"_id": "user456",
-	"email": "newuser@example.com",
-	"username": "new_user",
-	"role": "editor",
-	"tenantId": "tenant-abc",
-	"isRegistered": true,
-	"createdAt": "2025-10-05T14:30:00Z"
-}
-```
-
-**Error Responses:**
-
-```json
-// 400 Bad Request - Validation error
-{
-  "error": "Invalid input: Please provide a valid email address."
-}
-
-// 409 Conflict - User already exists
-{
-  "error": "A user with this email address already exists in this tenant."
-}
-```
-
-**Notes:**
-
-- This endpoint creates users directly without invitation
-- For user invitations, use the `/api/token/createToken` endpoint
-- Password is automatically hashed using quantum-resistant Argon2id
-- Hash includes 64 MB memory cost for quantum resistance
-
----
-
-### 4. Update User Attributes
-
-Updates user profile information.
-
-#### Request
-
-```http
-PATCH /api/user/update-user-attributes
-```
-
-**Headers:**
-
-```http
-Cookie: session=your-session-id
-Content-Type: application/json
-```
-
-**Body:**
-
-```json
-{
-	"userId": "user123",
-	"updates": {
-		"username": "updated_username",
-		"email": "newemail@example.com",
-		"role": "admin",
-		"blocked": false
-	}
-}
-```
-
-**Permissions Required:**
-
-- `admin` - Can update any user
-- Own user ID - Can update own profile (limited fields)
-
-#### Response
-
-**Success (200):**
-
-```json
-{
-	"success": true,
-	"user": {
-		"_id": "user123",
-		"username": "updated_username",
-		"email": "newemail@example.com",
-		"role": "admin",
-		"updatedAt": "2025-10-05T14:30:00Z"
-	},
-	"message": "User updated successfully"
-}
-```
-
-**Allowed fields (Non-Admin):**
-
-- `username`
-- `email` (requires verification)
-- `password` (requires old password)
-
-**Allowed fields (Admin):**
-
-- All non-admin fields plus:
-- `role`
-- `blocked`
-- `permissions`
-- `tenantId`
-
----
-
-### 5. Batch User Operations
-
-Performs bulk operations on multiple users.
-
-#### Request
-
-```http
-POST /api/user/batch
-```
-
-**Headers:**
-
-```http
-Cookie: session=your-session-id
-Content-Type: application/json
-```
-
-**Body:**
-
-```json
-{
-	"operation": "update",
-	"userIds": ["user123", "user456", "user789"],
-	"updates": {
-		"role": "contributor",
-		"blocked": false
-	}
-}
-```
-
-**Operations:**
-
-- `update` - Update multiple users
-- `delete` - Delete multiple users
-- `block` - Block multiple users
-- `unblock` - Unblock multiple users
-
-**Permissions Required:** `admin`
-
-#### Response
-
-**Success (200):**
-
-```json
-{
-	"success": true,
-	"operation": "update",
-	"processed": 3,
-	"results": [
-		{
-			"userId": "user123",
-			"success": true
-		},
-		{
-			"userId": "user456",
-			"success": true
-		},
-		{
-			"userId": "user789",
-			"success": false,
-			"error": "User not found"
-		}
-	]
-}
-```
-
----
-
-### 6. Save Avatar
-
-Uploads or updates user avatar image.
-
-#### Request
-
-```http
-POST /api/user/save-avatar
-```
-
-**Headers:**
-
-```http
-Cookie: session=your-session-id
-Content-Type: multipart/form-data
-```
-
-**Body (multipart/form-data):**
-
-- `avatar` (file) - Image file (JPEG, PNG, GIF, WebP)
-- `userId` (string, optional) - User ID (defaults to current user)
-
-**Permissions Required:**
-
-- Authenticated user (for own avatar)
-- `admin` (for other user avatars)
-
-#### Response
-
-**Success (200):**
-
-```json
-{
-	"success": true,
-	"avatarUrl": "/uploads/avatars/user123.jpg",
-	"message": "Avatar updated successfully"
-}
-```
-
-**Constraints:**
-
-- Max file size: 5 MB
-- Allowed formats: JPEG, PNG, GIF, WebP
-- Auto-resized to: 256x256 pixels
-- Old avatar automatically deleted
-
----
-
-### 7. Delete Avatar
-
-Removes user avatar image.
-
-#### Request
-
-```http
-DELETE /api/user/delete-avatar
-```
-
-**Headers:**
-
-```http
-Cookie: session=your-session-id
-Content-Type: application/json
-```
-
-**Body:**
-
-```json
-{
-	"userId": "user123"
-}
-```
-
-**Permissions Required:**
-
-- Authenticated user (for own avatar)
-- `admin` (for other user avatars)
-
-#### Response
-
-**Success (200):**
-
-```json
-{
-	"success": true,
-	"message": "Avatar deleted successfully"
-}
-```
-
----
-
-## Database-Agnostic Implementation
-
-The User Management API uses database-agnostic authentication methods:
+Use the Local SDK to manage users directly within your SvelteKit backend.
 
 ```typescript
-// All user operations use auth abstraction
-await auth.getUserByEmail({ email, tenantId });
-await auth.createUser(userData);
-await auth.checkUser({ email });
+// Update a user's role (Admin only)
+await locals.cms.auth.updateUser(targetUserId, { role: "editor" });
 
-// Password verification uses secure utilities
-await verifyPassword(password, user.password);
-
-// Session management through auth interface
-await auth.createSession(userId, tenantId);
+// Check if a password is valid
+const isValid = await locals.cms.auth.verifyPassword(userId, password);
 ```
 
-**No direct database queries** - all operations go through the `auth` service layer.
+### Batch User Operations
 
----
+**Endpoint**: `POST /api/user/batch`
+**Payload**:
 
-## Multi-Tenancy Support
-
-When multi-tenant mode is enabled:
-
-- Users are scoped to their tenant
-- Login requires valid tenant context
-- User lookup filtered by tenant ID
-- Cross-tenant user operations blocked
-
-**Tenant-Scoped Login:**
-
-```typescript
-// Automatically scoped by tenant
-const userLookupCriteria = { email };
-if (MULTI_TENANT) {
-	userLookupCriteria.tenantId = tenantId;
+```json
+{
+  "userIds": ["user1", "user2"],
+  "action": "block"
 }
-const user = await auth.getUserByEmail(userLookupCriteria);
 ```
 
 ---
 
-## Security Considerations
+## 3. The Mechanics
 
-### Password Security
+SveltyCMS uses an **Identity-at-the-Edge** pattern, where user sessions are hydrated by the `handleAuthentication` middleware before reaching your route logic.
 
-- **Argon2id** hashing algorithm (winner of Password Hashing Competition)
-- **Quantum-resistant**: Memory-hard algorithm resists quantum speedup
-- **64 MB memory cost**: Prevents GPU/ASIC/quantum parallelization
-- **Automatic salt generation**: Unique salt per password prevents rainbow tables
-- **Secure for 15-30+ years**: Strong resistance against quantum computers
-- **No quantum advantage**: Grover's algorithm ineffective for memory-bound operations
-- Old passwords never logged or returned in API responses
+```mermaid
+sequenceDiagram
+    participant App as External App / UI
+    participant Hook as handleAuthentication
+    participant Auth as Auth Service
+    participant DB as Database (auth_users)
+    participant Cache as Redis/In-Memory Cache
 
-### Session Security
+    App->>Hook: Request (with Session Cookie)
+    Hook->>Cache: Lookup Session ID
+    Cache-->>Hook: Session Data (userId, role)
 
-- **HttpOnly** cookies prevent XSS access
-- **Secure** flag requires HTTPS
-- **SameSite=Strict** prevents CSRF attacks
-- Session ID rotation on privilege elevation
-- Automatic session expiration
+    alt Cache Miss
+        Hook->>DB: Fetch User + Role
+        DB-->>Hook: User Object
+        Hook->>Cache: Set Session
+    end
 
-### Account Protection
-
-- **Blocked accounts** cannot login
-- Generic error messages prevent user enumeration
-- Rate limiting on login attempts (configured in middleware)
-- Failed login attempt tracking
-- Account lockout after repeated failures
-
-### Permission Checks
-
-- Role-based access control
-- Permission validation on every request
-- Admin-only operations strictly enforced
-- Users can only modify own profile (except admins)
-
----
-
-## User Roles
-
-Roles are stored in the database (`auth_roles` collection) and can be managed via the Access Management interface (`/config/accessManagement`).
-
-**Default Roles** (seeded during setup):
-
-- **admin** - Full system access (superuser)
-- **developer** - Development tools, APIs, and system configuration
-- **editor** - Content management and media access
-
-**Custom Roles:**
-
-- Create new roles via Access Management interface
-- Assign specific permissions per role
-- Roles are tenant-isolated in multi-tenant mode
-- All role changes are immediately cached and available
-
-Each role has specific permissions that can be customized dynamically through the database.
-
----
-
-## Validation Rules
-
-### Email Validation
-
-- Must be valid email format
-- Must be unique within tenant
-- Case-insensitive comparison
-
-### Password Requirements
-
-- Minimum 8 characters
-- Must contain uppercase letter
-- Must contain lowercase letter
-- Must contain number
-- Must contain special character
-
-### Username Rules
-
-- 3-30 characters
-- Alphanumeric and underscore only
-- Must be unique within tenant
-
----
-
-## Testing
-
-### JavaScript Example
-
-```javascript
-// Login
-const loginResponse = await fetch('/api/user/login', {
-	method: 'POST',
-	credentials: 'include',
-	headers: { 'Content-Type': 'application/json' },
-	body: JSON.stringify({
-		email: 'user@example.com',
-		password: 'SecurePass123!'
-	})
-});
-
-const { user } = await loginResponse.json();
-console.log('Logged in as:', user.username);
-
-// Create user (admin only)
-const createResponse = await fetch('/api/user/create-user', {
-	method: 'POST',
-	credentials: 'include',
-	headers: { 'Content-Type': 'application/json' },
-	body: JSON.stringify({
-		email: 'newuser@example.com',
-		password: 'NewUserPass123!',
-		role: 'editor'
-	})
-});
-
-// Update profile
-await fetch('/api/user/update-user-attributes', {
-	method: 'PATCH',
-	credentials: 'include',
-	headers: { 'Content-Type': 'application/json' },
-	body: JSON.stringify({
-		userId: user._id,
-		updates: { username: 'new_username' }
-	})
-});
-
-// Logout
-await fetch('/api/user/logout', {
-	method: 'POST',
-	credentials: 'include'
-});
+    Hook->>Hook: Hydrate locals.user
+    Hook-->>App: Proceed to Route (+page.server.ts)
 ```
 
+### Password Security (Argon2id)
+
+All passwords are hashed using **Argon2id**, the winner of the Password Hashing Competition. It is specifically designed to resist both GPU-based brute force and side-channel attacks.
+
+| Parameter       | Value | Rationale                                 |
+| :-------------- | :---- | :---------------------------------------- |
+| **Memory Cost** | 64 MB | Defeats parallel ASIC/GPU attacks.        |
+| **Iterations**  | 3     | Balances safety with login latency.       |
+| **Parallelism** | 4     | Optimizes for multi-core server hardware. |
+
 ---
 
-## Related Documentation
+## Security & Isolation
 
-- [Authentication 2FA API](/docs/api/authentication-2fa-api.mdx)
-- [User Token Management API](/docs/api/user-token-management-api.mdx)
-- [Role Configuration](/docs/admin/roles-permissions)
-- [Security Best Practices](/docs/security/best-practices)
+- **Tenant Scope**: User lists and management actions are strictly scoped to the current `tenantId`.
+- **Self-Action Prevention**: Users are blocked from performing destructive actions (delete, block) on their own accounts via the API.
+- **Role Hierarchy**: Only users with the `admin` role can modify the roles or status of other users.
 
 ---
 
-## Implementation Details
+## Related Documents
 
-For implementation details, see:
-
-- `src/routes/api/user/login/+server.ts` - Login endpoint
-- `src/routes/api/user/logout/+server.ts` - Logout endpoint
-- `src/routes/api/user/create-user/+server.ts` - User creation
-- `src/routes/api/user/update-user-attributes/+server.ts` - Profile updates
-- `src/routes/api/user/batch/+server.ts` - Batch operations
-- `src/databases/auth/index.ts` - Authentication service
-- `src/utils/password.ts` - Password utilities
+- [Auth Token API Reference](./api-access-tokens.mdx)
+- [Multi-Tenant Architecture](../architecture/multi-tenancy.mdx)
+- [SAML SSO Integration](../guides/configuration/access-management.mdx)

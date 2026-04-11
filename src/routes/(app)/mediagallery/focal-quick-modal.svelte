@@ -16,108 +16,128 @@ and rule-of-thirds grid overlay.
 -->
 
 <script lang="ts">
-	import type { MediaImage } from '@utils/media/media-models';
-	import { fade, scale } from 'svelte/transition';
+import { registerHotkey } from "@src/utils/hotkeys";
+import { onMount } from "svelte";
+import type { MediaImage } from "@utils/media/media-models";
+import { fade, scale } from "svelte/transition";
 
-	interface Props {
-		/** The media image to adjust focal point for */
-		media: MediaImage;
-		/** Callback when modal is closed without saving */
-		onClose: () => void;
-		/** Callback when focal point is saved */
-		onSave: (focalPoint: { x: number; y: number }) => void;
-		/** Whether to show the modal */
-		show: boolean;
-	}
+interface Props {
+	/** The media image to adjust focal point for */
+	media: MediaImage;
+	/** Callback when modal is closed without saving */
+	onClose: () => void;
+	/** Callback when focal point is saved */
+	onSave: (focalPoint: { x: number; y: number }) => void;
+	/** Whether to show the modal */
+	show: boolean;
+}
 
-	let { media, show = $bindable(), onClose, onSave }: Props = $props();
+let { media, show = $bindable(), onClose, onSave }: Props = $props();
 
-	// Initialize focal point with defaults
-	let focalPoint = $state({
-		x: 50,
-		y: 50
-	});
+// Initialize focal point with defaults
+let focalPoint = $state({
+	x: 50,
+	y: 50,
+});
 
-	let containerRef: HTMLDivElement | undefined = $state();
-	let isDragging = $state(false);
+let containerRef: HTMLDivElement | undefined = $state();
+let isDragging = $state(false);
 
-	// Reset focal point when media changes
-	$effect(() => {
-		if (media) {
-			focalPoint = {
-				x: media.metadata?.focalPoint?.x ?? 50,
-				y: media.metadata?.focalPoint?.y ?? 50
-			};
-		}
-	});
-
-	function handleMouseDown(e: MouseEvent) {
-		isDragging = true;
-		updateFocalPoint(e);
-	}
-
-	function handleMouseMove(e: MouseEvent) {
-		if (isDragging) {
-			updateFocalPoint(e);
-		}
-	}
-
-	function handleMouseUp() {
-		isDragging = false;
-	}
-
-	function updateFocalPoint(e: MouseEvent) {
-		if (!containerRef) {
-			return;
-		}
-		const rect = containerRef.getBoundingClientRect();
+// Reset focal point when media changes
+$effect(() => {
+	if (media) {
 		focalPoint = {
-			x: Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)),
-			y: Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100))
+			x: media.metadata?.focalPoint?.x ?? 50,
+			y: media.metadata?.focalPoint?.y ?? 50,
 		};
 	}
+});
 
-	function handleKeyDown(e: KeyboardEvent) {
-		const step = e.shiftKey ? 10 : 1;
-		switch (e.key) {
-			case 'ArrowLeft':
-				focalPoint.x = Math.max(0, focalPoint.x - step);
-				e.preventDefault();
-				break;
-			case 'ArrowRight':
-				focalPoint.x = Math.min(100, focalPoint.x + step);
-				e.preventDefault();
-				break;
-			case 'ArrowUp':
-				focalPoint.y = Math.max(0, focalPoint.y - step);
-				e.preventDefault();
-				break;
-			case 'ArrowDown':
-				focalPoint.y = Math.min(100, focalPoint.y + step);
-				e.preventDefault();
-				break;
-			case 'Escape':
-				handleClose();
-				break;
-		}
+function handleMouseDown(e: MouseEvent) {
+	isDragging = true;
+	updateFocalPoint(e);
+}
+
+function handleMouseMove(e: MouseEvent) {
+	if (isDragging) {
+		updateFocalPoint(e);
 	}
+}
 
-	function handleSave() {
-		onSave(focalPoint);
-		show = false;
+function handleMouseUp() {
+	isDragging = false;
+}
+
+function updateFocalPoint(e: MouseEvent) {
+	if (!containerRef) {
+		return;
 	}
+	const rect = containerRef.getBoundingClientRect();
+	focalPoint = {
+		x: Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)),
+		y: Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100)),
+	};
+}
 
-	function handleClose() {
-		onClose();
-		show = false;
+function handleKeyDown(e: KeyboardEvent) {
+	const step = e.shiftKey ? 10 : 1;
+	switch (e.key) {
+		case "ArrowLeft":
+			focalPoint.x = Math.max(0, focalPoint.x - step);
+			e.preventDefault();
+			break;
+		case "ArrowRight":
+			focalPoint.x = Math.min(100, focalPoint.x + step);
+			e.preventDefault();
+			break;
+		case "ArrowUp":
+			focalPoint.y = Math.max(0, focalPoint.y - step);
+			e.preventDefault();
+			break;
+		case "ArrowDown":
+			focalPoint.y = Math.min(100, focalPoint.y + step);
+			e.preventDefault();
+			break;
 	}
+}
 
-	function resetToCenter() {
-		focalPoint = { x: 50, y: 50 };
-	}
+onMount(() => {
+	registerHotkey(
+		"mod+s",
+		() => {
+			if (show) handleSave();
+		},
+		"Save focal point",
+	);
 
-	// Get image URL (prefer thumbnail for faster loading)
-	const imageUrl = $derived(media.thumbnails?.md?.url || media.thumbnails?.sm?.url || media.url);
+	registerHotkey(
+		"escape",
+		() => {
+			if (show) handleClose();
+		},
+		"Cancel focal point adjustment",
+		false,
+	);
+});
+
+function handleSave() {
+	onSave(focalPoint);
+	show = false;
+}
+
+function handleClose() {
+	onClose();
+	show = false;
+}
+
+function resetToCenter() {
+	focalPoint = { x: 50, y: 50 };
+}
+
+// Get image URL (prefer thumbnail for faster loading)
+const imageUrl = $derived(
+	media.thumbnails?.md?.url || media.thumbnails?.sm?.url || media.url,
+);
 </script>
 
 {#if show}
@@ -152,7 +172,7 @@ and rule-of-thirds grid overlay.
 					<iconify-icon icon="mdi:crosshairs-gps" width="24" class="text-primary-500"></iconify-icon>
 					Set Focal Point
 				</h3>
-				<button onclick={handleClose} class="btn-icon preset-outlined-surface-500" aria-label="Close">
+				<button onclick={handleClose} class="btn-icon preset-outlined-surface-500" aria-label="Close (Escape)" aria-keyshortcuts="Escape">
 					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 				</button>
 			</header>
@@ -219,8 +239,8 @@ and rule-of-thirds grid overlay.
 				</div>
 
 				<div class="flex gap-2">
-					<button onclick={handleClose} class="btn preset-outlined-surface-500">Cancel</button>
-					<button onclick={handleSave} class="btn preset-filled-primary-500">
+					<button onclick={handleClose} class="btn preset-outlined-surface-500" aria-keyshortcuts="Escape">Cancel</button>
+					<button onclick={handleSave} class="btn preset-filled-primary-500" aria-keyshortcuts="mod+s">
 						<iconify-icon icon="mdi:check" width="18"></iconify-icon>
 						<span>Save</span>
 					</button>

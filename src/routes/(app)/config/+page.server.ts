@@ -11,85 +11,95 @@
  */
 
 // Auth
-import { permissions as allPermissions, hasPermissionByAction, permissionConfigs } from '@src/databases/auth/permissions';
-import { error, redirect } from '@sveltejs/kit';
+import {
+  permissions as allPermissions,
+  hasPermissionByAction,
+  permissionConfigs,
+} from "@src/databases/auth/permissions";
+import { error, redirect } from "@sveltejs/kit";
 // System Logger
-import { logger } from '@utils/logger.server';
-import type { PageServerLoad } from './$types';
+import { logger } from "@utils/logger.server";
+import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
-	try {
-		const { user } = locals;
+  try {
+    const { user } = locals;
 
-		if (!user) {
-			logger.warn('User not authenticated, redirecting to login');
-			throw redirect(302, '/login');
-		}
+    if (!user) {
+      logger.warn("User not authenticated, redirecting to login");
+      throw redirect(302, "/login");
+    }
 
-		logger.trace(`User session validated successfully for user: ${user._id}`);
+    logger.trace(`User session validated successfully for user: ${user._id}`);
 
-		if (!user.role) {
-			const message = `User role is missing for user ${user.email}`;
-			logger.warn(message);
-			throw error(403, message);
-		}
+    if (!user.role) {
+      const message = `User role is missing for user ${user.email}`;
+      logger.warn(message);
+      throw error(403, message);
+    }
 
-		// Use isAdmin from authorization hook (handles multi-tenant fallback correctly)
-		const isAdmin = locals.isAdmin === true;
+    // Use isAdmin from authorization hook (handles multi-tenant fallback correctly)
+    const isAdmin = locals.isAdmin === true;
 
-		const serializableUser = {
-			_id: user._id.toString(),
-			email: user.email,
-			role: user.role,
-			permissions: user.permissions
-		};
+    const serializableUser = {
+      _id: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      permissions: user.permissions,
+    };
 
-		// Fine-grained permission checking for each config item
-		// This allows control where each setting group,
-		// menu item, or feature can have individual permissions assigned
-		const permissions: Record<string, { hasPermission: boolean; isRateLimited?: boolean }> = {};
+    // Fine-grained permission checking for each config item
+    // This allows control where each setting group,
+    // menu item, or feature can have individual permissions assigned
+    const permissions: Record<string, { hasPermission: boolean; isRateLimited?: boolean }> = {};
 
-		for (const key in permissionConfigs) {
-			if (!Object.hasOwn(permissionConfigs, key)) {
-				continue;
-			}
-			const config = permissionConfigs[key];
+    for (const key in permissionConfigs) {
+      if (!Object.hasOwn(permissionConfigs, key)) {
+        continue;
+      }
+      const config = permissionConfigs[key];
 
-			// Admin bypass for efficiency (admins have all permissions)
-			if (isAdmin) {
-				permissions[config.contextId] = {
-					hasPermission: true,
-					isRateLimited: false
-				};
-			} else {
-				// Check user permission for non-admin
-				// This supports fine-grained permissions like:
-				// - config:settings:cache
-				// - config:settings:database
-				// - config:settings:email
-				// etc.
-				const permissionCheck = await hasPermissionByAction(user, config.action, config.type, config.contextId, locals.roles || []);
-				permissions[config.contextId] = {
-					hasPermission: permissionCheck,
-					isRateLimited: false
-				};
-			}
-		}
+      // Admin bypass for efficiency (admins have all permissions)
+      if (isAdmin) {
+        permissions[config.contextId] = {
+          hasPermission: true,
+          isRateLimited: false,
+        };
+      } else {
+        // Check user permission for non-admin
+        // This supports fine-grained permissions like:
+        // - config:settings:cache
+        // - config:settings:database
+        // - config:settings:email
+        // etc.
+        const permissionCheck = await hasPermissionByAction(
+          user,
+          config.action,
+          config.type,
+          config.contextId,
+          locals.roles || [],
+        );
+        permissions[config.contextId] = {
+          hasPermission: permissionCheck,
+          isRateLimited: false,
+        };
+      }
+    }
 
-		return {
-			user: serializableUser,
-			permissions,
-			permissionConfigs,
-			allPermissions,
-			isAdmin
-		};
-	} catch (err) {
-		if (err instanceof Error && 'status' in err) {
-			// This is likely a redirect or an error we've already handled
-			throw err;
-		}
-		const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw error(500, message);
-	}
+    return {
+      user: serializableUser,
+      permissions,
+      permissionConfigs,
+      allPermissions,
+      isAdmin,
+    };
+  } catch (err) {
+    if (err instanceof Error && "status" in err) {
+      // This is likely a redirect or an error we've already handled
+      throw err;
+    }
+    const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;
+    logger.error(message);
+    throw error(500, message);
+  }
 };

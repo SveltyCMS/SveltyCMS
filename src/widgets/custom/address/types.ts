@@ -9,29 +9,29 @@
 
 // Defines the properties unique to the Address widget, configured in the collection builder.
 export interface AddressProps {
-	// The default country to select in the dropdown @default 'DE'
-	defaultCountry?: string; // Should be a 2-letter country code like 'DE' or 'US'
+  // The default country to select in the dropdown @default 'DE'
+  defaultCountry?: string; // Should be a 2-letter country code like 'DE' or 'US'
 
-	// An array of field names to hide from the UI e.g., ['latitude', 'longitude', 'name']
-	hiddenFields?: Array<keyof AddressData>;
+  // An array of field names to hide from the UI e.g., ['latitude', 'longitude', 'name']
+  hiddenFields?: Array<keyof AddressData>;
 
-	// Default map center coordinates
-	mapCenter?: { lat: number; lng: number };
+  // Default map center coordinates
+  mapCenter?: { lat: number; lng: number };
 
-	// Default map zoom level @default 12
-	zoom?: number;
+  // Default map zoom level @default 12
+  zoom?: number;
 
-	// Index signature to satisfy WidgetProps constraint
-	[key: string]: unknown;
+  // Index signature to satisfy WidgetProps constraint
+  [key: string]: unknown;
 }
 
 // Defines the data structure for a complete address object
 export interface AddressData {
-	city: string;
-	country: string; // Stored as a 2-letter country code
-	houseNumber: string;
-	latitude: number;
-	longitude: number;
-	postalCode: string;
-	street: string;
+  city: string;
+  country: string; // Stored as a 2-letter country code
+  houseNumber: string;
+  latitude: number;
+  longitude: number;
+  postalCode: string;
+  street: string;
 }

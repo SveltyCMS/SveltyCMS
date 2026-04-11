@@ -1,424 +1,576 @@
 /**
- * @file src/databases/mariadb/crud/crud-module.ts
- * @description CRUD operations module for MariaDB.
- *
- * Features:
- * - findOne
- * - findMany
- * - findByIds
- * - insert
- * - update
- * - delete
- * - upsert
- * - count
- * - exists
- * - insertMany
+ * @file src/databases/sqlite/crud/crud-module.ts
+ * @description CRUD operations module for SQLite.
  */
 
-import { isoDateStringToDate, nowISODateString } from '@src/utils/date-utils';
-import { safeQuery } from '@src/utils/security/safe-query';
-import { count, eq, inArray } from 'drizzle-orm';
-import type { BaseEntity, DatabaseId, DatabaseResult, QueryFilter, EntityCreate, EntityUpdate } from '../../db-interface';
-import type { AdapterCore } from '../adapter/adapter-core';
-import * as utils from '../utils';
+import { nowISODateString } from "@src/utils/date-utils";
+import { safeQuery } from "@src/utils/security/safe-query";
+import { count, eq, inArray, placeholder } from "drizzle-orm";
+import type {
+  BaseEntity,
+  DatabaseId,
+  DatabaseResult,
+  QueryFilter,
+  EntityCreate,
+  EntityUpdate,
+  BaseQueryOptions,
+  FindOptions,
+} from "../../db-interface";
+import type { AdapterCore } from "../adapter/adapter-core";
+import * as utils from "../utils";
 
 export class CrudModule {
-	private readonly core: AdapterCore;
+  private readonly core: AdapterCore;
+  private readonly preparedStatements = new Map<string, any>();
 
-	constructor(core: AdapterCore) {
-		this.core = core;
-	}
+  constructor(core: AdapterCore) {
+    this.core = core;
+  }
 
-	private get db() {
-		return this.core.db!;
-	}
+  private get db() {
+    return this.core.db!;
+  }
 
-	/**
-	 * Packs fields that don't exist in the physical table into a JSON 'data' blob.
-	 * This is used for dynamic collections to support arbitrary fields without migrations.
-	 */
-	private packData(table: Record<string, unknown>, data: Record<string, unknown>): Record<string, unknown> {
-		const result: Record<string, unknown> = {};
-		const existingData = data.data;
-		const jsonBlob: Record<string, unknown> =
-			typeof existingData === 'string' ? JSON.parse(existingData) : { ...((existingData as Record<string, unknown>) || {}) };
+  /**
+   * Helper to determine if a query is a simple ID lookup.
+   */
+  private isSimpleIdQuery(query: any): boolean {
+    const keys = Object.keys(query);
+    return keys.length === 1 && keys[0] === "_id" && typeof query._id === "string";
+  }
 
-		for (const [key, value] of Object.entries(data)) {
-			if (key === 'data') {
-				continue;
-			}
-			if (table[key]) {
-				result[key] = value;
-			} else {
-				jsonBlob[key] = value;
-			}
-		}
-		result.data = jsonBlob;
-		return result;
-	}
+  async findOne<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options: FindOptions<T> = {},
+  ): Promise<DatabaseResult<T | null>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        const secureQuery = safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+          includeDeleted: options.includeDeleted,
+        });
 
-	/**
-	 * Unpacks fields from the JSON 'data' blob back into the top-level object.
-	 */
-	private unpackData(row: Record<string, unknown>): Record<string, unknown> {
-		if (!row) {
-			return row;
-		}
-		const { data, ...rest } = row;
-		let jsonBlob: Record<string, unknown>;
-		if (!data) {
-			jsonBlob = {};
-		} else if (typeof data === 'string') {
-			jsonBlob = JSON.parse(data);
-		} else {
-			jsonBlob = data as Record<string, unknown>;
-		}
-		// Result of convertDatesToISO is already applied before this is called or after
-		return { ...jsonBlob, ...rest };
-	}
+        // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID lookups
+        if (this.isSimpleIdQuery(secureQuery)) {
+          const table = this.core.getTable(collection);
+          const cacheKey = `findOne:${collection}`;
 
-	async findOne<T extends BaseEntity>(
-		collection: string,
-		query: QueryFilter<T>,
-		options?: { fields?: (keyof T)[]; tenantId?: string | null | null; bypassTenantCheck?: boolean }
-	): Promise<DatabaseResult<T | null>> {
-		return this.core.wrap(async () => {
-			const secureQuery = safeQuery(query, options?.tenantId, { bypassTenantCheck: options?.bypassTenantCheck });
-			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as
-				| import('drizzle-orm').SQL
-				| undefined;
-			const results = await this.db
-				.select()
-				.from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
-				.where(where)
-				.limit(1);
-			if (results.length === 0) {
-				return null;
-			}
-			const row = utils.convertDatesToISO(results[0] as Record<string, unknown>);
-			return this.unpackData(row) as unknown as T;
-		}, 'CRUD_FIND_ONE_FAILED');
-	}
+          let prepared = this.preparedStatements.get(cacheKey);
+          if (!prepared) {
+            prepared = this.db
+              .select()
+              .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+              .where(eq((table as any)._id, placeholder("id")))
+              .prepare();
+            this.preparedStatements.set(cacheKey, prepared);
+          }
 
-	async findMany<T extends BaseEntity>(
-		collection: string,
-		query: QueryFilter<T>,
-		options?: {
-			limit?: number;
-			offset?: number;
-			fields?: (keyof T)[];
-			tenantId?: string | null | null;
-			bypassTenantCheck?: boolean;
-		}
-	): Promise<DatabaseResult<T[]>> {
-		return this.core.wrap(async () => {
-			const secureQuery = safeQuery(query, options?.tenantId, { bypassTenantCheck: options?.bypassTenantCheck });
-			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as
-				| import('drizzle-orm').SQL
-				| undefined;
-			let q = this.db
-				.select()
-				.from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
-				.where(where)
-				.$dynamic();
-			if (options?.limit) {
-				q = q.limit(options.limit);
-			}
-			if (options?.offset) {
-				q = q.offset(options.offset);
-			}
-			const results = await q;
-			return utils.convertArrayDatesToISO(results as Record<string, unknown>[]).map((row) => this.unpackData(row)) as unknown as T[];
-		}, 'CRUD_FIND_MANY_FAILED');
-	}
+          const results = await prepared.all({ id: secureQuery._id });
+          const data =
+            results.length === 0
+              ? null
+              : (utils.convertDatesToISO(results[0] as Record<string, unknown>) as T);
+          return data;
+        }
 
-	async findByIds<T extends BaseEntity>(
-		collection: string,
-		ids: DatabaseId[],
-		options?: { fields?: (keyof T)[]; tenantId?: string | null | null; bypassTenantCheck?: boolean }
-	): Promise<DatabaseResult<T[]>> {
-		return this.core.wrap(async () => {
-			const query = safeQuery({ _id: { $in: ids } } as unknown as QueryFilter<T>, options?.tenantId, {
-				bypassTenantCheck: options?.bypassTenantCheck
-			});
-			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, query as Record<string, unknown>) as
-				| import('drizzle-orm').SQL
-				| undefined;
-			const results = await this.db
-				.select()
-				.from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
-				.where(where);
-			return utils.convertArrayDatesToISO(results as Record<string, unknown>[]).map((row) => this.unpackData(row)) as unknown as T[];
-		}, 'CRUD_FIND_BY_IDS_FAILED');
-	}
+        const table = this.core.getTable(collection);
+        const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
+          | import("drizzle-orm").SQL
+          | undefined;
+        const results = await this.db
+          .select()
+          .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .where(where)
+          .limit(1);
 
-	async insert<T extends BaseEntity>(
-		collection: string,
-		data: EntityCreate<T>,
-		tenantId?: string | null | null,
-		_bypassTenantCheck?: boolean
-	): Promise<DatabaseResult<T>> {
-		return this.core.wrap(async () => {
-			const table = this.core.getTable(collection);
-			const id = (data as Partial<T>)._id || (utils.generateId() as DatabaseId);
-			const now = isoDateStringToDate(nowISODateString());
-			const packed = this.packData(table as unknown as Record<string, unknown>, {
-				...(data as unknown as Record<string, unknown>),
-				_id: id,
-				tenantId: tenantId || (data as Partial<T>).tenantId,
-				createdAt: now,
-				updatedAt: now
-			});
+        const data =
+          results.length === 0
+            ? null
+            : (utils.convertDatesToISO(results[0] as Record<string, unknown>) as T);
+        return data;
+      }, "CRUD_FIND_ONE_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
 
-			await this.db.insert(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).values(packed as unknown as Record<string, unknown>);
+  async findMany<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options: FindOptions<T> = {},
+  ): Promise<DatabaseResult<T[]>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        const secureQuery = safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+          includeDeleted: options.includeDeleted,
+        });
+        const table = this.core.getTable(collection);
+        const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
+          | import("drizzle-orm").SQL
+          | undefined;
+        let q = this.db
+          .select()
+          .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .where(where)
+          .$dynamic();
+        if (options.limit) {
+          q = q.limit(options.limit);
+        }
+        if (options.offset) {
+          q = q.offset(options.offset);
+        }
+        const results = await q;
+        return utils.convertArrayDatesToISO(results as Record<string, unknown>[]) as T[];
+      }, "CRUD_FIND_MANY_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
 
-			const result = await this.db
-				.select()
-				.from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
-				.where(eq((table as unknown as { _id: import('drizzle-orm/sqlite-core').SQLiteColumn })._id, id as string))
-				.limit(1);
-			const row = utils.convertDatesToISO(result[0] as Record<string, unknown>);
-			return this.unpackData(row) as unknown as T;
-		}, 'CRUD_INSERT_FAILED');
-	}
+  async findByIds<T extends BaseEntity>(
+    collection: string,
+    ids: DatabaseId[],
+    options: FindOptions<T> = {},
+  ): Promise<DatabaseResult<T[]>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        const query = safeQuery(
+          { _id: { $in: ids } } as unknown as QueryFilter<T>,
+          options.tenantId as string,
+          {
+            bypassTenantCheck: options.bypassTenantCheck,
+            includeDeleted: options.includeDeleted,
+          },
+        );
+        const table = this.core.getTable(collection);
+        const where = this.core.mapQuery(table, query as Record<string, unknown>) as
+          | import("drizzle-orm").SQL
+          | undefined;
+        const results = await this.db
+          .select()
+          .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .where(where);
+        return utils.convertArrayDatesToISO(results as Record<string, unknown>[]) as T[];
+      }, "CRUD_FIND_BY_IDS_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
 
-	async update<T extends BaseEntity>(
-		collection: string,
-		id: DatabaseId,
-		data: EntityUpdate<T>,
-		tenantId?: string | null | null,
-		bypassTenantCheck?: boolean
-	): Promise<DatabaseResult<T>> {
-		return this.core.wrap(async () => {
-			const query = safeQuery({ _id: id } as unknown as QueryFilter<T>, tenantId, { bypassTenantCheck });
-			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, query as Record<string, unknown>) as
-				| import('drizzle-orm').SQL
-				| undefined;
-			const now = isoDateStringToDate(nowISODateString());
-			const packed = this.packData(table as unknown as Record<string, unknown>, { ...(data as unknown as Record<string, unknown>), updatedAt: now });
+  async insert<T extends BaseEntity>(
+    collection: string,
+    data: EntityCreate<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        const table = this.core.getTable(collection);
+        const id = (data as Partial<T>)._id || (utils.generateId() as DatabaseId);
+        const now = new Date(nowISODateString());
+        const values = utils.convertISOToDates({
+          ...data,
+          _id: id,
+          tenantId: options.tenantId || (data as any).tenantId,
+          createdAt: now,
+          updatedAt: now,
+        } as Record<string, unknown>);
 
-			await this.db
-				.update(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
-				.set(packed as unknown as Record<string, unknown>)
-				.where(where);
+        await this.db
+          .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .values(values as any);
 
-			const result = await this.db
-				.select()
-				.from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
-				.where(where)
-				.limit(1);
-			const row = utils.convertDatesToISO(result[0] as Record<string, unknown>);
-			return this.unpackData(row) as unknown as T;
-		}, 'CRUD_UPDATE_FAILED');
-	}
+        // Reuse the findOne prepared statement for the result
+        const findCacheKey = `findOne:${collection}`;
+        let findPrepared = this.preparedStatements.get(findCacheKey);
+        if (!findPrepared) {
+          findPrepared = this.db
+            .select()
+            .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+            .where(eq((table as any)._id, placeholder("id")))
+            .prepare();
+          this.preparedStatements.set(findCacheKey, findPrepared);
+        }
+        const [result] = await findPrepared.all({ id: id as string });
 
-	async delete(collection: string, id: DatabaseId, tenantId?: string | null | null, bypassTenantCheck?: boolean): Promise<DatabaseResult<void>> {
-		return this.core.wrap(async () => {
-			const query = safeQuery({ _id: id } as unknown as QueryFilter<BaseEntity>, tenantId, {
-				bypassTenantCheck
-			});
-			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, query as Record<string, unknown>) as
-				| import('drizzle-orm').SQL
-				| undefined;
-			await this.db.delete(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).where(where);
-		}, 'CRUD_DELETE_FAILED');
-	}
+        return utils.convertDatesToISO(result as Record<string, unknown>) as T;
+      }, "CRUD_INSERT_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
 
-	async upsert<T extends BaseEntity>(
-		collection: string,
-		query: QueryFilter<T>,
-		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>,
-		tenantId?: string | null | null,
-		bypassTenantCheck?: boolean
-	): Promise<DatabaseResult<T>> {
-		return this.core.wrap(async () => {
-			const secureQuery = safeQuery(query, tenantId, {
-				bypassTenantCheck
-			});
-			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as
-				| import('drizzle-orm').SQL
-				| undefined;
-			const existing = await this.db
-				.select()
-				.from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
-				.where(where)
-				.limit(1);
-			if (existing.length > 0) {
-				const res = await this.update<T>(
-					collection,
-					(existing[0] as unknown as { _id: string })._id as unknown as DatabaseId,
-					data as Partial<T>,
-					tenantId,
-					bypassTenantCheck
-				);
-				if (!res.success) {
-					throw res.error;
-				}
-				return res.data;
-			}
-			const res = await this.insert<T>(collection, data, tenantId, bypassTenantCheck);
-			if (!res.success) {
-				throw res.error;
-			}
-			return res.data;
-		}, 'CRUD_UPSERT_FAILED');
-	}
+  async update<T extends BaseEntity>(
+    collection: string,
+    id: DatabaseId,
+    data: EntityUpdate<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        const secureQuery = safeQuery(
+          { _id: id } as unknown as QueryFilter<T>,
+          options.tenantId as string,
+          {
+            bypassTenantCheck: options.bypassTenantCheck,
+          },
+        );
 
-	async count<T extends BaseEntity>(
-		collection: string,
-		query: QueryFilter<T> = {},
-		tenantId?: string | null | null,
-		bypassTenantCheck?: boolean
-	): Promise<DatabaseResult<number>> {
-		return this.core.wrap(async () => {
-			const secureQuery = safeQuery(query, tenantId, {
-				bypassTenantCheck
-			});
-			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as
-				| import('drizzle-orm').SQL
-				| undefined;
-			const [result] = await this.db
-				.select({ count: count() })
-				.from(table as any)
-				.where(where);
-			return Number((result as { count: number }).count);
-		}, 'CRUD_COUNT_FAILED');
-	}
+        const table = this.core.getTable(collection);
+        const now = new Date(nowISODateString());
+        const updateData = { ...data, updatedAt: now };
+        const values = utils.convertISOToDates(updateData as Record<string, unknown>);
 
-	async exists<T extends BaseEntity>(
-		collection: string,
-		query: QueryFilter<T>,
-		tenantId?: string | null | null,
-		bypassTenantCheck?: boolean
-	): Promise<DatabaseResult<boolean>> {
-		return this.core.wrap(async () => {
-			const res = await this.count(collection, query, tenantId, bypassTenantCheck);
-			if (!res.success) {
-				throw res.error;
-			}
-			return (res.data ?? 0) > 0;
-		}, 'CRUD_EXISTS_FAILED');
-	}
+        // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID updates
+        if (this.isSimpleIdQuery(secureQuery)) {
+          const cacheKey = `update:${collection}`;
+          let prepared = this.preparedStatements.get(cacheKey);
+          if (!prepared) {
+            prepared = this.db
+              .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+              .set(placeholder("data"))
+              .where(eq((table as any)._id, placeholder("id")))
+              .prepare();
+            this.preparedStatements.set(cacheKey, prepared);
+          }
+          await prepared.run({ id: id as string, data: values });
 
-	async insertMany<T extends BaseEntity>(
-		collection: string,
-		data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[],
-		tenantId?: string | null | null,
-		_bypassTenantCheck?: boolean
-	): Promise<DatabaseResult<T[]>> {
-		return this.core.wrap(async () => {
-			if (data.length === 0) {
-				return [];
-			}
-			const table = this.core.getTable(collection);
-			const now = isoDateStringToDate(nowISODateString());
-			const values = data.map((d) => {
-				const id = (d as Partial<T>)._id || (utils.generateId() as DatabaseId);
-				return this.packData(table as unknown as Record<string, unknown>, {
-					...(d as unknown as Record<string, unknown>),
-					_id: id,
-					tenantId: tenantId || (d as Partial<T>).tenantId,
-					createdAt: now,
-					updatedAt: now
-				});
-			});
+          // Reuse the findOne prepared statement
+          const findCacheKey = `findOne:${collection}`;
+          let findPrepared = this.preparedStatements.get(findCacheKey);
+          if (!findPrepared) {
+            findPrepared = this.db
+              .select()
+              .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+              .where(eq((table as any)._id, placeholder("id")))
+              .prepare();
+            this.preparedStatements.set(findCacheKey, findPrepared);
+          }
+          const [result] = await findPrepared.all({ id: id as string });
+          return utils.convertDatesToISO(result as Record<string, unknown>) as T;
+        }
 
-			await this.db.insert(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable).values(values as unknown as Record<string, unknown>[]);
+        const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
+          | import("drizzle-orm").SQL
+          | undefined;
 
-			const ids = values.map((v) => v._id as string);
-			const results = await this.db
-				.select()
-				.from(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
-				.where(inArray((table as unknown as { _id: import('drizzle-orm/sqlite-core').SQLiteColumn })._id, ids));
-			return utils.convertArrayDatesToISO(results as Record<string, unknown>[]).map((row) => this.unpackData(row)) as unknown as T[];
-		}, 'CRUD_INSERT_MANY_FAILED');
-	}
+        await this.db
+          .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .set(values as Record<string, unknown>)
+          .where(where);
 
-	async updateMany<T extends BaseEntity>(
-		collection: string,
-		query: QueryFilter<T>,
-		data: EntityUpdate<T>,
-		tenantId?: string | null | null,
-		bypassTenantCheck?: boolean
-	): Promise<DatabaseResult<{ modifiedCount: number }>> {
-		return this.core.wrap(async () => {
-			const secureQuery = safeQuery(query, tenantId, {
-				bypassTenantCheck
-			});
-			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as
-				| import('drizzle-orm').SQL
-				| undefined;
-			const now = nowISODateString();
-			const result = await this.db
-				.update(table as unknown as import('drizzle-orm/sqlite-core').SQLiteTable)
-				.set({ ...data, updatedAt: now } as unknown as Record<string, unknown>)
-				.where(where);
-			return { modifiedCount: (result as unknown as { changes: number }).changes };
-		}, 'CRUD_UPDATE_MANY_FAILED');
-	}
+        const [result] = await this.db
+          .select()
+          .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .where(where)
+          .limit(1);
+        return utils.convertDatesToISO(result as Record<string, unknown>) as T;
+      }, "CRUD_UPDATE_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
 
-	async deleteMany(
-		collection: string,
-		query: QueryFilter<BaseEntity>,
-		tenantId?: string | null | null,
-		bypassTenantCheck?: boolean
-	): Promise<DatabaseResult<{ deletedCount: number }>> {
-		return this.core.wrap(async () => {
-			const secureQuery = safeQuery(query, tenantId, {
-				bypassTenantCheck
-			});
-			const table = this.core.getTable(collection);
-			const where = this.core.mapQuery(table as unknown as Record<string, unknown>, secureQuery as Record<string, unknown>) as
-				| import('drizzle-orm').SQL
-				| undefined;
-			const result = await this.db.delete(table as any).where(where);
-			return { deletedCount: (result as unknown as { changes: number }).changes };
-		}, 'CRUD_DELETE_MANY_FAILED');
-	}
+  async delete(
+    collection: string,
+    id: DatabaseId,
+    options: BaseQueryOptions & { permanent?: boolean; userId?: DatabaseId } = {},
+  ): Promise<DatabaseResult<void>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        const query = safeQuery(
+          { _id: id } as unknown as QueryFilter<BaseEntity>,
+          options.tenantId as string,
+          {
+            bypassTenantCheck: options.bypassTenantCheck,
+          },
+        );
 
-	async upsertMany<T extends BaseEntity>(
-		collection: string,
-		items: Array<{
-			query: QueryFilter<T>;
-			data: EntityCreate<T>;
-		}>,
-		tenantId?: string | null | null,
-		bypassTenantCheck?: boolean
-	): Promise<DatabaseResult<{ upsertedCount: number; modifiedCount: number }>> {
-		return this.core.wrap(async () => {
-			let upsertedCount = 0;
-			let modifiedCount = 0;
-			for (const item of items) {
-				const existing = await this.findOne(collection, item.query, {
-					tenantId,
-					bypassTenantCheck
-				});
-				if (existing.success && existing.data) {
-					await this.update(collection, existing.data._id, item.data as Partial<T>, tenantId, bypassTenantCheck);
-					modifiedCount++;
-				} else {
-					await this.insert(collection, item.data, tenantId, bypassTenantCheck);
-					upsertedCount++;
-				}
-			}
-			return { upsertedCount, modifiedCount };
-		}, 'CRUD_UPSERT_MANY_FAILED');
-	}
+        // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID deletes
+        if (this.isSimpleIdQuery(query)) {
+          const table = this.core.getTable(collection);
+          const cacheKey = `delete:${collection}`;
+          let prepared = this.preparedStatements.get(cacheKey);
+          if (!prepared) {
+            prepared = this.db
+              .delete(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+              .where(eq((table as any)._id, placeholder("id")))
+              .prepare();
+            this.preparedStatements.set(cacheKey, prepared);
+          }
+          await prepared.run({ id: id as string });
+          return;
+        }
 
-	async aggregate<R = any>(
-		_collection: string,
-		_pipeline: any[],
-		_tenantId?: string | null | null,
-		_bypassTenantCheck?: boolean
-	): Promise<DatabaseResult<R[]>> {
-		return this.core.notImplemented('crud.aggregate');
-	}
+        const table = this.core.getTable(collection);
+        const where = this.core.mapQuery(table, query as Record<string, unknown>) as
+          | import("drizzle-orm").SQL
+          | undefined;
+        await this.db
+          .delete(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .where(where);
+      }, "CRUD_DELETE_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
+
+  async restore(
+    collection: string,
+    _id: DatabaseId,
+    _options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<void>> {
+    return this.core.notImplemented(`crud.restore for ${collection}`);
+  }
+
+  async upsert<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    data: EntityCreate<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        const secureQuery = safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+        });
+        const table = this.core.getTable(collection);
+        const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
+          | import("drizzle-orm").SQL
+          | undefined;
+        const existing = await this.db
+          .select()
+          .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .where(where)
+          .limit(1);
+
+        if (existing.length > 0) {
+          const res = await this.update<T>(
+            collection,
+            (existing[0] as any)._id as unknown as DatabaseId,
+            data as Partial<T>,
+            options,
+          );
+          if (!res.success) {
+            throw res.error;
+          }
+          return res.data;
+        }
+        const res = await this.insert<T>(collection, data, options);
+        if (!res.success) {
+          throw res.error;
+        }
+        return res.data;
+      }, "CRUD_UPSERT_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
+
+  async count<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T> = {},
+    options: BaseQueryOptions & { includeDeleted?: boolean } = {},
+  ): Promise<DatabaseResult<number>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        const secureQuery = safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+          includeDeleted: options.includeDeleted,
+        });
+        const table = this.core.getTable(collection);
+        const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
+          | import("drizzle-orm").SQL
+          | undefined;
+        const [result] = await this.db
+          .select({ count: count() })
+          .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .where(where);
+        return Number((result as any).count);
+      }, "CRUD_COUNT_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
+
+  async exists<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options: BaseQueryOptions & { includeDeleted?: boolean } = {},
+  ): Promise<DatabaseResult<boolean>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        const res = await this.count(collection, query, options);
+        if (!res.success) {
+          throw res.error;
+        }
+        return (res.data ?? 0) > 0;
+      }, "CRUD_EXISTS_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
+
+  async insertMany<T extends BaseEntity>(
+    collection: string,
+    data: EntityCreate<T>[],
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T[]>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        if (data.length === 0) {
+          return [];
+        }
+        const table = this.core.getTable(collection);
+        const now = new Date(nowISODateString());
+        const values = data.map((d) =>
+          utils.convertISOToDates({
+            ...d,
+            _id: (d as any)._id || (utils.generateId() as DatabaseId),
+            tenantId: options.tenantId || (d as any).tenantId,
+            createdAt: now,
+            updatedAt: now,
+          } as Record<string, unknown>),
+        );
+        await this.db
+          .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .values(values as Record<string, unknown>[]);
+
+        const ids = values.map((v) => v._id as string);
+        const results = await this.db
+          .select()
+          .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .where(inArray((table as any)._id, ids));
+        return utils
+          .convertArrayDatesToISO(results as Record<string, unknown>[])
+          .map((row) => row) as unknown as T[];
+      }, "CRUD_INSERT_MANY_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
+
+  async updateMany<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    data: EntityUpdate<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<{ modifiedCount: number }>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        const table = this.core.getTable(collection);
+        const secureQuery = safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+        });
+        const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
+          | import("drizzle-orm").SQL
+          | undefined;
+        const now = new Date(nowISODateString());
+        const values = utils.convertISOToDates({ ...data, updatedAt: now } as Record<
+          string,
+          unknown
+        >);
+        const result = await this.db
+          .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .set(values as Record<string, unknown>)
+          .where(where);
+        return { modifiedCount: (result as any).changes };
+      }, "CRUD_UPDATE_MANY_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
+
+  async deleteMany<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options: BaseQueryOptions & { permanent?: boolean; userId?: DatabaseId } = {},
+  ): Promise<DatabaseResult<{ deletedCount: number }>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        const table = this.core.getTable(collection);
+        const secureQuery = safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+        });
+        const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
+          | import("drizzle-orm").SQL
+          | undefined;
+        const result = await this.db
+          .delete(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .where(where);
+        return { deletedCount: (result as any).changes };
+      }, "CRUD_DELETE_MANY_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
+
+  async upsertMany<T extends BaseEntity>(
+    collection: string,
+    items: Array<{
+      query: QueryFilter<T>;
+      data: EntityCreate<T>;
+    }>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<{ upsertedCount: number; modifiedCount: number }>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        let upsertedCount = 0;
+        let modifiedCount = 0;
+        for (const item of items) {
+          const existing = await this.findOne(collection, item.query, options);
+          if (existing.success && existing.data) {
+            await this.update(
+              collection,
+              (existing.data as any)._id,
+              item.data as Partial<T>,
+              options,
+            );
+            modifiedCount++;
+          } else {
+            await this.insert(collection, item.data, options);
+            upsertedCount++;
+          }
+        }
+        return { upsertedCount, modifiedCount };
+      }, "CRUD_UPSERT_MANY_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
+
+  async aggregate<R>(
+    collection: string,
+    _pipeline: unknown[],
+    _options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<R[]>> {
+    return this.core.notImplemented(`crud.aggregate for ${collection}`);
+  }
 }

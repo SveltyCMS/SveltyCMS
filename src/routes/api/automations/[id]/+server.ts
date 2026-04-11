@@ -8,49 +8,111 @@
  * - DELETE: Delete an automation flow
  */
 
-import { automationService } from '@src/services/automation/automation-service';
-import type { AutomationFlow } from '@src/services/automation/types';
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { automationService } from "@src/services/automation/automation-service";
+import type { AutomationFlow } from "@src/services/automation/types";
+import { getPrivateSettingSync } from "@src/services/settings-service";
+import { json } from "@sveltejs/kit";
+import { apiHandler } from "@utils/api-handler";
+import { AppError } from "@utils/error-handling";
+import { logger } from "@utils/logger.server";
 
-/** GET /api/automations/:id — Get a single flow */
-export const GET: RequestHandler = async ({ params }) => {
-	try {
-		const flow = await automationService.getFlow(params.id);
-		if (!flow) {
-			return json({ success: false, error: 'Automation not found' }, { status: 404 });
-		}
-		return json({ success: true, data: flow });
-	} catch (err) {
-		const message = err instanceof Error ? err.message : 'Failed to load automation';
-		return json({ success: false, error: message }, { status: 500 });
-	}
-};
+/** GET /api/automations/:id — Get a single flow for the current tenant */
+export const GET = apiHandler(async ({ params, locals }) => {
+  const userRole = locals.user?.role;
+  const isSuperAdmin = userRole === "super-admin";
+  const isAdmin = userRole === "admin" || isSuperAdmin;
 
-/** PATCH /api/automations/:id — Update a flow */
-export const PATCH: RequestHandler = async ({ params, request }) => {
-	try {
-		const existing = await automationService.getFlow(params.id);
-		if (!existing) {
-			return json({ success: false, error: 'Automation not found' }, { status: 404 });
-		}
+  if (!locals.user || (!isAdmin && !isSuperAdmin)) {
+    throw new AppError("Unauthorized", 403, "FORBIDDEN");
+  }
 
-		const body = (await request.json()) as Partial<AutomationFlow>;
-		const flow = await automationService.saveFlow({ ...body, id: params.id });
-		return json({ success: true, data: flow });
-	} catch (err) {
-		const message = err instanceof Error ? err.message : 'Failed to update automation';
-		return json({ success: false, error: message }, { status: 500 });
-	}
-};
+  const tenantId = locals.tenantId || "";
+  if (getPrivateSettingSync("MULTI_TENANT") && !tenantId) {
+    throw new AppError("Tenant ID required", 403, "TENANT_REQUIRED");
+  }
 
-/** DELETE /api/automations/:id — Delete a flow */
-export const DELETE: RequestHandler = async ({ params }) => {
-	try {
-		await automationService.deleteFlow(params.id);
-		return json({ success: true, message: 'Automation deleted' });
-	} catch (err) {
-		const message = err instanceof Error ? err.message : 'Failed to delete automation';
-		return json({ success: false, error: message }, { status: 500 });
-	}
-};
+  try {
+    const flow = await automationService.getFlow(params.id, tenantId);
+    if (!flow) {
+      throw new AppError("Automation not found", 404, "NOT_FOUND");
+    }
+    return json({ success: true, data: flow });
+  } catch (error) {
+    logger.error(`Failed to load automation ${params.id} for tenant ${tenantId}:`, error);
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError("Internal Server Error", 500, "AUTOMATION_LOAD_FAILED");
+  }
+});
+
+/** PATCH /api/automations/:id — Update a flow (tenant-scoped) */
+export const PATCH = apiHandler(async ({ params, request, locals }) => {
+  const userRole = locals.user?.role;
+  const isSuperAdmin = userRole === "super-admin";
+  const isAdmin = userRole === "admin" || isSuperAdmin;
+
+  if (!locals.user || (!isAdmin && !isSuperAdmin)) {
+    throw new AppError("Unauthorized", 403, "FORBIDDEN");
+  }
+
+  const tenantId = locals.tenantId || "";
+  if (getPrivateSettingSync("MULTI_TENANT") && !tenantId) {
+    throw new AppError("Tenant ID required", 403, "TENANT_REQUIRED");
+  }
+
+  try {
+    const existing = await automationService.getFlow(params.id, tenantId);
+    if (!existing) {
+      throw new AppError("Automation not found", 404, "NOT_FOUND");
+    }
+
+    const body = (await request.json()) as Partial<AutomationFlow>;
+    const flow = await automationService.saveFlow({ ...body, id: params.id }, tenantId);
+    logger.info(
+      `Automation updated: ${flow.name} (${flow.id}) for tenant ${tenantId} by ${locals.user.email}`,
+    );
+
+    return json({ success: true, data: flow });
+  } catch (error) {
+    logger.error(`Failed to update automation ${params.id} for tenant ${tenantId}:`, error);
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError("Internal Server Error", 500, "AUTOMATION_UPDATE_FAILED");
+  }
+});
+
+/** DELETE /api/automations/:id — Delete a flow (tenant-scoped) */
+export const DELETE = apiHandler(async ({ params, locals }) => {
+  const userRole = locals.user?.role;
+  const isSuperAdmin = userRole === "super-admin";
+  const isAdmin = userRole === "admin" || isSuperAdmin;
+
+  if (!locals.user || (!isAdmin && !isSuperAdmin)) {
+    throw new AppError("Unauthorized", 403, "FORBIDDEN");
+  }
+
+  const tenantId = locals.tenantId || "";
+  if (getPrivateSettingSync("MULTI_TENANT") && !tenantId) {
+    throw new AppError("Tenant ID required", 403, "TENANT_REQUIRED");
+  }
+
+  try {
+    const existing = await automationService.getFlow(params.id, tenantId);
+    if (!existing) {
+      throw new AppError("Automation not found", 404, "NOT_FOUND");
+    }
+
+    await automationService.deleteFlow(params.id, tenantId);
+    logger.info(`Automation deleted: ${params.id} for tenant ${tenantId} by ${locals.user.email}`);
+
+    return json({ success: true, message: "Automation deleted" });
+  } catch (error) {
+    logger.error(`Failed to delete automation ${params.id} for tenant ${tenantId}:`, error);
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError("Internal Server Error", 500, "AUTOMATION_DELETE_FAILED");
+  }
+});

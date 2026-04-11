@@ -19,11 +19,11 @@ Features:
 - Real-time data updates
 -->
 <script lang="ts" module>
-	export const widgetMeta = {
-		name: 'Online Users',
-		icon: 'mdi:account-multiple-outline',
-		defaultSize: { w: 1, h: 2 }
-	};
+export const widgetMeta = {
+	name: "Online Users",
+	icon: "mdi:account-multiple-outline",
+	defaultSize: { w: 1, h: 2 },
+};
 </script>
 
 <script lang="ts">

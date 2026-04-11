@@ -1,18 +1,18 @@
 ---
-path: /docs/architecture/globalLoadingStore
-title: Global Loading Store
-description: Enterprise-grade loading state management with SSR safety, auto-timeout protection, and contextual loading operations for SveltyCMS
+path: "docs/architecture/global-loading-store.mdx"
+title: "Global Loading Store"
+description: "Enterprise-grade loading state management with SSR safety, auto-timeout protection, and contextual loading operations for SveltyCMS"
 order: 52
-icon: mdi:loading
-author: admin
-created: 2025-01-20
-updated: 2025-01-20
+icon: "mdi:loading"
+author: "SveltyCMS Team"
+created: "2025-01-20"
+updated: "2026-03-27"
 tags:
-  - architecture
-  - loading
-  - state-management
-  - ssr
-  - svelte5
+  - "architecture"
+  - "loading"
+  - "state-management"
+  - "ssr"
+  - "svelte5"
 ---
 
 # Global Loading Store
@@ -39,18 +39,18 @@ The loading system consists of two core components:
 
 ```typescript
 export const loadingOperations = {
-	navigation: 'navigation', // Page navigation
-	dataFetch: 'dataFetch', // General data fetching
-	authentication: 'authentication', // Login/logout operations
-	initialization: 'initialization', // App/component initialization
-	imageUpload: 'imageUpload', // Media upload operations
-	formSubmission: 'formSubmission', // Form POST operations
-	configSave: 'configSave', // System configuration updates
-	roleManagement: 'roleManagement', // Role CRUD operations
-	permissionUpdate: 'permissionUpdate', // Permission matrix updates
-	tokenGeneration: 'tokenGeneration', // API token generation
-	collectionLoad: 'collectionLoad', // Collection data loading
-	widgetInit: 'widgetInit' // Widget initialization
+  navigation: "navigation", // Page navigation
+  dataFetch: "dataFetch", // General data fetching
+  authentication: "authentication", // Login/logout operations
+  initialization: "initialization", // App/component initialization
+  imageUpload: "imageUpload", // Media upload operations
+  formSubmission: "formSubmission", // Form POST operations
+  configSave: "configSave", // System configuration updates
+  roleManagement: "roleManagement", // Role CRUD operations
+  permissionUpdate: "permissionUpdate", // Permission matrix updates
+  tokenGeneration: "tokenGeneration", // API token generation
+  collectionLoad: "collectionLoad", // Collection data loading
+  widgetInit: "widgetInit", // Widget initialization
 } as const;
 ```
 
@@ -59,13 +59,13 @@ export const loadingOperations = {
 ### Starting/Stopping Loading
 
 ```typescript
-import { globalLoadingStore, loadingOperations } from '$stores/loading-store.svelte';
+import { globalLoadingStore, loadingOperations } from "$stores/loading-store.svelte";
 
 // Start loading with context
 globalLoadingStore.startLoading(
-	loadingOperations.dataFetch,
-	'admin-area.fetchData', // Optional context for debugging
-	5000 // Optional custom timeout (ms)
+  loadingOperations.dataFetch,
+  "admin-area.fetchData", // Optional context for debugging
+  5000, // Optional custom timeout (ms)
 );
 
 // Stop loading
@@ -80,18 +80,18 @@ const isLoading = globalLoadingStore.isLoading;
 The `withLoading()` wrapper provides automatic cleanup with error safety:
 
 ```typescript
-import { globalLoadingStore, loadingOperations } from '$stores/loading-store.svelte';
+import { globalLoadingStore, loadingOperations } from "$stores/loading-store.svelte";
 
 async function fetchRoles() {
-	return await globalLoadingStore.withLoading(
-		async () => {
-			const response = await fetch('/api/roles');
-			if (!response.ok) throw new Error('Failed to fetch roles');
-			return await response.json();
-		},
-		loadingOperations.roleManagement,
-		'Roles.loadData' // Optional context
-	);
+  return await globalLoadingStore.withLoading(
+    async () => {
+      const response = await fetch("/api/roles");
+      if (!response.ok) throw new Error("Failed to fetch roles");
+      return await response.json();
+    },
+    loadingOperations.roleManagement,
+    "Roles.loadData", // Optional context
+  );
 }
 ```
 
@@ -116,24 +116,24 @@ console.log(stats);
 The store uses browser guards to prevent SSR execution:
 
 ```typescript
-import { browser } from '$app/environment';
+import { browser } from "$app/environment";
 
 export const globalLoadingStore = createLoadingStore();
 
 function createLoadingStore() {
-	let loadingEntries = new SvelteMap<string, LoadingEntry>();
-	let isLoading = $state(false);
+  let loadingEntries = new SvelteMap<string, LoadingEntry>();
+  let isLoading = $state(false);
 
-	return {
-		get isLoading() {
-			return isLoading;
-		},
-		startLoading(reason: LoadingReason, context?: string, timeout?: number) {
-			if (!browser) return; // SSR guard
-			// ... implementation
-		}
-		// ...
-	};
+  return {
+    get isLoading() {
+      return isLoading;
+    },
+    startLoading(reason: LoadingReason, context?: string, timeout?: number) {
+      if (!browser) return; // SSR guard
+      // ... implementation
+    },
+    // ...
+  };
 }
 ```
 
@@ -172,8 +172,8 @@ The store uses a `SvelteMap` to track multiple simultaneous operations:
 let loadingEntries = new SvelteMap<string, LoadingEntry>();
 
 // Multiple operations can be active simultaneously
-globalLoadingStore.startLoading(loadingOperations.dataFetch, 'Users');
-globalLoadingStore.startLoading(loadingOperations.roleManagement, 'Roles');
+globalLoadingStore.startLoading(loadingOperations.dataFetch, "Users");
+globalLoadingStore.startLoading(loadingOperations.roleManagement, "Roles");
 
 console.log(globalLoadingStore.getStats());
 // { activeCount: 2, reasons: ['dataFetch', 'roleManagement'] }
@@ -251,10 +251,10 @@ All loading messages use ParaglideJS for i18n:
 
 ```json
 {
-	"loading_navigation_top": "Navigating",
-	"loading_navigation_bottom": "Loading page...",
-	"loading_configSave_top": "Saving Configuration",
-	"loading_configSave_bottom": "Updating system settings..."
+  "loading_navigation_top": "Navigating",
+  "loading_navigation_bottom": "Loading page...",
+  "loading_configSave_top": "Saving Configuration",
+  "loading_configSave_bottom": "Updating system settings..."
 }
 ```
 
@@ -262,10 +262,10 @@ All loading messages use ParaglideJS for i18n:
 
 ```json
 {
-	"loading_navigation_top": "Navigiere",
-	"loading_navigation_bottom": "Seite wird geladen...",
-	"loading_configSave_top": "Konfiguration wird gespeichert",
-	"loading_configSave_bottom": "Systemeinstellungen werden aktualisiert..."
+  "loading_navigation_top": "Navigiere",
+  "loading_navigation_bottom": "Seite wird geladen...",
+  "loading_configSave_top": "Konfiguration wird gespeichert",
+  "loading_configSave_bottom": "Systemeinstellungen werden aktualisiert..."
 }
 ```
 
@@ -275,15 +275,15 @@ All loading messages use ParaglideJS for i18n:
 
 ```typescript
 async function loadRoles() {
-	roles = await globalLoadingStore.withLoading(
-		async () => {
-			const res = await fetch('/api/roles');
-			if (!res.ok) throw new Error('Failed to fetch roles');
-			return await res.json();
-		},
-		loadingOperations.roleManagement,
-		'admin-role.loadRoles'
-	);
+  roles = await globalLoadingStore.withLoading(
+    async () => {
+      const res = await fetch("/api/roles");
+      if (!res.ok) throw new Error("Failed to fetch roles");
+      return await res.json();
+    },
+    loadingOperations.roleManagement,
+    "admin-role.loadRoles",
+  );
 }
 ```
 
@@ -291,18 +291,18 @@ async function loadRoles() {
 
 ```typescript
 async function saveAllChanges() {
-	await globalLoadingStore.withLoading(
-		async () => {
-			const response = await fetch('/api/config/access-management', {
-				method: 'POST',
-				body: JSON.stringify(allChanges)
-			});
-			if (!response.ok) throw new Error('Save failed');
-			invalidateAll(); // SvelteKit cache invalidation
-		},
-		loadingOperations.configSave,
-		'AccessManagement.saveAll'
-	);
+  await globalLoadingStore.withLoading(
+    async () => {
+      const response = await fetch("/api/config/access-management", {
+        method: "POST",
+        body: JSON.stringify(allChanges),
+      });
+      if (!response.ok) throw new Error("Save failed");
+      invalidateAll(); // SvelteKit cache invalidation
+    },
+    loadingOperations.configSave,
+    "AccessManagement.saveAll",
+  );
 }
 ```
 
@@ -310,15 +310,15 @@ async function saveAllChanges() {
 
 ```typescript
 async function fetchTokens() {
-	const data = await globalLoadingStore.withLoading(
-		async () => {
-			const res = await fetch('/api/tokens');
-			return await res.json();
-		},
-		loadingOperations.tokenGeneration,
-		'website-tokens.fetch'
-	);
-	tokens = data.tokens;
+  const data = await globalLoadingStore.withLoading(
+    async () => {
+      const res = await fetch("/api/tokens");
+      return await res.json();
+    },
+    loadingOperations.tokenGeneration,
+    "website-tokens.fetch",
+  );
+  tokens = data.tokens;
 }
 ```
 
@@ -367,7 +367,7 @@ The global loading store is designed for **user-initiated actions** and **page-l
 ```typescript
 // Check what's active
 const stats = globalLoadingStore.getStats();
-console.log('Active operations:', stats);
+console.log("Active operations:", stats);
 
 // Manual cleanup (emergency only)
 globalLoadingStore.stopLoading(loadingOperations.dataFetch);
@@ -378,11 +378,11 @@ globalLoadingStore.stopLoading(loadingOperations.dataFetch);
 Ensure all loading operations are inside `onMount` or event handlers:
 
 ```typescript
-import { onMount } from 'svelte';
+import { onMount } from "svelte";
 
 onMount(() => {
-	// Safe - runs client-side only
-	globalLoadingStore.startLoading(loadingOperations.initialization);
+  // Safe - runs client-side only
+  globalLoadingStore.startLoading(loadingOperations.initialization);
 });
 ```
 
@@ -393,16 +393,16 @@ Remember timeout is the **third** parameter:
 ```typescript
 // ✅ Correct
 await globalLoadingStore.withLoading(
-	asyncFn,
-	loadingOperations.dataFetch,
-	'context' // Optional but must be provided if using timeout
+  asyncFn,
+  loadingOperations.dataFetch,
+  "context", // Optional but must be provided if using timeout
 );
 
 // With custom timeout
 globalLoadingStore.startLoading(
-	loadingOperations.dataFetch,
-	'MyComponent.load',
-	60000 // 60 seconds
+  loadingOperations.dataFetch,
+  "MyComponent.load",
+  60000, // 60 seconds
 );
 ```
 

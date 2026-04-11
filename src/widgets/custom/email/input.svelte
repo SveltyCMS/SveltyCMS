@@ -132,7 +132,7 @@
 			if (!value || typeof value !== 'object') {
 				value = {};
 			}
-			value = { ...(value || {}), [LANGUAGE]: sanitized };
+			value = { ...value, [LANGUAGE]: sanitized };
 		} else {
 			value = sanitized;
 		}

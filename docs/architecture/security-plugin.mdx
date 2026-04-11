@@ -1,20 +1,20 @@
 ---
-path: 'docs/architecture/security-plugin.mdx'
-title: 'Enterprise Security Architecture'
-description: 'Comprehensive security system with runtime threat detection, automated response, and nonce-based CSP for enterprise-grade protection.'
+path: "docs/architecture/security-plugin.mdx"
+title: "Enterprise Security Architecture"
+description: "Comprehensive security system with runtime threat detection, automated response, and nonce-based CSP for enterprise-grade protection."
 order: 4
-icon: 'mdi:shield-check'
-author: 'enterprise-team'
-created: '2025-10-12'
-updated: '2025-10-17'
+icon: "mdi:shield-check"
+author: "SveltyCMS Team"
+created: "2025-10-12"
+updated: "2026-03-27"
 tags:
-  - 'security'
-  - 'csp'
-  - 'threat-detection'
-  - 'xss-prevention'
-  - 'enterprise'
-  - 'automated-response'
-  - 'real-time-monitoring'
+  - "security"
+  - "csp"
+  - "threat-detection"
+  - "xss-prevention"
+  - "enterprise"
+  - "automated-response"
+  - "real-time-monitoring"
 ---
 
 # Enterprise Security Architecture
@@ -44,47 +44,30 @@ SveltyCMS implements a **multi-layered, enterprise-grade security system** that 
 
 ```typescript
 export class SecurityResponseService {
-	private threats: Map<string, ThreatProfile> = new Map();
-	private blockedIPs: Set<string> = new Set();
-	private rateLimits: Map<string, RateLimit> = new Map();
+  // Centralized security analysis
+  public async analyzeRequest(request: Request, clientIp: string): Promise<SecurityStatus> {
+    // 1. IP Block check (Persistent Redis state)
+    if (await securityStore.isBlocked(clientIp)) return { level: "critical", action: "block" };
 
-	async analyzeRequest(request: SecurityRequest): Promise<ThreatLevel> {
-		const threats = [
-			this.detectSQLInjection(request),
-			this.detectXSSAttempt(request),
-			this.detectCSRFAttack(request),
-			this.detectBruteForce(request),
-			this.detectAnomalousPatterns(request)
-		];
+    // 2. Rate Limit check (Per-endpoint + Global)
+    const rateLimit = await this.checkRateLimit(clientIp, new URL(request.url).pathname);
+    if (rateLimit.action !== "allow") return rateLimit;
 
-		const maxThreat = Math.max(...threats);
-		return this.classifyThreat(maxThreat);
-	}
+    // 3. Payload pattern analysis (XSS, SQLi, ReDoS-safe)
+    const threatLevel = await this.analyzePayload(request);
 
-	async executeResponse(threatLevel: ThreatLevel, clientIP: string): Promise<void> {
-		switch (threatLevel) {
-			case 'critical':
-				await this.blockIP(clientIP, '24h');
-				await this.alertSecurityTeam(threatLevel, clientIP);
-				break;
-			case 'high':
-				await this.blockIP(clientIP, '1h');
-				await this.increaseSurveillance(clientIP);
-				break;
-			case 'medium':
-				await this.applyRateLimit(clientIP, { requests: 10, window: '1m' });
-				break;
-		}
-	}
+    // 4. Automated Decision Engine
+    return this.mapThreatToResponse(threatLevel, clientIp);
+  }
 }
 ```
 
 **Key Features**:
 
-- **Multi-Vector Threat Detection**: SQL injection, XSS, CSRF, brute force analysis
-- **Dynamic Response**: Automated blocking, rate limiting, and alerting
-- **Threat Correlation**: Pattern recognition across multiple requests
-- **Escalation Management**: Graduated response based on threat severity
+- **Distributed Rate Limiting**: Redis-backed limits for high-availability clusters.
+- **ReDoS-Safe Patterns**: Bounded regex quantifiers and length-capped payload scanning.
+- **Structured Analysis**: Recursive JSON scanning and multipart value inspection.
+- **Multi-Tenant Isolation**: Automated security response scoped by `tenantId`.
 
 ### MetricsService - Security Analytics
 
@@ -93,21 +76,21 @@ export class SecurityResponseService {
 
 ```typescript
 export class MetricsService {
-	// Security-specific metrics
-	incrementSecurityEvent(type: SecurityEventType): void {
-		this.counters.set(`security.${type}`, (this.counters.get(`security.${type}`) || 0) + 1);
-	}
+  // Security-specific metrics
+  incrementSecurityEvent(type: SecurityEventType): void {
+    this.counters.set(`security.${type}`, (this.counters.get(`security.${type}`) || 0) + 1);
+  }
 
-	getSecurityReport(): SecurityMetrics {
-		return {
-			totalThreats: this.counters.get('security.threats_detected') || 0,
-			blockedIPs: this.counters.get('security.ips_blocked') || 0,
-			cspViolations: this.counters.get('security.csp_violations') || 0,
-			authFailures: this.counters.get('security.auth_failures') || 0,
-			threatsByType: this.getThreatsBreakdown(),
-			securityTrends: this.calculateSecurityTrends()
-		};
-	}
+  getSecurityReport(): SecurityMetrics {
+    return {
+      totalThreats: this.counters.get("security.threats_detected") || 0,
+      blockedIPs: this.counters.get("security.ips_blocked") || 0,
+      cspViolations: this.counters.get("security.csp_violations") || 0,
+      authFailures: this.counters.get("security.auth_failures") || 0,
+      threatsByType: this.getThreatsBreakdown(),
+      securityTrends: this.calculateSecurityTrends(),
+    };
+  }
 }
 ```
 
@@ -122,42 +105,45 @@ export class MetricsService {
 
 ```typescript
 export function generateNonce(): string {
-	return crypto.randomUUID().replace(/-/g, '');
+  return crypto.randomUUID().replace(/-/g, "");
 }
 
 export function buildCSP(nonce: string): string {
-	return [
-		"default-src 'self'",
-		`script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
-		`style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`,
-		"object-src 'none'",
-		"base-uri 'self'",
-		"form-action 'self'",
-		"frame-ancestors 'none'",
-		'block-all-mixed-content',
-		`report-uri /api/security/csp-violations`
-	].join('; ');
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    `style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "block-all-mixed-content",
+    `report-uri /api/security/csp-violations`,
+  ].join("; ");
 }
 
 export async function addSecurityHeaders({ event, resolve }) {
-	const response = await resolve(event);
-	const nonce = event.locals.nonce;
+  const response = await resolve(event);
+  const nonce = event.locals.nonce;
 
-	// Apply nonce-based CSP
-	response.headers.set('Content-Security-Policy', buildCSP(nonce));
+  // Apply nonce-based CSP
+  response.headers.set("Content-Security-Policy", buildCSP(nonce));
 
-	// Additional security headers
-	response.headers.set('X-Frame-Options', 'DENY');
-	response.headers.set('X-Content-Type-Options', 'nosniff');
-	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // Additional security headers
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 
-	// HSTS for production
-	if (event.url.protocol === 'https:') {
-		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-	}
+  // HSTS for production
+  if (event.url.protocol === "https:") {
+    response.headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload",
+    );
+  }
 
-	return response;
+  return response;
 }
 ```
 
@@ -175,24 +161,24 @@ export async function addSecurityHeaders({ event, resolve }) {
 
 ```typescript
 export async function POST({ request, getClientAddress }) {
-	const violation = await request.json();
-	const clientIP = getClientAddress();
+  const violation = await request.json();
+  const clientIP = getClientAddress();
 
-	// Analyze violation severity
-	const threatLevel = await securityResponseService.analyzeCSPViolation({
-		violatedDirective: violation['violated-directive'],
-		blockedURI: violation['blocked-uri'],
-		sourceFile: violation['source-file'],
-		clientIP
-	});
+  // Analyze violation severity
+  const threatLevel = await securityResponseService.analyzeCSPViolation({
+    violatedDirective: violation["violated-directive"],
+    blockedURI: violation["blocked-uri"],
+    sourceFile: violation["source-file"],
+    clientIP,
+  });
 
-	// Execute automated response
-	await securityResponseService.executeResponse(threatLevel, clientIP);
+  // Execute automated response
+  await securityResponseService.executeResponse(threatLevel, clientIP);
 
-	// Update security metrics
-	metricsService.incrementSecurityEvent('csp_violation');
+  // Update security metrics
+  metricsService.incrementSecurityEvent("csp_violation");
 
-	return new Response(null, { status: 204 });
+  return new Response(null, { status: 204 });
 }
 ```
 
@@ -221,9 +207,9 @@ SvelteKit's `PRIVATE_` prefix triggers build-time warnings if accidentally impor
 ```typescript
 // Loaded from database at runtime
 const settings = {
-	DB_PASSWORD: 'secret123', // ❌ No compile-time protection!
-	JWT_SECRET_KEY: 'abc...', // ❌ Could leak to browser
-	ENCRYPTION_KEY: 'xyz...' // ❌ Dangerous if imported in .svelte
+  DB_PASSWORD: "secret123", // ❌ No compile-time protection!
+  JWT_SECRET_KEY: "abc...", // ❌ Could leak to browser
+  ENCRYPTION_KEY: "xyz...", // ❌ Dangerous if imported in .svelte
 };
 ```
 
@@ -239,7 +225,7 @@ The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fai
 
    ```typescript
    // ❌ BLOCKED - Exposes ALL private settings to browser!
-   import { privateEnv } from '@src/stores/global-settings';
+   import { privateEnv } from "@src/stores/global-settings";
    console.log(privateEnv.DB_PASSWORD); // Would be visible in browser
    ```
 
@@ -247,14 +233,14 @@ The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fai
 
    ```typescript
    // ❌ BLOCKED - Attempts to access private data on client!
-   import { getPrivateSetting } from '@src/stores/global-settings';
-   const secret = getPrivateSetting('JWT_SECRET_KEY');
+   import { getPrivateSetting } from "@src/stores/global-settings";
+   const secret = getPrivateSetting("JWT_SECRET_KEY");
    ```
 
 3. **`getAllSettings()` in client code**
    ```typescript
    // ❌ BLOCKED - Returns both public AND private settings!
-   import { getAllSettings } from '@src/stores/global-settings';
+   import { getAllSettings } from "@src/stores/global-settings";
    const all = await getAllSettings(); // Includes passwords!
    ```
 
@@ -264,7 +250,7 @@ The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fai
 
    ```typescript
    // ✅ SAFE - Public settings can be used anywhere
-   import { publicEnv, getPublicSetting } from '@src/stores/global-settings';
+   import { publicEnv, getPublicSetting } from "@src/stores/global-settings";
    console.log(publicEnv.SITE_NAME); // Safe for browser
    ```
 
@@ -273,7 +259,7 @@ The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fai
    ```typescript
    // ✅ SAFE - Server-only files can use private settings
    // Files: +page.server.ts, +layout.server.ts, +server.ts, /hooks/, /auth/, /databases/
-   import { privateEnv, getPrivateSetting } from '@src/stores/global-settings';
+   import { privateEnv, getPrivateSetting } from "@src/stores/global-settings";
    const dbPass = privateEnv.DB_PASSWORD; // Never sent to client
    ```
 
@@ -284,11 +270,11 @@ The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fai
 
    // +page.server.ts (server-only)
    export async function load() {
-   	const dbStatus = await checkDatabase(privateEnv.DB_HOST);
-   	return {
-   		isConnected: dbStatus.connected // Only pass safe data
-   		// Never return privateEnv directly!
-   	};
+     const dbStatus = await checkDatabase(privateEnv.DB_HOST);
+     return {
+       isConnected: dbStatus.connected, // Only pass safe data
+       // Never return privateEnv directly!
+     };
    }
 
    // +page.svelte (client)
@@ -301,17 +287,17 @@ The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fai
 The plugin is configured in `vite.config.ts`:
 
 ```typescript
-import { securityCheckPlugin } from './src/utils/vitePluginSecurityCheck';
+import { securityCheckPlugin } from "./src/utils/vitePluginSecurityCheck";
 
 export default defineConfig({
-	plugins: [
-		securityCheckPlugin({
-			failOnError: true, // Fail build on violations (recommended)
-			showWarnings: true, // Show suspicious patterns
-			extensions: ['.svelte', '.ts', '.js'] // Files to check
-		})
-		// ... other plugins
-	]
+  plugins: [
+    securityCheckPlugin({
+      failOnError: true, // Fail build on violations (recommended)
+      showWarnings: true, // Show suspicious patterns
+      extensions: [".svelte", ".ts", ".js"], // Files to check
+    }),
+    // ... other plugins
+  ],
 });
 ```
 
@@ -339,18 +325,18 @@ For client-side files (primarily `.svelte` and client-facing `.ts`), the plugin 
 
 ```typescript
 const DANGEROUS_PATTERNS = [
-	{
-		pattern: /import\s+{[^}]*privateEnv[^}]*}\s+from\s+['"]@src\/stores\/global-settings['"]/g,
-		message: 'SECURITY: Importing privateEnv exposes passwords and secrets!'
-	},
-	{
-		pattern: /getPrivateSetting\s*\(/g,
-		message: 'SECURITY: getPrivateSetting() in client code!'
-	},
-	{
-		pattern: /getAllSettings\s*\(/g,
-		message: 'SECURITY: getAllSettings() exposes private data!'
-	}
+  {
+    pattern: /import\s+{[^}]*privateEnv[^}]*}\s+from\s+['"]@src\/stores\/global-settings['"]/g,
+    message: "SECURITY: Importing privateEnv exposes passwords and secrets!",
+  },
+  {
+    pattern: /getPrivateSetting\s*\(/g,
+    message: "SECURITY: getPrivateSetting() in client code!",
+  },
+  {
+    pattern: /getAllSettings\s*\(/g,
+    message: "SECURITY: getAllSettings() exposes private data!",
+  },
 ];
 ```
 
@@ -456,15 +442,15 @@ Only return the absolute minimum data needed. Never pass entire settings objects
 ```typescript
 // ❌ BAD
 export const load = async () => {
-	return { settings: privateEnv }; // ALL secrets exposed!
+  return { settings: privateEnv }; // ALL secrets exposed!
 };
 
 // ✅ GOOD
 export const load = async () => {
-	return {
-		siteName: publicEnv.SITE_NAME,
-		cacheEnabled: privateEnv.CACHE_ENABLED === 'true'
-	};
+  return {
+    siteName: publicEnv.SITE_NAME,
+    cacheEnabled: privateEnv.CACHE_ENABLED === "true",
+  };
 };
 ```
 
@@ -475,17 +461,17 @@ Use TypeScript to enforce safe data contracts:
 ```typescript
 // src/routes/(app)/admin/types.ts
 export interface SafeAdminData {
-	dbConnected: boolean;
-	cacheStatus: 'enabled' | 'disabled';
-	// No password fields allowed!
+  dbConnected: boolean;
+  cacheStatus: "enabled" | "disabled";
+  // No password fields allowed!
 }
 
 // +page.server.ts
 export const load = async (): Promise<SafeAdminData> => {
-	return {
-		dbConnected: await isDbConnected(),
-		cacheStatus: privateEnv.CACHE_ENABLED === 'true' ? 'enabled' : 'disabled'
-	};
+  return {
+    dbConnected: await isDbConnected(),
+    cacheStatus: privateEnv.CACHE_ENABLED === "true" ? "enabled" : "disabled",
+  };
 };
 ```
 
@@ -522,8 +508,8 @@ If you need to temporarily disable for debugging:
 ```typescript
 // vite.config.ts
 securityCheckPlugin({
-	failOnError: false, // Show warnings but don't fail build
-	showWarnings: true
+  failOnError: false, // Show warnings but don't fail build
+  showWarnings: true,
 });
 ```
 
@@ -531,9 +517,9 @@ securityCheckPlugin({
 
 ## Related Documentation
 
-- [Authentication System](./01-authentication/authentication-system.mdx) - 3-Layer Security Architecture
-- [Settings System](../user-guide/admin-user-management.md) - Managing system settings
-- [Environment Variables](./00-installation/environment-variables.md) - Static vs dynamic settings
+- [Authentication System](./authentication-system.mdx) - 3-Layer Security Architecture
+- [Settings System](./admin-user-management.mdx) - Managing system settings
+- [Environment Variables](./configuration-management.mdx) - Static vs dynamic settings
 - [Server Hooks Architecture](./server-hooks.mdx) - Enterprise middleware pipeline
 
 ---
@@ -614,8 +600,8 @@ securityCheckPlugin({
 ```typescript
 // GET /api/security/metrics
 export async function GET() {
-	const metrics = metricsService.getSecurityReport();
-	return json(metrics);
+  const metrics = metricsService.getSecurityReport();
+  return json(metrics);
 }
 ```
 
@@ -624,12 +610,12 @@ export async function GET() {
 ```typescript
 // POST /api/security/threats/block
 export async function POST({ request }) {
-	const { ip, duration, reason } = await request.json();
+  const { ip, duration, reason } = await request.json();
 
-	await securityResponseService.blockIP(ip, duration);
-	metricsService.incrementSecurityEvent('manual_block');
+  await securityResponseService.blockIP(ip, duration);
+  metricsService.incrementSecurityEvent("manual_block");
 
-	return json({ success: true, message: `IP ${ip} blocked for ${duration}` });
+  return json({ success: true, message: `IP ${ip} blocked for ${duration}` });
 }
 ```
 
@@ -638,21 +624,21 @@ export async function POST({ request }) {
 ```typescript
 // GET /api/security/events (Server-Sent Events)
 export async function GET() {
-	const stream = new ReadableStream({
-		start(controller) {
-			securityResponseService.onSecurityEvent((event) => {
-				controller.enqueue(`data: ${JSON.stringify(event)}\n\n`);
-			});
-		}
-	});
+  const stream = new ReadableStream({
+    start(controller) {
+      securityResponseService.onSecurityEvent((event) => {
+        controller.enqueue(`data: ${JSON.stringify(event)}\n\n`);
+      });
+    },
+  });
 
-	return new Response(stream, {
-		headers: {
-			'Content-Type': 'text/event-stream',
-			'Cache-Control': 'no-cache',
-			Connection: 'keep-alive'
-		}
-	});
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }
 ```
 

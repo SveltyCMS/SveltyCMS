@@ -1,268 +1,240 @@
 /**
  * @file src/routes/api/systemVirtualFolder/[id]/+server.ts
- * @description API endpoint for individual system virtual folder operations
+ * @description API endpoint for individual system virtual folder operations with tenant isolation.
  */
 
-import type { ISODateString } from '@src/content/types';
-import { dbAdapter } from '@src/databases/db';
-import type { SystemVirtualFolder } from '@src/databases/db-interface';
-import { getPrivateSettingSync } from '@src/services/settings-service';
-import { error, json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.server';
-import { constructMediaUrl } from '@utils/media/media-utils';
-import type { RequestHandler } from './$types';
+import type { DatabaseId } from "@src/content/types";
+import { dbAdapter } from "@src/databases/db";
+import type { SystemVirtualFolder } from "@src/databases/db-interface";
+import { getPrivateSettingSync } from "@src/services/settings-service";
+import { json } from "@sveltejs/kit";
+import { apiHandler } from "@utils/api-handler";
+import { AppError } from "@utils/error-handling";
+import { logger } from "@utils/logger.server";
+import { constructMediaUrl } from "@utils/media/media-utils";
 
 interface MediaDoc {
-	_id?: string;
-	filename?: string;
-	thumbnailHeight?: number;
-	thumbnailWidth?: number;
-	virtualFolderId?: string | null;
-	[key: string]: unknown;
+  _id?: string;
+  filename?: string;
+  thumbnailHeight?: number;
+  thumbnailWidth?: number;
+  virtualFolderId?: string | null;
+  tenantId?: string;
+  [key: string]: unknown;
 }
 
-// GET /api/systemVirtualFolder/[id] - Fetches contents of a specific virtual folder
-export const GET: RequestHandler = async ({ params, locals }) => {
-	const { user, tenantId } = locals;
-	const { id } = params;
+// GET Handler for retrieving folder contents
+export const GET = apiHandler(async ({ params, locals }) => {
+  const { user, tenantId } = locals;
+  const { id } = params;
 
-	try {
-		if (!user) {
-			throw error(401, 'Authentication required');
-		}
+  if (!user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-			throw error(400, 'Tenant could not be identified for this operation.');
-		}
+  if (getPrivateSettingSync("MULTI_TENANT") && !tenantId) {
+    throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
+  }
 
-		if (!dbAdapter) {
-			throw error(500, 'Database adapter not available');
-		}
+  if (!dbAdapter) throw new AppError("Database unavailable", 500, "DB_UNAVAILABLE");
 
-		let currentFolder: SystemVirtualFolder | null = null;
-		let folders: SystemVirtualFolder[] = [];
-		let files: MediaDoc[] = [];
+  try {
+    let currentFolder: SystemVirtualFolder | null = null;
+    let folders: SystemVirtualFolder[] = [];
+    let files: MediaDoc[] = [];
 
-		const tenantFilter = getPrivateSettingSync('MULTI_TENANT') ? { tenantId } : {};
+    const isMultiTenant = getPrivateSettingSync("MULTI_TENANT");
+    const effectiveTenantId = isMultiTenant ? (tenantId as DatabaseId) : undefined;
 
-		if (id === 'root') {
-			// Root folder - get top-level folders and files
-			const folderResult = await dbAdapter.system.virtualFolder.getByParentId(null);
-			folders = folderResult.success ? folderResult.data || [] : [];
+    if (id === "root") {
+      // Root level (scoped to tenant)
+      const folderResult = await dbAdapter.system.virtualFolder.getByParentId(
+        null,
+        effectiveTenantId as DatabaseId,
+      );
+      folders = folderResult.success ? folderResult.data || [] : [];
 
-			const fileQuery = { virtualFolderId: null, ...tenantFilter } as any;
-			const [imagesResult, documentsResult, audioResult, videosResult] = await Promise.all([
-				dbAdapter.crud.findMany('media_images', fileQuery),
-				dbAdapter.crud.findMany('media_documents', fileQuery),
-				dbAdapter.crud.findMany('media_audio', fileQuery),
-				dbAdapter.crud.findMany('media_videos', fileQuery)
-			]);
-			const images = imagesResult.success ? ((imagesResult.data || []) as unknown as MediaDoc[]) : [];
-			const documents = documentsResult.success ? ((documentsResult.data || []) as unknown as MediaDoc[]) : [];
-			const audio = audioResult.success ? ((audioResult.data || []) as unknown as MediaDoc[]) : [];
-			const videos = videosResult.success ? ((videosResult.data || []) as unknown as MediaDoc[]) : [];
-			files = [...images, ...documents, ...audio, ...videos];
-		} else {
-			// Specific folder
-			const folderResult = await dbAdapter.system.virtualFolder.getById(id as any);
-			currentFolder = folderResult.success ? folderResult.data : null;
+      const fileQuery: Record<string, unknown> = { virtualFolderId: null };
+      const queryOptions = { tenantId: effectiveTenantId as DatabaseId };
 
-			if (!currentFolder) {
-				throw error(404, 'Folder not found');
-			}
+      const [imagesResult, documentsResult, audioResult, videosResult] = await Promise.all([
+        dbAdapter.crud.findMany("media_images", fileQuery as any, queryOptions),
+        dbAdapter.crud.findMany("media_documents", fileQuery as any, queryOptions),
+        dbAdapter.crud.findMany("media_audio", fileQuery as any, queryOptions),
+        dbAdapter.crud.findMany("media_videos", fileQuery as any, queryOptions),
+      ]);
 
-			const subfolderResult = await dbAdapter.system.virtualFolder.getByParentId(id as any);
-			folders = subfolderResult.success ? subfolderResult.data || [] : [];
+      files = [
+        ...(imagesResult.success ? (imagesResult.data as unknown as MediaDoc[]) : []),
+        ...(documentsResult.success ? (documentsResult.data as unknown as MediaDoc[]) : []),
+        ...(audioResult.success ? (audioResult.data as unknown as MediaDoc[]) : []),
+        ...(videosResult.success ? (videosResult.data as unknown as MediaDoc[]) : []),
+      ];
+    } else {
+      // Specific folder (verify ownership)
+      const folderResult = await dbAdapter.system.virtualFolder.getById(
+        id as DatabaseId,
+        effectiveTenantId as DatabaseId,
+      );
+      if (!(folderResult.success && folderResult.data)) {
+        throw new AppError("Folder not found or access denied", 404, "NOT_FOUND");
+      }
+      currentFolder = folderResult.data;
 
-			const fileQuery = { virtualFolderId: id, ...tenantFilter } as any;
-			const [imagesResult, documentsResult, audioResult, videosResult] = await Promise.all([
-				dbAdapter.crud.findMany('media_images', fileQuery),
-				dbAdapter.crud.findMany('media_documents', fileQuery),
-				dbAdapter.crud.findMany('media_audio', fileQuery),
-				dbAdapter.crud.findMany('media_videos', fileQuery)
-			]);
-			const images = imagesResult.success ? ((imagesResult.data || []) as unknown as MediaDoc[]) : [];
-			const documents = documentsResult.success ? ((documentsResult.data || []) as unknown as MediaDoc[]) : [];
-			const audio = audioResult.success ? ((audioResult.data || []) as unknown as MediaDoc[]) : [];
-			const videos = videosResult.success ? ((videosResult.data || []) as unknown as MediaDoc[]) : [];
-			files = [...images, ...documents, ...audio, ...videos];
-		}
+      const subfolderResult = await dbAdapter.system.virtualFolder.getByParentId(
+        id as DatabaseId,
+        effectiveTenantId as DatabaseId,
+      );
+      folders = subfolderResult.success ? subfolderResult.data || [] : [];
 
-		// Process files with URL construction
-		const processedFiles = files.map((file) => {
-			try {
-				const originalUrl = constructMediaUrl(file as any, 'original');
-				const thumbnailUrl = constructMediaUrl(file as any, 'thumbnail');
-				return {
-					...file,
-					url: originalUrl,
-					thumbnail: {
-						url: thumbnailUrl,
-						width: file.thumbnailWidth || 200,
-						height: file.thumbnailHeight || 200
-					}
-				};
-			} catch (err) {
-				logger.warn(`Failed to construct URL for file ${file.filename}: ${err}`);
-				return {
-					...file,
-					url: '/Default_User.svg',
-					thumbnail: {
-						url: '/Default_User.svg',
-						width: 200,
-						height: 200
-					}
-				};
-			}
-		});
+      const fileQuery: Record<string, unknown> = { virtualFolderId: id };
+      const queryOptions = { tenantId: effectiveTenantId as DatabaseId };
 
-		logger.debug(`Fetched folder ${id}: ${processedFiles.length} files, ${folders.length} subfolders`, { tenantId });
+      const [imagesResult, documentsResult, audioResult, videosResult] = await Promise.all([
+        dbAdapter.crud.findMany("media_images", fileQuery as any, queryOptions),
+        dbAdapter.crud.findMany("media_documents", fileQuery as any, queryOptions),
+        dbAdapter.crud.findMany("media_audio", fileQuery as any, queryOptions),
+        dbAdapter.crud.findMany("media_videos", fileQuery as any, queryOptions),
+      ]);
 
-		return json({
-			success: true,
-			data: {
-				currentFolder,
-				contents: {
-					files: processedFiles,
-					folders
-				}
-			}
-		});
-	} catch (err) {
-		const message = err instanceof Error ? err.message : 'Unknown error occurred';
-		logger.error(`Error fetching folder contents for ${id}: ${message}`, {
-			tenantId
-		});
-		throw error(500, message);
-	}
-};
+      files = [
+        ...(imagesResult.success ? (imagesResult.data as unknown as MediaDoc[]) : []),
+        ...(documentsResult.success ? (documentsResult.data as unknown as MediaDoc[]) : []),
+        ...(audioResult.success ? (audioResult.data as unknown as MediaDoc[]) : []),
+        ...(videosResult.success ? (videosResult.data as unknown as MediaDoc[]) : []),
+      ];
+    }
 
-// PATCH /api/systemVirtualFolder/[id] - Update a folder
-export const PATCH: RequestHandler = async ({ params, request, locals }) => {
-	const { user, tenantId } = locals;
-	const { id } = params;
+    // Process URLs
+    const processedFiles = files.map((file) => ({
+      ...file,
+      url: constructMediaUrl(file as any, "original"),
+      thumbnail: {
+        url: constructMediaUrl(file as any, "thumbnail"),
+        width: file.thumbnailWidth || 200,
+        height: file.thumbnailHeight || 200,
+      },
+    }));
 
-	try {
-		if (!user) {
-			throw error(401, 'Authentication required');
-		}
+    return json({
+      success: true,
+      data: {
+        currentFolder,
+        contents: { files: processedFiles, folders },
+      },
+    });
+  } catch (e) {
+    if (e instanceof AppError) throw e;
+    logger.error(`Error fetching folder ${id} for tenant ${tenantId}:`, e);
+    throw new AppError("Failed to fetch folder contents", 500, "FETCH_FAILED");
+  }
+});
 
-		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-			throw error(400, 'Tenant could not be identified for this operation.');
-		}
+// PATCH Handler for updating a folder
+export const PATCH = apiHandler(async ({ params, request, locals }) => {
+  const { user, tenantId, isAdmin } = locals;
+  const { id } = params;
 
-		if (!dbAdapter) {
-			throw error(500, 'Database adapter not available');
-		}
+  if (!user || !isAdmin) throw new AppError("Forbidden", 403, "FORBIDDEN");
 
-		const body = await request.json();
-		const { name } = body;
+  if (getPrivateSettingSync("MULTI_TENANT") && !tenantId) {
+    throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
+  }
 
-		if (!name || typeof name !== 'string') {
-			throw error(400, 'Name is required and must be a string');
-		}
+  try {
+    const { name } = await request.json();
+    if (!name) throw new AppError("Name is required", 400, "INVALID_DATA");
 
-		// Get the current folder to update its path
-		const currentResult = await dbAdapter.system.virtualFolder.getById(id as any);
-		if (!(currentResult.success && currentResult.data)) {
-			throw error(404, 'Folder not found');
-		}
+    if (!dbAdapter) throw new AppError("Database unavailable", 500, "DB_UNAVAILABLE");
 
-		const currentFolder = currentResult.data;
+    // 1. Verify ownership and get current state
+    const currentRes = await dbAdapter.system.virtualFolder.getById(
+      id as DatabaseId,
+      tenantId as DatabaseId,
+    );
+    if (!(currentRes.success && currentRes.data)) {
+      throw new AppError("Folder not found or access denied", 404, "NOT_FOUND");
+    }
+    const currentFolder = currentRes.data;
 
-		// Build new path
-		let newPath = '';
-		if (currentFolder.parentId) {
-			const parentResult = await dbAdapter.system.virtualFolder.getById(currentFolder.parentId as any);
-			if (parentResult.success && parentResult.data) {
-				newPath = `${parentResult.data.path}/${name.trim()}`;
-			} else {
-				throw error(400, 'Parent folder not found');
-			}
-		} else {
-			newPath = `/${name.trim()}`;
-		}
+    // 2. Build new path
+    let newPath = "";
+    if (currentFolder.parentId) {
+      const parentRes = await dbAdapter.system.virtualFolder.getById(
+        currentFolder.parentId as DatabaseId,
+        tenantId as DatabaseId,
+      );
+      if (parentRes.success && parentRes.data) {
+        newPath = `${parentRes.data.path}/${name.trim()}`;
+      } else {
+        throw new AppError("Parent folder access denied", 403, "FORBIDDEN");
+      }
+    } else {
+      newPath = `/${name.trim()}`;
+    }
 
-		const updateData = {
-			name: name.trim(),
-			path: newPath,
-			updatedAt: new Date().toISOString() as ISODateString
-		};
+    // 3. Perform update
+    const result = await dbAdapter.system.virtualFolder.update(
+      id as DatabaseId,
+      {
+        name: name.trim(),
+        path: newPath,
+      },
+      tenantId as DatabaseId,
+    );
 
-		const result = await dbAdapter.system.virtualFolder.update(id as any, updateData);
+    if (!result.success) throw new Error(result.message);
 
-		if (!result.success) {
-			logger.error('Failed to update folder', { error: result.error });
-			throw error(500, result.error?.message || 'Failed to update folder');
-		}
+    logger.info(`Updated system virtual folder ${id} for tenant ${tenantId}`);
+    return json({ success: true, folder: result.data });
+  } catch (e) {
+    if (e instanceof AppError) throw e;
+    logger.error(`Error updating system virtual folder ${id} for tenant ${tenantId}:`, e);
+    throw new AppError("Failed to update folder", 500, "UPDATE_FAILED");
+  }
+});
 
-		logger.info(`Updated system virtual folder: ${name}`, {
-			tenantId,
-			folderId: id
-		});
+// DELETE Handler for removing a folder
+export const DELETE = apiHandler(async ({ params, locals }) => {
+  const { user, tenantId, isAdmin } = locals;
+  const { id } = params;
 
-		return json({
-			success: true,
-			folder: result.data
-		});
-	} catch (err) {
-		const message = err instanceof Error ? err.message : 'Unknown error occurred';
-		logger.error(`Error updating system virtual folder: ${message}`, {
-			tenantId,
-			folderId: id
-		});
-		throw error(500, message);
-	}
-};
+  if (!user || !isAdmin) throw new AppError("Forbidden", 403, "FORBIDDEN");
 
-// DELETE /api/systemVirtualFolder/[id] - Delete a folder
-export const DELETE: RequestHandler = async ({ params, locals }) => {
-	const { user, tenantId } = locals;
-	const { id } = params;
+  if (getPrivateSettingSync("MULTI_TENANT") && !tenantId) {
+    throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
+  }
 
-	try {
-		if (!user) {
-			throw error(401, 'Authentication required');
-		}
+  try {
+    if (!dbAdapter) throw new AppError("Database unavailable", 500, "DB_UNAVAILABLE");
 
-		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-			throw error(400, 'Tenant could not be identified for this operation.');
-		}
+    // 1. Verify ownership and check for children
+    const folderRes = await dbAdapter.system.virtualFolder.getById(
+      id as DatabaseId,
+      tenantId as DatabaseId,
+    );
+    if (!(folderRes.success && folderRes.data)) {
+      throw new AppError("Folder not found or access denied", 404, "NOT_FOUND");
+    }
 
-		if (!dbAdapter) {
-			throw error(500, 'Database adapter not available');
-		}
+    const subfolders = await dbAdapter.system.virtualFolder.getByParentId(
+      id as DatabaseId,
+      tenantId as DatabaseId,
+    );
+    if (subfolders.success && subfolders.data.length > 0) {
+      throw new AppError("Cannot delete folder with subfolders", 400, "HAS_CHILDREN");
+    }
 
-		// Check if folder has children
-		const allFoldersResult = await dbAdapter.system.virtualFolder.getAll();
-		if (allFoldersResult.success && allFoldersResult.data) {
-			const hasChildren = allFoldersResult.data.some((f: SystemVirtualFolder) => f.parentId === id);
-			if (hasChildren) {
-				throw error(400, 'Cannot delete folder with subfolders. Delete subfolders first.');
-			}
-		}
+    // 2. Perform deletion
+    const result = await dbAdapter.system.virtualFolder.delete(
+      id as DatabaseId,
+      tenantId as DatabaseId,
+    );
+    if (!result.success) throw new Error(result.message);
 
-		// Check if folder has media files
-		// TODO: Add media file check when media is properly linked to folders
-
-		const result = await dbAdapter.system.virtualFolder.delete(id as any);
-
-		if (!result.success) {
-			logger.error('Failed to delete folder', { error: result.error });
-			throw error(500, result.error?.message || 'Failed to delete folder');
-		}
-
-		logger.info('Deleted system virtual folder', { tenantId, folderId: id });
-
-		return json({
-			success: true
-		});
-	} catch (err) {
-		const message = err instanceof Error ? err.message : 'Unknown error occurred';
-		logger.error(`Error deleting system virtual folder: ${message}`, {
-			tenantId,
-			folderId: id
-		});
-		throw error(500, message);
-	}
-};
+    logger.info(`Deleted system virtual folder ${id} for tenant ${tenantId}`);
+    return json({ success: true, message: "Folder deleted successfully" });
+  } catch (e) {
+    if (e instanceof AppError) throw e;
+    logger.error(`Error deleting system virtual folder ${id} for tenant ${tenantId}:`, e);
+    throw new AppError("Failed to delete folder", 500, "DELETE_FAILED");
+  }
+});

@@ -14,51 +14,60 @@
 -->
 
 <script lang="ts">
-	import { collection as collections } from '@src/stores/collection-store.svelte';
-	import { flip } from 'svelte/animate';
-	import type { DndEvent } from 'svelte-dnd-action';
-	import { dndzone } from 'svelte-dnd-action';
+import { collection as collections } from "@src/stores/collection-store.svelte";
+import { flip } from "svelte/animate";
+import type { DndEvent } from "svelte-dnd-action";
+import { dndzone } from "svelte-dnd-action";
 
-	interface Props {
-		fields: any[];
-		onNodeUpdate: (updatedFields: any[]) => void;
-		onSelectField: (field: any, index: number) => void;
-		selectedFieldId?: number | string;
-	}
+interface Props {
+	fields: any[];
+	onNodeUpdate: (updatedFields: any[]) => void;
+	onSelectField: (field: any, index: number) => void;
+	selectedFieldId?: number | string;
+}
 
-	let { fields = [], onNodeUpdate, onSelectField, selectedFieldId }: Props = $props();
+let {
+	fields = [],
+	onNodeUpdate,
+	onSelectField,
+	selectedFieldId,
+}: Props = $props();
 
-	// Local list for dndzone so we don't update the store during drag. Updating the store in
-	// consider() causes fields to change, re-render, and the dragged node to be replaced —
-	// svelte-dnd-action then hits "Cannot read properties of undefined (reading 'parentElement')".
-	type Item = { id: number | string; widget?: { key?: string }; [key: string]: unknown };
-	let items = $state<Item[]>([]);
-	let isDragging = $state(false);
+// Local list for dndzone so we don't update the store during drag. Updating the store in
+// consider() causes fields to change, re-render, and the dragged node to be replaced —
+// svelte-dnd-action then hits "Cannot read properties of undefined (reading 'parentElement')".
+type Item = {
+	id: number | string;
+	widget?: { key?: string };
+	[key: string]: unknown;
+};
+let items = $state<Item[]>([]);
+let isDragging = $state(false);
 
-	$effect(() => {
-		if (isDragging) return;
-		const next: Item[] = (fields || []).map((f: any, i: number) => ({
-			id: f.id ?? i + 1,
-			...f
-		}));
-		items = next;
+$effect(() => {
+	if (isDragging) return;
+	const next: Item[] = (fields || []).map((f: any, i: number) => ({
+		id: f.id ?? i + 1,
+		...f,
+	}));
+	items = next;
+});
+
+const flipDurationMs = 200;
+
+function handleDndConsider(e: CustomEvent<DndEvent<Item>>) {
+	isDragging = true;
+	items = e.detail.items;
+}
+
+function handleDndFinalize(e: CustomEvent<DndEvent<Item>>) {
+	items = e.detail.items;
+	onNodeUpdate(e.detail.items);
+	// Defer so store update and parent re-render don't run in the same tick as the library cleanup
+	queueMicrotask(() => {
+		isDragging = false;
 	});
-
-	const flipDurationMs = 200;
-
-	function handleDndConsider(e: CustomEvent<DndEvent<Item>>) {
-		isDragging = true;
-		items = e.detail.items;
-	}
-
-	function handleDndFinalize(e: CustomEvent<DndEvent<Item>>) {
-		items = e.detail.items;
-		onNodeUpdate(e.detail.items);
-		// Defer so store update and parent re-render don't run in the same tick as the library cleanup
-		queueMicrotask(() => {
-			isDragging = false;
-		});
-	}
+}
 </script>
 
 <div class="flex min-h-0 flex-1 bg-surface-100 dark:bg-surface-900 overflow-y-auto p-4 sm:p-8 lg:p-12 scroll-smooth">

@@ -7,8 +7,8 @@
  * - Passes server-loaded data to the client for rendering.
  */
 
-import type { PageLoad } from './$types';
+import type { PageLoad } from "./$types";
 
 export const load: PageLoad = ({ data }) => {
-	return data;
+  return data;
 };

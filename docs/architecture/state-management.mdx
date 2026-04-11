@@ -1,17 +1,17 @@
 ---
-path: 'docs/architecture/state-management.mdx'
-title: 'System State & Health Architecture'
-description: 'Technical documentation of the SveltyCMS state machine, request gating middleware, and health monitoring system.'
+path: "docs/architecture/state-management.mdx"
+title: "System State & Health Architecture"
+description: "Technical documentation of the SveltyCMS state machine, request gating middleware, and health monitoring system."
 order: 30
-icon: 'mdi:state-machine'
-author: 'SveltyCMS Team'
-created: '2025-11-26'
-updated: '2025-11-26'
+icon: "mdi:state-machine"
+author: "SveltyCMS Team"
+created: "2025-11-26"
+updated: "2026-03-27"
 tags:
-  - 'architecture'
-  - 'state-machine'
-  - 'middleware'
-  - 'health'
+  - "architecture"
+  - "state-machine"
+  - "middleware"
+  - "health"
 ---
 
 # System State & Health Architecture
@@ -26,65 +26,103 @@ The system state is managed by a central store (`@stores/system`) and enforced b
 
 The application can be in one of the following states:
 
-| State              | Description                                                       | Request Handling                                  |
-| :----------------- | :---------------------------------------------------------------- | :------------------------------------------------ |
-| **`IDLE`**         | Initial state. System is waiting for setup or initialization.     | **Blocked** (except Setup Wizard & Health Checks) |
-| **`INITIALIZING`** | Database connection and core services are starting up.            | **Blocked** (requests wait for completion)        |
-| **`READY`**        | Normal operational state. All systems go.                         | **Allowed**                                       |
-| **`DEGRADED`**     | System is operational but some non-critical services are failing. | **Allowed** (with warning logs)                   |
-| **`FAILED`**       | Critical failure (e.g., DB down). System cannot function.         | **Blocked** (503 Service Unavailable)             |
+| State              | Description                                                       | Request Handling                                    |
+| :----------------- | :---------------------------------------------------------------- | :-------------------------------------------------- |
+| **`IDLE`**         | Initial state. System is waiting for setup or initialization.     | **Blocked** (except Setup Wizard & Health Checks)   |
+| **`INITIALIZING`** | Database connection and core services are starting up.            | **Blocked** (requests wait for completion)          |
+| **`RECOVERY`**     | **[NEW]** Autonomous healing in progress after a service failure. | **Blocked** (503 Service Unavailable + Retry-After) |
+| **`READY`**        | Normal operational state. All systems go.                         | **Allowed**                                         |
+| **`DEGRADED`**     | System is operational but some non-critical services are failing. | **Allowed** (with warning logs)                     |
+| **`FAILED`**       | Critical failure (e.g., DB down). System cannot function.         | **Blocked** (503 Service Unavailable)               |
+
+---
+
+## 🧠 Intelligent Phased Initialization
+
+SveltyCMS 2026 utilizes a **Context-Aware Phased Boot** to minimize resource waste and maximize startup speed. Instead of a monolithic boot, the system targets specific "Minimum Viable Services" based on the request intent.
+
+### Boot Phases
+
+1.  **`SETUP` Phase**: Establishes basic database connectivity. Results in system state **`SETUP`**. Required for the Setup Wizard. No heavy widgets or background jobs are loaded.
+2.  **`CORE` Phase**: Loads Authentication, Security, and Critical Settings. Results in system state **`READY`**. Required for the Login screen. Triggers non-critical background services.
+3.  **`FULL` Phase**: Finalizes the boot by loading the Content Manager, Widget Proxy, and all background optimization tasks. Results in system state **`WARMED`**. Required for the CMS Dashboard.
+
+This **Just-In-Time (JIT) Escalation** ensures that the Setup Wizard remains ultra-lean and starts in milliseconds, even in environments with hundreds of custom collections.
 
 ---
 
 ## 🛡️ Request Gating Middleware
 
-The `handleSystemState` hook (`src/hooks/handleSystemState.ts`) intercepts every request to ensure the system is ready to handle it.
+The `handleSystemState` hook (`src/hooks/handle-system-state.ts`) is the primary gatekeeper, intercepting every request to ensure system operational readiness.
 
-### Logic Flow
+### Logic Flow (Phases)
 
-1.  **Health Checks & Static Assets**: Always allowed, regardless of state.
-2.  **IDLE State (Setup Mode)**:
-    - Checks if `isSetupComplete()`.
-    - If **No**: Allows access to `/setup`, the setup **Server Functions** in `+page.server.ts`, and `/login`. Blocks others.
-    - If **Yes**: Triggers initialization and transitions to `INITIALIZING`.
-3.  **INITIALIZING State**:
-    - Pauses incoming requests until initialization completes (or times out).
-    - If initialization succeeds -> Proceeds to `READY`.
-    - If initialization fails -> Transitions to `FAILED` and returns 503.
-4.  **FAILED State**:
-    - Blocks all traffic with a 503 error.
-    - _Exception_: In `TEST_MODE`, requests may be allowed with a warning to facilitate debugging.
-5.  **READY / DEGRADED State**:
-    - Allows request to proceed.
-    - If `DEGRADED`, injects `event.locals.degradedServices` for UI notifications.
+1.  **Fast-Path Resolution**: Static assets and well-known paths (SSCP, health checks) are resolved immediately to maximize performance.
+2.  **Initialization Phase**:
+    - If the system is `IDLE` but configured, it triggers a backgrounded initialization flow via `waitForInitialization`.
+    - **Optimization**: For bootstrap UI routes (Login, Setup), requests are non-blocking to allow the frontend to load while the backend warms up.
+3.  **Bootstrap & Host Validation**:
+    - Ensures that during restricted states, only authorized hosts (localhost, ORIGIN, or Demo) can access sensitive bootstrap routes.
+    - Prevents unauthorized access to `/setup` or `/login` during initialization.
+4.  **Restricted Access Handling**:
+    - Pauses non-bootstrap requests if the system is `INITIALIZING` until the boot sequence completes (or times out at 60s).
+    - Blocks traffic with state-specific 503 errors if the system is in `SETUP`, `MAINTENANCE`, or `FAILED` modes.
+5.  **Final Readiness & Enrichment**:
+    - Performs a final `isSystemReady()` check.
+    - If `DEGRADED`, injects `event.locals.degradedServices` with a list of unhealthy dependencies for UI awareness.
 
 ---
 
 ## 🧠 Implemented Advanced Features
 
-### 1. Smart Self-Healing & Automatic Recovery
+### 1. Autonomous Self-Recovery (The Watchdog)
 
-The system now includes a robust self-healing mechanism for initialization failures (e.g., temporary database outages):
+SveltyCMS features an **Autonomous System Watchdog** (`src/services/system/watchdog.ts`) that acts as a background "guardian."
 
-- **Automatic Retry**: If initialization fails, the system enters a temporary `FAILED` state.
-- **Cooldown Period**: Calls to the server during this state return a 503 error with a "Retrying in X seconds" message.
-- **Auto-Recovery**: After a 5-second cooldown, the next request automatically triggers a fresh initialization attempt (resetting internal promises and connection states).
+- **Heal-on-Failure**: If a critical service (Database or Auth) becomes `unhealthy`, the Watchdog automatically triggers a targeted re-initialization.
+- **Exponential Backoff**: Recovery attempts use a progressive delay (5s, 10s, 20s) to prevent overloading infrastructure during transient network outages.
+- **Drift Detection**: The Watchdog continuously compares the system's "internal map" of health against reality. If the system claims to be `READY` but the database connection is dead, it autonomously demotes the state to `RECOVERY` and initiates healing.
 
-### 2. Lazy Initialization & Race Condition Prevention
+### 2. High-Resolution Boot Telemetry
 
-To prevent "DB not connected" errors during the bootstrapping phase:
+Every boot phase is measured with `performance.now()` precision. These metrics are exposed via the health API and recorded in the `MetricsService`:
 
-- **Lazy Proxies**: Database adapters and webhook wrappers use lazy property access (getters) rather than eager initialization. This ensures dependencies are only accessed _after_ a successful connection is established.
-- **Order-of-Operations Safety**: The system is Architected to handle out-of-order module loading gracefully without crashing the startup sequence.
+- `boot:phase:setup`: Latency for database handshake.
+- `boot:phase:core`: Latency for auth/settings hydration.
+- `boot:phase:full`: Latency for content/widget system reconciliation.
+- `recoveryCount`: Number of times the system successfully healed itself without human intervention.
 
-### 3. Self-Learning Performance Metrics
+### 3. Robust Boot Protection (Self-Healing)
 
-The system tracks its own performance and "learns" optimal operational parameters over time:
+The system manages a one-shot initialization lifecycle using a `dbInitPromise`:
 
-- **Metrics Persistence**: Initialization durations, success rates, and performance trends are persisted to the database using `PerformanceService`.
-- **Hydration on Startup**: Learned historical metrics are loaded during system initialization to inform self-healing thresholds from the start.
-- **Adaptive Calibration**: Anomaly detection thresholds (e.g., `maxStartupTime`) are automatically calibrated based on historical Exponential Moving Averages (EMA), reducing false positives.
-- **Setup Benchmarking**: The setup process is instrumented to establish performance baselines for different environments.
+- **Timeout Safety**: Initialization has a hard 60-second limit. If services fail to start, the system enters the `FAILED` state to protect the underlying infrastructure.
+- **Background Warming**: For high-concurrency environments, only the first request triggers the init flow; subsequent requests wait on the same shared promise, preventing "thundering herd" connection storms.
+- **Cleanup on Failure**: Failed boot attempts log the full stack trace and inform the `metricsService` for alerting.
+
+### 2. Trusted Host Validation
+
+To prevent SSRF and unauthorized configuration during the setup phase, the middleware enforces **Dynamic Host Trust**:
+
+- **Local Trust**: Loops back (127.0.0.1) are always trusted for local admin access.
+- **Origin Sync**: If `process.env.ORIGIN` is defined, only that specific host is allowed access to bootstrap routes.
+- **Fail-Safe**: If no host is configured, only local access is permitted.
+
+### 3. Integrated Performance Telemetry
+
+The gatekeeper tracks system health metrics in real-time:
+
+- **Init Duration**: Records how long the system takes to reach the `READY` state.
+- **Security Violations**: Increments counters for untrusted host attempts or restricted route access.
+- **Service Degradation**: Real-time heartbeat monitoring of DB, Cache, and Media adapters.
+
+### 4. Incremental Service Refresh
+
+The `reinitializeSystem` logic has been optimized to perform surgical updates rather than full destructive resets:
+
+- **Config Hot-Reload**: Re-parses `private.ts` without dropping active database connections.
+- **Dynamic Settings Sync**: Automatically re-synchronizes the in-memory settings cache with the database after configuration changes.
+- **Zero-Downtime Transitions**: Minimizes the window where requests are blocked during system updates, ensuring high availability during administrative operations.
 
 ## 🔮 Future Improvements
 

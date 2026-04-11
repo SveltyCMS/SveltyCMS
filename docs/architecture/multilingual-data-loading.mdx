@@ -1,18 +1,18 @@
 ---
-path: 'docs/architecture/multilingual-data-loading.mdx'
-title: 'Multilingual Data Loading'
-description: 'Two-tier SSR strategy for loading multilingual content with language-specific caching and translation progress tracking.'
+path: "docs/architecture/multilingual-data-loading.mdx"
+title: "Multilingual Data Loading"
+description: "Two-tier SSR strategy for loading multilingual content with language-specific caching and translation progress tracking."
 order: 52
-icon: 'mdi:translate'
-author: 'admin'
-created: '2025-01-04'
-updated: '2025-01-04'
+icon: "mdi:translate"
+author: "SveltyCMS Team"
+created: "2025-01-04"
+updated: "2026-03-27"
 tags:
-  - 'architecture'
-  - 'ssr'
-  - 'multilingual'
-  - 'i18n'
-  - 'translation'
+  - "architecture"
+  - "ssr"
+  - "multilingual"
+  - "i18n"
+  - "translation"
 ---
 
 # Multilingual Data Loading
@@ -76,17 +76,22 @@ After enriching entries with `modifyRequest`, project language-specific data for
 // =================================================================
 // 5.5. ENTERPRISE SSR: LANGUAGE PROJECTION FOR VIEW MODE
 // =================================================================
-if (mode === 'view') {
-	for (let i = 0; i < entries.length; i++) {
-		const entry = entries[i];
-		for (const field of currentCollection.fields) {
-			const fieldName = field.db_fieldName || field.label;
-			if (field.translated && entry[fieldName] && typeof entry[fieldName] === 'object' && !Array.isArray(entry[fieldName])) {
-				// Project current language value
-				entry[fieldName] = entry[fieldName][language] || Object.values(entry[fieldName])[0] || null;
-			}
-		}
-	}
+if (mode === "view") {
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    for (const field of currentCollection.fields) {
+      const fieldName = field.db_fieldName || field.label;
+      if (
+        field.translated &&
+        entry[fieldName] &&
+        typeof entry[fieldName] === "object" &&
+        !Array.isArray(entry[fieldName])
+      ) {
+        // Project current language value
+        entry[fieldName] = entry[fieldName][language] || Object.values(entry[fieldName])[0] || null;
+      }
+    }
+  }
 }
 ```
 
@@ -148,20 +153,20 @@ The language switcher dropdown:
 **Alternative: Programmatic Navigation** (use only when needed for complex logic)
 
 ```typescript
-import { goto } from '$app/navigation';
+import { goto } from "$app/navigation";
 
 async function handleLanguageChange(selectedLanguage: Locale): Promise<void> {
-	contentLanguage.set(selectedLanguage);
-	isOpen = false;
+  contentLanguage.set(selectedLanguage);
+  isOpen = false;
 
-	// Navigate to new URL with updated language
-	const currentPath = $page.url.pathname;
-	const pathParts = currentPath.split('/').filter(Boolean);
-	pathParts[0] = selectedLanguage;
-	const newPath = '/' + pathParts.join('/') + $page.url.search;
+  // Navigate to new URL with updated language
+  const currentPath = $page.url.pathname;
+  const pathParts = currentPath.split("/").filter(Boolean);
+  pathParts[0] = selectedLanguage;
+  const newPath = "/" + pathParts.join("/") + $page.url.search;
 
-	// SvelteKit navigation with SSR reload
-	await goto(newPath, { invalidateAll: true });
+  // SvelteKit navigation with SSR reload
+  await goto(newPath, { invalidateAll: true });
 }
 ```
 
@@ -223,17 +228,17 @@ await invalidateAll(); // Invalidates all collection:* keys
 
 ```typescript
 function getFieldTranslationPercentage(fieldName: string): number {
-	const allLanguages = Object.keys(availableLanguages);
-	const fieldData = entryData[fieldName];
+  const allLanguages = Object.keys(availableLanguages);
+  const fieldData = entryData[fieldName];
 
-	if (!fieldData || typeof fieldData !== 'object') return 0;
+  if (!fieldData || typeof fieldData !== "object") return 0;
 
-	const translated = allLanguages.filter((lang) => {
-		const value = fieldData[lang];
-		return value !== null && value !== undefined && value !== '';
-	});
+  const translated = allLanguages.filter((lang) => {
+    const value = fieldData[lang];
+    return value !== null && value !== undefined && value !== "";
+  });
 
-	return Math.round((translated.length / allLanguages.length) * 100);
+  return Math.round((translated.length / allLanguages.length) * 100);
 }
 ```
 
@@ -246,22 +251,22 @@ SveltyCMS uses a **database-agnostic architecture** where the application layer 
 ```typescript
 // Application layer format (what widgets and components see):
 const entry = {
-	_id: '507f1f77bcf86cd799439011',
-	first_name: {
-		en: 'John',
-		de: 'Johann',
-		fr: 'Jean'
-	},
-	last_name: {
-		en: 'Doe',
-		de: 'Schmidt',
-		fr: 'Dupont'
-	},
-	bio: {
-		en: 'Software engineer',
-		de: 'Softwareentwickler'
-		// fr missing (untranslated)
-	}
+  _id: "507f1f77bcf86cd799439011",
+  first_name: {
+    en: "John",
+    de: "Johann",
+    fr: "Jean",
+  },
+  last_name: {
+    en: "Doe",
+    de: "Schmidt",
+    fr: "Dupont",
+  },
+  bio: {
+    en: "Software engineer",
+    de: "Softwareentwickler",
+    // fr missing (untranslated)
+  },
 };
 ```
 
@@ -313,10 +318,10 @@ fields store single values in the default content language (defined in environme
 
 ```typescript
 const entry = {
-	_id: '507f1f77bcf86cd799439011',
-	title: 'Hello World',
-	slug: 'hello-world',
-	description: 'A simple post'
+  _id: "507f1f77bcf86cd799439011",
+  title: "Hello World",
+  slug: "hello-world",
+  description: "A simple post",
 };
 ```
 
@@ -330,18 +335,18 @@ fields marked as `translated: true` store multilingual nested objects:
 
 ```typescript
 const entry = {
-	_id: '507f1f77bcf86cd799439011',
-	title: {
-		en: 'Hello World',
-		de: 'Hallo Welt',
-		fr: 'Bonjour Monde'
-	},
-	slug: 'hello-world', // Not translated
-	description: {
-		en: 'A simple post',
-		de: 'Ein einfacher Beitrag'
-		// fr missing - shows as untranslated
-	}
+  _id: "507f1f77bcf86cd799439011",
+  title: {
+    en: "Hello World",
+    de: "Hallo Welt",
+    fr: "Bonjour Monde",
+  },
+  slug: "hello-world", // Not translated
+  description: {
+    en: "A simple post",
+    de: "Ein einfacher Beitrag",
+    // fr missing - shows as untranslated
+  },
 };
 ```
 
@@ -391,4 +396,4 @@ const entry = {
 - **[Collection Store Dataflow](./collection-store-dataflow.mdx)** - Foundation SSR architecture (read this first)
 - [Cache System](./cache-system.mdx) - Redis caching implementation
 - [Content Type System](./content-type-system.mdx) - Field types and translation configuration
-- [Database Methods](./database-methods.mdx) - Database query patterns
+- [Database Methods](./database/database-methods.mdx) - Database query patterns

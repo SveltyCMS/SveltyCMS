@@ -23,234 +23,244 @@
 -->
 
 <script lang="ts">
-	import PasswordStrength from '@src/components/password-strength.svelte';
-	import SiteName from '@src/components/site-name.svelte';
-	// Components
-	import FloatingPaths from '@src/components/system/floating-paths.svelte';
-	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
-	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
-	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	// ParaglideJS
-	import {
-		confirm_password,
-		email,
-		form_confirmpassword,
-		form_password,
-		form_required,
-		form_signup,
-		registration_token,
-		username
-	} from '@src/paraglide/messages';
-	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { screen } from '@src/stores/screen-size-store.svelte';
-	import { toast } from '@src/stores/toast.svelte.ts';
-	import { Form } from '@utils/form.svelte.ts';
-	import { signUpFormSchema } from '@utils/form-schemas';
-	import { logger } from '@utils/logger';
-	import { browser } from '$app/environment';
-	import { enhance } from '$app/forms';
-	import { preloadData } from '$app/navigation';
-	// Stores
-	import { page } from '$app/state';
-	import type { PageData } from '../$types';
-	import SignupIcon from './icons/signup-icon.svelte';
+import PasswordStrength from "@src/components/password-strength.svelte";
+import SiteName from "@src/components/site-name.svelte";
+// Components
+import FloatingPaths from "@src/components/system/floating-paths.svelte";
+import SveltyCMSLogo from "@src/components/system/icons/svelty-cms-logo.svelte";
+import SveltyCMSLogoFull from "@src/components/system/icons/svelty-cms-logo-full.svelte";
+import FloatingInput from "@src/components/system/inputs/floating-input.svelte";
+import SystemTooltip from "@src/components/system/system-tooltip.svelte";
+// ParaglideJS
+import {
+	confirm_password,
+	email,
+	form_confirmpassword,
+	form_password,
+	form_required,
+	form_signup,
+	registration_token,
+	username,
+} from "@src/paraglide/messages";
+import { publicEnv } from "@src/stores/global-settings.svelte";
+import { screen } from "@src/stores/screen-size-store.svelte";
+import { toast } from "@src/stores/toast.svelte.ts";
+import { Form } from "@utils/form.svelte.ts";
+import { signUpFormSchema } from "@utils/form-schemas";
+import { logger } from "@utils/logger";
+import { browser } from "$app/environment";
+import { enhance } from "$app/forms";
+import { preloadData } from "$app/navigation";
+// Stores
+import { page } from "$app/state";
+import type { PageData } from "../$types";
+import SignupIcon from "./icons/signup-icon.svelte";
 
-	// Props
-	const {
-		active = $bindable(undefined),
-		isInviteFlow = false,
-		token = '',
-		invitedEmail = '',
-		inviteError = '',
-		onClick = () => {},
-		onPointerEnter = () => {},
-		onBack = () => {},
-		firstCollectionPath = ''
-	} = $props();
+// Props
+const {
+	active = $bindable(undefined),
+	isInviteFlow = false,
+	token = "",
+	invitedEmail = "",
+	inviteError = "",
+	onClick = () => {},
+	onPointerEnter = () => {},
+	onBack = () => {},
+	firstCollectionPath = "",
+} = $props();
 
-	const siteName = $derived(publicEnv.SITE_NAME || 'SveltyCMS');
+const siteName = $derived(publicEnv.SITE_NAME || "SveltyCMS");
 
-	const pageData = page.data as PageData;
-	const firstUserExists = pageData.firstUserExists;
-	const showOAuth = pageData.showOAuth;
-	const hasExistingOAuthUsers = pageData.hasExistingOAuthUsers;
+const pageData = page.data as PageData;
+const firstUserExists = pageData.firstUserExists;
+const showOAuth = pageData.showOAuth;
+const hasExistingOAuthUsers = pageData.hasExistingOAuthUsers;
 
-	// State management
-	const tabIndex = $state(1);
-	let response = $state(undefined);
-	let formElement: HTMLFormElement | null = $state(null);
-	let showPassword = $state(false);
-	let isSubmitting = $state(false);
-	let isRedirecting = $state(false);
+// State management
+const tabIndex = $state(1);
+let response = $state(undefined);
+let formElement: HTMLFormElement | null = $state(null);
+let showPassword = $state(false);
+let isSubmitting = $state(false);
+let isRedirecting = $state(false);
 
-	let prefetched = $state(false);
+let prefetched = $state(false);
 
-	async function prefetchFirstCollection() {
-		if (prefetched || !firstCollectionPath) {
+async function prefetchFirstCollection() {
+	if (prefetched || !firstCollectionPath) {
+		return;
+	}
+	prefetched = true;
+
+	try {
+		await preloadData(firstCollectionPath);
+	} catch (error) {
+		console.error("Prefetch failed:", error);
+	}
+}
+
+// Pre-calculate tab indices
+const usernameTabIndex = 1;
+const emailTabIndex = 2;
+const passwordTabIndex = 3;
+const confirmPasswordTabIndex = 4;
+const tokenTabIndex = 5;
+
+// Form setup
+// Form setup
+const signUpForm = new Form(
+	{ username: "", email: "", password: "", confirm_password: "", token: "" },
+	signUpFormSchema,
+);
+
+const signUpSubmit = signUpForm.enhance({
+	onSubmit: ({ cancel }) => {
+		if (Object.keys(signUpForm.errors).length > 0) {
+			cancel();
 			return;
 		}
-		prefetched = true;
+		isSubmitting = true;
+	},
 
-		try {
-			await preloadData(firstCollectionPath);
-		} catch (error) {
-			console.error('Prefetch failed:', error);
-		}
-	}
+	onResult: async ({ result, update }) => {
+		isSubmitting = false;
 
-	// Pre-calculate tab indices
-	const usernameTabIndex = 1;
-	const emailTabIndex = 2;
-	const passwordTabIndex = 3;
-	const confirmPasswordTabIndex = 4;
-	const tokenTabIndex = 5;
+		if (result.type === "redirect") {
+			isRedirecting = true;
 
-	// Form setup
-	// Form setup
-	const signUpForm = new Form({ username: '', email: '', password: '', confirm_password: '', token: '' }, signUpFormSchema);
+			toast.success({
+				title: "Account Created!",
+				description: "Welcome to SveltyCMS. Redirecting to your dashboard...",
+			});
 
-	const signUpSubmit = signUpForm.enhance({
-		onSubmit: ({ cancel }) => {
-			if (Object.keys(signUpForm.errors).length > 0) {
-				cancel();
-				return;
-			}
-			isSubmitting = true;
-		},
-
-		onResult: async ({ result, update }) => {
-			isSubmitting = false;
-
-			if (result.type === 'redirect') {
-				isRedirecting = true;
-
-				toast.success({
-					title: 'Account Created!',
-					description: 'Welcome to SveltyCMS. Redirecting to your dashboard...'
-				});
-
-				setTimeout(() => {
-					isRedirecting = false;
-				}, 100);
-				return;
-			}
-
-			isRedirecting = false;
-
-			if (result.type === 'failure' || result.type === 'error') {
-				const errorMessage =
-					result.type === 'failure' ? result.data?.message || 'Failed to create account' : result.error?.message || 'An unexpected error occurred';
-
-				toast.error({
-					title: 'Sign Up Failed',
-					description: errorMessage
-				});
-
-				formElement?.classList.add('wiggle');
-				setTimeout(() => {
-					formElement?.classList.remove('wiggle');
-				}, 300);
-			}
-
-			if (result.type === 'success') {
-				response = result.data?.message;
-				toast.success({
-					title: 'Account Created',
-					description: result.data?.message || 'Your account has been successfully created'
-				});
-			}
-
-			await update();
-		}
-	});
-
-	// Reactive form values for easier access
-	const currentFormToken = $derived(signUpForm.data.token);
-
-	// URL parameter handling - update params when URL changes
-	const params = $derived(browser ? new URL(window.location.href).searchParams : new URLSearchParams(''));
-
-	// Initialize form with invite data when in invite flow
-	$effect(() => {
-		if (isInviteFlow && invitedEmail && signUpForm.data.email !== invitedEmail) {
-			signUpForm.data.email = invitedEmail;
-		}
-		if (isInviteFlow && token && signUpForm.data.token !== token) {
-			signUpForm.data.token = token;
-		}
-		// Handle URL parameters for invite tokens (both new and legacy formats)
-		if (browser && !isInviteFlow) {
-			const inviteToken = params.get('invite_token') || params.get('regToken');
-			if (inviteToken && inviteToken !== signUpForm.data.token) {
-				signUpForm.data.token = inviteToken;
-			}
-		}
-		// Also check if the form was pre-filled by the server (invalid token case)
-		if (browser && signUpForm.data.token && !isInviteFlow) {
-			logger.debug('Form token pre-filled by server:', signUpForm.data.token);
-		}
-	});
-
-	// Event handlers
-	function handleOAuth() {
-		// Check if user needs an invitation token
-		// All users now require invite tokens (first user goes through /setup)
-		if (!(isInviteFlow || hasExistingOAuthUsers || currentFormToken)) {
-			// Show a helpful message
-			alert(
-				'⚠️ Please enter your invitation token first before using Google OAuth signup. OAuth registration requires an invitation from an administrator.'
-			);
+			setTimeout(() => {
+				isRedirecting = false;
+			}, 100);
 			return;
 		}
 
-		const form = document.createElement('form');
-		form.method = 'post';
+		isRedirecting = false;
 
-		// Use signInOAuth action when in invite flow to preserve invite token
-		if (isInviteFlow && token) {
-			// Build the action URL with the invite token as a query parameter
-			form.action = `?/signInOAuth&invite_token=${encodeURIComponent(token)}`;
-		} else if (currentFormToken) {
-			// User has entered a token in the form, pass it along
-			form.action = `?/signInOAuth&invite_token=${encodeURIComponent(currentFormToken)}`;
-		} else {
-			form.action = '?/signInOAuth';
+		if (result.type === "failure" || result.type === "error") {
+			const errorMessage =
+				result.type === "failure"
+					? result.data?.message || "Failed to create account"
+					: result.error?.message || "An unexpected error occurred";
+
+			toast.error({
+				title: "Sign Up Failed",
+				description: errorMessage,
+			});
+
+			formElement?.classList.add("wiggle");
+			setTimeout(() => {
+				formElement?.classList.remove("wiggle");
+			}, 300);
 		}
 
-		document.body.appendChild(form);
-		form.submit();
-		document.body.removeChild(form);
-		setTimeout(() => {}, 300);
-	}
-
-	function handleBack(event: Event) {
-		event.stopPropagation();
-		onBack();
-	}
-
-	function handlePointerEnter() {
-		onPointerEnter();
-	}
-
-	function handleFormClick(event: Event) {
-		event.stopPropagation();
-		onClick();
-	}
-
-	// Class computations
-	const isActive = $derived(active === 1);
-	const isInactive = $derived(active !== undefined && active !== 1);
-	const isHover = $derived(active === undefined || active === 0);
-
-	const baseClasses = 'hover relative flex items-center overflow-y-auto';
-
-	// Prefetch first collection data when active
-	$effect(() => {
-		if (active === 1) {
-			prefetchFirstCollection();
+		if (result.type === "success") {
+			response = result.data?.message;
+			toast.success({
+				title: "Account Created",
+				description:
+					result.data?.message || "Your account has been successfully created",
+			});
 		}
-	});
+
+		await update();
+	},
+});
+
+// Reactive form values for easier access
+const currentFormToken = $derived(signUpForm.data.token);
+
+// URL parameter handling - update params when URL changes
+const params = $derived(
+	browser
+		? new URL(window.location.href).searchParams
+		: new URLSearchParams(""),
+);
+
+// Initialize form with invite data when in invite flow
+$effect(() => {
+	if (isInviteFlow && invitedEmail && signUpForm.data.email !== invitedEmail) {
+		signUpForm.data.email = invitedEmail;
+	}
+	if (isInviteFlow && token && signUpForm.data.token !== token) {
+		signUpForm.data.token = token;
+	}
+	// Handle URL parameters for invite tokens (both new and legacy formats)
+	if (browser && !isInviteFlow) {
+		const inviteToken = params.get("invite_token") || params.get("regToken");
+		if (inviteToken && inviteToken !== signUpForm.data.token) {
+			signUpForm.data.token = inviteToken;
+		}
+	}
+	// Also check if the form was pre-filled by the server (invalid token case)
+	if (browser && signUpForm.data.token && !isInviteFlow) {
+		logger.debug("Form token pre-filled by server:", signUpForm.data.token);
+	}
+});
+
+// Event handlers
+function handleOAuth() {
+	// Check if user needs an invitation token
+	// All users now require invite tokens (first user goes through /setup)
+	if (!(isInviteFlow || hasExistingOAuthUsers || currentFormToken)) {
+		// Show a helpful message
+		alert(
+			"⚠️ Please enter your invitation token first before using Google OAuth signup. OAuth registration requires an invitation from an administrator.",
+		);
+		return;
+	}
+
+	const form = document.createElement("form");
+	form.method = "post";
+
+	// Use signInOAuth action when in invite flow to preserve invite token
+	if (isInviteFlow && token) {
+		// Build the action URL with the invite token as a query parameter
+		form.action = `?/signInOAuth&invite_token=${encodeURIComponent(token)}`;
+	} else if (currentFormToken) {
+		// User has entered a token in the form, pass it along
+		form.action = `?/signInOAuth&invite_token=${encodeURIComponent(currentFormToken)}`;
+	} else {
+		form.action = "?/signInOAuth";
+	}
+
+	document.body.appendChild(form);
+	form.submit();
+	document.body.removeChild(form);
+	setTimeout(() => {}, 300);
+}
+
+function handleBack(event: Event) {
+	event.stopPropagation();
+	onBack();
+}
+
+function handlePointerEnter() {
+	onPointerEnter();
+}
+
+function handleFormClick(event: Event) {
+	event.stopPropagation();
+	onClick();
+}
+
+// Class computations
+const isActive = $derived(active === 1);
+const isInactive = $derived(active !== undefined && active !== 1);
+const isHover = $derived(active === undefined || active === 0);
+
+const baseClasses = "hover relative flex items-center overflow-y-auto";
+
+// Prefetch first collection data when active
+$effect(() => {
+	if (active === 1) {
+		prefetchFirstCollection();
+	}
+});
 </script>
 
 <section
@@ -273,7 +283,7 @@
 				</div>
 			{/if}
 			<!-- CSS Logo -->
-			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
+			<div class="absolute left-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
 			<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-surface-900/0 p-6 backdrop-blur lg:w-4/5" class:hide={active !== 1}>
 				<div class="-mb-4 flex flex-row gap-2">
 					<SveltyCMSLogo className="w-14" fill="red" />

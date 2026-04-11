@@ -11,26 +11,26 @@
 - Drag and drop support for reassigning collections
 -->
 <script lang="ts">
-	import { Unassigned_Collections } from '@src/paraglide/messages';
-	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
+import { Unassigned_Collections } from "@src/paraglide/messages";
+import { flip } from "svelte/animate";
+import { dndzone } from "svelte-dnd-action";
 
-	const flipDurationMs = 200;
+const flipDurationMs = 200;
 
-	interface Props {
-		items: any;
-		onDrop: any;
-	}
+interface Props {
+	items: any;
+	onDrop: any;
+}
 
-	let { items = $bindable(), onDrop }: Props = $props();
+let { items = $bindable(), onDrop }: Props = $props();
 
-	function handleDndConsiderCards(e: any) {
-		items = e.detail.items;
-	}
+function handleDndConsiderCards(e: any) {
+	items = e.detail.items;
+}
 
-	function handleDndFinalizeCards(e: any) {
-		onDrop(e.detail.items);
-	}
+function handleDndFinalizeCards(e: any) {
+	onDrop(e.detail.items);
+}
 </script>
 
 <div class="ml-1 rounded-sm border-2 border-tertiary-500">

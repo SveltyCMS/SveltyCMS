@@ -4,14 +4,14 @@
  * Uses the same credentials as setup-wizard to ensure consistency
  */
 
-import { expect, type Page } from '@playwright/test';
+import { expect, type Page } from "@playwright/test";
 
 /**
  * Login credentials that match the setup wizard defaults
  */
 export const ADMIN_CREDENTIALS = {
-	email: process.env.ADMIN_EMAIL || 'admin@example.com',
-	password: process.env.ADMIN_PASS || 'Admin123!'
+  email: process.env.ADMIN_EMAIL || "admin@example.com",
+  password: process.env.ADMIN_PASS || "Admin123!",
 };
 
 /**
@@ -20,66 +20,110 @@ export const ADMIN_CREDENTIALS = {
  * @param waitForUrl - URL pattern to wait for after login (default: Collections/Names page)
  */
 export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
-	// First, try to logout if already logged in
-	await logout(page);
+  // Atomic Auth: Clear all previous session state to prevent session bleed
+  console.log("[Auth] Clearing cookies and localStorage for atomic login...");
+  await page.context().clearCookies();
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
 
-	// Navigate to login page
-	console.log('[Auth] Navigating to /login...');
-	await page.goto('/login', { waitUntil: 'networkidle', timeout: 30_000 });
+  // Inject session storage to bypass the welcome modal and cookie consent before navigation
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
+    window.localStorage.setItem(
+      "sveltycms_consent",
+      JSON.stringify({
+        responded: true,
+        necessary: true,
+        analytics: false,
+        marketing: false,
+      }),
+    );
+  });
 
-	// Check if we got redirected to setup (config incomplete)
-	if (page.url().includes('/setup')) {
-		throw new Error(`Setup is not complete. Cannot login - redirected to: ${page.url()}`);
-	}
+  // First, try to logout if already logged in
+  await logout(page);
 
-	// Check if we're on the login selection page (SIGN IN / SIGN UP buttons)
-	const signInButton = page.locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")').first();
-	const signInVisible = await signInButton.isVisible({ timeout: 5000 }).catch(() => false);
+  // Navigate to login page
+  console.log("[Auth] Navigating to /login...");
+  await page.goto("/login", { waitUntil: "networkidle", timeout: 30_000 });
 
-	if (signInVisible) {
-		console.log('[Auth] Clicking SIGN IN button...');
-		await signInButton.click();
-		await page.waitForTimeout(1000);
-	}
+  // Check if we got redirected to setup (config incomplete)
+  if (page.url().includes("/setup")) {
+    throw new Error(`Setup is not complete. Cannot login - redirected to: ${page.url()}`);
+  }
 
-	// Wait for login form to be visible - use data-testid
-	console.log('[Auth] Waiting for signin-email field...');
-	await page
-		.waitForSelector('[data-testid="signin-email"]', {
-			timeout: 15_000,
-			state: 'visible'
-		})
-		.catch(async (e) => {
-			console.error('[Auth] ERROR: signin-email field not found!');
-			// Provide debug info about available inputs
-			const inputs = await page.locator('input').all();
-			for (let i = 0; i < inputs.length; i++) {
-				const input = inputs[i];
-				const name = await input.getAttribute('name');
-				const testId = await input.getAttribute('data-testid');
-				console.error(`[Auth]   Input ${i}: name=${name}, data-testid=${testId}`);
-			}
-			throw e;
-		});
+  // Check if we're on the login selection page (SIGN IN / SIGN UP buttons)
+  // Try data-testid first, then fallback to previous locators
+  const signInIcon = page.getByTestId("signin-icon");
+  const signInButton = page
+    .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
+    .first();
 
-	// Fill login form using data-testid selectors
-	console.log(`[Auth] Filling email: ${ADMIN_CREDENTIALS.email}`);
-	await page.getByTestId('signin-email').fill(ADMIN_CREDENTIALS.email);
-	await page.getByTestId('signin-password').fill(ADMIN_CREDENTIALS.password);
+  const signInIconVisible = await signInIcon.isVisible({ timeout: 2000 }).catch(() => false);
+  const signInButtonVisible =
+    !signInIconVisible && (await signInButton.isVisible({ timeout: 2000 }).catch(() => false));
 
-	// Submit form using data-testid
-	console.log('[Auth] Submitting login form...');
-	await page.getByTestId('signin-submit').click();
+  if (signInIconVisible) {
+    console.log("[Auth] Clicking SIGN IN icon...");
+    await signInIcon.click();
+    await page.waitForTimeout(1000);
+  } else if (signInButtonVisible) {
+    console.log("[Auth] Clicking SIGN IN button (fallback)...");
+    await signInButton.click();
+    await page.waitForTimeout(1000);
+  } else {
+    // If neither is visible, we might already be on the form, or on the SIGN UP only page (First User)
+    const signUpIcon = page.getByTestId("signup-icon");
+    if (await signUpIcon.isVisible()) {
+      console.log(
+        "[Auth] WARNING: Only SIGN UP icon visible. DB might not be seeded or isFirstUser=true.",
+      );
+      // In first user mode, we'll try to click signup and fill it, but expect error later
+      await signUpIcon.click();
+      await page.waitForTimeout(1000);
+    }
+  }
 
-	// Wait for redirect after successful login
-	console.log('[Auth] Waiting for redirect...');
-	if (waitForUrl) {
-		await page.waitForURL(waitForUrl, { timeout: 15_000 });
-	} else {
-		// Wait until we're no longer on the login page
-		await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
-	}
-	console.log(`[Auth] Login successful, redirected to: ${page.url()}`);
+  // Wait for login form to be visible - use data-testid
+  console.log("[Auth] Waiting for signin-email field...");
+  await page
+    .waitForSelector('[data-testid="signin-email"]', {
+      timeout: 15_000,
+      state: "visible",
+    })
+    .catch(async (e) => {
+      console.error("[Auth] ERROR: signin-email field not found!");
+      // Provide debug info about available inputs
+      const inputs = await page.locator("input").all();
+      for (let i = 0; i < inputs.length; i++) {
+        const input = inputs[i];
+        const name = await input.getAttribute("name");
+        const testId = await input.getAttribute("data-testid");
+        console.error(`[Auth]   Input ${i}: name=${name}, data-testid=${testId}`);
+      }
+      throw e;
+    });
+
+  // Fill login form using data-testid selectors
+  console.log(`[Auth] Filling email: ${ADMIN_CREDENTIALS.email}`);
+  await page.getByTestId("signin-email").fill(ADMIN_CREDENTIALS.email);
+  await page.getByTestId("signin-password").fill(ADMIN_CREDENTIALS.password);
+
+  // Submit form using data-testid
+  console.log("[Auth] Submitting login form...");
+  await page.getByTestId("signin-submit").click();
+
+  // Wait for redirect after successful login
+  console.log("[Auth] Waiting for redirect...");
+  if (waitForUrl) {
+    await page.waitForURL(waitForUrl, { timeout: 15_000 });
+  } else {
+    // Wait until we're no longer on the login page
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
+  }
+  console.log(`[Auth] Login successful, redirected to: ${page.url()}`);
 }
 
 /**
@@ -87,47 +131,48 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
  * @param page - Playwright page object
  */
 export async function logout(page: Page) {
-	try {
-		// Try to navigate to home/dashboard first to check if logged in
-		await page.goto('/', { timeout: 10_000, waitUntil: 'domcontentloaded' });
+  try {
+    // Try to navigate to home/dashboard first to check if logged in
+    await page.goto("/", { timeout: 10_000, waitUntil: "domcontentloaded" });
 
-		// If we're on setup or login page, we're not logged in
-		if (page.url().includes('/setup') || page.url().includes('/login')) {
-			console.log('[Auth] Not logged in, skipping logout');
-			return;
-		}
+    // If we're on setup or login page, we're not logged in
+    if (page.url().includes("/setup") || page.url().includes("/login")) {
+      console.log("[Auth] Not logged in, skipping logout");
+      return;
+    }
 
-		// Look for logout button or menu - try multiple selectors
-		const logoutSelectors = [
-			'button:has-text("Logout")',
-			'button:has-text("Sign out")',
-			'button:has-text("Log out")',
-			'a:has-text("Logout")',
-			'a:has-text("Sign out")',
-			'[aria-label*="logout" i]',
-			'[aria-label*="sign out" i]'
-		];
+    // Look for logout button or menu - try multiple selectors
+    const logoutSelectors = [
+      '[data-testid="sign-out-button"]',
+      'button:has-text("Logout")',
+      'button:has-text("Sign out")',
+      'button:has-text("Log out")',
+      'a:has-text("Logout")',
+      'a:has-text("Sign out")',
+      '[aria-label*="logout" i]',
+      '[aria-label*="sign out" i]',
+    ];
 
-		for (const selector of logoutSelectors) {
-			const button = page.locator(selector).first();
-			if (await button.isVisible({ timeout: 1000 }).catch(() => false)) {
-				console.log(`[Auth] Logging out using selector: ${selector}`);
-				await button.click();
-				await page.waitForURL(/\/(login|signup)/, { timeout: 5000 }).catch(() => {});
-				return;
-			}
-		}
+    for (const selector of logoutSelectors) {
+      const button = page.locator(selector).first();
+      if (await button.isVisible({ timeout: 1000 }).catch(() => false)) {
+        console.log(`[Auth] Logging out using selector: ${selector}`);
+        await button.click();
+        await page.waitForURL(/\/(login|signup)/, { timeout: 5000 }).catch(() => {});
+        return;
+      }
+    }
 
-		console.log('[Auth] No logout button found, clearing cookies and localStorage');
-		// If no logout button found, clear session manually
-		await page.context().clearCookies();
-		await page.evaluate(() => {
-			localStorage.clear();
-			sessionStorage.clear();
-		});
-	} catch (error) {
-		console.log('[Auth] Error during logout, continuing anyway:', error);
-	}
+    console.log("[Auth] No logout button found, clearing cookies and localStorage");
+    // If no logout button found, clear session manually
+    await page.context().clearCookies();
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
+  } catch (error) {
+    console.log("[Auth] Error during logout, continuing anyway:", error);
+  }
 }
 
 /**
@@ -136,20 +181,24 @@ export async function logout(page: Page) {
  * @param page - Playwright page object
  */
 export async function ensureSidebarVisible(page: Page) {
-	const viewport = page.viewportSize();
-	const isMobile = viewport && viewport.width < 768;
+  const viewport = page.viewportSize();
+  const isMobile = viewport && viewport.width < 768;
 
-	if (isMobile) {
-		// Try to find and click the menu/hamburger button to open sidebar
-		const menuButton = page.locator('button[aria-label*="menu" i], button[aria-label*="sidebar" i], button[aria-label="Open Sidebar"]').first();
-		const menuVisible = await menuButton.isVisible().catch(() => false);
+  if (isMobile) {
+    // Try to find and click the menu/hamburger button to open sidebar
+    const menuButton = page
+      .locator(
+        'button[aria-label*="menu" i], button[aria-label*="sidebar" i], button[aria-label="Open Sidebar"]',
+      )
+      .first();
+    const menuVisible = await menuButton.isVisible().catch(() => false);
 
-		if (menuVisible) {
-			await menuButton.click();
-			await page.waitForTimeout(500);
-			console.log('✓ Opened sidebar on mobile viewport');
-			return true;
-		}
-	}
-	return false;
+    if (menuVisible) {
+      await menuButton.click();
+      await page.waitForTimeout(500);
+      console.log("✓ Opened sidebar on mobile viewport");
+      return true;
+    }
+  }
+  return false;
 }

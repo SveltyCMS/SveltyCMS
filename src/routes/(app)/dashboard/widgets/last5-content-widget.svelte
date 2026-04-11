@@ -20,11 +20,11 @@ This widget fetches and displays the latest content items, including:
 - Theme-aware rendering (light/dark mode support)
 -->
 <script lang="ts" module>
-	export const widgetMeta = {
-		name: 'Last 5 Content',
-		icon: 'mdi:file-document-multiple-outline',
-		defaultSize: { w: 1, h: 2 }
-	};
+export const widgetMeta = {
+	name: "Last 5 Content",
+	icon: "mdi:file-document-multiple-outline",
+	defaultSize: { w: 1, h: 2 },
+};
 </script>
 
 <script lang="ts">

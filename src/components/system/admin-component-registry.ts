@@ -6,26 +6,26 @@
  */
 
 // Complex Components
-import IconifyIconsPicker from '@components/iconify-icons-picker.svelte';
-import PermissionsSetting from '@components/permissions-setting.svelte';
-import CollectionPicker from '@components/system/builder/collection-picker.svelte';
-import FieldPicker from '@components/system/builder/field-picker.svelte';
+import IconifyIconsPicker from "@components/iconify-icons-picker.svelte";
+import PermissionsSetting from "@components/permissions-setting.svelte";
+import CollectionPicker from "@components/system/builder/collection-picker.svelte";
+import FieldPicker from "@components/system/builder/field-picker.svelte";
 // System Components
-import Input from '@components/system/inputs/input.svelte';
-import Toggles from '@components/system/inputs/toggles.svelte';
-import type { Component } from 'svelte';
+import Input from "@components/system/inputs/input.svelte";
+import Toggles from "@components/system/inputs/toggles.svelte";
+import type { Component } from "svelte";
 
 // Type for the registry
 export type AdminComponentKey = keyof typeof adminComponentRegistry;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const adminComponentRegistry: Record<string, Component<any>> = {
-	Input,
-	Toggles,
-	IconifyIconsPicker,
-	PermissionsSetting,
-	CollectionPicker,
-	FieldPicker
+  Input,
+  Toggles,
+  IconifyIconsPicker,
+  PermissionsSetting,
+  CollectionPicker,
+  FieldPicker,
 };
 
 /**
@@ -33,8 +33,8 @@ export const adminComponentRegistry: Record<string, Component<any>> = {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function resolveAdminComponent(widget: string | Component<any>): Component<any> | null {
-	if (typeof widget === 'string') {
-		return adminComponentRegistry[widget as AdminComponentKey] || null;
-	}
-	return widget;
+  if (typeof widget === "string") {
+    return adminComponentRegistry[widget as AdminComponentKey] || null;
+  }
+  return widget;
 }

@@ -1,121 +1,138 @@
 /**
- * @file src/services/PerformanceService.ts
+ * @file src/services/performance-service.ts
  * @description Persistent metrics repository for the Self-Learning State Machine.
  *
- * Features:
- * - Save learned metrics for all services to the database.
- * - Load historical metrics from the database.
- * - Record a specific benchmark (e.g. for a setup phase).
+ * Optimized for:
+ * - Low DB Pressure: Uses consolidated snapshotting to minimize row count.
+ * - Non-blocking: All persistence operations are offloaded to background tasks.
+ * - Enterprise Observability: Tracks its own persistence latency.
  */
 
-import type { ServicePerformanceMetrics, SystemStateStore } from '@src/stores/system/types';
-import { logger } from '@utils/logger';
+import type { ServicePerformanceMetrics, SystemStateStore } from "@src/stores/system/types";
+import { logger } from "@utils/logger";
 
-/**
- * Service to handle persistence of learned performance metrics.
- * Uses systemPreferences (scope: 'system') to store historical data.
- */
 export class PerformanceService {
-	private static instance: PerformanceService;
-	private readonly PREFERENCE_KEY_PREFIX = 'PERF_METRICS_';
+  private static instance: PerformanceService;
+  private readonly SNAPSHOT_KEY = "SYSTEM_METRICS_SNAPSHOT";
+  private readonly BENCHMARK_PREFIX = "BENCH_";
 
-	public static getInstance(): PerformanceService {
-		if (!PerformanceService.instance) {
-			PerformanceService.instance = new PerformanceService();
-		}
-		return PerformanceService.instance;
-	}
+  public static getInstance(): PerformanceService {
+    if (!PerformanceService.instance) {
+      PerformanceService.instance = new PerformanceService();
+    }
+    return PerformanceService.instance;
+  }
 
-	private async getDbAdapter() {
-		const { dbAdapter } = await import('@src/databases/db');
-		return dbAdapter;
-	}
+  private async getDbAdapter() {
+    const { dbAdapter } = await import("@src/databases/db");
+    return dbAdapter;
+  }
 
-	/**
-	 * Save learned metrics for all services to the database.
-	 */
-	async saveMetrics(services: SystemStateStore['services']): Promise<void> {
-		const dbAdapter = await this.getDbAdapter();
-		if (!dbAdapter?.system.preferences) {
-			logger.warn('[PerformanceService] Cannot save metrics: dbAdapter not available');
-			return;
-		}
+  /**
+   * Save learned metrics for all services.
+   * Optimized: Consolidates all service metrics into a single atomic snapshot.
+   */
+  async saveMetrics(services: SystemStateStore["services"]): Promise<void> {
+    // Fire-and-forget to avoid blocking the state machine
+    Promise.resolve().then(async () => {
+      const start = performance.now();
+      const dbAdapter = await this.getDbAdapter();
+      if (!dbAdapter?.system.preferences) return;
 
-		try {
-			const preferences = Object.entries(services).map(([name, status]) => ({
-				key: `${this.PREFERENCE_KEY_PREFIX}${name}`,
-				value: JSON.stringify(status.metrics),
-				category: 'performance',
-				scope: 'system' as const
-			}));
+      try {
+        // Consolidate into a single structured object
+        const metricsMap: Record<string, ServicePerformanceMetrics> = {};
+        for (const [name, status] of Object.entries(services)) {
+          metricsMap[name] = status.metrics;
+        }
 
-			await dbAdapter.system.preferences.setMany(preferences);
-			logger.debug('[PerformanceService] Saved historical metrics to database');
-		} catch (error) {
-			logger.error('[PerformanceService] Failed to save metrics:', error);
-		}
-	}
+        await dbAdapter.system.preferences.set(
+          this.SNAPSHOT_KEY,
+          JSON.stringify({
+            version: "2.0",
+            updatedAt: Date.now(),
+            data: metricsMap,
+          }),
+          "system",
+          undefined,
+          "performance",
+        );
 
-	/**
-	 * Load historical metrics from the database.
-	 */
-	async loadMetrics(): Promise<Record<string, ServicePerformanceMetrics>> {
-		const dbAdapter = await this.getDbAdapter();
-		if (!dbAdapter?.system.preferences) {
-			logger.warn('[PerformanceService] Cannot load metrics: dbAdapter not available');
-			return {};
-		}
+        const duration = (performance.now() - start).toFixed(2);
+        logger.debug(`[PerformanceService] Metrics snapshot saved in ${duration}ms`);
+      } catch (error) {
+        logger.error("[PerformanceService] Failed to save metrics snapshot:", error);
+      }
+    });
+  }
 
-		try {
-			const result = await dbAdapter.system.preferences.getByCategory('performance', 'system');
+  /**
+   * Load historical metrics from the database.
+   */
+  async loadMetrics(): Promise<Record<string, ServicePerformanceMetrics>> {
+    const dbAdapter = await this.getDbAdapter();
+    if (!dbAdapter?.system.preferences) return {};
 
-			if (!(result.success && result.data)) {
-				return {};
-			}
+    try {
+      // 1. Try to load modern consolidated snapshot
+      const snapshotResult = await dbAdapter.system.preferences.get(this.SNAPSHOT_KEY, "system");
 
-			const metrics: Record<string, ServicePerformanceMetrics> = {};
-			for (const [key, value] of Object.entries(result.data)) {
-				if (key.startsWith(this.PREFERENCE_KEY_PREFIX)) {
-					const name = key.replace(this.PREFERENCE_KEY_PREFIX, '');
-					try {
-						metrics[name] = typeof value === 'string' ? JSON.parse(value) : value;
-					} catch {
-						logger.warn(`[PerformanceService] Failed to parse metrics for ${name}`);
-					}
-				}
-			}
+      if (snapshotResult.success && snapshotResult.data) {
+        const snapshot =
+          typeof snapshotResult.data === "string"
+            ? JSON.parse(snapshotResult.data)
+            : snapshotResult.data;
 
-			return metrics;
-		} catch (error) {
-			logger.error('[PerformanceService] Failed to load metrics:', error);
-			return {};
-		}
-	}
+        if (snapshot.version === "2.0") {
+          return snapshot.data;
+        }
+      }
 
-	/**
-	 * Record a specific benchmark (e.g. for a setup phase).
-	 */
-	async recordBenchmark(name: string, value: number): Promise<void> {
-		const dbAdapter = await this.getDbAdapter();
-		if (!dbAdapter?.system.preferences) {
-			return;
-		}
+      // 2. Fallback: Load legacy individual metrics (for migration path)
+      const legacyResult = await dbAdapter.system.preferences.getByCategory(
+        "performance",
+        "system",
+      );
+      if (legacyResult.success && legacyResult.data) {
+        const metrics: Record<string, ServicePerformanceMetrics> = {};
+        for (const [key, value] of Object.entries(legacyResult.data)) {
+          if (key.startsWith("PERF_METRICS_")) {
+            const name = key.replace("PERF_METRICS_", "");
+            metrics[name] = typeof value === "string" ? JSON.parse(value) : value;
+          }
+        }
+        return metrics;
+      }
 
-		try {
-			await dbAdapter.system.preferences.set(
-				`BENCHMARK_${name}`,
-				JSON.stringify({
-					value,
-					timestamp: Date.now()
-				}),
-				'system',
-				undefined,
-				'benchmark'
-			);
-		} catch (error) {
-			logger.error(`[PerformanceService] Failed to record benchmark ${name}:`, error);
-		}
-	}
+      return {};
+    } catch (error) {
+      logger.error("[PerformanceService] Failed to load metrics:", error);
+      return {};
+    }
+  }
+
+  /**
+   * Record a specific benchmark.
+   * Optimized: Uses a more compact key and background persistence.
+   */
+  async recordBenchmark(name: string, value: number): Promise<void> {
+    Promise.resolve().then(async () => {
+      const dbAdapter = await this.getDbAdapter();
+      if (!dbAdapter?.system.preferences) return;
+
+      try {
+        await dbAdapter.system.preferences.set(
+          `${this.BENCHMARK_PREFIX}${name}`,
+          JSON.stringify({ v: value, t: Date.now() }),
+          "system",
+          undefined,
+          "benchmark",
+        );
+      } catch (error) {
+        logger.error(`[PerformanceService] Failed to record benchmark ${name}:`, error);
+      }
+    });
+  }
 }
 
 export const performanceService = PerformanceService.getInstance();

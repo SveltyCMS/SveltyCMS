@@ -1,19 +1,19 @@
 ---
-path: 'docs/architecture/cache-system.mdx'
-title: 'Cache System'
-description: 'Comprehensive guide to SveltyCMS dual-layer caching system with Redis & MongoDB, TTL configuration, metrics, and predictive warming.'
+path: "docs/architecture/cache-system.mdx"
+title: "Cache System"
+description: "Comprehensive guide to SveltyCMS dual-layer caching system with Redis & MongoDB, TTL configuration, metrics, and predictive warming."
 order: 5
-icon: 'mdi:database-clock'
-author: 'admin'
-created: '2025-10-03'
-updated: '2026-03-05'
+icon: "mdi:database-clock"
+author: "SveltyCMS Team"
+created: "2025-10-03"
+updated: "2026-03-27"
 tags:
-  - 'cache'
-  - 'redis'
-  - 'performance'
-  - 'metrics'
-  - 'optimization'
-  - 'architecture'
+  - "cache"
+  - "redis"
+  - "performance"
+  - "metrics"
+  - "optimization"
+  - "architecture"
 ---
 
 # Cache System
@@ -62,7 +62,8 @@ graph TD
 
 1.  **L1: Redis (Volatile)**: Ultra-fast storage for session data and hot content. Automatic eviction via LRU.
 2.  **L2: Database (Persistent)**: Cross-restart persistence using the system's primary database (MongoDB, MariaDB, etc.).
-3.  **Source DB**: The authoritative source of truth, accessed only on full cache misses.
+3.  **App: In-Memory Structural Cache**: SveltyCMS maintains a high-speed, reactive `nodeMap` in the `contentStore` (Svelte 5 runes) for instant navigation.
+4.  **Source DB**: The authoritative source of truth, accessed only on full cache misses or reconciliation.
 
 ---
 
@@ -91,18 +92,18 @@ The `CacheService` orchestrates the dual-layer logic and integrates with the sys
 
 ```typescript
 export enum CacheCategory {
-	SCHEMA = 'schema',
-	WIDGET = 'widget',
-	THEME = 'theme',
-	CONTENT = 'content',
-	MEDIA = 'media',
-	SESSION = 'session',
-	USER = 'user',
-	API = 'api'
+  SCHEMA = "schema",
+  WIDGET = "widget",
+  THEME = "theme",
+  CONTENT = "content",
+  MEDIA = "media",
+  SESSION = "session",
+  USER = "user",
+  API = "api",
 }
 
 // Example usage
-await cacheService.setWithCategory('user:123', userData, CacheCategory.USER, tenantId);
+await cacheService.setWithCategory("user:123", userData, CacheCategory.USER, tenantId);
 ```
 
 ### Cache Metrics (`CacheMetrics.ts`)
@@ -129,20 +130,25 @@ Proactive caching reduces "cold start" latency:
 ### Cache Store Methods
 
 ```typescript
-import { cacheService } from '@src/databases/cache-service';
+import { cacheService } from "@src/databases/cache/cache-service";
 
 // Set cache value with category (recommended)
-await cacheService.setWithCategory('key', data, CacheCategory.API);
+await cacheService.setWithCategory("key", data, CacheCategory.API);
 
 // Set with explicit TTL (seconds)
-await cacheService.set('key', data, 3600);
+await cacheService.set("key", data, 3600);
 
 // Pattern invalidation
-await cacheService.deletePattern('query:collections:*');
+await cacheService.deletePattern("query:collections:*");
 
-// Category invalidation
-await cacheService.invalidateCategory(CacheCategory.SCHEMA);
-```
+### Content Structure Cache (`cms:content_structure`)
+
+Specialized caching for the entire CMS collection tree. managed by `src/content/index.ts`.
+
+- **Storage**: Persisted to L1/L2 under the `cms:content_structure` key, scoped by `tenantId`.
+- **Warming**: Automatically populated during system initialization (IDLE → READY).
+- **Invalidation**: Triggered immediately when a collection schema is modified or a new collection is created.
+- **Payload**: Contains the complete `nodes` map and system `version` for atomic state synchronization across nodes.
 
 ### Monitoring & Debugging
 
@@ -170,5 +176,6 @@ Typical production metrics (Steady State):
 ## Related Documentation
 
 - [Authentication System](./authentication-system.mdx) - Session caching details
-- [Database Methods](../database/database-methods.mdx) - Low-level DB interactions
+- [Database Methods](./database/database-methods.mdx) - Low-level DB interactions
 - [Multi-Tenancy](./multi-tenancy.mdx) - Tenant isolation in cache keys
+```

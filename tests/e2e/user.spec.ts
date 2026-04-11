@@ -4,131 +4,131 @@
  * Refactored to use standard authentication patterns and robust locators.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { expect, test } from '@playwright/test';
-import { loginAsAdmin } from './helpers/auth';
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { expect, test } from "@playwright/test";
+import { loginAsAdmin } from "./helpers/auth";
 
 // Construct reliable file path for CI/CD environments
 // This looks for 'testthumb.png' in the SAME directory as this test file
 const FILENAME = fileURLToPath(import.meta.url);
 const DIRNAME = path.dirname(FILENAME);
-const AVATAR_PATH = path.join(DIRNAME, 'testthumb.png');
+const AVATAR_PATH = path.join(DIRNAME, "testthumb.png");
 
-test.describe('User Profile Management', () => {
-	// 1. Setup: Run before every test in this group
-	test.beforeEach(async ({ page }) => {
-		// Perform Login
-		await loginAsAdmin(page);
+test.describe("User Profile Management", () => {
+  // 1. Setup: Run before every test in this group
+  test.beforeEach(async ({ page }) => {
+    // Perform Login
+    await loginAsAdmin(page);
 
-		// Verification: Wait for dashboard to ensure we are logged in
-		await expect(page).toHaveURL('/');
-	});
+    // Verification: Wait for dashboard to ensure we are logged in
+    await expect(page).toHaveURL("/");
+  });
 
-	test('Login Verification', async ({ page }) => {
-		// Already verified in beforeEach, but good for sanity check
-		expect(page.url()).not.toContain('/login');
-	});
+  test("Login Verification", async ({ page }) => {
+    // Already verified in beforeEach, but good for sanity check
+    expect(page.url()).not.toContain("/login");
+  });
 
-	test('Edit Avatar', async ({ page }) => {
-		// Ensure the test image exists before trying to upload
-		if (!fs.existsSync(AVATAR_PATH)) {
-			console.warn(`Test image not found at ${AVATAR_PATH}. Skipping avatar upload test.`);
-			return;
-		}
+  test("Edit Avatar", async ({ page }) => {
+    // Ensure the test image exists before trying to upload
+    if (!fs.existsSync(AVATAR_PATH)) {
+      console.warn(`Test image not found at ${AVATAR_PATH}. Skipping avatar upload test.`);
+      return;
+    }
 
-		await page.goto('/user');
+    await page.goto("/user");
 
-		// Wait for profile to load
-		await expect(page.getByRole('heading', { name: 'User Profile' })).toBeVisible();
+    // Wait for profile to load
+    await expect(page.getByRole("heading", { name: "User Profile" })).toBeVisible();
 
-		// Trigger upload
-		await page.getByRole('button', { name: 'Edit Avatar' }).click();
+    // Trigger upload
+    await page.getByRole("button", { name: "Edit Avatar" }).click();
 
-		// Handle file input safely
-		const fileInput = page.locator('input[type="file"]');
-		await fileInput.setInputFiles(AVATAR_PATH);
+    // Handle file input safely
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.setInputFiles(AVATAR_PATH);
 
-		await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole("button", { name: "Save" }).click();
 
-		// Assertion: Check if the image source changes or notification appears
-		// Using a more generic waiter to prevent timeout flakes
-		await expect(page.locator('.avatar-image, img[alt="Avatar"]')).toBeVisible();
-	});
+    // Assertion: Check if the image source changes or notification appears
+    // Using a more generic waiter to prevent timeout flakes
+    await expect(page.locator('.avatar-image, img[alt="Avatar"]')).toBeVisible();
+  });
 
-	test('Delete Avatar', async ({ page }) => {
-		await page.goto('/user');
-		await page.getByRole('button', { name: 'Edit Avatar' }).click();
+  test("Delete Avatar", async ({ page }) => {
+    await page.goto("/user");
+    await page.getByRole("button", { name: "Edit Avatar" }).click();
 
-		// Use a more specific selector for the delete button (add data-testid in source if possible)
-		// Fallback to class if needed, but verify visibility first
-		const deleteBtn = page.locator('button.variant-filled-error');
-		await expect(deleteBtn).toBeVisible();
-		await deleteBtn.click();
+    // Use a more specific selector for the delete button (add data-testid in source if possible)
+    // Fallback to class if needed, but verify visibility first
+    const deleteBtn = page.locator("button.variant-filled-error");
+    await expect(deleteBtn).toBeVisible();
+    await deleteBtn.click();
 
-		// Assertion: Check for default avatar fallback
-		// Note: Update selector based on your actual default avatar implementation
-		await expect(page.locator('img')).toBeVisible();
-	});
+    // Assertion: Check for default avatar fallback
+    // Note: Update selector based on your actual default avatar implementation
+    await expect(page.locator("img")).toBeVisible();
+  });
 
-	test('Edit User Details', async ({ page }) => {
-		await page.goto('/user');
+  test("Edit User Details", async ({ page }) => {
+    await page.goto("/user");
 
-		await page.getByRole('button', { name: /Edit User Settings/i }).click();
+    await page.getByRole("button", { name: /Edit User Settings/i }).click();
 
-		// Use fill for robustness
-		await page.locator('#username').fill('Test User Updated');
-		// Only fill password if specifically testing password change
-		// otherwise it might trigger re-auth logic
+    // Use fill for robustness
+    await page.locator("#username").fill("Test User Updated");
+    // Only fill password if specifically testing password change
+    // otherwise it might trigger re-auth logic
 
-		await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole("button", { name: "Save" }).click();
 
-		await expect(page.getByText('User details updated')).toBeVisible();
-	});
+    await expect(page.getByText("User details updated")).toBeVisible();
+  });
 
-	test('Registration Token Workflow', async ({ page }) => {
-		await page.goto('/user');
+  test("Registration Token Workflow", async ({ page }) => {
+    await page.goto("/user");
 
-		await page.getByText('Email User Registration token').click();
+    await page.getByText("Email User Registration token").click();
 
-		// Fill details
-		await page.locator('#email-address').fill('newuser@test.ge');
+    // Fill details
+    await page.locator("#email-address").fill("newuser@test.ge");
 
-		// Select Role (Robust selection)
-		await page.getByText('user', { exact: true }).click();
+    // Select Role (Robust selection)
+    await page.getByText("user", { exact: true }).click();
 
-		// Select Duration
-		await page.getByText('12 hrs').click();
+    // Select Duration
+    await page.getByText("12 hrs").click();
 
-		await page.getByRole('button', { name: 'Send' }).click();
+    await page.getByRole("button", { name: "Send" }).click();
 
-		await expect(page.getByText('Token sent')).toBeVisible();
-	});
+    await expect(page.getByText("Token sent")).toBeVisible();
+  });
 
-	test('Toggle User Token Visibility', async ({ page }) => {
-		await page.goto('/user');
+  test("Toggle User Token Visibility", async ({ page }) => {
+    await page.goto("/user");
 
-		// Open
-		await page.getByText('Show User Token').click();
-		const tokenList = page.getByRole('heading', { name: 'Token List:' });
-		await expect(tokenList).toBeVisible();
+    // Open
+    await page.getByText("Show User Token").click();
+    const tokenList = page.getByRole("heading", { name: "Token List:" });
+    await expect(tokenList).toBeVisible();
 
-		// Close
-		await page.getByText('Hide User Token').click();
-		await expect(tokenList).not.toBeVisible();
-	});
+    // Close
+    await page.getByText("Hide User Token").click();
+    await expect(tokenList).not.toBeVisible();
+  });
 
-	test('Toggle User List Visibility', async ({ page }) => {
-		await page.goto('/user');
+  test("Toggle User List Visibility", async ({ page }) => {
+    await page.goto("/user");
 
-		// Open
-		await page.getByText('Show User List').click();
-		const userList = page.getByRole('heading', { name: 'User List:' });
-		await expect(userList).toBeVisible();
+    // Open
+    await page.getByText("Show User List").click();
+    const userList = page.getByRole("heading", { name: "User List:" });
+    await expect(userList).toBeVisible();
 
-		// Close
-		await page.getByText('Hide User List').click();
-		await expect(userList).not.toBeVisible();
-	});
+    // Close
+    await page.getByText("Hide User List").click();
+    await expect(userList).not.toBeVisible();
+  });
 });

@@ -15,49 +15,57 @@
 -->
 
 <script lang="ts">
-	import { widgets } from '@src/stores/widget-store.svelte.ts';
-	import { onMount } from 'svelte';
+import { widgets } from "@src/stores/widget-store.svelte.ts";
+import { onMount } from "svelte";
 
-	// Props
-	interface Props {
-		onAddWidget: (widgetKey: string) => void;
-	}
-	const { onAddWidget }: Props = $props();
+// Props
+interface Props {
+	onAddWidget: (widgetKey: string) => void;
+}
+const { onAddWidget }: Props = $props();
 
-	let searchTerm = $state('');
+let searchTerm = $state("");
 
-	// Get available widgets
-	const availableWidgets = $derived(widgets.widgetFunctions || {});
+// Get available widgets
+const availableWidgets = $derived(widgets.widgetFunctions || {});
 
-	onMount(async () => {
-		await widgets.initialize();
-	});
+onMount(async () => {
+	await widgets.initialize();
+});
 
-	// Categories for organization
-	const categories = ['Core', 'Custom', 'Marketplace'];
+// Categories for organization
+const categories = ["Core", "Custom", "Marketplace"];
 
-	// Local state for dragging (palette items)
-	// We need stable IDs for dndzone
-	let paletteItems = $derived(
-		categories.flatMap((cat) => {
-			const keys = cat === 'Core' ? widgets.coreWidgets : cat === 'Custom' ? widgets.customWidgets : widgets.marketplaceWidgets;
-			return keys
-				.filter((key) => !searchTerm || key.toLowerCase().includes(searchTerm.toLowerCase()))
-				.map((key) => ({
-					id: `palette-${key}`,
-					key,
-					label: key,
-					icon: availableWidgets[key]?.Icon || 'mdi:puzzle',
-					description: availableWidgets[key]?.Description || '',
-					category: cat
-				}));
-		})
-	);
+// Local state for dragging (palette items)
+// We need stable IDs for dndzone
+let paletteItems = $derived(
+	categories.flatMap((cat) => {
+		const keys =
+			cat === "Core"
+				? widgets.coreWidgets
+				: cat === "Custom"
+					? widgets.customWidgets
+					: widgets.marketplaceWidgets;
+		return keys
+			.filter(
+				(key) =>
+					!searchTerm || key.toLowerCase().includes(searchTerm.toLowerCase()),
+			)
+			.map((key) => ({
+				id: `palette-${key}`,
+				key,
+				label: key,
+				icon: availableWidgets[key]?.Icon || "mdi:puzzle",
+				description: availableWidgets[key]?.Description || "",
+				category: cat,
+			}));
+	}),
+);
 
-	// Palette drag handling (we don't actually want to reorder the palette, just allow dragging FROM it)
-	// For "drag from palette" we use a trick: handledndfinalize doesn't remove the item if we clone it or handle it specially.
-	// Actually, easier for v1 to just have click-to-add with a nice UI, and add drag later if needed,
-	// but user asked for modern UX.
+// Palette drag handling (we don't actually want to reorder the palette, just allow dragging FROM it)
+// For "drag from palette" we use a trick: handledndfinalize doesn't remove the item if we clone it or handle it specially.
+// Actually, easier for v1 to just have click-to-add with a nice UI, and add drag later if needed,
+// but user asked for modern UX.
 </script>
 
 <div class="flex h-full min-w-0 flex-col border-r border-surface-200-800 bg-surface-50-950 p-4 w-full lg:w-72">

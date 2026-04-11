@@ -16,49 +16,67 @@ Features:
 -->
 
 <script lang="ts">
-	// Stores
+// Stores
 
-	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
-	import { collections } from '@src/stores/collection-store.svelte';
-	import { modalState } from '@utils/modal-state.svelte';
-	import { asAny } from '@utils/utils';
-	import type { Component } from 'svelte';
+import InputSwitch from "@src/components/system/builder/input-switch.svelte";
+import { collections } from "@src/stores/collection-store.svelte";
+import { modalState } from "@utils/modal-state.svelte";
+import { asAny } from "@utils/utils";
+import type { Component } from "svelte";
 
-	// GuiSchema is a record of field properties with their widget configs
-	type GuiSchema = Record<string, { widget: Component<any> }>;
+// GuiSchema is a record of field properties with their widget configs
+type GuiSchema = Record<string, { widget: Component<any> }>;
 
-	interface Props {
-		guiSchema: GuiSchema;
+interface Props {
+	guiSchema: GuiSchema;
+}
+
+const { guiSchema }: Props = $props();
+
+// Get all properties from the guiSchema
+const allProperties = $derived(Object.keys(guiSchema || {}));
+
+// Define standard/default properties that should appear first
+const standardProperties = [
+	"label",
+	"db_fieldName",
+	"required",
+	"translated",
+	"icon",
+	"helper",
+	"width",
+];
+
+// Get additional properties from the widget's GuiSchema
+const additionalProperties = $derived(
+	allProperties.filter(
+		(prop) => !standardProperties.includes(prop) && prop !== "permissions",
+	),
+);
+
+// Combine them in order: standard first, then additional
+const displayProperties = $derived([
+	...standardProperties,
+	...additionalProperties,
+]);
+
+function defaultValue(property: string) {
+	if (property === "required" || property === "translated") {
+		return false;
 	}
+	return (collections.targetWidget.widget as any)?.Name;
+}
 
-	const { guiSchema }: Props = $props();
-
-	// Get all properties from the guiSchema
-	const allProperties = $derived(Object.keys(guiSchema || {}));
-
-	// Define standard/default properties that should appear first
-	const standardProperties = ['label', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width'];
-
-	// Get additional properties from the widget's GuiSchema
-	const additionalProperties = $derived(allProperties.filter((prop) => !standardProperties.includes(prop) && prop !== 'permissions'));
-
-	// Combine them in order: standard first, then additional
-	const displayProperties = $derived([...standardProperties, ...additionalProperties]);
-
-	function defaultValue(property: string) {
-		if (property === 'required' || property === 'translated') {
-			return false;
-		}
-		return (collections.targetWidget.widget as any)?.Name;
-	}
-
-	function handleUpdate(detail: { value?: any; icon?: any }, property: string) {
-		// Update the targetWidget store. Icon picker emits icon (not value); use detail.icon for 'icon' property.
-		const currentWidget = collections.targetWidget;
-		const value = property === 'icon' ? (detail.icon ?? detail.value) : (detail.value ?? detail.icon);
-		currentWidget[property] = value;
-		collections.setTargetWidget(currentWidget);
-	}
+function handleUpdate(detail: { value?: any; icon?: any }, property: string) {
+	// Update the targetWidget store. Icon picker emits icon (not value); use detail.icon for 'icon' property.
+	const currentWidget = collections.targetWidget;
+	const value =
+		property === "icon"
+			? (detail.icon ?? detail.value)
+			: (detail.value ?? detail.icon);
+	currentWidget[property] = value;
+	collections.setTargetWidget(currentWidget);
+}
 </script>
 
 {#if modalState.active}

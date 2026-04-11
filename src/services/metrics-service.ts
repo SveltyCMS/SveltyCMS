@@ -1,424 +1,338 @@
 /**
  * @file src/services/metrics-service.ts
- * @description Unified metrics service for all middleware hooks
+ * @description Unified high-performance metrics service for SveltyCMS
  *
- * ### Features
- * - Centralized metrics collection for all hooks
- * - High-performance counters with minimal overhead
- * - Automatic metric aggregation and reporting
- * - Thread-safe operations with atomic updates
- * - Memory-efficient with automatic cleanup
- * - Prometheus-style metrics export
- *
- * ### Categories
- * - **Requests**: Total requests, errors, response times
- * - **Auth**: Session validations, failures, cache hits/misses
- * - **API**: API requests, cache performance, rate limiting
- * - **Performance**: Hook execution times, bottlenecks
- * - **Security**: CSP violations, rate limit violations, auth failures
- *
- * @enterprise Optimized for high-throughput production environments
+ * Supports per-tenant and global metrics with minimal overhead.
+ * Optimized for high-throughput environments.
  */
 
-import { logger } from '@utils/logger.server';
-
-// Detect build mode without $app/environment dependency (allows testing outside SvelteKit)
-const building =
-	process.env.BUILDING === 'true' ||
-	(typeof import.meta.env?.SSR === 'undefined' && typeof window === 'undefined' && process.env.NODE_ENV === 'production');
-
-// --- TYPES ---
+import { logger } from "@utils/logger.server";
 
 export interface MetricSnapshot {
-	category: string;
-	labels?: Record<string, string>;
-	name: string;
-	timestamp: number;
-	value: number;
+  category: string;
+  name: string;
+  value: number;
+  labels?: Record<string, string>;
+  timestamp: number;
 }
 
 export interface MetricsReport {
-	api: {
-		requests: number;
-		errors: number;
-		cacheHits: number;
-		cacheMisses: number;
-		cacheHitRate: number;
-	};
-	authentication: {
-		validations: number;
-		failures: number;
-		successRate: number;
-		cacheHits: number;
-		cacheMisses: number;
-		cacheHitRate: number;
-	};
-	performance: {
-		slowRequests: number;
-		avgHookExecutionTime: number;
-		bottlenecks: string[];
-	};
-	requests: {
-		total: number;
-		errors: number;
-		errorRate: number;
-		avgResponseTime: number;
-	};
-	security: {
-		rateLimitViolations: number;
-		cspViolations: number;
-		authFailures: number;
-	};
-	timestamp: number;
-	uptime: number;
+  timestamp: number;
+  uptime: number;
+
+  requests: {
+    total: number;
+    errors: number;
+    errorRate: number;
+    avgResponseTime: number;
+  };
+
+  authentication: {
+    validations: number;
+    failures: number;
+    successRate: number;
+    cacheHits: number;
+    cacheMisses: number;
+    cacheHitRate: number;
+  };
+
+  api: {
+    requests: number;
+    errors: number;
+    cacheHits: number;
+    l1Hits: number;
+    l2Hits: number;
+    cacheMisses: number;
+    cacheHitRate: number;
+  };
+
+  performance: {
+    slowRequests: number;
+    avgHookExecutionTime: number;
+    bottlenecks: string[];
+  };
+
+  security: {
+    rateLimitViolations: number;
+    cspViolations: number;
+    authFailures: number;
+  };
 }
 
-// --- METRICS COUNTERS ---
-
-/**
- * High-performance atomic counters for metrics collection.
- * Using simple objects for maximum performance in V8.
- */
+// Internal counters (kept private for performance)
 class MetricsCounters {
-	// Request metrics
-	requests = { total: 0, errors: 0, totalResponseTime: 0 };
+  // Requests
+  requests = { total: 0, errors: 0, totalResponseTime: 0 };
 
-	// Authentication metrics
-	auth = {
-		validations: 0,
-		failures: 0,
-		cacheHits: 0,
-		cacheMisses: 0
-	};
+  // Authentication
+  auth = { validations: 0, failures: 0, cacheHits: 0, cacheMisses: 0 };
 
-	// API metrics
-	api = {
-		requests: 0,
-		errors: 0,
-		cacheHits: 0,
-		cacheMisses: 0
-	};
+  // API
+  api = { requests: 0, errors: 0, l1Hits: 0, l2Hits: 0, cacheMisses: 0 };
 
-	// Security metrics
-	security = {
-		rateLimitViolations: 0,
-		cspViolations: 0,
-		authFailures: 0
-	};
+  // Security
+  security = { rateLimitViolations: 0, cspViolations: 0, authFailures: 0 };
 
-	// Performance metrics
-	performance = {
-		slowRequests: 0,
-		totalHookTime: 0,
-		hookExecutions: 0,
-		bottlenecks: new Map<string, number>()
-	};
+  // Performance
+  performance = {
+    slowRequests: 0,
+    totalHookTime: 0,
+    hookExecutions: 0,
+    bottlenecks: new Map<string, number>(),
+  };
 
-	// Metadata
-	lastReset = Date.now();
-	startTime = Date.now();
+  startTime = Date.now();
+  lastReset = Date.now();
 }
 
-// --- METRICS SERVICE ---
-
-/**
- * Singleton metrics service for enterprise-grade performance monitoring.
- * Thread-safe and optimized for minimal overhead.
- */
 class MetricsService {
-	private counters = new MetricsCounters();
-	private resetInterval: NodeJS.Timeout | null = null;
+  private globalCounters = new MetricsCounters();
+  private tenantCounters = new Map<string, MetricsCounters>();
+  private resetInterval: NodeJS.Timeout | null = null;
 
-	constructor() {
-		// Auto-reset metrics every hour to prevent memory growth
-		if (!building) {
-			this.resetInterval = setInterval(
-				() => {
-					this.reset();
-				},
-				60 * 60 * 1000
-			);
-		}
-	}
+  constructor() {
+    // Auto-reset every hour to prevent unbounded memory growth in long-running processes
+    this.resetInterval = setInterval(() => this.reset(), 60 * 60 * 1000);
+  }
 
-	// --- REQUEST METRICS ---
+  private getCounters(tenantId?: string): MetricsCounters {
+    if (!tenantId || tenantId === "global") {
+      return this.globalCounters;
+    }
 
-	/**
-	 * Increment total request counter.
-	 * Call this at the start of request processing.
-	 */
-	incrementRequests(): void {
-		this.counters.requests.total++;
-	}
+    let counters = this.tenantCounters.get(tenantId);
+    if (!counters) {
+      counters = new MetricsCounters();
+      this.tenantCounters.set(tenantId, counters);
+    }
+    return counters;
+  }
 
-	/**
-	 * Increment error counter.
-	 * Call this when a request results in an error.
-	 */
-	incrementErrors(): void {
-		this.counters.requests.errors++;
-	}
+  // ── Request Metrics ─────────────────────────────────────
+  incrementRequests(tenantId?: string): void {
+    this.getCounters(tenantId).requests.total++;
+  }
 
-	/**
-	 * Record response time for performance analysis.
-	 * @param timeMs - Response time in milliseconds
-	 */
-	recordResponseTime(timeMs: number): void {
-		this.counters.requests.totalResponseTime += timeMs;
+  incrementErrors(tenantId?: string): void {
+    this.getCounters(tenantId).requests.errors++;
+  }
 
-		// Track slow requests (>2 seconds)
-		if (timeMs > 2000) {
-			this.counters.performance.slowRequests++;
-		}
-	}
+  recordResponseTime(timeMs: number, tenantId?: string): void {
+    const c = this.getCounters(tenantId);
+    c.requests.totalResponseTime += timeMs;
+    if (timeMs > 2000) c.performance.slowRequests++;
+  }
 
-	// --- AUTHENTICATION METRICS ---
+  // ── Authentication Metrics ─────────────────────────────
+  incrementAuthValidations(tenantId?: string): void {
+    this.getCounters(tenantId).auth.validations++;
+  }
 
-	/**
-	 * Increment authentication validation counter.
-	 * Call this for each session validation attempt.
-	 */
-	incrementAuthValidations(): void {
-		this.counters.auth.validations++;
-	}
+  incrementAuthFailures(tenantId?: string): void {
+    const c = this.getCounters(tenantId);
+    c.auth.failures++;
+    c.security.authFailures++;
+  }
 
-	/**
-	 * Increment authentication failure counter.
-	 * Call this when session validation fails.
-	 */
-	incrementAuthFailures(): void {
-		this.counters.auth.failures++;
-		this.counters.security.authFailures++;
-	}
+  recordAuthCacheHit(tenantId?: string): void {
+    this.getCounters(tenantId).auth.cacheHits++;
+  }
 
-	/**
-	 * Record authentication cache hit.
-	 * Call this when session is found in cache.
-	 */
-	recordAuthCacheHit(): void {
-		this.counters.auth.cacheHits++;
-	}
+  recordAuthCacheMiss(tenantId?: string): void {
+    this.getCounters(tenantId).auth.cacheMisses++;
+  }
 
-	/**
-	 * Record authentication cache miss.
-	 * Call this when session must be fetched from database.
-	 */
-	recordAuthCacheMiss(): void {
-		this.counters.auth.cacheMisses++;
-	}
+  // ── API Metrics ─────────────────────────────────────────
+  incrementApiRequests(tenantId?: string): void {
+    this.getCounters(tenantId).api.requests++;
+  }
 
-	// --- API METRICS ---
+  incrementApiErrors(tenantId?: string): void {
+    this.getCounters(tenantId).api.errors++;
+  }
 
-	/**
-	 * Increment API request counter.
-	 * Call this for each API request processed.
-	 */
-	incrementApiRequests(): void {
-		this.counters.api.requests++;
-	}
+  recordApiCacheHit(tenantId?: string, layer: "l1" | "l2" = "l2"): void {
+    const c = this.getCounters(tenantId);
+    if (layer === "l1") c.api.l1Hits++;
+    else c.api.l2Hits++;
+  }
 
-	/**
-	 * Increment API error counter.
-	 * Call this when an API request fails.
-	 */
-	incrementApiErrors(): void {
-		this.counters.api.errors++;
-	}
+  recordApiCacheMiss(tenantId?: string): void {
+    this.getCounters(tenantId).api.cacheMisses++;
+  }
 
-	/**
-	 * Record API cache hit.
-	 * Call this when API response is served from cache.
-	 */
-	recordApiCacheHit(): void {
-		this.counters.api.cacheHits++;
-	}
+  // ── Security Metrics ────────────────────────────────────
+  incrementRateLimitViolations(tenantId?: string): void {
+    this.getCounters(tenantId).security.rateLimitViolations++;
+  }
 
-	/**
-	 * Record API cache miss.
-	 * Call this when API response must be generated.
-	 */
-	recordApiCacheMiss(): void {
-		this.counters.api.cacheMisses++;
-	}
+  incrementCSPViolations(tenantId?: string): void {
+    this.getCounters(tenantId).security.cspViolations++;
+  }
 
-	// --- SECURITY METRICS ---
+  incrementSecurityViolations(tenantId?: string): void {
+    this.getCounters(tenantId).security.cspViolations++;
+  }
 
-	/**
-	 * Increment rate limit violation counter.
-	 * Call this when a request is rate limited.
-	 */
-	incrementRateLimitViolations(): void {
-		this.counters.security.rateLimitViolations++;
-	}
+  // ── Performance Metrics ─────────────────────────────────
+  recordHookExecutionTime(hookName: string, timeMs: number, tenantId?: string): void {
+    const c = this.getCounters(tenantId);
+    c.performance.totalHookTime += timeMs;
+    c.performance.hookExecutions++;
 
-	/**
-	 * Increment CSP violation counter.
-	 * Call this when a CSP violation is detected.
-	 */
-	incrementCSPViolations(): void {
-		this.counters.security.cspViolations++;
-	}
+    if (timeMs > 100) {
+      const count = c.performance.bottlenecks.get(hookName) || 0;
+      c.performance.bottlenecks.set(hookName, count + 1);
+    }
+  }
 
-	/**
-	 * Increment security violations counter.
-	 */
-	incrementSecurityViolations(): void {
-		this.counters.security.cspViolations++; // Using CSP counter for now, can be extended
-	}
+  recordMetric(name: string, value: number, tenantId?: string): void {
+    const c = this.getCounters(tenantId);
 
-	// --- PERFORMANCE METRICS ---
+    switch (name) {
+      case "sdk:init":
+        c.api.requests += value;
+        break;
+      case "sdk:transaction:duration":
+        c.performance.totalHookTime += value;
+        c.performance.hookExecutions++;
+        break;
+      case "sdk:transaction:error":
+        c.api.errors += value;
+        break;
+      default:
+        logger.trace(`[Metrics] Unhandled metric: ${name} = ${value}`);
+    }
+  }
 
-	/**
-	 * Record hook execution time for performance analysis.
-	 * @param hookName - Name of the hook
-	 * @param timeMs - Execution time in milliseconds
-	 */
-	recordHookExecutionTime(hookName: string, timeMs: number): void {
-		this.counters.performance.totalHookTime += timeMs;
-		this.counters.performance.hookExecutions++;
+  // ── Reporting ───────────────────────────────────────────
+  getReport(tenantId?: string): MetricsReport {
+    const c = this.getCounters(tenantId);
+    const now = Date.now();
+    const uptime = now - c.startTime;
 
-		// Track potential bottlenecks (hooks taking >100ms)
-		if (timeMs > 100) {
-			const current = this.counters.performance.bottlenecks.get(hookName) || 0;
-			this.counters.performance.bottlenecks.set(hookName, current + 1);
-		}
-	}
+    const safeRate = (num: number, den: number): number => (den > 0 ? (num / den) * 100 : 0);
 
-	// --- REPORTING ---
+    const avgResponseTime =
+      c.requests.total > 0 ? c.requests.totalResponseTime / c.requests.total : 0;
 
-	// Generate a comprehensive metrics report
-	getReport(): MetricsReport {
-		const now = Date.now();
-		const uptime = now - this.counters.startTime;
+    const avgHookTime =
+      c.performance.hookExecutions > 0
+        ? c.performance.totalHookTime / c.performance.hookExecutions
+        : 0;
 
-		// Calculate rates with safe division
-		const safeRate = (numerator: number, denominator: number): number => (denominator > 0 ? (numerator / denominator) * 100 : 0);
+    const bottlenecks = Array.from(c.performance.bottlenecks.entries())
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([name]) => name);
 
-		const avgResponseTime = this.counters.requests.total > 0 ? this.counters.requests.totalResponseTime / this.counters.requests.total : 0;
+    return {
+      timestamp: now,
+      uptime,
+      requests: {
+        total: c.requests.total,
+        errors: c.requests.errors,
+        errorRate: safeRate(c.requests.errors, c.requests.total),
+        avgResponseTime,
+      },
+      authentication: {
+        validations: c.auth.validations,
+        failures: c.auth.failures,
+        successRate: safeRate(c.auth.validations - c.auth.failures, c.auth.validations),
+        cacheHits: c.auth.cacheHits,
+        cacheMisses: c.auth.cacheMisses,
+        cacheHitRate: safeRate(c.auth.cacheHits, c.auth.cacheHits + c.auth.cacheMisses),
+      },
+      api: {
+        requests: c.api.requests,
+        errors: c.api.errors,
+        cacheHits: c.api.l1Hits + c.api.l2Hits,
+        l1Hits: c.api.l1Hits,
+        l2Hits: c.api.l2Hits,
+        cacheMisses: c.api.cacheMisses,
+        cacheHitRate: safeRate(
+          c.api.l1Hits + c.api.l2Hits,
+          c.api.l1Hits + c.api.l2Hits + c.api.cacheMisses,
+        ),
+      },
+      performance: {
+        slowRequests: c.performance.slowRequests,
+        avgHookExecutionTime: avgHookTime,
+        bottlenecks,
+      },
+      security: {
+        rateLimitViolations: c.security.rateLimitViolations,
+        cspViolations: c.security.cspViolations,
+        authFailures: c.security.authFailures,
+      },
+    };
+  }
 
-		const avgHookTime =
-			this.counters.performance.hookExecutions > 0 ? this.counters.performance.totalHookTime / this.counters.performance.hookExecutions : 0;
+  /** Reset all counters (global + tenants) */
+  reset(): void {
+    this.globalCounters = new MetricsCounters();
+    this.tenantCounters.clear();
+    logger.trace("Metrics service reset");
+  }
 
-		// Get top bottlenecks
-		const bottlenecks = Array.from(this.counters.performance.bottlenecks.entries())
-			.sort(([, a], [, b]) => b - a)
-			.slice(0, 5)
-			.map(([name]) => name);
+  /** Export metrics in Prometheus-compatible format */
+  exportPrometheus(): string {
+    const global = this.globalCounters;
+    const report = this.getReport();
 
-		return {
-			timestamp: now,
-			uptime,
-			requests: {
-				total: this.counters.requests.total,
-				errors: this.counters.requests.errors,
-				errorRate: safeRate(this.counters.requests.errors, this.counters.requests.total),
-				avgResponseTime
-			},
-			authentication: {
-				validations: this.counters.auth.validations,
-				failures: this.counters.auth.failures,
-				successRate: safeRate(this.counters.auth.validations - this.counters.auth.failures, this.counters.auth.validations),
-				cacheHits: this.counters.auth.cacheHits,
-				cacheMisses: this.counters.auth.cacheMisses,
-				cacheHitRate: safeRate(this.counters.auth.cacheHits, this.counters.auth.cacheHits + this.counters.auth.cacheMisses)
-			},
-			api: {
-				requests: this.counters.api.requests,
-				errors: this.counters.api.errors,
-				cacheHits: this.counters.api.cacheHits,
-				cacheMisses: this.counters.api.cacheMisses,
-				cacheHitRate: safeRate(this.counters.api.cacheHits, this.counters.api.cacheHits + this.counters.api.cacheMisses)
-			},
-			security: {
-				rateLimitViolations: this.counters.security.rateLimitViolations,
-				cspViolations: this.counters.security.cspViolations,
-				authFailures: this.counters.security.authFailures
-			},
-			performance: {
-				slowRequests: this.counters.performance.slowRequests,
-				avgHookExecutionTime: avgHookTime,
-				bottlenecks
-			}
-		};
-	}
+    return (
+      [
+        `# HELP svelty_requests_total Total requests`,
+        `# TYPE svelty_requests_total counter`,
+        `svelty_requests_total ${global.requests.total}`,
 
-	// Reset all metrics counters periodically to prevent memory growth
-	reset(): void {
-		this.counters = new MetricsCounters();
-		logger.trace('Unified metrics reset');
-	}
+        `# HELP svelty_requests_errors_total Total request errors`,
+        `# TYPE svelty_requests_errors_total counter`,
+        `svelty_requests_errors_total ${global.requests.errors}`,
 
-	// Export metrics in Prometheus format for monitoring systems
-	exportPrometheus(): string {
-		const report = this.getReport();
-		const lines: string[] = [];
+        `# HELP svelty_auth_cache_hit_rate Authentication cache hit rate`,
+        `# TYPE svelty_auth_cache_hit_rate gauge`,
+        `svelty_auth_cache_hit_rate ${report.authentication.cacheHitRate / 100}`,
 
-		// Request metrics
-		lines.push('# HELP svelty_requests_total Total number of requests');
-		lines.push('# TYPE svelty_requests_total counter');
-		lines.push(`svelty_requests_total ${report.requests.total}`);
+        `# HELP svelty_api_cache_hit_rate API cache hit rate`,
+        `# TYPE svelty_api_cache_hit_rate gauge`,
+        `svelty_api_cache_hit_rate ${report.api.cacheHitRate / 100}`,
 
-		lines.push('# HELP svelty_requests_errors_total Total number of request errors');
-		lines.push('# TYPE svelty_requests_errors_total counter');
-		lines.push(`svelty_requests_errors_total ${report.requests.errors}`);
+        `# HELP svelty_security_violations_total Security violations`,
+        `# TYPE svelty_security_violations_total counter`,
+        `svelty_security_violations_total{type="rate_limit"} ${report.security.rateLimitViolations}`,
+        `svelty_security_violations_total{type="csp"} ${report.security.cspViolations}`,
+      ].join("\n") + "\n"
+    );
+  }
 
-		// Authentication metrics
-		lines.push('# HELP svelty_auth_cache_hit_rate Authentication cache hit rate');
-		lines.push('# TYPE svelty_auth_cache_hit_rate gauge');
-		lines.push(`svelty_auth_cache_hit_rate ${report.authentication.cacheHitRate / 100}`);
-
-		// API metrics
-		lines.push('# HELP svelty_api_cache_hit_rate API cache hit rate');
-		lines.push('# TYPE svelty_api_cache_hit_rate gauge');
-		lines.push(`svelty_api_cache_hit_rate ${report.api.cacheHitRate / 100}`);
-
-		// Security metrics
-		lines.push('# HELP svelty_security_violations_total Total security violations');
-		lines.push('# TYPE svelty_security_violations_total counter');
-		lines.push(`svelty_security_violations_total{type="rate_limit"} ${report.security.rateLimitViolations}`);
-		lines.push(`svelty_security_violations_total{type="csp"} ${report.security.cspViolations}`);
-
-		return `${lines.join('\n')}\n`;
-	}
-
-	// Cleanup resources when shutting down
-	destroy(): void {
-		if (this.resetInterval) {
-			clearInterval(this.resetInterval);
-			this.resetInterval = null;
-		}
-	}
+  destroy(): void {
+    if (this.resetInterval) {
+      clearInterval(this.resetInterval);
+      this.resetInterval = null;
+    }
+  }
 }
 
-// --- SINGLETON INSTANCE ---
-
-/**
- * Global metrics service instance.
- * Use this throughout the application for consistent metrics collection.
- */
-const globalWithMetrics = globalThis as typeof globalThis & {
-	__SVELTY_METRICS_INSTANCE__?: MetricsService;
-	__SVELTY_PROCESS_CLEANUP_REGISTERED__?: boolean;
-};
+// ── Singleton Export ─────────────────────────────────────
+let instance: MetricsService | null = null;
 
 export const metricsService = (() => {
-	if (!globalWithMetrics.__SVELTY_METRICS_INSTANCE__) {
-		globalWithMetrics.__SVELTY_METRICS_INSTANCE__ = new MetricsService();
-	}
-	return globalWithMetrics.__SVELTY_METRICS_INSTANCE__;
+  if (!instance) {
+    instance = new MetricsService();
+  }
+  return instance;
 })();
 
-/**
- * Cleanup function for graceful shutdown.
- * Call this when the application is shutting down.
- */
-export const cleanupMetrics = (): void => {
-	metricsService.destroy();
+export const cleanupMetrics = () => {
+  if (instance) {
+    instance.destroy();
+  }
 };
 
-// Cleanup on process exit
-if (!(building || globalWithMetrics.__SVELTY_PROCESS_CLEANUP_REGISTERED__)) {
-	process.on('SIGTERM', cleanupMetrics);
-	process.on('SIGINT', cleanupMetrics);
-	globalWithMetrics.__SVELTY_PROCESS_CLEANUP_REGISTERED__ = true;
+// Graceful shutdown (safe in Bun, Node, and test environments)
+if (typeof process !== "undefined" && typeof process.on === "function") {
+  const cleanup = () => cleanupMetrics();
+  process.once("SIGTERM", cleanup);
+  process.once("SIGINT", cleanup);
 }

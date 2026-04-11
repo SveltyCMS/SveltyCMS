@@ -17,12 +17,12 @@
 - Theme-aware rendering (light/dark mode support)
 -->
 <script lang="ts" module>
-	export const widgetMeta = {
-		name: 'System Health',
-		icon: 'mdi:heart-pulse',
-		description: 'Monitor system services and overall health',
-		defaultSize: { w: 2, h: 2 }
-	};
+export const widgetMeta = {
+	name: "System Health",
+	icon: "mdi:heart-pulse",
+	description: "Monitor system services and overall health",
+	defaultSize: { w: 2, h: 2 },
+};
 </script>
 
 <script lang="ts">
@@ -162,6 +162,13 @@
 	function formatServiceName(name: string): string {
 		return name.charAt(0).toUpperCase() + name.slice(1).replace(/([A-Z])/g, ' $1');
 	}
+
+	function getLatencyColor(latency: number | undefined, threshold: number = 50): string {
+		if (!latency) return 'text-surface-400';
+		if (latency > threshold * 2) return 'text-error-500';
+		if (latency > threshold) return 'text-warning-500';
+		return 'text-success-500';
+	}
 </script>
 
 <BaseWidget {label} {theme} endpoint="/api/dashboard/health" pollInterval={5000} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove}>
@@ -186,14 +193,39 @@
 				<!-- Services Grid -->
 				<div class="grid flex-1 grid-cols-2 gap-2 overflow-y-auto" style="max-height: calc({size.h} * 120px - 80px);">
 					{#each Object.entries(data.components) as [name, service] (name)}
-						<div class="card preset-outlined-surface-500flex flex-col gap-1 p-2">
+						{@const latency = (service as any).performance?.latency}
+						{@const avgLatency = (service as any).performance?.avgLatency}
+						{@const threshold = (service as any).performance?.thresholds?.maxLatency || 50}
+						
+						<div class="card preset-outlined-surface-500 flex flex-col gap-1 p-2">
 							<div class="flex items-center justify-between">
-								<span class="text-xs font-semibold">{formatServiceName(name)}</span>
+								<div class="flex items-center gap-1">
+									{#if name === 'database' && service.status === 'healthy'}
+										<span class="relative flex h-2 w-2">
+											<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success-400 opacity-75"></span>
+											<span class="relative inline-flex rounded-full h-2 w-2 bg-success-500"></span>
+										</span>
+									{/if}
+									<span class="text-xs font-semibold">{formatServiceName(name)}</span>
+								</div>
 								<span class={`badge ${getServiceBadgeClass(service.status)}`}> {service.status} </span>
 							</div>
-							<p class="truncate text-xs opacity-70" title={service.message}>{service.message}</p>
+							
+							{#if latency !== undefined}
+								<div class="flex items-center justify-between px-1">
+									<span class="text-[10px] opacity-60">Latency</span>
+									<span 
+										class={`text-[10px] font-mono ${getLatencyColor(latency, threshold)}`}
+										title={`Average: ${avgLatency?.toFixed(1) || 'N/A'}ms (Target: <${threshold}ms)`}
+									>
+										{latency.toFixed(1)}ms
+									</span>
+								</div>
+							{/if}
+
+							<p class="truncate text-[10px] opacity-70" title={service.message}>{service.message}</p>
 							{#if service.error}
-								<p class="truncate text-xs text-error-500" title={service.error}>{service.error}</p>
+								<p class="truncate text-[10px] text-error-500" title={service.error}>{service.error}</p>
 							{/if}
 						</div>
 					{/each}

@@ -1,329 +1,1221 @@
-/**
- * @file tests/unit/setup.ts
- * @description Master global test setup for Bun.
- * Provides external environment and root gatekeepers.
- * Allows internal project logic to run for 100% pass rate.
- */
-import { mock } from 'bun:test';
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
 
-// =============================================================================
-// 1. RUNES & BROWSER EMULATION
-// =============================================================================
-(globalThis as any).$state = (v: any) => v;
-(globalThis as any).$state.snapshot = (v: any) => v;
-(globalThis as any).$derived = (fn: any) => {
-	if (typeof fn !== 'function') return fn;
-	const obj = {};
-	return new Proxy(obj, {
-		get: (_target, _prop) => (_prop === Symbol.toPrimitive ? () => fn() : typeof fn() === 'object' && fn() !== null ? fn()[_prop] : fn())
-	});
-};
-(globalThis as any).$derived.by = (globalThis as any).$derived;
-(globalThis as any).$effect = (_fn: any) => {};
-(globalThis as any).$effect.root = (fn: any) => fn();
-(globalThis as any).$props = () => ({});
+// 1. EARLY DOM SHIMS (Critical for Bun; Vitest uses native jsdom)
+const isBun = typeof Bun !== "undefined";
 
-const createStorage = () => {
-	let data: Record<string, string> = {};
-	return {
-		getItem: mock((k: string) => data[k] || null),
-		setItem: mock((k: string, v: string) => {
-			data[k] = String(v);
-		}),
-		removeItem: mock((k: string) => {
-			delete data[k];
-		}),
-		clear: mock(() => {
-			data = {};
-		}),
-		get length() {
-			return Object.keys(data).length;
-		},
-		key: mock((i: number) => Object.keys(data)[i] || null)
-	};
-};
-(globalThis as any).sessionStorage = createStorage();
-(globalThis as any).localStorage = createStorage();
-(globalThis as any).window = {
-	setTimeout,
-	clearTimeout,
-	setInterval,
-	clearInterval,
-	addEventListener: mock(() => {}),
-	removeEventListener: mock(() => {}),
-	matchMedia: mock(() => ({ matches: false, addEventListener: mock(() => {}), removeEventListener: mock(() => {}) })),
-	location: new URL('http://localhost')
+// Shimming import.meta.glob specifically for Bun/Node
+if (typeof (import.meta as any).glob !== "function") {
+  (import.meta as any).glob = () => ({});
+}
+
+const setGlobal = (name: string, value: any) => {
+  if (globalThis[name as keyof typeof globalThis] !== undefined) return;
+  try {
+    Object.defineProperty(globalThis, name, {
+      value,
+      writable: true,
+      configurable: true,
+      enumerable: true,
+    });
+  } catch {
+    (globalThis as any)[name] = value;
+  }
 };
 
-// =============================================================================
-// 2. ROOT GATEKEEPER MOCKS (External dependencies)
-// =============================================================================
+class Node {
+  nodeType = 1;
+  ownerDocument: any;
+  appendChild(el: any) {
+    return el;
+  }
+  removeChild(el: any) {
+    return el;
+  }
+  addEventListener() {}
+  removeEventListener() {}
+}
 
-// Logger
-const mockLogger = {
-	fatal: mock(() => {}),
-	error: mock(() => {}),
-	warn: mock(() => {}),
-	info: mock(() => {}),
-	debug: mock(() => {}),
-	trace: mock(() => {}),
-	channel: mock(() => mockLogger),
-	dump: mock(() => {})
+class HTMLElement extends Node {
+  style = {};
+  classList = {
+    add: () => {},
+    remove: () => {},
+    contains: () => false,
+    toggle: () => false,
+  };
+  setAttribute() {}
+  getAttribute() {
+    return null;
+  }
+  get nodeName() {
+    return (this as any)._nodeName || "DIV";
+  }
+  set nodeName(v: string) {
+    (this as any)._nodeName = v;
+  }
+}
+
+const windowMock: any = {
+  setTimeout,
+  clearTimeout,
+  setInterval,
+  clearInterval,
+  innerWidth: 1024,
+  innerHeight: 768,
+  location: new URL("http://localhost"),
+  matchMedia: () => ({
+    matches: false,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => true,
+  }),
+  Node,
+  HTMLElement,
+  addEventListener: () => {},
+  removeEventListener: () => {},
 };
-(globalThis as any).logger = mockLogger;
-mock.module('@utils/logger', () => ({ logger: mockLogger, default: mockLogger }));
-mock.module('@utils/logger.server', () => ({ logger: mockLogger, default: mockLogger }));
 
-// Metrics Service
-const mockMetrics = {
-	incrementRequests: mock(() => {}),
-	incrementErrors: mock(() => {}),
-	recordResponseTime: mock(() => {}),
-	incrementAuthValidations: mock(() => {}),
-	incrementAuthFailures: mock(() => {}),
-	recordAuthCacheHit: mock(() => {}),
-	recordAuthCacheMiss: mock(() => {}),
-	incrementApiRequests: mock(() => {}),
-	incrementApiErrors: mock(() => {}),
-	recordApiCacheHit: mock(() => {}),
-	recordApiCacheMiss: mock(() => {}),
-	incrementRateLimitViolations: mock(() => {}),
-	incrementCSPViolations: mock(() => {}),
-	recordHookExecutionTime: mock(() => {}),
-	incrementFirewallBlocks: mock(() => {}),
-	recordLatency: mock(() => {}),
-	incrementSecurityViolations: mock(() => {}),
-	getReport: mock(() => ({ api: { requests: 0, errors: 0 }, authentication: { validations: 0 }, requests: { total: 0 } })),
-	reset: mock(() => {}),
-	startTimer: mock(() => () => 10)
+const documentMock: any = {
+  nodeType: 9,
+  cookie: "",
+  addEventListener: () => {},
+  removeEventListener: () => {},
+  dispatchEvent: () => true,
+  querySelector: () => null,
+  createElement: (tag: string) => {
+    const el = new HTMLElement();
+    el.nodeName = tag.toUpperCase();
+    el.ownerDocument = documentMock;
+    return el;
+  },
 };
-(globalThis as any).metricsService = mockMetrics;
-mock.module('@src/services/metrics-service', () => ({ metricsService: mockMetrics }));
 
-// Settings Service
-const mockPrivateEnv = { DB_TYPE: 'postgresql', JWT_SECRET_KEY: 'secret', ENCRYPTION_KEY: 'secret' };
-const mockSettingsService = {
-	getPrivateSetting: mock(async (k: any) => mockPrivateEnv[k as keyof typeof mockPrivateEnv]),
-	getPrivateSettingSync: mock((k: any) => mockPrivateEnv[k as keyof typeof mockPrivateEnv]),
-	getPublicSetting: mock(async () => ({ siteName: 'Test' })),
-	getPublicSettingSync: mock(() => ({ siteName: 'Test' })),
-	isCacheLoaded: mock(() => true),
-	loadSettingsCache: mock(async () => ({ private: mockPrivateEnv, public: {} })),
-	invalidateSettingsCache: mock(async () => {}),
-	setSettingsCache: mock(async () => {})
+windowMock.document = documentMock;
+documentMock.defaultView = windowMock;
+
+class EventSourceMock {
+  onmessage: any;
+  onerror: any;
+  onopen: any;
+  constructor(public url: string) {}
+  close() {}
+  addEventListener() {}
+  removeEventListener() {}
+}
+
+if (isBun) {
+  setGlobal("Node", Node);
+  setGlobal("HTMLElement", HTMLElement);
+  setGlobal("window", windowMock);
+  setGlobal("document", documentMock);
+  setGlobal("navigator", { userAgent: "bun" });
+  setGlobal("EventSource", EventSourceMock);
+
+  const documentBodyMock = new HTMLElement();
+  documentBodyMock.ownerDocument = documentMock;
+  documentBodyMock.nodeName = "BODY";
+  documentMock.body = documentBodyMock;
+} else if (typeof window !== "undefined") {
+  // Vitest / JSDOM environment
+  if (!window.matchMedia) {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {}, // Deprecated
+        removeListener: () => {}, // Deprecated
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => true,
+      }),
+    });
+  }
+}
+
+// 2. TESTING LIBRARIES (Dynamic import to avoid hoisting before shims)
+await import("@testing-library/jest-dom/vitest");
+
+// detect environment
+let mock: any;
+let vitest: any;
+
+if (isBun) {
+  // Bun environment - try to use synchronous require if possible for better timing in preload
+  const bunTest = require("bun:test");
+  mock = bunTest.mock;
+  // Force set vi for cross-runner compatibility
+  const spies: any[] = [];
+  const originalGlobals = new Map<string, any>();
+
+  const viShim = {
+    fn: (impl?: any) => {
+      const m = bunTest.mock(impl || (() => {}));
+      spies.push(m);
+      // Augment with Vitest-like helpers safely
+      const augment = (prop: string, val: any) => {
+        try {
+          Object.defineProperty(m, prop, {
+            value: val,
+            writable: true,
+            configurable: true,
+          });
+        } catch {
+          (m as any)[prop] = val;
+        }
+      };
+      augment("mockResolvedValue", (val: any) => {
+        (m as any).mockImplementation(() => Promise.resolve(val));
+        return m;
+      });
+      augment("mockResolvedValueOnce", (val: any) => {
+        (m as any).mockImplementationOnce(() => Promise.resolve(val));
+        return m;
+      });
+      augment("mockReturnValue", (val: any) => {
+        (m as any).mockImplementation(() => val);
+        return m;
+      });
+      augment("mockReturnValueOnce", (val: any) => {
+        (m as any).mockImplementationOnce(() => val);
+        return m;
+      });
+      return m;
+    },
+    spyOn: (obj: any, method: string) => {
+      if (!obj) throw new Error(`spyOn: target object is undefined for method "${method}"`);
+      const spy = bunTest.spyOn(obj, method);
+      spies.push(spy);
+      return spy;
+    },
+    mock: (path: string, factory?: (importOriginal: () => Promise<any>) => any) => {
+      if (factory) {
+        const importOriginal = () => import(`${path}?bun-unmock=${Date.now()}`);
+        bunTest.mock.module(path, () => factory(importOriginal));
+      } else {
+        bunTest.mock.module(path, () => ({}));
+      }
+    },
+    unmock: (_path: string) => {},
+    stubGlobal: (name: string, value: any) => {
+      if (!originalGlobals.has(name)) {
+        originalGlobals.set(name, (globalThis as any)[name]);
+      }
+      setGlobal(name, value);
+    },
+    unstubAllGlobals: () => {
+      for (const [name, value] of originalGlobals.entries()) {
+        setGlobal(name, value);
+      }
+      originalGlobals.clear();
+    },
+    clearAllMocks: () => {
+      for (const spy of spies) if (spy && spy.mockClear) spy.mockClear();
+    },
+    restoreAllMocks: () => {
+      for (const spy of spies) if (spy && spy.mockRestore) spy.mockRestore();
+      spies.length = 0;
+    },
+    resetAllMocks: () => {
+      for (const spy of spies) if (spy && spy.mockReset) spy.mockReset();
+    },
+    mocked: (v: any) => v,
+    hoisted: (factory: () => any) => factory(),
+    importActual: (path: string) => import(`${path}?bun-unmock=${Date.now()}`),
+  };
+  setGlobal("vi", viShim);
+  setGlobal("vitest", viShim);
+  if (!(globalThis as any).mock) setGlobal("mock", bunTest.mock);
+
+  // Mock vitest module for Bun to return our shims
+  const vitestMock = {
+    ...bunTest,
+    vi: viShim,
+    vitest: viShim,
+    default: { ...bunTest, vi: viShim },
+  };
+  bunTest.mock.module("vitest", () => vitestMock);
+
+  // node:crypto is available globally in Bun as 'crypto' or via require
+  if (!(globalThis as any).crypto) (globalThis as any).crypto = require("node:crypto");
+  if (!globalThis.describe) setGlobal("describe", bunTest.describe);
+  if (!globalThis.test) setGlobal("test", bunTest.test);
+  if (!globalThis.it) setGlobal("it", bunTest.it);
+  if (!globalThis.expect) setGlobal("expect", bunTest.expect);
+  if (!globalThis.beforeEach) setGlobal("beforeEach", bunTest.beforeEach);
+  if (!globalThis.afterEach) setGlobal("afterEach", bunTest.afterEach);
+  if (!globalThis.beforeAll) setGlobal("beforeAll", bunTest.beforeAll);
+  if (!globalThis.afterAll) setGlobal("afterAll", bunTest.afterAll);
+} else {
+  // Node/Vitest environment - Vitest handles globals via config
+  const vitestModule = await import("vitest");
+  vitest = vitestModule;
+  mock = vitestModule.vi.fn;
+  if (!globalThis.mock) setGlobal("mock", vitestModule.vi.fn);
+}
+
+// 2. COMMON MOCKS
+// Master switch for benchmarking - allows running 'bun test' with ZERO mocks
+const ENABLE_MOCKS = process.env.BUN_TEST_MOCKS !== "false";
+
+const moduleMock = (path: string, factory: () => any) => {
+  if (
+    !ENABLE_MOCKS &&
+    !path.startsWith("$") &&
+    !path.startsWith("svelte") &&
+    !path.includes("scanner")
+  )
+    return; // ⚡ BENCHMARK MODE: Skip db/service mocks but keep SvelteKit environment intact
+
+  if (isBun) {
+    mock.module(path, factory);
+  } else if (vitest?.vi) {
+    vitest.vi.doMock(path, factory);
+  }
 };
-mock.module('@src/services/settings-service', () => mockSettingsService);
 
-// Database Adapter
-const mockDbAdapter = {
-	connect: mock(async () => ({ success: true })),
-	isConnected: mock(() => true),
-	auth: {
-		getUserById: mock(async (id: any) => ({ success: true, data: { _id: id || '123', email: 'test@test.com', username: 'test', role: 'admin' } })),
-		updateUserAttributes: mock(async () => ({ success: true })),
-		validateSession: mock(async (id: string) => (id === 'valid' ? { _id: '123', role: 'admin' } : null)),
-		createSession: mock(async () => ({ _id: 'new-id' })),
-		destroySession: mock(async () => {}),
-		getUserCount: mock(async () => ((globalThis as any).__mockUserCount !== undefined ? (globalThis as any).__mockUserCount : 1)),
-		getAllRoles: mock(async () => [{ _id: 'admin', isAdmin: true, permissions: [] }])
-	},
-	system: {
-		preferences: {
-			get: mock(async () => ({ success: true, data: [] })),
-			set: mock(async () => ({ success: true })),
-			getMany: mock(async () => ({ success: true, data: {} })),
-			setMany: mock(async () => ({ success: true }))
-		}
-	},
-	crud: {
-		findMany: mock(async () => []),
-		findOne: mock(async () => null),
-		insertOne: mock(async () => ({ success: true })),
-		updateOne: mock(async () => ({ success: true })),
-		deleteOne: mock(async () => ({ success: true })),
-		update: mock(async () => ({ success: true }))
-	}
-};
-(globalThis as any).mockDbAdapter = mockDbAdapter;
-(globalThis as any).dbAdapter = mockDbAdapter;
-mock.module('@src/databases/db', () => ({
-	dbAdapter: mockDbAdapter,
-	auth: mockDbAdapter.auth,
-	getPrivateEnv: () => mockPrivateEnv,
-	dbInitPromise: Promise.resolve(),
-	getDbInitPromise: () => Promise.resolve(),
-	isConnected: true,
-	getDb: () => mockDbAdapter,
-	getAuth: () => mockDbAdapter.auth,
-	reinitializeSystem: mock(async () => ({}))
-}));
-
-// CacheService (Full mock with constants and enums)
 const CacheCategory = {
-	SCHEMA: 'schema',
-	WIDGET: 'widget',
-	THEME: 'theme',
-	CONTENT: 'content',
-	MEDIA: 'media',
-	SESSION: 'session',
-	USER: 'user',
-	API: 'api',
-	COLLECTION: 'collection',
-	ENTRY: 'entry',
-	SETTING: 'setting'
+  SCHEMA: "schema",
+  WIDGET: "widget",
+  THEME: "theme",
+  CONTENT: "content",
+  AUTH: "auth",
+  SYSTEM: "system",
+};
+setGlobal("CacheCategory", CacheCategory);
+moduleMock("@src/databases/cache/types", () => ({
+  CacheCategory,
+  default: CacheCategory,
+}));
+
+const mockLogger = {
+  fatal: mock(() => {}),
+  error: mock(() => {}),
+  warn: mock(() => {}),
+  info: mock(() => {}),
+  debug: mock(() => {}),
+  trace: mock(() => {}),
+  channel: mock(() => mockLogger),
+  dump: mock(() => {}),
 };
 
-const mockCacheService = {
-	get: mock(async () => null),
-	set: mock(async () => {}),
-	delete: mock(async () => {}),
-	clear: mock(async () => {}),
-	clearByPattern: mock(async () => {}),
-	clearByTags: mock(async () => {}),
-	finalizeTags: mock((tags: any) => tags),
-	generateKey: mock((...args: any[]) => args.join(':')),
-	initialize: mock(async () => {}),
-	reconfigure: mock(async () => {}),
-	setBootstrapping: mock(() => {})
+moduleMock("@utils/logger", () => ({
+  logger: mockLogger,
+  default: mockLogger,
+}));
+moduleMock("@src/utils/logger", () => ({
+  logger: mockLogger,
+  default: mockLogger,
+}));
+moduleMock("@utils/logger.server", () => ({
+  logger: mockLogger,
+  default: mockLogger,
+}));
+moduleMock("@src/utils/logger.server", () => ({
+  logger: mockLogger,
+  default: mockLogger,
+}));
+
+moduleMock("$app/environment", () => ({
+  browser: true,
+  dev: true,
+  building: false,
+  version: "1.0.0",
+  __esModule: true,
+  default: { browser: true, dev: true, building: false, version: "1.0.0" },
+}));
+
+moduleMock("$app/navigation", () => ({
+  goto: mock(() => Promise.resolve()),
+  invalidate: mock(() => Promise.resolve()),
+  invalidateAll: mock(() => Promise.resolve()),
+  beforeNavigate: mock(() => {}),
+  afterNavigate: mock(() => {}),
+}));
+
+moduleMock("@sveltejs/kit", () => ({
+  json: mock((data: any, init?: any) => {
+    const res = new Response(JSON.stringify(data), {
+      status: init?.status || 200,
+      headers: { "Content-Type": "application/json", ...init?.headers },
+    });
+    // In tests, we sometimes want to inspect the raw data synchronously
+    (res as any)._data = data;
+    return res;
+  }),
+  error: mock((status: number, message: string | { message: string }) => {
+    const msg = typeof message === "string" ? message : message.message;
+    const err = new Error(msg) as any;
+    err.status = status;
+    err.statusCode = status; // Fallback for some tests
+    err.body = { message: msg };
+    throw err;
+  }),
+  redirect: mock((status: number, location: string) => {
+    const err = new Error("Redirect") as any;
+    err.status = status;
+    err.location = location;
+    throw err;
+  }),
+}));
+
+moduleMock("svelte/reactivity", () => ({
+  SvelteMap: Map,
+  SvelteSet: Set,
+}));
+
+moduleMock("$app/navigation", () => ({
+  goto: mock(() => Promise.resolve()),
+  invalidate: mock(() => Promise.resolve()),
+  invalidateAll: mock(() => Promise.resolve()),
+  afterNavigate: mock(() => {}),
+  beforeNavigate: mock(() => {}),
+}));
+
+moduleMock("$app/forms", () => ({
+  applyAction: mock(() => Promise.resolve()),
+  enhance: mock(() => {}),
+  deserialize: mock((v: any) => {
+    try {
+      return JSON.parse(v);
+    } catch {
+      return v;
+    }
+  }),
+}));
+
+moduleMock("$app/paths", () => ({ base: "", assets: "" }));
+
+moduleMock("$app/state", () => ({
+  page: {
+    url: new URL("http://localhost"),
+  },
+}));
+
+moduleMock("sveltekit-rate-limiter/server", () => ({
+  RateLimiter: class {
+    check = mock(() => Promise.resolve({ success: true }));
+    isLimited = mock(() => Promise.resolve(false));
+    add = mock(() => {});
+    clear = mock(() => {});
+  },
+}));
+
+// 2. ENVIRONMENT GLOBALS
+setGlobal("browser", false);
+setGlobal("dev", true);
+setGlobal("building", false);
+setGlobal("logger", mockLogger);
+
+process.env.BROWSER = "false";
+process.env.NODE_ENV = "test";
+process.env.TEST_MODE = "true";
+process.env.SSR = process.env.SSR || "true";
+
+// 3. SVELTE 5 RUNES
+// For unit tests without a compiler, $state should be transparent for primitives
+// to avoid Proxy-to-boolean identity check failures (e.g. expect(val).toBe(true)).
+const $state = Object.assign(
+  (v: any) => {
+    // Only use Proxy for objects/arrays to allow deep reactivity simulation
+    if (typeof v === "object" && v !== null) {
+      if (v instanceof Map || v instanceof Set || v instanceof Date || v instanceof RegExp) {
+        return v;
+      }
+      return new Proxy(v, {
+        get(target, prop) {
+          const val = target[prop];
+          return typeof val === "function" ? val.bind(target) : val;
+        },
+        set(target, prop, value) {
+          target[prop] = value;
+          return true;
+        },
+      });
+    }
+    // Return primitives directly
+    return v;
+  },
+  {
+    raw: (v: any) => v,
+    snapshot: (v: any) => {
+      if (typeof v !== "object" || v === null) return v;
+      try {
+        return JSON.parse(JSON.stringify(v));
+      } catch {
+        return v;
+      }
+    },
+  },
+);
+
+// $derived should also be transparent if possible, or a reactive-like object
+const $derived = Object.assign(
+  (fn: any) => {
+    const getter = typeof fn === "function" ? fn : () => fn;
+    // In tests without a compiler, a class property assigned $derived(fn)
+    // will be set once. To support dynamic updates, we'd need a real getter.
+    // For now, we return a Proxy that traps common coercion.
+    return new Proxy(
+      {},
+      {
+        get(_, prop) {
+          const val = getter();
+          if (prop === Symbol.toPrimitive)
+            return (hint: string) => (hint === "string" ? String(val) : val);
+          if (prop === "valueOf") return () => val;
+          if (prop === "toString") return () => String(val);
+          if (val !== null && typeof val === "object") {
+            const subVal = val[prop];
+            return typeof subVal === "function" ? subVal.bind(val) : subVal;
+          }
+          return val;
+        },
+      },
+    );
+  },
+  {
+    by: (fn: any) => {
+      const getter = typeof fn === "function" ? fn : () => fn;
+      return new Proxy(
+        {},
+        {
+          get(_, prop) {
+            const val = getter();
+            if (prop === Symbol.toPrimitive)
+              return (hint: string) => (hint === "string" ? String(val) : val);
+            if (prop === "valueOf") return () => val;
+            if (prop === "toString") return () => String(val);
+            if (val !== null && typeof val === "object") {
+              const subVal = val[prop];
+              return typeof subVal === "function" ? subVal.bind(val) : subVal;
+            }
+            return val;
+          },
+        },
+      );
+    },
+  },
+);
+
+const $effect = Object.assign(
+  (fn: any) => {
+    if (typeof fn === "function") fn();
+  },
+  {
+    root: (fn: any) => {
+      if (typeof fn === "function") fn();
+      return () => {};
+    },
+    pre: (fn: any) => {
+      if (typeof fn === "function") fn();
+    },
+  },
+);
+
+setGlobal("$state", $state);
+setGlobal("$derived", $derived);
+setGlobal("$effect", $effect);
+setGlobal("$props", () => ({}));
+setGlobal("$bindable", (v: any) => v);
+setGlobal("$inspect", () => ({ with: () => {} }));
+
+// 4. SVELTE COMMON MODULES
+const svelteCommon = {
+  untrack: mock((fn: any) => fn()),
+  onMount: (fn: any) => fn?.(),
+  onDestroy: (fn: any) => fn?.(),
+  beforeUpdate: (fn: any) => fn?.(),
+  afterUpdate: (fn: any) => fn?.(),
+  tick: () => Promise.resolve(),
+  getAllContexts: () => new Map(),
+  getContext: () => undefined,
+  setContext: (_unused: any, v: any) => v,
+  hasContext: () => false,
+  mount: (component: any, options: any) => ({ component, options, unmount: () => {} }),
+  hydrate: (component: any, options: any) => ({ component, options, unmount: () => {} }),
+  unmount: () => {},
+  flushSync: (cb?: any) => cb?.(),
+  createContext: () => [() => {}, () => {}],
 };
 
-const cacheServiceModule = {
-	cacheService: mockCacheService,
-	CacheCategory,
-	SESSION_CACHE_TTL_MS: 86400000,
-	SESSION_CACHE_TTL_S: 86400,
-	USER_PERM_CACHE_TTL_MS: 60000,
-	USER_PERM_CACHE_TTL_S: 60,
-	USER_COUNT_CACHE_TTL_MS: 300000,
-	USER_COUNT_CACHE_TTL_S: 300,
-	API_CACHE_TTL_MS: 300000,
-	API_CACHE_TTL_S: 300,
-	REDIS_TTL_S: 300,
-	getSessionCacheTTL: () => 86400,
-	getUserPermCacheTTL: () => 60,
-	getApiCacheTTL: () => 300
+const svelteServerMock = {
+  ...svelteCommon,
+  render: mock((component: any, options: any) => {
+    let html = "";
+    const renderer = {
+      push: (s: string) => {
+        html += s;
+      },
+      component: (fn: any) => {
+        fn(renderer);
+      },
+    };
+
+    try {
+      // Svelte 5 SSR component call signature: (renderer, props)
+      component(renderer, options.props || {});
+      return {
+        body: html,
+        head: "",
+        html: html,
+      };
+    } catch (e) {
+      console.error("Error in SSR render mock:", e);
+      return { body: "", head: "", html: "" };
+    }
+  }),
 };
 
-(globalThis as any).mockCacheService = mockCacheService;
-(globalThis as any).cacheService = mockCacheService;
-mock.module('@src/databases/cache-service', () => cacheServiceModule);
+if (isBun) {
+  moduleMock("svelte", () => svelteCommon);
+  moduleMock("svelte/server", () => svelteServerMock);
+  moduleMock("svelte/internal", () => ({
+    noop: () => {},
+    safe_not_equal: () => true,
+    subscribe: () => () => {},
+    run_all: () => {},
+    is_function: (v: any) => typeof v === "function",
+  }));
+}
 
-// EventBus
-const mockEventBus = { on: mock(() => () => {}), publish: mock(() => {}), clear: mock(() => {}), subscribe: mock(() => () => {}) };
-(globalThis as any).mockEventBus = mockEventBus;
-mock.module('@src/services/automation/event-bus', () => ({ eventBus: mockEventBus }));
+// 5. STORAGE MOCK
+class StorageMock implements Storage {
+  private store: Record<string, string> = {};
+  get length() {
+    return Object.keys(this.store).length;
+  }
+  clear() {
+    this.store = {};
+  }
+  getItem(key: string) {
+    return this.store[key] || null;
+  }
+  key(index: number) {
+    return Object.keys(this.store)[index] || null;
+  }
+  removeItem(key: string) {
+    delete this.store[key];
+  }
+  setItem(key: string, value: string) {
+    this.store[key] = String(value);
+  }
+}
 
-// AuditLog
-const mockAuditLog = { log: mock(async () => {}), getLogs: mock(async () => []) };
-(globalThis as any).mockAuditLog = mockAuditLog;
-mock.module('@src/services/audit/audit-log-service.ts', () => ({ auditLogService: mockAuditLog }));
+const localStorage = new StorageMock();
+const sessionStorage = new StorageMock();
 
-// Scanner
-mock.module('@src/widgets/scanner', () => ({
-	coreModules: {},
-	customModules: {},
-	getCoreWidgets: () => [],
-	getCustomWidgets: () => []
+setGlobal("localStorage", localStorage);
+setGlobal("sessionStorage", sessionStorage);
+
+// 7. navigator
+setGlobal("requestAnimationFrame", (cb: any) => setTimeout(cb, 0));
+setGlobal("cancelAnimationFrame", (id: any) => clearTimeout(id));
+
+// 7. APPLICATION SERVICE MOCKS
+class AppError extends Error {
+  status: number;
+  code: string;
+  details: any;
+  originalError: any;
+  constructor(message: string, status = 500, code: string | any = "INTERNAL_ERROR", details?: any) {
+    super(message);
+    this.status = status;
+    this.name = "AppError";
+    if (typeof code === "string") {
+      this.code = code;
+      if (details instanceof Error) {
+        this.originalError = details;
+      }
+      this.details = details;
+    } else {
+      this.code = "INTERNAL_ERROR";
+      this.originalError = code;
+      this.details = details;
+    }
+  }
+}
+setGlobal("AppError", AppError);
+
+const isAppError = (v: any): v is AppError => {
+  if (!v || typeof v !== "object") return false;
+  return v instanceof AppError || v.name === "AppError" || v.__isAppError === true;
+};
+(AppError.prototype as any).__isAppError = true;
+
+const isHttpError = (v: any) => v !== null && typeof v === "object" && typeof v.status === "number";
+
+const getErrorMessage = (error: any): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (typeof error === "object" && error !== null && "body" in error) {
+    const body = (error as { body: { message?: string } }).body;
+    if (body?.message) return String(body.message);
+  }
+  if (typeof error === "object" && error !== null) {
+    if ("message" in error) return String((error as any).message);
+    try {
+      const str = JSON.stringify(error);
+      return str === "{}" ? "[object Object]" : str;
+    } catch {
+      return "[object Object]";
+    }
+  }
+  return String(error);
+};
+
+const wrapError = (error: any, message = "An unexpected error occurred", status = 500) => {
+  if (isAppError(error)) return error;
+  if (isHttpError(error)) {
+    const bodyMsg = (error as any).body?.message;
+    return new AppError(bodyMsg || message, error.status, `HTTP_${error.status}`, error);
+  }
+  const errorMsg = getErrorMessage(error);
+  const finalMessage = errorMsg || message;
+  return new AppError(finalMessage, status, "INTERNAL_ERROR", error);
+};
+
+moduleMock("@src/utils/error-handling", () => ({
+  AppError,
+  isAppError,
+  isHttpError,
+  getErrorMessage,
+  wrapError,
+  handleApiError: mock((err: any) => {
+    const status = err?.status || (isHttpError(err) ? (err as any).status : 500);
+    // Don't log expected errors during tests unless requested
+    if (status >= 500 && process.env.VERBOSE_TEST !== "true") {
+      // Quiet mode for tests
+    } else if (status >= 500) {
+      console.error("--- handleApiError Details:", {
+        message: getErrorMessage(err),
+        status,
+        code: err?.code,
+        stack: err instanceof Error ? err.stack : undefined,
+        err,
+      });
+    }
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: getErrorMessage(err),
+        code: err?.code || (isHttpError(err) ? `HTTP_${err.status}` : "INTERNAL_ERROR"),
+      }),
+      {
+        status,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }),
+}));
+moduleMock("@utils/error-handling", () => ({
+  AppError,
+  isAppError,
+  isHttpError,
+  getErrorMessage,
+  wrapError,
+  handleApiError: mock((err: any) => {
+    const status = err?.status || (isHttpError(err) ? (err as any).status : 500);
+    // Don't log expected errors during tests unless requested
+    if (status >= 500 && process.env.VERBOSE_TEST !== "true") {
+      // Quiet mode for tests
+    } else if (status >= 500) {
+      console.error("--- handleApiError Details:", {
+        message: getErrorMessage(err),
+        status,
+        code: err?.code,
+        stack: err instanceof Error ? err.stack : undefined,
+        err,
+      });
+    }
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: getErrorMessage(err),
+        code: err?.code || (isHttpError(err) ? `HTTP_${err.status}` : "INTERNAL_ERROR"),
+      }),
+      {
+        status,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }),
 }));
 
-// =============================================================================
-// 3. INFRASTRUCTURE & SVELTEKIT MOCKS
-// =============================================================================
-mock.module('$app/environment', () => ({ dev: true, browser: true, building: false, version: '1.0.0' }));
-mock.module('$app/navigation', () => ({
-	goto: mock(async () => {}),
-	invalidate: mock(async () => {}),
-	invalidateAll: mock(async () => {}),
-	afterNavigate: mock(() => {}),
-	beforeNavigate: mock(() => {})
-}));
-mock.module('$app/stores', () => ({
-	page: {
-		subscribe: (fn: any) => {
-			fn({ url: new URL('http://localhost'), status: 200, params: {}, data: {}, form: null });
-			return () => {};
-		}
-	},
-	navigating: {
-		subscribe: (fn: any) => {
-			fn(null);
-			return () => {};
-		}
-	},
-	updated: {
-		subscribe: (fn: any) => {
-			fn(false);
-			return () => {};
-		}
-	}
-}));
-mock.module('$app/paths', () => ({ base: '', assets: '' }));
-mock.module('$app/forms', () => ({ applyAction: mock(async (v: any) => v), enhance: mock(() => {}), deserialize: mock((v: any) => v) }));
+// ============================================================================
+// CORE SERVICE MOCKS
+// ============================================================================
 
-mock.module('@sveltejs/kit', () => ({
-	redirect: (status: number, location: string) => {
-		throw { status, location, __isRedirect: true };
-	},
-	error: (status: number, message: any) => {
-		throw { status, body: typeof message === 'string' ? { message } : message, __isHttpError: true };
-	},
-	isRedirect: (err: any) => err && err.__isRedirect === true,
-	isHttpError: (err: any) => err && err.__isHttpError === true,
-	json: (data: any, init?: any) => new Response(JSON.stringify(data), { ...init, headers: { 'content-type': 'application/json' } })
+const mockMetricsService = {
+  incrementRequests: mock(() => {}),
+  incrementErrors: mock(() => {}),
+  recordResponseTime: mock(() => {}),
+  incrementAuthValidations: mock(() => {}),
+  incrementAuthFailures: mock(() => {}),
+  recordAuthCacheHit: mock(() => {}),
+  recordAuthCacheMiss: mock(() => {}),
+  incrementApiRequests: mock(() => {}),
+  incrementApiErrors: mock(() => {}),
+  recordApiCacheHit: mock(() => {}),
+  recordApiCacheMiss: mock(() => {}),
+  incrementRateLimitViolations: mock(() => {}),
+  incrementCSPViolations: mock(() => {}),
+  incrementSecurityViolations: mock(() => {}),
+  recordHookExecutionTime: mock(() => {}),
+  getReport: mock(() => ({
+    timestamp: Date.now(),
+    uptime: 0,
+    requests: { total: 0, errors: 0, errorRate: 0, avgResponseTime: 0 },
+    authentication: {
+      validations: 0,
+      failures: 0,
+      successRate: 0,
+      cacheHits: 0,
+      cacheMisses: 0,
+      cacheHitRate: 0,
+    },
+    api: {
+      requests: 0,
+      errors: 0,
+      cacheHits: 0,
+      cacheMisses: 0,
+      cacheHitRate: 0,
+    },
+    security: { rateLimitViolations: 0, cspViolations: 0, authFailures: 0 },
+    performance: { slowRequests: 0, avgHookExecutionTime: 0, bottlenecks: [] },
+  })),
+  reset: mock(() => {}),
+  exportPrometheus: mock(() => ""),
+  destroy: mock(() => {}),
+};
+
+const mockSecurityResponseService = {
+  analyzeRequest: mock(() => Promise.resolve({ level: "none", action: "allow" })),
+  checkRateLimit: mock(() => ({ allowed: true, limit: 100, count: 0 })),
+  blockIp: mock(() => Promise.resolve()),
+  reportSecurityEvent: mock(() => {}),
+  isBlocked: mock(() => false),
+  getThrottleStatus: mock(() => ({ throttled: false, factor: 1 })),
+  getActiveIncidents: mock(() => []),
+  getSecurityStats: mock(() => ({
+    activeIncidents: 0,
+    blockedIPs: 0,
+    throttledIPs: 0,
+    totalIncidents: 0,
+    rateLimitEntries: 0,
+    threatLevelDistribution: {
+      none: 0,
+      low: 0,
+      medium: 0,
+      high: 0,
+      critical: 0,
+    },
+  })),
+  resolveIncident: mock(() => true),
+  unblockIP: mock(() => true),
+};
+
+// Replace legacy metricsMock with consolidated mockMetricsService
+setGlobal("metricsService", mockMetricsService);
+
+const cacheMock = {
+  get: mock(async () => null),
+  set: mock(async () => {}),
+  delete: mock(async () => {}),
+  clearByPattern: mock(async () => true),
+  invalidateAll: mock(async () => {}),
+  reconfigure: mock(async () => true),
+};
+setGlobal("cacheService", cacheMock);
+moduleMock("@src/databases/cache/cache-service", () => ({
+  cacheService: cacheMock,
+  default: cacheMock,
+  CacheCategory,
+  getSessionCacheTTL: mock(() => 3600),
+  getUserPermCacheTTL: mock(() => 60),
+  getApiCacheTTL: mock(() => 300),
+  REDIS_TTL_S: 300,
+  USER_COUNT_CACHE_TTL_S: 300,
+  SESSION_CACHE_TTL_S: 3600,
+  API_CACHE_TTL_S: 300,
+  USER_PERM_CACHE_TTL_S: 60,
+  USER_COUNT_CACHE_TTL_MS: 300000,
+  SESSION_CACHE_TTL_MS: 3600000,
+  USER_PERM_CACHE_TTL_MS: 60000,
+  API_CACHE_TTL_MS: 300000,
 }));
 
-// External libs
-mock.module('@boxyhq/saml-jackson', () => ({
-	default: mock(async () => ({
-		oauthController: { authorize: mock(async () => ({ redirect_url: 'https://idp.example.com/sso' })) },
-		connectionAPIController: { createSAMLConnection: mock(async () => ({ id: 'conn_123' })) },
-		spConfig: { getIDPConfig: mock(async () => ({})) },
-		checkConfig: mock(() => true)
-	}))
+const settingsMock = {
+  getPrivateSettingSync: mock((key: string) => {
+    const env = (globalThis as any).privateEnv || (globalThis as any).__privateEnv;
+    if (env && key in env) return env[key];
+    return {
+      DB_TYPE: "mongodb",
+      MULTI_TENANT: false,
+      FIREWALL_ENABLED: true,
+      USE_REDIS: false,
+    }[key];
+  }),
+  getPublicSettingSync: mock((key: string) => (key === "SITE_NAME" ? "SveltyCMS Test" : undefined)),
+  getPrivateSetting: mock(async (key: string) => {
+    const env = (globalThis as any).privateEnv || (globalThis as any).__privateEnv;
+    if (env && key in env) return env[key];
+    return "mongodb";
+  }),
+  getPublicSetting: mock(async (_key: string) => "test"),
+  loadSettingsCache: mock(async () => ({
+    loaded: true,
+    private: {},
+    public: {},
+  })),
+  setSettingsCache: mock(async () => {}),
+  invalidateSettingsCache: mock(async () => {}),
+  isCacheLoaded: mock(() => true),
+  getAllSettings: mock(async () => ({ public: {}, private: {} })),
+  updateSettingsFromSnapshot: mock(async () => ({ updated: 0 })),
+  getUntypedSetting: mock(async () => undefined),
+};
+moduleMock("@src/services/settings-service", () => settingsMock);
+
+const mockAuditLog = {
+  log: mock(() => Promise.resolve()),
+  getLogs: mock(() => Promise.resolve([])),
+};
+const mockDbAdapter = {
+  auth: {
+    getUserById: mock((id: string) => Promise.resolve({ success: true, data: { _id: id } })),
+    getUserBySamlId: mock(() => Promise.resolve(null)),
+    getUserByEmail: mock(() => Promise.resolve(null)),
+    createUser: mock(() => Promise.resolve({ success: true, data: { _id: "new-user" } })),
+    createSession: mock(() => Promise.resolve({ _id: "session-123" })),
+    checkUser: mock(() => Promise.resolve(null)),
+    getTokenByValue: mock(() => Promise.resolve(null)),
+    updateToken: mock(() => Promise.resolve({ success: true })),
+    deleteTokens: mock(() => Promise.resolve(1)),
+    getAllTokens: mock(() => Promise.resolve({ success: true, data: [] })),
+    createToken: mock(() => Promise.resolve({ success: true, data: "token-123" })),
+    getTokenById: mock(() => Promise.resolve({ success: true, data: null })),
+    blockTokens: mock(() => Promise.resolve(1)),
+    unblockTokens: mock(() => Promise.resolve(1)),
+    updateUserAttributes: mock(() => Promise.resolve({ success: true })),
+    getAllUsers: mock(() => Promise.resolve({ success: true, data: [] })),
+    getUserCount: mock(() => {
+      const count = (globalThis as any).__mockUserCount ?? 10;
+      return Promise.resolve(count);
+    }),
+    getAllRoles: mock(() =>
+      Promise.resolve(
+        (globalThis as any).__mockRoles ?? [{ _id: "admin", isAdmin: true, name: "Admin" }],
+      ),
+    ),
+    ensureAuth: mock(() => Promise.resolve()),
+    validateSession: mock((id: string) =>
+      Promise.resolve({
+        _id: id || "user123",
+        email: "test@example.com",
+        tenantId: "default",
+        role: "admin",
+        permissions: [],
+      }),
+    ),
+    createSessionCookie: mock(() => ({
+      name: "session",
+      value: "secret",
+      attributes: {},
+    })),
+    authInterface: {
+      getUserById: mock((id: string) => Promise.resolve({ success: true, data: { _id: id } })),
+    },
+  },
+  system: {
+    preferences: {
+      get: mock(() => Promise.resolve({ success: true, data: [] })),
+      set: mock(() => Promise.resolve({ success: true })),
+      getMany: mock(() => Promise.resolve({ success: true, data: {} })),
+      setMany: mock(() => Promise.resolve({ success: true })),
+      deleteMany: mock(() => Promise.resolve({ success: true })),
+    },
+    widgets: {
+      getActiveWidgets: mock(() => Promise.resolve({ success: true, data: [] })),
+    },
+  },
+  crud: {
+    insert: mock(() => Promise.resolve({ success: true, data: { _id: "mock-id" } })),
+    update: mock(() => Promise.resolve({ success: true })),
+    findOne: mock(() => Promise.resolve({ success: true, data: null })),
+    findMany: mock(() => Promise.resolve({ success: true, data: [] })),
+    delete: mock(() => Promise.resolve({ success: true })),
+    updateMany: mock(() => Promise.resolve({ success: true })),
+  },
+  media: {
+    files: {
+      delete: mock(() => Promise.resolve({ success: true })),
+      deleteMany: mock(() => Promise.resolve({ success: true })),
+      upload: mock(() => Promise.resolve({ success: true, data: "test.jpg" })),
+      getByFolder: mock(() => Promise.resolve({ success: true, data: [] })),
+    },
+  },
+};
+setGlobal("mockAuditLog", mockAuditLog);
+setGlobal("mockDbAdapter", mockDbAdapter);
+
+const dbMock = {
+  dbAdapter: mockDbAdapter,
+  auth: mockDbAdapter.auth,
+  getDb: () => mockDbAdapter,
+  getAuth: () => mockDbAdapter.auth,
+  getPrivateEnv: mock(
+    () =>
+      (globalThis as any).privateEnv || (globalThis as any).__privateEnv || { DB_TYPE: "mongodb" },
+  ),
+  setPrivateEnv: mock((env: any) => {
+    (globalThis as any).privateEnv = env;
+  }),
+  loadPrivateConfig: mock(() =>
+    Promise.resolve(
+      (globalThis as any).privateEnv || (globalThis as any).__privateEnv || { DB_TYPE: "mongodb" },
+    ),
+  ),
+  clearPrivateConfigCache: mock(() => {}),
+  initializeWithConfig: mock(() => Promise.resolve({ status: "success" })),
+  reinitializeSystem: mock(() => Promise.resolve({ status: "initialized" })),
+  initConnection: mock(() => Promise.resolve()),
+  getDbInitPromise: mock(() => Promise.resolve()),
+  resetDbInitPromise: mock(() => {}),
+  dbInitPromise: Promise.resolve(),
+  collection: {
+    getModel: mock(() => Promise.resolve({ name: "mock_collection", fields: [] })),
+    listSchemas: mock(() => Promise.resolve({ success: true, data: [] })),
+  },
+  crud: mockDbAdapter.crud,
+  media: mockDbAdapter.media,
+  system: mockDbAdapter.system,
+  loadSettingsFromDB: mock(() => Promise.resolve(true)),
+  isAuthReady: () => true,
+};
+moduleMock("@src/databases/db", () => dbMock);
+moduleMock("@databases/db", () => dbMock);
+setGlobal("auth", dbMock.auth);
+
+moduleMock("@src/services/audit/audit-log-service", () => ({
+  auditLogService: mockAuditLog,
+  default: mockAuditLog,
 }));
 
-mock.module('sveltekit-rate-limiter/server', () => ({
-	RateLimiter: class {
-		check = mock(async () => ({ success: true }));
-		cookieLimiter = mock(async () => ({ success: true }));
-		isLimited = mock(async () => false);
-	}
+const mockEventBus = {
+  on: mock(() => {}),
+  off: mock(() => {}),
+  emit: mock(() => {}),
+  once: mock(() => {}),
+  removeAllListeners: mock(() => {}),
+};
+setGlobal("mockEventBus", mockEventBus);
+moduleMock("@src/services/automation/event-bus", () => ({
+  eventBus: mockEventBus,
+  default: mockEventBus,
 }));
 
-// Setup Check
-(globalThis as any).__mockSetupComplete = true;
+const SetupState = {
+  MISSING_CONFIG: "MISSING_CONFIG",
+  MISSING_ADMIN: "MISSING_ADMIN",
+  COMPLETE: "COMPLETE",
+};
+
+let setupStateValue = SetupState.COMPLETE;
 const mockSetupCheck = {
-	isSetupComplete: mock(() => (globalThis as any).__mockSetupComplete),
-	isSetupCompleteAsync: mock(async () => (globalThis as any).__mockSetupComplete),
-	invalidateSetupCache: mock(() => {}),
-	setSetupComplete: (v: boolean) => {
-		(globalThis as any).__mockSetupComplete = v;
-	}
+  isSetupComplete: mock(() => setupStateValue === SetupState.COMPLETE),
+  isSetupCompleteAsync: mock(async () => setupStateValue === SetupState.COMPLETE),
+  getSetupState: mock(async () => setupStateValue),
+  SetupState,
+  invalidateSetupCache: mock(() => {}),
+  setSetupComplete: mock((val: boolean) => {
+    setupStateValue = val ? SetupState.COMPLETE : SetupState.MISSING_CONFIG;
+  }),
+  setSetupState: mock((state: any) => {
+    setupStateValue = state;
+  }),
+  isBootstrapRoute: mock((p: string) => {
+    const path = p.startsWith("/") ? p.slice(1) : p;
+    return (
+      path === "" ||
+      path === "setup" ||
+      path.startsWith("setup/") ||
+      path === "login" ||
+      path.startsWith("login/") ||
+      path.startsWith("api/system/") ||
+      path.startsWith("api/dashboard/") ||
+      path.startsWith("api/setup/") ||
+      path.startsWith("api/auth/") ||
+      path.startsWith("api/content/version") ||
+      path.startsWith("api/settings/public") ||
+      path.startsWith("api/debug/") ||
+      path.startsWith("auth/") || // Handle non-api prefixed paths as well
+      path.startsWith("_") ||
+      path.startsWith("static") ||
+      path.startsWith("assets") ||
+      path.startsWith(".well-known") ||
+      path === "favicon.ico"
+    );
+  }),
 };
-(globalThis as any).mockSetupCheck = mockSetupCheck;
-mock.module('@utils/setup-check', () => mockSetupCheck);
-mock.module('@src/utils/setup-check', () => mockSetupCheck);
+moduleMock("@utils/setup-check", () => mockSetupCheck);
+setGlobal("mockSetupCheck", mockSetupCheck);
 
-// Paraglide
-mock.module('@src/paraglide/runtime.js', () => ({
-	availableLanguageTags: ['en'],
-	locales: ['en'],
-	languageTag: () => 'en',
-	setLanguageTag: () => {},
-	getLocale: () => 'en',
-	i18n: { handle: ({ event, resolve }: any) => resolve(event) }
-}));
-mock.module('@src/paraglide/messages.js', () => ({
-	widget_address_description: () => 'Address',
-	widget_relation_description: () => 'Relation',
-	widget_richText_description: () => 'Rich Text'
+moduleMock("@src/widgets/scanner", () => ({
+  coreModules: {},
+  customModules: {},
+  allWidgetModules: {},
+  getWidgetNameFromPath: (path: string) => path.split("/").at(-2) || null,
 }));
 
-// Dynamic Import for AppError
-const loadAppError = async () => {
-	const { AppError } = await import('../../src/utils/error-handling');
-	(globalThis as any).AppError = AppError;
+moduleMock("@boxyhq/saml-jackson", () => ({
+  default: mock(() =>
+    Promise.resolve({
+      oauthController: {
+        authorize: mock(() => Promise.resolve({ redirect_url: "https://idp.example.com/sso" })),
+      },
+      connectionAPIController: {
+        createSAMLConnection: mock(() => Promise.resolve({ id: "conn_123" })),
+      },
+    }),
+  ),
+}));
+
+// Node built-ins mocks for Bun
+const mockSpawn = mock(() => ({
+  on: mock((event: string, cb: any) => {
+    if (event === "exit") setTimeout(() => (cb as (code: number) => void)(0), 0);
+  }),
+  stderr: { on: mock(() => {}) },
+}));
+
+const mockExec = mock((_cmd: string, cb: any) => {
+  if (cb) setTimeout(() => cb(null, { stdout: "ok", stderr: "" }), 0);
+  return { on: mock(() => {}) };
+});
+
+const mockLookup = mock(async (hostname: string) => {
+  let ip = "8.8.8.8";
+  if (hostname.includes("loopback") || hostname.includes("localhost")) ip = "127.0.0.1";
+  else if (hostname.includes("internal")) ip = "10.0.1.5";
+  return { address: ip, family: 4 };
+});
+
+moduleMock("node:child_process", () => ({
+  spawn: mockSpawn,
+  exec: mockExec,
+  default: { spawn: mockSpawn, exec: mockExec },
+}));
+
+moduleMock("node:dns/promises", () => ({
+  lookup: mockLookup,
+  default: { lookup: mockLookup },
+}));
+
+const isTestTarget = (path: string) => {
+  let currentTest = process.argv.find((arg) => arg.endsWith(".test.ts"));
+
+  // Normalize backslashes for Windows
+  const normalizedPath = path.replace(/\\/g, "/");
+  const normalizedCurrentTest = currentTest ? currentTest.replace(/\\/g, "/") : "";
+
+  if (normalizedCurrentTest.includes("security-response-service")) {
+    if (normalizedPath.includes("security-response-service")) return true;
+  }
+  if (!isBun && vitest?.expect) {
+    try {
+      const { testPath } = (vitest.expect as any).getState();
+      if (testPath) {
+        const normalizedTestPath = testPath.replace(/\\/g, "/");
+        if (normalizedTestPath.includes("security-response-service")) {
+          if (normalizedPath.includes("security-response-service")) return true;
+        }
+        currentTest = testPath;
+      }
+    } catch {}
+  }
+  // Fallback to simpler check for path
+  const targetPart = path.split("/").pop()?.replace(".ts", "") || "___NON_EXISTENT___";
+  return currentTest && currentTest.includes(targetPart);
 };
-loadAppError();
 
-console.log('✅ Master Global Test Setup Complete (Smart Logic Mode)');
+if (!isTestTarget("metrics-service")) {
+  moduleMock("@src/services/metrics-service", () => ({
+    metricsService: mockMetricsService,
+    default: { metricsService: mockMetricsService },
+  }));
+  (globalThis as any).__SVELTY_METRICS_INSTANCE__ = mockMetricsService;
+  setGlobal("metricsService", mockMetricsService);
+}
+
+if (!isTestTarget("security-response-service")) {
+  moduleMock("@src/services/security-response-service", () => ({
+    securityResponseService: mockSecurityResponseService,
+    default: { securityResponseService: mockSecurityResponseService },
+  }));
+  (globalThis as any).__SVELTY_SECURITY_INSTANCE__ = mockSecurityResponseService;
+  setGlobal("securityResponseService", mockSecurityResponseService);
+}
+// This ensures that tests don't pollute each other via globalThis or module-level shared state
+if (typeof (globalThis as any).beforeEach !== "undefined") {
+  try {
+    (globalThis as any).beforeEach(async () => {
+      // Reset environment overrides
+      (globalThis as any).privateEnv = undefined;
+      (globalThis as any).__privateEnv = undefined;
+
+      // Reset common internal mock state
+      (globalThis as any).__mockUserCount = undefined;
+      (globalThis as any).__mockRoles = undefined;
+
+      // Reset metrics and cache mocks if available
+      if ((globalThis as any).metricsService && (globalThis as any).metricsService.reset) {
+        (globalThis as any).metricsService.reset();
+      }
+      if ((globalThis as any).cacheService) {
+        const cs = (globalThis as any).cacheService;
+        if (cs.get && cs.get.mockClear) cs.get.mockClear();
+        if (cs.set && cs.set.mockClear) cs.set.mockClear();
+        if (cs.delete && cs.delete.mockClear) cs.delete.mockClear();
+      }
+
+      // Reset dbAdapter mock state
+      if ((globalThis as any).mockDbAdapter) {
+        const db = (globalThis as any).mockDbAdapter;
+        const resetMocks = (obj: any) => {
+          for (const key in obj) {
+            if (obj[key] && typeof obj[key] === "function" && obj[key].mockClear) {
+              obj[key].mockClear();
+            } else if (obj[key] && typeof obj[key] === "object") {
+              resetMocks(obj[key]);
+            }
+          }
+        };
+        resetMocks(db);
+      }
+
+      // Invalidate authorization caches to prevent state leak in hooks
+      try {
+        const { invalidateUserCountCache, invalidateRolesCache } =
+          await import("@src/hooks/handle-authorization");
+        await invalidateUserCountCache();
+        await invalidateRolesCache();
+      } catch {
+        // Ignore if not available in current test context
+      }
+
+      // Restore all spies/mocks if vishim is active
+      if ((globalThis as any).vi && (globalThis as any).vi.restoreAllMocks) {
+        (globalThis as any).vi.restoreAllMocks();
+      }
+    });
+  } catch (e) {
+    if (typeof Bun === "undefined") throw e;
+  }
+}
+
+console.log("✅ Master Test Setup Loaded - (AGNOSTIC RUNES + AUTO-RESET)");

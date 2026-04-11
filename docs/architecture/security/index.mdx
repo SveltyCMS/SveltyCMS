@@ -1,0 +1,544 @@
+---
+path: "docs/architecture/security/index.mdx"
+title: "Security Documentation"
+description: "Comprehensive security documentation for SveltyCMS covering authentication, cryptography, widget security, and best practices"
+order: 1
+icon: "mdi:shield-lock"
+author: "SveltyCMS Team"
+created: "2025-11-14"
+updated: "2026-04-10"
+tags:
+  - "security"
+  - "documentation"
+  - "authentication"
+  - "encryption"
+  - "best-practices"
+---
+
+# Security Documentation
+
+SveltyCMS implements enterprise-grade security measures across all system components to protect data, prevent vulnerabilities, and ensure compliance with security standards.
+
+> [!IMPORTANT]
+> **A++ Security Grade**: SveltyCMS maintains an A++ security posture through automated threat detection, memory-hard cryptography (Argon2id), and a fail-closed architecture.
+
+## 🛡️ Security Overview
+
+SveltyCMS security architecture includes:
+
+- **🔐 Authentication & Authorization** - Multi-factor authentication, session management, RBAC
+- **🔒 Cryptography** - Quantum-resistant password hashing, AES-256 encryption
+- **🛡️ Widget Security** - XSS prevention, injection protection, file validation
+- **🔍 Security Monitoring** - Real-time audit logging (SHA-256 chained), threat detection
+- **🚀 Secure Development** - Build-time security checks, vulnerability scanning
+
+---
+
+## 📚 Security Documentation
+
+### Authentication & Access Control
+
+- **[Authentication System](/docs/architecture/authentication-system.mdx)** - Enterprise-grade authentication with 3-layer caching, automatic session rotation, and multi-tenancy support
+- **[Access Management](/docs/guides/configuration/access-management.mdx)** - Roles, Granular Permissions, and Website Token management
+  - Session management
+  - Token-based authentication
+  - Password policies
+  - Account lockout
+- **[Two-Factor Authentication API](/docs/api/authentication-2fa-api.mdx)** - 2FA setup, verification, recovery codes, and backup options
+
+- **[User Management API](/docs/api/user-management-api.mdx)** - User authentication, registration, profile management, and permissions
+
+- **[User Token Management API](/docs/api/user-token-management-api.mdx)** - API token generation, management, and revocation
+
+### Cryptography & Encryption
+
+- **[Cryptography Module](/docs/architecture/cryptography-module.mdx)** - Enterprise-grade cryptography for password hashing and data encryption
+  - Argon2id password hashing (quantum-resistant)
+  - AES-256-GCM encryption
+  - Secure token generation
+  - Timing attack prevention
+
+- **[Quantum Security](/docs/architecture/quantum-security.mdx)** - Future-proof security measures against quantum computing threats
+
+### Widget & Content Security
+
+- **[Widget Security](/docs/architecture/security/widget-security.mdx)** ⭐ - Comprehensive security measures across all widgets
+  - XSS prevention
+  - Injection attack protection
+  - File upload validation
+  - SSRF prevention
+  - IDOR protection
+  - Input sanitization
+
+### Application Security
+
+- **[Security Plugin](/docs/architecture/security-plugin.mdx)** - Build-time plugin preventing accidental exposure of private settings
+  - Environment variable protection
+  - Secret detection
+  - Build-time validation
+
+- **[Login Error Handling](/docs/architecture/login-error-handling.mdx)** - Secure error handling for authentication flows
+  - Rate limiting
+  - Timing attack prevention
+  - Information disclosure prevention
+
+### Infrastructure Security
+
+- **[Cloud Storage Implementation](/docs/architecture/cloud-storage-implementation.mdx)** - Secure cloud storage integration patterns
+  - Signed URLs
+  - Access control
+  - Encryption at rest
+
+- **[Database Resilience](/docs/architecture/database-resilience.mdx)** - Database security and reliability
+  - Connection pooling
+  - Query timeout protection
+  - Injection prevention
+
+---
+
+## 🔒 Security Features by Category
+
+### 1. Authentication Security
+
+**Features:**
+
+- ✅ Argon2id password hashing (125ms+ computational cost)
+- ✅ Automatic session rotation every 15 minutes for active users
+- ✅ 3-layer session caching (memory, Redis, database)
+- ✅ Two-factor authentication (TOTP)
+- ✅ Account lockout after failed attempts
+- ✅ Secure password reset with time-limited tokens
+- ✅ API token generation with granular permissions
+- ✅ Website Tokens with expiration policies and granular access control
+- ✅ Internal System Authorization using shared secrets (JWT_SECRET_KEY) for system-to-system calls
+
+**Implementation:**
+
+- Password validation with entropy requirements
+- Session fixation prevention
+- **CSRF Protection**: Multi-layer origin and referer validation for all mutation requests (POST, PUT, DELETE, PATCH)
+- Secure cookie attributes (httpOnly, secure, sameSite: Strict)
+
+### 2. Middleware Security Pipeline (Defense-in-Depth)
+
+Every request to SveltyCMS passes through a strictly ordered pipeline in `hooks.server.ts` to ensure maximum security with minimal overhead:
+
+1.  **🛡️ Security Headers**: CSP, HSTS, and X-Frame-Options applied first to _all_ responses.
+2.  **🗜️ Compression**: Optimizes response size before further processing.
+3.  **🔥 Dynamic Firewall**: Scans for SQLi, XSS, and Command Injection threat patterns.
+4.  **🐌 Rate Limiting**: Intelligent throttling based on endpoint sensitivity.
+5.  **🚧 Setup Guard**: Blocks initialization endpoints after the system is live.
+6.  **🔐 Authentication**: Resolves session and enforces tenant isolation.
+7.  **🛂 Authorization**: Granular RBAC and Fail-Closed API dispatching.
+
+### 3. Data Protection
+
+**Features:**
+
+- ✅ AES-256-GCM encryption for sensitive data
+- ✅ Field-level encryption support
+- ✅ SHA-256 checksums for data integrity
+- ✅ Encrypted database backups
+- ✅ Secure cloud storage with signed URLs
+
+**Implementation:**
+
+- Encryption at rest and in transit
+- Key rotation support
+- Secure key storage
+- HTTPS enforcement
+
+### 3. Input Validation & Sanitization
+
+**Features:**
+
+- ✅ Schema-based validation (Valibot)
+- ✅ HTML sanitization (DOMPurify)
+- ✅ File upload validation (type, size, extension)
+- ✅ Path traversal prevention
+- ✅ **Safe Query Mapping & Parameterization**: All JSON/RichText queries are strictly mapped to whitelisted database columns and natively parameterized (via Drizzle ORM) protecting against SQL Injection and blind SQL attacks out-of-the-box.
+- ✅ ReDoS prevention (input length limits)
+
+**Implementation:**
+
+- Whitelist-based validation
+- Multi-layer validation (client + server)
+- Content Security Policy
+- X-Content-Type-Options header
+
+### 4. Widget-Specific Security
+
+**Features:**
+
+- ✅ XSS prevention in RichText and MegaMenu widgets
+- ✅ SSRF prevention in RemoteVideo widget
+- ✅ IDOR prevention in Relation widget
+- ✅ CSS injection prevention in ColorPicker widget
+- ✅ Meta tag injection prevention in SEO widget
+- ✅ File validation in MediaUpload widget
+- ✅ Format validation in Email, PhoneNumber, Currency widgets
+
+**Implementation Details**: See [Widget Security Documentation](/docs/architecture/security/widget-security.mdx)
+
+### 5. Access Control
+
+**Features:**
+
+- ✅ **Fail-Closed API Authorization**: All REST API endpoints must be explicitly registered in the central `ENDPOINT_PERMISSIONS` dispatcher. Unmapped routes are denied by default with a `403 Forbidden` response.
+- ✅ **Tenant-Based Access Control (TBAC)**: User roles are dynamically resolved and isolated per `tenantId` during the authentication handshake, preventing cross-tenant privilege escalation.
+- ✅ **Informative 403 Feedback**: The Admin Area natively detects authorization failures and provides granular feedback including the specific required permission.
+- ✅ **UUIDv4 Primary Keys Out-of-the-box**: Protects against Cross-Collection IDOR (Insecure Direct Object Reference) vulnerability collision chains common in serial/auto-increment multi-auth environments.
+- ✅ Permission-based authorization
+- ✅ Multi-tenant isolation
+- ✅ Resource-level permissions
+- ✅ Admin privilege separation
+- ✅ Automated Setup Guard (blocks installation endpoints after initialization)
+
+**Implementation:**
+
+- **Central Dispatcher**: Permission checks enforced at the single entry point for all `/api/[...path]` routes.
+- **Namespace Fallback**: Dynamic resource IDs (e.g., `/api/collections/[id]`) are authorized via parent namespace permissions (e.g., `api:collections`).
+- Database query filtering by tenant
+- Cache key prefixing for isolation
+- **Tamper-Evident Audit Logging**: Immutable, database-backed audit trail for all sensitive operations
+
+### 6. Monitoring & Auditing
+
+**Features:**
+
+- ✅ Comprehensive database-backed audit logging
+- ✅ Security event tracking (login failures, permission violations)
+- ✅ Real-time security dashboards and widgets
+- ✅ Audit statistics and anomaly detection
+- ✅ Automatic log retention and cleanup policies
+
+**Implementation:**
+
+- Structured logging with correlation IDs
+- Security event aggregation
+- Anomaly detection
+- Alert thresholds
+
+---
+
+## 🛡️ No Backdoor Policy
+
+SveltyCMS is designed with a **zero-backdoor philosophy**. Our testing infrastructure is physically isolated from production to ensure maximum security.
+
+### 🔒 Physical Isolation (Triple-Lock)
+
+To prevent accidental exposure or exploitation of testing features, we employ a "Triple-Lock" system:
+
+1.  **Build-Time Stripping**: Our Vite build process physically removes all testing routes (`/api/testing`) and isolation hooks from production artifacts using a custom plugin. If it's not in the build, it literally does not exist in production.
+2.  **Cryptographic Handshake**: Any testing feature requires a `x-test-secret` header matching a high-entropy UUID generated dynamically per-test-run.
+3.  **Network Lockdown**: Testing utilities strictly refuse requests not originating from `127.0.0.1` or `::1`.
+
+### 🧪 Secure Testing Approach
+
+Our integration tests authenticate like real users:
+
+1. **Setup Phase**: Tests use the `/api/testing` endpoint (strictly guarded by the Triple-Lock) to:
+   - Reset the test database
+   - Seed default data (roles, themes, settings)
+   - Create a test admin user
+
+2. **Authentication Phase**: Tests must login to get a valid session cookie:
+
+   ```typescript
+   // Tests login just like real users
+   await postAction("login", { email: "admin@test.com", password: "Test123!" });
+   ```
+
+3. **Test Phase**: Authenticated requests proceed normally through the security middleware. Every request includes the `x-test-worker-index` for database isolation and the `x-test-secret` for the cryptographic handshake.
+
+### ✅ Why This Matters
+
+- **Zero Attack Surface**: Production servers don't even contain the testing code paths.
+- **Tests Real Security**: Authentication and authorization are tested end-to-end exactly as users experience them.
+- **Compliance Ready**: Audit logs show real user-like behavior, not bypasses.
+- **No Secrets in Code**: Test secrets are generated at runtime and never persisted.
+
+### 📖 Related Documentation
+
+- **[Tested Security Features](./tested-security-features.mdx)** - Comprehensive list of tested security features
+- **[Black-Box Testing](/docs/tests/black-box-testing.mdx)** - Test architecture and isolated test configurations
+- **[Integration Tests](/docs/tests/index.mdx)** - Running integration tests securely
+
+---
+
+## 🧪 Security Testing
+
+### Test Coverage
+
+SveltyCMS includes comprehensive security testing:
+
+```bash
+# Encryption and cryptography tests
+bun test tests/unit/utils/crypto.test.ts
+
+# Account lockout and session security tests
+bun test tests/unit/auth-lockout.test.ts
+
+# Middleware security (firewall, rate-limit, auth)
+bun test tests/unit/hooks/
+
+# API security tests
+bun test tests/integration/api/security.test.ts
+```
+
+**Security Test Categories:**
+
+- ✅ Encryption & Cryptography (14 tests) - AES-256-GCM, Argon2id, key derivation
+- ✅ Account Lockout & Session Security (23 tests) - Block/unblock, timeouts, policies
+- ✅ Authentication flows (50+ tests)
+- ✅ Authorization checks (40+ tests)
+- ✅ Input validation (80+ tests)
+- ✅ XSS prevention (30+ tests)
+- ✅ Injection prevention (40+ tests)
+- ✅ File upload security (20+ tests)
+
+### Security Vulnerabilities Fixed
+
+| Issue                            | File                             | Fix Date               |
+| -------------------------------- | -------------------------------- | ---------------------- |
+| Rate limiting bypass (localhost) | `src/hooks/handle-rate-limit.ts` | March 2026 (Protected) |
+| Firewall bypass (TEST_MODE)      | `src/hooks/handle-firewall.ts`   | March 2026 (Protected) |
+
+See [Tested Security Features](./tested-security-features.mdx) for details.
+
+### Penetration Testing
+
+Recommended security testing tools:
+
+- **OWASP ZAP** - Web application security scanner
+- **Burp Suite** - Security testing platform
+- **SQLMap** - SQL injection testing
+- **XSStrike** - XSS vulnerability scanner
+
+---
+
+## 🚦 Is Your Setup Secure? (Hardening Checklist)
+
+While the CMS provides built-in tools, a secure production deployment requires proper environmental configuration.
+
+| Item                | Requirement                                        | Status | Verification            |
+| :------------------ | :------------------------------------------------- | :----- | :---------------------- |
+| **JWT_SECRET_KEY**  | 32+ characters of high entropy.                    | [ ]    | Auth flow               |
+| **ENCRYPTION_KEY**  | 32+ characters (AES-256-GCM baseline).             | [ ]    | Data decryption         |
+| **HTTPS/SSL**       | CMS should _only_ be served over TLS 1.3.          | [ ]    | `security-headers.test` |
+| **Database Access** | DB must reside on a private VPC/Network.           | [ ]    | Infrastructure          |
+| **Admin Password**  | Enterprise standard (16+ chars, mixed).            | [ ]    | `Auth.validatePassword` |
+| **Firewall**        | Enable internal firewall via `FIREWALL_ENABLED`.   | [ ]    | `firewall.test`         |
+| **Audit Logs**      | Retention policy matches compliance (Default 365). | [ ]    | `AuditLogService`       |
+
+---
+
+## 📋 Security Checklist
+
+### Application Deployment
+
+- [x] Environment variables secured (no secrets in code) - Tested via config validation
+- [x] Content Security Policy configured - `tests/unit/hooks/security-headers.test.ts`
+- [x] Security headers enabled (HSTS, X-Frame-Options, etc.) - `tests/unit/hooks/security-headers.test.ts`
+- [x] Rate limiting configured - `tests/unit/hooks/rate-limit.test.ts`
+- [x] CORS policies defined - `tests/unit/hooks/security-headers.test.ts`
+- [ ] HTTPS enabled with valid SSL certificate (infrastructure)
+- [ ] Database credentials rotated (operational)
+- [ ] API tokens with minimal required permissions (operational)
+
+### User Management
+
+- [x] Password complexity requirements enforced - `tests/integration/routes/login/signup.test.ts`
+- [x] User roles and permissions reviewed - `tests/unit/hooks/authorization.test.ts`
+- [x] 2FA enabled for admin accounts - `tests/integration/api/auth-2fa.test.ts`
+- [x] Default admin account password changed (setup wizard requires this)
+- [ ] Account lockout policy configured (not fully tested)
+- [ ] Session timeout configured (not fully tested)
+- [ ] API access logs monitored (not fully tested)
+
+### Data Protection
+
+- [x] Audit logging enabled - `tests/integration/api/*`
+- [x] Sensitive data encrypted at rest - `tests/unit/utils/crypto.test.ts`
+- [ ] Backup encryption enabled (infrastructure)
+- [ ] Key rotation schedule defined (operational)
+- [ ] Data retention policies configured (not tested)
+- [ ] PII handling compliant with regulations (not tested)
+
+### Widget Security
+
+- [x] All widgets reviewed for security - `docs/architecture/security/widget-security.mdx`
+- [x] Custom widgets follow security guidelines - `docs/architecture/security/widget-security.mdx`
+- [x] File upload restrictions configured - `tests/unit/plugins/sandbox.test.ts`
+- [x] Input validation enabled - `tests/unit/hooks/firewall.test.ts`
+- [x] Output encoding verified - `docs/architecture/security/richtext-security.mdx`
+- [x] Widget permissions configured - RBAC tests
+
+---
+
+## 🚨 Security Incident Response
+
+### Incident Detection
+
+Monitor for:
+
+- Multiple failed login attempts
+- Unusual API access patterns
+- Permission violation attempts
+- File upload anomalies
+- SQL injection attempts
+- XSS payload detection
+
+### Response Procedure
+
+1. **Identify** - Detect and confirm security incident
+2. **Contain** - Isolate affected systems
+3. **Investigate** - Analyze logs and determine scope
+4. **Remediate** - Fix vulnerabilities
+5. **Recover** - Restore normal operations
+6. **Document** - Record incident details and lessons learned
+
+### Reporting
+
+Security issues should be reported to:
+
+- **Email**: security@sveltycms.org
+- **GitHub**: Private security advisory
+- **Severity Levels**: Critical, High, Medium, Low
+
+---
+
+## 🔐 Security Best Practices
+
+### Development
+
+1. **Never commit secrets** - Use environment variables
+2. **Validate all input** - Client and server side
+3. **Sanitize all output** - Prevent XSS
+4. **Use parameterized queries** - Prevent SQL injection
+5. **Implement least privilege** - Minimal permissions
+6. **Log security events** - Enable audit trail
+7. **Keep dependencies updated** - Regular security patches
+
+### Deployment
+
+1. **Use HTTPS everywhere** - Encrypt all traffic
+2. **Enable security headers** - CSP, HSTS, etc.
+3. **Configure CORS properly** - Restrict origins
+4. **Implement rate limiting** - Prevent abuse
+5. **Monitor security logs** - Real-time alerts
+6. **Regular security audits** - Quarterly reviews
+7. **Backup encryption** - Protect data at rest
+
+### Operations
+
+1. **Rotate credentials regularly** - Passwords, tokens, keys
+2. **Review permissions** - Audit user access
+3. **Monitor failed logins** - Detect brute force
+4. **Update security policies** - Keep current with threats
+5. **Train users** - Security awareness
+6. **Test disaster recovery** - Backup restoration
+7. **Maintain audit logs** - Compliance requirements
+
+---
+
+## 📊 Compliance
+
+SveltyCMS security features support compliance with:
+
+### GDPR (General Data Protection Regulation)
+
+- ✅ Data encryption
+- ✅ User consent management
+- ✅ Right to erasure
+- ✅ Data portability
+- ✅ Audit logging
+- ✅ Data breach notification
+
+### SOC 2 (Service Organization Control)
+
+- ✅ Access controls
+- ✅ Audit logging
+- ✅ Change management
+- ✅ Risk assessment
+- ✅ Incident response
+- ✅ Monitoring and alerting
+
+### OWASP Top 10
+
+- ✅ Injection prevention
+- ✅ Broken authentication protection
+- ✅ Sensitive data exposure prevention
+- ✅ XML external entities (XXE) prevention
+- ✅ Broken access control prevention
+- ✅ Security misconfiguration prevention
+- ✅ XSS prevention
+- ✅ Insecure deserialization prevention
+- ✅ Using components with known vulnerabilities (dependency scanning)
+- ✅ Insufficient logging and monitoring (comprehensive audit logs)
+
+### 7. Supply Chain Security
+
+**Features:**
+
+- ✅ Pinned GitHub Actions to specific commit SHAs
+- ✅ Enforced frozen lockfiles in CI/CD
+- ✅ Automated dependency updates with verification
+
+**Implementation:**
+
+- All GitHub workflows use immutable action references (e.g., `actions/checkout@11bd7...`) to prevent tag hijacking.
+- `bun install --frozen-lockfile` is enforced in all CI jobs to prevent lockfile poisoning.
+- Secure update scripts ensure lockfile integrity during maintenance.
+
+---
+
+## 🔗 Related Documentation
+
+### Architecture
+
+- [Authentication System](/docs/architecture/authentication-system.mdx)
+- [Cryptography Module](/docs/architecture/cryptography-module.mdx)
+- [Security Plugin](/docs/architecture/security-plugin.mdx)
+- [Database Resilience](/docs/architecture/database-resilience.mdx)
+
+### API Security
+
+- [Authentication 2FA API](/docs/api/authentication-2fa-api.mdx)
+- [User Management API](/docs/api/user-management-api.mdx)
+- [User Token Management API](/docs/api/user-token-management-api.mdx)
+
+### Widget Security
+
+- [Widget Security](/docs/architecture/security/widget-security.mdx)
+- [Widget Development Guide](/docs/guides/development/widgets/widget-development-guide.mdx)
+- [Widget Architecture](/docs/architecture/widgets/architecture.mdx)
+
+### Testing
+
+- [Database & Authentication Testing](/docs/tests/database-tests.mdx)
+- [API Test Coverage](/docs/tests/api-test-coverage.mdx)
+- [Widget Test Coverage](/docs/tests/widget-test-coverage.mdx)
+
+---
+
+## 📞 Security Contact
+
+For security-related questions or to report vulnerabilities:
+
+- **Security Email**: security@sveltycms.org
+- **GitHub Security Advisories**: [Private Reporting](https://github.com/SveltyCMS/SveltyCMS/security/advisories)
+- **Bug Bounty**: Coming soon
+
+**Response Time**:
+
+- Critical vulnerabilities: 24 hours
+- High severity: 48 hours
+- Medium severity: 1 week
+- Low severity: 2 weeks
+
+---
+
+**Last Updated**: April 10, 2026  
+**Security Review Status**: ✅ A++ Grade (April 2026 Assessment)  
+**Next Review**: Quarterly (July 2026)

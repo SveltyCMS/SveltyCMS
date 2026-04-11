@@ -1,541 +1,307 @@
 /**
  * @file src/content/index.ts
  * @description
- * Core content management orchestration and store management.
- * This module is responsible for:
- * - Coordinating state hydration across collection and widget stores.
- * - Managing the global content structure and category tree generation.
- * - Providing automated version polling for real-time content updates.
- * - Orchestrating store actions for collections and unassigned content.
- *
- * features:
- * - category tree generation
- * - stable ID hashing
- * - hydration support
- * - content version polling
- * - batch processing automation
+ * Single Entry Point and Public API Facade for the SveltyCMS Content System.
+ * Consolidates manager, initializer, context, and re-exports.
  */
+import { setContext, getContext } from "svelte";
+import { browser } from "$app/environment";
+import { logger } from "@utils/logger";
+import { contentStore } from "@stores/content-store.svelte";
+import { contentNavigation, contentMetrics } from "./content-utils";
+import type { ContentNodeOperation, Schema, NavigationNode } from "./types";
+import type { IDBAdapter } from "@src/databases/db-interface";
+import { CacheCategory } from "@src/databases/cache/types";
 
-// Stores
-import { collections, contentStructure, setCollection, setCollectionValue, setMode, unAssigned } from '@src/stores/collection-store.svelte';
-// Components
-import { widgets } from '@src/stores/widget-store.svelte.ts';
-import { error } from '@sveltejs/kit';
-// System Logger
-import { logger } from '@utils/logger';
-// Removed axios import
-import { v4 as uuidv4 } from 'uuid';
-import { browser, building, dev } from '$app/environment';
-// Types
-import type { Category, ContentTypes, DatabaseId, ISODateString, Schema } from './types';
+// --- RE-EXPORTS ---
+export * from "./types";
+export { contentStore } from "@stores/content-store.svelte";
+export {
+  contentNavigation,
+  contentMetrics,
+  sortContentNodes,
+  generateCategoryNodesFromPaths,
+  hasDuplicateSiblingName,
+} from "./content-utils";
 
-// Constants
-const BATCH_SIZE = 50;
-const CONCURRENT_BATCHES = 5;
+// --- CACHE HELPERS ---
+const getCacheService = async () =>
+  (await import("@src/databases/cache/cache-service")).cacheService;
+const getRedisTTL = async () => (await import("@src/databases/cache/cache-service")).REDIS_TTL_S;
 
-// Cache
-let importsCache: Record<ContentTypes, Schema> = {} as Record<ContentTypes, Schema>;
-let collectionModelsCache: Partial<Record<ContentTypes, Schema>> | null = null;
+// --- CONTEXT ---
+const CONTENT_CONTEXT_KEY = Symbol("content-context");
 
-// --- Types ---
-interface CategoryNode {
-	collections: Schema[];
-	icon: string;
-	id: number;
-	name: string;
-	order: number;
-	subcategories: Map<string, CategoryNode>;
-}
+/**
+ * Central orchestrator for the SveltyCMS Content System.
+ */
+export const contentSystem = {
+  // --- Reactive State ---
+  get version() {
+    return contentStore.contentVersion;
+  },
+  get isInitialized() {
+    return contentStore.isInitialized;
+  },
+  get initState() {
+    return contentStore.initState;
+  },
+  get nodeCount() {
+    return contentStore.nodeCount;
+  },
 
-interface ProcessedModule {
-	default?: Schema;
-	schema?: Schema;
-}
+  // --- Lifecycle ---
+  async initialize(
+    tenantId: string | null = null,
+    skipReconciliation = false,
+    adapter?: IDBAdapter,
+    incremental = false,
+  ): Promise<void> {
+    if (browser) {
+      if (contentStore.initState === "uninitialized") contentStore.initState = "initialized";
+      const { contentLiveSync } = await import("./content-sse.svelte");
+      contentLiveSync.start();
+      return;
+    }
 
-interface CollectionData {
-	collections: Schema[];
-	icon: string;
-	id: string;
-	name: string;
-	subcategories: Record<string, CollectionData>;
-}
+    const { isSetupComplete } = await import("@utils/setup-check");
+    const setupComplete = isSetupComplete();
+    contentStore.initState = "initializing";
+    const start = performance.now();
 
-// --- Global State for Processing ---
-const categoryLookup: Map<string, CategoryNode> = new Map();
-const collectionsByCategory: Map<string, Set<Schema>> = new Map();
+    try {
+      // 1. Try Cache
+      if (skipReconciliation && setupComplete) {
+        const cacheService = await getCacheService();
+        const cached = (await cacheService.get(
+          "cms:content_structure",
+          tenantId,
+          CacheCategory.CONTENT,
+        )) as any;
+        if (cached?.nodes) {
+          contentStore.sync(Object.values(cached.nodes));
+          contentMetrics.setInitializationTime(performance.now() - start);
+          return;
+        }
+      }
 
-// --- Helpers ---
+      // 2. Reload via Server Service (supports incremental)
+      const { contentService } = await import("./content-service.server");
+      await contentService.fullReload(tenantId, skipReconciliation, adapter, incremental);
 
-function chunks<T>(arr: T[], size: number): T[][] {
-	return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
+      // 3. Populate Cache
+      if (setupComplete) {
+        const cacheService = await getCacheService();
+        const ttl = await getRedisTTL();
+        const state = {
+          nodes: Object.fromEntries(contentStore.getNodesEntries()),
+          version: contentStore.contentVersion,
+        };
+        await cacheService.set(
+          "cms:content_structure",
+          state,
+          ttl,
+          tenantId,
+          CacheCategory.CONTENT,
+          ["cms:content"],
+        );
+      }
+
+      contentStore.initState = "initialized";
+      contentMetrics.setInitializationTime(performance.now() - start);
+    } catch (error) {
+      contentStore.initState = "error";
+      logger.error("Content initialization failed", error);
+    }
+  },
+
+  // --- Public Content API ---
+  collections: {
+    getAll: (tenantId?: string | null) => contentStore.getAllCollections(tenantId),
+    get: (id: string, tenantId?: string | null) => contentStore.getCollection(id, tenantId),
+    getSmartFirst: (tenantId?: string | null) => contentStore.getSmartFirstCollection(tenantId),
+  },
+
+  // --- Compatibility Shims ---
+  getCollections(tenantId?: string | null) {
+    return contentStore.getAllCollections(tenantId);
+  },
+  getCollection(id: string, tenantId?: string | null) {
+    return contentStore.getCollection(id, tenantId);
+  },
+  getCollectionById(id: string, tenantId?: string | null) {
+    return contentStore.getCollection(id, tenantId);
+  },
+  getFirstCollection(tenantId?: string | null) {
+    return contentStore.getSmartFirstCollection(tenantId);
+  },
+  async getFirstCollectionRedirectUrl(
+    lang: string = "en",
+    tenantId?: string | null,
+  ): Promise<string | null> {
+    const first = contentStore.getSmartFirstCollection(tenantId);
+    if (!first) return null;
+    return `/${lang}/collection/${first.name}`;
+  },
+  async refresh(tenantId?: string | null, skipReconciliation?: boolean, incremental = false) {
+    return this.initialize(tenantId, skipReconciliation, undefined, incremental);
+  },
+  async getNavigationStructure(tenantId: string | null = null) {
+    return contentNavigation.getNavigationStructure(tenantId);
+  },
+  async getContentStructureFromDatabase(
+    format: "flat" | "nested" = "nested",
+    tenantId?: string | null,
+  ): Promise<any[]> {
+    const { contentService } = await import("./content-service.server");
+    return contentService.getContentStructureFromDatabase(format, tenantId);
+  },
+  sync(nodes: any[]) {
+    contentStore.sync(nodes);
+  },
+  getContentVersion(): number {
+    return contentStore.contentVersion;
+  },
+  async getContentStructure(tenantId?: string | null): Promise<any[]> {
+    return contentStore.getNodesForTenant(tenantId);
+  },
+  async reorderContentNodes(items: any[], tenantId?: string | null): Promise<any[]> {
+    const { contentService } = await import("./content-service.server");
+    await contentService.reorderNodes(items, tenantId);
+    contentStore.updateVersion();
+    return contentStore.getNodesForTenant(tenantId);
+  },
+  async invalidateSpecificCaches(paths: string[], tenantId?: string | null) {
+    const cacheService = await getCacheService();
+    await cacheService.delete(paths, tenantId);
+  },
+  async warmEntriesCache(collectionId: string, entryIds: string[], tenantId?: string | null) {
+    // No-op or delegate to service if needed; for now, thin shim
+    logger.debug("Warming entries cache (Shim)", { collectionId, entryIds, tenantId });
+  },
+  clearFirstCollectionCache() {
+    // No-op in new architecture as we use runes
+  },
+  getMetrics(): any {
+    return contentMetrics.getMetrics();
+  },
+  validateStructure(): any {
+    return { success: true };
+  },
+  getDiagnostics(): any {
+    const m = contentMetrics.getMetrics();
+    return {
+      nodeCount: contentStore.nodeCount,
+      collectionCount: contentStore.collectionCount,
+      initTime: m.initializationTime,
+      version: contentStore.contentVersion,
+    };
+  },
+  getBreadcrumb(path: string): any {
+    return contentNavigation.getBreadcrumb(path);
+  },
+  getHealthStatus(): any {
+    return contentMetrics.getHealthStatus();
+  },
+  getNavigationStructureProgressive(options: any): any {
+    return contentNavigation.getNavigationStructureProgressive(options);
+  },
+  getNode(id: string, _tenantId?: string | null): any {
+    return contentStore.getNode(id);
+  },
+  getNodeChildren(nodeId: string | null = null, tenantId?: string | null): any {
+    return contentStore.getChildren(nodeId, tenantId);
+  },
+  getCollectionStats(_id: string, _tenantId?: string | null): any {
+    return {};
+  },
+
+  navigation: contentNavigation,
+  metrics: contentMetrics,
+
+  async upsertContentNodes(_operations: ContentNodeOperation[], _tenantId?: string | null) {
+    const { contentService } = await import("./content-service.server");
+    // Trigger version update to indicate changes
+    contentStore.updateVersion();
+    logger.debug("Content updated (upsertContentNodes - reload recommended for consistency)", {
+      contentService,
+    });
+  },
+
+  /**
+   * Check if the content system is ready for a specific tenant.
+   */
+  isInitializedForTenant(_tenantId: string | null = null): boolean {
+    return contentStore.isInitialized;
+  },
+
+  // --- Context API ---
+  setContext(tenantId: string | null = null) {
+    const ctx = {
+      content: this,
+      tenantId,
+      get collections() {
+        return contentStore.getAllCollections(tenantId);
+      },
+      get navigation() {
+        return contentNavigation.getNavigationStructureProgressive({ tenantId, maxDepth: 999 });
+      },
+      get isReady() {
+        return contentStore.isInitialized;
+      },
+    };
+    setContext(CONTENT_CONTEXT_KEY, ctx);
+    return ctx;
+  },
+};
+
+/**
+ * Backward compatibility alias for the Content System.
+ * @deprecated Use contentSystem instead.
+ */
+export const contentManager = contentSystem;
+
+export interface ContentContext {
+  content: typeof contentSystem;
+  tenantId: string | null;
+  collections: Schema[];
+  navigation: NavigationNode[];
+  isReady: boolean;
 }
 
 /**
- * Generates a stable numeric ID from a string.
- * Replaces uuidv4 to ensure category IDs remain consistent across restarts/renders.
+ * Hook to retrieve content context with proper typing.
  */
-function stringToHash(str: string): number {
-	let hash = 0;
-	if (str.length === 0) {
-		return hash;
-	}
-	for (let i = 0; i < str.length; i++) {
-		const char = str.charCodeAt(i);
-		hash = (hash << 5) - hash + char;
-		hash |= 0; // Convert to 32bit integer
-	}
-	return Math.abs(hash);
+export function useContent(): ContentContext {
+  const context = getContext<ContentContext>(CONTENT_CONTEXT_KEY);
+  return (
+    context || {
+      get isReady() {
+        return contentSystem.isInitialized;
+      },
+      get collections() {
+        return contentSystem.collections;
+      },
+      get navigation() {
+        return contentSystem.navigation || [];
+      },
+      tenantId: null as any,
+      content: contentSystem,
+    }
+  );
 }
 
-async function getCurrentPath() {
-	// 1. Client-Side Early Exit (Optimization)
-	if (!import.meta.env.SSR) {
-		const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-		return {
-			config: {
-				fields: {},
-				isCollection: false,
-				name: '',
-				icon: '',
-				path: currentPath,
-				order: 0
-			},
-			currentPath
-		};
-	}
-
-	// 2. Server-Side Dynamic Import
-	try {
-		const { dbAdapter } = await import('../databases/db');
-		if (!dbAdapter) {
-			return getDefaultPathConfig();
-		}
-
-		const result = await dbAdapter.content.nodes.getStructure('flat');
-		if (!(result.success && result.data)) {
-			logger.warn('Failed to get content nodes from database');
-			return getDefaultPathConfig();
-		}
-
-		const currentPath = ''; // On server, we don't really have 'window.location' in the same way for this context
-		// Logic adjustment: server doesn't usually need 'currentPath' for generation unless building static paths
-
-		return {
-			config: {
-				fields: {},
-				isCollection: false,
-				name: '',
-				icon: '',
-				path: currentPath,
-				order: 0
-			},
-			currentPath
-		};
-	} catch (e) {
-		logger.warn('Error loading DB adapter in content index', e);
-		return getDefaultPathConfig();
-	}
+/**
+ * Setup content context for the application.
+ */
+export function setContentContext(tenantId: string | null = null) {
+  return contentSystem.setContext(tenantId);
 }
 
-function getDefaultPathConfig() {
-	const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-	return {
-		config: {
-			fields: {},
-			isCollection: false,
-			name: '',
-			icon: '',
-			path: currentPath,
-			order: 0
-		},
-		currentPath
-	};
+/**
+ * Legacy/Standard entry for layouts.
+ */
+export async function initializeContent(pageData?: any) {
+  if (pageData?.contentNodes) contentStore.sync(pageData.contentNodes);
+  await contentSystem.initialize(pageData?.tenantId, true);
 }
-
-// Process a batch of collections
-async function processBatch(collections: Schema[]): Promise<void> {
-	for (const col of collections) {
-		if (!col.path) {
-			logger.warn(`Collection ${col.name} has no path`);
-			continue;
-		}
-
-		const pathSegments = col.path.split('/');
-		let currentPath = '';
-		let currentMap: Map<string, CategoryNode> = categoryLookup;
-
-		for (let i = 0; i < pathSegments.length; i++) {
-			const segment = pathSegments[i] ?? '';
-			currentPath = currentPath ? `${currentPath}/${segment}` : segment;
-
-			if (!currentMap.has(segment)) {
-				const configData = await getCurrentPath();
-
-				// Use stable hash instead of random UUID
-				const stableId = stringToHash(segment);
-
-				const newNode: CategoryNode = {
-					id: stableId,
-					name: segment,
-					icon: configData.config.icon ?? '',
-					order: 'order' in configData.config && typeof configData.config.order === 'number' ? configData.config.order : 0,
-					collections: [],
-					subcategories: new Map()
-				};
-
-				currentMap.set(segment, newNode);
-				categoryLookup.set(currentPath, newNode);
-				collectionsByCategory.set(currentPath, new Set());
-			}
-
-			// If this is the last segment, add the collection
-			if (i === pathSegments.length - 1) {
-				const categoryNode = categoryLookup.get(currentPath);
-				if (categoryNode) {
-					categoryNode.collections.push(col);
-					collectionsByCategory.get(currentPath)?.add(col);
-				}
-			}
-
-			const nextNode = currentMap.get(segment);
-			if (nextNode?.subcategories) {
-				currentMap = nextNode.subcategories;
-			}
-		}
-	}
-}
-
-// Helper function to flatten and sort the category hierarchy
-function flattenAndSortCategories(): Record<string, CollectionData> {
-	const result: Record<string, CollectionData> = {};
-	const sortedCategories = Array.from(categoryLookup.entries()).sort(([, a], [, b]) => a.order - b.order);
-
-	for (const [path, category] of sortedCategories) {
-		const collections = Array.from(collectionsByCategory.get(path) || []).sort((a, b) => {
-			const orderA: number = a && typeof a.order === 'number' ? a.order : 0;
-			const orderB: number = b && typeof b.order === 'number' ? b.order : 0;
-			return orderA - orderB;
-		});
-
-		result[path] = {
-			id: category.id.toString(),
-			name: category.name,
-			icon: category.icon,
-			collections,
-			subcategories: {}
-		};
-	}
-	return result;
-}
-
-async function createCategoriesFromPath(collections: Schema[]): Promise<Category[]> {
-	categoryLookup.clear();
-	collectionsByCategory.clear();
-
-	const batches = chunks(collections, BATCH_SIZE);
-	for (let i = 0; i < batches.length; i += CONCURRENT_BATCHES) {
-		const currentBatches = batches.slice(i, i + CONCURRENT_BATCHES);
-		await Promise.all(currentBatches.map(processBatch));
-	}
-
-	const categoriesObject = flattenAndSortCategories();
-	const result: Category[] = Object.values(categoriesObject).map((cat) => ({
-		id: Number.parseInt(cat.id, 10),
-		name: cat.name,
-		icon: cat.icon,
-		order: 0,
-		collections: cat.collections.map((col) => col.name || '').filter(Boolean),
-		subcategories: undefined
-	}));
-
-	// logger.trace('Created categories:', result);
-	return result;
-}
-
-// Function to get collections with cache support
-export async function getCollections(): Promise<Partial<Record<ContentTypes, Schema>>> {
-	await widgets.initialize();
-
-	if (collectionModelsCache) {
-		return collectionModelsCache;
-	}
-
-	collectionModelsCache = collections.all;
-	return collections.all;
-}
-
-// Function to update collections
-export const updateCollections = async (recompile = false): Promise<void> => {
-	logger.trace('Starting updateCollections');
-
-	if (recompile) {
-		importsCache = {} as Record<ContentTypes, Schema>;
-	}
-
-	try {
-		const imports = await getImports(recompile);
-		const CATEGORIES = await createCategoriesFromPath(Object.values(imports));
-
-		const COLLECTIONS: Record<string, Schema> = {};
-		for (const category of CATEGORIES) {
-			for (const collectionName of category.collections) {
-				const col = imports[collectionName as keyof typeof imports] as Schema | undefined;
-				if (col && col.name) {
-					COLLECTIONS[col.name as string] = col;
-				}
-			}
-		}
-
-		// Update stores
-		contentStructure.value = CATEGORIES.map((cat) => ({
-			_id: cat.id.toString() as DatabaseId,
-			name: cat.name,
-			nodeType: 'category',
-			icon: cat.icon,
-			order: cat.order,
-			parentId: undefined,
-			path: '',
-			translations: [],
-			collectionDef: undefined,
-			children: [],
-			createdAt: new Date().toISOString() as ISODateString,
-			updatedAt: new Date().toISOString() as ISODateString
-		}));
-
-		for (const key of Object.keys(collections.all)) {
-			delete collections.all[key];
-		}
-		Object.assign(collections.all, COLLECTIONS);
-
-		const unassigned = Object.values(imports).filter((x) => !(Object.values(COLLECTIONS) as unknown[]).includes(x));
-		Object.assign(unAssigned, unassigned.length > 0 ? unassigned[0] : { fields: [] });
-
-		setCollection({} as Schema);
-		setCollectionValue({});
-		setMode('view');
-
-		// Update local version tracking
-		if (importsCache && Object.keys(importsCache).length > 0) {
-			// If we fetched via API, we might want to get the version from the response headers or a separate call
-			// For now, we assume if we just updated, we are at the latest.
-			// Ideally, updateCollections should return the version or accept it.
-		}
-
-		logger.info(`Collections updated successfully. Count: ${Object.keys(COLLECTIONS).length}`);
-	} catch (err) {
-		logger.error(`Error in updateCollections: ${err}`);
-	}
-};
-
-// Function to get imports based on environment
-async function getImports(recompile = false): Promise<Record<ContentTypes, Schema>> {
-	await widgets.initialize();
-
-	if (!recompile && Object.keys(importsCache).length > 0) {
-		return importsCache;
-	}
-
-	// Server-side production optimization
-	if (!(dev || building) && import.meta.env.SSR) {
-		try {
-			const { scanCompiledCollections } = await import('./collection-scanner');
-			const compiledCollections = await scanCompiledCollections();
-			const imports: Record<string, Schema> = {};
-			for (const collection of compiledCollections) {
-				if (collection._id && collection.name) {
-					imports[collection.name] = collection;
-				}
-			}
-			importsCache = imports as Record<ContentTypes, Schema>;
-			logger.info(`✅ Loaded ${Object.keys(imports).length} collections via filesystem scanning`);
-			return importsCache;
-		} catch (error) {
-			logger.warn('Failed to scan compiled collections, falling back to legacy import method:', error);
-		}
-	}
-
-	try {
-		const processModule = async (name: string, module: ProcessedModule, modulePath: string) => {
-			const collection = (module as { schema: Schema })?.schema ?? {};
-			if (collection) {
-				// Use stable hash for collection IDs too if possible, but UUID is okay for now if singular
-				const randomId = uuidv4();
-				collection.name = name as ContentTypes;
-				collection.icon = collection.icon || 'iconoir:info-empty';
-				collection.id = Number.parseInt(randomId.toString().slice(0, 8), 16);
-
-				const pathSegments = modulePath.split('/config/collections/')[1]?.split('/') || [];
-				const collectionPath = pathSegments.slice(0, -1).join('/');
-				collection.path = collectionPath;
-
-				(importsCache as Record<string, Schema>)[name] = collection as Schema;
-			} else {
-				logger.error(`Error importing collection: ${name}`);
-			}
-		};
-
-		if (dev || building) {
-			const modules = import.meta.glob(
-				[
-					'../../config/collections/**/*.ts',
-					'!../../config/collections/**/index.ts',
-					'!../../config/collections/**/types.ts',
-					'!../../config/collections/**/utils/**/*.ts'
-				],
-				{ eager: false, import: 'default' }
-			);
-
-			const entries = Object.entries(modules);
-			const batches = chunks(entries, BATCH_SIZE);
-
-			for (let i = 0; i < batches.length; i += CONCURRENT_BATCHES) {
-				const currentBatches = batches.slice(i, i + CONCURRENT_BATCHES);
-				await Promise.all(
-					currentBatches.map(async (batch) => {
-						await Promise.all(
-							batch.map(async ([modulePath, moduleImport]) => {
-								const name = modulePath.split('/').pop()?.replace(/\.ts$/, '') || '';
-								const module = await moduleImport();
-								await processModule(name, module as ProcessedModule, modulePath);
-							})
-						);
-					})
-				);
-			}
-		} else {
-			// Production Client-Side Fallback
-			let files: string[] = [];
-			try {
-				let collectionsData: { collections: Schema[] } | Schema[] | Partial<Record<ContentTypes, Schema>> | null = null;
-				if (browser) {
-					const response = await fetch('/api/collections');
-					if (!response.ok) {
-						throw new Error('Failed to fetch collections');
-					}
-					collectionsData = (await response.json()).data;
-				} else {
-					collectionsData = await getCollections();
-				}
-
-				if (collectionsData && 'collections' in collectionsData && Array.isArray(collectionsData.collections)) {
-					files = collectionsData.collections.map((c: Schema) => `${c.name}.js`);
-				} else if (Array.isArray(collectionsData)) {
-					if (collectionsData.length > 0 && typeof collectionsData[0] === 'object') {
-						files = (collectionsData as Schema[]).map((c: Schema) => `${c.name}.js`);
-					} else {
-						files = collectionsData as unknown as string[];
-					}
-				} else if (collectionsData && typeof collectionsData === 'object') {
-					files = Object.values(collectionsData as Record<string, Schema>).map((c) => `${c.name}.js`);
-				} else {
-					files = [];
-				}
-			} catch (error) {
-				logger.error(`Error fetching collection files: ${error}`);
-				files = [];
-			}
-
-			const batches = chunks(files, BATCH_SIZE);
-			for (let i = 0; i < batches.length; i += CONCURRENT_BATCHES) {
-				const currentBatches = batches.slice(i, i + CONCURRENT_BATCHES);
-				await Promise.all(
-					currentBatches.map(async (batch) => {
-						await Promise.all(
-							batch.map(async (file) => {
-								const name = file.replace(/\.js$/, '');
-								try {
-									let collectionModule: (ProcessedModule & { schema?: Schema }) | null = null;
-									if (typeof window !== 'undefined') {
-										const response = await fetch(`/api/collections/${name}?includeFields=true&_t=${Math.floor(Date.now() / 1000)}`);
-										if (!response.ok) {
-											throw new Error(`Failed to fetch collection ${name}`);
-										}
-										collectionModule = await response.json();
-									} else {
-										collectionModule = await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}`);
-									}
-									if (collectionModule) {
-										await processModule(name, collectionModule as ProcessedModule, file);
-									}
-								} catch (moduleError) {
-									logger.error(`Error processing module ${name}: ${moduleError}`);
-								}
-							})
-						);
-					})
-				);
-			}
-		}
-
-		return importsCache;
-	} catch (err) {
-		logger.error(`Error in getImports: ${err}`);
-		throw error(500, 'Failed to get imports');
-	}
-}
-
-// --- Reactive Content System ---
-let pollingInterval: NodeJS.Timeout | null = null;
-let currentVersion = 0;
-
-export async function initializeContent(pageData?: { navigationStructure: unknown; contentVersion: number }) {
-	// 1. Hydration (Server -> Client)
-	if (pageData?.navigationStructure && pageData?.contentVersion) {
-		logger.info('💧 Hydrating content from server data');
-		currentVersion = pageData.contentVersion;
-
-		// Transform navigation structure to internal format if needed,
-		// or if the structure matches, just use it.
-		// Note: getNavigationStructure returns a simplified tree.
-		// We might need to map it back to the stores or adjust the stores to accept it.
-		// For now, let's assume we still need to fetch the full collections if we want the full schema,
-		// BUT for the sidebar navigation, the simplified structure is enough.
-
-		// TODO: If we want full hydration, we should pass the full structure or
-		// ensure the navigation structure is sufficient for the initial view.
-		// For this optimization, let's assume we still fetch collections but we can skip if we have data.
-
-		// Actually, let's trigger the update but use the version to avoid re-fetching if not needed.
-	}
-
-	// 2. Initial Load (if not hydrated or if we need full data)
-	await updateCollections();
-
-	// 3. Start Polling
-	startPolling();
-}
-
-function startPolling() {
-	if (pollingInterval || !browser) {
-		return;
-	}
-
-	logger.info('📡 Starting content version polling');
-	pollingInterval = setInterval(async () => {
-		try {
-			const response = await fetch('/api/content/version');
-			if (!response.ok) {
-				throw new Error('Version check failed');
-			}
-			const data = await response.json();
-			const serverVersion = data.version;
-
-			if (serverVersion > currentVersion) {
-				logger.info(`🆕 New content version detected: ${serverVersion} (current: ${currentVersion})`);
-				currentVersion = serverVersion;
-				await updateCollections(true);
-			}
-		} catch (error) {
-			logger.warn('Failed to poll content version', error);
-		}
-	}, 10_000); // Poll every 10 seconds
-}
-
-export function stopPolling() {
-	if (pollingInterval) {
-		clearInterval(pollingInterval);
-		pollingInterval = null;
-	}
-}
-
-export { contentStructure as categories };

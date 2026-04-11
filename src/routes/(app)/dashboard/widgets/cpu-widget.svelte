@@ -17,11 +17,11 @@
 - Optimized Chart.js integration
 -->
 <script lang="ts" module>
-	export const widgetMeta = {
-		name: 'CPU Usage',
-		icon: 'mdi:cpu-64-bit',
-		defaultSize: { w: 1, h: 2 }
-	};
+export const widgetMeta = {
+	name: "CPU Usage",
+	icon: "mdi:cpu-64-bit",
+	defaultSize: { w: 1, h: 2 },
+};
 </script>
 
 <script lang="ts">

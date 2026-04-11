@@ -1,269 +1,85 @@
 ---
-path: 'docs/architecture/content-type-system.mdx'
-title: 'Content Type System & Code Generation'
-description: 'How SveltyCMS generates TypeScript types for collections at build time'
+path: "docs/architecture/content-type-system.mdx"
+title: "Content Type System & Code Generation"
+description: "How SveltyCMS generates TypeScript types for collections at build time, using the consolidated 5-pillar architecture."
 order: 52
-icon: 'mdi:code-tags'
-author: 'admin'
-created: '2025-11-01'
-updated: '2025-11-01'
+icon: "mdi:code-tags"
+author: "SveltyCMS Team"
+created: "2025-11-01"
+updated: "2026-03-28"
 tags:
-  - 'developer'
-  - 'types'
-  - 'collections'
-  - 'code-generation'
-  - 'typescript'
+  - "developer"
+  - "types"
+  - "collections"
+  - "code-generation"
+  - "typescript"
 ---
 
 # Content Type System & Code Generation
 
-SveltyCMS uses a **build-time code generation system** to create TypeScript types for your collections, providing full type safety across the entire codebase.
+SveltyCMS uses a **build-time code generation system** to create TypeScript types for your collections, providing full type safety across the entire codebase. Following the 2026 consolidation, this system is now more robust and tightly integrated into the 5-pillar content architecture.
 
 ## 🎯 Overview
 
 When you define collections in `config/collections/`, SveltyCMS automatically:
 
-1. ✅ Scans collection schema files
-2. ✅ Validates field definitions
-3. ✅ Generates TypeScript union types
-4. ✅ Updates `src/content/types.ts` with new types
-5. ✅ Provides IDE autocomplete for collection names
+1. ✅ **Scans** collection schema files via `content-service.server.ts`.
+2. ✅ **Evaluates** modules using a sandboxed `processModule` function.
+3. ✅ **Generates** TypeScript union types via the `vite.ts` plugin.
+4. ✅ **Updates** `src/content/types.ts` with the new `ContentTypes` union.
+5. ✅ **Provides** IDE autocomplete for all collection names.
 
 ## 🔄 How It Works
 
 ### 1. Vite Plugin Watcher
 
-The system uses a Vite plugin (`src/content/vite.ts`) that watches for changes:
-
-    // Read existing types file
-    let types = await fs.readFile('src/content/types.ts', 'utf-8');
-
-    // Generate new ContentTypes union
-    const collectionNames = Object.keys(contentTypes)
-    	.map((name) => `'${name}'`)
-    	.join(' | ');
-
-    const newTypeDefinition = `/* AUTOGEN_START: ContentTypes */\nexport type ContentTypes = ${collectionNames || 'never'};\n/* AUTOGEN_END: ContentTypes */`;
-
-    // Replace the block between markers for stability
-    const startIndex = types.indexOf('/* AUTOGEN_START: ContentTypes */');
-    const endIndex = types.indexOf('/* AUTOGEN_END: ContentTypes */');
-
-    if (startIndex !== -1 && endIndex !== -1) {
-    	types = types.substring(0, startIndex) + newTypeDefinition + types.substring(endIndex + markerEnd.length);
-    }
-
-    await fs.writeFile('src/content/types.ts', types);
-
-}
-
-````
+The system uses a Vite plugin (`src/content/vite.ts`) that watches for changes in `.compiledCollections/`. It loads the `contentSystem` to retrieve the latest schema state and injects the updated union type into `src/content/types.ts`.
 
 ### 2. Marker Comments for Stability
 
-To prevent file corruption during rapid Vite reloads or parallel build processes, the system uses **Marker Comments** (`/* AUTOGEN_START */` and `/* AUTOGEN_END */`). Instead of rewriting the entire file or using regex to find and replace types, the plugin specifically targets the content between these markers. This ensures that manually added types or imports at the top/bottom of the file are never touched.
-
-The system generates **TypeScript union types** from your collection names:
-
-```typescript
-// Clean union type - perfect for TypeScript
-export type ContentTypes = 'Posts' | 'Users' | 'Pages' | 'Products';
-````
+To prevent file corruption during rapid Vite reloads, the system uses **Marker Comments**:
+`/* AUTOGEN_START: ContentTypes */` and `/* AUTOGEN_END: ContentTypes */`.
+The plugin specifically targets the content between these markers, ensuring manually added types or imports are preserved.
 
 ### 3. Production Optimization
 
-In production mode, the system uses direct filesystem scanning for better performance:
+In production mode, the system bypasses the Vite watcher and uses the `contentService` for high-performance direct filesystem scanning.
 
-```typescript
-// src/content/index.ts
-async function getImports(recompile: boolean = false): Promise<Record<ContentTypes, Schema>> {
-	// Production mode: Direct filesystem scanning
-	if (!dev && !building) {
-		const { scanCompiledCollections } = await import('./collectionScanner');
-		const compiledCollections = await scanCompiledCollections();
-
-		const imports: Record<string, Schema> = {};
-		for (const collection of compiledCollections) {
-			if (collection.name) {
-				imports[collection.name] = collection;
-			}
-		}
-
-		return imports as Record<ContentTypes, Schema>;
-	}
-
-	// Development mode: Vite's import.meta.glob
-	// ... existing code
-}
-```
+---
 
 ## 📊 Benefits
 
 ### 1. Type Safety Everywhere
 
-```typescript
-// Full autocomplete for collection names
-import type { ContentTypes } from '@src/content/types';
+Autocomplete for collection names and validation for field types.
 
+```typescript
+import type { ContentTypes } from "@src/content/types";
 function getCollection(name: ContentTypes) {
-	// TypeScript knows 'Posts', 'Users', etc. are valid
-	return contentManager.getCollection(name);
-}
-
-// Error: Argument of type '"InvalidName"' is not assignable
-getCollection('InvalidName'); // ❌ TypeScript error
-```
-
-### 2. IDE Support
-
-Your IDE provides autocomplete when working with collections:
-
-```typescript
-const collections: Record<ContentTypes, Schema> = {
-	Posts: {
-		/* ... */
-	}, // ✅ Autocomplete suggests 'Posts', 'Users', etc.
-	Users: {
-		/* ... */
-	}
-	// IDE warns if you miss any collections
-};
-```
-
-### 3. Refactoring Safety
-
-When you rename a collection, TypeScript catches all references:
-
-```typescript
-// Before: Collection named "BlogPosts"
-const posts = getCollection('BlogPosts'); // Works
-
-// After: Renamed to "Articles"
-const posts = getCollection('BlogPosts'); // ❌ TypeScript error - must update
-const posts = getCollection('Articles'); // ✅ Fixed
-```
-
-## 🔧 Implementation Details
-
-### Field Validation
-
-The system validates field definitions to ensure they have required properties:
-
-```typescript
-interface Field {
-	db_fieldName?: string;
-	label: string;
-	type?: string;
-}
-
-// Validates that each field has at least a label
-if (!collection?.fields || !Array.isArray(collection.fields)) {
-	logger.warn(`Collection ${key} has no valid fields array`);
-	continue;
+  return contentSystem.collections.get(name);
 }
 ```
 
-### Enhanced Entity Metadata
+### 2. Refactoring Safety
 
-Every content entry in SveltyCMS automatically includes audit metadata. The system has been enhanced to track not only when content was modified, but also detailed deletion metadata for auditing soft-deleted items.
-
-```typescript
-export interface BaseEntity {
-	_id: DatabaseId;
-	createdAt: ISODateString;
-	updatedAt: ISODateString;
-	isDeleted?: boolean;
-	deletedAt?: ISODateString; // New: Timestamp of deletion
-	deletedBy?: string; // New: User ID who deleted the item
-}
-```
-
-### Local Type Definitions
-
-To avoid circular dependencies, some types are defined locally where needed:
-
-```typescript
-// src/content/index.ts
-interface CategoryNode {
-	id: number;
-	name: string;
-	icon: string;
-	order: number;
-	collections: Schema[];
-	subcategories: Map<string, CategoryNode>;
-}
-
-interface ProcessedModule {
-	schema?: Schema;
-	default?: Schema;
-}
-```
-
-### Array Validation
-
-The system adds runtime checks to ensure data integrity:
-
-```typescript
-// Ensure fields is always an array
-if (!Array.isArray(collection.fields)) {
-	logger.warn('Collection fields is not an array, skipping');
-	continue;
-}
-
-// Safely map over fields
-const processedfields = collection.fields.map((field) => ({
-	name: field.db_fieldName || field.label,
-	type: field.type || 'string'
-}));
-```
-
-## 🚀 Performance
-
-### Development Mode
-
-- **Hot Module Replacement**: Instant type updates on file save
-- **Fast Validation**: Only changed files are reprocessed
-- **Memory Efficient**: Minimal overhead during development
-
-### Production Mode
-
-- **Build-Time Generation**: Types generated once during build
-- **No Runtime Overhead**: Types are compile-time only
-- **Optimized Scanning**: Direct filesystem access for compiled collections
-
-## 📁 Key Files
-
-- **`src/content/vite.ts`**: Vite plugin for type generation
-- **`src/content/types.ts`**: Generated ContentTypes union
-- **`src/content/index.ts`**: Collection loading with production optimization
-- **`src/content/collectionScanner.ts`**: Production filesystem scanner
-- **`config/collections/**/\*.ts`\*\*: Source collection schemas
-
-## 🎓 Best Practices
-
-### Do ✅
-
-- **Use ContentTypes everywhere** for type safety
-- **Let the system generate types** - don't edit types.ts manually
-- **Trust the type system** - if TypeScript complains, fix the root cause
-
-### Don't ❌
-
-- **Don't bypass ContentTypes** with `any` or `string`
-- **Don't manually edit generated types** - they'll be overwritten
-- **Don't skip field validation** - it catches bugs early
-
-## 🔮 Future Enhancements
-
-The roadmap includes plans to improve this system further:
-
-1. **Sandboxed Compilation**: Compile to JSON to prevent typos from crashing the server
-2. **Field-Level Types**: Generate types for individual fields, not just collections
-3. **Runtime Validation**: Use generated types for runtime schema validation (Now partially implemented via `src/utils/schema/comparison.ts` which uses these types to detect drift).
-4. **GraphQL Schema Generation**: Auto-generate GraphQL schemas from collection types
-
-See the Architecture documentation for details on Phase 4: The "Sandboxed" DIL Engine.
+When you rename a collection file, TypeScript catches all references across the app.
 
 ---
 
-This type generation system provides the foundation for type-safe content management throughout SveltyCMS, catching errors at compile time and providing excellent IDE support.
+## 📁 Key Files (Consolidated Architecture)
+
+- **`src/content/index.ts`**: Public API facade and coordination.
+- **`src/content/content-store.svelte.ts`**: Reactive state using Svelte 5 runes.
+- **`src/content/content-service.server.ts`**: Server-only reconciliation and file processing.
+- **`src/content/content-utils.ts`**: Pure logic, navigation, and metrics.
+- **`src/content/types.ts`**: Unified interfaces and autogenerated union types.
+- **`src/content/index.ts`**: Singular entry point for the content system.
+- **`src/content/vite.ts`**: Vite plugin responsible for build-time type generation.
+
+---
+
+## 🚀 Performance
+
+- **Zero Runtime Overhead**: Types are stripped during compilation.
+- **Tree-Shakable**: Server-only logic in `content-service.server.ts` is never sent to the client.
+- **Incremental Updates**: Only modified collections trigger an update in the types file.

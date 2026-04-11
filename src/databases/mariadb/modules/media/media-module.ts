@@ -1,373 +1,235 @@
 /**
  * @file src/databases/mariadb/modules/media/media-module.ts
- * @description Media management module for MariaDB
- *
- * Features:
- * - Upload files
- * - Upload multiple files
- * - Delete file
- * - Delete multiple files
- * - Get files by folder
- * - Search files
- * - Get file metadata
- * - Update file metadata
- * - Move files
- * - Get folders
- * - Create folder
- * - Update folder
- * - Delete folder
+ * @description Media management module for MariaDB.
  */
 
-import { isoDateStringToDate, nowISODateString } from '@src/utils/date-utils';
-import { logger } from '@src/utils/logger';
-import { and, asc, count, desc, eq, inArray, isNull, like, or } from 'drizzle-orm';
-import type { DatabaseId, DatabaseResult, MediaFolder, MediaItem, MediaMetadata, PaginatedResult, PaginationOptions } from '../../../db-interface';
-import type { AdapterCore } from '../../adapter/adapter-core';
-import * as schema from '../../schema';
-import * as utils from '../../utils';
+import type {
+  DatabaseId,
+  DatabaseResult,
+  MediaFolder,
+  MediaItem,
+  CmsMediaMetadata,
+  PaginationOptions,
+  PaginatedResult,
+  EntityCreate,
+} from "../../../db-interface";
+import type { MariaDBAdapter } from "../../adapter";
 
 export class MediaModule {
-	private readonly core: AdapterCore;
+  private readonly adapter: MariaDBAdapter;
 
-	constructor(core: AdapterCore) {
-		this.core = core;
-	}
+  constructor(adapter: MariaDBAdapter) {
+    this.adapter = adapter;
+  }
 
-	private get db() {
-		return this.core.db!;
-	}
+  public readonly files = {
+    upload: (
+      file: EntityCreate<MediaItem>,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<MediaItem>> =>
+      this.adapter.crud.insert("media", file as any, { tenantId }),
 
-	private get crud() {
-		return this.core.crud;
-	}
+    uploadMany: (
+      files: EntityCreate<MediaItem>[],
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<MediaItem[]>> =>
+      this.adapter.crud.insertMany("media", files as any[], { tenantId }),
 
-	async setupMediaModels(): Promise<void> {
-		// No-op for SQL - tables created by migrations
-		logger.debug('Media models setup (no-op for SQL)');
-	}
+    getByHash: async (
+      hash: string,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<MediaItem | null>> =>
+      this.adapter.crud.findOne("media", { hash } as any, { tenantId }),
 
-	files = {
-		upload: async (file: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>> => {
-			return this.crud.insert<MediaItem>('media_items', file);
-		},
+    restore: async (
+      fileId: DatabaseId,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<void>> => this.adapter.crud.restore("media", fileId, { tenantId }),
 
-		uploadMany: async (files: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaItem[]>> => {
-			return this.crud.insertMany<MediaItem>('media_items', files);
-		},
+    delete: (fileId: DatabaseId, tenantId?: DatabaseId | null): Promise<DatabaseResult<void>> =>
+      this.adapter.crud.delete("media", fileId, { tenantId }),
 
-		delete: async (fileId: DatabaseId): Promise<DatabaseResult<void>> => {
-			return this.crud.delete('media_items', fileId);
-		},
+    deleteMany: (
+      fileIds: DatabaseId[],
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<{ deletedCount: number }>> =>
+      this.adapter.crud.deleteMany("media", { _id: { $in: fileIds } } as any, {
+        tenantId,
+      }),
 
-		deleteMany: async (fileIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
-			// Using simplified query filter for MariaDB
-			return this.core.wrap(async () => {
-				const result = await this.db.delete(schema.mediaItems).where(inArray(schema.mediaItems._id, fileIds as string[]));
-				return { deletedCount: result[0].affectedRows };
-			}, 'DELETE_MANY_FILES_FAILED');
-		},
+    getByFolder: (
+      folderId?: DatabaseId,
+      options?: PaginationOptions,
+      _recursive?: boolean,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<PaginatedResult<MediaItem>>> =>
+      this.adapter.wrap(async () => {
+        const res = await this.adapter.crud.findMany<MediaItem>(
+          "media",
+          { folderId: folderId || null } as any,
+          {
+            ...options,
+            tenantId: tenantId ?? undefined,
+          } as any,
+        );
+        return this.adapter.utils.createPagination(
+          res.success ? res.data || [] : [],
+          options || {},
+        );
+      }, "GET_FILES_BY_FOLDER_FAILED"),
 
-		getByFolder: async (
-			folderId?: DatabaseId,
-			options?: PaginationOptions,
-			_recursive?: boolean
-		): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
-			return this.core.wrap(async () => {
-				const conditions = folderId ? [eq(schema.mediaItems.folderId, folderId as string)] : [isNull(schema.mediaItems.folderId)];
+    search: (
+      query: string,
+      options?: PaginationOptions,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<PaginatedResult<MediaItem>>> =>
+      this.adapter.wrap(async () => {
+        const res = await this.adapter.crud.findMany<MediaItem>(
+          "media",
+          { filename: { $regex: query } } as any,
+          {
+            ...options,
+            tenantId: tenantId ?? undefined,
+          } as any,
+        );
+        return this.adapter.utils.createPagination(
+          res.success ? res.data || [] : [],
+          options || {},
+        );
+      }, "SEARCH_FILES_FAILED"),
 
-				// Ownership filtering
-				if (options?.user) {
-					const isAdmin = options.user.role === 'admin' || options.user.isAdmin === true;
-					if (!isAdmin) {
-						// ALLOW GLOBAL: Users see their own files OR anything in the 'global' folder
-						const userConditions = or(eq(schema.mediaItems.createdBy, options.user._id as string), like(schema.mediaItems.path, 'global/%'));
-						if (userConditions) {
-							conditions.push(userConditions);
-						}
-					}
-				}
+    getMetadata: (
+      fileIds: DatabaseId[],
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<Record<string, CmsMediaMetadata>>> =>
+      this.adapter.wrap(async () => {
+        const res = await this.adapter.crud.findMany<MediaItem>(
+          "media",
+          { _id: { $in: fileIds } } as any,
+          { tenantId },
+        );
+        const metadata: Record<string, CmsMediaMetadata> = {};
+        if (res.success && res.data) {
+          for (const item of res.data) {
+            metadata[item._id as string] = item.metadata;
+          }
+        }
+        return metadata;
+      }, "GET_METADATA_FAILED"),
 
-				let q = this.db.select().from(schema.mediaItems).$dynamic();
-				if (conditions.length > 0) {
-					q = q.where(and(...conditions));
-				}
+    updateMetadata: (
+      fileId: DatabaseId,
+      metadata: Partial<CmsMediaMetadata>,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<MediaItem>> =>
+      this.adapter.crud.update("media", fileId, { metadata } as any, { tenantId }),
 
-				if (options?.sortField) {
-					const order = options.sortDirection === 'desc' ? desc : asc;
-					const column = (schema.mediaItems as unknown as Record<string, unknown>)[options.sortField];
-					if (column && typeof column === 'object') {
-						q = q.orderBy(order(column as import('drizzle-orm').Column));
-					}
-				}
+    move: (
+      fileIds: DatabaseId[],
+      targetFolderId?: DatabaseId,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<{ movedCount: number }>> =>
+      this.adapter.wrap(async () => {
+        const res = await this.adapter.crud.updateMany(
+          "media",
+          { _id: { $in: fileIds } } as any,
+          { folderId: targetFolderId || null } as any,
+          { tenantId },
+        );
+        return { movedCount: res.success ? res.data?.modifiedCount || 0 : 0 };
+      }, "MOVE_FILES_FAILED"),
 
-				const limit = options?.pageSize || 20;
-				const offset = ((options?.page || 1) - 1) * limit;
+    duplicate: async (
+      fileId: DatabaseId,
+      newName?: string,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<MediaItem>> => {
+      const res = await this.adapter.crud.findOne<MediaItem>("media", { _id: fileId } as any, {
+        tenantId,
+      });
+      if (!res.success || !res.data) return res as any;
+      const newItem = {
+        ...res.data,
+        _id: undefined,
+        filename: newName || `copy_${res.data.filename}`,
+        createdAt: undefined,
+        updatedAt: undefined,
+      };
+      return this.adapter.crud.insert("media", newItem as any, { tenantId });
+    },
+  };
 
-				q = q.limit(limit).offset(offset);
+  public readonly folders = {
+    create: (
+      folder: EntityCreate<MediaFolder>,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<MediaFolder>> =>
+      this.adapter.crud.insert("media_folders", folder as any, { tenantId }),
 
-				const results = await q;
+    createMany: (
+      folders: EntityCreate<MediaFolder>[],
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<MediaFolder[]>> =>
+      this.adapter.crud.insertMany("media_folders", folders as any[], { tenantId }),
 
-				const [countResult] = await this.db
-					.select({ count: count() })
-					.from(schema.mediaItems)
-					.where(and(...conditions));
+    delete: (folderId: DatabaseId, tenantId?: DatabaseId | null): Promise<DatabaseResult<void>> =>
+      this.adapter.crud.delete("media_folders", folderId, { tenantId }),
 
-				const total = Number(countResult?.count || 0);
+    deleteMany: (
+      folderIds: DatabaseId[],
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<{ deletedCount: number }>> =>
+      this.adapter.crud.deleteMany("media_folders", { _id: { $in: folderIds } } as any, {
+        tenantId,
+      }),
 
-				return {
-					items: utils.convertArrayDatesToISO(results) as unknown as MediaItem[],
-					total,
-					page: options?.page || 1,
-					pageSize: limit,
-					hasNextPage: offset + limit < total,
-					hasPreviousPage: (options?.page || 1) > 1
-				};
-			}, 'GET_FILES_BY_FOLDER_FAILED');
-		},
+    getTree: (
+      maxDepth?: number,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<MediaFolder[]>> =>
+      this.adapter.crud.findMany("media_folders", {}, { limit: maxDepth, tenantId }),
 
-		search: async (query: string, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
-			return this.core.wrap(async () => {
-				const qry = `%${query}%`;
-				const conditions = [or(like(schema.mediaItems.filename, qry), like(schema.mediaItems.originalFilename, qry))];
+    getFolderContents: (
+      folderId?: DatabaseId,
+      options?: PaginationOptions,
+      tenantId?: DatabaseId | null,
+    ): Promise<
+      DatabaseResult<{
+        folders: MediaFolder[];
+        files: MediaItem[];
+        totalCount: number;
+      }>
+    > =>
+      this.adapter.wrap(async () => {
+        const [foldersRes, filesRes] = await Promise.all([
+          this.adapter.crud.findMany<MediaFolder>(
+            "media_folders",
+            { parentId: folderId || null } as any,
+            { tenantId },
+          ),
+          this.files.getByFolder(folderId, options, false, tenantId),
+        ]);
+        const folders = foldersRes.success ? foldersRes.data || [] : [];
+        const files = filesRes.success ? filesRes.data?.items || [] : [];
+        return {
+          folders,
+          files,
+          totalCount: folders.length + (filesRes.success ? filesRes.data?.total || 0 : 0),
+        };
+      }, "GET_FOLDER_CONTENTS_FAILED"),
 
-				// Ownership filtering
-				if (options?.user) {
-					const isAdmin = options.user.role === 'admin' || options.user.isAdmin === true;
-					if (!isAdmin) {
-						// ALLOW GLOBAL: Users see their own files OR anything in the 'global' folder
-						const userConditions = or(eq(schema.mediaItems.createdBy, options.user._id as string), like(schema.mediaItems.path, 'global/%'));
-						if (userConditions) {
-							conditions.push(userConditions);
-						}
-					}
-				}
+    move: (
+      folderId: DatabaseId,
+      targetParentId?: DatabaseId,
+      tenantId?: DatabaseId | null,
+    ): Promise<DatabaseResult<MediaFolder>> =>
+      this.adapter.crud.update(
+        "media_folders",
+        folderId,
+        { parentId: targetParentId || null } as any,
+        { tenantId },
+      ),
+  };
 
-				let q = this.db.select().from(schema.mediaItems).$dynamic();
-				q = q.where(and(...conditions));
-
-				if (options?.sortField) {
-					const order = options.sortDirection === 'desc' ? desc : asc;
-					const column = (schema.mediaItems as unknown as Record<string, unknown>)[options.sortField];
-					if (column && typeof column === 'object') {
-						q = q.orderBy(order(column as import('drizzle-orm').Column));
-					}
-				}
-
-				const limit = options?.pageSize || 20;
-				const offset = ((options?.page || 1) - 1) * limit;
-
-				q = q.limit(limit).offset(offset);
-
-				const results = await q;
-
-				const [countResult] = await this.db
-					.select({ count: count() })
-					.from(schema.mediaItems)
-					.where(and(...conditions));
-
-				const total = Number(countResult?.count || 0);
-
-				return {
-					items: utils.convertArrayDatesToISO(results) as unknown as MediaItem[],
-					total,
-					page: options?.page || 1,
-					pageSize: limit,
-					hasNextPage: offset + limit < total,
-					hasPreviousPage: (options?.page || 1) > 1
-				};
-			}, 'SEARCH_FILES_FAILED');
-		},
-
-		getMetadata: async (fileIds: DatabaseId[]): Promise<DatabaseResult<Record<string, MediaMetadata>>> => {
-			return this.core.wrap(async () => {
-				const results = await this.db
-					.select({
-						_id: schema.mediaItems._id,
-						metadata: schema.mediaItems.metadata
-					})
-					.from(schema.mediaItems)
-					.where(inArray(schema.mediaItems._id, fileIds as string[]));
-
-				const metadataMap: Record<string, MediaMetadata> = {};
-				results.forEach((r) => {
-					metadataMap[r._id] = r.metadata as MediaMetadata;
-				});
-				return metadataMap;
-			}, 'GET_FILE_METADATA_FAILED');
-		},
-
-		updateMetadata: async (fileId: DatabaseId, metadata: Partial<MediaMetadata>): Promise<DatabaseResult<MediaItem>> => {
-			return this.core.wrap(async () => {
-				const [existing] = await this.db
-					.select({ metadata: schema.mediaItems.metadata })
-					.from(schema.mediaItems)
-					.where(eq(schema.mediaItems._id, fileId as string))
-					.limit(1);
-
-				const newMetadata = { ...((existing?.metadata as Record<string, unknown>) || {}), ...metadata };
-
-				await this.db
-					.update(schema.mediaItems)
-					.set({ metadata: newMetadata, updatedAt: isoDateStringToDate(nowISODateString()) })
-					.where(eq(schema.mediaItems._id, fileId as string));
-
-				const [updated] = await this.db
-					.select()
-					.from(schema.mediaItems)
-					.where(eq(schema.mediaItems._id, fileId as string))
-					.limit(1);
-
-				return utils.convertDatesToISO(updated) as unknown as MediaItem;
-			}, 'UPDATE_FILE_METADATA_FAILED');
-		},
-
-		move: async (fileIds: DatabaseId[], targetFolderId?: DatabaseId): Promise<DatabaseResult<{ movedCount: number }>> => {
-			return this.core.wrap(async () => {
-				const result = await this.db
-					.update(schema.mediaItems)
-					.set({ folderId: (targetFolderId || null) as string | null, updatedAt: isoDateStringToDate(nowISODateString()) })
-					.where(inArray(schema.mediaItems._id, fileIds as string[]));
-				return { movedCount: result[0].affectedRows };
-			}, 'MOVE_FILES_FAILED');
-		},
-
-		duplicate: async (fileId: DatabaseId, newName?: string): Promise<DatabaseResult<MediaItem>> => {
-			return this.core.wrap(async () => {
-				const [existing] = await this.db
-					.select()
-					.from(schema.mediaItems)
-					.where(eq(schema.mediaItems._id, fileId as string))
-					.limit(1);
-
-				if (!existing) {
-					throw new Error('File not found');
-				}
-
-				const id = utils.generateId() as string;
-				const now = nowISODateString();
-				const copy = {
-					...existing,
-					_id: id,
-					filename: newName || `${existing.filename}_copy`,
-					createdAt: isoDateStringToDate(now),
-					updatedAt: isoDateStringToDate(now)
-				};
-
-				await this.db.insert(schema.mediaItems).values(copy as typeof schema.mediaItems.$inferInsert);
-
-				const [created] = await this.db.select().from(schema.mediaItems).where(eq(schema.mediaItems._id, id)).limit(1);
-
-				return utils.convertDatesToISO(created) as unknown as MediaItem;
-			}, 'DUPLICATE_FILE_FAILED');
-		}
-	};
-
-	folders = {
-		create: async (folder: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaFolder>> => {
-			return this.core.wrap(async () => {
-				const id = utils.generateId() as string;
-				const now = nowISODateString();
-				const values = {
-					...folder,
-					_id: id,
-					type: 'folder',
-					createdAt: isoDateStringToDate(now),
-					updatedAt: isoDateStringToDate(now)
-				};
-				await this.db.insert(schema.systemVirtualFolders).values(values as typeof schema.systemVirtualFolders.$inferInsert);
-				const [result] = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, id)).limit(1);
-				return utils.convertDatesToISO(result) as unknown as MediaFolder;
-			}, 'CREATE_MEDIA_FOLDER_FAILED');
-		},
-
-		createMany: async (folders: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaFolder[]>> => {
-			return this.core.wrap(async () => {
-				const now = nowISODateString();
-				const values = folders.map((f) => ({
-					...f,
-					_id: utils.generateId() as string,
-					type: 'folder',
-					createdAt: isoDateStringToDate(now),
-					updatedAt: isoDateStringToDate(now)
-				}));
-				await this.db.insert(schema.systemVirtualFolders).values(values as (typeof schema.systemVirtualFolders.$inferInsert)[]);
-
-				const ids = values.map((v) => v._id);
-				const results = await this.db.select().from(schema.systemVirtualFolders).where(inArray(schema.systemVirtualFolders._id, ids));
-
-				return utils.convertArrayDatesToISO(results) as unknown as MediaFolder[];
-			}, 'CREATE_MANY_MEDIA_FOLDERS_FAILED');
-		},
-
-		delete: async (folderId: DatabaseId): Promise<DatabaseResult<void>> => {
-			return this.core.wrap(async () => {
-				await this.db.delete(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders._id, folderId as string));
-			}, 'DELETE_MEDIA_FOLDER_FAILED');
-		},
-
-		deleteMany: async (folderIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
-			return this.core.wrap(async () => {
-				const result = await this.db.delete(schema.systemVirtualFolders).where(inArray(schema.systemVirtualFolders._id, folderIds as string[]));
-				return { deletedCount: result[0].affectedRows };
-			}, 'DELETE_MANY_MEDIA_FOLDERS_FAILED');
-		},
-
-		getTree: async (_maxDepth?: number): Promise<DatabaseResult<MediaFolder[]>> => {
-			return this.core.wrap(async () => {
-				const results = await this.db.select().from(schema.systemVirtualFolders).where(eq(schema.systemVirtualFolders.type, 'folder'));
-				return utils.convertArrayDatesToISO(results) as unknown as MediaFolder[];
-			}, 'GET_MEDIA_FOLDER_TREE_FAILED');
-		},
-
-		getFolderContents: async (
-			folderId?: DatabaseId,
-			_options?: PaginationOptions
-		): Promise<
-			DatabaseResult<{
-				folders: MediaFolder[];
-				files: MediaItem[];
-				totalCount: number;
-			}>
-		> => {
-			return this.core.wrap(async () => {
-				const folderConditions = folderId
-					? [eq(schema.systemVirtualFolders.parentId, folderId as string)]
-					: [eq(schema.systemVirtualFolders.parentId, '')];
-				const fileConditions = folderId ? [eq(schema.mediaItems.folderId, folderId as string)] : [];
-
-				const folders = await this.db
-					.select()
-					.from(schema.systemVirtualFolders)
-					.where(and(eq(schema.systemVirtualFolders.type, 'folder'), ...folderConditions));
-
-				const files = await this.db
-					.select()
-					.from(schema.mediaItems)
-					.where(fileConditions.length > 0 ? and(...fileConditions) : undefined);
-
-				return {
-					folders: utils.convertArrayDatesToISO(folders) as unknown as MediaFolder[],
-					files: utils.convertArrayDatesToISO(files) as unknown as MediaItem[],
-					totalCount: folders.length + files.length
-				};
-			}, 'GET_FOLDER_CONTENTS_FAILED');
-		},
-
-		move: async (folderId: DatabaseId, targetParentId?: DatabaseId): Promise<DatabaseResult<MediaFolder>> => {
-			return this.core.wrap(async () => {
-				await this.db
-					.update(schema.systemVirtualFolders)
-					.set({ parentId: (targetParentId || null) as string | null, updatedAt: isoDateStringToDate(nowISODateString()) })
-					.where(eq(schema.systemVirtualFolders._id, folderId as string));
-
-				const [updated] = await this.db
-					.select()
-					.from(schema.systemVirtualFolders)
-					.where(eq(schema.systemVirtualFolders._id, folderId as string))
-					.limit(1);
-
-				return utils.convertDatesToISO(updated) as unknown as MediaFolder;
-			}, 'MOVE_MEDIA_FOLDER_FAILED');
-		}
-	};
+  async setupMediaModels(): Promise<void> {}
 }

@@ -1,37 +1,37 @@
 <script lang="ts">
-	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { deserialize } from '$app/forms';
-	import { preloadData } from '$app/navigation';
+import { publicEnv } from "@src/stores/global-settings.svelte";
+import { deserialize } from "$app/forms";
+import { preloadData } from "$app/navigation";
 
-	const { showOAuth = true } = $props();
+const { showOAuth = true } = $props();
 
-	let prefetched = $state(false);
+let prefetched = $state(false);
 
-	async function prefetchFirstCollection() {
-		if (prefetched) {
-			return;
-		}
-		prefetched = true;
-
-		try {
-			const data = new FormData();
-			const response = await fetch('?/prefetch', {
-				method: 'POST',
-				body: data
-			});
-
-			const result = deserialize(await response.text());
-
-			if (result.type === 'success') {
-				const data = result.data as { collection?: { path?: string } };
-				if (data?.collection?.path) {
-					await preloadData(data.collection.path);
-				}
-			}
-		} catch (error) {
-			console.error('Prefetch failed:', error);
-		}
+async function prefetchFirstCollection() {
+	if (prefetched) {
+		return;
 	}
+	prefetched = true;
+
+	try {
+		const data = new FormData();
+		const response = await fetch("?/prefetch", {
+			method: "POST",
+			body: data,
+		});
+
+		const result = deserialize(await response.text());
+
+		if (result.type === "success") {
+			const data = result.data as { collection?: { path?: string } };
+			if (data?.collection?.path) {
+				await preloadData(data.collection.path);
+			}
+		}
+	} catch (error) {
+		console.error("Prefetch failed:", error);
+	}
+}
 </script>
 
 {#if publicEnv?.USE_GOOGLE_OAUTH === true && showOAuth}

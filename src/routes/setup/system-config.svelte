@@ -71,9 +71,11 @@ Features:
 
 	const availableLanguages: string[] = [...systemLocales];
 
+	import { SvelteSet } from 'svelte/reactivity';
+
 	// Real-time validation state
 	let localValidationErrors = $state<Record<string, string>>({});
-	let touchedFields = $state(new Set<string>());
+	let touchedFields = $state(new SvelteSet<string>());
 
 	const validationResult = $derived(
 		safeParse(systemSettingsSchema, {
@@ -106,7 +108,6 @@ Features:
 
 	function handleBlur(fieldName: string) {
 		touchedFields.add(fieldName);
-		touchedFields = touchedFields;
 	}
 
 	function displayLang(code: string) {

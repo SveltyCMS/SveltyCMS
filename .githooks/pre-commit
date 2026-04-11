@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+set -e
+
+echo "🔍 Running pre-commit checks (Native Git Hook)..."
+
+# Find staged files (filters out deleted files) to pass to linters
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|js|svelte|json|md)$' || true)
+
+if [ -n "$STAGED_FILES" ]; then
+    echo "✨ Formatting & ⚡ Linting (Vite+ on staged files)..."
+    bunx oxfmt --write $STAGED_FILES
+    bunx oxlint --fix $STAGED_FILES
+
+    # Re-stage files in case Vite+ fixed formatting/linting issues automatically
+    git add $STAGED_FILES
+else
+    echo "⏩ No relevant staged files found for formatting/linting."
+fi
+
+# 2. Type Check (Svelte Check)
+# Temporarily disabled due to TypeScript 6.0 compatibility issues with svelte-check
+# echo "✅ Type Checking..."
+# bun run check
+
+# 3. Unit Tests (Fast Bun)
+echo "🧪 Testing (Bun Native)..."
+bun run test:unit:bun
+
+echo "✨ Pre-commit checks passed!"

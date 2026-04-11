@@ -1,17 +1,17 @@
 ---
-path: 'docs/architecture/demo-mode.mdx'
-title: 'Demo Mode Architecture'
-description: 'Architecture and implementation details of SveltyCMS Demo Mode.'
+path: "docs/architecture/demo-mode.mdx"
+title: "Demo Mode Architecture"
+description: "Architecture and implementation details of SveltyCMS Demo Mode."
 order: 5
-icon: 'mdi:presentation-play'
-author: 'admin'
-created: '2025-11-30'
-updated: '2026-03-03'
+icon: "mdi:presentation-play"
+author: "SveltyCMS Team"
+created: "2025-11-30"
+updated: "2026-03-27"
 tags:
-  - 'architecture'
-  - 'demo-mode'
-  - 'multi-tenancy'
-  - 'seeding'
+  - "architecture"
+  - "demo-mode"
+  - "multi-tenancy"
+  - "seeding"
 ---
 
 # Demo Mode Architecture
@@ -25,13 +25,16 @@ Demo Mode is a specialized configuration of the Multi-Tenancy system designed to
 - **Ephemeral Sessions**: Tenants and their data are automatically deleted after a configurable expiration time (default: 60 minutes).
 - **Isolation**: Each demo user sees only their own data.
 
-## Implementation
+### 1. Project Setup (Clone & Link)
 
-1.  **Project Setup (Clone & Link)**:
-    - Clone your `next` branch: `git clone -b next <repo>`
-    - Run setup: `bun install && bun run dev`
-    - Setup Wizard: Connect to your **existing Demo Database**.
-    - **Important**: Manually set `MULTI_TENANT: true` in `config/private.ts` (requires restart).
+- Clone your `next` branch: `git clone -b next <repo>`
+- Run setup: `bun install && bun run dev`
+- Setup Wizard: Connect to your **existing Demo Database**.
+- **Important**: Manually set `MULTI_TENANT: true` and `DEMO: true` in `config/private.ts` (requires restart).
+
+### Bypassing Host Validation (March 2026)
+
+In March 2026, the `handleSystemState` hook was optimized to allow bootstrap routes (like `/setup`) from any host when `DEMO: true` is active. This ensures that live demo environments on dynamic URLs (e.g., Vercel, Netlify) do not trigger 403 Forbidden errors before the system is fully initialized.
 
 ### Enabling Demo Mode
 
@@ -45,9 +48,9 @@ Demo mode is strictly controlled via `config/private.ts` to prevent accidental d
 
     ```typescript
     export const privateEnv = {
-    	// ...
-    	MULTI_TENANT: true,
-    	DEMO: true
+      // ...
+      MULTI_TENANT: true,
+      DEMO: true,
     };
     ```
 
@@ -57,6 +60,26 @@ Demo mode is strictly controlled via `config/private.ts` to prevent accidental d
     - `SVELTYCMS_DEMO=true bun run dev`
 
 ### Tenant Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> NewUser: Visits /login or /setup
+
+    state "Demo Mode Detection" as Detect {
+        NewUser --> NoCookie: No demo_tenant_id
+        NoCookie --> CheckSession: Session exists?
+        CheckSession --> GlobalAdmin: Yes (tenantId: null)
+        CheckSession --> GenTenant: No
+        GenTenant --> SeedTenant: Generate UUID
+        SeedTenant --> SetCookie: Seed Roles & Admin
+    }
+
+    SetCookie --> UserActive: Use CMS (Isolated)
+    GlobalAdmin --> UserActive: Manage All (Bypass)
+
+    UserActive --> Cleanup: After 60 Minutes
+    Cleanup --> [*]: Data Deleted
+```
 
 1.  **Creation**:
     - **Method A (No Token)**: User visits `/login` -> Click "Sign Up".

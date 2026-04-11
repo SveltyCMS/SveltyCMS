@@ -1,0 +1,75 @@
+---
+path: "docs/guides/configuration/enterprise-monitor.mdx"
+title: "Enterprise Monitor Dashboard"
+description: "Unified command center for system health, security incidents, and data recovery."
+order: 11
+icon: "mdi:shield-check-outline"
+author: "SveltyCMS Team"
+created: "2026-04-11"
+updated: "2026-04-11"
+tags:
+  - "admin"
+  - "monitoring"
+  - "security"
+  - "health"
+  - "dashboard"
+---
+
+# Enterprise Monitor Dashboard
+
+The **Enterprise Monitor** is the unified command center for SveltyCMS administrators. It provides a real-time, "Single Pane of Glass" view into the system's security posture, operational health, and recovery options.
+
+---
+
+## 🚀 Overview
+
+The dashboard is accessible via **Config > Enterprise Monitor** and uses a high-performance polling engine to keep metrics current without excessive database load.
+
+### The 4 Core Quadrants
+
+| Quadrant | Metrics Tracked | Admin Action |
+| :--- | :--- | :--- |
+| **🛡️ Security Status** | Active incidents, blocked IPs, CSP violations. | Investigate threat feed / Unblock IPs. |
+| **🗑️ Trash Recovery** | Deleted item count, storage impact. | Restore content / Purge trash. |
+| **🪝 Webhook Health** | Active endpoints, failure rates, delivery latency. | Review logs / Trigger retries. |
+| **⚙️ System Vitals** | RAM/CPU usage, DB pool health, Watchdog status. | Monitor for resource exhaustion. |
+
+---
+
+## 🛡️ Security Incident Feed
+
+The monitor features a real-time security feed that logs more than just errors. It captures:
+- **Unauthorized Access Attempts**: Triggered by the **FLAC** engine when unauthorized field writes are blocked.
+- **Firewall Events**: Brute-force detection and pattern-based blocking.
+- **CSP Reports**: Browser-reported violations of the Content Security Policy.
+
+---
+
+## 🗑️ Fast-Path Recovery
+
+Integrated directly into the monitor is the **Quick Restore** utility. 
+- **Mangle-on-Delete**: SveltyCMS mangles unique fields (like slugs) upon deletion. The monitor allows you to see exactly which items are recoverable before they are permanently purged by the retention policy.
+- **One-Click Restore**: Reverses the "trashed" state and restores the original unique identifiers instantly.
+
+---
+
+## ⚙️ Autonomous Maintenance Feedback
+
+The Enterprise Monitor surfaces the activity of the **Autonomous System Watchdog**:
+- **Cache Compaction**: Displays when the system last performed an automated cache cleanup (triggered at 30% fragmentation).
+- **Index Health**: Reports on database query performance and suggests manual index optimizations if slow queries are detected.
+
+---
+
+## 📊 Performance & Polling
+
+- **Glassmorphism UI**: Uses modern blur-heavy aesthetics optimized for readability in low-light environments.
+- **Smart Polling**: The dashboard polls the server every 30 seconds.
+- **L1/L2 Cache Integration**: Metrics are retrieved primarily from the **MetricsService** in-memory buffer, resulting in **< 5ms response time** for the monitoring API.
+
+---
+
+## 📚 Related Documentation
+- [Security Architecture](../../architecture/security/index.mdx)
+- [Autonomous Maintenance](../development/autonomous-maintenance.mdx)
+- [Webhook System](../../api/webhooks.mdx)

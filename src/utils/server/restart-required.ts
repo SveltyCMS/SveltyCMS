@@ -11,7 +11,7 @@ let restartNeeded = false;
  * @returns {boolean} True if restart is needed
  */
 export function isRestartNeeded(): boolean {
-	return restartNeeded;
+  return restartNeeded;
 }
 
 /**
@@ -19,5 +19,5 @@ export function isRestartNeeded(): boolean {
  * @param {boolean} needed - Whether restart is needed
  */
 export function setRestartNeeded(needed: boolean): void {
-	restartNeeded = needed;
+  restartNeeded = needed;
 }

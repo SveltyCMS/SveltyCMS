@@ -1,22 +1,22 @@
 ---
-path: 'docs/architecture/system-settings-architecture.mdx'
-title: 'SveltyCMS: System Settings Architecture'
-description: 'An overview of how dynamic settings are managed, cached, and synchronized, including language configuration and data preservation.'
+path: "docs/architecture/system-settings-architecture.mdx"
+title: "SveltyCMS: System Settings Architecture"
+description: "An overview of how dynamic settings are managed, cached, and synchronized, including language configuration and data preservation."
 order: 2
-icon: 'mdi:tune'
-author: 'admin'
-created: '2025-10-09'
-updated: '2025-11-02'
+icon: "mdi:tune"
+author: "SveltyCMS Team"
+created: "2025-10-09"
+updated: "2026-03-27"
 tags:
-  - 'architecture'
-  - 'settings'
-  - 'system'
-  - 'cache'
-  - 'languages'
-  - 'i18n'
+  - "architecture"
+  - "settings"
+  - "system"
+  - "cache"
+  - "languages"
+  - "i18n"
 ---
 
-import { Callout } from 'nextra/components';
+import { Callout } from "nextra/components";
 
 # System Settings Architecture
 
@@ -33,40 +33,49 @@ This document details the architecture of the SveltyCMS System Settings. The sys
 
 ## The Data Flow
 
+SveltyCMS utilizes a two-tier data flow for settings: a high-frequency polling mechanism for public settings and a secure, batch-loading mechanism for the administrative dashboard.
+
 ```mermaid
 sequenceDiagram
     participant User
-    participant UI as Settings Page
-    participant API as Settings API
+    participant UI as Settings Dashboard
+    participant API as /api/settings/all
     participant ServerCache as In-Memory Cache
     participant DB as Database
     participant ClientStore as global-settings.svelte.ts
 
-    User->>UI: Changes a setting (e.g., Site Name)
-    UI->>API: PUT /api/settings/site { SITE_NAME: "New Name" }
-    API->>DB: Updates the setting in the database
-    DB-->>API: Success
-    API->>ServerCache: Invalidates and reloads settings cache
-    API->>API: Updates settings version
-    API-->>UI: Returns success message
+    Note over UI, API: Dashboard Initialization (Batch)
+    UI->>API: GET /api/settings/all
+    API->>ServerCache: Fetch All Authorized Groups
+    ServerCache-->>API: Merged Settings Object
+    API-->>UI: Optimized JSON Response
 
-    loop Every 5 seconds
+    Note over User, DB: Individual Group Update
+    User->>UI: Changes a setting (e.g., SMTP_HOST)
+    UI->>API: PUT /api/settings/[group]
+    API->>DB: Updates database record
+    DB-->>API: Success
+    API->>ServerCache: Invalidate & Reload Cache
+    API->>API: Increment Settings Version
+    API-->>UI: 200 OK
+
+    loop Every 5 seconds (Public Sync)
         ClientStore->>API: GET /api/settings/public/version
-        API-->>ClientStore: Returns new version
-        ClientStore->>ClientStore: Version has changed!
+        API-->>ClientStore: New Version Detected
         ClientStore->>API: GET /api/settings/public
-        API-->>ClientStore: Returns new public settings
-        ClientStore->>UI: Store updates, UI refreshes automatically
+        API-->>ClientStore: Refreshed Public Settings
+        ClientStore->>UI: Global UI elements update
     end
 ```
 
 ### Server-Side
 
-1.  **Server Startup:** The application loads all settings from the database into a fast, in-memory cache.
-2.  **Admin Update:** An admin uses the UI to change a setting. The UI sends a `PUT` request to the `/api/settings/[group]` endpoint.
-3.  **Database Update:** The API updates the setting in the database.
-4.  **Cache Invalidation:** The API calls `invalidateSettingsCache()` and `loadSettingsFromDB()` to immediately refresh the server-side cache with the new value.
-5.  **Version Update:** The API calls `updateVersion()` to bump the settings version number. This signals to clients that settings have changed.
+1.  **Batch Aggregation:** The `/api/settings/all` endpoint aggregates settings from all authorized groups into a single payload, reducing HTTP overhead during dashboard initialization.
+2.  **Server Startup:** The application loads all settings from the database into a fast, in-memory cache.
+3.  **Admin Update:** An admin uses the UI to change a setting. The UI sends a `PUT` request to the `/api/settings/[group]` endpoint.
+4.  **Database Update:** The API updates the setting in the database.
+5.  **Cache Invalidation:** The API calls `invalidateSettingsCache()` and `loadSettingsFromDB()` to immediately refresh the server-side cache with the new value.
+6.  **Version Update:** The API calls `updateVersion()` to bump the settings version number. This signals to clients that settings have changed.
 
 ### Client-Side (Public Settings)
 
@@ -76,12 +85,14 @@ sequenceDiagram
 
 ## The User Interface
 
-The main UI for managing settings is located at `/config/systemsetting`. It features:
+The main UI for managing settings is located at `/config/system-settings`. It features:
 
-- A tabbed interface for each settings group.
-- A generic component (`generic-settings-group.svelte`) that dynamically renders the fields for any group.
-- Real-time validation and unsaved changes indicators.
-- A search bar to quickly find settings.
+- **Optimized Batch Loading:** Uses a single API call to load all authorized settings groups.
+- **Mobile-First Navigation:** Horizontal scrolling tabs for small viewports.
+- **Sticky Action Bar:** Floating footer providing "Save", "Reset", and "Export" actions.
+- **Sensitive Data Masking:** Automatic masking of passwords and API keys.
+- **Searchable Interface:** Filter settings groups by name or description.
+- **Real-time validation** and unsaved changes indicators.
 
 ## "Restart Required" Workflow
 
@@ -103,8 +114,8 @@ SveltyCMS integrates with local and remote AI models to power advanced features 
 - **`AI_MODEL_VISION`**: The model used for vision tasks, such as `llava` or `moondream`.
 
 <Callout type="info">
-	**Note:** AI features require an active connection to the configured provider. If using Ollama, ensure the server is running and the specified
-	vision model is pulled (`ollama pull llava`).
+  **Note:** AI features require an active connection to the configured provider. If using Ollama,
+  ensure the server is running and the specified vision model is pulled (`ollama pull llava`).
 </Callout>
 
 ## API Endpoints
@@ -122,8 +133,9 @@ SveltyCMS integrates with local and remote AI models to power advanced features 
 ### Language Configuration Warnings
 
 <Callout type="error">
-	**CRITICAL: Data Loss Risk When Removing Content Languages** Removing a language from `AVAILABLE_CONTENT_LANGUAGES` after content has been created
-	can result in **permanent data loss** for translations in that language.
+  **CRITICAL: Data Loss Risk When Removing Content Languages** Removing a language from
+  `AVAILABLE_CONTENT_LANGUAGES` after content has been created can result in **permanent data loss**
+  for translations in that language.
 </Callout>
 
 **The Problem:**
@@ -191,31 +203,31 @@ AVAILABLE_CONTENT_LANGUAGES: ['en', 'de', 'fr']
    ```typescript
    // Remove Spanish translations from all entries
    async function removeLanguageTranslations(languageToRemove: string) {
-   	const collections = await db.content.nodes.getStructure('flat');
+     const collections = await db.content.nodes.getStructure("flat");
 
-   	for (const collection of collections) {
-   		const entries = await db.crud.findMany(collection.id, {});
+     for (const collection of collections) {
+       const entries = await db.crud.findMany(collection.id, {});
 
-   		for (const entry of entries) {
-   			const updatedEntry = { ...entry };
+       for (const entry of entries) {
+         const updatedEntry = { ...entry };
 
-   			// Remove language key from all translated fields
-   			for (const [key, value] of Object.entries(updatedEntry)) {
-   				if (typeof value === 'object' && value !== null && languageToRemove in value) {
-   					delete value[languageToRemove];
-   					updatedEntry[key] = value;
-   				}
-   			}
+         // Remove language key from all translated fields
+         for (const [key, value] of Object.entries(updatedEntry)) {
+           if (typeof value === "object" && value !== null && languageToRemove in value) {
+             delete value[languageToRemove];
+             updatedEntry[key] = value;
+           }
+         }
 
-   			await db.crud.update(collection.id, entry._id, updatedEntry);
-   		}
-   	}
+         await db.crud.update(collection.id, entry._id, updatedEntry);
+       }
+     }
 
-   	console.log(`Removed all ${languageToRemove} translations`);
+     console.log(`Removed all ${languageToRemove} translations`);
    }
 
    // Usage:
-   await removeLanguageTranslations('es');
+   await removeLanguageTranslations("es");
    // Now safe to remove 'es' from AVAILABLE_CONTENT_LANGUAGES
    ```
 
@@ -275,15 +287,19 @@ If translations were accidentally deleted:
 7. ✅ **Monitor** for issues after deployment
 8. ✅ **Keep backups** for at least 30 days
 
-<Callout type="info">**Adding languages is always safe** - no existing data is affected. Only **removing** languages poses data loss risks.</Callout>
+<Callout type="info">
+  **Adding languages is always safe** - no existing data is affected. Only **removing** languages
+  poses data loss risks.
+</Callout>
 
 ### Exporting (`config:export`)
 
 When a full configuration export is run, the `ConfigExporter` service queries the `system_preferences` table and saves all non-secret settings to a file like `/config/sync/system/system.settings.json`.
 
 <Callout type="warning">
-	**Security:** The export process must be configured to **exclude** secrets like `SMTP_PASSWORD`. The `category: 'private'` property on a setting
-	field ensures it is not included in public exports.
+  **Security:** The export process must be configured to **exclude** secrets like `SMTP_PASSWORD`.
+  The `category: 'private'` property on a setting field ensures it is not included in public
+  exports.
 </Callout>
 
 ### Importing (`config:import`)

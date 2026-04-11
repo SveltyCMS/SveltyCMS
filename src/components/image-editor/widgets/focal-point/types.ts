@@ -1,4 +1,4 @@
 export interface FocalPoint {
-	x: number;
-	y: number;
+  x: number;
+  y: number;
 }

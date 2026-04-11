@@ -4,62 +4,75 @@
 -->
 
 <script lang="ts">
-	// Components
-	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
-	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
-	// ParaglideJS
-	import { button_cancel, button_send, oauth_entertoken, oauth_signup, registration_token, signup_registrationtoken } from '@src/paraglide/messages';
-	// Stores
-	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
-	import type { PageData } from './$types';
+// Components
+import SveltyCMSLogoFull from "@src/components/system/icons/svelty-cms-logo-full.svelte";
+import FloatingInput from "@src/components/system/inputs/floating-input.svelte";
+// ParaglideJS
+import {
+	button_cancel,
+	button_send,
+	oauth_entertoken,
+	oauth_signup,
+	registration_token,
+	signup_registrationtoken,
+} from "@src/paraglide/messages";
+// Stores
+import {
+	globalLoadingStore,
+	loadingOperations,
+} from "@src/stores/loading-store.svelte.ts";
+import type { PageData } from "./$types";
 
-	interface Props {
-		data: PageData;
+interface Props {
+	data: PageData;
+}
+
+const { data }: Props = $props();
+
+let token = $state("");
+let formError = $state("");
+const isFormValid = $derived(
+	!data.requiresToken || (token.length >= 16 && token.length <= 48),
+);
+
+// Handle form submission
+async function handleSubmit(event: SubmitEvent) {
+	event.preventDefault();
+	if (data.requiresToken && !isFormValid) {
+		formError = "Invalid token length";
+		return;
 	}
 
-	const { data }: Props = $props();
+	formError = "";
 
-	let token = $state('');
-	let formError = $state('');
-	const isFormValid = $derived(!data.requiresToken || (token.length >= 16 && token.length <= 48));
+	await globalLoadingStore
+		.withLoading(
+			loadingOperations.authentication,
+			async () => {
+				const form = event.target as HTMLFormElement;
+				const formData = new FormData(form);
+				const response = await fetch(form.action, {
+					method: "POST",
+					body: formData,
+				});
 
-	// Handle form submission
-	async function handleSubmit(event: SubmitEvent) {
-		event.preventDefault();
-		if (data.requiresToken && !isFormValid) {
-			formError = 'Invalid token length';
-			return;
-		}
+				if (!response.ok) {
+					throw new Error("OAuth authentication failed");
+				}
+				// Redirect will be handled by the server
+			},
+			"OAuth.handleSubmit",
+		)
+		.catch((error) => {
+			formError =
+				error instanceof Error ? error.message : "Authentication failed";
+		});
+}
 
-		formError = '';
-
-		await globalLoadingStore
-			.withLoading(
-				loadingOperations.authentication,
-				async () => {
-					const form = event.target as HTMLFormElement;
-					const formData = new FormData(form);
-					const response = await fetch(form.action, {
-						method: 'POST',
-						body: formData
-					});
-
-					if (!response.ok) {
-						throw new Error('OAuth authentication failed');
-					}
-					// Redirect will be handled by the server
-				},
-				'OAuth.handleSubmit'
-			)
-			.catch((error) => {
-				formError = error instanceof Error ? error.message : 'Authentication failed';
-			});
-	}
-
-	// Handle cancel button
-	function handleCancel() {
-		window.history.back();
-	}
+// Handle cancel button
+function handleCancel() {
+	window.history.back();
+}
 </script>
 
 <div class="grid h-full w-full place-items-center bg-[#242728]">

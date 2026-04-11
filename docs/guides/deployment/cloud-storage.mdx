@@ -1,20 +1,20 @@
 ---
-path: 'docs/guides/cloud-storage.mdx'
-title: 'Cloud Storage Guide'
-description: 'Complete guide to configuring and using cloud storage (S3, R2, Cloudinary) in SveltyCMS'
+path: "docs/guides/deployment/cloud-storage.mdx"
+title: "Cloud Storage Guide"
+description: "Complete guide to configuring and using cloud storage (S3, R2, Cloudinary) in SveltyCMS"
 order: 15
-icon: 'mdi:cloud-upload'
-author: 'admin'
-created: '2025-11-05'
-updated: '2025-11-05'
+icon: "mdi:cloud-upload"
+author: "SveltyCMS Team"
+created: "2025-11-05"
+updated: "2026-03-27"
 tags:
-  - 'guide'
-  - 'cloud-storage'
-  - 's3'
-  - 'r2'
-  - 'cloudinary'
-  - 'media'
-  - 'configuration'
+  - "guide"
+  - "cloud-storage"
+  - "s3"
+  - "r2"
+  - "cloudinary"
+  - "media"
+  - "configuration"
 ---
 
 # Cloud Storage Guide
@@ -78,7 +78,7 @@ All media files are stored in the database with a unified `/files/` path:
 
 ```javascript
 // Database Storage (same for all storage types)
-user.avatar = '/files/avatars/hash-image.avif';
+user.avatar = "/files/avatars/hash-image.avif";
 ```
 
 **Local Storage:**
@@ -144,16 +144,16 @@ MEDIA_SECRET_ACCESS_KEY=wJalrXUtn...
 
 ```json
 {
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Sid": "PublicReadGetObject",
-			"Effect": "Allow",
-			"Principal": "*",
-			"Action": "s3:GetObject",
-			"Resource": "arn:aws:s3:::your-bucket/my-cms-media/*"
-		}
-	]
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PublicReadGetObject",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::your-bucket/my-cms-media/*"
+    }
+  ]
 }
 ```
 
@@ -161,14 +161,14 @@ MEDIA_SECRET_ACCESS_KEY=wJalrXUtn...
 
 ```json
 {
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Effect": "Allow",
-			"Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:ListBucket"],
-			"Resource": ["arn:aws:s3:::your-bucket", "arn:aws:s3:::your-bucket/*"]
-		}
-	]
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::your-bucket", "arn:aws:s3:::your-bucket/*"]
+    }
+  ]
 }
 ```
 
@@ -381,9 +381,9 @@ Check logs for upload/download operations:
 
 ```javascript
 // Look for these log entries:
-'Uploading to cloud storage';
-'File uploaded to cloud storage';
-'Redirecting to cloud storage';
+"Uploading to cloud storage";
+"File uploaded to cloud storage";
+"Redirecting to cloud storage";
 ```
 
 ## Examples
@@ -393,11 +393,11 @@ Check logs for upload/download operations:
 ```javascript
 // Client-side
 const formData = new FormData();
-formData.append('avatar', file);
+formData.append("avatar", file);
 
-const response = await fetch('/api/user/save-avatar', {
-	method: 'POST',
-	body: formData
+const response = await fetch("/api/user/save-avatar", {
+  method: "POST",
+  body: formData,
 });
 
 const { avatarUrl } = await response.json();
@@ -409,10 +409,10 @@ const { avatarUrl } = await response.json();
 
 ```typescript
 // Server-side - utils/media/cloudStorage.ts
-import { uploadToCloud, getCloudUrl } from '@utils/media/cloud-storage';
+import { uploadToCloud, getCloudUrl } from "@utils/media/cloud-storage";
 
 const buffer = await file.arrayBuffer();
-const publicUrl = await uploadToCloud(Buffer.from(buffer), 'avatars/image.avif');
+const publicUrl = await uploadToCloud(Buffer.from(buffer), "avatars/image.avif");
 // Returns: https://cdn.example.com/cms-media/avatars/image.avif
 ```
 
@@ -420,12 +420,12 @@ const publicUrl = await uploadToCloud(Buffer.from(buffer), 'avatars/image.avif')
 
 ```typescript
 // Server-side
-import { isCloudStorage, getCloudStorageConfig } from '@utils/media/cloud-storage';
+import { isCloudStorage, getCloudStorageConfig } from "@utils/media/cloud-storage";
 
 if (isCloudStorage()) {
-	const config = getCloudStorageConfig();
-	console.log('Using cloud storage:', config.storageType);
-	console.log('Media folder prefix:', config.mediaFolder);
+  const config = getCloudStorageConfig();
+  console.log("Using cloud storage:", config.storageType);
+  console.log("Media folder prefix:", config.mediaFolder);
 }
 ```
 

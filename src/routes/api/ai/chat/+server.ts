@@ -7,28 +7,35 @@
  * - History of messages
  */
 
-import { aiService } from '@services/ai-service';
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { aiService } from "@services/ai-service";
+import { getPrivateSettingSync } from "@src/services/settings-service";
+import { json } from "@sveltejs/kit";
+import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	// 1. Check if user is logged in (Security first)
-	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
-	}
+  // 1. Check if user is logged in (Security first)
+  if (!locals.user) {
+    return json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-	try {
-		const { message, history } = await request.json();
+  const { tenantId } = locals;
+  if (getPrivateSettingSync("MULTI_TENANT") && !tenantId) {
+    return json({ error: "Tenant ID required" }, { status: 403 });
+  }
 
-		if (!message) {
-			return json({ error: 'Message is required' }, { status: 400 });
-		}
+  try {
+    const { message, history } = await request.json();
 
-		const reply = await aiService.chat(message, history || []);
+    if (!message) {
+      return json({ error: "Message is required" }, { status: 400 });
+    }
 
-		return json({ reply });
-	} catch (err: any) {
-		console.error('AI API Error:', err);
-		return json({ error: err.message }, { status: 500 });
-	}
+    // AIService is stateless, but we pass tenant context for logging/future use
+    const reply = await aiService.chat(message, history || []);
+
+    return json({ reply });
+  } catch (err: any) {
+    console.error("AI API Error:", err);
+    return json({ error: err.message }, { status: 500 });
+  }
 };

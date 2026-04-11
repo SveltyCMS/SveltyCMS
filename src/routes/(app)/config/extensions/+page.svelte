@@ -4,20 +4,20 @@
  -->
 
 <script lang="ts">
-	import PageTitle from '@src/components/page-title.svelte';
-	import PluginsView from './plugins-view.svelte';
-	import ThemesView from './themes-view.svelte';
-	import WidgetDashboard from './widget-dashboard.svelte';
+import PageTitle from "@src/components/page-title.svelte";
+import PluginsView from "./plugins-view.svelte";
+import ThemesView from "./themes-view.svelte";
+import WidgetDashboard from "./widget-dashboard.svelte";
 
-	let { data }: { data: any } = $props();
+let { data }: { data: any } = $props();
 
-	let activeTab = $state('plugins');
+let activeTab = $state("plugins");
 
-	const tabs = [
-		{ id: 'plugins', label: 'Plugins', icon: 'mdi:puzzle' },
-		{ id: 'widgets', label: 'Widgets', icon: 'mdi:widgets' },
-		{ id: 'themes', label: 'Themes', icon: 'ph:layout' }
-	];
+const tabs = [
+	{ id: "plugins", label: "Plugins", icon: "mdi:puzzle" },
+	{ id: "widgets", label: "Widgets", icon: "mdi:widgets" },
+	{ id: "themes", label: "Themes", icon: "ph:layout" },
+];
 </script>
 
 <PageTitle name="Extension Management" showBackButton={true} backUrl="/config" icon="mdi:puzzle-outline" />

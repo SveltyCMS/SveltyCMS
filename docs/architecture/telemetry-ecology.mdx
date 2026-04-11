@@ -1,16 +1,16 @@
 ---
 path: docs\architecture\telemetry-ecology.mdx
-title: 'Security Updates & Telemetry'
-description: 'How SveltyCMS ensures system security via the Update Check mechanism, including Rate Limiting and Validation.'
+title: "Security Updates & Telemetry"
+description: "How SveltyCMS ensures system security via the Update Check mechanism, including Rate Limiting and Validation."
 order: 5
-icon: 'mdi:shield-check'
-author: 'SveltyCMS Team'
-created: '2025-10-25'
-updated: '2025-12-01'
+icon: "mdi:shield-check"
+author: "SveltyCMS Team"
+created: "2025-10-25"
+updated: "2026-03-27"
 tags:
-  - 'security'
-  - 'telemetry'
-  - 'updates'
+  - "security"
+  - "telemetry"
+  - "updates"
 ---
 
 # Security Updates & Ecosystem Health
@@ -109,36 +109,36 @@ SVELTYCMS_TELEMETRY=false
 
 ```json
 {
-	"current_version": "0.6.0",
-	"node_version": "v20.10.0",
-	"environment": "production",
-	"is_ephemeral": false,
-	"installation_id": "sha256_hash_of_secret",
-	"stable_id": "sha256_hash_of_hardware_traits",
-	"db_type": "mongodb",
-	"location": {
-		"country": "Germany",
-		"country_code": "DE",
-		"region": "North Rhine-Westphalia",
-		"city": "Cologne",
-		"latitude": 50.9375,
-		"longitude": 6.9603,
-		"isp": "Hetzner Online GmbH",
-		"org": "Hetzner Cloud"
-	},
-	"metrics": {
-		"users": 150,
-		"collections": 12,
-		"roles": 5
-	},
-	"system": {
-		"cpu_count": 8,
-		"cpu_model": "Intel(R) Core(TM) i7...",
-		"total_memory_gb": 32,
-		"os_type": "Linux",
-		"os_arch": "x64"
-	},
-	"widgets": "[\"Seo\"]"
+  "current_version": "0.6.0",
+  "node_version": "v20.10.0",
+  "environment": "production",
+  "is_ephemeral": false,
+  "installation_id": "sha256_hash_of_secret",
+  "stable_id": "sha256_hash_of_hardware_traits",
+  "db_type": "mongodb",
+  "location": {
+    "country": "Germany",
+    "country_code": "DE",
+    "region": "North Rhine-Westphalia",
+    "city": "Cologne",
+    "latitude": 50.9375,
+    "longitude": 6.9603,
+    "isp": "Hetzner Online GmbH",
+    "org": "Hetzner Cloud"
+  },
+  "metrics": {
+    "users": 150,
+    "collections": 12,
+    "roles": 5
+  },
+  "system": {
+    "cpu_count": 8,
+    "cpu_model": "Intel(R) Core(TM) i7...",
+    "total_memory_gb": 32,
+    "os_type": "Linux",
+    "os_arch": "x64"
+  },
+  "widgets": "[\"Seo\"]"
 }
 ```
 
@@ -160,16 +160,23 @@ SVELTYCMS_TELEMETRY=false
 - **Scalability**: Ready for thousands of heartbeats; Rate limiting prevents abuse; Upsert logic prevents duplicate records.
 - **Open Source Ready**: Works even though code is public; Makes spoofing require significant effort.
 
-## 4. HMAC Authentication
+## 4. HMAC Authentication (Secure Registration Handshake)
 
-To prevent data spoofing and reduce fake telemetry, SveltyCMS uses HMAC-SHA256 signatures for authentication.
+To prevent data spoofing and ensure that only authentic SveltyCMS installations can submit telemetry, we use a **Dynamic HMAC-SHA256 Handshake**.
 
-### How It Works
+### The Registration Flow
 
-1.  **Payload Generation**: SveltyCMS generates a payload with telemetry data.
-2.  **HMAC Signature**: Before sending, it computes an HMAC-SHA256 signature using a shared salt.
-3.  **Validation**: The telemetry server validates the signature and ensures the timestamp is within a 5-minute window.
-4.  **Rejection**: Invalid signatures or expired timestamps results in a `403 Forbidden` response.
+1.  **First Boot**: On the very first telemetry check, the CMS calls `/api/register` on the telemetry server.
+2.  **Secret Issuance**: The server generates a **Unique, Cryptographically Secure Secret** (64-character hex) and returns it to the CMS.
+3.  **Local Storage**: The CMS saves this secret securely in its own database (`TELEMETRY_CLIENT_SECRET`).
+4.  **Signing**: Every subsequent payload is signed using this unique secret.
+5.  **Validation**: The telemetry server fetches the secret associated with the `installation_id` and verifies the HMAC signature.
+
+### Benefits of this Architecture
+
+- **Anti-Spoofing**: Even though the code is open-source, an attacker cannot spoof your installation's data because they do not have your unique secret.
+- **No Hardcoded Salts**: We've eliminated the "public salt" vulnerability.
+- **Replay Protection**: All requests include a 5-minute timestamp window. Invalid or expired signatures result in a `403 Forbidden` response.
 
 ## 5. Fair Source Licensing (BSL 1.1)
 

@@ -6,33 +6,32 @@
  *   - Verifies successful navigation to the admin area
  *   - Logs out and checks redirect to login page
  */
-import { expect, test } from '@playwright/test';
-import { ensureSidebarVisible, loginAsAdmin, logout } from './helpers/auth';
+import { expect, test } from "@playwright/test";
+import { loginAsAdmin, logout } from "./helpers/auth";
 
-test('Login and logout flow', async ({ page }) => {
-	// Set a higher timeout for this test (optional)
-	test.setTimeout(120_000); // 2 minutes
+test.describe("Login and Logout Flow", () => {
+  // Ensure we start with a clean state for the login test
+  test.use({ storageState: { cookies: [], origins: [] } });
 
-	// Use the auth helper to login
-	await loginAsAdmin(page);
+  test("should login and logout successfully", async ({ page }) => {
+    // Set a higher timeout for this test
+    test.setTimeout(120_000); // 2 minutes
 
-	// Assert we're logged in and at the Collections page
-	await expect(page).toHaveURL(/\/(Collections|admin|dashboard)/, {
-		timeout: 10_000
-	});
-	console.log('✓ Login successful, current URL:', page.url());
+    // Use the auth helper to login
+    await loginAsAdmin(page);
 
-	// On mobile viewports, open sidebar to access logout button
-	await ensureSidebarVisible(page);
+    // Assert we're logged in and at a valid post-login page
+    // Fresh installs redirect to collectionbuilder, existing ones to Collections/admin/dashboard
+    await expect(page).toHaveURL(/\/(Collections|admin|dashboard|collectionbuilder)/, {
+      timeout: 10_000,
+    });
+    console.log("✓ Login successful, current URL:", page.url());
 
-	// Wait for logout button and click it
-	// const logoutButton = page.locator('button[aria-label="Sign Out"]').first();
-	// await expect(logoutButton).toBeVisible({ timeout: 30000 });
+    // Click logout
+    await logout(page);
 
-	// Click logout
-	await logout(page);
-
-	// Assert redirect back to login
-	await expect(page).toHaveURL(/\/(login|signup)/, { timeout: 10_000 });
-	console.log('✓ Logout successful');
+    // Assert redirect back to login
+    await expect(page).toHaveURL(/\/(login|signup)/, { timeout: 10_000 });
+    console.log("✓ Logout successful");
+  });
 });

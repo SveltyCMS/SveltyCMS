@@ -1,0 +1,68 @@
+---
+path: "docs/tests/e2e-troubleshooting.mdx"
+title: "E2E Troubleshooting Guide"
+description: "Common failures, debugging patterns, and isolation strategies for the SveltyCMS Playwright suite."
+order: 5
+icon: "mdi:bug-play"
+author: "SveltyCMS Team"
+created: "2026-03-28"
+updated: "2026-04-09"
+tags:
+  - "testing"
+  - "e2e"
+  - "playwright"
+  - "troubleshooting"
+---
+
+# E2E Troubleshooting Guide
+
+This guide covers common issues encountered while running Playwright E2E tests in the SveltyCMS environment.
+
+## 1. Setup Wizard Re-runs (One-Time Initialization)
+
+> [!IMPORTANT]
+> **The Problem**: By default, SveltyCMS only allows the Setup Wizard to run if no configuration exists. Once a test completes the wizard, subsequent tests might be redirected to `/login`.
+
+**The Solution**:
+SveltyCMS uses a "Hard Reset" strategy in `TEST_MODE`.
+
+- **Database Isolation**: Playwright uses a `database-per-worker` pattern. Each worker (e.g., `worker0`) gets its own brand-new SQLite database file (`cms_worker0.db`).
+- **Testing API Reset**: Every test should call `POST /api/testing { "action": "reset" }` in its `beforeEach` hook.
+- **Hard Reset**: In `TEST_MODE`, the `reset` action automatically deletes the `config/private.test.ts` file, forcing the system back into "waiting for setup" mode.
+
+## 2. ECONNREFUSED Errors (Server Re-initialization)
+
+> [!WARNING]
+> **The Problem**: When the Setup Wizard completes (or the Testing API `setup` action is called), the server performs a `reinitializeSystem()`. This process briefly drops active connections, which can cause Playwright to throw `ECONNREFUSED`.
+
+**Debugging Steps**:
+
+1. Check the server logs for `[System] Re-initializing...`.
+2. Ensure your test uses the `retry` wrapper for final synchronization calls.
+3. If the error persists, increase the `waitForTimeout` between the Setup POST and the next verification step.
+
+## 3. UI Selectors & Brittle CSS
+
+> [!TIP]
+> **Best Practice**: We are currently migrating from Skeleton.dev to Native Svelte 5 components. Avoid using brittle CSS classes (e.g., `.btn-filled-primary`).
+
+**The Solution**:
+
+- **Priority 1**: Use `data-testid` (e.g., `page.getByTestId('db-host')`).
+- **Priority 2**: Use ARIA labels or role-based locators (e.g., `page.getByLabel('Next')`).
+- **Priority 3**: Use text-based locators if unique (e.g., `page.getByText('Success!')`).
+
+## 4. Worker Isolation & Port Conflicts
+
+SveltyCMS standardizes on `127.0.0.1:4173` for testing.
+
+- If you see `Address already in use`, ensure no ghost `vite preview` processes are running.
+- Use `npx playwright test --workers=1` if you suspect database locking issues, although the "database-per-worker" pattern should prevent this.
+
+## 5. Identifying the State
+
+You can verify the current system state via the logs:
+
+- `[setupCheck] private.test.ts NOT FOUND` -> System is in Setup Mode.
+- `[setupCheck] private.test.ts FOUND` -> System is initialized.
+- `SQLite adapter error [GET_ACTIVE_THEME_FAILED]` -> (Legacy) System is cold-starting. _Fixed in v0.0.7 to return null gracefully._

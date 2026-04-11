@@ -10,14 +10,21 @@
  * - Setup benchmarking and performance tracking
  */
 
-import { logger } from '@utils/logger';
-import type { Readable, Writable } from 'svelte/store';
-import { derived, get, writable } from 'svelte/store';
-import type { ServiceHealth, ServiceName, ServicePerformanceMetrics, ServiceStatus, SystemState, SystemStateStore } from './types';
+import { logger } from "@utils/logger";
+import type { Readable, Writable } from "svelte/store";
+import { derived, get, writable } from "svelte/store";
+import type {
+  ServiceHealth,
+  ServiceName,
+  ServicePerformanceMetrics,
+  ServiceStatus,
+  SystemState,
+  SystemStateStore,
+} from "./types";
 export type { ServiceName };
 
-import { initialState } from './config';
-import { calibrateAnomalyThresholds, detectAnomalies, saveCurrentMetrics } from './metrics';
+import { initialState } from "./config";
+import { calibrateAnomalyThresholds, detectAnomalies, saveCurrentMetrics } from "./metrics";
 
 // Create the writable store
 export const systemStateStore: Writable<SystemStateStore> = writable(initialState);
@@ -27,327 +34,428 @@ export const systemStateStore: Writable<SystemStateStore> = writable(initialStat
  * This reduces code duplication and ensures consistent state transitions.
  */
 function transitionServiceState(
-	state: SystemStateStore,
-	serviceName: keyof SystemStateStore['services'],
-	newStatus: ServiceHealth,
-	message: string,
-	error?: string
+  state: SystemStateStore,
+  serviceName: keyof SystemStateStore["services"],
+  newStatus: ServiceHealth,
+  message: string,
+  error?: string,
 ): SystemStateStore {
-	const now = Date.now();
-	const service = state.services[serviceName];
-	const metrics: ServicePerformanceMetrics = { ...service.metrics };
+  const now = Date.now();
+  const service = state.services[serviceName];
+  const metrics: ServicePerformanceMetrics = { ...service.metrics };
 
-	// Track initialization completion
-	if (newStatus === 'healthy' && service.status === 'initializing' && metrics.initializationStartedAt) {
-		const duration = now - metrics.initializationStartedAt;
-		metrics.initializationCompletedAt = now;
-		metrics.initializationDuration = duration;
+  // Track initialization completion
+  if (
+    newStatus === "healthy" &&
+    service.status === "initializing" &&
+    metrics.initializationStartedAt
+  ) {
+    const duration = now - metrics.initializationStartedAt;
+    metrics.initializationCompletedAt = now;
+    metrics.initializationDuration = duration;
 
-		// Update running statistics with EMA (Exponential Moving Average)
-		const alpha = 0.2; // Fixed smoothing factor for stable long-term behavior
-		if (metrics.averageInitTime) {
-			metrics.averageInitTime = alpha * duration + (1 - alpha) * metrics.averageInitTime;
-			metrics.minInitTime = Math.min(metrics.minInitTime ?? duration, duration);
-			metrics.maxInitTime = Math.max(metrics.maxInitTime ?? duration, duration);
-		} else {
-			metrics.averageInitTime = duration;
-			metrics.minInitTime = duration;
-			metrics.maxInitTime = duration;
-		}
+    // Update running statistics with EMA (Exponential Moving Average)
+    const alpha = 0.2; // Fixed smoothing factor for stable long-term behavior
+    if (metrics.averageInitTime) {
+      metrics.averageInitTime = alpha * duration + (1 - alpha) * metrics.averageInitTime;
+      metrics.minInitTime = Math.min(metrics.minInitTime ?? duration, duration);
+      metrics.maxInitTime = Math.max(metrics.maxInitTime ?? duration, duration);
+    } else {
+      metrics.averageInitTime = duration;
+      metrics.minInitTime = duration;
+      metrics.maxInitTime = duration;
+    }
 
-		logger.info(`✓ Service ${serviceName} initialized in ${duration}ms`, {
-			average: metrics.averageInitTime.toFixed(2),
-			min: metrics.minInitTime,
-			max: metrics.maxInitTime
-		});
+    logger.info(`✓ Service ${serviceName} initialized in ${duration}ms`, {
+      average: metrics.averageInitTime.toFixed(2),
+      min: metrics.minInitTime,
+      max: metrics.maxInitTime,
+    });
 
-		metrics.consecutiveFailures = 0;
-	}
+    metrics.consecutiveFailures = 0;
+  }
 
-	// Track failures - increment on every unhealthy status
-	if (newStatus === 'unhealthy') {
-		metrics.consecutiveFailures++;
-		metrics.failureCount++;
+  // Track failures - increment on every unhealthy status
+  if (newStatus === "unhealthy") {
+    metrics.consecutiveFailures++;
+    metrics.failureCount++;
 
-		// Log only on transition to unhealthy
-		if (service.status !== 'unhealthy') {
-			metrics.lastFailureAt = now;
-			logger.warn(`Service ${serviceName} became unhealthy (failure #${metrics.failureCount}, consecutive: ${metrics.consecutiveFailures})`, {
-				error
-			});
-		}
-	}
+    // Log only on transition to unhealthy
+    if (service.status !== "unhealthy") {
+      metrics.lastFailureAt = now;
+      logger.warn(
+        `Service ${serviceName} became unhealthy (failure #${metrics.failureCount}, consecutive: ${metrics.consecutiveFailures})`,
+        {
+          error,
+        },
+      );
+    }
+  }
 
-	// Track recovery
-	if (newStatus === 'healthy' && service.status === 'unhealthy') {
-		logger.info(`✓ Service ${serviceName} recovered from failure`);
-		metrics.consecutiveFailures = 0;
-	}
+  // Track recovery
+  if (newStatus === "healthy" && service.status === "unhealthy") {
+    logger.info(`✓ Service ${serviceName} recovered from failure`);
+    metrics.consecutiveFailures = 0;
+  }
 
-	// Update health check timestamp
-	metrics.healthCheckCount++;
-	metrics.lastHealthCheckAt = now;
+  // Update health check timestamp
+  metrics.healthCheckCount++;
+  metrics.lastHealthCheckAt = now;
 
-	const updatedState: SystemStateStore = {
-		...state,
-		services: {
-			...state.services,
-			[serviceName]: {
-				status: newStatus,
-				message,
-				lastChecked: now,
-				...(error && { error }),
-				metrics
-			}
-		},
-		lastStateChange: now
-	};
+  const updatedState: SystemStateStore = {
+    ...state,
+    services: {
+      ...state.services,
+      [serviceName]: {
+        status: newStatus,
+        message,
+        lastChecked: now,
+        ...(error && { error }),
+        metrics,
+      },
+    },
+    lastStateChange: now,
+  };
 
-	// Derive the new overall system state from the updated service statuses
-	const derivedState = deriveOverallState(updatedState.services);
-	updatedState.overallState = derivedState;
+  // Derive the new overall system state from the updated service statuses
+  const derivedState = deriveOverallState(updatedState.services);
+  updatedState.overallState = derivedState;
 
-	// Track successful initialization if state auto-derived to READY from INITIALIZING
-	if (derivedState === 'READY' && state.overallState === 'INITIALIZING' && state.performanceMetrics.totalInitializations > 0) {
-		const duration = state.initializationStartedAt ? now - state.initializationStartedAt : 0;
-		updatedState.performanceMetrics = {
-			...state.performanceMetrics,
-			successfulInitializations: state.performanceMetrics.successfulInitializations + 1,
-			lastInitDuration: duration
-		};
-		logger.info(`✓ System auto-transitioned to READY (initialization completed in ${duration}ms)`);
-	}
+  // Track successful initialization if state auto-derived to READY from INITIALIZING
+  if (
+    derivedState === "READY" &&
+    state.overallState === "INITIALIZING" &&
+    state.performanceMetrics.totalInitializations > 0
+  ) {
+    const duration = state.initializationStartedAt ? now - state.initializationStartedAt : 0;
+    updatedState.performanceMetrics = {
+      ...state.performanceMetrics,
+      successfulInitializations: state.performanceMetrics.successfulInitializations + 1,
+      lastInitDuration: duration,
+    };
+    logger.info(`✓ System auto-transitioned to READY (initialization completed in ${duration}ms)`);
+  }
 
-	return updatedState;
+  return updatedState;
 }
 
 /**
  * Start tracking initialization for a service
  */
-export function startServiceInitialization(serviceName: keyof SystemStateStore['services']): void {
-	const now = Date.now();
-	systemStateStore.update((state) => {
-		const service = state.services[serviceName];
-		return {
-			...state,
-			services: {
-				...state.services,
-				[serviceName]: {
-					...service,
-					status: 'initializing' as ServiceHealth,
-					metrics: {
-						...service.metrics,
-						initializationStartedAt: now,
-						restartCount: service.metrics.restartCount + (service.metrics.initializationStartedAt ? 1 : 0)
-					}
-				}
-			}
-		};
-	});
+export function startServiceInitialization(serviceName: keyof SystemStateStore["services"]): void {
+  const now = Date.now();
+  systemStateStore.update((state) => {
+    const service = state.services[serviceName];
+    return {
+      ...state,
+      services: {
+        ...state.services,
+        [serviceName]: {
+          ...service,
+          status: "initializing" as ServiceHealth,
+          metrics: {
+            ...service.metrics,
+            initializationStartedAt: now,
+            restartCount:
+              service.metrics.restartCount + (service.metrics.initializationStartedAt ? 1 : 0),
+          },
+        },
+      },
+    };
+  });
 }
 
 /**
  * Update a specific service's health status with performance tracking
  */
-export function updateServiceHealth(serviceName: keyof SystemStateStore['services'], status: ServiceHealth, message: string, error?: string): void {
-	// Use the centralized transition helper
-	systemStateStore.update((state) => {
-		const updatedState = transitionServiceState(state, serviceName, status, message, error);
+export function updateServiceHealth(
+  serviceName: keyof SystemStateStore["services"],
+  status: ServiceHealth,
+  message: string,
+  error?: string,
+): void {
+  // Use the centralized transition helper
+  systemStateStore.update((state) => {
+    const updatedState = transitionServiceState(state, serviceName, status, message, error);
 
-		// --- Post-transition side effects (now inside update for state consistency) ---
+    // --- Post-transition side effects (now inside update for state consistency) ---
 
-		// Update uptime metrics after state change
-		const service = updatedState.services[serviceName];
-		const metrics = service.metrics;
+    // Update uptime metrics after state change
+    const service = updatedState.services[serviceName];
+    const metrics = service.metrics;
 
-		// Calculate uptime percentage
-		if (metrics.healthCheckCount > 0) {
-			const healthyChecks = metrics.healthCheckCount - metrics.failureCount;
-			metrics.uptimePercentage = (healthyChecks / metrics.healthCheckCount) * 100;
-		}
+    // Calculate uptime percentage
+    if (metrics.healthCheckCount > 0) {
+      const healthyChecks = metrics.healthCheckCount - metrics.failureCount;
+      metrics.uptimePercentage = (healthyChecks / metrics.healthCheckCount) * 100;
+    }
 
-		// Track state transition timing if status changed
-		if (status === 'healthy' && metrics.initializationDuration) {
-			// We can't call store.update inside store.update, so we manually track the transition here
-			// but for simplicity and consistency, let's just ensure the state is consistent.
-		}
+    // Track state transition timing if status changed
+    if (status === "healthy" && metrics.initializationDuration) {
+      // We can't call store.update inside store.update, so we manually track the transition here
+      // but for simplicity and consistency, let's just ensure the state is consistent.
+    }
 
-		return updatedState;
-	});
+    return updatedState;
+  });
 
-	// Post-update side effects that need the store to be stable
-	const state = getSystemState();
-	const updatedService = state.services[serviceName];
+  // Post-update side effects that need the store to be stable
+  const state = getSystemState();
+  const updatedService = state.services[serviceName];
 
-	// Auto-calibrate thresholds periodically (every 10 health checks)
-	const currentMetrics = updatedService.metrics;
-	if (currentMetrics.healthCheckCount > 0 && currentMetrics.healthCheckCount % 10 === 0) {
-		calibrateAnomalyThresholds(serviceName, systemStateStore);
-		saveCurrentMetrics(systemStateStore);
-	}
+  // Auto-calibrate thresholds periodically (every 10 health checks)
+  const currentMetrics = updatedService.metrics;
+  if (currentMetrics.healthCheckCount > 0 && currentMetrics.healthCheckCount % 10 === 0) {
+    calibrateAnomalyThresholds(serviceName, systemStateStore);
+    saveCurrentMetrics(systemStateStore);
+  }
 
-	// Detect and report anomalies
-	const anomalies = detectAnomalies(serviceName, state);
-	if (anomalies.length > 0 && anomalies.some((a) => a.severity === 'critical' || a.severity === 'high')) {
-		logger.error(`🚨 ${anomalies.length} anomal${anomalies.length > 1 ? 'ies' : 'y'} detected for ${serviceName}`);
-	}
+  // Detect and report anomalies
+  const anomalies = detectAnomalies(serviceName, state);
+  if (anomalies.some((a) => a.severity === "critical" || a.severity === "high")) {
+    logger.error(
+      `🚨 ${anomalies.length} anomal${anomalies.length > 1 ? "ies" : "y"} detected for ${serviceName}`,
+    );
+  }
+}
+
+/**
+ * Update a service's latency metrics (Heartbeat) and check for performance anomalies.
+ */
+export function updateServiceLatency(
+  serviceName: keyof SystemStateStore["services"],
+  latency: number,
+): void {
+  systemStateStore.update((state) => {
+    const service = state.services[serviceName];
+    if (!service) return state;
+
+    const metrics = { ...service.metrics };
+    metrics.lastLatency = latency;
+
+    // Update average latency using EMA (Exponential Moving Average)
+    const alpha = 0.1;
+    if (metrics.averageLatency && metrics.averageLatency > 0) {
+      metrics.averageLatency = alpha * latency + (1 - alpha) * metrics.averageLatency;
+    } else {
+      metrics.averageLatency = latency;
+    }
+
+    // Check against threshold
+    const threshold = metrics.anomalyThresholds.maxLatency || 50;
+    if (latency > threshold) {
+      logger.warn(
+        `⚠️ High latency detected for ${serviceName}: ${latency.toFixed(2)}ms (Threshold: ${threshold}ms)`,
+      );
+    }
+
+    return {
+      ...state,
+      services: {
+        ...state.services,
+        [serviceName]: {
+          ...service,
+          metrics,
+        },
+      },
+    };
+  });
 }
 
 /**
  * Set the overall system state with transition tracking
  */
 export function setSystemState(state: SystemState, reason?: string): void {
-	const now = Date.now();
+  const now = Date.now();
 
-	systemStateStore.update((current) => {
-		const transition = {
-			from: current.overallState,
-			to: state,
-			timestamp: now,
-			...(reason && { reason })
-		};
+  systemStateStore.update((current) => {
+    const transition = {
+      from: current.overallState,
+      to: state,
+      timestamp: now,
+      ...(reason && { reason }),
+    };
 
-		// Keep last 50 transitions for analysis
-		const stateTransitions = [...current.performanceMetrics.stateTransitions, transition].slice(-50);
+    // Keep last 50 transitions for analysis
+    const stateTransitions = [...current.performanceMetrics.stateTransitions, transition].slice(
+      -50,
+    );
 
-		// Track initialization metrics
-		const performanceMetrics = {
-			...current.performanceMetrics,
-			stateTransitions
-		};
+    // Track initialization metrics
+    const performanceMetrics = {
+      ...current.performanceMetrics,
+      stateTransitions,
+    };
 
-		if (state === 'INITIALIZING' && current.overallState !== 'INITIALIZING') {
-			performanceMetrics.totalInitializations++;
-		}
+    if (state === "INITIALIZING" && current.overallState !== "INITIALIZING") {
+      performanceMetrics.totalInitializations++;
+    }
 
-		if (state === 'READY' && current.overallState !== 'READY' && performanceMetrics.totalInitializations > 0) {
-			const duration = current.initializationStartedAt ? now - current.initializationStartedAt : 0;
-			performanceMetrics.successfulInitializations++;
-			performanceMetrics.lastInitDuration = duration;
+    if (
+      state === "READY" &&
+      current.overallState !== "READY" &&
+      performanceMetrics.totalInitializations > 0
+    ) {
+      const duration = current.initializationStartedAt ? now - current.initializationStartedAt : 0;
+      performanceMetrics.successfulInitializations++;
+      performanceMetrics.lastInitDuration = duration;
 
-			// Update running statistics
-			if (performanceMetrics.averageTotalInitTime) {
-				const count = performanceMetrics.successfulInitializations;
-				performanceMetrics.averageTotalInitTime = (performanceMetrics.averageTotalInitTime * (count - 1) + duration) / count;
-				performanceMetrics.minTotalInitTime = Math.min(performanceMetrics.minTotalInitTime ?? duration, duration);
-				performanceMetrics.maxTotalInitTime = Math.max(performanceMetrics.maxTotalInitTime ?? duration, duration);
-			} else {
-				performanceMetrics.averageTotalInitTime = duration;
-				performanceMetrics.minTotalInitTime = duration;
-				performanceMetrics.maxTotalInitTime = duration;
-			}
+      // Update running statistics
+      if (performanceMetrics.averageTotalInitTime) {
+        const count = performanceMetrics.successfulInitializations;
+        performanceMetrics.averageTotalInitTime =
+          (performanceMetrics.averageTotalInitTime * (count - 1) + duration) / count;
+        performanceMetrics.minTotalInitTime = Math.min(
+          performanceMetrics.minTotalInitTime ?? duration,
+          duration,
+        );
+        performanceMetrics.maxTotalInitTime = Math.max(
+          performanceMetrics.maxTotalInitTime ?? duration,
+          duration,
+        );
+      } else {
+        performanceMetrics.averageTotalInitTime = duration;
+        performanceMetrics.minTotalInitTime = duration;
+        performanceMetrics.maxTotalInitTime = duration;
+      }
 
-			logger.info(`🚀 System initialization completed in ${duration}ms`, {
-				average: performanceMetrics.averageTotalInitTime.toFixed(2),
-				min: performanceMetrics.minTotalInitTime,
-				max: performanceMetrics.maxTotalInitTime,
-				successRate: `${((performanceMetrics.successfulInitializations / performanceMetrics.totalInitializations) * 100).toFixed(1)}%`
-			});
-		}
+      logger.info(`🚀 System initialization completed in ${duration}ms`, {
+        average: performanceMetrics.averageTotalInitTime.toFixed(2),
+        min: performanceMetrics.minTotalInitTime,
+        max: performanceMetrics.maxTotalInitTime,
+        successRate: `${((performanceMetrics.successfulInitializations / performanceMetrics.totalInitializations) * 100).toFixed(1)}%`,
+      });
+    }
 
-		if (state === 'FAILED' && current.overallState === 'INITIALIZING') {
-			performanceMetrics.failedInitializations++;
-		}
+    if (state === "FAILED" && current.overallState === "INITIALIZING") {
+      performanceMetrics.failedInitializations++;
+    }
 
-		logger.info(`System state changed: ${current.overallState} → ${state}`, {
-			reason
-		});
+    logger.info(`System state changed: ${current.overallState} → ${state}`, {
+      reason,
+    });
 
-		return {
-			...current,
-			overallState: state,
-			lastStateChange: now,
-			performanceMetrics,
-			...(state === 'INITIALIZING' && { initializationStartedAt: now }),
-			...(state === 'READY' && current.initializationStartedAt && { initializationCompletedAt: now })
-		};
-	});
+    return {
+      ...current,
+      overallState: state,
+      lastStateChange: now,
+      performanceMetrics,
+      ...(state === "INITIALIZING" && { initializationStartedAt: now }),
+      ...(state === "READY" &&
+        current.initializationStartedAt && { initializationCompletedAt: now }),
+    };
+  });
 }
 
 // Derive overall system state from individual service statuses
-function deriveOverallState(services: SystemStateStore['services']): SystemState {
-	const criticalServices = ['database', 'auth'] as const;
-	const allServices = Object.keys(services) as ServiceName[];
+function deriveOverallState(services: SystemStateStore["services"]): SystemState {
+  const criticalServices = ["database", "auth"] as const;
+  const allServices = Object.keys(services) as ServiceName[];
 
-	// 1. Check for MAINTENANCE mode
-	const anyMaintenance = allServices.some((service) => services[service].status === 'maintenance');
-	if (anyMaintenance) {
-		return 'MAINTENANCE';
-	}
+  // 1. Check for MAINTENANCE mode
+  const anyMaintenance = allServices.some((service) => services[service].status === "maintenance");
+  if (anyMaintenance) {
+    return "MAINTENANCE";
+  }
 
-	// 2. Check if any critical service is unhealthy
-	const criticalUnhealthy = criticalServices.some((service) => services[service].status === 'unhealthy');
-	if (criticalUnhealthy) {
-		return 'FAILED';
-	}
+  // 2. Check for RECOVERY mode (Autonomous healing in progress)
+  const anyRecovery = criticalServices.some(
+    (service) =>
+      services[service].status === "initializing" && services[service].message.includes("recovery"),
+  );
+  if (anyRecovery) {
+    return "RECOVERY";
+  }
 
-	// 3. Check if any critical service is still initializing
-	const criticalInitializing = criticalServices.some((service) => services[service].status === 'initializing');
-	if (criticalInitializing) {
-		return 'INITIALIZING';
-	}
+  // 3. Check if any critical service is unhealthy
+  const criticalUnhealthy = criticalServices.some(
+    (service) => services[service].status === "unhealthy",
+  );
+  if (criticalUnhealthy) {
+    return "FAILED";
+  }
 
-	// 4. Check for SETUP mode (Critical services healthy, but Widgets/Themes are skipped)
-	// If critical services are ready, but we skipped widgets/themes (e.g. during setup), we are in SETUP mode
-	const widgetsSkipped = services.widgets?.status === 'skipped';
-	const themeSkipped = services.themeManager?.status === 'skipped';
-	if (widgetsSkipped && themeSkipped) {
-		return 'SETUP';
-	}
+  // 3. Check if any critical service is still initializing
+  const criticalInitializing = criticalServices.some(
+    (service) => services[service].status === "initializing",
+  );
+  if (criticalInitializing) {
+    return "INITIALIZING";
+  }
 
-	// 5. Check if all services are healthy (WARMED)
-	// Ignore 'skipped' services for this check unless ALL non-critical are skipped (which is handled by SETUP above)
-	const allHealthy = allServices.every((service) => services[service].status === 'healthy' || services[service].status === 'skipped');
-	if (allHealthy) {
-		return 'WARMED';
-	}
+  // 4. Check for SETUP mode (Critical services healthy, but Widgets/Themes are skipped)
+  // If critical services are ready, but we skipped widgets/themes (e.g. during setup), we are in SETUP mode
+  const widgetsSkipped = services.widgets?.status === "skipped";
+  const themeSkipped = services.themeManager?.status === "skipped";
+  if (widgetsSkipped && themeSkipped) {
+    return "SETUP";
+  }
 
-	// 6. Check if some services are unhealthy (DEGRADED)
-	const anyUnhealthy = allServices.some((service) => services[service].status === 'unhealthy');
-	if (anyUnhealthy) {
-		return 'DEGRADED';
-	}
+  // 5. Check if all services are healthy (WARMED)
+  // Ignore 'skipped' services for this check unless ALL non-critical are skipped (which is handled by SETUP above)
+  const allHealthy = allServices.every(
+    (service) => services[service].status === "healthy" || services[service].status === "skipped",
+  );
+  if (allHealthy) {
+    return "WARMED";
+  }
 
-	// 7. If critical services are healthy but some non-critical services are still initializing (WARMING)
-	const anyInitializing = allServices.some((service) => services[service].status === 'initializing');
-	if (anyInitializing) {
-		return 'WARMING';
-	}
+  // 6. Check if some services are unhealthy (DEGRADED)
+  const anyUnhealthy = allServices.some((service) => services[service].status === "unhealthy");
+  if (anyUnhealthy) {
+    return "DEGRADED";
+  }
 
-	return 'READY';
+  // 7. If critical services are healthy but some non-critical services are still initializing (WARMING)
+  const anyInitializing = allServices.some(
+    (service) => services[service].status === "initializing",
+  );
+  if (anyInitializing) {
+    return "WARMING";
+  }
+
+  return "READY";
 }
 
 // Get the current system state (synchronous)
 export function getSystemState(): SystemStateStore {
-	return get(systemStateStore);
+  return get(systemStateStore);
 }
 
 // Check if the system is ready (synchronous)
 export function isSystemReady(): boolean {
-	const state = getSystemState();
-	return state.overallState === 'READY' || state.overallState === 'WARMED' || state.overallState === 'WARMING' || state.overallState === 'DEGRADED';
+  const state = getSystemState();
+  return (
+    state.overallState === "READY" ||
+    state.overallState === "WARMED" ||
+    state.overallState === "WARMING" ||
+    state.overallState === "DEGRADED"
+  );
 }
 
 // Check if a specific service is healthy (synchronous)
 export function isServiceHealthy(serviceName: ServiceName): boolean {
-	const state = getSystemState();
-	return state.services[serviceName].status === 'healthy';
+  const state = getSystemState();
+  return state.services[serviceName].status === "healthy";
 }
 
 // Reset system state to IDLE (used for shutdown or reinitialization)
 export function resetSystemState(): void {
-	logger.info('Resetting system state to IDLE');
-	systemStateStore.set({
-		...structuredClone(initialState),
-		lastStateChange: Date.now()
-	});
+  logger.info("Resetting system state to IDLE");
+  systemStateStore.set({
+    ...structuredClone(initialState),
+    lastStateChange: Date.now(),
+  });
 }
 
 // Get a readable store for the system state (for Svelte components)
 export const systemState: Readable<SystemStateStore> = derived(systemStateStore, (state) => state);
 
 // Get a readable store for just the overall state (for simple checks)
-export const overallState: Readable<SystemState> = derived(systemStateStore, (state) => state.overallState);
+export const overallState: Readable<SystemState> = derived(
+  systemStateStore,
+  (state) => state.overallState,
+);
 
 // --- Granular Derived Stores for Improved Reactivity ---
 
@@ -355,37 +463,46 @@ export const overallState: Readable<SystemState> = derived(systemStateStore, (st
  * A derived store that returns true if the system is in a ready or degraded state.
  * Ideal for use in UI components to show/hide content based on system readiness.
  */
-export const isReady: Readable<boolean> = derived(overallState, (s) => s === 'READY' || s === 'WARMED' || s === 'WARMING' || s === 'DEGRADED');
+export const isReady: Readable<boolean> = derived(
+  overallState,
+  (s) => s === "READY" || s === "WARMED" || s === "WARMING" || s === "DEGRADED",
+);
 
 /**
  * A derived store that returns true if the system is currently initializing.
  */
-export const isInitializing: Readable<boolean> = derived(overallState, (s) => s === 'INITIALIZING');
+export const isInitializing: Readable<boolean> = derived(overallState, (s) => s === "INITIALIZING");
 
 /**
  * A derived store that returns true if the system is currently serving traffic (READY, WARMING, or WARMED).
  */
-export const isServing: Readable<boolean> = derived(overallState, (s) => s === 'WARMING' || s === 'READY' || s === 'WARMED');
+export const isServing: Readable<boolean> = derived(
+  overallState,
+  (s) => s === "WARMING" || s === "READY" || s === "WARMED",
+);
 
 /**
  * A derived store that returns true if the system is fully warmed up.
  */
-export const isWarmed: Readable<boolean> = derived(overallState, (s) => s === 'WARMED');
+export const isWarmed: Readable<boolean> = derived(overallState, (s) => s === "WARMED");
 
 /**
  * A derived store that returns true if the system has failed.
  */
-export const isFailed: Readable<boolean> = derived(overallState, (s) => s === 'FAILED');
+export const isFailed: Readable<boolean> = derived(overallState, (s) => s === "FAILED");
 
 /**
  * A derived store that returns true if the system is in a degraded state.
  */
-export const isDegraded: Readable<boolean> = derived(overallState, (s) => s === 'DEGRADED');
+export const isDegraded: Readable<boolean> = derived(overallState, (s) => s === "DEGRADED");
 
 /**
  * A derived store containing the status of all individual services.
  */
-export const servicesStatus: Readable<SystemStateStore['services']> = derived(systemState, (s) => s.services);
+export const servicesStatus: Readable<SystemStateStore["services"]> = derived(
+  systemState,
+  (s) => s.services,
+);
 
 /**
  * Individual derived stores for each service's status.
@@ -394,5 +511,11 @@ export const servicesStatus: Readable<SystemStateStore['services']> = derived(sy
 export const databaseStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.database);
 export const authStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.auth);
 export const cacheStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.cache);
-export const contentManagerStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.contentManager);
-export const themeManagerStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.themeManager);
+export const contentSystemStatus: Readable<ServiceStatus> = derived(
+  servicesStatus,
+  (s) => s.contentSystem,
+);
+export const themeManagerStatus: Readable<ServiceStatus> = derived(
+  servicesStatus,
+  (s) => s.themeManager,
+);

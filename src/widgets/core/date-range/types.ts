@@ -7,14 +7,14 @@
  * Defines the properties unique to the DateRange widget.
  */
 export interface DateRangeProps {
-	/**
-	 * Display format for the date range
-	 * @default 'medium'
-	 */
-	displayFormat?: 'short' | 'medium' | 'long' | 'full';
+  /**
+   * Display format for the date range
+   * @default 'medium'
+   */
+  displayFormat?: "short" | "medium" | "long" | "full";
 
-	/**
-	 * Allow additional widget properties
-	 */
-	[key: string]: unknown;
+  /**
+   * Allow additional widget properties
+   */
+  [key: string]: unknown;
 }
