@@ -15,7 +15,7 @@ import {
   createSAMLConnection,
 } from "@src/databases/auth/saml-auth";
 import { getAllPermissions } from "@src/databases/auth/permissions";
-import { successResponse } from "./base";
+import { successResponse, rawResponse } from "./base";
 
 export async function handleAuthUserRoutes(
   event: RequestEvent,
@@ -46,6 +46,15 @@ export async function handleAuthUserRoutes(
     return handleLogin(event, cms, tenantId, cookies);
   if (method === "logout" && request.method === "POST")
     return handleLogout(event, cms, tenantId, cookies);
+  if (method === "create-user" && request.method === "POST")
+    return handleCreateUser(event, cms, tenantId);
+  if (
+    method === "update-user-attributes" &&
+    (request.method === "POST" || request.method === "PUT" || request.method === "PATCH")
+  )
+    return handleUpdateUserAttributesRoute(event, cms, tenantId);
+  if (method === "save-avatar" && request.method === "POST")
+    return handleSaveAvatarRoute(event, cms, tenantId);
   if (method === "me" && request.method === "GET") return successResponse(event, user);
   if (method === "update-roles" && request.method === "POST")
     return handleUpdateRoles(event, cms, tenantId, user);
@@ -70,9 +79,10 @@ export async function handleListUsers(event: RequestEvent, cms: LocalCMS, tenant
   const search = url.searchParams.get("search") || "";
   const sort = url.searchParams.get("sort") || "createdAt";
   const order = (url.searchParams.get("order") as "asc" | "desc") || "desc";
+  const raw = url.searchParams.get("raw") === "true";
 
   const result = await cms.auth.listUsers({ tenantId, page, limit, search, sort, order });
-  return successResponse(event, result);
+  return raw ? rawResponse(event, result.data) : successResponse(event, result);
 }
 
 /**
@@ -102,6 +112,64 @@ export async function handleLogin(
   });
 
   return successResponse(event, { user: result.user, token: result.session._id });
+}
+
+/**
+ * Handles user creation.
+ */
+export async function handleCreateUser(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
+  const body = await event.request.json();
+  const result = await cms.auth.createUser(body, tenantId);
+  if (!result.success) {
+    throw new AppError(result.message || "Failed to create user", 400);
+  }
+  return successResponse(event, result.data, 201);
+}
+
+/**
+ * Handles user attribute updates.
+ */
+export async function handleUpdateUserAttributesRoute(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+) {
+  const body = await event.request.json();
+  const { user_id, newUserData } = body;
+  const targetId = user_id === "self" ? event.locals.user?._id : user_id;
+
+  if (!targetId) throw new AppError("User ID is required", 400);
+
+  const result = await cms.auth.updateUserAttributes(targetId, newUserData || body, tenantId);
+  return successResponse(event, result);
+}
+
+/**
+ * Handles user avatar saving.
+ */
+export async function handleSaveAvatarRoute(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+) {
+  let userId: string;
+  let avatar: string;
+
+  if (event.request.headers.get("content-type")?.includes("multipart/form-data")) {
+    const formData = await event.request.formData();
+    userId = (formData.get("user_id") as string) || "self";
+    avatar = formData.get("avatar") as string;
+  } else {
+    const body = await event.request.json();
+    userId = body.user_id || "self";
+    avatar = body.avatar;
+  }
+
+  const targetId = userId === "self" ? event.locals.user?._id : userId;
+  if (!targetId) throw new AppError("User ID is required", 400);
+
+  const result = await cms.auth.saveAvatar(targetId, avatar, tenantId);
+  return successResponse(event, result);
 }
 
 /**
@@ -159,15 +227,16 @@ export async function handle2FARoutes(
     return successResponse(event, result);
   }
 
-  if (action === "enable" && event.request.method === "POST") {
-    const { code, secret, backupCodes } = await event.request.json();
+  if ((action === "enable" || action === "verify-setup") && event.request.method === "POST") {
+    const { code, verificationCode, secret, backupCodes } = await event.request.json();
     const result = await twoFactorService.complete2FASetup(
       user._id,
       secret,
-      code,
+      code || verificationCode,
       backupCodes,
       tenantId,
     );
+    if (!result) throw new AppError("Invalid verification code", 400);
     return successResponse(event, { success: result });
   }
 
@@ -253,7 +322,7 @@ export async function handleUserSpecificRoutes(
       const targetUser = await cms.auth.getUserById(userId, tenantId);
       return successResponse(event, targetUser);
     }
-    if (request.method === "PATCH") {
+    if (request.method === "PATCH" || request.method === "PUT") {
       const data = await request.json();
       const result = await cms.auth.updateUserAttributes(userId, data, tenantId);
       return successResponse(event, result);

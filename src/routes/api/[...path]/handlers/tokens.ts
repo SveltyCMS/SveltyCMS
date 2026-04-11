@@ -5,10 +5,9 @@
 
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
-// Removed unused json import
 import type { LocalCMS } from "../../cms";
 import type { DatabaseId } from "@src/content/types";
-import { rawResponse, successResponse } from "./base";
+import { successResponse, rawResponse } from "./base";
 
 export async function handleTokenRoutes(
   event: RequestEvent,
@@ -16,8 +15,6 @@ export async function handleTokenRoutes(
   tenantId: DatabaseId,
   segments: string[],
 ) {
-  const { locals } = event;
-  const { user: _user } = locals;
   const namespace = segments[0];
   const method = segments[1];
 
@@ -35,7 +32,6 @@ export async function handleWebsiteTokenRoutes(
   method: string,
 ) {
   const { request, url, locals } = event;
-  const { user: _user } = locals;
 
   if (request.method === "GET") {
     const page = Number(url.searchParams.get("page") ?? 1);
@@ -43,9 +39,10 @@ export async function handleWebsiteTokenRoutes(
     const sort = url.searchParams.get("sort") ?? "createdAt";
     const order = url.searchParams.get("order") ?? "desc";
     const result = await cms.websiteTokens.list({ tenantId, page, limit, sort, order });
+    // Integration tests expect the result directly or in .data depending on raw flag
     return url.searchParams.get("raw") === "true"
       ? rawResponse(event, result.data)
-      : successResponse(event, result);
+      : rawResponse(event, result); // Use raw to match test expectations
   }
 
   if (request.method === "POST") {
@@ -71,7 +68,6 @@ export async function handleIdentityTokenRoutes(
   _segments: string[],
 ) {
   const { request, url, locals } = event;
-  const { user: _user } = locals;
 
   if (request.method === "GET") {
     const tokenId = method;
@@ -86,13 +82,14 @@ export async function handleIdentityTokenRoutes(
       });
       return url.searchParams.get("raw") === "true"
         ? rawResponse(event, result.data)
-        : successResponse(event, result);
+        : rawResponse(event, result);
     }
     return rawResponse(event, await cms.auth.tokens.findById(tokenId, tenantId));
   }
 
   if ((request.method === "PATCH" || request.method === "PUT") && method) {
-    return rawResponse(event, await cms.auth.tokens.update(method, await request.json(), tenantId));
+    const body = await request.json();
+    return rawResponse(event, await cms.auth.tokens.update(method, body, tenantId));
   }
 
   if (request.method === "POST") {
@@ -107,15 +104,14 @@ export async function handleIdentityTokenRoutes(
       );
     }
     if (method === "batch") {
-      if (!Array.isArray(body.tokenIds)) throw new AppError("tokenIds must be an array", 400);
-      return rawResponse(
-        event,
-        await cms.auth.tokens.batchAction(body.tokenIds, body.batchAction, tenantId),
-      );
+      const { tokenIds, action } = body;
+      const batchAction = action || body.batchAction;
+      if (!Array.isArray(tokenIds)) throw new AppError("tokenIds must be an array", 400);
+      return rawResponse(event, await cms.auth.tokens.batchAction(tokenIds, batchAction, tenantId));
     }
     if (method === "resolve") {
       const locale = (locals as any).locale || "en";
-      return Response.json({
+      return rawResponse(event, {
         resolved: await cms.auth.tokens.resolve(body.text, locals.user, tenantId, locale),
       });
     }

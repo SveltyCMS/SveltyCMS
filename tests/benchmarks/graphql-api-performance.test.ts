@@ -30,6 +30,7 @@ async function runGraphQLBenchmarkSuite() {
     const meResult = await runBenchmark({
       name: "GraphQL: Me Query (Auth)",
       iterations: ITERATIONS,
+      warmupIterations: 20,
       concurrency: CONCURRENCY,
       silent: true,
       onIteration: async () => {
@@ -48,6 +49,7 @@ async function runGraphQLBenchmarkSuite() {
     const healthResult = await runBenchmark({
       name: "GraphQL: System Health",
       iterations: ITERATIONS,
+      warmupIterations: 20,
       concurrency: CONCURRENCY,
       silent: true,
       onIteration: async () => {
@@ -68,6 +70,7 @@ async function runGraphQLBenchmarkSuite() {
     const statsResult = await runBenchmark({
       name: "GraphQL: All Collection Stats",
       iterations: ITERATIONS,
+      warmupIterations: 20,
       concurrency: CONCURRENCY,
       silent: true,
       onIteration: async () => {
@@ -86,6 +89,7 @@ async function runGraphQLBenchmarkSuite() {
     const usersResult = await runBenchmark({
       name: "GraphQL: List Users",
       iterations: ITERATIONS,
+      warmupIterations: 20,
       concurrency: CONCURRENCY,
       silent: true,
       onIteration: async () => {
@@ -106,6 +110,7 @@ async function runGraphQLBenchmarkSuite() {
     const mediaResult = await runBenchmark({
       name: "GraphQL: Media Images",
       iterations: ITERATIONS,
+      warmupIterations: 20,
       concurrency: CONCURRENCY,
       silent: true,
       onIteration: async () => {
@@ -126,6 +131,7 @@ async function runGraphQLBenchmarkSuite() {
     const nestedResult = await runBenchmark({
       name: "GraphQL: Nested Relation",
       iterations: 50,
+      warmupIterations: 10,
       concurrency: 5,
       silent: true,
       onIteration: async () => {

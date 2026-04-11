@@ -89,6 +89,12 @@ export const contentSystem = {
       const { contentService } = await import("./content-service.server");
       await contentService.fullReload(tenantId, skipReconciliation, adapter, incremental);
 
+      // 2.5 Invalidate OpenAPI Spec if reconciliation occurred
+      if (!skipReconciliation) {
+        const { apiSpecService } = await import("@src/services/system/api-spec-service");
+        void apiSpecService.invalidateCache(tenantId || undefined);
+      }
+
       // 3. Populate Cache
       if (setupComplete) {
         const cacheService = await getCacheService();

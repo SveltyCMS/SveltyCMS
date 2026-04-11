@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:check-circle"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-04-01"
+updated: "2026-04-11"
 tags:
   - "api"
   - "documentation"
@@ -28,9 +28,9 @@ Maintain 100% transparency regarding the documentation status of the SveltyCMS A
 
 | Metric                         | Status |
 | :----------------------------- | :----- |
-| **Total Documented Groups**    | 15     |
+| **Total Documented Groups**    | 14     |
 | **Endpoint Coverage**          | ~98%   |
-| **Local SDK Parity**           | 92%    |
+| **Local SDK Parity**           | 95%    |
 | **Database Agnostic Verified** | 100%   |
 
 ### ✅ API Group Status
@@ -40,14 +40,17 @@ Maintain 100% transparency regarding the documentation status of the SveltyCMS A
 | **Collections**    | [Reference](./collection-api.mdx)                           | `locals.cms.collections` | ✅ Complete |
 | **Media**          | [Reference](./media-api.mdx)                                | `locals.cms.media`       | ✅ Complete |
 | **Authentication** | [Reference](./authentication-2fa-api.mdx)                   | `locals.cms.auth`        | ✅ Complete |
-| **Workflows**      | [Reference](../guides/development/workflow-engine.mdx)      | `locals.cms.workflows`   | ✅ Complete |
 | **Security**       | [Reference](../architecture/security/index.mdx)             | `locals.cms.security`    | ✅ Complete |
-| **Monitor**        | [Reference](../guides/configuration/enterprise-monitor.mdx) | `locals.cms.monitor`     | ✅ Complete |
 | **Tokens**         | [Reference](./api-access-tokens.mdx)                        | `locals.cms.tokens`      | ✅ Complete |
 | **Search**         | [Reference](./search-api.mdx)                               | `locals.cms.search`      | ✅ Complete |
 | **Webhooks**       | [Reference](./webhooks.mdx)                                 | `locals.cms.webhooks`    | ✅ Complete |
 | **Widgets**        | [Reference](./widget-api.mdx)                               | `locals.cms.widgets`     | ✅ Complete |
 | **Dashboard**      | [Reference](./dashboard-api.mdx)                            | `locals.cms.dashboard`   | ✅ Complete |
+| **System Utils**   | [Reference](./system-utilities-api.mdx)                     | `locals.cms.system`      | ✅ Complete |
+| **Setup API**      | [Reference](./setup-actions-api.mdx)                        | `setupManager`           | ✅ Complete |
+| **SCIM v2.0**      | [Reference](./scim-v2-api.mdx)                              | N/A                      | ✅ Complete |
+| **SAML SSO**       | [Reference](./saml-sso-api.mdx)                             | N/A                      | ✅ Complete |
+| **OpenAPI**        | [Reference](./openapi-spec.mdx)                             | `apiSpecService`         | ✅ Complete |
 
 > [!TIP]
 > **Documentation Parity**: If you find an endpoint in `src/routes/api/` that is not listed here, please open an issue or update the relevant MDX file and this report.

@@ -51,6 +51,7 @@ SveltyCMS alwaysoutperforms competitors like Payload CMS (React/Next.js-based), 
 | **Schemas**       | Hybrid (Code + GUI, bi-directional)       | Flexible vs. code-only (Payload) or GUI-only (Strapi).   |
 | **Multi-Tenancy** | Native (tenantId isolation)               | Core/free vs. enterprise-gated in Strapi/Contentful.     |
 | **SCIM 2.0**      | Native endpoints (RFC 7644, filters/bulk) | Automated provisioning vs. manual/enterprise in others.  |
+| **OpenAPI 3.1.0** | Dynamic Export & SDK Ready                | Generate clients for any language automatically.         |
 | **Audit Logs**    | Crypto-chained (SHA-256 tamper-evident)   | Compliance-ready vs. basic/manual in competitors.        |
 | **Accessibility** | WCAG 2.2 AA / ATAG 2.0                    | Full support vs. partial in Payload/Strapi.              |
 
@@ -250,6 +251,7 @@ From the 2026 roadmap (v0.0.6, target A+ grade), prioritize these for parity/lea
 - [x] **Edge Computing & Multi-Region**: Native support for edge-optimized data fetching and multi-region replication.
 - [x] **BuzzForm Visual Builder (v1.5)**: Production-ready drag-and-drop form/collection builder with real-time preview.
 - [x] **Secure Media Engine (v1.2)**: Native SSRF protection, command injection prevention (spawn-based), and hardened directory traversal.
+- [x] **OpenAPI 3.1.0 (v0.0.8)**: Dynamic specification export for automated SDK generation and documentation.
 - [x] **99.9% Self-Healing Cache (v0.0.8)**: Incremental file scanning (mtime-hashing) and smart structural reconciliation.
 - [x] **High-Performance Local API (v0.0.8)**: Zero-latency server-side CRUD bridge with full widget logic parity.
 - [/] **Image Editor Enhancement**: Current implementation stabilized; adding cropping, filters, and focal point management.

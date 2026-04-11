@@ -6,7 +6,7 @@ order: 8
 icon: "mdi:view-dashboard"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-04-01"
+updated: "2026-04-11"
 tags:
   - "api"
   - "dashboard"
@@ -17,51 +17,51 @@ tags:
 
 # Dashboard & Monitoring API
 
-## 1. The Goal
-
-Provide real-time visibility into system health, performance metrics, and user activity. This API powers the SveltyCMS Admin Studio dashboard and enables external monitoring via Prometheus or custom analytics tools.
-
----
-
-## 2. The Solution
-
-### 🚀 Quick Reference
-
-| Method  | Endpoint                       | **Local SDK Equivalent**                | Description                          |
-| :------ | :----------------------------- | :-------------------------------------- | :----------------------------------- |
-| **GET** | `/api/dashboard/metrics`       | `locals.cms.dashboard.getMetrics`       | System performance & health metrics  |
-| **GET** | `/api/dashboard/systemInfo`    | `locals.cms.dashboard.getSystemInfo`    | Detailed OS/Node.js environment info |
-| **GET** | `/api/dashboard/cache-metrics` | `locals.cms.dashboard.getCacheMetrics`  | Redis/Internal cache hit rates       |
-| **GET** | `/api/dashboard/logs`          | `locals.cms.dashboard.getLogs`          | Retrieve recent system logs          |
-| **GET** | `/api/dashboard/online-user`   | `locals.cms.dashboard.getOnlineUsers`   | List currently active users          |
-| **GET** | `/api/dashboard/last5-content` | `locals.cms.dashboard.getRecentContent` | Most recently modified entries       |
+The Dashboard API provides real-time visibility into system health, performance metrics, and user activity. This API powers the SveltyCMS Admin Studio dashboard and enables external monitoring via custom analytics tools.
 
 > [!TIP]
-> **Performance Tip**: When building custom widgets for the Admin Studio, use the **Local SDK** in your `+page.server.ts` to fetch metrics. It avoids unnecessary JSON serialization and network overhead.
+> **OpenAPI Integration**: This API is dynamically documented in our [OpenAPI 3.1.0 Specification](./openapi-spec.mdx). Access the machine-readable contract at `/api/openapi.json`.
 
 ---
 
-### A. System Metrics
+## ⚡ Quick Reference
+
+| Feature | HTTP Endpoint | Description |
+| :--- | :--- | :--- |
+| **System Metrics** | `GET /api/dashboard/metrics` | Returns performance & health metrics (e.g., RPS, latency). |
+| **System Info** | `GET /api/dashboard/system-info` | Returns OS and Node.js environment information. |
+| **Cache Metrics** | `GET /api/dashboard/cache-metrics` | Returns hit/miss rates for the Redis/Memory cache. |
+| **Audit Logs** | `GET /api/dashboard/logs` | Retrieves paginated system and activity logs. |
+| **Online Users** | `GET /api/dashboard/online-user` | Lists currently active users and their activity time. |
+| **Recent Content** | `GET /api/dashboard/last5-content` | Lists the 5 most recently modified content entries. |
+| **Recent Media** | `GET /api/dashboard/last5media` | Lists the 5 most recently uploaded media assets. |
+| **System Messages** | `GET /api/dashboard/system-messages` | Returns active system alerts and notifications. |
+
+---
+
+## 1. Key Metrics & Diagnostics
+
+### Performance Metrics
 
 Retrieves core performance indicators including request counts, average response times, and error rates.
 
 **Endpoint**: `GET /api/dashboard/metrics?detailed=true`
 
-### B. System Logs
+### System Logs (Audit Trail)
 
-Access the internal logging stream. Supports filtering by level (`error`, `warn`, `info`) and time ranges.
+Access the internal logging stream. Supports filtering by severity level and pagination.
 
-**Endpoint**: `GET /api/dashboard/logs`
+**Endpoint**: `GET /api/dashboard/logs?limit=50&page=1`
 
-### C. Preferences API
+### User Preferences
 
-Manages user-specific dashboard layouts and widget states.
+Manages dashboard-specific UI preferences for the authenticated user.
 
-**Endpoint**: `GET /api/system-preferences?key=dashboard.layout.default`
+**Endpoint**: `GET /api/system-preferences?key=dashboard.layout`
 
 ---
 
-## 3. The Mechanics
+## 2. The Mechanics
 
 ### Metrics Collection Pipeline
 
@@ -76,14 +76,15 @@ flowchart TD
     H[Dashboard API] --> F
 ```
 
-### Database-Agnostic Abstraction
+### Scoped Visibility
 
-The Dashboard API never queries the database directly. It utilizes the **MetricsService** and **LogAdapter** interfaces to ensure compatibility across all supported database engines.
-
-### Multi-Tenancy Scoping
-
-In Multi-Tenant mode, all metrics (except system-wide health) are automatically scoped to the `tenantId` of the authenticated user. Super-admins can access global metrics by omitting the tenant filter.
+- **Standard Users**: Can only access metrics related to their assigned `tenantId`.
+- **System Admins**: Can access global health and aggregate metrics across all tenants.
 
 ---
 
-**Next Steps**: For real-time updates, see the [Real-Time Events API Reference](./real-time-events-api.mdx). To configure log levels, see the [Logger Levels Guide](../architecture/logger-levels.mdx).
+## Related Documents
+
+- [Real-Time Events API Reference](./real-time-events-api.mdx)
+- [System Utilities API Reference](./system-utilities-api.mdx)
+- [Logger Levels Architecture](../architecture/logger-levels.mdx)

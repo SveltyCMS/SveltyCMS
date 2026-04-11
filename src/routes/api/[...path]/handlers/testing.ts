@@ -121,14 +121,33 @@ export async function handleTestingRoutes(
     return rawResponse(event, { success: true, count });
   }
 
-  if (action === "sdkCall") {
-    const { namespace, method, args } = params;
-    const ns = (cms as any)[namespace];
+  if (action === "sdkCall" || action === "sdk-call") {
+    let { namespace, method, args } = params;
+
+    // Handle dotted method (e.g. "db.auth.createUser")
+    if (method.includes(".")) {
+      const parts = method.split(".");
+      const fnName = parts.pop()!;
+      let current: any = cms;
+      for (const part of parts) {
+        current = current[part];
+        if (!current) break;
+      }
+      if (current && typeof current[fnName] === "function") {
+        const result = await current[fnName](...(args || []));
+        return rawResponse(event, { success: true, data: result });
+      }
+    }
+
+    const ns = namespace ? (cms as any)[namespace] : cms;
     if (!ns || typeof ns[method] !== "function") {
-      throw new AppError(`SDK Method "${namespace}.${method}" not found`, 404);
+      throw new AppError(
+        `SDK Method "${namespace ? namespace + "." : ""}${method}" not found`,
+        404,
+      );
     }
     const result = await ns[method](...(args || []));
-    return rawResponse(event, result);
+    return rawResponse(event, { success: true, data: result });
   }
 
   throw new AppError(`Test action "${action}" not implemented`, 404);

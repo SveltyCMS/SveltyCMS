@@ -16,9 +16,9 @@ export async function handleSystemRoutes(
   event: RequestEvent,
   cms: LocalCMS,
   tenantId: DatabaseId,
-  namespace: string,
   segments: string[],
 ) {
+  const namespace = segments[0];
   switch (namespace) {
     case "widgets":
       return handleWidgetRoutes(event, cms, tenantId, segments);

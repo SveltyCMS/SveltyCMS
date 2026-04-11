@@ -30,6 +30,7 @@ Choose the access pattern that best fits your development environment.
 | [⚡ **Local SDK**](./local-vs-http-api.mdx)           | **Server-side** (`.server.ts`, hooks, actions) | **0–5ms**   | Native SvelteKit development, high-throughput tasks. |
 | [🌐 **REST API**](./collection-api.mdx)               | **External** (Mobile apps, microservices)      | 50–150ms    | Cross-origin integrations, simple CRUD.              |
 | [📊 **GraphQL API**](./graphql-api.mdx)               | **Frontend** (React, Vue, SPA)                 | 50–200ms    | Complex data fetching, reducing overfetching.        |
+| [📖 **OpenAPI 3.1.0**](./openapi-spec.mdx)            | **Documentation & SDKs**                       | N/A         | Automated client generation and interactive docs.    |
 | [📡 **SSE / WebSockets**](./real-time-events-api.mdx) | **Real-Time** (Dashboards, AI streaming)       | < 50ms      | Live updates, collaboration, and progress tracking.  |
 
 ---
@@ -53,6 +54,7 @@ As of April 2026, SveltyCMS has consolidated its REST surface from fragmented pe
 2.  **JIT-Compiled GraphQL (The "Intelligent" Tier)**: For external consumers, we use `@envelop/graphql-jit`. Instead of interpreting queries, the system **compiles** them into optimized JavaScript functions, handling thousands of relational queries per second without CPU spikes.
 3.  **Enterprise Multi-Tenancy (Isolation)**: We use **Contextual Isolation**. The `tenantId` is baked into the database adapter calls at the lowest level. It is mathematically impossible for Tenant A to query Tenant B's data because the ID is injected before the query is constructed.
 4.  **Real-Time SSE (The "Efficiency" Tier)**: SveltyCMS uses Server-Sent Events (SSE) for AI token streaming and live collaboration. It works through Cloudflare and Load Balancers natively with a minimal RAM footprint compared to WebSockets.
+5.  **Dynamic OpenAPI 3.1.0 (The "Developer" Tier)**: SveltyCMS dynamically generates a comprehensive OpenAPI specification, allowing for automated SDK generation in any language and interactive documentation via Swagger UI or Scalar.
 
 ---
 
@@ -95,10 +97,11 @@ SveltyCMS provides granular endpoints for every core service. Use these links to
 ### Data & Content
 
 - [📚 **Collection API**](./collection-api.mdx) — CRUD operations for content entries.
+- [📖 **OpenAPI Specification**](./openapi-spec.mdx) — Dynamic API contract for SDK generation.
 - [🔍 **Search API**](./search-api.mdx) — Full-text search across collections.
 - [📊 **GraphQL API**](./graphql-api.mdx) — Flexible querying and subscriptions.
 - [🔄 **Export/Import API**](./export-import-api.mdx) — Backup, migration, and smart importing.
-- [🗑️ **Trash API**](./trash-api.mdx) — Managing soft-deleted content.
+- [🗑️ **Trash & Recovery**](./system-utilities-api.mdx#1-content-recovery-trash-api) — Managing soft-deleted content.
 
 ### Media & Assets
 

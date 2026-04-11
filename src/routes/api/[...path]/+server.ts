@@ -9,13 +9,9 @@ import { dev } from "$app/environment";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
-import { logger } from "@utils/logger.server";
-import { updatePublicEnv } from "@src/stores/global-settings.svelte";
 import { dbAdapter, getDbInitPromise } from "@src/databases/db";
 import { LocalCMS } from "../cms";
-import { getPrivateSettingSync } from "@src/services/settings-service";
 import type { DatabaseId } from "@src/content/types";
-import { hasApiPermission } from "@src/databases/auth/api-permissions";
 import { getSegments } from "./handlers/base";
 
 // Dynamic handlers map for build-time tree-shaking
@@ -41,9 +37,12 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   collections: { handler: "collections", fn: "handleCollectionsRoutes" },
   content: { handler: "content", fn: "handleContentRoutes" },
   "content-structure": { handler: "content", fn: "handleContentRoutes" },
+  widgets: { handler: "system", fn: "handleSystemRoutes" },
   dashboard: { handler: "dashboard", fn: "handleDashboardRoutes" },
   media: { handler: "media", fn: "handleMediaRoutes" },
   scim: { handler: "scim", fn: "handleScimRoutes" },
+  search: { handler: "content", fn: "handleContentRoutes" },
+  events: { handler: "content", fn: "handleContentRoutes" },
   system: { handler: "system", fn: "handleSystemRoutes" },
   settings: { handler: "system", fn: "handleSettingsRoutes" },
   "system-settings": { handler: "system", fn: "handleSettingsRoutes" },
@@ -70,14 +69,18 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   "send-mail": { handler: "utility", fn: "handleUtilityRoutes" },
   trash: { handler: "utility", fn: "handleUtilityRoutes" },
   debug: { handler: "utility", fn: "handleUtilityRoutes" },
+  "openapi.json": { handler: "utility", fn: "handleUtilityRoutes" },
 };
 
 let cachedDbVersion: string | null = null;
 
-const dispatch = async (event: RequestEvent) => {
+/**
+ * Main API Dispatcher - Exported for internal testing only
+ */
+export const _handler = async (event: RequestEvent) => {
   const { request, url, params, locals, cookies } = event;
   const { path } = params;
-  const { user, tenantId } = locals;
+  const { tenantId } = locals;
   const segments = getSegments(path as string);
   const namespace = segments[0];
 
@@ -119,6 +122,13 @@ const dispatch = async (event: RequestEvent) => {
   const cms = new LocalCMS(dbAdapter!);
 
   const config = NAMESPACE_CONFIG[namespace] || { handler: "system", fn: "handleSystemRoutes" };
+
+  if (process.env.DEBUG === "true") {
+    console.log(
+      `[Dispatcher] path="${path}" namespace="${namespace}" handler="${config.handler}" fn="${config.fn}"`,
+    );
+  }
+
   const handlerModule = await HANDLERS[config.handler]();
   const fn = handlerModule[config.fn];
 
@@ -129,9 +139,9 @@ const dispatch = async (event: RequestEvent) => {
   return await fn(event, cms, tenantId as DatabaseId, segments);
 };
 
-export const GET = apiHandler(dispatch);
-export const POST = apiHandler(dispatch);
-export const PUT = apiHandler(dispatch);
-export const PATCH = apiHandler(dispatch);
-export const DELETE = apiHandler(dispatch);
-export const OPTIONS = apiHandler(dispatch);
+export const GET = apiHandler(_handler);
+export const POST = apiHandler(_handler);
+export const PUT = apiHandler(_handler);
+export const PATCH = apiHandler(_handler);
+export const DELETE = apiHandler(_handler);
+export const OPTIONS = apiHandler(_handler);

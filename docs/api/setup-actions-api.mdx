@@ -1,12 +1,12 @@
 ---
 path: "docs/api/setup-actions-api.mdx"
 title: "Setup & Provisioning API Reference"
-description: "Reference for SvelteKit Server Actions and services used for system initialization, database seeding, and admin provisioning."
+description: "Reference for the SveltyCMS setup API used for system initialization, database seeding, and admin provisioning."
 order: 10
 icon: "mdi:cog"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-04-01"
+updated: "2026-04-11"
 tags:
   - "api"
   - "setup"
@@ -16,17 +16,19 @@ tags:
 
 # Setup & Provisioning API Reference
 
-The Setup API handles the critical first-run experience of SveltyCMS. Unlike the standard REST/GraphQL APIs, it uses **SvelteKit Server Actions** to securely manage database connectivity, schema seeding, and initial admin account creation before the full CMS engine is fully "hot."
+The Setup API handles the critical first-run experience of SveltyCMS. It provides RESTful endpoints to securely manage database connectivity, schema seeding, and initial admin account creation.
 
 ---
 
 ## ⚡ Quick Reference
 
-| Action       | Form Action Path  | Description                                  |
-| :----------- | :---------------- | :------------------------------------------- |
-| **Test DB**  | `?/testDatabase`  | Verifies credentials and connectivity.       |
-| **Seed DB**  | `?/seedDatabase`  | Creates core tables/collections and roles.   |
-| **Finalize** | `?/completeSetup` | Creates the first admin and enables the CMS. |
+| Feature | HTTP Endpoint | Description |
+| :--- | :--- | :--- |
+| **Status Check** | `GET /api/setup/status` | Returns whether the system is initialized. |
+| **Test DB** | `POST /api/setup/test-db` | Verifies database credentials and connectivity. |
+| **Seed DB** | `POST /api/setup/seed-db` | Writes config and triggers initial schema seeding. |
+| **Finalize** | `POST /api/setup/complete` | Creates the first admin and enables the CMS. |
+| **Reinitialize** | `POST /api/setup/reinitialize` | Triggers a full system crawl and reconciliation. |
 
 ---
 
@@ -38,21 +40,18 @@ Initialize a fresh SveltyCMS instance by connecting to a database, seeding the r
 
 ## 2. The Solution
 
-### Initial Setup Wizard
+### Initial Setup Flow
 
-The setup process is typically handled by the built-in wizard at `/setup`. However, it can be triggered programmatically via form actions.
+The setup process is typically handled by the built-in wizard at `/setup`. Each step interacts with the Setup API to progress the system state.
 
-**Example: Completing Setup**
+**Example: Testing Database Connection**
 
-```html
-<form method="POST" action="/setup?/completeSetup">
-  <input
-    type="hidden"
-    name="data"
-    value='{"admin": {"email": "admin@test.com", "password": "..."}}'
-  />
-  <button>Finish Setup</button>
-</form>
+```json
+{
+  "type": "sqlite",
+  "name": "cms_data",
+  "host": "localhost"
+}
 ```
 
 ### Post-Setup Verification (Local SDK)
@@ -69,37 +68,36 @@ console.log(`System Status: ${health.state}`);
 
 ## 3. The Mechanics
 
-The Setup Engine operates in a **Pre-Boot State**, where it has minimal dependencies to ensure it can run even if the database is not yet configured.
+The Setup Engine operates in a **Pre-Boot State**, allowing it to run before the primary database adapter is fully initialized.
 
 ```mermaid
 sequenceDiagram
-    participant User as Admin / Script
-    participant Route as /setup (Server Action)
-    participant Setup as SetupService
+    participant User as Admin / Wizard
+    participant API as /api/setup
+    participant Setup as SetupManager
     participant DB as Database Engine
     participant File as config/private.ts
 
-    User->>Route: POST ?/testDatabase
-    Route->>Setup: Ping Connection
-    Setup->>DB: Attempt Auth
-    DB-->>User: Success / Error
+    User->>API: POST /test-db
+    API->>DB: Ping Connection
+    DB-->>User: Connection Success
 
-    User->>Route: POST ?/seedDatabase
-    Route->>Setup: writeConfig + seed
+    User->>API: POST /seed-db
+    API->>Setup: writeConfig + seed
     Setup->>File: Write Database Credentials
     Setup->>DB: Create Collections & Default Roles
 
-    User->>Route: POST ?/completeSetup
-    Route->>Setup: Create Admin User
+    User->>API: POST /complete
+    API->>Setup: Create Admin User
     Setup->>DB: Insert User (Role: Admin)
-    Setup-->>User: Redirect to /en/dashboard
+    Setup-->>User: Setup Complete (200 OK)
 ```
 
 ### Security Guardrails
 
-- **Setup Lock**: Once the admin user is created and `config/private.ts` exists, the `/setup` route is **automatically disabled** and redirects to the login page.
-- **Credential Masking**: Database passwords are never echoed back in the action response.
-- **CSRF Protection**: Native SvelteKit form action tokens prevent unauthorized remote execution.
+- **One-Time Execution**: Once the admin user is created and the system is marked as `ready`, the `/setup` endpoints (except `status`) are strictly protected or disabled.
+- **Credential Safety**: Database passwords are never exposed in the response payloads.
+- **Fail-Closed**: If a database connection fails during setup, the process halts to prevent partial initialization.
 
 ---
 
@@ -107,4 +105,4 @@ sequenceDiagram
 
 - [Installation Guide](../getting-started.mdx)
 - [Database Adapter Architecture](../architecture/database/database-methods.mdx)
-- [Multi-Tenant Provisioning](../architecture/multi-tenancy.mdx)
+- [System Utilities API](./system-utilities-api.mdx)

@@ -48,6 +48,19 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 | Workflows / Governance   | **Native RBAC Visual FSM**        | Enterprise Feature             | Native (Flows)                     | Enterprise Feature       | Local Git workflows |
 | Edge / Local SDK         | **Native** (locals.cms injection) | Strong in Next.js              | Not native                         | Not native               | N/A                 |
 
+### API Capabilities Comparison (April 2026 Update)
+
+| Feature | SveltyCMS | Payload | Strapi | Directus |
+| :--- | :--- | :--- | :--- | :--- |
+| OpenAPI export | **✅ Yes (3.1.0)*** | ❌ No (community plugins) | ❌ No | ❌ No (third‑party) |
+| Conditional requests (ETag) | **✅ Yes** | ❌ No | ❌ No | ❌ No |
+| Batch operations | **✅ Yes (native)** | ✅ Yes (via local API) | ❌ No | ✅ Yes (via SDK) |
+| Atomic transactions | **✅ Yes (via Local SDK)** | ✅ Yes (via local API) | ❌ No | ❌ No |
+| API versioning | **✅ Yes (v1/v2)** | ❌ No (breaking changes) | ❌ No | ❌ No |
+| Granular API key scopes | **✅ Yes** | ✅ Yes | ✅ Yes | ✅ Yes |
+
+> *Verified via automated unit tests in `tests/unit/api/openapi.test.ts`.
+
 > [!SOURCE]
 > Data comes from documented benchmarks (verified April 2026), public competitor claims, community reports, and independent comparisons. SveltyCMS shines in Svelte-native compiled paths, zero-VDOM, and local SDK injection.
 

@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:api-check"
 author: "SveltyCMS Team"
 created: "2026-02-17"
-updated: "2026-04-03"
+updated: "2026-04-11"
 tags:
   - "testing"
   - "api"
@@ -32,9 +32,9 @@ SveltyCMS is designed for maximum safety. Running tests will **never** influence
 
 ## 📊 Coverage at a Glance
 
-- **Total API Endpoints**: ~114
-- **Endpoints Verified**: ~108 (~95%)
-- **Total Tests**: 1028 (670 Unit + 358 Integration/E2E)
+- **Total API Endpoints**: ~115
+- **Endpoints Verified**: ~109 (~95%)
+- **Total Tests**: 1030 (670 Unit + 360 Integration/E2E)
 - **Strategy**: 100% Black-Box (via `/api/testing`) + Granular Unit Gates
 - **Security Posture**: 100% Fail-Closed (Mandatory Authorization)
 - **Multi-DB Validation**: Verified across MongoDB, PostgreSQL, MariaDB, and SQLite.
@@ -77,11 +77,12 @@ Our API tests operate at the **Integration** level. Unlike unit tests, these int
 - **Media DAM**: AI tagging (Ollama), EXIF extraction, and non-destructive editing.
 - **Files**: `tests/unit/api/collections.test.ts`, `media.test.ts`, `tests/benchmarks/relational-performance.test.ts`
 
-### ⚙️ System & Dashboard (126 tests)
+### ⚙️ System & Dashboard (130 tests)
 
 - **Real-time Metrics**: Health checks, performance logging, and system info.
+- **OpenAPI Specification**: Dynamic contract verification and JSON Schema integrity.
 - **Setup Wizard**: Multi-step initialization check and configuration verification.
-- **Files**: `tests/unit/api/dashboard.test.ts`, `setup.test.ts`
+- **Files**: `tests/unit/api/dashboard.test.ts`, `tests/integration/api/openapi.test.ts`, `setup.test.ts`
 
 ---
 
@@ -120,4 +121,4 @@ bun run test:unit -- security
 
 ---
 
-_Last Updated: April 3, 2026_
+_Last Updated: April 11, 2026_

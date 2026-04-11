@@ -21,6 +21,7 @@ export const PUBLIC_ROUTES = [
   "/api/system/health",
   "/api/system/version",
   "/api/user/login",
+  "/api/auth/login",
   "/api/preview",
   "/forbidden",
 ];

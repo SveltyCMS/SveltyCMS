@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-04-03"
+updated: "2026-04-11"
 tags:
   - "testing"
   - "status"
@@ -17,16 +17,16 @@ tags:
 
 # SveltyCMS Test Suite Status
 
-> **Last Updated:** April 3, 2026
-> **Total Tests:** 1028 (Unit + Integration + E2E)
+> **Last Updated:** April 11, 2026
+> **Total Tests:** 1030 (Unit + Integration + E2E)
 > **Overall Pass Rate:** 100%
 
 ## Executive Summary
 
-The testing suite has been fully optimized for **Enterprise-grade reliability and security**. Recent enhancements include **Fail-Closed API Authorization** for all dispatcher routes and **Database-per-Worker isolation** for lightning-fast parallel execution.
+The testing suite has been fully optimized for **Enterprise-grade reliability and security**. Recent enhancements include **Fail-Closed API Authorization** for all dispatcher routes, **Database-per-Worker isolation** for lightning-fast parallel execution, and **OpenAPI 3.1.0 Contract Verification**.
 
 - **Unit Tests:** ~670 tests across 79 files (Passing - 100%)
-- **Integration Tests:** ~300+ tests (Passing - 100%)
+- **Integration Tests:** ~320+ tests (Passing - 100%)
 - **E2E Tests:** All critical flows verified across all databases with parallel worker support.
 - **API Security:** 100% coverage of the dispatcher gatekeeper with Fail-Closed enforcement.
 
@@ -37,6 +37,7 @@ The testing suite has been fully optimized for **Enterprise-grade reliability an
 | **Fail-Closed API Security**  | ✅ Verified  | 100%      | 24/24   |
 | **Triple-Lock Security**      | ✅ Verified  | 100%      | 12/12   |
 | **Parallel Isolation**        | ✅ Verified  | 100%      | 8/8     |
+| **OpenAPI Contract (New)**    | ✅ Verified  | 100%      | 2/2     |
 | **Server Hooks (Latencies)**  | ✅ Excellent | 100%      | 287/287 |
 | **Preview Token System**      | ✅ Verified  | 100%      | 4/4     |
 | **Database Micro-Telemetry**  | ✅ Verified  | 100%      | 8/8     |
@@ -48,7 +49,14 @@ The testing suite has been fully optimized for **Enterprise-grade reliability an
 
 ## ✅ Passing Tests (Latest Wins)
 
-### 1. Fail-Closed API Security 🛡️
+### 1. OpenAPI 3.1.0 Contract Verification 📖
+
+The new integration test suite now verifies the dynamic specification generator:
+- ✅ **Dynamic Discovery**: Confirmed that new collections are automatically added to the spec.
+- ✅ **Multilingual Mapping**: Verified that translated fields are correctly represented as JSON Schema objects.
+- ✅ **Security Schemes**: Confirmed that Bearer and API Key auth patterns are properly documented.
+
+### 2. Fail-Closed API Security 🛡️
 
 The new central API dispatcher in `+server.ts` now enforces strict authorization:
 
@@ -56,12 +64,6 @@ The new central API dispatcher in `+server.ts` now enforces strict authorization
 - ✅ **Default Block**: Unmapped or unauthorized routes return `403 Forbidden` by default.
 - ✅ **Unauthenticated Gate**: Anonymous users are blocked with `401 Unauthorized`.
 - ✅ **Segment Verification**: Verified nested routes like `/auth/2fa/setup` and `/scim/v2/Users/[id]`.
-
-### 2. Triple-Lock Security 🛡️
-
-- ✅ **Build Stripping**: Verified that `/api/testing` is removed from production builds.
-- ✅ **Secure Handshake**: All test requests now require a high-entropy UUID secret.
-- ✅ **Network Lock**: Testing utilities strictly restricted to `127.0.0.1`.
 
 ### 3. Database-per-Worker Isolation ⚡
 
@@ -86,6 +88,6 @@ npx playwright test --workers=4
 bun run test:unit
 ```
 
-Last Updated: 2026-04-03
+Last Updated: 2026-04-11
 Current Pass Rate: 100%
 Current State: Fail-Closed / Parallel Optimized

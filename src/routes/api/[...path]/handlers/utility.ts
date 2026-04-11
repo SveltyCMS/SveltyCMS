@@ -20,6 +20,15 @@ export async function handleUtilityRoutes(
   const namespace = segments[0];
   const method = segments[1];
 
+  // --- OpenAPI Specification ---
+  if (namespace === "openapi.json" && request.method === "GET") {
+    const { apiSpecService } = await import("@services/system/api-spec-service");
+    const { contentSystem } = await import("@src/content");
+    const collections = await contentSystem.getCollections(tenantId);
+    const spec = await apiSpecService.generateSpec(collections, tenantId as string);
+    return rawResponse(event, spec);
+  }
+
   // --- Cache Management ---
   if (namespace === "cache") {
     const { cacheService } = await import("@src/databases/cache/cache-service");

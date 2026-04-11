@@ -135,7 +135,8 @@ export async function handleContentRoutes(
       isAdmin: !!event.locals.user,
     });
 
-    return json(results);
+    const { rawResponse } = await import("./base");
+    return rawResponse(event, results);
   }
 
   throw new AppError(`Content endpoint /api/${namespace}/${method || ""} not implemented`, 404);

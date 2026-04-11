@@ -48,6 +48,7 @@ async function runRestBenchmarkSuite() {
     const healthResult = await runBenchmark({
       name: "REST: /api/system/health (Public)",
       iterations: ITERATIONS,
+      warmupIterations: 20,
       concurrency: CONCURRENCY,
       silent: true,
       onIteration: async () => {
@@ -61,6 +62,7 @@ async function runRestBenchmarkSuite() {
     const meResult = await runBenchmark({
       name: "REST: /api/user/me (Auth)",
       iterations: ITERATIONS,
+      warmupIterations: 20,
       concurrency: CONCURRENCY,
       silent: true,
       onIteration: async () => {
@@ -74,6 +76,7 @@ async function runRestBenchmarkSuite() {
     const collectionsResult = await runBenchmark({
       name: "REST: /api/collections (DB)",
       iterations: ITERATIONS,
+      warmupIterations: 20,
       concurrency: CONCURRENCY,
       silent: true,
       onIteration: async () => {
