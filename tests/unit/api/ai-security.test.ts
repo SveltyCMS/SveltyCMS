@@ -11,7 +11,7 @@ import { aiService } from "@src/services/ai-service";
 vi.mock("@src/services/ai-service", () => ({
   aiService: {
     chat: vi.fn().mockResolvedValue("AI Response"),
-    process: vi.fn().mockResolvedValue("Enriched Text"),
+    enrichText: vi.fn().mockResolvedValue("Enriched Text"),
     generateLayoutSpec: vi.fn().mockResolvedValue({ root: "layout", elements: {} }),
   },
 }));
@@ -19,6 +19,8 @@ vi.mock("@src/services/ai-service", () => ({
 // Mock settings service
 vi.mock("@src/services/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(true), // MULTI_TENANT = true
+  getPublicSettingSync: vi.fn().mockReturnValue("mediaFolder"),
+  getUntypedSetting: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock logger
@@ -130,7 +132,7 @@ describe("AI API Security - Authentication and Tenant Isolation", () => {
 
       const response = await dispatcher(event);
       expect(response.status).toBe(200);
-      expect(aiService.process).toHaveBeenCalled();
+      expect(aiService.enrichText).toHaveBeenCalled();
     });
   });
 

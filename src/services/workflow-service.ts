@@ -271,8 +271,11 @@ export class WorkflowService {
 
     if (!workflow) return null;
 
-    const initialState = workflow.states.find((s) => s.isInitial)?.id || workflow.states[0]?.id;
-    if (!initialState) return null;
+    const initialState = workflow.states?.find((s) => s.isInitial)?.id || workflow.states?.[0]?.id;
+    if (!initialState) {
+      logger.warn(`No valid initial state found for workflow: ${collectionId}`);
+      return null;
+    }
 
     const dbAdapter = await getDbAdapter();
     const instance: WorkflowInstance = {

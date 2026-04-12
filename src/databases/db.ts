@@ -127,7 +127,10 @@ async function initializeSystem(
   const isExplicitSkip =
     typeof process !== "undefined" && process.env.SVELTYCMS_SKIP_INIT === "true";
 
-  if (isExplicitSkip || isChecking || isBuilding) {
+  // ⚡ TEST OVERRIDE: Allow initialization during tests regardless of build/check flags
+  const isTestMode = typeof process !== "undefined" && process.env.TEST_MODE === "true";
+
+  if ((isExplicitSkip || isChecking || isBuilding) && !isTestMode) {
     return;
   }
 

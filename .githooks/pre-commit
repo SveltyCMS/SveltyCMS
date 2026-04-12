@@ -8,10 +8,11 @@ STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts
 
 if [ -n "$STAGED_FILES" ]; then
     echo "✨ Formatting & ⚡ Linting (Vite+ on staged files)..."
+    # Ensure oxfmt and oxlint are used on staged files
     echo "$STAGED_FILES" | xargs bunx oxfmt --write
     echo "$STAGED_FILES" | xargs bunx oxlint --fix
 
-    # Re-stage files in case Vite+ fixed formatting/linting issues automatically
+    # Re-stage files in case they were fixed automatically
     echo "$STAGED_FILES" | xargs git add
 else
     echo "⏩ No relevant staged files found for formatting/linting."

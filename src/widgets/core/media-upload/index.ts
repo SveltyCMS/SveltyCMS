@@ -192,6 +192,38 @@ const MediaWidget = createWidget<MediaProps>({
     ],
     // Sorting would follow a similar `$lookup` pattern.
   },
+
+  // GraphQL schema for media (returns MediaImage type for population)
+  GraphqlSchema: ({ field, fieldName }) => {
+    const isMulti = (field as MediaProps).multiupload;
+    return {
+      typeID: isMulti ? "[MediaImage]" : "MediaImage",
+      graphql: "",
+      resolver: {
+        [fieldName as string]: async (parent: any, _args: any, context: any) => {
+          const { dbAdapter, tenantId } = context;
+          if (!dbAdapter) return null;
+
+          const val = parent[fieldName as string];
+          if (!val) return null;
+
+          if (isMulti && Array.isArray(val)) {
+            const result = await dbAdapter.crud.findMany("media", {
+              _id: { $in: val },
+              tenantId,
+            });
+            return result.success ? result.data : [];
+          }
+
+          const result = await dbAdapter.crud.findOne("media", {
+            _id: val,
+            tenantId,
+          });
+          return result.success ? result.data : null;
+        },
+      },
+    };
+  },
 });
 
 export default MediaWidget;

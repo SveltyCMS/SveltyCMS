@@ -61,7 +61,8 @@ describe("SAML API Unit Tests", () => {
   };
 
   it("should return SAML config", async () => {
-    const event = createMockEvent("GET", "auth/saml/config", {}, null, "t1");
+    const admin = { _id: "admin1", role: "admin", isAdmin: true };
+    const event = createMockEvent("GET", "auth/saml/config", {}, admin, "t1");
     (event as any).request = { method: "GET", headers: new Headers() };
     (event as any).cookies = { get: vi.fn() };
 

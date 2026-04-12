@@ -3,7 +3,12 @@
  * @description Unit tests for Webhook API security, focusing on IDOR and tenant isolation.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";
+import {
+  GET as dispatcherGET,
+  POST as dispatcherPOST,
+  PATCH as dispatcherPATCH,
+  DELETE as dispatcherDELETE,
+} from "@src/routes/api/[...path]/+server";
 import { webhookService } from "@src/services/webhook-service";
 
 console.log("--- vi keys in test:", typeof vi !== "undefined" ? Object.keys(vi) : "undefined");
@@ -29,7 +34,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
   const otherTenant = "tenant-2";
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   describe("List Webhooks (GET /api/webhooks)", () => {
@@ -37,10 +42,11 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const event = {
         locals: { user: mockUser, tenantId: myTenant },
         params: { path: "webhooks" },
+        request: { method: "GET" },
         url: new URL("http://localhost/api/webhooks"),
       } as any;
 
-      await dispatcherPOST(event);
+      await dispatcherGET(event);
       expect(webhookService.getWebhooks).toHaveBeenCalledWith(myTenant);
     });
 
@@ -48,10 +54,11 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const event = {
         locals: { user: mockSuperAdmin, tenantId: myTenant },
         params: { path: "webhooks" },
+        request: { method: "GET" },
         url: new URL(`http://localhost/api/webhooks?tenantId=${otherTenant}`),
       } as any;
 
-      await dispatcherPOST(event);
+      await dispatcherGET(event);
       expect(webhookService.getWebhooks).toHaveBeenCalledWith(otherTenant);
     });
 
@@ -59,11 +66,12 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const event = {
         locals: { user: mockUser, tenantId: myTenant },
         params: { path: "webhooks" },
+        request: { method: "GET" },
         url: new URL(`http://localhost/api/webhooks?tenantId=${otherTenant}`),
       } as any;
 
       try {
-        await dispatcherPOST(event);
+        await dispatcherGET(event);
       } catch (error: any) {
         expect(error.status).toBe(403);
       }
@@ -114,15 +122,17 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const event = {
         params: { path: `webhooks/${webhookId}` },
         locals: { user: mockUser, tenantId: myTenant },
-        url: new URL(`http://localhost/api/system/webhooks/${webhookId}`),
-        request: { json: vi.fn().mockResolvedValue({ name: "Updated" }) },
+        url: new URL(`http://localhost/api/webhooks/${webhookId}`),
+        request: {
+          method: "PATCH",
+          json: vi.fn().mockResolvedValue({ name: "Updated" }),
+          headers: new Headers(),
+        },
+        cookies: { get: vi.fn() },
       } as any;
 
-      try {
-        await dispatcherPOST(event);
-      } catch (error: any) {
-        expect(error.status).toBe(404);
-      }
+      const response = await dispatcherPATCH(event);
+      expect(response.status).toBe(404);
       expect(webhookService.saveWebhook).not.toHaveBeenCalled();
     });
 
@@ -132,14 +142,13 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const event = {
         params: { path: `webhooks/${webhookId}` },
         locals: { user: mockUser, tenantId: myTenant },
-        url: new URL(`http://localhost/api/system/webhooks/${webhookId}`),
+        url: new URL(`http://localhost/api/webhooks/${webhookId}`),
+        request: { method: "DELETE", headers: new Headers() },
+        cookies: { get: vi.fn() },
       } as any;
 
-      try {
-        await dispatcherPOST(event);
-      } catch (error: any) {
-        expect(error.status).toBe(404);
-      }
+      const response = await dispatcherDELETE(event);
+      expect(response.status).toBe(404);
       expect(webhookService.deleteWebhook).not.toHaveBeenCalled();
     });
 
@@ -152,10 +161,16 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const event = {
         params: { path: `webhooks/${webhookId}` },
         locals: { user: mockUser, tenantId: myTenant },
-        request: { json: vi.fn().mockResolvedValue(updates) },
+        url: new URL(`http://localhost/api/webhooks/${webhookId}`),
+        request: {
+          method: "PATCH",
+          json: vi.fn().mockResolvedValue(updates),
+          headers: new Headers(),
+        },
+        cookies: { get: vi.fn() },
       } as any;
 
-      const response = await dispatcherPOST(event);
+      const response = await dispatcherPATCH(event);
       expect(response.status).toBe(200);
       expect(webhookService.saveWebhook).toHaveBeenCalledWith(
         { ...updates, id: webhookId },
@@ -197,11 +212,8 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
         cookies: { get: vi.fn() },
       } as any;
 
-      try {
-        await dispatcherPOST(event);
-      } catch (error: any) {
-        expect(error.status).toBe(404);
-      }
+      const response = await dispatcherPOST(event);
+      expect(response.status).toBe(404);
       expect(webhookService.testWebhook).not.toHaveBeenCalled();
     });
 

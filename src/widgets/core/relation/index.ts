@@ -165,11 +165,48 @@ const RelationWidget = createWidget<RelationProps>({
     },
   },
 
-  // GraphQL schema for relation (returns ID of related document)
-  GraphqlSchema: ({ field }) => ({
-    typeID: (field as RelationProps).multiple ? "[String]" : "String",
-    graphql: "",
-  }),
+  // GraphQL schema for relation (returns related document for population)
+  GraphqlSchema: ({ field, fieldName, collectionNameMapping }) => {
+    const relProps = field as RelationProps;
+    const targetCollection = relProps.collection;
+    const cleanTypeName = collectionNameMapping?.get(targetCollection);
+
+    if (cleanTypeName) {
+      return {
+        typeID: relProps.multiple ? `[${cleanTypeName}]` : cleanTypeName,
+        graphql: "",
+        resolver: {
+          [fieldName as string]: async (parent: any, _args: any, context: any) => {
+            const { dbAdapter, tenantId } = context;
+            if (!dbAdapter) return null;
+
+            const val = parent[fieldName as string];
+            if (!val) return null;
+
+            if (relProps.multiple && Array.isArray(val)) {
+              const result = await dbAdapter.crud.findMany(targetCollection, {
+                _id: { $in: val },
+                tenantId,
+              });
+              return result.success ? result.data : [];
+            }
+
+            const result = await dbAdapter.crud.findOne(targetCollection, {
+              _id: val,
+              tenantId,
+            });
+            return result.success ? result.data : null;
+          },
+        },
+      };
+    }
+
+    // Fallback to String (ID) if target collection type is not found
+    return {
+      typeID: relProps.multiple ? "[String]" : "String",
+      graphql: "",
+    };
+  },
 });
 
 export default RelationWidget;

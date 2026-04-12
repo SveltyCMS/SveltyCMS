@@ -18,7 +18,7 @@
     "allowArbitraryExtensions": true,
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
-    "types": ["google.maps"]
+    "types": ["google.maps", "node"]
   },
   "include": [
     "src/**/*.js",

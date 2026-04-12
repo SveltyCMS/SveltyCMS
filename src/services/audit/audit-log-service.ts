@@ -5,7 +5,7 @@
  * Provides a tamper-evident audit log by chaining entries via SHA256 hashes.
  */
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
 import path from "node:path";
 import { logger } from "@utils/logger.server";
 import { sha256 } from "js-sha256";
@@ -53,20 +53,30 @@ export class AuditLogService {
   }
 
   private async readLogs(): Promise<AuditLogEntry[]> {
+    const filePath = path.join(process.cwd(), this.logDir, this.currentLogFile);
     try {
-      const filePath = path.join(process.cwd(), this.logDir, this.currentLogFile);
       const content = await readFile(filePath, "utf-8");
       if (!content.trim()) {
         return [];
       }
 
       return JSON.parse(content);
-    } catch (e) {
-      const error = e as { code?: string };
-      if (error.code === "ENOENT") {
+    } catch (e: any) {
+      if (e.code === "ENOENT") {
         return [];
       }
-      logger.error("Failed to read audit logs", { error: e });
+
+      // If it's a syntax error, the file is corrupt.
+      // Rename it so we don't lose all data, but start fresh to unblock the system.
+      if (e instanceof SyntaxError) {
+        const backupPath = `${filePath}.corrupt-${Date.now()}`;
+        logger.error(`Audit log CORRUPT. Backing up to ${backupPath}`, { error: e.message });
+        try {
+          await rename(filePath, backupPath);
+        } catch {}
+      } else {
+        logger.error("Failed to read audit logs", { error: e });
+      }
       return [];
     }
   }

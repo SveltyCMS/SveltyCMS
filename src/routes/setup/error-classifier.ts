@@ -114,7 +114,7 @@ export function classifyDatabaseError(
   }
 
   if (
-    /econnrefused|connection refused/i.test(lower) ||
+    /econnrefused|connection refused|unreachable/i.test(lower) ||
     code === "ECONNREFUSED" ||
     code === "ENOTFOUND" ||
     lower.includes("getaddrinfo")

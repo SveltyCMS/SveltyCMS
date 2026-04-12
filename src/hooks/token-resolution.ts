@@ -33,6 +33,7 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
     event.url.pathname.startsWith("/api/system") ||
     event.url.pathname.startsWith("/api/dashboard") ||
     event.url.pathname.startsWith("/api/auth") ||
+    event.url.pathname.startsWith("/api/token") ||
     event.url.pathname.startsWith("/api/graphql")
   ) {
     return response;

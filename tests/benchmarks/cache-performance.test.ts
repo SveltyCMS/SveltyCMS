@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/cache-performance.test.ts
- * @description Professional benchmark for the Local SDK 3-layer caching system.
+ * @description Professional benchmark for the Local SDK 3-layer caching system (L1 / L2 / DB).
  */
 
 import { test } from "bun:test";
@@ -8,73 +8,122 @@ import "../unit/setup.ts";
 import { runBenchmark, exportResult } from "./benchmark-utils";
 
 test("Local SDK Cache Performance Suite", async () => {
-  console.log("🚀 Starting SveltyCMS Cache Performance Benchmark...");
+  console.log("🚀 Starting SveltyCMS 3-Layer Cache Performance Benchmark...\n");
 
-  // Dynamic imports to ensure mocks are applied
   const { dbAdapter, getDbInitPromise } = await import("@src/databases/db");
   const { LocalCMS } = await import("@src/routes/api/cms");
+  const { contentSystem } = await import("@src/content");
 
   await getDbInitPromise();
-  const cms = new LocalCMS(dbAdapter!);
-  const targetCollection = "posts";
+  if (!dbAdapter) throw new Error("DB not initialized");
+  await contentSystem.initialize("global", false, dbAdapter);
 
-  // Mock contentSystem to return a schema
-  const { contentSystem: cm } = await import("@src/content");
-  (cm as any).getCollectionById = async () => ({ _id: "posts", name: "posts", fields: [] });
+  const cms = new LocalCMS(dbAdapter);
+  let collections = await contentSystem.getCollections();
 
-  const iterations = 1000;
+  if (collections.length === 0) {
+    console.warn("⚠️ No collections found. Synchronizing mock 'benchmarks' schema...");
+    const mockSchema: any = {
+      _id: "benchmarks",
+      nodeType: "collection",
+      collectionDef: {
+        _id: "benchmarks",
+        name: "benchmarks",
+        label: "Benchmarks",
+        fields: [],
+      },
+      name: "benchmarks",
+      label: "Benchmarks",
+      tenantId: "global",
+    };
 
-  // 1. CACHE MISS (Cold Read from DB)
+    // Inject directly into content system state to bypass filesystem scan
+    contentSystem.sync([mockSchema]);
+    collections = await contentSystem.getCollections();
+
+    // Also ensure physical table exists
+    try {
+      await dbAdapter.collection.createModel(mockSchema);
+    } catch (e) {}
+  }
+
+  let collectionId = collections.length > 0 ? (collections[0]._id as string) : "benchmarks";
+  const testId = "cache-benchmark-entry";
+
+  console.log(`📊 Targeting collection: "${collectionId}"`);
+
+  // Ensure the test document exists and is cached in L2
+  console.log("🔧 Preparing test data and warming L2 cache...");
+  await cms.collections
+    .create(collectionId, { title: "Cache Benchmark Entry" }, { system: true })
+    .catch(async () => {
+      // If it exists, we just update it to ensure it's in the DB
+      await cms.collections
+        .update(collectionId, testId, { title: "Cache Benchmark Entry" }, { system: true })
+        .catch(() => {});
+    });
+
+  // Warm L2 cache properly
+  await cms.collections.findById(collectionId, testId);
+
+  const iterations = 1500;
+  const missIterations = 200;
+
+  // 1. CACHE MISS — Pure cold DB read (no cache at all)
+  console.log("📉 Measuring Cache Miss (Cold DB Read)...");
   const missResult = await runBenchmark({
     name: "SDK: Cache Miss (Cold DB Read)",
-    iterations: 50, // Fewer iterations for cold reads to avoid accidental warming
+    iterations: missIterations,
+    runs: 2,
     onIteration: async () => {
-      // We use a unique ID each time or bypass cache to ensure DB hit
-      await cms.collections.findById(targetCollection, "entry-" + Math.random(), {
-        bypassCache: true,
-      });
+      // Use bypassCache to guarantee DB hit
+      await cms.collections.findById(collectionId, testId, { bypassCache: true });
     },
   });
 
-  // 2. CACHE HIT L2 (Global Service - Memory/Redis)
-  // First, warm the global cache
-  await cms.collections.findById(targetCollection, "warm-l2");
-
+  // 2. CACHE HIT L2 (Global / Service-level cache)
+  console.log("📈 Measuring L2 Cache Hit (Global Cache Service)...");
   const hitL2Result = await runBenchmark({
     name: "SDK: Cache Hit L2 (Global Cache Service)",
     iterations,
+    runs: 3,
     onIteration: async () => {
-      // Create a NEW SDK instance per iteration to bypass L1 (Request Cache)
-      const freshCms = new LocalCMS(dbAdapter!);
-      await freshCms.collections.findById(targetCollection, "warm-l2");
+      // Use the newly implemented bypassRequestCache to skip L1 but allow L2
+      await cms.collections.findById(collectionId, testId, { bypassRequestCache: true });
     },
   });
 
-  // 3. CACHE HIT L1 (Request-Level Deduplication)
+  // 3. CACHE HIT L1 (Request / In-memory deduplication)
+  console.log("⚡ Measuring L1 Cache Hit (Request Memory)...");
   const hitL1Result = await runBenchmark({
     name: "SDK: Cache Hit L1 (Request Memory)",
     iterations,
+    runs: 3,
     onIteration: async () => {
-      // Use the SAME SDK instance to hit the internal Map
-      await cms.collections.findById(targetCollection, "warm-l2");
+      await cms.collections.findById(collectionId, testId); // should hit L1 instantly
     },
   });
 
-  console.log("\n===========================================================");
-  console.log("📈 CACHE IMPACT ANALYSIS");
-  console.log("===========================================================");
-  console.log(`Cold DB Read (p95):   ${missResult.p95Ms.toFixed(4)} ms`);
+  // === Summary ===
+  const l2Speedup = (missResult.avgMs / hitL2Result.avgMs).toFixed(1);
+  const l1Speedup = (missResult.avgMs / hitL1Result.avgMs).toFixed(1);
+
+  console.log("\n" + "=".repeat(70));
+  console.log("   📊 SveltyCMS CACHE LAYER PERFORMANCE SUMMARY");
+  console.log("=".repeat(70));
   console.log(
-    `Global L2 Hit (p95):  ${hitL2Result.p95Ms.toFixed(4)} ms (~${(missResult.avgMs / hitL2Result.avgMs).toFixed(1)}x faster)`,
+    `Cold DB Read   → Avg: ${missResult.avgMs.toFixed(3)} ms | RPS: ${missResult.rps.toFixed(0)}`,
   );
   console.log(
-    `Request L1 Hit (p95): ${hitL1Result.p95Ms.toFixed(4)} ms (~${(missResult.avgMs / hitL1Result.avgMs).toFixed(1)}x faster)`,
+    `L2 Global Hit  → Avg: ${hitL2Result.avgMs.toFixed(3)} ms | RPS: ${hitL2Result.rps.toFixed(0)} (~${l2Speedup}x faster)`,
   );
-  console.log("===========================================================\n");
+  console.log(
+    `L1 Request Hit → Avg: ${hitL1Result.avgMs.toFixed(3)} ms | RPS: ${hitL1Result.rps.toFixed(0)} (~${l1Speedup}x faster)`,
+  );
+  console.log("=".repeat(70) + "\n");
 
-  exportResult(missResult, "sdk-cache-miss-cold-db-read.json");
-  exportResult(hitL2Result, "sdk-cache-hit-l2-global-cache-service.json");
-  exportResult(hitL1Result, "sdk-cache-hit-l1-request-memory.json");
-
-  process.exit(0);
+  // Export results
+  exportResult(missResult);
+  exportResult(hitL2Result);
+  exportResult(hitL1Result);
 }, 600000);

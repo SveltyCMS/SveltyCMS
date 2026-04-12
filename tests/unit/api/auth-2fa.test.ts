@@ -75,6 +75,9 @@ const { mockTwoFactorAuthService } = vi.hoisted(() => ({
 
 vi.mock("@src/databases/auth/two-factor-auth", () => ({
   getDefaultTwoFactorAuthService: vi.fn().mockReturnValue(mockTwoFactorAuthService),
+  TwoFactorAuthService: vi.fn().mockImplementation(function () {
+    return mockTwoFactorAuthService;
+  }),
 }));
 
 vi.mock("@src/services/settings-service", () => ({
@@ -101,6 +104,11 @@ vi.mock("@src/databases/auth", () => ({
   getAllPermissions: vi.fn().mockReturnValue([]),
   checkPermissions: vi.fn().mockReturnValue(true),
   validateUserPermission: vi.fn().mockReturnValue(true),
+}));
+
+vi.mock("@utils/password", () => ({
+  verifyPassword: vi.fn().mockResolvedValue(true),
+  hashPassword: vi.fn().mockResolvedValue("hashed"),
 }));
 
 // Removed unused auth import

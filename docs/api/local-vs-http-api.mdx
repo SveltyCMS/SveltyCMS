@@ -17,9 +17,9 @@ tags:
 
 # Local SDK vs HTTP/GraphQL API
 
-SveltyCMS offers two ways to interact with content:
+Both access patterns are derived from a single, **unified OpenAPI 3.1.0 contract**, ensuring 1:1 parity and maximum flexibility for any setup:
 
-- **External HTTP / GraphQL API** — The secure, public-facing interface with the full middleware stack (auth, rate limiting, CORS, etc.).
+- **External HTTP / GraphQL API** — The secure, public-facing interface with the full middleware stack (auth, rate limiting, CORS, etc.). Now featuring **automated population** and real-time subscriptions.
 - **Internal Local SDK** — A zero-overhead, server-side-only API for maximum performance in your SvelteKit backend code.
 
 **Recommendation**: In all server-side code (`+page.server.ts`, actions, hooks, etc.), **prefer the Local SDK** unless you have a specific reason to test the full HTTP stack.
@@ -47,9 +47,9 @@ graph TB
             EB[Event Bus]
         end
 
-        subgraph API["Access Layers"]
-            EX[External API Handler]
-            SDK[Local SDK / cms.ts]
+        subgraph API["Access Layers (Harmonized)"]
+            EX[External API / GraphQL]
+            SDK[Local SDK / locals.cms]
         end
     end
 
@@ -86,16 +86,12 @@ graph TB
 | :-------------------------------------- | :----------------- | :--------- | :------------------------------------------------------------- |
 | **Client-side** (`.svelte`, `+page.ts`) | **HTTP / GraphQL** | 50–150 ms  | Browser environment; requires auth, CORS, and network.         |
 | **Server-side** (`.server.ts`, actions) | **Local SDK**      | **0–5 ms** | Direct function calls; zero serialization or network overhead. |
+| **Mobile / External App**               | **GraphQL**        | 80–300+ ms | Optimized data fetching with nested population.                |
 | **Plugins / Background Jobs**           | **Local SDK**      | **0–5 ms** | Full access to core logic and security context.                |
-| **External / Third-party**              | **HTTP / GraphQL** | 80–300+ ms | Needs API keys / JWT; works across network boundaries.         |
 
 > [!TIP]
 > **Rule of thumb**: If your code runs server-side (files ending in `.server.ts` or inside `+server.ts` routes), use the Local SDK.
-> Only use `fetch('/api/...')` when you need to:
->
-> - Call an external service
-> - Intentionally test the full middleware stack (auth, rate limiting, logging)
-> - Communicate between separate SvelteKit instances
+> Use **GraphQL** for external integrations that require complex nested data in a single request.
 
 ---
 
@@ -107,6 +103,7 @@ The Local SDK (`src/routes/api/cms.ts` or injected via `locals.cms`) is a high-p
 2. **Bypasses external security**: Safely skips WAF and rate-limiting because it runs with server privileges.
 3. **Calls Core Logic**: Executes the exact same `modifyRequest` pipeline as the HTTP layer.
 4. **Maintains Consistency**: Automatically triggers cache invalidation and real-time events (SSE).
+5. **Unified Context**: Respects the same tenant isolation and permissions as the external API.
 
 ---
 

@@ -24,7 +24,13 @@ describe("Media Security Critical Unit Tests", () => {
 
     const adapter = {
       media: {
-        files: { getByFolder: vi.fn().mockResolvedValue({ success: true, data: [] }) },
+        files: {
+          getByFolder: vi.fn().mockResolvedValue({ success: true, data: [] }),
+          getByHash: vi.fn().mockResolvedValue({ success: true, data: null }),
+          upload: vi
+            .fn()
+            .mockResolvedValue({ success: true, data: { _id: "m1", path: "test.jpg" } }),
+        },
         updateMedia: vi.fn().mockResolvedValue({ success: true }),
         saveMedia: vi.fn().mockResolvedValue({ success: true, _id: "m1" }),
         deleteMedia: vi.fn().mockResolvedValue({ success: true }),
@@ -49,7 +55,7 @@ describe("Media Security Critical Unit Tests", () => {
       request: {
         method,
         formData: vi.fn().mockResolvedValue(formData),
-        headers: new Map(),
+        headers: new Headers({ "content-type": "multipart/form-data" }),
       },
       locals: {
         user: { ...user, role: "admin", isAdmin: true },
@@ -64,7 +70,7 @@ describe("Media Security Critical Unit Tests", () => {
   it("should process media save correctly", async () => {
     const mockFormData = {
       processType: "save",
-      files: [],
+      files: [new File(["test content"], "test.jpg", { type: "image/jpeg" })],
     };
 
     const event = createMockEvent("POST", "media/process", mockFormData);

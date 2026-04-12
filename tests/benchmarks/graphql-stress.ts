@@ -52,13 +52,13 @@ const QUERIES = [
     name: "Relational (Authors -> Posts)",
     body: JSON.stringify({
       query: `query NestedRelation {
-        Authors {
-          Name
-          Bio
+        Authors_00000000 {
+          name
+          bio
           Posts {
-            Title
-            Author {
-              Name
+            title
+            author {
+              name
             }
           }
         }
@@ -116,6 +116,7 @@ async function runStressTest(level: keyof typeof LOAD_PROFILES) {
       email: "admin@example.com",
       password: process.env.ADMIN_PASSWORD || "Password123!",
     }),
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!loginRes.ok) {
@@ -149,6 +150,7 @@ async function runStressTest(level: keyof typeof LOAD_PROFILES) {
         method: "POST",
         headers,
         body: selected.body,
+        signal: AbortSignal.timeout(10000),
       });
 
       const duration = performance.now() - start;

@@ -113,7 +113,8 @@ export class ApiSpecService {
       const { cacheService } = await import("@src/databases/cache/cache-service");
       await cacheService.delete(cacheKey, tenantId);
     } catch (err) {
-      // Non-fatal
+      const { logger } = await import("@utils/logger.server");
+      logger.debug("Non-fatal API spec cache delete error:", err);
     }
   }
 
@@ -139,7 +140,8 @@ export class ApiSpecService {
         return l2Cached;
       }
     } catch (err) {
-      // Non-fatal cache miss
+      const { logger } = await import("@utils/logger.server");
+      logger.debug("Non-fatal API spec cache miss:", err);
     }
 
     const spec = JSON.parse(JSON.stringify(this.baseSpec));
@@ -174,7 +176,8 @@ export class ApiSpecService {
       const { cacheService } = await import("@src/databases/cache/cache-service");
       await cacheService.set(cacheKey, spec, 300, tenantId, CacheCategory.API);
     } catch (err) {
-      // Non-fatal cache write error
+      const { logger } = await import("@utils/logger.server");
+      logger.debug("Non-fatal API spec cache write error:", err);
     }
 
     return spec;
@@ -533,7 +536,8 @@ export class ApiSpecService {
         case "Relation":
           fieldSchema.type = "string";
           fieldSchema.format = "uuid";
-          fieldSchema.description = `${field.label} (References ${field.relation?.collection || "Collection"})`;
+          const relation = (field as any).relation;
+          fieldSchema.description = `${field.label} (References ${relation?.collection || "Collection"})`;
           fieldSchema.example = "67f8c9d2e1b3a4f5c6d7e8f9";
           break;
         case "Array":

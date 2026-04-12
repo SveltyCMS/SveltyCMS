@@ -10,8 +10,8 @@ import type { RequestEvent } from "@sveltejs/kit";
 
 // Mock dependencies
 // Mock dependencies
-vi.mock("@src/databases/db", () => ({
-  dbAdapter: {
+vi.mock("@src/databases/db", () => {
+  const adapter = {
     auth: {
       getAllTokens: vi.fn().mockResolvedValue({ success: true, data: [] }),
       getTokenById: vi.fn().mockResolvedValue({ success: true, data: {} }),
@@ -25,11 +25,16 @@ vi.mock("@src/databases/db", () => ({
       update: vi.fn().mockResolvedValue({ success: true }),
       delete: vi.fn().mockResolvedValue({ success: true }),
       count: vi.fn().mockResolvedValue({ success: true, data: 0 }),
+      findOne: vi.fn().mockResolvedValue({ success: true, data: { _id: "t1" } }),
     },
-  },
-  getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-  getAuth: vi.fn(),
-}));
+  };
+  return {
+    dbAdapter: adapter,
+    getDb: vi.fn().mockReturnValue(adapter),
+    getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+    getAuth: vi.fn(),
+  };
+});
 
 vi.mock("@src/services/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
@@ -77,6 +82,7 @@ describe("Token API Unit Tests", () => {
           crud: {
             findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
             insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
+            count: vi.fn().mockResolvedValue({ success: true, data: 0 }),
           },
         },
       },

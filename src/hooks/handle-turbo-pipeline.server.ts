@@ -258,12 +258,16 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       "SveltyCMS-Benchmark-Secret-2026";
     if (testSecret === expected) {
       // Fast-track: Provision system user and bypass EVERYTHING
+      const { getDbInitPromise, dbAdapter } = await import("@src/databases/db");
+      await getDbInitPromise(false, "CORE");
+
       (event.locals as any).user = {
         _id: "system",
         role: "admin",
         isAdmin: true,
         email: "system@sveltycms",
       };
+      (event.locals as any).dbAdapter = dbAdapter;
       (event.locals as any).__testBypass = true;
       return resolve(event);
     }

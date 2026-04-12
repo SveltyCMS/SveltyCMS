@@ -45,6 +45,7 @@ class WidgetState {
   tenantId = $state<string>("default");
   isLoaded = $state(false);
   loading = $state(false);
+  private initPromise: Promise<void> | null = null;
   healthStatus = $state<"healthy" | "unhealthy" | "initializing">("initializing");
   lastHealthCheck = $state<number | undefined>(undefined);
 
@@ -116,163 +117,168 @@ class WidgetState {
   }
 
   async initialize(tenantId = "default", dbAdapter?: DatabaseAdapter | null) {
-    if (this.loading) {
-      logger.debug("[WidgetStore] Initialization already in progress, skipping.");
-      return;
+    if (this.initPromise) {
+      return this.initPromise;
     }
+
     if (this.isLoaded && this.tenantId === tenantId && !dbAdapter) {
-      logger.debug("[WidgetStore] Widgets already loaded, skipping initialization.");
       return;
     }
 
     this.loading = true;
     this.tenantId = tenantId;
-    logger.info(`[WidgetStore] Initializing for tenant: ${tenantId}`);
 
-    try {
-      // 1. Load modules from scanner
-      const newWidgetFunctions: WidgetRegistry = {};
-      const newCoreWidgets: string[] = [];
-      const newCustomWidgets: string[] = [];
-      const newDependencyMap: Record<string, string[]> = {};
+    this.initPromise = (async () => {
+      logger.info(`[WidgetStore] Initializing for tenant: ${tenantId}`);
 
-      logger.info(`[WidgetStore] Core modules found: ${Object.keys(coreModules).length}`);
-      logger.info(`[WidgetStore] Custom modules found: ${Object.keys(customModules).length}`);
+      try {
+        // 1. Load modules from scanner
+        const newWidgetFunctions: WidgetRegistry = {};
+        const newCoreWidgets: string[] = [];
+        const newCustomWidgets: string[] = [];
+        const newDependencyMap: Record<string, string[]> = {};
 
-      // Process core widgets
-      for (const [path, module] of Object.entries(coreModules)) {
-        const name = path.split("/").at(-2);
-        if (!name) {
-          continue;
-        }
+        logger.info(`[WidgetStore] Core modules found: ${Object.keys(coreModules).length}`);
+        logger.info(`[WidgetStore] Custom modules found: ${Object.keys(customModules).length}`);
 
-        try {
-          const fn = (module as { default: WidgetFactory }).default;
-          if (typeof fn !== "function") {
+        // Process core widgets
+        for (const [path, module] of Object.entries(coreModules)) {
+          const name = path.split("/").at(-2);
+          if (!name) {
             continue;
           }
 
-          const widgetName = fn.Name || name;
-          fn.Name = widgetName;
-          fn.__widgetType = "core";
+          try {
+            const fn = (module as { default: WidgetFactory }).default;
+            if (typeof fn !== "function") {
+              continue;
+            }
 
-          newWidgetFunctions[widgetName] = fn;
-          newCoreWidgets.push(widgetName);
+            const widgetName = fn.Name || name;
+            fn.Name = widgetName;
+            fn.__widgetType = "core";
 
-          const deps = (fn as any).__dependencies;
-          if (deps && Array.isArray(deps) && deps.length > 0) {
-            newDependencyMap[widgetName] = deps;
+            newWidgetFunctions[widgetName] = fn;
+            newCoreWidgets.push(widgetName);
+
+            const deps = (fn as any).__dependencies;
+            if (deps && Array.isArray(deps) && deps.length > 0) {
+              newDependencyMap[widgetName] = deps;
+            }
+
+            if (name && name !== widgetName) {
+              newWidgetFunctions[name] = fn;
+            }
+          } catch (err) {
+            logger.error(`[WidgetStore] Failed to load core widget at ${path}:`, err);
           }
-
-          if (name && name !== widgetName) {
-            newWidgetFunctions[name] = fn;
-          }
-        } catch (err) {
-          logger.error(`[WidgetStore] Failed to load core widget at ${path}:`, err);
-        }
-      }
-
-      // Process custom widgets
-      for (const [path, module] of Object.entries(customModules)) {
-        const name = path.split("/").at(-2);
-        if (!name) {
-          continue;
         }
 
-        try {
-          const fn = (module as { default: WidgetFactory }).default;
-          if (typeof fn !== "function") {
+        // Process custom widgets
+        for (const [path, module] of Object.entries(customModules)) {
+          const name = path.split("/").at(-2);
+          if (!name) {
             continue;
           }
 
-          const widgetName = fn.Name || name;
-          fn.Name = widgetName;
-          fn.__widgetType = "custom";
+          try {
+            const fn = (module as { default: WidgetFactory }).default;
+            if (typeof fn !== "function") {
+              continue;
+            }
 
-          newWidgetFunctions[widgetName] = fn;
-          newCustomWidgets.push(widgetName);
+            const widgetName = fn.Name || name;
+            fn.Name = widgetName;
+            fn.__widgetType = "custom";
 
-          const deps = (fn as any).__dependencies;
-          if (deps && Array.isArray(deps) && deps.length > 0) {
-            newDependencyMap[widgetName] = deps;
+            newWidgetFunctions[widgetName] = fn;
+            newCustomWidgets.push(widgetName);
+
+            const deps = (fn as any).__dependencies;
+            if (deps && Array.isArray(deps) && deps.length > 0) {
+              newDependencyMap[widgetName] = deps;
+            }
+
+            if (name && name !== widgetName) {
+              newWidgetFunctions[name] = fn;
+            }
+          } catch (err) {
+            logger.error(`[WidgetStore] Failed to load custom widget at ${path}:`, err);
           }
-
-          if (name && name !== widgetName) {
-            newWidgetFunctions[name] = fn;
-          }
-        } catch (err) {
-          logger.error(`[WidgetStore] Failed to load custom widget at ${path}:`, err);
         }
-      }
 
-      this.widgetFunctions = newWidgetFunctions;
-      this.coreWidgets = newCoreWidgets;
-      this.customWidgets = newCustomWidgets;
-      this.dependencyMap = newDependencyMap;
+        this.widgetFunctions = newWidgetFunctions;
+        this.coreWidgets = newCoreWidgets;
+        this.customWidgets = newCustomWidgets;
+        this.dependencyMap = newDependencyMap;
 
-      // 2. Load active status from DB if available
-      let activeWidgetNames: string[] = [];
-      if (dbAdapter) {
-        const activeRes = await dbAdapter.system.widgets.getActiveWidgets();
-        if (activeRes.success) {
-          activeWidgetNames = (activeRes.data ?? []).map((w) => w.name);
+        // 2. Load active status from DB if available
+        let activeWidgetNames: string[] = [];
+        if (dbAdapter) {
+          const activeRes = await dbAdapter.system.widgets.getActiveWidgets();
+          if (activeRes.success) {
+            activeWidgetNames = (activeRes.data ?? []).map((w) => w.name);
+          }
+        } else if (typeof window !== "undefined") {
+          // Fallback to API if adapter not passed (client-side)
+          const res = await fetch(`/api/widgets/active${this.isLoaded ? "" : "?refresh=true"}`, {
+            headers: { "X-Tenant-ID": tenantId },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            activeWidgetNames = (data.widgets || []).map((w: { name: string }) => w.name);
+          }
         }
-      } else if (typeof window !== "undefined") {
-        // Fallback to API if adapter not passed (client-side)
-        const res = await fetch(`/api/widgets/active${this.isLoaded ? "" : "?refresh=true"}`, {
-          headers: { "X-Tenant-ID": tenantId },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          activeWidgetNames = (data.widgets || []).map((w: { name: string }) => w.name);
+
+        // Normalize and merge core
+        const normalizedActive = activeWidgetNames
+          .map((name) => {
+            if (this.widgetFunctions[name]) {
+              return name;
+            }
+            const camelCase = name.charAt(0).toLowerCase() + name.slice(1);
+            if (this.widgetFunctions[camelCase]) {
+              return camelCase;
+            }
+            const lowerCase = name.toLowerCase();
+            if (this.widgetFunctions[lowerCase]) {
+              return lowerCase;
+            }
+            return null;
+          })
+          .filter((name): name is string => name !== null);
+
+        // IMPORTANT: Core widgets are ALWAYS active and cannot be deactivated
+        // Merge core widgets with active widgets from database
+        const allActiveWidgets = [...new Set([...normalizedActive, ...newCoreWidgets])];
+
+        this.activeWidgets = allActiveWidgets;
+
+        // Create instances
+        const newWidgets: Record<string, FieldInstance> = {};
+        for (const [name, fn] of Object.entries(this.widgetFunctions)) {
+          // Cast to any first to bypass complex union mismatch if necessary, or better, to its known factory signature
+          newWidgets[name] = (fn as any)({ label: name });
         }
+        this.widgets = newWidgets;
+
+        this.isLoaded = true;
+        this.healthStatus = "healthy";
+        this.lastHealthCheck = Date.now();
+
+        logger.info(
+          `[WidgetStore] Initialized: ${this.coreWidgets.length} core, ${this.customWidgets.length} custom widgets.`,
+        );
+      } catch (e) {
+        this.healthStatus = "unhealthy";
+        logger.error("[WidgetStore] Initialization failed:", e);
+      } finally {
+        this.loading = false;
+        this.initPromise = null;
       }
+    })();
 
-      // Normalize and merge core
-      const normalizedActive = activeWidgetNames
-        .map((name) => {
-          if (this.widgetFunctions[name]) {
-            return name;
-          }
-          const camelCase = name.charAt(0).toLowerCase() + name.slice(1);
-          if (this.widgetFunctions[camelCase]) {
-            return camelCase;
-          }
-          const lowerCase = name.toLowerCase();
-          if (this.widgetFunctions[lowerCase]) {
-            return lowerCase;
-          }
-          return null;
-        })
-        .filter((name): name is string => name !== null);
-
-      // IMPORTANT: Core widgets are ALWAYS active and cannot be deactivated
-      // Merge core widgets with active widgets from database
-      const allActiveWidgets = [...new Set([...normalizedActive, ...newCoreWidgets])];
-
-      this.activeWidgets = allActiveWidgets;
-
-      // Create instances
-      const newWidgets: Record<string, FieldInstance> = {};
-      for (const [name, fn] of Object.entries(this.widgetFunctions)) {
-        // Cast to any first to bypass complex union mismatch if necessary, or better, to its known factory signature
-        newWidgets[name] = (fn as any)({ label: name });
-      }
-      this.widgets = newWidgets;
-
-      this.isLoaded = true;
-      this.loading = false;
-      this.healthStatus = "healthy";
-      this.lastHealthCheck = Date.now();
-
-      logger.info(
-        `[WidgetStore] Initialized: ${this.coreWidgets.length} core, ${this.customWidgets.length} custom widgets.`,
-      );
-    } catch (e) {
-      this.loading = false;
-      this.healthStatus = "unhealthy";
-      logger.error("[WidgetStore] Initialization failed:", e);
-    }
+    return this.initPromise;
   }
 
   async updateStatus(name: string, status: WidgetStatus, tenantId?: string | null) {

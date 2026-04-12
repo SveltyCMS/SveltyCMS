@@ -21,7 +21,7 @@ export async function handleUtilityRoutes(
   const method = segments[1];
 
   // --- OpenAPI Specification ---
-  if (namespace === "openapi.json" && request.method === "GET") {
+  if (namespace === "openapi.json" && (request.method === "GET" || request.method === "HEAD")) {
     const { apiSpecService } = await import("@services/system/api-spec-service");
     const { contentSystem } = await import("@src/content");
     const collections = await contentSystem.getCollections(tenantId);

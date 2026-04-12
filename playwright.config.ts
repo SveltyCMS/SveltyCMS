@@ -81,27 +81,38 @@ export default defineConfig({
     bypassCSP: true,
   },
 
-  /* Configure projects for major browsers */
+  /* Global Setup for artifact/secret synchronization */
+  globalSetup: "./tests/e2e/global.setup.ts",
+
+  /* Configure projects for staged CI Matrix */
   projects: [
     {
       name: "wizard",
-      testMatch: /setup-wizard\.spec\.ts/,
+      testMatch: /setup-wizard.*\.spec\.ts/,
     },
     {
       name: "auth-setup",
       testMatch: /auth\.setup\.ts/,
       dependencies: ["wizard"],
-      // Force sequential to avoid race conditions during auth bootstrapping
-      workers: 1,
+      workers: 1, // Sequential auth setup
     },
     {
-      name: "chromium",
-      use: {
-        ...devices["Desktop Chrome"],
-        headless: !!process.env.CI, // Always headless in CI
-      },
+      name: "signup",
+      testMatch: /(signup|oauth).*\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
       dependencies: ["auth-setup"],
-      testIgnore: [/setup-wizard\.spec\.ts/, /auth\.setup\.ts/],
+    },
+    {
+      name: "content",
+      testMatch: /collection.*\.spec\.ts|permission-change\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["auth-setup"],
+    },
+    {
+      name: "system",
+      testMatch: /(user|language|role-based-access).*\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["auth-setup"],
     },
   ],
 

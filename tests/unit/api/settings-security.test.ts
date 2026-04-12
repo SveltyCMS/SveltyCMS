@@ -14,6 +14,9 @@ vi.mock("@src/databases/db", () => ({
   dbAdapter: {
     system: { preferences: { getMany: vi.fn(), set: vi.fn() } },
   },
+  getDb: vi.fn().mockReturnValue({
+    system: { preferences: { getMany: vi.fn(), set: vi.fn() } },
+  }),
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
   getAuth: vi.fn(),
 }));
@@ -21,11 +24,13 @@ vi.mock("@src/databases/db", () => ({
 vi.mock("@src/services/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
   getPublicSettingSync: vi.fn().mockReturnValue(true),
+  getUntypedSetting: vi.fn().mockResolvedValue(undefined),
   getAllSettings: vi.fn().mockResolvedValue({ public: {}, private: {} }),
   updateSettingsFromSnapshot: vi.fn().mockResolvedValue({ success: true }),
   settingsService: {
     getPrivateSettingSync: vi.fn().mockReturnValue(false),
     getPublicSettingSync: vi.fn().mockReturnValue(true),
+    getUntypedSetting: vi.fn().mockResolvedValue(undefined),
     getAllSettings: vi.fn().mockResolvedValue({ public: {}, private: {} }),
     updateSettingsFromSnapshot: vi.fn().mockResolvedValue({ success: true }),
   },

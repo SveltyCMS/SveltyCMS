@@ -1,24 +1,25 @@
 /**
  * @file tests/benchmarks/hooks-performance.test.ts
- * @description Professional high-resolution benchmark for SveltyCMS middleware hooks.
- * Uses benchmark-utils for p95, p99, and RPS metrics.
+ * @description Professional benchmark for SveltyCMS middleware / hook pipeline.
+ * Measures individual hook overhead + realistic full pipeline latency.
  */
 
-// 1. Initialize Mocks
+import { test } from "bun:test";
 import "../unit/setup.ts";
 import { runBenchmark, exportResult } from "./benchmark-utils";
-import type { RequestEvent } from "@sveltejs/kit";
 
-/**
- * Dynamically import hooks to ensure setup mocks are applied first.
- */
+async function stabilize() {
+  if (typeof Bun !== "undefined") Bun.gc(true);
+  await new Promise((r) => setTimeout(r, 15));
+}
+
 async function getHooks() {
   return {
+    handleSetup: (await import("../../src/hooks/handle-setup")).handleSetup,
     handleTurboPipeline: (await import("../../src/hooks/handle-turbo-pipeline.server"))
       .handleTurboPipeline,
     handleCompression: (await import("../../src/hooks/handle-compression")).handleCompression,
     handleSecurity: (await import("../../src/hooks/handle-security")).handleSecurity,
-    handleSetup: (await import("../../src/hooks/handle-setup")).handleSetup,
     handleUserPreferences: (await import("../../src/hooks/handle-user-preferences"))
       .handleUserPreferences,
     handleAuthentication: (await import("../../src/hooks/handle-authentication"))
@@ -33,15 +34,12 @@ async function getHooks() {
   };
 }
 
-const ITERATIONS = 10_000;
-const MOCK_RESPONSE = new Response("OK", { status: 200 });
-
-function createMockEvent(path: string): RequestEvent {
+function createMockEvent(path = "/"): any {
   const url = new URL(`http://localhost${path}`);
   return {
     url,
-    request: new Request(url),
-    locals: {},
+    request: new Request(url, { method: "GET" }),
+    locals: { user: null, tenantId: "global" },
     cookies: {
       get: () => undefined,
       getAll: () => [],
@@ -49,104 +47,115 @@ function createMockEvent(path: string): RequestEvent {
       delete: () => {},
       serialize: () => "",
     },
-    fetch: async () => MOCK_RESPONSE.clone(),
+    fetch: async () => new Response("OK", { status: 200 }),
     getClientAddress: () => "127.0.0.1",
     platform: {},
     isDataRequest: false,
     route: { id: path },
     params: {},
-    isPasswordless: false,
-  } as unknown as RequestEvent;
+    setHeaders: () => {},
+    // Add any other fields your hooks commonly access
+  };
 }
 
-const resolve = async () => MOCK_RESPONSE.clone();
+const resolve = async () => new Response("OK", { status: 200 });
 
-async function runHookBenchmarkSuite() {
+test("Hook Pipeline Performance Suite", async () => {
+  console.log("🛠️ Starting SveltyCMS Hook & Middleware Performance Benchmark...\n");
+
   const hooks = await getHooks();
-  const overallResults = [];
+  const results: any[] = [];
+  const ITERATIONS = 3000; // Balanced: enough for good stats, fast enough to run often
+  const WARMUP = 300;
 
-  console.log("🛠️  Starting Professional Hook Pipeline Benchmark Suite...");
-  console.log(`   (Running ${ITERATIONS.toLocaleString()} iterations per hook)\n`);
+  // Run each hook in isolation with fresh state
+  for (const [hookName, hookFn] of Object.entries(hooks)) {
+    console.log(`⏱️  Benchmarking hook: ${hookName}`);
 
-  for (const [name, hook] of Object.entries(hooks)) {
     const result = await runBenchmark({
-      name,
+      name: hookName,
       iterations: ITERATIONS,
-      warmupIterations: 500,
-      silent: true,
-      onIteration: async () => {
-        const event = createMockEvent("/"); // Public path to avoid AuthError noise
+      warmupIterations: WARMUP,
+      concurrency: 1,
+      onWarmup: async () => {
+        const event = createMockEvent("/");
         try {
-          await hook({ event, resolve });
+          await hookFn({ event, resolve });
+        } catch {}
+      },
+      onIteration: async () => {
+        // Fresh event every iteration to prevent cross-hook pollution
+        const event = createMockEvent("/");
+        try {
+          await hookFn({ event, resolve });
         } catch {
-          // Expected errors
+          // Ignore expected errors (e.g. auth on public route)
         }
       },
     });
-    overallResults.push(result);
-    // Standardized filename for individual hooks
-    exportResult(result, `hook-${name.toLowerCase()}.json`);
+
+    results.push(result);
+    exportResult(result, `hook-${hookName.toLowerCase()}.json`);
+
+    await stabilize(); // Important: clean memory between hooks
   }
 
-  // --- Summary Matrix ---
-  console.log(
-    "\n==========================================================================================",
-  );
-  console.log("🏁  MIDDLWARE PERFORMANCE MATRIX");
-  console.log(
-    "==========================================================================================",
-  );
+  // ========================
+  // Realistic Full Pipeline Benchmark
+  // ========================
+  console.log("\n🚀 Benchmarking FULL Hook Pipeline (realistic order)...");
 
-  // Custom high-resolution printer (prevents truncation and improves readability)
-  const pad = (s: string, n: number) => s.padEnd(n).slice(0, n);
-  const head = `| ${pad("Hook", 24)} | ${pad("Avg (µs)", 10)} | ${pad("p95 (µs)", 10)} | ${pad("p99 (µs)", 10)} | ${pad("Throughput", 14)} |`;
-  console.log(head);
-  console.log(
-    `|${"-".repeat(26)}|${"-".repeat(12)}|${"-".repeat(12)}|${"-".repeat(12)}|${"-".repeat(16)}|`,
-  );
+  const pipelineResult = await runBenchmark({
+    name: "Full Hook Pipeline",
+    iterations: ITERATIONS,
+    warmupIterations: WARMUP,
+    onIteration: async () => {
+      let event = createMockEvent("/");
+      try {
+        // Run hooks in typical execution order (adjust if your real order differs)
+        for (const hookFn of Object.values(hooks)) {
+          await hookFn({ event, resolve });
+        }
+      } catch {
+        // Some hooks may short-circuit
+      }
+    },
+  });
 
-  for (const r of overallResults) {
-    const row = `| ${pad(r.name, 24)} | ${pad((r.avgMs * 1000).toFixed(2), 10)} | ${pad((r.p95Ms * 1000).toFixed(2), 10)} | ${pad((r.p99Ms * 1000).toFixed(2), 10)} | ${pad(Math.floor(r.rps).toLocaleString(), 14)} |`;
-    console.log(row);
+  exportResult(pipelineResult, "hook-pipeline-full.json");
+
+  // ========================
+  // Beautiful Summary
+  // ========================
+  console.log("\n" + "=".repeat(90));
+  console.log("🏆 HOOK PERFORMANCE MATRIX (Individual + Pipeline)");
+  console.log("=".repeat(90));
+
+  console.log(
+    `| ${"Hook".padEnd(28)} | ${"Avg (µs)".padEnd(10)} | ${"p95 (µs)".padEnd(10)} | ${"p99 (µs)".padEnd(10)} | ${"RPS".padEnd(12)} |`,
+  );
+  console.log("|" + "-".repeat(28 + 10 + 10 + 10 + 12 + 6) + "|");
+
+  for (const r of results) {
+    const avgUs = (r.avgMs * 1000).toFixed(2);
+    const p95Us = (r.p95Ms * 1000).toFixed(2);
+    const p99Us = (r.p99Ms * 1000).toFixed(2);
+    console.log(
+      `| ${r.name.padEnd(28)} | ${avgUs.padEnd(10)} | ${p95Us.padEnd(10)} | ${p99Us.padEnd(10)} | ${Math.floor(r.rps).toLocaleString().padEnd(12)} |`,
+    );
   }
+
+  // Pipeline row
+  const pipeAvgUs = (pipelineResult.avgMs * 1000).toFixed(2);
+  const pipeP95Us = (pipelineResult.p95Ms * 1000).toFixed(2);
+  console.log("|" + "-".repeat(28 + 10 + 10 + 10 + 12 + 6) + "|");
   console.log(
-    "==========================================================================================\n",
+    `| ${"FULL PIPELINE".padEnd(28)} | ${pipeAvgUs.padEnd(10)} | ${pipeP95Us.padEnd(10)} | ${"-".padEnd(10)} | ${Math.floor(pipelineResult.rps).toLocaleString().padEnd(12)} |`,
   );
+  console.log("=".repeat(90));
 
-  // Calculate Pipeline Totals
-  const totalAvg = overallResults.reduce((acc, r) => acc + r.avgMs, 0);
-  const totalP95 = overallResults.reduce((acc, r) => acc + r.p95Ms, 0);
-  const totalP99 = overallResults.reduce((acc, r) => acc + r.p99Ms, 0);
-
-  const pipelineResult = {
-    name: "Pipeline Overall",
-    avgMs: totalAvg,
-    p95Ms: totalP95,
-    p99Ms: totalP99,
-    rps: 1000 / totalAvg,
-    timestamp: new Date().toISOString(),
-    metrics: { avgMs: totalAvg, p95Ms: totalP95 },
-  } as any;
-
+  console.log(`\n📊 Total pipeline overhead: ${pipelineResult.avgMs.toFixed(4)} ms per request`);
   console.log(
-    "==========================================================================================",
+    `   Expected max throughput: ~${Math.floor(pipelineResult.rps).toLocaleString()} req/sec (single-threaded)`,
   );
-  console.log("📊  AGGREGATE HOOK PIPELINE PERFORMANCE");
-  console.log(
-    "==========================================================================================",
-  );
-  console.log(`Avg Latency:  ${(totalAvg * 1000).toFixed(2)} µs (${totalAvg.toFixed(4)} ms)`);
-  console.log(`p95 Latency:  ${(totalP95 * 1000).toFixed(2)} µs (${totalP95.toFixed(4)} ms)`);
-  console.log(`Throughput:   ${Math.floor(1000 / totalAvg).toLocaleString()} req/sec`);
-  console.log(
-    "==========================================================================================\n",
-  );
-
-  exportResult(pipelineResult, "hook-pipeline.json");
-}
-
-import { test } from "bun:test";
-
-test("Hook Pipeline Performance Suite", async () => {
-  await runHookBenchmarkSuite();
 }, 600000);

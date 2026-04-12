@@ -40,6 +40,7 @@ export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
   displayComponentPath?: string;
   GraphqlSchema?: (params: {
     field: unknown;
+    fieldName: string;
     label: string;
     collection: unknown;
     collectionNameMapping?: Map<string, string>;

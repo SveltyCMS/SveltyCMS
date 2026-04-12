@@ -43,6 +43,9 @@ export async function handleTestingRoutes(
     const { email, password } = params;
     if (!email || !password) throw new AppError("Email and password required for seeding", 400);
 
+    const { logger } = await import("@utils/logger.server");
+    logger.debug("Seeding test user", { email, tenantId });
+
     // Create admin user
     const result = await cms.auth.createUser(
       {
@@ -53,6 +56,15 @@ export async function handleTestingRoutes(
       },
       tenantId,
     );
+
+    logger.debug("Seed user creation result", {
+      success: result.success,
+      error: (result as any).message,
+    });
+
+    // Seed default theme
+    const { DEFAULT_THEME } = await import("@src/databases/theme-manager");
+    await cms.db.system.themes.ensure(DEFAULT_THEME);
 
     // ✨ Fix: Invalidate setup cache so the system recognizes it is now COMPLETE
     const { invalidateSetupCache } = await import("@src/utils/setup-check");

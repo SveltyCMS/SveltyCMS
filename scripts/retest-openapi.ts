@@ -4,8 +4,10 @@
  * Uses x-test-secret to bypass auth for reliable performance metrics.
  */
 
-import { spawn, execSync, type ChildProcess } from "node:child_process";
+import { spawn, execSync } from "node:child_process";
 import { performance } from "node:perf_hooks";
+import { existsSync } from "node:fs";
+import path from "node:path";
 
 const PORT = 4173;
 const TEST_API_SECRET = "SVELTYCMS_TEST_SECRET_2026";
@@ -38,7 +40,10 @@ async function main() {
   };
 
   console.log("🚀 Launching SveltyCMS...");
-  const server = spawn("bun", ["build/index.js"], { env });
+  const serverPath = existsSync(path.join(process.cwd(), "build/index.js"))
+    ? "build/index.js"
+    : ".svelte-kit/output/server/index.js";
+  const server = spawn("bun", [serverPath], { env });
 
   // Wait for server to be ready
   let ready = false;

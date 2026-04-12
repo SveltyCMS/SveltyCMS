@@ -7,11 +7,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";
 import { dbAdapter } from "@src/databases/db";
 
-// Mock db adapter
-vi.mock("@src/databases/db", () => ({
-  dbAdapter: {
+const { mockAdapter } = vi.hoisted(() => ({
+  mockAdapter: {
     auth: {
-      getAllUsers: vi.fn().mockResolvedValue([]),
+      getAllUsers: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      getUserCount: vi.fn().mockResolvedValue({ success: true, data: 0 }),
     },
     crud: {
       findOne: vi.fn().mockResolvedValue({ success: true, data: null }),
@@ -26,14 +26,13 @@ vi.mock("@src/databases/db", () => ({
       },
     },
   },
+}));
+
+// Mock db adapter
+vi.mock("@src/databases/db", () => ({
+  dbAdapter: mockAdapter,
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-  getDb: vi.fn().mockReturnValue({
-    system: {
-      preferences: {
-        set: vi.fn().mockResolvedValue({ success: true }),
-      },
-    },
-  }),
+  getDb: vi.fn().mockReturnValue(mockAdapter),
 }));
 
 // Mock settings service
@@ -41,6 +40,8 @@ vi.mock("@src/services/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(true), // MULTI_TENANT = true
   getAllSettings: vi.fn().mockResolvedValue({ public: {}, private: {} }),
   invalidateSettingsCache: vi.fn(),
+  getPublicSettingSync: vi.fn().mockReturnValue("mediaFolder"),
+  getUntypedSetting: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock logger
@@ -86,9 +87,12 @@ describe("Export/Import API Security - Tenant Isolation", () => {
       } as any;
 
       await dispatcherPOST(event);
-      expect(dbAdapter!.auth.getAllUsers).toHaveBeenCalledWith({
-        filter: { tenantId: myTenant },
-      });
+      expect(dbAdapter!.auth.getAllUsers).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filter: expect.objectContaining({ tenantId: myTenant }),
+        }),
+        expect.objectContaining({ tenantId: myTenant }),
+      );
     });
 
     it("should allow super-admin to override tenantId", async () => {
@@ -105,9 +109,12 @@ describe("Export/Import API Security - Tenant Isolation", () => {
       } as any;
 
       await dispatcherPOST(event);
-      expect(dbAdapter!.auth.getAllUsers).toHaveBeenCalledWith({
-        filter: { tenantId: otherTenant },
-      });
+      expect(dbAdapter!.auth.getAllUsers).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filter: expect.objectContaining({ tenantId: otherTenant }),
+        }),
+        expect.objectContaining({ tenantId: otherTenant }),
+      );
     });
 
     it("should prevent regular admin from overriding tenantId", async () => {

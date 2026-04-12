@@ -75,10 +75,13 @@ export async function handleContentRoutes(
           return;
         }
 
-        const handler = (event: any) => {
+        const handler = (ev: any) => {
           if (!isClosed) {
+            // Filter by tenantId if provided
+            if (tenantId && ev.tenantId && ev.tenantId !== tenantId) return;
+
             try {
-              controller.enqueue(`data: ${JSON.stringify(event)}\n\n`);
+              controller.enqueue(`data: ${JSON.stringify(ev)}\n\n`);
             } catch {
               isClosed = true;
               eventBus.off("*", handler);
@@ -140,4 +143,12 @@ export async function handleContentRoutes(
   }
 
   throw new AppError(`Content endpoint /api/${namespace}/${method || ""} not implemented`, 404);
+}
+
+/**
+ * Proxy to the main GraphQL handler
+ */
+export async function handleGraphqlRoutes(event: RequestEvent) {
+  const { POST } = await import("../../graphql/+server");
+  return POST(event);
 }

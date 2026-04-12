@@ -23,6 +23,7 @@ export const PUBLIC_ROUTES = [
   "/api/user/login",
   "/api/auth/login",
   "/api/preview",
+  "/api/openapi.json",
   "/forbidden",
 ];
 
@@ -46,6 +47,25 @@ export function isPublicRoute(pathname: string, testMode = false): boolean {
   if (PUBLIC_ROUTES.some((r) => pathname.startsWith(r))) return true;
 
   if (testMode && pathname.startsWith("/api/testing")) return true;
+
+  // Security and Auth Public Endpoints
+  if (pathname === "/api/security/csp-report") return true;
+  if (pathname === "/api/auth/saml/acs" || pathname === "/api/auth/saml/login") return true;
+
+  // Invitation token validation is public (GET specific token)
+  // Protected: /api/token/list, /api/token/batch, /api/token/create-token, /api/token/resolve
+  // Public: /api/token/some-random-id-here
+  if (pathname.startsWith("/api/token/")) {
+    const parts = pathname.split("/").filter(Boolean);
+    // Only /api/token/<id> is public, not /api/token or /api/token/action
+    if (parts.length === 3) {
+      const action = parts[2];
+      const reserved = ["list", "batch", "create-token", "resolve"];
+      if (!reserved.includes(action)) {
+        return true;
+      }
+    }
+  }
 
   // 2. Localized routes (e.g. /en/login) + Precise OAuth flow detection
   return (

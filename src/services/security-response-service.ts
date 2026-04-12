@@ -181,7 +181,7 @@ class SecurityResponseService {
     if (threatLevel === "high") {
       return {
         level: "high",
-        action: "challenge",
+        action: "block",
         reason: "Suspicious payload detected",
       };
     }

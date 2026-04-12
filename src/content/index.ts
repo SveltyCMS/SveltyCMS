@@ -32,6 +32,8 @@ const getRedisTTL = async () => (await import("@src/databases/cache/cache-servic
 // --- CONTEXT ---
 const CONTENT_CONTEXT_KEY = Symbol("content-context");
 
+let initializationPromise: Promise<void> | null = null;
+
 /**
  * Central orchestrator for the SveltyCMS Content System.
  */
@@ -57,6 +59,10 @@ export const contentSystem = {
     adapter?: IDBAdapter,
     incremental = false,
   ): Promise<void> {
+    if (initializationPromise) {
+      return initializationPromise;
+    }
+
     if (browser) {
       if (contentStore.initState === "uninitialized") contentStore.initState = "initialized";
       const { contentLiveSync } = await import("./content-sse.svelte");
@@ -64,61 +70,67 @@ export const contentSystem = {
       return;
     }
 
-    const { isSetupComplete } = await import("@utils/setup-check");
-    const setupComplete = isSetupComplete();
-    contentStore.initState = "initializing";
-    const start = performance.now();
+    initializationPromise = (async () => {
+      const { isSetupComplete } = await import("@utils/setup-check");
+      const setupComplete = isSetupComplete();
+      contentStore.initState = "initializing";
+      const start = performance.now();
 
-    try {
-      // 1. Try Cache
-      if (skipReconciliation && setupComplete) {
-        const cacheService = await getCacheService();
-        const cached = (await cacheService.get(
-          "cms:content_structure",
-          tenantId,
-          CacheCategory.CONTENT,
-        )) as any;
-        if (cached?.nodes) {
-          contentStore.sync(Object.values(cached.nodes));
-          contentMetrics.setInitializationTime(performance.now() - start);
-          return;
+      try {
+        // 1. Try Cache
+        if (skipReconciliation && setupComplete) {
+          const cacheService = await getCacheService();
+          const cached = (await cacheService.get(
+            "cms:content_structure",
+            tenantId,
+            CacheCategory.CONTENT,
+          )) as any;
+          if (cached?.nodes) {
+            contentStore.sync(Object.values(cached.nodes));
+            contentMetrics.setInitializationTime(performance.now() - start);
+            return;
+          }
         }
+
+        // 2. Reload via Server Service (supports incremental)
+        const { contentService } = await import("./content-service.server");
+        await contentService.fullReload(tenantId, skipReconciliation, adapter, incremental);
+
+        // 2.5 Invalidate OpenAPI Spec if reconciliation occurred
+        if (!skipReconciliation) {
+          const { apiSpecService } = await import("@src/services/system/api-spec-service");
+          void apiSpecService.invalidateCache(tenantId || undefined);
+        }
+
+        // 3. Populate Cache
+        if (setupComplete) {
+          const cacheService = await getCacheService();
+          const ttl = await getRedisTTL();
+          const state = {
+            nodes: Object.fromEntries(contentStore.getNodesEntries()),
+            version: contentStore.contentVersion,
+          };
+          await cacheService.set(
+            "cms:content_structure",
+            state,
+            ttl,
+            tenantId,
+            CacheCategory.CONTENT,
+            ["cms:content"],
+          );
+        }
+
+        contentStore.initState = "initialized";
+        contentMetrics.setInitializationTime(performance.now() - start);
+      } catch (error) {
+        contentStore.initState = "error";
+        logger.error("Content initialization failed", error);
+      } finally {
+        initializationPromise = null;
       }
+    })();
 
-      // 2. Reload via Server Service (supports incremental)
-      const { contentService } = await import("./content-service.server");
-      await contentService.fullReload(tenantId, skipReconciliation, adapter, incremental);
-
-      // 2.5 Invalidate OpenAPI Spec if reconciliation occurred
-      if (!skipReconciliation) {
-        const { apiSpecService } = await import("@src/services/system/api-spec-service");
-        void apiSpecService.invalidateCache(tenantId || undefined);
-      }
-
-      // 3. Populate Cache
-      if (setupComplete) {
-        const cacheService = await getCacheService();
-        const ttl = await getRedisTTL();
-        const state = {
-          nodes: Object.fromEntries(contentStore.getNodesEntries()),
-          version: contentStore.contentVersion,
-        };
-        await cacheService.set(
-          "cms:content_structure",
-          state,
-          ttl,
-          tenantId,
-          CacheCategory.CONTENT,
-          ["cms:content"],
-        );
-      }
-
-      contentStore.initState = "initialized";
-      contentMetrics.setInitializationTime(performance.now() - start);
-    } catch (error) {
-      contentStore.initState = "error";
-      logger.error("Content initialization failed", error);
-    }
+    return initializationPromise;
   },
 
   // --- Public Content API ---
@@ -218,8 +230,19 @@ export const contentSystem = {
   getNodeChildren(nodeId: string | null = null, tenantId?: string | null): any {
     return contentStore.getChildren(nodeId, tenantId);
   },
-  getCollectionStats(_id: string, _tenantId?: string | null): any {
-    return {};
+  getCollectionStats(id: string, tenantId?: string | null): any {
+    const col = contentStore.getCollection(id, tenantId);
+    if (!col) return null;
+    return {
+      _id: col._id || id,
+      name: col.name || id,
+      icon: col.icon || "mdi:folder",
+      path: col.path || `/collection/${col.name}`,
+      fieldCount: (col.fields || []).length,
+      hasRevisions: col.revision || false,
+      hasLivePreview: !!col.livePreview,
+      status: col.status || "active",
+    };
   },
 
   navigation: contentNavigation,
@@ -260,12 +283,6 @@ export const contentSystem = {
     return ctx;
   },
 };
-
-/**
- * Backward compatibility alias for the Content System.
- * @deprecated Use contentSystem instead.
- */
-export const contentManager = contentSystem;
 
 export interface ContentContext {
   content: typeof contentSystem;

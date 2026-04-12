@@ -90,6 +90,17 @@ const RichTextWidget = createWidget<RichTextProps>({
     translated: true,
   },
 
+  // GraphQL schema for rich text
+  GraphqlSchema: ({ label }) => ({
+    typeID: `${label}_RichText`,
+    graphql: `
+      type ${label}_RichText {
+        title: String
+        content: String
+      }
+    `,
+  }),
+
   jsonRender: true,
 });
 

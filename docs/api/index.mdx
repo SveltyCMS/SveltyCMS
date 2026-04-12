@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:api"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-04-01"
+updated: "2026-04-12"
 tags:
   - "api"
   - "developer"
@@ -17,7 +17,7 @@ tags:
 
 # API Reference
 
-SveltyCMS provides a comprehensive programmatic surface for building custom frontends, automating workflows, and synchronizing external data.
+SveltyCMS provides a comprehensive programmatic surface for building custom frontends, automating workflows, and synchronizing external data. Built on a architecture that supports the **fastest unified OpenAPI** specification, it enables maximum flexibility for any setup — from simple headless blogs to enterprise-grade multi-tenant platforms.
 
 ---
 
@@ -25,125 +25,60 @@ SveltyCMS provides a comprehensive programmatic surface for building custom fron
 
 Choose the access pattern that best fits your development environment.
 
-| Pattern                                               | Context                                        | performance | Best For                                             |
-| :---------------------------------------------------- | :--------------------------------------------- | :---------- | :--------------------------------------------------- |
-| [⚡ **Local SDK**](./local-vs-http-api.mdx)           | **Server-side** (`.server.ts`, hooks, actions) | **0–5ms**   | Native SvelteKit development, high-throughput tasks. |
-| [🌐 **REST API**](./collection-api.mdx)               | **External** (Mobile apps, microservices)      | 50–150ms    | Cross-origin integrations, simple CRUD.              |
-| [📊 **GraphQL API**](./graphql-api.mdx)               | **Frontend** (React, Vue, SPA)                 | 50–200ms    | Complex data fetching, reducing overfetching.        |
-| [📖 **OpenAPI 3.1.0**](./openapi-spec.mdx)            | **Documentation & SDKs**                       | N/A         | Automated client generation and interactive docs.    |
-| [📡 **SSE / WebSockets**](./real-time-events-api.mdx) | **Real-Time** (Dashboards, AI streaming)       | < 50ms      | Live updates, collaboration, and progress tracking.  |
+| Pattern | Context | Latency | Best For |
+| :--- | :--- | :--- | :--- |
+| [⚡ **Local SDK**](./local-vs-http-api.mdx) | **Server-side** (`.server.ts`) | **0–5ms** | Native SvelteKit, high-throughput. |
+| [🌐 **REST API**](./collections.mdx) | **External** (Mobile, Apps) | 50–150ms | Simple CRUD & Integrations. |
+| [📊 **GraphQL API**](./content.mdx#4-graphql-api) | **Frontend** (React, Vue, SPA) | 50–200ms | Complex data fetching. |
+| [📖 **OpenAPI Spec**](./openapi-spec.mdx) | **Documentation & SDKs** | **Unified** | Fastest automated client generation. |
 
 ---
 
 ## 🛡️ Unified Gatekeeper Architecture
 
-As of April 2026, SveltyCMS has consolidated its REST surface from fragmented per-resource routes to a high-performance **Unified Gatekeeper** (`src/routes/api/[...path]`).
+SveltyCMS uses a high-performance **Unified Gatekeeper** (`src/routes/api/[...path]`) that dispatches requests to domain-specific handlers.
 
 ### Key Benefits
-
 - **Zero-Latency Dispatching**: Internal server-to-server calls bypass HTTP overhead via the `LocalCMS` bridge.
-- **Fail-Closed Security**: Every request must pass the central `CheckAuthorization` before being dispatched to domain handlers.
-- **Simplified Deployment**: Reduced bundle size and faster warm-ups (2.0s → 0.8s) by removing redundant route definitions.
-- **Cross-Domain Consistency**: All services (Auth, Content, Media, System) share the same validation and error-handling middleware.
+- **Fail-Closed Security**: Every request must pass central authorization before being dispatched.
+- **1:1 Code Alignment**: API endpoints map directly to their respective backend handler files (e.g., `/api/auth/*` maps to `auth.ts`).
 
 ---
 
-## 🚀 Why the API is "Enterprise & Headless Ready"
+## 📚 Complete API Reference (Handler Based)
 
-1.  **Zero-Latency Local SDK (The "Internal" Tier)**: In a standard headless setup, a page load might require 3–5 API calls, each taking 50–100ms. SveltyCMS uses the `locals.cms` SDK to interact directly with the database memory space, achieving **0.1ms – 5ms** overhead.
-2.  **JIT-Compiled GraphQL (The "Intelligent" Tier)**: For external consumers, we use `@envelop/graphql-jit`. Instead of interpreting queries, the system **compiles** them into optimized JavaScript functions, handling thousands of relational queries per second without CPU spikes.
-3.  **Enterprise Multi-Tenancy (Isolation)**: We use **Contextual Isolation**. The `tenantId` is baked into the database adapter calls at the lowest level. It is mathematically impossible for Tenant A to query Tenant B's data because the ID is injected before the query is constructed.
-4.  **Real-Time SSE (The "Efficiency" Tier)**: SveltyCMS uses Server-Sent Events (SSE) for AI token streaming and live collaboration. It works through Cloudflare and Load Balancers natively with a minimal RAM footprint compared to WebSockets.
-5.  **Dynamic OpenAPI 3.1.0 (The "Developer" Tier)**: SveltyCMS dynamically generates a comprehensive OpenAPI specification, allowing for automated SDK generation in any language and interactive documentation via Swagger UI or Scalar.
+The API is organized around specialized backend handlers. Each document provides detailed reference for its endpoints and SDK equivalents.
 
----
+### Content & Data
+- [📚 **Collections (collections.ts)**](./collections.mdx) — Entry CRUD, schema discovery, and revisions.
+- [🔍 **Content & Search (content.ts)**](./content.mdx) — Global search, SSE events, and GraphQL.
+- [🖼️ **Media (media.ts)**](./media.mdx) — Asset uploads, processing, and folder management.
 
-## 🛠 Technical Evidence from the Codebase
+### Identity & Access
+- [👥 **Auth & Identity (auth.ts)**](./auth.mdx) — Login, 2FA, SAML SSO, and Profiles.
+- [🔐 **Tokens (tokens.ts)**](./tokens.mdx) — Invitation links and programmatic API keys.
+- [🌐 **SCIM 2.0 (scim.ts)**](./scim.mdx) — Standardized user provisioning.
 
-| Feature           | Implementation                     | Performance Level                                     |
-| :---------------- | :--------------------------------- | :---------------------------------------------------- |
-| **Validation**    | Valibot (Agnostic Schema)          | Faster than Zod; optimized for tree-shaking.          |
-| **Hashing**       | Argon2id                           | Industry standard for resisting GPU/ASIC brute force. |
-| **Database**      | Native Adapters (Drizzle/Mongoose) | Zero "ORM Bloat"; queries are optimized per-engine.   |
-| **Observability** | MetricsService                     | High-performance atomic counters (no blocking).       |
-| **Integrations**  | HMAC-Signed Webhooks               | Secure, durable delivery with exponential backoff.    |
-
----
-
-## 🔐 Authentication & Security
-
-All API endpoints are gated by the **Security Middleware Pipeline** (Rate Limiting, Firewall, and Auth).
-
-### 1. Developer Access Tokens (Programmatic)
-
-For long-lived scripts or server-to-server integrations, use **Bearer Tokens**.
-
-- [🔐 **API Access Tokens**](./api-access-tokens.mdx) — Guide to generating and using tokens.
-- [🛡️ **User Token Management**](./user-token-management-api.mdx) — Programmatic revocation and rotation.
-
-### 2. Session Cookies (Web App)
-
-Used by the Admin Studio and local frontend components.
-
-- [👥 **User Management API**](./user-management-api.mdx) — Authentication, registration, and profile updates.
-- [🔐 **2FA API**](./authentication-2fa-api.mdx) — Two-factor setup and verification.
+### System & Infrastructure
+- [⚙️ **System & Setup (system.ts / setup.ts)**](./system.mdx) — Settings, widgets, webhooks, and AI.
+- [📈 **Dashboard (dashboard.ts)**](./dashboard.mdx) — Metrics, logs, and health data.
+- [🛠 **Utilities (utility.ts)**](./utility.mdx) — Cache, trash, and email services.
 
 ---
 
-## 📚 Complete API Surface
-
-SveltyCMS provides granular endpoints for every core service. Use these links to explore specific technical references.
-
-### Data & Content
-
-- [📚 **Collection API**](./collection-api.mdx) — CRUD operations for content entries.
-- [📖 **OpenAPI Specification**](./openapi-spec.mdx) — Dynamic API contract for SDK generation.
-- [🔍 **Search API**](./search-api.mdx) — Full-text search across collections.
-- [📊 **GraphQL API**](./graphql-api.mdx) — Flexible querying and subscriptions.
-- [🔄 **Export/Import API**](./export-import-api.mdx) — Backup, migration, and smart importing.
-- [🗑️ **Trash & Recovery**](./system-utilities-api.mdx#1-content-recovery-trash-api) — Managing soft-deleted content.
-
-### Media & Assets
-
-- [🖼️ **Media API**](./media-api.mdx) — Uploading, cropping, and managing assets.
-
-### System & Configuration
-
-- [🧩 **Widget API**](./widget-api.mdx) — Managing widget lifecycle and dependencies.
-- [⚙️ **Settings API**](./settings-api.mdx) — Global and tenant-specific configuration.
-- [⚙️ **Setup Actions API**](./setup-actions-api.mdx) — Maintenance and system initialization.
-- [✉️ **Email API**](./email-api.mdx) — Programmatic email sending via Svelte templates.
-
-### Integration Tools
-
-- [🤖 **Automation System API**](../guides/development/automation-system.mdx) — Event-driven callbacks.
-- [🪝 **Webhooks Guide**](./webhooks.mdx) — Real-time HTTP event notifications.
-- [🌐 **SCIM v2.0 API**](./scim-v2-api.mdx) — Standardized user and group provisioning.
-- [🔐 **SAML SSO API**](./saml-sso-api.mdx) — Enterprise identity provider integration.
-
-### Observability & Real-Time
-
-- [📈 **Dashboard API**](./dashboard-api.mdx) — Metrics, performance, and health data.
-- [⚡ **Real-Time Events API**](./real-time-events-api.mdx) — SSE stream for activity and AI tokens.
-
----
-
-## 📡 The Response Strategy
+## 📡 Response Strategy
 
 All REST endpoints follow a unified response shape to ensure consistent client-side handling.
 
 ### Success Format (200 OK / 201 Created)
-
 ```json
 {
   "success": true,
-  "data": { ... },
-  "performance": { "duration": 4.5 }
+  "data": { ... }
 }
 ```
 
 ### Error Format (4xx / 5xx)
-
 ```json
 {
   "success": false,
@@ -154,4 +89,4 @@ All REST endpoints follow a unified response shape to ensure consistent client-s
 
 ---
 
-**Next Steps**: If you're building a custom frontend, we recommend starting with the [Collection API](./collection-api.mdx) for basic data fetching. For real-time updates, explore the [Real-Time Events API](./real-time-events-api.mdx).
+**Next Steps**: If you're building a custom frontend, we recommend starting with the [Collections Reference](./collections.mdx) for basic data fetching. For real-time updates, explore [Content & Search](./content.mdx).

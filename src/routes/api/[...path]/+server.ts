@@ -13,6 +13,7 @@ import { dbAdapter, getDbInitPromise } from "@src/databases/db";
 import { LocalCMS } from "../cms";
 import type { DatabaseId } from "@src/content/types";
 import { getSegments } from "./handlers/base";
+import { isPublicRoute } from "@src/utils/hook-utils";
 
 // Dynamic handlers map for build-time tree-shaking
 const HANDLERS: Record<string, () => Promise<any>> = {
@@ -51,13 +52,17 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   ai: { handler: "system", fn: "handleAiRoutes" },
   automations: { handler: "system", fn: "handleAutomationRoutes" },
   setup: { handler: "setup", fn: "handleSetupRoutes" },
+  export: { handler: "system", fn: "handleExportRoutes" },
+  import: { handler: "system", fn: "handleImportRoutes" },
   metrics: { handler: "system", fn: "handleSystemRoutes" },
-  telemetry: { handler: "system", fn: "handleTelemetryRoutes" },
+  telemetry: { handler: "system", fn: "handleSystemRoutes" },
+  security: { handler: "system", fn: "handleSystemRoutes" },
   theme: { handler: "system", fn: "handleThemeRoutes" },
   "system-preferences": { handler: "system", fn: "handlePreferenceRoutes" },
   health: { handler: "system", fn: "handleHealthRoutes" },
   token: { handler: "tokens", fn: "handleTokenRoutes" },
   "website-tokens": { handler: "tokens", fn: "handleTokenRoutes" },
+  "get-tokens-provided": { handler: "auth", fn: "handleAuthUserRoutes" },
   testing: { handler: "testing", fn: "handleTestingRoutes" },
   reset: { handler: "testing", fn: "handleTestingRoutes" },
   seed: { handler: "testing", fn: "handleTestingRoutes" },
@@ -70,6 +75,9 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   trash: { handler: "utility", fn: "handleUtilityRoutes" },
   debug: { handler: "utility", fn: "handleUtilityRoutes" },
   "openapi.json": { handler: "utility", fn: "handleUtilityRoutes" },
+  webhooks: { handler: "system", fn: "handleWebhookRoutes" },
+  "system-webhooks": { handler: "system", fn: "handleWebhookRoutes" },
+  graphql: { handler: "content", fn: "handleGraphqlRoutes" },
 };
 
 let cachedDbVersion: string | null = null;
@@ -80,7 +88,21 @@ let cachedDbVersion: string | null = null;
 export const _handler = async (event: RequestEvent) => {
   const { request, url, params, locals, cookies } = event;
   const { path } = params;
-  const { tenantId } = locals;
+  const { user } = locals;
+  let tenantId = (locals.tenantId as string) || null;
+
+  // Support tenantId override for super-admins
+  if (url.searchParams.has("tenantId")) {
+    if (user?.role === "super-admin") {
+      tenantId = url.searchParams.get("tenantId")!;
+    } else {
+      throw new AppError(
+        "Forbidden: Tenant override only allowed for super-admins",
+        403,
+        "FORBIDDEN",
+      );
+    }
+  }
   const segments = getSegments(path as string);
   const namespace = segments[0];
 
@@ -119,15 +141,29 @@ export const _handler = async (event: RequestEvent) => {
 
   // --- Init & Auth ---
   await getDbInitPromise();
-  const cms = new LocalCMS(dbAdapter!);
 
-  const config = NAMESPACE_CONFIG[namespace] || { handler: "system", fn: "handleSystemRoutes" };
-
-  if (process.env.DEBUG === "true") {
-    console.log(
-      `[Dispatcher] path="${path}" namespace="${namespace}" handler="${config.handler}" fn="${config.fn}"`,
-    );
+  let adapter = locals.dbAdapter as any;
+  if (!adapter) {
+    const { getDb } = await import("@src/databases/db");
+    adapter = getDb();
   }
+
+  if (!adapter) {
+    throw new AppError("Database unavailable: Adapter not initialized", 503);
+  }
+
+  const cms = new LocalCMS(adapter);
+
+  // Fail-closed authentication check for non-public routes
+  const isPublic = isPublicRoute(url.pathname, process.env.TEST_MODE === "true");
+  if (!user && !isPublic) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+
+  if (!NAMESPACE_CONFIG[namespace]) {
+    throw new AppError(`API Namespace "/api/${namespace}" not found`, 404, "NAMESPACE_NOT_FOUND");
+  }
+  const config = NAMESPACE_CONFIG[namespace];
 
   const handlerModule = await HANDLERS[config.handler]();
   const fn = handlerModule[config.fn];
@@ -136,7 +172,17 @@ export const _handler = async (event: RequestEvent) => {
     throw new AppError(`Handler function ${config.fn} not found in ${config.handler}`, 500);
   }
 
-  return await fn(event, cms, tenantId as DatabaseId, segments);
+  const response = await fn(event, cms, tenantId as DatabaseId, segments);
+
+  if (!(response instanceof Response)) {
+    throw new AppError(
+      `API Error: Handler for "${path}" did not return a valid Response.`,
+      500,
+      "INVALID_HANDLER_RESPONSE",
+    );
+  }
+
+  return response;
 };
 
 export const GET = apiHandler(_handler);

@@ -344,11 +344,26 @@ export class AdapterCore {
   }
 
   public getTable(collection: string): any {
+    logger.debug(`[SQLiteAdapter] getTable: ${collection}`);
     const schemaAny = schema as unknown as Record<string, any>;
 
     // Aliases
     if (collection === "system_content_structure") {
       return schema.contentNodes;
+    }
+    if (
+      collection === "tokens" ||
+      collection === "invitation_tokens" ||
+      collection === "auth_tokens"
+    ) {
+      logger.debug(`[SQLiteAdapter] matched tokens alias -> schema.authTokens`);
+      return schema.authTokens;
+    }
+    if (collection === "users" || collection === "auth_users") {
+      return schema.authUsers;
+    }
+    if (collection === "sessions" || collection === "auth_sessions") {
+      return schema.authSessions;
     }
 
     // 1. Static schema tables

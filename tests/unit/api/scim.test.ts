@@ -13,8 +13,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { RequestEvent } from "@sveltejs/kit";
 
 // Mock dependencies
-vi.mock("@src/databases/db", () => ({
-  auth: {
+vi.mock("@src/databases/db", () => {
+  const auth = {
     getAllUsers: vi.fn(),
     getUserById: vi.fn(),
     updateUser: vi.fn(),
@@ -28,8 +28,8 @@ vi.mock("@src/databases/db", () => ({
       deleteRole: vi.fn(),
       getAllUsers: vi.fn(),
     },
-  },
-  dbAdapter: {
+  };
+  const dbAdapter = {
     auth: {
       getUserCount: vi.fn(),
       getAllUsers: vi.fn(),
@@ -41,10 +41,15 @@ vi.mock("@src/databases/db", () => ({
       findMany: vi.fn(),
       findOne: vi.fn(),
     },
-  },
-  dbInitPromise: Promise.resolve(),
-  getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-}));
+  };
+  return {
+    auth,
+    dbAdapter,
+    getDb: vi.fn().mockReturnValue(dbAdapter),
+    dbInitPromise: Promise.resolve(),
+    getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
 vi.mock("@utils/api-handler", () => ({
   apiHandler: (fn: any) => fn,

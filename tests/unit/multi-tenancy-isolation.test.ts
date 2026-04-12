@@ -55,7 +55,13 @@ describe("GraphQL Multi-Tenancy Isolation", () => {
   });
 
   it("should throw an error if the request context tenantId does not match the server tenantId", async () => {
-    const mockDbAdapter = {} as any;
+    const mockDbAdapter = {
+      queryBuilder: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnThis(),
+        paginate: vi.fn().mockReturnThis(),
+        execute: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      }),
+    } as any;
 
     // Assume this is server initialized for tenant-A
     const serverTenantId = "tenant-A";
@@ -89,7 +95,13 @@ describe("GraphQL Multi-Tenancy Isolation", () => {
   });
 
   it("should throw an error if the user tenant does not match the request context tenant", async () => {
-    const mockDbAdapter = {} as any;
+    const mockDbAdapter = {
+      queryBuilder: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnThis(),
+        paginate: vi.fn().mockReturnThis(),
+        execute: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      }),
+    } as any;
     const serverTenantId = "tenant-A";
     const resolvers = await collectionsResolvers(mockDbAdapter, null, serverTenantId);
 

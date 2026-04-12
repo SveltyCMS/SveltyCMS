@@ -70,8 +70,12 @@ export function createCleanTypeName(collection: { _id?: string; name?: string | 
     .replace(/[^a-zA-Z0-9]/g, "")
     .replace(/^[0-9]/, "Collection$&")
     .replace(/^[a-z]/, (c) => c.toUpperCase());
-  const shortId = (collection._id ?? "").substring(0, 8);
-  return `${cleanName}_${shortId}`;
+
+  // Use the full ID if it looks like a benchmark/static ID (8 chars or less),
+  // otherwise take the first 8 for uniqueness.
+  const id = collection._id ?? "";
+  const idSuffix = id.length <= 8 ? id : id.substring(0, 8);
+  return `${cleanName}_${idSuffix}`;
 }
 
 interface WidgetSchema {
@@ -110,27 +114,6 @@ export async function registerCollections(tenantId?: string | null) {
   await contentSystem.initialize(tenantId);
   const collections: Schema[] = await contentSystem.getCollections(tenantId);
 
-  // Use lightweight metadata instead of full schemas where possible
-  const collectionStats = await Promise.all(
-    (await contentSystem.getCollections(tenantId)).map(async (col) => ({
-      ...col,
-      stats: contentSystem.getCollectionStats(col._id!, tenantId),
-    })),
-  );
-
-  logger.debug(
-    "Collections loaded for GraphQL:",
-    collectionStats.map((c) => ({
-      name: typeof c.name === "string" ? c.name : "",
-      id: c._id,
-      cleanTypeName: createCleanTypeName({
-        _id: c._id,
-        name: typeof c.name === "string" ? c.name : "",
-      }),
-      fieldCount: c.stats?.fieldCount,
-    })),
-  );
-
   const typeIDs = new Set<string>();
   const typeDefsSet = new Set<string>();
   const resolvers: ResolverContext = { Query: {} };
@@ -142,104 +125,85 @@ export async function registerCollections(tenantId?: string | null) {
     collectionNameMapping.set(name, cleanTypeName);
   }
 
+  // --- Optimization: Pre-calculate Relations to avoid O(N^2) lookup ---
+  const relationMap = new Map<
+    string,
+    Array<{ otherCollection: Schema; otherField: FieldInstance }>
+  >();
+  for (const otherCollection of collections) {
+    for (const otherField of otherCollection.fields as FieldInstance[]) {
+      if (otherField.widget?.Name === "Relation") {
+        const targetCollection = (otherField as any).collection;
+        if (targetCollection) {
+          if (!relationMap.has(targetCollection)) relationMap.set(targetCollection, []);
+          relationMap.get(targetCollection)!.push({ otherCollection, otherField });
+        }
+      }
+    }
+  }
+
   for (const collection of collections) {
     const name = typeof collection.name === "string" ? collection.name : "";
     const cleanTypeName = createCleanTypeName({ _id: collection._id, name });
     resolvers[cleanTypeName] = {};
-    let collectionSchema = `
-			type ${cleanTypeName} {
-		`;
+    let collectionSchema = `\n\ttype ${cleanTypeName} {\n`;
 
     for (const field of collection.fields as FieldInstance[]) {
       const widgetNameRaw = field.widget?.Name;
-      if (!widgetNameRaw || typeof widgetNameRaw !== "string") {
-        continue; // Skip fields with missing widget names silently
-      }
+      if (!widgetNameRaw || typeof widgetNameRaw !== "string") continue;
 
-      // Get widget functions map - Correctly accessed from store
       const widgetFunctionsMap = widgets.widgetFunctions;
+      let widget =
+        widgetFunctionsMap[widgetNameRaw] ||
+        widgetFunctionsMap[widgetNameRaw.charAt(0).toLowerCase() + widgetNameRaw.slice(1)] ||
+        widgetFunctionsMap[widgetNameRaw.toLowerCase()];
 
-      // Try exact match first, then try camelCase conversion, then lowercase fallback
-      let widget = widgetFunctionsMap[widgetNameRaw];
+      if (!widget || typeof widget.GraphqlSchema !== "function") continue;
 
-      if (!widget) {
-        const camelName = widgetNameRaw.charAt(0).toLowerCase() + widgetNameRaw.slice(1);
-        widget = widgetFunctionsMap[camelName];
-      }
-
-      if (!widget) {
-        const lowerName = widgetNameRaw.toLowerCase();
-        widget = widgetFunctionsMap[lowerName];
-      }
-
-      if (!widget) {
-        // Log warning but continue, missing widget shouldn't break entire API
-        const availableWidgets = Object.keys(widgetFunctionsMap).length;
-        logger.warn(`Widget not found: ${widgetNameRaw} (Available: ${availableWidgets})`);
-        continue;
-      }
-
-      if (typeof widget.GraphqlSchema !== "function") {
-        continue;
-      }
+      const fieldName = getFieldName(field);
       const schema = widget.GraphqlSchema({
         field,
-        label: `${cleanTypeName}_${getFieldName(field)}`,
+        label: `${cleanTypeName}_${fieldName}`,
+        fieldName,
         collection,
         collectionNameMapping,
       }) as WidgetSchema | undefined;
 
-      if (!schema) {
-        continue;
-      }
+      if (!schema) continue;
 
-      if (schema.resolver) {
-        Object.assign(resolvers[cleanTypeName], schema.resolver);
-      }
+      if (schema.resolver) Object.assign(resolvers[cleanTypeName], schema.resolver);
 
-      // Only add to typeDefsSet if there's actual GraphQL schema content
       if (schema.graphql?.trim() && !typeIDs.has(schema.typeID)) {
         typeIDs.add(schema.typeID);
         typeDefsSet.add(schema.graphql);
       } else if (!schema.graphql?.trim()) {
         typeIDs.add(schema.typeID);
-      } else if (typeIDs.has(schema.typeID)) {
-        // Duplicate type ID warning suppressed
       }
 
       // Nested Fields Logic
       if (
         "extract" in field &&
-        Array.isArray((field as FieldInstance & { fields?: FieldInstance[] }).fields) &&
-        ((field as FieldInstance & { fields?: FieldInstance[] }).fields?.length ?? 0) > 0
+        Array.isArray((field as any).fields) &&
+        (field as any).fields.length > 0
       ) {
-        for (const FIELD of (field as FieldInstance & { fields?: FieldInstance[] }).fields!) {
+        for (const FIELD of (field as any).fields) {
           const nestedWidgetNameRaw = FIELD.widget?.Name;
-          if (!nestedWidgetNameRaw || typeof nestedWidgetNameRaw !== "string") {
-            continue;
-          }
+          if (!nestedWidgetNameRaw || typeof nestedWidgetNameRaw !== "string") continue;
 
-          const widgetFunctionsMap = widgets.widgetFunctions;
-          let nestedWidget = widgetFunctionsMap[nestedWidgetNameRaw];
+          let nestedWidget =
+            widgetFunctionsMap[nestedWidgetNameRaw] ||
+            widgetFunctionsMap[
+              nestedWidgetNameRaw.charAt(0).toLowerCase() + nestedWidgetNameRaw.slice(1)
+            ] ||
+            widgetFunctionsMap[nestedWidgetNameRaw.toLowerCase()];
 
-          if (!nestedWidget) {
-            const camelName =
-              nestedWidgetNameRaw.charAt(0).toLowerCase() + nestedWidgetNameRaw.slice(1);
-            nestedWidget = widgetFunctionsMap[camelName];
-          }
+          if (!nestedWidget || typeof nestedWidget.GraphqlSchema !== "function") continue;
 
-          if (!nestedWidget) {
-            const lowerName = nestedWidgetNameRaw.toLowerCase();
-            nestedWidget = widgetFunctionsMap[lowerName];
-          }
-
-          if (!nestedWidget || typeof nestedWidget.GraphqlSchema !== "function") {
-            continue;
-          }
-
+          const nestedFieldName = getFieldName(FIELD);
           const nestedSchema = nestedWidget.GraphqlSchema({
             field: FIELD,
-            label: `${cleanTypeName}_${getFieldName(FIELD)}`,
+            label: `${cleanTypeName}_${nestedFieldName}`,
+            fieldName: nestedFieldName,
             collection,
             collectionNameMapping,
           });
@@ -251,38 +215,48 @@ export async function registerCollections(tenantId?: string | null) {
             } else if (!nestedSchema.graphql?.trim()) {
               typeIDs.add(nestedSchema.typeID);
             }
-            collectionSchema += `                ${getFieldName(FIELD)}: ${nestedSchema.typeID}\n`;
+            collectionSchema += `\t\t${nestedFieldName}: ${nestedSchema.typeID}\n`;
 
-            // Robustly handle potentially localized data even if not marked translated
-            const nestedResolverFn = (
-              parent: Record<string, unknown>,
-              _args: unknown,
-              ctx: { locale: string },
-            ) => getLocalizedValue(parent[getFieldName(FIELD)], ctx.locale);
-
-            if (nestedResolverFn) {
-              resolvers[cleanTypeName][getFieldName(FIELD)] =
-                nestedResolverFn as GraphQLFieldResolver<unknown, unknown>;
-            }
+            resolvers[cleanTypeName][nestedFieldName] = (parent: any, _args: any, ctx: any) =>
+              getLocalizedValue(parent[nestedFieldName], ctx.locale);
           }
         }
       } else {
-        collectionSchema += `                ${getFieldName(field)}: ${schema.typeID}\n`;
-
-        // Robustly handle potentially localized data even if not marked translated
-        const resolverFn = (
-          parent: Record<string, unknown>,
-          _args: unknown,
-          ctx: { locale: string },
-        ) => getLocalizedValue(parent[getFieldName(field)], ctx.locale);
-
-        if (resolverFn) {
-          resolvers[cleanTypeName][getFieldName(field)] = resolverFn as GraphQLFieldResolver<
-            unknown,
-            unknown
-          >;
+        collectionSchema += `\t\t${fieldName}: ${schema.typeID}\n`;
+        if (!resolvers[cleanTypeName][fieldName]) {
+          resolvers[cleanTypeName][fieldName] = (parent: any, _args: any, ctx: any) =>
+            getLocalizedValue(parent[fieldName], ctx.locale);
         }
       }
+    }
+
+    // --- Efficient Inverse Relations Logic ---
+    const related = relationMap.get(name) || [];
+    for (const { otherCollection, otherField } of related) {
+      const inverseFieldName = createCleanTypeName({
+        _id: otherCollection._id,
+        name: typeof otherCollection.name === "string" ? otherCollection.name : "",
+      }).split("_")[0];
+
+      collectionSchema += `\t\t${inverseFieldName}: [${createCleanTypeName(otherCollection)}]\n`;
+
+      resolvers[cleanTypeName][inverseFieldName] = async (
+        parent: any,
+        _args: any,
+        context: any,
+      ) => {
+        const { dbAdapter, tenantId } = context;
+        if (!dbAdapter) return [];
+
+        const result = await dbAdapter.crud.findMany(
+          typeof otherCollection.name === "string" ? otherCollection.name : "",
+          {
+            [getFieldName(otherField)]: parent._id,
+            ...(tenantId ? { tenantId } : {}),
+          },
+        );
+        return result.success ? result.data : [];
+      };
     }
 
     collectionSchema += `
@@ -329,11 +303,11 @@ export async function collectionsResolvers(
       args: { pagination?: { page?: number; limit?: number } },
       context: unknown,
     ): Promise<DocumentBase[]> {
-      // Type guard for context
       const ctx = context as {
         user?: User;
         tenantId?: string | null;
         locale?: string;
+        bypassTenantIsolation?: boolean;
       };
       if (!ctx.user) {
         throw new Error("Authentication required");
@@ -344,6 +318,15 @@ export async function collectionsResolvers(
         throw new Error("Internal server error: Tenant context mismatch.");
       }
 
+      // Check user tenant isolation
+      if (getPrivateSettingSync("MULTI_TENANT") && !ctx.bypassTenantIsolation) {
+        const userTenantId = ctx.user.tenantId;
+        const isGlobalAdmin = !userTenantId || userTenantId === "global";
+        if (!isGlobalAdmin && userTenantId !== ctx.tenantId) {
+          throw new Error("Forbidden: Tenant isolation mismatch");
+        }
+      }
+
       if (!dbAdapter) {
         throw new Error("Database adapter is not initialized");
       }
@@ -352,13 +335,6 @@ export async function collectionsResolvers(
       const locale = ctx.locale || "en";
 
       try {
-        const collectionStats = contentSystem.getCollectionStats(collection._id!, ctx.tenantId);
-        if (!collectionStats) {
-          throw new Error(`Collection not found: ${collection._id}`);
-        }
-
-        // CACHE: Conforming to Cache Architecture (Category: Query)
-        // Key: query:collections:{id}:{page}:{limit}:{locale}:{version}
         const contentVersion = contentSystem.getContentVersion();
         const cacheKey = `query:collections:${collection._id}:${page}:${limit}:${locale}:${contentVersion}`;
 
@@ -369,7 +345,6 @@ export async function collectionsResolvers(
           }
         }
 
-        // Query execution
         const query: Record<string, unknown> = {};
         if (getPrivateSettingSync("MULTI_TENANT") && ctx.tenantId) {
           query.tenantId = ctx.tenantId;
@@ -390,7 +365,6 @@ export async function collectionsResolvers(
           ? result.data
           : []) as unknown as DocumentBase[];
 
-        // Modify Request (Permissions & Computed Fields)
         if (resultArray.length > 0) {
           try {
             await modifyRequest({
@@ -401,13 +375,12 @@ export async function collectionsResolvers(
               type: "GET",
             });
           } catch (modifyError) {
-            logger.warn("GraphQLmodify-requestfailed", {
+            logger.warn("GraphQL modify-request failed", {
               error: modifyError instanceof Error ? modifyError.message : "Unknown error",
             });
           }
         }
 
-        // Token Replacement
         const processedResults = await Promise.all(
           resultArray.map(async (doc) => {
             const tokenContext: TokenContext = {
@@ -433,7 +406,6 @@ export async function collectionsResolvers(
           }),
         );
 
-        // Date Normalization
         for (const doc of processedResults) {
           doc.createdAt = doc.createdAt
             ? new Date(doc.createdAt).toISOString()
@@ -441,7 +413,6 @@ export async function collectionsResolvers(
           doc.updatedAt = doc.updatedAt ? new Date(doc.updatedAt).toISOString() : doc.createdAt;
         }
 
-        // CACHE SET: Category 'query' (Default TTL: 30m = 1800s)
         if (getPrivateSettingSync("USE_REDIS") && cacheClient) {
           await cacheClient.set(
             cacheKey,

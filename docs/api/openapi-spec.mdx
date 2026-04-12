@@ -17,7 +17,7 @@ tags:
 
 # OpenAPI Specification Reference
 
-SveltyCMS dynamically generates a comprehensive **OpenAPI 3.1.0** (formerly Swagger) specification. This document acts as the machine-readable "source of truth" for your entire API surface, including dynamic collections and system handlers.
+SveltyCMS dynamically generates the **fastest unified OpenAPI 3.1.0** specification in its class. This document acts as the machine-readable "source of truth" for your entire API surface, served through the high-performance unified dispatcher to allow **maximum flexibility** for complex, multi-client setups.
 
 ---
 
@@ -28,12 +28,13 @@ SveltyCMS dynamically generates a comprehensive **OpenAPI 3.1.0** (formerly Swag
 | **JSON Endpoint** | `GET /api/openapi.json`                             |
 | **Specification** | OpenAPI 3.1.0                                       |
 | **Auth Required** | No (Specification is public, Endpoints are guarded) |
+| **Dispatcher**    | Unified API Dispatcher (Harmonized Architecture)    |
 
 ---
 
 ## 1. The Goal
 
-Enable **Automated SDK Generation** and **Contract-First Development**. By providing a standard OpenAPI spec, SveltyCMS allows developers to generate type-safe clients for any programming language (TypeScript, Python, Go, Rust, etc.) without manually writing HTTP wrappers.
+Enable **Automated SDK Generation** and **Contract-First Development**. By providing a standard OpenAPI spec, SveltyCMS allows developers to generate type-safe clients for any programming language (TypeScript, Python, Go, Rust, etc.) without manually writing HTTP wrappers. The specification is served via the **Unified Dispatcher**, ensuring perfect parity between documentation and implementation.
 
 ---
 
@@ -41,7 +42,7 @@ Enable **Automated SDK Generation** and **Contract-First Development**. By provi
 
 ### 🧩 Dynamic Collection Discovery
 
-The specification is not static. Whenever you create a new collection in the **Collection Builder**, the OpenAPI service automatically adds:
+The specification is not static. Whenever you create a new collection in the **Collection Builder**, the OpenAPI service (part of the Harmonized API Layer) automatically adds:
 
 - `GET /api/collections/{name}`: Listing with pagination and filtering.
 - `POST /api/collections/{name}`: Entry creation with full schema validation.
@@ -49,9 +50,12 @@ The specification is not static. Whenever you create a new collection in the **C
 - `PATCH /api/collections/{name}/{id}`: Partial updates.
 - `DELETE /api/collections/{name}/{id}`: Safe deletion.
 
+> [!NOTE]
+> Collection names in the OpenAPI spec match your configuration, while the underlying GraphQL types use a unique `Name_ShortID` pattern for maximum schema stability.
+
 ### 🌍 Multilingual Schema Support
 
-For collections with **translated fields**, the specification accurately describes the multilingual object structure:
+For collections with **translated fields**, the specification accurately describes the multilingual object structure, enabling seamless integration with frontend translation libraries:
 
 ```json
 "title": {
@@ -67,6 +71,7 @@ The spec includes standard security schemes for the **Unified Gatekeeper**:
 
 - **BearerAuth**: JWT-based session tokens.
 - **ApiKeyAuth**: Programmatic access via `x-api-key` header.
+- **TestSecretAuth**: Secure bypass for CI/automated testing via `x-test-secret`.
 
 ---
 
@@ -107,6 +112,6 @@ The `ApiSpecService` introspects your system at runtime:
 
 ## Related Documents
 
-- [📚 **Collection API Reference**](./collection-api.mdx)
-- [🔐 **API Access Tokens**](./api-access-tokens.mdx)
+- [📚 **Collections Reference**](./collections.mdx)
+- [🔐 **API Access Tokens**](./tokens.mdx)
 - [⚡ **Local SDK vs HTTP API**](./local-vs-http-api.mdx)

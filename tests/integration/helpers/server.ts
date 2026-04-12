@@ -58,8 +58,11 @@ export async function safeFetch(url: string, init?: RequestInit): Promise<Respon
     headers.set("Referer", `${BASE_URL}/`);
   }
 
+  // Hardening: Default timeout of 60s for all benchmark/integration requests
+  const signal = init?.signal || AbortSignal.timeout(60000);
+
   try {
-    const resp = await fetch(url, { ...init, headers });
+    const resp = await fetch(url, { ...init, headers, signal });
 
     // Error handling for empty response
     if (!resp) {
@@ -76,8 +79,20 @@ export async function safeFetch(url: string, init?: RequestInit): Promise<Respon
     return resp;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `Failed to reach server at ${url}. Integration tests require a running preview server (bun run test:integration). Error: ${message}`,
-    );
+    const isConnRefused =
+      message.includes("ConnectionRefused") ||
+      message.includes("failed to fetch") ||
+      message.includes("ECONNREFUSED");
+
+    let guidance = "";
+    if (isConnRefused) {
+      guidance =
+        "\n\n💡 FIX: The integration server is NOT running. Please start it using:\n" +
+        "   1. 'bun run test:integration' (Starts server + runs all tests)\n" +
+        "   2. 'bun run preview' (Starts server in high-performance mode)\n" +
+        "   3. 'bun run scripts/run-benchmarks.ts <file>' (Recommended for performance runs)";
+    }
+
+    throw new Error(`Failed to reach server at ${url}.${guidance}\n\nTechnical Error: ${message}`);
   }
 }

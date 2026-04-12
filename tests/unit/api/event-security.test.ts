@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Important: Import handlers dynamically AFTER any process-level mocks are set up.
 // In this case, we rely on setup.ts for global mocks.
 import { GET as dispatcherGET } from "@src/routes/api/[...path]/+server";
-import { eventBus } from "@src/services/automation/event-bus";
+import { eventBus } from "@src/utils/event-bus";
 
 describe("Events API Security - Tenant Isolation", () => {
   const mockUser = { _id: "user1", role: "admin", email: "test@example.com" };

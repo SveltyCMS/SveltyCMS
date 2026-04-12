@@ -25,6 +25,8 @@ vi.mock("@src/services/automation/automation-service", () => ({
 // Mock settings service
 vi.mock("@src/services/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(true), // MULTI_TENANT = true
+  getPublicSettingSync: vi.fn().mockReturnValue("mediaFolder"),
+  getUntypedSetting: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock logger
@@ -62,7 +64,7 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
       } as any;
 
       await dispatcherGET(event);
-      expect(automationService.getFlows).toHaveBeenCalledWith(myTenant);
+      expect(automationService.getFlow).toHaveBeenCalledWith(undefined, myTenant);
     });
 
     it("should allow super-admin to override tenantId via query parameter", async () => {
@@ -75,7 +77,7 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
       } as any;
 
       await dispatcherGET(event);
-      expect(automationService.getFlows).toHaveBeenCalledWith(otherTenant);
+      expect(automationService.getFlow).toHaveBeenCalledWith(undefined, otherTenant);
     });
 
     it("should prevent regular admin from overriding tenantId", async () => {
@@ -89,7 +91,7 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
 
       const response = await dispatcherGET(event);
       expect(response.status).toBe(403);
-      expect(automationService.getFlows).not.toHaveBeenCalledWith(otherTenant);
+      expect(automationService.getFlow).not.toHaveBeenCalledWith(undefined, otherTenant);
     });
   });
 

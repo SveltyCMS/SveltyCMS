@@ -1,0 +1,95 @@
+---
+path: "docs/api/utility.mdx"
+title: "Utilities (utility.ts)"
+description: "Reference for system helper services — trash management, cache clearing, email dispatching, and automated backups."
+order: 20
+icon: "mdi:hammer-wrench"
+author: "SveltyCMS Team"
+created: "2026-03-24"
+updated: "2026-04-12"
+tags:
+  - "api"
+  - "utility"
+  - "maintenance"
+  - "cache"
+  - "email"
+---
+
+# Utilities Reference (`utility.ts`)
+
+The Utilities API provides a set of essential maintenance and support services that keep the SveltyCMS environment healthy and performant. It manages ephemeral data like caches, recoverable data like the Trash, and transactional communications like Email.
+
+---
+
+## ⚡ Quick Reference
+
+| Feature | HTTP Endpoint | Method | Permission Required |
+| :--- | :--- | :--- | :--- |
+| **System Cache** | `/api/cache/clear` | `POST` | `manage:system` |
+| **Trash List** | `/api/trash` | `GET` | `collection:delete` |
+| **Restore Entry** | `/api/trash/restore` | `POST` | `collection:delete` |
+| **Send Email** | `/api/send-mail` | `POST` | `manage:system` |
+| **Marketplace** | `/api/marketplace` | `GET` | **Public** |
+| **OpenAPI Spec** | `/api/openapi.json` | `GET` | **Public** |
+
+---
+
+## 1. Maintenance & Cache
+
+### System Cache Management
+Manually invalidate the system-wide cache or clear specific categories (e.g., `collections`, `schemas`).
+
+**Endpoint**: `POST /api/cache/clear`  
+**Payload**: `{ "category": "all" }`
+
+---
+
+## 2. Recovery (The Trash)
+
+SveltyCMS implements a "Soft Delete" pattern. Deleted entries are moved to the Trash before being permanently purged.
+
+- **List Trash**: `GET /api/trash` — Returns a paginated list of items currently in the trash for the current tenant.
+- **Restore**: `POST /api/trash/restore` — Returns an item to its original collection and restores its original status.
+- **Empty Trash**: `DELETE /api/trash` — Permanently deletes all items in the trash.
+
+---
+
+## 3. Communication
+
+### Transactional Email
+Send Svelte-rendered emails directly via the API.
+
+**Endpoint**: `POST /api/send-mail`  
+**Payload**:
+```json
+{
+  "recipientEmail": "user@example.com",
+  "subject": "System Alert",
+  "template": "alert",
+  "props": { "message": "High CPU usage" }
+}
+```
+
+---
+
+## 4. The Mechanics
+
+### Utility Dispatcher
+The `utility.ts` handler manages a wide range of disparate system helper tasks. It acts as the primary interface for scheduled maintenance jobs and cross-system communication.
+
+```mermaid
+graph LR
+    A[Utility API] --> B[TrashManager]
+    A --> C[CacheService]
+    A --> D[EmailService]
+    A --> E[MarketplaceService]
+    A --> F[OpenAPI Generator]
+```
+
+---
+
+## Related Documents
+
+- [System Reference (system.ts)](./system.mdx)
+- [Content Reference (content.ts)](./content.mdx)
+- [API Coverage Report](./api-coverage-report.mdx)

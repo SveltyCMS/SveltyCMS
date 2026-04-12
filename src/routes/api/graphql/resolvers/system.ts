@@ -52,7 +52,7 @@ export const systemTypeDefs = `
 		nodeCount: Int!
 		collectionCount: Int!
 		cacheAge: Int
-		version: Int!
+		version: Float!
 	}
 
 	type HealthMaps {
@@ -70,7 +70,7 @@ export const systemTypeDefs = `
 		maps: HealthMaps!
 		cache: HealthCache!
 		state: String!
-		version: Int!
+		version: Float!
 	}
 
 	type OperationCounts {
@@ -126,9 +126,19 @@ export const systemResolvers = {
       }
       try {
         const collections = await contentSystem.getCollections(context.tenantId);
-        return collections
-          .map((col) => contentSystem.getCollectionStats(col._id!, context.tenantId))
-          .filter(Boolean);
+        // Optimize: Use the collection definitions we already have instead of re-resolving each one
+        return collections.map((col) => {
+          return {
+            _id: col._id,
+            name: col.name,
+            icon: col.icon || "mdi:folder",
+            path: col.path || `/collection/${col.name}`,
+            fieldCount: (col.fields || []).length,
+            hasRevisions: col.revision || false,
+            hasLivePreview: !!col.livePreview,
+            status: col.status || "active",
+          };
+        });
       } catch (error) {
         logger.error("Error in allCollectionStats:", {
           error,

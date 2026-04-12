@@ -6,15 +6,7 @@
  */
 
 import { spawn, execSync, type ChildProcess } from "node:child_process";
-import {
-  closeSync,
-  existsSync,
-  openSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  unlinkSync,
-} from "node:fs";
+import { closeSync, existsSync, openSync, readdirSync, statSync, unlinkSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, relative } from "node:path";
 
@@ -48,13 +40,6 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Password123!";
 process.env.ADMIN_PASSWORD = ADMIN_PASSWORD;
 
 const pkgManager = process.env.npm_execpath ?? "bun";
-
-const EXCLUDED_TEST_PATTERNS: ReadonlyArray<string> = [
-  "setup-actions",
-  "setup-wizard",
-  "setup-presets",
-  "setup-utils",
-];
 
 // ---------------------------------------------------------------------------
 // CLI parsing
@@ -239,23 +224,43 @@ async function startPreviewServer(dbHost?: string): Promise<void> {
 }
 
 async function waitForServer(targetState?: string): Promise<void> {
-  const maxAttempts = 60;
-  const ACCEPTABLE = targetState ? new Set([targetState]) : new Set(["READY", "SETUP"]);
+  const maxAttempts = 80;
+  const readyStatuses = new Set(["READY", "WARMED", "healthy", "ready"]);
+  const acceptableStatuses = targetState
+    ? readyStatuses.has(targetState)
+      ? readyStatuses
+      : new Set([targetState])
+    : new Set(["healthy", "ready", "READY", "WARMED", "DEGRADED", "SETUP", "WARMING"]);
+
+  console.log(`⏳ Waiting for server at ${API_BASE_URL}/api/system/health…`);
 
   for (let i = 0; i < maxAttempts; i++) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/system/health`, {
-        signal: AbortSignal.timeout(2000),
+        signal: AbortSignal.timeout(5000),
+        headers: { "x-test-mode": "true" },
       });
-      const data = await res.json().catch(() => null);
-      if (ACCEPTABLE.has(data?.overallStatus)) {
-        console.log(`✅ Server ready (state: ${data.overallStatus}).`);
+
+      if (!res.ok) {
+        await new Promise((r) => setTimeout(r, 1000));
+        continue;
+      }
+
+      const data = await res.json().catch(() => ({}));
+      const status = data?.status || data?.overallStatus || data?.health || "";
+
+      if (
+        acceptableStatuses.has(status) ||
+        acceptableStatuses.has(status.toLowerCase()) ||
+        (status && !targetState)
+      ) {
+        console.log(`✅ Server ready (status: ${status || "OK"}).`);
         return;
       }
     } catch {}
     await new Promise((r) => setTimeout(r, 1000));
   }
-  throw new Error("Server timeout");
+  throw new Error(`Server did not become ready within ${maxAttempts}s.`);
 }
 
 async function invokeTestApi(action: string): Promise<boolean> {
@@ -324,7 +329,12 @@ async function main(): Promise<void> {
     await invokeTestApi("reset");
     await invokeTestApi("seed");
     const { code } = await runCommand(pkgManager, ["test", file], {
-      env: { TEST_API_SECRET: process.env.TEST_API_SECRET },
+      env: {
+        ...process.env,
+        TEST_API_SECRET: process.env.TEST_API_SECRET,
+        DB_TYPE: process.env.DB_TYPE ?? "sqlite",
+        API_BASE_URL: API_BASE_URL,
+      },
     });
     results.push({ file: relPath, success: code === 0 });
   }

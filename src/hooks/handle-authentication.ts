@@ -34,7 +34,7 @@ import { error } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
-import { isStaticOrInternalRequest, isPublicRoute } from "@utils/hook-utils";
+import { isStaticOrInternalRequest } from "@utils/hook-utils";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 import { getTenantIdFromHostname } from "@utils/tenant-utils";
 import { dev } from "$app/environment";
@@ -312,51 +312,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   // High-performance bypass for internal test orchestration
   const isBypassed = (locals as any).__testBypass === true;
   const isSystemUser = (locals as any).user?._id === "system";
-  const testSecret = event.request.headers.get("x-test-secret");
 
   if (isSystemUser || isBypassed) return resolve(event); // Already provisioned by early bypass in pipeline
-
-  if (process.env.TEST_MODE === "true" && testSecret) {
-    const expected = process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026";
-
-    if (testSecret === expected) {
-      if (dbAdapter && auth) {
-        const adminEmail = event.request.headers.get("x-admin-email") || "admin@example.com";
-        const adminResult = await auth
-          .getUserByEmail({ email: adminEmail, tenantId: undefined }, { bypassTenantCheck: true })
-          .catch(() => null);
-        if (adminResult) {
-          locals.dbAdapter = dbAdapter;
-          locals.user = adminResult;
-          locals.permissions = adminResult.permissions || [];
-          return resolve(event);
-        }
-      }
-
-      // Fallback to virtual system user if DB or admin is missing but secret is valid
-      if (dbAdapter) {
-        locals.dbAdapter = dbAdapter;
-      } else {
-        const { getDb } = await import("@src/databases/db");
-        const currentDb = getDb();
-        if (currentDb) {
-          locals.dbAdapter = currentDb;
-        }
-      }
-      (locals as any).user = {
-        _id: "system",
-        username: "system",
-        role: "admin",
-        isAdmin: true,
-        permissions: ["cms:all", "system:all"],
-      };
-      (locals as any).permissions = ["cms:all", "system:all"];
-      (locals as any).__testBypass = true;
-      return resolve(event);
-    }
-  }
-
-  if (isPublicRoute(pathname, process.env.TEST_MODE === "true")) return resolve(event);
 
   try {
     locals.dbAdapter = dbAdapter;

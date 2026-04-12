@@ -26,11 +26,12 @@ Ensure that the SveltyCMS API remains 100% portable across all supported databas
 
 ### 🚀 Architecture Reference
 
-| Layer          | Responsibility               | **Local SDK Role**               |
+| Layer          | Responsibility               | **Verification Pattern**           |
 | :------------- | :--------------------------- | :------------------------------- |
-| **API Route**  | Request parsing & Auth       | Directs calls to the SDK         |
-| **Local SDK**  | Business logic & Validation  | Injected via `locals.cms`        |
-| **DB Adapter** | Query generation (SQL/NoSQL) | Implementation detail of the SDK |
+| **Unified Gatekeeper** | Request routing & Auth     | Centralized, fail-closed gate    |
+| **Handler Layer** | Domain-specific logic        | Verified 1:1 with documentation   |
+| **Local SDK**  | Business logic & Validation  | Injected via `locals.cms` bridge  |
+| **DB Adapter** | Query generation (SQL/NoSQL) | Dialect-neutral crud implementation |
 
 > [!IMPORTANT]
 > **No Direct Queries**: Direct use of `SELECT`, `INSERT`, or MongoDB `collection.find` is strictly prohibited in `src/routes/api`. All data access must pass through the `dbAdapter` or `locals.cms` interfaces.

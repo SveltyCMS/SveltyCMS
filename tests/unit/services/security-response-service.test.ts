@@ -57,7 +57,7 @@ describe("SecurityResponseService", () => {
       const mockRequest = createMockRequest("/?q=<script>alert(1)</script>");
       const status = await securityResponseService.analyzeRequest(mockRequest, "127.0.0.1");
       expect(status.level).toBe("high");
-      expect(status.action).toBe("challenge");
+      expect(status.action).toBe("block");
       expect(status.reason).toContain("Suspicious payload detected");
     });
 
@@ -67,7 +67,7 @@ describe("SecurityResponseService", () => {
       );
       const status = await securityResponseService.analyzeRequest(mockRequest, "127.0.0.1");
       expect(status.level).toBe("high");
-      expect(status.action).toBe("challenge");
+      expect(status.action).toBe("block");
       expect(status.reason).toContain("Suspicious payload detected");
     });
 
@@ -75,7 +75,7 @@ describe("SecurityResponseService", () => {
       const mockRequest = createMockRequest("/?q=<script>alert(1)</script >");
       const status = await securityResponseService.analyzeRequest(mockRequest, "127.0.0.1");
       expect(status.level).toBe("high");
-      expect(status.action).toBe("challenge");
+      expect(status.action).toBe("block");
       expect(status.reason).toContain("Suspicious payload detected");
     });
 
@@ -83,7 +83,7 @@ describe("SecurityResponseService", () => {
       const mockRequest = createMockRequest("/?q=<script>alert(1)</script\n>");
       const status = await securityResponseService.analyzeRequest(mockRequest, "127.0.0.1");
       expect(status.level).toBe("high");
-      expect(status.action).toBe("challenge");
+      expect(status.action).toBe("block");
       expect(status.reason).toContain("Suspicious payload detected");
     });
 
@@ -91,7 +91,7 @@ describe("SecurityResponseService", () => {
       const mockRequest = createMockRequest("/?q=<script>alert(1)</script foo>");
       const status = await securityResponseService.analyzeRequest(mockRequest, "127.0.0.1");
       expect(status.level).toBe("high");
-      expect(status.action).toBe("challenge");
+      expect(status.action).toBe("block");
       expect(status.reason).toContain("Suspicious payload detected");
     });
 
@@ -99,7 +99,7 @@ describe("SecurityResponseService", () => {
       const mockRequest = createMockRequest('/?q=<a href="javascript:alert(1)">');
       const status = await securityResponseService.analyzeRequest(mockRequest, "127.0.0.1");
       expect(status.level).toBe("high");
-      expect(status.action).toBe("challenge");
+      expect(status.action).toBe("block");
       expect(status.reason).toContain("Suspicious payload detected");
     });
 
@@ -107,7 +107,7 @@ describe("SecurityResponseService", () => {
       const mockRequest = createMockRequest("/?q=<body onload=alert(1)>");
       const status = await securityResponseService.analyzeRequest(mockRequest, "127.0.0.1");
       expect(status.level).toBe("high");
-      expect(status.action).toBe("challenge");
+      expect(status.action).toBe("block");
       expect(status.reason).toContain("Suspicious payload detected");
     });
 

@@ -171,7 +171,12 @@ describe("Setup Actions - Database Connection", () => {
       const data = parseActionResult(result);
 
       expect(result.type).toBe("success");
-      expect(data.success).toBe(false);
+      if (dbType === "sqlite") {
+        // SQLite ignores host/port
+        expect(data.success).toBe(true);
+      } else {
+        expect(data.success).toBe(false);
+      }
     },
     TEST_TIMEOUT,
   );

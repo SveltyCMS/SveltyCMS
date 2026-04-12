@@ -26,8 +26,11 @@ export async function getSystemInfo() {
     },
     cpu: {
       model: cpus.length > 0 ? cpus[0].model : "unknown",
-      cores: cpus.length,
+      cores: {
+        count: cpus.length,
+      },
       loadAvg: os.loadavg(),
+      currentLoad: os.loadavg()[0], // Map 1-minute load average as currentLoad
     },
     memory: {
       total: totalMem,

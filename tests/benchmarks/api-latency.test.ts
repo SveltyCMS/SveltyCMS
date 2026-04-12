@@ -1,18 +1,16 @@
 /**
- * @file tests/benchmarks/api-latency.bench.ts
+ * @file tests/benchmarks/api-latency.test.ts
  * @description
  * Professional benchmark comparing Traditional HTTP dispatch (via unified gateway)
- * vs Direct Local SDK access using benchmark-utils.
+ * vs Direct Local SDK access using the professional benchmark-utils.
  */
 
-// 1. Initialize Mocks
 import "../unit/setup.ts";
 import { runBenchmark, exportResult } from "./benchmark-utils";
 
 async function runApiBenchmark() {
-  console.log("🚀 Starting SveltyCMS Professional API Performance Benchmark...");
+  console.log("🚀 Starting professional SveltyCMS API Performance Benchmark...");
 
-  // Dynamic imports to ensure mocks are applied
   const { dbAdapter, getDbInitPromise } = await import("@src/databases/db");
   const { LocalCMS } = await import("@src/routes/api/cms");
   const { _handler: dispatcher } = await import("@src/routes/api/[...path]/+server");
@@ -21,12 +19,11 @@ async function runApiBenchmark() {
   await getDbInitPromise();
   if (!dbAdapter) throw new Error("DB not initialized");
 
-  console.log("📦 Initializing content manager...");
   await contentSystem.initialize("global", false, dbAdapter);
 
   const collections = await contentSystem.getCollections();
   const cms = new LocalCMS(dbAdapter);
-  const iterations = 500;
+  const iterations = 800; // Increased sample size
 
   if (collections.length === 0) {
     console.warn("⚠️ No user collections found. Using internal 'auth' fallback for benchmark.");
@@ -35,45 +32,66 @@ async function runApiBenchmark() {
   }
 
   const targetCollection = collections[0]._id as string;
-  console.log(`📊 Benchmarking against collection: "${targetCollection}"`);
+  console.log(`📊 Targeting collection: "${targetCollection}"`);
 
-  // 1. DIRECT SDK PERFORMANCE
+  // --- 1. DIRECT SDK PERFORMANCE ---
   const sdkResult = await runBenchmark({
     name: `Local SDK: find(${targetCollection})`,
     iterations,
+    runs: 3,
     onIteration: async () => {
       await cms.collections.find(targetCollection, { limit: 10 });
     },
   });
   exportResult(sdkResult);
 
-  // 2. UNIFIED DISPATCHER PERFORMANCE (Simulated HTTP)
+  // --- 2. HTTP DISPATCHER PERFORMANCE (Realistic RequestEvent Mock) ---
+  const baseUrl = "http://localhost";
   const dispatchResult = await runBenchmark({
     name: `HTTP Dispatcher: /api/collections/${targetCollection}`,
     iterations,
+    runs: 3,
     onIteration: async () => {
+      const mockRequest = new Request(`${baseUrl}/api/collections/${targetCollection}?limit=10`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+
       const mockEvent = {
-        request: new Request(`http://localhost/api/collections/${targetCollection}`),
+        request: mockRequest,
+        url: new URL(mockRequest.url),
         params: { path: `collections/${targetCollection}` },
+        route: { id: "/api/collections/[...path]" },
         locals: { user: { _id: "admin", role: "admin" }, tenantId: "global" },
-        cookies: { get: () => null, set: () => {}, delete: () => {} },
+        cookies: {
+          get: () => null,
+          getAll: () => [],
+          set: () => {},
+          delete: () => {},
+        },
+        fetch: globalThis.fetch,
+        setHeaders: () => {},
+        isDataRequest: false,
+        getClientAddress: () => "127.0.0.1",
+        platform: {},
       } as any;
+
       await dispatcher(mockEvent);
     },
   });
   exportResult(dispatchResult);
 
-  printSummary(sdkResult, dispatchResult);
-  process.exit(0);
+  printImprovedSummary(sdkResult, dispatchResult);
 }
 
 async function benchmarkAuth(cms: any, dispatcher: any) {
-  const iterations = 500;
+  const iterations = 800;
   const credentials = { email: "admin@example.com" };
 
   const sdkResult = await runBenchmark({
     name: "Local SDK: auth.login",
     iterations,
+    runs: 3,
     onIteration: async () => {
       try {
         await cms.auth.login(credentials);
@@ -81,36 +99,59 @@ async function benchmarkAuth(cms: any, dispatcher: any) {
     },
   });
 
+  const baseUrl = "http://localhost";
   const dispatchResult = await runBenchmark({
     name: "HTTP Dispatcher: /api/auth/login",
     iterations,
+    runs: 3,
     onIteration: async () => {
+      const mockRequest = new Request(`${baseUrl}/api/auth/login`, {
+        method: "POST",
+        body: JSON.stringify(credentials),
+        headers: { "Content-Type": "application/json" },
+      });
+
       const mockEvent = {
-        request: new Request("http://localhost/api/auth/login", {
-          method: "POST",
-          body: JSON.stringify(credentials),
-        }),
+        request: mockRequest,
+        url: new URL(mockRequest.url),
         params: { path: "auth/login" },
+        route: { id: "/api/auth/login" },
         locals: { user: null, tenantId: "global" },
-        cookies: { get: () => null, set: () => {}, delete: () => {} },
+        cookies: {
+          get: () => null,
+          getAll: () => [],
+          set: () => {},
+          delete: () => {},
+        },
+        fetch: globalThis.fetch,
+        setHeaders: () => {},
+        isDataRequest: false,
+        getClientAddress: () => "127.0.0.1",
+        platform: {},
       } as any;
+
       await dispatcher(mockEvent).catch(() => {});
     },
   });
 
-  printSummary(sdkResult, dispatchResult);
-  process.exit(0);
+  printImprovedSummary(sdkResult, dispatchResult);
 }
 
-function printSummary(sdk: any, dispatch: any) {
-  const speedup = (dispatch.avgMs / sdk.avgMs).toFixed(2);
-  console.log("\n============================================");
-  console.log("   SveltyCMS ARCHITECTURAL SUMMARY        ");
-  console.log("============================================");
-  console.log(`Local SDK p95:        ${sdk.p95Ms.toFixed(4)} ms`);
-  console.log(`HTTP Dispatch p95:    ${dispatch.p95Ms.toFixed(4)} ms`);
-  console.log(`Total Speedup (Avg):  ${speedup}x faster`);
-  console.log("============================================");
+function printImprovedSummary(sdk: any, dispatch: any) {
+  const avgSpeedup = (dispatch.avgMs / sdk.avgMs).toFixed(2);
+  const p95Speedup = (dispatch.p95Ms / sdk.p95Ms).toFixed(2);
+
+  console.log("\n" + "=".repeat(60));
+  console.log("   SveltyCMS ARCHITECTURAL PERFORMANCE SUMMARY");
+  console.log("=".repeat(60));
+  console.log(`Local SDK     - Avg: ${sdk.avgMs.toFixed(4)} ms | p95: ${sdk.p95Ms.toFixed(4)} ms`);
+  console.log(
+    `HTTP Dispatch - Avg: ${dispatch.avgMs.toFixed(4)} ms | p95: ${dispatch.p95Ms.toFixed(4)} ms`,
+  );
+  console.log("------------------------------------------------------------");
+  console.log(`Avg Speedup:  ${avgSpeedup}x faster (SDK vs HTTP Overhead)`);
+  console.log(`p95 Speedup:  ${p95Speedup}x faster`);
+  console.log("=".repeat(60) + "\n");
 }
 
 import { test } from "bun:test";

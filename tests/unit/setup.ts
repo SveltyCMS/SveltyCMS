@@ -849,6 +849,35 @@ moduleMock("@src/databases/cache/cache-service", () => ({
   API_CACHE_TTL_MS: 300000,
 }));
 
+moduleMock("sharp", () => {
+  const sharpInstance = {
+    metadata: mock(() => Promise.resolve({ width: 100, height: 100, format: "jpeg" })),
+    resize: mock(() => ({
+      toBuffer: mock(() => Promise.resolve(Buffer.from("mock-resized"))),
+    })),
+    toBuffer: mock(() => Promise.resolve(Buffer.from("mock-buffer"))),
+    jpeg: mock(() => ({
+      toBuffer: mock(() => Promise.resolve(Buffer.from("mock-jpeg"))),
+    })),
+    webp: mock(() => ({
+      toBuffer: mock(() => Promise.resolve(Buffer.from("mock-webp"))),
+    })),
+    avif: mock(() => ({
+      toBuffer: mock(() => Promise.resolve(Buffer.from("mock-avif"))),
+    })),
+    composite: mock(() => ({
+      toBuffer: mock(() => Promise.resolve(Buffer.from("mock-composite"))),
+    })),
+  };
+  const sharpMock = mock(() => sharpInstance);
+  (sharpMock as any).cache = mock(() => {});
+  (sharpMock as any).simd = mock(() => {});
+  (sharpMock as any).concurrency = mock(() => {});
+  return {
+    default: sharpMock,
+  };
+});
+
 const settingsMock = {
   getPrivateSettingSync: mock((key: string) => {
     const env = (globalThis as any).privateEnv || (globalThis as any).__privateEnv;
@@ -957,6 +986,7 @@ const mockDbAdapter = {
       deleteMany: mock(() => Promise.resolve({ success: true })),
       upload: mock(() => Promise.resolve({ success: true, data: "test.jpg" })),
       getByFolder: mock(() => Promise.resolve({ success: true, data: [] })),
+      getByHash: mock(() => Promise.resolve({ success: true, data: null })),
     },
   },
 };

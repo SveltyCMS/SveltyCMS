@@ -64,6 +64,7 @@ export interface WidgetDefinition<
   // Optional advanced features
   GraphqlSchema?: (params: {
     field: unknown;
+    fieldName: string;
     label: string;
     collection: unknown;
     collectionNameMapping?: Map<string, string>;

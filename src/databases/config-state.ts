@@ -178,12 +178,16 @@ export async function loadPrivateConfig(
         return privateEnv;
       } catch (error: any) {
         // Private config doesn't exist during setup - this is expected
-        logger.trace(
-          "Private config not found during setup - this is expected during initial setup",
-          {
-            error: error instanceof Error ? error.message : String(error),
-          },
-        );
+        if (process.env.TEST_MODE) {
+          logger.error(
+            "CRITICAL: config/private.test.ts not found or unreadable in TEST_MODE. " +
+              "Please run 'scripts/setup-system.ts' or the benchmark runner first.",
+          );
+        } else {
+          logger.trace(
+            "Private config not found during setup - this is expected during initial setup",
+          );
+        }
         return null;
       }
     } catch (error: any) {

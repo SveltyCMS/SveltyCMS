@@ -1,43 +1,36 @@
 /**
- * @file tests/benchmarks/database-performance.ts
- * @description Performance benchmarking for SveltyCMS Database Adapters.
- * Measures real-world latencies using our internal adapter abstraction.
+ * @file tests/benchmarks/database-performance.test.ts
+ * @description Professional benchmark for SveltyCMS Database Adapters (CRUD latencies).
  */
 
-// Tell Mongoose to ignore the Bun/Jest/JSDOM environment globals
-process.env.SUPPRESS_JEST_WARNINGS = "true";
-
-// 1. Initialize Mocks
+import { test } from "bun:test";
 import "../unit/setup.ts";
-import { performance } from "node:perf_hooks";
-import fs from "node:fs/promises";
+import { runBenchmark, exportResult } from "./benchmark-utils";
 import path from "node:path";
 
-const ITERATIONS = 100;
-const RESULTS_DIR = process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
+const ITERATIONS = 1000;
+const WARMUP_ITERATIONS = 100;
 
-async function runDatabaseBenchmark() {
-  console.log("\n🚀 SveltyCMS Adapter Performance Benchmark");
+test("Database Adapter Performance Suite", async () => {
+  console.log("🚀 Starting professional SveltyCMS Database Adapter Performance Benchmark...\n");
 
-  // 1. Load the actual DB Adapter (Real modules loaded via BUN_TEST_MOCKS=false)
   const { getDb, getDbInitPromise } = await import("@src/databases/db");
 
-  console.log("⏳ Initializing real database connection...");
   await getDbInitPromise();
-
   const adapter = getDb();
 
   if (!adapter) {
-    console.error("❌ DB Adapter not initialized. Check your config/private.test.ts");
+    console.error("❌ DB Adapter not initialized. Check your test config.");
     process.exit(1);
   }
 
-  const dbType =
-    process.env.DB_TYPE || adapter.constructor.name.replace("Adapter", "").toLowerCase();
-  console.log(`📂 Testing Adapter: ${dbType.toUpperCase()}`);
+  const dbType = (
+    process.env.DB_TYPE || (adapter as any).constructor.name.replace("Adapter", "")
+  ).toUpperCase();
+  console.log(`📂 Testing Adapter: ${dbType}`);
 
   const collection = "collection_benchmarks";
-  const dummyData = {
+  const baseData = {
     firstName: "Bench",
     lastName: "User",
     role: "admin",
@@ -45,8 +38,8 @@ async function runDatabaseBenchmark() {
     benchmarkId: "test",
   };
 
-  // --- 0. ENSURE COLLECTION EXISTS ---
-  console.log("🛠️ Preparing benchmark schema...");
+  // Prepare schema (idempotent)
+  console.log("🛠️ Ensuring benchmark collection schema...");
   try {
     await adapter.collection.createModel({
       _id: "benchmarks",
@@ -59,94 +52,129 @@ async function runDatabaseBenchmark() {
         { name: "benchmarkId", type: "text", required: true },
       ],
     } as any);
-  } catch (err) {
-    console.warn("Schema creation skipped or failed (might already exist):", err);
+  } catch {
+    // Schema creation might skip if already initialized
   }
 
-  // --- 1. WARMUP ---
-  console.log("🔥 Warming up (20 iterations)...");
-  for (let i = 0; i < 20; i++) {
-    const res = await adapter.crud.insert(collection, { ...dummyData, benchmarkId: "warm" } as any);
-    if (res.success && res.data) {
-      await adapter.crud.findOne(collection, { _id: res.data._id });
-      await adapter.crud.delete(collection, res.data._id);
-    }
-  }
+  // ========================
+  // 1. INSERT Benchmark
+  // ========================
+  console.log(`\n📥 Benchmarking ${dbType} INSERT...`);
+  const insertResult = await runBenchmark({
+    name: `${dbType} Adapter: INSERT`,
+    iterations: ITERATIONS,
+    warmupIterations: WARMUP_ITERATIONS,
+    runs: 3,
+    onIteration: async (i: number) => {
+      await adapter.crud.insert(collection, {
+        ...baseData,
+        benchmarkId: `bench-insert-${i}-${Date.now()}`,
+      } as any);
+    },
+  });
+  exportResult(insertResult);
 
-  // --- 2. MEASUREMENT ---
+  // ========================
+  // 2. READ (findOne) Benchmark
+  // ========================
+  console.log(`📖 Benchmarking ${dbType} READ (findOne)...`);
+  // First insert a stable record for reading
+  const stableInsert = await adapter.crud.insert(collection, {
+    ...baseData,
+    benchmarkId: "stable-read-bench",
+  } as any);
+
+  if (!stableInsert.success) {
+    throw new Error(`Failed to insert stable record: ${stableInsert.message}`);
+  }
+  const stableId = (stableInsert as any).data?._id;
+
+  const readResult = await runBenchmark({
+    name: `${dbType} Adapter: READ (findOne)`,
+    iterations: ITERATIONS,
+    warmupIterations: WARMUP_ITERATIONS,
+    runs: 3,
+    onIteration: async () => {
+      await adapter.crud.findOne(collection, { _id: stableId });
+    },
+  });
+  exportResult(readResult);
+
+  // ========================
+  // 3. UPDATE Benchmark
+  // ========================
+  console.log(`🔄 Benchmarking ${dbType} UPDATE...`);
+  const updateResult = await runBenchmark({
+    name: `${dbType} Adapter: UPDATE`,
+    iterations: ITERATIONS,
+    warmupIterations: WARMUP_ITERATIONS,
+    runs: 3,
+    onIteration: async (i: number) => {
+      await adapter.crud.update(collection, stableId, { status: `updated-${i}` } as any);
+    },
+  });
+  exportResult(updateResult);
+
+  // ========================
+  // 4. DELETE Benchmark
+  // ========================
+  console.log(`🗑️  Benchmarking ${dbType} DELETE...`);
+  const deleteResult = await runBenchmark({
+    name: `${dbType} Adapter: DELETE`,
+    iterations: ITERATIONS,
+    warmupIterations: WARMUP_ITERATIONS,
+    runs: 3,
+    onIteration: async () => {
+      // Re-insert before each delete to ensure valid data
+      const temp = await adapter.crud.insert(collection, {
+        ...baseData,
+        benchmarkId: `bench-delete-${Date.now()}`,
+      } as any);
+      if (temp.success && temp.data) {
+        await adapter.crud.delete(collection, temp.data._id);
+      }
+    },
+  });
+  exportResult(deleteResult);
+
+  // ========================
+  // Final Summary
+  // ========================
+  console.log("\n" + "=".repeat(80));
+  console.log(`📊 ${dbType} DATABASE ADAPTER PERFORMANCE SUMMARY`);
+  console.log("=".repeat(80));
   console.log(
-    `💾 Measuring ${dbType.toUpperCase()} Adapter Latencies (${ITERATIONS} iterations)...`,
+    `INSERT  → Avg: ${insertResult.avgMs.toFixed(4)} ms | RPS: ${insertResult.rps.toFixed(0)}`,
   );
+  console.log(
+    `READ    → Avg: ${readResult.avgMs.toFixed(4)} ms | RPS: ${readResult.rps.toFixed(0)}`,
+  );
+  console.log(
+    `UPDATE  → Avg: ${updateResult.avgMs.toFixed(4)} ms | RPS: ${updateResult.rps.toFixed(0)}`,
+  );
+  console.log(
+    `DELETE  → Avg: ${deleteResult.avgMs.toFixed(4)} ms | RPS: ${deleteResult.rps.toFixed(0)}`,
+  );
+  console.log("=".repeat(80) + "\n");
 
-  const metrics = {
-    insert: [] as number[],
-    read: [] as number[],
-    update: [] as number[],
-    delete: [] as number[],
+  // Optional: Create a compact matrix file for reporting
+  const matrixData = {
+    dbType: dbType.toLowerCase(),
+    timestamp: new Date().toISOString(),
+    insert: { avg: insertResult.avgMs, p95: insertResult.p95Ms, rps: insertResult.rps },
+    read: { avg: readResult.avgMs, p95: readResult.p95Ms, rps: readResult.rps },
+    update: { avg: updateResult.avgMs, p95: updateResult.p95Ms, rps: updateResult.rps },
+    delete: { avg: deleteResult.avgMs, p95: deleteResult.p95Ms, rps: deleteResult.rps },
   };
 
-  for (let i = 0; i < ITERATIONS; i++) {
-    const s1 = performance.now();
-    const insRes = await adapter.crud.insert(collection, {
-      ...dummyData,
-      benchmarkId: `bench-${i}`,
-    } as any);
-    metrics.insert.push(performance.now() - s1);
-
-    if (!insRes.success || !insRes.data) continue;
-    const id = insRes.data._id;
-
-    const s2 = performance.now();
-    await adapter.crud.findOne(collection, { _id: id });
-    metrics.read.push(performance.now() - s2);
-
-    const s3 = performance.now();
-    await adapter.crud.update(collection, id, { status: "updated" } as any);
-    metrics.update.push(performance.now() - s3);
-
-    const s4 = performance.now();
-    await adapter.crud.delete(collection, id);
-    metrics.delete.push(performance.now() - s4);
-  }
-
-  const avg = (arr: number[]) => (arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
-  const results = {
-    insert: avg(metrics.insert),
-    read: avg(metrics.read),
-    update: avg(metrics.update),
-    delete: avg(metrics.delete),
-  };
-
-  console.log(`\n📊 Average ${dbType.toUpperCase()} Adapter Latencies (ms):`);
-  console.log("-----------------------------------------------------------");
-  console.log(`Insert : ${results.insert.toFixed(4)} ms`);
-  console.log(`Read   : ${results.read.toFixed(4)} ms`);
-  console.log(`Update : ${results.update.toFixed(4)} ms`);
-  console.log(`Delete : ${results.delete.toFixed(4)} ms`);
-  console.log("-----------------------------------------------------------");
-
-  // Save results for matrix reporter
-  const matrixFile = path.join(RESULTS_DIR, `matrix-${dbType.toLowerCase()}.json`);
+  const fs = await import("node:fs/promises");
+  const RESULTS_DIR =
+    process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
   await fs.mkdir(RESULTS_DIR, { recursive: true });
   await fs.writeFile(
-    matrixFile,
-    JSON.stringify(
-      {
-        dbType,
-        metrics: results,
-        timestamp: new Date().toISOString(),
-      },
-      null,
-      2,
-    ),
+    path.join(RESULTS_DIR, `db-matrix-${dbType.toLowerCase()}.json`),
+    JSON.stringify(matrixData, null, 2),
   );
 
-  console.log(`✅ Benchmark complete for ${dbType.toUpperCase()}.`);
-  process.exit(0);
-}
-
-import { test } from "bun:test";
-
-test("Database Adapter Performance Suite", async () => {
-  await runDatabaseBenchmark();
+  console.log(`💾 Results matrix exported for ${dbType.toUpperCase()}`);
 }, 600000);

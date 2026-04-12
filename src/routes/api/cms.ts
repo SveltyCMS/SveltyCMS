@@ -35,7 +35,12 @@ import type { Role } from "@src/databases/auth/types";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
 import { withTenant } from "@src/databases/db-adapter-wrapper";
 import { auditLogService, AuditEventType } from "@src/services/audit-log-service";
-import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
+import type {
+  DatabaseId,
+  IDBAdapter,
+  ISODateString,
+  DatabaseResult,
+} from "@src/databases/db-interface";
 import type { Schema, FieldInstance, CollectionMap } from "@src/content/types";
 
 /**
@@ -63,6 +68,7 @@ export interface LocalApiOptions {
   tenantId?: DatabaseId | null;
   permanent?: boolean;
   bypassCache?: boolean;
+  bypassRequestCache?: boolean;
   system?: boolean;
   skipValidation?: boolean;
   disableErrors?: boolean;
@@ -239,6 +245,19 @@ class AuthNamespace {
     return this._dbAdapter.auth;
   }
 
+  async validateToken(
+    token: string,
+    type: "session" | "invitation" | "reset" | "api" = "api",
+    category: string = "general",
+    options: { tenantId?: DatabaseId | null } = {},
+  ) {
+    const auth = await this.getAuth();
+    if (!auth) throw new AppError("Authentication system not initialized", 500);
+    return auth.validateToken(token, type as any, category, {
+      tenantId: options.tenantId as DatabaseId,
+    });
+  }
+
   async listUsers(
     options: {
       tenantId?: DatabaseId | null;
@@ -327,66 +346,6 @@ class AuthNamespace {
     );
   }
 
-  /**
-   * Retrieves a list of tokens.
-   */
-  async list(
-    options: {
-      tenantId?: DatabaseId | null;
-      page?: number;
-      limit?: number;
-      search?: string;
-      sort?: string;
-      order?: "asc" | "desc";
-    } = {},
-  ) {
-    const { tenantId, page = 1, limit = 10, search, sort, order } = options;
-    const auth = await this._dbAdapter.auth;
-    if (!auth) throw new AppError("Authentication system not initialized", 500);
-
-    const filter: Record<string, any> = { tenantId: tenantId as DatabaseId };
-    if (search) {
-      filter.$or = [
-        { email: { $regex: search, $options: "i" } },
-        { type: { $regex: search, $options: "i" } },
-      ];
-    }
-
-    const sortOption: any = {};
-    if (sort) {
-      sortOption[sort] = order === "asc" ? 1 : -1;
-    } else {
-      sortOption.createdAt = -1;
-    }
-
-    const result = await auth.getAllTokens({ tenantId: tenantId as DatabaseId });
-    if (!result.success) throw new AppError(result.message, 500);
-
-    // Apply manual pagination and sorting for tokens (as getAllTokens doesn't support them natively yet)
-    let filteredTokens = result.data;
-    if (sort) {
-      filteredTokens.sort((a: any, b: any) => {
-        const valA = a[sort];
-        const valB = b[sort];
-        if (order === "asc") return valA > valB ? 1 : -1;
-        return valA < valB ? 1 : -1;
-      });
-    }
-
-    const totalItems = filteredTokens.length;
-    const paginatedTokens = filteredTokens.slice((page - 1) * limit, page * limit);
-
-    return {
-      data: paginatedTokens,
-      pagination: {
-        totalItems,
-        page,
-        limit,
-        totalPages: Math.ceil(totalItems / limit),
-      },
-    };
-  }
-
   async getUserById(userId: string, tenantId?: DatabaseId | null) {
     const auth = await this.getAuth();
     if (!auth) throw new AppError("Authentication system not initialized", 500);
@@ -427,17 +386,22 @@ class AuthNamespace {
 
     const result = await auth.getUserByEmail(userLookup);
     if (!result.success || !result.data) {
+      logger.debug("Login failed: User not found", { userLookup });
       throw new AppError("Invalid credentials", 401);
     }
 
     const user = result.data;
     if (user.blocked || !user.password) {
+      logger.debug("Login failed: User blocked or no password", { userId: user._id });
       throw new AppError("Account suspended or incomplete", 401);
     }
 
     if (password) {
       const isValid = await verifyPassword(user.password, password);
-      if (!isValid) throw new AppError("Invalid credentials", 401);
+      if (!isValid) {
+        logger.debug("Login failed: Password mismatch", { userId: user._id });
+        throw new AppError("Invalid credentials", 401);
+      }
     }
 
     // Create Session
@@ -649,9 +613,19 @@ class TokensNamespace {
     return withTenant(
       tenantId ?? null,
       async () => {
-        const result = await this._dbAdapter.crud.update("tokens", tokenId as DatabaseId, data, {
+        const existing = await this._dbAdapter.crud.findOne("tokens", { token: tokenId } as any, {
           tenantId: tenantId as DatabaseId,
         });
+        if (!existing.success || !existing.data) return undefined;
+
+        const result = await this._dbAdapter.crud.update(
+          "tokens",
+          existing.data._id as DatabaseId,
+          data,
+          {
+            tenantId: tenantId as DatabaseId,
+          },
+        );
         if (!result.success) throw new AppError(result.message, 500);
         return result.data;
       },
@@ -663,10 +637,11 @@ class TokensNamespace {
     email: string;
     expires: string;
     role: string;
+    userId: string;
     tenantId?: DatabaseId | null;
   }) {
-    const { email, expires, role, tenantId } = input;
-    logger.info(`TokensNamespace.create: email=${email}, role=${role}`);
+    const { email, expires, role, userId, tenantId } = input;
+    logger.info(`TokensNamespace.create: email=${email}, role=${role}, creator=${userId}`);
 
     // Email validation
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -709,8 +684,10 @@ class TokensNamespace {
           "tokens",
           {
             email,
+            user_id: userId as DatabaseId,
             token: tokenValue,
             role,
+            type: "invitation",
             expires: expiresDate as ISODateString,
             status: "active",
             createdAt: new Date().toISOString() as ISODateString,
@@ -718,8 +695,12 @@ class TokensNamespace {
           { tenantId: tenantId as DatabaseId },
         );
 
-        if (!result.success) throw new AppError(result.message, 500);
-        return tokenValue;
+        if (!result.success) return result as DatabaseResult<any>;
+        return {
+          success: true,
+          data: tokenValue,
+          message: "Token created",
+        } as DatabaseResult<string>;
       },
       { collection: "tokens" },
     );
@@ -729,9 +710,31 @@ class TokensNamespace {
     return withTenant(
       tenantId ?? null,
       async () => {
-        return await this._dbAdapter.crud.delete("tokens", tokenId as DatabaseId, {
+        const existing = await this._dbAdapter.crud.findOne("tokens", { token: tokenId } as any, {
           tenantId: tenantId as DatabaseId,
         });
+        if (!existing.success || !existing.data) {
+          return {
+            success: true,
+            data: { deletedCount: 0 },
+            message: "Token not found",
+          } as DatabaseResult<any>;
+        }
+
+        const deleteRes = await this._dbAdapter.crud.delete(
+          "tokens",
+          existing.data._id as DatabaseId,
+          {
+            tenantId: tenantId as DatabaseId,
+          },
+        );
+
+        if (!deleteRes.success) return deleteRes;
+        return {
+          success: true,
+          data: { deletedCount: 1 },
+          message: "Token deleted",
+        } as DatabaseResult<any>;
       },
       { collection: "tokens" },
     );
@@ -1043,8 +1046,9 @@ class CollectionsNamespace {
       .update(JSON.stringify({ query, limit, offset }))
       .digest("hex");
     const cacheKey = `collection:${schema._id}:find:${queryHash}`;
+    const skipRequestCache = bypassCache || options.bypassRequestCache;
 
-    if (!bypassCache && this._requestCache.has(cacheKey)) {
+    if (!skipRequestCache && this._requestCache.has(cacheKey)) {
       if (typeof metricsService?.recordMetric === "function") {
         metricsService.recordApiCacheHit(tenantId || undefined, "l1");
       }
@@ -1276,9 +1280,10 @@ class CollectionsNamespace {
     if (!schema) return { success: true, data: null };
 
     const cacheKey = `collection:${schema._id}:${entryId}`;
+    const skipRequestCache = bypassCache || options.bypassRequestCache;
 
     // 1. Request-Level Memory Cache (L1) - Instant return
-    if (!bypassCache && this._requestCache.has(cacheKey)) {
+    if (!skipRequestCache && this._requestCache.has(cacheKey)) {
       if (typeof metricsService?.recordMetric === "function") {
         metricsService.recordApiCacheHit(tenantId || undefined, "l1");
       }
@@ -1889,6 +1894,9 @@ class SettingsNamespace {
   }
 
   async get(key: string, tenantId?: string) {
+    if (key === "all") {
+      return getAllSettings(tenantId);
+    }
     const { getUntypedSetting } = await import("@src/services/settings-service");
     return getUntypedSetting(key, "private", tenantId);
   }

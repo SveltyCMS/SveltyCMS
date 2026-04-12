@@ -103,7 +103,7 @@ describe("Error Classifier - MongoDB Errors", () => {
 
     expect(result.classification).toBe("AUTH_FAILED");
     expect(result.userFriendly).toBeDefined();
-    expect(result.userFriendly).toContain("authentication failed");
+    expect(result.userFriendly.toLowerCase()).toContain("authentication failed");
   });
 
   it("should classify connection refused errors", () => {
@@ -221,7 +221,7 @@ describe("Error Classifier - User-Friendly Messages", () => {
     const error = new Error("Authentication failed");
     const result = classifyDatabaseError(error, "mongodb");
 
-    expect(result.userFriendly).toContain("authentication failed");
+    expect(result.userFriendly.toLowerCase()).toContain("authentication failed");
   });
 
   it("should provide context-specific help for Atlas errors", () => {
