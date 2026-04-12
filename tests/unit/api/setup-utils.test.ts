@@ -182,7 +182,7 @@ describe("Error Classifier - MongoDB Errors", () => {
     const result = classifyDatabaseError(error, "mongodb");
 
     expect(result.classification).toBe("AUTH_FAILED");
-    expect(result.userFriendly).toMatch(/authentication failed/i);
+    expect(result.userFriendly.toLowerCase()).toContain("authentication failed");
   });
   it("should provide raw error message in all cases", () => {
     const error = new Error("Unknown database error");

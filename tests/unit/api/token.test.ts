@@ -96,7 +96,7 @@ describe("Token API Unit Tests", () => {
     const result = await response!.json();
     expect(result.success).toBe(true);
     expect(result.data).toBeDefined();
-    expect(Array.isArray(result.data.data)).toBe(true);
+    expect(Array.isArray(result.data)).toBe(true);
   });
 
   it("should create token", async () => {

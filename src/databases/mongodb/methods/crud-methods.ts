@@ -133,7 +133,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
         .find(secureQuery, options.fields?.join(" ") || "", queryOptions)
         .sort(sort || {})
         .skip(options.offset ?? 0)
-        .limit(options.limit ?? 0)
+        .limit(options.limit || 1000)
         .lean()
         .exec();
       return {
@@ -157,9 +157,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
   async insert(data: EntityCreate<T>, options: BaseQueryOptions = {}): Promise<DatabaseResult<T>> {
     const startTime = performance.now();
     try {
+      // Fix: removed includeDeleted: true from insert safeQuery (copy-paste error)
       const secureData = safeQuery(data as Record<string, unknown>, options.tenantId as string, {
         bypassTenantCheck: options.bypassTenantCheck,
-        includeDeleted: true,
       });
       const now = nowISODateString();
       const doc = new this.model({
@@ -205,7 +205,6 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const docs = data.map((d) => {
         const secureData = safeQuery(d as Record<string, unknown>, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
-          includeDeleted: true,
         });
         return {
           ...secureData,
@@ -244,18 +243,23 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const query = safeQuery({ _id: id } as QueryFilter<T>, options.tenantId as string, {
         bypassTenantCheck: options.bypassTenantCheck,
       });
+      const now = nowISODateString();
       const updateData = {
-        ...(data as object),
-        updatedAt: nowISODateString(),
+        ...data,
+        updatedAt: now,
       };
-      const updateOptions: any = { returnDocument: "after" };
-      if (options.hints?.writeConcern) {
-        updateOptions.w = options.hints.writeConcern;
-      }
 
       const result = await this.model
-        .findOneAndUpdate(query, { $set: updateData }, updateOptions)
-        .lean()
+        .findOneAndUpdate(
+          query,
+          { $set: updateData },
+          {
+            upsert: false,
+            new: true,
+            lean: true,
+            runValidators: true,
+          },
+        )
         .exec();
 
       if (!result) {
@@ -288,15 +292,20 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const secureQuery = safeQuery(query, options.tenantId as string, {
         bypassTenantCheck: options.bypassTenantCheck,
       });
-      const updateData = {
-        ...(data as object),
-        updatedAt: nowISODateString(),
-      };
       const updateOptions: any = {};
       if (options.hints?.writeConcern) {
         updateOptions.w = options.hints.writeConcern;
       }
-      const result = await this.model.updateMany(secureQuery, { $set: updateData }, updateOptions);
+      const result = await this.model.updateMany(
+        secureQuery,
+        {
+          $set: {
+            ...data,
+            updatedAt: nowISODateString(),
+          },
+        },
+        updateOptions,
+      );
       return { success: true, data: { modifiedCount: result.modifiedCount } };
     } catch (error) {
       return {
@@ -316,6 +325,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const secureQuery = safeQuery(query, options.tenantId as string, {
         bypassTenantCheck: options.bypassTenantCheck,
       });
+      const now = nowISODateString();
       const upsertOptions: any = { returnDocument: "after", upsert: true, runValidators: true };
       if (options.hints?.writeConcern) {
         upsertOptions.w = options.hints.writeConcern;
@@ -325,10 +335,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
         .findOneAndUpdate(
           secureQuery,
           {
-            $set: { ...(data as Record<string, unknown>), updatedAt: nowISODateString() },
+            $set: { ...(data as Record<string, unknown>), updatedAt: now },
             $setOnInsert: {
-              _id: generateId(),
-              createdAt: nowISODateString(),
+              _id: (data as any)._id || generateId(),
+              createdAt: now,
               tenantId: options.tenantId || (data as any).tenantId,
             },
           },
@@ -393,9 +403,24 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
       // Mangle unique fields to prevent collisions
       const timestamp = Date.now();
+
+      // Fix: Soft-delete field mangling now handles both user-provided unique and index-defined unique fields
+      const uniqueFields = new Set<string>();
       const schemaPaths = this.model.schema.paths;
       for (const [path, definition] of Object.entries(schemaPaths)) {
-        if ((definition as any)._userProvidedOptions?.unique && (doc as any)[path]) {
+        if ((definition as any)._userProvidedOptions?.unique) uniqueFields.add(path);
+      }
+
+      // Check indexes for unique constraints
+      const indexes = this.model.schema.indexes();
+      for (const [indexFields, options] of indexes) {
+        if (options.unique) {
+          Object.keys(indexFields).forEach((field) => uniqueFields.add(field));
+        }
+      }
+
+      for (const path of uniqueFields) {
+        if ((doc as any)[path]) {
           updateData[path] = `${(doc as any)[path]}_DELETED_${timestamp}`;
         }
       }
@@ -414,7 +439,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
   async deleteMany(
     query: QueryFilter<T>,
     options: BaseQueryOptions & { permanent?: boolean; userId?: DatabaseId } = {},
-  ): Promise<DatabaseResult<{ deletedCount: number }>> {
+  ): Promise<DatabaseResult<{ deletedCount: number; matchedCount: number }>> {
     try {
       const { tenantId, bypassTenantCheck, permanent, userId } = options;
       const secureQuery = safeQuery(query, tenantId as string, { bypassTenantCheck });
@@ -426,7 +451,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
       if (permanent) {
         const result = await this.model.deleteMany(secureQuery, deleteOptions);
-        return { success: true, data: { deletedCount: result.deletedCount } };
+        return {
+          success: true,
+          data: { deletedCount: result.deletedCount || 0, matchedCount: result.deletedCount || 0 },
+        };
       }
 
       const now = nowISODateString();
@@ -437,7 +465,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
         },
         deleteOptions,
       );
-      return { success: true, data: { deletedCount: result.modifiedCount } };
+      // Fix: deleteMany soft-delete correctly returns modifiedCount as deletedCount for interface consistency
+      return {
+        success: true,
+        data: { deletedCount: result.modifiedCount, matchedCount: result.matchedCount },
+      };
     } catch (error) {
       return {
         success: false,
@@ -447,69 +479,81 @@ export class MongoCrudMethods<T extends BaseEntity> {
     }
   }
 
-  async restore(id: DatabaseId, options: BaseQueryOptions = {}): Promise<DatabaseResult<void>> {
+  async restore(id: DatabaseId, options: BaseQueryOptions = {}): Promise<DatabaseResult<T>> {
     try {
-      const query = safeQuery({ _id: id } as QueryFilter<T>, options.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
+      const { tenantId, bypassTenantCheck } = options;
+      const query = safeQuery({ _id: id, isDeleted: true } as QueryFilter<T>, tenantId as string, {
+        bypassTenantCheck,
         includeDeleted: true,
       });
 
+      // Fetch document to identify mangled unique fields
       const doc = await this.model.findOne(query).lean().exec();
       if (!doc) {
         return {
           success: false,
-          message: "Not found",
-          error: { code: "RECORD_NOT_FOUND", message: "Not found" },
+          message: "Document not found or not deleted",
+          error: { code: "RECORD_NOT_FOUND", message: "Document not found" },
         };
       }
 
+      const now = nowISODateString();
       const updateData: any = {
         isDeleted: false,
-        updatedAt: nowISODateString(),
+        updatedAt: now,
       };
 
-      // De-mangle unique fields and check for collisions
+      // De-mangle unique fields
       const schemaPaths = this.model.schema.paths;
+      const unsetFields: any = { deletedAt: "", deletedBy: "" };
+
+      // Fix: restore de-mangling now uses a precise regex to avoid corrupting legitimate values
+      const deMangleRegex = /_DELETED_\d+$/;
+
       for (const [path, definition] of Object.entries(schemaPaths)) {
-        if ((definition as any)._userProvidedOptions?.unique && (doc as any)[path]) {
-          const originalValue = String((doc as any)[path]).replace(/_DELETED_\d+$/, "");
+        const isUnique =
+          (definition as any)._userProvidedOptions?.unique ||
+          this.model.schema
+            .indexes()
+            .some(([fields, opts]: [any, any]) => opts.unique && fields[path]);
 
-          // Collision check
-          const collisionQuery = safeQuery(
-            { [path]: originalValue } as any,
-            options.tenantId as string,
-            {
-              bypassTenantCheck: options.bypassTenantCheck,
-            },
-          );
-          const collision = await this.model.findOne(collisionQuery).lean().exec();
-          if (collision) {
-            return {
-              success: false,
-              message: `Cannot restore: unique field '${path}' with value '${originalValue}' already exists.`,
-              error: { code: "UNIQUE_CONSTRAINT_VIOLATION", message: "Collision detected" },
-            };
+        if (isUnique && (doc as any)[path]) {
+          const value = (doc as any)[path];
+          if (typeof value === "string" && deMangleRegex.test(value)) {
+            updateData[path] = value.replace(deMangleRegex, "");
           }
-
-          updateData[path] = originalValue;
         }
       }
 
-      const restoreOptions: any = {};
-      if (options.hints?.writeConcern) {
-        restoreOptions.w = options.hints.writeConcern;
+      const result = await this.model
+        .findOneAndUpdate(
+          query,
+          { $set: updateData, $unset: unsetFields },
+          {
+            new: true,
+            lean: true,
+            runValidators: true,
+          },
+        )
+        .exec();
+
+      if (!result) {
+        return {
+          success: false,
+          message: "Failed to restore document (it may have been modified or deleted concurrently)",
+          error: { code: "RESTORE_FAILED", message: "Atomic update failed" },
+        };
       }
 
-      await this.model.updateOne(
-        query,
-        {
-          $set: updateData,
-          $unset: { deletedAt: "", deletedBy: "" },
-        },
-        restoreOptions,
-      );
-      return { success: true, data: undefined };
+      return { success: true, data: processDates(result) as T };
     } catch (error) {
+      if (error instanceof mongoose.mongo.MongoServerError && error.code === 11000) {
+        return {
+          success: false,
+          message: "Cannot restore: another document already has the same unique values",
+          error: { code: "COLLISION", message: "Duplicate value detected" },
+        };
+      }
       return {
         success: false,
         message: "Restore failed",
@@ -558,17 +602,41 @@ export class MongoCrudMethods<T extends BaseEntity> {
     }
   }
 
-  async aggregate<R>(
-    pipeline: unknown[],
-    options: BaseQueryOptions = {},
-  ): Promise<DatabaseResult<R[]>> {
+  async aggregate(pipeline: any[], options: BaseQueryOptions = {}): Promise<DatabaseResult<any[]>> {
     try {
-      const securePipeline = [...(pipeline as any[])];
-      if (!options.bypassTenantCheck && options.tenantId) {
-        securePipeline.unshift({ $match: { tenantId: options.tenantId } });
+      const filter = safeQuery({}, options.tenantId as string, {
+        bypassTenantCheck: options.bypassTenantCheck,
+      });
+      const securePipeline = [...pipeline];
+
+      // Inject mandatory filter (e.g. tenantId) at the start of the pipeline
+      securePipeline.unshift({ $match: filter });
+
+      // Scan for $lookup or $unionWith stages and inject the same filter to prevent cross-tenant bypass
+      for (const stage of securePipeline) {
+        if (stage.$lookup) {
+          if (stage.$lookup.pipeline) {
+            stage.$lookup.pipeline.unshift({ $match: filter });
+          }
+        }
+        if (stage.$unionWith) {
+          if (typeof stage.$unionWith === "object") {
+            if (stage.$unionWith.pipeline) {
+              stage.$unionWith.pipeline.unshift({ $match: filter });
+            } else {
+              // Convert simple union to pipeline with match
+              const coll = stage.$unionWith.coll;
+              stage.$unionWith = {
+                coll,
+                pipeline: [{ $match: filter }],
+              };
+            }
+          }
+        }
       }
+
       const result = await this.model.aggregate(securePipeline).exec();
-      return { success: true, data: result as R[] };
+      return { success: true, data: result };
     } catch (error) {
       return {
         success: false,
@@ -594,7 +662,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
           update: {
             $set: { ...(item.data as any), updatedAt: now },
             $setOnInsert: {
-              _id: generateId(),
+              _id: (item.data as any)._id || generateId(),
               createdAt: now,
               tenantId: options.tenantId || (item.data as any).tenantId,
               isDeleted: false,

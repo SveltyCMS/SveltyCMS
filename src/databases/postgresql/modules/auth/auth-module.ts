@@ -253,8 +253,8 @@ export class AuthModule {
         }
       }
 
-      if (options?.limit) {
-        q = q.limit(options.limit);
+      if (options?.limit || 1000) {
+        q = q.limit(options?.limit || 1000);
       }
       if (options?.offset) {
         q = q.offset(options.offset);
@@ -363,22 +363,61 @@ export class AuthModule {
     sessionData: { expires: ISODateString; tenantId?: DatabaseId | null },
   ): Promise<DatabaseResult<{ user: User; session: Session }>> {
     return this.core.wrap(async () => {
-      const userResult = await this.createUser(userData);
-      if (!userResult.success) {
-        throw new Error(userResult.message);
-      }
-      const user = userResult.data;
+      return await this.db.transaction(async (tx) => {
+        // --- Create User ---
+        const userId = (userData._id || utils.generateId()) as string;
+        const now = isoDateStringToDate(nowISODateString());
 
-      const sessionResult = await this.createSession({
-        user_id: user._id,
-        expires: sessionData.expires,
-        tenantId: sessionData.tenantId,
+        // Ensure password is hashed if provided and not already hashed
+        let password = userData.password;
+        if (password && !password.startsWith("$argon2")) {
+          const argon2 = await import("argon2");
+          password = await argon2.hash(password);
+        }
+
+        const userValues: typeof schema.authUsers.$inferInsert = {
+          email: (userData.email || "").toLowerCase(),
+          username: userData.username || null,
+          password: password || null,
+          firstName: userData.firstName || null,
+          lastName: userData.lastName || null,
+          avatar: userData.avatar || null,
+          roleIds: userData.roleIds || (userData.role ? [userData.role as DatabaseId] : []),
+          isRegistered: userData.isRegistered || false,
+          blocked: userData.blocked || false,
+          isAdmin: userData.isAdmin || false,
+          emailVerified: userData.emailVerified || false,
+          tenantId: userData.tenantId || null,
+          role: userData.role || "user",
+          _id: userId,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        const [userResult] = await tx.insert(schema.authUsers).values(userValues).returning();
+        const user = this.mapUser(userResult);
+
+        // --- Create Session ---
+        const sessionId = utils.generateId() as string;
+        const [sessionResult] = await tx
+          .insert(schema.authSessions)
+          .values({
+            _id: sessionId,
+            user_id: userId,
+            expires: new Date(sessionData.expires),
+            tenantId: (sessionData.tenantId as string) || null,
+          })
+          .returning();
+        const convertedSession = utils.convertDatesToISO(sessionResult);
+        const session = {
+          ...convertedSession,
+          _id: convertedSession._id as DatabaseId,
+          user_id: convertedSession.user_id as DatabaseId,
+          tenantId: convertedSession.tenantId as DatabaseId | null,
+        } as unknown as Session;
+
+        return { user, session };
       });
-      if (!sessionResult.success) {
-        throw new Error(sessionResult.message);
-      }
-      const session = sessionResult.data;
-      return { user, session };
     }, "CREATE_USER_AND_SESSION_FAILED");
   }
 
@@ -387,13 +426,26 @@ export class AuthModule {
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>> {
     return this.core.wrap(async () => {
-      await this.invalidateAllUserSessions(userId, options);
-      const userDeleteResult = await this.deleteUser(userId, options);
+      return await this.db.transaction(async (tx) => {
+        // --- Delete Sessions ---
+        const sessionConditions = [eq(schema.authSessions.user_id, userId as string)];
+        if (options?.tenantId) {
+          sessionConditions.push(eq(schema.authSessions.tenantId, options.tenantId as string));
+        }
+        await tx.delete(schema.authSessions).where(and(...sessionConditions));
 
-      return {
-        deletedUser: userDeleteResult.success,
-        deletedSessionCount: 0,
-      };
+        // --- Delete User ---
+        const userConditions = [eq(schema.authUsers._id, userId as string)];
+        if (options?.tenantId) {
+          userConditions.push(eq(schema.authUsers.tenantId, options.tenantId as string));
+        }
+        await tx.delete(schema.authUsers).where(and(...userConditions));
+
+        return {
+          deletedUser: true,
+          deletedSessionCount: 0,
+        };
+      });
     }, "DELETE_USER_AND_SESSIONS_FAILED");
   }
 
@@ -567,33 +619,33 @@ export class AuthModule {
 
   async rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>> {
     return this.core.wrap(async () => {
-      const [oldSession] = await this.db
-        .select()
-        .from(schema.authSessions)
-        .where(eq(schema.authSessions._id, oldToken as string))
-        .limit(1);
+      return await this.db.transaction(async (tx) => {
+        const [oldSession] = await tx
+          .select()
+          .from(schema.authSessions)
+          .where(eq(schema.authSessions._id, oldToken as string))
+          .limit(1);
 
-      if (!oldSession) {
-        throw new Error("Session not found");
-      }
+        if (!oldSession) {
+          throw new Error("Session not found");
+        }
 
-      const newId = utils.generateId() as string;
-      const now = isoDateStringToDate(nowISODateString());
+        const newId = utils.generateId() as string;
+        const now = isoDateStringToDate(nowISODateString());
 
-      await this.db.insert(schema.authSessions).values({
-        _id: newId,
-        user_id: oldSession.user_id,
-        tenantId: oldSession.tenantId,
-        expires: new Date(expires),
-        createdAt: now,
-        updatedAt: now,
+        await tx.insert(schema.authSessions).values({
+          _id: newId,
+          user_id: oldSession.user_id,
+          tenantId: oldSession.tenantId,
+          expires: new Date(expires),
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        await tx.delete(schema.authSessions).where(eq(schema.authSessions._id, oldToken as string));
+
+        return newId;
       });
-
-      await this.db
-        .delete(schema.authSessions)
-        .where(eq(schema.authSessions._id, oldToken as string));
-
-      return newId;
     }, "ROTATE_TOKEN_FAILED");
   }
 

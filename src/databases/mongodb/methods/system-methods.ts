@@ -45,14 +45,14 @@ export class MongoSystemMethods {
     key: string,
     scope: "user" | "system" = "system",
     userId?: DatabaseId,
+    tenantId?: string | null,
   ): Promise<DatabaseResult<T | null>> {
     try {
       if (scope === "system") {
-        // In system scope, userId is used as tenantId
-        const tenantId = (userId as string) || null;
+        const queryTenantId = tenantId || null;
         const setting = await this.SystemSettingModel.findOne({
           key,
-          tenantId,
+          tenantId: queryTenantId,
         }).lean();
         return { success: true, data: setting ? (setting.value as T) : null };
       }
@@ -69,7 +69,6 @@ export class MongoSystemMethods {
         };
       }
 
-      // Use projection to fetch only the needed field
       const userPrefs = await this.SystemPreferencesModel.findOne(
         { userId: userId.toString() },
         { [`preferences.${key}`]: 1 },
@@ -81,8 +80,6 @@ export class MongoSystemMethods {
         return { success: true, data: null };
       }
 
-      // Traverse the nested object to find the value
-      // because Mongoose un-flattens 'a.b.c' into { a: { b: { c: val } } }
       const value = key
         .split(".")
         .reduce(
@@ -111,20 +108,21 @@ export class MongoSystemMethods {
     scope: "user" | "system" = "system",
     userId?: DatabaseId,
     category?: string,
+    tenantId?: string | null,
   ): Promise<DatabaseResult<void>> {
     try {
       if (scope === "system") {
-        const tenantId = (userId as string) || null;
+        const queryTenantId = tenantId || null;
         const updateData: Record<string, unknown> = {
           value,
           updatedAt: new Date(),
-          tenantId,
+          tenantId: queryTenantId,
         };
         if (category) {
           updateData.category = category;
         }
         await this.SystemSettingModel.updateOne(
-          { key, tenantId },
+          { key, tenantId: queryTenantId },
           { $set: updateData },
           { upsert: true },
         );
@@ -167,17 +165,18 @@ export class MongoSystemMethods {
     key: string,
     scope: "user" | "system" = "system",
     userId?: DatabaseId,
+    tenantId?: string | null,
   ): Promise<DatabaseResult<void>> {
     try {
       if (scope === "system") {
-        const tenantId = (userId as string) || null;
+        const queryTenantId = tenantId || null;
         const result = await this.SystemSettingModel.deleteOne({
           key,
-          tenantId,
+          tenantId: queryTenantId,
         });
         if (result.deletedCount === 0) {
           logger.warn(
-            `System setting '${key}' not found for deletion${tenantId ? ` in tenant ${tenantId}` : ""}.`,
+            `System setting '${key}' not found for deletion${queryTenantId ? ` in tenant ${queryTenantId}` : ""}.`,
           );
         }
         return { success: true, data: undefined };
@@ -195,7 +194,6 @@ export class MongoSystemMethods {
         };
       }
 
-      // Use $unset for atomic removal of a field from the subdocument
       const result = await this.SystemPreferencesModel.updateOne(
         { userId: userId.toString() },
         { $unset: { [`preferences.${key}`]: "" } },
@@ -226,6 +224,7 @@ export class MongoSystemMethods {
     keys: string[],
     scope: "user" | "system" = "system",
     userId?: DatabaseId,
+    tenantId?: string | null,
   ): Promise<DatabaseResult<Record<string, T>>> {
     try {
       if (keys.length === 0) {
@@ -233,12 +232,10 @@ export class MongoSystemMethods {
       }
 
       if (scope === "system") {
-        // In system scope, userId is used as tenantId
-        const tenantId = (userId as string) || null;
-        // Single query with $in operator for all keys at once
+        const queryTenantId = tenantId || null;
         const settings = await this.SystemSettingModel.find({
           key: { $in: keys },
-          tenantId,
+          tenantId: queryTenantId,
         }).lean();
         const result = settings.reduce(
           (acc, setting) => {
@@ -262,7 +259,6 @@ export class MongoSystemMethods {
         };
       }
 
-      // For user preferences, build projection for all keys at once
       const projection = keys.reduce(
         (acc, key) => {
           acc[`preferences.${key}`] = 1;
@@ -282,7 +278,6 @@ export class MongoSystemMethods {
         return { success: true, data: {} };
       }
 
-      // Filter to only include requested keys
       const result = keys.reduce(
         (acc, key) => {
           if (key in userPrefs.preferences) {
@@ -313,21 +308,15 @@ export class MongoSystemMethods {
     category: string,
     scope: "user" | "system" = "system",
     userId?: DatabaseId,
+    tenantId?: string | null,
   ): Promise<DatabaseResult<Record<string, T>>> {
     try {
       if (scope === "system") {
-        let tenantId: string | null = null;
-        if (typeof userId === "string") {
-          tenantId = userId;
-        } else if (userId && typeof userId === "object" && "tenantId" in userId) {
-          tenantId = (userId as any).tenantId;
-        } else if (userId !== undefined && userId !== null) {
-          tenantId = String(userId);
-        }
+        const queryTenantId = tenantId || null;
 
         const settings = await this.SystemSettingModel.find({
           category,
-          tenantId,
+          tenantId: queryTenantId,
         }).lean();
         const result = settings.reduce(
           (acc, setting) => {
@@ -351,20 +340,21 @@ export class MongoSystemMethods {
         };
       }
 
-      // User-scoped category filtering (preferences are stored in a Record<string, unknown>)
-      // This might be slower as we fetch the whole object and filter in JS
-      const userPrefs = (await this.SystemPreferencesModel.findOne({
+      const userPrefs = await this.SystemPreferencesModel.findOne({
         userId: userId.toString(),
-      }).lean()) as { preferences?: Record<string, unknown> } | null;
+      }).lean<{ preferences?: Record<string, unknown> }>();
+
       if (!userPrefs?.preferences) {
         return { success: true, data: {} };
       }
 
-      // Filtering in JS because nested categories are not strictly structured in this schema
       const result: Record<string, T> = {};
-      // Note: This assumes categories are somehow encoded or matched.
-      // For now, if we don't have a strict category field on user preferences,
-      // we might just return empty or implement a prefix match if that was the convention.
+      const prefix = `${category}.`;
+      for (const [key, val] of Object.entries(userPrefs.preferences)) {
+        if (key.startsWith(prefix)) {
+          result[key.slice(prefix.length)] = val as T;
+        }
+      }
       return { success: true, data: result };
     } catch (error) {
       return {
@@ -397,25 +387,23 @@ export class MongoSystemMethods {
         return { success: true, data: undefined };
       }
 
-      // Group by scope for efficient batch processing
       const systemPrefs = preferences.filter((p) => (p.scope || "system") === "system");
       const userPrefs = preferences.filter((p) => p.scope === "user");
 
-      // Batch update system preferences
       if (systemPrefs.length > 0) {
         const operations = systemPrefs.map((pref) => {
-          const tenantId = (pref.userId as string) || null;
+          const queryTenantId = (pref.userId as string) || null;
           const updateData: Record<string, unknown> = {
             value: pref.value,
             updatedAt: new Date(),
-            tenantId,
+            tenantId: queryTenantId,
           };
           if (pref.category) {
             updateData.category = pref.category;
           }
           return {
             updateOne: {
-              filter: { key: pref.key, tenantId },
+              filter: { key: pref.key, tenantId: queryTenantId },
               update: { $set: updateData },
               upsert: true,
             },
@@ -424,13 +412,15 @@ export class MongoSystemMethods {
         await this.SystemSettingModel.bulkWrite(operations);
       }
 
-      // Batch update user preferences grouped by userId
       if (userPrefs.length > 0) {
-        // Group by userId
         const prefsByUser = userPrefs.reduce(
           (acc, pref) => {
             if (!pref.userId) {
-              throw new Error("User ID is required for user-scoped preferences.");
+              throw createDatabaseError(
+                new Error("MISSING_USER_ID"),
+                "VALIDATION_ERROR",
+                "User ID is required for user-scoped preferences.",
+              );
             }
             const userIdStr = pref.userId.toString();
             if (!acc[userIdStr]) {
@@ -483,6 +473,7 @@ export class MongoSystemMethods {
     keys: string[],
     scope: "user" | "system" = "system",
     userId?: DatabaseId,
+    tenantId?: string | null,
   ): Promise<DatabaseResult<void>> {
     try {
       if (keys.length === 0) {
@@ -490,11 +481,10 @@ export class MongoSystemMethods {
       }
 
       if (scope === "system") {
-        const tenantId = (userId as string) || null;
-        // Single deleteMany with $in operator and tenantId
+        const queryTenantId = tenantId || null;
         await this.SystemSettingModel.deleteMany({
           key: { $in: keys },
-          tenantId,
+          tenantId: queryTenantId,
         });
         return { success: true, data: undefined };
       }
@@ -511,7 +501,6 @@ export class MongoSystemMethods {
         };
       }
 
-      // Use $unset for all keys in a single update operation
       const unsetFields = keys.reduce(
         (acc, key) => {
           acc[`preferences.${key}`] = "";
@@ -542,23 +531,39 @@ export class MongoSystemMethods {
   async clear(
     scope: "user" | "system" = "system",
     userId?: DatabaseId,
+    tenantId?: string | null,
   ): Promise<DatabaseResult<void>> {
     try {
       if (scope === "system") {
-        const tenantId = (userId as string) || null;
-        await this.SystemSettingModel.deleteMany({ tenantId });
+        const queryTenantId = tenantId === undefined ? null : tenantId;
+        await this.SystemSettingModel.deleteMany({ tenantId: queryTenantId });
         return { success: true, data: undefined };
       }
 
-      if (userId) {
-        // Clear for a specific user
-        await this.SystemPreferencesModel.deleteMany({
-          userId: userId.toString(),
-        });
-      } else {
-        // Clear all user preferences
-        await this.SystemPreferencesModel.deleteMany({});
+      if (!userId && !tenantId) {
+        return {
+          success: false,
+          message:
+            "User ID or Tenant ID is required for user-scoped clear operation to prevent global data loss.",
+          error: { code: "SECURITY_BLOCK", message: "Global user preference purge rejected" },
+        };
       }
+
+      if (userId) {
+        await this.SystemPreferencesModel.deleteMany({ userId: userId.toString() });
+      } else if (tenantId !== undefined) {
+        await this.SystemPreferencesModel.deleteMany({ tenantId: tenantId });
+      } else {
+        return {
+          success: false,
+          message: "Invalid arguments for user-scoped clear operation.",
+          error: {
+            code: "INVALID_ARGUMENTS",
+            message: "Either User ID or Tenant ID must be provided for user-scoped clear.",
+          },
+        };
+      }
+
       return { success: true, data: undefined };
     } catch (error) {
       return {

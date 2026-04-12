@@ -46,9 +46,6 @@ export interface CollectionDocument extends ContentStructureDocument {
   nodeType: "collection";
 }
 
-// Flag to track if discriminators have been registered
-let discriminatorsRegistered = false;
-
 // --- Schema Definitions ---
 
 // Translation sub-schema
@@ -144,14 +141,13 @@ const createDatabaseError = (error: unknown, code: string, message: string): Dat
     code,
     message,
     details: err.message,
-    stack: err.stack,
   };
 };
 
 contentStructureSchema.statics = {
-  async getContentStructure(): Promise<DatabaseResult<ContentStructureDocument[]>> {
+  async getContentStructure(tenantId: string): Promise<DatabaseResult<ContentStructureDocument[]>> {
     try {
-      const contentStructure = await this.find({}).lean();
+      const contentStructure = await this.find({ tenantId }).sort({ order: 1 }).lean();
       return { success: true, data: contentStructure };
     } catch (error) {
       const message = "Error fetching content structure";
@@ -232,9 +228,12 @@ contentStructureSchema.statics = {
     }
   },
 
-  async getChildren(parentId: string): Promise<DatabaseResult<ContentStructureDocument[]>> {
+  async getChildren(
+    tenantId: string,
+    parentId: string,
+  ): Promise<DatabaseResult<ContentStructureDocument[]>> {
     try {
-      const children = await this.find({ parentId }).sort({ order: 1 }).lean();
+      const children = await this.find({ tenantId, parentId }).sort({ order: 1 }).lean();
       return { success: true, data: children };
     } catch (error) {
       const message = `Error fetching children for parent id: ${parentId}`;
@@ -249,10 +248,16 @@ contentStructureSchema.statics = {
   /**
    * Validates a parent-child relationship before persisting changes.
    */
-  async validateMove(nodeId: string, newParentId: string | null): Promise<DatabaseResult<void>> {
+  async validateMove(
+    nodeId: string,
+    newParentId: string | null,
+    tenantId?: string,
+  ): Promise<DatabaseResult<void>> {
     try {
-      const node = await this.findOne({ _id: nodeId }).lean();
-      const parent = newParentId ? await this.findOne({ _id: newParentId }).lean() : null;
+      const node = await this.findOne({ _id: nodeId, ...(tenantId ? { tenantId } : {}) }).lean();
+      const parent = newParentId
+        ? await this.findOne({ _id: newParentId, ...(tenantId ? { tenantId } : {}) }).lean()
+        : null;
 
       if (!node) {
         return {
@@ -276,6 +281,40 @@ contentStructureSchema.statics = {
             "Categories cannot be nested under collections",
           ),
         };
+      }
+
+      // Circular move detection: Ensure newParentId isn't nodeId itself, nor a descendant.
+      if (newParentId) {
+        if (newParentId === nodeId) {
+          return {
+            success: false,
+            message: "A node cannot be its own parent",
+            error: createDatabaseError(
+              new Error("Circular move"),
+              "CONTENT_CIRCULAR_MOVE",
+              "Circular move detect",
+            ),
+          };
+        }
+
+        let currentParent = parent;
+        while (currentParent && currentParent.parentId) {
+          if (currentParent.parentId === nodeId) {
+            return {
+              success: false,
+              message: "A node cannot be moved into one of its descendants",
+              error: createDatabaseError(
+                new Error("Circular move"),
+                "CONTENT_CIRCULAR_MOVE",
+                "Circular move detected",
+              ),
+            };
+          }
+          currentParent = await this.findOne({
+            _id: currentParent.parentId,
+            ...(tenantId ? { tenantId } : {}),
+          }).lean();
+        }
       }
 
       return { success: true, data: undefined };
@@ -343,13 +382,15 @@ contentStructureSchema.statics = {
  * Register discriminators for the content structure model.
  * This allows us to have different schemas for 'category' and 'collection' if needed in the future while storing them in the same collection.
  */
-export function registerContentStructureDiscriminators() {
-  if (discriminatorsRegistered) {
+export function registerContentStructureDiscriminators(conn: any) {
+  const connection = conn || mongoose;
+
+  if ((connection as any)._contentDiscriminatorsRegistered) {
     return;
   }
 
   try {
-    const baseModel = mongoose.models.system_content_structure as Model<ContentStructureDocument>;
+    const baseModel = connection.models.system_content_structure;
     if (!baseModel) {
       throw new Error(
         "Base model system_content_structure not found. It must be created before registering discriminators.",
@@ -370,21 +411,21 @@ export function registerContentStructureDiscriminators() {
       logger.debug("CONTENT_STRUCTURE_COLLECTION_DISCRIMINATOR_REGISTERED");
     }
 
-    discriminatorsRegistered = true;
+    (connection as any)._contentDiscriminatorsRegistered = true;
   } catch (error) {
     logger.error("CONTENT_STRUCTURE_DISCRIMINATOR_REGISTRATION_ERROR", error);
-    // Don't re-throw during initialization, as it can crash the server start-up.
+    // Explicitly re-throw if it wasn't a deliberate skip to ensure callers know registration failed
+    throw error;
   }
 }
 
 // --- Model Export ---
 
-// Create the model
-export const ContentStructureModel =
-  (mongoose.models?.system_content_structure as Model<ContentStructureDocument> &
-    typeof contentStructureSchema.statics) ||
-  mongoose.model<
-    ContentStructureDocument,
-    Model<ContentStructureDocument, object, object, object, object, object> &
-      typeof contentStructureSchema.statics
-  >("system_content_structure", contentStructureSchema);
+// Create the model using the standard utility
+import { getOrCreateModel } from "../methods/mongodb-utils";
+
+export const ContentStructureModel = getOrCreateModel<ContentStructureDocument>(
+  mongoose,
+  "system_content_structure",
+  contentStructureSchema,
+) as Model<ContentStructureDocument> & typeof contentStructureSchema.statics;

@@ -1140,7 +1140,10 @@ async function main() {
         await startServer(db);
 
         for (const s of BENCHMARK_SCRIPTS) {
-          const cmd = s.path.endsWith(".test.ts") ? `bun test ${s.path}` : `bun run ${s.path}`;
+          const cmd =
+            s.path.endsWith(".test.ts") || s.path.endsWith(".bench.ts")
+              ? `bun test ${s.path}`
+              : `bun run ${s.path}`;
           if (!runTask(`Benchmark: ${s.label}`, cmd, env)) {
             // Log the failure but don't stop collecting metrics for the scripts that did pass
             log.error(`${s.label} failed for ${db.label || db.type}`);

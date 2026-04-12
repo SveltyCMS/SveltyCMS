@@ -6,8 +6,10 @@
 import type { Token } from "@src/databases/auth/types";
 import type { DatabaseId, DatabaseResult, ISODateString } from "@src/databases/db-interface";
 import mongoose, { Schema, type Model } from "mongoose";
-import { generateId } from "../methods/mongodb-utils";
+import { generateId, getOrCreateModel } from "../methods/mongodb-utils";
 import { generateRandomToken } from "@src/databases/auth/constants";
+import { safeQuery } from "@src/utils/security/safe-query";
+import { logger } from "@src/utils/logger.server";
 
 export const TokenSchema = new Schema(
   {
@@ -34,12 +36,23 @@ TokenSchema.index({ expires: 1 }, { expireAfterSeconds: 0 });
 TokenSchema.index({ tenantId: 1 });
 
 export class TokenAdapter {
-  private readonly TokenModel: Model<Token>;
+  private _TokenModel: Model<Token> | null = null;
 
-  constructor() {
-    this.TokenModel =
-      mongoose.models.auth_tokens || mongoose.model<Token>("auth_tokens", TokenSchema);
+  private get TokenModel(): Model<Token> {
+    if (!this._TokenModel) {
+      this._TokenModel = getOrCreateModel(mongoose, "auth_tokens", TokenSchema);
+    }
+    return this._TokenModel;
   }
+
+  /**
+   * Explicitly set the model using a specific connection to support isolated adapters.
+   */
+  public setModel(conn: any) {
+    this._TokenModel = getOrCreateModel(conn, "auth_tokens", TokenSchema);
+  }
+
+  constructor() {}
 
   async createToken(data: {
     user_id: DatabaseId;
@@ -51,7 +64,8 @@ export class TokenAdapter {
   }): Promise<DatabaseResult<string>> {
     try {
       const tokenValue = generateRandomToken(32);
-      const token = new this.TokenModel({
+      const Model = this.TokenModel;
+      const token = new Model({
         ...data,
         email: data.email.toLowerCase(),
         token: tokenValue,
@@ -60,10 +74,12 @@ export class TokenAdapter {
       await token.save();
       return { success: true, data: tokenValue };
     } catch (err) {
+      const message = "Token creation failed";
+      logger.error(message, err);
       return {
         success: false,
-        message: "Token creation failed",
-        error: { code: "TOKEN_CREATE_ERROR", message: String(err) },
+        message,
+        error: { code: "TOKEN_CREATE_ERROR", message },
       };
     }
   }
@@ -73,23 +89,28 @@ export class TokenAdapter {
     userId?: DatabaseId,
     type?: string,
     tenantId?: DatabaseId | null,
-  ): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>> {
+  ): Promise<DatabaseResult<{ email: string }>> {
     try {
-      const filter: any = { token };
+      const filter = safeQuery({ token } as any, tenantId as string);
       if (userId) filter.user_id = userId;
       if (type) filter.type = type;
-      if (tenantId) filter.tenantId = tenantId;
 
       const found = await this.TokenModel.findOne(filter).lean();
       if (!found || found.blocked || new Date(found.expires) < new Date()) {
-        return { success: true, data: { success: false, message: "Invalid or expired token" } };
+        return {
+          success: false,
+          message: "Invalid or expired token",
+          error: { code: "TOKEN_INVALID", message: "Token not found or expired" },
+        };
       }
-      return { success: true, data: { success: true, message: "Valid token", email: found.email } };
+      return { success: true, data: { email: found.email } };
     } catch (err) {
+      const message = "Token validation error";
+      logger.error(message, err);
       return {
         success: false,
-        message: "Token validation error",
-        error: { code: "TOKEN_VALIDATE_ERROR", message: String(err) },
+        message,
+        error: { code: "TOKEN_VALIDATE_ERROR", message },
       };
     }
   }
@@ -99,19 +120,33 @@ export class TokenAdapter {
     userId?: DatabaseId,
     type?: string,
     tenantId?: DatabaseId | null,
-  ): Promise<DatabaseResult<{ status: boolean; message: string }>> {
-    const val = await this.validateToken(token, userId, type, tenantId);
-    if (!val.success) {
-      return { success: true, data: { status: false, message: val.message || "Invalid token" } };
-    }
-    if (!val.data.success) {
+  ): Promise<DatabaseResult<void>> {
+    try {
+      // Atomic findOneAndDelete fixes TOCTOU race condition
+      const filter = safeQuery({ token } as any, tenantId as string);
+      if (userId) filter.user_id = userId;
+      if (type) filter.type = type;
+
+      const found = await this.TokenModel.findOneAndDelete(filter).lean();
+
+      if (!found || found.blocked || new Date(found.expires) < new Date()) {
+        return {
+          success: false,
+          message: "Invalid or expired token",
+          error: { code: "TOKEN_INVALID", message: "Token not found or expired" },
+        };
+      }
+
+      return { success: true, data: undefined };
+    } catch (err) {
+      const message = "Token consumption error";
+      logger.error(message, err);
       return {
-        success: true,
-        data: { status: false, message: val.data.message || "Invalid token" },
+        success: false,
+        message,
+        error: { code: "TOKEN_CONSUME_ERROR", message },
       };
     }
-    await this.TokenModel.deleteOne({ token });
-    return { success: true, data: { status: true, message: "Token consumed" } };
   }
 
   async getTokenByValue(
@@ -150,15 +185,18 @@ export class TokenAdapter {
     }
   }
 
-  async getAllTokens(filter: any = {}): Promise<DatabaseResult<Token[]>> {
+  async getAllTokens(tenantId: string, filter: any = {}): Promise<DatabaseResult<Token[]>> {
     try {
-      const tokens = await this.TokenModel.find(filter).lean();
+      const safeFilter = safeQuery(filter, tenantId);
+      const tokens = await this.TokenModel.find(safeFilter).lean();
       return { success: true, data: tokens as Token[] };
     } catch (err) {
+      const message = "Error getting tokens";
+      logger.error(message, err);
       return {
         success: false,
-        message: "Error getting tokens",
-        error: { code: "TOKEN_GET_ERROR", message: String(err) },
+        message,
+        error: { code: "TOKEN_GET_ERROR", message },
       };
     }
   }
@@ -169,16 +207,23 @@ export class TokenAdapter {
     tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<Token>> {
     try {
-      const filter: any = { _id: tokenId };
-      if (tenantId) filter.tenantId = tenantId;
-      const res = await this.TokenModel.findOneAndUpdate(filter, tokenData, { new: true }).lean();
+      const filter = safeQuery({ _id: tokenId } as any, tenantId as string);
+
+      // Prevent token value from being updated
+      const { token: _, ...validUpdates } = tokenData;
+
+      const res = await this.TokenModel.findOneAndUpdate(filter, validUpdates, {
+        new: true,
+      }).lean();
       if (!res) throw new Error("Token not found");
       return { success: true, data: res as Token };
     } catch (err) {
+      const message = "Error updating token";
+      logger.error(message, err);
       return {
         success: false,
-        message: "Error updating token",
-        error: { code: "TOKEN_UPDATE_ERROR", message: String(err) },
+        message,
+        error: { code: "TOKEN_UPDATE_ERROR", message },
       };
     }
   }

@@ -151,9 +151,13 @@ export class MongoSystemVirtualFolderMethods {
     try {
       const query: any = { _id: folderId };
       if (tenantId) query.tenantId = tenantId;
-      const updatedFolder = await SystemVirtualFolderModel.findOneAndUpdate(query, updateData, {
-        returnDocument: "after",
-      })
+
+      // EXPLICITLY use $set to prevent document replacement and data loss
+      const updatedFolder = await SystemVirtualFolderModel.findOneAndUpdate(
+        query,
+        { $set: updateData },
+        { returnDocument: "after" },
+      )
         .lean()
         .exec();
       if (!updatedFolder) {
@@ -188,21 +192,41 @@ export class MongoSystemVirtualFolderMethods {
     try {
       const query: any = { path: folderPath };
       if (tenantId) query.tenantId = tenantId;
-      const folder = await SystemVirtualFolderModel.findOne(query).lean().exec();
-      if (!folder) {
+
+      // Step 1: Find the folder by path.
+      const folderRes = await SystemVirtualFolderModel.findOne(query, { _id: 1 }).lean().exec();
+      if (!folderRes) {
         return {
           success: false,
-          error: { code: "NOT_FOUND", message: "Folder not found" },
+          error: { code: "NOT_FOUND", message: "Target folder not found" },
           message: "Folder not found",
         };
       }
+      const foundFolderId = folderRes._id; // Store the ID immediately
+
+      // --- TOCTOU Mitigation ---
+      // Re-check folder existence just before updating media to reduce TOCTOU window.
+      // If the folder was deleted between the findOne and this check,
+      // the update operation would otherwise use a stale folderId.
+      const folderCheckResult = await this.getById(foundFolderId, tenantId);
+      if (!folderCheckResult.success || !folderCheckResult.data) {
+        // The folder was deleted or became inaccessible after initial lookup.
+        return {
+          success: false,
+          error: { code: "FOLDER_DELETED", message: "Target folder was deleted after lookup." },
+          message: "Target folder no longer exists.",
+        };
+      }
+      // --- End TOCTOU Mitigation ---
 
       const updateQuery: any = { _id: contentId };
       if (tenantId) updateQuery.tenantId = tenantId;
+      // Update the media item with the confirmed folder ID.
       const result = await MediaModel.updateOne(updateQuery, {
-        $set: { folderId: folder._id },
+        $set: { folderId: foundFolderId }, // Use the confirmed folder ID
       });
 
+      // Check if the media item itself was found and updated.
       if (result.matchedCount === 0) {
         return {
           success: false,
@@ -282,14 +306,21 @@ export class MongoSystemVirtualFolderMethods {
     try {
       const query: any = { _id: folderId };
       if (tenantId) query.tenantId = tenantId;
-      const res = await SystemVirtualFolderModel.deleteOne(query).exec();
-      if (res.deletedCount === 0) {
+
+      const folderToDelete = await SystemVirtualFolderModel.findOne(query).lean().exec();
+      if (!folderToDelete) {
         return {
           success: false,
           message: "Folder not found or access denied",
           error: { code: "NOT_FOUND", message: "Folder not found" },
         };
       }
+
+      // Cascading delete: find and delete all subfolders recursively
+      // and update/nullify media references
+      await this._cascadeDelete(folderId, tenantId);
+
+      await SystemVirtualFolderModel.deleteOne(query).exec();
       return { success: true, data: undefined };
     } catch (error) {
       return {
@@ -302,6 +333,29 @@ export class MongoSystemVirtualFolderMethods {
         message: "Failed to delete virtual folder",
       };
     }
+  }
+
+  /**
+   * Internal helper to cascade deletion to children and update media references.
+   */
+  private async _cascadeDelete(folderId: DatabaseId, tenantId?: string | null): Promise<void> {
+    // 1. Find subfolders
+    const subQuery: any = { parentId: folderId };
+    if (tenantId) subQuery.tenantId = tenantId;
+    const subfolders = await SystemVirtualFolderModel.find(subQuery, { _id: 1 }).lean().exec();
+
+    // 2. Recursively delete subfolders
+    for (const sub of subfolders) {
+      await this.delete(sub._id, tenantId);
+    }
+
+    // 3. Nullify or delete media references
+    const mediaQuery: any = { folderId };
+    if (tenantId) mediaQuery.tenantId = tenantId;
+
+    // In many systems, we might want to move these to a 'root' folder or delete them.
+    // For now, we nullify the reference to avoid dangling pointers.
+    await MediaModel.updateMany(mediaQuery, { $set: { folderId: null } });
   }
 
   async exists(path: string, tenantId?: string | null): Promise<DatabaseResult<boolean>> {

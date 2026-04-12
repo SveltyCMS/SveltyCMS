@@ -13,7 +13,8 @@ import type {
 } from "@src/databases/db-interface";
 import { safeQuery } from "@src/utils/security/safe-query";
 import { hashPassword } from "@utils/crypto";
-import mongoose from "mongoose";
+import mongoose, { type Connection } from "mongoose";
+import { getOrCreateModel } from "../methods/mongodb-utils";
 import { SessionAdapter } from "../models/auth-session";
 import { TokenAdapter } from "../models/auth-token";
 import { UserAdapter } from "../models/auth-user";
@@ -26,19 +27,15 @@ type AuthInterface = IDBAdapter["auth"];
 /**
  * Helper to get or create the Role model idempotently.
  */
-function getRoleModel(): mongoose.Model<Role> {
-  if (mongoose.models.auth_roles) {
-    return mongoose.models.auth_roles as mongoose.Model<Role>;
-  }
-
-  const schema = new mongoose.Schema(
+function getRoleModel(conn: Connection | typeof mongoose) {
+  const schema = new mongoose.Schema<Role>(
     {
       _id: { type: String, required: true },
+      tenantId: { type: String, required: true },
       name: { type: String, required: true },
+      permissions: [{ type: String }],
       description: String,
-      isAdmin: Boolean,
-      permissions: [String],
-      tenantId: { type: String },
+      isNative: { type: Boolean, default: false },
       groupName: String,
       icon: String,
       color: String,
@@ -54,7 +51,7 @@ function getRoleModel(): mongoose.Model<Role> {
   schema.index({ tenantId: 1 });
   schema.index({ tenantId: 1, _id: 1 });
 
-  return mongoose.model<Role>("auth_roles", schema);
+  return getOrCreateModel<Role>(conn, "auth_roles", schema as any);
 }
 
 export function composeMongoAuthAdapter(): AuthInterface {
@@ -63,9 +60,17 @@ export function composeMongoAuthAdapter(): AuthInterface {
   const tokenAdapter = new TokenAdapter();
   const modelRegistrar = new MongoAuthModelRegistrar(mongoose);
 
+  let activeConnection: any = mongoose;
+
   const adapter = {
     // Setup method
-    setupAuthModels: modelRegistrar.setupAuthModels.bind(modelRegistrar),
+    setupAuthModels: async (connection?: any) => {
+      activeConnection = connection || mongoose;
+      userAdapter.setModel(activeConnection);
+      sessionAdapter.setModel(activeConnection);
+      tokenAdapter.setModel(activeConnection);
+      await modelRegistrar.setupAuthModels(activeConnection);
+    },
 
     // User Management Methods
     createUser: userAdapter.createUser.bind(userAdapter),
@@ -187,7 +192,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
     // Role Management Methods
     createRole: async (role: Role): Promise<DatabaseResult<Role>> => {
       try {
-        const ROLE_MODEL = getRoleModel();
+        const ROLE_MODEL = getRoleModel(activeConnection);
         const res = await ROLE_MODEL.findOneAndUpdate(
           { _id: role._id, tenantId: role.tenantId as any },
           { $set: role },
@@ -206,7 +211,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 
     getAllRoles: async (options?: BaseQueryOptions): Promise<Role[]> => {
       try {
-        const ROLE_MODEL = getRoleModel();
+        const ROLE_MODEL = getRoleModel(activeConnection);
         const filter = safeQuery({}, options?.tenantId as string, {
           bypassTenantCheck: options?.bypassTenantCheck,
         });
@@ -221,7 +226,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
       options?: BaseQueryOptions,
     ): Promise<DatabaseResult<Role | null>> => {
       try {
-        const ROLE_MODEL = getRoleModel();
+        const ROLE_MODEL = getRoleModel(activeConnection);
         const filter = safeQuery({ _id: roleId } as any, options?.tenantId as string, {
           bypassTenantCheck: options?.bypassTenantCheck,
         });
@@ -242,7 +247,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
       options?: BaseQueryOptions,
     ): Promise<DatabaseResult<Role>> => {
       try {
-        const ROLE_MODEL = getRoleModel();
+        const ROLE_MODEL = getRoleModel(activeConnection);
         const filter = safeQuery({ _id: roleId } as any, options?.tenantId as string, {
           bypassTenantCheck: options?.bypassTenantCheck,
         });
@@ -267,7 +272,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
       options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>> => {
       try {
-        const ROLE_MODEL = getRoleModel();
+        const ROLE_MODEL = getRoleModel(activeConnection);
         const filter = safeQuery({ _id: roleId } as any, options?.tenantId as string, {
           bypassTenantCheck: options?.bypassTenantCheck,
         });

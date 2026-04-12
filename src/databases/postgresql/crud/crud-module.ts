@@ -130,9 +130,9 @@ export class CrudModule implements ICrudAdapter {
           .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .where(where)
           .$dynamic();
-        if (options.limit) {
-          q = q.limit(options.limit);
-        }
+
+        q = q.limit(options.limit || 1000);
+
         if (options.offset) {
           q = q.offset(options.offset);
         }
@@ -412,37 +412,44 @@ export class CrudModule implements ICrudAdapter {
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
-        const secureQuery = safeQuery(query, tenantId, { bypassTenantCheck });
-        const table = this.core.getTable(collection);
-        const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
-          | import("drizzle-orm").SQL
-          | undefined;
-        const existing = await this.db
-          .select()
-          .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
-          .where(where)
-          .limit(1);
+        return await this.db.transaction(async (tx) => {
+          const secureQuery = safeQuery(query, tenantId, { bypassTenantCheck });
+          const table = this.core.getTable(collection);
+          const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
+            | import("drizzle-orm").SQL
+            | undefined;
+          const existing = await tx
+            .select()
+            .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
+            .where(where)
+            .limit(1);
 
-        if (existing.length > 0) {
-          const res = await this.update<T>(
-            collection,
-            (existing[0] as any)._id as unknown as DatabaseId,
-            data as EntityUpdate<T>,
-            { tenantId: tenantId as any, bypassTenantCheck },
-          );
-          if (!res.success) {
-            throw res.error;
+          if (existing.length > 0) {
+            const id = (existing[0] as any)._id as unknown as DatabaseId;
+            const now = new Date(nowISODateString());
+            const updateData = this.prepareValues(table, data, id, now, options || {});
+            delete updateData._id;
+
+            const [result] = await tx
+              .update(table as unknown as import("drizzle-orm/pg-core").PgTable)
+              .set(updateData as unknown as Record<string, unknown>)
+              .where(eq((table as any)._id, id as string))
+              .returning();
+
+            return utils.convertDatesToISO(result as Record<string, unknown>) as T;
+          } else {
+            const id = (data as Partial<T>)._id || (utils.generateId() as DatabaseId);
+            const now = new Date(nowISODateString());
+            const values = this.prepareValues(table, data, id, now, options || {});
+
+            const [result] = await tx
+              .insert(table as unknown as import("drizzle-orm/pg-core").PgTable)
+              .values(values as unknown as Record<string, unknown>)
+              .returning();
+
+            return utils.convertDatesToISO(result as Record<string, unknown>) as T;
           }
-          return res.data;
-        }
-        const res = await this.insert<T>(collection, data, {
-          tenantId: tenantId as any,
-          bypassTenantCheck,
         });
-        if (!res.success) {
-          throw res.error;
-        }
-        return res.data;
       }, "CRUD_UPSERT_FAILED")
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
@@ -626,30 +633,47 @@ export class CrudModule implements ICrudAdapter {
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
-        let upsertedCount = 0;
-        let modifiedCount = 0;
-        for (const item of items) {
-          const existing = await this.findOne(collection, item.query, {
-            tenantId: tenantId as any,
-            bypassTenantCheck,
-          });
-          if (existing.success && existing.data) {
-            await this.update(
-              collection,
-              (existing.data as any)._id,
-              item.data as EntityUpdate<T>,
-              { tenantId: tenantId as any, bypassTenantCheck },
-            );
-            modifiedCount++;
-          } else {
-            await this.insert(collection, item.data, {
-              tenantId: tenantId as any,
-              bypassTenantCheck,
-            });
-            upsertedCount++;
+        return await this.db.transaction(async (tx) => {
+          let upsertedCount = 0;
+          let modifiedCount = 0;
+          const table = this.core.getTable(collection);
+
+          for (const item of items) {
+            const secureQuery = safeQuery(item.query, tenantId, { bypassTenantCheck });
+            const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
+              | import("drizzle-orm").SQL
+              | undefined;
+
+            const existing = await tx
+              .select()
+              .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
+              .where(where)
+              .limit(1);
+
+            if (existing.length > 0) {
+              const id = (existing[0] as any)._id as unknown as DatabaseId;
+              const now = new Date(nowISODateString());
+              const updateData = this.prepareValues(table, item.data, id, now, options || {});
+              delete updateData._id;
+
+              await tx
+                .update(table as unknown as import("drizzle-orm/pg-core").PgTable)
+                .set(updateData as unknown as Record<string, unknown>)
+                .where(eq((table as any)._id, id as string));
+              modifiedCount++;
+            } else {
+              const id = (item.data as Partial<T>)._id || (utils.generateId() as DatabaseId);
+              const now = new Date(nowISODateString());
+              const values = this.prepareValues(table, item.data, id, now, options || {});
+
+              await tx
+                .insert(table as unknown as import("drizzle-orm/pg-core").PgTable)
+                .values(values as unknown as Record<string, unknown>);
+              upsertedCount++;
+            }
           }
-        }
-        return { upsertedCount, modifiedCount };
+          return { upsertedCount, modifiedCount };
+        });
       }, "CRUD_UPSERT_MANY_FAILED")
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };

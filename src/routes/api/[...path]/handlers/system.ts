@@ -656,7 +656,7 @@ export async function handleImportRoutes(
         "SITE_NAME",
         data.settings.SITE_NAME,
         "system",
-        tenantId as string,
+        tenantId as DatabaseId,
       );
     }
     return successResponse(event, { success: true });

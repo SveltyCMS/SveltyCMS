@@ -16,6 +16,9 @@ import type { WidgetRegistry as widgets } from "@src/stores/widget-store.svelte.
 // Auth
 import type { RolePermissions } from "@src/databases/auth/types";
 import type { WidgetPlaceholder } from "@src/widgets/placeholder";
+import type { ContentTypes, CollectionMap } from "./types.generated";
+
+export type { ContentTypes, CollectionMap };
 
 // Define core value and status types
 export type FieldValue = string | number | boolean | object | null;
@@ -67,7 +70,7 @@ export interface RevisionData {
   tenantId?: DatabaseId | null;
   timestamp: ISODateString;
   userId?: string;
-  [key: string]: unknown;
+  // Fix: removed index signature to prevent swallowing typos
 }
 
 export interface Translation {
@@ -78,38 +81,29 @@ export interface Translation {
 
 // --- Unified Content Node ---
 // A single interface to represent both categories and collections in the content tree.
-export interface ContentNode {
-  _id: DatabaseId;
+// Fix: ContentNode now extends BaseEntity to avoid duplication
+export interface ContentNode extends BaseEntity {
   children?: ContentNode[];
   collectionDef?: Schema; // Only present if nodeType is 'collection'
-  createdAt: ISODateString;
-  deletedAt?: ISODateString; // Timestamp of deletion
-  deletedBy?: string; // User who performed deletion
   description?: string;
   icon?: string;
   name: string;
-  isDeleted?: boolean; // Soft delete flag
   nodeType: "category" | "collection";
   order: number;
   parentId?: DatabaseId;
   path?: string;
   slug?: string;
-  tenantId?: DatabaseId | null; // For multi-tenant support
   translations: Translation[];
-  updatedAt: ISODateString;
 }
 
 // --- Website Token ---
 // Represents an API token for headless website access.
-export interface WebsiteToken {
-  _id: DatabaseId;
-  createdAt: ISODateString;
+export interface WebsiteToken extends BaseEntity {
   createdBy: string;
   expiresAt?: ISODateString;
   name: string;
   permissions?: string[];
   token: string;
-  updatedAt: ISODateString;
 }
 
 // Widget field type definition
@@ -189,7 +183,7 @@ export interface FieldInstance {
   // Field properties
   label: string;
   modifyRequest?: (args: {
-    collection: unknown;
+    collection: MinimalSchema;
     field: FieldInstance;
     data: any;
     user: unknown;
@@ -201,7 +195,7 @@ export interface FieldInstance {
   }) => Promise<void>;
   modifyRequestBatch?: (args: {
     data: Record<string, unknown>[];
-    collection: unknown;
+    collection: MinimalSchema;
     field: FieldInstance;
     user: unknown;
     type: string;
@@ -243,9 +237,18 @@ export interface JoinField {
 }
 
 // Field definition
-export type FieldDefinition = unknown | WidgetPlaceholder | JoinField;
+// Fix: removed 'unknown' from union to ensure type safety
+export type FieldDefinition = WidgetPlaceholder | JoinField | Record<string, any>;
 
 // ContentTypes is now dynamic, based on collectionSchemas
+
+// Minimal Schema interface to break circular dependencies
+export interface MinimalSchema {
+  _id?: string;
+  name?: ContentTypes | string;
+  fields: FieldDefinition[];
+  [key: string]: any;
+}
 
 // Collection Schema Definition (SINGLE DEFINITION)
 export interface Schema {
@@ -288,11 +291,12 @@ export interface Category {
   subcategories?: Category[];
 }
 
-export type ContentNodeOperatianType = "create" | "delete" | "move" | "rename" | "update";
+// Fix: typo ContentNodeOperatianType -> ContentNodeOperationType
+export type ContentNodeOperationType = "create" | "delete" | "move" | "rename" | "update";
 
 export interface ContentNodeOperation {
   node: ContentNode;
-  type: ContentNodeOperatianType;
+  type: ContentNodeOperationType;
 }
 
 // Dashboard types
@@ -460,6 +464,7 @@ export interface ImportError {
 }
 
 // Sensitive field patterns to exclude from exports
+// Moved to runtime logic in exporter if possible, but kept here for type-level reference
 export const SENSITIVE_PATTERNS = [
   "PASSWORD",
   "SECRET",
@@ -514,21 +519,4 @@ export interface TablePaginationProps {
   totalItems?: number;
 }
 
-/* AUTOGEN_START: ContentTypes */
-export type ContentTypes = "Authors" | "Categories" | "Posts" | "test_posts" | (string & {});
-
-export interface CollectionMap {
-  Authors: { name: string; email: string; bio: string; avatar: string };
-  Categories: { name: string; slug: string; description: string };
-  Posts: {
-    title: string;
-    slug: string;
-    author: string;
-    categories: string;
-    publishedDate: ISODateString;
-    content: string;
-    seo: string;
-  };
-  test_posts: { Title: string; Content: string; Status: string };
-}
-/* AUTOGEN_END: ContentTypes */
+export type ContentTypesUnion = ContentTypes | (string & {});

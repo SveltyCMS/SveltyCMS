@@ -28,53 +28,87 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
     let schemaContent = "";
 
     // Check if what follows the export is a variable name (like 'Authors') or an object literal
-    const potentialVarName = content.substring(startIdx, startIdx + 50).trim();
-    if (/^[a-zA-Z_$][a-zA-Z0-9_$]*;?$/.test(potentialVarName.replace(/;$/, ""))) {
-      // It's a variable reference (e.g., 'export default Authors;')
-      // Extract the variable name
-      const varName = potentialVarName.replace(/;$/, "").trim();
-      logger.debug(`Found default export reference: ${varName}`);
+    // Fix: Variable name regex too narrow — now supports names followed by comments or whitespace
+    const potentialVarNameMatch = content
+      .substring(startIdx, startIdx + 100)
+      .match(/^\s*([a-zA-Z_$][a-zA-Z0-9_$]*)/);
+    if (potentialVarNameMatch) {
+      const varName = potentialVarNameMatch[1];
+      const remainder = content
+        .substring(startIdx + potentialVarNameMatch[0].length, startIdx + 100)
+        .trim();
 
-      // Find the variable definition in the content
-      // Handle TypeScript: const Authors: Schema = {...} or JavaScript: const Authors = {...}
-      const varDefMatch = content.match(
-        new RegExp(`(?:const|let|var|function)\\s+${varName}(?::[^,=]*)?\\s*[=:]\\s*`),
-      );
-      if (varDefMatch) {
-        const varStartIdx = varDefMatch.index! + varDefMatch[0].length;
-        let braceCount = 0;
-        let vEndIdx = varStartIdx;
-        let foundStart = false;
+      // If it's just a variable name followed by ; or CRLF or nothing, it's a reference
+      if (
+        remainder === "" ||
+        remainder.startsWith(";") ||
+        remainder.startsWith("/") ||
+        remainder.startsWith("\n")
+      ) {
+        logger.debug(`Found default export reference: ${varName}`);
 
-        for (let i = varStartIdx; i < content.length; i++) {
-          const c = content[i];
-          if (!foundStart) {
-            if (c === "{") {
-              foundStart = true;
-              braceCount = 1;
-              vEndIdx = i + 1;
-            }
-            continue;
-          }
-          if (c === "{") braceCount++;
-          else if (c === "}") {
-            braceCount--;
-            if (braceCount === 0) {
-              vEndIdx = i + 1;
-              break;
-            }
-          }
-        }
-        schemaContent = content.substring(varStartIdx, vEndIdx);
-        logger.debug(
-          `Extracted schema object for ${varName}: ${schemaContent.substring(0, 80)}...`,
+        // Find the variable definition in the content
+        // Handle TypeScript: const Authors: Schema = {...} or JavaScript: const Authors = {...}
+        const varDefMatch = content.match(
+          new RegExp(`(?:const|let|var|function)\\s+${varName}(?::[^,=]*)?\\s*[=:]\\s*`),
         );
-      } else {
-        logger.warn(`Could not find definition for variable: ${varName}`);
-        return null;
+        if (varDefMatch) {
+          const varStartIdx = varDefMatch.index! + varDefMatch[0].length;
+          let braceCount = 0;
+          let vEndIdx = varStartIdx;
+          let foundStart = false;
+          let inString: string | null = null;
+          let isEscaped = false;
+
+          for (let i = varStartIdx; i < content.length; i++) {
+            const c = content[i];
+
+            if (inString) {
+              if (isEscaped) {
+                isEscaped = false;
+              } else if (c === "\\") {
+                isEscaped = true;
+              } else if (c === inString) {
+                // Fix: content[i-1] !== "\\" fails on \\ at string end
+                inString = null;
+              }
+              continue;
+            }
+
+            if (c === '"' || c === "'" || c === "`") {
+              // Fix: Template literals with ${} expressions corrupt brace-counting extraction
+              inString = c;
+              continue;
+            }
+
+            if (!foundStart) {
+              if (c === "{") {
+                foundStart = true;
+                braceCount = 1;
+                vEndIdx = i + 1;
+              }
+              continue;
+            }
+
+            if (c === "{") braceCount++;
+            else if (c === "}") {
+              braceCount--;
+              if (braceCount === 0) {
+                vEndIdx = i + 1;
+                break;
+              }
+            }
+          }
+          schemaContent = content.substring(varStartIdx, vEndIdx);
+        } else {
+          logger.warn(`Could not find definition for variable: ${varName}`);
+          return null;
+        }
       }
-    } else {
-      // It's an inline object (e.g., 'export default {')
+    }
+
+    if (!schemaContent) {
+      // It's an inline object (e.g., 'export default {') or regex failed
       // Find the schema object by brace matching
       const firstBrace = content.indexOf("{", startIdx);
       let endIdx: number;
@@ -85,16 +119,33 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
         endIdx = content.length;
         let depth = 0;
         let inString: string | null = null;
+        let isEscaped = false;
+
         for (let i = firstBrace; i < content.length; i++) {
           const c = content[i];
+
           if (inString) {
-            if (c === inString && content[i - 1] !== "\\") inString = null;
+            if (isEscaped) {
+              isEscaped = false;
+            } else if (c === "\\") {
+              isEscaped = true;
+            } else if (c === inString) {
+              inString = null;
+            }
             continue;
           }
+
           if (c === '"' || c === "'" || c === "`") {
-            inString = c;
+            if (
+              i === 0 ||
+              (content[i - 1] === "\\" && content[i - 2] === "\\") ||
+              content[i - 1] !== "\\"
+            ) {
+              inString = c;
+            }
             continue;
           }
+
           if (c === "{") depth++;
           else if (c === "}") {
             depth--;
@@ -130,9 +181,6 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
         const entry = Object.entries(target).find(([key]) => key.toLowerCase() === lowerProp);
 
         if (entry) {
-          logger.debug(
-            `Mapped missing widget "${prop}" to "${entry[0]}" via case-insensitive proxy`,
-          );
           return entry[1];
         }
 
@@ -140,34 +188,28 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
       },
     });
 
-    // Ensure globalThis.widgets is available for the module evaluation
-    const globalObj = globalThis as any;
-    const originalWidgets = globalObj.widgets;
-    globalObj.widgets = widgetsProxy;
-
     let result: any = null;
     try {
-      logger.debug(`Executing module function...`);
-      const moduleContent = `return (function() { const widgets = globalThis.widgets; return ${schemaContent}; })();`;
-      const moduleFunc = new Function(moduleContent);
-      result = moduleFunc();
-      logger.debug(
-        `Module evaluation complete. Result type: ${typeof result}, keys: ${result ? Object.keys(result).join(", ") : "none"}`,
-      );
+      // Fix: Excessive debug logging on hot path including string operations — removed detailed log
+      // Pass widgetsProxy as an argument to avoid mutating globalThis (eliminates race conditions)
+      const moduleContent = `return (function(widgets) { return ${schemaContent}; })(widgetsProxy);`;
+      const moduleFunc = new Function("widgetsProxy", moduleContent);
+      result = moduleFunc(widgetsProxy);
 
       if (result && typeof result === "object" && "fields" in result) {
-        // Ensure _id is present (either from code or generated)
-        if (!result._id && result.name) {
-          result._id = result.name.toLowerCase();
+        // Fix: result._id fallback ignores slug — downstream mishandles undefined _id
+        if (!result._id) {
+          result._id = (result.slug || result.name || "unknown")
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "");
         }
         return { schema: result as Schema };
       }
-    } finally {
-      // Restore globalThis state
-      globalObj.widgets = originalWidgets;
+    } catch (evalErr) {
+      logger.error("Error evaluating schema content:", { error: evalErr });
+      return null;
     }
 
-    logger.warn(`Module processed but no valid fields or _id found. Result type: ${typeof result}`);
     return null;
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);

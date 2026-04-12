@@ -109,8 +109,8 @@ test("Security Hardening & Audit Performance Audit", async () => {
     onIteration: async () => {
       await auditLogService.log(
         "BENCHMARK_TEST_ACTION",
-        { userId: "user-123", email: "test@example.com", ip: "127.0.0.1" },
-        { entityType: "collection", entityId: "posts" },
+        { id: "user-123", email: "test@example.com", ip: "127.0.0.1" },
+        { type: "collection", id: "posts" },
         { details: "Performance benchmark test entry" },
       );
     },

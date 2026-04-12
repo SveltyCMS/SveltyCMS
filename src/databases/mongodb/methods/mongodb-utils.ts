@@ -9,6 +9,8 @@ import type { DatabaseId } from "@src/content/types";
 import { logger } from "@src/utils/logger.server";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
 import type { DatabaseError, PaginatedResult, PaginationOptions } from "../../db-interface";
+import type { Model, Schema, Connection } from "mongoose";
+import mongoose from "mongoose";
 
 // Pre-compiled regex for UUIDv4 validation (with or without dashes) for performance.
 const ID_VALIDATION_REGEX =
@@ -255,4 +257,28 @@ export function createPagination<T>(items: T[], options: PaginationOptions): Pag
     hasNextPage: page < totalPages,
     hasPreviousPage: page > 1,
   };
+}
+
+/**
+ * Safely retrieves or creates a Mongoose model on a specific connection.
+ * This prevents common multi-connection race conditions where models are
+ * incorrectly registered on the global 'mongoose' registry instead of an isolated one.
+ *
+ * @param connection - The Mongoose connection (or global mongoose object)
+ * @param modelName - The unique name of the model
+ * @param schema - The Mongoose schema to use if the model doesn't exist
+ * @returns The Mongoose model instance
+ */
+export function getOrCreateModel<T>(
+  connection: Connection | typeof mongoose,
+  modelName: string,
+  schema: Schema<T>,
+): Model<T> {
+  // Check the connection's own model registry first.
+  if (connection.models && connection.models[modelName]) {
+    return connection.models[modelName] as Model<T>;
+  }
+
+  // Fallback: Create it on the specific connection.
+  return (connection as any).model(modelName, schema);
 }

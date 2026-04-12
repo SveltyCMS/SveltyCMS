@@ -29,21 +29,31 @@ export class MongoThemeMethods {
   /**
    * Retrieves the currently active theme.
    * Cached with 300s TTL since active theme is accessed on every page load
-   * @returns {Promise<Theme | null>} The active theme object or null if none is active.
-   * @throws {DatabaseError} If the database query fails.
+   * @returns {Promise<DatabaseResult<Theme | null>>} The active theme object or null if none is active.
    */
-  async getActive(): Promise<Theme | null> {
-    return withCache(
-      "theme:active",
-      async () => {
-        try {
-          return await this.themeModel.findOne({ isActive: true }).lean().exec();
-        } catch (error) {
-          throw createDatabaseError(error, "THEME_FETCH_FAILED", "Failed to get active theme");
-        }
-      },
-      { category: CacheCategory.THEME },
-    );
+  async getActive(tenantId?: string | null): Promise<DatabaseResult<Theme | null>> {
+    const effectiveTenantId = tenantId === undefined ? null : tenantId;
+    const cacheKey = `theme:active:${effectiveTenantId === null ? "global" : effectiveTenantId}`;
+
+    try {
+      return await withCache(
+        cacheKey,
+        async () => {
+          const theme = await this.themeModel
+            .findOne({ isActive: true, tenantId: effectiveTenantId })
+            .lean()
+            .exec();
+          return { success: true, data: (theme as Theme) || null };
+        },
+        { category: CacheCategory.THEME, tenantId: effectiveTenantId },
+      );
+    } catch (error) {
+      return {
+        success: false,
+        message: "Failed to get active theme",
+        error: createDatabaseError(error, "THEME_FETCH_FAILED", "Failed to get active theme"),
+      };
+    }
   }
 
   /**
@@ -52,11 +62,17 @@ export class MongoThemeMethods {
    * @returns {Promise<DatabaseResult<Theme>>} The default theme.
    */
   async getDefaultTheme(tenantId?: string | null): Promise<DatabaseResult<Theme>> {
+    const effectiveTenantId = tenantId === undefined ? null : tenantId;
+    const cacheKey = `theme:default:${effectiveTenantId === null ? "global" : effectiveTenantId}`;
+
     return withCache(
-      `theme:default:${tenantId || "global"}`,
+      cacheKey,
       async () => {
         try {
-          const theme = await this.themeModel.findOne({ isDefault: true }).lean().exec();
+          const theme = await this.themeModel
+            .findOne({ isDefault: true, tenantId: effectiveTenantId })
+            .lean()
+            .exec();
           if (!theme) {
             return {
               success: false,
@@ -76,59 +92,76 @@ export class MongoThemeMethods {
           };
         }
       },
-      { category: CacheCategory.THEME },
+      { category: CacheCategory.THEME, tenantId: effectiveTenantId },
     );
   }
 
   // Wrapper methods to match DatabaseResult interface requirement if needed by IDBAdapter
-  async getActiveTheme(): Promise<DatabaseResult<Theme>> {
-    const theme = await this.getActive();
-    if (!theme) {
+  async getActiveTheme(tenantId?: string | null): Promise<DatabaseResult<Theme>> {
+    const result = await this.getActive(tenantId);
+    if (!result.success || !result.data) {
       return {
         success: false,
         message: "Active theme not found",
         error: { code: "THEME_NOT_FOUND", message: "Active theme not found" },
       };
     }
-    return { success: true, data: theme };
+    return { success: true, data: result.data };
   }
 
   /**
    * Retrieves all themes from the database, sorted by order.
    * Cached with 300s TTL since theme list is frequently accessed in admin UI
-   * @returns {Promise<Theme[]>} An array of theme objects.
-   * @throws {DatabaseError} If the database query fails.
+   * @returns {Promise<DatabaseResult<Theme[]>>} An array of theme objects.
    */
-  async getAllThemes(): Promise<Theme[]> {
-    return withCache(
-      "theme:all",
-      async () => {
-        try {
-          return (await this.themeModel.find().sort({ order: 1 }).lean().exec()) as Theme[];
-        } catch (error) {
-          throw createDatabaseError(error, "THEME_FETCH_ALL_FAILED", "Failed to get all themes");
-        }
-      },
-      { category: CacheCategory.THEME },
-    );
+  async getAllThemes(tenantId?: string | null): Promise<DatabaseResult<Theme[]>> {
+    const effectiveTenantId = tenantId === undefined ? null : tenantId;
+    const cacheKey = `theme:all:${effectiveTenantId === null ? "global" : effectiveTenantId}`;
+
+    try {
+      return await withCache(
+        cacheKey,
+        async () => {
+          const themes = await this.themeModel
+            .find({ tenantId: effectiveTenantId })
+            .sort({ order: 1 })
+            .lean()
+            .exec();
+          return { success: true, data: themes as Theme[] };
+        },
+        { category: CacheCategory.THEME, tenantId: effectiveTenantId },
+      );
+    } catch (error) {
+      return {
+        success: false,
+        message: "Failed to get all themes",
+        error: createDatabaseError(error, "THEME_FETCH_ALL_FAILED", "Failed to get all themes"),
+      };
+    }
   }
 
   /**
    * Retrieves a specific theme by name.
    * @param {string} themeName - The name of the theme to retrieve.
-   * @param {DatabaseId} [tenantId] - Optional tenant ID.
+   * @param {string} [tenantId] - Optional tenant ID.
    * @returns {Promise<DatabaseResult<Theme | null>>} The theme object or null if not found.
    */
-  async getTheme(themeName: string, tenantId?: DatabaseId): Promise<DatabaseResult<Theme | null>> {
+  async getTheme(
+    themeName: string,
+    tenantId?: string | null,
+  ): Promise<DatabaseResult<Theme | null>> {
+    const effectiveTenantId = tenantId === undefined ? null : tenantId;
+    const cacheKey = `theme:${themeName}:${effectiveTenantId === null ? "global" : effectiveTenantId}`;
+
     return withCache(
-      `theme:${themeName}`,
+      cacheKey,
       async () => {
         try {
           const theme = await this.themeModel
-            .findOne({ name: themeName, tenantId: tenantId || null })
+            .findOne({ name: themeName, tenantId: effectiveTenantId })
             .lean()
             .exec();
-          return { success: true, data: theme as Theme | null };
+          return { success: true, data: (theme as Theme) || null };
         } catch (error) {
           return {
             success: false,
@@ -137,7 +170,7 @@ export class MongoThemeMethods {
           };
         }
       },
-      { category: CacheCategory.THEME, tenantId: tenantId as string },
+      { category: CacheCategory.THEME, tenantId: effectiveTenantId },
     );
   }
 
@@ -145,67 +178,78 @@ export class MongoThemeMethods {
    * Stores multiple themes in the database.
    * @param {Theme[]} themes - The themes to store.
    */
-  async storeThemes(themes: Theme[]): Promise<void> {
+  async storeThemes(themes: Theme[]): Promise<DatabaseResult<void>> {
     try {
       for (const theme of themes) {
         await this.installOrUpdate(theme);
       }
+      return { success: true, data: undefined };
     } catch (error) {
-      throw createDatabaseError(error, "THEME_STORE_FAILED", "Failed to store themes");
+      return {
+        success: false,
+        message: "Failed to store themes",
+        error: createDatabaseError(error, "THEME_STORE_FAILED", "Failed to store themes"),
+      };
     }
   }
 
   /**
    * Placeholder for setupThemeModels if needed.
    */
-  async setupThemeModels(): Promise<void> {
-    // Models are usually handled by the adapter ensureSystem, but this satisfies the interface
-    logger.trace("setupThemeModels called (MongoDB)");
+  async setupThemeModels(tenantId?: string | null): Promise<DatabaseResult<void>> {
+    logger.trace(`setupThemeModels called (MongoDB) for tenant: ${tenantId || "global"}`);
+    return { success: true, data: undefined };
   }
 
   /**
    * Sets a specific theme as the active one. This will deactivate any other active theme.
    * @param {DatabaseId} themeId The ID of the theme to activate.
-   * @returns {Promise<Theme | null>} The updated theme object or null if not found.
-   * @throws {DatabaseError} If the database query fails.
+   * @returns {Promise<DatabaseResult<Theme | null>>} The updated theme object or null if not found.
    */
-  async setActive(themeId: DatabaseId): Promise<Theme | null> {
-    const result = await this._setUniqueFlag(themeId, "isActive");
-    // Invalidate all theme caches since active theme changed
-    await invalidateCategoryCache(CacheCategory.THEME);
+  async setActive(
+    themeId: DatabaseId,
+    tenantId?: string | null,
+  ): Promise<DatabaseResult<Theme | null>> {
+    const effectiveTenantId = tenantId === undefined ? null : tenantId;
+    const result = await this._setUniqueFlag(themeId, "isActive", effectiveTenantId);
+    await invalidateCategoryCache(CacheCategory.THEME, effectiveTenantId);
     return result;
   }
 
   /**
    * Sets a specific theme as the default one. This will unset any other default theme.
    * @param {DatabaseId} themeId The ID of the theme to set as default.
-   * @returns {Promise<Theme | null>} The updated theme object or null if not found.
-   * @throws {DatabaseError} If the database query fails.
+   * @returns {Promise<DatabaseResult<Theme | null>>} The updated theme object or null if not found.
    */
-  async setDefault(themeId: DatabaseId): Promise<Theme | null> {
-    const result = await this._setUniqueFlag(themeId, "isDefault");
-    // Invalidate all theme caches since default theme changed
-    await invalidateCategoryCache(CacheCategory.THEME);
+  async setDefault(
+    themeId: DatabaseId,
+    tenantId?: string | null,
+  ): Promise<DatabaseResult<Theme | null>> {
+    const effectiveTenantId = tenantId === undefined ? null : tenantId;
+    const result = await this._setUniqueFlag(themeId, "isDefault", effectiveTenantId);
+    await invalidateCategoryCache(CacheCategory.THEME, effectiveTenantId);
     return result;
   }
 
   /**
    * Installs (creates) a new theme in the database.
    * @param {Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>} themeData - The theme data to install.
-   * @returns {Promise<Theme>} The newly created theme object.
-   * @throws {DatabaseError} If the creation fails.
+   * @returns {Promise<DatabaseResult<Theme>>} The newly created theme object.
    */
-  async install(themeData: Omit<Theme, "_id" | "createdAt" | "updatedAt">): Promise<Theme> {
+  async install(
+    themeData: Omit<Theme, "_id" | "createdAt" | "updatedAt">,
+  ): Promise<DatabaseResult<Theme>> {
     try {
       const newTheme = new this.themeModel(themeData);
       const savedTheme = await newTheme.save();
-
-      // Invalidate theme caches
-      await invalidateCategoryCache(CacheCategory.THEME);
-
-      return savedTheme.toObject();
+      await invalidateCategoryCache(CacheCategory.THEME, (themeData as any).tenantId || null);
+      return { success: true, data: savedTheme.toObject() };
     } catch (error) {
-      throw createDatabaseError(error, "THEME_INSTALL_FAILED", "Failed to install theme");
+      return {
+        success: false,
+        message: "Failed to install theme",
+        error: createDatabaseError(error, "THEME_INSTALL_FAILED", "Failed to install theme"),
+      };
     }
   }
 
@@ -213,11 +257,12 @@ export class MongoThemeMethods {
    * Ensures a theme exists in the database.
    * Atomic upsert: query by name, only insert if not exists.
    * @param {Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>} themeData - The theme data.
-   * @returns {Promise<Theme>} The theme object.
+   * @returns {Promise<DatabaseResult<Theme>>} The theme object.
    */
-  async ensure(themeData: Omit<Theme, "_id" | "createdAt" | "updatedAt">): Promise<Theme> {
+  async ensure(
+    themeData: Omit<Theme, "_id" | "createdAt" | "updatedAt">,
+  ): Promise<DatabaseResult<Theme>> {
     try {
-      // Strip timestamps and ID to let Mongoose handle them or avoid conflicts with $setOnInsert
       const {
         _id,
         createdAt: _,
@@ -226,29 +271,30 @@ export class MongoThemeMethods {
       } = themeData as unknown as Record<string, unknown>;
       const result = await this.themeModel
         .findOneAndUpdate(
-          { name: themeData.name },
+          { name: themeData.name, tenantId: (themeData as any).tenantId || null },
           { $setOnInsert: { ...rest, _id: _id || uuidv4().replace(/-/g, "") } },
           { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
         )
         .lean()
         .exec();
 
-      await invalidateCategoryCache(CacheCategory.THEME);
-      return result as unknown as Theme;
+      await invalidateCategoryCache(CacheCategory.THEME, (themeData as any).tenantId || null);
+      return { success: true, data: result as Theme };
     } catch (error) {
-      throw createDatabaseError(error, "THEME_ENSURE_FAILED", "Failed to ensure theme");
+      return {
+        success: false,
+        message: "Failed to ensure theme",
+        error: createDatabaseError(error, "THEME_ENSURE_FAILED", "Failed to ensure theme"),
+      };
     }
   }
 
   /**
    * Installs or updates a theme using atomic upsert operation.
-   * If the theme exists (by _id), it updates it. Otherwise, it creates a new one.
-   * This method is safe from duplicate key errors.
    * @param {Theme} themeData - The complete theme data including _id.
-   * @returns {Promise<Theme>} The created or updated theme object.
-   * @throws {DatabaseError} If the operation fails.
+   * @returns {Promise<DatabaseResult<Theme>>} The created or updated theme object.
    */
-  async installOrUpdate(themeData: Theme): Promise<Theme> {
+  async installOrUpdate(themeData: Theme): Promise<DatabaseResult<Theme>> {
     try {
       const result = await this.themeModel
         .findOneAndUpdate({ _id: themeData._id }, themeData, {
@@ -259,31 +305,40 @@ export class MongoThemeMethods {
         .lean()
         .exec();
 
-      // Invalidate theme caches
-      await invalidateCategoryCache(CacheCategory.THEME);
-
-      return result as Theme;
+      await invalidateCategoryCache(CacheCategory.THEME, themeData.tenantId || null);
+      return { success: true, data: result as Theme };
     } catch (error) {
-      throw createDatabaseError(error, "THEME_UPSERT_FAILED", "Failed to install or update theme");
+      return {
+        success: false,
+        message: "Failed to install or update theme",
+        error: createDatabaseError(
+          error,
+          "THEME_UPSERT_FAILED",
+          "Failed to install or update theme",
+        ),
+      };
     }
   }
 
   /**
    * Uninstalls (deletes) a theme from the database.
    * @param {DatabaseId} themeId - The ID of the theme to uninstall.
-   * @returns {Promise<boolean>} True if a theme was deleted, false otherwise.
-   * @throws {DatabaseError} If the deletion fails.
+   * @returns {Promise<DatabaseResult<boolean>>} True if a theme was deleted, false otherwise.
    */
-  async uninstall(themeId: DatabaseId): Promise<boolean> {
+  async uninstall(themeId: DatabaseId): Promise<DatabaseResult<boolean>> {
     try {
+      const doc = await this.themeModel.findById(themeId).lean().exec();
       const result = await this.themeModel.findByIdAndDelete(themeId).exec();
-
-      // Invalidate theme caches
-      await invalidateCategoryCache(CacheCategory.THEME);
-
-      return !!result;
+      if (doc) {
+        await invalidateCategoryCache(CacheCategory.THEME, doc.tenantId || null);
+      }
+      return { success: true, data: !!result };
     } catch (error) {
-      throw createDatabaseError(error, "THEME_UNINSTALL_FAILED", "Failed to uninstall theme");
+      return {
+        success: false,
+        message: "Failed to uninstall theme",
+        error: createDatabaseError(error, "THEME_UNINSTALL_FAILED", "Failed to uninstall theme"),
+      };
     }
   }
 
@@ -291,73 +346,75 @@ export class MongoThemeMethods {
    * Updates an existing theme's data.
    * @param {DatabaseId} themeId - The ID of the theme to update.
    * @param {Partial<Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>>} themeData - The fields to update.
-   * @returns {Promise<Theme | null>} The updated theme object, or null if not found.
-   * @throws {DatabaseError} If the update fails.
+   * @returns {Promise<DatabaseResult<Theme | null>>} The updated theme object, or null if not found.
    */
   async update(
     themeId: DatabaseId,
     themeData: Partial<Omit<Theme, "_id" | "createdAt" | "updatedAt">>,
-  ): Promise<Theme | null> {
+    tenantId?: string | null,
+  ): Promise<DatabaseResult<Theme | null>> {
     try {
-      // Use findOneAndUpdate with explicit _id filter to avoid Mongoose auto-casting
-      // 24-character hex strings to ObjectId when the schema defines _id as String.
+      const effectiveTenantId = tenantId === undefined ? null : tenantId;
       const result = await this.themeModel
         .findOneAndUpdate(
-          { _id: String(themeId) },
-          { $set: themeData },
+          { _id: themeId, tenantId: effectiveTenantId },
+          { $set: { ...themeData, updatedAt: new Date() } },
           { returnDocument: "after" },
         )
         .lean()
         .exec();
 
-      // Invalidate theme caches
-      await invalidateCategoryCache(CacheCategory.THEME);
-
-      return result as unknown as Theme | null;
+      await invalidateCategoryCache(CacheCategory.THEME, effectiveTenantId);
+      return { success: true, data: (result as Theme) || null };
     } catch (error) {
-      throw createDatabaseError(error, "THEME_UPDATE_FAILED", "Failed to update theme");
+      return {
+        success: false,
+        message: "Failed to update theme",
+        error: createDatabaseError(error, "THEME_UPDATE_FAILED", "Failed to update theme"),
+      };
     }
   }
 
   /**
    * A private helper to atomically set a unique boolean flag on a document.
-   * Uses a single bulkWrite operation for atomicity and efficiency.
-   * @param {DatabaseId} themeId - The ID of the theme to set the flag on.
-   * @param {string} flag - The flag name ('isActive' or 'isDefault').
-   * @returns {Promise<Theme | null>} The updated theme object or null if not found.
-   * @throws {DatabaseError} If the operation fails.
    */
   private async _setUniqueFlag(
     themeId: DatabaseId,
     flag: "isActive" | "isDefault",
-  ): Promise<Theme | null> {
+    tenantId?: string | null,
+  ): Promise<DatabaseResult<Theme | null>> {
+    const effectiveTenantId = tenantId === undefined ? null : tenantId;
     try {
-      // Single atomic bulkWrite operation: unset flag for others, then set for target
       await this.themeModel.bulkWrite([
         {
-          // Step 1: Unset the flag for all other themes
           updateMany: {
-            filter: { _id: { $ne: themeId } },
+            filter: { _id: { $ne: themeId }, tenantId: effectiveTenantId },
             update: { $set: { [flag]: false } },
           },
         },
         {
-          // Step 2: Set the flag for the target theme
           updateOne: {
-            filter: { _id: themeId },
+            filter: { _id: themeId, tenantId: effectiveTenantId },
             update: { $set: { [flag]: true } },
           },
         },
       ]);
 
-      // Fetch and return the updated document
-      return await this.themeModel.findById(themeId).lean().exec();
+      const updatedTheme = await this.themeModel
+        .findOne({ _id: themeId, tenantId: effectiveTenantId })
+        .lean()
+        .exec();
+      return { success: true, data: (updatedTheme as Theme) || null };
     } catch (error) {
-      throw createDatabaseError(
-        error,
-        "THEME_FLAG_UPDATE_FAILED",
-        `Failed to set the '${flag}' flag for theme ${themeId}`,
-      );
+      return {
+        success: false,
+        message: `Failed to set the '${flag}' flag`,
+        error: createDatabaseError(
+          error,
+          "THEME_FLAG_UPDATE_FAILED",
+          `Failed to set the '${flag}' flag for theme ${themeId} in tenant ${effectiveTenantId || "global"}`,
+        ),
+      };
     }
   }
 }

@@ -16,7 +16,7 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Enterprise Benchmark Matrix — 12/04/2026, 20:52:25
+## 📊 Enterprise Benchmark Matrix — 12/04/2026, 21:15:41
 
 ### 🧪 What We Tested
 
@@ -51,14 +51,14 @@ tags:
 
 | Database | Cold Start | REST (p95) | GQL (avg) | GQL Stress | Success Rate | Status |
 |----------|------------|------------|-----------|-------------|--------------|--------|
-| **SQLITE** | 457ms ⚪ (—) | 6.40ms ⚪ (—) | 17.74ms ⚪ (—) | — | 100.0% | ❌ |
-| **SQLITE+REDIS** | 286ms ⚪ (—) | 0.00ms ⚪ (—) | 0.00ms ⚪ (—) | — | 100.0% | ❌ |
+| **SQLITE** | 464ms ⚪ (—) | 6.50ms ⚪ (—) | 18.98ms ⚪ (—) | — | 100.0% | ❌ |
+| **SQLITE+REDIS** | 219ms ⚪ (—) | 6.36ms ⚪ (—) | 20.55ms ⚪ (—) | — | 100.0% | ❌ |
 | **MONGODB** | 0ms ⚪ (—) | 0.00ms ⚪ (—) | 0.00ms ⚪ (—) | — | 100.0% | ❌ |
 | **MONGODB+REDIS** | 0ms ⚪ (—) | 0.00ms ⚪ (—) | 0.00ms ⚪ (—) | — | 100.0% | ❌ |
-| **POSTGRESQL** | 247ms ⚪ (—) | 0.00ms ⚪ (—) | 0.00ms ⚪ (—) | 978 RPS | 100.0% | ❌ |
-| **POSTGRESQL+REDIS** | 225ms ⚪ (—) | 5.94ms ⚪ (—) | 14.61ms ⚪ (—) | 853 RPS | 100.0% | ❌ |
-| **MARIADB** | 408ms ⚪ (—) | 3.84ms ⚪ (—) | 15.20ms ⚪ (—) | 997 RPS | 100.0% | ❌ |
-| **MARIADB+REDIS** | 268ms ⚪ (—) | 0.00ms ⚪ (—) | 0.00ms ⚪ (—) | — | 100.0% | ❌ |
+| **POSTGRESQL** | 235ms ⚪ (—) | 4.12ms ⚪ (—) | 24.20ms ⚪ (—) | 953 RPS | 100.0% | ❌ |
+| **POSTGRESQL+REDIS** | 210ms ⚪ (—) | 6.52ms ⚪ (—) | 13.09ms ⚪ (—) | 856 RPS | 100.0% | ❌ |
+| **MARIADB** | 247ms ⚪ (—) | 4.32ms ⚪ (—) | 14.30ms ⚪ (—) | 887 RPS | 100.0% | ❌ |
+| **MARIADB+REDIS** | 228ms ⚪ (—) | 2.99ms ⚪ (—) | 12.40ms ⚪ (—) | 1001 RPS | 100.0% | ❌ |
 
 ### 📈 Latency Trends (last 5 runs — lower is better)
 
@@ -68,14 +68,14 @@ xychart-beta
   x-axis "Run"
   y-axis "Latency (ms)"
   ["Run 1", "Run 2", "Run 3", "Run 4", "Run 5"]
-  line "SQLITE" : [0.00, 0.00, 5.15, 6.25, 6.40]
-  line "SQLITE+REDIS" : [8.80, 5.82, 7.61, 0.00, 0.00]
-  line "MONGODB" : [12.79, 26.68, 0.00, 0.00, 0.00]
-  line "MONGODB+REDIS" : [19.54, 13.07, 0.00, 0.00, 0.00]
-  line "POSTGRESQL" : [14.22, 0.00, 0.00, 3.50, 0.00]
-  line "POSTGRESQL+REDIS" : [17.32, 19.15, 5.94, 5.94, 5.94]
-  line "MARIADB" : [12.50, 3.84, 3.84, 3.84]
-  line "MARIADB+REDIS" : [0.00, 5.31, 0.00, 0.00]
+  line "SQLITE" : [0.00, 5.15, 6.25, 6.40, 6.50]
+  line "SQLITE+REDIS" : [5.82, 7.61, 0.00, 0.00, 6.36]
+  line "MONGODB" : [26.68, 0.00, 0.00, 0.00, 0.00]
+  line "MONGODB+REDIS" : [13.07, 0.00, 0.00, 0.00, 0.00]
+  line "POSTGRESQL" : [0.00, 0.00, 3.50, 0.00, 4.12]
+  line "POSTGRESQL+REDIS" : [19.15, 5.94, 5.94, 5.94, 6.52]
+  line "MARIADB" : [12.50, 3.84, 3.84, 3.84, 4.32]
+  line "MARIADB+REDIS" : [0.00, 5.31, 0.00, 0.00, 2.99]
 ```
 
 ---
@@ -88,9 +88,12 @@ xychart-beta
 
 | Adapter Variant | Avg Latency | p95 Latency | Throughput (RPS) |
 |----------|-------------|-------------|------------------|
-| SQLITE | 4.84ms ⚪ | 6.40ms ⚪ | 2415 ⚪ |
-| POSTGRESQL+REDIS | 3.56ms ⚪ | 5.94ms ⚪ | 3243 ⚪ |
-| MARIADB | 2.99ms ⚪ | 3.84ms ⚪ | 3846 ⚪ |
+| SQLITE | 4.67ms ⚪ | 6.50ms ⚪ | 2511 ⚪ |
+| SQLITE+REDIS | 5.02ms ⚪ | 6.36ms ⚪ | 2326 ⚪ |
+| POSTGRESQL | 3.16ms ⚪ | 4.12ms ⚪ | 3622 ⚪ |
+| POSTGRESQL+REDIS | 3.31ms ⚪ | 6.52ms ⚪ | 3524 ⚪ |
+| MARIADB | 2.75ms ⚪ | 4.32ms ⚪ | 4159 ⚪ |
+| MARIADB+REDIS | 2.46ms ⚪ | 2.99ms ⚪ | 4605 ⚪ |
 
 ### 📖 OPENAPI SPECIFICATION PERFORMANCE (GENERATION VS CACHE)
 > **Business Value**: Validates that dynamic documentation doesn't impact server performance and scales with schema complexity.
@@ -98,14 +101,14 @@ xychart-beta
 
 | Adapter Variant | Cache Hit (p95) | Cache Miss (avg) | Efficiency |
 |----------|-----------------|------------------|------------|
-| SQLITE | — | — | ❌ MISSING |
-| SQLITE+REDIS | — | — | ❌ MISSING |
+| SQLITE | 16.70ms ⚪ | 11.39ms ⚪ | ⚡ L2 HIT |
+| SQLITE+REDIS | 17.20ms ⚪ | 12.04ms ⚪ | ⚡ L2 HIT |
 | MONGODB | — | — | ❌ MISSING |
 | MONGODB+REDIS | — | — | ❌ MISSING |
-| POSTGRESQL | — | — | ❌ MISSING |
-| POSTGRESQL+REDIS | — | — | ❌ MISSING |
-| MARIADB | — | — | ❌ MISSING |
-| MARIADB+REDIS | — | — | ❌ MISSING |
+| POSTGRESQL | 14.86ms ⚪ | 26.24ms ⚪ | ⚡ L2 HIT |
+| POSTGRESQL+REDIS | 14.80ms ⚪ | 34.51ms ⚪ | ⚡ L2 HIT |
+| MARIADB | 13.50ms ⚪ | 12.24ms ⚪ | ⚡ L2 HIT |
+| MARIADB+REDIS | 15.49ms ⚪ | 17.77ms ⚪ | ⚡ L2 HIT |
 
 ### 🗃️ GRAPHQL RESOLVER PERFORMANCE MATRIX (BOTTLENECK ANALYSIS)
 > **Business Value**: Validates that complex data relationships can be queried efficiently without blocking the event loop.
@@ -113,9 +116,12 @@ xychart-beta
 
 | Adapter Variant | Me Query (avg) | Health (avg) | Throughput (RPS) |
 |----------|----------------|--------------|------------------|
-| SQLITE | 17.74ms ⚪ | 17.85ms ⚪ | 561 ⚪ |
-| POSTGRESQL+REDIS | 14.61ms ⚪ | 10.82ms ⚪ | 648 ⚪ |
-| MARIADB | 15.20ms ⚪ | 10.35ms ⚪ | 628 ⚪ |
+| SQLITE | 18.98ms ⚪ | 19.97ms ⚪ | 512 ⚪ |
+| SQLITE+REDIS | 20.55ms ⚪ | 20.38ms ⚪ | 475 ⚪ |
+| POSTGRESQL | 24.20ms ⚪ | 14.22ms ⚪ | 397 ⚪ |
+| POSTGRESQL+REDIS | 13.09ms ⚪ | 11.73ms ⚪ | 731 ⚪ |
+| MARIADB | 14.30ms ⚪ | 12.76ms ⚪ | 695 ⚪ |
+| MARIADB+REDIS | 12.40ms ⚪ | 9.95ms ⚪ | 778 ⚪ |
 
 ### 🔗 RELATIONAL PERFORMANCE MATRIX (JOIN & POPULATION)
 > **Business Value**: Essential for complex applications; stress-tests deep nesting and cross-collection data integrity.
@@ -130,9 +136,12 @@ xychart-beta
 
 | Adapter Variant | Input (avg) | RichText (avg) | Relation (avg) | Status |
 |----------|-------------|----------------|----------------|--------|
-| SQLITE | 3.53ms ⚪ | 3.67ms | 3.64ms | ✅ PASS |
-| POSTGRESQL+REDIS | 2.12ms ⚪ | 2.13ms | 2.01ms | ✅ PASS |
-| MARIADB | 1.97ms ⚪ | 1.93ms | 1.98ms | ✅ PASS |
+| SQLITE | 3.22ms ⚪ | 3.89ms | 3.87ms | ✅ PASS |
+| SQLITE+REDIS | 3.60ms ⚪ | 3.37ms | 3.87ms | ✅ PASS |
+| POSTGRESQL | 2.05ms ⚪ | 2.86ms | 2.36ms | ✅ PASS |
+| POSTGRESQL+REDIS | 2.01ms ⚪ | 1.89ms | 3.05ms | ✅ PASS |
+| MARIADB | 2.87ms ⚪ | 2.09ms | 2.44ms | ✅ PASS |
+| MARIADB+REDIS | 2.02ms ⚪ | 1.83ms | 2.03ms | ✅ PASS |
 
 ### 🛡️ SECURITY HARDENING & AUDIT MATRIX
 > **Business Value**: Validates that security features (Firewall, Audit Chaining) provide maximum protection with minimal performance impact.
@@ -140,25 +149,26 @@ xychart-beta
 
 | Adapter Variant | Firewall (p95) | Audit Logging | Argon2id (Cost) | Status |
 |----------|----------------|---------------|-----------------|--------|
-| SQLITE | 0.004ms | 14.986ms | 57ms | 🟢 CLEAN |
-| SQLITE+REDIS | 0.005ms | 19.854ms | 58ms | 🟢 CLEAN |
-| POSTGRESQL | 0.004ms | 28.808ms | 47ms | 🟢 CLEAN |
-| POSTGRESQL+REDIS | 0.005ms | 39.162ms | 52ms | 🟢 CLEAN |
-| MARIADB | 0.005ms | 30.467ms | 51ms | 🟢 CLEAN |
+| SQLITE | 0.005ms | 0.230ms | 47ms | 🟢 CLEAN |
+| SQLITE+REDIS | 0.005ms | 0.231ms | 57ms | 🟢 CLEAN |
+| POSTGRESQL | 0.005ms | 0.195ms | 49ms | 🟢 CLEAN |
+| POSTGRESQL+REDIS | 0.004ms | 0.260ms | 46ms | 🟢 CLEAN |
+| MARIADB | 0.005ms | 0.285ms | 50ms | 🟢 CLEAN |
+| MARIADB+REDIS | 0.005ms | 0.212ms | 46ms | 🟢 CLEAN |
 ### 🏢 PLATFORM INFRASTRUCTURE & ECOSYSTEM PERFORMANCE
 > **Business Value**: Audits the efficiency of background maintenance and asset orchestration systems (Self-Healing, Media, CLI).
 > **Metrics**: Measures the raw performance of core platform utilities that ensure long-term stability and developer velocity.
 
 | Adapter Variant | Media Resize (avg) | Self-Healing Scan | Upgrade CLI | Status |
 |----------|--------------------|-------------------|-------------|--------|
-| SQLITE | — | — | — | 🔴 FAIL |
-| SQLITE+REDIS | — | — | — | 🔴 FAIL |
+| SQLITE | 50.82ms | — | — | 🔴 FAIL |
+| SQLITE+REDIS | 48.16ms | — | — | 🔴 FAIL |
 | MONGODB | — | — | — | 🔴 FAIL |
 | MONGODB+REDIS | — | — | — | 🔴 FAIL |
-| POSTGRESQL | — | — | — | 🔴 FAIL |
-| POSTGRESQL+REDIS | — | — | — | 🔴 FAIL |
-| MARIADB | — | — | — | 🔴 FAIL |
-| MARIADB+REDIS | — | — | — | 🔴 FAIL |
+| POSTGRESQL | 46.47ms | — | — | 🔴 FAIL |
+| POSTGRESQL+REDIS | 49.86ms | — | — | 🔴 FAIL |
+| MARIADB | 47.97ms | — | — | 🔴 FAIL |
+| MARIADB+REDIS | 46.70ms | — | — | 🔴 FAIL |
 
 ### 🏁 MIDDLWARE PERFORMANCE MATRIX
 > **Business Value**: Guarantees that security and multi-tenancy layers add negligible overhead to every request.
@@ -166,34 +176,45 @@ xychart-beta
 
 | Hook | Adapter Variant | Avg (µs) | p95 (µs) | p99 (µs) | Efficiency |
 |------|----------|----------|----------|----------|------------|
-| **handleturbopipeline** | SQLITE | 5.83 ⚪ | 7.90 | 9.80 | ⚡ |
-| --- | SQLITE+REDIS | 9.22 ⚪ | 13.60 | 17.60 | ⚡ |
-| --- | POSTGRESQL+REDIS | 6.19 ⚪ | 7.80 | 8.70 | ⚡ |
-| --- | MARIADB | 6.05 ⚪ | 7.80 | 8.90 | ⚡ |
+| **handleturbopipeline** | SQLITE | 5.36 ⚪ | 7.50 | 8.90 | ⚡ |
+| --- | SQLITE+REDIS | 6.08 ⚪ | 8.90 | 11.10 | ⚡ |
+| --- | POSTGRESQL | 5.82 ⚪ | 8.00 | 10.10 | ⚡ |
+| --- | POSTGRESQL+REDIS | 5.94 ⚪ | 8.40 | 10.70 | ⚡ |
+| --- | MARIADB | 5.91 ⚪ | 8.00 | 9.40 | ⚡ |
+| --- | MARIADB+REDIS | 5.75 ⚪ | 7.80 | 9.70 | ⚡ |
 | --- | --- | --- | --- | --- | --- |
-| **handleauthentication** | SQLITE | 3.24 ⚪ | 4.30 | 4.90 | 🚀 |
-| --- | SQLITE+REDIS | 5.19 ⚪ | 7.20 | 10.40 | ⚡ |
-| --- | POSTGRESQL+REDIS | 3.26 ⚪ | 4.30 | 5.20 | 🚀 |
-| --- | MARIADB | 3.60 ⚪ | 5.20 | 6.90 | 🚀 |
+| **handleauthentication** | SQLITE | 3.57 ⚪ | 5.40 | 6.80 | 🚀 |
+| --- | SQLITE+REDIS | 3.67 ⚪ | 5.70 | 8.00 | 🚀 |
+| --- | POSTGRESQL | 3.29 ⚪ | 4.40 | 5.40 | 🚀 |
+| --- | POSTGRESQL+REDIS | 3.48 ⚪ | 4.80 | 5.80 | 🚀 |
+| --- | MARIADB | 3.74 ⚪ | 5.20 | 6.60 | 🚀 |
+| --- | MARIADB+REDIS | 3.22 ⚪ | 4.70 | 5.70 | 🚀 |
 | --- | --- | --- | --- | --- | --- |
-| **handleauthorization** | SQLITE | 3.75 ⚪ | 4.80 | 5.50 | 🚀 |
-| --- | SQLITE+REDIS | 5.45 ⚪ | 8.30 | 11.20 | ⚡ |
-| --- | POSTGRESQL+REDIS | 3.53 ⚪ | 4.50 | 5.10 | 🚀 |
-| --- | MARIADB | 3.90 ⚪ | 5.40 | 6.90 | 🚀 |
+| **handleauthorization** | SQLITE | 4.11 ⚪ | 6.50 | 8.90 | 🚀 |
+| --- | SQLITE+REDIS | 3.77 ⚪ | 4.90 | 6.00 | 🚀 |
+| --- | POSTGRESQL | 4.13 ⚪ | 6.20 | 8.10 | 🚀 |
+| --- | POSTGRESQL+REDIS | 3.72 ⚪ | 5.00 | 6.00 | 🚀 |
+| --- | MARIADB | 3.66 ⚪ | 5.50 | 7.00 | 🚀 |
+| --- | MARIADB+REDIS | 3.65 ⚪ | 4.90 | 6.30 | 🚀 |
 | --- | --- | --- | --- | --- | --- |
-| **handlesecurity** | SQLITE | 3.10 ⚪ | 4.40 | 5.80 | 🚀 |
-| --- | SQLITE+REDIS | 3.75 ⚪ | 5.00 | 6.00 | 🚀 |
-| --- | POSTGRESQL+REDIS | 3.00 ⚪ | 3.90 | 4.60 | 🚀 |
-| --- | MARIADB | 3.17 ⚪ | 4.40 | 6.00 | 🚀 |
+| **handlesecurity** | SQLITE | 3.06 ⚪ | 4.30 | 6.30 | 🚀 |
+| --- | SQLITE+REDIS | 3.23 ⚪ | 4.80 | 6.30 | 🚀 |
+| --- | POSTGRESQL | 2.95 ⚪ | 3.90 | 5.10 | 🚀 |
+| --- | POSTGRESQL+REDIS | 2.80 ⚪ | 3.70 | 4.70 | 🚀 |
+| --- | MARIADB | 3.35 ⚪ | 4.60 | 5.80 | 🚀 |
+| --- | MARIADB+REDIS | 2.88 ⚪ | 3.70 | 4.30 | 🚀 |
 | --- | --- | --- | --- | --- | --- |
-| **handleapirequests** | SQLITE | 2.74 ⚪ | 3.90 | 4.90 | 🚀 |
-| --- | SQLITE+REDIS | 4.05 ⚪ | 6.00 | 7.70 | 🚀 |
-| --- | POSTGRESQL+REDIS | 2.96 ⚪ | 3.80 | 4.60 | 🚀 |
-| --- | MARIADB | 2.77 ⚪ | 3.70 | 4.70 | 🚀 |
+| **handleapirequests** | SQLITE | 2.74 ⚪ | 4.40 | 5.70 | 🚀 |
+| --- | SQLITE+REDIS | 2.61 ⚪ | 4.20 | 5.30 | 🚀 |
+| --- | POSTGRESQL | 2.61 ⚪ | 3.40 | 4.20 | 🚀 |
+| --- | POSTGRESQL+REDIS | 3.89 ⚪ | 5.30 | 6.40 | 🚀 |
+| --- | MARIADB | 2.85 ⚪ | 3.80 | 4.70 | 🚀 |
+| --- | MARIADB+REDIS | 2.56 ⚪ | 3.30 | 4.30 | 🚀 |
 | --- | --- | --- | --- | --- | --- |
 
 ### 🚨 Bottleneck Analysis (Latency Distribution)
 📌 **SQLITE** — REST dominates (100% REST vs 0% DB)
+📌 **POSTGRESQL** — REST dominates (100% REST vs 0% DB)
 📌 **MARIADB** — REST dominates (100% REST vs 0% DB)
 
 

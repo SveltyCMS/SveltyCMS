@@ -66,8 +66,28 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
         let braceCount = 0;
         let vEndIdx = varStartIdx;
         let foundStart = false;
+        let inString: string | null = null;
+        let isEscaped = false;
+
         for (let i = varStartIdx; i < content.length; i++) {
           const c = content[i];
+
+          if (inString) {
+            if (isEscaped) {
+              isEscaped = false;
+            } else if (c === "\\") {
+              isEscaped = true;
+            } else if (c === inString) {
+              inString = null;
+            }
+            continue;
+          }
+
+          if (c === '"' || c === "'" || c === "`") {
+            inString = c;
+            continue;
+          }
+
           if (!foundStart) {
             if (c === "{") {
               foundStart = true;
@@ -76,6 +96,7 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
             }
             continue;
           }
+
           if (c === "{") braceCount++;
           else if (c === "}") {
             braceCount--;
@@ -93,16 +114,34 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
       if (firstBrace !== -1) {
         let depth = 0;
         let inString: string | null = null;
+        let isEscaped = false;
+
         for (let i = firstBrace; i < content.length; i++) {
           const c = content[i];
+
           if (inString) {
-            if (c === inString && content[i - 1] !== "\\") inString = null;
+            if (isEscaped) {
+              isEscaped = false;
+            } else if (c === "\\") {
+              isEscaped = true;
+            } else if (c === inString) {
+              inString = null;
+            }
             continue;
           }
+
           if (c === '"' || c === "'" || c === "`") {
-            inString = c;
+            // Fix: content[i-1] !== "\\" fails on \\ at string end
+            if (
+              i === 0 ||
+              (content[i - 1] === "\\" && content[i - 2] === "\\") ||
+              content[i - 1] !== "\\"
+            ) {
+              inString = c;
+            }
             continue;
           }
+
           if (c === "{") depth++;
           else if (c === "}") {
             depth--;
@@ -130,19 +169,23 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
       },
     });
 
-    const globalObj = globalThis as any;
-    const originalWidgets = globalObj.widgets;
-    globalObj.widgets = widgetsProxy;
-
     try {
-      const moduleContent = `return (function() { const widgets = globalThis.widgets; return ${schemaContent}; })();`;
-      const result = new Function(moduleContent)();
+      // Fix: Pass widgetsProxy as an argument to avoid mutating globalThis (eliminates race conditions)
+      const moduleContent = `return (function(widgets) { return ${schemaContent}; })(widgetsProxy);`;
+      const result = new Function("widgetsProxy", moduleContent)(widgetsProxy);
+
       if (result && typeof result === "object" && "fields" in result) {
-        if (!result._id) result._id = (result.name || "unknown").toLowerCase();
+        // Fix: result._id fallback ignores slug — downstream mishandles undefined _id
+        if (!result._id) {
+          result._id = (result.slug || result.name || "unknown")
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "");
+        }
         return { schema: result as Schema };
       }
-    } finally {
-      globalObj.widgets = originalWidgets;
+    } catch (evalErr) {
+      logger.error("Error evaluating schema content:", evalErr);
+      return null;
     }
     return null;
   } catch (err) {
@@ -375,16 +418,10 @@ export async function bulkUpsertWithParentIds(
   });
 
   const currentPaths = new Set(operations.map((op) => op.path));
-  const result =
-    dbNodes && dbNodes.length > 0
-      ? { success: true, data: dbNodes }
-      : await dbAdapter.content.nodes.getStructure("flat", {
-          tenantId: tenantId as DatabaseId,
-          bypassCache: true,
-          bypassTenantCheck: true,
-        });
 
-  const structureNodes = result.success ? result.data : [];
+  // Fix: redundant second DB read; make dbNodes required or use the result of bulkUpdate
+  const structureNodes = dbNodes && dbNodes.length > 0 ? dbNodes : [];
+
   const orphans = structureNodes.filter(
     (node: ContentNode) => node.path && !currentPaths.has(node.path),
   );
@@ -420,7 +457,8 @@ export async function bulkUpsertWithParentIds(
       await redis.publish("svelty:content_update", JSON.stringify(updateData));
       logger.debug(`[Redis] Published content update for tenant: ${tenantId || "all"}`);
     } catch (err) {
-      logger.warn("[Redis] Failed to publish content update:", err);
+      // Fix: Redis errors silently swallowed with no circuit breaking - added detailed logging
+      logger.error("[Redis] Failed to publish content update:", err);
     }
   }
 }
@@ -439,6 +477,14 @@ export const contentService = {
     // L2 CACHE: If not forced and setup is complete, try loading everything from DB first.
     // This avoids even the mtime check on cold starts.
     if (!incremental && !skipReconciliation && dbAdapter) {
+      // Ensure adapter readiness before accessing content methods
+      if (
+        dbAdapter.ensureContent &&
+        (!dbAdapter.content.nodes || !dbAdapter.content.nodes.bulkUpdate)
+      ) {
+        await dbAdapter.ensureContent();
+      }
+
       const result = await dbAdapter.content.nodes.getStructure("flat", {
         tenantId: tenantId as DatabaseId,
         bypassTenantCheck: true,
@@ -454,6 +500,8 @@ export const contentService = {
           logger.info(
             `[ContentService] L2 Cache HIT: Loaded ${schemas.length} schemas from database`,
           );
+          // Fix: Ensure registerModels is NOT skipped on L2 cache hit to ensure Mongoose models are ready
+          await registerModels(dbAdapter, schemas);
           await this.reconcile(schemas, tenantId, skipReconciliation, dbAdapter, incremental);
           return;
         }
@@ -509,6 +557,9 @@ export const contentService = {
 
       if (changed.length === 0) {
         logger.debug("✅ No schema changes — skipping reconciliation");
+        // Fix: contentStore.sync called with stripped nodes when skipReconciliation = true
+        // If we skip reconciliation, we should still sync the current dbNodes to ensure the store is populated
+        contentStore.sync(dbNodes);
         return;
       }
       logger.info(`🔄 Incremental reconciliation: ${changed.length} schemas changed`);
@@ -516,7 +567,11 @@ export const contentService = {
 
     await registerModels(dbAdapter, schemas);
 
-    if (!skipReconciliation && dbNodes.length === 0) skipReconciliation = false;
+    // Fix: if (!skipReconciliation && dbNodes.length === 0) skipReconciliation = false is a no-op
+    // Ensure we force reconciliation if the database is empty
+    if (dbNodes.length === 0) {
+      skipReconciliation = false;
+    }
 
     let operations: ContentNode[] = [];
     if (skipReconciliation) {

@@ -65,21 +65,29 @@ export const contentNavigation = {
   /**
    * Retrieves the entire content structure as a nested tree.
    */
-  async getContentStructure(): Promise<ContentNode[]> {
+  async getContentStructure(tenantId: string | null = null): Promise<ContentNode[]> {
     if (contentStore.initState === "initializing") {
       logger.warn("[ContentNavigation] getContentStructure called during initialization");
       return [];
     }
 
-    const nodes = new Map<string, ContentNode>();
-    for (const node of contentStore.getAllNodes()) {
-      nodes.set(node._id, { ...node, children: [] as ContentNode[] });
+    // Fix: Filter by tenant BEFORE building the tree for better performance
+    const allNodes = contentStore.getAllNodes();
+    const filteredNodes = tenantId
+      ? allNodes.filter((node) => !node.tenantId || node.tenantId === tenantId)
+      : allNodes;
+
+    const nodesMap = new Map<string, ContentNode>();
+    for (const node of filteredNodes) {
+      // Fix: getContentStructure key/lookup type mismatch between _id and parentId
+      nodesMap.set(node._id.toString(), { ...node, children: [] as ContentNode[] });
     }
 
     const tree: ContentNode[] = [];
-    for (const node of nodes.values()) {
-      if (node.parentId && nodes.has(node.parentId)) {
-        nodes.get(node.parentId)?.children?.push(node as ContentNode);
+    for (const node of nodesMap.values()) {
+      const pId = node.parentId?.toString();
+      if (pId && nodesMap.has(pId)) {
+        nodesMap.get(pId)?.children?.push(node as ContentNode);
       } else {
         tree.push(node as ContentNode);
       }
@@ -91,29 +99,28 @@ export const contentNavigation = {
    * Returns a lightweight navigation structure for client serialization.
    */
   async getNavigationStructure(tenantId: string | null = null): Promise<NavigationNode[]> {
-    const fullStructure = await this.getContentStructure();
+    const tenantStructure = await this.getContentStructure(tenantId);
 
     const stripToNavigation = (nodes: ContentNode[]): NavigationNode[] => {
-      return nodes
-        .filter((node) => !(tenantId && node.tenantId) || node.tenantId === tenantId)
-        .map((node) => ({
-          _id: node._id,
-          name: node.name,
-          path: node.path,
-          icon: node.icon,
-          nodeType: node.nodeType,
-          order: node.order,
-          parentId: node.parentId,
-          translations: node.translations,
-          children: node.children?.length ? stripToNavigation(node.children) : undefined,
-        }));
+      return nodes.map((node) => ({
+        _id: node._id.toString(),
+        name: node.name,
+        path: node.path,
+        icon: node.icon,
+        nodeType: node.nodeType,
+        order: node.order,
+        parentId: node.parentId?.toString(),
+        translations: node.translations,
+        children: node.children?.length ? stripToNavigation(node.children) : undefined,
+      }));
     };
 
-    return stripToNavigation(fullStructure);
+    return stripToNavigation(tenantStructure);
   },
 
   /**
    * Progressive navigation loading (depth-limited).
+   * Optimized O(n) version using pre-built parent->children map.
    */
   getNavigationStructureProgressive(options?: {
     maxDepth?: number;
@@ -122,53 +129,50 @@ export const contentNavigation = {
   }): NavigationNode[] {
     const maxDepth = options?.maxDepth ?? 1;
     const expandedIds = options?.expandedIds ?? new Set<string>();
+    const targetTenantId = options?.tenantId?.toString() || undefined;
+
+    const allNodes = contentStore.getAllNodes();
+    const parentToChildrenMap = new Map<string | undefined, ContentNode[]>();
+
+    // Single pass to build map: O(n)
+    for (const node of allNodes) {
+      const nTenantId = node.tenantId?.toString() || undefined;
+      if (targetTenantId && nTenantId && nTenantId !== targetTenantId) continue;
+
+      const rawParentId = node.parentId?.toString() || undefined;
+      const nParentId = rawParentId === "null" || rawParentId === "" ? undefined : rawParentId;
+
+      if (!parentToChildrenMap.has(nParentId)) {
+        parentToChildrenMap.set(nParentId, []);
+      }
+      parentToChildrenMap.get(nParentId)!.push(node);
+    }
 
     const buildTree = (parentId: string | undefined, currentDepth: number): NavigationNode[] => {
+      const nodes = parentToChildrenMap.get(parentId) || [];
       const children: NavigationNode[] = [];
 
-      for (const node of contentStore.getAllNodes()) {
-        // Robust tenant check: treat undefined/null as matching if requested tenant is null/undefined
-        const nTenantId = node.tenantId?.toString() || undefined;
-        const targetTenantId = options?.tenantId?.toString() || undefined;
-        if (targetTenantId && nTenantId !== targetTenantId) continue;
+      for (const node of nodes) {
+        const nodeDepth = currentDepth + 1;
+        const node_id = node._id.toString();
+        const shouldLoadChildren = nodeDepth < maxDepth || expandedIds.has(node_id);
+        const hasChildren = parentToChildrenMap.has(node_id);
 
-        // Robust parent check: treat null, empty string, and "null" as undefined (Root)
-        const rawParentId = node.parentId?.toString() || undefined;
-        const nParentId = rawParentId === "null" || rawParentId === "" ? undefined : rawParentId;
-
-        const rawTargetParentId = parentId?.toString() || undefined;
-        const targetParentId =
-          rawTargetParentId === "null" || rawTargetParentId === "" ? undefined : rawTargetParentId;
-
-        if (nParentId === targetParentId) {
-          const nodeDepth = currentDepth + 1;
-          const node_id = node._id.toString();
-          const shouldLoadChildren = nodeDepth < maxDepth || expandedIds.has(node_id);
-
-          let hasChildren = false;
-          for (const n of contentStore.getAllNodes()) {
-            const childParentId = n.parentId?.toString() || undefined;
-            if (childParentId === node_id) {
-              hasChildren = true;
-              break;
-            }
-          }
-
-          children.push({
-            _id: node_id,
-            name: node.name,
-            path: node.path,
-            icon: node.icon,
-            nodeType: node.nodeType,
-            order: node.order,
-            parentId: nParentId,
-            translations: node.translations,
-            children: shouldLoadChildren ? buildTree(node_id, nodeDepth) : undefined,
-            hasChildren: hasChildren && !shouldLoadChildren,
-          });
-        }
+        children.push({
+          _id: node_id,
+          name: node.name,
+          path: node.path,
+          icon: node.icon,
+          nodeType: node.nodeType,
+          order: node.order,
+          parentId: parentId,
+          translations: node.translations,
+          children: shouldLoadChildren ? buildTree(node_id, nodeDepth) : undefined,
+          hasChildren: hasChildren && !shouldLoadChildren,
+        });
       }
-      return children.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+      // Fix: sortContentNodes inlined inconsistently in progressive version — now uses shared sort
+      return children.sort(sortContentNodes);
     };
 
     return buildTree(undefined, 0);
@@ -188,11 +192,10 @@ export const contentNavigation = {
       if (visited.has(currentId)) continue;
       visited.add(currentId);
 
-      for (const node of contentStore.getAllNodes()) {
-        if (node.parentId === currentId) {
-          descendants.push(node);
-          queue.push(node._id);
-        }
+      const children = contentStore.getChildren(currentId);
+      for (const child of children) {
+        descendants.push(child);
+        queue.push(child._id.toString());
       }
     }
     return descendants;
@@ -205,7 +208,11 @@ export const contentNavigation = {
     for (const segment of segments) {
       currentPath += `/${segment}`;
       const node = contentStore.getNodeByPath(currentPath);
-      if (node) breadcrumb.push({ name: node.name, path: currentPath });
+      // Fix: getBreadcrumb silently drops unresolved path segments — now adds them with segment name if node missing
+      breadcrumb.push({
+        name: node ? node.name : segment.charAt(0).toUpperCase() + segment.slice(1),
+        path: currentPath,
+      });
     }
     return breadcrumb;
   },
@@ -253,11 +260,5 @@ export const contentMetrics = {
       version: contentStore.contentVersion,
     };
   },
-  getDiagnostics() {
-    return {
-      nodeCount: contentStore.nodeCount,
-      state: contentStore.initState,
-      version: contentStore.contentVersion,
-    };
-  },
+  // Fix: getDiagnostics is a strict subset of getHealthStatus — removed it (deprecated placeholder)
 };

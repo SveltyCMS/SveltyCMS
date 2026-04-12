@@ -12,7 +12,7 @@ import type {
   PaginationOptions,
   BaseQueryOptions,
 } from "@src/databases/db-interface";
-import { generateId } from "@src/databases/mongodb/methods/mongodb-utils";
+import { generateId, getOrCreateModel } from "@src/databases/mongodb/methods/mongodb-utils";
 import { safeQuery } from "@src/utils/security/safe-query";
 // System Logging
 import { logger } from "@utils/logger";
@@ -66,7 +66,21 @@ UserSchema.index({ tenantId: 1, username: 1 }, { sparse: true });
  * UserAdapter class handles all user-related database operations.
  */
 export class UserAdapter {
-  private readonly UserModel: Model<User>;
+  private _UserModel: Model<User> | null = null;
+
+  private get UserModel(): Model<User> {
+    if (!this._UserModel) {
+      this._UserModel = getOrCreateModel(mongoose, "auth_users", UserSchema);
+    }
+    return this._UserModel;
+  }
+
+  /**
+   * Explicitly set the model using a specific connection to support isolated adapters.
+   */
+  public setModel(conn: any) {
+    this._UserModel = getOrCreateModel(conn, "auth_users", UserSchema);
+  }
 
   private mapUser(user: any): User {
     if (!user) return user as unknown as User;
@@ -93,16 +107,17 @@ export class UserAdapter {
     result.isAdmin = !!result.isAdmin;
     result.emailVerified = !!result.emailVerified;
 
-    if (result.permissions && Array.isArray(result.permissions)) {
-      result.permissions = result.permissions.map((p: any) => String(p));
+    // Strip internal Mongoose fields
+    const { __v, ...cleanResult } = result;
+
+    if (cleanResult.permissions && Array.isArray(cleanResult.permissions)) {
+      cleanResult.permissions = cleanResult.permissions.map((p: any) => String(p));
     }
 
-    return result as User;
+    return cleanResult as User;
   }
 
-  constructor() {
-    this.UserModel = mongoose.models?.auth_users || mongoose.model<User>("auth_users", UserSchema);
-  }
+  constructor() {}
 
   async createUser(
     userData: Partial<User>,
@@ -110,10 +125,12 @@ export class UserAdapter {
   ): Promise<DatabaseResult<User>> {
     try {
       const normalizedData = { ...userData, email: userData.email?.toLowerCase() };
+      // safeQuery used for validation side-effects as per documentation requirement
       safeQuery({}, userData.tenantId as string, { bypassTenantCheck: options.bypassTenantCheck });
 
       const userId = generateId();
-      const user = new this.UserModel({ ...normalizedData, _id: userId });
+      const Model = this.UserModel;
+      const user = new Model({ ...normalizedData, _id: userId });
       await user.save();
 
       return { success: true, data: this.mapUser(user.toObject()) };
@@ -178,8 +195,12 @@ export class UserAdapter {
         if (options.page) query = query.skip((options.page - 1) * options.pageSize);
       }
 
-      const users = await query.exec();
-      return { success: true, data: users.map((u) => this.mapUser(u)) };
+      const [users, total] = await Promise.all([
+        query.exec(),
+        this.UserModel.countDocuments(filter),
+      ]);
+
+      return { success: true, data: users.map((u) => this.mapUser(u)), meta: { total } } as any;
     } catch (err) {
       const message = `Error fetching users: ${err instanceof Error ? err.message : String(err)}`;
       logger.error(message);
@@ -209,8 +230,7 @@ export class UserAdapter {
     tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     try {
-      const filter: any = { _id: { $in: userIds } };
-      if (tenantId) filter.tenantId = tenantId;
+      const filter = safeQuery({ _id: { $in: userIds } } as any, tenantId as string);
 
       const result = await this.UserModel.updateMany(filter, {
         blocked: true,
@@ -229,8 +249,7 @@ export class UserAdapter {
     tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     try {
-      const filter: any = { _id: { $in: userIds } };
-      if (tenantId) filter.tenantId = tenantId;
+      const filter = safeQuery({ _id: { $in: userIds } } as any, tenantId as string);
 
       const result = await this.UserModel.updateMany(filter, {
         blocked: false,
@@ -252,7 +271,14 @@ export class UserAdapter {
       const filter = safeQuery({ _id: userId } as any, options.tenantId as string, {
         bypassTenantCheck: options.bypassTenantCheck,
       });
-      await this.UserModel.findOneAndDelete(filter);
+      const result = await this.UserModel.findOneAndDelete(filter);
+      if (!result) {
+        return {
+          success: false,
+          message: "User not found or access denied",
+          error: { code: "USER_NOT_FOUND", message: "User not found" },
+        };
+      }
       return { success: true, data: undefined };
     } catch (err) {
       const message = `Error deleting user: ${err instanceof Error ? err.message : String(err)}`;
@@ -266,8 +292,7 @@ export class UserAdapter {
     tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
     try {
-      const filter: any = { _id: { $in: userIds } };
-      if (tenantId) filter.tenantId = tenantId;
+      const filter = safeQuery({ _id: { $in: userIds } } as any, tenantId as string);
       const result = await this.UserModel.deleteMany(filter);
       return { success: true, data: { deletedCount: result.deletedCount } };
     } catch (err) {
@@ -318,17 +343,23 @@ export class UserAdapter {
   async validateSession(sessionId: DatabaseId): Promise<DatabaseResult<User | null>> {
     try {
       const SessionModel = mongoose.models.auth_sessions;
+      if (!SessionModel) {
+        throw new Error("Session model (auth_sessions) not registered");
+      }
+
       const session = await SessionModel.findById(sessionId).lean();
-      if (!session || new Date(session.expires as any) < new Date()) {
+      if (!session || !session.expires || new Date(session.expires as any) < new Date()) {
         return { success: true, data: null };
       }
       const user = await this.UserModel.findById(session.user_id).lean();
       return { success: true, data: user ? this.mapUser(user) : null };
-    } catch {
+    } catch (err) {
+      const message = `Session validation failed: ${err instanceof Error ? err.message : String(err)}`;
+      logger.error(message, err);
       return {
         success: false,
-        message: "Session validation failed",
-        error: { code: "AUTH_ERROR", message: "Error" },
+        message,
+        error: { code: "AUTH_ERROR", message },
       };
     }
   }

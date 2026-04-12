@@ -22,11 +22,11 @@ describe("Events API Security - Tenant Isolation", () => {
   it("should filter events by tenantId in the SSE stream", async () => {
     // Mock eventBus.on to capture the listener
     let capturedListener: any;
-    vi.spyOn(eventBus, "on").mockImplementation((event, listener) => {
+    vi.spyOn(eventBus as any, "on").mockImplementation((event: any, listener: any) => {
       if (event === "*") {
         capturedListener = listener;
       }
-      return vi.fn(); // Unsubscribe function
+      return vi.fn() as any; // Unsubscribe function
     });
 
     let mockController: any;

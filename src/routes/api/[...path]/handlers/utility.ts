@@ -1,6 +1,6 @@
 /**
  * @file src/routes/api/[...path]/handlers/utility.ts
- * @description Miscellaneous utility handlers for the dispatcher (Cache, Marketplace, Version, Email, Trash).
+ * @description Utility handlers for the unified dispatcher (OpenAPI, Cache, Marketplace, Version, Trash, Debug, etc.).
  */
 
 import { AppError } from "@utils/error-handling";
@@ -8,6 +8,35 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "../../cms";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
+
+// Pre-load expensive services once (top-level)
+let apiSpecService: any;
+let cacheService: any;
+let versionCheckService: any;
+
+async function getApiSpecService() {
+  if (!apiSpecService) {
+    const mod = await import("@services/system/api-spec-service");
+    apiSpecService = mod.apiSpecService;
+  }
+  return apiSpecService;
+}
+
+async function getCacheService() {
+  if (!cacheService) {
+    const mod = await import("@src/databases/cache/cache-service");
+    cacheService = mod.cacheService;
+  }
+  return cacheService;
+}
+
+async function getVersionCheckService() {
+  if (!versionCheckService) {
+    const mod = await import("@src/services/version-check-service");
+    versionCheckService = mod.versionCheckService;
+  }
+  return versionCheckService;
+}
 
 export async function handleUtilityRoutes(
   event: RequestEvent,
@@ -17,129 +46,173 @@ export async function handleUtilityRoutes(
 ) {
   const { request, url, locals } = event;
   const { user } = locals;
-  const namespace = segments[0];
-  const method = segments[1];
+  const [namespace, method] = segments;
 
-  // --- OpenAPI Specification ---
+  // ========================
+  // OpenAPI Specification
+  // ========================
   if (namespace === "openapi.json" && (request.method === "GET" || request.method === "HEAD")) {
-    const { apiSpecService } = await import("@services/system/api-spec-service");
+    const service = await getApiSpecService();
     const { contentSystem } = await import("@src/content");
+
     const collections = await contentSystem.getCollections(tenantId);
-    const spec = await apiSpecService.generateSpec(collections, tenantId as string);
+    const spec = await service.generateSpec(collections, tenantId as string);
+
     return rawResponse(event, spec);
   }
 
-  // --- Cache Management ---
+  // ========================
+  // Cache Management
+  // ========================
   if (namespace === "cache") {
-    const { cacheService } = await import("@src/databases/cache/cache-service");
-    if (method === "clear" && request.method === "POST") {
+    const service = await getCacheService();
+
+    if (request.method === "POST" && method === "clear") {
       const body = await request.json().catch(() => ({}));
-      const type = body.type || body.category;
+      const target = body.type || body.category || "all";
 
-      if (type) {
-        await cacheService.invalidateAll(tenantId); // More robust than clearByCategory for now
-      } else {
-        await cacheService.invalidateAll(tenantId);
-      }
-      return successResponse(event, { success: true, cleared: type || "all" });
+      await service.invalidateAll(tenantId); // Consider adding clearByType if needed
+      return successResponse(event, { success: true, cleared: target });
     }
-    if (method === "stats" && request.method === "GET") {
-      return successResponse(event, cacheService.getStats());
+
+    if (request.method === "GET" && method === "stats") {
+      return successResponse(event, service.getStats());
     }
   }
 
-  // --- Marketplace ---
-  if (namespace === "marketplace") {
-    if (request.method === "GET") {
-      // Marketplace logic is currently a pass-through to a service or mock
-      return successResponse(event, []); // Placeholder for future expansion
-    }
+  // ========================
+  // Marketplace (Future)
+  // ========================
+  if (namespace === "marketplace" && request.method === "GET") {
+    // Placeholder — expand when marketplace is implemented
+    return successResponse(event, { items: [], total: 0 });
   }
 
-  // --- Version Check ---
+  // ========================
+  // Version Check
+  // ========================
   if (namespace === "version-check" && request.method === "GET") {
-    const { versionCheckService } = await import("@src/services/version-check-service");
+    const service = await getVersionCheckService();
     const checkUpdates = url.searchParams.get("checkUpdates") === "true";
-    const result = await versionCheckService.checkVersion({ checkUpdates });
+
+    const result = await service.checkVersion({ checkUpdates });
     return rawResponse(event, result);
   }
 
-  // --- Config Sync ---
+  // ========================
+  // Config Sync
+  // ========================
   if (namespace === "config_sync" && request.method === "GET") {
-    // Logic from legacy config_sync
-    return successResponse(event, { success: true, message: "Configuration synchronized." });
-  }
-
-  // --- Email Service ---
-  if (namespace === "send-mail" && request.method === "POST") {
-    const body = await request.json();
-    if (!body.to || !body.subject || !body.body) {
-      throw new AppError("Missing required email fields (to, subject, body)", 400);
-    }
-    // SveltyCMS email service is typically mocked unless provider envs are set
-    throw new AppError("Email service not configured", 400);
-  }
-
-  // --- Debug / Diagnostics ---
-  if (namespace === "debug" && request.method === "GET") {
     return successResponse(event, {
+      success: true,
+      message: "Configuration synchronized successfully.",
       timestamp: new Date().toISOString(),
-      env: process.env.NODE_ENV,
-      version: "0.5.0",
-      uptime: process.uptime(),
-      tenantId: tenantId || "default",
-      user: user?.email || "anonymous",
     });
   }
 
-  // --- Trash Management ---
+  // ========================
+  // Email Service
+  // ========================
+  if (namespace === "send-mail" && request.method === "POST") {
+    const body = await request.json().catch(() => ({}));
+
+    if (!body.to || !body.subject || !body.body) {
+      throw new AppError("Missing required fields: to, subject, body", 400);
+    }
+
+    // TODO: Integrate real email provider when configured
+    throw new AppError("Email service is not configured in this environment", 501);
+  }
+
+  // ========================
+  // Debug / Diagnostics (Protected)
+  // ========================
+  if (namespace === "debug" && request.method === "GET") {
+    if (user?.role !== "admin") {
+      throw new AppError("Access denied", 403);
+    }
+
+    return successResponse(event, {
+      timestamp: new Date().toISOString(),
+      env: process.env.NODE_ENV,
+      version: "0.5.0", // Consider using package.json version
+      uptime: process.uptime(),
+      tenantId,
+      user: user?.email || "anonymous",
+      memory: process.memoryUsage(),
+    });
+  }
+
+  // ========================
+  // Trash Management
+  // ========================
   if (namespace === "trash") {
+    const { contentSystem } = await import("@src/content");
+
     if (request.method === "GET") {
-      const limit = parseInt(url.searchParams.get("limit") || "50", 10);
-      const { contentSystem } = await import("@src/content");
+      const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 200);
+
       const schemas = await contentSystem.getCollections(tenantId);
-      const allDeletedItems: any[] = [];
+      const allDeleted: any[] = [];
 
       for (const schema of schemas) {
         if (!schema._id) continue;
+
         const collectionName = `collection_${schema._id.replace(/-/g, "")}`;
+
         const result = await cms.db.crud.findMany(
           collectionName,
-          {},
+          { isDeleted: true },
           {
             tenantId: tenantId as DatabaseId,
             includeDeleted: true,
-            limit,
+            limit: limit * 2, // oversample in case of filtering
           },
         );
 
         if (result.success && result.data) {
-          const deletedOnly = result.data.filter((item: any) => item.isDeleted === true);
-          allDeletedItems.push(
-            ...deletedOnly.map((item) => ({
+          allDeleted.push(
+            ...result.data.map((item: any) => ({
               ...item,
               collectionId: schema._id,
-              collectionName: schema.name,
+              collectionName: schema.name || schema._id,
             })),
           );
         }
       }
-      allDeletedItems.sort(
+
+      // Sort by deletedAt descending
+      allDeleted.sort(
         (a, b) => new Date(b.deletedAt || 0).getTime() - new Date(a.deletedAt || 0).getTime(),
       );
-      return successResponse(event, allDeletedItems.slice(0, limit));
+
+      return successResponse(event, allDeleted.slice(0, limit));
     }
 
     if (request.method === "POST" && method === "restore") {
-      const { collectionId, entryId } = await request.json();
+      const { collectionId, entryId } = await request.json().catch(() => ({}));
+
+      if (!collectionId || !entryId) {
+        throw new AppError("Missing collectionId or entryId", 400);
+      }
+
       const collectionName = `collection_${collectionId.replace(/-/g, "")}`;
+
       const result = await cms.db.crud.restore(collectionName, entryId as DatabaseId, {
         tenantId: tenantId as DatabaseId,
       });
-      if (!result.success) throw new AppError(result.message || "Restore failed", 500);
-      return successResponse(event, { success: true });
+
+      if (!result.success) {
+        throw new AppError(result.message || "Failed to restore item", 500);
+      }
+
+      return successResponse(event, { success: true, restored: true });
     }
   }
 
-  throw new AppError(`Utility endpoint /api/${namespace}/${method || ""} not implemented`, 404);
+  // Catch-all
+  throw new AppError(
+    `Utility endpoint /api/${namespace}${method ? "/" + method : ""} not found or not implemented`,
+    404,
+  );
 }

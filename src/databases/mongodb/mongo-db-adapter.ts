@@ -56,6 +56,21 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
 
     // Initialize basic content interface (extended in ensureContent)
     this.content = {
+      nodes: {
+        getStructure: () =>
+          Promise.resolve({
+            success: true,
+            data: [],
+          }),
+        create: () => Promise.resolve({ success: false, message: "Not initialized" } as any),
+        createMany: () => Promise.resolve({ success: false, message: "Not initialized" } as any),
+        update: () => Promise.resolve({ success: false, message: "Not initialized" } as any),
+        delete: () => Promise.resolve({ success: false, message: "Not initialized" } as any),
+        deleteMany: () => Promise.resolve({ success: false, message: "Not initialized" } as any),
+        bulkUpdate: () => Promise.resolve({ success: false, message: "Not initialized" } as any),
+        reorderStructure: () =>
+          Promise.resolve({ success: false, message: "Not initialized" } as any),
+      },
       drafts: {
         restore: (id: DatabaseId) => this.crud.restore("content_drafts", id),
       },
@@ -70,7 +85,32 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
         restore: (id: DatabaseId, t: DatabaseId | null) =>
           this.crud.restore("media", id, { tenantId: t }),
       },
+      folders: {
+        getTree: () => Promise.resolve({ success: true, data: [] }),
+        getFolderContents: () =>
+          Promise.resolve({
+            success: true,
+            data: { folders: [], files: [], totalCount: 0 },
+          } as any),
+      },
     } as unknown as IMediaAdapter;
+
+    this.system = {
+      preferences: {
+        get: () => Promise.resolve({ success: true, data: null }),
+        getMany: () => Promise.resolve({ success: true, data: {} }),
+      },
+      tenants: {
+        list: () => Promise.resolve({ success: true, data: [] }),
+      },
+    } as unknown as ISystemAdapter;
+
+    this.monitoring = {
+      cache: {
+        get: () => Promise.resolve({ success: true, data: null }),
+        getVersion: () => Promise.resolve({ success: true, data: 0 }),
+      },
+    } as unknown as IMonitoringAdapter;
   }
 
   /**

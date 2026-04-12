@@ -312,6 +312,11 @@ export class AuthModule implements IAuthAdapter {
       if (!options?.offset && options?.page && options?.pageSize)
         q = q.offset((options.page - 1) * options.pageSize);
 
+      // Default limit of 1000 if no limit is specified
+      if (!options?.limit && !options?.pageSize) {
+        q = q.limit(1000);
+      }
+
       const results = await q;
       return results.map((u) => this.mapUser(u));
     }, "GET_ALL_USERS_FAILED");
@@ -349,17 +354,84 @@ export class AuthModule implements IAuthAdapter {
     _options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ user: User; session: Session }>> {
     return this.core.wrap(async () => {
-      const userRes = await this.createUser(userData);
-      if (!userRes.success) throw new Error(userRes.message);
+      return await this.db.transaction(async (tx) => {
+        // --- Create User ---
+        const userId = (userData._id || utils.generateId()) as string;
+        const now = isoDateStringToDate(nowISODateString());
 
-      const sessionRes = await this.createSession({
-        user_id: userRes.data._id,
-        expires: sessionData.expires,
-        tenantId: sessionData.tenantId,
+        // Ensure password is hashed if provided and not already hashed
+        let password = userData.password;
+        if (password && !password.startsWith("$argon2")) {
+          const argon2 = await import("argon2");
+          password = await argon2.hash(password);
+        }
+
+        // Map legacy 'role' string to 'roleIds' array if roleIds is missing/empty
+        let roleIds: DatabaseId[] = [];
+        if (userData.roleIds?.length) {
+          roleIds = userData.roleIds;
+        } else if (userData.role) {
+          roleIds = [userData.role as DatabaseId];
+        }
+
+        const userValues: typeof schema.authUsers.$inferInsert = {
+          email: (userData.email || "").toLowerCase(),
+          username: userData.username || null,
+          password: password || null,
+          firstName: userData.firstName || null,
+          lastName: userData.lastName || null,
+          avatar: userData.avatar || null,
+          roleIds: roleIds,
+          isAdmin: userData.isAdmin || false,
+          isRegistered: userData.isRegistered || false,
+          blocked: userData.blocked || false,
+          emailVerified: userData.emailVerified || false,
+          tenantId: (userData.tenantId as string | null) || null,
+          role: userData.role || (roleIds.length > 0 ? (roleIds[0] as string) : "user"),
+          _id: userId,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        await tx.insert(schema.authUsers).values(userValues);
+        const [userResult] = await tx
+          .select()
+          .from(schema.authUsers)
+          .where(eq(schema.authUsers._id, userId))
+          .limit(1);
+
+        const user = this.mapUser(userResult);
+
+        // --- Create Session ---
+        const sessionId = utils.generateId();
+        const expires = isoDateStringToDate(sessionData.expires);
+
+        const sessionValues = {
+          _id: sessionId,
+          user_id: userId,
+          tenantId: (sessionData.tenantId as string | null) || null,
+          expires: expires as Date,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        await tx.insert(schema.authSessions).values(sessionValues);
+        const [sessionResult] = await tx
+          .select()
+          .from(schema.authSessions)
+          .where(eq(schema.authSessions._id, sessionId))
+          .limit(1);
+
+        const convertedSession = utils.convertDatesToISO(sessionResult);
+        const session = {
+          ...convertedSession,
+          _id: convertedSession._id as DatabaseId,
+          user_id: convertedSession.user_id as DatabaseId,
+          tenantId: convertedSession.tenantId as DatabaseId | null,
+        } as unknown as Session;
+
+        return { user, session };
       });
-      if (!sessionRes.success) throw new Error(sessionRes.message);
-
-      return { user: userRes.data, session: sessionRes.data };
     }, "CREATE_USER_AND_SESSION_FAILED");
   }
 
@@ -368,9 +440,23 @@ export class AuthModule implements IAuthAdapter {
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>> {
     return this.core.wrap(async () => {
-      await this.invalidateAllUserSessions(userId, options);
-      await this.deleteUser(userId, options);
-      return { deletedUser: true, deletedSessionCount: 1 };
+      return await this.db.transaction(async (tx) => {
+        // --- Delete Sessions ---
+        const sessionConditions = [eq(schema.authSessions.user_id, userId as string)];
+        if (options?.tenantId) {
+          sessionConditions.push(eq(schema.authSessions.tenantId, options.tenantId as string));
+        }
+        await tx.delete(schema.authSessions).where(and(...sessionConditions));
+
+        // --- Delete User ---
+        const userConditions = [eq(schema.authUsers._id, userId as string)];
+        if (options?.tenantId) {
+          userConditions.push(eq(schema.authUsers.tenantId, options.tenantId as string));
+        }
+        await tx.delete(schema.authUsers).where(and(...userConditions));
+
+        return { deletedUser: true, deletedSessionCount: 1 };
+      });
     }, "DELETE_USER_AND_SESSIONS_FAILED");
   }
 
@@ -773,14 +859,29 @@ export class AuthModule implements IAuthAdapter {
 
   async rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>> {
     return this.core.wrap(async () => {
-      const tokenRes = await this.getTokenByValue(oldToken);
-      if (!tokenRes.success || !tokenRes.data) throw new Error("Token not found");
-      const newToken = utils.generateId();
-      await this.db
-        .update(schema.authTokens)
-        .set({ token: newToken, expires: isoDateStringToDate(expires) })
-        .where(eq(schema.authTokens.token, oldToken));
-      return newToken;
+      return await this.db.transaction(async (tx) => {
+        const [tokenRecord] = await tx
+          .select()
+          .from(schema.authTokens)
+          .where(eq(schema.authTokens.token, oldToken))
+          .limit(1);
+
+        if (!tokenRecord) {
+          throw new Error("Token not found");
+        }
+
+        const newToken = utils.generateId();
+        await tx
+          .update(schema.authTokens)
+          .set({
+            token: newToken,
+            expires: isoDateStringToDate(expires),
+            updatedAt: isoDateStringToDate(nowISODateString()),
+          })
+          .where(eq(schema.authTokens.token, oldToken));
+
+        return newToken;
+      });
     }, "ROTATE_TOKEN_FAILED");
   }
 

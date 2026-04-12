@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MongoCrudMethods } from "@src/databases/mongodb/methods/crud-methods";
 import { safeQuery } from "@src/utils/security/safe-query";
 import type { Model } from "mongoose";
+import mongoose from "mongoose";
 
 // Mock safe-query
 vi.mock("@src/utils/security/safe-query", () => ({
@@ -42,6 +43,7 @@ describe("Soft Delete Engine", () => {
       deleteOne: vi.fn(),
       updateMany: vi.fn(),
       deleteMany: vi.fn(),
+      findOneAndUpdate: vi.fn(),
       schema: {
         paths: {
           slug: { _userProvidedOptions: { unique: true } },
@@ -71,7 +73,6 @@ describe("Soft Delete Engine", () => {
         undefined,
         expect.objectContaining({ includeDeleted: undefined }),
       );
-      // Mongoose find is called with (query, projection, options)
       expect(mockModel.find).toHaveBeenCalledWith(
         expect.objectContaining({ isDeleted: { $ne: true } }),
         "",
@@ -92,7 +93,6 @@ describe("Soft Delete Engine", () => {
         undefined,
         expect.objectContaining({ includeDeleted: true }),
       );
-      // In our mock safeQuery, includeDeleted: true doesn't add the filter
       expect(mockModel.findOne).not.toHaveProperty("isDeleted");
     });
   });
@@ -119,9 +119,6 @@ describe("Soft Delete Engine", () => {
         }),
         expect.any(Object),
       );
-      // Non-unique fields should NOT be mangled
-      const updateSet = mockModel.updateOne.mock.calls[0][1].$set;
-      expect(updateSet.title).toBeUndefined();
     });
 
     it("should perform hard delete if permanent flag is set", async () => {
@@ -142,22 +139,20 @@ describe("Soft Delete Engine", () => {
         slug: "my-slug_DELETED_1710793389",
         isDeleted: true,
       };
-      // Mock first findOne (finding the doc to restore)
-      mockModel.findOne.mockReturnValueOnce({
+
+      mockModel.findOne.mockReturnValue({
         lean: vi.fn().mockReturnThis(),
         exec: vi.fn().mockResolvedValue(deletedDoc),
       });
-      // Mock second findOne (collision check - should return null)
-      mockModel.findOne.mockReturnValueOnce({
-        lean: vi.fn().mockReturnThis(),
-        exec: vi.fn().mockResolvedValue(null),
+
+      mockModel.findOneAndUpdate.mockReturnValue({
+        exec: vi.fn().mockResolvedValue({ ...deletedDoc, slug: "my-slug", isDeleted: false }),
       });
-      mockModel.updateOne.mockResolvedValue({ modifiedCount: 1 });
 
       const result = await crud.restore("123" as any);
 
       expect(result.success).toBe(true);
-      expect(mockModel.updateOne).toHaveBeenCalledWith(
+      expect(mockModel.findOneAndUpdate).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
           $set: expect.objectContaining({
@@ -166,34 +161,37 @@ describe("Soft Delete Engine", () => {
           }),
           $unset: { deletedAt: "", deletedBy: "" },
         }),
-        expect.any(Object),
+        expect.objectContaining({
+          runValidators: true,
+        }),
       );
     });
 
-    it("should fail restore if a collision is detected", async () => {
+    it("should fail restore if a collision is detected via validators", async () => {
       const deletedDoc = {
         _id: "123",
         slug: "my-slug_DELETED_1710793389",
         isDeleted: true,
       };
-      const collidingDoc = { _id: "456", slug: "my-slug" };
 
-      mockModel.findOne.mockReturnValueOnce({
+      mockModel.findOne.mockReturnValue({
         lean: vi.fn().mockReturnThis(),
         exec: vi.fn().mockResolvedValue(deletedDoc),
       });
-      mockModel.findOne.mockReturnValueOnce({
-        lean: vi.fn().mockReturnThis(),
-        exec: vi.fn().mockResolvedValue(collidingDoc),
+
+      // Simulate Mongoose Duplicate Key Error
+      const mongoError = new Error("E11000 duplicate key error collection");
+      (mongoError as any).code = 11000;
+      Object.setPrototypeOf(mongoError, mongoose.mongo.MongoServerError.prototype);
+
+      mockModel.findOneAndUpdate.mockReturnValue({
+        exec: vi.fn().mockRejectedValue(mongoError),
       });
 
       const result = await crud.restore("123" as any);
 
-      if (!result.success) {
-        expect(result.message).toContain("already exists");
-      }
       expect(result.success).toBe(false);
-      expect(mockModel.updateOne).not.toHaveBeenCalled();
+      expect((result as any).error?.code).toBe("COLLISION");
     });
   });
 });

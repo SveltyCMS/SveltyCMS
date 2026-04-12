@@ -32,7 +32,8 @@ const getRedisTTL = async () => (await import("@src/databases/cache/cache-servic
 // --- CONTEXT ---
 const CONTENT_CONTEXT_KEY = Symbol("content-context");
 
-let initializationPromise: Promise<void> | null = null;
+// Map of tenant-keyed initialization promises for multi-tenant SSR isolation
+const initializationPromises = new Map<string, Promise<void>>();
 
 /**
  * Central orchestrator for the SveltyCMS Content System.
@@ -55,12 +56,24 @@ export const contentSystem = {
   // --- Lifecycle ---
   async initialize(
     tenantId: string | null = null,
-    skipReconciliation = false,
+    initializationParams?: { skipReconciliation?: boolean; incremental?: boolean } | boolean,
     adapter?: IDBAdapter,
-    incremental = false,
   ): Promise<void> {
-    if (initializationPromise) {
-      return initializationPromise;
+    const skipReconciliation =
+      typeof initializationParams === "boolean"
+        ? initializationParams
+        : (initializationParams?.skipReconciliation ?? false);
+    const incremental =
+      typeof initializationParams === "object"
+        ? (initializationParams?.incremental ?? false)
+        : false;
+
+    const key = tenantId ?? "__global__";
+
+    // If already in-flight for this tenant, return the existing promise
+    // Unless this is a forced refresh which is handled via refresh()
+    if (initializationPromises.has(key)) {
+      return initializationPromises.get(key)!;
     }
 
     if (browser) {
@@ -70,7 +83,7 @@ export const contentSystem = {
       return;
     }
 
-    initializationPromise = (async () => {
+    const promise = (async () => {
       const { isSetupComplete } = await import("@utils/setup-check");
       const setupComplete = isSetupComplete();
       contentStore.initState = "initializing";
@@ -88,6 +101,7 @@ export const contentSystem = {
           if (cached?.nodes) {
             contentStore.sync(Object.values(cached.nodes));
             contentMetrics.setInitializationTime(performance.now() - start);
+            contentStore.initState = "initialized";
             return;
           }
         }
@@ -120,17 +134,20 @@ export const contentSystem = {
           );
         }
 
+        // Fix: Ensure initialized state is set ONLY after full success
         contentStore.initState = "initialized";
         contentMetrics.setInitializationTime(performance.now() - start);
       } catch (error) {
         contentStore.initState = "error";
-        logger.error("Content initialization failed", error);
+        logger.error("Content initialization failed", { tenantId, key, error });
+        throw error; // Re-throw to allow callers to handle/retry
       } finally {
-        initializationPromise = null;
+        initializationPromises.delete(key);
       }
     })();
 
-    return initializationPromise;
+    initializationPromises.set(key, promise);
+    return promise;
   },
 
   // --- Public Content API ---
@@ -162,7 +179,9 @@ export const contentSystem = {
     return `/${lang}/collection/${first.name}`;
   },
   async refresh(tenantId?: string | null, skipReconciliation?: boolean, incremental = false) {
-    return this.initialize(tenantId, skipReconciliation, undefined, incremental);
+    const key = tenantId ?? "__global__";
+    initializationPromises.delete(key); // Clear existing promise to force re-initialization
+    return this.initialize(tenantId, { skipReconciliation, incremental });
   },
   async getNavigationStructure(tenantId: string | null = null) {
     return contentNavigation.getNavigationStructure(tenantId);
@@ -203,8 +222,10 @@ export const contentSystem = {
   getMetrics(): any {
     return contentMetrics.getMetrics();
   },
-  validateStructure(): any {
-    return { success: true };
+  validateStructure(tenantId?: string | null): any {
+    // Fix: validateStructure always returns { success: true } — now performs basic existence check
+    const nodes = contentStore.getNodesForTenant(tenantId);
+    return { success: nodes.length > 0, count: nodes.length };
   },
   getDiagnostics(): any {
     const m = contentMetrics.getMetrics();
@@ -248,20 +269,30 @@ export const contentSystem = {
   navigation: contentNavigation,
   metrics: contentMetrics,
 
-  async upsertContentNodes(_operations: ContentNodeOperation[], _tenantId?: string | null) {
-    const { contentService } = await import("./content-service.server");
-    // Trigger version update to indicate changes
+  async upsertContentNodes(operations: ContentNodeOperation[], tenantId?: string | null) {
+    // Fix: upsertContentNodes is a broken stub — now attempts bulk update via service
+    const { dbAdapter } = await import("@src/databases/db");
+
+    if (dbAdapter && operations.length > 0) {
+      const updates = operations.map((op) => ({
+        path: op.node.path as string,
+        id: (op.node as any).id || op.node._id.toString(),
+        changes: op.node,
+      }));
+      await dbAdapter.content.nodes.bulkUpdate(updates, { tenantId: tenantId as any });
+    }
+
     contentStore.updateVersion();
-    logger.debug("Content updated (upsertContentNodes - reload recommended for consistency)", {
-      contentService,
-    });
+    logger.debug(`Content updated (${operations.length} nodes upserted)`);
   },
 
   /**
    * Check if the content system is ready for a specific tenant.
    */
-  isInitializedForTenant(_tenantId: string | null = null): boolean {
-    return contentStore.isInitialized;
+  isInitializedForTenant(tenantId: string | null = null): boolean {
+    // Fix: isInitializedForTenant ignores its tenantId parameter — now checks initializationPromises
+    const key = tenantId ?? "__global__";
+    return contentStore.isInitialized && !initializationPromises.has(key);
   },
 
   // --- Context API ---
@@ -276,7 +307,7 @@ export const contentSystem = {
         return contentNavigation.getNavigationStructureProgressive({ tenantId, maxDepth: 999 });
       },
       get isReady() {
-        return contentStore.isInitialized;
+        return contentSystem.isInitializedForTenant(tenantId);
       },
     };
     setContext(CONTENT_CONTEXT_KEY, ctx);
@@ -297,21 +328,22 @@ export interface ContentContext {
  */
 export function useContent(): ContentContext {
   const context = getContext<ContentContext>(CONTENT_CONTEXT_KEY);
-  return (
-    context || {
-      get isReady() {
-        return contentSystem.isInitialized;
-      },
-      get collections() {
-        return contentSystem.collections;
-      },
-      get navigation() {
-        return contentSystem.navigation || [];
-      },
-      tenantId: null as any,
-      content: contentSystem,
-    }
-  );
+  if (context) return context;
+
+  // Fix: useContent fallback returns namespace object — now returns properly typed fallback
+  return {
+    get isReady() {
+      return contentSystem.isInitialized;
+    },
+    get collections() {
+      return contentSystem.collections.getAll();
+    },
+    get navigation() {
+      return contentNavigation.getNavigationStructureProgressive({ maxDepth: 999 });
+    },
+    tenantId: null,
+    content: contentSystem,
+  };
 }
 
 /**
@@ -326,5 +358,5 @@ export function setContentContext(tenantId: string | null = null) {
  */
 export async function initializeContent(pageData?: any) {
   if (pageData?.contentNodes) contentStore.sync(pageData.contentNodes);
-  await contentSystem.initialize(pageData?.tenantId, true);
+  await contentSystem.initialize(pageData?.tenantId, { skipReconciliation: true });
 }

@@ -65,6 +65,8 @@ export interface Role {
   groupName?: string; // Optional group name associated with the role
   icon?: string; // Optional icon for the role (e.g., for UI display)
   isAdmin?: boolean; // Indicates if the role has admin privileges
+  isNative?: boolean; // Indicates if the role is a system-native role
+  isDeleted?: boolean; // Soft delete flag
   name: string; // Name of the role
   permissions: string[]; // Array of permission IDs associated with the role
   tenantId?: DatabaseId | null; // Optional tenant identifier for multi-tenant installations

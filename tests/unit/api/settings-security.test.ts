@@ -13,9 +13,19 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("@src/databases/db", () => ({
   dbAdapter: {
     system: { preferences: { getMany: vi.fn(), set: vi.fn() } },
+    settings: {
+      get: vi.fn().mockResolvedValue({}),
+      getAll: vi.fn().mockResolvedValue({}),
+      getPublic: vi.fn().mockResolvedValue({}),
+    },
   },
   getDb: vi.fn().mockReturnValue({
     system: { preferences: { getMany: vi.fn(), set: vi.fn() } },
+    settings: {
+      get: vi.fn().mockResolvedValue({}),
+      getAll: vi.fn().mockResolvedValue({}),
+      getPublic: vi.fn().mockResolvedValue({}),
+    },
   }),
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
   getAuth: vi.fn(),
