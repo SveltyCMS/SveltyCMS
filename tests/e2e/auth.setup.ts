@@ -1,3 +1,8 @@
+/**
+ * @file tests/e2e/auth.setup.ts
+ * @description Authentication setup for Playwright E2E tests
+ */
+
 import { test as setup, expect } from "@playwright/test";
 import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "./helpers/auth";
 import { readFileSync } from "node:fs";
@@ -51,7 +56,7 @@ setup.describe("E2E Role-Based Setup", () => {
           role,
         },
       });
-      
+
       if (!signupResponse.ok()) {
         const errorBody = await signupResponse.text();
         console.error(

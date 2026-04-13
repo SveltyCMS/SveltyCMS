@@ -93,7 +93,7 @@ export async function loginAs(
       });
       console.log("[Auth] ✓ Database seeded successfully");
     } catch (seedError) {
-      console.log("[Auth] ⚠️ Seeding failed, trying reset first...");
+      console.log("[Auth] ⚠️ Seeding failed, trying reset first...", seedError);
       await page.request.post("/api/testing", { data: { action: "reset" } });
       await page.request.post("/api/testing", {
         data: {

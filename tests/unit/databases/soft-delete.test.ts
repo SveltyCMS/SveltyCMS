@@ -7,7 +7,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MongoCrudMethods } from "@src/databases/mongodb/methods/crud-methods";
 import { safeQuery } from "@src/utils/security/safe-query";
 import type { Model } from "mongoose";
-import mongoose from "mongoose";
 
 // Mock safe-query
 vi.mock("@src/utils/security/safe-query", () => ({
@@ -22,7 +21,12 @@ vi.mock("@src/utils/security/safe-query", () => ({
 
 // Mock mongodb-utils
 vi.mock("@src/databases/mongodb/methods/mongodb-utils", () => ({
-  createDatabaseError: vi.fn((err) => err),
+  createDatabaseError: vi.fn((error, code, message) => ({
+    code,
+    message,
+    details: error instanceof Error ? error.message : String(error),
+    originalCode: (error as any)?.code,
+  })),
   generateId: vi.fn(() => "new-id"),
   processDates: vi.fn((doc) => doc),
 }));
@@ -49,6 +53,7 @@ describe("Soft Delete Engine", () => {
           slug: { _userProvidedOptions: { unique: true } },
           title: { _userProvidedOptions: { unique: false } },
         },
+        indexes: vi.fn(() => []),
       },
     };
 
@@ -93,7 +98,7 @@ describe("Soft Delete Engine", () => {
         undefined,
         expect.objectContaining({ includeDeleted: true }),
       );
-      expect(mockModel.findOne).not.toHaveProperty("isDeleted");
+      expect(mockModel.findOne).toHaveBeenCalledWith({}, undefined, expect.any(Object));
     });
   });
 
@@ -117,7 +122,7 @@ describe("Soft Delete Engine", () => {
             slug: expect.stringMatching(/my-slug_DELETED_\d+/),
           }),
         }),
-        expect.any(Object),
+        expect.anything(),
       );
     });
 
@@ -180,9 +185,11 @@ describe("Soft Delete Engine", () => {
       });
 
       // Simulate Mongoose Duplicate Key Error
-      const mongoError = new Error("E11000 duplicate key error collection");
-      (mongoError as any).code = 11000;
-      Object.setPrototypeOf(mongoError, mongoose.mongo.MongoServerError.prototype);
+      const mongoError = {
+        name: "MongoServerError",
+        message: "E11000 duplicate key error collection",
+        code: 11000,
+      };
 
       mockModel.findOneAndUpdate.mockReturnValue({
         exec: vi.fn().mockRejectedValue(mongoError),

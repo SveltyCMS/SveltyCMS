@@ -112,7 +112,18 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   const dbHost = process.env.DB_HOST || (dbType === "sqlite" ? "config/database" : "localhost");
   const dbName =
     process.env.DB_NAME || (dbType === "sqlite" ? "sveltycms_test.db" : "sveltycms_test");
-  const dbPort = process.env.DB_PORT || defaultPort;
+
+  // Default ports for different database types
+  const defaultPorts: Record<string, string> = {
+    mariadb: "3306",
+    mysql: "3306",
+    postgresql: "5432",
+    postgres: "5432",
+    mongodb: "27017",
+    mongo: "27017",
+  };
+  const dbPort = process.env.DB_PORT || defaultPorts[dbType] || "";
+
   const dbUser =
     process.env.DB_USER !== undefined ? process.env.DB_USER : dbType === "sqlite" ? "" : "test";
   const dbPass =
@@ -127,6 +138,13 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
 
   await page.getByTestId("db-host").fill(dbHost);
   await page.getByTestId("db-name").fill(dbName);
+
+  // Fill User/Pass/Port if not SQLite
+  if (dbType !== "sqlite") {
+    if (dbPort) await page.getByTestId("db-port").fill(dbPort);
+    await page.getByTestId("db-user").fill(dbUser);
+    await page.getByTestId("db-password").fill(dbPass);
+  }
 
   // Click Test Database and handle SQLite "create missing" modal
   const testDbButton = page.getByRole("button", { name: /test database/i });

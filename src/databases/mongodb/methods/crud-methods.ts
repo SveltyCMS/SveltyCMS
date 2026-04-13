@@ -547,7 +547,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
       return { success: true, data: processDates(result) as T };
     } catch (error) {
-      if (error instanceof mongoose.mongo.MongoServerError && error.code === 11000) {
+      const err = error as any;
+      if (
+        err?.code === 11000 ||
+        err?.code === 11001 ||
+        (err?.message && (err.message.includes("E11000") || err.message.includes("duplicate key")))
+      ) {
         return {
           success: false,
           message: "Cannot restore: another document already has the same unique values",
