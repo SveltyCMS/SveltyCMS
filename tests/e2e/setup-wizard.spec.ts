@@ -70,6 +70,8 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   // Check for "Welcome to SveltyCMS" popup and click "Get Started" if present
   // NOTE: Skeleton v4 renders the modal twice (component tree + portal), so #welcome-heading
   // resolves to 2 elements. Use .first() to avoid strict mode violation.
+  // Both positioners carry aria-hidden="true"; the ghost copy (c2) is fixed inset-0 and
+  // physically intercepts pointer events over the real button (c1). Use { force: true }.
   const welcomeModal = page.locator("#welcome-heading").first();
   if (await welcomeModal.isVisible({ timeout: 3000 }).catch(() => false)) {
     console.log("Welcome to SveltyCMS popup detected. Clicking Get Started...");
