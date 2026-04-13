@@ -70,6 +70,8 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   // Check for "Welcome to SveltyCMS" popup and click "Get Started" if present
   // NOTE: Skeleton v4 renders the modal twice (component tree + portal), so #welcome-heading
   // resolves to 2 elements. Use .first() to avoid strict mode violation.
+  // Both positioners carry aria-hidden="true"; the ghost copy (c2) is fixed inset-0 and
+  // physically intercepts pointer events over the real button (c1). Use { force: true }.
   const welcomeModal = page.locator("#welcome-heading").first();
   if (await welcomeModal.isVisible({ timeout: 3000 }).catch(() => false)) {
     console.log("Welcome to SveltyCMS popup detected. Clicking Get Started...");
@@ -110,6 +112,15 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   const dbHost = process.env.DB_HOST || (dbType === "sqlite" ? "config/database" : "localhost");
   const dbName =
     process.env.DB_NAME || (dbType === "sqlite" ? "sveltycms_test.db" : "sveltycms_test");
+  const dbPort = process.env.DB_PORT || defaultPort;
+  const dbUser =
+    process.env.DB_USER !== undefined ? process.env.DB_USER : dbType === "sqlite" ? "" : "test";
+  const dbPass =
+    process.env.DB_PASSWORD !== undefined
+      ? process.env.DB_PASSWORD
+      : dbType === "sqlite"
+        ? ""
+        : "test";
 
   const dbTypeSelect = page.getByTestId("db-type");
   await dbTypeSelect.selectOption(dbType);
@@ -120,6 +131,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   // Click Test Database and handle SQLite "create missing" modal
   const testDbButton = page.getByRole("button", { name: /test database/i });
   await testDbButton.click({ force: true });
+  await page.waitForTimeout(1000); // Wait for connection test to complete
 
   // Handle "Database does not exist" confirmation for SQLite
   const confirmBtn = page.getByRole("button", { name: /yes/i });

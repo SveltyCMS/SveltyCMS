@@ -92,26 +92,41 @@ export default defineConfig({
     },
     {
       name: "auth-setup",
-      testMatch: /auth\.setup\.ts/,
-      dependencies: ["wizard"],
-      workers: 1, // Sequential auth setup
+      testMatch: [/auth\.setup\.ts/, /login\.spec\.ts/],
+      // No dependency on "wizard": in CI the wizard runs once in its own job.
+      // In local dev, run `playwright test --project=wizard` first manually if needed.
+      // Force sequential to avoid race conditions during auth bootstrapping
+      workers: 1,
     },
     {
       name: "signup",
-      testMatch: /(signup|oauth).*\.spec\.ts/,
-      use: { ...devices["Desktop Chrome"] },
+      testMatch: [
+        /signupfirstuser\.spec\.ts/,
+        /oauth-signup-firstuser\.spec\.ts/,
+        /role-based-access\.spec\.ts/,
+        /permission-change\.spec\.ts/,
+      ],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "content",
-      testMatch: /collection.*\.spec\.ts|permission-change\.spec\.ts/,
-      use: { ...devices["Desktop Chrome"] },
+      testMatch: [
+        /collection\.spec\.ts/,
+        /collection-builder\.spec\.ts/,
+        /user-crud\.spec\.ts/,
+      ],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "system",
-      testMatch: /(user|language|role-based-access).*\.spec\.ts/,
-      use: { ...devices["Desktop Chrome"] },
+      testMatch: [
+        /language\.spec\.ts/,
+        /user\.spec\.ts/,
+        /setup-wizard-errors\.spec\.ts/,
+      ],
+      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
   ],

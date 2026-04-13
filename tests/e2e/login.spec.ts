@@ -7,11 +7,30 @@
  *   - Logs out and checks redirect to login page
  */
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin, logout } from "./helpers/auth";
+import { loginAsAdmin, logout, ADMIN_CREDENTIALS } from "./helpers/auth";
 
 test.describe("Login and Logout Flow", () => {
   // Ensure we start with a clean state for the login test
   test.use({ storageState: { cookies: [], origins: [] } });
+
+  // Seed database before each test to ensure consistent state
+  test.beforeEach(async ({ page }) => {
+    console.log("[Login Test] Resetting database via Testing API...");
+    const resetResponse = await page.request.post("/api/testing", {
+      data: { action: "reset" },
+    });
+    expect(resetResponse.ok()).toBeTruthy();
+
+    console.log("[Login Test] Seeding database with admin@example.com...");
+    const seedResponse = await page.request.post("/api/testing", {
+      data: {
+        action: "seed",
+        email: ADMIN_CREDENTIALS.email,
+        password: ADMIN_CREDENTIALS.password,
+      },
+    });
+    expect(seedResponse.ok()).toBeTruthy();
+  });
 
   test("should login and logout successfully", async ({ page }) => {
     // Set a higher timeout for this test

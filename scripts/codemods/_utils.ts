@@ -30,7 +30,7 @@ export function createCodemodProject(): Project {
 export function getDefaultExportedObject(
   sourceFile: SourceFile,
 ): ObjectLiteralExpression | undefined {
-  const exportAssignment = sourceFile.getExportAssignment((exp) => !exp.isExportEquals());
+  const exportAssignment = sourceFile.getExportAssignment((exp: any) => !exp.isExportEquals());
 
   if (!exportAssignment) return undefined;
 

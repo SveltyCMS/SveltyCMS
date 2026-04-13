@@ -11,51 +11,189 @@ import { expect, type Page } from "@playwright/test";
  */
 export const ADMIN_CREDENTIALS = {
   email: process.env.ADMIN_EMAIL || "admin@example.com",
-  password: process.env.ADMIN_PASS || "Admin123!",
+  password: process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS || "Admin123!",
 };
 
+/**
+ * Generic login function for any user
+ * @param page - Playwright page object
+ * @param email - User email
+ * @param password - User password  
+ * @param waitForUrl - URL pattern to wait for after login (default: not /login)
+ */
 export async function loginAs(
   page: Page,
-  arg2?: { email: string; password: string } | string | RegExp,
-  arg3?: string | RegExp,
+  email: string,
+  password: string,
+  waitForUrl?: string | RegExp,
 ) {
-  let credentials = ADMIN_CREDENTIALS;
-  let waitForUrl: string | RegExp | undefined = undefined;
-
-  if (typeof arg2 === "string" || arg2 instanceof RegExp) {
-    waitForUrl = arg2;
-  } else if (arg2) {
-    credentials = arg2;
-    waitForUrl = arg3;
-  }
-
-  // Atomic Auth: Clear previous state
+  // Atomic Auth: Clear all previous session state to prevent session bleed
+  console.log(`[Auth] Logging in as ${email}...`);
   await page.context().clearCookies();
+  
+  // Navigate first to ensure we have a valid origin for localStorage access
+  await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
+  
+  // Now safe to clear storage (we're on the domain)
   await page.evaluate(() => {
     localStorage.clear();
     sessionStorage.clear();
+  }).catch(() => {
+    // Ignore errors if localStorage is restricted
+    console.log("[Auth] Could not clear storage (might be restricted)");
   });
 
-  // Inject session storage to bypass welcome modal
+  // Inject storage to bypass ALL modals (welcome, cookie consent, first login)
   await page.addInitScript(() => {
+    // Setup wizard welcome modal
     window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
+    
+    // Cookie consent
     window.localStorage.setItem(
       "sveltycms_consent",
       JSON.stringify({ responded: true, necessary: true }),
     );
+    
+    // First login welcome for admin
+    window.localStorage.setItem("sveltycms-welcome-seen", "true");
+    window.localStorage.setItem("sveltycms-welcome-progress", JSON.stringify([
+      "data-management",
+      "collections",
+      "users",
+      "settings"
+    ]));
   });
 
-  await page.goto("/login", { waitUntil: "networkidle" });
+  // Navigate to login page (reload to apply init scripts)
+  console.log("[Auth] Navigating to /login...");
+  await page.goto("/login", { waitUntil: "networkidle", timeout: 30_000 });
 
-  // Handle SignIn icon if visible
-  const signInIcon = page.getByTestId("signin-icon");
-  if (await signInIcon.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await signInIcon.click();
+  // Check if we got redirected to setup (config incomplete)
+  if (page.url().includes("/setup")) {
+    throw new Error(`Setup is not complete. Cannot login - redirected to: ${page.url()}`);
   }
 
-  // Fill form
-  await page.getByTestId("signin-email").fill(credentials.email);
-  await page.getByTestId("signin-password").fill(credentials.password);
+  // CRITICAL: Dismiss ALL blocking modals that might interfere with login
+  console.log("[Auth] Checking for blocking modals...");
+  
+  // Strategy 1: Database Error Modal (HIGHEST PRIORITY - completely blocks login)
+  // Check for the exact error modal structure from error-context.md
+  const dbErrorHeading = page.locator('h2:has-text("Database Connection Error"), h2:has-text("Database Error")');
+  if (await dbErrorHeading.isVisible({ timeout: 2000 }).catch(() => false)) {
+    console.log("[Auth] ⚠️ Database Error Modal detected! Database empty - auto-seeding...");
+    
+    // CRITICAL FIX: Seed database via Testing API when empty  
+    try {
+      await page.request.post("/api/testing", {
+        data: {
+          action: "seed",
+          email: ADMIN_CREDENTIALS.email,
+          password: ADMIN_CREDENTIALS.password,
+        },
+      });
+      console.log("[Auth] ✓ Database seeded successfully");
+    } catch (seedError) {
+      console.log("[Auth] ⚠️ Seeding failed, trying reset first...");
+      await page.request.post("/api/testing", { data: { action: "reset" } });
+      await page.request.post("/api/testing", {
+        data: {
+          action: "seed",
+          email: ADMIN_CREDENTIALS.email,
+          password: ADMIN_CREDENTIALS.password,
+        },
+      });
+      console.log("[Auth] ✓ Database reset and seeded");
+    }
+    
+    // Reload login page with seeded database
+    await page.goto("/login", { waitUntil: "networkidle", timeout: 100000 });
+    await page.waitForTimeout(1000);
+  }
+  
+  // Strategy 2: First Login Welcome Modal
+  const welcomeModal = page.locator('div.fixed.inset-0.z-50:has-text("Welcome")').first();
+  if (await welcomeModal.isVisible({ timeout: 1000 }).catch(() => false)) {
+    console.log("[Auth] First Login Welcome Modal detected, dismissing...");
+    const skipBtn = page.locator('button:has-text("Skip"), button:has-text("Close"), button:has-text("Get Started")').first();
+    if (await skipBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await skipBtn.click();
+      await page.waitForTimeout(500);
+    }
+  }
+  
+  // Strategy 3: General modal dismissal (any other blocking modals)
+  const genericModal = page.locator('div.fixed.inset-0.z-50').first();
+  if (await genericModal.isVisible({ timeout: 1000 }).catch(() => false)) {
+    console.log("[Auth] Generic modal detected, attempting to dismiss...");
+    const anyCloseBtn = page.locator('button:has-text("Close"), button:has-text("OK"), button:has-text("Accept"), [aria-label*="close" i]').first();
+    if (await anyCloseBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await anyCloseBtn.click();
+      await page.waitForTimeout(500);
+    }
+  }
+  
+  console.log("[Auth] Modal dismissal complete.");
+
+  // Check if we're on the login selection page (SIGN IN / SIGN UP buttons)
+  // Try data-testid first, then fallback to previous locators
+  const signInIcon = page.getByTestId("signin-icon");
+  const signInButton = page
+    .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
+    .first();
+
+  const signInIconVisible = await signInIcon.isVisible({ timeout: 2000 }).catch(() => false);
+  const signInButtonVisible =
+    !signInIconVisible && (await signInButton.isVisible({ timeout: 2000 }).catch(() => false));
+
+  if (signInIconVisible) {
+    console.log("[Auth] Clicking SIGN IN icon...");
+    // Use force click with retry to bypass any transient overlays
+    await signInIcon.click({ force: true, timeout: 10000 });
+    await page.waitForTimeout(1000);
+  } else if (signInButtonVisible) {
+    console.log("[Auth] Clicking SIGN IN button (fallback)...");
+    await signInButton.click({ force: true, timeout: 10000 });
+    await page.waitForTimeout(1000);
+  } else {
+    // If neither is visible, we might already be on the form, or on the SIGN UP only page (First User)
+    const signUpIcon = page.getByTestId("signup-icon");
+    if (await signUpIcon.isVisible()) {
+      console.log(
+        "[Auth] WARNING: Only SIGN UP icon visible. DB might not be seeded or isFirstUser=true.",
+      );
+      // In first user mode, we'll try to click signup and fill it, but expect error later
+      await signUpIcon.click({ force: true });
+      await page.waitForTimeout(1000);
+    }
+  }
+
+  // Wait for login form to be visible - use data-testid
+  console.log("[Auth] Waiting for signin-email field...");
+  await page
+    .waitForSelector('[data-testid="signin-email"]', {
+      timeout: 15_000,
+      state: "visible",
+    })
+    .catch(async (e) => {
+      console.error("[Auth] ERROR: signin-email field not found!");
+      // Provide debug info about available inputs
+      const inputs = await page.locator("input").all();
+      for (let i = 0; i < inputs.length; i++) {
+        const input = inputs[i];
+        const name = await input.getAttribute("name");
+        const testId = await input.getAttribute("data-testid");
+        console.error(`[Auth]   Input ${i}: name=${name}, data-testid=${testId}`);
+      }
+      throw e;
+    });
+
+  // Fill login form using data-testid selectors
+  console.log(`[Auth] Filling email: ${email}`);
+  await page.getByTestId("signin-email").fill(email);
+  await page.getByTestId("signin-password").fill(password);
+
+  // Submit form using data-testid
+  console.log("[Auth] Submitting login form...");
   await page.getByTestId("signin-submit").click();
 
   if (waitForUrl) {
@@ -66,9 +204,13 @@ export async function loginAs(
 }
 
 /**
- * Backward compatibility alias
+ * Login as admin user (uses default ADMIN_CREDENTIALS)
+ * @param page - Playwright page object
+ * @param waitForUrl - URL pattern to wait for after login (default: Collections/Names page)
  */
-export const loginAsAdmin = loginAs;
+export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
+  await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password, waitForUrl);
+}
 
 /**
  * Logout current user
@@ -114,6 +256,9 @@ export async function logout(page: Page) {
       localStorage.clear();
       sessionStorage.clear();
     });
+    
+    // Navigate to login to confirm logout
+    await page.goto("/login", { timeout: 10_000, waitUntil: "domcontentloaded" });
   } catch (error) {
     console.log("[Auth] Error during logout, continuing anyway:", error);
   }

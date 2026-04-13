@@ -1,5 +1,5 @@
 import { test as setup, expect } from "@playwright/test";
-import { loginAs, ADMIN_CREDENTIALS } from "./helpers/auth";
+import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "./helpers/auth";
 import { readFileSync } from "node:fs";
 
 const ADMIN_AUTH_FILE = "tests/e2e/.auth/admin.json";
@@ -27,7 +27,7 @@ setup.describe("E2E Role-Based Setup", () => {
     expect(seedResponse.status()).toBe(200);
 
     // 3. Perform login
-    await loginAs(page);
+    await loginAsAdmin(page);
 
     // 4. Save admin storage state
     await page.context().storageState({ path: ADMIN_AUTH_FILE });
@@ -51,10 +51,17 @@ setup.describe("E2E Role-Based Setup", () => {
           role,
         },
       });
-      expect(signupResponse.status()).toBe(200);
+      
+      if (!signupResponse.ok()) {
+        const errorBody = await signupResponse.text();
+        console.error(
+          `[Setup] Create user failed with status ${signupResponse.status()}: ${errorBody}`,
+        );
+      }
+      expect(signupResponse.ok()).toBeTruthy();
 
-      // Login as user to capture state
-      await loginAs(page, { email, password });
+      // Login as the new user to capture their state
+      await loginAs(page, email, password);
 
       const targetFile = role === "Editor" ? EDITOR_AUTH_FILE : AUTHOR_AUTH_FILE;
       await page.context().storageState({ path: targetFile });
