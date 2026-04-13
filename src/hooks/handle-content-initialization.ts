@@ -36,6 +36,7 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
 
   // --- Phase 2: Content System Initialization ---
   if (!contentSystem.isInitializedForTenant(tenantId)) {
+    console.log(`[CONTENT_HOOK] Initializing for tenant: ${tenantId}. Path: ${pathname}`);
     // 🛡️ SAFETY: Catch background errors to prevent unhandled promise rejections
     const initPromise = contentSystem.initialize(tenantId, false).catch((err) => {
       logger.error(`[handleContentInitialization] Init failed for tenant ${tenantId}:`, err);

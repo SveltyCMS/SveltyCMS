@@ -1,64 +1,49 @@
 /**
  * @file src/stores/content-store.svelte.ts
- * @description
- * **Content Central Store**: The reactive source of truth for the entire CMS node tree.
- *
- * This store manages the mapping of all collections and categories for the current tenant.
- *
- * ### Responsibilities:
- * - Reactive state for the content structure ($state).
- * - High-speed synchronization with server-loaded nodes (Circuit Breaker logic).
- * - Real-time SSE synchronization management.
- * - Path-to-Node resolution and smart collection discovery.
+ * @description Reactive source of truth for the CMS content tree (collections + categories).
+ * Optimized for Svelte 5 runes, performance, and multi-tenant safety.
  */
-import type { ContentNode, Schema, DatabaseId } from "@src/content/types";
+
+import type { ContentNode, Schema } from "@src/content/types";
 import { browser } from "$app/environment";
 import { logger } from "@utils/logger";
 import { SvelteMap } from "svelte/reactivity";
 
-/**
- * Reactive store for the entire content structure.
- * Using a class-based singleton for Svelte 5 rune compatibility and testing stability.
- */
 class ContentStore {
   private static instance: ContentStore | null = null;
 
-  // --- STATE ---
+  // --- Reactive State ---
   nodeMap = $state(new SvelteMap<string, ContentNode>());
-  pathMap = $state(new SvelteMap<string, string>());
+  pathMap = $state(new SvelteMap<string, string>()); // path → id
   version = $state(Date.now());
   state = $state<"uninitialized" | "initializing" | "initialized" | "error">("uninitialized");
-  currentPollingVersion = $state(0);
 
-  // --- POLLING STATE (Non-reactive) ---
+  // Non-reactive internal state
+  private currentVersion = 0;
   private pollingInterval: NodeJS.Timeout | null = null;
+  private eventSource: EventSource | null = null;
 
   private constructor() {}
 
-  public static getInstance(): ContentStore {
+  static getInstance(): ContentStore {
     if (!ContentStore.instance) {
       ContentStore.instance = new ContentStore();
     }
     return ContentStore.instance;
   }
 
-  // --- DERIVED ---
+  // --- Derived Values ---
   sortedCollections = $derived.by(() => {
-    void this.version; // Trigger dependency
-
     const list: Schema[] = [];
     for (const node of this.nodeMap.values()) {
       if (node.nodeType === "collection" && node.collectionDef) {
         list.push(node.collectionDef);
       }
     }
-
     list.sort((a, b) => {
       const orderDiff = (a.order ?? 999) - (b.order ?? 999);
-      if (orderDiff !== 0) return orderDiff;
-      return (a.path || "").localeCompare(b.path || "");
+      return orderDiff !== 0 ? orderDiff : (a.path ?? "").localeCompare(b.path ?? "");
     });
-
     return list;
   });
 
@@ -71,28 +56,29 @@ class ContentStore {
   });
 
   isInitialized = $derived(this.state === "initialized");
-  contentNodes = $derived(Array.from(this.nodeMap.values()));
+  allNodes = $derived(Array.from(this.nodeMap.values()));
 
-  // --- GETTERS ---
   get nodeCount() {
     return this.nodeMap.size;
   }
 
-  // --- METHODS ---
-  getNode(id: string) {
+  // --- Core Methods ---
+  getNode(id: string): ContentNode | undefined {
     return this.nodeMap.get(id);
   }
 
-  getNodeByPath(path: string) {
+  getNodeByPath(path: string): ContentNode | undefined {
     const id = this.pathMap.get(path);
     return id ? this.nodeMap.get(id) : undefined;
   }
 
-  getChildren(parentId: string | null = null, tenantId?: string | null) {
+  getChildren(parentId: string | null = null, tenantId?: string | null): ContentNode[] {
     const children: ContentNode[] = [];
+    const targetParent = parentId || null;
+
     for (const node of this.nodeMap.values()) {
-      const nodeParentId = node.parentId || null;
-      if (nodeParentId === parentId && (!tenantId || node.tenantId === tenantId)) {
+      const pId = node.parentId || null;
+      if (pId === targetParent && (!tenantId || node.tenantId === tenantId)) {
         children.push(node);
       }
     }
@@ -100,221 +86,201 @@ class ContentStore {
   }
 
   getAllCollections(tenantId?: string | null): Schema[] {
-    const all = this.sortedCollections;
-    if (!tenantId) return all;
-    return all.filter((c) => !c.tenantId || c.tenantId === tenantId);
+    const collections = this.sortedCollections;
+    if (!tenantId) return collections;
+    return collections.filter((c) => !c.tenantId || c.tenantId === tenantId);
   }
 
   getCollection(identifier: string, tenantId?: string | null): Schema | null {
+    // Fast path: direct ID lookup
     let node = this.getNode(identifier);
-    if (!node) {
-      const path = identifier.startsWith("/") ? identifier : `/${identifier}`;
-      node = this.getNodeByPath(path);
-      if (!node) {
-        node = path.startsWith("/collection/")
-          ? this.getNodeByPath(path.replace("/collection", ""))
-          : this.getNodeByPath(`/collection${path}`);
-      }
-    }
-    if (!node) {
-      const lowerId = identifier.toLowerCase();
-      const lowerWithSlash = lowerId.startsWith("/") ? lowerId : `/${lowerId}`;
-      const lowerWithPrefix = lowerWithSlash.startsWith("/collection/")
-        ? lowerWithSlash
-        : `/collection${lowerWithSlash}`;
 
-      for (const [pathKey, idValue] of this.pathMap.entries()) {
-        const lowerKey = pathKey.toLowerCase();
-        if (lowerKey === lowerId || lowerKey === lowerWithSlash || lowerKey === lowerWithPrefix) {
-          node = this.getNode(idValue);
-          break;
-        }
+    if (!node) {
+      // Try path variations
+      const normalizedPath = identifier.startsWith("/") ? identifier : `/${identifier}`;
+      node = this.getNodeByPath(normalizedPath);
+
+      if (!node && normalizedPath.startsWith("/collection/")) {
+        node = this.getNodeByPath(normalizedPath.replace("/collection", ""));
       }
     }
+
+    // Fallback: search by collectionDef._id
     if (!node) {
-      for (const contentNode of this.nodeMap.values()) {
-        if (contentNode.collectionDef?._id === identifier) {
-          node = contentNode;
+      for (const n of this.nodeMap.values()) {
+        if (n.collectionDef?._id === identifier) {
+          node = n;
           break;
         }
       }
     }
 
-    if (node?.collectionDef && tenantId && node.tenantId && node.tenantId !== tenantId) {
+    if (!node?.collectionDef) return null;
+
+    // Tenant isolation
+    if (tenantId && node.tenantId && node.tenantId !== tenantId) {
       return null;
     }
-    return node?.collectionDef ?? null;
+
+    return node.collectionDef;
   }
 
   getSmartFirstCollection(tenantId?: string | null): Schema | null {
     const collections = this.getAllCollections(tenantId);
-    return collections[0] || null;
+    return collections[0] ?? null;
   }
 
-  getNodesForTenant(tenantId?: string | null): ContentNode[] {
-    if (!tenantId) return Array.from(this.nodeMap.values());
-    const results: ContentNode[] = [];
-    for (const node of this.nodeMap.values()) {
-      if (!node.tenantId || node.tenantId === tenantId) {
-        results.push(node);
-      }
+  // --- Sync ---
+  private lastSyncSignature = "";
+
+  sync(nodes: ContentNode[]): void {
+    if (!nodes.length) {
+      this.nodeMap.clear();
+      this.pathMap.clear();
+      return;
     }
-    return results;
-  }
 
-  getNodesEntries() {
-    return Array.from(this.nodeMap.entries());
-  }
+    // Fast structural change detection
+    const signature = `${nodes.length}-${nodes[0]._id}`;
+    if (signature === this.lastSyncSignature) return;
+    this.lastSyncSignature = signature;
 
-  private lastNodesHash = "";
-
-  sync(nodes: ContentNode[]) {
-    // Prevent redundant syncs that trigger reactivity loops
-    const currentHash = JSON.stringify(nodes);
-    if (currentHash === this.lastNodesHash) return;
-    this.lastNodesHash = currentHash;
-
-    logger.debug(`[ContentStore] Syncing ${nodes.length} nodes for tenant: ${this.state}`);
     this.nodeMap.clear();
     this.pathMap.clear();
 
-    for (const node of nodes) {
-      const id = node._id.toString();
-      // Normalize parentId: null, empty string, or "null" (string) -> undefined
-      const rawParentId = node.parentId?.toString() || undefined;
-      const parentId =
-        rawParentId === "null" || rawParentId === "" ? undefined : (rawParentId as DatabaseId);
-
-      // Normalize tenantId: null or empty -> undefined
-      const tenantId = (node.tenantId?.toString() || undefined) as DatabaseId | undefined;
-
-      this.nodeMap.set(id, {
-        ...node,
-        _id: id as DatabaseId,
-        parentId,
-        tenantId,
-      });
-
-      if (node.path) this.pathMap.set(node.path, id);
+    for (const rawNode of nodes) {
+      const id = String(rawNode._id);
+      this.nodeMap.set(id, rawNode);
+      if (rawNode.path) this.pathMap.set(rawNode.path, id);
     }
+
     this.version = Date.now();
     this.state = "initialized";
-    logger.debug("[ContentStore] Sync complete, nodes mapped:", this.nodeMap.size);
   }
 
-  startLiveSync(onUpdate: () => void) {
-    if (!browser) return;
-    const pathname = window.location.pathname;
-    const isRestricted =
-      /^\/([a-z]{2,5}(-[a-zA-Z]+)?\/)?(setup|login)/i.test(pathname) ||
+  // --- Live Sync (SSE + Polling fallback) ---
+  startLiveSync(onUpdate: () => void): () => void {
+    if (!browser) return () => {};
+
+    const pathname = window.location?.pathname || "";
+    if (
+      /^\/(setup|login)/i.test(pathname) ||
       pathname.includes("/setup") ||
-      pathname.includes("/login");
+      pathname.includes("/login")
+    ) {
+      return () => {};
+    }
 
-    if (isRestricted) return;
+    logger.debug("📡 Starting content live sync (SSE)");
 
-    logger.info("📡 Initializing Real-time Content Sync (SSE)");
-    const eventSource = new EventSource("/api/content/events");
+    this.eventSource = new EventSource("/api/content/events");
 
-    eventSource.onmessage = (event) => {
+    this.eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.version && data.version > this.currentPollingVersion) {
-          this.currentPollingVersion = data.version;
+        if (data.version && data.version > this.currentVersion) {
+          this.currentVersion = data.version;
           onUpdate();
         }
       } catch (err) {
-        logger.error("[SSE] Failed to parse event data", err);
+        logger.error("[SSE] Failed to parse update", err);
       }
     };
 
-    eventSource.onerror = () => {
-      eventSource.close();
+    this.eventSource.onerror = () => {
+      logger.warn("[SSE] Connection lost — falling back to polling");
+      this.eventSource?.close();
       this.startPolling(onUpdate);
     };
 
-    return () => eventSource.close();
+    return () => this.stopLiveSync();
   }
 
-  startPolling(onNewVersion: () => void, intervalMs = 10000) {
-    if (!browser || this.pollingInterval) return;
-    const checkVersion = async () => {
+  private startPolling(onUpdate: () => void, intervalMs = 8000) {
+    if (this.pollingInterval) return;
+
+    const poll = async () => {
       try {
-        const response = await fetch("/api/content/version");
-        const data = await response.json();
-        if (this.currentPollingVersion !== 0 && data.version > this.currentPollingVersion) {
-          this.currentPollingVersion = data.version;
-          onNewVersion();
-        } else {
-          this.currentPollingVersion = data.version;
+        const res = await fetch("/api/content/version");
+        const { version } = await res.json();
+
+        if (version > this.currentVersion) {
+          this.currentVersion = version;
+          onUpdate();
         }
-      } catch (error) {
-        logger.warn("Failed to poll content version", error);
+      } catch (e) {
+        logger.warn("Content version poll failed", e);
       }
     };
-    checkVersion();
-    this.pollingInterval = setInterval(checkVersion, intervalMs);
+
+    poll();
+    this.pollingInterval = setInterval(poll, intervalMs);
   }
 
-  stopPolling() {
+  private stopLiveSync() {
+    this.eventSource?.close();
+    this.eventSource = null;
+    this.stopPolling();
+  }
+
+  private stopPolling() {
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
     }
   }
+
+  clear(): void {
+    this.nodeMap.clear();
+    this.pathMap.clear();
+    this.version = Date.now();
+    this.lastSyncSignature = "";
+  }
 }
 
-// Global instance getter
-const getStore = () => ContentStore.getInstance();
+const store = ContentStore.getInstance();
 
-/**
- * Pure reactive store for the entire content structure.
- */
 export const contentStore = {
   get contentVersion() {
-    return getStore().version;
+    return store.version;
   },
   get initState() {
-    return getStore().state;
+    return store.state;
   },
-  set initState(value) {
-    getStore().state = value;
+  set initState(v: any) {
+    store.state = v;
   },
+
   get collectionCount() {
-    return getStore().collectionCount;
+    return store.collectionCount;
   },
   get isInitialized() {
-    return getStore().isInitialized;
+    return store.isInitialized;
   },
   get nodeCount() {
-    return getStore().nodeCount;
-  },
-  get pollingVersion() {
-    return getStore().currentPollingVersion;
+    return store.nodeCount;
   },
   get version() {
-    return getStore().version;
+    return store.version;
   },
 
-  getNode: (id: string) => getStore().getNode(id),
-  getNodeByPath: (path: string) => getStore().getNodeByPath(path),
-  getChildren: (pId: string | null = null, tId?: string | null) => getStore().getChildren(pId, tId),
-  getAllCollections: (tId?: string | null) => getStore().getAllCollections(tId),
-  getCollection: (id: string, tId?: string | null) => getStore().getCollection(id, tId),
-  sync: (nodes: ContentNode[]) => getStore().sync(nodes),
-  startLiveSync: (cb: () => void) => getStore().startLiveSync(cb),
-  stopPolling: () => getStore().stopPolling(),
-  getNodesEntries: () => getStore().getNodesEntries(),
-  getSmartFirstCollection: (tId?: string | null) => getStore().getSmartFirstCollection(tId),
-  getNodesForTenant: (tId?: string | null) => getStore().getNodesForTenant(tId),
+  getNode: (id: string) => store.getNode(id),
+  getNodeByPath: (path: string) => store.getNodeByPath(path),
+  getChildren: (parentId?: string | null, tenantId?: string | null) =>
+    store.getChildren(parentId ?? null, tenantId),
 
-  // Minimal set for compatibility - others can be added as needed
-  clear: () => {
-    getStore().nodeMap.clear();
-    getStore().pathMap.clear();
-    getStore().version = Date.now();
-  },
+  getAllCollections: (tenantId?: string | null) => store.getAllCollections(tenantId),
+  getCollection: (id: string, tenantId?: string | null) => store.getCollection(id, tenantId),
+  getSmartFirstCollection: (tenantId?: string | null) => store.getSmartFirstCollection(tenantId),
+
+  getNodesEntries: () => store.nodeMap.entries(),
+  getNodesForTenant: (tenantId?: string | null) => store.getChildren(null, tenantId),
   updateVersion: () => {
-    getStore().version = Date.now();
+    store.version = Date.now();
   },
-  getAllNodes: () => Array.from(getStore().nodeMap.values()),
+
+  getAllNodes: () => store.allNodes,
+  sync: (nodes: ContentNode[]) => store.sync(nodes),
+  startLiveSync: (onUpdate: () => void) => store.startLiveSync(onUpdate),
+  clear: () => store.clear(),
 };

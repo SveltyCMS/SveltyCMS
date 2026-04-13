@@ -215,7 +215,7 @@ jobs:
         db: [sqlite, mongodb, mariadb, postgresql]
         include:
           - db: sqlite
-            image: alpine # dummy
+            image: mongo:7 # Stays alive better than alpine
             health: "true"
           - db: mongodb
             image: mongo:7

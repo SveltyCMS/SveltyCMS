@@ -602,6 +602,7 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
       ...this.content,
       nodes: {
         getStructure: contentMethods.getStructure.bind(contentMethods),
+        upsertContentStructureNode: (n: any) => contentMethods.upsertContentStructureNode(n),
         create: (n: any) => contentMethods.upsertNodeByPath(n),
         createMany: (nodes: any[]) =>
           contentMethods.bulkUpdateNodes(nodes.map((n) => ({ path: n.path, changes: n }))),

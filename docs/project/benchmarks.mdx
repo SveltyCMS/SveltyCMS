@@ -16,206 +16,87 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Enterprise Benchmark Matrix — 12/04/2026, 21:15:41
+## 📊 SveltyCMS Enterprise Benchmark Matrix — 13/04/2026, 23:05:42
 
-### 🧪 What We Tested
+**Version:** 0.0.8 | **Generated:** 2026-04-13T21:05:42.244Z
+
+### 🧪 Benchmarks Included
 
 - **Upgrade CLI & Codemods** — Audits the performance of the automated upgrade system and TS-Morph AST transformations during schema migrations.
-   📍 `tests/benchmarks/upgrade-performance.test.ts`
 - **Media Engine & DAM Overhead** — Measures high-resolution image resizing, SHA-256 media hashing, and metadata extraction efficiency.
-   📍 `tests/benchmarks/media-performance.test.ts`
 - **Self-Healing Content Scan** — Measures the duration of the 99.9% Self-Healing Cache scanner across the .compiledCollections directory.
-   📍 `tests/benchmarks/content-scan.bench.ts`
 - **REST API Performance** — Measures end-to-end throughput and latency of the unified REST dispatcher, including JSON serialization/deserialization overhead and collection listing under realistic load.
-   📍 `tests/benchmarks/rest-api-performance.test.ts`
 - **Middleware & Hooks Performance** — High-resolution micro-benchmarks (in microseconds) for individual middleware layers: Turbo Pipeline, Authentication, Authorization, Security, and API Request handling.
-   📍 `tests/benchmarks/hooks-performance.test.ts`
 - **GraphQL API Performance** — Evaluates resolver execution time, N+1 query problem mitigation, and overall throughput for common queries (e.g., 'me' and system health).
-   📍 `tests/benchmarks/graphql-api-performance.test.ts`
 - **Relational & Nested Queries Performance** — Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3) via both REST search and GraphQL queries.
-   📍 `tests/benchmarks/relational-performance.test.ts`
 - **Core Widgets Overhead** — Audits server-side processing cost of built-in widgets (Input, RichText, Relation) inside the modifyRequest pipeline to ensure near-zero overhead.
-   📍 `tests/benchmarks/widget-performance.test.ts`
 - **Database Adapter Raw CRUD** — Direct low-level benchmarks of Create, Read, Update, Delete operations on the current database adapter (bypassing higher layers).
-   📍 `tests/benchmarks/database-performance.test.ts`
 - **Security Hardening & Audit** — Measures the performance impact of security features: Fail-Closed Dispatcher overhead, Payload scanning latency, and SHA-256 Audit Chaining.
-   📍 `tests/benchmarks/security-audit.test.ts`
 - **GraphQL Load Stress** — Executes massive concurrency loads (1000+ requests) to determine the breaking point of the GraphQL resolver engine under pressure.
-   📍 `tests/benchmarks/graphql-stress.ts`
 - **OpenAPI Specification Performance** — Audits the generation and caching efficiency of the dynamic OpenAPI 3.1.0 specification endpoint.
-   📍 `tests/benchmarks/openapi-performance.test.ts`
 - **Raw API Network Latency** — Measures the base network and HTTP overhead for the simplest possible API calls (Health Check).
-   📍 `tests/benchmarks/api-latency.test.ts`
 - **System Cache Efficiency** — Audits the performance gain of the 2-layer Hybrid Cache across various system modules.
-   📍 `tests/benchmarks/cache-performance.test.ts`
+- **Multi-Tenant Performance & Isolation** — Measures scaling behavior and data isolation across multiple tenants under load.
+- **Realistic Mixed Workload** — Simulates a typical production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.
+- **Memory Stability & GC Behavior** — Tracks heap growth and RSS trends under sustained high-throughput load.
 
-| Database | Cold Start | REST (p95) | GQL (avg) | GQL Stress | Success Rate | Status |
-|----------|------------|------------|-----------|-------------|--------------|--------|
-| **SQLITE** | 464ms ⚪ (—) | 6.50ms ⚪ (—) | 18.98ms ⚪ (—) | — | 100.0% | ❌ |
-| **SQLITE+REDIS** | 219ms ⚪ (—) | 6.36ms ⚪ (—) | 20.55ms ⚪ (—) | — | 100.0% | ❌ |
-| **MONGODB** | 0ms ⚪ (—) | 0.00ms ⚪ (—) | 0.00ms ⚪ (—) | — | 100.0% | ❌ |
-| **MONGODB+REDIS** | 0ms ⚪ (—) | 0.00ms ⚪ (—) | 0.00ms ⚪ (—) | — | 100.0% | ❌ |
-| **POSTGRESQL** | 235ms ⚪ (—) | 4.12ms ⚪ (—) | 24.20ms ⚪ (—) | 953 RPS | 100.0% | ❌ |
-| **POSTGRESQL+REDIS** | 210ms ⚪ (—) | 6.52ms ⚪ (—) | 13.09ms ⚪ (—) | 856 RPS | 100.0% | ❌ |
-| **MARIADB** | 247ms ⚪ (—) | 4.32ms ⚪ (—) | 14.30ms ⚪ (—) | 887 RPS | 100.0% | ❌ |
-| **MARIADB+REDIS** | 228ms ⚪ (—) | 2.99ms ⚪ (—) | 12.40ms ⚪ (—) | 1001 RPS | 100.0% | ❌ |
+| Database | Cold Start | REST p95 | GraphQL Avg | Mixed RPS | Heap Growth | Status |
+|----------|------------|----------|-------------|-----------|-------------|--------|
+| **SQLITE** | 448ms ⚪ | 0.0ms ⚪ | 74.6ms ⚪ | — | 0.0 MB | ❌ |
+| **SQLITE+REDIS** | 309ms ⚪ | 15.5ms ⚪ | 0.0ms ⚪ | — | 0.0 MB | ❌ |
+| **MONGODB** | 0ms ⚪ | 0.0ms ⚪ | 0.0ms ⚪ | — | 0.0 MB | ❌ |
+| **MONGODB+REDIS** | 0ms ⚪ | 0.0ms ⚪ | 0.0ms ⚪ | — | 0.0 MB | ❌ |
+| **POSTGRESQL** | 184ms ⚪ | 0.0ms ⚪ | 0.0ms ⚪ | — | 0.0 MB | ❌ |
+| **POSTGRESQL+REDIS** | 0ms ⚪ | 0.0ms ⚪ | 0.0ms ⚪ | — | 0.0 MB | ❌ |
+| **MARIADB** | 0ms ⚪ | 0.0ms ⚪ | 0.0ms ⚪ | — | 0.0 MB | ❌ |
+| **MARIADB+REDIS** | 0ms ⚪ | 0.0ms ⚪ | 0.0ms ⚪ | — | 0.0 MB | ❌ |
 
-### 📈 Latency Trends (last 5 runs — lower is better)
+### 🏢 Multi-Tenancy Scaling
+| Adapter | 5 Tenants | 30 Tenants | Isolation | Mem Growth |
+|---------|-----------|------------|-----------|------------|
+
+### 🌀 Mixed Workload
+| Adapter | Avg Latency | p95 | RPS |
+|---------|-------------|-----|-----|
+
+### 🧠 Memory Stability
+| Adapter | Sustained RPS | Heap Growth | Status |
+|---------|---------------|-------------|--------|
+| sqlite | — | 0.0 MB | 🟢 Stable |
+| SQLITE+REDIS | — | 0.0 MB | 🟢 Stable |
+| mongodb | — | 0.0 MB | 🟢 Stable |
+| MONGODB+REDIS | — | 0.0 MB | 🟢 Stable |
+| postgresql | — | 0.0 MB | 🟢 Stable |
+| POSTGRESQL+REDIS | — | 0.0 MB | 🟢 Stable |
+| mariadb | — | 0.0 MB | 🟢 Stable |
+| MARIADB+REDIS | — | 0.0 MB | 🟢 Stable |
+
+### 📈 Latency Trends (last 5 runs)
 
 ```mermaid
 xychart-beta
-  title "Total Latency (ms) — REST + DB + Hooks"
+  title "Total Latency (ms)"
   x-axis "Run"
   y-axis "Latency (ms)"
   ["Run 1", "Run 2", "Run 3", "Run 4", "Run 5"]
-  line "SQLITE" : [0.00, 5.15, 6.25, 6.40, 6.50]
-  line "SQLITE+REDIS" : [5.82, 7.61, 0.00, 0.00, 6.36]
-  line "MONGODB" : [26.68, 0.00, 0.00, 0.00, 0.00]
-  line "MONGODB+REDIS" : [13.07, 0.00, 0.00, 0.00, 0.00]
-  line "POSTGRESQL" : [0.00, 0.00, 3.50, 0.00, 4.12]
-  line "POSTGRESQL+REDIS" : [19.15, 5.94, 5.94, 5.94, 6.52]
-  line "MARIADB" : [12.50, 3.84, 3.84, 3.84, 4.32]
-  line "MARIADB+REDIS" : [0.00, 5.31, 0.00, 0.00, 2.99]
+  line "SQLITE" : [4.5, 0.0, 0.0, 0.0, 0.0]
+  line "SQLITE+REDIS" : [0.0, 0.0, 0.0, 0.0, 15.5]
+  line "MONGODB" : [10.5, 0.0, 0.0, 0.0, 0.0]
+  line "MONGODB+REDIS" : [13.7, 0.0, 0.0, 0.0, 0.0]
+  line "POSTGRESQL" : [3.5, 0.0, 4.1, 6.0, 0.0]
+  line "POSTGRESQL+REDIS" : [5.9, 5.9, 6.5, 10.0, 0.0]
+  line "MARIADB" : [3.8, 3.8, 4.3, 6.0, 0.0]
+  line "MARIADB+REDIS" : [0.0, 0.0, 3.0, 6.1, 0.0]
 ```
 
 ---
 
-## 🧩 Component Performance Comparison (Head-to-Head)
+## 🧩 Component Performance Comparison
 
-### 📡 REST API PERFORMANCE MATRIX (LATENCY ANALYTICS)
-> **Business Value**: Ensures the public API stays fast for end users and scales well under production load.
-> **Test File**: [`tests/benchmarks/rest-api-performance.test.ts`](../../tests/benchmarks/rest-api-performance.test.ts)
-
-| Adapter Variant | Avg Latency | p95 Latency | Throughput (RPS) |
-|----------|-------------|-------------|------------------|
-| SQLITE | 4.67ms ⚪ | 6.50ms ⚪ | 2511 ⚪ |
-| SQLITE+REDIS | 5.02ms ⚪ | 6.36ms ⚪ | 2326 ⚪ |
-| POSTGRESQL | 3.16ms ⚪ | 4.12ms ⚪ | 3622 ⚪ |
-| POSTGRESQL+REDIS | 3.31ms ⚪ | 6.52ms ⚪ | 3524 ⚪ |
-| MARIADB | 2.75ms ⚪ | 4.32ms ⚪ | 4159 ⚪ |
-| MARIADB+REDIS | 2.46ms ⚪ | 2.99ms ⚪ | 4605 ⚪ |
-
-### 📖 OPENAPI SPECIFICATION PERFORMANCE (GENERATION VS CACHE)
-> **Business Value**: Validates that dynamic documentation doesn't impact server performance and scales with schema complexity.
-> **Test File**: [`tests/benchmarks/openapi-performance.test.ts`](../../tests/benchmarks/openapi-performance.test.ts)
-
-| Adapter Variant | Cache Hit (p95) | Cache Miss (avg) | Efficiency |
-|----------|-----------------|------------------|------------|
-| SQLITE | 16.70ms ⚪ | 11.39ms ⚪ | ⚡ L2 HIT |
-| SQLITE+REDIS | 17.20ms ⚪ | 12.04ms ⚪ | ⚡ L2 HIT |
-| MONGODB | — | — | ❌ MISSING |
-| MONGODB+REDIS | — | — | ❌ MISSING |
-| POSTGRESQL | 14.86ms ⚪ | 26.24ms ⚪ | ⚡ L2 HIT |
-| POSTGRESQL+REDIS | 14.80ms ⚪ | 34.51ms ⚪ | ⚡ L2 HIT |
-| MARIADB | 13.50ms ⚪ | 12.24ms ⚪ | ⚡ L2 HIT |
-| MARIADB+REDIS | 15.49ms ⚪ | 17.77ms ⚪ | ⚡ L2 HIT |
-
-### 🗃️ GRAPHQL RESOLVER PERFORMANCE MATRIX (BOTTLENECK ANALYSIS)
-> **Business Value**: Validates that complex data relationships can be queried efficiently without blocking the event loop.
-> **Test File**: [`tests/benchmarks/graphql-api-performance.test.ts`](../../tests/benchmarks/graphql-api-performance.test.ts)
-
-| Adapter Variant | Me Query (avg) | Health (avg) | Throughput (RPS) |
-|----------|----------------|--------------|------------------|
-| SQLITE | 18.98ms ⚪ | 19.97ms ⚪ | 512 ⚪ |
-| SQLITE+REDIS | 20.55ms ⚪ | 20.38ms ⚪ | 475 ⚪ |
-| POSTGRESQL | 24.20ms ⚪ | 14.22ms ⚪ | 397 ⚪ |
-| POSTGRESQL+REDIS | 13.09ms ⚪ | 11.73ms ⚪ | 731 ⚪ |
-| MARIADB | 14.30ms ⚪ | 12.76ms ⚪ | 695 ⚪ |
-| MARIADB+REDIS | 12.40ms ⚪ | 9.95ms ⚪ | 778 ⚪ |
-
-### 🔗 RELATIONAL PERFORMANCE MATRIX (JOIN & POPULATION)
-> **Business Value**: Essential for complex applications; stress-tests deep nesting and cross-collection data integrity.
-> **Test File**: [`tests/benchmarks/relational-performance.test.ts`](../../tests/benchmarks/relational-performance.test.ts)
-
-| Adapter Variant | GQL Nested (Depth 2) | REST Search (Aggregated) | Throughput (RPS) |
-|----------|-----------------------|--------------------------|------------------|
-
-### 🧩 WIDGET PERFORMANCE OVERHEAD MATRIX
-> **Business Value**: Ensures that custom UI components don't introduce performance bottlenecks in the core data pipeline.
-> **Test File**: [`tests/benchmarks/widget-performance.test.ts`](../../tests/benchmarks/widget-performance.test.ts)
-
-| Adapter Variant | Input (avg) | RichText (avg) | Relation (avg) | Status |
-|----------|-------------|----------------|----------------|--------|
-| SQLITE | 3.22ms ⚪ | 3.89ms | 3.87ms | ✅ PASS |
-| SQLITE+REDIS | 3.60ms ⚪ | 3.37ms | 3.87ms | ✅ PASS |
-| POSTGRESQL | 2.05ms ⚪ | 2.86ms | 2.36ms | ✅ PASS |
-| POSTGRESQL+REDIS | 2.01ms ⚪ | 1.89ms | 3.05ms | ✅ PASS |
-| MARIADB | 2.87ms ⚪ | 2.09ms | 2.44ms | ✅ PASS |
-| MARIADB+REDIS | 2.02ms ⚪ | 1.83ms | 2.03ms | ✅ PASS |
-
-### 🛡️ SECURITY HARDENING & AUDIT MATRIX
-> **Business Value**: Validates that security features (Firewall, Audit Chaining) provide maximum protection with minimal performance impact.
-> **Test File**: [`tests/benchmarks/security-audit.test.ts`](../../tests/benchmarks/security-audit.test.ts)
-
-| Adapter Variant | Firewall (p95) | Audit Logging | Argon2id (Cost) | Status |
-|----------|----------------|---------------|-----------------|--------|
-| SQLITE | 0.005ms | 0.230ms | 47ms | 🟢 CLEAN |
-| SQLITE+REDIS | 0.005ms | 0.231ms | 57ms | 🟢 CLEAN |
-| POSTGRESQL | 0.005ms | 0.195ms | 49ms | 🟢 CLEAN |
-| POSTGRESQL+REDIS | 0.004ms | 0.260ms | 46ms | 🟢 CLEAN |
-| MARIADB | 0.005ms | 0.285ms | 50ms | 🟢 CLEAN |
-| MARIADB+REDIS | 0.005ms | 0.212ms | 46ms | 🟢 CLEAN |
-### 🏢 PLATFORM INFRASTRUCTURE & ECOSYSTEM PERFORMANCE
-> **Business Value**: Audits the efficiency of background maintenance and asset orchestration systems (Self-Healing, Media, CLI).
-> **Metrics**: Measures the raw performance of core platform utilities that ensure long-term stability and developer velocity.
-
-| Adapter Variant | Media Resize (avg) | Self-Healing Scan | Upgrade CLI | Status |
-|----------|--------------------|-------------------|-------------|--------|
-| SQLITE | 50.82ms | — | — | 🔴 FAIL |
-| SQLITE+REDIS | 48.16ms | — | — | 🔴 FAIL |
-| MONGODB | — | — | — | 🔴 FAIL |
-| MONGODB+REDIS | — | — | — | 🔴 FAIL |
-| POSTGRESQL | 46.47ms | — | — | 🔴 FAIL |
-| POSTGRESQL+REDIS | 49.86ms | — | — | 🔴 FAIL |
-| MARIADB | 47.97ms | — | — | 🔴 FAIL |
-| MARIADB+REDIS | 46.70ms | — | — | 🔴 FAIL |
-
-### 🏁 MIDDLWARE PERFORMANCE MATRIX
-> **Business Value**: Guarantees that security and multi-tenancy layers add negligible overhead to every request.
-> **Test File**: [`tests/benchmarks/hooks-performance.test.ts`](../../tests/benchmarks/hooks-performance.test.ts)
-
-| Hook | Adapter Variant | Avg (µs) | p95 (µs) | p99 (µs) | Efficiency |
-|------|----------|----------|----------|----------|------------|
-| **handleturbopipeline** | SQLITE | 5.36 ⚪ | 7.50 | 8.90 | ⚡ |
-| --- | SQLITE+REDIS | 6.08 ⚪ | 8.90 | 11.10 | ⚡ |
-| --- | POSTGRESQL | 5.82 ⚪ | 8.00 | 10.10 | ⚡ |
-| --- | POSTGRESQL+REDIS | 5.94 ⚪ | 8.40 | 10.70 | ⚡ |
-| --- | MARIADB | 5.91 ⚪ | 8.00 | 9.40 | ⚡ |
-| --- | MARIADB+REDIS | 5.75 ⚪ | 7.80 | 9.70 | ⚡ |
-| --- | --- | --- | --- | --- | --- |
-| **handleauthentication** | SQLITE | 3.57 ⚪ | 5.40 | 6.80 | 🚀 |
-| --- | SQLITE+REDIS | 3.67 ⚪ | 5.70 | 8.00 | 🚀 |
-| --- | POSTGRESQL | 3.29 ⚪ | 4.40 | 5.40 | 🚀 |
-| --- | POSTGRESQL+REDIS | 3.48 ⚪ | 4.80 | 5.80 | 🚀 |
-| --- | MARIADB | 3.74 ⚪ | 5.20 | 6.60 | 🚀 |
-| --- | MARIADB+REDIS | 3.22 ⚪ | 4.70 | 5.70 | 🚀 |
-| --- | --- | --- | --- | --- | --- |
-| **handleauthorization** | SQLITE | 4.11 ⚪ | 6.50 | 8.90 | 🚀 |
-| --- | SQLITE+REDIS | 3.77 ⚪ | 4.90 | 6.00 | 🚀 |
-| --- | POSTGRESQL | 4.13 ⚪ | 6.20 | 8.10 | 🚀 |
-| --- | POSTGRESQL+REDIS | 3.72 ⚪ | 5.00 | 6.00 | 🚀 |
-| --- | MARIADB | 3.66 ⚪ | 5.50 | 7.00 | 🚀 |
-| --- | MARIADB+REDIS | 3.65 ⚪ | 4.90 | 6.30 | 🚀 |
-| --- | --- | --- | --- | --- | --- |
-| **handlesecurity** | SQLITE | 3.06 ⚪ | 4.30 | 6.30 | 🚀 |
-| --- | SQLITE+REDIS | 3.23 ⚪ | 4.80 | 6.30 | 🚀 |
-| --- | POSTGRESQL | 2.95 ⚪ | 3.90 | 5.10 | 🚀 |
-| --- | POSTGRESQL+REDIS | 2.80 ⚪ | 3.70 | 4.70 | 🚀 |
-| --- | MARIADB | 3.35 ⚪ | 4.60 | 5.80 | 🚀 |
-| --- | MARIADB+REDIS | 2.88 ⚪ | 3.70 | 4.30 | 🚀 |
-| --- | --- | --- | --- | --- | --- |
-| **handleapirequests** | SQLITE | 2.74 ⚪ | 4.40 | 5.70 | 🚀 |
-| --- | SQLITE+REDIS | 2.61 ⚪ | 4.20 | 5.30 | 🚀 |
-| --- | POSTGRESQL | 2.61 ⚪ | 3.40 | 4.20 | 🚀 |
-| --- | POSTGRESQL+REDIS | 3.89 ⚪ | 5.30 | 6.40 | 🚀 |
-| --- | MARIADB | 2.85 ⚪ | 3.80 | 4.70 | 🚀 |
-| --- | MARIADB+REDIS | 2.56 ⚪ | 3.30 | 4.30 | 🚀 |
-| --- | --- | --- | --- | --- | --- |
-
-### 🚨 Bottleneck Analysis (Latency Distribution)
-📌 **SQLITE** — REST dominates (100% REST vs 0% DB)
-📌 **POSTGRESQL** — REST dominates (100% REST vs 0% DB)
-📌 **MARIADB** — REST dominates (100% REST vs 0% DB)
+### 📡 REST API PERFORMANCE MATRIX
+| Adapter Variant | Avg Latency | p95 Latency | RPS |
+|----------|-------------|-------------|-----|
+| SQLITE+REDIS | 10.74ms | 15.48ms | 1081 |
 
 
 

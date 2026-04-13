@@ -107,6 +107,7 @@ export function convertDatesToISO<T extends Record<string, unknown>>(row: T): T 
     "settings",
     "quota",
     "usage",
+    "collectionDef",
   ];
 
   for (const key in result) {
@@ -122,9 +123,10 @@ export function convertDatesToISO<T extends Record<string, unknown>>(row: T): T 
     // Handle JSON strings from SQLite if Drizzle didn't parse them
     else if (jsonFields.includes(key) && typeof value === "string") {
       try {
-        (result as Record<string, unknown>)[key] = JSON.parse(value);
+        const parsed = JSON.parse(value);
+        (result as Record<string, unknown>)[key] = parsed;
       } catch {
-        // Keep as string if not valid JSON
+        // Silently ignore parsing errors
       }
     }
   }
@@ -148,7 +150,29 @@ export function convertISOToDates<T extends Record<string, unknown>>(data: T): T
     "nextRunAt",
     "appliedAt",
     "fetchedAt",
+    "deletedAt",
   ];
+
+  const jsonFields = [
+    "permissions",
+    "roleIds",
+    "data",
+    "metadata",
+    "translations",
+    "config",
+    "instances",
+    "dependencies",
+    "payload",
+    "settings",
+    "quota",
+    "usage",
+    "collectionDef",
+  ];
+  for (const key of jsonFields) {
+    if (result[key] !== undefined && typeof result[key] === "object" && result[key] !== null) {
+      result[key] = JSON.stringify(result[key]);
+    }
+  }
 
   for (const key of dateFields) {
     if (result[key] !== undefined && typeof result[key] === "string") {

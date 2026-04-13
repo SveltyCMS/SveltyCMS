@@ -43,6 +43,19 @@ Safely transition a fresh SveltyCMS installation from an unconfigured state to a
 Before persisting the configuration, the system validates the provided database credentials.
 
 **Endpoint**: `POST /api/setup/test-db`
+**Payload**:
+```json
+{
+  "type": "mongodb",
+  "host": "localhost",
+  "port": 27017,
+  "database": "sveltycms",
+  "username": "...",
+  "password": "...",
+  "authSource": "admin",
+  "directConnection": true
+}
+```
 
 ### Schema Provisioning
 Triggers the creation of system collections, default roles, and internal configuration entries.

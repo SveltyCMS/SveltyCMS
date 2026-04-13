@@ -1,281 +1,321 @@
 <!--
  @file src/plugins/editable-website/live-preview.svelte
- @component Live Preview Plugin Component
- Renders an iframe and syncs CMS state with the previewed website using the Enterprise Handshake Protocol.
+ @component Live Preview with bidirectional handshake and visual editing.
+ Securely syncs CMS state with an external website preview using Svelte 5 runes.
 -->
+
 <script lang="ts">
-import type { User } from "@auth/types";
-import type { CollectionEntry, Schema } from "@src/content/types";
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { onMount } from "svelte";
-import type { CmsUpdateMessage } from "./types";
-import { logger } from "@src/utils/logger";
+  import type { User } from "@auth/types";
+  import type { CollectionEntry, Schema } from "@src/content/types";
+  import { publicEnv } from "@src/stores/global-settings.svelte";
+  import { toast } from "@src/stores/toast.svelte.ts";
+  import { logger } from "@src/utils/logger";
+  import { fade } from "svelte/transition";
 
-interface Props {
-	collection: { value: Schema };
-	contentLanguage: string;
-	currentCollectionValue: CollectionEntry;
-	tenantId: string;
-	user: User;
-	active?: boolean;
-}
+  import type { CmsUpdateMessage } from "./types";
 
-let {
-	collection,
-	currentCollectionValue,
-	contentLanguage,
-	tenantId,
-	active = false,
-}: Props = $props();
+  interface Props {
+    collection: { value: Schema };
+    contentLanguage: string;
+    currentCollectionValue: CollectionEntry;
+    tenantId: string;
+    user: User;
+    active?: boolean;
+  }
 
-let iframeEl = $state<HTMLIFrameElement | null>(null);
-let isConnected = $state(false);
-let visualEditingEnabled = $state(true);
-let previewWidth = $state("100%");
-let authorizedUrl = $state("");
-let isLoadingUrl = $state(false);
-let shouldRender = $state(false);
+  let {
+    collection,
+    contentLanguage,
+    currentCollectionValue,
+    tenantId,
+    active = false,
+  }: Props = $props();
 
-// Derived Props
-const hostProd = publicEnv.HOST_PROD || "http://localhost:5173";
+  let iframeEl = $state<HTMLIFrameElement | null>(null);
+  let isConnected = $state(false);
+  let visualEditingEnabled = $state(true);
+  let previewWidth = $state("100%");
+  let authorizedUrl = $state("");
+  let isLoadingUrl = $state(false);
+  let shouldRender = $state(false);
 
-/**
- * Fetch authorized preview URL from server to respect Handshake Protocol & PREVIEW_SECRET
- */
-async function refreshAuthorizedUrl() {
-	if (!currentCollectionValue || !shouldRender) return;
+  const hostProd = publicEnv.HOST_PROD || "http://localhost:5173";
 
-	isLoadingUrl = true;
-	try {
-		const response = await fetch("/api/preview/generate", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				schema: collection.value,
-				entry: currentCollectionValue,
-				contentLanguage,
-				tenantId,
-			}),
-		});
+  // Strictly derive allowed origins for message validation
+  const allowedOrigins = $derived(
+    [hostProd, publicEnv.HOST_DEV, "http://localhost:5173"]
+      .filter(Boolean)
+      .map((url) => {
+        try {
+          return new URL(url!).origin;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean) as string[],
+  );
 
-		if (response.ok) {
-			const data = await response.json();
-			authorizedUrl = data.previewUrl;
-		} else {
-			// Fallback to direct URL if handshake generation fails (likely missing pattern)
-			const entryId = currentCollectionValue?._id || "draft";
-			authorizedUrl = `${hostProd}?preview=${entryId}&lang=${contentLanguage}`;
-		}
-	} catch (err) {
-		console.error("Failed to generate authorized preview URL:", err);
-	} finally {
-		isLoadingUrl = false;
-	}
-}
+  /**
+   * Securely generates a preview URL using the CMS handshake protocol
+   */
+  async function refreshAuthorizedUrl() {
+    if (!shouldRender || !currentCollectionValue) return;
 
-// Deferred Activation: Only start handshake when tab is first activated
-$effect(() => {
-	if (active && !shouldRender) {
-		logger.info("[Live Preview] Deferred activation triggered");
-		shouldRender = true;
-	}
-});
+    isLoadingUrl = true;
+    try {
+      const res = await fetch("/api/preview/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schema: collection.value,
+          entry: currentCollectionValue,
+          contentLanguage,
+          tenantId,
+        }),
+      });
 
-// Refresh URL when slug or ID changes (to handle path changes in preview)
-$effect(() => {
-	// Only refresh if slug or ID changed to avoid infinite loops on keystrokes
-	if (
-		shouldRender &&
-		(currentCollectionValue?._id || currentCollectionValue?.slug)
-	) {
-		refreshAuthorizedUrl();
-	}
-});
+      if (res.ok) {
+        const { previewUrl } = await res.json();
+        authorizedUrl = previewUrl;
+      } else {
+        // Fallback if the authorized endpoint is not yet configured
+        const entryId =
+          currentCollectionValue._id || currentCollectionValue.slug || "draft";
+        authorizedUrl = `${hostProd}?preview=${entryId}&lang=${contentLanguage}`;
+      }
+    } catch (err) {
+      logger.error("Failed to generate secure preview URL", { error: err });
+      authorizedUrl = `${hostProd}?preview=draft&lang=${contentLanguage}`;
+    } finally {
+      isLoadingUrl = false;
+    }
+  }
 
-// --- Handshake & Sync Logic ---
+  // Deferred activation: wait until tab is active to start handshake
+  $effect(() => {
+    if (active && !shouldRender) {
+      shouldRender = true;
+    }
+  });
 
-// Send data update to child
-function sendUpdate() {
-	if (!iframeEl?.contentWindow || !shouldRender) {
-		return;
-	}
+  // Refresh URL when the entry path might have changed (slug/ID)
+  $effect(() => {
+    if (
+      shouldRender &&
+      (currentCollectionValue?._id || currentCollectionValue?.slug)
+    ) {
+      refreshAuthorizedUrl();
+    }
+  });
 
-	const collectionName = (collection.value?.name as string) || "unknown";
+  /**
+   * Syncs the current CMS data state to the preview iframe
+   */
+  function sendUpdate() {
+    if (!iframeEl?.contentWindow || !isConnected || !authorizedUrl) return;
 
-	const message: CmsUpdateMessage = {
-		type: "svelty:update",
-		collection: collectionName,
-		data: currentCollectionValue,
-	};
+    const message: CmsUpdateMessage = {
+      type: "svelty:update",
+      collection: collection.value?.name || "unknown",
+      data: currentCollectionValue,
+    };
 
-	// We use '*' for targetOrigin in dev, but in prod we should use the hostProd origin
-	const targetOrigin = hostProd.startsWith("http") ? hostProd : "*";
-	iframeEl.contentWindow.postMessage(message, targetOrigin);
-}
+    // Strictly target the production origin if possible
+    const targetOrigin = hostProd.startsWith("http")
+      ? new URL(hostProd).origin
+      : "*";
+    iframeEl.contentWindow.postMessage(message, targetOrigin);
+  }
 
-// Watch for data changes (keystroke updates)
-$effect(() => {
-	const DATA = currentCollectionValue;
-	if (iframeEl && isConnected && DATA) {
-		sendUpdate();
-	}
-});
+  // Automatic sync on data changes (debounced by Svelte's microtask batching)
+  $effect(() => {
+    if (isConnected && shouldRender && currentCollectionValue) {
+      sendUpdate();
+    }
+  });
 
-// Handle Iframe Load
-function handleLoad() {
-	// Handshake part 1: Iframe loaded
-	// We wait for part 2: 'svelty:init' message from child
-}
+  /**
+   * Message listener for the bidirectional handshake and visual editing
+   */
+  function handleMessage(event: MessageEvent) {
+    // Security: Strict Origin Check
+    if (!allowedOrigins.includes(event.origin)) {
+      // Silently ignore or log unauthorized cross-window communication
+      return;
+    }
 
-// Listen for messages from child
-onMount(() => {
-	const handleMessage = (event: MessageEvent) => {
-		// ORIGIN VALIDATION: Only accept messages from our configured frontend
-		const allowedOrigins = [
-			hostProd,
-			publicEnv.HOST_DEV,
-			"http://localhost:5173",
-		].filter(Boolean);
-		if (!allowedOrigins.some((origin) => event.origin.startsWith(origin!))) {
-			// Skip validation in dev if needed, but log it
-			// console.warn('Blocked message from unauthorized origin:', event.origin);
-		}
+    const data = event.data;
 
-		// HANDSHAKE COMPLETION
-		if (event.data?.type === "svelty:init") {
-			isConnected = true;
-			sendUpdate();
-		}
+    if (data?.type === "svelty:init") {
+      isConnected = true;
+      sendUpdate();
+      logger.info("[Live Preview] Handshake completed");
+    }
 
-		// VISUAL EDITING: Field Clicked
-		if (event.data?.type === "svelty:field:click" && visualEditingEnabled) {
-			const fieldName = event.data.fieldName;
-			const customEvent = new CustomEvent("svelty:focus-field", {
-				detail: { fieldName },
-				bubbles: true,
-				composed: true,
-			});
-			document.dispatchEvent(customEvent);
-		}
-	};
-	window.addEventListener("message", handleMessage);
-	return () => window.removeEventListener("message", handleMessage);
-});
+    // Click-to-Edit: Focus the field in the CMS when clicked in preview
+    if (data?.type === "svelty:field:click" && visualEditingEnabled) {
+      document.dispatchEvent(
+        new CustomEvent("svelty:focus-field", {
+          detail: { fieldName: data.fieldName },
+          bubbles: true,
+          composed: true,
+        }),
+      );
+    }
+  }
 
-function copyUrl() {
-	navigator.clipboard.writeText(authorizedUrl);
-	toast.success("Preview URL Copied");
-}
+  $effect(() => {
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  });
+
+  function copyUrl() {
+    if (authorizedUrl) {
+      navigator.clipboard.writeText(authorizedUrl);
+      toast.success("Preview URL copied to clipboard");
+    }
+  }
 </script>
 
-<div class="flex h-150 flex-col p-4">
-	{#if !shouldRender}
-		<div class="flex flex-1 flex-col items-center justify-center gap-4 bg-surface-100/50 dark:bg-surface-900/50 rounded-lg border border-dashed border-surface-400">
-			<iconify-icon icon="mdi:eye-outline" width="48" class="text-surface-400"></iconify-icon>
-			<div class="text-center">
-				<p class="text-lg font-bold text-surface-700 dark:text-surface-200">Live Preview Ready</p>
-				<p class="text-sm text-surface-500">Iframe and handshake deferred to save resources.</p>
-			</div>
-			<button class="preset-filled-primary-500 btn" onclick={() => (shouldRender = true)}>
-				Initialize Preview Now
-			</button>
-		</div>
-	{:else}
-		<!-- Toolbar -->
-		<div class="mb-4 flex items-center justify-between gap-4">
-			<div class="flex flex-1 items-center gap-2">
-				<iconify-icon icon="mdi:open-in-new" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				<input type="text" class="input grow text-sm" readonly value={authorizedUrl} placeholder="Generating authorized URL..." />
-				<button class="preset-outline-surface-500 btn-sm" onclick={copyUrl} aria-label="Copy preview URL" disabled={!authorizedUrl}>
-					<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
-				</button>
-			</div>
-			
-			<div class="flex items-center gap-2">
-				<!-- Visual Editing Toggle -->
-				<button 
-					class="btn-sm {visualEditingEnabled ? 'variant-filled-primary' : 'variant-soft-surface'}"
-					onclick={() => visualEditingEnabled = !visualEditingEnabled}
-					title="Toggle Visual Editing"
-				>
-					{#if isLoadingUrl}
-						<iconify-icon icon="line-md:loading-twotone-loop" width="16" class="mr-1"></iconify-icon>
-					{:else}
-						<iconify-icon icon="mdi:cursor-default-click" width="16" class="mr-1"></iconify-icon>
-					{/if}
-					Visual Editing
-				</button>
+<div class="flex `h-150 flex-col p-4">
+  {#if !shouldRender}
+    <!-- Deferred Load State -->
+    <div
+      class="flex flex-1 flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-surface-400 bg-surface-100/50 dark:bg-surface-900/50"
+    >
+      <iconify-icon icon="mdi:eye-outline" width="48" class="text-surface-400"
+      ></iconify-icon>
+      <div class="text-center">
+        <p class="text-lg font-bold text-surface-700 dark:text-surface-200">
+          Live Preview Ready
+        </p>
+        <p class="text-sm text-surface-500">
+          Initialize handshake to start real-time syncing.
+        </p>
+      </div>
+      <button
+        class="btn preset-filled-primary"
+        onclick={() => (shouldRender = true)}
+      >
+        Start Preview
+      </button>
+    </div>
+  {:else}
+    <!-- Toolbar -->
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <div class="flex min-w-0 flex-1 items-center gap-2">
+        <iconify-icon icon="mdi:open-in-new" width="20" class="text-primary-500"
+        ></iconify-icon>
+        <input
+          type="text"
+          class="input grow truncate text-sm font-mono"
+          readonly
+          value={authorizedUrl}
+          placeholder={isLoadingUrl ? "Authorizing..." : "URL not available"}
+        />
+        <button
+          onclick={copyUrl}
+          class="btn btn-sm preset-outline-surface"
+          disabled={!authorizedUrl}
+          title="Copy Preview URL"
+        >
+          <iconify-icon icon="mdi:content-copy" width={16}></iconify-icon>
+        </button>
+      </div>
 
-				<a href={authorizedUrl} target="_blank" rel="noopener noreferrer" class="preset-filled-primary-500 btn-sm {!authorizedUrl ? 'disabled' : ''}">
-					<iconify-icon icon="mdi:open-in-new" width="16" class="mr-1"></iconify-icon>
-					Open
-				</a>
-			</div>
-		</div>
+      <div class="flex items-center gap-2">
+        <button
+          onclick={() => (visualEditingEnabled = !visualEditingEnabled)}
+          class="btn btn-sm {visualEditingEnabled
+            ? 'preset-filled-primary'
+            : 'preset-soft-surface'}"
+          title="Toggle Click-to-Edit"
+        >
+          <iconify-icon icon="mdi:cursor-default-click" width={16}
+          ></iconify-icon>
+          <span class="hidden sm:inline">Visual Edit</span>
+        </button>
 
-		<!-- Device Toggles -->
-		<div class="mb-2 flex justify-center gap-2">
-			<button
-				class="btn-icon btn-sm variant-soft-secondary {previewWidth === '100%' ? 'variant-filled-primary' : ''}"
-				onclick={() => (previewWidth = '100%')}
-				title="Desktop"
-			>
-				<iconify-icon icon="mdi:monitor" width="20"></iconify-icon>
-			</button>
-			<button
-				class="btn-icon btn-sm variant-soft-secondary {previewWidth === '768px' ? 'variant-filled-primary' : ''}"
-				onclick={() => (previewWidth = '768px')}
-				title="Tablet"
-			>
-				<iconify-icon icon="mdi:tablet" width="20"></iconify-icon>
-			</button>
-			<button
-				class="btn-icon btn-sm variant-soft-secondary {previewWidth === '375px' ? 'variant-filled-primary' : ''}"
-				onclick={() => (previewWidth = '375px')}
-				title="Mobile"
-			>
-				<iconify-icon icon="mdi:cellphone" width="20"></iconify-icon>
-			</button>
-		</div>
+        <a
+          href={authorizedUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn btn-sm preset-filled-primary {!authorizedUrl
+            ? 'disabled pointer-events-none opacity-50'
+            : ''}"
+        >
+          <iconify-icon icon="mdi:open-in-new" width={16}></iconify-icon>
+          <span class="hidden sm:inline">Open</span>
+        </a>
+      </div>
+    </div>
 
-		<!-- Preview Window -->
-		<div
-			class="flex-1 overflow-auto rounded-lg border border-surface-300 relative dark:text-surface-50 flex justify-center bg-surface-100 dark:bg-surface-900"
-		>
-			<div class="h-full transition-all duration-300 ease-in-out relative bg-white" style="width: {previewWidth}">
-				{#if authorizedUrl}
-					<iframe
-						bind:this={iframeEl}
-						src={authorizedUrl}
-						title="Live Preview"
-						class="h-full w-full {active ? 'opacity-100' : 'opacity-0 pointer-events-none absolute'}"
-						sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-						onload={handleLoad}
-					></iframe>
-					
-					{#if !active}
-						<div class="absolute inset-0 flex items-center justify-center bg-surface-500/10">
-							<span class="badge variant-filled-surface">Preview Dormant (Paused)</span>
-						</div>
-					{/if}
-				{:else}
-					<div class="absolute inset-0 flex items-center justify-center bg-surface-500/10">
-						<div class="flex flex-col items-center gap-2">
-							<div class="h-8 w-8 animate-spin rounded-full border-4 border-surface-300 border-t-primary-500"></div>
-							<span class="text-sm font-medium">Authorizing Session...</span>
-						</div>
-					</div>
-				{/if}
+    <!-- Device Simulation Controls -->
+    <div class="mb-3 flex justify-center gap-1">
+      {#each [{ label: "Desktop", width: "100%", icon: "mdi:monitor" }, { label: "Tablet", width: "768px", icon: "mdi:tablet" }, { label: "Mobile", width: "375px", icon: "mdi:cellphone" }] as device}
+        <button
+          onclick={() => (previewWidth = device.width)}
+          class="btn btn-sm btn-icon {previewWidth === device.width
+            ? 'variant-filled-primary'
+            : 'variant-soft-secondary'}"
+          title={device.label}
+        >
+          <iconify-icon icon={device.icon} width={20}></iconify-icon>
+        </button>
+      {/each}
+    </div>
 
-				{#if authorizedUrl && !isConnected}
-					<div class="absolute inset-0 flex items-center justify-center bg-surface-500/10 pointer-events-none">
-						<span class="badge variant-filled-surface">Waiting for Handshake...</span>
-					</div>
-				{/if}
-			</div>
-		</div>
+    <!-- Preview Iframe Container -->
+    <div
+      class="relative flex-1 overflow-hidden rounded-xl border border-surface-300 bg-surface-100 dark:bg-surface-900"
+    >
+      <div
+        class="h-full w-full bg-white transition-all duration-300"
+        style="width: {previewWidth}; margin: 0 auto;"
+      >
+        {#if authorizedUrl}
+          <iframe
+            bind:this={iframeEl}
+            src={authorizedUrl}
+            title="Live Preview Content"
+            class="h-full w-full transition-opacity duration-500"
+            style:opacity={active ? 1 : 0.3}
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+          ></iframe>
 
-		<div class="mt-2 text-center text-xs text-surface-500">Status: {isConnected ? 'Synced' : 'Connecting'} | Handshake: {authorizedUrl ? 'Authorized' : 'Pending'} | Visual Editing: {visualEditingEnabled ? 'ON' : 'OFF'}</div>
-	{/if}
+          {#if !isConnected}
+            <div
+              transition:fade
+              class="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px]"
+            >
+              <div class="text-center text-white">
+                <div
+                  class="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-white/30 border-t-white"
+                ></div>
+                <p class="font-medium">Connecting Handshake...</p>
+              </div>
+            </div>
+          {/if}
+        {:else}
+          <div class="flex h-full flex-col items-center justify-center gap-3">
+            <div
+              class="h-8 w-8 animate-spin rounded-full border-4 border-surface-300 border-t-primary-500"
+            ></div>
+            <p class="text-sm text-surface-500">
+              Generating secure preview session...
+            </p>
+          </div>
+        {/if}
+      </div>
+    </div>
+
+    <div
+      class="mt-2 text-center text-[10px] uppercase tracking-wider text-surface-500"
+    >
+      Status: <span class={isConnected ? "text-green-500" : "text-amber-500"}
+        >{isConnected ? "Synced" : "Handshaking"}</span
+      >
+      • Visual Edit: {visualEditingEnabled ? "Active" : "Disabled"}
+    </div>
+  {/if}
 </div>

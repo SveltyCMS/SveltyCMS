@@ -11,8 +11,9 @@
  */
 
 import { logger } from "@utils/logger";
-import { contentService } from "@src/content/content-service.server";
+import { scanCompiledCollections } from "@src/content/content-service.server";
 import type { IDBAdapter } from "@src/databases/db-interface";
+import type { Schema } from "@src/content/types";
 
 export class IndexOptimizer {
   constructor(private readonly dbAdapter: IDBAdapter) {}
@@ -31,7 +32,7 @@ export class IndexOptimizer {
       }
 
       // Get all current schemas (uses L2 cache if available)
-      const schemas = await contentService.scanCompiledCollections();
+      const schemas = await scanCompiledCollections();
       logger.info(
         `[IndexOptimizer] Starting optimization pass for ${schemas.length} collections...`,
       );
@@ -43,7 +44,7 @@ export class IndexOptimizer {
       for (let i = 0; i < schemas.length; i += CHUNK_SIZE) {
         const chunk = schemas.slice(i, i + CHUNK_SIZE);
         const results = await Promise.allSettled(
-          chunk.map(async (schema) => {
+          chunk.map(async (schema: Schema) => {
             if (!schema._id) throw new Error("Missing schema ID");
 
             // 🛡️ Safety check: Ensure DB is still connected before each operation

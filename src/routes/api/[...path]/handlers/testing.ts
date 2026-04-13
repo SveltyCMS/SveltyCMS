@@ -93,11 +93,31 @@ export async function handleTestingRoutes(
     try {
       if (!dbAdapter) throw new Error("Database adapter not initialized");
       await dbAdapter.collection.createModel(schema);
-    } catch {
-      // Ignore if already exists
+
+      // ✨ PERSISTENCE FIX: Register the node in the DB so it survives server restarts
+      // This is critical for benchmarks like "Enterprise Matrix" that restart the server to test cold starts.
+      if (dbAdapter.content?.nodes?.upsertContentStructureNode) {
+        const node: any = {
+          _id: collectionId,
+          path: `/collection/${(schema.name || collectionId).toLowerCase()}`,
+          name: schema.name || collectionId,
+          nodeType: "collection",
+          collectionDef: { ...schema, _id: collectionId },
+          status: "published",
+          tenantId,
+        };
+        await dbAdapter.content.nodes.upsertContentStructureNode(node);
+
+        // Force the content system to re-initialize and reconcile the newly created node
+        // This is critical for benchmarks that seed data immediately after creating the collection
+        await contentSystem.initialize(tenantId, false);
+      }
+    } catch (e: any) {
+      // Ignore if already exists or fails, but log the error message for diagnostics
+      console.warn(`[testing] create-collection persist warning for ${collectionId}: ${e.message}`);
     }
 
-    // 2. Add to Content Store (to bypass getSchema check)
+    // 2. Add to Content Store (immediate in-memory sync for the current process)
     const { contentStore } = await import("@src/stores/content-store.svelte");
     const existingNodes = contentStore.getAllNodes();
 

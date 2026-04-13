@@ -132,6 +132,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
       : dbType === "sqlite"
         ? ""
         : "test";
+  const dbAuthSource = process.env.DB_AUTH_SOURCE || "";
 
   const dbTypeSelect = page.getByTestId("db-type");
   await dbTypeSelect.selectOption(dbType);
@@ -144,6 +145,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
     if (dbPort) await page.getByTestId("db-port").fill(dbPort);
     await page.getByTestId("db-user").fill(dbUser);
     await page.getByTestId("db-password").fill(dbPass);
+    if (dbAuthSource) await page.getByTestId("db-auth-source").fill(dbAuthSource);
   }
 
   // Click Test Database and handle SQLite "create missing" modal

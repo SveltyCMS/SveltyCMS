@@ -165,13 +165,15 @@ Plugins can inject UI components into predefined zones:
 | `entry_list_actions` | Entry list     | Custom actions       |
 
 ```typescript
-ui: {
-  columns: [
-    { id: 'score', label: 'Score', width: '80px', sortable: true }
-  ],
-  actions: [
-    { id: 'analyze', label: 'Analyze', icon: 'mdi:magnify', handler: 'onAnalyze' }
-  ]
+// Plugin Slot definition
+export interface PluginSlot {
+  component: () => Promise<any>; // Lazy loaded Svelte component
+  condition?: (context: any) => boolean; // Optional: Show/hide slot based on context (e.g. collection settings)
+  id: string;
+  permissions?: string[]; // RBAC roles
+  position?: number;
+  props?: Record<string, any>;
+  zone: InjectionZone;
 }
 ```
 

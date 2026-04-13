@@ -257,6 +257,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       process.env.VITE_TEST_API_SECRET ||
       "SveltyCMS-Benchmark-Secret-2026";
     if (testSecret === expected) {
+      // logger.debug(`[Backdoor] Valid test secret received for ${pathname}`);
       // Fast-track: Provision system user and bypass EVERYTHING
       const { getDbInitPromise, dbAdapter } = await import("@src/databases/db");
       await getDbInitPromise(false, "CORE");
@@ -270,6 +271,10 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       (event.locals as any).dbAdapter = dbAdapter;
       (event.locals as any).__testBypass = true;
       return resolve(event);
+    } else {
+      logger.warn(
+        `[Backdoor] Invalid test secret for ${pathname}. Expected: ${expected?.slice(0, 4)}..., Got: ${testSecret?.slice(0, 4)}...`,
+      );
     }
   }
 

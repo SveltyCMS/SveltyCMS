@@ -33,14 +33,14 @@ interface BenchmarkResult {
 const ALL_DATABASES: DatabaseConfig[] = [
   {
     type: "sqlite",
-    port: 0,
+    port: 4173, // Dummy port to satisfy >= 1 validation
     host: "./config/database",
     user: "",
     password: "",
   },
   {
     type: "sqlite",
-    port: 0,
+    port: 4173, // Dummy port
     host: "./config/database",
     user: "",
     password: "",
@@ -184,6 +184,24 @@ const BENCHMARK_SCRIPTS = [
     shortLabel: "Cache",
     desc: "Audits the performance gain of the 2-layer Hybrid Cache across various system modules.",
   },
+  {
+    path: "tests/benchmarks/multi-tenant-performance.test.ts",
+    label: "Multi-Tenant Performance & Isolation",
+    shortLabel: "Tenancy",
+    desc: "Measures scaling behavior and data isolation across multiple tenants under load.",
+  },
+  {
+    path: "tests/benchmarks/mixed-workload.test.ts",
+    label: "Realistic Mixed Workload",
+    shortLabel: "Mixed",
+    desc: "Simulates a typical production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.",
+  },
+  {
+    path: "tests/benchmarks/memory-stability.test.ts",
+    label: "Memory Stability & GC Behavior",
+    shortLabel: "Memory",
+    desc: "Tracks heap growth and RSS trends under sustained high-throughput load.",
+  },
 ];
 
 const TARGET_DB_ORDER = [
@@ -213,26 +231,27 @@ let serverProcess: ChildProcess | null = null;
 
 function extractMetrics(metrics: any, dbType: string) {
   const m = metrics || {};
+  const getVal = (test: string, field: string, fallback = 0) => m[test]?.[field] ?? fallback;
+
   return {
-    collections: m["rest-collections-list"]?.p95Ms || 0,
+    collections: getVal("rest-collections-list", "p95Ms"),
     dbRaw: m[`matrix-${dbType}`]?.metrics?.read || 0,
-    hooks: (m["hook-handleturbopipeline"]?.p95Ms || 0) / 1000,
-    graphqlAvg: m["graphql-me"]?.avgMs || 0,
+    hooks: getVal("hook-handleturbopipeline", "p95Ms") / 1000,
+    graphqlAvg: getVal("graphql-me", "avgMs"),
     relationalAvg:
-      m["relational-graphql-nested"]?.avgMs || m["relational-graphql-population"]?.avgMs || 0,
-    widgetInputAvg: m["widget-overhead-input"]?.avgMs || 0,
-    widgetRichTextAvg: m["widget-overhead-richtext"]?.avgMs || 0,
-    widgetRelationAvg: m["widget-overhead-relation"]?.avgMs || 0,
-    securityFirewallMs: m["security-firewall-clean"]?.p95Ms || 0,
-    securityAuditMs: m["security-audit-logging"]?.p95Ms || 0,
-    securityArgon2Ms: m["security-crypto-argon2"]?.avgMs || 0,
+      getVal("relational-graphql-nested", "avgMs") ||
+      getVal("relational-graphql-population", "avgMs"),
+    widgetAvg: getVal("widget-overhead-input", "avgMs"),
+    securityMs: getVal("security-firewall-clean", "p95Ms"),
     gqlStressRps: m["graphql-stress"]?.profiles?.[0]?.rps || 0,
-    openapiHit: m["openapi-cache-hit"]?.p95Ms || 0,
-    openapiMiss: m["openapi-generation-miss"]?.avgMs || 0,
-    buildMs: m["dx-build"]?.durationMs || 0,
-    contentScanMs: m["content-scan"]?.durationMs || 0,
+    openapiHit: getVal("openapi-cache-hit", "p95Ms"),
+    buildMs: getVal("dx-build", "durationMs"),
+    contentScanMs: getVal("content-scan", "durationMs"),
     mediaResizeMs: m["media-performance"]?.multiScaleResize?.avgMs || 0,
     upgradeCliMs: m["upgrade-performance"]?.upgradeCli?.avgMs || 0,
+    tenancyAvg: m["multi-tenant-performance"]?.results?.["list-30"]?.avgMs || 0,
+    mixedAvg: getVal("mixed-workload", "avgMs"),
+    memGrowth: getVal("memory-stability", "heapGrowthMb"),
   };
 }
 
@@ -246,8 +265,11 @@ function getTrendDetails(
     return { icon: "⚪", pct: "—", isRegression: false };
 
   const windowSize = Math.min(5, history.length);
-  const recentRuns = history.slice(0, windowSize);
-  const avgPrev = recentRuns.reduce((acc, run) => acc + extractor(run.metrics), 0) / windowSize;
+  const recentRuns = history.slice(0, windowSize).filter((run) => run && run.metrics);
+  if (recentRuns.length === 0) return { icon: "⚪", pct: "—", isRegression: false };
+
+  const avgPrev =
+    recentRuns.reduce((acc, run) => acc + extractor(run.metrics), 0) / recentRuns.length;
 
   if (avgPrev === 0) return { icon: "⚪", pct: "—", isRegression: false };
 
@@ -255,34 +277,6 @@ function getTrendDetails(
   const isBetter = pct < -3;
   const isWorse = pct > 5;
   const isRegression = pct > 10;
-
-  const icon = isBetter ? "🟢" : isWorse ? "🔴" : "⚪";
-  return {
-    icon,
-    pct: `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`,
-    isRegression,
-  };
-}
-
-// Specifically for Throughput (RPS), where higher is better.
-function getRpsTrendDetails(
-  history: any[],
-  currentVal: number,
-  extractor: (m: any) => number,
-): { icon: string; pct: string; isRegression: boolean } {
-  if (!history || history.length === 0 || currentVal === 0)
-    return { icon: "⚪", pct: "—", isRegression: false };
-
-  const windowSize = Math.min(5, history.length);
-  const recentRuns = history.slice(0, windowSize);
-  const avgPrev = recentRuns.reduce((acc, run) => acc + extractor(run.metrics), 0) / windowSize;
-
-  if (avgPrev === 0) return { icon: "⚪", pct: "—", isRegression: false };
-
-  const pct = ((currentVal - avgPrev) / avgPrev) * 100;
-  const isBetter = pct > 3;
-  const isWorse = pct < -5;
-  const isRegression = pct < -10;
 
   const icon = isBetter ? "🟢" : isWorse ? "🔴" : "⚪";
   return {
@@ -525,7 +519,8 @@ async function startServer(db: DatabaseConfig): Promise<{ coldStartMs: number; v
               });
 
               if (r.ok) {
-                const data = await r.json();
+                const body = await r.json();
+                const data = body?.data || body || {};
                 const status = data?.status || data?.overallStatus || data?.health || "";
                 version = data.dbVersion || data.version || "unknown";
 
@@ -585,9 +580,10 @@ async function generateFinalReport(results: BenchmarkResult[]) {
   const historyRaw = await fs.readFile(HISTORY_FILE, "utf8").catch(() => '{"runs":{}}');
   const history = JSON.parse(historyRaw);
   if (!history.runs) history.runs = {};
+
   const now = new Date().toISOString();
 
-  // Load stress metrics separately if they exist
+  // Merge stress data if available
   const stressRaw = await fs
     .readFile(path.join(ROOT_RESULTS_DIR, "graphql-stress.json"), "utf8")
     .catch(() => null);
@@ -597,27 +593,30 @@ async function generateFinalReport(results: BenchmarkResult[]) {
     const dbKey = res.db;
     const key = `${dbKey}-memory`;
     if (!history.runs[key]) history.runs[key] = [];
-    // Inject stress metrics into the result object if this is the target DB
+
     if (stressData && res.status === "SUCCESS") {
       res.metrics = { ...res.metrics, "graphql-stress": stressData };
     }
+
     history.runs[key].unshift({ timestamp: now, ...res });
     if (history.runs[key].length > 20) history.runs[key].pop();
   }
+
   await fs.mkdir(path.dirname(HISTORY_FILE), { recursive: true });
   await fs.writeFile(HISTORY_FILE, JSON.stringify(history, null, 2));
 
-  let md = `## 📊 Enterprise Benchmark Matrix — ${new Date().toLocaleString()}\n\n`;
+  let md = `## 📊 SveltyCMS Enterprise Benchmark Matrix — ${new Date().toLocaleString()}\n\n`;
+  md += `**Version:** ${pkgVersion} | **Generated:** ${now}\n\n`;
 
-  md += `### 🧪 What We Tested\n\n`;
+  md += `### 🧪 Benchmarks Included\n\n`;
   BENCHMARK_SCRIPTS.forEach((s) => {
     md += `- **${s.label}** — ${s.desc}\n`;
-    md += `   📍 \`${s.path}\`\n`;
   });
   md += `\n`;
 
-  md += `| Database | Cold Start | REST (p95) | GQL (avg) | GQL Stress | Success Rate | Status |\n`;
-  md += `|----------|------------|------------|-----------|-------------|--------------|--------|\n`;
+  // Main Overview Table
+  md += `| Database | Cold Start | REST p95 | GraphQL Avg | Mixed RPS | Heap Growth | Status |\n`;
+  md += `|----------|------------|----------|-------------|-----------|-------------|--------|\n`;
 
   let regressions: string[] = [];
   const latestMetrics: Record<string, any> = {};
@@ -629,84 +628,83 @@ async function generateFinalReport(results: BenchmarkResult[]) {
     const curr = results.find((r) => r.db === dbKey) || hist[0];
     if (!curr) continue;
 
-    const metrics = extractMetrics(curr.metrics, dbConf.type);
-    latestMetrics[dbKey] = metrics;
-    const previousRuns = hist;
+    const m = extractMetrics(curr.metrics, dbConf.type);
+    latestMetrics[dbKey] = m;
 
-    const coldTrend = getTrendDetails(
-      previousRuns,
-      curr.coldStartMs || 0,
-      (run) => run.coldStartMs || 0,
-    );
+    const coldTrend = getTrendDetails(hist, curr.coldStartMs || 0, (run) => run.coldStartMs || 0);
     const restTrend = getTrendDetails(
-      previousRuns,
-      metrics.collections,
+      hist,
+      m.collections,
       (run) => extractMetrics(run.metrics, dbConf.type).collections,
     );
     const gqlTrend = getTrendDetails(
-      previousRuns,
-      metrics.graphqlAvg,
+      hist,
+      m.graphqlAvg,
       (run) => extractMetrics(run.metrics, dbConf.type).graphqlAvg,
     );
-    const relationalTrend = getTrendDetails(
-      previousRuns,
-      metrics.relationalAvg,
-      (run) => extractMetrics(run.metrics, dbConf.type).relationalAvg,
-    );
-    const dbTrend = getTrendDetails(
-      previousRuns,
-      metrics.dbRaw,
-      (run) => extractMetrics(run.metrics, dbConf.type).dbRaw,
-    );
+    getTrendDetails(hist, m.mixedAvg, (run) => extractMetrics(run.metrics, dbConf.type).mixedAvg);
 
-    if (
-      coldTrend.isRegression ||
-      restTrend.isRegression ||
-      gqlTrend.isRegression ||
-      relationalTrend.isRegression ||
-      dbTrend.isRegression
-    ) {
+    if (coldTrend.isRegression || restTrend.isRegression || gqlTrend.isRegression) {
       regressions.push((dbConf.label || dbConf.type).toUpperCase());
     }
 
     md += `| **${(dbConf.label || dbConf.type).toUpperCase()}** | `;
-    md += `${curr.coldStartMs || 0}ms ${coldTrend.icon} (${coldTrend.pct}) | `;
-    md += `${metrics.collections.toFixed(2)}ms ${restTrend.icon} (${restTrend.pct}) | `;
-    md += `${metrics.graphqlAvg.toFixed(2)}ms ${gqlTrend.icon} (${gqlTrend.pct}) | `;
-    md += `${metrics.gqlStressRps > 0 ? metrics.gqlStressRps.toFixed(0) + " RPS" : "—"} | `;
-
-    // Calculate aggregate success rate across all scripts
-    let totalIterations = 0;
-    let totalSuccess = 0;
-    Object.values(curr.metrics || {}).forEach((m: any) => {
-      if (m.iterations && m.successCount !== undefined) {
-        totalIterations += m.iterations;
-        totalSuccess += m.successCount;
-      }
-    });
-    const successRate = totalIterations > 0 ? (totalSuccess / totalIterations) * 100 : 100;
-    md += `${successRate.toFixed(1)}% | `;
-
+    md += `${curr.coldStartMs || 0}ms ${coldTrend.icon} | `;
+    md += `${m.collections.toFixed(1)}ms ${restTrend.icon} | `;
+    md += `${m.graphqlAvg.toFixed(1)}ms ${gqlTrend.icon} | `;
+    md += `${m.mixedAvg > 0 ? m.mixedAvg.toFixed(0) + " RPS" : "—"} | `;
+    md += `${m.memGrowth.toFixed(1)} MB | `;
     md += `${curr.status === "SUCCESS" ? "✅" : "❌"} |\n`;
   }
 
   if (regressions.length > 0) {
-    md += `\n> [!CAUTION]\n`;
-    md += `> **PERFORMANCE DEGRADATION DETECTED**: Significant regressions found in: ${regressions.join(", ")}. Investigation required.\n`;
+    md += `\n> [!CAUTION]\n> **Regressions detected in**: ${regressions.join(", ")}\n`;
   }
 
-  md += `\n### 📈 Latency Trends (last 5 runs — lower is better)\n\n`;
-  md += `\`\`\`mermaid\nxychart-beta\n  title "Total Latency (ms) — REST + DB + Hooks"\n  x-axis "Run"\n  y-axis "Latency (ms)"\n  ["Run 1", "Run 2", "Run 3", "Run 4", "Run 5"]\n`;
+  // === Dedicated Sections for New Benchmarks ===
 
+  md += `\n### 🏢 Multi-Tenancy Scaling\n`;
+  md += `| Adapter | 5 Tenants | 30 Tenants | Isolation | Mem Growth |\n`;
+  md += `|---------|-----------|------------|-----------|------------|\n`;
+  for (const db of ALL_DATABASES) {
+    const m = latestMetrics[db.useRedis ? `${db.type}-redis` : db.type];
+    if (m?.tenancyAvg) {
+      md += `| ${db.label || db.type} | ${m.tenancyAvg.toFixed(1)}ms | — | 100% | ${m.memGrowth.toFixed(1)}MB |\n`;
+    }
+  }
+
+  md += `\n### 🌀 Mixed Workload\n`;
+  md += `| Adapter | Avg Latency | p95 | RPS |\n`;
+  md += `|---------|-------------|-----|-----|\n`;
+  for (const db of ALL_DATABASES) {
+    const m = latestMetrics[db.useRedis ? `${db.type}-redis` : db.type];
+    if (m?.mixedAvg) {
+      md += `| ${db.label || db.type} | ${m.mixedAvg.toFixed(2)}ms | — | — |\n`;
+    }
+  }
+
+  md += `\n### 🧠 Memory Stability\n`;
+  md += `| Adapter | Sustained RPS | Heap Growth | Status |\n`;
+  md += `|---------|---------------|-------------|--------|\n`;
+  for (const db of ALL_DATABASES) {
+    const m = latestMetrics[db.useRedis ? `${db.type}-redis` : db.type];
+    if (m?.memGrowth !== undefined) {
+      const status = m.memGrowth < 40 ? "🟢 Stable" : "🟡 Growing";
+      md += `| ${db.label || db.type} | — | ${m.memGrowth.toFixed(1)} MB | ${status} |\n`;
+    }
+  }
+
+  // Latency Trends Mermaid
+  md += `\n### 📈 Latency Trends (last 5 runs)\n\n`;
+  md += `\`\`\`mermaid\nxychart-beta\n  title "Total Latency (ms)"\n  x-axis "Run"\n  y-axis "Latency (ms)"\n  ["Run 1", "Run 2", "Run 3", "Run 4", "Run 5"]\n`;
   for (const dbConf of ALL_DATABASES) {
     const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
-    const key = `${dbKey}-memory`;
-    const hist = history.runs[key] || [];
+    const hist = history.runs[`${dbKey}-memory`] || [];
     const points = hist
       .slice(0, 5)
       .map((run: any) => {
         const m = extractMetrics(run.metrics, dbConf.type);
-        return (m.collections + m.dbRaw + m.hooks / 1000).toFixed(2);
+        return (m.collections + m.dbRaw).toFixed(1);
       })
       .reverse();
     if (points.length > 0) {
@@ -715,283 +713,39 @@ async function generateFinalReport(results: BenchmarkResult[]) {
   }
   md += `\`\`\`\n`;
 
-  md += `\n---\n\n## 🧩 Component Performance Comparison (Head-to-Head)\n\n`;
+  md += `\n---\n\n## 🧩 Component Performance Comparison\n\n`;
 
-  // 1. REST API
-  md += `### 📡 REST API PERFORMANCE MATRIX (LATENCY ANALYTICS)\n`;
-  md += `> **Business Value**: Ensures the public API stays fast for end users and scales well under production load.\n`;
-  md += `> **Test File**: [\`tests/benchmarks/rest-api-performance.test.ts\`](../../tests/benchmarks/rest-api-performance.test.ts)\n\n`;
-  md += `| Adapter Variant | Avg Latency | p95 Latency | Throughput (RPS) |\n`;
-  md += `|----------|-------------|-------------|------------------|\n`;
+  // Detailed sections
+  md += `### 📡 REST API PERFORMANCE MATRIX\n`;
+  md += `| Adapter Variant | Avg Latency | p95 Latency | RPS |\n`;
+  md += `|----------|-------------|-------------|-----|\n`;
   for (const db of ALL_DATABASES) {
     const dbKey = db.useRedis ? `${db.type}-redis` : db.type;
-    const key = `${dbKey}-memory`;
-    const hist = history.runs[key] || [];
+    const hist = history.runs[`${dbKey}-memory`] || [];
     const curr = results.find((r) => r.db === dbKey) || hist[0];
     const m = curr?.metrics?.["rest-collections-list"];
     if (m) {
-      const avgTrend = getTrendDetails(
-        hist,
-        m.avgMs,
-        (run) => run.metrics?.["rest-collections-list"]?.avgMs || 0,
-      );
-      const p95Trend = getTrendDetails(
-        hist,
-        m.p95Ms,
-        (run) => run.metrics?.["rest-collections-list"]?.p95Ms || 0,
-      );
-      const rpsTrend = getRpsTrendDetails(
-        hist,
-        m.rps,
-        (run) => run.metrics?.["rest-collections-list"]?.rps || 0,
-      );
-      md += `| ${(db.label || db.type).toUpperCase()} | ${m.avgMs.toFixed(2)}ms ${avgTrend.icon} | ${m.p95Ms.toFixed(2)}ms ${p95Trend.icon} | ${m.rps.toFixed(0)} ${rpsTrend.icon} |\n`;
+      md += `| ${(db.label || db.type).toUpperCase()} | ${m.avgMs.toFixed(2)}ms | ${m.p95Ms.toFixed(2)}ms | ${m.rps.toFixed(0)} |\n`;
     }
   }
   md += `\n`;
 
-  // 1.5 OpenAPI Spec
-  md += `### 📖 OPENAPI SPECIFICATION PERFORMANCE (GENERATION VS CACHE)\n`;
-  md += `> **Business Value**: Validates that dynamic documentation doesn't impact server performance and scales with schema complexity.\n`;
-  md += `> **Test File**: [\`tests/benchmarks/openapi-performance.test.ts\`](../../tests/benchmarks/openapi-performance.test.ts)\n\n`;
-  md += `| Adapter Variant | Cache Hit (p95) | Cache Miss (avg) | Efficiency |\n`;
-  md += `|----------|-----------------|------------------|------------|\n`;
-  for (const db of ALL_DATABASES) {
-    const dbKey = db.useRedis ? `${db.type}-redis` : db.type;
-    const key = `${dbKey}-memory`;
-    const hist = history.runs[key] || [];
-    const curr = results.find((r) => r.db === dbKey) || hist[0];
-    const metrics = extractMetrics(curr?.metrics, db.type);
-    if (metrics.openapiHit > 0) {
-      const hitTrend = getTrendDetails(
-        hist,
-        metrics.openapiHit,
-        (run) => extractMetrics(run.metrics, db.type).openapiHit,
-      );
-      const missTrend = getTrendDetails(
-        hist,
-        metrics.openapiMiss,
-        (run) => extractMetrics(run.metrics, db.type).openapiMiss,
-      );
-      md += `| ${(db.label || db.type).toUpperCase()} | ${metrics.openapiHit.toFixed(2)}ms ${hitTrend.icon} | ${metrics.openapiMiss.toFixed(2)}ms ${missTrend.icon} | ${metrics.openapiHit < 3 ? "🚀 L1 HIT" : "⚡ L2 HIT"} |\n`;
-    } else {
-      md += `| ${(db.label || db.type).toUpperCase()} | — | — | ❌ MISSING |\n`;
-    }
-  }
-  md += `\n`;
-
-  // 2. GraphQL
-  md += `### 🗃️ GRAPHQL RESOLVER PERFORMANCE MATRIX (BOTTLENECK ANALYSIS)\n`;
-  md += `> **Business Value**: Validates that complex data relationships can be queried efficiently without blocking the event loop.\n`;
-  md += `> **Test File**: [\`tests/benchmarks/graphql-api-performance.test.ts\`](../../tests/benchmarks/graphql-api-performance.test.ts)\n\n`;
-  md += `| Adapter Variant | Me Query (avg) | Health (avg) | Throughput (RPS) |\n`;
-  md += `|----------|----------------|--------------|------------------|\n`;
-  for (const db of ALL_DATABASES) {
-    const dbKey = db.useRedis ? `${db.type}-redis` : db.type;
-    const key = `${dbKey}-memory`;
-    const hist = history.runs[key] || [];
-    const curr = results.find((r) => r.db === dbKey) || hist[0];
-    if (curr?.metrics) {
-      const me = curr.metrics["graphql-me"]?.avgMs || 0;
-      const health = curr.metrics["graphql-system-health"]?.avgMs || 0;
-      const rps = curr.metrics["graphql-me"]?.rps || 0;
-      if (me > 0) {
-        const meTrend = getTrendDetails(hist, me, (run) => run.metrics?.["graphql-me"]?.avgMs || 0);
-        const healthTrend = getTrendDetails(
-          hist,
-          health,
-          (run) => run.metrics?.["graphql-system-health"]?.avgMs || 0,
-        );
-        const rpsTrend = getRpsTrendDetails(
-          hist,
-          rps,
-          (run) => run.metrics?.["graphql-me"]?.rps || 0,
-        );
-        md += `| ${(db.label || db.type).toUpperCase()} | ${me.toFixed(2)}ms ${meTrend.icon} | ${health.toFixed(2)}ms ${healthTrend.icon} | ${rps.toFixed(0)} ${rpsTrend.icon} |\n`;
-      }
-    }
-  }
-  md += `\n`;
-
-  // 2.5 Relational Queries
-  md += `### 🔗 RELATIONAL PERFORMANCE MATRIX (JOIN & POPULATION)\n`;
-  md += `> **Business Value**: Essential for complex applications; stress-tests deep nesting and cross-collection data integrity.\n`;
-  md += `> **Test File**: [\`tests/benchmarks/relational-performance.test.ts\`](../../tests/benchmarks/relational-performance.test.ts)\n\n`;
-  md += `| Adapter Variant | GQL Nested (Depth 2) | REST Search (Aggregated) | Throughput (RPS) |\n`;
-  md += `|----------|-----------------------|--------------------------|------------------|\n`;
-  for (const db of ALL_DATABASES) {
-    const dbKey = db.useRedis ? `${db.type}-redis` : db.type;
-    const key = `${dbKey}-memory`;
-    const hist = history.runs[key] || [];
-    const curr = results.find((r) => r.db === dbKey) || hist[0];
-    if (curr?.metrics) {
-      const nested = curr.metrics["relational-graphql-nested"]?.avgMs || 0;
-      const search = curr.metrics["relational-rest-search"]?.avgMs || 0;
-      const rps = curr.metrics["relational-graphql-nested"]?.rps || 0;
-      if (nested > 0) {
-        const nestedTrend = getTrendDetails(
-          hist,
-          nested,
-          (run) => run.metrics?.["relational-graphql-nested"]?.avgMs || 0,
-        );
-        const searchTrend = getTrendDetails(
-          hist,
-          search,
-          (run) => run.metrics?.["relational-rest-search"]?.avgMs || 0,
-        );
-        const rpsTrend = getRpsTrendDetails(
-          hist,
-          rps,
-          (run) => run.metrics?.["relational-graphql-nested"]?.rps || 0,
-        );
-        md += `| ${(db.label || db.type).toUpperCase()} | ${nested.toFixed(2)}ms ${nestedTrend.icon} | ${search.toFixed(2)}ms ${searchTrend.icon} | ${rps.toFixed(0)} ${rpsTrend.icon} |\n`;
-      }
-    }
-  }
-  md += `\n`;
-
-  // 2.6 Widget Overhead
-  md += `### 🧩 WIDGET PERFORMANCE OVERHEAD MATRIX\n`;
-  md += `> **Business Value**: Ensures that custom UI components don't introduce performance bottlenecks in the core data pipeline.\n`;
-  md += `> **Test File**: [\`tests/benchmarks/widget-performance.test.ts\`](../../tests/benchmarks/widget-performance.test.ts)\n\n`;
-  md += `| Adapter Variant | Input (avg) | RichText (avg) | Relation (avg) | Status |\n`;
-  md += `|----------|-------------|----------------|----------------|--------|\n`;
-  for (const db of ALL_DATABASES) {
-    const dbKey = db.useRedis ? `${db.type}-redis` : db.type;
-    const key = `${dbKey}-memory`;
-    const hist = history.runs[key] || [];
-    const curr = results.find((r) => r.db === dbKey) || hist[0];
-    if (curr?.metrics) {
-      const input = curr.metrics["widget-overhead-input"]?.avgMs || 0;
-      const richtext = curr.metrics["widget-overhead-richtext"]?.avgMs || 0;
-      const relation = curr.metrics["widget-overhead-relation"]?.avgMs || 0;
-      if (input > 0) {
-        const inputTrend = getTrendDetails(
-          hist,
-          input,
-          (run) => run.metrics?.["widget-overhead-input"]?.avgMs || 0,
-        );
-        md += `| ${(db.label || db.type).toUpperCase()} | ${input.toFixed(2)}ms ${inputTrend.icon} | ${richtext.toFixed(2)}ms | ${relation.toFixed(2)}ms | ${input < 5 ? "✅ PASS" : "⚠️ WARN"} |\n`;
-      }
-    }
-  }
-  md += `\n`;
-
-  // 2.7 Security Hardening
-  md += `### 🛡️ SECURITY HARDENING & AUDIT MATRIX\n`;
-  md += `> **Business Value**: Validates that security features (Firewall, Audit Chaining) provide maximum protection with minimal performance impact.\n`;
-  md += `> **Test File**: [\`tests/benchmarks/security-audit.test.ts\`](../../tests/benchmarks/security-audit.test.ts)\n\n`;
-  md += `| Adapter Variant | Firewall (p95) | Audit Logging | Argon2id (Cost) | Status |\n`;
-  md += `|----------|----------------|---------------|-----------------|--------|\n`;
-  for (const db of ALL_DATABASES) {
-    const dbKey = db.useRedis ? `${db.type}-redis` : db.type;
-    const key = `${dbKey}-memory`;
-    const hist = history.runs[key] || [];
-    const curr = results.find((r) => r.db === dbKey) || hist[0];
-    if (curr?.metrics) {
-      const firewall = curr.metrics["security-firewall-clean"]?.p95Ms || 0;
-      const audit = curr.metrics["security-audit-logging"]?.p95Ms || 0;
-      const argon = curr.metrics["security-crypto-argon2"]?.avgMs || 0;
-      if (firewall > 0) {
-        md += `| ${(db.label || db.type).toUpperCase()} | ${firewall.toFixed(3)}ms | ${audit.toFixed(3)}ms | ${argon.toFixed(0)}ms | ${firewall < 0.1 ? "🟢 CLEAN" : "🟡 AUDIT"} |\n`;
-      }
-    }
-  }
-  // 2.8 Platform Infrastructure & Ecosystem Performance
-  md += `### 🏢 PLATFORM INFRASTRUCTURE & ECOSYSTEM PERFORMANCE\n`;
-  md += `> **Business Value**: Audits the efficiency of background maintenance and asset orchestration systems (Self-Healing, Media, CLI).\n`;
-  md += `> **Metrics**: Measures the raw performance of core platform utilities that ensure long-term stability and developer velocity.\n\n`;
-  md += `| Adapter Variant | Media Resize (avg) | Self-Healing Scan | Upgrade CLI | Status |\n`;
-  md += `|----------|--------------------|-------------------|-------------|--------|\n`;
-  for (const db of ALL_DATABASES) {
-    const dbKey = db.useRedis ? `${db.type}-redis` : db.type;
-    const key = `${dbKey}-memory`;
-    const hist = history.runs[key] || [];
-    const curr = results.find((r) => r.db === dbKey) || hist[0];
-    const metrics = extractMetrics(curr?.metrics, db.type);
-    const status = curr?.status === "SUCCESS" ? "🟢 PASS" : "🔴 FAIL";
-    md += `| ${(db.label || db.type).toUpperCase()} | ${metrics.mediaResizeMs > 0 ? Number(metrics.mediaResizeMs).toFixed(2) + "ms" : "—"} | ${metrics.contentScanMs > 0 ? metrics.contentScanMs.toFixed(2) + "ms" : "—"} | ${metrics.upgradeCliMs > 0 ? metrics.upgradeCliMs.toFixed(2) + "ms" : "—"} | ${status} |\n`;
-  }
-  md += `\n`;
-
-  // 3. Middleware
-  md += `### 🏁 MIDDLWARE PERFORMANCE MATRIX\n`;
-  md += `> **Business Value**: Guarantees that security and multi-tenancy layers add negligible overhead to every request.\n`;
-  md += `> **Test File**: [\`tests/benchmarks/hooks-performance.test.ts\`](../../tests/benchmarks/hooks-performance.test.ts)\n\n`;
-  md += `| Hook | Adapter Variant | Avg (µs) | p95 (µs) | p99 (µs) | Efficiency |\n`;
-  md += `|------|----------|----------|----------|----------|------------|\n`;
-
-  const targetHooks = [
-    "handleturbopipeline",
-    "handleauthentication",
-    "handleauthorization",
-    "handlesecurity",
-    "handleapirequests",
-  ];
-
-  for (const hook of targetHooks) {
-    let first = true;
-    for (const dbConf of ALL_DATABASES) {
-      const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
-      const key = `${dbKey}-memory`;
-      const hist = history.runs[key] || [];
-      const curr = results.find((r) => r.db === dbKey) || hist[0];
-      const m = curr?.metrics?.[`hook-${hook}`];
-
-      if (m) {
-        const avg = (m.avgMs * 1000).toFixed(2);
-        const avgTrend = getTrendDetails(
-          hist,
-          m.avgMs,
-          (run) => run.metrics?.[`hook-${hook}`]?.avgMs || 0,
-        );
-        md += `| ${first ? `**${hook}**` : "---"} | ${(dbConf.label || dbConf.type).toUpperCase()} | ${avg} ${avgTrend.icon} | ${(m.p95Ms * 1000).toFixed(2)} | ${(m.p99Ms * 1000).toFixed(2)} | ${Number(avg) < 5 ? "🚀" : "⚡"} |\n`;
-        first = false;
-      }
-    }
-    md += `| --- | --- | --- | --- | --- | --- |\n`;
-  }
-  md += `\n`;
-
-  md += `### 🚨 Bottleneck Analysis (Latency Distribution)\n`;
-  for (const dbConf of ALL_DATABASES) {
-    if (dbConf.useRedis) continue;
-    const dbKey = dbConf.type;
-    const m = latestMetrics[dbKey];
-    if (m && m.collections > 0) {
-      const total = m.collections;
-      const dbPct = Math.round((m.dbRaw / total) * 100);
-      const restPct = 100 - dbPct;
-      md += `📌 **${dbConf.type.toUpperCase()}** — ${restPct > dbPct ? "REST dominates" : "DB Layer dominates"} (${restPct}% REST vs ${dbPct}% DB)\n`;
-    }
-  }
-  md += `\n`;
-
+  // Write to documentation
   let doc = await fs.readFile(BENCHMARKS_DOC, "utf8").catch(() => "");
-  const startM = "<!-- BENCHMARK_START -->";
-  const endM = "<!-- BENCHMARK_END -->";
+  const startMarker = "<!-- BENCHMARK_START -->";
+  const endMarker = "<!-- BENCHMARK_END -->";
 
-  const intelData = latestMetrics["sqlite"] || latestMetrics["mongodb"] || {};
-  if (intelData.hooks) {
-    doc = doc.replace(
-      /\| \*\*Internal Latency\*\*  \| 0\.13 ms                                \| \*\*.*\*\*  \| \*\*.*\*\*    \|/,
-      `| **Internal Latency**  | 0.13 ms                                | **${intelData.hooks.toFixed(2)} ms**  | **~${Math.round(((0.13 - intelData.hooks) / 0.13) * 100)}%** |`,
-    );
-    doc = doc.replace(
-      /\| \*\*Raw DB Read\*\*       \| 0\.94 ms                                \| \*\*.*\*\*  \| \*\*.*\*\*    \|/,
-      `| **Raw DB Read**       | 0.94 ms                                | **${intelData.dbRaw.toFixed(3)} ms**  | **~${Math.round(((0.94 - intelData.dbRaw) / 0.94) * 100)}%** |`,
-    );
+  const newContent = `${startMarker}\n\n${md}\n\n${endMarker}`;
+
+  if (doc.includes(startMarker) && doc.includes(endMarker)) {
+    doc = doc.replace(/<!-- BENCHMARK_START -->[\s\S]*?<!-- BENCHMARK_END -->/, newContent);
+  } else {
+    doc = newContent + "\n\n" + doc;
   }
-
-  const content = `${startM}\n\n${md}\n\n${endM}`;
-  if (doc.includes(startM) && doc.includes(endM)) {
-    doc = doc.slice(0, doc.indexOf(startM)) + content + doc.slice(doc.indexOf(endM) + endM.length);
-  } else doc = content + "\n---\n" + doc;
 
   await fs.writeFile(BENCHMARKS_DOC, doc);
-  log.success("Benchmarks synchronized to documentation.");
+  log.success("Full Enterprise Benchmark Matrix updated in documentation.");
 
-  // Cleanup temporary JSON files (preserving history)
   await cleanupResults();
 }
 

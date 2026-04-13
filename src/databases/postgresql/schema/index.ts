@@ -148,6 +148,7 @@ export const contentNodes = pgTable(
     slug: varchar("slug", { length: 500 }),
     icon: varchar("icon", { length: 100 }),
     description: text("description"),
+    collectionDef: jsonb("collectionDef").$type<import("@src/content/types").Schema>(),
     data: jsonb("data"),
     metadata: jsonb("metadata"),
     translations: jsonb("translations")

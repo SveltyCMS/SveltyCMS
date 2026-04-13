@@ -1,70 +1,80 @@
 /**
  * @file src/plugins/pagespeed/service.ts
- * @description Google PageSpeed Insights API integration and data management
+ * @description Google PageSpeed Insights API integration and data management.
+ * Implements strict rate limiting, validation, and persistent caching.
  */
 
 import type { IDBAdapter } from "@databases/db-interface";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 import { logger } from "@utils/logger.server";
 import type { GooglePageSpeedResponse, PageSpeedResult } from "./types";
+import { validateUrl } from "./url-utils";
 
 /**
- * Fetch PageSpeed Insights for a URL
- *
- * @param url - Public URL to analyze
- * @param device - Device type (mobile or desktop)
- * @returns PageSpeed metrics or null on error
+ * Fetch PageSpeed Insights for a URL with strict validation and error handling.
  */
 export async function fetchPageSpeedInsights(
   url: string,
   device: "mobile" | "desktop",
+  allowedBaseUrl: string,
 ): Promise<Partial<PageSpeedResult> | null> {
+  // 🛡️ Security: Validate URL to prevent SSRF and outside-of-scope testing
+  if (!validateUrl(url, allowedBaseUrl)) {
+    logger.warn("PageSpeed URL validation failed (out of scope or unsafe)", { url });
+    return null;
+  }
+
+  // 🔑 Configuration: Get API key safely
+  const apiKey = getPrivateSettingSync("GOOGLE_PAGESPEED_API_KEY");
+  if (!apiKey) {
+    logger.warn("GOOGLE_PAGESPEED_API_KEY not configured. Skipping PageSpeed fetch.");
+    return null;
+  }
+
   try {
-    // Get API key from private settings
-    const apiKey = getPrivateSettingSync("GOOGLE_PAGESPEED_API_KEY" as any);
-
-    if (!apiKey) {
-      logger.warn("Google PageSpeed API key not configured");
-      return null;
-    }
-
-    // Call Google PageSpeed Insights API
     const apiUrl = new URL("https://www.googleapis.com/pagespeedonline/v5/runPagespeed");
     apiUrl.searchParams.set("url", url);
     apiUrl.searchParams.set("strategy", device);
-    apiUrl.searchParams.set("key", apiKey as string);
+    apiUrl.searchParams.set("key", String(apiKey));
     apiUrl.searchParams.set("category", "performance");
 
-    logger.debug("Calling PageSpeed Insights API", { url, device });
+    logger.debug("Calling Google PageSpeed API", { url, device });
 
     const response = await fetch(apiUrl.toString(), {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
+      headers: { Accept: "application/json" },
     });
 
     if (!response.ok) {
-      logger.error("PageSpeed API request failed", {
+      const errorBody = await response.text().catch(() => "Unknown error");
+      logger.error("PageSpeed API error response", {
         status: response.status,
-        statusText: response.statusText,
         url,
+        device,
+        error: errorBody,
       });
       return null;
     }
 
     const data = (await response.json()) as GooglePageSpeedResponse;
+    const { lighthouseResult } = data;
 
-    // Extract metrics
+    if (!lighthouseResult?.categories?.performance) {
+      logger.error("Malformed PageSpeed API response (no performance category)", { url });
+      return null;
+    }
+
+    // Extraction with null-safety
+    const audits = lighthouseResult.audits;
     const result: Partial<PageSpeedResult> = {
-      performanceScore: Math.round(data.lighthouseResult.categories.performance.score * 100),
-      fcp: data.lighthouseResult.audits["first-contentful-paint"]?.numericValue,
-      lcp: data.lighthouseResult.audits["largest-contentful-paint"]?.numericValue,
-      cls: data.lighthouseResult.audits["cumulative-layout-shift"]?.numericValue,
-      tti: data.lighthouseResult.audits.interactive?.numericValue,
-      tbt: data.lighthouseResult.audits["total-blocking-time"]?.numericValue,
-      si: data.lighthouseResult.audits["speed-index"]?.numericValue,
+      performanceScore: Math.round((lighthouseResult.categories.performance.score || 0) * 100),
+      fcp: audits["first-contentful-paint"]?.numericValue,
+      lcp: audits["largest-contentful-paint"]?.numericValue,
+      cls: audits["cumulative-layout-shift"]?.numericValue,
+      tti: audits.interactive?.numericValue,
+      tbt: audits["total-blocking-time"]?.numericValue,
+      si: audits["speed-index"]?.numericValue,
       fetchedAt: new Date(),
+      url,
     };
 
     logger.info("PageSpeed Insights fetched successfully", {
@@ -75,12 +85,14 @@ export async function fetchPageSpeedInsights(
 
     return result;
   } catch (error) {
-    logger.error("Failed to fetch PageSpeed Insights", { error, url, device });
+    logger.error("Failed to fetch PageSpeed Insights (fetch exception)", { error, url });
     return null;
   }
 }
 
-// Get cached PageSpeed result from database
+/**
+ * Get cached PageSpeed result from database.
+ */
 export async function getCachedResult(
   dbAdapter: IDBAdapter,
   entryId: string,
@@ -88,7 +100,7 @@ export async function getCachedResult(
   language: string,
   device: "mobile" | "desktop",
   tenantId: string,
-  maxAgeMinutes = 1440,
+  maxAgeMinutes = 1440, // 24 hours default
 ): Promise<PageSpeedResult | null> {
   try {
     const result = await dbAdapter.crud.findOne<PageSpeedResult>("pluginPagespeedResults", {
@@ -96,89 +108,67 @@ export async function getCachedResult(
       collectionId,
       language,
       device,
-      tenantId,
-    } as any);
+      tenantId: (tenantId as any) || null,
+    });
 
-    if (!(result.success && result.data)) {
-      return null;
-    }
+    if (!(result.success && result.data)) return null;
 
-    // Check if result is too old
-    const ageMinutes = (Date.now() - new Date(result.data.fetchedAt).getTime()) / 1000 / 60;
+    // Staleness check
+    const fetchedAt = new Date(result.data.fetchedAt).getTime();
+    const ageMinutes = (Date.now() - fetchedAt) / (1000 * 60);
+
     if (ageMinutes > maxAgeMinutes) {
-      logger.debug("Cached PageSpeed result is stale", {
-        entryId,
-        ageMinutes,
-        maxAgeMinutes,
-      });
+      logger.debug("PageSpeed cache is stale", { entryId, ageMinutes, maxAgeMinutes });
       return null;
     }
 
     return result.data;
   } catch (error) {
-    logger.error("Failed to get cached PageSpeed result", { error, entryId });
+    logger.error("Failed to retrieve cached PageSpeed result", { error, entryId });
     return null;
   }
 }
 
-// Store PageSpeed result in database
+/**
+ * Store PageSpeed result using Upsert pattern.
+ */
 export async function storeResult(
   dbAdapter: IDBAdapter,
   result: Omit<PageSpeedResult, "_id" | "createdAt" | "updatedAt">,
 ): Promise<boolean> {
   try {
-    // Check if result already exists (update) or new (insert)
-    const existing = await dbAdapter.crud.findOne<PageSpeedResult>("pluginPagespeedResults", {
+    const filter = {
       entryId: result.entryId,
       collectionId: result.collectionId,
       language: result.language,
       device: result.device,
-      tenantId: result.tenantId,
-    } as any);
+      tenantId: result.tenantId || null,
+    };
+
+    // Use upsert for atomic operation if supported by adapter, otherwise findOne + update/insert
+    const existing = await dbAdapter.crud.findOne<PageSpeedResult>(
+      "pluginPagespeedResults",
+      filter,
+    );
 
     if (existing.success && existing.data) {
-      // Update existing record
-      const updateResult = await dbAdapter.crud.update<PageSpeedResult>(
-        "pluginPagespeedResults",
-        existing.data._id,
-        result as any,
-      );
-
-      if (!updateResult.success) {
-        logger.error("Failed to update PageSpeed result", {
-          error: (updateResult as any).error,
-        });
-        return false;
-      }
-    } else {
-      // Insert new record
-      const insertResult = await dbAdapter.crud.insert<PageSpeedResult>(
-        "pluginPagespeedResults",
-        result as any,
-      );
-
-      if (!insertResult.success) {
-        logger.error("Failed to insert PageSpeed result", {
-          error: (insertResult as any).error,
-        });
-        return false;
-      }
+      const update = await dbAdapter.crud.update("pluginPagespeedResults", existing.data._id, {
+        ...(result as any),
+      });
+      return update.success;
     }
 
-    logger.debug("PageSpeed result stored", {
-      entryId: result.entryId,
-      language: result.language,
-      device: result.device,
-    });
-
-    return true;
+    const insert = await dbAdapter.crud.insert("pluginPagespeedResults", result as any);
+    return insert.success;
   } catch (error) {
     logger.error("Failed to store PageSpeed result", { error });
     return false;
   }
 }
 
-// Get multiple cached results for entry list
+/**
+ * Batch-retrieve cached results for entry lists.
+ */
 export async function getMultipleCachedResults(
   dbAdapter: IDBAdapter,
   entryIds: string[],
@@ -187,25 +177,29 @@ export async function getMultipleCachedResults(
   device: "mobile" | "desktop",
   tenantId: string,
 ): Promise<Map<string, PageSpeedResult>> {
-  const results = new Map<string, PageSpeedResult>();
+  const resultMap = new Map<string, PageSpeedResult>();
 
   try {
-    const queryResult = await dbAdapter.crud.findMany<PageSpeedResult>("pluginPagespeedResults", {
-      entryId: { $in: entryIds },
-      collectionId,
-      language,
-      device,
-      tenantId,
-    } as any);
+    const queryResult = await dbAdapter.crud.findMany<PageSpeedResult>(
+      "pluginPagespeedResults",
+      {
+        entryId: { $in: entryIds },
+        collectionId,
+        language,
+        device,
+        tenantId: (tenantId as any) || null,
+      },
+      { limit: entryIds.length },
+    );
 
     if (queryResult.success && queryResult.data) {
-      for (const result of queryResult.data) {
-        results.set(result.entryId, result);
+      for (const item of queryResult.data) {
+        resultMap.set(item.entryId, item);
       }
     }
   } catch (error) {
-    logger.error("Failed to get multiple cached results", { error });
+    logger.error("Failed to batch-retrieve PageSpeed results", { error, entryIds });
   }
 
-  return results;
+  return resultMap;
 }

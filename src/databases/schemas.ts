@@ -23,6 +23,18 @@ import {
 } from "valibot";
 import type { DatabaseId, ISODateString } from "../content/types";
 
+// ----------------- HELPERS -----------------
+
+/** Helper to allow numeric strings (from env) to be used where numbers are expected */
+const coercedNumber = union([
+  number(),
+  pipe(
+    string(),
+    transform((val) => Number(val)),
+    number(),
+  ),
+]);
+
 // ----------------- CONFIGURATION SCHEMAS -----------------
 
 // The PRIVATE configuration for the application.
@@ -37,13 +49,14 @@ export const privateConfigSchema = object({
     literal(""),
   ]),
   DB_HOST: pipe(string(), minLength(1, "Database host is required.")),
-  DB_PORT: optional(pipe(number(), minValue(1))),
+  DB_PORT: optional(pipe(coercedNumber, minValue(1))),
   DB_NAME: pipe(string(), minLength(1, "Database name is required.")),
-  DB_USER: string(),
-  DB_PASSWORD: string(),
+  DB_USER: optional(string()),
+  DB_PASSWORD: optional(string()),
   DB_RETRY_ATTEMPTS: optional(pipe(number(), minValue(1))),
   DB_RETRY_DELAY: optional(pipe(number(), minValue(1))),
   DB_POOL_SIZE: optional(pipe(number(), minValue(1))),
+  DB_AUTH_SOURCE: optional(string()),
 
   // --- JWT Secret (Essential for startup) ---
   JWT_SECRET_KEY: pipe(
@@ -69,7 +82,7 @@ export const privateConfigSchema = object({
   // --- Optional service toggles (populated dynamically post-startup) ---
   USE_REDIS: optional(boolean()),
   REDIS_HOST: optional(pipe(string(), minLength(1))),
-  REDIS_PORT: optional(pipe(number(), minValue(1))),
+  REDIS_PORT: optional(pipe(coercedNumber, minValue(1))),
   REDIS_PASSWORD: optional(string()),
 
   // --- Cache TTL Configuration (in seconds) ---
@@ -86,7 +99,7 @@ export const privateConfigSchema = object({
   GOOGLE_CLIENT_SECRET: optional(pipe(string(), minLength(1))),
   GOOGLE_API_KEY: optional(pipe(string(), minLength(1))),
   SMTP_HOST: optional(pipe(string(), minLength(1))),
-  SMTP_PORT: optional(pipe(number(), minValue(1))),
+  SMTP_PORT: optional(pipe(coercedNumber, minValue(1))),
   SMTP_USER: optional(string()),
   SMTP_PASS: optional(string()),
   SMTP_MAIL_FROM: optional(string()),
@@ -160,6 +173,12 @@ export const privateConfigSchema = object({
   // --- Auth Configuration ---
   PASSWORD_MIN_LENGTH: optional(pipe(number(), minValue(1)), 8),
 
+  // --- External Host (used for SAML/SSO) ---
+  HOST_PROD: optional(string()),
+
+  // --- Performance Plugins ---
+  GOOGLE_PAGESPEED_API_KEY: optional(string()),
+
   // --- CI/Benchmark Configuration ---
   TEST_API_SECRET: optional(string()),
 });
@@ -205,6 +224,7 @@ export const databaseConfigSchema = object({
   name: pipe(string(), minLength(1)),
   user: optional(string()),
   password: optional(string()),
+  authSource: optional(string()),
 });
 
 // ----------------- TYPES & HELPERS -----------------

@@ -145,6 +145,13 @@ async function seedAuthors(authHeaders: Record<string, string>): Promise<string[
   });
 
   const settled = await batchRun(tasks, SEED_CONCURRENCY);
+  const failures = settled.filter((r) => r.status === "rejected");
+  if (failures.length > 0) {
+    console.error(
+      `[SEED_AUTHORS] ${failures.length} tasks failed:`,
+      failures.map((f: any) => f.reason.message),
+    );
+  }
   return settled
     .filter((r): r is PromiseFulfilledResult<any> => r.status === "fulfilled")
     .map((r) => r.value.data._id);

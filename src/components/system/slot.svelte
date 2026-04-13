@@ -26,7 +26,7 @@
 	// Plugins usually register on startup. If this is client-side, we need to ensure registry is available.
 	// Assuming plugins register isomorphic slots.
 
-	const slots = $derived(slotRegistry.getSlots(name));
+	const slots = $derived(slotRegistry.getSlots(name).filter(slot => !slot.condition || slot.condition(props)));
 </script>
 
 <div class="slot-zone" data-zone={name}>

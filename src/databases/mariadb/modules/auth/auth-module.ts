@@ -258,9 +258,7 @@ export class AuthModule {
         }
       }
 
-      if (options?.limit || 1000) {
-        q = q.limit(options?.limit || 1000);
-      }
+      q = q.limit(options?.limit || 1000);
       if (options?.offset) {
         q = q.offset(options.offset);
       }

@@ -140,6 +140,7 @@ export const contentNodes = mysqlTable(
     slug: varchar("slug", { length: 500 }),
     icon: varchar("icon", { length: 100 }),
     description: text("description"),
+    collectionDef: json("collectionDef").$type<import("@src/content/types").Schema>(),
     data: json("data"),
     metadata: json("metadata"),
     translations: json("translations")

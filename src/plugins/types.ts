@@ -33,6 +33,9 @@ export interface PluginMetadata {
   /** Human-readable plugin name */
   name: string;
 
+  /** Plugin category (e.g., 'performance', 'editing') */
+  category?: string;
+
   /** Plugin version (semver) */
   version: string;
 }
@@ -145,6 +148,7 @@ export interface PluginUIContribution {
     label: string;
     icon?: string;
     handler: string; // Name of the client-side action handler
+    confirm?: string; // Optional confirmation message
   }>;
   /** Additional columns to display */
   columns?: PluginColumn[];
@@ -172,6 +176,7 @@ export type InjectionZone =
 // Plugin Slot definition
 export interface PluginSlot {
   component: () => Promise<any>; // Lazy loaded Svelte component
+  condition?: (context: any) => boolean; // Optional condition to show/hide slot
   id: string;
   permissions?: string[]; // RBAC roles
   position?: number;

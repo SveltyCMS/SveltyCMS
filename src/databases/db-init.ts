@@ -28,9 +28,7 @@ async function getResilience() {
   });
 }
 
-/**
- * Loads all settings from the database and populates the in-memory cache.
- */
+// Loads all settings from the database and populates the in-memory cache.
 export async function loadSettingsFromDB(
   dbAdapter: DatabaseAdapter,
   criticalOnly = false,
@@ -74,7 +72,7 @@ export async function loadSettingsFromDB(
     await setSettingsCache(mergedPrivate as any, settings as unknown as PublicEnv);
 
     await cacheService
-      .reconfigure()
+      .reconfigure(mergedPrivate)
       .catch((e: any) => logger.warn("Failed to reconfigure CacheService:", e));
 
     if (!criticalOnly) {

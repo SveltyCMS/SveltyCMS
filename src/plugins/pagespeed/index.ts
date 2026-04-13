@@ -1,11 +1,7 @@
 /**
  * @file src/plugins/pagespeed/index.ts
- * @description Google PageSpeed Insights plugin for SveltyCMS
- *
- * Features:
- * - SSR hook to enrich entry list with cached PageSpeed data
- * - Plugin component to display PageSpeed data in entry list
- * - Plugin action to refresh PageSpeed data
+ * @description Google PageSpeed Insights integration for performance monitoring.
+ * Monitors Core Web Vitals and performance scores with intelligent caching.
  */
 
 import { logger } from "@utils/logger.server";
@@ -14,8 +10,8 @@ import { migrations } from "./migrations";
 import { getMultipleCachedResults } from "./service";
 
 /**
- * SSR hook for PageSpeed plugin
- * Enriches entry list with cached PageSpeed data
+ * SSR hook for PageSpeed plugin.
+ * Enriches entry list with cached PageSpeed data for ultra-fast load times.
  */
 async function ssrHook(
   context: PluginContext,
@@ -24,24 +20,19 @@ async function ssrHook(
   const { dbAdapter, collectionSchema, language, tenantId } = context;
 
   try {
-    // Extract entry IDs
-    const entryIds = entries.map((e) => e._id as string).filter(Boolean);
+    const entryIds = entries.map((e) => String(e._id)).filter(Boolean);
+    if (entryIds.length === 0) return [];
 
-    if (entryIds.length === 0) {
-      return [];
-    }
-
-    // Get cached results for all entries (mobile by default for list view)
+    // Get cached results for all entries (mobile is standard for Core Web Vitals)
     const cachedResults = await getMultipleCachedResults(
       dbAdapter,
       entryIds,
-      collectionSchema._id as string,
+      String(collectionSchema._id),
       language,
       "mobile",
-      tenantId,
+      tenantId || "",
     );
 
-    // Build plugin data array
     const pluginData: PluginEntryData[] = [];
 
     for (const [entryId, result] of cachedResults.entries()) {
@@ -52,17 +43,17 @@ async function ssrHook(
           fcp: result.fcp,
           lcp: result.lcp,
           cls: result.cls,
-          fetchedAt: new Date(result.fetchedAt).toISOString(),
+          fetchedAt: result.fetchedAt ? new Date(result.fetchedAt).toISOString() : null,
         },
-        updatedAt: new Date(result.fetchedAt).toISOString() as any,
+        updatedAt: (result.updatedAt ? String(result.updatedAt) : new Date().toISOString()) as any,
       });
     }
 
-    logger.debug("PageSpeed SSR hook executed", {
+    logger.debug("PageSpeed SSR hook completed", {
       collectionId: collectionSchema._id,
       language,
-      entriesCount: entries.length,
-      resultsCount: pluginData.length,
+      entries: entries.length,
+      enriched: pluginData.length,
     });
 
     return pluginData;
@@ -72,32 +63,34 @@ async function ssrHook(
   }
 }
 
-// PageSpeed Insights plugin definition
 export const pageSpeedPlugin: Plugin = {
   metadata: {
     id: "pagespeed",
     name: "Google PageSpeed Insights",
-    version: "1.0.0",
-    description: "Monitors page performance using Google PageSpeed Insights",
+    version: "1.1.0",
+    description:
+      "Monitors Core Web Vitals and performance scores using Google PageSpeed Insights API with caching.",
     author: "SveltyCMS",
     icon: "mdi:speedometer",
     enabled: false,
+    category: "performance",
   },
-
   migrations,
-
   ssrHook,
-
   ui: {
     columns: [
       {
         id: "performance_score",
         label: "Performance",
-        width: "120px",
+        width: "110px",
         sortable: false,
-        component: "score", // Renders src/plugins/pagespeed/components/score.svelte via PluginComponent
+        component: "score", // Resolved via plugin component loader
         props: {
-          score: "performanceScore", // Maps entry.pluginData.performanceScore -> component prop 'score'
+          score: "performanceScore",
+          fcp: "fcp",
+          lcp: "lcp",
+          cls: "cls",
+          fetchedAt: "fetchedAt",
         },
       },
     ],
@@ -106,15 +99,18 @@ export const pageSpeedPlugin: Plugin = {
         id: "refresh_pagespeed",
         label: "Refresh PageSpeed",
         icon: "mdi:refresh",
-        handler: "refreshPageSpeed",
+        handler: "refreshPageSpeed", // Handled by centralized action registry
+        confirm: "This will call Google API and may consume your quota. Continue?",
       },
     ],
   },
-
   config: {
-    public: {},
-    private: {},
+    public: {
+      defaultDevice: "mobile",
+    },
+    private: {
+      apiKeySource: "settings", // GOOGLE_PAGESPEED_API_KEY expected in Private Settings
+    },
   },
-
-  enabledCollections: [],
+  enabledCollections: [], // Collections must explicitly enable this plugin
 };

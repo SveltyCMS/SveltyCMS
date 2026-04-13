@@ -20,11 +20,12 @@ fi
 
 # 2. Type Check (Svelte Check)
 # Temporarily disabled due to TypeScript 6.0 compatibility issues with svelte-check
-# echo "✅ Type Checking..."
-# bun run check
+echo "✅ Type Checking..."
+bun run check
 
-# 3. Unit Tests (Fast Bun)
-echo "🧪 Testing (Bun Native)..."
+# 3. Unit Tests (Component & Logic)
+echo "🧪 Testing (Vitest & Bun Native)..."
+bun run test:unit
 bun run test:unit:bun
 
 echo "✨ Pre-commit checks passed!"

@@ -1,90 +1,55 @@
 /**
  * @file src/content/content-watcher.server.ts
- * @description
- * Intelligent file watcher for collection schemas in development mode.
- * Detects additions, changes, and deletions to trigger incremental reconciliation.
+ * @description File system watcher for live schema updates in development.
  */
 
-import { dev } from "$app/environment";
-import { logger } from "@utils/logger.server";
-import chokidar, { type FSWatcher } from "chokidar";
+import chokidar from "chokidar";
+import path from "node:path";
+import { logger } from "@utils/logger";
 import { contentService } from "./content-service.server";
 
-let watcher: FSWatcher | null = null;
 let debounceTimer: NodeJS.Timeout | null = null;
 let isReloading = false;
 
 /**
- * Stops the content watcher.
- */
-export function stopContentWatcher() {
-  if (watcher) {
-    watcher.close();
-    watcher = null;
-    logger.info("Content watcher stopped");
-  }
-}
-
-/**
- * Starts the content watcher if in development mode.
- * Listens for changes in the .compiledCollections directory.
+ * Initializes the file system watcher for the compiled collections directory.
  */
 export function startContentWatcher() {
-  if (!dev || watcher) return;
+  const targetDir = path.resolve(process.cwd(), ".compiledCollections");
 
-  // Fix: Watches source config/collections but service reads .compiledCollections — changed to watch compiled output
-  const compiledDir = ".compiledCollections";
-  logger.info(`👀 Starting intelligent content watcher on ${compiledDir}`);
+  logger.info(`[Watcher] Monitoring collections at: ${targetDir}`);
 
-  // Initialize watcher with stability threshold to avoid partial file reads
-  watcher = chokidar.watch(compiledDir, {
-    ignored: /(^|[/\\])\../, // Ignore dotfiles
+  const watcher = chokidar.watch(targetDir, {
     persistent: true,
-    ignoreInitial: true, // Don't trigger on startup
-    awaitWriteFinish: {
-      stabilityThreshold: 300,
-      pollInterval: 100,
-    },
+    ignoreInitial: true,
+    awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 100 },
   });
 
-  // Fix: No watcher.on("error") handler — added one to prevent process crash
-  watcher.on("error", (error) => {
-    logger.error("Content watcher error:", error);
-  });
-
-  // Handle all relevant file events
-  watcher.on("all", async (event: string, filePath: string) => {
+  watcher.on("all", (event, filePath) => {
     if (!["add", "change", "unlink"].includes(event)) return;
+    if (!filePath.endsWith(".js")) return;
 
-    logger.info(`🔄 Content change detected [${event}]: ${filePath}`);
-
-    // Fix: No debounce and no concurrency lock — rapid saves trigger racing reconciliations
     if (debounceTimer) clearTimeout(debounceTimer);
 
     debounceTimer = setTimeout(async () => {
-      if (isReloading) {
-        logger.debug("Skipping reconciliation: Reload already in progress");
-        return;
-      }
+      if (isReloading) return;
 
-      isReloading = true;
       try {
-        // Trigger incremental reload for all tenants (null)
-        await contentService.fullReload(null, false, undefined, true);
-        logger.info("✅ Incremental reconciliation completed");
-      } catch (error) {
-        logger.error("❌ Incremental reconciliation failed", error);
+        isReloading = true;
+        logger.debug(
+          `[Watcher] Schema ${event} detected: ${path.basename(filePath)}. Reloading...`,
+        );
+
+        await contentService.fullReload(null, false);
+
+        logger.info("[Watcher] Content system re-synchronized successfully.");
+      } catch (err) {
+        logger.error("[Watcher] Failed to reload content system", { error: err });
       } finally {
         isReloading = false;
       }
-    }, 500); // 300ms debounce
+    }, 400);
   });
 
-  logger.info("Content watcher active — incremental updates enabled");
-}
-
-// Fix: SIGTERM handler registered inside function body; no SIGINT handler — moved to top level
-if (typeof process !== "undefined") {
-  process.on("SIGTERM", stopContentWatcher);
-  process.on("SIGINT", stopContentWatcher);
+  return () => watcher.close();
 }

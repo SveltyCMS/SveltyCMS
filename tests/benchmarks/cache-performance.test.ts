@@ -44,7 +44,7 @@ test("Local SDK Cache Performance Suite", async () => {
     // Also ensure physical table exists
     try {
       await dbAdapter.collection.createModel(mockSchema);
-    } catch (e) {}
+    } catch {}
   }
 
   let collectionId = collections.length > 0 ? (collections[0]._id as string) : "benchmarks";

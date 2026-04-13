@@ -25,6 +25,7 @@ import type {
   DatabaseResult,
   ContentDraft as DBContentDraft,
   ContentRevision as DBContentRevision,
+  EntityCreate,
   PaginatedResult,
   PaginationOptions,
   QueryFilter,
@@ -171,6 +172,13 @@ export class MongoContentMethods {
     }
 
     return withCache(cacheKey, fetchData, { category: CacheCategory.CONTENT });
+  }
+
+  // Atomically creates a new node or updates an existing one based on its path.
+  async upsertContentStructureNode(
+    node: EntityCreate<ContentNode>,
+  ): Promise<DatabaseResult<ContentNode>> {
+    return this.nodesRepo.upsert({ path: node.path } as any, node as any);
   }
 
   // Atomically creates a new node or updates an existing one based on its path.

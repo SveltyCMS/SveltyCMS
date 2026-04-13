@@ -81,7 +81,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			port: dbConfig.port,
 			name: dbConfig.name,
 			user: dbConfig.user,
-			password: dbConfig.password
+			password: dbConfig.password,
+			authSource: dbConfig.authSource
 		})
 	);
 
@@ -162,6 +163,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 				if (parsed.database) {
 					dbConfig.name = parsed.database;
+				}
+
+				if (parsed.authSource) {
+					dbConfig.authSource = parsed.authSource;
 				}
 
 				// Clear any previous test errors
@@ -652,6 +657,48 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						<div id="db-password-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.password}</div>
 					{/if}
 				</div>
+
+				{#if dbConfig.type === 'mongodb' || dbConfig.type === 'mongodb+srv'}
+					<div>
+						<label for="db-auth-source" class="mb-1 flex items-center gap-1 text-sm font-medium">
+							<iconify-icon icon="mdi:shield-account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+							<span class="text-black dark:text-white">Auth Source</span>
+							<SystemTooltip title="The database where the user is defined. Default is 'admin'.">
+								<button
+									type="button"
+									tabindex="-1"
+									aria-label="Help: Auth Source"
+									class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+								>
+									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
+								</button>
+							</SystemTooltip>
+						</label>
+
+						<input
+							id="db-auth-source"
+							bind:value={dbConfig.authSource}
+							type="text"
+							onchange={clearDbTestError}
+							onblur={() => {
+								const trimmed = dbConfig.authSource?.trim();
+								if (trimmed !== dbConfig.authSource) {
+									dbConfig.authSource = trimmed;
+								}
+								handleBlur('authSource');
+							}}
+							placeholder="admin"
+							class="input w-full rounded {displayErrors.authSource
+								? 'border-error-500 focus:border-error-500 focus:ring-error-500'
+								: 'border-slate-200'}"
+							aria-invalid={!!displayErrors.authSource}
+							aria-describedby={displayErrors.authSource ? 'db-auth-source-error' : undefined}
+						/>
+						{#if displayErrors.authSource}
+							<div id="db-auth-source-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.authSource}</div>
+						{/if}
+					</div>
+				{/if}
 			{/if}
 		</div>
 		{#if !unsupportedDbSelected}

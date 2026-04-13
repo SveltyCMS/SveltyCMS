@@ -208,6 +208,7 @@ On persistent failure after all attempts, admins get a detailed email (if SMTP c
 ### Detailed Error Logs Download
 
 - API: `GET /api/logs/download` (admin-only)
+- **Security**: Sensitive configuration keys (passwords, secrets) are automatically redacted using the `redactConfig` helper before logs are stored or exported.
 - Params: `type` (`latest|all|archive`), `format` (`text|gzip`), `since`, `level`
 
 ### Automatic Driver Installation & Fallback

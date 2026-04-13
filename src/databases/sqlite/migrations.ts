@@ -131,11 +131,18 @@ export async function runMigrations(db: unknown): Promise<{ success: boolean; er
 				"order" INTEGER DEFAULT 0,
 				isPublished INTEGER DEFAULT 0,
 				publishedAt INTEGER,
+				collectionDef TEXT,
+				isDeleted INTEGER DEFAULT 0,
+				deletedAt INTEGER,
 				tenantId TEXT,
 				createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
 				updatedAt INTEGER DEFAULT (strftime('%s', 'now') * 1000)
 			)
 		`);
+
+    addColumn("content_nodes", "collectionDef", "TEXT");
+    addColumn("content_nodes", "isDeleted", "INTEGER DEFAULT 0");
+    addColumn("content_nodes", "deletedAt", "INTEGER");
 
     // Content Drafts
     execute(`

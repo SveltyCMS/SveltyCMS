@@ -106,14 +106,14 @@ export enum CacheCategory {
 await cacheService.setWithCategory("user:123", userData, CacheCategory.USER, tenantId);
 ```
 
-### Cache Metrics (`CacheMetrics.ts`)
+### Integrated Cache Metrics
 
-Real-time monitoring tracks hit rates and latency across all categories and tenants.
+Real-time monitoring is integrated directly into the `CacheService`, utilizing high-performance **circular buffers** to track hit rates and latency without memory bloat.
 
-- **Hits/Misses**: Tracked per category and tenant.
-- **Hit Rate**: Overall efficiency target > 90%.
-- **Response Time**: Continuous monitoring of L1/L2 overhead.
-- **Prometheus Export**: Native support for Grafana dashboards.
+- **Metrics Buffer**: Maintains a rolling window of the last 1000 operations.
+- **Hit Rate**: Accurately calculated via `getStats()` across all categories.
+- **Latency Tracking**: Microsecond-precision timing for L1 vs L2 performance comparisons.
+- **Prometheus Export**: Metrics are exposed via the `/api/metrics` endpoint for Grafana integration.
 
 ### Predictive Warming (`CacheWarmingService.ts`)
 

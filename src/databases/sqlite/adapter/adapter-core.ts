@@ -5,7 +5,7 @@
 
 import { logger } from "@src/utils/logger";
 import { testWorkerContext } from "@src/utils/test-worker-context";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type {
@@ -437,6 +437,18 @@ export class AdapterCore {
           } else {
             // An empty array in inArray() throws "Too few parameter values" in SQLite
             conditions.push(sql`1 = 0`);
+          }
+        } else if (typeof value === "object" && value !== null) {
+          // Handle MongoDB-style operators
+          const val = value as Record<string, any>;
+          if (val.$ne !== undefined) {
+            conditions.push(ne(column, val.$ne as string | number | boolean));
+          } else if (val.$in !== undefined && Array.isArray(val.$in)) {
+            if (val.$in.length > 0) {
+              conditions.push(inArray(column, val.$in));
+            } else {
+              conditions.push(sql`1 = 0`);
+            }
           }
         } else {
           conditions.push(eq(column, value as string | number | boolean));

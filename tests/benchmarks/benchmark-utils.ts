@@ -47,8 +47,8 @@ async function stabilize() {
   } else if (typeof globalThis.gc === "function") {
     globalThis.gc();
   }
-  // Small yield to let event loop settle
-  await new Promise((r) => setTimeout(r, 10));
+  // Small yield to let event loop settle and OS to reclaim resources
+  await new Promise((r) => setTimeout(r, 100));
 }
 
 /**

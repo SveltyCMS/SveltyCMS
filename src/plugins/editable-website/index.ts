@@ -1,12 +1,13 @@
 /**
  * @file src/plugins/editable-website/index.ts
- * @description Editable Website Plugin Definition
+ * @description Editable Website & Live Preview Plugin.
+ * Provides real-time bidirectional live preview with visual editing and handshake protocol.
  */
 
 import { slotRegistry } from "@src/plugins/slot-registry";
 import type { Plugin } from "@src/plugins/types";
 
-// Register the Live Preview slot
+// Register the Live Preview slot with a condition
 slotRegistry.register({
   id: "live_preview",
   zone: "entry_edit",
@@ -15,28 +16,19 @@ slotRegistry.register({
     label: "Live Preview",
     icon: "mdi:eye-outline",
   },
-  // Only show this slot if the collection has livePreview enabled?
-  // The Slot component itself doesn't filter by collection config easily yet without custom logic in Fields.svelte
-  // But we can check it inside the component or assume if the plugin is enabled, it shows.
-  // However, standard SveltyCMS behavior was to only show if collection.livePreview is true.
-  // For now, we register it. The component or the host (Fields.svelte) might need a way to filter.
-  // Actually, looking at Fields.svelte, it iterates all slots.
-  // We might need to add a "filter" or "enabled" logic to slots based on context.
-  // For this phase, we'll register it and let it appear.
-  // Best practice: The Host (Fields.svelte) provides the context (collection).
-  // Ideally the slot registry could support a 'condition' function.
-  // But let's stick to the plan: register it.
+  // Only show if the collection has livePreview enabled
+  condition: (context: any) => context?.collection?.livePreview === true,
 });
 
 export const editableWebsitePlugin: Plugin = {
   metadata: {
     id: "editable-website",
     name: "Editable Website & Live Preview",
-    version: "1.0.0",
-    description:
-      "Provides real-time Live Preview with bidirectional communication (Handshake Protocol).",
+    version: "1.1.0",
+    description: "Real-time bidirectional live preview with visual editing and handshake protocol.",
     icon: "mdi:web",
     enabled: true,
+    category: "editing",
   },
   ui: {
     editView: {

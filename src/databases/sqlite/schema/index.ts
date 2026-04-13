@@ -136,6 +136,9 @@ export const contentNodes = sqliteTable(
     slug: text("slug", { length: 500 }),
     icon: text("icon", { length: 100 }),
     description: text("description"),
+    collectionDef: text("collectionDef", { mode: "json" }).$type<
+      import("@src/content/types").Schema
+    >(),
     data: text("data", { mode: "json" }),
     metadata: text("metadata", { mode: "json" }),
     translations: text("translations", { mode: "json" })
@@ -144,6 +147,8 @@ export const contentNodes = sqliteTable(
     order: integer("order").notNull().default(0),
     isPublished: integer("isPublished", { mode: "boolean" }).notNull().default(false),
     publishedAt: integer("publishedAt", { mode: "timestamp_ms" }),
+    isDeleted: integer("isDeleted", { mode: "boolean" }).notNull().default(false),
+    deletedAt: integer("deletedAt", { mode: "timestamp_ms" }),
     tenantId: tenantField(),
     ...timestamps,
   },

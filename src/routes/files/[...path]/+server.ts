@@ -1,150 +1,159 @@
 /**
  * @file src/routes/files/[...path]/+server.ts
- * @description Serves media files via Streams (Non-blocking) or redirects to cloud storage.
- *
- * Improvements:
- * - **Streaming:** Uses `createReadStream` to serve files with near-zero memory footprint.
- * - **Async I/O:** Uses `fs.promises` to prevent blocking the Node.js event loop.
- * - **304 Not Modified:** Handles browser caching headers to save bandwidth.
- * - **Error Handling:** Handles 'ENOENT' specifically for cleaner 404s.
+ * @description Serves uploaded media files with streaming, cloud redirect support, and Range request handling.
+ * Highly memory-efficient, secure, and cache-friendly.
  */
 
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
+import { lookup } from "mime-types";
+
 import { getPublicSettingSync } from "@src/services/settings-service";
-// Unified Error Handling
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
-import { lookup } from "mime-types";
 
 export const GET = apiHandler(async ({ params, request }) => {
-  let filePath = params.path;
-
+  let filePath = params.path?.trim();
   if (!filePath) {
-    logger.warn("File request missing path");
     throw new AppError("File path is required", 400, "MISSING_PATH");
   }
 
-  // Clean up the path - remove any leading /files/ prefix that might have been doubled
-  if (filePath.startsWith("/files/") || filePath.startsWith("files/")) {
-    console.warn("[Files Route] Detected /files/ prefix in path, cleaning:", filePath);
-    filePath = filePath.replace(/^\/?files\//, "");
-  }
+  // Clean potential doubled prefix or leading slashes
+  filePath = filePath.replace(/^\/?files\//, "").replace(/^\/+/, "");
 
-  // Check storage type
-  const storageType = getPublicSettingSync("MEDIA_STORAGE_TYPE");
+  // Load settings once per request
+  const storageType = getPublicSettingSync("MEDIA_STORAGE_TYPE") || "local";
+  const mediaFolder = getPublicSettingSync("MEDIA_FOLDER") || "static/media";
+  const cloudPublicUrl =
+    getPublicSettingSync("MEDIA_CLOUD_PUBLIC_URL") || getPublicSettingSync("MEDIASERVER_URL");
 
-  // --- BROWSER CACHE OPTIMIZATION (ETag / 304) ---
   const ifNoneMatch = request.headers.get("if-none-match");
+  const ifModifiedSince = request.headers.get("if-modified-since");
 
-  // --- CLOUD STORAGE REDIRECT ---
-  if (storageType !== "local") {
-    // Performance: Try to use ETag to avoid redirect if browser already has it
+  // ====================== CLOUD STORAGE REDIRECT ======================
+  if (storageType !== "local" && cloudPublicUrl) {
     const { getMetadata } = await import("@src/utils/media/cloud-storage");
-    const metadata = await getMetadata(filePath);
 
-    if (metadata?.etag && ifNoneMatch === metadata.etag) {
+    let etag: string | undefined;
+    try {
+      const metadata = await getMetadata(filePath);
+      etag = metadata?.etag;
+    } catch {
+      // Metadata fetch failed → continue without ETag optimization
+    }
+
+    // Early return if browser already has the latest version
+    if (etag && ifNoneMatch === etag) {
       return new Response(null, { status: 304 });
     }
 
-    const cloudUrl =
-      getPublicSettingSync("MEDIA_CLOUD_PUBLIC_URL") || getPublicSettingSync("MEDIASERVER_URL");
+    const normalizedFolder = mediaFolder.replace(/^\.\//, "").replace(/^\/+|\/+$/g, "");
 
-    if (cloudUrl) {
-      const mediaFolder = getPublicSettingSync("MEDIA_FOLDER") || "";
-      const normalizedFolder = mediaFolder
-        .replace(/^\.\//, "")
-        .replace(/^\/+/, "")
-        .replace(/\/+$/, "");
-      const baseUrl = cloudUrl.replace(/\/+$/, "");
-      const fullUrl = normalizedFolder
-        ? `${baseUrl}/${normalizedFolder}/${filePath}`
-        : `${baseUrl}/${filePath}`;
+    const baseUrl = cloudPublicUrl.replace(/\/+$/, "");
+    const fullUrl = normalizedFolder
+      ? `${baseUrl}/${normalizedFolder}/${filePath}`
+      : `${baseUrl}/${filePath}`;
 
-      logger.debug("Redirecting to cloud storage", {
-        filePath,
-        cloudUrl: fullUrl,
-      });
+    logger.debug("Redirecting media to cloud storage", { filePath, fullUrl });
 
-      // Add ETag to redirect response to help future requests
-      return new Response(null, {
-        status: 307,
-        headers: {
-          Location: fullUrl,
-          ETag: metadata?.etag || "",
-          "Cache-Control": "public, max-age=31536000, immutable",
-        },
-      });
-    }
-    logger.error("Cloud storage configured but no public URL available", {
-      storageType,
+    return new Response(null, {
+      status: 302, // 302 is standard for temporary asset redirects
+      headers: {
+        Location: fullUrl,
+        ...(etag && { ETag: etag }),
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
     });
-    throw new AppError("Cloud storage URL not configured", 500, "CLOUD_CONFIG_ERROR");
   }
 
-  // --- LOCAL STORAGE SERVING ---
-  const mediaFolder = getPublicSettingSync("MEDIA_FOLDER");
-  console.log("Files Route Debug:", { mediaFolder, filePath, storageType });
-
-  if (!mediaFolder) {
-    logger.error("MEDIA_FOLDER not configured");
-    throw new AppError("Media storage not configured", 500, "STORAGE_CONFIG_ERROR");
+  if (storageType !== "local") {
+    throw new AppError("Cloud storage misconfigured", 500, "CLOUD_CONFIG_ERROR");
   }
 
+  // ====================== LOCAL STORAGE SERVING ======================
   const normalizedMediaFolder = mediaFolder.replace(/^\.\//, "").replace(/^\/+/, "");
   const fullPath = path.join(process.cwd(), normalizedMediaFolder, filePath);
-  console.log("Files Route resolving:", fullPath);
-
-  // Security: Directory Traversal Prevention
   const resolvedPath = path.resolve(fullPath);
-  const allowedBasePath = path.resolve(process.cwd(), normalizedMediaFolder);
+  const basePath = path.resolve(process.cwd(), normalizedMediaFolder);
 
-  if (!resolvedPath.startsWith(allowedBasePath)) {
-    logger.warn("Directory traversal attempt detected", {
-      requestedPath: filePath,
-      resolvedPath,
+  // Stronger directory traversal protection using path.relative
+  const relative = path.relative(basePath, resolvedPath);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    logger.warn("Directory traversal attempt blocked", {
+      requested: filePath,
+      resolved: resolvedPath,
     });
     throw new AppError("Access denied", 403, "ACCESS_DENIED");
   }
 
-  // Async Stat check (Non-blocking)
-  // We use standard try/catch here only for fs operations to throw specific AppErrors
-  let stats: any;
+  // Get file stats (non-blocking)
+  let stats;
   try {
     stats = await stat(resolvedPath);
   } catch (err: any) {
     if (err.code === "ENOENT") {
-      logger.debug("File not found", { path: params.path });
+      logger.debug("Media file not found", { path: filePath });
       throw new AppError("File not found", 404, "NOT_FOUND");
     }
-    throw err;
+    logger.error("Error accessing media file", { error: err });
+    throw new AppError("Internal server error", 500, "FILE_ACCESS_ERROR");
   }
 
   if (!stats.isFile()) {
-    throw new AppError("Invalid file request", 400, "INVALID_FILE");
+    throw new AppError("Not a file", 400, "INVALID_FILE");
   }
 
-  // Local ETag calculation
+  // ETag & Last-Modified for caching
   const etag = `W/"${stats.size}-${stats.mtimeMs}"`;
-
-  // Browser Cache Optimization (304 Not Modified)
   const lastModified = stats.mtime.toUTCString();
-  if (ifNoneMatch === etag || request.headers.get("if-modified-since") === lastModified) {
+
+  // Browser cache optimization
+  if (ifNoneMatch === etag || ifModifiedSince === lastModified) {
     return new Response(null, { status: 304 });
   }
 
-  // MIME Type
   const mimeType = lookup(resolvedPath) || "application/octet-stream";
+  const range = request.headers.get("range");
 
-  // STREAMING RESPONSE (Memory Efficient)
-  // We convert the Node stream to a Web ReadableStream for SvelteKit
-  const nodeStream = createReadStream(resolvedPath);
-  const stream = Readable.toWeb(nodeStream);
+  // Handle Range Requests (important for video/audio seeking)
+  if (range && range.startsWith("bytes=")) {
+    const parts = range.replace(/bytes=/, "").split("-");
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : stats.size - 1;
 
-  return new Response(stream as any, {
+    if (start >= stats.size || end >= stats.size || start > end) {
+      return new Response(null, {
+        status: 416,
+        headers: { "Content-Range": `bytes */${stats.size}` },
+      });
+    }
+
+    const chunksize = end - start + 1;
+    const fileStream = createReadStream(resolvedPath, { start, end });
+    const webStream = Readable.toWeb(fileStream);
+
+    return new Response(webStream as any, {
+      status: 206,
+      headers: {
+        "Content-Type": mimeType,
+        "Content-Range": `bytes ${start}-${end}/${stats.size}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": chunksize.toString(),
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Last-Modified": lastModified,
+        ETag: etag,
+      },
+    });
+  }
+
+  // Efficient streaming for full file
+  const fileStream = createReadStream(resolvedPath);
+  const webStream = Readable.toWeb(fileStream);
+
+  return new Response(webStream as any, {
     status: 200,
     headers: {
       "Content-Type": mimeType,
@@ -152,6 +161,7 @@ export const GET = apiHandler(async ({ params, request }) => {
       "Cache-Control": "public, max-age=31536000, immutable",
       "Last-Modified": lastModified,
       ETag: etag,
+      "Accept-Ranges": "bytes",
     },
   });
 });

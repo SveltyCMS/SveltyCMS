@@ -63,6 +63,7 @@ export const privateEnv = {
 	DB_NAME: '${escape(dbConfig.name)}',
 	DB_USER: '${escape(dbConfig.user)}',
 	DB_PASSWORD: '${escape(dbConfig.password)}',
+	DB_AUTH_SOURCE: '${escape(dbConfig.authSource || "admin")}',
 
 	// --- Connection Behavior ---
 	DB_RETRY_ATTEMPTS: 5,

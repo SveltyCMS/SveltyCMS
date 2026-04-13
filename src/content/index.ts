@@ -187,7 +187,7 @@ export const contentSystem = {
     return contentNavigation.getNavigationStructure(tenantId);
   },
   async getContentStructureFromDatabase(
-    format: "flat" | "nested" = "nested",
+    format: "flat" | "tree" = "tree",
     tenantId?: string | null,
   ): Promise<any[]> {
     const { contentService } = await import("./content-service.server");
