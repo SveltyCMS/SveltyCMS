@@ -550,13 +550,25 @@ async function stepCompleteSetup(): Promise<void> {
 
   const form = new FormData();
   form.append("data", JSON.stringify(payload));
-  const res = parseActionResult(await postAction("completeSetup", form)) as any;
 
-  if (!res || res.success === false) {
-    fatal(`Setup completion failed: ${res?.error ?? "no details returned"}`);
+  // Retry completeSetup up to 5 times — auth tables may not be ready immediately after seeding
+  const maxAttempts = 5;
+  let lastError: string | undefined;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const res = parseActionResult(await postAction("completeSetup", form)) as any;
+    if (res && res.success !== false) {
+      log("info", "Setup complete.");
+      return;
+    }
+    lastError = res?.error ?? "no details returned";
+    if (attempt < maxAttempts) {
+      log("warn", `Setup completion attempt ${attempt}/${maxAttempts} failed (${lastError}). Retrying in 2s…`);
+      await sleep(2000);
+    }
   }
-  log("info", "Setup complete.");
+  fatal(`Setup completion failed after ${maxAttempts} attempts: ${lastError}`);
 }
+
 
 // ---------------------------------------------------------------------------
 // Utilities
