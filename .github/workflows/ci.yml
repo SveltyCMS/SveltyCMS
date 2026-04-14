@@ -327,6 +327,7 @@ jobs:
           TEST_MODE: true
           ADMIN_PASSWORD: Password123!
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:4173
+          API_BASE_URL: http://127.0.0.1:4173
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
           bun run preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
@@ -376,6 +377,7 @@ jobs:
           TEST_MODE: true
           ADMIN_PASSWORD: Password123!
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:4173
+          API_BASE_URL: http://127.0.0.1:4173
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
           bun run preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
@@ -437,6 +439,7 @@ jobs:
           TEST_MODE: true
           ADMIN_PASSWORD: Password123!
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:4173
+          API_BASE_URL: http://127.0.0.1:4173
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
           bun run preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
