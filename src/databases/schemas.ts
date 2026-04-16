@@ -49,7 +49,7 @@ export const privateConfigSchema = object({
     literal(""),
   ]),
   DB_HOST: pipe(string(), minLength(1, "Database host is required.")),
-  DB_PORT: optional(pipe(coercedNumber, minValue(1))),
+  DB_PORT: optional(pipe(coercedNumber, minValue(0))),
   DB_NAME: pipe(string(), minLength(1, "Database name is required.")),
   DB_USER: optional(string()),
   DB_PASSWORD: optional(string()),

@@ -149,7 +149,10 @@ export const _handler = async (event: RequestEvent) => {
   }
 
   if (!adapter) {
-    throw new AppError("Database unavailable: Adapter not initialized", 503);
+    const { getPrivateEnv } = await import("@src/databases/config-state");
+    const env = getPrivateEnv();
+    const details = `DB_TYPE=${env?.DB_TYPE}, TEST_MODE=${process.env.TEST_MODE}, NODE_ENV=${process.env.NODE_ENV}`;
+    throw new AppError(`Database unavailable: Adapter not initialized (${details})`, 503);
   }
 
   const cms = new LocalCMS(adapter);

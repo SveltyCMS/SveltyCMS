@@ -242,7 +242,13 @@ const globalWithWs = globalThis as any;
 let wsServerInitialized = false;
 
 async function initializeWebSocketServer(dbAdapter: any, tenantId?: string | null) {
-  if (wsServerInitialized || building || globalWithWs.__SVELTY_GRAPHQL_WS__) return;
+  if (
+    wsServerInitialized ||
+    building ||
+    globalWithWs.__SVELTY_GRAPHQL_WS__ ||
+    process.env.BUN_TEST_MOCKS === "false"
+  )
+    return;
 
   try {
     const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);

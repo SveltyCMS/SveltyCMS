@@ -84,6 +84,11 @@ export class CollectionModule {
         return res.success ? res.data : [];
       },
     };
+    const tableId = id.startsWith("collection_") ? id : `collection_${id}`;
+    const dynamicTable = this.core.createDynamicTableDefinition(tableId);
+    this.core.dynamicTables.set(id, dynamicTable);
+    this.core.dynamicTables.set(tableId, dynamicTable);
+
     this.collectionRegistry.set(id, wrappedModel);
   }
 

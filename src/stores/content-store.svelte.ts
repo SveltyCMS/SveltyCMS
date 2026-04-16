@@ -4,7 +4,6 @@
  */
 
 import type { ContentNode, Schema } from "@src/content/types";
-const browser = typeof window !== "undefined";
 
 // ✨ Absolute Global Singleton Pattern using 'process' to bypass bundler chunk isolation
 const STORE_KEY = "__SVELTY_CONTENT_STORE_INSTANCE__";
@@ -21,9 +20,7 @@ class ContentStore {
   public contentVersion: number = 0;
 
   constructor() {
-    console.debug(
-      `[ContentStore] New instance created: ${Math.random().toString(36).substring(7)}`,
-    );
+    // No-op
   }
 
   get isInitialized(): boolean {
@@ -111,10 +108,25 @@ class ContentStore {
       if (node._id) {
         this._allNodes.set(node._id as string, node);
         const tid = node.tenantId || "global";
+
+        // Update nodes map
         const tNodes = this._nodes.get(tid) || [];
         if (!tNodes.find((n) => n._id === node._id)) {
           tNodes.push(node);
           this._nodes.set(tid, tNodes);
+        }
+
+        // Update collections/schemas map for CMS/API usage
+        if (node.nodeType === "collection") {
+          const schema = node.collectionDef;
+          if (schema) {
+            const tCollections = this._collections.get(tid) || [];
+            if (!tCollections.find((c) => c._id === (schema._id || node._id))) {
+              tCollections.push(schema);
+              this._collections.set(tid, tCollections);
+            }
+            this._schemas.set((schema._id || node._id) as string, schema);
+          }
         }
       }
     }
@@ -146,14 +158,10 @@ class ContentStore {
 // Global Singleton logic
 let instance: ContentStore;
 
-if (browser) {
-  const win = window as any;
-  if (!win[STORE_KEY]) win[STORE_KEY] = new ContentStore();
-  instance = win[STORE_KEY];
-} else {
-  const proc = process as any;
-  if (!proc[STORE_KEY]) proc[STORE_KEY] = new ContentStore();
-  instance = proc[STORE_KEY];
+const globalTarget = globalThis as any;
+if (!globalTarget[STORE_KEY]) {
+  globalTarget[STORE_KEY] = new ContentStore();
 }
+instance = globalTarget[STORE_KEY];
 
 export const contentStore = instance;

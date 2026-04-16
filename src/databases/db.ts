@@ -41,6 +41,9 @@ export async function initializeSystem(forceReload = false): Promise<void> {
     const connectionResult = await dbAdapter.connect(config as any);
     if (connectionResult.success) {
       isConnected = true;
+      const { updateServiceHealth } = await import("@src/stores/system/state");
+      updateServiceHealth("database", "healthy", "Database service ready");
+
       const { initializeCriticalServices } = await import("./db-init");
       auth = await initializeCriticalServices(dbAdapter);
     }
@@ -73,11 +76,28 @@ export function getDbInitPromise(forceReload = false, phase = "FULL") {
 }
 
 export function getDb(): DatabaseAdapter | null {
-  return (process as any)[ADAPTER_KEY] || dbAdapter;
+  const adapter = (process as any)[ADAPTER_KEY] || dbAdapter;
+
+  if (!adapter && typeof process !== "undefined" && process.env.NODE_ENV === "production") {
+    // CRITICAL: If adapter is null in production, it might be a race or lost state.
+    // Since initializeSystem uses a singleton promise, this is safe to call.
+    initializeSystem(false);
+  }
+
+  return adapter;
+}
+
+export async function ensureFullInitialization(forceReload = false): Promise<void> {
+  await getDbInitPromise(forceReload);
+  const adapter = getDb();
+  if (adapter) {
+    const { runBackgroundTasks } = await import("./db-init");
+    await runBackgroundTasks(adapter);
+  }
 }
 
 export async function initializeWithConfig(_config: any): Promise<void> {
-  await initializeSystem(true);
+  await ensureFullInitialization(true);
 }
 
 export async function loadSettingsFromDB(): Promise<void> {
@@ -89,6 +109,10 @@ export async function loadSettingsFromDB(): Promise<void> {
 
 export function clearPrivateConfigCache(_force = false): void {}
 
+/**
+ * Resets the database initialization state.
+ * Sync function used by tests to clear memory before re-init.
+ */
 export function resetDbInitPromise(): void {
   isConnected = false;
   dbAdapter = null;
@@ -97,5 +121,5 @@ export function resetDbInitPromise(): void {
 }
 
 export async function reinitializeSystem(force: boolean = true): Promise<any> {
-  return initializeSystem(force);
+  return ensureFullInitialization(force);
 }

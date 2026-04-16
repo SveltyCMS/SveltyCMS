@@ -24,6 +24,10 @@ class WidgetRegistryService {
     return WidgetRegistryService.instance;
   }
 
+  public isInitializedState(): boolean {
+    return this.isInitialized;
+  }
+
   public async initialize(): Promise<void> {
     if (this.isInitialized) {
       return;
@@ -115,8 +119,12 @@ class WidgetRegistryService {
         logger.info(
           `WidgetRegistryService initialized with ${this.widgets.size} widgets in ${duration}ms.`,
         );
+        const { updateServiceHealth } = await import("@src/stores/system/state");
+        updateServiceHealth("widgets", "healthy", "Widgets initialized");
       } catch (error) {
         logger.error("Failed to initialize WidgetRegistryService", error);
+        const { updateServiceHealth } = await import("@src/stores/system/state");
+        updateServiceHealth("widgets", "unhealthy", "Widget initialization failed");
         throw error;
       }
     })();

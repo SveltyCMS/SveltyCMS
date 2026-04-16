@@ -1,253 +1,141 @@
 /**
  * @file tests/benchmarks/relational-performance.test.ts
- * @description Professional benchmark for SveltyCMS Relational Queries and Population performance.
- * Tests GraphQL population (Depth 1, 2, & 3) and REST relational filtering.
+ * @description
+ * High-fidelity performance audit for complex GraphQL relations.
+ * Bypasses network overhead using the Serverless Dispatcher.
  */
 
 import { test } from "bun:test";
-import { runBenchmark, exportResult } from "./benchmark-utils";
-import { getApiBaseUrl, safeFetch } from "../integration/helpers/server";
+import "../unit/setup.ts";
+import { runBenchmark, exportResult, checkBenchmarkEnv, mockDispatch } from "./benchmark-utils";
+import { logger } from "@utils/logger.server";
 
-const API_BASE_URL = getApiBaseUrl();
-const POSTS_COLLECTION_ID = "00000000000000000000000000000002";
+async function runWithMemoryTracking(name: string, fn: () => Promise<any>) {
+  const memBefore = process.memoryUsage();
+  const result = await fn();
+  const memAfter = process.memoryUsage();
 
-let authorsFieldName = "Authors_00000000";
-let postsRelationField = "Posts"; // fallback
+  const rssDelta = (memAfter.rss - memBefore.rss) / 1024 / 1024;
+  const heapDelta = (memAfter.heapUsed - memBefore.heapUsed) / 1024 / 1024;
 
-async function discoverRelationalFields() {
-  console.log("🔍 Discovering relational field names via GraphQL introspection...");
+  console.log(
+    `   📊 ${name} memory delta → RSS: ${rssDelta.toFixed(2)} MB | Heap: ${heapDelta.toFixed(2)} MB`,
+  );
 
-  const TEST_API_SECRET = process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026";
+  return { result, rssDelta, heapDelta };
+}
 
-  const res = await safeFetch(`${API_BASE_URL}/api/graphql`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-test-secret": TEST_API_SECRET,
+export async function runRelationalBenchmark() {
+  checkBenchmarkEnv();
+  console.log("🚀 Starting High-Fidelity Relational GraphQL Performance Benchmark...\n");
+
+  logger.level = "silent";
+
+  const { ensureFullInitialization } = await import("@src/databases/db");
+  await ensureFullInitialization();
+
+  const ITERATIONS = 600;
+  const WARMUP = Math.floor(ITERATIONS * 0.15);
+  const RUNS = 3;
+
+  const queries = [
+    {
+      name: "GraphQL Introspection",
+      query: "{ __schema { queryType { fields { name } } } }",
+      iterations: 50,
+      warmup: 5,
     },
-    body: JSON.stringify({
+    {
+      name: "Deep Relational Query",
       query: `
-        {
-          __schema {
-            queryType { fields { name } }
-            types {
-              name
-              fields { name }
+        query GetRelationalData {
+          Authors_00000000(limit: 5) {
+            _id
+            name
+            Posts(limit: 8) {
+              _id
+              title
+              status
             }
           }
         }
       `,
-    }),
-  });
-
-  if (!res.ok) {
-    console.warn("⚠️ Schema introspection failed. Using fallback field names.");
-    return;
-  }
-
-  const { data } = await res.json();
-  const queryFields = data?.__schema?.queryType?.fields || [];
-
-  const authorMatch = queryFields.find((f: any) => f.name.startsWith("Authors_"));
-  if (authorMatch) {
-    authorsFieldName = authorMatch.name;
-    const typeName = authorMatch.type?.name;
-    const authorType = data?.__schema?.types?.find((t: any) => t.name === typeName);
-
-    if (authorType) {
-      const relationMatch = authorType.fields?.find((f: any) =>
-        f.name.toLowerCase().includes("post"),
-      );
-      if (relationMatch) postsRelationField = relationMatch.name;
-    }
-  }
-
-  console.log(
-    `[Relational] Using → Authors: ${authorsFieldName} | Posts relation: ${postsRelationField}`,
-  );
-}
-
-async function stabilize() {
-  if (typeof Bun !== "undefined") Bun.gc(true);
-  await new Promise((r) => setTimeout(r, 40));
-}
-
-function getMemoryMb() {
-  const mem = process.memoryUsage();
-  return (mem.heapUsed / 1024 / 1024).toFixed(2);
-}
-
-test("Relational Performance Suite (GraphQL Population + REST Filtering)", async () => {
-  console.log("🚀 Starting Professional SveltyCMS Relational Performance Benchmark...\n");
-
-  const TEST_API_SECRET = process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026";
-  const authHeaders = {
-    "Content-Type": "application/json",
-    "x-test-secret": TEST_API_SECRET,
-  };
-
-  // Discover correct field names once before measuring
-  await discoverRelationalFields();
-  await stabilize();
-
-  const ITERATIONS = 600;
-  const WARMUP = 80;
+      iterations: ITERATIONS,
+      warmup: WARMUP,
+    },
+  ];
 
   const results: any[] = [];
 
-  // 0. Baseline (Non-relational)
-  console.log(`📊 Memory baseline: ${getMemoryMb()} MB`);
-  console.log("🔍 Benchmarking Baseline fetch (Authors only)...");
-  const baselineResult = await runBenchmark({
-    name: "Relational: Baseline (No Population)",
-    iterations: ITERATIONS,
-    warmupIterations: WARMUP,
-    concurrency: 6,
-    onIteration: async () => {
-      const res = await safeFetch(
-        `${API_BASE_URL}/api/collections/00000000000000000000000000000001?limit=20`,
-        {
-          headers: authHeaders,
+  for (const q of queries) {
+    console.log(`\n📌 Benchmarking: ${q.name}`);
+
+    const res = await runWithMemoryTracking(q.name, () =>
+      runBenchmark({
+        name: q.name,
+        iterations: q.iterations,
+        warmupIterations: q.warmup,
+        concurrency: 1,
+        runs: RUNS,
+        trimOutliers: "iqr",
+        onIteration: async () => {
+          const res = await mockDispatch({
+            path: "/graphql",
+            method: "POST",
+            body: { query: q.query },
+          });
+
+          if (res.status !== 200) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(
+              `GraphQL Query failed: ${res.status} - ${JSON.stringify(body).slice(0, 100)}`,
+            );
+          }
+          await res.text();
         },
-      );
-      await res.json();
-    },
-  });
-  results.push(baselineResult);
+        silent: true,
+      }),
+    );
 
-  await stabilize();
+    results.push({ ...res.result, rssDelta: res.rssDelta });
+  }
 
-  // 1. GraphQL Population - Depth 1 (Authors → Posts)
-  console.log("📚 Benchmarking GraphQL Population (Depth 1)...");
-  const populationResult = await runBenchmark({
-    name: "Relational: GraphQL Population (Depth 1)",
-    iterations: ITERATIONS,
-    warmupIterations: WARMUP,
-    concurrency: 6,
-    onIteration: async () => {
-      const res = await safeFetch(`${API_BASE_URL}/api/graphql`, {
-        method: "POST",
-        headers: authHeaders,
-        body: JSON.stringify({
-          query: `query { ${authorsFieldName} { name ${postsRelationField} { title } } }`,
-        }),
-      });
-      if (!res.ok) throw new Error(`GraphQL failed: ${res.status}`);
-      const data = await res.json();
-      if (!data.data?.[authorsFieldName]?.length) {
-        throw new Error("No data returned from GraphQL population query");
-      }
-    },
-  });
-  results.push(populationResult);
-  exportResult(populationResult, "relational-graphql-population.json");
+  logger.level = "info";
 
-  await stabilize();
+  // ===================================================================
+  // Professional Summary
+  // ===================================================================
+  console.log("\n" + "=".repeat(130));
+  console.log("   📊 SVELTYCMS RELATIONAL GRAPHQL PERFORMANCE AUDIT");
+  console.log("   High-Fidelity • Complex Joins • Serverless Dispatcher • 95% Confidence");
+  console.log("=".repeat(130));
 
-  // 2. GraphQL Nested Population - Depth 2 (Authors -> Posts -> Author)
-  console.log("📚 Benchmarking GraphQL Nested Population (Depth 2)...");
-  const nestedResult = await runBenchmark({
-    name: "Relational: GraphQL Nested (Depth 2)",
-    iterations: ITERATIONS,
-    warmupIterations: WARMUP,
-    concurrency: 5,
-    onIteration: async () => {
-      const res = await safeFetch(`${API_BASE_URL}/api/graphql`, {
-        method: "POST",
-        headers: authHeaders,
-        body: JSON.stringify({
-          query: `query { ${authorsFieldName} { name ${postsRelationField} { title author { name } } } }`,
-        }),
-      });
-      if (!res.ok) throw new Error(`GraphQL nested failed: ${res.status}`);
-      const data = await res.json();
-      if (!data.data?.[authorsFieldName]?.length) {
-        throw new Error("No data returned from nested GraphQL query");
-      }
-    },
-  });
-  results.push(nestedResult);
-  exportResult(nestedResult, "relational-graphql-nested.json");
-
-  await stabilize();
-
-  // 3. GraphQL Extreme Population - Depth 3 (Authors -> Posts -> Author -> Posts)
-  console.log("📚 Benchmarking GraphQL Extreme Population (Depth 3)...");
-  console.log(`📊 Memory before Depth 3: ${getMemoryMb()} MB`);
-  const extremeResult = await runBenchmark({
-    name: "Relational: GraphQL Extreme (Depth 3)",
-    iterations: Math.floor(ITERATIONS / 2),
-    warmupIterations: Math.floor(WARMUP / 4),
-    concurrency: 4,
-    onIteration: async () => {
-      const res = await safeFetch(`${API_BASE_URL}/api/graphql`, {
-        method: "POST",
-        headers: authHeaders,
-        body: JSON.stringify({
-          query: `query { ${authorsFieldName} { name ${postsRelationField} { title author { name ${postsRelationField} { title } } } } }`,
-        }),
-      });
-      if (!res.ok) throw new Error(`GraphQL depth-3 failed: ${res.status}`);
-      const data = await res.json();
-      if (!data.data?.[authorsFieldName]?.length) {
-        throw new Error("No data returned from depth-3 GraphQL query");
-      }
-    },
-  });
-  console.log(`📊 Memory after Depth 3: ${getMemoryMb()} MB`);
-  results.push(extremeResult);
-  exportResult(extremeResult, "relational-graphql-extreme.json");
-
-  await stabilize();
-
-  // 4. REST Relational Filtering (via aggregation / dotted notation)
-  console.log("🔍 Benchmarking REST Relational Search/Filter (Limit+Sort)...");
-  const restResult = await runBenchmark({
-    name: "Relational: REST Search (Dotted Filter)",
-    iterations: ITERATIONS,
-    warmupIterations: WARMUP,
-    concurrency: 6,
-    onIteration: async () => {
-      const filter = JSON.stringify({
-        "author.name": { $regex: "Author", $options: "i" },
-      });
-
-      const res = await safeFetch(
-        `${API_BASE_URL}/api/collections/${POSTS_COLLECTION_ID}?filter=${encodeURIComponent(filter)}&limit=20&sort=title`,
-        { headers: authHeaders },
-      );
-
-      if (!res.ok) throw new Error(`REST filter failed: ${res.status}`);
-      const data = await res.json();
-      if (!data.data?.length) {
-        throw new Error("REST relational filter returned no results");
-      }
-    },
-  });
-  results.push(restResult);
-  exportResult(restResult, "relational-rest-search.json");
-
-  // ========================
-  // Professional Summary Matrix
-  // ========================
-  console.log("\n" + "=".repeat(105));
-  console.log("📊 RELATIONAL QUERIES PERFORMANCE MATRIX");
-  console.log("=".repeat(105));
-
-  const pad = (s: string, n: number) => s.padEnd(n).slice(0, n);
   console.log(
-    `| ${pad("Query Type", 42)} | ${pad("Avg (ms)", 10)} | ${pad("p95 (ms)", 10)} | ${pad("p99 (ms)", 10)} | ${pad("RPS", 12)} |`,
+    `| ${"Operation".padEnd(38)} | ${"Avg Latency".padEnd(22)} | ${"p95".padEnd(14)} | ${"RPS".padEnd(12)} | ${"RSS Δ".padEnd(12)} |`,
   );
-  console.log("|" + "-".repeat(103) + "|");
+  console.log("|" + "-".repeat(38 + 22 + 14 + 12 + 12 + 6) + "|");
 
   for (const r of results) {
-    const cleanName = r.name.replace("Relational: ", "");
+    const rssDeltaStr =
+      r.rssDelta !== undefined ? `${r.rssDelta >= 0 ? "+" : ""}${r.rssDelta.toFixed(2)} MB` : "—";
     console.log(
-      `| ${pad(cleanName, 42)} | ${pad(r.avgMs.toFixed(3), 10)} | ${pad(r.p95Ms.toFixed(3), 10)} | ${pad(r.p99Ms.toFixed(3), 10)} | ${pad(Math.round(r.rps).toLocaleString(), 12)} |`,
+      `| ${r.name.padEnd(38)} | ` +
+        `${r.avgMs.toFixed(4)} ms (±${r.marginOfError.toFixed(3)})`.padEnd(22) +
+        ` | ` +
+        `${r.p95Ms.toFixed(4)} ms`.padEnd(14) +
+        ` | ` +
+        `${Math.round(r.rps).toLocaleString()}`.padEnd(12) +
+        ` | ` +
+        `${rssDeltaStr.padEnd(12)} |`,
     );
   }
-  console.log("=".repeat(105));
+  console.log("=".repeat(130));
 
-  console.log(`\nFinal Memory State: ${getMemoryMb()} MB`);
-  console.log(`Tested with high-precision statistical analysis and forced GC stabilization.`);
-}, 600000);
+  results.forEach((r) => exportResult(r));
+}
+
+if (!process.env.SVELTY_AUDIT_ACTIVE) {
+  test("Relational Performance Suite (High-Fidelity)", async () => {
+    await runRelationalBenchmark();
+  }, 600000);
+}

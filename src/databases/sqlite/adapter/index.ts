@@ -42,29 +42,41 @@ import * as utils from "../utils";
 import { AdapterCore } from "./adapter-core";
 
 export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
-  public readonly system: import("../../db-interface").ISystemAdapter;
-  public readonly monitoring: import("../../db-interface").IMonitoringAdapter;
-  public readonly crud: CrudModule;
-  public readonly auth: AuthModule;
-  public readonly content: ContentModule;
-  public readonly media: MediaModule;
-  public readonly batch: BatchModule;
-  public readonly collection: CollectionModule;
+  public readonly system!: import("../../db-interface").ISystemAdapter;
+  declare public readonly monitoring: import("../../db-interface").IMonitoringAdapter;
+  declare public readonly crud: CrudModule;
+  declare public readonly auth: AuthModule;
+  public readonly content!: ContentModule;
+  declare public readonly media: MediaModule;
+  declare public readonly batch: BatchModule;
+  declare public readonly collection: CollectionModule;
   public readonly utils = utils;
   private readonly transactionModule: TransactionModule;
 
   constructor() {
     super();
-    this.crud = new CrudModule(this);
-    this.auth = new AuthModule(this);
-    this.content = new ContentModule(this);
-    this.media = new MediaModule(this);
-    this.collection = new CollectionModule(this);
-    this.batch = new BatchModule(this);
+
+    // Use Object.defineProperty to ENSURE enumerability and visibility across all environments
+    const define = (prop: string, value: any) => {
+      Object.defineProperty(this, prop, {
+        value,
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    };
+
+    define("crud", new CrudModule(this));
+    define("auth", new AuthModule(this));
+    define("content", new ContentModule(this));
+    define("media", new MediaModule(this));
+    define("collection", new CollectionModule(this));
+    define("batch", new BatchModule(this));
+
     this.transactionModule = new TransactionModule(this);
 
     // Initialize nested adapters
-    this.system = {
+    define("system", {
       preferences: new PreferencesModule(this),
       virtualFolder: new VirtualFoldersModule(this),
       themes: new ThemesModule(this),
@@ -72,7 +84,7 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
       websiteTokens: new WebsiteTokensModule(this),
       jobs: new JobsModule(this),
       tenants: {
-        create: async (tenant) =>
+        create: async (tenant: Tenant) =>
           this.wrap(async () => {
             const id = (tenant._id || utils.generateId()) as string;
             const now = new Date();
@@ -123,9 +135,9 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
             return results as unknown as Tenant[];
           }, "TENANT_LIST_FAILED"),
       },
-    };
+    });
 
-    this.monitoring = {
+    define("monitoring", {
       performance: new PerformanceModule(this),
       cache: new CacheModule(this),
       getConnectionPoolStats: async () =>
@@ -140,7 +152,7 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
             avgConnectionTime: 0,
           };
         }, "POOL_STATS_FAILED"),
-    };
+    });
   }
 
   public async ensureAuth(): Promise<void> {

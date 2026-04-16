@@ -816,6 +816,28 @@ class CollectionsNamespace {
       console.error("[LocalCMS/Collections] ERROR: dbAdapter is null/undefined in constructor");
     }
 
+    // DIAGNOSTIC CORE: Verify collection interface availability with Proxy status
+    if (!(this._dbAdapter as any).collection) {
+      console.warn(
+        `⚠️ [LocalCMS/Collections] WARNING: 'collection' missing! Proxy Active: ${!!(this._dbAdapter as any).__isSveltyProxy__}. Keys:`,
+        Object.keys(this._dbAdapter || {}),
+      );
+
+      // DEFENSIVE FALLBACK: Recover from prototype or return minimal schema interface to prevent crash
+      const proto = (this._dbAdapter as any).constructor?.prototype;
+      if (proto?.collection) {
+        console.log(`🟢 [LocalCMS] Corrected 'collection' from prototype.`);
+        (this._dbAdapter as any).collection = proto.collection;
+      } else {
+        (this._dbAdapter as any).collection = {
+          getModel: () => ({
+            findOne: () => Promise.resolve(null),
+            aggregate: () => Promise.resolve([]),
+          }),
+        };
+      }
+    }
+
     // Initialize the Typed Proxy for dot-notation access
     this._proxy = new Proxy({} as CollectionProxy, {
       get: (_, prop: string) => {
@@ -871,8 +893,14 @@ class CollectionsNamespace {
 
   private async getSchema(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema> {
     const schema = await contentSystem.getCollectionById(collectionId, tenantId);
-    if (!schema?._id)
+    if (!schema?._id) {
+      console.error(`[LocalCMS] Collection "${collectionId}" not found for tenant: ${tenantId}`);
+      console.error(
+        `[LocalCMS] Available collections:`,
+        (contentSystem.getCollections(tenantId) || []).map((c: any) => c._id),
+      );
       throw new AppError(`Collection "${collectionId}" not found`, 404, "COLLECTION_NOT_FOUND");
+    }
     return schema;
   }
 

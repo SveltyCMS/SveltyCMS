@@ -238,7 +238,8 @@ describe("Setup Actions - Database Seeding", () => {
       const path = await import("node:path");
       // In TEST_MODE, it writes to private.test.ts
       const configName = process.env.TEST_MODE ? "private.test.ts" : "private.ts";
-      await fs.access(path.resolve(process.cwd(), `config/${configName}`));
+      const configPath = path.resolve(process.cwd(), "config", configName);
+      await fs.access(configPath);
     },
     TEST_TIMEOUT,
   );

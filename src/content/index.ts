@@ -139,6 +139,7 @@ export const contentSystem = {
         contentMetrics.setInitializationTime(performance.now() - start);
       } catch (error) {
         contentStore.initState = "error";
+        console.error(`[ContentSystem] Initialization failed for tenant ${tenantId}:`, error);
         logger.error("Content initialization failed", { tenantId, key, error });
         throw error; // Re-throw to allow callers to handle/retry
       } finally {
@@ -296,6 +297,15 @@ export const contentSystem = {
   },
 
   // --- Context API ---
+  /**
+   * Scans for compiled schema files from disk (.compiledCollections).
+   * Thin facade over the internal server-side scanner.
+   */
+  async scanForCollections() {
+    const { contentService } = await import("./content-service.server");
+    return contentService.scanCompiledCollections();
+  },
+
   setContext(tenantId: string | null = null) {
     const ctx = {
       content: this,

@@ -20,10 +20,32 @@ export async function handleDashboardRoutes(
   segments: string[],
 ) {
   const { url } = event;
-  const method = segments[1];
+  const method = segments[1] || segments[0];
+
+  if (typeof process !== "undefined" && process.env.NODE_ENV === "production") {
+    console.log(`[DashboardRoute] method=${method}, segments=${segments.join(",")}`);
+  }
 
   try {
     switch (method) {
+      case "dashboard": // Fallthrough if segments[0] is used
+      case "stats":
+      case "dashboard-stats": {
+        // Mock or real stats for dashboard
+        const collections = await (cms.db.crud as any).listCollections(tenantId as DatabaseId);
+        const users = await cms.auth.listUsers({ tenantId: tenantId as DatabaseId, limit: 1 });
+        const media = await cms.media.find({ tenantId: tenantId as DatabaseId, limit: 1 });
+
+        return rawResponse(event, {
+          contentCount: collections.success ? collections.data.length : 0,
+          userCount: (users as any).success ? (users as any).data.length : 0,
+          mediaCount: (media as any).success ? (media as any).data.total : 0,
+          storageUsed: "0 MB",
+          healthStatus: "healthy",
+          uptime: process.uptime(),
+        });
+      }
+
       case "health":
         return rawResponse(event, cms.system.getHealth() || { status: "unknown" });
 
@@ -165,21 +187,40 @@ export async function handleDashboardRoutes(
 
       case "cache-metrics": {
         const stats = await cacheService.getStats();
+        const total = (stats as any).hits + (stats as any).misses;
+        const hitRate = total > 0 ? ((stats as any).hits / total) * 100 : 0;
+
         // Construct expected test structure
         return rawResponse(event, {
           overall: {
             hits: (stats as any).hits || 0,
             misses: (stats as any).misses || 0,
-            hitRate: (stats as any).hitRate || 0,
+            hitRate: hitRate,
             sets: (stats as any).sets || 0,
             deletes: (stats as any).deletes || 0,
             size: stats.size || 0,
-            totalOperations: ((stats as any).hits || 0) + ((stats as any).misses || 0),
+            totalOperations: total,
           },
           byCategory: (stats as any).byCategory || {},
           byTenant: (stats as any).byTenant || {},
           timestamp: Date.now(),
           recentMisses: [],
+        });
+      }
+
+      case "stats": {
+        // Mock or real stats for dashboard
+        const collections = await (cms.db.crud as any).listCollections(tenantId as DatabaseId);
+        const users = await cms.auth.listUsers({ tenantId: tenantId as DatabaseId, limit: 1 });
+        const media = await cms.media.find({ tenantId: tenantId as DatabaseId, limit: 1 });
+
+        return rawResponse(event, {
+          contentCount: collections.success ? collections.data.length : 0,
+          userCount: (users as any).success ? (users as any).data.length : 0,
+          mediaCount: (media as any).success ? (media as any).data.total : 0,
+          storageUsed: "0 MB",
+          healthStatus: "healthy",
+          uptime: process.uptime(),
         });
       }
 

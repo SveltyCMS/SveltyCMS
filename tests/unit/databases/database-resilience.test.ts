@@ -11,6 +11,7 @@ vi.mock("@src/databases/db", () => ({
     crud: { findOne: vi.fn() },
   },
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+  ensureFullInitialization: vi.fn().mockResolvedValue(undefined),
   resetDbInitPromise: vi.fn(),
 }));
 

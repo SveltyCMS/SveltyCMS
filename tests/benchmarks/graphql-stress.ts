@@ -1,13 +1,7 @@
 /**
  * @file tests/benchmarks/graphql-stress.ts
- * @description Professional Stress Test for SveltyCMS GraphQL API.
- *
- * Features:
- * - Warmup Phase (to avoid JIT skew)
- * - Internal Concurrency Pool (Async Pool)
- * - Query Rotation (Representative CMS workloads)
- * - Percentile Latency (Avg, p50, p95, p99)
- * - Status Code Failure Breakdown
+ * @description Professional GraphQL Stress & Load Test for SveltyCMS.
+ *              Real HTTP + realistic queries + configurable load profiles.
  */
 
 import { performance } from "node:perf_hooks";
@@ -17,99 +11,83 @@ import { getApiBaseUrl } from "../integration/helpers/server";
 
 const API_BASE_URL = getApiBaseUrl();
 
-// --- Configuration & Profiles ---
 const LOAD_PROFILES = {
-  TINY: { total: 1000, concurrency: 10, name: "Tiny (CI/Local)" },
+  TINY: { total: 2000, concurrency: 15, name: "Tiny (CI/Local)" },
   MEDIUM: { total: 10000, concurrency: 50, name: "Medium (Workstation)" },
-  LARGE: { total: 50000, concurrency: 80, name: "Large (Performance Server)" },
-  EXTREME: { total: 200000, concurrency: 120, name: "Extreme (Cluster)" },
-};
+  LARGE: { total: 50000, concurrency: 80, name: "Large (Performance Testing)" },
+  EXTREME: { total: 150000, concurrency: 120, name: "Extreme (Server/Cluster)" },
+} as const;
 
 const QUERIES = [
-  {
-    name: "Me (Basic)",
-    body: JSON.stringify({ query: `query { me { username email role } }` }),
-  },
+  { name: "Me Query", query: `query { me { _id username email role } }` },
   {
     name: "System Health",
-    body: JSON.stringify({
-      query: `query { contentSystemHealth { state version collectionCount } }`,
-    }),
+    query: `query { contentSystemHealth { state version collectionCount } }`,
   },
   {
-    name: "Introspection (Schema)",
-    body: JSON.stringify({
-      query: `query { __schema { queryType { name } } }`,
-    }),
+    name: "Schema Introspection",
+    query: `query { __schema { queryType { name } mutationType { name } } }`,
   },
+  { name: "User Type Metadata", query: `query { __type(name: "User") { name fields { name } } }` },
   {
-    name: "Metadata (User Type)",
-    body: JSON.stringify({
-      query: `query { __type(name: "User") { name fields { name } } }`,
-    }),
-  },
-  {
-    name: "Relational (Authors -> Posts)",
-    body: JSON.stringify({
-      query: `query NestedRelation {
-        Authors_00000000 {
-          name
-          bio
-          Posts {
-            title
-            author {
-              name
-            }
-          }
-        }
-      }`,
-    }),
+    name: "Nested Relations",
+    query: `query {
+    Authors_00000000(limit: 5) {
+      name bio
+      Posts(limit: 8) {
+        title publishedAt
+        author { name }
+      }
+    }
+  }`,
   },
 ];
 
-/**
- * Basic Internal Concurrency Limiter (Pool)
- */
-async function asyncPool(
+type LoadLevel = keyof typeof LOAD_PROFILES;
+
+async function asyncPool<T>(
   concurrency: number,
-  iterable: any[],
-  iteratorFn: (item: any, i: number) => Promise<any>,
-) {
-  const ret: any[] = [];
-  const executing: any[] = [];
-  for (const item of iterable) {
-    const p = Promise.resolve().then(() => iteratorFn(item, iterable.indexOf(item)));
-    ret.push(p);
-    if (concurrency <= iterable.length) {
-      const e: any = p.then(() => executing.splice(executing.indexOf(e), 1));
-      executing.push(e);
-      if (executing.length >= concurrency) {
-        await Promise.race(executing);
+  items: T[],
+  iteratorFn: (item: T, index: number) => Promise<void>,
+): Promise<void> {
+  const executing: Promise<void>[] = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const promise = Promise.resolve().then(() => iteratorFn(items[i], i));
+    executing.push(promise);
+
+    if (executing.length >= concurrency) {
+      await Promise.race(executing);
+      // Clean up completed promises
+      // In Bun/Node, we don't need to splice carefully if we just wait for the race
+      const finished = executing.filter((p) => (p as any).status !== "pending");
+      for (const p of finished) {
+        const idx = executing.indexOf(p);
+        if (idx > -1) executing.splice(idx, 1);
       }
     }
   }
-  return Promise.all(ret);
+
+  await Promise.all(executing);
 }
 
-async function runStressTest(level: keyof typeof LOAD_PROFILES) {
+async function runStressTest(level: LoadLevel) {
   const config = LOAD_PROFILES[level];
-  const IS_DRY_RUN = process.argv.includes("--dry-run");
+  const isDryRun = process.argv.includes("--dry-run");
 
-  console.log(`\n🚀 [${level}] GraphQL Stress Test: ${config.name}`);
-  console.log(`   Target: ${config.total} total requests | Concurrency: ${config.concurrency}`);
+  console.log(`\n🚀 [${level}] GraphQL Stress Test — ${config.name}`);
+  console.log(`   Requests: ${config.total.toLocaleString()} | Concurrency: ${config.concurrency}`);
 
-  if (IS_DRY_RUN) {
-    console.log("   🟡 DRY RUN ENABLED - No requests will be sent.");
-    return;
+  if (isDryRun) {
+    console.log("   🟡 DRY RUN — No actual requests sent.");
+    return null;
   }
 
-  // Use local dev port 5173 if running in dev mode
-  const apiBase = (process.env.API_BASE_URL || API_BASE_URL).replace("localhost", "127.0.0.1");
-  console.log(`   🔗 Targeting: ${apiBase}`);
+  const baseUrl = (process.env.API_BASE_URL || API_BASE_URL).replace("localhost", "127.0.0.1");
 
-  // Login directly to avoid destructive cleanup/seeding from prepareAuthenticatedContext
-  console.log("   🔑 Logging in to benchmark state...");
-  const loginRes = await fetch(`${apiBase}/api/user/login`, {
+  // Login once
+  console.log("   🔑 Authenticating as admin...");
+  const loginRes = await fetch(`${baseUrl}/api/user/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -120,41 +98,37 @@ async function runStressTest(level: keyof typeof LOAD_PROFILES) {
   });
 
   if (!loginRes.ok) {
-    const errorBody = await loginRes.text();
-    throw new Error(
-      `❌ Login failed [${loginRes.status}]: ${errorBody}. Ensure benchmark data is seeded (bun run scripts/setup-benchmarks.ts)`,
-    );
+    const errorText = await loginRes.text().catch(() => "");
+    throw new Error(`Login failed (${loginRes.status}): ${errorText}`);
   }
 
-  const setCookie = loginRes.headers.get("set-cookie");
-  if (!setCookie) {
-    throw new Error("❌ Login failed: No session cookie returned.");
-  }
+  const cookie = loginRes.headers.get("set-cookie");
+  if (!cookie) throw new Error("No session cookie received from login");
 
   const headers = {
     "Content-Type": "application/json",
-    Cookie: setCookie,
+    Cookie: cookie,
   };
 
   const latencies: number[] = [];
-  const statusCodes: Record<number, number> = {};
+  const statusCounts: Record<string | number, number> = {};
   let successes = 0;
   let failures = 0;
 
-  const performRequest = async (i: number) => {
-    // Rotate queries
-    const selected = QUERIES[i % QUERIES.length];
+  const performRequest = async (index: number) => {
+    const q = QUERIES[index % QUERIES.length];
     const start = performance.now();
+
     try {
-      const res = await fetch(`${API_BASE_URL}/api/graphql`, {
+      const res = await fetch(`${baseUrl}/api/graphql`, {
         method: "POST",
         headers,
-        body: selected.body,
-        signal: AbortSignal.timeout(10000),
+        body: JSON.stringify({ query: q.query }),
+        signal: AbortSignal.timeout(15000),
       });
 
       const duration = performance.now() - start;
-      statusCodes[res.status] = (statusCodes[res.status] || 0) + 1;
+      statusCounts[res.status] = (statusCounts[res.status] || 0) + 1;
 
       if (res.ok) {
         successes++;
@@ -164,23 +138,24 @@ async function runStressTest(level: keyof typeof LOAD_PROFILES) {
       }
     } catch (err: any) {
       failures++;
-      const code = err.code || 999; // 999 for network/unknown
-      statusCodes[code] = (statusCodes[code] || 0) + 1;
+      const code = err.name === "TimeoutError" ? "TIMEOUT" : err.code || 999;
+      statusCounts[code] = (statusCounts[code] || 0) + 1;
     }
   };
 
-  // --- 1. Warmup Phase (Not measured) ---
-  console.log("   🔥 Warming up (200 requests)...");
-  await asyncPool(config.concurrency, Array.from({ length: 200 }), (_, i) => performRequest(i));
+  // Warmup
+  console.log(`   🔥 Warming up (${Math.min(300, config.total)} requests)...`);
+  await asyncPool(config.concurrency, Array.from({ length: Math.min(300, config.total) }), (_, i) =>
+    performRequest(i),
+  );
 
-  // Reset counters after warmup
+  // Reset for real measurement
   latencies.length = 0;
-  successes = 0;
-  failures = 0;
-  Object.keys(statusCodes).forEach((k) => delete statusCodes[Number(k)]);
+  successes = failures = 0;
+  Object.keys(statusCounts).forEach((k) => delete statusCounts[k]);
 
-  // --- 2. Real Measurement Phase ---
-  console.log("   🧪 Measuring performance...");
+  // Main load
+  console.log("   🧪 Running measured stress test...");
   const startTime = performance.now();
 
   await asyncPool(config.concurrency, Array.from({ length: config.total }), (_, i) =>
@@ -188,78 +163,84 @@ async function runStressTest(level: keyof typeof LOAD_PROFILES) {
   );
 
   const totalTime = performance.now() - startTime;
-  const rps = (successes / totalTime) * 1000;
+  const rps = totalTime > 0 ? (successes / totalTime) * 1000 : 0;
 
-  // Calculate Percentiles
+  // Statistics
   latencies.sort((a, b) => a - b);
-  const avg = latencies.length > 0 ? latencies.reduce((a, b) => a + b, 0) / latencies.length : 0;
+  const avg = latencies.length ? latencies.reduce((a, b) => a + b, 0) / latencies.length : 0;
   const p50 = latencies[Math.floor(latencies.length * 0.5)] || 0;
   const p95 = latencies[Math.floor(latencies.length * 0.95)] || 0;
   const p99 = latencies[Math.floor(latencies.length * 0.99)] || 0;
 
-  console.log(`\n📊 Results:`);
-  console.log(`   ✅ Throughput: ${rps.toFixed(2)} req/sec`);
-  console.log(`   ⏱️  Total Time: ${(totalTime / 1000).toFixed(2)}s`);
-  console.log(`   📉 Success: ${successes} (${((successes / config.total) * 100).toFixed(2)}%)`);
-  console.log(`   🔴 Failures: ${failures}`);
+  console.log(`\n📊 === ${config.name.toUpperCase()} RESULTS ===`);
+  console.log(`   Throughput     : ${rps.toFixed(1)} req/sec`);
+  console.log(`   Total Time     : ${(totalTime / 1000).toFixed(2)}s`);
+  console.log(
+    `   Success Rate   : ${successes} (${((successes / config.total) * 100).toFixed(1)}%)`,
+  );
+  console.log(`   Failures       : ${failures}`);
 
   if (failures > 0) {
-    console.log(`   🚨 Status Codes Breakdown:`);
-    Object.entries(statusCodes).forEach(([code, count]) => {
-      console.log(`      ${code}: ${count}`);
-    });
+    console.log("   Status Breakdown:");
+    Object.entries(statusCounts).forEach(([code, count]) => console.log(`     ${code}: ${count}`));
   }
 
-  console.log(`\n📋 Latency Percentiles:`);
-  console.log(`   Avg: ${avg.toFixed(2)}ms`);
-  console.log(`   p50: ${p50.toFixed(2)}ms (median)`);
-  console.log(`   p95: ${p95.toFixed(2)}ms`);
-  console.log(`   p99: ${p99.toFixed(2)}ms`);
+  console.log(`\n   Latency:`);
+  console.log(`     Avg : ${avg.toFixed(2)} ms`);
+  console.log(`     p50 : ${p50.toFixed(2)} ms`);
+  console.log(`     p95 : ${p95.toFixed(2)} ms`);
+  console.log(`     p99 : ${p99.toFixed(2)} ms`);
 
-  return { level, rps, failures, successes, p95 };
+  return { level, rps, p95, p99, successes, failures, totalTime, avg };
 }
 
 async function main() {
-  const target = (process.env.LOAD_LEVEL as keyof typeof LOAD_PROFILES) || "TINY";
+  const target = (process.env.LOAD_LEVEL as any) || "TINY";
   const resultsDir =
     process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
 
   try {
+    await fs.mkdir(resultsDir, { recursive: true });
+
     const results: any[] = [];
-    if ((target as any) === "ALL") {
-      for (const level of Object.keys(LOAD_PROFILES)) {
-        const result = await runStressTest(level as any);
-        if (result) results.push(result);
-        if (result && result.failures > result.successes * 0.1) {
-          console.warn(`\n⚠️  System breaking point reached at level: ${level}`);
+
+    if (target === "ALL") {
+      for (const level of Object.keys(LOAD_PROFILES) as LoadLevel[]) {
+        const res = await runStressTest(level);
+        if (res) results.push(res);
+
+        if (res && res.failures > res.successes * 0.08) {
+          console.warn(`\n⚠️  High failure rate detected at ${level}. Stopping escalation.`);
           break;
         }
       }
     } else {
-      const result = await runStressTest(target);
-      if (result) results.push(result);
+      const res = await runStressTest(target);
+      if (res) results.push(res);
     }
 
-    // Export to JSON
-    const filePath = path.join(resultsDir, "graphql-stress.json");
-    await fs.mkdir(resultsDir, { recursive: true });
+    const filePath = path.join(resultsDir, `graphql-stress-${target.toLowerCase()}.json`);
     await fs.writeFile(
       filePath,
       JSON.stringify(
         {
-          name: "GraphQL Stress",
+          name: "GraphQL Stress Test",
           timestamp: new Date().toISOString(),
+          target,
           profiles: results,
         },
         null,
         2,
       ),
     );
-    console.log(`💾 Results exported to: ${filePath}`);
+
+    console.log(`\n💾 Results saved → ${filePath}`);
   } catch (err) {
-    console.error("\n❌ Benchmark failed:", err);
+    console.error("\n❌ GraphQL Stress Test failed:", err);
     process.exit(1);
   }
 }
 
-main();
+if (import.meta.main) {
+  main();
+}

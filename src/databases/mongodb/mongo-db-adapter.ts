@@ -104,6 +104,13 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
       tenants: {
         list: () => Promise.resolve({ success: true, data: [] }),
       },
+      themes: {
+        ensure: () => Promise.resolve({ success: true } as any),
+      },
+      virtualFolder: {},
+      widgets: {},
+      websiteTokens: {},
+      jobs: {},
     } as unknown as ISystemAdapter;
 
     this.monitoring = {

@@ -1,6 +1,7 @@
 /**
  * @file tests/benchmarks/database-performance.test.ts
- * @description Direct DB adapter performance audit (CRUD operations).
+ * @description High-fidelity benchmark for SveltyCMS Database Adapter raw CRUD performance.
+ *              Measures INSERT, FIND ONE, UPDATE, and DELETE directly on the adapter layer.
  */
 
 import { test } from "bun:test";
@@ -8,139 +9,211 @@ import "../unit/setup.ts";
 import { runBenchmark, exportResult } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
+const TEST_TENANT = "global";
+const BASE_COLLECTION = "bench_db_crud";
+
 export async function runDatabaseBenchmark() {
-  console.log("🚀 Starting Direct Database Adapter Performance Audit...\n");
+  console.log("🚀 Starting High-Fidelity Database Adapter CRUD Benchmark...\n");
 
   logger.level = "silent";
 
-  const { getDb, getDbInitPromise } = await import("@src/databases/db");
-  await getDbInitPromise();
+  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+  await ensureFullInitialization();
   const adapter = getDb();
-  if (!adapter) throw new Error("Adapter not initialized");
+  if (!adapter) throw new Error("DB adapter not initialized");
 
-  const dbType = process.env.DB_TYPE || "mongodb";
-  const collection = "bench_crud_test";
-  const tenantId = "global";
-  const stableId = "bench-entry-fixed";
+  const dbType = (process.env.DB_TYPE || "mongodb").toUpperCase();
+  const collectionId = `${BASE_COLLECTION}_${Date.now().toString(36)}`; // unique per run to avoid conflicts
 
-  console.log(`📊 Benchmarking: ${dbType.toUpperCase()} (Tenant: ${tenantId})`);
+  console.log(`📊 Benchmarking ${dbType} Adapter (Collection: ${collectionId})`);
 
-  // Ensure connection is active
-  const { loadPrivateConfig } = await import("@src/databases/db");
-  const config = await loadPrivateConfig(false);
-  if (config) {
-    let connStr: string;
-    if (config.DB_TYPE === "mongodb") {
-      const host = process.env.DB_HOST || config.DB_HOST || "127.0.0.1";
-      const port = process.env.DB_PORT || config.DB_PORT || "27017";
-      const name = process.env.DB_NAME || config.DB_NAME || "SveltyCMS_test";
-      connStr = `mongodb://${host}:${port}/${name}`;
-    } else if (config.DB_TYPE === "sqlite") {
-      connStr = config.DB_NAME || "./config/database/SveltyCMS_test.sqlite";
-    } else {
-      connStr = config as any as string;
-    }
-    await adapter.connect(connStr);
-  }
-
-  // Pre-create model for NoSQL
+  // Ensure collection/model exists
   try {
     if (adapter.collection?.createModel) {
       await adapter.collection.createModel({
-        _id: collection as any,
-        name: collection,
-        fields: [],
+        _id: collectionId,
+        name: collectionId,
+        fields: [
+          { name: "title", type: "text" },
+          { name: "status", type: "text" },
+        ],
       } as any);
     }
   } catch (_) {
     // already exists
   }
 
-  // 1. INSERT
-  console.log(`📥 Benchmarking ${dbType} INSERT...`);
-  const insertResult = await runBenchmark({
-    name: `${dbType}: CRUD - INSERT`,
-    iterations: 1000,
-    warmupIterations: 100,
-    onIteration: async (i) => {
-      await adapter.crud.insert(
-        collection,
-        {
-          _id: `${stableId}-${i}` as any,
-          title: "Bench Entry",
-          tenantId: tenantId as any,
-        } as any,
-        { tenantId: tenantId as any },
-      );
-    },
-    silent: true,
+  // Pre-seed a fixed record for FIND/UPDATE benchmarks to ensure consistent hot-path
+  const FIXED_ID = "bench-stable-001";
+  await adapter.crud.insert(
+    collectionId,
+    {
+      _id: FIXED_ID as any,
+      title: "Stable Benchmark Entry",
+      status: "active",
+      tenantId: TEST_TENANT as any,
+    } as any,
+    { tenantId: TEST_TENANT as any },
+  );
+
+  const ITERATIONS = 1500;
+  const WARMUP = Math.floor(ITERATIONS * 0.15);
+  const RUNS = 3; // for statistical stability
+
+  console.log(`\n🔬 Running CRUD benchmarks (${ITERATIONS} iterations × ${RUNS} runs)...`);
+
+  // Helper for consistent benchmarking
+  const benchmarkCrud = async (name: string, onIteration: (i: number) => Promise<void>) => {
+    return runBenchmark({
+      name: `${dbType}: ${name}`,
+      iterations: ITERATIONS,
+      warmupIterations: WARMUP,
+      concurrency: 1, // pure latency
+      runs: RUNS,
+      trimOutliers: "iqr",
+      measureMemory: true,
+      onIteration: async (i) => await onIteration(i),
+      silent: true,
+    });
+  };
+
+  // 1. INSERT (Single)
+  console.log("📥 Benchmarking INSERT (Single)...");
+  const insertResult = await benchmarkCrud("INSERT", async (i) => {
+    const uniqueId = `ins-${Date.now()}-${i}-${Math.random().toString(36).slice(2)}`;
+    await adapter.crud.insert(
+      collectionId,
+      {
+        _id: uniqueId as any,
+        title: "Benchmark Insert Entry",
+        tenantId: TEST_TENANT as any,
+      } as any,
+      { tenantId: TEST_TENANT as any },
+    );
   });
 
-  // 2. FIND ONE
-  console.log(`🔍 Benchmarking ${dbType} FIND ONE...`);
-  const findResult = await runBenchmark({
-    name: `${dbType}: CRUD - FIND ONE`,
-    iterations: 2000,
-    warmupIterations: 200,
-    onIteration: async () => {
-      const res = await adapter.crud.findOne(
-        collection,
-        { _id: `${stableId}-50` as any },
-        { tenantId: tenantId as any },
-      );
-      if (!res.success) throw new Error("Find failed");
-    },
-    silent: true,
+  // 2. FIND ONE (by _id)
+  console.log("🔍 Benchmarking FIND ONE...");
+  let indexWarningDetected = false;
+  const findResult = await benchmarkCrud("FIND ONE", async () => {
+    const res = await adapter.crud.findOne(
+      collectionId,
+      { _id: FIXED_ID as any },
+      { tenantId: TEST_TENANT as any },
+    );
+    if (!res.success) throw new Error("FindOne failed");
+
+    // Index Detection Logic: Check if DB reported primary index usage
+    if (res.meta && (!res.meta.indexesUsed || res.meta.indexesUsed.length === 0)) {
+      indexWarningDetected = true;
+    }
   });
 
   // 3. UPDATE
-  console.log(`✏️  Benchmarking ${dbType} UPDATE...`);
-  const updateResult = await runBenchmark({
-    name: `${dbType}: CRUD - UPDATE`,
-    iterations: 1000,
-    warmupIterations: 100,
-    onIteration: async () => {
-      await adapter.crud.update(collection, `${stableId}-50` as any, { title: "Updated" } as any, {
-        tenantId: tenantId as any,
-      });
-    },
-    silent: true,
+  console.log("✏️  Benchmarking UPDATE...");
+  const updateResult = await benchmarkCrud("UPDATE", async () => {
+    await adapter.crud.update(
+      collectionId,
+      FIXED_ID as any,
+      { title: `Updated at ${Date.now()}` } as any,
+      { tenantId: TEST_TENANT as any },
+    );
   });
 
-  // 4. DELETE (Clean up previous inserts)
-  console.log(`🗑️  Benchmarking ${dbType} DELETE...`);
-  const deleteResult = await runBenchmark({
-    name: `${dbType}: CRUD - DELETE`,
-    iterations: 1000,
+  // 4. DELETE (Self-Cleaning Loop)
+  console.log("🗑️  Benchmarking DELETE...");
+  const deleteResult = await benchmarkCrud("DELETE", async (i) => {
+    const uniqueId = `del-${Date.now()}-${i}-${Math.random().toString(36).slice(2)}`;
+    // First insert then delete in same iteration to keep DB clean
+    await adapter.crud.insert(
+      collectionId,
+      { _id: uniqueId as any, title: "Temp Delete", tenantId: TEST_TENANT as any } as any,
+      { tenantId: TEST_TENANT as any },
+    );
+    await adapter.crud.delete(collectionId, uniqueId as any, { tenantId: TEST_TENANT as any });
+  });
+
+  // 5. BULK INSERT (100 items)
+  console.log("📦 Benchmarking BULK INSERT (100 items)...");
+  const bulkSize = 100;
+  const bulkInsertResult = await runBenchmark({
+    name: `${dbType}: BULK INSERT (100)`,
+    iterations: 200, // lower iterations for bulk
+    warmupIterations: 20,
+    concurrency: 1,
+    runs: 2,
+    trimOutliers: "iqr",
+    measureMemory: true,
     onIteration: async (i) => {
-      await adapter.crud.delete(collection, `${stableId}-${i}` as any, {
-        tenantId: tenantId as any,
-      });
+      const batch = Array.from({ length: bulkSize }).map((_, j) => ({
+        _id: `bulk-${i}-${j}-${Math.random().toString(36).slice(2)}` as any,
+        title: `Bulk item ${j}`,
+        tenantId: TEST_TENANT as any,
+      }));
+      await adapter.crud.insertMany(collectionId, batch, { tenantId: TEST_TENANT as any });
     },
     silent: true,
   });
 
   logger.level = "info";
 
-  // Summary
-  console.log("\n" + "=".repeat(85));
-  console.log(`🏆 ${dbType.toUpperCase()} ADAPTER RAW PERFORMANCE MATRIX`);
-  console.log("=".repeat(85));
-  [insertResult, findResult, updateResult, deleteResult].forEach((r) => {
-    console.log(
-      `| ${r.name.padEnd(25)} | ${r.avgMs.toFixed(4).padEnd(12)} | ${r.p95Ms.toFixed(4).padEnd(12)} | ${Math.round(r.rps).toLocaleString().padEnd(12)} |`,
-    );
-  });
-  console.log("=".repeat(85) + "\n");
+  // ===================================================================
+  // Professional Summary
+  // ===================================================================
+  console.log("\n" + "=".repeat(140));
+  console.log(`   🏆 ${dbType} DATABASE ADAPTER RAW CRUD PERFORMANCE AUDIT`);
+  console.log("   High-Fidelity • IQR Outlier Trimming • 95% Confidence • RSS Telemetry");
+  console.log("=".repeat(140));
 
-  exportResult(insertResult);
-  exportResult(findResult);
-  exportResult(updateResult);
-  exportResult(deleteResult);
+  console.log(
+    `| ${"Operation".padEnd(28)} | ${"Avg Latency".padEnd(22)} | ${"p95".padEnd(14)} | ${"RPS".padEnd(12)} | ${"RSS Δ".padEnd(12)} |`,
+  );
+  console.log("|" + "-".repeat(28 + 22 + 14 + 12 + 12 + 6) + "|");
+
+  const results = [insertResult, findResult, updateResult, deleteResult, bulkInsertResult];
+
+  for (const r of results) {
+    const rssDelta =
+      r.rssDelta !== undefined ? `${r.rssDelta >= 0 ? "+" : ""}${r.rssDelta.toFixed(2)} MB` : "—";
+    const displayName = r.name.includes(":") ? r.name.split(":")[1].trim() : r.name;
+    console.log(
+      `| ${displayName.padEnd(28)} | ` +
+        `${r.avgMs.toFixed(4)} ms (±${r.marginOfError.toFixed(3)})`.padEnd(22) +
+        ` | ` +
+        `${r.p95Ms.toFixed(4)} ms`.padEnd(14) +
+        ` | ` +
+        `${Math.round(r.rps).toLocaleString()}`.padEnd(12) +
+        ` | ` +
+        `${rssDelta.padEnd(12)} |`,
+    );
+  }
+  console.log("=".repeat(140));
+
+  if (indexWarningDetected) {
+    console.log(`\n⚠️  DIAGNOSTIC ALERT: Index usage not detected during FIND ONE operations.`);
+    console.log(
+      `   Check if your adapter supports query explain/meta or if primary keys are indexed.`,
+    );
+  }
+
+  console.log(`\n✨ Key Insights:`);
+  console.log(`   • DB Type: ${dbType}`);
+  console.log(`   • RPS (Single Insert): ${insertResult.rps.toFixed(1)} ops/sec`);
+  console.log(
+    `   • RPS (Bulk Insert 100): ${bulkInsertResult.rps.toFixed(1)} batches/sec (~${(bulkInsertResult.rps * bulkSize).toFixed(0)} items/sec)`,
+  );
+  console.log(
+    `   • Memory delta helps detect connection/pool leaks or hydration overhead in the adapter`,
+  );
+
+  // Export results
+  results.forEach((r) => exportResult(r));
+
+  console.log("\n✅ Database adapter benchmark completed.");
 }
 
 if (!process.env.SVELTY_AUDIT_ACTIVE) {
-  test("Database Adapter Performance Suite", async () => {
+  test("Database Adapter CRUD Performance", async () => {
     await runDatabaseBenchmark();
-  }, 600000);
+  }, 450000);
 }

@@ -387,8 +387,10 @@ export class AdapterCore {
       const tableId = collection.startsWith("collection_")
         ? collection
         : `collection_${collection}`;
+      if (this.dynamicTables.has(tableId)) return this.dynamicTables.get(tableId);
       const dynamicTable = this.createDynamicTableDefinition(tableId);
       this.dynamicTables.set(collection, dynamicTable);
+      this.dynamicTables.set(tableId, dynamicTable);
       return dynamicTable;
     }
 
@@ -399,7 +401,7 @@ export class AdapterCore {
    * Creates a Drizzle table definition for a dynamic collection at runtime.
    * All dynamic collections sharing a common relational structure for flexibility.
    */
-  private createDynamicTableDefinition(tableName: string) {
+  public createDynamicTableDefinition(tableName: string) {
     return sqliteTable(tableName, {
       _id: text("_id", { length: 36 }).primaryKey(),
       tenantId: text("tenantId", { length: 36 }),

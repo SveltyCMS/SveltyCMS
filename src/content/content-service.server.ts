@@ -19,34 +19,104 @@ import { cacheService } from "@src/databases/cache/cache-service";
 /**
  * Safely parses a compiled schema file using scoped evaluation.
  */
-async function safelyParseSchema(content: string): Promise<Schema | null> {
+async function safelyParseSchema(content: string, filePath: string): Promise<Schema | null> {
   try {
-    const exportMatch = content.match(/export\s+(?:const\s+schema|default)\s*[:=]\s*/);
-    if (!exportMatch) return null;
+    const exportMatch = content.match(/export\s+(?:const\s+schema\s*[:=]|default\s*[:=]?)\s*/);
+    if (!exportMatch) {
+      console.warn("[SCAN] No valid export match found in content.");
+      return null;
+    }
 
     const start = exportMatch.index! + exportMatch[0].length;
-    const schemaStr = extractObjectLiteral(content, start);
-    if (!schemaStr) return null;
+    let schemaStr = extractObjectLiteral(content, start);
+
+    // Fallback: If no object literal found after export (e.g. export default Authors),
+    // search for the first top-level object literal in the file.
+    if (!schemaStr) {
+      const firstCurly = content.indexOf("{");
+      if (firstCurly !== -1) {
+        schemaStr = extractObjectLiteral(content, firstCurly);
+      }
+    }
+
+    if (!schemaStr) {
+      console.error("[SCAN] No schema string extracted from content.");
+      return null;
+    }
 
     const widgetsMap = await widgetRegistryService.getAllWidgets();
-    const widgetsProxy = new Proxy(Object.fromEntries(widgetsMap), {
+    if (widgetsMap.size === 0) {
+      await widgetRegistryService.initialize();
+    }
+
+    const widgetsProxy = new Proxy(widgetsMap, {
       get(target, prop) {
         if (typeof prop !== "string") return undefined;
-        return (
-          target[prop] ||
-          Object.entries(target).find(([k]) => k.toLowerCase() === prop.toLowerCase())?.[1]
-        );
+
+        // 1. Direct hit
+        if (target.has(prop)) return target.get(prop);
+
+        // 2. Capitalized hit (Input -> Input)
+        const capitalized = prop.charAt(0).toUpperCase() + prop.slice(1);
+        if (target.has(capitalized)) return target.get(capitalized);
+
+        // 3. Lower hit (Input -> input)
+        const lowered = prop.toLowerCase();
+        if (target.has(lowered)) return target.get(lowered);
+
+        // 4. Kebab hit (RichText -> rich-text)
+        const kebab = prop.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+        if (target.has(kebab)) return target.get(kebab);
+
+        // 5. Exhaustive case-insensitive search
+        const entries = Array.from(target.entries());
+        const found = entries.find(([k]) => {
+          const kLow = k.toLowerCase();
+          return (
+            kLow === lowered || kLow === kebab || kLow === prop.toLowerCase().replace(/-/g, "")
+          );
+        });
+
+        return found ? found[1] : undefined;
       },
     });
 
-    const fn = new Function("widgets", `return ${schemaStr};`);
-    const result = fn(widgetsProxy);
+    const previousGlobalWidgets = (globalThis as any).widgets;
+    (globalThis as any).widgets = widgetsProxy;
 
-    if (result && typeof result === "object" && Array.isArray(result.fields)) {
-      return result as Schema;
+    let result;
+    try {
+      const sanitizedSchema = schemaStr.replace(/globalThis\.widgets\./g, "widgets.");
+
+      const fn = new Function(
+        "widgets",
+        `
+        try {
+          const w = widgets || globalThis.widgets;
+          return (${sanitizedSchema});
+        } catch (e) {
+          throw new Error("Eval internal error: " + e.message);
+        }
+      `,
+      );
+      result = fn(widgetsProxy);
+    } catch (e: any) {
+      logger.error(`[SchemaParseError] ${e.message}`, { filePath });
+      throw e;
+    } finally {
+      (globalThis as any).widgets = previousGlobalWidgets;
+    }
+
+    if (result && typeof result === "object") {
+      const schema = result as Schema;
+      return {
+        ...schema,
+        _id: schema._id || path.basename(filePath, ".js"),
+        name: schema.name || path.basename(filePath, ".js"),
+      };
     }
   } catch (err) {
-    logger.error("Schema parsing failed", { error: err });
+    logger.error("Schema parsing failed:", { error: String(err), filePath });
   }
   return null;
 }
@@ -106,7 +176,7 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
       }
 
       const content = await fs.readFile(fullPath, "utf-8");
-      const schema = await safelyParseSchema(content);
+      const schema = await safelyParseSchema(content, fullPath);
 
       if (schema) {
         schema._id ||= path.basename(entry.name, ".js");
@@ -149,7 +219,17 @@ export const contentService = {
     await dbAdapter.monitoring?.cache?.invalidateCategory?.(CacheCategory.CONTENT, tenantId as any);
 
     if (skipReconciliation) {
-      contentStore.sync(schemas.map((s) => ({ ...s, nodeType: "collection" }) as any));
+      contentStore.sync(
+        schemas.map(
+          (s) =>
+            ({
+              ...s,
+              nodeType: "collection",
+              collectionDef: s,
+              path: s.path || `/collection/${s._id}`,
+            }) as any,
+        ),
+      );
       return;
     }
 
@@ -197,7 +277,7 @@ export const contentService = {
       operations.push(dbNode);
     }
 
-    logger.debug(`[RECONCILE] Final operation count: ${operations.length}`);
+    console.error(`[RECONCILE] Final operation count: ${operations.length}`);
     contentStore.sync(operations);
 
     // Persist reconciliation state if there are changes
@@ -210,6 +290,7 @@ export const contentService = {
 
     // Sync Reactive Store
     contentStore.sync(operations);
+    console.error(`[RECONCILE] Sync complete for ${tenantId}`);
 
     eventBus.broadcast(SystemEvents.CONTENT_UPDATE, {
       version: Date.now(),

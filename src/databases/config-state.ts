@@ -147,7 +147,7 @@ function getEnvOverrides() {
   if (process.env.DB_RETRY_DELAY) overrides.DB_RETRY_DELAY = Number(process.env.DB_RETRY_DELAY);
 
   // Redis
-  if (process.env.USE_REDIS !== undefined) {
+  if (process.env.USE_REDIS !== undefined && process.env.USE_REDIS !== "") {
     overrides.USE_REDIS = process.env.USE_REDIS === "true";
   }
   if (process.env.REDIS_HOST) overrides.REDIS_HOST = process.env.REDIS_HOST;

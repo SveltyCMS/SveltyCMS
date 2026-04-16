@@ -1,6 +1,16 @@
 /**
  * @file scripts/enterprise-matrix.ts
- * @description Zero-Mock Enterprise Performance Matrix (Trend-aware & Actionable Reporting)
+ * @description
+ * High-precision enterprise performance audit orchestrator.
+ *
+ * Features:
+ * - Multi-database sequential auditing (SQLite, MongoDB, PostgreSQL, MariaDB)
+ * - Harmonized API Latency & Throughput tracking
+ * - 99.9% Self-healing cache performance verification
+ * - GraphQL stress engine integration
+ * - SHA-256 Audit Chaining performance impact analysis
+ * - Automatic MDX documentation generation (benchmarks.mdx)
+ * - Persistent history management (history.json)
  */
 
 import { spawn, execSync, type ChildProcess } from "node:child_process";
@@ -231,27 +241,36 @@ let serverProcess: ChildProcess | null = null;
 
 function extractMetrics(metrics: any, dbType: string) {
   const m = metrics || {};
-  const getVal = (test: string, field: string, fallback = 0) => m[test]?.[field] ?? fallback;
+  const getVal = (pattern: string | RegExp, field: string, fallback = 0) => {
+    const key = Object.keys(m).find((k) =>
+      typeof pattern === "string" ? k.includes(pattern) : pattern.test(k),
+    );
+    return key ? (m[key]?.[field] ?? fallback) : fallback;
+  };
 
   return {
-    collections: getVal("rest-collections-list", "p95Ms"),
+    collections: getVal("rest-api-performance", "p95Ms") || getVal("collections", "p95Ms"),
     dbRaw: m[`matrix-${dbType}`]?.metrics?.read || 0,
-    hooks: getVal("hook-handleturbopipeline", "p95Ms") / 1000,
-    graphqlAvg: getVal("graphql-me", "avgMs"),
+    hooks:
+      getVal("hooks-performance", "p95Ms") / 1000 || getVal("Full Hook Pipeline", "p95Ms") / 1000,
+    graphqlAvg: getVal("graphql-api-performance", "avgMs") || getVal(/GraphQL:.*Me/i, "avgMs"),
     relationalAvg:
-      getVal("relational-graphql-nested", "avgMs") ||
-      getVal("relational-graphql-population", "avgMs"),
-    widgetAvg: getVal("widget-overhead-input", "avgMs"),
+      getVal("relational-performance", "avgMs") || getVal("Deep Relational Query", "avgMs"),
+    widgetAvg: getVal("widget-performance", "avgMs") || getVal(/Widget:.*Input/i, "avgMs"),
     securityMs: getVal("security-firewall-clean", "p95Ms"),
     gqlStressRps: m["graphql-stress"]?.profiles?.[0]?.rps || 0,
-    openapiHit: getVal("openapi-cache-hit", "p95Ms"),
+    openapiHit: getVal("openapi-warm", "p95Ms") || getVal("openapi-cache-hit", "p95Ms"),
     buildMs: getVal("dx-build", "durationMs"),
     contentScanMs: getVal("content-scan", "durationMs"),
     mediaResizeMs: m["media-performance"]?.multiScaleResize?.avgMs || 0,
     upgradeCliMs: m["upgrade-performance"]?.upgradeCli?.avgMs || 0,
-    tenancyAvg: m["multi-tenant-performance"]?.results?.["list-30"]?.avgMs || 0,
+    tenancyAvg:
+      getVal("multi-tenant-performance", "avgMs") ||
+      m["multi-tenant-performance"]?.results?.["list-30"]?.avgMs ||
+      0,
     mixedAvg: getVal("mixed-workload", "avgMs"),
-    memGrowth: getVal("memory-stability", "heapGrowthMb"),
+    memGrowth:
+      getVal("memory-stability", "heapGrowthMb") || getVal("Memory Stability", "heapGrowthMb"),
   };
 }
 

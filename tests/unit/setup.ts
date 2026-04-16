@@ -6,7 +6,40 @@ const isBun = typeof Bun !== "undefined";
 
 // Shimming import.meta.glob specifically for Bun/Node
 if (typeof (import.meta as any).glob !== "function") {
-  (import.meta as any).glob = () => ({});
+  (import.meta as any).glob = (pattern: string, options?: any) => {
+    // For benchmarks, we need real widgets.
+    if (process.env.BUN_TEST_MOCKS === "false") {
+      const fs = require("node:fs");
+      const path = require("node:path");
+
+      // Basic support for "./core/*/index.ts" and "./custom/*/index.ts"
+      const baseDir = path.resolve(process.cwd(), "src/widgets");
+      const isCustom = pattern.includes("custom");
+      const subDir = isCustom ? "custom" : "core";
+      const scanDir = path.join(baseDir, subDir);
+
+      if (!fs.existsSync(scanDir)) return {};
+
+      const modules: Record<string, any> = {};
+      const entries = fs.readdirSync(scanDir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const indexPath = path.join(scanDir, entry.name, "index.ts");
+          if (fs.existsSync(indexPath)) {
+            const key = `./${subDir}/${entry.name}/index.ts`;
+            if (options?.eager) {
+              modules[key] = require(indexPath);
+            } else {
+              modules[key] = () => import(indexPath);
+            }
+          }
+        }
+      }
+      return modules;
+    }
+    return {};
+  };
 }
 
 const setGlobal = (name: string, value: any) => {
@@ -263,8 +296,13 @@ if (isBun) {
 const ENABLE_MOCKS = process.env.BUN_TEST_MOCKS !== "false";
 
 const moduleMock = (path: string, factory: () => any) => {
+  const currentTest = process.argv.find(
+    (arg) => arg.includes("benchmark") || arg.endsWith(".test.ts"),
+  );
+  const isBenchmark = currentTest?.includes("benchmark");
+
   if (
-    !ENABLE_MOCKS &&
+    (!ENABLE_MOCKS || isBenchmark) &&
     !path.startsWith("$") &&
     !path.startsWith("svelte") &&
     !path.includes("scanner")
@@ -293,9 +331,11 @@ moduleMock("@src/databases/cache/types", () => ({
 }));
 
 const mockLogger = {
-  fatal: mock(() => {}),
-  error: mock(() => {}),
-  warn: mock(() => {}),
+  fatal: mock((msg: any) => console.error(`[FATAL] ${msg}`)),
+  error: mock((msg: any, details?: any) => {
+    console.error(`[ERROR] ${msg}`, details || "");
+  }),
+  warn: mock((msg: any) => console.warn(`[WARN] ${msg}`)),
   info: mock(() => {}),
   debug: mock(() => {}),
   trace: mock(() => {}),
@@ -321,12 +361,12 @@ moduleMock("@src/utils/logger.server", () => ({
 }));
 
 moduleMock("$app/environment", () => ({
-  browser: true,
+  browser: false,
   dev: true,
   building: false,
   version: "1.0.0",
   __esModule: true,
-  default: { browser: true, dev: true, building: false, version: "1.0.0" },
+  default: { browser: false, dev: true, building: false, version: "1.0.0" },
 }));
 
 moduleMock("$app/navigation", () => ({
@@ -976,20 +1016,49 @@ const mockDbAdapter = {
   },
   crud: {
     insert: mock(() => Promise.resolve({ success: true, data: { _id: "mock-id" } })),
+    insertMany: mock(() => Promise.resolve({ success: true, data: [] })),
     update: mock(() => Promise.resolve({ success: true })),
+    updateMany: mock(() => Promise.resolve({ success: true })),
     findOne: mock(() => Promise.resolve({ success: true, data: null })),
     findMany: mock(() => Promise.resolve({ success: true, data: [] })),
     delete: mock(() => Promise.resolve({ success: true })),
-    updateMany: mock(() => Promise.resolve({ success: true })),
+    deleteMany: mock(() => Promise.resolve({ success: true })),
+    upsert: mock(() => Promise.resolve({ success: true })),
+    upsertMany: mock(() => Promise.resolve({ success: true })),
+    count: mock(() => Promise.resolve({ success: true, data: 0 })),
+    exists: mock(() => Promise.resolve({ success: true, data: true })),
   },
   media: {
     files: {
+      upload: mock(() => Promise.resolve({ success: true, data: "test.jpg" })),
       delete: mock(() => Promise.resolve({ success: true })),
       deleteMany: mock(() => Promise.resolve({ success: true })),
-      upload: mock(() => Promise.resolve({ success: true, data: "test.jpg" })),
       getByFolder: mock(() => Promise.resolve({ success: true, data: [] })),
       getByHash: mock(() => Promise.resolve({ success: true, data: null })),
     },
+  },
+  content: {
+    nodes: {
+      getStructure: mock(() => Promise.resolve({ success: true, data: [] })),
+      create: mock(() => Promise.resolve({ success: true })),
+      update: mock(() => Promise.resolve({ success: true })),
+      delete: mock(() => Promise.resolve({ success: true })),
+    },
+    drafts: {
+      getForContent: mock(() => Promise.resolve({ success: true, data: [] })),
+    },
+  },
+  monitoring: {
+    cache: {
+      invalidateCategory: mock(() => Promise.resolve({ success: true })),
+    },
+  },
+  collection: {
+    getModel: mock(() => Promise.resolve({ _id: "mock_col", name: "mock_col", fields: [] })),
+    createModel: mock(() => Promise.resolve({ success: true })),
+  },
+  batch: {
+    execute: mock(() => Promise.resolve({ success: true, data: [] })),
   },
 };
 setGlobal("mockAuditLog", mockAuditLog);
@@ -1017,15 +1086,24 @@ const dbMock = {
   reinitializeSystem: mock(() => Promise.resolve({ status: "initialized" })),
   initConnection: mock(() => Promise.resolve()),
   getDbInitPromise: mock(() => Promise.resolve()),
+  ensureFullInitialization: mock(() => Promise.resolve()),
   resetDbInitPromise: mock(() => {}),
   dbInitPromise: Promise.resolve(),
   collection: {
-    getModel: mock(() => Promise.resolve({ name: "mock_collection", fields: [] })),
+    getModel: mock(() =>
+      Promise.resolve({ _id: "mock_collection", name: "mock_collection", fields: [] }),
+    ),
+    createModel: mock(() => Promise.resolve({ success: true })),
     listSchemas: mock(() => Promise.resolve({ success: true, data: [] })),
   },
+  batch: {
+    execute: mock(() => Promise.resolve({ success: true, data: [] })),
+  },
   crud: mockDbAdapter.crud,
+  content: mockDbAdapter.content,
   media: mockDbAdapter.media,
   system: mockDbAdapter.system,
+  monitoring: mockDbAdapter.monitoring,
   loadSettingsFromDB: mock(() => Promise.resolve(true)),
   isAuthReady: () => true,
 };

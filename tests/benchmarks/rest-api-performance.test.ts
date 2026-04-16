@@ -1,124 +1,111 @@
 /**
  * @file tests/benchmarks/rest-api-performance.test.ts
- * @description Professional benchmark for SveltyCMS REST API endpoints.
- * Measures latency and throughput for common public & authenticated routes.
+ * @description
+ * Professional REST API performance suite using the Serverless Dispatcher.
+ * Measures individual endpoint latency and memory overhead.
  */
 
 import { test } from "bun:test";
-import { runBenchmark, exportResult } from "./benchmark-utils";
-import { safeFetch } from "../integration/helpers/server";
+import "../unit/setup.ts";
+import {
+  runBenchmark,
+  exportResult,
+  checkBenchmarkEnv,
+  mockDispatch,
+  stabilize,
+} from "./benchmark-utils";
+import { logger } from "@utils/logger.server";
 
-const API_BASE_URL = process.env.API_BASE_URL || "http://127.0.0.1:4173";
+async function runWithMemoryTracking(_name: string, fn: () => Promise<any>) {
+  const memBefore = process.memoryUsage();
+  const result = await fn();
+  const memAfter = process.memoryUsage();
 
-async function stabilize() {
-  if (typeof Bun !== "undefined") Bun.gc(true);
-  await new Promise((r) => setTimeout(r, 20));
+  const rssDelta = (memAfter.rss - memBefore.rss) / 1024 / 1024;
+  return { result, rssDelta };
 }
 
-test("REST API Professional Performance Suite", async () => {
-  console.log("🚀 Starting SveltyCMS REST API Performance Benchmark...\n");
+export async function runRestApiBenchmark() {
+  checkBenchmarkEnv();
+  console.log("🚀 Starting SveltyCMS REST Performance Benchmark (High-Fidelity)...\n");
 
-  // ========================
-  // Server Health Check
-  // ========================
-  console.log("📡 Checking server availability...");
-  try {
-    const healthCheck = await safeFetch(`${API_BASE_URL}/api/system/health`, { method: "GET" });
-    if (!healthCheck.ok) {
-      throw new Error(`Server returned ${healthCheck.status}`);
-    }
-    console.log(`✅ Server reachable at ${API_BASE_URL}`);
-  } catch (err: any) {
-    console.error(`\n❌ ERROR: REST API server not reachable at ${API_BASE_URL}`);
-    console.warn("   This benchmark requires a running preview or production server.");
-    console.warn("   Run in another terminal: bun run build && bun run preview");
-    throw err; // Fail the test clearly
-  }
+  logger.level = "silent";
 
+  const { ensureFullInitialization } = await import("@src/databases/db");
+  await ensureFullInitialization();
   await stabilize();
 
-  const TEST_API_SECRET = process.env.TEST_API_SECRET || "enterprise-audit-2026";
-  const authHeaders = { "x-test-secret": TEST_API_SECRET };
+  const ITERATIONS = 800;
+  const WARMUP = 50;
+  const RUNS = 3;
 
-  const ITERATIONS = 800; // Good statistical significance for fast endpoints
-  const WARMUP = 100;
-  const CONCURRENCY = 12; // Realistic moderate concurrency
+  const endpoints = [
+    { name: "/api/system/health (Public)", path: "/system/health" },
+    { name: "/api/user/me (Auth)", path: "/user/me" },
+    { name: "/api/collections (DB)", path: "/collections" },
+  ];
 
   const results: any[] = [];
 
-  // 1. Public Health Check (lightweight, no auth)
-  console.log("📊 Benchmarking: /api/system/health (Public)");
-  const healthResult = await runBenchmark({
-    name: "REST: /api/system/health (Public)",
-    iterations: ITERATIONS,
-    warmupIterations: WARMUP,
-    concurrency: CONCURRENCY,
-    onIteration: async () => {
-      const res = await safeFetch(`${API_BASE_URL}/api/system/health`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    },
-  });
-  results.push(healthResult);
-  exportResult(healthResult, "rest-system-health.json");
+  for (const ep of endpoints) {
+    console.log(`   → Benchmarking ${ep.name}`);
 
-  await stabilize();
+    const res = await runWithMemoryTracking(ep.name, () =>
+      runBenchmark({
+        name: ep.name,
+        iterations: ITERATIONS,
+        warmupIterations: WARMUP,
+        concurrency: 1,
+        runs: RUNS,
+        trimOutliers: "iqr",
+        onIteration: async () => {
+          const res = await mockDispatch({ path: ep.path });
+          if (res.status !== 200) throw new Error(`Health failed: ${res.status}`);
+          await res.text();
+        },
+        silent: true,
+      }),
+    );
 
-  // 2. Authenticated /api/user/me
-  console.log("📊 Benchmarking: /api/user/me (Authenticated)");
-  const meResult = await runBenchmark({
-    name: "REST: /api/user/me (Auth)",
-    iterations: ITERATIONS,
-    warmupIterations: WARMUP,
-    concurrency: CONCURRENCY,
-    onIteration: async () => {
-      const res = await safeFetch(`${API_BASE_URL}/api/user/me`, { headers: authHeaders });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      await res.text(); // consume body
-    },
-  });
-  results.push(meResult);
-  exportResult(meResult, "rest-user-me.json");
+    results.push({ ...res.result, rssDelta: res.rssDelta });
+  }
 
-  await stabilize();
+  logger.level = "info";
 
-  // 3. List Collections (DB-heavy)
-  console.log("📊 Benchmarking: /api/collections (Database query)");
-  const collectionsResult = await runBenchmark({
-    name: "REST: /api/collections (DB)",
-    iterations: ITERATIONS,
-    warmupIterations: WARMUP,
-    concurrency: CONCURRENCY,
-    onIteration: async () => {
-      const res = await safeFetch(`${API_BASE_URL}/api/collections`, { headers: authHeaders });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      await res.text();
-    },
-  });
-  results.push(collectionsResult);
-  exportResult(collectionsResult, "rest-collections-list.json");
-
-  await stabilize();
-
-  // ========================
+  // ===================================================================
   // Professional Summary
-  // ========================
-  console.log("\n" + "=".repeat(95));
-  console.log("📊 REST API PERFORMANCE MATRIX");
-  console.log("=".repeat(95));
+  // ===================================================================
+  console.log("\n" + "=".repeat(130));
+  console.log("   📊 SVELTYCMS REST API PERFORMANCE AUDIT (DISPATCHED)");
+  console.log("   High-Fidelity • No Network Overhead • IQR Trimming • 95% Confidence");
+  console.log("=".repeat(130));
 
   console.log(
-    `| ${"Endpoint".padEnd(38)} | ${"Avg (ms)".padEnd(10)} | ${"p95 (ms)".padEnd(10)} | ${"RPS".padEnd(12)} |`,
+    `| ${"Endpoint".padEnd(38)} | ${"Avg Latency".padEnd(22)} | ${"p95".padEnd(14)} | ${"RPS".padEnd(12)} | ${"RSS Δ".padEnd(12)} |`,
   );
-  console.log("|" + "-".repeat(38 + 10 + 10 + 12 + 6) + "|");
+  console.log("|" + "-".repeat(38 + 22 + 14 + 12 + 12 + 6) + "|");
 
   for (const r of results) {
-    const cleanName = r.name.replace("REST: ", "");
+    const rssDeltaStr =
+      r.rssDelta !== undefined ? `${r.rssDelta >= 0 ? "+" : ""}${r.rssDelta.toFixed(2)} MB` : "—";
     console.log(
-      `| ${cleanName.padEnd(38)} | ${r.avgMs.toFixed(3).padEnd(10)} | ${r.p95Ms.toFixed(3).padEnd(10)} | ${Math.round(r.rps).toLocaleString().padEnd(12)} |`,
+      `| ${r.name.padEnd(38)} | ` +
+        `${r.avgMs.toFixed(4)} ms (±${r.marginOfError.toFixed(3)})`.padEnd(22) +
+        ` | ` +
+        `${r.p95Ms.toFixed(4)} ms`.padEnd(14) +
+        ` | ` +
+        `${Math.round(r.rps).toLocaleString()}`.padEnd(12) +
+        ` | ` +
+        `${rssDeltaStr.padEnd(12)} |`,
     );
   }
-  console.log("=".repeat(95));
+  console.log("=".repeat(130));
 
-  console.log(`\nTested with ${ITERATIONS} iterations @ concurrency ${CONCURRENCY}`);
-  console.log("All benchmarks include full response body consumption.");
-}, 600000);
+  results.forEach((r) => exportResult(r));
+}
+
+if (!process.env.SVELTY_AUDIT_ACTIVE) {
+  test("REST API Professional Performance Suite (In-Process Dispatcher)", async () => {
+    await runRestApiBenchmark();
+  }, 300000);
+}

@@ -123,7 +123,7 @@ const registry = new WidgetRegistryImpl();
 
 // Process core widgets
 for (const [path, module] of Object.entries(coreModules)) {
-  const processed = processWidgetModule(path, module, "core");
+  const processed = processWidgetModule(path, module as WidgetModule, "core");
   if (processed) {
     registry.register(processed.name, processed.factory, processed.type, processed.path);
 
@@ -138,7 +138,7 @@ for (const [path, module] of Object.entries(coreModules)) {
 
 // Process custom widgets
 for (const [path, module] of Object.entries(customModules)) {
-  const processed = processWidgetModule(path, module, "custom");
+  const processed = processWidgetModule(path, module as WidgetModule, "custom");
   if (processed) {
     registry.register(processed.name, processed.factory, processed.type, processed.path);
 

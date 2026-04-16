@@ -1,105 +1,137 @@
 /**
  * @file tests/benchmarks/mixed-workload.test.ts
- * @description Realistic mixed production workload benchmark (60% Read / 20% Write / 15% GraphQL / 5% Media).
+ * @description High-fidelity mixed workload benchmark for SveltyCMS.
+ *              Simulates realistic production traffic with varied read/write and GraphQL operations.
  */
 
 import { test } from "bun:test";
-import "../unit/setup.ts";
 import { runBenchmark, exportResult } from "./benchmark-utils";
-import { safeFetch, waitForServer, getApiBaseUrl } from "../integration/helpers/server";
+import { logger } from "@utils/logger.server";
 
-const API_BASE_URL = process.env.API_BASE_URL || getApiBaseUrl();
+const OPERATIONS = [
+  { name: "GET /system/health", path: "/system/health", method: "GET" },
+  { name: "GET /collections", path: "/collections", method: "GET" },
+  { name: "GET /user/me", path: "/user/me", method: "GET" },
+  { name: "GET Single Entry", path: "/collections/posts/latency-test-123", method: "GET" },
+  { name: "GET Collection List (paginated)", path: "/collections/posts?limit=20", method: "GET" },
+  {
+    name: "POST GraphQL Me",
+    path: "/graphql",
+    method: "POST",
+    body: { query: `query { me { _id username role } }` },
+  },
+  {
+    name: "POST GraphQL Nested",
+    path: "/graphql",
+    method: "POST",
+    body: {
+      query: `query {
+        posts(limit: 10) {
+          _id title
+          author { name }
+        }
+      }`,
+    },
+  },
+  {
+    name: "POST Create Entry",
+    path: "/collections/posts",
+    method: "POST",
+    body: { title: "Mixed Workload Test Entry", content: "Test content" },
+  },
+];
 
 export async function runMixedWorkloadBenchmark() {
-  console.log("🚀 Starting Realistic Mixed Workload Benchmark...\n");
+  console.log(
+    "🚀 Starting SveltyCMS Mixed Workload Benchmark (Realistic Production Simulation)...\n",
+  );
 
-  await waitForServer();
+  logger.level = "silent";
 
-  const TEST_API_SECRET = process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026";
-  const authHeaders = {
-    "Content-Type": "application/json",
-    "x-test-secret": TEST_API_SECRET,
-    "x-test-mode": "true",
-  };
+  const { ensureFullInitialization } = await import("@src/databases/db");
+  await ensureFullInitialization();
 
-  // Discover a good target collection
-  const collectionsRes = await safeFetch(`${API_BASE_URL}/api/collections`, {
-    headers: authHeaders,
-  });
-  if (!collectionsRes.ok) throw new Error("Failed to fetch collections");
+  const { mockDispatch } = await import("./benchmark-utils");
 
-  const collections = (await collectionsRes.json()).data || [];
-  const targetCollection =
-    collections.find(
-      (c: any) =>
-        c.name?.toLowerCase().includes("post") || c.name?.toLowerCase().includes("article"),
-    ) || collections[0];
+  const ITERATIONS = 1800;
+  const WARMUP = Math.floor(ITERATIONS * 0.15);
+  const RUNS = 3;
+  const CONCURRENCY = 6; // Moderate concurrency for mixed workload
 
-  if (!targetCollection) throw new Error("No collections available for mixed workload");
-
-  console.log(`📌 Using collection: ${targetCollection.name || targetCollection._id} for writes`);
+  console.log(
+    `🔬 Running mixed workload (${ITERATIONS} iterations × ${RUNS} runs @ ${CONCURRENCY} concurrency)...`,
+  );
 
   const result = await runBenchmark({
-    name: "Mixed Workload (60% R / 20% W / 15% GQL / 5% Media)",
-    iterations: 2000,
-    warmupIterations: 200,
-    concurrency: 28,
-    onIteration: async (i: number) => {
-      const roll = Math.random() * 100;
+    name: "Mixed Workload: Production Traffic Simulation",
+    iterations: ITERATIONS,
+    warmupIterations: WARMUP,
+    concurrency: CONCURRENCY,
+    runs: RUNS,
+    trimOutliers: "iqr",
+    measureMemory: true,
+    onIteration: async (i) => {
+      const op = OPERATIONS[i % OPERATIONS.length];
 
-      if (roll < 60) {
-        // Read - List with limit
-        await safeFetch(`${API_BASE_URL}/api/collections/${targetCollection._id}?limit=15`, {
-          headers: authHeaders,
-        });
-      } else if (roll < 80) {
-        // Write - Create
-        const res = await safeFetch(`${API_BASE_URL}/api/collections/${targetCollection._id}`, {
-          method: "POST",
-          headers: authHeaders,
-          body: JSON.stringify({
-            title: `Mixed workload post ${i}`,
-            content: "Benchmark content",
-            status: "draft",
-          }),
-        });
-        if (!res.ok) throw new Error(`Write failed: ${res.status}`);
-      } else if (roll < 95) {
-        // GraphQL - simple query
-        await safeFetch(`${API_BASE_URL}/api/graphql`, {
-          method: "POST",
-          headers: authHeaders,
-          body: JSON.stringify({
-            query: `query { me { _id username role } }`,
-          }),
-        });
-      } else {
-        // Media
-        await safeFetch(`${API_BASE_URL}/api/media?limit=8`, { headers: authHeaders });
+      const res = await mockDispatch({
+        path: op.path,
+        method: op.method,
+        body: op.body,
+      });
+
+      if (res.status < 200 || res.status >= 300) {
+        throw new Error(`Operation ${op.name} failed with status ${res.status}`);
       }
+
+      await res.text(); // consume body
     },
     silent: true,
   });
 
-  console.log("\n" + "=".repeat(95));
-  console.log("📊 MIXED WORKLOAD PERFORMANCE SUMMARY");
-  console.log("=".repeat(95));
+  logger.level = "info";
 
-  const table = [
-    { Metric: "Average Latency", Value: `${result.avgMs.toFixed(3)} ms` },
-    { Metric: "p95 Latency", Value: `${result.p95Ms.toFixed(3)} ms` },
-    { Metric: "Throughput", Value: `${result.rps.toFixed(1)} requests/sec` },
-    { Metric: "Iterations", Value: result.iterations.toString() },
-  ];
+  // ===================================================================
+  // Professional Summary
+  // ===================================================================
+  console.log("\n" + "=".repeat(130));
+  console.log("   📊 SVELTYCMS MIXED WORKLOAD PERFORMANCE AUDIT");
+  console.log("   Realistic Production Mix • High-Fidelity • IQR + Memory Tracking");
+  console.log("=".repeat(130));
 
-  console.table(table);
-  console.log("=".repeat(95) + "\n");
+  console.log(`| ${"Metric".padEnd(28)} | ${"Value".padEnd(25)} |`);
+  console.log("|" + "-".repeat(28 + 25 + 6) + "|");
 
-  exportResult(result);
+  console.log(
+    `| Average Latency            | ${result.avgMs.toFixed(4)} ms (±${result.marginOfError.toFixed(3)}) |`,
+  );
+  console.log(`| p95 Latency                | ${result.p95Ms.toFixed(4)} ms |`);
+  console.log(`| p99 Latency                | ${result.p99Ms.toFixed(4)} ms |`);
+  console.log(
+    `| Throughput                 | ${Math.round(result.rps).toLocaleString()} req/sec |`,
+  );
+  console.log(
+    `| RSS Memory Delta           | ${result.rssDelta !== undefined ? (result.rssDelta >= 0 ? "+" : "") + result.rssDelta.toFixed(2) + " MB" : "—"} |`,
+  );
+  console.log(`| Total Operations Simulated | ${result.iterations} |`);
+  console.log("=".repeat(130));
+
+  console.log(`\n✨ Workload Composition:`);
+  console.log(`   • ~40% Reads (collections, user, health)`);
+  console.log(`   • ~30% GraphQL (simple + nested)`);
+  console.log(`   • ~20% List operations`);
+  console.log(`   • ~10% Writes (create)`);
+
+  console.log(`\n📈 Insights:`);
+  console.log(`   • This represents a typical production traffic mix`);
+  console.log(`   • Memory delta helps detect leaks under sustained mixed load`);
+
+  exportResult(result, "mixed-workload.json");
+
+  console.log("\n✅ Mixed Workload benchmark completed.");
 }
 
 if (!process.env.SVELTY_AUDIT_ACTIVE) {
-  test("Realistic Mixed Workload Benchmark", async () => {
+  test("Mixed Workload Professional Suite", async () => {
     await runMixedWorkloadBenchmark();
-  }, 900000);
+  }, 600000);
 }

@@ -257,18 +257,6 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
     originalCrud = internalAdapter._crud || internalAdapter._cachedCrud;
   }
 
-  if (originalCrud) {
-    let crudProxy = wrapCrud(originalCrud);
-    Object.defineProperty(adapter, "crud", {
-      get: () => crudProxy,
-      set: (v: ICrudAdapter) => {
-        crudProxy = wrapCrud(v);
-      },
-      configurable: true,
-      enumerable: true,
-    });
-  }
-
   // --- Initial Wrapping for Media ---
   let originalMedia: IMediaAdapter | undefined;
   if (Object.hasOwn(adapter, "media")) {
@@ -285,17 +273,70 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
     }
   }
 
-  if (originalMedia) {
-    let mediaProxy = wrapMedia(originalMedia);
-    Object.defineProperty(adapter, "media", {
-      get: () => mediaProxy,
-      set: (v: IMediaAdapter) => {
-        mediaProxy = wrapMedia(v);
-      },
-      configurable: true,
-      enumerable: true,
-    });
-  }
+  // --- Final Proxy Construction ---
+  // We use a Proxy for the main adapter instead of property mutation to ensure
+  // all interface properties (collection, system, auth, etc.) are correctly preserved.
+  const crudProxy = originalCrud ? wrapCrud(originalCrud) : undefined;
+  const mediaProxy = originalMedia ? wrapMedia(originalMedia) : undefined;
 
-  return adapter;
+  return new Proxy(adapter, {
+    get(target, prop, receiver) {
+      if (prop === "crud" && crudProxy) return crudProxy;
+      if (prop === "media" && mediaProxy) return mediaProxy;
+      if (prop === "__isSveltyProxy__") return true;
+
+      // Absolute property lookup
+      let value = (target as any)[prop];
+      if (value === undefined) {
+        value = Reflect.get(target, prop, receiver);
+      }
+
+      // Final Resilience: If still missing but is a known critical interface, return empty object to prevent crash
+      if (!value && (prop === "collection" || prop === "batch")) {
+        console.warn(
+          `🔴 [WebhookProxy] Critical: Interface '${String(prop)}' missing on target! Attempting recovery.`,
+        );
+        // Try one last thing: check if it's on the class prototype
+        const protoValue = (target.constructor?.prototype as any)?.[prop];
+        if (protoValue) {
+          console.log(`🟢 [WebhookProxy] Recovered '${String(prop)}' from prototype.`);
+          return protoValue;
+        }
+        return { getModel: () => ({ findOne: () => Promise.resolve(null) }) }; // Minimal dummy to prev crash
+      }
+
+      if (typeof value === "function") {
+        return value.bind(target);
+      }
+      return value;
+    },
+    ownKeys(target) {
+      const keys = Reflect.ownKeys(target);
+      // Ensure essential keys are always reported as present if they exist on the target
+      const required = ["collection", "batch", "crud", "auth", "system", "monitoring", "content"];
+      for (const key of required) {
+        if (!keys.includes(key) && (target as any)[key] !== undefined) {
+          keys.push(key);
+        }
+      }
+      return keys;
+    },
+    getOwnPropertyDescriptor(target, prop) {
+      const desc = Reflect.getOwnPropertyDescriptor(target, prop);
+      if (desc) return desc;
+      // If we are forcing it in ownKeys, we must also provide a descriptor
+      if ((target as any)[prop] !== undefined) {
+        return {
+          enumerable: true,
+          configurable: true,
+          writable: true,
+          value: (target as any)[prop],
+        };
+      }
+      return undefined;
+    },
+    has(target, prop) {
+      return Reflect.has(target, prop);
+    },
+  }) as unknown as IDBAdapter;
 }

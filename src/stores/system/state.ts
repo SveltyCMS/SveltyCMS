@@ -44,6 +44,15 @@ function transitionServiceState(
   const service = state.services[serviceName];
   const metrics: ServicePerformanceMetrics = { ...service.metrics };
 
+  // Log only on transition
+  if (service.status !== newStatus) {
+    if (typeof process !== "undefined" && process.env.NODE_ENV === "production") {
+      console.log(
+        `[ServiceTransition] ${serviceName}: ${service.status} → ${newStatus} (${message})`,
+      );
+    }
+  }
+
   // Track initialization completion
   if (
     newStatus === "healthy" &&

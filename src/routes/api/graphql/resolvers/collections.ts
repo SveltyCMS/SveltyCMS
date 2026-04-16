@@ -119,18 +119,25 @@ export async function registerCollections(tenantId?: string | null) {
   const resolvers: ResolverContext = { Query: {} };
   const collectionSchemas: string[] = [];
   const collectionNameMapping = new Map<string, string>();
-  for (const collection of collections) {
-    const name = typeof collection.name === "string" ? collection.name : "";
-    const cleanTypeName = createCleanTypeName({ _id: collection._id, name });
-    collectionNameMapping.set(name, cleanTypeName);
-  }
-
-  // --- Optimization: Pre-calculate Relations to avoid O(N^2) lookup ---
   const relationMap = new Map<
     string,
     Array<{ otherCollection: Schema; otherField: FieldInstance }>
   >();
+
+  for (const collection of collections) {
+    const name = typeof collection.name === "string" ? collection.name : "";
+    if (!name) {
+      logger.trace(`[GraphQL] Skipping collection without name: ${collection._id}`);
+      continue;
+    }
+    const cleanTypeName = createCleanTypeName({ _id: collection._id, name });
+    relationMap.set(name, []); // Initialize map for relation lookup
+    collectionNameMapping.set(name, cleanTypeName);
+  }
+
+  // --- Optimization: Pre-calculate Relations to avoid O(N^2) lookup ---
   for (const otherCollection of collections) {
+    if (!otherCollection.name) continue;
     for (const otherField of otherCollection.fields as FieldInstance[]) {
       if (otherField.widget?.Name === "Relation") {
         const targetCollection = (otherField as any).collection;
@@ -144,6 +151,7 @@ export async function registerCollections(tenantId?: string | null) {
 
   for (const collection of collections) {
     const name = typeof collection.name === "string" ? collection.name : "";
+    if (!name) continue;
     const cleanTypeName = createCleanTypeName({ _id: collection._id, name });
     resolvers[cleanTypeName] = {};
     let collectionSchema = `\n\ttype ${cleanTypeName} {\n`;

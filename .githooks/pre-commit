@@ -19,7 +19,6 @@ else
 fi
 
 # 2. Type Check (Svelte Check)
-# Temporarily disabled due to TypeScript 6.0 compatibility issues with svelte-check
 echo "✅ Type Checking..."
 bun run check
 

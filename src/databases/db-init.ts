@@ -150,60 +150,71 @@ export async function initializeCriticalServices(dbAdapter: DatabaseAdapter) {
   return auth;
 }
 
+let backgroundTasksPromise: Promise<void> | null = null;
+
 export async function runBackgroundTasks(dbAdapter: DatabaseAdapter) {
-  const start = performance.now();
-  try {
-    // Phase 2: Ensure core content schemas are live before managers start
-    if (dbAdapter?.ensureCollections) await dbAdapter.ensureCollections();
-    if (dbAdapter?.ensureContent) await dbAdapter.ensureContent();
-    if (dbAdapter?.ensureMedia)
-      await dbAdapter.ensureMedia().catch((e) => logger.warn("Media activation issue:", e));
-    if (dbAdapter?.ensureMonitoring) await dbAdapter.ensureMonitoring();
+  if (backgroundTasksPromise) return backgroundTasksPromise;
 
-    // Initialize Index Optimizer
+  backgroundTasksPromise = (async () => {
+    const start = performance.now();
     try {
-      const { initializeIndexOptimizer, indexOptimizer } =
-        await import("@src/services/database/index-optimizer.server");
-      initializeIndexOptimizer(dbAdapter);
-      void indexOptimizer?.optimizeAll();
-    } catch (e) {
-      logger.warn("[db] Index optimization failed to start:", e);
+      // Phase 2: Ensure core content schemas are live before managers start
+      if (dbAdapter?.ensureSystem) await dbAdapter.ensureSystem();
+      if (dbAdapter?.ensureCollections) await dbAdapter.ensureCollections();
+      if (dbAdapter?.ensureContent) await dbAdapter.ensureContent();
+      if (dbAdapter?.ensureMedia)
+        await dbAdapter.ensureMedia().catch((e) => logger.warn("Media activation issue:", e));
+      if (dbAdapter?.ensureMonitoring) await dbAdapter.ensureMonitoring();
+
+      // Initialize Index Optimizer
+      try {
+        const { initializeIndexOptimizer, indexOptimizer } =
+          await import("@src/services/database/index-optimizer.server");
+        initializeIndexOptimizer(dbAdapter);
+        void indexOptimizer?.optimizeAll();
+      } catch (e) {
+        logger.warn("[db] Index optimization failed to start:", e);
+      }
+
+      updateServiceHealth("cache", "initializing", "Warming up cache...");
+      updateServiceHealth("themeManager", "initializing", "Initializing themes...");
+
+      await Promise.all([
+        (async () => {
+          const { ThemeManager } = await import("@src/databases/theme-manager");
+          const instance = ThemeManager?.getInstance();
+          if (instance?.initialize) {
+            await instance.initialize(dbAdapter);
+            updateServiceHealth("themeManager", "healthy", "Themes initialized");
+          }
+        })(),
+        (async () => {
+          const { cacheWarmingService } = await import("@src/databases/cache-warming-service");
+          if (cacheWarmingService?.initialize) {
+            await cacheWarmingService.initialize(dbAdapter);
+            updateServiceHealth("cache", "healthy", "Cache warmed up");
+          }
+        })(),
+        (async () => {
+          updateServiceHealth("contentSystem", "initializing", "Initializing content manager...");
+          const { contentSystem } = await import("@src/content");
+          if (contentSystem?.initialize) {
+            await contentSystem.initialize(null, true, dbAdapter);
+            updateServiceHealth("contentSystem", "healthy", "Content manager initialized");
+          }
+        })(),
+      ]);
+
+      logger.info("✅ All background services ready.");
+      metricsService.recordMetric("boot:background:total", performance.now() - start);
+    } catch (error) {
+      logger.error("Error in background system tasks:", error);
+      backgroundTasksPromise = null; // Allow retry on failure
+      throw error;
+    } finally {
+      cacheService.setBootstrapping(false);
     }
+  })();
 
-    updateServiceHealth("cache", "initializing", "Warming up cache...");
-    updateServiceHealth("themeManager", "initializing", "Initializing themes...");
-
-    await Promise.all([
-      (async () => {
-        const { ThemeManager } = await import("@src/databases/theme-manager");
-        const instance = ThemeManager?.getInstance();
-        if (instance?.initialize) {
-          await instance.initialize(dbAdapter);
-          updateServiceHealth("themeManager", "healthy", "Themes initialized");
-        }
-      })(),
-      (async () => {
-        const { cacheWarmingService } = await import("@src/databases/cache-warming-service");
-        if (cacheWarmingService?.initialize) {
-          await cacheWarmingService.initialize(dbAdapter);
-          updateServiceHealth("cache", "healthy", "Cache warmed up");
-        }
-      })(),
-      (async () => {
-        updateServiceHealth("contentSystem", "initializing", "Initializing content manager...");
-        const { contentSystem } = await import("@src/content");
-        if (contentSystem?.initialize) {
-          await contentSystem.initialize(null, true, dbAdapter);
-          updateServiceHealth("contentSystem", "healthy", "Content manager initialized");
-        }
-      })(),
-    ]);
-
-    logger.info("✅ All background services ready.");
-    metricsService.recordMetric("boot:background:total", performance.now() - start);
-  } catch (error) {
-    logger.error("Error in background system tasks:", error);
-  } finally {
-    cacheService.setBootstrapping(false);
-  }
+  return backgroundTasksPromise;
 }

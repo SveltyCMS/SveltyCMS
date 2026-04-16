@@ -227,7 +227,7 @@ function boundaryResponse(err: unknown, isHttps: boolean): Response {
 // ---------------------------------------------------------------------------
 
 /**
- * Classifies a pathname as an "API-like" route — one where JSON/programmatic
+ * Classifies a pathname as an \"API-like\" route — one where JSON/programmatic
  * responses are appropriate instead of HTML redirects.
  *
  * Covers /api/*, /graphql, and any future RPC-style mount points.
@@ -259,7 +259,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     if (testSecret === expected) {
       // logger.debug(`[Backdoor] Valid test secret received for ${pathname}`);
       // Fast-track: Provision system user and bypass EVERYTHING
-      const { getDbInitPromise, dbAdapter } = await import("@src/databases/db");
+      const { getDbInitPromise, getDb } = await import("@src/databases/db");
       await getDbInitPromise(false, "CORE");
 
       (event.locals as any).user = {
@@ -268,7 +268,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         isAdmin: true,
         email: "system@sveltycms",
       };
-      (event.locals as any).dbAdapter = dbAdapter;
+      (event.locals as any).dbAdapter = getDb();
       (event.locals as any).__testBypass = true;
       return resolve(event);
     } else {
@@ -310,7 +310,6 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       if (dev) logRequest(event, performance.now() - requestStart, response.status);
       return response;
     }
-
     // ── 3. SYSTEM STATE GATE ────────────────────────────────────────────────
     const systemState = getSystemState();
     if (RESTRICTED_STATES.has(systemState.overallState)) {

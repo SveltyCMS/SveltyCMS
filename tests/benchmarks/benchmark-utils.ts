@@ -1,7 +1,7 @@
 /**
  * @file tests/benchmarks/benchmark-utils.ts
- * @description Centralized utility for professional performance benchmarking in SveltyCMS.
- * Provides high-resolution timing, statistical analysis (p95, p99), and throughput (RPS).
+ * @description Professional, high-fidelity benchmarking utilities for SveltyCMS.
+ *              Supports latency & throughput modes, rich statistics, and easy integration.
  */
 
 import { performance } from "node:perf_hooks";
@@ -19,41 +19,63 @@ export interface BenchmarkResult {
   p95Ms: number;
   p99Ms: number;
   stdDev: number;
+  marginOfError: number; // 95% confidence margin
+  rssDelta?: number; // Optional memory RSS delta
   rps: number;
   successCount: number;
   failureCount: number;
   timestamp: string;
+  phases?: any[]; // For multi-phase benchmarks
+  [key: string]: any; // Allow custom metadata
 }
 
 export interface BenchmarkOptions {
   name: string;
   iterations: number;
   warmupIterations?: number;
-  concurrency?: number; // 1 = pure latency, >1 = throughput under load
-  runs?: number; // NEW: multiple independent runs for stability
-  useNanoseconds?: boolean; // NEW: Bun-optimized timing
-  trimOutliers?: boolean; // NEW: trim 2% extremes
-  onIteration: (i: number) => Promise<void> | void;
-  onWarmup?: (i: number) => Promise<void> | void;
+  concurrency?: number; // 1 = latency, >1 = throughput test
+  runs?: number; // Multiple independent runs for stability
+  useNanoseconds?: boolean;
+  trimOutliers?: boolean | "iqr"; // "iqr" = Interquartile Range based trimming
+  onIteration: (index: number) => Promise<void> | void;
+  onWarmup?: (index: number) => Promise<void> | void;
+  onSetup?: () => Promise<void> | void;
+  onTeardown?: () => Promise<void> | void;
   silent?: boolean;
+  measureMemory?: boolean;
 }
 
-/**
- * Force GC and stabilize (Bun + Node compatible)
- */
-async function stabilize() {
+/** Stabilize runtime (GC + yield) */
+export async function stabilize(): Promise<void> {
   if (typeof Bun !== "undefined" && typeof (Bun as any).gc === "function") {
-    (Bun as any).gc(true); // full synchronous GC
-  } else if (typeof globalThis.gc === "function") {
-    globalThis.gc();
+    (Bun as any).gc(true);
+  } else if (typeof (globalThis as any).gc === "function") {
+    (globalThis as any).gc();
   }
-  // Small yield to let event loop settle and OS to reclaim resources
-  await new Promise((r) => setTimeout(r, 100));
+  await new Promise((r) => setTimeout(r, 60)); // yield to let system settle
 }
 
-/**
- * Runs a professional benchmark with multiple runs, warmup, and statistical analysis.
- */
+/** Robust concurrent execution pool (semaphore style) */
+async function executePool(
+  concurrency: number,
+  total: number,
+  fn: (i: number) => Promise<void> | void,
+): Promise<void> {
+  const executing = new Set<Promise<unknown>>();
+
+  for (let i = 0; i < total; i++) {
+    const p = Promise.resolve().then(() => fn(i));
+    executing.add(p);
+    p.finally(() => executing.delete(p));
+
+    if (executing.size >= concurrency) {
+      await Promise.race(executing);
+    }
+  }
+
+  await Promise.all(executing);
+}
+
 export async function runBenchmark(options: BenchmarkOptions): Promise<BenchmarkResult> {
   const {
     name,
@@ -65,22 +87,27 @@ export async function runBenchmark(options: BenchmarkOptions): Promise<Benchmark
     trimOutliers = true,
     onIteration,
     onWarmup,
+    onSetup,
+    onTeardown,
     silent = false,
+    measureMemory = false,
   } = options;
 
   if (!silent) {
-    console.log(`\n🚀 BENCHMARK: ${name} (${runs} run${runs > 1 ? "s" : ""})`);
+    console.log(`\n🚀 Benchmark: ${name} (${runs} run${runs > 1 ? "s" : ""})`);
     console.log(
       `   Iterations: ${iterations} | Concurrency: ${concurrency} | Warmup: ${warmupIterations}`,
     );
   }
+
+  if (onSetup) await onSetup();
 
   const allResults: BenchmarkResult[] = [];
 
   for (let run = 1; run <= runs; run++) {
     if (runs > 1 && !silent) console.log(`   Run ${run}/${runs}...`);
 
-    // Warmup (always serial)
+    // Warmup phase (always serial)
     if (warmupIterations > 0) {
       const warmupFn = onWarmup || onIteration;
       if (!silent) process.stdout.write(`   🔥 Warming up... `);
@@ -89,13 +116,14 @@ export async function runBenchmark(options: BenchmarkOptions): Promise<Benchmark
       await stabilize();
     }
 
-    // Measurement
+    // Measurement phase
     const latencies: number[] = [];
     let successCount = 0;
     let failureCount = 0;
+    const memStart = measureMemory ? process.memoryUsage() : null;
 
     const getTime = useNanoseconds
-      ? () => Number((Bun as any).nanoseconds()) / 1_000_000 // to ms
+      ? () => Number((Bun as any).nanoseconds()) / 1_000_000
       : () => performance.now();
 
     const startTotal = getTime();
@@ -104,64 +132,83 @@ export async function runBenchmark(options: BenchmarkOptions): Promise<Benchmark
       const start = getTime();
       try {
         await onIteration(i);
-        const end = getTime();
-        latencies.push(end - start);
+        latencies.push(getTime() - start);
         successCount++;
-      } catch (e) {
-        if (failureCount === 0 && !silent) console.error("Benchmark error:", e);
+      } catch (err) {
         failureCount++;
+        if (failureCount === 1 && !silent) {
+          console.error(`\n❌ First error in benchmark '${name}':`, err);
+        }
       }
     });
 
-    const endTotal = getTime();
-    const totalMs = endTotal - startTotal;
+    const totalMs = getTime() - startTotal;
+    if (onTeardown) await onTeardown();
 
-    // Statistical processing
+    // --- Statistics ---
     latencies.sort((a, b) => a - b);
 
-    let processedLatencies = latencies;
-    if (trimOutliers && latencies.length > 20) {
-      const trim = Math.floor(latencies.length * 0.02);
-      processedLatencies = latencies.slice(trim, latencies.length - trim);
+    let processed = latencies;
+    if (trimOutliers) {
+      if (trimOutliers === "iqr" && latencies.length > 20) {
+        // Robust Interquartile Range based trimming
+        const q1 = latencies[Math.floor(latencies.length * 0.25)];
+        const q3 = latencies[Math.floor(latencies.length * 0.75)];
+        const iqr = q3 - q1;
+        const low = q1 - 1.5 * iqr;
+        const high = q3 + 1.5 * iqr;
+        processed = latencies.filter((v) => v >= low && v <= high);
+      } else if (latencies.length > 30) {
+        // Fallback or default: 2% trim from each end
+        const trim = Math.floor(latencies.length * 0.02);
+        processed = latencies.slice(trim, latencies.length - trim);
+      }
     }
 
-    const avgMs = processedLatencies.reduce((a, b) => a + b, 0) / processedLatencies.length || 0;
-    const minMs = processedLatencies[0] || 0;
-    const maxMs = processedLatencies[processedLatencies.length - 1] || 0;
-    const p50Ms = processedLatencies[Math.floor(processedLatencies.length * 0.5)] || 0;
-    const p95Ms = processedLatencies[Math.floor(processedLatencies.length * 0.95)] || 0;
-    const p99Ms = processedLatencies[Math.floor(processedLatencies.length * 0.99)] || 0;
+    const avgMs = processed.reduce((a, b) => a + b, 0) / processed.length || 0;
+    const minMs = processed[0] || 0;
+    const maxMs = processed[processed.length - 1] || 0;
+    const p50Ms = processed[Math.floor(processed.length * 0.5)] || 0;
+    const p95Ms = processed[Math.floor(processed.length * 0.95)] || 0;
+    const p99Ms = processed[Math.floor(processed.length * 0.99)] || 0;
 
-    // StdDev
-    const squareDiffs = processedLatencies.map((v) => Math.pow(v - avgMs, 2));
-    const stdDev = Math.sqrt(squareDiffs.reduce((a, b) => a + b, 0) / squareDiffs.length || 0);
+    const squareDiffs = processed.map((v) => (v - avgMs) ** 2);
+    const variance = squareDiffs.reduce((a, b) => a + b, 0) / squareDiffs.length || 0;
+    const stdDev = Math.sqrt(variance);
 
-    const rps = (successCount / totalMs) * 1000;
+    // Margin of Error (95% confidence interval)
+    const marginOfError = (stdDev * 1.96) / Math.sqrt(processed.length);
+
+    const rps = totalMs > 0 ? (successCount / totalMs) * 1000 : 0;
 
     const result: BenchmarkResult = {
       name: runs > 1 ? `${name} (run ${run})` : name,
       iterations,
-      totalMs,
-      avgMs,
-      minMs,
-      maxMs,
-      p50Ms,
-      p95Ms,
-      p99Ms,
-      stdDev,
-      rps,
+      totalMs: Number(totalMs.toFixed(2)),
+      avgMs: Number(avgMs.toFixed(4)),
+      minMs: Number(minMs.toFixed(4)),
+      maxMs: Number(maxMs.toFixed(4)),
+      p50Ms: Number(p50Ms.toFixed(4)),
+      p95Ms: Number(p95Ms.toFixed(4)),
+      p99Ms: Number(p99Ms.toFixed(4)),
+      stdDev: Number(stdDev.toFixed(4)),
+      marginOfError: Number(marginOfError.toFixed(4)),
+      rps: Number(rps.toFixed(1)),
       successCount,
       failureCount,
       timestamp: new Date().toISOString(),
+      rssDelta: memStart ? (process.memoryUsage().rss - memStart.rss) / 1024 / 1024 : undefined,
     };
 
     allResults.push(result);
-    if (!silent) printReport(result);
+    if (!silent) {
+      printReport(result, process.memoryUsage(), memStart);
+    }
 
     await stabilize();
   }
 
-  // If multiple runs, compute aggregate
+  // Aggregate multiple runs
   if (runs > 1) {
     const aggregate = computeAggregate(allResults, name);
     if (!silent) {
@@ -172,138 +219,118 @@ export async function runBenchmark(options: BenchmarkOptions): Promise<Benchmark
   }
 
   if (allResults[0].successCount === 0 && iterations > 0) {
-    throw new Error(`Benchmark '${name}' failed: 0 successful out of ${iterations} iterations.`);
+    throw new Error(
+      `Benchmark '${name}' failed completely (${iterations} iterations, 0 successes).`,
+    );
   }
 
   return allResults[0];
 }
 
-/**
- * Simple aggregate helper for multiple runs.
- */
-function computeAggregate(results: BenchmarkResult[], name: string): BenchmarkResult {
-  const count = results.length;
-  const avgMs = results.reduce((sum, r) => sum + r.avgMs, 0) / count;
-  const totalMs = results.reduce((sum, r) => sum + r.totalMs, 0) / count;
-  const p50Ms = results.reduce((sum, r) => sum + r.p50Ms, 0) / count;
-  const p95Ms = results.reduce((sum, r) => sum + r.p95Ms, 0) / count;
-  const p99Ms = results.reduce((sum, r) => sum + r.p99Ms, 0) / count;
-  const rps = results.reduce((sum, r) => sum + r.rps, 0) / count;
-  const successCount = Math.round(results.reduce((sum, r) => sum + r.successCount, 0) / count);
-  const failureCount = Math.round(results.reduce((sum, r) => sum + r.failureCount, 0) / count);
-
+function computeAggregate(results: BenchmarkResult[], baseName: string): BenchmarkResult {
+  const n = results.length;
+  const avgStdDev = results.reduce((s, r) => s + r.stdDev, 0) / n;
   return {
     ...results[0],
-    name: `${name} (aggregate)`,
-    avgMs,
-    totalMs,
-    p50Ms,
-    p95Ms,
-    p99Ms,
-    rps,
-    successCount,
-    failureCount,
+    name: `${baseName} (aggregate)`,
+    avgMs: results.reduce((s, r) => s + r.avgMs, 0) / n,
+    totalMs: results.reduce((s, r) => s + r.totalMs, 0) / n,
+    p50Ms: results.reduce((s, r) => s + r.p50Ms, 0) / n,
+    p95Ms: results.reduce((s, r) => s + r.p95Ms, 0) / n,
+    p99Ms: results.reduce((s, r) => s + r.p99Ms, 0) / n,
+    stdDev: avgStdDev,
+    marginOfError: (avgStdDev * 1.96) / Math.sqrt(results[0].iterations),
+    rps: results.reduce((s, r) => s + r.rps, 0) / n,
+    successCount: Math.round(results.reduce((s, r) => s + r.successCount, 0) / n),
+    failureCount: Math.round(results.reduce((sum, r) => sum + r.failureCount, 0) / n),
   };
 }
 
-/**
- * Internal helper for concurrent execution.
- */
-async function executePool(
-  concurrency: number,
-  total: number,
-  fn: (i: number) => Promise<void> | void,
-) {
-  const executing = new Set<Promise<void>>();
-  for (let i = 0; i < total; i++) {
-    const p = Promise.resolve().then(() => fn(i));
-    executing.add(p);
-    p.finally(() => executing.delete(p));
-    if (executing.size >= concurrency) {
-      await Promise.race(executing);
-    }
-  }
-  await Promise.all(executing);
-}
-
-/**
- * Beautifully formats and prints the benchmark report to terminal.
- */
-function printReport(r: BenchmarkResult) {
+function printReport(r: BenchmarkResult, memAfter?: any, memBefore?: any) {
   const table = [
-    {
-      Metric: "Average Latency",
-      Value: `${r.avgMs.toFixed(4)} ms (${(r.avgMs * 1000).toFixed(2)} µs)`,
-    },
-    { Metric: "p50 (Median)", Value: `${r.p50Ms.toFixed(4)} ms` },
-    { Metric: "p95 Latency", Value: `${r.p95Ms.toFixed(4)} ms` },
-    { Metric: "p99 Latency", Value: `${r.p99Ms.toFixed(4)} ms` },
-    { Metric: "Min / Max", Value: `${r.minMs.toFixed(4)} / ${r.maxMs.toFixed(4)} ms` },
-    { Metric: "Std Deviation", Value: `${r.stdDev.toFixed(4)} ms` },
-    { Metric: "Throughput", Value: `${r.rps.toFixed(2)} req/sec` },
+    { Metric: "Average Latency", Value: `${r.avgMs} ms (±${r.marginOfError} MoE)` },
+    { Metric: "p50 (Median)", Value: `${r.p50Ms} ms` },
+    { Metric: "p95", Value: `${r.p95Ms} ms` },
+    { Metric: "p99", Value: `${r.p99Ms} ms` },
+    { Metric: "Min / Max", Value: `${r.minMs} / ${r.maxMs} ms` },
+    { Metric: "Std Deviation", Value: `${r.stdDev} ms` },
+    { Metric: "Throughput", Value: `${r.rps.toLocaleString()} req/sec` },
     {
       Metric: "Success Rate",
       Value: `${((r.successCount / r.iterations) * 100).toFixed(2)}% (${r.successCount}/${r.iterations})`,
     },
   ];
 
+  if (memAfter && memBefore) {
+    const rssDelta = ((memAfter.rss - memBefore.rss) / 1024 / 1024).toFixed(2);
+    table.push({ Metric: "RSS Delta", Value: `${rssDelta} MB` });
+  }
+
   console.table(table);
-  console.log(`🏁 Total time: ${r.totalMs.toFixed(2)} ms\n`);
+  console.log(`🏁 Total time: ${r.totalMs.toFixed(1)} ms\n`);
 }
 
 /**
- * Exports results to a JSON file for documentation integration.
+ * Exports results to a JSON file. Now supports partial results (e.g. suites/phases).
  */
-export function exportResult(result: BenchmarkResult, filename?: string) {
+export function exportResult(result: Partial<BenchmarkResult> & { name: string }, filename?: any) {
   const dir = process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true });
 
-  const sanitizedName = result.name
+  const safeName = result.name
     .toLowerCase()
-    .replace(/[:\\/]/g, "-")
-    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]+/g, "-")
     .replace(/-+/g, "-");
 
-  const name = filename || `${sanitizedName}.json`;
-  const filePath = path.join(dir, name);
+  // If filename is not a string (e.g. from forEach), use safeName
+  const finalFilename = typeof filename === "string" ? filename : `${safeName}.json`;
+  const filePath = path.join(dir, finalFilename);
+
   fs.writeFileSync(filePath, JSON.stringify(result, null, 2));
-  // Skip log in silent mode or when exporting from a suite
 }
 
 /**
- * Generates a comprehensive Markdown report from a suite of benchmark results.
+ * Common safeguard to ensure benchmarks run with mocks disabled.
  */
-export function generateMarkdownReport(
-  suiteName: string,
-  results: BenchmarkResult[],
-  filename = "PERFORMANCE_REPORT.md",
+export function checkBenchmarkEnv() {
+  if (process.env.BUN_TEST_MOCKS !== "false") {
+    console.warn(
+      "\n⚠️  [BENCHMARK] Warning: BUN_TEST_MOCKS is not set to 'false'. Results may be biased by mocks.\n",
+    );
+  }
+}
+
+/**
+ * Shared Local Dispatcher Mock for REST/API benchmarks.
+ */
+export async function mockDispatch(
+  pathOrEvent: string | { path: string; method?: string; body?: any; [key: string]: any },
+  method: string = "GET",
 ) {
-  const dir = process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const { handleApiRequests } = await import("@src/hooks/handle-api-requests");
 
-  const timestamp = new Date().toLocaleString();
-  let md = `# 🚀 SveltyCMS Performance Report: ${suiteName}\n\n`;
-  md += `**Generated:** ${timestamp}\n\n`;
+  let path = typeof pathOrEvent === "string" ? pathOrEvent : pathOrEvent.path;
+  const targetMethod = typeof pathOrEvent === "string" ? method : pathOrEvent.method || "GET";
+  const body = typeof pathOrEvent === "string" ? undefined : pathOrEvent.body;
+  const tenantId = typeof pathOrEvent === "string" ? "global" : pathOrEvent.tenantId || "global";
 
-  md += `## 📊 Resolver Performance Matrix\n\n`;
-  md += `| Query Name | Avg (ms) | p50 (ms) | p95 (ms) | p99 (ms) | RPS | Success |\n`;
-  md += `| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n`;
+  if (!path.startsWith("/")) path = "/" + path;
+  const url = `http://localhost/api${path}`;
 
-  for (const r of results) {
-    const successRate = ((r.successCount / r.iterations) * 100).toFixed(1);
-    md += `| ${r.name} | ${r.avgMs.toFixed(2)} | ${r.p50Ms.toFixed(2)} | ${r.p95Ms.toFixed(2)} | ${r.p99Ms.toFixed(2)} | ${r.rps.toFixed(2)} | ${successRate}% |\n`;
-  }
+  const event: any = {
+    url: new URL(url),
+    request: new Request(url, {
+      method: targetMethod,
+      headers: { "x-tenant-id": tenantId },
+      body: body ? JSON.stringify(body) : undefined,
+    }),
+    locals: { tenantId, user: { _id: "admin", role: "admin" } },
+    cookies: { get: () => undefined, getAll: () => [], set: () => {}, delete: () => {} },
+    getClientAddress: () => "127.0.0.1",
+    platform: {},
+    params: {},
+    route: { id: "/api/[...path]" },
+  };
 
-  md += `\n## 🔍 Statistical Breakdown\n\n`;
-  for (const r of results) {
-    md += `### ${r.name}\n`;
-    md += `- **Iterations:** ${r.iterations}\n`;
-    md += `- **Min / Max:** ${r.minMs.toFixed(4)} / ${r.maxMs.toFixed(4)} ms\n`;
-    md += `- **Std Deviation:** ${r.stdDev.toFixed(4)} ms\n`;
-    md += `- **Total Time:** ${r.totalMs.toFixed(2)} ms\n\n`;
-  }
-
-  const filePath = path.join(dir, filename);
-  fs.writeFileSync(filePath, md);
-  console.log(`\n📄 Markdown report generated: ${filePath}`);
+  return handleApiRequests({ event, resolve: async () => new Response("OK") });
 }

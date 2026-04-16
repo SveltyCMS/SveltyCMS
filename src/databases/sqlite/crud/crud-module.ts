@@ -345,64 +345,68 @@ export class CrudModule {
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
-        return await this.db.transaction(async (tx) => {
-          const secureQuery = safeQuery(query, options.tenantId as string, {
-            bypassTenantCheck: options.bypassTenantCheck,
-          });
-          const table = this.core.getTable(collection);
-          const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
-            | import("drizzle-orm").SQL
-            | undefined;
+        const secureQuery = safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+        });
+        const table = this.core.getTable(collection);
+        const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
+          | import("drizzle-orm").SQL
+          | undefined;
 
-          const existing = await tx
+        // Better-sqlite3 transactions in Drizzle are often synchronous.
+        // If we get "Transaction function cannot return a promise", we must not use async/await inside tx.
+        // However, many of our utilities are async.
+        // Workaround: Perform lookup first, then perform update/insert.
+        // This is less atomic but works with the driver limitation.
+
+        const existing = await this.db
+          .select()
+          .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .where(where)
+          .limit(1);
+
+        if (existing.length > 0) {
+          const id = (existing[0] as any)._id as unknown as DatabaseId;
+          const now = new Date(nowISODateString());
+          const updateData = { ...data, updatedAt: now };
+          const values = utils.convertISOToDates(updateData as Record<string, unknown>);
+          delete (values as any)._id;
+
+          await this.db
+            .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+            .set(values as Record<string, unknown>)
+            .where(eq((table as any)._id, id as string));
+
+          const [result] = await this.db
             .select()
             .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-            .where(where)
+            .where(eq((table as any)._id, id as string))
             .limit(1);
 
-          if (existing.length > 0) {
-            const id = (existing[0] as any)._id as unknown as DatabaseId;
-            const now = new Date(nowISODateString());
-            const updateData = { ...data, updatedAt: now };
-            const values = utils.convertISOToDates(updateData as Record<string, unknown>);
-            delete (values as any)._id;
+          return utils.convertDatesToISO(result as Record<string, unknown>) as T;
+        } else {
+          const id = (data as Partial<T>)._id || (utils.generateId() as DatabaseId);
+          const now = new Date(nowISODateString());
+          const values = utils.convertISOToDates({
+            ...data,
+            _id: id,
+            tenantId: options.tenantId || (data as any).tenantId,
+            createdAt: now,
+            updatedAt: now,
+          } as Record<string, unknown>);
 
-            await tx
-              .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-              .set(values as Record<string, unknown>)
-              .where(eq((table as any)._id, id as string));
+          await this.db
+            .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+            .values(values as any);
 
-            const [result] = await tx
-              .select()
-              .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-              .where(eq((table as any)._id, id as string))
-              .limit(1);
+          const [result] = await this.db
+            .select()
+            .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+            .where(eq((table as any)._id, id as string))
+            .limit(1);
 
-            return utils.convertDatesToISO(result as Record<string, unknown>) as T;
-          } else {
-            const id = (data as Partial<T>)._id || (utils.generateId() as DatabaseId);
-            const now = new Date(nowISODateString());
-            const values = utils.convertISOToDates({
-              ...data,
-              _id: id,
-              tenantId: options.tenantId || (data as any).tenantId,
-              createdAt: now,
-              updatedAt: now,
-            } as Record<string, unknown>);
-
-            await tx
-              .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-              .values(values as any);
-
-            const [result] = await tx
-              .select()
-              .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-              .where(eq((table as any)._id, id as string))
-              .limit(1);
-
-            return utils.convertDatesToISO(result as Record<string, unknown>) as T;
-          }
-        });
+          return utils.convertDatesToISO(result as Record<string, unknown>) as T;
+        }
       }, "CRUD_UPSERT_FAILED")
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
@@ -569,56 +573,54 @@ export class CrudModule {
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
-        return await this.db.transaction(async (tx) => {
-          let upsertedCount = 0;
-          let modifiedCount = 0;
-          const table = this.core.getTable(collection);
+        const table = this.core.getTable(collection);
+        let upsertedCount = 0;
+        let modifiedCount = 0;
 
-          for (const item of items) {
-            const secureQuery = safeQuery(item.query, options.tenantId as string, {
-              bypassTenantCheck: options.bypassTenantCheck,
-            });
-            const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
-              | import("drizzle-orm").SQL
-              | undefined;
+        for (const item of items) {
+          const secureQuery = safeQuery(item.query, options.tenantId as string, {
+            bypassTenantCheck: options.bypassTenantCheck,
+          });
+          const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
+            | import("drizzle-orm").SQL
+            | undefined;
 
-            const existing = await tx
-              .select()
-              .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-              .where(where)
-              .limit(1);
+          const existing = await this.db
+            .select()
+            .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+            .where(where)
+            .limit(1);
 
-            if (existing.length > 0) {
-              const id = (existing[0] as any)._id as unknown as DatabaseId;
-              const now = new Date(nowISODateString());
-              const updateData = { ...item.data, updatedAt: now };
-              const values = utils.convertISOToDates(updateData as Record<string, unknown>);
-              delete (values as any)._id;
+          if (existing.length > 0) {
+            const id = (existing[0] as any)._id as unknown as DatabaseId;
+            const now = new Date(nowISODateString());
+            const updateData = { ...item.data, updatedAt: now };
+            const values = utils.convertISOToDates(updateData as Record<string, unknown>);
+            delete (values as any)._id;
 
-              await tx
-                .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-                .set(values as Record<string, unknown>)
-                .where(eq((table as any)._id, id as string));
-              modifiedCount++;
-            } else {
-              const id = (item.data as Partial<T>)._id || (utils.generateId() as DatabaseId);
-              const now = new Date(nowISODateString());
-              const values = utils.convertISOToDates({
-                ...item.data,
-                _id: id,
-                tenantId: options.tenantId || (item.data as any).tenantId,
-                createdAt: now,
-                updatedAt: now,
-              } as Record<string, unknown>);
+            await this.db
+              .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+              .set(values as Record<string, unknown>)
+              .where(eq((table as any)._id, id as string));
+            modifiedCount++;
+          } else {
+            const id = (item.data as Partial<T>)._id || (utils.generateId() as DatabaseId);
+            const now = new Date(nowISODateString());
+            const values = utils.convertISOToDates({
+              ...item.data,
+              _id: id,
+              tenantId: options.tenantId || (item.data as any).tenantId,
+              createdAt: now,
+              updatedAt: now,
+            } as Record<string, unknown>);
 
-              await tx
-                .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-                .values(values as any);
-              upsertedCount++;
-            }
+            await this.db
+              .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+              .values(values as any);
+            upsertedCount++;
           }
-          return { upsertedCount, modifiedCount };
-        });
+        }
+        return { upsertedCount, modifiedCount };
       }, "CRUD_UPSERT_MANY_FAILED")
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };

@@ -1,17 +1,17 @@
 /**
  * @file tests/benchmarks/hooks-performance.test.ts
- * @description Professional benchmark for SveltyCMS middleware / hook pipeline.
- * Measures individual hook overhead + realistic full pipeline latency.
+ * @description High-fidelity benchmark for SveltyCMS Hook & Middleware Pipeline.
+ *              Measures individual hook overhead + realistic full pipeline latency.
  */
 
 import { test } from "bun:test";
 import "../unit/setup.ts";
 import { runBenchmark, exportResult } from "./benchmark-utils";
+import { logger } from "@utils/logger.server";
 
-async function stabilize() {
-  if (typeof Bun !== "undefined") Bun.gc(true);
-  await new Promise((r) => setTimeout(r, 15));
-}
+const ITERATIONS = 2500;
+const WARMUP = Math.floor(ITERATIONS * 0.15);
+const RUNS = 3;
 
 async function getHooks() {
   return {
@@ -20,22 +20,17 @@ async function getHooks() {
       .handleTurboPipeline,
     handleCompression: (await import("../../src/hooks/handle-compression")).handleCompression,
     handleSecurity: (await import("../../src/hooks/handle-security")).handleSecurity,
-    handleUserPreferences: (await import("../../src/hooks/handle-user-preferences"))
-      .handleUserPreferences,
     handleAuthentication: (await import("../../src/hooks/handle-authentication"))
       .handleAuthentication,
     handleAuthorization: (await import("../../src/hooks/handle-authorization")).handleAuthorization,
     handleLocalSdk: (await import("../../src/hooks/handle-local-sdk")).handleLocalSdk,
-    handleContentInitialization: (await import("../../src/hooks/handle-content-initialization"))
-      .handleContentInitialization,
     handleApiRequests: (await import("../../src/hooks/handle-api-requests")).handleApiRequests,
     handleAuditLogging: (await import("../../src/hooks/handle-audit-logging")).handleAuditLogging,
-    handleTokenResolution: (await import("../../src/hooks/token-resolution")).handleTokenResolution,
   };
 }
 
-function createMockEvent(path = "/"): any {
-  const url = new URL(`http://localhost${path}`);
+function createMockEvent() {
+  const url = new URL("http://localhost/api/test");
   return {
     url,
     request: new Request(url, { method: "GET" }),
@@ -51,47 +46,50 @@ function createMockEvent(path = "/"): any {
     getClientAddress: () => "127.0.0.1",
     platform: {},
     isDataRequest: false,
-    route: { id: path },
+    route: { id: "/api/test" },
     params: {},
     setHeaders: () => {},
-  };
+  } as any;
 }
 
 const resolve = async () => new Response("OK", { status: 200 });
 
 export async function runHooksBenchmark() {
-  console.log("🛠️ Starting SveltyCMS Hook & Middleware Performance Benchmark...\n");
+  console.log("🛠️ Starting SveltyCMS Hook & Middleware Pipeline Benchmark...\n");
+
+  logger.level = "silent";
 
   const hooks = await getHooks();
   const results: any[] = [];
-  const ITERATIONS = 3000;
-  const WARMUP = 300;
 
-  // Run each hook in isolation
-  for (const [hookName, hookFn] of Object.entries(hooks)) {
-    console.log(`⏱️  Benchmarking hook: ${hookName}`);
+  console.log("⏱️  Benchmarking individual hooks...");
+
+  for (const [name, hookFn] of Object.entries(hooks)) {
+    if (typeof hookFn !== "function") continue;
+
+    console.log(`   → ${name}`);
 
     const result = await runBenchmark({
-      name: hookName,
+      name: `Hook: ${name}`,
       iterations: ITERATIONS,
       warmupIterations: WARMUP,
       concurrency: 1,
+      runs: RUNS,
+      trimOutliers: "iqr",
+      measureMemory: true,
       onIteration: async () => {
-        const event = createMockEvent("/");
-        try {
-          await hookFn({ event, resolve });
-        } catch {}
+        const event = createMockEvent();
+        await Promise.resolve(hookFn({ event, resolve })).catch(() => {}); // ignore expected errors
       },
       silent: true,
     });
 
     results.push(result);
-    exportResult(result, `hook-${hookName.toLowerCase()}.json`);
-    await stabilize();
+    exportResult(result);
   }
 
-  // Realistic Full Pipeline (only hot-path hooks)
-  console.log("\n🚀 Benchmarking FULL Hook Pipeline (realistic hot path)...");
+  // Full Hot-Path Pipeline
+  console.log("\n🚀 Benchmarking Full Hook Pipeline (realistic hot path)...");
 
   const hotPathHooks = [
     hooks.handleTurboPipeline,
@@ -101,59 +99,102 @@ export async function runHooksBenchmark() {
     hooks.handleAuthorization,
     hooks.handleLocalSdk,
     hooks.handleApiRequests,
-  ];
+  ].filter(Boolean) as any[];
 
   const pipelineResult = await runBenchmark({
     name: "Full Hook Pipeline (Hot Path)",
     iterations: ITERATIONS,
     warmupIterations: WARMUP,
     concurrency: 1,
+    runs: RUNS,
+    trimOutliers: "iqr",
+    measureMemory: true,
     onIteration: async () => {
-      let event = createMockEvent("/");
-      try {
-        for (const hookFn of hotPathHooks) {
-          await hookFn({ event, resolve });
-        }
-      } catch {}
+      let event = createMockEvent();
+      for (const hookFn of hotPathHooks) {
+        await Promise.resolve(hookFn({ event, resolve })).catch(() => {});
+      }
     },
     silent: true,
   });
 
-  exportResult(pipelineResult, "hook-pipeline-full.json");
+  exportResult(pipelineResult);
 
-  // Summary Table
-  console.log("\n" + "=".repeat(90));
-  console.log("🏆 HOOK PERFORMANCE MATRIX (Individual + Pipeline)");
-  console.log("=".repeat(90));
-  console.log(
-    `| ${"Hook".padEnd(32)} | ${"Avg (µs)".padEnd(10)} | ${"p95 (µs)".padEnd(10)} | ${"RPS".padEnd(12)} |`,
+  logger.level = "info";
+
+  // Identify Heaviest Hook
+  const heaviestHook = results.reduce((prev, current) =>
+    prev.avgMs > current.avgMs ? prev : current,
   );
-  console.log("|" + "-".repeat(32 + 10 + 10 + 12 + 6) + "|");
+
+  // ===================================================================
+  // Professional Summary
+  // ===================================================================
+  console.log("\n" + "=".repeat(140));
+  console.log("   🛠️  SVELTYCMS HOOK & MIDDLEWARE PIPELINE AUDIT");
+  console.log("   High-Fidelity • Multiple Runs • IQR Trimming • Memory Tracking");
+  console.log("=".repeat(140));
+
+  console.log(
+    `| ${"Hook / Pipeline".padEnd(46)} | ${"Avg Latency".padEnd(24)} | ${"p95".padEnd(14)} | ${"RPS".padEnd(12)} | ${"RSS Δ".padEnd(12)} |`,
+  );
+  console.log("|" + "-".repeat(46 + 24 + 14 + 12 + 12 + 6) + "|");
 
   for (const r of results) {
-    const avgUs = (r.avgMs * 1000).toFixed(2);
-    const p95Us = (r.p95Ms * 1000).toFixed(2);
+    const rssDelta =
+      r.rssDelta !== undefined ? `${r.rssDelta >= 0 ? "+" : ""}${r.rssDelta.toFixed(2)} MB` : "—";
+
+    const isHeaviest = r.name === heaviestHook.name;
+    const displayName = `${r.name.replace("Hook: ", "")} ${isHeaviest ? " 🔥 [HEAVIEST]" : ""}`;
+
     console.log(
-      `| ${r.name.padEnd(32)} | ${avgUs.padEnd(10)} | ${p95Us.padEnd(10)} | ${Math.floor(r.rps).toLocaleString().padEnd(12)} |`,
+      `| ${displayName.padEnd(46)} | ` +
+        `${r.avgMs.toFixed(4)} ms (±${r.marginOfError.toFixed(3)})`.padEnd(24) +
+        ` | ` +
+        `${r.p95Ms.toFixed(4)} ms`.padEnd(14) +
+        ` | ` +
+        `${Math.round(r.rps).toLocaleString()}`.padEnd(12) +
+        ` | ` +
+        `${rssDelta.padEnd(12)} |`,
     );
   }
 
-  const pipeAvgUs = (pipelineResult.avgMs * 1000).toFixed(2);
-  const pipeP95Us = (pipelineResult.p95Ms * 1000).toFixed(2);
-  console.log("|" + "-".repeat(32 + 10 + 10 + 12 + 6) + "|");
-  console.log(
-    `| ${"FULL PIPELINE (Hot Path)".padEnd(32)} | ${pipeAvgUs.padEnd(10)} | ${pipeP95Us.padEnd(10)} | ${Math.floor(pipelineResult.rps).toLocaleString().padEnd(12)} |`,
-  );
-  console.log("=".repeat(90));
+  // Pipeline row
+  const pipeRss =
+    pipelineResult.rssDelta !== undefined
+      ? `${pipelineResult.rssDelta >= 0 ? "+" : ""}${pipelineResult.rssDelta.toFixed(2)} MB`
+      : "—";
 
-  console.log(`\n📊 Total pipeline overhead: ${pipelineResult.avgMs.toFixed(4)} ms per request`);
+  console.log("|" + "-".repeat(46 + 24 + 14 + 12 + 12 + 6) + "|");
   console.log(
-    `   Expected max throughput: ~${Math.floor(pipelineResult.rps).toLocaleString()} req/sec`,
+    `| ${"FULL PIPELINE (Hot Path) 🚀".padEnd(46)} | ` +
+      `${pipelineResult.avgMs.toFixed(4)} ms (±${pipelineResult.marginOfError.toFixed(3)})`.padEnd(
+        24,
+      ) +
+      ` | ` +
+      `${pipelineResult.p95Ms.toFixed(4)} ms`.padEnd(14) +
+      ` | ` +
+      `${Math.round(pipelineResult.rps).toLocaleString()}`.padEnd(12) +
+      ` | ` +
+      `${pipeRss.padEnd(12)} |`,
   );
+  console.log("=".repeat(140));
+
+  console.log(`\n✨ Pipeline Insights:`);
+  console.log(`   • Total hot-path overhead: ${pipelineResult.avgMs.toFixed(4)} ms per request`);
+  console.log(
+    `   • Expected max throughput under this pipeline: ~${Math.floor(pipelineResult.rps).toLocaleString()} req/sec`,
+  );
+  console.log(
+    `   • Memory growth in pipeline may indicate leaks in auth, SDK, or compression hooks`,
+  );
+  console.log(`   • Heaviest overhead detected in: ${heaviestHook.name.replace("Hook: ", "")}`);
+
+  console.log("\n✅ Hook & Middleware benchmark completed.");
 }
 
 if (!process.env.SVELTY_AUDIT_ACTIVE) {
-  test("Hook Pipeline Performance Suite", async () => {
+  test("Hook & Middleware Pipeline Performance", async () => {
     await runHooksBenchmark();
-  }, 600000);
+  }, 450000);
 }

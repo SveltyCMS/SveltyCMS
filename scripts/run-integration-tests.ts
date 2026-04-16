@@ -56,6 +56,8 @@ async function startPreviewServer() {
         ...process.env,
         NODE_ENV: "production",
         TEST_MODE: "true",
+        DB_TYPE: process.env.DB_TYPE || "sqlite",
+        DB_NAME: "SveltyCMS_test",
         TEST_API_SECRET,
         ADMIN_PASSWORD,
         ORIGIN: API_BASE_URL,
@@ -150,7 +152,13 @@ async function main() {
   // Run setup
   console.log("⚙️  Running system setup...");
   await runCommand("bun", ["run", "scripts/setup-system.ts"], {
-    env: { TEST_MODE: "true", TEST_API_SECRET, ADMIN_PASSWORD },
+    env: {
+      TEST_MODE: "true",
+      TEST_API_SECRET,
+      ADMIN_PASSWORD,
+      DB_TYPE: process.env.DB_TYPE || "sqlite",
+      DB_NAME: "SveltyCMS_test",
+    },
   });
 
   // Reset & seed test data
