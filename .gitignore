@@ -1,5 +1,8 @@
 .DS_Store
 
+# SQLite DB files created at runtime
+127.0.0.1/
+
 # sveltekit
 /build
 /.svelte-kit
