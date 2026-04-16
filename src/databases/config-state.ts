@@ -87,12 +87,20 @@ export async function loadPrivateConfig(
       return privateEnv;
     } catch (error: any) {
       if (process.env.NODE_ENV === "test" || process.env.TEST_MODE === "true") {
-        logger.error("Config loading failed in test mode", { error: error.message });
-        throw new AppError(
-          "Critical config error in test environment. Run setup or check private.test config.",
-          500,
-          "CONFIG_LOAD_FAILURE",
-        );
+        // Only crash if the test config FILE exists but is invalid.
+        // If the file is simply absent, we're in pre-setup state — return null gracefully.
+        const { existsSync } = await import("node:fs");
+        const configPath = `${process.cwd()}/config/private.test.ts`;
+        if (existsSync(configPath)) {
+          logger.error("Config loading failed in test mode", { error: error.message });
+          throw new AppError(
+            "Critical config error in test environment. Run setup or check private.test config.",
+            500,
+            "CONFIG_LOAD_FAILURE",
+          );
+        }
+        logger.debug("private.test.ts not found — pre-setup state, returning null");
+        return null;
       }
 
       logger.trace("Private config not available (expected during initial setup)", {
