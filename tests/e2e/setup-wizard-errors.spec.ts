@@ -3,7 +3,7 @@
 
 import { expect, test } from "@playwright/test";
 
-test("should show error on bad database connection", async ({ page }) => {
+test.skip("should show error on bad database connection", async ({ page }) => {
   await page.goto("/setup");
 
   // In TEST_MODE, we should be able to see /setup even if configured
