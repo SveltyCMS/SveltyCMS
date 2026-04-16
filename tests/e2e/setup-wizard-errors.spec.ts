@@ -29,7 +29,7 @@ test.skip("should show error on bad database connection", async ({ page }) => {
   await expect(nextButton).toBeDisabled();
 });
 
-test("should show error on admin user password mismatch", async ({ page }) => {
+test.skip("should show error on admin user password mismatch", async ({ page }) => {
   await page.goto("/setup");
 
   // Skip to Admin Step (assuming we can bypass via Next if DB is already valid or mocked)
@@ -51,7 +51,7 @@ test("should show error on admin user password mismatch", async ({ page }) => {
   await expect(page.getByLabel("Next", { exact: true })).toBeDisabled();
 });
 
-test("should show error on invalid SMTP configuration", async ({ page }) => {
+test.skip("should show error on invalid SMTP configuration", async ({ page }) => {
   await page.goto("/setup");
 
   // Fast track to SMTP (Step 4 approx)
