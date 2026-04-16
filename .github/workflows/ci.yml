@@ -324,6 +324,10 @@ jobs:
       - name: Run Wizard E2E tests
         env:
           DB_TYPE: sqlite
+          DB_HOST: localhost
+          DB_NAME: SveltyCMS_test
+          JWT_SECRET_KEY: ci-test-jwt-secret-key-for-e2e-runs-minimum32chars
+          ENCRYPTION_KEY: ci-test-encryption-key-for-e2e-runs-min32chars!!
           TEST_MODE: true
           ADMIN_PASSWORD: Password123!
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:4173
@@ -333,6 +337,7 @@ jobs:
           for i in {1..90}; do
             curl -s http://127.0.0.1:4173/api/system/health && break || sleep 1
           done
+          echo "=== preview.log ===" && cat preview.log || true
           bun run scripts/setup-system.ts
           bun x playwright test --project=wizard
       - uses: actions/upload-artifact@v7
