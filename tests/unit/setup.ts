@@ -415,6 +415,8 @@ process.env.BROWSER = "false";
 process.env.NODE_ENV = "test";
 process.env.TEST_MODE = "true";
 process.env.SSR = process.env.SSR || "true";
+process.env.SUPPRESS_JEST_WARNINGS = "true"; // Silences Mongoose environment warnings in Bun/Node
+process.env.VERBOSE_STDOUT = "false";
 
 // 3. SVELTE 5 RUNES
 // For unit tests without a compiler, $state should be transparent for primitives

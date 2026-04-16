@@ -1160,7 +1160,7 @@ export const actions: Actions = {
         lastAuthMethod: "password+2fa",
         lastActiveAt: new Date().toISOString() as ISODateString,
       });
-      updatePromise.catch((err) => {
+      updatePromise.catch((err: any) => {
         logger.error(`Failed to update user attributes after 2FA login for ${userId}:`, err);
       });
 
@@ -1573,22 +1573,22 @@ async function signInUser(
         user = authResult.user;
 
         // Check if user has 2FA enabled
-        if (user.is2FAEnabled) {
+        if (user!.is2FAEnabled) {
           logger.debug("User has 2FA enabled, requiring 2FA verification", {
-            userId: user._id,
+            userId: user!._id,
           });
           // Don't create session yet - wait for 2FA verification
           return {
             status: false,
             message: "2FA verification required",
             requires2FA: true,
-            userId: user._id,
+            userId: user!._id,
           };
         }
 
         authSuccess = true;
         // Use the session that authenticate() already created
-        const sessionCookie = auth.createSessionCookie(authResult.sessionId);
+        const sessionCookie = auth.createSessionCookie(authResult.sessionId!);
         cookies.set(sessionCookie.name, sessionCookie.value, {
           ...(sessionCookie.attributes as Record<string, unknown>),
           path: "/",
@@ -1608,20 +1608,20 @@ async function signInUser(
     // For token-based authentication, we need to create a session manually
     // For password authentication, the session was already created by authenticate()
     if (isToken) {
-      await createSessionAndSetCookie(user._id, cookies);
+      await createSessionAndSetCookie(user._id as any, cookies);
     }
 
     // Parallelize user attribute update for better performance
     const updatePromise = auth.updateUserAttributes(
-      user._id as DatabaseId,
+      user._id as any,
       {
         lastAuthMethod: isToken ? "token" : "password",
-        lastActiveAt: new Date().toISOString() as ISODateString,
+        lastActiveAt: new Date().toISOString() as any,
       },
       { bypassTenantCheck: true },
     ); // Don't wait for attribute update to complete - fire and forget for better UX
-    updatePromise.catch((err) => {
-      logger.error(`Failed to update user attributes for ${user._id}:`, err);
+    updatePromise.catch((err: any) => {
+      logger.error(`Failed to update user attributes for ${user!._id}:`, err);
     });
 
     logger.info(`User logged in successfully: ${user.username} (${user._id})`);

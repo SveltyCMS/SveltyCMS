@@ -171,7 +171,7 @@ export async function modifyRequest({
     }
 
     const duration = performance.now() - start;
-    logger.info(`ModifyRequest completed in ${duration.toFixed(2)}ms for ${data.length} entries`);
+    logger.debug(`ModifyRequest completed in ${duration.toFixed(2)}ms for ${data.length} entries`);
 
     return data;
   } catch (error) {

@@ -217,7 +217,7 @@ async function handleGoogleUser(
 
       // Get admin role from roles list
       const roles = await auth?.getAllRoles();
-      const adminRole = roles?.find((r) => r.isAdmin);
+      const adminRole = roles?.find((r: any) => r.isAdmin);
       if (!adminRole) {
         throw new Error("Admin role not found in roles configuration");
       }

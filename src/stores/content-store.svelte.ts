@@ -1,286 +1,159 @@
 /**
  * @file src/stores/content-store.svelte.ts
- * @description Reactive source of truth for the CMS content tree (collections + categories).
- * Optimized for Svelte 5 runes, performance, and multi-tenant safety.
+ * @description Central store for managing compiled content types and schemas with HMR support.
  */
 
 import type { ContentNode, Schema } from "@src/content/types";
-import { browser } from "$app/environment";
-import { logger } from "@utils/logger";
-import { SvelteMap } from "svelte/reactivity";
+const browser = typeof window !== "undefined";
+
+// ✨ Absolute Global Singleton Pattern using 'process' to bypass bundler chunk isolation
+const STORE_KEY = "__SVELTY_CONTENT_STORE_INSTANCE__";
+
+export type ContentState = "uninitialized" | "initializing" | "initialized" | "error";
 
 class ContentStore {
-  private static instance: ContentStore | null = null;
+  private _collections = new Map<string, Schema[]>();
+  private _nodes = new Map<string, ContentNode[]>();
+  private _schemas = new Map<string, Schema>();
+  private _allNodes = new Map<string, ContentNode>();
 
-  // --- Reactive State ---
-  nodeMap = $state(new SvelteMap<string, ContentNode>());
-  pathMap = $state(new SvelteMap<string, string>()); // path → id
-  version = $state(Date.now());
-  state = $state<"uninitialized" | "initializing" | "initialized" | "error">("uninitialized");
+  public initState: ContentState = "uninitialized";
+  public contentVersion: number = 0;
 
-  // Non-reactive internal state
-  private currentVersion = 0;
-  private pollingInterval: NodeJS.Timeout | null = null;
-  private eventSource: EventSource | null = null;
-
-  private constructor() {}
-
-  static getInstance(): ContentStore {
-    if (!ContentStore.instance) {
-      ContentStore.instance = new ContentStore();
-    }
-    return ContentStore.instance;
+  constructor() {
+    console.debug(
+      `[ContentStore] New instance created: ${Math.random().toString(36).substring(7)}`,
+    );
   }
 
-  // --- Derived Values ---
-  sortedCollections = $derived.by(() => {
-    const list: Schema[] = [];
-    for (const node of this.nodeMap.values()) {
-      if (node.nodeType === "collection" && node.collectionDef) {
-        list.push(node.collectionDef);
-      }
-    }
-    list.sort((a, b) => {
-      const orderDiff = (a.order ?? 999) - (b.order ?? 999);
-      return orderDiff !== 0 ? orderDiff : (a.path ?? "").localeCompare(b.path ?? "");
-    });
-    return list;
-  });
-
-  collectionCount = $derived.by(() => {
-    let count = 0;
-    for (const node of this.nodeMap.values()) {
-      if (node.nodeType === "collection") count++;
-    }
-    return count;
-  });
-
-  isInitialized = $derived(this.state === "initialized");
-  allNodes = $derived(Array.from(this.nodeMap.values()));
-
-  get nodeCount() {
-    return this.nodeMap.size;
+  get isInitialized(): boolean {
+    return this.initState === "initialized";
   }
 
-  // --- Core Methods ---
-  getNode(id: string): ContentNode | undefined {
-    return this.nodeMap.get(id);
+  get nodeCount(): number {
+    return this._allNodes.size;
   }
 
-  getNodeByPath(path: string): ContentNode | undefined {
-    const id = this.pathMap.get(path);
-    return id ? this.nodeMap.get(id) : undefined;
+  get collectionCount(): number {
+    return this._schemas.size;
   }
 
-  getChildren(parentId: string | null = null, tenantId?: string | null): ContentNode[] {
-    const children: ContentNode[] = [];
-    const targetParent = parentId || null;
-
-    for (const node of this.nodeMap.values()) {
-      const pId = node.parentId || null;
-      if (pId === targetParent && (!tenantId || node.tenantId === tenantId)) {
-        children.push(node);
-      }
-    }
-    return children;
+  getCollections(tenantId?: string | null): Schema[] {
+    const tid = tenantId || "global";
+    return this._collections.get(tid) || [];
   }
 
   getAllCollections(tenantId?: string | null): Schema[] {
-    const collections = this.sortedCollections;
-    if (!tenantId) return collections;
-    return collections.filter((c) => !c.tenantId || c.tenantId === tenantId);
+    return this.getCollections(tenantId);
   }
 
-  getCollection(identifier: string, tenantId?: string | null): Schema | null {
-    // Fast path: direct ID lookup
-    let node = this.getNode(identifier);
+  getCollection(id: string, _tenantId?: string | null): Schema | undefined {
+    return this._schemas.get(id);
+  }
 
-    if (!node) {
-      // Try path variations
-      const normalizedPath = identifier.startsWith("/") ? identifier : `/${identifier}`;
-      node = this.getNodeByPath(normalizedPath);
+  getSmartFirstCollection(_tenantId?: string | null): Schema | null {
+    const first = Array.from(this._schemas.values())[0];
+    return first || null;
+  }
 
-      if (!node && normalizedPath.startsWith("/collection/")) {
-        node = this.getNodeByPath(normalizedPath.replace("/collection", ""));
-      }
+  setCollections(tenantId: string, collections: Schema[]) {
+    this._collections.set(tenantId, collections);
+    for (const schema of collections) {
+      if (schema._id) this._schemas.set(schema._id as string, schema);
     }
+    this.updateVersion();
+  }
 
-    // Fallback: search by collectionDef._id
-    if (!node) {
-      for (const n of this.nodeMap.values()) {
-        if (n.collectionDef?._id === identifier) {
-          node = n;
-          break;
+  getNodes(tenantId: string = "global"): ContentNode[] {
+    return this._nodes.get(tenantId) || [];
+  }
+
+  getAllNodes(): ContentNode[] {
+    return Array.from(this._allNodes.values());
+  }
+
+  getNodesForTenant(tenantId?: string | null): ContentNode[] {
+    const tid = tenantId || "global";
+    return this._nodes.get(tid) || [];
+  }
+
+  getNode(id: string): ContentNode | undefined {
+    return this._allNodes.get(id);
+  }
+
+  getChildren(parentId: string | null = null, tenantId?: string | null): ContentNode[] {
+    const nodes = this.getNodesForTenant(tenantId);
+    return nodes.filter((n) => n.parentId === parentId);
+  }
+
+  getNodeByPath(path: string): ContentNode | undefined {
+    return Array.from(this._allNodes.values()).find((n) => n.path === path);
+  }
+
+  setNodes(tenantId: string, nodes: ContentNode[]) {
+    this._nodes.set(tenantId, nodes);
+    for (const node of nodes) {
+      if (node._id) this._allNodes.set(node._id as string, node);
+    }
+    this.updateVersion();
+  }
+
+  getNodesEntries(): [string, ContentNode][] {
+    return Array.from(this._allNodes.entries());
+  }
+
+  getSchema(schemaId: string): Schema | undefined {
+    return this._schemas.get(schemaId);
+  }
+
+  sync(nodes: ContentNode[]) {
+    for (const node of nodes) {
+      if (node._id) {
+        this._allNodes.set(node._id as string, node);
+        const tid = node.tenantId || "global";
+        const tNodes = this._nodes.get(tid) || [];
+        if (!tNodes.find((n) => n._id === node._id)) {
+          tNodes.push(node);
+          this._nodes.set(tid, tNodes);
         }
       }
     }
-
-    if (!node?.collectionDef) return null;
-
-    // Tenant isolation
-    if (tenantId && node.tenantId && node.tenantId !== tenantId) {
-      return null;
-    }
-
-    return node.collectionDef;
+    this.updateVersion();
   }
 
-  getSmartFirstCollection(tenantId?: string | null): Schema | null {
-    const collections = this.getAllCollections(tenantId);
-    return collections[0] ?? null;
+  updateVersion() {
+    this.contentVersion++;
   }
 
-  // --- Sync ---
-  private lastSyncSignature = "";
-
-  sync(nodes: ContentNode[]): void {
-    if (!nodes.length) {
-      this.nodeMap.clear();
-      this.pathMap.clear();
-      return;
-    }
-
-    // Fast structural change detection
-    const signature = `${nodes.length}-${nodes[0]._id}`;
-    if (signature === this.lastSyncSignature) return;
-    this.lastSyncSignature = signature;
-
-    this.nodeMap.clear();
-    this.pathMap.clear();
-
-    for (const rawNode of nodes) {
-      const id = String(rawNode._id);
-      this.nodeMap.set(id, rawNode);
-      if (rawNode.path) this.pathMap.set(rawNode.path, id);
-    }
-
-    this.version = Date.now();
-    this.state = "initialized";
-  }
-
-  // --- Live Sync (SSE + Polling fallback) ---
-  startLiveSync(onUpdate: () => void): () => void {
-    if (!browser) return () => {};
-
-    const pathname = window.location?.pathname || "";
-    if (
-      /^\/(setup|login)/i.test(pathname) ||
-      pathname.includes("/setup") ||
-      pathname.includes("/login")
-    ) {
-      return () => {};
-    }
-
-    logger.debug("📡 Starting content live sync (SSE)");
-
-    this.eventSource = new EventSource("/api/content/events");
-
-    this.eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.version && data.version > this.currentVersion) {
-          this.currentVersion = data.version;
-          onUpdate();
-        }
-      } catch (err) {
-        logger.error("[SSE] Failed to parse update", err);
+  clear(tenantId?: string) {
+    if (tenantId) {
+      this._collections.delete(tenantId);
+      this._nodes.delete(tenantId);
+      // Remove from allNodes too
+      for (const [id, node] of this._allNodes.entries()) {
+        if (node.tenantId === tenantId) this._allNodes.delete(id);
       }
-    };
-
-    this.eventSource.onerror = () => {
-      logger.warn("[SSE] Connection lost — falling back to polling");
-      this.eventSource?.close();
-      this.startPolling(onUpdate);
-    };
-
-    return () => this.stopLiveSync();
-  }
-
-  private startPolling(onUpdate: () => void, intervalMs = 8000) {
-    if (this.pollingInterval) return;
-
-    const poll = async () => {
-      try {
-        const res = await fetch("/api/content/version");
-        const { version } = await res.json();
-
-        if (version > this.currentVersion) {
-          this.currentVersion = version;
-          onUpdate();
-        }
-      } catch (e) {
-        logger.warn("Content version poll failed", e);
-      }
-    };
-
-    poll();
-    this.pollingInterval = setInterval(poll, intervalMs);
-  }
-
-  private stopLiveSync() {
-    this.eventSource?.close();
-    this.eventSource = null;
-    this.stopPolling();
-  }
-
-  private stopPolling() {
-    if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
-      this.pollingInterval = null;
+    } else {
+      this._collections.clear();
+      this._nodes.clear();
+      this._schemas.clear();
+      this._allNodes.clear();
     }
-  }
-
-  clear(): void {
-    this.nodeMap.clear();
-    this.pathMap.clear();
-    this.version = Date.now();
-    this.lastSyncSignature = "";
+    this.updateVersion();
   }
 }
 
-const store = ContentStore.getInstance();
+// Global Singleton logic
+let instance: ContentStore;
 
-export const contentStore = {
-  get contentVersion() {
-    return store.version;
-  },
-  get initState() {
-    return store.state;
-  },
-  set initState(v: any) {
-    store.state = v;
-  },
+if (browser) {
+  const win = window as any;
+  if (!win[STORE_KEY]) win[STORE_KEY] = new ContentStore();
+  instance = win[STORE_KEY];
+} else {
+  const proc = process as any;
+  if (!proc[STORE_KEY]) proc[STORE_KEY] = new ContentStore();
+  instance = proc[STORE_KEY];
+}
 
-  get collectionCount() {
-    return store.collectionCount;
-  },
-  get isInitialized() {
-    return store.isInitialized;
-  },
-  get nodeCount() {
-    return store.nodeCount;
-  },
-  get version() {
-    return store.version;
-  },
-
-  getNode: (id: string) => store.getNode(id),
-  getNodeByPath: (path: string) => store.getNodeByPath(path),
-  getChildren: (parentId?: string | null, tenantId?: string | null) =>
-    store.getChildren(parentId ?? null, tenantId),
-
-  getAllCollections: (tenantId?: string | null) => store.getAllCollections(tenantId),
-  getCollection: (id: string, tenantId?: string | null) => store.getCollection(id, tenantId),
-  getSmartFirstCollection: (tenantId?: string | null) => store.getSmartFirstCollection(tenantId),
-
-  getNodesEntries: () => store.nodeMap.entries(),
-  getNodesForTenant: (tenantId?: string | null) => store.getChildren(null, tenantId),
-  updateVersion: () => {
-    store.version = Date.now();
-  },
-
-  getAllNodes: () => store.allNodes,
-  sync: (nodes: ContentNode[]) => store.sync(nodes),
-  startLiveSync: (onUpdate: () => void) => store.startLiveSync(onUpdate),
-  clear: () => store.clear(),
-};
+export const contentStore = instance;

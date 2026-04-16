@@ -1,14 +1,6 @@
 /**
  * @file src/utils/logger.server.ts
  * @description Server-only logger with formatting, batching, rotation & masking
- *
- * Features:
- * - Level-based logging (fatal → trace)
- * - Smart terminal formatting & token highlighting
- * - Sensitive data masking
- * - Batched file writes with rotation & optional compression
- * - Configurable via env/public settings
- * - Graceful degradation & cleanup
  */
 
 if (typeof window !== "undefined" && typeof Bun === "undefined") {
@@ -21,21 +13,13 @@ import * as promises from "node:fs/promises";
 import * as path from "node:path";
 import * as sp from "node:stream/promises";
 import * as zlib from "node:zlib";
-
-// Get LOG_LEVELS from environment variables directly (avoids Svelte store dependency)
-const LOG_LEVELS_RAW =
-  process.env.LOG_LEVELS || import.meta.env?.VITE_LOG_LEVELS || "fatal,error,warn,info";
-const LOG_LEVELS = LOG_LEVELS_RAW.split(",")
-  .map((l: string) => l.trim().toLowerCase())
-  .filter(Boolean);
-const DISABLED = LOG_LEVELS.includes("none");
-
 import { pc } from "@utils/native-utils";
 
 // Log levels
-type LogLevel = "none" | "fatal" | "error" | "warn" | "info" | "debug" | "trace";
+export type LogLevel = "none" | "silent" | "fatal" | "error" | "warn" | "info" | "debug" | "trace";
 const LEVELS: Record<LogLevel, { prio: number; color: (s: string) => string }> = {
   none: { prio: 0, color: (s) => s },
+  silent: { prio: 0, color: (s) => s },
   fatal: { prio: 1, color: pc.magenta },
   error: { prio: 2, color: pc.red },
   warn: { prio: 3, color: pc.yellow },
@@ -43,9 +27,8 @@ const LEVELS: Record<LogLevel, { prio: number; color: (s: string) => string }> =
   debug: { prio: 5, color: pc.blue },
   trace: { prio: 6, color: pc.cyan },
 };
-export type LoggableValue = string | number | boolean | null | undefined | object | Date | Error;
 
-const maxPrio = DISABLED ? 0 : Math.max(...LOG_LEVELS.map((l) => LEVELS[l as LogLevel]?.prio ?? 0));
+export type LoggableValue = string | number | boolean | null | undefined | object | Date | Error;
 
 // Icons
 const ICONS: Record<string, string> = {
@@ -59,12 +42,12 @@ const ICONS: Record<string, string> = {
 
 // Message token highlighting
 const patterns = [
-  { re: /\b\d+(\.\d+)?(ms|s)\b/g, color: pc.green }, // durations
+  { re: /\b\d+(\.\d+)?(ms|s)\b/g, color: pc.green },
   {
     re: /([a-f0-9]{24}|[a-f0-9]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi,
     color: pc.yellow,
-  }, // IDs/UUIDs
-  { re: /\/api\/[^\s]+/g, color: pc.cyan }, // API paths
+  },
+  { re: /\/api\/[^\s]+/g, color: pc.cyan },
   { re: /\b(true)\b/g, color: pc.green },
   { re: /\b(false)\b/g, color: pc.red },
   { re: /\b-?\d+\.?\d*\b/g, color: pc.blue },
@@ -78,34 +61,17 @@ function colorMessage(msg: string): string {
   return out;
 }
 
-// Value formatting
 function formatValue(v: unknown): string {
-  if (v === null) {
-    return pc.magenta("null");
-  }
-  if (v === undefined) {
-    return pc.gray("undefined");
-  }
-  if (typeof v === "boolean") {
-    return v ? pc.green("true") : pc.red("false");
-  }
-  if (typeof v === "number") {
-    return pc.blue(String(v));
-  }
-  if (typeof v === "string") {
-    return colorMessage(v);
-  }
-  if (v instanceof Date) {
-    return pc.cyan(v.toISOString());
-  }
-  if (Array.isArray(v)) {
-    return pc.yellow(`[${v.map(formatValue).join(", ")}]`);
-  }
+  if (v === null) return pc.magenta("null");
+  if (v === undefined) return pc.gray("undefined");
+  if (typeof v === "boolean") return v ? pc.green("true") : pc.red("false");
+  if (typeof v === "number") return pc.blue(String(v));
+  if (typeof v === "string") return colorMessage(v);
+  if (v instanceof Date) return pc.cyan(v.toISOString());
+  if (Array.isArray(v)) return pc.yellow(`[${v.map(formatValue).join(", ")}]`);
   if (v instanceof Error) {
     const parts = [`message: ${pc.red(v.message)}`, `name: ${pc.red(v.name)}`];
-    if ("code" in v) {
-      parts.push(`code: ${pc.red(String((v as { code: unknown }).code))}`);
-    }
+    if ("code" in v) parts.push(`code: ${pc.red(String((v as any).code))}`);
     return pc.yellow(`{${parts.join(", ")}}`);
   }
   if (typeof v === "object") {
@@ -117,33 +83,20 @@ function formatValue(v: unknown): string {
   return String(v);
 }
 
-// Sensitive data masking
 const SENSITIVE = ["password", "token", "secret", "key", "authorization"];
 const EMAILS = ["email", "mail"];
 
 function mask(v: unknown, depth = 0): unknown {
-  if (depth > 10) {
-    return "[Depth]";
-  }
-  if (v === null || typeof v !== "object") {
-    return v;
-  }
-  if (v instanceof Date || v instanceof RegExp) {
-    return v;
-  }
+  if (depth > 10) return "[Depth]";
+  if (v === null || typeof v !== "object") return v;
+  if (v instanceof Date || v instanceof RegExp) return v;
   if (v instanceof Error) {
     const plain: Record<string, unknown> = { message: v.message, name: v.name };
-    if (v.stack) {
-      plain.stack = v.stack;
-    }
-    if ("code" in v) {
-      plain.code = (v as { code: unknown }).code;
-    }
+    if (v.stack) plain.stack = v.stack;
+    if ("code" in v) plain.code = (v as any).code;
     return mask(plain, depth + 1);
   }
-  if (Array.isArray(v)) {
-    return v.map((item) => mask(item, depth + 1));
-  }
+  if (Array.isArray(v)) return v.map((item) => mask(item, depth + 1));
 
   const masked: Record<string, unknown> = {};
   for (const [k, val] of Object.entries(v)) {
@@ -160,7 +113,7 @@ function mask(v: unknown, depth = 0): unknown {
   return masked;
 }
 
-let stream: import("node:fs").WriteStream | null = null;
+let stream: fs.WriteStream | null = null;
 let lastHash = "";
 const HMAC_SECRET = process.env.LOG_CHAIN_SECRET || "svelty-cms-default-log-secret";
 
@@ -174,11 +127,8 @@ function calculateHash(prevHash: string, content: string): string {
 async function ensureStream() {
   const dir = "logs";
   const file = path.join(dir, "app.log");
-
   if (!stream || stream.destroyed) {
     await promises.mkdir(dir, { recursive: true });
-
-    // Initialize chain from existing file if possible
     try {
       const content = await promises.readFile(file, "utf8");
       const lines = content.trim().split("\n");
@@ -186,15 +136,10 @@ async function ensureStream() {
         const lastLine = lines.at(-1);
         if (lastLine) {
           const match = lastLine.match(/\[CHAIN:([a-f0-9]{64})\]/);
-          if (match) {
-            lastHash = match[1];
-          }
+          if (match) lastHash = match[1];
         }
       }
-    } catch {
-      // Silent fail if file doesn't exist yet
-    }
-
+    } catch {}
     stream = fs.createWriteStream(file, { flags: "a" });
   }
   return stream;
@@ -205,64 +150,42 @@ async function rotate() {
   const file = path.join(dir, "app.log");
   try {
     const stat = await promises.stat(file);
-    if (stat.size < 5 * 1024 * 1024) {
-      return; // 5MB
-    }
-
-    if (stream) {
-      stream.end();
-    }
+    if (stat.size < 5 * 1024 * 1024) return;
+    if (stream) stream.end();
     const ts = new Date().toISOString().replace(/[:.]/g, "-");
     const rotated = `${file}.${ts}`;
     await promises.rename(file, rotated);
     await promises.writeFile(file, "");
-    lastHash = ""; // Reset chain for new file
-
+    lastHash = "";
     const src = fs.createReadStream(rotated);
     const dst = fs.createWriteStream(`${rotated}.gz`);
     await sp.pipeline(src, zlib.createGzip(), dst);
     await promises.unlink(rotated);
-
-    // Retention Policy: Keep only the 5 most recent rotated logs
     const files = await promises.readdir(dir);
     const logFiles = files
       .filter((f) => f.startsWith("app.log.") && f.endsWith(".gz"))
-      .map((f) => ({
-        name: f,
-        time: fs.statSync(path.join(dir, f)).mtime.getTime(),
-      }))
+      .map((f) => ({ name: f, time: fs.statSync(path.join(dir, f)).mtime.getTime() }))
       .sort((a, b) => b.time - a.time);
-
     if (logFiles.length > 5) {
-      for (const f of logFiles.slice(5)) {
-        await promises.unlink(path.join(dir, f.name));
-        console.debug(`[logger] Deleted old log file: ${f.name}`);
-      }
+      for (const f of logFiles.slice(5)) await promises.unlink(path.join(dir, f.name));
     }
-  } catch (e: unknown) {
-    if (e && typeof e === "object" && "code" in e && e.code !== "ENOENT") {
-      console.error("Rotation failed:", e);
-    }
+  } catch (e: any) {
+    if (e.code !== "ENOENT") console.error("Rotation failed:", e);
   }
 }
 
-// Batch queue
 const queue: { level: LogLevel; msg: string; args: unknown[] }[] = [];
 let timeout: NodeJS.Timeout | null = null;
 let isFlushing = false;
 
 async function flush() {
-  if (!queue.length || isFlushing) {
-    return;
-  }
+  if (!queue.length || isFlushing) return;
   isFlushing = true;
   const batch = queue.splice(0, queue.length);
-
   try {
     const s = await ensureStream();
     if (s) {
       await rotate();
-
       for (const e of batch) {
         const ts = new Date().toISOString().slice(0, 19).replace("T", " ");
         const icon = ICONS[e.level.toUpperCase()] ?? "●";
@@ -270,10 +193,8 @@ async function flush() {
         const masked = e.args.map((a) => mask(a));
         const args = masked.map(formatValue).join(" ");
         const msg = colorMessage(e.msg);
-
         const plainText = `${ts} [${e.level.toUpperCase().padEnd(5)}] ${e.msg} ${JSON.stringify(masked)}`;
         lastHash = calculateHash(lastHash, plainText);
-
         const logLine = `${ts} ${color(`${icon} [${e.level.toUpperCase().padEnd(5)}]`)} ${msg} ${args} [CHAIN:${lastHash}]\n`;
         s.write(logLine);
       }
@@ -282,7 +203,6 @@ async function flush() {
     console.error("Log write failed:", err);
   } finally {
     isFlushing = false;
-    // If more logs came in during flush, schedule another one
     if (queue.length > 0 && !timeout) {
       timeout = setTimeout(() => {
         timeout = null;
@@ -292,23 +212,21 @@ async function flush() {
   }
 }
 
-// De-duplication Cache (Enterprise Optimization)
 const dedupCache = new Map<string, { count: number; lastTs: number; lastLevel: LogLevel }>();
-const DEDUP_WINDOW_MS = 5000; // 5 seconds
+const DEDUP_WINDOW_MS = 5000;
 
 function enqueue(level: LogLevel, msg: string, args: unknown[]) {
-  if (DISABLED || LEVELS[level].prio > maxPrio) {
-    return;
-  }
+  // Runtime priority check against dynamic logger.level
+  const currentPrio = LEVELS[logger.level]?.prio ?? 4;
+  const msgPrio = LEVELS[level]?.prio ?? 4;
+  if (msgPrio > currentPrio || currentPrio === 0) return;
 
-  // Generate deduplication key from level, msg, and stable stringified args
   const dedupKey = `${level}:${msg}:${JSON.stringify(args)}`;
   const now = Date.now();
   const cached = dedupCache.get(dedupKey);
 
   if (cached && now - cached.lastTs < DEDUP_WINDOW_MS) {
     cached.count++;
-    // Periodically flush dedup counts for very frequent logs
     if (
       cached.count === 10 ||
       cached.count === 100 ||
@@ -333,11 +251,7 @@ function enqueue(level: LogLevel, msg: string, args: unknown[]) {
   }
 
   dedupCache.set(dedupKey, { count: 0, lastTs: now, lastLevel: level });
-
   const masked = args.map(mask);
-
-  // Enterprise optimization: Only write to stdout for high priority or if explicitly enabled
-  // This prevents console 'clogging' in high-traffic environments
   const isHighPriority = LEVELS[level].prio <= LEVELS.warn.prio;
   const forceStdout =
     process.env.VERBOSE_STDOUT === "true" || process.env.NODE_ENV === "development";
@@ -347,41 +261,36 @@ function enqueue(level: LogLevel, msg: string, args: unknown[]) {
     const icon = ICONS[level.toUpperCase()] ?? "●";
     const argsStr = masked.map(formatValue).join(" ");
     const pretty = colorMessage(msg);
-
     const ts = pc.gray(new Date().toISOString().slice(0, 19).replace("T", " "));
-    const safeMsg = pretty.replace(/\r?\n/g, " ");
-    const safeArgs = argsStr.replace(/\r?\n/g, " ");
     process.stdout.write(
-      `${ts} ${color(`${icon} [${level.toUpperCase().padEnd(5)}]`)} ${safeMsg} ${safeArgs}\n`,
+      `${ts} ${color(`${icon} [${level.toUpperCase().padEnd(5)}]`)} ${pretty.replace(/\r?\n/g, " ")} ${argsStr.replace(/\r?\n/g, " ")}\n`,
     );
   }
 
   queue.push({ level, msg, args: masked });
-  if (queue.length >= 100) {
-    flush();
-  } else if (!timeout) {
+  if (queue.length >= 100) flush();
+  else if (!timeout)
     timeout = setTimeout(() => {
       timeout = null;
       flush();
     }, 5000);
-  }
 }
 
-// Public logger
-export const logger = DISABLED
-  ? {
-      fatal: () => {},
-      error: () => {},
-      warn: () => {},
-      info: () => {},
-      debug: () => {},
-      trace: () => {},
-    }
-  : {
-      fatal: (m: string, ...a: unknown[]) => enqueue("fatal", m, a),
-      error: (m: string, ...a: unknown[]) => enqueue("error", m, a),
-      warn: (m: string, ...a: unknown[]) => enqueue("warn", m, a),
-      info: (m: string, ...a: unknown[]) => enqueue("info", m, a),
-      debug: (m: string, ...a: unknown[]) => enqueue("debug", m, a),
-      trace: (m: string, ...a: unknown[]) => enqueue("trace", m, a),
-    };
+// Initial Level from Environment
+const initialLevel = (process.env.LOG_LEVEL as LogLevel) || "info";
+
+export const logger = {
+  _level: initialLevel,
+  get level(): LogLevel {
+    return this._level;
+  },
+  set level(val: LogLevel) {
+    if (LEVELS[val]) this._level = val;
+  },
+  fatal: (m: string, ...a: unknown[]) => enqueue("fatal", m, a),
+  error: (m: string, ...a: unknown[]) => enqueue("error", m, a),
+  warn: (m: string, ...a: unknown[]) => enqueue("warn", m, a),
+  info: (m: string, ...a: unknown[]) => enqueue("info", m, a),
+  debug: (m: string, ...a: unknown[]) => enqueue("debug", m, a),
+  trace: (m: string, ...a: unknown[]) => enqueue("trace", m, a),
+};

@@ -38,6 +38,7 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
   private _connection: mongoose.Connection | null = null;
   private _models: Map<string, mongoose.Model<any>> = new Map();
   private _repos: Map<string, MongoCrudMethods<any>> = new Map();
+  public config: any = null;
 
   // Domain-Specific Adapters
   crud: ICrudAdapter;
@@ -268,7 +269,7 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
     }>
   > {
     try {
-      const model = this._getOrCreateModel(collectionName);
+      const model = this._getOrCreateModel(collectionName) as any;
       let query = model.find(options?.filter || {});
 
       if (options?.fields) {
@@ -385,10 +386,10 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
     const { MongoWidgetMethods } = await import("./methods/widget-methods");
 
     // We use _getOrCreateModel to ensure models are registered on THIS connection
-    const SystemSettingModel = this._getOrCreateModel("SystemSetting");
-    const SystemPreferencesModel = this._getOrCreateModel("SystemPreferences");
-    const ThemeModel = this._getOrCreateModel("Theme");
-    const WidgetModel = this._getOrCreateModel("Widget");
+    const SystemSettingModel = this._getOrCreateModel("SystemSetting") as any;
+    const SystemPreferencesModel = this._getOrCreateModel("SystemPreferences") as any;
+    const ThemeModel = this._getOrCreateModel("Theme") as any;
+    const WidgetModel = this._getOrCreateModel("Widget") as any;
 
     this.system.preferences = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
     this.system.themes = new MongoThemeMethods(ThemeModel) as any;
@@ -396,30 +397,30 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
     this.system.widgets = new MongoWidgetMethods(WidgetModel) as any;
 
     // Initialize tenants
-    const TenantModel = this._getOrCreateModel("Tenant");
+    const TenantModel = this._getOrCreateModel("Tenant") as any;
     const tenantRepo = new MongoCrudMethods(TenantModel);
     this.system.tenants = {
-      create: (t) => tenantRepo.insert(t as any),
-      getById: (id) => tenantRepo.findOne({ _id: id } as any),
-      update: (id, d) => tenantRepo.update(id, d as any),
+      create: (t) => tenantRepo.insert(t as any) as any,
+      getById: (id) => tenantRepo.findOne({ _id: id } as any) as any,
+      update: (id, d) => tenantRepo.update(id, d as any) as any,
       delete: (id) => tenantRepo.delete(id),
-      list: (o) => tenantRepo.findMany((o?.filter || {}) as any, o as any),
+      list: (o) => tenantRepo.findMany((o?.filter || {}) as any, o as any) as any,
     };
 
     // Initialize jobs
-    const JobModel = this._getOrCreateModel("Job");
+    const JobModel = this._getOrCreateModel("Job") as any;
     const jobRepo = new MongoCrudMethods(JobModel);
     this.system.jobs = {
-      create: (j) => jobRepo.insert(j as any),
-      getById: (id) => jobRepo.findOne({ _id: id } as any),
+      create: (j) => jobRepo.insert(j as any) as any,
+      getById: (id) => jobRepo.findOne({ _id: id } as any) as any,
       getNextReady: (limit, tenantId) =>
         jobRepo.findMany(
           { status: "pending", nextRunAt: { $lte: new Date().toISOString() } } as any,
           { limit, tenantId } as any,
-        ),
-      list: (o) => jobRepo.findMany((o?.filter || {}) as any, o as any),
+        ) as any,
+      list: (o) => jobRepo.findMany((o?.filter || {}) as any, o as any) as any,
       count: (f) => jobRepo.count(f as any),
-      update: (id, d) => jobRepo.update(id, d as any),
+      update: (id, d) => jobRepo.update(id, d as any) as any,
       delete: (id) => jobRepo.delete(id),
       cleanup: async (olderThan) => {
         const res = await jobRepo.deleteMany(
@@ -585,18 +586,22 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
     const { MongoContentMethods } = await import("./methods/content-methods");
 
     // Nodes Repo
-    const nodeModel = this._getOrCreateModel("system_content_structure");
+    const nodeModel = this._getOrCreateModel("system_content_structure") as any;
     const nodesRepo = new MongoCrudMethods(nodeModel);
 
     // Drafts Repo
-    const draftModel = this._getOrCreateModel("content_drafts");
+    const draftModel = this._getOrCreateModel("content_drafts") as any;
     const draftsRepo = new MongoCrudMethods(draftModel);
 
     // Revisions Repo
-    const revisionModel = this._getOrCreateModel("content_revisions");
+    const revisionModel = this._getOrCreateModel("content_revisions") as any;
     const revisionsRepo = new MongoCrudMethods(revisionModel);
 
-    const contentMethods = new MongoContentMethods(nodesRepo, draftsRepo, revisionsRepo);
+    const contentMethods = new MongoContentMethods(
+      nodesRepo as any,
+      draftsRepo as any,
+      revisionsRepo as any,
+    );
 
     this.content = {
       ...this.content,

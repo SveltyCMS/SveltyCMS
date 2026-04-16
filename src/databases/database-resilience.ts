@@ -525,7 +525,7 @@ export async function notifyAdminsOfDatabaseFailure(
     }
 
     const allUsers = await auth.getAllUsers();
-    const adminUsers = allUsers.filter((user) => user.role === "admin");
+    const adminUsers = allUsers.filter((user: any) => user.role === "admin");
     if (!adminUsers || adminUsers.length === 0) {
       logger.warn("No admin users found to notify");
       return;
@@ -537,7 +537,7 @@ export async function notifyAdminsOfDatabaseFailure(
 
     const emailData = {
       subject: `🚨 Critical: Database Connection Failure - ${publicEnv.SITE_NAME || "SveltyCMS"}`,
-      recipientEmail: adminUsers.map((u) => u.email).filter(Boolean),
+      recipientEmail: adminUsers.map((u: any) => u.email).filter(Boolean),
       templateName: "databaseFailure",
       props: {
         sitename: publicEnv.SITE_NAME || "SveltyCMS",

@@ -1,129 +1,91 @@
 /**
  * @file tests/benchmarks/openapi-performance.test.ts
- * @description Professional benchmark for SveltyCMS OpenAPI Specification generation and caching.
- * Measures cache-hit performance vs regeneration cost after invalidation.
+ * @description Professional benchmark for SveltyCMS dynamic OpenAPI 3.1 spec generation and caching.
  */
 
 import { test } from "bun:test";
 import { runBenchmark, exportResult } from "./benchmark-utils";
-import { safeFetch } from "../integration/helpers/server";
+import { getApiBaseUrl, safeFetch, waitForServer } from "../integration/helpers/server";
 
-const API_BASE_URL = process.env.API_BASE_URL || "http://127.0.0.1:4173";
-const TEST_API_SECRET = process.env.TEST_API_SECRET || "enterprise-audit-2026";
+const API_BASE_URL = process.env.API_BASE_URL || getApiBaseUrl();
 
-const authHeaders = {
-  "x-test-secret": TEST_API_SECRET,
-  "x-admin-email": "admin@example.com",
-};
+export async function runOpenApiBenchmark() {
+  console.log("🚀 Starting SveltyCMS OpenAPI Spec Export Performance Benchmark...\n");
 
-async function stabilize() {
-  if (typeof Bun !== "undefined") Bun.gc(true);
-  await new Promise((r) => setTimeout(r, 25));
-}
+  await waitForServer();
 
-test("OpenAPI Performance Suite (Cache Hit vs Generation)", async () => {
-  console.log("🚀 Starting SveltyCMS OpenAPI Performance Benchmark...\n");
+  const TEST_API_SECRET = process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026";
+  const authHeaders = {
+    "x-test-secret": TEST_API_SECRET,
+    "x-test-mode": "true",
+  };
 
-  // Verify server is reachable
-  const healthCheck = await safeFetch(`${API_BASE_URL}/api/openapi.json`).catch(() => null);
-  if (!healthCheck?.ok) {
-    throw new Error(
-      `❌ Server not responding at ${API_BASE_URL}. Make sure preview/dev server is running.`,
-    );
-  }
-
-  await stabilize();
-
-  const ITER_HIT = 1200; // High iterations for fast cache hits
-  const ITER_MISS = 25; // Fewer for expensive generation
-  const WARMUP = 80;
-
-  // ========================
-  // 1. Cache Hit (Hot Path - Most Common Case)
-  // ========================
-  console.log("⚡ Measuring Cached OpenAPI Delivery (Cache Hit)...");
-
-  const hitResult = await runBenchmark({
-    name: "OpenAPI: Cache Hit (/api/openapi.json)",
-    iterations: ITER_HIT,
-    warmupIterations: WARMUP,
-    concurrency: 8, // Moderate concurrency for realistic load
+  // 1. Cold / Fresh Generation (cache miss)
+  console.log("📄 Measuring Cold OpenAPI Generation...");
+  const coldResult = await runBenchmark({
+    name: "OpenAPI: Cold Generation",
+    iterations: 30, // Keep lower because it's expensive
+    warmupIterations: 3,
+    concurrency: 2,
     onIteration: async () => {
-      const res = await safeFetch(`${API_BASE_URL}/api/openapi.json`, {
+      const res = await safeFetch(`${API_BASE_URL}/api/openapi.json?force=true`, {
         headers: authHeaders,
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      await res.text(); // Consume body to simulate real usage
+      if (!res.ok) throw new Error(`OpenAPI cold generation failed: ${res.status}`);
+      await res.json();
     },
+    silent: true,
   });
 
-  await stabilize();
-
-  // ========================
-  // 2. Cache Miss / Generation Cost (After Invalidation)
-  // ========================
-  console.log("📉 Measuring OpenAPI Generation Cost (Cache Miss after invalidation)...");
-
-  const missResult = await runBenchmark({
-    name: "OpenAPI: Cache Miss + Generation",
-    iterations: ITER_MISS,
-    warmupIterations: 3,
-    concurrency: 1, // Serial for fair generation cost measurement
+  // 2. Cached Hit (hot path)
+  console.log("📄 Measuring Cached OpenAPI Hit...");
+  const cachedResult = await runBenchmark({
+    name: "OpenAPI: Cached Hit",
+    iterations: 250,
+    warmupIterations: 30,
+    concurrency: 16,
     onIteration: async () => {
-      // Trigger full reinitialization (invalidates cache)
-      await safeFetch(`${API_BASE_URL}/api/testing`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-secret": TEST_API_SECRET,
-        },
-        body: JSON.stringify({ action: "reinitialize" }),
-      });
-
-      // Immediately fetch — this should force regeneration
-      const res = await safeFetch(`${API_BASE_URL}/api/openapi.json`, {
-        headers: authHeaders,
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const res = await safeFetch(`${API_BASE_URL}/api/openapi.json`, { headers: authHeaders });
+      if (!res.ok) throw new Error(`OpenAPI cached request failed: ${res.status}`);
       await res.text();
     },
+    silent: true,
   });
 
-  await stabilize();
+  // Summary
+  console.log("\n" + "=".repeat(95));
+  console.log("📄 OPENAPI SPEC PERFORMANCE SUMMARY");
+  console.log("=".repeat(95));
 
-  // ========================
-  // Summary & Analysis
-  // ========================
-  console.log("\n" + "=".repeat(90));
-  console.log("📊 OPENAPI PERFORMANCE SUMMARY");
-  console.log("=".repeat(90));
-
-  console.table([
+  const table = [
     {
-      Scenario: "Cache Hit",
-      "Avg (ms)": hitResult.avgMs.toFixed(4),
-      "p95 (ms)": hitResult.p95Ms.toFixed(4),
-      RPS: Math.round(hitResult.rps),
-      Concurrency: "8",
+      Scenario: "Cold Generation",
+      "Avg (ms)": coldResult.avgMs.toFixed(2),
+      "p95 (ms)": coldResult.p95Ms.toFixed(2),
+      RPS: Math.round(coldResult.rps),
     },
     {
-      Scenario: "Generation (Miss)",
-      "Avg (ms)": missResult.avgMs.toFixed(3),
-      "p95 (ms)": missResult.p95Ms.toFixed(3),
-      RPS: Math.round(missResult.rps),
-      Concurrency: "1",
+      Scenario: "Cached Hit",
+      "Avg (ms)": cachedResult.avgMs.toFixed(3),
+      "p95 (ms)": cachedResult.p95Ms.toFixed(3),
+      RPS: Math.round(cachedResult.rps),
     },
-  ]);
+  ];
 
-  const speedup = (missResult.avgMs / hitResult.avgMs).toFixed(1);
-  console.log(`\n🚀 Cache Hit Speedup: ${speedup}x faster than generation`);
+  console.table(table);
+  console.log("=".repeat(95));
+
+  console.log(`\n📊 OpenAPI cold generation overhead: ${coldResult.avgMs.toFixed(2)} ms`);
   console.log(
-    `   Typical production impact: ${(hitResult.avgMs * 1000).toFixed(1)} µs per request`,
+    `   Cached hit latency: ${cachedResult.avgMs.toFixed(3)} ms (${(coldResult.avgMs / cachedResult.avgMs).toFixed(1)}x faster)`,
   );
 
-  // Export results
-  exportResult(hitResult, "openapi-cache-hit.json");
-  exportResult(missResult, "openapi-generation-miss.json");
+  exportResult(coldResult);
+  exportResult(cachedResult);
+}
 
-  console.log(`\n💾 Results exported successfully.`);
-}, 600000);
+if (!process.env.SVELTY_AUDIT_ACTIVE) {
+  test("OpenAPI Export Performance Suite", async () => {
+    await runOpenApiBenchmark();
+  }, 600000);
+}
