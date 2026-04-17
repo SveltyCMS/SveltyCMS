@@ -354,17 +354,17 @@ export class AuthModule implements IAuthAdapter {
     _options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ user: User; session: Session }>> {
     return this.core.wrap(async () => {
-      return await this.db.transaction(async (tx) => {
+      // Hash password BEFORE the transaction (bun:sqlite transactions must be sync)
+      let password = userData.password;
+      if (password && !password.startsWith("$argon2")) {
+        const argon2 = await import("argon2");
+        password = await argon2.hash(password);
+      }
+
+      return this.db.transaction((tx) => {
         // --- Create User ---
         const userId = (userData._id || utils.generateId()) as string;
         const now = isoDateStringToDate(nowISODateString());
-
-        // Ensure password is hashed if provided and not already hashed
-        let password = userData.password;
-        if (password && !password.startsWith("$argon2")) {
-          const argon2 = await import("argon2");
-          password = await argon2.hash(password);
-        }
 
         // Map legacy 'role' string to 'roleIds' array if roleIds is missing/empty
         let roleIds: DatabaseId[] = [];
@@ -393,12 +393,13 @@ export class AuthModule implements IAuthAdapter {
           updatedAt: now,
         };
 
-        await tx.insert(schema.authUsers).values(userValues);
-        const [userResult] = await tx
+        tx.insert(schema.authUsers).values(userValues).run();
+        const [userResult] = tx
           .select()
           .from(schema.authUsers)
           .where(eq(schema.authUsers._id, userId))
-          .limit(1);
+          .limit(1)
+          .all();
 
         const user = this.mapUser(userResult);
 
@@ -415,12 +416,13 @@ export class AuthModule implements IAuthAdapter {
           updatedAt: now,
         };
 
-        await tx.insert(schema.authSessions).values(sessionValues);
-        const [sessionResult] = await tx
+        tx.insert(schema.authSessions).values(sessionValues).run();
+        const [sessionResult] = tx
           .select()
           .from(schema.authSessions)
           .where(eq(schema.authSessions._id, sessionId))
-          .limit(1);
+          .limit(1)
+          .all();
 
         const convertedSession = utils.convertDatesToISO(sessionResult);
         const session = {
@@ -440,20 +442,20 @@ export class AuthModule implements IAuthAdapter {
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>> {
     return this.core.wrap(async () => {
-      return await this.db.transaction(async (tx) => {
+      return this.db.transaction((tx) => {
         // --- Delete Sessions ---
         const sessionConditions = [eq(schema.authSessions.user_id, userId as string)];
         if (options?.tenantId) {
           sessionConditions.push(eq(schema.authSessions.tenantId, options.tenantId as string));
         }
-        await tx.delete(schema.authSessions).where(and(...sessionConditions));
+        tx.delete(schema.authSessions).where(and(...sessionConditions)).run();
 
         // --- Delete User ---
         const userConditions = [eq(schema.authUsers._id, userId as string)];
         if (options?.tenantId) {
           userConditions.push(eq(schema.authUsers.tenantId, options.tenantId as string));
         }
-        await tx.delete(schema.authUsers).where(and(...userConditions));
+        tx.delete(schema.authUsers).where(and(...userConditions)).run();
 
         return { deletedUser: true, deletedSessionCount: 1 };
       });
@@ -859,26 +861,28 @@ export class AuthModule implements IAuthAdapter {
 
   async rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>> {
     return this.core.wrap(async () => {
-      return await this.db.transaction(async (tx) => {
-        const [tokenRecord] = await tx
+      return this.db.transaction((tx) => {
+        const [tokenRecord] = tx
           .select()
           .from(schema.authTokens)
           .where(eq(schema.authTokens.token, oldToken))
-          .limit(1);
+          .limit(1)
+          .all();
 
         if (!tokenRecord) {
           throw new Error("Token not found");
         }
 
         const newToken = utils.generateId();
-        await tx
+        tx
           .update(schema.authTokens)
           .set({
             token: newToken,
             expires: isoDateStringToDate(expires),
             updatedAt: isoDateStringToDate(nowISODateString()),
           })
-          .where(eq(schema.authTokens.token, oldToken));
+          .where(eq(schema.authTokens.token, oldToken))
+          .run();
 
         return newToken;
       });

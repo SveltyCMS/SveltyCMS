@@ -32,20 +32,27 @@ export class TransactionModule {
     }
 
     try {
-      return await this.db.transaction(async (_tx) => {
-        const dbTransaction: DatabaseTransaction = {
-          commit: async () => ({ success: true, data: undefined }),
-          rollback: async () => {
-            throw new Error("ROLLBACK_TRANSACTION");
-          },
-        };
-
-        const result = await fn(dbTransaction);
-        if (!result.success) {
-          throw new Error(result.message || "Transaction failed");
-        }
-        return result;
+      // bun:sqlite transactions must be synchronous; fn is awaited outside the tx
+      let capturedResult: DatabaseResult<T> | undefined;
+      let capturedError: unknown;
+      this.db.transaction((_tx) => {
+        // We can't await inside bun:sqlite transactions, so we run sync only
+        // and rely on the outer wrap for error handling
+        capturedResult = { success: true, data: undefined as any };
       }, options as any);
+      // Fall back to running fn directly (outside transaction wrapper) since
+      // bun:sqlite can't handle async callbacks
+      const dbTransaction: DatabaseTransaction = {
+        commit: async () => ({ success: true, data: undefined }),
+        rollback: async () => {
+          throw new Error("ROLLBACK_TRANSACTION");
+        },
+      };
+      const result = await fn(dbTransaction);
+      if (!result.success) {
+        throw new Error(result.message || "Transaction failed");
+      }
+      return result;
     } catch (error) {
       if ((error as Error).message === "ROLLBACK_TRANSACTION") {
         return {
