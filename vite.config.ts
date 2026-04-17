@@ -643,9 +643,7 @@ export default defineConfig((): any => {
     ssr: {
       noExternal: [
         "@skeletonlabs/skeleton-svelte",
-        "@skeletonlabs/skeleton",
         "@iconify/svelte",
-        "svelte-confetti",
         "svelte-canvas",
         "svelte-dnd-action",
         "svelte-awesome-color-picker",
@@ -764,9 +762,7 @@ export default defineConfig((): any => {
       ],
       include: [
         "@skeletonlabs/skeleton-svelte",
-        "@skeletonlabs/skeleton",
         "@iconify/svelte",
-        "svelte-confetti",
         "svelte-canvas",
         "svelte-dnd-action",
         "svelte-awesome-color-picker",

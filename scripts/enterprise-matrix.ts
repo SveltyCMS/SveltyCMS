@@ -507,7 +507,8 @@ async function startServer(db: DatabaseConfig): Promise<{ coldStartMs: number; v
           (cleanLine.includes("Local:") ||
             cleanLine.includes("127.0.0.1:") ||
             cleanLine.includes("Listening on") ||
-            cleanLine.includes("Listening at"))
+            cleanLine.includes("Listening at") ||
+            cleanLine.includes("Cold Start:"))
         ) {
           resolved = true;
           clearTimeout(timeout);

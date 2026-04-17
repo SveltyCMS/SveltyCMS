@@ -31,15 +31,8 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
         ? `${encodeURIComponent(config.user)}${config.password ? `:${encodeURIComponent(config.password)}` : ""}@`
         : "";
 
-      // Only add authSource when credentials are provided
-      // For MongoDB Atlas (mongodb+srv), default authSource to 'admin' when user is provided
-      // For local MongoDB, only use authSource if explicitly provided
       let queryParams = "";
-      if (config.user) {
-        const authSource = config.authSource || "admin";
-        queryParams = `?authSource=${encodeURIComponent(authSource)}${isSrv ? "&retryWrites=true&w=majority" : ""}`;
-      } else if (isSrv) {
-        // Atlas without credentials
+      if (isSrv) {
         queryParams = "?retryWrites=true&w=majority";
       }
 
@@ -149,10 +142,6 @@ export async function getSetupDatabaseAdapter(
         if (config.password) {
           connectionOptions.pass = config.password;
         }
-
-        // Default authSource to 'admin' when user is provided
-        const authSource = config.authSource || "admin";
-        connectionOptions.authSource = authSource;
       }
 
       try {

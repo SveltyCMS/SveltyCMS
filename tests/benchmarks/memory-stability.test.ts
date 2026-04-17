@@ -71,7 +71,7 @@ export async function runMemoryStabilityTest() {
           method: "GET",
         });
         totalRequests++;
-      } catch (e) {
+      } catch {
         // ignore transient errors
       }
     }

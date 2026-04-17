@@ -64,7 +64,6 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 **Key Implemented Features**:
 
 - ✅ **Robust Path Normalization**: Hardened `src/routes/files/` against directory traversal using strict `path.relative` boundary checks.
-- ✅ **Secure Auth Source Propagation**: Integrated `DB_AUTH_SOURCE` through the setup wizard and schemas with full redaction in logs.
 - ✅ **Fail-Closed Dispatcher Verification**: Every unhandled route now strictly returns 403.
 - ✅ **Argon2id Memory-Hardness Audit**: Confirmed 64MB memory cost for resistance against quantum/ASIC speedup.
 - ✅ **SHA-256 Audit Chaining**: Implemented tamper-evident chaining for all file-backed security logs.

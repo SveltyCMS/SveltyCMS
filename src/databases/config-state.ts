@@ -33,17 +33,23 @@ export async function loadPrivateConfig(
     try {
       logger.debug("Loading private configuration...");
 
-      // 1. Start with SvelteKit's private env (best practice)
+      const isTest = process.env.TEST_MODE === "true" || process.env.NODE_ENV === "test";
+
+      // 1. Start with SvelteKit's private env (best practice) or process.env for tests
       let svelteEnv: any = {};
-      try {
-        // We use dynamic import to avoid breaking standalone scripts (Bun/Node)
-        // while staying idiomatic for SvelteKit runtime.
-        // @ts-ignore - Dynamic SvelteKit environment variable loading
-        const mod = await import("$env/dynamic/private");
-        svelteEnv = mod.env;
-      } catch {
-        // Not in SvelteKit context (e.g. standalone script), fallback to process.env
+      if (isTest) {
         svelteEnv = process.env;
+      } else {
+        try {
+          // We use dynamic import to avoid breaking standalone scripts (Bun/Node)
+          // while staying idiomatic for SvelteKit runtime.
+          // @ts-ignore - Dynamic SvelteKit environment variable loading
+          const mod = await import("$env/dynamic/private");
+          svelteEnv = mod.env;
+        } catch {
+          // Not in SvelteKit context (e.g. standalone script), fallback to process.env
+          svelteEnv = process.env;
+        }
       }
 
       let config: any = { ...svelteEnv };
@@ -140,7 +146,6 @@ function getEnvOverrides() {
   if (process.env.DB_NAME) overrides.DB_NAME = process.env.DB_NAME;
   if (process.env.DB_USER) overrides.DB_USER = process.env.DB_USER;
   if (process.env.DB_PASSWORD) overrides.DB_PASSWORD = process.env.DB_PASSWORD;
-  if (process.env.DB_AUTH_SOURCE) overrides.DB_AUTH_SOURCE = process.env.DB_AUTH_SOURCE;
   if (process.env.DB_POOL_SIZE) overrides.DB_POOL_SIZE = Number(process.env.DB_POOL_SIZE);
   if (process.env.DB_RETRY_ATTEMPTS)
     overrides.DB_RETRY_ATTEMPTS = Number(process.env.DB_RETRY_ATTEMPTS);
@@ -199,7 +204,6 @@ export function getDatabaseConfig() {
   const name = env.DB_NAME || "sveltycms";
   const user = env.DB_USER;
   const password = env.DB_PASSWORD;
-  const authSource = env.DB_AUTH_SOURCE;
 
   return {
     type: dbType,
@@ -208,7 +212,6 @@ export function getDatabaseConfig() {
     name,
     user,
     password,
-    authSource,
     poolSize: env.DB_POOL_SIZE || 10,
     retryAttempts: env.DB_RETRY_ATTEMPTS || 5,
     retryDelay: env.DB_RETRY_DELAY || 2000,
@@ -235,7 +238,7 @@ export function getDatabaseConnectionString(): string {
   const config = getDatabaseConfig();
   if (!config) return "";
 
-  const { type, host, port, name, user, password, authSource } = config;
+  const { type, host, port, name, user, password } = config;
 
   // If host is already a full connection string, use it
   if (host.includes("://")) {
@@ -255,7 +258,7 @@ export function getDatabaseConnectionString(): string {
     ? `${encodeURIComponent(user)}${password ? `:${encodeURIComponent(password)}` : ""}@`
     : "";
 
-  const connectionString = getSwitchResult(type, authPart, host, port, name, authSource, user);
+  const connectionString = getSwitchResult(type, authPart, host, port, name, user);
   const masked = connectionString.replace(/:([^@]+)@/, ":****@");
   logger.info(`[DB] Generated connection string: ${masked}`);
   return connectionString;
@@ -267,13 +270,12 @@ function getSwitchResult(
   host: string,
   port: number | string | undefined,
   name: string,
-  authSource: string | undefined,
-  user: string | undefined,
+  _user?: string | undefined,
 ) {
   switch (type) {
     case "mongodb": {
-      const authParam = user ? `?authSource=${authSource || "admin"}` : "";
-      return `mongodb://${authPart}${host}:${port}/${name}${authParam}`;
+      // NOTE: MongoDB driver now handles authentication via the connection string authPart
+      return `mongodb://${authPart}${host}:${port}/${name}`;
     }
     case "mongodb+srv":
       return `mongodb+srv://${authPart}${host}/${name}?retryWrites=true&w=majority`;

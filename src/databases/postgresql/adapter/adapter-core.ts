@@ -56,15 +56,30 @@ export class AdapterCore {
     _options?: unknown,
   ): Promise<DatabaseResult<void>> {
     try {
+      let finalConnection = connection;
+
+      // Fallback: If connection is missing or empty, try to build it from global config
+      if (
+        !finalConnection ||
+        (typeof finalConnection === "string" && finalConnection.trim() === "")
+      ) {
+        const { getDatabaseConnectionString } = await import("../../config-state");
+        finalConnection = getDatabaseConnectionString();
+      }
+
+      if (!finalConnection) {
+        throw new Error("Missing PostgreSQL connection configuration.");
+      }
+
       let options: Record<string, unknown> = {
         max: 10,
         connect_timeout: 10,
       };
 
-      if (typeof connection === "string") {
+      if (typeof finalConnection === "string") {
         // Parse connection string manually to ensure correct parameters
         try {
-          const url = new URL(connection);
+          const url = new URL(finalConnection);
           options = {
             ...options,
             host: url.hostname,
@@ -85,7 +100,7 @@ export class AdapterCore {
             "Failed to parse PostgreSQL connection string, falling back to raw string (might fail auth):",
             e,
           );
-          this.sql = postgres(connection, {
+          this.sql = postgres(finalConnection, {
             onnotice: () => {
               /* Suppress notice messages */
             },
@@ -101,12 +116,15 @@ export class AdapterCore {
       } else {
         options = {
           ...options,
-          host: connection.host,
-          port: connection.port,
-          user: connection.user,
-          password: connection.password,
-          database: connection.database,
-          ssl: connection.ssl === true || connection.ssl === "require" ? "require" : undefined,
+          host: (finalConnection as any).host,
+          port: (finalConnection as any).port,
+          user: (finalConnection as any).user,
+          password: (finalConnection as any).password,
+          database: (finalConnection as any).database,
+          ssl:
+            (finalConnection as any).ssl === true || (finalConnection as any).ssl === "require"
+              ? "require"
+              : undefined,
           onnotice: () => {
             /* Suppress notice messages */
           },

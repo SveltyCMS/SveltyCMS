@@ -94,7 +94,25 @@ export class Auth {
     sessionData: { expires: ISODateString; tenantId?: DatabaseId | null },
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ user: User; session: Session }>> {
-    return this.db.auth.createUserAndSession(userData, sessionData, options);
+    try {
+      const { email, password } = userData;
+
+      if (email) userData.email = email.toLowerCase();
+
+      // --- PASSWORD HASHING ---
+      if (password) {
+        this.validatePasswordStrength(password);
+        userData.password = await cryptoHashPassword(password);
+      }
+
+      return this.db.auth.createUserAndSession(userData, sessionData, options);
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || "Failed to create user and session",
+        error: { code: "AUTH_ERROR", message: err.message },
+      };
+    }
   }
 
   async deleteUserAndSessions(
@@ -624,7 +642,7 @@ export class Auth {
         return null;
       }
 
-      const isValid = await cryptoVerifyPassword(password, user.password);
+      const isValid = await cryptoVerifyPassword(user.password, password);
 
       logger.debug("Password verification result", { email, isValid });
 

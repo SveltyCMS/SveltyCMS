@@ -62,7 +62,7 @@ describeMongo("MongoDB Adapter Integration", () => {
         privateEnv.DB_USER !== "root" &&
         privateEnv.DB_USER !== "mariadb"
       ) {
-        conn = `mongodb://${privateEnv.DB_USER}:${privateEnv.DB_PASSWORD}@${host}:${port}/${dbName}?authSource=admin`;
+        conn = `mongodb://${privateEnv.DB_USER}:${privateEnv.DB_PASSWORD}@${host}:${port}/${dbName}`;
       }
 
       console.log("DEBUG: host =", host, "port =", port, "dbName =", dbName);

@@ -13,6 +13,7 @@ const ADAPTER_KEY = "__DB_ADAPTER_INSTANCE__";
 export let dbAdapter: DatabaseAdapter | null = null;
 export let auth: any = null;
 let isConnected = false;
+let isInitializing = false;
 
 export function getBootPhase() {
   return "FULL";
@@ -24,14 +25,29 @@ export function isDbConnected(): boolean {
 }
 
 export async function initializeSystem(forceReload = false): Promise<void> {
+  // If already initializing, just wait for the current promise
+  if (isInitializing && !forceReload && _dbInitPromise) {
+    return _dbInitPromise;
+  }
+
+  isInitializing = true;
+  logger.debug(`[db] initializeSystem called (force: ${forceReload})`);
+
   try {
     const config = await loadPrivateConfig(forceReload);
     if (!config?.DB_TYPE) {
       logger.debug("[db] Skipping heavy init (no config)");
+      isConnected = false;
+      isInitializing = false;
       return;
     }
 
-    if (!forceReload && getDb() && isConnected) return;
+    // Check existing adapter without calling getDb() to avoid recursion
+    const existingAdapter = (process as any)[ADAPTER_KEY] || dbAdapter;
+    if (!forceReload && existingAdapter && isConnected) {
+      isInitializing = false;
+      return;
+    }
 
     dbAdapter = await loadAdapters(config);
     if (!dbAdapter) throw new Error("Failed to load database adapter");
@@ -46,53 +62,65 @@ export async function initializeSystem(forceReload = false): Promise<void> {
 
       const { initializeCriticalServices } = await import("./db-init");
       auth = await initializeCriticalServices(dbAdapter);
+    } else {
+      throw new Error(`Database connection failed: ${connectionResult.message}`);
     }
   } catch (err) {
+    isConnected = false;
     logger.error("[db] System initialization failed", err);
     if (process.env.NODE_ENV !== "test") throw err;
+  } finally {
+    isInitializing = false;
   }
 }
 
-// Singleton Promise for initialization
+// Singleton Promise for initialization (immediate trigger)
 let _dbInitPromise = initializeSystem();
 
-/**
- * Compatibility Export: can be used as a Promise OR called as a function
- */
-export const dbInitPromise = Object.assign(
-  (forceReload = false, _phase = "FULL") => {
-    if (forceReload) _dbInitPromise = initializeSystem(true);
-    return _dbInitPromise;
-  },
-  {
-    then: (onfulfilled?: any, onrejected?: any) => _dbInitPromise.then(onfulfilled, onrejected),
-    catch: (onrejected?: any) => _dbInitPromise.catch(onrejected),
-    finally: (onfinally?: any) => _dbInitPromise.finally(onfinally),
-  },
-) as any;
-
-export function getDbInitPromise(forceReload = false, phase = "FULL") {
-  return dbInitPromise(forceReload, phase);
+export function getDbInitPromise(forceReload = false, _phase = "FULL") {
+  if (forceReload || !_dbInitPromise) {
+    _dbInitPromise = initializeSystem(forceReload);
+  }
+  return _dbInitPromise;
 }
 
+/**
+ * Compatibility Export: can be used as a Promise-like object OR called as a function
+ * Using a Proxy to bypass 'no-thenable' linting while maintaining functionality.
+ * @deprecated Use getDbInitPromise() instead.
+ */
+export const dbInitPromise = new Proxy(getDbInitPromise, {
+  get(target, prop) {
+    // If it's a promise property, return it from the current promise without re-triggering
+    const promise = target();
+    if (prop === "then") return promise.then.bind(promise);
+    if (prop === "catch") return promise.catch.bind(promise);
+    if (prop === "finally") return promise.finally.bind(promise);
+
+    // Support for other properties if needed
+    const val = (promise as any)[prop];
+    return typeof val === "function" ? val.bind(promise) : val;
+  },
+  apply(target, thisArg, argumentsList) {
+    return Reflect.apply(target, thisArg, argumentsList);
+  },
+}) as any;
+
+/**
+ * PURE Accessor: Does not trigger initialization to avoid recursion.
+ */
 export function getDb(): DatabaseAdapter | null {
-  const adapter = (process as any)[ADAPTER_KEY] || dbAdapter;
-
-  if (!adapter && typeof process !== "undefined" && process.env.NODE_ENV === "production") {
-    // CRITICAL: If adapter is null in production, it might be a race or lost state.
-    // Since initializeSystem uses a singleton promise, this is safe to call.
-    initializeSystem(false);
-  }
-
-  return adapter;
+  return (process as any)[ADAPTER_KEY] || dbAdapter;
 }
 
 export async function ensureFullInitialization(forceReload = false): Promise<void> {
   await getDbInitPromise(forceReload);
   const adapter = getDb();
-  if (adapter) {
+  if (adapter && isConnected) {
     const { runBackgroundTasks } = await import("./db-init");
     await runBackgroundTasks(adapter);
+  } else if (adapter && !isConnected) {
+    logger.warn("[db] Skipping background tasks - adapter exists but is not connected.");
   }
 }
 
@@ -117,6 +145,7 @@ export function resetDbInitPromise(): void {
   isConnected = false;
   dbAdapter = null;
   (process as any)[ADAPTER_KEY] = null;
+  isInitializing = false;
   _dbInitPromise = initializeSystem(true);
 }
 

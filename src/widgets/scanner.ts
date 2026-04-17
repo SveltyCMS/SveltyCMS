@@ -5,16 +5,20 @@
  */
 
 // Scan for core widgets
-let coreModulesRaw =
-  (import.meta as any).glob?.("./core/*/index.ts", {
-    eager: true,
-  }) || {};
+let coreModulesRaw = {};
+try {
+  coreModulesRaw = import.meta.glob("./core/*/index.ts", { eager: true });
+} catch {
+  // Fallback handled below
+}
 
 // Scan for custom widgets
-let customModulesRaw =
-  (import.meta as any).glob?.("./custom/*/index.ts", {
-    eager: true,
-  }) || {};
+let customModulesRaw = {};
+try {
+  customModulesRaw = import.meta.glob("./custom/*/index.ts", { eager: true });
+} catch {
+  // Fallback handled below
+}
 
 // Fallback for non-Vite environments or production preview where glob might be stripped
 if (Object.keys(coreModulesRaw).length === 0 && typeof process !== "undefined") {
@@ -58,7 +62,7 @@ if (Object.keys(coreModulesRaw).length === 0 && typeof process !== "undefined") 
               (factory as any).camelName = camelName;
 
               modules[`./${subDir}/${entry.name}/index.ts`] = { default: factory };
-            } catch (e) {
+            } catch {
               // Silent fail
             }
           }
@@ -69,7 +73,7 @@ if (Object.keys(coreModulesRaw).length === 0 && typeof process !== "undefined") 
 
     coreModulesRaw = scan(corePath, "core");
     customModulesRaw = scan(customPath, "custom");
-  } catch (err) {
+  } catch {
     // Silent fail
   }
 }

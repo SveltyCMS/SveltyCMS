@@ -117,6 +117,13 @@ class WidgetState {
   }
 
   async initialize(tenantId = "default", dbAdapter?: DatabaseAdapter | null) {
+    // 🛡️ Optimization: Don't load widgets during setup wizard
+    // We only need them for the actual CMS functionality.
+    const { isSetupComplete } = await import("@src/utils/is-setup-complete");
+    if (!isSetupComplete()) {
+      return;
+    }
+
     if (this.initPromise) {
       return this.initPromise;
     }

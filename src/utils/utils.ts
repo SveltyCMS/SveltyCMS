@@ -1,37 +1,20 @@
 /**
  * @file src/utils/utils.ts
- * @description A comprehensive utility module for the SvelteKit CMS project.
+ * @description A comprehensive utility module for the SveltyCMS project.
  *
- * This file contains a wide range of utility functions and helpers used throughout the application, including:
- * - Form data handling and conversion (obj2formData, col2formData)
- * - File and media operations (sanitize, formatBytes, deleteOldTrashFiles)
- * - Date and time formatting (convertTimestampToDateString, formatUptime, ReadableExpireIn)
- * - Data manipulation and validation (extractData, deepCopy, validateValibot)
- * - Internationalization helpers (getTextDirection)
- * - UI-related utilities (getGuiFields, motion)
- * - String manipulation (pascalToCamelCase, getEditDistance)
- * - And various other helper functions
- *
- * The module also defines important constants and types used across the application.
- *
- * @requires valibot - For schema validation
- * @requires @stores/store - For accessing Svelte stores
- * @requires @root/config/public - For accessing public environment variables
- *
- *
- * @exports numerous utility functions and constants
+ * This file acts as the main entry point for common utilities,
+ * re-exporting from specialized sub-modules for better tree-shaking.
  */
 
 import type { FieldInstance, FieldValue } from "@src/content/types";
 import { publicEnv } from "@src/stores/global-settings.svelte";
-// Stores
-import { app } from "@src/stores/store.svelte";
-// System Logger
-import { type LoggableValue, logger } from "@utils/logger";
-import type { BaseIssue, BaseSchema } from "valibot";
 
-// Validation
-import * as v from "valibot";
+// Re-exports from sub-modules
+export * from "./form";
+export * from "./date";
+export * from "./file";
+export * from "./string";
+export * from "./validation";
 
 export const config = {
   headers: {
@@ -39,22 +22,12 @@ export const config = {
   },
 };
 
-// Interface for GUI field configuration
 /**
  * Interface for GUI field configuration in the Collection Builder.
  */
 export interface GuiFieldConfig {
-  /** Whether the field is required */
   required: boolean;
-  /**
-   * The widget component to render.
-   * Can be a direct Svelte component or a string key from `admin-component-registry`.
-   * @example { widget: 'Input' }
-   * @example { widget: InputComponent }
-   */
   widget: unknown | string;
-
-  /** Allow other properties */
   [key: string]: unknown;
 }
 
@@ -81,76 +54,6 @@ export const getGuiFields = (
   }
   return guiFields;
 };
-
-// Function to convert an object to form data
-export const obj2formData = (obj: Record<string, unknown>): FormData => {
-  const formData = new FormData();
-
-  const transformValue = (value: unknown): string | Blob => {
-    if (value instanceof Blob) {
-      return value;
-    }
-    if (typeof value === "object" && value !== null) {
-      return JSON.stringify(value);
-    }
-    if (typeof value === "boolean" || typeof value === "number") {
-      return value.toString();
-    }
-    if (value === null || value === undefined) {
-      return "";
-    }
-    return String(value);
-  };
-
-  for (const key in obj) {
-    if (!Object.hasOwn(obj, key)) {
-      continue;
-    }
-    const value = obj[key];
-    if (value !== undefined) {
-      formData.append(key, transformValue(value));
-    }
-  }
-
-  return formData;
-};
-
-// Converts data to FormData object with optimized file handling and type safety
-export const col2formData = async (
-  getData: Record<string, () => Promise<unknown> | unknown>,
-): Promise<FormData> => {
-  const formData = new FormData();
-
-  const processValue = async (value: unknown): Promise<string | Blob> => {
-    if (value instanceof Blob) {
-      return value;
-    }
-    if (value instanceof Promise) {
-      const resolvedValue = await value;
-      return processValue(resolvedValue);
-    }
-    if (typeof value === "object" && value !== null) {
-      return JSON.stringify(value);
-    }
-    return String(value);
-  };
-
-  const appendToForm = async () => {
-    for (const [key, getter] of Object.entries(getData)) {
-      const value = getter();
-      const processedValue = await processValue(value);
-      formData.append(key, processedValue);
-    }
-  };
-
-  await appendToForm();
-  return formData;
-};
-
-// Helper function to sanitize file names
-export function sanitize(str: string) {
-  return str.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_]/g, "");
-}
 
 // Get the environment variables for image sizes
 const envSizes = publicEnv.IMAGE_SIZES || {};
@@ -181,33 +84,6 @@ export function parse<T>(obj: unknown): T {
   return result as T;
 }
 
-// Convert an object to form data
-export const toFormData = (obj: Record<string, string | number | boolean>): FormData => {
-  const formData = new FormData();
-  for (const [key, value] of Object.entries(obj)) {
-    formData.append(key, String(value));
-  }
-  return formData;
-};
-
-// Converts fields to schema object
-interface SchemaField {
-  type: string;
-  widget?: unknown;
-  [key: string]: unknown;
-}
-
-export const fieldsToSchema = (fields: SchemaField[]): Record<string, unknown> => {
-  const schema: Record<string, unknown> = {};
-
-  for (const field of fields) {
-    const { type, ...rest } = field;
-    schema[type] = rest;
-  }
-
-  return schema;
-};
-
 // Returns field's database field name or label
 export function getFieldName(
   field: Partial<FieldInstance> & { label: string },
@@ -217,21 +93,18 @@ export function getFieldName(
     return "";
   }
 
-  // Use explicit db_fieldName if available
   if (field.db_fieldName) {
-    return rawName ? field.db_fieldName : field.db_fieldName;
+    return field.db_fieldName;
   }
 
-  // Special field name mappings
   const specialMappings: Record<string, string> = {
     "First Name": "first_name",
     "Last Name": "last_name",
   };
 
-  // Get the field name from label, or fallback to widget name
   let name = field.label;
-  if (!name && "widget" in field && field.widget?.Name) {
-    name = field.widget.Name;
+  if (!name && "widget" in field && (field as any).widget?.Name) {
+    name = (field as any).widget.Name;
   }
   if (!name && "type" in field) {
     name = (field as any).type as string;
@@ -240,44 +113,18 @@ export function getFieldName(
     name = "unknown_field";
   }
 
-  // Return raw UI name if requested
   if (rawName) {
     return name;
   }
 
-  // Check special mappings first
   if (specialMappings[name]) {
     return specialMappings[name];
   }
 
-  // Default sanitization:
-  // 1. Convert to lowercase
-  // 2. Replace spaces with underscores
-  // 3. Remove special characters
   return name
     .toLowerCase()
     .replace(/\s+/g, "_")
     .replace(/[^a-z0-9_]/g, "");
-}
-
-// Sanitizes field names for use in GraphQL type names
-// GraphQL type names must be valid identifiers: [A-Za-z_][A-Za-z0-9_]*
-export function sanitizeGraphQLTypeName(name: string): string {
-  if (!name) {
-    return "";
-  }
-
-  // 1. Replace spaces with underscores
-  // 2. Remove special characters except underscores
-  // 3. Ensure it starts with a letter or underscore
-  let sanitized = name.replace(/\s+/g, "_").replace(/[^A-Za-z0-9_]/g, "");
-
-  // Ensure the name starts with a letter or underscore (GraphQL requirement)
-  if (sanitized && !/^[A-Za-z_]/.test(sanitized)) {
-    sanitized = `_${sanitized}`;
-  }
-
-  return sanitized || "_invalid_name";
 }
 
 // Extract data from fields
@@ -317,96 +164,6 @@ export function deepCopy<T>(obj: T): T {
     }
   }
   return copy;
-}
-
-// Remove file extension
-export function removeExtension(fileName: string): string {
-  return fileName.replace(/\.[^/.]+$/, "");
-}
-
-/**
- * Formats a file size in bytes to the appropriate unit (bytes, kilobytes, megabytes, or gigabytes).
- * @param sizeInBytes - The size of the file in bytes.
- * @returns The formatted file size as a string.
- */
-export function formatBytes(bytes: number): string {
-  if (bytes === 0 || Number.isNaN(bytes)) {
-    return "0 bytes";
-  }
-
-  if (bytes < 0) {
-    throw new Error("Input size cannot be negative");
-  }
-
-  const units = ["bytes", "KB", "MB", "GB", "TB", "PB", "EB"];
-  let power = 0;
-
-  while (bytes >= 1024 && power < units.length - 1) {
-    bytes /= 1024;
-    power++;
-  }
-
-  return `${bytes.toFixed(2)} ${units[power]}`;
-}
-
-// Function to convert Unix timestamp to readable date string
-export function convertTimestampToDateString(timestamp: number) {
-  if (timestamp === null || timestamp === undefined) {
-    return "-";
-  }
-
-  const options: Intl.DateTimeFormatOptions = {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  };
-  const locale = app.contentLanguage;
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleDateString(locale, options);
-}
-
-export function formatUptime(uptime: number) {
-  const units = [
-    { label: ["year", "years"], value: 365 * 24 * 60 * 60 },
-    { label: ["month", "months"], value: 30 * 24 * 60 * 60 },
-    { label: ["week", "weeks"], value: 7 * 24 * 60 * 60 },
-    { label: ["day", "days"], value: 24 * 60 * 60 },
-    { label: ["hour", "hours"], value: 60 * 60 },
-    { label: ["minute", "minutes"], value: 60 },
-    { label: ["second", "seconds"], value: 1 },
-  ];
-
-  const result: string[] = [];
-  for (const unit of units) {
-    const quotient = Math.floor(uptime / unit.value);
-    if (quotient > 0) {
-      result.push(`${quotient} ${unit.label[quotient > 1 ? 1 : 0]}`);
-      uptime %= unit.value;
-    }
-  }
-
-  return result.join(" ");
-}
-
-// Export function for ReadableExpireIn
-export function ReadableExpireIn(expiresIn: string) {
-  const expiresInNumber = Number.parseInt(expiresIn, 10);
-  const expirationTime = expiresInNumber
-    ? new Date(Date.now() + expiresInNumber * 1000)
-    : new Date();
-
-  const daysDiff = Math.floor((expirationTime.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  const hoursDiff = Math.floor((expirationTime.getTime() - Date.now()) / (1000 * 60 * 60)) % 24;
-  const minutesDiff = Math.floor((expirationTime.getTime() - Date.now()) / (1000 * 60)) % 60;
-
-  const daysText = daysDiff > 0 ? `${daysDiff} day${daysDiff > 1 ? "s" : ""}` : "";
-  const hoursText = hoursDiff > 0 ? `${hoursDiff} hour${hoursDiff > 1 ? "s" : ""}` : "";
-  const minutesText = minutesDiff > 0 ? `${minutesDiff} minute${minutesDiff > 1 ? "s" : ""}` : "";
-
-  return `${daysText} ${hoursText} ${minutesText}`.trim();
 }
 
 // Get elements by ID
@@ -474,50 +231,6 @@ export function toStringHelper({ data }: StringHelperParams): string {
   return data.map((item: unknown) => String(item)).join(", ");
 }
 
-// Get random hex string
-export function getRandomHex(size: number): string {
-  const crypto = globalThis?.crypto;
-  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
-    const bytes = new Uint8Array(size);
-    crypto.getRandomValues(bytes);
-    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  }
-  throw new Error("Cryptographic API unavailable");
-}
-
-// Escape regex metacharacters
-export function escapeRegex(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-// Get current date in YYYY-MM-DD format
-export function getCurrentDate(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-// Convert hex to array buffer
-export function hex2arrayBuffer(hex: string): ArrayBuffer {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = Number.parseInt(hex.substring(i, i + 2), 16);
-  }
-  return bytes.buffer;
-}
-
-// Convert array buffer to hex
-export function arrayBuffer2hex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-// SHA-256 hash function
-export async function sha256(buffer: ArrayBuffer): Promise<string> {
-  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-  return arrayBuffer2hex(hashBuffer);
-}
-
 // Enhanced debounce utility with flexible patterns
 export function debounce(delay = 300, immediate = false) {
   let timer: NodeJS.Timeout | undefined;
@@ -539,7 +252,7 @@ export function debounce(delay = 300, immediate = false) {
   };
 }
 
-// Traditional debounce pattern - takes function and delay, returns debounced version
+// Traditional debounce pattern
 debounce.create = <T extends (...args: unknown[]) => unknown>(
   func: T,
   wait = 300,
@@ -556,56 +269,6 @@ debounce.create = <T extends (...args: unknown[]) => unknown>(
     timeout = setTimeout(later, wait);
   };
 };
-
-// Validates data against a Valibot schema, returning errors or null if valid
-export function validateValibot<T>(
-  schema: BaseSchema<T, T, BaseIssue<unknown>>,
-  value?: T,
-): null | { [P in keyof T]?: string[] } {
-  try {
-    // Use v.safeParse to handle parsing
-    const result = v.safeParse(schema, value);
-
-    if (result.success) {
-      return null; // No errors
-    }
-
-    const fieldErrors = {} as { [P in keyof T]?: string[] };
-
-    // Iterate over issues and populate field errors
-    for (const issue of result.issues) {
-      const path = issue.path?.[0]?.key as keyof T;
-      if (path) {
-        fieldErrors[path] = fieldErrors[path] || [];
-        fieldErrors[path]?.push(issue.message);
-      }
-    }
-
-    return fieldErrors;
-  } catch (error) {
-    logger.error("Validation error:", error as LoggableValue);
-    return null;
-  }
-}
-
-export function getTextDirection(lang: string): string {
-  const rtlLanguages = [
-    "ar",
-    "he",
-    "fa",
-    "ur",
-    "dv",
-    "ha",
-    "khw",
-    "ks",
-    "ku",
-    "ps",
-    "syr",
-    "ug",
-    "yi",
-  ];
-  return rtlLanguages.includes(lang) ? "rtl" : "ltr";
-}
 
 export async function motion(
   start: number[],
@@ -636,76 +299,22 @@ export async function motion(
         return;
       }
       cb(current);
-      requestAnimationFrame(() => animation(current));
+      if (typeof requestAnimationFrame !== "undefined") {
+        requestAnimationFrame(() => animation(current));
+      } else {
+        setTimeout(() => animation(current), 16);
+      }
     }
 
-    requestAnimationFrame(() => animation(current));
+    if (typeof requestAnimationFrame !== "undefined") {
+      requestAnimationFrame(() => animation(current));
+    } else {
+      setTimeout(() => animation(current), 16);
+    }
   });
 }
 
-export function getEditDistance(a: string, b: string): number | undefined {
-  if (a.length === 0) {
-    return b.length;
-  }
-  if (b.length === 0) {
-    return a.length;
-  }
-
-  const insertionCost = 1;
-  const deletionCost = 1;
-  const substitutionCost = 1;
-
-  const matrix: number[][] = [];
-
-  for (let i = 0; i <= b.length; i++) {
-    matrix[i] = [i];
-  }
-  for (let j = 0; j <= a.length; j++) {
-    matrix[0][j] = j;
-  }
-
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + substitutionCost,
-          Math.min(matrix[i][j - 1] + insertionCost, matrix[i - 1][j] + deletionCost),
-        );
-      }
-    }
-  }
-
-  const maxDistance = Math.max(a.length, b.length);
-  const normalizedDistance = matrix[b.length][a.length] / maxDistance;
-
-  return normalizedDistance;
-}
-
-// PascalCase to camelCase conversion
-export const pascalToCamelCase = (str: string): string => {
-  if (!str) {
-    return str;
-  }
-  return str.charAt(0).toLowerCase() + str.slice(1);
-};
-
-// Type assertion helper - used for widget type assertions
+// Type assertion helper
 export function asAny<T>(value: unknown): T {
   return value as T;
-}
-/**
- * Creates a clean GraphQL type name from collection info
- * Uses collection name + short UUID suffix for uniqueness and readability
- */
-export function createCleanTypeName(collection: { _id?: string; name?: string | unknown }): string {
-  const rawName = typeof collection.name === "string" ? collection.name : "";
-  const baseName = rawName.split("/").pop() || rawName;
-  const cleanName = baseName
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .replace(/^[0-9]/, "Collection$&")
-    .replace(/^[a-z]/, (c) => c.toUpperCase());
-  const shortId = (collection._id ?? "").substring(0, 8);
-  return `${cleanName}_${shortId}`;
 }

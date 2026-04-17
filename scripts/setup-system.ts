@@ -46,7 +46,6 @@ const cfg = {
     name: process.env.DB_NAME ?? "SveltyCMS_test",
     user: process.env.DB_USER ?? "",
     password: process.env.DB_PASSWORD ?? "",
-    authSource: process.env.DB_AUTH_SOURCE ?? "admin",
     // Port: only meaningful for network-backed drivers.
     // sqlite has no port; we explicitly set undefined so the action ignores it.
     port: resolvePort(process.env.DB_TYPE, process.env.DB_PORT),

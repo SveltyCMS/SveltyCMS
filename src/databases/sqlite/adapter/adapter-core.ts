@@ -148,17 +148,54 @@ export class AdapterCore {
       const fs = await import("node:fs");
 
       // Ensure directory exists
-      let dbPath =
-        typeof config === "string"
-          ? config
-          : config.connectionString || config.filename || "cms.db";
+      let dbPath = "cms.db";
 
-      // 🚀 Critical: Ensure database is stored in /config/database if it's just a filename
-      if (!path.isAbsolute(dbPath) && !dbPath.includes("/") && !dbPath.includes("\\")) {
+      if (typeof config === "string") {
+        dbPath = config;
+        // Strip sqlite:// protocol if present (used by some external tools like Jackson)
+        if (dbPath.startsWith("sqlite://")) {
+          dbPath = dbPath.slice(9);
+        }
+      } else if (config) {
+        dbPath =
+          (config as any).connectionString ||
+          (config as any).filename ||
+          (config as any).DB_NAME ||
+          "cms.db";
+
+        // Handle DB_HOST + DB_NAME pattern often seen in privateEnv
+        const host = (config as any).DB_HOST;
+        const name = (config as any).DB_NAME;
+        if (host && name && !((config as any).connectionString || (config as any).filename)) {
+          const finalName = name.endsWith(".sqlite") ? name : `${name}.sqlite`;
+          if (
+            path.isAbsolute(host) ||
+            host.startsWith(".") ||
+            host.includes("/") ||
+            host.includes("\\")
+          ) {
+            const base = host.endsWith("/") || host.endsWith("\\") ? host : `${host}/`;
+            dbPath = `${base}${finalName}`;
+          } else {
+            dbPath = finalName; // Fall through to prefixing with config/database below
+          }
+        } else if (name && !dbPath.endsWith(".sqlite") && !dbPath.includes(".")) {
+          dbPath = `${name}.sqlite`;
+        }
+      }
+
+      // 🚀 Critical: Ensure database is stored in /config/database if it's just a filename or relative without path markers
+      if (
+        !path.isAbsolute(dbPath) &&
+        !dbPath.includes("/") &&
+        !dbPath.includes("\\") &&
+        !dbPath.startsWith(".")
+      ) {
         dbPath = path.join("config", "database", dbPath);
       }
 
       const dbPathResolved = path.resolve(process.cwd(), dbPath);
+
       const dbDir = path.dirname(dbPathResolved);
 
       if (!fs.existsSync(dbDir) && dbDir !== ".") {

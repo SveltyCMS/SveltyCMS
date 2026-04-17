@@ -12,7 +12,6 @@ import type {
   BaseQueryOptions,
 } from "@src/databases/db-interface";
 import { safeQuery } from "@src/utils/security/safe-query";
-import { hashPassword } from "@utils/crypto";
 import mongoose, { type Connection } from "mongoose";
 import { getOrCreateModel } from "../methods/mongodb-utils";
 import { SessionAdapter } from "../models/auth-session";
@@ -60,6 +59,9 @@ export function composeMongoAuthAdapter(): AuthInterface {
   const tokenAdapter = new TokenAdapter();
   const modelRegistrar = new MongoAuthModelRegistrar(mongoose);
 
+  // Link adapters for cross-model validation (e.g. validateSession)
+  userAdapter.setSessionAdapter(sessionAdapter);
+
   let activeConnection: any = mongoose;
 
   const adapter = {
@@ -91,9 +93,8 @@ export function composeMongoAuthAdapter(): AuthInterface {
       options?: BaseQueryOptions,
     ): Promise<DatabaseResult<{ user: User; session: Session }>> => {
       try {
-        if (userData.password) {
-          userData.password = await hashPassword(userData.password);
-        }
+        // NOTE: userData.password is hashed internally by userAdapter.createUser
+        // No need to hash it here, otherwise we get double-hashing which breaks argon2 verify.
 
         const userResult = await userAdapter.createUser(userData, options);
         if (!userResult.success) {

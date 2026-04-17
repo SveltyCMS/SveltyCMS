@@ -76,21 +76,19 @@ function getJacksonDBConnection(): string {
         DB_HOST: getPrivateSettingSync("DB_HOST"),
         DB_PORT: getPrivateSettingSync("DB_PORT"),
         DB_NAME: getPrivateSettingSync("DB_NAME"),
-        DB_AUTH_SOURCE: getPrivateSettingSync("DB_AUTH_SOURCE"),
       }
     : null;
 
   if (!config) return "";
 
-  const { DB_TYPE, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME, DB_AUTH_SOURCE } = config;
+  const { DB_TYPE, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME } = config;
   const authPart = DB_USER ? `${DB_USER}:${DB_PASSWORD}@` : "";
 
   switch (DB_TYPE) {
     case "mongodb":
     case "mongodb+srv": {
       const protocol = DB_TYPE === "mongodb" ? "mongodb" : "mongodb+srv";
-      const authSource = DB_AUTH_SOURCE ? `?authSource=${DB_AUTH_SOURCE}` : "";
-      return `${protocol}://${authPart}${DB_HOST}${DB_PORT ? `:${DB_PORT}` : ""}/${DB_NAME}${authSource}`;
+      return `${protocol}://${authPart}${DB_HOST}${DB_PORT ? `:${DB_PORT}` : ""}/${DB_NAME}`;
     }
     case "postgresql":
       return `postgres://${authPart}${DB_HOST}:${DB_PORT || 5432}/${DB_NAME}`;

@@ -208,22 +208,6 @@ export async function handleDashboardRoutes(
         });
       }
 
-      case "stats": {
-        // Mock or real stats for dashboard
-        const collections = await (cms.db.crud as any).listCollections(tenantId as DatabaseId);
-        const users = await cms.auth.listUsers({ tenantId: tenantId as DatabaseId, limit: 1 });
-        const media = await cms.media.find({ tenantId: tenantId as DatabaseId, limit: 1 });
-
-        return rawResponse(event, {
-          contentCount: collections.success ? collections.data.length : 0,
-          userCount: (users as any).success ? (users as any).data.length : 0,
-          mediaCount: (media as any).success ? (media as any).data.total : 0,
-          storageUsed: "0 MB",
-          healthStatus: "healthy",
-          uptime: process.uptime(),
-        });
-      }
-
       default:
         throw new AppError(`Dashboard action '${method}' not implemented`, 404);
     }

@@ -161,10 +161,22 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
     options?: mongoose.ConnectOptions,
   ): Promise<DatabaseResult<void>> {
     try {
-      const connectionString =
+      let connectionString =
         typeof connectionStringOrOptions === "string"
           ? connectionStringOrOptions
           : (connectionStringOrOptions as any).connectionString || "";
+
+      // Fallback: If connection string is missing, try to build it from global config
+      if (!connectionString) {
+        const { getDatabaseConnectionString } = await import("../config-state");
+        connectionString = getDatabaseConnectionString();
+      }
+
+      if (!connectionString) {
+        throw new Error(
+          "Missing MongoDB connection string and could not generate one from config.",
+        );
+      }
 
       // If already connected, just return success
       if (this._connection && this._connection.readyState === 1) {

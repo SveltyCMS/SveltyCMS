@@ -16,9 +16,9 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 SveltyCMS Enterprise Benchmark Matrix — 16/04/2026, 16:49:22
+## 📊 SveltyCMS Enterprise Benchmark Matrix — 17/04/2026, 02:01:53
 
-**Version:** 0.0.8 | **Generated:** 2026-04-16T14:49:22.670Z
+**Version:** 0.0.8 | **Generated:** 2026-04-17T00:01:53.234Z
 
 ### 🧪 Benchmarks Included
 
@@ -42,35 +42,18 @@ tags:
 
 | Database | Cold Start | REST p95 | GraphQL Avg | Mixed RPS | Heap Growth | Status |
 |----------|------------|----------|-------------|-----------|-------------|--------|
-| **SQLITE** | 479ms ⚪ | 4.1ms ⚪ | 11.2ms ⚪ | — | 0.0 MB | ❌ |
-| **SQLITE+REDIS** | 0ms ⚪ | 0.0ms ⚪ | 0.0ms ⚪ | — | 0.0 MB | ❌ |
-| **MONGODB** | 0ms ⚪ | 0.0ms ⚪ | 0.0ms ⚪ | — | 0.0 MB | ❌ |
-| **MONGODB+REDIS** | 0ms ⚪ | 0.0ms ⚪ | 0.0ms ⚪ | — | 0.0 MB | ❌ |
-| **POSTGRESQL** | 0ms ⚪ | 0.0ms ⚪ | 0.0ms ⚪ | — | 0.0 MB | ❌ |
-| **POSTGRESQL+REDIS** | 0ms ⚪ | 0.0ms ⚪ | 0.0ms ⚪ | — | 0.0 MB | ❌ |
-| **MARIADB** | 0ms ⚪ | 0.0ms ⚪ | 0.0ms ⚪ | — | 0.0 MB | ❌ |
-| **MARIADB+REDIS** | 292ms ⚪ | 0.0ms ⚪ | 0.0ms ⚪ | — | 0.0 MB | ❌ |
 
 ### 🏢 Multi-Tenancy Scaling
 | Adapter | 5 Tenants | 30 Tenants | Isolation | Mem Growth |
 |---------|-----------|------------|-----------|------------|
-| sqlite | 3.6ms | — | 100% | 0.0MB |
 
-### ⚡ GraphQL Stress Engine
-| Adapter | Concurrency | Success Rate | p95 Latency | **Peak RPS** |
-|---------|-------------|--------------|-------------|--------------|
+### 🌀 Mixed Workload
+| Adapter | Avg Latency | p95 | RPS |
+|---------|-------------|-----|-----|
 
 ### 🧠 Memory Stability
 | Adapter | Sustained RPS | Heap Growth | Status |
 |---------|---------------|-------------|--------|
-| sqlite | — | 0.0 MB | 🟢 Stable |
-| SQLITE+REDIS | — | 0.0 MB | 🟢 Stable |
-| mongodb | — | 0.0 MB | 🟢 Stable |
-| MONGODB+REDIS | — | 0.0 MB | 🟢 Stable |
-| postgresql | — | 0.0 MB | 🟢 Stable |
-| POSTGRESQL+REDIS | — | 0.0 MB | 🟢 Stable |
-| mariadb | — | 0.0 MB | 🟢 Stable |
-| MARIADB+REDIS | — | 0.0 MB | 🟢 Stable |
 
 ### 📈 Latency Trends (last 5 runs)
 
@@ -80,14 +63,6 @@ xychart-beta
   x-axis "Run"
   y-axis "Latency (ms)"
   ["Run 1", "Run 2", "Run 3", "Run 4", "Run 5"]
-  line "SQLITE" : [0.0, 0.0, 0.0, 3.9, 4.1]
-  line "SQLITE+REDIS" : [0.0, 0.0, 0.0, 3.7, 0.0]
-  line "MONGODB" : [0.0, 0.0, 0.0, 0.0, 0.0]
-  line "MONGODB+REDIS" : [0.0, 0.0, 0.0, 0.0, 0.0]
-  line "POSTGRESQL" : [4.1, 6.0, 0.0, 0.0, 0.0]
-  line "POSTGRESQL+REDIS" : [6.5, 10.0, 0.0, 0.0, 0.0]
-  line "MARIADB" : [4.3, 6.0, 0.0, 0.0, 0.0]
-  line "MARIADB+REDIS" : [3.0, 6.1, 0.0, 0.0, 0.0]
 ```
 
 ---
@@ -97,7 +72,6 @@ xychart-beta
 ### 📡 REST API PERFORMANCE MATRIX
 | Adapter Variant | Avg Latency | p95 Latency | RPS |
 |----------|-------------|-------------|-----|
-| SQLITE | 3.41ms | 4.10ms | 3386 |
 
 
 

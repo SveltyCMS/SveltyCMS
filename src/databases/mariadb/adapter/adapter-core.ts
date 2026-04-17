@@ -69,7 +69,22 @@ export class AdapterCore {
     _options?: unknown,
   ): Promise<DatabaseResult<void>> {
     try {
-      this.pool = mysql.createPool(connection as any);
+      let finalConnection = connection;
+
+      // Fallback: If connection is missing or empty string, try to build it from global config
+      if (
+        !finalConnection ||
+        (typeof finalConnection === "string" && finalConnection.trim() === "")
+      ) {
+        const { getDatabaseConnectionString } = await import("../../config-state");
+        finalConnection = getDatabaseConnectionString();
+      }
+
+      if (!finalConnection) {
+        throw new Error("Missing MariaDB connection configuration.");
+      }
+
+      this.pool = mysql.createPool(finalConnection as any);
       this.db = drizzle(this.pool, { schema, mode: "default" });
 
       // Verification: Ensure the connection is actually established

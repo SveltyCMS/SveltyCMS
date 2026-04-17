@@ -323,7 +323,6 @@ export const dbConfigSchema = pipe(
     name: dbNameSchema,
     user: dbUserSchema,
     password: dbPasswordSchema,
-    authSource: optional(string(), "admin"),
   }),
   check((input) => {
     // For PostgreSQL and MySQL, username and password are required

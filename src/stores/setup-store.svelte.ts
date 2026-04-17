@@ -50,7 +50,6 @@ export interface DbConfig {
   port: string;
   type: SupportedDbType;
   user: string;
-  authSource?: string;
 }
 export interface AdminUser {
   confirmPassword: string;
@@ -121,7 +120,6 @@ const initialDbConfig: DbConfig = {
   name: "sveltycms",
   user: "",
   password: "",
-  authSource: "admin",
 };
 const initialAdminUser: AdminUser = {
   username: "",

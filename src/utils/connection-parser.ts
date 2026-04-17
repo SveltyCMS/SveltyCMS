@@ -18,7 +18,6 @@ export interface ParsedConnection {
   user: string;
   password: string;
   database: string;
-  authSource?: string;
 }
 
 /**
@@ -64,21 +63,6 @@ export function parseConnectionString(connStr: string): ParsedConnection | null 
       password: cleanPassword,
       database: database || "",
     };
-
-    // Special handling for MongoDB authSource parameters
-    try {
-      const realUrl = new URL(trimmed);
-      const authSource = realUrl.searchParams.get("authSource");
-      if (authSource) {
-        result.authSource = authSource;
-      } else if (type === "mongodb") {
-        // Standard MongoDB often defaults to admin for auth
-        result.authSource = "admin";
-      }
-    } catch {
-      // If full URL parsing fails for search params, we still have the core data
-      if (type === "mongodb") result.authSource = "admin";
-    }
 
     return result;
   } catch (error) {

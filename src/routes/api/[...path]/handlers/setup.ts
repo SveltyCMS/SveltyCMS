@@ -147,7 +147,6 @@ export async function handleSetupRoutes(
       DB_NAME: database.name,
       DB_USER: database.user || "",
       DB_PASSWORD: database.password || "",
-      DB_AUTH_SOURCE: database.authSource || "admin",
       USE_REDIS: system.useRedis,
       REDIS_HOST: system.redisHost,
       REDIS_PORT: Number(system.redisPort),

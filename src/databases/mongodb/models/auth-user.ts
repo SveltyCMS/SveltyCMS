@@ -67,10 +67,12 @@ UserSchema.index({ tenantId: 1, username: 1 }, { sparse: true });
  */
 export class UserAdapter {
   private _UserModel: Model<User> | null = null;
+  private _sessionAdapter: any | null = null;
+  private _activeConnection: any = mongoose;
 
   private get UserModel(): Model<User> {
     if (!this._UserModel) {
-      this._UserModel = getOrCreateModel(mongoose, "auth_users", UserSchema);
+      this._UserModel = getOrCreateModel(this._activeConnection, "auth_users", UserSchema);
     }
     return this._UserModel;
   }
@@ -79,7 +81,15 @@ export class UserAdapter {
    * Explicitly set the model using a specific connection to support isolated adapters.
    */
   public setModel(conn: any) {
-    this._UserModel = getOrCreateModel(conn, "auth_users", UserSchema);
+    this._activeConnection = conn || mongoose;
+    this._UserModel = getOrCreateModel(this._activeConnection, "auth_users", UserSchema);
+  }
+
+  /**
+   * Set the session adapter for session validation.
+   */
+  public setSessionAdapter(adapter: any) {
+    this._sessionAdapter = adapter;
   }
 
   private mapUser(user: any): User {
@@ -342,7 +352,12 @@ export class UserAdapter {
 
   async validateSession(sessionId: DatabaseId): Promise<DatabaseResult<User | null>> {
     try {
-      const SessionModel = mongoose.models.auth_sessions;
+      // Use the model from session adapter if available, fallback to active connection
+      const SessionModel =
+        this._sessionAdapter?.SessionModel ||
+        this._activeConnection?.models?.auth_sessions ||
+        mongoose.models.auth_sessions;
+
       if (!SessionModel) {
         throw new Error("Session model (auth_sessions) not registered");
       }

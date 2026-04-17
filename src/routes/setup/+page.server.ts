@@ -643,7 +643,6 @@ export const actions: Actions = {
         DB_NAME: database.name,
         DB_USER: database.user || "",
         DB_PASSWORD: database.password || "",
-        DB_AUTH_SOURCE: database.authSource || "admin",
         JWT_SECRET_KEY: "temp_secret",
         ENCRYPTION_KEY: "temp_key",
         USE_REDIS: system.useRedis,

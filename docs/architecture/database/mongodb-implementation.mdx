@@ -44,7 +44,6 @@ This guide covers the **MongoDB-specific** implementation in SveltyCMS, includin
 
 ### Performance Improvements
 
-- **Custom Authentication Source**: Full support for `DB_AUTH_SOURCE` (e.g., `admin`) during setup and runtime, ensuring compatibility with restricted-user MongoDB environments.
 - **Sub-1s Cold Start**: Progressive initialization reaches READY state (API-safe) in <850ms.
 - **Instant Cold Starts (L2)**: Persistent schema storage in `system_content_structure` allows booting from DB in <100ms.
 - **Typed Collection Proxy**: Fully-typed access via `locals.cms.collections.typed.Posts.find()`.

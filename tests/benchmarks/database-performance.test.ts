@@ -39,7 +39,7 @@ export async function runDatabaseBenchmark() {
         ],
       } as any);
     }
-  } catch (_) {
+  } catch {
     // already exists
   }
 

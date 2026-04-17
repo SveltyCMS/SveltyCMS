@@ -56,7 +56,6 @@ export const privateConfigSchema = object({
   DB_RETRY_ATTEMPTS: optional(pipe(number(), minValue(1))),
   DB_RETRY_DELAY: optional(pipe(number(), minValue(1))),
   DB_POOL_SIZE: optional(pipe(number(), minValue(1))),
-  DB_AUTH_SOURCE: optional(string()),
 
   // --- JWT Secret (Essential for startup) ---
   JWT_SECRET_KEY: pipe(
@@ -224,7 +223,6 @@ export const databaseConfigSchema = object({
   name: pipe(string(), minLength(1)),
   user: optional(string()),
   password: optional(string()),
-  authSource: optional(string()),
 });
 
 // ----------------- TYPES & HELPERS -----------------

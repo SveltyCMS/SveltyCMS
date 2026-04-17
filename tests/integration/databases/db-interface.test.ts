@@ -52,8 +52,7 @@ describe("Database Interface Contract Tests", () => {
       if (dbType === "mongodb") {
         const port = (privateEnv as any).DB_PORT || process.env.DB_PORT || "27017";
         let connectionString = `mongodb://${host}:${port}/${dbName}`;
-        if (user && pass)
-          connectionString = `mongodb://${user}:${pass}@${host}:${port}/${dbName}?authSource=admin`;
+        connectionString = `mongodb://${user}:${pass}@${host}:${port}/${dbName}`;
         await (db as any).connect(connectionString);
       } else if (dbType === "mariadb") {
         const port = (privateEnv as any).DB_PORT || process.env.DB_PORT || "3306";

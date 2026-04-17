@@ -60,18 +60,11 @@ const config = {
       mode: "nonce", // Use nonce for inline scripts (not hash)
       directives: {
         "default-src": ["self"],
-        // Allow SvelteKit's nonced inline scripts plus dev HMR
-        // TEMPORARY DEBUG: Allow unsafe-eval/inline in production to rule out CSP issues
-        "script-src": [
-          "self",
-          "unsafe-inline",
-          "unsafe-eval",
-          "blob:",
-          "https://*.iconify.design",
-          "https://code.iconify.design",
-        ],
-        "worker-src": ["self", "blob:"], // Allow workers from same origin and blob URLs
-        "style-src": ["self", "unsafe-inline", "https://*.iconify.design"], // unsafe-inline for faster builds
+        // Strict CSP: No unsafe-inline or unsafe-eval in production.
+        // Nonce-based protection is automatically handled by SvelteKit.
+        "script-src": ["self", "blob:", "https://*.iconify.design", "https://code.iconify.design"],
+        "worker-src": ["self", "blob:"],
+        "style-src": ["self", "https://*.iconify.design"],
         "img-src": [
           "self",
           "data:",
