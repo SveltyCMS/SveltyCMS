@@ -50,7 +50,7 @@ test.beforeEach(async ({ page }) => {
 
 test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   // Setup wizard can take time due to DB initialization/seeding
-  // test.setTimeout(180_000);
+  test.setTimeout(180_000);
 
   // 1. Start at root, expect redirect to /setup
   await page.goto("/setup", { waitUntil: "networkidle" });
