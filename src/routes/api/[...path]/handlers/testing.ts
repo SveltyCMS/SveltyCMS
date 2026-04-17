@@ -9,6 +9,8 @@ import type { LocalCMS } from "../../cms";
 import { rawResponse } from "./base";
 import { contentSystem } from "@src/content";
 import type { DatabaseId } from "@src/content/types";
+import fs from "node:fs";
+import path from "node:path";
 
 export async function handleTestingRoutes(
   event: RequestEvent,
@@ -32,9 +34,15 @@ export async function handleTestingRoutes(
     // Standardized database clear across all adapters
     await cms.db.clearDatabase();
 
-    // Invalidate cache to reflect empty DB
+    // Delete private.test.ts so setup-check re-enters wizard mode on next request
+    const configFile = path.join(process.cwd(), "config", "private.test.ts");
+    if (fs.existsSync(configFile)) {
+      fs.unlinkSync(configFile);
+    }
+
+    // Invalidate in-memory cache to reflect empty DB and missing config
     const { invalidateSetupCache } = await import("@src/utils/setup-check");
-    invalidateSetupCache(false, false);
+    invalidateSetupCache(true, null);
 
     return rawResponse(event, { success: true, message: "System reset successfully" });
   }
