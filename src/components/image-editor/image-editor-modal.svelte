@@ -118,25 +118,25 @@ A reusable modal that wraps the main Image Editor.
 
 	/* Unsaved Changes */
 	// Restore UI Logic
-	const activeState = $derived(imageEditorStore.state.activeState);
-
-	function handleClose() {
-		if (imageEditorStore.canUndoState && !confirm('You have unsaved changes. Are you sure you want to close?')) {
+	function handleCancelClick() {
+		if (!window.confirm('Discard changes? These edits will not be saved.')) {
 			return;
 		}
+		// Cancel always discards draft edits and closes the editor.
+		imageEditorStore.reset();
 		close?.();
 	}
 
-	function handleCancelClick() {
-		// If a tool is active, exit the tool first
-		if (activeState) {
-			imageEditorStore.cancelActiveTool();
+	function handleZoomAction(type: 'in' | 'out' | 'reset') {
+		const currentZoom = imageEditorStore.state.zoom;
+		if (type === 'in') {
+			imageEditorStore.state.zoom = Math.min(5, currentZoom * 1.15);
+		} else if (type === 'out') {
+			imageEditorStore.state.zoom = Math.max(0.1, currentZoom / 1.15);
 		} else {
-			// No tool active, ask for confirmation if dirty
-			if (imageEditorStore.canUndoState && !confirm('You have unsaved changes. Are you sure you want to discard them?')) {
-				return;
-			}
-			handleClose();
+			imageEditorStore.state.zoom = 1;
+			imageEditorStore.state.translateX = 0;
+			imageEditorStore.state.translateY = 0;
 		}
 	}
 
@@ -182,7 +182,7 @@ A reusable modal that wraps the main Image Editor.
 
 {#if image}
 	<div
-		class="relative flex h-full min-h-[500px] w-full flex-col overflow-hidden bg-surface-900 shadow-xl"
+		class="relative flex h-[calc(100dvh-0.75rem)] min-h-[640px] w-full flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,_rgba(31,31,31,0.98),_rgba(12,12,12,0.98))] shadow-[0_28px_90px_rgba(0,0,0,0.45)] md:h-[calc(100dvh-1.5rem)] md:min-h-[720px]"
 		role="dialog"
 		aria-modal="true"
 		aria-label="Image Editor"
@@ -218,16 +218,25 @@ A reusable modal that wraps the main Image Editor.
 			</div>
 		{/if}
 
-		<main class="flex-1 overflow-hidden bg-surface-900 relative">
+		<main class="relative flex min-h-0 flex-1 overflow-hidden bg-surface-900">
 			<Editor
 				bind:this={editorComponent}
 				initialImageSrc={imageSrc}
 				{imageFile}
 				{mediaId}
 				focalPoint={initialFocalPoint}
+				oncancel={handleCancelClick}
 				onsave={(detail) => onsave(detail)}
 			/>
 		</main>
-		<EditorToolbar onsave={handleSaveClick} oncancel={handleCancelClick} {isSaving} />
+		<EditorToolbar
+			onsave={handleSaveClick}
+			{isSaving}
+			onZoomIn={() => handleZoomAction('in')}
+			onZoomOut={() => handleZoomAction('out')}
+			onZoomReset={() => handleZoomAction('reset')}
+			onCompareToggle={() => imageEditorStore.setCompareMode(!imageEditorStore.state.compareMode)}
+			isComparing={!!imageEditorStore.state.compareMode}
+		/>
 	</div>
 {/if}

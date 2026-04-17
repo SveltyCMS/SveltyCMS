@@ -117,49 +117,49 @@ function toggleRoleWrite(roleId: string) {
 </script>
 
 {#if target}
-	<div class="space-y-6">
-		<div>
-			<h4 class="mb-2 text-xs font-bold uppercase tracking-wider text-surface-500">Visibility</h4>
+	<div class="space-y-5 text-surface-100">
+		<div class="rounded-2xl border border-surface-200-800 bg-surface-100-900 p-4 shadow-sm">
+			<h4 class="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-surface-400">Visibility</h4>
 			<button
 				type="button"
 				role="switch"
 				aria-checked={permissions.visibility === 'private'}
-				class="flex w-full items-center justify-between rounded-lg border border-surface-200-800 bg-surface-100-900 px-4 py-3 text-left transition-colors hover:border-primary-500/50"
+				class="flex w-full items-center justify-between rounded-xl border border-surface-200-800 bg-surface-50-950 px-4 py-3 text-left transition-colors hover:border-primary-500/60 hover:bg-surface-100-900"
 				onclick={toggleVisibility}
 			>
-				<span class="font-medium">{permissions.visibility === 'public' ? 'Public' : 'Private'}</span>
-				<iconify-icon icon={permissions.visibility === 'public' ? 'mdi:eye' : 'mdi:eye-off'} width="20" class="text-surface-500"></iconify-icon>
+				<span class="font-semibold text-surface-100">{permissions.visibility === 'public' ? 'Public' : 'Private'}</span>
+				<iconify-icon icon={permissions.visibility === 'public' ? 'mdi:eye' : 'mdi:eye-off'} width="20" class="text-surface-400"></iconify-icon>
 			</button>
-			<p class="mt-1 text-xs text-surface-500">
+			<p class="mt-2 text-xs leading-5 text-surface-400">
 				{permissions.visibility === 'public' ? 'Field is visible to everyone by default.' : 'Field is restricted; only allowed roles can access.'}
 			</p>
 		</div>
 
-		<div>
-			<label class="flex cursor-pointer items-center gap-3 rounded-lg border border-surface-200-800 bg-surface-100-900 p-3">
+		<div class="rounded-2xl border border-surface-200-800 bg-surface-100-900 p-4 shadow-sm">
+			<label class="flex cursor-pointer items-center gap-3 rounded-xl border border-surface-200-800 bg-surface-50-950 p-3">
 				<input
 					type="checkbox"
 					class="input checkbox-primary"
 					checked={permissions.requiredAuth ?? false}
 					onchange={(e) => updatePermissions({ requiredAuth: (e.currentTarget as HTMLInputElement).checked })}
 				/>
-				<span class="text-sm font-medium">Require authentication</span>
+				<span class="text-sm font-semibold text-surface-100">Require authentication</span>
 			</label>
-			<p class="mt-1 text-xs text-surface-500">When enabled, user must be logged in to access this field.</p>
+			<p class="mt-2 text-xs leading-5 text-surface-400">When enabled, user must be logged in to access this field.</p>
 		</div>
 
 		{#if roles.length > 0}
-			<div>
-				<h4 class="mb-2 text-xs font-bold uppercase tracking-wider text-surface-500">Read access</h4>
-				<p class="mb-2 text-xs text-surface-500">Roles that can read this field. Empty = no role restriction (follows visibility).</p>
+			<div class="rounded-2xl border border-surface-200-800 bg-surface-100-900 p-4 shadow-sm">
+				<h4 class="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-surface-400">Read access</h4>
+				<p class="mb-3 text-xs leading-5 text-surface-400">Roles that can read this field. Empty = no role restriction (follows visibility).</p>
 				<div class="flex flex-wrap gap-2">
 					{#each roles as role (role._id)}
 						{#if !role.isAdmin}
 							<button
 								type="button"
-								class="rounded-full px-3 py-1.5 text-xs font-medium transition-colors {(permissions.readRoles ?? []).includes(role._id)
+								class="rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors {(permissions.readRoles ?? []).includes(role._id)
 									? 'preset-filled-primary-500'
-									: 'preset-ghost-surface-500'}"
+									: 'border-surface-200-800 bg-surface-50-950 text-surface-200 hover:border-primary-500/60 hover:bg-surface-100-900'}"
 								onclick={() => toggleRoleRead(role._id)}
 							>
 								{role.name ?? role._id}
@@ -168,17 +168,17 @@ function toggleRoleWrite(roleId: string) {
 					{/each}
 				</div>
 			</div>
-			<div>
-				<h4 class="mb-2 text-xs font-bold uppercase tracking-wider text-surface-500">Write access</h4>
-				<p class="mb-2 text-xs text-surface-500">Roles that can edit this field.</p>
+			<div class="rounded-2xl border border-surface-200-800 bg-surface-100-900 p-4 shadow-sm">
+				<h4 class="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-surface-400">Write access</h4>
+				<p class="mb-3 text-xs leading-5 text-surface-400">Roles that can edit this field.</p>
 				<div class="flex flex-wrap gap-2">
 					{#each roles as role (role._id)}
 						{#if !role.isAdmin}
 							<button
 								type="button"
-								class="rounded-full px-3 py-1.5 text-xs font-medium transition-colors {(permissions.writeRoles ?? []).includes(role._id)
+								class="rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors {(permissions.writeRoles ?? []).includes(role._id)
 									? 'preset-filled-primary-500'
-									: 'preset-ghost-surface-500'}"
+									: 'border-surface-200-800 bg-surface-50-950 text-surface-200 hover:border-primary-500/60 hover:bg-surface-100-900'}"
 								onclick={() => toggleRoleWrite(role._id)}
 							>
 								{role.name ?? role._id}
@@ -188,9 +188,11 @@ function toggleRoleWrite(roleId: string) {
 				</div>
 			</div>
 		{:else}
-			<p class="text-sm text-surface-500">No roles defined. Configure roles in Access Management to restrict by role.</p>
+			<div class="rounded-2xl border border-dashed border-surface-200-800 bg-surface-100-900 p-4 text-sm text-surface-400">
+				No roles defined. Configure roles in Access Management to restrict by role.
+			</div>
 		{/if}
 	</div>
 {:else}
-	<p class="text-sm text-surface-500">Select a field to configure permissions.</p>
+	<p class="text-sm text-surface-400">Select a field to configure permissions.</p>
 {/if}

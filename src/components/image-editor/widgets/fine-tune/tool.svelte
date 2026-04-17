@@ -8,7 +8,7 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 
 <script lang="ts">
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
-	import { type Adjustments, DEFAULT_ADJUSTMENTS, FILTER_PRESETS, getAdjustmentsByCategory } from './adjustments';
+	import { type Adjustments, DEFAULT_ADJUSTMENTS, FILTER_PRESETS, getAdjustmentConfig, getAdjustmentsByCategory } from './adjustments';
 	import FineTuneControls from './controls.svelte';
 
 	// --- Svelte 5 State ---
@@ -18,6 +18,24 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 
 	const storeState = imageEditorStore.state;
 
+	// Ensure all filter keys exist in state
+	$effect(() => {
+		if (imageEditorStore.state.activeState === 'finetune') {
+			// Ensure all filter keys exist
+			const currentFilters = storeState.filters;
+			let needsUpdate = false;
+			for (const [key, defaultValue] of Object.entries(DEFAULT_ADJUSTMENTS)) {
+				if (currentFilters[key] === undefined) {
+					currentFilters[key] = defaultValue;
+					needsUpdate = true;
+				}
+			}
+			if (needsUpdate) {
+				storeState.filters = { ...currentFilters };
+			}
+		}
+	});
+
 	// Binds/unbounds the tool and registers the toolbar
 	$effect(() => {
 		const activeState = imageEditorStore.state.activeState;
@@ -25,6 +43,7 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 			updateToolbar();
 		} else if (imageEditorStore.state.toolbarControls?.component === FineTuneControls) {
 			imageEditorStore.setToolbarControls(null);
+			imageEditorStore.setCompareMode(false);
 		}
 	});
 
@@ -34,17 +53,24 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 			return;
 		}
 
+		// Get current value, defaulting to 0 if not set
+		const currentValue = storeState.filters[activeAdjustment];
+		const currentAdjustments = storeState.filters;
+
 		imageEditorStore.setToolbarControls({
 			component: FineTuneControls,
 			props: {
 				activeAdjustment,
 				activeCategory,
-				value: storeState.filters[activeAdjustment] || 0,
-				adjustments: storeState.filters,
+				value: currentValue ?? 0,
+				adjustments: currentAdjustments,
 				showPresets: true,
 				isComparing,
 				onChange: (val: number) => {
-					storeState.filters[activeAdjustment] = val;
+					storeState.filters = {
+						...storeState.filters,
+						[activeAdjustment]: val
+					};
 				},
 				onAdjustmentChange: (key: keyof Adjustments) => {
 					activeAdjustment = key;
@@ -59,25 +85,42 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 				onPresetApply: (presetName: string) => {
 					const preset = FILTER_PRESETS.find((p) => p.name === presetName);
 					if (preset) {
+						imageEditorStore.takeSnapshot();
+						imageEditorStore.setCompareMode(false);
 						storeState.filters = {
 							...DEFAULT_ADJUSTMENTS,
 							...preset.adjustments
 						};
+						const firstChangedKey = (Object.keys(preset.adjustments)[0] as keyof Adjustments | undefined) ?? 'brightness';
+						activeAdjustment = firstChangedKey;
+						const presetConfig = getAdjustmentConfig(firstChangedKey);
+						if (presetConfig) {
+							activeCategory = presetConfig.category;
+						}
 					}
 				},
 				onReset: () => {
-					storeState.filters[activeAdjustment] = 0;
+					storeState.filters = {
+						...storeState.filters,
+						[activeAdjustment]: DEFAULT_ADJUSTMENTS[activeAdjustment] ?? 0
+					};
 				},
 				onResetAll: () => {
 					storeState.filters = { ...DEFAULT_ADJUSTMENTS };
 				},
-				onCompareToggle: () => (isComparing = !isComparing),
+				onCompareToggle: () => {
+					isComparing = !isComparing;
+					imageEditorStore.setCompareMode(isComparing);
+				},
 				onAutoAdjust: autoAdjust
 			}
 		});
 	}
 
 	$effect(() => {
+		// Update toolbar when filters change or active adjustment changes
+		const _ = JSON.stringify(storeState.filters);
+		const __ = activeAdjustment;
 		updateToolbar();
 	});
 
