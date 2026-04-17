@@ -47,6 +47,18 @@ export async function handleTestingRoutes(
     return rawResponse(event, { success: true, message: "System reset successfully" });
   }
 
+  if (action === "check-state") {
+    // Lightweight state check for polling after reset.
+    // Returns whether the system is in setup mode (no private config file, no DB users).
+    const { isSetupComplete } = await import("@src/utils/setup-check");
+    const configExists = isSetupComplete();
+    return rawResponse(event, {
+      success: true,
+      setupMode: !configExists,
+      configExists,
+    });
+  }
+
   if (action === "seed") {
     const { email, password } = params;
     if (!email || !password) throw new AppError("Email and password required for seeding", 400);

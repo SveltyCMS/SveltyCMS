@@ -42,15 +42,49 @@ test.beforeEach(async ({ page }) => {
     });
     if (response.ok()) {
       console.log("[SetupWizard] Hard Reset successful.");
+    } else {
+      console.warn("[SetupWizard] Hard Reset returned non-OK status:", response.status());
     }
   } catch (err) {
     console.warn("[SetupWizard] Hard Reset failed (non-fatal):", err);
+  }
+
+  // Poll the testing API until the system confirms it is in setup mode.
+  // This guards against race conditions where background tasks or concurrent
+  // processes (e.g. setup-system.ts) recreate private.test.ts after the reset.
+  const maxWaitMs = 10_000;
+  const pollIntervalMs = 500;
+  const deadline = Date.now() + maxWaitMs;
+  let confirmed = false;
+
+  while (Date.now() < deadline) {
+    try {
+      const state = await page.request.post("/api/testing", {
+        data: { action: "check-state" },
+      });
+      if (state.ok()) {
+        const data = await state.json().catch(() => null);
+        if (data?.setupMode === true) {
+          console.log("[SetupWizard] System confirmed in setup mode.");
+          confirmed = true;
+          break;
+        }
+        console.log(`[SetupWizard] Waiting for setup mode, configExists: ${data?.configExists}`);
+      }
+    } catch {
+      // Server briefly unavailable during reset — keep polling
+    }
+    await page.waitForTimeout(pollIntervalMs);
+  }
+
+  if (!confirmed) {
+    console.warn("[SetupWizard] System did not reach setup mode within timeout — proceeding anyway.");
   }
 });
 
 test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   // Setup wizard can take time due to DB initialization/seeding
-  test.setTimeout(180_000);
+  // test.setTimeout(180_000);
 
   // 1. Start at root, expect redirect to /setup
   await page.goto("/setup", { waitUntil: "networkidle" });
