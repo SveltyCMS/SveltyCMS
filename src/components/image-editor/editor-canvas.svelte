@@ -17,13 +17,23 @@ for the image editor canvas with reactive rendering.
 	import { fade } from 'svelte/transition';
 	import { Canvas, Layer } from 'svelte-canvas';
 
+	interface BlurRegion {
+		id: string;
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+		rotation: number;
+		flipped: boolean;
+		strength: number;
+	}
+
 	// Props
 	let {
 		hasImage = false,
 		isLoading = false,
 		loadingMessage = 'Loading...',
 		loadingProgress = undefined,
-		showZoomControls = false,
 		containerRef = $bindable(),
 		containerWidth = $bindable(0),
 		containerHeight = $bindable(0),
@@ -37,7 +47,6 @@ for the image editor canvas with reactive rendering.
 		isLoading?: boolean;
 		loadingMessage?: string;
 		loadingProgress?: number;
-		showZoomControls?: boolean;
 		containerRef?: HTMLDivElement;
 		containerWidth?: number;
 		containerHeight?: number;
@@ -92,6 +101,20 @@ for the image editor canvas with reactive rendering.
 		}
 	}
 
+	function getRegionOffsets(imageElement: HTMLImageElement, crop: { x: number; y: number; width: number; height: number } | null) {
+		if (crop) {
+			return {
+				offsetX: -crop.x - crop.width / 2,
+				offsetY: -crop.y - crop.height / 2
+			};
+		}
+
+		return {
+			offsetX: -imageElement.width / 2,
+			offsetY: -imageElement.height / 2
+		};
+	}
+
 	function handleMouseMove(e: MouseEvent) {
 		if (!hasImage) {
 			return;
@@ -126,9 +149,247 @@ for the image editor canvas with reactive rendering.
 		storeState.zoom = Math.max(0.1, Math.min(5, newZoom));
 	}
 
+	// Helper: Build CSS filter string from all filter values
+	function buildFilterString(filters: Record<string, number>): string {
+		const parts: string[] = [];
+
+		// Basic filters
+		if (filters.brightness !== undefined && filters.brightness !== 0) {
+			parts.push(`brightness(${100 + filters.brightness}%)`);
+		}
+		if (filters.contrast !== undefined && filters.contrast !== 0) {
+			parts.push(`contrast(${100 + filters.contrast}%)`);
+		}
+		if (filters.saturation !== undefined && filters.saturation !== 0) {
+			parts.push(`saturate(${100 + filters.saturation}%)`);
+		}
+
+		// Detail adjustments: approximate clarity/sharpness with contrast/brightness/saturation.
+		if (filters.clarity !== undefined && filters.clarity !== 0) {
+			const clarity = filters.clarity;
+			if (clarity > 0) {
+				parts.push(`contrast(${100 + clarity * 0.42}%)`);
+				parts.push(`saturate(${100 + clarity * 0.18}%)`);
+				parts.push(`brightness(${100 - clarity * 0.05}%)`);
+			} else {
+				const softness = Math.abs(clarity);
+				parts.push(`contrast(${100 - softness * 0.26}%)`);
+				parts.push(`brightness(${100 + softness * 0.1}%)`);
+				parts.push(`saturate(${100 - softness * 0.08}%)`);
+			}
+		}
+
+		// Tone adjustments are approximated with brightness/contrast because
+		// the CSS filter pipeline does not offer a native highlights/shadows filter.
+		if (filters.highlights !== undefined && filters.highlights !== 0) {
+			const highlights = filters.highlights;
+			if (highlights > 0) {
+				parts.push(`brightness(${100 + highlights * 0.25}%)`);
+				parts.push(`contrast(${100 - highlights * 0.08}%)`);
+			} else {
+				const lift = Math.abs(highlights);
+				parts.push(`contrast(${100 + lift * 0.12}%)`);
+				parts.push(`brightness(${100 - lift * 0.08}%)`);
+			}
+		}
+		if (filters.shadows !== undefined && filters.shadows !== 0) {
+			const shadows = filters.shadows;
+			if (shadows > 0) {
+				parts.push(`brightness(${100 + shadows * 0.2}%)`);
+				parts.push(`contrast(${100 - shadows * 0.05}%)`);
+			} else {
+				const depth = Math.abs(shadows);
+				parts.push(`brightness(${100 - depth * 0.18}%)`);
+				parts.push(`contrast(${100 + depth * 0.1}%)`);
+			}
+		}
+
+		// Color temperature (warm/cool)
+		if (filters.temperature !== undefined && filters.temperature !== 0) {
+			// Approximate temperature with sepia + hue-rotate
+			const temp = filters.temperature;
+			if (temp > 0) {
+				parts.push(`sepia(${temp * 0.3}%)`);
+				parts.push(`hue-rotate(${-temp * 0.2}deg)`);
+			} else {
+				parts.push(`hue-rotate(${Math.abs(temp) * 0.3}deg)`);
+			}
+		}
+
+		// Tint (green/magenta)
+		if (filters.tint !== undefined && filters.tint !== 0) {
+			parts.push(`hue-rotate(${filters.tint * 1.5}deg)`);
+		}
+
+		// Exposure (similar to brightness but different curve)
+		if (filters.exposure !== undefined && filters.exposure !== 0) {
+			parts.push(`brightness(${100 + filters.exposure * 1.2}%)`);
+		}
+
+		// Vibrance (smart saturation boost for less saturated colors)
+		if (filters.vibrance !== undefined && filters.vibrance !== 0) {
+			parts.push(`saturate(${100 + filters.vibrance * 0.7}%)`);
+		}
+
+		return parts.join(' ');
+	}
+
+	function applySharpness(canvasContext: CanvasRenderingContext2D, width: number, height: number, filters: Record<string, number>) {
+		const sharpness = filters.sharpness ?? 0;
+		const clarity = filters.clarity ?? 0;
+		const strength = sharpness / 72 + clarity / 92;
+		if (strength === 0) {
+			return;
+		}
+
+		const imageData = canvasContext.getImageData(0, 0, width, height);
+		const { data } = imageData;
+		const output = new Uint8ClampedArray(data.length);
+		const clamp = (value: number) => Math.max(0, Math.min(255, value));
+
+		if (strength < 0) {
+			const amount = Math.min(1, Math.abs(strength));
+			for (let y = 0; y < height; y++) {
+				for (let x = 0; x < width; x++) {
+					const index = (y * width + x) * 4;
+					let red = 0;
+					let green = 0;
+					let blue = 0;
+					let samples = 0;
+
+					for (let ky = -1; ky <= 1; ky++) {
+						const py = Math.max(0, Math.min(height - 1, y + ky));
+						for (let kx = -1; kx <= 1; kx++) {
+							const px = Math.max(0, Math.min(width - 1, x + kx));
+							const sourceIndex = (py * width + px) * 4;
+							red += data[sourceIndex];
+							green += data[sourceIndex + 1];
+							blue += data[sourceIndex + 2];
+							samples++;
+						}
+					}
+
+					const blurredRed = red / samples;
+					const blurredGreen = green / samples;
+					const blurredBlue = blue / samples;
+
+					output[index] = clamp(data[index] * (1 - amount) + blurredRed * amount);
+					output[index + 1] = clamp(data[index + 1] * (1 - amount) + blurredGreen * amount);
+					output[index + 2] = clamp(data[index + 2] * (1 - amount) + blurredBlue * amount);
+					output[index + 3] = data[index + 3];
+				}
+			}
+			imageData.data.set(output);
+			canvasContext.putImageData(imageData, 0, 0);
+			return;
+		}
+
+		const amount = Math.min(1, strength);
+		const sideWeight = -amount * 0.6;
+		const centerWeight = 1 + amount * 4.8;
+		const totalWeight = centerWeight + sideWeight * 4;
+		const normalize = totalWeight !== 0 ? totalWeight : 1;
+
+		for (let y = 0; y < height; y++) {
+			for (let x = 0; x < width; x++) {
+				const index = (y * width + x) * 4;
+				let red = 0;
+				let green = 0;
+				let blue = 0;
+				let alpha = data[index + 3];
+
+				for (let ky = -1; ky <= 1; ky++) {
+					const py = Math.max(0, Math.min(height - 1, y + ky));
+					for (let kx = -1; kx <= 1; kx++) {
+						const px = Math.max(0, Math.min(width - 1, x + kx));
+						const sourceIndex = (py * width + px) * 4;
+						const weight = kx === 0 && ky === 0 ? centerWeight : kx === 0 || ky === 0 ? sideWeight : 0;
+						red += data[sourceIndex] * weight;
+						green += data[sourceIndex + 1] * weight;
+						blue += data[sourceIndex + 2] * weight;
+					}
+				}
+
+				output[index] = clamp(red / normalize);
+				output[index + 1] = clamp(green / normalize);
+				output[index + 2] = clamp(blue / normalize);
+				output[index + 3] = alpha;
+			}
+		}
+
+		imageData.data.set(output);
+		canvasContext.putImageData(imageData, 0, 0);
+	}
+
+	function drawSourceImage(
+		context: CanvasRenderingContext2D,
+		imageElement: HTMLImageElement,
+		crop: { x: number; y: number; width: number; height: number } | null
+	) {
+		if (crop) {
+			context.drawImage(
+				imageElement,
+				crop.x,
+				crop.y,
+				crop.width,
+				crop.height,
+				-crop.width / 2,
+				-crop.height / 2,
+				crop.width,
+				crop.height
+			);
+			return;
+		}
+
+		context.drawImage(imageElement, -imageElement.width / 2, -imageElement.height / 2, imageElement.width, imageElement.height);
+	}
+
+	function drawBlurRegions(
+		context: CanvasRenderingContext2D,
+		imageElement: HTMLImageElement,
+		blurRegions: BlurRegion[],
+		crop: { x: number; y: number; width: number; height: number } | null
+	) {
+		if (!blurRegions.length) {
+			return;
+		}
+
+		for (const region of blurRegions) {
+			const blurRadius = Math.max(1, region.strength / 12);
+			const { offsetX, offsetY } = getRegionOffsets(imageElement, crop);
+			const rx = region.x + offsetX;
+			const ry = region.y + offsetY;
+
+			context.save();
+
+			if (region.rotation !== 0) {
+				const cx = rx + region.width / 2;
+				const cy = ry + region.height / 2;
+				context.translate(cx, cy);
+				context.rotate((region.rotation * Math.PI) / 180);
+				if (region.flipped) {
+					context.scale(-1, 1);
+				}
+				context.translate(-cx, -cy);
+			}
+
+			context.beginPath();
+			context.rect(rx, ry, region.width, region.height);
+			context.clip();
+
+			context.fillStyle = 'rgba(59, 130, 246, 0.12)';
+			context.fillRect(rx, ry, region.width, region.height);
+			context.filter = `blur(${blurRadius}px)`;
+			drawSourceImage(context, imageElement, crop);
+			context.filter = 'none';
+
+			context.restore();
+		}
+	}
+
 	// Main image render function
 	const renderImage = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
-		const { imageElement, zoom, rotation, flipH, flipV, translateX, translateY, crop, filters } = storeState;
+		const { imageElement, zoom, rotation, flipH, flipV, translateX, translateY, crop, filters, blurRegions, compareMode } = storeState;
 
 		if (!imageElement) {
 			return;
@@ -143,27 +404,24 @@ for the image editor canvas with reactive rendering.
 		context.scale(flipH ? -zoom : zoom, flipV ? -zoom : zoom);
 		context.rotate((rotation * Math.PI) / 180);
 
-		// Apply filters
-		let filterString = '';
-		if (filters.brightness !== 0) {
-			filterString += `brightness(${100 + filters.brightness}%) `;
-		}
-		if (filters.contrast !== 0) {
-			filterString += `contrast(${100 + filters.contrast}%) `;
-		}
-		if (filters.saturation !== 0) {
-			filterString += `saturate(${100 + filters.saturation}%) `;
-		}
+		const activeFilters = compareMode ? { brightness: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0, exposure: 0, highlights: 0, shadows: 0, clarity: 0, vibrance: 0, sharpness: 0 } : filters;
+
+		// Apply all filters
+		const filterString = buildFilterString(activeFilters);
 		if (filterString) {
-			context.filter = filterString.trim();
+			context.filter = filterString;
 		}
 
 		// Draw image
-		if (crop) {
-			context.drawImage(imageElement, crop.x, crop.y, crop.width, crop.height, -crop.width / 2, -crop.height / 2, crop.width, crop.height);
-		} else {
-			context.drawImage(imageElement, -imageElement.width / 2, -imageElement.height / 2, imageElement.width, imageElement.height);
+		drawSourceImage(context, imageElement, crop);
+
+		if (compareMode) {
+			context.restore();
+			return;
 		}
+
+		applySharpness(context, width, height, activeFilters);
+		drawBlurRegions(context, imageElement, Array.isArray(blurRegions) ? blurRegions : [], crop);
 
 		context.restore();
 	};
@@ -199,7 +457,7 @@ for the image editor canvas with reactive rendering.
 >
 	<!-- svelte-canvas component -->
 	<button
-		class="canvas-container block h-full w-full border-0 p-0 text-left cursor-grab active:cursor-grabbing focus:outline-none"
+		class="canvas-container block h-full w-full border-0 p-0 text-left cursor-grab active:cursor-grabbing focus:outline-none select-none touch-none"
 		class:border-2={isDragging}
 		class:border-primary-500={isDragging}
 		class:border-dashed={isDragging}
@@ -231,21 +489,6 @@ for the image editor canvas with reactive rendering.
 			</Canvas>
 		{/if}
 	</button>
-
-	<!-- Zoom controls slot -->
-	{#if hasImage && showZoomControls}
-		<div class="absolute top-4 right-4 z-30 flex gap-2">
-			<button class="btn btn-sm preset-filled-surface-200 shadow-md" onclick={() => onzoom?.('out')} aria-label="Zoom out">
-				<iconify-icon icon="mdi:magnify-minus" width="18"></iconify-icon>
-			</button>
-			<button class="btn btn-sm preset-filled-surface-200 shadow-md" onclick={() => onzoom?.('reset')} aria-label="Reset zoom">
-				<iconify-icon icon="mdi:magnify" width="18"></iconify-icon>
-			</button>
-			<button class="btn btn-sm preset-filled-surface-200 shadow-md" onclick={() => onzoom?.('in')} aria-label="Zoom in">
-				<iconify-icon icon="mdi:magnify-plus" width="18"></iconify-icon>
-			</button>
-		</div>
-	{/if}
 
 	<!-- Visual Feedback for Container Issues -->
 	{#if mounted && (containerWidth === 0 || containerHeight === 0)}
@@ -347,7 +590,7 @@ for the image editor canvas with reactive rendering.
 	/* Responsive adjustments */
 	@media (max-width: 768px) {
 		.editor-canvas-wrapper {
-			min-height: 50vh;
+			min-height: 40vh;
 		}
 	}
 </style>
