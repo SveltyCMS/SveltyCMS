@@ -631,8 +631,10 @@ export const actions: Actions = {
       await Promise.all([updatePrivateConfigPromise, persistSettingsPromise]);
 
       // 3.2 Invalidate setup cache
+      // Force setupStatus = true so the redirect succeeds without a disk/DB re-read.
+      // By this point user creation, seeding, and DB init have all completed successfully.
       const { invalidateSetupCache } = await import("@src/utils/setup-check");
-      invalidateSetupCache(true);
+      invalidateSetupCache(true, true);
 
       // Initialize global system
       const { initializeWithConfig } = await import("@src/databases/db");

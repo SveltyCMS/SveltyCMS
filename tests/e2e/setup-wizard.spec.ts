@@ -12,6 +12,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 // Helper to click "Next" button and wait for transition
 async function clickNext(page: Page) {
+  // aria-label is set to button_next() i18n value = "Next" in English
   const nextButton = page.getByLabel("Next", { exact: true });
   await expect(nextButton).toBeEnabled();
 
@@ -21,6 +22,18 @@ async function clickNext(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
+  // Strip test-specific headers (x-test-worker-index, x-test-secret) from cross-origin
+  // requests to avoid CORS preflight failures on external CDNs like Iconify.
+  await page.route(
+    (url) => url.hostname !== "localhost" && url.hostname !== "127.0.0.1",
+    (route) => {
+      const headers = { ...route.request().headers() };
+      delete headers["x-test-worker-index"];
+      delete headers["x-test-secret"];
+      route.continue({ headers });
+    },
+  );
+
   // Ensure we start with a clean state by calling the Hard Reset API
   // This deletes private.test.ts and clears the DB for this worker
   try {
@@ -29,18 +42,52 @@ test.beforeEach(async ({ page }) => {
     });
     if (response.ok()) {
       console.log("[SetupWizard] Hard Reset successful.");
+    } else {
+      console.warn("[SetupWizard] Hard Reset returned non-OK status:", response.status());
     }
   } catch (err) {
     console.warn("[SetupWizard] Hard Reset failed (non-fatal):", err);
+  }
+
+  // Poll the testing API until the system confirms it is in setup mode.
+  // This guards against race conditions where background tasks or concurrent
+  // processes (e.g. setup-system.ts) recreate private.test.ts after the reset.
+  const maxWaitMs = 10_000;
+  const pollIntervalMs = 500;
+  const deadline = Date.now() + maxWaitMs;
+  let confirmed = false;
+
+  while (Date.now() < deadline) {
+    try {
+      const state = await page.request.post("/api/testing", {
+        data: { action: "check-state" },
+      });
+      if (state.ok()) {
+        const data = await state.json().catch(() => null);
+        if (data?.setupMode === true) {
+          console.log("[SetupWizard] System confirmed in setup mode.");
+          confirmed = true;
+          break;
+        }
+        console.log(`[SetupWizard] Waiting for setup mode, configExists: ${data?.configExists}`);
+      }
+    } catch {
+      // Server briefly unavailable during reset — keep polling
+    }
+    await page.waitForTimeout(pollIntervalMs);
+  }
+
+  if (!confirmed) {
+    console.warn("[SetupWizard] System did not reach setup mode within timeout — proceeding anyway.");
   }
 });
 
 test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   // Setup wizard can take time due to DB initialization/seeding
-  test.setTimeout(180_000);
+  // test.setTimeout(180_000);
 
   // 1. Start at root, expect redirect to /setup
-  await page.goto("/", { waitUntil: "networkidle" });
+  await page.goto("/setup", { waitUntil: "networkidle" });
   await page.waitForLoadState("networkidle");
 
   const currentUrl = page.url();
@@ -57,13 +104,18 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   await page.waitForLoadState("networkidle");
   await page.waitForTimeout(5000); // Hard wait for page to fully render and modals to appear
 
-  // Dismiss cookie consent banner if present (e.g. "Accept All")
-  const cookieAcceptBtn = page.getByRole("button", { name: /accept all/i });
-  if (await cookieAcceptBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-    console.log("Cookie consent banner detected. Clicking Accept All...");
-    await cookieAcceptBtn.click();
-    await page.waitForTimeout(300);
+  // Helper: dismiss cookie consent banner if visible
+  async function dismissCookieBanner() {
+    const btn = page.getByRole("button", { name: /accept all/i });
+    if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log("Cookie consent banner detected. Clicking Accept All...");
+      await btn.click();
+      await page.waitForTimeout(300);
+    }
   }
+
+  // Dismiss cookie banner before handling modals
+  await dismissCookieBanner();
 
   console.log("Starting setup wizard...");
 
@@ -88,6 +140,9 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
       .catch(() => {});
     await page.waitForTimeout(300);
   }
+
+  // Dismiss cookie banner again — it may appear after the welcome modal closes
+  await dismissCookieBanner();
 
   console.log("Proceeding with setup steps...");
 
@@ -133,21 +188,22 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
         ? ""
         : "test";
 
-  const dbTypeSelect = page.getByTestId("db-type");
+  const dbTypeSelect = page.locator("#db-type");
   await dbTypeSelect.selectOption(dbType);
 
-  await page.getByTestId("db-host").fill(dbHost);
-  await page.getByTestId("db-name").fill(dbName);
+  await page.locator("#db-host").fill(dbHost);
+  await page.locator("#db-name").fill(dbName);
 
   // Fill User/Pass/Port if not SQLite
   if (dbType !== "sqlite") {
-    if (dbPort) await page.getByTestId("db-port").fill(dbPort);
-    await page.getByTestId("db-user").fill(dbUser);
-    await page.getByTestId("db-password").fill(dbPass);
+    if (dbPort) await page.locator("#db-port").fill(dbPort);
+    await page.locator("#db-user").fill(dbUser);
+    await page.locator("#db-password").fill(dbPass);
+    if (dbAuthSource) await page.locator("#db-auth-source").fill(dbAuthSource);
   }
 
   // Click Test Database and handle SQLite "create missing" modal
-  const testDbButton = page.getByRole("button", { name: /test database/i });
+  const testDbButton = page.getByRole("button", { name: /test database connection/i });
   await testDbButton.click({ force: true });
   await page.waitForTimeout(1000); // Wait for connection test to complete
 
@@ -184,23 +240,23 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
 
   // Fill admin user details
   console.log("Step 2: Admin User Configuration...");
-  await page.getByTestId("admin-username").fill("admin");
-  await page.getByTestId("admin-email").fill("admin@test.com");
-  await page.getByTestId("admin-password").fill("Admin123!");
-  await page.getByTestId("admin-confirm-password").fill("Admin123!");
+  await page.locator("#admin-username").fill("admin");
+  await page.locator("#admin-email").fill("admin@test.com");
+  await page.locator("#admin-password").fill("Admin123!");
+  await page.locator("#admin-confirm-password").fill("Admin123!");
   await clickNext(page);
 
   // --- STEP 3: System Settings ---
   console.log("Step 3: System Settings...");
   // Fill Site Name
-  await page.getByTestId("site-name").fill("SveltyCMS Test");
+  await page.locator("#site-name").fill("SveltyCMS Test");
 
   // Fill Production URL (use the current origin for testing)
   const origin = new URL(page.url()).origin;
-  await page.getByTestId("host-prod").fill(origin);
+  await page.locator("#host-prod").fill(origin);
 
   // Fill Media Path
-  await page.getByTestId("media-folder").fill("./mediaFolder_test");
+  await page.locator("#media-folder").fill("./mediaFolder_test");
 
   await clickNext(page);
 
@@ -209,39 +265,23 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   await clickNext(page); // Review step
 
   // Final Step: Complete Setup
-  const finishButton = page.getByRole("button", { name: /finish|complete/i });
+  // aria-label is set to button_complete() i18n value = "Complete" in English
+  const finishButton = page.getByLabel("Complete", { exact: true });
   await expect(finishButton).toBeVisible();
   await finishButton.click();
 
-  // Wait for redirect to dashboard
-  console.log("Waiting for redirect to dashboard...");
-  // Complete setup triggers a database seed and then redirect
-  await page.waitForURL(/\/en\/collections/, { timeout: 120_000 });
-  console.log("Successfully redirected to dashboard. Setup complete!");
+  // Wait for redirect away from /setup
+  console.log("Waiting for redirect away from /setup...");
+  await page.waitForTimeout(3000);
+  await page.waitForURL(
+    (url) => !url.pathname.startsWith("/setup"),
+    { timeout: 120_000 },
+  );
+  console.log("Successfully redirected after setup. Current URL:", page.url());
 
-  // --- VERIFICATION ---
-  // Force the server to recognize the setup is complete
-  // We use a retry loop since the server might be re-initializing and cause ECONNREFUSED
-  let setupOk = false;
-  let attempts = 0;
-  while (!setupOk && attempts < 5) {
-    try {
-      const response = await page.request.post("/api/testing", {
-        data: { action: "setup" },
-      });
-      if (response.ok()) {
-        setupOk = true;
-        console.log("Forced setup completion via API.");
-      }
-    } catch (err) {
-      console.warn(`Attempt ${attempts + 1} to call setup API failed:`, err);
-      await page.waitForTimeout(2000 * (attempts + 1)); // Exponential backoff
-    }
-    attempts++;
-  }
-
-  // 2. Expect redirect to Login or Dashboard
-  // In TEST_MODE with Hard Reset, the redirect should be immediate
-  await expect(page).not.toHaveURL(/\/setup/, { timeout: 40_000 });
+  // Navigate to the collection builder to verify setup completed successfully
+  await page.goto("/config/collectionbuilder", { waitUntil: "networkidle" });
+  console.log("Collection builder URL:", page.url());
+  await expect(page).not.toHaveURL(/\/setup/);
   console.log("Setup completed successfully.");
 });

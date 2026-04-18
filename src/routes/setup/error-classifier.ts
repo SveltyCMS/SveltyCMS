@@ -151,7 +151,7 @@ export function classifyDatabaseError(
   }
 
   if (
-    /database.*not found|db.*not found|unknown database/i.test(lower) ||
+    /database.*not found|db.*not found|unknown database|does not exist/i.test(lower) ||
     code === "3D000" ||
     code === "ER_BAD_DB_ERROR"
   ) {

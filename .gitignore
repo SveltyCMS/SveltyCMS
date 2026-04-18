@@ -76,3 +76,4 @@ tests/benchmarks/results/*
 project.inlang
 testing-artifacts
 testing-artifacts/
+.playwright-mcp
