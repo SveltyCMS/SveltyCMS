@@ -59,7 +59,7 @@ export default defineConfig({
   /* Set environment variables for tests */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4173",
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:5173",
 
     /* ✨ ISOLATION: Pass worker index and secure token to the server */
     extraHTTPHeaders: {
@@ -131,22 +131,4 @@ export default defineConfig({
     },
   ],
 
-  /* Run your local build server before starting the tests */
-  // In CI, the workflow starts the server manually, so we only use webServer locally
-  ...(process.env.CI
-    ? {}
-    : {
-        webServer: {
-          command: "bun run dev",
-          port: 5173,
-          timeout: 300_000, // Increased timeout to 5 minutes for build/preview
-          reuseExistingServer: true,
-          env: {
-            PLAYWRIGHT_TEST: "true",
-            TEST_MODE: "true",
-            MULTI_TENANT: "true",
-            TEST_API_SECRET: TEST_API_SECRET,
-          },
-        },
-      }),
 });
