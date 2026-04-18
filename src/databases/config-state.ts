@@ -87,12 +87,24 @@ export async function loadPrivateConfig(
       return privateEnv;
     } catch (error: any) {
       if (process.env.NODE_ENV === "test" || process.env.TEST_MODE === "true") {
-        logger.error("Config loading failed in test mode", { error: error.message });
-        throw new AppError(
-          "Critical config error in test environment. Run setup or check private.test config.",
-          500,
-          "CONFIG_LOAD_FAILURE",
-        );
+        // Allow setup mode even in TEST_MODE when no config file exists yet.
+        // Only throw if a config file was present but failed to load/validate.
+        const { existsSync } = await import("node:fs");
+        const isTestMode = process.env.NODE_ENV === "test" || process.env.TEST_MODE === "true";
+        const configFile = isTestMode ? "private.test.ts" : "private.ts";
+        const configPath = `${process.cwd()}/config/${configFile}`;
+        const hasConfigFile = existsSync(configPath) || existsSync(`${process.cwd()}/config/private.ts`);
+        if (hasConfigFile) {
+          logger.error("Config loading failed in test mode", { error: error.message });
+          throw new AppError(
+            "Critical config error in test environment. Run setup or check private.test config.",
+            500,
+            "CONFIG_LOAD_FAILURE",
+          );
+        }
+        // No config file exists yet — this is initial setup mode, not an error
+        logger.debug("No config file found in test mode — starting in setup mode");
+        return null;
       }
 
       logger.trace("Private config not available (expected during initial setup)", {

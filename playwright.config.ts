@@ -59,7 +59,7 @@ export default defineConfig({
   /* Set environment variables for tests */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:5173",
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4173",
 
     /* ✨ ISOLATION: Pass worker index and secure token to the server */
     extraHTTPHeaders: {
@@ -131,4 +131,15 @@ export default defineConfig({
     },
   ],
 
+  /* Run preview server before starting the tests (local dev only; CI starts the server manually) */
+  ...(process.env.CI
+    ? {}
+    : {
+        webServer: {
+          command: `TEST_API_SECRET=${TEST_API_SECRET} bun run preview`,
+          port: 4173,
+          timeout: 300_000,
+          reuseExistingServer: true,
+        },
+      }),
 });

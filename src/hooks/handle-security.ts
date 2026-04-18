@@ -142,13 +142,22 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   const { request, url } = event;
   const clientIp = getClientIp(event);
 
-  const isTestMode = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
+  const isTestMode =
+    process.env.TEST_MODE === "true" ||
+    process.env.VITE_TEST_MODE === "true" ||
+    process.env.PLAYWRIGHT_TEST === "true";
   const isLocal =
     isLocalhost(clientIp) || url.hostname === "localhost" || url.hostname === "127.0.0.1";
 
+  // Allow bypass when a valid x-test-secret is present (Playwright sends this via extraHTTPHeaders).
+  // This works regardless of how the server was started (dev, preview, or build).
+  const incomingSecret = request.headers.get("x-test-secret");
+  const masterSecret = process.env.TEST_API_SECRET;
+  const hasValidTestSecret = !!(incomingSecret && masterSecret && incomingSecret === masterSecret);
+
   if (
     isStaticAsset(url.pathname) ||
-    (isLocal && (dev || isTestMode) && request.headers.get("x-test-security") !== "true")
+    (isLocal && (dev || isTestMode || hasValidTestSecret) && request.headers.get("x-test-security") !== "true")
   ) {
     return await resolve(event);
   }

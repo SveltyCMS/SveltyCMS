@@ -294,7 +294,7 @@ jobs:
   # ------------------------------------------------
   e2e-wizard:
     name: 🧙 E2E (Wizard)
-    needs: [bootstrap]
+    needs: [bootstrap, build]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -302,6 +302,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v7
         with: { name: workspace-meta }
+      - uses: actions/download-artifact@v7
+        with: { name: build-output }
       - uses: actions/cache@v5
         with:
           path: |
@@ -318,11 +320,10 @@ jobs:
       - name: Run Wizard E2E tests
         env:
           DB_TYPE: sqlite
-          PLAYWRIGHT_TEST: "true"
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-          bun run dev -- --host 127.0.0.1 > dev.log 2>&1 &
-          bun x wait-on http://127.0.0.1:5173 --timeout 120000 --interval 2000
+          bun run preview --host 127.0.0.1 > preview.log 2>&1 &
+          bun x wait-on http://127.0.0.1:4173 --timeout 120000 --interval 2000
           bun x playwright test --project=wizard
       - uses: actions/upload-artifact@v7
         if: always()
@@ -333,8 +334,8 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: dev-log
-          path: dev.log
+          name: preview-log-wizard
+          path: preview.log
           retention-days: 7
 
   # ------------------------------------------------
