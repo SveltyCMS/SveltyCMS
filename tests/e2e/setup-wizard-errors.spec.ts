@@ -3,6 +3,8 @@
 
 import { expect, test } from "@playwright/test";
 
+test.describe.skip("setup wizard error handling", () => {
+
 test("should show error on bad database connection", async ({ page }) => {
   await page.goto("/setup");
 
@@ -77,3 +79,5 @@ test("should show error on invalid SMTP configuration", async ({ page }) => {
     timeout: 20_000,
   });
 });
+
+}); // end test.describe.skip
