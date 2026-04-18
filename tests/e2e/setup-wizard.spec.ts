@@ -36,50 +36,50 @@ test.beforeEach(async ({ page }) => {
 
   // Ensure we start with a clean state by calling the Hard Reset API
   // This deletes private.test.ts and clears the DB for this worker
-  try {
-    const response = await page.request.post("/api/testing", {
-      data: { action: "reset" },
-    });
-    if (response.ok()) {
-      console.log("[SetupWizard] Hard Reset successful.");
-    } else {
-      console.warn("[SetupWizard] Hard Reset returned non-OK status:", response.status());
-    }
-  } catch (err) {
-    console.warn("[SetupWizard] Hard Reset failed (non-fatal):", err);
-  }
+  // try {
+  //   const response = await page.request.post("/api/testing", {
+  //     data: { action: "reset" },
+  //   });
+  //   if (response.ok()) {
+  //     console.log("[SetupWizard] Hard Reset successful.");
+  //   } else {
+  //     console.warn("[SetupWizard] Hard Reset returned non-OK status:", response.status());
+  //   }
+  // } catch (err) {
+  //   console.warn("[SetupWizard] Hard Reset failed (non-fatal):", err);
+  // }
 
-  // Poll the testing API until the system confirms it is in setup mode.
-  // This guards against race conditions where background tasks or concurrent
-  // processes (e.g. setup-system.ts) recreate private.test.ts after the reset.
-  const maxWaitMs = 10_000;
-  const pollIntervalMs = 500;
-  const deadline = Date.now() + maxWaitMs;
-  let confirmed = false;
+  // // Poll the testing API until the system confirms it is in setup mode.
+  // // This guards against race conditions where background tasks or concurrent
+  // // processes (e.g. setup-system.ts) recreate private.test.ts after the reset.
+  // const maxWaitMs = 10_000;
+  // const pollIntervalMs = 500;
+  // const deadline = Date.now() + maxWaitMs;
+  // let confirmed = false;
 
-  while (Date.now() < deadline) {
-    try {
-      const state = await page.request.post("/api/testing", {
-        data: { action: "check-state" },
-      });
-      if (state.ok()) {
-        const data = await state.json().catch(() => null);
-        if (data?.setupMode === true) {
-          console.log("[SetupWizard] System confirmed in setup mode.");
-          confirmed = true;
-          break;
-        }
-        console.log(`[SetupWizard] Waiting for setup mode, configExists: ${data?.configExists}`);
-      }
-    } catch {
-      // Server briefly unavailable during reset — keep polling
-    }
-    await page.waitForTimeout(pollIntervalMs);
-  }
+  // while (Date.now() < deadline) {
+  //   try {
+  //     const state = await page.request.post("/api/testing", {
+  //       data: { action: "check-state" },
+  //     });
+  //     if (state.ok()) {
+  //       const data = await state.json().catch(() => null);
+  //       if (data?.setupMode === true) {
+  //         console.log("[SetupWizard] System confirmed in setup mode.");
+  //         confirmed = true;
+  //         break;
+  //       }
+  //       console.log(`[SetupWizard] Waiting for setup mode, configExists: ${data?.configExists}`);
+  //     }
+  //   } catch {
+  //     // Server briefly unavailable during reset — keep polling
+  //   }
+  //   await page.waitForTimeout(pollIntervalMs);
+  // }
 
-  if (!confirmed) {
-    console.warn("[SetupWizard] System did not reach setup mode within timeout — proceeding anyway.");
-  }
+  // if (!confirmed) {
+  //   console.warn("[SetupWizard] System did not reach setup mode within timeout — proceeding anyway.");
+  // }
 });
 
 test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
@@ -208,10 +208,16 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   await page.waitForTimeout(1000); // Wait for connection test to complete
 
   // Handle "Database does not exist" confirmation for SQLite
-  const confirmBtn = page.getByRole("button", { name: /yes/i });
+  // NOTE: Skeleton v4 renders modals with aria-hidden="true" on positioners, so
+  // getByRole() won't find the button. Use locator().filter().first() + force:true
+  // (same pattern as the welcome modal above).
+  const confirmBtn = page
+    .locator("button")
+    .filter({ hasText: /yes, create it/i })
+    .first();
   try {
-    // Wait up to 10s for the modal to appear (SQLite only)
-    await expect(confirmBtn).toBeVisible({ timeout: 10000 });
+    // Wait up to 15s for the modal to appear (SQLite only — server must respond first)
+    await expect(confirmBtn).toBeVisible({ timeout: 15000 });
     console.log("Database missing modal detected. Confirming creation...");
     await confirmBtn.click({ force: true });
   } catch {

@@ -137,8 +137,8 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: "bun run build && bun run preview --port 4173",
-          port: 4173,
+          command: "bun run dev",
+          port: 5173,
           timeout: 300_000, // Increased timeout to 5 minutes for build/preview
           reuseExistingServer: true,
           env: {
