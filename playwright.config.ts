@@ -59,7 +59,7 @@ export default defineConfig({
   /* Set environment variables for tests */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:5173",
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4173",
 
     /* ✨ ISOLATION: Pass worker index and secure token to the server */
     extraHTTPHeaders: {
