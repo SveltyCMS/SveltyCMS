@@ -322,10 +322,8 @@ jobs:
           PLAYWRIGHT_TEST: "true"
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-          bun run dev > dev.log 2>&1 &
-          for i in {1..90}; do
-            curl -s http://127.0.0.1:5173/api/system/health && break || sleep 1
-          done
+          bun run dev -- --host 127.0.0.1 > dev.log 2>&1 &
+          bun x wait-on http://127.0.0.1:5173 --timeout 120000 --interval 2000
           bun x playwright test --project=wizard
       - uses: actions/upload-artifact@v7
         if: always()
