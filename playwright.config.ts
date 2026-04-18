@@ -131,4 +131,15 @@ export default defineConfig({
     },
   ],
 
+  /* Run preview server before starting the tests (local dev only; CI starts the server manually) */
+  ...(process.env.CI
+    ? {}
+    : {
+        webServer: {
+          command: `TEST_API_SECRET=${TEST_API_SECRET} bun run preview`,
+          port: 4173,
+          timeout: 300_000,
+          reuseExistingServer: true,
+        },
+      }),
 });
