@@ -384,7 +384,7 @@ async function stepBenchmarks(): Promise<void> {
   step("Running performance benchmarks (Enterprise Matrix)");
 
   if (cli.dryRun) {
-    dryLog("bun run scripts/enterprise-matrix.ts --no-build");
+    dryLog("bun run scripts/benchmark-matrix/index.ts --no-build");
     return;
   }
 
@@ -392,7 +392,7 @@ async function stepBenchmarks(): Promise<void> {
   // we want to verify the current code's performance impact.
   await mustRun(
     "bun",
-    ["run", "scripts/enterprise-matrix.ts", "--no-build"],
+    ["run", "scripts/benchmark-matrix/index.ts", "--no-build"],
     "enterprise benchmarks",
   );
 }

@@ -24,21 +24,21 @@ The System API is the foundational administrative layer of SveltyCMS. It coordin
 
 ## ⚡ Quick Reference
 
-| Component | HTTP Endpoint | Primary Method | Permission |
-| :--- | :--- | :--- | :--- |
-| **Settings** | `/api/settings` | `GET/POST` | `manage:system` |
-| **Widgets** | `/api/widgets` | `GET/POST` | `manage:system` |
-| **Webhooks** | `/api/webhooks` | `GET/POST` | `manage:system` |
-| **AI Services** | `/api/ai` | `POST` | `manage:system` |
-| **Automations**| `/api/automations` | `GET/POST` | `manage:system` |
-| **Importers** | `/api/importer` | `POST` | `manage:system` |
-| **Health** | `/api/system/health` | `GET` | **Public** |
+| Component       | HTTP Endpoint        | Primary Method | Permission      |
+| :-------------- | :------------------- | :------------- | :-------------- |
+| **Settings**    | `/api/settings`      | `GET/POST`     | `manage:system` |
+| **Widgets**     | `/api/widgets`       | `GET/POST`     | `manage:system` |
+| **Webhooks**    | `/api/webhooks`      | `GET/POST`     | `manage:system` |
+| **AI Services** | `/api/ai`            | `POST`         | `manage:system` |
+| **Automations** | `/api/automations`   | `GET/POST`     | `manage:system` |
+| **Importers**   | `/api/importer`      | `POST`         | `manage:system` |
+| **Health**      | `/api/system/health` | `GET`          | **Public**      |
 
 ---
 
 ## 1. Global Settings & Preferences
 
-SveltyCMS uses a hierarchical configuration system. Settings can be public (accessible by the frontend) or private (restricted to the backend). 
+SveltyCMS uses a hierarchical configuration system. Settings can be public (accessible by the frontend) or private (restricted to the backend).
 
 **Namespace Aliases**: Both `/api/settings` and `/api/system-settings` resolve to this handler.
 
@@ -91,6 +91,7 @@ Migrate data from external sources or scaffold new environments.
 ## 6. The Mechanics
 
 ### Consolidated Dispatcher
+
 The `system.ts` handler acts as a master router, delegating specialized logic to internal services like `webhookService`, `settingsService`, and the `automationEngine`.
 
 ```mermaid
@@ -103,6 +104,7 @@ graph TD
 ```
 
 ### Resource Isolation
+
 All system operations are strictly scoped to the `tenantId` resolved from the request context, ensuring that system configurations do not leak between tenants in a multi-tenant deployment.
 
 ---

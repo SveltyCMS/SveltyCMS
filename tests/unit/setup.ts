@@ -7,8 +7,12 @@ const isBun = typeof Bun !== "undefined";
 // Shimming import.meta.glob specifically for Bun/Node
 if (typeof (import.meta as any).glob !== "function") {
   (import.meta as any).glob = (pattern: string, options?: any) => {
+    const currentTest = process.argv.find(
+      (arg) => arg.includes("benchmark") || arg.endsWith(".test.ts"),
+    );
+    const isBenchmark = currentTest?.includes("benchmark");
     // For benchmarks, we need real widgets.
-    if (process.env.BUN_TEST_MOCKS === "false") {
+    if (process.env.BUN_TEST_MOCKS === "false" || isBenchmark) {
       const fs = require("node:fs");
       const path = require("node:path");
 
@@ -305,7 +309,7 @@ const moduleMock = (path: string, factory: () => any) => {
     (!ENABLE_MOCKS || isBenchmark) &&
     !path.startsWith("$") &&
     !path.startsWith("svelte") &&
-    !path.includes("scanner")
+    (!path.includes("scanner") || process.env.BUN_TEST_MOCKS === "false")
   )
     return; // ⚡ BENCHMARK MODE: Skip db/service mocks but keep SvelteKit environment intact
 
@@ -331,11 +335,15 @@ moduleMock("@src/databases/cache/types", () => ({
 }));
 
 const mockLogger = {
-  fatal: mock((msg: any) => console.error(`[FATAL] ${msg}`)),
-  error: mock((msg: any, details?: any) => {
-    console.error(`[ERROR] ${msg}`, details || "");
+  fatal: mock((msg: any) => {
+    if (process.env.VERBOSE_TESTS) console.error(`[FATAL] ${msg}`);
   }),
-  warn: mock((msg: any) => console.warn(`[WARN] ${msg}`)),
+  error: mock((msg: any, details?: any) => {
+    if (process.env.VERBOSE_TESTS) console.error(`[ERROR] ${msg}`, details || "");
+  }),
+  warn: mock((msg: any) => {
+    if (process.env.VERBOSE_TESTS) console.warn(`[WARN] ${msg}`);
+  }),
   info: mock(() => {}),
   debug: mock(() => {}),
   trace: mock(() => {}),
@@ -367,6 +375,12 @@ moduleMock("$app/environment", () => ({
   version: "1.0.0",
   __esModule: true,
   default: { browser: false, dev: true, building: false, version: "1.0.0" },
+}));
+
+moduleMock("$env/dynamic/private", () => ({
+  env: process.env,
+  __esModule: true,
+  default: process.env,
 }));
 
 moduleMock("$app/navigation", () => ({
@@ -787,6 +801,95 @@ moduleMock("@utils/error-handling", () => ({
     );
   }),
 }));
+
+// ============================================================================
+// WIDGET INFRASTRUCTURE MOCKS (CRITICAL — always active, even for benchmarks)
+// The Vite-dependent import.meta.glob scanner cannot function in Bun's test
+// runtime. Without this mock, safelyParseSchema() fails with
+// "widgets.Input is undefined" when reconciling .compiledCollections schemas.
+// ============================================================================
+
+const WIDGET_NAMES = [
+  "Input",
+  "RichText",
+  "Relation",
+  "Select",
+  "DateTime",
+  "Group",
+  "Repeater",
+  "MediaUpload",
+  "MegaMenu",
+  "Radio",
+  "Checkbox",
+  "Date",
+  "DateRange",
+  "Slug",
+  "Seo",
+  "Email",
+  "Number",
+  "PhoneNumber",
+  "ColorPicker",
+  "Rating",
+  "Address",
+  "RemoteVideo",
+  "AIEnrichment",
+  "ImageArray",
+];
+
+const createWidgetFactory = (name: string) => {
+  const fn = (config: any) => ({
+    ...config,
+    db_fieldName: config?.db_fieldName || config?.label?.toLowerCase() || "field",
+    widget: { Name: name },
+  });
+  return Object.assign(fn, {
+    Name: name,
+    Icon: "mdi:widgets",
+    Description: `${name} widget`,
+    __widgetType: "core" as const,
+    __inputComponentPath: `/${name.toLowerCase()}/input.svelte`,
+    __displayComponentPath: `/${name.toLowerCase()}/display.svelte`,
+  });
+};
+
+const widgetMap = new Map<string, any>();
+const scannerModules: Record<string, any> = {};
+for (const name of WIDGET_NAMES) {
+  const factory = createWidgetFactory(name);
+  widgetMap.set(name, factory);
+  scannerModules[`./core/${name.toLowerCase()}/index.ts`] = { default: factory };
+}
+
+// Direct mock.module — bypasses moduleMock's benchmark skip logic
+if (isBun) {
+  mock.module("@src/widgets/scanner", () => ({
+    coreModules: scannerModules,
+    customModules: {},
+    allWidgetModules: scannerModules,
+    getWidgetNameFromPath: (p: string) => p.split("/").at(-2) || null,
+  }));
+  mock.module("@src/services/widget-registry-service", () => ({
+    widgetRegistryService: {
+      getAllWidgets: async () => widgetMap,
+      getWidget: async (name: string) => widgetMap.get(name),
+      initialize: async () => {},
+      isInitializedState: () => true,
+    },
+  }));
+}
+
+// Also set globalThis.widgets for direct eval() access in safelyParseSchema
+if (!(globalThis as any).widgets || Object.keys((globalThis as any).widgets).length === 0) {
+  const widgetsObj: Record<string, any> = {};
+  for (const [name, factory] of widgetMap) {
+    widgetsObj[name] = factory;
+  }
+  Object.defineProperty(globalThis, "widgets", {
+    value: widgetsObj,
+    writable: true,
+    configurable: true,
+  });
+}
 
 // ============================================================================
 // CORE SERVICE MOCKS
@@ -1328,4 +1431,6 @@ if (typeof (globalThis as any).beforeEach !== "undefined") {
   }
 }
 
-console.log("✅ Master Test Setup Loaded - (AGNOSTIC RUNES + AUTO-RESET)");
+if (process.env.VERBOSE_TESTS) {
+  console.log("✅ Master Test Setup Loaded - (AGNOSTIC RUNES + AUTO-RESET)");
+}

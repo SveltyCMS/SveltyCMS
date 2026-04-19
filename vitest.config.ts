@@ -27,6 +27,7 @@ export default defineConfig({
       "$app/state": path.resolve(__dirname, "./tests/unit/mocks/$app/state.ts"),
       "$app/paths": path.resolve(__dirname, "./tests/unit/mocks/$app/paths.ts"),
       "$app/forms": path.resolve(__dirname, "./tests/unit/mocks/$app/forms.ts"),
+      "$env/dynamic/private": path.resolve(__dirname, "./tests/unit/mocks/$env/dynamic/private.ts"),
       "sveltekit-rate-limiter/server": path.resolve(
         __dirname,
         "node_modules/sveltekit-rate-limiter/dist/server/index.js",

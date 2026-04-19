@@ -26,27 +26,27 @@ Maintain 100% transparency regarding the documentation status of the SveltyCMS A
 
 ### 📊 Coverage Statistics (Post-Restructure 2026-04-12)
 
-| Metric | Status |
-| :--- | :--- |
-| **Documented Handlers** | 10 / 10 |
-| **Endpoint Coverage** | 100% |
-| **Local SDK Parity** | 100% |
-| **Unified Dispatcher Sync**| 1:1 Parity |
+| Metric                      | Status     |
+| :-------------------------- | :--------- |
+| **Documented Handlers**     | 10 / 10    |
+| **Endpoint Coverage**       | 100%       |
+| **Local SDK Parity**        | 100%       |
+| **Unified Dispatcher Sync** | 1:1 Parity |
 
 ### ✅ Handler Documentation Status
 
-| Handler File | MDX Documentation | Local SDK Equivalent | Status |
-| :--- | :--- | :--- | :--- |
-| **auth.ts** | [Reference](./auth.mdx) | `locals.cms.auth` | ✅ Complete |
+| Handler File       | MDX Documentation              | Local SDK Equivalent     | Status      |
+| :----------------- | :----------------------------- | :----------------------- | :---------- |
+| **auth.ts**        | [Reference](./auth.mdx)        | `locals.cms.auth`        | ✅ Complete |
 | **collections.ts** | [Reference](./collections.mdx) | `locals.cms.collections` | ✅ Complete |
-| **content.ts** | [Reference](./content.mdx) | `locals.cms.collections` | ✅ Complete |
-| **dashboard.ts** | [Reference](./dashboard.mdx) | `locals.cms.dashboard` | ✅ Complete |
-| **media.ts** | [Reference](./media.mdx) | `locals.cms.media` | ✅ Complete |
-| **scim.ts** | [Reference](./scim.mdx) | N/A | ✅ Complete |
-| **setup.ts** | [Reference](./setup.mdx) | `setupManager` | ✅ Complete |
-| **system.ts** | [Reference](./system.mdx) | `locals.cms.system` | ✅ Complete |
-| **tokens.ts** | [Reference](./tokens.mdx) | `locals.cms.tokens` | ✅ Complete |
-| **utility.ts** | [Reference](./utility.mdx) | `locals.cms.system` | ✅ Complete |
+| **content.ts**     | [Reference](./content.mdx)     | `locals.cms.collections` | ✅ Complete |
+| **dashboard.ts**   | [Reference](./dashboard.mdx)   | `locals.cms.dashboard`   | ✅ Complete |
+| **media.ts**       | [Reference](./media.mdx)       | `locals.cms.media`       | ✅ Complete |
+| **scim.ts**        | [Reference](./scim.mdx)        | N/A                      | ✅ Complete |
+| **setup.ts**       | [Reference](./setup.mdx)       | `setupManager`           | ✅ Complete |
+| **system.ts**      | [Reference](./system.mdx)      | `locals.cms.system`      | ✅ Complete |
+| **tokens.ts**      | [Reference](./tokens.mdx)      | `locals.cms.tokens`      | ✅ Complete |
+| **utility.ts**     | [Reference](./utility.mdx)     | `locals.cms.system`      | ✅ Complete |
 
 > [!TIP]
 > **Consolidation**: Following the structural update on April 12, 2026, all API documentation now follows a 1:1 mapping with backend handler files. This ensures that any architectural change in a handler is immediately identifiable in the corresponding documentation.
@@ -56,9 +56,11 @@ Maintain 100% transparency regarding the documentation status of the SveltyCMS A
 ## 3. The Mechanics
 
 ### Documentation Integrity
+
 The API documentation is integrated into the CI/CD pipeline. Every PR that modifies a file in `src/routes/api/[...path]/handlers/` must include a corresponding update to its `.mdx` reference in `docs/api/`.
 
 ### Verification Strategy
+
 - **Linter**: `bun ./tests/lint-docs.ts` verifies that all URL segments mentioned in docs exist as logic in the handlers.
 - **SDK Parity**: Ensures that every REST endpoint documented has a corresponding `locals.cms` method for SSR.
 

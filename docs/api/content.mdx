@@ -23,24 +23,26 @@ The Content API manages the structural and cross-collection aspects of SveltyCMS
 
 ## ⚡ Quick Reference
 
-| Feature | HTTP Endpoint | Method | Permission Required |
-| :--- | :--- | :--- | :--- |
-| **Get Version** | `/api/content/version` | `GET` | **Public** |
-| **Get Structure** | `/api/content-structure`| `GET` | `collection:read` |
-| **Global Search** | `/api/search` | `GET` | `collection:read` |
-| **SSE Events** | `/api/events` | `GET` | `collection:read` |
-| **GraphQL API** | `/api/graphql` | `POST`| `manage:system` |
+| Feature           | HTTP Endpoint            | Method | Permission Required |
+| :---------------- | :----------------------- | :----- | :------------------ |
+| **Get Version**   | `/api/content/version`   | `GET`  | **Public**          |
+| **Get Structure** | `/api/content-structure` | `GET`  | `collection:read`   |
+| **Global Search** | `/api/search`            | `GET`  | `collection:read`   |
+| **SSE Events**    | `/api/events`            | `GET`  | `collection:read`   |
+| **GraphQL API**   | `/api/graphql`           | `POST` | `manage:system`     |
 
 ---
 
 ## 1. Structure & Versioning
 
 ### Content Versioning
+
 SveltyCMS maintains a global version counter that increments on every structural or content change. Use this to trigger cache invalidation in external apps.
 
 **Endpoint**: `GET /api/content/version`
 
 ### Content Structure
+
 Retrieve or modify the tree-like structure of your collections and folders.
 
 - **GET**: Returns the full hierarchy of content nodes.
@@ -54,6 +56,7 @@ Search across multiple collections simultaneously using the unified search engin
 
 **Endpoint**: `GET /api/search?q=query_text`  
 **Parameters**:
+
 - `type`: Comma-separated list of collections (default: all).
 - `status`: filter by status (default: `published`).
 - `page` / `limit`: Standard pagination.
@@ -84,7 +87,9 @@ The GraphQL endpoint provides a flexible alternative to REST, allowing you to fe
 **Playground**: Available at `/api/graphql` (GET) in development mode.
 
 ### Subscriptions
+
 Real-time GraphQL updates are supported via WebSockets on a dedicated port.
+
 - **WS URL**: `ws://localhost:3001/api/graphql`
 - **Supported Events**: `entryUpdated`, `contentStructureUpdated`.
 

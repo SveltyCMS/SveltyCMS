@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 @file: src/components/image-editor/editor-toolbar.svelte
 @component
 **Pintura-style professional bottom toolbar**
@@ -11,6 +11,7 @@ Features:
 - Smooth animations and transitions
 -->
 <script lang="ts">
+	import { fade } from 'svelte/transition';
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
 
 	let {

@@ -12,14 +12,14 @@ import {
   getCollectionsPath,
   getCompiledCollectionsPath,
   isValidTenantId,
-} from "../tenant-paths.js";
+} from "../tenant-paths.ts";
 import {
   addJsExtensionTransformer,
   commonjsToEsModuleTransformer,
   schemaTenantIdTransformer,
   schemaUuidTransformer,
   widgetTransformer,
-} from "./transformers";
+} from "./transformers.ts";
 import type { CompilationResult, CompileOptions, Logger } from "./types";
 
 const defaultLogger: Logger = {

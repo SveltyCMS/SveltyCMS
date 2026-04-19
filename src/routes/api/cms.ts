@@ -399,7 +399,11 @@ class AuthNamespace {
     if (password) {
       const isValid = await verifyPassword(user.password, password);
       if (!isValid) {
-        logger.debug("Login failed: Password mismatch", { userId: user._id });
+        logger.debug("Login failed: Password mismatch", {
+          userId: user._id,
+          email: user.email,
+          dbHashPrefix: user.password?.substring(0, 20),
+        });
         throw new AppError("Invalid credentials", 401);
       }
     }
@@ -901,6 +905,16 @@ class CollectionsNamespace {
       );
       throw new AppError(`Collection "${collectionId}" not found`, 404, "COLLECTION_NOT_FOUND");
     }
+
+    // 🚀 Performance & Stability: Ensure the adapter has the model registered
+    try {
+      await this._dbAdapter.collection.getModel(schema._id as string);
+    } catch {
+      if (this._dbAdapter.collection?.createModel) {
+        await this._dbAdapter.collection.createModel(schema);
+      }
+    }
+
     return schema;
   }
 
@@ -1183,51 +1197,72 @@ class CollectionsNamespace {
   }
 
   async bulkCreate(collectionId: string, data: any[], options: LocalApiOptions = {}) {
-    const { user, tenantId } = options;
-    if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+    const { user, tenantId, system } = options;
+    if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.getSchema(collectionId, tenantId);
+
+    const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
     const entries = data.map((item) => ({
       ...item,
       tenantId,
-      createdBy: user?._id,
+      createdBy: effectiveUser?._id,
       createdAt: new Date().toISOString(),
     }));
 
-    // Note: modifyRequest currently only handles single items or arrays in-place
-    // For large bulk, we might need a more optimized modifyRequestBulk
-    const collectionModel = await this._dbAdapter.collection.getModel(schema._id as string);
+    const collectionIdToUse = schema._id as string;
+    let collectionModel;
+    try {
+      collectionModel = await this._dbAdapter.collection.getModel(collectionIdToUse);
+    } catch (err) {
+      // If model not found, try to create it from schema
+      if (this._dbAdapter.collection?.createModel) {
+        await this._dbAdapter.collection.createModel(schema);
+        collectionModel = await this._dbAdapter.collection.getModel(collectionIdToUse);
+      } else {
+        throw err;
+      }
+    }
+
     await modifyRequest({
       data: entries,
       fields: schema.fields as FieldInstance[],
       collection: collectionModel,
-      user,
+      user: effectiveUser,
       type: "POST",
       tenantId,
       collectionName: schema.name,
       skipValidation: options.skipValidation,
       action: "bulkCreate",
+      system,
     });
 
-    const result = await this._dbAdapter.batch.bulkInsert(
-      this.getCollectionName(schema._id as string),
-      entries,
-    );
+    let result;
+    if (this._dbAdapter.batch && typeof this._dbAdapter.batch.bulkInsert === "function") {
+      result = await this._dbAdapter.batch.bulkInsert(
+        this.getCollectionName(schema._id as string),
+        entries,
+      );
+    } else if (this._dbAdapter.crud && typeof this._dbAdapter.crud.insertMany === "function") {
+      result = await this._dbAdapter.crud.insertMany(
+        this.getCollectionName(schema._id as string),
+        entries,
+        { tenantId } as any,
+      );
+    } else {
+      throw new Error("Adapter does not support bulk operations (bulkInsert or insertMany).");
+    }
 
     if (result.success) {
-      // --- WORKFLOW INITIALIZATION HOOK ---
+      // --- OPTIMIZED WORKFLOW INITIALIZATION ---
       try {
         const { workflowService } = await import("@src/services/workflow-service");
-        // We need the inserted IDs. bulkInsert should return them.
-        // Assuming result.data contains the inserted items or IDs
-        const insertedItems = (result.data as any[]) || [];
-        for (const item of insertedItems) {
-          await workflowService.initializeWorkflow(
-            item._id as string,
-            schema._id as string,
-            tenantId as string,
-          );
-        }
+        const insertedIds = (result.data as any[]).map((item) => item._id as string);
+        await workflowService.bulkInitializeWorkflow(
+          insertedIds,
+          schema._id as string,
+          tenantId as string,
+        );
       } catch (err) {
         logger.warn(`Failed to initialize workflows for bulk entries:`, err);
       }
@@ -1488,6 +1523,7 @@ class CollectionsNamespace {
       collectionName: schema.name,
       skipValidation: options.skipValidation,
       action: "create",
+      system,
     });
     const result = await this._dbAdapter.crud.insert(
       this.getCollectionName(schema._id as string),
@@ -1496,26 +1532,31 @@ class CollectionsNamespace {
     );
 
     if (result && result.success && result.data) {
-      // --- WORKFLOW INITIALIZATION HOOK ---
-      try {
-        const { workflowService } = await import("@src/services/workflow-service");
-        await workflowService.initializeWorkflow(
-          result.data._id as string,
-          schema._id as string,
-          tenantId as string,
+      // --- NON-BLOCKING POST-WRITE HOOKS ---
+      // These are side-effects that must NOT block the response:
+      //   - Workflow init: ~1 DB round-trip, no caller dependency.
+      //   - afterMutation: cache invalidation + pub/sub publish.
+      // Fire-and-forget; errors are caught internally and only logged.
+      void (async () => {
+        try {
+          const { workflowService } = await import("@src/services/workflow-service");
+          await workflowService.initializeWorkflow(
+            result.data!._id as string,
+            schema._id as string,
+            tenantId as string,
+          );
+        } catch (err) {
+          logger.warn(`Failed to initialize workflow for entry ${result.data!._id}:`, err);
+        }
+        await this.afterMutation(
+          schema,
+          tenantId,
+          "create",
+          result.data!._id as string,
+          result.data,
+          effectiveUser,
         );
-      } catch (err) {
-        logger.warn(`Failed to initialize workflow for entry ${result.data._id}:`, err);
-      }
-
-      await this.afterMutation(
-        schema,
-        tenantId,
-        "create",
-        result.data._id as string,
-        result.data,
-        effectiveUser,
-      );
+      })();
     }
 
     return result;
@@ -1550,6 +1591,7 @@ class CollectionsNamespace {
       collectionName: schema.name,
       skipValidation: options.skipValidation,
       action: "update",
+      system,
     });
 
     const result = await this._dbAdapter.crud.update(

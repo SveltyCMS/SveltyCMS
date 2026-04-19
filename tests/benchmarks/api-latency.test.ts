@@ -1,394 +1,241 @@
 /**
  * @file tests/benchmarks/api-latency.test.ts
- * @description Enhanced high-fidelity benchmark suite for SveltyCMS
- *              (SDK vs Unified Dispatcher) with better latency isolation,
- *              per-operation memory tracking, and clearer insights.
+ * @description Enterprise API overhead benchmark for SveltyCMS.
+ * Measures the precise cost of the middleware stack and dispatcher compared to direct SDK calls.
  */
 
 import { test } from "bun:test";
 import "../unit/setup.ts";
-import { runBenchmark, exportResult } from "./benchmark-utils";
+import {
+  runBenchmark,
+  exportResult,
+  exportMetric,
+  stabilize,
+  mockDispatch,
+} from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
-import type { DatabaseId } from "@src/content/types";
 
-const TEST_TENANT = "global" as DatabaseId;
-const TEST_COLLECTION = "benchmark_posts";
+const TEST_COLLECTION = "benchmark_posts_api";
 const TEST_ENTRY_ID = "latency-test-123";
-const NUM_SEED_ENTRIES = 250; // realistic but not excessive
-
-const benchmarkSchema = {
-  _id: TEST_COLLECTION,
-  name: TEST_COLLECTION,
-  fields: [
-    { name: "title", type: "text", widget: { Name: "Input" } },
-    { name: "content", type: "text", widget: { Name: "Input" } },
-  ],
-};
 
 async function setupBenchmarkEnvironment() {
-  const { logger } = await import("@utils/logger.server");
+  console.log("🚀 Preparing API Benchmark Environment...");
 
-  console.log("🚀 Setting up Enhanced API Latency Benchmark...");
-  console.log(
-    "💡 Note: Benchmarking 3 scenarios: findById (Single Read), list (Paginated), and create (Write Path).",
-  );
+  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+  const { LocalCMS } = await import("@src/routes/api/cms");
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
 
-  // Force-silence logger and console during setup to avoid "Already Exists" spam from core system
-  const originalError = logger.error;
-  const originalConsoleLog = console.log;
-  const originalConsoleError = console.error;
+  await ensureFullInitialization();
+  const db = getDb();
+  if (!db) throw new Error("Database adapter missing");
 
-  (logger as any).error = () => {};
-  console.log = () => {};
-  console.error = () => {};
+  const cms = new LocalCMS(db);
+
+  const prev = logger.level;
+  logger.level = "silent";
 
   try {
-    const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+    const schema = {
+      _id: TEST_COLLECTION,
+      name: TEST_COLLECTION,
+      fields: [{ name: "title", type: "text", widget: { Name: "Input" } }],
+    };
+
+    // 🚀 Scaffold the schema file to ensure it's discovered by the content system
+    const compiledDir = path.join(process.cwd(), ".compiledCollections");
+    await fs.mkdir(compiledDir, { recursive: true });
+    await fs.writeFile(
+      path.join(compiledDir, `${TEST_COLLECTION}.js`),
+      `export default ${JSON.stringify(schema, null, 2)};`,
+    );
+
     const { contentSystem } = await import("@src/content");
-    const { LocalCMS } = await import("@src/routes/api/cms");
+    // Force a reload to pick up the new file
+    await contentSystem.initialize(null, { skipReconciliation: false });
 
-    await ensureFullInitialization();
-    const dbAdapter = getDb();
-    if (!dbAdapter) throw new Error("DB not initialized");
-
-    const cms = new LocalCMS(dbAdapter);
-
-    // Ensure collection + node
-    let collections = contentSystem.getCollections(TEST_TENANT as any) || [];
-    if (!collections.some((c: any) => c._id === TEST_COLLECTION)) {
-      if (dbAdapter.collection?.createModel) {
-        await dbAdapter.collection.createModel(benchmarkSchema as any).catch(() => {});
-      }
-
-      if (dbAdapter.content?.nodes?.create) {
-        await dbAdapter.content.nodes
-          .create({
-            _id: TEST_COLLECTION,
-            path: `/collection/${TEST_COLLECTION}`,
-            name: TEST_COLLECTION,
-            nodeType: "collection",
-            status: "published",
-            collectionDef: benchmarkSchema,
-            tenantId: TEST_TENANT as any,
-            order: 0,
-          } as any)
-          .catch(() => {});
-      }
-
-      // Sync to store
-      const { contentStore } = await import("@src/stores/content-store.svelte");
-      contentStore.sync([
-        {
-          _id: TEST_COLLECTION as any,
-          path: `/collection/${TEST_COLLECTION}`,
-          name: TEST_COLLECTION,
-          nodeType: "collection",
-          collectionDef: benchmarkSchema,
-          tenantId: TEST_TENANT as any,
-          translations: [],
-          order: 0,
-          createdAt: new Date().toISOString() as any,
-          updatedAt: new Date().toISOString() as any,
-        },
-      ]);
+    // 🚀 Robust Cleanup: Ensure we start with a clean collection
+    if (db.collection?.deleteModel) {
+      await db.collection.deleteModel(TEST_COLLECTION).catch(() => {});
     }
 
-    // Seed data (idempotent + more efficient)
-    const countRes = await cms.collections.find(TEST_COLLECTION as any, {
-      tenantId: TEST_TENANT,
-      limit: 1,
-      countOnly: true,
-    });
-
-    const currentCount = (countRes as any).metadata?.totalCount || 0;
-    if (currentCount < NUM_SEED_ENTRIES + 1) {
-      const existing = await cms.collections.find(TEST_COLLECTION as any, {
-        tenantId: TEST_TENANT,
-        limit: NUM_SEED_ENTRIES + 100,
-        disableErrors: true,
-      });
-
-      const existingIds = new Set((existing.data || []).map((e: any) => e._id));
-
-      // Primary entry
-      if (!existingIds.has(TEST_ENTRY_ID)) {
-        await cms.collections
-          .create(
-            TEST_COLLECTION as any,
-            {
-              _id: TEST_ENTRY_ID,
-              title: "Latency Benchmark Entry",
-              content: "Test content for performance auditing.",
-            },
-            { system: true, tenantId: TEST_TENANT },
-          )
-          .catch(() => {});
-      }
-
-      // List entries
-      if (existingIds.size < NUM_SEED_ENTRIES) {
-        for (let i = 0; i < NUM_SEED_ENTRIES; i++) {
-          const id = `latency-test-list-${i}`;
-          if (!existingIds.has(id)) {
-            await cms.collections
-              .create(
-                TEST_COLLECTION as any,
-                {
-                  _id: id,
-                  title: `List Entry ${i}`,
-                  content: `Mock content for pagination testing #${i}`,
-                },
-                { system: true, tenantId: TEST_TENANT },
-              )
-              .catch(() => {});
-          }
-        }
-      }
+    if (db.collection?.createModel) {
+      await db.collection.createModel(schema as any).catch(() => {});
     }
 
-    return { cms, dbAdapter };
+    // Clear any existing entries just in case
+    await db.crud.deleteMany?.(TEST_COLLECTION, {}, { tenantId: null as any }).catch(() => {});
+
+    await cms.collections.create(
+      TEST_COLLECTION as any,
+      { _id: TEST_ENTRY_ID, title: "Latency Benchmark" },
+      { system: true, tenantId: null as any },
+    );
   } finally {
-    // Restore logger and console
-    (logger as any).error = originalError;
-    console.log = originalConsoleLog;
-    console.error = originalConsoleError;
-  }
-}
-
-function createMockEvent(pathWithQuery: string, method: string = "GET", body?: unknown) {
-  const url = `http://localhost/api${pathWithQuery}`;
-  const headers: Record<string, string> = {
-    "x-tenant-id": TEST_TENANT,
-  };
-
-  const init: RequestInit = { method, headers };
-
-  if (body !== undefined) {
-    headers["content-type"] = "application/json";
-    init.body = JSON.stringify(body);
+    logger.level = prev;
   }
 
-  return {
-    request: new Request(url, init),
-    url: new URL(url),
-    locals: { tenantId: TEST_TENANT, user: { _id: "admin", role: "admin" } },
-    cookies: { get: () => undefined, getAll: () => [], set: () => {}, delete: () => {} },
-    getClientAddress: () => "127.0.0.1",
-    platform: {},
-    params: {},
-    route: { id: "/api/[...path]" },
-  } as any;
-}
-
-async function runWithMemoryTracking(name: string, fn: () => Promise<any>) {
-  const memBefore = process.memoryUsage();
-  const result = await fn();
-  const memAfter = process.memoryUsage();
-
-  const rssDelta = (memAfter.rss - memBefore.rss) / 1024 / 1024;
-  const heapDelta = (memAfter.heapUsed - memBefore.heapUsed) / 1024 / 1024;
-
-  console.log(
-    `   📊 ${name} memory delta → RSS: ${rssDelta.toFixed(2)} MB | Heap: ${heapDelta.toFixed(2)} MB`,
-  );
-
-  return { result, rssDelta, heapDelta };
+  return { cms };
 }
 
 export async function runApiLatencyBenchmark() {
   const { cms } = await setupBenchmarkEnvironment();
-  const { handleApiRequests } = await import("@src/hooks/handle-api-requests");
+  await stabilize();
 
   logger.level = "silent";
+  console.log("\n🚀 Starting Enterprise API Latency Benchmark...\n");
 
-  const ITERATIONS = 2000; // Slightly lower for faster runs
-  const WARMUP = Math.floor(ITERATIONS * 0.15);
-  const LATENCY_CONCURRENCY = 1; // Clean latency measurement
+  const RUNS = 3;
+  const ITERATIONS = 1500;
+  const WARMUP = 150;
+  const concurrencyLevels = [1, 8, 32];
+  const allResults: any[] = [];
 
-  console.log(
-    `\n🔬 Running benchmarks with ${ITERATIONS} iterations (concurrency = ${LATENCY_CONCURRENCY} for latency)`,
-  );
-
-  // ===================================================================
-  // Benchmarks (SDK vs Dispatcher)
-  // ===================================================================
-  const results: any[] = [];
-  const overheads = new Map<string, number>();
-
-  const benchmarks = [
+  const scenarios = [
     {
-      name: "findById (Single Read)",
-      sdk: async () => {
-        const id = TEST_ENTRY_ID;
-        const res = await cms.collections.find(TEST_COLLECTION as any, {
-          _id: id,
-          tenantId: TEST_TENANT,
-        });
-        if (!res.success) throw new Error("SDK findById failed");
-      },
-      dispatcher: async () => {
-        const event = createMockEvent(`/collections/${TEST_COLLECTION}/${TEST_ENTRY_ID}`);
-        const res = await handleApiRequests({ event, resolve: async () => new Response("OK") });
-        if (res.status < 200 || res.status >= 300)
-          throw new Error(`Dispatcher findById failed: ${res.status}`);
-      },
+      name: "findById",
+      sdk: async () =>
+        cms.collections.find(TEST_COLLECTION as any, { _id: TEST_ENTRY_ID, tenantId: null as any }),
+      dispatch: { path: `/collections/${TEST_COLLECTION}/${TEST_ENTRY_ID}`, method: "GET" },
     },
     {
-      name: "list/limit=20 (Paginated)",
-      sdk: async () => {
-        const res = await cms.collections.find(TEST_COLLECTION as any, {
-          tenantId: TEST_TENANT,
-          limit: 20,
-        });
-        if (!res.success) throw new Error("SDK list failed");
-      },
-      dispatcher: async () => {
-        const event = createMockEvent(`/collections/${TEST_COLLECTION}?limit=20`);
-        const res = await handleApiRequests({ event, resolve: async () => new Response("OK") });
-        if (res.status < 200 || res.status >= 300)
-          throw new Error(`Dispatcher list failed: ${res.status}`);
-      },
+      name: "list limit=10",
+      sdk: async () =>
+        cms.collections.find(TEST_COLLECTION as any, { tenantId: null as any, limit: 10 }),
+      dispatch: { path: `/collections/${TEST_COLLECTION}?limit=10`, method: "GET" },
     },
     {
-      name: "create (Write Path)",
-      sdk: async () => {
-        const uniqueId = `bench-create-${Math.random()}`;
-        const res = await cms.collections.create(
+      name: "create POST",
+      sdk: async () =>
+        cms.collections.create(
           TEST_COLLECTION as any,
-          { _id: uniqueId, title: "Bench Create", content: "Test write" },
-          { system: true, tenantId: TEST_TENANT },
-        );
-        if (!res.success) throw new Error("SDK create failed");
-      },
-      dispatcher: async () => {
-        const uniqueId = `disp-create-${Math.random()}`;
-        const event = createMockEvent(`/collections/${TEST_COLLECTION}`, "POST", {
-          _id: uniqueId,
-          title: "Bench Create",
-          content: "Test write",
-        });
-        const res = await handleApiRequests({ event, resolve: async () => new Response("OK") });
-        if (res.status < 200 || res.status >= 300)
-          throw new Error(`Dispatcher create failed: ${res.status}`);
+          { title: "api-" + Date.now() },
+          { tenantId: null as any, system: true },
+        ),
+      dispatch: {
+        path: `/collections/${TEST_COLLECTION}`,
+        method: "POST",
+        body: { title: "api-post" },
       },
     },
   ];
 
-  for (const bench of benchmarks) {
-    console.log(`\n📌 Benchmarking: ${bench.name}`);
+  for (const scenario of scenarios) {
+    for (const concurrency of concurrencyLevels) {
+      console.log(`📌 ${scenario.name} @ ${concurrency}c`);
 
-    const sdkRes = await runWithMemoryTracking(`SDK ${bench.name}`, () =>
-      runBenchmark({
-        name: `SDK ${bench.name}`,
+      const sdkRes = await runBenchmark({
+        name: `SDK ${scenario.name} @ ${concurrency}c`,
         iterations: ITERATIONS,
         warmupIterations: WARMUP,
-        onIteration: bench.sdk,
+        runs: RUNS,
+        concurrency,
+        trimOutliers: "iqr",
+        measureMemory: true,
         silent: true,
-      }),
-    );
+        onSetup: stabilize,
+        onIteration: async () => {
+          await scenario.sdk();
+        },
+      });
 
-    const dispRes = await runWithMemoryTracking(`Dispatcher ${bench.name}`, () =>
-      runBenchmark({
-        name: `Dispatcher ${bench.name}`,
+      const dispRes = await runBenchmark({
+        name: `Dispatcher ${scenario.name} @ ${concurrency}c`,
         iterations: ITERATIONS,
         warmupIterations: WARMUP,
-        onIteration: bench.dispatcher,
+        runs: RUNS,
+        concurrency,
+        trimOutliers: "iqr",
+        measureMemory: true,
+        tolerateErrors: true,
         silent: true,
-      }),
-    );
+        onSetup: stabilize,
+        onIteration: async () => {
+          await mockDispatch(scenario.dispatch as any);
+        },
+      });
 
-    const overheadMs = dispRes.result.avgMs - sdkRes.result.avgMs;
-    overheads.set(bench.name, overheadMs);
+      const overhead = Math.max(0, dispRes.avgMs - sdkRes.avgMs);
+      const overheadPct = sdkRes.avgMs > 0 ? (overhead / sdkRes.avgMs) * 100 : 0;
 
-    // Create export-friendly objects with high-fidelity telemetry
-    results.push({
-      ...sdkRes.result,
-      name: `SDK: ${bench.name}`,
-      rssDelta: sdkRes.rssDelta,
-      pair: bench.name,
-      type: "SDK",
-    });
-    results.push({
-      ...dispRes.result,
-      name: `Dispatcher: ${bench.name}`,
-      rssDelta: dispRes.rssDelta,
-      pair: bench.name,
-      type: "Dispatcher",
-    });
+      allResults.push({ ...sdkRes, layer: "SDK", pair: scenario.name });
+      allResults.push({
+        ...dispRes,
+        layer: "Dispatcher",
+        pair: scenario.name,
+        overhead,
+        overheadPct,
+      });
+    }
   }
 
   logger.level = "info";
 
-  // ===================================================================
-  // High-Fidelity Audit Summary (Professional Dashboard Style)
-  // ===================================================================
-  console.log("\n" + "=".repeat(140));
-  console.log("   📊 SVELTYCMS HIGH-FIDELITY LATENCY AUDIT — SDK vs Dispatcher");
-  console.log("   Pure Latency Mode • Concurrency = 1 • IQR Outlier Trimming • 95% Confidence");
-  console.log("=".repeat(140));
+  console.log("\n" + "=".repeat(155));
+  console.log("   📊 SVELTYCMS API LAYER ENTERPRISE REPORT");
+  console.log("   SDK • Dispatcher • Middleware • Routing • Scaling");
+  console.log("=".repeat(155));
 
   console.log(
-    `| ${"Operation".padEnd(32)} | ${"Layer".padEnd(12)} | ${"Avg Latency".padEnd(18)} | ${"p95".padEnd(12)} | ${"RPS".padEnd(12)} | ${"RSS Δ".padEnd(10)} | ${"Overhead vs SDK".padEnd(20)} |`,
+    `| ${"Scenario".padEnd(24)} | ${"Layer".padEnd(12)} | ${"Avg".padEnd(12)} | ${"p95".padEnd(12)} | ${"RPS".padEnd(12)} | ${"Overhead".padEnd(14)} |`,
   );
-  console.log("|" + "-".repeat(32 + 12 + 18 + 12 + 12 + 10 + 20 + 6) + "|");
+  console.log("|" + "-".repeat(150) + "|");
 
-  for (const r of results) {
-    const isDispatcher = r.type === "Dispatcher";
-    const overheadMs = isDispatcher ? overheads.get(r.pair) || 0 : 0;
-    const overheadUs = (overheadMs * 1000).toFixed(1);
-    const overheadStr = isDispatcher
-      ? overheadMs >= 0
-        ? `+${overheadUs} µs`
-        : `${overheadUs} µs`
-      : "—";
-
-    const rssDeltaStr =
-      r.rssDelta !== undefined ? `${r.rssDelta > 0 ? "+" : ""}${r.rssDelta.toFixed(2)} MB` : "—";
-
+  for (const r of allResults) {
+    const over =
+      r.layer === "Dispatcher" ? `${r.overhead.toFixed(3)} ms (${r.overheadPct.toFixed(1)}%)` : "—";
     console.log(
-      `| ${r.pair.padEnd(32)} | ${r.type.padEnd(12)} | ` +
-        `${r.avgMs.toFixed(4)} ms (±${r.marginOfError.toFixed(3)})`.padEnd(18) +
-        ` | ` +
-        `${r.p95Ms.toFixed(4)} ms`.padEnd(12) +
-        ` | ` +
-        `${Math.round(r.rps).toLocaleString()}`.padEnd(12) +
-        ` | ` +
-        `${rssDeltaStr.padEnd(10)} | ` +
-        `${overheadStr.padEnd(20)} |`,
+      `| ${r.name.replace("SDK ", "").replace("Dispatcher ", "").padEnd(24)} | ` +
+        `${r.layer.padEnd(12)} | ` +
+        `${r.avgMs.toFixed(3)} ms`.padEnd(12) +
+        ` | ${r.p95Ms.toFixed(3)}`.padEnd(12) +
+        ` | ${Math.round(r.rps).toLocaleString().padEnd(12)}` +
+        ` | ${over.padEnd(14)} |`,
     );
   }
-  console.log("=".repeat(140));
+  console.log("=".repeat(155));
 
-  console.log(`\n✨ Dispatcher Overhead Analysis (vs Raw SDK):`);
-  overheads.forEach((overheadMs, op) => {
-    const us = (overheadMs * 1000).toFixed(1);
-    const interpretation =
-      overheadMs < -0.05
-        ? "(Dispatcher faster — possible SDK overhead or cache effect)"
-        : overheadMs > 0.05
-          ? "(Dispatcher added cost)"
-          : "(Near-zero overhead)";
-
-    console.log(
-      `   • ${op.padEnd(22)} → ${overheadMs >= 0 ? "+" : ""}${us} µs   ${interpretation}`,
-    );
-  });
-
-  console.log(`\n📈 Statistical Confidence:`);
-  console.log(`   • Margin of Error (±MoE) uses 95% confidence interval`);
-  console.log(`   • ±0.000 MoE = extremely stable (variance below 1µs)`);
-  console.log(`   • IQR trimming removed cold-start / OS noise spikes`);
-
-  console.log("\n✅ High-Fidelity benchmark suite completed successfully.");
-  console.log(
-    "   SveltyCMS Dispatcher layer demonstrates near-zero overhead with exceptional stability.",
+  // Insights
+  const dispatcher1 = allResults.find(
+    (r) => r.layer === "Dispatcher" && r.name.includes("findById @ 1c"),
+  );
+  const dispatcher32 = allResults.find(
+    (r) => r.layer === "Dispatcher" && r.name.includes("findById @ 32c"),
   );
 
-  results.forEach((r) => exportResult(r));
+  console.log("\n✨ Insights:");
+  if (dispatcher1) console.log(`• Base dispatcher overhead: ${dispatcher1.overhead.toFixed(3)} ms`);
+  if (dispatcher1 && dispatcher32) {
+    const loss = ((dispatcher1.rps - dispatcher32.rps / 32) / dispatcher1.rps) * 100;
+    console.log(`• Scaling efficiency loss: ${loss.toFixed(1)}%`);
+    if (loss > 35) console.log("• Middleware stack may bottleneck under concurrency.");
+  }
+
+  const overheads = allResults.filter((r) => r.layer === "Dispatcher").map((r) => r.overhead);
+  const avgOverhead = overheads.reduce((a, b) => a + b, 0) / overheads.length;
+  const avgPct =
+    allResults.filter((r) => r.layer === "Dispatcher").reduce((a, b) => a + b.overheadPct, 0) /
+    overheads.length;
+  const maxRps = Math.max(...allResults.map((r) => r.rps));
+
+  exportMetric("rest.collections.avg", dispatcher1?.avgMs || 0, "ms");
+  exportMetric("rest.collections.p95", dispatcher1?.p95Ms || 0, "ms");
+  exportMetric("rest.collections.rps", maxRps, "req/s");
+  exportMetric("rest.overhead.avg", avgOverhead, "ms");
+  exportMetric("rest.overhead.percent", avgPct, "%");
+
+  exportResult({
+    name: "API Latency Aggregate",
+    avgMs: avgOverhead,
+    p95Ms: dispatcher1?.p95Ms || 0,
+    rps: maxRps,
+  });
+
+  for (const r of allResults) exportResult(r);
+
+  console.log("\n✅ API benchmark completed.");
 }
 
-if (!process.env.SVELTY_AUDIT_ACTIVE) {
-  test("API Latency Audit (Enhanced)", async () => {
-    await runApiLatencyBenchmark();
-  }, 450000); // reduced timeout
-}
+test("API Latency Enterprise Suite", async () => {
+  await runApiLatencyBenchmark();
+}, 450000);

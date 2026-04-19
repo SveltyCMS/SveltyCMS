@@ -112,3 +112,4 @@ if (isBun) {
 process.env.TEST_MODE = "true";
 process.env.BROWSER = "false";
 process.env.NODE_ENV = "test";
+process.env.SSR = "true";

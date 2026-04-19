@@ -25,12 +25,12 @@ SveltyCMS provides a comprehensive programmatic surface for building custom fron
 
 Choose the access pattern that best fits your development environment.
 
-| Pattern | Context | Latency | Best For |
-| :--- | :--- | :--- | :--- |
-| [⚡ **Local SDK**](./local-vs-http-api.mdx) | **Server-side** (`.server.ts`) | **0–5ms** | Native SvelteKit, high-throughput. |
-| [🌐 **REST API**](./collections.mdx) | **External** (Mobile, Apps) | 50–150ms | Simple CRUD & Integrations. |
-| [📊 **GraphQL API**](./content.mdx#4-graphql-api) | **Frontend** (React, Vue, SPA) | 50–200ms | Complex data fetching. |
-| [📖 **OpenAPI Spec**](./openapi-spec.mdx) | **Documentation & SDKs** | **Unified** | Fastest automated client generation. |
+| Pattern                                           | Context                        | Latency     | Best For                             |
+| :------------------------------------------------ | :----------------------------- | :---------- | :----------------------------------- |
+| [⚡ **Local SDK**](./local-vs-http-api.mdx)       | **Server-side** (`.server.ts`) | **0–5ms**   | Native SvelteKit, high-throughput.   |
+| [🌐 **REST API**](./collections.mdx)              | **External** (Mobile, Apps)    | 50–150ms    | Simple CRUD & Integrations.          |
+| [📊 **GraphQL API**](./content.mdx#4-graphql-api) | **Frontend** (React, Vue, SPA) | 50–200ms    | Complex data fetching.               |
+| [📖 **OpenAPI Spec**](./openapi-spec.mdx)         | **Documentation & SDKs**       | **Unified** | Fastest automated client generation. |
 
 ---
 
@@ -39,6 +39,7 @@ Choose the access pattern that best fits your development environment.
 SveltyCMS uses a high-performance **Unified Gatekeeper** (`src/routes/api/[...path]`) that dispatches requests to domain-specific handlers.
 
 ### Key Benefits
+
 - **Zero-Latency Dispatching**: Internal server-to-server calls bypass HTTP overhead via the `LocalCMS` bridge.
 - **Fail-Closed Security**: Every request must pass central authorization before being dispatched.
 - **1:1 Code Alignment**: API endpoints map directly to their respective backend handler files (e.g., `/api/auth/*` maps to `auth.ts`).
@@ -50,16 +51,19 @@ SveltyCMS uses a high-performance **Unified Gatekeeper** (`src/routes/api/[...pa
 The API is organized around specialized backend handlers. Each document provides detailed reference for its endpoints and SDK equivalents.
 
 ### Content & Data
+
 - [📚 **Collections (collections.ts)**](./collections.mdx) — Entry CRUD, schema discovery, and revisions.
 - [🔍 **Content & Search (content.ts)**](./content.mdx) — Global search, SSE events, and GraphQL.
 - [🖼️ **Media (media.ts)**](./media.mdx) — Asset uploads, processing, and folder management.
 
 ### Identity & Access
+
 - [👥 **Auth & Identity (auth.ts)**](./auth.mdx) — Login, 2FA, SAML SSO, and Profiles.
 - [🔐 **Tokens (tokens.ts)**](./tokens.mdx) — Invitation links and programmatic API keys.
 - [🌐 **SCIM 2.0 (scim.ts)**](./scim.mdx) — Standardized user provisioning.
 
 ### System & Infrastructure
+
 - [⚙️ **System & Setup (system.ts / setup.ts)**](./system.mdx) — Settings, widgets, webhooks, and AI.
 - [📈 **Dashboard (dashboard.ts)**](./dashboard.mdx) — Metrics, logs, and health data.
 - [🛠 **Utilities (utility.ts)**](./utility.mdx) — Cache, trash, and email services.
@@ -71,6 +75,7 @@ The API is organized around specialized backend handlers. Each document provides
 All REST endpoints follow a unified response shape to ensure consistent client-side handling.
 
 ### Success Format (200 OK / 201 Created)
+
 ```json
 {
   "success": true,
@@ -79,6 +84,7 @@ All REST endpoints follow a unified response shape to ensure consistent client-s
 ```
 
 ### Error Format (4xx / 5xx)
+
 ```json
 {
   "success": false,

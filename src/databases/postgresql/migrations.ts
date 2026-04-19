@@ -132,6 +132,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"slug" VARCHAR(500),
 			"icon" VARCHAR(100),
 			"description" TEXT,
+			"collectionDef" JSONB,
 			"data" JSONB,
 			"metadata" JSONB,
 			"translations" JSONB,
@@ -384,6 +385,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
     await sql.unsafe(
       `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "role" VARCHAR(50) NOT NULL DEFAULT 'user'`,
     );
+    await sql.unsafe(`ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS "collectionDef" JSONB`);
   } catch {
     // Ignore error
   }

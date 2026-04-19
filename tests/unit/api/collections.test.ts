@@ -175,7 +175,7 @@ describe("Collections API Unit Tests", () => {
       const event = createMockEvent("PATCH", "collections/col-1/entry-1", { title: "Updated" });
       const response = await PATCH_ENTRY(event);
       const data = await response!.json();
-      console.log("DEBUG: response data:", data);
+      // No-op
       expect(data.success).toBe(true);
       expect(data.data.data._id).toBe("updated-id");
     });

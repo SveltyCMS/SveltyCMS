@@ -445,14 +445,18 @@ export class AuthModule implements IAuthAdapter {
         if (options?.tenantId) {
           sessionConditions.push(eq(schema.authSessions.tenantId, options.tenantId as string));
         }
-        tx.delete(schema.authSessions).where(and(...sessionConditions)).run();
+        tx.delete(schema.authSessions)
+          .where(and(...sessionConditions))
+          .run();
 
         // --- Delete User ---
         const userConditions = [eq(schema.authUsers._id, userId as string)];
         if (options?.tenantId) {
           userConditions.push(eq(schema.authUsers.tenantId, options.tenantId as string));
         }
-        tx.delete(schema.authUsers).where(and(...userConditions)).run();
+        tx.delete(schema.authUsers)
+          .where(and(...userConditions))
+          .run();
 
         return { deletedUser: true, deletedSessionCount: 1 };
       });
@@ -871,8 +875,7 @@ export class AuthModule implements IAuthAdapter {
         }
 
         const newToken = utils.generateId();
-        tx
-          .update(schema.authTokens)
+        tx.update(schema.authTokens)
           .set({
             token: newToken,
             expires: isoDateStringToDate(expires),

@@ -18,7 +18,7 @@ export const ADMIN_CREDENTIALS = {
  * Generic login function for any user
  * @param page - Playwright page object
  * @param email - User email
- * @param password - User password  
+ * @param password - User password
  * @param waitForUrl - URL pattern to wait for after login (default: not /login)
  */
 export async function loginAs(
@@ -30,38 +30,38 @@ export async function loginAs(
   // Atomic Auth: Clear all previous session state to prevent session bleed
   console.log(`[Auth] Logging in as ${email}...`);
   await page.context().clearCookies();
-  
+
   // Navigate first to ensure we have a valid origin for localStorage access
   await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
-  
+
   // Now safe to clear storage (we're on the domain)
-  await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-  }).catch(() => {
-    // Ignore errors if localStorage is restricted
-    console.log("[Auth] Could not clear storage (might be restricted)");
-  });
+  await page
+    .evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    })
+    .catch(() => {
+      // Ignore errors if localStorage is restricted
+      console.log("[Auth] Could not clear storage (might be restricted)");
+    });
 
   // Inject storage to bypass ALL modals (welcome, cookie consent, first login)
   await page.addInitScript(() => {
     // Setup wizard welcome modal
     window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
-    
+
     // Cookie consent
     window.localStorage.setItem(
       "sveltycms_consent",
       JSON.stringify({ responded: true, necessary: true }),
     );
-    
+
     // First login welcome for admin
     window.localStorage.setItem("sveltycms-welcome-seen", "true");
-    window.localStorage.setItem("sveltycms-welcome-progress", JSON.stringify([
-      "data-management",
-      "collections",
-      "users",
-      "settings"
-    ]));
+    window.localStorage.setItem(
+      "sveltycms-welcome-progress",
+      JSON.stringify(["data-management", "collections", "users", "settings"]),
+    );
   });
 
   // Navigate to login page (reload to apply init scripts)
@@ -75,14 +75,16 @@ export async function loginAs(
 
   // CRITICAL: Dismiss ALL blocking modals that might interfere with login
   console.log("[Auth] Checking for blocking modals...");
-  
+
   // Strategy 1: Database Error Modal (HIGHEST PRIORITY - completely blocks login)
   // Check for the exact error modal structure from error-context.md
-  const dbErrorHeading = page.locator('h2:has-text("Database Connection Error"), h2:has-text("Database Error")');
+  const dbErrorHeading = page.locator(
+    'h2:has-text("Database Connection Error"), h2:has-text("Database Error")',
+  );
   if (await dbErrorHeading.isVisible({ timeout: 2000 }).catch(() => false)) {
     console.log("[Auth] ⚠️ Database Error Modal detected! Database empty - auto-seeding...");
-    
-    // CRITICAL FIX: Seed database via Testing API when empty  
+
+    // CRITICAL FIX: Seed database via Testing API when empty
     try {
       await page.request.post("/api/testing", {
         data: {
@@ -104,34 +106,40 @@ export async function loginAs(
       });
       console.log("[Auth] ✓ Database reset and seeded");
     }
-    
+
     // Reload login page with seeded database
     await page.goto("/login", { waitUntil: "networkidle", timeout: 100000 });
     await page.waitForTimeout(1000);
   }
-  
+
   // Strategy 2: First Login Welcome Modal
   const welcomeModal = page.locator('div.fixed.inset-0.z-50:has-text("Welcome")').first();
   if (await welcomeModal.isVisible({ timeout: 1000 }).catch(() => false)) {
     console.log("[Auth] First Login Welcome Modal detected, dismissing...");
-    const skipBtn = page.locator('button:has-text("Skip"), button:has-text("Close"), button:has-text("Get Started")').first();
+    const skipBtn = page
+      .locator('button:has-text("Skip"), button:has-text("Close"), button:has-text("Get Started")')
+      .first();
     if (await skipBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await skipBtn.click();
       await page.waitForTimeout(500);
     }
   }
-  
+
   // Strategy 3: General modal dismissal (any other blocking modals)
-  const genericModal = page.locator('div.fixed.inset-0.z-50').first();
+  const genericModal = page.locator("div.fixed.inset-0.z-50").first();
   if (await genericModal.isVisible({ timeout: 1000 }).catch(() => false)) {
     console.log("[Auth] Generic modal detected, attempting to dismiss...");
-    const anyCloseBtn = page.locator('button:has-text("Close"), button:has-text("OK"), button:has-text("Accept"), [aria-label*="close" i]').first();
+    const anyCloseBtn = page
+      .locator(
+        'button:has-text("Close"), button:has-text("OK"), button:has-text("Accept"), [aria-label*="close" i]',
+      )
+      .first();
     if (await anyCloseBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await anyCloseBtn.click();
       await page.waitForTimeout(500);
     }
   }
-  
+
   console.log("[Auth] Modal dismissal complete.");
 
   // Check if we're on the login selection page (SIGN IN / SIGN UP buttons)
@@ -256,7 +264,7 @@ export async function logout(page: Page) {
       localStorage.clear();
       sessionStorage.clear();
     });
-    
+
     // Navigate to login to confirm logout
     await page.goto("/login", { timeout: 10_000, waitUntil: "domcontentloaded" });
   } catch (error) {

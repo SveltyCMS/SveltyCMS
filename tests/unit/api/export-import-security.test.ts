@@ -25,6 +25,9 @@ const { mockAdapter } = vi.hoisted(() => ({
         setMany: vi.fn().mockResolvedValue({ success: true }),
       },
     },
+    collection: {
+      getModel: vi.fn(),
+    },
   },
 }));
 

@@ -1141,6 +1141,7 @@ export async function seedSettings(
       logger.info("✅ Public settings validated successfully");
     } else {
       logger.warn("Public settings validation failed");
+      console.log("Validation Issues:", JSON.stringify(parsedPublic.issues, null, 2));
       // Filter out expected undefined errors for cleaner logs if needed, or just log issues
       logger.debug("Public settings validation issues:", parsedPublic.issues);
     }

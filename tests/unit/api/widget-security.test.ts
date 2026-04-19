@@ -18,6 +18,9 @@ vi.mock("@utils/api-handler", () => ({
 vi.mock("@src/databases/db", () => ({
   auth: {},
   dbAdapter: {
+    collection: {
+      getModel: vi.fn(),
+    },
     system: {
       widgets: {
         getActiveWidgets: vi.fn().mockResolvedValue({ success: true, data: [] }),

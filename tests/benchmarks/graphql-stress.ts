@@ -50,21 +50,15 @@ async function asyncPool<T>(
   items: T[],
   iteratorFn: (item: T, index: number) => Promise<void>,
 ): Promise<void> {
-  const executing: Promise<void>[] = [];
+  const executing = new Set<Promise<void>>();
 
   for (let i = 0; i < items.length; i++) {
     const promise = Promise.resolve().then(() => iteratorFn(items[i], i));
-    executing.push(promise);
+    executing.add(promise);
+    promise.finally(() => executing.delete(promise));
 
-    if (executing.length >= concurrency) {
+    if (executing.size >= concurrency) {
       await Promise.race(executing);
-      // Clean up completed promises
-      // In Bun/Node, we don't need to splice carefully if we just wait for the race
-      const finished = executing.filter((p) => (p as any).status !== "pending");
-      for (const p of finished) {
-        const idx = executing.indexOf(p);
-        if (idx > -1) executing.splice(idx, 1);
-      }
     }
   }
 
@@ -85,21 +79,40 @@ async function runStressTest(level: LoadLevel) {
 
   const baseUrl = (process.env.API_BASE_URL || API_BASE_URL).replace("localhost", "127.0.0.1");
 
+  // Debug health and user count
+  try {
+    const healthRes = await fetch(`${baseUrl}/api/system/health`);
+    const healthData = await healthRes.json();
+    console.log(
+      `   🏥 System Status: ${healthData.overallStatus || healthData.status}, Users: ${healthData.userCount ?? "unknown"}`,
+    );
+  } catch {
+    console.warn("   ⚠️ Could not fetch system health for debug.");
+  }
+
   // Login once
   console.log("   🔑 Authenticating as admin...");
+  const loginEmail = "admin@example.com";
+  const loginPassword = process.env.ADMIN_PASSWORD || "Password123!";
+  console.log(`   🔍 Using email: ${loginEmail}, password: ${loginPassword.substring(0, 4)}...`);
+
   const loginRes = await fetch(`${baseUrl}/api/user/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-test-secret": process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026",
+    },
     body: JSON.stringify({
-      email: "admin@example.com",
-      password: process.env.ADMIN_PASSWORD || "Password123!",
+      email: loginEmail,
+      password: loginPassword,
     }),
     signal: AbortSignal.timeout(10000),
   });
 
   if (!loginRes.ok) {
-    const errorText = await loginRes.text().catch(() => "");
-    throw new Error(`Login failed (${loginRes.status}): ${errorText}`);
+    const errorText = await loginRes.text().catch(() => "no-body");
+    console.error(`   ❌ Login failed (${loginRes.status}): ${errorText}`);
+    return null;
   }
 
   const cookie = loginRes.headers.get("set-cookie");

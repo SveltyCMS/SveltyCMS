@@ -30,7 +30,7 @@ We use a layered approach where each method is applied to the domain where it sh
 
 **"Test the code knowing how it works."**
 
-We use **Vitest** for white-box unit testing. These tests presume full knowledge of the internal code structure, classes, and logic paths. Following our recent optimization, we have consolidated our unit suite into **~670 highly performant tests** in `tests/unit/`.
+We use **Vitest** for white-box unit testing. These tests presume full knowledge of the internal code structure, classes, and logic paths. Following our recent optimization, we have consolidated our unit suite into **~670 highly performant tests (part of our 1030+ total)** in `tests/unit/`.
 
 **What we test here:**
 
@@ -65,6 +65,16 @@ We use **Black-Box API testing** for all integration and end-to-end scenarios. T
 - **Database Agnosticism**: The test suite doesn't care if the backend is SQLite or PostgreSQL; it only cares about the JSON response. This allows us to run the exact same suite against all supported databases.
 - **Production Parity**: Tests run against a production-like build (`vite preview`), catching issues related to headers, serialization, and SSR that unit tests miss.
 - **Resilience**: Internal refactors (e.g., changing from Mongoose to Drizzle) generally don't break these tests as long as the API contract remains the same.
+
+### 3. Audit 2.0: Elite Performance Analysis
+
+**"Deterministic reliability through intensity-aware orchestration."**
+
+As of April 2026, we have moved beyond simple benchmarking to **Audit Infrastructure 2.0**.
+
+- **Intensity-Aware Locking**: A global mutex ensures that high-intensity tasks (Image processing, GQL stress) never overlap, eliminating noise.
+- **Resource-Aware Parallelization**: Concurrency is capped at 40% of CPU cores to ensure deterministic processing.
+- **SQLite History**: All results are stored in a professional time-series database (`history.sqlite`) for regression analysis.
 
 ## Beyond Functional: The Road to 100% Confidence
 

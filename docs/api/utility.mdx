@@ -23,20 +23,21 @@ The Utilities API provides a set of essential maintenance and support services t
 
 ## ⚡ Quick Reference
 
-| Feature | HTTP Endpoint | Method | Permission Required |
-| :--- | :--- | :--- | :--- |
-| **System Cache** | `/api/cache/clear` | `POST` | `manage:system` |
-| **Trash List** | `/api/trash` | `GET` | `collection:delete` |
+| Feature           | HTTP Endpoint        | Method | Permission Required |
+| :---------------- | :------------------- | :----- | :------------------ |
+| **System Cache**  | `/api/cache/clear`   | `POST` | `manage:system`     |
+| **Trash List**    | `/api/trash`         | `GET`  | `collection:delete` |
 | **Restore Entry** | `/api/trash/restore` | `POST` | `collection:delete` |
-| **Send Email** | `/api/send-mail` | `POST` | `manage:system` |
-| **Marketplace** | `/api/marketplace` | `GET` | **Public** |
-| **OpenAPI Spec** | `/api/openapi.json` | `GET` | **Public** |
+| **Send Email**    | `/api/send-mail`     | `POST` | `manage:system`     |
+| **Marketplace**   | `/api/marketplace`   | `GET`  | **Public**          |
+| **OpenAPI Spec**  | `/api/openapi.json`  | `GET`  | **Public**          |
 
 ---
 
 ## 1. Maintenance & Cache
 
 ### System Cache Management
+
 Manually invalidate the system-wide cache or clear specific categories (e.g., `collections`, `schemas`).
 
 **Endpoint**: `POST /api/cache/clear`  
@@ -57,10 +58,12 @@ SveltyCMS implements a "Soft Delete" pattern. Deleted entries are moved to the T
 ## 3. Communication
 
 ### Transactional Email
+
 Send Svelte-rendered emails directly via the API.
 
 **Endpoint**: `POST /api/send-mail`  
 **Payload**:
+
 ```json
 {
   "recipientEmail": "user@example.com",
@@ -75,6 +78,7 @@ Send Svelte-rendered emails directly via the API.
 ## 4. The Mechanics
 
 ### Utility Dispatcher
+
 The `utility.ts` handler manages a wide range of disparate system helper tasks. It acts as the primary interface for scheduled maintenance jobs and cross-system communication.
 
 ```mermaid

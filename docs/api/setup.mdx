@@ -21,13 +21,13 @@ The Setup API manages the critical initialization phase of SveltyCMS. It handles
 
 ## ⚡ Quick Reference
 
-| Feature | HTTP Endpoint | Method | Permission Required |
-| :--- | :--- | :--- | :--- |
-| **Status Check** | `/api/setup/status` | `GET` | **Public** |
-| **Test Connection**| `/api/setup/test-db` | `POST` | **Public** |
-| **Seed Database** | `/api/setup/seed-db` | `POST` | **Public** |
-| **Complete Setup** | `/api/setup/complete` | `POST` | **Public** |
-| **Reinitialize** | `/api/setup/reinitialize`| `POST` | `manage:system` |
+| Feature             | HTTP Endpoint             | Method | Permission Required |
+| :------------------ | :------------------------ | :----- | :------------------ |
+| **Status Check**    | `/api/setup/status`       | `GET`  | **Public**          |
+| **Test Connection** | `/api/setup/test-db`      | `POST` | **Public**          |
+| **Seed Database**   | `/api/setup/seed-db`      | `POST` | **Public**          |
+| **Complete Setup**  | `/api/setup/complete`     | `POST` | **Public**          |
+| **Reinitialize**    | `/api/setup/reinitialize` | `POST` | `manage:system`     |
 
 ---
 
@@ -40,10 +40,12 @@ Safely transition a fresh SveltyCMS installation from an unconfigured state to a
 ## 2. The Solution
 
 ### Pre-flight Verification
+
 Before persisting the configuration, the system validates the provided database credentials.
 
 **Endpoint**: `POST /api/setup/test-db`
 **Payload**:
+
 ```json
 {
   "type": "mongodb",
@@ -57,11 +59,13 @@ Before persisting the configuration, the system validates the provided database 
 ```
 
 ### Schema Provisioning
+
 Triggers the creation of system collections, default roles, and internal configuration entries.
 
 **Endpoint**: `POST /api/setup/seed-db`
 
 ### Finalization
+
 The setup process concludes by creating the admin user and establishing their first session. Once successful, the system is marked as `ready`, and the setup endpoints (except `status`) are strictly protected.
 
 ---
@@ -69,6 +73,7 @@ The setup process concludes by creating the admin user and establishing their fi
 ## 3. The Mechanics
 
 ### Pre-Boot Architecture
+
 The `setup.ts` handler operates in a standalone mode, allowing it to function before the primary database adapter and middleware are fully initialized.
 
 ```mermaid

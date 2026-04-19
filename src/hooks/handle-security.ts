@@ -157,7 +157,9 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
   if (
     isStaticAsset(url.pathname) ||
-    (isLocal && (dev || isTestMode || hasValidTestSecret) && request.headers.get("x-test-security") !== "true")
+    (isLocal &&
+      (dev || isTestMode || hasValidTestSecret) &&
+      request.headers.get("x-test-security") !== "true")
   ) {
     return await resolve(event);
   }

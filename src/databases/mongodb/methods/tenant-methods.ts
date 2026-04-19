@@ -65,7 +65,7 @@ export class MongoTenantMethods {
       const tenant = await this.TenantModel.findByIdAndUpdate(
         tenantId,
         { $set: { ...data, updatedAt: new Date() } },
-        { new: true, lean: true },
+        { returnDocument: "after", lean: true },
       );
       if (!tenant) {
         return {

@@ -1,94 +1,92 @@
 /**
  * @file tests/benchmarks/content-scan.bench.ts
- * @description High-fidelity benchmark for SveltyCMS Content Scan (self-healing collections discovery).
- *              Measures filesystem + metadata processing performance under realistic conditions.
+ * @description Elite-grade benchmark for SveltyCMS Content Scan (self-healing collections discovery).
+ * Measures filesystem + metadata processing performance with realistic multi-extension projects.
  */
 
 import { test } from "bun:test";
 import "../unit/setup.ts";
-import { runBenchmark, exportResult } from "./benchmark-utils";
+import { runBenchmark, exportResult, exportMetric, stabilize } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 import fs from "node:fs/promises";
 import path from "node:path";
 
 const COLLECTIONS_DIR = path.resolve(process.cwd(), ".compiledCollections");
+const TARGET_FILE_COUNT = parseInt(process.env.BENCHMARK_SCAN_FILES || "120", 10);
 
-async function prepareRealisticScanEnvironment() {
-  console.log("📂 Preparing realistic content scan environment...");
-
-  // Ensure directory exists
-  await fs.mkdir(COLLECTIONS_DIR, { recursive: true });
-
-  // Create a realistic number of fake collection files (idempotent)
-  const TARGET_FILE_COUNT = 120; // typical medium-large project
-
-  const existingFiles = await fs.readdir(COLLECTIONS_DIR).catch(() => []);
-  const currentCount = existingFiles.filter(
-    (f) => f.endsWith(".js") && f.startsWith("mock_"),
-  ).length;
-
-  if (currentCount < TARGET_FILE_COUNT) {
-    console.log(`   Creating ${TARGET_FILE_COUNT - currentCount} mock collection files...`);
-    for (let i = currentCount; i < TARGET_FILE_COUNT; i++) {
-      const fakeContent = `// Mock compiled collection ${i}\nexport default ${JSON.stringify(
-        {
-          _id: `mock_collection_${i}`,
-          name: `Mock Collection ${i}`,
-          fields: [
-            { name: "title", type: "text" },
-            { name: "description", type: "text" },
-          ],
-        },
-        null,
-        2,
-      )};`;
-
-      await fs.writeFile(
-        path.join(COLLECTIONS_DIR, `mock_collection_${i}.js`),
-        fakeContent,
-        "utf-8",
-      );
+async function cleanupMockFiles() {
+  const files = await fs.readdir(COLLECTIONS_DIR).catch(() => []);
+  for (const f of files) {
+    if (f.startsWith("mock_")) {
+      await fs.rm(path.join(COLLECTIONS_DIR, f), { recursive: true, force: true });
     }
   }
+}
 
-  console.log(`   ✅ ${TARGET_FILE_COUNT} mock collection files ready for scanning.`);
+async function prepareRealisticScanEnvironment() {
+  console.log(`📂 Preparing elite content scan environment (${TARGET_FILE_COUNT} files)...`);
+
+  await fs.mkdir(COLLECTIONS_DIR, { recursive: true });
+
+  for (let i = 0; i < TARGET_FILE_COUNT; i++) {
+    const ext = i % 3 === 0 ? "ts" : i % 3 === 1 ? "json" : "js";
+    const subDir = i % 5 === 0 ? "nested" : "";
+    const finalDir = path.join(COLLECTIONS_DIR, subDir);
+    if (subDir) await fs.mkdir(finalDir, { recursive: true });
+
+    const fileName = `mock_collection_${i}.${ext}`;
+    const data = {
+      _id: `mock_collection_${i}`,
+      name: `Mock Collection ${i}`,
+      fields: [{ name: "title", type: "text" }],
+    };
+
+    const content =
+      ext === "json"
+        ? JSON.stringify(data, null, 2)
+        : `export default ${JSON.stringify(data, null, 2)};`;
+
+    await fs.writeFile(path.join(finalDir, fileName), content, "utf-8");
+  }
+
+  console.log(`   ✅ ${TARGET_FILE_COUNT} multi-extension mock files ready.`);
 }
 
 test("Content Scan Performance (Self-Healing Collections)", async () => {
-  console.log("🚀 Starting High-Fidelity SveltyCMS Content Scan Benchmark...\n");
+  console.log("🚀 Starting Elite SveltyCMS Content Scan Benchmark...\n");
 
   logger.level = "silent";
 
+  await cleanupMockFiles(); // Start clean
   await prepareRealisticScanEnvironment();
 
-  const ITERATIONS = 800; // Much higher for better statistics
-  const WARMUP = 150;
-  const RUNS = 4; // Multiple runs for stability
+  const { contentSystem } = await import("@src/content");
+  const { cacheService } = await import("@src/databases/cache/cache-service");
 
-  console.log(`🔬 Running content scan benchmark (${ITERATIONS} iterations, ${RUNS} runs)...`);
+  const ITERATIONS = 800;
+  const WARMUP = 80;
+  const RUNS = 4;
+
+  console.log(`🔬 Running content scan audit (${ITERATIONS} iterations)...`);
 
   const scanResult = await runBenchmark({
-    name: "Content Scan (Self-Healing Collections)",
+    name: "Content Scan (Self-Healing)",
     iterations: ITERATIONS,
     warmupIterations: WARMUP,
-    concurrency: 1, // Pure latency for I/O bound operation
+    concurrency: 1,
     runs: RUNS,
     trimOutliers: "iqr",
     measureMemory: true,
     onSetup: async () => {
-      // Clear in-memory cache before each run to ensure direct FS scan
-      const { cacheService } = await import("@src/databases/cache/cache-service");
-
-      // We clear precisely the Schema category cache to force disk re-scan
+      // Clear schema cache to force re-scan
       await cacheService.clearByPattern("schema:*", null);
+      if ((contentSystem as any).clearCache) await (contentSystem as any).clearCache();
+      await stabilize();
     },
     onIteration: async () => {
-      // Call the REAL content scan facade
-      const { contentSystem } = await import("@src/content");
       const collections = await contentSystem.scanForCollections();
-
-      if (!Array.isArray(collections)) {
-        throw new Error("Content scan did not return expected array");
+      if (!Array.isArray(collections) || collections.length === 0) {
+        throw new Error("Scan returned empty or invalid result");
       }
     },
     silent: true,
@@ -97,11 +95,13 @@ test("Content Scan Performance (Self-Healing Collections)", async () => {
   logger.level = "info";
 
   // ===================================================================
-  // Professional Summary
+  // Summary
   // ===================================================================
   console.log("\n" + "=".repeat(120));
   console.log("   📊 SVELTYCMS CONTENT SCAN PERFORMANCE AUDIT");
-  console.log("   High-Fidelity • Realistic Dataset (120 collections) • IQR + MoE");
+  console.log(
+    `   High-Fidelity • ${TARGET_FILE_COUNT} collections • Multi-Extension • Automated Hygiene`,
+  );
   console.log("=".repeat(120));
 
   console.log(`| ${"Metric".padEnd(28)} | ${"Value".padEnd(22)} |`);
@@ -112,19 +112,25 @@ test("Content Scan Performance (Self-Healing Collections)", async () => {
   );
   console.log(`| p95 Duration               | ${scanResult.p95Ms.toFixed(3)} ms |`);
   console.log(`| p99 Duration               | ${scanResult.p99Ms.toFixed(3)} ms |`);
-  console.log(`| Std Deviation              | ${scanResult.stdDev.toFixed(3)} ms |`);
   console.log(`| Throughput                 | ${scanResult.rps.toFixed(1)} scans/sec |`);
   console.log(`| RSS Memory Delta           | ${scanResult.rssDelta?.toFixed(2) ?? "—"} MB |`);
   console.log("=".repeat(120));
 
   console.log(`\n✨ Insights:`);
   console.log(
-    `   • Scanning ${120} collections takes ~${scanResult.avgMs.toFixed(2)} ms on average`,
+    `   • Scanning ${TARGET_FILE_COUNT} collections takes ~${scanResult.avgMs.toFixed(2)} ms on average`,
   );
-  console.log(`   • Total Cold Boot Throughput: ${scanResult.rps.toFixed(1)} operations/second`);
-  console.log(`   • Memory delta indicates the impact of schema parsing and metadata caching`);
+  console.log(`   • Memory delta shows schema parsing and metadata index overhead`);
 
-  exportResult(scanResult);
+  // Structured Matrix Exports (Infrastructure v2)
+  exportMetric("internals.scan.avg", scanResult.avgMs, "ms", {
+    p95: scanResult.p95Ms,
+    fileCount: TARGET_FILE_COUNT,
+  });
 
-  console.log("\n✅ Content Scan benchmark completed.");
+  exportResult({ ...scanResult, fileCount: TARGET_FILE_COUNT, scanType: "self-healing" });
+
+  // Cleanup after benchmark
+  await cleanupMockFiles();
+  console.log("\n✅ Content Scan benchmark completed and cleaned up.");
 }, 300000);

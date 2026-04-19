@@ -23,21 +23,22 @@ The Authentication API handles the complete lifecycle of a user identity within 
 
 ## ⚡ Quick Reference
 
-| Feature | HTTP Endpoint | Method | Permission Required |
-| :--- | :--- | :--- | :--- |
-| **Login** | `/api/auth/login` | `POST` | **Public** |
-| **Logout** | `/api/auth/logout` | `POST` | **Authenticated** |
-| **Profile Me** | `/api/auth/me` | `GET` | **Authenticated** |
-| **List Users** | `/api/user` | `GET` | `manage:user` |
-| **Manage 2FA** | `/api/auth/2fa/status`| `GET` | **Authenticated** |
-| **SAML Login** | `/api/auth/saml/login`| `GET` | **Public** |
-| **Permissions** | `/api/permission/list`| `GET` | `manage:system` |
+| Feature         | HTTP Endpoint          | Method | Permission Required |
+| :-------------- | :--------------------- | :----- | :------------------ |
+| **Login**       | `/api/auth/login`      | `POST` | **Public**          |
+| **Logout**      | `/api/auth/logout`     | `POST` | **Authenticated**   |
+| **Profile Me**  | `/api/auth/me`         | `GET`  | **Authenticated**   |
+| **List Users**  | `/api/user`            | `GET`  | `manage:user`       |
+| **Manage 2FA**  | `/api/auth/2fa/status` | `GET`  | **Authenticated**   |
+| **SAML Login**  | `/api/auth/saml/login` | `GET`  | **Public**          |
+| **Permissions** | `/api/permission/list` | `GET`  | `manage:system`     |
 
 ---
 
 ## 1. Core Authentication
 
 ### User Lifecycle
+
 Standard authentication uses secure `HttpOnly` cookies to maintain session state across requests.
 
 - **Login**: `POST /api/auth/login` — validates credentials and starts a session.
@@ -45,7 +46,9 @@ Standard authentication uses secure `HttpOnly` cookies to maintain session state
 - **Me**: `GET /api/auth/me` — returns the current user object and their assigned permissions.
 
 ### Profile Management
+
 Users can update their own security attributes and metadata via dedicated endpoints:
+
 - **Update Attributes**: `PATCH /api/auth/update-user-attributes`
 - **Save Avatar**: `POST /api/auth/save-avatar` — Supports both Multipart form-data (file upload) and JSON payloads (URL string).
 
@@ -56,6 +59,7 @@ Users can update their own security attributes and metadata via dedicated endpoi
 SveltyCMS supports mandatory or optional Two-Factor Authentication via Time-based One-Time Passwords (TOTP).
 
 ### 2FA Verification Flow
+
 When 2FA is enabled, a standard login will return a `2FA_REQUIRED` status, requiring a second step.
 
 **Endpoint**: `POST /api/auth/2fa/verify`  
@@ -84,12 +88,14 @@ sequenceDiagram
 For enterprise environments, SveltyCMS acts as a **Service Provider (SP)** and integrates with Identity Providers (IdP) like Okta or Azure AD.
 
 ### SAML Configuration
+
 To connect an external IdP, the admin must provide the XML metadata.
 
 **Endpoint**: `POST /api/auth/saml/config`  
 **Payload**: `{ "tenant": "...", "rawMetadata": "<XML_CONTENT>" }`
 
 ### Just-In-Time (JIT) Provisioning
+
 The system automatically creates user records upon the first successful SAML login if they don't already exist, mapping IdP attributes to SveltyCMS roles.
 
 ---

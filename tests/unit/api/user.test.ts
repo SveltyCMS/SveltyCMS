@@ -75,6 +75,9 @@ describe("User API Unit Tests", () => {
             updateUserAttributes: vi.fn().mockResolvedValue({ success: true, data: { _id: "u1" } }),
             batchAction: vi.fn().mockResolvedValue({ success: true, data: { modifiedCount: 1 } }),
           },
+          collection: {
+            getModel: vi.fn().mockResolvedValue({}),
+          },
           collections: {},
           media: {},
           widgets: {},

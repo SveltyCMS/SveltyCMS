@@ -53,6 +53,7 @@ describe("SAML API Unit Tests", () => {
         tenantId,
         dbAdapter: {
           auth: { getUserById: vi.fn() },
+          collection: { getModel: vi.fn().mockResolvedValue({}) },
         },
         roles: user ? [] : [{ _id: "admin", name: "Admin", isAdmin: true, permissions: [] }],
       }),

@@ -18,7 +18,7 @@ import * as schema from "../schema";
 import * as utils from "../utils";
 
 // Define a type for our database to avoid 'any'
-type SQLiteDB = BaseSQLiteDatabase<"sync" | "async", unknown, typeof schema>;
+type SQLiteDB = BaseSQLiteDatabase<"sync", unknown, typeof schema>;
 
 // Interface for the underlying SQLite client (Bun or better-sqlite3)
 interface SQLiteClient {
@@ -167,18 +167,8 @@ export class AdapterCore {
         const host = (config as any).DB_HOST;
         const name = (config as any).DB_NAME;
         if (host && name && !((config as any).connectionString || (config as any).filename)) {
-          const finalName = name.endsWith(".sqlite") ? name : `${name}.sqlite`;
-          if (
-            path.isAbsolute(host) ||
-            host.startsWith(".") ||
-            host.includes("/") ||
-            host.includes("\\")
-          ) {
-            const base = host.endsWith("/") || host.endsWith("\\") ? host : `${host}/`;
-            dbPath = `${base}${finalName}`;
-          } else {
-            dbPath = finalName; // Fall through to prefixing with config/database below
-          }
+          const { resolveSqlitePath } = await import("../../config-state");
+          dbPath = resolveSqlitePath(host, name);
         } else if (name && !dbPath.endsWith(".sqlite") && !dbPath.includes(".")) {
           dbPath = `${name}.sqlite`;
         }

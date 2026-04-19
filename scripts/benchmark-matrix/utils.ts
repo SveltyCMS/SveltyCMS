@@ -1,0 +1,373 @@
+/**
+ * @file scripts/benchmark-matrix/utils.ts
+ * @description Pure utility functions for the benchmark matrix tool.
+ */
+
+import { statSync, readdirSync, existsSync } from "node:fs";
+import path from "node:path";
+import { execSync } from "node:child_process";
+import { log } from "./logger";
+import { PERFORMANCE_BUDGET } from "./config";
+import type { NumericMetric } from "./types";
+
+// ─────────────────────────────────────────────────────────────
+// Build & File System Utilities
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Shallow check if a rebuild is needed by comparing mtime of src/ top-level files
+ * against the build/ directory. Avoids deep walks and symlink issues.
+ */
+export function requiresRebuild(): boolean {
+  const buildPath = path.join(process.cwd(), "build");
+  if (!existsSync(buildPath)) return true;
+
+  const buildTime = statSync(buildPath).mtimeMs;
+  const srcPath = path.join(process.cwd(), "src");
+
+  try {
+    for (const entry of readdirSync(srcPath, { withFileTypes: true })) {
+      if (statSync(path.join(srcPath, entry.name)).mtimeMs > buildTime) {
+        return true;
+      }
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Metrics Extraction
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Extracts standardized metrics from benchmark output files.
+ * Supports both legacy flat fields and new structured `numeric-metric` format.
+ */
+export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: string) {
+  const m = metrics ?? {};
+
+  const getMetric = (pattern: string | RegExp, fallback = 0): number => {
+    const slugify = (s: string) => s.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
+    const slugPattern = typeof pattern === "string" ? slugify(pattern) : null;
+
+    // 1. Search structured numeric-metric entries (preferred)
+    for (const key of Object.keys(m)) {
+      const entry = m[key];
+
+      if (isNumericMetric(entry)) {
+        if (slugPattern && slugify(entry.name).includes(slugPattern)) {
+          return entry.value;
+        }
+        if (matchesPattern(entry.name, pattern)) {
+          return entry.value;
+        }
+      }
+
+      // Check nested objects (some results are wrapped)
+      if (typeof entry === "object" && entry !== null) {
+        for (const subKey of Object.keys(entry)) {
+          const subEntry = (entry as Record<string, unknown>)[subKey];
+          if (isNumericMetric(subEntry)) {
+            if (slugPattern && slugify(subEntry.name).includes(slugPattern)) {
+              return subEntry.value;
+            }
+            if (matchesPattern(subEntry.name, pattern)) {
+              return subEntry.value;
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Fallback to legacy key matching
+    const legacyKey = Object.keys(m).find((k) => {
+      if (slugPattern && slugify(k).includes(slugPattern)) return true;
+      return matchesPattern(k, pattern);
+    });
+
+    if (!legacyKey) return fallback;
+
+    const entry = m[legacyKey];
+    if (typeof entry === "number") return entry;
+
+    return (
+      (entry as any)?.p95Ms ??
+      (entry as any)?.avgMs ??
+      (entry as any)?.rps ??
+      (entry as any)?.value ??
+      fallback
+    );
+  };
+
+  return {
+    collections:
+      getMetric("rest.collections.p95") ||
+      getMetric("Dispatcher: findById") ||
+      getMetric("REST (Average)") ||
+      getMetric("rest-collections-p95") ||
+      0,
+    restAvg:
+      getMetric("rest.collections.avg") ||
+      getMetric("Dispatcher: findById") ||
+      getMetric("REST (Average)") ||
+      getMetric("rest-collections-avg") ||
+      0,
+    restRps:
+      getMetric("rest.collections.rps") ||
+      getMetric("rest-api-performance") ||
+      getMetric("rest-collections-rps") ||
+      0,
+    dbRaw:
+      getMetric("adapter.read.avg") || getMetric("Adapter:") || getMetric("adapter-read-avg") || 0,
+    hooks:
+      getMetric("middleware.hooks.p95") ||
+      getMetric("hooks-performance") ||
+      getMetric("middleware-hooks-p95") ||
+      0,
+    graphqlAvg:
+      getMetric("graphql.query.avg") ||
+      getMetric("GraphQL (Average)") ||
+      getMetric("graphql-average") ||
+      0,
+    gqlRps:
+      getMetric("graphql.query.rps") ||
+      getMetric("graphql-api-performance") ||
+      getMetric("graphql-query-rps") ||
+      0,
+    authAvg:
+      getMetric("auth.middleware.avg") ||
+      getMetric("auth.verification.avg") ||
+      getMetric("Auth (Average)") ||
+      getMetric("auth-middleware-avg") ||
+      0,
+    authRps:
+      getMetric("auth.max_rps") ||
+      getMetric("auth.verification.rps") ||
+      getMetric("auth-performance") ||
+      getMetric("auth-max-rps") ||
+      0,
+    relationalAvg:
+      getMetric("logic.relational.avg") ||
+      getMetric("relational-performance") ||
+      getMetric("logic-relational-avg") ||
+      0,
+    widgetAvg:
+      getMetric("logic.widget.avg") ||
+      getMetric("widget-performance") ||
+      getMetric("logic-widget-avg") ||
+      0,
+    mediaAvg:
+      getMetric("media.processing.avg") ||
+      getMetric("media-performance") ||
+      getMetric("media-bulk-avg") ||
+      0,
+    scanAvg:
+      getMetric("internals.scan.avg") ||
+      getMetric("Content Scan") ||
+      getMetric("internals-scan-avg") ||
+      0,
+    memGrowth:
+      getMetric("internals.memory.rss_delta") ||
+      (m["memory-stability"] as any)?.rssDelta ||
+      getMetric("memory-stability") ||
+      0,
+    securityMs:
+      getMetric("security.waf.avg") ||
+      getMetric("security.firewall.p95") ||
+      getMetric("security-waf-avg") ||
+      0,
+    openapiHit:
+      getMetric("api.openapi.warm.p95") ||
+      getMetric("openapi.spec.avg") ||
+      getMetric("api-openapi-warm-p95") ||
+      0,
+    buildDuration:
+      getMetric("dx.build.duration") ||
+      (m["dx-build"] as any)?.durationMs ||
+      getMetric("dx-build-duration") ||
+      0,
+    bundleSize: getMetric("dx.bundle.size.total") || getMetric("dx-bundle-size-total") || 0,
+    txCommit:
+      getMetric("adapter.transaction.commit.avg") ||
+      getMetric("adapter-transaction-commit-avg") ||
+      0,
+    systemCpu: getMetric("cpu-audit") || (m["cpu-audit"] as any)?.loadPct || 0,
+    realtimeLatency: getMetric("realtime.broadcast.avg") || getMetric("realtime-performance") || 0,
+    tenancyAvg:
+      getMetric("scale.tenancy.avg") ||
+      getMetric("multi.tenant.p95") ||
+      getMetric("multi-tenant-average") ||
+      0,
+    mixedAvg:
+      getMetric("scale.mixed.avg") ||
+      getMetric("workload.mixed.avg") ||
+      getMetric("mixed-workload-aggregate") ||
+      0,
+  };
+}
+
+// Type guard for structured metrics
+function isNumericMetric(value: unknown): value is NumericMetric {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as any)._type === "numeric-metric" &&
+    typeof (value as any).name === "string" &&
+    typeof (value as any).value === "number"
+  );
+}
+
+function matchesPattern(value: string, pattern: string | RegExp): boolean {
+  if (typeof pattern === "string") {
+    return value.toLowerCase().includes(pattern.toLowerCase());
+  }
+  return pattern.test(value);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Budget Checking
+// ─────────────────────────────────────────────────────────────
+
+export function checkBudget(m: ReturnType<typeof extractMetrics>, coldStartMs: number): string[] {
+  const violations: string[] = [];
+
+  const check = (key: string, value: number) => {
+    const limit = (PERFORMANCE_BUDGET as any)[key];
+    if (limit !== undefined && value > 0 && value > limit) {
+      violations.push(`${key}: ${value.toFixed(1)} > budget ${limit}`);
+    }
+  };
+
+  check("coldStartMs", coldStartMs);
+  check("collections", m.collections);
+  check("graphqlAvg", m.graphqlAvg);
+  check("dbRaw", m.dbRaw);
+  check("hooks", m.hooks);
+  check("memGrowth", m.memGrowth);
+  check("securityMs", m.securityMs);
+  check("openapiHit", m.openapiHit);
+
+  return violations;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Trend Analysis (from SQLite history)
+// ─────────────────────────────────────────────────────────────
+
+export async function getTrendDetails(
+  db: any,
+  dbKey: string,
+  currentVal: number,
+  column: string,
+): Promise<{ icon: string; pct: string; isRegression: boolean }> {
+  if (!currentVal) return { icon: "⚪", pct: "—", isRegression: false };
+
+  try {
+    const row = db
+      .query(
+        `
+        SELECT AVG(${column}) as avg_val
+        FROM (
+          SELECT ${column} FROM runs 
+          WHERE db_key = ? AND status = 'SUCCESS' AND ${column} > 0 
+          ORDER BY timestamp DESC LIMIT 5
+        )
+      `,
+      )
+      .get(dbKey) as { avg_val: number | null };
+
+    if (!row?.avg_val) return { icon: "⚪", pct: "—", isRegression: false };
+
+    const pct = ((currentVal - row.avg_val) / row.avg_val) * 100;
+    const isRegression = pct > 10;
+    const icon = pct < -3 ? "🟢" : pct > 5 ? "🔴" : "⚪";
+
+    return {
+      icon,
+      pct: `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`,
+      isRegression,
+    };
+  } catch {
+    return { icon: "⚪", pct: "—", isRegression: false };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Port Management
+// ─────────────────────────────────────────────────────────────
+
+export async function waitForPortFree(port: number, timeoutMs = 8000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    try {
+      await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(500) });
+      await new Promise((r) => setTimeout(r, 500));
+    } catch {
+      return; // port is free
+    }
+  }
+
+  log.warn(`Port ${port} did not become free within ${timeoutMs}ms — proceeding anyway.`);
+}
+
+export async function freePort(port: number): Promise<void> {
+  log.info(`Ensuring port ${port} and 3001 are free...`);
+
+  try {
+    if (process.platform === "win32") {
+      execSync(
+        `powershell -Command "Get-NetTCPConnection -LocalPort ${port},3001 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"`,
+        { stdio: "ignore" },
+      );
+    } else {
+      execSync(`lsof -ti:${port},3001 | xargs kill -9 2>/dev/null || true`, {
+        stdio: "ignore",
+      });
+    }
+
+    await waitForPortFree(port, 6000);
+  } catch {
+    // best-effort
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Log Filtering
+// ─────────────────────────────────────────────────────────────
+
+const NOISY_SERVER_PATTERNS: RegExp[] = [
+  /AppError \[.*\]: User not found/i,
+  /GET_ACTIVE_THEME_FAILED/i,
+  /UNIQUE constraint failed/i,
+  /Method listSchemas not yet implemented/i,
+  /CREATE_ROLE_FAILED/i,
+  /AutomationService/i,
+  /Config exists but NO USERS found/i,
+  /ENOENT.*config\/private\.ts/i,
+  /No changes made to private\.ts/i,
+  /Failed to read keys from private\.ts/i,
+  /Using DEFAULT_THEME fallback/i,
+  /ModifyRequest completed in/i,
+  /Role ".*" creation returned failure/i,
+  /setupCheck/i,
+  /DEBUG:/i,
+  /Initial MariaDB connection check failed/i,
+  /Initial PostgreSQL connection check failed/i,
+  /MariaDB adapter error/i,
+  /force rollback/i,
+];
+
+// eslint-disable-next-line no-control-regex
+const ANSI_STRIP = /[\u001b\u009b]\[[0-9;]*[JKmsu]/g;
+
+export function isNoisyLine(line: string): boolean {
+  const clean = line.replace(ANSI_STRIP, "");
+  return (
+    /→\s+[0-9]{3}/.test(clean) ||
+    /(GET|POST|PUT|DELETE|PATCH) \/.* [0-9]{3}/i.test(clean) ||
+    NOISY_SERVER_PATTERNS.some((p) => p.test(clean))
+  );
+}

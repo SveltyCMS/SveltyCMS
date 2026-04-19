@@ -17,7 +17,7 @@ const ROOT = join(__dirname, "..");
 const PORT = process.env.PORT ?? "4173";
 const HOST = process.env.HOST ?? "127.0.0.1";
 const API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
-const TEST_API_SECRET = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+const TEST_API_SECRET = process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Password123!";
 
 let previewProcess: ChildProcess | null = null;
@@ -71,24 +71,37 @@ async function startPreviewServer() {
 async function waitForServerReady(maxAttempts = 60) {
   console.log("⏳ Waiting for server to be ready...");
 
+  const ACCEPTABLE_STATES = ["healthy", "ready", "warmed", "setup", "initializing", "warming"];
+
   for (let i = 0; i < maxAttempts; i++) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/system/health`, {
-        headers: { "x-test-mode": "true" },
+        headers: {
+          "x-test-mode": "true",
+          "x-test-secret": TEST_API_SECRET,
+        },
         signal: AbortSignal.timeout(3000),
       });
 
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
-        const status = (data.status || data.overallStatus || "").toLowerCase();
 
-        if (["healthy", "ready", "warmed"].includes(status)) {
-          console.log(`✅ Server ready (status: ${status})`);
-          await new Promise((r) => setTimeout(r, 1500)); // extra settle time
+        // Extract status with priority: overallStatus > status > health
+        const rawStatus = (data.overallStatus || data.status || data.health || "").toLowerCase();
+
+        if (ACCEPTABLE_STATES.includes(rawStatus)) {
+          console.log(`✅ Server responded (state: ${rawStatus})`);
+          await new Promise((r) => setTimeout(r, 1500)); // extra settle time for DB locks
           return;
+        } else {
+          console.log(`⏳ Server up, but state is: "${rawStatus}"...`);
         }
+      } else {
+        console.log(`⏳ Server responded with HTTP ${res.status}...`);
       }
-    } catch {}
+    } catch {
+      // Quietly wait for connection
+    }
 
     await new Promise((r) => setTimeout(r, 1000));
   }

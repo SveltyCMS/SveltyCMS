@@ -11,6 +11,7 @@ import type { IDBAdapter } from "@src/databases/db-interface";
 import type { DatabaseConfig } from "@src/databases/schemas";
 import { logger } from "@utils/logger";
 import { createClient } from "redis";
+import { resolveSqlitePath } from "@src/databases/config-state";
 
 /**
  * Database connection string builder for supported database types.
@@ -60,10 +61,7 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
       return `postgresql://${user}${config.host}${port}/${config.name}`;
     }
     case "sqlite": {
-      // SQLite connection "string" (file path)
-      // Ensure host is treated as directory and name as filename
-      const path = config.host.endsWith("/") ? config.host : `${config.host}/`;
-      return `${path}${config.name}`;
+      return resolveSqlitePath(config.host, config.name);
     }
     default: {
       // TypeScript ensures exhaustive checking - this should never be reached

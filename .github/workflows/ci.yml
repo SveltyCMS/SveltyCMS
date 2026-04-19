@@ -320,6 +320,8 @@ jobs:
       - name: Run Wizard E2E tests
         env:
           DB_TYPE: sqlite
+          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
+          ADMIN_PASSWORD: ${{ secrets.BENCHMARK_ADMIN_PASSWORD || 'Password123!' }}
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
           bun run preview --host 127.0.0.1 > preview.log 2>&1 &
@@ -345,6 +347,7 @@ jobs:
     name: 📊 Benchmarks (${{ matrix.db }})
     needs: [db-tests]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'run-benchmarks')
     strategy:
       fail-fast: false
@@ -356,12 +359,15 @@ jobs:
           - db: mongodb
             image: mongo:7
             port: 27017
+            health: "mongosh --eval 'db.runCommand({ping:1})'"
           - db: mariadb
             image: mariadb:11
             port: 3306
+            health: "mariadb-admin ping"
           - db: postgresql
             image: postgres:16
             port: 5432
+            health: "pg_isready -U testuser"
     services:
       db:
         image: ${{ matrix.image }}
@@ -369,14 +375,16 @@ jobs:
           - ${{ matrix.port && format('{0}:{0}', matrix.port) || '12345:12345' }}
         env:
           MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: ${{ matrix.db == 'mariadb' && 'yes' || '' }}
-          MARIADB_DATABASE: ${{ matrix.db == 'mariadb' && 'sveltycms_test' || '' }}
+          MARIADB_DATABASE: ${{ matrix.db == 'mariadb' && 'sveltycms_bench' || '' }}
           MARIADB_USER: ${{ matrix.db == 'mariadb' && 'testuser' || '' }}
           MARIADB_PASSWORD: ${{ matrix.db == 'mariadb' && 'testpass' || '' }}
           POSTGRES_USER: ${{ matrix.db == 'postgresql' && 'testuser' || '' }}
           POSTGRES_PASSWORD: ${{ matrix.db == 'postgresql' && 'testpass' || '' }}
-          POSTGRES_DB: ${{ matrix.db == 'postgresql' && 'sveltycms_test' || '' }}
+          POSTGRES_DB: ${{ matrix.db == 'postgresql' && 'sveltycms_bench' || '' }}
           MONGO_INITDB_ROOT_USERNAME: ${{ matrix.db == 'mongodb' && 'testuser' || '' }}
           MONGO_INITDB_ROOT_PASSWORD: ${{ matrix.db == 'mongodb' && 'testpass' || '' }}
+        options: >-
+          ${{ matrix.health && format('--health-cmd "{0}" --health-interval 10s --health-timeout 5s --health-retries 6', matrix.health) || '' }}
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
@@ -391,53 +399,28 @@ jobs:
             ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+
       - name: Wait for DB
         if: matrix.db != 'sqlite'
-        run: |
-          bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 120000
-          sleep 15
-      - name: Run System Setup (Black-Box)
+        run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000
+
+      - name: Run Enterprise Benchmark Matrix
         env:
-          DB_TYPE: ${{ matrix.db }}
-          DB_HOST: 127.0.0.1
-          DB_PORT: ${{ matrix.port }}
-          DB_NAME: sveltycms_test
           DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
           DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
-          TEST_MODE: true
+          ADMIN_PASSWORD: ${{ secrets.BENCHMARK_ADMIN_PASSWORD || 'Password123!' }}
+          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
         run: |
-          bun run preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
-          for i in {1..60}; do curl -s http://127.0.0.1:4173/api/system/health && break || sleep 1; done
-          bun run scripts/setup-system.ts
-      - name: Run Performance Suite
-        env:
-          DB_TYPE: ${{ matrix.db }}
-          DB_HOST: 127.0.0.1
-          DB_PORT: ${{ matrix.port }}
-          DB_NAME: sveltycms_test
-          DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
-          DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
-          TEST_MODE: true
-        run: |
-          echo "### 📊 Performance Results ($DB_TYPE)" >> $GITHUB_STEP_SUMMARY
+          bun run scripts/benchmark-matrix/index.ts \
+            --no-build \
+            --db=${{ matrix.db }} \
+            --level=4 \
+            --skip-redis \
+            --ci
 
-          echo "#### ⚡ Middleware Hooks" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          bun test tests/benchmarks/hooks-performance.test.ts >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-          echo "#### 💾 Raw Database CRUD" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          bun run tests/benchmarks/database-performance.ts >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-          echo "#### 📡 REST API Throughput" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          bun test tests/benchmarks/rest-api-performance.test.ts >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-      - name: Upload Logs
+      - uses: actions/upload-artifact@v7
         if: always()
-        uses: actions/upload-artifact@v7
         with:
-          name: benchmark-log-${{ matrix.db }}
-          path: preview.log
+          name: benchmark-results-${{ matrix.db }}
+          path: tests/benchmarks/results/
+          retention-days: 14

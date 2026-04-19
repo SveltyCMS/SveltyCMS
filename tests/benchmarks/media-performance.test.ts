@@ -1,210 +1,231 @@
 /**
  * @file tests/benchmarks/media-performance.test.ts
- * @description High-fidelity benchmark for SveltyCMS Media Engine (DAM) using Sharp.
- *              Measures hashing, metadata extraction, multi-scale resizing, and bulk processing.
+ * @description Enterprise media benchmark for SveltyCMS.
+ * Measures hashing, metadata, and multi-format responsive image generation (JPEG, WebP, AVIF).
  */
 
 import { test } from "bun:test";
-import { runBenchmark, exportResult } from "./benchmark-utils";
+import { runBenchmark, exportResult, exportMetric, stabilize } from "./benchmark-utils";
+
 import sharp from "sharp";
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const SIZES = { sm: 200, md: 600, lg: 1200 };
-const QUALITY = 80;
-const TEST_IMAGE_PATH = path.join(os.tmpdir(), "svelty-bench-media", "test-1920x1080.jpg");
+const CPU = os.cpus().length;
+// Optimization: Leave headroom for the OS and Bun while Sharp works
+sharp.concurrency(Math.max(1, Math.floor(CPU * 0.75)));
+
+const TEST_IMAGE_PATH = path.join(os.tmpdir(), "svelty-media-benchmark", "test-1920x1080.jpg");
+
+const SIZES = [200, 600, 1200];
 
 async function setupTestImage() {
-  const tmpDir = path.dirname(TEST_IMAGE_PATH);
-  await fs.mkdir(tmpDir, { recursive: true });
+  await fs.mkdir(path.dirname(TEST_IMAGE_PATH), { recursive: true });
 
   try {
     await fs.access(TEST_IMAGE_PATH);
     return await fs.readFile(TEST_IMAGE_PATH);
-  } catch {
-    console.log("🎨 Generating realistic 1920×1080 test image...");
-    const image = sharp({
-      create: {
-        width: 1920,
-        height: 1080,
-        channels: 4,
-        background: { r: 100, g: 150, b: 200, alpha: 1 },
-      },
-    }).composite([
-      {
-        input: Buffer.from(
-          '<svg><text x="50%" y="50%" font-size="180" text-anchor="middle" dominant-baseline="middle" fill="white">SveltyCMS</text></svg>',
-        ),
-        gravity: "center",
-      },
-    ]);
+  } catch {}
 
-    await image.jpeg({ quality: 90 }).toFile(TEST_IMAGE_PATH);
-    const buffer = await image.toBuffer();
-    console.log(`📸 Test image ready: 1920×1080 JPEG (~${(buffer.length / 1024).toFixed(1)} KB)\n`);
-    return buffer;
+  console.log("🎨 Generating enterprise benchmark image...");
+
+  const img = sharp({
+    create: {
+      width: 1920,
+      height: 1080,
+      channels: 4,
+      background: { r: 80, g: 120, b: 180, alpha: 1 },
+    },
+  }).composite([
+    {
+      input: Buffer.from(`
+        <svg width="1920" height="1080">
+          <text x="50%" y="50%" font-size="170" text-anchor="middle" fill="white">
+            SveltyCMS
+          </text>
+        </svg>
+      `),
+      gravity: "center",
+    },
+  ]);
+
+  await img.jpeg({ quality: 92 }).toFile(TEST_IMAGE_PATH);
+  return fs.readFile(TEST_IMAGE_PATH);
+}
+
+async function resizeSet(buffer: Buffer, format: "jpeg" | "webp" | "avif") {
+  for (const width of SIZES) {
+    let pipe = sharp(buffer).resize(width, null, {
+      fit: "cover",
+      withoutEnlargement: true,
+    });
+
+    if (format === "jpeg") pipe = pipe.jpeg({ quality: 82, mozjpeg: true });
+    if (format === "webp") pipe = pipe.webp({ quality: 80 });
+    if (format === "avif") pipe = pipe.avif({ quality: 50, effort: 2 }); // Faster AVIF for bench
+
+    await pipe.toBuffer();
   }
 }
 
 export async function runMediaBenchmark() {
-  console.log("🖼️ Starting SveltyCMS Media Engine (Sharp) Performance Benchmark...\n");
+  console.log("🖼️ Starting Enterprise Media Benchmark...\n");
 
-  const originalBuffer = await setupTestImage();
+  const original = await setupTestImage();
+  await stabilize();
 
-  const ITER_FAST = 3000;
-  const ITER_HEAVY = 400; // Fewer iterations for expensive operations
-  const WARMUP = 150;
-  const RUNS = 3;
+  const RUNS = 2; // Reduced runs for media
+  const allResults: any[] = [];
 
-  // 1. SHA-256 Hashing
+  // 1. Hashing (Fast)
   const hashResult = await runBenchmark({
-    name: "Media: SHA-256 Hashing",
-    iterations: ITER_FAST,
-    warmupIterations: WARMUP,
+    name: "SHA-256 Hash",
+    iterations: 1000,
+    warmupIterations: 50,
     runs: RUNS,
     concurrency: 1,
     trimOutliers: "iqr",
     measureMemory: true,
-    onIteration: async () => {
-      createHash("sha256").update(originalBuffer).digest("hex");
-    },
     silent: true,
+    onIteration: () => {
+      createHash("sha256").update(original).digest("hex");
+    },
   });
+  allResults.push(hashResult);
 
-  // 2. Metadata Extraction
+  // 2. Metadata (Fast)
   const metaResult = await runBenchmark({
-    name: "Media: Metadata Extraction",
-    iterations: ITER_FAST,
-    warmupIterations: WARMUP,
+    name: "Metadata Extraction",
+    iterations: 500,
+    warmupIterations: 25,
     runs: RUNS,
     concurrency: 1,
     trimOutliers: "iqr",
     measureMemory: true,
-    onIteration: async () => {
-      await sharp(originalBuffer).metadata();
-    },
     silent: true,
+    onIteration: async () => {
+      await sharp(original).metadata();
+    },
   });
+  allResults.push(metaResult);
 
-  // 3. Multi-scale Resize + JPEG (realistic DAM pipeline)
-  const resizeResult = await runBenchmark({
-    name: "Media: Multi-scale Resize + JPEG (sm/md/lg)",
-    iterations: ITER_HEAVY,
-    warmupIterations: WARMUP,
+  // 3. JPEG Resize (Medium)
+  const jpegResult = await runBenchmark({
+    name: "Responsive JPEG Set",
+    iterations: 40,
+    warmupIterations: 5,
     runs: RUNS,
     concurrency: 1,
     trimOutliers: "iqr",
     measureMemory: true,
-    onIteration: async () => {
-      const img = sharp(originalBuffer);
-      for (const width of Object.values(SIZES)) {
-        await img
-          .clone()
-          .resize(width, null, { fit: "cover", withoutEnlargement: true })
-          .jpeg({ quality: QUALITY, mozjpeg: true })
-          .toBuffer();
-      }
-    },
     silent: true,
+    onIteration: async () => {
+      await resizeSet(original, "jpeg");
+    },
   });
+  allResults.push(jpegResult);
 
-  // 4. Bulk Concurrent Processing (background job simulation)
-  console.log("\n🔀 Testing bulk concurrent processing (10 images in parallel)...");
-  const bulkStart = performance.now();
+  // 4. WebP (Medium)
+  const webpResult = await runBenchmark({
+    name: "Responsive WebP Set",
+    iterations: 25,
+    warmupIterations: 3,
+    runs: RUNS,
+    concurrency: 1,
+    trimOutliers: "iqr",
+    measureMemory: true,
+    silent: true,
+    onIteration: async () => {
+      await resizeSet(original, "webp");
+    },
+  });
+  allResults.push(webpResult);
 
-  await Promise.all(
-    Array.from({ length: 10 }, async () => {
-      const img = sharp(originalBuffer);
-      for (const width of Object.values(SIZES)) {
-        await img
-          .clone()
-          .resize(width, null, { fit: "cover", withoutEnlargement: true })
-          .jpeg({ quality: QUALITY, mozjpeg: true })
-          .toBuffer();
-      }
-    }),
-  );
+  // 5. AVIF (Heavy - Very Low Iterations)
+  const avifResult = await runBenchmark({
+    name: "Responsive AVIF Set",
+    iterations: 8,
+    warmupIterations: 1,
+    runs: 1,
+    concurrency: 1,
+    trimOutliers: false,
+    measureMemory: true,
+    silent: true,
+    onIteration: async () => {
+      await resizeSet(original, "avif");
+    },
+  });
+  allResults.push(avifResult);
 
-  const bulkMs = performance.now() - bulkStart;
+  // 6. Bulk Queue Simulation (Heavy)
+  const bulkResult = await runBenchmark({
+    name: "Bulk Queue (5 jobs @ 2c)",
+    iterations: 10,
+    warmupIterations: 1,
+    runs: 1,
+    concurrency: 2,
+    trimOutliers: false,
+    measureMemory: true,
+    silent: true,
+    onIteration: async () => {
+      await Promise.all(Array.from({ length: 5 }, () => resizeSet(original, "jpeg")));
+    },
+  });
+  allResults.push(bulkResult);
 
-  // ===================================================================
-  // Professional Summary
-  // ===================================================================
-  console.log("\n" + "=".repeat(130));
-  console.log("   🖼️  SVELTYCMS MEDIA ENGINE (SHARP) PERFORMANCE AUDIT");
-  console.log("   High-Fidelity • Multiple Runs • IQR Trimming • Memory Tracking");
-  console.log("=".repeat(130));
+  console.log("\n" + "=".repeat(150));
+  console.log("🖼️ SVELTYCMS MEDIA ENGINE ENTERPRISE REPORT");
+  console.log("Hashing • Metadata • JPEG • WebP • AVIF • Queue Jobs");
+  console.log("=".repeat(150));
 
   console.log(
-    `| ${"Operation".padEnd(38)} | ${"Avg Latency".padEnd(22)} | ${"p95".padEnd(14)} | ${"RPS".padEnd(12)} | ${"RSS Δ".padEnd(12)} |`,
+    `| ${"Operation".padEnd(34)} | ${"Avg".padEnd(12)} | ${"p95".padEnd(12)} | ${"RPS".padEnd(12)} | ${"RSS Δ".padEnd(10)} |`,
   );
-  console.log("|" + "-".repeat(38 + 22 + 14 + 12 + 12 + 6) + "|");
+  console.log("|" + "-".repeat(145) + "|");
 
-  const mediaResults = [hashResult, metaResult, resizeResult];
-
-  for (const r of mediaResults) {
-    const rssDelta =
-      r.rssDelta !== undefined ? `${r.rssDelta >= 0 ? "+" : ""}${r.rssDelta.toFixed(2)} MB` : "—";
-
+  for (const r of allResults) {
+    const rss =
+      r.rssDelta !== undefined ? `${r.rssDelta >= 0 ? "+" : ""}${r.rssDelta.toFixed(2)}MB` : "—";
     console.log(
-      `| ${r.name.padEnd(38)} | ` +
-        `${r.avgMs.toFixed(4)} ms (±${r.marginOfError.toFixed(3)})`.padEnd(22) +
-        ` | ` +
-        `${r.p95Ms.toFixed(4)} ms`.padEnd(14) +
-        ` | ` +
-        `${Math.round(r.rps).toLocaleString()}`.padEnd(12) +
-        ` | ` +
-        `${rssDelta.padEnd(12)} |`,
+      `| ${r.name.padEnd(34)} | ` +
+        `${r.avgMs.toFixed(3)} ms`.padEnd(12) +
+        ` | ${r.p95Ms.toFixed(3)}`.padEnd(12) +
+        ` | ${Math.round(r.rps).toLocaleString().padEnd(12)}` +
+        ` | ${rss.padEnd(10)} |`,
     );
   }
-  console.log("=".repeat(130));
+  console.log("=".repeat(150));
 
-  console.log(`\n📈 Bulk Processing (10 images concurrent): ${bulkMs.toFixed(1)} ms total`);
-  console.log(`   → ~${(bulkMs / 10).toFixed(2)} ms per image`);
+  console.log("\n✨ Insights:");
+  console.log(`• CPU Cores detected: ${CPU}`);
+  console.log(`• AVIF is slowest but highest compression.`);
+  console.log(`• WebP is best balanced production format.`);
+  console.log(`• Bulk queue avg: ${bulkResult.avgMs.toFixed(1)} ms`);
 
-  const syncTotal = hashResult.avgMs + metaResult.avgMs + resizeResult.avgMs;
-  console.log(`\n✨ Pipeline Insights:`);
-  console.log(`   • Synchronous full pipeline (hash + meta + resize): ${syncTotal.toFixed(3)} ms`);
-  console.log(`   • Async offload recommended for resize step`);
-  console.log(
-    `   • Expected API impact if resize is done inline: +${resizeResult.avgMs.toFixed(1)} ms`,
-  );
+  exportMetric("media.resize.avg", jpegResult.avgMs, "ms");
+  exportMetric("media.resize.rps", jpegResult.rps, "req/s");
+  exportMetric("media.webp.avg", webpResult.avgMs, "ms");
+  exportMetric("media.avif.avg", avifResult.avgMs, "ms");
+  exportMetric("media.bulk.avg", bulkResult.avgMs, "ms");
 
-  // Export results
-  mediaResults.forEach((r) => exportResult(r));
+  for (const r of allResults) exportResult(r);
 
   const resultsDir = process.env.RESULTS_DIR || "tests/benchmarks/results";
   await fs.mkdir(resultsDir, { recursive: true });
   await fs.writeFile(
     path.join(resultsDir, "media-performance.json"),
     JSON.stringify(
-      {
-        name: "Media Engine (Sharp)",
-        timestamp: new Date().toISOString(),
-        runtime: "Bun",
-        cores: os.cpus().length,
-        hash: { avgMs: hashResult.avgMs, p95Ms: hashResult.p95Ms, rps: hashResult.rps },
-        metadata: { avgMs: metaResult.avgMs, p95Ms: metaResult.p95Ms, rps: metaResult.rps },
-        multiScaleResize: {
-          avgMs: resizeResult.avgMs,
-          p95Ms: resizeResult.p95Ms,
-          rps: resizeResult.rps,
-        },
-        bulk10ImagesMs: bulkMs,
-        syncTotalAvgMs: syncTotal,
-      },
+      { timestamp: new Date().toISOString(), cpuCores: CPU, results: allResults },
       null,
       2,
     ),
   );
 
-  console.log("\n✅ Media Engine benchmark completed.");
+  console.log("\n✅ Media benchmark completed.");
 }
 
-if (!process.env.SVELTY_AUDIT_ACTIVE) {
-  test("Media Engine Performance (Sharp)", async () => {
-    await runMediaBenchmark();
-  }, 600000);
-}
+test("Media Engine Enterprise Benchmark", async () => {
+  await runMediaBenchmark();
+}, 600000);

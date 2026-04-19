@@ -22,14 +22,14 @@ SveltyCMS provides a native implementation of the **System for Cross-domain Iden
 
 ## ⚡ Quick Reference
 
-| Feature | HTTP Endpoint | Method | Permission Required |
-| :--- | :--- | :--- | :--- |
-| **List Users** | `/api/scim/v2/Users` | `GET` | `manage:user` |
-| **Get User** | `/api/scim/v2/Users/{id}` | `GET` | `manage:user` |
-| **Create User** | `/api/scim/v2/Users` | `POST` | `manage:user` |
-| **Update User** | `/api/scim/v2/Users/{id}` | `PATCH` | `manage:user` |
-| **Delete User** | `/api/scim/v2/Users/{id}` | `DELETE`| `manage:user` |
-| **Bulk Ops** | `/api/scim/v2/Bulk` | `POST` | `manage:user` |
+| Feature         | HTTP Endpoint             | Method   | Permission Required |
+| :-------------- | :------------------------ | :------- | :------------------ |
+| **List Users**  | `/api/scim/v2/Users`      | `GET`    | `manage:user`       |
+| **Get User**    | `/api/scim/v2/Users/{id}` | `GET`    | `manage:user`       |
+| **Create User** | `/api/scim/v2/Users`      | `POST`   | `manage:user`       |
+| **Update User** | `/api/scim/v2/Users/{id}` | `PATCH`  | `manage:user`       |
+| **Delete User** | `/api/scim/v2/Users/{id}` | `DELETE` | `manage:user`       |
+| **Bulk Ops**    | `/api/scim/v2/Bulk`       | `POST`   | `manage:user`       |
 
 ---
 
@@ -42,10 +42,13 @@ Automate the user lifecycle (Joiners, Movers, Leavers) by allowing the enterpris
 ## 2. The Solution
 
 ### Endpoint Configuration
+
 The SCIM API is located at `/api/scim/v2/`. Most IdPs will require a **SCIM Base URL** and an **API Token** (generated via [Tokens API](./tokens.mdx)).
 
 ### Supported Attributes
+
 SveltyCMS filters and maps SCIM standard attributes to its internal user model:
+
 - `userName` → `username`
 - `emails[type=work]` → `email`
 - `active` → `status`
@@ -56,6 +59,7 @@ SveltyCMS filters and maps SCIM standard attributes to its internal user model:
 ## 3. The Mechanics
 
 ### SCIM Compliance
+
 The `scim.ts` handler implements complex filtering (e.g., `filter=userName eq "john"`) and pagination according to the RFC 7644 specification.
 
 ```mermaid

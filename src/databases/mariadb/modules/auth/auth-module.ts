@@ -210,15 +210,22 @@ export class AuthModule {
   }): Promise<DatabaseResult<User | null>> {
     return this.core.wrap(async () => {
       const email = criteria.email.toLowerCase();
-      const conditions = [sql`lower(${schema.authUsers.email}) = ${email}`];
-      if (criteria.tenantId) {
+      // MariaDB/MySQL is case-insensitive by default with _ci collations.
+      // We use eq() for best compatibility and to ensure Drizzle correctly handles the column reference.
+      const conditions = [eq(schema.authUsers.email, email)];
+
+      if (criteria.tenantId !== undefined) {
         conditions.push(eq(schema.authUsers.tenantId, criteria.tenantId as string));
       }
-      const [result] = await this.db
+
+      const results = await this.db
         .select()
         .from(schema.authUsers)
         .where(and(...conditions))
         .limit(1);
+
+      const result = results.length > 0 ? results[0] : null;
+
       return result ? this.mapUser(result) : null;
     }, "GET_USER_BY_EMAIL_FAILED");
   }

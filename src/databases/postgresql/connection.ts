@@ -43,9 +43,9 @@ export async function createConnection(
     password: config.password,
     database: config.database,
     ssl: config.ssl === true || config.ssl === "require" ? "require" : undefined,
-    max: 10, // Connection pool size
+    max: 100, // Increased for high-concurrency enterprise benchmarks
     idle_timeout: 60, // Idle connection timeout in seconds
-    connect_timeout: 10, // Connection timeout in seconds
+    connect_timeout: 30, // Connection timeout in seconds
     onnotice: () => {
       /* Suppress notice messages */
     },

@@ -1059,6 +1059,7 @@ export interface ICollectionAdapter {
 }
 
 export interface IDBAdapter {
+  type: string;
   // Top-Level Domains
   auth: IAuthAdapter;
   content: IContentAdapter;

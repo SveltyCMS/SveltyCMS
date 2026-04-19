@@ -72,8 +72,8 @@ export class AdapterCore {
       }
 
       let options: Record<string, unknown> = {
-        max: 10,
-        connect_timeout: 10,
+        max: 100, // Increased for high-concurrency enterprise benchmarks
+        connect_timeout: 30, // Increased stability
       };
 
       if (typeof finalConnection === "string") {
@@ -114,17 +114,16 @@ export class AdapterCore {
           return { success: true, data: undefined };
         }
       } else {
+        const c = finalConnection as any;
         options = {
-          ...options,
-          host: (finalConnection as any).host,
-          port: (finalConnection as any).port,
-          user: (finalConnection as any).user,
-          password: (finalConnection as any).password,
-          database: (finalConnection as any).database,
-          ssl:
-            (finalConnection as any).ssl === true || (finalConnection as any).ssl === "require"
-              ? "require"
-              : undefined,
+          host: c.host || c.DB_HOST || "127.0.0.1",
+          port: Number(c.port || c.DB_PORT || 5432),
+          user: c.user || c.DB_USER || "postgres",
+          password: c.password || c.DB_PASSWORD || "",
+          database: c.database || c.DB_NAME || "postgres",
+          max: 100,
+          connect_timeout: 30,
+          ssl: c.ssl === true || c.ssl === "require" ? "require" : undefined,
           onnotice: () => {
             /* Suppress notice messages */
           },
@@ -282,7 +281,12 @@ export class AdapterCore {
 
   public handleError<T>(error: unknown, code: string): DatabaseResult<T> {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error(`PostgreSQL adapter error [${code}]:`, message);
+    // Log full error object in debug/benchmark mode to capture stack traces
+    if (process.env.BENCHMARK_DEBUG === "true" || process.env.SVELTY_AUDIT_ACTIVE) {
+      logger.error(`PostgreSQL adapter error [${code}]:`, error);
+    } else {
+      logger.error(`PostgreSQL adapter error [${code}]:`, message);
+    }
     return {
       success: false,
       message,
@@ -352,16 +356,32 @@ export class AdapterCore {
       return this.dynamicTables.get(collection)!;
     }
 
-    if (/^[a-f0-9]{32,36}$/i.test(collection) || collection.startsWith("collection_")) {
-      const tableId = collection.startsWith("collection_")
-        ? collection
-        : `collection_${collection}`;
+    // Treat as dynamic if it's not a static schema table and doesn't match common aliases
+    const tableId = collection.startsWith("collection_") ? collection : `collection_${collection}`;
+
+    // Check if we already have this dynamic table defined
+    if (this.dynamicTables.has(tableId)) {
+      return this.dynamicTables.get(tableId);
+    }
+
+    // If it's a UUID or starts with collection_, or it's a known dynamic collection
+    if (
+      /^[a-f0-9]{32,36}$/i.test(collection) ||
+      collection.startsWith("collection_") ||
+      this.collectionRegistry.has(collection)
+    ) {
+      // Robust registry check: ensure the ID is registered if not already present
+      if (!this.collectionRegistry.has(collection)) {
+        this.collectionRegistry.set(collection, { _id: collection });
+      }
+
       const dynamicTable = this.createDynamicTableDefinition(tableId);
       this.dynamicTables.set(collection, dynamicTable);
+      this.dynamicTables.set(tableId, dynamicTable);
       return dynamicTable as unknown as Record<string, unknown>;
     }
 
-    // Fallback to contentNodes
+    // Final fallback to contentNodes
     return schema.contentNodes as unknown as Record<string, unknown>;
   }
 

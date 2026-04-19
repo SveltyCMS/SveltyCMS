@@ -40,7 +40,6 @@ for the image editor canvas with reactive rendering.
 		activeTool = null,
 		ondrop,
 		onupload,
-		onzoom,
 		children
 	}: {
 		hasImage?: boolean;
@@ -53,7 +52,6 @@ for the image editor canvas with reactive rendering.
 		activeTool?: any;
 		ondrop?: (file: File) => void;
 		onupload?: () => void;
-		onzoom?: (type: 'in' | 'out' | 'reset') => void;
 		children?: Snippet;
 	} = $props();
 

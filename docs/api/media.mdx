@@ -22,26 +22,28 @@ The Media API provides a centralized interface for managing all assets within Sv
 
 ## ⚡ Quick Reference
 
-| Feature | HTTP Endpoint | Method | Permission Required |
-| :--- | :--- | :--- | :--- |
-| **List Media** | `/api/media` | `GET` | `media:read` |
-| **Get Manifest** | `/api/media/{id}` | `GET` | `media:read` |
-| **Upload Media** | `/api/media` | `POST` | `media:create` |
-| **Update Metadata**| `/api/media/{id}` | `PATCH` | `media:update` |
-| **Delete Media** | `/api/media/{id}` | `DELETE`| `media:delete` |
-| **Folders** | `/api/media/folders` | `GET` | `media:read` |
+| Feature             | HTTP Endpoint        | Method   | Permission Required |
+| :------------------ | :------------------- | :------- | :------------------ |
+| **List Media**      | `/api/media`         | `GET`    | `media:read`        |
+| **Get Manifest**    | `/api/media/{id}`    | `GET`    | `media:read`        |
+| **Upload Media**    | `/api/media`         | `POST`   | `media:create`      |
+| **Update Metadata** | `/api/media/{id}`    | `PATCH`  | `media:update`      |
+| **Delete Media**    | `/api/media/{id}`    | `DELETE` | `media:delete`      |
+| **Folders**         | `/api/media/folders` | `GET`    | `media:read`        |
 
 ---
 
 ## 1. Asset Management
 
 ### Uploading Assets
+
 SveltyCMS supports single and bulk uploads via standard `multipart/form-data`.
 
 **Endpoint**: `POST /api/media`  
 **Payload**: `files` field (array or single stream).
 
 ### Folders & Structure
+
 Virtual folders allow you to organize your asset library without relying on physical directory structures.
 
 **Endpoint**: `GET /api/media/folders` — Returns the current folder hierarchy.
@@ -51,9 +53,11 @@ Virtual folders allow you to organize your asset library without relying on phys
 ## 2. Media Processing
 
 ### Auto-Deduplication
+
 The media engine calculates high-entropy hashes (SHA-256) for every upload. If an identical file already exists in the system, SveltyCMS will automatically link the new metadata to the existing physical file, saving storage space.
 
 ### Intelligent Resizing
+
 When an image is requested, the system can generate on-the-fly transformations (e.g., thumbnails, WebP conversion) based on the client's request.
 
 ---
@@ -61,6 +65,7 @@ When an image is requested, the system can generate on-the-fly transformations (
 ## 3. The Mechanics
 
 ### Storage Adapters
+
 The Media API is storage-agnostic. It can be configured to use local disk storage, AWS S3, Google Cloud Storage, or Azure Blob Storage through the **MediaAdapter** interface.
 
 ```mermaid

@@ -18,6 +18,9 @@ const { mockDbAdapter } = vi.hoisted(() => ({
         .mockReturnValue({ name: "session", value: "val", attributes: {} }),
       login: vi.fn(),
     },
+    collection: {
+      getModel: vi.fn().mockResolvedValue({}),
+    },
     collections: {
       list: vi.fn(),
       find: vi.fn(),

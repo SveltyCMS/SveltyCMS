@@ -19,6 +19,9 @@ vi.mock("@src/databases/db", () => {
       createToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
       deleteTokens: vi.fn().mockResolvedValue({ success: true, data: { deletedCount: 1 } }),
     },
+    collection: {
+      getModel: vi.fn().mockResolvedValue({}),
+    },
     crud: {
       findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
       insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
@@ -74,6 +77,9 @@ describe("Token API Unit Tests", () => {
             updateToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "token-id" } }),
             createToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
             deleteTokens: vi.fn().mockResolvedValue({ success: true, data: { deletedCount: 1 } }),
+          },
+          collection: {
+            getModel: vi.fn().mockResolvedValue({}),
           },
           collections: {},
           media: {},

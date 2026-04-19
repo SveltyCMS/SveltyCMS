@@ -29,6 +29,7 @@ import { PostgresQueryBuilder } from "../query-builder/postgres-query-builder";
 import { TransactionModule } from "../operations/transaction-module";
 
 export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {
+  public readonly type = "postgresql";
   public readonly system: ISystemAdapter;
   public readonly monitoring: IMonitoringAdapter;
   public readonly crud: ICrudAdapter;

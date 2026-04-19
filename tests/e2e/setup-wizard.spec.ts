@@ -188,6 +188,8 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
         ? ""
         : "test";
 
+  const dbAuthSource = process.env.DB_AUTH_SOURCE || "";
+
   const dbTypeSelect = page.locator("#db-type");
   await dbTypeSelect.selectOption(dbType);
 
@@ -279,10 +281,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   // Wait for redirect away from /setup
   console.log("Waiting for redirect away from /setup...");
   await page.waitForTimeout(3000);
-  await page.waitForURL(
-    (url) => !url.pathname.startsWith("/setup"),
-    { timeout: 120_000 },
-  );
+  await page.waitForURL((url) => !url.pathname.startsWith("/setup"), { timeout: 120_000 });
   console.log("Successfully redirected after setup. Current URL:", page.url());
 
   // Navigate to the collection builder to verify setup completed successfully

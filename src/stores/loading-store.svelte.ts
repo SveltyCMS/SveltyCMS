@@ -111,7 +111,9 @@ export class LoadingStore {
 
     // Prevent duplicate entries
     if (this._loadingStack.has(reason)) {
-      console.warn(`[LoadingStore] Operation "${reason}" already in progress`);
+      if (!isTest || (globalThis as any).process?.env?.VERBOSE_TESTS) {
+        console.warn(`[LoadingStore] Operation "${reason}" already in progress`);
+      }
       return;
     }
 
@@ -125,7 +127,9 @@ export class LoadingStore {
     // Create timeout to auto-cleanup stuck states (skip in TEST_MODE for stable unit tests)
     if (!isTest) {
       entry.timeoutId = setTimeout(() => {
-        console.warn(`[LoadingStore] Auto-cleanup: "${reason}" exceeded ${timeout}ms`);
+        if (!isTest || (globalThis as any).process?.env?.VERBOSE_TESTS) {
+          console.warn(`[LoadingStore] Auto-cleanup: "${reason}" exceeded ${timeout}ms`);
+        }
         this.stopLoading(reason);
       }, timeout);
     }
@@ -136,7 +140,7 @@ export class LoadingStore {
     this._isLoading = true;
     this._loadingReason = reason;
 
-    if (context) {
+    if (context && (!isTest || (globalThis as any).process?.env?.VERBOSE_TESTS)) {
       console.debug(`[LoadingStore] Started: ${reason} (${context})`);
     }
   }
@@ -187,7 +191,7 @@ export class LoadingStore {
       }
     }
 
-    if (entry) {
+    if (entry && (!isTest || (globalThis as any).process?.env?.VERBOSE_TESTS)) {
       const duration = Date.now() - entry.startTime;
       console.debug(`[LoadingStore] Stopped: ${reason} (${duration}ms)`);
     }
@@ -248,7 +252,9 @@ export class LoadingStore {
     this._canCancel = false;
     this._onCancel = undefined;
 
-    console.warn("[LoadingStore] Force cleared all loading states");
+    if (!isTest || (globalThis as any).process?.env?.VERBOSE_TESTS) {
+      console.warn("[LoadingStore] Force cleared all loading states");
+    }
   }
 
   // Check if a specific operation is currently loading

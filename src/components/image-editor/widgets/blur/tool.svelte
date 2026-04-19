@@ -125,7 +125,7 @@ Blur tool with interactive rectangular redaction regions.
 	}
 
 	export function handleMouseDown(e: MouseEvent, width: number, height: number) {
-		const { zoom, translateX, translateY, imageElement } = storeState;
+		const { zoom, imageElement } = storeState;
 		if (!imageElement) return;
 
 		const rect = ((e.currentTarget as HTMLElement) ?? (e.target as HTMLElement)).getBoundingClientRect();
@@ -174,8 +174,7 @@ Blur tool with interactive rectangular redaction regions.
 
 	export function handleMouseMove(e: MouseEvent, width: number, height: number) {
 		if (!isDragging && !isResizing) return;
-
-		const { zoom, translateX, translateY, imageElement } = storeState;
+		const { imageElement } = storeState;
 		if (!imageElement) return;
 
 		const rect = ((e.currentTarget as HTMLElement) ?? (e.target as HTMLElement)).getBoundingClientRect();

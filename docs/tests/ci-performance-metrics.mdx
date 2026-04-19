@@ -4,7 +4,7 @@ title: "CI/CD Performance & Bundle Size Analysis"
 description: "Documentation on monitoring bundle sizes and other performance metrics."
 author: "SveltyCMS Team"
 created: "2025-12-16"
-updated: "2026-04-03"
+updated: "2026-04-19"
 tags:
   - "testing"
   - "performance"
@@ -18,30 +18,42 @@ We actively monitor our application bundle size and API latency to prevent perfo
 
 ## 📊 Enterprise Performance Matrix
 
-The **Enterprise Benchmark Matrix** is our primary tool for cross-database performance validation. It measures:
+The **Enterprise Benchmark Matrix (Audit 2.0)** is our primary tool for cross-database performance validation. As of April 19, 2026, the orchestrator has been deeply stabilized to support massive concurrent loads across all 4 primary database engines (**SQLite, MongoDB, PostgreSQL, and MariaDB**) with 100% passing metrics.
 
-- **REST API Latency**: E2E collection throughput.
-- **GraphQL Resolvers**: Efficiency and N+1 resolution.
-- **Relational Performance**: JOINs, population, and nested relations (Depth 2-3).
-- **Middleware Overhead**: Latency added by Security, Auth, and RBAC layers.
-- **Cold Start Time**: Server initialization latency.
+It measures:
 
-To run the full matrix across all supported databases:
+- **REST API Latency**: E2E collection throughput using the unified Dispatcher.
+- **GraphQL Resolvers**: Efficiency, AST depth limits, and N+1 resolution.
+- **Relational Performance**: JOINs, population, and deeply nested relations (Depth 2-3).
+- **Middleware Overhead**: Microsecond-latency added by Security, Auth, and RBAC layers.
+- **Realtime Latency**: WebSocket connection and broadcast timing.
+- **Memory Stability**: RSS and Heap growth detection across sustained 180s loads.
+
+### 🚀 Running the Orchestrator
+
+The orchestrator code is modularized inside `scripts/benchmark-matrix/` for ultimate maintainability, but is easily executed via the main barrel file:
 
 ```bash
-bun run scripts/enterprise-matrix.ts
+# Run the full matrix across all 4 databases and 8 variants (including Redis)
+bun run scripts/benchmark-matrix/index.ts
+
+# Run only a specific database
+bun run scripts/benchmark-matrix/index.ts --db=postgresql,mariadb
+
+# Run a specific benchmark section
+bun run scripts/benchmark-matrix/index.ts --db=sqlite --section=api
 ```
 
 > [!NOTE]
-> This requires running Docker instances of MongoDB, PostgreSQL, and MariaDB.
+> Running the full matrix requires active local instances (or Docker containers) of MongoDB (`:27017`), PostgreSQL (`:5432`), and MariaDB (`:3306`). The orchestrator will automatically provision the required isolated `_global` and `_setup` databases for the test.
 
-### Retention & Trend Analysis
+### Retention & Trend Analysis (SQLite)
 
 The matrix maintains a specialized retention policy to balance historical context with actionable trends:
 
+- **SQLite Backend**: All results are persisted in `history.sqlite` for professional time-series analysis.
 - **Trend Window**: Mermaid charts and trend indicators (🟢/🔴) analyze the **last 5 runs**.
-- **Historical Depth**: `history.json` persists up to **20 runs** per database variant before the oldest entries are pruned.
-- **Artifact Lifecycle**: Raw `.json` files in `tests/benchmarks/results/` are treated as temporary staging artifacts and are automatically cleaned up after documentation synchronization.
+- **Historical Depth**: Legacy `history.json` is maintained for PR diffs, persisting up to **20 runs** per database variant.
 
 ## 🔗 Relational Performance Testing
 

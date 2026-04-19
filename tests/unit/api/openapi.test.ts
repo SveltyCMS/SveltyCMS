@@ -10,9 +10,11 @@ import type { RequestEvent } from "@sveltejs/kit";
 vi.mock("@src/databases/db", () => ({
   dbAdapter: {
     getVersion: vi.fn().mockResolvedValue({ success: true, data: "1.0.0" }),
+    collection: { getModel: vi.fn().mockResolvedValue({}) },
   },
   getDb: vi.fn().mockReturnValue({
     getVersion: vi.fn().mockResolvedValue({ success: true, data: "1.0.0" }),
+    collection: { getModel: vi.fn().mockResolvedValue({}) },
   }),
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
 }));

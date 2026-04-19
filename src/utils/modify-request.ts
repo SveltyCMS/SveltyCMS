@@ -44,6 +44,7 @@ interface ModifyRequestParams {
   user: User;
   skipValidation?: boolean;
   action?: string;
+  system?: boolean;
 }
 
 import { canAccessField, enforceFieldAccess } from "@src/utils/field-access";
@@ -59,18 +60,22 @@ export async function modifyRequest({
   collectionName,
   skipValidation = false,
   action,
+  system = false,
 }: ModifyRequestParams) {
   const start = performance.now();
   try {
     const operation = type === "GET" ? "read" : "write";
 
     // 1. Initial FLAC Sanitization (Physical field stripping)
-    for (let i = 0; i < data.length; i++) {
-      data[i] = (await enforceFieldAccess(fields, data[i] as any, user, operation, {
-        collectionName,
-        tenantId: tenantId ?? undefined,
-        entryId: (data[i] as any)._id,
-      })) as EntryData;
+    // 🚀 Performance Optimization: Skip FLAC for system operations to avoid heavy audit logging and permission lookups
+    if (!system) {
+      for (let i = 0; i < data.length; i++) {
+        data[i] = (await enforceFieldAccess(fields, data[i] as any, user, operation, {
+          collectionName,
+          tenantId: tenantId ?? undefined,
+          entryId: (data[i] as any)._id,
+        })) as EntryData;
+      }
     }
 
     // User access is already validated by hooks

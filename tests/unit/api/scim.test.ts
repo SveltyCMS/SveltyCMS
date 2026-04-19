@@ -41,6 +41,9 @@ vi.mock("@src/databases/db", () => {
       findMany: vi.fn(),
       findOne: vi.fn(),
     },
+    collection: {
+      getModel: vi.fn(),
+    },
   };
   return {
     auth,

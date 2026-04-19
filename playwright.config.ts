@@ -111,21 +111,13 @@ export default defineConfig({
     },
     {
       name: "content",
-      testMatch: [
-        /collection\.spec\.ts/,
-        /collection-builder\.spec\.ts/,
-        /user-crud\.spec\.ts/,
-      ],
+      testMatch: [/collection\.spec\.ts/, /collection-builder\.spec\.ts/, /user-crud\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },
     {
       name: "system",
-      testMatch: [
-        /language\.spec\.ts/,
-        /user\.spec\.ts/,
-        /setup-wizard-errors\.spec\.ts/,
-      ],
+      testMatch: [/language\.spec\.ts/, /user\.spec\.ts/, /setup-wizard-errors\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },

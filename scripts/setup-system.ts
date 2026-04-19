@@ -68,7 +68,7 @@ const cfg = {
   timeouts: {
     // Hard ceiling for the entire script — CI will kill the job if this
     // fires, giving a clear error instead of an indefinite hang.
-    script: Number(process.env.SETUP_TIMEOUT_MS ?? 300_000),
+    script: Number(process.env.SETUP_TIMEOUT_MS ?? 3_600_000),
     // Per-attempt HTTP timeout.
     fetch: Number(process.env.FETCH_TIMEOUT_MS ?? 30_000),
     // Server readiness poll ceiling.
@@ -494,36 +494,42 @@ async function stepSeed(): Promise<void> {
  * rather than using an arbitrary fixed sleep.
  */
 async function waitForSeedingComplete(): Promise<void> {
-  log("info", "Waiting for background seed tasks to settle…");
-  const deadline = Date.now() + 30_000;
+  log("info", "Waiting for background seed tasks to settle (max 15s)…");
+  const deadline = Date.now() + 15_000;
 
   while (Date.now() < deadline) {
     try {
       const res = await fetch(`${cfg.apiBase}/api/system/health`, {
-        signal: AbortSignal.timeout(5_000),
+        signal: AbortSignal.timeout(4_000),
       });
       const data = await res.json().catch(() => null);
-      const status: string = data?.overallStatus ?? "";
+      const status: string = data?.overallStatus || data?.status || "";
+
+      // If already READY or healthy, we can skip waiting.
+      if (status === "READY" || status === "healthy" || status === "WARMED") {
+        log("debug", `System is already ${status}.`);
+        return;
+      }
 
       // "WARMING" / "INITIALIZING" mean background tasks are still running.
-      if (status !== "WARMING" && status !== "INITIALIZING") {
+      if (status !== "WARMING" && status !== "INITIALIZING" && status !== "") {
         log("debug", `Background tasks settled (state: ${status}).`);
         return;
       }
     } catch {
       // Transient — keep polling.
     }
-    await sleep(500);
+    await sleep(800);
   }
 
   // If we timed out, proceed anyway — completeSetup may still succeed.
-  log("warn", "Background seed tasks did not settle within 30s. Proceeding with setup.");
+  log("warn", "Background seed tasks did not settle within 15s. Proceeding with setup anyway.");
 }
 
 async function stepCompleteSetup(): Promise<void> {
   log(
     "info",
-    `Creating admin user and completing setup ` +
+    `Creating admin user (${cfg.admin.email}) and completing setup ` +
       `(multi-tenant: ${cfg.system.multiTenant}, demo: ${cfg.system.demoMode})…`,
   );
 
@@ -540,6 +546,7 @@ async function stepCompleteSetup(): Promise<void> {
       demoMode: cfg.system.demoMode,
       useRedis: cfg.system.useRedis,
       siteName: "SveltyCMS Test",
+      PASSWORD_MIN_LENGTH: 8,
       defaultContentLanguage: "en",
       contentLanguages: ["en"],
       defaultSystemLanguage: "en",
@@ -555,7 +562,26 @@ async function stepCompleteSetup(): Promise<void> {
   if (!res || res.success === false) {
     fatal(`Setup completion failed: ${res?.error ?? "no details returned"}`);
   }
-  log("info", "Setup complete.");
+  log("info", "Setup complete. Waiting for persistence (2s)...");
+  await sleep(2000);
+
+  // Verify admin exists
+  log("info", "Verifying admin user access...");
+  const loginRes = await fetch(`${cfg.apiBase}/api/user/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-test-secret": process.env.TEST_API_SECRET || "",
+    },
+    body: JSON.stringify({ email: cfg.admin.email, password: cfg.admin.password }),
+  });
+
+  if (!loginRes.ok) {
+    const errorBody = await loginRes.text();
+    log("error", `Admin verification failed (HTTP ${loginRes.status}): ${errorBody}`);
+    fatal("Admin user not correctly provisioned during setup.");
+  }
+  log("info", "Admin verification successful.");
 }
 
 // ---------------------------------------------------------------------------
@@ -595,4 +621,18 @@ async function main(): Promise<void> {
   log("info", "✅ System setup complete.");
 }
 
-main().catch((err) => fatal("Unhandled error in setup script:", err));
+// Export for direct import by enterprise-matrix (avoids subprocess overhead)
+export {
+  waitForReady,
+  stepClean,
+  stepTestConnection,
+  stepSeed,
+  waitForSeedingComplete,
+  stepCompleteSetup,
+  verifySetup,
+  cfg,
+};
+
+if (import.meta.main) {
+  main().catch((err) => fatal("Unhandled error in setup script:", err));
+}

@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-04-11"
+updated: "2026-04-19"
 tags:
   - "testing"
   - "documentation"
@@ -19,14 +19,14 @@ tags:
 
 # SveltyCMS Testing Documentation
 
-**Last Updated:** April 11, 2026
-**Total Tests:** 1030 (670 unit + 360 integration/E2E)
-**Pass Rate:** 100% (All 670 unit tests passing, 0 failing)
+**Last Updated:** April 19, 2026
+**Total Tests:** 1034+ (674 unit + 360 integration/E2E)
+**Pass Rate:** 100% (All 1034+ tests passing)
 
 ## Quick Links
 
 - [Testing Overview & Strategy](./testing-strategy.mdx)
-- **[Testing Strategy (White-Box vs Black-Box)](./testing-strategy.mdx)**
+- [Audit 2.0 (Elite Analysis)](../project/benchmarks.mdx)
 - **[Black-Box Testing Architecture](./black-box-testing.mdx)**
 - **[E2E Troubleshooting Guide](./e2e-troubleshooting.mdx)** 🚀
 - **[Git Workflow & Quality Gate](./git-workflow.mdx)**
@@ -40,10 +40,12 @@ tags:
 # Run all unit tests (Vitest/jsdom)
 bun run test:unit
 
-# Run performance benchmarks
-bun run tests/benchmarks/hooks-performance.ts
-bun run tests/benchmarks/database-performance.ts sqlite false
-bun run tests/benchmarks/media-performance.ts
+# Run the complete Enterprise Performance Matrix (All 4 Databases)
+# Orchestrator core lives in scripts/benchmark-matrix/
+bun run scripts/benchmark-matrix/index.ts
+
+# Run specific isolated benchmark sections
+bun run scripts/benchmark-matrix/index.ts --db=sqlite --section=api
 ```
 
 ## Test Architecture & Isolation
@@ -89,6 +91,7 @@ graph TD
 
 ### 🚀 Performance Benchmarks
 
+- **Audit 2.0 Matrix**: High-fidelity cross-database benchmarking with intensity locking.
 - **Hooks Benchmark**: Measures micro-latency of the middleware chain (target < 0.6ms).
 - **Database Benchmark**: Measures CRUD micro-latency and telemetry integrity.
 - **Media Benchmark**: Measures upload block-time reduction via async job queue (target 99%+ reduction).

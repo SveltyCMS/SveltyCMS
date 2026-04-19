@@ -87,7 +87,10 @@ export async function loadSettingsFromDB(
 }
 
 export async function loadAdapters(config: any): Promise<DatabaseAdapter | null> {
-  const isSSR = typeof import.meta.env !== "undefined" ? import.meta.env.SSR : true;
+  const isSSR =
+    typeof import.meta.env !== "undefined" && (import.meta.env as any).SSR !== undefined
+      ? (import.meta.env as any).SSR
+      : true;
   if (!isSSR) return null;
 
   const resilience = await getResilience();

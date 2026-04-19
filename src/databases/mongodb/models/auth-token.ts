@@ -213,7 +213,7 @@ export class TokenAdapter {
       const { token: _, ...validUpdates } = tokenData;
 
       const res = await this.TokenModel.findOneAndUpdate(filter, validUpdates, {
-        new: true,
+        returnDocument: "after",
       }).lean();
       if (!res) throw new Error("Token not found");
       return { success: true, data: res as Token };

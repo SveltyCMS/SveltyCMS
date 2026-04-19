@@ -84,7 +84,31 @@ export class AdapterCore {
         throw new Error("Missing MariaDB connection configuration.");
       }
 
-      this.pool = mysql.createPool(finalConnection as any);
+      let poolConfig: any;
+
+      if (typeof finalConnection === "string") {
+        poolConfig = { uri: finalConnection, connectionLimit: 100, connectTimeout: 30000 };
+      } else {
+        const c = finalConnection as any;
+        // Strictly only include valid MariaDB driver options
+        poolConfig = {
+          host: c.host || c.DB_HOST || "127.0.0.1",
+          port: Number(c.port || c.DB_PORT || 3306),
+          user: c.user || c.DB_USER || "root",
+          password: c.password || c.DB_PASSWORD || "",
+          database: c.database || c.DB_NAME,
+          connectionLimit: 100,
+          connectTimeout: 30000,
+          waitForConnections: true,
+          maxIdle: 10,
+          idleTimeout: 60000,
+          queueLimit: 0,
+          enableKeepAlive: true,
+          keepAliveInitialDelay: 0,
+        };
+      }
+
+      this.pool = mysql.createPool(poolConfig);
       this.db = drizzle(this.pool, { schema, mode: "default" });
 
       // Verification: Ensure the connection is actually established
@@ -95,28 +119,24 @@ export class AdapterCore {
         // If database doesn't exist (code ER_BAD_DB_ERROR in MariaDB/MySQL)
         if (err.code === "ER_BAD_DB_ERROR") {
           let dbName = "";
-          let connectionOptions: any = {};
-
           if (typeof connection === "string") {
             const url = new URL(connection);
             dbName = url.pathname.slice(1);
-            url.pathname = ""; // Connect to server without DB
-            connectionOptions = url.toString();
           } else {
             dbName = (connection as any).database;
-            connectionOptions = { ...connection, database: undefined };
           }
 
           if (dbName) {
             logger.info(`Database "${dbName}" not found. Attempting to create it...`);
-            const adminPool = mysql.createPool(connectionOptions as any);
+            const adminOptions = { ...poolConfig, database: undefined, connectionLimit: 1 };
+            const adminPool = mysql.createPool(adminOptions);
             try {
               await adminPool.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
               logger.info(`Successfully created database "${dbName}".`);
               await adminPool.end();
-              // Reconnect with the original connection (which now has the DB)
+              // Reconnect with the sanitized config
               await this.pool.end();
-              this.pool = mysql.createPool(connection as any);
+              this.pool = mysql.createPool(poolConfig);
               this.db = drizzle(this.pool, { schema, mode: "default" });
               await this.pool.query("SELECT 1");
             } catch (createErr) {
@@ -263,7 +283,11 @@ export class AdapterCore {
 
   public handleError<T>(error: unknown, code: string): DatabaseResult<T> {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error(`MariaDB adapter error [${code}]:`, message);
+    if (process.env.SVELTY_AUDIT_ACTIVE || process.env.BENCHMARK_DEBUG) {
+      logger.error(`MariaDB adapter error [${code}]:`, error);
+    } else {
+      logger.error(`MariaDB adapter error [${code}]:`, message);
+    }
     return {
       success: false,
       message,
@@ -333,12 +357,28 @@ export class AdapterCore {
       return this.dynamicTables.get(collection)!;
     }
 
-    if (/^[a-f0-9]{32,36}$/i.test(collection) || collection.startsWith("collection_")) {
-      const tableId = collection.startsWith("collection_")
-        ? collection
-        : `collection_${collection}`;
+    // Treat as dynamic if it's not a static schema table and doesn't match common aliases
+    const tableId = collection.startsWith("collection_") ? collection : `collection_${collection}`;
+
+    // Check if we already have this dynamic table defined
+    if (this.dynamicTables.has(tableId)) {
+      return this.dynamicTables.get(tableId);
+    }
+
+    // If it's a UUID or starts with collection_, or it's a known dynamic collection
+    if (
+      /^[a-f0-9]{32,36}$/i.test(collection) ||
+      collection.startsWith("collection_") ||
+      this.collectionRegistry.has(collection)
+    ) {
+      // Robust registry check: ensure the ID is registered if not already present
+      if (!this.collectionRegistry.has(collection)) {
+        this.collectionRegistry.set(collection, { _id: collection });
+      }
+
       const dynamicTable = this.createDynamicTableDefinition(tableId);
       this.dynamicTables.set(collection, dynamicTable);
+      this.dynamicTables.set(tableId, dynamicTable);
       return dynamicTable as unknown as Record<string, unknown>;
     }
 

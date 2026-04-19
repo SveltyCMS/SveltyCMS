@@ -11,6 +11,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 vi.mock("@src/databases/db", () => ({
   dbAdapter: {
     auth: { validateSession: vi.fn() },
+    collection: { getModel: vi.fn() },
   },
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
 }));

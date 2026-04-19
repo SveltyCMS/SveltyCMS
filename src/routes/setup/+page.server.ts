@@ -401,7 +401,9 @@ export const actions: Actions = {
         logger.info("Admin user already exists, updating credentials...");
 
         // Update password
-        await setupAuth.updateUserPassword(admin.email, admin.password, undefined);
+        await setupAuth.updateUserPassword(admin.email, admin.password, {
+          bypassTenantCheck: true,
+        });
 
         // Update other attributes
         await setupAuth.updateUser(
@@ -424,15 +426,23 @@ export const actions: Actions = {
           { bypassTenantCheck: true },
         );
       } else {
+        const userData = {
+          username: admin.username,
+          email: admin.email,
+          password: admin.password,
+          role: "admin",
+          isRegistered: true,
+        };
+
+        logger.info(`Creating admin user: ${userData.email}`);
+        logger.debug("Admin user data (excluding password):", {
+          ...userData,
+          password: "[REDACTED]",
+        });
+
         // Create new user
         const authResult = await setupAuth.createUserAndSession(
-          {
-            username: admin.username,
-            email: admin.email,
-            password: admin.password,
-            role: "admin",
-            isRegistered: true,
-          },
+          userData,
           {
             expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString,
           },
@@ -562,6 +572,12 @@ export const actions: Actions = {
             {
               key: "SITE_NAME",
               value: system.siteName,
+              category: "public",
+              scope: "system",
+            },
+            {
+              key: "PASSWORD_MIN_LENGTH",
+              value: Number(system.passwordMinLength || 8),
               category: "public",
               scope: "system",
             },

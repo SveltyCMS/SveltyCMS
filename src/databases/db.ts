@@ -52,13 +52,26 @@ export async function initializeSystem(forceReload = false): Promise<void> {
     dbAdapter = await loadAdapters(config);
     if (!dbAdapter) throw new Error("Failed to load database adapter");
 
+    // Sync instance across all possible global containers to ensure module-sharing resilience
     (process as any)[ADAPTER_KEY] = dbAdapter;
+    (globalThis as any)[ADAPTER_KEY] = dbAdapter;
 
     const connectionResult = await dbAdapter.connect(config as any);
     if (connectionResult.success) {
       isConnected = true;
       const { updateServiceHealth } = await import("@src/stores/system/state");
       updateServiceHealth("database", "healthy", "Database service ready");
+
+      // 🚀 Elite: Initialize Redis L2 Cache here (Decoupled from config loader)
+      if (config.USE_REDIS) {
+        try {
+          const { cacheService } = await import("./cache/cache-service");
+          await cacheService.initializeL2(config);
+          logger.debug("[db] Redis L2 Cache initialized");
+        } catch (err) {
+          logger.warn("[db] Redis L2 Cache initialization failed:", err);
+        }
+      }
 
       const { initializeCriticalServices } = await import("./db-init");
       auth = await initializeCriticalServices(dbAdapter);
@@ -67,8 +80,10 @@ export async function initializeSystem(forceReload = false): Promise<void> {
     }
   } catch (err) {
     isConnected = false;
-    logger.error("[db] System initialization failed", err);
-    if (process.env.NODE_ENV !== "test") throw err;
+    // During setup or initial boot, DB errors should not be fatal for the SvelteKit process.
+    // This allows the setup middleware to catch the disconnected state and redirect to /setup.
+    logger.warn("[db] System initialization failed (site may be in setup mode):", err);
+    if (process.env.NODE_ENV === "test") throw err;
   } finally {
     isInitializing = false;
   }
@@ -110,7 +125,7 @@ export const dbInitPromise = new Proxy(getDbInitPromise, {
  * PURE Accessor: Does not trigger initialization to avoid recursion.
  */
 export function getDb(): DatabaseAdapter | null {
-  return (process as any)[ADAPTER_KEY] || dbAdapter;
+  return (process as any)[ADAPTER_KEY] || (globalThis as any)[ADAPTER_KEY] || dbAdapter;
 }
 
 export async function ensureFullInitialization(forceReload = false): Promise<void> {

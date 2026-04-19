@@ -247,6 +247,16 @@ export class Auth {
     updates: Partial<User>,
     options?: BaseQueryOptions,
   ): Promise<void> {
+    if (updates.password) {
+      this.validatePasswordStrength(updates.password);
+      const originalPassword = updates.password;
+      updates.password = await cryptoHashPassword(updates.password);
+      logger.debug("updateUser: Password hashed", {
+        userId,
+        originalLength: originalPassword.length,
+        hashPrefix: updates.password.substring(0, 20),
+      });
+    }
     const result = await this.db.auth.updateUserAttributes(userId, updates, options);
     if (!result?.success) {
       throw error(500, "Failed to update user");
@@ -842,11 +852,8 @@ export class Auth {
       return { status: false, message: "User not found" };
     }
 
-    // --- PASSWORD STRENGTH VALIDATION ---
-    this.validatePasswordStrength(password);
-
-    const hashedPassword = await cryptoHashPassword(password);
-    await this.updateUser(user._id, { password: hashedPassword }, options);
+    // We don't hash here because updateUser() handles hashing and validation
+    await this.updateUser(user._id, { password }, options);
     return { status: true };
   }
 

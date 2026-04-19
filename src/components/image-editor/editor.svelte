@@ -69,7 +69,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 			mediaId?: string;
 			manipulations?: any;
 			operations?: Record<string, unknown>;
-			saveBehavior?: 'new' | 'overwrite';
+			saveBehavior?: 'new' | 'rotate' | 'overwrite';
 		}) => void;
 	}
 
@@ -92,7 +92,6 @@ Comprehensive image editing interface with svelte-canvas integration.
 	const storeState = imageEditorStore.state;
 	const activeState = $derived(imageEditorStore.state.activeState);
 	const hasImage = $derived(!!storeState.imageElement);
-	const compareMode = $derived(!!storeState.compareMode);
 	const toolbarControls = $derived(imageEditorStore.state.toolbarControls);
 	const activeToolInstance = $derived.by(() => (activeState ? toolInstances[activeState] ?? null : null));
 	let lastActiveToolState = '';
@@ -258,18 +257,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 		handleCancelActiveTool();
 	}
 
-	function handleZoomAction(type: 'in' | 'out' | 'reset') {
-		const currentZoom = storeState.zoom;
-		if (type === 'in') {
-			storeState.zoom = Math.min(5, currentZoom * 1.15);
-		} else if (type === 'out') {
-			storeState.zoom = Math.max(0.1, currentZoom / 1.15);
-		} else {
-			storeState.zoom = 1;
-			storeState.translateX = 0;
-			storeState.translateY = 0;
-		}
-	}
+
 
 	function normalizeCropRect(
 		crop: { x: number; y: number; width: number; height: number } | null,
@@ -393,6 +381,8 @@ Comprehensive image editing interface with svelte-canvas integration.
 			image.src = src;
 		});
 	}
+
+
 
 	function applySharpness(canvasContext: CanvasRenderingContext2D, width: number, height: number, filters: Record<string, number>) {
 		const sharpness = filters.sharpness ?? 0;
@@ -782,7 +772,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 			}
 
 			formData.append('operations', JSON.stringify({}));
-			formData.append('saveBehavior', saveBehavior);
+			formData.append('saveBehavior', saveBehavior as string);
 			formData.append('focalPoint', JSON.stringify(focalPoint ?? { x: 50, y: 50 }));
 
 			logger.info('Sending to /api/media/edit', { mediaId: storeMediaId, saveBehavior });

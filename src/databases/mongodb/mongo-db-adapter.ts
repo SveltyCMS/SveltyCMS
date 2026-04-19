@@ -39,6 +39,7 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
   private _models: Map<string, mongoose.Model<any>> = new Map();
   private _repos: Map<string, MongoCrudMethods<any>> = new Map();
   public config: any = null;
+  public readonly type = "mongodb";
 
   // Domain-Specific Adapters
   crud: ICrudAdapter;
@@ -185,10 +186,25 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
       }
 
       // Prepare connection options
-      const connectOptions = {
+      const poolOptions =
+        typeof connectionStringOrOptions === "object" ? connectionStringOrOptions : {};
+
+      const connectOptions: mongoose.ConnectOptions = {
         ...options,
-        // Ensure we don't use global models
-        autoIndex: true,
+        // Disable background index builds — prevents connection starvation during
+        // high-concurrency benchmark seeding when many collections are created rapidly.
+        autoIndex: false,
+        // Fail-fast on disconnected state — prevents operations from buffering
+        // indefinitely (hanging the event loop) if the connection is momentarily lost.
+        bufferCommands: false,
+        // High-performance concurrency tuning
+        maxPoolSize: poolOptions.maxConnections || 100,
+        minPoolSize: poolOptions.minConnections || 10,
+        serverSelectionTimeoutMS: poolOptions.connectionTimeout || 30000,
+        socketTimeoutMS: 45000,
+        family: 4, // Force IPv4 to avoid local resolution hangs
+        connectTimeoutMS: 10000,
+        waitQueueTimeoutMS: 10000,
       };
 
       // Create isolated connection

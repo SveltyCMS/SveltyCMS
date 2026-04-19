@@ -22,9 +22,9 @@ import { svelteInspector } from "@sveltejs/vite-plugin-svelte-inspector";
 import tailwindcss from "@tailwindcss/vite";
 import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vitest/config";
-import { compile } from "./src/utils/compilation/compile";
-import { isSetupComplete } from "./src/utils/is-setup-complete";
-import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check";
+import { compile } from "./src/utils/compilation/compile.ts";
+import { isSetupComplete } from "./src/utils/is-setup-complete.ts";
+import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

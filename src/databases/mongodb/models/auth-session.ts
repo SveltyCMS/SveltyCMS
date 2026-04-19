@@ -102,7 +102,7 @@ export class SessionAdapter {
       const sessionData = await this.SessionModel.findOneAndUpdate(
         filter,
         { $set: { lastActiveAt: new Date() } },
-        { new: true, lean: true },
+        { returnDocument: "after", lean: true },
       );
 
       if (!sessionData) {
@@ -153,7 +153,7 @@ export class SessionAdapter {
       const session = await this.SessionModel.findOneAndUpdate(
         filter,
         { expires: new Date(newExpiry) },
-        { new: true, lean: true },
+        { returnDocument: "after", lean: true },
       ).lean();
       if (!session) {
         throw new Error("Session not found");

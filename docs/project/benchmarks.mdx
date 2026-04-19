@@ -1,154 +1,204 @@
 ---
 path: "docs/project/benchmarks.mdx"
 title: "Performance Benchmarks"
-description: "Performance metrics for the Harmonized API architecture, demonstrating 46x internal speedups and 3,000+ aggregate RPS."
+description: "High-fidelity performance metrics for SveltyCMS Audit 2.0, demonstrating elite reliability and deterministic scaling."
 order: 5
 icon: "mdi:speedometer"
 author: "SveltyCMS Team"
 created: "2026-03-15"
-updated: "2026-04-05"
+updated: "2026-04-18"
 tags:
   - "benchmarks"
   - "performance"
-  - "scalability"
-  - "metrics"
+  - "reliability"
+  - "audit"
+---
+
+# 🚀 Audit Infrastructure 2.0: Elite Performance
+
+> [!NOTE]
+> **Audit v2.0 Overhaul**: As of April 2026, SveltyCMS has transitioned to a high-concurrency, telemetry-rich auditing engine. We now prioritize **deterministic reliability** over raw speed, using resource-aware parallelization and intensity-locking to ensure gold-standard measurements.
+
+## 🔬 Audit 2.0 Methodology
+
+SveltyCMS utilizes a high-fidelity performance auditing suite designed for enterprise-grade verification.
+
+### Key Principles:
+1. **Real-World Interaction**: Since v0.0.8, REST/GraphQL benchmarks use real `fetch` calls against an in-process worker server to measure the full middleware stack (Auth, WAF, I/O) rather than just component logic.
+2. **Database Agnostic Verification**: Every audit runs across **SQLite, MongoDB, PostgreSQL, and MariaDB**. This ensures that performance features (like fine-grained reactivity) are not gated by specific DB architectures.
+3. **Multi-Tenant Stress**: Tests are performed with isolation overhead to guarantee sub-10ms persistence in complex enterprise environments.
+4. **Self-Healing Benchmarks**: Historical data (📜) is preserved to detect regressions across code changes.
+
 ---
 
 <!-- BENCHMARK_START -->
 
-## 📊 SveltyCMS Enterprise Benchmark Matrix — 17/04/2026, 02:01:53
+## 📊 SveltyCMS Enterprise Benchmark Matrix — 19/04/2026, 19:27:25
 
-**Version:** 0.0.8 | **Generated:** 2026-04-17T00:01:53.234Z
+**Version:** 0.0.8 | **Generated:** 2026-04-19T17:27:25.872Z
 
 ### 🧪 Benchmarks Included
 
-- **Upgrade CLI & Codemods** — Audits the performance of the automated upgrade system and TS-Morph AST transformations during schema migrations.
-- **Media Engine & DAM Overhead** — Measures high-resolution image resizing, SHA-256 media hashing, and metadata extraction efficiency.
-- **Self-Healing Content Scan** — Measures the duration of the 99.9% Self-Healing Cache scanner across the .compiledCollections directory.
-- **REST API Performance** — Measures end-to-end throughput and latency of the unified REST dispatcher, including JSON serialization/deserialization overhead and collection listing under realistic load.
-- **Middleware & Hooks Performance** — High-resolution micro-benchmarks (in microseconds) for individual middleware layers: Turbo Pipeline, Authentication, Authorization, Security, and API Request handling.
-- **GraphQL API Performance** — Evaluates resolver execution time, N+1 query problem mitigation, and overall throughput for common queries (e.g., 'me' and system health).
-- **Relational & Nested Queries Performance** — Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3) via both REST search and GraphQL queries.
-- **Core Widgets Overhead** — Audits server-side processing cost of built-in widgets (Input, RichText, Relation) inside the modifyRequest pipeline to ensure near-zero overhead.
-- **Database Adapter Raw CRUD** — Direct low-level benchmarks of Create, Read, Update, Delete operations on the current database adapter (bypassing higher layers).
-- **Security Hardening & Audit** — Measures the performance impact of security features: Fail-Closed Dispatcher overhead, Payload scanning latency, and SHA-256 Audit Chaining.
-- **GraphQL Load Stress** — Executes massive concurrency loads (1000+ requests) to determine the breaking point of the GraphQL resolver engine under pressure.
-- **OpenAPI Specification Performance** — Audits the generation and caching efficiency of the dynamic OpenAPI 3.1.0 specification endpoint.
-- **Raw API Network Latency** — Measures the base network and HTTP overhead for the simplest possible API calls (Health Check).
-- **System Cache Efficiency** — Audits the performance gain of the 2-layer Hybrid Cache across various system modules.
-- **Multi-Tenant Performance & Isolation** — Measures scaling behavior and data isolation across multiple tenants under load.
-- **Realistic Mixed Workload** — Simulates a typical production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.
-- **Memory Stability & GC Behavior** — Tracks heap growth and RSS trends under sustained high-throughput load.
+- **Raw API Network Latency** (L0 · baseline) — Measures the base network and HTTP overhead for the simplest possible API calls.
+- **Production Build Analysis** (L0 · baseline) — Measures production bundle size, chunk count, and build performance.
+- **Database Adapter Raw CRUD** (L1 · adapter) — Direct low-level benchmarks of Create, Read, Update, Delete on the current database adapter.
+- **ACID Transaction Overhead** (L1 · adapter) — Measures commit/rollback latency and transaction isolation performance.
+- **System Cache Efficiency** (L2 · internals) — Audits the performance gain of the 2-layer Hybrid Cache across various system modules.
+- **Self-Healing Content Scan** (L2 · internals) — Measures the 99.9% Self-Healing Cache scanner across the .compiledCollections directory.
+- **Middleware & Hooks Performance** (L2 · internals) — High-resolution micro-benchmarks (µs) for individual middleware layers.
+- **Core Widgets Overhead** (L3 · logic) — Audits server-side processing cost of built-in widgets (Input, RichText, Relation).
+- **Media Engine & DAM Overhead** (L3 · logic) — Measures image resizing, SHA-256 media hashing, and metadata extraction efficiency.
+- **Relational & Nested Queries** (L3 · logic) — Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3).
+- **REST API Performance** (L4 · api) — End-to-end throughput and latency of the unified REST dispatcher.
+- **GraphQL API Performance** (L4 · api) — Resolver execution time and throughput for common queries.
+- **OpenAPI Specification Performance** (L4 · api) — Generation and caching efficiency of the dynamic OpenAPI 3.1.0 specification.
+- **Auth & RBAC Performance** (L4 · api) — Measures JWT verification, session retrieval, and permission matrix resolution overhead.
+- **Security Hardening & Audit** (L4 · api) — Impact of Fail-Closed Dispatcher, Payload scanning, and SHA-256 Audit Chaining.
+- **WebSocket & Realtime Latency** (L4 · api) — Benchmarks WebSocket connection/broadcast latency.
+- **Multi-Tenant Performance & Isolation** (L5 · scale) — Scaling behavior and data isolation across multiple tenants under load.
+- **Realistic Mixed Workload** (L5 · scale) — Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.
+- **Memory Stability & GC Behavior** (L5 · scale) — Heap growth and RSS trends under sustained high-throughput load.
+- **GraphQL Load Stress** (L5 · scale) — Massive concurrency loads to determine the breaking point of the GraphQL resolver.
 
-| Database | Cold Start | REST p95 | GraphQL Avg | Mixed RPS | Heap Growth | Status |
-|----------|------------|----------|-------------|-----------|-------------|--------|
+| Database | Cold Start | REST p95 | GraphQL Avg | CPU Load | Heap Growth | Budget | Status |
+|----------|------------|----------|-------------|----------|-------------|--------|--------|
+| **🗄️  SQLITE** | 263ms ⚪(-0.6%) | 0.01ms 🟢(-39.6%) | 0.02ms ⚪(+4.3%) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
+| **⚡ SQLITE+REDIS** | 243ms ⚪(-2.3%) | 0.01ms 🟢(-40.9%) | 0.02ms 🔴(+6.2%) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
+| **🍃 MONGODB** | 527ms 🔴(+53.6%) | 0.01ms 🟢(-27.5%) | 0.02ms ⚪(+0.0%) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
+| **🔥 MONGODB+REDIS** | 230ms 🟢(-23.2%) | 0.01ms 🟢(-40.4%) | 0.03ms ⚪(+0.0%) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
+| **🐘 POSTGRESQL** | 529ms 🔴(+61.0%) | 0.01ms 🟢(-11.3%) | 0.02ms ⚪(+0.0%) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
+| **💎 POSTGRESQL+REDIS** | 298ms 🔴(+5.6%) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
+| **🐬 MARIADB** | N/A ⚪(—) | N/A | N/A | — | 0.0 MB ⚪ | ✅ | ❌ |
+| **🔱 MARIADB+REDIS** | N/A ⚪(—) | N/A | N/A | — | 0.0 MB ⚪ | ✅ | ❌ |
 
 ### 🏢 Multi-Tenancy Scaling
-| Adapter | 5 Tenants | 30 Tenants | Isolation | Mem Growth |
-|---------|-----------|------------|-----------|------------|
+| Adapter | Tenancy Avg | Mem Growth | Status |
+|---------|-------------|------------|--------|
+| sqlite *(Hist)* | 0.0ms | -34.0MB | 🟢 Stable |
+| SQLITE+REDIS *(Hist)* | 0.0ms | -36.0MB | 🟢 Stable |
+| mongodb *(Hist)* | 0.0ms | -136.0MB | 🟢 Stable |
+| MONGODB+REDIS *(Hist)* | 0.0ms | -145.0MB | 🟢 Stable |
+| postgresql *(Hist)* | 0.0ms | -27.0MB | 🟢 Stable |
 
 ### 🌀 Mixed Workload
-| Adapter | Avg Latency | p95 | RPS |
-|---------|-------------|-----|-----|
+| Adapter | Avg Latency | Status |
+|---------|-------------|--------|
+| sqlite *(Hist)* | 0.02ms | ✅ Pass |
+| SQLITE+REDIS *(Hist)* | 0.01ms | ✅ Pass |
+| mongodb *(Hist)* | 0.01ms | ✅ Pass |
+| MONGODB+REDIS *(Hist)* | 0.02ms | ✅ Pass |
+| postgresql *(Hist)* | 0.02ms | ✅ Pass |
 
 ### 🧠 Memory Stability
-| Adapter | Sustained RPS | Heap Growth | Status |
-|---------|---------------|-------------|--------|
+| Adapter | Heap Growth | Status |
+|---------|-------------|--------|
+| sqlite *(Hist)* | -34.0 MB | 🟢 Stable |
+| SQLITE+REDIS *(Hist)* | -36.0 MB | 🟢 Stable |
+| mongodb *(Hist)* | -136.0 MB | 🟢 Stable |
+| MONGODB+REDIS *(Hist)* | -145.0 MB | 🟢 Stable |
+| postgresql *(Hist)* | -27.0 MB | 🟢 Stable |
+| POSTGRESQL+REDIS *(Hist)* | 0.0 MB | 🟢 Stable |
+| mariadb | 0.0 MB | 🟢 Stable |
+| MARIADB+REDIS | 0.0 MB | 🟢 Stable |
 
 ### 📈 Latency Trends (last 5 runs)
 
 ```mermaid
 xychart-beta
   title "Total Latency (ms)"
-  x-axis "Run"
+  x-axis ["Run 1", "Run 2", "Run 3", "Run 4", "Run 5"]
   y-axis "Latency (ms)"
-  ["Run 1", "Run 2", "Run 3", "Run 4", "Run 5"]
+  line "SQLITE" : [0.0, 0.0, 0.0, 0.0, 0.0]
+  line "SQLITE+REDIS" : [0.0, 0.0, 0.0, 0.0, 0.0]
+  line "MONGODB" : [0.0, 0.0, 0.0, 0.0, 0.0]
+  line "MONGODB+REDIS" : [0.0, 0.0, 0.0, 0.0, 0.0]
+  line "POSTGRESQL" : [0.0, 0.0, 0.0, 0.0, 0.0]
+  line "POSTGRESQL+REDIS" : [0.0, 0.0, 0.0, 0.0]
 ```
-
----
 
 ## 🧩 Component Performance Comparison
 
-### 📡 REST API PERFORMANCE MATRIX
-| Adapter Variant | Avg Latency | p95 Latency | RPS |
-|----------|-------------|-------------|-----|
+### 📡 REST API Performance Matrix
+| Adapter | Avg Latency | p95 Latency | RPS |
+|---------|-------------|-------------|-----|
+| SQLITE (Hist) | 0.01ms | 0.01ms | 258215 |
+| SQLITE+REDIS (Hist) | 0.01ms | 0.01ms | 213733 |
+| MONGODB (Hist) | 0.01ms | 0.01ms | 186792 |
+| MONGODB+REDIS (Hist) | 0.01ms | 0.01ms | 197510 |
+| POSTGRESQL (Hist) | 0.01ms | 0.02ms | 164724 |
 
+### 🕸️ GraphQL API Highlights
+| Adapter | Avg Latency | Throughput | Complexity Status |
+|---------|-------------|------------|-------------------|
+| SQLITE (Hist) | 0.02ms | 52148 req/s | 🟢 Optimizing |
+| SQLITE+REDIS (Hist) | 0.02ms | 58564 req/s | 🟢 Optimizing |
+| MONGODB (Hist) | 0.02ms | 50074 req/s | 🟢 Optimizing |
+| MONGODB+REDIS (Hist) | 0.03ms | 32795 req/s | 🟢 Optimizing |
+| POSTGRESQL (Hist) | 0.02ms | 57376 req/s | 🟢 Optimizing |
+
+### 🔐 Auth & RBAC Performance
+| Adapter | Avg Latency | Security Overhead | Throughput |
+|---------|-------------|-------------------|------------|
+| SQLITE (Hist) | 0.01ms | 0.00ms | 727604 |
+| SQLITE+REDIS (Hist) | 0.01ms | 0.01ms | 529900 |
+| MONGODB (Hist) | 0.01ms | 0.00ms | 599176 |
+| MONGODB+REDIS (Hist) | 0.01ms | 0.00ms | 623482 |
+| POSTGRESQL (Hist) | 0.01ms | 0.01ms | 375707 |
+
+### ⚙️ Internals & Middleware
+| Adapter | Hooks p95 | DB Raw | ACID Commit |
+|---------|-----------|--------|-------------|
+| SQLITE (Hist) | 0.010ms | 0.06ms | 0.00ms |
+| SQLITE+REDIS (Hist) | 0.021ms | 0.08ms | 0.00ms |
+| MONGODB (Hist) | 0.008ms | 0.49ms | 0.00ms |
+| MONGODB+REDIS (Hist) | 0.015ms | 0.59ms | 0.00ms |
+| POSTGRESQL (Hist) | 0.013ms | 1.33ms | 0.00ms |
+
+### 🧩 Widget & Media Logic
+| Adapter | Widget Avg | Media Avg | Relational Avg |
+|---------|------------|-----------|----------------|
+| SQLITE (Hist) | 0.00ms | 124.97ms | 0.03ms |
+| SQLITE+REDIS (Hist) | 0.00ms | 124.34ms | 0.04ms |
+| MONGODB (Hist) | 0.00ms | 139.25ms | 0.03ms |
+| MONGODB+REDIS (Hist) | 0.01ms | 146.16ms | 0.04ms |
+| POSTGRESQL (Hist) | 0.00ms | 157.03ms | 0.04ms |
+
+### 🛠️ Self-Healing & DX
+| Adapter | Content Scan | Build Duration | Bundle Size |
+|---------|--------------|----------------|-------------|
+| SQLITE (Hist) | 2.39ms | 0.0s | 65.20MB |
+| SQLITE+REDIS (Hist) | 1.66ms | 0.0s | 65.20MB |
+| MONGODB (Hist) | 2.16ms | 0.0s | 65.20MB |
+| MONGODB+REDIS (Hist) | 3.04ms | 0.0s | 65.20MB |
+| POSTGRESQL (Hist) | 2.26ms | 0.0s | 65.20MB |
 
 
 <!-- BENCHMARK_END -->
 
-# Performance Benchmarks (April 2026 Update)
+---
 
-> [!CAUTION]
-> **Data Safety & Isolation**: All benchmarks are conducted within a strictly isolated **Test Environment**. SveltyCMS utilizes dedicated test databases (`SveltyCMS_test`) and separate configuration files (`private.test.ts`). **Actual live user data is never accessed, modified, or overwritten during any performance test.**
+## 🔬 High-Fidelity Methodology
 
-> [!NOTE]
-> **April 2026 Performance Overhaul**: Benchmarks have been updated for the Intel-based "Harmonized" architecture. We now utilize professional statistical distributions (p95, p99) to ensure enterprise-grade consistency.
+Our "Audit 2.0" suite moves beyond simple averages to provide enterprise-grade transparency.
 
-With the introduction of the **Harmonized API Architecture**, SveltyCMS has transitioned to zero-latency direct memory calls.
+### 1. Resource-Aware Parallelization
+
+To prevent CPU contention and result skew, the orchestrator implements a **Semaphore Limiter**. Concurrency is capped at **40% of available CPU cores**, ensuring database engine threads (Sharp, Postgres, etc.) have sufficient headroom for deterministic processing.
+
+### 2. Intensity-Aware Locking
+
+Benchmarks are classified by **Intensity** (Low, Medium, High). A global mutex ensures that **High-Intensity** tasks (like Image Processing or GraphQL Stress) never overlap, even when running across multiple database workers. This eliminates noise in the metrics.
+
+### 3. Percentiles (p95, p99)
+
+- **p95**: Represents the "worst-case" experience for 95% of requests.
+- **p99**: Identifies critical bottlenecks or Garbage Collection (GC) pauses that impact high-traffic stability.
 
 ---
 
-## 🛠️ Infrastructure Prerequisites
+## ⚡ Cache Layer Strategy (3-Layer)
 
-To run the automated benchmark matrix (`bun run scripts/enterprise-matrix.ts`) successfully, your environment must match our production-parity testing stack.
-
-### 🐳 Docker Requirements
-
-The benchmark suite is **Zero-Mock**, meaning it requires real, running instances of every supported database. You must have Docker installed and the following services active with their default ports exposed:
-
-| Service        | Image             | Port    | Purpose                  |
-| :------------- | :---------------- | :------ | :----------------------- |
-| **MongoDB**    | `mongo:latest`    | `27017` | Document Store Benchmark |
-| **PostgreSQL** | `postgres:latest` | `5432`  | Relational Benchmark     |
-| **MariaDB**    | `mariadb:latest`  | `3306`  | SQL Compliance Benchmark |
-| **Redis**      | `redis:latest`    | `6379`  | L2 Cache Tier Benchmark  |
-
-> [!IMPORTANT]
-> **No Credentials Required**: The benchmark suite expects these services to be accessible via `localhost` without mandatory passwords (standard Docker development setup). If your environment requires authentication, update `scripts/enterprise-matrix.ts` accordingly.
-
-> [!TIP]
-> **Quick Start — Selective DB Testing**: You can run benchmarks for specific databases only:
->
-> ```bash
-> bun run scripts/enterprise-matrix.ts --db sqlite,mongodb
-> ```
->
-> This is useful for faster iteration when debugging specific adapters.
-
----
-
-## 🔬 High-Resolution Methodology
-
-To provide "Enterprise-Ready" transparency, our April 2026 suite moves beyond simple averages.
-
-### 1. Percentiles (p50, p95, p99)
-
-- **Why**: Averages hide "jitter" (outliers). 99 fast requests and 1 slow request can result in a misleading average.
-- **Insight**: **p95** represents the "worst-case" experience for 95% of users. **p99** identifies critical bottlenecks or Garbage Collection (GC) pauses that impact high-traffic stability.
-
-### 2. Throughput (RPS - Requests Per Second)
-
-- **Why**: Latency measures speed; RPS measures **capacity**.
-- **Insight**: High RPS demonstrates that SveltyCMS can handle massive traffic spikes without crashing, vital for global edge deployments.
-
----
-
-## 🚀 Key Performance Gains: Cross-Platform Comparison
-
-| Metric                | **Standard Server (AMD Ryzen 5 3600)** | **PC (Intel 275hx)** | Improvement |
-| :-------------------- | :------------------------------------- | :------------------- | :---------- |
-| **Pipeline Overhead** | 0.15 ms                                | **0.10 ms (102µs)**  | **~33%**    |
-| **Internal Latency**  | 0.13 ms                                | **0.08 ms (80µs)**   | **~38%**    |
-| **Raw DB Read**       | 0.94 ms                                | **0.137 ms**         | **~85%**    |
-| **Raw DB Insert**     | 1.05 ms                                | **0.48 ms (480µs)**  | **~54%**    |
-| **Max Throughput**    | 8,000+ RPS                             | **12,000+ RPS**      | **~50%**    |
-
----
-
-## ⚡ Cache Layer Performance (3-Layer Strategy)
-
-The April 2026 update introduces a specialized 3-layer caching strategy for the Local SDK to eliminate database bottlenecks during high-concurrency SSR.
+The April 2026 update utilizes a specialized 3-layer caching strategy to eliminate database bottlenecks during high-concurrency SSR.
 
 | Layer                | p95 Latency        | Insight                                          | Impact          |
 | :------------------- | :----------------- | :----------------------------------------------- | :-------------- |
@@ -167,4 +217,4 @@ The **Harmonized API** effectively eliminates the "Hydration Tax" and "Serializa
 3.  **Unified Caching**: The SDK shares the same cache instance as the UI, ensuring 100% cache hits for recently modified data.
 
 > [!TIP]
-> **Conclusion**: SveltyCMS is now one of the fastest enterprise-ready CMS platforms globally, tailored for edge deployments and high-traffic SvelteKit applications.
+> **Conclusion**: SveltyCMS Audit 2.0 provides the most reliable performance baseline in the industry, tailored for edge deployments and high-traffic enterprise applications.

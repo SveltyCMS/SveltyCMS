@@ -23,12 +23,12 @@ The Tokens API manages stateless authentication secrets used for both human invi
 
 ## ⚡ Quick Reference
 
-| Token Type | HTTP Endpoint | Method | Local SDK Equivalent |
-| :--- | :--- | :--- | :--- |
-| **Invitations** | `/api/token` | `GET/POST` | `cms.auth.tokens` |
-| **Provider Info** | `/api/get-tokens-provided`| `GET` | N/A |
-| **Website Tokens**| `/api/website-tokens` | `GET/POST` | `cms.websiteTokens` |
-| **Resolve Token** | `/api/token/resolve` | `POST` | `cms.auth.tokens.resolve` |
+| Token Type         | HTTP Endpoint              | Method     | Local SDK Equivalent      |
+| :----------------- | :------------------------- | :--------- | :------------------------ |
+| **Invitations**    | `/api/token`               | `GET/POST` | `cms.auth.tokens`         |
+| **Provider Info**  | `/api/get-tokens-provided` | `GET`      | N/A                       |
+| **Website Tokens** | `/api/website-tokens`      | `GET/POST` | `cms.websiteTokens`       |
+| **Resolve Token**  | `/api/token/resolve`       | `POST`     | `cms.auth.tokens.resolve` |
 
 ---
 
@@ -64,6 +64,7 @@ Website Tokens (also known as Personal Access Tokens) are designed for long-live
 ## 4. The Mechanics
 
 ### Storage & Security
+
 - **Hashing**: All tokens are hashed using SHA-256 before storage. The raw token value is only shown once during creation.
 - **Expiry**: Tokens can be issued with a specific time-to-live (TTL). Once expired, they are automatically purged by the system's background vacuum service.
 - **Revocation**: Tokens can be invalidated instantly via the `DELETE` method on their respective endpoints.
@@ -79,7 +80,7 @@ sequenceDiagram
     Tokens->>SDK: createToken(payload)
     SDK->>DB: INSERT hashed_token, metadata
     SDK-->>App: 200 OK (Return RAW Token ONCE)
-    
+
     App->>App: Store Token Securely
     App->>Tokens: GET /api/collections (with Bearer Token)
     Tokens->>SDK: validateToken(raw)

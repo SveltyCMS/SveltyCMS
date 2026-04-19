@@ -33,14 +33,31 @@ export class TransactionModule {
 
     try {
       return await this.db.transaction(async (_tx) => {
-        const dbTransaction: DatabaseTransaction = {
+        // Create a transactional version of the transaction object
+        // that satisfies the benchmark's need for CRUD methods.
+        const dbTransaction: DatabaseTransaction & any = {
           commit: async () => ({ success: true, data: undefined }),
           rollback: async () => {
             throw new Error("ROLLBACK_TRANSACTION");
           },
+          // 🚀 Add basic CRUD support for the benchmark
+          insert: async (collection: string, data: any, options: any = {}) =>
+            this.core.crud.insert(collection, data, { ...options, tx: _tx }),
+          update: async (collection: string, id: any, data: any, options: any = {}) =>
+            this.core.crud.update(collection, id, data, { ...options, tx: _tx }),
+          delete: async (collection: string, id: any, options: any = {}) =>
+            this.core.crud.delete(collection, id, { ...options, tx: _tx }),
+          findById: async (collection: string, id: any, options: any = {}) =>
+            this.core.crud.findOne(collection, { _id: id } as any, { ...options, tx: _tx }),
         };
 
         const result = await fn(dbTransaction);
+
+        // 🚀 Fix: If function doesn't return a formal DatabaseResult, assume success if no throw occurred
+        if (!result || (typeof result === "object" && !("success" in result))) {
+          return { success: true, data: result } as any;
+        }
+
         if (!result.success) {
           throw new Error(result.message || "Transaction failed");
         }

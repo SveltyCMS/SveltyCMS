@@ -18,6 +18,7 @@ vi.mock("@src/databases/db", () => ({
     settings: {
       get: vi.fn().mockResolvedValue({}),
     },
+    collection: { getModel: vi.fn() },
   },
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
   dbInitPromise: Promise.resolve(),

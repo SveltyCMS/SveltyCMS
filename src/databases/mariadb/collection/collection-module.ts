@@ -86,6 +86,9 @@ export class CollectionModule {
       },
     };
     this.collectionRegistry.set(id, wrappedModel);
+    if (typeof (this.crud as any).clearPreparedStatements === "function") {
+      (this.crud as any).clearPreparedStatements(id);
+    }
     logger.info(`✅ MariaDB table "${tableName}" created successfully.`);
   }
 
@@ -95,6 +98,9 @@ export class CollectionModule {
 
   async deleteModel(id: string): Promise<void> {
     this.collectionRegistry.delete(id);
+    if (typeof (this.crud as any).clearPreparedStatements === "function") {
+      (this.crud as any).clearPreparedStatements(id);
+    }
   }
 
   async createIndexes(id: string, schema: Schema): Promise<DatabaseResult<void>> {

@@ -149,7 +149,9 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
     import.meta.env?.DEV ||
     (typeof process !== "undefined" && process?.env?.NODE_ENV === "development");
   const verboseEnabled =
-    (IS_BROWSER && localStorage.getItem("VITE_VERBOSE_LOGS") === "true") ||
+    (IS_BROWSER &&
+      typeof localStorage !== "undefined" &&
+      localStorage.getItem("VITE_VERBOSE_LOGS") === "true") ||
     import.meta.env?.VITE_VERBOSE_LOGS === "true";
 
   const isHighPriority = PRIORITY[level] <= PRIORITY.warn;

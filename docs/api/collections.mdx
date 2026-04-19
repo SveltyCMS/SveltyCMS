@@ -22,14 +22,14 @@ The Collections API provides standard CRUD (Create, Read, Update, Delete) operat
 
 ## ⚡ Quick Reference
 
-| Feature | HTTP Endpoint | Method | Permission Required |
-| :--- | :--- | :--- | :--- |
-| **List Schemas** | `/api/collections` | `GET` | `collection:read` |
-| **Find Entries** | `/api/collections/{id}` | `GET` | `collection:read` |
-| **Get Entry** | `/api/collections/{colId}/{entId}`| `GET` | `collection:read` |
-| **Create Entry** | `/api/collections/{id}` | `POST` | `collection:create` |
-| **Update Entry** | `/api/collections/{colId}/{entId}`| `PATCH` | `collection:update` |
-| **Delete Entry** | `/api/collections/{colId}/{entId}`| `DELETE`| `collection:delete` |
+| Feature          | HTTP Endpoint                      | Method   | Permission Required |
+| :--------------- | :--------------------------------- | :------- | :------------------ |
+| **List Schemas** | `/api/collections`                 | `GET`    | `collection:read`   |
+| **Find Entries** | `/api/collections/{id}`            | `GET`    | `collection:read`   |
+| **Get Entry**    | `/api/collections/{colId}/{entId}` | `GET`    | `collection:read`   |
+| **Create Entry** | `/api/collections/{id}`            | `POST`   | `collection:create` |
+| **Update Entry** | `/api/collections/{colId}/{entId}` | `PATCH`  | `collection:update` |
+| **Delete Entry** | `/api/collections/{colId}/{entId}` | `DELETE` | `collection:delete` |
 
 ---
 
@@ -39,6 +39,7 @@ Use the root collections endpoint to discover the structure and metadata of your
 
 **Endpoint**: `GET /api/collections`  
 **Query Parameters**:
+
 - `includeFields`: If `true`, returns the full widget configuration for each collection.
 - `includeStats`: If `true`, returns count and health metrics for each collection.
 
@@ -47,12 +48,14 @@ Use the root collections endpoint to discover the structure and metadata of your
 ## 2. Entry Management
 
 ### Retrieval & Searching
+
 To fetch entries from a specific collection, use the ID-based endpoint.
 
 **Endpoint**: `GET /api/collections/{collectionId}`  
 **Advanced Filtering**: See the [Content & Search Reference](./content.mdx) for deep query syntax.
 
 ### Modifying Content
+
 SveltyCMS enforces schema validation (via Valibot) on every write operation.
 
 - **Create**: `POST /api/collections/{collectionId}`
@@ -65,6 +68,7 @@ SveltyCMS enforces schema validation (via Valibot) on every write operation.
 ## 3. The Mechanics
 
 ### Architecture
+
 The Collections handler acts as a thin dispatcher that invokes the `LocalCMS` SDK, which in turn coordinates between the Database Adapter and the Widget System.
 
 ```mermaid

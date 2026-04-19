@@ -50,7 +50,9 @@ describe("Performance: Batch Widget API", () => {
     const endBatch = performance.now();
     const durationBatch = endBatch - startBatch;
 
-    console.log(`Batch Processing (100 items): ${durationBatch.toFixed(2)}ms`);
+    if (process.env.VERBOSE_TESTS) {
+      console.log(`Batch Processing (100 items): ${durationBatch.toFixed(2)}ms`);
+    }
 
     // 2. Measure Legacy Performance (Sequential/Parallel Promise.all)
     // Note: In our implementation, we use Promise.all, so it's parallel.
@@ -70,7 +72,9 @@ describe("Performance: Batch Widget API", () => {
     const endLegacy = performance.now();
     const durationLegacy = endLegacy - startLegacy;
 
-    console.log(`Legacy Processing (100 items): ${durationLegacy.toFixed(2)}ms`);
+    if (process.env.VERBOSE_TESTS) {
+      console.log(`Legacy Processing (100 items): ${durationLegacy.toFixed(2)}ms`);
+    }
 
     // Expect batch to be at least slightly faster or similar in this mock (since Promise.all is fast),
     // but in real world with DB connection limits, Batch wins huge.

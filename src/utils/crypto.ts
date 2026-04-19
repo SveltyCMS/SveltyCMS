@@ -200,13 +200,13 @@ export async function decryptData(
 
     // Extract components
     let offset = 0;
-    const salt = combined.subarray(offset, offset + encryptionConfig.saltLength);
+    const salt = Buffer.from(combined.subarray(offset, offset + encryptionConfig.saltLength));
     offset += encryptionConfig.saltLength;
 
-    const iv = combined.subarray(offset, offset + encryptionConfig.ivLength);
+    const iv = Buffer.from(combined.subarray(offset, offset + encryptionConfig.ivLength));
     offset += encryptionConfig.ivLength;
 
-    const authTag = combined.subarray(offset, offset + encryptionConfig.authTagLength);
+    const authTag = Buffer.from(combined.subarray(offset, offset + encryptionConfig.authTagLength));
     offset += encryptionConfig.authTagLength;
 
     const encrypted = combined.subarray(offset);

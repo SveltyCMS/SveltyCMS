@@ -114,10 +114,7 @@ describe("Middleware: handleStaticAssetCaching", () => {
       expect(text).toBe("test body");
 
       if (response.headers.has("Cache-Control")) {
-        console.log(
-          "DEBUG: Unexpected Cache-Control header:",
-          response.headers.get("Cache-Control"),
-        );
+        console.log("Unexpected Cache-Control header:", response.headers.get("Cache-Control"));
       }
       expect(response.headers.has("Cache-Control")).toBe(false);
     });

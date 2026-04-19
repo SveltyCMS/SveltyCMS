@@ -42,6 +42,9 @@ vi.mock("@src/databases/db", () => {
       blockTokens: vi.fn(),
       unblockTokens: vi.fn(),
     },
+    collection: {
+      getModel: vi.fn(),
+    },
     collections: {
       listSchemas: vi.fn(),
       getModel: vi.fn(),

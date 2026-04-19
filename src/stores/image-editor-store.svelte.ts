@@ -67,7 +67,8 @@ export interface ImageEditorState {
   canvasSize: { width: number; height: number };
   watermarks: any[];
   zoom: number;
-  saveBehavior: "new" | "overwrite";
+  saveBehavior: "new" | "rotate" | "overwrite";
+  compareMode: boolean;
 }
 
 // Create image editor store
@@ -111,6 +112,7 @@ function createImageEditorStore() {
     blurRegions: [],
     watermarks: [],
     saveBehavior: "new",
+    compareMode: false,
   });
 
   // Constants
@@ -178,6 +180,10 @@ function createImageEditorStore() {
 
   function setError(error: string | null) {
     state.error = error;
+  }
+
+  function setCompareMode(value: boolean) {
+    state.compareMode = value;
   }
 
   function takeSnapshot() {
@@ -380,7 +386,7 @@ function createImageEditorStore() {
     get saveBehavior() {
       return state.saveBehavior;
     },
-    set saveBehavior(value: "new" | "overwrite") {
+    set saveBehavior(value: "new" | "rotate" | "overwrite") {
       state.saveBehavior = value;
     },
     get imageElement() {
@@ -389,6 +395,7 @@ function createImageEditorStore() {
     set imageElement(value: HTMLImageElement | null) {
       state.imageElement = value;
     },
+    setCompareMode,
   };
 }
 

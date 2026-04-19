@@ -259,16 +259,14 @@ export class WorkflowService {
     entryId: string,
     collectionId: string,
     tenantId?: string,
-    retryCount = 3,
   ): Promise<WorkflowInstance | null> {
-    let workflow = await this.getWorkflowForCollection(collectionId, tenantId);
+    const workflow = await this.getWorkflowForCollection(collectionId, tenantId);
 
-    // If workflow not ready yet (async seeding issue), retry with backoff
-    if (!workflow && retryCount > 0) {
-      await new Promise((r) => setTimeout(r, 500));
-      return this.initializeWorkflow(entryId, collectionId, tenantId, retryCount - 1);
-    }
-
+    // No workflow defined for this collection — return immediately.
+    // The previous retry-with-backoff pattern (3 × 500ms = 1.5s sleep) was
+    // catastrophic at high concurrency: every POST to a workflow-less collection
+    // would block the caller for 1.5 seconds. Since getWorkflowForCollection
+    // reads directly from the DB, a missing result means no workflow exists.
     if (!workflow) return null;
 
     const initialState = workflow.states?.find((s) => s.isInitial)?.id || workflow.states?.[0]?.id;
@@ -293,6 +291,53 @@ export class WorkflowService {
       instance._id = result.data._id as string;
     }
     return instance;
+  }
+
+  /**
+   * Initializes workflows for multiple entries in a single optimized operation.
+   */
+  public async bulkInitializeWorkflow(
+    entryIds: string[],
+    collectionId: string,
+    tenantId?: string,
+  ): Promise<void> {
+    if (entryIds.length === 0) return;
+
+    // 1. Fetch workflow once for the whole batch
+    const workflow = await this.getWorkflowForCollection(collectionId, tenantId);
+    if (!workflow || !workflow.states || workflow.states.length === 0) return;
+
+    const initialState = workflow.states.find((s) => s.isInitial)?.id || workflow.states[0]?.id;
+    if (!initialState) {
+      // Only warn if a workflow actually exists but is broken
+      if (workflow._id) {
+        logger.warn(`No valid initial state found for workflow: ${collectionId}`);
+      }
+      return;
+    }
+
+    // 2. Prepare instances
+    const instances = entryIds.map((entryId) => ({
+      entryId,
+      collectionId,
+      tenantId,
+      currentState: initialState,
+      history: [],
+    }));
+
+    const dbAdapter = await getDbAdapter();
+
+    // 3. Batch insert instances
+    if (dbAdapter.batch?.bulkInsert) {
+      await dbAdapter.batch.bulkInsert(this.INSTANCES_COLLECTION, instances as any[]);
+    } else {
+      // Fallback to sequential if batch not supported by adapter
+      for (const instance of instances) {
+        await dbAdapter.crud.insert(this.INSTANCES_COLLECTION, instance as any, {
+          tenantId: tenantId as DatabaseId,
+        });
+      }
+    }
   }
 
   /**

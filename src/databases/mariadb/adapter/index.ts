@@ -51,6 +51,7 @@ import * as utils from "../utils";
 import { AdapterCore } from "./adapter-core";
 
 export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
+  public readonly type = "mariadb";
   public readonly system: import("../../db-interface").ISystemAdapter;
   public readonly monitoring: import("../../db-interface").IMonitoringAdapter;
   public readonly crud: CrudModule;

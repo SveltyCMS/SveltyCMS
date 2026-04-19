@@ -1,10 +1,10 @@
 /**
  * @file tests/e2e/global.setup.ts
  * @description Global setup for Playwright E2E tests
- * 
+ *
  * Ensures clean state and required directories before tests run.
  * Critical for CI environments where gitignored folders don't exist.
- * 
+ *
  * Cleanup strategy:
  * - LOCAL: Clean DB files if not locked, always clean config
  * - CI: Skip if fresh runner, clean if cached
@@ -16,7 +16,7 @@ import { randomUUID } from "node:crypto";
 
 export default async function globalSetup() {
   console.log("[Global Setup] Starting...");
-  
+
   const authDir = join(process.cwd(), "tests/e2e/.auth");
   if (!existsSync(authDir)) {
     mkdirSync(authDir, { recursive: true });
@@ -36,7 +36,7 @@ export default async function globalSetup() {
     console.log("[Global Setup] Cleanup skipped (SKIP_TEST_CLEANUP=true)");
   } else {
     console.log("[Global Setup] Cleaning old test data...");
-    
+
     const cleanupPaths = [
       // Database files (may be locked by webServer)
       join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite"),
@@ -59,7 +59,7 @@ export default async function globalSetup() {
           deletedCount++;
         } catch (err: any) {
           // Ignore EBUSY errors (file locked by webServer)
-          if (err.code !== 'EBUSY') {
+          if (err.code !== "EBUSY") {
             console.warn(`[Global Setup] ⚠️ Failed to delete ${path}: ${err.code}`);
           }
         }
@@ -86,7 +86,7 @@ export default async function globalSetup() {
 
     console.log(`[Global Setup] Cleanup completed (${deletedCount} items removed)`);
   }
-  
+
   // STEP 3: Ensure required directories exist
   const requiredDirs = [
     join(process.cwd(), "config", "database"),
@@ -99,7 +99,7 @@ export default async function globalSetup() {
     if (!existsSync(dir)) {
       console.log(`[Global Setup] Creating directory: ${dir}`);
       mkdirSync(dir, { recursive: true });
-      
+
       // Verify directory was actually created
       if (!existsSync(dir)) {
         throw new Error(`Failed to create required directory: ${dir}`);
@@ -111,7 +111,10 @@ export default async function globalSetup() {
 
   // Create .gitkeep files to ensure directories are tracked
   const gitkeepMapping = [
-    { dir: join(process.cwd(), "config", "database"), content: "# Database files directory for tests" },
+    {
+      dir: join(process.cwd(), "config", "database"),
+      content: "# Database files directory for tests",
+    },
     { dir: join(process.cwd(), "logs"), content: "# Test logs directory" },
     { dir: join(process.cwd(), "mediaFolder"), content: "# Test media directory" },
   ];

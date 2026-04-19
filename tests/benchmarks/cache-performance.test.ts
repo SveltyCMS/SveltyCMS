@@ -1,17 +1,17 @@
 /**
  * @file tests/benchmarks/cache-performance.test.ts
- * @description High-fidelity benchmark for SveltyCMS 3-layer caching system (L1 Request / L2 Global / DB).
- *              Uses the new professional benchmarking engine with IQR trimming, MoE, and memory tracking.
+ * @description Enterprise cache benchmark for SveltyCMS.
+ * Measures hit ratios, speedup ratios, and multi-layer invalidation under multi-concurrency.
  */
 
 import { test } from "bun:test";
 import "../unit/setup.ts";
-import { runBenchmark, exportResult, checkBenchmarkEnv, stabilize } from "./benchmark-utils";
+import { runBenchmark, exportResult, exportMetric, stabilize } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
 const TEST_TENANT = "global" as any;
-const TEST_COLLECTION = "benchmark_cache_test";
-const TEST_ENTRY_ID = "cache-bench-entry-001";
+const TEST_COLLECTION = "bench_cache_enterprise";
+const TEST_ENTRY_ID = "cache-bench-001";
 
 const benchmarkSchema = {
   _id: TEST_COLLECTION,
@@ -20,182 +20,191 @@ const benchmarkSchema = {
 };
 
 export async function runCacheBenchmark() {
-  checkBenchmarkEnv();
-  console.log("🚀 Starting SveltyCMS 3-Layer Cache Performance Benchmark...\n");
+  console.log("🚀 Starting Enterprise Cache Benchmark...\n");
 
   logger.level = "silent";
 
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
   const { LocalCMS } = await import("@src/routes/api/cms");
   const { contentSystem } = await import("@src/content");
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
 
   await ensureFullInitialization();
-  const dbAdapter = getDb();
-  if (!dbAdapter) throw new Error("DB not initialized");
+  const db = getDb();
+  if (!db) throw new Error("DB adapter missing");
 
-  const cms = new LocalCMS(dbAdapter);
+  const cms = new LocalCMS(db);
 
-  // Setup collection (idempotent)
-  console.log(`📦 Ensuring collection "${TEST_COLLECTION}" exists...`);
-  let collections = contentSystem.getCollections(TEST_TENANT) || [];
-  if (!collections.some((c: any) => c._id === TEST_COLLECTION)) {
-    if (dbAdapter.collection?.createModel) {
-      await dbAdapter.collection.createModel(benchmarkSchema as any).catch(() => {});
-    }
-    if (dbAdapter.content?.nodes?.create) {
-      await dbAdapter.content.nodes
-        .create({
-          _id: TEST_COLLECTION,
-          path: `/collection/${TEST_COLLECTION}`,
-          name: TEST_COLLECTION,
-          nodeType: "collection",
-          status: "published",
-          collectionDef: benchmarkSchema,
-          tenantId: TEST_TENANT,
-          order: 0,
-        } as any)
-        .catch(() => {});
-    }
-    await contentSystem.refresh(TEST_TENANT);
+  // 🚀 Scaffold the schema file to ensure it's discovered by the content system
+  const compiledDir = path.join(process.cwd(), ".compiledCollections");
+  await fs.mkdir(compiledDir, { recursive: true });
+  await fs.writeFile(
+    path.join(compiledDir, `${TEST_COLLECTION}.js`),
+    `export default ${JSON.stringify(benchmarkSchema, null, 2)};`,
+  );
+
+  // Force a reload to pick up the new file
+  await contentSystem.initialize(null, { skipReconciliation: false });
+
+  if (db.collection?.createModel) {
+    await db.collection.createModel(benchmarkSchema as any).catch(() => {});
   }
 
-  // Seed entry (idempotent)
-  console.log(`📝 Ensuring test entry exists...`);
-  let entry = await cms.collections.findById(TEST_COLLECTION as any, TEST_ENTRY_ID, {
+  const existing = await cms.collections.findById(TEST_COLLECTION as any, TEST_ENTRY_ID, {
     tenantId: TEST_TENANT,
     disableErrors: true,
+    system: true,
   });
 
-  if (!entry.success || !entry.data) {
+  if (!existing.success || !existing.data) {
     await cms.collections.create(
       TEST_COLLECTION as any,
-      {
-        _id: TEST_ENTRY_ID,
-        title: "Cache Benchmark Entry",
-      },
+      { _id: TEST_ENTRY_ID, title: "Initial Cache Entry" },
       { system: true, tenantId: TEST_TENANT },
     );
   }
 
+  await stabilize();
+
+  const RUNS = 3;
   const ITERATIONS = 2000;
-  const WARMUP = Math.floor(ITERATIONS * 0.15);
-  const CONCURRENCY = 1;
-
-  console.log(`\n🔬 Running cache audits (${ITERATIONS} iterations, concurrency=1)...`);
-
+  const WARMUP = 200;
   const results: any[] = [];
 
-  // Helper to run a benchmark with explicit cache stabilization
-  const runCacheLayer = async (name: string, layer: string, onIteration: () => Promise<void>) => {
-    // Explicitly clear cache and stabilize before each phase
-    await dbAdapter.monitoring.cache.clear();
-    await stabilize();
+  async function clearAllCaches() {
+    if (!db) return;
+    await (db as any).monitoring?.cache?.clear?.();
+    await (db as any).requestCache?.clear?.();
+  }
 
-    const res = await runBenchmark({
-      name: `SDK: ${name}`,
+  async function benchmark(name: string, concurrency: number, fn: () => Promise<void>) {
+    const r = await runBenchmark({
+      name,
       iterations: ITERATIONS,
-      concurrency: CONCURRENCY,
       warmupIterations: WARMUP,
-      runs: 2,
+      runs: RUNS,
+      concurrency,
       trimOutliers: "iqr",
       measureMemory: true,
-      onIteration,
       silent: true,
+      onSetup: stabilize,
+      onIteration: fn,
     });
+    results.push(r);
+    return r;
+  }
 
-    results.push({ ...res, layer, type: name });
-    return res;
-  };
-
-  // 1. Cold DB Read (full cache bypass)
-  const coldResult = await runCacheLayer("Cache Miss", "Cold DB Read", async () => {
+  // 1. Cold DB Read
+  await clearAllCaches();
+  const dbRes = await benchmark("Cold DB Read", 1, async () => {
     await cms.collections.findById(TEST_COLLECTION as any, TEST_ENTRY_ID, {
       tenantId: TEST_TENANT,
       bypassCache: true,
       bypassRequestCache: true,
+      system: true,
     });
   });
 
-  // 2. L2 Global Cache Hit
-  const l2Result = await runCacheLayer("L2 Hit", "L2 Global Cache", async () => {
+  // 2. L2 Cache Hit
+  await cms.collections.findById(TEST_COLLECTION as any, TEST_ENTRY_ID, {
+    tenantId: TEST_TENANT,
+    bypassRequestCache: true,
+    system: true,
+  });
+  const l2Res = await benchmark("L2 Cache Hit", 8, async () => {
     await cms.collections.findById(TEST_COLLECTION as any, TEST_ENTRY_ID, {
       tenantId: TEST_TENANT,
-      bypassRequestCache: true, // bypass only L1
+      bypassRequestCache: true,
+      system: true,
     });
   });
 
-  // 3. Full L1 + L2 Hit (Request-scoped memory cache)
-  const l1Result = await runCacheLayer("L1+L2 Hit", "L1 Request Memory", async () => {
+  // 3. L1 Cache Hit
+  await cms.collections.findById(TEST_COLLECTION as any, TEST_ENTRY_ID, {
+    tenantId: TEST_TENANT,
+    system: true,
+  });
+  const l1Res = await benchmark("L1 Memory Hit", 32, async () => {
     await cms.collections.findById(TEST_COLLECTION as any, TEST_ENTRY_ID, {
       tenantId: TEST_TENANT,
+      system: true,
     });
   });
 
-  // 4. Cache Invalidation / Write-Through Performance
-  // This measures the cost of updating an entry and the subsequent cache clear
-  const writeResult = await runCacheLayer("Write-Through", "Invalidation Cost", async () => {
+  // 4. Mixed 95% Hit Workload
+  const mixedRes = await benchmark("95% Hit Workload", 16, async () => {
+    const miss = Math.random() < 0.05;
+    await cms.collections.findById(TEST_COLLECTION as any, TEST_ENTRY_ID, {
+      tenantId: TEST_TENANT,
+      bypassCache: miss,
+      bypassRequestCache: miss,
+      system: true,
+    });
+  });
+
+  // 5. Write Invalidation
+  const writeRes = await benchmark("Write Invalidation", 8, async () => {
     await cms.collections.update(
       TEST_COLLECTION as any,
       TEST_ENTRY_ID,
-      {
-        title: `Updated ${Math.random()}`,
-      },
+      { title: "Update " + Date.now() },
       { system: true, tenantId: TEST_TENANT },
     );
   });
 
   logger.level = "info";
 
-  // ===================================================================
-  // High-Fidelity Professional Dashboard
-  // ===================================================================
-  const baseline = coldResult.avgMs;
-  console.log("\n" + "=".repeat(140));
-  console.log("   📊 SVELTYCMS 3-LAYER CACHE PERFORMANCE AUDIT");
-  console.log("   High-Fidelity • IQR Trimming • 95% Confidence Interval • Cache-Flush Isolation");
-  console.log("=".repeat(140));
+  console.log("\n" + "=".repeat(150));
+  console.log("📊 SVELTYCMS CACHE ENTERPRISE REPORT");
+  console.log("L1 • L2 • DB • Mixed Load • Invalidation");
+  console.log("=".repeat(150));
 
   console.log(
-    `| ${"Cache Scenario".padEnd(38)} | ${"Avg Latency".padEnd(20)} | ${"p95".padEnd(12)} | ${"RPS".padEnd(12)} | ${"Speedup".padEnd(10)} | ${"RSS Δ".padEnd(10)} |`,
+    `| ${"Scenario".padEnd(28)} | ${"Avg".padEnd(12)} | ${"p95".padEnd(12)} | ${"RPS".padEnd(12)} | ${"Speedup".padEnd(12)} |`,
   );
-  console.log("|" + "-".repeat(38 + 20 + 12 + 12 + 10 + 10 + 6) + "|");
+  console.log("|" + "-".repeat(145) + "|");
 
   for (const r of results) {
-    const speedup = (baseline / r.avgMs).toFixed(1) + "x";
-    const memLabel = (r.rssDelta >= 0 ? "+" : "") + r.rssDelta.toFixed(2) + " MB";
-
+    const speed = (dbRes.avgMs / r.avgMs).toFixed(1) + "x";
     console.log(
-      `| ${r.layer.padEnd(38)} | ` +
-        `${r.avgMs.toFixed(4)} ms (±${r.marginOfError.toFixed(3)})`.padEnd(20) +
-        ` | ` +
-        `${r.p95Ms.toFixed(4)} ms`.padEnd(12) +
-        ` | ` +
-        `${Math.round(r.rps).toLocaleString()}`.padEnd(12) +
-        ` | ` +
-        `${speedup.padEnd(10)} | ` +
-        `${memLabel.padEnd(10)} |`,
+      `| ${r.name.padEnd(28)} | ` +
+        `${r.avgMs.toFixed(3)} ms`.padEnd(12) +
+        ` | ${r.p95Ms.toFixed(3)}`.padEnd(12) +
+        ` | ${Math.round(r.rps).toLocaleString().padEnd(12)}` +
+        ` | ${speed.padEnd(12)} |`,
     );
   }
+  console.log("=".repeat(150));
 
-  console.log("=".repeat(140));
+  console.log("\n✨ Insights:");
+  console.log(`• L2 speedup vs DB: ${(dbRes.avgMs / l2Res.avgMs).toFixed(1)}x`);
+  console.log(`• L1 speedup vs DB: ${(dbRes.avgMs / l1Res.avgMs).toFixed(1)}x`);
+  console.log(`• 95% hit workload avg: ${mixedRes.avgMs.toFixed(3)} ms`);
+  console.log(`• Write invalidation cost: ${writeRes.avgMs.toFixed(3)} ms`);
 
-  console.log(`\n✨ Performance Insights:`);
-  console.log(
-    `   • L2 Global Cache provides a ${(baseline / l2Result.avgMs).toFixed(1)}x speedup over raw DB queries.`,
-  );
-  console.log(
-    `   • L1 Request Cache provides a ${(baseline / l1Result.avgMs).toFixed(1)}x speedup, approaching near-zero latency.`,
-  );
-  console.log(
-    `   • Write-Through cost: The overhead of cache invalidation is ~${(writeResult.avgMs - coldResult.avgMs).toFixed(3)} ms per update.`,
-  );
+  const maxRps = Math.max(...results.map((r) => r.rps));
+  exportMetric("cache.db.avg", dbRes.avgMs, "ms");
+  exportMetric("cache.l2.avg", l2Res.avgMs, "ms");
+  exportMetric("cache.l1.avg", l1Res.avgMs, "ms");
+  exportMetric("cache.hit95.avg", mixedRes.avgMs, "ms");
+  exportMetric("cache.speedup.l2", dbRes.avgMs / l2Res.avgMs, "ratio");
+  exportMetric("cache.speedup.l1", dbRes.avgMs / l1Res.avgMs, "ratio");
+  exportMetric("cache.invalidation.avg", writeRes.avgMs, "ms");
+  exportMetric("cache.max_rps", maxRps, "req/s");
 
-  results.forEach((r) => exportResult(r));
-  console.log("\n✅ Cache benchmark suite completed successfully.");
+  exportResult({
+    name: "Cache Aggregate",
+    avgMs: mixedRes.avgMs,
+    p95Ms: mixedRes.p95Ms,
+    rps: maxRps,
+  });
+
+  for (const r of results) exportResult(r);
+
+  console.log("\n✅ Cache benchmark completed.");
 }
 
-if (!process.env.SVELTY_AUDIT_ACTIVE) {
-  test("Local SDK 3-Layer Cache Performance", async () => {
-    await runCacheBenchmark();
-  }, 450000);
-}
+test("Cache Enterprise Suite", async () => {
+  await runCacheBenchmark();
+}, 450000);

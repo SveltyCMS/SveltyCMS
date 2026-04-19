@@ -11,8 +11,6 @@ import {
 } from "@src/routes/api/[...path]/+server";
 import { webhookService } from "@src/services/webhook-service";
 
-console.log("--- vi keys in test:", typeof vi !== "undefined" ? Object.keys(vi) : "undefined");
-
 // Mock webhook service
 vi.mock("@src/services/webhook-service", () => ({
   webhookService: {

@@ -119,8 +119,6 @@ Orchestrates the filter modules using svelte-canvas compatible state.
 
 	$effect(() => {
 		// Update toolbar when filters change or active adjustment changes
-		const _ = JSON.stringify(storeState.filters);
-		const __ = activeAdjustment;
 		updateToolbar();
 	});
 

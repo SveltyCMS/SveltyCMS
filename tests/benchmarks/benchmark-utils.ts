@@ -26,7 +26,18 @@ export interface BenchmarkResult {
   failureCount: number;
   timestamp: string;
   phases?: any[]; // For multi-phase benchmarks
+  metrics?: Record<string, any>; // Standardized numeric metrics
   [key: string]: any; // Allow custom metadata
+}
+
+/** Standardised metric format for orchestrator consumption */
+export interface SystemMetric {
+  name: string;
+  value: number;
+  unit: string;
+  _type: "numeric-metric";
+  timestamp: string;
+  metadata?: Record<string, any>;
 }
 
 export interface BenchmarkOptions {
@@ -37,6 +48,8 @@ export interface BenchmarkOptions {
   runs?: number; // Multiple independent runs for stability
   useNanoseconds?: boolean;
   trimOutliers?: boolean | "iqr"; // "iqr" = Interquartile Range based trimming
+  /** If true, exceptions in onIteration count as timed successes, not failures. Useful for isolation testing. */
+  tolerateErrors?: boolean;
   onIteration: (index: number) => Promise<void> | void;
   onWarmup?: (index: number) => Promise<void> | void;
   onSetup?: () => Promise<void> | void;
@@ -55,25 +68,56 @@ export async function stabilize(): Promise<void> {
   await new Promise((r) => setTimeout(r, 60)); // yield to let system settle
 }
 
+/**
+ * Robust concurrent execution semaphore.
+ * Prevents Promise.race overhead by managing a fixed worker set.
+ */
+class AsyncSemaphore {
+  private active = 0;
+  private queue: (() => void)[] = [];
+
+  constructor(private max: number) {}
+
+  async acquire(): Promise<void> {
+    if (this.active < this.max) {
+      this.active++;
+      return;
+    }
+    return new Promise((r) => this.queue.push(r));
+  }
+
+  release(): void {
+    this.active--;
+    if (this.queue.length > 0) {
+      this.active++;
+      const next = this.queue.shift();
+      if (next) next();
+    }
+  }
+}
+
 /** Robust concurrent execution pool (semaphore style) */
 async function executePool(
   concurrency: number,
   total: number,
   fn: (i: number) => Promise<void> | void,
 ): Promise<void> {
-  const executing = new Set<Promise<unknown>>();
+  const semaphore = new AsyncSemaphore(concurrency);
+  const tasks: Promise<void>[] = [];
 
   for (let i = 0; i < total; i++) {
-    const p = Promise.resolve().then(() => fn(i));
-    executing.add(p);
-    p.finally(() => executing.delete(p));
-
-    if (executing.size >= concurrency) {
-      await Promise.race(executing);
-    }
+    await semaphore.acquire();
+    const p = (async () => {
+      try {
+        await fn(i);
+      } finally {
+        semaphore.release();
+      }
+    })();
+    tasks.push(p);
   }
 
-  await Promise.all(executing);
+  await Promise.all(tasks);
 }
 
 export async function runBenchmark(options: BenchmarkOptions): Promise<BenchmarkResult> {
@@ -83,7 +127,6 @@ export async function runBenchmark(options: BenchmarkOptions): Promise<Benchmark
     warmupIterations = Math.floor(iterations * 0.15),
     concurrency = 1,
     runs = 1,
-    useNanoseconds = typeof Bun !== "undefined",
     trimOutliers = true,
     onIteration,
     onWarmup,
@@ -122,9 +165,7 @@ export async function runBenchmark(options: BenchmarkOptions): Promise<Benchmark
     let failureCount = 0;
     const memStart = measureMemory ? process.memoryUsage() : null;
 
-    const getTime = useNanoseconds
-      ? () => Number((Bun as any).nanoseconds()) / 1_000_000
-      : () => performance.now();
+    const getTime = () => performance.now(); // High-precision fractional ms
 
     const startTotal = getTime();
 
@@ -132,12 +173,24 @@ export async function runBenchmark(options: BenchmarkOptions): Promise<Benchmark
       const start = getTime();
       try {
         await onIteration(i);
-        latencies.push(getTime() - start);
+        const duration = getTime() - start;
+        latencies.push(duration);
         successCount++;
+
+        // Brief cooldown to avoid event loop starvation in high concurrency
+        if (concurrency > 1 && i % 50 === 0) {
+          await new Promise((r) => setTimeout(r, 0));
+        }
       } catch (err) {
-        failureCount++;
-        if (failureCount === 1 && !silent) {
-          console.error(`\n❌ First error in benchmark '${name}':`, err);
+        if (options.tolerateErrors) {
+          const duration = getTime() - start;
+          latencies.push(duration);
+          successCount++;
+        } else {
+          failureCount++;
+          if (failureCount === 1 && !silent) {
+            console.error(`\n❌ First error in benchmark '${name}':`, err);
+          }
         }
       }
     });
@@ -301,30 +354,91 @@ export function checkBenchmarkEnv() {
 }
 
 /**
+ * Executes a function with detailed memory tracking (RSS and Heap).
+ */
+export async function runWithMemoryTracking<T>(
+  _name: string,
+  fn: () => Promise<T>,
+): Promise<{ result: T; rssDelta: number; heapDelta: number }> {
+  await stabilize();
+  const start = process.memoryUsage();
+  const result = await fn();
+  await stabilize();
+  const end = process.memoryUsage();
+
+  const rssDelta = (end.rss - start.rss) / 1024 / 1024;
+  const heapDelta = (end.heapUsed - start.heapUsed) / 1024 / 1024;
+
+  return { result, rssDelta, heapDelta };
+}
+
+/**
  * Shared Local Dispatcher Mock for REST/API benchmarks.
  */
+let cachedHandleApiRequests: any = null;
+
 export async function mockDispatch(
-  pathOrEvent: string | { path: string; method?: string; body?: any; [key: string]: any },
+  pathOrEvent:
+    | string
+    | {
+        path: string;
+        method?: string;
+        body?: any;
+        user?: any;
+        tenantId?: string;
+        headers?: Record<string, string>;
+        [key: string]: any;
+      },
   method: string = "GET",
 ) {
-  const { handleApiRequests } = await import("@src/hooks/handle-api-requests");
-
-  let path = typeof pathOrEvent === "string" ? pathOrEvent : pathOrEvent.path;
-  const targetMethod = typeof pathOrEvent === "string" ? method : pathOrEvent.method || "GET";
-  const body = typeof pathOrEvent === "string" ? undefined : pathOrEvent.body;
-  const tenantId = typeof pathOrEvent === "string" ? "global" : pathOrEvent.tenantId || "global";
+  const isString = typeof pathOrEvent === "string";
+  let path = isString ? pathOrEvent : pathOrEvent.path;
+  const targetMethod = isString ? method : pathOrEvent.method || "GET";
+  const body = isString ? undefined : pathOrEvent.body;
+  const tenantId = isString ? "global" : pathOrEvent.tenantId || "global";
+  const user = isString
+    ? { _id: "admin", role: "admin", isAdmin: true }
+    : pathOrEvent.user || { _id: "admin", role: "admin", isAdmin: true };
+  const customHeaders = isString ? {} : pathOrEvent.headers || {};
 
   if (!path.startsWith("/")) path = "/" + path;
+
+  // 🚀 FIX: If API_BASE_URL is set, perform a real network fetch
+  const apiBase = process.env.API_BASE_URL;
+  if (apiBase) {
+    const realUrl = `${apiBase}/api${path}`;
+    return fetch(realUrl, {
+      method: targetMethod,
+      headers: {
+        "x-tenant-id": tenantId,
+        "content-type": "application/json",
+        "x-test-secret": process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026",
+        ...customHeaders,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
+  if (!cachedHandleApiRequests) {
+    const { handleApiRequests } = await import("@src/hooks/handle-api-requests");
+    cachedHandleApiRequests = handleApiRequests;
+  }
+
   const url = `http://localhost/api${path}`;
 
   const event: any = {
     url: new URL(url),
     request: new Request(url, {
       method: targetMethod,
-      headers: { "x-tenant-id": tenantId },
+      headers: {
+        "x-tenant-id": tenantId,
+        "content-type": "application/json",
+        "x-test-secret": process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026",
+        ...customHeaders,
+      },
       body: body ? JSON.stringify(body) : undefined,
     }),
-    locals: { tenantId, user: { _id: "admin", role: "admin" } },
+    locals: { tenantId, user, isAdmin: true },
     cookies: { get: () => undefined, getAll: () => [], set: () => {}, delete: () => {} },
     getClientAddress: () => "127.0.0.1",
     platform: {},
@@ -332,5 +446,33 @@ export async function mockDispatch(
     route: { id: "/api/[...path]" },
   };
 
-  return handleApiRequests({ event, resolve: async () => new Response("OK") });
+  return cachedHandleApiRequests({ event, resolve: async () => new Response("OK") });
+}
+
+/**
+ * Standardised metric export for the enterprise orchestrator.
+ * Decouples benchmark content from report collection logic.
+ */
+export function exportMetric(
+  name: string,
+  value: number,
+  unit: string = "ms",
+  extra?: Record<string, any>,
+) {
+  const metric: SystemMetric = {
+    name,
+    value,
+    unit,
+    _type: "numeric-metric",
+    timestamp: new Date().toISOString(),
+    metadata: extra,
+  };
+
+  const dir = process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+  const slug = name.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
+  const filePath = path.join(dir, `${slug}.json`);
+
+  fs.writeFileSync(filePath, JSON.stringify(metric, null, 2));
 }

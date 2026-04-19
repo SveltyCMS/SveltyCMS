@@ -42,6 +42,7 @@ import * as utils from "../utils";
 import { AdapterCore } from "./adapter-core";
 
 export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
+  public readonly type = "sqlite";
   public readonly system!: import("../../db-interface").ISystemAdapter;
   declare public readonly monitoring: import("../../db-interface").IMonitoringAdapter;
   declare public readonly crud: CrudModule;

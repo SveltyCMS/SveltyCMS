@@ -18,6 +18,7 @@ vi.mock("@src/databases/db", () => ({
       getAll: vi.fn().mockResolvedValue({}),
       getPublic: vi.fn().mockResolvedValue({}),
     },
+    collection: { getModel: vi.fn().mockResolvedValue({}) },
   },
   getDb: vi.fn().mockReturnValue({
     system: { preferences: { getMany: vi.fn(), set: vi.fn() } },
@@ -26,6 +27,7 @@ vi.mock("@src/databases/db", () => ({
       getAll: vi.fn().mockResolvedValue({}),
       getPublic: vi.fn().mockResolvedValue({}),
     },
+    collection: { getModel: vi.fn().mockResolvedValue({}) },
   }),
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
   getAuth: vi.fn(),

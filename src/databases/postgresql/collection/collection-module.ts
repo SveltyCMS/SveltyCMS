@@ -12,6 +12,7 @@ import type {
   ICollectionAdapter,
 } from "../../db-interface";
 import type { AdapterCore } from "../adapter/adapter-core";
+import { CrudModule } from "../crud/crud-module";
 import type { DatabaseId } from "@src/content/types";
 
 export class CollectionModule implements ICollectionAdapter {
@@ -54,6 +55,15 @@ export class CollectionModule implements ICollectionAdapter {
       await this.db.execute(sql`DROP TABLE IF EXISTS ${sql.identifier(tableName)} CASCADE`);
     }
 
+    // Clear any cached prepared statements for this collection to avoid stale plans
+    if (this.core.crud instanceof CrudModule) {
+      this.core.crud.clearPreparedStatements(id);
+    }
+
+    // Register collection ID so getTable() knows it's a dynamic collection
+    this.core.collectionRegistry.set(id, { id, name: id });
+    this.core.collectionRegistry.set(tableName, { id, name: id });
+
     await this.db.execute(sql`
       CREATE TABLE IF NOT EXISTS ${sql.identifier(tableName)} (
         "_id" VARCHAR(36) PRIMARY KEY,
@@ -82,6 +92,13 @@ export class CollectionModule implements ICollectionAdapter {
 
   async deleteModel(id: string): Promise<void> {
     logger.info(`PostgreSQL deleteModel: Removing reference for ${id}`);
+    const tableName = id.startsWith("collection_") ? id : `collection_${id}`;
+    await this.db.execute(sql`DROP TABLE IF EXISTS ${sql.identifier(tableName)} CASCADE`);
+
+    // Invalidate prepared statements
+    if (this.core.crud instanceof CrudModule) {
+      this.core.crud.clearPreparedStatements(id);
+    }
   }
 
   async getSchema(

@@ -68,6 +68,8 @@ describeMongo("MongoDB Adapter Integration", () => {
       console.log("DEBUG: host =", host, "port =", port, "dbName =", dbName);
       console.log("DEBUG: Attempting MongoDB connection to:", conn.replace(/:.+@/, ":****@"));
 
+      if (!db) throw new Error("Failed to initialize MongoDB adapter");
+
       const result = await db.connect(conn, {
         serverSelectionTimeoutMS: 5000,
         connectTimeoutMS: 5000,

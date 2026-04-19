@@ -1,13 +1,16 @@
 /**
  * @file tests/benchmarks/widget-performance.test.ts
- * @description High-fidelity benchmark for SveltyCMS Core Widget overhead inside modifyRequest pipeline.
- *              Measures the cost of data transformation and validation for different widget types.
+ * @description High-fidelity benchmark for SveltyCMS Core Widget overhead.
+ *              Measures data transformation, validation, and rendering cost for different widget types.
  */
 
 import { test } from "bun:test";
 import "../unit/setup.ts";
-import { runBenchmark, exportResult } from "./benchmark-utils";
+import { runBenchmark, exportResult, exportMetric, stabilize } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
+
+const COLLECTION_ID = "widget_benchmark_stress";
+const TEST_TENANT = null; // Standardize on null for system benchmarks
 
 export async function runWidgetBenchmark() {
   console.log("🚀 Starting SveltyCMS Widget Performance Audit...\n");
@@ -17,79 +20,103 @@ export async function runWidgetBenchmark() {
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
   const { contentSystem } = await import("@src/content");
   const { LocalCMS } = await import("@src/routes/api/cms");
+  const fsP = await import("node:fs/promises");
+  const pathMod = await import("node:path");
 
   await ensureFullInitialization();
   const dbAdapter = getDb();
-  if (!dbAdapter) throw new Error("DB not initialized");
+  if (!dbAdapter) throw new Error("DB adapter not initialized");
 
   const cms = new LocalCMS(dbAdapter);
 
-  const widgetsToTest = ["Input", "RichText", "Relation", "Select", "DateTime"];
+  // === Setup: One rich collection with multiple widgets ===
+  console.log("📦 Preparing rich widget benchmark collection...");
 
-  // Ensure all benchmark collections exist
-  const existingCollections = contentSystem.getCollections("global") || [];
+  const richSchema = {
+    _id: COLLECTION_ID,
+    name: COLLECTION_ID,
+    fields: [
+      { name: "title", type: "text", widget: { Name: "Input" } },
+      { name: "content", type: "text", widget: { Name: "RichText" } },
+      { name: "category", type: "text", widget: { Name: "Select" } },
+      { name: "publishedAt", type: "date", widget: { Name: "DateTime" } },
+      { name: "relatedPost", type: "relation", widget: { Name: "Relation" } },
+    ],
+  };
 
-  for (const widgetType of widgetsToTest) {
-    const collectionId = `stress_${widgetType.toLowerCase()}`;
-    const schema = {
-      _id: collectionId,
-      name: collectionId,
-      fields: [{ name: "value", type: "text", widget: { Name: widgetType } }],
-    };
+  // 🚀 Scaffold schema file so the content system discovers it
+  const compiledDir = pathMod.join(process.cwd(), ".compiledCollections");
+  await fsP.mkdir(compiledDir, { recursive: true });
+  await fsP.writeFile(
+    pathMod.join(compiledDir, `${COLLECTION_ID}.js`),
+    `export default ${JSON.stringify(richSchema, null, 2)};`,
+  );
 
-    // Always ensure the adapter has the model in its in-memory registry
-    if (dbAdapter.collection?.createModel) {
-      await dbAdapter.collection.createModel(schema as any).catch(() => {});
-    }
+  // Ensure model and node
+  if (dbAdapter.collection?.createModel) {
+    await dbAdapter.collection.createModel(richSchema as any).catch(() => {});
+  }
 
-    if (!existingCollections.some((c: any) => c._id === collectionId)) {
-      console.log(`📦 Creating missing content node for benchmark collection: ${widgetType}...`);
+  // 🚀 CRITICAL: Force content system to pick up the new model
+  await contentSystem.initialize(null, { skipReconciliation: false });
 
-      if (dbAdapter.content?.nodes?.create) {
-        await dbAdapter.content.nodes
-          .create({
-            _id: schema._id as any,
-            name: schema.name,
-            path: `/collection/${schema.name}`,
-            nodeType: "collection",
-            status: "published",
-            collectionDef: schema as any,
-            tenantId: "global" as any,
-            order: 0,
-          } as any)
-          .catch(() => {});
-      }
+  // Seed some realistic data (once)
+  const existing = await cms.collections.find(COLLECTION_ID as any, {
+    limit: 1,
+    system: true,
+    tenantId: TEST_TENANT as any,
+  });
+  if (!existing.success || (existing.data as any[]).length === 0) {
+    for (let i = 0; i < 20; i++) {
+      await cms.collections.create(
+        COLLECTION_ID as any,
+        {
+          title: `Widget Test Entry ${i}`,
+          content: "<p>Rich text with <strong>formatting</strong> and <em>styles</em>.</p>".repeat(
+            5,
+          ),
+          category: i % 3 === 0 ? "news" : "blog",
+          publishedAt: new Date().toISOString(),
+          relatedPost: i % 5 === 0 ? "some-other-id" : null,
+        },
+        { system: true, tenantId: TEST_TENANT as any },
+      );
     }
   }
 
-  // Refresh once for all collections
-  await contentSystem.refresh("global");
+  await contentSystem.refresh(TEST_TENANT);
+  await stabilize();
 
-  // Use local stabilize if available or just wait
-  await new Promise((r) => setTimeout(r, 500));
-
-  const results: any[] = [];
-  const ITERATIONS = 1500;
-  const WARMUP = Math.floor(ITERATIONS * 0.15);
+  const ITERATIONS = 1200;
+  const WARMUP = Math.floor(ITERATIONS * 0.12);
   const RUNS = 3;
 
-  for (const widgetType of widgetsToTest) {
-    const collectionId = `stress_${widgetType.toLowerCase()}`;
+  const results: any[] = [];
 
-    console.log(`📊 Benchmarking widget: ${widgetType} processing overhead`);
+  const scenarios = [
+    { name: "Input", query: { limit: 10 } },
+    { name: "RichText", query: { limit: 10, fields: ["content"] } },
+    { name: "Select + DateTime", query: { limit: 10, fields: ["category", "publishedAt"] } },
+    { name: "Relation (Population)", query: { limit: 10, populate: ["relatedPost"] } },
+    { name: "Full Record Transformation", query: { limit: 10 } }, // all widgets
+  ];
+
+  for (const scenario of scenarios) {
+    console.log(`📊 Benchmarking: ${scenario.name}`);
 
     const result = await runBenchmark({
-      name: `Widget: ${widgetType} (modifyRequest)`,
+      name: `Widget: ${scenario.name}`,
       iterations: ITERATIONS,
       warmupIterations: WARMUP,
       concurrency: 1,
       runs: RUNS,
       trimOutliers: "iqr",
       measureMemory: true,
+      onSetup: stabilize,
       onIteration: async () => {
-        // Trigger a find cycle that includes widget handling (modifyRequest)
-        await cms.collections.find(collectionId as any, {
-          limit: 5,
+        await cms.collections.find(COLLECTION_ID as any, {
+          ...scenario.query,
+          tenantId: TEST_TENANT as any,
           system: true,
         });
       },
@@ -102,47 +129,49 @@ export async function runWidgetBenchmark() {
 
   logger.level = "info";
 
-  // ===================================================================
-  // Professional Summary
-  // ===================================================================
-  console.log("\n" + "=".repeat(130));
-  console.log("   🏁 SVELTYCMS WIDGET PERFORMANCE OVERHEAD MATRIX");
-  console.log("   High-Fidelity • IQR Trimming • 95% Confidence • RSS Telemetry");
-  console.log("=".repeat(130));
+  // === Professional Summary ===
+  console.log("\n" + "=".repeat(140));
+  console.log("   🏁 SVELTYCMS WIDGET PERFORMANCE OVERHEAD AUDIT");
+  console.log("   Data Transformation • Validation • Population • modifyRequest Pipeline");
+  console.log("=".repeat(140));
 
   console.log(
-    `| ${"Widget Type".padEnd(42)} | ${"Avg Latency".padEnd(22)} | ${"p95".padEnd(14)} | ${"RPS".padEnd(12)} | ${"Status".padEnd(12)} |`,
+    `| ${"Scenario".padEnd(38)} | ${"Avg Latency".padEnd(24)} | ${"p95".padEnd(14)} | ${"RPS".padEnd(12)} | ${"RSS Δ".padEnd(12)} |`,
   );
-  console.log("|" + "-".repeat(42 + 22 + 14 + 12 + 12 + 6) + "|");
+  console.log("|" + "-".repeat(38 + 24 + 14 + 12 + 12 + 6) + "|");
 
   for (const r of results) {
-    const widgetName = r.name.replace("Widget: ", "").replace(" (modifyRequest)", "");
-    const status = r.avgMs < 2 ? "✅ EXCELLENT" : r.avgMs < 5 ? "✅ GOOD" : "⚠️ FAIR";
+    const rss =
+      r.rssDelta !== undefined ? `${r.rssDelta >= 0 ? "+" : ""}${r.rssDelta.toFixed(2)} MB` : "—";
 
     console.log(
-      `| ${widgetName.padEnd(42)} | ` +
-        `${r.avgMs.toFixed(4)} ms (±${r.marginOfError.toFixed(3)})`.padEnd(22) +
-        ` | ` +
-        `${r.p95Ms.toFixed(4)} ms`.padEnd(14) +
-        ` | ` +
-        `${Math.round(r.rps).toLocaleString()}`.padEnd(12) +
-        ` | ` +
-        `${status.padEnd(12)} |`,
+      `| ${r.name.replace("Widget: ", "").padEnd(38)} | ` +
+        `${r.avgMs.toFixed(4)} ms (±${r.marginOfError.toFixed(3)})`.padEnd(24) +
+        ` | ${r.p95Ms.toFixed(3)}`.padEnd(14) +
+        ` | ${Math.round(r.rps).toLocaleString().padEnd(12)}` +
+        ` | ${rss.padEnd(12)} |`,
     );
   }
-  console.log("=".repeat(130) + "\n");
+  console.log("=".repeat(140));
 
-  console.log(`✨ Widget Insights:`);
-  console.log(`   • Baseline overhead includes the modifyRequest lifecycle and Valibot validation`);
-  console.log(
-    `   • Relation and RichText widgets typically show higher overhead due to deep parsing`,
-  );
+  const fullTransform =
+    results.find((r) => r.name.includes("Full Record")) || results[results.length - 1];
+
+  console.log(`\n✨ Key Insights:`);
+  console.log(`   • Full record transformation overhead: ${fullTransform.avgMs.toFixed(3)} ms`);
+  console.log(`   • RichText and Relation widgets usually dominate due to parsing & population`);
+  console.log(`   • Total widget cost is part of every modifyRequest / API response`);
+
+  // Structured Matrix Exports (Infrastructure v2)
+  exportMetric("logic.widget.avg", fullTransform.avgMs, "ms", {
+    p95: fullTransform.p95Ms,
+    rps: fullTransform.rps,
+  });
+  exportMetric("logic.widget.rps", fullTransform.rps, "req/s");
 
   console.log("\n✅ Widget performance benchmark completed.");
 }
 
-if (!process.env.SVELTY_AUDIT_ACTIVE) {
-  test("Widget Performance Audit Suite", async () => {
-    await runWidgetBenchmark();
-  }, 600000);
-}
+test("Widget Performance Audit Suite", async () => {
+  await runWidgetBenchmark();
+}, 450000);

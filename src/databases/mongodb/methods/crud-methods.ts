@@ -244,10 +244,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
         bypassTenantCheck: options.bypassTenantCheck,
       });
       const now = nowISODateString();
-      const updateData = {
+      const { _id: _, ...updateData } = {
         ...data,
         updatedAt: now,
-      };
+      } as any;
 
       const result = await this.model
         .findOneAndUpdate(
@@ -255,7 +255,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
           { $set: updateData },
           {
             upsert: false,
-            new: true,
+            returnDocument: "after",
             lean: true,
             runValidators: true,
           },
@@ -299,10 +299,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const result = await this.model.updateMany(
         secureQuery,
         {
-          $set: {
-            ...data,
-            updatedAt: nowISODateString(),
-          },
+          $set: (() => {
+            const { _id: _, ...d } = { ...data, updatedAt: nowISODateString() } as any;
+            return d;
+          })(),
         },
         updateOptions,
       );
@@ -335,7 +335,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
         .findOneAndUpdate(
           secureQuery,
           {
-            $set: { ...(data as Record<string, unknown>), updatedAt: now },
+            $set: (() => {
+              const { _id: _, ...d } = { ...(data as any), updatedAt: now };
+              return d;
+            })(),
             $setOnInsert: {
               _id: (data as any)._id || generateId(),
               createdAt: now,
@@ -530,7 +533,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
           query,
           { $set: updateData, $unset: unsetFields },
           {
-            new: true,
+            returnDocument: "after",
             lean: true,
             runValidators: true,
           },
@@ -665,7 +668,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
             bypassTenantCheck: options.bypassTenantCheck,
           }),
           update: {
-            $set: { ...(item.data as any), updatedAt: now },
+            $set: (() => {
+              const { _id: _, ...d } = { ...(item.data as any), updatedAt: now };
+              return d;
+            })(),
             $setOnInsert: {
               _id: (item.data as any)._id || generateId(),
               createdAt: now,

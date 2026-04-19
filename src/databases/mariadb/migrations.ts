@@ -124,6 +124,7 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			slug VARCHAR(500),
 			icon VARCHAR(100),
 			description TEXT,
+			collectionDef JSON,
 			data JSON,
 			metadata JSON,
 			translations JSON,
@@ -364,6 +365,7 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
     await connection.query(
       `ALTER TABLE auth_users ADD COLUMN role VARCHAR(50) NOT NULL DEFAULT 'user'`,
     );
+    await connection.query(`ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS collectionDef JSON`);
   } catch {
     // Column already exists or other error we can ignore
   }

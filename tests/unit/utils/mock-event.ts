@@ -90,6 +90,9 @@ export function createMockRequestEvent(options: MockEventOptions = {}): RequestE
       roles,
       dbAdapter: options.dbAdapter || {
         auth: {},
+        collection: {
+          getModel: vi.fn().mockResolvedValue({}),
+        },
         collections: {},
         media: {},
         widgets: {},

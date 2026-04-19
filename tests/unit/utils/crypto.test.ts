@@ -359,11 +359,11 @@ describe("Crypto Utils - Security Properties", () => {
     const hash = await hashPassword(password);
 
     const start1 = Date.now();
-    await verifyPassword("wrong", hash);
+    await verifyPassword(hash, "wrong");
     const duration1 = Date.now() - start1;
 
     const start2 = Date.now();
-    await verifyPassword(password, hash);
+    await verifyPassword(hash, password);
     const duration2 = Date.now() - start2;
 
     // Durations should be similar (within reasonable variance)

@@ -11,75 +11,69 @@ import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { parse, type InferOutput } from "valibot";
 
-// In-memory singleton
-export let privateEnv: InferOutput<typeof privateConfigSchema> | null = null;
-let loadPromise: Promise<InferOutput<typeof privateConfigSchema> | null> | null = null;
+// Types based on schema
+export type AppPrivateConfig = Readonly<InferOutput<typeof privateConfigSchema>>;
+type RawEnv = Partial<Record<string, string | number | boolean>>;
 
-export function setPrivateEnv(env: InferOutput<typeof privateConfigSchema> | null) {
-  privateEnv = env;
+// In-memory singleton
+export let privateEnv: AppPrivateConfig | null = null;
+let loadPromise: Promise<AppPrivateConfig | null> | null = null;
+
+export function setPrivateEnv(env: AppPrivateConfig | null) {
+  privateEnv = env ? (Object.freeze(env) as AppPrivateConfig) : null;
   loadPromise = null;
 }
 
 /**
  * Main loader – called once, cached via promise.
+ * 🚀 High-ROI: Now ensures config immutability and zero side-effects.
  */
-export async function loadPrivateConfig(
-  forceReload = false,
-): Promise<InferOutput<typeof privateConfigSchema> | null> {
+export async function loadPrivateConfig(forceReload = false): Promise<AppPrivateConfig | null> {
   if (privateEnv && !forceReload) return privateEnv;
   if (loadPromise && !forceReload) return loadPromise;
 
-  loadPromise = (async (): Promise<InferOutput<typeof privateConfigSchema> | null> => {
+  loadPromise = (async (): Promise<AppPrivateConfig | null> => {
     try {
       logger.debug("Loading private configuration...");
 
       const isTest = process.env.TEST_MODE === "true" || process.env.NODE_ENV === "test";
 
       // 1. Start with SvelteKit's private env (best practice) or process.env for tests
-      let svelteEnv: any = {};
+      let svelteEnv: RawEnv = {};
       if (isTest) {
-        svelteEnv = process.env;
+        svelteEnv = process.env as RawEnv;
       } else {
         try {
-          // We use dynamic import to avoid breaking standalone scripts (Bun/Node)
-          // while staying idiomatic for SvelteKit runtime.
           // @ts-ignore - Dynamic SvelteKit environment variable loading
           const mod = await import("$env/dynamic/private");
           svelteEnv = mod.env;
         } catch {
-          // Not in SvelteKit context (e.g. standalone script), fallback to process.env
-          svelteEnv = process.env;
+          svelteEnv = process.env as RawEnv;
         }
       }
 
-      let config: any = { ...svelteEnv };
+      let config: RawEnv = { ...svelteEnv };
 
-      // 2. Optional file-based override (for setup mode or legacy complex configs)
+      // 2. Optional file-based override
       const fileConfig = await loadConfigFromFileIfNeeded(svelteEnv);
       if (fileConfig) {
         config = { ...config, ...fileConfig };
       }
 
-      // 3. Environment variable overrides (always take precedence for infra)
+      // 3. Environment variable overrides (always take precedence)
       const overrides = getEnvOverrides();
       config = { ...config, ...overrides };
 
-      // 4. Validate with Valibot
-      // Throws if invalid, caught by the outer catch
+      // 4. Validate and Freeze
       const validated = parse(privateConfigSchema, config);
 
       // 5. Test mode safety checks
       await enforceTestSafety(validated);
 
-      privateEnv = validated;
+      // 🚀 Architectural Refine: config is now immutable
+      privateEnv = Object.freeze(validated) as AppPrivateConfig;
 
-      // Initialize Redis L2 Cache if enabled
-      if (validated.USE_REDIS) {
-        const { cacheService } = await import("./cache/cache-service");
-        await cacheService.initializeL2(validated);
-      }
-
-      logger.debug("Private config loaded successfully", {
+      logger.debug("Private config loaded and frozen successfully", {
         dbType: validated.DB_TYPE,
         useRedis: validated.USE_REDIS,
       });
@@ -93,7 +87,8 @@ export async function loadPrivateConfig(
         const isTestMode = process.env.NODE_ENV === "test" || process.env.TEST_MODE === "true";
         const configFile = isTestMode ? "private.test.ts" : "private.ts";
         const configPath = `${process.cwd()}/config/${configFile}`;
-        const hasConfigFile = existsSync(configPath) || existsSync(`${process.cwd()}/config/private.ts`);
+        const hasConfigFile =
+          existsSync(configPath) || existsSync(`${process.cwd()}/config/private.ts`);
         if (hasConfigFile) {
           logger.error("Config loading failed in test mode", { error: error.message });
           throw new AppError(
@@ -175,6 +170,8 @@ function getEnvOverrides() {
   if (process.env.JWT_SECRET_KEY) overrides.JWT_SECRET_KEY = process.env.JWT_SECRET_KEY;
   if (process.env.ENCRYPTION_KEY) overrides.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
   if (process.env.TEST_API_SECRET) overrides.TEST_API_SECRET = process.env.TEST_API_SECRET;
+  if (process.env.PASSWORD_MIN_LENGTH)
+    overrides.PASSWORD_MIN_LENGTH = Number(process.env.PASSWORD_MIN_LENGTH);
 
   // SMTP
   if (process.env.SMTP_PORT) overrides.SMTP_PORT = Number(process.env.SMTP_PORT);
@@ -201,11 +198,17 @@ function shouldUseFileConfig(svelteEnv: any): boolean {
 }
 
 // Sync getters (safe after loadPrivateConfig has been called at least once)
-export function getPrivateEnv(): InferOutput<typeof privateConfigSchema> | null {
+export function getPrivateEnv(): AppPrivateConfig | null {
   return privateEnv;
 }
 
+// Micro-caches for derived configs
+let dbConfigCache: any = null;
+let redisConfigCache: any = null;
+
 export function getDatabaseConfig() {
+  if (dbConfigCache) return dbConfigCache;
+
   const env = getPrivateEnv();
   if (!env) return null;
 
@@ -217,25 +220,29 @@ export function getDatabaseConfig() {
   const user = env.DB_USER;
   const password = env.DB_PASSWORD;
 
-  return {
+  dbConfigCache = {
     type: dbType,
     host,
     port,
     name,
     user,
     password,
-    poolSize: env.DB_POOL_SIZE || 10,
+    poolSize: env.DB_POOL_SIZE || 100,
     retryAttempts: env.DB_RETRY_ATTEMPTS || 5,
     retryDelay: env.DB_RETRY_DELAY || 2000,
   };
+
+  return dbConfigCache;
 }
 
 export function getRedisConfig() {
+  if (redisConfigCache) return redisConfigCache;
+
   const env = getPrivateEnv();
   const host = env?.REDIS_HOST || "localhost";
   const port = env?.REDIS_PORT || 6379;
 
-  return {
+  redisConfigCache = {
     useRedis: env?.USE_REDIS === true,
     host,
     port,
@@ -244,68 +251,134 @@ export function getRedisConfig() {
     retryAttempts: 3,
     retryDelay: 2000,
   };
+
+  return redisConfigCache;
 }
 
+/**
+ * 🚀 Elite: Registry-based database driver pattern.
+ * Provides a clean, extensible way to generate connection strings and handle DB specifics.
+ */
+interface DriverDefinition {
+  protocol: string;
+  buildConnectionString: (config: {
+    host: string;
+    port: number | string;
+    user?: string;
+    password?: string;
+    name: string;
+    type: string;
+  }) => string;
+}
+
+const DATABASE_REGISTRY: Record<string, DriverDefinition> = {
+  mongodb: {
+    protocol: "mongodb",
+    buildConnectionString: (c) => {
+      const auth = c.user ? `${c.user}:${c.password}@` : "";
+      return `mongodb://${auth}${c.host}:${c.port}/${c.name}`;
+    },
+  },
+  "mongodb+srv": {
+    protocol: "mongodb+srv",
+    buildConnectionString: (c) => {
+      const auth = c.user ? `${c.user}:${c.password}@` : "";
+      return `mongodb+srv://${auth}${c.host}/${c.name}?retryWrites=true&w=majority`;
+    },
+  },
+  postgresql: {
+    protocol: "postgresql",
+    buildConnectionString: (c) => {
+      const auth = c.user ? `${c.user}:${c.password}@` : "";
+      return `postgresql://${auth}${c.host}:${c.port}/${c.name}`;
+    },
+  },
+  mariadb: {
+    protocol: "mysql",
+    buildConnectionString: (c) => {
+      const auth = c.user ? `${c.user}:${c.password}@` : "";
+      return `mysql://${auth}${c.host}:${c.port}/${c.name}`;
+    },
+  },
+  sqlite: {
+    protocol: "file",
+    buildConnectionString: (c) => resolveSqlitePath(c.host, c.name),
+  },
+};
+
+/**
+ * Registry-based connection string generation.
+ * Avoids growing switch statements and improves extensibility.
+ */
 export function getDatabaseConnectionString(): string {
   const config = getDatabaseConfig();
   if (!config) return "";
 
-  const { type, host, port, name, user, password } = config;
-
   // If host is already a full connection string, use it
-  if (host.includes("://")) {
-    const hasDatabase = host.split("?")[0].split("/").length > 3;
-    if (!hasDatabase && name) {
-      const separator = host.includes("?") ? "?" : "/";
+  if (config.host.includes("://")) {
+    const hasDatabase = config.host.split("?")[0].split("/").length > 3;
+    if (!hasDatabase && config.name) {
+      const separator = config.host.includes("?") ? "?" : "/";
       if (separator === "?") {
-        const [base, query] = host.split("?");
-        return `${base}/${name}?${query}`;
+        const [base, query] = config.host.split("?");
+        return `${base}/${config.name}?${query}`;
       }
-      return `${host}/${name}`;
+      return `${config.host}/${config.name}`;
     }
-    return host;
+    return config.host;
   }
 
-  const authPart = user
-    ? `${encodeURIComponent(user)}${password ? `:${encodeURIComponent(password)}` : ""}@`
-    : "";
+  // Use the registry
+  const driver = DATABASE_REGISTRY[config.type];
+  if (!driver) {
+    throw new Error(`[DB] No driver found in registry for type: ${config.type}`);
+  }
 
-  const connectionString = getSwitchResult(type, authPart, host, port, name, user);
-  const masked = connectionString.replace(/:([^@]+)@/, ":****@");
-  logger.info(`[DB] Generated connection string: ${masked}`);
+  const connectionString = driver.buildConnectionString(config);
+  const masked = connectionString.includes("://")
+    ? connectionString.replace(/:([^@]+)@/, ":****@")
+    : connectionString;
+
+  logger.info(`[DB] Registry resolved connection string: ${masked}`);
   return connectionString;
 }
 
-function getSwitchResult(
-  type: string,
-  authPart: string,
-  host: string,
-  port: number | string | undefined,
-  name: string,
-  _user?: string | undefined,
-) {
-  switch (type) {
-    case "mongodb": {
-      // NOTE: MongoDB driver now handles authentication via the connection string authPart
-      return `mongodb://${authPart}${host}:${port}/${name}`;
-    }
-    case "mongodb+srv":
-      return `mongodb+srv://${authPart}${host}/${name}?retryWrites=true&w=majority`;
-    case "mariadb":
-      return `mysql://${authPart}${host}:${port}/${name}`;
-    case "postgresql":
-      return `postgresql://${authPart}${host}:${port}/${name}`;
-    case "sqlite": {
-      const finalName = name.endsWith(".sqlite") ? name : `${name}.sqlite`;
-      if (host && (host.startsWith("/") || host.startsWith("C:"))) {
-        const path = host.endsWith("/") ? host : `${host}/`;
-        return `${path}${finalName}`;
-      }
-      return `config/database/${finalName}`;
-    }
-    default:
-      return "";
+/**
+ * Enhanced SQLite path resolver.
+ * Distinguishes between directory paths and network addresses (IPs/localhost).
+ */
+export function resolveSqlitePath(host: string | undefined, name: string): string {
+  const finalName = name.endsWith(".sqlite") ? name : `${name}.sqlite`;
+
+  // If host is an IP or localhost, it's NOT a directory for SQLite
+  const isNetworkAddr =
+    !host ||
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "0.0.0.0" ||
+    /^(\d{1,3}\.){3}\d{1,3}$/.test(host);
+
+  if (isNetworkAddr) {
+    return `config/database/${finalName}`;
   }
+
+  // If it clearly looks like a path, use it as a directory
+  const hostStr = host!;
+  const isPath =
+    hostStr.startsWith("/") ||
+    hostStr.startsWith("./") ||
+    hostStr.startsWith("../") ||
+    hostStr.includes("/") ||
+    hostStr.includes("\\") ||
+    /^[a-zA-Z]:/.test(hostStr); // Windows drive letter
+
+  if (isPath) {
+    const p = hostStr.endsWith("/") || hostStr.endsWith("\\") ? hostStr : `${hostStr}/`;
+    return `${p}${finalName}`;
+  }
+
+  // Fallback to default directory
+  return `config/database/${finalName}`;
 }
 
 export function clearPrivateConfigCache(keepPrivateEnv = false) {

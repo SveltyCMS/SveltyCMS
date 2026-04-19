@@ -27,6 +27,23 @@ export class CrudModule implements ICrudAdapter {
     this.core = core;
   }
 
+  /**
+   * Clears the prepared statements cache.
+   * Useful when tables are dropped or modified during benchmarks.
+   */
+  public clearPreparedStatements(collection?: string): void {
+    if (collection) {
+      // Clear specific collection statements
+      for (const [key] of this.preparedStatements.entries()) {
+        if (key.includes(`:${collection}`)) {
+          this.preparedStatements.delete(key);
+        }
+      }
+    } else {
+      this.preparedStatements.clear();
+    }
+  }
+
   private get db() {
     return this.core.db!;
   }
@@ -47,6 +64,7 @@ export class CrudModule implements ICrudAdapter {
       tenantId?: DatabaseId | null | undefined;
       bypassTenantCheck?: boolean;
       includeDeleted?: boolean;
+      tx?: any;
     } = {},
   ): Promise<DatabaseResult<T | null>> {
     const startTime = performance.now();
@@ -57,8 +75,10 @@ export class CrudModule implements ICrudAdapter {
           includeDeleted: options.includeDeleted,
         });
 
+        const db = options?.tx || this.db;
+
         // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID lookups
-        if (this.isSimpleIdQuery(secureQuery)) {
+        if (this.isSimpleIdQuery(secureQuery) && !options?.tx) {
           const table = this.core.getTable(collection);
           const cacheKey = `findOne:${collection}`;
 
@@ -84,7 +104,7 @@ export class CrudModule implements ICrudAdapter {
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
           | undefined;
-        const results = await this.db
+        const results = await db
           .select()
           .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .where(where)
@@ -112,6 +132,7 @@ export class CrudModule implements ICrudAdapter {
       tenantId?: DatabaseId | null | undefined;
       bypassTenantCheck?: boolean;
       includeDeleted?: boolean;
+      tx?: any;
     } = {},
   ): Promise<DatabaseResult<T[]>> {
     const startTime = performance.now();
@@ -125,7 +146,10 @@ export class CrudModule implements ICrudAdapter {
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
           | undefined;
-        let q = this.db
+
+        const db = options?.tx || this.db;
+
+        let q = db
           .select()
           .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .where(where)
@@ -154,6 +178,7 @@ export class CrudModule implements ICrudAdapter {
       bypassTenantCheck?: boolean;
       includeDeleted?: boolean;
       populate?: string[];
+      tx?: any;
     } = {},
   ): Promise<DatabaseResult<T[]>> {
     const startTime = performance.now();
@@ -171,7 +196,10 @@ export class CrudModule implements ICrudAdapter {
         const where = this.core.mapQuery(table, query as Record<string, unknown>) as
           | import("drizzle-orm").SQL
           | undefined;
-        const results = await this.db
+
+        const db = options?.tx || this.db;
+
+        const results = await db
           .select()
           .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .where(where);
@@ -203,8 +231,12 @@ export class CrudModule implements ICrudAdapter {
       updatedAt: now,
     };
 
-    // If it's a dynamic table, we MUST pack extra fields into 'data'
-    if (table.data) {
+    // Distinguish between dynamic collection tables and static schema tables
+    // Dynamic tables created at runtime ONLY have _id, tenantId, data, status, createdAt, updatedAt.
+    // Static tables (like content_nodes) have path, nodeType, etc.
+    const isDynamicTable = table.data && !table.path;
+
+    if (isDynamicTable) {
       const extra: any = {};
       for (const [k, v] of Object.entries(data)) {
         if (!fixedColumns.includes(k)) {
@@ -213,20 +245,21 @@ export class CrudModule implements ICrudAdapter {
       }
       values.data = extra;
     } else {
-      // Static table: keep fields as-is (Drizzle will filter them based on schema)
-      // Explicitly map properties to avoid typos from source object
-      if (data.name !== undefined) values.name = data.name;
-      if (data.description !== undefined) values.description = data.description;
-      if (data.permissions !== undefined) values.permissions = data.permissions;
-      if (data.isAdmin !== undefined) values.isAdmin = data.isAdmin;
-      if (data.icon !== undefined) values.icon = data.icon;
-      if (data.color !== undefined) values.color = data.color;
-
-      // Fallback for other fields if table is static but not one of our known ones
+      // Static table or content_nodes fallback
+      // Copy all incoming data fields to values (Drizzle will filter based on actual schema)
       for (const [k, v] of Object.entries(data)) {
-        if (!fixedColumns.includes(k) && !Object.keys(values).includes(k)) {
+        if (!Object.keys(values).includes(k)) {
           values[k] = v;
         }
+      }
+
+      // Default values for mandatory content_nodes columns if they are missing
+      // Drizzle table objects store columns as properties. We check for existence.
+      if (table.path && values.path == null) {
+        values.path = id.toString(); // Fallback path
+      }
+      if (table.nodeType && values.nodeType == null) {
+        values.nodeType = "node"; // Fallback type
       }
     }
 
@@ -246,22 +279,19 @@ export class CrudModule implements ICrudAdapter {
         const now = new Date(nowISODateString());
         const values = this.prepareValues(table, data, id, now, options || {});
 
-        await this.db
+        // 🚀 Fix: Use the transaction if provided, fallback to main connection
+        const db = (options as any)?.tx || this.db;
+
+        await db
           .insert(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .values(values as unknown as Record<string, unknown>);
 
-        // Reuse the findOne prepared statement for the result
-        const findCacheKey = `findOne:${collection}`;
-        let findPrepared = this.preparedStatements.get(findCacheKey);
-        if (!findPrepared) {
-          findPrepared = this.db
-            .select()
-            .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
-            .where(eq((table as any)._id, placeholder("id")))
-            .prepare(findCacheKey);
-          this.preparedStatements.set(findCacheKey, findPrepared);
-        }
-        const [result] = await findPrepared.execute({ id: id as string });
+        // Reuse the findOne prepared statement logic but execute on the correct context
+        const [result] = await db
+          .select()
+          .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
+          .where(eq((table as any)._id, id as string))
+          .limit(1);
 
         return utils.convertDatesToISO(result as Record<string, unknown>) as T;
       }, "CRUD_INSERT_FAILED")
@@ -276,7 +306,7 @@ export class CrudModule implements ICrudAdapter {
     collection: string,
     id: DatabaseId,
     data: EntityUpdate<T>,
-    options?: BaseQueryOptions,
+    options?: BaseQueryOptions & { tx?: any },
   ): Promise<DatabaseResult<T>> {
     const startTime = performance.now();
     return this.core
@@ -288,11 +318,15 @@ export class CrudModule implements ICrudAdapter {
         const table = this.core.getTable(collection);
         const now = new Date(nowISODateString());
         const updateData = this.prepareValues(table, data, id, now, options || {});
-        // Remove _id from update payload
+        // Remove immutable fields from update payload
         delete updateData._id;
+        delete updateData.tenantId;
+        delete updateData.createdAt;
+
+        const db = options?.tx || this.db;
 
         // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID updates
-        if (this.isSimpleIdQuery(secureQuery)) {
+        if (this.isSimpleIdQuery(secureQuery) && !options?.tx) {
           const cacheKey = `update:${collection}`;
           let prepared = this.preparedStatements.get(cacheKey);
           if (!prepared) {
@@ -324,12 +358,12 @@ export class CrudModule implements ICrudAdapter {
           | import("drizzle-orm").SQL
           | undefined;
 
-        await this.db
+        await db
           .update(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .set(updateData as unknown as Record<string, unknown>)
           .where(where);
 
-        const [result] = await this.db
+        const [result] = await db
           .select()
           .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .where(where)
@@ -350,6 +384,7 @@ export class CrudModule implements ICrudAdapter {
       bypassTenantCheck?: boolean;
       permanent?: boolean;
       userId?: string;
+      tx?: any;
     } = {},
   ): Promise<DatabaseResult<void>> {
     const startTime = performance.now();
@@ -363,8 +398,10 @@ export class CrudModule implements ICrudAdapter {
           },
         );
 
+        const db = options?.tx || this.db;
+
         // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID deletes
-        if (this.isSimpleIdQuery(query)) {
+        if (this.isSimpleIdQuery(query) && !options?.tx) {
           const table = this.core.getTable(collection);
           const cacheKey = `delete:${collection}`;
           let prepared = this.preparedStatements.get(cacheKey);
@@ -383,9 +420,7 @@ export class CrudModule implements ICrudAdapter {
         const where = this.core.mapQuery(table, query as Record<string, unknown>) as
           | import("drizzle-orm").SQL
           | undefined;
-        await this.db
-          .delete(table as unknown as import("drizzle-orm/pg-core").PgTable)
-          .where(where);
+        await db.delete(table as unknown as import("drizzle-orm/pg-core").PgTable).where(where);
       }, "CRUD_DELETE_FAILED")
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
@@ -396,7 +431,11 @@ export class CrudModule implements ICrudAdapter {
   async restore(
     collection: string,
     _id: DatabaseId,
-    _options: { tenantId?: DatabaseId | null | undefined; bypassTenantCheck?: boolean } = {},
+    _options: {
+      tenantId?: DatabaseId | null | undefined;
+      bypassTenantCheck?: boolean;
+      tx?: any;
+    } = {},
   ): Promise<DatabaseResult<void>> {
     return this.core.notImplemented(`crud.restore for ${collection}`);
   }
@@ -405,14 +444,14 @@ export class CrudModule implements ICrudAdapter {
     collection: string,
     query: QueryFilter<T>,
     data: EntityCreate<T>,
-    options?: BaseQueryOptions,
+    options?: BaseQueryOptions & { tx?: any },
   ): Promise<DatabaseResult<T>> {
     const tenantId = options?.tenantId;
     const bypassTenantCheck = options?.bypassTenantCheck;
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
-        return await this.db.transaction(async (tx) => {
+        const executeUpsert = async (tx: any) => {
           const secureQuery = safeQuery(query, tenantId, { bypassTenantCheck });
           const table = this.core.getTable(collection);
           const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
@@ -429,6 +468,8 @@ export class CrudModule implements ICrudAdapter {
             const now = new Date(nowISODateString());
             const updateData = this.prepareValues(table, data, id, now, options || {});
             delete updateData._id;
+            delete updateData.tenantId;
+            delete updateData.createdAt;
 
             const [result] = await tx
               .update(table as unknown as import("drizzle-orm/pg-core").PgTable)
@@ -449,7 +490,13 @@ export class CrudModule implements ICrudAdapter {
 
             return utils.convertDatesToISO(result as Record<string, unknown>) as T;
           }
-        });
+        };
+
+        if (options?.tx) {
+          return await executeUpsert(options.tx);
+        } else {
+          return await this.db.transaction(executeUpsert);
+        }
       }, "CRUD_UPSERT_FAILED")
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
@@ -464,6 +511,7 @@ export class CrudModule implements ICrudAdapter {
       tenantId?: DatabaseId | null | undefined;
       bypassTenantCheck?: boolean;
       includeDeleted?: boolean;
+      tx?: any;
     } = {},
   ): Promise<DatabaseResult<number>> {
     const startTime = performance.now();
@@ -477,7 +525,10 @@ export class CrudModule implements ICrudAdapter {
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
           | undefined;
-        const [result] = await this.db
+
+        const db = options?.tx || this.db;
+
+        const [result] = await db
           .select({ count: count() })
           .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .where(where);
@@ -496,6 +547,7 @@ export class CrudModule implements ICrudAdapter {
       tenantId?: DatabaseId | null | undefined;
       bypassTenantCheck?: boolean;
       includeDeleted?: boolean;
+      tx?: any;
     } = {},
   ): Promise<DatabaseResult<boolean>> {
     const startTime = performance.now();
@@ -516,7 +568,7 @@ export class CrudModule implements ICrudAdapter {
   async insertMany<T extends BaseEntity>(
     collection: string,
     data: EntityCreate<T>[],
-    options?: BaseQueryOptions,
+    options?: BaseQueryOptions & { tx?: any },
   ): Promise<DatabaseResult<T[]>> {
     const startTime = performance.now();
     return this.core
@@ -535,12 +587,15 @@ export class CrudModule implements ICrudAdapter {
             options || {},
           ),
         );
-        await this.db
+
+        const db = options?.tx || this.db;
+
+        await db
           .insert(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .values(values as unknown as Record<string, unknown>[]);
 
         const ids = values.map((v) => v._id as string);
-        const results = await this.db
+        const results = await db
           .select()
           .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .where(inArray((table as any)._id, ids));
@@ -558,7 +613,7 @@ export class CrudModule implements ICrudAdapter {
     collection: string,
     query: QueryFilter<T>,
     data: EntityUpdate<T>,
-    options?: BaseQueryOptions,
+    options?: BaseQueryOptions & { tx?: any },
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     const tenantId = options?.tenantId as DatabaseId;
     const bypassTenantCheck = options?.bypassTenantCheck;
@@ -573,11 +628,14 @@ export class CrudModule implements ICrudAdapter {
         const now = new Date(nowISODateString());
         // For updateMany, we don't have an ID, so we pass a dummy ID that will be ignored or we only map fields
         const values = this.prepareValues(table, data, "" as DatabaseId, now, options || {});
-        // Remove _id from update payload
+        // Remove immutable fields from update payload
         delete values._id;
-        delete values.createdAt; // Don't override createdAt on bulk update
+        delete values.tenantId;
+        delete values.createdAt;
 
-        const result = await this.db
+        const db = options?.tx || this.db;
+
+        const result = await db
           .update(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .set(values as unknown as Record<string, unknown>)
           .where(where);
@@ -597,6 +655,7 @@ export class CrudModule implements ICrudAdapter {
       bypassTenantCheck?: boolean;
       permanent?: boolean;
       userId?: string;
+      tx?: any;
     } = {},
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
     const startTime = performance.now();
@@ -609,7 +668,10 @@ export class CrudModule implements ICrudAdapter {
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
           | undefined;
-        const result = await this.db
+
+        const db = options?.tx || this.db;
+
+        const result = await db
           .delete(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .where(where);
         return { deletedCount: (result as any).rowCount };
@@ -626,14 +688,14 @@ export class CrudModule implements ICrudAdapter {
       query: QueryFilter<T>;
       data: EntityCreate<T>;
     }>,
-    options?: BaseQueryOptions,
+    options?: BaseQueryOptions & { tx?: any },
   ): Promise<DatabaseResult<{ upsertedCount: number; modifiedCount: number }>> {
     const tenantId = options?.tenantId;
     const bypassTenantCheck = options?.bypassTenantCheck;
     const startTime = performance.now();
     return this.core
       .wrap(async () => {
-        return await this.db.transaction(async (tx) => {
+        const executeUpsertMany = async (tx: any) => {
           let upsertedCount = 0;
           let modifiedCount = 0;
           const table = this.core.getTable(collection);
@@ -655,6 +717,8 @@ export class CrudModule implements ICrudAdapter {
               const now = new Date(nowISODateString());
               const updateData = this.prepareValues(table, item.data, id, now, options || {});
               delete updateData._id;
+              delete updateData.tenantId;
+              delete updateData.createdAt;
 
               await tx
                 .update(table as unknown as import("drizzle-orm/pg-core").PgTable)
@@ -673,7 +737,13 @@ export class CrudModule implements ICrudAdapter {
             }
           }
           return { upsertedCount, modifiedCount };
-        });
+        };
+
+        if (options?.tx) {
+          return await executeUpsertMany(options.tx);
+        } else {
+          return await this.db.transaction(executeUpsertMany);
+        }
       }, "CRUD_UPSERT_MANY_FAILED")
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
