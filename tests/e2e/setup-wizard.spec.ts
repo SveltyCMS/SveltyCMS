@@ -231,12 +231,24 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   // Expect success message with a generous timeout for DB creation/I/O
   const successMsg = page.getByText(/success/i).first();
   try {
-    await expect(successMsg).toBeVisible({ timeout: 45000 });
-    console.log("Database connection successful.");
+    // If we're already seeing success, don't wait or click again
+    if (await successMsg.isVisible({ timeout: 1000 })) {
+      console.log("Database connection successful (early detection).");
+    } else {
+      await expect(successMsg).toBeVisible({ timeout: 45000 });
+      console.log("Database connection successful.");
+    }
   } catch {
     console.warn("Initial Success message not found. Retrying Test Database click...");
-    await testDbButton.click({ force: true });
-    await expect(successMsg).toBeVisible({ timeout: 45000 });
+    // Re-locate the button to ensure it hasn't been detached
+    const retryBtn = page.getByRole("button", { name: /test database connection/i });
+    if (await retryBtn.isVisible()) {
+      await retryBtn.click({ force: true });
+      await expect(successMsg).toBeVisible({ timeout: 45000 });
+    } else {
+      console.error("Retry button not visible, setup might be stuck.");
+      throw new Error("Setup wizard stuck: Test Database button disappeared.");
+    }
   }
 
   await clickNext(page);

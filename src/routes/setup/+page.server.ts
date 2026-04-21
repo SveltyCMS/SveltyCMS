@@ -416,12 +416,12 @@ export const actions: Actions = {
           const { compile } = await import("@utils/compilation/compile");
 
           const sourceDir = resolve(process.cwd(), "src", "presets", systemData.preset);
-          const targetDir = resolve(process.cwd(), "src", "collections");
+          const targetDir = resolve(process.cwd(), "config", "collections");
 
           if (existsSync(sourceDir)) {
             // Copy recursive
             cpSync(sourceDir, targetDir, { recursive: true, force: true });
-            logger.info(`✅ Copied preset ${systemData.preset} to src/collections`);
+            logger.info(`✅ Copied preset ${systemData.preset} to config/collections`);
 
             // Force compilation of new preset files
             try {
@@ -441,7 +441,10 @@ export const actions: Actions = {
 
       // 1. Write private config
       const { writePrivateConfig } = await import("./write-private-config");
-      await writePrivateConfig(dbConfig);
+      await writePrivateConfig(dbConfig, {
+        multiTenant: systemData.multiTenant,
+        demoMode: systemData.demoMode,
+      });
 
       const { invalidateSetupCache } = await import("@utils/setup-check");
       invalidateSetupCache(true);
@@ -782,6 +785,32 @@ export const actions: Actions = {
               key: "MEDIA_FOLDER",
               value: system.mediaFolder,
               category: "public",
+              scope: "system",
+            },
+            // Cloudflare CDN
+            {
+              key: "CF_API_TOKEN",
+              value: system.cfApiToken,
+              category: "private",
+              scope: "system",
+            },
+            {
+              key: "CF_ZONE_ID",
+              value: system.cfZoneId,
+              category: "private",
+              scope: "system",
+            },
+            {
+              key: "CF_PURGE_MODE",
+              value: system.cfPurgeMode,
+              category: "private",
+              scope: "system",
+            },
+            // Read Replicas (stored in DB)
+            {
+              key: "DB_REPLICA_URLS",
+              value: JSON.stringify(database.replicaUrls || []),
+              category: "private",
               scope: "system",
             },
           ];

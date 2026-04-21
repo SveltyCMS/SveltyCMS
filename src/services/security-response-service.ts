@@ -103,10 +103,9 @@ class SecurityResponseService {
     const cached = this.limiters.get(cacheKey);
     if (cached) return cached;
 
-    const keyPrefix =
-      tenantId && isGraphql
-        ? `rate:tenant:${tenantId}:graphql:v11:min`
-        : `svelty:sec:rl:v11:${scope.replace(/\//g, "_").replace(/^_/, "")}`;
+    const keyPrefix = tenantId
+      ? `svelty:sec:rl:v12:${tenantId}:${scope.replace(/\//g, "_").replace(/^_/, "")}`
+      : `svelty:sec:rl:v12:${scope.replace(/\//g, "_").replace(/^_/, "")}`;
 
     const options = {
       points: limit,

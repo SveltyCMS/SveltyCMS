@@ -101,6 +101,43 @@ export abstract class BaseAdapter {
       } as DatabaseError,
     };
   }
+
+  /**
+   * Invalidates the query cache for a specific collection/tenant.
+   * Leverages the centralized cacheService to clear L1/L2 entries.
+   * Surgical Field-Level Caching.
+   */
+  public async invalidateQueryCache(
+    collection: string,
+    tenantId?: any,
+    options?: { ids?: any[]; tags?: string[] },
+  ): Promise<void> {
+    try {
+      const { cacheService } = await import("./cache/cache-service");
+
+      if (options?.tags && options.tags.length > 0) {
+        // 🚀 Surgical: Clear only specific tags (e.g. field-level or document-level)
+        await cacheService.clearByTags(options.tags, tenantId);
+      } else {
+        // Standard: Pattern matches collection:name:* for that tenant
+        await cacheService.clearByPattern(`collection:${collection}:*`, tenantId);
+      }
+
+      // Also clear specific document IDs if provided
+      if (options?.ids && options.ids.length > 0) {
+        const idTags = options.ids.map((id) => `doc:${collection}:${id}`);
+        await cacheService.clearByTags(idTags, tenantId);
+      }
+
+      // Also increment the global content version to trigger re-checks if needed
+      await cacheService.set("system:content_version", Date.now(), 0, tenantId);
+      logger.debug(
+        `[BaseAdapter] Invalidated cache for ${collection} (Tags: ${options?.tags?.length || 0})`,
+      );
+    } catch (err) {
+      logger.error(`[BaseAdapter] Failed to invalidate query cache: ${err}`);
+    }
+  }
 }
 
 /**

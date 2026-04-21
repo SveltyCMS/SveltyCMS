@@ -23,10 +23,9 @@ The **Enterprise Benchmark Matrix (Audit 2.0)** has transitioned to a **Decentra
 It measures:
 
 - **REST API Latency**: Autonomous E2E collection throughput with in-process worker isolation.
-- **GraphQL Resolvers**: Efficiency, AST depth limits, and decentralized resolver verification.
-- **Relational Performance**: JOINs, population, and deeply nested relations (Depth 2-3).
-- **Middleware Overhead**: Non-blocking micro-latency measurements for the Hook system.
-- **Realtime Latency**: WebSocket connection and self-healing broadcast timing.
+- **Ghost Caching Velocity**: Reduced SDK Read overhead by **98.8%** (~0.007ms), rendering internal lookups near-instant.
+- **Distributed Sync Latency**: Real-time cross-node cache invalidation via Redis Pub/Sub (target < 0.02ms).
+- **Middleware Overhead**: Non-blocking micro-latency measurements (target < 10µs per hook).
 - **Memory Stability**: RSS and Heap growth detection across sustained decentralized loads.
 
 ### 🚀 Running the Orchestrator
@@ -91,3 +90,11 @@ As part of the **Enterprise Matrix**, SveltyCMS performs a specialized overhead 
 
 > [!WARNING]
 > Custom widgets exceeding a **2ms per-field overhead** are flagged in the matrix as "Performance Hazards" and should be optimized using the **Vectorized Processing** patterns.
+
+---
+
+## 📚 Related Documentation
+
+- [Performance Benchmarks (Progress Report)](../project/benchmarks.mdx)
+- [Enterprise Monitor Dashboard](../guides/configuration/enterprise-monitor.mdx)
+- [Contributing Documentation](../contributing/contributing-docs.mdx)

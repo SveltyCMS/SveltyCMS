@@ -91,11 +91,14 @@ export class LocalCMS {
   public telemetry = telemetryService;
   public db: IDBAdapter;
 
-  constructor(private _dbAdapter: IDBAdapter) {
+  constructor(
+    private _dbAdapter: IDBAdapter,
+    private _contentSystemOverride?: any,
+  ) {
     if (!this._dbAdapter) throw new Error("LocalCMS: DB Adapter is required");
     this.db = this._dbAdapter;
     this.auth = new AuthNamespace(this._dbAdapter);
-    this.collections = new CollectionsNamespace(this._dbAdapter);
+    this.collections = new CollectionsNamespace(this._dbAdapter, this._contentSystemOverride);
     this.media = new MediaNamespace(this._dbAdapter);
     this.widgets = new WidgetsNamespace(this._dbAdapter);
     this.system = new SystemNamespace(this._dbAdapter);
@@ -112,8 +115,8 @@ export class LocalCMS {
    * Helper to create a clean locals.cms object with proper context
    * This moves mapping logic out of the hook and into the SDK.
    */
-  static getLocals(dbAdapter: IDBAdapter, eventLocals: any = {}) {
-    const cms = new LocalCMS(dbAdapter);
+  static getLocals(dbAdapter: IDBAdapter, eventLocals: any = {}, contentSystemOverride?: any) {
+    const cms = new LocalCMS(dbAdapter, contentSystemOverride);
     const { tenantId, user, isAdmin } = eventLocals;
 
     const collections = {
@@ -815,7 +818,10 @@ class CollectionsNamespace {
   private _requestCache = new Map<string, any>();
   private _batchLoaders = new Map<string, { ids: Set<string>; promises: Map<string, any> }>();
 
-  constructor(private _dbAdapter: IDBAdapter) {
+  constructor(
+    private _dbAdapter: IDBAdapter,
+    private _contentSystemOverride?: any,
+  ) {
     if (!_dbAdapter) {
       console.error("[LocalCMS/Collections] ERROR: dbAdapter is null/undefined in constructor");
     }
@@ -867,6 +873,10 @@ class CollectionsNamespace {
     });
   }
 
+  private get _contentSystem() {
+    return this._contentSystemOverride || contentSystem;
+  }
+
   /**
    * Normalizes filters for Drizzle-specific relationship queries.
    * Converts $eq/$ne on hasMany relationship fields into $in/$nin to prevent silent query failure.
@@ -905,16 +915,16 @@ class CollectionsNamespace {
   }
 
   private async getSchema(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema> {
-    let schema = await contentSystem.getCollectionById(collectionId, tenantId);
+    let schema = await this._contentSystem.getCollectionById(collectionId, tenantId);
 
     // 🕊️ CASE-INSENSITIVE FALLBACK: Highly critical for synthetic workloads and REST consistency
     if (!schema?._id) {
-      const all = await contentSystem.getCollections(tenantId);
-      schema = all.find((c) => c._id?.toLowerCase() === collectionId.toLowerCase());
+      const all = await this._contentSystem.getCollections(tenantId);
+      schema = all.find((c: any) => c._id?.toLowerCase() === collectionId.toLowerCase());
     }
 
     if (!schema?._id) {
-      const available = (await contentSystem.getCollections(tenantId)).map((c: any) => c._id);
+      const available = (await this._contentSystem.getCollections(tenantId)).map((c: any) => c._id);
       logger.error(`[LocalCMS] Collection "${collectionId}" not found for tenant: ${tenantId}`);
       logger.debug(`[LocalCMS] Available collections: ${available.join(", ")}`);
 
@@ -946,11 +956,33 @@ class CollectionsNamespace {
       throw new AppError("Tenant ID required", 400, "TENANT_MISSING");
     }
 
-    const collections = await contentSystem.getCollections(tenantId);
+    const cacheKey = `system:collections:list:${includeFields}:${includeStats}`;
+
+    // 1. L1 Request Cache
+    if (this._requestCache.has(cacheKey)) {
+      if (typeof metricsService?.recordMetric === "function") {
+        metricsService.recordApiCacheHit(tenantId || undefined, "l1");
+      }
+      return this._requestCache.get(cacheKey);
+    }
+
+    // 2. L2 Service Cache
+    try {
+      const cached = await cacheService.get(cacheKey, (tenantId || undefined) as string);
+      if (cached) {
+        if (typeof metricsService?.recordMetric === "function") {
+          metricsService.recordApiCacheHit(tenantId || undefined, "l2");
+        }
+        this._requestCache.set(cacheKey, cached);
+        return cached;
+      }
+    } catch {}
+
+    const collections = await this._contentSystem.getCollections(tenantId);
 
     // Process collections (token replacement, etc.)
     const processed = await Promise.all(
-      collections.map(async (c) => {
+      collections.map(async (c: Schema) => {
         const col = { ...c } as any;
         if (!includeFields) delete col.fields;
         if (includeStats) col.stats = { count: 0 }; // Placeholder for actual stats
@@ -965,6 +997,21 @@ class CollectionsNamespace {
         return col;
       }),
     );
+
+    // Save to L2 with long TTL (600s) since we have invalidation
+    try {
+      const { CacheCategory } = await import("@src/databases/cache/types");
+      await cacheService.set(
+        cacheKey,
+        processed,
+        600,
+        (tenantId || undefined) as string,
+        CacheCategory.SYSTEM,
+      );
+      this._requestCache.set(cacheKey, processed);
+    } catch (err) {
+      logger.warn(`[LocalSDK] List cache write error: ${err}`);
+    }
 
     return processed;
   }

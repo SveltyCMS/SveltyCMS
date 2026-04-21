@@ -19,9 +19,9 @@ Goal: **fast feedback • deterministic • Fail-Closed security flows • 100% 
 
 We follow the classic test pyramid — but tuned for our **Vite+** based architecture:
 
-- **70–80%** fast white-box / unit tests (Vitest + Vite+) (~670 tests)
-- **15–20%** integration / API / component grey-box (Vitest + Vite+ + real DB slices) (~310 tests)
-- **5–10%** black-box E2E (Playwright + Vite+ Preview) (~48 scenarios)
+- **70–80%** fast white-box / unit tests (Vitest + Vite+) (680 tests)
+- **15–20%** integration / API / component grey-box (Vitest + Vite+ + real DB slices) (~320 tests)
+- **5–10%** black-box E2E (Playwright + Vite+ Preview) (~40 scenarios)
 
 All layers **start from fresh/empty DB state** by default.
 
@@ -57,7 +57,7 @@ flowchart TD
 
 | Layer            | Tool           | When to use                                      | Speed (local)  | Speed (CI)         | DB state              |
 | ---------------- | -------------- | ------------------------------------------------ | -------------- | ------------------ | --------------------- |
-| Unit / Logic     | Vite+ / Vitest | Pure functions, stores, utils, Svelte components | < 0.1 s / test | < 10 s total (670) | Mocked / :memory:     |
+| Unit / Logic     | Vite+ / Vitest | Pure functions, stores, utils, Svelte components | < 0.1 s / test | < 10 s total (680) | DI-Hardened / Mocked |
 | Integration      | Vite+ / Vitest | API endpoints, Drizzle queries, server actions   | 1–5 s          | < 90 s (312)       | Real SQLite per suite |
 | E2E – Wizard     | Playwright     | First-time install flow (UI steps)               | 10–30 s        | 20–40 s            | Completely empty      |
 | E2E – Auth+Roles | Playwright     | Login, signup via invite, role switching         | —              | —                  | After wizard          |

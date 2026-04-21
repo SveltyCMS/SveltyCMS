@@ -50,6 +50,7 @@ export interface DbConfig {
   port: string;
   type: SupportedDbType;
   user: string;
+  replicaUrls: string[]; // Read Replicas
 }
 export interface AdminUser {
   confirmPassword: string;
@@ -74,6 +75,10 @@ export interface SystemSettings {
   systemLanguages: string[];
   timezone: string;
   useRedis: boolean;
+  // Cloudflare CDN
+  cfApiToken: string;
+  cfZoneId: string;
+  cfPurgeMode: "tags" | "all";
 }
 export interface EmailSettings {
   skipWelcomeEmail: boolean;
@@ -121,6 +126,7 @@ const initialDbConfig: DbConfig = {
   name: "sveltycms",
   user: "",
   password: "",
+  replicaUrls: [],
 };
 const initialAdminUser: AdminUser = {
   username: "",
@@ -145,6 +151,9 @@ const initialSystemSettings: SystemSettings = {
   redisPassword: "",
   multiTenant: false,
   demoMode: false,
+  cfApiToken: "",
+  cfZoneId: "",
+  cfPurgeMode: "tags",
 };
 const initialEmailSettings: EmailSettings = {
   smtpConfigured: false,

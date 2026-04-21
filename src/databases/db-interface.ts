@@ -1149,6 +1149,12 @@ export interface IDBAdapter {
   };
 
   waitForConnection?(): Promise<void>;
+
+  /**
+   * 🚀 Dynamic Enterprise Scaling
+   * Hot-loads read-replica configuration from database settings.
+   */
+  configureReplicas?(urls: string[] | string): void;
 }
 
 // Type aliases for backward compatibility (Consider migrating away from dbInterface to DatabaseAdapter)

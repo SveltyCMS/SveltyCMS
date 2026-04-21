@@ -7,6 +7,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import {
 		common_confirm_no,
+		common_confirm_overwrite,
 		common_confirm_yes,
 		setup_button_test_connection,
 		setup_database_host,
@@ -20,6 +21,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		setup_database_port_placeholder,
 		setup_database_user,
 		setup_database_user_placeholder,
+		setup_db_already_exists_desc,
+		setup_db_already_exists_title,
 		setup_db_coming_soon,
 		setup_db_not_found_desc,
 		setup_db_not_found_title,
@@ -58,12 +61,13 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	} = $props();
 
 	let unsupportedDbSelected = $state(false);
-	const isAtlas = $derived(dbConfig.type === 'mongodb+srv');
+	let isAtlas = $derived(dbConfig.type === 'mongodb+srv');
 	let isInstallingDriver = $state(false);
 	let installError = $state('');
 	let installSuccess = $state('');
 	let showConnectionStringHelper = $state(false);
 	let showAtlasHelper = $state(true); // Collapsible Atlas helper
+	let showAdvanced = $state(false); // Collapsible Advanced options
 
 	import { SvelteSet } from 'svelte/reactivity';
 
@@ -229,6 +233,17 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				cancelText: common_confirm_no(),
 				onConfirm: async () => {
 					await testDatabaseConnection(true);
+				}
+			});
+		} else if (!success && setupStore.wizard.lastDbTestResult?.canOverwrite) {
+			showConfirm({
+				title: setup_db_already_exists_title({ dbName: dbConfig.name }),
+				body: setup_db_already_exists_desc({ dbName: dbConfig.name }),
+				confirmText: common_confirm_overwrite(),
+				cancelText: common_confirm_no(),
+				onConfirm: async () => {
+					// Use allowOverwrite=true to drop and recreate the database
+					await testDatabaseConnection(false, true);
 				}
 			});
 		}
@@ -652,6 +667,63 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				</div>
 			{/if}
 		</div>
+		<div class="mb-4">
+			<button
+				type="button"
+				class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-400 hover:text-tertiary-500 transition-colors"
+				onclick={() => (showAdvanced = !showAdvanced)}
+			>
+				<iconify-icon icon={showAdvanced ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="18"></iconify-icon>
+				Advanced Database Options (Clustering & Scaling)
+			</button>
+
+			{#if showAdvanced}
+				<div class="mt-4 space-y-4 rounded-lg border border-surface-200 dark:border-white/10 p-4 transition-all duration-300">
+					<div class="flex flex-col gap-2">
+						<label for="replica-urls" class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+							<iconify-icon icon="mdi:database-import" width="16"></iconify-icon>
+							Regional Read Replicas (Optional)
+						</label>
+						<p class="text-xs text-slate-500 dark:text-white/40 mb-2">
+							Add full connection strings for regional read-only replicas (PostgreSQL/MongoDB).
+						</p>
+
+						{#each dbConfig.replicaUrls as _, index}
+							<div class="flex gap-2 mb-2 animate-in fade-in slide-in-from-left-2 duration-200">
+								<input
+									type="text"
+									bind:value={dbConfig.replicaUrls[index]}
+									placeholder="postgresql://user:pass@replica-host:5432/db?region=us-east"
+									class="input text-sm py-1.5 rounded"
+								/>
+								<button
+									type="button"
+									class="btn-icon rounded-full bg-error-500/10 text-error-500 hover:bg-error-500 hover:text-white transition-all"
+									aria-label="Remove replica"
+									onclick={() => {
+										dbConfig.replicaUrls = dbConfig.replicaUrls.filter((_: string, i: number) => i !== index);
+									}}
+								>
+									<iconify-icon icon="mdi:close" width="16"></iconify-icon>
+								</button>
+							</div>
+						{/each}
+
+						<button
+							type="button"
+							class="btn btn-sm variant-soft-tertiary dark:variant-soft-primary w-fit mt-2"
+							onclick={() => {
+								dbConfig.replicaUrls = [...dbConfig.replicaUrls, ''];
+							}}
+						>
+							<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
+							Add Replica Node
+						</button>
+					</div>
+				</div>
+			{/if}
+		</div>
+
 		{#if !unsupportedDbSelected}
 			<button
 				type="submit"

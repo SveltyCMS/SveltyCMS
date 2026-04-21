@@ -271,11 +271,12 @@ jobs:
           DB_TYPE: ${{ matrix.db }}
           DB_HOST: 127.0.0.1
           DB_PORT: ${{ matrix.port || '' }}
-          DB_NAME: sveltycms_test
+          DB_NAME: SveltyCMS_benchmark_test
           DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
           DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
           ADMIN_PASSWORD: Password123!
           TEST_MODE: true
+          PASSWORD_MIN_LENGTH: 8
         run: |
           if [ -f tests/e2e/.auth/test-secret.txt ]; then
             export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
@@ -320,11 +321,13 @@ jobs:
       - name: Run Wizard E2E tests
         env:
           DB_TYPE: sqlite
+          DB_HOST: 127.0.0.1
+          PASSWORD_MIN_LENGTH: 8
           TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
           ADMIN_PASSWORD: ${{ secrets.BENCHMARK_ADMIN_PASSWORD || 'Password123!' }}
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-          bun run preview --host 127.0.0.1 > preview.log 2>&1 &
+          DB_HOST=127.0.0.1 PASSWORD_MIN_LENGTH=8 bun run preview --host 127.0.0.1 > preview.log 2>&1 &
           bun x wait-on http://127.0.0.1:4173 --timeout 120000 --interval 2000
           bun x playwright test --project=wizard
       - uses: actions/upload-artifact@v7

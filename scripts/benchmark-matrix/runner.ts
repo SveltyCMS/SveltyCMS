@@ -14,12 +14,12 @@ import { persistScriptMetadataAST, updateIncrementalReport } from "./reporting";
 import {
   DB_METADATA,
   PORT_BASE,
-  DB_NAME_BASE,
   TEST_API_SECRET,
   JWT_SECRET_KEY,
   JWT_EXPIRES_IN,
   ENCRYPTION_KEY,
   ADMIN_PASSWORD,
+  DB_NAME_BENCHMARK,
 } from "./config";
 import type {
   BenchmarkScript,
@@ -268,7 +268,6 @@ export function buildWorkerEnv(
  */
 export async function runAuditForDatabase(
   dbConf: DatabaseConfig,
-  idx: number,
   hostInfo: HostInfo,
   buildMetrics: { durationMs: number } | null,
   cfg: RunConfig,
@@ -281,8 +280,8 @@ export async function runAuditForDatabase(
     icon: "❓",
     label: dbKey.toUpperCase(),
   };
-  const workerPort = PORT_BASE + idx;
-  const workerDbName = `${DB_NAME_BASE}_${idx}`;
+  const workerPort = PORT_BASE;
+  const workerDbName = DB_NAME_BENCHMARK;
 
   log.db(dbKey, `Worker starting on port ${workerPort}...`);
 
@@ -292,11 +291,6 @@ export async function runAuditForDatabase(
     if (buildMetrics) metrics["dx-build"] = buildMetrics;
 
     await freePort(workerPort);
-
-    if (dbConf.type === "sqlite") {
-      const sqliteFile = path.join(process.cwd(), "config/database", `${workerDbName}.sqlite`);
-      await fs.rm(sqliteFile, { force: true }).catch(() => {});
-    }
 
     await writeTestConfig(dbConf, workerDbName);
 
@@ -319,19 +313,12 @@ export async function runAuditForDatabase(
       );
     }
 
-    if (
-      !(await runTask(
-        "Seeding Relational Data",
-        "bun run scripts/benchmark-matrix/setup-benchmarks.ts",
-        env,
-        cfg.ci,
-      ))
-    ) {
-      log.error(`Seeding failed for ${meta.label}. Skipping.`);
+    if (!(await runTask("Standard System Setup", "bun run scripts/setup-system.ts", env, cfg.ci))) {
+      log.error(`Setup failed for ${meta.label}. Skipping.`);
       results.push({
         db: dbKey,
         status: "FAILED",
-        error: "Seeding failed",
+        error: "Setup failed",
         metrics,
       });
       await stopWorkerServer();
@@ -353,6 +340,30 @@ export async function runAuditForDatabase(
 
     for (const s of activeScripts) {
       if (isShuttingDown()) break;
+
+      // 🔥 CLEAN STATE STRATEGY:
+      // Drop all user tables before every test script to ensure measurement accuracy.
+      await runTask(
+        `Resetting DB state for ${s.shortLabel}`,
+        "bun run scripts/benchmark-matrix/setup-benchmarks.ts --clear-only",
+        env,
+        cfg.ci,
+      );
+
+      // Re-seed relational data if the script requires it (SQL strategies or API tests)
+      if (
+        s.strategy === "sql" ||
+        s.path.includes("relational") ||
+        s.path.includes("rest") ||
+        s.path.includes("graphql")
+      ) {
+        await runTask(
+          "Seeding Relational Data",
+          "bun run scripts/benchmark-matrix/setup-benchmarks.ts",
+          env,
+          cfg.ci,
+        );
+      }
 
       const isHigh = s.intensity === "high";
       const useLock = isHigh && cfg.parallelMode === "safe";

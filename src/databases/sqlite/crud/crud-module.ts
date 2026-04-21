@@ -203,8 +203,11 @@ export class CrudModule {
 
         return utils.convertDatesToISO(result as Record<string, unknown>) as T;
       }, "CRUD_INSERT_FAILED")
-      .then((res) => {
-        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+      .then(async (res) => {
+        if (res.success) {
+          res.meta = { executionTime: performance.now() - startTime };
+          await this.core.invalidateQueryCache(collection, options.tenantId);
+        }
         return res;
       });
   }
@@ -276,8 +279,11 @@ export class CrudModule {
           .limit(1);
         return utils.convertDatesToISO(result as Record<string, unknown>) as T;
       }, "CRUD_UPDATE_FAILED")
-      .then((res) => {
-        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+      .then(async (res) => {
+        if (res.success) {
+          res.meta = { executionTime: performance.now() - startTime };
+          await this.core.invalidateQueryCache(collection, options.tenantId);
+        }
         return res;
       });
   }
@@ -322,8 +328,11 @@ export class CrudModule {
           .delete(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
           .where(where);
       }, "CRUD_DELETE_FAILED")
-      .then((res) => {
-        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+      .then(async (res) => {
+        if (res.success) {
+          res.meta = { executionTime: performance.now() - startTime };
+          await this.core.invalidateQueryCache(collection, options.tenantId);
+        }
         return res;
       });
   }

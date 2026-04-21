@@ -14,7 +14,7 @@ import {
   JWT_EXPIRES_IN,
   ENCRYPTION_KEY,
   ADMIN_PASSWORD,
-  DB_NAME_BASE,
+  DB_NAME_BENCHMARK,
 } from "./config";
 import { isNoisyLine } from "./utils";
 
@@ -324,14 +324,10 @@ export async function writeTestConfig(db: DatabaseConfig, dbName: string): Promi
 }
 
 /**
- * Ensures that the required databases exist for relational adapters.
+ * Ensures that the single required benchmark database exists for relational adapters.
  */
 export async function ensureDatabaseExists(db: DatabaseConfig) {
-  const namedDbs = [
-    `${DB_NAME_BASE}_global`,
-    `${DB_NAME_BASE}_setup`,
-    ...Array.from({ length: 8 }, (_, i) => `${DB_NAME_BASE}_${i}`),
-  ];
+  const dbName = DB_NAME_BENCHMARK;
 
   if (db.type === "postgresql") {
     try {
@@ -344,13 +340,11 @@ export async function ensureDatabaseExists(db: DatabaseConfig) {
         database: "postgres",
         connect_timeout: 5,
       });
-      for (const dbName of namedDbs) {
-        await sql.unsafe(`CREATE DATABASE "${dbName}"`).catch((e: any) => {
-          if (e.code !== "42P04") throw e;
-        });
-      }
+      await sql.unsafe(`CREATE DATABASE "${dbName}"`).catch((e: any) => {
+        if (e.code !== "42P04") throw e;
+      });
       await sql.end();
-      log.info(`PostgreSQL: pre-created ${namedDbs.length} benchmark databases.`);
+      log.info(`PostgreSQL: pre-created benchmark database "${dbName}".`);
     } catch (e: any) {
       log.warn(`PostgreSQL pre-check failed: ${e.message}`);
     }
@@ -376,11 +370,9 @@ export async function ensureDatabaseExists(db: DatabaseConfig) {
           });
         } else throw e;
       }
-      for (const dbName of namedDbs) {
-        await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
-      }
+      await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
       await conn.end();
-      log.info(`MariaDB: pre-created ${namedDbs.length} benchmark databases.`);
+      log.info(`MariaDB: pre-created benchmark database "${dbName}".`);
     } catch (e: any) {
       log.warn(`MariaDB pre-check failed: ${e.message}`);
     }

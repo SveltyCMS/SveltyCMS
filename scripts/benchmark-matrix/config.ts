@@ -4,7 +4,6 @@
  */
 
 import path from "node:path";
-import os from "node:os";
 import type { DatabaseConfig } from "./types";
 
 // --- PERFORMANCE BUDGETS ---
@@ -185,10 +184,16 @@ export const ENCRYPTION_KEY = getSecret(
 export const ROOT_RESULTS_DIR = path.join(process.cwd(), "tests/benchmarks/results");
 export const BENCHMARKS_DOC = path.join(process.cwd(), "docs/project/benchmarks.mdx");
 export const CI_SUMMARY_FILE = path.join(ROOT_RESULTS_DIR, "ci-summary.json");
-export const DB_NAME_BASE = "SveltyCMS_audit_test";
+export const DB_NAME_BASE = "SveltyCMS_audit";
+/** The single, unified database name used for ALL SQL benchmarks to ensure realism. */
+export const DB_NAME_BENCHMARK = "SveltyCMS_benchmark_test";
 
 // --- EXECUTION CONTROL ---
-export const MAX_CONCURRENCY = Math.max(1, Math.floor(os.cpus().length * 0.4));
+/**
+ * Force serial execution for SQL databases (MAX_CONCURRENCY = 1)
+ * to ensure single-database integrity and avoid lock contention on SQLite/MariaDB.
+ */
+export const MAX_CONCURRENCY = 1;
 
 // --- EXPORTS ---
 export { BENCHMARK_SCRIPTS } from "./benchmark-scripts";

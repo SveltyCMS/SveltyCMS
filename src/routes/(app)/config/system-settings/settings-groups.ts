@@ -277,6 +277,54 @@ export const settingsGroups: SettingGroup[] = [
     ],
   },
   {
+    id: "scaling",
+    name: "Enterprise Scaling & CDN",
+    icon: "🌐",
+    description: "Configure global edge nodes and CDN synchronization (Cloudflare)",
+    enabled: true,
+    requiresRestart: false,
+    adminOnly: true,
+    permissionId: "config:settings:scaling",
+    fields: [
+      {
+        key: "DB_REPLICA_URLS",
+        label: "Database Read Replicas",
+        description:
+          "Regional connection strings for read-only replicas (one per line). Append ?region=code for geographic awareness.",
+        type: "textarea",
+        category: "private",
+        placeholder:
+          "postgresql://user:pass@replica-eu.db.com:5432/cms?region=eu-west\npostgresql://user:pass@replica-us.db.com:5432/cms?region=us-east",
+      },
+      {
+        key: "CF_API_TOKEN",
+        label: "Cloudflare API Token",
+        description: "API Token with Zone.Cache Purge permissions",
+        type: "password",
+        category: "private",
+        sensitive: true,
+      },
+      {
+        key: "CF_ZONE_ID",
+        label: "Cloudflare Zone ID",
+        description: "The Zone ID for your Cloudflare domain",
+        type: "text",
+        category: "private",
+      },
+      {
+        key: "CF_PURGE_MODE",
+        label: "CDN Purge Strategy",
+        description: "Tags (Surgical) or All (Full Purge)",
+        type: "select",
+        category: "private",
+        options: [
+          { value: "tags", label: "Surgical (Cache Tags)" },
+          { value: "all", label: "Full Purge" },
+        ],
+      },
+    ],
+  },
+  {
     id: "redis",
     name: "Redis Cache",
     icon: "💾",

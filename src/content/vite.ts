@@ -15,12 +15,6 @@ import { logger } from "@utils/logger";
 import type { ViteDevServer } from "vite";
 
 // Define types locally to avoid circular dependencies
-interface Field {
-  db_fieldName?: string;
-  label: string;
-  type?: string;
-}
-
 interface ProcessedField {
   name: string;
   type: string;
@@ -54,13 +48,12 @@ export async function generateContentTypes(
       throw new Error(`Invalid collections data: expected array, got ${typeof collectionsData}`);
     }
 
-    for (const collection of collectionsData) {
-      if (!(collection?.fields && Array.isArray(collection.fields))) {
-        logger.warn(`Collection ${collection?.name || "unknown"} has no valid fields array`);
-        continue;
-      }
+    /**
+     * Recursively processes fields to generate high-fidelity TypeScript types.
+     */
+    function processFields(fields: any[], depth = 0): ProcessedField[] {
+      if (depth > 5) return [{ name: "error", type: "any /* Recursion Limit */" }];
 
-      // Fix: Field type mapping incomplete — expanded mapping
       const typeMapping: Record<string, string> = {
         date: "ISODateString",
         datetime: "ISODateString",
@@ -74,17 +67,42 @@ export async function generateContentTypes(
         file: "string",
         relation: "DatabaseId",
         select: "string",
+        media: "string | string[]",
       };
 
-      const processedFields: ProcessedField[] = collection.fields.map((field: Field) => {
+      return fields.map((field: any) => {
         const rawName = field.db_fieldName || field.label;
-        // Fix: Field names used as TypeScript identifiers without sanitization
         const safeName = sanitizeIdentifier(rawName);
-        return {
-          name: safeName,
-          type: field.type ? typeMapping[field.type.toLowerCase()] || "any" : "string",
-        };
+        let tsType = "any";
+
+        // Logic refined for widgets and nested groups
+        const widgetName = field.widget?.Name || field.type;
+
+        if (widgetName === "Repeater" || widgetName === "group") {
+          const nestedFields = field.fields || [];
+          const nestedProcessed = processFields(nestedFields, depth + 1);
+          const nestedType = `{ ${nestedProcessed.map((f) => `${f.name}: ${f.type}`).join("; ")} }`;
+          tsType = widgetName === "Repeater" ? `${nestedType}[]` : nestedType;
+        } else if (widgetName === "Select" && Array.isArray(field.options)) {
+          tsType = field.options.map((o: any) => `'${o.value || o}'`).join(" | ");
+        } else {
+          tsType =
+            typeMapping[field.type?.toLowerCase()] ||
+            typeMapping[widgetName?.toLowerCase()] ||
+            "string";
+        }
+
+        return { name: safeName, type: tsType };
       });
+    }
+
+    for (const collection of collectionsData) {
+      if (!(collection?.fields && Array.isArray(collection.fields))) {
+        logger.warn(`Collection ${collection?.name || "unknown"} has no valid fields array`);
+        continue;
+      }
+
+      const processedFields = processFields(collection.fields);
 
       // Use collection name or _id as key
       const rawCollectionKey = collection.name || collection._id;
@@ -92,7 +110,8 @@ export async function generateContentTypes(
 
       contentTypes[collectionKey] = {
         fields: processedFields.map((f) => f.name),
-        type: `{ ${processedFields.map((f) => `${f.name}: ${f.type}`).join("; ")} }`,
+        // ✨ INTERSECTION: Join metadata with user fields
+        type: `CollectionEntry & { ${processedFields.map((f) => `${f.name}: ${f.type}`).join("; ")} }`,
       };
     }
 
@@ -107,6 +126,8 @@ export async function generateContentTypes(
  * @description Automatically generated collection and entry types for SveltyCMS.
  * This file is managed by the Vite build plugin and should NOT be edited manually.
  */
+
+import type { DatabaseId, ISODateString, CollectionEntry } from "./types";
 
 /* AUTOGEN_START: ContentTypes */
 /* AUTOGEN_END: ContentTypes */`;

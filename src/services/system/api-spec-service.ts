@@ -501,7 +501,11 @@ export class ApiSpecService {
     };
   }
 
-  private mapFieldsToSchema(fields: FieldInstance[]): any {
+  private mapFieldsToSchema(fields: FieldInstance[], depth = 0): any {
+    if (depth > 5) {
+      return { type: "object", description: "Recursion Limit Reached", additionalProperties: true };
+    }
+
     const properties: any = {
       _id: { type: "string", format: "uuid", example: "67f8c9d2e1b3a4f5c6d7e8f9" },
       status: { type: "string", enum: ["published", "draft", "archived"], default: "published" },
@@ -509,56 +513,59 @@ export class ApiSpecService {
       updatedAt: { type: "string", format: "date-time" },
     };
 
+    const typeMapping: Record<string, any> = {
+      number: { type: "number", example: 42 },
+      boolean: { type: "boolean", default: false },
+      checkbox: { type: "boolean", default: false },
+      date: { type: "string", format: "date-time" },
+      datetime: { type: "string", format: "date-time" },
+      email: { type: "string", format: "email" },
+      url: { type: "string", format: "uri" },
+      relation: { type: "string", format: "uuid" },
+    };
+
     for (const field of fields) {
       const fieldName = field.db_fieldName;
       if (!fieldName) continue;
 
       let fieldSchema: any = { description: field.label };
+      const widgetName = field.widget?.Name || field.type;
 
-      // Try to infer type from GraphqlSchema or Widget Name
-      const widgetName = field.widget?.Name;
+      // 🚀 Recursive Handling for Groups and Repeaters
+      if (widgetName === "Repeater" || widgetName === "Group") {
+        const nestedFields = (field as any).fields || [];
+        const nestedSchema = this.mapFieldsToSchema(nestedFields, depth + 1);
 
-      switch (widgetName) {
-        case "Number":
-          fieldSchema.type = "number";
-          fieldSchema.example = 42;
-          break;
-        case "Boolean":
-        case "Checkbox":
-          fieldSchema.type = "boolean";
-          fieldSchema.default = false;
-          break;
-        case "Date":
-        case "DateTime":
+        if (widgetName === "Repeater") {
+          fieldSchema = {
+            type: "array",
+            items: nestedSchema,
+            description: `${field.label} (List)`,
+          };
+        } else {
+          fieldSchema = {
+            ...nestedSchema,
+            description: `${field.label} (Group)`,
+          };
+        }
+      } else if (widgetName === "Select" && Array.isArray((field as any).options)) {
+        fieldSchema.type = "string";
+        fieldSchema.enum = (field as any).options.map((o: any) => o.value || o);
+      } else {
+        const mapped =
+          typeMapping[(widgetName || "").toLowerCase()] ||
+          typeMapping[(field.type || "").toLowerCase()];
+        if (mapped) {
+          fieldSchema = { ...fieldSchema, ...mapped };
+        } else if (widgetName === "Media" || widgetName === "Image") {
           fieldSchema.type = "string";
-          fieldSchema.format = "date-time";
-          break;
-        case "Relation":
-          fieldSchema.type = "string";
-          fieldSchema.format = "uuid";
-          const relation = (field as any).relation;
-          fieldSchema.description = `${field.label} (References ${relation?.collection || "Collection"})`;
-          fieldSchema.example = "67f8c9d2e1b3a4f5c6d7e8f9";
-          break;
-        case "Array":
-          fieldSchema.type = "array";
-          fieldSchema.items = { type: "string" };
-          break;
-        case "RichText":
+          fieldSchema.description = `${field.label} (Media URL or Array)`;
+        } else if (widgetName === "RichText") {
           fieldSchema.type = "string";
           fieldSchema.contentMediaType = "text/html";
-          fieldSchema.description = `${field.label} (HTML Content)`;
-          break;
-        case "Email":
+        } else {
           fieldSchema.type = "string";
-          fieldSchema.format = "email";
-          break;
-        case "Url":
-          fieldSchema.type = "string";
-          fieldSchema.format = "uri";
-          break;
-        default:
-          fieldSchema.type = "string";
+        }
       }
 
       // Handle translation wrapper
@@ -567,7 +574,7 @@ export class ApiSpecService {
           type: "object",
           description: `${field.label} (Multilingual Object)`,
           additionalProperties: { type: fieldSchema.type },
-          example: { en: "Example Text", de: "Beispieltext" },
+          example: { en: "Example Text" },
         };
       } else {
         properties[fieldName] = fieldSchema;

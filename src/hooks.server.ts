@@ -47,11 +47,16 @@ if (!building) {
 }
 
 // ESM Shims for legacy CJS compatibility in production build
-if (typeof globalThis.__filename === "undefined") {
+if (typeof (globalThis as any).__filename === "undefined") {
   (globalThis as any).__filename = fileURLToPath(import.meta.url);
 }
-if (typeof globalThis.__dirname === "undefined") {
+if (typeof (globalThis as any).__dirname === "undefined") {
   (globalThis as any).__dirname = dirname((globalThis as any).__filename);
+}
+
+// ✨ ENTERPRISE: Stable Node ID for Distributed Cache Sync (Phase 8)
+if (typeof (globalThis as any).__SVELTY_NODE_ID__ === "undefined") {
+  (globalThis as any).__SVELTY_NODE_ID__ = crypto.randomUUID();
 }
 
 import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";

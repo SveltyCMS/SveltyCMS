@@ -78,13 +78,35 @@ async function setupCollections(cms: any): Promise<{ authorsId: string; postsId:
   log("Refreshing collections and reconciling schemas...");
   await cms.collections.refresh(TENANT_ID as any, false); // full refresh
 
-  // Small delay for disk / watcher consistency
-  await new Promise((r) => setTimeout(r, 800));
+  // 🛡️ RECONCILIATION GUARD: Poll until collections are visible in the store
+  // This prevents "Collection not found" errors due to async file system watchers.
+  let authorsCollection: any = null;
+  let postsCollection: any = null;
+  const MAX_POLL_ATTEMPTS = 15;
 
-  const collections = await cms.collections.list({ tenantId: TENANT_ID as any });
+  for (let attempt = 1; attempt <= MAX_POLL_ATTEMPTS; attempt++) {
+    const collections = await cms.collections.list({ tenantId: TENANT_ID as any });
+    authorsCollection = collections.find((c: any) => c.name === "benchmark_authors");
+    postsCollection = collections.find((c: any) => c.name === "benchmark_posts");
 
-  const authorsCollection = collections.find((c: any) => c.name === "benchmark_authors");
-  const postsCollection = collections.find((c: any) => c.name === "benchmark_posts");
+    if (authorsCollection && postsCollection) {
+      if (attempt > 1) log(`✅ Collections reconciled on attempt ${attempt}.`);
+      break;
+    }
+
+    if (attempt === MAX_POLL_ATTEMPTS) {
+      const available = (await cms.collections.list({ tenantId: TENANT_ID as any })).map(
+        (c: any) => c.name || c._id,
+      );
+      throw new Error(
+        `Reconciliation timeout: Collections not found. Available: ${available.join(", ")}`,
+      );
+    }
+
+    log(`  (Attempt ${attempt}/${MAX_POLL_ATTEMPTS}) Waiting for reconciliation...`);
+    await cms.collections.refresh(TENANT_ID as any, false);
+    await new Promise((r) => setTimeout(r, 600));
+  }
 
   const authorsId = authorsCollection?._id ?? COLLECTIONS.AUTHORS._id;
   const postsId = postsCollection?._id ?? COLLECTIONS.POSTS._id;
@@ -151,6 +173,8 @@ export async function main(): Promise<void> {
     const db = getDb();
     if (!db) throw new Error("Database failed to initialize");
 
+    const clearOnly = process.argv.includes("--clear-only");
+
     // Clean slate for reproducible benchmarks
     if (typeof (db as any).clearDatabase === "function") {
       log("Clearing database for clean benchmark state...");
@@ -158,6 +182,11 @@ export async function main(): Promise<void> {
       if (!clearResult.success) {
         log(`Warning: Database clear failed: ${clearResult.message}`);
       }
+    }
+
+    if (clearOnly) {
+      log("✅ Database cleared (clear-only mode).");
+      process.exit(0);
     }
 
     const cms = new LocalCMS(db);

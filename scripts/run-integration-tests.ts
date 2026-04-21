@@ -17,7 +17,7 @@ const ROOT = join(__dirname, "..");
 const PORT = process.env.PORT ?? "4173";
 const HOST = process.env.HOST ?? "127.0.0.1";
 const API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
-const TEST_API_SECRET = process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026";
+const TEST_API_SECRET = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Password123!";
 
 let previewProcess: ChildProcess | null = null;
@@ -57,10 +57,12 @@ async function startPreviewServer() {
         NODE_ENV: "production",
         TEST_MODE: "true",
         DB_TYPE: process.env.DB_TYPE || "sqlite",
-        DB_NAME: "SveltyCMS_test",
+        DB_HOST: process.env.DB_HOST || "127.0.0.1",
+        DB_NAME: "SveltyCMS_benchmark_test",
         TEST_API_SECRET,
         ADMIN_PASSWORD,
         ORIGIN: API_BASE_URL,
+        PASSWORD_MIN_LENGTH: "8",
       },
     },
   );
@@ -170,7 +172,9 @@ async function main() {
       TEST_API_SECRET,
       ADMIN_PASSWORD,
       DB_TYPE: process.env.DB_TYPE || "sqlite",
-      DB_NAME: "SveltyCMS_test",
+      DB_HOST: process.env.DB_HOST || "127.0.0.1",
+      DB_NAME: "SveltyCMS_benchmark_test",
+      PASSWORD_MIN_LENGTH: "8",
     },
   });
 

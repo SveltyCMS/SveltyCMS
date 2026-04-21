@@ -280,6 +280,8 @@ export const systemSettingsSchema = v.object({
 - **Connection String Parsing**: Paste full MongoDB URI, automatically extracts credentials
 - **Auto-driver Installation**: Detects missing drivers and installs them
 - **Atlas Helper**: Collapsible guide for MongoDB Atlas setup
+- **Existing Data Detection**: Probes the target database for existing tables or collections before proceeding.
+- **Data Overwrite Confirmation**: If existing data is detected, the wizard provides a clear modal warning. Users can choose to **Overwrite** the database (which drops and recreates it) or specify different connection details to prevent accidental data loss.
 - **Full Interface Compliance**: Automatically synchronizes theme and folder logic for MongoDB
 - **Test Connection**: Validates configuration before proceeding
 - **Error Classification**: Detailed error messages (auth failed, timeout, DNS error, etc.)
@@ -793,6 +795,7 @@ Each input field follows this pattern:
 - `connection_refused` - Cannot reach database
 - `dns_not_found` - Invalid hostname
 - `database_not_found` - Database doesn't exist
+- `DATABASE_ALREADY_EXISTS` - Database contains existing tables/collections; requires overwrite confirmation.
 - `invalid_uri` - Malformed connection string
 
 **Example**:

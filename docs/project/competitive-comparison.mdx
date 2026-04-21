@@ -35,16 +35,16 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 
 | Metric                   | SveltyCMS (Intel 2026)            | PayloadCMS (v3.x)              | Directus (v11.x)                   | Strapi (v5.x)            | Sveltia CMS         |
 | :----------------------- | :-------------------------------- | :----------------------------- | :--------------------------------- | :----------------------- | :------------------ |
-| **Avg API Read Latency** | **0.38–0.46 ms**                  | 4–12 ms (sub-10 ms co-located) | 3–18 ms (avg ~35 ms in some tests) | 6–25 ms (avg 120–150 ms) | N/A (Git-based)     |
-| **Avg GraphQL Latency**  | **0.92–1.38 ms**                  | 15–150+ ms                     | 15–150+ ms                         | ~120–150 ms              | N/A                 |
+| **Avg API Read Latency** | **0.007–0.015 ms** (L1 Ghost)     | 4–12 ms (sub-10 ms co-located) | 3–18 ms (avg ~35 ms in some tests) | 6–25 ms (avg 120–150 ms) | N/A (Git-based)     |
+| **Avg GraphQL Latency**  | **0.42–0.98 ms** (JIT)            | 15–150+ ms                     | 15–150+ ms                         | ~120–150 ms              | N/A                 |
 | **Avg Insert Latency**   | **0.17–0.72 ms**                  | 3–10 ms                        | 4–12 ms                            | 5–15 ms                  | N/A                 |
 | **Middleware Overhead**  | **0.007–0.010 ms** (7 µs p95)     | ~115 µs                        | ~145 µs                            | ~180 µs                  | N/A (browser-based) |
-| **Throughput (RPS)**     | **110k–363k RPS** (Full Stack)    | ~900–2,100 RPS (REST/GraphQL)  | Lower (optimized ~ higher)         | 900–1,200 RPS (REST)     | N/A (static/Git)    |
+| **Throughput (RPS)**     | **2,003+ RPS** (Full Prod Load)   | ~900–2,100 RPS (REST/GraphQL)  | Lower (optimized ~ higher)         | 900–1,200 RPS (REST)     | N/A (static/Git)    |
 | **Media Upload**         | **0.12 ms** (async/background)    | 100–350 ms                     | 120–400 ms                         | 150–500 ms               | N/A                 |
-| **Cold Start**           | **~184–250 ms** (Ready state)     | Variable (Next.js)             | ~5 s                               | ~8 s                     | Very fast (<300 ms) |
+| **Cold Start**           | **~120–210 ms** (READY state)     | Variable (Next.js)             | ~5 s                               | ~8 s                     | Very fast (<300 ms) |
 | **Bundle Size (Brotli)** | **~1 MB** (Transfer)              | 3–5 MB+                        | Medium/Large                       | Largest                  | <300–500 KB         |
-| Auth Latency             | **< 0.4 ms** (3-layer cache)      | Not specified                  | Not highlighted                    | Not highlighted          | Fast (GitHub OAuth) |
-| Real-time / Sync         | **Sub-10 ms** (WebSocket/Yjs)     | Good (with config)             | Supports WebSockets                | Limited                  | N/A (Git-based)     |
+| Auth Latency             | **< 0.15 ms** (Ghost session)     | Not specified                  | Not highlighted                    | Not highlighted          | Fast (GitHub OAuth) |
+| Real-time / Sync         | **Sub-1 ms** (Redis Pub/Sub)      | Good (with config)             | Supports WebSockets                | Limited                  | N/A (Git-based)     |
 | AI Extensibility         | **Native WebMCP Bridge**          | Strong via Cloud plugins       | Basic/Chat only                    | Extra/Paid Features      | N/A                 |
 | Workflows / Governance   | **Native RBAC Visual FSM**        | Enterprise Feature             | Native (Flows)                     | Enterprise Feature       | Local Git workflows |
 | Edge / Local SDK         | **Native** (locals.cms injection) | Strong in Next.js              | Not native                         | Not native               | N/A                 |

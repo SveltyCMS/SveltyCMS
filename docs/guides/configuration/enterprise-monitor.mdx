@@ -6,13 +6,14 @@ order: 11
 icon: "mdi:shield-check-outline"
 author: "SveltyCMS Team"
 created: "2026-04-11"
-updated: "2026-04-11"
+updated: "2026-04-21"
 tags:
   - "admin"
   - "monitoring"
   - "security"
   - "health"
   - "dashboard"
+  - "benchmarks"
 ---
 
 # Enterprise Monitor Dashboard
@@ -33,6 +34,15 @@ The dashboard is accessible via **Config > Enterprise Monitor** and uses a high-
 | **🗑️ Trash Recovery**  | Deleted item count, storage impact.                | Restore content / Purge trash.         |
 | **🪝 Webhook Health**  | Active endpoints, failure rates, delivery latency. | Review logs / Trigger retries.         |
 | **⚙️ System Vitals**   | RAM/CPU usage, DB pool health, Watchdog status.    | Monitor for resource exhaustion.       |
+
+---
+
+## 🔬 Enterprise Performance Auditing (Audit 2.0)
+
+While the Enterprise Monitor provides real-time health data, SveltyCMS also maintains a **High-Fidelity Performance Matrix (Audit 2.0)** for baseline verification.
+
+- **Deterministic Reliability**: The monitor surfaces health, but the **Performance Matrix** ensures that the core system meets the 10ms persistence budget across all supported databases.
+- **CI/CD Integration**: Every release is audited against the [Performance Benchmarks](../../project/benchmarks.mdx) to prevent regressions in latency or bundle size.
 
 ---
 
@@ -76,4 +86,5 @@ The Enterprise Monitor surfaces the activity of the **Autonomous System Watchdog
 
 - [Security Architecture](../../architecture/security/index.mdx)
 - [Autonomous Maintenance](../development/autonomous-maintenance.mdx)
+- [CI/CD Performance Metrics](../../tests/ci-performance-metrics.mdx)
 - [Webhook System](../../api/system.mdx#3-webhooks--integrations)

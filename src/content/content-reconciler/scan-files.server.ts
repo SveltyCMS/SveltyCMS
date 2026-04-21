@@ -9,7 +9,7 @@ import path from "node:path";
 import { building, dev } from "$app/environment";
 import { logger } from "@utils/logger.server";
 import type { Schema } from "../types";
-import { processModule } from "../module-processor.server";
+import { loadSchemaNative } from "../module-processor.server";
 
 /**
  * Scans the configured directory for collection definition files.
@@ -39,8 +39,8 @@ export async function scanAndProcessFiles(): Promise<Schema[]> {
   // 3. Process modules in parallel
   const schemaPromises = files.map(async (filePath) => {
     try {
-      const content = await fs.readFile(filePath, "utf-8");
-      const moduleData = await processModule(content);
+      // 🚀 Native Load: Bypasses readFile, string parsing, and eval.
+      const moduleData = await loadSchemaNative(filePath);
 
       if (!moduleData?.schema) return null;
 

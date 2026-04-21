@@ -11,6 +11,7 @@
 
 import { privateConfigSchema, publicConfigSchema } from "@src/databases/schemas";
 import { logger } from "@utils/logger";
+import type { IDBAdapter } from "@src/databases/db-interface";
 import type { InferOutput } from "valibot";
 
 export type PrivateEnv = InferOutput<typeof privateConfigSchema>;
@@ -85,7 +86,10 @@ async function loadPkgVersion(): Promise<string> {
  * Cache automatically invalidates after TTL (5 minutes) to prevent stale data.
  * This is the single source of truth on the server.
  */
-export async function loadSettingsCache(tenantId: string = GLOBAL_TENANT): Promise<SettingsCache> {
+export async function loadSettingsCache(
+  tenantId: string = GLOBAL_TENANT,
+  overrides?: { dbAdapter: IDBAdapter; getPrivateEnv: () => PrivateEnv },
+): Promise<SettingsCache> {
   const cache = getOrCreateCache(tenantId);
   const now = Date.now();
 
@@ -95,12 +99,13 @@ export async function loadSettingsCache(tenantId: string = GLOBAL_TENANT): Promi
     logger.debug(`Settings cache invalidated for tenant ${tenantId} (TTL expired)`);
   }
 
-  if (cache.loaded) {
+  // In production, return early if loaded. In tests (if overrides provided), always reload.
+  if (cache.loaded && !overrides) {
     return cache;
   }
 
   try {
-    const { dbAdapter, getPrivateEnv } = await import("@src/databases/db");
+    const { dbAdapter, getPrivateEnv } = overrides || (await import("@src/databases/db"));
 
     // Check if database adapter is available (might not be during setup)
     if (!dbAdapter?.system.preferences) {
@@ -163,7 +168,7 @@ export async function loadSettingsCache(tenantId: string = GLOBAL_TENANT): Promi
     let globalPrivate = {};
     if (tenantId !== GLOBAL_TENANT) {
       // Use internal function to recurse without triggering infinite loop if misconfigured
-      const globalCache = await loadSettingsCache(GLOBAL_TENANT);
+      const globalCache = await loadSettingsCache(GLOBAL_TENANT, overrides);
       globalPublic = globalCache.public;
       globalPrivate = globalCache.private;
     }
@@ -175,11 +180,8 @@ export async function loadSettingsCache(tenantId: string = GLOBAL_TENANT): Promi
     };
 
     // Merge: global private + infrastructure settings from config + dynamic settings from DB
-    const mergedPrivate = {
-      ...globalPrivate,
-      ...privateConfig,
-      ...privateDynamic,
-    };
+    // Use Object.assign for maximum compatibility in all JS environments
+    const mergedPrivate = Object.assign({}, globalPrivate, privateConfig, privateDynamic);
 
     // Update cache with merged data
     cache.private = mergedPrivate as PrivateEnv;
@@ -187,6 +189,14 @@ export async function loadSettingsCache(tenantId: string = GLOBAL_TENANT): Promi
     cache.public.PKG_VERSION = await loadPkgVersion();
     cache.loaded = true;
     cache.loadedAt = Date.now();
+
+    // 🚀 Dynamic Read-Replica Synchronization
+    // If replicas are found in the merged private settings (loaded from DB),
+    // we hot-load them into the database adapter.
+    const replicas = (mergedPrivate as any).DB_REPLICA_URLS;
+    if (replicas && dbAdapter.configureReplicas) {
+      dbAdapter.configureReplicas(replicas);
+    }
 
     return cache;
   } catch (error) {

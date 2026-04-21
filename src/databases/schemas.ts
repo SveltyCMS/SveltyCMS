@@ -97,6 +97,7 @@ export const privateConfigSchema = object({
   GOOGLE_CLIENT_ID: optional(pipe(string(), minLength(1))),
   GOOGLE_CLIENT_SECRET: optional(pipe(string(), minLength(1))),
   GOOGLE_API_KEY: optional(pipe(string(), minLength(1))),
+  GOOGLE_PAGESPEED_API_KEY: optional(pipe(string(), minLength(1))),
   SMTP_HOST: optional(pipe(string(), minLength(1))),
   SMTP_PORT: optional(pipe(coercedNumber, minValue(1))),
   SMTP_USER: optional(string()),
@@ -175,11 +176,13 @@ export const privateConfigSchema = object({
   // --- External Host (used for SAML/SSO) ---
   HOST_PROD: optional(string()),
 
-  // --- Performance Plugins ---
-  GOOGLE_PAGESPEED_API_KEY: optional(string()),
-
   // --- CI/Benchmark Configuration ---
   TEST_API_SECRET: optional(string()),
+
+  // --- External CDN (Optional) ---
+  CF_API_TOKEN: optional(pipe(string(), minLength(1))),
+  CF_ZONE_ID: optional(pipe(string(), minLength(1))),
+  CF_PURGE_MODE: optional(union([literal("all"), literal("tags")]), "tags"),
 });
 
 // The PUBLIC configuration for the application.

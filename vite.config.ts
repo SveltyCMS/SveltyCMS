@@ -377,8 +377,7 @@ function stubServerModulesPlugin(): Plugin {
     "/src/databases/cache/redis-store.ts",
     "/src/databases/cache/inmemory-store.ts",
     // Server services that should not leak to client
-    "/src/services/settings-service.ts",
-    // Email templates and dev-only preview tools are huge and shouldn't bloat the client
+    // Media engine stubs
     "/src/components/emails/",
     "better-svelte-email",
     // Also stub out server-only code
@@ -391,8 +390,8 @@ function stubServerModulesPlugin(): Plugin {
     name: "stub-server-modules",
     enforce: "pre",
     load(id, options) {
-      // Only stub for client builds, never for SSR
-      if (!options?.ssr) {
+      // Only stub for client builds, never for SSR or actual Unit Tests (TEST_MODE)
+      if (!options?.ssr && process.env.TEST_MODE !== "true") {
         const normalizedId = id.replace(/\\/g, "/");
         if (serverOnlySegments.some((seg) => normalizedId.includes(seg))) {
           return `export default {};

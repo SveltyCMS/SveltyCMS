@@ -63,10 +63,6 @@ export const contentSystem = {
       typeof initializationParams === "boolean"
         ? initializationParams
         : (initializationParams?.skipReconciliation ?? false);
-    const incremental =
-      typeof initializationParams === "object"
-        ? (initializationParams?.incremental ?? false)
-        : false;
 
     const key = tenantId ?? "__global__";
 
@@ -108,7 +104,7 @@ export const contentSystem = {
 
         // 2. Reload via Server Service (supports incremental)
         const { contentService } = await import("./content-service.server");
-        await contentService.fullReload(tenantId, skipReconciliation, adapter, incremental);
+        await contentService.fullReload(tenantId, skipReconciliation, adapter, null);
 
         // 2.5 Invalidate OpenAPI Spec if reconciliation occurred
         if (!skipReconciliation) {

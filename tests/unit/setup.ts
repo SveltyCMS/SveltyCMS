@@ -1,6 +1,34 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 
+// Moved up to support conditional mocking
+const isTestTarget = (path: string) => {
+  let currentTest = process.argv.find((arg) => arg.endsWith(".test.ts"));
+
+  // Normalize backslashes for Windows
+  const normalizedPath = path.replace(/\\/g, "/");
+  const normalizedCurrentTest = currentTest ? currentTest.replace(/\\/g, "/") : "";
+
+  if (normalizedCurrentTest.includes("security-response-service")) {
+    if (normalizedPath.includes("security-response-service")) return true;
+  }
+  if (!isBun && vitest?.expect) {
+    try {
+      const { testPath } = (vitest.expect as any).getState();
+      if (testPath) {
+        const normalizedTestPath = testPath.replace(/\\/g, "/");
+        if (normalizedTestPath.includes("security-response-service")) {
+          if (normalizedPath.includes("security-response-service")) return true;
+        }
+        currentTest = testPath;
+      }
+    } catch {}
+  }
+  // Fallback to simpler check for path
+  const targetPart = path.split("/").pop()?.replace(".ts", "") || "___NON_EXISTENT___";
+  return currentTest && currentTest.includes(targetPart);
+};
+
 // 1. EARLY DOM SHIMS (Critical for Bun; Vitest uses native jsdom)
 const isBun = typeof Bun !== "undefined";
 
@@ -311,7 +339,7 @@ const moduleMock = (path: string, factory: () => any) => {
     !path.startsWith("svelte") &&
     (!path.includes("scanner") || process.env.BUN_TEST_MOCKS === "false")
   )
-    return; // ⚡ BENCHMARK MODE: Skip db/service mocks but keep SvelteKit environment intact
+    return; // âš¡ BENCHMARK MODE: Skip db/service mocks but keep SvelteKit environment intact
 
   if (isBun) {
     mock.module(path, factory);
@@ -803,7 +831,7 @@ moduleMock("@utils/error-handling", () => ({
 }));
 
 // ============================================================================
-// WIDGET INFRASTRUCTURE MOCKS (CRITICAL — always active, even for benchmarks)
+// WIDGET INFRASTRUCTURE MOCKS (CRITICAL â€” always active, even for benchmarks)
 // The Vite-dependent import.meta.glob scanner cannot function in Bun's test
 // runtime. Without this mock, safelyParseSchema() fails with
 // "widgets.Input is undefined" when reconciling .compiledCollections schemas.
@@ -860,7 +888,7 @@ for (const name of WIDGET_NAMES) {
   scannerModules[`./core/${name.toLowerCase()}/index.ts`] = { default: factory };
 }
 
-// Direct mock.module — bypasses moduleMock's benchmark skip logic
+// Direct mock.module â€” bypasses moduleMock's benchmark skip logic
 if (isBun) {
   mock.module("@src/widgets/scanner", () => ({
     coreModules: scannerModules,
@@ -1053,7 +1081,9 @@ const settingsMock = {
   updateSettingsFromSnapshot: mock(async () => ({ updated: 0 })),
   getUntypedSetting: mock(async () => undefined),
 };
-moduleMock("@src/services/settings-service", () => settingsMock);
+if (!isTestTarget("settings-service")) {
+  moduleMock("@src/services/settings-service", () => settingsMock);
+}
 
 const mockAuditLog = {
   log: mock(() => Promise.resolve()),
@@ -1329,33 +1359,6 @@ moduleMock("node:dns/promises", () => ({
   default: { lookup: mockLookup },
 }));
 
-const isTestTarget = (path: string) => {
-  let currentTest = process.argv.find((arg) => arg.endsWith(".test.ts"));
-
-  // Normalize backslashes for Windows
-  const normalizedPath = path.replace(/\\/g, "/");
-  const normalizedCurrentTest = currentTest ? currentTest.replace(/\\/g, "/") : "";
-
-  if (normalizedCurrentTest.includes("security-response-service")) {
-    if (normalizedPath.includes("security-response-service")) return true;
-  }
-  if (!isBun && vitest?.expect) {
-    try {
-      const { testPath } = (vitest.expect as any).getState();
-      if (testPath) {
-        const normalizedTestPath = testPath.replace(/\\/g, "/");
-        if (normalizedTestPath.includes("security-response-service")) {
-          if (normalizedPath.includes("security-response-service")) return true;
-        }
-        currentTest = testPath;
-      }
-    } catch {}
-  }
-  // Fallback to simpler check for path
-  const targetPart = path.split("/").pop()?.replace(".ts", "") || "___NON_EXISTENT___";
-  return currentTest && currentTest.includes(targetPart);
-};
-
 if (!isTestTarget("metrics-service")) {
   moduleMock("@src/services/metrics-service", () => ({
     metricsService: mockMetricsService,
@@ -1432,5 +1435,5 @@ if (typeof (globalThis as any).beforeEach !== "undefined") {
 }
 
 if (process.env.VERBOSE_TESTS) {
-  console.log("✅ Master Test Setup Loaded - (AGNOSTIC RUNES + AUTO-RESET)");
+  console.log("âœ… Master Test Setup Loaded - (AGNOSTIC RUNES + AUTO-RESET)");
 }

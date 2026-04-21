@@ -126,35 +126,51 @@ class ContentStore {
 
   sync(nodes: ContentNode[]) {
     for (const node of nodes) {
-      if (node._id) {
-        this._allNodes.set(node._id as string, node);
-        const tid = node.tenantId || "global";
+      this.upsert(node);
+    }
+  }
 
-        // Update nodes map
-        const tNodes = this._nodes.get(tid) || [];
-        if (!tNodes.find((n) => n._id === node._id)) {
-          tNodes.push(node);
-          this._nodes.set(tid, tNodes);
+  /**
+   * Surgical update/insert for a single content node.
+   */
+  upsert(node: ContentNode) {
+    if (!node._id) return;
+    const nodeId = node._id as string;
+    const tid = node.tenantId || "global";
+
+    // 1. Update global map
+    this._allNodes.set(nodeId, node);
+
+    // 2. Update tenant-specific nodes array
+    let tNodes = this._nodes.get(tid) || [];
+    const nodeIndex = tNodes.findIndex((n) => n._id === node._id);
+    if (nodeIndex !== -1) {
+      tNodes[nodeIndex] = node;
+    } else {
+      tNodes.push(node);
+    }
+    this._nodes.set(tid, tNodes);
+
+    // 3. Update collections/schemas if it's a collection
+    if (node.nodeType === "collection") {
+      const schema = node.collectionDef;
+      if (schema) {
+        if (node.path) schema.path = node.path;
+        const schemaId = (schema._id || node._id) as string;
+
+        this._schemas.set(schemaId, schema);
+
+        let tCollections = this._collections.get(tid) || [];
+        const colIndex = tCollections.findIndex((c) => c._id === schemaId);
+        if (colIndex !== -1) {
+          tCollections[colIndex] = schema;
+        } else {
+          tCollections.push(schema);
         }
-
-        // Update collections/schemas map for CMS/API usage
-        if (node.nodeType === "collection") {
-          const schema = node.collectionDef;
-          if (schema) {
-            // Ensure schema has the canonical path from the node
-            if (node.path) schema.path = node.path;
-
-            const tid = node.tenantId || "global";
-            const tCollections = this._collections.get(tid) || [];
-            if (!tCollections.find((c) => c._id === (schema._id || node._id))) {
-              tCollections.push(schema);
-              this._collections.set(tid, tCollections);
-            }
-            this._schemas.set((schema._id || node._id) as string, schema);
-          }
-        }
+        this._collections.set(tid, tCollections);
       }
     }
+
     this.updateVersion();
   }
 

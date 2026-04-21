@@ -44,8 +44,12 @@ export class CrudModule implements ICrudAdapter {
     }
   }
 
-  private get db() {
-    return this.core.db!;
+  /**
+   * Returns the appropriate Drizzle instance for the operation.
+   * Geographic Read-Replica Awareness.
+   */
+  private getDb(mode: "read" | "write" = "write") {
+    return this.core.getDb(mode);
   }
 
   /**
@@ -75,7 +79,7 @@ export class CrudModule implements ICrudAdapter {
           includeDeleted: options.includeDeleted,
         });
 
-        const db = options?.tx || this.db;
+        const db = options?.tx || this.getDb("read");
 
         // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID lookups
         if (this.isSimpleIdQuery(secureQuery) && !options?.tx) {
@@ -84,7 +88,7 @@ export class CrudModule implements ICrudAdapter {
 
           let prepared = this.preparedStatements.get(cacheKey);
           if (!prepared) {
-            prepared = this.db
+            prepared = this.getDb("read")
               .select()
               .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
               .where(eq((table as any)._id, placeholder("id")))
@@ -147,7 +151,7 @@ export class CrudModule implements ICrudAdapter {
           | import("drizzle-orm").SQL
           | undefined;
 
-        const db = options?.tx || this.db;
+        const db = options?.tx || this.getDb("read");
 
         let q = db
           .select()
@@ -197,7 +201,7 @@ export class CrudModule implements ICrudAdapter {
           | import("drizzle-orm").SQL
           | undefined;
 
-        const db = options?.tx || this.db;
+        const db = options?.tx || this.getDb("read");
 
         const results = await db
           .select()
@@ -280,7 +284,7 @@ export class CrudModule implements ICrudAdapter {
         const values = this.prepareValues(table, data, id, now, options || {});
 
         // 🚀 Fix: Use the transaction if provided, fallback to main connection
-        const db = (options as any)?.tx || this.db;
+        const db = (options as any)?.tx || this.getDb("write");
 
         await db
           .insert(table as unknown as import("drizzle-orm/pg-core").PgTable)
@@ -323,14 +327,14 @@ export class CrudModule implements ICrudAdapter {
         delete updateData.tenantId;
         delete updateData.createdAt;
 
-        const db = options?.tx || this.db;
+        const db = options?.tx || this.getDb("write");
 
         // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID updates
         if (this.isSimpleIdQuery(secureQuery) && !options?.tx) {
           const cacheKey = `update:${collection}`;
           let prepared = this.preparedStatements.get(cacheKey);
           if (!prepared) {
-            prepared = this.db
+            prepared = this.getDb("write")
               .update(table as unknown as import("drizzle-orm/pg-core").PgTable)
               .set(placeholder("data"))
               .where(eq((table as any)._id, placeholder("id")))
@@ -343,7 +347,7 @@ export class CrudModule implements ICrudAdapter {
           const findCacheKey = `findOne:${collection}`;
           let findPrepared = this.preparedStatements.get(findCacheKey);
           if (!findPrepared) {
-            findPrepared = this.db
+            findPrepared = this.getDb("read")
               .select()
               .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
               .where(eq((table as any)._id, placeholder("id")))
@@ -398,7 +402,7 @@ export class CrudModule implements ICrudAdapter {
           },
         );
 
-        const db = options?.tx || this.db;
+        const db = options?.tx || this.getDb("write");
 
         // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID deletes
         if (this.isSimpleIdQuery(query) && !options?.tx) {
@@ -406,7 +410,7 @@ export class CrudModule implements ICrudAdapter {
           const cacheKey = `delete:${collection}`;
           let prepared = this.preparedStatements.get(cacheKey);
           if (!prepared) {
-            prepared = this.db
+            prepared = this.getDb("write")
               .delete(table as unknown as import("drizzle-orm/pg-core").PgTable)
               .where(eq((table as any)._id, placeholder("id")))
               .prepare(cacheKey);
@@ -495,7 +499,7 @@ export class CrudModule implements ICrudAdapter {
         if (options?.tx) {
           return await executeUpsert(options.tx);
         } else {
-          return await this.db.transaction(executeUpsert);
+          return await this.getDb("write").transaction(executeUpsert);
         }
       }, "CRUD_UPSERT_FAILED")
       .then((res) => {
@@ -526,7 +530,7 @@ export class CrudModule implements ICrudAdapter {
           | import("drizzle-orm").SQL
           | undefined;
 
-        const db = options?.tx || this.db;
+        const db = options?.tx || this.getDb("read");
 
         const [result] = await db
           .select({ count: count() })
@@ -588,7 +592,7 @@ export class CrudModule implements ICrudAdapter {
           ),
         );
 
-        const db = options?.tx || this.db;
+        const db = options?.tx || this.getDb("write");
 
         await db
           .insert(table as unknown as import("drizzle-orm/pg-core").PgTable)
@@ -633,7 +637,7 @@ export class CrudModule implements ICrudAdapter {
         delete values.tenantId;
         delete values.createdAt;
 
-        const db = options?.tx || this.db;
+        const db = options?.tx || this.getDb("write");
 
         const result = await db
           .update(table as unknown as import("drizzle-orm/pg-core").PgTable)
@@ -669,7 +673,7 @@ export class CrudModule implements ICrudAdapter {
           | import("drizzle-orm").SQL
           | undefined;
 
-        const db = options?.tx || this.db;
+        const db = options?.tx || this.getDb("write");
 
         const result = await db
           .delete(table as unknown as import("drizzle-orm/pg-core").PgTable)
@@ -742,7 +746,7 @@ export class CrudModule implements ICrudAdapter {
         if (options?.tx) {
           return await executeUpsertMany(options.tx);
         } else {
-          return await this.db.transaction(executeUpsertMany);
+          return await this.getDb("write").transaction(executeUpsertMany);
         }
       }, "CRUD_UPSERT_MANY_FAILED")
       .then((res) => {

@@ -37,11 +37,44 @@ export class AdapterCore {
 
   public sql: ReturnType<typeof postgres> | null = null;
   public db: PostgresJsDatabase<typeof schema> | null = null;
+  private replicaSqls = new Map<string, ReturnType<typeof postgres>>();
+  private allReplicaSqls: ReturnType<typeof postgres>[] = [];
   public crud!: ICrudAdapter;
   public batch!: IBatchAdapter;
   protected connected = false;
   public collectionRegistry = new Map<string, unknown>();
   public dynamicTables = new Map<string, any>();
+
+  /**
+   * Returns the appropriate SQL client based on the operation mode (read/write).
+   * 🚀 Geographic Read-Replica Awareness.
+   */
+  public getSql(mode: "read" | "write" = "write"): ReturnType<typeof postgres> {
+    if (!this.sql) throw new Error("Database not connected");
+
+    if (mode === "write" || this.allReplicaSqls.length === 0) {
+      return this.sql;
+    }
+
+    // 🌍 Geographic Routing
+    const region = (globalThis as any).SVELTY_REGION || "unknown";
+    if (this.replicaSqls.has(region)) {
+      return this.replicaSqls.get(region)!;
+    }
+
+    // 🔄 Round-Robin Fallback
+    const index = Math.floor(Math.random() * this.allReplicaSqls.length);
+    return this.allReplicaSqls[index];
+  }
+
+  /**
+   * Returns the appropriate Drizzle instance.
+   */
+  public getDb(mode: "read" | "write" = "write"): PostgresJsDatabase<typeof schema> {
+    const client = this.getSql(mode);
+    // Drizzle instances are lightweight; we can wrap a client on-the-fly or cache them
+    return drizzle(client, { schema });
+  }
 
   public getCapabilities(): DatabaseCapabilities {
     return this.capabilities;
@@ -132,6 +165,9 @@ export class AdapterCore {
           },
         };
       }
+
+      this.sql = postgres(options);
+      this.db = drizzle(this.sql, { schema });
 
       this.sql = postgres(options);
       this.db = drizzle(this.sql, { schema });
@@ -433,5 +469,49 @@ export class AdapterCore {
       return undefined;
     }
     return and(...conditions);
+  }
+
+  /**
+   * Hot-loads read-replica configuration.
+   * Can be called at runtime when settings are updated in the database.
+   */
+  public configureReplicas(urls: string[] | string): void {
+    const replicaUrls = typeof urls === "string" ? (JSON.parse(urls) as string[]) : urls;
+    if (!Array.isArray(replicaUrls)) return;
+
+    // Close existing replica connections
+    for (const sql of this.allReplicaSqls) {
+      sql.end();
+    }
+
+    this.allReplicaSqls = [];
+    this.replicaSqls.clear();
+
+    if (replicaUrls.length === 0) {
+      logger.info("Read replica cluster cleared.");
+      return;
+    }
+
+    const postgres = require("postgres");
+    for (const urlStr of replicaUrls) {
+      try {
+        const url = new URL(urlStr);
+        const region = url.searchParams.get("region") || "unknown";
+        const replicaSql = postgres(urlStr, {
+          max: 50,
+          onnotice: () => {},
+          transform: { undefined: null },
+        });
+        this.allReplicaSqls.push(replicaSql);
+        if (region !== "unknown") {
+          this.replicaSqls.set(region, replicaSql);
+        }
+      } catch (e) {
+        logger.warn(`Failed to initialize replica ${urlStr}:`, e);
+      }
+    }
+    logger.info(
+      `Initialized ${this.allReplicaSqls.length} read replicas from database configuration.`,
+    );
   }
 }

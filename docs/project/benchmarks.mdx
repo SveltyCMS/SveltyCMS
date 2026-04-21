@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:speedometer"
 author: "SveltyCMS Team"
 created: "2026-03-15"
-updated: "2026-04-19"
+updated: "2026-04-21"
 tags:
   - "benchmarks"
   - "performance"
@@ -33,241 +33,94 @@ SveltyCMS utilizes a high-fidelity performance auditing suite designed for enter
 
 <!-- BENCHMARK_START -->
 
-## 📊 SveltyCMS Enterprise Audit Matrix — Progress Report
+## 📊 SveltyCMS Enterprise Audit Matrix — 21/04/2026, 22:43:32
 
-**Status**: 🛠️ Audit in progress... | **Last Update**: 22:58:08
+**Version:** 0.0.8 | **Generated:** 2026-04-21T20:43:32.462Z
 
 | Database | Cold Start | REST p95 | GraphQL Avg | CPU Load | Heap Growth | Budget | Status |
 |----------|------------|----------|-------------|----------|-------------|--------|--------|
-| **🗄️  SQLITE** | 248ms 🔴(+21.1%) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
-| **⚡ SQLITE+REDIS** | 320ms 🔴(+41.2%) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
-| **🍃 MONGODB** | 467ms 🔴(+57.8%) | N/A | 1.90ms 🔴(+96.1%) | — | 0.0 MB ⚪ | ⚠️ 1 | ❌ |
-| **🔥 MONGODB+REDIS** | N/A ⚪(—) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 0.0 MB ⚪ | ✅ | ❌ |
-| **🐘 POSTGRESQL** | 212ms 🟢(-3.1%) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
-| **💎 POSTGRESQL+REDIS** | 211ms 🔴(+10.0%) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
-| **🐬 MARIADB** | 296ms 🟢(-19.6%) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
-| **🔱 MARIADB+REDIS** | 229ms 🟢(-8.9%) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 1904.2 MB 🟢 | ✅ | ✅ *(Hist)* |
+| **🗄️  SQLITE** | 458ms 🔴(+33.5%) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 0.0 MB ⚪ | ✅ | ✅ |
+| **⚡ SQLITE+REDIS** | 199ms 🟢(-9.0%) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 0.0 MB ⚪ | ✅ | ✅ |
+| **🍃 MONGODB** | 198ms 🟢(-29.6%) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
+| **🔥 MONGODB+REDIS** | 190ms ⚪(-1.9%) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
+| **🐘 POSTGRESQL** | 215ms 🟢(-4.2%) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
+| **💎 POSTGRESQL+REDIS** | 244ms 🔴(+19.7%) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
+| **🐬 MARIADB** | 192ms 🟢(-40.8%) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
+| **🔱 MARIADB+REDIS** | 181ms 🟢(-21.5%) | 0.00ms ⚪(—) | 0.00ms ⚪(—) | — | 0.0 MB ⚪ | ✅ | ✅ *(Hist)* |
+
+> [!CAUTION]
+> **Regressions detected in**: SQLITE
 
 ## 📋 Detailed Benchmark Sections
-
-### API Network Latency (0 · baseline)
-**Test file:** `tests/benchmarks/api-latency.test.ts`
-**Description:** Measures the base network and HTTP overhead for the simplest possible API calls.
-**Last run:** 20/04/2026, 22:27:15
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 18031.00ms | 0.00ms | 0 | ❌ |
-| **MONGODB-REDIS** | 18022.00ms | 0.00ms | 0 | ❌ |
 
 ### Production Build Analysis (0 · baseline)
 **Test file:** `tests/benchmarks/build-analysis.bench.ts`
 **Description:** Measures production bundle size, chunk count, and build performance.
-**Last run:** 20/04/2026, 22:27:15
+**Last run:** 21/04/2026, 18:38:18
 
 | Database | Avg Latency | p95 | RPS | Status |
 |----------|-------------|-----|-----|--------|
-| **MONGODB** | 773.00ms | 0.00ms | 0 | ❌ |
-| **MONGODB-REDIS** | 785.00ms | 0.00ms | 0 | ❌ |
-
-### Database Adapter Raw CRUD (1 · adapter)
-**Test file:** `tests/benchmarks/database-performance.test.ts`
-**Description:** Direct low-level benchmarks of Create, Read, Update, Delete on the current database adapter.
-**Last run:** 20/04/2026, 22:28:18
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 47822.00ms | 0.00ms | 0 | ❌ |
-| **MONGODB-REDIS** | 49111.00ms | 0.00ms | 0 | ❌ |
-
-### ACID Transaction Overhead (1 · adapter)
-**Test file:** `tests/benchmarks/transaction-acid.test.ts`
-**Description:** Measures commit/rollback latency and transaction isolation performance.
-**Last run:** 20/04/2026, 22:28:41
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 20748.00ms | 0.00ms | 0 | ❌ |
-| **MONGODB-REDIS** | 21134.00ms | 0.00ms | 0 | ❌ |
-
-### System Cache Efficiency (2 · internals)
-**Test file:** `tests/benchmarks/cache-performance.test.ts`
-**Description:** Audits the performance gain of the 2-layer Hybrid Cache across various system modules.
-**Last run:** 20/04/2026, 22:23:30
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 17728.00ms | 0.00ms | 0 | ❌ |
-| **MONGODB-REDIS** | 23445.00ms | 0.00ms | 0 | ❌ |
-
-### Self-Healing Content Scan (2 · internals)
-**Test file:** `tests/benchmarks/content-scan.bench.ts`
-**Description:** Measures the 99.9% Self-Healing Cache scanner across the .compiledCollections directory.
-**Last run:** 20/04/2026, 22:23:38
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 15649.00ms | 0.00ms | 0 | ❌ |
-| **MONGODB-REDIS** | 16930.00ms | 0.00ms | 0 | ❌ |
-
-### Middleware & Hooks Performance (2 · internals)
-**Test file:** `tests/benchmarks/hooks-performance.test.ts`
-**Description:** High-resolution micro-benchmarks (µs) for individual middleware layers.
-**Last run:** 20/04/2026, 22:23:50
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 12276.00ms | 0.00ms | 0 | ❌ |
-| **MONGODB-REDIS** | 9640.00ms | 0.00ms | 0 | ❌ |
-
-### Core Widgets Overhead (3 · logic)
-**Test file:** `tests/benchmarks/widget-performance.test.ts`
-**Description:** Audits server-side processing cost of built-in widgets (Input, RichText, Relation).
-**Last run:** 20/04/2026, 22:23:55
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 6159.00ms | 0.00ms | 0 | ❌ |
-| **MONGODB-REDIS** | 4410.00ms | 0.00ms | 0 | ❌ |
-
-### Media Engine & DAM Overhead (3 · logic)
-**Test file:** `tests/benchmarks/media-performance.test.ts`
-**Description:** Measures image resizing, SHA-256 media hashing, and metadata extraction efficiency.
-**Last run:** 20/04/2026, 22:24:05
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 19233.00ms | 0.00ms | 0 | ❌ |
-| **MONGODB-REDIS** | 11196.00ms | 0.00ms | 0 | ❌ |
-
-### Relational & Nested Queries (3 · logic)
-**Test file:** `tests/benchmarks/relational-performance.test.ts`
-**Description:** Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3).
-**Last run:** 20/04/2026, 22:24:22
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 45105.00ms | 0.00ms | 0 | ❌ |
-| **MONGODB-REDIS** | 23315.00ms | 0.00ms | 0 | ❌ |
+| **SQLITE** | 0.00ms | 0.00ms | 0 | ✅ |
+| **SQLITE-REDIS** | 0.00ms | 0.00ms | 0 | ✅ |
 
 ### REST API Performance (4 · api)
 **Test file:** `tests/benchmarks/rest-api-performance.test.ts`
 **Description:** End-to-end throughput and latency of the unified REST dispatcher.
-**Last run:** 20/04/2026, 22:24:35
+**Last run:** 21/04/2026, 22:12:49
 
 | Database | Avg Latency | p95 | RPS | Status |
 |----------|-------------|-----|-----|--------|
-| **MONGODB** | 24006.00ms | 0.00ms | 0 | ❌ |
-| **MONGODB-REDIS** | 21460.00ms | 0.00ms | 0 | ❌ |
-
-### GraphQL API Performance (4 · api)
-**Test file:** `tests/benchmarks/graphql-api-performance.test.ts`
-**Description:** Resolver execution time and throughput for common queries.
-**Last run:** 20/04/2026, 22:24:49
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 23092.00ms | 0.00ms | 0 | ❌ |
-| **MONGODB-REDIS** | 17179.00ms | 0.00ms | 0 | ❌ |
-
-### OpenAPI Specification Performance (4 · api)
-**Test file:** `tests/benchmarks/openapi-performance.test.ts`
-**Description:** Generation and caching efficiency of the dynamic OpenAPI 3.1.0 specification.
-**Last run:** 20/04/2026, 22:24:58
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 43894.00ms | 0.00ms | 0 | ❌ |
-| **MONGODB-REDIS** | 25562.00ms | 0.00ms | 0 | ❌ |
-
-### Auth & RBAC Performance (4 · api)
-**Test file:** `tests/benchmarks/auth-performance.test.ts`
-**Description:** Measures JWT verification, session retrieval, and permission matrix resolution overhead.
-**Last run:** 20/04/2026, 22:25:14
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 24242.00ms | 0.00ms | 0 | ❌ |
-
-### Security Hardening & Audit (4 · api)
-**Test file:** `tests/benchmarks/security-audit.test.ts`
-**Description:** Impact of Fail-Closed Dispatcher, Payload scanning, and SHA-256 Audit Chaining.
-**Last run:** 20/04/2026, 22:25:22
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 13295.00ms | 0.00ms | 0 | ❌ |
-
-### WebSocket & Realtime Latency (4 · api)
-**Test file:** `tests/benchmarks/realtime-performance.test.ts`
-**Description:** Benchmarks WebSocket connection/broadcast latency.
-**Last run:** 20/04/2026, 22:25:34
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 11248.00ms | 0.00ms | 0 | ❌ |
-
-### Multi-Tenant Performance & Isolation (5 · scale)
-**Test file:** `tests/benchmarks/multi-tenant-performance.test.ts`
-**Description:** Stress-tests cross-tenant isolation and security boundary latency.
-**Last run:** 20/04/2026, 22:25:46
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 38453.00ms | 0.00ms | 0 | ❌ |
-
-### Realistic Mixed Workload (5 · scale)
-**Test file:** `tests/benchmarks/mixed-workload.test.ts`
-**Description:** Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.
-**Last run:** 20/04/2026, 11:49:30
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 45748.00ms | 0.00ms | 0 | ❌ |
-
-### Memory Stability & GC Behavior (5 · scale)
-**Test file:** `tests/benchmarks/memory-stability.test.ts`
-**Description:** Long-running soak test to identify memory leaks and GC pressure.
-**Last run:** 20/04/2026, 22:26:20
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 30288.00ms | 0.00ms | 0 | ❌ |
-
-### GraphQL Load Stress (5 · scale)
-**Test file:** `tests/benchmarks/graphql-stress.ts`
-**Description:** High-concurrency GraphQL query stress test for resolver efficiency.
-**Last run:** 20/04/2026, 22:26:43
-
-| Database | Avg Latency | p95 | RPS | Status |
-|----------|-------------|-----|-----|--------|
-| **MONGODB** | 474.00ms | 0.00ms | 0 | ❌ |
+| **SQLITE** | 13925.00ms | 0.00ms | 0 | ✅ |
+| **SQLITE-REDIS** | 12988.00ms | 0.00ms | 0 | ✅ |
 
 
-### 📑 Script Status Matrix
+### 📈 Latency Trends (last 5 runs)
 
-| Script | MONGODB | MONGODB-REDIS |
-| :--- | --- | --- |
-| API Latency | ✅ 18031ms | ✅ 18022ms | 
-| Build | ✅ 773ms | ✅ 785ms | 
-| DB Raw p95 | ✅ 47822ms | ✅ 49111ms | 
-| ACID | ✅ 20748ms | ✅ 21134ms | 
-| Cache | ✅ 17728ms | ✅ 23445ms | 
-| Scan | ✅ 15649ms | ✅ 16930ms | 
-| Hooks Trace | ✅ 12276ms | ✅ 9640ms | 
-| Widgets | ✅ 6159ms | ✅ 4410ms | 
-| Media | ✅ 19233ms | ✅ 11196ms | 
-| Relational | ✅ 45105ms | ✅ 23315ms | 
-| REST | ✅ 24006ms | ✅ 21460ms | 
-| GraphQL | ✅ 23092ms | ✅ 17179ms | 
-| OpenAPI | ✅ 43894ms | ✅ 25562ms | 
-| Auth Trace | ✅ 24242ms | ⏳ PENDING | 
-| Security | ✅ 13295ms | ⏳ PENDING | 
-| Realtime | ✅ 11248ms | ⏳ PENDING | 
-| Tenancy | ✅ 38453ms | ⏳ PENDING | 
-| Mixed | ✅ 45748ms | ⏳ PENDING | 
-| Memory | ✅ 30288ms | ⏳ PENDING | 
-| GQL Stress | ✅ 474ms | ⏳ PENDING | 
+```mermaid
+xychart-beta
+  title "Total Latency (ms)"
+  x-axis ["Run 1", "Run 2", "Run 3", "Run 4", "Run 5"]
+  y-axis "Latency (ms)"
+  line "SQLITE" : [0.6, 0.0, 0.9, 0.0, 0.0]
+  line "SQLITE+REDIS" : [0.0, 0.0, 0.0, 0.0, 0.0]
+  line "MONGODB" : [0.0, 0.0, 0.0, 0.0, 0.0]
+  line "MONGODB+REDIS" : [0.0, 0.0, 0.0, 0.0, 0.0]
+  line "POSTGRESQL" : [0.0, 0.0, 0.0, 0.0, 0.0]
+  line "POSTGRESQL+REDIS" : [0.0, 0.0, 0.0, 0.0, 0.0]
+  line "MARIADB" : [0.8, 1.1, 0.0, 0.0]
+  line "MARIADB+REDIS" : [0.0, 0.0, 0.0, 0.0, 0.0]
+```
+
+### 🖥️ Host Environment
+| CPU | Cores | RAM | OS | Runtime |
+|-----|-------|-----|----|---------|
+| Intel(R) Core(TM) Ultra 9 275HX | 24 | 63GB | Windows_NT (x64) | Bun 1.3.11 / Node v24.3.0 |
+
+
+### 📑 Detailed Script Matrix
+
+| Script | Path | SQLITE | SQLITE-REDIS |
+| :--- | :--- | --- | --- |
+| **API Latency** | `tests/benchmarks/api-latency.test.ts` | ⏳ PENDING | ⏳ PENDING | 
+| **Build** | `tests/benchmarks/build-analysis.bench.ts` | ⏳ PENDING | — (N/A) | 
+| **DB Raw p95** | `tests/benchmarks/database-performance.test.ts` | ⏳ PENDING | ⏳ PENDING | 
+| **ACID** | `tests/benchmarks/transaction-acid.test.ts` | ⏳ PENDING | ⏳ PENDING | 
+| **Cache** | `tests/benchmarks/cache-performance.test.ts` | ⏳ PENDING | ⏳ PENDING | 
+| **Scan** | `tests/benchmarks/content-scan.bench.ts` | ⏳ PENDING | — (N/A) | 
+| **Hooks Trace** | `tests/benchmarks/hooks-performance.test.ts` | ⏳ PENDING | ⏳ PENDING | 
+| **Widgets** | `tests/benchmarks/widget-performance.test.ts` | ⏳ PENDING | — (N/A) | 
+| **Media** | `tests/benchmarks/media-performance.test.ts` | ⏳ PENDING | — (N/A) | 
+| **Relational** | `tests/benchmarks/relational-performance.test.ts` | ⏳ PENDING | ⏳ PENDING | 
+| **REST** | `tests/benchmarks/rest-api-performance.test.ts` | ✅ 13925.00ms | ✅ 12988.00ms | 
+| **GraphQL** | `tests/benchmarks/graphql-api-performance.test.ts` | ⏳ PENDING | ⏳ PENDING | 
+| **OpenAPI** | `tests/benchmarks/openapi-performance.test.ts` | ⏳ PENDING | — (N/A) | 
+| **Auth Trace** | `tests/benchmarks/auth-performance.test.ts` | ⏳ PENDING | ⏳ PENDING | 
+| **Security** | `tests/benchmarks/security-audit.test.ts` | ⏳ PENDING | — (N/A) | 
+| **Realtime** | `tests/benchmarks/realtime-performance.test.ts` | ⏳ PENDING | — (N/A) | 
+| **Tenancy** | `tests/benchmarks/multi-tenant-performance.test.ts` | ⏳ PENDING | ⏳ PENDING | 
+| **Mixed** | `tests/benchmarks/mixed-workload.test.ts` | ⏳ PENDING | ⏳ PENDING | 
+| **Memory** | `tests/benchmarks/memory-stability.test.ts` | ⏳ PENDING | ⏳ PENDING | 
+| **GQL Stress** | `tests/benchmarks/graphql-stress.ts` | ⏳ PENDING | ⏳ PENDING | 
 
 
 <!-- BENCHMARK_END -->

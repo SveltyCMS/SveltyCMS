@@ -8,155 +8,45 @@ import path from "node:path";
 import { logger } from "@utils/logger";
 import { CacheCategory } from "@src/databases/cache/types";
 import { dateToISODateString } from "@utils/date-utils";
-import { widgetRegistryService } from "@src/services/widget-registry-service";
 import { contentStore } from "@src/stores/content-store.svelte";
 import type { ContentNode, Schema, DatabaseId } from "./types";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import { generateCategoryNodesFromPaths } from "./content-utils";
 import { eventBus, SystemEvents } from "@utils/event-bus";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { generateSchemaHash, loadSchemaNative } from "./module-processor.server";
 
 /**
- * Safely parses a compiled schema file using scoped evaluation.
+ * Enriches a schema with deterministic ID and SEO-optimized paths based on its filesystem location.
  */
-async function safelyParseSchema(content: string, filePath: string): Promise<Schema | null> {
-  try {
-    const exportMatch = content.match(/export\s+(?:const\s+schema\s*[:=]|default\s*[:=]?)\s*/);
-    if (!exportMatch) {
-      console.warn("[SCAN] No valid export match found in content.");
-      return null;
-    }
+function enrichSchemaWithMetadata(
+  schema: Schema,
+  fullPath: string,
+  collectionsDir: string,
+): Schema {
+  const relativePath = path.relative(collectionsDir, fullPath);
+  const relativeDir = path.dirname(relativePath);
 
-    const start = exportMatch.index! + exportMatch[0].length;
-    let schemaStr = extractObjectLiteral(content, start);
+  // Generate deterministic ID based on relative path if not explicitly provided
+  const autoId = relativePath
+    .replace(/\.(js|ts)$/, "")
+    .replace(/[\\/]/g, "_")
+    .toLowerCase();
+  schema._id ||= autoId;
 
-    // Fallback: If no object literal found after export (e.g. export default Authors),
-    // search for the first top-level object literal in the file.
-    if (!schemaStr) {
-      const firstCurly = content.indexOf("{");
-      if (firstCurly !== -1) {
-        schemaStr = extractObjectLiteral(content, firstCurly);
-      }
-    }
+  // ✨ SEO-Optimized Path Generation: Favor slug > name > _id
+  const pathSuffix = (schema.slug || schema.name || schema._id).toLowerCase();
 
-    if (!schemaStr) {
-      console.error("[SCAN] No schema string extracted from content.");
-      return null;
-    }
-
-    const widgetsMap = await widgetRegistryService.getAllWidgets();
-    if (widgetsMap.size === 0) {
-      await widgetRegistryService.initialize();
-    }
-
-    const widgetsProxy = new Proxy(widgetsMap, {
-      get(target, prop) {
-        if (typeof prop !== "string") return undefined;
-
-        // 1. Direct hit
-        if (target.has(prop)) return target.get(prop);
-
-        // 2. Capitalized hit (Input -> Input)
-        const capitalized = prop.charAt(0).toUpperCase() + prop.slice(1);
-        if (target.has(capitalized)) return target.get(capitalized);
-
-        // 3. Lower hit (Input -> input)
-        const lowered = prop.toLowerCase();
-        if (target.has(lowered)) return target.get(lowered);
-
-        // 4. Kebab hit (RichText -> rich-text)
-        const kebab = prop.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
-        if (target.has(kebab)) return target.get(kebab);
-
-        // 5. Exhaustive case-insensitive search
-        const entries = Array.from(target.entries());
-        const found = entries.find(([k]) => {
-          const kLow = k.toLowerCase();
-          return (
-            kLow === lowered || kLow === kebab || kLow === prop.toLowerCase().replace(/-/g, "")
-          );
-        });
-
-        return found ? found[1] : undefined;
-      },
-    });
-
-    const previousGlobalWidgets = (globalThis as any).widgets;
-    (globalThis as any).widgets = widgetsProxy;
-
-    let result;
-    try {
-      const sanitizedSchema = schemaStr.replace(/globalThis\.widgets\./g, "widgets.");
-
-      const fn = new Function(
-        "widgets",
-        `
-        try {
-          const w = widgets || globalThis.widgets;
-          return (${sanitizedSchema});
-        } catch (e) {
-          throw new Error("Eval internal error: " + e.message);
-        }
-      `,
-      );
-      result = fn(widgetsProxy);
-
-      if (previousGlobalWidgets) (globalThis as any).widgets = previousGlobalWidgets;
-
-      if (result && typeof result === "object") {
-        return result as Schema;
-      }
-    } catch (evalErr) {
-      console.error(`[SCAN] Failed to evaluate schema at ${filePath}:`, evalErr);
-    }
-
-    if (previousGlobalWidgets) (globalThis as any).widgets = previousGlobalWidgets;
-    return null;
-  } catch (err) {
-    console.error(`[SCAN] Error processing schema file ${filePath}:`, err);
-    return null;
+  if (relativeDir !== ".") {
+    // Ensure slashes are used for the URL path even on Windows
+    const webRelativeDir = relativeDir.replace(/[\\/]/g, "/").toLowerCase();
+    // If in subfolder, prefix the path (e.g. /collection/blog/posts)
+    schema.path ||= `/collection/${webRelativeDir}/${pathSuffix}`;
+  } else {
+    schema.path ||= `/collection/${pathSuffix}`;
   }
-}
 
-/**
- * Extracts a complete object literal by tracking balanced braces.
- */
-function extractObjectLiteral(content: string, start: number): string | null {
-  let depth = 0;
-  let firstBrace = -1;
-  let inString: string | null = null;
-  let isEscaped = false;
-
-  for (let i = start; i < content.length; i++) {
-    const char = content[i];
-
-    if (inString) {
-      if (isEscaped) {
-        isEscaped = false;
-      } else if (char === "\\") {
-        isEscaped = true;
-      } else if (char === inString) {
-        inString = null;
-      }
-      continue;
-    }
-
-    if (char === '"' || char === "'" || char === "`") {
-      inString = char;
-      continue;
-    }
-
-    if (char === "{") {
-      if (depth === 0) firstBrace = i;
-      depth++;
-    } else if (char === "}") {
-      depth--;
-      if (depth === 0 && firstBrace !== -1) {
-        return content.substring(firstBrace, i + 1);
-      }
-    }
-  }
-  return null;
+  return schema;
 }
 
 /**
@@ -183,7 +73,7 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
         const stats = await fs.stat(fullPath);
         const cacheKey = `schema:${fullPath}`;
 
-        const cached = await cacheService.get<{ mtime: number; schema: Schema }>(
+        const cached = await cacheService.get<{ mtime: number; hash: string; schema: Schema }>(
           cacheKey,
           null,
           CacheCategory.SCHEMA,
@@ -194,34 +84,31 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
           continue;
         }
 
-        const content = await fs.readFile(fullPath, "utf-8");
-        const schema = await safelyParseSchema(content, fullPath);
+        // 🚀 Native Load: Bypasses readFile, string parsing, and eval.
+        const moduleData = await loadSchemaNative(fullPath);
+        const schema = moduleData?.schema;
 
         if (schema) {
-          // ✨ Preserve relative path from .compiledCollections for hierarchical grouping
-          const relativePath = path.relative(collectionsDir, fullPath);
-          const relativeDir = path.dirname(relativePath);
+          const hash = generateSchemaHash(schema);
 
-          // Generate deterministic ID based on relative path if not explicitly provided
-          const autoId = relativePath.replace(/\.js$/, "").replace(/[\\/]/g, "_").toLowerCase();
-
-          schema._id ||= autoId;
-
-          // ✨ SEO-Optimized Path Generation: Favor slug > name > _id
-          const pathSuffix = (schema.slug || schema.name || schema._id).toLowerCase();
-
-          if (relativeDir !== ".") {
-            // Ensure slashes are used for the URL path even on Windows
-            const webRelativeDir = relativeDir.replace(/[\\/]/g, "/").toLowerCase();
-            // If in subfolder, prefix the path (e.g. /collection/blog/posts)
-            schema.path ||= `/collection/${webRelativeDir}/${pathSuffix}`;
-          } else {
-            schema.path ||= `/collection/${pathSuffix}`;
+          // If mtime changed but hash is identical, update cache and skip DB workload later
+          if (cached && cached.hash === hash) {
+            await cacheService.set(
+              cacheKey,
+              { mtime: stats.mtimeMs, hash, schema: cached.schema },
+              3600,
+              null,
+              CacheCategory.SCHEMA,
+            );
+            schemas.push(cached.schema);
+            continue;
           }
+
+          enrichSchemaWithMetadata(schema, fullPath, collectionsDir);
 
           await cacheService.set(
             cacheKey,
-            { mtime: stats.mtimeMs, schema },
+            { mtime: stats.mtimeMs, hash, schema },
             3600,
             null,
             CacheCategory.SCHEMA,
@@ -243,19 +130,24 @@ export const contentService = {
     tenantId?: string | null,
     skipReconciliation = false,
     adapter?: IDBAdapter,
-    incremental: boolean = false,
+    changedFile?: string | null,
   ): Promise<void> {
     console.log(
-      `[RECONCILE] fullReload triggered. Tenant: ${tenantId}, skip: ${skipReconciliation}`,
+      `[RECONCILE] fullReload triggered. Tenant: ${tenantId}, skip: ${skipReconciliation}, target: ${changedFile || "ALL"}`,
     );
 
     const processedPaths = new Set<string>();
 
-    if (incremental) {
-      logger.debug("Incremental content reload requested (Shim)", { tenantId });
-    }
     const dbAdapter = adapter || (await (await import("@src/databases/db")).getDb());
     if (!dbAdapter) return;
+
+    const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
+
+    // 🚀 SURGICAL INCREMENTAL RELOAD: Handle single file change if provided
+    if (changedFile && changedFile.endsWith(".js")) {
+      await this.handleIncrementalReload(changedFile, tenantId, dbAdapter, collectionsDir);
+      return;
+    }
 
     const schemas = await scanCompiledCollections();
 
@@ -334,6 +226,8 @@ export const contentService = {
       const parentId = categoryIdMap.get(parentPath) || undefined;
 
       // ✨ Optimization: Only update if meaningful structural changes occurred
+      // Now also checking cache for hash-based early exit.
+
       const hasChanged =
         !existing ||
         existing.source !== "filesystem" ||
@@ -422,6 +316,100 @@ export const contentService = {
     // Sync Reactive Store
     contentStore.sync(operations);
     console.error(`[RECONCILE] Sync complete for ${tenantId}`);
+
+    eventBus.broadcast(SystemEvents.CONTENT_UPDATE, {
+      version: Date.now(),
+      tenantId: tenantId || "all",
+    });
+  },
+
+  /**
+   * Performs a high-performance surgical reload of a single schema file.
+   * Bypasses full directory scanning and reconciliation pruning.
+   */
+  async handleIncrementalReload(
+    filePath: string,
+    tenantId: string | null | undefined,
+    dbAdapter: IDBAdapter,
+    collectionsDir: string,
+  ): Promise<void> {
+    const fullPath = path.resolve(filePath);
+    const stats = await fs.stat(fullPath).catch(() => null);
+    if (!stats) return;
+
+    const cacheKey = `schema:${fullPath}`;
+    const cached = await cacheService.get<{ mtime: number; hash: string; schema: Schema }>(
+      cacheKey,
+      null,
+      CacheCategory.SCHEMA,
+    );
+
+    // 🚀 Native Load: Bypasses readFile, string parsing, and eval.
+    const moduleData = await loadSchemaNative(fullPath);
+    const schema = moduleData?.schema;
+
+    if (!schema) return;
+
+    const hash = generateSchemaHash(schema);
+
+    // 🛡️ EARLY EXIT: If content hasn't actually changed, skip all logic
+    if (cached && cached.hash === hash) {
+      logger.debug(`[RECONCILE] Incremental: Hash match for ${path.basename(filePath)}. Skipping.`);
+      // Update mtime in cache to prevent re-reading the file
+      await cacheService.set(
+        cacheKey,
+        { ...cached, mtime: stats.mtimeMs },
+        3600,
+        null,
+        CacheCategory.SCHEMA,
+      );
+      return;
+    }
+
+    logger.info(`[RECONCILE] Incremental: Updating ${path.basename(filePath)}...`);
+
+    enrichSchemaWithMetadata(schema, fullPath, collectionsDir);
+
+    // Update Cache
+    await cacheService.set(
+      cacheKey,
+      { mtime: stats.mtimeMs, hash, schema },
+      3600,
+      null,
+      CacheCategory.SCHEMA,
+    );
+
+    // Update Database Node
+    const now = dateToISODateString(new Date());
+    const existingResult = await dbAdapter.content.nodes.getStructure("flat", {
+      filter: { path: schema.path } as any,
+      tenantId: tenantId as any,
+    });
+    const existing =
+      existingResult.success && existingResult.data.length > 0 ? existingResult.data[0] : null;
+
+    const node: ContentNode = {
+      ...existing,
+      _id: (schema._id || existing?._id || schema.name || "unknown") as DatabaseId,
+      path: schema.path,
+      name: String(schema.name),
+      icon: schema.icon || "bi:file",
+      nodeType: "collection",
+      collectionDef: schema,
+      tenantId: tenantId as any,
+      order: existing?.order ?? 999,
+      translations: schema.translations || [],
+      source: "filesystem",
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+    };
+
+    await dbAdapter.content.nodes.bulkUpdate([{ path: node.path!, id: node._id, changes: node }], {
+      tenantId: tenantId as any,
+    });
+
+    // Sync Store & Broadcast
+    contentStore.upsert(node); // Assuming upsert exists or we use sync with a partial set
 
     eventBus.broadcast(SystemEvents.CONTENT_UPDATE, {
       version: Date.now(),

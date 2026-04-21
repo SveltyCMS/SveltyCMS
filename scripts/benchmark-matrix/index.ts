@@ -35,27 +35,19 @@ import { parseArgs, printList, filterScripts, filterDatabases, collectHostInfo }
 import { requiresRebuild } from "./utils";
 import { runAuditForDatabase, runTask } from "./runner";
 import { printSummaryTable, writeCISummary, generateFinalReport } from "./reporting";
-import {
-  startServer,
-  stopServer,
-  ensureDatabaseExists,
-  runSystemSetup,
-  setShuttingDown,
-} from "./server";
+import { startServer, stopServer, ensureDatabaseExists, setShuttingDown } from "./server";
 import { AsyncSemaphore } from "./semaphore";
 import {
   ALL_DATABASES,
   BENCHMARK_SCRIPTS,
   DB_ORDER,
   PORT_BASE,
-  DB_NAME_BASE,
   MAX_CONCURRENCY,
   ADMIN_PASSWORD,
   TEST_API_SECRET,
   JWT_SECRET_KEY,
   ENCRYPTION_KEY,
   ROOT_RESULTS_DIR,
-  SETUP_PORT_OFFSET,
   HEALING_PORT_OFFSET,
 } from "./config";
 import type { BenchmarkResult } from "./types";
@@ -96,9 +88,6 @@ class ConfigSafeguard {
         await fs.rm(this.configPath, { force: true });
         log.info("🛡️ Cleanup: Return to Setup Mode confirmed.");
       }
-
-      // 3. Purge Test-specific configs
-      await fs.rm(path.join(process.cwd(), "config/private.test.ts"), { force: true });
 
       // 4. Purge mock collections to prevent redirection leaks
       const compiledDir = path.join(process.cwd(), ".compiledCollections");
@@ -294,25 +283,6 @@ async function main() {
     return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx);
   });
 
-  if (sortedDbs.length > 0) {
-    log.info("Preparing shared system setup...");
-    const firstDb = sortedDbs[0];
-    const setupDbName = `${DB_NAME_BASE}_setup`;
-    const setupPort = PORT_BASE + SETUP_PORT_OFFSET;
-
-    const { stop: stopSetupServer } = await startServer(firstDb, setupPort, setupDbName);
-    if (
-      !(await runSystemSetup(firstDb, setupPort, setupDbName, {
-        API_BASE_URL: `http://127.0.0.1:${setupPort}`,
-      }))
-    ) {
-      log.error("Global system setup failed. Proceeding with caution (expect failures).");
-      // Don't exit; allow runAuditForDatabase to handle failures and reporting
-    }
-    await stopSetupServer();
-    log.info("Shared system setup phase concluded.");
-  }
-
   if (cfg.parallelMode === "off") {
     for (let i = 0; i < sortedDbs.length; i++) {
       const db = sortedDbs[i];
@@ -320,7 +290,6 @@ async function main() {
       log.info(`[${i + 1}/${sortedDbs.length}] Starting audit for ${dbKey.toUpperCase()}...`);
       await runAuditForDatabase(
         db,
-        i,
         hostInfo,
         buildMetrics,
         cfg,
@@ -331,12 +300,11 @@ async function main() {
     }
   } else {
     const semaphore = new AsyncSemaphore(MAX_CONCURRENCY);
-    const tasks = sortedDbs.map(async (db, i) => {
+    const tasks = sortedDbs.map(async (db, _i) => {
       await semaphore.acquire();
       try {
         await runAuditForDatabase(
           db,
-          i,
           hostInfo,
           buildMetrics,
           cfg,

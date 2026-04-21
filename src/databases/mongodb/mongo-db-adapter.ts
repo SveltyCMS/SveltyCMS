@@ -192,19 +192,55 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
     return {
       aggregate: (c, p, o) => getRepo(c).aggregate(p as any[], o),
       count: (c, q, o) => getRepo(c).count(q || {}, o as any),
-      delete: (c, id, o) => getRepo(c).delete(id, o as any),
-      deleteMany: (c, q, o) => getRepo(c).deleteMany(q as QueryFilter<any>, o as any),
+      delete: async (c, id, o) => {
+        const res = await getRepo(c).delete(id, o as any);
+        if (res.success) await this.invalidateQueryCache(c, (o as any)?.tenantId);
+        return res;
+      },
+      deleteMany: async (c, q, o) => {
+        const res = await getRepo(c).deleteMany(q as QueryFilter<any>, o as any);
+        if (res.success) await this.invalidateQueryCache(c, (o as any)?.tenantId);
+        return res;
+      },
       exists: (c, q, o) => getRepo(c).exists(q || {}, o as any),
       findByIds: (c, ids, o) => getRepo(c).findByIds(ids, o as any),
       findMany: (c, q, o) => getRepo(c).findMany(q as QueryFilter<any>, o as any),
       findOne: (c, q, o) => getRepo(c).findOne(q as QueryFilter<any>, o as any),
-      insert: (c, d, o) => getRepo(c).insert(d as any, o),
-      insertMany: (c, d, o) => getRepo(c).insertMany(d as any[], o),
-      restore: (c, id, o) => getRepo(c).restore(id, o as any) as any,
-      update: (c, id, d, o) => getRepo(c).update(id, d as any, o),
-      updateMany: (c, q, d, o) => getRepo(c).updateMany(q as QueryFilter<any>, d as any, o),
-      upsert: (c, q, d, o) => getRepo(c).upsert(q as QueryFilter<any>, d as any, o),
-      upsertMany: (c, items, o) => getRepo(c).upsertMany(items as any[], o),
+      insert: async (c, d, o) => {
+        const res = await getRepo(c).insert(d as any, o);
+        if (res.success) await this.invalidateQueryCache(c, (o as any)?.tenantId);
+        return res;
+      },
+      insertMany: async (c, d, o) => {
+        const res = await getRepo(c).insertMany(d as any[], o);
+        if (res.success) await this.invalidateQueryCache(c, (o as any)?.tenantId);
+        return res;
+      },
+      restore: async (c, id, o) => {
+        const res = (await getRepo(c).restore(id, o as any)) as any;
+        if (res.success) await this.invalidateQueryCache(c, (o as any)?.tenantId);
+        return res;
+      },
+      update: async (c, id, d, o) => {
+        const res = await getRepo(c).update(id, d as any, o);
+        if (res.success) await this.invalidateQueryCache(c, (o as any)?.tenantId);
+        return res;
+      },
+      updateMany: async (c, q, d, o) => {
+        const res = await getRepo(c).updateMany(q as QueryFilter<any>, d as any, o);
+        if (res.success) await this.invalidateQueryCache(c, (o as any)?.tenantId);
+        return res;
+      },
+      upsert: async (c, q, d, o) => {
+        const res = await getRepo(c).upsert(q as QueryFilter<any>, d as any, o);
+        if (res.success) await this.invalidateQueryCache(c, (o as any)?.tenantId);
+        return res;
+      },
+      upsertMany: async (c, items, o) => {
+        const res = await getRepo(c).upsertMany(items as any[], o);
+        if (res.success) await this.invalidateQueryCache(c, (o as any)?.tenantId);
+        return res;
+      },
     };
   }
 

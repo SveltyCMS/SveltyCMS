@@ -170,8 +170,18 @@ function getEnvOverrides() {
   if (process.env.PASSWORD_MIN_LENGTH)
     overrides.PASSWORD_MIN_LENGTH = Number(process.env.PASSWORD_MIN_LENGTH);
 
-  // SMTP
-  if (process.env.SMTP_PORT) overrides.SMTP_PORT = Number(process.env.SMTP_PORT);
+  // CI/Benchmark Configuration
+  if (process.env.TEST_API_SECRET) overrides.TEST_API_SECRET = process.env.TEST_API_SECRET;
+
+  // External CDN
+  if (process.env.CF_API_TOKEN) overrides.CF_API_TOKEN = process.env.CF_API_TOKEN;
+  if (process.env.CF_ZONE_ID) overrides.CF_ZONE_ID = process.env.CF_ZONE_ID;
+  if (process.env.CF_PURGE_MODE) overrides.CF_PURGE_MODE = process.env.CF_PURGE_MODE;
+
+  // Read Replicas (comma-separated list)
+  if (process.env.DB_REPLICA_URLS) {
+    overrides.DB_REPLICA_URLS = process.env.DB_REPLICA_URLS.split(",").map((url) => url.trim());
+  }
 
   return overrides;
 }

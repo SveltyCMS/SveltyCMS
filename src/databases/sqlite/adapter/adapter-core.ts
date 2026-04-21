@@ -7,7 +7,7 @@ import { logger } from "@src/utils/logger";
 import { testWorkerContext } from "@src/utils/test-worker-context";
 import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type {
   CollectionModel,
   DatabaseCapabilities,
@@ -16,6 +16,7 @@ import type {
 } from "../../db-interface";
 import * as schema from "../schema";
 import * as utils from "../utils";
+import { BaseAdapter } from "../../base-adapter";
 
 // Define a type for our database to avoid 'any'
 type SQLiteDB = BaseSQLiteDatabase<"sync", unknown, typeof schema>;
@@ -36,7 +37,7 @@ interface SQLiteClient {
   };
 }
 
-export class AdapterCore {
+export class AdapterCore extends BaseAdapter {
   private _db!: SQLiteDB;
   private _sqlite!: SQLiteClient;
   private connections = new Map<string, { db: SQLiteDB; sqlite: SQLiteClient }>();
@@ -429,18 +430,25 @@ export class AdapterCore {
    * All dynamic collections sharing a common relational structure for flexibility.
    */
   public createDynamicTableDefinition(tableName: string) {
-    return sqliteTable(tableName, {
-      _id: text("_id", { length: 36 }).primaryKey(),
-      tenantId: text("tenantId", { length: 36 }),
-      data: text("data", { mode: "json" }).notNull().default("{}"),
-      status: text("status", { length: 50 }).notNull().default("draft"),
-      createdAt: integer("createdAt", { mode: "timestamp_ms" })
-        .notNull()
-        .default(sql`(strftime('%s', 'now') * 1000)`),
-      updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
-        .notNull()
-        .default(sql`(strftime('%s', 'now') * 1000)`),
-    });
+    return sqliteTable(
+      tableName,
+      {
+        _id: text("_id", { length: 36 }).primaryKey(),
+        tenantId: text("tenantId", { length: 36 }),
+        data: text("data", { mode: "json" }).notNull().default("{}"),
+        status: text("status", { length: 50 }).notNull().default("draft"),
+        createdAt: integer("createdAt", { mode: "timestamp_ms" })
+          .notNull()
+          .default(sql`(strftime('%s', 'now') * 1000)`),
+        updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+          .notNull()
+          .default(sql`(strftime('%s', 'now') * 1000)`),
+      },
+      (table) => ({
+        tenantIdx: index("tenant_idx").on(table.tenantId),
+        statusIdx: index("status_idx").on(table.status),
+      }),
+    );
   }
 
   public mapQuery(

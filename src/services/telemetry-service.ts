@@ -40,7 +40,8 @@ export const telemetryService = {
       ((globalThis as any).process?.env?.TEST_MODE === "true" ||
         (globalThis as any).process?.env?.CI === "true" ||
         (globalThis as any).process?.env?.VITEST === "true" ||
-        (globalThis as any).process?.env?.NODE_ENV === "test");
+        (globalThis as any).process?.env?.NODE_ENV === "test" ||
+        process.env.BUN_TEST === "true");
 
     if (isTestOrCI) {
       return { status: "test_mode", latest: null, security_issue: false };
@@ -239,43 +240,52 @@ export const telemetryService = {
               : "production";
         const timestamp = Date.now();
 
-        // --- DYNAMIC HMAC SECRET ---
-        // Try to get the registered secret, fallback to default for legacy/unregistered
-        const clientSecret = await getPrivateSetting("TELEMETRY_CLIENT_SECRET");
+        // --- DYNAMIC HMAC HANDSHAKE (PHASE 7) ---
+        let clientSecret = await getPrivateSetting("TELEMETRY_CLIENT_SECRET");
+
+        // 3. Mandatory Registration Handshake
+        if (!clientSecret) {
+          logger.info("📡 Telemetry: No secret found. Registering installation...");
+          const registrationSecret = await this.register(installationId);
+          if (registrationSecret) {
+            clientSecret = registrationSecret;
+          } else {
+            logger.warn("📡 Telemetry: Registration failed. Using fallback signature.");
+          }
+        }
+
         const TELEMETRY_SALT = clientSecret || "sveltycms-telemetry";
 
-        // 3. Generate HMAC Signature (Identifies this request as an authentic SveltyCMS instance)
+        // 4. Generate HMAC Signature (Identifies this request as an authentic SveltyCMS instance)
         const cryptoSignature = (await import("node:crypto"))
           .createHmac("sha256", TELEMETRY_SALT)
           .update(`${installationId}:${pkg.version}:${timestamp}`)
           .digest("hex");
 
         const payload = {
-          current_version: pkg.version, // ✅ Required
-          node_version: nodeVersion, // ✅ Required
-          environment, // ✅ Required
-          os: os.type(), // ✅ Required
-          installation_id: installationId, // ✅ Required for auth
-          timestamp, // ✅ Required for auth
-          signature: cryptoSignature, // ✅ Required for auth
-          is_ephemeral: environment === "development" || environment === "test", // Optional
-          stable_id: stableId, // Optional
-          db_type: dbType, // Optional
-          location: Object.values(location).some((v) => v !== undefined) ? location : undefined, // Optional
+          current_version: pkg.version,
+          node_version: nodeVersion,
+          environment,
+          os: os.type(),
+          installation_id: installationId,
+          timestamp,
+          signature: cryptoSignature,
+          is_ephemeral: environment === "development" || environment === "test",
+          stable_id: stableId,
+          db_type: dbType,
+          location: Object.values(location).some((v) => v !== undefined) ? location : undefined,
           usage_metrics: {
             users: userCount,
             collections: collectionCount,
             roles: roleCount,
-          }, // Optional
-          system_info: systemInfo, // Optional
-          widgets, // Optional
+          },
+          system_info: systemInfo,
+          widgets,
         };
 
         const telemetryEndpoint =
-          typeof globalThis !== "undefined"
-            ? (globalThis as any).process?.env?.TELEMETRY_ENDPOINT ||
-              "https://telemetry.sveltycms.com/api/check-update"
-            : "https://telemetry.sveltycms.com/api/check-update";
+          process.env.TELEMETRY_ENDPOINT || "https://telemetry.sveltycms.com/api/check-update";
+
         const response = await fetch(telemetryEndpoint, {
           method: "POST",
           headers: {
@@ -327,5 +337,36 @@ export const telemetryService = {
     })();
 
     return activeCheckPromise;
+  },
+
+  /**
+   * Registers this installation with the telemetry server to obtain a unique secret.
+   * This is a one-time automated handshake.
+   */
+  async register(installationId: string): Promise<string | null> {
+    try {
+      const registrationUrl =
+        process.env.TELEMETRY_REGISTRATION_URL || "https://telemetry.sveltycms.com/api/register";
+
+      const response = await fetch(registrationUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ installation_id: installationId }),
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (response.ok) {
+        const { secret } = await response.json();
+        if (secret) {
+          const { setPrivateSetting } = await import("@src/services/settings-service");
+          await setPrivateSetting("TELEMETRY_CLIENT_SECRET", secret);
+          return secret;
+        }
+      }
+      return null;
+    } catch (err) {
+      logger.debug("[Telemetry] Registration handshake failed:", err);
+      return null;
+    }
   },
 };

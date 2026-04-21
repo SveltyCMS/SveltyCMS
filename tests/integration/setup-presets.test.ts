@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 // Mock compilation
-mock.module("@src/collections/compile", () => ({
+mock.module("@utils/compilation/compile", () => ({
   compileCollections: async () => ({
     collections: [],
     errors: [],

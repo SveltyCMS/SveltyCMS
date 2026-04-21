@@ -51,7 +51,7 @@ When you run `bun run upgrade`, the system automatically executes **every** `.ts
 
 ```bash
 # Test on a single file first
-bun scripts/codemods/01-migrate-collection-schema-v2.ts src/collections/test-collection.ts
+bun scripts/codemods/01-migrate-collection-schema-v2.ts config/collections/test-collection.ts
 
 # Dry run (if supported)
 bun run upgrade --dry-run
