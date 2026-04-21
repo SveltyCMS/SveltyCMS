@@ -7,8 +7,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { version as pkgVersion } from "../../package.json";
 import { log } from "./logger";
+import { Project, SyntaxKind, ObjectLiteralExpression } from "ts-morph";
 import {
-  PERFORMANCE_BUDGET,
   DB_METADATA,
   ALL_DATABASES,
   BENCHMARK_SCRIPTS,
@@ -18,6 +18,107 @@ import {
 } from "./config";
 import { extractMetrics, getTrendDetails } from "./utils";
 import type { BenchmarkResult, RunConfig } from "./types";
+
+/**
+ * Persists benchmark script metadata (lastRun) using AST.
+ */
+export async function persistScriptMetadataAST(scriptPath: string, timestamp: string) {
+  try {
+    const project = new Project();
+    const sourceFilePath = path.resolve(
+      process.cwd(),
+      "scripts/benchmark-matrix/benchmark-scripts.ts",
+    );
+    const sourceFile = project.addSourceFileAtPath(sourceFilePath);
+
+    const scriptsArray = sourceFile
+      .getVariableDeclaration("BENCHMARK_SCRIPTS")
+      ?.getInitializerIfKind(SyntaxKind.ArrayLiteralExpression);
+
+    if (scriptsArray) {
+      for (const element of scriptsArray.getElements()) {
+        if (element.getKind() === SyntaxKind.ObjectLiteralExpression) {
+          const obj = element as ObjectLiteralExpression;
+          const pathProp = obj.getProperty("path")?.asKind(SyntaxKind.PropertyAssignment);
+          const pathValue = pathProp?.getInitializer()?.getText().replace(/['"]/g, "");
+
+          if (pathValue === scriptPath) {
+            const lastRunProp = obj.getProperty("lastRun")?.asKind(SyntaxKind.PropertyAssignment);
+            if (lastRunProp) {
+              lastRunProp.setInitializer(`"${timestamp}"`);
+              log.db("AST", `Updated lastRun for ${scriptPath}`);
+            }
+          }
+        }
+      }
+      await sourceFile.save();
+    }
+  } catch (err: any) {
+    log.warn(`AST Metadata persistence failed: ${err.message}`);
+  }
+}
+
+/**
+ * Updates the benchmark matrix documentation incrementally.
+ */
+export async function updateIncrementalReport(results: BenchmarkResult[]) {
+  const sqliteHistoryFile = path.join(ROOT_RESULTS_DIR, "history.sqlite");
+  const { Database } = await import("bun:sqlite");
+  const db = new Database(sqliteHistoryFile);
+
+  try {
+    const latestMetrics: Record<string, any> = {};
+    for (const res of results) {
+      latestMetrics[res.db] = extractMetrics(res.metrics ?? {}, res.db.replace("-redis", ""));
+    }
+
+    let md = `## 📊 SveltyCMS Enterprise Audit Matrix — Progress Report\n\n`;
+    md += `**Status**: 🛠️ Audit in progress... | **Last Update**: ${new Date().toLocaleTimeString()}\n\n`;
+
+    md += await buildDatabaseComparisonTable(db, results, latestMetrics, []);
+    md += await buildPerBenchmarkSections(results);
+
+    // Add Script Matrix (Pass/Fail)
+    md += `\n### 📑 Script Status Matrix\n\n`;
+    const scripts = BENCHMARK_SCRIPTS;
+    const dbs =
+      results.length > 0
+        ? results.map((r) => r.db)
+        : ALL_DATABASES.map((d) => (d.useRedis ? `${d.type}-redis` : d.type));
+
+    md += `| Script | ${dbs.map((d) => d.toUpperCase()).join(" | ")} |\n`;
+    md += `| :--- | ${dbs.map(() => "--- |").join(" ")}\n`;
+
+    for (const s of scripts) {
+      md += `| ${s.shortLabel} | `;
+      for (const dbKey of dbs) {
+        const res = results.find((r) => r.db === dbKey);
+        const timing = res?.scriptTimings?.[s.shortLabel];
+        if (timing) {
+          md += `✅ ${timing}ms | `;
+        } else if (res?.status === "FAILED") {
+          md += `❌ FAIL | `;
+        } else {
+          md += `⏳ PENDING | `;
+        }
+      }
+      md += `\n`;
+    }
+
+    let doc = await fs.readFile(BENCHMARKS_DOC, "utf8").catch(() => "");
+    const START = "<!-- BENCHMARK_START -->";
+    const END = "<!-- BENCHMARK_END -->";
+    const block = `${START}\n\n${md}\n\n${END}`;
+    doc =
+      doc.includes(START) && doc.includes(END)
+        ? doc.replace(/<!-- BENCHMARK_START -->[\s\S]*?<!-- BENCHMARK_END -->/, block)
+        : block + "\n\n" + doc;
+
+    await fs.writeFile(BENCHMARKS_DOC, doc);
+  } finally {
+    db.close();
+  }
+}
 
 export function printSummaryTable(results: BenchmarkResult[]) {
   console.log("\n\x1b[1m\x1b[38;5;208m━━━ AUDIT SUMMARY ━━━\x1b[0m\n");
@@ -73,70 +174,6 @@ export function printSummaryTable(results: BenchmarkResult[]) {
   console.log(`\x1b[90m${headerCells.join("  ")}\x1b[0m`);
   console.log(`\x1b[90m${"─".repeat(BENCH_COL + runDbs.length * (VAL_COL + 2))}\x1b[0m`);
 
-  const METRIC_ROWS: Array<{
-    label: string;
-    key: keyof ReturnType<typeof extractMetrics>;
-    unit: string;
-  }> = [
-    { label: "Hooks p95", key: "hooks", unit: "ms" },
-    { label: "DB raw read", key: "dbRaw", unit: "ms" },
-    { label: "ACID commit", key: "txCommit", unit: "ms" },
-    { label: "REST avg", key: "restAvg", unit: "ms" },
-    { label: "REST p95", key: "collections", unit: "ms" },
-    { label: "REST RPS", key: "restRps", unit: "req/s" },
-    { label: "GraphQL avg", key: "graphqlAvg", unit: "ms" },
-    { label: "GraphQL RPS", key: "gqlRps", unit: "req/s" },
-    { label: "Auth avg", key: "authAvg", unit: "ms" },
-    { label: "Security p95", key: "securityMs", unit: "ms" },
-    { label: "OpenAPI cache-hit", key: "openapiHit", unit: "ms" },
-    { label: "Realtime broadcast", key: "realtimeLatency", unit: "ms" },
-    { label: "Widget avg", key: "widgetAvg", unit: "ms" },
-    { label: "Media avg", key: "mediaAvg", unit: "ms" },
-    { label: "Relational avg", key: "relationalAvg", unit: "ms" },
-    { label: "Tenancy avg", key: "tenancyAvg", unit: "ms" },
-    { label: "Mixed workload avg", key: "mixedAvg", unit: "ms" },
-    { label: "Heap growth", key: "memGrowth", unit: "MB" },
-    { label: "Build duration", key: "buildDuration", unit: "ms" },
-  ];
-
-  const SECTIONS: Record<string, string[]> = {
-    Internals: ["Hooks p95", "DB raw read", "ACID commit"],
-    REST: ["REST avg", "REST p95", "REST RPS"],
-    GraphQL: ["GraphQL avg", "GraphQL RPS"],
-    "Auth/Security": ["Auth avg", "Security p95", "OpenAPI cache-hit"],
-    Realtime: ["Realtime broadcast"],
-    Logic: ["Widget avg", "Media avg", "Relational avg"],
-    Scale: ["Tenancy avg", "Mixed workload avg"],
-    System: ["Heap growth", "Build duration"],
-  };
-
-  for (const [section, labels] of Object.entries(SECTIONS)) {
-    const rows = METRIC_ROWS.filter((r) => labels.includes(r.label));
-    const hasData = rows.some((r) =>
-      runDbs.some((db) => {
-        const m = extractMetrics(db.metrics ?? {}, db.db.replace("-redis", ""));
-        return (m[r.key] as number) > 0;
-      }),
-    );
-    if (!hasData) continue;
-
-    console.log(`\n\x1b[33m  ${section}\x1b[0m`);
-
-    for (const row of rows) {
-      const cells = runDbs.map((db) => {
-        const m = extractMetrics(db.metrics ?? {}, db.db.replace("-redis", ""));
-        const val = m[row.key] as number;
-        if (!val) return "\x1b[90m—\x1b[0m".padEnd(VAL_COL + 9);
-        const budget = (PERFORMANCE_BUDGET as any)[row.key];
-        const over = budget !== undefined && val > (budget as number);
-        const color = over ? "\x1b[31m" : "\x1b[32m";
-        const cell = `${val.toFixed(row.unit === "req/s" || row.unit === "count" ? 0 : 2)} ${row.unit}`;
-        return `${color}${cell}\x1b[0m`.padEnd(VAL_COL + 9);
-      });
-      console.log(`  ${row.label.padEnd(BENCH_COL)}  ${cells.join("  ")}`);
-    }
-  }
-
   for (const res of results) {
     if (res.scriptTimings && Object.keys(res.scriptTimings).length > 0) {
       const meta = (DB_METADATA as any)[res.db] ?? {
@@ -152,6 +189,53 @@ export function printSummaryTable(results: BenchmarkResult[]) {
     }
   }
   console.log();
+}
+
+/**
+ * Builds dedicated section for each benchmark script using decentralized results.
+ */
+async function buildPerBenchmarkSections(results: BenchmarkResult[]): Promise<string> {
+  let md = `\n## 📋 Detailed Benchmark Sections\n\n`;
+
+  for (const script of BENCHMARK_SCRIPTS) {
+    const matchingResults = results.filter((r) => {
+      // 1. Direct scriptPath match (Most reliable)
+      if (r.scriptPath && script.path.endsWith(r.scriptPath)) return true;
+      // 2. Direct timing/shortLabel match
+      if (r.scriptTimings?.[script.shortLabel] !== undefined) return true;
+      // 3. Metric name match (Fallback)
+      return Object.keys(r.metrics || {}).some((k) =>
+        k.toLowerCase().includes(script.shortLabel.toLowerCase()),
+      );
+    });
+
+    if (matchingResults.length === 0) continue;
+
+    md += `### ${script.label} (${script.level} · ${script.section})\n`;
+    md += `**Test file:** \`${script.path}\`\n`;
+    md += `**Description:** ${script.desc}\n`;
+    md += `**Last run:** ${script.lastRun ? new Date(script.lastRun).toLocaleString() : "—"}\n\n`;
+
+    // Simple table for this benchmark across databases
+    md += `| Database | Avg Latency | p95 | RPS | Status |\n`;
+    md += `|----------|-------------|-----|-----|--------|\n`;
+
+    for (const res of matchingResults) {
+      const dbClean = res.db.replace("-redis", "");
+      const m = extractMetrics(res.metrics || {}, dbClean);
+      const timing = res.scriptTimings?.[script.shortLabel] || 0;
+      const status = res.status === "SUCCESS" ? "✅" : "❌";
+
+      // Attempt to find the specific p95/avg for THIS script
+      // If result is generic, fallback to metrics summary
+      md += `| **${res.db.toUpperCase()}** | ${timing > 0 ? timing.toFixed(2) : (m.restAvg || m.graphqlAvg || 0).toFixed(2)}ms | `;
+      md += `${(m.collections || 0).toFixed(2)}ms | ${(m.restRps || m.gqlRps || 0).toFixed(0)} | ${status} |\n`;
+    }
+
+    md += `\n`;
+  }
+
+  return md;
 }
 
 export async function writeCISummary(results: BenchmarkResult[], regressions: string[]) {
@@ -253,53 +337,6 @@ function buildMermaidChart(db: any): string {
 }
 
 /**
- * Builds the component performance comparison sections.
- */
-function buildComponentPerformance(
-  latestMetrics: Record<string, any>,
-  results: BenchmarkResult[],
-): string {
-  let md = `\n## 🧩 Component Performance Comparison\n`;
-
-  md += `\n### 📡 REST API Performance Matrix\n`;
-  md += `| Adapter | Avg Latency | p95 Latency | RPS |\n`;
-  md += `|---------|-------------|-------------|-----|\n`;
-  for (const dbConf of ALL_DATABASES) {
-    const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
-    const m = latestMetrics[dbKey];
-    if (m?.collections) {
-      const histMark = !results.find((r) => r.db === dbKey) ? " (Hist)" : "";
-      md += `| ${(dbConf.label ?? dbConf.type).toUpperCase()}${histMark} | ${m.restAvg.toFixed(2)}ms | ${m.collections.toFixed(2)}ms | ${m.restRps.toFixed(0)} |\n`;
-    }
-  }
-
-  md += `\n### 🕸️ GraphQL API Highlights\n`;
-  md += `| Adapter | Avg Latency | Throughput | Complexity Status |\n`;
-  md += `|---------|-------------|------------|-------------------|\n`;
-  for (const dbConf of ALL_DATABASES) {
-    const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
-    const m = latestMetrics[dbKey];
-    if (m?.graphqlAvg) {
-      const histMark = !results.find((r) => r.db === dbKey) ? " (Hist)" : "";
-      md += `| ${(dbConf.label ?? dbConf.type).toUpperCase()}${histMark} | ${m.graphqlAvg.toFixed(2)}ms | ${m.gqlRps.toFixed(0)} req/s | 🟢 Optimizing |\n`;
-    }
-  }
-
-  md += `\n### 🔐 Auth & RBAC Performance\n`;
-  md += `| Adapter | Avg Latency | Security Overhead | Throughput |\n`;
-  md += `|---------|-------------|-------------------|------------|\n`;
-  for (const dbConf of ALL_DATABASES) {
-    const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
-    const m = latestMetrics[dbKey];
-    if (m?.authAvg) {
-      const histMark = !results.find((r) => r.db === dbKey) ? " (Hist)" : "";
-      md += `| ${(dbConf.label ?? dbConf.type).toUpperCase()}${histMark} | ${m.authAvg.toFixed(2)}ms | ${m.securityMs.toFixed(2)}ms | ${m.authRps.toFixed(0)} |\n`;
-    }
-  }
-  return md;
-}
-
-/**
  * Builds the database comparison table for the report.
  */
 async function buildDatabaseComparisonTable(
@@ -385,12 +422,78 @@ async function buildDatabaseComparisonTable(
 }
 
 /**
+ * Crawls the results directory to reconstruct the performance matrix.
+ * Supports decentralized self-reporting where each test saves its own JSON.
+ */
+export async function scanResultsDirectory(): Promise<BenchmarkResult[]> {
+  const results: BenchmarkResult[] = [];
+  try {
+    const entries = await fs.readdir(ROOT_RESULTS_DIR, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+
+      const dbKey = entry.name;
+      const dbPath = path.join(ROOT_RESULTS_DIR, dbKey);
+      const files = await fs.readdir(dbPath);
+
+      const metrics: Record<string, any> = {};
+      const scriptTimings: Record<string, number> = {};
+      let status: "SUCCESS" | "FAILED" = "SUCCESS";
+
+      for (const f of files) {
+        if (!f.endsWith(".json")) continue;
+        try {
+          const filePath = path.join(dbPath, f);
+          const content = JSON.parse(await fs.readFile(filePath, "utf8"));
+
+          // Handle suite summary results
+          if (content.name && content.avgMs !== undefined) {
+            const short = content.shortLabel || content.name.split(":")[0] || "unknown";
+            scriptTimings[short] = content.avgMs;
+            if (content.failureCount > 0) status = "FAILED";
+
+            // Merge nested metrics if present
+            if (content.metrics) Object.assign(metrics, content.metrics);
+            // Save scriptPath for reliable matching
+            if (content.scriptPath) (scriptTimings as any).scriptPath = content.scriptPath;
+          } else if (content._type === "numeric-metric") {
+            // Direct metric export from exportMetric()
+            metrics[content.name] = content;
+          } else {
+            // General JSON result
+            metrics[path.basename(f, ".json")] = content;
+          }
+        } catch (err) {
+          log.warn(`Failed to parse result file ${f}: ${err}`);
+        }
+      }
+
+      if (Object.keys(metrics).length > 0 || Object.keys(scriptTimings).length > 0) {
+        results.push({
+          db: dbKey,
+          status,
+          metrics,
+          scriptTimings,
+          scriptPath: (scriptTimings as any).scriptPath || metrics.scriptPath,
+          coldStartMs: metrics["cold-start"]?.value || metrics["cold-start"] || 0,
+        } as any);
+      }
+    }
+  } catch (e: any) {
+    log.warn(`Could not scan results directory: ${e.message}`);
+  }
+  return results;
+}
+
+/**
  * Orchestrates the final report generation.
  */
 export async function generateFinalReport(
-  results: BenchmarkResult[],
-  _cfg: RunConfig,
+  resultsIn: BenchmarkResult[] = [],
+  _cfg?: RunConfig,
 ): Promise<string[]> {
+  const results = resultsIn.length > 0 ? resultsIn : await scanResultsDirectory();
   const now = new Date().toISOString();
 
   const { Database } = await import("bun:sqlite");
@@ -423,7 +526,7 @@ export async function generateFinalReport(
 
     for (const res of results) {
       const dbKey = res.db;
-      const m = extractMetrics(res.metrics, dbKey.replace("-redis", ""));
+      const m = extractMetrics(res.metrics || {}, dbKey.replace("-redis", ""));
       latestMetrics[dbKey] = m;
 
       insert.run(
@@ -435,17 +538,12 @@ export async function generateFinalReport(
         m.graphqlAvg,
         m.memGrowth,
         m.systemCpu,
-        JSON.stringify(res.metrics),
+        JSON.stringify(res.metrics || {}),
       );
     }
 
-    let md = `## 📊 SveltyCMS Enterprise Benchmark Matrix — ${new Date().toLocaleString()}\n\n`;
+    let md = `## 📊 SveltyCMS Enterprise Audit Matrix — ${new Date().toLocaleString()}\n\n`;
     md += `**Version:** ${pkgVersion} | **Generated:** ${now}\n\n`;
-
-    md += `### 🧪 Benchmarks Included\n\n`;
-    for (const s of BENCHMARK_SCRIPTS)
-      md += `- **${s.label}** (L${s.level} · ${s.section}) — ${s.desc}\n`;
-    md += "\n";
 
     md += await buildDatabaseComparisonTable(db, results, latestMetrics, regressions);
 
@@ -453,41 +551,11 @@ export async function generateFinalReport(
       md += `\n> [!CAUTION]\n> **Regressions detected in**: ${regressions.join(", ")}\n`;
     }
 
-    md += `\n### 🏢 Multi-Tenancy Scaling\n`;
-    md += `| Adapter | Tenancy Avg | Mem Growth | Status |\n`;
-    md += `|---------|-------------|------------|--------|\n`;
-    for (const dbConf of ALL_DATABASES) {
-      const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
-      const m = latestMetrics[dbKey];
-      if (m?.tenancyAvg) {
-        const histMark = !results.find((r) => r.db === dbKey) ? " *(Hist)*" : "";
-        md += `| ${dbConf.label ?? dbConf.type}${histMark} | ${m.tenancyAvg.toFixed(1)}ms | ${m.memGrowth.toFixed(1)}MB | ${m.memGrowth < 40 ? "🟢 Stable" : "🟡 Growing"} |\n`;
-      }
-    }
+    // Build rich per-benchmark sections (new decentralized style)
+    md += await buildPerBenchmarkSections(results);
 
-    md += `\n### 🌀 Mixed Workload\n`;
-    md += `| Adapter | Avg Latency | Status |\n`;
-    md += `|---------|-------------|--------|\n`;
-    for (const dbConf of ALL_DATABASES) {
-      const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
-      const m = latestMetrics[dbKey];
-      if (m?.mixedAvg) {
-        const histMark = !results.find((r) => r.db === dbKey) ? " *(Hist)*" : "";
-        md += `| ${dbConf.label ?? dbConf.type}${histMark} | ${m.mixedAvg.toFixed(2)}ms | ✅ Pass |\n`;
-      }
-    }
-
-    md += `\n### 🧠 Memory Stability\n`;
-    md += `| Adapter | Heap Growth | Status |\n`;
-    md += `|---------|-------------|--------|\n`;
-    for (const dbConf of ALL_DATABASES) {
-      const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
-      const m = latestMetrics[dbKey];
-      if (m && m.memGrowth !== undefined) {
-        const histMark = !results.find((r) => r.db === dbKey) ? " *(Hist)*" : "";
-        md += `| ${dbConf.label ?? dbConf.type}${histMark} | ${m.memGrowth.toFixed(1)} MB | ${m.memGrowth < 40 ? "🟢 Stable" : "🟡 Growing"} |\n`;
-      }
-    }
+    // Build category-based summary sections
+    // md += await buildPerformanceCategories(runDbs, latestMetrics);
 
     md += buildMermaidChart(db);
 
@@ -505,68 +573,6 @@ export async function generateFinalReport(
       md += `| ${host.cpu} | ${host.cores} | ${host.ram} | ${host.os} (${host.arch}) | ${host.runtime} |\n\n`;
     }
 
-    md += buildComponentPerformance(latestMetrics, results);
-
-    md += `\n### ⚙️ Internals & Middleware\n`;
-    md += `| Adapter | Hooks p95 | DB Raw | ACID Commit |\n`;
-    md += `|---------|-----------|--------|-------------|\n`;
-    for (const dbConf of ALL_DATABASES) {
-      const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
-      const m = latestMetrics[dbKey];
-      if (m?.hooks || m?.dbRaw) {
-        const res = results.find((r) => r.db === dbKey);
-        const isFailed = res ? res.status === "FAILED" : false;
-        const histMark = !res ? " (Hist)" : "";
-
-        const formatMetric = (val: number, precision = 2) => {
-          if (val === 0 && (isFailed || !m)) return "N/A";
-          return `${val.toFixed(precision)}ms`;
-        };
-
-        md += `| ${(dbConf.label ?? dbConf.type).toUpperCase()}${histMark} | ${formatMetric(m.hooks, 3)} | ${formatMetric(m.dbRaw)} | ${formatMetric(m.txCommit)} |\n`;
-      }
-    }
-
-    md += `\n### 🧩 Widget & Media Logic\n`;
-    md += `| Adapter | Widget Avg | Media Avg | Relational Avg |\n`;
-    md += `|---------|------------|-----------|----------------|\n`;
-    for (const dbConf of ALL_DATABASES) {
-      const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
-      const m = latestMetrics[dbKey];
-      if (m?.widgetAvg || m?.mediaAvg) {
-        const res = results.find((r) => r.db === dbKey);
-        const isFailed = res ? res.status === "FAILED" : false;
-        const histMark = !res ? " (Hist)" : "";
-
-        const formatMetric = (val: number, precision = 2) => {
-          if (val === 0 && (isFailed || !m)) return "N/A";
-          return `${val.toFixed(precision)}ms`;
-        };
-
-        md += `| ${(dbConf.label ?? dbConf.type).toUpperCase()}${histMark} | ${formatMetric(m.widgetAvg)} | ${formatMetric(m.mediaAvg)} | ${formatMetric(m.relationalAvg)} |\n`;
-      }
-    }
-
-    md += `\n### 🛠️ Self-Healing & DX\n`;
-    md += `| Adapter | Content Scan | Build Duration | Bundle Size |\n`;
-    md += `|---------|--------------|----------------|-------------|\n`;
-    for (const dbConf of ALL_DATABASES) {
-      const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
-      const m = latestMetrics[dbKey];
-      if (m?.scanAvg || m?.buildDuration) {
-        const res = results.find((r) => r.db === dbKey);
-        const isFailed = res ? res.status === "FAILED" : false;
-        const histMark = !res ? " (Hist)" : "";
-
-        const formatMetric = (val: number, precision = 2, unit = "ms") => {
-          if (val === 0 && (isFailed || !m)) return "N/A";
-          return unit === "s" ? `${(val / 1000).toFixed(1)}s` : `${val.toFixed(precision)}${unit}`;
-        };
-
-        md += `| ${(dbConf.label ?? dbConf.type).toUpperCase()}${histMark} | ${formatMetric(m.scanAvg)} | ${formatMetric(m.buildDuration, 1, "s")} | ${formatMetric(m.bundleSize, 2, "MB")} |\n`;
-      }
-    }
-
     const allViolations = results.flatMap((r) =>
       (r.budgetViolations ?? []).map((v) => `**${r.db}**: ${v}`),
     );
@@ -574,6 +580,46 @@ export async function generateFinalReport(
       md += `\n### ⚠️ Performance Budget Violations\n\n`;
       for (const v of allViolations) md += `- ${v}\n`;
       md += "\n";
+    }
+
+    // Add Script Status Matrix (Pass/Fail)
+    md += `\n### 📑 Detailed Script Matrix\n\n`;
+    const dbs =
+      results.length > 0
+        ? results.map((r) => r.db)
+        : ALL_DATABASES.map((d) => (d.useRedis ? `${d.type}-redis` : d.type));
+    md += `| Script | Path | ${dbs.map((d) => d.toUpperCase()).join(" | ")} |\n`;
+    md += `| :--- | :--- | ${dbs.map(() => "--- |").join(" ")}\n`;
+
+    for (const s of BENCHMARK_SCRIPTS) {
+      md += `| **${s.shortLabel}** | \`${s.path}\` | `;
+      for (const dbKey of dbs) {
+        // Strategy Logic: Check if engine is applicable
+        const isSql =
+          dbKey.includes("sqlite") || dbKey.includes("postgres") || dbKey.includes("mariadb");
+        const isApplicable =
+          s.strategy === "all" ||
+          (s.strategy === "sql" && isSql) ||
+          (s.strategy === "once" && dbKey === "sqlite");
+
+        if (!isApplicable) {
+          md += `— (N/A) | `;
+          continue;
+        }
+
+        const res = results.find((r) => r.db === dbKey);
+        const timing = res?.scriptTimings?.[s.shortLabel];
+        if (timing) {
+          md += `✅ ${timing.toFixed(2)}ms | `;
+        } else if (res?.status === "FAILED") {
+          md += `❌ FAIL | `;
+        } else if (res?.status === "RUNNING") {
+          md += `⏳ RUNNING | `;
+        } else {
+          md += `⏳ PENDING | `;
+        }
+      }
+      md += `\n`;
     }
 
     let doc = await fs.readFile(BENCHMARKS_DOC, "utf8").catch(() => "");
@@ -591,4 +637,18 @@ export async function generateFinalReport(
   } finally {
     db.close();
   }
+}
+
+// 🚀 Self-Execution Logic for Standalone Generating
+if (process.argv.includes("--generate")) {
+  log.info("🔍 Crawling results directory for standalone report generation...");
+  generateFinalReport()
+    .then(() => {
+      log.success("✅ Standalone report generated.");
+      process.exit(0);
+    })
+    .catch((err) => {
+      log.error(`❌ Standalone report failed: ${err.message}`);
+      process.exit(1);
+    });
 }

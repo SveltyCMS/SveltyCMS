@@ -29,6 +29,19 @@ export function generateCsrfToken(cookies: Cookies, isSecure: boolean): string {
 }
 
 /**
+ * Ensures a CSRF token exists in the cookies, generating one only if missing.
+ */
+export function ensureCsrfToken(cookies: Cookies, isSecure: boolean): string | null {
+  const cookieName = isSecure ? `__Host-${CSRF_TOKEN_COOKIE_NAME}` : CSRF_TOKEN_COOKIE_NAME;
+  const existing = cookies.get(cookieName);
+
+  if (!existing) {
+    return generateCsrfToken(cookies, isSecure);
+  }
+  return existing;
+}
+
+/**
  * Validates a CSRF token against the cookie value with constant-time comparison
  */
 export function validateCsrfToken(

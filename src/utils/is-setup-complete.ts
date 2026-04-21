@@ -5,7 +5,6 @@
  * This is used by vite.config.ts to avoid loading the full setup-check or database logic during boot.
  */
 
-import { existsSync } from "node:fs";
 import path from "node:path";
 
 /**
@@ -13,5 +12,14 @@ import path from "node:path";
  * @returns {boolean} True if setup is complete.
  */
 export function isSetupComplete(): boolean {
-  return existsSync(path.join(process.cwd(), "config", "private.ts"));
+  if (typeof window !== "undefined") {
+    return true; // Assume setup is complete if browser is running the app
+  }
+  // Use require to load fs dynamically only on the server
+  try {
+    const fs = require("node:fs");
+    return fs.existsSync(path.join(process.cwd(), "config", "private.ts"));
+  } catch {
+    return false;
+  }
 }

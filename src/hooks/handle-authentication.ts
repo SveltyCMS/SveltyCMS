@@ -22,7 +22,7 @@
  */
 
 import type { ISODateString } from "@databases/db-interface";
-import { generateCsrfToken } from "@utils/security/csrf-utils";
+import { generateCsrfToken, ensureCsrfToken } from "@utils/security/csrf-utils";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
@@ -214,7 +214,17 @@ async function handleSessionRotation(
   if (lastRotation && now - lastRotation < SESSION_ROTATION_INTERVAL_MS) return;
 
   const limiter = initRotationRateLimiter();
-  if (await limiter.isLimited(event)) return;
+  try {
+    if (await limiter.isLimited(event)) return;
+  } catch (err) {
+    if (dev) {
+      logger.debug(
+        `[Auth] Skipping session rotation rate limit check: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    } else {
+      throw err;
+    }
+  }
 
   try {
     if (!(auth?.createSession && auth?.destroySession)) return;
@@ -303,6 +313,11 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
   // Initialize tenant context
   locals.tenantId = null as any;
+
+  // 🛡️ Ensure CSRF token is established for every visitor (guest or user)
+  const isProd = !dev && process.env.TEST_MODE !== "true";
+  const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
+  ensureCsrfToken(cookies, isSecure);
 
   if (isStaticOrInternalRequest(pathname)) return resolve(event);
 

@@ -37,7 +37,6 @@ export class CacheService {
   private l1: LRUCache<string, any>;
   private l2: any = null; // Redis Client
   private prefetchPatterns: Map<string, string[]> = new Map();
-  private keyCache: Map<string, string> = new Map();
   private stats: CacheStats = {
     hits: 0,
     misses: 0,
@@ -83,8 +82,21 @@ export class CacheService {
 
   // Initialize L2 Cache (Redis)
   async initializeL2(config: any) {
-    if (!config.USE_REDIS) return;
+    if (!config.USE_REDIS) {
+      if (this.l2) {
+        await this.l2.quit().catch(() => {});
+        this.l2 = null;
+      }
+      return;
+    }
+
     try {
+      // 🚀 Fix: Prevent client/listener leak by closing existing client
+      if (this.l2) {
+        await this.l2.quit().catch(() => {});
+        this.l2 = null;
+      }
+
       const { createClient } = await import("redis");
       this.l2 = createClient({
         url: `redis://${config.REDIS_HOST}:${config.REDIS_PORT}`,
@@ -94,6 +106,7 @@ export class CacheService {
           reconnectStrategy: (retries) =>
             retries > 3 ? new Error("Redis connection failed") : 1000,
         },
+        disableOfflineQueue: true,
       });
 
       this.l2.on("error", (err: any) => {
@@ -275,13 +288,7 @@ export class CacheService {
       getPrivateSettingSync("MULTI_TENANT") || (globalThis as any).__mockMultiTenant;
 
     const tId = tenantId || "default";
-    const fullKey = multiTenant ? `tenant:${tId}:${key}` : key;
-
-    const cached = this.keyCache.get(fullKey);
-    if (cached) return cached;
-
-    this.keyCache.set(fullKey, fullKey);
-    return fullKey;
+    return multiTenant ? `tenant:${tId}:${key}` : key;
   }
 
   private buildKey(key: string, tenantId?: string | null): string {
@@ -325,8 +332,17 @@ export class CacheService {
 
     // L2 clear
     if (this.isL2Ready()) {
-      const keys = await this.l2.keys(fullPattern);
-      if (keys.length > 0) await this.l2.del(keys);
+      let cursor = 0;
+      do {
+        const result = await this.l2.scan(cursor, {
+          MATCH: fullPattern,
+          COUNT: 100,
+        });
+        cursor = Number(result.cursor);
+        if (result.keys.length > 0) {
+          await this.l2.del(result.keys);
+        }
+      } while (cursor !== 0);
     }
   }
 

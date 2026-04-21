@@ -49,7 +49,7 @@ import CommandBar from "@src/components/command-bar.svelte";
 // SvelteKit Navigation
 import { afterNavigate, beforeNavigate } from "$app/navigation";
 import { page } from "$app/state";
-import type { Schema, NavigationNode } from "../../content/types";
+import type { Schema, ContentNode } from "../../content/types";
 import { setContentContext } from "@src/content";
 
 // =============================================
@@ -57,7 +57,7 @@ import { setContentContext } from "@src/content";
 // =============================================
 
 interface LayoutData {
-	contentStructure: Promise<NavigationNode[]>;
+	contentStructure: Promise<ContentNode[]>;
 	firstCollection: Promise<Schema | null>;
 	settings: Record<string, any>;
 	user: User | null;
@@ -125,6 +125,17 @@ $effect(() => {
 
 	document.documentElement.dir = dir;
 	document.documentElement.lang = lang;
+});
+
+// 🔥 SYNC: Connect streamed content structure to global stores for sidebar/navigation reactivity
+$effect(() => {
+	data.contentStructure.then((nodes) => {
+		untrack(() => {
+			import("@src/stores/collection-store.svelte").then(({ setContentStructure }) => {
+				setContentStructure(nodes);
+			});
+		});
+	});
 });
 
 // =============================================

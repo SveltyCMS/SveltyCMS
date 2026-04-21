@@ -189,8 +189,12 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
           const pattern = `api:${locals.user._id}:${apiPathPrefix}`;
           await cacheService.clearByPattern(`${pattern}*`, locals.tenantId);
 
-          // ✨ SWR: Predictive Cache Pre-warming
-          if (["POST", "PUT", "PATCH"].includes(request.method) && event.url.origin) {
+          // ✨ SWR: Predictive Cache Pre-warming (Disabled in BENCHMARK_MODE)
+          if (
+            ["POST", "PUT", "PATCH"].includes(request.method) &&
+            event.url.origin &&
+            process.env.BENCHMARK_MODE !== "1"
+          ) {
             const prewarmUrl = new URL(event.url.pathname, event.url.origin);
             prewarmUrl.searchParams.set("warm-cache", "true");
             fetch(prewarmUrl.toString(), {

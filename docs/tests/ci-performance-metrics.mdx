@@ -18,16 +18,16 @@ We actively monitor our application bundle size and API latency to prevent perfo
 
 ## 📊 Enterprise Performance Matrix
 
-The **Enterprise Benchmark Matrix (Audit 2.0)** is our primary tool for cross-database performance validation. As of April 19, 2026, the orchestrator has been deeply stabilized to support massive concurrent loads across all 4 primary database engines (**SQLite, MongoDB, PostgreSQL, and MariaDB**) with 100% passing metrics.
+The **Enterprise Benchmark Matrix (Audit 2.0)** has transitioned to a **Decentralized, Self-Reporting Infrastructure**. As of April 20, 2026, each benchmark test is autonomous—managing its own server lifecycle via dynamic port assignment and exporting high-fidelity telemetry directly to structured JSON payloads. This eliminates cross-test pollution and ensures deterministic scaling across **SQLite, MongoDB, PostgreSQL, and MariaDB**.
 
 It measures:
 
-- **REST API Latency**: E2E collection throughput using the unified Dispatcher.
-- **GraphQL Resolvers**: Efficiency, AST depth limits, and N+1 resolution.
+- **REST API Latency**: Autonomous E2E collection throughput with in-process worker isolation.
+- **GraphQL Resolvers**: Efficiency, AST depth limits, and decentralized resolver verification.
 - **Relational Performance**: JOINs, population, and deeply nested relations (Depth 2-3).
-- **Middleware Overhead**: Microsecond-latency added by Security, Auth, and RBAC layers.
-- **Realtime Latency**: WebSocket connection and broadcast timing.
-- **Memory Stability**: RSS and Heap growth detection across sustained 180s loads.
+- **Middleware Overhead**: Non-blocking micro-latency measurements for the Hook system.
+- **Realtime Latency**: WebSocket connection and self-healing broadcast timing.
+- **Memory Stability**: RSS and Heap growth detection across sustained decentralized loads.
 
 ### 🚀 Running the Orchestrator
 

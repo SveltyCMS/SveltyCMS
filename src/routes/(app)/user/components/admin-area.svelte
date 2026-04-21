@@ -93,6 +93,7 @@
 	import { untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+	import { page } from '$app/state';
 	import Multibutton from './multibutton.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';
 
@@ -140,6 +141,7 @@
 					}
 					const result = await response.json();
 					if (result.success) {
+						// Standardized API returns { success: true, data: Array, pagination: { totalItems: number } }
 						tableData = result.data;
 						totalItems = result.pagination.totalItems;
 					}
@@ -449,7 +451,8 @@
 			const response = await fetch('/api/user/batch', {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken
 				},
 				body: JSON.stringify({
 					userIds: [user._id],
@@ -507,7 +510,8 @@
 			const response = await fetch('/api/token/batch', {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken
 				},
 				body: JSON.stringify({
 					tokenIds: [token.token],
@@ -942,7 +946,7 @@
 			</div>
 
 			<!-- Pagination  -->
-			<div class="mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+			<div class="mt-4 flex flex-col items-center justify-between px-2 md:flex-row md:p-4">
 				<TablePagination
 					bind:currentPage
 					bind:rowsPerPage

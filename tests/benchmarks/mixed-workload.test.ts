@@ -50,8 +50,8 @@ const OPERATIONS: Operation[] = [
   },
   {
     type: "read",
-    name: "GET Posts List",
-    path: "/collections/Posts?limit=20",
+    name: "GET posts List",
+    path: "/collections/posts?limit=20",
     method: "GET",
     weight: 10,
   },
@@ -73,7 +73,7 @@ const OPERATIONS: Operation[] = [
     body: {
       query: `
         query {
-          Posts(limit:10){
+          posts(limit:10){
             _id
             title
             author { name }
@@ -86,7 +86,7 @@ const OPERATIONS: Operation[] = [
   {
     type: "write",
     name: "POST Create Entry",
-    path: "/collections/Posts",
+    path: "/collections/posts",
     method: "POST",
     bodyFn: () => ({
       title: "Mixed Entry " + Date.now() + "-" + Math.random().toString(36).slice(2),

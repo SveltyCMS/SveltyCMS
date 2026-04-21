@@ -44,13 +44,14 @@ bun run test:unit
 # Orchestrator core lives in scripts/benchmark-matrix/
 bun run scripts/benchmark-matrix/index.ts
 
-# Run specific isolated benchmark sections
-bun run scripts/benchmark-matrix/index.ts --db=sqlite --section=api
+# Run an individual autonomous benchmark (Decentralized Pattern)
+# Each test now manages its own ephemeral server instance.
+bun test tests/benchmarks/api-latency.test.ts
 ```
 
 ## Test Architecture & Isolation
 
-SveltyCMS employs a strict isolation strategy to ensure tests never touch production data. Standardization on **`127.0.0.1:4173`** for all local testing eliminates IPv6/IPv4 resolution conflicts.
+SveltyCMS employs a strict isolation strategy to ensure tests never touch production data. Standardization on **127.0.0.1** with **dynamic port assignment** (via PID-based logic) for benchmarks ensures that concurrent test runs never conflict.
 
 ```mermaid
 graph TD

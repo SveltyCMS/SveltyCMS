@@ -48,11 +48,11 @@
 	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
 	// Stores
 	import { contentStructure, setMode } from '@src/stores/collection-store.svelte';
+	import { ui, uiStateManager, toggleUIElement, userPreferredState } from '@src/stores/ui-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte';
 	import { avatarSrc, systemLanguage } from '@src/stores/store.svelte';
 	import { themeStore } from '@src/stores/theme-store.svelte';
-	import { toggleUIElement, uiStateManager, userPreferredState } from '@src/stores/ui-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
 	import { logger } from '@utils/logger';
 	// Removed axios import
@@ -85,12 +85,13 @@
 	// Removed isDropdownOpen and dropdownRef as Menu handles this
 
 	// Derived values
-	const isSidebarFull = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
+	const isSidebarFull = $derived(ui.state.leftSidebar === 'full');
 
 	const firstCollectionPath = $derived.by(() => {
 		if (collections?.[0]) {
 			const node = collections[0] as any;
-			return node.path ? `/${getLocale()}${node.path}` : `/Collections/${node.name}`;
+			const pathValue = node.path || `/collection/${node._id}`;
+			return `/${getLocale()}${pathValue.startsWith("/") ? pathValue : `/${pathValue}`}`;
 		}
 		return '/collections';
 	});
@@ -265,7 +266,7 @@
 			onclick={toggleSidebar}
 			aria-label={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
 			aria-expanded={isSidebarFull}
-			class="absolute top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full! border border-black p-0 dark:border-black ltr:-right-4 rtl:-left-4"
+			class="absolute top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full! border border-black p-0 dark:border-black ltr:right-2 rtl:left-2"
 		>
 			<iconify-icon
 				icon="bi:arrow-left-circle-fill"
@@ -494,17 +495,6 @@
 							class="btn-icon flex items-center justify-center hover:bg-surface-500/20"
 						>
 							<iconify-icon icon="ic:baseline-discord" width="30" class=""></iconify-icon>
-						</a>
-					</SystemTooltip>
-					<SystemTooltip title={applayout_githubdiscussion()} positioning={{ placement: 'right' }}>
-						<a
-							href="https://github.com/SveltyCMS/SveltyCMS/discussions"
-							target="_blank"
-							rel="noopener noreferrer"
-							aria-label="GitHub Discussions"
-							class="btn-icon flex items-center justify-center hover:bg-surface-500/20"
-						>
-							<iconify-icon icon="grommet-icons:github" width="30" class=""></iconify-icon>
 						</a>
 					</SystemTooltip>
 				</div>

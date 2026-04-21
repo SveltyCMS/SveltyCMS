@@ -684,10 +684,15 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       firstCollectionPath,
     };
   } catch (initialError) {
-    const err = initialError as Error;
-    if (err instanceof Response && err.status === 302) {
-      throw err;
+    const { isRedirect, isHttpError } = await import("@sveltejs/kit");
+    if (isRedirect(initialError) || isHttpError(initialError)) {
+      throw initialError;
     }
+
+    const err =
+      initialError instanceof Error
+        ? initialError
+        : new Error(String(initialError || "Unknown error"));
 
     logger.error(`Critical error in load function: ${err.message}`, {
       stack: err.stack,

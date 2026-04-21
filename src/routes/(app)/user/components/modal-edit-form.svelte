@@ -252,7 +252,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-xl';
 </script>
 
-<div class="modal-example-form space-y-4 text-black dark:text-white">
+<div class="modal-example-form space-y-4 text-surface-900 dark:text-surface-100">
 	<form class="modal-form {cForm} grid grid-cols-1 gap-4" id="change_user_form" onsubmit={onFormSubmit}>
 		<!-- Username -->
 		<FloatingInput

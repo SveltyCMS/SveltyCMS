@@ -15,12 +15,17 @@ const COLLECTIONS_DIR = path.resolve(process.cwd(), ".compiledCollections");
 const TARGET_FILE_COUNT = parseInt(process.env.BENCHMARK_SCAN_FILES || "120", 10);
 
 async function cleanupMockFiles() {
-  const files = await fs.readdir(COLLECTIONS_DIR).catch(() => []);
-  for (const f of files) {
+  // Purge any mock files in the root dir
+  const rootFiles = await fs.readdir(COLLECTIONS_DIR).catch(() => []);
+  for (const f of rootFiles) {
     if (f.startsWith("mock_")) {
       await fs.rm(path.join(COLLECTIONS_DIR, f), { recursive: true, force: true });
     }
   }
+
+  // Deep purge the 'nested' directory used by benchmarks
+  const nestedPath = path.join(COLLECTIONS_DIR, "nested");
+  await fs.rm(nestedPath, { recursive: true, force: true }).catch(() => {});
 }
 
 async function prepareRealisticScanEnvironment() {
@@ -57,80 +62,82 @@ test("Content Scan Performance (Self-Healing Collections)", async () => {
 
   logger.level = "silent";
 
-  await cleanupMockFiles(); // Start clean
-  await prepareRealisticScanEnvironment();
+  try {
+    await cleanupMockFiles(); // Start clean
+    await prepareRealisticScanEnvironment();
 
-  const { contentSystem } = await import("@src/content");
-  const { cacheService } = await import("@src/databases/cache/cache-service");
+    const { contentSystem } = await import("@src/content");
+    const { cacheService } = await import("@src/databases/cache/cache-service");
 
-  const ITERATIONS = 800;
-  const WARMUP = 80;
-  const RUNS = 4;
+    const ITERATIONS = 800;
+    const WARMUP = 80;
+    const RUNS = 4;
 
-  console.log(`🔬 Running content scan audit (${ITERATIONS} iterations)...`);
+    console.log(`🔬 Running content scan audit (${ITERATIONS} iterations)...`);
 
-  const scanResult = await runBenchmark({
-    name: "Content Scan (Self-Healing)",
-    iterations: ITERATIONS,
-    warmupIterations: WARMUP,
-    concurrency: 1,
-    runs: RUNS,
-    trimOutliers: "iqr",
-    measureMemory: true,
-    onSetup: async () => {
-      // Clear schema cache to force re-scan
-      await cacheService.clearByPattern("schema:*", null);
-      if ((contentSystem as any).clearCache) await (contentSystem as any).clearCache();
-      await stabilize();
-    },
-    onIteration: async () => {
-      const collections = await contentSystem.scanForCollections();
-      if (!Array.isArray(collections) || collections.length === 0) {
-        throw new Error("Scan returned empty or invalid result");
-      }
-    },
-    silent: true,
-  });
+    const scanResult = await runBenchmark({
+      name: "Content Scan (Self-Healing)",
+      iterations: ITERATIONS,
+      warmupIterations: WARMUP,
+      concurrency: 1,
+      runs: RUNS,
+      trimOutliers: "iqr",
+      measureMemory: true,
+      onSetup: async () => {
+        // Clear schema cache to force re-scan
+        await cacheService.clearByPattern("schema:*", null);
+        if ((contentSystem as any).clearCache) await (contentSystem as any).clearCache();
+        await stabilize();
+      },
+      onIteration: async () => {
+        const collections = await contentSystem.scanForCollections();
+        if (!Array.isArray(collections) || collections.length === 0) {
+          throw new Error("Scan returned empty or invalid result");
+        }
+      },
+      silent: true,
+    });
 
-  logger.level = "info";
+    logger.level = "info";
 
-  // ===================================================================
-  // Summary
-  // ===================================================================
-  console.log("\n" + "=".repeat(120));
-  console.log("   📊 SVELTYCMS CONTENT SCAN PERFORMANCE AUDIT");
-  console.log(
-    `   High-Fidelity • ${TARGET_FILE_COUNT} collections • Multi-Extension • Automated Hygiene`,
-  );
-  console.log("=".repeat(120));
+    // ===================================================================
+    // Summary
+    // ===================================================================
+    console.log("\n" + "=".repeat(120));
+    console.log("   📊 SVELTYCMS CONTENT SCAN PERFORMANCE AUDIT");
+    console.log(
+      `   High-Fidelity • ${TARGET_FILE_COUNT} collections • Multi-Extension • Automated Hygiene`,
+    );
+    console.log("=".repeat(120));
 
-  console.log(`| ${"Metric".padEnd(28)} | ${"Value".padEnd(22)} |`);
-  console.log("|" + "-".repeat(28 + 22 + 6) + "|");
+    console.log(`| ${"Metric".padEnd(28)} | ${"Value".padEnd(22)} |`);
+    console.log("|" + "-".repeat(28 + 22 + 6) + "|");
 
-  console.log(
-    `| Average Duration           | ${scanResult.avgMs.toFixed(3)} ms (±${scanResult.marginOfError.toFixed(3)}) |`,
-  );
-  console.log(`| p95 Duration               | ${scanResult.p95Ms.toFixed(3)} ms |`);
-  console.log(`| p99 Duration               | ${scanResult.p99Ms.toFixed(3)} ms |`);
-  console.log(`| Throughput                 | ${scanResult.rps.toFixed(1)} scans/sec |`);
-  console.log(`| RSS Memory Delta           | ${scanResult.rssDelta?.toFixed(2) ?? "—"} MB |`);
-  console.log("=".repeat(120));
+    console.log(
+      `| Average Duration           | ${scanResult.avgMs.toFixed(3)} ms (±${scanResult.marginOfError.toFixed(3)}) |`,
+    );
+    console.log(`| p95 Duration               | ${scanResult.p95Ms.toFixed(3)} ms |`);
+    console.log(`| p99 Duration               | ${scanResult.p99Ms.toFixed(3)} ms |`);
+    console.log(`| Throughput                 | ${scanResult.rps.toFixed(1)} scans/sec |`);
+    console.log(`| RSS Memory Delta           | ${scanResult.rssDelta?.toFixed(2) ?? "—"} MB |`);
+    console.log("=".repeat(120));
 
-  console.log(`\n✨ Insights:`);
-  console.log(
-    `   • Scanning ${TARGET_FILE_COUNT} collections takes ~${scanResult.avgMs.toFixed(2)} ms on average`,
-  );
-  console.log(`   • Memory delta shows schema parsing and metadata index overhead`);
+    console.log(`\n✨ Insights:`);
+    console.log(
+      `   • Scanning ${TARGET_FILE_COUNT} collections takes ~${scanResult.avgMs.toFixed(2)} ms on average`,
+    );
+    console.log(`   • Memory delta shows schema parsing and metadata index overhead`);
 
-  // Structured Matrix Exports (Infrastructure v2)
-  exportMetric("internals.scan.avg", scanResult.avgMs, "ms", {
-    p95: scanResult.p95Ms,
-    fileCount: TARGET_FILE_COUNT,
-  });
+    // Structured Matrix Exports (Infrastructure v2)
+    exportMetric("internals.scan.avg", scanResult.avgMs, "ms", {
+      p95: scanResult.p95Ms,
+      fileCount: TARGET_FILE_COUNT,
+    });
 
-  exportResult({ ...scanResult, fileCount: TARGET_FILE_COUNT, scanType: "self-healing" });
-
-  // Cleanup after benchmark
-  await cleanupMockFiles();
-  console.log("\n✅ Content Scan benchmark completed and cleaned up.");
+    exportResult({ ...scanResult, fileCount: TARGET_FILE_COUNT, scanType: "self-healing" });
+  } finally {
+    // Cleanup after benchmark
+    await cleanupMockFiles();
+    console.log("\n✅ Content Scan benchmark completed and cleaned up.");
+  }
 }, 300000);

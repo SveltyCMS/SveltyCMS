@@ -8,14 +8,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-const AUTHOR_COUNT = Number(process.env.AUTHOR_COUNT ?? 10);
-const POSTS_PER_AUTHOR = Number(process.env.POSTS_PER_AUTHOR ?? 5);
-const TENANT_ID = process.env.TENANT_ID || null;
+export const AUTHOR_COUNT = Number(process.env.AUTHOR_COUNT ?? 10);
+export const POSTS_PER_AUTHOR = Number(process.env.POSTS_PER_AUTHOR ?? 5);
+export const TENANT_ID = process.env.TENANT_ID || null;
 
 const COLLECTIONS = {
   AUTHORS: {
-    _id: "Authors",
-    name: "Authors",
+    _id: "benchmark_authors",
+    name: "benchmark_authors",
     icon: "mdi:account-details",
     fields: [
       { label: "Name", db_fieldName: "name", widget: { Name: "Input" }, required: true },
@@ -23,8 +23,8 @@ const COLLECTIONS = {
     ],
   },
   POSTS: {
-    _id: "Posts",
-    name: "Posts",
+    _id: "benchmark_posts",
+    name: "benchmark_posts",
     icon: "mdi:post",
     fields: [
       { label: "Title", db_fieldName: "title", widget: { Name: "Input" } },
@@ -32,7 +32,7 @@ const COLLECTIONS = {
         label: "Author",
         db_fieldName: "author",
         widget: { Name: "Relation" },
-        collection: "Authors",
+        collection: "benchmark_authors",
         multiple: false,
       },
     ],
@@ -83,8 +83,8 @@ async function setupCollections(cms: any): Promise<{ authorsId: string; postsId:
 
   const collections = await cms.collections.list({ tenantId: TENANT_ID as any });
 
-  const authorsCollection = collections.find((c: any) => c.name === "Authors");
-  const postsCollection = collections.find((c: any) => c.name === "Posts");
+  const authorsCollection = collections.find((c: any) => c.name === "benchmark_authors");
+  const postsCollection = collections.find((c: any) => c.name === "benchmark_posts");
 
   const authorsId = authorsCollection?._id ?? COLLECTIONS.AUTHORS._id;
   const postsId = postsCollection?._id ?? COLLECTIONS.POSTS._id;
@@ -137,7 +137,7 @@ async function seedData(cms: any, authorsId: string, postsId: string): Promise<v
   log(`Successfully seeded ${authors.length} authors and ${posts.length} posts`);
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   try {
     log("Starting benchmark data setup...");
 
@@ -180,4 +180,10 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+// Only execute if this is the main entry point
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error("❌ Setup failed:", err);
+    process.exit(1);
+  });
+}

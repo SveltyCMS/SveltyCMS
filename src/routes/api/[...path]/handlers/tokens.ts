@@ -39,10 +39,19 @@ export async function handleWebsiteTokenRoutes(
     const sort = url.searchParams.get("sort") ?? "createdAt";
     const order = url.searchParams.get("order") ?? "desc";
     const result = await cms.websiteTokens.list({ tenantId, page, limit, sort, order });
-    // Integration tests expect an object with 'data' property even if raw=true
+    // Standardize structure: { success, data, pagination }
     return url.searchParams.get("raw") === "true"
       ? rawResponse(event, { data: result.data })
-      : rawResponse(event, { success: true, ...result });
+      : rawResponse(event, {
+          success: true,
+          data: result.data,
+          pagination: {
+            totalItems: result.pagination.totalItems,
+            page,
+            limit,
+            totalPages: Math.ceil(result.pagination.totalItems / limit),
+          },
+        });
   }
 
   if (request.method === "POST") {
@@ -65,12 +74,15 @@ export async function handleIdentityTokenRoutes(
   cms: LocalCMS,
   tenantId: DatabaseId,
   method: string,
-  _segments: string[],
+  segments: string[],
 ) {
   const { request, url, locals } = event;
 
+  // Use segments to handle cases where method is part of the path (e.g. /api/token/createToken -> segments=["token", "createToken"])
+  const action = segments[1] || method;
+
   if (request.method === "GET") {
-    const tokenId = method;
+    const tokenId = action;
     if (!tokenId || tokenId === "list") {
       if (!locals.user) throw new AppError("Authentication required", 401);
       const result = await cms.auth.tokens.list({
@@ -81,9 +93,22 @@ export async function handleIdentityTokenRoutes(
         sort: url.searchParams.get("sort") || undefined,
         order: (url.searchParams.get("order") as "asc" | "desc") || "desc",
       });
+
+      // Standardize structure: { success, data, pagination }
       return url.searchParams.get("raw") === "true"
         ? rawResponse(event, result.data)
-        : rawResponse(event, { success: true, ...result }); // Flat structure for tests
+        : rawResponse(event, {
+            success: true,
+            data: result.data,
+            pagination: {
+              totalItems: result.pagination.totalItems,
+              page: Number(url.searchParams.get("page")) || 1,
+              limit: Number(url.searchParams.get("limit")) || 10,
+              totalPages: Math.ceil(
+                result.pagination.totalItems / (Number(url.searchParams.get("limit")) || 10),
+              ),
+            },
+          });
     }
 
     // Try finding by ID first
@@ -120,7 +145,8 @@ export async function handleIdentityTokenRoutes(
 
   if (request.method === "POST") {
     const body = await request.json();
-    if (method === "create-token") {
+    const normalizedAction = action.toLowerCase().replace("-", "");
+    if (normalizedAction === "createtoken") {
       if (body.expiresIn && !body.expires) body.expires = body.expiresIn;
       const result = await cms.auth.tokens.create({ ...body, userId: locals.user?._id, tenantId });
       if (!result.success) throw new AppError(result.message || "Failed to create token", 400);
@@ -128,21 +154,18 @@ export async function handleIdentityTokenRoutes(
       return rawResponse(
         event,
         { success: true, token: { value: tokenValue, token: tokenValue } },
-        200, // Satisfy legacy test expectation
+        200,
       );
     }
-    if (method === "batch") {
-      const { tokenIds, action } = body;
-      const batchAction = action || body.batchAction;
+    if (normalizedAction === "batch") {
+      const { tokenIds, action: batchAction } = body;
+      const act = batchAction || body.batchAction;
       if (!Array.isArray(tokenIds) || tokenIds.length === 0) {
         throw new AppError("tokenIds must be a non-empty array", 400);
       }
-      return successResponse(
-        event,
-        await cms.auth.tokens.batchAction(tokenIds, batchAction, tenantId),
-      );
+      return successResponse(event, await cms.auth.tokens.batchAction(tokenIds, act, tenantId));
     }
-    if (method === "resolve") {
+    if (normalizedAction === "resolve") {
       const locale = (locals as any).locale || "en";
       return successResponse(event, {
         resolved: await cms.auth.tokens.resolve(body.text, locals.user, tenantId, locale),

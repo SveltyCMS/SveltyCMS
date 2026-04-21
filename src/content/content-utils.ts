@@ -5,7 +5,7 @@
  * Safe for both client-side UI and server-side reconciliation.
  */
 import { contentStore } from "@stores/content-store.svelte";
-import type { ContentNode, NavigationNode, MinimalContentNode, Schema } from "./types";
+import type { ContentNode, NavigationNode, Schema } from "./types";
 import { logger } from "@utils/logger";
 
 // --- PURE UTILITIES ---
@@ -13,22 +13,54 @@ import { logger } from "@utils/logger";
 /**
  * Generates category nodes based on the hierarchical paths of collection files.
  */
-export function generateCategoryNodesFromPaths(files: Schema[]): Map<string, MinimalContentNode> {
-  const folders = new Map<string, MinimalContentNode>();
+export function generateCategoryNodesFromPaths(
+  files: Schema[],
+  tenantId?: string | null,
+): ContentNode[] {
+  const folders = new Map<string, ContentNode>();
+  const now = new Date().toISOString();
 
   for (const file of files) {
     if (!file.path) continue;
+
     const parts = file.path.split("/").filter(Boolean);
-    let path = "";
+    // Parts: ["collection", "subfolder", "posts"]
+
+    let currentPath = "";
+    let parentId: any = null;
+
     for (let i = 0; i < parts.length - 1; i++) {
-      const name = parts[i];
-      path = `${path}/${name}`;
-      if (!folders.has(path)) {
-        folders.set(path, { name, path, nodeType: "category" });
+      const segment = parts[i];
+      // Skip the root 'collection' segment which is just a path prefix
+      if (segment.toLowerCase() === "collection") {
+        currentPath = "/collection";
+        continue;
       }
+
+      const segmentPath = `${currentPath}/${segment.toLowerCase()}`;
+
+      if (!folders.has(segmentPath)) {
+        const node: ContentNode = {
+          _id: segmentPath.replace(/\//g, "_") as any, // Deterministic ID based on path
+          name: segment.charAt(0).toUpperCase() + segment.slice(1),
+          path: segmentPath,
+          nodeType: "category",
+          icon: "mdi:folder",
+          tenantId: tenantId as any,
+          parentId: parentId,
+          createdAt: now as any,
+          updatedAt: now as any,
+          order: 999,
+          source: "filesystem",
+        };
+        folders.set(segmentPath, node);
+      }
+
+      parentId = folders.get(segmentPath)!._id;
+      currentPath = segmentPath;
     }
   }
-  return folders;
+  return Array.from(folders.values());
 }
 
 /**

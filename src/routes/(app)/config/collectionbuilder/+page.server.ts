@@ -104,6 +104,10 @@ export const actions: Actions = {
       }));
 
       await contentSystem.upsertContentNodes(operations, locals.tenantId);
+
+      // ✨ FORCE REFRESH: Ensure the system and navigation caches are updated immediately
+      await contentSystem.refresh(locals.tenantId);
+
       return { success: true };
     } catch (err) {
       logger.error("Error deleting collections:", err);

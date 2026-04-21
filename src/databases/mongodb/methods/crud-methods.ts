@@ -254,10 +254,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
           query,
           { $set: updateData },
           {
-            upsert: false,
             returnDocument: "after",
             lean: true,
             runValidators: true,
+            // 🚀 Mongoose Performance: Skip redundant update object cloning
+            cloneUpdate: false,
           },
         )
         .exec();
@@ -292,7 +293,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const secureQuery = safeQuery(query, options.tenantId as string, {
         bypassTenantCheck: options.bypassTenantCheck,
       });
-      const updateOptions: any = {};
+      const updateOptions: any = { cloneUpdate: false };
       if (options.hints?.writeConcern) {
         updateOptions.w = options.hints.writeConcern;
       }
@@ -326,7 +327,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
         bypassTenantCheck: options.bypassTenantCheck,
       });
       const now = nowISODateString();
-      const upsertOptions: any = { returnDocument: "after", upsert: true, runValidators: true };
+      const upsertOptions: any = {
+        returnDocument: "after",
+        upsert: true,
+        runValidators: true,
+        cloneUpdate: false,
+      };
       if (options.hints?.writeConcern) {
         upsertOptions.w = options.hints.writeConcern;
       }
@@ -536,6 +542,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
             returnDocument: "after",
             lean: true,
             runValidators: true,
+            cloneUpdate: false,
           },
         )
         .exec();

@@ -194,8 +194,11 @@ export async function startServer(
   });
 
   const stop = async () => {
+    if (globalServerProcess === workerProcess) globalServerProcess = null;
     await killProcess(workerProcess);
   };
+
+  globalServerProcess = workerProcess;
 
   return new Promise((resolve, reject) => {
     let resolved = false;
@@ -310,9 +313,9 @@ export async function writeTestConfig(db: DatabaseConfig, dbName: string): Promi
     `  DB_USER: ${JSON.stringify(db.user)},`,
     `  DB_PASSWORD: ${JSON.stringify(db.password)},`,
     `  TEST_API_SECRET: ${JSON.stringify(TEST_API_SECRET)},`,
-    `  JWT_SECRET_KEY: ${JSON.stringify(JWT_SECRET_KEY)},`,
+    `  JWT_SECRET_KEY: ${JSON.stringify(JWT_SECRET_KEY || "Benchmark-JWT-Secret-Key-2026-Change-Me")},`,
     `  JWT_EXPIRES_IN: ${JSON.stringify(JWT_EXPIRES_IN)},`,
-    `  ENCRYPTION_KEY: ${JSON.stringify(ENCRYPTION_KEY)},`,
+    `  ENCRYPTION_KEY: ${JSON.stringify(ENCRYPTION_KEY || "Benchmark-Encryption-Key-2026-Must-Be-32-Chars!!")},`,
     `  PASSWORD_MIN_LENGTH: 8,`,
     `  MULTI_TENANT: false,`,
     `};`,
@@ -391,6 +394,7 @@ export async function runSystemSetup(
   dbConf: DatabaseConfig,
   workerPort: number,
   workerDbName: string,
+  overrides: NodeJS.ProcessEnv = {},
 ): Promise<boolean> {
   log.info(`Running system setup for ${dbConf.type}...`);
   const env: NodeJS.ProcessEnv = {
@@ -408,6 +412,7 @@ export async function runSystemSetup(
     ENCRYPTION_KEY,
     PASSWORD_MIN_LENGTH: "8",
     TEST_MODE: "true",
+    ...overrides,
   };
 
   return new Promise((resolve) => {

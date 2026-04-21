@@ -263,7 +263,7 @@ function enqueue(level: LogLevel, msg: string, args: unknown[]) {
     const pretty = colorMessage(msg);
     const ts = pc.gray(new Date().toISOString().slice(0, 19).replace("T", " "));
     process.stdout.write(
-      `${ts} ${color(`${icon} [${level.toUpperCase().padEnd(5)}]`)} ${pretty.replace(/\r?\n/g, " ")} ${argsStr.replace(/\r?\n/g, " ")}\n`,
+      `${ts} ${color(`${icon} [${level.toUpperCase().padEnd(5)}]`)} ${pretty.replace(/[\r\n]+/g, " ").trim()} ${argsStr.replace(/[\r\n]+/g, " ").trim()}\n`,
     );
   }
 

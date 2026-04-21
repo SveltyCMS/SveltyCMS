@@ -1,7 +1,7 @@
 /**
  * @file tests/benchmarks/benchmark-utils.ts
  * @description Professional, high-fidelity benchmarking utilities for SveltyCMS.
- *              Supports latency & throughput modes, rich statistics, and easy integration.
+ * Supports latency & throughput modes, rich statistics, and easy integration.
  */
 
 import { performance } from "node:perf_hooks";
@@ -327,8 +327,13 @@ function printReport(r: BenchmarkResult, memAfter?: any, memBefore?: any) {
  * Exports results to a JSON file. Now supports partial results (e.g. suites/phases).
  */
 export function exportResult(result: Partial<BenchmarkResult> & { name: string }, filename?: any) {
-  const dir = process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
-  fs.mkdirSync(dir, { recursive: true });
+  const dbType = process.env.DB_TYPE || "unknown";
+  const baseDir = process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
+
+  // 🚀 FIX: Prevent double-nesting if baseDir already ends with dbType
+  const dir = baseDir.endsWith(dbType) ? baseDir : path.join(baseDir, dbType);
+
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
   const safeName = result.name
     .toLowerCase()
@@ -338,6 +343,14 @@ export function exportResult(result: Partial<BenchmarkResult> & { name: string }
   // If filename is not a string (e.g. from forEach), use safeName
   const finalFilename = typeof filename === "string" ? filename : `${safeName}.json`;
   const filePath = path.join(dir, finalFilename);
+
+  // Add scriptPath if we can detect it (best effort for reporter matching)
+  if (!result.scriptPath && typeof process.argv[1] === "string") {
+    const fullPath = process.argv[1];
+    if (fullPath.includes("tests/benchmarks/")) {
+      result.scriptPath = fullPath.split("tests/benchmarks/")[1].replace(/^/, "tests/benchmarks/");
+    }
+  }
 
   fs.writeFileSync(filePath, JSON.stringify(result, null, 2));
 }
@@ -402,6 +415,7 @@ export async function mockDispatch(
   const customHeaders = isString ? {} : pathOrEvent.headers || {};
 
   if (!path.startsWith("/")) path = "/" + path;
+  if (path.startsWith("/api/")) path = path.replace("/api/", "/");
 
   // 🚀 FIX: If API_BASE_URL is set, perform a real network fetch
   const apiBase = process.env.API_BASE_URL;
@@ -451,7 +465,6 @@ export async function mockDispatch(
 
 /**
  * Standardised metric export for the enterprise orchestrator.
- * Decouples benchmark content from report collection logic.
  */
 export function exportMetric(
   name: string,
@@ -468,11 +481,77 @@ export function exportMetric(
     metadata: extra,
   };
 
-  const dir = process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
+  const dbType = process.env.DB_TYPE || "unknown";
+  const baseDir = process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
+
+  // 🚀 FIX: Prevent double-nesting if baseDir already ends with dbType
+  const dir = baseDir.endsWith(dbType) ? baseDir : path.join(baseDir, dbType);
+
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
   const slug = name.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
   const filePath = path.join(dir, `${slug}.json`);
 
   fs.writeFileSync(filePath, JSON.stringify(metric, null, 2));
+}
+
+/**
+ * Lifecycle helper for benchmarks to manage their own SveltyCMS instance.
+ */
+export async function setupBenchmarkServer() {
+  const { startServer } = await import("../../scripts/benchmark-matrix/server");
+  const { ALL_DATABASES } = await import("../../scripts/benchmark-matrix/config");
+
+  const dbType = process.env.DB_TYPE || "sqlite";
+  const dbConf =
+    ALL_DATABASES.find((d) => (d.useRedis ? `${d.type}-redis` : d.type) === dbType) ||
+    ALL_DATABASES[0];
+
+  const port = 4173 + (process.pid % 100);
+  const dbName = `bench_tmp_${process.pid}`;
+
+  // Silence logger for the server
+  process.env.LOG_LEVEL = "silent";
+  process.env.DISABLE_AUDIT_LOGS = "true";
+  process.env.API_BASE_URL = `http://127.0.0.1:${port}`;
+
+  const { stop } = await startServer(dbConf, port, dbName);
+
+  return {
+    baseUrl: process.env.API_BASE_URL,
+    stop,
+  };
+}
+
+/**
+ * Automatically update the benchmark documentation matrix.
+ * Triggered if BENCHMARK_UPDATE_DOCS=1 or in CI mode.
+ */
+export async function updateBenchmarkDocumentation(): Promise<void> {
+  if (process.env.BENCHMARK_UPDATE_DOCS !== "1" && !process.env.CI) return;
+
+  console.log("\n📄 Regenerating centralized benchmark report...");
+
+  try {
+    // Dynamic import to avoid circular dependencies and only load when needed
+    const { generateFinalReport } = await import("../../scripts/benchmark-matrix/reporting");
+    await generateFinalReport([], {
+      parallelMode: "off",
+      skipBuild: true,
+      dbFilter: null,
+      sectionFilter: null,
+      levelFilter: null,
+      onlyFilter: null,
+      fileFilter: null,
+      skipRedis: false,
+      retryCount: 0,
+      timeoutMs: 30000,
+      warmup: false,
+      ci: !!process.env.CI,
+      list: false,
+    });
+    console.log("✅ benchmarks.mdx updated successfully.");
+  } catch (err: any) {
+    console.error("Failed to update report:", err.message);
+  }
 }

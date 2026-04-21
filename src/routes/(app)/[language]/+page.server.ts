@@ -31,19 +31,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     // Fallback if no collections found - go to collection builder
     logger.warn("[Language Redirect] No collections found for redirection, using builder fallback");
     throw redirect(302, "/config/collectionbuilder");
-  } catch (error) {
-    // Respect SvelteKit's redirect behavior
-    if (
-      error &&
-      typeof error === "object" &&
-      "status" in error &&
-      (error as { status: number }).status === 302
-    ) {
-      throw error;
+  } catch (err) {
+    // Re-throw SvelteKit's internal redirect and error exceptions
+    const { isRedirect, isHttpError } = await import("@sveltejs/kit");
+    if (isRedirect(err) || isHttpError(err)) {
+      throw err;
     }
 
     logger.error("Error in language redirect, falling back to root", {
-      error,
+      error: err,
       language,
       tenantId,
     });

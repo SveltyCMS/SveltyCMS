@@ -109,6 +109,7 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
     return {
       theme: theme || DEFAULT_THEME,
       tenantId,
+      isAdmin: locals.isAdmin,
       // Streamed data (Promises)
       contentStructure: contentPromise.then(async () => {
         const nodes = await contentSystem.getContentStructure(tenantId);

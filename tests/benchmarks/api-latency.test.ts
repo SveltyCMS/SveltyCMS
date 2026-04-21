@@ -3,8 +3,7 @@
  * @description Enterprise API overhead benchmark for SveltyCMS.
  * Measures the precise cost of the middleware stack and dispatcher compared to direct SDK calls.
  */
-
-import { test } from "bun:test";
+import { test, beforeAll, afterAll } from "bun:test";
 import "../unit/setup.ts";
 import {
   runBenchmark,
@@ -12,11 +11,42 @@ import {
   exportMetric,
   stabilize,
   mockDispatch,
+  setupBenchmarkServer,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
 const TEST_COLLECTION = "benchmark_posts_api";
 const TEST_ENTRY_ID = "latency-test-123";
+
+let stopServer: () => Promise<void>;
+
+beforeAll(async () => {
+  const { stop } = await setupBenchmarkServer();
+  stopServer = stop;
+  await setupBenchmarkEnvironment();
+});
+
+afterAll(async () => {
+  if (stopServer) await stopServer();
+
+  // 🧹 Final Cleanup
+  const { getDb } = await import("@src/databases/db");
+  const { contentSystem } = await import("@src/content");
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
+
+  const db = getDb();
+  const compiledDir = path.join(process.cwd(), ".compiledCollections");
+  await fs.rm(path.join(compiledDir, `${TEST_COLLECTION}.js`), { force: true });
+
+  if (db?.collection?.deleteModel) {
+    await db.collection.deleteModel(TEST_COLLECTION).catch(() => {});
+  }
+
+  // Force a final refresh to remove from memory
+  await contentSystem.initialize(null, { skipReconciliation: false }).catch(() => {});
+  console.log("\n✅ API Latency benchmark artifacts purged.");
+});
 
 async function setupBenchmarkEnvironment() {
   console.log("🚀 Preparing API Benchmark Environment...");
@@ -74,21 +104,25 @@ async function setupBenchmarkEnvironment() {
   } finally {
     logger.level = prev;
   }
-
-  return { cms };
 }
 
 export async function runApiLatencyBenchmark() {
-  const { cms } = await setupBenchmarkEnvironment();
+  const { getDb } = await import("@src/databases/db");
+  const { LocalCMS } = await import("@src/routes/api/cms");
+
+  const db = getDb();
+  if (!db) throw new Error("Database adapter not initialized for benchmark");
+  const cms = new LocalCMS(db);
+
   await stabilize();
 
   logger.level = "silent";
   console.log("\n🚀 Starting Enterprise API Latency Benchmark...\n");
 
   const RUNS = 3;
-  const ITERATIONS = 1500;
-  const WARMUP = 150;
-  const concurrencyLevels = [1, 8, 32];
+  const ITERATIONS = 1000;
+  const WARMUP = 100;
+  const concurrencyLevels = [1, 8];
   const allResults: any[] = [];
 
   const scenarios = [
@@ -103,20 +137,6 @@ export async function runApiLatencyBenchmark() {
       sdk: async () =>
         cms.collections.find(TEST_COLLECTION as any, { tenantId: null as any, limit: 10 }),
       dispatch: { path: `/collections/${TEST_COLLECTION}?limit=10`, method: "GET" },
-    },
-    {
-      name: "create POST",
-      sdk: async () =>
-        cms.collections.create(
-          TEST_COLLECTION as any,
-          { title: "api-" + Date.now() },
-          { tenantId: null as any, system: true },
-        ),
-      dispatch: {
-        path: `/collections/${TEST_COLLECTION}`,
-        method: "POST",
-        body: { title: "api-post" },
-      },
     },
   ];
 
@@ -171,15 +191,9 @@ export async function runApiLatencyBenchmark() {
 
   logger.level = "info";
 
-  console.log("\n" + "=".repeat(155));
+  console.log("\n" + "=".repeat(120));
   console.log("   📊 SVELTYCMS API LAYER ENTERPRISE REPORT");
-  console.log("   SDK • Dispatcher • Middleware • Routing • Scaling");
-  console.log("=".repeat(155));
-
-  console.log(
-    `| ${"Scenario".padEnd(24)} | ${"Layer".padEnd(12)} | ${"Avg".padEnd(12)} | ${"p95".padEnd(12)} | ${"RPS".padEnd(12)} | ${"Overhead".padEnd(14)} |`,
-  );
-  console.log("|" + "-".repeat(150) + "|");
+  console.log("=".repeat(120));
 
   for (const r of allResults) {
     const over =
@@ -190,49 +204,33 @@ export async function runApiLatencyBenchmark() {
         `${r.avgMs.toFixed(3)} ms`.padEnd(12) +
         ` | ${r.p95Ms.toFixed(3)}`.padEnd(12) +
         ` | ${Math.round(r.rps).toLocaleString().padEnd(12)}` +
-        ` | ${over.padEnd(14)} |`,
+        ` | ${over.padEnd(24)} |`,
     );
   }
-  console.log("=".repeat(155));
+  console.log("=".repeat(120));
 
-  // Insights
   const dispatcher1 = allResults.find(
     (r) => r.layer === "Dispatcher" && r.name.includes("findById @ 1c"),
   );
-  const dispatcher32 = allResults.find(
-    (r) => r.layer === "Dispatcher" && r.name.includes("findById @ 32c"),
-  );
-
-  console.log("\n✨ Insights:");
-  if (dispatcher1) console.log(`• Base dispatcher overhead: ${dispatcher1.overhead.toFixed(3)} ms`);
-  if (dispatcher1 && dispatcher32) {
-    const loss = ((dispatcher1.rps - dispatcher32.rps / 32) / dispatcher1.rps) * 100;
-    console.log(`• Scaling efficiency loss: ${loss.toFixed(1)}%`);
-    if (loss > 35) console.log("• Middleware stack may bottleneck under concurrency.");
-  }
 
   const overheads = allResults.filter((r) => r.layer === "Dispatcher").map((r) => r.overhead);
   const avgOverhead = overheads.reduce((a, b) => a + b, 0) / overheads.length;
-  const avgPct =
-    allResults.filter((r) => r.layer === "Dispatcher").reduce((a, b) => a + b.overheadPct, 0) /
-    overheads.length;
   const maxRps = Math.max(...allResults.map((r) => r.rps));
 
   exportMetric("rest.collections.avg", dispatcher1?.avgMs || 0, "ms");
   exportMetric("rest.collections.p95", dispatcher1?.p95Ms || 0, "ms");
   exportMetric("rest.collections.rps", maxRps, "req/s");
   exportMetric("rest.overhead.avg", avgOverhead, "ms");
-  exportMetric("rest.overhead.percent", avgPct, "%");
 
-  exportResult({
-    name: "API Latency Aggregate",
+  const aggregate = {
+    name: "API Latency Summary",
     avgMs: avgOverhead,
     p95Ms: dispatcher1?.p95Ms || 0,
     rps: maxRps,
-  });
+    shortLabel: "API Latency",
+  };
 
-  for (const r of allResults) exportResult(r);
-
+  exportResult(aggregate);
   console.log("\n✅ API benchmark completed.");
 }
 

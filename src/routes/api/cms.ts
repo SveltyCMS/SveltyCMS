@@ -833,12 +833,21 @@ class CollectionsNamespace {
         console.log(`🟢 [LocalCMS] Corrected 'collection' from prototype.`);
         (this._dbAdapter as any).collection = proto.collection;
       } else {
-        (this._dbAdapter as any).collection = {
-          getModel: () => ({
-            findOne: () => Promise.resolve(null),
-            aggregate: () => Promise.resolve([]),
-          }),
-        };
+        (this._dbAdapter as any).collection = new Proxy(
+          {},
+          {
+            get: (_, subProp) => {
+              if (subProp === "getModel") {
+                return () => ({
+                  findOne: () => Promise.resolve(null),
+                  aggregate: () => Promise.resolve([]),
+                  find: () => ({ lean: () => ({ exec: () => Promise.resolve([]) }) }),
+                });
+              }
+              return () => Promise.resolve({ success: false, message: "Interface initializing" });
+            },
+          },
+        );
       }
     }
 
@@ -896,14 +905,24 @@ class CollectionsNamespace {
   }
 
   private async getSchema(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema> {
-    const schema = await contentSystem.getCollectionById(collectionId, tenantId);
+    let schema = await contentSystem.getCollectionById(collectionId, tenantId);
+
+    // 🕊️ CASE-INSENSITIVE FALLBACK: Highly critical for synthetic workloads and REST consistency
     if (!schema?._id) {
-      console.error(`[LocalCMS] Collection "${collectionId}" not found for tenant: ${tenantId}`);
-      console.error(
-        `[LocalCMS] Available collections:`,
-        (contentSystem.getCollections(tenantId) || []).map((c: any) => c._id),
+      const all = await contentSystem.getCollections(tenantId);
+      schema = all.find((c) => c._id?.toLowerCase() === collectionId.toLowerCase());
+    }
+
+    if (!schema?._id) {
+      const available = (await contentSystem.getCollections(tenantId)).map((c: any) => c._id);
+      logger.error(`[LocalCMS] Collection "${collectionId}" not found for tenant: ${tenantId}`);
+      logger.debug(`[LocalCMS] Available collections: ${available.join(", ")}`);
+
+      throw new AppError(
+        `Collection "${collectionId}" not found. Available: ${available.join(", ")}`,
+        404,
+        "COLLECTION_NOT_FOUND",
       );
-      throw new AppError(`Collection "${collectionId}" not found`, 404, "COLLECTION_NOT_FOUND");
     }
 
     // 🚀 Performance & Stability: Ensure the adapter has the model registered
@@ -1809,6 +1828,14 @@ class MediaNamespace {
  */
 class WidgetsNamespace {
   constructor(private _dbAdapter: IDBAdapter) {}
+
+  async getActiveWidgets() {
+    // Resilience: If system is still warming up, the adapter might not have initialized these methods yet.
+    if (!this._dbAdapter.system?.widgets?.getActiveWidgets) {
+      return { success: true, data: [] };
+    }
+    return this._dbAdapter.system.widgets.getActiveWidgets();
+  }
 
   async list(tenantId: string = "default-tenant") {
     const { widgets, getWidgetDependencies } = await import("@src/stores/widget-store.svelte.ts");

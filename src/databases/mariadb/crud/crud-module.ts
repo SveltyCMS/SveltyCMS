@@ -5,7 +5,7 @@
 
 import { nowISODateString } from "@src/utils/date-utils";
 import { safeQuery } from "@src/utils/security/safe-query";
-import { count, eq, inArray, placeholder } from "drizzle-orm";
+import { count, eq, inArray, placeholder, sql } from "drizzle-orm";
 import type {
   ICrudAdapter,
   BaseEntity,
@@ -94,6 +94,7 @@ export class CrudModule implements ICrudAdapter {
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
           | undefined;
+
         const results = await db
           .select()
           .from(table as unknown as import("drizzle-orm/mysql-core").MySqlTable)
@@ -189,24 +190,37 @@ export class CrudModule implements ICrudAdapter {
   /**
    * Prepares values for insert/update by separating fixed schema columns from dynamic data.
    */
-  private prepareValues(table: any, data: any, id: DatabaseId, now: Date, options: any) {
+  private prepareValues(table: any, data: any, id: DatabaseId, _now: Date, options: any) {
     const fixedColumns = ["_id", "tenantId", "status", "createdAt", "updatedAt", "data"];
+
+    // Use SQL expressions for core timestamps to ensure DB-level precision and avoid JS serialization bugs
     const values: any = {
       _id: id,
       tenantId: options.tenantId || data.tenantId || null,
       status: data.status || "draft",
-      createdAt: data.createdAt || now,
-      updatedAt: now,
+      createdAt: data.createdAt
+        ? typeof data.createdAt === "string"
+          ? new Date(data.createdAt)
+          : data.createdAt
+        : sql`CURRENT_TIMESTAMP`,
+      updatedAt: sql`CURRENT_TIMESTAMP`,
     };
 
+    // Deep clone data to avoid mutating original, and convert any date strings to Dates for Drizzle
+    const processedData = { ...data };
+    for (const key in processedData) {
+      const val = processedData[key];
+      if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)) {
+        processedData[key] = new Date(val);
+      }
+    }
+
     // Distinguish between dynamic collection tables and static schema tables
-    // Dynamic tables created at runtime ONLY have _id, tenantId, data, status, createdAt, updatedAt.
-    // Static tables (like content_nodes) have path, nodeType, etc.
     const isDynamicTable = table.data && !table.path;
 
     if (isDynamicTable) {
       const extra: any = {};
-      for (const [k, v] of Object.entries(data)) {
+      for (const [k, v] of Object.entries(processedData)) {
         if (!fixedColumns.includes(k)) {
           extra[k] = v;
         }
@@ -214,7 +228,7 @@ export class CrudModule implements ICrudAdapter {
       values.data = extra;
     } else {
       // Static table: copy fields as-is
-      Object.assign(values, data);
+      Object.assign(values, processedData);
 
       // Default values for mandatory content_nodes columns if they are missing
       if (table.path && values.path == null) {
@@ -525,7 +539,7 @@ export class CrudModule implements ICrudAdapter {
           return [];
         }
         const table = this.core.getTable(collection);
-        const now = new Date(nowISODateString());
+        const now = new Date();
         const values = data.map((d) =>
           this.prepareValues(
             table,

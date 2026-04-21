@@ -177,7 +177,9 @@ export const contentSystem = {
   ): Promise<string | null> {
     const first = contentStore.getSmartFirstCollection(tenantId);
     if (!first) return null;
-    return `/${lang}/collection/${first.name}`;
+    // ✨ Redirect to canonical path (e.g. /en/collection/authors) instead of hardcoding /collection
+    const pathValue = first.path || `/collection/${first._id}`;
+    return `/${lang}${pathValue.startsWith("/") ? pathValue : `/${pathValue}`}`;
   },
   async refresh(tenantId?: string | null, skipReconciliation?: boolean, incremental = false) {
     const key = tenantId ?? "__global__";
@@ -271,27 +273,54 @@ export const contentSystem = {
   metrics: contentMetrics,
 
   async upsertContentNodes(operations: ContentNodeOperation[], tenantId?: string | null) {
-    // Fix: upsertContentNodes is a broken stub — now attempts bulk update via service
     const { dbAdapter } = await import("@src/databases/db");
+    if (!dbAdapter || operations.length === 0) return;
 
-    if (dbAdapter && operations.length > 0) {
-      const updates = operations.map((op) => ({
-        path: op.node.path as string,
-        id: (op.node as any).id || op.node._id.toString(),
-        changes: op.node,
-      }));
-      await dbAdapter.content.nodes.bulkUpdate(updates, { tenantId: tenantId as any });
+    const upsertOps = operations.filter((op) => op.type === "upsert" || !op.type);
+    const deleteOps = operations.filter((op) => op.type === "delete");
+
+    // 1. Handle Upserts/Updates
+    if (upsertOps.length > 0) {
+      const updates = upsertOps
+        .map((op) => {
+          const id = (op.node as any).id || op.node._id?.toString();
+          if (!op.node.path) {
+            logger.warn("[upsertContentNodes] Skipping node update due to missing path", op.node);
+            return null;
+          }
+          return {
+            path: op.node.path,
+            id: id,
+            changes: op.node,
+          };
+        })
+        .filter((u): u is { path: string; id: string | undefined; changes: any } => u !== null);
+
+      if (updates.length > 0) {
+        await dbAdapter.content.nodes.bulkUpdate(updates, { tenantId: tenantId as any });
+      }
+    }
+
+    // 2. Handle Deletions
+    if (deleteOps.length > 0) {
+      const pathsToDelete = deleteOps
+        .map((op) => op.node.path)
+        .filter((p): p is string => typeof p === "string" && p.length > 0);
+
+      if (pathsToDelete.length > 0) {
+        logger.info(`[upsertContentNodes] Deleting ${pathsToDelete.length} nodes by path`);
+        await dbAdapter.content.nodes.deleteMany(pathsToDelete, { tenantId: tenantId as any });
+      }
     }
 
     contentStore.updateVersion();
-    logger.debug(`Content updated (${operations.length} nodes upserted)`);
+    logger.debug(`Content structure synced (${operations.length} operations processed)`);
   },
 
   /**
    * Check if the content system is ready for a specific tenant.
    */
   isInitializedForTenant(tenantId: string | null = null): boolean {
-    // Fix: isInitializedForTenant ignores its tenantId parameter — now checks initializationPromises
     const key = tenantId ?? "__global__";
     return contentStore.isInitialized && !initializationPromises.has(key);
   },

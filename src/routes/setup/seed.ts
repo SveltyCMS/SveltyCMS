@@ -296,9 +296,10 @@ export async function seedCollectionsForSetup(
       const updates: { path: string; changes: Partial<ContentNode> }[] = [];
 
       // Add Category Nodes
-      for (const [path, node] of categoryNodes.entries()) {
+      for (const node of categoryNodes) {
+        if (!node.path) continue;
         updates.push({
-          path,
+          path: node.path,
           changes: {
             name: node.name,
             nodeType: "category",

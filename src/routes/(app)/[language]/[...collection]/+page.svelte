@@ -127,42 +127,25 @@ $effect.pre(() => {
 	}
 });
 
-// Sync contentLanguage store with server data
+// Sync contentLanguage and collection schema from server data in a single effect
 $effect(() => {
 	if (serverContentLanguage) {
 		untrack(() => {
-			// Only sync if server language actually changed (indicates new server load)
 			if (serverContentLanguage !== lastServerLanguage) {
-				const currentStoreLanguage = app.contentLanguage;
-				if (currentStoreLanguage !== serverContentLanguage) {
-					logger.debug(
-						"[+page.svelte] Syncing contentLanguage from server:",
-						currentStoreLanguage,
-						"→",
-						serverContentLanguage,
-					);
+				if (app.contentLanguage !== serverContentLanguage) {
+					logger.debug("[+page.svelte] Syncing language:", serverContentLanguage);
 					app.contentLanguage = serverContentLanguage as any;
 				}
 				lastServerLanguage = serverContentLanguage;
 			}
 		});
 	}
-});
 
-// Sync collection schema from server data
-$effect(() => {
 	if (collectionSchema) {
 		untrack(() => {
 			const currentStoreId = collections.active?._id;
-			const schemaId = collectionSchema._id;
-			if (currentStoreId !== schemaId) {
-				logger.debug(
-					"[+page.svelte] Syncing collection store:",
-					currentStoreId,
-					"→",
-					schemaId,
-					collectionSchema.name,
-				);
+			if (currentStoreId !== collectionSchema._id) {
+				logger.debug("[+page.svelte] Syncing collection store:", collectionSchema.name);
 				collections.setCollection(collectionSchema);
 			}
 		});
@@ -181,29 +164,24 @@ onMount(() => {
 });
 
 $effect(() => {
-	if (isMounted && typeof window !== "undefined") {
+	if (isMounted && typeof window !== "undefined" && collectionSchema?.path) {
 		const currentPath = page.url.pathname;
 		const collectionIdFromPath = currentPath.split("/").pop() || "";
 		const isUUID = /^[a-f0-9]{32}$/i.test(collectionIdFromPath);
 
-		// Only replace URL if:
-		// 1. The URL contains a UUID
-		// 2. We have a collection schema with a path
-		// 3. The collection schema ID matches the UUID in the URL (ensures data is loaded for correct collection)
-		if (
-			isUUID &&
-			collectionSchema?.path &&
-			collectionSchema._id === collectionIdFromPath
-		) {
+		// Only replace URL if it contains a UUID and we have a corresponding pretty path
+		if (isUUID && collectionSchema._id === collectionIdFromPath) {
 			const newPath = `/${serverContentLanguage}${collectionSchema.path}${page.url.search}`;
 			if (newPath !== currentPath) {
-				logger.debug(
-					`[URL Update] Replacing UUID path with pretty path: ${newPath}`,
-				);
-				// Use SvelteKit's replaceState to avoid interfering with navigation state
-				setTimeout(() => {
-					replaceState(newPath, {});
-				}, 0);
+				logger.debug(`[URL Update] UUID → Pretty: ${newPath}`);
+				untrack(() => {
+					// Use replaceState at the end of the microtask to avoid recursive updates
+					Promise.resolve().then(() => {
+						if (page.url.pathname === currentPath) {
+							replaceState(newPath, {});
+						}
+					});
+				});
 			}
 		}
 	}
@@ -224,38 +202,16 @@ let hasInitiallyLoaded = $state(false);
 let lastCollectionId: string | null = $state(null);
 
 // Track collection changes - when navigating to a different collection, reset state
+// Track collection changes for mode resetting
 $effect(() => {
 	const currentCollectionId = collectionSchema?._id as string | undefined;
 	if (currentCollectionId && currentCollectionId !== lastCollectionId) {
-		logger.debug(
-			"[Collection Change] Detected collection switch:",
-			lastCollectionId,
-			"→",
-			currentCollectionId,
-		);
-		logger.debug(
-			"[Collection Change] New entries count:",
-			entries.length,
-			"pagination:",
-			pagination,
-		);
-
-		// CRITICAL: Sync collection store with server data
-		// This ensures collections.active is updated when navigating between collections
-		if (collectionSchema) {
-			collections.setCollection(collectionSchema);
-			logger.debug(
-				"[Collection Change] Store synced with server data:",
-				collectionSchema.name,
-			);
-		}
-
 		// Reset state tracking for the new collection
 		hasInitiallyLoaded = false;
 		lastEditParam = null;
 		lastUrlString = "";
-		// Update tracking
 		lastCollectionId = currentCollectionId;
+
 		// Set mode to view for new collection (unless URL says otherwise)
 		const editParam = page.url.searchParams.get("edit");
 		const createParam = page.url.searchParams.get("create");

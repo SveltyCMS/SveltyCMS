@@ -17,7 +17,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { and, type Column, eq, isNull, type SQL } from "drizzle-orm";
+import { and, type Column, eq, isNull, type SQL, inArray, ne, gt, gte, lt, lte } from "drizzle-orm";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import type { DatabaseCapabilities, DatabaseError, DatabaseResult } from "../../db-interface";
@@ -50,6 +50,7 @@ export class AdapterCore {
 
   public pool: mysql.Pool | null = null;
   public db: MySql2Database<typeof schema> | null = null;
+  public activeDatabaseName: string = "unknown";
   public crud!: import("../crud/crud-module").CrudModule;
   public batch!: import("../operations/batch-module").BatchModule;
   protected connected = false;
@@ -89,7 +90,7 @@ export class AdapterCore {
       if (typeof finalConnection === "string") {
         poolConfig = { uri: finalConnection, connectionLimit: 100, connectTimeout: 30000 };
       } else {
-        const c = finalConnection as any;
+        const c = connection as any;
         // Strictly only include valid MariaDB driver options
         poolConfig = {
           host: c.host || c.DB_HOST || "127.0.0.1",
@@ -109,34 +110,67 @@ export class AdapterCore {
       }
 
       this.pool = mysql.createPool(poolConfig);
+      this.activeDatabaseName =
+        poolConfig.database ||
+        (poolConfig.uri ? new URL(poolConfig.uri).pathname.slice(1) : "unknown");
       this.db = drizzle(this.pool, { schema, mode: "default" });
 
       // Verification: Ensure the connection is actually established
       try {
+        // Force READ COMMITTED isolation to prevent stale structural views during high-concurrency bootstrap
+        await this.pool.query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
         await this.pool.query("SELECT 1");
       } catch (err: any) {
-        logger.error(`Initial MariaDB connection check failed (Code: ${err.code}):`, err.message);
-        // If database doesn't exist (code ER_BAD_DB_ERROR in MariaDB/MySQL)
-        if (err.code === "ER_BAD_DB_ERROR") {
+        if (process.env.SVELTY_AUDIT_ACTIVE || process.env.BENCHMARK_DEBUG) {
+          logger.error(
+            `Initial MariaDB connection check failed (Code: ${err.code || "N/A"}):`,
+            err.message,
+          );
+        }
+
+        // If database doesn't exist (code ER_BAD_DB_ERROR in MariaDB/MySQL, or 1049)
+        const isMissingDb =
+          err.code === "ER_BAD_DB_ERROR" ||
+          err.errno === 1049 ||
+          err.message?.includes("Unknown database");
+
+        if (isMissingDb) {
           let dbName = "";
           if (typeof connection === "string") {
-            const url = new URL(connection);
-            dbName = url.pathname.slice(1);
+            try {
+              const url = new URL(connection);
+              dbName = url.pathname.slice(1);
+            } catch {
+              // Not a URL, maybe it's the DB name itself?
+              dbName = connection;
+            }
           } else {
-            dbName = (connection as any).database;
+            const c = connection as any;
+            dbName = c.database || c.DB_NAME || c.databaseName;
           }
 
           if (dbName) {
-            logger.info(`Database "${dbName}" not found. Attempting to create it...`);
+            logger.info(`[mariadb] Database "${dbName}" not found. Attempting auto-creation...`);
             const adminOptions = { ...poolConfig, database: undefined, connectionLimit: 1 };
             const adminPool = mysql.createPool(adminOptions);
             try {
               await adminPool.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
               logger.info(`Successfully created database "${dbName}".`);
               await adminPool.end();
-              // Reconnect with the sanitized config
+              // Reconnect with the sanitized config, ensuring the database is selected
               await this.pool.end();
-              this.pool = mysql.createPool(poolConfig);
+              const finalPoolConfig =
+                typeof finalConnection === "string"
+                  ? {
+                      ...poolConfig,
+                      uri: finalConnection.includes(dbName)
+                        ? finalConnection
+                        : `${finalConnection.replace(/\/$/, "")}/${dbName}`,
+                    }
+                  : { ...poolConfig, database: dbName };
+
+              this.pool = mysql.createPool(finalPoolConfig);
+              this.activeDatabaseName = dbName;
               this.db = drizzle(this.pool, { schema, mode: "default" });
               await this.pool.query("SELECT 1");
             } catch (createErr) {
@@ -284,7 +318,10 @@ export class AdapterCore {
   public handleError<T>(error: unknown, code: string): DatabaseResult<T> {
     const message = error instanceof Error ? error.message : String(error);
     if (process.env.SVELTY_AUDIT_ACTIVE || process.env.BENCHMARK_DEBUG) {
-      logger.error(`MariaDB adapter error [${code}]:`, error);
+      logger.error(
+        `MariaDB adapter error [${code}] on database "${this.activeDatabaseName}":`,
+        error,
+      );
     } else {
       logger.error(`MariaDB adapter error [${code}]:`, message);
     }
@@ -416,15 +453,45 @@ export class AdapterCore {
     const conditions: SQL[] = [];
     for (const [key, value] of Object.entries(query)) {
       if (key.startsWith("$")) {
-        continue; // Skip MongoDB operators
+        // Handle top-level operators like $or (not implemented yet, but skip for now)
+        continue;
       }
+
       const column = table[key] as Column;
-      if (column) {
-        if (value === null) {
-          conditions.push(isNull(column));
-        } else {
-          conditions.push(eq(column, value as string | number | boolean));
+      if (!column) continue;
+
+      if (value === null) {
+        conditions.push(isNull(column));
+      } else if (typeof value === "object" && !Array.isArray(value)) {
+        // Handle MongoDB-style operators: { field: { $in: [...] } }
+        const obj = value as Record<string, unknown>;
+        for (const [op, val] of Object.entries(obj)) {
+          switch (op) {
+            case "$in":
+              if (Array.isArray(val) && val.length > 0) {
+                conditions.push(inArray(column, val));
+              }
+              break;
+            case "$ne":
+              conditions.push(ne(column, val as any));
+              break;
+            case "$gt":
+              conditions.push(gt(column, val as any));
+              break;
+            case "$gte":
+              conditions.push(gte(column, val as any));
+              break;
+            case "$lt":
+              conditions.push(lt(column, val as any));
+              break;
+            case "$lte":
+              conditions.push(lte(column, val as any));
+              break;
+          }
         }
+      } else {
+        // Simple equality
+        conditions.push(eq(column, value as string | number | boolean));
       }
     }
 

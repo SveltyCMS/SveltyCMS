@@ -19,6 +19,8 @@ import { successResponse, rawResponse } from "./base";
 import { invalidateSessionCache } from "@src/hooks/handle-authentication";
 import { verifyPassword } from "@src/databases/auth";
 import { getPrivateSettingSync } from "@src/services/settings-service";
+import { generateCsrfToken } from "@utils/security/csrf-utils";
+import { dev } from "$app/environment";
 
 export async function handleAuthUserRoutes(
   event: RequestEvent,
@@ -45,15 +47,8 @@ export async function handleAuthUserRoutes(
     }
   }
 
-  // --- Invitation Tokens ---
-  if (namespace === "token") return handleTokenRoutes(event, cms, tenantId, segments);
-  if (method === "get-tokens-provided") {
-    return rawResponse(event, {
-      google: !!getPrivateSettingSync("GOOGLE_CLIENT_ID"),
-      twitch: !!getPrivateSettingSync("TWITCH_CLIENT_ID"),
-      tiktok: !!getPrivateSettingSync("TIKTOK_TOKEN"),
-    });
-  }
+  // --- 2FA Routes ---
+  if (method === "2fa") return handle2FARoutes(event, cms, tenantId, user, segments);
 
   // --- 2FA Routes ---
   if (method === "2fa") return handle2FARoutes(event, cms, tenantId, user, segments);
@@ -102,7 +97,7 @@ export async function handleListUsers(event: RequestEvent, cms: LocalCMS, tenant
   const raw = url.searchParams.get("raw") === "true";
 
   const result = await cms.auth.listUsers({ tenantId, page, limit, search, sort, order });
-  return raw ? rawResponse(event, result.data) : successResponse(event, result);
+  return raw ? rawResponse(event, result.data) : rawResponse(event, { success: true, ...result });
 }
 
 /**
@@ -120,16 +115,21 @@ export async function handleLogin(
   const result = await cms.auth.login({ email, password }, { tenantId });
 
   // Set session cookie
-  const isSecure = event.url.protocol === "https:";
+  const isProd = !dev && process.env.TEST_MODE !== "true";
+  const isSecure =
+    event.url.protocol === "https:" || (event.url.hostname !== "localhost" && isProd);
   const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
   cookies.set(cookieName, result.session._id, {
     path: "/",
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: isSecure ? "strict" : "lax",
     secure: isSecure,
     maxAge: 60 * 60 * 24, // 1 day
   });
+
+  // Rotate CSRF token on login
+  generateCsrfToken(cookies, isSecure);
 
   return successResponse(event, { user: result.user, token: result.session._id });
 }
@@ -365,74 +365,6 @@ export async function handleSAMLRoutes(
 }
 
 /**
- * Handles invitation token routes.
- */
-export async function handleTokenRoutes(
-  event: RequestEvent,
-  cms: LocalCMS,
-  tenantId: DatabaseId,
-  segments: string[],
-) {
-  const { request, url } = event;
-  const action = segments[1];
-
-  if (action === "create-token" && request.method === "POST") {
-    const body = await request.json();
-    const result = await cms.auth.tokens.create({
-      ...body,
-      userId: event.locals.user?._id,
-      tenantId,
-    });
-    if (!result.success) throw new AppError(result.message || "Failed to create token", 400);
-    return rawResponse(event, { success: true, token: result.data });
-  }
-
-  if (action === "batch" && request.method === "POST") {
-    const { tokenIds, action: batchAction } = await request.json();
-    if (!tokenIds || !Array.isArray(tokenIds) || tokenIds.length === 0) {
-      throw new AppError("tokenIds must be a non-empty array", 400);
-    }
-    const result = await cms.auth.batchAction(tokenIds, batchAction, tenantId);
-    return successResponse(event, result);
-  }
-
-  if (request.method === "GET" && (!action || action === "list")) {
-    const page = Number(url.searchParams.get("page")) || 1;
-    const limit = Number(url.searchParams.get("limit")) || 10;
-    const search = url.searchParams.get("search") || "";
-    const sort = url.searchParams.get("sort") || "createdAt";
-    const order = (url.searchParams.get("order") as "asc" | "desc") || "desc";
-    const raw = url.searchParams.get("raw") === "true";
-
-    const result = await cms.auth.tokens.list({ tenantId, page, limit, search, sort, order });
-    return raw ? rawResponse(event, result.data) : successResponse(event, result);
-  }
-
-  // Assume action is tokenId
-  const tokenId = action as DatabaseId;
-  if (request.method === "GET") {
-    const result = await cms.auth.validateToken(tokenId as string, "invitation", "general", {
-      tenantId,
-    });
-    if (!result.success) throw new AppError("Token not found or invalid", 404);
-    return successResponse(event, { valid: true });
-  }
-  if (request.method === "PUT") {
-    const { newTokenData } = await request.json();
-    const result = await cms.auth.tokens.update(tokenId as string, newTokenData, tenantId);
-    if (!result) throw new AppError("Token not found or invalid", 400);
-    return successResponse(event, result);
-  }
-  if (request.method === "DELETE") {
-    const result = await cms.auth.tokens.delete(tokenId as string, tenantId);
-    if (!result.success) throw new AppError(result.message || "Failed to delete token", 400);
-    return successResponse(event, { success: true });
-  }
-
-  throw new AppError(`Token endpoint /api/token/${action} not implemented`, 404);
-}
-
-/**
  * Handles user-specific routes (e.g. /api/user/[id]).
  */
 export async function handleUserSpecificRoutes(
@@ -446,7 +378,10 @@ export async function handleUserSpecificRoutes(
   const { request } = event;
 
   if (method === "batch" && request.method === "POST") {
-    const { ids, action } = await request.json();
+    const body = await request.json();
+    // Support both 'ids' (legacy/API) and 'userIds' (frontend/AdminArea)
+    const ids = body.ids || body.userIds;
+    const action = body.action;
     const result = await cms.auth.batchAction(ids, action, tenantId);
     return successResponse(event, result);
   }

@@ -599,7 +599,11 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
         ...data,
         updatedAt: new Date().toISOString(),
       };
-      const result = await this.model.updateMany(query, { $set: updateData });
+      const result = await this.model.updateMany(
+        query,
+        { $set: updateData },
+        { cloneUpdate: false },
+      );
       const meta = this.buildQueryMeta(startTime);
       return {
         success: true,

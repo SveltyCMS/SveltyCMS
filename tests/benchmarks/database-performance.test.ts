@@ -6,7 +6,13 @@
 
 import { test } from "bun:test";
 import "../unit/setup.ts";
-import { runBenchmark, exportResult, exportMetric, stabilize } from "./benchmark-utils";
+import {
+  runBenchmark,
+  exportResult,
+  exportMetric,
+  stabilize,
+  updateBenchmarkDocumentation,
+} from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
 const TEST_TENANT = "global";
@@ -191,12 +197,19 @@ export async function runDatabaseBenchmark() {
 
   // Consolidated for Matrix
   const readRes = findOneResult;
-  exportMetric("adapter.read.avg", readRes.avgMs, "ms", { p95: readRes.p95Ms, rps: readRes.rps });
+  exportMetric("adapter.read.avg", readRes.avgMs, "ms");
 
-  // Export results for orchestrator
-  allResults.forEach((r) => exportResult(r));
+  const aggregate = {
+    name: "DB Adapter Summary",
+    avgMs: findOneResult.avgMs,
+    p95Ms: findOneResult.p95Ms,
+    rps: findOneResult.rps,
+    shortLabel: "DB Raw p95",
+  };
 
+  exportResult(aggregate);
   console.log("\n✅ Database adapter raw CRUD benchmark completed.");
+  await updateBenchmarkDocumentation();
 }
 
 test("Database Adapter CRUD Performance", async () => {

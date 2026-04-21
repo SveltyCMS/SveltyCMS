@@ -28,12 +28,12 @@ export class MaintenanceService {
     const now = Date.now();
     this.lastRun = now;
 
-    logger.info("🛠️ Starting Autonomous Maintenance Cycle...");
+    logger.debug("🛠️ Starting Autonomous Maintenance Cycle...");
 
     await this.checkCacheHealth();
     await this.checkIndexHealth();
 
-    logger.info("✅ Maintenance Cycle Completed.");
+    logger.trace("✅ Maintenance Cycle Completed.");
   }
 
   /**

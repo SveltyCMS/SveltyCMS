@@ -111,20 +111,26 @@ export function handleApiError(err: unknown, event: RequestEvent) {
 
     logger.warn(`API Validation Error [${event.url.pathname}]`, { issues });
   }
-  // 3. Handle Custom AppErrors
-  else if (err instanceof AppError) {
-    status = err.status;
-    message = err.message;
-    code = err.code;
+  // 3. Handle Custom AppErrors (Harden with name check for cross-bundle resilience)
+  else if (isAppError(err)) {
+    const appErr = err as AppError;
+    status = appErr.status;
+    message = appErr.message;
+    code = appErr.code;
 
     // Log 500s as errors, everything else as info/warn
     if (status >= 500) {
       logger.error(`AppError [${event.url.pathname}]: ${message}`, {
-        details: err.details,
+        details: appErr.details,
+      });
+    } else if (status === 401) {
+      // Silence noisy unauthorized logs during dev/restarts
+      logger.debug(`AppError [${event.url.pathname}]: ${message}`, {
+        details: appErr.details,
       });
     } else {
       logger.warn(`AppError [${event.url.pathname}]: ${message}`, {
-        details: err.details,
+        details: appErr.details,
       });
     }
   }
@@ -135,7 +141,11 @@ export function handleApiError(err: unknown, event: RequestEvent) {
     message = (httpErr.body as { message?: string })?.message || "HTTP Error";
     code = `HTTP_${status}`;
 
-    logger.warn(`HttpError [${event.url.pathname}]: ${message}`, { status });
+    if (status === 401) {
+      logger.debug(`HttpError [${event.url.pathname}]: ${message}`, { status });
+    } else {
+      logger.warn(`HttpError [${event.url.pathname}]: ${message}`, { status });
+    }
   }
   // 5. Catch-all for unknown system errors
   else {
@@ -203,7 +213,10 @@ export function getErrorMessage(err: unknown): string {
  * Type Guard: Checks if an error is an AppError.
  */
 export function isAppError(err: unknown): err is AppError {
-  return err instanceof AppError;
+  return (
+    err instanceof AppError ||
+    (typeof err === "object" && err !== null && (err as any).name === "AppError")
+  );
 }
 
 /**

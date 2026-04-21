@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/routes/(app)/user/+page.svelte
 @component
 **This file sets up and displays the user page, providing a streamlined interface for managing user accounts and settings**
@@ -310,7 +310,8 @@
 					</div>
 					<input bind:value={password} name="password" type="password" autocomplete="current-password" disabled class="input" />
 
-					<div class="mt-4 flex flex-col gap-2">
+
+					<div class="mt-4 flex flex-col items-center justify-center gap-2">
 						<!-- Edit Modal Button -->
 						<button onclick={modalUserForm} aria-label={userpage_edit_usersetting()} class="gradient-tertiary btn w-full max-w-sm text-white">
 							<iconify-icon icon="bi:pencil-fill" width={24}></iconify-icon>

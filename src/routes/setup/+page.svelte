@@ -363,6 +363,23 @@
 												<div class="mb-3 rounded bg-red-50 p-2 text-sm text-red-700 dark:bg-error-900/20 dark:text-white">
 													{wizard.lastDbTestResult.userFriendly}
 												</div>
+
+												{#if wizard.lastDbTestResult.canOverwrite}
+													<div class="mt-4 flex items-center gap-3">
+														<button
+															type="button"
+															class="btn variant-filled-error flex items-center gap-2"
+															onclick={() => setupStore.testDatabaseConnection(true, true)}
+															disabled={wizard.isLoading}
+														>
+															<iconify-icon icon="mdi:alert-remove"></iconify-icon>
+															<span>Confirm Overwrite</span>
+														</button>
+														<span class="text-[10px] text-red-600 dark:text-red-400 max-w-[200px]">
+															Warning: This will PERMANENTLY DELETE the existing database.
+														</span>
+													</div>
+												{/if}
 											{/if}
 										</div>
 									{/if}

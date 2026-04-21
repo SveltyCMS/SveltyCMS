@@ -302,7 +302,23 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
           console.log(`🟢 [WebhookProxy] Recovered '${String(prop)}' from prototype.`);
           return protoValue;
         }
-        return { getModel: () => ({ findOne: () => Promise.resolve(null) }) }; // Minimal dummy to prev crash
+        // 🚀 Self-Healing Dummy: Returns a function that returns null/empty for any method call.
+        // This prevents "is not a function" crashes during high-concurrency bootstrap races.
+        return new Proxy(
+          {},
+          {
+            get: (_, subProp) => {
+              if (subProp === "getModel") {
+                return () => ({
+                  findOne: () => Promise.resolve(null),
+                  aggregate: () => Promise.resolve([]),
+                  find: () => ({ lean: () => ({ exec: () => Promise.resolve([]) }) }),
+                });
+              }
+              return () => Promise.resolve({ success: false, message: "Interface initializing" });
+            },
+          },
+        );
       }
 
       if (typeof value === "function") {

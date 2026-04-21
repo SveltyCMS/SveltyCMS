@@ -10,6 +10,7 @@ import { log } from "./logger";
 import { heavyTaskLock } from "./semaphore";
 import { startServer, warmupServer, writeTestConfig, isShuttingDown } from "./server";
 import { extractMetrics, checkBudget, freePort } from "./utils";
+import { persistScriptMetadataAST, updateIncrementalReport } from "./reporting";
 import {
   DB_METADATA,
   PORT_BASE,
@@ -43,10 +44,10 @@ export async function runTask(
   let args = [];
   if (command.includes("scripts/benchmark-matrix/setup-benchmarks.ts")) {
     args = [
-      "run",
+      "test",
       "--preload",
       "./tests/unit/bun-preload.ts",
-      "scripts/benchmark-matrix/setup-benchmarks.ts",
+      "tests/benchmarks/setup-proxy.test.ts",
     ];
   } else {
     args = command.split(" ").slice(1);
@@ -249,8 +250,11 @@ export function buildWorkerEnv(
     ENCRYPTION_KEY,
     PASSWORD_MIN_LENGTH: "8",
     ADMIN_PASSWORD,
+    BENCHMARK_MODE: "1",
     ADMIN_EMAIL: "admin@example.com",
     BUN_TEST_MOCKS: "false",
+    DISABLE_AUDIT_LOGS: "true",
+    SUPPRESS_JEST_WARNINGS: "true",
   };
 
   delete env.USER;
@@ -368,6 +372,22 @@ export async function runAuditForDatabase(
 
         scriptTimings[s.shortLabel] = outcome.elapsedMs;
         await persistBenchmarkMeta(s, outcome, dbKey, dbDir);
+
+        if (outcome.passed) {
+          await persistScriptMetadataAST(s.path, new Date().toISOString());
+        }
+
+        // Deep copy results to avoid mutation issues during doc writing
+        await updateIncrementalReport([
+          ...results,
+          {
+            db: dbKey,
+            status: "RUNNING",
+            metrics: {},
+            scriptTimings: { ...scriptTimings },
+          },
+        ]);
+
         if (!outcome.passed) {
           status = "FAILED";
           error = (error ? error + "; " : "") + s.label + " failed";

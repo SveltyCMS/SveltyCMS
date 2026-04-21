@@ -35,6 +35,7 @@ function getRoleModel(conn: Connection | typeof mongoose) {
       permissions: [{ type: String }],
       description: String,
       isNative: { type: Boolean, default: false },
+      isAdmin: { type: Boolean, default: false },
       groupName: String,
       icon: String,
       color: String,

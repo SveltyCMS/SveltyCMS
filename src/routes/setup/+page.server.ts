@@ -74,6 +74,7 @@ export const actions: Actions = {
       const formData = await request.formData();
       const configRaw = formData.get("config") as string;
       const createIfMissing = formData.get("createIfMissing") === "true";
+      const allowOverwrite = formData.get("allowOverwrite") === "true";
       logger.info(
         "📦 Received config raw:",
         configRaw ? `Yes (length: ${configRaw.length})` : "No",
@@ -113,9 +114,65 @@ export const actions: Actions = {
       const start = performance.now();
       const { getSetupDatabaseAdapter } = await import("./utils");
 
+      const dropDatabase = async (targetName: string) => {
+        logger.info(`🚨 Attempting to drop database '${targetName}'...`);
+        if (dbConfig.type === "mongodb" || dbConfig.type === "mongodb+srv") {
+          const mongoose = (await import("mongoose")).default;
+          const uri = configData.host.includes("://")
+            ? configData.host
+            : `mongodb://${configData.user ? `${configData.user}:${configData.password}@` : ""}${configData.host}:${configData.port || 27017}/${targetName}`;
+          const conn = await mongoose.createConnection(uri).asPromise();
+          await conn.dropDatabase();
+          await conn.close();
+        } else if (dbConfig.type === "mariadb" || (dbConfig.type as any) === "mysql") {
+          const mysql = await import("mysql2/promise");
+          const connection = await mysql.createConnection({
+            host: dbConfig.host,
+            port: dbConfig.port,
+            user: dbConfig.user,
+            password: dbConfig.password,
+          });
+          await connection.query(`DROP DATABASE IF EXISTS \`${targetName}\``);
+          await connection.end();
+        } else if (dbConfig.type === "postgresql") {
+          const postgres = (await import("postgres")).default;
+          const sql = postgres({
+            host: dbConfig.host,
+            port: dbConfig.port,
+            user: dbConfig.user,
+            password: dbConfig.password,
+            database: "postgres",
+          });
+          await sql.unsafe(`DROP DATABASE IF EXISTS "${targetName}"`);
+          await sql.end();
+        } else if (dbConfig.type === "sqlite") {
+          const { buildDatabaseConnectionString } = await import("./utils");
+          const dbPath = buildDatabaseConnectionString(dbConfig);
+          if ((await import("fs")).existsSync(dbPath)) {
+            await (await import("fs")).promises.unlink(dbPath);
+          }
+        }
+        logger.info(`✅ Successfully dropped database '${targetName}'.`);
+      };
+
+      if (allowOverwrite) {
+        try {
+          await dropDatabase(dbConfig.name);
+          // Auto-create after dropping will be handled by passing allowOverwrite
+        } catch (dropErr: any) {
+          logger.error("❌ Failed to drop database for overwrite:", dropErr.message);
+          return {
+            success: false,
+            error: `Overwrite failed: Could not drop database. ${dropErr.message}`,
+          };
+        }
+      }
+
       try {
         logger.info(`🔌 Attempting to connect to ${dbConfig.type} at ${dbConfig.host}...`);
-        const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, { createIfMissing });
+        const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, {
+          createIfMissing: createIfMissing || allowOverwrite,
+        });
 
         logger.info("📡 Connection established, sending ping...");
         const health = await dbAdapter.getConnectionHealth();
@@ -130,6 +187,82 @@ export const actions: Actions = {
         }
 
         logger.info("✅ Ping successful!");
+
+        // Check for existing collections if we didn't just overwrite
+        if (!allowOverwrite) {
+          try {
+            let existingCollections: string[] = [];
+
+            if (dbConfig.type === "mongodb" || dbConfig.type === "mongodb+srv") {
+              const mongoose = (await import("mongoose")).default;
+              const uri = configData.host.includes("://")
+                ? configData.host
+                : `mongodb://${configData.user ? `${configData.user}:${configData.password}@` : ""}${configData.host}:${configData.port || 27017}/${dbConfig.name}`;
+              const conn = await mongoose.createConnection(uri).asPromise();
+              if (conn.db) {
+                const collections = await conn.db.listCollections().toArray();
+                existingCollections = collections.map((c: any) => c.name);
+              }
+              await conn.close();
+            } else if (dbConfig.type === "postgresql") {
+              const postgres = (await import("postgres")).default;
+              const sql = postgres({
+                host: dbConfig.host,
+                port: dbConfig.port,
+                user: dbConfig.user,
+                password: dbConfig.password,
+                database: dbConfig.name,
+              });
+              const result =
+                await sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`;
+              existingCollections = result.map((r: any) => r.table_name);
+              await sql.end();
+            } else if (dbConfig.type === "mariadb" || (dbConfig.type as any) === "mysql") {
+              const mysql = await import("mysql2/promise");
+              const connection = await mysql.createConnection({
+                host: dbConfig.host,
+                port: dbConfig.port,
+                user: dbConfig.user,
+                password: dbConfig.password,
+                database: dbConfig.name,
+              });
+              const [rows] = await connection.query(`SHOW TABLES`);
+              existingCollections = (rows as any[]).map((r: any) => Object.values(r)[0] as string);
+              await connection.end();
+            } else if (dbConfig.type === "sqlite") {
+              const Database = (await import("better-sqlite3")).default;
+              const { buildDatabaseConnectionString } = await import("./utils");
+              const dbPath = buildDatabaseConnectionString(dbConfig);
+              if ((await import("fs")).existsSync(dbPath)) {
+                const db = new Database(dbPath);
+                const rows = db.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all();
+                existingCollections = rows.map((r: any) => r.name);
+                db.close();
+              }
+            }
+
+            // Exclude sqlite internal tables
+            existingCollections = existingCollections.filter((c) => !c.startsWith("sqlite_"));
+
+            if (existingCollections.length > 0) {
+              logger.warn(
+                `⚠️ Database already contains ${existingCollections.length} collections.`,
+              );
+              await dbAdapter.disconnect();
+
+              const { SetupDatabaseError } = await import("./error-classifier");
+              return new SetupDatabaseError({
+                classification: "DATABASE_ALREADY_EXISTS",
+                userFriendly: `Database "${dbConfig.name}" already exists and contains data (e.g. ${existingCollections.slice(0, 3).join(", ")}). If your compiled collections do not match this database, you may encounter errors. Proceeding will OVERWRITE and PERMANENTLY DELETE all existing data.`,
+                canOverwrite: true,
+                raw: "DATABASE_ALREADY_EXISTS",
+              }).toClientPayload();
+            }
+          } catch (checkErr: any) {
+            logger.error("❌ Failed to check existing collections:", checkErr.message);
+          }
+        }
+
         await dbAdapter.disconnect();
         const latencyMs = Math.round(performance.now() - start);
         return {
@@ -142,6 +275,23 @@ export const actions: Actions = {
 
         const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
         const classified = classifyDatabaseError(err, dbConfig.type as any, dbConfig);
+
+        // --- Handle Overwrite (Confirm Overwrite flow) ---
+        if (classified.classification === "CASE_MISMATCH" && allowOverwrite) {
+          try {
+            const existingName = (classified.details as any)?.existingName;
+            if (existingName) {
+              await dropDatabase(existingName);
+              // Now that it's dropped, we can proceed as if it was a "not found" scenario
+              // and let the existing retry logic below handle creation.
+            }
+          } catch (dropErr: any) {
+            return {
+              success: false,
+              error: `Overwrite failed: Could not drop existing database. ${dropErr.message}`,
+            };
+          }
+        }
 
         // If DB doesn't exist and we didn't auto-create, return a structured payload
         if (classified.classification === "DB_NOT_FOUND" && !createIfMissing) {

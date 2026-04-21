@@ -15,6 +15,7 @@
  * - Create a paginated result from an array of items (in-memory)
  */
 
+import { logger } from "@utils/logger";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
 import type {
   DatabaseError,
@@ -88,6 +89,9 @@ export function applyTenantFilter<T extends Record<string, unknown>>(
   return conditions;
 }
 
+import { toISOString } from "@src/utils/date-utils";
+export { toISOString };
+
 /**
  * Convert MySQL row dates to ISO strings
  * This ensures all date fields are properly formatted as ISODateString
@@ -100,8 +104,19 @@ export function convertDatesToISO<T extends Record<string, unknown>>(row: T): T 
       continue;
     }
     const value = result[key];
-    if (value instanceof Date) {
-      (result as Record<string, unknown>)[key] = value.toISOString() as ISODateString;
+    if (!value) continue;
+
+    // Robust Date check (handles cross-realm and non-standard Date objects)
+    const isDate =
+      value instanceof Date || Object.prototype.toString.call(value) === "[object Date]";
+    const hasToISO = typeof (value as any)?.toISOString === "function";
+
+    if (isDate || hasToISO) {
+      try {
+        (result as Record<string, unknown>)[key] = toISOString(value);
+      } catch (e: any) {
+        logger.error(`[mariadb-utils] Failed to convert date field "${key}":`, e.message);
+      }
     }
   }
 

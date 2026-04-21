@@ -24,27 +24,16 @@ export class MongoAuthModelRegistrar {
    */
   constructor(connection: any) {
     this.connection = connection;
-    logger.info("MongoAuthModelRegistrar initialized.");
+    logger.debug("MongoAuthModelRegistrar initialized.");
   }
 
-  /**
-   * Registers authentication models (User, Token, Session).
-   */
+  // Registers authentication models (User, Token, Session).
   async setupAuthModels(connection?: any): Promise<void> {
     const conn = connection || this.connection;
     try {
       this.registerModel(conn, "auth_users", UserSchema);
       this.registerModel(conn, "auth_sessions", SessionSchema);
       this.registerModel(conn, "auth_tokens", TokenSchema);
-
-      // Run non-critical session UUID migration after registration
-      this.migrateSessions(conn).catch((err) => {
-        logger.debug("Session migration check completed", {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      });
-
-      logger.info("Authentication models registered successfully.");
     } catch (error) {
       throw createDatabaseError(
         error,
@@ -54,34 +43,10 @@ export class MongoAuthModelRegistrar {
     }
   }
 
-  /**
-   * A private helper that checks for a model's existence before registering it.
-   */
+  // A private helper that checks for a model's existence before registering it.
   private registerModel(conn: any, name: string, schema: Mongoose.Schema): void {
-    if (conn.models[name]) {
-      logger.debug(`Model '${name}' already exists and was not re-registered`);
-    } else {
+    if (!conn.models[name]) {
       conn.model(name, schema);
-      logger.debug(`Model '${name}' was registered`);
-    }
-  }
-
-  /**
-   * Migration: Remove old ObjectId-based sessions (from before the UUID migration).
-   */
-  private async migrateSessions(conn: any): Promise<void> {
-    const SessionModel = conn.model("auth_sessions");
-    const result = await SessionModel.deleteMany({
-      $or: [
-        { _id: { $type: "objectId" } }, // MongoDB ObjectId type
-        { _id: { $regex: /^[0-9a-f]{24}$/ } }, // 24-char hex string (ObjectId format)
-      ],
-    });
-
-    if (result.deletedCount && result.deletedCount > 0) {
-      logger.info(
-        `🔄 Migrated sessions: Removed ${result.deletedCount} old ObjectId-based sessions`,
-      );
     }
   }
 }

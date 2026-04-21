@@ -12,6 +12,11 @@ import { logger } from "@utils/logger.server";
 import type { Handle } from "@sveltejs/kit";
 
 export const handleAuditLogging: Handle = async ({ event, resolve }) => {
+  // Support silencing logs for benchmarks and tests
+  if (process.env.DISABLE_AUDIT_LOGS === "true" || process.env.TEST_MODE === "true") {
+    return resolve(event);
+  }
+
   // 1. FAST-PATH: Only audit API mutations
   if (!event.url.pathname.startsWith("/api/")) return resolve(event);
 

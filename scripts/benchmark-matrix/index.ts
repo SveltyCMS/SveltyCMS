@@ -3,6 +3,27 @@
  * @description Entry point for the benchmark matrix tool.
  */
 
+import { plugin } from "bun";
+
+// Mock $app/environment for standalone execution
+plugin({
+  name: "svelte-kit-mock",
+  setup(build) {
+    build.onResolve({ filter: /^\$/ }, (args) => {
+      if (args.path.startsWith("$app/")) {
+        return { path: args.path, external: false, namespace: "svelte-kit-mock" };
+      }
+    });
+    build.onLoad({ filter: /.*/, namespace: "svelte-kit-mock" }, (_args) => {
+      return {
+        contents:
+          "export const browser = false; export const dev = false; export const building = false; export const version = '1.0.0';",
+        loader: "js",
+      };
+    });
+  },
+});
+
 import chalk from "chalk";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -31,11 +52,71 @@ import {
   MAX_CONCURRENCY,
   ADMIN_PASSWORD,
   TEST_API_SECRET,
+  JWT_SECRET_KEY,
+  ENCRYPTION_KEY,
   ROOT_RESULTS_DIR,
   SETUP_PORT_OFFSET,
   HEALING_PORT_OFFSET,
 } from "./config";
 import type { BenchmarkResult } from "./types";
+
+/**
+ * ✨ Configuration Safeguard (Enterprise Resilience)
+ * Ensures user configuration is never permanently lost or corrupted by audit suites.
+ */
+class ConfigSafeguard {
+  private static configPath = path.join(process.cwd(), "config/private.ts");
+  private static backupPath = path.join(process.cwd(), "config/private.ts.backup");
+
+  /** Backs up the current config if it exists */
+  static async backup() {
+    try {
+      await fs.access(this.configPath);
+      await fs.copyFile(this.configPath, this.backupPath);
+      log.info("🛡️ Backup: config/private.ts secured.");
+    } catch {
+      // No config to backup (fresh install mode)
+    }
+  }
+
+  /** Restores the backup or cleans up leaked configs */
+  static async restore() {
+    try {
+      // 1. If backup exists, restore it (overwriting any leaks)
+      if (
+        await fs
+          .access(this.backupPath)
+          .then(() => true)
+          .catch(() => false)
+      ) {
+        await fs.rename(this.backupPath, this.configPath);
+        log.info("🛡️ Restore: original config/private.ts recovered.");
+      } else {
+        // 2. If no backup, ensure no leaked config remains (return to Setup Mode)
+        await fs.rm(this.configPath, { force: true });
+        log.info("🛡️ Cleanup: Return to Setup Mode confirmed.");
+      }
+
+      // 3. Purge Test-specific configs
+      await fs.rm(path.join(process.cwd(), "config/private.test.ts"), { force: true });
+
+      // 4. Purge mock collections to prevent redirection leaks
+      const compiledDir = path.join(process.cwd(), ".compiledCollections");
+      const files = await fs.readdir(compiledDir).catch(() => []);
+      for (const file of files) {
+        if (file.includes("bench") || file.includes("mock") || file.startsWith("benchmark_")) {
+          await fs.rm(path.join(compiledDir, file), { recursive: true, force: true });
+        }
+      }
+      // Also purge 'nested' benchmark directory if it exists
+      await fs
+        .rm(path.join(compiledDir, "nested"), { recursive: true, force: true })
+        .catch(() => {});
+    } catch (err: any) {
+      log.error(`Safeguard failed: ${err.message}`);
+    }
+  }
+}
 
 /**
  * Register SIGINT / SIGTERM handlers so Ctrl-C cleanly kills any child
@@ -46,6 +127,7 @@ function registerShutdownHandlers() {
     setShuttingDown(true);
     log.warn(`Received ${sig} — graceful shutdown...`);
     await stopServer();
+    await ConfigSafeguard.restore(); // Ensure restoration on termination
     process.exit(130);
   };
   process.on("SIGINT", () => onSignal("SIGINT"));
@@ -53,21 +135,36 @@ function registerShutdownHandlers() {
 }
 
 /**
- * Purges the results directory before a fresh run, preserving only the summary and history.
+ * Purges the results directory before/after a run, but ONLY for the databases currently being audited.
  */
-async function cleanupResults() {
-  log.info("Cleaning up temporary benchmark result files...");
+async function cleanupResults(activeDatabases: any[]) {
+  log.info("Cleaning up session benchmark result files...");
   try {
+    const activeKeys = new Set(
+      activeDatabases.flatMap((db) => {
+        const key = (db.label || db.type).toLowerCase().replace("+", "-");
+        return [key, `${key}-redis`];
+      }),
+    );
+
+    log.info(`Active cleanup keys: ${Array.from(activeKeys).join(", ")}`);
+
     const files = await fs.readdir(ROOT_RESULTS_DIR);
     for (const file of files) {
-      // Preserve history and summary files for CI/UI consumption
-      if (file !== "history.sqlite" && file !== "ci-summary.json") {
+      // Preserve history and summary files
+      if (file === "history.sqlite" || file === "ci-summary.json") continue;
+
+      // Only delete if it matches an active database key
+      if (activeKeys.has(file)) {
+        log.warn(`Selective Purge: ${file}`);
         await fs
           .rm(path.join(ROOT_RESULTS_DIR, file), {
             recursive: true,
             force: true,
           })
-          .catch(() => {});
+          .catch((e) => log.error(`Failed to delete ${file}: ${e.message}`));
+      } else {
+        log.info(`Preserving data: ${file}`);
       }
     }
   } catch (err) {
@@ -83,6 +180,9 @@ async function main() {
 
   const cfg = parseArgs();
 
+  // Initialize Safeguard before any logic
+  await ConfigSafeguard.backup();
+
   if (cfg.list) {
     await printList();
     process.exit(0);
@@ -91,6 +191,9 @@ async function main() {
   const hostInfo = await collectHostInfo();
   const activeScripts = filterScripts(cfg);
   const activeDatabases = filterDatabases(cfg);
+
+  // Clean up existing results only for the databases we are about to audit
+  await cleanupResults(activeDatabases);
 
   if (cfg.sectionFilter) log.info(`Section filter: ${cfg.sectionFilter.join(", ")}`);
   if (cfg.levelFilter !== null) log.info(`Level filter: ≤ ${cfg.levelFilter}`);
@@ -116,9 +219,9 @@ async function main() {
       process.exit(1);
     }
     try {
-      const workerDbName_healing = "SveltyCMS_healing";
+      const workerDbName_healing = "SveltyCMS_healing_test";
       const healingPort = PORT_BASE + HEALING_PORT_OFFSET;
-      await startServer(sqliteConf, healingPort, workerDbName_healing);
+      const server = await startServer(sqliteConf, healingPort, workerDbName_healing);
       const ok = await runTask(
         "Baseline Setup",
         "bun run scripts/setup-system.ts",
@@ -128,10 +231,14 @@ async function main() {
           TEST_MODE: "true",
           ADMIN_PASSWORD,
           TEST_API_SECRET,
+          JWT_SECRET_KEY,
+          ENCRYPTION_KEY,
+          SUPPRESS_JEST_WARNINGS: "true",
+          API_BASE_URL: `http://127.0.0.1:${healingPort}`,
         },
         cfg.ci,
       );
-      await stopServer();
+      await server.stop();
       if (!ok) {
         log.error("CRITICAL: Self-healing failed. Run scripts/setup-system.ts manually.");
         process.exit(1);
@@ -194,7 +301,11 @@ async function main() {
     const setupPort = PORT_BASE + SETUP_PORT_OFFSET;
 
     const { stop: stopSetupServer } = await startServer(firstDb, setupPort, setupDbName);
-    if (!(await runSystemSetup(firstDb, setupPort, setupDbName))) {
+    if (
+      !(await runSystemSetup(firstDb, setupPort, setupDbName, {
+        API_BASE_URL: `http://127.0.0.1:${setupPort}`,
+      }))
+    ) {
       log.error("Global system setup failed. Proceeding with caution (expect failures).");
       // Don't exit; allow runAuditForDatabase to handle failures and reporting
     }
@@ -255,12 +366,18 @@ async function main() {
     }
   }
 
-  await cleanupResults();
-  await stopServer();
-  log.success("Audit complete.");
+  try {
+    await stopServer();
+    await ConfigSafeguard.restore();
+    log.success("Audit complete.");
+  } catch (err: any) {
+    log.error(`Final cleanup failed: ${err.message}`);
+  }
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   console.error(chalk.red("\n💥 FATAL ERROR:"), err);
+  await stopServer();
+  await ConfigSafeguard.restore(); // Ensure restoral on fatal error
   process.exit(1);
 });

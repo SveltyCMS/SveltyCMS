@@ -23,6 +23,8 @@ export interface ClassifiedError {
   classification: DbErrorClassification;
   userFriendly: string;
   hint?: string;
+  canOverwrite?: boolean;
+  details?: any;
   raw: string;
 }
 
@@ -34,7 +36,8 @@ export class SetupDatabaseError extends Error {
   public readonly classification: DbErrorClassification;
   public readonly hint?: string;
   public readonly userFriendly: string;
-  public readonly details?: unknown;
+  public readonly canOverwrite?: boolean;
+  public readonly details?: any;
 
   constructor(classified: ClassifiedError, originalError?: unknown) {
     super(classified.userFriendly);
@@ -42,6 +45,8 @@ export class SetupDatabaseError extends Error {
     this.classification = classified.classification;
     this.userFriendly = classified.userFriendly;
     this.hint = classified.hint;
+    this.canOverwrite = classified.canOverwrite;
+    this.details = classified.details;
 
     if (originalError) {
       this.cause = originalError;
@@ -66,6 +71,8 @@ export class SetupDatabaseError extends Error {
       error: this.userFriendly,
       classification: this.classification,
       hint: this.hint,
+      canOverwrite: this.canOverwrite,
+      details: this.details,
       dbDoesNotExist:
         this.classification === "DB_NOT_FOUND" || this.classification === "database_not_found",
     };
@@ -88,13 +95,15 @@ export function classifyDatabaseError(
 
   logger.error("🔍 Classifying database error:", { raw, code, engine });
 
-  // 0. Case Mismatch (MongoDB specific 13297)
+  // 3. Case Mismatch (MongoDB specific or generic)
   if (code === 13297 || lower.includes("db already exists with different case")) {
     const existingName = lower.match(/already have: \[([^\]]+)\]/)?.[1] || "sveltycms";
     return {
       classification: "CASE_MISMATCH",
-      userFriendly: `Database "${dbConfig?.name}" conflicts with an existing database named "${existingName}".`,
-      hint: `MongoDB is case-sensitive on this system. You must either:\n1. Use the existing name: "${existingName}"\n2. Manually drop the existing "${existingName}" database from your MongoDB server if you want to use "${dbConfig?.name}".`,
+      userFriendly: `A database named '${existingName}' already exists. On this system, database names are case-insensitive, so you cannot create '${dbConfig?.name}'.`,
+      hint: "Use the existing name exactly, or choose a completely different name, or choose to overwrite.",
+      canOverwrite: true,
+      details: { existingName },
       raw,
     };
   }

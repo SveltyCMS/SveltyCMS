@@ -297,4 +297,11 @@ export class MongoWidgetMethods {
       };
     }
   }
+
+  /**
+   * Alias for findAllActive, required by db-interface.ts
+   */
+  async getActiveWidgets(): Promise<DatabaseResult<Widget[]>> {
+    return this.findAllActive();
+  }
 }

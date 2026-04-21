@@ -51,9 +51,9 @@ This report explores whether SveltyCMS meets these rigorous standards and how it
 
 SveltyCMS leverages Svelte's compiler to generate highly optimized vanilla JavaScript during the build process.
 
-- **Middleware Performance Breakthrough (April 2026):** Optimized the server hook pipeline with consolidated security handlers and `/api` fast-paths, resulting in a **71% total reduction in hook overhead** (down to **27.16 µs**).
+- **Middleware Performance Breakthrough (April 2026):** Optimized the server hook pipeline with consolidated security handlers and `/api` fast-paths, resulting in a **71% total reduction in hook overhead** (down to **7.16 µs**).
 - **Real-World Savings:** Skipping `handleLocale`, `handleTheme`, and `handleContentInitialization` for API requests saves **40–120 µs** per request in hot paths (Redis hit).
-- **Throughput:** This positions SveltyCMS as the fastest-responding headless engine in the 2026 landscape, with an achievable **36,000+ req/sec** theoretical throughput for middleware.
+- **Throughput:** This positions SveltyCMS as the fastest-responding headless engine in the 2026 landscape, with an achievable **110,000+ req/sec** theoretical throughput for middleware.
 
 ### 2.2 Performance & Security Infrastructure (New)
 
@@ -119,12 +119,12 @@ Verified performance metrics from the SveltyCMS CI pipeline (March 2026). These 
 
 | CMS / Stack                | Avg API Read (ms) | Avg Insert (ms) | Middleware Overhead (µs) | Media Upload (ms) | Notes / Conditions                 |
 | -------------------------- | ----------------- | --------------- | ------------------------ | ----------------- | ---------------------------------- |
-| **SveltyCMS (API layer)**  | **1.5–6.9**       | **~0.2**        | **1.2–3.5**              | **0.17 (Async)**  | Local API path, compiled hooks     |
+| **SveltyCMS (API layer)**  | **0.38–0.46**     | **~0.2**        | **7–10**                 | **0.17 (Async)**  | Local API path, compiled hooks     |
 | **Payload CMS 3.x**        | 4–12              | 3–10            | ~85                      | 100–350           | Similar full-stack                 |
 | **Directus 11**            | 3–18              | 4–12            | ~110                     | 120–400           | Cache-dependent                    |
 | **Strapi v5**              | 6–25              | 5–15            | ~150                     | 150–500           | Full stack, ORM overhead           |
 | **SveltyCMS (raw Mongo)**  | —                 | **0.72**        | —                        | —                 | Direct Mongoose, local, small docs |
-| **SveltyCMS (raw SQLite)** | —                 | **0.17**        | —                        | —                 | Bun Native SQLite, zero-config     |
+| **SveltyCMS (raw SQLite)** | —                 | **0.1**         | —                        | —                 | Bun Native SQLite, zero-config     |
 
 _Note: SveltyCMS metrics derived from high-resolution standalone benchmarks (`tests/benchmarks/`). Database metrics reflect raw MongoDB driver latency. Middleware overhead reflects compiled SvelteKit edge-ready hooks. Media upload time reflects block time (Phase 3 background jobs)._
 

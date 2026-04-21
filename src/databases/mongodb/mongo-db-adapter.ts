@@ -9,6 +9,7 @@
 
 import { BaseAdapter } from "../base-adapter";
 import mongoose from "mongoose";
+import { logger } from "@utils/logger.server";
 import type {
   ICrudAdapter,
   IDBAdapter,
@@ -48,8 +49,8 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
   media: IMediaAdapter = {} as IMediaAdapter;
   system: ISystemAdapter = {} as ISystemAdapter;
   monitoring: IMonitoringAdapter = {} as IMonitoringAdapter;
-  batch: IDBAdapter["batch"] = {} as IDBAdapter["batch"];
-  collection: IDBAdapter["collection"] = {} as IDBAdapter["collection"];
+  batch: IDBAdapter["batch"] = null as any;
+  collection: IDBAdapter["collection"] = null as any;
 
   constructor() {
     super();
@@ -109,10 +110,61 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
         ensure: () => Promise.resolve({ success: true } as any),
       },
       virtualFolder: {},
-      widgets: {},
+      widgets: {
+        getActiveWidgets: () => Promise.resolve({ success: true, data: [] }),
+        list: () => Promise.resolve({ success: true, data: [] }),
+      },
       websiteTokens: {},
       jobs: {},
     } as unknown as ISystemAdapter;
+
+    this.batch = {
+      execute: async (ops) => {
+        const results = await Promise.all(
+          ops.map((op) => {
+            if (op.operation === "insert") return this.crud.insert(op.collection, op.data as any);
+            if (op.operation === "update")
+              return this.crud.update(op.collection, op.id!, op.data as any);
+            if (op.operation === "delete") return this.crud.delete(op.collection, op.id!);
+            return this.crud.upsert(op.collection, op.query!, op.data as any);
+          }),
+        );
+        return {
+          success: true,
+          data: {
+            success: results.every((r) => r.success),
+            results: results as any,
+            errors: results.filter((r) => !r.success).map((r) => (r as any).error),
+            totalProcessed: results.length,
+          },
+        };
+      },
+      bulkInsert: (c, d) => this.crud.insertMany(c, d as any),
+      bulkUpdate: async (c, u) => {
+        const res = await Promise.all(u.map((upd) => this.crud.update(c, upd.id, upd.data as any)));
+        return { success: true, data: { modifiedCount: res.filter((r) => r.success).length } };
+      },
+      bulkDelete: (c, ids) => this.crud.deleteMany(c, { _id: { $in: ids } } as any),
+      bulkUpsert: (c, i) =>
+        this.crud.upsertMany(
+          c,
+          i.map((item) => ({ query: { _id: item.id } as any, data: item as any })),
+        ) as any,
+    };
+
+    this.collection = {
+      getModel: () =>
+        Promise.resolve({
+          findOne: () => Promise.resolve(null),
+          aggregate: () => Promise.resolve([]),
+        } as any),
+      createModel: () => Promise.resolve(),
+      updateModel: () => Promise.resolve(),
+      deleteModel: () => Promise.resolve(),
+      getSchema: () => Promise.resolve({ success: false, message: "Initializing" } as any),
+      getSchemaById: () => Promise.resolve({ success: false, message: "Initializing" } as any),
+      listSchemas: () => Promise.resolve({ success: true, data: [] }),
+    };
 
     this.monitoring = {
       cache: {
@@ -206,6 +258,18 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
         connectTimeoutMS: 10000,
         waitQueueTimeoutMS: 10000,
       };
+
+      // 🛡️ Mongoose: Global BSON-to-String Normalization
+      // This ensures UUIDs and ObjectIds are served as strings in the API
+      const globalOptions = {
+        flattenUUIDs: true,
+        flattenObjectIds: true,
+        flattenMaps: true,
+        getters: true,
+        virtuals: true,
+      };
+      mongoose.set("toObject", globalOptions);
+      mongoose.set("toJSON", globalOptions);
 
       // Create isolated connection
       this._connection = await mongoose

@@ -89,6 +89,7 @@ export interface EmailSettings {
 // --- API Response Types ---
 export interface DatabaseTestResult {
   classification?: string;
+  canOverwrite?: boolean;
   dbDoesNotExist?: boolean;
   details?: unknown;
   error?: string;
@@ -376,9 +377,13 @@ function createSetupStore() {
   /**
    * Test database connection - Uses SvelteKit Form Actions
    * @param createIfMissing - If true, attempt to create the database if it doesn't exist
+   * @param allowOverwrite - If true, attempt to drop conflicting database (case mismatch)
    * @returns Promise<boolean> - true if connection successful
    */
-  async function testDatabaseConnection(createIfMissing = false): Promise<boolean> {
+  async function testDatabaseConnection(
+    createIfMissing = false,
+    allowOverwrite = false,
+  ): Promise<boolean> {
     // Validate before testing
     if (!validateStep(0, true)) {
       wizard.errorMessage = "Please fill in all required fields before testing.";
@@ -401,6 +406,9 @@ function createSetupStore() {
       formData.append("config", JSON.stringify(wizard.dbConfig));
       if (createIfMissing) {
         formData.append("createIfMissing", "true");
+      }
+      if (allowOverwrite) {
+        formData.append("allowOverwrite", "true");
       }
 
       // Use fetch to call the named action

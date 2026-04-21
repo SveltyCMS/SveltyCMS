@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @files src/components/user/Multibutton.svelte
 @component
 **A unified multibutton component for managing users and tokens**
@@ -572,8 +572,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			type="button"
 			onclick={() => handleAction(listboxValue)}
 			disabled={isDisabled || (listboxValue === 'delete' && isDeleteDisabled)}
-			class="h-[40px] min-w-[120px] font-bold transition-all duration-200
-				{!isDisabled ? 'active:scale-95' : 'pointer-events-none opacity-50 grayscale'} 
+			class="h-10 min-w-30 font-bold transition-all duration-200
+				{!isDisabled ? 'active:scale-95' : 'pointer-events-none opacity-50 grayscale'}
 				{actionConfig[listboxValue].buttonClass} text-white
 				rounded-l-full rounded-r-none px-6 flex items-center justify-center gap-2 border-r border-white/20"
 			aria-label="{listboxValue} selected items"
@@ -587,13 +587,13 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			type="button"
 			onclick={toggleDropdown}
 			disabled={isDisabled}
-			class="h-[40px] w-[40px] transition-all duration-200 text-white flex items-center justify-center shadow-inner rounded-r-md
+			class="h-10 w-10 transition-all duration-200 text-white flex items-center justify-center shadow-inner rounded-r-md
 				{!isDisabled ? 'bg-surface-800 hover:bg-surface-700 active:scale-95 cursor-pointer' : 'opacity-50 pointer-events-none'}"
 			aria-haspopup="menu"
 			aria-expanded={isDropdownOpen}
 			aria-label="Toggle actions menu"
 		>
-			<iconify-icon icon="mdi:chevron-down" width="24"></iconify-icon>
+			<iconify-icon icon="mdi:chevron-down" width="24" ></iconify-icon>
 		</button>
 
 		<!-- Dropdown Menu -->
@@ -627,7 +627,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 								<div
 									class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700/50 transition-transform group-hover/item:scale-110"
 								>
-									<iconify-icon icon={config.iconValue} width="16"></iconify-icon>
+								<iconify-icon icon={config.iconValue} width="16"></iconify-icon>
 								</div>
 
 								<!-- Label -->
@@ -637,9 +637,9 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 								<!-- Check Indicator or Chevron -->
 								{#if hoveredAction === action}
-									<iconify-icon icon="mdi:chevron-right" width="18" class="relative z-10 text-white"></iconify-icon>
+									<iconify-icon icon="mdi:chevron-right" width="18" class="relative z-10 dark:text-white"></iconify-icon>
 								{:else if listboxValue === action}
-									<iconify-icon icon="mdi:check" width="18" class="relative z-10 text-primary-500"></iconify-icon>
+									<iconify-icon icon="mdi:check" width="18" class="relative z-10 text-primary-500 "></iconify-icon>
 								{/if}
 							</button>
 						</li>

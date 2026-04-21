@@ -45,7 +45,18 @@ class ContentStore {
   }
 
   getCollection(id: string, _tenantId?: string | null): Schema | undefined {
-    return this._schemas.get(id);
+    let schema = this._schemas.get(id);
+    if (!schema) {
+      // 🚀 Fix: Case-insensitive fallback lookup
+      const lowerId = id.toLowerCase();
+      schema = Array.from(this._schemas.values()).find(
+        (s) =>
+          (s._id as string)?.toLowerCase() === lowerId ||
+          s.name?.toLowerCase() === lowerId ||
+          s.path?.toLowerCase() === lowerId,
+      );
+    }
+    return schema;
   }
 
   getSmartFirstCollection(_tenantId?: string | null): Schema | null {
@@ -100,7 +111,17 @@ class ContentStore {
   }
 
   getSchema(schemaId: string): Schema | undefined {
-    return this._schemas.get(schemaId);
+    let schema = this._schemas.get(schemaId);
+    if (!schema) {
+      const lowerId = schemaId.toLowerCase();
+      schema = Array.from(this._schemas.values()).find(
+        (s) =>
+          (s._id as string)?.toLowerCase() === lowerId ||
+          s.name?.toLowerCase() === lowerId ||
+          s.path?.toLowerCase() === lowerId,
+      );
+    }
+    return schema;
   }
 
   sync(nodes: ContentNode[]) {
@@ -120,6 +141,10 @@ class ContentStore {
         if (node.nodeType === "collection") {
           const schema = node.collectionDef;
           if (schema) {
+            // Ensure schema has the canonical path from the node
+            if (node.path) schema.path = node.path;
+
+            const tid = node.tenantId || "global";
             const tCollections = this._collections.get(tid) || [];
             if (!tCollections.find((c) => c._id === (schema._id || node._id))) {
               tCollections.push(schema);

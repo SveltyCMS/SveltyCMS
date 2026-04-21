@@ -19,8 +19,9 @@ export interface DatabaseConfig {
 export interface BenchmarkResult {
   db: string;
   version?: string;
-  status: "SUCCESS" | "FAILED";
+  status: "SUCCESS" | "FAILED" | "PENDING" | "RUNNING";
   coldStartMs?: number;
+  scriptPath?: string;
   metrics?: Record<string, unknown>;
   buildTimeMs?: number;
   hostInfo?: HostInfo;
@@ -55,6 +56,10 @@ export interface BenchmarkScript {
   estimatedMs: number;
   /** Optional per-script timeout override */
   timeoutMs?: number;
+  /** Timestamp of the last successful run */
+  lastRun?: string;
+  /** Execution strategy: run on all dbs, only SQL dbs, or once as baseline */
+  strategy: "all" | "sql" | "once";
 }
 
 /** Parsed CLI configuration */

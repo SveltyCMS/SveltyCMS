@@ -145,7 +145,7 @@ for (const [path, module] of Object.entries(customModules)) {
     // Register aliases (folder name if different)
     const folderName = path.split("/").at(-2);
     if (folderName && folderName !== processed.name) {
-      logger.debug(`[Widget Proxy] Alias: ${folderName} -> ${processed.name}`);
+      logger.trace(`[Widget Proxy] Alias: ${folderName} -> ${processed.name}`);
       registry.register(folderName, processed.factory, processed.type, processed.path);
     }
   }
@@ -154,7 +154,7 @@ for (const [path, module] of Object.entries(customModules)) {
 // Log summary
 const coreCount = registry.getByType("core").length;
 const customCount = registry.getByType("custom").length;
-logger.info(`[Widget Proxy] Loaded ${coreCount} core widgets and ${customCount} custom widgets`);
+logger.debug(`[Widget Proxy] Loaded ${coreCount} core widgets and ${customCount} custom widgets`);
 
 // ============================================================================
 // Widget Proxy

@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 @files src/routes/(app)/user/components/modal-edit-token.svelte
 @component
 **Modal for editing or creating user registration tokens**
@@ -131,7 +131,10 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 			const response = await fetch(endpoint, {
 				method,
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken
+				},
 				body: JSON.stringify(body)
 			});
 			const responseData = await response.json();
@@ -180,7 +183,10 @@ It handles token creation, updates, and deletion with proper validation and erro
 		try {
 			const response = await fetch(`/api/token/${tokenForm.data.token}`, {
 				method: 'DELETE',
-				headers: { 'Content-Type': 'application/json' }
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken
+				}
 			});
 
 			const data = await response.json();

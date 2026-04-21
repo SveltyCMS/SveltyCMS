@@ -6,7 +6,13 @@
 
 import { test } from "bun:test";
 import "../unit/setup.ts";
-import { runBenchmark, exportResult, exportMetric, stabilize } from "./benchmark-utils";
+import {
+  runBenchmark,
+  exportResult,
+  exportMetric,
+  stabilize,
+  updateBenchmarkDocumentation,
+} from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 import path from "node:path";
 
@@ -225,7 +231,8 @@ export async function runHooksBenchmark() {
     JSON.stringify(hookSummary, null, 2),
   );
 
-  console.log("\n✅ Hook & Middleware benchmark completed.");
+  console.log("\n✅ Hook pipeline benchmark completed.");
+  await updateBenchmarkDocumentation();
 }
 
 test("Hook & Middleware Pipeline Performance", async () => {

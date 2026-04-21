@@ -1,52 +1,45 @@
 /**
  * @file src/utils/cn.ts
- * @description Tailwind CSS class merging utility
+ * @description
+ * High-performance, zero-dependency class joining utility optimized for Svelte 5.
+ * Replaces the runtime overhead of tailwind-merge with a lean, reactive-friendly approach.
  *
- * Combines conditional class names and resolves Tailwind CSS conflicts
- * using tailwind-merge.
+ * ### Features:
+ * - recursive array/object support
+ * - zero runtime dependencies
+ * - prioritized performance for Svelte templates
  */
-
-import { twMerge } from "tailwind-merge";
 
 type ClassValue = ClassArray | ClassDictionary | string | number | null | boolean | undefined;
 type ClassDictionary = Record<string, any>;
 type ClassArray = ClassValue[];
 
-function clsx(...args: ClassValue[]): string {
-  let i = 0,
-    tmp,
-    x,
-    str = "";
-  while (i < args.length) {
-    if ((tmp = args[i++])) {
-      if (typeof tmp === "string") {
-        str += (str && " ") + tmp;
-      } else if (typeof tmp === "number") {
-        str += (str && " ") + tmp;
-      } else if (typeof tmp === "object") {
-        if (Array.isArray(tmp)) {
-          if ((x = clsx(...tmp))) {
-            str += (str && " ") + x;
-          }
-        } else {
-          for (x in tmp) {
-            if (tmp[x]) {
-              str += (str && " ") + x;
-            }
-          }
+/**
+ * Combines conditional class names into a single string.
+ * This implementation favors speed and simplicity, relying on the natural CSS cascade
+ * and Svelte 5's fine-grained reactivity rather than costly runtime conflict resolution.
+ *
+ * @param inputs - Array of class values (strings, objects, arrays)
+ * @returns A space-separated string of active class names
+ */
+export function cn(...inputs: ClassValue[]): string {
+  let str = "";
+  for (let i = 0; i < inputs.length; i++) {
+    const val = inputs[i];
+    if (!val) continue;
+
+    if (typeof val === "string" || typeof val === "number") {
+      str += (str ? " " : "") + val;
+    } else if (Array.isArray(val)) {
+      const inner = cn(...val);
+      if (inner) str += (str ? " " : "") + inner;
+    } else if (typeof val === "object") {
+      for (const key in val) {
+        if (Object.prototype.hasOwnProperty.call(val, key) && val[key]) {
+          str += (str ? " " : "") + key;
         }
       }
     }
   }
   return str;
-}
-
-/**
- * Intelligently merges Tailwind classes
- *
- * @param inputs - Array of class values (strings, objects, arrays)
- * @returns A merged string of Tailwind classes without conflicts
- */
-export function cn(...inputs: ClassValue[]): string {
-  return twMerge(clsx(inputs));
 }

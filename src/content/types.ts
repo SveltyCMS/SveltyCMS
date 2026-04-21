@@ -93,6 +93,7 @@ export interface ContentNode extends BaseEntity {
   parentId?: DatabaseId;
   path?: string;
   slug?: string;
+  source?: "filesystem" | "database";
   translations: Translation[];
 }
 

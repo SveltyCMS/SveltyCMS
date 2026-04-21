@@ -590,19 +590,23 @@ bulk actions, and predictive preloading.
 	// Effect to initialize/update the filters object in paginationSettings when tableHeaders change
 	$effect(() => {
 		if (tableHeaders.length > 0) {
-			const newFilters: Record<string, string> = { ...entryListPaginationSettings.filters };
-			let filtersChanged = false;
-			for (const th of tableHeaders) {
-				if (!((newFilters as any)[th.name as string])) {
-					(newFilters as any)[th.name as string] = '';
-					filtersChanged = true;
+			untrack(() => {
+				const newFilters: Record<string, string> = { ...entryListPaginationSettings.filters };
+				let filtersChanged = false;
+				for (const th of tableHeaders) {
+					if (!newFilters[th.name as string]) {
+						newFilters[th.name as string] = '';
+						filtersChanged = true;
+					}
 				}
-			}
-			if (filtersChanged) {
-				entryListPaginationSettings.filters = newFilters;
-			}
-		} else if (Object.keys(entryListPaginationSettings.filters).length > 0) {
-			entryListPaginationSettings.filters = {};
+				if (filtersChanged) {
+					entryListPaginationSettings.filters = newFilters;
+				}
+			});
+		} else if (Object.keys(untrack(() => entryListPaginationSettings.filters)).length > 0) {
+			untrack(() => {
+				entryListPaginationSettings.filters = {};
+			});
 		}
 	});
 
@@ -1143,13 +1147,22 @@ bulk actions, and predictive preloading.
 															}
 														}
 													});
+												} else {
 													// GUI-FIRST PATTERN: Navigate to edit mode (loads full multilingual data)
 													const originalEntry = tableData.find((e: CollectionEntry) => e._id === entry._id);
 													if (originalEntry) {
+														// 1. Check cache & load if needed
 														// Navigate to edit mode - this triggers SSR to load full multilingual data
 														// List view has language-projected data, edit mode needs all languages
-														const newUrl = `${page.url.pathname}?edit=${originalEntry._id}`;
-														goto(newUrl);
+														
+														// 2. Update stores INSTANTLY (no waiting)
+														// The URL pattern document mandates GUI-First: state first, URL second
+														setMode("edit");
+														setCollectionValue(originalEntry);
+														
+														// 3. Reflect in URL (passive, no reload if we use replaceState, but we want history so we use reflectModeInURL)
+														reflectModeInURL("edit", originalEntry._id as string);
+														
 														logger.debug(`[Edit] Loading full data for entry ${originalEntry._id}`);
 													}
 												}

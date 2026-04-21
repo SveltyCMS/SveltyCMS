@@ -68,8 +68,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       publicEnv.DEFAULT_CONTENT_LANGUAGE ||
       "en";
 
-    // Use the new, efficient method fromcontent-managerto get the redirect URL
-    // Use the new, efficient method fromcontent-managerto get the redirect URL
+    // Use the new, efficient method from content-system to get the redirect URL
     const redirectUrl = await contentSystem.getFirstCollectionRedirectUrl(
       redirectLanguage,
       tenantId,
@@ -96,10 +95,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       throw redirect(302, "/dashboard");
     }
   } catch (err) {
-    // Re-throw redirects and known errors
-    if (typeof err === "object" && err !== null && "status" in err) {
+    // Re-throw SvelteKit's internal redirect and error exceptions
+    const { isRedirect, isHttpError } = await import("@sveltejs/kit");
+    if (isRedirect(err) || isHttpError(err)) {
       throw err;
     }
+
     logger.error("Unexpected error in root page load function", {
       error: err,
       tenantId,

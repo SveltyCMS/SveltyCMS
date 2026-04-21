@@ -45,19 +45,13 @@ export async function scanAndProcessFiles(): Promise<Schema[]> {
       if (!moduleData?.schema) return null;
 
       const schema = moduleData.schema;
-      const relativePath = path.relative(collectionsDir, filePath);
-      const cleanPath =
-        "/" +
-        relativePath
-          .replace(new RegExp(`\\${extension}$`), "")
-          .split(path.sep)
-          .join("/");
 
       const name = schema.name || path.basename(filePath, extension);
       return {
         ...schema,
         _id: schema._id || name,
-        path: cleanPath,
+        // ✨ Standardize: Prefix paths with /collection to match routing conventions
+        path: schema.path || `/collection/${name}`,
         name: name,
       } as Schema;
     } catch (error) {
