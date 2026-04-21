@@ -166,7 +166,7 @@ export const addUserSchema = object({
 // Edit User Schema
 export const editUserSchema = pipe(
   object({
-    userId: string(),
+    user_id: string(),
     username: usernameSchema,
     email: emailSchema,
     role: optional(string()),

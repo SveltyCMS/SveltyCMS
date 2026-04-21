@@ -290,7 +290,7 @@ Provides an organized interface for navigating hierarchical content structures.
 
 <div class="mt-2 space-y-2" role="navigation" aria-label="Collections">
 	<!-- Search -->
-	<div class="relative {isFullSidebar ? 'w-full' : 'max-w--33.7'}">
+	<div class="relative {isFullSidebar ? 'w-full' : 'w-12'}">
 		<input
 			type="text"
 			bind:value={search}

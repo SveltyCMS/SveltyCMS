@@ -1,4 +1,4 @@
-﻿<!-- 
+<!-- 
 @file src/routes/(app)/user/components/modal-edit-form.svelte
 @component
 **A modal for editing user data like username, email, password, and role**
@@ -145,7 +145,10 @@ Efficiently manages user data updates with validation, role selection, and delet
 		try {
 			const response = await fetch('/api/user/update-user-attributes', {
 				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken
+				},
 				body: JSON.stringify({
 					user_id: editForm.data.user_id,
 					newUserData: submitData
@@ -196,7 +199,10 @@ Efficiently manages user data updates with validation, role selection, and delet
 		try {
 			const res = await fetch('/api/user/verify-password', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken
+				},
 				body: JSON.stringify({ password: editForm.data.currentPassword })
 			});
 			const data = await res.json();
@@ -221,7 +227,10 @@ Efficiently manages user data updates with validation, role selection, and delet
 		try {
 			const response = await fetch('/api/user/batch', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken
+				},
 				body: JSON.stringify({
 					userIds: [editForm.data.user_id],
 					action: 'delete'

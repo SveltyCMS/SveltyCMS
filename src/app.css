@@ -11,6 +11,7 @@
 @import "@skeletonlabs/skeleton-svelte";
 
 /* Tailwind v4: Enable class-based dark mode with .dark class on <html> */
+/* @tailwind v4 custom-variant - standard syntax but may trigger IDE warnings */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* =~= SveltyCMS Theme (Skeleton v4 format) =~= */
@@ -220,24 +221,24 @@
   --color-error-contrast-900: var(--color-error-contrast-light);
   --color-error-contrast-950: var(--color-error-contrast-light);
 
-  /* Surface | #242728 (Dark Background) */
-  --color-surface-50: oklch(65.78% 0 219.34deg);
-  --color-surface-100: oklch(58.75% 0 219.37deg);
-  --color-surface-200: oklch(51.15% 0 219.41deg);
-  --color-surface-300: oklch(43.62% 0 219.45deg);
-  --color-surface-400: oklch(35.37% 0 219.5deg);
-  --color-surface-500: oklch(27.01% 0 219.57deg);
-  --color-surface-600: oklch(25.03% 0 228.87deg);
-  --color-surface-700: oklch(23.01% 0 247.91deg);
-  --color-surface-800: oklch(21.12% 0 196.8deg);
-  --color-surface-900: oklch(19.01% 0 196.8deg);
-  --color-surface-950: oklch(16.84% 0 none);
+  /* Surface | Silver Palette (Optimized for contrast while preserving a neutral look) */
+  --color-surface-50: oklch(97% 0 219deg);
+  --color-surface-100: oklch(92% 0 219deg);
+  --color-surface-200: oklch(85% 0 219deg);
+  --color-surface-300: oklch(75% 0 219deg);
+  --color-surface-400: oklch(65% 0 219deg);
+  --color-surface-500: oklch(55% 0 219deg);
+  --color-surface-600: oklch(45% 0 228deg);
+  --color-surface-700: oklch(35% 0 247deg);
+  --color-surface-800: oklch(25% 0 196deg);
+  --color-surface-900: oklch(19% 0 196deg);
+  --color-surface-950: oklch(16% 0 none);
   --color-surface-contrast-dark: oklch(0 0 0 / 1);
   --color-surface-contrast-light: oklch(1 0 0 / 1);
   --color-surface-contrast-50: var(--color-surface-contrast-dark);
   --color-surface-contrast-100: var(--color-surface-contrast-dark);
   --color-surface-contrast-200: var(--color-surface-contrast-dark);
-  --color-surface-contrast-300: var(--color-surface-contrast-light);
+  --color-surface-contrast-300: var(--color-surface-contrast-dark);
   --color-surface-contrast-400: var(--color-surface-contrast-light);
   --color-surface-contrast-500: var(--color-surface-contrast-light);
   --color-surface-contrast-600: var(--color-surface-contrast-light);

@@ -9,7 +9,6 @@
 
 import { BaseAdapter } from "../base-adapter";
 import mongoose from "mongoose";
-import { logger } from "@utils/logger.server";
 import type {
   ICrudAdapter,
   IDBAdapter,
@@ -102,6 +101,7 @@ export class MongoDBAdapter extends BaseAdapter implements IDBAdapter {
       preferences: {
         get: () => Promise.resolve({ success: true, data: null }),
         getMany: () => Promise.resolve({ success: true, data: {} }),
+        set: () => Promise.resolve({ success: true, data: undefined }),
       },
       tenants: {
         list: () => Promise.resolve({ success: true, data: [] }),

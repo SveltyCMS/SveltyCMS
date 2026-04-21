@@ -41,12 +41,12 @@ export async function generateContentTypes(
 ): Promise<Record<string, { fields: string[]; type: string }>> {
   try {
     // Load content-service directly instead of full contentSystem to avoid full runtime boot (DB, Redis)
-    const { scanAndProcessFiles } = await server.ssrLoadModule(
+    const { scanCompiledCollections } = await server.ssrLoadModule(
       path.join(process.cwd(), "src/content/content-service.server.ts"),
     );
 
     // Scan compiled collections directly from filesystem
-    const collectionsData = await scanAndProcessFiles();
+    const collectionsData = await scanCompiledCollections();
 
     const contentTypes: Record<string, { fields: string[]; type: string }> = {};
 

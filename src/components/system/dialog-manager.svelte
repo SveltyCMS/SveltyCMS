@@ -24,7 +24,7 @@
 
 <Dialog open={modalState.isOpen} {onOpenChange}>
 	<Portal>
-		<Dialog.Backdrop class="fixed inset-0 z-50 bg-black/40 transition-opacity" />
+		<Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-900/40 backdrop-blur-sm transition-opacity" />
 
 		<Dialog.Positioner class="fixed inset-0 z-50 flex items-center justify-center {isFullscreen ? 'p-0' : 'p-4'}">
 			<Dialog.Content

@@ -491,14 +491,16 @@
 				{/if}
 
 				<!-- Node label -->
-				<span
-					class="flex-1 select-none overflow-hidden text-ellipsis whitespace-nowrap text-left dark:text-white
-									       {compact ? 'text-xs' : 'text-sm'}
-									       {selectedId === node.id ? 'font-semibold' : ''}"
-					style="margin-left: {node.depth ? node.depth * 8 : 0}px"
-				>
-					{node.name}
-				</span>
+				{#if !compact}
+					<span
+						class="flex-1 select-none overflow-hidden text-ellipsis whitespace-nowrap text-left dark:text-white
+						       {compact ? 'text-xs' : 'text-sm'}
+						       {selectedId === node.id ? 'font-semibold' : ''}"
+						style="margin-left: {node.depth ? node.depth * 8 : 0}px"
+					>
+						{node.name}
+					</span>
+				{/if}
 			</button>
 
 			<!-- Drop indicator: after -->

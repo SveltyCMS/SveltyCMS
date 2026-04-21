@@ -100,67 +100,78 @@ async function safelyParseSchema(content: string, filePath: string): Promise<Sch
       `,
       );
       result = fn(widgetsProxy);
-    } catch (e: any) {
-      logger.error(`[SchemaParseError] ${e.message}`, { filePath });
-      throw e;
-    } finally {
-      (globalThis as any).widgets = previousGlobalWidgets;
+
+      if (previousGlobalWidgets) (globalThis as any).widgets = previousGlobalWidgets;
+
+      if (result && typeof result === "object") {
+        return result as Schema;
+      }
+    } catch (evalErr) {
+      console.error(`[SCAN] Failed to evaluate schema at ${filePath}:`, evalErr);
     }
 
-    if (result && typeof result === "object") {
-      const schema = result as Schema;
-      return {
-        ...schema,
-        _id: schema._id || path.basename(filePath, ".js"),
-        name: schema.name || path.basename(filePath, ".js"),
-      };
-    }
+    if (previousGlobalWidgets) (globalThis as any).widgets = previousGlobalWidgets;
+    return null;
   } catch (err) {
-    logger.error("Schema parsing failed:", { error: String(err), filePath });
+    console.error(`[SCAN] Error processing schema file ${filePath}:`, err);
+    return null;
   }
-  return null;
 }
 
-function extractObjectLiteral(content: string, startIdx: number): string | null {
+/**
+ * Extracts a complete object literal by tracking balanced braces.
+ */
+function extractObjectLiteral(content: string, start: number): string | null {
   let depth = 0;
+  let firstBrace = -1;
   let inString: string | null = null;
-  let escape = false;
+  let isEscaped = false;
 
-  for (let i = startIdx; i < content.length; i++) {
-    const c = content[i];
+  for (let i = start; i < content.length; i++) {
+    const char = content[i];
+
     if (inString) {
-      if (escape) escape = false;
-      else if (c === "\\") escape = true;
-      else if (c === inString) inString = null;
+      if (isEscaped) {
+        isEscaped = false;
+      } else if (char === "\\") {
+        isEscaped = true;
+      } else if (char === inString) {
+        inString = null;
+      }
       continue;
     }
-    if (c === '"' || c === "'" || c === "`") {
-      inString = c;
+
+    if (char === '"' || char === "'" || char === "`") {
+      inString = char;
       continue;
     }
-    if (c === "{") {
-      if (depth === 0) startIdx = i;
+
+    if (char === "{") {
+      if (depth === 0) firstBrace = i;
       depth++;
-    } else if (c === "}") {
+    } else if (char === "}") {
       depth--;
-      if (depth === 0) return content.substring(startIdx, i + 1);
+      if (depth === 0 && firstBrace !== -1) {
+        return content.substring(firstBrace, i + 1);
+      }
     }
   }
   return null;
 }
 
 /**
- * Scans for compiled schema files recursively and parses them with mtime caching.
+ * Scans the .compiledCollections directory for compiled schema files.
  */
 export async function scanCompiledCollections(): Promise<Schema[]> {
   const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
   const schemas: Schema[] = [];
 
-  async function walk(currentDir: string) {
+  async function walk(dir: string) {
     try {
-      const entries = await fs.readdir(currentDir, { withFileTypes: true });
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+
       for (const entry of entries) {
-        const fullPath = path.join(currentDir, entry.name);
+        const fullPath = path.join(dir, entry.name);
 
         if (entry.isDirectory()) {
           await walk(fullPath);
@@ -219,7 +230,7 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
         }
       }
     } catch (err) {
-      // Ignore if dir not found or other read errors
+      logger.debug("Content structure scan failed or directory missing", { err });
     }
   }
 
@@ -237,6 +248,9 @@ export const contentService = {
     console.log(
       `[RECONCILE] fullReload triggered. Tenant: ${tenantId}, skip: ${skipReconciliation}`,
     );
+
+    const processedPaths = new Set<string>();
+
     if (incremental) {
       logger.debug("Incremental content reload requested (Shim)", { tenantId });
     }
@@ -276,7 +290,6 @@ export const contentService = {
 
     // Build reconciled tree
     const operations: ContentNode[] = [];
-    const processedPaths = new Set<string>();
 
     // Map to track deterministic IDs of generated categories for parent linking
     const categoryIdMap = new Map(categoryNodes.map((c) => [c.path!, c._id]));

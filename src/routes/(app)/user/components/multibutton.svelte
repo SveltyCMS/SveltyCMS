@@ -29,6 +29,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import { quintOut } from 'svelte/easing';
 	import { scale } from 'svelte/transition';
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import ModalEditForm from './modal-edit-form.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';
 
@@ -367,7 +368,10 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			const endpoint = config.endpoint();
 			const res = await fetch(endpoint, {
 				method: config.method(),
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken
+				},
 				body
 			});
 

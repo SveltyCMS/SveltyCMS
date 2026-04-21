@@ -35,7 +35,6 @@
 	import type { ContentNode } from '@src/content/types'; // Import Schema type (collection definition)
 	// Paraglide Messages
 	import {
-		applayout_githubdiscussion,
 		applayout_signout,
 		applayout_systemconfiguration,
 		applayout_systemlanguage,
@@ -266,7 +265,7 @@
 			onclick={toggleSidebar}
 			aria-label={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
 			aria-expanded={isSidebarFull}
-			class="absolute top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full! border border-black p-0 dark:border-black ltr:right-2 rtl:left-2"
+			class="absolute top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full! border border-black p-0 dark:border-black ltr:-right-4 rtl:-left-4"
 		>
 			<iconify-icon
 				icon="bi:arrow-left-circle-fill"
