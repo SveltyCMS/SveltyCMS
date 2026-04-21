@@ -36,6 +36,7 @@ export const SESSION_CACHE_TTL_MS = SESSION_CACHE_TTL_S * 1000;
 export class CacheService {
   private l1: LRUCache<string, any>;
   private l2: any = null; // Redis Client
+  private keyCache = new Map<string, string>();
   private prefetchPatterns: Map<string, string[]> = new Map();
   private stats: CacheStats = {
     hits: 0,
@@ -284,11 +285,18 @@ export class CacheService {
   }
 
   public generateKey(key: string, tenantId?: string | null): string {
+    const cacheKey = `${key}:${tenantId}`;
+    const cached = this.keyCache.get(cacheKey);
+    if (cached) return cached;
+
     const multiTenant =
       getPrivateSettingSync("MULTI_TENANT") || (globalThis as any).__mockMultiTenant;
 
     const tId = tenantId || "default";
-    return multiTenant ? `tenant:${tId}:${key}` : key;
+    const result = multiTenant ? `tenant:${tId}:${key}` : key;
+
+    this.keyCache.set(cacheKey, result);
+    return result;
   }
 
   private buildKey(key: string, tenantId?: string | null): string {

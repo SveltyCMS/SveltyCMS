@@ -69,7 +69,8 @@ export async function handleWidgetRoutes(
   if (request.method === "GET") {
     if (action === "active") {
       const result = await cms.widgets.getActiveWidgets();
-      if (!result.success) throw new AppError(result.message || "Failed to fetch widgets", 500);
+      if (!result.success)
+        throw new AppError((result as any).message || "Failed to fetch widgets", 500);
       return successResponse(event, result.data);
     }
     if (action === "list") {

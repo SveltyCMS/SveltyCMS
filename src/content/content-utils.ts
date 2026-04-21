@@ -51,6 +51,7 @@ export function generateCategoryNodesFromPaths(
           createdAt: now as any,
           updatedAt: now as any,
           order: 999,
+          translations: [],
           source: "filesystem",
         };
         folders.set(segmentPath, node);

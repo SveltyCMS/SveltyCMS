@@ -276,7 +276,9 @@ export const contentSystem = {
     const { dbAdapter } = await import("@src/databases/db");
     if (!dbAdapter || operations.length === 0) return;
 
-    const upsertOps = operations.filter((op) => op.type === "upsert" || !op.type);
+    const upsertOps = operations.filter(
+      (op) => op.type === "create" || op.type === "update" || !op.type,
+    );
     const deleteOps = operations.filter((op) => op.type === "delete");
 
     // 1. Handle Upserts/Updates

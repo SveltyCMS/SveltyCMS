@@ -11,9 +11,10 @@ describe("cn utility", () => {
     expect(cn("px-2 py-1", "bg-red-500")).toBe("px-2 py-1 bg-red-500");
   });
 
-  it("overrides conflicting tailwind classes", () => {
-    expect(cn("px-2 py-1 bg-blue-500", "bg-red-500")).toBe("px-2 py-1 bg-red-500");
-    expect(cn("p-4", "px-2")).toBe("p-4 px-2"); // twMerge handles this correctly (px-2 wins for x-axis)
+  it("concatenates conflicting tailwind classes (natural CSS cascade)", () => {
+    // Zero-dependency version just concatenates; the browser handles the cascade.
+    expect(cn("px-2 py-1 bg-blue-500", "bg-red-500")).toBe("px-2 py-1 bg-blue-500 bg-red-500");
+    expect(cn("p-4", "px-2")).toBe("p-4 px-2");
   });
 
   it("handles conditional classes via objects", () => {
