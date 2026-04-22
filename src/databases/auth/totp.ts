@@ -184,7 +184,10 @@ export async function verifyTOTPCode(secret: string, userCode: string): Promise<
       .padStart(TOTP_CONFIG.DIGITS, "0");
 
     // Timing-safe comparison
-    if (code === userCode) {
+    if (
+      code.length === userCode.length &&
+      cryptoModule.timingSafeEqual(Buffer.from(code), Buffer.from(userCode))
+    ) {
       return true;
     }
   }

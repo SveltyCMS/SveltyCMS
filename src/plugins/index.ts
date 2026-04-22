@@ -8,7 +8,7 @@ export * from "./types";
 import { pluginRegistry } from "./registry";
 export { pluginRegistry };
 
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { editableWebsitePlugin } from "./editable-website";
 import { pageSpeedPlugin } from "./pagespeed";
 import type { Plugin } from "./types";

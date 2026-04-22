@@ -34,7 +34,7 @@ interface RedisLike {
 
 // In-memory session storage as fallback
 class InMemorySessionManager implements SessionStore {
-  private readonly sessions: Map<string, { user: User; expiresAt: Date }> = new Map();
+  private readonly sessions: Map<string, { user: WeakRef<User>; expiresAt: Date }> = new Map();
 
   async get(sessionId: string): Promise<User | null> {
     const session = this.sessions.get(sessionId);
@@ -47,12 +47,18 @@ class InMemorySessionManager implements SessionStore {
       return null;
     }
 
-    return session.user;
+    const user = session.user.deref();
+    if (!user) {
+      this.sessions.delete(sessionId);
+      return null;
+    }
+
+    return user;
   }
 
   async set(sessionId: string, user: User, expiration: ISODateString): Promise<void> {
     const expirationDate = isoDateStringToDate(expiration);
-    this.sessions.set(sessionId, { user, expiresAt: expirationDate });
+    this.sessions.set(sessionId, { user: new WeakRef(user), expiresAt: expirationDate });
   }
 
   async delete(sessionId: string): Promise<void> {
@@ -266,6 +272,12 @@ export function startSessionCleanup(manager: SessionStore, intervalMs = 60_000):
   return setInterval(() => {
     if (manager instanceof InMemorySessionManager) {
       manager.cleanup();
-    } // Redis handles TTL automatically, so no cleanup needed
+    } else if (manager instanceof RedisSessionManager) {
+      // Redis handles its own TTL automatically, but we must clean up the fallback in-memory manager
+      const fallback = (manager as any).fallbackManager;
+      if (fallback && typeof fallback.cleanup === "function") {
+        fallback.cleanup();
+      }
+    }
   }, intervalMs);
 }

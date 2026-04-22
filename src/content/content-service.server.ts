@@ -436,4 +436,51 @@ export const contentService = {
     if (tenantId) logger.debug("Reordering nodes for tenant", { tenantId });
     await db!.content.nodes.reorderStructure(items);
   },
+
+  async upsertContentNodes(operations: any[], tenantId?: string | null) {
+    const { dbAdapter } = await import("@src/databases/db");
+    if (!dbAdapter || operations.length === 0) return;
+
+    const upsertOps = operations.filter(
+      (op) => op.type === "create" || op.type === "update" || !op.type,
+    );
+    const deleteOps = operations.filter((op) => op.type === "delete");
+
+    // 1. Handle Upserts/Updates
+    if (upsertOps.length > 0) {
+      const updates = upsertOps
+        .map((op) => {
+          const id = (op.node as any).id || op.node._id?.toString();
+          if (!op.node.path) {
+            logger.warn("[upsertContentNodes] Skipping node update due to missing path", op.node);
+            return null;
+          }
+          return {
+            path: op.node.path,
+            id: id,
+            changes: op.node,
+          };
+        })
+        .filter((u): u is { path: string; id: string | undefined; changes: any } => u !== null);
+
+      if (updates.length > 0) {
+        await dbAdapter.content.nodes.bulkUpdate(updates, { tenantId: tenantId as any });
+      }
+    }
+
+    // 2. Handle Deletions
+    if (deleteOps.length > 0) {
+      const pathsToDelete = deleteOps
+        .map((op) => op.node.path)
+        .filter((p): p is string => typeof p === "string" && p.length > 0);
+
+      if (pathsToDelete.length > 0) {
+        logger.info(`[upsertContentNodes] Deleting ${pathsToDelete.length} nodes by path`);
+        await dbAdapter.content.nodes.deleteMany(pathsToDelete, { tenantId: tenantId as any });
+      }
+    }
+
+    contentStore.updateVersion();
+    logger.debug(`Content structure synced (${operations.length} operations processed)`);
+  },
 };

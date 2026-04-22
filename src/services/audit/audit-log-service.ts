@@ -4,9 +4,10 @@
  */
 
 import { appendFile, readFile, mkdir, rename } from "node:fs/promises";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { logger } from "@utils/logger.server";
+import { Worker } from "node:worker_threads";
 
 export interface AuditLogEntry {
   id: string;
@@ -26,6 +27,61 @@ export interface AuditLogEntry {
   previousHash: string;
   hash: string;
 }
+
+// Dedicated Node.js Worker Thread pool for vectorized audit hashing
+const HASH_WORKER_SCRIPT = `
+  const { parentPort } = require('node:worker_threads');
+  const { createHash } = require('node:crypto');
+
+  parentPort.on('message', ({ id, data }) => {
+    try {
+      const hash = createHash("sha256").update(data).digest("hex");
+      parentPort.postMessage({ id, hash });
+    } catch (err) {
+      parentPort.postMessage({ id, error: err.message });
+    }
+  });
+`;
+
+class HashWorkerPool {
+  private workers: Worker[] = [];
+  private nextWorkerIndex = 0;
+  private callbacks = new Map<
+    number,
+    { resolve: (hash: string) => void; reject: (err: Error) => void }
+  >();
+  private messageIdCounter = 0;
+
+  constructor(size = 4) {
+    for (let i = 0; i < size; i++) {
+      const worker = new Worker(HASH_WORKER_SCRIPT, { eval: true });
+      worker.on("message", ({ id, hash, error }) => {
+        const cb = this.callbacks.get(id);
+        if (cb) {
+          if (error) cb.reject(new Error(error));
+          else cb.resolve(hash);
+          this.callbacks.delete(id);
+        }
+      });
+      worker.on("error", (err) => {
+        logger.error("Audit Hash Worker Error", { error: err });
+      });
+      this.workers.push(worker);
+    }
+  }
+
+  public async hash(data: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const id = this.messageIdCounter++;
+      this.callbacks.set(id, { resolve, reject });
+      const worker = this.workers[this.nextWorkerIndex];
+      this.nextWorkerIndex = (this.nextWorkerIndex + 1) % this.workers.length;
+      worker.postMessage({ id, data });
+    });
+  }
+}
+
+const hashPool = new HashWorkerPool();
 
 export class AuditLogService {
   private readonly logDir = path.join(process.cwd(), "logs");
@@ -79,8 +135,8 @@ export class AuditLogService {
     }
   }
 
-  private hashEntry(entry: Omit<AuditLogEntry, "hash">): string {
-    return createHash("sha256").update(JSON.stringify(entry)).digest("hex");
+  private async hashEntry(entry: Omit<AuditLogEntry, "hash">): Promise<string> {
+    return hashPool.hash(JSON.stringify(entry));
   }
 
   /**
@@ -107,7 +163,7 @@ export class AuditLogService {
       previousHash: this.lastHash,
     };
 
-    const hash = this.hashEntry(baseEntry);
+    const hash = await this.hashEntry(baseEntry);
     const fullEntry: AuditLogEntry = { ...baseEntry, hash };
 
     // Append atomically (one line per entry = NDJSON)
@@ -175,7 +231,7 @@ export class AuditLogService {
           return { valid: false, brokenAt: entry.id };
         }
 
-        const recalculated = this.hashEntry({
+        const recalculated = await this.hashEntry({
           id: entry.id,
           timestamp: entry.timestamp,
           action: entry.action,

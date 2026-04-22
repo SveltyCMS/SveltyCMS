@@ -105,7 +105,7 @@ export class ApiSpecService {
   /**
    * Invalidates the OpenAPI specification cache
    */
-  public async invalidateCache(tenantId?: string): Promise<void> {
+  public async invalidateCache(tenantId?: string | null): Promise<void> {
     const cacheKey = `openapi:spec:${tenantId || "global"}`;
     this.cachedSpec = null;
     this.cacheTimestamp = 0;
@@ -121,7 +121,7 @@ export class ApiSpecService {
   /**
    * Generates the full specification JSON with multi-layer caching
    */
-  public async generateSpec(collections: Schema[] = [], tenantId?: string): Promise<any> {
+  public async generateSpec(collections: Schema[] = [], tenantId?: string | null): Promise<any> {
     const now = Date.now();
     const cacheKey = `openapi:spec:${tenantId || "global"}`;
 
@@ -181,6 +181,27 @@ export class ApiSpecService {
     }
 
     return spec;
+  }
+
+  /**
+   * Convenience wrapper that fetches collections from DB and generates spec.
+   * Useful for background warming.
+   */
+  public async generateFullSpec(tenantId?: string | null): Promise<any> {
+    try {
+      const { contentService } = await import("@src/content/content-service.server");
+      const collections = await contentService.getContentStructureFromDatabase("flat", tenantId);
+      // Filter to only include collections
+      const schemaOnly = collections
+        .filter((n) => n.nodeType === "collection" && n.collectionDef)
+        .map((n) => n.collectionDef as Schema);
+
+      return this.generateSpec(schemaOnly, tenantId);
+    } catch (err) {
+      const { logger } = await import("@utils/logger.server");
+      logger.error("Failed to generate full API spec", { tenantId, err });
+      return this.generateSpec([], tenantId);
+    }
   }
 
   private addAuthPaths(spec: any) {

@@ -30,6 +30,32 @@ export enum SetupState {
 }
 
 /**
+ * Robustly retrieves the test API secret from environment or disk.
+ * Prioritizes: env.TEST_API_SECRET > tests/e2e/.auth/test-secret.txt > Default
+ */
+export function getTestSecret(): string {
+  // 1. Check environment variable (highest priority)
+  const envSecret =
+    process.env.TEST_API_SECRET ||
+    process.env.VITE_TEST_API_SECRET ||
+    (globalThis as any).process?.env?.TEST_API_SECRET;
+  if (envSecret) return envSecret;
+
+  // 2. Check test-secret.txt file (CI synchronization)
+  try {
+    const secretPath = path.join(process.cwd(), "tests", "e2e", ".auth", "test-secret.txt");
+    if (fs.existsSync(secretPath)) {
+      return fs.readFileSync(secretPath, "utf8").trim();
+    }
+  } catch {
+    // Ignore FS errors
+  }
+
+  // 3. Fallback to hardcoded default
+  return "SVELTYCMS_TEST_SECRET_2026";
+}
+
+/**
  * Returns the current setup state of the system.
  * Higher-level wrapper around isSetupCompleteAsync.
  */

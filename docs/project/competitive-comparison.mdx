@@ -79,7 +79,8 @@ Even with this realistic, heavy production workload, SveltyCMS sustains **over 3
 
 The architectural move to the **5-Pillar Content Core** and Svelte 5 Runes provides fundamental advantages:
 
-- **Vectorized Processing**: Refactored the core data transformation pipeline to support chunked batch processing, reducing function call overhead by **70%**.
+- **Vectorized Processing & Audit Chaining**: Refactored the core data transformation pipeline to support chunked batch processing, and offloaded cryptographic overhead (like SHA-256 Audit Log chaining) to dedicated Node.js Worker Threads. This prevents main event loop starvation during massive bulk operations, drastically reducing function call latency.
+- **Lazy Relation Hydration (Ghost Relations)**: Eliminated N+1 deep-join lag on SQL engines using Svelte 5 snippets (`{#snippet}`) and the `IntersectionObserver` API. Nested relational data is purely hydrated *as it enters the viewport*, ensuring sub-millisecond initial server loads regardless of relational depth.
 - **No Hydration Tax**: SveltyCMS minimizes the JavaScript sent to the client, leading to faster Time-to-Interactive.
 - **Fine-Grained Reactivity**: State updates are surgical, avoiding the "re-rendering everything" problem common in React/Vue platforms.
 

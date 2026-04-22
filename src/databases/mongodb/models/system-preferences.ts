@@ -239,10 +239,12 @@ SYSTEM_PREFERENCES_SCHEMA.statics = {
   },
 };
 
+export const systemPreferencesSchema = SYSTEM_PREFERENCES_SCHEMA;
+
 // Create and export the SystemPreferencesModel
 export const SystemPreferencesModel =
   (mongoose.models?.SystemPreferences as unknown as SystemPreferencesModelType | undefined) ||
   (mongoose.model<SystemPreferencesDocument>(
     "SystemPreferences",
-    SYSTEM_PREFERENCES_SCHEMA,
+    systemPreferencesSchema,
   ) as unknown as SystemPreferencesModelType);

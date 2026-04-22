@@ -391,11 +391,12 @@ export class MongoSystemMethods {
       const userPrefs = preferences.filter((p) => p.scope === "user");
 
       if (systemPrefs.length > 0) {
-        const operations = systemPrefs.map((pref) => {
-          const queryTenantId = (pref.userId as string) || null;
+        const operations = systemPrefs.map((pref: any) => {
+          // Use tenantId if provided in the preference object, otherwise fall back to null
+          const queryTenantId = pref.tenantId || null;
           const updateData: Record<string, unknown> = {
             value: pref.value,
-            updatedAt: new Date(),
+            updatedAt: new Date().toISOString(), // Use ISO string to match schema
             tenantId: queryTenantId,
           };
           if (pref.category) {
@@ -452,14 +453,20 @@ export class MongoSystemMethods {
         await this.SystemPreferencesModel.bulkWrite(operations);
       }
       return { success: true, data: undefined };
-    } catch (error) {
+    } catch (error: any) {
+      logger.error("❌ MongoDB setMany failed:", {
+        error: error.message,
+        code: error.code,
+        writeErrors: error.writeErrors?.length,
+        firstError: error.writeErrors?.[0]?.errmsg,
+      });
       return {
         success: false,
         message: "Failed to set multiple preferences",
         error: createDatabaseError(
           error,
           "PREFERENCE_SET_MANY_ERROR",
-          "Failed to set multiple preferences",
+          error.message || "Failed to set multiple preferences",
         ),
       };
     }

@@ -206,7 +206,6 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     // =================================================================
 
     const returnData = {
-      theme: locals.theme,
       user: {
         _id: typedUser?._id,
         username: typedUser?.username,

@@ -42,7 +42,15 @@ export async function registerSystemModels(connection: Connection): Promise<void
     }
 
     // Settings & Preferences
-    // We'll add more as needed, but these are the most critical for benchmarks
+    const { systemSettingSchema } = await import("../models/system-setting");
+    if (!connection.models.SystemSetting) {
+      connection.model("SystemSetting", systemSettingSchema);
+    }
+
+    const { systemPreferencesSchema } = await import("../models/system-preferences");
+    if (!connection.models.SystemPreferences) {
+      connection.model("SystemPreferences", systemPreferencesSchema);
+    }
 
     logger.info("[MongoDB] System models registered successfully.");
   } catch (error) {

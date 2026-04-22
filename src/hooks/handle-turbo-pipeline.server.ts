@@ -15,7 +15,7 @@
 import { dev } from "$app/environment";
 import { getSetupState, SetupState } from "@src/utils/setup-check";
 import { getSystemState } from "@src/stores/system/state";
-import { redirect, type Handle } from "@sveltejs/kit";
+import { isRedirect, redirect, type Handle } from "@sveltejs/kit";
 import {
   isApiLike,
   isBootstrapRoute,
@@ -129,10 +129,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
 
   if (isTest && testSecret) {
-    const expected =
-      process.env.TEST_API_SECRET ||
-      process.env.VITE_TEST_API_SECRET ||
-      "SVELTYCMS_TEST_SECRET_2026";
+    const { getTestSecret } = await import("@src/utils/setup-check");
+    const expected = getTestSecret();
+
     if (testSecret === expected) {
       // 🚀 HARD BYPASS: Verified test secret receives full system access and skips ALL middleware.
       const { getDbInitPromise, getDb } = await import("@src/databases/db");
@@ -164,7 +163,26 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       return response;
     }
 
-    // ── 2. BOOTSTRAP ROUTE BYPASS ───────────────────────────────────────────
+    // ── 2. ROBUST SETUP REDIRECT (FAST-PATH) ─────────────────────────────────
+    // Check if config exists BEFORE any bootstrap bypass or DB initialization.
+    // This ensures that if config/private.ts is missing, we ALWAYS go to /setup,
+    // even if the DB is failing or the bootstrap route logic is complex.
+    const { isSetupComplete } = await import("@src/utils/setup-check");
+    if (!isSetupComplete()) {
+      const isSetupRoute =
+        pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
+
+      if (!isSetupRoute && !isApiRoute && !STATIC_ASSET_REGEX.test(pathname)) {
+        const returnTo =
+          pathname === "/"
+            ? ""
+            : `?from=${encodeURIComponent(event.url.pathname + event.url.search)}`;
+        logger.debug(`[Turbo] Config missing, redirecting to /setup from ${pathname}`);
+        throw redirect(302, `/setup${returnTo}`);
+      }
+    }
+
+    // ── 3. BOOTSTRAP ROUTE BYPASS ───────────────────────────────────────────
     if (isBootstrapRoute(pathname)) {
       const response = await resolve(event);
       applySecurityHeaders(response.headers, isHttps);
@@ -180,7 +198,8 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       return response;
     }
 
-    // ── 4. SETUP COMPLETENESS GATE ──────────────────────────────────────────
+    // ── 5. SETUP COMPLETENESS GATE (GRANULAR) ───────────────────────────────
+    // This handles the MISSING_ADMIN state which requires DB access.
     const setupState = await getSetupState();
 
     if (setupState !== SetupState.COMPLETE) {
@@ -198,9 +217,15 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         return response;
       }
 
-      // Preserve the originally-requested URL so setup can redirect back after completion.
-      const returnTo = encodeURIComponent(event.url.pathname + event.url.search);
-      throw redirect(302, `${destination}?from=${returnTo}`);
+      // If we are not on a bootstrap route and setup is not complete, redirect.
+      // Note: isBootstrapRoute check above handles /setup and assets.
+      if (!isBootstrapRoute(pathname)) {
+        const returnTo =
+          pathname === "/"
+            ? ""
+            : `?from=${encodeURIComponent(event.url.pathname + event.url.search)}`;
+        throw redirect(302, `${destination}${returnTo}`);
+      }
     }
 
     // ── 5. CORS PREFLIGHT FAST EXIT ─────────────────────────────────────────
@@ -228,6 +253,13 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     return response;
   } catch (err: any) {
     // Pipeline Error Recovery (Boundary)
+    if (
+      isRedirect(err) ||
+      (err && typeof err === "object" && err.status >= 300 && err.status <= 308 && err.location)
+    ) {
+      throw err;
+    }
+
     logger.error(`[Turbo] Pipeline error:`, err);
     const fallback = boundaryResponse(err, isHttps);
     fallback.headers.set("X-Request-ID", requestId);

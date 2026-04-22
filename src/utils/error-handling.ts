@@ -5,7 +5,7 @@
  */
 
 import { type HttpError, isRedirect, json, type RequestEvent } from "@sveltejs/kit";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { GenericSchema, ValiError } from "valibot";
 
 // Helper to safely get dev mode without crashing if $app/environment is missing (e.g. in some Bun test contexts)

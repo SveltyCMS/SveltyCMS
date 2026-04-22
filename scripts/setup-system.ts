@@ -35,9 +35,22 @@ import { join } from "node:path";
 // Configuration — resolved once at startup, never mutated
 // ---------------------------------------------------------------------------
 
+const getTestSecret = () => {
+  if (process.env.TEST_API_SECRET) return process.env.TEST_API_SECRET;
+  try {
+    const { join } = require("node:path");
+    const { existsSync, readFileSync } = require("node:fs");
+    const secretPath = join(process.cwd(), "tests/e2e/.auth/test-secret.txt");
+    if (existsSync(secretPath)) {
+      return readFileSync(secretPath, "utf8").trim();
+    }
+  } catch {}
+  return "SVELTYCMS_TEST_SECRET_2026";
+};
+
 const cfg = {
   apiBase: process.env.API_BASE_URL ?? "http://localhost:4173",
-  apiSecret: process.env.TEST_API_SECRET ?? "",
+  apiSecret: getTestSecret(),
   rootDir: process.cwd(),
 
   db: {
@@ -543,7 +556,7 @@ async function stepCompleteSetup(): Promise<void> {
       allowOverwrite: true,
       JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-Change-Me",
       ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-Must-Be-32-Chars!!",
-      TEST_API_SECRET: "SVELTYCMS_TEST_SECRET_2026",
+      TEST_API_SECRET: cfg.apiSecret,
     },
     admin: {
       username: cfg.admin.username,
@@ -581,7 +594,7 @@ async function stepCompleteSetup(): Promise<void> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+      "x-test-secret": cfg.apiSecret,
     },
     body: JSON.stringify({ email: cfg.admin.email, password: cfg.admin.password }),
   });

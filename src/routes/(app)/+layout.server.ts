@@ -107,7 +107,7 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
     const aiEnabled = !!(publicEnv.USE_AI_TAGGING || (aiModelChat && aiModelChat !== ""));
 
     return {
-      theme: theme || DEFAULT_THEME,
+      theme: theme ? JSON.parse(JSON.stringify(theme)) : DEFAULT_THEME,
       tenantId,
       isAdmin: locals.isAdmin,
       // Streamed data (Promises)

@@ -52,6 +52,8 @@ const SYSTEM_SETTING_SCHEMA = new Schema<SystemSetting>(
 // Create compound unique index for key + tenantId
 SYSTEM_SETTING_SCHEMA.index({ key: 1, tenantId: 1 }, { unique: true });
 
+export const systemSettingSchema = SYSTEM_SETTING_SCHEMA;
+
 export const SystemSettingModel =
   (mongoose.models?.SystemSetting as mongoose.Model<SystemSetting> | undefined) ||
-  mongoose.model<SystemSetting>("SystemSetting", SYSTEM_SETTING_SCHEMA);
+  mongoose.model<SystemSetting>("SystemSetting", systemSettingSchema);

@@ -17,7 +17,22 @@ const ROOT = join(__dirname, "..");
 const PORT = process.env.PORT ?? "4173";
 const HOST = process.env.HOST ?? "127.0.0.1";
 const API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
-const TEST_API_SECRET = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+const getTestSecret = () => {
+  if (process.env.TEST_API_SECRET) return process.env.TEST_API_SECRET;
+  try {
+    const secretPath = join(ROOT, "tests/e2e/.auth/test-secret.txt");
+    const { existsSync, readFileSync } = require("node:fs");
+    if (existsSync(secretPath)) {
+      return readFileSync(secretPath, "utf8").trim();
+    }
+  } catch {}
+  return "SVELTYCMS_TEST_SECRET_2026";
+};
+
+const TEST_API_SECRET = getTestSecret();
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Password123!";
 
 let previewProcess: ChildProcess | null = null;
@@ -59,7 +74,7 @@ async function startPreviewServer() {
         DB_TYPE: process.env.DB_TYPE || "sqlite",
         DB_HOST: process.env.DB_HOST || "127.0.0.1",
         DB_NAME: "SveltyCMS_benchmark_test",
-        TEST_API_SECRET: "SVELTYCMS_TEST_SECRET_2026",
+        TEST_API_SECRET,
         ADMIN_PASSWORD,
         ORIGIN: API_BASE_URL,
         PASSWORD_MIN_LENGTH: "8",
@@ -175,7 +190,7 @@ async function main() {
     await runCommand("bun", ["run", "scripts/setup-system.ts"], {
       env: {
         TEST_MODE: "true",
-        TEST_API_SECRET: "SVELTYCMS_TEST_SECRET_2026",
+        TEST_API_SECRET,
         ADMIN_PASSWORD: ADMIN_PASSWORD,
         DB_TYPE: process.env.DB_TYPE || "sqlite",
         DB_HOST: process.env.DB_HOST || "127.0.0.1",
@@ -227,7 +242,7 @@ async function main() {
     const { code } = await runCommand("bun", ["test", file], {
       env: {
         ...process.env,
-        TEST_API_SECRET: "SVELTYCMS_TEST_SECRET_2026",
+        TEST_API_SECRET,
         API_BASE_URL,
         TEST_MODE: "true",
         DB_NAME: "SveltyCMS_benchmark_test",
