@@ -863,7 +863,7 @@ export class Auth {
    * - Includes uppercase, lowercase, numbers, and special characters
    */
   private validatePasswordStrength(password: string): void {
-    const minLength = getPrivateSettingSync("PASSWORD_MIN_LENGTH") || 8;
+    const minLength = (getPrivateSettingSync("PASSWORD_MIN_LENGTH") as number) || 8;
     if (password.length < minLength) {
       throw error(400, `Password must be at least ${minLength} characters long.`);
     }

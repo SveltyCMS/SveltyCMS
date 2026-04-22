@@ -20,6 +20,13 @@ export abstract class BaseAdapter {
     maxQueryComplexity: 100,
   };
 
+  protected metrics = {
+    queryCount: 0,
+    slowQueryCount: 0,
+    errorCount: 0,
+    lastLatency: 0,
+  };
+
   /**
    * Returns the capabilities of this database adapter.
    */
@@ -32,6 +39,33 @@ export abstract class BaseAdapter {
    */
   public isConnected(): boolean {
     return this.connected;
+  }
+
+  /**
+   * Returns pool diagnostics and performance metrics.
+   */
+  public async getPoolDiagnostics(): Promise<DatabaseResult<any>> {
+    return {
+      success: true,
+      data: {
+        connected: this.connected,
+        metrics: this.metrics,
+        poolStats: null, // To be implemented by child classes
+      },
+    };
+  }
+
+  /**
+   * Validates database configuration.
+   */
+  public validateConfig(config: any): DatabaseResult<void> {
+    if (!config)
+      return {
+        success: false,
+        message: "Configuration is missing",
+        error: { code: "INVALID_CONFIG", message: "Configuration is missing" },
+      };
+    return { success: true, data: undefined };
   }
 
   /**
@@ -52,9 +86,6 @@ export abstract class BaseAdapter {
     };
   }
 
-  /**
-   * Standard wrapper for database operations to ensure consistent error handling.
-   */
   protected async wrap<T>(
     fn: () => Promise<T>,
     code: string,
@@ -63,10 +94,21 @@ export abstract class BaseAdapter {
     if (!this.isConnected()) {
       return this.notConnectedError<T>();
     }
+    const startTime = performance.now();
     try {
+      this.metrics.queryCount++;
       const data = await fn();
-      return { success: true, data };
+      const latency = performance.now() - startTime;
+      this.metrics.lastLatency = latency;
+
+      if (latency > 500) {
+        this.metrics.slowQueryCount++;
+        logger.warn(`Slow database operation detected: ${code} took ${latency.toFixed(2)}ms`);
+      }
+
+      return { success: true, data, meta: { executionTime: latency } };
     } catch (error) {
+      this.metrics.errorCount++;
       return this.handleError<T>(error, code, message);
     }
   }

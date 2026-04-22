@@ -164,6 +164,8 @@ export interface DatabaseCapabilities {
   supportsPartitioning: boolean;
   supportsStreaming: boolean;
   supportsTransactions: boolean;
+  supportsSavepoints?: boolean;
+  supportsTransactionTimeout?: boolean;
 }
 
 export interface PerformanceMetrics {
@@ -1122,6 +1124,8 @@ export interface IDBAdapter {
     }>
   >;
 
+  getPoolDiagnostics?(): Promise<DatabaseResult<ConnectionPoolStats>>;
+
   getMultipleCollectionData(
     collectionNames: string[],
     options?: { limit?: number; fields?: string[] },
@@ -1149,6 +1153,12 @@ export interface IDBAdapter {
   };
 
   waitForConnection?(): Promise<void>;
+  ensureSystem?(): Promise<void>;
+  ensureAuth?(): Promise<void>;
+  ensureCollections?(): Promise<void>;
+  ensureMedia?(): Promise<void>;
+  ensureContent?(): Promise<void>;
+  ensureMonitoring?(): Promise<void>;
 
   /**
    * 🚀 Dynamic Enterprise Scaling

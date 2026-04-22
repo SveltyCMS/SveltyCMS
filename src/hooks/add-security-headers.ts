@@ -22,10 +22,13 @@
 
 import type { Handle } from "@sveltejs/kit";
 import { dev } from "$app/environment";
-import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getCorsHeaders } from "@utils/security/cors-utils";
 
 export const addSecurityHeaders: Handle = async ({ event, resolve }) => {
   const response = await resolve(event);
+  const { url, request } = event;
+  const pathname = url.pathname;
+  const origin = request.headers.get("Origin");
 
   // Static assets are already handled by handleStaticAssetCaching middleware
 
@@ -52,51 +55,14 @@ export const addSecurityHeaders: Handle = async ({ event, resolve }) => {
   );
 
   // --- Configurable CORS for API endpoints (headless CMS support) ---
-  const corsEnabled = getPrivateSettingSync("CORS_ENABLED");
-  if (corsEnabled && event.url.pathname.startsWith("/api/")) {
-    const allowedOrigins = getPrivateSettingSync("CORS_ALLOWED_ORIGINS") || [];
-    const requestOrigin = event.request.headers.get("Origin");
+  if (pathname.startsWith("/api/")) {
+    const isApiRoute = true; // confirmed by pathname check
+    const corsHeaders = getCorsHeaders(origin, isApiRoute);
 
-    // Default to same-origin if no origin match
-    let allowOrigin = "null";
-
-    if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
-      allowOrigin = requestOrigin;
-    } else if (allowedOrigins.includes("*")) {
-      allowOrigin = "*";
-    }
-
-    if (allowOrigin !== "null") {
-      response.headers.set("Access-Control-Allow-Origin", allowOrigin);
-
-      if (getPrivateSettingSync("CORS_ALLOW_CREDENTIALS") && allowOrigin !== "*") {
-        response.headers.set("Access-Control-Allow-Credentials", "true");
+    if (corsHeaders) {
+      for (const [key, value] of Object.entries(corsHeaders)) {
+        response.headers.set(key, value as string);
       }
-
-      const allowedMethods = getPrivateSettingSync("CORS_ALLOWED_METHODS") || [
-        "GET",
-        "POST",
-        "PUT",
-        "PATCH",
-        "DELETE",
-        "OPTIONS",
-      ];
-      response.headers.set("Access-Control-Allow-Methods", allowedMethods.join(", "));
-
-      const allowedHeaders = getPrivateSettingSync("CORS_ALLOWED_HEADERS") || [
-        "Content-Type",
-        "Authorization",
-      ];
-      response.headers.set("Access-Control-Allow-Headers", allowedHeaders.join(", "));
-
-      const maxAge = getPrivateSettingSync("CORS_MAX_AGE") || 86400;
-      response.headers.set("Access-Control-Max-Age", String(maxAge));
-
-      // Expose additional headers if needed
-      response.headers.set(
-        "Access-Control-Expose-Headers",
-        "Content-Length, Content-Range, X-Total-Count",
-      );
     }
   }
 

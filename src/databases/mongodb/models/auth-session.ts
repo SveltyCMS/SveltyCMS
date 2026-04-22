@@ -58,8 +58,7 @@ export class SessionAdapter {
     tenantId?: DatabaseId | null;
   }): Promise<DatabaseResult<Session>> {
     try {
-      const Model = this.SessionModel;
-      const session = new Model({
+      const session = new this.SessionModel({
         ...data,
         _id: generateId(),
       });

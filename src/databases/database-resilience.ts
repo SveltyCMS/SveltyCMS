@@ -319,29 +319,50 @@ export class DatabaseResilience {
       // Get the current database adapter
       const { dbAdapter } = await import(/* @vite-ignore */ "./db");
 
-      if (!dbAdapter || typeof dbAdapter.monitoring?.getConnectionPoolStats !== "function") {
-        throw new Error("Database adapter does not support pool diagnostics");
+      if (!dbAdapter) {
+        throw new Error("Database adapter not available");
       }
 
-      // Get connection pool stats from the adapter
-      const result = await dbAdapter.monitoring.getConnectionPoolStats();
-
-      if (!result.success) {
-        throw new Error(result.message);
+      // 1. Try to get pool stats from monitoring module
+      let poolStats: any = null;
+      if (typeof dbAdapter.monitoring?.getConnectionPoolStats === "function") {
+        const result = await dbAdapter.monitoring.getConnectionPoolStats();
+        if (result.success) {
+          poolStats = result.data;
+        }
       }
 
-      const poolStats = result.data;
-      const poolUtilization = poolStats.total > 0 ? (poolStats.active / poolStats.total) * 100 : 0;
-      const healthStatus = this.determinePoolHealth(poolUtilization, poolStats.waiting);
-      const recommendations = this.generatePoolRecommendations(poolStats, poolUtilization);
+      // 2. Try to get diagnostics from the adapter itself (BaseAdapter implementation)
+      let baseDiagnostics: any = null;
+      if (typeof dbAdapter.getPoolDiagnostics === "function") {
+        const res = await dbAdapter.getPoolDiagnostics();
+        if (res.success) {
+          baseDiagnostics = res.data;
+        }
+      }
+
+      // 3. Merge and normalize results
+      const finalStats = {
+        total: poolStats?.total ?? 0,
+        active: (poolStats?.active ?? baseDiagnostics?.metrics?.queryCount > 0) ? 1 : 0,
+        idle: poolStats?.idle ?? 0,
+        waiting: poolStats?.waiting ?? 0,
+        avgConnectionTime:
+          poolStats?.avgConnectionTime ?? baseDiagnostics?.metrics?.lastLatency ?? 0,
+      };
+
+      const poolUtilization =
+        finalStats.total > 0 ? (finalStats.active / finalStats.total) * 100 : 0;
+      const healthStatus = this.determinePoolHealth(poolUtilization, finalStats.waiting);
+      const recommendations = this.generatePoolRecommendations(finalStats, poolUtilization);
 
       return {
-        totalConnections: poolStats.total,
-        activeConnections: poolStats.active,
-        idleConnections: poolStats.idle,
-        waitingRequests: poolStats.waiting,
+        totalConnections: finalStats.total,
+        activeConnections: finalStats.active,
+        idleConnections: finalStats.idle,
+        waitingRequests: finalStats.waiting,
         poolUtilization,
-        avgConnectionTime: poolStats.avgConnectionTime,
+        avgConnectionTime: finalStats.avgConnectionTime,
         healthStatus,
         recommendations,
       };
@@ -509,7 +530,7 @@ export async function notifyAdminsOfDatabaseFailure(
   try {
     // Check if SMTP is configured
     const { getPrivateSetting } = await import(/* @vite-ignore */ "@src/services/settings-service");
-    const smtpHost = await getPrivateSetting("SMTP_HOST");
+    const smtpHost = await getPrivateSetting("SMTP_HOST" as any);
 
     if (!smtpHost) {
       logger.debug("SMTP not configured, skipping admin notification email");

@@ -208,25 +208,35 @@ function parseActionResult(result: unknown): unknown {
   if (!Array.isArray(parsed)) return parsed;
 
   const [structure, ...values] = parsed as [unknown, ...unknown[]];
+  const hydrated = new Map<number, unknown>();
 
   function hydrate(node: unknown): unknown {
     // Numeric index → back-reference into values array (1-based in devalue).
     if (typeof node === "number" && Number.isInteger(node)) {
       if (node < 0) {
-        throw new RangeError(
-          `Circular reference in devalue output (index ${node}). ` +
-            `Extend parseActionResult to handle this.`,
-        );
+        // -1, -2, etc are back-references to objects already being hydrated
+        const index = -node - 1;
+        if (hydrated.has(index)) {
+          return hydrated.get(index);
+        }
+        return `[Circular Ref ${node}]`;
       }
-      const ref = values[node - 1];
-      return hydrate(ref);
+
+      const index = node - 1;
+      if (hydrated.has(index)) return hydrated.get(index);
+
+      const ref = values[index];
+      // Recursively hydrate the referenced value
+      const result = hydrate(ref);
+      hydrated.set(index, result);
+      return result;
     }
 
-    if (Array.isArray(node)) return node.map(hydrate);
+    if (Array.isArray(node)) {
+      return node.map(hydrate);
+    }
 
     if (typeof node === "object" && node !== null) {
-      // devalue uses tagged arrays for special types: [["Date", "2024-01-01"]]
-      // For now we handle the common ones; add more as needed.
       const entries = Object.entries(node as Record<string, unknown>);
       const out: Record<string, unknown> = {};
       for (const [k, v] of entries) {
@@ -235,7 +245,7 @@ function parseActionResult(result: unknown): unknown {
       return out;
     }
 
-    return node; // string, boolean, null, undefined
+    return node;
   }
 
   try {
@@ -450,17 +460,8 @@ async function verifySetup(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function stepClean(): Promise<void> {
-  log("info", "Dropping existing database collections (--clean)…");
-  const form = new FormData();
-  form.append("config", JSON.stringify(cfg.db));
-  const res = parseActionResult(await postAction("cleanDatabase", form)) as any;
-
-  if (!res?.success) {
-    // Non-fatal: a clean DB or wrong driver will report failure here.
-    log("warn", `cleanDatabase reported non-success: ${res?.error ?? "unknown reason"}`);
-  } else {
-    log("info", "Database cleaned.");
-  }
+  // Now handled by passing allowOverwrite: true to testDatabase step.
+  log("info", "Database cleaning will be performed during connection test.");
 }
 
 async function stepTestConnection(): Promise<void> {
@@ -468,6 +469,9 @@ async function stepTestConnection(): Promise<void> {
   const form = new FormData();
   form.append("config", JSON.stringify(cfg.db));
   form.append("createIfMissing", "true");
+  if (cfg.flags.clean) {
+    form.append("allowOverwrite", "true");
+  }
   const res = parseActionResult(await postAction("testDatabase", form)) as any;
 
   if (!res || res.success === false) {
@@ -534,7 +538,13 @@ async function stepCompleteSetup(): Promise<void> {
   );
 
   const payload = {
-    database: cfg.db,
+    database: {
+      ...cfg.db,
+      allowOverwrite: true,
+      JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-Change-Me",
+      ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-Must-Be-32-Chars!!",
+      TEST_API_SECRET: "SVELTYCMS_TEST_SECRET_2026",
+    },
     admin: {
       username: cfg.admin.username,
       email: cfg.admin.email,
@@ -546,7 +556,7 @@ async function stepCompleteSetup(): Promise<void> {
       demoMode: cfg.system.demoMode,
       useRedis: cfg.system.useRedis,
       siteName: "SveltyCMS Test",
-      PASSWORD_MIN_LENGTH: 8,
+      passwordMinLength: 8,
       defaultContentLanguage: "en",
       contentLanguages: ["en"],
       defaultSystemLanguage: "en",
@@ -571,7 +581,7 @@ async function stepCompleteSetup(): Promise<void> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-test-secret": process.env.TEST_API_SECRET || "",
+      "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
     },
     body: JSON.stringify({ email: cfg.admin.email, password: cfg.admin.password }),
   });

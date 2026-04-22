@@ -191,6 +191,7 @@ export async function startServer(
     detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
     env,
+    shell: process.platform === "win32",
   });
 
   const stop = async () => {

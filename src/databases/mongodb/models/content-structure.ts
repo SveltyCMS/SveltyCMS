@@ -60,7 +60,7 @@ const translationSchema = new Schema<Translation>(
 );
 
 // Base schema for the content structure
-const contentStructureSchema = new Schema<ContentStructureDocument>(
+export const contentStructureSchema = new Schema<ContentStructureDocument>(
   {
     _id: { type: String, required: true, default: () => generateId() },
     name: { type: String, required: true },
@@ -95,7 +95,6 @@ const contentStructureSchema = new Schema<ContentStructureDocument>(
     timestamps: true,
     collection: "system_content_structure",
     discriminatorKey: "nodeType", // Use nodeType to differentiate between category and collection
-    _id: false, // Disable Mongoose auto-ObjectId generation since we use UUID strings
     bufferCommands: false,
   },
 );
@@ -402,12 +401,12 @@ export function registerContentStructureDiscriminators(conn: any) {
     }
 
     if (!baseModel.discriminators.category) {
-      baseModel.discriminator("category", new Schema<CategoryDocument>({}, { _id: false }));
+      baseModel.discriminator("category", new Schema<CategoryDocument>({}));
       logger.debug("CONTENT_STRUCTURE_CATEGORY_DISCRIMINATOR_REGISTERED");
     }
 
     if (!baseModel.discriminators.collection) {
-      baseModel.discriminator("collection", new Schema<CollectionDocument>({}, { _id: false }));
+      baseModel.discriminator("collection", new Schema<CollectionDocument>({}));
       logger.debug("CONTENT_STRUCTURE_COLLECTION_DISCRIMINATOR_REGISTERED");
     }
 

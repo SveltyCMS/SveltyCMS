@@ -94,10 +94,13 @@ async function setupCollections(cms: any): Promise<{ authorsId: string; postsId:
       break;
     }
 
+    const all = await cms.collections.list({ tenantId: TENANT_ID as any });
+    log(
+      `  (Attempt ${attempt}/${MAX_POLL_ATTEMPTS}) Available collections: ${all.map((c: any) => `${c.name} (${c._id})`).join(", ")}`,
+    );
+
     if (attempt === MAX_POLL_ATTEMPTS) {
-      const available = (await cms.collections.list({ tenantId: TENANT_ID as any })).map(
-        (c: any) => c.name || c._id,
-      );
+      const available = all.map((c: any) => c.name || c._id);
       throw new Error(
         `Reconciliation timeout: Collections not found. Available: ${available.join(", ")}`,
       );
@@ -186,6 +189,28 @@ export async function main(): Promise<void> {
 
     if (clearOnly) {
       log("✅ Database cleared (clear-only mode).");
+
+      // 🚀 Re-provision critical Admin for subsequent benchmark scripts
+      if (typeof db.ensureAuth === "function") {
+        await db.ensureAuth(); // Ensure roles exist
+      }
+
+      const adminData = {
+        username: "admin",
+        email: "admin@example.com",
+        password: "Password123!",
+        role: "admin",
+        isAdmin: true,
+        isRegistered: true,
+      };
+
+      // Hash password manually to ensure Argon2id consistency
+      const argon2 = await import("argon2");
+      adminData.password = await argon2.hash(adminData.password);
+
+      await db.auth.createUser(adminData);
+      log("✅ Admin re-provisioned for clean state.");
+
       process.exit(0);
     }
 

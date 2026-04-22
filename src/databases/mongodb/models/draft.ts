@@ -39,7 +39,6 @@ export const draftSchema = new Schema<ContentDraft>(
     timestamps: true, // Enable timestamps for createdAt and updatedAt
     collection: "content_drafts",
     strict: true, // Enforce strict schema validation
-    _id: false, // Disable Mongoose auto-ObjectId generation
   },
 );
 

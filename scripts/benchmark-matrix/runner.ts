@@ -313,7 +313,14 @@ export async function runAuditForDatabase(
       );
     }
 
-    if (!(await runTask("Standard System Setup", "bun run scripts/setup-system.ts", env, cfg.ci))) {
+    if (
+      !(await runTask(
+        "Standard System Setup",
+        "bun run scripts/setup-system.ts --clean",
+        env,
+        cfg.ci,
+      ))
+    ) {
       log.error(`Setup failed for ${meta.label}. Skipping.`);
       results.push({
         db: dbKey,

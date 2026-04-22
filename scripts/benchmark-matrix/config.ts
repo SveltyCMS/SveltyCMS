@@ -169,7 +169,7 @@ const getSecret = (key: string, defaultValue: string): string => {
 };
 
 export const ADMIN_PASSWORD = getSecret("ADMIN_PASSWORD", "Password123!");
-export const TEST_API_SECRET = getSecret("TEST_API_SECRET", "SveltyCMS-Benchmark-Secret-2026");
+export const TEST_API_SECRET = getSecret("TEST_API_SECRET", "SVELTYCMS_TEST_SECRET_2026");
 export const JWT_SECRET_KEY = getSecret(
   "JWT_SECRET_KEY",
   "Benchmark-JWT-Secret-Key-2026-Change-Me",

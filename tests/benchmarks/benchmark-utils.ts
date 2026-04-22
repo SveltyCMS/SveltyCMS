@@ -497,8 +497,17 @@ export function exportMetric(
 
 /**
  * Lifecycle helper for benchmarks to manage their own SveltyCMS instance.
+ * 🚀 SMART REUSE: If API_BASE_URL is already set (e.g. by orchestrator), it skips spawning.
  */
 export async function setupBenchmarkServer() {
+  const apiBase = process.env.API_BASE_URL;
+  if (apiBase) {
+    return {
+      baseUrl: apiBase,
+      stop: async () => {}, // No-op: managed by parent
+    };
+  }
+
   const { startServer } = await import("../../scripts/benchmark-matrix/server");
   const { ALL_DATABASES } = await import("../../scripts/benchmark-matrix/config");
 

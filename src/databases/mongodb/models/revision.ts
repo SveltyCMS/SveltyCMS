@@ -37,7 +37,6 @@ export const revisionSchema = new Schema<ContentRevision>(
     timestamps: true, // Enable timestamps for createdAt and updatedAt
     collection: "content_revisions",
     strict: true, // Enforce strict schema validation
-    _id: false, // Disable Mongoose auto-ObjectId generation
   },
 );
 

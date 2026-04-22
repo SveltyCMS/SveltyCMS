@@ -14,6 +14,7 @@ import {
   generateSAMLAuthUrl,
   createSAMLConnection,
 } from "@src/databases/auth/saml-auth";
+import type { ISODateString } from "@src/content/types";
 import { getAllPermissions } from "@src/databases/auth/permissions";
 import { successResponse, rawResponse } from "./base";
 import { invalidateSessionCache } from "@src/hooks/handle-authentication";
@@ -112,7 +113,30 @@ export async function handleLogin(
   const body = await event.request.json();
   const { email, password } = body;
 
-  const result = await cms.auth.login({ email, password }, { tenantId });
+  // 🚀 ROBUST SYSTEM BYPASS:
+  // If handleTurboPipeline already verified the cryptographic secret (x-test-secret),
+  // we can grant a session for ANY requested user email without password verification.
+  let result;
+  if ((event.locals as any).__testBypass) {
+    const userResult = await cms.auth.getUserByEmail({ email, tenantId });
+    if (userResult.success && userResult.data) {
+      // Use HIGH-LEVEL auth for session creation to ensure all hooks/signing logic runs
+      const { Auth } = await import("@src/databases/auth");
+      const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
+      const highLevelAuth = new Auth(cms.db, getDefaultSessionStore());
+
+      const session = await highLevelAuth.createSession({
+        user_id: userResult.data._id as DatabaseId,
+        expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
+        tenantId: tenantId as DatabaseId,
+      });
+      result = { user: userResult.data, session };
+    } else {
+      result = await cms.auth.login({ email, password }, { tenantId });
+    }
+  } else {
+    result = await cms.auth.login({ email, password }, { tenantId });
+  }
 
   // Set session cookie
   const isProd = !dev && process.env.TEST_MODE !== "true";

@@ -324,7 +324,12 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   // Ensure DB is initialized to at least CORE phase before proceeding with auth checks
   await getDbInitPromise(false, "CORE");
 
-  // High-performance bypass for internal test orchestration
+  // 🚀 FAST BYPASS: If already verified by handleTurboPipeline (x-test-secret), skip EVERYTHING.
+  // This is essential for black-box testing and benchmarks.
+  if ((locals as any).__testBypass === true) {
+    return await resolve(event);
+  }
+
   const isBypassed = (locals as any).__testBypass === true;
   const isSystemUser = (locals as any).user?._id === "system";
 

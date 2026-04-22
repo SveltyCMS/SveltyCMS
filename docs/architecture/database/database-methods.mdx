@@ -280,20 +280,19 @@ db.collection("posts").insertOne(entry);
 
 **Key Principle:** Widgets and components never know the underlying storage format—they always receive/send the same multilingual object structure.
 
-Each adapter organizes its logic into modules or methods:
+Each adapter organizes its logic into specialized modules:
 
-| MongoDB Method Module | SQL (Drizzle) Equivalent        | Responsibility                    |
-| --------------------- | ------------------------------- | --------------------------------- |
-| **authMethods**       | `modules/auth/authModule.ts`    | Authentication & User management  |
-| **collectionMethods** | `collection/collectionModule`   | Dynamic schema/model management   |
-| **crudMethods**       | `crud/crudModule.ts`            | Generic CRUD operations           |
-| **contentMethods**    | `modules/content/contentModule` | CMS-specific content workflows    |
-| **mediaMethods**      | `modules/media/mediaModule`     | Media file operations             |
-| **themeMethods**      | `modules/themes/themesModule`   | Theme installation & activation   |
-| **widgetMethods**     | `modules/widgets/widgetsModule` | Widget registration & management  |
-| **systemMethods**     | `modules/system/` modules       | System preferences & settings     |
-| **monitoringMethods** | `performance/` modules          | Health, metrics & **Versioning**  |
-| **mongoDBUtils**      | `utils.ts`                      | Shared utilities & error handling |
+| MongoDB Modular Adapter | SQL (Drizzle) Equivalent        | Responsibility                    |
+| :---------------------- | :------------------------------ | :-------------------------------- |
+| **AuthModule**          | `modules/auth/authModule.ts`    | Authentication & User management  |
+| **CollectionModule**    | `collection/collectionModule`   | Dynamic schema/model management   |
+| **CrudModule**          | `crud/crudModule.ts`            | Generic CRUD operations           |
+| **ContentModule**       | `modules/content/contentModule` | CMS-specific content workflows    |
+| **MediaModule**         | `modules/media/mediaModule`     | Media file operations             |
+| **SystemModule**        | `modules/system/` modules       | System preferences & settings     |
+| **MonitoringModule**    | `performance/` modules          | Health, metrics & **Versioning**  |
+| **TransactionModule**   | `operations/transaction-module` | ACID compliance & native sessions |
+| **MongoDBUtils**        | `utils.ts`                      | Shared utilities & error handling |
 
 ### 3. Dependency Injection
 

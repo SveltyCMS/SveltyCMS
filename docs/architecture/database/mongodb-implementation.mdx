@@ -110,11 +110,80 @@ SveltyCMS MongoDB implementation is built with **enterprise-scale performance as
 - **Dependency Guards (`ensure<Feature>`)**: Background services explicitly await the readiness of their specific database sub-systems.
 - **Promise-Based Locking**: Internal initialization is protected by a promise map to prevent race conditions during concurrent startup requests.
 
-**Phase 6**: L2 Persistence & Typed SDK (NEW)
+**Phase 6: L2 Persistence & Typed SDK (2026)**
 
 - **L2 Schema Persistence**: The full `Schema` object is stored in the database. Cold starts skip the filesystem scan entirely if the DB version matches.
 - **Typed Collection Proxy**: Generated types provide full IntelliSense for database operations, reducing developer error and improving speed.
 - **Index Optimizer**: A background service that periodically verifies and builds missing indexes based on field configurations.
+
+**Phase 7: Modularization & Engine 9.5 Alignment (NEW)**
+
+- **Domain-Specific Modules**: Refactored monolithic adapter into specialized modules (`AuthModule`, `CrudModule`, `MediaModule`, `SystemModule`) for improved maintainability and telemetry.
+- **Mongoose 9.5.0 Integration**: Bleeding-edge support for MongoDB 8.0/9.0 engine features, including optimized `.lean()` execution and enhanced wire compression (Zstd).
+- **Explicit Schema Registration**: Forced string-based `_id` schemas across all system collections to ensure 100% parity with SQL engines and prevent "Cast to ObjectId" errors.
+- **Unified Transactions**: Implementation of the `MongoTransactionModule` which wraps native MongoDB sessions in a SQL-compatible interface (`tx.insert`, `tx.update`).
+
+---
+
+## 🏗️ Modular Adapter Architecture (2026)
+
+As of April 2026, the MongoDB adapter has been fully modularized to align with the enterprise-grade architecture used by SveltyCMS's SQL engines.
+
+### Module Breakdown
+
+| Module | Responsibility | Optimization |
+| :--- | :--- | :--- |
+| **AuthModule** | Session validation, RBAC, and JIT provisioning. | Composed adapter pattern for sub-1ms validation. |
+| **CrudModule** | High-speed document operations with name normalization. | `.lean()` by default with zero-serialization overhead. |
+| **MediaModule** | GridFS/Filesystem hybrid storage and metadata. | SHA-256 deduplication and metadata extraction. |
+| **SystemModule** | Preferences, themes, widgets, and background jobs. | Integrated L1/L2 cache versioning. |
+| **TransactionModule** | ACID compliance via native sessions. | Unified SQL-like wrapper for cross-DB logic. |
+
+### Explicit Schema Registration
+
+To maintain "Database Agnostic" consistency, SveltyCMS uses **String IDs** instead of MongoDB's native `ObjectId`. To prevent runtime crashes (`Cast to ObjectId failed`), we use a centralized registration pattern:
+
+```typescript
+// File: src/databases/mongodb/methods/model-registration.ts
+export async function registerSystemModels(connection: Connection): Promise<void> {
+  // We "force-feed" the correct String-based schemas immediately upon connection
+  if (!connection.models.system_content_structure) {
+    connection.model("system_content_structure", contentStructureSchema);
+  }
+  // This ensures 100% parity with SQLite/Postgres UUIDs
+}
+```
+
+---
+
+## 💎 ACID Transactions (Unified API)
+
+SveltyCMS provides a unified transaction API that works identically across SQL and NoSQL. The MongoDB implementation utilizes native **Distributed Sessions**.
+
+### Implementation Detail
+
+The `MongoTransactionModule` wraps the native MongoDB session to satisfy the CMS interface:
+
+```typescript
+async execute<T>(fn: (tx: DatabaseTransaction) => Promise<DatabaseResult<T>>) {
+  const session = await this.adapter.connection.startSession();
+  session.startTransaction();
+
+  const tx = {
+    insert: (coll, data) => this.adapter.crud.insert(coll, data, { session }),
+    commit: () => session.commitTransaction(),
+    // ...
+  };
+
+  return await fn(tx);
+}
+```
+
+**Benefits**:
+- **Atomicity**: Complex relational seeding either succeeds entirely or rolls back.
+- **Portability**: The exact same business logic runs on MongoDB and MariaDB.
+- **Safety**: Automated rollback on any unhandled exception within the transaction block.
+
 
 ---
 

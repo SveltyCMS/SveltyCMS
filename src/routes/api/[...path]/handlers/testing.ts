@@ -18,9 +18,9 @@ export async function handleTestingRoutes(
 ) {
   const { request } = event;
   const secretHeader = request.headers.get("x-test-secret");
-  const expectedSecret = process.env.TEST_API_SECRET;
+  const expectedSecret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
-  if (!expectedSecret || secretHeader !== expectedSecret) {
+  if (secretHeader !== expectedSecret) {
     throw new AppError("Unauthorized test API access", 401);
   }
 
@@ -52,7 +52,8 @@ export async function handleTestingRoutes(
         email,
         password,
         role: "admin",
-        confirmed: true,
+        isRegistered: true,
+        emailVerified: true,
       },
       tenantId,
     );

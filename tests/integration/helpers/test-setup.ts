@@ -121,6 +121,7 @@ export async function prepareAuthenticatedContext(): Promise<string> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "x-test-secret": TEST_API_SECRET,
       Origin: API_BASE_URL,
     },
     body: JSON.stringify({

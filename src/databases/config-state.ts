@@ -6,7 +6,7 @@
  * Avoids circular dependencies and fragile dynamic imports.
  */
 
-import { privateConfigSchema } from "@src/databases/schemas";
+import { privateConfigSchema } from "@src/databases/private-config-schema";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { parse, type InferOutput } from "valibot";

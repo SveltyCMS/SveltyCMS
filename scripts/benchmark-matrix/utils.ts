@@ -104,104 +104,136 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
   return {
     collections:
       getMetric("rest.collections.p95") ||
+      getMetric("REST p95") ||
       getMetric("Dispatcher: findById") ||
       getMetric("REST (Average)") ||
       getMetric("rest-collections-p95") ||
       0,
     restAvg:
       getMetric("rest.collections.avg") ||
+      getMetric("REST Avg") ||
       getMetric("Dispatcher: findById") ||
       getMetric("REST (Average)") ||
       getMetric("rest-collections-avg") ||
       0,
     restRps:
       getMetric("rest.collections.rps") ||
+      getMetric("REST RPS") ||
       getMetric("rest-api-performance") ||
       getMetric("rest-collections-rps") ||
       0,
     dbRaw:
-      getMetric("adapter.read.avg") || getMetric("Adapter:") || getMetric("adapter-read-avg") || 0,
+      getMetric("adapter.read.avg") ||
+      getMetric("DB Raw p95") ||
+      getMetric("Adapter:") ||
+      getMetric("adapter-read-avg") ||
+      0,
     hooks:
       getMetric("middleware.hooks.p95") ||
+      getMetric("Hooks p95") ||
       getMetric("hooks-performance") ||
       getMetric("middleware-hooks-p95") ||
       0,
     graphqlAvg:
       getMetric("graphql.query.avg") ||
+      getMetric("GQL Avg") ||
       getMetric("GraphQL (Average)") ||
       getMetric("graphql-average") ||
       0,
     gqlRps:
       getMetric("graphql.query.rps") ||
+      getMetric("GQL RPS") ||
       getMetric("graphql-api-performance") ||
       getMetric("graphql-query-rps") ||
       0,
     authAvg:
       getMetric("auth.middleware.avg") ||
+      getMetric("Auth Avg") ||
       getMetric("auth.verification.avg") ||
       getMetric("Auth (Average)") ||
       getMetric("auth-middleware-avg") ||
       0,
     authRps:
       getMetric("auth.max_rps") ||
+      getMetric("Auth RPS") ||
       getMetric("auth.verification.rps") ||
       getMetric("auth-performance") ||
       getMetric("auth-max-rps") ||
       0,
     relationalAvg:
       getMetric("logic.relational.avg") ||
+      getMetric("Relational p95") ||
       getMetric("relational-performance") ||
       getMetric("logic-relational-avg") ||
       0,
     widgetAvg:
       getMetric("logic.widget.avg") ||
+      getMetric("Widget Avg") ||
       getMetric("widget-performance") ||
       getMetric("logic-widget-avg") ||
       0,
     mediaAvg:
       getMetric("media.processing.avg") ||
+      getMetric("Media Avg") ||
       getMetric("media-performance") ||
       getMetric("media-bulk-avg") ||
       0,
     scanAvg:
       getMetric("internals.scan.avg") ||
+      getMetric("Scan Avg") ||
       getMetric("Content Scan") ||
       getMetric("internals-scan-avg") ||
       0,
     memGrowth:
       getMetric("internals.memory.rss_delta") ||
+      getMetric("Memory RSS Delta") ||
       (m["memory-stability"] as any)?.rssDelta ||
       getMetric("memory-stability") ||
       0,
     securityMs:
       getMetric("security.waf.avg") ||
+      getMetric("Security WAF Avg") ||
       getMetric("security.firewall.p95") ||
       getMetric("security-waf-avg") ||
       0,
     openapiHit:
       getMetric("api.openapi.warm.p95") ||
+      getMetric("OpenAPI Warm Hit") ||
       getMetric("openapi.spec.avg") ||
       getMetric("api-openapi-warm-p95") ||
       0,
     buildDuration:
       getMetric("dx.build.duration") ||
+      getMetric("Build Duration") ||
       (m["dx-build"] as any)?.durationMs ||
       getMetric("dx-build-duration") ||
       0,
-    bundleSize: getMetric("dx.bundle.size.total") || getMetric("dx-bundle-size-total") || 0,
+    bundleSize:
+      getMetric("dx.bundle.size.total") ||
+      getMetric("Bundle Size") ||
+      getMetric("dx-bundle-size-total") ||
+      0,
     txCommit:
       getMetric("adapter.transaction.commit.avg") ||
+      getMetric("TX Commit Avg") ||
       getMetric("adapter-transaction-commit-avg") ||
       0,
-    systemCpu: getMetric("cpu-audit") || (m["cpu-audit"] as any)?.loadPct || 0,
-    realtimeLatency: getMetric("realtime.broadcast.avg") || getMetric("realtime-performance") || 0,
+    systemCpu:
+      getMetric("cpu-audit") || getMetric("CPU Load") || (m["cpu-audit"] as any)?.loadPct || 0,
+    realtimeLatency:
+      getMetric("realtime.broadcast.avg") ||
+      getMetric("Realtime Latency") ||
+      getMetric("realtime-performance") ||
+      0,
     tenancyAvg:
       getMetric("scale.tenancy.avg") ||
+      getMetric("Tenancy p95") ||
       getMetric("multi.tenant.p95") ||
       getMetric("multi-tenant-average") ||
       0,
     mixedAvg:
       getMetric("scale.mixed.avg") ||
+      getMetric("Mixed Workload Avg") ||
       getMetric("workload.mixed.avg") ||
       getMetric("mixed-workload-aggregate") ||
       0,

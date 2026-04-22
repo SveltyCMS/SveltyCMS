@@ -84,6 +84,10 @@ declare global {
       tenantId?: DatabaseId | null;
       theme: Theme | null;
       user: User | null;
+
+      // Tracing and Metrics
+      requestStart: number;
+      requestId: string;
     }
   }
 

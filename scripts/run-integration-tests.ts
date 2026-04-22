@@ -59,10 +59,12 @@ async function startPreviewServer() {
         DB_TYPE: process.env.DB_TYPE || "sqlite",
         DB_HOST: process.env.DB_HOST || "127.0.0.1",
         DB_NAME: "SveltyCMS_benchmark_test",
-        TEST_API_SECRET,
+        TEST_API_SECRET: "SVELTYCMS_TEST_SECRET_2026",
         ADMIN_PASSWORD,
         ORIGIN: API_BASE_URL,
         PASSWORD_MIN_LENGTH: "8",
+        JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-Change-Me",
+        ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-Must-Be-32-Chars!!",
       },
     },
   );
@@ -164,19 +166,28 @@ async function main() {
 
   await startPreviewServer();
 
-  // Run setup
-  console.log("⚙️  Running system setup...");
-  await runCommand("bun", ["run", "scripts/setup-system.ts"], {
-    env: {
-      TEST_MODE: "true",
-      TEST_API_SECRET,
-      ADMIN_PASSWORD,
-      DB_TYPE: process.env.DB_TYPE || "sqlite",
-      DB_HOST: process.env.DB_HOST || "127.0.0.1",
-      DB_NAME: "SveltyCMS_benchmark_test",
-      PASSWORD_MIN_LENGTH: "8",
-    },
-  });
+  // Run setup (ONLY if config missing)
+  const privateTestPath = join(ROOT, "config/private.test.ts");
+  const { existsSync } = await import("node:fs");
+
+  if (!existsSync(privateTestPath)) {
+    console.log("⚙️  Running system setup...");
+    await runCommand("bun", ["run", "scripts/setup-system.ts"], {
+      env: {
+        TEST_MODE: "true",
+        TEST_API_SECRET: "SVELTYCMS_TEST_SECRET_2026",
+        ADMIN_PASSWORD: ADMIN_PASSWORD,
+        DB_TYPE: process.env.DB_TYPE || "sqlite",
+        DB_HOST: process.env.DB_HOST || "127.0.0.1",
+        DB_NAME: "SveltyCMS_benchmark_test",
+        PASSWORD_MIN_LENGTH: "8",
+        JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-Change-Me",
+        ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-Must-Be-32-Chars!!",
+      },
+    });
+  } else {
+    console.log("⚙️  System already setup (private.test.ts found). Skipping setup task.");
+  }
 
   // Reset & seed test data
   console.log("🧹 Resetting and seeding test data...");
@@ -216,9 +227,12 @@ async function main() {
     const { code } = await runCommand("bun", ["test", file], {
       env: {
         ...process.env,
-        TEST_API_SECRET,
+        TEST_API_SECRET: "SVELTYCMS_TEST_SECRET_2026",
         API_BASE_URL,
         TEST_MODE: "true",
+        DB_NAME: "SveltyCMS_benchmark_test",
+        JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-Change-Me",
+        ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-Must-Be-32-Chars!!",
       },
     });
 

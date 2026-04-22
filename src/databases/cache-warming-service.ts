@@ -71,16 +71,49 @@ export class CacheWarmingService {
 
   /**
    * Structural reconciliation - ensures cache matches database structure.
+   * This implements the "Self-Healing Cache 2.0" pattern.
    */
-  async reconcile(_db: any) {
+  async reconcile(db: any) {
     const now = Date.now();
     if (now - this.lastReconcile < 300000) return; // Only reconcile every 5 minutes max
 
     this.lastReconcile = now;
     logger.debug("🔎 Running Cache Structural Reconciliation...");
 
-    // Implementation logic for structural check (comparing mtime-hashes between DB and Cache)
-    // This provides the "99.9% Self-Healing" property.
+    try {
+      // 1. Check Content Version Consistency
+      const cachedVersion = await cacheService.get("system:content_version");
+      const dbVersion = await db.system.preferences.get("system:content_version");
+
+      if (dbVersion.success && dbVersion.data && cachedVersion !== dbVersion.data) {
+        logger.warn(
+          `[Reconcile] Content version mismatch (DB: ${dbVersion.data}, Cache: ${cachedVersion}). Triggering selective invalidation.`,
+        );
+        await cacheService.invalidateByCategory(CacheCategory.CONTENT);
+        await cacheService.set("system:content_version", dbVersion.data, 0);
+      }
+
+      // 2. Structural Count Verification for critical collections
+      const criticalCollections = ["system_content_structure", "auth_users", "media"];
+      for (const coll of criticalCollections) {
+        const countRes = await db.crud.count(coll);
+        if (countRes.success) {
+          // If counts are wildly different or missing from cache, we might need to invalidate
+          // For now, we just ensure the count metadata exists
+          await cacheService.set(
+            `meta:count:${coll}`,
+            countRes.data,
+            600,
+            null,
+            CacheCategory.SYSTEM,
+          );
+        }
+      }
+
+      logger.debug("✅ Cache Structural Reconciliation Finished.");
+    } catch (err) {
+      logger.error("Cache reconciliation failed", err);
+    }
   }
 }
 

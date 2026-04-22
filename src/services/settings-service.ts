@@ -9,7 +9,8 @@
  * - settings import/export
  */
 
-import { privateConfigSchema, publicConfigSchema } from "@src/databases/schemas";
+import { privateConfigSchema } from "../databases/private-config-schema";
+import { publicConfigSchema } from "../databases/public-config-schema";
 import { logger } from "@utils/logger";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import type { InferOutput } from "valibot";
@@ -142,11 +143,18 @@ export async function loadSettingsCache(
 
     let privateConfig: PrivateEnv;
     if (inMemoryConfig) {
-      privateConfig = inMemoryConfig;
+      privateConfig = inMemoryConfig as any;
     } else {
       try {
-        const { privateEnv } = await import("@config/private");
-        privateConfig = privateEnv as unknown as PrivateEnv;
+        // Use a more dynamic approach for Vitest/Build resilience
+        const isTest = process.env.NODE_ENV === "test" || process.env.TEST_MODE === "true";
+        const configFilename = isTest ? "private.test" : "private";
+
+        // Use dynamic import that won't be statically analyzed by Vite/Vitest easily
+        const module = await import(/* @vite-ignore */ `../../config/${configFilename}`).catch(
+          () => ({}),
+        );
+        privateConfig = (module.privateEnv || module) as PrivateEnv;
       } catch (error) {
         logger.trace("Private config not found during setup", {
           tenantId,

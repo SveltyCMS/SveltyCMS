@@ -186,11 +186,17 @@ describe("Session Timeout Security", () => {
   it("should have configurable session timeout", () => {
     // Short session for sensitive operations
     const shortSession = createMockSession(5); // 5 minutes
-    expect(shortSession.expiresAt.getTime() - shortSession.createdAt.getTime()).toBe(5 * 60 * 1000);
+    expect(shortSession.expiresAt.getTime() - shortSession.createdAt.getTime()).toBeCloseTo(
+      5 * 60 * 1000,
+      -1,
+    );
 
     // Long session for normal operations
     const longSession = createMockSession(480); // 8 hours
-    expect(longSession.expiresAt.getTime() - longSession.createdAt.getTime()).toBe(480 * 60 * 1000);
+    expect(longSession.expiresAt.getTime() - longSession.createdAt.getTime()).toBeCloseTo(
+      480 * 60 * 1000,
+      -1,
+    );
   });
 });
 

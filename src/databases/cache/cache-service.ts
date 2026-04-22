@@ -525,17 +525,17 @@ export class CacheService {
     // 2. Clear L2 (Redis)
     if (this.isL2Ready()) {
       const fullPattern = this.buildKey(pattern, tenantId);
-      let cursor = 0;
+      let cursor: string | number = "0";
       do {
-        const result = await this.l2.scan(cursor, {
+        const result: { cursor: string; keys: string[] } = await this.l2.scan(cursor as string, {
           MATCH: fullPattern,
           COUNT: 100,
         });
-        cursor = Number(result.cursor);
+        cursor = result.cursor;
         if (result.keys && result.keys.length > 0) {
           await this.l2.del(result.keys);
         }
-      } while (cursor !== 0);
+      } while (cursor !== "0");
 
       // 3. Broadcast invalidation to other edge nodes
       await this.publishInvalidation(pattern, tenantId);
@@ -548,6 +548,30 @@ export class CacheService {
       l1Size: this.l1.size,
       size: this.l1.size, // compatibility
     };
+  }
+
+  async getGlobalVersion(tenantId?: string | null): Promise<number> {
+    const key = this.buildKey("system:version", tenantId);
+    const version = await this.get<number>(key, tenantId);
+    return version || 1;
+  }
+
+  async incrementGlobalVersion(tenantId?: string | null): Promise<number> {
+    const key = this.buildKey("system:version", tenantId);
+    const current = await this.getGlobalVersion(tenantId);
+    const next = current + 1;
+    await this.set(key, next, 86400 * 365, tenantId); // 1 year
+    return next;
+  }
+
+  async invalidateByCategory(category: CacheCategory, tenantId?: string | null) {
+    // For now, we clear by pattern using category as a prefix if applicable,
+    // or just clear all for that tenant if category is broad.
+    await this.clearByPattern(`*:${category}:*`, tenantId || "*");
+  }
+
+  async invalidateCollection(collection: string, tenantId?: string | null) {
+    await this.clearByPattern(`collection:${collection}:*`, tenantId || "*");
   }
 }
 

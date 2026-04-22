@@ -3,7 +3,8 @@
  * @description Lightweight utility constants and helpers for the database system.
  */
 
-import { privateConfigSchema, publicConfigSchema } from "./schemas";
+import { publicConfigSchema } from "./schemas";
+import { privateConfigSchema } from "./private-config-schema";
 
 // Infrastructure keys that come from config file, not database
 export const INFRASTRUCTURE_KEYS = new Set([

@@ -45,7 +45,7 @@ export class PreviewService {
 
     // 2. Sign Payload using HMAC-SHA256
     const signature = crypto
-      .createHmac("sha256", secret)
+      .createHmac("sha256", secret as string)
       .update(payload)
       .digest("hex")
       .slice(0, 32);
@@ -73,7 +73,7 @@ export class PreviewService {
       if (entryId && tEntryId !== entryId) return { valid: false, userId: "" };
 
       // Re-calculate Signature
-      const secret = getPrivateSettingSync("PREVIEW_SECRET")!;
+      const secret = getPrivateSettingSync("PREVIEW_SECRET") as string;
       const payload = `${userId}:${tEntryId}:${expires}`;
       const expectedSignature = crypto
         .createHmac("sha256", secret)

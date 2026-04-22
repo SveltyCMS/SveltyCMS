@@ -340,6 +340,30 @@ class AuthNamespace {
     );
   }
 
+  async getUserByEmail(criteria: { email: string; tenantId?: DatabaseId | null }) {
+    const auth = await this.getAuth();
+    if (!auth) throw new AppError("Authentication system not initialized", 500);
+    return auth.getUserByEmail(criteria, {
+      tenantId: criteria.tenantId as DatabaseId,
+    });
+  }
+
+  async deleteUser(userId: string, tenantId?: DatabaseId | null) {
+    const auth = await this.getAuth();
+    if (!auth) throw new AppError("Authentication system not initialized", 500);
+    return auth.deleteUser(userId as DatabaseId, {
+      tenantId: tenantId as DatabaseId,
+    });
+  }
+
+  async getUserCount(filter: any = {}, tenantId?: DatabaseId | null) {
+    const auth = await this.getAuth();
+    if (!auth) throw new AppError("Authentication system not initialized", 500);
+    return auth.getUserCount(filter, {
+      tenantId: tenantId as DatabaseId,
+    });
+  }
+
   async deleteAvatar(userId: string, tenantId?: DatabaseId | null) {
     const auth = await this.getAuth();
     return auth.updateUserAttributes(
@@ -1250,8 +1274,10 @@ class CollectionsNamespace {
     return modifyRequest(params);
   }
 
-  async refresh(tenantId?: DatabaseId | null) {
-    return contentSystem.initialize(tenantId, true); // skipReconciliation = true for speed
+  async refresh(tenantId?: DatabaseId | null, skipReconciliation = true) {
+    this._requestCache.clear();
+    await cacheService.clearByPattern("system:collections:*", (tenantId || undefined) as string);
+    return this._contentSystem.refresh(tenantId as any, skipReconciliation);
   }
 
   async getStructure(tenantId?: DatabaseId | null) {

@@ -100,7 +100,7 @@ async function runStressTest(level: LoadLevel) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-test-secret": process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026",
+      "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
     },
     body: JSON.stringify({
       email: loginEmail,
@@ -120,6 +120,7 @@ async function runStressTest(level: LoadLevel) {
 
   const headers = {
     "Content-Type": "application/json",
+    "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
     Cookie: cookie,
   };
 

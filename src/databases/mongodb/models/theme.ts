@@ -48,7 +48,6 @@ export const themeSchema = new Schema<Theme>(
     timestamps: true,
     collection: "system_theme",
     strict: true,
-    _id: false, // Disable Mongoose auto-ObjectId generation
   },
 );
 
