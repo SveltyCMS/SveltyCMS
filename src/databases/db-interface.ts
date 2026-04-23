@@ -166,6 +166,10 @@ export interface DatabaseCapabilities {
   supportsTransactions: boolean;
   supportsSavepoints?: boolean;
   supportsTransactionTimeout?: boolean;
+  // Capability-based Hybrid CRUD flags
+  nativeUpsert?: boolean;
+  upsertByQuery?: boolean;
+  supportsConflictTargets?: boolean;
 }
 
 export interface PerformanceMetrics {

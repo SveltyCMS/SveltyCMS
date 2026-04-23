@@ -101,6 +101,8 @@ export function buildServerEnv(
     VERBOSE_STDOUT: "true",
     PROTOCOL_HEADER: "x-forwarded-proto",
     HOST_HEADER: "host",
+    BENCHMARK_DEBUG: process.env.BENCHMARK_DEBUG || "false",
+    SVELTY_AUDIT_ACTIVE: process.env.SVELTY_AUDIT_ACTIVE || "false",
   };
 
   delete env.USER;
@@ -112,13 +114,7 @@ export function buildServerEnv(
  * Determines the server entry point.
  */
 export async function getServerEntryPoint(): Promise<string> {
-  const buildPath = path.join(process.cwd(), "build/index.js");
-  try {
-    await fs.stat(buildPath);
-    return "build/index.js";
-  } catch {
-    return ".svelte-kit/output/server/index.js";
-  }
+  return path.resolve(process.cwd(), "build/index.js").replace(/\\/g, "/");
 }
 
 /**
@@ -187,10 +183,12 @@ export async function startServer(
   const serverPath = await getServerEntryPoint();
   const start = performance.now();
 
-  const workerProcess = spawn("bun", [serverPath], {
+  console.error(`[SQLITE] Spawning node with path: "${serverPath}"`);
+  const workerProcess = spawn("node", [serverPath], {
+    cwd: process.cwd(),
     detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
-    env,
+    env: { ...process.env, ...env },
     shell: process.platform === "win32",
   });
 
@@ -225,6 +223,7 @@ export async function startServer(
             clean.includes("127.0.0.1:") ||
             clean.includes("Listening on") ||
             clean.includes("Listening at") ||
+            clean.includes("Turbo Pipeline Hook loaded") ||
             clean.includes("Cold Start:"))
         ) {
           resolved = true;

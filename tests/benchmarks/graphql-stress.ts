@@ -8,6 +8,7 @@ import { performance } from "node:perf_hooks";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { getApiBaseUrl } from "../integration/helpers/server";
+import { setupBenchmarkServer } from "./benchmark-utils";
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -40,6 +41,14 @@ const QUERIES = [
       }
     }
   }`,
+  },
+  {
+    name: "Modern Collection: Single",
+    query: `query { collections { posts(limit: 1) { title } } }`,
+  },
+  {
+    name: "Modern Collection: List",
+    query: `query { collections { posts(limit: 10) { title createdAt } } }`,
   },
 ];
 
@@ -77,7 +86,24 @@ async function runStressTest(level: LoadLevel) {
     return null;
   }
 
-  const baseUrl = (process.env.API_BASE_URL || API_BASE_URL).replace("localhost", "127.0.0.1");
+  // Auto-start internal server if no base URL is provided
+  let stopServer: (() => Promise<void>) | undefined;
+  let baseUrl = (process.env.API_BASE_URL || API_BASE_URL).replace("localhost", "127.0.0.1");
+
+  if (!process.env.API_BASE_URL) {
+    const { stop, baseUrl: internalUrl } = await setupBenchmarkServer();
+    stopServer = stop;
+    baseUrl = internalUrl;
+
+    // Run system setup only for this stress test
+    const { runSystemSetup } = await import("../../scripts/benchmark-matrix/server");
+    const { ALL_DATABASES } = await import("../../scripts/benchmark-matrix/config");
+    const dbType = (process.env.DB_TYPE || "sqlite").toLowerCase();
+    const dbConf = ALL_DATABASES.find((d) => d.type === dbType) || ALL_DATABASES[0];
+    const port = parseInt(baseUrl.split(":").pop() || "4173");
+
+    await runSystemSetup(dbConf, port, `bench_tmp_${process.pid}`);
+  }
 
   // Debug health and user count
   try {
@@ -90,38 +116,9 @@ async function runStressTest(level: LoadLevel) {
     console.warn("   ⚠️ Could not fetch system health for debug.");
   }
 
-  // Login once
-  console.log("   🔑 Authenticating as admin...");
-  const loginEmail = "admin@example.com";
-  const loginPassword = process.env.ADMIN_PASSWORD || "Password123!";
-  console.log(`   🔍 Using email: ${loginEmail}, password: ${loginPassword.substring(0, 4)}...`);
-
-  const loginRes = await fetch(`${baseUrl}/api/user/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
-    },
-    body: JSON.stringify({
-      email: loginEmail,
-      password: loginPassword,
-    }),
-    signal: AbortSignal.timeout(10000),
-  });
-
-  if (!loginRes.ok) {
-    const errorText = await loginRes.text().catch(() => "no-body");
-    console.error(`   ❌ Login failed (${loginRes.status}): ${errorText}`);
-    return null;
-  }
-
-  const cookie = loginRes.headers.get("set-cookie");
-  if (!cookie) throw new Error("No session cookie received from login");
-
   const headers = {
     "Content-Type": "application/json",
     "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
-    Cookie: cookie,
   };
 
   const latencies: number[] = [];
@@ -205,6 +202,10 @@ async function runStressTest(level: LoadLevel) {
   console.log(`     p95 : ${p95.toFixed(2)} ms`);
   console.log(`     p99 : ${p99.toFixed(2)} ms`);
 
+  if (stopServer) {
+    await stopServer();
+  }
+
   return { level, rps, p95, p99, successes, failures, totalTime, avg };
 }
 
@@ -255,6 +256,16 @@ async function main() {
   }
 }
 
-if (import.meta.main) {
+import { test } from "bun:test";
+
+if (import.meta.main && !process.env.TEST_MODE) {
   main();
 }
+
+test("GraphQL Stress & Load Benchmark (Enterprise)", async () => {
+  // Ensure we don't save files during CI tests if not requested
+  if (!process.env.LOAD_LEVEL) {
+    process.env.LOAD_LEVEL = "TINY";
+  }
+  await main();
+}, 600000); // 10 minute timeout for extreme loads

@@ -1,30 +1,20 @@
 /**
- * @file src/databases/mariadb/collection/collection-module.ts
- * @description Dynamic collection management module for MariaDB
- *
- * Features:
- * - Create collection
- * - Update collection
- * - Delete collection
+ * @file src/databases/sqlite/collection/collection-module.ts
+ * @description Dynamic collection management module for SQLite
  */
 
 import type { Schema } from "@src/content/types";
 import type { CollectionModel, DatabaseResult } from "../../db-interface";
 import type { AdapterCore } from "../adapter/adapter-core";
+import { DatabaseModule } from "../../base-adapter";
 
-export class CollectionModule {
-  private readonly core: AdapterCore;
-
-  constructor(core: AdapterCore) {
-    this.core = core;
-  }
-
+export class CollectionModule extends DatabaseModule<AdapterCore> {
   private get crud() {
-    return this.core.crud;
+    return this.adapter.crud;
   }
 
   private get collectionRegistry() {
-    return this.core.collectionRegistry;
+    return this.adapter.collectionRegistry;
   }
 
   async getModel(id: string): Promise<CollectionModel> {
@@ -33,8 +23,6 @@ export class CollectionModule {
       return model;
     }
 
-    // Check if it exists as a physical table or dynamic collection
-    // In integration tests, we want to fail if it's not predefined
     throw new Error(`Collection model not found: ${id}`);
   }
 
@@ -47,7 +35,6 @@ export class CollectionModule {
     const tableName = `collection_${id}`;
 
     try {
-      // Ensure physical table exists in SQLite
       const sql = `
 				CREATE TABLE IF NOT EXISTS "${tableName}" (
 					"_id" TEXT PRIMARY KEY,
@@ -58,17 +45,12 @@ export class CollectionModule {
 					"updatedAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 				);
 			`;
-      const client = this.core.getClient();
+      const client = this.adapter.getClient();
       if (client) {
-        if (typeof client.exec === "function") {
-          client.exec(sql);
-        } else if (typeof client.query === "function") {
-          client.query(sql);
-        }
+        client.exec(sql);
       }
     } catch (error) {
-      console.error(`Failed to create physical table ${tableName}:`, error);
-      // Continue anyway, it might fail later during CRUD but we don't want to crash the whole adapter init
+      console.error(`[SQLite] Failed to create physical table ${tableName}:`, error);
     }
 
     const wrappedModel: CollectionModel = {
@@ -84,10 +66,11 @@ export class CollectionModule {
         return res.success ? res.data : [];
       },
     };
+
     const tableId = id.startsWith("collection_") ? id : `collection_${id}`;
-    const dynamicTable = this.core.createDynamicTableDefinition(tableId);
-    this.core.dynamicTables.set(id, dynamicTable);
-    this.core.dynamicTables.set(tableId, dynamicTable);
+    const dynamicTable = this.adapter.createDynamicTableDefinition(tableId);
+    this.adapter.dynamicTables.set(id, dynamicTable);
+    this.adapter.dynamicTables.set(tableId, dynamicTable);
 
     this.collectionRegistry.set(id, wrappedModel);
   }
@@ -101,10 +84,10 @@ export class CollectionModule {
   }
 
   async createIndexes(id: string, schema: Schema): Promise<DatabaseResult<void>> {
-    return this.core.wrap(async () => {
+    return this.adapter.wrap(async () => {
       const tableName = `collection_${id}`;
       const fields = (schema.fields || []) as any[];
-      const client = this.core.getClient();
+      const client = this.adapter.getClient();
       if (!client) throw new Error("Client not available");
 
       for (const field of fields) {
@@ -114,13 +97,9 @@ export class CollectionModule {
           const unique = field.unique ? "UNIQUE " : "";
           try {
             const sql = `CREATE ${unique}INDEX IF NOT EXISTS "${indexName}" ON "${tableName}" ("${fieldName}")`;
-            if (typeof client.exec === "function") {
-              client.exec(sql);
-            } else if (typeof client.query === "function") {
-              client.query(sql);
-            }
+            client.exec(sql);
           } catch (e) {
-            console.warn(`Failed to create index ${indexName}:`, e);
+            console.warn(`[SQLite] Failed to create index ${indexName}:`, e);
           }
         }
       }
@@ -128,7 +107,7 @@ export class CollectionModule {
   }
 
   async getSchema(_collectionName: string): Promise<DatabaseResult<Schema | null>> {
-    return this.core.notImplemented("getSchema");
+    return this.adapter.notImplemented("getSchema");
   }
 
   async getSchemaById(_collectionId: string): Promise<DatabaseResult<Schema | null>> {
@@ -136,14 +115,19 @@ export class CollectionModule {
   }
 
   async listSchemas(): Promise<DatabaseResult<Schema[]>> {
-    return this.core.wrap(async () => {
-      const client = this.core.getClient();
-      // SQLite-specific minimalist introspection
+    return this.adapter.wrap(async () => {
+      const client = this.adapter.getClient();
       const query =
         "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'collection_%'";
-      const tables = (
-        client.query ? client.query(query).all() : client.prepare?.(query).all()
-      ) as any[];
+
+      let tables: any[];
+      if (client.query) {
+        tables = client.query(query).all() as any[];
+      } else if (client.prepare) {
+        tables = client.prepare(query).all() as any[];
+      } else {
+        throw new Error("SQLite client not available for listing schemas");
+      }
 
       return tables.map(
         (t: any) =>

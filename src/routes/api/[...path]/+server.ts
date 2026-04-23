@@ -112,6 +112,7 @@ export const _handler = async (event: RequestEvent) => {
 
   // --- Health Check ---
   if (namespace === "system" && segments[1] === "health") {
+    console.log("🚑 Health check request received at " + Date.now());
     const health = {
       status: dbAdapter ? "healthy" : "initializing",
       overallStatus: dbAdapter ? "READY" : "SETUP",

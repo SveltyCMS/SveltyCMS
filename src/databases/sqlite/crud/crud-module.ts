@@ -358,64 +358,56 @@ export class CrudModule {
           bypassTenantCheck: options.bypassTenantCheck,
         });
         const table = this.core.getTable(collection);
-        const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
-          | import("drizzle-orm").SQL
-          | undefined;
+        const caps = this.core.getCapabilities();
 
-        // Better-sqlite3 transactions in Drizzle are often synchronous.
-        // If we get "Transaction function cannot return a promise", we must not use async/await inside tx.
-        // However, many of our utilities are async.
-        // Workaround: Perform lookup first, then perform update/insert.
-        // This is less atomic but works with the driver limitation.
+        const id =
+          (secureQuery as any)._id ||
+          (data as Partial<T>)._id ||
+          (utils.generateId() as DatabaseId);
+        const now = new Date(nowISODateString());
+        const values = utils.convertISOToDates({
+          ...data,
+          _id: id,
+          tenantId: options.tenantId || (data as any).tenantId,
+          createdAt: now,
+          updatedAt: now,
+        } as Record<string, unknown>);
 
-        const existing = await this.db
-          .select()
-          .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-          .where(where)
-          .limit(1);
-
-        if (existing.length > 0) {
-          const id = (existing[0] as any)._id as unknown as DatabaseId;
-          const now = new Date(nowISODateString());
-          const updateData = { ...data, updatedAt: now };
-          const values = utils.convertISOToDates(updateData as Record<string, unknown>);
-          delete (values as any)._id;
-
-          await this.db
-            .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-            .set(values as Record<string, unknown>)
-            .where(eq((table as any)._id, id as string));
-
-          const [result] = await this.db
-            .select()
-            .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-            .where(eq((table as any)._id, id as string))
-            .limit(1);
-
-          return utils.convertDatesToISO(result as Record<string, unknown>) as T;
-        } else {
-          const id = (data as Partial<T>)._id || (utils.generateId() as DatabaseId);
-          const now = new Date(nowISODateString());
-          const values = utils.convertISOToDates({
-            ...data,
-            _id: id,
-            tenantId: options.tenantId || (data as any).tenantId,
-            createdAt: now,
-            updatedAt: now,
-          } as Record<string, unknown>);
-
+        // 🚀 STRATEGY: Capability-based Hybrid CRUD
+        // If query matches a unique index (primary key _id) and database supports native upsert
+        if (
+          caps.nativeUpsert &&
+          caps.supportsConflictTargets &&
+          this.isSimpleIdQuery(secureQuery)
+        ) {
           await this.db
             .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-            .values(values as any);
+            .values(values as any)
+            .onConflictDoUpdate({
+              target: (table as any)._id,
+              set: values as any,
+            });
+        } else {
+          // 🛡️ FALLBACK: Portable "Lookup then Insert/Update"
+          const existing = await this.findOne<T>(collection, query, {
+            ...options,
+            includeDeleted: true,
+          });
 
-          const [result] = await this.db
-            .select()
-            .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-            .where(eq((table as any)._id, id as string))
-            .limit(1);
-
-          return utils.convertDatesToISO(result as Record<string, unknown>) as T;
+          if (existing.success && existing.data) {
+            await this.update<T>(collection, (existing.data as any)._id, data, options);
+          } else {
+            await this.insert<T>(collection, data, options);
+          }
         }
+
+        const [result] = await this.db
+          .select()
+          .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .where(eq((table as any)._id, id as string))
+          .limit(1);
+
+        return utils.convertDatesToISO(result as Record<string, unknown>) as T;
       }, "CRUD_UPSERT_FAILED")
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
@@ -583,6 +575,7 @@ export class CrudModule {
     return this.core
       .wrap(async () => {
         const table = this.core.getTable(collection);
+        const caps = this.core.getCapabilities();
         let upsertedCount = 0;
         let modifiedCount = 0;
 
@@ -590,43 +583,47 @@ export class CrudModule {
           const secureQuery = safeQuery(item.query, options.tenantId as string, {
             bypassTenantCheck: options.bypassTenantCheck,
           });
-          const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
-            | import("drizzle-orm").SQL
-            | undefined;
 
-          const existing = await this.db
-            .select()
-            .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-            .where(where)
-            .limit(1);
+          const id =
+            (secureQuery as any)._id ||
+            (item.data as any)._id ||
+            (utils.generateId() as DatabaseId);
+          const now = new Date(nowISODateString());
+          const values = utils.convertISOToDates({
+            ...item.data,
+            _id: id,
+            tenantId: options.tenantId || (item.data as any).tenantId,
+            createdAt: now,
+            updatedAt: now,
+          } as Record<string, unknown>);
 
-          if (existing.length > 0) {
-            const id = (existing[0] as any)._id as unknown as DatabaseId;
-            const now = new Date(nowISODateString());
-            const updateData = { ...item.data, updatedAt: now };
-            const values = utils.convertISOToDates(updateData as Record<string, unknown>);
-            delete (values as any)._id;
-
-            await this.db
-              .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-              .set(values as Record<string, unknown>)
-              .where(eq((table as any)._id, id as string));
-            modifiedCount++;
-          } else {
-            const id = (item.data as Partial<T>)._id || (utils.generateId() as DatabaseId);
-            const now = new Date(nowISODateString());
-            const values = utils.convertISOToDates({
-              ...item.data,
-              _id: id,
-              tenantId: options.tenantId || (item.data as any).tenantId,
-              createdAt: now,
-              updatedAt: now,
-            } as Record<string, unknown>);
-
+          // 🚀 STRATEGY: Capability-based Hybrid CRUD
+          if (
+            caps.nativeUpsert &&
+            caps.supportsConflictTargets &&
+            this.isSimpleIdQuery(secureQuery)
+          ) {
             await this.db
               .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-              .values(values as any);
-            upsertedCount++;
+              .values(values as any)
+              .onConflictDoUpdate({
+                target: (table as any)._id,
+                set: values as any,
+              });
+          } else {
+            // 🛡️ FALLBACK: Portable "Lookup then Insert/Update"
+            const existing = await this.findOne<T>(collection, item.query, {
+              ...options,
+              includeDeleted: true,
+            });
+
+            if (existing.success && existing.data) {
+              await this.update<T>(collection, (existing.data as any)._id, item.data, options);
+              modifiedCount++;
+            } else {
+              await this.insert<T>(collection, item.data, options);
+              upsertedCount++;
+            }
           }
         }
         return { upsertedCount, modifiedCount };

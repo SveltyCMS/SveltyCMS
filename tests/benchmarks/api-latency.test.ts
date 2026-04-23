@@ -12,6 +12,8 @@ import {
   stabilize,
   mockDispatch,
   setupBenchmarkServer,
+  printAuditTable,
+  printSummaryTable,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
@@ -87,6 +89,12 @@ async function setupBenchmarkEnvironment() {
     // 🚀 Robust Cleanup: Ensure we start with a clean collection
     if (db.collection?.deleteModel) {
       await db.collection.deleteModel(TEST_COLLECTION).catch(() => {});
+    }
+
+    // Trigger initialization on the ACTUAL worker server via fetch
+    const apiBase = process.env.API_BASE_URL;
+    if (apiBase) {
+      await fetch(`${apiBase}/api/system/health`).catch(() => {});
     }
 
     if (db.collection?.createModel) {
@@ -189,25 +197,12 @@ export async function runApiLatencyBenchmark() {
     }
   }
 
-  logger.level = "info";
-
-  console.log("\n" + "=".repeat(120));
-  console.log("   📊 SVELTYCMS API LAYER ENTERPRISE REPORT");
-  console.log("=".repeat(120));
-
-  for (const r of allResults) {
-    const over =
-      r.layer === "Dispatcher" ? `${r.overhead.toFixed(3)} ms (${r.overheadPct.toFixed(1)}%)` : "—";
-    console.log(
-      `| ${r.name.replace("SDK ", "").replace("Dispatcher ", "").padEnd(24)} | ` +
-        `${r.layer.padEnd(12)} | ` +
-        `${r.avgMs.toFixed(3)} ms`.padEnd(12) +
-        ` | ${r.p95Ms.toFixed(3)}`.padEnd(12) +
-        ` | ${Math.round(r.rps).toLocaleString().padEnd(12)}` +
-        ` | ${over.padEnd(24)} |`,
-    );
-  }
-  console.log("=".repeat(120));
+  printAuditTable({
+    title: "SVELTYCMS  —  API LAYER LATENCY",
+    subtitle: "SDK vs Full Dispatcher • IQR trimmed • 3 runs × 1 000 iters",
+    results: allResults,
+    layerMode: true,
+  });
 
   const dispatcher1 = allResults.find(
     (r) => r.layer === "Dispatcher" && r.name.includes("findById @ 1c"),
@@ -217,20 +212,17 @@ export async function runApiLatencyBenchmark() {
   const avgOverhead = overheads.reduce((a, b) => a + b, 0) / overheads.length;
   const maxRps = Math.max(...allResults.map((r) => r.rps));
 
-  exportMetric("rest.collections.avg", dispatcher1?.avgMs || 0, "ms");
-  exportMetric("rest.collections.p95", dispatcher1?.p95Ms || 0, "ms");
-  exportMetric("rest.collections.rps", maxRps, "req/s");
-  exportMetric("rest.overhead.avg", avgOverhead, "ms");
+  printSummaryTable([
+    { key: "Avg Collection Latency", val: dispatcher1?.avgMs || 0, unit: "ms" },
+    { key: "p95 Collection Latency", val: dispatcher1?.p95Ms || 0, unit: "ms" },
+    { key: "Peak Throughput (RPS)", val: Math.round(maxRps), unit: "req/s" },
+    { key: "Dispatcher Overhead", val: avgOverhead, unit: "ms" },
+  ]);
 
-  const aggregate = {
-    name: "API Latency Summary",
-    avgMs: avgOverhead,
-    p95Ms: dispatcher1?.p95Ms || 0,
-    rps: maxRps,
-    shortLabel: "API Latency",
-  };
+  for (const r of allResults) exportResult(r);
+  exportMetric("api.latency.avg", avgOverhead, "ms");
+  exportMetric("api.rps.max", maxRps, "req/s");
 
-  exportResult(aggregate);
   console.log("\n✅ API benchmark completed.");
 }
 

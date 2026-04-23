@@ -7,7 +7,6 @@
 import { test } from "bun:test";
 import "../unit/setup.ts";
 import { runBenchmark, exportResult, exportMetric, stabilize } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -60,8 +59,6 @@ async function prepareRealisticScanEnvironment() {
 test("Content Scan Performance (Self-Healing Collections)", async () => {
   console.log("🚀 Starting Elite SveltyCMS Content Scan Benchmark...\n");
 
-  logger.level = "silent";
-
   try {
     await cleanupMockFiles(); // Start clean
     await prepareRealisticScanEnvironment();
@@ -98,8 +95,6 @@ test("Content Scan Performance (Self-Healing Collections)", async () => {
       silent: true,
     });
 
-    logger.level = "info";
-
     // ===================================================================
     // Summary
     // ===================================================================
@@ -113,9 +108,7 @@ test("Content Scan Performance (Self-Healing Collections)", async () => {
     console.log(`| ${"Metric".padEnd(28)} | ${"Value".padEnd(22)} |`);
     console.log("|" + "-".repeat(28 + 22 + 6) + "|");
 
-    console.log(
-      `| Average Duration           | ${scanResult.avgMs.toFixed(3)} ms (±${scanResult.marginOfError.toFixed(3)}) |`,
-    );
+    console.log(`| Average Duration           | ${scanResult.avgMs.toFixed(3)} ms |`);
     console.log(`| p95 Duration               | ${scanResult.p95Ms.toFixed(3)} ms |`);
     console.log(`| p99 Duration               | ${scanResult.p99Ms.toFixed(3)} ms |`);
     console.log(`| Throughput                 | ${scanResult.rps.toFixed(1)} scans/sec |`);
@@ -129,10 +122,7 @@ test("Content Scan Performance (Self-Healing Collections)", async () => {
     console.log(`   • Memory delta shows schema parsing and metadata index overhead`);
 
     // Structured Matrix Exports (Infrastructure v2)
-    exportMetric("internals.scan.avg", scanResult.avgMs, "ms", {
-      p95: scanResult.p95Ms,
-      fileCount: TARGET_FILE_COUNT,
-    });
+    exportMetric("internals.scan.avg", scanResult.avgMs, "ms");
 
     exportResult({ ...scanResult, fileCount: TARGET_FILE_COUNT, scanType: "self-healing" });
   } finally {

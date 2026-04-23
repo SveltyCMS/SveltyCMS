@@ -13,6 +13,8 @@ import {
   checkBenchmarkEnv,
   mockDispatch,
   stabilize,
+  printAuditTable,
+  printSummaryTable,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
@@ -166,7 +168,7 @@ export async function runMixedWorkloadBenchmark() {
       },
     });
 
-    result.typeStats = {
+    (result as any).typeStats = {
       readAvg: typeStats.read.reduce((a, b) => a + b, 0) / (typeStats.read.length || 1),
       graphqlAvg: typeStats.graphql.reduce((a, b) => a + b, 0) / (typeStats.graphql.length || 1),
       writeAvg: typeStats.write.reduce((a, b) => a + b, 0) / (typeStats.write.length || 1),
@@ -178,60 +180,30 @@ export async function runMixedWorkloadBenchmark() {
 
   logger.level = "info";
 
-  console.log("\n" + "=".repeat(150));
-  console.log("📊 SVELTYCMS MIXED WORKLOAD ENTERPRISE REPORT");
-  console.log("Reads • GraphQL • Writes • Scaling • Memory");
-  console.log("=".repeat(150));
-
-  console.log(
-    `| ${"Scenario".padEnd(28)} | ${"Avg".padEnd(12)} | ${"p95".padEnd(12)} | ${"RPS".padEnd(12)} | ${"RSS Δ".padEnd(10)} |`,
-  );
-  console.log("|" + "-".repeat(145) + "|");
-
-  for (const r of allResults) {
-    const rss =
-      r.rssDelta !== undefined ? `${r.rssDelta >= 0 ? "+" : ""}${r.rssDelta.toFixed(2)}MB` : "—";
-    console.log(
-      `| ${r.name.padEnd(28)} | ` +
-        `${r.avgMs.toFixed(3)} ms`.padEnd(12) +
-        ` | ${r.p95Ms.toFixed(3)}`.padEnd(12) +
-        ` | ${Math.round(r.rps).toLocaleString().padEnd(12)}` +
-        ` | ${rss.padEnd(10)} |`,
-    );
-  }
-  console.log("=".repeat(150));
-
-  const strongest = allResults[0];
-  const heaviest = allResults[allResults.length - 1];
-
-  console.log("\n✨ Insights:");
-  console.log("• Traffic Mix = 65% Reads / 25% GraphQL / 10% Writes");
-  console.log(`• Fastest scenario: ${strongest.name} (${strongest.avgMs.toFixed(2)} ms)`);
-  console.log(`• Highest load scenario: ${heaviest.name}`);
-
-  if (heaviest.typeStats.writeAvg > heaviest.avgMs * 1.8) {
-    console.log(
-      "• Writes significantly slower under pressure (DB lock or index contention likely).",
-    );
-  }
-  if (heaviest.typeStats.graphqlAvg > heaviest.avgMs * 1.5) {
-    console.log("• GraphQL overhead visible under mixed traffic.");
-  }
-
-  const avgMs = allResults.reduce((a, b) => a + b.avgMs, 0) / allResults.length;
-  const maxRps = Math.max(...allResults.map((r) => r.rps));
-
-  exportMetric("scale.mixed.avg", Number(avgMs.toFixed(3)), "ms");
-  exportMetric("scale.mixed.rps", maxRps, "req/s");
-  exportMetric("scale.mixed.write_ms", Number(heaviest.typeStats.writeAvg.toFixed(3)), "ms");
-  exportMetric("scale.mixed.graphql_ms", Number(heaviest.typeStats.graphqlAvg.toFixed(3)), "ms");
-
-  exportResult({
-    name: "Mixed Workload Aggregate",
-    avgMs: Number(avgMs.toFixed(3)),
-    p95Ms: Math.max(...allResults.map((r) => r.p95Ms)),
-    rps: Number(maxRps.toFixed(1)),
+  printAuditTable({
+    title: "SVELTYCMS  —  MIXED WORKLOAD AUDIT",
+    subtitle: "Reads (65%) • GraphQL (25%) • Writes (10%) • Multi-Concurrency",
+    results: allResults,
   });
+
+  const heaviest = allResults[allResults.length - 1];
+  const maxRps = Math.max(...allResults.map((r) => r.rps));
+  const avgMs = allResults.reduce((a, b) => a + b.avgMs, 0) / allResults.length;
+
+  printSummaryTable([
+    { key: "Average Pipeline Latency", val: avgMs, unit: "ms" },
+    { key: "Peak System Throughput", val: Math.round(maxRps), unit: "req/s" },
+    { key: "Write Heavy Overhead", val: heaviest.typeStats.writeAvg, unit: "ms" },
+    { key: "GraphQL Resolver Latency", val: heaviest.typeStats.graphqlAvg, unit: "ms" },
+    { key: "Memory Stability RSS Δ", val: (heaviest.rssDelta || 0).toFixed(2), unit: "MB" },
+  ]);
+
+  exportMetric("scale.mixed.avg", avgMs, "ms");
+  exportMetric("scale.mixed.rps", maxRps, "req/s");
+  exportMetric("scale.mixed.write_ms", heaviest.typeStats.writeAvg, "ms");
+  exportMetric("scale.mixed.graphql_ms", heaviest.typeStats.graphqlAvg, "ms");
+
+  for (const r of allResults) exportResult(r);
 
   console.log("\n✅ Mixed workload benchmark completed.");
 }

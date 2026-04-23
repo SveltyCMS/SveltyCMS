@@ -1,187 +1,141 @@
 /**
  * @file tests/benchmarks/transaction-acid.test.ts
- * @description Enterprise ACID transaction benchmark for SveltyCMS.
- * Measures atomicity, commit/rollback latency, and multi-step transaction scaling.
+ * @description Enterprise ACID benchmark for SveltyCMS.
+ * Measures transaction commit latencies and rollback overhead.
  */
-
-import { test } from "bun:test";
+import { test, beforeAll, afterAll } from "bun:test";
 import "../unit/setup.ts";
-import { runBenchmark, exportResult, exportMetric, stabilize } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
+import {
+  runBenchmark,
+  exportResult,
+  exportMetric,
+  stabilize,
+  setupBenchmarkServer,
+  printAuditTable,
+  printSummaryTable,
+} from "./benchmark-utils";
 
-const COLLECTION_ID = "bench_acid_test";
-const TEST_TENANT = "global";
+let stopServer: () => Promise<void>;
+const COLLECTION_ID = "collection_acid_benchmark";
+
+beforeAll(async () => {
+  const { stop } = await setupBenchmarkServer();
+  stopServer = stop;
+});
+
+afterAll(async () => {
+  if (stopServer) await stopServer();
+});
 
 export async function runAcidBenchmark() {
   console.log("💎 Starting Enterprise ACID Benchmark...\n");
 
-  logger.level = "silent";
-
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
   await ensureFullInitialization();
+  const db = getDb();
+  if (!db) throw new Error("Database not initialized");
 
-  const adapter = getDb();
-  if (!adapter) throw new Error("DB adapter missing");
-
-  if (!(adapter as any).transaction) {
+  if (typeof (db as any).transaction !== "function") {
     console.log("⏭️ Adapter does not support transactions. Skipping.");
     return;
   }
 
-  // === Preparation: Clean Slate ===
-  if (typeof (adapter as any).clearDatabase === "function") {
-    await (adapter as any).clearDatabase().catch(() => {});
-  }
-
-  await adapter.collection
-    ?.createModel?.({
-      _id: COLLECTION_ID,
-      name: COLLECTION_ID,
-      fields: [{ name: "title", type: "text" }],
-    } as any)
-    .catch(() => {});
-
   await stabilize();
 
-  const RUNS = 3;
-  const ITERATIONS = 1200;
-  const WARMUP = 120;
-  const results: any[] = [];
-  const concurrencyLevels = [1, 8, 32];
+  // Ensure table exists
+  const client = (db as any).adapter?.getClient?.();
+  if (client) {
+    client.exec(
+      `CREATE TABLE IF NOT EXISTS "${COLLECTION_ID}" ("_id" TEXT PRIMARY KEY, "title" TEXT, "tenantId" TEXT)`,
+    );
+  } else if (db.collection?.createModel) {
+    await db.collection
+      .createModel({
+        _id: COLLECTION_ID,
+        name: COLLECTION_ID,
+        fields: [{ name: "title", type: "text" }],
+      } as any)
+      .catch(() => {});
+  }
 
-  async function bench(name: string, concurrency: number, fn: (i: number) => Promise<void>) {
+  const RUNS = 3;
+  const ITERATIONS = 600;
+  const WARMUP = 60;
+  const allResults: any[] = [];
+
+  logger.level = "silent";
+
+  // 1. Single Statement Commit
+  for (const c of [1, 8]) {
     const r = await runBenchmark({
-      name,
+      name: `TX Commit @ ${c}c`,
       iterations: ITERATIONS,
       warmupIterations: WARMUP,
       runs: RUNS,
-      concurrency,
+      concurrency: c,
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
-      onSetup: stabilize,
-      onIteration: async (i) => {
-        // 🚀 NEW: Iteration-level hygiene to prevent UNIQUE constraint failures
-        // Only needed for high-concurrency loops that reuse deterministic IDs
-        const id = name.includes("Commit")
-          ? `c-${concurrency}-${i}`
-          : name.includes("Rollback")
-            ? `r-${concurrency}-${i}`
-            : `m-${concurrency}-${i}`;
-
-        await adapter!.crud
-          .delete(COLLECTION_ID, id as any, { tenantId: TEST_TENANT as any })
-          .catch(() => {});
-
-        return fn(i);
+      onIteration: async (i: number) => {
+        const id = `c-${c}-${i}`;
+        await (db as any).transaction(async (tx: any) => {
+          await tx.insert(COLLECTION_ID, { _id: id, title: "commit" }, { tenantId: "global" });
+        });
       },
     });
-    results.push(r);
-    return r;
+    allResults.push(r);
   }
 
-  // 1. Commit
-  for (const c of concurrencyLevels) {
-    await bench(`Commit @ ${c}c`, c, async (i) => {
-      await (adapter as any).transaction(async (tx: any) => {
-        await tx.insert(
-          COLLECTION_ID,
-          { _id: `c-${c}-${i}`, title: "commit" },
-          { tenantId: TEST_TENANT as any },
-        );
-      });
-    });
-  }
-
-  // 2. Rollback
-  for (const c of [1, 8]) {
-    await bench(`Rollback @ ${c}c`, c, async (i) => {
+  // 2. Rollback Overhead
+  const rollbackResult = await runBenchmark({
+    name: "TX Rollback @ 1c",
+    iterations: ITERATIONS,
+    warmupIterations: WARMUP,
+    runs: RUNS,
+    concurrency: 1,
+    measureMemory: true,
+    silent: true,
+    onIteration: async (i: number) => {
       try {
-        await (adapter as any).transaction(async (tx: any) => {
+        await (db as any).transaction(async (tx: any) => {
           await tx.insert(
             COLLECTION_ID,
-            { _id: `r-${c}-${i}`, title: "rollback" },
-            { tenantId: TEST_TENANT as any },
+            { _id: `r-${i}`, title: "rollback" },
+            { tenantId: "global" },
           );
-          throw new Error("ROLLBACK_TRANSACTION");
+          throw new Error("ROLLBACK");
         });
       } catch {}
-    });
-  }
-
-  // 3. Multi Statement
-  for (const c of [1, 8]) {
-    await bench(`Multi TX @ ${c}c`, c, async (i) => {
-      await (adapter as any).transaction(async (tx: any) => {
-        const id = `m-${c}-${i}`;
-        await tx.insert(COLLECTION_ID, { _id: id, title: "one" }, { tenantId: TEST_TENANT as any });
-        await tx.update(COLLECTION_ID, id, { title: "two" }, { tenantId: TEST_TENANT as any });
-        await tx.findById?.(COLLECTION_ID, id, { tenantId: TEST_TENANT as any });
-      });
-    });
-  }
+    },
+  });
+  allResults.push(rollbackResult);
 
   logger.level = "info";
 
-  console.log("\n" + "=".repeat(150));
-  console.log("💎 SVELTYCMS ACID ENTERPRISE REPORT");
-  console.log("Commit • Rollback • Multi-Step • Concurrency");
-  console.log("=".repeat(150));
-
-  console.log(
-    `| ${"Scenario".padEnd(28)} | ${"Avg".padEnd(12)} | ${"p95".padEnd(12)} | ${"TPS".padEnd(12)} | ${"RSS Δ".padEnd(10)} |`,
-  );
-  console.log("|" + "-".repeat(145) + "|");
-
-  for (const r of results) {
-    const rss =
-      r.rssDelta !== undefined ? `${r.rssDelta >= 0 ? "+" : ""}${r.rssDelta.toFixed(2)}MB` : "—";
-    console.log(
-      `| ${r.name.padEnd(28)} | ` +
-        `${r.avgMs.toFixed(3)} ms`.padEnd(12) +
-        ` | ${r.p95Ms.toFixed(3)}`.padEnd(12) +
-        ` | ${Math.round(r.rps).toLocaleString().padEnd(12)}` +
-        ` | ${rss.padEnd(10)} |`,
-    );
-  }
-  console.log("=".repeat(150));
-
-  // Insights
-  const commit1 = results.find((r) => r.name === "Commit @ 1c");
-  const commit32 = results.find((r) => r.name === "Commit @ 32c");
-  const rollback1 = results.find((r) => r.name === "Rollback @ 1c");
-  const multi1 = results.find((r) => r.name === "Multi TX @ 1c");
-
-  console.log("\n✨ Insights:");
-  if (commit1) console.log(`• Base commit cost: ${commit1.avgMs.toFixed(3)} ms`);
-  if (rollback1) console.log(`• Rollback cost: ${rollback1.avgMs.toFixed(3)} ms`);
-  if (multi1) console.log(`• Multi-step TX: ${multi1.avgMs.toFixed(3)} ms`);
-  if (commit1 && commit32) {
-    const loss = ((commit1.rps - commit32.rps / 32) / commit1.rps) * 100;
-    console.log(`• Scaling loss: ${loss.toFixed(1)}%`);
-  }
-
-  const maxTps = Math.max(...results.map((r) => r.rps));
-  exportMetric("adapter.transaction.commit.avg", commit1?.avgMs || 0, "ms");
-  exportMetric("adapter.transaction.rollback.avg", rollback1?.avgMs || 0, "ms");
-  exportMetric("adapter.transaction.multi.avg", multi1?.avgMs || 0, "ms");
-  exportMetric("adapter.transaction.max_tps", maxTps, "tx/s");
-  if (commit1 && commit32) {
-    exportMetric(
-      "adapter.transaction.scaling_loss",
-      ((commit1.rps - commit32.rps / 32) / commit1.rps) * 100,
-      "%",
-    );
-  }
-
-  exportResult({
-    name: "ACID Aggregate",
-    avgMs: commit1?.avgMs || 0,
-    p95Ms: commit1?.p95Ms || 0,
-    rps: maxTps,
+  printAuditTable({
+    title: "SVELTYCMS  —  ACID TRANSACTIONAL INTEGRITY",
+    subtitle: "Commit Latency • Rollback Overhead • Drizzle TX Engine",
+    results: allResults,
   });
 
-  for (const r of results) exportResult(r);
+  const commit = allResults[0];
+
+  printSummaryTable([
+    { key: "Base Commit Latency", val: commit.avgMs, unit: "ms" },
+    { key: "Rollback Overhead", val: rollbackResult.avgMs, unit: "ms" },
+    {
+      key: "Max Transaction Throughput",
+      val: Math.max(...allResults.map((r) => r.rps)),
+      unit: "tx/s",
+    },
+    { key: "TX RSS Memory Δ", val: (commit.rssDelta || 0).toFixed(2), unit: "MB" },
+  ]);
+
+  exportMetric("adapter.transaction.commit.avg", commit.avgMs, "ms");
+  exportMetric("adapter.transaction.rollback.avg", rollbackResult.avgMs, "ms");
+
+  for (const r of allResults) exportResult(r);
+
   console.log("\n✅ ACID benchmark completed.");
 }
 

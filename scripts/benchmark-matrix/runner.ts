@@ -55,7 +55,7 @@ export async function runTask(
 
   return new Promise((resolve) => {
     const proc = spawn("bun", args, {
-      env: { ...process.env, ...env },
+      env: { ...process.env, ...env, BENCHMARK_DEBUG: "true" },
       stdio: ci ? ["ignore", "pipe", "pipe"] : "inherit",
       shell: process.platform === "win32",
     });

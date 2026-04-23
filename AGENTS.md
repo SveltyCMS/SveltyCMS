@@ -258,6 +258,7 @@ From the 2026 roadmap (v0.0.6, target A+ grade), prioritize these for parity/lea
 - [x] **OpenAPI 3.1.0 (v0.0.8)**: Dynamic specification export for automated SDK generation and documentation.
 - [x] **99.9% Self-Healing Cache (v0.0.8)**: Incremental file scanning (mtime-hashing) and smart structural reconciliation.
 - [x] **High-Performance Local API (v0.0.8)**: Zero-latency server-side CRUD bridge with full widget logic parity.
+- [x] **Enterprise Performance Auditing (Audit 2.0)**: 20+ standardized benchmarks with high-fidelity ASCII telemetry.
 - [/] **Image Editor Enhancement**: Current implementation stabilized; adding cropping, filters, and focal point management.
 - [/] **Collection Builder Enhancement**: UX improvements and ergonomic field management in progress.
 - [x] **CI Pipeline Restoration**: Playwright E2E suite stabilized across MongoDB, MariaDB, and PostgreSQL.

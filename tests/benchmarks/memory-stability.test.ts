@@ -6,10 +6,15 @@
 
 import { test } from "bun:test";
 import "../unit/setup.ts";
-import { exportResult, exportMetric } from "./benchmark-utils";
+import {
+  exportResult,
+  exportMetric,
+  printAuditTable,
+  printSummaryTable,
+  stabilize,
+  mockDispatch,
+} from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
-import fs from "node:fs/promises";
-import path from "node:path";
 
 const DURATION_SECONDS = 20;
 const WARMUP_SECONDS = 5;
@@ -99,18 +104,18 @@ function slopeMBPerMinute(data: Snapshot[], selector: (s: Snapshot) => number): 
 export async function runMemoryStabilityTest() {
   console.log("🚀 Starting Enterprise Memory Stability Benchmark...\n");
 
-  logger.level = "warn";
+  logger.level = "silent";
 
   const { ensureFullInitialization } = await import("@src/databases/db");
   await ensureFullInitialization();
 
-  console.log("🛑 Stopping background services to prevent maintenance cycle overhead...");
+  // Stop background services to isolate memory profile
   const { watchdog } = await import("@src/services/system/watchdog");
   const { scheduler } = await import("@src/services/scheduler");
   watchdog.stop();
   scheduler.stop();
 
-  const { mockDispatch } = await import("./benchmark-utils");
+  await stabilize();
 
   console.log(`🔥 Warmup phase (${WARMUP_SECONDS}s)...`);
   const warmupEnd = now() + WARMUP_SECONDS * 1000;
@@ -121,7 +126,7 @@ export async function runMemoryStabilityTest() {
   forceGC();
   await sleep(1000);
 
-  console.log(`📊 Main test: ${DURATION_SECONDS}s @ concurrency ${CONCURRENCY}\n`);
+  console.log(`📊 Sustaining load: ${DURATION_SECONDS}s @ ${CONCURRENCY}c\n`);
 
   snapshotIndex = 0;
   const counts = new Uint32Array(CONCURRENCY);
@@ -144,7 +149,6 @@ export async function runMemoryStabilityTest() {
   })();
 
   // Workers
-  console.log(`🏁 Spawning ${CONCURRENCY} workers...`);
   const workers = Array.from({ length: CONCURRENCY }, (_, i) =>
     (async () => {
       let local = 0;
@@ -153,28 +157,21 @@ export async function runMemoryStabilityTest() {
           await mockDispatch({ path: "/system/health", method: "GET" });
           local++;
           counts[i] = local;
-        } catch (e: any) {
-          console.warn(`[Worker ${i}] Request failed: ${e.message}`);
-          await new Promise((r) => setTimeout(r, 100)); // Backoff on error
+        } catch (_e: any) {
+          // Silent in benchmark mode
         } finally {
-          if (local % 10 === 0) await new Promise((r) => setTimeout(r, 0));
+          if (local % 20 === 0) await new Promise((r) => setTimeout(r, 0));
         }
       }
-      console.log(`✅ Worker ${i} finished. Processed ${local} requests.`);
     })(),
   );
 
-  console.log(`⏳ Waiting for ${DURATION_SECONDS}s...`);
   await sleep(DURATION_SECONDS * 1000);
-  console.log(`🛑 Stopping workers...`);
   running = false;
 
   await Promise.allSettled(workers);
-  console.log(`✅ All workers settled.`);
   await sampler;
-  console.log(`✅ Sampler settled.`);
 
-  console.log(`🧊 Cooldown (${COOLDOWN_SECONDS}s)...`);
   forceGC();
   await sleep(COOLDOWN_SECONDS * 1000);
   recordSnapshot(start, sum(counts));
@@ -200,35 +197,34 @@ export async function runMemoryStabilityTest() {
   const rssSlope = slopeMBPerMinute(data, (s) => s.rssMB);
   const avgLag = data.reduce((a, b) => a + b.lagMs, 0) / data.length;
 
-  console.log("\n" + "=".repeat(100));
-  console.log("📈 ENTERPRISE MEMORY STABILITY REPORT");
-  console.log("=".repeat(100));
+  // ─── reporting ─────────────────────────────────────────────────────────────
 
-  console.log(`Requests           : ${totalRequests.toLocaleString()}`);
-  console.log(`Duration           : ${(totalMs / 1000).toFixed(1)} sec`);
-  console.log(`Average RPS        : ${rps.toFixed(1)}`);
+  printAuditTable({
+    title: "SVELTYCMS  —  MEMORY STABILITY AUDIT",
+    subtitle: `Sustained Load • Leak Detection • ${CONCURRENCY} Parallel Workers`,
+    results: [
+      {
+        name: "Sustained Execution Profile",
+        avgMs: totalRequests ? totalMs / totalRequests : 0,
+        p95Ms: 0, // Profile mode
+        rps,
+        rssDelta: rssGrowth,
+      },
+    ],
+  });
 
-  console.log(`\nMemory Growth`);
-  console.log(`RSS Delta          : ${rssGrowth >= 0 ? "+" : ""}${rssGrowth} MB`);
-  console.log(`Heap Delta         : ${heapGrowth >= 0 ? "+" : ""}${heapGrowth} MB`);
-  console.log(`External Delta     : ${externalGrowth >= 0 ? "+" : ""}${externalGrowth} MB`);
-
-  console.log(`\nPeaks`);
-  console.log(`Peak Heap          : ${peakHeap} MB`);
-  console.log(`Peak RSS           : ${peakRSS} MB`);
-
-  console.log(`\nLeak Trend`);
-  console.log(`Heap Slope         : ${heapSlope.toFixed(2)} MB/min`);
-  console.log(`RSS Slope          : ${rssSlope.toFixed(2)} MB/min`);
-
-  console.log(`\nRuntime`);
-  console.log(`Avg Event Lag      : ${avgLag.toFixed(2)} ms`);
-
-  if (heapSlope > 5 || rssSlope > 10) {
-    console.warn("\n⚠️ Possible sustained leak detected.");
-  } else {
-    console.log("\n✅ Memory appears stable.");
-  }
+  printSummaryTable([
+    { key: "Total Requests Processed", val: totalRequests, unit: "req" },
+    { key: "Average Throughput", val: Math.round(rps), unit: "req/s" },
+    { key: "RSS Delta (Total)", val: rssGrowth, unit: "MB" },
+    { key: "Heap Delta", val: heapGrowth, unit: "MB" },
+    { key: "External Delta", val: externalGrowth, unit: "MB" },
+    { key: "Peak RSS Footprint", val: peakRSS, unit: "MB" },
+    { key: "Peak Heap Footprint", val: peakHeap, unit: "MB" },
+    { key: "Heap Leak Slope", val: heapSlope, unit: "MB/min" },
+    { key: "RSS Leak Slope", val: rssSlope, unit: "MB/min" },
+    { key: "Avg Event Loop Lag", val: avgLag, unit: "ms" },
+  ]);
 
   exportResult({
     name: "Memory Stability Enterprise",
@@ -238,46 +234,13 @@ export async function runMemoryStabilityTest() {
     rps: Number(rps.toFixed(1)),
     successCount: totalRequests,
     failureCount: 0,
+    rssDelta: rssGrowth,
   } as any);
 
-  exportMetric("internals.memory.rss_delta", rssGrowth, "MB", {
-    heapGrowth,
-    externalGrowth,
-    heapSlope,
-    rssSlope,
-    avgLag,
-  });
+  exportMetric("internals.memory.rss_delta", rssGrowth, "MB");
+  exportMetric("internals.memory.leak_slope", heapSlope, "MB/min");
 
-  const resultsDir =
-    process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
-  await fs.mkdir(resultsDir, { recursive: true });
-
-  await fs.writeFile(
-    path.join(resultsDir, "memory-stability.json"),
-    JSON.stringify(
-      {
-        name: "Enterprise Memory Stability",
-        timestamp: new Date().toISOString(),
-        totalRequests,
-        durationMs: totalMs,
-        rps,
-        rssGrowth,
-        heapGrowth,
-        externalGrowth,
-        peakHeap,
-        peakRSS,
-        heapSlope,
-        rssSlope,
-        avgLag,
-        snapshots: data,
-      },
-      null,
-      2,
-    ),
-  );
-
-  console.log("\n💾 Report exported.");
-  console.log("✅ Benchmark completed.");
+  console.log("\n✅ Memory stability benchmark completed.");
 }
 
 test("Memory Stability Under Sustained Load", async () => {

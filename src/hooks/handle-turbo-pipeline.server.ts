@@ -28,6 +28,8 @@ import {
 import { logger } from "@utils/logger.server";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 
+console.log("🚀 SveltyCMS Turbo Pipeline Hook loaded (PID: " + process.pid + ")");
+
 // --- HELPERS ---
 
 /** Generates a unique request ID for tracing */
@@ -179,6 +181,11 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       }
     }
 
+    // ── 2. HEALTH CHECK BYPASS ──────────────────────────────────────────────
+    if (pathname.startsWith("/api/system/health")) {
+      return await resolve(event);
+    }
+
     // ── 3. BOOTSTRAP ROUTE BYPASS ───────────────────────────────────────────
     if (isBootstrapRoute(pathname)) {
       const response = await resolve(event);
@@ -188,7 +195,15 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     }
     // ── 3. SYSTEM STATE GATE ────────────────────────────────────────────────
     const systemState = getSystemState();
-    if (RESTRICTED_STATES.has(systemState.overallState)) {
+    const isHealthCheck = pathname.startsWith("/api/system/health");
+
+    if (dev || process.env.BENCHMARK_DEBUG === "true") {
+      console.error(
+        `[TurboPipeline] pathname: "${pathname}", isHealthCheck: ${isHealthCheck}, state: ${systemState.overallState}`,
+      );
+    }
+
+    if (RESTRICTED_STATES.has(systemState.overallState) && !isHealthCheck) {
       const response = restrictedResponse(systemState.overallState, isApiRoute, baseHeaderMap);
       if (dev) logRequest(event, performance.now() - requestStart, response.status);
       return response;

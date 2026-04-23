@@ -380,12 +380,22 @@ async function waitForReady(): Promise<void> {
 
       // Any HTTP response (even 503) means the server is up.
       // Parse the body to check the application-level state.
-      const data = await res.json().catch(() => null);
-      lastStatus = data?.overallStatus ?? `HTTP ${res.status} (no JSON body)`;
+      const text = await res.text().catch(() => "");
+      let json = null;
+      try {
+        json = JSON.parse(text);
+      } catch {}
 
-      log("debug", `Health check attempt ${attempts}: ${lastStatus}`);
+      const overallStatus = json?.overallStatus ?? json?.state;
+      lastStatus = overallStatus ?? `HTTP ${res.status} (${json ? "JSON" : "no JSON body"})`;
 
-      if (ACCEPTABLE_STATES.has(data?.overallStatus)) {
+      if (!json && text) {
+        console.log(`[Diagnostic] Response start: ${text.substring(0, 200)}`);
+      }
+
+      log("info", `Health check attempt ${attempts}: ${lastStatus}`);
+
+      if (ACCEPTABLE_STATES.has(overallStatus)) {
         log("info", `Server is operational (state: ${lastStatus}).`);
         return;
       }

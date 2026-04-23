@@ -1,44 +1,54 @@
 /**
  * @file tests/benchmarks/database-performance.test.ts
- * @description High-fidelity raw Database Adapter CRUD benchmark.
- * Measures INSERT, FIND ONE, FIND MANY, UPDATE, DELETE directly on the adapter layer.
+ * @description Enterprise database benchmark for SveltyCMS.
+ * Measures raw CRUD performance, indexing efficiency, and connection pool resilience.
  */
-
-import { test } from "bun:test";
+import { test, beforeAll, afterAll } from "bun:test";
 import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
   exportMetric,
   stabilize,
-  updateBenchmarkDocumentation,
+  setupBenchmarkServer,
+  printAuditTable,
+  printSummaryTable,
+  getDbType,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
 
+// ── configuration ────────────────────────────────────────────────────────────
 const TEST_TENANT = "global";
-const COLLECTION_ID = "bench_db_crud_raw"; // Fixed name with explicit cleanup
+const COLLECTION_ID = "benchmark_crud";
+const ITERATIONS = 1500;
+const WARMUP = Math.floor(ITERATIONS * 0.12);
+const RUNS = 3;
+
+let stopServer: () => Promise<void>;
+
+beforeAll(async () => {
+  const { stop } = await setupBenchmarkServer();
+  stopServer = stop;
+});
+
+afterAll(async () => {
+  if (stopServer) await stopServer();
+});
 
 export async function runDatabaseBenchmark() {
-  console.log("🚀 Starting High-Fidelity Database Adapter CRUD Benchmark...\n");
-
-  logger.level = "silent";
+  console.log("🚀 Starting Enterprise Database Benchmark...\n");
 
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
   await ensureFullInitialization();
-  const adapter = getDb();
-  if (!adapter) throw new Error("DB adapter not initialized");
 
-  const dbType = (adapter.type || process.env.DB_TYPE || "unknown").toUpperCase();
+  const db = getDb();
+  if (!db) throw new Error("Database not initialized");
+  const dbType = getDbType();
 
-  console.log(`📊 Benchmarking ${dbType} Adapter (Collection: ${COLLECTION_ID})`);
-
-  // === Preparation: Clean Slate ===
-  await adapter.clearDatabase().catch(() => {});
   await stabilize();
 
   // Ensure model/collection exists for the test
-  if (adapter.collection?.createModel) {
-    await adapter.collection
+  if (db.collection?.createModel) {
+    await db.collection
       .createModel({
         _id: COLLECTION_ID,
         name: COLLECTION_ID,
@@ -54,8 +64,9 @@ export async function runDatabaseBenchmark() {
   const FIXED_ID = "bench-stable-001";
 
   // Pre-seed a stable record for FIND/UPDATE hotspots
-  await adapter.crud.insert(
+  await db.crud.upsert(
     COLLECTION_ID,
+    { _id: FIXED_ID as any },
     {
       _id: FIXED_ID as any,
       title: "Stable Benchmark Entry",
@@ -66,7 +77,7 @@ export async function runDatabaseBenchmark() {
   );
 
   // Elite Reliability Check: Verify entry exists before starting measurements
-  const check = await adapter.crud.findOne(
+  const check = await db.crud.findOne(
     COLLECTION_ID,
     { _id: FIXED_ID as any },
     { tenantId: TEST_TENANT as any },
@@ -77,20 +88,17 @@ export async function runDatabaseBenchmark() {
     );
   }
 
-  const ITERATIONS = 1500;
-  const WARMUP = Math.floor(ITERATIONS * 0.12);
-  const RUNS = 3;
-
   const benchmarkCrud = async (name: string, onIteration: (i: number) => Promise<void>) => {
+    console.log(`   → ${name}`);
     return runBenchmark({
-      name: `${dbType} Adapter: ${name}`,
+      name,
       iterations: ITERATIONS,
       warmupIterations: WARMUP,
-      concurrency: 1, // Pure latency measurement
+      concurrency: 1,
       runs: RUNS,
       trimOutliers: "iqr",
       measureMemory: true,
-      onIteration: async (i) => await onIteration(i),
+      onIteration: async (i: number) => await onIteration(i),
       silent: true,
     });
   };
@@ -98,7 +106,7 @@ export async function runDatabaseBenchmark() {
   // 1. INSERT (Single)
   const insertResult = await benchmarkCrud("INSERT", async (i) => {
     const id = `ins-${i}-${Math.random().toString(36).slice(2)}`;
-    await adapter.crud.insert(
+    await db.crud.insert(
       COLLECTION_ID,
       {
         _id: id as any,
@@ -112,7 +120,7 @@ export async function runDatabaseBenchmark() {
 
   // 2. FIND ONE (by PK)
   const findOneResult = await benchmarkCrud("FIND ONE", async () => {
-    const res = await adapter.crud.findOne(
+    const res = await db.crud.findOne(
       COLLECTION_ID,
       { _id: FIXED_ID as any },
       { tenantId: TEST_TENANT as any },
@@ -122,12 +130,12 @@ export async function runDatabaseBenchmark() {
 
   // 3. FIND MANY (Paginated limit 50)
   const findManyResult = await benchmarkCrud("FIND MANY (limit 50)", async () => {
-    await adapter.crud.findMany(COLLECTION_ID, { tenantId: TEST_TENANT as any }, { limit: 50 });
+    await db.crud.findMany(COLLECTION_ID, { tenantId: TEST_TENANT as any }, { limit: 50 });
   });
 
   // 4. UPDATE
   const updateResult = await benchmarkCrud("UPDATE", async () => {
-    await adapter.crud.update(
+    await db.crud.update(
       COLLECTION_ID,
       FIXED_ID as any,
       { title: `Updated ${Date.now()}`, status: "updated" } as any,
@@ -135,15 +143,15 @@ export async function runDatabaseBenchmark() {
     );
   });
 
-  // 5. DELETE (Insert-then-Delete to measure atomic cleanup path)
+  // 5. DELETE (Insert-then-Delete)
   const deleteResult = await benchmarkCrud("DELETE", async (i) => {
     const id = `del-${i}-${Math.random().toString(36).slice(2)}`;
-    await adapter.crud.insert(
+    await db.crud.insert(
       COLLECTION_ID,
       { _id: id as any, title: "Temp", tenantId: TEST_TENANT as any } as any,
       { tenantId: TEST_TENANT as any },
     );
-    await adapter.crud.delete(COLLECTION_ID, id as any, { tenantId: TEST_TENANT as any });
+    await db.crud.delete(COLLECTION_ID, id as any, { tenantId: TEST_TENANT as any });
   });
 
   // 6. BULK INSERT (Batch of 100)
@@ -153,20 +161,12 @@ export async function runDatabaseBenchmark() {
       title: `Bulk item ${j}`,
       tenantId: TEST_TENANT as any,
     }));
-    await adapter.crud.insertMany(COLLECTION_ID, batch, { tenantId: TEST_TENANT as any });
+    await db.crud.insertMany(COLLECTION_ID, batch, { tenantId: TEST_TENANT as any });
   });
 
-  logger.level = "info";
+  // ─── reporting ─────────────────────────────────────────────────────────────
 
-  // ===================================================================
-  // Elite Table Output
-  // ===================================================================
-  console.log("\n" + "=".repeat(150));
-  console.log(`   🏆 ${dbType} RAW DATABASE ADAPTER CRUD PERFORMANCE AUDIT`);
-  console.log("   Direct Adapter Layer • Nanosecond Precision • IQR • MoE");
-  console.log("=".repeat(150));
-
-  const allResults = [
+  const results = [
     insertResult,
     findOneResult,
     findManyResult,
@@ -175,41 +175,25 @@ export async function runDatabaseBenchmark() {
     bulkInsertResult,
   ];
 
-  console.log(
-    `| ${"Operation".padEnd(32)} | ${"Avg ms".padEnd(18)} | ${"p95 ms".padEnd(12)} | ${"RPS".padEnd(12)} | ${"RSS Δ".padEnd(12)} |`,
-  );
-  console.log("|" + "-".repeat(32 + 18 + 12 + 12 + 12 + 6) + "|");
+  printAuditTable({
+    title: `SVELTYCMS  —  DATABASE ADAPTER PERFORMANCE (${dbType.toUpperCase()})`,
+    subtitle: "Direct Adapter Layer • CRUD Operations • IQR trimmed",
+    results,
+  });
 
-  for (const r of allResults) {
-    const displayName = r.name.includes(":") ? r.name.split(":")[1].trim() : r.name;
-    const rss =
-      r.rssDelta !== undefined ? `${r.rssDelta >= 0 ? "+" : ""}${r.rssDelta.toFixed(2)} MB` : "—";
+  printSummaryTable([
+    { key: "Raw Read Latency (p95)", val: findOneResult.p95Ms, unit: "ms" },
+    { key: "Raw Write Latency (p95)", val: insertResult.p95Ms, unit: "ms" },
+    { key: "Bulk Write Throughput", val: Math.round(bulkInsertResult.rps * 100), unit: "docs/s" },
+    { key: "Peak DB RPS", val: Math.round(findOneResult.rps), unit: "req/s" },
+    { key: "Memory Stability RSS Δ", val: (findOneResult.rssDelta || 0).toFixed(2), unit: "MB" },
+  ]);
 
-    console.log(
-      `| ${displayName.padEnd(32)} | ` +
-        `${r.avgMs.toFixed(4)} (±${r.marginOfError.toFixed(3)})`.padEnd(18) +
-        ` | ${r.p95Ms.toFixed(3)}`.padEnd(12) +
-        ` | ${Math.round(r.rps).toLocaleString().padEnd(12)}` +
-        ` | ${rss.padEnd(12)} |`,
-    );
-  }
-  console.log("=".repeat(150));
+  exportMetric("adapter.read.avg", findOneResult.avgMs, "ms");
 
-  // Consolidated for Matrix
-  const readRes = findOneResult;
-  exportMetric("adapter.read.avg", readRes.avgMs, "ms");
+  for (const r of results) exportResult(r);
 
-  const aggregate = {
-    name: "DB Adapter Summary",
-    avgMs: findOneResult.avgMs,
-    p95Ms: findOneResult.p95Ms,
-    rps: findOneResult.rps,
-    shortLabel: "DB Raw p95",
-  };
-
-  exportResult(aggregate);
   console.log("\n✅ Database adapter raw CRUD benchmark completed.");
-  await updateBenchmarkDocumentation();
 }
 
 test("Database Adapter CRUD Performance", async () => {

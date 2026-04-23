@@ -132,7 +132,7 @@ export const contentService = {
     adapter?: IDBAdapter,
     changedFile?: string | null,
   ): Promise<void> {
-    console.log(
+    logger.info(
       `[RECONCILE] fullReload triggered. Tenant: ${tenantId}, skip: ${skipReconciliation}, target: ${changedFile || "ALL"}`,
     );
 
@@ -315,7 +315,7 @@ export const contentService = {
 
     // Sync Reactive Store
     contentStore.sync(operations);
-    console.error(`[RECONCILE] Sync complete for ${tenantId}`);
+    logger.info(`[RECONCILE] Sync complete for ${tenantId}`);
 
     eventBus.broadcast(SystemEvents.CONTENT_UPDATE, {
       version: Date.now(),

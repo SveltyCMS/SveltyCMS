@@ -71,7 +71,7 @@ export abstract class BaseAdapter {
   /**
    * Standard error handler that logs and returns a formatted DatabaseResult.
    */
-  protected handleError<T>(error: unknown, code: string, message?: string): DatabaseResult<T> {
+  public handleError<T>(error: unknown, code: string, message?: string): DatabaseResult<T> {
     const errMessage = message || (error instanceof Error ? error.message : String(error));
     logger.error(`Database adapter error [${code}]:`, errMessage);
 
@@ -86,7 +86,7 @@ export abstract class BaseAdapter {
     };
   }
 
-  protected async wrap<T>(
+  public async wrap<T>(
     fn: () => Promise<T>,
     code: string,
     message?: string,
@@ -116,7 +116,7 @@ export abstract class BaseAdapter {
   /**
    * Utility for not-connected errors.
    */
-  protected notConnectedError<T>(): DatabaseResult<T> {
+  public notConnectedError<T>(): DatabaseResult<T> {
     const message = "Database connection not established";
     return {
       success: false,
@@ -131,7 +131,7 @@ export abstract class BaseAdapter {
   /**
    * Utility for not-implemented methods.
    */
-  protected notImplemented<T>(method: string): DatabaseResult<T> {
+  public notImplemented<T>(method: string): DatabaseResult<T> {
     const message = `Method ${method} not implemented for this adapter.`;
     logger.warn(message);
     return {
@@ -196,6 +196,6 @@ export abstract class DatabaseModule<T extends BaseAdapter = BaseAdapter> {
     code: string,
     message?: string,
   ): Promise<DatabaseResult<R>> {
-    return this.adapter["wrap"](fn, code, message);
+    return this.adapter.wrap(fn, code, message);
   }
 }

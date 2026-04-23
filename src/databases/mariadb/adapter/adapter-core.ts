@@ -1,30 +1,15 @@
 /**
  * @file src/databases/mariadb/adapter/adapter-core.ts
- * @description
- * Core logic shared by MariaDB adapter modules.
- * Key functions include:
- * - Connection pool management and health monitoring.
- * - Drizzle ORM integration and schema mapping.
- * - Table resolution and alias management (e.g., snake_case to camelCase mapping).
- * - Standardized error wrapping and query transformation utilities.
- *
- * features:
- * - connection pool management
- * - drizzle-orm integration
- * - table/alias resolution
- * - standardized error handling
- * - performance telemetry
+ * @description Core functionality for MariaDB adapter, unified via BaseSqlAdapter.
  */
 
-import { logger } from "@utils/logger";
-import { and, type Column, eq, isNull, type SQL, inArray, ne, gt, gte, lt, lte } from "drizzle-orm";
+import { logger } from "@src/utils/logger.server";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
-import type { DatabaseCapabilities, DatabaseError, DatabaseResult } from "../../db-interface";
+import type { DatabaseCapabilities, DatabaseResult } from "../../db-interface";
+import { BaseSqlAdapter } from "../../sqlite/base-sql-adapter";
 import * as schema from "../schema";
-import * as utils from "../utils";
 
-// Internal type for mysql2 pool to access statistics safely
 interface InternalPool {
   pool?: {
     _allConnections: unknown[];
@@ -36,7 +21,7 @@ interface InternalPool {
   };
 }
 
-export class AdapterCore {
+export class AdapterCore extends BaseSqlAdapter {
   public capabilities: DatabaseCapabilities = {
     supportsTransactions: true,
     supportsIndexing: true,
@@ -53,17 +38,6 @@ export class AdapterCore {
   public activeDatabaseName: string = "unknown";
   public crud!: import("../crud/crud-module").CrudModule;
   public batch!: import("../operations/batch-module").BatchModule;
-  protected connected = false;
-  public collectionRegistry = new Map<string, unknown>();
-  public dynamicTables = new Map<string, any>();
-
-  public getCapabilities(): DatabaseCapabilities {
-    return this.capabilities;
-  }
-
-  public isConnected(): boolean {
-    return this.connected;
-  }
 
   async connect(
     connection: string | mysql.PoolOptions,
@@ -72,7 +46,6 @@ export class AdapterCore {
     try {
       let finalConnection = connection;
 
-      // Fallback: If connection is missing or empty string, try to build it from global config
       if (
         !finalConnection ||
         (typeof finalConnection === "string" && finalConnection.trim() === "")
@@ -91,7 +64,6 @@ export class AdapterCore {
         poolConfig = { uri: finalConnection, connectionLimit: 100, connectTimeout: 30000 };
       } else {
         const c = connection as any;
-        // Strictly only include valid MariaDB driver options
         poolConfig = {
           host: c.host || c.DB_HOST || "127.0.0.1",
           port: Number(c.port || c.DB_PORT || 3306),
@@ -115,61 +87,29 @@ export class AdapterCore {
         (poolConfig.uri ? new URL(poolConfig.uri).pathname.slice(1) : "unknown");
       this.db = drizzle(this.pool, { schema, mode: "default" });
 
-      // Verification: Ensure the connection is actually established
+      // Verification
       try {
-        // Force READ COMMITTED isolation to prevent stale structural views during high-concurrency bootstrap
         await this.pool.query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
         await this.pool.query("SELECT 1");
       } catch (err: any) {
-        if (process.env.SVELTY_AUDIT_ACTIVE || process.env.BENCHMARK_DEBUG) {
-          logger.error(
-            `Initial MariaDB connection check failed (Code: ${err.code || "N/A"}):`,
-            err.message,
-          );
-        }
-
-        // If database doesn't exist (code ER_BAD_DB_ERROR in MariaDB/MySQL, or 1049)
         const isMissingDb =
           err.code === "ER_BAD_DB_ERROR" ||
           err.errno === 1049 ||
           err.message?.includes("Unknown database");
 
         if (isMissingDb) {
-          let dbName = "";
-          if (typeof connection === "string") {
-            try {
-              const url = new URL(connection);
-              dbName = url.pathname.slice(1);
-            } catch {
-              // Not a URL, maybe it's the DB name itself?
-              dbName = connection;
-            }
-          } else {
-            const c = connection as any;
-            dbName = c.database || c.DB_NAME || c.databaseName;
-          }
-
+          let dbName =
+            poolConfig.database ||
+            (poolConfig.uri ? new URL(poolConfig.uri).pathname.slice(1) : "");
           if (dbName) {
             logger.info(`[mariadb] Database "${dbName}" not found. Attempting auto-creation...`);
             const adminOptions = { ...poolConfig, database: undefined, connectionLimit: 1 };
             const adminPool = mysql.createPool(adminOptions);
             try {
               await adminPool.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
-              logger.info(`Successfully created database "${dbName}".`);
               await adminPool.end();
-              // Reconnect with the sanitized config, ensuring the database is selected
               await this.pool.end();
-              const finalPoolConfig =
-                typeof finalConnection === "string"
-                  ? {
-                      ...poolConfig,
-                      uri: finalConnection.includes(dbName)
-                        ? finalConnection
-                        : `${finalConnection.replace(/\/$/, "")}/${dbName}`,
-                    }
-                  : { ...poolConfig, database: dbName };
-
-              this.pool = mysql.createPool(finalPoolConfig);
+              this.pool = mysql.createPool({ ...poolConfig, database: dbName });
               this.activeDatabaseName = dbName;
               this.db = drizzle(this.pool, { schema, mode: "default" });
               await this.pool.query("SELECT 1");
@@ -205,10 +145,8 @@ export class AdapterCore {
     return { success: true, data: undefined };
   }
 
-  public async waitForConnection?(): Promise<void> {
-    if (this.connected) {
-      return;
-    }
+  public async waitForConnection(): Promise<void> {
+    if (this.connected) return;
     return new Promise((resolve) => {
       const interval = setInterval(() => {
         if (this.connected) {
@@ -227,11 +165,7 @@ export class AdapterCore {
     }>
   > {
     if (!(this.connected && this.pool)) {
-      return {
-        success: false,
-        message: "Database not connected",
-        error: utils.createDatabaseError("NOT_CONNECTED", "Database not connected"),
-      };
+      return this.notConnectedError();
     }
     const start = Date.now();
     try {
@@ -251,37 +185,17 @@ export class AdapterCore {
     }
   }
 
-  // Get MariaDB connection pool statistics
   async getConnectionPoolStats(): Promise<
     DatabaseResult<import("../../db-interface").ConnectionPoolStats>
   > {
     try {
-      if (!this.pool) {
-        return {
-          success: false,
-          message: "Database pool not initialized",
-          error: {
-            code: "POOL_NOT_INITIALIZED",
-            message: "Pool not initialized",
-          },
-        };
-      }
-
-      // Access internal pool stats for mysql2 driver
+      if (!this.pool) return this.handleError("Not initialized", "POOL_STATS_FAILED");
       const pool = (this.pool as unknown as InternalPool).pool;
-
-      if (!pool) {
+      if (!pool)
         return {
           success: true,
-          data: {
-            total: 10,
-            active: 0,
-            idle: 0,
-            waiting: 0,
-            avgConnectionTime: 0,
-          },
+          data: { total: 10, active: 0, idle: 0, waiting: 0, avgConnectionTime: 0 },
         };
-      }
 
       return {
         success: true,
@@ -294,143 +208,36 @@ export class AdapterCore {
         },
       };
     } catch (error) {
-      return {
-        success: false,
-        message: "Failed to get MariaDB pool stats",
-        error: { code: "POOL_STATS_FAILED", message: String(error) },
-      };
+      return this.handleError(error, "POOL_STATS_FAILED");
     }
   }
-
-  public async wrap<T>(fn: () => Promise<T>, code: string): Promise<DatabaseResult<T>> {
-    if (!this.db) {
-      return Promise.resolve(this.notConnectedError<T>());
-    }
-    try {
-      return fn()
-        .then((data) => ({ success: true, data }) as DatabaseResult<T>)
-        .catch((error) => this.handleError<T>(error, code));
-    } catch (error) {
-      return Promise.resolve(this.handleError<T>(error, code));
-    }
-  }
-
-  public handleError<T>(error: unknown, code: string): DatabaseResult<T> {
-    const message = error instanceof Error ? error.message : String(error);
-    if (process.env.SVELTY_AUDIT_ACTIVE || process.env.BENCHMARK_DEBUG) {
-      logger.error(
-        `MariaDB adapter error [${code}] on database "${this.activeDatabaseName}":`,
-        error,
-      );
-    } else {
-      logger.error(`MariaDB adapter error [${code}]:`, message);
-    }
-    return {
-      success: false,
-      message,
-      error: utils.createDatabaseError(code, message, error) as DatabaseError,
-    };
-  }
-
-  public notImplemented<T>(method: string): DatabaseResult<T> {
-    const message = `Method ${method} not yet implemented for MariaDB adapter.`;
-    logger.warn(message);
-    return {
-      success: false,
-      message,
-      error: utils.createDatabaseError("NOT_IMPLEMENTED", message) as DatabaseError,
-    };
-  }
-
-  public notConnectedError<T>(): DatabaseResult<T> {
-    return {
-      success: false,
-      message: "Database not connected",
-      error: utils.createDatabaseError(
-        "NOT_CONNECTED",
-        "Database connection not established",
-      ) as DatabaseError,
-    };
-  }
-
-  private snakeToCamel(str: string): string {
-    return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-  }
-
-  // Common short aliases used by API routes and resolvers
-  private static TABLE_ALIASES: Record<string, string> = {
-    media: "mediaItems",
-    MediaItem: "mediaItems",
-    collections: "contentNodes",
-    preferences: "systemPreferences",
-    tokens: "authTokens",
-    sessions: "authSessions",
-    users: "authUsers",
-    system_content_structure: "contentNodes",
-  };
 
   public getTable(collection: string): Record<string, unknown> {
-    const schemaAny = schema as unknown as Record<string, Record<string, unknown>>;
+    const aliased = this.getAliasedTable(collection, schema);
+    if (aliased) return aliased;
 
-    // 1. Static schema tables
-    if (schemaAny[collection]) {
-      return schemaAny[collection];
-    }
-
-    // Convert snake_case to camelCase (e.g., 'media_items' → 'mediaItems')
-    const camelKey = this.snakeToCamel(collection);
-    if (schemaAny[camelKey]) {
-      return schemaAny[camelKey];
-    }
-
-    // Check common aliases (e.g., 'media' → 'mediaItems')
-    const alias = AdapterCore.TABLE_ALIASES[collection];
-    if (alias && schemaAny[alias]) {
-      return schemaAny[alias];
-    }
-
-    // 2. Dynamic collection tables (UUID-based or Name-based)
-    if (this.dynamicTables.has(collection)) {
-      return this.dynamicTables.get(collection)!;
-    }
-
-    // Treat as dynamic if it's not a static schema table and doesn't match common aliases
+    if (this.dynamicTables.has(collection)) return this.dynamicTables.get(collection)!;
     const tableId = collection.startsWith("collection_") ? collection : `collection_${collection}`;
+    if (this.dynamicTables.has(tableId)) return this.dynamicTables.get(tableId);
 
-    // Check if we already have this dynamic table defined
-    if (this.dynamicTables.has(tableId)) {
-      return this.dynamicTables.get(tableId);
-    }
-
-    // If it's a UUID or starts with collection_, or it's a known dynamic collection
     if (
       /^[a-f0-9]{32,36}$/i.test(collection) ||
       collection.startsWith("collection_") ||
       this.collectionRegistry.has(collection)
     ) {
-      // Robust registry check: ensure the ID is registered if not already present
-      if (!this.collectionRegistry.has(collection)) {
+      if (!this.collectionRegistry.has(collection))
         this.collectionRegistry.set(collection, { _id: collection });
-      }
-
       const dynamicTable = this.createDynamicTableDefinition(tableId);
       this.dynamicTables.set(collection, dynamicTable);
       this.dynamicTables.set(tableId, dynamicTable);
       return dynamicTable as unknown as Record<string, unknown>;
     }
-
-    // Fallback to contentNodes
     return schema.contentNodes as unknown as Record<string, unknown>;
   }
 
-  /**
-   * Creates a Drizzle table definition for a dynamic collection at runtime.
-   * All dynamic collections sharing a common relational structure for flexibility.
-   */
-  private createDynamicTableDefinition(tableName: string) {
+  public createDynamicTableDefinition(tableName: string) {
     const { mysqlTable, varchar, json, datetime } = require("drizzle-orm/mysql-core");
     const { sql } = require("drizzle-orm");
-
     return mysqlTable(tableName, {
       _id: varchar("_id", { length: 36 }).primaryKey(),
       tenantId: varchar("tenantId", { length: 36 }),
@@ -443,61 +250,5 @@ export class AdapterCore {
         .notNull()
         .default(sql`CURRENT_TIMESTAMP`),
     });
-  }
-
-  public mapQuery(table: Record<string, unknown>, query: Record<string, unknown>): unknown {
-    if (!query || Object.keys(query).length === 0) {
-      return undefined;
-    }
-
-    const conditions: SQL[] = [];
-    for (const [key, value] of Object.entries(query)) {
-      if (key.startsWith("$")) {
-        // Handle top-level operators like $or (not implemented yet, but skip for now)
-        continue;
-      }
-
-      const column = table[key] as Column;
-      if (!column) continue;
-
-      if (value === null) {
-        conditions.push(isNull(column));
-      } else if (typeof value === "object" && !Array.isArray(value)) {
-        // Handle MongoDB-style operators: { field: { $in: [...] } }
-        const obj = value as Record<string, unknown>;
-        for (const [op, val] of Object.entries(obj)) {
-          switch (op) {
-            case "$in":
-              if (Array.isArray(val) && val.length > 0) {
-                conditions.push(inArray(column, val));
-              }
-              break;
-            case "$ne":
-              conditions.push(ne(column, val as any));
-              break;
-            case "$gt":
-              conditions.push(gt(column, val as any));
-              break;
-            case "$gte":
-              conditions.push(gte(column, val as any));
-              break;
-            case "$lt":
-              conditions.push(lt(column, val as any));
-              break;
-            case "$lte":
-              conditions.push(lte(column, val as any));
-              break;
-          }
-        }
-      } else {
-        // Simple equality
-        conditions.push(eq(column, value as string | number | boolean));
-      }
-    }
-
-    if (conditions.length === 0) {
-      return undefined;
-    }
-    return and(...conditions);
   }
 }

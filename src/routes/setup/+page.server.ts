@@ -149,6 +149,21 @@ export const actions: Actions = {
           const { buildDatabaseConnectionString } = await import("./utils");
           const dbPath = buildDatabaseConnectionString(dbConfig);
           if ((await import("fs")).existsSync(dbPath)) {
+            // 🚨 Hardening for Windows/Benchmarks: Disconnect active adapter to release file handle
+            try {
+              const { getDb } = await import("@src/databases/db");
+              const activeAdapter = getDb();
+              if (activeAdapter) {
+                logger.info("📡 Disconnecting active adapter to release SQLite file handle...");
+                await activeAdapter.disconnect();
+              }
+            } catch (err: any) {
+              logger.debug("Failed to disconnect active adapter (ignoring):", err.message);
+            }
+
+            // Small delay to allow OS to release the handle
+            await new Promise((r) => setTimeout(r, 500));
+
             await (await import("fs")).promises.unlink(dbPath);
           }
         }
@@ -336,7 +351,9 @@ export const actions: Actions = {
             }
 
             // Retry connection now that DB/file exists
-            const retry = await getSetupDatabaseAdapter(dbConfig, { createIfMissing: true });
+            const retry = await getSetupDatabaseAdapter(dbConfig, {
+              createIfMissing: true,
+            });
             const health = await retry.dbAdapter.getConnectionHealth();
             if (health.success) {
               await retry.dbAdapter.disconnect();
@@ -348,7 +365,10 @@ export const actions: Actions = {
             }
           } catch (createErr: any) {
             logger.error("❌ Database creation failed:", createErr.message);
-            return { success: false, error: "Could not create database: " + createErr.message };
+            return {
+              success: false,
+              error: "Could not create database: " + createErr.message,
+            };
           }
         }
 
@@ -456,7 +476,9 @@ export const actions: Actions = {
       const { initSystemFast } = await import("./seed");
       const { getSetupDatabaseAdapter } = await import("./utils");
 
-      const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, { createIfMissing: true });
+      const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, {
+        createIfMissing: true,
+      });
 
       // Get split promises
       const { criticalPromise, backgroundTask } = await initSystemFast(dbAdapter);
@@ -534,7 +556,9 @@ export const actions: Actions = {
       }
 
       const { getSetupDatabaseAdapter } = await import("./utils");
-      const { dbAdapter } = await getSetupDatabaseAdapter(database, { createIfMissing: true });
+      const { dbAdapter } = await getSetupDatabaseAdapter(database, {
+        createIfMissing: true,
+      });
 
       const { Auth } = await import("@src/databases/auth");
       const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");

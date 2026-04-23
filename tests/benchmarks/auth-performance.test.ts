@@ -12,7 +12,8 @@ import {
   stabilize,
   mockDispatch,
   setupBenchmarkServer,
-  updateBenchmarkDocumentation,
+  printAuditTable,
+  printSummaryTable,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
@@ -93,37 +94,26 @@ export async function runAuthBenchmark() {
 
   logger.level = "info";
 
-  console.log("\n" + "=".repeat(120));
-  console.log("🔐 SVELTYCMS AUTH & RBAC ENTERPRISE REPORT");
-  console.log("=".repeat(120));
-
-  for (const r of allResults) {
-    console.log(
-      `| ${r.name.padEnd(34)} | ` +
-        `${r.avgMs.toFixed(3)} ms`.padEnd(12) +
-        ` | ${r.p95Ms.toFixed(3)}`.padEnd(12) +
-        ` | ${Math.round(r.rps).toLocaleString().padEnd(12)} |`,
-    );
-  }
-  console.log("=".repeat(120));
+  printAuditTable({
+    title: "SVELTYCMS  —  AUTH & RBAC",
+    subtitle: "IQR trimmed • 3 runs × 1 200 iters • avg / p95 / RPS",
+    results: allResults,
+  });
 
   const middleware1 = allResults.find((r) => r.name.includes("Middleware Auth @ 1c"));
   const maxRps = Math.max(...allResults.map((r) => r.rps));
 
-  exportMetric("auth.middleware.avg", middleware1?.avgMs || 0, "ms");
-  exportMetric("auth.middleware.p95", middleware1?.p95Ms || 0, "ms");
-  exportMetric("auth.max_rps", maxRps, "req/s");
+  printSummaryTable([
+    { key: "Avg Auth Latency", val: middleware1?.avgMs || 0, unit: "ms" },
+    { key: "p95 Auth Latency", val: middleware1?.p95Ms || 0, unit: "ms" },
+    { key: "Max Auth Throughput", val: Math.round(maxRps), unit: "req/s" },
+  ]);
 
-  const aggregate = {
-    name: "Auth Summary",
-    avgMs: middleware1?.avgMs || 0,
-    p95Ms: middleware1?.p95Ms || 0,
-    rps: maxRps,
-    shortLabel: "Auth Trace",
-  };
-  exportResult(aggregate);
+  for (const r of allResults) exportResult(r);
+  exportMetric("auth.latency.avg", middleware1?.avgMs || 0, "ms");
+  exportMetric("auth.rps.max", maxRps, "req/s");
+
   console.log("\n✅ Authentication benchmark completed.");
-  await updateBenchmarkDocumentation();
 }
 
 test("Auth & RBAC Enterprise Suite", async () => {

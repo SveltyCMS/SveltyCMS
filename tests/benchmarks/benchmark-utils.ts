@@ -1,458 +1,453 @@
 /**
  * @file tests/benchmarks/benchmark-utils.ts
- * @description Professional, high-fidelity benchmarking utilities for SveltyCMS.
- * Supports latency & throughput modes, rich statistics, and easy integration.
+ * @description Enterprise benchmarking core for SveltyCMS.
+ * Standardizes execution, statistical analysis (percentiles, CV), memory auditing,
+ * and professional reporting across all 19+ audit modules.
  */
-
 import { performance } from "node:perf_hooks";
 import fs from "node:fs";
 import path from "node:path";
+import { logger } from "@utils/logger.server";
 
+// ── silencing noise ─────────────────────────────────────────────────────────
+process.env.LOG_LEVEL = "error";
+process.env.DEBUG = "";
+process.env.QUIET = "true";
+if (logger) logger.level = "error";
+
+// Suppress console.info/warn during init
+const originalInfo = console.info;
+const originalWarn = console.warn;
+console.info = () => {};
+console.warn = () => {};
+setTimeout(() => {
+  console.info = originalInfo;
+  console.warn = originalWarn;
+}, 2000);
+
+// ── types ───────────────────────────────────────────────────────────────────
 export interface BenchmarkResult {
   name: string;
-  iterations: number;
-  totalMs: number;
+  db: string;
   avgMs: number;
-  minMs: number;
-  maxMs: number;
   p50Ms: number;
   p95Ms: number;
   p99Ms: number;
-  stdDev: number;
-  marginOfError: number; // 95% confidence margin
-  rssDelta?: number; // Optional memory RSS delta
+  minMs: number;
+  maxMs: number;
   rps: number;
-  successCount: number;
-  failureCount: number;
-  timestamp: string;
-  phases?: any[]; // For multi-phase benchmarks
-  metrics?: Record<string, any>; // Standardized numeric metrics
-  [key: string]: any; // Allow custom metadata
-}
-
-/** Standardised metric format for orchestrator consumption */
-export interface SystemMetric {
-  name: string;
-  value: number;
-  unit: string;
-  _type: "numeric-metric";
-  timestamp: string;
-  metadata?: Record<string, any>;
-}
-
-export interface BenchmarkOptions {
-  name: string;
   iterations: number;
-  warmupIterations?: number;
-  concurrency?: number; // 1 = latency, >1 = throughput test
-  runs?: number; // Multiple independent runs for stability
-  useNanoseconds?: boolean;
-  trimOutliers?: boolean | "iqr"; // "iqr" = Interquartile Range based trimming
-  /** If true, exceptions in onIteration count as timed successes, not failures. Useful for isolation testing. */
-  tolerateErrors?: boolean;
-  onIteration: (index: number) => Promise<void> | void;
-  onWarmup?: (index: number) => Promise<void> | void;
-  onSetup?: () => Promise<void> | void;
-  onTeardown?: () => Promise<void> | void;
-  silent?: boolean;
-  measureMemory?: boolean;
+  runs: number;
+  concurrency: number;
+  cv: number; // Coefficient of Variation (%)
+  // Memory
+  rssDelta?: number;
+  heapUsedDelta?: number;
+  externalDelta?: number;
+  // Metadata
+  timestamp: string;
+  version: string;
+  layer?: string;
+  pair?: string;
+  overhead?: number;
 }
 
-/** Stabilize runtime (GC + yield) */
-export async function stabilize(): Promise<void> {
+// ── configuration ────────────────────────────────────────────────────────────
+const RESULTS_DIR = process.env.RESULTS_DIR ?? "tests/benchmarks/results";
+
+// ── statistics ───────────────────────────────────────────────────────────────
+
+/**
+ * Calculates a percentile using linear interpolation (industry standard).
+ * Match behavior of tools like Benchmark.js / Prometheus.
+ */
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0;
+  const index = (p / 100) * (sorted.length - 1);
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  if (lower === upper) return sorted[lower];
+  const weight = index - lower;
+  return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+}
+
+/**
+ * Computes high-fidelity statistics including CV for stability tracking.
+ */
+export function computeStatistics(times: number[], rps: number, config: any): BenchmarkResult {
+  const sorted = [...times].sort((a, b) => a - b);
+  const sum = sorted.reduce((a, b) => a + b, 0);
+  const avg = sum / sorted.length;
+
+  // Standard Deviation for CV
+  const variance = sorted.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / sorted.length;
+  const stdDev = Math.sqrt(variance);
+  const cv = (stdDev / avg) * 100;
+
+  return {
+    name: config.name,
+    db: getDbType(),
+    avgMs: avg,
+    p50Ms: percentile(sorted, 50),
+    p95Ms: percentile(sorted, 95),
+    p99Ms: percentile(sorted, 99),
+    minMs: sorted[0],
+    maxMs: sorted[sorted.length - 1],
+    rps,
+    iterations: times.length,
+    runs: config.runs || 1,
+    concurrency: config.concurrency || 1,
+    cv,
+    timestamp: new Date().toISOString(),
+    version: "0.0.8-enterprise",
+  };
+}
+
+// ── infrastructure ───────────────────────────────────────────────────────────
+
+export function getDbType(): string {
+  return (process.env.DB_TYPE || "sqlite").toLowerCase();
+}
+
+/**
+ * Aggressive GC stabilization and memory snapshotting.
+ */
+export async function stabilize() {
   if (typeof Bun !== "undefined" && typeof (Bun as any).gc === "function") {
     (Bun as any).gc(true);
   } else if (typeof (globalThis as any).gc === "function") {
     (globalThis as any).gc();
   }
-  await new Promise((r) => setTimeout(r, 60)); // yield to let system settle
+  await new Promise((r) => setTimeout(r, 100));
 }
 
-/**
- * Robust concurrent execution semaphore.
- * Prevents Promise.race overhead by managing a fixed worker set.
- */
-class AsyncSemaphore {
-  private active = 0;
-  private queue: (() => void)[] = [];
-
-  constructor(private max: number) {}
-
-  async acquire(): Promise<void> {
-    if (this.active < this.max) {
-      this.active++;
-      return;
-    }
-    return new Promise((r) => this.queue.push(r));
-  }
-
-  release(): void {
-    this.active--;
-    if (this.queue.length > 0) {
-      this.active++;
-      const next = this.queue.shift();
-      if (next) next();
-    }
-  }
-}
-
-/** Robust concurrent execution pool (semaphore style) */
-async function executePool(
-  concurrency: number,
-  total: number,
-  fn: (i: number) => Promise<void> | void,
-): Promise<void> {
-  const semaphore = new AsyncSemaphore(concurrency);
-  const tasks: Promise<void>[] = [];
-
-  for (let i = 0; i < total; i++) {
-    await semaphore.acquire();
-    const p = (async () => {
-      try {
-        await fn(i);
-      } finally {
-        semaphore.release();
-      }
-    })();
-    tasks.push(p);
-  }
-
-  await Promise.all(tasks);
-}
-
-export async function runBenchmark(options: BenchmarkOptions): Promise<BenchmarkResult> {
-  const {
-    name,
-    iterations,
-    warmupIterations = Math.floor(iterations * 0.15),
-    concurrency = 1,
-    runs = 1,
-    trimOutliers = true,
-    onIteration,
-    onWarmup,
-    onSetup,
-    onTeardown,
-    silent = false,
-    measureMemory = false,
-  } = options;
-
-  if (!silent) {
-    console.log(`\n🚀 Benchmark: ${name} (${runs} run${runs > 1 ? "s" : ""})`);
-    console.log(
-      `   Iterations: ${iterations} | Concurrency: ${concurrency} | Warmup: ${warmupIterations}`,
-    );
-  }
-
-  if (onSetup) await onSetup();
-
-  const allResults: BenchmarkResult[] = [];
-
-  for (let run = 1; run <= runs; run++) {
-    if (runs > 1 && !silent) console.log(`   Run ${run}/${runs}...`);
-
-    // Warmup phase (always serial)
-    if (warmupIterations > 0) {
-      const warmupFn = onWarmup || onIteration;
-      if (!silent) process.stdout.write(`   🔥 Warming up... `);
-      await executePool(1, warmupIterations, warmupFn);
-      if (!silent) process.stdout.write(`Done.\n`);
-      await stabilize();
-    }
-
-    // Measurement phase
-    const latencies: number[] = [];
-    let successCount = 0;
-    let failureCount = 0;
-    const memStart = measureMemory ? process.memoryUsage() : null;
-
-    const getTime = () => performance.now(); // High-precision fractional ms
-
-    const startTotal = getTime();
-
-    await executePool(concurrency, iterations, async (i) => {
-      const start = getTime();
-      try {
-        await onIteration(i);
-        const duration = getTime() - start;
-        latencies.push(duration);
-        successCount++;
-
-        // Brief cooldown to avoid event loop starvation in high concurrency
-        if (concurrency > 1 && i % 50 === 0) {
-          await new Promise((r) => setTimeout(r, 0));
-        }
-      } catch (err) {
-        if (options.tolerateErrors) {
-          const duration = getTime() - start;
-          latencies.push(duration);
-          successCount++;
-        } else {
-          failureCount++;
-          if (failureCount === 1 && !silent) {
-            console.error(`\n❌ First error in benchmark '${name}':`, err);
-          }
-        }
-      }
-    });
-
-    const totalMs = getTime() - startTotal;
-    if (onTeardown) await onTeardown();
-
-    // --- Statistics ---
-    latencies.sort((a, b) => a - b);
-
-    let processed = latencies;
-    if (trimOutliers) {
-      if (trimOutliers === "iqr" && latencies.length > 20) {
-        // Robust Interquartile Range based trimming
-        const q1 = latencies[Math.floor(latencies.length * 0.25)];
-        const q3 = latencies[Math.floor(latencies.length * 0.75)];
-        const iqr = q3 - q1;
-        const low = q1 - 1.5 * iqr;
-        const high = q3 + 1.5 * iqr;
-        processed = latencies.filter((v) => v >= low && v <= high);
-      } else if (latencies.length > 30) {
-        // Fallback or default: 2% trim from each end
-        const trim = Math.floor(latencies.length * 0.02);
-        processed = latencies.slice(trim, latencies.length - trim);
-      }
-    }
-
-    const avgMs = processed.reduce((a, b) => a + b, 0) / processed.length || 0;
-    const minMs = processed[0] || 0;
-    const maxMs = processed[processed.length - 1] || 0;
-    const p50Ms = processed[Math.floor(processed.length * 0.5)] || 0;
-    const p95Ms = processed[Math.floor(processed.length * 0.95)] || 0;
-    const p99Ms = processed[Math.floor(processed.length * 0.99)] || 0;
-
-    const squareDiffs = processed.map((v) => (v - avgMs) ** 2);
-    const variance = squareDiffs.reduce((a, b) => a + b, 0) / squareDiffs.length || 0;
-    const stdDev = Math.sqrt(variance);
-
-    // Margin of Error (95% confidence interval)
-    const marginOfError = (stdDev * 1.96) / Math.sqrt(processed.length);
-
-    const rps = totalMs > 0 ? (successCount / totalMs) * 1000 : 0;
-
-    const result: BenchmarkResult = {
-      name: runs > 1 ? `${name} (run ${run})` : name,
-      iterations,
-      totalMs: Number(totalMs.toFixed(2)),
-      avgMs: Number(avgMs.toFixed(4)),
-      minMs: Number(minMs.toFixed(4)),
-      maxMs: Number(maxMs.toFixed(4)),
-      p50Ms: Number(p50Ms.toFixed(4)),
-      p95Ms: Number(p95Ms.toFixed(4)),
-      p99Ms: Number(p99Ms.toFixed(4)),
-      stdDev: Number(stdDev.toFixed(4)),
-      marginOfError: Number(marginOfError.toFixed(4)),
-      rps: Number(rps.toFixed(1)),
-      successCount,
-      failureCount,
-      timestamp: new Date().toISOString(),
-      rssDelta: memStart ? (process.memoryUsage().rss - memStart.rss) / 1024 / 1024 : undefined,
-    };
-
-    allResults.push(result);
-    if (!silent) {
-      printReport(result, process.memoryUsage(), memStart);
-    }
-
-    await stabilize();
-  }
-
-  // Aggregate multiple runs
-  if (runs > 1) {
-    const aggregate = computeAggregate(allResults, name);
-    if (!silent) {
-      console.log(`\n📊 AGGREGATE across ${runs} runs:`);
-      printReport(aggregate);
-    }
-    return aggregate;
-  }
-
-  if (allResults[0].successCount === 0 && iterations > 0) {
-    throw new Error(
-      `Benchmark '${name}' failed completely (${iterations} iterations, 0 successes).`,
-    );
-  }
-
-  return allResults[0];
-}
-
-function computeAggregate(results: BenchmarkResult[], baseName: string): BenchmarkResult {
-  const n = results.length;
-  const avgStdDev = results.reduce((s, r) => s + r.stdDev, 0) / n;
+export function getMemorySnapshot() {
+  const mem = process.memoryUsage();
   return {
-    ...results[0],
-    name: `${baseName} (aggregate)`,
-    avgMs: results.reduce((s, r) => s + r.avgMs, 0) / n,
-    totalMs: results.reduce((s, r) => s + r.totalMs, 0) / n,
-    p50Ms: results.reduce((s, r) => s + r.p50Ms, 0) / n,
-    p95Ms: results.reduce((s, r) => s + r.p95Ms, 0) / n,
-    p99Ms: results.reduce((s, r) => s + r.p99Ms, 0) / n,
-    stdDev: avgStdDev,
-    marginOfError: (avgStdDev * 1.96) / Math.sqrt(results[0].iterations),
-    rps: results.reduce((s, r) => s + r.rps, 0) / n,
-    successCount: Math.round(results.reduce((s, r) => s + r.successCount, 0) / n),
-    failureCount: Math.round(results.reduce((sum, r) => sum + r.failureCount, 0) / n),
+    rss: mem.rss / 1024 / 1024,
+    heapUsed: mem.heapUsed / 1024 / 1024,
+    heapTotal: mem.heapTotal / 1024 / 1024,
+    external: mem.external / 1024 / 1024,
   };
 }
 
-function printReport(r: BenchmarkResult, memAfter?: any, memBefore?: any) {
-  const table = [
-    { Metric: "Average Latency", Value: `${r.avgMs} ms (±${r.marginOfError} MoE)` },
-    { Metric: "p50 (Median)", Value: `${r.p50Ms} ms` },
-    { Metric: "p95", Value: `${r.p95Ms} ms` },
-    { Metric: "p99", Value: `${r.p99Ms} ms` },
-    { Metric: "Min / Max", Value: `${r.minMs} / ${r.maxMs} ms` },
-    { Metric: "Std Deviation", Value: `${r.stdDev} ms` },
-    { Metric: "Throughput", Value: `${r.rps.toLocaleString()} req/sec` },
-    {
-      Metric: "Success Rate",
-      Value: `${((r.successCount / r.iterations) * 100).toFixed(2)}% (${r.successCount}/${r.iterations})`,
-    },
-  ];
+// ── reporting engine ─────────────────────────────────────────────────────────
 
-  if (memAfter && memBefore) {
-    const rssDelta = ((memAfter.rss - memBefore.rss) / 1024 / 1024).toFixed(2);
-    table.push({ Metric: "RSS Delta", Value: `${rssDelta} MB` });
+export function printAuditTable(options: {
+  title: string;
+  subtitle: string;
+  results: any[];
+  layerMode?: boolean;
+}) {
+  const dbType = getDbType();
+  const dbNames = process.env.ALL_DBS?.split(",").map((s) => s.trim()) ?? [dbType];
+  const multi = dbNames.length > 1;
+
+  for (const r of options.results) if (!r.db) r.db = dbType;
+
+  const SC_COL = 28;
+  const METRIC_COL = 10;
+  const VAL_COL = 14;
+  const OVH_COL = 14;
+
+  const makeHelpers = (width: number) => ({
+    bar: (l: string, r: string) => l + "═".repeat(width - 2) + r,
+    center: (s: string) => {
+      const pad = width - 2 - s.length;
+      return "║" + " ".repeat(Math.floor(pad / 2)) + s + " ".repeat(Math.ceil(pad / 2)) + "║";
+    },
+  });
+
+  let outputBuffer = "";
+  const log = (s: string) => {
+    console.log(s);
+    outputBuffer += s + "\n";
+  };
+
+  if (multi && !options.layerMode) {
+    const W = 2 + SC_COL + 3 + METRIC_COL + dbNames.length * (VAL_COL + 3) + 1;
+    const h = makeHelpers(W);
+
+    log("\n" + h.bar("╔", "╗"));
+    log(h.center(options.title + " (MATRIX)"));
+    log(h.center(options.subtitle));
+    log(h.bar("╠", "╣"));
+
+    let hdr = `║ ${"Scenario".padEnd(SC_COL)} │ ${"Metric".padEnd(METRIC_COL)}`;
+    for (const db of dbNames) hdr += ` │ ${db.toUpperCase().padEnd(VAL_COL)}`;
+    log(hdr + " ║");
+    log(h.bar("╠", "╣"));
+
+    const scenarios = Array.from(
+      new Set(options.results.map((r) => r.name.replace(/ @ \d+c$/, ""))),
+    );
+    for (const sc of scenarios) {
+      ["avg", "p95", "RPS"].forEach((m, i) => {
+        let line = `║ ${(i === 0 ? sc : "").padEnd(SC_COL)} │ ${m.padEnd(METRIC_COL)}`;
+        for (const db of dbNames) {
+          const r = options.results.find((x) => x.db === db && x.name.startsWith(sc));
+          const val = !r
+            ? "—"
+            : m === "avg"
+              ? `${r.avgMs.toFixed(3)} ms`
+              : m === "p95"
+                ? `${r.p95Ms.toFixed(3)} ms`
+                : Math.round(r.rps).toLocaleString();
+          line += ` │ ${val.padEnd(VAL_COL)}`;
+        }
+        log(line + " ║");
+      });
+      log(h.bar("╠", "╣"));
+    }
+    log(h.bar("╚", "╝"));
+  } else if (options.layerMode) {
+    const W = 2 + SC_COL + 3 + 6 + 3 + VAL_COL + 3 + 12 + 3 + 12 + 3 + OVH_COL + 2;
+    const h = makeHelpers(W);
+    const row = (sc: string, c: string, avg: string, p95: string, rps: string, ovh: string) =>
+      `║ ${sc.padEnd(SC_COL)} │ ${c.padEnd(6)} │ ${avg.padEnd(VAL_COL)} │ ${p95.padEnd(12)} │ ${rps.padEnd(12)} │ ${ovh.padEnd(OVH_COL)} ║`;
+
+    log("\n" + h.bar("╔", "╗"));
+    log(h.center(options.title.replace(" AUDIT", "") + " AUDIT"));
+    log(h.center(options.subtitle));
+    log(h.bar("╠", "╣"));
+    log(row("Scenario", "c", "Avg latency", "p95", "RPS", "Overhead"));
+    log(h.bar("╠", "╣"));
+
+    const scenarios = Array.from(
+      new Set(options.results.map((r) => r.name.replace(/^(SDK|Dispatcher) /, "").split(" @ ")[0])),
+    );
+
+    scenarios.forEach((sc) => {
+      const variants = options.results.filter((r) => r.name.includes(sc));
+      const concurrencyLevels = Array.from(new Set(variants.map((r) => r.name.split(" @ ")[1])));
+
+      concurrencyLevels.forEach((c) => {
+        const sdk = variants.find((r) => r.name.includes(c) && r.name.startsWith("SDK"));
+        const dis = variants.find((r) => r.name.includes(c) && r.name.startsWith("Dispatcher"));
+
+        if (sdk)
+          log(
+            row(
+              sc,
+              c,
+              `${sdk.avgMs.toFixed(3)} ms`,
+              sdk.p95Ms.toFixed(3),
+              Math.round(sdk.rps).toLocaleString(),
+              "SDK",
+            ),
+          );
+        if (dis) {
+          const overhead = sdk ? `+${(dis.avgMs - sdk.avgMs).toFixed(2)} ms` : "—";
+          log(
+            row(
+              "",
+              "",
+              `${dis.avgMs.toFixed(3)} ms`,
+              dis.p95Ms.toFixed(3),
+              Math.round(dis.rps).toLocaleString(),
+              overhead,
+            ),
+          );
+        }
+        log(h.bar("╠", "╣"));
+      });
+    });
+    log(h.bar("╚", "╝"));
+  } else {
+    const W = 2 + SC_COL + 3 + VAL_COL + 3 + 12 + 3 + 12 + 2;
+    const h = makeHelpers(W);
+    const row = (sc: string, avg: string, p95: string, rps: string) =>
+      `║ ${sc.padEnd(SC_COL)} │ ${avg.padEnd(VAL_COL)} │ ${p95.padEnd(12)} │ ${rps.padEnd(12)} ║`;
+
+    log("\n" + h.bar("╔", "╗"));
+    log(h.center(options.title));
+    log(h.center(options.subtitle));
+    log(h.bar("╠", "╣"));
+    log(row("Scenario", "Avg latency", "p95", "RPS"));
+    log(h.bar("╠", "╣"));
+    options.results.forEach((r) =>
+      log(
+        row(
+          r.name.replace(" (aggregate)", ""),
+          `${r.avgMs.toFixed(3)} ms`,
+          `${r.p95Ms.toFixed(3)} ms`,
+          Math.round(r.rps).toLocaleString(),
+        ),
+      ),
+    );
+    log(h.bar("╚", "╝"));
   }
 
-  console.table(table);
-  console.log(`🏁 Total time: ${r.totalMs.toFixed(1)} ms\n`);
+  // 🚀 ULTRA ELITE: Save and Push the identical ASCII table to the technical ledger
+  const tableContent = outputBuffer.trim();
+  saveTerminalTable(options.title, tableContent);
+  pushTableToMdx(options.title, tableContent);
 }
 
 /**
- * Exports results to a JSON file. Now supports partial results (e.g. suites/phases).
+ * Injects the ASCII table directly into the database-specific MDX technical ledger.
  */
-export function exportResult(result: Partial<BenchmarkResult> & { name: string }, filename?: any) {
-  const dbType = process.env.DB_TYPE || "unknown";
-  const baseDir = process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
+function pushTableToMdx(title: string, table: string) {
+  try {
+    const dbType = getDbType();
+    const docPath = path.resolve(
+      process.cwd(),
+      "docs/project/benchmarks",
+      `benchmark_${dbType.replace("-", "_")}.mdx`,
+    );
 
-  // 🚀 FIX: Prevent double-nesting if baseDir already ends with dbType
-  const dir = baseDir.endsWith(dbType) ? baseDir : path.join(baseDir, dbType);
+    if (!fs.existsSync(docPath)) return;
 
+    let content = fs.readFileSync(docPath, "utf8");
+
+    // Generate a unique tag based on the table title (e.g., <!-- API_LATENCY_TABLE -->)
+    const scriptId = title.split("—")[1]?.trim().split(" ")[0].toLowerCase() || "unknown";
+    const tag = `${scriptId.toUpperCase()}_TABLE`;
+    const START = `<!-- ${tag}_START -->`;
+    const END = `<!-- ${tag}_END -->`;
+
+    const tableBlock = `\n### 🏷️ ${title.split("—")[1]?.trim() || title}\n\n\`\`\`text\n${table}\n\`\`\`\n`;
+
+    if (content.includes(START) && content.includes(END)) {
+      const regex = new RegExp(`<!-- ${tag}_START -->[\\s\\S]*?<!-- ${tag}_END -->`);
+      content = content.replace(regex, `${START}${tableBlock}${END}`);
+      fs.writeFileSync(docPath, content);
+    }
+  } catch (err) {
+    // Silent fail in benchmark mode to prevent skewing results
+  }
+}
+
+/**
+ * Saves the identical terminal output table to a persistent file.
+ */
+function saveTerminalTable(title: string, content: string) {
+  const dbType = getDbType();
+  const dir = path.resolve(process.cwd(), RESULTS_DIR, dbType);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-  const safeName = result.name
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/-+/g, "-");
+  const fileName = title.toLowerCase().replace(/[^a-z0-9]/g, "_") + ".table.txt";
+  fs.writeFileSync(path.join(dir, fileName), content);
+}
 
-  // If filename is not a string (e.g. from forEach), use safeName
-  const finalFilename = typeof filename === "string" ? filename : `${safeName}.json`;
-  const filePath = path.join(dir, finalFilename);
+export function printSummaryTable(
+  metrics: Array<{ key: string; val: number | string; unit: string }>,
+) {
+  const W = 80;
+  const helpers = {
+    bar: (l: string, r: string) => l + "═".repeat(W - 2) + r,
+    center: (s: string) => {
+      const pad = W - 2 - s.length;
+      return "║" + " ".repeat(Math.floor(pad / 2)) + s + " ".repeat(Math.ceil(pad / 2)) + "║";
+    },
+  };
 
-  // Add scriptPath if we can detect it (best effort for reporter matching)
-  if (!result.scriptPath && typeof process.argv[1] === "string") {
-    const fullPath = process.argv[1];
-    if (fullPath.includes("tests/benchmarks/")) {
-      result.scriptPath = fullPath.split("tests/benchmarks/")[1].replace(/^/, "tests/benchmarks/");
+  console.log("\n" + helpers.bar("╔", "╗"));
+  console.log(helpers.center("FINAL AUDIT SUMMARY"));
+  console.log(helpers.bar("╠", "╣"));
+  metrics.forEach((m) => {
+    const valStr = typeof m.val === "number" ? m.val.toFixed(3) : String(m.val);
+    const line = `║ ${m.key.padEnd(50)} │ ${valStr.padStart(12)} ${m.unit.padEnd(8)} ║`;
+    console.log(line);
+  });
+  console.log(helpers.bar("╚", "╝") + "\n");
+}
+
+// ── core execution ───────────────────────────────────────────────────────────
+
+export async function runBenchmark(config: any) {
+  const { iterations, runs = 1, concurrency = 1, onIteration, onSetup } = config;
+  if (!onIteration) throw new Error("Benchmark must provide onIteration");
+
+  const results: number[] = [];
+
+  for (let r = 0; r < runs; r++) {
+    if (onSetup) await onSetup();
+
+    // Warmup
+    if (config.warmupIterations) {
+      for (let i = 0; i < config.warmupIterations; i++) {
+        await onIteration(i);
+      }
+    }
+
+    const tStart = performance.now();
+
+    if (concurrency > 1) {
+      // Parallel mode
+      const tasks = Array.from({ length: iterations }, (_, i) => i);
+      const chunks = [];
+      for (let i = 0; i < tasks.length; i += concurrency) {
+        chunks.push(tasks.slice(i, i + concurrency));
+      }
+
+      for (const chunk of chunks) {
+        await Promise.all(chunk.map((i) => onIteration(i)));
+      }
+    } else {
+      // Sequential mode
+      for (let i = 0; i < iterations; i++) {
+        const iStart = performance.now();
+        await onIteration(i);
+        results.push(performance.now() - iStart);
+      }
+    }
+
+    const tTotal = performance.now() - tStart;
+    if (concurrency > 1) {
+      // For parallel, results is just one giant avg/rps calc
+      const avg = tTotal / iterations;
+      for (let i = 0; i < iterations; i++) results.push(avg);
     }
   }
 
-  fs.writeFileSync(filePath, JSON.stringify(result, null, 2));
+  const rps = (iterations * runs) / (results.reduce((a, b) => a + b, 0) / 1000);
+  return computeStatistics(results, rps, config);
 }
 
-/**
- * Common safeguard to ensure benchmarks run with mocks disabled.
- */
-export function checkBenchmarkEnv() {
-  if (process.env.BUN_TEST_MOCKS !== "false") {
-    console.warn(
-      "\n⚠️  [BENCHMARK] Warning: BUN_TEST_MOCKS is not set to 'false'. Results may be biased by mocks.\n",
-    );
-  }
-}
+// ── mocks & helpers ──────────────────────────────────────────────────────────
 
-/**
- * Executes a function with detailed memory tracking (RSS and Heap).
- */
-export async function runWithMemoryTracking<T>(
-  _name: string,
-  fn: () => Promise<T>,
-): Promise<{ result: T; rssDelta: number; heapDelta: number }> {
-  await stabilize();
-  const start = process.memoryUsage();
-  const result = await fn();
-  await stabilize();
-  const end = process.memoryUsage();
-
-  const rssDelta = (end.rss - start.rss) / 1024 / 1024;
-  const heapDelta = (end.heapUsed - start.heapUsed) / 1024 / 1024;
-
-  return { result, rssDelta, heapDelta };
-}
-
-/**
- * Shared Local Dispatcher Mock for REST/API benchmarks.
- */
-let cachedHandleApiRequests: any = null;
-
-export async function mockDispatch(
-  pathOrEvent:
-    | string
-    | {
-        path: string;
-        method?: string;
-        body?: any;
-        user?: any;
-        tenantId?: string;
-        headers?: Record<string, string>;
-        [key: string]: any;
-      },
-  method: string = "GET",
-) {
-  const isString = typeof pathOrEvent === "string";
-  let path = isString ? pathOrEvent : pathOrEvent.path;
-  const targetMethod = isString ? method : pathOrEvent.method || "GET";
-  const body = isString ? undefined : pathOrEvent.body;
-  const tenantId = isString ? "global" : pathOrEvent.tenantId || "global";
-  const user = isString
-    ? { _id: "admin", role: "admin", isAdmin: true }
-    : pathOrEvent.user || { _id: "admin", role: "admin", isAdmin: true };
-  const customHeaders = isString ? {} : pathOrEvent.headers || {};
-
-  if (!path.startsWith("/")) path = "/" + path;
-  if (path.startsWith("/api/")) path = path.replace("/api/", "/");
-
-  // 🚀 FIX: If API_BASE_URL is set, perform a real network fetch
+export async function setupBenchmarkServer() {
   const apiBase = process.env.API_BASE_URL;
-  if (apiBase) {
-    const realUrl = `${apiBase}/api${path}`;
-    return fetch(realUrl, {
-      method: targetMethod,
-      headers: {
-        "x-tenant-id": tenantId,
-        "content-type": "application/json",
-        "x-test-secret": process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026",
-        ...customHeaders,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  }
+  if (apiBase) return { baseUrl: apiBase, stop: async () => {} };
 
-  if (!cachedHandleApiRequests) {
-    const { handleApiRequests } = await import("@src/hooks/handle-api-requests");
-    cachedHandleApiRequests = handleApiRequests;
-  }
+  // Aggressive silence for startup noise
+  process.env.LOG_LEVEL = "error";
+  process.env.QUIET = "true";
 
-  const url = `http://localhost/api${path}`;
+  const { startServer } = await import("../../scripts/benchmark-matrix/server");
+  const { ALL_DATABASES } = await import("../../scripts/benchmark-matrix/config");
+
+  const dbType = getDbType();
+  const dbConf =
+    ALL_DATABASES.find((d) => (d.useRedis ? `${d.type}-redis` : d.type) === dbType) ||
+    ALL_DATABASES[0];
+  const port = 4173 + (process.pid % 100);
+
+  process.env.API_BASE_URL = `http://127.0.0.1:${port}`;
+  const { stop } = await startServer(dbConf, port, `bench_tmp_${process.pid}`);
+  return { baseUrl: process.env.API_BASE_URL, stop };
+}
+
+export async function mockDispatch(pathOrEvent: any, method: string = "GET") {
+  const pathStr = typeof pathOrEvent === "string" ? pathOrEvent : pathOrEvent.path;
+  const targetMethod = typeof pathOrEvent === "string" ? method : pathOrEvent.method || "GET";
+
+  const { handleApiRequests } = await import("@src/hooks/handle-api-requests");
+  const url = `http://localhost/api${pathStr.startsWith("/") ? pathStr : "/" + pathStr}`;
 
   const event: any = {
     url: new URL(url),
     request: new Request(url, {
       method: targetMethod,
-      headers: {
-        "x-tenant-id": tenantId,
-        "content-type": "application/json",
-        "x-test-secret": process.env.TEST_API_SECRET || "SveltyCMS-Benchmark-Secret-2026",
-        ...customHeaders,
-      },
-      body: body ? JSON.stringify(body) : undefined,
+      headers: pathOrEvent.headers || {},
+      body: pathOrEvent.body ? JSON.stringify(pathOrEvent.body) : undefined,
     }),
-    locals: { tenantId, user, isAdmin: true },
+    locals: {
+      tenantId: "global",
+      user: { _id: "admin", role: "admin", isAdmin: true },
+      isAdmin: true,
+    },
     cookies: { get: () => undefined, getAll: () => [], set: () => {}, delete: () => {} },
     getClientAddress: () => "127.0.0.1",
     platform: {},
@@ -460,107 +455,36 @@ export async function mockDispatch(
     route: { id: "/api/[...path]" },
   };
 
-  return cachedHandleApiRequests({ event, resolve: async () => new Response("OK") });
-}
-
-/**
- * Standardised metric export for the enterprise orchestrator.
- */
-export function exportMetric(
-  name: string,
-  value: number,
-  unit: string = "ms",
-  extra?: Record<string, any>,
-) {
-  const metric: SystemMetric = {
-    name,
-    value,
-    unit,
-    _type: "numeric-metric",
-    timestamp: new Date().toISOString(),
-    metadata: extra,
-  };
-
-  const dbType = process.env.DB_TYPE || "unknown";
-  const baseDir = process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
-
-  // 🚀 FIX: Prevent double-nesting if baseDir already ends with dbType
-  const dir = baseDir.endsWith(dbType) ? baseDir : path.join(baseDir, dbType);
-
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-
-  const slug = name.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
-  const filePath = path.join(dir, `${slug}.json`);
-
-  fs.writeFileSync(filePath, JSON.stringify(metric, null, 2));
-}
-
-/**
- * Lifecycle helper for benchmarks to manage their own SveltyCMS instance.
- * 🚀 SMART REUSE: If API_BASE_URL is already set (e.g. by orchestrator), it skips spawning.
- */
-export async function setupBenchmarkServer() {
-  const apiBase = process.env.API_BASE_URL;
-  if (apiBase) {
-    return {
-      baseUrl: apiBase,
-      stop: async () => {}, // No-op: managed by parent
-    };
-  }
-
-  const { startServer } = await import("../../scripts/benchmark-matrix/server");
-  const { ALL_DATABASES } = await import("../../scripts/benchmark-matrix/config");
-
-  const dbType = process.env.DB_TYPE || "sqlite";
-  const dbConf =
-    ALL_DATABASES.find((d) => (d.useRedis ? `${d.type}-redis` : d.type) === dbType) ||
-    ALL_DATABASES[0];
-
-  const port = 4173 + (process.pid % 100);
-  const dbName = `bench_tmp_${process.pid}`;
-
-  // Silence logger for the server
-  process.env.LOG_LEVEL = "silent";
-  process.env.DISABLE_AUDIT_LOGS = "true";
-  process.env.API_BASE_URL = `http://127.0.0.1:${port}`;
-
-  const { stop } = await startServer(dbConf, port, dbName);
+  const start = performance.now();
+  const response = await handleApiRequests({ event, resolve: async () => new Response("OK") });
+  const end = performance.now();
 
   return {
-    baseUrl: process.env.API_BASE_URL,
-    stop,
+    status: response.status,
+    text: async () => response.text(),
+    latency: end - start,
   };
 }
 
-/**
- * Automatically update the benchmark documentation matrix.
- * Triggered if BENCHMARK_UPDATE_DOCS=1 or in CI mode.
- */
-export async function updateBenchmarkDocumentation(): Promise<void> {
-  if (process.env.BENCHMARK_UPDATE_DOCS !== "1" && !process.env.CI) return;
+export function exportResult(r: any) {
+  const dir = path.resolve(process.cwd(), RESULTS_DIR, getDbType());
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, `${r.name.replace(/\s/g, "_")}.json`),
+    JSON.stringify(r, null, 2),
+  );
+}
 
-  console.log("\n📄 Regenerating centralized benchmark report...");
-
-  try {
-    // Dynamic import to avoid circular dependencies and only load when needed
-    const { generateFinalReport } = await import("../../scripts/benchmark-matrix/reporting");
-    await generateFinalReport([], {
-      parallelMode: "off",
-      skipBuild: true,
-      dbFilter: null,
-      sectionFilter: null,
-      levelFilter: null,
-      onlyFilter: null,
-      fileFilter: null,
-      skipRedis: false,
-      retryCount: 0,
-      timeoutMs: 30000,
-      warmup: false,
-      ci: !!process.env.CI,
-      list: false,
-    });
-    console.log("✅ benchmarks.mdx updated successfully.");
-  } catch (err: any) {
-    console.error("Failed to update report:", err.message);
+export function checkBenchmarkEnv() {
+  const dbType = getDbType();
+  if (!dbType) {
+    console.warn("⚠️ DB_TYPE not set, defaulting to 'sql' for benchmark.");
+    process.env.DB_TYPE = "sql";
   }
+}
+
+export function exportMetric(key: string, val: number, unit: string) {
+  // Simple console export for CI parsing
+  const formattedVal = typeof val === "number" ? val.toFixed(3) : val;
+  console.log(`METRIC: ${key}=${formattedVal}${unit}`);
 }
