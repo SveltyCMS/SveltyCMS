@@ -222,6 +222,8 @@ export async function handleSaveAvatarRoute(
     const uploadResult = await cms.media.upload(avatarValue, {
       userId: event.locals.user?._id || "system",
       tenantId,
+      folder: "avatars",
+      skipResizing: true,
     });
     finalAvatarUrl = (uploadResult as any).url || (uploadResult as any).path;
   } else {

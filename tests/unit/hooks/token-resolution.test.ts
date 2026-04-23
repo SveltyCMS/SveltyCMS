@@ -9,7 +9,8 @@
  * - Handling relation tokens
  * - Error handling
  */
-import { handleTokenResolution } from "@src/hooks/token-resolution";
+import "../../unit/setup.ts";
+import { handleTokenResolution } from "@src/hooks/handle-token-resolution";
 import { TokenRegistry } from "@src/services/token/engine";
 
 describe("Token Resolution Middleware", () => {
@@ -22,6 +23,11 @@ describe("Token Resolution Middleware", () => {
 
     mockEvent = {
       url: new URL("http://localhost/api/collections/posts"),
+      request: {
+        headers: {
+          get: (name: string) => (name === "X-Svelty-Internal" ? "false" : null),
+        },
+      },
       locals: {
         user: {
           _id: "user-123",
@@ -128,10 +134,9 @@ describe("Token Resolution Middleware", () => {
       throw new Error("Network error");
     });
 
-    try {
-      await handleTokenResolution({ event: mockEvent, resolve: mockResolve });
-    } catch (e: any) {
-      expect(e.message).toBe("Network error");
-    }
+    const response = await handleTokenResolution({ event: mockEvent, resolve: mockResolve });
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.message).toBe("Network error");
   });
 });

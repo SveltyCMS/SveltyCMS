@@ -40,20 +40,20 @@ The middleware architecture is built on **core enterprise principles**:
 
 ## Current Middleware Sequence
 
-// src/hooks.server.ts (simplified)
 const middleware: Handle[] = [
-handleTurboPipeline, // 1. FAST-PATH (Headers, Asset Cache, State Gate, CORS)
-handleCompression, // 2. Streaming-safe compression
-handleSecurity, // 3. Unified firewall & rate limiting
-handleSetup, // 4. Setup gate
-handleUserPreferences, // 5. i18n and SSR theme
-handleAuthentication, // 6. identity
-handleAuthorization, // 7. permissions
-handleLocalSdk, // 8. native server-side SDK injection
-handleContentInitialization, // 9. content + redirects
-handleAuditLogging, // 10. async audit trails
-handleApiRequests, // 11. API caching
-handleTokenResolution, // 12. token processing
+  handleSecurityHeaders, // 1. DEFENSE-IN-DEPTH (Essential Security Headers)
+  handleCompression, // 2. Streaming-safe compression
+  handleTurboPipeline, // 3. CONSOLIDATED FAST-PATH (Headers, Asset Cache, State Gate, Test Isolation)
+  handleSecurity, // 4. Unified firewall & rate limiting
+  handleSetup, // 5. Setup gate
+  handleUserPreferences, // 6. i18n and SSR theme
+  handleAuthentication, // 7. Identity & Multi-tenancy
+  handleAuthorization, // 8. RBAC Permissions
+  handleLocalSdk, // 9. Native server-side SDK injection
+  handleContentInitialization, // 10. Content + Redirects
+  handleAuditLogging, // 11. Async audit trails (API Mutations)
+  handleApiRequests, // 12. API caching & performance
+  handleTokenResolution, // 13. RBAC token replacement
 ];
 
 export const handle: Handle = sequence(...middleware);
@@ -306,10 +306,10 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 **Key Features**:
 
 - **Static Asset Fast-Exit**: Regex-based detection for `/_app/` and `/static/` paths with immediate resolution and immutable caching.
-- **Bootstrap Bypass**: Allows `setup`, `login`, and `health` routes to bypass standard system gates.
-- **System State Gate**: Enforces `503 Service Unavailable` responses when the system is in `INITIALIZING`, `MAINTENANCE`, or `FAILED` states.
+- **Robust Setup Detection**: Redirects to `/setup` if the configuration is missing, even before DB initialization.
+- **System State Gate**: Enforces `503 Service Unavailable` responses when the system is in `INITIALIZING` or `FAILED` states.
+- **Test Isolation Bypass**: High-performance cryptographic bypass for CI and automated testing (via `x-test-secret`).
 - **CORS Management**: High-speed OPTIONS preflight handling and automatic header injection for API routes.
-- **Request Tracing**: Generates unique `X-Request-ID` for every request, enabling cross-service log correlation.
 
 ---
 
@@ -586,9 +586,9 @@ export const handleTheme: Handle = async ({ event, resolve }) => {
     - In this mode, users can register without a token, and the registration UI is optimized to hide the token field.
 - **Session Validation**: Verifies the `session_id` cookie against the database/cache.
 - **Tenant Isolation**: Ensures the authenticated user belongs to the resolved `tenantId`.
-- **Global Administrator**: Recognizes and preserves the global administrator (`tenantId: null`), who is exempted from automated cleanup processes (like Demo Mode cleanup after **60 min**).
-- **Session Rotation**: Rotates session tokens every 15 minutes for security.
-- **WeakRef Caching**: Uses a memory-efficient cache to reduce database lookups for active sessions.
+- **Global Administrator**: Recognizes and preserves the global administrator (`tenantId: null`), who is exempted from automated cleanup processes.
+- **Session Rotation**: Rotates session tokens every 60 minutes for active users (optimized for DB impact).
+- **WeakRef Caching**: Uses a memory-efficient LRU cache (top 100 hot sessions) to reduce database lookups.
 
 ```typescript
 // Simplified Logic
@@ -717,54 +717,38 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 ### 9. handleTokenResolution - RBAC Token Replacement
 
-**File**: `src/hooks/tokenResolution.ts`
+**File**: `src/hooks/handle-token-resolution.ts`
 **Purpose**: Processes JSON API responses to replace secure placeholders with actual data based on user permissions.
 
-**Key Features**:
+**Performance & Security**:
 
-- **Identity-Aware**: Resolves tokens using the `locals.user` and `locals.roles` context.
+- **Status-Gated**: Only processes successful (2xx) responses.
+- **Size-Gated**: Skips payloads > 5MB to prevent memory spikes.
+- **Internal Bypass**: Requests with `X-Svelty-Internal` headers bypass processing for zero-latency internal communication.
+- **RBAC-Aware**: Resolves tokens using the `locals.user` and `locals.roles` context.
 - **Selective Processing**: Only processes JSON responses from the `/api` namespace.
-- **High Performance**: Optimized transformation logic to minimize latency on large responses.
 
 ---
 
-### 10. addSecurityHeaders - Defense in Depth
+### 10. handleSecurityHeaders - Defense in Depth
 
-**File**: `src/hooks/addSecurityHeaders.ts`
-**Purpose**: Hardens the application by injecting essential security headers.
+**File**: `src/hooks/handle-security-headers.ts`
+**Purpose**: Hardens the application by injecting essential security headers at the start of the pipeline.
 
-```typescript
-export const addSecurityHeaders: Handle = async ({ event, resolve }) => {
-  const response = await resolve(event);
-
-  // Essential security headers (CSP handled by SvelteKit)
-  response.headers.set("X-Frame-Options", "SAMEORIGIN");
-  response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set(
-    "Permissions-Policy",
-    "geolocation=(), microphone=(), camera=(), display-capture=(), " +
-      "clipboard-read=(), clipboard-write=(self), web-share=(self)",
-  );
-
-  // HSTS for production
-  if (!dev && event.url.protocol === "https:") {
-    response.headers.set(
-      "Strict-Transport-Security",
-      "max-age=31536000; includeSubDomains; preload",
-    );
-  }
-
-  return response;
-};
-```
-
-**Key Features**:
+**Hardening Features**:
 
 - **Clickjacking Protection**: Enforces `SAMEORIGIN` policy via `X-Frame-Options`.
 - **MIME Sniffing Prevention**: Sets `X-Content-Type-Options: nosniff`.
-- **Privacy Control**: Configures `Referrer-Policy` to balance privacy and analytics.
+- **Privacy Control**: Configures `Referrer-Policy` to `strict-origin-when-cross-origin`.
 - **HSTS Enforcement**: Forces HTTPS in production for 1 year (including subdomains).
+- **XSS Protection**: Sets `X-XSS-Protection: 1; mode=block`.
+- **DNS Control**: Sets `X-DNS-Prefetch-Control: off`.
+- **Permissions-Policy**: Restricts access to geolocation, camera, microphone, etc.
+
+**Optimization**:
+
+- **Fast-exit for static assets**: Skips processing for assets already handled by Turbo Pipeline.
+- **Pre-calculated Policies**: Uses pre-calculated policy strings to minimize CPU overhead.
 
 ---
 

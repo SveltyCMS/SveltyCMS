@@ -73,7 +73,7 @@ async function startPreviewServer() {
         TEST_MODE: "true",
         DB_TYPE: process.env.DB_TYPE || "sqlite",
         DB_HOST: process.env.DB_HOST || "127.0.0.1",
-        DB_NAME: "SveltyCMS_benchmark_test",
+        DB_NAME: process.env.DB_NAME || "sveltycms_test",
         TEST_API_SECRET,
         ADMIN_PASSWORD,
         ORIGIN: API_BASE_URL,
@@ -194,7 +194,7 @@ async function main() {
         ADMIN_PASSWORD: ADMIN_PASSWORD,
         DB_TYPE: process.env.DB_TYPE || "sqlite",
         DB_HOST: process.env.DB_HOST || "127.0.0.1",
-        DB_NAME: "SveltyCMS_benchmark_test",
+        DB_NAME: process.env.DB_NAME || "sveltycms_test",
         PASSWORD_MIN_LENGTH: "8",
         JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-Change-Me",
         ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-Must-Be-32-Chars!!",
@@ -218,14 +218,30 @@ async function main() {
     body: JSON.stringify({ action: "seed", email: "admin@example.com", password: ADMIN_PASSWORD }),
   });
 
-  // Discover test files
-  const testDir = join(ROOT, "tests/integration/api");
-  let testFiles = readdirSync(testDir)
-    .filter((f) => f.endsWith(".test.ts"))
-    .map((f) => join(testDir, f));
+  // Discover test files (recursive)
+  const integrationDir = join(ROOT, "tests/integration");
+  let testFiles: string[] = [];
+
+  function findTests(dir: string) {
+    const entries = readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        // Skip helpers and mocks
+        if (entry.name === "helpers" || entry.name === "mocks") continue;
+        findTests(fullPath);
+      } else if (entry.name.endsWith(".test.ts")) {
+        testFiles.push(fullPath);
+      }
+    }
+  }
+
+  findTests(integrationDir);
 
   if (explicitFiles.length > 0) {
-    testFiles = testFiles.filter((f) => explicitFiles.some((ex) => f.includes(ex)));
+    testFiles = testFiles.filter((f) =>
+      explicitFiles.some((ex) => f.replace(/\\/g, "/").includes(ex.replace(/\\/g, "/"))),
+    );
   }
 
   console.log(`🧪 Found ${testFiles.length} integration test files`);
@@ -239,13 +255,14 @@ async function main() {
 
     console.log(`\n▶️  Running ${relPath}...`);
 
-    const { code } = await runCommand("bun", ["test", file], {
+    const { code } = await runCommand("bun", ["test", "--timeout", "60000", file], {
       env: {
         ...process.env,
         TEST_API_SECRET,
         API_BASE_URL,
         TEST_MODE: "true",
-        DB_NAME: "SveltyCMS_benchmark_test",
+        DB_TYPE: process.env.DB_TYPE || "sqlite",
+        DB_NAME: process.env.DB_NAME || "sveltycms_test",
         JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-Change-Me",
         ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-Must-Be-32-Chars!!",
       },

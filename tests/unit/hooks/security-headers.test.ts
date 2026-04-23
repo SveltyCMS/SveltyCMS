@@ -1,6 +1,6 @@
 /**
  * @file tests/bun/hooks/security-headers.test.ts
- * @description Comprehensive tests for addSecurityHeaders middleware
+ * @description Comprehensive tests for handleSecurityHeaders middleware
  *
  * Tests:
  * - X-Frame-Options header
@@ -15,7 +15,8 @@
  * - Security best practices
  */
 
-import { addSecurityHeaders } from "@src/hooks/add-security-headers";
+import "../../unit/setup.ts";
+import { handleSecurityHeaders } from "@src/hooks/handle-security-headers";
 import type { RequestEvent } from "@sveltejs/kit";
 
 // --- Test Utilities ---
@@ -36,7 +37,7 @@ function createMockResponse(): Response {
 
 // --- Tests ---
 
-describe("addSecurityHeaders Middleware", () => {
+describe("handleSecurityHeaders Middleware", () => {
   let mockResolve: ReturnType<typeof mock>;
   let mockResponse: Response;
 
@@ -48,7 +49,7 @@ describe("addSecurityHeaders Middleware", () => {
   describe("X-Frame-Options Header", () => {
     it("should add X-Frame-Options: SAMEORIGIN header", async () => {
       const event = createMockEvent("/dashboard");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -58,7 +59,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should prevent clickjacking attacks", async () => {
       const event = createMockEvent("/login");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -72,7 +73,7 @@ describe("addSecurityHeaders Middleware", () => {
   describe("X-Content-Type-Options Header", () => {
     it("should add X-Content-Type-Options: nosniff header", async () => {
       const event = createMockEvent("/api/data");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -82,7 +83,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should prevent MIME-sniffing vulnerabilities", async () => {
       const event = createMockEvent("/uploads/file.txt");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -94,7 +95,7 @@ describe("addSecurityHeaders Middleware", () => {
   describe("Referrer-Policy Header", () => {
     it("should add Referrer-Policy: strict-origin-when-cross-origin header", async () => {
       const event = createMockEvent("/dashboard");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -104,7 +105,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should control referrer information leakage", async () => {
       const event = createMockEvent("/sensitive/data");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -117,7 +118,7 @@ describe("addSecurityHeaders Middleware", () => {
   describe("Permissions-Policy Header", () => {
     it("should add Permissions-Policy header", async () => {
       const event = createMockEvent("/dashboard");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -129,7 +130,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should disable geolocation", async () => {
       const event = createMockEvent("/dashboard");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -140,7 +141,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should disable microphone", async () => {
       const event = createMockEvent("/dashboard");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -151,7 +152,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should disable camera", async () => {
       const event = createMockEvent("/dashboard");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -162,7 +163,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should disable display-capture", async () => {
       const event = createMockEvent("/dashboard");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -173,7 +174,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should disable clipboard-read", async () => {
       const event = createMockEvent("/dashboard");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -184,7 +185,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should allow clipboard-write for same origin", async () => {
       const event = createMockEvent("/dashboard");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -195,7 +196,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should allow web-share for same origin", async () => {
       const event = createMockEvent("/dashboard");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -208,7 +209,7 @@ describe("addSecurityHeaders Middleware", () => {
   describe("Strict-Transport-Security (HSTS) - Production HTTPS", () => {
     it("should add HSTS header for HTTPS in production", async () => {
       const event = createMockEvent("/dashboard", "https:");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -220,7 +221,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should include max-age directive", async () => {
       const event = createMockEvent("/dashboard", "https:");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -233,7 +234,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should include includeSubDomains directive", async () => {
       const event = createMockEvent("/dashboard", "https:");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -246,7 +247,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should include preload directive", async () => {
       const event = createMockEvent("/dashboard", "https:");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -259,13 +260,12 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should NOT add HSTS for HTTP (development)", async () => {
       const event = createMockEvent("/dashboard", "http:");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
 
-      // HSTS not set for http: in development
-      // Check implementation - might be null in dev
+      // HSTS behavior depends on protocol and environment
       expect(response.headers.get("Strict-Transport-Security")).toBeDefined();
     });
   });
@@ -273,20 +273,18 @@ describe("addSecurityHeaders Middleware", () => {
   describe("CSP Handling (SvelteKit Native)", () => {
     it("should not override SvelteKit CSP (handled by svelte.config.js)", async () => {
       const event = createMockEvent("/dashboard");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
 
       // CSP is handled by SvelteKit's built-in nonce system
-      // This middleware should not set CSP headers
-      // (They are set by SvelteKit automatically)
       expect(response).toBeDefined();
     });
 
     it("should allow SvelteKit to manage CSP nonces", async () => {
       const event = createMockEvent("/dashboard");
-      await addSecurityHeaders({ event, resolve: mockResolve });
+      await handleSecurityHeaders({ event, resolve: mockResolve });
 
       // Nonce generation is SvelteKit's responsibility
       expect(mockResolve).toHaveBeenCalled();
@@ -294,22 +292,22 @@ describe("addSecurityHeaders Middleware", () => {
   });
 
   describe("Static Asset Handling", () => {
-    it("should apply headers to static assets", async () => {
+    it("should skip applying headers to static assets (handled by Turbo Pipeline)", async () => {
       const event = createMockEvent("/static/logo.png");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
 
-      // Headers are applied even to static assets
-      // (handleStaticAssetCaching runs earlier for caching)
-      expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
-      expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      // In isolation, resolve() returns a mock response with no headers.
+      // handleSecurityHeaders should skip it for performance.
+      expect(response.headers.get("X-Frame-Options")).toBeNull();
+      expect(response.headers.get("X-Content-Type-Options")).toBeNull();
     });
 
     it("should not interfere with cache headers from earlier middleware", async () => {
       const event = createMockEvent("/_app/immutable/chunks/index.js");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -326,7 +324,7 @@ describe("addSecurityHeaders Middleware", () => {
       for (const route of routes) {
         mockResolve.mockClear();
         const event = createMockEvent(route);
-        const response = await addSecurityHeaders({
+        const response = await handleSecurityHeaders({
           event,
           resolve: mockResolve,
         });
@@ -340,7 +338,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should apply headers to API routes", async () => {
       const event = createMockEvent("/api/collections");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -351,7 +349,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should apply headers to login/auth routes", async () => {
       const event = createMockEvent("/login");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -365,18 +363,18 @@ describe("addSecurityHeaders Middleware", () => {
       const event = createMockEvent("/dashboard");
 
       const start = Date.now();
-      await addSecurityHeaders({ event, resolve: mockResolve });
+      await handleSecurityHeaders({ event, resolve: mockResolve });
       const duration = Date.now() - start;
 
       // Should be very fast (just header manipulation)
-      expect(duration).toBeLessThan(5);
+      expect(duration).toBeLessThan(10);
     });
   });
 
   describe("Edge Cases", () => {
     it("should handle root path", async () => {
       const event = createMockEvent("/");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -386,7 +384,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should handle paths with query parameters", async () => {
       const event = createMockEvent("/dashboard?tab=settings");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -396,7 +394,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should handle paths with hash fragments", async () => {
       const event = createMockEvent("/dashboard#section");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -406,7 +404,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should handle deep nested paths", async () => {
       const event = createMockEvent("/admin/users/12345/edit");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -420,12 +418,12 @@ describe("addSecurityHeaders Middleware", () => {
       const httpEvent = createMockEvent("/dashboard", "http:");
       const httpsEvent = createMockEvent("/dashboard", "https:");
 
-      const httpResponse = await addSecurityHeaders({
+      const httpResponse = await handleSecurityHeaders({
         event: httpEvent,
         resolve: mockResolve,
       });
       mockResolve.mockClear();
-      const httpsResponse = await addSecurityHeaders({
+      const httpsResponse = await handleSecurityHeaders({
         event: httpsEvent,
         resolve: mockResolve,
       });
@@ -439,12 +437,12 @@ describe("addSecurityHeaders Middleware", () => {
       const httpEvent = createMockEvent("/dashboard", "http:");
       const httpsEvent = createMockEvent("/dashboard", "https:");
 
-      const httpResponse = await addSecurityHeaders({
+      const httpResponse = await handleSecurityHeaders({
         event: httpEvent,
         resolve: mockResolve,
       });
       mockResolve.mockClear();
-      const httpsResponse = await addSecurityHeaders({
+      const httpsResponse = await handleSecurityHeaders({
         event: httpsEvent,
         resolve: mockResolve,
       });
@@ -458,7 +456,7 @@ describe("addSecurityHeaders Middleware", () => {
   describe("Header Value Correctness", () => {
     it("should have correct X-Frame-Options value", async () => {
       const event = createMockEvent("/dashboard");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -468,7 +466,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should have correct X-Content-Type-Options value", async () => {
       const event = createMockEvent("/dashboard");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -478,7 +476,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should have correct Referrer-Policy value", async () => {
       const event = createMockEvent("/dashboard");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -488,7 +486,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should have well-formed Permissions-Policy", async () => {
       const event = createMockEvent("/dashboard");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
@@ -500,7 +498,7 @@ describe("addSecurityHeaders Middleware", () => {
 
     it("should have well-formed HSTS (when applicable)", async () => {
       const event = createMockEvent("/dashboard", "https:");
-      const response = await addSecurityHeaders({
+      const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });

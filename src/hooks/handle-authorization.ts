@@ -10,7 +10,7 @@
  */
 
 import { hasPermissionByAction } from "@src/databases/auth/permissions";
-import { isStaticOrInternalRequest, isPublicRoute } from "@utils/hook-utils";
+import { isAdmin, isStaticOrInternalRequest, isPublicRoute } from "@utils/hook-utils";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
 import {
@@ -124,12 +124,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
   const isApi = pathname.startsWith("/api/");
   if (isTestMode && (pathname.startsWith("/api/testing") || isApi)) {
-    if (user) {
-      locals.isAdmin =
-        (user as any).isAdmin || user.role === "admin" || user.role === "super-admin";
-    } else {
-      locals.isAdmin = true; // Default to true for anonymous test calls if needed, or keep false
-    }
+    locals.isAdmin = isAdmin(user);
     return await resolve(event);
   }
 
@@ -172,13 +167,13 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
   try {
     if (user) {
       const userRole = roles.find((r) => r._id.toString() === user.role?.toString());
-      const isAdmin = !!userRole?.isAdmin || (user as any).isAdmin;
+      const isAdminUser = !!userRole?.isAdmin || isAdmin(user);
 
-      (user as any).isAdmin = isAdmin;
-      locals.isAdmin = isAdmin;
-      locals.hasAdminPermission = isAdmin;
+      (user as any).isAdmin = isAdminUser;
+      locals.isAdmin = isAdminUser;
+      locals.hasAdminPermission = isAdminUser;
       locals.hasManageUsersPermission =
-        isAdmin || hasPermissionByAction(user, "manage", "user", undefined, roles);
+        isAdminUser || hasPermissionByAction(user, "manage", "user", undefined, roles);
 
       if (isPublic && !isApi) throw redirect(302, "/");
     } else if (!(isPublic || locals.isFirstUser)) {
@@ -187,11 +182,6 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
     }
 
     const response = await resolve(event);
-
-    // Intercept 403 Forbidden for authenticated users
-    if (response.status === 403 && !isApi && user) {
-      return new Response(null, { status: 302, headers: { location: "/forbidden" } });
-    }
 
     return response;
   } catch (err) {

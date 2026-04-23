@@ -1,3 +1,5 @@
+import { safeFetch } from "../helpers/server";
+
 /**
  * @file tests/bun/api/telemetry.test.ts
  * @description
@@ -39,7 +41,7 @@ describe("Telemetry API Endpoints", () => {
         db_type: "mongodb",
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/telemetry/report`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/telemetry/report`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -56,7 +58,7 @@ describe("Telemetry API Endpoints", () => {
     it("should return disabled status when telemetry is disabled", async () => {
       // Note: This test assumes telemetry can be disabled via settings
       // In actual implementation, the SVELTYCMS_TELEMETRY setting would need to be set to false
-      const response = await fetch(`${API_BASE_URL}/api/telemetry/report`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/telemetry/report`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -73,7 +75,7 @@ describe("Telemetry API Endpoints", () => {
     });
 
     it("should fail gracefully when upstream telemetry server is unreachable", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/telemetry/report`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/telemetry/report`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -93,7 +95,7 @@ describe("Telemetry API Endpoints", () => {
     });
 
     it("should handle malformed payload gracefully", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/telemetry/report`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/telemetry/report`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -127,7 +129,7 @@ describe("Telemetry API Endpoints", () => {
         },
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/telemetry/report`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/telemetry/report`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -141,7 +143,7 @@ describe("Telemetry API Endpoints", () => {
 
     it("should require authentication", async () => {
       // Telemetry endpoint should NOT be accessible without auth
-      const response = await fetch(`${API_BASE_URL}/api/telemetry/report`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/telemetry/report`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -161,7 +163,7 @@ describe("Telemetry API Endpoints", () => {
   describe("Telemetry Settings Integration", () => {
     it("should respect SVELTYCMS_TELEMETRY private setting", async () => {
       // This test verifies the fix we made: using SVELTYCMS_TELEMETRY key
-      const response = await fetch(`${API_BASE_URL}/api/telemetry/report`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/telemetry/report`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -183,7 +185,7 @@ describe("Telemetry API Endpoints", () => {
 
     it("should default to enabled when SVELTYCMS_TELEMETRY is undefined", async () => {
       // Telemetry defaults to TRUE if not explicitly set to false
-      const response = await fetch(`${API_BASE_URL}/api/telemetry/report`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/telemetry/report`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -215,7 +217,7 @@ describe("Telemetry API Endpoints", () => {
       ];
 
       for (const payload of badPayloads) {
-        const response = await fetch(`${API_BASE_URL}/api/telemetry/report`, {
+        const response = await safeFetch(`${API_BASE_URL}/api/telemetry/report`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -233,7 +235,7 @@ describe("Telemetry API Endpoints", () => {
 
     it("should handle network timeouts gracefully", async () => {
       // Simulate a long request (telemetry should have timeout handling)
-      const response = await fetch(`${API_BASE_URL}/api/telemetry/report`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/telemetry/report`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

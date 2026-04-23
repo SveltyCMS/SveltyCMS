@@ -19,8 +19,8 @@ import { isRedirect, redirect, type Handle } from "@sveltejs/kit";
 import {
   isApiLike,
   isBootstrapRoute,
+  isStaticOrInternalRequest,
   STATIC_ASSET_REGEX,
-  applySecurityHeaders,
   BASE_HEADERS,
   restrictedResponse,
   boundaryResponse,
@@ -98,9 +98,7 @@ function getCorsHeadersInline(
 // --- STATES TO BLOCK ---
 const RESTRICTED_STATES = new Set(["INITIALIZING", "FAILED"]);
 
-/**
- * Main Turbo Pipeline Hook
- */
+// Main Turbo Pipeline Hook
 export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   const { url } = event;
   const pathname = url.pathname;
@@ -154,10 +152,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
   try {
     // ── 1. STATIC ASSET FAST EXIT ───────────────────────────────────────────
-    if (STATIC_ASSET_REGEX.test(pathname)) {
+    if (isStaticOrInternalRequest(pathname)) {
       const response = await resolve(event);
       response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
-      applySecurityHeaders(response.headers, isHttps);
 
       if (dev) logRequest(event, performance.now() - requestStart, response.status);
       return response;
@@ -185,7 +182,6 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     // ── 3. BOOTSTRAP ROUTE BYPASS ───────────────────────────────────────────
     if (isBootstrapRoute(pathname)) {
       const response = await resolve(event);
-      applySecurityHeaders(response.headers, isHttps);
 
       if (dev) logRequest(event, performance.now() - requestStart, response.status);
       return response;

@@ -41,9 +41,9 @@ describe("LocalCMS SDK Integration (via Bridge)", () => {
   }
 
   describe("Auth Namespace", () => {
-    it("should create a user directly via SDK bridge", async () => {
-      const uniqueEmail = `sdk_bridge_${Date.now()}@test.com`;
+    const uniqueEmail = `sdk_bridge_${Date.now()}@test.com`;
 
+    it("should create a user directly via SDK bridge", async () => {
       const result = await sdkCall("db.auth.createUser", [
         {
           ...testFixtures.users.admin,
@@ -62,12 +62,13 @@ describe("LocalCMS SDK Integration (via Bridge)", () => {
     it("should login via SDK facade bridge", async () => {
       const result = await sdkCall("auth.login", [
         {
-          email: testFixtures.users.admin.email,
+          email: uniqueEmail,
           password: testFixtures.users.admin.password,
         },
+        { tenantId: null },
       ]);
 
-      expect(result.user.email).toBe(testFixtures.users.admin.email.toLowerCase());
+      expect(result.user.email).toBe(uniqueEmail.toLowerCase());
       expect(result.session).toBeDefined();
     });
   });

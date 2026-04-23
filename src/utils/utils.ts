@@ -145,6 +145,14 @@ export async function extractData(
 }
 
 export function deepCopy<T>(obj: T): T {
+  if (typeof structuredClone === "function") {
+    try {
+      return structuredClone(obj);
+    } catch {
+      // Fallback for objects that cannot be cloned via structuredClone (e.g. functions, DOM nodes)
+    }
+  }
+
   if (obj === null || typeof obj !== "object") {
     return obj;
   }

@@ -8,7 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import { unlink } from "node:fs/promises";
 import { write } from "bun";
 import { getCollectionDisplayPath, getCollectionFilePath } from "../../../src/utils/tenant-paths";
-import { getApiBaseUrl } from "../helpers/server";
+import { getApiBaseUrl, safeFetch } from "../helpers/server";
 import { initializeTestEnvironment, prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
@@ -72,7 +72,7 @@ describe("Collections & Content API", () => {
 
     // Trigger a recompile to ensure the CMS knows about our test collection
     // This handles cases where hot-reload didn't catch the file write
-    await fetch(`${API_BASE_URL}/api/content-structure`, {
+    await safeFetch(`${API_BASE_URL}/api/content-structure`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: adminCookie },
       body: JSON.stringify({ action: "recompile" }),
@@ -83,7 +83,7 @@ describe("Collections & Content API", () => {
   const testGetEndpoint = (endpoint: string) => {
     describe(`GET ${endpoint}`, () => {
       it("should succeed with admin cookie", async () => {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        const response = await safeFetch(`${API_BASE_URL}${endpoint}`, {
           headers: { Cookie: adminCookie },
         });
         expect(response.status).toBe(200);
@@ -95,7 +95,7 @@ describe("Collections & Content API", () => {
       });
 
       it("should fail without authentication", async () => {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`);
+        const response = await safeFetch(`${API_BASE_URL}${endpoint}`);
         expect(response.status).toBe(401);
       });
     });
@@ -113,7 +113,7 @@ describe("Collections & Content API", () => {
         collections: TEST_COLLECTION_NAME,
         raw: "true",
       });
-      const response = await fetch(`${API_BASE_URL}/api/search?${queryParams.toString()}`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/search?${queryParams.toString()}`, {
         method: "GET",
         headers: { Cookie: adminCookie },
       });
@@ -125,7 +125,7 @@ describe("Collections & Content API", () => {
     });
 
     it("should handle empty queries gracefully", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/search?q=&raw=true`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/search?q=&raw=true`, {
         method: "GET",
         headers: { Cookie: adminCookie },
       });
@@ -142,7 +142,7 @@ describe("Collections & Content API", () => {
     beforeAll(async () => {
       // Get the first available collection from the system
       const cookie = await prepareAuthenticatedContext();
-      const response = await fetch(`${API_BASE_URL}/api/collections`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/collections`, {
         headers: { Cookie: cookie },
       });
       if (response.ok) {
@@ -160,7 +160,7 @@ describe("Collections & Content API", () => {
         return; // Skip if no collections
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/collections/${testCollectionId}`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/collections/${testCollectionId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Cookie: adminCookie },
         body: JSON.stringify({
@@ -182,7 +182,7 @@ describe("Collections & Content API", () => {
 
       // Note: GET on /api/collections/[collectionId] may return 405 as it's removed
       // The API comment says "GET removed - use +page.server.ts load()"
-      const response = await fetch(`${API_BASE_URL}/api/collections/${testCollectionId}`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/collections/${testCollectionId}`, {
         headers: { Cookie: adminCookie },
       });
       // Accept 200, 404, or 405 (method not allowed - GET was removed per API comments)
@@ -190,11 +190,14 @@ describe("Collections & Content API", () => {
     });
 
     it("should fail on invalid collection", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/collections/non_existent_collection_123`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Cookie: adminCookie },
-        body: JSON.stringify({ title: "Test" }),
-      });
+      const response = await safeFetch(
+        `${API_BASE_URL}/api/collections/non_existent_collection_123`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Cookie: adminCookie },
+          body: JSON.stringify({ title: "Test" }),
+        },
+      );
       // Should be 404 Not Found
       expect(response.status).toBe(404);
     });
@@ -203,7 +206,7 @@ describe("Collections & Content API", () => {
   // --- ADMIN UTILS ---
   describe("POST /api/content-structure (recompile)", () => {
     it("should recompile with admin auth", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/content-structure`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/content-structure`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Cookie: adminCookie },
         body: JSON.stringify({ action: "recompile" }),
@@ -215,7 +218,7 @@ describe("Collections & Content API", () => {
     });
 
     it("should reject unauthenticated recompile", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/content-structure`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/content-structure`, {
         method: "POST",
         headers: { "Content-Type": "application/json" }, // No Cookie
         body: JSON.stringify({ action: "recompile" }),

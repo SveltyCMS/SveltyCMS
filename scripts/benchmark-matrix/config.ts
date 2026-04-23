@@ -186,7 +186,7 @@ export const BENCHMARKS_DOC = path.join(process.cwd(), "docs/project/benchmarks.
 export const CI_SUMMARY_FILE = path.join(ROOT_RESULTS_DIR, "ci-summary.json");
 export const DB_NAME_BASE = "SveltyCMS_audit";
 /** The single, unified database name used for ALL SQL benchmarks to ensure realism. */
-export const DB_NAME_BENCHMARK = "SveltyCMS_benchmark_test";
+export const DB_NAME_BENCHMARK = process.env.DB_NAME_BENCHMARK || "sveltycms_bench";
 
 // --- EXECUTION CONTROL ---
 /**

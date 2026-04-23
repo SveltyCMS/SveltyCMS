@@ -135,6 +135,13 @@ export class UserAdapter {
   ): Promise<DatabaseResult<User>> {
     try {
       const normalizedData = { ...userData, email: userData.email?.toLowerCase() };
+
+      // Ensure password is hashed if provided and not already hashed
+      if (normalizedData.password && !normalizedData.password.startsWith("$argon2")) {
+        const { hashPassword } = await import("@src/utils/password");
+        normalizedData.password = await hashPassword(normalizedData.password);
+      }
+
       // safeQuery used for validation side-effects as per documentation requirement
       safeQuery({}, userData.tenantId as string, { bypassTenantCheck: options.bypassTenantCheck });
 
@@ -160,6 +167,12 @@ export class UserAdapter {
       const normalizedData = { ...userData };
       if (normalizedData.email) {
         normalizedData.email = normalizedData.email.toLowerCase();
+      }
+
+      // Ensure password is hashed if provided and not already hashed
+      if (normalizedData.password && !normalizedData.password.startsWith("$argon2")) {
+        const { hashPassword } = await import("@src/utils/password");
+        normalizedData.password = await hashPassword(normalizedData.password);
       }
 
       const filter = safeQuery({ _id: userId } as any, options.tenantId as string, {

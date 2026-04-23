@@ -5,7 +5,7 @@
  */
 
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getApiBaseUrl } from "../helpers/server";
+import { getApiBaseUrl, safeFetch } from "../helpers/server";
 import {
   initializeTestEnvironment,
   prepareAuthenticatedContext,
@@ -33,7 +33,7 @@ describe("User API Integration", () => {
       // Use unique email to avoid DB conflicts
       const uniqueEmail = `newuser_${Date.now()}@test.com`;
 
-      const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/user/create-user`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -57,7 +57,7 @@ describe("User API Integration", () => {
     });
 
     it("should reject invalid email format", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/user/create-user`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Cookie: adminCookie },
         body: JSON.stringify({
@@ -69,7 +69,7 @@ describe("User API Integration", () => {
     });
 
     it("should reject mismatched passwords", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/user/create-user`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/user/create-user`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Cookie: adminCookie },
         body: JSON.stringify({
@@ -85,7 +85,7 @@ describe("User API Integration", () => {
   // --- TEST SUITE 2: AUTHENTICATION ---
   describe("POST /api/user/login", () => {
     it("should login with valid credentials (JSON)", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/user/login`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/user/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -99,7 +99,7 @@ describe("User API Integration", () => {
     });
 
     it("should reject invalid credentials", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/user/login`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/user/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -114,7 +114,7 @@ describe("User API Integration", () => {
   // --- TEST SUITE 3: ATTRIBUTE UPDATES ---
   describe("PUT /api/user/update-user-attributes", () => {
     it("should allow user to update their own name", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/user/update-user-attributes`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/user/update-user-attributes`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Cookie: adminCookie },
         body: JSON.stringify({
@@ -125,7 +125,7 @@ describe("User API Integration", () => {
       expect(response.status).toBe(200);
 
       // Verify
-      const verify = await fetch(`${API_BASE_URL}/api/user?raw=true`, {
+      const verify = await safeFetch(`${API_BASE_URL}/api/user?raw=true`, {
         headers: { Cookie: adminCookie },
       });
       const result = await verify.json();
@@ -136,7 +136,7 @@ describe("User API Integration", () => {
     });
 
     it("should reject unauthorized token", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/user/update-user-attributes`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/user/update-user-attributes`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" }, // No Cookie
         body: JSON.stringify({ user_id: "self", newUserData: {} }),
@@ -161,7 +161,7 @@ describe("User API Integration", () => {
       const formData = new FormData();
       formData.append("avatar", file);
 
-      const response = await fetch(`${API_BASE_URL}/api/user/save-avatar`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/user/save-avatar`, {
         method: "POST",
         headers: { Cookie: adminCookie, Origin: API_BASE_URL },
         body: formData,
@@ -176,7 +176,7 @@ describe("User API Integration", () => {
   // --- TEST SUITE 5: LIST USERS ---
   describe("GET /api/user", () => {
     it("should list users", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/user?raw=true`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/user?raw=true`, {
         headers: { Cookie: adminCookie },
       });
 
@@ -190,14 +190,14 @@ describe("User API Integration", () => {
   // --- TEST SUITE 6: LOGOUT ---
   describe("POST /api/user/logout", () => {
     it("should invalidate session", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/user/logout`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/user/logout`, {
         method: "POST",
         headers: { Cookie: adminCookie },
       });
       expect(response.status).toBe(200);
 
       // Verify old cookie is dead - should return 401 Unauthorized
-      const check = await fetch(`${API_BASE_URL}/api/user`, {
+      const check = await safeFetch(`${API_BASE_URL}/api/user`, {
         headers: { Cookie: adminCookie },
       });
       expect(check.status).toBe(401);

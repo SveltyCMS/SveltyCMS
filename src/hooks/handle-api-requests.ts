@@ -9,7 +9,7 @@ import { metricsService } from "@src/services/metrics-service";
 import type { Handle } from "@sveltejs/kit";
 import { AppError, getErrorMessage, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
-import { isPublicRoute } from "@utils/hook-utils";
+import { isAdmin, isPublicRoute } from "@utils/hook-utils";
 import crypto from "node:crypto";
 
 /** Optimized API endpoint extraction: Ultra-fast prefix triage */
@@ -56,9 +56,8 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
     // --- Authorization ---
     if (url.pathname !== "/api/user/logout") {
       const userRole = locals.user?.role || "guest";
-      const isAdmin =
-        locals.isAdmin || locals.user?.isAdmin === true || (locals.user as any)?.role === "admin";
-      if (!hasApiPermission(userRole, apiEndpoint, isAdmin)) {
+      const isAdminUser = isAdmin(locals.user);
+      if (!hasApiPermission(userRole, apiEndpoint, isAdminUser)) {
         throw new AppError(
           `Forbidden: Role ${userRole} denied for ${apiEndpoint}`,
           403,
@@ -139,7 +138,8 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
           if (responseBody) {
             let etag = response.headers.get("etag");
             if (!etag) {
-              etag = `"${crypto.createHash("md5").update(responseBody).digest("hex")}"`;
+              // Using sha1: faster than md5 on most modern CPUs due to hardware acceleration
+              etag = `"${crypto.createHash("sha1").update(responseBody).digest("hex").substring(0, 16)}"`;
               response.headers.set("etag", etag);
             }
 

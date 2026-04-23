@@ -47,23 +47,26 @@ import { getPublicSettingSync } from "@src/services/settings-service";
 import { getUrl, isCloud } from "@src/utils/media/cloud-storage";
 import { getSanitizedFileName } from "@src/utils/media/media-processing";
 import { hashFileContent, mediaProcessingService } from "@src/utils/media/media-processing.server";
-import { saveFileToDisk, saveResizedImages } from "@src/utils/media/media-storage.server";
+import { saveFileToDisk, saveResizedImages, SIZES } from "@src/utils/media/media-storage.server";
 // IMPORT SERVER-SIDE VALIDATION
 import { validateMediaFileServer } from "@src/utils/media/media-utils";
 import { AppError } from "@utils/error-handling";
 // System Logger
 import { logger } from "@utils/logger.server";
-import type {
-  MediaAccess,
-  MediaBase,
-  MediaItem,
+import {
+  type MediaAccess,
+  type MediaBase,
+  type MediaItem,
   MediaTypeEnum,
-  CmsMediaMetadata,
-  ResizedImage,
-  WatermarkOptions,
+  MediaType as MediaTypeEnumValue,
+  type CmsMediaMetadata,
+  type ResizedImage,
+  type WatermarkOptions,
 } from "@utils/media/media-models";
-import { MediaType as MediaTypeEnumValue } from "@utils/media/media-models";
 import sharp from "sharp";
+
+// Static cache for processed watermarks to avoid re-scaling on every upload
+const WATERMARK_CACHE = new Map<string, Buffer>();
 
 // Extended MediaBase interface to include thumbnails
 interface MediaBaseWithThumbnails extends MediaBase {
@@ -113,6 +116,7 @@ export class MediaService {
     userId: string,
     basePath: string,
     watermarkOptions?: WatermarkOptions,
+    skipResizing = false,
   ): Promise<{
     url: string;
     path: string;
@@ -120,82 +124,94 @@ export class MediaService {
     resized: Record<string, ResizedImage>;
   }> {
     const startTime = performance.now();
+    const sharp = (await import("sharp")).default;
 
     try {
-      logger.debug("Starting file upload", {
-        fileName,
-        fileSize: buffer.length,
-        userId,
-      });
+      logger.debug("Starting file upload", { fileName, fileSize: buffer.length, userId });
 
-      let imageBuffer = buffer;
+      // 1. Initialize Sharp and Metadata ONCE
+      let currentInstance = sharp(buffer);
+      const meta = await currentInstance.metadata();
+      const isImage = mimeType.startsWith("image/") && meta.format !== "svg";
 
-      // Apply watermark if options are provided and it's an image
-      if (watermarkOptions && mimeType.startsWith("image/")) {
+      // 2. Apply Watermark (with Caching)
+      if (watermarkOptions && isImage) {
         try {
-          const watermarkImagePath = Path.join(process.cwd(), "static", watermarkOptions.url);
-          const watermarkBuffer = await sharp(watermarkImagePath)
-            .resize({
-              width: Math.floor(
-                (await sharp(imageBuffer).metadata()).width! * (watermarkOptions.scale / 100),
-              ),
-            })
-            .png()
-            .toBuffer();
+          const watermarkKey = `${watermarkOptions.url}:${watermarkOptions.scale}:${meta.width}`;
+          let watermarkBuffer = WATERMARK_CACHE.get(watermarkKey);
 
-          imageBuffer = await sharp(imageBuffer)
-            .composite([
-              {
-                input: watermarkBuffer,
-                gravity: watermarkOptions.position,
-                blend: "over",
-              },
-            ])
-            .toBuffer();
+          if (!watermarkBuffer) {
+            const watermarkImagePath = Path.join(process.cwd(), "static", watermarkOptions.url);
+            const targetWidth = Math.floor((meta.width || 1000) * (watermarkOptions.scale / 100));
+
+            watermarkBuffer = await sharp(watermarkImagePath)
+              .resize({ width: targetWidth })
+              .png()
+              .toBuffer();
+
+            if (WATERMARK_CACHE.size > 50) WATERMARK_CACHE.clear(); // Simple eviction
+            WATERMARK_CACHE.set(watermarkKey, watermarkBuffer);
+          }
+
+          currentInstance = currentInstance.composite([
+            {
+              input: watermarkBuffer,
+              gravity: watermarkOptions.position,
+              blend: "over",
+            },
+          ]);
+
           logger.info("Watermark applied successfully", { fileName });
         } catch (wmError) {
-          logger.error("Could not apply watermark", {
-            fileName,
-            error: wmError,
-          });
-          // Fail gracefully, proceed with original image
+          logger.error("Could not apply watermark", { fileName, error: wmError });
         }
       }
 
+      // 3. Get final buffer for hashing and original storage
+      const imageBuffer = isImage ? await currentInstance.toBuffer() : buffer;
       const hash = await hashFileContent(imageBuffer);
       const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
-      const sanitizedFileName = fileNameWithoutExt;
 
-      // Save original image in 'original' subfolder
-      const originalSubfolder = "original";
-      const originalFileName = `${sanitizedFileName}-${hash}.${ext}`;
-      // This is the RELATIVE path, e.g., "avatars/original/image-hash.jpg"
-      const relativePath = Path.posix.join(basePath, originalSubfolder, originalFileName);
+      const originalFileName = `${fileNameWithoutExt}-${hash}.${ext}`;
+      const relativePath = Path.posix.join(basePath, "original", originalFileName);
 
-      logger.debug("Saving original file", {
-        relativePath,
-        basePath,
-        subfolder: originalSubfolder,
-      });
-
-      // saveFileToDisk handles both local and cloud saving
       const publicUrl = await saveFileToDisk(imageBuffer, relativePath);
 
-      // Process image if it's an image type
-      const isImage = mimeType.startsWith("image/");
+      // 4. Parallel Variant Generation
       let resizedImages: Record<string, ResizedImage> = {};
 
-      if (isImage && ext !== "svg") {
-        // Don't resize SVGs
-        logger.debug("Processing image variants", { fileName, mimeType });
-        // saveResizedImages signature: (buffer, hash, baseName, ext, baseDir)
-        resizedImages = await saveResizedImages(
-          imageBuffer,
-          hash,
-          sanitizedFileName,
-          ext,
-          basePath,
-        );
+      if (isImage) {
+        if (skipResizing) {
+          // Generate only thumbnail (e.g. for avatars)
+          const thumbnailSize = SIZES.thumbnail || 200;
+          const { saveFile } = await import("./media-storage.server");
+
+          const resizedBuf = await currentInstance
+            .clone()
+            .resize(thumbnailSize, thumbnailSize, { fit: "cover", position: "center" })
+            .toBuffer();
+
+          const thumbFileName = `${fileNameWithoutExt}-${hash}.${ext}`;
+          const relPath = Path.posix.join(basePath, "thumbnail", thumbFileName);
+          const url = await saveFile(resizedBuf, relPath);
+
+          resizedImages.thumbnail = {
+            url,
+            width: thumbnailSize,
+            height: thumbnailSize,
+            size: resizedBuf.length,
+            mimeType,
+          };
+        } else {
+          // Generate all sizes in parallel using the optimized saveResizedImages
+          resizedImages = await saveResizedImages(
+            imageBuffer,
+            hash,
+            fileNameWithoutExt,
+            ext,
+            basePath,
+          );
+        }
       }
 
       logger.info("File upload completed", {
@@ -239,6 +255,7 @@ export class MediaService {
     basePath = "global",
     watermarkOptions?: WatermarkOptions,
     originalId?: DatabaseId | null,
+    skipResizing = false,
   ): Promise<MediaItem> {
     const startTime = performance.now();
     this.ensureInitialized();
@@ -246,6 +263,7 @@ export class MediaService {
       filename: file.name,
       fileSize: file.size,
       mimeType: file.type,
+      skipResizing,
     });
     if (!file) {
       const message = "File is required";
@@ -333,7 +351,15 @@ export class MediaService {
         path,
         hash: uploadedHash,
         resized,
-      } = await this.uploadFile(buffer, safeFileName, mimeType, userId, basePath, watermarkOptions);
+      } = await this.uploadFile(
+        buffer,
+        safeFileName,
+        mimeType,
+        userId,
+        basePath,
+        watermarkOptions,
+        skipResizing,
+      );
 
       const isImage = mimeType.startsWith("image/");
       const isVideo = mimeType.startsWith("video/");

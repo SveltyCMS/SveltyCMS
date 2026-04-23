@@ -351,12 +351,18 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
 
 function stubServerModulesPlugin(): Plugin {
   // Directories/files that must NEVER appear in the client bundle.
-  // Only loaded file paths are checked, so these are matched as substrings.
-  const serverOnlySegments = [
-    "/src/databases/mongodb/",
-    "/src/databases/mariadb/",
-    "/src/databases/postgresql/",
-    "/src/databases/sqlite/",
+  // Use a Set for O(1) lookup performance
+  const serverOnlyPatterns = new Set([
+    "mongodb",
+    "mariadb",
+    "postgresql",
+    "sqlite",
+    "privateSettings.server.ts",
+    "$env/static/private",
+    "$env/dynamic/private",
+  ]);
+
+  const serverOnlyFiles = new Set([
     "/src/databases/db.ts",
     "/src/databases/database-resilience.ts",
     "/src/databases/cache/cache-service.ts",
@@ -373,27 +379,35 @@ function stubServerModulesPlugin(): Plugin {
     "/src/databases/auth/session-manager.ts",
     "/src/databases/auth/two-factor-auth.ts",
     "/src/databases/auth/permissions.ts",
-    "/src/databases/cache/cache-service.ts",
     "/src/databases/cache/redis-store.ts",
     "/src/databases/cache/inmemory-store.ts",
-    // Server services that should not leak to client
-    // Media engine stubs
     "/src/components/emails/",
     "better-svelte-email",
-    // Also stub out server-only code
-    ".server.ts",
-    ".server.js",
-    "privateSettings.server.ts",
-  ];
+  ]);
 
   return {
     name: "stub-server-modules",
     enforce: "pre",
     load(id, options) {
-      // Only stub for client builds, never for SSR or actual Unit Tests (TEST_MODE)
-      if (!options?.ssr && process.env.TEST_MODE !== "true") {
-        const normalizedId = id.replace(/\\/g, "/");
-        if (serverOnlySegments.some((seg) => normalizedId.includes(seg))) {
+      // Fast-path: Skip stubbing for SSR or Unit Tests (TEST_MODE)
+      if (options?.ssr || process.env.TEST_MODE === "true") return null;
+
+      const normalizedId = id.replace(/\\/g, "/");
+
+      // O(1) check for exact file matches or .server.ts extensions
+      if (normalizedId.includes(".server.") || serverOnlyFiles.has(normalizedId)) {
+        return `export default {};
+export const getPrivateSettingSync = () => ({});
+export const getPrivateSetting = async () => ({});
+export const getPublicSettingSync = () => ({});
+export const getPublicSetting = async () => ({});
+export const getUntypedSetting = async () => ({});
+export const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };`;
+      }
+
+      // Slightly slower fallback for pattern matching (O(N) but restricted set)
+      for (const pattern of serverOnlyPatterns) {
+        if (normalizedId.includes(pattern)) {
           return `export default {};
 export const getPrivateSettingSync = () => ({});
 export const getPrivateSetting = async () => ({});
@@ -403,6 +417,7 @@ export const getUntypedSetting = async () => ({});
 export const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };`;
         }
       }
+
       return null;
     },
   };

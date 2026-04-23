@@ -113,7 +113,7 @@ export class ApiSpecService {
       const { cacheService } = await import("@src/databases/cache/cache-service");
       await cacheService.delete(cacheKey, tenantId);
     } catch (err) {
-      const { logger } = await import("@utils/logger.server");
+      const { logger } = await import("@utils/logger");
       logger.debug("Non-fatal API spec cache delete error:", err);
     }
   }
@@ -140,7 +140,7 @@ export class ApiSpecService {
         return l2Cached;
       }
     } catch (err) {
-      const { logger } = await import("@utils/logger.server");
+      const { logger } = await import("@utils/logger");
       logger.debug("Non-fatal API spec cache miss:", err);
     }
 
@@ -176,7 +176,7 @@ export class ApiSpecService {
       const { cacheService } = await import("@src/databases/cache/cache-service");
       await cacheService.set(cacheKey, spec, 300, tenantId, CacheCategory.API);
     } catch (err) {
-      const { logger } = await import("@utils/logger.server");
+      const { logger } = await import("@utils/logger");
       logger.debug("Non-fatal API spec cache write error:", err);
     }
 
@@ -198,7 +198,7 @@ export class ApiSpecService {
 
       return this.generateSpec(schemaOnly, tenantId);
     } catch (err) {
-      const { logger } = await import("@utils/logger.server");
+      const { logger } = await import("@utils/logger");
       logger.error("Failed to generate full API spec", { tenantId, err });
       return this.generateSpec([], tenantId);
     }

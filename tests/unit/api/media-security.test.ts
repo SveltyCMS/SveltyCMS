@@ -301,6 +301,8 @@ describe("Media API Security Unit Tests", () => {
         tenantId,
         "global",
         undefined,
+        null,
+        false,
       );
     });
   });

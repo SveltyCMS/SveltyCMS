@@ -112,27 +112,67 @@ export async function prepareAuthenticatedContext(): Promise<string> {
     throw new Error(`Failed to seed database: ${error}`);
   }
 
-  // Small delay to ensure DB state is stable
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  // 🚀 HARDENING: Wait for system to settle and reach a READY state
+  console.log("⏳ Waiting for system to settle and reach READY state...");
+  let isReady = false;
+  for (let i = 0; i < 10; i++) {
+    const health = await safeFetch(`${API_BASE_URL}/api/system/health`, {
+      headers: { "x-test-secret": TEST_API_SECRET },
+    });
+    if (health.ok) {
+      const data = await health.json();
+      if ((data.overallStatus || data.status || "").toUpperCase() === "READY") {
+        isReady = true;
+        break;
+      }
+    }
+    console.log(`⏳ System not ready (attempt ${i + 1}/10). Waiting 2s...`);
+    await new Promise((r) => setTimeout(r, 2000));
+  }
 
-  // 3. Login as admin
+  if (!isReady) {
+    console.warn("⚠️ System did not reach READY state, attempting login anyway...");
+  }
+
+  // 🚀 HARDENING: Obtain CSRF token first
+  console.log("🛡️ Obtaining CSRF token...");
+  const initialResp = await safeFetch(`${API_BASE_URL}/api/system/health`);
+  const initialCookies = initialResp.headers.get("set-cookie") || "";
+  const csrfCookie = initialCookies.split(";")[0];
+
+  // 3. Login as admin (with retries and CSRF awareness)
   console.log("🔑 Logging in as admin...");
-  const loginResp = await safeFetch(`${API_BASE_URL}/api/user/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-test-secret": TEST_API_SECRET,
-      Origin: API_BASE_URL,
-    },
-    body: JSON.stringify({
-      email: testFixtures.adminUser.email,
-      password: testFixtures.adminUser.password,
-    }),
-  });
+  let loginResp: Response | null = null;
+  for (let i = 0; i < 5; i++) {
+    try {
+      loginResp = await safeFetch(`${API_BASE_URL}/api/user/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-secret": TEST_API_SECRET,
+          Origin: API_BASE_URL,
+          Cookie: csrfCookie, // Pass the CSRF token back
+        },
+        body: JSON.stringify({
+          email: testFixtures.adminUser.email,
+          password: testFixtures.adminUser.password,
+        }),
+      });
+      if (loginResp.ok) break;
 
-  if (!loginResp.ok) {
-    const error = await loginResp.text();
-    throw new Error(`Login failed: ${error}`);
+      const errText = await loginResp.text();
+      console.log(
+        `⏳ Login attempt ${i + 1} failed (HTTP ${loginResp.status}: ${errText}). Retrying...`,
+      );
+    } catch (e) {
+      console.log(`⏳ Login attempt ${i + 1} crashed. Retrying...`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
+
+  if (!loginResp || !loginResp.ok) {
+    const error = loginResp ? await loginResp.text() : "No response";
+    throw new Error(`Login failed after retries: ${error}`);
   }
 
   const setCookie = loginResp.headers.get("set-cookie");
@@ -146,7 +186,9 @@ export async function prepareAuthenticatedContext(): Promise<string> {
     throw new Error(`Failed to parse session cookie: ${setCookie}`);
   }
 
-  return cookieMatch[1];
+  const sessionCookie = cookieMatch[1];
+  console.log(`🔑 Login successful. Session Cookie: ${sessionCookie}`);
+  return sessionCookie;
 }
 
 /**

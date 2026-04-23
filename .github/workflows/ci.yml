@@ -271,7 +271,7 @@ jobs:
           DB_TYPE: ${{ matrix.db }}
           DB_HOST: 127.0.0.1
           DB_PORT: ${{ matrix.port || '' }}
-          DB_NAME: SveltyCMS_benchmark_test
+          DB_NAME: sveltycms_test
           DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
           DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
           ADMIN_PASSWORD: Password123!

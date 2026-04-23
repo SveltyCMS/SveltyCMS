@@ -1,3 +1,5 @@
+import { safeFetch } from "../helpers/server";
+
 /**
  * @file tests/bun/api/security.test.ts
  * @description Verify security enhancements
@@ -14,7 +16,7 @@ let serverAvailable = false;
 
 beforeAll(async () => {
   try {
-    const res = await fetch(`${BASE_URL}/`, {
+    const res = await safeFetch(`${BASE_URL}/`, {
       signal: AbortSignal.timeout(5000),
     });
     serverAvailable = res.ok || res.status === 302 || res.status === 307;
@@ -32,7 +34,7 @@ describe("Security Enhancements Verification", () => {
     }
 
     // HeadlessChrome is in ADVANCED_BOT_PATTERNS
-    const res = await fetch(`${BASE_URL}/api/auth/login`, {
+    const res = await safeFetch(`${BASE_URL}/api/auth/login`, {
       method: "POST",
       body: JSON.stringify({ email: `test@example.com`, password: "wrong" }),
       headers: {
@@ -58,7 +60,7 @@ describe("Security Enhancements Verification", () => {
     // We need to make > 10 requests.
     let blocked = false;
     for (let i = 0; i < 15; i++) {
-      const res = await fetch(`${BASE_URL}/api/auth/login`, {
+      const res = await safeFetch(`${BASE_URL}/api/auth/login`, {
         method: "POST",
         body: JSON.stringify({
           email: `test-${i}@example.com`,
@@ -87,7 +89,7 @@ describe("Security Enhancements Verification", () => {
 
     // This test checks if the server is reachable and returns a valid response.
     // CSP headers are set in hooks.server.ts
-    const res = await fetch(`${BASE_URL}/`);
+    const res = await safeFetch(`${BASE_URL}/`);
     // Accept 200 or redirect (302/307) as valid responses
     expect([200, 302, 307]).toContain(res.status);
   });

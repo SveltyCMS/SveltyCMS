@@ -172,7 +172,7 @@ export class LocalCMS {
       media: {
         find: (options?: any) => cms.media.find({ ...options, tenantId }),
         findById: (id: string, options?: any) => cms.media.findById(id, { ...options, tenantId }),
-        upload: (file: File, options?: any) =>
+        upload: (file: File, options: any) =>
           cms.media.upload(file, { ...options, userId: user?._id, tenantId }),
         update: (id: string, data: any) => cms.media.update(id, data, tenantId),
         delete: (id: string) => cms.media.delete(id, { tenantId }),
@@ -1837,16 +1837,27 @@ class MediaNamespace {
       access?: any;
       tenantId?: DatabaseId | null;
       watermarkOptions?: any;
+      folder?: string;
+      skipResizing?: boolean;
     } = {} as any,
   ) {
-    const { userId, access = "private", tenantId, watermarkOptions } = options;
+    const {
+      userId,
+      access = "private",
+      tenantId,
+      watermarkOptions,
+      folder = "global",
+      skipResizing = false,
+    } = options;
     return this.mediaService.saveMedia(
       file,
       userId,
       access,
       tenantId as DatabaseId,
-      "global",
+      folder,
       watermarkOptions,
+      null,
+      skipResizing,
     );
   }
 

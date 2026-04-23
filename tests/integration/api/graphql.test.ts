@@ -7,7 +7,7 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { getApiBaseUrl, waitForServer } from "../helpers/server";
+import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
 import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
@@ -28,7 +28,7 @@ async function executeGraphQL(
     headers.Cookie = authCookie;
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/graphql`, {
+  const response = await safeFetch(`${API_BASE_URL}/api/graphql`, {
     method: "POST",
     headers,
     body: JSON.stringify({ query, variables }),

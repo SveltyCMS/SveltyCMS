@@ -16,10 +16,35 @@ export async function checkServer(): Promise<boolean> {
   const url = `${getApiBaseUrl()}/api/system/health`;
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(2000) });
-    if (response.status !== 200) return false;
+
+    // The server might return 503 if setup is incomplete (MISSING_CONFIG).
+    // We still want to read the JSON body to determine the exact state.
+    if (response.status !== 200 && response.status !== 503) {
+      const text = await response.text().catch(() => "");
+      console.log(`[checkServer] Unhandled Status: ${response.status}, Body: ${text}`);
+      return false;
+    }
+
     const data = await response.json();
-    return data?.overallStatus === "READY";
-  } catch {
+
+    // Accept READY or SETUP states for integration testing
+    const status = data?.overallStatus || data?.status || data?.setupState || "";
+    const isHealthy = [
+      "READY",
+      "SETUP",
+      "WARMED",
+      "INITIALIZING",
+      "MISSING_CONFIG",
+      "MISSING_ADMIN",
+      "HEALTHY",
+    ].includes(status.toUpperCase());
+
+    if (!isHealthy) {
+      console.log(`[checkServer] Unhealthy state: ${status} (HTTP ${response.status})`);
+    }
+    return isHealthy;
+  } catch (err: any) {
+    console.log(`[checkServer] Fetch failed: ${err.message}`);
     return false;
   }
 }
@@ -43,14 +68,18 @@ export async function waitForServer(timeoutMs = 60_000): Promise<void> {
 }
 
 /**
- * Safely performs a fetch, returning null instead of crashing when the server is unreachable.
+ * Safely performs a fetch with retries to handle server re-initialization flickers.
  * Automatically adds the Origin header to bypass CSRF protection.
  */
-export async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
+export async function safeFetch(
+  url: string,
+  init?: RequestInit,
+  maxRetries = 5,
+  delay = 2000,
+): Promise<Response> {
   const headers = new Headers(init?.headers || {});
 
   // Ensure Origin and Referer headers are present to satisfy CSRF protection in hooks
-  // SvelteKit CSRF protection compares Origin with the host
   if (!headers.has("Origin")) {
     headers.set("Origin", BASE_URL);
   }
@@ -58,41 +87,63 @@ export async function safeFetch(url: string, init?: RequestInit): Promise<Respon
     headers.set("Referer", `${BASE_URL}/`);
   }
 
-  // Hardening: Default timeout of 60s for all benchmark/integration requests
   const signal = init?.signal || AbortSignal.timeout(60000);
 
-  try {
-    const resp = await fetch(url, { ...init, headers, signal });
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const cookieHeader = headers.get("Cookie") || "None";
+      const resp = await fetch(url, { ...init, headers, signal });
 
-    // Error handling for empty response
-    if (!resp) {
+      if (!resp) {
+        throw new Error(`Server at ${url} returned an undefined response.`);
+      }
+
+      if (!resp.ok) {
+        const bodyText = await resp
+          .clone()
+          .text()
+          .catch(() => "N/A");
+        const logMsg =
+          `\n[safeFetch] ❌ Request failed: ${url}\n` +
+          `[safeFetch]    Status: ${resp.status}\n` +
+          `[safeFetch]    Origin: ${headers.get("Origin")}\n` +
+          `[safeFetch]    Cookie: ${cookieHeader}\n` +
+          `[safeFetch]    Body: ${bodyText}\n`;
+        process.stderr.write(logMsg);
+      }
+
+      if (!resp.headers) {
+        throw new Error(`Server at ${url} returned a response without headers.`);
+      }
+      return resp;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isTransient =
+        message.includes("ConnectionRefused") ||
+        message.includes("failed to fetch") ||
+        message.includes("ECONNREFUSED") ||
+        message.includes("undici"); // Bun/Node fetch errors
+
+      if (isTransient && attempt < maxRetries) {
+        console.log(
+          `⏳ Server flicker detected at ${url}. Retrying (${attempt + 1}/${maxRetries})...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+
+      let guidance = "";
+      if (isTransient) {
+        guidance =
+          "\n\n💡 FIX: The integration server is NOT running or crashed. Please start it using:\n" +
+          "   1. 'bun run test:integration' (Starts server + runs all tests)\n" +
+          "   2. 'bun run preview' (Starts server in high-performance mode)";
+      }
+
       throw new Error(
-        `Server at ${url} returned an undefined response. Is the preview server running?`,
+        `Failed to reach server at ${url}.${guidance}\n\nTechnical Error: ${message}`,
       );
     }
-    // Hardening: Verify that the response has a headers property (Mock detection)
-    if (!resp.headers) {
-      throw new Error(
-        `Server at ${url} returned a response without headers. This usually indicates a global fetch mock has leaked from a unit test (e.g., ai-service.test.ts).`,
-      );
-    }
-    return resp;
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    const isConnRefused =
-      message.includes("ConnectionRefused") ||
-      message.includes("failed to fetch") ||
-      message.includes("ECONNREFUSED");
-
-    let guidance = "";
-    if (isConnRefused) {
-      guidance =
-        "\n\n💡 FIX: The integration server is NOT running. Please start it using:\n" +
-        "   1. 'bun run test:integration' (Starts server + runs all tests)\n" +
-        "   2. 'bun run preview' (Starts server in high-performance mode)\n" +
-        "   3. 'bun run scripts/run-benchmarks.ts <file>' (Recommended for performance runs)";
-    }
-
-    throw new Error(`Failed to reach server at ${url}.${guidance}\n\nTechnical Error: ${message}`);
   }
+  throw new Error(`Failed to reach server at ${url} after ${maxRetries} retries.`);
 }

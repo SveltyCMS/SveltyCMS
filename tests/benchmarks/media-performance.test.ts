@@ -13,13 +13,20 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
+// ✨ FIX: Define Svelte 5 runes for Bun benchmark context
+if (typeof (globalThis as any).$state === "undefined") {
+  (globalThis as any).$state = (v: any) => v;
+  (globalThis as any).$derived = (v: any) => v;
+  (globalThis as any).$effect = (v: any) => v;
+}
+
+const { saveResized } = await import("@src/utils/media/media-storage.server");
+
 const CPU = os.cpus().length;
 // Optimization: Leave headroom for the OS and Bun while Sharp works
 sharp.concurrency(Math.max(1, Math.floor(CPU * 0.75)));
 
 const TEST_IMAGE_PATH = path.join(os.tmpdir(), "svelty-media-benchmark", "test-1920x1080.jpg");
-
-const SIZES = [200, 600, 1200];
 
 async function setupTestImage() {
   await fs.mkdir(path.dirname(TEST_IMAGE_PATH), { recursive: true });
@@ -55,19 +62,42 @@ async function setupTestImage() {
   return fs.readFile(TEST_IMAGE_PATH);
 }
 
-async function resizeSet(buffer: Buffer, format: "jpeg" | "webp" | "avif") {
-  for (const width of SIZES) {
-    let pipe = sharp(buffer).resize(width, null, {
-      fit: "cover",
-      withoutEnlargement: true,
-    });
+async function resizeSet(buffer: Buffer, _format: "jpeg" | "webp" | "avif") {
+  // Use the actual saveResized utility to measure real-world overhead
+  // This now includes parallel processing and instance cloning
+  await saveResized(buffer, "bench-hash", "test-image", "jpg", "bench-temp");
+}
 
-    if (format === "jpeg") pipe = pipe.jpeg({ quality: 82, mozjpeg: true });
-    if (format === "webp") pipe = pipe.webp({ quality: 80 });
-    if (format === "avif") pipe = pipe.avif({ quality: 50, effort: 2 }); // Faster AVIF for bench
+async function runManipulation(buffer: Buffer) {
+  // Simulates common DAM manipulations (Crop + Rotate + Brightness)
+  const sharp = (await import("sharp")).default;
+  await sharp(buffer)
+    .rotate(90)
+    .extract({ left: 100, top: 100, width: 800, height: 600 })
+    .modulate({ brightness: 1.2 })
+    .toBuffer();
+}
 
-    await pipe.toBuffer();
-  }
+async function simulatePdfThumbnail() {
+  // Simulates PDF rendering (usually heavy Ghostscript/Magick overhead)
+  const sharp = (await import("sharp")).default;
+  await sharp({
+    create: { width: 595, height: 842, channels: 4, background: "white" },
+  })
+    .png()
+    .toBuffer();
+}
+
+async function simulateVideoThumbnail() {
+  // Simulates FFmpeg spawn overhead + frame extraction
+  // We use a real Sharp operation + artificial delay to model spawn() latency
+  const sharp = (await import("sharp")).default;
+  await new Promise((r) => setTimeout(r, 45)); // Spawn + Seek overhead
+  await sharp({
+    create: { width: 1280, height: 720, channels: 3, background: "black" },
+  })
+    .jpeg()
+    .toBuffer();
 }
 
 export async function runMediaBenchmark() {
@@ -159,7 +189,46 @@ export async function runMediaBenchmark() {
   });
   allResults.push(avifResult);
 
-  // 6. Bulk Queue Simulation (Heavy)
+  // 6. Image Manipulation (Medium)
+  const manipulationResult = await runBenchmark({
+    name: "Image Manipulation (90° + Crop)",
+    iterations: 50,
+    warmupIterations: 5,
+    runs: RUNS,
+    concurrency: 1,
+    trimOutliers: "iqr",
+    measureMemory: true,
+    silent: true,
+    onIteration: async () => {
+      await runManipulation(original);
+    },
+  });
+  allResults.push(manipulationResult);
+
+  // 7. PDF/Video Simulation (Enterprise)
+  const pdfResult = await runBenchmark({
+    name: "PDF Thumbnail (Simulation)",
+    iterations: 20,
+    warmupIterations: 2,
+    runs: 1,
+    concurrency: 1,
+    silent: true,
+    onIteration: async () => await simulatePdfThumbnail(),
+  });
+  allResults.push(pdfResult);
+
+  const videoResult = await runBenchmark({
+    name: "Video Thumbnail (Simulation)",
+    iterations: 15,
+    warmupIterations: 2,
+    runs: 1,
+    concurrency: 1,
+    silent: true,
+    onIteration: async () => await simulateVideoThumbnail(),
+  });
+  allResults.push(videoResult);
+
+  // 8. Bulk Queue Simulation (Heavy)
   const bulkResult = await runBenchmark({
     name: "Bulk Queue (5 jobs @ 2c)",
     iterations: 10,

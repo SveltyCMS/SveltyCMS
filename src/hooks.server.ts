@@ -70,7 +70,8 @@ import { handleLocalSdk } from "./hooks/handle-local-sdk";
 import { handleContentInitialization } from "./hooks/handle-content-initialization";
 import { handleApiRequests } from "./hooks/handle-api-requests";
 import { handleAuditLogging } from "./hooks/handle-audit-logging";
-import { handleTokenResolution } from "./hooks/token-resolution";
+import { handleTokenResolution } from "./hooks/handle-token-resolution";
+import { handleSecurityHeaders } from "./hooks/handle-security-headers";
 
 // --- Server Startup Logic ---
 if (!building) {
@@ -141,9 +142,10 @@ if (!building) {
 
 // --- Updated middleware sequence (security headers FIRST) ---
 const middleware: Handle[] = [
-  handleCompression,
-  handleTurboPipeline, // ✨ CONSOLIDATED FAST-PATH (Headers, Asset Cache, State Gate, Test Isolation)
-  handleSecurity,
+  handleSecurityHeaders,
+  handleTurboPipeline, // ✨ 1. FAST-PATH (Headers, Asset Cache, State Gate, Test Isolation)
+  handleCompression, // ✨ 2. OPTIMIZATION (Only runs on dynamic content that passed Turbo)
+  handleSecurity, // ✨ 3. PROTECTION (Firewall, Rate Limit, Bot Detection)
   handleSetup,
   handleUserPreferences,
   handleAuthentication,

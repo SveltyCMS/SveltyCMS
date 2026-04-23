@@ -14,7 +14,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { getApiBaseUrl, waitForServer } from "../helpers/server";
+import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
 import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const BASE_URL = getApiBaseUrl();
@@ -35,7 +35,7 @@ afterAll(async () => {
 
 describe("Settings API - Get Settings by Group", () => {
   it("should retrieve general settings", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/general`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/general`, {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
 
@@ -48,7 +48,7 @@ describe("Settings API - Get Settings by Group", () => {
   });
 
   it("should retrieve email settings", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/email`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/email`, {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
 
@@ -56,7 +56,7 @@ describe("Settings API - Get Settings by Group", () => {
   });
 
   it("should retrieve theme settings", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/theme`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/theme`, {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
 
@@ -64,14 +64,14 @@ describe("Settings API - Get Settings by Group", () => {
   });
 
   it("should require authentication", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/general`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/general`, {
       headers: { Origin: BASE_URL },
     });
     expect([401, 403]).toContain(response.status);
   });
 
   it("should return 404 for non-existent group", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/nonexistent-group`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/nonexistent-group`, {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
 
@@ -79,7 +79,7 @@ describe("Settings API - Get Settings by Group", () => {
   });
 
   it("should include all settings in group", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/general`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/general`, {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
 
@@ -93,7 +93,7 @@ describe("Settings API - Get Settings by Group", () => {
 
 describe("Settings API - Update Settings Group", () => {
   it("should update settings group", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/general`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/general`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -115,7 +115,7 @@ describe("Settings API - Update Settings Group", () => {
   });
 
   it("should validate setting values", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/general`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/general`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -132,7 +132,7 @@ describe("Settings API - Update Settings Group", () => {
   });
 
   it("should require admin authentication", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/general`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/general`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", Origin: BASE_URL },
       body: JSON.stringify({ siteName: "Test" }),
@@ -143,7 +143,7 @@ describe("Settings API - Update Settings Group", () => {
 
   it("should preserve existing settings when updating", async () => {
     // Get current settings
-    const getResponse = await fetch(`${BASE_URL}/api/settings/general`, {
+    const getResponse = await safeFetch(`${BASE_URL}/api/settings/general`, {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
 
@@ -151,7 +151,7 @@ describe("Settings API - Update Settings Group", () => {
       const currentSettings = await getResponse.json();
 
       // Update one setting
-      const updateResponse = await fetch(`${BASE_URL}/api/settings/general`, {
+      const updateResponse = await safeFetch(`${BASE_URL}/api/settings/general`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -171,7 +171,7 @@ describe("Settings API - Update Settings Group", () => {
 
 describe("Settings API - Public Settings", () => {
   it("should serve public settings without authentication", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/public`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/public`, {
       headers: { Origin: BASE_URL },
     });
     // Public settings endpoint is intentionally unauthenticated
@@ -181,7 +181,7 @@ describe("Settings API - Public Settings", () => {
   });
 
   it("should allow admin access to public settings", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/public`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/public`, {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
 
@@ -193,7 +193,7 @@ describe("Settings API - Public Settings", () => {
   });
 
   it("should not expose sensitive settings", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/public`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/public`, {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
 
@@ -208,7 +208,7 @@ describe("Settings API - Public Settings", () => {
   });
 
   it("should include theme settings in data", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/public`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/public`, {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
 
@@ -221,7 +221,7 @@ describe("Settings API - Public Settings", () => {
 
 describe("Settings API - Public Settings Stream", () => {
   it("should serve settings stream without authentication", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/public/stream`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/public/stream`, {
       headers: { Origin: BASE_URL },
     });
     // Public stream endpoint is intentionally unauthenticated (SSE for client settings)
@@ -229,7 +229,7 @@ describe("Settings API - Public Settings Stream", () => {
   });
 
   it("should support server-sent events for authenticated settings", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/public/stream`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/public/stream`, {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
 
@@ -247,7 +247,7 @@ describe("Settings API - Public Settings Stream", () => {
 
 describe("Settings API - Export System Settings", () => {
   it("should export all system settings", async () => {
-    const response = await fetch(`${BASE_URL}/api/system-settings/export`, {
+    const response = await safeFetch(`${BASE_URL}/api/system-settings/export`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -268,7 +268,7 @@ describe("Settings API - Export System Settings", () => {
   });
 
   it("should require admin authentication for export", async () => {
-    const response = await fetch(`${BASE_URL}/api/system-settings/export`, {
+    const response = await safeFetch(`${BASE_URL}/api/system-settings/export`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Origin: BASE_URL },
       body: JSON.stringify({}),
@@ -278,7 +278,7 @@ describe("Settings API - Export System Settings", () => {
   });
 
   it("should include all setting groups in export", async () => {
-    const response = await fetch(`${BASE_URL}/api/system-settings/export`, {
+    const response = await safeFetch(`${BASE_URL}/api/system-settings/export`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -297,7 +297,7 @@ describe("Settings API - Export System Settings", () => {
   });
 
   it("should sanitize sensitive data in export", async () => {
-    const response = await fetch(`${BASE_URL}/api/system-settings/export`, {
+    const response = await safeFetch(`${BASE_URL}/api/system-settings/export`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -341,7 +341,7 @@ describe("Settings API - Import System Settings", () => {
       },
     };
 
-    const response = await fetch(`${BASE_URL}/api/system-settings/import`, {
+    const response = await safeFetch(`${BASE_URL}/api/system-settings/import`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -360,7 +360,7 @@ describe("Settings API - Import System Settings", () => {
   });
 
   it("should validate imported settings structure", async () => {
-    const response = await fetch(`${BASE_URL}/api/system-settings/import`, {
+    const response = await safeFetch(`${BASE_URL}/api/system-settings/import`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -380,7 +380,7 @@ describe("Settings API - Import System Settings", () => {
   });
 
   it("should require admin authentication for import", async () => {
-    const response = await fetch(`${BASE_URL}/api/system-settings/import`, {
+    const response = await safeFetch(`${BASE_URL}/api/system-settings/import`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Origin: BASE_URL },
       body: JSON.stringify({}),
@@ -390,7 +390,7 @@ describe("Settings API - Import System Settings", () => {
   });
 
   it("should merge with existing settings safely", async () => {
-    const response = await fetch(`${BASE_URL}/api/system-settings/import`, {
+    const response = await safeFetch(`${BASE_URL}/api/system-settings/import`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -423,7 +423,7 @@ describe("Settings API - Import System Settings", () => {
 
 describe("Settings API - User Preferences", () => {
   it("should get user preferences", async () => {
-    const response = await fetch(`${BASE_URL}/api/system-preferences?key=theme`, {
+    const response = await safeFetch(`${BASE_URL}/api/system-preferences?key=theme`, {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
 
@@ -436,7 +436,7 @@ describe("Settings API - User Preferences", () => {
   });
 
   it("should update user preferences", async () => {
-    const response = await fetch(`${BASE_URL}/api/system-preferences`, {
+    const response = await safeFetch(`${BASE_URL}/api/system-preferences`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -453,7 +453,7 @@ describe("Settings API - User Preferences", () => {
   });
 
   it("should require authentication for preferences", async () => {
-    const response = await fetch(`${BASE_URL}/api/system-preferences`, {
+    const response = await safeFetch(`${BASE_URL}/api/system-preferences`, {
       headers: { Origin: BASE_URL },
     });
     expect([401, 403]).toContain(response.status);
@@ -461,7 +461,7 @@ describe("Settings API - User Preferences", () => {
 
   it("should isolate preferences per user", async () => {
     // User preferences should be scoped to the logged-in user
-    const response = await fetch(`${BASE_URL}/api/system-preferences`, {
+    const response = await safeFetch(`${BASE_URL}/api/system-preferences`, {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
 
@@ -475,7 +475,7 @@ describe("Settings API - User Preferences", () => {
 
 describe("Settings API - Multi-Tenant Support", () => {
   it("should scope settings to tenant", async () => {
-    const response = await fetch(`${BASE_URL}/api/settings/general`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/general`, {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
 
@@ -486,7 +486,7 @@ describe("Settings API - Multi-Tenant Support", () => {
   it("should prevent cross-tenant setting access", async () => {
     // This would require multiple tenants to test properly
     // Validates endpoint exists and has auth
-    const response = await fetch(`${BASE_URL}/api/settings/general`, {
+    const response = await safeFetch(`${BASE_URL}/api/settings/general`, {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
 

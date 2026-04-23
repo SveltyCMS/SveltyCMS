@@ -3,7 +3,7 @@
  * @description Registry for managing UI slots and injection zones
  */
 
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { InjectionZone, PluginSlot } from "./types";
 
 class SlotRegistry {

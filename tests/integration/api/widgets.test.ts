@@ -4,7 +4,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { getApiBaseUrl, waitForServer } from "../helpers/server";
+import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
 import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const BASE_URL = getApiBaseUrl();
@@ -21,7 +21,7 @@ afterAll(async () => {
 
 describe("Widget API - List Widgets", () => {
   it("should list all available widgets", async () => {
-    const response = await fetch(`${BASE_URL}/api/widgets/list`, {
+    const response = await safeFetch(`${BASE_URL}/api/widgets/list`, {
       headers: { Cookie: authCookie },
     });
 
@@ -32,7 +32,7 @@ describe("Widget API - List Widgets", () => {
   });
 
   it("should include widget metadata", async () => {
-    const response = await fetch(`${BASE_URL}/api/widgets/list`, {
+    const response = await safeFetch(`${BASE_URL}/api/widgets/list`, {
       headers: { Cookie: authCookie },
     });
 
@@ -51,14 +51,14 @@ describe("Widget API - List Widgets", () => {
   });
 
   it("should require authentication", async () => {
-    const response = await fetch(`${BASE_URL}/api/widgets/list`);
+    const response = await safeFetch(`${BASE_URL}/api/widgets/list`);
     expect([401, 403]).toContain(response.status);
   });
 });
 
 describe("Widget API - Install Widget", () => {
   it("should install a widget", async () => {
-    const response = await fetch(`${BASE_URL}/api/widgets/install`, {
+    const response = await safeFetch(`${BASE_URL}/api/widgets/install`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -76,7 +76,7 @@ describe("Widget API - Install Widget", () => {
   });
 
   it("should validate widget security", async () => {
-    const response = await fetch(`${BASE_URL}/api/widgets/install`, {
+    const response = await safeFetch(`${BASE_URL}/api/widgets/install`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -94,7 +94,7 @@ describe("Widget API - Install Widget", () => {
   });
 
   it("should require widgetId", async () => {
-    const response = await fetch(`${BASE_URL}/api/widgets/install`, {
+    const response = await safeFetch(`${BASE_URL}/api/widgets/install`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -107,7 +107,7 @@ describe("Widget API - Install Widget", () => {
   });
 
   it("should require admin authentication", async () => {
-    const response = await fetch(`${BASE_URL}/api/widgets/install`, {
+    const response = await safeFetch(`${BASE_URL}/api/widgets/install`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ widgetId: "test" }),
@@ -121,7 +121,7 @@ describe("Widget API - Status (Activate/Deactivate)", () => {
   it("should activate a widget", async () => {
     // First install a widget to ensure it's in the DB
     const widgetName = "status-test-widget";
-    await fetch(`${BASE_URL}/api/widgets/install`, {
+    await safeFetch(`${BASE_URL}/api/widgets/install`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -137,7 +137,7 @@ describe("Widget API - Status (Activate/Deactivate)", () => {
     // and if it's not in DB, it will fail.
     // BUT the status endpoint itself checks if it's in DB.
 
-    const listRes = await fetch(`${BASE_URL}/api/widgets/list`, {
+    const listRes = await safeFetch(`${BASE_URL}/api/widgets/list`, {
       headers: { Cookie: authCookie },
     });
     const listData = await listRes.json();
@@ -145,7 +145,7 @@ describe("Widget API - Status (Activate/Deactivate)", () => {
     const widget = listData.data.widgets[0];
 
     if (widget) {
-      const response = await fetch(`${BASE_URL}/api/widgets/status`, {
+      const response = await safeFetch(`${BASE_URL}/api/widgets/status`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -164,14 +164,14 @@ describe("Widget API - Status (Activate/Deactivate)", () => {
   });
 
   it("should deactivate a widget", async () => {
-    const listRes = await fetch(`${BASE_URL}/api/widgets/list`, {
+    const listRes = await safeFetch(`${BASE_URL}/api/widgets/list`, {
       headers: { Cookie: authCookie },
     });
     const listData = await listRes.json();
     const widget = listData.data.widgets.find((w: any) => !w.isCore) || listData.data.widgets[0];
 
     if (widget) {
-      const response = await fetch(`${BASE_URL}/api/widgets/status`, {
+      const response = await safeFetch(`${BASE_URL}/api/widgets/status`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -188,7 +188,7 @@ describe("Widget API - Status (Activate/Deactivate)", () => {
   });
 
   it("should return 404 for non-existent widget", async () => {
-    const response = await fetch(`${BASE_URL}/api/widgets/status`, {
+    const response = await safeFetch(`${BASE_URL}/api/widgets/status`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -206,7 +206,7 @@ describe("Widget API - Status (Activate/Deactivate)", () => {
 
 describe("Widget API - Uninstall", () => {
   it("should uninstall a widget", async () => {
-    const response = await fetch(`${BASE_URL}/api/widgets/uninstall`, {
+    const response = await safeFetch(`${BASE_URL}/api/widgets/uninstall`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -223,7 +223,7 @@ describe("Widget API - Uninstall", () => {
   });
 
   it("should require widgetName for uninstall", async () => {
-    const response = await fetch(`${BASE_URL}/api/widgets/uninstall`, {
+    const response = await safeFetch(`${BASE_URL}/api/widgets/uninstall`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -5,7 +5,7 @@
 
 import type { DatabaseResult, IDBAdapter } from "@databases/db-interface";
 import { nowISODateString } from "@utils/date-utils";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { PluginSettingsService } from "./settings";
 import type {
   IPluginService,

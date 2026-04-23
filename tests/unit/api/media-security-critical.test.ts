@@ -76,6 +76,11 @@ describe("Media Security Critical Unit Tests", () => {
     const event = createMockEvent("POST", "media/process", mockFormData);
     const response = await dispatcherPOST(event);
     const result = await response!.json();
+
+    if (!result.success) {
+      console.error("Critical test failed. Result:", JSON.stringify(result, null, 2));
+    }
+
     expect(result.success).toBe(true);
   });
 });

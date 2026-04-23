@@ -17,7 +17,7 @@
  */
 
 import type { Handle } from "@sveltejs/kit";
-import { STATIC_ASSET_REGEX } from "./handle-static-asset-caching";
+import { isStaticOrInternalRequest } from "@utils/hook-utils";
 
 const MIN_COMPRESSION_SIZE = 1024; // 1KB
 
@@ -108,7 +108,7 @@ function compressWithWebStreams(
 export const handleCompression: Handle = async ({ event, resolve }) => {
   const pathname = event.url.pathname;
 
-  if (STATIC_ASSET_REGEX.test(pathname)) {
+  if (isStaticOrInternalRequest(pathname)) {
     return resolve(event);
   }
 

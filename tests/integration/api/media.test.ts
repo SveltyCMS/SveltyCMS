@@ -6,7 +6,7 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { getApiBaseUrl, waitForServer } from "../helpers/server";
+import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
 import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
@@ -42,9 +42,12 @@ describe("Media API Endpoints", () => {
 
   describe("GET /api/media/exists", () => {
     it("should return exists:false for non-existent file", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/media/exists?url=non-existent-file.jpg`, {
-        headers: { Cookie: authCookie, Origin: API_BASE_URL },
-      });
+      const response = await safeFetch(
+        `${API_BASE_URL}/api/media/exists?url=non-existent-file.jpg`,
+        {
+          headers: { Cookie: authCookie, Origin: API_BASE_URL },
+        },
+      );
       expect(response.status).toBe(200);
       const data = await response.json();
       expect(data).toHaveProperty("exists");
@@ -52,14 +55,14 @@ describe("Media API Endpoints", () => {
     });
 
     it("should fail without authentication", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/media/exists?url=test-image.jpg`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/media/exists?url=test-image.jpg`, {
         headers: { Origin: API_BASE_URL },
       });
       expect(response.status).toBe(401);
     });
 
     it("should return 400 with missing URL parameter", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/media/exists`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/media/exists`, {
         headers: { Cookie: authCookie, Origin: API_BASE_URL },
       });
       expect(response.status).toBe(400);
@@ -72,7 +75,7 @@ describe("Media API Endpoints", () => {
       formData.append("processType", "metadata");
       formData.append("file", createValidPngBlob(), "test.png");
 
-      const response = await fetch(`${API_BASE_URL}/api/media/process`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/media/process`, {
         method: "POST",
         headers: { Cookie: authCookie, Origin: API_BASE_URL },
         body: formData,
@@ -85,7 +88,7 @@ describe("Media API Endpoints", () => {
 
     it("should return 400 with missing processType", async () => {
       const formData = new FormData();
-      const response = await fetch(`${API_BASE_URL}/api/media/process`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/media/process`, {
         method: "POST",
         headers: { Cookie: authCookie, Origin: API_BASE_URL },
         body: formData,
@@ -96,7 +99,7 @@ describe("Media API Endpoints", () => {
     it("should return 400 with missing file for metadata extraction", async () => {
       const formData = new FormData();
       formData.append("processType", "metadata");
-      const response = await fetch(`${API_BASE_URL}/api/media/process`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/media/process`, {
         method: "POST",
         headers: { Cookie: authCookie, Origin: API_BASE_URL },
         body: formData,
@@ -107,7 +110,7 @@ describe("Media API Endpoints", () => {
     it("should fail without authentication", async () => {
       const formData = new FormData();
       formData.append("processType", "metadata");
-      const response = await fetch(`${API_BASE_URL}/api/media/process`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/media/process`, {
         method: "POST",
         headers: { Origin: API_BASE_URL },
         body: formData,
@@ -118,7 +121,7 @@ describe("Media API Endpoints", () => {
 
   describe("DELETE /api/media/delete", () => {
     it("should return 400 with missing URL", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/media/delete`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/media/delete`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -131,7 +134,7 @@ describe("Media API Endpoints", () => {
     });
 
     it("should fail without authentication", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/media/delete`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/media/delete`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json", Origin: API_BASE_URL },
         body: JSON.stringify({ url: "test.jpg" }),
@@ -142,7 +145,7 @@ describe("Media API Endpoints", () => {
 
   describe("POST /api/media/trash", () => {
     it("should return 400 with missing parameters", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/media/trash`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/media/trash`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -155,7 +158,7 @@ describe("Media API Endpoints", () => {
     });
 
     it("should fail without authentication", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/media/trash`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/media/trash`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Origin: API_BASE_URL },
         body: JSON.stringify({ url: "test.jpg", contentTypes: ["image/jpeg"] }),
@@ -169,7 +172,7 @@ describe("Media API Endpoints", () => {
       const formData = new FormData();
       formData.append("avatar", createValidPngBlob(), "avatar.png");
 
-      const response = await fetch(`${API_BASE_URL}/api/user/save-avatar`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/user/save-avatar`, {
         method: "POST",
         headers: { Cookie: authCookie, Origin: API_BASE_URL },
         body: formData,
@@ -183,7 +186,7 @@ describe("Media API Endpoints", () => {
 
     it("should return 400 with missing avatar file", async () => {
       const formData = new FormData();
-      const response = await fetch(`${API_BASE_URL}/api/user/save-avatar`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/user/save-avatar`, {
         method: "POST",
         headers: { Cookie: authCookie, Origin: API_BASE_URL },
         body: formData,
@@ -194,7 +197,7 @@ describe("Media API Endpoints", () => {
     it("should fail without authentication", async () => {
       const formData = new FormData();
       formData.append("avatar", createValidPngBlob(), "avatar.png");
-      const response = await fetch(`${API_BASE_URL}/api/user/save-avatar`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/user/save-avatar`, {
         method: "POST",
         headers: { Origin: API_BASE_URL },
         body: formData,
@@ -205,7 +208,7 @@ describe("Media API Endpoints", () => {
 
   describe("POST /api/media/manipulate/[id]", () => {
     it("should return 401 without authentication", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/media/manipulate/test-id`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/media/manipulate/test-id`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Origin: API_BASE_URL },
         body: JSON.stringify({ manipulations: {} }),
@@ -214,7 +217,7 @@ describe("Media API Endpoints", () => {
     });
 
     it("should return 400 with missing manipulations", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/media/manipulate/test-id`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/media/manipulate/test-id`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -227,7 +230,7 @@ describe("Media API Endpoints", () => {
     });
 
     it("should return 404 for non-existent media", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/media/manipulate/non-existent-id`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/media/manipulate/non-existent-id`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -243,7 +246,7 @@ describe("Media API Endpoints", () => {
 
   describe("GET /api/media/remote", () => {
     it("should require authentication", async () => {
-      const response = await fetch(
+      const response = await safeFetch(
         `${API_BASE_URL}/api/media/remote?url=https://example.com/image.jpg`,
         {
           headers: { Origin: API_BASE_URL },

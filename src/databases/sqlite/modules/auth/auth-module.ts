@@ -94,8 +94,8 @@ export class AuthModule implements IAuthAdapter {
       // Ensure password is hashed if provided and not already hashed
       let password = userData.password;
       if (password && !password.startsWith("$argon2")) {
-        const argon2 = await import("argon2");
-        password = await argon2.hash(password);
+        const { hashPassword } = await import("@utils/password");
+        password = await hashPassword(password);
       }
 
       // Map legacy 'role' string to 'roleIds' array if roleIds is missing/empty
@@ -358,8 +358,8 @@ export class AuthModule implements IAuthAdapter {
       // do not allow async callbacks inside db.transaction().
       let password = userData.password;
       if (password && !password.startsWith("$argon2")) {
-        const argon2 = await import("argon2");
-        password = await argon2.hash(password);
+        const { hashPassword } = await import("@utils/password");
+        password = await hashPassword(password);
       }
 
       const userId = (userData._id || utils.generateId()) as string;

@@ -314,12 +314,13 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   // Initialize tenant context
   locals.tenantId = null as any;
 
+  if (isStaticOrInternalRequest(pathname)) return resolve(event);
+
   // 🛡️ Ensure CSRF token is established for every visitor (guest or user)
+  // Moved after fast-exit to save cycles on static assets.
   const isProd = !dev && process.env.TEST_MODE !== "true";
   const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
   ensureCsrfToken(cookies, isSecure);
-
-  if (isStaticOrInternalRequest(pathname)) return resolve(event);
 
   // Ensure DB is initialized to at least CORE phase before proceeding with auth checks
   await getDbInitPromise(false, "CORE");

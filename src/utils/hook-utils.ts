@@ -3,6 +3,7 @@
  * @description High-performance utility for middleware hook short-circuiting and response generation.
  */
 
+import type { RequestEvent } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
 
 /**
@@ -31,7 +32,6 @@ export const PUBLIC_ROUTES = [
   "/api/auth/login",
   "/api/preview",
   "/api/openapi.json",
-  "/forbidden",
 ];
 
 /**
@@ -59,6 +59,30 @@ export function isStaticOrInternalRequest(pathname: string): boolean {
  */
 export function isApiLike(pathname: string): boolean {
   return pathname.startsWith("/api/") || pathname.includes("/api-");
+}
+
+/**
+ * Unified check for administrative privileges across all hooks.
+ */
+export function isAdmin(user: any): boolean {
+  if (!user) return false;
+  // Check common admin flags and roles
+  return user.isAdmin === true || user.role === "admin" || user.role === "super-admin";
+}
+
+/**
+ * High-performance client IP detection with fallback chain.
+ */
+export function getClientIp(event: RequestEvent): string {
+  try {
+    return event.getClientAddress();
+  } catch {
+    return (
+      event.request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+      event.request.headers.get("x-real-ip") ||
+      "127.0.0.1"
+    );
+  }
 }
 
 /**

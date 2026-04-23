@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:api-check"
 author: "SveltyCMS Team"
 created: "2026-02-17"
-updated: "2026-04-11"
+updated: "2026-04-23"
 tags:
   - "testing"
   - "api"
@@ -33,7 +33,7 @@ SveltyCMS is designed for maximum safety. Running tests will **never** influence
 ## 📊 Coverage at a Glance
 
 - **Endpoints Verified**: ~109 (~95%)
-- **Total Tests**: 1040+ (680 Unit + 360 Integration/E2E)
+- **Total Tests**: 1087+ (727 Unit + 360 Integration/E2E)
 - **Strategy**: 100% Black-Box (via `/api/testing`) + Audit 2.0 Integration
 - **Dependency Injection (DI)**: Deterministic isolation for core services (`SettingsService`, `LocalCMS`).
 - **Security Posture**: 100% Fail-Closed (Mandatory Authorization)
@@ -96,7 +96,7 @@ Initially, SveltyCMS faced issues with error status codes (returning 500 instead
 - **Infrastructure Stability**: Resolved mocking conflicts in core services via Dependency Injection, achieving a 100% pass rate.
 - **Ghost Caching Velocity**: Reduced SDK Read latency by **98.8%** (~0.612ms -> **0.007ms**), ensuring internal lookups are near-instant.
 - **Distributed Consistency**: Integrated **Redis Pub/Sub** invalidation bridge for real-time cache parity across global nodes.
-- **Performance**: Consolidated redundant unit tests (from 741 to 680) while maintaining 100% logic coverage, reducing suite latency.
+- **Performance**: Consolidated redundant unit tests and built new suites (727 tests) while maintaining 100% logic coverage, reducing suite latency.
 
 ---
 
@@ -125,4 +125,4 @@ bun run test:unit -- security
 
 ---
 
-_Last Updated: April 21, 2026_
+_Last Updated: April 23, 2026_

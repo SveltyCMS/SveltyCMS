@@ -13,11 +13,12 @@
 import { dev } from "$app/environment";
 import { metricsService } from "@src/services/metrics-service";
 import { securityResponseService } from "@src/services/security-response-service";
-import { error, type Handle, type RequestEvent } from "@sveltejs/kit";
+import { error, type Handle } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
 import { getTenantIdFromHostname } from "@utils/tenant-utils";
 import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getClientIp, isStaticOrInternalRequest } from "@utils/hook-utils";
 
 // ──────────────────────────────────────────────────────────────
 // GraphQL Complexity Shield (2-Phase: Fast Pre-filter → AST Analysis)
@@ -156,7 +157,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   const hasValidTestSecret = !!(incomingSecret && masterSecret && incomingSecret === masterSecret);
 
   if (
-    isStaticAsset(url.pathname) ||
+    isStaticOrInternalRequest(url.pathname) ||
     (isLocal &&
       (dev || isTestMode || hasValidTestSecret) &&
       request.headers.get("x-test-security") !== "true")
@@ -233,27 +234,6 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   }
 };
 
-function getClientIp(event: RequestEvent): string {
-  try {
-    return event.getClientAddress();
-  } catch {
-    return (
-      event.request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-      event.request.headers.get("x-real-ip") ||
-      "127.0.0.1"
-    );
-  }
-}
-
 function isLocalhost(ip: string): boolean {
   return ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
-}
-
-const STATIC_EXTENSIONS = /\.(js|css|map|woff2?|ttf|eot|svg|png|jpg|jpeg|gif|webp|ico)$/;
-function isStaticAsset(pathname: string): boolean {
-  return (
-    pathname.startsWith("/static/") ||
-    pathname.startsWith("/_app/") ||
-    STATIC_EXTENSIONS.test(pathname)
-  );
 }

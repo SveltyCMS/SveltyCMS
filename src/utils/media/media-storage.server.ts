@@ -50,9 +50,8 @@ function spawnAsync(command: string, args: string[]): Promise<void> {
 }
 
 // Image sizes
-// Image sizes
 const DEFAULT_SIZES = { sm: 600, md: 900, lg: 1200 } as const;
-const SIZES = {
+export const SIZES = {
   ...DEFAULT_SIZES,
   ...publicEnv.IMAGE_SIZES,
   original: 0,
@@ -183,49 +182,52 @@ export async function saveResized(
   baseDir: string,
 ): Promise<Record<string, ResizedImage>> {
   const sharp = (await import("sharp")).default;
-  const meta = await sharp(buffer).metadata();
-  const result: Record<string, ResizedImage> = {};
+  const baseInstance = sharp(buffer);
+  const meta = await baseInstance.metadata();
 
   const format = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY?.format ?? "original";
   const quality = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY?.quality ?? 80;
 
-  for (const [key, w] of Object.entries(SIZES)) {
-    if (w === 0) {
-      continue; // skip original
-    }
+  const resizePromises = Object.entries(SIZES)
+    .filter(([_, w]) => w > 0)
+    .map(async ([key, w]) => {
+      // Use clone() to avoid re-parsing the original image header for every variant
+      let instance = baseInstance.clone().resize(w, null, {
+        fit: "cover",
+        position: "center",
+      });
 
-    let instance = sharp(buffer).resize(w, null, {
-      fit: "cover",
-      position: "center",
+      let outExt = ext;
+      let mimeType = mime.lookup(ext) || "application/octet-stream";
+
+      if (format !== "original") {
+        instance = instance.toFormat(format as "webp" | "avif", { quality });
+        outExt = format;
+        mimeType = `image/${format}`;
+      }
+
+      const fileName = `${baseName}-${hash}.${outExt}`;
+      const relPath = path.posix.join(baseDir, key, fileName);
+
+      const resizedBuf = await instance.toBuffer();
+      const url = await saveFile(resizedBuf, relPath);
+
+      const height = meta.height ? Math.round((w / (meta.width ?? w)) * meta.height) : w;
+
+      return [
+        key,
+        {
+          url,
+          width: w,
+          height,
+          size: resizedBuf ? (resizedBuf as any).length : 0,
+          mimeType,
+        },
+      ] as [string, ResizedImage];
     });
 
-    let outExt = ext;
-    let mimeType = mime.lookup(ext) || "application/octet-stream";
-
-    if (format !== "original") {
-      instance = instance.toFormat(format as "webp" | "avif", { quality });
-      outExt = format;
-      mimeType = `image/${format}`;
-    }
-
-    const fileName = `${baseName}-${hash}.${outExt}`;
-    const relPath = path.posix.join(baseDir, key, fileName);
-
-    const resizedBuf = await instance.toBuffer();
-    const url = await saveFile(resizedBuf, relPath);
-
-    const height = meta.height ? Math.round((w / (meta.width ?? w)) * meta.height) : undefined;
-
-    result[key] = {
-      url,
-      width: w,
-      height: height ?? w,
-      size: resizedBuf ? (resizedBuf as any).length : 0,
-      mimeType,
-    };
-  }
-
-  return result;
+  const results = await Promise.all(resizePromises);
+  return Object.fromEntries(results);
 }
 
 /** Save avatar (200x200) */

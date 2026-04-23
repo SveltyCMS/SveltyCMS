@@ -11,7 +11,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { getApiBaseUrl, waitForServer } from "../helpers/server";
+import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
 import {
   cleanupTestDatabase,
   prepareAuthenticatedContext,
@@ -32,7 +32,7 @@ beforeAll(async () => {
   authCookie = await prepareAuthenticatedContext();
 
   // Get user ID for verify endpoint
-  const userResponse = await fetch(`${BASE_URL}/api/user`, {
+  const userResponse = await safeFetch(`${BASE_URL}/api/user`, {
     headers: { Cookie: authCookie },
   });
   const userData = await userResponse.json();
@@ -47,7 +47,7 @@ afterAll(async () => {
 
 describe("2FA Authentication API - Setup", () => {
   it("should initialize 2FA setup and return secret", async () => {
-    const response = await fetch(`${BASE_URL}/api/auth/2fa/setup`, {
+    const response = await safeFetch(`${BASE_URL}/api/auth/2fa/setup`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -83,7 +83,7 @@ describe("2FA Authentication API - Setup", () => {
   });
 
   it("should require authentication for 2FA setup", async () => {
-    const response = await fetch(`${BASE_URL}/api/auth/2fa/setup`, {
+    const response = await safeFetch(`${BASE_URL}/api/auth/2fa/setup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });
@@ -95,7 +95,7 @@ describe("2FA Authentication API - Setup", () => {
     // Note: This tests the case where 2FA is already enabled
     // First setup was successful, trying again should fail with 400
     // But since 2FA isn't actually enabled (verify-setup not called), it may return new setup data
-    const response = await fetch(`${BASE_URL}/api/auth/2fa/setup`, {
+    const response = await safeFetch(`${BASE_URL}/api/auth/2fa/setup`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -110,7 +110,7 @@ describe("2FA Authentication API - Setup", () => {
 
 describe("2FA Authentication API - Verify Setup", () => {
   it("should reject setup verification with invalid body", async () => {
-    const response = await fetch(`${BASE_URL}/api/auth/2fa/verify-setup`, {
+    const response = await safeFetch(`${BASE_URL}/api/auth/2fa/verify-setup`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -127,7 +127,7 @@ describe("2FA Authentication API - Verify Setup", () => {
   });
 
   it("should reject setup verification without authentication", async () => {
-    const response = await fetch(`${BASE_URL}/api/auth/2fa/verify-setup`, {
+    const response = await safeFetch(`${BASE_URL}/api/auth/2fa/verify-setup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -146,7 +146,7 @@ describe("2FA Authentication API - Verify Setup", () => {
       return;
     }
 
-    const response = await fetch(`${BASE_URL}/api/auth/2fa/verify-setup`, {
+    const response = await safeFetch(`${BASE_URL}/api/auth/2fa/verify-setup`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -168,7 +168,7 @@ describe("2FA Authentication API - Verify Setup", () => {
 
 describe("2FA Authentication API - Verify Code", () => {
   it("should require userId and code in body", async () => {
-    const response = await fetch(`${BASE_URL}/api/auth/2fa/verify`, {
+    const response = await safeFetch(`${BASE_URL}/api/auth/2fa/verify`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -189,7 +189,7 @@ describe("2FA Authentication API - Verify Code", () => {
       return;
     }
 
-    const response = await fetch(`${BASE_URL}/api/auth/2fa/verify`, {
+    const response = await safeFetch(`${BASE_URL}/api/auth/2fa/verify`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -210,7 +210,7 @@ describe("2FA Authentication API - Verify Code", () => {
 
 describe("2FA Authentication API - Backup Codes", () => {
   it("should require authentication for backup codes", async () => {
-    const response = await fetch(`${BASE_URL}/api/auth/2fa/backup-codes`, {
+    const response = await safeFetch(`${BASE_URL}/api/auth/2fa/backup-codes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });
@@ -219,7 +219,7 @@ describe("2FA Authentication API - Backup Codes", () => {
   });
 
   it("should handle backup code generation request", async () => {
-    const response = await fetch(`${BASE_URL}/api/auth/2fa/backup-codes`, {
+    const response = await safeFetch(`${BASE_URL}/api/auth/2fa/backup-codes`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -241,7 +241,7 @@ describe("2FA Authentication API - Backup Codes", () => {
 
 describe("2FA Authentication API - Disable", () => {
   it("should require authentication to disable 2FA", async () => {
-    const response = await fetch(`${BASE_URL}/api/auth/2fa/disable`, {
+    const response = await safeFetch(`${BASE_URL}/api/auth/2fa/disable`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -253,7 +253,7 @@ describe("2FA Authentication API - Disable", () => {
   });
 
   it("should handle disable request when 2FA not enabled", async () => {
-    const response = await fetch(`${BASE_URL}/api/auth/2fa/disable`, {
+    const response = await safeFetch(`${BASE_URL}/api/auth/2fa/disable`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -274,7 +274,7 @@ describe("2FA Authentication API - Disable", () => {
   });
 
   it("should reject wrong password", async () => {
-    const response = await fetch(`${BASE_URL}/api/auth/2fa/disable`, {
+    const response = await safeFetch(`${BASE_URL}/api/auth/2fa/disable`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

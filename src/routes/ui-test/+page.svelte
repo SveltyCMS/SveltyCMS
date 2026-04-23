@@ -1,3 +1,9 @@
+/**
+ * @file src\routes\ui-test\+page.svelte
+ * @description Compares skeleton.dev components with native Svelte UI components
+ */
+
+
 <script lang="ts">
 import { onMount } from "svelte";
 import { themeStore, toggleDarkMode, initializeDarkMode } from "@src/stores/theme-store.svelte";
@@ -64,7 +70,7 @@ onMount(() => {
     initializeDarkMode();
     // Trace remaining un-rendered complex abstractions to bypass strict typing issues
     console.log(
-        NativeTabs, NativePopover, NativeTooltip, NativeDropdown, NativePortal, 
+        NativeTabs, NativePopover, NativeTooltip, NativeDropdown, NativePortal,
         SkeletonTabs, SkeletonDialog, SkeletonTooltip,
         NativeCombobox, NativeDatePicker, NativeTreeView, NativeTable, NativeBreadcrumb
     );
@@ -84,7 +90,7 @@ onMount(() => {
     </header>
 
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 max-w-[1600px] mx-auto items-start">
-        
+
         <!-- ==============================
            COLUMN 1: SKELETON v4 (LEGACY)
         ============================== -->
@@ -183,7 +189,7 @@ onMount(() => {
         ============================== -->
         <div class="card p-6 space-y-8 bg-surface-100 dark:bg-surface-900 border-2 border-success-500/50 shadow-xl relative">
             <div class="absolute top-0 right-0 p-2"><NativeBadge color="success">TARGET ARCHITECTURE</NativeBadge></div>
-            
+
             <div class="flex items-center gap-4 border-b border-surface-300 dark:border-surface-700 pb-4">
                 <iconify-icon icon="mdi:lightning-bolt" class="text-4xl text-success-500"></iconify-icon>
                 <div>
@@ -222,7 +228,7 @@ onMount(() => {
                         <div class="flex gap-4 items-center"><input type="range" class="flex-1" bind:value={sliderValue} min={0} max={100} /><span class="font-mono text-xs opacity-70">{sliderValue}%</span></div>
                         <NativeProgress value={sliderValue} color="success" />
                     </div>
-                    
+
                     <div class="mt-4 pt-4 border-t border-surface-300 dark:border-surface-700">
                         <p class="text-xs mb-2">Native Tabs (Svelty)</p>
                         <div class="flex gap-2">
@@ -312,7 +318,7 @@ onMount(() => {
                 <h3 class="h4 font-bold opacity-80 border-b border-surface-300 dark:border-surface-700/50 pb-1">Group 6: Interactivity & Uploads</h3>
                 <NativeCard class="p-4 space-y-4 bg-surface-50 dark:bg-black/20 flex flex-col items-start gap-4">
                     <NativeFileUpload label="Upload Documents (Native DOM)" />
-                    
+
                     <!-- Fixed Status Badge: safely wrapped to avoid children prop collision -->
                     <div class="flex items-center gap-2">
                         <NativeStatusBadge status="warning" />
@@ -326,7 +332,7 @@ onMount(() => {
             <div class="space-y-4">
                 <h3 class="h4 font-bold opacity-80 border-b border-surface-300 dark:border-surface-700/50 pb-1">Group 7: Forms & Continuous Rating</h3>
                 <NativeCard class="p-4 space-y-4 bg-surface-50 dark:bg-black/20">
-                    
+
                     <div class="grid grid-cols-2 gap-4 items-center">
                         <div class="space-y-1">
                             <p class="text-xs opacity-70">Native Rating Value: {ratingValue}</p>
@@ -340,16 +346,16 @@ onMount(() => {
 
                     <div class="border-t border-surface-300 dark:border-surface-700 pt-4 mt-4">
                         <p class="font-bold text-sm mb-2 opacity-80">Native Multistep Action Stepper</p>
-                        
+
                         <!-- Fixed Stepper: Passed correct Step object structure instead of string primitives -->
-                        <NativeStepper 
+                        <NativeStepper
                             steps={[
-                                { label: 'Step 1' }, 
-                                { label: 'Step 2' }, 
+                                { label: 'Step 1' },
+                                { label: 'Step 2' },
                                 { label: 'Step 3' }
-                            ]} 
-                            currentStep={currentStep} 
-                            completedSteps={new Set()} 
+                            ]}
+                            currentStep={currentStep}
+                            completedSteps={new Set()}
                         />
 
                     </div>

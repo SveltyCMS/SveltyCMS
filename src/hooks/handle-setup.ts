@@ -12,7 +12,8 @@ import { getDbInitPromise } from "@src/databases/db";
 import { error, type Handle, redirect } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
-import { getSetupState, SetupState } from "@utils/setup-check";
+import { getSetupState, SetupState, isSetupFullyComplete } from "@utils/setup-check";
+import { isStaticOrInternalRequest } from "@utils/hook-utils";
 
 // --- CONSTANTS ---
 
@@ -91,8 +92,17 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
   const isSystemUser = (event.locals as any).user?._id === "system";
   const isBypassed = (event.locals as any).__testBypass === true;
 
-  // FAST BYPASS
-  if (isSystemUser || isBypassed) {
+  // FAST BYPASS: Static Assets & Internal Calls
+  if (isStaticOrInternalRequest(pathname) || isSystemUser || isBypassed) {
+    return await resolve(event);
+  }
+
+  // ✨ ULTRA-FAST SHORT-CIRCUIT: For established systems, skip EVERYTHING.
+  // setupStatusCheckedDb=true and setupStatus=true means setup is 100% finished.
+  const setupFullyComplete = isSetupFullyComplete();
+  const isSetupRoute = isSetupRouteCheck(pathname);
+
+  if (setupFullyComplete && !isSetupRoute) {
     return await resolve(event);
   }
 

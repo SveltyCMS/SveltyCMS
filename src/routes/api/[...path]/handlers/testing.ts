@@ -9,6 +9,9 @@ import type { LocalCMS } from "../../cms";
 import { rawResponse } from "./base";
 import { contentSystem } from "@src/content";
 import type { DatabaseId } from "@src/content/types";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { getPublicSettingSync } from "@src/services/settings-service";
 
 export async function handleTestingRoutes(
   event: RequestEvent,
@@ -32,15 +35,27 @@ export async function handleTestingRoutes(
     // Standardized database clear across all adapters
     await cms.db.clearDatabase();
 
+    // 🚀 HARDENING: Clear Media Folder for test isolation
+    const mediaRoot = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
+    const fullMediaRoot = path.resolve(process.cwd(), mediaRoot);
+    if (fs.existsSync(fullMediaRoot)) {
+      try {
+        fs.rmSync(fullMediaRoot, { recursive: true, force: true });
+        fs.mkdirSync(fullMediaRoot, { recursive: true });
+      } catch (err) {
+        console.warn(`[TestingHandler] Failed to clear media folder: ${err}`);
+      }
+    }
+
     // Invalidate cache to reflect empty DB
     const { invalidateSetupCache } = await import("@src/utils/setup-check");
-    invalidateSetupCache(false, false);
+    invalidateSetupCache(false, null);
 
     return rawResponse(event, { success: true, message: "System reset successfully" });
   }
 
   if (action === "seed") {
-    const { email, password } = params;
+    const { email, password, username } = params;
     if (!email || !password) throw new AppError("Email and password required for seeding", 400);
 
     const { logger } = await import("@utils/logger.server");
@@ -51,6 +66,7 @@ export async function handleTestingRoutes(
       {
         email,
         password,
+        username,
         role: "admin",
         isRegistered: true,
         emailVerified: true,

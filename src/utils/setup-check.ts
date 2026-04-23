@@ -68,6 +68,14 @@ export async function getSetupState(): Promise<SetupState> {
   return isComplete ? SetupState.COMPLETE : SetupState.MISSING_ADMIN;
 }
 
+/**
+ * Sync check to see if setup is fully completed (memoized).
+ * Used for high-performance middleware short-circuiting.
+ */
+export function isSetupFullyComplete(): boolean {
+  return setupStatusCheckedDb && setupStatus === true;
+}
+
 export function isSetupComplete(): boolean {
   if (setupStatus !== null) {
     return setupStatus;
@@ -82,6 +90,7 @@ export function isSetupComplete(): boolean {
     const privateConfigPath = path.join(process.cwd(), "config", configFileName);
 
     if (!fs.existsSync(privateConfigPath)) {
+      console.warn(`[setupCheck] MISSING_CONFIG triggered. File not found: ${privateConfigPath}`);
       if (isTestMode) {
         console.log(`[setupCheck] ${configFileName} NOT FOUND`);
       }
@@ -99,6 +108,12 @@ export function isSetupComplete(): boolean {
     const hasJwtSecret = !/JWT_SECRET_KEY[:=]\s*(""|''|``)/.test(configContent);
     const hasDbHost = !/DB_HOST[:=]\s*(""|''|``)/.test(configContent);
     const hasDbName = !/DB_NAME[:=]\s*(""|''|``)/.test(configContent);
+
+    if (!hasJwtSecret || !hasDbHost || !hasDbName) {
+      console.warn(
+        `[setupCheck] MISSING_CONFIG triggered. hasJwtSecret: ${hasJwtSecret}, hasDbHost: ${hasDbHost}, hasDbName: ${hasDbName}`,
+      );
+    }
 
     // Config file exists and has values - assume setup complete for now
     // Database validation will happen asynchronously in isSetupCompleteAsync()
@@ -194,7 +209,8 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
       logger.warn(
         `[setupCheck] Config exists but NO ${missing.join(", ")} found in DB. System will stay in setup mode.`,
       );
-      setupStatus = false;
+      // DO NOT set setupStatus = false here! That tells the system the config file is missing.
+      // setupStatus = false;
       setupStatusCheckedDb = true;
       return false;
     }
@@ -216,6 +232,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
     }
     // If config exists but DB check fails, we return false to stay in setup mode
     // This prevents blocking setup actions during transition.
+    // DO NOT set setupStatus = false; here!
     return false;
   }
 }

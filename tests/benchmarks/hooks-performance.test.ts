@@ -37,6 +37,10 @@ async function loadHooks() {
     handleLocalSdk: (await import("../../src/hooks/handle-local-sdk")).handleLocalSdk,
     handleApiRequests: (await import("../../src/hooks/handle-api-requests")).handleApiRequests,
     handleAuditLogging: (await import("../../src/hooks/handle-audit-logging")).handleAuditLogging,
+    handleTokenResolution: (await import("../../src/hooks/handle-token-resolution"))
+      .handleTokenResolution,
+    handleSecurityHeaders: (await import("../../src/hooks/handle-security-headers"))
+      .handleSecurityHeaders,
   };
   return hooks;
 }

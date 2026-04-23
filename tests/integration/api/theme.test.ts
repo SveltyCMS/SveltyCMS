@@ -6,7 +6,7 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { getApiBaseUrl, waitForServer } from "../helpers/server";
+import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
 import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
@@ -28,7 +28,7 @@ describe("Theme API Endpoints", () => {
 
   describe("GET /api/theme/get-current-theme", () => {
     it("should return current theme for authenticated user", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/theme/get-current-theme`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/theme/get-current-theme`, {
         headers: { Cookie: authCookie },
       });
       expect(response.status).toBe(200);
@@ -37,7 +37,7 @@ describe("Theme API Endpoints", () => {
     });
 
     it("should fail without authentication", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/theme/get-current-theme`);
+      const response = await safeFetch(`${API_BASE_URL}/api/theme/get-current-theme`);
       expect(response.status).toBe(401);
     });
   });
@@ -45,7 +45,7 @@ describe("Theme API Endpoints", () => {
   describe("POST /api/theme/update-theme", () => {
     it("should update theme custom CSS with admin authentication", async () => {
       // First get current theme to get an ID
-      const getResponse = await fetch(`${API_BASE_URL}/api/theme/get-current-theme`, {
+      const getResponse = await safeFetch(`${API_BASE_URL}/api/theme/get-current-theme`, {
         headers: { Cookie: authCookie },
       });
       const current = await getResponse.json();
@@ -54,7 +54,7 @@ describe("Theme API Endpoints", () => {
       if (!current._id) {
         console.log("Skipping update test: No theme with _id available");
         // Test that we can at least make the call without crashing
-        const response = await fetch(`${API_BASE_URL}/api/theme/update-theme`, {
+        const response = await safeFetch(`${API_BASE_URL}/api/theme/update-theme`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -71,7 +71,7 @@ describe("Theme API Endpoints", () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/theme/update-theme`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/theme/update-theme`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -87,7 +87,7 @@ describe("Theme API Endpoints", () => {
     });
 
     it("should fail with missing themeId", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/theme/update-theme`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/theme/update-theme`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -106,7 +106,7 @@ describe("Theme API Endpoints", () => {
       // Use the seeded default theme ID
       const DEFAULT_THEME_ID = "670e8b8c4d123456789abcde";
 
-      const response = await fetch(`${API_BASE_URL}/api/theme/set-default`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/theme/set-default`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

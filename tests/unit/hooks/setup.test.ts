@@ -137,7 +137,7 @@ describe("handleSetup Middleware", () => {
       });
     }
 
-    const notAllowed = ["/", "/health", "/.well-known/security.txt"];
+    const notAllowed = ["/", "/health"];
     for (const path of notAllowed) {
       it(`redirects ${path} to /setup during incomplete setup`, async () => {
         const event = createMockEvent(path);
@@ -149,6 +149,12 @@ describe("handleSetup Middleware", () => {
         }
       });
     }
+
+    it("allows /.well-known/security.txt as a fast-bypass route", async () => {
+      const event = createMockEvent("/.well-known/security.txt");
+      const response = await handleSetup({ event, resolve: mockResolve });
+      expect(response).toBe(mockResponse);
+    });
   });
 
   // ---------------------------------------------------------------------

@@ -4,7 +4,7 @@
  */
 
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getApiBaseUrl } from "../helpers/server";
+import { getApiBaseUrl, safeFetch } from "../helpers/server";
 import { prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
@@ -21,7 +21,7 @@ describe("RTC (SSE) Integration", () => {
   // --- TEST SUITE: SSE CONNECTION ---
   describe("GET /api/events", () => {
     it('should establish an SSE connection and receive "connected" message', async () => {
-      const response = await fetch(`${API_BASE_URL}/api/events`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/events`, {
         headers: {
           Cookie: adminCookie,
           Accept: "text/event-stream",
@@ -51,7 +51,7 @@ describe("RTC (SSE) Integration", () => {
     }, 10_000);
 
     it("should reject unauthenticated requests", async () => {
-      const response = await fetch(`${API_BASE_URL}/api/events`);
+      const response = await safeFetch(`${API_BASE_URL}/api/events`);
       expect(response.status).toBe(401);
     });
   });

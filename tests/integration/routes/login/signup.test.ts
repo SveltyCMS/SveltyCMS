@@ -81,6 +81,7 @@ describe("Invitation-Based Signup Tests", () => {
           action: "seed",
           email: signupData.email,
           password: signupData.password,
+          username: signupData.username,
         }),
       });
 
@@ -130,6 +131,7 @@ describe("Invitation-Based Signup Tests", () => {
           action: "seed",
           email: signupData.email,
           password: signupData.password,
+          username: signupData.username,
         }),
       });
 

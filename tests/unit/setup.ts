@@ -1023,25 +1023,22 @@ moduleMock("@src/databases/cache/cache-service", () => ({
 }));
 
 moduleMock("sharp", () => {
-  const sharpInstance = {
+  const sharpInstance: any = {
     metadata: mock(() => Promise.resolve({ width: 100, height: 100, format: "jpeg" })),
-    resize: mock(() => ({
-      toBuffer: mock(() => Promise.resolve(Buffer.from("mock-resized"))),
-    })),
+    resize: mock(() => sharpInstance),
     toBuffer: mock(() => Promise.resolve(Buffer.from("mock-buffer"))),
-    jpeg: mock(() => ({
-      toBuffer: mock(() => Promise.resolve(Buffer.from("mock-jpeg"))),
-    })),
-    webp: mock(() => ({
-      toBuffer: mock(() => Promise.resolve(Buffer.from("mock-webp"))),
-    })),
-    avif: mock(() => ({
-      toBuffer: mock(() => Promise.resolve(Buffer.from("mock-avif"))),
-    })),
-    composite: mock(() => ({
-      toBuffer: mock(() => Promise.resolve(Buffer.from("mock-composite"))),
-    })),
+    jpeg: mock(() => sharpInstance),
+    webp: mock(() => sharpInstance),
+    avif: mock(() => sharpInstance),
+    composite: mock(() => sharpInstance),
+    rotate: mock(() => sharpInstance),
+    flop: mock(() => sharpInstance),
+    flip: mock(() => sharpInstance),
+    extract: mock(() => sharpInstance),
+    modulate: mock(() => sharpInstance),
+    png: mock(() => sharpInstance),
   };
+  sharpInstance.clone = mock(() => sharpInstance);
   const sharpMock = mock(() => sharpInstance);
   (sharpMock as any).cache = mock(() => {});
   (sharpMock as any).simd = mock(() => {});
@@ -1271,6 +1268,7 @@ const SetupState = {
 let setupStateValue = SetupState.COMPLETE;
 const mockSetupCheck = {
   isSetupComplete: mock(() => setupStateValue === SetupState.COMPLETE),
+  isSetupFullyComplete: mock(() => setupStateValue === SetupState.COMPLETE),
   isSetupCompleteAsync: mock(async () => setupStateValue === SetupState.COMPLETE),
   getSetupState: mock(async () => setupStateValue),
   SetupState,
