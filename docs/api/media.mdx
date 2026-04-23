@@ -59,6 +59,7 @@ The media engine calculates high-entropy hashes (SHA-256) for every upload. If a
 ### Intelligent Resizing & Optimization
 
 SveltyCMS employs a 2-tier optimization strategy for media delivery:
+
 - **Parallel Multi-Size Processing**: Automated variant generation (sm, md, lg) happens in parallel using the `libvips` thread pool, resulting in ~70% faster response times during ingestion.
 - **Instance Cloning**: Uses Sharp's memory-efficient `clone()` mechanism to generate all responsive sizes from a single header parse, minimizing CPU and RAM pressure.
 - **Watermark Caching**: Pre-rendered watermark buffers are cached in-memory to avoid redundant re-scaling during bulk uploads.

@@ -57,7 +57,7 @@ flowchart TD
 
 | Layer            | Tool           | When to use                                      | Speed (local)  | Speed (CI)         | DB state              |
 | ---------------- | -------------- | ------------------------------------------------ | -------------- | ------------------ | --------------------- |
-| Unit / Logic     | Vite+ / Vitest | Pure functions, stores, utils, Svelte components | < 0.1 s / test | < 10 s total (753) | DI-Hardened / Mocked |
+| Unit / Logic     | Vite+ / Vitest | Pure functions, stores, utils, Svelte components | < 0.1 s / test | < 10 s total (753) | DI-Hardened / Mocked  |
 | Integration      | Vite+ / Vitest | API endpoints, Drizzle queries, server actions   | 1–5 s          | < 90 s (312)       | Real SQLite per suite |
 | E2E – Wizard     | Playwright     | First-time install flow (UI steps)               | 10–30 s        | 20–40 s            | Completely empty      |
 | E2E – Auth+Roles | Playwright     | Login, signup via invite, role switching         | —              | —                  | After wizard          |

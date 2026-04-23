@@ -104,6 +104,14 @@ Most headless CMS platforms boast "AI Integration," but essentially just boast a
 5.  **Self-Healing & Understanding**: The MCP Server constantly indexes your `src/` and `docs/`, meaning SveltyCMS understands its own architecture.
 6.  **AI-Powered Migration**: The **[Smart Importer](../content/smart-importer.mdx)** uses the Knowledge Core to intelligently map legacy Drupal or WordPress schemas to modern Svelte widgets, drastically reducing the manual labor of content migration.
 
+## 5. Security & Agentic Boundaries (April 2026)
+
+To ensure enterprise stability while maintaining high agency, SveltyCMS implements several autonomous defense layers:
+
+- **Draft-by-Default Airgap**: All content created or modified via the WebMCP tools is forcefully set to `status: "draft"`. This ensures that even if an AI agent is compromised or follows a malformed instruction, it cannot publish directly to the live site without administrative review.
+- **Prompt Injection Shielding**: High-sensitivity AI widgets (like `AIEnrichment`) wrap all user-provided data in `<user_data>` tags. The system prompt explicitly commands the LLM to treat this data as passive information and ignore any "Ignore previous instructions" payloads.
+- **Tarpit Trap**: Automated AI crawlers attempting to scrape sensitive system files are identified via honeypot routes and trapped in a high-latency tarpit, effectively slowing down automated reconnaissance attacks.
+
 ## ⌨️ Keyboard Shortcuts (Efficiency)
 
 The AI Assistant is built for power users. Use the following shortcuts from anywhere in the CMS:

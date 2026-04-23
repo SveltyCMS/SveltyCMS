@@ -80,7 +80,7 @@ Even with this realistic, heavy production workload, SveltyCMS sustains **over 3
 The architectural move to the **5-Pillar Content Core** and Svelte 5 Runes provides fundamental advantages:
 
 - **Vectorized Processing & Audit Chaining**: Refactored the core data transformation pipeline to support chunked batch processing, and offloaded cryptographic overhead (like SHA-256 Audit Log chaining) to dedicated Node.js Worker Threads. This prevents main event loop starvation during massive bulk operations, drastically reducing function call latency.
-- **Lazy Relation Hydration (Ghost Relations)**: Eliminated N+1 deep-join lag on SQL engines using Svelte 5 snippets (`{#snippet}`) and the `IntersectionObserver` API. Nested relational data is purely hydrated *as it enters the viewport*, ensuring sub-millisecond initial server loads regardless of relational depth.
+- **Lazy Relation Hydration (Ghost Relations)**: Eliminated N+1 deep-join lag on SQL engines using Svelte 5 snippets (`{#snippet}`) and the `IntersectionObserver` API. Nested relational data is purely hydrated _as it enters the viewport_, ensuring sub-millisecond initial server loads regardless of relational depth.
 - **No Hydration Tax**: SveltyCMS minimizes the JavaScript sent to the client, leading to faster Time-to-Interactive.
 - **Fine-Grained Reactivity**: State updates are surgical, avoiding the "re-rendering everything" problem common in React/Vue platforms.
 
@@ -97,6 +97,16 @@ SveltyCMS treats security as a core feature, not a plugin:
 
 - **3-Pillar Performance Shield**: Isolated server-side widget logic protecting the API hot path from UI-driven lag.
 - **WCAG 3.0 Ready**: We prioritize accessibility as a functional requirement, adopting the latest Functional Performance patterns.
+
+### 5. Architectural Immunity to Common CMS Bottlenecks
+
+Unlike competitors (Strapi, Payload, Directus) which suffer from well-documented edge cases at scale, SveltyCMS is architecturally immune to the most common headless CMS bottlenecks:
+
+- **Memory Leaks & Uptime Degradation (vs Payload/Strapi):** Instead of manual cleanup or recursive cloning (e.g., Payload's `deepCopyObject`), SveltyCMS uses **`WeakRef` caching** for components and LRU session caches, allowing the V8 garbage collector to automatically clear dead memory. Our `memory-stability.test.ts` enterprise benchmark proactively detects and prevents leak trends.
+- **N+1 Query & Relational Choking (vs Strapi/Directus):** SveltyCMS eliminates cascading database queries for deeply nested relations via **Batched Ghost Relation Hydration**. It avoids the destructive update strategies and "write-on-read" side effects seen in Strapi v5.
+- **Complex Permission Filter Bloat (vs Directus):** Where Directus chokes on 4,000+ line SQL `WHERE` clauses for granular RBAC, SveltyCMS pre-calculates **route-level RBAC** in memory. Permissions are resolved at the route middleware level, eliminating massive dynamically injected SQL queries on every hit.
+
+Furthermore, our enterprise benchmarking matrix guarantees that if a regression occurs in memory stability or N+1 hydration in the future, the CI/CD pipeline will catch the statistical slope degradation before it reaches production.
 
 ## Competitive Context
 

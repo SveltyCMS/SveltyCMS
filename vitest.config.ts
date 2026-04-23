@@ -1,3 +1,9 @@
+/**
+ * @file vitest.config.ts
+ * @description
+ * Vitest configuration file for the CMS.
+ */
+
 import { defineConfig } from "vitest/config";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import path from "node:path";
@@ -7,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [svelte() as any],
   resolve: {
     alias: {
       "@src": path.resolve(__dirname, "./src"),
@@ -47,7 +53,7 @@ export default defineConfig({
       exclude: ["src/paraglide/**", "src/**/*.d.ts"],
     },
     pool: "threads",
-    // @ts-expect-error - Vitest 4 top-level pool options
+    // @ts-ignore - Vitest 4 top-level pool options
     threads: {
       singleThread: false,
     },

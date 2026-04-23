@@ -30,7 +30,7 @@ SveltyCMS leverages the **Vite+** middleware pipeline to enforce hard isolation 
 
 Both REST and GraphQL APIs are subject to tenant-level security checks:
 
-- **REST API Dispatcher**: All routes under `/api/[...path]` are centrally gated by a **Fail-Closed** security layer. It validates the required Permission ID against the user's `locals.roles` for the current tenant before any adapter logic is executed.
+- **REST API Dispatcher**: All routes under `/api/[...path]` are centrally gated by a **Fail-Closed** security layer. It validates the required Permission ID against the user's `locals.roles` for the current tenant before any adapter logic is executed. This **pre-calculated route-level RBAC** ensures that granular permissions never degrade database performance, making SveltyCMS immune to the SQL query bloat (e.g., 4000+ line injected `WHERE` clauses) that commonly throttles multi-tenant competitors.
 - **GraphQL Yoga**: The schema is filtered based on the requester's tenant permissions via the same robust TBAC layer.
 - **Performance Quotas**: Rate limiting is applied per-tenant to prevent resource exhaustion.
 

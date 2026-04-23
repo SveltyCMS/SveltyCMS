@@ -131,13 +131,13 @@ As of April 2026, the MongoDB adapter has been fully modularized to align with t
 
 ### Module Breakdown
 
-| Module | Responsibility | Optimization |
-| :--- | :--- | :--- |
-| **AuthModule** | Session validation, RBAC, and JIT provisioning. | Composed adapter pattern for sub-1ms validation. |
-| **CrudModule** | High-speed document operations with name normalization. | `.lean()` by default with zero-serialization overhead. |
-| **MediaModule** | GridFS/Filesystem hybrid storage and metadata. | SHA-256 deduplication and metadata extraction. |
-| **SystemModule** | Preferences, themes, widgets, and background jobs. | Integrated L1/L2 cache versioning. |
-| **TransactionModule** | ACID compliance via native sessions. | Unified SQL-like wrapper for cross-DB logic. |
+| Module                | Responsibility                                          | Optimization                                           |
+| :-------------------- | :------------------------------------------------------ | :----------------------------------------------------- |
+| **AuthModule**        | Session validation, RBAC, and JIT provisioning.         | Composed adapter pattern for sub-1ms validation.       |
+| **CrudModule**        | High-speed document operations with name normalization. | `.lean()` by default with zero-serialization overhead. |
+| **MediaModule**       | GridFS/Filesystem hybrid storage and metadata.          | SHA-256 deduplication and metadata extraction.         |
+| **SystemModule**      | Preferences, themes, widgets, and background jobs.      | Integrated L1/L2 cache versioning.                     |
+| **TransactionModule** | ACID compliance via native sessions.                    | Unified SQL-like wrapper for cross-DB logic.           |
 
 ### Explicit Schema Registration
 
@@ -180,10 +180,10 @@ async execute<T>(fn: (tx: DatabaseTransaction) => Promise<DatabaseResult<T>>) {
 ```
 
 **Benefits**:
+
 - **Atomicity**: Complex relational seeding either succeeds entirely or rolls back.
 - **Portability**: The exact same business logic runs on MongoDB and MariaDB.
 - **Safety**: Automated rollback on any unhandled exception within the transaction block.
-
 
 ---
 

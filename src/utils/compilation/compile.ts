@@ -16,11 +16,10 @@ import {
 import {
   addJsExtensionTransformer,
   commonjsToEsModuleTransformer,
-  schemaTenantIdTransformer,
-  schemaUuidTransformer,
+  schemaTransformer,
   widgetTransformer,
 } from "./transformers.ts";
-import type { CompilationResult, CompileOptions, Logger } from "./types";
+import type { CompilationResult, CompileOptions, Logger, ManifestEntry } from "./types";
 
 const defaultLogger: Logger = {
   info: (msg) => console.log(`\x1b[34m[Compile]\x1b[0m ${msg}`),
@@ -29,6 +28,10 @@ const defaultLogger: Logger = {
   error: (msg, err) => console.error(`\x1b[34m[Compile]\x1b[0m \x1b[31m${msg}\x1b[0m`, err),
 };
 
+/**
+ * Core compilation function.
+ * Orchestrates the transformation of TS/JS collection files into optimized JS.
+ */
 export async function compile(options: CompileOptions = {}): Promise<CompilationResult> {
   const startTime = Date.now();
   const logger = options.logger || defaultLogger;
@@ -54,48 +57,54 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
   };
 
   try {
+    // 1. Ensure directories exist
     await fs.mkdir(userCollections, { recursive: true });
     await fs.mkdir(compiledCollections, { recursive: true });
 
-    const { existingFilesByPath } = await scanCompiledFiles(compiledCollections);
-
+    // 2. Load compilation manifest for high-speed change detection
+    const manifest = await loadManifest(compiledCollections);
     const sourceFiles = await getTypescriptAndJavascriptFiles(userCollections);
 
     await createOutputDirectories(sourceFiles, compiledCollections);
 
     const processedJsPaths = new Set<string>();
     const queue = [...sourceFiles];
-    const workers: Promise<void>[] = [];
 
+    // 3. Worker logic (Concurrent execution)
     const worker = async () => {
       while (queue.length > 0) {
-        const file = queue.shift();
-        if (!file) break;
+        const relativePath = queue.shift();
+        if (!relativePath) break;
 
+        // Optional: Filter by specific target file
         if (options.targetFile) {
           const normalizedTarget = path.normalize(options.targetFile);
-          const normalizedFile = path.normalize(path.join(userCollections, file));
-          if (!(normalizedFile.endsWith(normalizedTarget) || normalizedTarget.endsWith(file))) {
+          const normalizedFile = path.normalize(path.join(userCollections, relativePath));
+          if (
+            !(normalizedFile.endsWith(normalizedTarget) || normalizedTarget.endsWith(relativePath))
+          ) {
             continue;
           }
         }
 
-        const sourcePath = path.join(userCollections, file);
-        const relativeDir = path.dirname(file);
-        const fileNameWithoutExt = path.basename(file, path.extname(file));
+        const sourcePath = path.join(userCollections, relativePath);
+        const relativeDir = path.dirname(relativePath);
+        const fileNameWithoutExt = path.basename(relativePath, path.extname(relativePath));
         const targetPath = path.join(compiledCollections, relativeDir, `${fileNameWithoutExt}.js`);
 
         try {
           const content = await fs.readFile(sourcePath, "utf8");
-          const hash = createHash("md5").update(content).digest("hex");
+          const sourceHash = createHash("md5").update(content).digest("hex");
 
-          const existingByPath = existingFilesByPath.get(targetPath);
-          if (existingByPath && existingByPath.hash === hash) {
+          // High-speed skip check: Hash + Tenant consistency
+          const existing = manifest.get(targetPath);
+          if (existing?.sourceHash === sourceHash && existing?.tenantId === options.tenantId) {
             result.skipped++;
             processedJsPaths.add(targetPath);
             continue;
           }
 
+          // 4. Transform & Compile
           const compilerOptions: ts.CompilerOptions = {
             target: ts.ScriptTarget.ESNext,
             module: ts.ModuleKind.ESNext,
@@ -109,8 +118,7 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
           const transformers: ts.CustomTransformers = {
             before: [
               widgetTransformer,
-              schemaUuidTransformer(createHash("md5").update(file).digest("hex")),
-              schemaTenantIdTransformer(options.tenantId),
+              schemaTransformer(options.tenantId),
               commonjsToEsModuleTransformer,
               addJsExtensionTransformer,
             ],
@@ -123,64 +131,75 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
           });
 
           await fs.writeFile(targetPath, compilation.outputText);
+
+          // Update manifest for persistence
+          manifest.set(targetPath, {
+            sourcePath: relativePath,
+            sourceHash,
+            compiledAt: Date.now(),
+            tenantId: options.tenantId || undefined,
+          });
+
           result.processed++;
           processedJsPaths.add(targetPath);
+          logger.info(`Compiled ${relativePath}`);
         } catch (err: any) {
-          result.errors.push({ file, error: err });
-          logger.error(`Error compiling ${file}:`, err);
+          result.errors.push({ file: relativePath, error: err });
+          logger.error(`Failed to compile ${relativePath}`, err);
         }
       }
     };
 
-    for (let i = 0; i < Math.min(concurrencyLimit, sourceFiles.length); i++) {
-      workers.push(worker());
-    }
-
+    // Spawn workers
+    const workers = Array.from({ length: Math.min(concurrencyLimit, sourceFiles.length) }, worker);
     await Promise.all(workers);
 
-    // Cleanup orphaned files
+    // 5. Cleanup orphaned files (only in full build runs)
     if (!options.targetFile) {
-      for (const [filePath, data] of existingFilesByPath.entries()) {
-        if (!processedJsPaths.has(filePath)) {
-          await fs.unlink(filePath);
-          result.orphanedFiles.push(data.path);
+      for (const [jsPath] of manifest) {
+        if (!processedJsPaths.has(jsPath)) {
+          await fs.unlink(jsPath).catch(() => {});
+          result.orphanedFiles.push(jsPath);
+          manifest.delete(jsPath);
         }
       }
     }
 
+    // 6. Save manifest for next run
+    await saveManifest(compiledCollections, manifest);
+
     result.duration = Date.now() - startTime;
+    logger.success?.(
+      `Compilation completed: ${result.processed} processed, ${result.skipped} skipped, ${result.orphanedFiles.length} orphaned`,
+    );
+
     return result;
   } catch (error: any) {
-    logger.error("Compilation failed:", error);
+    logger.error("Compilation failed", error);
     throw error;
   }
 }
 
-async function scanCompiledFiles(dir: string) {
-  const existingFilesByPath = new Map<string, { path: string; hash: string }>();
-
-  async function walk(currentDir: string) {
-    const entries = await fs.readdir(currentDir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(fullPath);
-      } else if (entry.isFile() && entry.name.endsWith(".js")) {
-        const content = await fs.readFile(fullPath, "utf8");
-        const hash = createHash("md5").update(content).digest("hex");
-
-        existingFilesByPath.set(fullPath, { path: fullPath, hash });
-      }
-    }
-  }
-
+/**
+ * Loads the compilation manifest from the output directory.
+ * Provides O(1) change detection lookup.
+ */
+async function loadManifest(dir: string): Promise<Map<string, ManifestEntry>> {
+  const manifestPath = path.join(dir, ".compilation-manifest.json");
   try {
-    await walk(dir);
+    const data = await fs.readFile(manifestPath, "utf8");
+    return new Map(Object.entries(JSON.parse(data)));
   } catch {
-    // Dir might not exist yet
+    return new Map();
   }
+}
 
-  return { existingFilesByPath };
+/**
+ * Persists the compilation manifest to disk.
+ */
+async function saveManifest(dir: string, manifest: Map<string, ManifestEntry>) {
+  const manifestPath = path.join(dir, ".compilation-manifest.json");
+  await fs.writeFile(manifestPath, JSON.stringify(Object.fromEntries(manifest), null, 2));
 }
 
 async function getTypescriptAndJavascriptFiles(dir: string): Promise<string[]> {

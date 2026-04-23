@@ -44,9 +44,11 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
         svelteEnv = process.env as RawEnv;
       } else {
         try {
-          // @ts-ignore - Dynamic SvelteKit environment variable loading
-          const mod = await import("$env/dynamic/private");
-          svelteEnv = mod.env;
+          if (import.meta.env.SSR) {
+            // @ts-ignore - Dynamic SvelteKit environment variable loading
+            const mod = await import("$env/dynamic/private");
+            svelteEnv = mod.env;
+          }
         } catch {
           svelteEnv = process.env as RawEnv;
         }

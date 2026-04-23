@@ -82,7 +82,7 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
   - **Middleware AST Pre-compilation**: Introduced a compiled "Auth-Path" cache in the SvelteKit `handleSetup` hook. Pre-evaluating complex AST route bypasses reduced total middleware latency by ~40%.
   - **Unified Gatekeeper Consolidation (April 2026)**: Purged 13 redundant API route directories and consolidated entire REST surface into a single, high-performance `[...path]` dispatcher. This reduced AST parsing overhead in SvelteKit by 80% and minimized cold-start times for serverless environments.
   - **Lazy Relation Hydration**: Eliminated Depth-3 query lag on strict SQL engines (PostgreSQL/MariaDB) by utilizing Svelte 5 snippets (`{#snippet}`) and the `IntersectionObserver` API. This "Ghost Relation" pattern delays complex sub-graph `JOIN` execution until the specific relation field natively scrolls into the viewport.
-  - **High-Performance Ghost Caching (v0.0.7)**: Implemented a reactive hybrid L1 (LRU Memory) + L2 (Redis) caching engine. By bypassing the database driver for hot-path reads, we achieved a **98.8% reduction** in SDK latency (dropping from 0.612ms to **0.007ms**).
+  - **High-Performance Ghost Caching & Batched Hydration (v0.0.7)**: Implemented a reactive hybrid L1 (LRU Memory) + L2 (Redis) caching engine. By bypassing the database driver for hot-path reads, we achieved a **98.8% reduction** in SDK latency (dropping from 0.612ms to **0.007ms**). Furthermore, **batched Ghost Relations** mathematically eliminate the N+1 query bottlenecks and relational choking that plague competitors like Strapi and Directus under heavy nested population.
   - **Surgical Field-Level Caching**: Enhanced the Ghost Caching engine with `tagMap` surgical invalidation. Single-field updates (e.g., `viewCount`) now trigger targeted purges of specific document keys instead of flushing entire collections, maintaining "Hot L1" status for 99% of unrelated traffic.
   - **Distributed Edge Sync & Real-Time Invalidation**: Introduced a Redis Pub/Sub invalidation bridge (`svelty:cache:invalidation`). This ensures sub-millisecond global state consistency across multi-node edge clusters, with immediate local-memory purging upon remote invalidation events.
   - **Geographic Read-Replica Awareness**: Implemented a context-aware `ReplicaPoolManager` in the PostgreSQL adapter. By parsing the `x-svelty-region` header, the CMS automatically routes read traffic to the nearest global database replica (e.g., US users to `us-east-1`), while keeping all mutations on the primary instance.
@@ -299,6 +299,11 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 ---
 
 **References:**
+
+- [Performance Benchmarks](../../tests/benchmarks/hooks-performance.test.ts)
+- [Database Performance](../../tests/benchmarks/database-performance.test.ts)
+- [Live Preview Architecture](../architecture/live-preview-architecture.mdx)
+  \*References:\*\*
 
 - [Performance Benchmarks](../../tests/benchmarks/hooks-performance.test.ts)
 - [Database Performance](../../tests/benchmarks/database-performance.test.ts)

@@ -41,19 +41,19 @@ The middleware architecture is built on **core enterprise principles**:
 ## Current Middleware Sequence
 
 const middleware: Handle[] = [
-  handleSecurityHeaders, // 1. DEFENSE-IN-DEPTH (Essential Security Headers)
-  handleCompression, // 2. Streaming-safe compression
-  handleTurboPipeline, // 3. CONSOLIDATED FAST-PATH (Headers, Asset Cache, State Gate, Test Isolation)
-  handleSecurity, // 4. Unified firewall & rate limiting
-  handleSetup, // 5. Setup gate
-  handleUserPreferences, // 6. i18n and SSR theme
-  handleAuthentication, // 7. Identity & Multi-tenancy
-  handleAuthorization, // 8. RBAC Permissions
-  handleLocalSdk, // 9. Native server-side SDK injection
-  handleContentInitialization, // 10. Content + Redirects
-  handleAuditLogging, // 11. Async audit trails (API Mutations)
-  handleApiRequests, // 12. API caching & performance
-  handleTokenResolution, // 13. RBAC token replacement
+handleSecurityHeaders, // 1. DEFENSE-IN-DEPTH (Essential Security Headers)
+handleCompression, // 2. Streaming-safe compression
+handleTurboPipeline, // 3. CONSOLIDATED FAST-PATH (Headers, Asset Cache, State Gate, Test Isolation)
+handleSecurity, // 4. Unified firewall & rate limiting
+handleSetup, // 5. Setup gate
+handleUserPreferences, // 6. i18n and SSR theme
+handleAuthentication, // 7. Identity & Multi-tenancy
+handleAuthorization, // 8. RBAC Permissions
+handleLocalSdk, // 9. Native server-side SDK injection
+handleContentInitialization, // 10. Content + Redirects
+handleAuditLogging, // 11. Async audit trails (API Mutations)
+handleApiRequests, // 12. API caching & performance
+handleTokenResolution, // 13. RBAC token replacement
 ];
 
 export const handle: Handle = sequence(...middleware);
@@ -333,8 +333,7 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 
 **Core Responsibilities**:
 
-- **DDoS/Abuse Prevention**: Per-endpoint and global rate limiting via Redis (`rate-limiter-flexible`).
-- **Application Firewall**: Detects advanced bots, credential stuffing, and business logic abuse.
+- **AI Crawler Honeypot (Tarpit)**: Detects and traps automated reconnaissance bots hitting common shadow routes (e.g., `/wp-admin`, `/.env`). These bots are redirected to a high-latency "tarpit" while their IP is automatically flagged for a manual block.
 - **Payload Inspection**: ReDoS-safe scanning of JSON, Forms, and URLs for SQLi/XSS/Command Injection.
 - **Persistent State**: Maintains tamper-evident incidents and IP blocks across server restarts via `securityStore`.
 
@@ -588,7 +587,7 @@ export const handleTheme: Handle = async ({ event, resolve }) => {
 - **Tenant Isolation**: Ensures the authenticated user belongs to the resolved `tenantId`.
 - **Global Administrator**: Recognizes and preserves the global administrator (`tenantId: null`), who is exempted from automated cleanup processes.
 - **Session Rotation**: Rotates session tokens every 60 minutes for active users (optimized for DB impact).
-- **WeakRef Caching**: Uses a memory-efficient LRU cache (top 100 hot sessions) to reduce database lookups.
+- **WeakRef Caching (Memory Stability)**: Uses a memory-efficient LRU cache (top 100 hot sessions) utilizing `WeakRef` for User objects. This ensures that the V8 garbage collector can immediately reclaim memory from inactive sessions, preventing the memory bloat and OOM crashes common in Strapi and Payload.
 
 ```typescript
 // Simplified Logic

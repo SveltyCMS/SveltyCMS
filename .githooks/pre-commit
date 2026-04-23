@@ -10,7 +10,7 @@ if [ -n "$STAGED_FILES" ]; then
     echo "✨ Formatting & ⚡ Linting (Vite+ on staged files)..."
     # Ensure oxfmt and oxlint are used on staged files
     echo "$STAGED_FILES" | xargs bunx oxfmt --write
-    echo "$STAGED_FILES" | xargs bunx oxlint --fix
+    echo "$STAGED_FILES" | xargs bunx oxlint --fix --no-error-on-unmatched-pattern
 
     # Re-stage files in case they were fixed automatically
     echo "$STAGED_FILES" | xargs git add

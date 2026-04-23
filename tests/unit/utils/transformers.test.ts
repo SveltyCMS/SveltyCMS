@@ -8,11 +8,7 @@
  * - Import path transformation
  */
 
-import {
-  addJsExtensionTransformer,
-  schemaTenantIdTransformer,
-  schemaUuidTransformer,
-} from "@src/utils/compilation/transformers";
+import { addJsExtensionTransformer, schemaTransformer } from "@src/utils/compilation/transformers";
 import * as ts from "typescript";
 
 function transform(code: string, transformers: ts.TransformerFactory<ts.SourceFile>[]) {
@@ -23,38 +19,38 @@ function transform(code: string, transformers: ts.TransformerFactory<ts.SourceFi
 }
 
 describe("AST Transformers", () => {
-  describe("schemaUuidTransformer", () => {
-    it("should inject _id into schema objects", () => {
+  describe("schemaTransformer", () => {
+    it("should inject _id and tenantId into schema objects", () => {
       const code = "export const schema = { fields: [] };";
-      const uuid = "test-uuid-123";
-      const output = transform(code, [schemaUuidTransformer(uuid)]);
+      const output = transform(code, [schemaTransformer("tenant-1")]);
 
-      expect(output).toContain('_id: "test-uuid-123"');
+      // Verify UUID generation (length check or pattern)
+      expect(output).toMatch(/_id: "[a-f0-9-]{36}"/i);
+      expect(output).toContain('tenantId: "tenant-1"');
       expect(output).toContain("fields: []");
     });
 
     it("should not override existing _id", () => {
       const code = 'export const schema = { _id: "existing", fields: [] };';
-      const output = transform(code, [schemaUuidTransformer("new-uuid")]);
+      const output = transform(code, [schemaTransformer("tenant-1")]);
 
       expect(output).toContain('_id: "existing"');
-      expect(output).not.toContain("new-uuid");
-    });
-  });
-
-  describe("schemaTenantIdTransformer", () => {
-    it("should inject tenantId into schema objects", () => {
-      const code = "export const schema = { fields: [] };";
-      const output = transform(code, [schemaTenantIdTransformer("tenant-1")]);
-
       expect(output).toContain('tenantId: "tenant-1"');
     });
 
     it("should inject null for global tenantId", () => {
       const code = "export const schema = { fields: [] };";
-      const output = transform(code, [schemaTenantIdTransformer(null)]);
+      const output = transform(code, [schemaTransformer(null)]);
 
       expect(output).toContain("tenantId: null");
+    });
+
+    it("should skip tenantId if not provided", () => {
+      const code = "export const schema = { fields: [] };";
+      const output = transform(code, [schemaTransformer(undefined)]);
+
+      expect(output).not.toContain("tenantId");
+      expect(output).toMatch(/_id: "[a-f0-9-]{36}"/i);
     });
   });
 

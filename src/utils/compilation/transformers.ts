@@ -217,83 +217,74 @@ export const commonjsToEsModuleTransformer: ts.TransformerFactory<ts.SourceFile>
     return transformedFile;
   };
 
-export const schemaUuidTransformer =
-  (uuid: string): ts.TransformerFactory<ts.SourceFile> =>
-  (context) =>
-  (sourceFile) => {
-    const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
-      if (ts.isObjectLiteralExpression(node)) {
-        const hasSchemaProperties = node.properties.some(
-          (prop) =>
-            ts.isPropertyAssignment(prop) &&
-            ts.isIdentifier(prop.name) &&
-            ["fields", "icon", "status", "revision", "livePreview"].includes(prop.name.text),
-        );
-        if (hasSchemaProperties) {
-          const hasIdProperty = node.properties.some(
-            (prop) =>
-              ts.isPropertyAssignment(prop) &&
-              ts.isIdentifier(prop.name) &&
-              prop.name.text === "_id",
-          );
-          if (!hasIdProperty) {
-            const idProperty = ts.factory.createPropertyAssignment(
-              "_id",
-              ts.factory.createStringLiteral(uuid),
-            );
-            return ts.factory.updateObjectLiteralExpression(node, [idProperty, ...node.properties]);
-          }
-        }
-      }
-      return ts.visitEachChild(node, visitor, context);
-    };
-    return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
-  };
-
 /**
- * Transformer to inject tenantId into schema objects for multi-tenant support
- * @param tenantId - The tenant ID to inject (null/undefined = global resource)
+ * Unified transformer for schema objects.
+ * Handles _id injection and tenantId mapping.
  */
-export const schemaTenantIdTransformer =
-  (tenantId?: string | null | null): ts.TransformerFactory<ts.SourceFile> =>
+export const schemaTransformer =
+  (tenantId?: string | null): ts.TransformerFactory<ts.SourceFile> =>
   (context) =>
   (sourceFile) => {
-    // Skip transformation if tenantId is not provided
-    if (tenantId === undefined) {
-      return sourceFile;
-    }
-
     const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
       if (ts.isObjectLiteralExpression(node)) {
-        const hasSchemaProperties = node.properties.some(
+        // Robust detection: check for specific schema property markers
+        const hasSchemaMarkers = node.properties.some(
           (prop) =>
             ts.isPropertyAssignment(prop) &&
             ts.isIdentifier(prop.name) &&
-            ["fields", "icon", "status", "revision", "livePreview"].includes(prop.name.text),
+            [
+              "fields",
+              "icon",
+              "title",
+              "description",
+              "status",
+              "revision",
+              "livePreview",
+            ].includes(prop.name.text),
         );
-        if (hasSchemaProperties) {
-          const hasTenantIdProperty = node.properties.some(
-            (prop) =>
-              ts.isPropertyAssignment(prop) &&
-              ts.isIdentifier(prop.name) &&
-              prop.name.text === "tenantId",
-          );
-          if (!hasTenantIdProperty) {
-            // Create tenantId property with appropriate value
-            const tenantIdProperty = ts.factory.createPropertyAssignment(
-              "tenantId",
-              tenantId === null
-                ? ts.factory.createNull() // Global resource
-                : ts.factory.createStringLiteral(tenantId), // Tenant-specific
-            );
-            return ts.factory.updateObjectLiteralExpression(node, [
-              tenantIdProperty,
-              ...node.properties,
+
+        if (hasSchemaMarkers) {
+          let updated = node;
+
+          // 1. Ensure _id exists (Unique identity for this collection)
+          if (!hasProperty(updated, "_id")) {
+            updated = ts.factory.updateObjectLiteralExpression(updated, [
+              ts.factory.createPropertyAssignment(
+                "_id",
+                ts.factory.createStringLiteral(generateUUID()),
+              ),
+              ...updated.properties,
             ]);
           }
+
+          // 2. Inject tenantId (Security isolation)
+          // Skip if tenantId is undefined (global builder mode)
+          if (tenantId !== undefined && !hasProperty(updated, "tenantId")) {
+            const tenantValue =
+              tenantId === null
+                ? ts.factory.createNull()
+                : ts.factory.createStringLiteral(tenantId);
+
+            updated = ts.factory.updateObjectLiteralExpression(updated, [
+              ts.factory.createPropertyAssignment("tenantId", tenantValue),
+              ...updated.properties,
+            ]);
+          }
+
+          return updated;
         }
       }
+
       return ts.visitEachChild(node, visitor, context);
     };
+
     return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
   };
+
+/** Helper to check if an object literal has a specific property */
+function hasProperty(obj: ts.ObjectLiteralExpression, name: string): boolean {
+  return obj.properties.some(
+    (prop) =>
+      ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name) && prop.name.text === name,
+  );
+}

@@ -48,7 +48,7 @@ function testBackdoorStripperPlugin(): Plugin {
     name: "test-backdoor-stripper",
     enforce: "pre",
     resolveId(id, importer, options) {
-      // 1. FAST BYPASS: Most modules don't need stripping
+      // 1. FAST BYPASS: Most modules don't need stripping (Vite 8 optimization)
       if (
         !id.includes("testing") &&
         !id.includes("tiptap") &&
@@ -350,18 +350,11 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
 }
 
 function stubServerModulesPlugin(): Plugin {
-  // Directories/files that must NEVER appear in the client bundle.
-  // Use a Set for O(1) lookup performance
-  const serverOnlyPatterns = new Set([
-    "mongodb",
-    "mariadb",
-    "postgresql",
-    "sqlite",
-    "privateSettings.server.ts",
-    "$env/static/private",
-    "$env/dynamic/private",
-  ]);
+  // Pre-compiled regex for high-performance pattern matching (Vite 8 / Rolldown optimization)
+  const serverOnlyRegex =
+    /\.(server\.|mongodb|mariadb|postgresql|sqlite|redis|argon2|mongoose|better-sqlite3|mysql2|pg|aws-sdk|googleapis)/i;
 
+  // Directories/files that must NEVER appear in the client bundle.
   const serverOnlyFiles = new Set([
     "/src/databases/db.ts",
     "/src/databases/database-resilience.ts",
@@ -382,20 +375,26 @@ function stubServerModulesPlugin(): Plugin {
     "/src/databases/cache/redis-store.ts",
     "/src/databases/cache/inmemory-store.ts",
     "/src/components/emails/",
-    "better-svelte-email",
   ]);
 
   return {
     name: "stub-server-modules",
     enforce: "pre",
     load(id, options) {
-      // Fast-path: Skip stubbing for SSR or Unit Tests (TEST_MODE)
+      // 1. Fast-path: Skip stubbing for SSR or Unit Tests
       if (options?.ssr || process.env.TEST_MODE === "true") return null;
 
-      const normalizedId = id.replace(/\\/g, "/");
+      // 2. Optimization: If the ID doesn't contain a dot or slash, it's likely not a file path we care about
+      if (!id.includes(".") && !id.includes("/") && !id.includes("\\")) return null;
 
-      // O(1) check for exact file matches or .server.ts extensions
-      if (normalizedId.includes(".server.") || serverOnlyFiles.has(normalizedId)) {
+      // 3. Regex check (High-performance combined pattern matching)
+      if (serverOnlyRegex.test(id)) {
+        return `export default {}; export const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };`;
+      }
+
+      // 4. File-based check
+      const normalizedId = id.replace(/\\/g, "/");
+      if (serverOnlyFiles.has(normalizedId)) {
         return `export default {};
 export const getPrivateSettingSync = () => ({});
 export const getPrivateSetting = async () => ({});
@@ -403,19 +402,6 @@ export const getPublicSettingSync = () => ({});
 export const getPublicSetting = async () => ({});
 export const getUntypedSetting = async () => ({});
 export const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };`;
-      }
-
-      // Slightly slower fallback for pattern matching (O(N) but restricted set)
-      for (const pattern of serverOnlyPatterns) {
-        if (normalizedId.includes(pattern)) {
-          return `export default {};
-export const getPrivateSettingSync = () => ({});
-export const getPrivateSetting = async () => ({});
-export const getPublicSettingSync = () => ({});
-export const getPublicSetting = async () => ({});
-export const getUntypedSetting = async () => ({});
-export const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };`;
-        }
       }
 
       return null;
@@ -726,7 +712,6 @@ export default defineConfig((): any => {
             if (id.includes("node_modules/svelte")) {
               return "vendor-svelte";
             }
-            // Move heavy editor dependencies to their own chunk
             if (id.includes("node_modules/@tiptap") || id.includes("node_modules/prosemirror")) {
               return "vendor-editor";
             }

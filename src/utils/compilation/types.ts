@@ -15,7 +15,7 @@ export interface CompileOptions {
   /** Optional specific file to compile (relative to userCollections) */
   targetFile?: string;
   /** Tenant ID for multi-tenant mode (undefined/null = global resource) */
-  tenantId?: string | null | null;
+  tenantId?: string | null;
   /** Directory containing source TypeScript collection files */
   userCollections?: string;
 }
@@ -27,10 +27,17 @@ export interface Logger {
   warn(message: string): void;
 }
 
+export interface ManifestEntry {
+  sourcePath: string;
+  sourceHash: string;
+  compiledAt: number;
+  tenantId?: string | null;
+}
+
 export interface ExistingFileData {
   hash: string | null;
   jsPath: string;
-  tenantId?: string | null | null;
+  tenantId?: string | null;
   uuid: string | null;
 }
 
