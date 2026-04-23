@@ -190,6 +190,38 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
       }
     }
 
+    // ──────────────────────────────────────────────────────────────
+    // AI Crawler / Reconnaissance Honeypot (Tarpit)
+    // ──────────────────────────────────────────────────────────────
+    const HONEYPOT_ROUTES = [
+      "/wp-admin",
+      "/api/legacy-v1-debug",
+      "/.env",
+      "/.git/config",
+      "/wp-login.php",
+    ];
+    if (HONEYPOT_ROUTES.some((route) => url.pathname.startsWith(route))) {
+      logger.warn(`[Security] AI Crawler Honeypot triggered on ${url.pathname} by IP: ${clientIp}`);
+
+      // Auto-ban IP by triggering a manual block in the response service logic
+      // By forcing a violation, the rate limiter or blocklist will trap the IP
+      metricsService.incrementSecurityViolations(tenantId);
+      await securityResponseService.analyzeRequest(
+        new Request("http://localhost/api/honeypot", {
+          method: "POST",
+          body: "SQL INJECTION STRING ' OR 1=1 --",
+        }),
+        clientIp,
+        tenantId,
+      );
+
+      // Return a misleading 200 OK or hanging response to waste crawler time (Tarpitting)
+      return new Response("OK", {
+        status: 200,
+        headers: { "Content-Type": "text/plain", "X-Robots-Tag": "none" },
+      });
+    }
+
     // 1. Analyze request for threats (Firewall + Payload Scan + Rate Limiting)
     const securityStatus = await securityResponseService.analyzeRequest(
       request,

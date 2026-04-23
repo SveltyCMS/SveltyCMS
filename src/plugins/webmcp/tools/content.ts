@@ -44,6 +44,49 @@ export function registerContentTools() {
     },
   });
 
+  // ── Create Entry (Draft-by-Default Airgap) ───────────────
+  modelContext.registerTool({
+    name: "create_entry",
+    description:
+      "Create a new content entry. ALWAYS saves as 'draft' to prevent unauthorized publishing by AI agents.",
+    parameters: {
+      type: "object",
+      properties: {
+        collectionId: { type: "string", description: "Collection ID or slug" },
+        data: { type: "object", description: "Entry data payload" },
+      },
+      required: ["collectionId", "data"],
+    },
+    execute: async ({ collectionId, data }: { collectionId: string; data: any }) => {
+      try {
+        // Enforce Draft-by-Default Airgap
+        const safeData = { ...data, status: "draft" };
+
+        const res = await fetch(`/api/collections/${collectionId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(safeData),
+          credentials: "include",
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+
+        const responseData = await res.json();
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Success: Entry created in DRAFT mode. JSON: ${JSON.stringify(responseData)}`,
+            },
+          ],
+        };
+      } catch (err: any) {
+        logger.error("[WebMCP] create_entry failed", { collectionId, error: err });
+        return { isError: true, content: [{ type: "text", text: err.message }] };
+      }
+    },
+  });
+
   // ── Get Entry ───────────────────────────────────────────
   modelContext.registerTool({
     name: "get_entry",

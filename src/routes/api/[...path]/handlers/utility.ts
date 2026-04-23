@@ -55,6 +55,18 @@ export async function handleUtilityRoutes(
     const service = await getApiSpecService();
     const { contentSystem } = await import("@src/content");
 
+    // AI Reconnaissance Blinding: Ensure only authenticated admins can view the full spec.
+    if (!user || user.role !== "admin") {
+      return new Response(
+        JSON.stringify({
+          error: "Forbidden",
+          message:
+            "Full OpenAPI specification is restricted to administrative roles to prevent automated reconnaissance.",
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     const collections = await contentSystem.getCollections(tenantId);
     const spec = await service.generateSpec(collections, tenantId as string);
 
