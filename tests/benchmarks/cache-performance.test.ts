@@ -165,6 +165,7 @@ export async function runCacheBenchmark() {
       title: "SVELTYCMS  —  CACHE PERFORMANCE",
       subtitle: "L1/L2 Cache • Write Invalidation • High-Concurrency",
       results,
+      shortLabel: "Cache",
     });
 
     const maxRps = Math.max(...results.map((r) => r.rps));

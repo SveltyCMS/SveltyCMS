@@ -89,6 +89,7 @@ export async function runWidgetBenchmark() {
     title: "SVELTYCMS  —  WIDGET PIPELINE OVERHEAD",
     subtitle: "Data Transformation • Validation • modifyRequest Loop",
     results: allResults,
+    shortLabel: "Widgets",
   });
 
   const base = allResults[0];

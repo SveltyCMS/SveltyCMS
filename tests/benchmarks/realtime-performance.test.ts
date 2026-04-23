@@ -72,6 +72,7 @@ export async function runRealtimeBenchmark() {
     title: "SVELTYCMS  —  REAL-TIME ENGINE",
     subtitle: "Event Bus & Notification Throughput • 3 runs × 1 500 iters",
     results: allResults,
+    shortLabel: "Realtime",
   });
 
   const base = allResults[0];

@@ -203,6 +203,7 @@ export async function runMediaBenchmark() {
     title: "SVELTYCMS  —  MEDIA ENGINE AUDIT",
     subtitle: `Hashing • Transcoding • Manipulation • ${CPU} CPU Cores`,
     results: allResults,
+    shortLabel: "Media",
   });
 
   const jpeg = allResults[2];

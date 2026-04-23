@@ -214,15 +214,26 @@ async function main() {
   const resultsDir =
     process.env.RESULTS_DIR || path.join(process.cwd(), "tests/benchmarks/results");
 
+  const { printAuditTable } = await import("./benchmark-utils");
+
   try {
     await fs.mkdir(resultsDir, { recursive: true });
 
     const results: any[] = [];
+    const auditResults: any[] = [];
 
     if (target === "ALL") {
       for (const level of Object.keys(LOAD_PROFILES) as LoadLevel[]) {
         const res = await runStressTest(level);
-        if (res) results.push(res);
+        if (res) {
+          results.push(res);
+          auditResults.push({
+            name: `GQL Stress: ${level}`,
+            avgMs: res.avg,
+            p95Ms: res.p95,
+            rps: res.rps,
+          });
+        }
 
         if (res && res.failures > res.successes * 0.08) {
           console.warn(`\n⚠️  High failure rate detected at ${level}. Stopping escalation.`);
@@ -231,9 +242,23 @@ async function main() {
       }
     } else {
       const res = await runStressTest(target);
-      if (res) results.push(res);
+      if (res) {
+        results.push(res);
+        auditResults.push({
+          name: `GQL Stress: ${target}`,
+          avgMs: res.avg,
+          p95Ms: res.p95,
+          rps: res.rps,
+        });
+      }
     }
 
+    printAuditTable({
+      title: "SVELTYCMS  —  GRAPHQL LOAD STRESS",
+      subtitle: `Profile: ${target} • High-Concurrency Stress`,
+      results: auditResults,
+      shortLabel: "GQL",
+    });
     const filePath = path.join(resultsDir, `graphql-stress-${target.toLowerCase()}.json`);
     await fs.writeFile(
       filePath,

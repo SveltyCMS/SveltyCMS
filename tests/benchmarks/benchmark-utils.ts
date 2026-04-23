@@ -138,6 +138,7 @@ export function printAuditTable(options: {
   subtitle: string;
   results: any[];
   layerMode?: boolean;
+  shortLabel?: string; // 🚀 ULTRA ELITE: Optional shortLabel for precise MDX targeting
 }) {
   const dbType = getDbType();
   const dbNames = process.env.ALL_DBS?.split(",").map((s) => s.trim()) ?? [dbType];
@@ -281,13 +282,13 @@ export function printAuditTable(options: {
   // 🚀 ULTRA ELITE: Save and Push the identical ASCII table to the technical ledger
   const tableContent = outputBuffer.trim();
   saveTerminalTable(options.title, tableContent);
-  pushTableToMdx(options.title, tableContent);
+  pushTableToMdx(options.title, tableContent, options.shortLabel);
 }
 
 /**
  * Injects the ASCII table directly into the database-specific MDX technical ledger.
  */
-function pushTableToMdx(title: string, table: string) {
+function pushTableToMdx(title: string, table: string, shortLabel?: string) {
   try {
     const dbType = getDbType();
     const docPath = path.resolve(
@@ -300,9 +301,15 @@ function pushTableToMdx(title: string, table: string) {
 
     let content = fs.readFileSync(docPath, "utf8");
 
-    // Generate a unique tag based on the table title (e.g., <!-- API_LATENCY_TABLE -->)
-    const scriptId = title.split("—")[1]?.trim().split(" ")[0].toLowerCase() || "unknown";
-    const tag = `${scriptId.toUpperCase()}_TABLE`;
+    // Generate a unique tag based on shortLabel or title (e.g., <!-- API_TABLE -->)
+    const scriptId = shortLabel
+      ? shortLabel.split(" ")[0].toLowerCase()
+      : title.split("—")[1]?.trim().split(" ")[0].toLowerCase() || "unknown";
+
+    // Handle mapping for consistency with reporting.ts
+    const finalId = scriptId === "database" ? "db" : scriptId;
+
+    const tag = `${finalId.toUpperCase()}_TABLE`;
     const START = `<!-- ${tag}_START -->`;
     const END = `<!-- ${tag}_END -->`;
 
@@ -314,7 +321,7 @@ function pushTableToMdx(title: string, table: string) {
       fs.writeFileSync(docPath, content);
     }
   } catch (err) {
-    // Silent fail in benchmark mode to prevent skewing results
+    // Silent fail
   }
 }
 

@@ -116,6 +116,7 @@ export async function runAcidBenchmark() {
     title: "SVELTYCMS  —  ACID TRANSACTIONAL INTEGRITY",
     subtitle: "Commit Latency • Rollback Overhead • Drizzle TX Engine",
     results: allResults,
+    shortLabel: "ACID",
   });
 
   const commit = allResults[0];

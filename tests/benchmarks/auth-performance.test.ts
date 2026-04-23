@@ -98,6 +98,7 @@ export async function runAuthBenchmark() {
     title: "SVELTYCMS  —  AUTH & RBAC",
     subtitle: "IQR trimmed • 3 runs × 1 200 iters • avg / p95 / RPS",
     results: allResults,
+    shortLabel: "Auth",
   });
 
   const middleware1 = allResults.find((r) => r.name.includes("Middleware Auth @ 1c"));

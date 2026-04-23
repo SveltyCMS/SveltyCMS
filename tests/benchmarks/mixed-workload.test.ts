@@ -184,6 +184,7 @@ export async function runMixedWorkloadBenchmark() {
     title: "SVELTYCMS  —  MIXED WORKLOAD AUDIT",
     subtitle: "Reads (65%) • GraphQL (25%) • Writes (10%) • Multi-Concurrency",
     results: allResults,
+    shortLabel: "Mixed",
   });
 
   const heaviest = allResults[allResults.length - 1];

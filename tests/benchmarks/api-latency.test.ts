@@ -202,6 +202,7 @@ export async function runApiLatencyBenchmark() {
     subtitle: "SDK vs Full Dispatcher • IQR trimmed • 3 runs × 1 000 iters",
     results: allResults,
     layerMode: true,
+    shortLabel: "API",
   });
 
   const dispatcher1 = allResults.find(

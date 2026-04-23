@@ -72,6 +72,7 @@ export async function runMultiTenantBenchmark() {
     title: "SVELTYCMS  —  MULTI-TENANT ISOLATION",
     subtitle: "Context Switching Overhead • Data Isolation • 4c Scaling",
     results: allResults,
+    shortLabel: "Tenancy",
   });
 
   const base = allResults[0];

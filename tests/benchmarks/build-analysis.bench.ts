@@ -5,7 +5,7 @@
  */
 
 import { test, beforeAll, afterAll } from "bun:test";
-import { setupBenchmarkServer } from "./benchmark-utils";
+import { setupBenchmarkServer, printAuditTable } from "./benchmark-utils";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execSync } from "node:child_process";
@@ -50,9 +50,28 @@ export async function runBuildAnalysis() {
     const files = await fs.readdir(buildDir, { recursive: true });
     const jsFiles = files.filter((f) => f.endsWith(".js") || f.endsWith(".mjs"));
 
-    console.log(`| Build Time       | ${buildTimeMs.toFixed(2)} ms |`);
-    console.log(`| Total Size       | ${(totalSize / 1024 / 1024).toFixed(2)} MB |`);
-    console.log(`| JS Chunks        | ${jsFiles.length} |`);
+    const results = [
+      {
+        name: "Production Build",
+        avgMs: buildTimeMs,
+        p95Ms: buildTimeMs,
+        rps: 1 / (buildTimeMs / 1000),
+      },
+      {
+        name: "Bundle Size (MB)",
+        avgMs: totalSize / 1024 / 1024,
+        p95Ms: totalSize / 1024 / 1024,
+        rps: 0,
+      },
+      { name: "JS Chunk Count", avgMs: jsFiles.length, p95Ms: jsFiles.length, rps: 0 },
+    ];
+
+    printAuditTable({
+      title: "SVELTYCMS  —  PRODUCTION BUILD ANALYSIS",
+      subtitle: "Compilation Speed • Bundle Size • Tree Shaking",
+      results,
+      shortLabel: "Build",
+    });
 
     console.log("\n✅ Build analysis completed.");
   } catch (err: any) {

@@ -38,91 +38,389 @@ xychart-beta
 ## 🔬 Detailed Performance Ledger (20+ Modules)
 
 <!-- API_TABLE_START -->
-> ⏳ **API Network Latency**: Pending execution.
+### 🏷️ API LAYER LATENCY
+
+```text
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                 SVELTYCMS  —  API LAYER LATENCY AUDIT                                 ║
+║                      SDK vs Full Dispatcher • IQR trimmed • 3 runs × 1 000 iters                      ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ c      │ Avg latency    │ p95          │ RPS          │ Overhead       ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ findById                     │ 1c     │ 0.002 ms       │ 0.004        │ 480,407      │ SDK            ║
+║                              │        │ 0.025 ms       │ 0.032        │ 39,327       │ +0.02 ms       ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ findById                     │ 8c     │ 0.002 ms       │ 0.003        │ 450,931      │ SDK            ║
+║                              │        │ 0.025 ms       │ 0.027        │ 39,251       │ +0.02 ms       ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ list limit=10                │ 1c     │ 0.002 ms       │ 0.004        │ 521,286      │ SDK            ║
+║                              │        │ 0.026 ms       │ 0.036        │ 38,621       │ +0.02 ms       ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ list limit=10                │ 8c     │ 0.002 ms       │ 0.003        │ 516,209      │ SDK            ║
+║                              │        │ 0.024 ms       │ 0.024        │ 41,620       │ +0.02 ms       ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- API_TABLE_END -->
 
 <!-- BUILD_TABLE_START -->
-> ⏳ **Production Build Analysis**: Pending execution.
+### 🏷️ PRODUCTION BUILD ANALYSIS
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                   SVELTYCMS  —  PRODUCTION BUILD ANALYSIS                   ║
+║               Compilation Speed • Bundle Size • Tree Shaking                ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Production Build             │ 0.169 ms       │ 0.169 ms     │ 5,900        ║
+║ Bundle Size (MB)             │ 94.169 ms      │ 94.169 ms    │ 0            ║
+║ JS Chunk Count               │ 1000.000 ms    │ 1000.000 ms  │ 0            ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- BUILD_TABLE_END -->
 
 <!-- DB_TABLE_START -->
-> ⏳ **Database Adapter Raw CRUD**: Pending execution.
+### 🏷️ DATABASE ADAPTER PERFORMANCE (SQLITE)
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║             SVELTYCMS  —  DATABASE ADAPTER PERFORMANCE (SQLITE)             ║
+║            Direct Adapter Layer • CRUD Operations • IQR trimmed             ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ INSERT                       │ 0.093 ms       │ 0.108 ms     │ 10,696       ║
+║ FIND ONE                     │ 0.058 ms       │ 0.078 ms     │ 17,171       ║
+║ FIND MANY (limit 50)         │ 0.113 ms       │ 0.147 ms     │ 8,866        ║
+║ UPDATE                       │ 0.115 ms       │ 0.191 ms     │ 8,688        ║
+║ DELETE                       │ 0.142 ms       │ 0.180 ms     │ 7,034        ║
+║ BULK INSERT (100)            │ 2.217 ms       │ 3.637 ms     │ 451          ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- DB_TABLE_END -->
 
 <!-- ACID_TABLE_START -->
-> ⏳ **ACID Transaction Overhead**: Pending execution.
+### 🏷️ ACID TRANSACTIONAL INTEGRITY
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                 SVELTYCMS  —  ACID TRANSACTIONAL INTEGRITY                  ║
+║           Commit Latency • Rollback Overhead • Drizzle TX Engine            ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ TX Commit @ 1c               │ 0.039 ms       │ 0.066 ms     │ 25,518       ║
+║ TX Commit @ 8c               │ 0.030 ms       │ 0.034 ms     │ 33,124       ║
+║ TX Rollback @ 1c             │ 0.036 ms       │ 0.053 ms     │ 27,599       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- ACID_TABLE_END -->
 
 <!-- CACHE_TABLE_START -->
-> ⏳ **System Cache Efficiency**: Pending execution.
+### 🏷️ CACHE PERFORMANCE
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                       SVELTYCMS  —  CACHE PERFORMANCE                       ║
+║             L1/L2 Cache • Write Invalidation • High-Concurrency             ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Cold DB Read                 │ 0.073 ms       │ 0.102 ms     │ 13,664       ║
+║ L2 Cache Hit                 │ 0.002 ms       │ 0.002 ms     │ 582,802      ║
+║ L1 Memory Hit                │ 0.002 ms       │ 0.002 ms     │ 559,508      ║
+║ 95% Hit Workload             │ 0.008 ms       │ 0.010 ms     │ 121,313      ║
+║ Write Invalidation           │ 0.156 ms       │ 0.160 ms     │ 6,407        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- CACHE_TABLE_END -->
 
 <!-- SCAN_TABLE_START -->
-> ⏳ **Self-Healing Content Scan**: Pending execution.
+### 🏷️ CONTENT SCAN AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS  —  CONTENT SCAN AUDIT                       ║
+║            120 collections • Multi-Extension • Automated Hygiene            ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Content Scan (Self-Healing)  │ 2.030 ms       │ 3.127 ms     │ 493          ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- SCAN_TABLE_END -->
 
 <!-- HOOKS_TABLE_START -->
-> ⏳ **Middleware & Hooks Performance**: Pending execution.
+### 🏷️ HOOKS PERFORMANCE AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                    SVELTYCMS  —  HOOKS PERFORMANCE AUDIT                    ║
+║                       Internal vs Plugin Hook Latency                       ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ System Hooks                 │ 15.828 ms      │ 16.422 ms    │ 63           ║
+║ Plugin Hooks                 │ 15.749 ms      │ 16.290 ms    │ 63           ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- HOOKS_TABLE_END -->
 
 <!-- WIDGETS_TABLE_START -->
-> ⏳ **Core Widgets Overhead**: Pending execution.
+### 🏷️ WIDGET PIPELINE OVERHEAD
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                   SVELTYCMS  —  WIDGET PIPELINE OVERHEAD                    ║
+║            Data Transformation • Validation • modifyRequest Loop            ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Widget: Input (Basic)        │ 0.045 ms       │ 0.074 ms     │ 22,002       ║
+║ Widget: RichText (Parsing)   │ 0.044 ms       │ 0.061 ms     │ 22,646       ║
+║ Widget: Relation (Lookup)    │ 0.044 ms       │ 0.061 ms     │ 22,661       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- WIDGETS_TABLE_END -->
 
 <!-- MEDIA_TABLE_START -->
-> ⏳ **Media Engine & DAM Overhead**: Pending execution.
+### 🏷️ MEDIA ENGINE AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS  —  MEDIA ENGINE AUDIT                       ║
+║             Hashing • Transcoding • Manipulation • 24 CPU Cores             ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ SHA-256 Hash                 │ 0.009 ms       │ 0.009 ms     │ 117,182      ║
+║ Metadata Extraction          │ 0.110 ms       │ 0.163 ms     │ 9,089        ║
+║ Responsive JPEG Set          │ 14.634 ms      │ 17.154 ms    │ 68           ║
+║ Responsive WebP Set          │ 15.371 ms      │ 20.563 ms    │ 65           ║
+║ Responsive AVIF Set          │ 15.195 ms      │ 18.302 ms    │ 66           ║
+║ Manipulation (Rotate + Crop) │ 9.594 ms       │ 10.947 ms    │ 104          ║
+║ PDF Thumbnail (Sim)          │ 3.707 ms       │ 4.663 ms     │ 270          ║
+║ Video Thumbnail (Sim)        │ 61.102 ms      │ 63.421 ms    │ 16           ║
+║ Bulk Queue (5 jobs @ 2c)     │ 69.806 ms      │ 69.806 ms    │ 14           ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- MEDIA_TABLE_END -->
 
 <!-- RELATIONAL_TABLE_START -->
-> ⏳ **Relational & Nested Queries**: Pending execution.
+### 🏷️ RELATIONAL & GRAPHQL
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                     SVELTYCMS  —  RELATIONAL & GRAPHQL                      ║
+║            Nested Resolvers • Virtual Fields • Scaling • 3 runs             ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ GraphQL Introspection @ 1c   │ 0.035 ms       │ 0.047 ms     │ 28,485       ║
+║ GraphQL Introspection @ 4c   │ 0.035 ms       │ 0.036 ms     │ 28,966       ║
+║ Relational: Shallow List @ 1c │ 0.034 ms       │ 0.042 ms     │ 29,514       ║
+║ Relational: Shallow List @ 4c │ 0.035 ms       │ 0.042 ms     │ 28,740       ║
+║ Relational: Deep Join (Depth 2) @ 1c │ 0.035 ms       │ 0.050 ms     │ 28,440       ║
+║ Relational: Deep Join (Depth 2) @ 4c │ 0.035 ms       │ 0.037 ms     │ 28,601       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- RELATIONAL_TABLE_END -->
 
 <!-- REST_TABLE_START -->
-> ⏳ **REST API Performance**: Pending execution.
+### 🏷️ REST API DISPATCHER
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS  —  REST API DISPATCHER                      ║
+║         Route Resolution • JSON Serialization • Middleware Latency          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ REST: System Health (Public) │ 0.025 ms       │ 0.025 ms     │ 40,671       ║
+║ REST: User Profile (Auth)    │ 0.027 ms       │ 0.035 ms     │ 36,545       ║
+║ REST: Collections List (DB)  │ 0.025 ms       │ 0.027 ms     │ 39,780       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- REST_TABLE_END -->
 
 <!-- GRAPHQL_TABLE_START -->
-> ⏳ **GraphQL API Performance**: Pending execution.
+### 🏷️ GRAPHQL API PERFORMANCE
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                    SVELTYCMS  —  GRAPHQL API PERFORMANCE                    ║
+║          Query Resolution • Fragment Overhead • Concurrency Matrix          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ GQL: Basic Collection        │ 15.821 ms      │ 16.440 ms    │ 63           ║
+║ GQL: Complex Fragments       │ 3.930 ms       │ 3.945 ms     │ 254          ║
+║ GQL: Stress Test (32c)       │ 0.497 ms       │ 0.507 ms     │ 2,013        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- GRAPHQL_TABLE_END -->
 
 <!-- OPENAPI_TABLE_START -->
-> ⏳ **OpenAPI Specification Performance**: Pending execution.
+### 🏷️ OPENAPI SPEC GENERATION
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                    SVELTYCMS  —  OPENAPI SPEC GENERATION                    ║
+║        Cold vs Warm Cache • Dynamic Schema Conversion • IQR Trimmed         ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ OpenAPI: Cold Generation     │ 0.360 ms       │ 1.787 ms     │ 2,781        ║
+║ OpenAPI: Warm Hit (Cached)   │ 0.028 ms       │ 0.031 ms     │ 35,096       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- OPENAPI_TABLE_END -->
 
 <!-- AUTH_TABLE_START -->
-> ⏳ **Auth & RBAC Performance**: Pending execution.
+### 🏷️ AUTH & RBAC
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                          SVELTYCMS  —  AUTH & RBAC                          ║
+║            IQR trimmed • 3 runs × 1 200 iters • avg / p95 / RPS             ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Session Validation @ 1c      │ 0.054 ms       │ 0.074 ms     │ 18,661       ║
+║ Session Validation @ 8c      │ 0.055 ms       │ 0.056 ms     │ 18,338       ║
+║ Middleware Auth @ 1c         │ 0.033 ms       │ 0.040 ms     │ 30,475       ║
+║ Middleware Auth @ 8c         │ 0.037 ms       │ 0.041 ms     │ 26,914       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- AUTH_TABLE_END -->
 
 <!-- SECURITY_TABLE_START -->
-> ⏳ **Security Hardening & Audit**: Pending execution.
+### 🏷️ SECURITY HARDENING
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS  —  SECURITY HARDENING                       ║
+║           WAF Analysis • Audit Chaining • Cryptography • Argon2id           ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ WAF: Clean Request           │ 0.001 ms       │ 0.002 ms     │ 930,204      ║
+║ Audit: SHA-256 Chaining      │ 0.119 ms       │ 0.173 ms     │ 8,395        ║
+║ Crypto: Argon2id Hashing     │ 37.833 ms      │ 39.905 ms    │ 26           ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- SECURITY_TABLE_END -->
 
 <!-- REALTIME_TABLE_START -->
-> ⏳ **WebSocket & Realtime Latency**: Pending execution.
+### 🏷️ REAL-TIME ENGINE
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                       SVELTYCMS  —  REAL-TIME ENGINE                        ║
+║         Event Bus & Notification Throughput • 3 runs × 1 500 iters          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Event Dispatch @ 1c          │ 0.000 ms       │ 0.001 ms     │ 2,529,795    ║
+║ Event Dispatch @ 8c          │ 0.000 ms       │ 0.000 ms     │ 3,290,917    ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- REALTIME_TABLE_END -->
 
 <!-- TENANCY_TABLE_START -->
-> ⏳ **Multi-Tenant Performance & Isolation**: Pending execution.
+### 🏷️ MULTI-TENANT ISOLATION
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                    SVELTYCMS  —  MULTI-TENANT ISOLATION                     ║
+║          Context Switching Overhead • Data Isolation • 4c Scaling           ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Tenant Isolation @ 1t        │ 0.090 ms       │ 0.092 ms     │ 11,051       ║
+║ Tenant Isolation @ 10t       │ 0.091 ms       │ 0.095 ms     │ 11,041       ║
+║ Tenant Isolation @ 50t       │ 0.078 ms       │ 0.079 ms     │ 12,841       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- TENANCY_TABLE_END -->
 
 <!-- MIXED_TABLE_START -->
-> ⏳ **Realistic Mixed Workload**: Pending execution.
+### 🏷️ MIXED WORKLOAD AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                     SVELTYCMS  —  MIXED WORKLOAD AUDIT                      ║
+║       Reads (65%) • GraphQL (25%) • Writes (10%) • Multi-Concurrency        ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Mixed Workload @ 4c          │ 0.036 ms       │ 0.054 ms     │ 27,958       ║
+║ Mixed Workload @ 8c          │ 0.028 ms       │ 0.028 ms     │ 35,872       ║
+║ Mixed Workload @ 16c         │ 0.027 ms       │ 0.028 ms     │ 37,430       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- MIXED_TABLE_END -->
 
 <!-- MEMORY_TABLE_START -->
-> ⏳ **Memory Stability & GC Behavior**: Pending execution.
+### 🏷️ MEMORY STABILITY AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                    SVELTYCMS  —  MEMORY STABILITY AUDIT                     ║
+║            Sustained Load • Leak Detection • 12 Parallel Workers            ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Sustained Execution Profile  │ 0.089 ms       │ 0.000 ms     │ 11,240       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- MEMORY_TABLE_END -->
 
 <!-- GQL_TABLE_START -->
-> ⏳ **GraphQL Load Stress**: Pending execution.
+### 🏷️ GRAPHQL LOAD STRESS
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS  —  GRAPHQL LOAD STRESS                      ║
+║                   Profile: TINY • High-Concurrency Stress                   ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ GQL Stress: TINY             │ 11.462 ms      │ 15.032 ms    │ 1,304        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- GQL_TABLE_END -->
 
 <!-- EDGE_TABLE_START -->
-> ⏳ **Edge Sync & Distributed Cache**: Pending execution.
+### 🏷️ EDGE SYNC PERFORMANCE
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                     SVELTYCMS  —  EDGE SYNC PERFORMANCE                     ║
+║                         Throughput & Latency Matrix                         ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Single Entry Sync            │ 15.830 ms      │ 16.384 ms    │ 63           ║
+║ High Concurrency Sync (32c)  │ 0.498 ms       │ 0.498 ms     │ 2,007        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- EDGE_TABLE_END -->
 
 <!-- TELEMETRY_TABLE_START -->
-> ⏳ **Telemetry Collection & Signing**: Pending execution.
+### 🏷️ TELEMETRY SYSTEM
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                       SVELTYCMS  —  TELEMETRY SYSTEM                        ║
+║                Payload Generation • Signing • Update Checks                 ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Telemetry Payload Generation │ 0.000 ms       │ 0.001 ms     │ 3,356,831    ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- TELEMETRY_TABLE_END -->
 
 

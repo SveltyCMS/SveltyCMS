@@ -6,7 +6,13 @@
 
 import { test } from "bun:test";
 import "../unit/setup.ts";
-import { runBenchmark, exportResult, exportMetric, stabilize } from "./benchmark-utils";
+import {
+  runBenchmark,
+  exportResult,
+  exportMetric,
+  stabilize,
+  printAuditTable,
+} from "./benchmark-utils";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -95,34 +101,15 @@ test("Content Scan Performance (Self-Healing Collections)", async () => {
       silent: true,
     });
 
-    // ===================================================================
-    // Summary
-    // ===================================================================
-    console.log("\n" + "=".repeat(120));
-    console.log("   📊 SVELTYCMS CONTENT SCAN PERFORMANCE AUDIT");
-    console.log(
-      `   High-Fidelity • ${TARGET_FILE_COUNT} collections • Multi-Extension • Automated Hygiene`,
-    );
-    console.log("=".repeat(120));
-
-    console.log(`| ${"Metric".padEnd(28)} | ${"Value".padEnd(22)} |`);
-    console.log("|" + "-".repeat(28 + 22 + 6) + "|");
-
-    console.log(`| Average Duration           | ${scanResult.avgMs.toFixed(3)} ms |`);
-    console.log(`| p95 Duration               | ${scanResult.p95Ms.toFixed(3)} ms |`);
-    console.log(`| p99 Duration               | ${scanResult.p99Ms.toFixed(3)} ms |`);
-    console.log(`| Throughput                 | ${scanResult.rps.toFixed(1)} scans/sec |`);
-    console.log(`| RSS Memory Delta           | ${scanResult.rssDelta?.toFixed(2) ?? "—"} MB |`);
-    console.log("=".repeat(120));
-
-    console.log(`\n✨ Insights:`);
-    console.log(
-      `   • Scanning ${TARGET_FILE_COUNT} collections takes ~${scanResult.avgMs.toFixed(2)} ms on average`,
-    );
-    console.log(`   • Memory delta shows schema parsing and metadata index overhead`);
-
     // Structured Matrix Exports (Infrastructure v2)
     exportMetric("internals.scan.avg", scanResult.avgMs, "ms");
+
+    printAuditTable({
+      title: "SVELTYCMS  —  CONTENT SCAN AUDIT",
+      subtitle: `${TARGET_FILE_COUNT} collections • Multi-Extension • Automated Hygiene`,
+      results: [scanResult],
+      shortLabel: "Scan",
+    });
 
     exportResult({ ...scanResult, fileCount: TARGET_FILE_COUNT, scanType: "self-healing" });
   } finally {
