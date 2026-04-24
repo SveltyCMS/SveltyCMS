@@ -5,7 +5,7 @@
  */
 
 import { test, beforeAll, afterAll } from "bun:test";
-import { setupBenchmarkServer, printAuditTable } from "./benchmark-utils";
+import { setupBenchmarkServer, printTruthTable } from "./benchmark-utils";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execSync } from "node:child_process";
@@ -66,11 +66,10 @@ export async function runBuildAnalysis() {
       { name: "JS Chunk Count", avgMs: jsFiles.length, p95Ms: jsFiles.length, rps: 0 },
     ];
 
-    printAuditTable({
+    printTruthTable({
       title: "SVELTYCMS  —  PRODUCTION BUILD ANALYSIS",
       subtitle: "Compilation Speed • Bundle Size • Tree Shaking",
       results,
-      shortLabel: "Build",
     });
 
     console.log("\n✅ Build analysis completed.");

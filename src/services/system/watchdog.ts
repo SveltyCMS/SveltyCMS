@@ -28,6 +28,10 @@ class SystemWatchdog {
    * Starts the autonomous watchdog.
    */
   public start() {
+    if (process.env.BENCHMARK_MODE === "true") {
+      logger.info("🛡️ Autonomous Watchdog DISABLED (Benchmark Mode)");
+      return;
+    }
     if (this.intervalId) return;
     logger.info("🛡️ Autonomous System Watchdog started");
     this.intervalId = setInterval(() => this.check(), this.CHECK_INTERVAL);

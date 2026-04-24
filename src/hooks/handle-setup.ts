@@ -12,7 +12,8 @@ import { getDbInitPromise } from "@src/databases/db";
 import { error, type Handle, redirect } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
-import { getSetupState, SetupState, isSetupFullyComplete } from "@utils/setup-check";
+import { isSetupFullyComplete, getSetupState, SetupState } from "@utils/setup-check";
+
 import { isStaticOrInternalRequest } from "@utils/hook-utils";
 
 // --- CONSTANTS ---
@@ -36,16 +37,18 @@ function isAllowedDuringSetup(pathname: string): boolean {
   let cached = allowedSetupPathCache.get(pathname);
   if (cached !== undefined) return cached;
 
-  // Allow standard setup, API setup, version check, assets, AND localized setup
-  cached =
+  // During setup, we only allow:
+  // 1. Setup routes (/setup, /api/setup)
+  // 2. System routes (/api/system)
+  // 3. Static assets
+  const isSetupOrSystem =
     pathname.startsWith("/setup") ||
-    /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname) || // Localized setup (e.g. /en/setup)
-    pathname.startsWith("/api/system") || // Allow system API during setup
-    pathname.startsWith("/api/settings/public") || // Allow public settings
-    pathname.startsWith("/api/user") || // Allow user logic during setup
-    pathname.startsWith("/api/auth") || // Allow auth logic during setup
-    pathname === "/api/system/version" ||
-    ASSET_REGEX.test(pathname);
+    pathname.startsWith("/api/setup") ||
+    pathname.startsWith("/api/system") ||
+    pathname.startsWith("/api/dashboard/health") ||
+    pathname.startsWith("/ui-test");
+
+  cached = isSetupOrSystem || ASSET_REGEX.test(pathname);
 
   if (allowedSetupPathCache.size > 2000) allowedSetupPathCache.clear();
   allowedSetupPathCache.set(pathname, cached);
@@ -115,40 +118,34 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
     // We use the granular setup state to decide what to allow.
     const state = await getSetupState();
     const isComplete = state === SetupState.COMPLETE;
-    const isConfigReady = state === SetupState.MISSING_ADMIN;
 
-    // --- Step 2: Handle Incomplete Setup ---
+    // --- Step 2: Gating for /setup routes ---
+    // handleTurboPipeline handles the initial "no config -> redirect to /setup" gating.
+    // This hook focuses on:
+    // 1. Allowing setup routes if setup is NOT complete.
+    // 2. Blocking setup routes if setup IS complete.
+
     if (!isComplete) {
-      // Log warning only once per request flow to prevent spam
-      if (!(event.locals.__setupLogged || isAllowedDuringSetup(pathname))) {
-        logger.warn(`System requires initial setup. State: ${state}`);
-        event.locals.__setupLogged = true;
-      }
-
-      // Allow access to setup routes and assets
       if (isAllowedDuringSetup(pathname)) {
-        // ✨ SECURITY GATING:
-        // If config exists but we're on /setup without an admin step,
-        // we might want to hint to the frontend or skip the redirect.
-        // For now, we allow the request and the frontend + server actions will enforce the lock.
         return await resolve(event, createSetupResolver());
       }
 
-      // For API requests, return a proper error instead of redirecting
-      if (isApi) {
-        throw new AppError(
-          isConfigReady ? "Admin creation required." : "System setup required.",
-          503,
-          "SETUP_REQUIRED",
-        );
+      // If we are not on a setup route and setup is incomplete,
+      // return a Service Unavailable error for API calls.
+      if (pathname.startsWith("/api/")) {
+        const message =
+          state === SetupState.MISSING_ADMIN ? "Admin creation required" : "System setup required";
+        return new Response(JSON.stringify({ message }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        });
       }
 
-      // Redirect everything else to /setup
-      if (!event.locals.__setupRedirectLogged) {
-        logger.debug(`Redirecting ${pathname} to /setup`);
-        event.locals.__setupRedirectLogged = true;
-      }
-      throw redirect(302, "/setup");
+      const returnTo =
+        pathname === "/"
+          ? ""
+          : `?from=${encodeURIComponent(event.url.pathname + event.url.search)}`;
+      throw redirect(302, `/setup${returnTo}`);
     }
 
     // --- Step 3: Handle Complete Setup ---
@@ -194,6 +191,7 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
       throw error(err.status, err.message);
     }
 
+    // console.log("DEBUG: handleSetup caught error:", err);
     throw err;
   }
 };

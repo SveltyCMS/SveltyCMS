@@ -8,6 +8,7 @@ import { isBootstrapRoute, isSetupCompleteAsync } from "@utils/setup-check";
 import { contentSystem } from "@src/content";
 import { logger } from "@utils/logger.server";
 import { getDbInitPromise } from "@src/databases/db";
+import { app } from "@src/stores/store.svelte";
 
 // 🚀 OPTIMIZATION: Compile Regex once globally.
 // Matches unlocalized (e.g., /api) and localized (e.g., /en-US/api) paths.
@@ -36,15 +37,15 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
 
   // --- Phase 2: Content System Initialization ---
   if (!contentSystem.isInitializedForTenant(tenantId)) {
-    console.log(`[CONTENT_HOOK] Initializing for tenant: ${tenantId}. Path: ${pathname}`);
-    // 🛡️ SAFETY: Catch background errors to prevent unhandled promise rejections
+    // 🛡️ SAFETY: Use a shared promise to prevent initialization storms
     const initPromise = contentSystem.initialize(tenantId, false).catch((err) => {
       logger.error(`[handleContentInitialization] Init failed for tenant ${tenantId}:`, err);
     });
 
-    // Await initialization for authenticated requests or specific bootstrap routes
+    // Await initialization for authenticated requests, API routes, or specific bootstrap routes
     if (
       locals.user ||
+      pathname.startsWith("/api") ||
       (isBootstrapRoute(pathname) && pathname !== "/" && !pathname.includes("dashboard"))
     ) {
       logger.info(`[handleContentInitialization] Awaiting content system sync for ${pathname}...`);
@@ -61,7 +62,7 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
     // 1. Root Routing (Highest Priority)
     if (pathname === "/") {
       if (collections.length > 0) {
-        const lang = locals.language || "en";
+        const lang = (locals as any).language || app?.contentLanguage || "en";
         const firstUrl = await contentSystem.getFirstCollectionRedirectUrl(lang, tenantId);
         if (firstUrl) {
           logger.info(`[handleContentInitialization] Root -> first collection: ${firstUrl}`);

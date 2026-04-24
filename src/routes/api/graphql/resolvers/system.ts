@@ -95,6 +95,18 @@ export const systemTypeDefs = `
 		errors: [String!]!
 		warnings: [String!]!
 	}
+
+	extend type Query {
+		collectionStats(collectionId: String!): CollectionStats
+		allCollectionStats: [CollectionStats!]!
+		navigationStructure(options: NavigationOptions): [NavigationNode!]!
+		nodeChildren(nodeId: String!): [NavigationNode!]!
+		breadcrumb(path: String!): [BreadcrumbItem!]!
+		contentSystemHealth: contentSystemHealth
+		contentSystemDiagnostics: contentSystemDiagnostics
+		contentSystemMetrics: contentSystemMetrics
+		validateContentStructure: StructureValidation
+	}
 `;
 
 export const systemResolvers = {

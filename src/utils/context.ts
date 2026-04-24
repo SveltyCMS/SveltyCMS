@@ -6,6 +6,7 @@ export interface SveltyContext {
   userId?: DatabaseId | null;
   permissions?: string[];
   requestId?: string;
+  abortSignal?: AbortSignal;
 }
 
 export const sveltyContext = new AsyncLocalStorage<SveltyContext>();

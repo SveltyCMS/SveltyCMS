@@ -3,106 +3,117 @@
  * @description Enterprise OpenAPI benchmark for SveltyCMS.
  * Measures dynamic spec generation and documentation endpoint latencies.
  */
-import { test, beforeAll, afterAll } from "bun:test";
+
+import { test } from "bun:test";
 import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
-  exportMetric,
-  stabilize,
-  mockDispatch,
   setupBenchmarkServer,
-  printAuditTable,
+  printTruthTable,
   printSummaryTable,
+  TEST_API_SECRET,
+  getDbType,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
-let stopServer: () => Promise<void>;
+let server: any;
 
-beforeAll(async () => {
-  const { stop } = await setupBenchmarkServer();
-  stopServer = stop;
-});
+async function runOpenApiAudit() {
+  console.log("🚀 Starting Enterprise OpenAPI Audit...\n");
 
-afterAll(async () => {
-  if (stopServer) await stopServer();
-});
-
-export async function runOpenApiBenchmark() {
-  console.log("🚀 Starting Enterprise OpenAPI Benchmark...\n");
-
-  await stabilize();
-
-  const RUNS = 3;
-  const ITER_COLD = 10;
-  const ITER_WARM = 200;
-  const WARMUP = 50;
-
+  const originalLogLevel = logger.level;
   logger.level = "silent";
 
-  // 1. Cold Generation (cache miss simulation)
-  // We don't have an easy way to clear just openapi cache without internal access,
-  // but we can measure the first few hits.
-  const coldResult = await runBenchmark({
-    name: "OpenAPI: Cold Generation",
-    iterations: ITER_COLD,
-    warmupIterations: 0,
-    runs: 1,
-    concurrency: 1,
-    measureMemory: true,
-    onIteration: async () => {
-      const res = await mockDispatch({ path: "/api/openapi.json" });
-      await res.text();
-    },
-    silent: true,
-  });
+  try {
+    // 1. Setup Server
+    server = await setupBenchmarkServer();
+    const baseUrl = server.baseUrl;
 
-  await stabilize();
+    // 2. Validate Endpoint
+    console.log("🔍 Validating OpenAPI endpoint...");
+    const checkRes = await fetch(baseUrl + "/api/openapi.json", {
+      headers: { "x-test-secret": TEST_API_SECRET },
+    });
+    if (checkRes.status !== 200) {
+      throw new Error(`OpenAPI endpoint returned ${checkRes.status}`);
+    }
+    const spec = await checkRes.json();
+    if (!spec.openapi) {
+      throw new Error("OpenAPI response is not a valid spec");
+    }
+    console.log(
+      `   → Spec version: ${spec.openapi} | Paths: ${Object.keys(spec.paths || {}).length}`,
+    );
 
-  // 2. Warm Hit (Cached)
-  const warmResult = await runBenchmark({
-    name: "OpenAPI: Warm Hit (Cached)",
-    iterations: ITER_WARM,
-    warmupIterations: WARMUP,
-    runs: RUNS,
-    concurrency: 8,
-    trimOutliers: "iqr",
-    measureMemory: true,
-    onIteration: async () => {
-      const res = await mockDispatch({ path: "/api/openapi.json" });
-      await res.text();
-    },
-    silent: true,
-  });
+    const RUNS = 2;
+    const ITER_COLD = 10;
+    const ITER_WARM = 200;
+    const WARMUP = 50;
 
-  logger.level = "info";
+    // 3. Cold Generation (cache miss simulation)
+    const coldResult = await runBenchmark({
+      name: "Cold Spec Generation",
+      iterations: ITER_COLD,
+      warmupIterations: 0,
+      runs: 1,
+      concurrency: 1,
+      measureMemory: true,
+      onIteration: async () => {
+        const res = await fetch(baseUrl + "/api/openapi.json", {
+          headers: { "x-test-secret": TEST_API_SECRET },
+        });
+        await res.text();
+      },
+      silent: true,
+    });
 
-  const speedup = coldResult.avgMs / warmResult.avgMs;
+    // 4. Warm Hit (Cached)
+    const warmResult = await runBenchmark({
+      name: "Warm Spec Hit (Cached)",
+      iterations: ITER_WARM,
+      warmupIterations: WARMUP,
+      runs: RUNS,
+      concurrency: 8,
+      trimOutliers: "iqr",
+      measureMemory: true,
+      onIteration: async () => {
+        const res = await fetch(baseUrl + "/api/openapi.json", {
+          headers: { "x-test-secret": TEST_API_SECRET },
+        });
+        await res.text();
+      },
+      silent: true,
+    });
 
-  printAuditTable({
-    title: "SVELTYCMS  —  OPENAPI SPEC GENERATION",
-    subtitle: "Cold vs Warm Cache • Dynamic Schema Conversion • IQR Trimmed",
-    results: [coldResult, warmResult],
-  });
+    const speedup = coldResult.avgMs / warmResult.avgMs;
 
-  printSummaryTable([
-    { key: "Cold Generation Latency", val: coldResult.avgMs, unit: "ms" },
-    { key: "Warm Cache Hit Latency", val: warmResult.avgMs, unit: "ms" },
-    { key: "Cache Speedup Factor", val: speedup, unit: "x" },
-    { key: "Max OpenAPI Throughput", val: Math.round(warmResult.rps), unit: "req/s" },
-    { key: "Generation RSS Footprint", val: (coldResult.rssDelta || 0).toFixed(2), unit: "MB" },
-  ]);
+    printTruthTable({
+      title: "SVELTYCMS  —  OPENAPI SPEC GENERATION AUDIT",
+      subtitle: `Dynamic Schema Mapping • ${getDbType().toUpperCase()} • IQR Trimmed`,
+      results: [
+        { ...coldResult, layer: "Cold", overheadPct: 0 },
+        { ...warmResult, layer: "Cached", overheadPct: speedup },
+      ],
+    });
 
-  exportMetric("api.openapi.cold.avg", coldResult.avgMs, "ms");
-  exportMetric("api.openapi.warm.avg", warmResult.avgMs, "ms");
-  exportMetric("api.openapi.rps", warmResult.rps, "req/s");
+    printSummaryTable([
+      { key: "Cold Generation Latency", val: coldResult.avgMs, unit: "ms" },
+      { key: "Warm Cache Hit Latency", val: warmResult.avgMs, unit: "ms" },
+      { key: "Cache Speedup Factor", val: speedup, unit: "x" },
+      { key: "Max OpenAPI Throughput", val: Math.round(warmResult.rps), unit: "req/s" },
+      { key: "Stability Rating", val: speedup > 5 ? "EXCELLENT" : "GOOD", unit: "" },
+    ]);
 
-  exportResult(coldResult);
-  exportResult(warmResult);
+    exportResult(warmResult);
+    await server.stop();
+  } finally {
+    logger.level = originalLogLevel;
+  }
 
-  console.log("\n✅ OpenAPI benchmark completed.");
+  console.log("\n✅ OpenAPI audit completed.");
 }
 
-test("OpenAPI Specification Performance", async () => {
-  await runOpenApiBenchmark();
-}, 400000);
+test("OpenAPI Enterprise Audit", async () => {
+  await runOpenApiAudit();
+}, 600000);

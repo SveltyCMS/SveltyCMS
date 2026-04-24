@@ -100,26 +100,29 @@ export class WorkflowService {
     logger.info(`Workflow ${workflowId} deleted by user: ${user._id}`);
   }
 
-  /**
-   * Loads a workflow for a specific collection.
-   */
   public async getWorkflowForCollection(
     collectionId: string,
     tenantId?: string,
   ): Promise<WorkflowDefinition | null> {
     const dbAdapter = await getDbAdapter();
-    const workflows = await dbAdapter.crud.findMany<any>(
-      this.DEFINITIONS_COLLECTION,
-      { collectionId },
-      { tenantId: tenantId as DatabaseId },
-    );
+    try {
+      const workflows = await dbAdapter.crud.findMany<any>(
+        this.DEFINITIONS_COLLECTION,
+        { collectionId },
+        { tenantId: tenantId as DatabaseId },
+      );
 
-    // Fallback: If store is empty, query DB directly
-    if (!workflows.success || workflows.data.length === 0) {
-      return null;
+      // Fallback: If store is empty, query DB directly
+      if (!workflows.success || workflows.data.length === 0) {
+        return null;
+      }
+
+      return workflows.data[0] as WorkflowDefinition;
+    } catch (err: any) {
+      // If table doesn't exist yet, just assume no workflow
+      if (err.message?.includes("no such table")) return null;
+      throw err;
     }
-
-    return workflows.data[0] as WorkflowDefinition;
   }
 
   /**
@@ -130,12 +133,17 @@ export class WorkflowService {
     tenantId?: string,
   ): Promise<WorkflowInstance | null> {
     const dbAdapter = await getDbAdapter();
-    const instances = await dbAdapter.crud.findMany<any>(
-      this.INSTANCES_COLLECTION,
-      { entryId },
-      { tenantId: tenantId as DatabaseId },
-    );
-    return instances.success ? (instances.data[0] as WorkflowInstance) : null;
+    try {
+      const instances = await dbAdapter.crud.findMany<any>(
+        this.INSTANCES_COLLECTION,
+        { entryId },
+        { tenantId: tenantId as DatabaseId },
+      );
+      return instances.success ? (instances.data[0] as WorkflowInstance) : null;
+    } catch (err: any) {
+      if (err.message?.includes("no such table")) return null;
+      throw err;
+    }
   }
 
   /**

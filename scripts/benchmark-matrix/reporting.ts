@@ -46,6 +46,12 @@ export async function persistScriptMetadataAST(scriptPath: string, timestamp: st
             if (lastRunProp) {
               lastRunProp.setInitializer(`"${timestamp}"`);
               log.db("AST", `Updated lastRun for ${scriptPath}`);
+            } else {
+              obj.addPropertyAssignment({
+                name: "lastRun",
+                initializer: `"${timestamp}"`,
+              });
+              log.db("AST", `Added lastRun for ${scriptPath}`);
             }
           }
         }
@@ -102,10 +108,10 @@ export function printSummaryTable(results: BenchmarkResult[]) {
 
     const row = [
       `${meta.icon} ${meta.label}`.padEnd(COL[0]),
-      `${res.coldStartMs ?? 0}ms`.padEnd(COL[1]),
-      `${m.collections.toFixed(2)}ms`.padEnd(COL[2]),
-      `${m.graphqlAvg.toFixed(2)}ms`.padEnd(COL[3]),
-      `${m.memGrowth.toFixed(1)}`.padEnd(COL[4]),
+      `${res.coldStartMs ?? "—"}ms`.padEnd(COL[1]),
+      `${m.collections > 0 ? m.collections.toFixed(2) + "ms" : "FAILED"}`.padEnd(COL[2]),
+      `${m.graphqlAvg > 0 ? m.graphqlAvg.toFixed(2) + "ms" : "FAILED"}`.padEnd(COL[3]),
+      `${m.memGrowth > 0 ? m.memGrowth.toFixed(1) : "—"}`.padEnd(COL[4]),
       budgetCell.padEnd(COL[5] + 10),
       statusCell,
     ].join("  ");
@@ -148,11 +154,13 @@ function buildAsciiTable(title: string, subtitle: string, scenarios: any[]): str
   md += bar("╠", "═", "╣") + "\n";
 
   for (const s of scenarios) {
+    const isMs = !s.name.toLowerCase().includes("size") && !s.name.toLowerCase().includes("count");
+    const suffix = isMs ? " ms" : "";
     md +=
       row(
         s.name,
-        `${s.avgMs.toFixed(3)} ms`,
-        `${s.p95Ms.toFixed(3)} ms`,
+        `${s.avgMs.toFixed(3)}${suffix}`,
+        `${s.p95Ms.toFixed(3)}${suffix}`,
         Math.round(s.rps).toLocaleString(),
       ) + "\n";
   }
@@ -364,8 +372,8 @@ async function updateDatabaseSpecificReports(
     md += `| Scenario | Avg Latency | Trend | Target Budget |\n`;
     md += `| :--- | :--- | :--- | :--- |\n`;
     md += `| **Cold Start** | ${curr?.coldStartMs || 0}ms | ${coldTrend.icon} (${coldTrend.pct}) | < 5000ms |\n`;
-    md += `| **REST (Collections)** | ${m.collections.toFixed(3)}ms | ${restTrend.icon} (${restTrend.pct}) | < 150ms |\n`;
-    md += `| **GraphQL (Avg)** | ${m.graphqlAvg.toFixed(3)}ms | ${gqlTrend.icon} (${gqlTrend.pct}) | < 100ms |\n`;
+    md += `| **REST (Collections)** | ${m.collections.toFixed(3)}ms | ${restTrend.icon} (${restTrend.pct}) | < 5ms |\n`;
+    md += `| **GraphQL (Avg)** | ${m.graphqlAvg.toFixed(3)}ms | ${gqlTrend.icon} (${gqlTrend.pct}) | < 5ms |\n`;
     md += `| **DB Raw (p95)** | ${m.dbRaw.toFixed(3)}ms | ⚪ | < 50ms |\n\n`;
 
     md += `### 📈 Historical Latency Trends\n`;
@@ -396,20 +404,93 @@ async function updateDatabaseSpecificReports(
       const tag = script.shortLabel.split(" ")[0].toUpperCase() + "_TABLE";
 
       // 🚀 ULTRA ELITE: Try to find a persistent table file for this script
-      let tableContent = `> ⏳ **${script.label}**: Pending execution.`;
+      let tableContent = `> ⏳ **${script.label}**: Pending execution.\n> 📂 **Source**: [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")})`;
       try {
         const dbResultsDir = path.join(ROOT_RESULTS_DIR, dbKey);
-        const files = await fs.readdir(dbResultsDir);
+        const files = await fs.readdir(dbResultsDir).catch(() => []);
         // Match files like 'api_layer_latency_audit.table.txt'
-        const tableFile = files.find(
-          (f) => f.endsWith(".table.txt") && f.includes(script.shortLabel.toLowerCase()),
-        );
+        const tableFile = files.find((f) => {
+          if (!f.endsWith(".table.txt")) return false;
+          const nf = f
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, " ")
+            .replace("sveltycms", "")
+            .trim();
+          const sl = script.shortLabel.toLowerCase().replace(/[^a-z0-9]/g, " ");
+          const fl = script.label.toLowerCase().replace(/[^a-z0-9]/g, " ");
+
+          const nfWords = new Set(nf.split(" ").filter((w) => w.length > 2));
+          const slWords = sl.split(" ").filter((w) => w.length > 2);
+          const flWords = fl.split(" ").filter((w) => w.length > 2);
+
+          const slMatch = slWords.every((w) => nfWords.has(w)) || nfWords.has(sl);
+          const flMatch = flWords.every((w) => nfWords.has(w)) || nfWords.has(fl);
+
+          return slMatch || flMatch;
+        });
 
         if (tableFile) {
           const rawTable = await fs.readFile(path.join(dbResultsDir, tableFile), "utf8");
-          tableContent = `### 🏷️ ${script.label}\n\n\`\`\`text\n${rawTable}\n\`\`\``;
+          const history = db
+            .query(`
+              SELECT metrics_json FROM runs 
+              WHERE db_key = ? AND status = 'SUCCESS' 
+              ORDER BY timestamp DESC LIMIT 2
+            `)
+            .all(dbKey) as any[];
+
+          let trendStr = "";
+          if (history.length === 2) {
+            const last = JSON.parse(history[0].metrics_json);
+            const prev = JSON.parse(history[1].metrics_json);
+
+            // 🚀 ULTRA ELITE: Try to find matching metric in history by path OR slug
+            const findMetric = (m: any) => {
+              // Try exact match by shortLabel
+              if (m[script.shortLabel]?.avgMs) return m[script.shortLabel].avgMs;
+              // Try slug match
+              const slug = script.shortLabel.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
+              if (m[slug]?.avgMs) return m[slug].avgMs;
+              // Try path match (looking inside metrics)
+              for (const key in m) {
+                if (m[key]?.scriptPath === script.path) return m[key].avgMs;
+                // Fallback for older data that might have base name
+                if (key.includes(path.basename(script.path, ".test.ts"))) return m[key].avgMs;
+              }
+              return 0;
+            };
+
+            const lastVal = findMetric(last);
+            const prevVal = findMetric(prev);
+
+            if (lastVal > 0 && prevVal > 0) {
+              const delta = ((lastVal - prevVal) / prevVal) * 100;
+              const icon = delta > 5 ? "🔴" : delta < -5 ? "🟢" : "⚪";
+              trendStr = ` (Trend: ${icon} ${delta > 0 ? "+" : ""}${delta.toFixed(1)}%)`;
+            }
+          }
+
+          tableContent = `### 🏷️ ${script.label}${trendStr}\n\n\`\`\`text\n${rawTable}\n\`\`\``;
+        } else {
+          // 🛡️ NON-DESTRUCTIVE: Try to recover existing data from the file ONLY if no new tableFile was found
+          if (!tableFile) {
+            const docPath = path.resolve(
+              process.cwd(),
+              "docs/project/benchmarks",
+              `benchmark_${dbKey.replace("-", "_")}.mdx`,
+            );
+            const currentDoc = await fs.readFile(docPath, "utf8").catch(() => "");
+            const START = `<!-- ${tag}_START -->`;
+            const END = `<!-- ${tag}_END -->`;
+            if (currentDoc.includes(START) && currentDoc.includes(END)) {
+              const existing = currentDoc.split(START)[1].split(END)[0].trim();
+              if (existing && !existing.includes("Pending execution")) {
+                tableContent = existing;
+              }
+            }
+          }
         }
-      } catch (e) {
+      } catch {
         // Fallback to placeholder if file missing
       }
 
@@ -568,7 +649,12 @@ export async function scanResultsDirectory(): Promise<BenchmarkResult[]> {
           } else if (content._type === "numeric-metric") {
             metrics[content.name] = content;
           } else {
-            const key = content.name || path.basename(f, ".json");
+            const baseName = path.basename(f, ".json");
+            // Normalize key by stripping ISO timestamp (e.g. -2026-04-23T...)
+            const key = (content.name || baseName).replace(
+              /-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$/,
+              "",
+            );
             metrics[key] = content;
           }
         } catch (err) {

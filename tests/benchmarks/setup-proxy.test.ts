@@ -1,65 +1,98 @@
 /**
  * @file tests/benchmarks/setup-proxy.test.ts
- * @description Enterprise setup & proxy benchmark for SveltyCMS.
- * Measures initialization latencies and request-routing overhead.
+ * @description Enterprise cold-start and infrastructure routing audit for SveltyCMS.
+ * Measures initialization latency and proxy header processing overhead.
  */
-import { beforeAll, afterAll } from "bun:test";
+
+import { test } from "bun:test";
 import "../unit/setup.ts";
-import { runBenchmark, stabilize, setupBenchmarkServer, printAuditTable } from "./benchmark-utils";
+import {
+  runBenchmark,
+  exportResult,
+  stabilize,
+  setupBenchmarkServer,
+  printTruthTable,
+  printSummaryTable,
+  TEST_API_SECRET,
+  getDbType,
+} from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
-let stopServer: () => Promise<void>;
+async function runSetupAudit() {
+  console.log("🚀 Starting Enterprise Setup & Proxy Audit...\n");
 
-beforeAll(async () => {
-  const { stop } = await setupBenchmarkServer();
-  stopServer = stop;
-});
+  const originalLogLevel = logger.level;
+  logger.level = "silent";
 
-afterAll(async () => {
-  if (stopServer) await stopServer();
-});
+  try {
+    const results: any[] = [];
 
-export async function runSetupProxyBenchmark() {
-  console.log("🚀 Starting Enterprise Setup & Proxy Benchmark...\n");
+    // 1. Cold Start Performance
+    // Measures the time from spawn to health-check success (DB + App Init)
+    console.log("   → Measuring System Cold-Start (Infrastructure Boot)...");
+    const coldStarts: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const start = performance.now();
+      const server = await setupBenchmarkServer();
+      coldStarts.push(performance.now() - start);
+      await server.stop();
+      await stabilize();
+    }
 
-  await stabilize();
+    const avgCold = coldStarts.reduce((a, b) => a + b, 0) / coldStarts.length;
+    const p95Cold = coldStarts.sort((a, b) => a - b)[Math.floor(coldStarts.length * 0.95)];
 
-  const RUNS = 3;
-  const ITERATIONS = 1200;
-  const WARMUP = 150;
-  const concurrencyLevels = [1, 8];
-  const allResults: any[] = [];
+    // 2. Proxy Header Processing
+    // Measures the overhead of parsing X-Forwarded-* headers in the pipeline.
+    console.log("   → Measuring Proxy Header Parsing Overhead...");
+    const server = await setupBenchmarkServer();
+    const baseUrl = server.baseUrl;
 
-  // 1. Health Check (Proxy fast-path)
-  for (const concurrency of concurrencyLevels) {
-    const result = await runBenchmark({
-      name: `Proxy Health @ ${concurrency}c`,
-      iterations: ITERATIONS,
-      warmupIterations: WARMUP,
-      runs: RUNS,
-      concurrency,
+    const proxyResult = await runBenchmark({
+      name: "Proxy Header Parsing",
+      iterations: 1000,
+      warmupIterations: 100,
+      runs: 2,
+      concurrency: 4,
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        // Direct dispatcher call for health
-        const { getSystemState } = await import("@src/stores/system/state");
-        getSystemState();
+        const res = await fetch(baseUrl + "/api/system/health", {
+          headers: {
+            "x-test-secret": TEST_API_SECRET,
+            "X-Forwarded-For": "192.168.1.1, 10.0.0.1",
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Host": "cms.enterprise.com",
+          },
+        });
+        await res.text();
       },
     });
-    allResults.push(result);
+    results.push({ ...proxyResult, layer: "Proxy" });
+
+    printTruthTable({
+      title: "SVELTYCMS  —  INFRASTRUCTURE BOOT & ROUTING AUDIT",
+      subtitle: `Cold Start • Proxy Overhead • ${getDbType().toUpperCase()}`,
+      results: [{ ...proxyResult, layer: "Full Stack", overheadPct: 0 }],
+    });
+
+    printSummaryTable([
+      { key: "Average Cold Start", val: avgCold, unit: "ms" },
+      { key: "p95 Cold Start", val: p95Cold, unit: "ms" },
+      { key: "Proxy Routing Latency", val: proxyResult.avgMs, unit: "ms" },
+      { key: "Cold Start Rating", val: avgCold < 1000 ? "EXCELLENT" : "GOOD", unit: "" },
+    ]);
+
+    exportResult(proxyResult);
+    await server.stop();
+  } finally {
+    logger.level = originalLogLevel;
   }
 
-  logger.level = "info";
-
-  printAuditTable({
-    title: "SVELTYCMS  —  SETUP & PROXY",
-    subtitle: "Initialization & Routing Overhead • 3 runs × 1 200 iters",
-    results: allResults,
-  });
+  console.log("\n✅ Setup & proxy audit completed.");
 }
 
-import { test } from "bun:test";
-test("Setup & Proxy Benchmark", async () => {
-  await runSetupProxyBenchmark();
-}, 300000);
+test("Setup & Infrastructure Audit", async () => {
+  await runSetupAudit();
+}, 600000);

@@ -116,6 +116,30 @@ export const actions: Actions = {
 
       const dropDatabase = async (targetName: string) => {
         logger.info(`🚨 Attempting to drop database '${targetName}'...`);
+        // 🚨 Hardening for Benchmarks: Disconnect active adapter to release handles/sessions
+        try {
+          const { getDb } = await import("@src/databases/db");
+          const adapter = getDb();
+          const isRelational =
+            dbConfig.type.includes("postgres") ||
+            dbConfig.type.includes("mariadb") ||
+            dbConfig.type === "sqlite";
+          logger.info(
+            `[dropDatabase] Adapter found: ${!!adapter}, Type: ${dbConfig.type}, isRelational: ${isRelational}`,
+          );
+          if (adapter && isRelational) {
+            logger.info(`Disconnecting active adapter to release ${dbConfig.type} sessions...`);
+            await adapter.disconnect();
+            // wait for sessions to clear
+            await new Promise((r) => setTimeout(r, 800));
+          }
+        } catch (err: any) {
+          logger.warn(
+            "[dropDatabase] Failed to disconnect active adapter (ignoring):",
+            err.message,
+          );
+        }
+
         if (dbConfig.type === "mongodb" || dbConfig.type === "mongodb+srv") {
           const mongoose = (await import("mongoose")).default;
           const uri = configData.host.includes("://")
@@ -143,27 +167,40 @@ export const actions: Actions = {
             password: dbConfig.password,
             database: "postgres",
           });
-          await sql.unsafe(`DROP DATABASE IF EXISTS "${targetName}"`);
+          // Try WITH (FORCE) first (PostgreSQL 13+), fall back to standard if it fails
+          // Kill any other active sessions to this database
+          try {
+            // 1. Prevent new connections
+            await sql
+              .unsafe(`ALTER DATABASE "${targetName}" WITH ALLOW_CONNECTIONS false`)
+              .catch(() => {});
+
+            // 2. Terminate existing sessions
+            await sql
+              .unsafe(`
+              SELECT pg_terminate_backend(pid)
+              FROM pg_stat_activity
+              WHERE datname = '${targetName}' AND pid <> pg_backend_pid()
+            `)
+              .catch(() => {});
+
+            // Small delay to allow sessions to terminate
+            await new Promise((r) => setTimeout(r, 500));
+          } catch (err: any) {
+            logger.debug(`PostgreSQL: session termination failed (ignoring): ${err.message}`);
+          }
+
+          // 3. Drop the database
+          try {
+            await sql.unsafe(`DROP DATABASE IF EXISTS "${targetName}" WITH (FORCE)`);
+          } catch {
+            await sql.unsafe(`DROP DATABASE IF EXISTS "${targetName}"`);
+          }
           await sql.end();
         } else if (dbConfig.type === "sqlite") {
           const { buildDatabaseConnectionString } = await import("./utils");
           const dbPath = buildDatabaseConnectionString(dbConfig);
           if ((await import("fs")).existsSync(dbPath)) {
-            // 🚨 Hardening for Windows/Benchmarks: Disconnect active adapter to release file handle
-            try {
-              const { getDb } = await import("@src/databases/db");
-              const activeAdapter = getDb();
-              if (activeAdapter) {
-                logger.info("📡 Disconnecting active adapter to release SQLite file handle...");
-                await activeAdapter.disconnect();
-              }
-            } catch (err: any) {
-              logger.debug("Failed to disconnect active adapter (ignoring):", err.message);
-            }
-
-            // Small delay to allow OS to release the handle
-            await new Promise((r) => setTimeout(r, 500));
-
             await (await import("fs")).promises.unlink(dbPath);
           }
         }
@@ -870,6 +907,7 @@ export const actions: Actions = {
         REDIS_HOST: system.redisHost,
         REDIS_PORT: Number(system.redisPort),
         REDIS_PASSWORD: system.redisPassword,
+        PASSWORD_MIN_LENGTH: Number(system.passwordMinLength || 8),
       } as any);
 
       // OPTIMIZATION: Initialize content-system IMMEDIATELY with skipReconciliation: true
@@ -881,7 +919,8 @@ export const actions: Actions = {
         );
         const { contentSystem } = await import("@src/content");
         // skipReconciliation: true is CRITICAL here to prevent the 4s blocking delay
-        await contentSystem.refresh(undefined, true);
+        // 🚀 Elite Audit Fix: Pass active dbAdapter directly to bypass global singleton race conditions
+        await contentSystem.refresh(undefined, true, false, dbAdapter);
         logger.info(
           "✅ [completeSetup] ContentSystem refreshed successfully (skipped reconciliation).",
         );

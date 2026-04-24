@@ -130,10 +130,11 @@ export function getMemorySnapshot() {
     external: mem.external / 1024 / 1024,
   };
 }
+export const measureMemory = getMemorySnapshot;
 
 // ── reporting engine ─────────────────────────────────────────────────────────
 
-export function printAuditTable(options: {
+export function printTruthTable(options: {
   title: string;
   subtitle: string;
   results: any[];
@@ -320,7 +321,7 @@ function pushTableToMdx(title: string, table: string, shortLabel?: string) {
       content = content.replace(regex, `${START}${tableBlock}${END}`);
       fs.writeFileSync(docPath, content);
     }
-  } catch (err) {
+  } catch {
     // Silent fail
   }
 }
@@ -412,6 +413,69 @@ export async function runBenchmark(config: any) {
   return computeStatistics(results, rps, config);
 }
 
+/**
+ * Executes a ramping load test with stage transitions and SLA validation.
+ */
+export async function runStochasticLoadTest(config: {
+  name: string;
+  stages: Array<{ duration: number; target: number }>;
+  thresholds: Record<string, string>;
+  onIteration: (i: number) => Promise<void>;
+}) {
+  const { stages, thresholds, onIteration } = config;
+  const latencies: number[] = [];
+  let totalReqs = 0;
+  let failures = 0;
+
+  console.log(`   [Stochastic] Starting ${config.name} with ${stages.length} stages...`);
+
+  for (const stage of stages) {
+    const startTime = Date.now();
+    const deadline = startTime + stage.duration * 1000;
+    const interval = 1000 / stage.target;
+
+    while (Date.now() < deadline) {
+      const t0 = performance.now();
+      try {
+        await onIteration(totalReqs++);
+        latencies.push(performance.now() - t0);
+      } catch {
+        failures++;
+      }
+      const elapsed = performance.now() - t0;
+      if (elapsed < interval) {
+        await new Promise((r) => setTimeout(r, interval - elapsed));
+      }
+    }
+  }
+
+  const sorted = latencies.sort((a, b) => a - b);
+  const p95 = percentile(sorted, 95);
+  const errorRate = failures / totalReqs;
+
+  const violations: string[] = [];
+  if (thresholds.p95) {
+    const limit = parseFloat(thresholds.p95.replace(/[^\d.]/g, ""));
+    if (p95 > limit) violations.push(`p95 latency ${p95.toFixed(2)}ms > threshold ${limit}ms`);
+  }
+  if (thresholds.error_rate) {
+    const limit = parseFloat(thresholds.error_rate.replace(/[^\d.]/g, ""));
+    if (errorRate > limit)
+      violations.push(
+        `Error rate ${(errorRate * 100).toFixed(2)}% > threshold ${(limit * 100).toFixed(2)}%`,
+      );
+  }
+
+  return {
+    passedSLA: violations.length === 0,
+    violations,
+    p95,
+    errorRate,
+    totalReqs,
+    failures,
+  };
+}
+
 // ── mocks & helpers ──────────────────────────────────────────────────────────
 
 export async function setupBenchmarkServer() {
@@ -494,4 +558,115 @@ export function exportMetric(key: string, val: number, unit: string) {
   // Simple console export for CI parsing
   const formattedVal = typeof val === "number" ? val.toFixed(3) : val;
   console.log(`METRIC: ${key}=${formattedVal}${unit}`);
+}
+
+// ── Shared Benchmark Constants ───────────────────────────────────────────────
+
+export const STABLE_COLLECTION = "benchmark_stable";
+export const STABLE_ENTRY_ID = "bench-shared-001";
+export const TEST_API_SECRET = (() => {
+  if (process.env.TEST_API_SECRET) return process.env.TEST_API_SECRET;
+  if (process.env.VITE_TEST_API_SECRET) return process.env.VITE_TEST_API_SECRET;
+  try {
+    const secretPath = path.join(process.cwd(), "tests", "e2e", ".auth", "test-secret.txt");
+    const fs = require("node:fs");
+    if (fs.existsSync(secretPath)) return fs.readFileSync(secretPath, "utf8").trim();
+  } catch {
+    // Ignore
+  }
+  return "SVELTYCMS_TEST_SECRET_2026";
+})();
+
+console.log(`[benchmark-utils.ts] TEST_API_SECRET resolved: ${TEST_API_SECRET.substring(0, 4)}...`);
+
+/**
+ * Ensures that the stable benchmark collection and entry exist in the DB.
+ * Also registers them in the in-process contentStore for LocalCMS audits.
+ */
+export async function ensureStableTestData(db: any, tenantId: string = "global") {
+  const { getDb } = await import("@src/databases/db");
+  const activeDb = db || getDb();
+
+  const schema = {
+    _id: STABLE_COLLECTION,
+    name: "Stable Benchmark Collection",
+    fields: [
+      {
+        db_fieldName: "title",
+        label: "Title",
+        widget: { Name: "Input" },
+        type: "string",
+        required: true,
+      },
+      {
+        db_fieldName: "content",
+        label: "Content",
+        widget: { Name: "RichText" },
+        type: "string",
+        required: false,
+      },
+      {
+        db_fieldName: "status",
+        label: "Status",
+        widget: { Name: "Input" },
+        type: "string",
+        required: false,
+      },
+      {
+        db_fieldName: "count",
+        label: "Count",
+        widget: { Name: "Input" },
+        type: "number",
+        required: false,
+      },
+    ],
+  };
+
+  const existingColRes = await activeDb.collection.getSchemaById(STABLE_COLLECTION, tenantId);
+  if (!existingColRes.success) {
+    await activeDb.collection.create(schema as any, tenantId);
+  }
+
+  // Seed entry if missing
+  const existingEntry = await activeDb.crud.findOne(
+    STABLE_COLLECTION,
+    { _id: STABLE_ENTRY_ID },
+    tenantId,
+  );
+  if (!existingEntry) {
+    await activeDb.crud
+      .insert(
+        STABLE_COLLECTION,
+        {
+          _id: STABLE_ENTRY_ID,
+          title: "Stable Benchmark Entry",
+          content:
+            "This is a stable entry for benchmarking purposes. It contains enough text to measure transformation overhead.",
+          status: "published",
+          count: 42,
+        },
+        tenantId,
+      )
+      .catch(() => {});
+  }
+
+  // Ensure it's registered in the in-process contentStore for LocalCMS audits
+  try {
+    const { contentStore } = await import("@src/stores/content-store.svelte");
+    if (!contentStore.getCollection(STABLE_COLLECTION, tenantId)) {
+      contentStore.upsert({
+        _id: STABLE_COLLECTION,
+        name: STABLE_COLLECTION,
+        nodeType: "collection",
+        tenantId,
+        collectionDef: schema as any,
+      } as any);
+    }
+
+    // 🚀 NEW: Initialize widgets for this environment
+    const { widgets } = await import("@src/stores/widget-store.svelte");
+    await widgets.initialize(tenantId, activeDb);
+  } catch {
+    // Silent fail if store not available
+  }
 }

@@ -14,7 +14,6 @@ import { persistScriptMetadataAST, updateIncrementalReport } from "./reporting";
 import {
   DB_METADATA,
   PORT_BASE,
-  TEST_API_SECRET,
   JWT_SECRET_KEY,
   JWT_EXPIRES_IN,
   ENCRYPTION_KEY,
@@ -41,17 +40,7 @@ export async function runTask(
 ): Promise<boolean> {
   if (!ci) process.stdout.write(`\x1b[36mℹ ${name}...\x1b[0m\n`);
 
-  let args = [];
-  if (command.includes("scripts/benchmark-matrix/setup-benchmarks.ts")) {
-    args = [
-      "test",
-      "--preload",
-      "./tests/unit/bun-preload.ts",
-      "tests/benchmarks/setup-proxy.test.ts",
-    ];
-  } else {
-    args = command.split(" ").slice(1);
-  }
+  let args = command.split(" ").slice(1);
 
   return new Promise((resolve) => {
     const proc = spawn("bun", args, {
@@ -108,6 +97,8 @@ export async function persistBenchmarkMeta(
     attempts: outcome.attempts,
     error: outcome.error ?? null,
     path: s.path,
+    file: s.path,
+    proves: s.desc,
   };
   const out = path.join(resultsDir, `${slug}-${ts}.meta.json`);
   await fs.writeFile(out, JSON.stringify(meta, null, 2)).catch(() => {});
@@ -200,7 +191,13 @@ export async function runBenchmarkScript(
       log.warn(`  Retry ${attempt - 1}/${cfg.retryCount}: ${s.label}`);
     }
 
-    const outcome = await executeWithTimeout(cmd, env, scriptTimeout, attempt, t0);
+    const scriptEnv = {
+      ...env,
+      BENCH_FILE: s.path,
+      BENCH_PROVES: s.desc,
+    };
+
+    const outcome = await executeWithTimeout(cmd, scriptEnv, scriptTimeout, attempt, t0);
 
     if (outcome.passed || attempt === maxAttempts) {
       return outcome;
@@ -240,11 +237,12 @@ export function buildWorkerEnv(
     PGDATABASE: workerDbName,
     PGHOST: dbConf.host,
     PGPORT: dbConf.port.toString(),
+    TEST_API_SECRET: process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+    SKIP_GRAPHQL_WS: "true",
     MYSQL_USER: dbConf.user,
     MYSQL_PWD: dbConf.password,
     MYSQL_HOST: dbConf.host,
     MYSQL_TCP_PORT: dbConf.port.toString(),
-    TEST_API_SECRET,
     JWT_SECRET_KEY,
     JWT_EXPIRES_IN,
     ENCRYPTION_KEY,
@@ -332,13 +330,13 @@ export async function runAuditForDatabase(
       return;
     }
 
-    log.db(dbKey, "Allowing server to settle after seeding (3s)...");
-    await new Promise((r) => setTimeout(r, 3000));
+    log.db(dbKey, "Allowing server to settle after seeding (1s)...");
+    await new Promise((r) => setTimeout(r, 1000));
 
     await warmupServer(cfg, workerPort);
 
     log.db(dbKey, "Warmup complete. Starting benchmark suite...");
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 500));
 
     let status: "SUCCESS" | "FAILED" = "SUCCESS";
     let error: string | undefined;
@@ -348,14 +346,9 @@ export async function runAuditForDatabase(
     for (const s of activeScripts) {
       if (isShuttingDown()) break;
 
-      // 🔥 CLEAN STATE STRATEGY:
-      // Drop all user tables before every test script to ensure measurement accuracy.
-      await runTask(
-        `Resetting DB state for ${s.shortLabel}`,
-        "bun run scripts/benchmark-matrix/setup-benchmarks.ts --clear-only",
-        env,
-        cfg.ci,
-      );
+      // 🚀 SMART STATE STRATEGY:
+      // We no longer blindly drop tables before every script.
+      // setup-benchmarks.ts now implements "Smart Seeding" to reuse data if possible.
 
       // Re-seed relational data if the script requires it (SQL strategies or API tests)
       if (
@@ -366,7 +359,7 @@ export async function runAuditForDatabase(
       ) {
         await runTask(
           "Seeding Relational Data",
-          "bun run scripts/benchmark-matrix/setup-benchmarks.ts",
+          "bun run --preload ./tests/unit/setup.ts scripts/benchmark-matrix/setup-benchmarks.ts",
           env,
           cfg.ci,
         );
@@ -403,6 +396,10 @@ export async function runAuditForDatabase(
             status: "RUNNING",
             metrics: {},
             scriptTimings: { ...scriptTimings },
+            extra: {
+              API_BASE_URL: env.API_BASE_URL,
+              TEST_API_SECRET: env.TEST_API_SECRET,
+            },
           },
         ]);
 

@@ -31,6 +31,7 @@ SveltyCMS security architecture includes:
 - **🛡️ Widget Security** - XSS prevention, injection protection, file validation
 - **🔍 Security Monitoring** - Real-time audit logging (SHA-256 chained), threat detection
 - **🚀 Secure Development** - Build-time security checks, vulnerability scanning
+- **⚡ Enterprise Immunity** - Self-healing load shedding, graceful shutdown, and pre-compiled pipelines
 
 ---
 
@@ -119,17 +120,16 @@ SveltyCMS security architecture includes:
 - **CSRF Protection**: Multi-layer origin and referer validation for all mutation requests (POST, PUT, DELETE, PATCH)
 - Secure cookie attributes (httpOnly, secure, sameSite: Strict)
 
-### 2. Middleware Security Pipeline (Defense-in-Depth)
-
-Every request to SveltyCMS passes through a strictly ordered pipeline in `hooks.server.ts` to ensure maximum security with minimal overhead:
+Every request to SveltyCMS passes through an **enterprise-grade pre-compiled pipeline** in `hooks.server.ts` to ensure maximum security with minimal overhead. The entire chain is wrapped in a **Global Security Guard** for unified header enforcement.
 
 1.  **🛡️ Security Headers**: CSP, HSTS, and X-Frame-Options applied first to _all_ responses.
-2.  **🗜️ Compression**: Optimizes response size before further processing.
-3.  **🔥 Dynamic Firewall**: Scans for SQLi, XSS, and Command Injection threat patterns.
-4.  **🐌 Rate Limiting**: Intelligent throttling based on endpoint sensitivity.
-5.  **🚧 Setup Guard**: Blocks initialization endpoints after the system is live.
-6.  **🔐 Authentication**: Resolves session and enforces tenant isolation.
-7.  **🛂 Authorization**: Granular RBAC and Fail-Closed API dispatching.
+2.  **🗜️ Compression**: ESM-native streaming compression (Brotli/Gzip).
+3.  **🧪 Test Isolation**: Worker-index based database isolation for CI.
+4.  **🔥 Dynamic Firewall**: Scans for SQLi, XSS, and Command Injection threat patterns.
+5.  **📉 Load Shedding**: Automatically rejects mutations when memory usage > 90%.
+6.  **🚧 Setup Guard**: Blocks initialization endpoints after the system is live.
+7.  **🔐 Authentication**: Resolves session and enforces tenant isolation.
+8.  **🛂 Authorization**: Granular RBAC and Fail-Closed API dispatching.
 
 ### 3. Data Protection
 
@@ -194,12 +194,14 @@ Every request to SveltyCMS passes through a strictly ordered pipeline in `hooks.
 **Features:**
 
 - ✅ **Architectural Immunity to Permission Bloat**: SveltyCMS is immune to the "SQL Choking" that plagues platforms like Directus. By pre-calculating **route-level RBAC** in memory, we resolve permissions in sub-milliseconds without injecting massive, recursive SQL `WHERE` clauses into every query.
-- ✅ **Memory Stability (WeakRef Isolation)**: Unlike Strapi or Payload, which can suffer from memory leaks and OOM crashes under high concurrency, SveltyCMS uses **`WeakRef` session caching**. This allows the V8 garbage collector to instantly reclaim memory from inactive sessions, ensuring 100% uptime stability during traffic spikes.
-- ✅ **Batched Ghost Relation Hydration**: Eliminates the N+1 query bottleneck. Relational data is hydrated in optimized batches only as it enters the viewport, preventing the relational choking common in legacy ORMs.
-- ✅ **Fail-Closed API Authorization**: All REST API endpoints must be explicitly registered in the central `ENDPOINT_PERMISSIONS` dispatcher. Unmapped routes are denied by default with a `403 Forbidden` response.
-- ✅ **Tenant-Based Access Control (TBAC)**: User roles are dynamically resolved and isolated per `tenantId` during the authentication handshake, preventing cross-tenant privilege escalation.
+- ✅ **Memory Stability (WeakRef Isolation)**: Unlike Strapi or Payload, which can suffer from memory leaks and OOM crashes under high concurrency, SveltyCMS uses **`WeakRef` session caching**.
+- ✅ **Self-Healing Load Shedding**: Detects high memory pressure and gracefully rejects mutation traffic (503) with compressed error responses to prevent OOM.
+- ✅ **Graceful Shutdown Instrumentation**: Tracks in-flight requests and ensures clean database/cache disconnection on `SIGTERM`.
+- ✅ **Batched Ghost Relation Hydration**: Eliminates the N+1 query bottleneck. Relational data is hydrated in optimized batches only as it enters the viewport.
+- ✅ **Fail-Closed API Authorization**: All REST API endpoints must be explicitly registered. Unmapped routes are denied by default.
+- ✅ **Tenant-Based Access Control (TBAC)**: User roles are dynamically resolved and isolated per `tenantId` during the authentication handshake.
 - ✅ **Informative 403 Feedback**: The Admin Area natively detects authorization failures and provides granular feedback including the specific required permission.
-- ✅ **UUIDv4 Primary Keys Out-of-the-box**: Protects against Cross-Collection IDOR (Insecure Direct Object Reference) vulnerability collision chains common in serial/auto-increment multi-auth environments.
+- ✅ **UUIDv4 Primary Keys Out-of-the-box**: Protects against Cross-Collection IDOR (Insecure Direct Object Reference) vulnerability collision chains.
 - ✅ Permission-based authorization
 - ✅ Multi-tenant isolation
 - ✅ Resource-level permissions

@@ -25,6 +25,7 @@ SveltyCMS leverages the **Vite+** middleware pipeline to enforce hard isolation 
 - **Tenant Context**: The `tenantId` is resolved early and injected into the SvelteKit `locals` and GraphQL context.
 - **Hardened TBAC**: The authentication hook (`handleAuthentication.ts`) now dynamically fetches and populates `locals.roles` specifically for the current `tenantId` context. This ensures that permissions granted in one tenant do not leak into another, even for the same user ID.
 - **Adapter Scoping**: Every database operation is automatically scoped by the resolved `tenantId`.
+- **🧪 Test Isolation (CI/CD)**: During automated testing, SveltyCMS uses the `x-test-worker-index` header to dynamically route requests to isolated test database shards. This prevents race conditions and data leakage between parallel test workers in the CI pipeline.
 
 ## 2. API Security Boundaries
 

@@ -102,11 +102,18 @@ export function buildServerEnv(
     PROTOCOL_HEADER: "x-forwarded-proto",
     HOST_HEADER: "host",
     BENCHMARK_DEBUG: process.env.BENCHMARK_DEBUG || "false",
+    BENCHMARK_MODE: "true",
     SVELTY_AUDIT_ACTIVE: process.env.SVELTY_AUDIT_ACTIVE || "false",
   };
 
   delete env.USER;
   delete env.USERNAME;
+  if (process.env.BENCHMARK_DEBUG === "true") {
+    console.log(
+      `[server.ts] buildServerEnv: TEST_API_SECRET resolved to ${env.TEST_API_SECRET?.substring(0, 4)}...`,
+    );
+    console.log(`[server.ts] buildServerEnv: BENCHMARK_DEBUG is ${env.BENCHMARK_DEBUG}`);
+  }
   return env;
 }
 
@@ -114,7 +121,7 @@ export function buildServerEnv(
  * Determines the server entry point.
  */
 export async function getServerEntryPoint(): Promise<string> {
-  return path.resolve(process.cwd(), "build/index.js").replace(/\\/g, "/");
+  return path.resolve(process.cwd(), "build", "index.js").replace(/\\/g, "/");
 }
 
 /**
@@ -234,7 +241,7 @@ export async function startServer(
           const { healthy, version } = await waitForHealthCheck(port);
 
           if (healthy) {
-            await new Promise((r) => setTimeout(r, 2000));
+            await new Promise((r) => setTimeout(r, 500));
             resolve({ coldStartMs, version, stop });
           } else {
             await stop();
@@ -247,14 +254,27 @@ export async function startServer(
     workerProcess?.stderr?.on("data", (d: Buffer) => {
       const line = d.toString();
       if (!isNoisyLine(line)) {
-        log.db(db.type, `\x1b[90m${line.trim()}\x1b[0m`);
+        log.db(db.type, `\x1b[91m${line.trim()}\x1b[0m`); // 91 is bright red
+      }
+    });
+
+    workerProcess?.on("exit", (code) => {
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timeout);
+        reject(new Error(`Server process exited early with code ${code}`));
+      } else if (!isShuttingDown() && code !== 0 && !(process.platform === "win32" && code === 1)) {
+        log.error(`[${db.type.toUpperCase()}] Server process CRASHED with code ${code}`);
       }
     });
 
     workerProcess?.on("error", (err) => {
-      clearTimeout(timeout);
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timeout);
+        reject(err);
+      }
       stop();
-      reject(err);
     });
   });
 }

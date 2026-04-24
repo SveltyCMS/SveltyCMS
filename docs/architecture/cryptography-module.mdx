@@ -195,6 +195,7 @@ if (isValid) {
 - ⏱️ Constant-time comparison (prevents timing attacks)
 - 🔒 Automatically extracts parameters from hash (memory, time, parallelism)
 - 🛡️ Resistant to timing side-channel attacks
+- 🧪 **Timing-Safe Test Bypass**: CI/CD test secrets are verified using `crypto.timingSafeEqual` (via `@src/hooks/handle-turbo-pipeline.server.ts`) to prevent side-channel leaks of administrative test credentials.
 
 ---
 

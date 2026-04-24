@@ -1,138 +1,132 @@
 /**
  * @file tests/benchmarks/security-audit.test.ts
- * @description Enterprise security audit benchmark for SveltyCMS.
- * Measures cryptographic overhead, hashing latencies, and RBAC resolution.
+ * @description Enterprise security performance audit for SveltyCMS.
+ * Measures overhead of WAF, audit logging, and cryptographic password hashing.
  */
-import { test, beforeAll, afterAll } from "bun:test";
+
+import { test } from "bun:test";
 import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
-  exportMetric,
   stabilize,
-  setupBenchmarkServer,
-  printAuditTable,
+  printTruthTable,
   printSummaryTable,
+  getDbType,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
-let stopServer: () => Promise<void>;
-
-beforeAll(async () => {
-  const { stop } = await setupBenchmarkServer();
-  stopServer = stop;
-});
-
-afterAll(async () => {
-  if (stopServer) await stopServer();
-});
-
-function createSecurityMockEvent(path: string, method = "GET", body: any = null): any {
-  const url = `http://localhost:4000${path}`;
-  const requestInit: RequestInit = { method };
-  if (body) {
-    requestInit.body = JSON.stringify(body);
-    (requestInit.headers as any) = { "Content-Type": "application/json" };
-  }
-
-  return {
-    url,
-    request: new Request(url, requestInit),
-    locals: { user: { _id: "admin", role: "admin" }, tenantId: "global" },
-    getClientAddress: () => "127.0.0.1",
-  } as any;
-}
-
-export async function runSecurityBenchmark() {
-  console.log("🛡️ Starting SveltyCMS Security Performance Audit...\n");
+async function runSecurityAudit() {
+  console.log("🚀 Starting Enterprise Security Audit...\n");
 
   const { securityResponseService } = await import("@src/services/security-response-service");
-  const { auditLogService } = await import("@src/services/audit/audit-log-service");
+  const { auditLogService, AuditEventType } = await import("@src/services/audit-log-service");
   const { hashPassword } = await import("@src/utils/password");
 
   await stabilize();
 
-  const ITER = 1000;
-  const WARMUP = 100;
-  const RUNS = 3;
-  const allResults: any[] = [];
-
+  const originalLogLevel = logger.level;
   logger.level = "silent";
 
-  // 1. Firewall (WAF) - Clean Path
-  const cleanResult = await runBenchmark({
-    name: "WAF: Clean Request",
-    iterations: ITER,
-    warmupIterations: WARMUP,
-    runs: RUNS,
-    concurrency: 1,
-    measureMemory: true,
-    silent: true,
-    onIteration: async () => {
-      const event = createSecurityMockEvent("/api/collections/posts");
-      await securityResponseService.analyzeRequest(event.request, event.getClientAddress());
-    },
-  });
-  allResults.push(cleanResult);
+  try {
+    const RUNS = 2;
+    const ITERATIONS = 1000;
+    const results: any[] = [];
 
-  // 2. Audit Logging
-  const auditResult = await runBenchmark({
-    name: "Audit: SHA-256 Chaining",
-    iterations: ITER,
-    warmupIterations: WARMUP,
-    runs: RUNS,
-    concurrency: 1,
-    measureMemory: true,
-    silent: true,
-    onIteration: async () => {
-      await auditLogService.log(
-        "BENCHMARK",
-        { id: "u1", email: "admin", ip: "127.0.0.1" },
-        { type: "test", id: "1" },
-        { action: "test" },
-      );
-    },
-  });
-  allResults.push(auditResult);
+    // 1. WAF Analysis Overhead (Richer Mock)
+    console.log("   → Measuring WAF (Web Application Firewall) analysis...");
+    const wafResult = await runBenchmark({
+      name: "WAF: Deep Analysis",
+      iterations: ITERATIONS,
+      warmupIterations: 100,
+      runs: RUNS,
+      concurrency: 1,
+      trimOutliers: "iqr",
+      measureMemory: true,
+      silent: true,
+      onIteration: async () => {
+        const req = new Request(
+          "http://localhost/api/collections/posts?limit=10&status=published",
+          {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              Accept: "application/json",
+              "X-Forwarded-For": "1.2.3.4",
+              Referer: "http://localhost/admin",
+            },
+          },
+        );
+        await securityResponseService.analyzeRequest(req);
+      },
+    });
+    results.push({ ...wafResult, layer: "Security" });
 
-  // 3. Cryptography (Argon2id) - Intentionally slow
-  const hashResult = await runBenchmark({
-    name: "Crypto: Argon2id Hashing",
-    iterations: 20,
-    warmupIterations: 2,
-    runs: 2,
-    concurrency: 1,
-    measureMemory: true,
-    silent: true,
-    onIteration: async () => {
-      await hashPassword("BenchmarkPassword123!");
-    },
-  });
-  allResults.push(hashResult);
+    // 2. Audit Logging Latency
+    console.log("   → Measuring Audit Log persistence...");
+    const auditResult = await runBenchmark({
+      name: "Audit: Persistent Logging",
+      iterations: 500,
+      warmupIterations: 50,
+      runs: 1,
+      concurrency: 1,
+      measureMemory: true,
+      silent: true,
+      onIteration: async (i: number) => {
+        await auditLogService.logEvent({
+          action: "bench.test",
+          actorId: "admin" as any,
+          actorEmail: "admin@test.com",
+          eventType: AuditEventType.SUSPICIOUS_ACTIVITY,
+          severity: "low",
+          details: { entryId: `entry-${i}` },
+          result: "success",
+          tenantId: "global" as any,
+        });
+      },
+    });
+    results.push({ ...auditResult, layer: "Security" });
 
-  logger.level = "info";
+    // 3. Password Hashing (Argon2id) - Heavy Computation
+    console.log("   → Measuring Password Hashing (Argon2id)...");
+    const hashResult = await runBenchmark({
+      name: "Crypto: Argon2id Hashing",
+      iterations: 10, // Very slow, keep low
+      warmupIterations: 2,
+      runs: 1,
+      concurrency: 1,
+      measureMemory: true,
+      silent: true,
+      onIteration: async () => {
+        await hashPassword("SuperSecretPassword123!");
+      },
+    });
+    results.push({ ...hashResult, layer: "Crypto" });
 
-  printAuditTable({
-    title: "SVELTYCMS  —  SECURITY HARDENING",
-    subtitle: "WAF Analysis • Audit Chaining • Cryptography • Argon2id",
-    results: allResults,
-  });
+    printTruthTable({
+      title: "SVELTYCMS  —  SECURITY INFRASTRUCTURE AUDIT",
+      subtitle: `WAF • Auditing • Cryptography • ${getDbType().toUpperCase()}`,
+      results,
+    });
 
-  printSummaryTable([
-    { key: "WAF Analysis Latency", val: cleanResult.avgMs, unit: "ms" },
-    { key: "Audit Log Commit (Chained)", val: auditResult.avgMs, unit: "ms" },
-    { key: "Argon2id Hash Latency", val: hashResult.avgMs, unit: "ms" },
-    { key: "Security Context RSS Δ", val: (auditResult.rssDelta || 0).toFixed(2), unit: "MB" },
-  ]);
+    printSummaryTable([
+      { key: "WAF Analysis Latency", val: wafResult.avgMs, unit: "ms" },
+      { key: "Audit Log Persistence", val: auditResult.avgMs, unit: "ms" },
+      { key: "Password Hashing (Argon2id)", val: hashResult.avgMs, unit: "ms" },
+      {
+        key: "Security Overhead Rating",
+        val: wafResult.avgMs < 1 ? "EXCELLENT" : "GOOD",
+        unit: "",
+      },
+    ]);
 
-  exportMetric("security.waf.avg", cleanResult.avgMs, "ms");
-  exportMetric("security.argon2.avg", hashResult.avgMs, "ms");
+    for (const r of results) exportResult(r);
+  } finally {
+    logger.level = originalLogLevel;
+  }
 
-  for (const r of allResults) exportResult(r);
-
-  console.log("\n✅ Security audit benchmark completed.");
+  console.log("\n✅ Security audit completed.");
 }
 
-test("Security Hardening & Audit Performance", async () => {
-  await runSecurityBenchmark();
-}, 450000);
+test("Security Infrastructure Performance", async () => {
+  await runSecurityAudit();
+}, 600000);

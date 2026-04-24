@@ -164,7 +164,7 @@ export async function prepareAuthenticatedContext(): Promise<string> {
       console.log(
         `⏳ Login attempt ${i + 1} failed (HTTP ${loginResp.status}: ${errText}). Retrying...`,
       );
-    } catch (e) {
+    } catch {
       console.log(`⏳ Login attempt ${i + 1} crashed. Retrying...`);
     }
     await new Promise((resolve) => setTimeout(resolve, 3000));

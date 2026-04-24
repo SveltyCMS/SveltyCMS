@@ -8,22 +8,18 @@ import { test } from "bun:test";
 import "../unit/setup.ts";
 import {
   exportResult,
-  exportMetric,
-  printAuditTable,
+  printTruthTable,
   printSummaryTable,
-  stabilize,
-  mockDispatch,
+  setupBenchmarkServer,
+  TEST_API_SECRET,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
 
-const DURATION_SECONDS = 20;
+const DURATION_SECONDS = process.env.LONG_RUN === "true" ? 180 : 30;
 const WARMUP_SECONDS = 5;
-const COOLDOWN_SECONDS = 2;
+const COOLDOWN_SECONDS = 3;
 
 const CONCURRENCY = 12;
-const SAMPLING_INTERVAL_MS = 1500;
-
-const MAX_SNAPSHOTS = Math.ceil((DURATION_SECONDS * 1000) / SAMPLING_INTERVAL_MS) + 20;
+const SAMPLING_INTERVAL_MS = 2000;
 
 type Snapshot = {
   timeMs: number;
@@ -34,215 +30,175 @@ type Snapshot = {
   lagMs: number;
 };
 
-const snapshots: Snapshot[] = Array.from({ length: MAX_SNAPSHOTS });
-let snapshotIndex = 0;
-
-function now() {
-  return performance.now();
-}
+let server: any;
+const snapshots: Snapshot[] = [];
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-function forceGC() {
-  try {
-    if (typeof globalThis !== "undefined" && (globalThis as any).gc) {
-      (globalThis as any).gc();
-    } else if (typeof Bun !== "undefined" && Bun.gc) {
-      Bun.gc(true);
+async function getRemoteMemory(baseUrl: string, forceGC = false): Promise<any> {
+  const url = `${baseUrl}/api/system/health${forceGC ? "?gc=true" : ""}`;
+  const res = await fetch(url, {
+    headers: { "x-test-secret": TEST_API_SECRET },
+  });
+  const data = await res.json();
+  return data.memory;
+}
+
+export async function runMemoryStabilityAudit() {
+  console.log(`🚀 Starting Enterprise Memory Stability Audit (${DURATION_SECONDS}s profile)...\n`);
+
+  server = await setupBenchmarkServer();
+  const baseUrl = server.baseUrl;
+
+  console.log(`🔥 Warmup phase (${WARMUP_SECONDS}s)...`);
+  const warmupEnd = performance.now() + WARMUP_SECONDS * 1000;
+  while (performance.now() < warmupEnd) {
+    await fetch(`${baseUrl}/api/system/health`, { headers: { "x-test-secret": TEST_API_SECRET } });
+  }
+
+  // Baseline after GC
+  const memStart = await getRemoteMemory(baseUrl, true);
+  console.log(`📊 Baseline RSS: ${Math.round(memStart.rss / 1024 / 1024)} MB`);
+
+  console.log(`🔥 Sustaining load: ${DURATION_SECONDS}s @ ${CONCURRENCY}c\n`);
+
+  let running = true;
+  let totalRequests = 0;
+  const start = performance.now();
+
+  // Sampler loop
+  const sampler = (async () => {
+    let tick = 1;
+    while (running) {
+      const expected = tick * SAMPLING_INTERVAL_MS;
+      const delay = expected - (performance.now() - start);
+      await sleep(Math.max(0, delay));
+
+      const tSampleStart = performance.now();
+      const mem = await getRemoteMemory(baseUrl);
+      const lag = performance.now() - tSampleStart;
+
+      snapshots.push({
+        timeMs: performance.now() - start,
+        rssMB: Math.round(mem.rss / 1024 / 1024),
+        heapMB: Math.round(mem.heapUsed / 1024 / 1024),
+        externalMB: Math.round(mem.external / 1024 / 1024),
+        requests: totalRequests,
+        lagMs: lag,
+      });
+      tick++;
     }
-  } catch {}
-}
+  })();
 
-function sum(arr: Uint32Array): number {
-  let total = 0;
-  for (const n of arr) total += n;
-  return total;
-}
+  // Workers hitting the full pipeline (e.g. /api/settings/public or /api/system/health)
+  // We'll hit health to keep it fast but exercise the full dispatcher
+  const workers = Array.from({ length: CONCURRENCY }).map(async () => {
+    while (running) {
+      try {
+        await fetch(`${baseUrl}/api/system/health`, {
+          headers: { "x-test-secret": TEST_API_SECRET },
+        });
+        totalRequests++;
+      } catch {
+        // Silent
+      }
+    }
+  });
 
-function recordSnapshot(start: number, requests: number, lagMs = 0) {
-  const mem = process.memoryUsage();
+  await sleep(DURATION_SECONDS * 1000);
+  running = false;
 
-  snapshots[snapshotIndex++] = {
-    timeMs: now() - start,
-    rssMB: Math.round(mem.rss / 1024 / 1024),
-    heapMB: Math.round(mem.heapUsed / 1024 / 1024),
-    externalMB: Math.round(mem.external / 1024 / 1024),
-    requests,
-    lagMs: Math.round(lagMs * 100) / 100,
+  await Promise.allSettled([...workers, sampler]);
+
+  // Final measurement after cooldown and GC
+  console.log(`❄️  Cooldown phase (${COOLDOWN_SECONDS}s)...`);
+  await sleep(COOLDOWN_SECONDS * 1000);
+  const memEnd = await getRemoteMemory(baseUrl, true);
+
+  const totalMs = performance.now() - start;
+  const rps = totalRequests / (totalMs / 1000);
+
+  const first = snapshots[0] || {
+    rssMB: memStart.rss / 1024 / 1024,
+    heapMB: memStart.heapUsed / 1024 / 1024,
+    timeMs: 0,
   };
-}
+  const last = {
+    rssMB: memEnd.rss / 1024 / 1024,
+    heapMB: memEnd.heapUsed / 1024 / 1024,
+    timeMs: totalMs,
+  };
 
-function slopeMBPerMinute(data: Snapshot[], selector: (s: Snapshot) => number): number {
-  const n = data.length;
-  if (n < 2) return 0;
+  const rssGrowth = last.rssMB - first.rssMB;
+  const heapGrowth = last.heapMB - first.heapMB;
 
-  let sumX = 0;
-  let sumY = 0;
-  let sumXY = 0;
-  let sumXX = 0;
-
-  for (const s of data) {
+  // Calculate slope manually from snapshots
+  let sumX = 0,
+    sumY = 0,
+    sumXY = 0,
+    sumXX = 0;
+  const n = snapshots.length;
+  for (const s of snapshots) {
     const x = s.timeMs / 60000;
-    const y = selector(s);
-
+    const y = s.heapMB;
     sumX += x;
     sumY += y;
     sumXY += x * y;
     sumXX += x * x;
   }
+  const heapSlope = n > 1 ? (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX) : 0;
 
-  const numerator = n * sumXY - sumX * sumY;
-  const denominator = n * sumXX - sumX * sumX;
-
-  if (!denominator) return 0;
-
-  return numerator / denominator;
-}
-
-export async function runMemoryStabilityTest() {
-  console.log("🚀 Starting Enterprise Memory Stability Benchmark...\n");
-
-  logger.level = "silent";
-
-  const { ensureFullInitialization } = await import("@src/databases/db");
-  await ensureFullInitialization();
-
-  // Stop background services to isolate memory profile
-  const { watchdog } = await import("@src/services/system/watchdog");
-  const { scheduler } = await import("@src/services/scheduler");
-  watchdog.stop();
-  scheduler.stop();
-
-  await stabilize();
-
-  console.log(`🔥 Warmup phase (${WARMUP_SECONDS}s)...`);
-  const warmupEnd = now() + WARMUP_SECONDS * 1000;
-  while (now() < warmupEnd) {
-    await mockDispatch({ path: "/system/health", method: "GET" });
-  }
-
-  forceGC();
-  await sleep(1000);
-
-  console.log(`📊 Sustaining load: ${DURATION_SECONDS}s @ ${CONCURRENCY}c\n`);
-
-  snapshotIndex = 0;
-  const counts = new Uint32Array(CONCURRENCY);
-  let running = true;
-  const start = now();
-
-  recordSnapshot(start, 0);
-
-  // Precise sampler loop
-  const sampler = (async () => {
-    let tick = 1;
-    while (running) {
-      const expected = tick * SAMPLING_INTERVAL_MS;
-      const delay = expected - (now() - start);
-      await sleep(Math.max(0, delay));
-      const lag = now() - start - expected;
-      recordSnapshot(start, sum(counts), lag);
-      tick++;
-    }
-  })();
-
-  // Workers
-  const workers = Array.from({ length: CONCURRENCY }, (_, i) =>
-    (async () => {
-      let local = 0;
-      while (running) {
-        try {
-          await mockDispatch({ path: "/system/health", method: "GET" });
-          local++;
-          counts[i] = local;
-        } catch (_e: any) {
-          // Silent in benchmark mode
-        } finally {
-          if (local % 20 === 0) await new Promise((r) => setTimeout(r, 0));
-        }
-      }
-    })(),
-  );
-
-  await sleep(DURATION_SECONDS * 1000);
-  running = false;
-
-  await Promise.allSettled(workers);
-  await sampler;
-
-  forceGC();
-  await sleep(COOLDOWN_SECONDS * 1000);
-  recordSnapshot(start, sum(counts));
-
-  logger.level = "info";
-
-  const data = snapshots.slice(0, snapshotIndex);
-  const first = data[0];
-  const last = data[data.length - 1];
-
-  const totalRequests = sum(counts);
-  const totalMs = last.timeMs;
-  const rps = totalRequests / (totalMs / 1000);
-
-  const rssGrowth = last.rssMB - first.rssMB;
-  const heapGrowth = last.heapMB - first.heapMB;
-  const externalGrowth = last.externalMB - first.externalMB;
-
-  const peakHeap = Math.max(...data.map((s) => s.heapMB));
-  const peakRSS = Math.max(...data.map((s) => s.rssMB));
-
-  const heapSlope = slopeMBPerMinute(data, (s) => s.heapMB);
-  const rssSlope = slopeMBPerMinute(data, (s) => s.rssMB);
-  const avgLag = data.reduce((a, b) => a + b.lagMs, 0) / data.length;
-
-  // ─── reporting ─────────────────────────────────────────────────────────────
-
-  printAuditTable({
+  printTruthTable({
     title: "SVELTYCMS  —  MEMORY STABILITY AUDIT",
-    subtitle: `Sustained Load • Leak Detection • ${CONCURRENCY} Parallel Workers`,
+    subtitle: `Full Pipeline • Child Process Profiling • ${DURATION_SECONDS}s Sustain`,
     results: [
       {
-        name: "Sustained Execution Profile",
-        avgMs: totalRequests ? totalMs / totalRequests : 0,
-        p95Ms: 0, // Profile mode
+        name: "Enterprise Production Profile",
+        layer: "Node/Build",
+        avgMs: totalMs / totalRequests,
+        p75Ms: 0,
+        p90Ms: 0,
+        p95Ms: 0,
+        p99Ms: 0,
+        p999Ms: 0,
         rps,
-        rssDelta: rssGrowth,
+        overheadPct: heapSlope,
       },
     ],
   });
 
   printSummaryTable([
-    { key: "Total Requests Processed", val: totalRequests, unit: "req" },
-    { key: "Average Throughput", val: Math.round(rps), unit: "req/s" },
-    { key: "RSS Delta (Total)", val: rssGrowth, unit: "MB" },
-    { key: "Heap Delta", val: heapGrowth, unit: "MB" },
-    { key: "External Delta", val: externalGrowth, unit: "MB" },
-    { key: "Peak RSS Footprint", val: peakRSS, unit: "MB" },
-    { key: "Peak Heap Footprint", val: peakHeap, unit: "MB" },
-    { key: "Heap Leak Slope", val: heapSlope, unit: "MB/min" },
-    { key: "RSS Leak Slope", val: rssSlope, unit: "MB/min" },
-    { key: "Avg Event Loop Lag", val: avgLag, unit: "ms" },
+    { key: "Total Load Processed", val: totalRequests, unit: "req" },
+    { key: "Production Throughput", val: Math.round(rps), unit: "req/s" },
+    { key: "RSS Delta (Final)", val: rssGrowth, unit: "MB" },
+    { key: "Heap Delta (Final)", val: heapGrowth, unit: "MB" },
+    { key: "Leak Slope (Heap)", val: heapSlope, unit: "MB/min" },
+    {
+      key: "Stability Rating",
+      val: heapSlope < 2 ? "EXCELLENT" : heapSlope < 5 ? "STABLE" : "LEAKY",
+      unit: "",
+    },
   ]);
 
   exportResult({
-    name: "Memory Stability Enterprise",
+    name: "Memory Stability",
     iterations: totalRequests,
     totalMs,
-    avgMs: totalRequests ? totalMs / totalRequests : 0,
-    rps: Number(rps.toFixed(1)),
-    successCount: totalRequests,
-    failureCount: 0,
+    avgMs: totalMs / totalRequests,
+    rps,
     rssDelta: rssGrowth,
   } as any);
 
-  exportMetric("internals.memory.rss_delta", rssGrowth, "MB");
-  exportMetric("internals.memory.leak_slope", heapSlope, "MB/min");
-
-  console.log("\n✅ Memory stability benchmark completed.");
+  await server.stop();
+  console.log("\n✅ Memory stability audit completed.");
 }
 
-test("Memory Stability Under Sustained Load", async () => {
-  await runMemoryStabilityTest();
-}, 300000);
+test(
+  "Memory Stability Enterprise Audit",
+  async () => {
+    await runMemoryStabilityAudit();
+  },
+  (DURATION_SECONDS + 20) * 1000,
+);

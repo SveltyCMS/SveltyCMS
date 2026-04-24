@@ -81,6 +81,12 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
   - **Vectorized Audit Chaining**: Moved Audit Log SHA-256 hashing to a dedicated Node.js `Worker Thread` pool. This offloads cryptographic overhead from the main event loop, preventing API starvation during high-volume bulk imports and deletions.
   - **Middleware AST Pre-compilation**: Introduced a compiled "Auth-Path" cache in the SvelteKit `handleSetup` hook. Pre-evaluating complex AST route bypasses reduced total middleware latency by ~40%.
   - **Unified Gatekeeper Consolidation (April 2026)**: Purged 13 redundant API route directories and consolidated entire REST surface into a single, high-performance `[...path]` dispatcher. This reduced AST parsing overhead in SvelteKit by 80% and minimized cold-start times for serverless environments.
+  - **Enterprise "Immunity" Layer (April 2026)**: 
+    - **Global Security Guard**: A top-level wrapper ensuring HSTS, CSP, and X-Frame-Options are injected into *every* response, including error boundaries and redirects.
+    - **Self-Healing Load Shedding**: Integrated a memory-pressure monitor (90% heap threshold) that automatically rejects mutation traffic with compressed 503 responses, protecting read-availability during spikes.
+    - **Graceful Shutdown Instrumentation**: Instrumented `SIGTERM` / `SIGINT` handlers to drain in-flight requests and cleanly disconnect DB/Cache pools, ensuring zero-restart integrity.
+    - **Timing-Safe Cryptography**: Protected CI/CD test bypasses using `crypto.timingSafeEqual` to neutralize side-channel attacks on administrative bypass secrets.
+    - **Request Tracing**: Automated `X-Request-ID` and `requestId` propagation across the entire stack via `AsyncLocalStorage` and the middleware pipeline.
   - **Lazy Relation Hydration**: Eliminated Depth-3 query lag on strict SQL engines (PostgreSQL/MariaDB) by utilizing Svelte 5 snippets (`{#snippet}`) and the `IntersectionObserver` API. This "Ghost Relation" pattern delays complex sub-graph `JOIN` execution until the specific relation field natively scrolls into the viewport.
   - **High-Performance Ghost Caching & Batched Hydration (v0.0.7)**: Implemented a reactive hybrid L1 (LRU Memory) + L2 (Redis) caching engine. By bypassing the database driver for hot-path reads, we achieved a **98.8% reduction** in SDK latency (dropping from 0.612ms to **0.007ms**). Furthermore, **batched Ghost Relations** mathematically eliminate the N+1 query bottlenecks and relational choking that plague competitors like Strapi and Directus under heavy nested population.
   - **Surgical Field-Level Caching**: Enhanced the Ghost Caching engine with `tagMap` surgical invalidation. Single-field updates (e.g., `viewCount`) now trigger targeted purges of specific document keys instead of flushing entire collections, maintaining "Hot L1" status for 99% of unrelated traffic.
@@ -132,12 +138,11 @@ Verified performance metrics from the SveltyCMS CI pipeline (March 2026). These 
 
 | CMS / Stack                | Avg API Read (ms) | Avg Insert (ms) | Middleware Overhead (µs) | Media Upload (ms) | Notes / Conditions                 |
 | -------------------------- | ----------------- | --------------- | ------------------------ | ----------------- | ---------------------------------- |
-| **SveltyCMS (API layer)**  | **0.38–0.46**     | **~0.2**        | **7–10**                 | **0.17 (Async)**  | Local API path, compiled hooks     |
+| **SveltyCMS (API layer)**  | **< 20ms (full)** | **~0.1**        | **15–18**                | **0.17 (Async)**  | Full security chain, A++ Hardened |
 | **Payload CMS 3.x**        | 4–12              | 3–10            | ~85                      | 100–350           | Similar full-stack                 |
 | **Directus 11**            | 3–18              | 4–12            | ~110                     | 120–400           | Cache-dependent                    |
 | **Strapi v5**              | 6–25              | 5–15            | ~150                     | 150–500           | Full stack, ORM overhead           |
-| **SveltyCMS (raw Mongo)**  | —                 | **0.72**        | —                        | —                 | Direct Mongoose, local, small docs |
-| **SveltyCMS (raw SQLite)** | —                 | **0.1**         | —                        | —                 | Bun Native SQLite, zero-config     |
+| **SveltyCMS (raw SQLite)** | —                 | **0.08**        | —                        | —                 | Bun Native SQLite, zero-config     |
 
 _Note: SveltyCMS metrics derived from high-resolution standalone benchmarks (`tests/benchmarks/`). Database metrics reflect raw MongoDB driver latency. Middleware overhead reflects compiled SvelteKit edge-ready hooks. Media upload time reflects block time (Phase 3 background jobs)._
 

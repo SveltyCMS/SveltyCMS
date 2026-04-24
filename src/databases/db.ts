@@ -139,7 +139,11 @@ export async function ensureFullInitialization(forceReload = false): Promise<voi
   }
 }
 
-export async function initializeWithConfig(_config: any): Promise<void> {
+export async function initializeWithConfig(config: any): Promise<void> {
+  if (config) {
+    const { setPrivateEnv } = await import("@src/databases/config-state");
+    setPrivateEnv(config);
+  }
   await ensureFullInitialization(true);
 }
 
@@ -166,4 +170,26 @@ export function resetDbInitPromise(): void {
 
 export async function reinitializeSystem(force: boolean = true): Promise<any> {
   return ensureFullInitialization(force);
+}
+
+/**
+ * ✨ ENTERPRISE: Graceful Shutdown
+ * Ensures all connections and caches are closed cleanly.
+ */
+export async function shutdownSystem(): Promise<void> {
+  logger.info("🛑 Shutting down system database and caches...");
+  try {
+    const adapter = getDb();
+    if (adapter) {
+      await adapter.disconnect();
+    }
+
+    const { cacheService } = await import("./cache/cache-service");
+    await cacheService.cleanup();
+
+    isConnected = false;
+    logger.info("✅ Shutdown complete.");
+  } catch (err) {
+    logger.error("❌ Error during shutdown:", err);
+  }
 }

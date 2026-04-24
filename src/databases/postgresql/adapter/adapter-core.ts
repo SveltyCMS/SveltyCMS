@@ -96,7 +96,7 @@ export class AdapterCore extends BaseSqlAdapter {
             onnotice: () => {},
             transform: { undefined: null },
           };
-        } catch (_e) {
+        } catch {
           this.sql = postgres(finalConnection, {
             onnotice: () => {},
             transform: { undefined: null },

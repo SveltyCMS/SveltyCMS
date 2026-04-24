@@ -281,7 +281,8 @@ export function isBootstrapRoute(pathname: string): boolean {
 
   // 2. Auth flow (login, register, logout)
   if (
-    pathname.startsWith("/login") ||
+    pathname === "/login" ||
+    pathname.startsWith("/login/") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/user/login")
   ) {
@@ -293,11 +294,9 @@ export function isBootstrapRoute(pathname: string): boolean {
     pathname.startsWith("/api/system") ||
     pathname.startsWith("/api/debug") ||
     pathname.startsWith("/api/testing") ||
-    pathname.startsWith("/api/graphql") ||
     pathname.startsWith("/api/settings/public") ||
     pathname.startsWith("/api/content/version") ||
     pathname.startsWith("/api/dashboard/health") ||
-    pathname.startsWith("/api/collections") ||
     pathname === "/" ||
     pathname.startsWith("/ui-test")
   ) {

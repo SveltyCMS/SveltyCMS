@@ -38,26 +38,38 @@ The middleware architecture is built on **core enterprise principles**:
 
 ---
 
-## Current Middleware Sequence
+## 🛡️ Global Security Guard
 
+SveltyCMS implements a **Top-Level Security Guard** in `hooks.server.ts` that wraps the entire middleware sequence. This guarantees that **every single response**—including 302 redirects, 404 Not Found, and 500 Server Errors—carries the full suite of enterprise security headers (HSTS, CSP, X-Frame-Options).
+
+---
+
+## 🏗️ Middleware Pipeline (2026 Optimized)
+
+The pipeline is **pre-compiled** at server startup to eliminate function composition overhead on hot paths.
+
+```typescript
 const middleware: Handle[] = [
-handleSecurityHeaders, // 1. DEFENSE-IN-DEPTH (Essential Security Headers)
-handleCompression, // 2. Streaming-safe compression
-handleTurboPipeline, // 3. CONSOLIDATED FAST-PATH (Headers, Asset Cache, State Gate, Test Isolation)
-handleSecurity, // 4. Unified firewall & rate limiting
-handleSetup, // 5. Setup gate
-handleUserPreferences, // 6. i18n and SSR theme
-handleAuthentication, // 7. Identity & Multi-tenancy
-handleAuthorization, // 8. RBAC Permissions
-handleLocalSdk, // 9. Native server-side SDK injection
-handleContentInitialization, // 10. Content + Redirects
-handleAuditLogging, // 11. Async audit trails (API Mutations)
-handleApiRequests, // 12. API caching & performance
-handleTokenResolution, // 13. RBAC token replacement
+  handleSecurityHeaders,       // 1. DEFENSE-IN-DEPTH (Essential Security Headers)
+  handleCompression,           // 2. ESM-Native Streaming Compression
+  handleTestIsolation,         // 3. ✨ CI ISOLATION (Tenant Routing & Bypass)
+  handleStaticAssetCaching,    // 4. Dedicated Asset Cache Layer
+  handleTurboPipeline,         // 5. CONSOLIDATED GATEWAY (State, Setup, CORS)
+  handleSecurity,              // 6. Firewall & Load Shedding
+  handleUserPreferences,       // 7. i18n and SSR theme
+  handleSetup,                 // 8. Granular Setup Gate
+  handleAuthentication,        // 9. Identity & Multi-tenancy
+  handleContentInitialization, // 10. Content + Redirects
+  handleAuditLogging,          // 11. Async Audit Trails
+  handleApiRequests,           // 12. API Caching (ETags)
+  handleTokenResolution,       // 13. RBAC Token Replacement
 ];
 
-export const handle: Handle = sequence(...middleware);
+// Pre-compiled for maximum throughput
+const pipeline = sequence(...middleware);
 ```
+
+---
 
 ## 📡 Telemetry & Usage Tracking
 
@@ -189,23 +201,22 @@ sequenceDiagram
 // --- Server Startup Logic ---
 if (!building) {
   /**
-   * Lazy initialization: DB module is loaded but NOT initialized
-   * until the first request arrives.
-   *
-   * This enables:
-   * 1. Fast server startup (no blocking I/O)
-   * 2. Zero-restart setup completion
-   * 3. Dynamic configuration reloading
-   *
-   * State transitions: IDLE -> INITIALIZING -> READY/DEGRADED/FAILED
+   * Hardware Optimization: 
+   * Maximizes UV_THREADPOOL_SIZE and Sharp concurrency to match CPU cores.
    */
-  import("@src/databases/db")
-    .then(() => {
-      logger.info("✅ DB module loaded. Will initialize on first request.");
-    })
-    .catch((error) => {
-      logger.error("Fatal: Failed to load DB module:", error);
-    });
+  const cores = os.cpus().length;
+  process.env.UV_THREADPOOL_SIZE = String(cores);
+
+  /**
+   * ✨ ENTERPRISE: Graceful Shutdown Registry
+   * Handles SIGTERM/SIGINT with an in-flight request drain period 
+   * and a 10s safety timeout.
+   */
+  process.on("SIGTERM", async () => {
+    // ... wait for inFlightRequests to drain ...
+    await shutdownSystem();
+    process.exit(0);
+  });
 }
 ```
 
@@ -296,33 +307,31 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 
 ---
 
-## Hook Implementations
-
-### ✨ handleTurboPipeline - High-Performance Fast-Path
+### ✨ handleTurboPipeline - Consolidated Gateway
 
 **File**: `src/hooks/handle-turbo-pipeline.server.ts`
-**Purpose**: Consolidates essential, performance-critical middleware into a single high-efficiency pass.
+**Purpose**: Consolidates essential, performance-critical gateway logic.
 
 **Key Features**:
 
-- **Static Asset Fast-Exit**: Regex-based detection for `/_app/` and `/static/` paths with immediate resolution and immutable caching.
-- **Robust Setup Detection**: Redirects to `/setup` if the configuration is missing, even before DB initialization.
-- **System State Gate**: Enforces `503 Service Unavailable` responses when the system is in `INITIALIZING` or `FAILED` states.
-- **Test Isolation Bypass**: High-performance cryptographic bypass for CI and automated testing (via `x-test-secret`).
-- **CORS Management**: High-speed OPTIONS preflight handling and automatic header injection for API routes.
+- **System State Gate**: Enforces `503 Service Unavailable` when the system is in `INITIALIZING` or `FAILED`.
+- **Setup Completeness Gate**: Redirects to `/setup` if the configuration is missing (`config/private.ts`).
+- **CORS Preflight Fast-Exit**: Handles `OPTIONS` requests early with pre-compiled CORS headers.
+- **Request Tracing**: Injects a unique `X-Request-ID` into `event.locals` and all early-exit responses for enterprise observability.
+- **Test Isolation Bypass**: Uses `crypto.timingSafeEqual` for cryptographic bypass in CI, preventing timing side-channel attacks.
 
 ---
 
-### 1. handleCompression - Response Optimization
+### 1. handleCompression - ESM-Native Optimization
 
-**File**: `src/hooks/handleCompression.ts`
+**File**: `src/hooks/handle-compression.ts`
 **Purpose**: Efficiently compresses outgoing responses using GZIP or Brotli.
 
 **Key Features**:
 
-- Automatical detection of browser capability via `Accept-Encoding`.
-- Prioritizes Brotli for modern browsers, falls back to GZIP.
-- Outer-most layer to ensure the final response body is compressed before transmission.
+- **ESM-Native**: Uses dynamic `await import()` for `node:zlib`, ensuring compatibility with SvelteKit's ESM-only production bundles.
+- **Streaming-Safe**: Works with standard SvelteKit response streams.
+- **Lazy Initialization**: Modules are only loaded if the runtime supports them (Edge vs. Node).
 
 ---
 

@@ -89,7 +89,7 @@ describe("handleSetup Middleware", () => {
         await handleSetup({ event, resolve: mockResolve });
         expect(true).toBe(false);
       } catch (err) {
-        expectRedirect(err, 302, "/setup");
+        expectRedirect(err, 302, "/setup?from=%2Fdashboard");
       }
     });
 
@@ -101,7 +101,7 @@ describe("handleSetup Middleware", () => {
         await handleSetup({ event, resolve: mockResolve });
         expect(true).toBe(false);
       } catch (err) {
-        expectRedirect(err, 302, "/setup");
+        expectRedirect(err, 302, "/setup?from=%2Fdashboard");
       }
     });
 
@@ -145,7 +145,8 @@ describe("handleSetup Middleware", () => {
           await handleSetup({ event, resolve: mockResolve });
           expect(true).toBe(false);
         } catch (err) {
-          expectRedirect(err, 302, "/setup");
+          const expected = path === "/" ? "/setup" : `/setup?from=${encodeURIComponent(path)}`;
+          expectRedirect(err, 302, expected);
         }
       });
     }
@@ -173,7 +174,7 @@ describe("handleSetup Middleware", () => {
           await handleSetup({ event, resolve: mockResolve });
           expect(true).toBe(false);
         } catch (err) {
-          expectRedirect(err, 302, "/setup");
+          expectRedirect(err, 302, `/setup?from=${encodeURIComponent(route)}`);
         }
       });
     }

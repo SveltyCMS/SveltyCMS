@@ -55,11 +55,14 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
     // 1. Search structured numeric-metric entries (preferred)
     for (const key of Object.keys(m)) {
       const entry = m[key];
+      const cleanKey = key.replace(/_metric$/, "").replace(/-metric$/, "");
+
+      const isMatch =
+        (slugPattern && slugify(cleanKey).includes(slugPattern)) ||
+        (typeof pattern === "string" && cleanKey.toLowerCase().includes(pattern.toLowerCase()));
 
       if (isNumericMetric(entry)) {
-        if (slugPattern && slugify(entry.name).includes(slugPattern)) {
-          return entry.value;
-        }
+        if (isMatch) return entry.value;
         if (matchesPattern(entry.name, pattern)) {
           return entry.value;
         }
@@ -103,6 +106,9 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
 
   return {
     collections:
+      getMetric("truth-rest-p95") ||
+      getMetric("truth.latency.http.p95") ||
+      getMetric("api.latency.avg") ||
       getMetric("rest.collections.p95") ||
       getMetric("REST p95") ||
       getMetric("Dispatcher: findById") ||
@@ -135,14 +141,20 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
       getMetric("middleware-hooks-p95") ||
       0,
     graphqlAvg:
+      getMetric("api.graphql.avg") ||
       getMetric("graphql.query.avg") ||
       getMetric("GQL Avg") ||
+      getMetric("GQL: Basic Collection") ||
+      getMetric("GQL_Basic_Collection") ||
       getMetric("GraphQL (Average)") ||
       getMetric("graphql-average") ||
       0,
     gqlRps:
+      getMetric("api.graphql.rps") ||
       getMetric("graphql.query.rps") ||
       getMetric("GQL RPS") ||
+      getMetric("GQL: Basic Collection") ||
+      getMetric("GQL_Basic_Collection") ||
       getMetric("graphql-api-performance") ||
       getMetric("graphql-query-rps") ||
       0,

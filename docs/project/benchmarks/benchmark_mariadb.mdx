@@ -62,7 +62,7 @@ xychart-beta
 > Run `bun run benchmark --db mariadb` to refresh this ledger.
 
 <!-- BENCHMARK_START -->
-## 📊 Latest Performance Audit (23/04/2026, 13:39:44)
+## 📊 Latest Performance Audit (24/04/2026, 14:33:24)
 
 **Status:** ✅ PASS *(Historical)*
 
@@ -70,8 +70,8 @@ xychart-beta
 | Scenario | Avg Latency | Trend | Target Budget |
 | :--- | :--- | :--- | :--- |
 | **Cold Start** | 0ms | ⚪ (—) | < 5000ms |
-| **REST (Collections)** | 0.709ms | 🟢 (-16.2%) | < 150ms |
-| **GraphQL (Avg)** | 1.060ms | ⚪ (+2.6%) | < 100ms |
+| **REST (Collections)** | 0.989ms | 🔴 (+26.5%) | < 5ms |
+| **GraphQL (Avg)** | 2.071ms | 🔴 (+42.3%) | < 5ms |
 | **DB Raw (p95)** | 0.000ms | ⚪ | < 50ms |
 
 ### 📈 Historical Latency Trends
@@ -80,61 +80,125 @@ xychart-beta
   title "MARIADB Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [0.8, 1.1, 0.0, 0.0, 0.0, 0.0, 0.8, 0.7]
+  line "p95 Latency" : [0.8, 0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.6, 1.0]
 ```
 
 ## 🔬 Detailed Performance Ledger (20+ Modules)
 
 <!-- API_TABLE_START -->
-> ⏳ **API Network Latency**: Pending execution.
+> ⏳ **API LAYER LATENCY**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/api-latency.test.ts](file:///D:/SveltyCMS/tests/benchmarks/api-latency.test.ts)
 <!-- API_TABLE_END -->
+
+<!-- TRUTH_TABLE_START -->
+### 🏷️ SRE TRUTH AUDIT
+
+```text
+
+╔════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                        SVELTYCMS — SRE TRUTH AUDIT                                         ║
+║                                      5-Layer Production Reality Model                                      ║
+║ File: tests/benchmarks/truth-latency.test.ts                                                               ║
+║ Proves: Pure computational overhead (CPU only)                                                             ║
+╠════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ Scenario             │ Layer        │        Avg │       p50 │       p95 │       p99 │      RPS │ Inflation │ SLA    ║
+╠════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ findById             │ Logic        │   0.001 ms │  0.000 ms │  0.002 ms │  0.007 ms │ 1,195,219 │       0% │ —      ║
+║                      │ SDK          │   0.015 ms │  0.003 ms │  0.013 ms │  0.023 ms │   65,381 │  1728.1% │ —      ║
+║                      │ Dispatcher   │   0.033 ms │  0.024 ms │  0.041 ms │  0.060 ms │   30,509 │  3817.6% │ —      ║
+║                      │ HTTP Warm    │   0.948 ms │  0.718 ms │  1.160 ms │  2.461 ms │    1,055 │ 113207.8% │ —      ║
+║                      │ HTTP Cold    │   0.651 ms │  0.603 ms │  0.989 ms │  1.227 ms │    1,536 │ 77700.0% │ —      ║
+╠════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
+╚════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+```
+<!-- TRUTH_TABLE_END -->
 
 <!-- DB_TABLE_START -->
 > ⏳ **Database Adapter Raw CRUD**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/database-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/database-performance.test.ts)
 <!-- DB_TABLE_END -->
 
 <!-- ACID_TABLE_START -->
 > ⏳ **ACID Transaction Overhead**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/transaction-acid.test.ts](file:///D:/SveltyCMS/tests/benchmarks/transaction-acid.test.ts)
 <!-- ACID_TABLE_END -->
 
 <!-- CACHE_TABLE_START -->
 > ⏳ **System Cache Efficiency**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/cache-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/cache-performance.test.ts)
 <!-- CACHE_TABLE_END -->
 
 <!-- HOOKS_TABLE_START -->
 > ⏳ **Middleware & Hooks Performance**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/hooks-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/hooks-performance.test.ts)
 <!-- HOOKS_TABLE_END -->
 
 <!-- RELATIONAL_TABLE_START -->
 > ⏳ **Relational & Nested Queries**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/relational-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/relational-performance.test.ts)
 <!-- RELATIONAL_TABLE_END -->
 
 <!-- REST_TABLE_START -->
-> ⏳ **REST API Performance**: Pending execution.
+### 🏷️ REST API Performance
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS  —  REST API DISPATCHER                      ║
+║         Route Resolution • JSON Serialization • Middleware Latency          ║
+║ File: tests/benchmarks/rest-api-performance.test.ts                         ║
+║ Proves: End-to-end throughput and latency of the unified REST dispatcher.   ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ REST: System Health (Public) │ 0.038 ms       │ 0.047 ms     │ 26,574       ║
+║ REST: User Profile (Auth)    │ 0.029 ms       │ 0.030 ms     │ 34,752       ║
+║ REST: Collections List (DB)  │ 0.026 ms       │ 0.027 ms     │ 38,784       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- REST_TABLE_END -->
 
 <!-- GRAPHQL_TABLE_START -->
-> ⏳ **GraphQL API Performance**: Pending execution.
+### 🏷️ GraphQL API Performance
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                    SVELTYCMS  —  GRAPHQL API PERFORMANCE                    ║
+║          Query Resolution • Fragment Overhead • Concurrency Matrix          ║
+║ File: tests/benchmarks/graphql-api-performance.test.ts                      ║
+║ Proves: Resolver execution time and throughput for common queries.          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ GQL: Basic Collection        │ 1.359 ms       │ 2.071 ms     │ 736          ║
+║ GQL: Complex Fragments       │ 1.322 ms       │ 1.382 ms     │ 756          ║
+║ GQL: Stress Test (32c)       │ 0.951 ms       │ 1.089 ms     │ 1,052        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- GRAPHQL_TABLE_END -->
 
 <!-- AUTH_TABLE_START -->
 > ⏳ **Auth & RBAC Performance**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/auth-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/auth-performance.test.ts)
 <!-- AUTH_TABLE_END -->
 
 <!-- TENANCY_TABLE_START -->
 > ⏳ **Multi-Tenant Performance & Isolation**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/multi-tenant-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/multi-tenant-performance.test.ts)
 <!-- TENANCY_TABLE_END -->
 
 <!-- MIXED_TABLE_START -->
 > ⏳ **Realistic Mixed Workload**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/mixed-workload.test.ts](file:///D:/SveltyCMS/tests/benchmarks/mixed-workload.test.ts)
 <!-- MIXED_TABLE_END -->
 
 <!-- MEMORY_TABLE_START -->
 > ⏳ **Memory Stability & GC Behavior**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/memory-stability.test.ts](file:///D:/SveltyCMS/tests/benchmarks/memory-stability.test.ts)
 <!-- MEMORY_TABLE_END -->
 
 <!-- GQL_TABLE_START -->
 > ⏳ **GraphQL Load Stress**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/graphql-stress.test.ts](file:///D:/SveltyCMS/tests/benchmarks/graphql-stress.test.ts)
 <!-- GQL_TABLE_END -->
 
 

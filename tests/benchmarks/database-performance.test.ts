@@ -3,16 +3,14 @@
  * @description Enterprise database benchmark for SveltyCMS.
  * Measures raw CRUD performance, indexing efficiency, and connection pool resilience.
  */
-import { test, beforeAll, afterAll } from "bun:test";
+import { test } from "bun:test";
 import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
   exportMetric,
   stabilize,
-  setupBenchmarkServer,
-  printAuditTable,
-  printSummaryTable,
+  printTruthTable,
   getDbType,
 } from "./benchmark-utils";
 
@@ -23,16 +21,7 @@ const ITERATIONS = 1500;
 const WARMUP = Math.floor(ITERATIONS * 0.12);
 const RUNS = 3;
 
-let stopServer: () => Promise<void>;
-
-beforeAll(async () => {
-  const { stop } = await setupBenchmarkServer();
-  stopServer = stop;
-});
-
-afterAll(async () => {
-  if (stopServer) await stopServer();
-});
+// No server needed for raw DB adapter benchmarks
 
 export async function runDatabaseBenchmark() {
   console.log("🚀 Starting Enterprise Database Benchmark...\n");
@@ -63,18 +52,25 @@ export async function runDatabaseBenchmark() {
 
   const FIXED_ID = "bench-stable-001";
 
-  // Pre-seed a stable record for FIND/UPDATE hotspots
-  await db.crud.upsert(
-    COLLECTION_ID,
-    { _id: FIXED_ID as any },
-    {
-      _id: FIXED_ID as any,
-      title: "Stable Benchmark Entry",
-      status: "active",
-      tenantId: TEST_TENANT as any,
-    } as any,
-    { tenantId: TEST_TENANT as any },
-  );
+  const resetCollection = async () => {
+    // Clear the collection to isolate scenarios
+    await db.crud.deleteMany(COLLECTION_ID, {}, { tenantId: TEST_TENANT as any });
+
+    // Reseed stable hotspot record
+    await db.crud.upsert(
+      COLLECTION_ID,
+      { _id: FIXED_ID as any },
+      {
+        _id: FIXED_ID as any,
+        title: "Stable Benchmark Entry",
+        status: "active",
+        tenantId: TEST_TENANT as any,
+      } as any,
+      { tenantId: TEST_TENANT as any },
+    );
+  };
+
+  await resetCollection();
 
   // Elite Reliability Check: Verify entry exists before starting measurements
   const check = await db.crud.findOne(
@@ -90,6 +86,8 @@ export async function runDatabaseBenchmark() {
 
   const benchmarkCrud = async (name: string, onIteration: (i: number) => Promise<void>) => {
     console.log(`   → ${name}`);
+    await resetCollection();
+    await stabilize();
     return runBenchmark({
       name,
       iterations: ITERATIONS,
@@ -98,6 +96,7 @@ export async function runDatabaseBenchmark() {
       runs: RUNS,
       trimOutliers: "iqr",
       measureMemory: true,
+      tolerateErrors: true,
       onIteration: async (i: number) => await onIteration(i),
       silent: true,
     });
@@ -143,15 +142,37 @@ export async function runDatabaseBenchmark() {
     );
   });
 
-  // 5. DELETE (Insert-then-Delete)
-  const deleteResult = await benchmarkCrud("DELETE", async (i) => {
-    const id = `del-${i}-${Math.random().toString(36).slice(2)}`;
-    await db.crud.insert(
-      COLLECTION_ID,
-      { _id: id as any, title: "Temp", tenantId: TEST_TENANT as any } as any,
-      { tenantId: TEST_TENANT as any },
-    );
-    await db.crud.delete(COLLECTION_ID, id as any, { tenantId: TEST_TENANT as any });
+  // 5. DELETE (Pure measurement)
+  await benchmarkCrud("DELETE", async () => {
+    // Note: benchmarkCrud calls resetCollection, but for DELETE we need a pool.
+    // However, since iterations=1500 and we call it sequentially, we can just insert one and delete it,
+    // OR we can pre-seed in onSetup. Let's pre-seed in onSetup for this specific one.
+  });
+
+  // Override DELETE with a better methodology
+  console.log(`   → DELETE (Pure Methodology)`);
+  await resetCollection();
+  // Pre-seed the pool
+  const deletePool = Array.from({ length: ITERATIONS + WARMUP + 10 }).map((_, i) => ({
+    _id: `del-pool-${i}` as any,
+    title: "To be deleted",
+    tenantId: TEST_TENANT as any,
+  }));
+  await db.crud.insertMany(COLLECTION_ID, deletePool, { tenantId: TEST_TENANT as any });
+
+  const finalDeleteResult = await runBenchmark({
+    name: "DELETE",
+    iterations: ITERATIONS,
+    warmupIterations: WARMUP,
+    concurrency: 1,
+    runs: RUNS,
+    trimOutliers: "iqr",
+    measureMemory: true,
+    tolerateErrors: true,
+    onIteration: async (i: number) => {
+      await db.crud.delete(COLLECTION_ID, `del-pool-${i}` as any, { tenantId: TEST_TENANT as any });
+    },
+    silent: true,
   });
 
   // 6. BULK INSERT (Batch of 100)
@@ -171,23 +192,17 @@ export async function runDatabaseBenchmark() {
     findOneResult,
     findManyResult,
     updateResult,
-    deleteResult,
+    finalDeleteResult,
     bulkInsertResult,
   ];
 
-  printAuditTable({
+  printTruthTable({
     title: `SVELTYCMS  —  DATABASE ADAPTER PERFORMANCE (${dbType.toUpperCase()})`,
     subtitle: "Direct Adapter Layer • CRUD Operations • IQR trimmed",
     results,
   });
 
-  printSummaryTable([
-    { key: "Raw Read Latency (p95)", val: findOneResult.p95Ms, unit: "ms" },
-    { key: "Raw Write Latency (p95)", val: insertResult.p95Ms, unit: "ms" },
-    { key: "Bulk Write Throughput", val: Math.round(bulkInsertResult.rps * 100), unit: "docs/s" },
-    { key: "Peak DB RPS", val: Math.round(findOneResult.rps), unit: "req/s" },
-    { key: "Memory Stability RSS Δ", val: (findOneResult.rssDelta || 0).toFixed(2), unit: "MB" },
-  ]);
+  exportMetric("adapter.read.avg", findOneResult.avgMs, "ms");
 
   exportMetric("adapter.read.avg", findOneResult.avgMs, "ms");
 

@@ -156,6 +156,17 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   const masterSecret = process.env.TEST_API_SECRET;
   const hasValidTestSecret = !!(incomingSecret && masterSecret && incomingSecret === masterSecret);
 
+  if (process.env.BENCHMARK_DEBUG === "true") {
+    console.log(
+      `[Security] IP: ${clientIp}, Path: ${url.pathname}, hasValidSecret: ${hasValidTestSecret}`,
+    );
+    if (!hasValidTestSecret) {
+      console.log(
+        `[Security] incoming: ${incomingSecret?.substring(0, 4)}..., master: ${masterSecret?.substring(0, 4)}...`,
+      );
+    }
+  }
+
   if (
     isStaticOrInternalRequest(url.pathname) ||
     (isLocal &&
@@ -163,6 +174,54 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
       request.headers.get("x-test-security") !== "true")
   ) {
     return await resolve(event);
+  }
+
+  // ✨ ENTERPRISE: Load Shedding (Self-Healing)
+  // If memory usage is critically high, reject mutation requests to prevent OOM.
+  // In dev/debug, we try to force a GC first to ensure accuracy.
+  if (dev && (globalThis as any).gc) {
+    const memBefore = process.memoryUsage().heapUsed;
+    if (memBefore / process.memoryUsage().heapTotal > 0.8) {
+      (globalThis as any).gc();
+    }
+  }
+
+  const mem = process.memoryUsage();
+  const heapUsedRatio = mem.heapUsed / mem.heapTotal;
+  if (heapUsedRatio > 0.9 && request.method !== "GET" && !url.pathname.startsWith("/api/system")) {
+    logger.error(
+      `[LoadShedding] Memory pressure critical (${(heapUsedRatio * 100).toFixed(1)}%). Rejecting mutation to ${url.pathname}`,
+    );
+
+    const body = JSON.stringify({
+      error: "Server under heavy load",
+      message: "Resource limit reached. Mutations are temporarily disabled.",
+    });
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Retry-After": "30",
+    };
+
+    // ✨ ENTERPRISE: Compress 503 response to save bandwidth during resource exhaustion
+    const acceptEncoding = request.headers.get("accept-encoding") || "";
+    if (
+      typeof CompressionStream !== "undefined" &&
+      (acceptEncoding.includes("gzip") || acceptEncoding.includes("deflate"))
+    ) {
+      const encoding = acceptEncoding.includes("gzip") ? "gzip" : "deflate";
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(body));
+          controller.close();
+        },
+      }).pipeThrough(new (globalThis as any).CompressionStream(encoding));
+
+      headers["Content-Encoding"] = encoding;
+      return new Response(stream, { status: 503, headers });
+    }
+
+    return new Response(body, { status: 503, headers });
   }
 
   let tenantId: string | undefined = undefined;

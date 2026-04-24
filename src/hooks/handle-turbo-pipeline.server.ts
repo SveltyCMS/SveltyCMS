@@ -123,6 +123,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   const isTest =
     process.env.TEST_MODE === "true" ||
     process.env.VITE_TEST_MODE === "true" ||
+    process.env.TEST_MODE === "true" ||
     (process.env as any).TEST_MODE === true;
 
   const testSecret =
@@ -132,34 +133,37 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     const { getTestSecret } = await import("@src/utils/setup-check");
     const expected = getTestSecret();
 
-    if (testSecret === expected) {
-      // 🚀 HARD BYPASS: Verified test secret receives full system access and skips ALL middleware.
-      const { getDbInitPromise, getDb } = await import("@src/databases/db");
-      await getDbInitPromise(false, "CORE");
+    if (expected) {
+      if (testSecret === expected) {
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          console.log(`[Turbo] Bypass SUCCESS for ${pathname}`);
+        }
+        // 🚀 HARD BYPASS: Verified test secret receives full system access and skips ALL middleware.
+        const { getDbInitPromise, getDb } = await import("@src/databases/db");
+        await getDbInitPromise(false, "CORE");
 
-      (event.locals as any).user = {
-        _id: "system",
-        role: "admin",
-        isAdmin: true,
-        email: "system@sveltycms",
-      };
-      (event.locals as any).dbAdapter = getDb();
-      (event.locals as any).__testBypass = true;
+        (event.locals as any).user = {
+          _id: "system",
+          role: "admin",
+          isAdmin: true,
+          email: "system@sveltycms",
+        };
+        (event.locals as any).dbAdapter = getDb();
+        (event.locals as any).__testBypass = true;
 
-      const response = await resolve(event);
-      if (dev) logRequest(event, performance.now() - requestStart, response.status);
-      return response;
+        const response = await resolve(event);
+        if (dev) logRequest(event, performance.now() - requestStart, response.status);
+        return response;
+      }
     }
   }
 
   try {
-    // ── 1. STATIC ASSET FAST EXIT ───────────────────────────────────────────
+    // ── 1. STATIC ASSET DELEGATION ───────────────────────────────────────────
+    // Note: handleStaticAssetCaching now handles this early in the sequence.
+    // We just resolve here to let the rest of the chain proceed.
     if (isStaticOrInternalRequest(pathname)) {
-      const response = await resolve(event);
-      response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
-
-      if (dev) logRequest(event, performance.now() - requestStart, response.status);
-      return response;
+      return await resolve(event);
     }
 
     // ── 2. ROBUST SETUP REDIRECT (FAST-PATH) ─────────────────────────────────
@@ -205,6 +209,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
     if (RESTRICTED_STATES.has(systemState.overallState) && !isHealthCheck) {
       const response = restrictedResponse(systemState.overallState, isApiRoute, baseHeaderMap);
+      response.headers.set("X-Request-ID", requestId);
       if (dev) logRequest(event, performance.now() - requestStart, response.status);
       return response;
     }
@@ -251,7 +256,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
       const response = new Response(null, {
         status: 204,
-        headers: corsHeaders,
+        headers: { ...corsHeaders, "X-Request-ID": requestId },
       });
 
       if (dev) logRequest(event, performance.now() - requestStart, 204);

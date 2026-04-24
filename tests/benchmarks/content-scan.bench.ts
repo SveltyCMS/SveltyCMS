@@ -11,7 +11,7 @@ import {
   exportResult,
   exportMetric,
   stabilize,
-  printAuditTable,
+  printTruthTable,
 } from "./benchmark-utils";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -39,22 +39,18 @@ async function prepareRealisticScanEnvironment() {
   await fs.mkdir(COLLECTIONS_DIR, { recursive: true });
 
   for (let i = 0; i < TARGET_FILE_COUNT; i++) {
-    const ext = i % 3 === 0 ? "ts" : i % 3 === 1 ? "json" : "js";
     const subDir = i % 5 === 0 ? "nested" : "";
     const finalDir = path.join(COLLECTIONS_DIR, subDir);
     if (subDir) await fs.mkdir(finalDir, { recursive: true });
 
-    const fileName = `mock_collection_${i}.${ext}`;
+    const fileName = `mock_collection_${i}.js`;
     const data = {
       _id: `mock_collection_${i}`,
       name: `Mock Collection ${i}`,
       fields: [{ name: "title", type: "text" }],
     };
 
-    const content =
-      ext === "json"
-        ? JSON.stringify(data, null, 2)
-        : `export default ${JSON.stringify(data, null, 2)};`;
+    const content = `export const schema = ${JSON.stringify(data, null, 2)};`;
 
     await fs.writeFile(path.join(finalDir, fileName), content, "utf-8");
   }
@@ -89,7 +85,9 @@ test("Content Scan Performance (Self-Healing Collections)", async () => {
       onSetup: async () => {
         // Clear schema cache to force re-scan
         await cacheService.clearByPattern("schema:*", null);
-        if ((contentSystem as any).clearCache) await (contentSystem as any).clearCache();
+        if (typeof (contentSystem as any).clearCache === "function") {
+          await (contentSystem as any).clearCache();
+        }
         await stabilize();
       },
       onIteration: async () => {
@@ -104,14 +102,13 @@ test("Content Scan Performance (Self-Healing Collections)", async () => {
     // Structured Matrix Exports (Infrastructure v2)
     exportMetric("internals.scan.avg", scanResult.avgMs, "ms");
 
-    printAuditTable({
+    printTruthTable({
       title: "SVELTYCMS  —  CONTENT SCAN AUDIT",
       subtitle: `${TARGET_FILE_COUNT} collections • Multi-Extension • Automated Hygiene`,
       results: [scanResult],
-      shortLabel: "Scan",
     });
 
-    exportResult({ ...scanResult, fileCount: TARGET_FILE_COUNT, scanType: "self-healing" });
+    exportResult(scanResult);
   } finally {
     // Cleanup after benchmark
     await cleanupMockFiles();

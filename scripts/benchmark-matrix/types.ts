@@ -26,12 +26,18 @@ export interface BenchmarkResult {
   buildTimeMs?: number;
   hostInfo?: HostInfo;
   error?: string;
+  /** New: What this test specifically proves */
+  proves?: string;
+  /** New: Path to the test file */
+  file?: string;
   /** Whether this result comes from history.sqlite instead of current run */
   isHistorical?: boolean;
   /** Timing per individual benchmark script */
   scriptTimings?: Record<string, number>;
   /** List of performance budget violations for this DB */
   budgetViolations?: string[];
+  /** Extra metadata for diagnostics */
+  extra?: Record<string, any>;
 }
 
 /** Host machine information captured during benchmark */

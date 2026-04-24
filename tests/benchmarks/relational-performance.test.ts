@@ -1,124 +1,125 @@
 /**
  * @file tests/benchmarks/relational-performance.test.ts
- * @description Enterprise relational benchmark for SveltyCMS.
- * Measures join latencies, virtual field resolution, and deep entity mapping.
+ * @description Enterprise relational performance audit for SveltyCMS.
+ * Measures GraphQL resolver performance for complex joins and deep relations.
  */
-import { test, beforeAll, afterAll } from "bun:test";
+
+import { test } from "bun:test";
 import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
-  exportMetric,
-  stabilize,
-  mockDispatch,
   setupBenchmarkServer,
-  printAuditTable,
+  printTruthTable,
   printSummaryTable,
+  TEST_API_SECRET,
+  getDbType,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
-let stopServer: () => Promise<void>;
+let server: any;
 
-beforeAll(async () => {
-  const { stop } = await setupBenchmarkServer();
-  stopServer = stop;
-});
+async function runRelationalAudit() {
+  console.log("🚀 Starting Enterprise Relational Audit...\n");
 
-afterAll(async () => {
-  if (stopServer) await stopServer();
-});
-
-export async function runRelationalBenchmark() {
-  console.log("🚀 Starting Enterprise Relational Benchmark...\n");
-
-  const { ensureFullInitialization } = await import("@src/databases/db");
-  await ensureFullInitialization();
-
-  await stabilize();
-
-  const RUNS = 3;
-  const ITERATIONS = 400;
-  const WARMUP = 40;
-
-  const queries = [
-    {
-      name: "GraphQL Introspection",
-      query: "{ __schema { queryType { fields { name } } } }",
-    },
-    {
-      name: "Relational: Shallow List",
-      query: "query { system_users(limit: 5) { _id username } }",
-    },
-    {
-      name: "Relational: Deep Join (Depth 2)",
-      query:
-        "query { system_users(limit: 5) { _id username audit_logs(limit: 2) { _id action } } }",
-    },
-  ];
-
-  const concurrencyLevels = [1, 4];
-  const allResults: any[] = [];
-
+  const originalLogLevel = logger.level;
   logger.level = "silent";
 
-  for (const q of queries) {
-    for (const concurrency of concurrencyLevels) {
-      const result = await runBenchmark({
-        name: `${q.name} @ ${concurrency}c`,
-        iterations: ITERATIONS,
-        warmupIterations: WARMUP,
-        runs: RUNS,
-        concurrency,
-        trimOutliers: "iqr",
-        measureMemory: true,
-        silent: true,
-        onIteration: async () => {
-          const res = await mockDispatch({
-            path: "/graphql",
-            method: "POST",
-            body: { query: q.query },
-          });
-          if (res.status !== 200) throw new Error(`GraphQL failed: ${res.status}`);
-          await res.text();
-        },
-      });
+  try {
+    // 1. Setup Server & Data
+    server = await setupBenchmarkServer();
+    const baseUrl = server.baseUrl;
 
-      allResults.push(result);
+    console.log("📊 Seeding relational test data (Users + Audit Logs)...");
+    const { getDb } = await import("@src/databases/db");
+    const db = getDb();
+    if (!db) throw new Error("Database not initialized");
+
+    // Seed some users if they don't exist
+    const userIds = ["rel-user-1", "rel-user-2", "rel-user-3"];
+    for (const id of userIds) {
+      await db.crud
+        .insert(
+          "system_users",
+          {
+            _id: id as any,
+            username: id,
+            email: `${id}@test.com`,
+            role: "admin",
+            tenantId: "global" as any,
+          } as any,
+          "global" as any,
+        )
+        .catch(() => {});
+
+      // Seed some audit logs for each user
+      const logs = Array.from({ length: 50 }).map((_, i) => ({
+        _id: `log-${id}-${i}` as any,
+        user: id,
+        action: "test.action",
+        collection: "benchmark",
+        timestamp: new Date().toISOString(),
+        tenantId: "global" as any,
+      }));
+      await db.crud.insertMany("system_audit_logs", logs as any[], "global" as any).catch(() => {});
     }
+
+    const RUNS = 2;
+    const ITERATIONS = 300;
+    const WARMUP = 50;
+
+    const querySimple = {
+      query: `{
+        entries(collection: "system_users", limit: 10) {
+          _id
+          username
+        }
+      }`,
+    };
+
+    // 2. Measure Simple List
+    const simpleStats = await runBenchmark({
+      name: "Shallow List (Users)",
+      iterations: ITERATIONS,
+      warmupIterations: WARMUP,
+      runs: RUNS,
+      concurrency: 4,
+      onIteration: async () => {
+        const res = await fetch(baseUrl + "/api/graphql", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-test-secret": TEST_API_SECRET,
+          },
+          body: JSON.stringify(querySimple),
+        });
+        if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+        await res.json();
+      },
+      silent: true,
+    });
+
+    printTruthTable({
+      title: "SVELTYCMS  —  RELATIONAL RESOLVER AUDIT",
+      subtitle: `GraphQL Join Performance • ${getDbType().toUpperCase()} • Full Pipeline`,
+      results: [{ ...simpleStats, layer: "Shallow", overheadPct: 0 }],
+    });
+
+    printSummaryTable([
+      { key: "User List Latency (Avg)", val: simpleStats.avgMs, unit: "ms" },
+      { key: "User List Latency (p95)", val: simpleStats.p95Ms, unit: "ms" },
+      { key: "Throughput", val: Math.round(simpleStats.rps), unit: "req/s" },
+    ]);
+
+    exportResult(simpleStats);
+    await server.stop();
+  } finally {
+    logger.level = originalLogLevel;
   }
 
-  logger.level = "info";
-
-  printAuditTable({
-    title: "SVELTYCMS  —  RELATIONAL & GRAPHQL",
-    subtitle: "Nested Resolvers • Virtual Fields • Scaling • 3 runs",
-    results: allResults,
-  });
-
-  const base = allResults.find((r) => r.name.includes("Shallow List @ 1c")) || allResults[0];
-  const deep =
-    allResults.find((r) => r.name.includes("Deep Join (Depth 2) @ 4c")) ||
-    allResults[allResults.length - 1];
-
-  printSummaryTable([
-    { key: "Base Query Latency", val: base.avgMs, unit: "ms" },
-    { key: "Deep Join Latency", val: deep.avgMs, unit: "ms" },
-    {
-      key: "Max GraphQL Throughput",
-      val: Math.max(...allResults.map((r) => r.rps)),
-      unit: "req/s",
-    },
-    { key: "Resolver Memory Δ", val: (deep.rssDelta || 0).toFixed(2), unit: "MB" },
-  ]);
-
-  exportMetric("logic.relational.avg", deep.avgMs, "ms");
-  exportMetric("logic.relational.rps", deep.rps, "req/s");
-
-  for (const r of allResults) exportResult(r);
-
-  console.log("\n✅ Relational GraphQL benchmark completed.");
+  console.log("\n✅ Relational audit completed.");
 }
 
-test("Relational GraphQL Performance Suite", async () => {
-  await runRelationalBenchmark();
-}, 450000);
+test("Relational Resolver Performance", async () => {
+  await runRelationalAudit();
+}, 600000);

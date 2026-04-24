@@ -134,10 +134,15 @@ export const contentSystem = {
     const pathValue = first.path || `/collection/${first._id}`;
     return `/${lang}${pathValue.startsWith("/") ? pathValue : `/${pathValue}`}`;
   },
-  async refresh(tenantId?: string | null, skipReconciliation?: boolean, incremental = false) {
+  async refresh(
+    tenantId?: string | null,
+    skipReconciliation?: boolean,
+    incremental = false,
+    adapter?: IDBAdapter,
+  ) {
     const key = tenantId ?? "__global__";
     initializationPromises.delete(key);
-    return this.initialize(tenantId, { skipReconciliation, incremental });
+    return this.initialize(tenantId, { skipReconciliation, incremental }, adapter);
   },
   async getNavigationStructure(tenantId: string | null = null) {
     return contentNavigation.getNavigationStructure(tenantId);

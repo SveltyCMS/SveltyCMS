@@ -26,6 +26,36 @@ const PERMISSIONS_POLICY = [
   "web-share=(self)",
 ].join(", ");
 
+/**
+ * SECURITY: Applies the full suite of security headers to a Headers object.
+ * This is designed to be used by both the middleware hook and the global error guard.
+ */
+export function applyAllSecurityHeaders(
+  headers: Headers,
+  isHttps: boolean,
+  origin: string | null,
+  pathname: string,
+) {
+  // 1. Base security headers (X-Frame, X-Content-Type, Referrer, COOP, COEP, HSTS)
+  applySecurityHeaders(headers, isHttps && !dev);
+
+  // 2. Additional Hardening
+  headers.set("X-XSS-Protection", "1; mode=block");
+  headers.set("X-DNS-Prefetch-Control", "off");
+  headers.set("X-Permitted-Cross-Domain-Policies", "none");
+  headers.set("Permissions-Policy", PERMISSIONS_POLICY);
+
+  // 3. API-specific CORS
+  if (pathname.startsWith("/api/")) {
+    const corsHeaders = getCorsHeaders(origin, true);
+    if (corsHeaders) {
+      for (const [key, value] of Object.entries(corsHeaders)) {
+        headers.set(key, value as string);
+      }
+    }
+  }
+}
+
 export const handleSecurityHeaders: Handle = async ({ event, resolve }) => {
   const { url, request } = event;
   const pathname = url.pathname;
@@ -37,28 +67,13 @@ export const handleSecurityHeaders: Handle = async ({ event, resolve }) => {
   }
 
   const response = await resolve(event);
-  const isHttps = url.protocol === "https:";
-  const origin = request.headers.get("Origin");
 
-  // 2. SECURITY: Apply unified base headers (X-Frame, X-Content-Type, Referrer, COOP, COEP)
-  // applySecurityHeaders also handles HSTS logic internally.
-  applySecurityHeaders(response.headers, isHttps && !dev);
-
-  // 3. SECURITY: Additional Hardening
-  response.headers.set("X-XSS-Protection", "1; mode=block");
-  response.headers.set("X-DNS-Prefetch-Control", "off");
-  response.headers.set("X-Permitted-Cross-Domain-Policies", "none");
-  response.headers.set("Permissions-Policy", PERMISSIONS_POLICY);
-
-  // 4. SECURITY/PERFORMANCE: API-specific CORS
-  if (pathname.startsWith("/api/")) {
-    const corsHeaders = getCorsHeaders(origin, true);
-    if (corsHeaders) {
-      for (const [key, value] of Object.entries(corsHeaders)) {
-        response.headers.set(key, value as string);
-      }
-    }
-  }
+  applyAllSecurityHeaders(
+    response.headers,
+    url.protocol === "https:",
+    request.headers.get("Origin"),
+    pathname,
+  );
 
   return response;
 };

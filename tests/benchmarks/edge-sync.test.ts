@@ -1,74 +1,143 @@
 /**
  * @file tests/benchmarks/edge-sync.test.ts
- * @description Enterprise edge sync benchmark for SveltyCMS.
+ * @description Enterprise-grade Edge Sync benchmark for SveltyCMS.
+ * Measures invalidation propagation latency between multiple simulated nodes.
  */
-import { test, beforeAll, afterAll } from "bun:test";
+
+import { test } from "bun:test";
 import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
-  setupBenchmarkServer,
-  printAuditTable,
+  stabilize,
+  printTruthTable,
+  printSummaryTable,
 } from "./benchmark-utils";
+import { CacheService } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
 
-let stopServer: () => Promise<void>;
+/**
+ * High-fidelity Redis Bus simulator for in-process multi-node testing.
+ */
+class RedisBus {
+  private subscribers: Map<string, Set<(msg: string) => void>> = new Map();
 
-beforeAll(async () => {
-  const { stop } = await setupBenchmarkServer();
-  stopServer = stop;
-});
+  publish(channel: string, message: string) {
+    const subs = this.subscribers.get(channel);
+    if (subs) {
+      // Simulate real-world network micro-latency (jitter)
+      const jitter = Math.random() * 0.2; // 0-200us
+      setTimeout(() => {
+        for (const cb of subs) cb(message);
+      }, jitter);
+    }
+  }
 
-afterAll(async () => {
-  if (stopServer) await stopServer();
-});
+  subscribe(channel: string, callback: (msg: string) => void) {
+    if (!this.subscribers.has(channel)) this.subscribers.set(channel, new Set());
+    this.subscribers.get(channel)!.add(callback);
+  }
 
-test("Edge Sync Performance", async () => {
-  console.log("🚀 Starting Edge Sync Benchmark...\n");
+  createClient(id: string) {
+    return {
+      id,
+      isOpen: true,
+      connect: async () => {},
+      quit: async () => {},
+      publish: async (chan: string, msg: string) => this.publish(chan, msg),
+      subscribe: async (chan: string, cb: (msg: string) => void) => this.subscribe(chan, cb),
+      sMembers: async () => [],
+      del: async () => {},
+      sAdd: async () => {},
+    };
+  }
+}
 
+async function createSimulatedNode(bus: RedisBus, id: string) {
+  const node = new CacheService();
+  (node as any).nodeId = id;
+  const client = bus.createClient(id);
+  (node as any).l2 = client;
+  (node as any).subscriber = client;
+  await (node as any).subscribeToInvalidations();
+  return node;
+}
+
+async function runEdgeSyncAudit() {
+  console.log("🚀 Starting Enterprise Edge Sync Audit...\n");
+
+  const bus = new RedisBus();
+  const nodeA = await createSimulatedNode(bus, "node-A");
+  const remoteNodes = await Promise.all(
+    Array.from({ length: 5 }).map((_, i) => createSimulatedNode(bus, `node-remote-${i}`)),
+  );
+
+  const TEST_TAGS = ["sync-tag"];
+  const TENANT = "global";
+
+  await stabilize();
   const ITERATIONS = 1000;
-  const WARMUP = 100;
-  const results: any[] = [];
 
-  const benchmarkSync = async (
-    name: string,
-    concurrency: number,
-    onIteration: () => Promise<void>,
-  ) => {
-    console.log(`   → ${name}`);
-    const r = await runBenchmark({
-      name,
-      iterations: ITERATIONS,
-      warmupIterations: WARMUP,
-      runs: 1,
-      concurrency,
-      trimOutliers: "iqr",
-      measureMemory: true,
-      silent: true,
-      onIteration,
-    });
-    results.push(r);
-    return r;
-  };
+  console.log(`   → Measuring P2P invalidation across ${remoteNodes.length} remote nodes...`);
+  const p2pResult = await runBenchmark({
+    name: "Edge Invalidation (P2P)",
+    iterations: ITERATIONS,
+    warmupIterations: 100,
+    runs: 3,
+    concurrency: 1,
+    trimOutliers: "iqr",
+    silent: true,
+    onIteration: async () => {
+      // 1. Populate remote nodes L1
+      const key = `bench:sync:${Math.random()}`;
+      for (const node of remoteNodes) {
+        await node.set(key, { data: "cached" }, 60, TENANT, CacheCategory.GENERAL, TEST_TAGS);
+      }
 
-  // 1. Single Entry Sync
-  await benchmarkSync("Single Entry Sync", 1, async () => {
-    // Placeholder for actual sync logic
-    await new Promise((resolve) => setTimeout(resolve, 1));
+      const t0 = performance.now();
+      let propagationDone = false;
+
+      // 2. Node A triggers invalidation
+      await nodeA.clearByTags(TEST_TAGS, TENANT);
+
+      // 3. Busy-wait for ALL remote nodes to clear
+      while (performance.now() - t0 < 50) {
+        let allCleared = true;
+        for (const node of remoteNodes) {
+          const check = await node.get(key, TENANT);
+          if (check) {
+            allCleared = false;
+            break;
+          }
+        }
+        if (allCleared) {
+          propagationDone = true;
+          break;
+        }
+        await new Promise((r) => setImmediate(r));
+      }
+
+      if (!propagationDone) throw new Error("Sync propagation timed out (>50ms)");
+    },
   });
 
-  // 2. High Concurrency Sync
-  await benchmarkSync("High Concurrency Sync (32c)", 32, async () => {
-    // Placeholder for actual sync logic
-    await new Promise((resolve) => setTimeout(resolve, 1));
+  printTruthTable({
+    title: "SVELTYCMS  —  EDGE SYNC PROPAGATION AUDIT",
+    subtitle: `Cross-Node Invalidation • 5 Simulated Edge Nodes • Redis-Bus Jitter`,
+    results: [{ ...p2pResult, layer: "Edge Bus", overheadPct: 0 }],
   });
 
-  printAuditTable({
-    title: "SVELTYCMS  —  EDGE SYNC PERFORMANCE",
-    subtitle: "Throughput & Latency Matrix",
-    results,
-  });
+  printSummaryTable([
+    { key: "Avg Propagation Latency", val: p2pResult.avgMs, unit: "ms" },
+    { key: "p95 Propagation Latency", val: p2pResult.p95Ms, unit: "ms" },
+    { key: "Sync Throughput", val: Math.round(p2pResult.rps), unit: "ops/s" },
+    { key: "Scalability Rating", val: p2pResult.avgMs < 2 ? "EXCELLENT" : "GOOD", unit: "" },
+  ]);
 
-  for (const r of results) exportResult(r);
+  exportResult(p2pResult);
+  console.log("\n✅ Edge sync audit completed.");
+}
 
-  console.log("\n✅ Edge sync benchmark completed.");
+test("Edge Sync Enterprise Audit", async () => {
+  await runEdgeSyncAudit();
 }, 300000);

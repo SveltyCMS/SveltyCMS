@@ -33,17 +33,23 @@ const COMPRESSIBLE_TYPES = [
 ];
 
 // ──────────────────────────────────────────────────────────────
-// Tier Detection: Try to load node:zlib at startup (zero cost at runtime)
+// Tier Detection: Try to load node:zlib lazily
 // ──────────────────────────────────────────────────────────────
 
-let zlib: typeof import("node:zlib") | null = null;
-let stream: typeof import("node:stream") | null = null;
+let zlib: any = null;
+let stream: any = null;
+let isNativeChecked = false;
 
-try {
-  zlib = require("node:zlib");
-  stream = require("node:stream");
-} catch {
-  // Edge/Deno/Workers — fall back to CompressionStream
+async function initNativeModules() {
+  if (isNativeChecked) return;
+  try {
+    zlib = await import("node:zlib");
+    stream = await import("node:stream");
+  } catch {
+    // Edge/Deno/Workers — fall back to CompressionStream
+  } finally {
+    isNativeChecked = true;
+  }
 }
 
 /**
@@ -111,6 +117,9 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
   if (isStaticOrInternalRequest(pathname)) {
     return resolve(event);
   }
+
+  // Ensure native modules are loaded if available
+  await initNativeModules();
 
   const response = await resolve(event);
 

@@ -1,63 +1,145 @@
 /**
  * @file tests/benchmarks/hooks-performance.test.ts
- * @description Enterprise hooks performance benchmark for SveltyCMS.
+ * @description Enterprise Hooks & Middleware benchmark for SveltyCMS.
+ * Measures the cost of the middleware chain (Turbo, Security, Auth, Audit) via HTTP E2E.
  */
-import { test } from "bun:test";
+
+import { test, beforeAll, afterAll } from "bun:test";
 import "../unit/setup.ts";
-import { runBenchmark, printAuditTable } from "./benchmark-utils";
+import {
+  runBenchmark,
+  exportResult,
+  setupBenchmarkServer,
+  printTruthTable,
+  printSummaryTable,
+  STABLE_COLLECTION,
+  STABLE_ENTRY_ID,
+  ensureStableTestData,
+  TEST_API_SECRET,
+} from "./benchmark-utils";
+import { logger } from "@utils/logger.server";
 
-test("Hooks Performance Trace", async () => {
-  console.log("🚀 Starting Hooks Performance Benchmark...\n");
+let stopServer: () => Promise<void>;
+let apiBaseUrl: string;
 
-  const ITERATIONS = 1500;
-  const WARMUP = 150;
+beforeAll(async () => {
+  const { stop, baseUrl } = await setupBenchmarkServer();
+  stopServer = stop;
+  apiBaseUrl = baseUrl;
+
+  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+  await ensureFullInitialization();
+  const db = getDb();
+  await ensureStableTestData(db!);
+});
+
+afterAll(async () => {
+  if (stopServer) await stopServer();
+});
+
+async function runHooksAudit() {
+  console.log("🚀 Starting Enterprise Hooks & Middleware Audit (E2E)...\n");
+
+  const ITERATIONS = 500;
+  const RUNS = 2;
   const results: any[] = [];
 
-  // 1. System Hooks (Internal)
-  await (async () => {
-    console.log("   → System Hooks (Internal)");
-    const r = await runBenchmark({
-      name: "System Hooks",
+  const originalLogLevel = logger.level;
+  logger.level = "silent";
+
+  try {
+    // 1. Turbo Pipeline (Short-circuit)
+    // Measuring a static asset or internal route that bypasses full logic but hits hooks
+    console.log("   → Measuring Turbo Pipeline (Static-ish)...");
+    const turboRes = await runBenchmark({
+      name: "Turbo Pipeline (Static)",
       iterations: ITERATIONS,
-      warmupIterations: WARMUP,
-      runs: 1,
-      concurrency: 1,
-      trimOutliers: "iqr",
-      measureMemory: true,
+      warmupIterations: 50,
+      runs: RUNS,
+      concurrency: 8,
       silent: true,
       onIteration: async () => {
-        // Placeholder for hook execution
-        await new Promise((resolve) => setTimeout(resolve, 1));
+        const res = await fetch(`${apiBaseUrl}/api/system/health`, {
+          headers: { "x-test-mode": "true" },
+        });
+        await res.json();
       },
     });
-    results.push(r);
-  })();
+    results.push({ ...turboRes, layer: "Middleware" });
 
-  // 2. Plugin Hooks (External)
-  await (async () => {
-    console.log("   → Plugin Hooks (External)");
-    const r = await runBenchmark({
-      name: "Plugin Hooks",
+    // 2. Full Security & Auth Chain
+    console.log("   → Measuring Security & Auth Middleware Tax...");
+    const fullRes = await runBenchmark({
+      name: "Security + Auth Pipeline",
       iterations: ITERATIONS,
-      warmupIterations: WARMUP,
-      runs: 1,
-      concurrency: 1,
-      trimOutliers: "iqr",
-      measureMemory: true,
+      warmupIterations: 50,
+      runs: RUNS,
+      concurrency: 8,
       silent: true,
       onIteration: async () => {
-        // Placeholder for hook execution
-        await new Promise((resolve) => setTimeout(resolve, 1));
+        const res = await fetch(
+          `${apiBaseUrl}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`,
+          {
+            headers: {
+              "x-test-mode": "true",
+              "x-test-secret": TEST_API_SECRET,
+            },
+          },
+        );
+        await res.json();
       },
     });
-    results.push(r);
-  })();
+    results.push({ ...fullRes, layer: "Middleware" });
 
-  printAuditTable({
-    title: "SVELTYCMS  —  HOOKS PERFORMANCE AUDIT",
-    subtitle: "Internal vs Plugin Hook Latency",
-    results,
-  });
+    // 3. Audit Logging (Mutation Path)
+    console.log("   → Measuring Audit Logging Middleware (POST)...");
+    const auditRes = await runBenchmark({
+      name: "Audit Logging (Mutation)",
+      iterations: 100,
+      warmupIterations: 10,
+      runs: 1,
+      concurrency: 1,
+      silent: true,
+      onIteration: async (i: number) => {
+        const res = await fetch(`${apiBaseUrl}/api/collections/${STABLE_COLLECTION}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-test-mode": "true",
+            "x-test-secret": TEST_API_SECRET,
+          },
+          body: JSON.stringify({
+            _id: `hook-bench-${i}-${Math.random().toString(36).slice(2)}`,
+            title: "Hook Test",
+          }),
+        });
+        if (!res.ok) throw new Error(`Audit hook failed: ${res.status}`);
+        await res.json();
+      },
+    });
+    results.push({ ...auditRes, layer: "Middleware" });
 
-  console.log("\n✅ Hooks benchmark completed.");
-}, 300000);
+    printTruthTable({
+      title: "SVELTYCMS  —  MIDDLEWARE INFRASTRUCTURE AUDIT",
+      subtitle: "Turbo • Security • Auth • Audit Logging • E2E Pipeline",
+      results,
+    });
+
+    printSummaryTable([
+      { key: "Turbo Latency (Avg)", val: turboRes.avgMs, unit: "ms" },
+      { key: "Auth Pipeline Latency", val: fullRes.avgMs, unit: "ms" },
+      { key: "Audit Log Overhead", val: (auditRes.avgMs - fullRes.avgMs).toFixed(2), unit: "ms" },
+      { key: "Peak Middleware RPS", val: Math.round(fullRes.rps), unit: "req/s" },
+    ]);
+
+    for (const r of results) exportResult(r);
+  } finally {
+    logger.level = originalLogLevel;
+  }
+
+  console.log("\n✅ Hooks & middleware audit completed.");
+}
+
+test("Hooks & Middleware Enterprise Audit", async () => {
+  await runHooksAudit();
+}, 450000);

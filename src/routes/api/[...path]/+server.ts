@@ -112,7 +112,15 @@ export const _handler = async (event: RequestEvent) => {
 
   // --- Health Check ---
   if (namespace === "system" && segments[1] === "health") {
-    console.log("🚑 Health check request received at " + Date.now());
+    // Force GC if requested in test mode to measure baseline memory correctly
+    if (url.searchParams.get("gc") === "true" && process.env.TEST_MODE === "true") {
+      if (globalThis.gc) {
+        globalThis.gc();
+      } else if ((globalThis as any).Bun?.gc) {
+        (globalThis as any).Bun.gc(true);
+      }
+    }
+
     const health = {
       status: dbAdapter ? "healthy" : "initializing",
       overallStatus: dbAdapter ? "READY" : "SETUP",
@@ -121,6 +129,7 @@ export const _handler = async (event: RequestEvent) => {
       timestamp: Date.now(),
       dbType: process.env.DB_TYPE || "unknown",
       dbVersion: cachedDbVersion || "unknown",
+      memory: process.memoryUsage(),
     };
     if (dbAdapter && !cachedDbVersion) {
       const v = await dbAdapter.getVersion();

@@ -50,10 +50,14 @@ if (typeof (import.meta as any).glob !== "function") {
       const subDir = isCustom ? "custom" : "core";
       const scanDir = path.join(baseDir, subDir);
 
-      if (!fs.existsSync(scanDir)) return {};
+      if (!fs.existsSync(scanDir)) {
+        console.warn(`[setup.ts] scanDir not found: ${scanDir}`);
+        return {};
+      }
 
       const modules: Record<string, any> = {};
       const entries = fs.readdirSync(scanDir, { withFileTypes: true });
+      console.log(`[setup.ts] Scanning ${scanDir}, found ${entries.length} entries`);
 
       for (const entry of entries) {
         if (entry.isDirectory()) {
@@ -887,15 +891,40 @@ for (const name of WIDGET_NAMES) {
   widgetMap.set(name, factory);
   scannerModules[`./core/${name.toLowerCase()}/index.ts`] = { default: factory };
 }
+console.log(
+  `[setup.ts] scannerModules populated with ${Object.keys(scannerModules).length} entries`,
+);
 
 // Direct mock.module â€” bypasses moduleMock's benchmark skip logic
 if (isBun) {
-  mock.module("@src/widgets/scanner", () => ({
-    coreModules: scannerModules,
-    customModules: {},
-    allWidgetModules: scannerModules,
-    getWidgetNameFromPath: (p: string) => p.split("/").at(-2) || null,
-  }));
+  const scannerMock = () => {
+    console.log(`[setup.ts] Mocking scanner with ${Object.keys(scannerModules).length} modules`);
+    return {
+      coreModules: scannerModules,
+      customModules: {},
+      allWidgetModules: scannerModules,
+      getWidgetNameFromPath: (p: string) => p.split("/").at(-2) || null,
+    };
+  };
+
+  try {
+    const scannerPath = import.meta.resolve("@src/widgets/scanner");
+    console.log(`[setup.ts] Resolved scannerPath: ${scannerPath}`);
+    mock.module(scannerPath, scannerMock);
+    mock.module("@src/widgets/scanner", scannerMock);
+  } catch (e) {
+    console.error(`[setup.ts] Resolve failed: ${e}`);
+    mock.module("@src/widgets/scanner", scannerMock);
+  }
+
+  try {
+    const setupPath = import.meta.resolve("@src/utils/is-setup-complete");
+    const setupMock = () => ({ isSetupComplete: () => true });
+    mock.module(setupPath, setupMock);
+    mock.module("@src/utils/is-setup-complete", setupMock);
+  } catch {
+    mock.module("@src/utils/is-setup-complete", () => ({ isSetupComplete: () => true }));
+  }
   mock.module("@src/services/widget-registry-service", () => ({
     widgetRegistryService: {
       getAllWidgets: async () => widgetMap,
@@ -1294,7 +1323,6 @@ const mockSetupCheck = {
       path.startsWith("api/content/version") ||
       path.startsWith("api/settings/public") ||
       path.startsWith("api/debug/") ||
-      path.startsWith("auth/") || // Handle non-api prefixed paths as well
       path.startsWith("_") ||
       path.startsWith("static") ||
       path.startsWith("assets") ||

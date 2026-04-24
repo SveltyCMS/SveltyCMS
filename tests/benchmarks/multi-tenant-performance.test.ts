@@ -1,101 +1,123 @@
 /**
  * @file tests/benchmarks/multi-tenant-performance.test.ts
- * @description Enterprise multi-tenant benchmark for SveltyCMS.
- * Measures tenant isolation overhead and cross-tenant query latencies.
+ * @description Enterprise multi-tenancy benchmark for SveltyCMS.
+ * Measures the overhead of tenant isolation and context switching across 50 simulated tenants.
  */
-import { test, beforeAll, afterAll } from "bun:test";
+
+import { test } from "bun:test";
 import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
-  exportMetric,
-  stabilize,
-  setupBenchmarkServer,
-  printAuditTable,
+  printTruthTable,
   printSummaryTable,
+  setupBenchmarkServer,
+  ensureStableTestData,
+  STABLE_COLLECTION,
+  TEST_API_SECRET,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
-let stopServer: () => Promise<void>;
+const TENANT_COUNT = 50;
+const ITERATIONS = 1000;
+const CONCURRENCY = 8;
 
-beforeAll(async () => {
-  const { stop } = await setupBenchmarkServer();
-  stopServer = stop;
-});
+let server: any;
 
-afterAll(async () => {
-  if (stopServer) await stopServer();
-});
+async function runMultiTenantAudit() {
+  console.log(`🚀 Starting Enterprise Multi-Tenancy Audit (${TENANT_COUNT} tenants)...\n`);
 
-export async function runMultiTenantBenchmark() {
-  console.log("🚀 Starting Enterprise Multi-Tenant Benchmark...\n");
-
-  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-  await ensureFullInitialization();
-  const db = getDb();
-  if (!db) throw new Error("Database not initialized");
-
-  await stabilize();
-
-  const RUNS = 3;
-  const ITERATIONS = 800;
-  const WARMUP = 100;
-  const scales = [1, 10, 50];
-  const allResults: any[] = [];
-
+  const originalLogLevel = logger.level;
   logger.level = "silent";
 
-  for (const scale of scales) {
-    console.log(`📌 Scaling to ${scale} active tenants...`);
+  try {
+    // 1. Setup Server & Data
+    server = await setupBenchmarkServer();
+    const baseUrl = server.baseUrl;
 
-    const result = await runBenchmark({
-      name: `Tenant Isolation @ ${scale}t`,
-      iterations: ITERATIONS,
-      warmupIterations: WARMUP,
-      runs: RUNS,
-      concurrency: 4,
-      trimOutliers: "iqr",
-      measureMemory: true,
-      onIteration: async () => {
-        const tenantId = `tenant-${Math.floor(Math.random() * scale)}`;
-        await db.crud.findMany("system_users", {}, { tenantId: tenantId as any });
-      },
+    console.log(`📊 Seeding data for ${TENANT_COUNT} tenants...`);
+    for (let i = 0; i < TENANT_COUNT; i++) {
+      const tenantId = `tenant-${i}`;
+      await ensureStableTestData(null, tenantId);
+    }
+
+    const onIteration = async (i: number) => {
+      const tenantId = `tenant-${i % TENANT_COUNT}`;
+      // Use hostname-based tenant detection for full pipeline realism
+      const tenantUrl = baseUrl.replace("127.0.0.1", `${tenantId}.localhost`);
+
+      const res = await fetch(tenantUrl + `/api/collections/${STABLE_COLLECTION}?limit=5`, {
+        headers: {
+          "x-test-secret": TEST_API_SECRET,
+        },
+      });
+
+      if (res.status >= 400) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+    };
+
+    // 2. Measure Baseline (Global/Default Tenant)
+    console.log("   → Measuring Baseline (Single Tenant)...");
+    const baseline = await runBenchmark({
+      name: "Single Tenant (Baseline)",
+      iterations: 500,
+      warmupIterations: 50,
+      runs: 1,
+      concurrency: CONCURRENCY,
       silent: true,
+      onIteration: async () => {
+        await fetch(baseUrl + `/api/collections/${STABLE_COLLECTION}?limit=5`, {
+          headers: { "x-test-secret": TEST_API_SECRET },
+        });
+      },
     });
 
-    allResults.push({ ...result, scale });
+    // 3. Measure Multi-Tenant (Switching Context)
+    console.log(`   → Measuring Multi-Tenant (${TENANT_COUNT} tenants switching)...`);
+    const multi = await runBenchmark({
+      name: "Multi-Tenant Context Switching",
+      iterations: ITERATIONS,
+      warmupIterations: 100,
+      runs: 2,
+      concurrency: CONCURRENCY,
+      silent: true,
+      onIteration,
+    });
+
+    const overhead = ((multi.avgMs - baseline.avgMs) / baseline.avgMs) * 100;
+
+    printTruthTable({
+      title: "SVELTYCMS  —  MULTI-TENANCY PERFORMANCE AUDIT",
+      subtitle: `Isolation Cost • Context Switching • ${TENANT_COUNT} Active Tenants`,
+      results: [
+        { ...baseline, layer: "Baseline", overheadPct: 0 },
+        { ...multi, layer: "Full Stack", overheadPct: overhead },
+      ],
+    });
+
+    printSummaryTable([
+      { key: "Baseline Latency (Single)", val: baseline.avgMs, unit: "ms" },
+      { key: "Multi-Tenant Latency", val: multi.avgMs, unit: "ms" },
+      { key: "Isolation Overhead", val: overhead, unit: "%" },
+      { key: "Context Switch Penalty", val: (multi.avgMs - baseline.avgMs).toFixed(3), unit: "ms" },
+      {
+        key: "Scalability Rating",
+        val: overhead < 15 ? "EXCELLENT" : overhead < 30 ? "GOOD" : "DEGRADED",
+        unit: "",
+      },
+    ]);
+
+    exportResult(multi);
+    await server.stop();
+  } finally {
+    logger.level = originalLogLevel;
   }
 
-  logger.level = "info";
-
-  printAuditTable({
-    title: "SVELTYCMS  —  MULTI-TENANT ISOLATION",
-    subtitle: "Context Switching Overhead • Data Isolation • 4c Scaling",
-    results: allResults,
-    shortLabel: "Tenancy",
-  });
-
-  const base = allResults[0];
-  const peak = allResults[allResults.length - 1];
-  const overhead = peak.avgMs - base.avgMs;
-
-  printSummaryTable([
-    { key: "Single Tenant Latency", val: base.avgMs, unit: "ms" },
-    { key: "50-Tenant Scale Latency", val: peak.avgMs, unit: "ms" },
-    { key: "Cross-Tenant Overhead", val: overhead, unit: "ms" },
-    { key: "Peak Tenant Throughput", val: Math.round(peak.rps), unit: "req/s" },
-    { key: "Isolation Stability RSS Δ", val: (peak.rssDelta || 0).toFixed(2), unit: "MB" },
-  ]);
-
-  exportMetric("scale.tenancy.avg", peak.avgMs, "ms");
-  exportMetric("scale.tenancy.rps", peak.rps, "req/s");
-  exportMetric("scale.tenancy.overhead", overhead, "ms");
-
-  for (const r of allResults) exportResult(r);
-
-  console.log("\n✅ Multi-tenant benchmark completed.");
+  console.log("\n✅ Multi-tenancy audit completed.");
 }
 
-test("Multi-Tenant Isolation & Performance", async () => {
-  await runMultiTenantBenchmark();
-}, 450000);
+test("Multi-Tenancy Enterprise Audit", async () => {
+  await runMultiTenantAudit();
+}, 600000);

@@ -23,9 +23,10 @@ The **Enterprise Benchmark Matrix (Audit 2.0)** has transitioned to a **Decentra
 It measures:
 
 - **REST API Latency**: Autonomous E2E collection throughput with in-process worker isolation.
+- **5-Layer Truth Model**: Measures performance from **Pure Logic** (CPU) → **Full SDK** (DB/IO) → **Dispatcher** (Middleware) → **HTTP Warm** (Keep-Alive) → **HTTP Cold** (Handshake).
+- **Stochastic Load Testing**: Realistic traffic simulation with **Ramping Phases** (Ramp-up, Steady-state, Burst, Cooldown).
+- **SLA Enforcement**: Mandatory performance budgets for **p95 latency** and **error rates**.
 - **Ghost Caching Velocity**: Reduced SDK Read overhead by **98.8%** (~0.007ms), rendering internal lookups near-instant.
-- **Distributed Sync Latency**: Real-time cross-node cache invalidation via Redis Pub/Sub (target < 0.02ms).
-- **Middleware Overhead**: Non-blocking micro-latency measurements (target < 10µs per hook).
 - **Memory Stability**: RSS and Heap growth detection across sustained decentralized loads.
 
 ### 🚀 Running the Orchestrator
@@ -36,23 +37,31 @@ The orchestrator code is modularized inside `scripts/benchmark-matrix/` for ulti
 # Run the full matrix across all 4 databases and 8 variants (including Redis)
 bun run scripts/benchmark-matrix/index.ts
 
-# Run only a specific database
-bun run scripts/benchmark-matrix/index.ts --db=postgresql,mariadb
-
-# Run a specific benchmark section
-bun run scripts/benchmark-matrix/index.ts --db=sqlite --section=api
+# Run the SRE Truth Audit directly
+bun test tests/benchmarks/truth-latency.test.ts
 ```
 
 > [!NOTE]
 > Running the full matrix requires active local instances (or Docker containers) of MongoDB (`:27017`), PostgreSQL (`:5432`), and MariaDB (`:3306`). The orchestrator will automatically provision the required isolated `_global` and `_setup` databases for the test.
 
-### Retention & Trend Analysis (SQLite)
+### Retention & Trend Analysis (SRE)
 
 The matrix maintains a specialized retention policy to balance historical context with actionable trends:
 
 - **SQLite Backend**: All results are persisted in `history.sqlite` for professional time-series analysis.
-- **Trend Window**: Mermaid charts and trend indicators (🟢/🔴) analyze the **last 5 runs**.
+- **Trend Indicators**: Every report includes a **Traffic Light Trend** (🔴/🟢/⚪) comparing the current run to the historical baseline.
+- **Percentile Tracking**: Standardized on **p50 (Median)**, **p95 (User Experience)**, and **p99 (Tail Risk)**.
 - **Historical Depth**: Legacy `history.json` is maintained for PR diffs, persisting up to **20 runs** per database variant.
+
+## 🔬 SRE Truth Audit: The Gold Standard
+
+Our "Truth Audit" suite (`truth-latency.test.ts`) is designed to provide SRE-grade credibility by isolating where latency actually comes from:
+
+1. **Logic Layer**: Theoretical minimum (No I/O).
+2. **SDK Layer**: Real-world logic with DB/Cache.
+3. **Dispatcher Layer**: Framework/Middleware overhead.
+4. **HTTP Warm**: Production network performance (Keep-Alive).
+5. **HTTP Cold**: Worst-case network performance (TLS/TCP Handshakes).
 
 ## 🔗 Relational Performance Testing
 

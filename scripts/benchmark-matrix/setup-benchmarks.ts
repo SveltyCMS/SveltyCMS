@@ -4,9 +4,30 @@
  * @description Sets up relational collections (Authors + Posts) and seeds benchmark data.
  * Optimized for repeatable, clean benchmark runs in SveltyCMS.
  */
+import { plugin } from "bun";
+
+// Mock $app/environment for standalone execution
+plugin({
+  name: "svelte-kit-mock",
+  setup(build) {
+    build.onResolve({ filter: /^\$/ }, (args) => {
+      if (args.path.startsWith("$app/")) {
+        return { path: args.path, external: false, namespace: "svelte-kit-mock" };
+      }
+    });
+    build.onLoad({ filter: /.*/, namespace: "svelte-kit-mock" }, (_args) => {
+      return {
+        contents:
+          "export const browser = false; export const dev = false; export const building = false; export const version = '1.0.0';",
+        loader: "js",
+      };
+    });
+  },
+});
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { contentSystem } from "@src/content";
 
 export const AUTHOR_COUNT = Number(process.env.AUTHOR_COUNT ?? 10);
 export const POSTS_PER_AUTHOR = Number(process.env.POSTS_PER_AUTHOR ?? 5);
@@ -76,7 +97,10 @@ async function setupCollections(cms: any): Promise<{ authorsId: string; postsId:
   }
 
   log("Refreshing collections and reconciling schemas...");
-  await cms.collections.refresh(TENANT_ID as any, false); // full refresh
+  await cms.collections.refresh(TENANT_ID as any, false); // full refresh with reconciliation
+  if (typeof (cms.db as any).reconcile === "function") {
+    await (cms.db as any).reconcile();
+  }
 
   // 🛡️ RECONCILIATION GUARD: Poll until collections are visible in the store
   // This prevents "Collection not found" errors due to async file system watchers.
@@ -177,9 +201,21 @@ export async function main(): Promise<void> {
     if (!db) throw new Error("Database failed to initialize");
 
     const clearOnly = process.argv.includes("--clear-only");
+    const force = process.argv.includes("--force");
+
+    // 🚀 SMART SEEDING: Check if we already have data to avoid redundant setup
+    const existingResult = await db.crud
+      .findOne("benchmark_authors", { _id: "author-1" as any }, { tenantId: TENANT_ID as any })
+      .catch(() => null);
+    const hasData = existingResult?.success && existingResult.data?._id === "author-1";
+
+    if (hasData && !clearOnly && !force) {
+      log("🚀 [SmartSeed] Benchmark data already exists. Reusing state...");
+      process.exit(0);
+    }
 
     // Clean slate for reproducible benchmarks
-    if (typeof (db as any).clearDatabase === "function") {
+    if (typeof (db as any).clearDatabase === "function" && (clearOnly || force || !hasData)) {
       log("Clearing database for clean benchmark state...");
       const clearResult = await (db as any).clearDatabase();
       if (!clearResult.success) {
@@ -216,12 +252,19 @@ export async function main(): Promise<void> {
 
     const cms = new LocalCMS(db);
 
+    // 🏗️ ENSURE SYSTEM TABLES: Initialize content system to create core tables
+    log("Initializing core system tables...");
+    await contentSystem.initialize(TENANT_ID as any, true);
+
+    // Force a reconciliation to ensure tables physically exist in the DB
+    await (db as any).reconcile?.();
+
     const { authorsId, postsId } = await setupCollections(cms);
     await seedData(cms, authorsId, postsId);
 
     // Final reconciliation
     log("Performing final system reconciliation...");
-    await cms.collections.refresh(TENANT_ID as any);
+    await cms.collections.refresh(TENANT_ID as any, false); // full refresh with reconciliation
 
     log(
       `✅ Setup completed successfully: ${AUTHOR_COUNT} authors + ${AUTHOR_COUNT * POSTS_PER_AUTHOR} posts`,

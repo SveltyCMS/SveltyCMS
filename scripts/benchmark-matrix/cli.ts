@@ -220,7 +220,13 @@ export function filterScripts(cfg: RunConfig): BenchmarkScript[] {
     if (cfg.fileFilter && s.path !== cfg.fileFilter) return false;
     if (cfg.sectionFilter && !cfg.sectionFilter.includes(s.section)) return false;
     if (cfg.levelFilter !== null && s.level > cfg.levelFilter) return false;
-    if (cfg.onlyFilter && !cfg.onlyFilter.includes(s.shortLabel.toLowerCase())) return false;
+    if (
+      cfg.onlyFilter &&
+      !cfg.onlyFilter.some(
+        (l) => s.shortLabel.toLowerCase().includes(l) || s.label.toLowerCase().includes(l),
+      )
+    )
+      return false;
     return true;
   });
 }

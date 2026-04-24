@@ -1173,11 +1173,16 @@ class CollectionsNamespace {
     const query = { ...normalizedFilter, ...(tenantId && { tenantId: tenantId as DatabaseId }) };
 
     // --- 1. Request-Level Memory Cache (Deduplication) ---
-    const queryHash = crypto
-      .createHash("md5")
-      .update(JSON.stringify({ query, limit, offset }))
-      .digest("hex");
-    const cacheKey = `collection:${schema._id}:find:${queryHash}`;
+    let cacheKey: string;
+    if (query._id && Object.keys(query).length === 1 && limit === 50 && offset === 0) {
+      cacheKey = `collection:${schema._id}:find:id:${query._id}`;
+    } else {
+      const queryHash = crypto
+        .createHash("md5")
+        .update(JSON.stringify({ query, limit, offset }))
+        .digest("hex");
+      cacheKey = `collection:${schema._id}:find:${queryHash}`;
+    }
     const skipRequestCache = bypassCache || options.bypassRequestCache;
 
     if (!skipRequestCache && this._requestCache.has(cacheKey)) {

@@ -31,8 +31,6 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 ## Security Vulnerabilities Fixed
 
-### 1. Rate Limiting Bypass (Protected March 2026)
-
 **Issue**: Localhost (127.0.0.1, ::1) was exempt from rate limiting, allowing SSRF attacks to bypass rate limits.
 
 **Fix**: Restricted localhost exemption to `dev` mode or `TEST_MODE=true` integration tests in `src/hooks/handle-rate-limit.ts`. In production builds, all requests are rate-limited regardless of source IP.
@@ -68,6 +66,9 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 - ✅ **Argon2id Memory-Hardness Audit**: Confirmed 64MB memory cost for resistance against quantum/ASIC speedup.
 - ✅ **SHA-256 Audit Chaining**: Implemented tamper-evident chaining for all file-backed security logs.
 - ✅ **Middleware Sequence Lockdown**: Verified that security headers and firewall scan are executed before any logic layers.
+- ✅ **Resource Exhaustion Immunity (Load Shedding)**: Verified that mutation requests are rejected (503) when memory usage exceeds 90%, protecting read-availability.
+- ✅ **Graceful Shutdown**: Confirmed clean teardown of DB and Cache connections on `SIGTERM`.
+- ✅ **Timing-Safe Cryptographic Handshake**: Verified that `x-test-secret` comparison uses constant-time logic.
 
 **Tests**: `tests/benchmarks/security-audit.test.ts` (added April 2026), `tests/unit/hooks/firewall.test.ts`.
 

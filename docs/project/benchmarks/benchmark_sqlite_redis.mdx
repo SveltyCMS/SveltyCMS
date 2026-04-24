@@ -62,16 +62,16 @@ xychart-beta
 > Run `bun run benchmark --db sqlite-redis` to refresh this ledger.
 
 <!-- BENCHMARK_START -->
-## 📊 Latest Performance Audit (23/04/2026, 23:49:53)
+## 📊 Latest Performance Audit (24/04/2026, 21:59:53)
 
-**Status:** ✅ PASS
+**Status:** ❌ FAIL
 
 ### ⚡ Executive Latency Matrix
 | Scenario | Avg Latency | Trend | Target Budget |
 | :--- | :--- | :--- | :--- |
-| **Cold Start** | 141ms | 🟢 (-29.7%) | < 5000ms |
-| **REST (Collections)** | 0.000ms | ⚪ (—) | < 150ms |
-| **GraphQL (Avg)** | 0.000ms | ⚪ (—) | < 100ms |
+| **Cold Start** | 177ms | 🟢 (-9.3%) | < 5000ms |
+| **REST (Collections)** | 0.000ms | ⚪ (—) | < 5ms |
+| **GraphQL (Avg)** | 0.000ms | ⚪ (—) | < 5ms |
 | **DB Raw (p95)** | 0.000ms | ⚪ | < 50ms |
 
 ### 📈 Historical Latency Trends
@@ -80,61 +80,225 @@ xychart-beta
   title "SQLITE+REDIS Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  line "p95 Latency" : [0.8, 0.0, 0.5, 0.5, 0.6, 0.9, 0.0, 0.0, 0.0, 0.0]
 ```
 
 ## 🔬 Detailed Performance Ledger (20+ Modules)
 
 <!-- API_TABLE_START -->
-> ⏳ **API Network Latency**: Pending execution.
+### 🏷️ API LAYER LATENCY
+
+```text
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                 SVELTYCMS  —  API LAYER LATENCY AUDIT                                 ║
+║                      SDK vs Full Dispatcher • IQR trimmed • 3 runs × 1 000 iters                      ║
+║ File: tests/benchmarks/api-latency.test.ts                                                            ║
+║ Proves: Measures the base network and HTTP overhead for the simplest possible API calls.              ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ c      │ Avg latency    │ p95          │ RPS          │ Overhead       ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ findById                     │ 1c     │ 0.002 ms       │ 0.003        │ 544,198      │ SDK            ║
+║                              │        │ 0.031 ms       │ 0.078        │ 31,970       │ +0.03 ms       ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ findById                     │ 8c     │ 0.003 ms       │ 0.004        │ 335,447      │ SDK            ║
+║                              │        │ 0.080 ms       │ 0.080        │ 12,502       │ +0.08 ms       ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ list limit=10                │ 1c     │ 0.005 ms       │ 0.010        │ 198,081      │ SDK            ║
+║                              │        │ 0.080 ms       │ 0.100        │ 12,438       │ +0.08 ms       ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ list limit=10                │ 8c     │ 0.004 ms       │ 0.005        │ 228,939      │ SDK            ║
+║                              │        │ 0.079 ms       │ 0.084        │ 12,698       │ +0.07 ms       ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- API_TABLE_END -->
+
+<!-- TRUTH_TABLE_START -->
+### 🏷️ SRE TRUTH AUDIT
+
+```text
+
+╔════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                        SVELTYCMS — SRE TRUTH AUDIT                                         ║
+║                                      5-Layer Production Reality Model                                      ║
+║ File: tests/benchmarks/truth-latency.test.ts                                                               ║
+║ Proves: Pure computational overhead (CPU only)                                                             ║
+╠════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ Scenario             │ Layer        │        Avg │       p50 │       p95 │       p99 │      RPS │ Inflation │ SLA    ║
+╠════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ findById             │ Logic        │   0.001 ms │  0.000 ms │  0.002 ms │  0.005 ms │ 1,350,743 │       0% │ —      ║
+║                      │ SDK          │   0.010 ms │  0.002 ms │  0.012 ms │  0.029 ms │  101,723 │  1227.9% │ —      ║
+║                      │ Dispatcher   │   0.036 ms │  0.025 ms │  0.042 ms │  0.062 ms │   27,904 │  4740.6% │ —      ║
+║                      │ HTTP Warm    │   0.522 ms │  0.443 ms │  0.886 ms │  1.438 ms │    1,915 │ 70443.3% │ —      ║
+║                      │ HTTP Cold    │   0.706 ms │  0.688 ms │  1.135 ms │  1.605 ms │    1,416 │ 95317.2% │ —      ║
+╠════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
+╚════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+```
+<!-- TRUTH_TABLE_END -->
 
 <!-- DB_TABLE_START -->
 > ⏳ **Database Adapter Raw CRUD**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/database-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/database-performance.test.ts)
 <!-- DB_TABLE_END -->
 
 <!-- ACID_TABLE_START -->
-> ⏳ **ACID Transaction Overhead**: Pending execution.
+### 🏷️ ACID Transaction Overhead
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                 SVELTYCMS  —  ACID TRANSACTIONAL INTEGRITY                  ║
+║           Commit Latency • Rollback Overhead • Drizzle TX Engine            ║
+║ File: tests/benchmarks/transaction-acid.test.ts                             ║
+║ Proves: Measures commit/rollback latency and transaction isolation performance.║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ TX Commit @ 1c               │ 0.041 ms       │ 0.068 ms     │ 24,108       ║
+║ TX Commit @ 8c               │ 0.029 ms       │ 0.032 ms     │ 34,184       ║
+║ TX Rollback @ 1c             │ 0.031 ms       │ 0.038 ms     │ 31,971       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- ACID_TABLE_END -->
 
 <!-- CACHE_TABLE_START -->
-> ⏳ **System Cache Efficiency**: Pending execution.
+### 🏷️ System Cache Efficiency
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                       SVELTYCMS  —  CACHE PERFORMANCE                       ║
+║             L1/L2 Cache • Write Invalidation • High-Concurrency             ║
+║ File: tests/benchmarks/cache-performance.test.ts                            ║
+║ Proves: Audits the performance gain of the 2-layer Hybrid Cache across various system modules.║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Cold DB Read                 │ 0.076 ms       │ 0.120 ms     │ 13,233       ║
+║ L2 Cache Hit                 │ 0.001 ms       │ 0.002 ms     │ 743,365      ║
+║ L1 Memory Hit                │ 0.001 ms       │ 0.002 ms     │ 688,073      ║
+║ 95% Hit Workload             │ 0.006 ms       │ 0.008 ms     │ 179,242      ║
+║ Write Invalidation           │ 0.150 ms       │ 0.167 ms     │ 6,661        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- CACHE_TABLE_END -->
 
 <!-- HOOKS_TABLE_START -->
 > ⏳ **Middleware & Hooks Performance**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/hooks-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/hooks-performance.test.ts)
 <!-- HOOKS_TABLE_END -->
 
 <!-- RELATIONAL_TABLE_START -->
-> ⏳ **Relational & Nested Queries**: Pending execution.
+### 🏷️ Relational & Nested Queries
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                     SVELTYCMS  —  RELATIONAL & GRAPHQL                      ║
+║            Nested Resolvers • Virtual Fields • Scaling • 3 runs             ║
+║ File: tests/benchmarks/relational-performance.test.ts                       ║
+║ Proves: Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3).║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ GraphQL Introspection @ 1c   │ 0.047 ms       │ 0.117 ms     │ 21,501       ║
+║ GraphQL Introspection @ 4c   │ 0.036 ms       │ 0.047 ms     │ 27,885       ║
+║ Relational: Shallow List @ 1c │ 0.041 ms       │ 0.091 ms     │ 24,455       ║
+║ Relational: Shallow List @ 4c │ 0.046 ms       │ 0.051 ms     │ 21,945       ║
+║ Relational: Deep Join (Depth 2) @ 1c │ 0.028 ms       │ 0.030 ms     │ 35,213       ║
+║ Relational: Deep Join (Depth 2) @ 4c │ 0.024 ms       │ 0.025 ms     │ 41,154       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- RELATIONAL_TABLE_END -->
 
 <!-- REST_TABLE_START -->
-> ⏳ **REST API Performance**: Pending execution.
+### 🏷️ REST API Performance
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS  —  REST API DISPATCHER                      ║
+║         Route Resolution • JSON Serialization • Middleware Latency          ║
+║ File: tests/benchmarks/rest-api-performance.test.ts                         ║
+║ Proves: End-to-end throughput and latency of the unified REST dispatcher.   ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ REST: System Health (Public) │ 0.025 ms       │ 0.025 ms     │ 40,678       ║
+║ REST: User Profile (Auth)    │ 0.024 ms       │ 0.025 ms     │ 41,359       ║
+║ REST: Collections List (DB)  │ 0.026 ms       │ 0.029 ms     │ 38,809       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- REST_TABLE_END -->
 
 <!-- GRAPHQL_TABLE_START -->
-> ⏳ **GraphQL API Performance**: Pending execution.
+### 🏷️ GraphQL API Performance
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS  —  GRAPHQL LOAD STRESS                      ║
+║                   Profile: TINY • High-Concurrency Stress                   ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ GQL Stress: TINY             │ 0.000 ms       │ 0.000 ms     │ 0            ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- GRAPHQL_TABLE_END -->
 
 <!-- AUTH_TABLE_START -->
 > ⏳ **Auth & RBAC Performance**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/auth-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/auth-performance.test.ts)
 <!-- AUTH_TABLE_END -->
 
 <!-- TENANCY_TABLE_START -->
 > ⏳ **Multi-Tenant Performance & Isolation**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/multi-tenant-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/multi-tenant-performance.test.ts)
 <!-- TENANCY_TABLE_END -->
 
 <!-- MIXED_TABLE_START -->
-> ⏳ **Realistic Mixed Workload**: Pending execution.
+### 🏷️ Realistic Mixed Workload
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                     SVELTYCMS  —  MIXED WORKLOAD AUDIT                      ║
+║       Reads (65%) • GraphQL (25%) • Writes (10%) • Multi-Concurrency        ║
+║ File: tests/benchmarks/mixed-workload.test.ts                               ║
+║ Proves: Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Mixed Workload @ 4c          │ 0.026 ms       │ 0.027 ms     │ 39,077       ║
+║ Mixed Workload @ 8c          │ 0.024 ms       │ 0.025 ms     │ 40,947       ║
+║ Mixed Workload @ 16c         │ 0.026 ms       │ 0.030 ms     │ 38,478       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- MIXED_TABLE_END -->
 
 <!-- MEMORY_TABLE_START -->
-> ⏳ **Memory Stability & GC Behavior**: Pending execution.
+### 🏷️ Memory Stability & GC Behavior
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                    SVELTYCMS  —  MEMORY STABILITY AUDIT                     ║
+║            Sustained Load • Leak Detection • 12 Parallel Workers            ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Sustained Execution Profile  │ 0.086 ms       │ 0.000 ms     │ 11,647       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- MEMORY_TABLE_END -->
 
 <!-- GQL_TABLE_START -->
-> ⏳ **GraphQL Load Stress**: Pending execution.
+### 🏷️ GraphQL Load Stress
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS  —  GRAPHQL LOAD STRESS                      ║
+║                   Profile: TINY • High-Concurrency Stress                   ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ GQL Stress: TINY             │ 0.000 ms       │ 0.000 ms     │ 0            ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- GQL_TABLE_END -->
 
 

@@ -62,7 +62,7 @@ xychart-beta
 > Run `bun run benchmark --db mariadb-redis` to refresh this ledger.
 
 <!-- BENCHMARK_START -->
-## 📊 Latest Performance Audit (23/04/2026, 13:39:44)
+## 📊 Latest Performance Audit (24/04/2026, 14:33:24)
 
 **Status:** ✅ PASS *(Historical)*
 
@@ -70,8 +70,8 @@ xychart-beta
 | Scenario | Avg Latency | Trend | Target Budget |
 | :--- | :--- | :--- | :--- |
 | **Cold Start** | 0ms | ⚪ (—) | < 5000ms |
-| **REST (Collections)** | 1.707ms | ⚪ (+0.0%) | < 150ms |
-| **GraphQL (Avg)** | 0.776ms | ⚪ (+0.0%) | < 100ms |
+| **REST (Collections)** | 1.024ms | ⚪ (+1.3%) | < 5ms |
+| **GraphQL (Avg)** | 2.469ms | 🔴 (+31.0%) | < 5ms |
 | **DB Raw (p95)** | 0.000ms | ⚪ | < 50ms |
 
 ### 📈 Historical Latency Trends
@@ -80,61 +80,79 @@ xychart-beta
   title "MARIADB+REDIS Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.7]
+  line "p95 Latency" : [0.0, 1.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.5, 1.0]
 ```
 
 ## 🔬 Detailed Performance Ledger (20+ Modules)
 
 <!-- API_TABLE_START -->
-> ⏳ **API Network Latency**: Pending execution.
+> ⏳ **API LAYER LATENCY**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/api-latency.test.ts](file:///D:/SveltyCMS/tests/benchmarks/api-latency.test.ts)
 <!-- API_TABLE_END -->
+
+<!-- TRUTH_TABLE_START -->
+> ⏳ **SRE TRUTH AUDIT**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/truth-latency.test.ts](file:///D:/SveltyCMS/tests/benchmarks/truth-latency.test.ts)
+<!-- TRUTH_TABLE_END -->
 
 <!-- DB_TABLE_START -->
 > ⏳ **Database Adapter Raw CRUD**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/database-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/database-performance.test.ts)
 <!-- DB_TABLE_END -->
 
 <!-- ACID_TABLE_START -->
 > ⏳ **ACID Transaction Overhead**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/transaction-acid.test.ts](file:///D:/SveltyCMS/tests/benchmarks/transaction-acid.test.ts)
 <!-- ACID_TABLE_END -->
 
 <!-- CACHE_TABLE_START -->
 > ⏳ **System Cache Efficiency**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/cache-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/cache-performance.test.ts)
 <!-- CACHE_TABLE_END -->
 
 <!-- HOOKS_TABLE_START -->
 > ⏳ **Middleware & Hooks Performance**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/hooks-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/hooks-performance.test.ts)
 <!-- HOOKS_TABLE_END -->
 
 <!-- RELATIONAL_TABLE_START -->
 > ⏳ **Relational & Nested Queries**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/relational-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/relational-performance.test.ts)
 <!-- RELATIONAL_TABLE_END -->
 
 <!-- REST_TABLE_START -->
 > ⏳ **REST API Performance**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/rest-api-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/rest-api-performance.test.ts)
 <!-- REST_TABLE_END -->
 
 <!-- GRAPHQL_TABLE_START -->
 > ⏳ **GraphQL API Performance**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/graphql-api-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/graphql-api-performance.test.ts)
 <!-- GRAPHQL_TABLE_END -->
 
 <!-- AUTH_TABLE_START -->
 > ⏳ **Auth & RBAC Performance**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/auth-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/auth-performance.test.ts)
 <!-- AUTH_TABLE_END -->
 
 <!-- TENANCY_TABLE_START -->
 > ⏳ **Multi-Tenant Performance & Isolation**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/multi-tenant-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/multi-tenant-performance.test.ts)
 <!-- TENANCY_TABLE_END -->
 
 <!-- MIXED_TABLE_START -->
 > ⏳ **Realistic Mixed Workload**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/mixed-workload.test.ts](file:///D:/SveltyCMS/tests/benchmarks/mixed-workload.test.ts)
 <!-- MIXED_TABLE_END -->
 
 <!-- MEMORY_TABLE_START -->
 > ⏳ **Memory Stability & GC Behavior**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/memory-stability.test.ts](file:///D:/SveltyCMS/tests/benchmarks/memory-stability.test.ts)
 <!-- MEMORY_TABLE_END -->
 
 <!-- GQL_TABLE_START -->
 > ⏳ **GraphQL Load Stress**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/graphql-stress.test.ts](file:///D:/SveltyCMS/tests/benchmarks/graphql-stress.test.ts)
 <!-- GQL_TABLE_END -->
 
 

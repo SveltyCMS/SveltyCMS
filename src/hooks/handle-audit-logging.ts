@@ -10,6 +10,7 @@
 
 import { logger } from "@utils/logger.server";
 import type { Handle } from "@sveltejs/kit";
+import { getClientIp } from "@utils/hook-utils";
 
 export const handleAuditLogging: Handle = async ({ event, resolve }) => {
   // Support silencing logs for benchmarks and tests
@@ -40,7 +41,7 @@ export const handleAuditLogging: Handle = async ({ event, resolve }) => {
       status: response.status,
       userId: (event.locals.user as any)?._id ?? "anonymous",
       tenantId: event.locals.tenantId ?? "global",
-      ip: event.getClientAddress(),
+      ip: getClientIp(event),
       durationMs,
     };
 

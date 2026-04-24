@@ -57,11 +57,19 @@ function getCachedSettings() {
  */
 function initRotationRateLimiter() {
   if (rotationRateLimiter) return rotationRateLimiter;
+
+  const secret = getPrivateSettingSync("JWT_SECRET_KEY") as string;
+  if (!secret && !dev) {
+    logger.error(
+      "CRITICAL: JWT_SECRET_KEY is missing in production. Rate limiting will be unreliable.",
+    );
+  }
+
   rotationRateLimiter = new RateLimiter({
     IP: [100, "m"],
     cookie: {
       name: "session_rotation_limit",
-      secret: getPrivateSettingSync("JWT_SECRET_KEY") || "fallback-dev-secret",
+      secret: secret || (dev ? "dev-only-secret-rotation" : crypto.randomUUID()),
       rate: [100, "m"],
       preflight: true,
     },

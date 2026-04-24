@@ -66,15 +66,17 @@ We use **Black-Box API testing** for all integration and end-to-end scenarios. T
 - **Production Parity**: Tests run against a production-like build (`vite preview`), catching issues related to headers, serialization, and SSR that unit tests miss.
 - **Resilience**: Internal refactors (e.g., changing from Mongoose to Drizzle) generally don't break these tests as long as the API contract remains the same.
 
-### 3. Audit 2.0: Elite Performance Analysis
+### 3. Audit 2.0 (SRE Edition): Elite Performance Analysis
 
-**"Deterministic reliability through intensity-aware orchestration."**
+**"Probabilistic traffic modeling with SLA enforcement."**
 
-As of April 2026, we have moved beyond simple benchmarking to **Audit Infrastructure 2.0**.
+As of late April 2026, we have evolved to **Audit Infrastructure 2.0 (SRE Edition)**:
 
-- **Intensity-Aware Locking**: A global mutex ensures that high-intensity tasks (Image processing, GQL stress) never overlap, eliminating noise.
-- **Resource-Aware Parallelization**: Concurrency is capped at 40% of CPU cores to ensure deterministic processing.
-- **SQLite History**: All results are stored in a professional time-series database (`history.sqlite`) for regression analysis.
+- **5-Layer Truth Model**: Isolates latency from Pure Logic through SDK and Dispatcher up to Real HTTP (Cold/Warm).
+- **Stochastic Load Test**: Replaces deterministic loops with ramping stages and Virtual User (VU) simulation.
+- **SLA Thresholds**: Automated performance budgets for p95 latency and error rates that fail the CI on regression.
+- **High-Fidelity Percentiles**: Standardized tracking of p50, p95, and p99 metrics to identify tail latency risk.
+- **SQLite History**: All results are stored in a professional time-series database (`history.sqlite`) with Traffic Light trend indicators.
 
 ## Beyond Functional: The Road to 100% Confidence
 
