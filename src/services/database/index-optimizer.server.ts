@@ -11,7 +11,6 @@
  */
 
 import { logger } from "@utils/logger";
-import { scanCompiledCollections } from "@src/content/content-service.server";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import type { Schema } from "@src/content/types";
 
@@ -32,6 +31,8 @@ export class IndexOptimizer {
       }
 
       // Get all current schemas (uses L2 cache if available)
+      // Dynamic import to avoid static server-module leak into client bundle
+      const { scanCompiledCollections } = await import("@src/content/content-service.server");
       const schemas = await scanCompiledCollections();
       logger.info(
         `[IndexOptimizer] Starting optimization pass for ${schemas.length} collections...`,

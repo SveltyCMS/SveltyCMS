@@ -207,7 +207,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   // Click Test Database and handle SQLite "create missing" modal
   const testDbButton = page.getByRole("button", { name: /test database connection/i });
   await testDbButton.click({ force: true });
-  await page.waitForTimeout(1000); // Wait for connection test to complete
+  await page.waitForTimeout(2000); // Wait for connection test to initiate
 
   // Handle "Database does not exist" confirmation for SQLite
   // NOTE: Skeleton v4 renders modals with aria-hidden="true" on positioners, so
@@ -222,33 +222,71 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
     await expect(confirmBtn).toBeVisible({ timeout: 15000 });
     console.log("Database missing modal detected. Confirming creation...");
     await confirmBtn.click({ force: true });
+    await page.waitForTimeout(3000); // Wait for creation + connection
   } catch {
     console.log(
       "No 'Database missing' modal appeared (or not SQLite). Proceeding to check success...",
     );
   }
 
-  // Expect success message with a generous timeout for DB creation/I/O
-  const successMsg = page.getByText(/success/i).first();
-  try {
-    // If we're already seeing success, don't wait or click again
-    if (await successMsg.isVisible({ timeout: 1000 })) {
-      console.log("Database connection successful (early detection).");
-    } else {
-      await expect(successMsg).toBeVisible({ timeout: 45000 });
-      console.log("Database connection successful.");
+  // The Next button being enabled is the definitive signal that the DB test passed.
+  // Also check for the "Success!" heading in the database-config component.
+  // We try both in parallel and accept whichever comes first.
+  const nextButton = page.getByLabel("Next", { exact: true });
+  // "Success!" is the heading text node in database-config.svelte (alongside an iconify-icon).
+  // getByText with exact:true finds the text node directly, avoiding the icon child mismatch.
+  const successHeading = page.getByText("Success!", { exact: true }).first();
+  // Fallback: the full message "Database connected successfully! ✨" rendered in +page.svelte
+  const successMsgAlt = page.getByText(/connected successfully/i).first();
+
+  async function waitForDbTestSuccess(): Promise<boolean> {
+    // Attempt 1: wait up to 45s for "Success!" heading or the generic success text
+    try {
+      // Promise.any: resolves as soon as ANY check passes (unlike race, tolerates individual failures)
+      await Promise.any([
+        expect(successHeading).toBeVisible({ timeout: 45000 }),
+        expect(successMsgAlt).toBeVisible({ timeout: 45000 }),
+        expect(nextButton).toBeEnabled({ timeout: 45000 }),
+      ]);
+      console.log("Database connection successful (detected via UI state).");
+      return true;
+    } catch {
+      return false;
     }
-  } catch {
-    console.warn("Initial Success message not found. Retrying Test Database click...");
+  }
+
+  let dbTestOk = await waitForDbTestSuccess();
+
+  if (!dbTestOk) {
+    console.warn("Initial connection check timed out. Retrying Test Database click...");
+    // Log current page text for debugging
+    const bodyText = await page
+      .locator("body")
+      .innerText()
+      .catch(() => "(unavailable)");
+    console.log("Page body excerpt:", bodyText.substring(0, 500));
+
     // Re-locate the button to ensure it hasn't been detached
     const retryBtn = page.getByRole("button", { name: /test database connection/i });
     if (await retryBtn.isVisible()) {
       await retryBtn.click({ force: true });
-      await expect(successMsg).toBeVisible({ timeout: 45000 });
+      await page.waitForTimeout(3000);
+      dbTestOk = await waitForDbTestSuccess();
     } else {
       console.error("Retry button not visible, setup might be stuck.");
       throw new Error("Setup wizard stuck: Test Database button disappeared.");
     }
+  }
+
+  if (!dbTestOk) {
+    // Last resort: check if Next is already enabled (can happen if success was momentary)
+    const nextEnabled = await nextButton.isEnabled().catch(() => false);
+    if (!nextEnabled) {
+      throw new Error("Database connection test failed: no success indicator found after retry.");
+    }
+    console.log(
+      "Next button is enabled — DB test passed (success banner may have been dismissed).",
+    );
   }
 
   await clickNext(page);

@@ -4,7 +4,7 @@
  * Monitors Core Web Vitals and performance scores with intelligent caching.
  */
 
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { Plugin, PluginContext, PluginEntryData } from "../types";
 import { migrations } from "./migrations";
 import { getMultipleCachedResults } from "./service";
