@@ -67,6 +67,7 @@ export interface SystemSettings {
   mediaFolder: string;
   mediaStorageType: "local" | "s3" | "r2" | "cloudinary";
   multiTenant: boolean;
+  passwordMinLength: number;
   preset: string | null;
   redisHost: string;
   redisPassword?: string;
@@ -144,6 +145,7 @@ const initialSystemSettings: SystemSettings = {
   mediaStorageType: "local",
   mediaFolder: "./mediaFolder",
   preset: "blank",
+  passwordMinLength: 8,
   timezone: "UTC",
   useRedis: false,
   redisHost: "localhost",

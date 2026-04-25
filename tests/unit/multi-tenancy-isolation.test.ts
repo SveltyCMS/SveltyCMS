@@ -36,7 +36,9 @@ vi.mock("@src/content", () => ({
 // Mocking widget-store
 vi.mock("@src/stores/widget-store.svelte.ts", () => ({
   widgets: {
+    initialize: vi.fn(() => Promise.resolve(true)),
     widgetFunctions: {},
+    isLoaded: true,
   },
 }));
 

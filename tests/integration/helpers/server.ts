@@ -87,6 +87,14 @@ export async function safeFetch(
     headers.set("Referer", `${BASE_URL}/`);
   }
 
+  // 🚀 Enterprise Integration: Auto-inject test mode and secret if present in environment
+  if (process.env.TEST_MODE === "true" && !headers.has("x-test-mode")) {
+    headers.set("x-test-mode", "true");
+  }
+  if (process.env.TEST_API_SECRET && !headers.has("x-test-secret")) {
+    headers.set("x-test-secret", process.env.TEST_API_SECRET);
+  }
+
   const signal = init?.signal || AbortSignal.timeout(60000);
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {

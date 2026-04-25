@@ -35,6 +35,22 @@ export class MongoCrudMethods<T extends BaseEntity> {
         bypassTenantCheck: options.bypassTenantCheck,
         includeDeleted: options.includeDeleted,
       });
+
+      // Handle _id casting safely (SveltyCMS uses string UUIDs/slugs for many models)
+      if (
+        secureQuery._id &&
+        typeof secureQuery._id === "string" &&
+        !mongoose.Types.ObjectId.isValid(secureQuery._id)
+      ) {
+        // If the model's _id is expected to be an ObjectId but we received a string,
+        // Mongoose will throw a CastError. However, SveltyCMS often overrides _id to be String.
+        // Let's check the schema.
+        const schemaType = this.model.schema.path("_id");
+        if (schemaType instanceof mongoose.Schema.Types.ObjectId) {
+          return { success: true, data: null, meta: { executionTime: 0 } };
+        }
+      }
+
       const queryOptions: any = {};
       if (options.hints?.readConcern) {
         queryOptions.readConcern = options.hints.readConcern;

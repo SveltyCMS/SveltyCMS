@@ -5,12 +5,12 @@
     "": {
       "name": "sveltycms",
       "dependencies": {
-        "@aws-sdk/client-s3": "^3.1036.0",
+        "@aws-sdk/client-s3": "^3.1037.0",
         "@boxyhq/saml-jackson": "^26.2.0",
         "@envelop/graphql-jit": "^11.1.1",
         "@floating-ui/dom": "^1.7.6",
         "@googlemaps/js-api-loader": "^2.0.2",
-        "@inlang/paraglide-js": "^2.16.0",
+        "@inlang/paraglide-js": "^2.16.1",
         "@mcp-b/webmcp-polyfill": "^2.2.0",
         "@skeletonlabs/skeleton": "^4.15.2",
         "@skeletonlabs/skeleton-svelte": "^4.15.2",

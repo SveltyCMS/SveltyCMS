@@ -45,7 +45,17 @@ export function startContentWatcher() {
 
         logger.info("[Watcher] Content system re-synchronized successfully.");
       } catch (err) {
-        logger.error("[Watcher] Failed to reload content system", { error: err });
+        if (err instanceof Error) {
+          logger.error("[Watcher] Failed to reload content system", {
+            message: err.message,
+            stack: err.stack,
+            name: err.name,
+          });
+        } else {
+          logger.error("[Watcher] Failed to reload content system (unknown error type)", {
+            error: String(err),
+          });
+        }
       } finally {
         isReloading = false;
       }

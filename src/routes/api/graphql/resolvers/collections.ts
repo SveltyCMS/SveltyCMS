@@ -80,6 +80,7 @@ export function createCleanTypeName(collection: { _id?: string; name?: string | 
 
 interface WidgetSchema {
   graphql: string;
+  base?: string;
   resolver?: Record<string, GraphQLFieldResolver<unknown, unknown>>;
   typeID: string;
   typeName: string;
@@ -112,12 +113,14 @@ interface CacheClient {
 // Registers collection schemas dynamically, now tenant-aware
 export async function registerCollections(tenantId?: string | null) {
   await contentSystem.initialize(tenantId);
+  await widgets.initialize(tenantId || "default");
   const collections: Schema[] = await contentSystem.getCollections(tenantId);
 
   const typeIDs = new Set<string>();
   const typeDefsSet = new Set<string>();
   const resolvers: ResolverContext = { Query: {} };
   const collectionSchemas: string[] = [];
+  const queryFields: string[] = [];
   const collectionNameMapping = new Map<string, string>();
   const relationMap = new Map<
     string,
@@ -139,7 +142,9 @@ export async function registerCollections(tenantId?: string | null) {
   for (const otherCollection of collections) {
     if (!otherCollection.name) continue;
     for (const otherField of otherCollection.fields as FieldInstance[]) {
-      if (otherField.widget?.Name === "Relation") {
+      const otherWidgetName =
+        typeof otherField.widget === "string" ? otherField.widget : otherField.widget?.Name;
+      if (otherWidgetName === "Relation") {
         const targetCollection = (otherField as any).collection;
         if (targetCollection) {
           if (!relationMap.has(targetCollection)) relationMap.set(targetCollection, []);
@@ -157,8 +162,10 @@ export async function registerCollections(tenantId?: string | null) {
     let collectionSchema = `\n\ttype ${cleanTypeName} {\n`;
 
     for (const field of collection.fields as FieldInstance[]) {
-      const widgetNameRaw = field.widget?.Name;
-      if (!widgetNameRaw || typeof widgetNameRaw !== "string") continue;
+      const widgetNameRaw = typeof field.widget === "string" ? field.widget : field.widget?.Name;
+      if (!widgetNameRaw || typeof widgetNameRaw !== "string") {
+        continue;
+      }
 
       const widgetFunctionsMap = widgets.widgetFunctions;
       let widget =
@@ -166,7 +173,13 @@ export async function registerCollections(tenantId?: string | null) {
         widgetFunctionsMap[widgetNameRaw.charAt(0).toLowerCase() + widgetNameRaw.slice(1)] ||
         widgetFunctionsMap[widgetNameRaw.toLowerCase()];
 
-      if (!widget || typeof widget.GraphqlSchema !== "function") continue;
+      if (!widget) {
+        continue;
+      }
+
+      if (typeof widget.GraphqlSchema !== "function") {
+        continue;
+      }
 
       const fieldName = getFieldName(field);
       const schema = widget.GraphqlSchema({
@@ -179,12 +192,16 @@ export async function registerCollections(tenantId?: string | null) {
 
       if (!schema) continue;
 
+      if (schema.base) {
+        collectionSchema += `\t\t${schema.base}\n`;
+      }
+
       if (schema.resolver) Object.assign(resolvers[cleanTypeName], schema.resolver);
 
       if (schema.graphql?.trim() && !typeIDs.has(schema.typeID)) {
         typeIDs.add(schema.typeID);
         typeDefsSet.add(schema.graphql);
-      } else if (!schema.graphql?.trim()) {
+      } else if (!schema.graphql?.trim() && schema.typeID) {
         typeIDs.add(schema.typeID);
       }
 
@@ -267,22 +284,32 @@ export async function registerCollections(tenantId?: string | null) {
       };
     }
 
-    collectionSchema += `
-				_id: String
-				status: String
-				createdAt: String
-				updatedAt: String
-				createdBy: String
-				updatedBy: String
-			}`;
+    // --- Base Fields (Only if not already defined) ---
+    const baseFields = [
+      { name: "_id", type: "String" },
+      { name: "status", type: "String" },
+      { name: "createdAt", type: "String" },
+      { name: "updatedAt", type: "String" },
+      { name: "createdBy", type: "String" },
+      { name: "updatedBy", type: "String" },
+    ];
+
+    for (const baseField of baseFields) {
+      if (!collectionSchema.includes(`\t\t${baseField.name}:`)) {
+        collectionSchema += `\t\t${baseField.name}: ${baseField.type}\n`;
+      }
+    }
+    collectionSchema += "\t}";
 
     collectionSchemas.push(`${collectionSchema}\n`);
+    queryFields.push(`${cleanTypeName}(pagination: PaginationInput): [${cleanTypeName}]`);
   }
 
   const finalTypeDefs = Array.from(typeDefsSet).join("\n") + collectionSchemas.join("\n");
 
   return {
     typeDefs: finalTypeDefs,
+    queryFields,
     resolvers,
     collections,
   };

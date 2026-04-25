@@ -29,6 +29,7 @@ beforeAll(async () => {
 
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
   await ensureFullInitialization();
+  await ensureFullInitialization();
   const db = getDb();
   await ensureStableTestData(db!);
 });
@@ -38,9 +39,10 @@ afterAll(async () => {
 });
 
 test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
-  const { getDb } = await import("@src/databases/db");
+  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
   const { LocalCMS } = await import("@src/routes/api/cms");
 
+  await ensureFullInitialization();
   const db = getDb();
   const cms = new LocalCMS(db!);
   const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";

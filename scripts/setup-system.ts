@@ -598,20 +598,37 @@ async function stepCompleteSetup(): Promise<void> {
   log("info", "Setup complete. Waiting for persistence (2s)...");
   await sleep(2000);
 
-  // Verify admin exists
-  log("info", "Verifying admin user access...");
-  const loginRes = await fetch(`${cfg.apiBase}/api/user/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-test-secret": cfg.apiSecret,
-    },
-    body: JSON.stringify({ email: cfg.admin.email, password: cfg.admin.password }),
-  });
+  // Verify admin exists with retries
+  log("info", `Verifying admin user access at ${cfg.apiBase}...`);
+  let loginOk = false;
+  for (let i = 0; i < 5; i++) {
+    try {
+      const loginRes = await fetch(`${cfg.apiBase}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-mode": "true",
+          "x-test-secret": cfg.apiSecret,
+        },
+        body: JSON.stringify({ email: cfg.admin.email, password: cfg.admin.password }),
+      });
 
-  if (!loginRes.ok) {
-    const errorBody = await loginRes.text();
-    log("error", `Admin verification failed (HTTP ${loginRes.status}): ${errorBody}`);
+      if (loginRes.ok) {
+        loginOk = true;
+        break;
+      }
+      const errorBody = await loginRes.text();
+      log(
+        "warn",
+        `Admin verification attempt ${i + 1} failed (${loginRes.status}): ${errorBody.substring(0, 100)}`,
+      );
+    } catch (err: any) {
+      log("warn", `Admin verification attempt ${i + 1} crashed: ${err.message}`);
+    }
+    await sleep(2000);
+  }
+
+  if (!loginOk) {
     fatal("Admin user not correctly provisioned during setup.");
   }
   log("info", "Admin verification successful.");

@@ -48,10 +48,10 @@ bun test tests/benchmarks/truth-latency.test.ts
 
 The matrix maintains a specialized retention policy to balance historical context with actionable trends:
 
-- **SQLite Backend**: All results are persisted in `history.sqlite` for professional time-series analysis.
-- **Trend Indicators**: Every report includes a **Traffic Light Trend** (🔴/🟢/⚪) comparing the current run to the historical baseline.
+- **Time-Series History**: All runs (standalone or matrix) log to `history.jsonl`, allowing for per-module regression analysis.
+- **Trend Indicators**: Every report includes a **Traffic Light Trend** (🔴/🟢/⚪) comparing the current run to the previous run.
+- **SQLite Backend**: Summary results are persisted in `history.sqlite` for professional long-term analysis.
 - **Percentile Tracking**: Standardized on **p50 (Median)**, **p95 (User Experience)**, and **p99 (Tail Risk)**.
-- **Historical Depth**: Legacy `history.json` is maintained for PR diffs, persisting up to **20 runs** per database variant.
 
 ## 🔬 SRE Truth Audit: The Gold Standard
 

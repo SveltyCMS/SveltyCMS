@@ -1279,9 +1279,15 @@ class CollectionsNamespace {
     return modifyRequest(params);
   }
 
-  async refresh(tenantId?: DatabaseId | null, skipReconciliation = true) {
+  async refresh(tenantId?: DatabaseId | null, skipReconciliation = false) {
     this._requestCache.clear();
     await cacheService.clearByPattern("system:collections:*", (tenantId || undefined) as string);
+
+    // 🚀 CRITICAL: Force refresh of the underlying DB Adapter to pick up new dynamic models
+    const { getDb } = await import("@src/databases/db");
+    const freshDb = getDb();
+    if (freshDb) this._dbAdapter = freshDb;
+
     return this._contentSystem.refresh(tenantId as any, skipReconciliation);
   }
 

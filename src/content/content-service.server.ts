@@ -55,8 +55,11 @@ function enrichSchemaWithMetadata(
 export async function scanCompiledCollections(): Promise<Schema[]> {
   const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
   const schemas: Schema[] = [];
+  let isReloading = false;
 
   async function walk(dir: string) {
+    if (isReloading) return;
+    isReloading = true;
     try {
       const entries = await fs.readdir(dir, { withFileTypes: true });
 
@@ -117,7 +120,19 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
         }
       }
     } catch (err) {
-      logger.debug("Content structure scan failed or directory missing", { err });
+      if (err instanceof Error) {
+        logger.error("[Watcher] Failed to reload content system", {
+          message: err.message,
+          stack: err.stack,
+          name: err.name,
+        });
+      } else {
+        logger.error("[Watcher] Failed to reload content system (unknown error type)", {
+          error: String(err),
+        });
+      }
+    } finally {
+      isReloading = false;
     }
   }
 
@@ -135,11 +150,19 @@ export const contentService = {
     logger.info(
       `[RECONCILE] fullReload triggered. Tenant: ${tenantId}, skip: ${skipReconciliation}, target: ${changedFile || "ALL"}`,
     );
+    if (skipReconciliation) {
+      logger.info(`[RECONCILE] skipReconciliation is TRUE, skipping reconcileSchemas`);
+    } else {
+      logger.info(`[RECONCILE] skipReconciliation is FALSE, proceeding to reconcileSchemas`);
+    }
 
     const processedPaths = new Set<string>();
 
     const dbAdapter = adapter || (await (await import("@src/databases/db")).getDb());
     if (!dbAdapter) return;
+
+    // 🚀 CRITICAL: Invalidate schema cache so distributed workers pick up new files
+    await cacheService.invalidateByCategory(CacheCategory.SCHEMA, tenantId);
 
     const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
 
@@ -151,10 +174,20 @@ export const contentService = {
 
     const schemas = await scanCompiledCollections();
 
+    logger.debug(`[RECONCILE] scanCompiledCollections finished: ${schemas.length} schemas found.`);
+
     // Invalidate node-level caches
-    await dbAdapter.monitoring?.cache?.invalidateCategory?.(CacheCategory.CONTENT, tenantId as any);
+    try {
+      await dbAdapter.monitoring?.cache?.invalidateCategory?.(
+        CacheCategory.CONTENT,
+        tenantId as any,
+      );
+    } catch (cacheErr) {
+      logger.warn(`[RECONCILE] Cache invalidation failed: ${cacheErr}`);
+    }
 
     if (skipReconciliation) {
+      logger.debug("[RECONCILE] skipReconciliation=true, syncing contentStore directly.");
       contentStore.sync(
         schemas.map(
           (s) =>
@@ -171,11 +204,16 @@ export const contentService = {
       return;
     }
 
+    logger.debug("[RECONCILE] fetching structure from DB...");
     const dbResult = await dbAdapter.content.nodes.getStructure("flat", {
       tenantId: tenantId as any,
       bypassTenantCheck: true,
     });
+    if (!dbResult.success) {
+      logger.error(`[RECONCILE] Failed to fetch DB structure: ${dbResult.message}`);
+    }
     const dbNodes = dbResult.success ? dbResult.data : [];
+    logger.debug(`[RECONCILE] DB nodes fetched: ${dbNodes.length}`);
 
     const categoryNodes = generateCategoryNodesFromPaths(schemas, tenantId);
     const dbMapByPath = new Map(dbNodes.map((n: ContentNode) => [n.path!, n]));
@@ -257,6 +295,13 @@ export const contentService = {
 
       operations.push(node);
       processedPaths.add(node.path!);
+
+      // 🚀 ENSURE PHYSICAL TABLE: Create or update physical model in DB
+      try {
+        await dbAdapter.collection.createModel(schema);
+      } catch (err) {
+        logger.error(`[RECONCILE] Failed to create physical model for ${schema._id}: ${err}`);
+      }
 
       if (existing?.path) dbMapByPath.delete(existing.path);
     }

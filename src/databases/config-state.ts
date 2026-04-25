@@ -79,6 +79,7 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
 
       return privateEnv;
     } catch (error: any) {
+      logger.error(`[config-state.ts] Configuration loading/validation failed: ${error.message}`);
       if (process.env.NODE_ENV === "test" || process.env.TEST_MODE === "true") {
         // Allow setup mode even in TEST_MODE when no config file exists yet.
         // Only throw if a config file was present but failed to load/validate.
@@ -169,6 +170,7 @@ function getEnvOverrides() {
   if (process.env.JWT_SECRET_KEY) overrides.JWT_SECRET_KEY = process.env.JWT_SECRET_KEY;
   if (process.env.ENCRYPTION_KEY) overrides.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
   if (process.env.TEST_API_SECRET) overrides.TEST_API_SECRET = process.env.TEST_API_SECRET;
+  // Auth
   if (process.env.PASSWORD_MIN_LENGTH)
     overrides.PASSWORD_MIN_LENGTH = Number(process.env.PASSWORD_MIN_LENGTH);
 

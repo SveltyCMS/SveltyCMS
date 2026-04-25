@@ -22,6 +22,7 @@ export const INFRASTRUCTURE_KEYS = new Set([
   "MULTI_TENANT",
   "DEMO",
   "TEST_API_SECRET",
+  "PASSWORD_MIN_LENGTH",
 ]);
 
 export const KNOWN_PUBLIC_KEYS =

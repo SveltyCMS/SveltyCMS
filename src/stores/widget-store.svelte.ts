@@ -117,10 +117,16 @@ class WidgetState {
   }
 
   async initialize(tenantId = "default", dbAdapter?: DatabaseAdapter | null) {
+    console.error(
+      `[WidgetStore] initialize called for tenant: ${tenantId}. initPromise: ${!!this.initPromise}, isLoaded: ${this.isLoaded}`,
+    );
     // 🛡️ Optimization: Don't load widgets during setup wizard
     // We only need them for the actual CMS functionality.
     const { isSetupComplete } = await import("@src/utils/is-setup-complete");
-    if (!isSetupComplete()) {
+    const setupDone = isSetupComplete();
+    console.error(`[WidgetStore] isSetupComplete check: ${setupDone}`);
+    if (!setupDone) {
+      console.error("[WidgetStore] setup NOT complete, exiting initialize early.");
       return;
     }
 
@@ -136,17 +142,19 @@ class WidgetState {
     this.tenantId = tenantId;
 
     this.initPromise = (async () => {
-      logger.info(`[WidgetStore] Initializing for tenant: ${tenantId}`);
-
+      console.error(`[WidgetStore] Starting internal init promise for tenant: ${tenantId}`);
       try {
+        logger.info(`[WidgetStore] Initializing for tenant: ${tenantId}`);
         // 1. Load modules from scanner
         const newWidgetFunctions: WidgetRegistry = {};
         const newCoreWidgets: string[] = [];
         const newCustomWidgets: string[] = [];
         const newDependencyMap: Record<string, string[]> = {};
 
-        logger.info(`[WidgetStore] Core modules found: ${Object.keys(coreModules).length}`);
-        logger.info(`[WidgetStore] Custom modules found: ${Object.keys(customModules).length}`);
+        console.error(`[WidgetStore] Core modules available: ${Object.keys(coreModules).length}`);
+        console.error(
+          `[WidgetStore] Custom modules available: ${Object.keys(customModules).length}`,
+        );
 
         // Process core widgets
         for (const [path, module] of Object.entries(coreModules)) {
@@ -156,8 +164,13 @@ class WidgetState {
           }
 
           try {
+            console.error(`[WidgetStore] Processing module at ${path}`);
             const fn = (module as { default: WidgetFactory }).default;
             if (typeof fn !== "function") {
+              console.error(
+                `[WidgetStore] Module at ${path} default export is NOT a function:`,
+                typeof fn,
+              );
               continue;
             }
 

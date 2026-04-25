@@ -19,6 +19,7 @@ import {
   ENCRYPTION_KEY,
   ADMIN_PASSWORD,
   DB_NAME_BENCHMARK,
+  TEST_API_SECRET,
 } from "./config";
 import type {
   BenchmarkScript,
@@ -237,7 +238,7 @@ export function buildWorkerEnv(
     PGDATABASE: workerDbName,
     PGHOST: dbConf.host,
     PGPORT: dbConf.port.toString(),
-    TEST_API_SECRET: process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+    TEST_API_SECRET: TEST_API_SECRET,
     SKIP_GRAPHQL_WS: "true",
     MYSQL_USER: dbConf.user,
     MYSQL_PWD: dbConf.password,

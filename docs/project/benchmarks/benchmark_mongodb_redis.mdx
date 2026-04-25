@@ -60,7 +60,7 @@ xychart-beta
 > Run `bun run benchmark --db mongodb-redis` to refresh this ledger.
 
 <!-- BENCHMARK_START -->
-## 📊 Latest Performance Audit (24/04/2026, 14:23:52)
+## 📊 Latest Performance Audit (25/04/2026, 10:36:17)
 
 **Status:** ✅ PASS *(Historical)*
 
@@ -68,8 +68,8 @@ xychart-beta
 | Scenario | Avg Latency | Trend | Target Budget |
 | :--- | :--- | :--- | :--- |
 | **Cold Start** | 0ms | ⚪ (—) | < 5000ms |
-| **REST (Collections)** | 0.821ms | 🟢 (-19.9%) | < 5ms |
-| **GraphQL (Avg)** | 2.441ms | 🔴 (+95.2%) | < 5ms |
+| **REST (Collections)** | 0.644ms | 🟢 (-16.3%) | < 5ms |
+| **GraphQL (Avg)** | 0.000ms | ⚪ (—) | < 5ms |
 | **DB Raw (p95)** | 0.000ms | ⚪ | < 50ms |
 
 ### 📈 Historical Latency Trends
@@ -78,7 +78,7 @@ xychart-beta
   title "MONGODB+REDIS Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [0.0, 0.0, 2.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.8]
+  line "p95 Latency" : [0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.8, 1.2, 0.6, 0.6]
 ```
 
 ## 🔬 Detailed Performance Ledger (20+ Modules)

@@ -39,8 +39,8 @@ const QUERIES = [
   },
   {
     name: "Content: List",
-    query: `query { StableBenchmarkCollection_benchmar(pagination: { limit: 10 }) { _id title status } }`,
-    validate: (json: any) => Array.isArray(json.data?.StableBenchmarkCollection_benchmar),
+    query: `query { Benchmarkstable_benchmar(pagination: { limit: 10 }) { _id title status } }`,
+    validate: (json: any) => Array.isArray(json.data?.Benchmarkstable_benchmar),
   },
 ];
 

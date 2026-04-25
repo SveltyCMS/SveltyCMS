@@ -45,9 +45,9 @@ export async function runGraphQLBenchmark() {
     },
     {
       name: "GQL: Entries (Dynamic Field)",
-      // Note: benchmark_stable results in a dynamic field name like StableBenchmarkCollection_benchmar
-      query: `query { StableBenchmarkCollection_benchmar(pagination: { limit: 5 }) { _id title } }`,
-      validate: (json: any) => Array.isArray(json.data?.StableBenchmarkCollection_benchmar),
+      // Note: benchmark_stable results in a dynamic field name like Benchmarkstable_benchmar
+      query: `query { Benchmarkstable_benchmar(pagination: { limit: 5 }) { _id title } }`,
+      validate: (json: any) => Array.isArray(json.data?.Benchmarkstable_benchmar),
     },
     {
       name: "GQL: Concurrent Load (8x)",

@@ -64,16 +64,22 @@ async function runMediaAudit() {
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
-      onIteration: async () => {
+      onIteration: async (i: number) => {
         const formData = new FormData();
-        const blob = new Blob([new Uint8Array(testImageBuffer)], { type: "image/jpeg" });
-        formData.append("file", blob, "bench.jpg");
+        // Append random noise to the end of the JPEG to ensure unique hash without corruption
+        const noise = new Uint8Array([
+          Math.floor(Math.random() * 255),
+          Math.floor(Math.random() * 255),
+        ]);
+        const blob = new Blob([new Uint8Array(testImageBuffer), noise], { type: "image/jpeg" });
+        formData.append("files", blob, `bench-${i}-${Math.random().toString(36).slice(2)}.jpg`);
 
         const res = await fetch(`${apiBaseUrl}/api/media/upload`, {
           method: "POST",
           headers: {
             "x-test-mode": "true",
             "x-test-secret": TEST_API_SECRET,
+            Origin: apiBaseUrl,
           },
           body: formData,
         });

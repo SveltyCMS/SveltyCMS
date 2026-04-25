@@ -4,6 +4,7 @@
  */
 
 import path from "node:path";
+import fs from "node:fs";
 import type { DatabaseConfig } from "./types";
 
 // --- PERFORMANCE BUDGETS ---
@@ -172,7 +173,6 @@ export const ADMIN_PASSWORD = getSecret("ADMIN_PASSWORD", "Password123!");
 export const TEST_API_SECRET = (() => {
   if (process.env.TEST_API_SECRET) return process.env.TEST_API_SECRET;
   try {
-    const fs = require("node:fs");
     const secretPath = path.join(process.cwd(), "tests", "e2e", ".auth", "test-secret.txt");
     if (fs.existsSync(secretPath)) return fs.readFileSync(secretPath, "utf8").trim();
   } catch {

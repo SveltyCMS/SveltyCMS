@@ -31,7 +31,8 @@ const initializationPromises = new Map<string, Promise<void>>();
 let _contentService: any = null;
 async function getContentService() {
   if (!_contentService) {
-    _contentService = await import("./content-service" + ".server");
+    const mod = await import("./content-service" + ".server");
+    _contentService = mod.contentService || mod.default || mod;
   }
   return _contentService;
 }
@@ -48,6 +49,10 @@ async function getApiSpecService() {
 // Memoization Cache for OpenAPI specs (per tenant)
 const specCache = new Map<string, any>();
 
+// --- STATE ---
+let isReloading = false;
+let reloadPromise: Promise<void> | null = null;
+
 /**
  * Central orchestrator for the SveltyCMS Content System.
  */
@@ -59,11 +64,21 @@ export const contentSystem = {
   get isInitialized() {
     return contentStore.isInitialized;
   },
+  get isReloading() {
+    return isReloading;
+  },
   get initState() {
     return contentStore.initState;
   },
   get nodeCount() {
     return contentStore.nodeCount;
+  },
+
+  /**
+   * Returns a promise that resolves when any current reload is complete.
+   */
+  async waitForReload(): Promise<void> {
+    if (reloadPromise) await reloadPromise;
   },
 
   // --- Lifecycle ---
@@ -81,10 +96,12 @@ export const contentSystem = {
 
     const key = tenantId ?? "__global__";
     if (initializationPromises.has(key)) return initializationPromises.get(key)!;
+    if (reloadPromise && key === "__global__") return reloadPromise;
 
     const promise = (async () => {
       const start = performance.now();
       contentStore.initState = "initializing";
+      isReloading = true;
       try {
         const { getDb, ensureFullInitialization } = await import("@src/databases/db");
         let db = adapter || getDb();
@@ -102,7 +119,13 @@ export const contentSystem = {
         // Use Lazy Holders
         const content = await getContentService();
 
-        if (content.fullReload) await content.fullReload(tenantId, skipReconciliation, db, null);
+        if (content && typeof content.fullReload === "function") {
+          await content.fullReload(tenantId, skipReconciliation, db, null);
+        } else {
+          logger.error("❌ Content system fullReload not found on service object", {
+            hasContent: !!content,
+          });
+        }
 
         // Optional: Start content watcher in dev mode
         if (process.env.NODE_ENV === "development") {
@@ -126,10 +149,13 @@ export const contentSystem = {
         logger.error("Content initialization failed", { tenantId, error });
         throw error;
       } finally {
+        isReloading = false;
+        reloadPromise = null;
         initializationPromises.delete(key);
       }
     })();
 
+    if (key === "__global__") reloadPromise = promise;
     initializationPromises.set(key, promise);
     return promise;
   },
@@ -220,6 +246,7 @@ export const contentSystem = {
     adapter?: DatabaseAdapter,
   ) {
     const key = tenantId ?? "__global__";
+    logger.info(`[CONTENT] refresh called for ${key}. skipReconciliation: ${skipReconciliation}`);
     initializationPromises.delete(key);
     return this.initialize(tenantId, { skipReconciliation, incremental }, adapter);
   },
@@ -327,7 +354,7 @@ export const contentSystem = {
     const { getDb } = await import("@src/databases/db");
     const db = getDb();
     if (!db) return null;
-    const dbInit = await import("@src/databases/db-init" + "/* @vite-ignore */");
+    const dbInit = await import("../databases/db-init");
     return dbInit.loadSettingsFromDB(db, false, tenantId);
   },
 

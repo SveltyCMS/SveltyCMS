@@ -24,7 +24,7 @@ let _cachedPrivateConfig: any = null;
 let _dbInit: any = null;
 async function getDbInit() {
   if (!_dbInit) {
-    _dbInit = await import("./db-init" /* @vite-ignore */);
+    _dbInit = await import("./db-init");
   }
   return _dbInit;
 }
@@ -52,9 +52,10 @@ export async function ensureFullInitialization(config?: any): Promise<any | null
     const start = performance.now();
     try {
       const cfg = config || (await loadPrivateConfig());
-      const { updateServiceHealth } = await import("@src/stores/system/state");
+      const { updateServiceHealth } = await import("../stores/system/state");
 
       if (!cfg) {
+        console.error("[db.ts] Missing configuration - cannot initialize");
         updateServiceHealth("database", "unhealthy" as any, "Missing configuration");
         return null;
       }
@@ -74,11 +75,12 @@ export async function ensureFullInitialization(config?: any): Promise<any | null
 
       const connectionResult = await adapter.connect(cfg as any);
       if (!connectionResult.success) {
+        console.error(`[db.ts] Database connection failed: ${connectionResult.message}`);
         throw new Error(`Database connection failed: ${connectionResult.message}`);
       }
       isConnected = true;
-
-      // 2. Cache & Resilience (Runs exactly once)
+      console.log(`[db.ts] Database initialized with adapter: ${adapter.type}`);
+      dbAdapter = adapter;
       if (!_redisCacheInitialized) {
         const { cacheService } = await import("./cache/cache-service");
         await cacheService.initializeL2(cfg).catch((e) => logger.warn("Redis Init Warning:", e));
@@ -104,13 +106,13 @@ export async function ensureFullInitialization(config?: any): Promise<any | null
         void dbInit.runBackgroundTasks(adapter);
       }
 
-      const { metricsService } = await import("@src/services/metrics-service");
+      const { metricsService } = await import("../services/metrics-service");
       metricsService.recordMetric("boot:total", performance.now() - start);
 
       return auth;
     } catch (err) {
       logger.error("CRITICAL: Full initialization failed:", err);
-      const { updateServiceHealth } = await import("@src/stores/system/state");
+      const { updateServiceHealth } = await import("../stores/system/state");
       updateServiceHealth("database", "unhealthy", "Critical system failure");
       _dbInitializationPromise = null; // Allow retry
       return null;
@@ -183,7 +185,7 @@ export function getDb(): DatabaseAdapter | null {
  */
 export async function initializeWithConfig(config: any): Promise<void> {
   if (config) {
-    const { setPrivateEnv } = await import("@src/databases/config-state");
+    const { setPrivateEnv } = await import("./config-state");
     setPrivateEnv(config);
     _cachedPrivateConfig = config;
   }

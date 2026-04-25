@@ -116,6 +116,12 @@ async function getCachedRoles(tenantId?: DatabaseId | null): Promise<Role[]> {
 export const handleAuthorization: Handle = async ({ event, resolve }) => {
   const { url, locals } = event;
   const { user } = locals;
+
+  // 🧪 TEST MODE BYPASS: If cryptographic handshake verified, skip auth logic
+  if ((locals as any).__testBypass) {
+    return resolve(event);
+  }
+
   const pathname = url.pathname;
   const isTestMode = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
 

@@ -32,6 +32,8 @@ async function runRelationalAudit() {
 
     console.log("📊 Seeding relational test data (Users + Audit Logs)...");
     const { getDb } = await import("@src/databases/db");
+    const { ensureFullInitialization } = await import("@src/databases/db");
+    await ensureFullInitialization();
     const db = getDb();
     if (!db) throw new Error("Database not initialized");
 

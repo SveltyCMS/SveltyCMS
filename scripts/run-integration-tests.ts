@@ -17,24 +17,23 @@ const ROOT = join(__dirname, "..");
 const PORT = process.env.PORT ?? "4173";
 const HOST = process.env.HOST ?? "127.0.0.1";
 const API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
+
 // ---------------------------------------------------------------------------
-// Configuration
+// Hardened Configuration (Synchronized with Benchmark Matrix)
 // ---------------------------------------------------------------------------
-const getTestSecret = () => {
-  if (process.env.TEST_API_SECRET) return process.env.TEST_API_SECRET;
-  try {
-    const secretPath = join(ROOT, "tests/e2e/.auth/test-secret.txt");
-    const { existsSync, readFileSync } = require("node:fs");
-    if (existsSync(secretPath)) {
-      return readFileSync(secretPath, "utf8").trim();
-    }
-  } catch {}
-  return "SVELTYCMS_TEST_SECRET_2026";
+const loadHardenedConfig = async () => {
+  const { JWT_SECRET_KEY, ENCRYPTION_KEY, TEST_API_SECRET, ADMIN_PASSWORD } =
+    await import("./benchmark-matrix/config");
+
+  return {
+    JWT_SECRET_KEY,
+    ENCRYPTION_KEY,
+    TEST_API_SECRET,
+    ADMIN_PASSWORD,
+  };
 };
 
-const TEST_API_SECRET = getTestSecret();
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Password123!";
-
+let CONFIG: any = {};
 let previewProcess: ChildProcess | null = null;
 let isShuttingDown = false;
 
@@ -42,17 +41,17 @@ let isShuttingDown = false;
 // Helpers
 // ---------------------------------------------------------------------------
 async function freePort(port: number) {
-  console.log(`🧹 Freeing ports ${port} and 3001...`);
+  console.log(`🧹 Freeing port ${port}...`);
   try {
     if (process.platform === "win32") {
       execSync(
-        `powershell -Command "Get-NetTCPConnection -LocalPort ${port},3001 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"`,
+        `powershell -Command "Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"`,
         { stdio: "ignore" },
       );
     } else {
-      execSync(`lsof -ti:${port},3001 | xargs kill -9 || true`, { stdio: "ignore" });
+      execSync(`lsof -ti:${port} | xargs kill -9 || true`, { stdio: "ignore" });
     }
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 1000));
   } catch {}
 }
 
@@ -74,12 +73,12 @@ async function startPreviewServer() {
         DB_TYPE: process.env.DB_TYPE || "sqlite",
         DB_HOST: process.env.DB_HOST || "127.0.0.1",
         DB_NAME: process.env.DB_NAME || "sveltycms_test",
-        TEST_API_SECRET,
-        ADMIN_PASSWORD,
+        TEST_API_SECRET: CONFIG.TEST_API_SECRET,
+        ADMIN_PASSWORD: CONFIG.ADMIN_PASSWORD,
         ORIGIN: API_BASE_URL,
         PASSWORD_MIN_LENGTH: "8",
-        JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-Change-Me",
-        ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-Must-Be-32-Chars!!",
+        JWT_SECRET_KEY: CONFIG.JWT_SECRET_KEY,
+        ENCRYPTION_KEY: CONFIG.ENCRYPTION_KEY,
       },
     },
   );
@@ -88,32 +87,31 @@ async function startPreviewServer() {
 }
 
 async function waitForServerReady(maxAttempts = 60) {
-  console.log("⏳ Waiting for server to be ready...");
+  console.log("⏳ Waiting for server to reach READY state...");
 
-  const ACCEPTABLE_STATES = ["healthy", "ready", "warmed", "setup", "initializing", "warming"];
+  // Strict readiness check: We want READY, not warming/initializing
+  const TARGET_STATES = ["ready", "healthy"];
 
   for (let i = 0; i < maxAttempts; i++) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/system/health`, {
         headers: {
           "x-test-mode": "true",
-          "x-test-secret": TEST_API_SECRET,
+          "x-test-secret": CONFIG.TEST_API_SECRET,
         },
         signal: AbortSignal.timeout(3000),
       });
 
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
-
-        // Extract status with priority: overallStatus > status > health
         const rawStatus = (data.overallStatus || data.status || data.health || "").toLowerCase();
 
-        if (ACCEPTABLE_STATES.includes(rawStatus)) {
-          console.log(`✅ Server responded (state: ${rawStatus})`);
-          await new Promise((r) => setTimeout(r, 1500)); // extra settle time for DB locks
+        if (TARGET_STATES.includes(rawStatus)) {
+          console.log(`✅ Server is READY (state: ${rawStatus})`);
+          await new Promise((r) => setTimeout(r, 2000)); // extra settle time for DB stability
           return;
         } else {
-          console.log(`⏳ Server up, but state is: "${rawStatus}"...`);
+          console.log(`⏳ Server up, but state is: "${rawStatus}" (waiting for READY)...`);
         }
       } else {
         console.log(`⏳ Server responded with HTTP ${res.status}...`);
@@ -125,7 +123,7 @@ async function waitForServerReady(maxAttempts = 60) {
     await new Promise((r) => setTimeout(r, 1000));
   }
 
-  throw new Error("Server failed to become ready within timeout");
+  throw new Error("Server failed to reach READY state within timeout");
 }
 
 async function teardown() {
@@ -169,6 +167,9 @@ async function teardown() {
 async function main() {
   console.log("🚀 Starting SveltyCMS Black-Box Integration Test Suite...\n");
 
+  // Load secrets once
+  CONFIG = await loadHardenedConfig();
+
   const argv = process.argv.slice(2);
   const explicitFiles = argv.filter((f) => !f.startsWith("--")).flatMap((f) => f.split(","));
   const skipBuild = argv.includes("--no-build");
@@ -189,15 +190,16 @@ async function main() {
     console.log("⚙️  Running system setup...");
     await runCommand("bun", ["run", "scripts/setup-system.ts"], {
       env: {
+        ...process.env,
         TEST_MODE: "true",
-        TEST_API_SECRET,
-        ADMIN_PASSWORD: ADMIN_PASSWORD,
+        TEST_API_SECRET: CONFIG.TEST_API_SECRET,
+        ADMIN_PASSWORD: CONFIG.ADMIN_PASSWORD,
         DB_TYPE: process.env.DB_TYPE || "sqlite",
         DB_HOST: process.env.DB_HOST || "127.0.0.1",
         DB_NAME: process.env.DB_NAME || "sveltycms_test",
         PASSWORD_MIN_LENGTH: "8",
-        JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-Change-Me",
-        ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-Must-Be-32-Chars!!",
+        JWT_SECRET_KEY: CONFIG.JWT_SECRET_KEY,
+        ENCRYPTION_KEY: CONFIG.ENCRYPTION_KEY,
       },
     });
   } else {
@@ -208,14 +210,22 @@ async function main() {
   console.log("🧹 Resetting and seeding test data...");
   await fetch(`${API_BASE_URL}/api/testing`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-test-secret": TEST_API_SECRET },
-    body: JSON.stringify({ action: "reset", email: "admin@example.com", password: ADMIN_PASSWORD }),
+    headers: { "Content-Type": "application/json", "x-test-secret": CONFIG.TEST_API_SECRET },
+    body: JSON.stringify({
+      action: "reset",
+      email: "admin@example.com",
+      password: CONFIG.ADMIN_PASSWORD,
+    }),
   });
 
   await fetch(`${API_BASE_URL}/api/testing`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-test-secret": TEST_API_SECRET },
-    body: JSON.stringify({ action: "seed", email: "admin@example.com", password: ADMIN_PASSWORD }),
+    headers: { "Content-Type": "application/json", "x-test-secret": CONFIG.TEST_API_SECRET },
+    body: JSON.stringify({
+      action: "seed",
+      email: "admin@example.com",
+      password: CONFIG.ADMIN_PASSWORD,
+    }),
   });
 
   // Discover test files (recursive)
@@ -258,13 +268,13 @@ async function main() {
     const { code } = await runCommand("bun", ["test", "--timeout", "60000", file], {
       env: {
         ...process.env,
-        TEST_API_SECRET,
+        TEST_API_SECRET: CONFIG.TEST_API_SECRET,
         API_BASE_URL,
         TEST_MODE: "true",
         DB_TYPE: process.env.DB_TYPE || "sqlite",
         DB_NAME: process.env.DB_NAME || "sveltycms_test",
-        JWT_SECRET_KEY: "Benchmark-JWT-Secret-Key-2026-Change-Me",
-        ENCRYPTION_KEY: "Benchmark-Encryption-Key-2026-Must-Be-32-Chars!!",
+        JWT_SECRET_KEY: CONFIG.JWT_SECRET_KEY,
+        ENCRYPTION_KEY: CONFIG.ENCRYPTION_KEY,
       },
     });
 

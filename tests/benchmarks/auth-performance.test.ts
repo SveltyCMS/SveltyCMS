@@ -13,6 +13,7 @@ import {
   setupBenchmarkServer,
   printTruthTable,
   printSummaryTable,
+  TEST_API_SECRET,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
@@ -109,6 +110,7 @@ async function runAuthAudit() {
           headers: {
             Cookie: `session=${testSessionId}`,
             "x-test-mode": "true",
+            "x-test-secret": TEST_API_SECRET,
           },
         });
         if (!res.ok) throw new Error(`HTTP Auth failed: ${res.status}`);

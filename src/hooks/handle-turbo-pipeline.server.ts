@@ -111,13 +111,6 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   event.locals.requestStart = requestStart;
   event.locals.requestId = requestId;
 
-  const isHttps = event.url.protocol === "https:";
-  const isApiRoute = isApiLike(pathname);
-  const origin = event.request.headers.get("Origin");
-
-  // Base security header map
-  const baseHeaderMap = Object.fromEntries(BASE_HEADERS);
-
   // ── 0. TEST ISOLATION BYPASS ───────────────────────────────────────────
   // High-performance cryptographic bypass for CI and automated testing.
   const isTest =
@@ -133,30 +126,38 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     const { getTestSecret } = await import("@src/utils/setup-check");
     const expected = getTestSecret();
 
-    if (expected) {
-      if (testSecret === expected) {
-        if (process.env.BENCHMARK_DEBUG === "true") {
-          console.log(`[Turbo] Bypass SUCCESS for ${pathname}`);
-        }
-        // 🚀 HARD BYPASS: Verified test secret receives full system access and skips ALL middleware.
-        const { getDbInitPromise, getDb } = await import("@src/databases/db");
-        await getDbInitPromise(false, "CORE");
+    if (expected && testSecret === expected) {
+      // 🚀 HARD BYPASS: Verified test secret receives full system access and skips ALL middleware.
+      const { getDbInitPromise, getDb } = await import("@src/databases/db");
+      await getDbInitPromise(false, "CORE");
 
-        (event.locals as any).user = {
-          _id: "system",
-          role: "admin",
-          isAdmin: true,
-          email: "system@sveltycms",
-        };
-        (event.locals as any).dbAdapter = getDb();
-        (event.locals as any).__testBypass = true;
+      (event.locals as any).user = {
+        _id: "system",
+        role: "admin",
+        isAdmin: true,
+        email: "system@sveltycms",
+      };
+      (event.locals as any).dbAdapter = getDb();
+      (event.locals as any).__testBypass = true;
 
-        const response = await resolve(event);
-        if (dev) logRequest(event, performance.now() - requestStart, response.status);
-        return response;
-      }
+      const response = await resolve(event);
+      if (dev) logRequest(event, performance.now() - requestStart, response.status);
+      return response;
+    } else {
+      logger.warn(`[Turbo] Bypass FAILED for ${pathname}: Secret mismatch.`);
     }
+  } else if (testSecret) {
+    logger.error(
+      `[Turbo] Bypass SKIPPED for ${pathname}: isTest is false. (TEST_MODE: ${process.env.TEST_MODE})`,
+    );
   }
+
+  const isHttps = event.url.protocol === "https:";
+  const isApiRoute = isApiLike(pathname);
+  const origin = event.request.headers.get("Origin");
+
+  // Base security header map
+  const baseHeaderMap = Object.fromEntries(BASE_HEADERS);
 
   try {
     // ── 1. STATIC ASSET DELEGATION ───────────────────────────────────────────

@@ -19,9 +19,9 @@ tags:
 
 # SveltyCMS Testing Documentation
 
-**Last Updated:** April 23, 2026
-**Total Tests:** 1113+ (753 unit + 360 integration/E2E)
-**Pass Rate:** 100% (All 1113+ tests passing)
+**Last Updated:** April 25, 2026
+**Total Tests:** 1137+ (753 unit + 320 integration + 40 E2E + 24 benchmarks)
+**Pass Rate:** 100% (All 1137+ tests passing)
 
 ## Quick Links
 
@@ -87,13 +87,9 @@ As of late April 2026, we have evolved to **Audit Infrastructure 2.0 (SRE Editio
 
 - **5-Layer Truth Model**: Isolates latency from Pure Logic through SDK and Dispatcher up to Real HTTP (Cold/Warm).
 - **Stochastic Load Test**: Replaces deterministic loops with ramping stages and Virtual User (VU) simulation.
-- **SLA Thresholds**: Automated performance budgets for p95 latency and error rates that fail the CI on regression.
-- **High-Fidelity Percentiles**: Standardized tracking of p50, p95, and p99 metrics to identify tail latency risk.
-- **SQLite History**: All results are stored in a professional time-series database (`history.sqlite`) with Traffic Light trend indicators.
-- ✅ **Audit Logging**: Non-blocking mutation interceptor with duration tracking.
-- ✅ **Fail-Closed API Security**: Granular authorization gatekeeper for the dispatcher.
-- ✅ **OpenAPI 3.1.0 Contract**: Dynamic schema discovery and JSON Schema integrity.
-- ✅ **Environment Parity**: jsdom (Vitest) for component logic + Native (Bun) for core utilities.
+- **Regression Guardrails**: Automated assertions (`measureSuiteRuntime`) ensure that any test exceeding 2x its baseline execution time fails the CI.
+- **SLA Thresholds**: Automated performance budgets for p95 latency and error rates.
+- **Auto-Injection**: Benchmarks automatically register their findings with dynamic trend indicators in the MDX technical ledger.
 
 ### 🚀 Performance Benchmarks (SRE Edition)
 

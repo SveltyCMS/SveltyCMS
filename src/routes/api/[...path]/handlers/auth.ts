@@ -118,9 +118,11 @@ export async function handleLogin(
   // we can grant a session for ANY requested user email without password verification.
   let result;
   if ((event.locals as any).__testBypass) {
-    const userResult = await cms.auth.getUserByEmail({ email, tenantId });
+    const requestedEmail = email || "admin@example.com";
+    const userResult = await cms.auth.getUserByEmail({ email: requestedEmail, tenantId });
+
     if (userResult.success && userResult.data) {
-      // Use HIGH-LEVEL auth for session creation to ensure all hooks/signing logic runs
+      // Use existing user
       const { Auth } = await import("@src/databases/auth");
       const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
       const highLevelAuth = new Auth(cms.db, getDefaultSessionStore());
@@ -132,7 +134,11 @@ export async function handleLogin(
       });
       result = { user: userResult.data, session };
     } else {
-      result = await cms.auth.login({ email, password }, { tenantId });
+      // Create a virtual session for a system user
+      result = {
+        user: { _id: "system", role: "admin", isAdmin: true, email: requestedEmail },
+        session: { _id: "test-session-" + Date.now(), user_id: "system" },
+      };
     }
   } else {
     result = await cms.auth.login({ email, password }, { tenantId });

@@ -317,7 +317,7 @@ export class DatabaseResilience {
   async getPoolDiagnostics(): Promise<ConnectionPoolDiagnostics> {
     try {
       // Get the current database adapter
-      const { dbAdapter } = await import(/* @vite-ignore */ "./db");
+      const { dbAdapter } = await import("./db");
 
       if (!dbAdapter) {
         throw new Error("Database adapter not available");
@@ -529,7 +529,7 @@ export async function notifyAdminsOfDatabaseFailure(
 ): Promise<void> {
   try {
     // Check if SMTP is configured
-    const { getPrivateSetting } = await import(/* @vite-ignore */ "@src/services/settings-service");
+    const { getPrivateSetting } = await import("../services/settings-service");
     const smtpHost = await getPrivateSetting("SMTP_HOST" as any);
 
     if (!smtpHost) {
@@ -539,7 +539,7 @@ export async function notifyAdminsOfDatabaseFailure(
 
     // Get admin users
     // Use relative path to avoid alias resolution issues
-    const { auth } = await import(/* @vite-ignore */ "./db");
+    const { auth } = await import("./db");
     if (!auth) {
       logger.warn("Auth service not available, cannot fetch admin users for notification");
       return;
@@ -553,7 +553,7 @@ export async function notifyAdminsOfDatabaseFailure(
     }
 
     // Prepare email data
-    const { publicEnv } = await import(/* @vite-ignore */ "@src/stores/global-settings.svelte");
+    const { publicEnv } = await import("../stores/global-settings.svelte");
     const systemState = getSystemState();
 
     const emailData = {

@@ -616,6 +616,11 @@ export const defaultPublicSettings: Array<{
 
   // Site configuration
   {
+    key: "PASSWORD_MIN_LENGTH",
+    value: 8,
+    description: "Minimum length for user passwords",
+  },
+  {
     key: "SITE_NAME",
     value: "SveltyCMS",
     description: "The public name of the website",
@@ -626,7 +631,7 @@ export const defaultPublicSettings: Array<{
     description: "Default timezone for the system",
   },
   {
-    key: "PASSWORD_LENGTH",
+    key: "PASSWORD_MIN_LENGTH",
     value: 8,
     description: "Minimum required length for user passwords",
   },
@@ -1119,7 +1124,8 @@ export async function seedSettings(
     const publicSettings: Record<string, unknown> = {};
 
     // Add existing public settings first
-    for (const [key, value] of Object.entries(existingSettings)) {
+    for (let [key, value] of Object.entries(existingSettings)) {
+      if (key === "PASSWORD_LENGTH") key = "PASSWORD_MIN_LENGTH";
       const isPublic = defaultPublicSettings.some((s) => s.key === key);
       if (isPublic) {
         publicSettings[key] = (value as { value?: unknown }).value ?? value;
@@ -1227,6 +1233,7 @@ export async function importSettingsSnapshot(
 
   for (const [key, settingData] of Object.entries(snapshot.settings)) {
     const data = settingData as SettingData;
+
     settingsToSet.push({
       key,
       value: {

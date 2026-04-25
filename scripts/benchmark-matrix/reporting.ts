@@ -193,7 +193,8 @@ export async function buildFullAuditLedger(
 
     // We show all applicable, even if pending
     md += `### 🏷️ ${script.label}\n`;
-    md += `**Path:** \`${script.path}\` | **Intensity:** \`${script.intensity}\`\n\n`;
+    md += `**Source:** [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")}) | **Intensity:** \`${script.intensity}\`\n`;
+    md += `**Proves:** ${script.desc}\n\n`;
 
     const timing = res?.scriptTimings?.[script.shortLabel];
 
@@ -470,7 +471,7 @@ async function updateDatabaseSpecificReports(
             }
           }
 
-          tableContent = `### 🏷️ ${script.label}${trendStr}\n\n\`\`\`text\n${rawTable}\n\`\`\``;
+          tableContent = `### 🏷️ ${script.label}${trendStr}\n> 📂 **Source**: [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")})\n> 🎯 **Proves**: ${script.desc}\n\n\`\`\`text\n${rawTable}\n\`\`\``;
         } else {
           // 🛡️ NON-DESTRUCTIVE: Try to recover existing data from the file ONLY if no new tableFile was found
           if (!tableFile) {

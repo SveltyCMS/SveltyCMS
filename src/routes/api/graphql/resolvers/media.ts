@@ -18,6 +18,12 @@ export function mediaTypeDefs() {
             updatedAt: String
         }
 
+        type MediaFolder {
+            _id: String
+            name: String
+            path: String
+        }
+
         type MediaDocument {
             _id: String
             url: String

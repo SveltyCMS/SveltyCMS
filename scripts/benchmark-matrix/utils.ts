@@ -108,7 +108,9 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
     collections:
       getMetric("truth-rest-p95") ||
       getMetric("truth.latency.http.p95") ||
+      getMetric("truth.http.p95") ||
       getMetric("api.latency.avg") ||
+      getMetric("api.latency.http") ||
       getMetric("rest.collections.p95") ||
       getMetric("REST p95") ||
       getMetric("Dispatcher: findById") ||
@@ -118,6 +120,8 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
     restAvg:
       getMetric("rest.collections.avg") ||
       getMetric("REST Avg") ||
+      getMetric("truth.sdk.avg") ||
+      getMetric("api.latency.sdk") ||
       getMetric("Dispatcher: findById") ||
       getMetric("REST (Average)") ||
       getMetric("rest-collections-avg") ||

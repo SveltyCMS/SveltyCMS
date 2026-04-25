@@ -19,15 +19,21 @@ export async function handleContentRoutes(
   const namespace = segments[0];
   const method = segments[1];
 
-  // --- Content Version ---
-  if (namespace === "content" && method === "version") {
-    const { contentSystem } = await import("@src/content");
-    return json({ version: contentSystem.getContentVersion() });
+  // --- Content Version & Refresh ---
+  if (namespace === "content") {
+    if (method === "version") {
+      const { contentSystem } = await import("@src/content");
+      return json({ version: contentSystem.getContentVersion() });
+    }
+    if (method === "refresh") {
+      await cms.collections.refresh(tenantId);
+      return json({ success: true, message: "Content system refreshed" });
+    }
   }
 
   // --- Content Structure ---
-  if (namespace === "content-structure") {
-    if (request.method === "GET") {
+  if (namespace === "content-structure" || namespace === "content") {
+    if (request.method === "GET" && namespace === "content-structure") {
       const action = url.searchParams.get("action") || "getStructure";
       if (action === "getStructure" || action === "getContentStructure") {
         const nodes = await cms.collections.getStructure(tenantId);
@@ -44,17 +50,22 @@ export async function handleContentRoutes(
       const body = await request.json().catch(() => ({}));
       const { action, items } = body;
 
+      // Support both POST /api/content/refresh (method=refresh) and POST /api/content-structure {action: "refresh"}
+      if (
+        method === "refresh" ||
+        action === "refresh" ||
+        action === "recompile" ||
+        action === "refreshCollections"
+      ) {
+        await cms.collections.refresh(tenantId);
+        return json({ success: true, message: "Content system refreshed" });
+      }
+
       if (action === "reorderContentStructure") {
         if (!Array.isArray(items)) throw new AppError("Items must be an array", 422);
         const updated = await cms.collections.reorderContentNodes(items, tenantId);
         return json({ success: true, contentStructure: updated });
       }
-
-      if (action === "refresh" || action === "recompile" || action === "refreshCollections") {
-        await cms.collections.refresh(tenantId);
-        return json({ success: true, message: "Content structure refreshed" });
-      }
-      throw new AppError(`Invalid POST action: ${action}`, 400);
     }
   }
 

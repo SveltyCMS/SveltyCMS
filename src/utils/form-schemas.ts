@@ -370,6 +370,7 @@ const languageCodeSchema = pipe(
 export const systemSettingsSchema = object({
   siteName: siteNameSchema,
   hostProd: hostProdSchema,
+  passwordMinLength: optional(number(), 8),
   defaultSystemLanguage: languageCodeSchema,
   defaultContentLanguage: languageCodeSchema,
 });

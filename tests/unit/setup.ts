@@ -937,7 +937,12 @@ if (isBun) {
 
 // Also set globalThis.widgets for direct eval() access in safelyParseSchema
 if (!(globalThis as any).widgets || Object.keys((globalThis as any).widgets).length === 0) {
-  const widgetsObj: Record<string, any> = {};
+  const widgetsObj: Record<string, any> = {
+    initialize: async () => {},
+    getWidget: (name: string) => widgetMap.get(name),
+    getAllWidgets: () => widgetMap,
+    isLoaded: true,
+  };
   for (const [name, factory] of widgetMap) {
     widgetsObj[name] = factory;
   }

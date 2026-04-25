@@ -324,6 +324,11 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
   if (isStaticOrInternalRequest(pathname)) return resolve(event);
 
+  // 🧪 TEST MODE BYPASS: If cryptographic handshake verified, skip auth logic
+  if ((locals as any).__testBypass) {
+    return resolve(event);
+  }
+
   // 🛡️ Ensure CSRF token is established for every visitor (guest or user)
   // Moved after fast-exit to save cycles on static assets.
   const isProd = !dev && process.env.TEST_MODE !== "true";
@@ -389,6 +394,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           user.tenantId &&
           user.tenantId !== locals.tenantId
         ) {
+          logger.warn(`[Auth] Tenant mismatch: local=${locals.tenantId}, user=${user.tenantId}`, {
+            sessionId,
+          });
           metricsService.incrementAuthFailures();
           cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
           throw new AppError("Tenant isolation violation", 403, "FORBIDDEN_TENANT");
@@ -398,6 +406,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         locals.permissions = user.permissions || [];
         await handleSessionRotation(event, user, sessionId);
       } else {
+        logger.warn(`[Auth] Invalid session: ${sessionId}`, {
+          cookieName,
+          hasSession: !!sessionId,
+        });
         metricsService.incrementAuthFailures();
         cookies.delete(cookieName, { path: "/" });
       }

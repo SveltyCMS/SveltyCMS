@@ -10,7 +10,7 @@ import { createYoga, createSchema } from "graphql-yoga";
 import { useGraphQlJit } from "@envelop/graphql-jit";
 import { pubSub } from "@src/services/pub-sub";
 import { contentSystem } from "@src/content";
-import { registerCollections } from "./resolvers/collections";
+import { registerCollections, collectionsResolvers } from "./resolvers/collections";
 import { mediaResolvers, mediaTypeDefs } from "./resolvers/media";
 import { systemResolvers, systemTypeDefs } from "./resolvers/system";
 import { userResolvers, userTypeDefs } from "./resolvers/users";
@@ -43,13 +43,31 @@ registerPermission(accessManagementPermission as any);
 // ---------------------------------------------------------------------------
 async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
   // We need to fetch the dynamic schemas which includes their types and queries
-  const { typeDefs: collectionTypeDefs, resolvers: collectionResolversMap } =
-    await registerCollections(tenantId);
+  const { typeDefs: collectionTypeDefs, queryFields } = await registerCollections(tenantId);
+  const collectionResolversMap = await collectionsResolvers(dbAdapter, null, tenantId);
 
   const typeDefs = `
+    ${userTypeDefs()}
+    ${systemTypeDefs}
+    ${mediaTypeDefs()}
+    ${collectionTypeDefs}
+
     type Query {
       _empty: String
       me: User
+      users(pagination: PaginationInput): [User]
+      mediaImages(pagination: PaginationInput): [MediaImage]
+      mediaDocuments(pagination: PaginationInput): [MediaDocument]
+      mediaAudio(pagination: PaginationInput): [MediaAudio]
+      mediaVideos(pagination: PaginationInput): [MediaVideo]
+      mediaRemote(pagination: PaginationInput): [MediaRemote]
+      mediaFolders: [MediaFolder]
+      ${queryFields.join("\n      ")}
+    }
+
+    input PaginationInput {
+      page: Int
+      limit: Int
     }
 
     type Mutation {
@@ -60,11 +78,6 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
       contentStructureUpdated: String
       entryUpdated: String
     }
-
-    ${mediaTypeDefs()}
-    ${systemTypeDefs}
-    ${userTypeDefs()}
-    ${collectionTypeDefs}
   `;
 
   const resolvers = {
@@ -101,12 +114,11 @@ async function getYogaApp(dbAdapter: any, tenantId?: string | null) {
   const currentVersion = contentSystem.version;
 
   if (!yogaAppPromise || lastSchemaVersion !== currentVersion) {
-    if (!yogaAppPromise) {
-      console.log("[GraphQL] Building Singleton Yoga Instance...");
-    } else {
-      console.log(`[GraphQL] Schema Change Detected (v${currentVersion}), Rebuilding Yoga...`);
+    if (lastSchemaVersion !== null) {
+      console.error(
+        `[GraphQL] Version change detected: ${lastSchemaVersion} -> ${currentVersion}. Rebuilding schema...`,
+      );
     }
-
     lastSchemaVersion = currentVersion;
     yogaAppPromise = (async () => {
       try {
@@ -187,6 +199,19 @@ async function handleRequest(event: RequestEvent) {
 
   if (!locals.user) {
     throw new AppError("Unauthorized: Login required for GraphQL", 401);
+  }
+
+  // 🛡️ Gating: Wait for any pending content reloads (especially on SQLite during benchmarks)
+  await contentSystem.waitForReload();
+
+  if (contentSystem.isReloading) {
+    return new Response(
+      JSON.stringify({ errors: [{ message: "CMS is currently reloading. Please retry." }] }),
+      {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 
   let adapter = locals.dbAdapter;

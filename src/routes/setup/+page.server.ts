@@ -993,6 +993,10 @@ export const actions: Actions = {
         }
       }
 
+      // 🚀 CRITICAL: Reset global DB state so next request triggers fresh initialization with new config
+      const { resetDbInitPromise } = await import("@src/databases/db");
+      resetDbInitPromise();
+
       const setupDuration = performance.now() - setupStartTime;
       logger.info(
         `🎊 [completeSetup] Setup logic finished in ${Math.round(setupDuration)}ms. Redirecting to: ${redirectPath}`,

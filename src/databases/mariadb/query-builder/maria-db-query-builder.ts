@@ -156,7 +156,7 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
             this.table as unknown as Record<string, import("drizzle-orm/mysql-core").MySqlColumn>
           )[f as string];
           if (column) {
-            return like(column, `%${query}%`);
+            return (column as any).dataType !== "json" ? like(column, `%${query}%`) : null;
           }
           return null;
         })

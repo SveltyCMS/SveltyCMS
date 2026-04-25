@@ -134,6 +134,11 @@ export const measureMemory = getMemorySnapshot;
 
 // ── reporting engine ─────────────────────────────────────────────────────────
 
+let lastMdxTitle = "";
+let lastMdxShortLabel = "";
+let accumulatedMdxTable = "";
+let lastMdxResults: any[] = [];
+
 export function printTruthTable(options: {
   title: string;
   subtitle: string;
@@ -162,7 +167,7 @@ export function printTruthTable(options: {
 
   let outputBuffer = "";
   const log = (s: string) => {
-    console.log(s);
+    process.stdout.write(s + "\n");
     outputBuffer += s + "\n";
   };
 
@@ -172,7 +177,9 @@ export function printTruthTable(options: {
 
     log("\n" + h.bar("╔", "╗"));
     log(h.center(options.title + " (MATRIX)"));
-    log(h.center(options.subtitle));
+    if (options.subtitle) {
+      options.subtitle.split("\n").forEach((line: string) => log(h.center(line)));
+    }
     log(h.bar("╠", "╣"));
 
     let hdr = `║ ${"Scenario".padEnd(SC_COL)} │ ${"Metric".padEnd(METRIC_COL)}`;
@@ -210,7 +217,9 @@ export function printTruthTable(options: {
 
     log("\n" + h.bar("╔", "╗"));
     log(h.center(options.title.replace(" AUDIT", "") + " AUDIT"));
-    log(h.center(options.subtitle));
+    if (options.subtitle) {
+      options.subtitle.split("\n").forEach((line: string) => log(h.center(line)));
+    }
     log(h.bar("╠", "╣"));
     log(row("Scenario", "c", "Avg latency", "p95", "RPS", "Overhead"));
     log(h.bar("╠", "╣"));
@@ -263,7 +272,9 @@ export function printTruthTable(options: {
 
     log("\n" + h.bar("╔", "╗"));
     log(h.center(options.title));
-    log(h.center(options.subtitle));
+    if (options.subtitle) {
+      options.subtitle.split("\n").forEach((line: string) => log(h.center(line)));
+    }
     log(h.bar("╠", "╣"));
     log(row("Scenario", "Avg latency", "p95", "RPS"));
     log(h.bar("╠", "╣"));
@@ -283,6 +294,12 @@ export function printTruthTable(options: {
   // 🚀 ULTRA ELITE: Save and Push the identical ASCII table to the technical ledger
   const tableContent = outputBuffer.trim();
   saveTerminalTable(options.title, tableContent);
+
+  lastMdxTitle = options.title;
+  lastMdxShortLabel = options.shortLabel || "";
+  accumulatedMdxTable = tableContent;
+  lastMdxResults = options.results || [];
+
   pushTableToMdx(options.title, tableContent, options.shortLabel);
 }
 
@@ -314,15 +331,52 @@ function pushTableToMdx(title: string, table: string, shortLabel?: string) {
     const START = `<!-- ${tag}_START -->`;
     const END = `<!-- ${tag}_END -->`;
 
-    const tableBlock = `\n### 🏷️ ${title.split("—")[1]?.trim() || title}\n\n\`\`\`text\n${table}\n\`\`\`\n`;
+    let trendStr = "";
+    if (lastMdxResults && lastMdxResults.length > 0) {
+      try {
+        const historyFile = path.resolve(process.cwd(), RESULTS_DIR, "history.jsonl");
+        if (fs.existsSync(historyFile)) {
+          const lines = fs.readFileSync(historyFile, "utf8").trim().split("\n");
+          const mainResult = lastMdxResults[lastMdxResults.length - 1];
+          const historyLines = lines
+            .filter((l) => l.trim().length > 0)
+            .map((l) => JSON.parse(l))
+            .filter((h) => h.name === mainResult.name && h.db === mainResult.db);
+
+          if (historyLines.length > 0) {
+            const prev = historyLines[historyLines.length - 1];
+            const current = mainResult;
+
+            if (prev && prev.avgMs > 0 && current.avgMs > 0) {
+              const delta = ((current.avgMs - prev.avgMs) / prev.avgMs) * 100;
+              const icon = delta > 5 ? "🔴" : delta < -5 ? "🟢" : "⚪";
+              trendStr = ` (Trend: ${icon} ${delta > 0 ? "+" : ""}${delta.toFixed(1)}%)`;
+            }
+          }
+        }
+      } catch {
+        // Silent fail
+      }
+    }
+
+    const tableBlock = `\n### 🏷️ ${title.split("—")[1]?.trim() || title}${trendStr}\n\n\`\`\`text\n${table}\n\`\`\`\n`;
 
     if (content.includes(START) && content.includes(END)) {
       const regex = new RegExp(`<!-- ${tag}_START -->[\\s\\S]*?<!-- ${tag}_END -->`);
       content = content.replace(regex, `${START}${tableBlock}${END}`);
-      fs.writeFileSync(docPath, content);
+    } else {
+      // Auto-Registration: Append to the "Detailed Performance Ledger" section
+      const insertionPoint = "## 🔬 Detailed Performance Ledger (20+ Modules)";
+      if (content.includes(insertionPoint)) {
+        content = content.replace(
+          insertionPoint,
+          `${insertionPoint}\n\n${START}${tableBlock}${END}`,
+        );
+      }
     }
-  } catch {
-    // Silent fail
+    fs.writeFileSync(docPath, content);
+  } catch (err: any) {
+    console.error(`[pushTableToMdx] Failed: ${err.message}`);
   }
 }
 
@@ -350,15 +404,26 @@ export function printSummaryTable(
     },
   };
 
-  console.log("\n" + helpers.bar("╔", "╗"));
-  console.log(helpers.center("FINAL AUDIT SUMMARY"));
-  console.log(helpers.bar("╠", "╣"));
+  let summaryBuffer = "";
+  const log = (s: string) => {
+    process.stdout.write(s + "\n");
+    summaryBuffer += s + "\n";
+  };
+
+  log("\n" + helpers.bar("╔", "╗"));
+  log(helpers.center("FINAL AUDIT SUMMARY"));
+  log(helpers.bar("╠", "╣"));
   metrics.forEach((m) => {
     const valStr = typeof m.val === "number" ? m.val.toFixed(3) : String(m.val);
     const line = `║ ${m.key.padEnd(50)} │ ${valStr.padStart(12)} ${m.unit.padEnd(8)} ║`;
-    console.log(line);
+    log(line);
   });
-  console.log(helpers.bar("╚", "╝") + "\n");
+  log(helpers.bar("╚", "╝") + "\n");
+
+  if (lastMdxTitle) {
+    accumulatedMdxTable += "\n\n" + summaryBuffer.trim();
+    pushTableToMdx(lastMdxTitle, accumulatedMdxTable, lastMdxShortLabel);
+  }
 }
 
 // ── core execution ───────────────────────────────────────────────────────────
@@ -483,20 +548,69 @@ export async function setupBenchmarkServer() {
   if (apiBase) return { baseUrl: apiBase, stop: async () => {} };
 
   // Aggressive silence for startup noise
-  process.env.LOG_LEVEL = "error";
+  process.env.LOG_LEVEL = "fatal";
   process.env.QUIET = "true";
 
-  const { startServer } = await import("../../scripts/benchmark-matrix/server");
+  const { startServer, runSystemSetup } = await import("../../scripts/benchmark-matrix/server");
   const { ALL_DATABASES } = await import("../../scripts/benchmark-matrix/config");
 
   const dbType = getDbType();
   const dbConf =
     ALL_DATABASES.find((d) => (d.useRedis ? `${d.type}-redis` : d.type) === dbType) ||
     ALL_DATABASES[0];
-  const port = 4173 + (process.pid % 100);
+  const port = 4173 + Math.floor(Math.random() * 500);
 
   process.env.API_BASE_URL = `http://127.0.0.1:${port}`;
-  const { stop } = await startServer(dbConf, port, `bench_tmp_${process.pid}`);
+  const dbName = `bench_tmp_${process.pid}`;
+  process.env.DB_NAME = dbName;
+
+  // 🚀 Ensure mandatory secrets are in env for the test process too
+  const {
+    JWT_SECRET_KEY,
+    ENCRYPTION_KEY,
+    TEST_API_SECRET: configSecret,
+  } = await import("../../scripts/benchmark-matrix/config");
+  process.env.JWT_SECRET_KEY = JWT_SECRET_KEY;
+  process.env.ENCRYPTION_KEY = ENCRYPTION_KEY;
+  process.env.TEST_API_SECRET = configSecret;
+  process.env.DB_HOST = dbConf.host || "127.0.0.1";
+  process.env.DB_TYPE = dbConf.type;
+  process.env.DB_PORT = dbConf.port.toString();
+
+  const { stop: originalStop } = await startServer(dbConf, port, dbName);
+
+  const stop = async () => {
+    delete process.env.API_BASE_URL;
+    await originalStop();
+  };
+
+  // Standalone run: initialize tables after starting server
+  await runSystemSetup(dbConf, port, dbName, { QUIET: "true", LOG_LEVEL: "fatal" });
+
+  // Seed benchmark data if not running through the matrix runner
+  try {
+    const { spawn } = await import("node:child_process");
+    await new Promise<void>((resolve) => {
+      const proc = spawn(
+        "bun",
+        [
+          "run",
+          "--preload",
+          "./tests/unit/setup.ts",
+          "scripts/benchmark-matrix/setup-benchmarks.ts",
+        ],
+        {
+          env: { ...process.env, API_BASE_URL: process.env.API_BASE_URL },
+          stdio: "ignore",
+          shell: process.platform === "win32",
+        },
+      );
+      proc.on("close", () => resolve());
+    });
+  } catch {
+    // Ignore seeding errors
+  }
+
   return { baseUrl: process.env.API_BASE_URL, stop };
 }
 
@@ -544,6 +658,24 @@ export function exportResult(r: any) {
     path.join(dir, `${r.name.replace(/\s/g, "_")}.json`),
     JSON.stringify(r, null, 2),
   );
+
+  // 🚀 Automated Time-Series Trend Logging
+  try {
+    const historyFile = path.resolve(process.cwd(), RESULTS_DIR, "history.jsonl");
+    const entry =
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        name: r.name,
+        layer: r.layer || "unknown",
+        avgMs: r.avgMs,
+        p95Ms: r.p95Ms,
+        rps: r.rps,
+        db: r.db || getDbType(),
+      }) + "\n";
+    fs.appendFileSync(historyFile, entry);
+  } catch {
+    // Silent fail
+  }
 }
 
 export function checkBenchmarkEnv() {
@@ -558,6 +690,28 @@ export function exportMetric(key: string, val: number, unit: string) {
   // Simple console export for CI parsing
   const formattedVal = typeof val === "number" ? val.toFixed(3) : val;
   console.log(`METRIC: ${key}=${formattedVal}${unit}`);
+}
+
+// ── Core Utilities & Performance Assertions ───────────────────────────────────
+
+export function measureSuiteRuntime(baselineMs: number) {
+  const tStart = performance.now();
+  return {
+    assertNoRegression: () => {
+      const elapsedMs = performance.now() - tStart;
+      const threshold = baselineMs * 2;
+
+      console.log(
+        `\n⏳ Suite Execution Time: ${elapsedMs.toFixed(2)}ms (Baseline: ${baselineMs}ms)`,
+      );
+
+      if (elapsedMs > threshold) {
+        throw new Error(
+          `❌ PERFORMANCE REGRESSION: Suite execution time (${elapsedMs.toFixed(2)}ms) exceeded the regression threshold (${threshold}ms, 2x baseline).`,
+        );
+      }
+    },
+  };
 }
 
 // ── Shared Benchmark Constants ───────────────────────────────────────────────
@@ -584,8 +738,13 @@ console.log(`[benchmark-utils.ts] TEST_API_SECRET resolved: ${TEST_API_SECRET.su
  * Also registers them in the in-process contentStore for LocalCMS audits.
  */
 export async function ensureStableTestData(db: any, tenantId: string = "global") {
-  const { getDb } = await import("@src/databases/db");
+  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+  if (!db && !getDb()) {
+    await ensureFullInitialization();
+  }
   const activeDb = db || getDb();
+  if (!activeDb)
+    throw new Error("ensureStableTestData: activeDb is null after ensureFullInitialization");
 
   const schema = {
     _id: STABLE_COLLECTION,

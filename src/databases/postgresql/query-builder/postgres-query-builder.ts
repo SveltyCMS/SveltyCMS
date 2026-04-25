@@ -124,7 +124,9 @@ export class PostgresQueryBuilder<T extends BaseEntity> implements QueryBuilder<
         const column = (
           this.table as unknown as Record<string, import("drizzle-orm/pg-core").PgColumn>
         )[f as string];
-        return column ? sql`${column} ILIKE ${"%" + query + "%"}` : null;
+        return column && (column as any).dataType !== "json"
+          ? sql`${column} ILIKE ${"%" + query + "%"}`
+          : null;
       })
       .filter((c): c is import("drizzle-orm").SQL => c !== null);
     if (searchConditions.length > 0) {

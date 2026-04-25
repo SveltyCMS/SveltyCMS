@@ -77,8 +77,16 @@ To allow automated tests to manage state without internal imports, we expose a s
 To ensure this powerful endpoint never becomes a liability, it is protected by three layers of security:
 
 1.  **Build-Time Stripping**: The testing API is physically excluded from production builds. The code literally does not exist in the final artifact.
-2.  **Cryptographic Handshake**: Requires a `x-test-secret` header matching a unique UUID generated dynamically for each test run.
+2.  **Cryptographic Handshake**: Requires a `x-test-secret` header matching a unique UUID. This secret is now standardized across the **Benchmark Matrix**, **Integration Runner**, and **Playwright E2E** suites via a central configuration.
 3.  **Network Lock**: Strictly refuses any request not originating from `127.0.0.1` or `::1`.
+
+## ⚡ Benchmarking Integration (2026 Update)
+
+Our black-box methodology extends to the **Enterprise Performance Audit**. Individual benchmarks now support:
+
+- **Dynamic Port Selection**: Tests run on isolated ports to prevent cross-process pollution.
+- **Trend Detection**: Every run automatically compares latency against historical data in `history.jsonl`.
+- **Auto-Registration**: New benchmark modules automatically register their findings in the MDX technical ledger without manual boilerplate.
 
 ### Available Actions
 

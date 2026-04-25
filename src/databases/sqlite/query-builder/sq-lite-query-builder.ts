@@ -161,10 +161,7 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
           const column = (
             this.table as unknown as Record<string, import("drizzle-orm/sqlite-core").SQLiteColumn>
           )[f as string];
-          if (column) {
-            return like(column, `%${query}%`);
-          }
-          return null;
+          return column && (column as any).dataType !== "json" ? like(column, `%${query}%`) : null;
         })
         .filter((c): c is SQL => c !== null);
 

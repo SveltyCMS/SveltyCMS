@@ -18,8 +18,9 @@ else
     echo "⏩ No relevant staged files found for formatting/linting."
 fi
 
-# 2. Type Check (Svelte Check)
-echo "✅ Type Checking..."
+# 2. Codegen & Type Check (Svelte Check)
+echo "✅ Generating & Type Checking..."
+bun run paraglide
 bun run check
 
 # 3. Unit Tests (Component & Logic)

@@ -381,6 +381,33 @@ Features:
 						<div id="timezone-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.timezone}</div>
 					{/if}
 				</div>
+
+				<!-- Password Minimum Length -->
+				<div class="flex flex-col gap-1">
+					<label for="password-min-length" class="mb-1 flex items-center gap-1 text-sm font-medium">
+						<iconify-icon icon="mdi:lock-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<span class="text-black dark:text-white">Min Password Length</span>
+						<SystemTooltip title="Minimum number of characters required for user passwords. Defaults to 8.">
+							<button type="button" tabindex="-1" aria-label="Help: Password Minimum Length" class="ml-1 text-slate-400 hover:text-tertiary-500">
+								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
+							</button>
+						</SystemTooltip>
+					</label>
+
+					<input
+						id="password-min-length"
+						bind:value={systemSettings.passwordMinLength}
+						type="number"
+						min="4"
+						max="128"
+						onblur={() => handleBlur('passwordMinLength')}
+						class="input w-full rounded {displayErrors.passwordMinLength ? 'border-error-500' : 'border-slate-200'}"
+						aria-invalid={!!displayErrors.passwordMinLength}
+					/>
+					{#if displayErrors.passwordMinLength}
+						<div id="password-min-length-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.passwordMinLength}</div>
+					{/if}
+				</div>
 			</div>
 
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2 items-start pt-1">

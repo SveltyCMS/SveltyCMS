@@ -97,6 +97,8 @@ export function buildServerEnv(
     HOST: "127.0.0.1",
     ORIGIN: `http://127.0.0.1:${port}`,
     NODE_ENV: "production",
+    SKIP_GRAPHQL_WS: "true",
+    BENCHMARK: "true",
     LOG_LEVEL: "debug",
     VERBOSE_STDOUT: "true",
     PROTOCOL_HEADER: "x-forwarded-proto",
@@ -121,7 +123,7 @@ export function buildServerEnv(
  * Determines the server entry point.
  */
 export async function getServerEntryPoint(): Promise<string> {
-  return path.resolve(process.cwd(), "build", "index.js").replace(/\\/g, "/");
+  return path.resolve(process.cwd(), "build", "index.js");
 }
 
 /**
@@ -287,11 +289,33 @@ export async function warmupServer(cfg: RunConfig, port: number) {
   const eps = ["/api/system/health", "/api/collections"];
   for (let i = 0; i < 8; i++) {
     await fetch(`http://127.0.0.1:${port}${eps[i % 2]}`, {
-      headers: { "x-test-mode": "true", "x-api-secret": TEST_API_SECRET },
+      headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
       signal: AbortSignal.timeout(3000),
     }).catch(() => {});
     await new Promise((r) => setTimeout(r, 150));
   }
+
+  // Final confirmation: Try login to warm up auth pipeline
+  try {
+    const loginRes = await fetch(`http://127.0.0.1:${port}/api/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-test-mode": "true",
+        "x-test-secret": TEST_API_SECRET,
+      },
+      body: JSON.stringify({ email: "admin@example.com", password: ADMIN_PASSWORD }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (loginRes.ok) log.success("Auth pipeline warmed up (Admin login successful)");
+    else {
+      const body = await loginRes.text();
+      log.warn(`Auth warmup failed (Status ${loginRes.status}): ${body.substring(0, 100)}`);
+    }
+  } catch (err: any) {
+    log.warn(`Auth warmup skipped: ${err.message}`);
+  }
+
   await verifyOpenAPI(port);
 }
 
@@ -412,6 +436,7 @@ export async function runSystemSetup(
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     API_BASE_URL: `http://127.0.0.1:${workerPort}`,
+    SKIP_GRAPHQL_WS: "true",
     DB_TYPE: dbConf.type,
     DB_HOST: dbConf.host,
     DB_PORT: String(dbConf.port),
