@@ -6,8 +6,6 @@
  * Optimized for high-throughput environments.
  */
 
-import { logger } from "@utils/logger.server";
-
 export interface MetricSnapshot {
   category: string;
   name: string;
@@ -83,20 +81,45 @@ class MetricsCounters {
 
   startTime = Date.now();
   lastReset = Date.now();
+  lastActivity = Date.now();
 }
 
 class MetricsService {
   private globalCounters = new MetricsCounters();
   private tenantCounters = new Map<string, MetricsCounters>();
-  private resetInterval: NodeJS.Timeout | null = null;
+  private lastReset = Date.now();
+  private readonly MAX_BOTTLENECKS = 100;
+  private readonly PRUNE_INTERVAL_MS = 300_000; // 5 min
+  private readonly IDLE_THRESHOLD_MS = 600_000; // 10 min
 
   constructor() {
-    // Auto-reset every hour to prevent unbounded memory growth in long-running processes
-    this.resetInterval = setInterval(() => this.reset(), 60 * 60 * 1000);
+    // Background pruning of stale tenants
+    if (typeof setInterval !== "undefined") {
+      setInterval(() => this.pruneStaleTenants(), this.PRUNE_INTERVAL_MS);
+    }
+  }
+
+  private pruneStaleTenants(): void {
+    const now = Date.now();
+    for (const [id, counters] of this.tenantCounters.entries()) {
+      if (now - counters.lastActivity > this.IDLE_THRESHOLD_MS) {
+        this.tenantCounters.delete(id);
+      }
+    }
+  }
+
+  private shouldReset(): boolean {
+    const now = Date.now();
+    if (now - this.lastReset >= 60 * 60 * 1000) {
+      this.lastReset = now;
+      return true;
+    }
+    return false;
   }
 
   private getCounters(tenantId?: string): MetricsCounters {
     if (!tenantId || tenantId === "global") {
+      this.globalCounters.lastActivity = Date.now();
       return this.globalCounters;
     }
 
@@ -105,6 +128,7 @@ class MetricsService {
       counters = new MetricsCounters();
       this.tenantCounters.set(tenantId, counters);
     }
+    counters.lastActivity = Date.now();
     return counters;
   }
 
@@ -181,8 +205,13 @@ class MetricsService {
     c.performance.hookExecutions++;
 
     if (timeMs > 100) {
-      const count = c.performance.bottlenecks.get(hookName) || 0;
-      c.performance.bottlenecks.set(hookName, count + 1);
+      if (
+        c.performance.bottlenecks.size < this.MAX_BOTTLENECKS ||
+        c.performance.bottlenecks.has(hookName)
+      ) {
+        const count = c.performance.bottlenecks.get(hookName) || 0;
+        c.performance.bottlenecks.set(hookName, count + 1);
+      }
     }
   }
 
@@ -200,13 +229,14 @@ class MetricsService {
       case "sdk:transaction:error":
         c.api.errors += value;
         break;
-      default:
-        logger.trace(`[Metrics] Unhandled metric: ${name} = ${value}`);
     }
   }
 
   // ── Reporting ───────────────────────────────────────────
   getReport(tenantId?: string): MetricsReport {
+    if (this.shouldReset()) {
+      this.reset();
+    }
     const c = this.getCounters(tenantId);
     const now = Date.now();
     const uptime = now - c.startTime;
@@ -276,11 +306,14 @@ class MetricsService {
   reset(): void {
     this.globalCounters = new MetricsCounters();
     this.tenantCounters.clear();
-    logger.trace("Metrics service reset");
+    this.lastReset = Date.now();
   }
 
   /** Export metrics in Prometheus-compatible format */
   exportPrometheus(): string {
+    if (this.shouldReset()) {
+      this.reset();
+    }
     const global = this.globalCounters;
     const report = this.getReport();
 
@@ -305,17 +338,13 @@ class MetricsService {
         `# HELP svelty_security_violations_total Security violations`,
         `# TYPE svelty_security_violations_total counter`,
         `svelty_security_violations_total{type="rate_limit"} ${report.security.rateLimitViolations}`,
+        `# TYPE svelty_security_violations_total counter`,
         `svelty_security_violations_total{type="csp"} ${report.security.cspViolations}`,
       ].join("\n") + "\n"
     );
   }
 
-  destroy(): void {
-    if (this.resetInterval) {
-      clearInterval(this.resetInterval);
-      this.resetInterval = null;
-    }
-  }
+  destroy(): void {}
 }
 
 // ── Singleton Export ─────────────────────────────────────

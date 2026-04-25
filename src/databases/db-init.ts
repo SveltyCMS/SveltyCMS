@@ -9,23 +9,31 @@ import { updateServiceHealth } from "@src/stores/system/state";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { loadPrivateConfig } from "./config-state";
 import { KNOWN_PUBLIC_KEYS, KNOWN_PRIVATE_KEYS, CRITICAL_SETTINGS } from "./db-utils";
-import {
-  setSettingsCache,
-  invalidateSettingsCache,
-  type PublicEnv,
-} from "@src/services/settings-service";
+import type { PublicEnv } from "@src/services/settings-service";
 import type { DatabaseAdapter } from "./db-interface";
-import { metricsService } from "@src/services/metrics-service";
 
+// Lazy Holders for Server-Only Modules (Optimized for Cold-Starts & Build Safety)
+let _settingsService: any = null;
+async function getSettingsService() {
+  if (!_settingsService) {
+    _settingsService = await import("@src/services/settings-service" /* @vite-ignore */);
+  }
+  return _settingsService;
+}
+
+let _resilience: any = null;
 async function getResilience() {
-  const { getDatabaseResilience } = await import("./database-resilience");
-  return getDatabaseResilience({
-    maxAttempts: 3,
-    initialDelayMs: 500,
-    backoffMultiplier: 2,
-    maxDelayMs: 5000,
-    jitterMs: 200,
-  });
+  if (!_resilience) {
+    const { getDatabaseResilience } = await import("./database-resilience");
+    _resilience = getDatabaseResilience({
+      maxAttempts: 3,
+      initialDelayMs: 500,
+      backoffMultiplier: 2,
+      maxDelayMs: 5000,
+      jitterMs: 200,
+    });
+  }
+  return _resilience;
 }
 
 // Loads all settings from the database and populates the in-memory cache.
@@ -35,6 +43,7 @@ export async function loadSettingsFromDB(
 ): Promise<boolean> {
   try {
     if (!dbAdapter) {
+      const { invalidateSettingsCache } = await getSettingsService();
       await invalidateSettingsCache();
       return false;
     }
@@ -61,6 +70,7 @@ export async function loadSettingsFromDB(
     const privateDynamic = privateDynResult.success ? privateDynResult.data || {} : {};
 
     if (Object.keys(settings).length === 0 && !criticalOnly) {
+      const { invalidateSettingsCache } = await getSettingsService();
       await invalidateSettingsCache();
       return false;
     }
@@ -69,6 +79,7 @@ export async function loadSettingsFromDB(
     if (!privateConfig) return false;
 
     const mergedPrivate = { ...privateConfig, ...privateDynamic };
+    const { setSettingsCache } = await getSettingsService();
     await setSettingsCache(mergedPrivate as any, settings as unknown as PublicEnv);
 
     await cacheService
@@ -81,6 +92,7 @@ export async function loadSettingsFromDB(
     return true;
   } catch (error) {
     if (!criticalOnly) logger.error("Failed to load settings:", error);
+    const { invalidateSettingsCache } = await getSettingsService();
     await invalidateSettingsCache();
     return false;
   }
@@ -149,6 +161,7 @@ export async function initializeCriticalServices(dbAdapter: DatabaseAdapter) {
   const auth = new Auth(dbAdapter, getDefaultSessionStore());
   updateServiceHealth("auth", "healthy", "Authentication service ready");
 
+  const { metricsService } = await import("@src/services/metrics-service");
   metricsService.recordMetric("boot:service:auth", performance.now() - start);
   return auth;
 }
@@ -209,6 +222,7 @@ export async function runBackgroundTasks(dbAdapter: DatabaseAdapter) {
       ]);
 
       logger.info("✅ All background services ready.");
+      const { metricsService } = await import("@src/services/metrics-service");
       metricsService.recordMetric("boot:background:total", performance.now() - start);
     } catch (error) {
       logger.error("Error in background system tasks:", error);

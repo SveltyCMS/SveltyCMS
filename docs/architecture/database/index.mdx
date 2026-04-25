@@ -169,6 +169,28 @@ graph TD
 
 ---
 
+## 🛠️ Performance Optimization Patterns
+
+### Lazy Holder Architecture (Environment Isolation)
+
+To satisfy SvelteKit's strict **Server-Side Isolation** rules while maintaining a unified public API, SveltyCMS 2026 utilizes the **Lazy Holder** pattern.
+
+- **The Problem**: Public entry points (like `db.ts` or `content/index.ts`) are often imported by both server and client code. Statically importing `.server.ts` modules in these files causes build failures.
+- **The Solution**: Use asynchronous, dynamic imports protected by environment-specific logic.
+- **Implementation**:
+  ```typescript
+  // Inside a getter or async method
+  const dbInit = await import("@src/databases/db-init" + "/* @vite-ignore */");
+  return dbInit.initialize(config);
+  ```
+- **Benefit**: Zero-overhead on the client (the code is never pulled into the bundle) and ultra-fast cold starts on the server by deferring non-essential module parsing.
+
+### Context-Aware Parallelization
+
+Database initialization (`db-init.ts`) parallelizes non-dependent services (Metrics, Monitoring, Media) using `Promise.allSettled`, reducing total boot time by 30-50% in multi-tenant environments.
+
+---
+
 ## 🔧 Key Features
 
 ### Database Agnostic

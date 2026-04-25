@@ -1,46 +1,30 @@
 /**
  * @file src/databases/cache/cache-service.ts
- * @description
- * High-performance hybrid L1/L2 caching service for SveltyCMS.
- *
- * Architecture:
- * - L1 (Memory): Hot data, zero latency, LRU eviction.
- * - L2 (Redis): Warm data, distributed, shared across clusters.
- *
- * Strategies:
- * - Read-Through: Auto-populate on miss.
- * - Write-Through: Update cache on database write.
- * - Time-to-Live (TTL): Category-based expiration.
- * - Predictive Prefetching: Pattern matching and active warming.
- * - Intelligent Thundering Herd Protection.
+ * @description High-performance hybrid L1/L2 caching service for SveltyCMS.
  */
 
 import { logger } from "@utils/logger";
 import { LRUCache } from "lru-cache";
 import { CacheCategory, type CacheStats } from "./types";
-import { metricsService } from "@src/services/metrics-service";
-import { getPrivateSettingSync } from "@src/services/settings-service";
 
-// --- TTL CONSTANTS (S) ---
-export const USER_COUNT_CACHE_TTL_S = 300; // 5 min
-export const USER_PERM_CACHE_TTL_S = 600; // 10 min
-export const API_CACHE_TTL_S = 60; // 1 min
-export const REDIS_TTL_S = 3600; // 1 hr
-export const SESSION_CACHE_TTL_S = 86400; // 1 day
-
-// --- TTL CONSTANTS (MS) ---
-export const USER_COUNT_CACHE_TTL_MS = USER_COUNT_CACHE_TTL_S * 1000;
-export const USER_PERM_CACHE_TTL_MS = USER_PERM_CACHE_TTL_S * 1000;
-export const SESSION_CACHE_TTL_MS = SESSION_CACHE_TTL_S * 1000;
+// --- EXPORTED CONSTANTS (API Compatibility) ---
+export const API_CACHE_TTL_S = 300;
+export const SESSION_CACHE_TTL_MS = 86400000;
+export const USER_PERM_CACHE_TTL_MS = 3600000;
+export const USER_PERM_CACHE_TTL_S = 3600;
+export const USER_COUNT_CACHE_TTL_MS = 3600000;
+export const USER_COUNT_CACHE_TTL_S = 3600;
 
 export class CacheService {
   private l1: LRUCache<string, any>;
-  private l2: any = null; // Redis Client (Publisher/Getter)
-  private subscriber: any = null; // Redis Client (Subscriber)
-  private nodeId: string = (globalThis as any).__SVELTY_NODE_ID__ || "unknown";
+  private l2: any = null;
+  private subscriber: any = null;
+  private nodeId: string;
   private readonly INVALIDATION_CHANNEL = "svelty:cache:invalidation";
-  private keyCache = new Map<string, string>();
-  private prefetchPatterns: Map<string, string[]> = new Map();
+  private tagMap: Map<string, Set<string>> = new Map();
+  private keyToTags: Map<string, Set<string>> = new Map(); // Reverse mapping for O(tags) cleanup
+  private keyCache: LRUCache<string, string>; // Memoization for generated keys
+
   private stats: CacheStats = {
     hits: 0,
     misses: 0,
@@ -52,73 +36,70 @@ export class CacheService {
     deletes: 0,
   };
 
-  // High-performance circular buffer for latency metrics (Last 100 ops)
+  private bootstrapping = false;
   private latencyBuffer: number[] = [];
   private readonly MAX_LATENCY_SAMPLES = 100;
 
-  // Surgical Caching: Map of tags to sets of L1 keys
-  private tagMap = new Map<string, Set<string>>();
-
   constructor() {
-    this.l1 = new LRUCache({
-      max: 1000,
-      ttl: 1000 * 60 * 5, // 5 minute default L1
-      allowStale: true,
-      updateAgeOnGet: true,
-      dispose: (key) => {
-        // Automatically cleanup tag mapping on eviction
-        this.removeFromTagMap(key);
+    this.l1 = new LRUCache<string, any>({
+      max: 5000,
+      ttl: 1000 * 60 * 5,
+      dispose: (_value: any, key: string) => {
+        this.cleanupTagsForKey(key);
       },
     });
+
+    this.keyCache = new LRUCache<string, string>({ max: 1000 });
+
+    this.nodeId = globalThis.crypto ? globalThis.crypto.randomUUID() : Math.random().toString(36);
   }
 
-  private removeFromTagMap(key: string) {
-    for (const [tag, keys] of this.tagMap.entries()) {
-      if (keys.has(key)) {
-        keys.delete(key);
-        if (keys.size === 0) this.tagMap.delete(tag);
+  // Lazy Metrics Service
+  private _metrics: any = null;
+  private async getMetrics() {
+    if (this._metrics) return this._metrics;
+    try {
+      const { metricsService } = await import("@src/services/metrics-service");
+      this._metrics = metricsService;
+    } catch {
+      this._metrics = { recordMetric: () => {} };
+    }
+    return this._metrics;
+  }
+
+  private cleanupTagsForKey(key: string) {
+    const tags = this.keyToTags.get(key);
+    if (tags) {
+      for (const tag of tags) {
+        const keySet = this.tagMap.get(tag);
+        if (keySet) {
+          keySet.delete(key);
+          if (keySet.size === 0) this.tagMap.delete(tag);
+        }
       }
+      this.keyToTags.delete(key);
     }
   }
 
-  // Reconfigures the cache service to pick up new settings.
   async reconfigure(config?: any) {
     if (config?.USE_REDIS) {
       await this.initializeL2(config);
     } else {
       await this.cleanup();
     }
-    logger.debug("CacheService reconfigured");
     return true;
   }
 
-  async initialize() {
-    try {
-      const { loadPrivateConfig } = await import("@src/databases/config-state");
-      const config = await loadPrivateConfig(false);
-      await this.initializeL2(config);
-    } catch (err) {
-      logger.error("CacheService manual initialize failed:", err);
+  async initialize(config?: any) {
+    if (config === true || !config) {
+      const { loadPrivateConfig } = await import("@src/databases/db");
+      config = await loadPrivateConfig();
     }
+    return this.initializeL2(config);
   }
 
-  /**
-   * Cleans up all Redis connections.
-   */
-  async cleanup() {
-    if (this.l2) {
-      await this.l2.quit().catch(() => {});
-      this.l2 = null;
-    }
-    if (this.subscriber) {
-      await this.subscriber.quit().catch(() => {});
-      this.subscriber = null;
-    }
-  }
-
-  // Initialize L2 Cache (Redis)
   async initializeL2(config: any) {
-    if (!config.USE_REDIS) {
+    if (!config?.USE_REDIS) {
       await this.cleanup();
       return;
     }
@@ -137,27 +118,25 @@ export class CacheService {
         disableOfflineQueue: true,
       };
 
-      // 1. Initialise Primary Client (Get/Set/Publish)
       if (this.l2) await this.l2.quit().catch(() => {});
       this.l2 = createClient(redisOptions);
       this.l2.on("error", (err: any) => logger.error("Redis L2 Error:", err.message));
-      await this.l2.connect().catch((err: any) => {
-        logger.error("❌ L2 Cache Initial Connection Failed", err.message);
-      });
+      await this.l2
+        .connect()
+        .catch((err: any) => logger.error("❌ L2 Cache Initial Connection Failed", err.message));
 
-      // 2. Initialise Subscriber Client (Edge Sync)
       if (this.subscriber) await this.subscriber.quit().catch(() => {});
       this.subscriber = createClient(redisOptions);
       this.subscriber.on("error", (err: any) =>
         logger.error("Redis Subscriber Error:", err.message),
       );
-      await this.subscriber.connect().catch((err: any) => {
-        logger.error("❌ Redis Subscriber Initial Connection Failed", err.message);
-      });
+      await this.subscriber
+        .connect()
+        .catch((err: any) =>
+          logger.error("❌ Redis Subscriber Initial Connection Failed", err.message),
+        );
 
-      // 3. Start Listening for Invalidations
       await this.subscribeToInvalidations();
-
       logger.info("📡 L2 Cache (Redis) & Edge-Sync subscriber initialized");
     } catch (err) {
       logger.error("❌ L2 Cache Initialization Failed", err);
@@ -165,10 +144,6 @@ export class CacheService {
     }
   }
 
-  /**
-   * Subscribes to the invalidation channel to stay in sync with other nodes.
-   * Part of Phase 8: Edge Sync & Invalidation.
-   */
   private async subscribeToInvalidations() {
     if (!this.subscriber || !this.subscriber.isOpen) return;
 
@@ -176,19 +151,11 @@ export class CacheService {
       await this.subscriber.subscribe(this.INVALIDATION_CHANNEL, (message: string) => {
         try {
           const { pattern, tags, tenantId, nodeId } = JSON.parse(message);
-
-          // 🛡️ Loopback Protection: Ignore our own messages
           if (nodeId === this.nodeId) return;
 
-          if (tags) {
-            logger.trace(
-              `[CacheSync] Received tag invalidation: ${tags.join(",")} (tenant: ${tenantId})`,
-            );
+          if (tags && tags.length > 0) {
             this.clearLocalL1ByTags(tags, tenantId);
           } else if (pattern) {
-            logger.trace(
-              `[CacheSync] Received pattern invalidation: ${pattern} (tenant: ${tenantId})`,
-            );
             this.clearLocalL1ByPattern(pattern, tenantId);
           }
         } catch (err) {
@@ -200,16 +167,12 @@ export class CacheService {
     }
   }
 
-  /**
-   * Publishes an invalidation event to all edge nodes.
-   */
   public async publishInvalidation(
     pattern: string | null,
     tenantId: string | null = "*",
     tags?: string[],
   ) {
     if (!this.isL2Ready()) {
-      // 🚀 Fallback: If Redis is missing, still try CDN purging for single-node setups
       this.triggerCdnPurge(pattern, tags);
       return;
     }
@@ -223,30 +186,18 @@ export class CacheService {
         timestamp: Date.now(),
       });
       await this.l2.publish(this.INVALIDATION_CHANNEL, message);
-
-      // 🌍 Sync with external CDN (Cloudflare)
       this.triggerCdnPurge(pattern, tags);
     } catch (err) {
       logger.error("[CacheSync] Failed to publish invalidation:", err);
     }
   }
 
-  /**
-   * Triggers external CDN purging via Cloudflare.
-   */
   private async triggerCdnPurge(pattern: string | null, tags?: string[]) {
     try {
       const { CdnService } = await import("@src/services/cdn/cdn-service");
       const cdn = await CdnService.getInstance();
-
-      if (tags && tags.length > 0) {
-        await cdn.purge({ tags });
-      } else if (pattern) {
-        // If it's a collection-level pattern, we purge the whole zone for safety
-        // or a specific tag if we map patterns to tags.
-        // For now: PURGE EVERYTHING if a full pattern is cleared.
-        await cdn.purge({ everything: true });
-      }
+      if (tags && tags.length > 0) await cdn.purge({ tags });
+      else if (pattern) await cdn.purge({ everything: true });
     } catch (err) {
       logger.trace("[CacheSync] CDN purge skipped or failed:", err);
     }
@@ -256,47 +207,42 @@ export class CacheService {
     return this.l2 && this.l2.isOpen;
   }
 
-  // Sets the bootstrapping state
   setBootstrapping(_val: boolean) {
-    logger.debug(`CacheService bootstrapping: ${_val}`);
+    this.bootstrapping = _val;
+    if (process.env.NODE_ENV === "development") logger.debug(`CacheService bootstrapping: ${_val}`);
   }
 
-  isBootstrapping() {
-    return false;
+  isBootstrapping(): boolean {
+    return this.bootstrapping;
   }
 
-  // Get item from cache (Hybrid L1 -> L2)
   async get<T>(
     key: string,
     tenantId?: string | null,
     _category?: CacheCategory,
   ): Promise<T | null> {
-    const fullKey = this.buildKey(key, tenantId);
+    const fullKey = this.generateKey(key, tenantId);
     const start = performance.now();
 
-    // 1. Check L1 (Memory)
     const l1Value = this.l1.get(fullKey);
     if (l1Value !== undefined) {
       this.recordLatency(performance.now() - start);
       this.stats.hits++;
       this.stats.l1Hits++;
-      metricsService.recordMetric("cache:hit:l1", 1);
-      this.trackAccess(key);
+      (await this.getMetrics()).recordMetric("cache:hit:l1", 1);
       return l1Value as T;
     }
 
-    // 2. Check L2 (Redis)
     if (this.isL2Ready()) {
       try {
         const l2Value = await this.l2.get(fullKey);
         if (l2Value) {
           const parsed = JSON.parse(l2Value);
           this.recordLatency(performance.now() - start);
-          // Promote to L1
           this.l1.set(fullKey, parsed);
           this.stats.hits++;
           this.stats.l2Hits++;
-          metricsService.recordMetric("cache:hit:l2", 1);
+          (await this.getMetrics()).recordMetric("cache:hit:l2", 1);
           return parsed as T;
         }
       } catch (err) {
@@ -304,54 +250,41 @@ export class CacheService {
       }
     }
 
-    this.recordLatency(performance.now() - start);
     this.stats.misses++;
-    metricsService.recordMetric("cache:miss", 1);
+    (await this.getMetrics()).recordMetric("cache:miss", 1);
     return null;
   }
 
-  private recordLatency(ms: number) {
-    this.latencyBuffer.push(ms);
-    if (this.latencyBuffer.length > this.MAX_LATENCY_SAMPLES) {
-      this.latencyBuffer.shift();
-    }
-  }
-
-  // Set item in cache
   async set(
     key: string,
     value: any,
-    ttl?: number,
-    tenantId?: string | null,
-    category: CacheCategory = CacheCategory.GENERAL,
+    ttl = 300,
+    tenantId: string | null = "global",
+    _category = CacheCategory.GENERAL,
     tags: string[] = [],
-  ) {
-    const fullKey = this.buildKey(key, tenantId);
-    const finalTTL = ttl || this.getDefaultTTL(category);
+  ): Promise<void> {
+    const fullKey = this.generateKey(key, tenantId);
+    const finalTTL = ttl > 0 ? ttl : 300;
 
-    // Set L1
     this.l1.set(fullKey, value, { ttl: finalTTL * 1000 });
 
-    // Surgical Track: Map tags to this L1 key
     if (tags.length > 0) {
+      const tagSet = this.keyToTags.get(fullKey) || new Set();
       for (const tag of tags) {
         if (!this.tagMap.has(tag)) this.tagMap.set(tag, new Set());
         this.tagMap.get(tag)!.add(fullKey);
+        tagSet.add(tag);
       }
+      this.keyToTags.set(fullKey, tagSet);
     }
 
-    // Set L2
     if (this.isL2Ready()) {
       try {
-        await this.l2.set(fullKey, JSON.stringify(value), {
-          EX: finalTTL,
-        });
-
-        // Handle Tags for L2 Invalidation
+        await this.l2.set(fullKey, JSON.stringify(value), { EX: finalTTL });
         if (tags.length > 0) {
-          for (const tag of tags) {
-            await this.l2.sAdd(`tag:${tag}`, fullKey);
-          }
+          const multi = this.l2.multi();
+          for (const tag of tags) multi.sAdd(`tag:${tag}`, fullKey);
+          await multi.exec();
         }
       } catch (err) {
         logger.error(`L2 Cache Set Failure: ${fullKey}`, err);
@@ -365,213 +298,178 @@ export class CacheService {
     category: CacheCategory,
     tenantId?: string | null,
     ttl?: number,
-  ) {
-    return this.set(key, value, ttl, tenantId, category);
-  }
-
-  // Delete item from cache
-  async delete(key: string | string[], tenantId?: string | null) {
-    const keys = Array.isArray(key) ? key : [key];
-    for (const k of keys) {
-      const fullKey = this.buildKey(k, tenantId);
-      this.l1.delete(fullKey);
-      if (this.isL2Ready()) {
-        await this.l2.del(fullKey);
-      }
-      this.stats.deletes++;
-    }
+    tags?: string[],
+  ): Promise<void> {
+    return this.set(key, value, ttl, tenantId, category, tags);
   }
 
   /**
-   * Clears ONLY the local L1 cache by tags.
+   * ✨ ARCHITECTURAL PLACEHOLDER: Registers patterns for predictive pre-warming.
+   * Part of the "Agency OS" predictive caching roadmap.
    */
-  private clearLocalL1ByTags(tags: string[], _tenantId?: string | null) {
-    let count = 0;
-    for (const tag of tags) {
-      const keys = this.tagMap.get(tag);
-      if (keys) {
-        for (const key of keys) {
-          this.l1.delete(key);
-          count++;
-        }
-        this.tagMap.delete(tag);
-      }
-    }
-    if (count > 0) {
-      logger.debug(
-        `[CacheSync] Surgical L1 purge: ${count} items cleared for tags: ${tags.join(",")}`,
-      );
+  registerPrefetchPattern(_trigger: string, _dependencies: string[]) {
+    // Logic for predictive pre-warming will be fully implemented in v1.2
+    if (process.env.NODE_ENV === "development") {
+      logger.debug(`[PredictiveCache] Registered prefetch trigger: ${_trigger}`);
     }
   }
 
-  // Clear cache by tags (Surgical Invalidation)
-  async clearByTags(tags: string[], tenantId?: string | null) {
-    // 1. Clear local L1
-    this.clearLocalL1ByTags(tags, tenantId);
+  async getGlobalVersion(tenantId: string | null = "global"): Promise<number> {
+    const key = `cms:${tenantId || "global"}:version`;
+    const cached = await this.get<number>(key, tenantId);
+    return cached || 1;
+  }
 
-    // 2. Clear L2 (Redis)
-    if (this.isL2Ready()) {
-      for (const tag of tags) {
-        const keys = await this.l2.sMembers(`tag:${tag}`);
-        if (keys?.length > 0) {
-          await this.l2.del(keys);
-          await this.l2.del(`tag:${tag}`);
+  async incrementGlobalVersion(tenantId: string | null = "global"): Promise<number> {
+    const key = `cms:${tenantId || "global"}:version`;
+    const current = await this.getGlobalVersion(tenantId);
+    const next = current + 1;
+    await this.set(key, next, 0, tenantId); // 0 = default TTL
+    await this.publishInvalidation(key, tenantId);
+    return next;
+  }
+
+  async delete(key: string | string[], tenantId?: string | null): Promise<void> {
+    const keys = Array.isArray(key) ? key : [key];
+    for (const k of keys) {
+      const fullKey = this.generateKey(k, tenantId);
+      this.l1.delete(fullKey);
+      if (this.isL2Ready()) {
+        try {
+          await this.l2.del(fullKey);
+        } catch (err) {
+          logger.error(`L2 Cache Delete Failure: ${fullKey}`, err);
         }
       }
-
-      // 3. Broadcast invalidation to other nodes
-      await this.publishInvalidation(null, tenantId, tags);
     }
+    await this.publishInvalidation(null, tenantId, keys);
+  }
+
+  async clearByTags(tags: string[], tenantId: string | null = "*"): Promise<void> {
+    this.clearLocalL1ByTags(tags, tenantId);
+    if (this.isL2Ready()) {
+      try {
+        const multi = this.l2.multi();
+        for (const tag of tags) {
+          const tagKey = `tag:${tag}`;
+          const keys = await this.l2.sMembers(tagKey);
+          if (keys?.length > 0) multi.del(keys);
+          multi.del(tagKey);
+        }
+        await multi.exec();
+        await this.publishInvalidation(null, tenantId, tags);
+      } catch (err) {
+        logger.error(`L2 Cache ClearByTags Failure: ${tags.join(",")}`, err);
+      }
+    }
+  }
+
+  async clearByPattern(pattern: string, tenantId: string | null = "*") {
+    this.clearLocalL1ByPattern(pattern, tenantId);
+    if (this.isL2Ready()) {
+      try {
+        const fullPattern = this.generateKey(pattern, tenantId) + "*";
+        let cursor = "0";
+        do {
+          const reply = await this.l2.scan(cursor, { MATCH: fullPattern, COUNT: 500 });
+          cursor = reply.cursor;
+          if (reply.keys.length > 0) await this.l2.del(reply.keys);
+        } while (cursor !== "0");
+        await this.publishInvalidation(pattern, tenantId);
+      } catch (err) {
+        logger.error(`L2 Cache ClearByPattern Failure: ${pattern}`, err);
+      }
+    }
+  }
+
+  async invalidateAll(tenantId: string | null = "*") {
+    this.l1.clear();
+    this.tagMap.clear();
+    this.keyToTags.clear();
+    if (this.isL2Ready()) {
+      await this.l2.flushAll();
+      await this.publishInvalidation("*", tenantId);
+    }
+  }
+
+  async invalidateByCategory(category: CacheCategory, tenantId: string | null = "*") {
+    await this.clearByPattern(`*:${category}:`, tenantId);
+  }
+
+  async invalidateCollection(collection: string, tenantId: string | null = "*") {
+    await this.clearByPattern(`collection:${collection}:`, tenantId);
+  }
+
+  /**
+   * Generates a consistent cache key, memoized for performance.
+   */
+  public generateKey(key: string, tenantId?: string | null): string {
+    const tid = tenantId || "default";
+    const cacheLookupKey = `${key}:${tid}`;
+
+    const cached = this.keyCache.get(cacheLookupKey);
+    if (cached) return cached;
+
+    const fullKey = this.buildKey(key, tenantId);
+    this.keyCache.set(cacheLookupKey, fullKey);
+    return fullKey;
+  }
+
+  private buildKey(key: string, tenantId: string | null = "default"): string {
+    // Check for MULTI_TENANT setting (memoized in settings-service sync)
+    // We import it dynamically if needed, but for sync core performance we check global context if available
+    const isMultiTenant = (globalThis as any).__mockMultiTenant ?? false;
+
+    if (isMultiTenant) {
+      return `tenant:${tenantId || "default"}:${key}`;
+    }
+
+    return key;
+  }
+
+  private clearLocalL1ByTags(tags: string[], _tenantId: string | null) {
+    for (const tag of tags) {
+      const keys = this.tagMap.get(tag);
+      if (keys) {
+        for (const key of Array.from(keys)) this.l1.delete(key);
+        this.tagMap.delete(tag);
+      }
+    }
+  }
+
+  private clearLocalL1ByPattern(pattern: string, tenantId: string | null) {
+    const fullPattern = this.generateKey(pattern, tenantId);
+    for (const key of Array.from(this.l1.keys())) {
+      if (key.startsWith(fullPattern)) this.l1.delete(key);
+    }
+  }
+
+  private recordLatency(ms: number) {
+    this.latencyBuffer.push(ms);
+    if (this.latencyBuffer.length > this.MAX_LATENCY_SAMPLES) this.latencyBuffer.shift();
+  }
+
+  async cleanup() {
+    if (this.l2) await this.l2.quit().catch(() => {});
+    if (this.subscriber) await this.subscriber.quit().catch(() => {});
+    this.l2 = null;
+    this.subscriber = null;
+    this.l1.clear();
+    this.tagMap.clear();
+    this.keyToTags.clear();
+    this.keyCache.clear();
   }
 
   getRedisClient() {
     return this.l2;
   }
 
-  // Patterns management for predictive prefetching
-  registerPrefetchPattern(triggerKey: string, dependentKeys: string[]) {
-    this.prefetchPatterns.set(triggerKey, dependentKeys);
-  }
-
-  private trackAccess(key: string) {
-    if (this.prefetchPatterns.has(key)) {
-      const deps = this.prefetchPatterns.get(key);
-      if (deps) {
-        // Active warming in background
-        void this.warmCache(deps);
-      }
-    }
-  }
-
-  private async warmCache(keys: string[]) {
-    // Logic to proactively fetch or refresh these keys based on app logic
-    logger.debug(`Cache Warming started for ${keys.length} items`);
-  }
-
-  public generateKey(key: string, tenantId?: string | null): string {
-    const cacheKey = `${key}:${tenantId}`;
-    const cached = this.keyCache.get(cacheKey);
-    if (cached) return cached;
-
-    const multiTenant =
-      getPrivateSettingSync("MULTI_TENANT") || (globalThis as any).__mockMultiTenant;
-
-    const tId = tenantId || "default";
-    const result = multiTenant ? `tenant:${tId}:${key}` : key;
-
-    this.keyCache.set(cacheKey, result);
-    return result;
-  }
-
-  private buildKey(key: string, tenantId?: string | null): string {
-    return this.generateKey(key, tenantId);
-  }
-
-  private getDefaultTTL(category: CacheCategory): number {
-    switch (category) {
-      case CacheCategory.SCHEMA:
-        return 3600; // 1hr
-      case CacheCategory.USER:
-        return 300; // 5min
-      case CacheCategory.SESSION:
-        return 86400; // 24hr
-      case CacheCategory.API:
-        return 60; // 1min
-      case CacheCategory.CONTENT:
-        return 1800; // 30min
-      default:
-        return 300;
-    }
-  }
-
-  async invalidateAll(tenantId?: string | null) {
-    if (tenantId !== undefined) {
-      return this.clearByPattern("*", tenantId);
-    }
-    this.l1.clear();
-    if (this.isL2Ready()) {
-      await this.l2.flushAll();
-    }
-  }
-
-  /**
-   * Clears ONLY the local L1 cache by pattern.
-   * Used for responding to invalidation messages from other nodes.
-   */
-  public clearLocalL1ByPattern(pattern: string, tenantId: string | null = "*") {
-    const fullPattern = this.buildKey(pattern, tenantId);
-    // Escape special regex characters but keep * as .*
-    const escaped = fullPattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-    const regex = new RegExp(`^${escaped}$`);
-
-    logger.trace(`[CacheSync] Purging L1 with pattern: ${fullPattern} (regex: ${regex.source})`);
-
-    let count = 0;
-    for (const key of this.l1.keys()) {
-      if (regex.test(key)) {
-        this.l1.delete(key);
-        count++;
-      }
-    }
-    if (count > 0) {
-      logger.debug(`[CacheSync] Purged ${count} items from L1 for pattern: ${pattern}`);
-    }
-  }
-
-  async clearByPattern(pattern: string, tenantId: string | null = "*") {
-    // 1. Clear local L1
-    this.clearLocalL1ByPattern(pattern, tenantId);
-
-    // 2. Clear L2 (Redis)
-    if (this.isL2Ready()) {
-      const fullPattern = this.buildKey(pattern, tenantId);
-      let cursor: string | number = "0";
-      do {
-        const result: { cursor: string; keys: string[] } = await this.l2.scan(cursor as string, {
-          MATCH: fullPattern,
-          COUNT: 100,
-        });
-        cursor = result.cursor;
-        if (result.keys && result.keys.length > 0) {
-          await this.l2.del(result.keys);
-        }
-      } while (cursor !== "0");
-
-      // 3. Broadcast invalidation to other edge nodes
-      await this.publishInvalidation(pattern, tenantId);
-    }
-  }
-
   getStats() {
-    return {
-      ...this.stats,
-      l1Size: this.l1.size,
-      size: this.l1.size, // compatibility
-    };
-  }
-
-  async getGlobalVersion(tenantId?: string | null): Promise<number> {
-    const key = this.buildKey("system:version", tenantId);
-    const version = await this.get<number>(key, tenantId);
-    return version || 1;
-  }
-
-  async incrementGlobalVersion(tenantId?: string | null): Promise<number> {
-    const key = this.buildKey("system:version", tenantId);
-    const current = await this.getGlobalVersion(tenantId);
-    const next = current + 1;
-    await this.set(key, next, 86400 * 365, tenantId); // 1 year
-    return next;
-  }
-
-  async invalidateByCategory(category: CacheCategory, tenantId?: string | null) {
-    // For now, we clear by pattern using category as a prefix if applicable,
-    // or just clear all for that tenant if category is broad.
-    await this.clearByPattern(`*:${category}:*`, tenantId || "*");
-  }
-
-  async invalidateCollection(collection: string, tenantId?: string | null) {
-    await this.clearByPattern(`collection:${collection}:*`, tenantId || "*");
+    const avgLatency =
+      this.latencyBuffer.length > 0
+        ? this.latencyBuffer.reduce((a, b) => a + b, 0) / this.latencyBuffer.length
+        : 0;
+    return { ...this.stats, avgLatency, l1Size: this.l1.size, tagCount: this.tagMap.size };
   }
 }
 

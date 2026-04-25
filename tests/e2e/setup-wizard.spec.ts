@@ -162,8 +162,17 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   // --- STEP 1: Database Configuration ---
   console.log("Step 1: Database Configuration...");
 
+  // Force clean state by clicking Reset Data if present (helps in CI reuse)
+  const resetBtn = page.getByRole("button", { name: /reset data/i });
+  if (await resetBtn.isVisible()) {
+    console.log("[SetupWizard] Existing data detected. Clicking Reset Data for fresh test...");
+    await resetBtn.click();
+    await page.waitForTimeout(1000);
+  }
+
   // Select SQLite (default for E2E tests)
   const dbType = process.env.DB_TYPE || "sqlite";
+
   const dbHost = process.env.DB_HOST || (dbType === "sqlite" ? "config/database" : "localhost");
   const dbName =
     process.env.DB_NAME || (dbType === "sqlite" ? "sveltycms_test.db" : "sveltycms_test");
@@ -240,6 +249,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   const successMsgAlt = page.getByText(/connected successfully/i).first();
 
   async function waitForDbTestSuccess(): Promise<boolean> {
+    console.log("[SetupWizard] Waiting for database connection success indicators...");
     // Attempt 1: wait up to 45s for "Success!" heading or the generic success text
     try {
       // Promise.any: resolves as soon as ANY check passes (unlike race, tolerates individual failures)
@@ -248,9 +258,16 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
         expect(successMsgAlt).toBeVisible({ timeout: 45000 }),
         expect(nextButton).toBeEnabled({ timeout: 45000 }),
       ]);
-      console.log("Database connection successful (detected via UI state).");
+
+      // Additional safety: ensure it stays enabled for a moment
+      await page.waitForTimeout(500);
+      const isEnabled = await nextButton.isEnabled();
+      console.log(
+        `[SetupWizard] Database connection successful. Next button enabled: ${isEnabled}`,
+      );
       return true;
-    } catch {
+    } catch (err) {
+      console.log(`[SetupWizard] Success indicators not found: ${err}`);
       return false;
     }
   }

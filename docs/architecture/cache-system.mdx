@@ -106,6 +106,15 @@ export enum CacheCategory {
 await cacheService.setWithCategory("user:123", userData, CacheCategory.USER, tenantId);
 ```
 
+### Performance Hardening (Audit 2.0)
+
+The 2026 Enterprise Cache Engine includes several high-performance patterns to ensure sub-millisecond persistence:
+
+- **O(1) Tag-Based Eviction**: Utilizes a reverse mapping (`keyToTags`) to perform instantaneous L1 invalidations. Instead of scanning the entire cache, the system targets specific keys associated with a modified entity.
+- **Redis Pipelining**: Uses `.multi()` for batched invalidations and tag updates, reducing network round-trips to the Redis L2 layer.
+- **Metrics Capping**: All latency tracking buffers are capped at 100 samples with automatic shifting, preventing memory growth.
+- **Isomorphic Environment Isolation**: Uses **Lazy Holders** for all `.server` modules within the cache system to prevent server-side logic from leaking into client-side bundles.
+
 ### Integrated Cache Metrics
 
 Real-time monitoring is integrated directly into the `CacheService`, utilizing high-performance **circular buffers** to track hit rates and latency without memory bloat.

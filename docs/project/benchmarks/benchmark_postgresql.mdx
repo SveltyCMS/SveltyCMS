@@ -124,8 +124,19 @@ xychart-beta
 <!-- ACID_TABLE_END -->
 
 <!-- CACHE_TABLE_START -->
-> ⏳ **System Cache Efficiency**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/cache-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/cache-performance.test.ts)
+### 🏷️ CACHE EFFICIENCY AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                    SVELTYCMS  —  CACHE EFFICIENCY AUDIT                     ║
+║                   Cold Bypass vs Warm Hit • E2E Pipeline                    ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Cache Miss (Bypass)          │ 0.598 ms       │ 1.050 ms     │ 1,672        ║
+║ Cache Hit (Warm)             │ 0.310 ms       │ 0.353 ms     │ 3,231        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- CACHE_TABLE_END -->
 
 <!-- HOOKS_TABLE_START -->
@@ -192,8 +203,18 @@ xychart-beta
 <!-- MIXED_TABLE_END -->
 
 <!-- MEMORY_TABLE_START -->
-> ⏳ **Memory Stability & GC Behavior**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/memory-stability.test.ts](file:///D:/SveltyCMS/tests/benchmarks/memory-stability.test.ts)
+### 🏷️ MEMORY STABILITY AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                    SVELTYCMS  —  MEMORY STABILITY AUDIT                     ║
+║            Full Pipeline • Child Process Profiling • 30s Sustain            ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Enterprise Production Profile │ 0.289 ms       │ 0.000 ms     │ 3,459        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- MEMORY_TABLE_END -->
 
 <!-- GQL_TABLE_START -->

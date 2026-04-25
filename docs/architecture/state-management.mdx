@@ -49,6 +49,9 @@ SveltyCMS 2026 utilizes a **Context-Aware Phased Boot** to minimize resource was
 
 This **Just-In-Time (JIT) Escalation** ensures that the Setup Wizard remains ultra-lean and starts in milliseconds, even in environments with hundreds of custom collections.
 
+> [!TIP]
+> **Logical vs. Technical Lazy Loading**: While **Phased Initialization** handles the *logical* order of service startup, SveltyCMS uses the **[Lazy Holder](./database/index.mdx#lazy-holder-architecture)** technical pattern to ensure physical code isolation, preventing server-only modules from leaking into client bundles.
+
 ---
 
 ## 🛡️ Request Gating Middleware

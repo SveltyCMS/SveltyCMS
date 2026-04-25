@@ -39,6 +39,7 @@ class RedisBus {
   }
 
   createClient(id: string) {
+    const storage = new Map<string, string>();
     return {
       id,
       isOpen: true,
@@ -46,9 +47,30 @@ class RedisBus {
       quit: async () => {},
       publish: async (chan: string, msg: string) => this.publish(chan, msg),
       subscribe: async (chan: string, cb: (msg: string) => void) => this.subscribe(chan, cb),
+      get: async (key: string) => storage.get(key) || null,
+      set: async (key: string, val: string) => {
+        storage.set(key, val);
+      },
+      del: async (key: string) => {
+        storage.delete(key);
+      },
       sMembers: async () => [],
-      del: async () => {},
       sAdd: async () => {},
+      scan: async (_cursor: string) => ({ cursor: "0", keys: Array.from(storage.keys()) }),
+      multi: () => {
+        const pipeline: any[] = [];
+        return {
+          del: (key: string) => {
+            pipeline.push(() => storage.delete(key));
+            return this;
+          },
+          exec: async () => {
+            for (const fn of pipeline) fn();
+            return [];
+          },
+          length: 0,
+        };
+      },
     };
   }
 }

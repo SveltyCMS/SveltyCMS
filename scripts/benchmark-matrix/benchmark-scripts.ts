@@ -39,7 +39,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "high",
     estimatedMs: 85_000,
     desc: "Measures production bundle size, chunk count, and build performance.",
-    lastRun: "2026-04-24T19:57:34.037Z",
+    lastRun: "2026-04-25T06:15:07.967Z",
     strategy: "once",
   },
   {
@@ -51,7 +51,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "medium",
     estimatedMs: 35_000,
     desc: "Direct low-level benchmarks of Create, Read, Update, Delete on the current database adapter.",
-    lastRun: "2026-04-24T19:57:46.649Z",
+    lastRun: "2026-04-25T05:36:44.734Z",
     strategy: "all",
   },
   {
@@ -63,7 +63,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "medium",
     estimatedMs: 25_000,
     desc: "Measures commit/rollback latency and transaction isolation performance.",
-    lastRun: "2026-04-24T19:57:47.964Z",
+    lastRun: "2026-04-25T05:36:46.053Z",
     strategy: "all",
   },
   {
@@ -75,7 +75,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "medium",
     estimatedMs: 15_000,
     desc: "Audits the performance gain of the 2-layer Hybrid Cache across various system modules.",
-    lastRun: "2026-04-24T19:58:00.271Z",
+    lastRun: "2026-04-25T06:15:19.220Z",
     strategy: "sql",
   },
   {
@@ -87,7 +87,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "low",
     estimatedMs: 8_000,
     desc: "Measures the 99.9% Self-Healing Cache scanner across the .compiledCollections directory.",
-    lastRun: "2026-04-24T19:58:11.500Z",
+    lastRun: "2026-04-25T06:15:37.931Z",
     strategy: "once",
   },
   {
@@ -111,7 +111,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "medium",
     estimatedMs: 25_000,
     desc: "Audits server-side processing cost of built-in widgets (Input, RichText, Relation).",
-    lastRun: "2026-04-24T19:58:22.827Z",
+    lastRun: "2026-04-25T05:41:05.115Z",
     strategy: "once",
   },
   {
@@ -195,7 +195,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "low",
     estimatedMs: 20_000,
     desc: "Impact of Fail-Closed Dispatcher, Payload scanning, and SHA-256 Audit Chaining.",
-    lastRun: "2026-04-24T19:58:50.290Z",
+    lastRun: "2026-04-25T06:16:24.806Z",
     strategy: "once",
   },
   {
@@ -207,7 +207,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "medium",
     estimatedMs: 15_000,
     desc: "Benchmarks WebSocket connection/broadcast latency.",
-    lastRun: "2026-04-24T19:58:51.294Z",
+    lastRun: "2026-04-25T06:16:25.334Z",
     strategy: "once",
   },
   {
@@ -232,7 +232,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "high",
     estimatedMs: 60_000,
     desc: "Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.",
-    lastRun: "2026-04-24T19:58:58.764Z",
+    lastRun: "2026-04-25T05:38:14.772Z",
     strategy: "all",
   },
   {
@@ -245,7 +245,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 70_000,
     timeoutMs: 600_000,
     desc: "Long-running soak test to identify memory leaks and GC pressure.",
-    lastRun: "2026-04-24T19:59:28.826Z",
+    lastRun: "2026-04-25T05:58:42.645Z",
     strategy: "all",
   },
   {
@@ -258,7 +258,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 60_000,
     timeoutMs: 600_000,
     desc: "High-concurrency GraphQL query stress test for resolver efficiency.",
-    lastRun: "2026-04-24T19:59:30.541Z",
+    lastRun: "2026-04-25T05:38:21.990Z",
     strategy: "all",
   },
   {
@@ -283,6 +283,6 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 8_000,
     desc: "Measures the overhead of telemetry data collection and cryptographic signing.",
     strategy: "once",
-    lastRun: "2026-04-24T19:59:51.394Z",
+    lastRun: "2026-04-25T06:16:28.931Z",
   },
 ];
