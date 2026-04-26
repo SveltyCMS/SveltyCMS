@@ -1,37 +1,37 @@
 ---
-path: "docs/project/benchmarks/README.mdx"
-title: "Master Performance Leaderboard"
-description: "Cross-database performance benchmarks and SLA verification for SveltyCMS."
-author: "SveltyCMS Team"
-created: "2026-04-26"
-updated: "2026-04-26"
-tags:
-  - "benchmarks"
-  - "performance"
-  - "database"
+title: "Database Showdown: Master Performance Ledger"
+description: "Cross-engine performance comparison for SveltyCMS 2026."
+order: 1
+icon: "mdi:trophy-outline"
 ---
 
-# 🏆 Master Performance Leaderboard
+# 🏆 Database Showdown (April 2026)
 
-SveltyCMS undergoes continuous performance auditing across all supported database engines. This page serves as the central index for the latest benchmark reports.
+> [!IMPORTANT]
+> This leaderboard is automatically aggregated from the latest individual database audits. 
+> Last Updated: 26/04/2026, 16:42:27
 
-## 📊 Database-Specific Reports
+## 📊 The Elite Leaderboard
 
-- [🐬 **MariaDB**](./benchmark_mariadb.mdx)
-- [🐬 **MariaDB + Redis**](./benchmark_mariadb_redis.mdx)
-- [🍃 **MongoDB**](./benchmark_mongodb.mdx)
-- [🍃 **MongoDB + Redis**](./benchmark_mongodb_redis.mdx)
-- [🐘 **PostgreSQL**](./benchmark_postgresql.mdx)
-- [🐘 **PostgreSQL + Redis**](./benchmark_postgresql_redis.mdx)
-- [📁 **SQLite**](./benchmark_sqlite.mdx)
-- [📁 **SQLite + Redis**](./benchmark_sqlite_redis.mdx)
+| Metric | 🚀 SQLite | 🐬 MariaDB | 🐘 Postgres | 🍃 MongoDB |
+| :--- | :--- | :--- | :--- | :--- |
+| **REST Read (p95)** | 91µs | 0.00ms | 0.00ms | 0.00ms |
+| **Insert Latency** | 0.00ms | 0.00ms | 0.00ms | 0.00ms |
+| **GraphQL (Avg)** | 0.00ms | 0.00ms | 0.00ms | 0.00ms |
+| **Ingestion (10k)** | ${m.sqlite.mig} | ${m.mariadb.mig} | ${m.postgresql.mig} | ${m.mongodb.mig} |
+| **Peak RPS** | 0 | 0 | 0 | 0 |
+| **Stability Grade** | **ELITE** | **ENTERPRISE** | **ULTRA** | **SCALABLE** |
 
-## 🔬 Methodology
+## 🏁 Technical Summary
 
-Our benchmarks focus on real-world scenarios:
-- **REST/GraphQL Latency**: p95 response times.
-- **Bulk Ingestion**: Entries per second.
-- **Memory Stability**: RSS and Heap growth under sustained load.
-- **ACID Integrity**: Transaction overhead and rollback safety.
+SveltyCMS achieves **Database Agnosticism** without sacrificing performance. While **SQLite** leads in raw speed for edge deployments, **PostgreSQL** and **MariaDB** offer the best ACID balance for multi-tenant clusters, and **MongoDB** provides the highest flexibility for unstructured content growth.
 
-For more details on our testing strategy, see [Testing Strategy](../../tests/strategy.mdx).
+---
+
+## 🔬 Individual Ledgers
+- [🚀 SQLite Audit](./benchmark_sqlite.mdx)
+- [🐬 MariaDB Audit](./benchmark_mariadb.mdx)
+- [🐘 PostgreSQL Audit](./benchmark_postgresql.mdx)
+- [🍃 MongoDB Audit](./benchmark_mongodb.mdx)
+
+<!-- COMPARISON_END -->
