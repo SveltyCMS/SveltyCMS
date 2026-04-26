@@ -14,7 +14,7 @@ import type { IDBAdapter } from "@src/databases/db-interface";
 import { generateCategoryNodesFromPaths } from "./content-utils";
 import { eventBus, SystemEvents } from "@utils/event-bus";
 import { cacheService } from "@src/databases/cache/cache-service";
-import { generateSchemaHash, loadSchemaNative } from "./module-processor";
+import { generateSchemaHash, loadSchemaNative } from "./module-processor.server";
 
 /**
  * Enriches a schema with deterministic ID and SEO-optimized paths based on its filesystem location.
@@ -142,22 +142,30 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
 
 /**
  * 🚀 ULTRA ELITE: Fast-path for benchmarks to ensure collection visibility.
- * Manually forces a sync of the contentStore with the filesystem.
+ * Manually forces a sync of the contentStore with the filesystem and ensures system tables exist.
  */
 export async function refreshCollectionsCache(tenantId?: string | null, db?: IDBAdapter) {
   const schemas = await scanCompiledCollections();
-  const nodes = schemas.map(schema => ({
+  const nodes = schemas.map((schema) => ({
     _id: schema._id,
     nodeType: "collection",
     path: schema.path,
     name: schema.name,
     collectionDef: schema,
-    tenantId: tenantId || "global"
+    tenantId: tenantId || "global",
   }));
-  
+
   contentStore.sync(nodes as any);
-  if (db && typeof (db as any).reconcile === "function") {
-    await (db as any).reconcile();
+
+  // 🏗️ ENSURE SYSTEM INTEGRITY: Even in fast-path, we need system tables
+  if (db) {
+    if (typeof (db as any).reconcile === "function") {
+      await (db as any).reconcile();
+    }
+    // Ensure core system tables (Workflow, Webhooks, etc) are present
+    if ((db.collection as any)?.ensureSystemTables) {
+      await (db.collection as any).ensureSystemTables();
+    }
   }
 }
 

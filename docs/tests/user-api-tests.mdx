@@ -23,25 +23,26 @@ Complete test coverage for all user-related API endpoints in SveltyCMS, now secu
 ## Test Overview
 
 - **Test Files**: `tests/unit/api/user.test.ts`, `auth-2fa.test.ts`, `security.test.ts`, `signup.test.ts`
-- **Total Suite**: ~670 highly performant unit tests
+- **Total Suite**: 753 highly performant unit tests (consolidated)
 - **Coverage**: 100% (All core user endpoints)
-- **Framework**: Vitest 3.0 (Vite 7)
+- **Framework**: Vitest 4.0 / Bun 1.3.11
 
 ## Endpoint Coverage
 
 | Endpoint                               | Tests | Status |
 | -------------------------------------- | ----- | ------ |
-| `POST /api/user/create-user`           | 4     | ✅     |
-| `POST /api/user/login`                 | 2     | ✅     |
-| `PUT /api/user/update-user-attributes` | 4     | ✅     |
-| `POST /api/user/batch`                 | 2     | ✅     |
-| `POST /api/user/logout`                | 1     | ✅     |
-| `POST /api/user/save-avatar`           | 6     | ✅     |
-| `DELETE /api/user/delete-avatar`       | 5     | ✅     |
-| `GET /api/user` (index)                | 1     | ✅     |
-| `POST /api/user` (invitations)         | 5     | ✅     |
-| **Fail-Closed Security**               | 24    | ✅     |
-| **Session Management**                 | 3     | ✅     |
+| `POST /api/user/create-user`           | 8     | ✅     |
+| `POST /api/user/login`                 | 4     | ✅     |
+| `PUT /api/user/update-user-attributes` | 8     | ✅     |
+| `POST /api/user/batch`                 | 6     | ✅     |
+| `POST /api/user/logout`                | 2     | ✅     |
+| `POST /api/user/save-avatar`           | 8     | ✅     |
+| `DELETE /api/user/delete-avatar`       | 8     | ✅     |
+| `GET /api/user` (index)                | 4     | ✅     |
+| `POST /api/user` (invitations)         | 12    | ✅     |
+| **Fail-Closed Security v2.0**          | 45    | ✅     |
+| **Audit Chaining (Worker Pool)**       | 12    | ✅     |
+| **TOTP Timing Resistance**             | 6     | ✅     |
 
 ---
 

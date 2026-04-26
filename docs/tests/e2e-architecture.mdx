@@ -15,18 +15,29 @@ sidebar_position: 2
 
 # Black-box E2E – How the layers connect
 
+SveltyCMS uses a **Parallel Worker Isolation** strategy to achieve high-concurrency E2E testing without database locks.
+
+### ⚡ Database-per-Worker Isolation
+
+To maximize performance in April 2026, we standardized on header-based database routing:
+
+1.  **Header Propagation**: Playwright includes an `x-test-worker-index` header in every request.
+2.  **Dynamic Connection Map**: The SQLite adapter parses this index and maintains a map of dedicated worker-specific files (e.g., `cms_worker_1.db`, `cms_worker_2.db`).
+3.  **Zero Contention**: Each worker operates on its own physical file, allowing us to run **4+ parallel workers** with 100% isolation.
+
 ```mermaid
 sequenceDiagram
     participant CI
-    participant PW as Playwright
-    participant DB
+    participant PW as Playwright (Worker 1)
+    participant DB as SQLite (worker_1.db)
     participant App as Preview Server
 
-    CI->>PW: npx playwright test --project=chromium --shard=1/3
-    Note over PW,App: Shard 1 starts fresh /tmp/db-1.db
+    CI->>PW: npx playwright test --workers=4
+    Note over PW,App: Worker 1 sends x-test-worker-index: 1
 
-    PW->>App: Start preview on port 4173
-    PW->>DB: Empty DB (:memory: or file)
+    PW->>App: GET /api/system/health
+    App->>DB: Check connection for worker_1
+...
 
     alt Wizard project (runs once per shard)
         PW->>App: Visit / → detect wizard UI

@@ -1,10 +1,16 @@
 ---
+path: "docs/project/benchmarks/benchmark_mongodb.mdx"
 title: MONGODB Performance Audit
 description: Enterprise performance trends for MONGODB.
 order: 5
 icon: "mdi:speedometer"
 author: "SveltyCMS Team"
-updated: "2026-04-25"
+created: "2026-04-26"
+updated: "2026-04-26"
+tags:
+  - "benchmark"
+  - "performance"
+  - "mongodb"
 ---
 
 # 🍃 MONGODB Performance Ledger
@@ -37,26 +43,28 @@ xychart-beta
 ## 🔬 Detailed Performance Ledger (20+ Modules)
 
 <!-- API_TABLE_START -->
-### 🏷️ API LAYER LATENCY
+### 🏷️ API LAYER LATENCY (Trend: 🟢 -77.0%)
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                       SVELTYCMS  —  API LAYER LATENCY                       ║
 ║                Local SDK vs Full HTTP Pipeline • IQR trimmed                ║
+║                 File: tests/benchmarks/api-latency.test.ts                  ║
+║ Proves: Measures the base network and HTTP overhead for the simplest pos... ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ SDK: findById @ 1c           │ 0.012 ms       │ 0.021 ms     │ 81,429       ║
-║ HTTP: findById @ 8c          │ 0.587 ms       │ 0.631 ms     │ 1,704        ║
+║ SDK: findById @ 1c           │ 0.003 ms (🟢 -39.8%) │ 0.005 ms     │ 347,899      ║
+║ HTTP: findById @ 8c          │ 0.415 ms (🟢 -77.0%) │ 0.442 ms     │ 2,411        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ SDK Latency (findById)                             │        0.012 ms       ║
-║ HTTP Latency (findById)                            │        0.587 ms       ║
-║ Full Pipeline Overhead                             │         0.57 ms       ║
-║ Peak Throughput                                    │     1704.000 req/s    ║
+║ SDK Latency (findById)                             │        0.003 ms       ║
+║ HTTP Latency (findById)                            │        0.415 ms       ║
+║ Full Pipeline Overhead                             │         0.41 ms       ║
+║ Peak Throughput                                    │     2411.000 req/s    ║
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -81,30 +89,32 @@ xychart-beta
 
 <!-- DB_TABLE_START -->
 > ⏳ **Database Adapter Raw CRUD**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/database-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/database-performance.test.ts)
+> 📂 **Source**: [tests/benchmarks/database-performance.test.ts](../../../tests/benchmarks/database-performance.test.ts)
 <!-- DB_TABLE_END -->
 
 <!-- ACID_TABLE_START -->
-### 🏷️ ACID INTEGRITY AUDIT
+### 🏷️ ACID INTEGRITY AUDIT (Trend: 🟢 -20.0%)
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                     SVELTYCMS  —  ACID INTEGRITY AUDIT                      ║
 ║                  Transactional Commit & Rollback • MONGODB                  ║
+║               File: tests/benchmarks/transaction-acid.test.ts               ║
+║ Proves: Measures commit/rollback latency and transaction isolation perfo... ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ TX Commit @ 8c               │ 0.095 ms       │ 0.116 ms     │ 10,547       ║
-║ TX Rollback Integrity        │ 0.099 ms       │ 0.136 ms     │ 10,084       ║
+║ TX Commit @ 8c               │ 0.083 ms (🟢 -21.4%) │ 0.100 ms     │ 12,037       ║
+║ TX Rollback Integrity        │ 0.076 ms (🟢 -20.0%) │ 0.144 ms     │ 13,113       ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Avg Commit Latency                                 │        0.095 ms       ║
-║ Rollback Verification                              │        0.099 ms       ║
+║ Avg Commit Latency                                 │        0.083 ms       ║
+║ Rollback Verification                              │        0.076 ms       ║
 ║ Transaction Stability                              │     VERIFIED          ║
-║ Peak Throughput                                    │    10547.000 tx/s     ║
+║ Peak Throughput                                    │    12037.000 tx/s     ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- ACID_TABLE_END -->
@@ -133,26 +143,28 @@ xychart-beta
 <!-- RELATIONAL_TABLE_END -->
 
 <!-- REST_TABLE_START -->
-### 🏷️ REST API PERFORMANCE AUDIT
+### 🏷️ REST API PERFORMANCE AUDIT (Trend: 🔴 +36.8%)
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                  SVELTYCMS  —  REST API PERFORMANCE AUDIT                   ║
 ║                MONGODB • 500 Iterations • 8 Parallel Workers                ║
+║             File: tests/benchmarks/rest-api-performance.test.ts             ║
+║  Proves: End-to-end throughput and latency of the unified REST dispatcher.  ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                 │ 0.348 ms       │ 0.404 ms     │ 2,873        ║
-║ Collection List              │ 0.590 ms       │ 0.869 ms     │ 1,696        ║
-║ Entry Retrieval              │ 1.653 ms       │ 1.718 ms     │ 605          ║
+║ Health Check                 │ 0.415 ms (🔴 +32.5%) │ 0.458 ms     │ 2,408        ║
+║ Collection List              │ 0.320 ms (🟢 -21.4%) │ 0.334 ms     │ 3,121        ║
+║ Entry Retrieval              │ 0.468 ms (🔴 +36.8%) │ 0.689 ms     │ 2,138        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check Latency                               │        0.348 ms       ║
-║ Entry Read Latency                                 │        1.653 ms       ║
-║ Peak REST Throughput                               │     2872.668 req/s    ║
+║ Health Check Latency                               │        0.415 ms       ║
+║ Entry Read Latency                                 │        0.468 ms       ║
+║ Peak REST Throughput                               │     3120.940 req/s    ║
 ║ API Efficiency Rating                              │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -165,22 +177,33 @@ xychart-beta
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                     SVELTYCMS  —  GRAPHQL STRESS AUDIT                      ║
 ║            Real HTTP Load • High Concurrency • Error Validation             ║
+║                File: tests/benchmarks/graphql-stress.test.ts                ║
+║ Proves: High-concurrency GraphQL query stress test for resolver efficiency. ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ GQL Stress: TINY             │ 30.261 ms      │ 32.757 ms    │ 214          ║
+║ GQL Stress: TINY             │ 39.841 ms      │ 52.233 ms    │ 75           ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Avg Stress Latency                                 │       39.841 ms       ║
+║ p95 Stress Latency                                 │       52.233 ms       ║
+║ Peak Stress Throughput                             │       75.000 req/s    ║
+║ Error Rate                                         │        87.30 %        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- GRAPHQL_TABLE_END -->
 
 <!-- AUTH_TABLE_START -->
 > ⏳ **Auth & RBAC Performance**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/auth-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/auth-performance.test.ts)
+> 📂 **Source**: [tests/benchmarks/auth-performance.test.ts](../../../tests/benchmarks/auth-performance.test.ts)
 <!-- AUTH_TABLE_END -->
 
 <!-- TENANCY_TABLE_START -->
 > ⏳ **Multi-Tenant Performance & Isolation**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/multi-tenant-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/multi-tenant-performance.test.ts)
+> 📂 **Source**: [tests/benchmarks/multi-tenant-performance.test.ts](../../../tests/benchmarks/multi-tenant-performance.test.ts)
 <!-- TENANCY_TABLE_END -->
 
 <!-- MIXED_TABLE_START -->
@@ -190,24 +213,26 @@ xychart-beta
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                     SVELTYCMS  —  MIXED WORKLOAD AUDIT                      ║
 ║           60/20/15/5 Distribution • MONGODB • 8 Parallel Workers            ║
+║                File: tests/benchmarks/mixed-workload.test.ts                ║
+║ Proves: Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% M... ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Aggregate Workload           │ 0.900 ms       │ 0.930 ms     │ 1,111        ║
-║ REST Read                    │ 0.000 ms       │ 0.000 ms     │ 0            ║
-║ REST Search                  │ 0.000 ms       │ 0.000 ms     │ 0            ║
-║ GraphQL                      │ 4.441 ms       │ 7.737 ms     │ 1,801        ║
-║ Metadata                     │ 5.622 ms       │ 10.035 ms    │ 1,423        ║
+║ Aggregate Workload           │ 1.207 ms       │ 1.273 ms     │ 828          ║
+║ REST Read                    │ 4.579 ms       │ 9.698 ms     │ 1,747        ║
+║ REST Search                  │ 2.993 ms       │ 8.073 ms     │ 2,673        ║
+║ GraphQL                      │ 20.554 ms      │ 31.609 ms    │ 389          ║
+║ Metadata                     │ 9.069 ms       │ 15.236 ms    │ 882          ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Global Average Latency                             │        0.900 ms       ║
-║ Global p95 Latency                                 │        0.930 ms       ║
-║ Effective Throughput                               │     1111.000 req/s    ║
-║ REST Read Latency (p95)                            │        0.000 ms       ║
-║ GraphQL Latency (p95)                              │        7.737 ms       ║
+║ Global Average Latency                             │        1.207 ms       ║
+║ Global p95 Latency                                 │        1.273 ms       ║
+║ Effective Throughput                               │      828.000 req/s    ║
+║ REST Read Latency (p95)                            │        9.698 ms       ║
+║ GraphQL Latency (p95)                              │       31.609 ms       ║
 ║ Memory RSS Delta                                   │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -220,20 +245,22 @@ xychart-beta
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                    SVELTYCMS  —  MEMORY STABILITY AUDIT                     ║
 ║            Full Pipeline • Child Process Profiling • 30s Sustain            ║
+║               File: tests/benchmarks/memory-stability.test.ts               ║
+║  Proves: Long-running soak test to identify memory leaks and GC pressure.   ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Enterprise Production Profile │ 0.504 ms       │ 0.000 ms     │ 1,984        ║
+║ Enterprise Production Profile │ 0.606 ms       │ 0.000 ms     │ 1,651        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Total Load Processed                               │    65507.000 req      ║
-║ Production Throughput                              │     1984.000 req/s    ║
-║ RSS Delta (Final)                                  │       11.883 MB       ║
-║ Heap Delta (Final)                                 │      -81.765 MB       ║
-║ Leak Slope (Heap)                                  │       91.724 MB/min   ║
+║ Total Load Processed                               │    54541.000 req      ║
+║ Production Throughput                              │     1651.000 req/s    ║
+║ RSS Delta (Final)                                  │        3.793 MB       ║
+║ Heap Delta (Final)                                 │     -151.721 MB       ║
+║ Leak Slope (Heap)                                  │      110.602 MB/min   ║
 ║ Stability Rating                                   │        LEAKY          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -241,12 +268,34 @@ xychart-beta
 
 <!-- GQL_TABLE_START -->
 > ⏳ **GraphQL Load Stress**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/graphql-stress.test.ts](file:///D:/SveltyCMS/tests/benchmarks/graphql-stress.test.ts)
+> 📂 **Source**: [tests/benchmarks/graphql-stress.test.ts](../../../tests/benchmarks/graphql-stress.test.ts)
 <!-- GQL_TABLE_END -->
 
 <!-- MIGRATION_TABLE_START -->
-> ⏳ **Bulk Migration & Scale**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/migration-scale.test.ts](file:///D:/SveltyCMS/tests/benchmarks/migration-scale.test.ts)
+### 🏷️ MIGRATION & SCALE AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                    SVELTYCMS  —  MIGRATION & SCALE AUDIT                    ║
+║                     Bulk I/O • 10,000 Entries • MONGODB                     ║
+║               File: tests/benchmarks/migration-scale.test.ts                ║
+║ Proves: Measures system ingestion limits and read performance on 10,000+... ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Bulk Ingestion (10k)         │ 35.591 ms      │ 103.909 ms   │ 28           ║
+║ Post-Migration Lookup        │ 0.378 ms       │ 0.445 ms     │ 2,646        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Total Migration Time                               │         1.22 s        ║
+║ Ingestion Throughput                               │     8223.000 entries/s ║
+║ Fat Table Read Latency                             │        0.378 ms       ║
+║ Memory RSS Δ                                       │         0.00 MB       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- MIGRATION_TABLE_END -->
 
 

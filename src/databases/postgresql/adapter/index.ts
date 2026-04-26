@@ -28,7 +28,6 @@ import { CacheModule } from "../performance/cache-module";
 import { PostgresQueryBuilder } from "../query-builder/postgres-query-builder";
 import { TransactionModule } from "../operations/transaction-module";
 import { getDefaultRoles } from "../../auth/default-roles";
-import { onConflictDoNothing } from "drizzle-orm/pg-core";
 import * as schema from "../schema/index";
 
 export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {

@@ -32,10 +32,7 @@ export abstract class BaseSqlAdapter extends BaseAdapter {
    * Unified MongoDB-style query mapping for SQL adapters.
    * Supports common operators: $eq, $ne, $gt, $gte, $lt, $lte, $in, $nin, $like, $contains, $or, $and.
    */
-  public mapQuery(
-    table: Record<string, unknown>,
-    query: Record<string, unknown>,
-  ): SQL | undefined {
+  public mapQuery(table: Record<string, unknown>, query: Record<string, unknown>): SQL | undefined {
     if (!query || Object.keys(query).length === 0) {
       return undefined;
     }
@@ -67,9 +64,7 @@ export abstract class BaseSqlAdapter extends BaseAdapter {
               break;
             case "$nin":
               if (Array.isArray(val)) {
-                conditions.push(
-                  val.length ? sql`${column} NOT IN ${val}` : sql`1=1`,
-                );
+                conditions.push(val.length ? sql`${column} NOT IN ${val}` : sql`1=1`);
               }
               break;
             case "$ne":
@@ -115,10 +110,7 @@ export abstract class BaseSqlAdapter extends BaseAdapter {
     const message = error instanceof Error ? error.message : String(error);
 
     // Check if we are in benchmark/debug mode for more verbose logging
-    if (
-      process.env.BENCHMARK_DEBUG === "true" ||
-      process.env.SVELTY_AUDIT_ACTIVE
-    ) {
+    if (process.env.BENCHMARK_DEBUG === "true" || process.env.SVELTY_AUDIT_ACTIVE) {
       logger.error(`[SQL Adapter] Error [${code}]:`, error);
     } else {
       logger.error(`[SQL Adapter] Error [${code}]:`, message);
@@ -173,10 +165,7 @@ export abstract class BaseSqlAdapter extends BaseAdapter {
     audit_logs: "auditLogs",
     system_audit_logs: "auditLogs",
   };
-  protected getAliasedTable(
-    collection: string,
-    schema: any,
-  ): Record<string, unknown> | null {
+  protected getAliasedTable(collection: string, schema: any): Record<string, unknown> | null {
     // 🚀 Handle both flat and nested schema objects
     const schemaAny = (schema.schema || schema) as unknown as Record<
       string,
@@ -184,14 +173,10 @@ export abstract class BaseSqlAdapter extends BaseAdapter {
     >;
 
     // Strip prefix to handle variations like 'collection_system_users'
-    const cleanName = collection.startsWith("collection_")
-      ? collection.slice(11)
-      : collection;
+    const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
 
     if (process.env.BENCHMARK_DEBUG === "true") {
-      logger.info(
-        `[SQL Trace] Routing: "${collection}" (cleaned: "${cleanName}")`,
-      );
+      logger.info(`[SQL Trace] Routing: "${collection}" (cleaned: "${cleanName}")`);
     }
 
     if (schemaAny[collection]) return schemaAny[collection];

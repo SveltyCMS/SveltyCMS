@@ -4,19 +4,16 @@
  * Measures the system's "Ingestion Limit" by importing 10,000 entries into a collection.
  */
 
-import { test, beforeAll, afterAll } from "bun:test";
+import { test } from "bun:test";
 import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
   stabilize,
-  setupBenchmarkServer,
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
 
 const COLLECTION_ID = "bench_migration_large";
 const TOTAL_ENTRIES = 10000;
@@ -29,7 +26,7 @@ async function runMigrationAudit() {
   const { LocalCMS } = await import("@src/routes/api/cms");
   await ensureFullInitialization();
   const db = getDb();
-  const cms = new LocalCMS(db);
+  const cms = new LocalCMS(db as any);
 
   // Mock Admin for Auth
   const mockAdmin = { username: "admin", role: "admin", isAdmin: true };
@@ -48,8 +45,8 @@ async function runMigrationAudit() {
     status: "published",
   };
 
-  if (db!.collection?.createModel) {
-    await db!.collection.createModel(schema as any).catch(() => {});
+  if ((db as any)?.collection?.createModel) {
+    await (db as any).collection.createModel(schema as any).catch(() => {});
   }
 
   // 🚀 CRITICAL: Sync with in-memory contentStore so LocalCMS is aware of the new collection
@@ -70,7 +67,6 @@ async function runMigrationAudit() {
     console.log(`   → Ingesting ${TOTAL_ENTRIES} entries in batches of ${BATCH_SIZE}...`);
     const startTime = performance.now();
     
-    const results: any[] = [];
     let ingested = 0;
 
     const migrationResult = await runBenchmark({

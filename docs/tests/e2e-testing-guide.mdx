@@ -67,15 +67,13 @@ test("Admin can access dashboard", async ({ page }) => {
 });
 ```
 
-### 2. Database State
+### 2. Database State & Worker Isolation
 
-The database is **reset and seeded** before the test suite runs.
+In April 2026, we implemented **Parallel Worker Isolation** to eliminate "Database is locked" errors and speed up the E2E suite.
 
-- **Admin User:** `admin@example.com` / `Admin123!`
-- **Database:** `sveltycms_test`
-
-- **Database:** `sveltycms_test`
-- **Seeding:** Handled by `scripts/seed-test-db.ts`
+- **Unique Database per Worker**: Each Playwright worker operates on its own dedicated SQLite file (e.g., `cms_worker_1.db`).
+- **Header-Based Routing**: The system uses the `x-test-worker-index` header to automatically route requests to the correct isolated database.
+- **Seeding**: Handled automatically before each worker starts via the `/api/testing` endpoint.
 
 ### 3. Use `data-testid` Selectors
 

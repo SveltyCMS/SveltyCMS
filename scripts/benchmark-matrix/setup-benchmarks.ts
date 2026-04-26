@@ -99,7 +99,7 @@ async function setupCollections(cms: any): Promise<{ authorsId: string; postsId:
 
   await writeCollectionSchema(compiledDir, COLLECTIONS.AUTHORS);
   await writeCollectionSchema(compiledDir, COLLECTIONS.POSTS);
-  await writeCollectionSchema(compiledDir, COLLECTIONS.STABLE);
+  await writeCollectionSchema(compiledDir, COLLECTIONS.STABLE as any);
 
   // Create models in database adapter
   if (typeof cms.db.collection?.createModel === "function") {

@@ -1,31 +1,8 @@
 #!/usr/bin/env sh
 set -e
 
-echo "🔍 Running pre-commit checks (Native Git Hook)..."
+# Run the high-performance parallel quality gate
+bun run scripts/quality-gate.ts
 
-# Find staged files (filters out deleted files) to pass to linters
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|js|svelte|json|md)$' || true)
-
-if [ -n "$STAGED_FILES" ]; then
-    echo "✨ Formatting & ⚡ Linting (Vite+ on staged files)..."
-    # Ensure oxfmt and oxlint are used on staged files
-    echo "$STAGED_FILES" | xargs bunx oxfmt --write
-    echo "$STAGED_FILES" | xargs bunx oxlint --fix --no-error-on-unmatched-pattern
-
-    # Re-stage files in case they were fixed automatically
-    echo "$STAGED_FILES" | xargs git add
-else
-    echo "⏩ No relevant staged files found for formatting/linting."
-fi
-
-# 2. Codegen & Type Check (Svelte Check)
-echo "✅ Generating & Type Checking..."
-bun run paraglide
-bun run check
-
-# 3. Unit Tests (Component & Logic)
-echo "🧪 Testing (Vitest & Bun Native)..."
-bun run test:unit
-bun run test:unit:bun
-
-echo "✨ Pre-commit checks passed!"
+# Ensure any automatic fixes (fmt/lint) are added to the commit
+git add src

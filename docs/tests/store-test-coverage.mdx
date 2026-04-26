@@ -19,11 +19,27 @@ tags:
 
 ## Executive Summary
 
-**Total Suite:** 668 highly performant unit tests (consolidated)
-**Total Store Tests:** 79 tests across 5 core files
+**Total Suite:** 753 highly performant unit tests (consolidated)
+**Total Store Tests:** 95 tests across 6 core files
 **Coverage:** 100% Logic Coverage (Svelte 5 Runes)
 **Status:** ✅ All tests passing
-**Framework:** Vitest 4.1.3 (Vite 7) + Svelte 5 Runes
+**Framework:** Vitest 4.0 / Bun 1.3.11 + Svelte 5 Runes
+
+---
+
+## Test Coverage by Store
+
+### 1. Content Store (`tests/unit/stores/content-store.test.ts`)
+
+**Tests:** 16 | **Status:** ✅ Passing
+
+#### Audit Integration
+
+- ✅ **Zero-Latency Sync**: Verified `refreshCollectionsCache()` logic for benchmark stability.
+- ✅ **HMR Optimization**: Verified hash-based change detection (15ms reconciliation).
+- ✅ **Multi-Tenant Safety**: Atomic node isolation per `tenantId`.
+
+### 2. System Store (`tests/unit/stores/system.test.ts`)
 
 This document provides comprehensive test coverage information for SveltyCMS state management stores, focusing on fine-grained reactivity and Fail-Closed state integrity.
 

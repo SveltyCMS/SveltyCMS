@@ -528,8 +528,12 @@ export async function handleSetupRoutes(
 /**
  * --- HEALTH ---
  */
-let lastHealthCheck: { status: string; database: string; latency: number; serverTime: string } | null =
-  null;
+let lastHealthCheck: {
+  status: string;
+  database: string;
+  latency: number;
+  serverTime: string;
+} | null = null;
 let lastHealthTime = 0;
 
 export async function handleHealthRoutes(

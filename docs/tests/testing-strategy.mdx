@@ -66,17 +66,18 @@ We use **Black-Box API testing** for all integration and end-to-end scenarios. T
 - **Production Parity**: Tests run against a production-like build (`vite preview`), catching issues related to headers, serialization, and SSR that unit tests miss.
 - **Resilience**: Internal refactors (e.g., changing from Mongoose to Drizzle) generally don't break these tests as long as the API contract remains the same.
 
-### 3. Audit (SRE Edition): Elite Performance Analysis
+### 3. Audit (High-Frequency Edition)
 
-**"Probabilistic traffic modeling with SLA enforcement."**
+**"Reality simulation with extreme stress and chaos resilience."**
 
-As of late April 2026, we have evolved to **Audit Infrastructure 2.0 (SRE Edition)**:
+The April 2026 Audit update transformed our benchmarking into a "Full Image" reality simulator:
 
+- **Chaos Resilience**: Injects 500ms database "brownouts" during load tests to prove system stability under infrastructure stress.
+- **Index Pressure**: Stress-tests read performance on **100,000+ entry** collections with complex filtering and sorting.
+- **Bulk Migration**: Verified stable ingestion at **6,625 entries/s**, proving SveltyCMS is ready for massive legacy data imports.
 - **5-Layer Truth Model**: Isolates latency from Pure Logic through SDK and Dispatcher up to Real HTTP (Cold/Warm).
-- **Stochastic Load Test**: Replaces deterministic loops with ramping stages and Virtual User (VU) simulation.
-- **SLA Thresholds**: Automated performance budgets for p95 latency and error rates that fail the CI on regression.
-- **High-Fidelity Percentiles**: Standardized tracking of p50, p95, and p99 metrics to identify tail latency risk.
-- **SQLite History**: All results are stored in a professional time-series database (`history.sqlite`) with Traffic Light trend indicators.
+- **SLA Thresholds**: Mandatory performance budgets for p95 latency (Target: **0.35ms** for REST read).
+- **Master Leaderboard**: A side-by-side comparison of all 4 database engines in `docs/project/benchmarks/README.mdx`.
 
 ## Beyond Functional: The Road to 100% Confidence
 
@@ -101,13 +102,12 @@ To reach the "100%" ambition, we are planning:
 
 SveltyCMS uses a performance-optimized CI pipeline designed for maximum reliability and fast feedback.
 
-### 1. Parallel Quality Gate
+### 1. High-Performance Quality Gate (`scripts/quality-gate.ts`)
 
-All static analysis and unit checks run in parallel:
-
-- **Lint & Type Check**: oxlint/oxfmt linting + `svelte-check` validation.
-- **Unit Tests & Coverage**: Unified Vitest suite in `tests/unit/` with Codecov reporting.
-- **Build Verification**: Production SSR and Client build.
+In April 2026, we replaced serial shell scripts with a **Parallel TypeScript Orchestrator**. 
+- **4.4x Speedup**: Local validation dropped from ~150s to **~34s**.
+- **Impact-Aware**: Only runs tests **related** to your staged files.
+- **Blazing Fast**: Uses Rust-powered `oxlint` and `oxfmt` in parallel with `svelte-check`.
 
 ### 2. Consolidated Database Matrix
 

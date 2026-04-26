@@ -239,12 +239,17 @@ export function printTruthTable(options: {
   const makeHelpers = (width: number) => ({
     bar: (l: string, r: string) => l + "═".repeat(width - 2) + r,
     center: (s: string) => {
-      const pad = width - 2 - s.length;
+      const maxWidth = width - 4; // allow for padding
+      let display = s;
+      if (s.length > maxWidth) {
+        display = s.substring(0, maxWidth - 3) + "...";
+      }
+      const pad = width - 2 - display.length;
       return (
         "║" +
-        " ".repeat(Math.floor(pad / 2)) +
-        s +
-        " ".repeat(Math.ceil(pad / 2)) +
+        " ".repeat(Math.max(0, Math.floor(pad / 2))) +
+        display +
+        " ".repeat(Math.max(0, Math.ceil(pad / 2))) +
         "║"
       );
     },

@@ -4,7 +4,7 @@
  * Measures the server-side processing cost of complex Svelte 5 logic for massive forms.
  */
 
-import { test, beforeAll, afterAll } from "bun:test";
+import { test } from "bun:test";
 import "../unit/setup.ts";
 import {
   runBenchmark,
@@ -12,7 +12,6 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType,
 } from "./benchmark-utils";
 
 async function runUXAudit() {
@@ -24,7 +23,7 @@ async function runUXAudit() {
 
   await ensureFullInitialization();
   const db = getDb();
-  const cms = new LocalCMS(db);
+  const cms = new LocalCMS(db as any);
 
   // Mock Admin for Auth context
   const mockAdmin = { _id: "admin-123", username: "admin", role: "admin", isAdmin: true };
@@ -55,7 +54,7 @@ async function runUXAudit() {
       runs: 2,
       onIteration: async () => {
         // Simulates the logic that runs when opening the editor
-        await cms.collections.modifyRequest({ schema: complexSchema, data: {} }, apiOptions);
+        await cms.collections.modifyRequest({ schema: complexSchema as any, data: {}, ...apiOptions } as any);
       },
       silent: true,
     });
@@ -67,7 +66,7 @@ async function runUXAudit() {
       iterations: 1000,
       runs: 1,
       onIteration: async () => {
-        await widgetStore.getWidgetModule("text");
+        await widgetStore.getWidgetModule({ label: "text" } as any);
       },
       silent: true,
     });

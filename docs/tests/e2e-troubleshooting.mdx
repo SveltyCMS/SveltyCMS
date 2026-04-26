@@ -52,12 +52,13 @@ SveltyCMS uses a "Hard Reset" strategy in `TEST_MODE`.
 - **Priority 2**: Use ARIA labels or role-based locators (e.g., `page.getByLabel('Next')`).
 - **Priority 3**: Use text-based locators if unique (e.g., `page.getByText('Success!')`).
 
-## 4. Worker Isolation & Port Conflicts
+## 4. Worker Isolation & Lock Failures
 
 SveltyCMS standardizes on `127.0.0.1:4173` for testing.
 
-- If you see `Address already in use`, ensure no ghost `vite preview` processes are running.
-- Use `npx playwright test --workers=1` if you suspect database locking issues, although the "database-per-worker" pattern should prevent this.
+- **SQLite Locking**: If you see `SqliteError: database is locked`, it means the system is sharing one database across multiple workers.
+- **The Solution**: Ensure your test runner correctly propagates the `x-test-worker-index` header. The SveltyCMS SQLite adapter uses this header to route traffic to isolated files (e.g., `cms_worker_1.db`).
+- **Isolation Check**: Look for `[db] Switched to worker isolation file: cms_worker_X.db` in the server logs.
 
 ## 5. Identifying the State
 

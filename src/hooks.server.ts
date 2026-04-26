@@ -110,7 +110,7 @@ if (!building) {
         watchdog.start();
 
         // Start Content Watcher (dev only)
-        const { startContentWatcher } = await import("@src/content/content-watcher");
+        const { startContentWatcher } = await import("@src/content/content-watcher.server");
         startContentWatcher();
 
         const globalWithTelemetry = globalThis as typeof globalThis & {

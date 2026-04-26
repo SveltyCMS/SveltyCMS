@@ -4,14 +4,10 @@
  * High-performance module processor for content collection definitions.
  */
 import { widgetRegistryService } from "@src/services/widget-registry-service";
+import { logger } from "@utils/logger.server";
 import crypto from "node:crypto";
 import type { Schema } from "./types";
 import path from "node:path";
-
-async function getLogger() {
-  const mod = await import("@utils/logger.server");
-  return mod.logger;
-}
 
 /**
  * Creates a case-insensitive proxy for the widget registry.
@@ -71,7 +67,7 @@ export async function loadSchemaNative(filePath: string): Promise<{ schema?: Sch
 
     return null;
   } catch (err) {
-    (await getLogger()).error(`[MODULE] Native load failed for ${path.basename(filePath)}:`, {
+    logger.error(`[MODULE] Native load failed for ${path.basename(filePath)}:`, {
       error: err instanceof Error ? err.message : String(err),
     });
     return null;
@@ -255,14 +251,14 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
         return { schema: result as Schema };
       }
     } catch (evalErr) {
-      (await getLogger()).error("Error evaluating schema content:", { error: evalErr });
+      logger.error("Error evaluating schema content:", { error: evalErr });
       return null;
     }
 
     return null;
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    (await getLogger()).error("Failed to process module:", { error: errorMessage });
+    logger.error("Failed to process module:", { error: errorMessage });
     return null;
   }
 }
@@ -276,9 +272,7 @@ export function generateSchemaHash(schema: Schema): string {
     const sortedString = JSON.stringify(schema, Object.keys(schema).sort());
     return crypto.createHash("md5").update(sortedString).digest("hex");
   } catch (err) {
-    // We can't easily await here without making generateSchemaHash async, 
-    // which has wide ripples. For now, just console.error as it's a rare failure.
-    console.error("Failed to generate schema hash:", err);
+    logger.error("Failed to generate schema hash:", { error: err });
     // Fallback to a random string to ensure reconciliation if hashing fails
     return `error-${Date.now()}`;
   }

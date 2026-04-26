@@ -80,12 +80,13 @@ To ensure this powerful endpoint never becomes a liability, it is protected by t
 2.  **Cryptographic Handshake**: Requires a `x-test-secret` header matching a unique UUID. This secret is now standardized across the **Benchmark Matrix**, **Integration Runner**, and **Playwright E2E** suites via a central configuration.
 3.  **Network Lock**: Strictly refuses any request not originating from `127.0.0.1` or `::1`.
 
-## ⚡ Benchmarking Integration (2026 Update)
+## ⚡ Benchmarking Integration (Audit Update)
 
 Our black-box methodology extends to the **Enterprise Performance Audit**. Individual benchmarks now support:
 
 - **Dynamic Port Selection**: Tests run on isolated ports to prevent cross-process pollution.
-- **Trend Detection**: Every run automatically compares latency against historical data in `history.jsonl`.
+- **Trend Detection**: Every run automatically compares latency against historical data in `history.jsonl` with visual 🟢/🔴 indicators.
+- **Benchmark Stability**: Implementation of the `BENCHMARK_STABLE` mode and `refreshCollectionsCache()` logic. This ensures that dynamically created benchmark collections are instantly synchronized across the system via zero-latency filesystem-to-store hydration.
 - **Auto-Registration**: New benchmark modules automatically register their findings in the MDX technical ledger without manual boilerplate.
 
 ### Available Actions

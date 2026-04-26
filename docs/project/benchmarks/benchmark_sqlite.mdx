@@ -1,10 +1,16 @@
 ---
+path: "docs/project/benchmarks/benchmark_sqlite.mdx"
 title: SQLITE Performance Audit
-description: Enterprise performance trends for SQLite.
+description: Enterprise performance trends for SQLITE.
 order: 5
 icon: "mdi:speedometer"
 author: "SveltyCMS Team"
-updated: "2026-04-23"
+created: "2026-04-26"
+updated: "2026-04-26"
+tags:
+  - "benchmark"
+  - "performance"
+  - "sqlite"
 ---
 
 # 🚀 SQLite Performance Ledger
@@ -99,7 +105,7 @@ xychart-beta
 <!-- BUILD_TABLE_END -->
 
 <!-- DB_TABLE_START -->
-### 🏷️ DATABASE ADAPTER PERFORMANCE (SQLITE) (Trend: 🟢 -76.2%)
+### 🏷️ DATABASE ADAPTER PERFORMANCE (SQLITE) (Trend: 🔴 +28.9%)
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
@@ -110,23 +116,23 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ INSERT                       │ 0.104 ms (🟢 -97.1%) │ 0.165 ms     │ 9,653        ║
-║ FIND ONE                     │ 0.093 ms (🟢 -88.7%) │ 0.142 ms     │ 10,734       ║
-║ FIND MANY (limit 50)         │ 0.069 ms (🟢 -91.8%) │ 0.089 ms     │ 14,473       ║
-║ UPDATE                       │ 0.135 ms (🟢 -96.0%) │ 0.244 ms     │ 7,395        ║
-║ DELETE                       │ 0.059 ms (🟢 -94.8%) │ 0.088 ms     │ 16,817       ║
-║ BULK INSERT (100)            │ 1.831 ms (🟢 -76.2%) │ 3.227 ms     │ 546          ║
+║ INSERT                       │ 0.297 ms (🔴 +186.4%) │ 0.405 ms     │ 3,370        ║
+║ FIND ONE                     │ 0.166 ms (🔴 +78.5%) │ 0.271 ms     │ 6,015        ║
+║ FIND MANY (limit 50)         │ 0.163 ms (🔴 +135.7%) │ 0.209 ms     │ 6,140        ║
+║ UPDATE                       │ 0.281 ms (🔴 +107.5%) │ 0.497 ms     │ 3,564        ║
+║ DELETE                       │ 0.073 ms (🔴 +22.0%) │ 0.166 ms     │ 13,789       ║
+║ BULK INSERT (100)            │ 2.361 ms (🔴 +28.9%) │ 4.159 ms     │ 424          ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Avg Insert Latency                                 │        0.104 ms       ║
-║ Avg Read Latency (Single)                          │        0.093 ms       ║
-║ Avg Read Latency (Many)                            │        0.069 ms       ║
-║ Avg Update Latency                                 │        0.135 ms       ║
-║ Avg Delete Latency                                 │        0.059 ms       ║
-║ Peak CRUD Throughput                               │    16817.382 req/s    ║
+║ Avg Insert Latency                                 │        0.297 ms       ║
+║ Avg Read Latency (Single)                          │        0.166 ms       ║
+║ Avg Read Latency (Many)                            │        0.163 ms       ║
+║ Avg Update Latency                                 │        0.281 ms       ║
+║ Avg Delete Latency                                 │        0.073 ms       ║
+║ Peak CRUD Throughput                               │    13788.657 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- DB_TABLE_END -->
@@ -290,20 +296,22 @@ xychart-beta
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                  SVELTYCMS  —  REST API PERFORMANCE AUDIT                   ║
 ║                SQLITE • 500 Iterations • 8 Parallel Workers                 ║
+║             File: tests/benchmarks/rest-api-performance.test.ts             ║
+║  Proves: End-to-end throughput and latency of the unified REST dispatcher.  ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                 │ 0.320 ms       │ 0.321 ms     │ 3,121        ║
-║ Collection List              │ 0.304 ms       │ 0.308 ms     │ 3,287        ║
-║ Entry Retrieval              │ 0.278 ms       │ 0.284 ms     │ 3,598        ║
+║ Health Check                 │ 0.429 ms       │ 0.444 ms     │ 2,334        ║
+║ Collection List              │ 0.627 ms       │ 0.677 ms     │ 1,595        ║
+║ Entry Retrieval              │ 0.419 ms       │ 0.440 ms     │ 2,384        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check Latency                               │        0.320 ms       ║
-║ Entry Read Latency                                 │        0.278 ms       ║
-║ Peak REST Throughput                               │     3598.022 req/s    ║
+║ Health Check Latency                               │        0.429 ms       ║
+║ Entry Read Latency                                 │        0.419 ms       ║
+║ Peak REST Throughput                               │     2383.900 req/s    ║
 ║ API Efficiency Rating                              │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -316,11 +324,22 @@ xychart-beta
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                     SVELTYCMS  —  GRAPHQL STRESS AUDIT                      ║
 ║            Real HTTP Load • High Concurrency • Error Validation             ║
+║                File: tests/benchmarks/graphql-stress.test.ts                ║
+║ Proves: High-concurrency GraphQL query stress test for resolver efficiency. ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ GQL Stress: TINY             │ 6.602 ms       │ 10.084 ms    │ 1,505        ║
+║ GQL Stress: TINY             │ 106.408 ms     │ 122.671 ms   │ 1            ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Avg Stress Latency                                 │      106.408 ms       ║
+║ p95 Stress Latency                                 │      122.671 ms       ║
+║ Peak Stress Throughput                             │        1.000 req/s    ║
+║ Error Rate                                         │        91.90 %        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- GRAPHQL_TABLE_END -->
 
@@ -377,20 +396,22 @@ xychart-beta
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                 SVELTYCMS  —  SECURITY INFRASTRUCTURE AUDIT                 ║
 ║                   WAF • Auditing • Cryptography • SQLITE                    ║
+║                File: tests/benchmarks/security-audit.test.ts                ║
+║ Proves: Impact of Fail-Closed Dispatcher, Payload scanning, and SHA-256 ... ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ WAF: Deep Analysis           │ 0.002 ms       │ 0.004 ms     │ 463,070      ║
-║ Audit: Persistent Logging    │ 0.002 ms       │ 0.006 ms     │ 411,590      ║
-║ Crypto: Argon2id Hashing     │ 49.973 ms      │ 54.222 ms    │ 20           ║
+║ WAF: Deep Analysis           │ 0.005 ms       │ 0.008 ms     │ 218,283      ║
+║ Audit: Persistent Logging    │ 0.006 ms       │ 0.012 ms     │ 175,039      ║
+║ Crypto: Argon2id Hashing     │ 78.199 ms      │ 80.914 ms    │ 13           ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ WAF Analysis Latency                               │        0.002 ms       ║
-║ Audit Log Persistence                              │        0.002 ms       ║
-║ Password Hashing (Argon2id)                        │       49.973 ms       ║
+║ WAF Analysis Latency                               │        0.005 ms       ║
+║ Audit Log Persistence                              │        0.006 ms       ║
+║ Password Hashing (Argon2id)                        │       78.199 ms       ║
 ║ Security Overhead Rating                           │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -440,24 +461,26 @@ xychart-beta
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                     SVELTYCMS  —  MIXED WORKLOAD AUDIT                      ║
 ║            60/20/15/5 Distribution • SQLITE • 8 Parallel Workers            ║
+║                File: tests/benchmarks/mixed-workload.test.ts                ║
+║ Proves: Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% M... ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Aggregate Workload           │ 0.354 ms       │ 0.366 ms     │ 2,824        ║
-║ REST Read                    │ 1.537 ms       │ 3.104 ms     │ 5,206        ║
-║ REST Search                  │ 2.726 ms       │ 3.973 ms     │ 2,935        ║
-║ GraphQL                      │ 2.412 ms       │ 4.361 ms     │ 3,317        ║
-║ Metadata                     │ 2.594 ms       │ 5.741 ms     │ 3,085        ║
+║ Aggregate Workload           │ 1.037 ms       │ 1.245 ms     │ 964          ║
+║ REST Read                    │ 2.226 ms       │ 4.979 ms     │ 3,594        ║
+║ REST Search                  │ 1.822 ms       │ 3.964 ms     │ 4,391        ║
+║ GraphQL                      │ 24.609 ms      │ 36.045 ms    │ 325          ║
+║ Metadata                     │ 5.796 ms       │ 15.764 ms    │ 1,380        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Global Average Latency                             │        0.354 ms       ║
-║ Global p95 Latency                                 │        0.366 ms       ║
-║ Effective Throughput                               │     2824.000 req/s    ║
-║ REST Read Latency (p95)                            │        3.104 ms       ║
-║ GraphQL Latency (p95)                              │        4.361 ms       ║
+║ Global Average Latency                             │        1.037 ms       ║
+║ Global p95 Latency                                 │        1.245 ms       ║
+║ Effective Throughput                               │      964.000 req/s    ║
+║ REST Read Latency (p95)                            │        4.979 ms       ║
+║ GraphQL Latency (p95)                              │       36.045 ms       ║
 ║ Memory RSS Delta                                   │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -470,21 +493,23 @@ xychart-beta
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                    SVELTYCMS  —  MEMORY STABILITY AUDIT                     ║
 ║            Full Pipeline • Child Process Profiling • 30s Sustain            ║
+║               File: tests/benchmarks/memory-stability.test.ts               ║
+║  Proves: Long-running soak test to identify memory leaks and GC pressure.   ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Enterprise Production Profile │ 0.156 ms       │ 0.000 ms     │ 6,428        ║
+║ Enterprise Production Profile │ 0.213 ms       │ 0.000 ms     │ 4,704        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Total Load Processed                               │   212405.000 req      ║
-║ Production Throughput                              │     6428.000 req/s    ║
-║ RSS Delta (Final)                                  │       67.582 MB       ║
-║ Heap Delta (Final)                                 │      109.161 MB       ║
-║ Leak Slope (Heap)                                  │       48.535 MB/min   ║
-║ Stability Rating                                   │        LEAKY          ║
+║ Total Load Processed                               │   155894.000 req      ║
+║ Production Throughput                              │     4704.000 req/s    ║
+║ RSS Delta (Final)                                  │      168.574 MB       ║
+║ Heap Delta (Final)                                 │     -287.844 MB       ║
+║ Leak Slope (Heap)                                  │     -153.141 MB/min   ║
+║ Stability Rating                                   │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- MEMORY_TABLE_END -->
@@ -511,18 +536,20 @@ xychart-beta
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                  SVELTYCMS  —  EDGE SYNC PROPAGATION AUDIT                  ║
 ║     Cross-Node Invalidation • 5 Simulated Edge Nodes • Redis-Bus Jitter     ║
+║                  File: tests/benchmarks/edge-sync.test.ts                   ║
+║ Proves: Verifies distributed L1/L2 cache invalidation latency across sim... ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Edge Invalidation (P2P)      │ 0.107 ms       │ 0.140 ms     │ 9,377        ║
+║ Edge Invalidation (P2P)      │ 0.227 ms       │ 0.342 ms     │ 4,400        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Avg Propagation Latency                            │        0.107 ms       ║
-║ p95 Propagation Latency                            │        0.140 ms       ║
-║ Sync Throughput                                    │     9377.000 ops/s    ║
+║ Avg Propagation Latency                            │        0.227 ms       ║
+║ p95 Propagation Latency                            │        0.342 ms       ║
+║ Sync Throughput                                    │     4400.000 ops/s    ║
 ║ Scalability Rating                                 │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -535,42 +562,110 @@ xychart-beta
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                SVELTYCMS  —  TELEMETRY & UPDATE PERFORMANCE                 ║
 ║         Update Check Overhead • JSON Payload Gen • Mocked Transport         ║
+║            File: tests/benchmarks/telemetry-performance.test.ts             ║
+║ Proves: Measures the overhead of telemetry data collection and cryptogra... ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Telemetry (Happy Path)       │ 0.001 ms       │ 0.003 ms     │ 841,515      ║
-║ Telemetry (Failure Path)     │ 0.001 ms       │ 0.004 ms     │ 799,361      ║
+║ Telemetry (Happy Path)       │ 0.003 ms       │ 0.005 ms     │ 395,153      ║
+║ Telemetry (Failure Path)     │ 0.002 ms       │ 0.007 ms     │ 619,579      ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Telemetry Latency (Happy)                          │        0.001 ms       ║
-║ Telemetry Latency (Error)                          │        0.001 ms       ║
-║ Max RPS                                            │   841515.000 req/s    ║
+║ Telemetry Latency (Happy)                          │        0.003 ms       ║
+║ Telemetry Latency (Error)                          │        0.002 ms       ║
+║ Max RPS                                            │   395153.000 req/s    ║
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- TELEMETRY_TABLE_END -->
 
 <!-- MIGRATION_TABLE_START -->
-> ⏳ **Bulk Migration & Scale**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/migration-scale.test.ts](file:///D:/SveltyCMS/tests/benchmarks/migration-scale.test.ts)
+### 🏷️ MIGRATION & SCALE AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                    SVELTYCMS  —  MIGRATION & SCALE AUDIT                    ║
+║                     Bulk I/O • 10,000 Entries • SQLITE                      ║
+║               File: tests/benchmarks/migration-scale.test.ts                ║
+║ Proves: Measures system ingestion limits and read performance on 10,000+... ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Bulk Ingestion (10k)         │ 44.240 ms      │ 59.612 ms    │ 23           ║
+║ Post-Migration Lookup        │ 0.175 ms       │ 0.188 ms     │ 5,700        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Total Migration Time                               │         1.14 s        ║
+║ Ingestion Throughput                               │     8783.000 entries/s ║
+║ Fat Table Read Latency                             │        0.175 ms       ║
+║ Memory RSS Δ                                       │         0.00 MB       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- MIGRATION_TABLE_END -->
 
 <!-- REVISION_TABLE_START -->
-> ⏳ **Revision & History Growth**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/revision-stress.test.ts](file:///D:/SveltyCMS/tests/benchmarks/revision-stress.test.ts)
+### 🏷️ REVISION STRESS AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                     SVELTYCMS  —  REVISION STRESS AUDIT                     ║
+║                   History Growth • 100 Versions • SQLITE                    ║
+║               File: tests/benchmarks/revision-stress.test.ts                ║
+║ Proves: Benchmarks performance degradation as document history grows to ... ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Baseline Read                │ 1.941 ms       │ 0.396 ms     │ 515          ║
+║ Stressed Read                │ 0.006 ms       │ 0.014 ms     │ 159,668      ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Baseline Read (ms)                                 │        1.941 ms       ║
+║ Stressed Read (ms)                                 │        0.006 ms       ║
+║ History Growth Tax                                 │       -99.68 %        ║
+║ Stability Rating                                   │        ELITE          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- REVISION_TABLE_END -->
 
 <!-- AI_TABLE_START -->
-> ⏳ **AI Bus & Inference Overhead**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/ai-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/ai-performance.test.ts)
+### 🏷️ AI INFRASTRUCTURE AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                    SVELTYCMS  —  AI INFRASTRUCTURE AUDIT                    ║
+║                   CMS Internal Tax (MOCKED LLM) • SQLITE                    ║
+║                File: tests/benchmarks/ai-performance.test.ts                ║
+║ Proves: Measures the internal CMS tax for AI enrichment and layout gener... ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ AI Enrichment                │ 568.337 ms     │ 2.368 ms     │ 2            ║
+║ AI Layout Spec               │ 1.554 ms       │ 1.887 ms     │ 644          ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Avg Enrichment Overhead                            │      568.337 ms       ║
+║ Avg Layout Spec Overhead                           │        1.554 ms       ║
+║ Internal AI Bus Jitter                             │      1991.25 %        ║
+║ Scalability Status                                 │       STABLE          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- AI_TABLE_END -->
 
 <!-- UX_TABLE_START -->
 > ⏳ **Simulated Admin UX Vitality**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/admin-ux-vitality.test.ts](file:///D:/SveltyCMS/tests/benchmarks/admin-ux-vitality.test.ts)
+> 📂 **Source**: [tests/benchmarks/admin-ux-vitality.test.ts](../../../tests/benchmarks/admin-ux-vitality.test.ts)
 <!-- UX_TABLE_END -->
 
 

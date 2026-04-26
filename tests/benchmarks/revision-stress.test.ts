@@ -4,7 +4,7 @@
  * Measures if reading the "Latest" version slows down as document history grows to 100+ versions.
  */
 
-import { test, beforeAll, afterAll } from "bun:test";
+import { test } from "bun:test";
 import "../unit/setup.ts";
 import {
   runBenchmark,
@@ -14,7 +14,6 @@ import {
   printSummaryTable,
   getDbType,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
 
 const COLLECTION_ID = "bench_revision_stress";
 const VERSION_COUNT = 100;
@@ -27,7 +26,7 @@ async function runRevisionAudit() {
   const { LocalCMS } = await import("@src/routes/api/cms");
   await ensureFullInitialization();
   const db = getDb();
-  const cms = new LocalCMS(db);
+  const cms = new LocalCMS(db as any);
 
   // Mock Admin for Auth
   const mockAdmin = { username: "admin", role: "admin", isAdmin: true };
@@ -45,8 +44,8 @@ async function runRevisionAudit() {
     revision: true, // Enable revisions for this test
   };
 
-  if (db!.collection?.createModel) {
-    await db!.collection.createModel(schema as any).catch(() => {});
+  if ((db as any)?.collection?.createModel) {
+    await (db as any).collection.createModel(schema as any).catch(() => {});
   }
 
   // 🚀 CRITICAL: Sync with in-memory contentStore

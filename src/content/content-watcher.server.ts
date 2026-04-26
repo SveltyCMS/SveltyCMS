@@ -6,7 +6,7 @@
 import chokidar from "chokidar";
 import path from "node:path";
 import { logger } from "@utils/logger";
-import { contentService } from "./content-service";
+import { contentService } from "./content-service.server";
 
 let debounceTimer: NodeJS.Timeout | null = null;
 let isReloading = false;

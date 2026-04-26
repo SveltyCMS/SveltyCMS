@@ -1,0 +1,37 @@
+---
+path: "docs/project/benchmarks/README.mdx"
+title: "Master Performance Leaderboard"
+description: "Cross-database performance benchmarks and SLA verification for SveltyCMS."
+author: "SveltyCMS Team"
+created: "2026-04-26"
+updated: "2026-04-26"
+tags:
+  - "benchmarks"
+  - "performance"
+  - "database"
+---
+
+# 🏆 Master Performance Leaderboard
+
+SveltyCMS undergoes continuous performance auditing across all supported database engines. This page serves as the central index for the latest benchmark reports.
+
+## 📊 Database-Specific Reports
+
+- [🐬 **MariaDB**](./benchmark_mariadb.mdx)
+- [🐬 **MariaDB + Redis**](./benchmark_mariadb_redis.mdx)
+- [🍃 **MongoDB**](./benchmark_mongodb.mdx)
+- [🍃 **MongoDB + Redis**](./benchmark_mongodb_redis.mdx)
+- [🐘 **PostgreSQL**](./benchmark_postgresql.mdx)
+- [🐘 **PostgreSQL + Redis**](./benchmark_postgresql_redis.mdx)
+- [📁 **SQLite**](./benchmark_sqlite.mdx)
+- [📁 **SQLite + Redis**](./benchmark_sqlite_redis.mdx)
+
+## 🔬 Methodology
+
+Our benchmarks focus on real-world scenarios:
+- **REST/GraphQL Latency**: p95 response times.
+- **Bulk Ingestion**: Entries per second.
+- **Memory Stability**: RSS and Heap growth under sustained load.
+- **ACID Integrity**: Transaction overhead and rollback safety.
+
+For more details on our testing strategy, see [Testing Strategy](../../tests/strategy.mdx).

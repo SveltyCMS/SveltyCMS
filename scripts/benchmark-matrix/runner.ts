@@ -108,7 +108,7 @@ export async function persistBenchmarkMeta(
 /**
  * Represents the result of a benchmark script run.
  */
-interface ScriptOutcome {
+interface LocalScriptOutcome {
   passed: boolean;
   attempts: number;
   elapsedMs: number;
@@ -125,8 +125,8 @@ export async function executeWithTimeout(
   timeoutMs: number,
   attempt: number,
   startTime: number,
-): Promise<ScriptOutcome> {
-  return new Promise<ScriptOutcome>((resolve) => {
+): Promise<LocalScriptOutcome> {
+  return new Promise<LocalScriptOutcome>((resolve) => {
     const args = cmd.split(" ").slice(1);
     const metrics: Record<string, number> = {};
     const proc = spawn("bun", args, {
@@ -202,7 +202,7 @@ export async function runBenchmarkScript(
   s: BenchmarkScript,
   env: NodeJS.ProcessEnv,
   cfg: RunConfig,
-): Promise<ScriptOutcome> {
+): Promise<LocalScriptOutcome> {
   const maxAttempts = 1 + cfg.retryCount;
   const scriptTimeout = s.timeoutMs ?? cfg.timeoutMs;
   let cmd =

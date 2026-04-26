@@ -4,7 +4,7 @@
  * Measures the "Latency Tax" of internal CMS logic for AI enrichment and layout generation.
  */
 
-import { test, beforeAll, afterAll } from "bun:test";
+import { test } from "bun:test";
 import "../unit/setup.ts";
 import {
   runBenchmark,
@@ -14,7 +14,6 @@ import {
   printSummaryTable,
   getDbType,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
 
 async function runAIAudit() {
   console.log("🚀 Starting Enterprise AI Performance Audit...\n");
@@ -47,7 +46,7 @@ async function runAIAudit() {
       iterations: 100,
       runs: 1,
       onIteration: async () => {
-        await aiService.generateLayoutSpec("A blog post layout with comments.", {});
+        await aiService.generateLayoutSpec("A blog post layout with comments.");
       },
       silent: true,
     });

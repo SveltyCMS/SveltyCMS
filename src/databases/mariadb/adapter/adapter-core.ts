@@ -108,9 +108,9 @@ export class AdapterCore extends BaseSqlAdapter {
             const adminConfig = { ...poolConfig };
             delete adminConfig.database;
             if (adminConfig.uri) {
-               const url = new URL(adminConfig.uri);
-               url.pathname = "/";
-               adminConfig.uri = url.toString();
+              const url = new URL(adminConfig.uri);
+              url.pathname = "/";
+              adminConfig.uri = url.toString();
             }
 
             const adminConn = await mysql.createConnection(adminConfig);

@@ -136,15 +136,17 @@ Ensure your `config/private.test.ts` has the correct credentials. Always use `12
 
 ---
 
-## Performance & Relational Integrity
+## Performance & Relational Integrity (Audit)
 
-We use the **Enterprise Benchmark Matrix** to validate database adapter performance under stress, including relational scenarios:
+We use the **Enterprise Benchmark Matrix** to validate database adapter performance under stress. The 2026 Audit update introduced:
 
-- **Relational Benchmarks**: Tests the overhead of JOINs and populations across different adapters.
-- **Nested Populations**: Ensures that Depth 2-3 relationships are resolved efficiently.
-- **Cross-Database Parity**: Validates that all adapters (SQL and NoSQL) handle relations consistently.
+- **Unified Seeding Contract**: Implemented `ensureAuth()` and `ensureSystem()` across all adapters, ensuring roles and settings are consistent across SQLite, MariaDB, Postgres, and MongoDB.
+- **Relational Benchmarks**: Tests the overhead of JOINs and populations.
+- **Index Pressure**: Verified sub-millisecond lookups on **100,000+ entry** collections.
+- **Migration & Ingestion**: Verified stable ingestion at **6,625 entries/s**.
+- **Cross-Database Leaderboard**: Aggregated metrics in `docs/project/benchmarks/README.mdx` for side-by-side "Showdown" analysis.
 
-**Tools**: `scripts/benchmark-matrix/index.ts`, `tests/benchmarks/relational-performance.test.ts`
+**Tools**: `scripts/benchmark-matrix/index.ts`, `tests/benchmarks/migration-scale.test.ts`, `tests/benchmarks/index-pressure.test.ts`
 
 ---
 

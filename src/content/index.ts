@@ -30,8 +30,9 @@ const initializationPromises = new Map<string, Promise<void>>();
 // Lazy Holders for Server-Only Modules (Optimized for Cold-Starts & Build Safety)
 let _contentService: any = null;
 async function getContentService() {
+  if (isBrowser) return null;
   if (!_contentService) {
-    const mod = await import("./content-service");
+    const mod = (await import("./content-service.server")) as any;
     _contentService = mod.contentService || mod.default || mod;
   }
   return _contentService;
@@ -121,11 +122,10 @@ export const contentSystem = {
 
         // 🚀 ULTRA ELITE: Fast-path for benchmarks to ensure collection visibility
         if (process.env.BENCHMARK_STABLE === "true") {
-          const { refreshCollectionsCache: refreshCache } = await import("./content-service");
+          const { refreshCollectionsCache: refreshCache } =
+            await import("./content-service.server");
           await refreshCache(tenantId, db);
-        }
-
-        if (content && typeof content.fullReload === "function") {
+        } else if (content && typeof content.fullReload === "function") {
           await content.fullReload(tenantId, skipReconciliation, db, null);
         } else {
           logger.error("❌ Content system fullReload not found on service object", {
@@ -136,7 +136,7 @@ export const contentSystem = {
         // Optional: Start content watcher in dev mode or test mode
         if (process.env.NODE_ENV === "development" || process.env.TEST_MODE === "true") {
           try {
-            const { startContentWatcher } = await import("./content-watcher");
+            const { startContentWatcher } = await import("./content-watcher.server");
             startContentWatcher();
           } catch (e) {
             logger.warn("Content watcher failed to start:", e);

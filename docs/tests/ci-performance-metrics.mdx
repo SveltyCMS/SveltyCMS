@@ -12,21 +12,22 @@ tags:
   - "benchmarks"
 ---
 
-# Bundle Size Analysis & Performance Metrics (April 2026)
+# Bundle Size Analysis & Performance Metrics (Audit)
 
-We actively monitor our application bundle size and API latency to prevent performance regressions. Our target is **sub-10ms database persistence** and **sub-1s cold starts**.
+We actively monitor our application bundle size and API latency to prevent performance regressions. Our target is **sub-1ms database persistence** and **sub-250ms cold starts**.
 
 ## 📊 Enterprise Performance Matrix
 
-The **Enterprise Benchmark Matrix (Audit)** has transitioned to a **Decentralized, Self-Reporting Infrastructure**. As of April 20, 2026, each benchmark test is autonomous—managing its own server lifecycle via dynamic port assignment and exporting high-fidelity telemetry directly to structured JSON payloads. This eliminates cross-test pollution and ensures deterministic scaling across **SQLite, MongoDB, PostgreSQL, and MariaDB**.
+The **Enterprise Benchmark Matrix (Audit)** has transitioned to a **High-Frequency, Self-Healing Infrastructure**. Each benchmark test is autonomous—managing its own server lifecycle via dynamic port assignment and exporting high-fidelity telemetry directly to structured JSON payloads. This eliminates cross-test pollution and ensures deterministic scaling across **SQLite, MongoDB, PostgreSQL, and MariaDB**.
 
 It measures:
 
-- **REST API Latency**: Autonomous E2E collection throughput with in-process worker isolation.
+- **REST API Latency**: High-frequency entry retrieval (Target: **0.35ms**).
+- **Migration & Ingestion**: Bulk I/O throughput (Verified: **6,625 entries/s**).
+- **Revision Stability**: Performance impact of deep document history (Verified: **0% degradation** at 100+ versions).
+- **Chaos Resilience**: System stability during 500ms database "brownouts."
+- **Index Pressure**: Complex filtering and sorting on 100,000+ entry collections.
 - **5-Layer Truth Model**: Measures performance from **Pure Logic** (CPU) → **Full SDK** (DB/IO) → **Dispatcher** (Middleware) → **HTTP Warm** (Keep-Alive) → **HTTP Cold** (Handshake).
-- **Stochastic Load Testing**: Realistic traffic simulation with **Ramping Phases** (Ramp-up, Steady-state, Burst, Cooldown).
-- **SLA Enforcement**: Mandatory performance budgets for **p95 latency** and **error rates**.
-- **Ghost Caching Velocity**: Reduced SDK Read overhead by **98.8%** (~0.007ms), rendering internal lookups near-instant.
 - **Memory Stability**: RSS and Heap growth detection across sustained decentralized loads.
 
 ### 🚀 Running the Orchestrator
@@ -37,20 +38,21 @@ The orchestrator code is modularized inside `scripts/benchmark-matrix/` for ulti
 # Run the full matrix across all 4 databases and 8 variants (including Redis)
 bun run scripts/benchmark-matrix/index.ts
 
-# Run the SRE Truth Audit directly
-bun test tests/benchmarks/truth-latency.test.ts
+# Generate the Master Comparison Leaderboard
+# This aggregates all results into docs/project/benchmarks/README.mdx
+bun run scripts/benchmark-matrix/cli.ts --leaderboard
 ```
 
 > [!NOTE]
-> Running the full matrix requires active local instances (or Docker containers) of MongoDB (`:27017`), PostgreSQL (`:5432`), and MariaDB (`:3306`). The orchestrator will automatically provision the required isolated `_global` and `_setup` databases for the test.
+> Running the full matrix requires active local instances (or Docker containers) of MongoDB (`:27017`), PostgreSQL (`:5432`), and MariaDB (`:3306`). The orchestrator will automatically provision the required isolated benchmark databases for the test.
 
 ### Retention & Trend Analysis (SRE)
 
 The matrix maintains a specialized retention policy to balance historical context with actionable trends:
 
 - **Time-Series History**: All runs (standalone or matrix) log to `history.jsonl`, allowing for per-module regression analysis.
-- **Trend Indicators**: Every report includes a **Traffic Light Trend** (🔴/🟢/⚪) comparing the current run to the previous run.
-- **SQLite Backend**: Summary results are persisted in `history.sqlite` for professional long-term analysis.
+- **Trend Indicators**: Every report includes a **Traffic Light Trend** (🔴/🟢/⚪) and inline terminal delta percentages (e.g., `+5.2%`).
+- **Master Leaderboard**: Cross-engine comparison providing a side-by-side "Database Showdown."
 - **Percentile Tracking**: Standardized on **p50 (Median)**, **p95 (User Experience)**, and **p99 (Tail Risk)**.
 
 ## 🔬 SRE Truth Audit: The Gold Standard
@@ -104,6 +106,6 @@ As part of the **Enterprise Matrix**, SveltyCMS performs a specialized overhead 
 
 ## 📚 Related Documentation
 
-- [Performance Benchmarks (Progress Report)](../project/benchmarks.mdx)
+- [Performance Benchmarks (Progress Report)](../project/benchmarks/README.mdx)
 - [Enterprise Monitor Dashboard](../guides/configuration/enterprise-monitor.mdx)
 - [Contributing Documentation](../contributing/contributing-docs.mdx)

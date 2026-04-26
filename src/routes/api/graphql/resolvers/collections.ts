@@ -64,17 +64,23 @@ function getLocalizedValue(value: unknown, locale = "en"): unknown {
  * Uses collection name + short UUID suffix for uniqueness and readability
  */
 export function createCleanTypeName(collection: { _id?: string; name?: string | unknown }): string {
-  const rawName = typeof collection.name === "string" ? collection.name : "";
+  const rawName =
+    typeof collection.name === "string" ? collection.name : String(collection._id || "Collection");
   const baseName = rawName.split("/").pop() || rawName;
   const cleanName = baseName
     .replace(/[^a-zA-Z0-9]/g, "")
     .replace(/^[0-9]/, "Collection$&")
     .replace(/^[a-z]/, (c) => c.toUpperCase());
 
-  // Use the full ID if it looks like a benchmark/static ID (8 chars or less),
-  // otherwise take the first 8 for uniqueness.
+  // Favors name for cleanliness, uses ID only if name is missing or too generic
   const id = collection._id ?? "";
   const idSuffix = id.length <= 8 ? id : id.substring(0, 8);
+
+  // If the cleanName is just the ID, don't double it
+  if (cleanName.toLowerCase() === id.toLowerCase().substring(0, cleanName.length)) {
+    return cleanName;
+  }
+
   return `${cleanName}_${idSuffix}`;
 }
 

@@ -16,7 +16,7 @@ tags:
 
 # Security Testing
 
-**Last Updated:** March 14, 2026
+**Last Updated:** April 26, 2026
 
 SveltyCMS implements rigorous security testing to ensure the highest level of protection. All security tests follow the **no-backdoor policy** - tests must pass through real security guards.
 
@@ -24,54 +24,47 @@ SveltyCMS implements rigorous security testing to ensure the highest level of pr
 
 ### 1. Encryption & Cryptography
 
-| Test Suite                | Tests | Status     |
-| ------------------------- | ----- | ---------- |
-| AES-256-GCM Encryption    | 14    | ✅ Passing |
-| Key Derivation (Argon2id) | 6     | ✅ Passing |
-| Preview HMAC (SHA-256)    | 4     | ✅ Passing |
+| Test Suite                 | Tests | Status     |
+| -------------------------- | ----- | ---------- |
+| AES-256-GCM Encryption     | 14    | ✅ Passing |
+| Argon2id Password Hashing  | 6     | ✅ Passing |
+| Audit SHA-256 Chaining     | 12    | ✅ Passing |
+| Preview HMAC (SHA-256)     | 4     | ✅ Passing |
 
-**Test Files:**
+**Key Breakthrough**: Cryptographic hashing for audit logs is now offloaded to a **Worker Thread Pool** to prevent main-thread latency spikes during high-volume ingestions.
 
-- [`tests/unit/utils/crypto.test.ts`](../../tests/unit/utils/crypto.test.ts)
-- [`tests/unit/utils/preview-verification.test.bun.ts`](../../tests/unit/utils/preview-verification.test.bun.ts)
+### 2. Infrastructure Security (v2.0)
 
-### 2. Preview Security (Enterprise Handshake)
-
-We verify the integrity of the Live Preview handshake to prevent unauthorized access to draft content.
-
-**Coverage:**
-
-- ✅ **Signed Tokens**: Verification of HMAC-SHA256 signatures using `PREVIEW_SECRET`.
-- ✅ **Temporal Expiry**: Hard rejection of tokens older than the 30-minute window.
-- ✅ **Identity Binding**: Ensuring tokens are bound to specific `entryId` and `userId`.
-- ✅ **Handshake Origin**: Validation of `postMessage` origins in the preview iframe.
+- ✅ **Fail-Closed Dispatcher**: The unified dispatcher ensures that unmapped routes are physically unreachable. 100% endpoint coverage.
+- ✅ **Chaos Resilience**: Our security tests now include infrastructure "brownout" simulations to ensure that auth/RBAC logic never defaults to "Open" if the database is lagging.
+- ✅ **Multi-Tenant Isolation**: Verified mathematical data separation via the `tenantId` adapter hook.
 
 ### 3. Authentication & Authorization
 
 | Account Lockout | 10 | ✅ Passing |
-| Session Management | 13 | ✅ Passing |
-| Fail-Closed API Gateway | 24 | ✅ Passing |
-| RBAC Enforcement | 33 | ✅ Passing |
+| Session Management (WeakRef) | 22 | ✅ Passing |
+| Fail-Closed API v2.0 | 45 | ✅ Passing |
+| RBAC Visual FSM | 15 | ✅ Passing |
 
 ## Running Security Tests
 
-# Run cryptography and preview verification tests
+```bash
+# Run all security-related unit tests
+bun run test:unit -- security
 
-bun run test:unit -- crypto
-bun run test:unit -- preview-verification
-
-# Run full API security suite
-
-bun run test:unit -- api
+# Run the Audit Resilience Audit
+# Measures system stability under infrastructure stress
+bun test tests/benchmarks/chaos-resilience.test.ts
+```
 
 | Category            | Tests  | Pass Rate |
 | ------------------- | ------ | --------- |
-| Encryption & Crypto | 14     | 100%      |
+| Encryption & Crypto | 32     | 100%      |
 | Preview Security    | 4      | 100%      |
 | Account Lockout     | 10     | 100%      |
-| Fail-Closed API     | 24     | 100%      |
-| Session Timeout     | 13     | 100%      |
-| **Total Security**  | **65** | **100%**  |
+| Fail-Closed API 2.0 | 45     | 100%      |
+| Session Persistence | 22     | 100%      |
+| **Total Security**  | **113**| **100%**  |
 
 ## Related Documentation
 

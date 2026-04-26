@@ -36,7 +36,7 @@ export async function generateContentTypes(
   try {
     // Load content-service directly instead of full contentSystem to avoid full runtime boot (DB, Redis)
     const { scanCompiledCollections } = await server.ssrLoadModule(
-      path.join(process.cwd(), "src/content/content-service.ts"),
+      path.join(process.cwd(), "src/content/content-service.server.ts"),
     );
 
     // Scan compiled collections directly from filesystem
