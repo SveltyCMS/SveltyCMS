@@ -98,7 +98,7 @@ export const actions: Actions = {
         .filter((node: any) => ids.includes(node._id.toString()))
         .map((node: any) => node.path);
 
-      const operations = pathsToDelete.map((path) => ({
+      const operations = (pathsToDelete as string[]).map((path: string) => ({
         type: "delete" as const,
         node: { path } as any,
       }));

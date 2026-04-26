@@ -9,6 +9,7 @@ import { contentStore } from "@stores/content-store.svelte";
 import { contentNavigation, contentMetrics } from "./content-utils";
 import type { ContentNodeOperation, Schema, NavigationNode } from "./types";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
+import type { contentService as ContentServiceType } from "./content-service.server";
 
 // --- RE-EXPORTS ---
 export * from "./types";
@@ -28,12 +29,12 @@ const CONTENT_CONTEXT_KEY = Symbol("content-context");
 const initializationPromises = new Map<string, Promise<void>>();
 
 // Lazy Holders for Server-Only Modules (Optimized for Cold-Starts & Build Safety)
-let _contentService: any = null;
-async function getContentService() {
+let _contentService: typeof ContentServiceType | null = null;
+async function getContentService(): Promise<typeof ContentServiceType | null> {
   if (isBrowser) return null;
   if (!_contentService) {
     const mod = (await import("./content-service.server")) as any;
-    _contentService = mod.contentService || mod.default || mod;
+    _contentService = (mod.contentService || mod.default || mod) as typeof ContentServiceType;
   }
   return _contentService;
 }
@@ -217,31 +218,31 @@ export const contentSystem = {
 
   async find(collection: string, query: any, options?: any) {
     if (isBrowser) throw new Error("Content find is server-only");
-    const content = await getContentService();
+    const content = (await getContentService()) as any;
     return content.find(collection, query, options);
   },
 
   async findOne(collection: string, query: any, options?: any) {
     if (isBrowser) throw new Error("Content findOne is server-only");
-    const content = await getContentService();
+    const content = (await getContentService()) as any;
     return content.findOne(collection, query, options);
   },
 
   async insert(collection: string, data: any, options?: any) {
     if (isBrowser) throw new Error("Content insert is server-only");
-    const content = await getContentService();
+    const content = (await getContentService()) as any;
     return content.insert(collection, data, options);
   },
 
   async update(collection: string, query: any, data: any, options?: any) {
     if (isBrowser) throw new Error("Content update is server-only");
-    const content = await getContentService();
+    const content = (await getContentService()) as any;
     return content.update(collection, query, data, options);
   },
 
   async delete(collection: string, query: any, options?: any) {
     if (isBrowser) throw new Error("Content delete is server-only");
-    const content = await getContentService();
+    const content = (await getContentService()) as any;
     return content.delete(collection, query, options);
   },
 
@@ -266,7 +267,7 @@ export const contentSystem = {
     tenantId?: string | null,
   ): Promise<any[]> {
     if (isBrowser) return [];
-    const content = await getContentService();
+    const content = (await getContentService()) as any;
     return content.getContentStructureFromDatabase(format, tenantId);
   },
 
@@ -282,7 +283,7 @@ export const contentSystem = {
 
   async reorderContentNodes(items: any[], tenantId?: string | null): Promise<any[]> {
     if (isBrowser) return contentStore.getNodesForTenant(tenantId);
-    const content = await getContentService();
+    const content = (await getContentService()) as any;
     await content.reorderNodes(items, tenantId);
     contentStore.updateVersion();
     return contentStore.getNodesForTenant(tenantId);
@@ -290,7 +291,7 @@ export const contentSystem = {
 
   async upsertContentNodes(operations: ContentNodeOperation[], tenantId?: string | null) {
     if (isBrowser) return;
-    const content = await getContentService();
+    const content = (await getContentService()) as any;
     return content.upsertContentNodes(operations, tenantId);
   },
 
@@ -302,7 +303,7 @@ export const contentSystem = {
 
   async scanForCollections() {
     if (isBrowser) return [];
-    const content = await getContentService();
+    const content = (await getContentService()) as any;
     return content.scanCompiledCollections();
   },
 

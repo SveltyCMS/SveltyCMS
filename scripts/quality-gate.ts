@@ -36,10 +36,15 @@ async function main() {
     // Task B: Incremental Unit Testing (Only test what you touched)
     run("bun", ["vitest", "related", ...stagedFiles, "--run", "--reporter=dot"]),
 
-    // Task C: Mandatory Codegen & Type Check
+    // Task C: Mandatory Codegen, Type Check & Lightweight Build Verification
     (async () => {
       await run("bun", ["run", "paraglide"]);
-      return run("bun", ["run", "check"]);
+      const checkPassed = await run("bun", ["run", "check"]);
+      if (!checkPassed) return false;
+
+      // 🚀 ULTRA ELITE: Run a production build check to catch security leaks (.server guards)
+      console.log("🏗️ Verifying Production Build Integrity (Security Guards)...");
+      return run("bun", ["run", "build"]);
     })(),
   ];
 
