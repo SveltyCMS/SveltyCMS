@@ -167,7 +167,12 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   if (await resetBtn.isVisible()) {
     console.log("[SetupWizard] Existing data detected. Clicking Reset Data for fresh test...");
     await resetBtn.click();
-    await page.waitForTimeout(1000);
+    // Wait for the system to reset and potentially reload
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(3000); 
+    
+    // Ensure we are back on the setup page and it is hydrated
+    await expect(page).toHaveURL(/\/setup/);
   }
 
   // Select SQLite (default for E2E tests)
