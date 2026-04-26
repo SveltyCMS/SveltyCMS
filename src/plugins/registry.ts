@@ -85,7 +85,19 @@ class PluginRegistry implements IPluginService {
       }
 
       const plugin = entry.plugin;
-      if (!plugin.migrations || plugin.migrations.length === 0) {
+
+      // 🚀 DYNAMIC RESOLUTION: If migrations aren't static, try to resolve via .server module
+      let migrations = plugin.migrations;
+      if (!migrations || migrations.length === 0) {
+        try {
+          const serverMod = await import(`./${pluginId}/index.server`);
+          migrations = serverMod.migrations || [];
+        } catch {
+          // No server module for this plugin, normal if plugin is UI-only
+        }
+      }
+
+      if (!migrations || migrations.length === 0) {
         return { success: true, data: undefined };
       }
 
@@ -99,7 +111,7 @@ class PluginRegistry implements IPluginService {
       );
 
       // Sort and run pending migrations
-      const pending = plugin.migrations
+      const pending = migrations
         .filter((m) => !appliedIds.has(m.id))
         .sort((a, b) => a.version - b.version);
 
@@ -180,11 +192,21 @@ class PluginRegistry implements IPluginService {
         continue;
       }
 
-      if (!plugin.ssrHook) {
+      let ssrHook = plugin.ssrHook;
+      if (!ssrHook) {
+        try {
+          const serverMod = await import(`./${plugin.metadata.id}/index.server`);
+          ssrHook = serverMod.ssrHook;
+        } catch {
+          // No server hook
+        }
+      }
+
+      if (!ssrHook) {
         continue;
       }
 
-      hooks.push(plugin.ssrHook);
+      hooks.push(ssrHook);
     }
 
     return hooks;

@@ -252,6 +252,7 @@ export const contentSystem = {
     incremental = false,
     adapter?: DatabaseAdapter,
   ) {
+    if (isBrowser) return;
     const key = tenantId ?? "__global__";
     logger.info(`[CONTENT] refresh called for ${key}. skipReconciliation: ${skipReconciliation}`);
     initializationPromises.delete(key);

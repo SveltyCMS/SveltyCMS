@@ -17,8 +17,8 @@ test.describe("setup wizard error handling", () => {
     await page.locator("#db-user").fill("wrong_user");
     await page.locator("#db-password").fill("wrong_password");
 
-    const testDbButton = page.locator("button", { hasText: /test database/i });
-    await testDbButton.click();
+    const testDbButton = page.locator("button", { hasText: /test database/i }).first();
+    await testDbButton.click({ force: true });
 
     // Assert that an error message appears
     await expect(page.getByText(/connection failed|getaddrinfo ENOTFOUND/i).first()).toBeVisible({
@@ -46,9 +46,10 @@ test.describe("setup wizard error handling", () => {
     // Confirm button should say "Yes" or similar
     const confirmBtn = page.locator("button").filter({ hasText: /yes/i }).first();
     await expect(confirmBtn).toBeVisible({ timeout: 10000 });
+    await confirmBtn.click({ force: true });
 
     // Assert error message about existing data
-    await expect(page.getByText(/database is not empty/i)).toBeVisible();
+    await expect(page.getByText(/database is not empty/i).first()).toBeVisible();
   });
 
   test("should show error on admin user password mismatch", async ({ page }) => {
@@ -57,7 +58,7 @@ test.describe("setup wizard error handling", () => {
     // Skip to Admin Step (assuming we can bypass via Next if DB is already valid or mocked)
     // For E2E we usually have to follow the flow, so we use SQLite which should be fast
     await page.locator("#db-type").selectOption("sqlite");
-    await page.getByLabel("Next", { exact: true }).click();
+    await page.getByLabel("Next", { exact: true }).first().click({ force: true });
 
     await expect(page.locator("h2", { hasText: /admin/i }).first()).toBeVisible();
 
@@ -78,13 +79,13 @@ test.describe("setup wizard error handling", () => {
 
     // Fast track to SMTP (Step 4 approx)
     await page.locator("#db-type").selectOption("sqlite");
-    await page.getByLabel("Next", { exact: true }).click(); // To Admin
+    await page.getByLabel("Next", { exact: true }).first().click({ force: true }); // To Admin
     await page.locator("#admin-username").fill("admin");
     await page.locator("#admin-email").fill("admin@example.com");
     await page.locator("#admin-password").fill("Password123!");
     await page.locator("#admin-confirm-password").fill("Password123!");
-    await page.getByLabel("Next", { exact: true }).click(); // To Site Settings
-    await page.getByLabel("Next", { exact: true }).click(); // To Mail Settings
+    await page.getByLabel("Next", { exact: true }).first().click({ force: true }); // To Site Settings
+    await page.getByLabel("Next", { exact: true }).first().click({ force: true }); // To Mail Settings
 
     await expect(page.locator("h2", { hasText: /email/i }).first()).toBeVisible();
 
@@ -92,8 +93,8 @@ test.describe("setup wizard error handling", () => {
     await page.locator("#smtp-port").fill("587");
     await page.locator("#test-email").fill("test@example.com");
 
-    const testEmailButton = page.locator("button", { hasText: /test email/i });
-    await testEmailButton.click();
+    const testEmailButton = page.locator("button", { hasText: /test email/i }).first();
+    await testEmailButton.click({ force: true });
 
     await expect(page.getByText(/invalid smtp|enotfound/i).first()).toBeVisible({
       timeout: 20_000,

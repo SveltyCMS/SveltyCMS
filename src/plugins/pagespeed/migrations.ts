@@ -5,7 +5,7 @@
  */
 
 import type { IDBAdapter } from "@databases/db-interface";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { PluginMigration } from "../types";
 
 /**

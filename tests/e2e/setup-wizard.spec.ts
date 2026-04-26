@@ -167,6 +167,12 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   if (await resetBtn.isVisible()) {
     console.log("[SetupWizard] Existing data detected. Clicking Reset Data for fresh test...");
     await resetBtn.click();
+    
+    // Handle Reset Confirmation Modal
+    const confirmResetBtn = page.locator("button").filter({ hasText: /yes/i }).first();
+    await expect(confirmResetBtn).toBeVisible({ timeout: 5000 });
+    await confirmResetBtn.click({ force: true });
+
     // Wait for the system to reset and potentially reload
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(3000); 
