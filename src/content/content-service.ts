@@ -140,6 +140,27 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
   return schemas;
 }
 
+/**
+ * 🚀 ULTRA ELITE: Fast-path for benchmarks to ensure collection visibility.
+ * Manually forces a sync of the contentStore with the filesystem.
+ */
+export async function refreshCollectionsCache(tenantId?: string | null, db?: IDBAdapter) {
+  const schemas = await scanCompiledCollections();
+  const nodes = schemas.map(schema => ({
+    _id: schema._id,
+    nodeType: "collection",
+    path: schema.path,
+    name: schema.name,
+    collectionDef: schema,
+    tenantId: tenantId || "global"
+  }));
+  
+  contentStore.sync(nodes as any);
+  if (db && typeof (db as any).reconcile === "function") {
+    await (db as any).reconcile();
+  }
+}
+
 export const contentService = {
   async fullReload(
     tenantId?: string | null,

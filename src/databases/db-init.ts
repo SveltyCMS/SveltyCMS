@@ -188,13 +188,15 @@ export async function runBackgroundTasks(dbAdapter: DatabaseAdapter) {
       if (dbAdapter?.ensureMonitoring) await dbAdapter.ensureMonitoring();
 
       // Initialize Index Optimizer
-      try {
-        const { initializeIndexOptimizer, indexOptimizer } =
-          await import("../services/database/index-optimizer.server");
-        initializeIndexOptimizer(dbAdapter);
-        void indexOptimizer?.optimizeAll();
-      } catch (e) {
-        logger.warn("[db] Index optimization failed to start:", e);
+      if (typeof import.meta.env !== "undefined" && import.meta.env.SSR) {
+        try {
+          const { initializeIndexOptimizer, indexOptimizer } =
+            await import("../services/database/index-optimizer.server");
+          initializeIndexOptimizer(dbAdapter);
+          void indexOptimizer?.optimizeAll();
+        } catch (e) {
+          logger.warn("[db] Index optimization failed to start:", e);
+        }
       }
 
       updateServiceHealth("cache", "initializing", "Warming up cache...");

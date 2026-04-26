@@ -50,13 +50,12 @@ describe("ContentService - Incremental Reconciliation", () => {
   let contentService: any;
 
   beforeEach(async () => {
-    vi.clearAllMocks();
-    const module = await import("../../../src/content/content-service.server");
-    contentService = module.contentService;
+  	vi.clearAllMocks();
+  	const module = await import("../../../src/content/content-service");
+  	contentService = module.contentService;
   });
-
   it("should perform a surgical update when a single file changes", async () => {
-    const { loadSchemaNative } = await import("../../../src/content/module-processor.server");
+    const { loadSchemaNative } = await import("../../../src/content/module-processor");
     const { contentStore } = await import("../../../src/stores/content-store.svelte");
     const { eventBus } = await import("../../../src/utils/event-bus");
     const fs = (await import("node:fs/promises")).default;

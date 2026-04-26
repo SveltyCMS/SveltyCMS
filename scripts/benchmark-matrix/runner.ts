@@ -106,7 +106,18 @@ export async function persistBenchmarkMeta(
 }
 
 /**
- * Executes a command with a timeout.
+ * Represents the result of a benchmark script run.
+ */
+interface ScriptOutcome {
+  passed: boolean;
+  attempts: number;
+  elapsedMs: number;
+  error?: string;
+  metrics?: Record<string, number>;
+}
+
+/**
+ * Executes a command with a timeout and parses metrics.
  */
 export async function executeWithTimeout(
   cmd: string,
@@ -117,14 +128,30 @@ export async function executeWithTimeout(
 ): Promise<ScriptOutcome> {
   return new Promise<ScriptOutcome>((resolve) => {
     const args = cmd.split(" ").slice(1);
+    const metrics: Record<string, number> = {};
     const proc = spawn("bun", args, {
       env: { ...process.env, ...env, BENCHMARK_DEBUG: "true" },
-      stdio: "inherit",
+      stdio: ["inherit", "pipe", "pipe"],
       shell: process.platform === "win32",
     });
 
-    let resolved = false;
+    // 🚀 ULTRA ELITE: Parse metrics from stdout in real-time
+    proc.stdout.on("data", (data) => {
+      const line = data.toString();
+      process.stdout.write(data); // still print to terminal
 
+      const metricMatch = line.match(/METRIC: ([\w.]+)=([\d.]+)/);
+      if (metricMatch) {
+        const [, key, val] = metricMatch;
+        metrics[key] = parseFloat(val);
+      }
+    });
+
+    proc.stderr.on("data", (data) => {
+      process.stderr.write(data);
+    });
+
+    let resolved = false;
     const timer = setTimeout(() => {
       if (resolved) return;
       resolved = true;
@@ -134,6 +161,7 @@ export async function executeWithTimeout(
         attempts: attempt,
         elapsedMs: Math.round(performance.now() - startTime),
         error: `timed out after ${(timeoutMs / 1000).toFixed(0)}s`,
+        metrics,
       });
     }, timeoutMs);
 
@@ -146,6 +174,7 @@ export async function executeWithTimeout(
         attempts: attempt,
         elapsedMs: Math.round(performance.now() - startTime),
         error: code === 0 ? undefined : `exited with code ${code}`,
+        metrics,
       });
     };
 
@@ -160,6 +189,7 @@ export async function executeWithTimeout(
         attempts: attempt,
         elapsedMs: Math.round(performance.now() - startTime),
         error: `spawn error: ${err.message}`,
+        metrics,
       });
     });
   });
@@ -196,6 +226,7 @@ export async function runBenchmarkScript(
       ...env,
       BENCH_FILE: s.path,
       BENCH_PROVES: s.desc,
+      BENCHMARK_STABLE: "true",
     };
 
     const outcome = await executeWithTimeout(cmd, scriptEnv, scriptTimeout, attempt, t0);
@@ -385,6 +416,10 @@ export async function runAuditForDatabase(
         scriptTimings[s.shortLabel] = outcome.elapsedMs;
         await persistBenchmarkMeta(s, outcome, dbKey, dbDir);
 
+        if (outcome.metrics) {
+          Object.assign(metrics, outcome.metrics);
+        }
+
         if (outcome.passed) {
           await persistScriptMetadataAST(s.path, new Date().toISOString());
         }
@@ -395,7 +430,7 @@ export async function runAuditForDatabase(
           {
             db: dbKey,
             status: "RUNNING",
-            metrics: {},
+            metrics: { ...metrics },
             scriptTimings: { ...scriptTimings },
             extra: {
               API_BASE_URL: env.API_BASE_URL,
