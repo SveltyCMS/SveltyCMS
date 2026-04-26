@@ -80,8 +80,9 @@ async function runPressureAudit() {
         await cms.collections.find(COLLECTION_ID, { 
           sort: "score", 
           order: "desc", 
-          limit: 20 
-        }, apiOptions);
+          limit: 20,
+          ...apiOptions
+        });
       },
       silent: true,
     });
@@ -95,8 +96,9 @@ async function runPressureAudit() {
       onIteration: async () => {
         await cms.collections.find(COLLECTION_ID, { 
           filter: { category: "A" },
-          limit: 20 
-        }, apiOptions);
+          limit: 20,
+          ...apiOptions
+        });
       },
       silent: true,
     });

@@ -103,7 +103,7 @@ export async function updateIncrementalReport(results: BenchmarkResult[]) {
  * 🚀 ULTRA ELITE: Generates a master comparison leaderboard across all databases.
  */
 async function generateMasterLeaderboard(results: any[]) {
-  const readmePath = path.join(DOCS_DIR, "README.mdx");
+  const readmePath = path.join(path.resolve(process.cwd(), "docs/project/benchmarks"), "README.mdx");
   const now = new Date().toLocaleString();
 
   let md = `---
@@ -211,6 +211,10 @@ SveltyCMS achieves **Database Agnosticism** without sacrificing performance. Whi
   await fs.writeFile(readmePath, finalMd);
 }
 
+/**
+ * 📊 Prints a professional ASCII summary table to the console.
+ */
+export function printSummaryTable(results: BenchmarkResult[]) {
   const COL = [22, 12, 12, 10, 10, 8, 7];
   const hdr = [
     "Database",

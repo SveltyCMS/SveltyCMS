@@ -14,7 +14,6 @@ import {
   printSummaryTable,
   getDbType,
 } from "./benchmark-utils";
-import { AppError } from "@utils/error-handling";
 
 async function runChaosAudit() {
   console.log("🚀 Starting Enterprise Chaos & Resilience Audit...\n");
@@ -72,8 +71,8 @@ async function runChaosAudit() {
 
     printSummaryTable([
       { key: "Jitter Latency (p95)", val: results.p95Ms, unit: "ms" },
-      { key: "Availability Rate", val: (100 - results.errorRate * 100).toFixed(2), unit: "%" },
-      { key: "Survival Status", val: results.errorRate < 0.01 ? "INDESTRUCTIBLE" : "STABLE", unit: "" },
+      { key: "Availability Rate", val: (100 - (results as any).errorRate * 100).toFixed(2), unit: "%" },
+      { key: "Survival Status", val: (results as any).errorRate < 0.01 ? "INDESTRUCTIBLE" : "STABLE", unit: "" },
     ]);
 
     exportResult(results);
