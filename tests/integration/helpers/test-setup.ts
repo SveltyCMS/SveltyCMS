@@ -175,18 +175,18 @@ export async function prepareAuthenticatedContext(): Promise<string> {
     throw new Error(`Login failed after retries: ${error}`);
   }
 
-  const setCookie = loginResp.headers.get("set-cookie");
+  const setCookie = loginResp.headers.get("set-cookie") || "";
   if (!setCookie) {
     throw new Error("No session cookie returned");
   }
 
-  // Extract only the 'name=value' part, ignoring Path, HttpOnly, etc.
-  const cookieMatch = setCookie.match(/^([^;]+)/);
-  if (!cookieMatch) {
-    throw new Error(`Failed to parse session cookie: ${setCookie}`);
-  }
+  // 🛡️ SECURITY: Capture all 'name=value' pairs from multiple Set-Cookie entries
+  // Replaces comma-separated cookies with semicolon-separated pairs for the Cookie header
+  const sessionCookie = setCookie
+    .split(/,(?=\s*[^=]+=[^;]+)/) // Split on commas that look like they start a new cookie
+    .map((c) => c.trim().split(";")[0]) // Take only the name=value part
+    .join("; ");
 
-  const sessionCookie = cookieMatch[1];
   console.log(`🔑 Login successful. Session Cookie: ${sessionCookie}`);
   return sessionCookie;
 }

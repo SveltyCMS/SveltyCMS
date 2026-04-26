@@ -27,6 +27,26 @@ class ContentStore {
     return this.initState === "initialized";
   }
 
+  get isReloading(): boolean {
+    return this.initState === "initializing";
+  }
+
+  async waitForReload(): Promise<void> {
+    if (!this.isReloading) return;
+    return new Promise((resolve) => {
+      const check = setInterval(() => {
+        if (!this.isReloading) {
+          clearInterval(check);
+          resolve();
+        }
+      }, 50);
+    });
+  }
+
+  isInitializedForTenant(_tenantId?: string | null): boolean {
+    return this.isInitialized;
+  }
+
   get nodeCount(): number {
     return this._allNodes.size;
   }
@@ -176,6 +196,21 @@ class ContentStore {
 
   updateVersion() {
     this.contentVersion++;
+  }
+
+  getCollectionStats(id: string, tenantId?: string | null) {
+    const col = this.getCollection(id, tenantId);
+    if (!col) return null;
+    return {
+      _id: col._id,
+      name: col.name,
+      icon: col.icon || "mdi:folder",
+      path: col.path || `/collection/${col.name}`,
+      fieldCount: (col.fields || []).length,
+      hasRevisions: col.revision || false,
+      hasLivePreview: !!col.livePreview,
+      status: col.status || "active",
+    };
   }
 
   clear(tenantId?: string) {

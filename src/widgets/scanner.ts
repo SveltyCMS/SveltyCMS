@@ -4,8 +4,6 @@
  * Provides a single source of truth for widget discovery to avoid redundant scanning.
  */
 
-console.error("🔍 Scanner.ts loading...");
-
 // Scan for core widgets
 let coreModulesRaw = {};
 try {
@@ -22,12 +20,8 @@ try {
   // Fallback handled below
 }
 
-console.error(`[Scanner] Glob coreModulesRaw size: ${Object.keys(coreModulesRaw).length}`);
-console.error(`[Scanner] Glob customModulesRaw size: ${Object.keys(customModulesRaw).length}`);
-
 // Fallback for non-Vite environments or production preview where glob might be stripped
 if (Object.keys(coreModulesRaw).length === 0 && typeof process !== "undefined") {
-  console.error(`[Scanner] Triggering FS fallback scan. CWD: ${process.cwd()}`);
   try {
     const fs = require("node:fs");
     const path = require("node:path");

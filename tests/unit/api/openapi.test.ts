@@ -56,6 +56,7 @@ describe("OpenAPI Specification API", () => {
       },
       locals: {
         user: { _id: "u1", role: "admin", isAdmin: true },
+        isAdmin: true,
         tenantId: "t1",
         roles: [{ _id: "admin", isAdmin: true }],
       },

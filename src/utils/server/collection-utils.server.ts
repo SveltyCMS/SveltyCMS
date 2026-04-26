@@ -12,7 +12,7 @@ export async function fetchAndRedirectToFirstCollection(language: Locale): Promi
   try {
     logger.debug(`Fetching first collection path for language: ${language}`);
 
-    const firstCollection = await contentSystem.getFirstCollection();
+    const firstCollection = contentSystem.collections.getSmartFirst();
     if (firstCollection?.path) {
       // Ensure the collection path has a leading slash
       const collectionPath = firstCollection.path.startsWith("/")
@@ -25,7 +25,7 @@ export async function fetchAndRedirectToFirstCollection(language: Locale): Promi
       return redirectUrl;
     }
 
-    logger.warn("No collections found via getFirstCollection(), returning null.");
+    logger.warn("No collections found via getSmartFirst(), returning null.");
     return null; // Return null if no collections are configured
   } catch (err) {
     logger.error("Error in fetchAndRedirectToFirstCollection:", err);

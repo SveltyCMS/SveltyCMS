@@ -91,7 +91,7 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
     const contentPromise = contentSystem.initialize(tenantId).then(() => {
       return Promise.all([
         contentSystem.getNavigationStructure(tenantId),
-        contentSystem.getFirstCollection(tenantId),
+        contentSystem.collections.getSmartFirst(tenantId),
       ]);
     });
 

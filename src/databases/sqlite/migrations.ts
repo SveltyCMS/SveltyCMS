@@ -46,6 +46,10 @@ export async function runMigrations(db: unknown): Promise<{ success: boolean; er
 				role TEXT NOT NULL DEFAULT 'user',
 				isAdmin INTEGER DEFAULT 0,
 				isRegistered INTEGER DEFAULT 0,
+				is2FAEnabled INTEGER DEFAULT 0,
+				totpSecret TEXT,
+				backupCodes TEXT,
+				last2FAVerification INTEGER,
 				tenantId TEXT,
 				createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
 				updatedAt INTEGER DEFAULT (strftime('%s', 'now') * 1000)
@@ -64,6 +68,10 @@ export async function runMigrations(db: unknown): Promise<{ success: boolean; er
     addColumn("auth_users", "isRegistered", "INTEGER DEFAULT 0");
     addColumn("auth_users", "isAdmin", "INTEGER DEFAULT 0");
     addColumn("auth_users", "role", "TEXT NOT NULL DEFAULT 'user'");
+    addColumn("auth_users", "is2FAEnabled", "INTEGER DEFAULT 0");
+    addColumn("auth_users", "totpSecret", "TEXT");
+    addColumn("auth_users", "backupCodes", "TEXT");
+    addColumn("auth_users", "last2FAVerification", "INTEGER");
 
     // Auth Sessions
     execute(`

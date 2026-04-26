@@ -63,6 +63,10 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"roleIds" JSONB NOT NULL DEFAULT '[]',
 			"role" VARCHAR(50) NOT NULL DEFAULT 'user',
 			"isRegistered" BOOLEAN NOT NULL DEFAULT FALSE,
+			"is2FAEnabled" BOOLEAN NOT NULL DEFAULT FALSE,
+			"totpSecret" TEXT,
+			"backupCodes" JSONB,
+			"last2FAVerification" TIMESTAMP WITH TIME ZONE,
 			"tenantId" VARCHAR(36),
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -384,6 +388,14 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
     );
     await sql.unsafe(
       `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "role" VARCHAR(50) NOT NULL DEFAULT 'user'`,
+    );
+    await sql.unsafe(
+      `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "is2FAEnabled" BOOLEAN NOT NULL DEFAULT FALSE`,
+    );
+    await sql.unsafe(`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "totpSecret" TEXT`);
+    await sql.unsafe(`ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "backupCodes" JSONB`);
+    await sql.unsafe(
+      `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "last2FAVerification" TIMESTAMP WITH TIME ZONE`,
     );
     await sql.unsafe(`ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS "collectionDef" JSONB`);
   } catch {

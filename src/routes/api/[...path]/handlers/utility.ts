@@ -56,7 +56,7 @@ export async function handleUtilityRoutes(
     const { contentSystem } = await import("@src/content");
 
     // AI Reconnaissance Blinding: Ensure only authenticated admins can view the full spec.
-    if (!user || user.role !== "admin") {
+    if (!locals.isAdmin) {
       return new Response(
         JSON.stringify({
           error: "Forbidden",
@@ -183,7 +183,7 @@ export async function handleUtilityRoutes(
   // Debug / Diagnostics (Protected)
   // ========================
   if (namespace === "debug" && request.method === "GET") {
-    if (user?.role !== "admin") {
+    if (!locals.isAdmin) {
       throw new AppError("Access denied", 403);
     }
 

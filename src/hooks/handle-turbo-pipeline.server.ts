@@ -131,6 +131,10 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       const { getDbInitPromise, getDb } = await import("@src/databases/db");
       await getDbInitPromise(false, "CORE");
 
+      if (dev || isTest) {
+        logger.debug(`[Turbo] Bypass SUCCESS for ${pathname}.`);
+      }
+
       (event.locals as any).user = {
         _id: "system",
         role: "admin",
@@ -144,7 +148,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       if (dev) logRequest(event, performance.now() - requestStart, response.status);
       return response;
     } else {
-      logger.warn(`[Turbo] Bypass FAILED for ${pathname}: Secret mismatch.`);
+      logger.warn(
+        `[Turbo] Bypass FAILED for ${pathname}: Secret mismatch. Received: "${testSecret?.substring(0, 5)}...", Expected: "${expected?.substring(0, 5)}..."`,
+      );
     }
   } else if (testSecret) {
     logger.error(
@@ -192,7 +198,12 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     }
 
     // ── 3. BOOTSTRAP ROUTE BYPASS ───────────────────────────────────────────
-    if (isBootstrapRoute(pathname)) {
+    // We allow /setup and /login to bypass the main pipeline, but only if they are valid for the current state.
+    // Specifically, /login should NOT bypass if the system is uninitialized (it needs to hit the setup gate).
+    const _setupState = await getSetupState();
+    const isLoginDuringSetup = pathname === "/login" && _setupState !== SetupState.COMPLETE;
+
+    if (isBootstrapRoute(pathname) && !isLoginDuringSetup) {
       const response = await resolve(event);
 
       if (dev) logRequest(event, performance.now() - requestStart, response.status);
@@ -236,9 +247,10 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
       // If we are not on a bootstrap route and setup is not complete, redirect.
       // Note: isBootstrapRoute check above handles /setup and assets.
-      if (!isBootstrapRoute(pathname)) {
+      const isLoginAccessDuringSetup = pathname === "/login";
+      if (!isBootstrapRoute(pathname) || isLoginAccessDuringSetup) {
         const returnTo =
-          pathname === "/"
+          pathname === "/" || pathname === "/login"
             ? ""
             : `?from=${encodeURIComponent(event.url.pathname + event.url.search)}`;
         throw redirect(302, `${destination}${returnTo}`);

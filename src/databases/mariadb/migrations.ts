@@ -55,6 +55,10 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			roleIds JSON NOT NULL,
 			role VARCHAR(50) NOT NULL DEFAULT 'user',
 			isRegistered BOOLEAN NOT NULL DEFAULT FALSE,
+			is2FAEnabled BOOLEAN NOT NULL DEFAULT FALSE,
+			totpSecret VARCHAR(255),
+			backupCodes JSON,
+			last2FAVerification DATETIME,
 			tenantId VARCHAR(36),
 			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -365,6 +369,12 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
     await connection.query(
       `ALTER TABLE auth_users ADD COLUMN role VARCHAR(50) NOT NULL DEFAULT 'user'`,
     );
+    await connection.query(
+      `ALTER TABLE auth_users ADD COLUMN is2FAEnabled BOOLEAN NOT NULL DEFAULT FALSE`,
+    );
+    await connection.query(`ALTER TABLE auth_users ADD COLUMN totpSecret VARCHAR(255)`);
+    await connection.query(`ALTER TABLE auth_users ADD COLUMN backupCodes JSON`);
+    await connection.query(`ALTER TABLE auth_users ADD COLUMN last2FAVerification DATETIME`);
     await connection.query(`ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS collectionDef JSON`);
   } catch {
     // Column already exists or other error we can ignore

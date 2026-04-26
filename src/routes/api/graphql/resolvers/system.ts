@@ -259,7 +259,8 @@ export const systemResolvers = {
         throw new Error("Admin access required");
       }
       try {
-        return await contentSystem.validateStructure();
+        await contentSystem.refresh();
+        return { success: true, message: "Structure reconciled successfully." };
       } catch (error) {
         logger.error("Error in validateContentStructure:", { error });
         throw new Error("Failed to validate structure");

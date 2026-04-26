@@ -493,7 +493,7 @@ export async function initSystemFromSetup(
         await seedDemoRecords(adapter, collections, tenantId);
       }
 
-      const first = await contentSystem.getFirstCollection(tenantId);
+      const first = contentSystem.collections.getSmartFirst(tenantId);
       return {
         firstCollection: first ? { name: first.name as string, path: first.path as string } : null,
       };

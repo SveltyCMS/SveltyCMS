@@ -23,7 +23,6 @@ import { error } from "@sveltejs/kit";
 import { cacheService } from "@src/databases/cache/cache-service";
 // System Logger
 import { logger } from "@utils/logger";
-import { dev } from "$app/environment";
 import { corePermissions } from "./core-permissions";
 import type { Permission, Role, Session, SessionStore, Token, User } from "./types";
 
@@ -779,7 +778,10 @@ export class Auth {
       value: sessionId,
       attributes: {
         httpOnly: true,
-        secure: !dev && process.env.NODE_ENV !== "test" && process.env.TEST_MODE !== "true",
+        secure:
+          process.env.NODE_ENV !== "development" &&
+          process.env.NODE_ENV !== "test" &&
+          process.env.TEST_MODE !== "true",
         sameSite: "strict",
         maxAge: 24 * 60 * 60,
         path: "/",

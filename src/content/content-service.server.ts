@@ -52,92 +52,138 @@ function enrichSchemaWithMetadata(
 /**
  * Scans the .compiledCollections directory for compiled schema files.
  */
-export async function scanCompiledCollections(): Promise<Schema[]> {
-  const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
-  const schemas: Schema[] = [];
-  let isReloading = false;
+let _isScanning = false;
+const _mtimeTree = new Map<string, number>();
+const _schemaCache = new Map<string, Schema>();
+let _isDirty = true; // Initial scan is always dirty
 
+/**
+ * Flags the content system that a file has changed.
+ * Called by the FileSystem Watcher.
+ */
+export function markFileDirty(filePath?: string | null) {
+  _isDirty = true;
+  if (filePath) {
+    _mtimeTree.delete(filePath);
+    _schemaCache.delete(filePath);
+  }
+}
+
+/**
+ * Scans the .compiledCollections directory for compiled schema files.
+ * Uses a persistent mtime tree and batch cache lookups for Ultra-Elite performance.
+ */
+export async function scanCompiledCollections(): Promise<Schema[]> {
+  if (_isScanning) return Array.from(_schemaCache.values());
+
+  // 🚀 ULTRA ELITE: Fast-path for steady state (Watcher-backed)
+  if (!_isDirty && _schemaCache.size > 0) {
+    return Array.from(_schemaCache.values());
+  }
+
+  _isScanning = true;
+
+  const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
+  const fileList: { fullPath: string; mtime: number }[] = [];
+
+  // 1. Parallel Walk & Stat to build file list
   async function walk(dir: string) {
-    if (isReloading) return;
-    isReloading = true;
     try {
       const entries = await fs.readdir(dir, { withFileTypes: true });
+      await Promise.all(
+        entries.map(async (entry) => {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) return walk(fullPath);
+          if (!entry.isFile() || !entry.name.endsWith(".js")) return;
 
-      for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
+          const stats = await fs.stat(fullPath);
+          fileList.push({ fullPath, mtime: stats.mtimeMs });
+        }),
+      );
+    } catch (err) {
+      logger.error("[Scanner] Walk failed", { path: dir });
+    }
+  }
 
-        if (entry.isDirectory()) {
-          await walk(fullPath);
-          continue;
+  try {
+    await walk(collectionsDir);
+
+    // 2. Batch Cache Lookup for files that changed or are missing from memory
+    const scanList = fileList.filter((f) => _mtimeTree.get(f.fullPath) !== f.mtime);
+
+    if (scanList.length === 0 && _schemaCache.size === fileList.length) {
+      _isDirty = false;
+      return Array.from(_schemaCache.values());
+    }
+
+    const cacheKeys = scanList.map((f) => `schema:${f.fullPath}`);
+    const cachedEntries = await cacheService.getMany<{
+      mtime: number;
+      hash: string;
+      schema: Schema;
+    }>(cacheKeys, null);
+
+    // 3. Process results in parallel
+    await Promise.all(
+      scanList.map(async (file, idx) => {
+        const cached = cachedEntries[idx];
+        const cacheKey = cacheKeys[idx];
+
+        // 🛡️ Short-circuit: Cache hit with mtime match
+        if (cached && cached.mtime === file.mtime) {
+          _schemaCache.set(file.fullPath, cached.schema);
+          _mtimeTree.set(file.fullPath, file.mtime);
+          return;
         }
 
-        if (!entry.isFile() || !entry.name.endsWith(".js")) continue;
-
-        const stats = await fs.stat(fullPath);
-        const cacheKey = `schema:${fullPath}`;
-
-        const cached = await cacheService.get<{ mtime: number; hash: string; schema: Schema }>(
-          cacheKey,
-          null,
-          CacheCategory.SCHEMA,
-        );
-
-        if (cached && cached.mtime === stats.mtimeMs) {
-          schemas.push(cached.schema);
-          continue;
-        }
-
-        // 🚀 Native Load: Bypasses readFile, string parsing, and eval.
-        const moduleData = await loadSchemaNative(fullPath);
+        // 🚀 Miss or Change: Load module
+        const moduleData = await loadSchemaNative(file.fullPath);
         const schema = moduleData?.schema;
 
         if (schema) {
           const hash = generateSchemaHash(schema);
 
-          // If mtime changed but hash is identical, update cache and skip DB workload later
           if (cached && cached.hash === hash) {
+            // Content identical, just update mtime
             await cacheService.set(
               cacheKey,
-              { mtime: stats.mtimeMs, hash, schema: cached.schema },
+              { ...cached, mtime: file.mtime },
               3600,
               null,
               CacheCategory.SCHEMA,
             );
-            schemas.push(cached.schema);
-            continue;
+            _schemaCache.set(file.fullPath, cached.schema);
+          } else {
+            // New or changed content
+            enrichSchemaWithMetadata(schema, file.fullPath, collectionsDir);
+            await cacheService.set(
+              cacheKey,
+              { mtime: file.mtime, hash, schema },
+              3600,
+              null,
+              CacheCategory.SCHEMA,
+            );
+            _schemaCache.set(file.fullPath, schema);
           }
-
-          enrichSchemaWithMetadata(schema, fullPath, collectionsDir);
-
-          await cacheService.set(
-            cacheKey,
-            { mtime: stats.mtimeMs, hash, schema },
-            3600,
-            null,
-            CacheCategory.SCHEMA,
-          );
-          schemas.push(schema);
+          _mtimeTree.set(file.fullPath, file.mtime);
         }
-      }
-    } catch (err) {
-      if (err instanceof Error) {
-        logger.error("[Watcher] Failed to reload content system", {
-          message: err.message,
-          stack: err.stack,
-          name: err.name,
-        });
-      } else {
-        logger.error("[Watcher] Failed to reload content system (unknown error type)", {
-          error: String(err),
-        });
-      }
-    } finally {
-      isReloading = false;
-    }
-  }
+      }),
+    );
 
-  await walk(collectionsDir);
-  return schemas;
+    // Prune schemas that no longer exist on disk
+    const currentPaths = new Set(fileList.map((f) => f.fullPath));
+    for (const path of _schemaCache.keys()) {
+      if (!currentPaths.has(path)) {
+        _schemaCache.delete(path);
+        _mtimeTree.delete(path);
+      }
+    }
+
+    _isDirty = false;
+  } finally {
+    _isScanning = false;
+  }
+  return Array.from(_schemaCache.values());
 }
 
 /**

@@ -146,7 +146,8 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   const isTestMode =
     process.env.TEST_MODE === "true" ||
     process.env.VITE_TEST_MODE === "true" ||
-    process.env.PLAYWRIGHT_TEST === "true";
+    process.env.PLAYWRIGHT_TEST === "true" ||
+    (globalThis as any).process?.env?.TEST_MODE === "true";
   const isLocal =
     isLocalhost(clientIp) || url.hostname === "localhost" || url.hostname === "127.0.0.1";
 

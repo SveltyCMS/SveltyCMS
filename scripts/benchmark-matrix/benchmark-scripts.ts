@@ -355,6 +355,18 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 180_000,
     desc: "Measures complex filtering and sorting performance on 100,000+ entry collections.",
     strategy: "sql",
-      lastRun: "2026-04-26T14:43:52.110Z"
+      lastRun: "2026-04-26T19:04:55.182Z"
+},
+  {
+    path: "tests/benchmarks/content-scale-stress.bench.ts",
+    label: "Ultra-Elite Content Scale Stress",
+    shortLabel: "Content Stress",
+    level: 5,
+    section: "scale",
+    intensity: "high",
+    estimatedMs: 45_000,
+    desc: "Measures content scan performance on 1,000+ collections across 5 nested levels.",
+    strategy: "all",
+      lastRun: "2026-04-26T19:06:19.816Z"
 },
 ];

@@ -5,16 +5,22 @@
 
 import { describe, it, expect, beforeAll } from "bun:test";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
+import { prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
 
 describe("OpenAPI Specification Integration", () => {
+  let adminCookie: string;
+
   beforeAll(async () => {
     await waitForServer();
+    adminCookie = await prepareAuthenticatedContext();
   });
 
   it("should serve a valid OpenAPI 3.1.0 JSON at /api/openapi.json", async () => {
-    const response = await safeFetch(`${API_BASE_URL}/api/openapi.json`);
+    const response = await safeFetch(`${API_BASE_URL}/api/openapi.json`, {
+      headers: { Cookie: adminCookie },
+    });
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toContain("application/json");
 
@@ -29,7 +35,9 @@ describe("OpenAPI Specification Integration", () => {
   });
 
   it("should contain dynamic collection paths in the spec", async () => {
-    const response = await safeFetch(`${API_BASE_URL}/api/openapi.json`);
+    const response = await safeFetch(`${API_BASE_URL}/api/openapi.json`, {
+      headers: { Cookie: adminCookie },
+    });
     const data = await response.json();
 
     // In the blog preset, we expect these collections

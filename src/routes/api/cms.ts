@@ -958,11 +958,7 @@ class CollectionsNamespace {
       logger.error(`[LocalCMS] Collection "${collectionId}" not found for tenant: ${tenantId}`);
       logger.debug(`[LocalCMS] Available collections: ${available.join(", ")}`);
 
-      throw new AppError(
-        `Collection "${collectionId}" not found. Available: ${available.join(", ")}`,
-        404,
-        "COLLECTION_NOT_FOUND",
-      );
+      throw new AppError("Collection not found", 404, "COLLECTION_NOT_FOUND");
     }
 
     // 🚀 Performance & Stability: Ensure the adapter has the model registered

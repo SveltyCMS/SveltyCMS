@@ -255,6 +255,61 @@ export class CacheService {
     return null;
   }
 
+  async getMany<T>(keys: string[], tenantId?: string | null): Promise<(T | null)[]> {
+    if (keys.length === 0) return [];
+    const fullKeys = keys.map((k) => this.generateKey(k, tenantId));
+    const results: (T | null)[] = new Array(keys.length).fill(null);
+    const missingIndices: number[] = [];
+    const missingKeys: string[] = [];
+
+    const start = performance.now();
+
+    // 1. Try L1 First
+    for (let i = 0; i < fullKeys.length; i++) {
+      const l1Value = this.l1.get(fullKeys[i]);
+      if (l1Value !== undefined) {
+        results[i] = l1Value as T;
+        this.stats.hits++;
+        this.stats.l1Hits++;
+      } else {
+        missingIndices.push(i);
+        missingKeys.push(fullKeys[i]);
+      }
+    }
+
+    if (missingKeys.length === 0) {
+      this.recordLatency(performance.now() - start);
+      return results;
+    }
+
+    // 2. Try L2 (Redis MGET)
+    if (this.isL2Ready()) {
+      try {
+        const l2Values = await this.l2.mGet(missingKeys);
+        for (let i = 0; i < l2Values.length; i++) {
+          const val = l2Values[i];
+          if (val) {
+            const parsed = JSON.parse(val);
+            const originalIndex = missingIndices[i];
+            results[originalIndex] = parsed as T;
+            this.l1.set(missingKeys[i], parsed);
+            this.stats.hits++;
+            this.stats.l2Hits++;
+          } else {
+            this.stats.misses++;
+          }
+        }
+      } catch (err) {
+        logger.error("L2 Cache MGet Failure", err);
+      }
+    } else {
+      this.stats.misses += missingKeys.length;
+    }
+
+    this.recordLatency(performance.now() - start);
+    return results;
+  }
+
   async set(
     key: string,
     value: any,

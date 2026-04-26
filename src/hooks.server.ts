@@ -178,9 +178,9 @@ const middleware: Handle[] = [
   handleSecurityHeaders,
   handleTestIsolation, // ✨ CI: Tenant Isolation & Test Bypass
   handleStaticAssetCaching, // ✨ PERFORMANCE: Global Asset Caching
-  handleTurboPipeline, // ✨ 1. FAST-PATH (State Gate, Setup Redirect)
-  handleCompression, // ✨ 2. OPTIMIZATION (Dynamic Content)
-  handleSecurity, // ✨ 3. PROTECTION (Firewall, Rate Limit, Bot Detection)
+  handleSecurity, // ✨ 1. PROTECTION (Firewall, Rate Limit, Bot Detection)
+  handleTurboPipeline, // ✨ 2. FAST-PATH (State Gate, Setup Redirect)
+  handleCompression, // ✨ 3. OPTIMIZATION (Dynamic Content)
   handleSetup,
   handleUserPreferences,
   handleAuthentication,

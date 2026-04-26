@@ -31,7 +31,6 @@ export const PUBLIC_ROUTES = [
   "/api/user/login",
   "/api/auth/login",
   "/api/preview",
-  "/api/openapi.json",
 ];
 
 /**
@@ -50,6 +49,7 @@ export const BASE_HEADERS: [string, string][] = [
  */
 export function isStaticOrInternalRequest(pathname: string): boolean {
   if (pathname.length < 2) return false;
+  if (pathname.startsWith("/api/")) return false; // API routes are never static/internal bypass candidates
   if (pathname.startsWith("/.well-known/") || pathname.startsWith("/_")) return true;
   return STATIC_ASSET_REGEX.test(pathname);
 }
@@ -67,7 +67,8 @@ export function isApiLike(pathname: string): boolean {
 export function isAdmin(user: any): boolean {
   if (!user) return false;
   // Check common admin flags and roles
-  return user.isAdmin === true || user.role === "admin" || user.role === "super-admin";
+  const result = user.isAdmin === true || user.role === "admin" || user.role === "super-admin";
+  return result;
 }
 
 /**

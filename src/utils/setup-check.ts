@@ -19,8 +19,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { logger } from "./logger.server";
 
-// Memoization variable to cache the setup status.
-let setupStatus: boolean | null = null;
+// Memoization variables to cache the setup status.
+let setupConfigStatus: boolean | null = null;
+let setupDbStatus: boolean | null = null;
 let setupStatusCheckedDb = false;
 
 export enum SetupState {
@@ -73,12 +74,12 @@ export async function getSetupState(): Promise<SetupState> {
  * Used for high-performance middleware short-circuiting.
  */
 export function isSetupFullyComplete(): boolean {
-  return setupStatusCheckedDb && setupStatus === true;
+  return setupStatusCheckedDb && setupDbStatus === true;
 }
 
 export function isSetupComplete(): boolean {
-  if (setupStatus !== null) {
-    return setupStatus;
+  if (setupConfigStatus !== null) {
+    return setupConfigStatus;
   }
 
   try {
@@ -94,8 +95,8 @@ export function isSetupComplete(): boolean {
       if (isTestMode) {
         console.log(`[setupCheck] ${configFileName} NOT FOUND`);
       }
-      setupStatus = false;
-      return setupStatus;
+      setupConfigStatus = false;
+      return setupConfigStatus;
     }
     if (isTestMode) {
       console.log(`[setupCheck] ${configFileName} FOUND`);
@@ -117,13 +118,13 @@ export function isSetupComplete(): boolean {
 
     // Config file exists and has values - assume setup complete for now
     // Database validation will happen asynchronously in isSetupCompleteAsync()
-    setupStatus = hasJwtSecret && hasDbHost && hasDbName;
-    return setupStatus;
+    setupConfigStatus = hasJwtSecret && hasDbHost && hasDbName;
+    return setupConfigStatus;
   } catch (error) {
     // Log error here as it's an exceptional case during a critical check
     console.error("[SveltyCMS] ❌ Error during setup check:", error);
-    setupStatus = false;
-    return setupStatus;
+    setupConfigStatus = false;
+    return setupConfigStatus;
   }
 }
 
@@ -139,7 +140,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 
   // 2. Cache hit: If we've already checked the database, return cached result
   if (setupStatusCheckedDb) {
-    return setupStatus ?? true; // Default to true if config exists
+    return setupDbStatus ?? false;
   }
 
   try {
@@ -178,11 +179,6 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
       return true;
     }
 
-    // FAST-BYPASS for CI/Benchmarks
-    const isTestMode =
-      typeof globalThis !== "undefined" && (globalThis as any).process?.env?.TEST_MODE === "true";
-    if (isTestMode) return true;
-
     // 4. Data Verification: Check if users and roles exist
     // We check for these to ensure a consistent system state before going READY
     const [userResult, roles, hostConfig] = await Promise.all([
@@ -209,14 +205,13 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
       logger.warn(
         `[setupCheck] Config exists but NO ${missing.join(", ")} found in DB. System will stay in setup mode.`,
       );
-      // DO NOT set setupStatus = false here! That tells the system the config file is missing.
-      // setupStatus = false;
+      setupDbStatus = false;
       setupStatusCheckedDb = true;
       return false;
     }
 
     // Update cache
-    setupStatus = true;
+    setupDbStatus = true;
     setupStatusCheckedDb = true;
     return true;
   } catch (error) {
@@ -232,7 +227,6 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
     }
     // If config exists but DB check fails, we return false to stay in setup mode
     // This prevents blocking setup actions during transition.
-    // DO NOT set setupStatus = false; here!
     return false;
   }
 }
@@ -246,7 +240,8 @@ export function invalidateSetupCache(
   clearPrivateEnv = false,
   forceStatus: boolean | null = null,
 ): void {
-  setupStatus = forceStatus;
+  setupConfigStatus = forceStatus;
+  setupDbStatus = forceStatus;
   setupStatusCheckedDb = forceStatus !== null;
 
   if (clearPrivateEnv) {

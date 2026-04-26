@@ -1431,7 +1431,7 @@ export const actions: Actions = {
       logger.info(`Collection lookup triggered for language: ${userLanguage}`);
 
       // Get first collection fromcontent-manager(cached lookup)
-      const firstCollectionSchema = await contentSystem.getFirstCollection();
+      const firstCollectionSchema = contentSystem.collections.getSmartFirst();
       const collectionInfo = firstCollectionSchema
         ? {
             collectionId: firstCollectionSchema._id,

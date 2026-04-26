@@ -173,7 +173,9 @@ async function getUserFromSession(
 ): Promise<User | null> {
   const now = Date.now();
   const memCached = getSessionFromCache(sessionId);
-  if (memCached) return memCached.user;
+  if (memCached) {
+    return memCached.user;
+  }
 
   try {
     const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
@@ -187,10 +189,14 @@ async function getUserFromSession(
   }
 
   const lastAttempt = lastRefreshAttempt.get(sessionId);
-  if (lastAttempt && now - lastAttempt < 60_000) return null;
+  if (lastAttempt && now - lastAttempt < 60_000) {
+    return null;
+  }
   lastRefreshAttempt.set(sessionId, now);
 
-  if (!auth) return null;
+  if (!auth) {
+    return null;
+  }
 
   try {
     const user = await auth.validateSession(sessionId as DatabaseId);

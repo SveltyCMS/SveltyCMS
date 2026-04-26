@@ -40,8 +40,15 @@ export function startContentWatcher() {
           `[Watcher] Schema ${event} detected: ${path.basename(filePath)}. Reloading...`,
         );
 
-        const isUnlink = event === "unlink";
-        await contentService.fullReload(null, false, undefined, isUnlink ? null : filePath);
+        const { markFileDirty } = await import("./content-service.server");
+        markFileDirty(event === "unlink" ? filePath : null);
+
+        await contentService.fullReload(
+          null,
+          false,
+          undefined,
+          event === "unlink" ? null : filePath,
+        );
 
         logger.info("[Watcher] Content system re-synchronized successfully.");
       } catch (err) {
