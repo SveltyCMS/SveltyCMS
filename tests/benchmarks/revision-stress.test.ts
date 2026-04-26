@@ -29,7 +29,7 @@ async function runRevisionAudit() {
   const cms = new LocalCMS(db as any);
 
   // Mock Admin for Auth
-  const mockAdmin = { username: "admin", role: "admin", isAdmin: true };
+  const mockAdmin = { _id: "admin-rev", username: "admin", role: "admin", isAdmin: true };
   const apiOptions = { user: mockAdmin, tenantId: "global" as any };
 
   // 1. Prepare Collection
@@ -61,6 +61,8 @@ async function runRevisionAudit() {
 
   try {
     // 2. Initial Read (Empty History)
+    // Clean existing if any to avoid UNIQUE constraint error
+    await db!.crud.deleteMany(COLLECTION_ID, { _id: DOC_ID as any }, { tenantId: "global" as any });
     await cms.collections.create(COLLECTION_ID, { _id: DOC_ID, title: "Original", version: 0 }, apiOptions);
     
     console.log("   → Measuring Baseline Read (1 version)...");

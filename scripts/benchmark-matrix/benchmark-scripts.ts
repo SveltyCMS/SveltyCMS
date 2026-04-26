@@ -195,7 +195,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "low",
     estimatedMs: 20_000,
     desc: "Impact of Fail-Closed Dispatcher, Payload scanning, and SHA-256 Audit Chaining.",
-    lastRun: "2026-04-26T13:14:42.065Z",
+    lastRun: "2026-04-26T14:42:28.964Z",
     strategy: "once",
   },
   {
@@ -207,7 +207,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "medium",
     estimatedMs: 15_000,
     desc: "Benchmarks WebSocket connection/broadcast latency.",
-    lastRun: "2026-04-26T13:14:42.717Z",
+    lastRun: "2026-04-26T14:42:32.383Z",
     strategy: "once",
   },
   {
@@ -220,7 +220,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 45_000,
     timeoutMs: 600_000,
     desc: "Stress-tests cross-tenant isolation and security boundary latency.",
-    lastRun: "2026-04-26T13:14:46.071Z",
+    lastRun: "2026-04-26T14:42:39.750Z",
     strategy: "all",
   },
   {
@@ -232,7 +232,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "high",
     estimatedMs: 60_000,
     desc: "Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.",
-    lastRun: "2026-04-26T13:14:50.423Z",
+    lastRun: "2026-04-26T14:42:46.038Z",
     strategy: "all",
   },
   {
@@ -245,7 +245,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 70_000,
     timeoutMs: 600_000,
     desc: "Long-running soak test to identify memory leaks and GC pressure.",
-    lastRun: "2026-04-26T13:14:27.207Z",
+    lastRun: "2026-04-26T14:43:25.065Z",
     strategy: "all",
   },
   {
@@ -258,7 +258,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 60_000,
     timeoutMs: 600_000,
     desc: "High-concurrency GraphQL query stress test for resolver efficiency.",
-    lastRun: "2026-04-26T13:15:04.984Z",
+    lastRun: "2026-04-26T14:43:33.236Z",
     strategy: "all",
   },
   {
@@ -271,7 +271,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 5_000,
     desc: "Verifies distributed L1/L2 cache invalidation latency across simulated nodes.",
     strategy: "once",
-    lastRun: "2026-04-26T13:15:06.002Z",
+    lastRun: "2026-04-26T14:43:35.338Z",
   },
   {
     path: "tests/benchmarks/telemetry-performance.test.ts",
@@ -283,7 +283,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 8_000,
     desc: "Measures the overhead of telemetry data collection and cryptographic signing.",
     strategy: "once",
-    lastRun: "2026-04-26T13:15:06.653Z",
+    lastRun: "2026-04-26T14:43:36.042Z",
   },
   {
     path: "tests/benchmarks/migration-scale.test.ts",
@@ -295,7 +295,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 120_000,
     desc: "Measures system ingestion limits and read performance on 10,000+ entries.",
     strategy: "all",
-      lastRun: "2026-04-26T13:15:09.585Z"
+      lastRun: "2026-04-26T14:43:38.163Z"
 },
   {
     path: "tests/benchmarks/revision-stress.test.ts",
@@ -307,7 +307,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 45_000,
     desc: "Benchmarks performance degradation as document history grows to 100+ versions.",
     strategy: "sql",
-      lastRun: "2026-04-26T13:15:47.228Z"
+      lastRun: "2026-04-26T14:43:40.744Z"
 },
   {
     path: "tests/benchmarks/ai-performance.test.ts",
@@ -319,7 +319,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 25_000,
     desc: "Measures the internal CMS tax for AI enrichment and layout generation.",
     strategy: "once",
-      lastRun: "2026-04-26T13:15:48.715Z"
+      lastRun: "2026-04-26T14:43:42.419Z"
 },
   {
     path: "tests/benchmarks/admin-ux-vitality.test.ts",
@@ -331,7 +331,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 30_000,
     desc: "Simulates complex Svelte 5 logic overhead for massive, multi-widget forms.",
     strategy: "once",
-    lastRun: "2026-04-26T13:15:50.682Z",
+    lastRun: "2026-04-26T14:43:43.876Z",
   },
   {
     path: "tests/benchmarks/chaos-resilience.test.ts",
@@ -343,7 +343,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 60_000,
     desc: "Simulates 500ms database brownouts and measures CMS availability and stability.",
     strategy: "sql",
-  },
+      lastRun: "2026-04-26T14:43:46.357Z"
+},
   {
     path: "tests/benchmarks/index-pressure.test.ts",
     label: "Million-Row Index Pressure",
@@ -354,5 +355,6 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 180_000,
     desc: "Measures complex filtering and sorting performance on 100,000+ entry collections.",
     strategy: "sql",
-  },
+      lastRun: "2026-04-26T14:43:52.110Z"
+},
 ];

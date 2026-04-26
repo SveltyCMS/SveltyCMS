@@ -106,7 +106,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
 
   // Helper: dismiss cookie consent banner if visible
   async function dismissCookieBanner() {
-    const btn = page.getByRole("button", { name: /accept all/i });
+    const btn = page.getByRole("button", { name: /accept all/i }).first();
     if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
       console.log("Cookie consent banner detected. Clicking Accept All...");
       await btn.click();
@@ -147,7 +147,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   console.log("Proceeding with setup steps...");
 
   // Dismiss any remaining generic overlays (dismiss/close)
-  const dismissBtn = page.getByRole("button", { name: /^(dismiss|close)$/i });
+  const dismissBtn = page.getByRole("button", { name: /^(dismiss|close)$/i }).first();
   if (await dismissBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
     await dismissBtn.click();
   }
@@ -163,7 +163,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   console.log("Step 1: Database Configuration...");
 
   // Force clean state by clicking Reset Data if present (helps in CI reuse)
-  const resetBtn = page.getByRole("button", { name: /reset data/i });
+  const resetBtn = page.getByRole("button", { name: /reset data/i }).first();
   if (await resetBtn.isVisible()) {
     console.log("[SetupWizard] Existing data detected. Clicking Reset Data for fresh test...");
     await resetBtn.click();
@@ -214,7 +214,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
   }
 
   // Click Test Database and handle SQLite "create missing" modal or non-empty DB modal
-  const testDbButton = page.getByRole("button", { name: /test database connection/i });
+  const testDbButton = page.getByRole("button", { name: /test database connection/i }).first();
   await testDbButton.click({ force: true });
   await page.waitForTimeout(2000); // Wait for connection test to initiate
 
@@ -278,7 +278,7 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
     console.log("Page body excerpt:", bodyText.substring(0, 500));
 
     // Re-locate the button to ensure it hasn't been detached
-    const retryBtn = page.getByRole("button", { name: /test database connection/i });
+    const retryBtn = page.getByRole("button", { name: /test database connection/i }).first();
     if (await retryBtn.isVisible()) {
       await retryBtn.click({ force: true });
       await page.waitForTimeout(3000);

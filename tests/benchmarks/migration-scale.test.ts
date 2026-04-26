@@ -29,7 +29,7 @@ async function runMigrationAudit() {
   const cms = new LocalCMS(db as any);
 
   // Mock Admin for Auth
-  const mockAdmin = { username: "admin", role: "admin", isAdmin: true };
+  const mockAdmin = { _id: "admin-mig", username: "admin", role: "admin", isAdmin: true };
   const apiOptions = { user: mockAdmin, tenantId: "global" as any };
 
   // 1. Prepare Large Collection
@@ -59,6 +59,9 @@ async function runMigrationAudit() {
     collectionDef: schema,
     tenantId: "global"
   } as any]);
+
+  // Cleanup before migration to avoid UNIQUE constraint errors
+  await db!.crud.deleteMany(COLLECTION_ID, {}, { tenantId: "global" as any });
 
   await stabilize();
 
