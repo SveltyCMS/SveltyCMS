@@ -23,7 +23,7 @@ Displays the current step title and icon, and a reset button.
 		<button
 			onclick={() => onreset()}
 			type="button"
-			class="flex items-center dark:text-secondary-50 preset-outlined btn-sm rounded"
+			class="flex items-center dark:text-secondary-50 preset-outlined dark:border-surface-600 btn-sm rounded"
 			aria-label="Reset data"
 		>
 			<iconify-icon icon="mdi:backup-restore" width={24} class="mr-1"></iconify-icon>
