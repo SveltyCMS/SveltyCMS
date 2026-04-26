@@ -372,6 +372,8 @@ export const systemSettingsSchema = object({
   passwordMinLength: optional(number(), 8),
   defaultSystemLanguage: languageCodeSchema,
   defaultContentLanguage: languageCodeSchema,
+  demoMode: optional(boolean(), false),
+  multiTenant: optional(boolean(), false),
 });
 
 // --- Schema Definitions for Exports ---

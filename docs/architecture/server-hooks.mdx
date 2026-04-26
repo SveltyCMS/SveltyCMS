@@ -50,19 +50,19 @@ The pipeline is **pre-compiled** at server startup to eliminate function composi
 
 ```typescript
 const middleware: Handle[] = [
-  handleSecurityHeaders,       // 1. DEFENSE-IN-DEPTH (Essential Security Headers)
-  handleCompression,           // 2. ESM-Native Streaming Compression
-  handleTestIsolation,         // 3. ✨ CI ISOLATION (Tenant Routing & Bypass)
-  handleStaticAssetCaching,    // 4. Dedicated Asset Cache Layer
-  handleTurboPipeline,         // 5. CONSOLIDATED GATEWAY (State, Setup, CORS)
-  handleSecurity,              // 6. Firewall & Load Shedding
-  handleUserPreferences,       // 7. i18n and SSR theme
-  handleSetup,                 // 8. Granular Setup Gate
-  handleAuthentication,        // 9. Identity & Multi-tenancy
+  handleSecurityHeaders, // 1. DEFENSE-IN-DEPTH (Essential Security Headers)
+  handleCompression, // 2. ESM-Native Streaming Compression
+  handleTestIsolation, // 3. ✨ CI ISOLATION (Tenant Routing & Bypass)
+  handleStaticAssetCaching, // 4. Dedicated Asset Cache Layer
+  handleTurboPipeline, // 5. CONSOLIDATED GATEWAY (State, Setup, CORS)
+  handleSecurity, // 6. Firewall & Load Shedding
+  handleUserPreferences, // 7. i18n and SSR theme
+  handleSetup, // 8. Granular Setup Gate
+  handleAuthentication, // 9. Identity & Multi-tenancy
   handleContentInitialization, // 10. Content + Redirects
-  handleAuditLogging,          // 11. Async Audit Trails
-  handleApiRequests,           // 12. API Caching (ETags)
-  handleTokenResolution,       // 13. RBAC Token Replacement
+  handleAuditLogging, // 11. Async Audit Trails
+  handleApiRequests, // 12. API Caching (ETags)
+  handleTokenResolution, // 13. RBAC Token Replacement
 ];
 
 // Pre-compiled for maximum throughput
@@ -201,7 +201,7 @@ sequenceDiagram
 // --- Server Startup Logic ---
 if (!building) {
   /**
-   * Hardware Optimization: 
+   * Hardware Optimization:
    * Maximizes UV_THREADPOOL_SIZE and Sharp concurrency to match CPU cores.
    */
   const cores = os.cpus().length;
@@ -209,7 +209,7 @@ if (!building) {
 
   /**
    * ✨ ENTERPRISE: Graceful Shutdown Registry
-   * Handles SIGTERM/SIGINT with an in-flight request drain period 
+   * Handles SIGTERM/SIGINT with an in-flight request drain period
    * and a 10s safety timeout.
    */
   process.on("SIGTERM", async () => {
