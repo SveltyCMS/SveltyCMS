@@ -504,6 +504,8 @@ select:focus {
 :where(.dark) textarea:focus,
 :where(.dark) select:focus {
   /* Green in Dark mode */
+  background-color: var(--color-surface-900) !important;
+  color: white !important;
   box-shadow: 0 0 0 1px inset var(--color-primary-500) !important;
   border-color: var(--color-primary-500) !important;
 }

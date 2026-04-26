@@ -355,31 +355,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		</div>
 	{/if}
 
-	{#if dbConfig.type === 'postgresql'}
-		<div class="mb-6 rounded p-4 bg-warning-500 text-white">
-			<div class="flex items-center gap-2">
-				<iconify-icon icon="mdi:flask-outline" width="20" class="text-error-500"></iconify-icon>
-				<p class="font-semibold">PostgreSQL - Beta</p>
-			</div>
-			<p class="mt-1 text-sm">PostgreSQL support via Drizzle is in beta. Please report any issues on GitHub.</p>
-		</div>
-	{:else if dbConfig.type === 'mariadb'}
-		<div class="mb-6 rounded p-4 bg-warning-500 text-white">
-			<div class="flex items-center gap-2">
-				<iconify-icon icon="mdi:flask-outline" width="20" class="text-error-500"></iconify-icon>
-				<p class="font-semibold">MariaDB - Beta</p>
-			</div>
-			<p class="mt-1 text-sm">MariaDB support via Drizzle is in beta. Please report any issues on GitHub.</p>
-		</div>
-	{:else if dbConfig.type === 'sqlite'}
-		<div class="mb-6 rounded p-4 bg-warning-500 text-white">
-			<div class="flex items-center gap-2">
-				<iconify-icon icon="mdi:flask-outline" width="20" class="text-error-500"></iconify-icon>
-				<p class="font-semibold">SQLite - Beta</p>
-			</div>
-			<p class="mt-1 text-sm">SQLite support via Drizzle is in beta. Perfect for local dev and edge. Please report any issues on GitHub.</p>
-		</div>
-	{:else if dbConfig.type === 'mysql'}
+	{#if dbConfig.type === 'mysql'}
 		<div class="mb-6 rounded border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
 			<p class="font-semibold">{setup_db_coming_soon()}</p>
 			<p class="mt-1">{setup_db_postgres_mysql_note()}</p>
@@ -403,19 +379,19 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							type="button"
 							tabindex="-1"
 							aria-label="Help: Database Type"
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500  "
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
 					</SystemTooltip>
 				</label>
 
-				<select id="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input rounded">
+				<select id="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input w-full rounded border dark:border-surface-600">
 					<option value="mongodb">MongoDB (localhost/Docker)</option>
 					<option value="mongodb+srv">MongoDB Atlas (SRV)</option>
-					<option value="mariadb">MariaDB (via Drizzle) (Beta)</option>
-					<option value="postgresql">PostgreSQL (via Drizzle) (Beta)</option>
-					<option value="sqlite">SQLite (via Drizzle) (Beta)</option>
+					<option value="mariadb">MariaDB (via Drizzle)</option>
+					<option value="postgresql">PostgreSQL (via Drizzle)</option>
+					<option value="sqlite">SQLite (via Drizzle)</option>
 				</select>
 			</div>
 
@@ -476,7 +452,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					}}
 					onpaste={handleHostPaste}
 					placeholder={isAtlas ? 'cluster0.abcde.mongodb.net' : setup_database_host_placeholder?.() || 'localhost'}
-					class="input w-full rounded {displayErrors.host ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
+					class="input w-full rounded border  dark:border-surface-600 {displayErrors.host ? 'border-error-500' : ''}"
 					aria-invalid={!!displayErrors.host}
 					aria-describedby={displayErrors.host ? 'db-host-error' : undefined}
 					aria-required="true"
@@ -526,7 +502,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						onchange={clearDbTestError}
 						onblur={() => handleBlur('port')}
 						placeholder={setup_database_port_placeholder?.() || '27017'}
-						class="input w-full rounded {displayErrors.port ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
+						class="input w-full rounded border border-slate-300 dark:border-surface-600 dark:bg-surface-900 {displayErrors.port ? 'border-error-500' : ''}"
 						aria-invalid={!!displayErrors.port}
 						aria-describedby={displayErrors.port ? 'db-port-error' : undefined}
 						aria-required="true"
@@ -565,7 +541,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						handleBlur('name');
 					}}
 					placeholder={setup_database_name_placeholder?.() || 'SveltyCMS'}
-					class="input w-full rounded {displayErrors.name ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
+					class="input w-full rounded border dark:border-surface-600 {displayErrors.name ? 'border-error-500' : ''}"
 					aria-invalid={!!displayErrors.name}
 					aria-describedby={displayErrors.name ? 'db-name-error' : undefined}
 					aria-required="true"
@@ -606,7 +582,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							handleBlur('user');
 						}}
 						placeholder={setup_database_user_placeholder?.() || 'Database username'}
-						class="input rounded {displayErrors.user ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
+						class="input w-full rounded border  dark:border-surface-600 dark:bg-surface-900 {displayErrors.user ? 'border-error-500' : ''}"
 						aria-invalid={!!displayErrors.user}
 						aria-describedby={displayErrors.user ? 'db-user-error' : undefined}
 					/>
@@ -646,9 +622,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							type={showDbPassword ? 'text' : 'password'}
 							autocomplete="current-password"
 							placeholder={setup_database_password_placeholder?.() || 'Leave blank if none'}
-							class="input w-full rounded {displayErrors.password
-								? 'border-error-500 focus:border-error-500 focus:ring-error-500'
-								: 'border-slate-200'}"
+							class="input w-full rounded border border-slate-300 dark:border-surface-600 dark:bg-surface-900 {displayErrors.password ? 'border-error-500' : ''}"
 							aria-invalid={!!displayErrors.password}
 							aria-describedby={displayErrors.password ? 'db-password-error' : undefined}
 						/>

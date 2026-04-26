@@ -232,88 +232,12 @@ export const actions: Actions = {
         if (!health.success) {
           logger.error("❌ Database ping failed:", health.message);
           await dbAdapter.disconnect();
-
           const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
           const classified = classifyDatabaseError(health.message, dbConfig.type as any, dbConfig);
           return new SetupDatabaseError(classified).toClientPayload();
         }
 
         logger.info("✅ Ping successful!");
-
-        // Check for existing collections if we didn't just overwrite
-        if (!allowOverwrite) {
-          try {
-            let existingCollections: string[] = [];
-
-            if (dbConfig.type === "mongodb" || dbConfig.type === "mongodb+srv") {
-              const mongoose = (await import("mongoose")).default;
-              const uri = configData.host.includes("://")
-                ? configData.host
-                : `mongodb://${configData.user ? `${configData.user}:${configData.password}@` : ""}${configData.host}:${configData.port || 27017}/${dbConfig.name}`;
-              const conn = await mongoose.createConnection(uri).asPromise();
-              if (conn.db) {
-                const collections = await conn.db.listCollections().toArray();
-                existingCollections = collections.map((c: any) => c.name);
-              }
-              await conn.close();
-            } else if (dbConfig.type === "postgresql") {
-              const postgres = (await import("postgres")).default;
-              const sql = postgres({
-                host: dbConfig.host,
-                port: dbConfig.port,
-                user: dbConfig.user,
-                password: dbConfig.password,
-                database: dbConfig.name,
-              });
-              const result =
-                await sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`;
-              existingCollections = result.map((r: any) => r.table_name);
-              await sql.end();
-            } else if (dbConfig.type === "mariadb" || (dbConfig.type as any) === "mysql") {
-              const mysql = await import("mysql2/promise");
-              const connection = await mysql.createConnection({
-                host: dbConfig.host,
-                port: dbConfig.port,
-                user: dbConfig.user,
-                password: dbConfig.password,
-                database: dbConfig.name,
-              });
-              const [rows] = await connection.query(`SHOW TABLES`);
-              existingCollections = (rows as any[]).map((r: any) => Object.values(r)[0] as string);
-              await connection.end();
-            } else if (dbConfig.type === "sqlite") {
-              const Database = (await import("better-sqlite3")).default;
-              const { buildDatabaseConnectionString } = await import("./utils");
-              const dbPath = buildDatabaseConnectionString(dbConfig);
-              if ((await import("fs")).existsSync(dbPath)) {
-                const db = new Database(dbPath);
-                const rows = db.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all();
-                existingCollections = rows.map((r: any) => r.name);
-                db.close();
-              }
-            }
-
-            // Exclude sqlite internal tables
-            existingCollections = existingCollections.filter((c) => !c.startsWith("sqlite_"));
-
-            if (existingCollections.length > 0) {
-              logger.warn(
-                `⚠️ Database already contains ${existingCollections.length} collections.`,
-              );
-              await dbAdapter.disconnect();
-
-              const { SetupDatabaseError } = await import("./error-classifier");
-              return new SetupDatabaseError({
-                classification: "DATABASE_ALREADY_EXISTS",
-                userFriendly: `Database "${dbConfig.name}" already exists and contains data (e.g. ${existingCollections.slice(0, 3).join(", ")}). If your compiled collections do not match this database, you may encounter errors. Proceeding will OVERWRITE and PERMANENTLY DELETE all existing data.`,
-                canOverwrite: true,
-                raw: "DATABASE_ALREADY_EXISTS",
-              }).toClientPayload();
-            }
-          } catch (checkErr: any) {
-            logger.error("❌ Failed to check existing collections:", checkErr.message);
-          }
-        }
 
         await dbAdapter.disconnect();
         const latencyMs = Math.round(performance.now() - start);

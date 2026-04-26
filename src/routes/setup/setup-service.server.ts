@@ -41,6 +41,18 @@ export async function testAndCreateDatabase(
     }
 
     logger.info("✅ Ping successful!");
+
+    // Check if database is empty
+    const emptyCheck = await dbAdapter.isEmpty();
+    if (emptyCheck.success && !emptyCheck.data) {
+      await dbAdapter.disconnect();
+      return {
+        success: false,
+        error: "DATABASE_NOT_EMPTY",
+        message: "The database is not empty. Proceeding will overwrite existing data.",
+      };
+    }
+
     await dbAdapter.disconnect();
 
     return {

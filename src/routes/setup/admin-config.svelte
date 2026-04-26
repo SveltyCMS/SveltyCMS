@@ -124,7 +124,7 @@
 							type="button"
 							tabindex="-1"
 							aria-label={setup_help_admin_username?.() || 'Help: Username'}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500 "
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -144,7 +144,7 @@
 					type="text"
 					autocomplete="username"
 					placeholder={setup_admin_placeholder_username?.() || 'Enter username'}
-					class="input w-full rounded {displayErrors.username ? 'border-error-500' : 'border-slate-200'}"
+					class="input w-full rounded border border-slate-300 dark:border-surface-600   {displayErrors.username ? 'border-error-500' : ''}"
 					aria-invalid={!!displayErrors.username}
 					aria-describedby={displayErrors.username ? 'admin-username-error' : undefined}
 					aria-required="true"
@@ -184,7 +184,7 @@
 					type="email"
 					autocomplete="email"
 					placeholder={setup_admin_placeholder_email?.() || 'admin@example.com'}
-					class="input w-full rounded {displayErrors.email ? 'border-error-500' : 'border-slate-200'}"
+					class="input w-full rounded border border-slate-300 dark:border-surface-600   {displayErrors.email ? 'border-error-500' : ''}"
 					aria-invalid={!!displayErrors.email}
 					aria-describedby={displayErrors.email ? 'admin-email-error' : undefined}
 					aria-required="true"
@@ -220,7 +220,7 @@
 						type={showAdminPassword ? 'text' : 'password'}
 						autocomplete="new-password"
 						placeholder={setup_admin_placeholder_password?.() || 'Enter secure password'}
-						class="input w-full rounded {displayErrors.password ? 'border-error-500' : 'border-slate-200'}"
+						class="input w-full rounded border border-slate-300 dark:border-surface-600   {displayErrors.password ? 'border-error-500' : ''}"
 						aria-invalid={!!displayErrors.password}
 						aria-describedby={displayErrors.password ? 'admin-password-error' : undefined}
 						aria-required="true"
@@ -286,7 +286,7 @@
 						type={showConfirmPassword ? 'text' : 'password'}
 						autocomplete="new-password"
 						placeholder={setup_admin_placeholder_confirm_password?.() || 'Confirm your password'}
-						class="input w-full rounded {displayErrors.confirmPassword ? 'border-error-500' : 'border-slate-200'}"
+						class="input w-full rounded border border-slate-300 dark:border-surface-600   {displayErrors.confirmPassword ? 'border-error-500' : ''}"
 						aria-invalid={!!displayErrors.confirmPassword}
 						aria-describedby={displayErrors.confirmPassword ? 'admin-confirm-password-error' : undefined}
 						aria-required="true"

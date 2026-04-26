@@ -102,6 +102,12 @@
 	// SMTP Configuration is now bound to wizard.emailSettings
 	let useCustomPort = $state(false);
 
+	$effect(() => {
+		if (!wizard.emailSettings.port) {
+			wizard.emailSettings.port = '587';
+		}
+	});
+
 	let showPassword = $state(false);
 
 	// Derived values for auto-detection
@@ -383,7 +389,8 @@
 		if (preset) {
 			selectedPreset = presetName;
 			wizard.emailSettings.host = preset.host;
-			wizard.emailSettings.port = String(preset.port);
+			// Default to '587' if host is empty (custom) or use preset value
+			wizard.emailSettings.port = preset.port ? String(preset.port) : '587';
 			useCustomPort = false;
 			testSuccess = false;
 			testError = '';
@@ -517,7 +524,7 @@
 					</button>
 				</SystemTooltip>
 			</div>
-			<select class="select" bind:value={selectedPreset} onchange={() => applyPreset(selectedPreset)} aria-label="Select an SMTP provider preset">
+			<select class="select w-full rounded border border-slate-300 dark:border-surface-600  " bind:value={selectedPreset} onchange={() => applyPreset(selectedPreset)} aria-label="Select an SMTP provider preset">
 				{#each presets as preset, index (index)}
 					<option value={preset.name}>{preset.name}</option>
 				{/each}
@@ -554,7 +561,7 @@
 			</div>
 			<input
 				type="text"
-				class="input"
+				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
 				class:input-error={displayErrors.host || (wizard.emailSettings.host.trim() && !isValidHostname())}
 				bind:value={wizard.emailSettings.host}
 				placeholder={setup_email_host_placeholder()}
@@ -602,13 +609,13 @@
 			</div>
 
 			{#if useCustomPort}
-				<!-- Custom port input -->
 				<div class="flex gap-2">
 					<input
 						type="number"
-						class="input flex-1"
+						class="input w-full rounded border border-slate-300 dark:border-surface-600  "
 						class:input-error={displayErrors.port}
-						bind:value={wizard.emailSettings.port}
+						value={Number(wizard.emailSettings.port)}
+						oninput={(e) => (wizard.emailSettings.port = e.currentTarget.value)}
 						placeholder={setup_email_port_custom()}
 						min="1"
 						max="65535"
@@ -619,9 +626,10 @@
 							testError = '';
 						}}
 					/>
+
 					<button
 						type="button"
-						class="preset-outlined-surface-500btn btn-sm"
+						class="preset-outlined-surface-500 btn btn-sm whitespace-nowrap border border-slate-300 dark:border-surface-600"
 						aria-label={setup_email_aria_switch_standard()}
 						onclick={() => {
 							useCustomPort = false;
@@ -644,21 +652,23 @@
 				<!-- Standard port dropdown -->
 				<div class="flex gap-2">
 					<select
-						class="select flex-1"
-						bind:value={wizard.emailSettings.port}
-						aria-label="Select a standard SMTP port"
-						onchange={() => {
+						class="select w-full rounded border border-slate-300 dark:border-surface-600  "
+						value={String(wizard.emailSettings.port)}
+						onchange={(e) => {
+							wizard.emailSettings.port = e.currentTarget.value;
 							testSuccess = false;
 							testError = '';
 						}}
+						aria-label="Select a standard SMTP port"
 					>
 						{#each commonPorts as port, index (index)}
-							<option value={port.value}>{port.label}</option>
+							<option value={String(port.value)}>{port.label}</option>
 						{/each}
 					</select>
+
 					<button
 						type="button"
-						class="preset-outlined btn btn-sm whitespace-nowrap"
+						class="preset-outlined dark:border-surface-600 btn btn-sm whitespace-nowrap"
 						aria-label="Enter a custom SMTP port"
 						onclick={() => {
 							useCustomPort = true;
@@ -701,7 +711,7 @@
 			</div>
 			<input
 				type="text"
-				class="input"
+				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
 				class:input-error={displayErrors.user}
 				bind:value={wizard.emailSettings.user}
 				placeholder={setup_email_user_placeholder()}
@@ -746,7 +756,7 @@
 			<div class="relative">
 				<input
 					type={showPassword ? 'text' : 'password'}
-					class="input pr-10"
+					class="input w-full rounded border border-slate-300 dark:border-surface-600   pr-10"
 					class:input-error={displayErrors.password}
 					bind:value={wizard.emailSettings.password}
 					placeholder={setup_email_password_placeholder()}
@@ -789,7 +799,7 @@
 			</div>
 			<input
 				type="email"
-				class="input"
+				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
 				bind:value={wizard.emailSettings.from}
 				placeholder={wizard.emailSettings.user || 'noreply@example.com'}
 				onblur={() => {

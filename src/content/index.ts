@@ -31,7 +31,7 @@ const initializationPromises = new Map<string, Promise<void>>();
 let _contentService: any = null;
 async function getContentService() {
   if (!_contentService) {
-    const mod = await import("./content-service" + ".server");
+    const mod = await import(/* @vite-ignore */ "./content-service" + ".server");
     _contentService = mod.contentService || mod.default || mod;
   }
   return _contentService;
@@ -130,10 +130,12 @@ export const contentSystem = {
         // Optional: Start content watcher in dev mode
         if (process.env.NODE_ENV === "development") {
           try {
-            const { startContentWatcher } = await import("./content-watcher" + ".server");
+            const { startContentWatcher } = await import(
+              /* @vite-ignore */ "./content-watcher" + ".server"
+            );
             startContentWatcher();
           } catch (e) {
-            logger.trace("Content watcher failed to start (non-fatal)", e);
+            logger.warn("Content watcher failed to start:", e);
           }
         }
 

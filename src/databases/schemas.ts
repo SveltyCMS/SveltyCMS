@@ -23,14 +23,16 @@ import type { DatabaseId, ISODateString } from "../content/types";
 // ----------------- HELPERS -----------------
 
 /** Helper to allow numeric strings (from env) to be used where numbers are expected */
-const coercedNumber = union([
-  number(),
-  pipe(
-    string(),
-    transform((val) => Number(val)),
+const coercedNumber = optional(
+  union([
     number(),
-  ),
-]);
+    pipe(
+      string(),
+      transform((val) => Number(val)),
+      number(),
+    ),
+  ]),
+);
 
 // ----------------- CONFIGURATION SCHEMAS -----------------
 
@@ -132,7 +134,7 @@ export function validateConfig(
 export interface DatabaseConfig {
   type: "mongodb" | "mongodb+srv" | "mariadb" | "postgresql" | "sqlite";
   host: string;
-  port: number;
+  port?: number;
   name: string;
   user?: string;
   password?: string;

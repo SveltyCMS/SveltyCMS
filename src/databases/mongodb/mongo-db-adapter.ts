@@ -89,6 +89,21 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
     };
   }
 
+  async isEmpty(): Promise<DatabaseResult<boolean>> {
+    if (!this.isConnected())
+      return {
+        success: false,
+        message: "Not connected",
+        error: { code: "NOT_CONNECTED", message: "Not connected" },
+      };
+    try {
+      const collections = await this.connection!.db!.listCollections().toArray();
+      return { success: true, data: collections.length === 0 };
+    } catch (err: any) {
+      return this.handleError(err, "CHECK_EMPTY_FAILED");
+    }
+  }
+
   queryBuilder<T extends BaseEntity>(collection: string): QueryBuilder<T> {
     const model = this._getOrCreateModel(collection);
     return new MongoQueryBuilder<T>(model as any);

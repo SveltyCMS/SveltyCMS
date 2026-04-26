@@ -323,7 +323,7 @@ Features:
 						onblur={() => handleBlur('siteName')}
 						type="text"
 						placeholder={setup_system_site_name_placeholder?.() || 'My SveltyCMS Site'}
-						class="input w-full rounded {displayErrors.siteName ? 'border-error-500' : 'border-slate-200'}"
+						class="input w-full rounded border border-slate-300 dark:border-surface-600  {displayErrors.siteName ? 'border-error-500' : ''}"
 						aria-invalid={!!displayErrors.siteName}
 						aria-describedby={displayErrors.siteName ? 'site-name-error' : undefined}
 					/>
@@ -350,7 +350,7 @@ Features:
 						type="url"
 						onblur={() => handleBlur('hostProd')}
 						placeholder={setup_system_host_prod_placeholder?.() || 'https://mysite.com'}
-						class="input w-full rounded {displayErrors.hostProd ? 'border-error-500' : 'border-slate-200'}"
+						class="input w-full rounded border border-slate-300 dark:border-surface-600 {displayErrors.hostProd ? 'border-error-500' : ''}"
 						aria-invalid={!!displayErrors.hostProd}
 						aria-describedby={displayErrors.hostProd ? 'host-prod-error' : undefined}
 					/>
@@ -376,6 +376,7 @@ Features:
 						bind:value={systemSettings.timezone}
 						placeholder="Search timezone..."
 						onSelect={() => handleBlur('timezone')}
+						className="w-full rounded border border-slate-300 dark:border-surface-600  "
 					/>
 					{#if displayErrors.timezone}
 						<div id="timezone-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.timezone}</div>
@@ -383,30 +384,13 @@ Features:
 				</div>
 
 				<!-- Password Minimum Length -->
-				<div class="flex flex-col gap-1">
-					<label for="password-min-length" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:lock-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span class="text-black dark:text-white">Min Password Length</span>
-						<SystemTooltip title="Minimum number of characters required for user passwords. Defaults to 8.">
-							<button type="button" tabindex="-1" aria-label="Help: Password Minimum Length" class="ml-1 text-slate-400 hover:text-tertiary-500">
-								<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
-							</button>
-						</SystemTooltip>
-					</label>
-
+				<!-- Min Password Length moved to system settings page -->
+				<div class="hidden">
 					<input
 						id="password-min-length"
 						bind:value={systemSettings.passwordMinLength}
 						type="number"
-						min="4"
-						max="128"
-						onblur={() => handleBlur('passwordMinLength')}
-						class="input w-full rounded {displayErrors.passwordMinLength ? 'border-error-500' : 'border-slate-200'}"
-						aria-invalid={!!displayErrors.passwordMinLength}
 					/>
-					{#if displayErrors.passwordMinLength}
-						<div id="password-min-length-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.passwordMinLength}</div>
-					{/if}
 				</div>
 			</div>
 
@@ -423,7 +407,7 @@ Features:
 						</SystemTooltip>
 					</label>
 
-					<select id="media-storage-type" bind:value={systemSettings.mediaStorageType} class="input w-full rounded">
+					<select id="media-storage-type" bind:value={systemSettings.mediaStorageType} class="input w-full rounded border border-slate-300 dark:border-surface-600  ">
 						<option value="local">{setup_media_type_local?.() || '📁 Local Storage'}</option>
 						<option value="s3">{setup_media_type_s3?.() || '☁️ Amazon S3'}</option>
 						<option value="r2">{setup_media_type_r2?.() || '☁️ Cloudflare R2'}</option>
@@ -454,7 +438,7 @@ Features:
 						placeholder={systemSettings.mediaStorageType === 'local'
 							? setup_system_media_path_placeholder?.() || './mediaFolder'
 							: setup_system_bucket_placeholder?.() || 'my-bucket-name'}
-						class="input w-full rounded"
+						class="input w-full rounded border border-slate-300 dark:border-surface-600  "
 					/>
 
 					{#if systemSettings.mediaStorageType !== 'local'}
@@ -486,7 +470,7 @@ Features:
 
 					<p class="text-[10px] text-slate-500 dark:text-white/40" id="system-lang-help">Select the primary language for the admin interface.</p>
 
-					<select id="default-system-lang" bind:value={systemSettings.defaultSystemLanguage} class="input w-full rounded">
+					<select id="default-system-lang" bind:value={systemSettings.defaultSystemLanguage} class="input w-full rounded border border-slate-300 dark:border-surface-600  ">
 						{#each systemSettings.systemLanguages as lang (lang)}
 							<option value={lang}>{displayLang(lang)}</option>
 						{/each}
@@ -709,11 +693,11 @@ Features:
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3 animate-in fade-in slide-in-from-top-2 duration-300">
 						<div class="space-y-1.5 text-black dark:text-white">
 							<label for="redis-host" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Host</label>
-							<input id="redis-host" bind:value={systemSettings.redisHost} type="text" placeholder="localhost" class="input text-sm py-1.5 rounded" />
+							<input id="redis-host" bind:value={systemSettings.redisHost} type="text" placeholder="localhost" class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  " />
 						</div>
 						<div class="space-y-1.5 text-black dark:text-white">
 							<label for="redis-port" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Port</label>
-							<input id="redis-port" bind:value={systemSettings.redisPort} type="text" placeholder="6379" class="input text-sm py-1.5 rounded" />
+							<input id="redis-port" bind:value={systemSettings.redisPort} type="text" placeholder="6379" class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  " />
 						</div>
 						<div class="space-y-1.5 text-black dark:text-white">
 							<label for="redis-password" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Password (Optional)</label>
@@ -722,7 +706,7 @@ Features:
 								bind:value={systemSettings.redisPassword}
 								type="password"
 								placeholder="••••••••"
-								class="input text-sm py-1.5 rounded"
+								class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  "
 							/>
 						</div>
 					</div>
@@ -755,7 +739,7 @@ Features:
 								bind:value={systemSettings.cfApiToken}
 								type="password"
 								placeholder="Enter API Token"
-								class="input text-sm py-1.5 rounded"
+								class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  "
 							/>
 						</div>
 						<div class="space-y-1">
@@ -765,14 +749,14 @@ Features:
 								bind:value={systemSettings.cfZoneId}
 								type="text"
 								placeholder="Enter Zone ID"
-								class="input text-sm py-1.5 rounded"
+								class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  "
 							/>
 						</div>
 					</div>
 
 					<div class="space-y-1">
 						<label for="cf-purge" class="text-xs font-bold uppercase tracking-wider text-slate-400">Purge Strategy</label>
-						<select id="cf-purge" bind:value={systemSettings.cfPurgeMode} class="input text-sm py-1.5 rounded">
+						<select id="cf-purge" bind:value={systemSettings.cfPurgeMode} class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  ">
 							<option value="tags">Surgical (Tag-based - Recommended)</option>
 							<option value="all">Full Purge (Everything)</option>
 						</select>

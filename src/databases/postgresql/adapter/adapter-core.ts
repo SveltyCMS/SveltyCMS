@@ -206,6 +206,21 @@ export class AdapterCore extends BaseSqlAdapter {
     }
   }
 
+  async isEmpty(): Promise<DatabaseResult<boolean>> {
+    if (!this.sql) return this.notConnectedError();
+    try {
+      const result = await this.sql`
+        SELECT COUNT(*) as count 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public'
+      `;
+      const count = Number(result[0].count);
+      return { success: true, data: count === 0 };
+    } catch (error) {
+      return this.handleError(error, "CHECK_EMPTY_FAILED");
+    }
+  }
+
   public async getConnectionPoolStats(): Promise<
     DatabaseResult<import("../../db-interface").ConnectionPoolStats>
   > {

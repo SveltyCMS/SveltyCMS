@@ -30,6 +30,27 @@ test.describe.skip("setup wizard error handling", () => {
     await expect(nextButton).toBeDisabled();
   });
 
+  test("should show error on non-empty database", async ({ page }) => {
+    await page.goto("/setup");
+
+    // Setup DB to point to a database that is known to be non-empty (e.g. system default)
+    await page.locator("#db-type").selectOption("sqlite");
+    // SQLite adapter uses config/database/sveltycms.sqlite by default if named sveltycms
+    await page.locator("#db-name").fill("populated_db");
+
+    // Trigger test
+    const testDbButton = page.locator("button", { hasText: /test database connection/i });
+    await testDbButton.click();
+
+    // The modal should appear. We need to handle this to pass.
+    // Confirm button should say "Yes" or similar
+    const confirmBtn = page.locator("button").filter({ hasText: /yes/i }).first();
+    await expect(confirmBtn).toBeVisible({ timeout: 10000 });
+
+    // Assert error message about existing data
+    await expect(page.getByText(/database is not empty/i)).toBeVisible();
+  });
+
   test("should show error on admin user password mismatch", async ({ page }) => {
     await page.goto("/setup");
 

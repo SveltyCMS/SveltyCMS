@@ -309,7 +309,7 @@ const dbNameSchema = pipe(
 );
 
 // Database User Schema (optional for MongoDB without auth)
-const dbUserSchema = pipe(string(), trim(), maxLength(63, "Database user is too long"));
+const dbUserSchema = pipe(string(), trim());
 
 // Database Password Schema (optional for MongoDB without auth)
 const dbPasswordSchema = pipe(string(), trim());
@@ -327,14 +327,13 @@ export const dbConfigSchema = pipe(
   check((input) => {
     // For PostgreSQL and MySQL, username and password are required
     if (input.type === "postgresql" || input.type === "mysql" || input.type === "mariadb") {
-      return input.user.length > 0 && input.password.length > 0;
+      return (input.user?.length ?? 0) > 0 && (input.password?.length ?? 0) > 0;
     }
-    // For MongoDB Atlas, authentication is essentially mandatory
+    // For MongoDB Atlas, authentication is mandatory
     if (input.type === "mongodb+srv") {
-      return input.user.length > 0 && input.password.length > 0;
+      return (input.user?.length ?? 0) > 0 && (input.password?.length ?? 0) > 0;
     }
-    // For MongoDB standard (local/Docker), authentication is optional
-    // This allows local development without auth (e.g., MongoDB Compass)
+    // For MongoDB local and SQLite, auth is optional
     return true;
   }, "Username and password are required for this database type."),
 );

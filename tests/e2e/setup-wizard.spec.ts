@@ -213,29 +213,23 @@ test("Setup Wizard: Configure DB and Create Admin", async ({ page }) => {
     if (dbAuthSource) await page.locator("#db-auth-source").fill(dbAuthSource);
   }
 
-  // Click Test Database and handle SQLite "create missing" modal
+  // Click Test Database and handle SQLite "create missing" modal or non-empty DB modal
   const testDbButton = page.getByRole("button", { name: /test database connection/i });
   await testDbButton.click({ force: true });
   await page.waitForTimeout(2000); // Wait for connection test to initiate
 
-  // Handle "Database does not exist" confirmation for SQLite
+  // Handle "Database does not exist" or "Database not empty" confirmation
   // NOTE: Skeleton v4 renders modals with aria-hidden="true" on positioners, so
   // getByRole() won't find the button. Use locator().filter().first() + force:true
-  // (same pattern as the welcome modal above).
-  const confirmBtn = page
-    .locator("button")
-    .filter({ hasText: /yes, create it/i })
-    .first();
+  const confirmBtn = page.locator("button").filter({ hasText: /yes/i }).first();
   try {
-    // Wait up to 15s for the modal to appear (SQLite only — server must respond first)
+    // Wait up to 15s for the modal to appear
     await expect(confirmBtn).toBeVisible({ timeout: 15000 });
-    console.log("Database missing modal detected. Confirming creation...");
+    console.log("Database modal detected. Confirming...");
     await confirmBtn.click({ force: true });
-    await page.waitForTimeout(3000); // Wait for creation + connection
+    await page.waitForTimeout(3000); // Wait for action + connection
   } catch {
-    console.log(
-      "No 'Database missing' modal appeared (or not SQLite). Proceeding to check success...",
-    );
+    console.log("No 'Database' modal appeared. Proceeding to check success...");
   }
 
   // The Next button being enabled is the definitive signal that the DB test passed.

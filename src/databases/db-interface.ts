@@ -1128,6 +1128,8 @@ export interface IDBAdapter {
     }>
   >;
 
+  isEmpty(): Promise<DatabaseResult<boolean>>;
+
   getPoolDiagnostics?(): Promise<DatabaseResult<ConnectionPoolStats>>;
 
   getMultipleCollectionData(

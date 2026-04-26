@@ -266,6 +266,19 @@ export class AdapterCore extends BaseSqlAdapter {
     }
   }
 
+  async isEmpty(): Promise<DatabaseResult<boolean>> {
+    try {
+      const res = this.prepareAndExecute(
+        "SELECT COUNT(*) as count FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+        "get",
+      ) as any;
+      const count = Number(res?.count ?? res ?? 0);
+      return { success: true, data: count === 0 };
+    } catch (error) {
+      return this.handleError(error, "CHECK_EMPTY_FAILED");
+    }
+  }
+
   /**
    *  Database Maintenance
    */
