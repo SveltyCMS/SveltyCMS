@@ -374,6 +374,9 @@ function stubServerModulesPlugin(): Plugin {
     "/src/databases/auth/permissions.ts",
     "/src/databases/cache/redis-store.ts",
     "/src/databases/cache/inmemory-store.ts",
+    "/src/content/content-service.ts",
+    "/src/content/content-watcher.ts",
+    "/src/content/module-processor.ts",
     "/src/components/emails/",
   ]);
 

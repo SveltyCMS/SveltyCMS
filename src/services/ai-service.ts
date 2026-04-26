@@ -353,6 +353,9 @@ ${contextRules}`;
       case "summarize":
         prompt = "Summarize the following text concisely. Keep the original language.";
         break;
+      case "rewrite":
+        prompt = "Rewrite the following text to improve clarity and flow. Keep the original language.";
+        break;
       case "seo":
         prompt =
           "Optimize the following text for SEO. Provide a title, description, and keywords. Keep the original language.";

@@ -189,7 +189,7 @@ export class ApiSpecService {
    */
   public async generateFullSpec(tenantId?: string | null): Promise<any> {
     try {
-      const { contentService } = await import("@src/content/content-service.server");
+      const { contentService } = await import("@src/content/content-service");
       const collections = await contentService.getContentStructureFromDatabase("flat", tenantId);
       // Filter to only include collections
       const schemaOnly = collections

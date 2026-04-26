@@ -15,7 +15,7 @@
 import { error, redirect } from "@sveltejs/kit";
 // System Logs
 import { logger } from "@utils/logger.server";
-import { contentService } from "@src/content/content-service.server";
+import { contentService } from "@src/content/content-service";
 import type { PageServerLoad, Actions } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {

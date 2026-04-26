@@ -21,7 +21,10 @@ import type { BenchmarkResult, RunConfig } from "./types";
 /**
  * Persists benchmark script metadata (lastRun) using AST.
  */
-export async function persistScriptMetadataAST(scriptPath: string, timestamp: string) {
+export async function persistScriptMetadataAST(
+  scriptPath: string,
+  timestamp: string,
+) {
   try {
     const project = new Project();
     const sourceFilePath = path.resolve(
@@ -38,11 +41,18 @@ export async function persistScriptMetadataAST(scriptPath: string, timestamp: st
       for (const element of scriptsArray.getElements()) {
         if (element.getKind() === SyntaxKind.ObjectLiteralExpression) {
           const obj = element as ObjectLiteralExpression;
-          const pathProp = obj.getProperty("path")?.asKind(SyntaxKind.PropertyAssignment);
-          const pathValue = pathProp?.getInitializer()?.getText().replace(/['"]/g, "");
+          const pathProp = obj
+            .getProperty("path")
+            ?.asKind(SyntaxKind.PropertyAssignment);
+          const pathValue = pathProp
+            ?.getInitializer()
+            ?.getText()
+            .replace(/['"]/g, "");
 
           if (pathValue === scriptPath) {
-            const lastRunProp = obj.getProperty("lastRun")?.asKind(SyntaxKind.PropertyAssignment);
+            const lastRunProp = obj
+              .getProperty("lastRun")
+              ?.asKind(SyntaxKind.PropertyAssignment);
             if (lastRunProp) {
               lastRunProp.setInitializer(`"${timestamp}"`);
               log.db("AST", `Updated lastRun for ${scriptPath}`);
@@ -74,7 +84,10 @@ export async function updateIncrementalReport(results: BenchmarkResult[]) {
   try {
     const latestMetrics: Record<string, any> = {};
     for (const res of results) {
-      latestMetrics[res.db] = extractMetrics(res.metrics ?? {}, res.db.replace("-redis", ""));
+      latestMetrics[res.db] = extractMetrics(
+        res.metrics ?? {},
+        res.db.replace("-redis", ""),
+      );
     }
 
     await updateDatabaseSpecificReports(db, results, latestMetrics);
@@ -87,7 +100,15 @@ export function printSummaryTable(results: BenchmarkResult[]) {
   console.log("\n\x1b[1m\x1b[38;5;208m━━━ AUDIT SUMMARY ━━━\x1b[0m\n");
 
   const COL = [22, 12, 12, 10, 10, 8, 7];
-  const hdr = ["Database", "Cold Start", "REST p95", "GQL Avg", "Heap ΔMB", "Budget", "Status"]
+  const hdr = [
+    "Database",
+    "Cold Start",
+    "REST p95",
+    "GQL Avg",
+    "Heap ΔMB",
+    "Budget",
+    "Status",
+  ]
     .map((h, i) => h.padEnd(COL[i]))
     .join("  ");
   console.log(`\x1b[90m${hdr}\x1b[0m`);
@@ -103,14 +124,21 @@ export function printSummaryTable(results: BenchmarkResult[]) {
     const violations = res.budgetViolations ?? [];
 
     const budgetCell =
-      violations.length === 0 ? "\x1b[32m✓ OK\x1b[0m" : `\x1b[31m✗ ${violations.length}\x1b[0m`;
-    const statusCell = res.status === "SUCCESS" ? "\x1b[32m✅\x1b[0m" : "\x1b[31m❌\x1b[0m";
+      violations.length === 0
+        ? "\x1b[32m✓ OK\x1b[0m"
+        : `\x1b[31m✗ ${violations.length}\x1b[0m`;
+    const statusCell =
+      res.status === "SUCCESS" ? "\x1b[32m✅\x1b[0m" : "\x1b[31m❌\x1b[0m";
 
     const row = [
       `${meta.icon} ${meta.label}`.padEnd(COL[0]),
       `${res.coldStartMs ?? "—"}ms`.padEnd(COL[1]),
-      `${m.collections > 0 ? m.collections.toFixed(2) + "ms" : "FAILED"}`.padEnd(COL[2]),
-      `${m.graphqlAvg > 0 ? m.graphqlAvg.toFixed(2) + "ms" : "FAILED"}`.padEnd(COL[3]),
+      `${m.collections > 0 ? m.collections.toFixed(2) + "ms" : "FAILED"}`.padEnd(
+        COL[2],
+      ),
+      `${m.graphqlAvg > 0 ? m.graphqlAvg.toFixed(2) + "ms" : "FAILED"}`.padEnd(
+        COL[3],
+      ),
       `${m.memGrowth > 0 ? m.memGrowth.toFixed(1) : "—"}`.padEnd(COL[4]),
       budgetCell.padEnd(COL[5] + 10),
       statusCell,
@@ -125,16 +153,21 @@ export function printSummaryTable(results: BenchmarkResult[]) {
 }
 
 /**
- * 🚀 ULTRA ELITE: Reconstructs high-fidelity ASCII tables for MDX.
+ * 🚀 Reconstructs high-fidelity ASCII tables for MDX.
  */
-function buildAsciiTable(title: string, subtitle: string, scenarios: any[]): string {
+function buildAsciiTable(
+  title: string,
+  subtitle: string,
+  scenarios: any[],
+): string {
   const SC_COL = 30;
   const AVG_COL = 14;
   const P95_COL = 14;
   const RPS_COL = 14;
   const W = 2 + SC_COL + 3 + AVG_COL + 3 + P95_COL + 3 + RPS_COL + 2;
 
-  const bar = (l: string, _m: string, r: string) => l + "═".repeat(W - 2).replace(/ /g, "═") + r;
+  const bar = (l: string, _m: string, r: string) =>
+    l + "═".repeat(W - 2).replace(/ /g, "═") + r;
   const row = (sc: string, avg: string, p95: string, rps: string) =>
     `║ ${sc.padEnd(SC_COL)} │ ${avg.padEnd(AVG_COL)} │ ${p95.padEnd(P95_COL)} │ ${rps.padEnd(RPS_COL)} ║`;
 
@@ -143,18 +176,30 @@ function buildAsciiTable(title: string, subtitle: string, scenarios: any[]): str
 
   // Center Title
   const titlePad = Math.max(0, Math.floor((W - 2 - title.length) / 2));
-  md += "║" + " ".repeat(titlePad) + title + " ".repeat(W - 2 - title.length - titlePad) + "║\n";
+  md +=
+    "║" +
+    " ".repeat(titlePad) +
+    title +
+    " ".repeat(W - 2 - title.length - titlePad) +
+    "║\n";
 
   // Center Subtitle
   const subPad = Math.max(0, Math.floor((W - 2 - subtitle.length) / 2));
-  md += "║" + " ".repeat(subPad) + subtitle + " ".repeat(W - 2 - subtitle.length - subPad) + "║\n";
+  md +=
+    "║" +
+    " ".repeat(subPad) +
+    subtitle +
+    " ".repeat(W - 2 - subtitle.length - subPad) +
+    "║\n";
 
   md += bar("╠", "═", "╣") + "\n";
   md += row("Scenario", "Avg latency", "p95", "RPS") + "\n";
   md += bar("╠", "═", "╣") + "\n";
 
   for (const s of scenarios) {
-    const isMs = !s.name.toLowerCase().includes("size") && !s.name.toLowerCase().includes("count");
+    const isMs =
+      !s.name.toLowerCase().includes("size") &&
+      !s.name.toLowerCase().includes("count");
     const suffix = isMs ? " ms" : "";
     md +=
       row(
@@ -171,7 +216,7 @@ function buildAsciiTable(title: string, subtitle: string, scenarios: any[]): str
 }
 
 /**
- * 🚀 ULTRA ELITE: Builds a detailed section for each of the 20 benchmarks.
+ * 🚀 Builds a detailed section for each of the 20 benchmarks.
  */
 export async function buildFullAuditLedger(
   dbKey: string,
@@ -183,7 +228,9 @@ export async function buildFullAuditLedger(
 
   for (const script of BENCHMARK_SCRIPTS) {
     const isSql =
-      dbKey.includes("sqlite") || dbKey.includes("postgres") || dbKey.includes("mariadb");
+      dbKey.includes("sqlite") ||
+      dbKey.includes("postgres") ||
+      dbKey.includes("mariadb");
     const isApplicable =
       script.strategy === "all" ||
       (script.strategy === "sql" && isSql) ||
@@ -227,18 +274,21 @@ export async function buildFullAuditLedger(
 
     // 2. Trend Chart for this specific script
     const history = db
-      .query(`
-        SELECT timestamp, metrics_json FROM runs 
-        WHERE db_key = ? AND status = 'SUCCESS' 
+      .query(
+        `
+        SELECT timestamp, metrics_json FROM runs
+        WHERE db_key = ? AND status = 'SUCCESS'
         ORDER BY timestamp DESC LIMIT 10
-    `)
+    `,
+      )
       .all(dbKey) as any[];
 
     const trendPoints = history
       .map((h) => {
         const m = JSON.parse(h.metrics_json);
         const scriptMetric = Object.values(m).find(
-          (v: any) => v.name === script.shortLabel || v.shortLabel === script.shortLabel,
+          (v: any) =>
+            v.name === script.shortLabel || v.shortLabel === script.shortLabel,
         ) as any;
         return scriptMetric?.avgMs || m[script.shortLabel]?.avgMs || 0;
       })
@@ -263,7 +313,8 @@ export async function generateFinalReport(
   resultsIn: BenchmarkResult[] = [],
   _cfg?: RunConfig,
 ): Promise<string[]> {
-  const results = resultsIn.length > 0 ? resultsIn : await scanResultsDirectory();
+  const results =
+    resultsIn.length > 0 ? resultsIn : await scanResultsDirectory();
   const now = new Date().toISOString();
 
   const { Database } = await import("bun:sqlite");
@@ -312,7 +363,7 @@ export async function generateFinalReport(
       );
     }
 
-    // 🚀 ULTRA ELITE: Update per-database specific technical ledgers
+    // 🚀 Update per-database specific technical ledgers
     await updateDatabaseSpecificReports(db, results, latestMetrics);
 
     log.success("Enterprise Benchmark technical ledgers updated.");
@@ -323,7 +374,7 @@ export async function generateFinalReport(
 }
 
 /**
- * 🚀 ULTRA ELITE: Generates/Updates database-specific detail pages with historical trends and placeholders.
+ * 🚀 Generates/Updates database-specific detail pages with historical trends and placeholders.
  */
 async function updateDatabaseSpecificReports(
   db: any,
@@ -335,8 +386,14 @@ async function updateDatabaseSpecificReports(
 
   for (const dbConf of ALL_DATABASES) {
     const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
-    const meta = (DB_METADATA as any)[dbKey] || { label: dbKey.toUpperCase(), icon: "❓" };
-    const filePath = path.join(DOCS_DIR, `benchmark_${dbKey.replace("-", "_")}.mdx`);
+    const meta = (DB_METADATA as any)[dbKey] || {
+      label: dbKey.toUpperCase(),
+      icon: "❓",
+    };
+    const filePath = path.join(
+      DOCS_DIR,
+      `benchmark_${dbKey.replace("-", "_")}.mdx`,
+    );
 
     // Get current results or last historical SUCCESS
     const curr = results.find((r) => r.db === dbKey);
@@ -362,9 +419,24 @@ async function updateDatabaseSpecificReports(
       isHistorical = true;
     }
 
-    const coldTrend = await getTrendDetails(db, dbKey, curr?.coldStartMs || 0, "cold_start_ms");
-    const restTrend = await getTrendDetails(db, dbKey, m.collections, "collections_p95");
-    const gqlTrend = await getTrendDetails(db, dbKey, m.graphqlAvg, "graphql_avg");
+    const coldTrend = await getTrendDetails(
+      db,
+      dbKey,
+      curr?.coldStartMs || 0,
+      "cold_start_ms",
+    );
+    const restTrend = await getTrendDetails(
+      db,
+      dbKey,
+      m.collections,
+      "collections_p95",
+    );
+    const gqlTrend = await getTrendDetails(
+      db,
+      dbKey,
+      m.graphqlAvg,
+      "graphql_avg",
+    );
 
     let md = `\n## 📊 Latest Performance Audit (${timestamp})\n\n`;
     md += `**Status:** ${status === "SUCCESS" ? "✅ PASS" : "❌ FAIL"}${isHistorical ? " *(Historical)*" : ""}\n\n`;
@@ -394,7 +466,9 @@ async function updateDatabaseSpecificReports(
 
     for (const script of BENCHMARK_SCRIPTS) {
       const isSql =
-        dbKey.includes("sqlite") || dbKey.includes("postgres") || dbKey.includes("mariadb");
+        dbKey.includes("sqlite") ||
+        dbKey.includes("postgres") ||
+        dbKey.includes("mariadb");
       const isApplicable =
         script.strategy === "all" ||
         (script.strategy === "sql" && isSql) ||
@@ -404,7 +478,7 @@ async function updateDatabaseSpecificReports(
 
       const tag = script.shortLabel.split(" ")[0].toUpperCase() + "_TABLE";
 
-      // 🚀 ULTRA ELITE: Try to find a persistent table file for this script
+      // 🚀 Try to find a persistent table file for this script
       let tableContent = `> ⏳ **${script.label}**: Pending execution.\n> 📂 **Source**: [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")})`;
       try {
         const dbResultsDir = path.join(ROOT_RESULTS_DIR, dbKey);
@@ -424,20 +498,27 @@ async function updateDatabaseSpecificReports(
           const slWords = sl.split(" ").filter((w) => w.length > 2);
           const flWords = fl.split(" ").filter((w) => w.length > 2);
 
-          const slMatch = slWords.every((w) => nfWords.has(w)) || nfWords.has(sl);
-          const flMatch = flWords.every((w) => nfWords.has(w)) || nfWords.has(fl);
+          const slMatch =
+            slWords.every((w) => nfWords.has(w)) || nfWords.has(sl);
+          const flMatch =
+            flWords.every((w) => nfWords.has(w)) || nfWords.has(fl);
 
           return slMatch || flMatch;
         });
 
         if (tableFile) {
-          const rawTable = await fs.readFile(path.join(dbResultsDir, tableFile), "utf8");
+          const rawTable = await fs.readFile(
+            path.join(dbResultsDir, tableFile),
+            "utf8",
+          );
           const history = db
-            .query(`
-              SELECT metrics_json FROM runs 
-              WHERE db_key = ? AND status = 'SUCCESS' 
+            .query(
+              `
+              SELECT metrics_json FROM runs
+              WHERE db_key = ? AND status = 'SUCCESS'
               ORDER BY timestamp DESC LIMIT 2
-            `)
+            `,
+            )
             .all(dbKey) as any[];
 
           let trendStr = "";
@@ -445,18 +526,22 @@ async function updateDatabaseSpecificReports(
             const last = JSON.parse(history[0].metrics_json);
             const prev = JSON.parse(history[1].metrics_json);
 
-            // 🚀 ULTRA ELITE: Try to find matching metric in history by path OR slug
+            // 🚀 Try to find matching metric in history by path OR slug
             const findMetric = (m: any) => {
               // Try exact match by shortLabel
-              if (m[script.shortLabel]?.avgMs) return m[script.shortLabel].avgMs;
+              if (m[script.shortLabel]?.avgMs)
+                return m[script.shortLabel].avgMs;
               // Try slug match
-              const slug = script.shortLabel.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
+              const slug = script.shortLabel
+                .replace(/[^a-zA-Z0-9]/g, "-")
+                .toLowerCase();
               if (m[slug]?.avgMs) return m[slug].avgMs;
               // Try path match (looking inside metrics)
               for (const key in m) {
                 if (m[key]?.scriptPath === script.path) return m[key].avgMs;
                 // Fallback for older data that might have base name
-                if (key.includes(path.basename(script.path, ".test.ts"))) return m[key].avgMs;
+                if (key.includes(path.basename(script.path, ".test.ts")))
+                  return m[key].avgMs;
               }
               return 0;
             };
@@ -480,7 +565,9 @@ async function updateDatabaseSpecificReports(
               "docs/project/benchmarks",
               `benchmark_${dbKey.replace("-", "_")}.mdx`,
             );
-            const currentDoc = await fs.readFile(docPath, "utf8").catch(() => "");
+            const currentDoc = await fs
+              .readFile(docPath, "utf8")
+              .catch(() => "");
             const START = `<!-- ${tag}_START -->`;
             const END = `<!-- ${tag}_END -->`;
             if (currentDoc.includes(START) && currentDoc.includes(END)) {
@@ -517,8 +604,8 @@ updated: "${new Date().toISOString().split("T")[0]}"
 # ${meta.icon} ${meta.label} Performance Ledger
 
 > [!IMPORTANT]
-> **Performance Verification**: This report is automatically generated by the SveltyCMS Audit 2.0 engine.
-${dbKey === "sqlite" ? "> **ULTRA ELITE Upgrade**: SQLite now features LRU Statement Caching, WAL tuning, and unified SQL core architecture." : ""}
+> **Performance Verification**: This report is automatically generated by the SveltyCMS Audit engine.
+${dbKey === "sqlite" ? "> SQLite now features LRU Statement Caching, WAL tuning, and unified SQL core architecture." : ""}
 
 <!-- BENCHMARK_START -->
 <!-- BENCHMARK_END -->
@@ -527,7 +614,7 @@ ${dbKey === "sqlite" ? "> **ULTRA ELITE Upgrade**: SQLite now features LRU State
 
 ## 🔬 Optimization Summary
 
-The **ULTRA ELITE** upgrade introduces several key optimizations to the ${meta.label} engine:
+The upgrade introduces several key optimizations to the ${meta.label} engine:
 
 ${
   dbKey.includes("sqlite")
@@ -561,11 +648,16 @@ This ledger is part of the SveltyCMS **Benchmark Matrix** infrastructure. Result
     }
 
     await fs.writeFile(filePath, doc);
-    log.info(`Updated technical ledger: benchmark_${dbKey.replace("-", "_")}.mdx`);
+    log.info(
+      `Updated technical ledger: benchmark_${dbKey.replace("-", "_")}.mdx`,
+    );
   }
 }
 
-export async function writeCISummary(results: BenchmarkResult[], regressions: string[]) {
+export async function writeCISummary(
+  results: BenchmarkResult[],
+  regressions: string[],
+) {
   const passed = results.filter((r) => r.status === "SUCCESS").length;
   const failed = results.filter((r) => r.status === "FAILED").length;
   const allViolations = results.flatMap((r) => r.budgetViolations ?? []);
@@ -597,7 +689,10 @@ export async function writeCISummary(results: BenchmarkResult[], regressions: st
     badge: {
       schemaVersion: 1,
       label: "benchmarks",
-      message: failed === 0 ? `${passed}/${results.length} passed` : `${failed} failed`,
+      message:
+        failed === 0
+          ? `${passed}/${results.length} passed`
+          : `${failed} failed`,
       color: overall === "PASS" ? "brightgreen" : "red",
     },
   };
@@ -636,14 +731,16 @@ export async function scanResultsDirectory(): Promise<BenchmarkResult[]> {
 
           // Handle suite summary results
           if (content.name && content.avgMs !== undefined) {
-            const short = content.shortLabel || content.name.split(":")[0] || "unknown";
+            const short =
+              content.shortLabel || content.name.split(":")[0] || "unknown";
             scriptTimings[short] = content.avgMs;
             if (content.failureCount > 0) status = "FAILED";
 
             // Merge nested metrics if present
             if (content.metrics) Object.assign(metrics, content.metrics);
             // Save scriptPath for reliable matching
-            if (content.scriptPath) (scriptTimings as any).scriptPath = content.scriptPath;
+            if (content.scriptPath)
+              (scriptTimings as any).scriptPath = content.scriptPath;
 
             // Store the full result as a metric for detailed ledger reconstruction
             metrics[short] = content;
@@ -663,14 +760,18 @@ export async function scanResultsDirectory(): Promise<BenchmarkResult[]> {
         }
       }
 
-      if (Object.keys(metrics).length > 0 || Object.keys(scriptTimings).length > 0) {
+      if (
+        Object.keys(metrics).length > 0 ||
+        Object.keys(scriptTimings).length > 0
+      ) {
         results.push({
           db: dbKey,
           status,
           metrics,
           scriptTimings,
           scriptPath: (scriptTimings as any).scriptPath || metrics.scriptPath,
-          coldStartMs: metrics["cold-start"]?.value || metrics["cold-start"] || 0,
+          coldStartMs:
+            metrics["cold-start"]?.value || metrics["cold-start"] || 0,
         } as any);
       }
     }

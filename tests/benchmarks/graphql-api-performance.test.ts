@@ -12,6 +12,7 @@ import {
   stabilize,
   setupBenchmarkServer,
   printTruthTable,
+  printSummaryTable,
   ensureStableTestData,
 } from "./benchmark-utils";
 import { getDb } from "@src/databases/db";
@@ -100,6 +101,12 @@ export async function runGraphQLBenchmark() {
     subtitle: "End-to-End Latency • Schema Execution • Concurrent Load",
     results: allResults,
   });
+
+  printSummaryTable([
+    { key: "Avg Resolver Latency", val: allResults[1].avgMs, unit: "ms" },
+    { key: "Peak Concurrent RPS", val: Math.max(...allResults.map((r) => r.rps)), unit: "req/s" },
+    { key: "System Introspection Overhead", val: allResults[0].avgMs, unit: "ms" },
+  ]);
 
   const base = allResults[1]; // allCollectionStats
 

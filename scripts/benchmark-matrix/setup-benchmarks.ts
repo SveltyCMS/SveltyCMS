@@ -28,6 +28,7 @@ plugin({
 import fs from "node:fs/promises";
 import path from "node:path";
 import { contentSystem } from "@src/content";
+import { getDefaultRoles } from "@src/databases/auth/default-roles";
 
 export const AUTHOR_COUNT = Number(process.env.AUTHOR_COUNT ?? 10);
 export const POSTS_PER_AUTHOR = Number(process.env.POSTS_PER_AUTHOR ?? 5);
@@ -56,6 +57,15 @@ const COLLECTIONS = {
         collection: "benchmark_authors",
         multiple: false,
       },
+    ],
+  },
+  STABLE: {
+    _id: "benchmark_stable",
+    name: "benchmark_stable",
+    icon: "mdi:database-check",
+    fields: [
+      { label: "Title", db_fieldName: "title", widget: { Name: "Input" }, required: true },
+      { label: "Content", db_fieldName: "content", widget: { Name: "RichText" } },
     ],
   },
 } as const;
@@ -89,15 +99,36 @@ async function setupCollections(cms: any): Promise<{ authorsId: string; postsId:
 
   await writeCollectionSchema(compiledDir, COLLECTIONS.AUTHORS);
   await writeCollectionSchema(compiledDir, COLLECTIONS.POSTS);
+  await writeCollectionSchema(compiledDir, COLLECTIONS.STABLE);
 
   // Create models in database adapter
   if (typeof cms.db.collection?.createModel === "function") {
     await cms.db.collection.createModel(COLLECTIONS.AUTHORS as any);
     await cms.db.collection.createModel(COLLECTIONS.POSTS as any);
+    await cms.db.collection.createModel(COLLECTIONS.STABLE as any);
   }
 
-  log("Refreshing collections and reconciling schemas...");
+  log("Refreshing local collections and notifying server...");
   await cms.collections.refresh(TENANT_ID as any, false); // full refresh with reconciliation
+
+  // 🚀 NOTIFY SERVER: Force the remote server process to re-scan collections from .compiledCollections
+  if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
+    log(`   → Notifying server at ${process.env.API_BASE_URL}...`);
+    try {
+      const res = await fetch(`${process.env.API_BASE_URL}/api/system/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-secret": process.env.TEST_API_SECRET,
+        },
+        body: JSON.stringify({ tenantId: TENANT_ID, skipReconciliation: false }),
+      });
+      if (res.ok) log("   → Server refresh successful.");
+      else log(`   → Server refresh failed: ${res.status} ${res.statusText}`);
+    } catch (err: any) {
+      log(`   → Server refresh notification error: ${err.message}`);
+    }
+  }
   if (typeof (cms.db as any).reconcile === "function") {
     await (cms.db as any).reconcile();
   }
@@ -112,8 +143,9 @@ async function setupCollections(cms: any): Promise<{ authorsId: string; postsId:
     const collections = await cms.collections.list({ tenantId: TENANT_ID as any });
     authorsCollection = collections.find((c: any) => c.name === "benchmark_authors");
     postsCollection = collections.find((c: any) => c.name === "benchmark_posts");
+    const stableCollection = collections.find((c: any) => c.name === "benchmark_stable");
 
-    if (authorsCollection && postsCollection) {
+    if (authorsCollection && postsCollection && stableCollection) {
       if (attempt > 1) log(`✅ Collections reconciled on attempt ${attempt}.`);
       break;
     }
@@ -183,7 +215,23 @@ async function seedData(cms: any, authorsId: string, postsId: string): Promise<v
     throw new Error(`Failed to seed posts: ${postResult.message}`);
   }
 
-  log(`Successfully seeded ${authors.length} authors and ${posts.length} posts`);
+  // 🚀 Seed STABLE collection entry
+  const stableEntry = {
+    _id: "bench-shared-001",
+    title: "Stable Benchmark Entry",
+    content: "This is a stable entry for REST and API performance testing.",
+  };
+
+  const stableResult = await cms.collections.create(COLLECTIONS.STABLE._id, stableEntry, {
+    system: true,
+    tenantId: TENANT_ID as any,
+  });
+
+  if (!stableResult.success) {
+    throw new Error(`Failed to seed stable entry: ${stableResult.message}`);
+  }
+
+  log(`Successfully seeded ${authors.length} authors, ${posts.length} posts, and stable entry`);
 }
 
 export async function main(): Promise<void> {
@@ -207,7 +255,15 @@ export async function main(): Promise<void> {
     const existingResult = await db.crud
       .findOne("benchmark_authors", { _id: "author-1" as any }, { tenantId: TENANT_ID as any })
       .catch(() => null);
-    const hasData = existingResult?.success && existingResult.data?._id === "author-1";
+    const existingStable = await db.crud
+      .findOne("benchmark_stable", { _id: "bench-shared-001" as any }, { tenantId: TENANT_ID as any })
+      .catch(() => null);
+
+    const hasData =
+      existingResult?.success &&
+      existingResult.data?._id === "author-1" &&
+      existingStable?.success &&
+      existingStable.data?._id === "bench-shared-001";
 
     if (hasData && !clearOnly && !force) {
       log("🚀 [SmartSeed] Benchmark data already exists. Reusing state...");
@@ -221,15 +277,64 @@ export async function main(): Promise<void> {
       if (!clearResult.success) {
         log(`Warning: Database clear failed: ${clearResult.message}`);
       }
+
+      // 🚀 UNIFIED SEEDING: Ensure roles exist for ALL databases
+      log("Provisioning default roles...");
+      if (typeof db.ensureAuth === "function") {
+        await db.ensureAuth();
+      } else {
+        // Fallback for adapters without ensureAuth
+        const roles = getDefaultRoles();
+        for (const role of roles) {
+          try {
+            await db.auth.createRole({ ...role, tenantId: TENANT_ID as any });
+          } catch {
+            /* ignore duplicates */
+          }
+        }
+      }
+
+      // 🚀 SEED ESSENTIAL SETTINGS: Needed for CMS to function correctly
+      log("Seeding essential system settings...");
+      const essentialSettings = [
+        { key: "SITE_NAME", value: "SveltyCMS Benchmark", category: "public", scope: "system" },
+        { key: "DEFAULT_CONTENT_LANGUAGE", value: "en", category: "public", scope: "system" },
+        { key: "AVAILABLE_CONTENT_LANGUAGES", value: ["en"], category: "public", scope: "system" },
+        { key: "BASE_LOCALE", value: "en", category: "public", scope: "system" },
+        { key: "LOCALES", value: ["en"], category: "public", scope: "system" },
+      ];
+
+      try {
+        if (db.system?.preferences?.setMany) {
+          await db.system.preferences.setMany(essentialSettings as any);
+        }
+      } catch (err) {
+        log(`Warning: Failed to seed settings: ${err}`);
+      }
+
+      // 🚀 SEED DEFAULT THEME
+      log("Seeding default theme...");
+      const defaultTheme = {
+        _id: "670e8b8c4d123456789abcde",
+        name: "Benchmark Theme",
+        path: "",
+        isActive: true,
+        isDefault: true,
+        config: { tailwindConfigPath: "", assetsPath: "" },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      try {
+        if (db.system?.themes?.storeThemes) {
+          await db.system.themes.storeThemes([defaultTheme as any]);
+        }
+      } catch (err) {
+        log(`Warning: Failed to seed theme: ${err}`);
+      }
     }
 
     if (clearOnly) {
       log("✅ Database cleared (clear-only mode).");
-
-      // 🚀 Re-provision critical Admin for subsequent benchmark scripts
-      if (typeof db.ensureAuth === "function") {
-        await db.ensureAuth(); // Ensure roles exist
-      }
 
       const adminData = {
         username: "admin",
@@ -244,8 +349,12 @@ export async function main(): Promise<void> {
       const argon2 = await import("argon2");
       adminData.password = await argon2.hash(adminData.password);
 
-      await db.auth.createUser(adminData);
-      log("✅ Admin re-provisioned for clean state.");
+      try {
+        await db.auth.createUser(adminData);
+        log("✅ Admin re-provisioned for clean state.");
+      } catch (err) {
+        log(`Warning: Admin creation failed: ${err}`);
+      }
 
       process.exit(0);
     }

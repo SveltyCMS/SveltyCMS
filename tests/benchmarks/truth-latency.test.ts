@@ -11,6 +11,7 @@ import {
   runStochasticLoadTest,
   setupBenchmarkServer,
   printTruthTable,
+  printSummaryTable,
   exportResult,
   exportMetric,
   STABLE_COLLECTION,
@@ -115,6 +116,13 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
       subtitle: "3-Layer Production Reality Model",
       results: allResults,
     });
+
+    printSummaryTable([
+      { key: "Baseline Harness Overhead", val: allResults[0].avgMs, unit: "ms" },
+      { key: "SDK Engine Latency", val: allResults[1].avgMs, unit: "ms" },
+      { key: "E2E HTTP Latency", val: allResults[2].avgMs, unit: "ms" },
+      { key: "Peak HTTP Throughput", val: Math.round(allResults[2].rps), unit: "req/s" },
+    ]);
 
     // 🚀 STOCHASTIC LOAD TEST
     console.log("\n🔥 Ramping Stochastic Load Test (SLA Verification)...");

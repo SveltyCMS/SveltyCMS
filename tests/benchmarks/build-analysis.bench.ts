@@ -5,7 +5,7 @@
  */
 
 import { test, beforeAll, afterAll } from "bun:test";
-import { setupBenchmarkServer, printTruthTable } from "./benchmark-utils";
+import { setupBenchmarkServer, printTruthTable, printSummaryTable } from "./benchmark-utils";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execSync } from "node:child_process";
@@ -71,6 +71,12 @@ export async function runBuildAnalysis() {
       subtitle: "Compilation Speed • Bundle Size • Tree Shaking",
       results,
     });
+
+    printSummaryTable([
+      { key: "Total Build Time", val: buildTimeMs, unit: "ms" },
+      { key: "Total Bundle Size", val: (totalSize / 1024 / 1024).toFixed(2), unit: "MB" },
+      { key: "JS Chunk Count", val: jsFiles.length, unit: "chunks" },
+    ]);
 
     console.log("\n✅ Build analysis completed.");
   } catch (err: any) {

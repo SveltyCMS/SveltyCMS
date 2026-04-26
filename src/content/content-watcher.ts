@@ -1,12 +1,12 @@
 /**
- * @file src/content/content-watcher.server.ts
+ * @file src/content/content-watcher.ts
  * @description File system watcher for live schema updates in development.
  */
 
 import chokidar from "chokidar";
 import path from "node:path";
 import { logger } from "@utils/logger";
-import { contentService } from "./content-service.server";
+import { contentService } from "./content-service";
 
 let debounceTimer: NodeJS.Timeout | null = null;
 let isReloading = false;

@@ -673,6 +673,62 @@ Features:
 				</div>
 			</div>
 		</section>
+ 
+		<!-- System Infrastructure / Mode -->
+		<section id="infrastructure-section" class="mt-4 border-t border-surface-200 dark:border-white/10 pt-4">
+			<h4 class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-400 mb-4">
+				<iconify-icon icon="mdi:server-network" width="18"></iconify-icon>
+				{setup_system_infrastructure_mode?.() || 'System Infrastructure / Mode'}
+			</h4>
+
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+				<!-- Multi-Tenant Toggle -->
+				<div class="flex items-center gap-3 rounded border border-surface-200 dark:border-white/5 p-3">
+					<input
+						id="multi-tenant-mode"
+						type="checkbox"
+						bind:checked={systemSettings.multiTenant}
+						class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+					/>
+					<div class="flex items-center gap-2">
+						<iconify-icon icon="mdi:domain" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<label for="multi-tenant-mode" class="font-medium text-black dark:text-white text-sm">
+							{setup_system_multi_tenant?.() || 'Multi-Tenant Mode'}
+						</label>
+						<SystemTooltip title={setup_system_multi_tenant_desc?.() || 'Enables support for multiple isolated tenants...'}>
+							<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500"></iconify-icon>
+						</SystemTooltip>
+					</div>
+				</div>
+
+				<!-- Demo Mode Toggle -->
+				<div class="flex items-center gap-3 rounded border border-surface-200 dark:border-white/5 p-3">
+					<input
+						id="demo-mode"
+						type="checkbox"
+						bind:checked={systemSettings.demoMode}
+						class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+					/>
+					<div class="flex items-center gap-2">
+						<iconify-icon icon="mdi:test-tube" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<label for="demo-mode" class="font-medium text-black dark:text-white text-sm">
+							{setup_system_demo_mode?.() || 'Demo Mode'}
+						</label>
+						<SystemTooltip
+							title={(setup_system_demo_mode_desc?.() || 'Warning: Creates ephemeral environments for visitors.').replace(/<\/?[^>]+(>|$)/g, '')}
+						>
+							<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500"></iconify-icon>
+						</SystemTooltip>
+						{#if systemSettings.demoMode && !systemSettings.multiTenant}
+							<span class="text-xs font-bold text-amber-600 dark:text-amber-400">
+								({setup_note_demo_requires_multitenant?.() || 'Enables Multi-Tenant'})
+							</span>
+						{/if}
+					</div>
+				</div>
+			</div>
+		</section>
+
 
 		<!-- Optimization (Redis, Multi-Tenant, Demo) -->
 		<section id="redis-section" class="space-y-2 border-t border-surface-200 dark:border-white/10 pt-2">
@@ -774,59 +830,6 @@ Features:
 			{/if}
 		</div>
 
-		<!-- System Infrastructure / Mode -->
-		<div class="mt-4 border-t border-surface-200 dark:border-white/10 pt-4">
-			<h4 class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-400 mb-4">
-				<iconify-icon icon="mdi:server-network" width="18"></iconify-icon>
-				{setup_system_infrastructure_mode?.() || 'System Infrastructure / Mode'}
-			</h4>
 
-			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-				<!-- Multi-Tenant Toggle -->
-				<div class="flex items-center gap-3 rounded border border-surface-200 dark:border-white/5 p-3">
-					<input
-						id="multi-tenant-mode"
-						type="checkbox"
-						bind:checked={systemSettings.multiTenant}
-						class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-					/>
-					<div class="flex items-center gap-2">
-						<iconify-icon icon="mdi:domain" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<label for="multi-tenant-mode" class="font-medium text-black dark:text-white text-sm">
-							{setup_system_multi_tenant?.() || 'Multi-Tenant Mode'}
-						</label>
-						<SystemTooltip title={setup_system_multi_tenant_desc?.() || 'Enables support for multiple isolated tenants...'}>
-							<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500"></iconify-icon>
-						</SystemTooltip>
-					</div>
-				</div>
-
-				<!-- Demo Mode Toggle -->
-				<div class="flex items-center gap-3 rounded border border-surface-200 dark:border-white/5 p-3">
-					<input
-						id="demo-mode"
-						type="checkbox"
-						bind:checked={systemSettings.demoMode}
-						class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-					/>
-					<div class="flex items-center gap-2">
-						<iconify-icon icon="mdi:test-tube" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<label for="demo-mode" class="font-medium text-black dark:text-white text-sm">
-							{setup_system_demo_mode?.() || 'Demo Mode'}
-						</label>
-						<SystemTooltip
-							title={(setup_system_demo_mode_desc?.() || 'Warning: Creates ephemeral environments for visitors.').replace(/<\/?[^>]+(>|$)/g, '')}
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500"></iconify-icon>
-						</SystemTooltip>
-						{#if systemSettings.demoMode && !systemSettings.multiTenant}
-							<span class="text-xs font-bold text-amber-600 dark:text-amber-400">
-								({setup_note_demo_requires_multitenant?.() || 'Enables Multi-Tenant'})
-							</span>
-						{/if}
-					</div>
-				</div>
-			</div>
-		</div>
 	</div>
 </form>

@@ -133,10 +133,10 @@ function resolvePort(dbType: string | undefined, portEnv: string | undefined): n
     case "mongo":
       return 27017;
     case "sqlite":
+      // SQLite is file-based but the schema validation might require a port value.
+      return 0;
     default:
-      // SQLite is file-based. Sending a port of undefined lets the action
-      // ignore it rather than passing a nonsense value.
-      return undefined;
+      return 0;
   }
 }
 

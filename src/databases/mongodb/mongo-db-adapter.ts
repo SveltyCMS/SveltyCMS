@@ -28,6 +28,7 @@ import { MongoCollectionModule } from "./modules/collection-module";
 import { MongoBatchModule } from "./modules/batch-module";
 import { MongoTransactionModule } from "./modules/transaction-module";
 import { MongoQueryBuilder } from "./mongo-query-builder";
+import { getDefaultRoles } from "../auth/default-roles";
 
 export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
   public readonly type = "mongodb";
@@ -123,6 +124,18 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
   async ensureAuth(): Promise<void> {
     if (this.auth && typeof (this.auth as any).setupAuthModels === "function") {
       await (this.auth as any).setupAuthModels();
+    }
+
+    // Seed roles if missing
+    const rolesRes = await this.auth.getAllRoles({ bypassTenantCheck: true });
+    if (rolesRes.length === 0) {
+      const roles = getDefaultRoles();
+      for (const role of roles) {
+        await this.auth.createRole({
+          ...role,
+          tenantId: "global", // Default tenant for system roles
+        } as any);
+      }
     }
   }
 

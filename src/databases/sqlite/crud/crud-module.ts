@@ -556,7 +556,7 @@ export class CrudModule {
           .delete(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
           .where(where);
         return { deletedCount: (result as any).changes };
-      }, "CRUD_DELETE_MANY_FAILED")
+      }, "CRUD_DELETE_MANY")
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
         return res;

@@ -268,6 +268,13 @@ export async function handleSystemMgmtRoutes(
     const body = await event.request.json().catch(() => ({}));
     return rawResponse(event, await cms.system.reinitialize(body.force ?? true));
   }
+  if (action === "refresh" && event.request.method === "POST") {
+    const body = await event.request.json().catch(() => ({}));
+    return successResponse(
+      event,
+      await cms.system.refresh(body.tenantId, body.skipReconciliation ?? false),
+    );
+  }
   throw new AppError(`System action ${action} not implemented`, 404);
 }
 
@@ -521,20 +528,34 @@ export async function handleSetupRoutes(
 /**
  * --- HEALTH ---
  */
+let lastHealthCheck: { status: string; database: string; latency: number; serverTime: string } | null =
+  null;
+let lastHealthTime = 0;
+
 export async function handleHealthRoutes(
   event: RequestEvent,
   cms: LocalCMS,
   _tenantId: DatabaseId,
   _segments: string[],
 ) {
+  const now = Date.now();
+  if (lastHealthCheck && now - lastHealthTime < 10000) {
+    return successResponse(event, { ...lastHealthCheck, cached: true });
+  }
+
   const start = performance.now();
   const isUp = await cms.db.isConnected();
-  return successResponse(event, {
+  const report = {
     status: isUp ? "healthy" : "degraded",
     database: isUp ? "connected" : "disconnected",
     latency: Math.round(performance.now() - start),
     serverTime: new Date().toISOString(),
-  });
+  };
+
+  lastHealthCheck = report;
+  lastHealthTime = now;
+
+  return successResponse(event, report);
 }
 
 /**

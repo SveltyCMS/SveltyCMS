@@ -103,7 +103,9 @@ export class AdapterCore extends BaseSqlAdapter {
   private getActiveStatementCache(): Map<string, SQLiteStatement> {
     const worker = testWorkerContext.getStore();
     if (worker && process.env.TEST_MODE === "true") {
-      return this.connections.get(worker)?.statementCache ?? this._statementCache;
+      return (
+        this.connections.get(worker)?.statementCache ?? this._statementCache
+      );
     }
     return this._statementCache;
   }
@@ -116,7 +118,9 @@ export class AdapterCore extends BaseSqlAdapter {
   /* CONNECT                                          */
   /* ------------------------------------------------ */
 
-  public async connect(config: string | SQLiteConfig): Promise<DatabaseResult<void>> {
+  public async connect(
+    config: string | SQLiteConfig,
+  ): Promise<DatabaseResult<void>> {
     if (this.state === "connected") {
       // Robust check: if path changed, we should reconnect
       const currentPath = await this.resolvePath(this.config);
@@ -237,17 +241,37 @@ export class AdapterCore extends BaseSqlAdapter {
       const latency = performance.now() - start;
 
       //  Metrics
-      const pageCountRes = this.prepareAndExecute("PRAGMA page_count", "get") as any;
-      const pageCount = Number(pageCountRes?.["page_count"] ?? pageCountRes ?? 0);
+      const pageCountRes = this.prepareAndExecute(
+        "PRAGMA page_count",
+        "get",
+      ) as any;
+      const pageCount = Number(
+        pageCountRes?.["page_count"] ?? pageCountRes ?? 0,
+      );
 
-      const pageSizeRes = this.prepareAndExecute("PRAGMA page_size", "get") as any;
-      const pageSize = Number(pageSizeRes?.["page_size"] ?? pageSizeRes ?? 4096);
+      const pageSizeRes = this.prepareAndExecute(
+        "PRAGMA page_size",
+        "get",
+      ) as any;
+      const pageSize = Number(
+        pageSizeRes?.["page_size"] ?? pageSizeRes ?? 4096,
+      );
 
-      const freelistCountRes = this.prepareAndExecute("PRAGMA freelist_count", "get") as any;
-      const freelistCount = Number(freelistCountRes?.["freelist_count"] ?? freelistCountRes ?? 0);
+      const freelistCountRes = this.prepareAndExecute(
+        "PRAGMA freelist_count",
+        "get",
+      ) as any;
+      const freelistCount = Number(
+        freelistCountRes?.["freelist_count"] ?? freelistCountRes ?? 0,
+      );
 
-      const journalModeRes = this.prepareAndExecute("PRAGMA journal_mode", "get") as any;
-      const journalMode = String(journalModeRes?.["journal_mode"] ?? journalModeRes ?? "unknown");
+      const journalModeRes = this.prepareAndExecute(
+        "PRAGMA journal_mode",
+        "get",
+      ) as any;
+      const journalMode = String(
+        journalModeRes?.["journal_mode"] ?? journalModeRes ?? "unknown",
+      );
 
       return {
         success: true,
@@ -296,7 +320,11 @@ export class AdapterCore extends BaseSqlAdapter {
   /* STATEMENT CACHE HELPER                           */
   /* ------------------------------------------------ */
 
-  private prepareAndExecute(sql: string, method: "get" | "all" | "run", ...args: unknown[]): any {
+  private prepareAndExecute(
+    sql: string,
+    method: "get" | "all" | "run",
+    ...args: unknown[]
+  ): any {
     const cache = this.getActiveStatementCache();
     let stmt = cache.get(sql);
 
@@ -307,7 +335,9 @@ export class AdapterCore extends BaseSqlAdapter {
       const client = this.sqlite;
 
       // Support both Bun (query) and Node (prepare)
-      stmt = (client.prepare ? client.prepare(sql) : client.query?.(sql)) as SQLiteStatement;
+      stmt = (
+        client.prepare ? client.prepare(sql) : client.query?.(sql)
+      ) as SQLiteStatement;
 
       if (!stmt) {
         throw new Error(`Failed to prepare statement: ${sql}`);
@@ -363,7 +393,9 @@ export class AdapterCore extends BaseSqlAdapter {
       return this.dynamicTables.get(name)!;
     }
 
-    const tableId = name.startsWith("collection_") ? name : `collection_${name}`;
+    const tableId = name.startsWith("collection_")
+      ? name
+      : `collection_${name}`;
     if (this.dynamicTables.has(tableId)) return this.dynamicTables.get(tableId);
 
     const table = this.createDynamicTableDefinition(tableId);
@@ -401,9 +433,12 @@ export class AdapterCore extends BaseSqlAdapter {
 
   private async createDriver(dbPath: string) {
     const isBun = typeof Bun !== "undefined";
-    const readonly = (this.config as SQLiteConfig)?.readonly || dbPath.includes("mode=ro") || false;
+    const readonly =
+      (this.config as SQLiteConfig)?.readonly ||
+      dbPath.includes("mode=ro") ||
+      false;
 
-    // 🚀 ULTRA ELITE: If in Bun, use Bun's native driver exclusively.
+    // 🚀 If in Bun, use Bun's native driver exclusively.
     // This avoids all 'better_sqlite3.node' binary/require issues in production builds.
     if (isBun) {
       const { Database } = await import("bun:sqlite");
@@ -462,7 +497,10 @@ export class AdapterCore extends BaseSqlAdapter {
     let file =
       typeof config === "string"
         ? config
-        : config.connectionString || config.filename || config.DB_NAME || "cms.db";
+        : config.connectionString ||
+          config.filename ||
+          config.DB_NAME ||
+          "cms.db";
 
     if (file.startsWith("sqlite://")) {
       file = file.slice(9);
@@ -473,7 +511,7 @@ export class AdapterCore extends BaseSqlAdapter {
       return file;
     }
 
-    // 🚀 ULTRA ELITE: Ensure consistent extension (align with config-state.ts)
+    // 🚀 Ensure consistent extension (align with config-state.ts)
     if (!file.endsWith(".sqlite") && !file.endsWith(".db")) {
       file = `${file}.sqlite`;
     }

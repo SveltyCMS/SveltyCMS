@@ -12,6 +12,7 @@ import {
   exportMetric,
   stabilize,
   printTruthTable,
+  printSummaryTable,
 } from "./benchmark-utils";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -107,6 +108,13 @@ test("Content Scan Performance (Self-Healing Collections)", async () => {
       subtitle: `${TARGET_FILE_COUNT} collections • Multi-Extension • Automated Hygiene`,
       results: [scanResult],
     });
+
+    printSummaryTable([
+      { key: "Avg Scan Latency", val: scanResult.avgMs, unit: "ms" },
+      { key: "p95 Scan Latency", val: scanResult.p95Ms, unit: "ms" },
+      { key: "Peak Scan Throughput", val: Math.round(scanResult.rps), unit: "ops/s" },
+      { key: "Collection Load Capacity", val: TARGET_FILE_COUNT, unit: "schemas" },
+    ]);
 
     exportResult(scanResult);
   } finally {

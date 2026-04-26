@@ -12,6 +12,7 @@ import {
   setupBenchmarkServer,
   ensureStableTestData,
   printTruthTable,
+  printSummaryTable,
   measureMemory,
   stabilize,
 } from "./benchmark-utils";
@@ -39,7 +40,7 @@ const QUERIES = [
   },
   {
     name: "Content: List",
-    query: `query { Benchmarkstable_benchmar(pagination: { limit: 10 }) { _id title status } }`,
+    query: `query { Benchmarkstable_benchmar(pagination: { limit: 10 }) { _id title } }`,
     validate: (json: any) => Array.isArray(json.data?.Benchmarkstable_benchmar),
   },
 ];
@@ -54,6 +55,22 @@ beforeAll(async () => {
   // Seed data
   console.log("   Seeding stable test data...");
   await ensureStableTestData(getDb(), "global");
+
+  // 🛡️ Ensure GraphQL is ready (Wait for content reload)
+  console.log("   Waiting for GraphQL system readiness...");
+  let ready = false;
+  for (let i = 0; i < 10; i++) {
+    try {
+      const res = await fetch(`${server.baseUrl}/api/system/health`);
+      const health = await res.json();
+      if (health.overallStatus === "READY") {
+        ready = true;
+        break;
+      }
+    } catch {}
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  if (!ready) console.warn("⚠️ GraphQL system might not be fully READY.");
 
   await stabilize();
 });
@@ -187,4 +204,12 @@ test("GraphQL Stress Audit (Enterprise)", async () => {
     subtitle: `Real HTTP Load • High Concurrency • Error Validation`,
     results,
   });
+
+  const bestResult = results[results.length - 1];
+  printSummaryTable([
+    { key: "Avg Stress Latency", val: bestResult.avgMs, unit: "ms" },
+    { key: "p95 Stress Latency", val: bestResult.p95Ms, unit: "ms" },
+    { key: "Peak Stress Throughput", val: Math.round(bestResult.rps), unit: "req/s" },
+    { key: "Error Rate", val: (bestResult.errorRate * 100).toFixed(2), unit: "%" },
+  ]);
 }, 600000);

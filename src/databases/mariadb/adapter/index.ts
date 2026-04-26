@@ -46,6 +46,7 @@ import { TransactionModule } from "../operations/transaction-module";
 import { CacheModule } from "../performance/cache-module";
 import { PerformanceModule } from "../performance/performance-module";
 import { MariaDBQueryBuilder } from "../query-builder/maria-db-query-builder";
+import { getDefaultRoles } from "../../auth/default-roles";
 import type * as schema from "../schema";
 import * as utils from "../utils";
 import { AdapterCore } from "./adapter-core";
@@ -203,6 +204,31 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
           };
         }, "POOL_STATS_FAILED"),
     };
+  }
+
+  public async ensureAuth(): Promise<void> {
+    const db = this.getDb();
+    if (!db) return;
+
+    // Check if roles exist
+    const { roles } = await import("../schema");
+    const existingRoles = await db.select().from(roles).limit(1);
+    if (existingRoles.length > 0) {
+      return;
+    }
+
+    const now = new Date();
+    const rolesPayload: (typeof roles.$inferInsert)[] = getDefaultRoles().map((role) => ({
+      ...role,
+      createdAt: now,
+      updatedAt: now,
+    })) as any;
+
+    await db.insert(roles).values(rolesPayload);
+  }
+
+  public async ensureSystem(): Promise<void> {
+    return Promise.resolve();
   }
 
   async connect(

@@ -27,6 +27,9 @@ import { PerformanceModule } from "../performance/performance-module";
 import { CacheModule } from "../performance/cache-module";
 import { PostgresQueryBuilder } from "../query-builder/postgres-query-builder";
 import { TransactionModule } from "../operations/transaction-module";
+import { getDefaultRoles } from "../../auth/default-roles";
+import { onConflictDoNothing } from "drizzle-orm/pg-core";
+import * as schema from "../schema/index";
 
 export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {
   public readonly type = "postgresql";
@@ -73,6 +76,30 @@ export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {
       cache: new CacheModule(this),
       getConnectionPoolStats: async () => this.getConnectionPoolStats(),
     };
+  }
+
+  public async ensureAuth(): Promise<void> {
+    if (!this.db) {
+      return;
+    }
+    // Check if roles exist
+    const existingRoles = await this.db.select().from(schema.roles).limit(1);
+    if (existingRoles.length > 0) {
+      return;
+    }
+
+    const now = new Date();
+    const rolesPayload: (typeof schema.roles.$inferInsert)[] = getDefaultRoles().map((role) => ({
+      ...role,
+      createdAt: now,
+      updatedAt: now,
+    })) as any;
+
+    await this.db.insert(schema.roles).values(rolesPayload).onConflictDoNothing();
+  }
+
+  public async ensureSystem(): Promise<void> {
+    return Promise.resolve();
   }
 
   async connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;

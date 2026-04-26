@@ -16,7 +16,7 @@
 
 // Import inlang settings directly (TypeScript/SvelteKit handles JSON imports)
 import inlangSettings from "@root/project.inlang/settings.json";
-import { scanCompiledCollections } from "@src/content/content-service.server";
+import { scanCompiledCollections } from "@src/content/content-service";
 import type { ContentNode, DatabaseId, Schema } from "@src/content/types";
 import { generateCategoryNodesFromPaths } from "@src/content/content-utils";
 import { getAllPermissions } from "@src/databases/auth";

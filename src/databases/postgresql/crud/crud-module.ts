@@ -679,7 +679,7 @@ export class CrudModule implements ICrudAdapter {
           .delete(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .where(where);
         return { deletedCount: (result as any).rowCount };
-      }, "CRUD_DELETE_MANY_FAILED")
+      }, "CRUD_DELETE_MANY")
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
         return res;

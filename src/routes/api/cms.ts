@@ -840,6 +840,7 @@ class TokensNamespace {
 class CollectionsNamespace {
   private _proxy: CollectionProxy;
   private _requestCache = new Map<string, any>();
+  private _schemaCache = new Map<string, Schema>();
   private _batchLoaders = new Map<string, { ids: Set<string>; promises: Map<string, any> }>();
 
   constructor(
@@ -939,6 +940,11 @@ class CollectionsNamespace {
   }
 
   private async getSchema(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema> {
+    const schemaKey = `${tenantId || "global"}:${collectionId.toLowerCase()}`;
+    if (this._schemaCache.has(schemaKey)) {
+      return this._schemaCache.get(schemaKey)!;
+    }
+
     let schema = await this._contentSystem.getCollectionById(collectionId, tenantId);
 
     // 🕊️ CASE-INSENSITIVE FALLBACK: Highly critical for synthetic workloads and REST consistency
@@ -968,6 +974,7 @@ class CollectionsNamespace {
       }
     }
 
+    this._schemaCache.set(schemaKey, schema);
     return schema;
   }
 
@@ -2028,6 +2035,11 @@ class SystemNamespace {
 
   async reinitialize(force: boolean = true) {
     return reinitializeSystem(force);
+  }
+
+  async refresh(tenantId?: string | null, skipReconciliation: boolean = false) {
+    const { contentSystem } = await import("@src/content");
+    return contentSystem.refresh(tenantId, skipReconciliation);
   }
 
   async getPreferences(

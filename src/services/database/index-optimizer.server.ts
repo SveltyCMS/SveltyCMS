@@ -32,7 +32,7 @@ export class IndexOptimizer {
 
       // Get all current schemas (uses L2 cache if available)
       // Dynamic import to avoid static server-module leak into client bundle
-      const { scanCompiledCollections } = await import("@src/content/content-service.server");
+      const { scanCompiledCollections } = await import("@src/content/content-service");
       const schemas = await scanCompiledCollections();
       logger.info(
         `[IndexOptimizer] Starting optimization pass for ${schemas.length} collections...`,

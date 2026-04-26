@@ -11,6 +11,7 @@ import {
   exportMetric,
   stabilize,
   printTruthTable,
+  printSummaryTable,
   getDbType,
 } from "./benchmark-utils";
 
@@ -201,6 +202,15 @@ export async function runDatabaseBenchmark() {
     subtitle: "Direct Adapter Layer • CRUD Operations • IQR trimmed",
     results,
   });
+
+  printSummaryTable([
+    { key: "Avg Insert Latency", val: insertResult.avgMs, unit: "ms" },
+    { key: "Avg Read Latency (Single)", val: findOneResult.avgMs, unit: "ms" },
+    { key: "Avg Read Latency (Many)", val: findManyResult.avgMs, unit: "ms" },
+    { key: "Avg Update Latency", val: updateResult.avgMs, unit: "ms" },
+    { key: "Avg Delete Latency", val: finalDeleteResult.avgMs, unit: "ms" },
+    { key: "Peak CRUD Throughput", val: Math.max(...results.map((r) => r.rps)), unit: "req/s" },
+  ]);
 
   exportMetric("adapter.read.avg", findOneResult.avgMs, "ms");
 

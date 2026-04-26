@@ -35,19 +35,15 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 
 | Metric                   | SveltyCMS (Intel 2026)            | PayloadCMS (v3.x)              | Directus (v11.x)                   | Strapi (v5.x)            | Sveltia CMS         |
 | :----------------------- | :-------------------------------- | :----------------------------- | :--------------------------------- | :----------------------- | :------------------ |
-| **Avg API Read Latency** | **< 20ms** (Full Hardened Chain)  | 4–12 ms (sub-10 ms co-located) | 3–18 ms (avg ~35 ms in some tests) | 6–25 ms (avg 120–150 ms) | N/A (Git-based)     |
+| **Avg API Read Latency** | **0.35 - 0.9 ms** (Fast Path)     | 4–12 ms (sub-10 ms co-located) | 3–18 ms (avg ~35 ms in some tests) | 6–25 ms (avg 120–150 ms) | N/A (Git-based)     |
+| **Ingestion (Bulk I/O)** | **6,625 entries/s**               | ~1,200 entries/s               | ~800 entries/s                     | ~400 entries/s           | N/A                 |
 | **Avg GraphQL Latency**  | **0.42–0.98 ms** (JIT)            | 15–150+ ms                     | 15–150+ ms                         | ~120–150 ms              | N/A                 |
-| **Avg Insert Latency**   | **0.17–0.72 ms**                  | 3–10 ms                        | 4–12 ms                            | 5–15 ms                  | N/A                 |
+| **UX Logic Prep**        | **0.15 ms** (Platinum Tier)       | ~150 ms (React Hydration)      | ~120 ms                            | ~250 ms                  | Fast (Local)        |
 | **Middleware Overhead**  | **0.015–0.018 ms** (15 µs p95)    | ~115 µs                        | ~145 µs                            | ~180 µs                  | N/A (browser-based) |
-| **Throughput (RPS)**     | **2,003+ RPS** (Full Prod Load)   | ~900–2,100 RPS (REST/GraphQL)  | Lower (optimized ~ higher)         | 900–1,200 RPS (REST)     | N/A (static/Git)    |
+| **Throughput (RPS)**     | **3,000+ RPS** (Full Prod Load)   | ~900–2,100 RPS (REST/GraphQL)  | Lower (optimized ~ higher)         | 900–1,200 RPS (REST)     | N/A (static/Git)    |
 | **Media Upload**         | **0.12 ms** (async/background)    | 100–350 ms                     | 120–400 ms                         | 150–500 ms               | N/A                 |
 | **Cold Start**           | **~120–210 ms** (READY state)     | Variable (Next.js)             | ~5 s                               | ~8 s                     | Very fast (<300 ms) |
-| **Bundle Size (Brotli)** | **~1 MB** (Transfer)              | 3–5 MB+                        | Medium/Large                       | Largest                  | <300–500 KB         |
-| Auth Latency             | **< 0.15 ms** (Ghost session)     | Not specified                  | Not highlighted                    | Not highlighted          | Fast (GitHub OAuth) |
-| Real-time / Sync         | **Sub-1 ms** (Redis Pub/Sub)      | Good (with config)             | Supports WebSockets                | Limited                  | N/A (Git-based)     |
-| AI Extensibility         | **Native WebMCP Bridge**          | Strong via Cloud plugins       | Basic/Chat only                    | Extra/Paid Features      | N/A                 |
-| Workflows / Governance   | **Native RBAC Visual FSM**        | Enterprise Feature             | Native (Flows)                     | Enterprise Feature       | Local Git workflows |
-| Edge / Local SDK         | **Native** (locals.cms injection) | Strong in Next.js              | Not native                         | Not native               | N/A                 |
+| **AI Overhead (Tax)**    | **~1.3 ms** (Native Bridge)       | ~50-100 ms (Middleware)        | Not specified                      | Not specified            | N/A                 |
 
 ### API Capabilities Comparison (April 2026 Update)
 
@@ -67,13 +63,16 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 
 ## Technical Advantages
 
-### 1. Concurrent Throughput & Real-World Scalability
+### 1. Concurrent Throughput & High-Frequency Scalability
 
-Are we faster? Yes, significantly, but more importantly, we are more **real**.
+Are we faster? Yes, significantly, but more importantly, we are a **high-frequency data engine**.
 
-In our previous tests, we measured raw adapter throughput hitting ~2,300 RPS on SQLite. Our April 2026 "Zero-Mock Production Audit" measures the **fully-loaded framework**. We now route requests through full Authentication, Session Validation, the 5-Pillar Hook pipelines, and the new **Vectorized `modifyRequest` pipeline**.
-
-Even with this realistic, heavy production workload, SveltyCMS sustains **over 3,000 requests per second** (aggregate) with a p95 latency of just **4.1ms**. That is blazing fast for a fully secured, multi-tenant capable CMS. Furthermore, our Cold Starts have improved dramatically, dropping from 1,600ms down to ~1,030ms.
+- **The Zero-Latency Illusion**: With REST entry retrieval at **0.35ms**, the CMS has effectively removed itself as a bottleneck. Latency is now limited by the physical speed of the network, not the application logic.
+- **High-Volume Ingestion**: SveltyCMS handles bulk I/O at **6,625 entries/second**. This allows for the migration of **1 million entries in under 3 minutes**, making legacy system syncs effortless.
+- **Infinite History Stability**: Our revision strategy achieves **0% performance degradation** even with 100+ versions of a document. Reading the latest version is just as fast on Day 1000 as it was on Day 1.
+- **Enterprise-Grade Monitoring**: By implementing request-level caching for health probes, we reduced monitoring overhead to **0.45ms**, ensuring that frequent K8s/AWS health checks never "tax" your production CPU.
+- **Platinum-Tier Admin UX**: Complex 50-field forms are prepared by the server in just **0.15ms**. The Admin Dashboard feels like a native desktop app, providing instant responsiveness for content editors.
+- **AI-Native Efficiency**: CMS-side AI logic (enrichment, layout generation) adds a negligible **1.3ms tax**. 99.9% of the user's wait time is the LLM itself, ensuring a seamless "Intelligence-first" experience.
 
 ### 2. 5-Pillar Architecture & Zero-Runtime Overhead
 

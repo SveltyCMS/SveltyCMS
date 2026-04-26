@@ -285,7 +285,7 @@ flowchart LR
    bun ./tests/lint-docs.ts
    ```
 
-4. **Audit & CI parity**: Run the full check suite and Audit 2.0 matrix (if code changed).
+4. **Audit & CI parity**: Run the full check suite and Audit matrix (if code changed).
 
    ```bash
    # Run quality gate (1030+ tests)
@@ -331,7 +331,7 @@ Before opening a PR, verify every item:
 - [ ] Internal links use correct canonical paths
 - [ ] Linter passes: `bun ./tests/lint-docs.ts`
 - [ ] **1030+ Test Suite passes**: All unit and integration tests are green.
-- [ ] **Audit 2.0 Budget verified**: No regressions in `enterprise-matrix.ts`.
+- [ ] **Audit Budget verified**: No regressions in `enterprise-matrix.ts`.
 - [ ] **If `src/routes/api/widgets/` or `src/stores/widget-store.svelte.ts` changed**: `Widget_API.mdx` updated in this same PR.
 - [ ] Rendered correctly in the CMS preview.
 

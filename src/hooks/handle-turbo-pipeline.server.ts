@@ -116,8 +116,8 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   const isTest =
     process.env.TEST_MODE === "true" ||
     process.env.VITE_TEST_MODE === "true" ||
-    process.env.TEST_MODE === "true" ||
-    (process.env as any).TEST_MODE === true;
+    (process.env as any).TEST_MODE === true ||
+    process.env.NODE_ENV === "test";
 
   const testSecret =
     event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
@@ -148,7 +148,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     }
   } else if (testSecret) {
     logger.error(
-      `[Turbo] Bypass SKIPPED for ${pathname}: isTest is false. (TEST_MODE: ${process.env.TEST_MODE})`,
+      `[Turbo] Bypass SKIPPED for ${pathname}: isTest is false. (TEST_MODE: ${process.env.TEST_MODE}, VITE_TEST_MODE: ${process.env.VITE_TEST_MODE}, NODE_ENV: ${process.env.NODE_ENV})`,
     );
   }
 

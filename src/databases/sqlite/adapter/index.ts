@@ -37,6 +37,7 @@ import { TransactionModule } from "../operations/transaction-module";
 import { CacheModule } from "../performance/cache-module";
 import { PerformanceModule } from "../performance/performance-module";
 import { SQLiteQueryBuilder } from "../query-builder/sq-lite-query-builder";
+import { getDefaultRoles } from "../../auth/default-roles";
 import * as schema from "../schema";
 import * as utils from "../utils";
 import { AdapterCore } from "./adapter-core";
@@ -168,78 +169,11 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
     }
 
     const now = new Date();
-    const rolesPayload: (typeof schema.roles.$inferInsert)[] = [
-      {
-        _id: "admin",
-        name: "Administrator",
-        description: "Administrator with full access",
-        isAdmin: true,
-        permissions: [],
-        icon: "bi:shield-lock-fill",
-        color: "#ff3e00",
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        _id: "developer",
-        name: "Developer",
-        description: "Developer with access to most features",
-        isAdmin: false,
-        permissions: [
-          "collection:create",
-          "collection:read",
-          "collection:update",
-          "collection:delete",
-          "user:read",
-          "user:create",
-          "user:update",
-          "content:create",
-          "content:read",
-          "content:update",
-          "content:delete",
-          "content:publish",
-          "media:upload",
-          "media:read",
-          "media:update",
-          "media:delete",
-        ],
-        icon: "bi:code-slash",
-        color: "#007bff",
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        _id: "editor",
-        name: "Editor",
-        description: "Editor with access to content",
-        isAdmin: false,
-        permissions: [
-          "content:create",
-          "content:read",
-          "content:update",
-          "content:delete",
-          "content:publish",
-          "media:upload",
-          "media:read",
-          "media:update",
-        ],
-        icon: "bi:pencil-fill",
-        color: "#28a745",
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        _id: "user",
-        name: "User",
-        description: "Standard user",
-        isAdmin: false,
-        permissions: ["content:read"],
-        icon: "bi:person-fill",
-        color: "#6c757d",
-        createdAt: now,
-        updatedAt: now,
-      },
-    ];
+    const rolesPayload: (typeof schema.roles.$inferInsert)[] = getDefaultRoles().map((role) => ({
+      ...role,
+      createdAt: now,
+      updatedAt: now,
+    })) as any;
 
     await this.db.insert(schema.roles).values(rolesPayload).onConflictDoNothing();
   }

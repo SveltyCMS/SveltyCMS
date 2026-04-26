@@ -39,6 +39,11 @@ export class AdapterCore extends BaseSqlAdapter {
   public crud!: import("../crud/crud-module").CrudModule;
   public batch!: import("../operations/batch-module").BatchModule;
 
+  public getDb(): MySql2Database<typeof schema> {
+    if (!this.db) throw new Error("Database not connected");
+    return this.db;
+  }
+
   async connect(
     connection: string | mysql.PoolOptions,
     _options?: unknown,
@@ -85,11 +90,9 @@ export class AdapterCore extends BaseSqlAdapter {
       this.activeDatabaseName =
         poolConfig.database ||
         (poolConfig.uri ? new URL(poolConfig.uri).pathname.slice(1) : "unknown");
-      this.db = drizzle(this.pool, { schema, mode: "default" });
 
-      // Verification
+      // Verification with Auto-Creation Support
       try {
-        await this.pool.query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
         await this.pool.query("SELECT 1");
       } catch (err: any) {
         const isMissingDb =
@@ -98,23 +101,26 @@ export class AdapterCore extends BaseSqlAdapter {
           err.message?.includes("Unknown database");
 
         if (isMissingDb) {
-          let dbName =
-            poolConfig.database ||
-            (poolConfig.uri ? new URL(poolConfig.uri).pathname.slice(1) : "");
-          if (dbName) {
+          const dbName = this.activeDatabaseName;
+          if (dbName && dbName !== "unknown") {
             logger.info(`[mariadb] Database "${dbName}" not found. Attempting auto-creation...`);
-            const adminOptions = { ...poolConfig, database: undefined, connectionLimit: 1 };
-            const adminPool = mysql.createPool(adminOptions);
+            // Create admin connection without database specified
+            const adminConfig = { ...poolConfig };
+            delete adminConfig.database;
+            if (adminConfig.uri) {
+               const url = new URL(adminConfig.uri);
+               url.pathname = "/";
+               adminConfig.uri = url.toString();
+            }
+
+            const adminConn = await mysql.createConnection(adminConfig);
             try {
-              await adminPool.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
-              await adminPool.end();
-              await this.pool.end();
-              this.pool = mysql.createPool({ ...poolConfig, database: dbName });
-              this.activeDatabaseName = dbName;
-              this.db = drizzle(this.pool, { schema, mode: "default" });
+              await adminConn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+              await adminConn.end();
+              // Re-verify the primary pool
               await this.pool.query("SELECT 1");
             } catch (createErr) {
-              await adminPool.end();
+              await adminConn.end();
               throw createErr;
             }
           } else {
@@ -124,6 +130,9 @@ export class AdapterCore extends BaseSqlAdapter {
           throw err;
         }
       }
+
+      this.db = drizzle(this.pool, { schema, mode: "default" });
+      await this.pool.query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
 
       this.connected = true;
       logger.info("Connected to MariaDB");

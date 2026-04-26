@@ -1,5 +1,5 @@
 /**
- * @file src/content/content-service.server.ts
+ * @file src/content/content-service.ts
  * @description High-performance content reconciliation and schema management.
  */
 
@@ -14,7 +14,7 @@ import type { IDBAdapter } from "@src/databases/db-interface";
 import { generateCategoryNodesFromPaths } from "./content-utils";
 import { eventBus, SystemEvents } from "@utils/event-bus";
 import { cacheService } from "@src/databases/cache/cache-service";
-import { generateSchemaHash, loadSchemaNative } from "./module-processor.server";
+import { generateSchemaHash, loadSchemaNative } from "./module-processor";
 
 /**
  * Enriches a schema with deterministic ID and SEO-optimized paths based on its filesystem location.
