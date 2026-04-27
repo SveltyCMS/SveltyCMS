@@ -725,16 +725,17 @@ In April 2026, we integrated **Automated Widget Auditing** into the Enterprise B
 
 ### Widget Processing Speed
 
-| Metric | Target | SveltyCMS (Verified) |
-| :--- | :--- | :--- |
-| **50-Field Form Logic** | < 5.00 ms | **0.15 ms** (Platinum) |
-| **Simple Field (Input)** | < 0.05 ms | **0.01 ms** |
-| **Complex Field (RichText)** | < 0.10 ms | **0.04 ms** |
-| **Relational Lookup** | < 0.10 ms | **0.04 ms** |
+| Metric                       | Target    | SveltyCMS (Verified)   |
+| :--------------------------- | :-------- | :--------------------- |
+| **50-Field Form Logic**      | < 5.00 ms | **0.15 ms** (Platinum) |
+| **Simple Field (Input)**     | < 0.05 ms | **0.01 ms**            |
+| **Complex Field (RichText)** | < 0.10 ms | **0.04 ms**            |
+| **Relational Lookup**        | < 0.10 ms | **0.04 ms**            |
 
 ### Automated Performance Audit
 
 The matrix now performs an autonomous overhead pass:
+
 1.  **Logic Chaining**: Benchmarks the `modifyRequest` loop for every core widget.
 2.  **Validation Overhead**: Measures Valibot schema execution time per widget type.
 3.  **Regression Guard**: CI fails if a widget exceeds **2.0ms** per-field overhead.

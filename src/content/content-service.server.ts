@@ -544,7 +544,13 @@ export const contentService = {
     tenantId?: string | null,
   ): Promise<any[]> {
     const db = await (await import("@src/databases/db")).getDb();
-    const res = await db!.content.nodes.getStructure(format as any, {
+    if (!db) {
+      logger.debug(
+        "[getContentStructureFromDatabase] Database not ready, returning empty structure.",
+      );
+      return [];
+    }
+    const res = await db.content.nodes.getStructure(format as any, {
       tenantId: tenantId as any,
       bypassTenantCheck: true, // 🔥 CRITICAL: Administrative views must see all nodes for the tenant
     });

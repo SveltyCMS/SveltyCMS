@@ -133,9 +133,19 @@ export async function seedRoles(
         // Admin role gets all permissions
         // For tenant-scoped roles, generate unique IDs to avoid
         // primary key collisions with roles from other tenants
+        const roleId = (tenantId ? crypto.randomUUID() : role._id) as DatabaseId;
+
+        // Check if role already exists
+        const existingRoles = await dbAdapter.auth.getAllRoles({ bypassTenantCheck: true });
+        const exists = existingRoles.some((r: any) => r._id === roleId);
+        if (exists) {
+          logger.debug(`⏩ Role "${role.name}" (${roleId}) already exists, skipping.`);
+          return;
+        }
+
         const roleToCreate = {
           ...role,
-          _id: (tenantId ? crypto.randomUUID() : role._id) as DatabaseId,
+          _id: roleId,
           permissions: role._id === "admin" ? adminPermissions : role.permissions,
           ...(tenantId && { tenantId: tenantId as DatabaseId }),
         };
@@ -843,6 +853,22 @@ export const defaultPrivateSettings: Array<{
     value: "",
     description: "Password for Redis server",
   },
+  // Cloudflare CDN
+  {
+    key: "CF_API_TOKEN",
+    value: "",
+    description: "Cloudflare API Token for cache purging",
+  },
+  {
+    key: "CF_ZONE_ID",
+    value: "",
+    description: "Cloudflare Zone ID for the domain",
+  },
+  {
+    key: "CF_PURGE_MODE",
+    value: "tags",
+    description: "Cloudflare purge strategy (tags or all)",
+  },
 
   // Cache TTL Configuration (in seconds)
   {
@@ -1106,13 +1132,28 @@ export async function seedSettings(
     const result = await dbAdapter.system.preferences.setMany(settingsToSet);
 
     if (!result.success) {
-      throw new Error(result.error?.message || "Failed to seed settings");
+      const errorMsg = result.error?.message || "Failed to seed settings";
+      if (errorMsg.includes("already exists with different case")) {
+        throw new Error(
+          `MongoDB Case Sensitivity Conflict: ${errorMsg}. Please ensure the database name in Step 1 matches the existing database exactly (e.g., SveltyCMS vs sveltycms).`,
+        );
+      }
+      throw new Error(errorMsg);
     }
 
     logger.info(`✅ Seeded ${settingsToSeed.length} missing settings`);
   } catch (error) {
-    logger.error(`Failed to seed settings${tenantId ? ` for tenant ${tenantId}` : ""}:`, error);
-    throw error;
+    let finalError = error;
+    if (error instanceof Error && error.message.includes("already exists with different case")) {
+      finalError = new Error(
+        `MongoDB Case Sensitivity Conflict: ${error.message}. Please ensure the database name in Step 1 matches the existing database exactly (e.g., SveltyCMS vs sveltycms).`,
+      );
+    }
+    logger.error(
+      `Failed to seed settings${tenantId ? ` for tenant ${tenantId}` : ""}:`,
+      finalError,
+    );
+    throw finalError;
   }
 
   // Populate public settings cache immediately after seeding
@@ -1148,8 +1189,8 @@ export async function seedSettings(
       logger.info("✅ Public settings validated successfully");
     } else {
       logger.warn("Public settings validation failed");
-      console.log("Validation Issues:", JSON.stringify(parsedPublic.issues, null, 2));
-      // Filter out expected undefined errors for cleaner logs if needed, or just log issues
+      logger.debug("Validation Issues:", JSON.stringify(parsedPublic.issues, null, 2));
+      // Filter out expected undefined errors for cleaner logs if needed
       logger.debug("Public settings validation issues:", parsedPublic.issues);
     }
   } catch (error) {

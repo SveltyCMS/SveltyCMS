@@ -39,7 +39,11 @@ async function runMigrationAudit() {
     name: "Large Migration Test",
     fields: [
       { name: "title", type: "text", widget: { Name: "Input", Icon: "mdi:text", Color: "#ccc" } },
-      { name: "content", type: "richtext", widget: { Name: "RichText", Icon: "mdi:text", Color: "#ccc" } },
+      {
+        name: "content",
+        type: "richtext",
+        widget: { Name: "RichText", Icon: "mdi:text", Color: "#ccc" },
+      },
       { name: "metadata", type: "json", widget: { Name: "Json", Icon: "mdi:json", Color: "#ccc" } },
     ],
     status: "published",
@@ -51,14 +55,16 @@ async function runMigrationAudit() {
 
   // 🚀 CRITICAL: Sync with in-memory contentStore so LocalCMS is aware of the new collection
   const { contentStore } = await import("@src/stores/content-store.svelte");
-  contentStore.sync([{ 
-    _id: COLLECTION_ID, 
-    nodeType: "collection", 
-    path: `/${COLLECTION_ID}`,
-    name: COLLECTION_ID,
-    collectionDef: schema,
-    tenantId: "global"
-  } as any]);
+  contentStore.sync([
+    {
+      _id: COLLECTION_ID,
+      nodeType: "collection",
+      path: `/${COLLECTION_ID}`,
+      name: COLLECTION_ID,
+      collectionDef: schema,
+      tenantId: "global",
+    } as any,
+  ]);
 
   // Cleanup before migration to avoid UNIQUE constraint errors
   await db!.crud.deleteMany(COLLECTION_ID, {}, { tenantId: "global" as any });
@@ -69,7 +75,7 @@ async function runMigrationAudit() {
     // 2. Measure Bulk Ingestion
     console.log(`   → Ingesting ${TOTAL_ENTRIES} entries in batches of ${BATCH_SIZE}...`);
     const startTime = performance.now();
-    
+
     let ingested = 0;
 
     const migrationResult = await runBenchmark({
@@ -115,7 +121,7 @@ async function runMigrationAudit() {
       subtitle: `Bulk I/O • 10,000 Entries • ${getDbType().toUpperCase()}`,
       results: [
         { ...migrationResult, layer: "Ingestion" },
-        { ...lookupResult, layer: "Read (Post-Mig)" }
+        { ...lookupResult, layer: "Read (Post-Mig)" },
       ],
     });
 

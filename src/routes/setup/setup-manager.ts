@@ -64,7 +64,6 @@ class SetupManager {
         const msg = error instanceof Error ? error.message : String(error);
         this.seedingError = msg;
         logger.error("❌ Background seeding failed:", error);
-        throw error;
       }
     })();
   }

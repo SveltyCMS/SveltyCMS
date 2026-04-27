@@ -197,9 +197,12 @@ export class ApiSpecService {
         .map((n) => n.collectionDef as Schema);
 
       return this.generateSpec(schemaOnly, tenantId);
-    } catch (err) {
+    } catch (err: any) {
       const { logger } = await import("@utils/logger");
-      logger.error("Failed to generate full API spec", { tenantId, err });
+      logger.error("Failed to generate full API spec", {
+        tenantId,
+        error: err.message || String(err),
+      });
       return this.generateSpec([], tenantId);
     }
   }

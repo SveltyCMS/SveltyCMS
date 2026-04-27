@@ -154,19 +154,47 @@ export async function getSetupDatabaseAdapter(
         // VERIFICATION PROBE: MongoDB connection might succeed but fail on first CRUD if auth is wrong
         logger.info("Running authentication verification probe...", { correlationId });
         try {
+          // Robust check for case sensitivity on Windows/macOS:
+          // We list all databases and check if one with the same name (but different case) exists.
+          const mongoAdapter = dbAdapter as any;
+          if (mongoAdapter.connection?.db) {
+            const admin = mongoAdapter.connection.db.admin();
+            const dbs = await admin.listDatabases();
+            const existingDb = dbs.databases.find(
+              (d: any) =>
+                d.name.toLowerCase() === config.name.toLowerCase() && d.name !== config.name,
+            );
+            if (existingDb) {
+              logger.error(
+                `❌ Case mismatch detected: Entered '${config.name}', but server already has '${existingDb.name}'`,
+                { correlationId },
+              );
+              // This specific message format is recognized by the error classifier
+              throw new Error(
+                `db already exists with different case already have: [${existingDb.name}] trying to create [${config.name}]`,
+              );
+            }
+          }
+
           // We try to list collections - this requires 'admin' or specific DB permissions
           // If this fails with "Command find requires authentication", we know auth is wrong
           await dbAdapter.crud.count("system_content_structure", {});
           logger.info("✅ Authentication verification probe successful", { correlationId });
         } catch (probeErr: any) {
-          logger.warn(`⚠️ Auth probe warning (non-fatal if DB is empty): ${probeErr.message}`, {
+          const probeMsg = probeErr.message || String(probeErr);
+          if (probeMsg.includes("already exists with different case")) {
+            logger.error(`❌ Case mismatch detected during probe: ${probeMsg}`, { correlationId });
+            throw probeErr; // Re-throw to fail the connection test
+          }
+
+          logger.warn(`⚠️ Auth probe warning (non-fatal if DB is empty): ${probeMsg}`, {
             correlationId,
           });
           if (
-            probeErr.message.toLowerCase().includes("authentication") ||
-            probeErr.message.toLowerCase().includes("unauthorized")
+            probeMsg.toLowerCase().includes("authentication") ||
+            probeMsg.toLowerCase().includes("unauthorized")
           ) {
-            throw new Error(`Authentication failed: ${probeErr.message}`);
+            throw new Error(`Authentication failed: ${probeMsg}`);
           }
         }
       } catch (err: any) {

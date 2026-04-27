@@ -22,7 +22,7 @@ async function runChaosAudit() {
   const { LocalCMS } = await import("@src/routes/api/cms");
   await ensureFullInitialization();
   const realDb = getDb()!;
-  
+
   // 1. Setup Chaos Proxy
   // We wrap the crud adapter to inject artificial latency
   const chaosAdapter = new Proxy(realDb.crud, {
@@ -32,13 +32,13 @@ async function runChaosAudit() {
         return async (...args: any[]) => {
           // Inject 500ms "Infrastructure Brownout" jitter (30% of the time)
           if (Math.random() < 0.3) {
-            await new Promise(r => setTimeout(r, 500));
+            await new Promise((r) => setTimeout(r, 500));
           }
           return original.apply(target, args);
         };
       }
       return original;
-    }
+    },
   });
 
   const chaosDb = { ...realDb, crud: chaosAdapter };
@@ -50,7 +50,7 @@ async function runChaosAudit() {
 
   try {
     console.log("   → Stress testing under 500ms Brownout simulation (30% jitter)...");
-    
+
     const results = await runBenchmark({
       name: "Brownout Resilience",
       iterations: 100,
@@ -71,8 +71,16 @@ async function runChaosAudit() {
 
     printSummaryTable([
       { key: "Jitter Latency (p95)", val: results.p95Ms, unit: "ms" },
-      { key: "Availability Rate", val: (100 - (results as any).errorRate * 100).toFixed(2), unit: "%" },
-      { key: "Survival Status", val: (results as any).errorRate < 0.01 ? "INDESTRUCTIBLE" : "STABLE", unit: "" },
+      {
+        key: "Availability Rate",
+        val: (100 - (results as any).errorRate * 100).toFixed(2),
+        unit: "%",
+      },
+      {
+        key: "Survival Status",
+        val: (results as any).errorRate < 0.01 ? "INDESTRUCTIBLE" : "STABLE",
+        unit: "",
+      },
     ]);
 
     exportResult(results);

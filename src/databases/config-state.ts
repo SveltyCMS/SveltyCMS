@@ -79,29 +79,6 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
 
       return privateEnv;
     } catch (error: any) {
-      logger.error(`[config-state.ts] Configuration loading/validation failed: ${error.message}`);
-      if (process.env.NODE_ENV === "test" || process.env.TEST_MODE === "true") {
-        // Allow setup mode even in TEST_MODE when no config file exists yet.
-        // Only throw if a config file was present but failed to load/validate.
-        const { existsSync } = await import("node:fs");
-        const isTestMode = process.env.NODE_ENV === "test" || process.env.TEST_MODE === "true";
-        const configFile = isTestMode ? "private.test.ts" : "private.ts";
-        const configPath = `${process.cwd()}/config/${configFile}`;
-        const hasConfigFile =
-          existsSync(configPath) || existsSync(`${process.cwd()}/config/private.ts`);
-        if (hasConfigFile) {
-          logger.error("Config loading failed in test mode", { error: error.message });
-          throw new AppError(
-            "Critical config error in test environment. Run setup or check private.test config.",
-            500,
-            "CONFIG_LOAD_FAILURE",
-          );
-        }
-        // No config file exists yet — this is initial setup mode, not an error
-        logger.debug("No config file found in test mode — starting in setup mode");
-        return null;
-      }
-
       logger.trace("Private config not available (expected during initial setup)", {
         error: error.message,
       });
@@ -137,7 +114,7 @@ async function loadConfigFromFileIfNeeded(svelteEnv: any): Promise<any | null> {
     const module = await import(/* @vite-ignore */ url);
     return module.privateEnv ?? module; // support both export styles
   } catch (err) {
-    logger.warn(`Failed to load ${filename}`, { error: (err as Error).message });
+    logger.trace(`Failed to load ${filename}`, { error: (err as Error).message });
     return null;
   }
 }

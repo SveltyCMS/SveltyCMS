@@ -295,8 +295,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 120_000,
     desc: "Measures system ingestion limits and read performance on 10,000+ entries.",
     strategy: "all",
-      lastRun: "2026-04-26T14:43:38.163Z"
-},
+    lastRun: "2026-04-26T14:43:38.163Z",
+  },
   {
     path: "tests/benchmarks/revision-stress.test.ts",
     label: "Revision & History Growth",
@@ -307,8 +307,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 45_000,
     desc: "Benchmarks performance degradation as document history grows to 100+ versions.",
     strategy: "sql",
-      lastRun: "2026-04-26T14:43:40.744Z"
-},
+    lastRun: "2026-04-26T14:43:40.744Z",
+  },
   {
     path: "tests/benchmarks/ai-performance.test.ts",
     label: "AI Bus & Inference Overhead",
@@ -319,8 +319,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 25_000,
     desc: "Measures the internal CMS tax for AI enrichment and layout generation.",
     strategy: "once",
-      lastRun: "2026-04-26T14:43:42.419Z"
-},
+    lastRun: "2026-04-26T14:43:42.419Z",
+  },
   {
     path: "tests/benchmarks/admin-ux-vitality.test.ts",
     label: "Simulated Admin UX Vitality",
@@ -343,8 +343,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 60_000,
     desc: "Simulates 500ms database brownouts and measures CMS availability and stability.",
     strategy: "sql",
-      lastRun: "2026-04-26T14:43:46.357Z"
-},
+    lastRun: "2026-04-26T14:43:46.357Z",
+  },
   {
     path: "tests/benchmarks/index-pressure.test.ts",
     label: "Million-Row Index Pressure",
@@ -355,8 +355,8 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 180_000,
     desc: "Measures complex filtering and sorting performance on 100,000+ entry collections.",
     strategy: "sql",
-      lastRun: "2026-04-26T19:04:55.182Z"
-},
+    lastRun: "2026-04-26T19:04:55.182Z",
+  },
   {
     path: "tests/benchmarks/content-scale-stress.bench.ts",
     label: "Ultra-Elite Content Scale Stress",
@@ -367,6 +367,6 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 45_000,
     desc: "Measures content scan performance on 1,000+ collections across 5 nested levels.",
     strategy: "all",
-      lastRun: "2026-04-26T19:06:19.816Z"
-},
+    lastRun: "2026-04-26T19:06:19.816Z",
+  },
 ];

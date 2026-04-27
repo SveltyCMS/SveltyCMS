@@ -47,12 +47,15 @@ git config core.hooksPath .githooks
 In April 2026, the pre-commit chain was upgraded from serial shell scripts to a **Parallel TypeScript Orchestrator**. This achieved a **4.4x speedup**, reducing commit validation from ~150s to **~34s**.
 
 Key features:
+
 - **Parallel Execution**: Linting, Type-Checking, and Testing run simultaneously.
 - **Related Test Filtering**: Uses `vitest related` to only run tests affected by your staged changes.
 - **Rust-Powered Linting**: Global `oxlint` and `oxfmt` passes on the entire codebase (1000+ files in <100ms).
 
 #### Pre-commit Steps:
+
 The hook orchestrates the following in parallel:
+
 1.  **Global Lint & Format**: `oxfmt` + `oxlint` on `src/`.
 2.  **Incremental Unit Testing**: `vitest related` on staged files.
 3.  **Mandatory Codegen & Check**: `paraglide` + `svelte-check`.

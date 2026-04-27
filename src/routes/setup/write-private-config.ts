@@ -6,7 +6,6 @@
 
 import type { DatabaseConfig } from "@src/databases/schemas";
 import { logger } from "@utils/logger.server";
-import { isSetupComplete } from "@utils/setup-check";
 
 /**
  * Writes database credentials and security keys to private.ts
@@ -23,14 +22,6 @@ export async function writePrivateConfig(
   // Support TEST_MODE for isolated testing
   const configFileName = process.env.TEST_MODE ? "private.test.ts" : "private.ts";
   const privateConfigPath = path.resolve(process.cwd(), "config", configFileName);
-
-  // Prevent overwrite after setup complete (unless in TEST_MODE)
-  if (isSetupComplete() && !process.env.TEST_MODE) {
-    const error =
-      "Cannot overwrite private.ts - setup already completed. Use reset endpoint instead.";
-    logger.error(error);
-    throw new Error(error);
-  }
 
   // Generate random keys
   const generateRandomKey = () => randomBytes(32).toString("base64");

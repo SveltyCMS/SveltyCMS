@@ -6,12 +6,7 @@
 
 import { test } from "bun:test";
 import "../unit/setup.ts";
-import {
-  runBenchmark,
-  exportResult,
-  printTruthTable,
-  printSummaryTable,
-} from "./benchmark-utils";
+import { runBenchmark, exportResult, printTruthTable, printSummaryTable } from "./benchmark-utils";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -29,7 +24,9 @@ async function cleanupMockFiles() {
 }
 
 async function prepareStressEnvironment() {
-  console.log(`📂 Preparing Ultra-Elite stress environment (${STRESS_FILE_COUNT} files, ${NESTED_LEVELS} levels)...`);
+  console.log(
+    `📂 Preparing Ultra-Elite stress environment (${STRESS_FILE_COUNT} files, ${NESTED_LEVELS} levels)...`,
+  );
 
   await fs.mkdir(COLLECTIONS_DIR, { recursive: true });
 
@@ -38,9 +35,11 @@ async function prepareStressEnvironment() {
     const depth = i % (NESTED_LEVELS + 1);
     let subDir = "";
     if (depth > 0) {
-      subDir = Array.from({ length: depth }).map((_, j) => `level_${j}`).join("/");
+      subDir = Array.from({ length: depth })
+        .map((_, j) => `level_${j}`)
+        .join("/");
     }
-    
+
     const finalDir = path.join(COLLECTIONS_DIR, subDir);
     await fs.mkdir(finalDir, { recursive: true });
 
@@ -103,14 +102,18 @@ async function runStressAudit() {
       shortLabel: "Content Stress",
       results: [
         { ...coldResult, layer: "Cold (I/O)" },
-        { ...warmResult, layer: "Warm (Cache)" }
+        { ...warmResult, layer: "Warm (Cache)" },
       ],
     });
 
     printSummaryTable([
       { key: "Cold Scan Latency", val: coldResult.avgMs, unit: "ms" },
       { key: "Warm Scan Latency", val: warmResult.avgMs, unit: "ms" },
-      { key: "Scale Efficiency", val: warmResult.avgMs < 0.5 ? "ULTRA ELITE" : "SCALABLE", unit: "" },
+      {
+        key: "Scale Efficiency",
+        val: warmResult.avgMs < 0.5 ? "ULTRA ELITE" : "SCALABLE",
+        unit: "",
+      },
     ]);
 
     exportResult(warmResult);

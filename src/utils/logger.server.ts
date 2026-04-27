@@ -293,4 +293,17 @@ export const logger = {
   info: (m: string, ...a: unknown[]) => enqueue("info", m, a),
   debug: (m: string, ...a: unknown[]) => enqueue("debug", m, a),
   trace: (m: string, ...a: unknown[]) => enqueue("trace", m, a),
+
+  channel: (name: string) => ({
+    fatal: (m: string, ...a: unknown[]) => enqueue("fatal", `[${name}] ${m}`, a),
+    error: (m: string, ...a: unknown[]) => enqueue("error", `[${name}] ${m}`, a),
+    warn: (m: string, ...a: unknown[]) => enqueue("warn", `[${name}] ${m}`, a),
+    info: (m: string, ...a: unknown[]) => enqueue("info", `[${name}] ${m}`, a),
+    debug: (m: string, ...a: unknown[]) => enqueue("debug", `[${name}] ${m}`, a),
+    trace: (m: string, ...a: unknown[]) => enqueue("trace", `[${name}] ${m}`, a),
+  }),
+  dump: (data: unknown, label?: string) => {
+    const prefix = label ? `DUMP[${label}]` : "DUMP";
+    enqueue("trace", prefix, [data]);
+  },
 };

@@ -256,7 +256,11 @@ export async function main(): Promise<void> {
       .findOne("benchmark_authors", { _id: "author-1" as any }, { tenantId: TENANT_ID as any })
       .catch(() => null);
     const existingStable = await db.crud
-      .findOne("benchmark_stable", { _id: "bench-shared-001" as any }, { tenantId: TENANT_ID as any })
+      .findOne(
+        "benchmark_stable",
+        { _id: "bench-shared-001" as any },
+        { tenantId: TENANT_ID as any },
+      )
       .catch(() => null);
 
     const hasData =

@@ -238,7 +238,7 @@ Features:
 				}
 			} catch (e) {
 				// Fallback to UTC if detection fails
-				console.warn('Timezone detection failed', e);
+				logger.warn('Timezone detection failed', e);
 			}
 		}
 	});

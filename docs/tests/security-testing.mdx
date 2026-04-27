@@ -24,12 +24,12 @@ SveltyCMS implements rigorous security testing to ensure the highest level of pr
 
 ### 1. Encryption & Cryptography
 
-| Test Suite                 | Tests | Status     |
-| -------------------------- | ----- | ---------- |
-| AES-256-GCM Encryption     | 14    | ✅ Passing |
-| Argon2id Password Hashing  | 6     | ✅ Passing |
-| Audit SHA-256 Chaining     | 12    | ✅ Passing |
-| Preview HMAC (SHA-256)     | 4     | ✅ Passing |
+| Test Suite                | Tests | Status     |
+| ------------------------- | ----- | ---------- |
+| AES-256-GCM Encryption    | 14    | ✅ Passing |
+| Argon2id Password Hashing | 6     | ✅ Passing |
+| Audit SHA-256 Chaining    | 12    | ✅ Passing |
+| Preview HMAC (SHA-256)    | 4     | ✅ Passing |
 
 **Key Breakthrough**: Cryptographic hashing for audit logs is now offloaded to a **Worker Thread Pool** to prevent main-thread latency spikes during high-volume ingestions.
 
@@ -57,14 +57,14 @@ bun run test:unit -- security
 bun test tests/benchmarks/chaos-resilience.test.ts
 ```
 
-| Category            | Tests  | Pass Rate |
-| ------------------- | ------ | --------- |
-| Encryption & Crypto | 32     | 100%      |
-| Preview Security    | 4      | 100%      |
-| Account Lockout     | 10     | 100%      |
-| Fail-Closed API 2.0 | 45     | 100%      |
-| Session Persistence | 22     | 100%      |
-| **Total Security**  | **113**| **100%**  |
+| Category            | Tests   | Pass Rate |
+| ------------------- | ------- | --------- |
+| Encryption & Crypto | 32      | 100%      |
+| Preview Security    | 4       | 100%      |
+| Account Lockout     | 10      | 100%      |
+| Fail-Closed API 2.0 | 45      | 100%      |
+| Session Persistence | 22      | 100%      |
+| **Total Security**  | **113** | **100%**  |
 
 ## Related Documentation
 

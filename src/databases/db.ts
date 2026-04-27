@@ -55,8 +55,9 @@ export async function ensureFullInitialization(config?: any): Promise<any | null
       const { updateServiceHealth } = await import("../stores/system/state");
 
       if (!cfg) {
-        console.error("[db.ts] Missing configuration - cannot initialize");
-        updateServiceHealth("database", "unhealthy" as any, "Missing configuration");
+        logger.debug("[db.ts] Missing configuration - skipping database initialization");
+        // During setup, missing config is expected. Do NOT mark as unhealthy or it blocks the redirect after setup.
+        updateServiceHealth("database", "initializing", "Waiting for configuration...");
         return null;
       }
 
@@ -75,12 +76,13 @@ export async function ensureFullInitialization(config?: any): Promise<any | null
 
       const connectionResult = await adapter.connect(cfg as any);
       if (!connectionResult.success) {
-        console.error(`[db.ts] Database connection failed: ${connectionResult.message}`);
+        logger.error(`Database connection failed: ${connectionResult.message}`);
         throw new Error(`Database connection failed: ${connectionResult.message}`);
       }
       isConnected = true;
-      console.log(`[db.ts] Database initialized with adapter: ${adapter.type}`);
+      logger.info(`Database initialized with adapter: ${adapter.type}`);
       dbAdapter = adapter;
+
       if (!_redisCacheInitialized) {
         const { cacheService } = await import("./cache/cache-service");
         await cacheService.initializeL2(cfg).catch((e) => logger.warn("Redis Init Warning:", e));

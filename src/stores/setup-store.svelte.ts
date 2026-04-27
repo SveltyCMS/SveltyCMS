@@ -594,6 +594,7 @@ function createSetupStore() {
         method: "POST",
         body: formData,
       });
+      logger.debug("[SetupStore] ?/completeSetup fetch finished, status:", response.status);
 
       const responseText = await response.text();
       logger.debug("[SetupStore] ?/completeSetup response received");

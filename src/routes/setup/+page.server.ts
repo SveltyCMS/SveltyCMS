@@ -8,14 +8,13 @@ import { exec } from "node:child_process";
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
-import type { ISODateString } from "@src/databases/db-interface";
-import { databaseConfigSchema } from "@src/databases/schemas";
-import { setupAdminSchema, smtpConfigSchema } from "@utils/form-schemas";
-import { logger } from "@utils/logger.server";
-import nodemailer from "nodemailer";
-import { safeParse } from "valibot";
 import { version as pkgVersion } from "../../../package.json";
+import { databaseConfigSchema } from "@src/databases/schemas";
+import { logger } from "@utils/logger.server";
+import { safeParse } from "valibot";
+import nodemailer from "nodemailer";
+import { setupAdminSchema, smtpConfigSchema } from "@utils/form-schemas";
+import type { ISODateString } from "@src/databases/db-interface";
 import type { Actions, PageServerLoad } from "./$types";
 import { checkRedis } from "./utils";
 
@@ -43,6 +42,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 
   // Clear any existing session cookies to ensure fresh start
   // This prevents issues when doing a fresh database setup
+  const { SESSION_COOKIE_NAME } = await import("@src/databases/auth/constants");
   cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
 
   // Get available system languages from inlang settings (direct import, no parsing needed)
@@ -239,6 +239,23 @@ export const actions: Actions = {
 
         logger.info("✅ Ping successful!");
 
+        // Check if database is empty - setup should ideally be on a fresh DB
+        const isEmptyRes = await dbAdapter.isEmpty();
+        if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite) {
+          logger.warn(
+            `⚠️ Database '${dbConfig.name}' is not empty. Blocking until overwrite confirmed.`,
+          );
+          await dbAdapter.disconnect();
+
+          const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
+          const classified = classifyDatabaseError(
+            new Error("Database is not empty"),
+            dbConfig.type as any,
+            dbConfig,
+          );
+          return new SetupDatabaseError(classified).toClientPayload();
+        }
+
         await dbAdapter.disconnect();
         const latencyMs = Math.round(performance.now() - start);
         return {
@@ -420,28 +437,23 @@ export const actions: Actions = {
         }
       }
 
-      // 1. Write private config
-      const { writePrivateConfig } = await import("./write-private-config");
-      await writePrivateConfig(dbConfig, {
-        multiTenant: systemData.multiTenant,
-        demoMode: systemData.demoMode,
-      });
-
-      const { invalidateSetupCache } = await import("@utils/setup-check");
-      invalidateSetupCache(true);
+      // 1. Start background seeding (Split Strategy)
+      // Note: We NO LONGER write private config here to avoid server restart
+      // which would kill this background task. Configuration is now written
+      // exclusively in the final 'completeSetup' step.
 
       // 2. Start background seeding (Split Strategy)
       // Critical phases (roles/settings) are tracked by startSeeding (blocking completeSetup)
       // Content phases are tracked by startBackgroundWork (non-blocking)
-      const { setupManager } = await import("./setup-manager");
+      // Get split promises
       const { initSystemFast } = await import("./seed");
       const { getSetupDatabaseAdapter } = await import("./utils");
+      const { setupManager } = await import("./setup-manager");
 
       const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, {
         createIfMissing: true,
       });
 
-      // Get split promises
       const { criticalPromise, backgroundTask } = await initSystemFast(dbAdapter);
 
       // Track critical seeding (blocking)
@@ -478,39 +490,45 @@ export const actions: Actions = {
    */
   completeSetup: async ({ request, cookies, url }) => {
     const setupStartTime = performance.now();
+    const { setupManager } = await import("./setup-manager");
     logger.info("🚀 Action: completeSetup called");
 
-    // Await CRITICAL seeding only (roles/settings/themes)
-    // Background content seeding continues independently
     try {
-      const { setupManager } = await import("./setup-manager");
+      // 1. Await CRITICAL seeding only (roles/settings/themes)
+      // Background content seeding continues independently
       const seedingPromise = setupManager.waitTillDone();
       if (seedingPromise) {
-        logger.info("⏳ completeSetup: Waiting for critical seeding...");
+        logger.info("⏳ completeSetup: Waiting for active seeding task to finish...");
         await seedingPromise;
-        logger.info("✅ completeSetup: Critical seeding finished");
+        logger.info("✅ completeSetup: Active seeding task finished");
       }
-    } catch (seedError) {
-      logger.error("❌ completeSetup: Seeding failed:", seedError);
-      // Continue, as retry logic or partial state might allow completion
-    }
 
-    const formData = await request.formData();
-    const dataRaw = formData.get("data") as string;
-    logger.info("DEBUG: [completeSetup] data raw length:", dataRaw?.length);
+      const formData = await request.formData();
+      const dataRaw = formData.get("data") as string;
+      if (!dataRaw) {
+        logger.error("❌ completeSetup: Missing 'data' field in form data");
+        return { success: false, error: "Missing setup data." };
+      }
 
-    const { database, admin, system = {} } = JSON.parse(dataRaw);
+      logger.info("DEBUG: [completeSetup] data raw length:", dataRaw.length);
 
-    logger.info("DEBUG: [completeSetup] database details:", {
-      type: database?.type,
-      host: database?.host,
-      hasUser: !!database?.user,
-      hasPassword: !!database?.password,
-      userLength: database?.user?.length,
-    });
-    logger.info("DEBUG: extracted system data:", JSON.stringify(system, null, 2));
+      let payload: any;
+      try {
+        payload = JSON.parse(dataRaw);
+      } catch (parseErr) {
+        logger.error("❌ completeSetup: Failed to parse JSON data:", parseErr);
+        return { success: false, error: "Invalid setup data format." };
+      }
 
-    try {
+      const { database, admin, system = {} } = payload;
+
+      logger.info("DEBUG: [completeSetup] payload contents:", {
+        hasDatabase: !!database,
+        hasAdmin: !!admin,
+        hasSystem: !!system,
+        dbType: database?.type,
+      });
+      logger.info("DEBUG: extracted system data:", JSON.stringify(system, null, 2));
       const adminValidation = safeParse(setupAdminSchema, admin);
       if (!adminValidation.success) {
         return { success: false, error: "Invalid admin user data" };
@@ -587,8 +605,14 @@ export const actions: Actions = {
           { bypassTenantCheck: true },
         );
 
-        if (!(authResult.success && authResult.data)) {
-          return { success: false, error: "Failed to create user" };
+        if (!authResult.success) {
+          const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
+          const classified = classifyDatabaseError(
+            authResult.error?.message || authResult.message || "User creation failed",
+            database.type,
+            database,
+          );
+          return new SetupDatabaseError(classified).toClientPayload();
         }
         session = authResult.data.session;
       }
@@ -608,6 +632,8 @@ export const actions: Actions = {
         url.protocol === "https:" ||
         (url.hostname !== "localhost" && !dev && process.env.TEST_MODE !== "true");
 
+      const { SESSION_COOKIE_NAME } = await import("@src/databases/auth/constants");
+
       logger.info("DEBUG: Setting cookie:", {
         name: SESSION_COOKIE_NAME,
         value: session._id,
@@ -624,49 +650,19 @@ export const actions: Actions = {
       });
       logger.info(`Set ${SESSION_COOKIE_NAME} cookie for new admin user`);
 
-      // 3. Parallel Execution: Update private config & Persist system settings
-      const updatePrivateConfigPromise = (async () => {
-        try {
-          // Optimization: Check if values actually changed to avoid unnecessary restart
-          let privateConfigModule: any;
-          try {
-            privateConfigModule = await import("@config/private");
-          } catch {
-            logger.debug("Private config not found, proceeding with creation.");
-          }
-
-          if (privateConfigModule) {
-            const privateEnv = privateConfigModule.privateEnv as any;
-            // Use loose equality to handle string/boolean differences if any
-            if (
-              privateEnv.MULTI_TENANT === system.multiTenant &&
-              privateEnv.DEMO === system.demoMode
-            ) {
-              logger.info("DEBUG: Private config unchanged, skipping update to prevent restart.");
-              return;
-            }
-          }
-
-          console.log("DEBUG: Updating private config with modes:", {
-            multiTenant: system.multiTenant,
-            demoMode: system.demoMode,
-          });
-          const { updatePrivateConfigMode } = await import("./write-private-config");
-          await updatePrivateConfigMode({
-            multiTenant: system.multiTenant,
-            demoMode: system.demoMode,
-          });
-          console.log("DEBUG: Private config update completed");
-        } catch (configError) {
-          console.error("ERROR: Failed to update private config (NON-FATAL):", configError);
-          logger.error("Failed to update private config modes:", configError);
-          // Do not throw, allow setup to complete even if this file update fails
-        }
-      })();
+      // 3. Parallel Execution: Persist system settings (Skip private config until the very end)
+      // Elite Audit Fix: Initialize global DB state so we can transition without restart
+      const { initializeWithConfig, clearPrivateConfigCache } = await import("@src/databases/db");
+      await initializeWithConfig({
+        ...database,
+        MULTI_TENANT: system.multiTenant,
+        DEMO: system.demoMode,
+      });
+      clearPrivateConfigCache(false);
 
       const persistSettingsPromise = (async () => {
         try {
-          console.log("DEBUG: Persisting system settings to DB...");
+          logger.debug("Persisting system settings to DB...");
           const settingsToPersist = [
             // Redis & Arch Mode (Private)
             {
@@ -808,7 +804,7 @@ export const actions: Actions = {
         }
       })();
 
-      await Promise.all([updatePrivateConfigPromise, persistSettingsPromise]);
+      await persistSettingsPromise;
 
       // 3.2 Invalidate setup cache
       // Force setupStatus = true so the redirect succeeds without a disk/DB re-read.
@@ -817,7 +813,7 @@ export const actions: Actions = {
       invalidateSetupCache(true, true);
 
       // Initialize global system
-      const { initializeWithConfig } = await import("@src/databases/db");
+      // (Already imported dynamic above, but ensuring consistency within this block)
       await initializeWithConfig({
         DB_TYPE: database.type,
         DB_HOST: database.host,
@@ -893,6 +889,24 @@ export const actions: Actions = {
         }
       }
 
+      // --- FINAL STEP: WRITE PRIVATE CONFIG ---
+      // We do this at the very end because it triggers a Vite restart.
+      // We use setTimeout to allow the HTTP response to be sent to the client FIRST,
+      // preventing "Failed to fetch" errors on the frontend.
+      setTimeout(async () => {
+        try {
+          logger.info("💾 [completeSetup] Writing final private configuration (deferred)...");
+          const { writePrivateConfig } = await import("./write-private-config");
+          await writePrivateConfig(database, {
+            multiTenant: system.multiTenant,
+            demoMode: system.demoMode,
+          });
+          logger.info("✅ [completeSetup] Private configuration written successfully.");
+        } catch (configError) {
+          logger.error("❌ [completeSetup] Failed to write private config:", configError);
+        }
+      }, 1500);
+
       // 4. Determine redirect path
       let redirectPath = "/config/collectionbuilder";
 
@@ -917,9 +931,17 @@ export const actions: Actions = {
         }
       }
 
-      // 🚀 CRITICAL: Reset global DB state so next request triggers fresh initialization with new config
-      const { resetDbInitPromise } = await import("@src/databases/db");
-      resetDbInitPromise();
+      // Force system state to READY to prevent the TurboPipeline from blocking the redirect
+      // while the server waits to restart.
+      try {
+        const { systemStateStore } = await import("@src/stores/system/state");
+        systemStateStore.update((state) => ({ ...state, overallState: "READY" }));
+        logger.info(
+          "✅ [completeSetup] Forced system state to READY to unblock frontend redirect.",
+        );
+      } catch (err) {
+        logger.warn("⚠️ [completeSetup] Failed to force system state to READY:", err);
+      }
 
       const setupDuration = performance.now() - setupStartTime;
       logger.info(
@@ -941,8 +963,7 @@ export const actions: Actions = {
         },
       };
     } catch (err) {
-      console.error("Setup completion failed detailed:", err);
-      logger.error("Setup completion failed:", err);
+      logger.error("Setup completion failed detailed:", err);
       return {
         success: false,
         error: err instanceof Error ? err.message : String(err),

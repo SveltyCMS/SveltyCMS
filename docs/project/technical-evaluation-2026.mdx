@@ -148,13 +148,13 @@ The following matrix evaluates core engineering implementations where SveltyCMS 
 
 Verified performance metrics from the SveltyCMS CI pipeline (March 2026). These represent raw database driver latencies and compiled middleware overhead in a standard production environment.
 
-| CMS / Stack                | Avg API Read (ms) | Avg Insert (ms) | Middleware Overhead (µs) | Media Upload (ms) | Notes / Conditions                |
-| -------------------------- | ----------------- | --------------- | ------------------------ | ----------------- | --------------------------------- |
-| **SveltyCMS (API layer)**  | **0.06 - 0.45**    | **~0.1**        | **12–15**                | **0.12 (Async)**  | High-Frequency Data Engine        |
-| **Payload CMS 3.x**        | 4–12              | 3–10            | ~85                      | 100–350           | Similar full-stack                |
-| **Directus 11**            | 3–18              | 4–12            | ~110                     | 120–400           | Cache-dependent                   |
-| **Strapi v5**              | 6–25              | 5–15            | ~150                     | 150–500           | Full stack, ORM overhead          |
-| **SveltyCMS (raw SQLite)** | **0.08**          | **0.05**        | —                        | —                 | Bun Native SQLite, zero-config    |
+| CMS / Stack                | Avg API Read (ms) | Avg Insert (ms) | Middleware Overhead (µs) | Media Upload (ms) | Notes / Conditions             |
+| -------------------------- | ----------------- | --------------- | ------------------------ | ----------------- | ------------------------------ |
+| **SveltyCMS (API layer)**  | **0.06 - 0.45**   | **~0.1**        | **12–15**                | **0.12 (Async)**  | High-Frequency Data Engine     |
+| **Payload CMS 3.x**        | 4–12              | 3–10            | ~85                      | 100–350           | Similar full-stack             |
+| **Directus 11**            | 3–18              | 4–12            | ~110                     | 120–400           | Cache-dependent                |
+| **Strapi v5**              | 6–25              | 5–15            | ~150                     | 150–500           | Full stack, ORM overhead       |
+| **SveltyCMS (raw SQLite)** | **0.08**          | **0.05**        | —                        | —                 | Bun Native SQLite, zero-config |
 
 _Note: SveltyCMS metrics derived from high-resolution standalone benchmarks (`tests/benchmarks/`). Database metrics reflect raw MongoDB driver latency. Middleware overhead reflects compiled SvelteKit edge-ready hooks. Media upload time reflects block time (Phase 3 background jobs)._
 

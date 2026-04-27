@@ -8,11 +8,10 @@
 import type { CollectionEntry, DatabaseId, ISODateString } from "./types";
 
 /* AUTOGEN_START: ContentTypes */
-export type ContentTypes = "Authors" | "Categories" | "Posts" | "benchmark_stable" | (string & {});
+export type ContentTypes = "Authors" | "Categories" | "Posts" | (string & {});
 
 export interface CollectionMap {
   Authors: CollectionEntry & { name: string; email: string; bio: string; avatar: string };
-  benchmark_stable: CollectionEntry & { undefined: string };
   Categories: CollectionEntry & { name: string; slug: string; description: string };
   Posts: CollectionEntry & {
     title: string;

@@ -8,6 +8,7 @@
  */
 
 import {
+  array,
   boolean,
   check,
   custom,
@@ -372,8 +373,21 @@ export const systemSettingsSchema = object({
   passwordMinLength: optional(number(), 8),
   defaultSystemLanguage: languageCodeSchema,
   defaultContentLanguage: languageCodeSchema,
+  systemLanguages: optional(array(languageCodeSchema), ["en"]),
+  contentLanguages: optional(array(languageCodeSchema), ["en"]),
+  timezone: optional(string(), "UTC"),
+  mediaStorageType: optional(picklist(["local", "s3", "r2", "cloudinary"]), "local"),
+  mediaFolder: optional(string(), "./mediaFolder"),
   demoMode: optional(boolean(), false),
   multiTenant: optional(boolean(), false),
+  useRedis: optional(boolean(), false),
+  redisHost: optional(string(), "localhost"),
+  redisPort: optional(string(), "6379"),
+  redisPassword: optional(string(), ""),
+  // Cloudflare CDN
+  cfApiToken: optional(string(), ""),
+  cfZoneId: optional(string(), ""),
+  cfPurgeMode: optional(picklist(["tags", "all"]), "tags"),
 });
 
 // --- Schema Definitions for Exports ---

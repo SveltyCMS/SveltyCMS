@@ -12,10 +12,12 @@ import type {
   PaginationOptions,
   BaseQueryOptions,
 } from "@src/databases/db-interface";
-import { generateId, getOrCreateModel } from "@src/databases/mongodb/methods/mongodb-utils";
+import {
+  generateId,
+  getOrCreateModel,
+  createDatabaseError,
+} from "@src/databases/mongodb/methods/mongodb-utils";
 import { safeQuery } from "@src/utils/security/safe-query";
-// System Logging
-import { logger } from "@utils/logger";
 import type { Model } from "mongoose";
 import mongoose, { Schema } from "mongoose";
 import { toISOString } from "@src/utils/date-utils";
@@ -152,9 +154,12 @@ export class UserAdapter {
 
       return { success: true, data: this.mapUser(user.toObject()) };
     } catch (err) {
-      const message = `Error creating user: ${err instanceof Error ? err.message : String(err)}`;
-      logger.error(message);
-      return { success: false, message, error: { code: "CREATE_USER_ERROR", message } };
+      const message = "Error creating user";
+      return {
+        success: false,
+        message,
+        error: createDatabaseError(err, "CREATE_USER_ERROR", message),
+      };
     }
   }
 
@@ -193,9 +198,12 @@ export class UserAdapter {
 
       return { success: true, data: this.mapUser(user) };
     } catch (err) {
-      const message = `Error updating user: ${err instanceof Error ? err.message : String(err)}`;
-      logger.error(message);
-      return { success: false, message, error: { code: "UPDATE_USER_ERROR", message } };
+      const message = "Error updating user";
+      return {
+        success: false,
+        message,
+        error: createDatabaseError(err, "UPDATE_USER_ERROR", message),
+      };
     }
   }
 
@@ -225,9 +233,12 @@ export class UserAdapter {
 
       return { success: true, data: users.map((u) => this.mapUser(u)), meta: { total } } as any;
     } catch (err) {
-      const message = `Error fetching users: ${err instanceof Error ? err.message : String(err)}`;
-      logger.error(message);
-      return { success: false, message, error: { code: "GET_ALL_USERS_ERROR", message } };
+      const message = "Error fetching users";
+      return {
+        success: false,
+        message,
+        error: createDatabaseError(err, "GET_ALL_USERS_ERROR", message),
+      };
     }
   }
 
@@ -242,9 +253,12 @@ export class UserAdapter {
       const count = await this.UserModel.countDocuments(safeFilter);
       return { success: true, data: count };
     } catch (err) {
-      const message = `Error counting users: ${err instanceof Error ? err.message : String(err)}`;
-      logger.error(message);
-      return { success: false, message, error: { code: "GET_USER_COUNT_ERROR", message } };
+      const message = "Error counting users";
+      return {
+        success: false,
+        message,
+        error: createDatabaseError(err, "GET_USER_COUNT_ERROR", message),
+      };
     }
   }
 
@@ -261,9 +275,12 @@ export class UserAdapter {
       });
       return { success: true, data: { modifiedCount: result.modifiedCount } };
     } catch (err) {
-      const message = `Error blocking users: ${err instanceof Error ? err.message : String(err)}`;
-      logger.error(message);
-      return { success: false, message, error: { code: "BLOCK_USERS_ERROR", message } };
+      const message = "Error blocking users";
+      return {
+        success: false,
+        message,
+        error: createDatabaseError(err, "BLOCK_USERS_ERROR", message),
+      };
     }
   }
 
@@ -280,9 +297,12 @@ export class UserAdapter {
       });
       return { success: true, data: { modifiedCount: result.modifiedCount } };
     } catch (err) {
-      const message = `Error unblocking users: ${err instanceof Error ? err.message : String(err)}`;
-      logger.error(message);
-      return { success: false, message, error: { code: "UNBLOCK_USERS_ERROR", message } };
+      const message = "Error unblocking users";
+      return {
+        success: false,
+        message,
+        error: createDatabaseError(err, "UNBLOCK_USERS_ERROR", message),
+      };
     }
   }
 
@@ -304,9 +324,12 @@ export class UserAdapter {
       }
       return { success: true, data: undefined };
     } catch (err) {
-      const message = `Error deleting user: ${err instanceof Error ? err.message : String(err)}`;
-      logger.error(message);
-      return { success: false, message, error: { code: "DELETE_USER_ERROR", message } };
+      const message = "Error deleting user";
+      return {
+        success: false,
+        message,
+        error: createDatabaseError(err, "DELETE_USER_ERROR", message),
+      };
     }
   }
 
@@ -319,9 +342,12 @@ export class UserAdapter {
       const result = await this.UserModel.deleteMany(filter);
       return { success: true, data: { deletedCount: result.deletedCount } };
     } catch (err) {
-      const message = `Error deleting users: ${err instanceof Error ? err.message : String(err)}`;
-      logger.error(message);
-      return { success: false, message, error: { code: "DELETE_USERS_ERROR", message } };
+      const message = "Error deleting users";
+      return {
+        success: false,
+        message,
+        error: createDatabaseError(err, "DELETE_USERS_ERROR", message),
+      };
     }
   }
 
@@ -336,9 +362,12 @@ export class UserAdapter {
       const user = await this.UserModel.findOne(filter).lean();
       return { success: true, data: user ? this.mapUser(user) : null };
     } catch (err) {
-      const message = `Error fetching user by ID: ${err instanceof Error ? err.message : String(err)}`;
-      logger.error(message);
-      return { success: false, message, error: { code: "GET_USER_BY_ID_ERROR", message } };
+      const message = "Error fetching user by ID";
+      return {
+        success: false,
+        message,
+        error: createDatabaseError(err, "GET_USER_BY_ID_ERROR", message),
+      };
     }
   }
 
@@ -357,15 +386,17 @@ export class UserAdapter {
       const user = await this.UserModel.findOne(filter).lean();
       return { success: true, data: user ? this.mapUser(user) : null };
     } catch (err) {
-      const message = `Error fetching user by email: ${err instanceof Error ? err.message : String(err)}`;
-      logger.error(message);
-      return { success: false, message, error: { code: "GET_USER_BY_EMAIL_ERROR", message } };
+      const message = "Error fetching user by email";
+      return {
+        success: false,
+        message,
+        error: createDatabaseError(err, "GET_USER_BY_EMAIL_ERROR", message),
+      };
     }
   }
 
   async validateSession(sessionId: DatabaseId): Promise<DatabaseResult<User | null>> {
     try {
-      // Use the model from session adapter if available, fallback to active connection
       const SessionModel =
         this._sessionAdapter?.SessionModel ||
         this._activeConnection?.models?.auth_sessions ||
@@ -382,12 +413,11 @@ export class UserAdapter {
       const user = await this.UserModel.findById(session.user_id).lean();
       return { success: true, data: user ? this.mapUser(user) : null };
     } catch (err) {
-      const message = `Session validation failed: ${err instanceof Error ? err.message : String(err)}`;
-      logger.error(message, err);
+      const message = "Session validation failed";
       return {
         success: false,
         message,
-        error: { code: "AUTH_ERROR", message },
+        error: createDatabaseError(err, "AUTH_ERROR", message),
       };
     }
   }

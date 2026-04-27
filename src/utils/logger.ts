@@ -192,10 +192,36 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
         ? " " +
           masked
             .map((a) => {
-              if (a instanceof Error) {
-                return `[Error: ${a.message}]\n${a.stack}`;
+              // Robust Error detection (instanceof can fail across environments)
+              const isError =
+                a instanceof Error ||
+                (a && typeof a === "object" && "stack" in a && "message" in a);
+              if (isError) {
+                const err = a as any;
+                return `[Error: ${err.message}]\n${err.stack}`;
               }
-              return typeof a === "object" ? JSON.stringify(a) : String(a);
+              // Handle objects that might contain errors
+              if (typeof a === "object" && a !== null) {
+                try {
+                  return JSON.stringify(a, (_key, value) => {
+                    if (
+                      value instanceof Error ||
+                      (value && typeof value === "object" && "stack" in value && "message" in value)
+                    ) {
+                      return {
+                        message: value.message,
+                        stack: value.stack,
+                        name: value.name,
+                        ...(value as any),
+                      };
+                    }
+                    return value;
+                  });
+                } catch {
+                  return String(a);
+                }
+              }
+              return String(a);
             })
             .join(" ")
             .replace(/\n/g, " ")
