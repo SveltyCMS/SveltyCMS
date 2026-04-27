@@ -1,49 +1,33 @@
-/**
- * @file tests/e2e/setup-wizard.spec.ts
- * @description Comprehensive Setup Wizard E2E test for SveltyCMS.
- * Covers all 5 steps of the installation process including DB, Admin, System, and Review.
- */
-
-import { expect, test, type Page } from "@playwright/test";
-
-// Helper to handle transitions
-async function stepSettled(page: Page) {
-  await page.waitForLoadState("networkidle");
-  await page.waitForTimeout(1000);
-}
+import { expect, test } from "@playwright/test";
+import { seedWizardState, clickNext, clickFinish, handleDialog } from "./helpers/setup-wizard";
 
 test("Setup Wizard: Full Provisioning Flow", async ({ page }) => {
   test.setTimeout(180_000);
 
-  // 1. Visit setup page
+  // 1. Pre-seed state to stabilize flakiness
+  await seedWizardState(page);
+
+  // 2. Visit setup page
   console.log("🚀 Starting Setup Wizard...");
   await page.goto("/setup");
-  await stepSettled(page);
+  await page.waitForLoadState("networkidle");
 
-  // 2. Handle Welcome Popup
+  // 3. Handle Welcome Popup
   const welcomePopup = page.locator("#welcome-heading").first();
   if (await welcomePopup.isVisible({ timeout: 5000 }).catch(() => false)) {
     console.log("   → Welcome popup detected. Clicking Get Started...");
-    await page.getByRole("button", { name: /get started/i }).first().click({ force: true });
+    await page
+      .getByRole("button", { name: /get started/i })
+      .first()
+      .click({ force: true });
     await expect(welcomePopup).toBeHidden();
   }
 
-  // 3. Handle Cookie Consent
+  // 4. Handle Cookie Consent
   const cookieBtn = page.getByRole("button", { name: /accept all/i }).first();
   if (await cookieBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
     console.log("   → Dismissing cookie banner...");
     await cookieBtn.click();
-  }
-
-  // 4. Handle "Reset Data" if present (prevents dirty state failure)
-  const resetBtn = page.getByRole("button", { name: /reset data/i }).first();
-  if (await resetBtn.isVisible()) {
-    console.log("   → Existing data detected. Resetting...");
-    await resetBtn.click();
-    // Confirm Reset
-    const confirmBtn = page.locator("button").filter({ hasText: /yes/i }).first();
-    await confirmBtn.click({ force: true });
-    await stepSettled(page);
   }
 
   // --- STEP 1: Database ---
@@ -60,16 +44,10 @@ test("Setup Wizard: Full Provisioning Flow", async ({ page }) => {
   await testConnBtn.click({ force: true });
 
   // Handle "Database does not exist" modal
-  const createDbBtn = page.locator("button").filter({ hasText: /yes/i }).first();
-  if (await createDbBtn.isVisible({ timeout: 10000 }).catch(() => false)) {
-    await createDbBtn.click({ force: true });
-  }
+  await handleDialog(page, /database does not exist/i, "yes");
 
-  // Wait for success indicator (Next button enabled)
-  const nextBtn = page.getByLabel("Next", { exact: true }).first();
-  await expect(nextBtn).toBeEnabled({ timeout: 30000 });
-  await nextBtn.click({ force: true });
-  await stepSettled(page);
+  // Move to next step
+  await clickNext(page);
 
   // --- STEP 2: Admin User ---
   console.log("   → Step 2: Admin User Configuration...");
@@ -80,8 +58,7 @@ test("Setup Wizard: Full Provisioning Flow", async ({ page }) => {
   await page.locator("#admin-password").fill("Password123!");
   await page.locator("#admin-confirm-password").fill("Password123!");
 
-  await page.getByLabel("Next", { exact: true }).first().click({ force: true });
-  await stepSettled(page);
+  await clickNext(page);
 
   // --- STEP 3: System Settings ---
   console.log("   → Step 3: System Settings...");
@@ -91,23 +68,19 @@ test("Setup Wizard: Full Provisioning Flow", async ({ page }) => {
   await page.locator("#host-prod").fill(new URL(page.url()).origin);
   await page.locator("#media-folder").fill("./mediaFolder_e2e");
 
-  await page.getByLabel("Next", { exact: true }).first().click({ force: true });
-  await stepSettled(page);
+  await clickNext(page);
 
   // --- STEP 4: Mail/SMTP (Skip) ---
   console.log("   → Step 4: Mail Configuration (Skipping)...");
-  await page.getByLabel("Next", { exact: true }).first().click({ force: true });
-  await stepSettled(page);
+  await clickNext(page);
 
   // --- STEP 5: Review ---
   console.log("   → Step 5: Review...");
-  const finishBtn = page.getByLabel("Complete", { exact: true }).first();
-  await expect(finishBtn).toBeVisible();
-  await finishBtn.click();
+  await clickFinish(page);
 
   // Final Redirection
   console.log("   → Finalizing setup...");
   await page.waitForURL((url) => !url.pathname.startsWith("/setup"), { timeout: 60000 });
-  
+
   console.log("✅ Setup Wizard E2E Passed!");
 });

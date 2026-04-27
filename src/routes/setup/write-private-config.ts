@@ -42,7 +42,11 @@ export async function writePrivateConfig(
     if (val === undefined) {
       return "";
     }
-    return String(val).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    return String(val)
+      .replace(/\\/g, "\\\\")
+      .replace(/'/g, "\\'")
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r");
   };
 
   // Generate the private.ts content
@@ -140,38 +144,35 @@ export async function updatePrivateConfigMode(modes: {
 
     // Update MULTI_TENANT
     if (modes.multiTenant !== undefined) {
-      const multiTenantRegex = /MULTI_TENANT\s*:\s*(true|false)/;
+      const multiTenantRegex = /\bMULTI_TENANT\s*:\s*(true|false),?/;
       const match = multiTenantRegex.exec(content);
-      logger.debug(
-        "DEBUG: [updatePrivateConfigMode] MULTI_TENANT regex match:",
-        match ? match[0] : "null",
-      );
+      const newValue = `MULTI_TENANT: ${toBoolString(modes.multiTenant)},`;
 
       if (match) {
-        const newValue = `MULTI_TENANT: ${toBoolString(modes.multiTenant)}`;
         if (match[0] !== newValue) {
           content = content.replace(multiTenantRegex, newValue);
           modified = true;
-          logger.debug("DEBUG: [updatePrivateConfigMode] Replaced MULTI_TENANT");
-        } else {
-          logger.debug("DEBUG: [updatePrivateConfigMode] MULTI_TENANT already set to", newValue);
+          logger.debug("DEBUG: [updatePrivateConfigMode] Updated MULTI_TENANT");
         }
       } else {
-        // If not found, insert it before the closing brace
-        logger.debug("DEBUG: [updatePrivateConfigMode] MULTI_TENANT not found, inserting...");
+        // If not found, try to insert after the marker
         const insertMarker = "// --- Fundamental Architectural Mode ---";
         if (content.includes(insertMarker)) {
-          content = content.replace(
-            insertMarker,
-            `${insertMarker}\n\tMULTI_TENANT: ${toBoolString(modes.multiTenant)},`,
-          );
+          content = content.replace(insertMarker, `${insertMarker}\n\t${newValue}`);
           modified = true;
+          logger.debug("DEBUG: [updatePrivateConfigMode] Inserted MULTI_TENANT after marker");
         } else {
-          // Fallback: insert at end of object
+          // Fallback: insert at end of object, ensuring previous line has a comma
           const lastBraceIndex = content.lastIndexOf("};");
           if (lastBraceIndex !== -1) {
-            content = `${content.slice(0, lastBraceIndex)}\tMULTI_TENANT: ${toBoolString(modes.multiTenant)},\n${content.slice(lastBraceIndex)}`;
+            let prefix = content.slice(0, lastBraceIndex);
+            // Ensure preceding property has a comma if it's not the start of the object
+            if (!prefix.trim().endsWith(",") && !prefix.trim().endsWith("{")) {
+              prefix = prefix.replace(/(\s*)$/, ",$1");
+            }
+            content = `${prefix}\t${newValue}\n${content.slice(lastBraceIndex)}`;
             modified = true;
+            logger.debug("DEBUG: [updatePrivateConfigMode] Inserted MULTI_TENANT at end");
           }
         }
       }
@@ -179,36 +180,41 @@ export async function updatePrivateConfigMode(modes: {
 
     // Update DEMO
     if (modes.demoMode !== undefined) {
-      const demoRegex = /DEMO\s*:\s*(true|false)/;
+      const demoRegex = /\bDEMO\s*:\s*(true|false),?/;
       const match = demoRegex.exec(content);
-      logger.debug("DEBUG: [updatePrivateConfigMode] DEMO regex match:", match ? match[0] : "null");
+      const newValue = `DEMO: ${toBoolString(modes.demoMode)},`;
 
       if (match) {
-        const newValue = `DEMO: ${toBoolString(modes.demoMode)}`;
         if (match[0] !== newValue) {
           content = content.replace(demoRegex, newValue);
           modified = true;
-          logger.debug("DEBUG: [updatePrivateConfigMode] Replaced DEMO");
-        } else {
-          logger.debug("DEBUG: [updatePrivateConfigMode] DEMO already set to", newValue);
+          logger.debug("DEBUG: [updatePrivateConfigMode] Updated DEMO");
         }
       } else {
-        // If not found, try to insert after MULTI_TENANT
-        logger.debug("DEBUG: [updatePrivateConfigMode] DEMO not found, inserting...");
-        const multiTenantMatch = /MULTI_TENANT\s*:\s*(true|false),?/;
-        if (multiTenantMatch.test(content)) {
-          // Replace the match with itself + the new line
-          content = content.replace(
-            multiTenantMatch,
-            `$& \n\tDEMO: ${toBoolString(modes.demoMode)},`,
-          );
+        // If not found, try to insert after MULTI_TENANT for logical grouping
+        const multiTenantMatch = /\bMULTI_TENANT\s*:\s*(true|false),?/;
+        const mtMatch = multiTenantMatch.exec(content);
+
+        if (mtMatch) {
+          const mtLine = mtMatch[0];
+          // Ensure MULTI_TENANT has a comma before adding DEMO on next line
+          const replacement = mtLine.endsWith(",")
+            ? `${mtLine}\n\t${newValue}`
+            : `${mtLine},\n\t${newValue}`;
+          content = content.replace(multiTenantMatch, replacement);
           modified = true;
+          logger.debug("DEBUG: [updatePrivateConfigMode] Inserted DEMO after MULTI_TENANT");
         } else {
           // Fallback: insert at end of object
           const lastBraceIndex = content.lastIndexOf("};");
           if (lastBraceIndex !== -1) {
-            content = `${content.slice(0, lastBraceIndex)}\tDEMO: ${toBoolString(modes.demoMode)},\n${content.slice(lastBraceIndex)}`;
+            let prefix = content.slice(0, lastBraceIndex);
+            if (!prefix.trim().endsWith(",") && !prefix.trim().endsWith("{")) {
+              prefix = prefix.replace(/(\s*)$/, ",$1");
+            }
+            content = `${prefix}\t${newValue}\n${content.slice(lastBraceIndex)}`;
             modified = true;
+            logger.debug("DEBUG: [updatePrivateConfigMode] Inserted DEMO at end");
           }
         }
       }
