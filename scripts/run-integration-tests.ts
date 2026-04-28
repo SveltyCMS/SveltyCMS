@@ -52,7 +52,7 @@ async function freePort(port: number) {
       execSync(`lsof -ti:${port} | xargs kill -9 || true`, { stdio: "ignore" });
     }
     await new Promise((r) => setTimeout(r, 1000));
-  } catch {}
+  } catch { }
 }
 
 async function startPreviewServer() {
@@ -264,8 +264,8 @@ async function main() {
     const start = Date.now();
 
     console.log(`\n▶️  Running ${relPath}...`);
-
-    const { code } = await runCommand("bun", ["test", "--timeout", "60000", file], {
+    const bunTestPath = `./${relPath.replace(/\\/g, "/")}`;
+    const { code } = await runCommand("bun", ["test", "--timeout", "60000", bunTestPath], {
       env: {
         ...process.env,
         TEST_API_SECRET: CONFIG.TEST_API_SECRET,
