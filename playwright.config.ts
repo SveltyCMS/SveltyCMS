@@ -52,7 +52,7 @@ export default defineConfig({
    * Enable parallelism. Each worker will use a unique SQLite file
    * (e.g. cms_worker1.db) triggered by the x-test-worker-index header.
    */
-  workers: process.env.CI ? 4 : undefined,
+  workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [["html"], [process.env.CI ? "github" : "list"]],
 
