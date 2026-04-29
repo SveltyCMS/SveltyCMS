@@ -104,7 +104,8 @@ SveltyCMS uses a performance-optimized CI pipeline designed for maximum reliabil
 
 ### 1. High-Performance Quality Gate (`scripts/quality-gate.ts`)
 
-In April 2026, we replaced serial shell scripts with a **Parallel TypeScript Orchestrator**. 
+In April 2026, we replaced serial shell scripts with a **Parallel TypeScript Orchestrator**.
+
 - **4.4x Speedup**: Local validation dropped from ~150s to **~34s**.
 - **Impact-Aware**: Only runs tests **related** to your staged files.
 - **Blazing Fast**: Uses Rust-powered `oxlint` and `oxfmt` in parallel with `svelte-check`.

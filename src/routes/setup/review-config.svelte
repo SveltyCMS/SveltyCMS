@@ -544,7 +544,19 @@ This component presents a summary of all configuration steps before finalizing t
 								</SystemTooltip>
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 border-t border-slate-100 dark:border-slate-800 pt-1 mt-1 font-semibold">
-								🚀 {systemSettings.cfZoneId ? 'Active' : 'Partial'}
+								🚀 {systemSettings.cfZoneId ? 'Active' : 'Partial (Missing Zone ID)'}
+							</dd>
+							{#if systemSettings.cfZoneId}
+								<dt class="flex items-center justify-between font-medium text-black dark:text-white pl-4 text-xs opacity-70">
+									Zone ID:
+								</dt>
+								<dd class="text-tertiary-500 dark:text-primary-500 font-mono text-xs">{redact(systemSettings.cfZoneId)}</dd>
+							{/if}
+							<dt class="flex items-center justify-between font-medium text-black dark:text-white pl-4 text-xs opacity-70">
+								Purge Strategy:
+							</dt>
+							<dd class="text-tertiary-500 dark:text-primary-500 text-xs">
+								{systemSettings.cfPurgeMode === 'tags' ? 'Surgical (Cache Tags)' : 'Full Purge (Everything)'}
 							</dd>
 						{/if}
 					</dl>

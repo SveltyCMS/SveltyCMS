@@ -5,7 +5,7 @@
 
 import { redirect, type Handle } from "@sveltejs/kit";
 import { isBootstrapRoute, isSetupCompleteAsync } from "@utils/setup-check";
-import { contentSystem } from "@src/content";
+import { contentSystem } from "@src/content/index.server";
 import { logger } from "@utils/logger.server";
 import { getDbInitPromise } from "@src/databases/db";
 import { app } from "@src/stores/store.svelte";

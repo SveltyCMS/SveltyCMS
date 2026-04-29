@@ -1,0 +1,171 @@
+/**
+ * @file src/content/index.server.ts
+ * @description Master Server-Side Entry Point for the SveltyCMS Content System.
+ * 🛡️ SECURITY: STRICT server-only module.
+ */
+
+/// <reference types="vite/client" />
+const isTest = !!(
+  (typeof process !== "undefined" &&
+    (process.env.NODE_ENV === "test" || !!process.env.VITEST || !!process.env.BUN_TEST)) ||
+  import.meta.env.MODE === "test" ||
+  import.meta.env.TEST ||
+  (typeof globalThis !== "undefined" &&
+    ((globalThis as any).vitest ||
+      (globalThis as any).vi ||
+      (globalThis as any).__vitest_worker__ ||
+      (globalThis as any).describe ||
+      (globalThis as any).it))
+);
+
+if (!isTest && (import.meta.env.SSR === false || typeof window !== "undefined")) {
+  throw new Error(
+    "[SECURITY] content/index.server.ts is a server-only module and was imported on the client. This may expose server secrets!",
+  );
+}
+
+import { logger } from "@utils/logger";
+import { contentStore } from "@stores/content-store.svelte";
+import { contentSystemBase } from "./core";
+import type { DatabaseAdapter } from "@src/databases/db-interface";
+import type { ContentNodeOperation } from "./types";
+
+// Re-export shared safe items
+export {
+  contentNavigation,
+  contentMetrics,
+  sortContentNodes,
+  generateCategoryNodesFromPaths,
+  hasDuplicateSiblingName,
+} from "./content-utils";
+
+export * from "./types";
+export { contentStore } from "@stores/content-store.svelte";
+export { setContentContext, useContent, initializeContent } from "./index";
+
+// Lazy loaders
+async function getServerContentService() {
+  const { contentService } = await import("./content-service.server");
+  return contentService;
+}
+
+async function getServerApiSpecService() {
+  const mod = await import("@src/services/system/api-spec-service");
+  return (mod as any).apiSpecService || mod;
+}
+
+// ===================================================================
+// SERVER CONTENT SYSTEM (extends browser base)
+// ===================================================================
+export const contentSystem = {
+  ...contentSystemBase,
+
+  // --- Lifecycle ---
+  async initialize(
+    tenantId: string | null = null,
+    options: any = {},
+    adapter?: DatabaseAdapter,
+  ): Promise<void> {
+    const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+
+    let db = adapter || getDb();
+    if (!db) {
+      await ensureFullInitialization();
+      db = getDb();
+    }
+    if (!db) throw new Error("Database not ready for content initialization");
+
+    const contentService = await getServerContentService();
+
+    if (process.env.BENCHMARK_STABLE === "true") {
+      const { refreshCollectionsCache } = await import("./content-service.server");
+      await refreshCollectionsCache(tenantId, db);
+    } else {
+      await contentService.fullReload(tenantId, options.skipReconciliation ?? false, db, null);
+    }
+
+    // Dev watcher
+    if (process.env.NODE_ENV === "development" || process.env.TEST_MODE === "true") {
+      try {
+        const { startContentWatcher } = await import("./content-watcher.server");
+        startContentWatcher();
+      } catch (e) {
+        logger.warn("Content watcher failed to start", { error: e });
+      }
+    }
+
+    if (!options.skipReconciliation) {
+      void this.generateApiSpec(tenantId || "global");
+    }
+  },
+
+  async refresh(
+    tenantId?: string | null,
+    skipReconciliation = false,
+    incremental = false,
+    adapter?: DatabaseAdapter,
+  ) {
+    return this.initialize(tenantId, { skipReconciliation, incremental }, adapter);
+  },
+
+  async generateApiSpec(tenantId: string = "global", _force = false) {
+    const apiSpec = await getServerApiSpecService();
+    return apiSpec.generateFullSpec(tenantId);
+  },
+
+  // --- CRUD Pass-throughs ---
+  async find(collection: string, query: any, options?: any) {
+    const svc = await getServerContentService();
+    return svc.find(collection, query, options);
+  },
+  async findOne(collection: string, query: any, options?: any) {
+    const svc = await getServerContentService();
+    return svc.findOne(collection, query, options);
+  },
+  async insert(collection: string, data: any, options?: any) {
+    const svc = await getServerContentService();
+    return svc.insert(collection, data, options);
+  },
+  async update(collection: string, query: any, data: any, options?: any) {
+    const svc = await getServerContentService();
+    return svc.update(collection, query, data, options);
+  },
+  async delete(collection: string, query: any, options?: any) {
+    const svc = await getServerContentService();
+    return svc.delete(collection, query, options);
+  },
+
+  // --- Node Operations ---
+  async getContentStructureFromDatabase(
+    format: "flat" | "tree" = "tree",
+    tenantId?: string | null,
+  ): Promise<any[]> {
+    const svc = await getServerContentService();
+    return svc.getContentStructureFromDatabase(format, tenantId);
+  },
+
+  async reorderContentNodes(items: any[], tenantId?: string | null): Promise<any[]> {
+    const svc = await getServerContentService();
+    await svc.reorderNodes(items, tenantId);
+    contentStore.updateVersion();
+    return contentStore.getNodesForTenant(tenantId);
+  },
+
+  async upsertContentNodes(operations: ContentNodeOperation[], tenantId?: string | null) {
+    const svc = await getServerContentService();
+    return svc.upsertContentNodes(operations, tenantId);
+  },
+
+  async search(query: string, options?: any) {
+    const svc = await getServerContentService();
+    return svc.search(query, options);
+  },
+
+  async scanForCollections() {
+    const svc = await getServerContentService();
+    return svc.scanCompiledCollections();
+  },
+};
+
+// Export the server version as default for server imports
+export { contentSystem as default };

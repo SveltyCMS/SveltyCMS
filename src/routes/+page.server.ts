@@ -5,7 +5,7 @@
  * This version is updated to use the moderncontent-managerfor cleaner logic.
  */
 
-import { contentSystem } from "@src/content";
+import { contentSystem } from "@src/content/index.server";
 import type { Role, User } from "@src/databases/auth/types";
 import { dbInitPromise } from "@src/databases/db";
 import { getPrivateSettingSync } from "@src/services/settings-service";

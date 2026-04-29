@@ -76,7 +76,7 @@ export async function loadSchemaNative(filePath: string): Promise<{ schema?: Sch
     process.env.BENCHMARK_STABLE === "true" || (globalThis as any)._largeScaleProject === true;
 
   if (useWorker) {
-    return new Promise(async (resolve) => {
+    return new Promise((resolve) => {
       const worker = getWorker();
       const version = process.env.BENCHMARK_STABLE === "true" ? "1" : Date.now();
 
@@ -143,7 +143,7 @@ export function generateSchemaHash(schema: Schema): string {
       hash |= 0; // Convert to 32bit integer
     }
     return hash.toString(36);
-  } catch (err) {
+  } catch {
     return `error-${Date.now()}`;
   }
 }

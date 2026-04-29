@@ -44,8 +44,8 @@ async function runUXAudit() {
         label: `Field ${i}`,
         type: i % 3 === 0 ? "text" : i % 3 === 1 ? "richtext" : "relation",
         required: true,
-        widget: { Name: "Input", Icon: "mdi:text", Color: "#ccc" }
-      }))
+        widget: { Name: "Input", Icon: "mdi:text", Color: "#ccc" },
+      })),
     };
 
     const formResult = await runBenchmark({
@@ -54,7 +54,11 @@ async function runUXAudit() {
       runs: 2,
       onIteration: async () => {
         // Simulates the logic that runs when opening the editor
-        await cms.collections.modifyRequest({ schema: complexSchema as any, data: {}, ...apiOptions } as any);
+        await cms.collections.modifyRequest({
+          schema: complexSchema as any,
+          data: {},
+          ...apiOptions,
+        } as any);
       },
       silent: true,
     });
@@ -76,14 +80,18 @@ async function runUXAudit() {
       subtitle: `Form Processor • Widget Registry • Stress: 50 Fields`,
       results: [
         { ...formResult, layer: "Form Proc" },
-        { ...widgetResult, layer: "Registry" }
+        { ...widgetResult, layer: "Registry" },
       ],
     });
 
     printSummaryTable([
       { key: "Complex Form Overhead", val: formResult.avgMs, unit: "ms" },
       { key: "Widget Lookup Latency", val: widgetResult.avgMs, unit: "ms" },
-      { key: "Simulated Rendering Vitality", val: (100 - formResult.avgMs).toFixed(2), unit: "/100" },
+      {
+        key: "Simulated Rendering Vitality",
+        val: (100 - formResult.avgMs).toFixed(2),
+        unit: "/100",
+      },
       { key: "UX Performance Tier", val: formResult.avgMs < 5 ? "PLATINUM" : "GOLD", unit: "" },
     ]);
 

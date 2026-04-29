@@ -33,9 +33,14 @@ export function createDatabaseError(
   message: string,
   silent = false,
 ): DatabaseError {
-  const details = error instanceof Error ? error.message : String(error);
+  let details = error instanceof Error ? error.message : String(error);
   const stack = error instanceof Error ? error.stack : undefined;
   const originalCode = (error as any)?.code;
+
+  // Detect MongoDB Case Sensitivity Conflict
+  if (details.includes("already exists with different case")) {
+    details = `MongoDB Case Sensitivity Conflict: ${details}. ACTION REQUIRED: Please check your database name in Step 1 of the Setup. It must EXACTLY match the existing database case on your server (e.g., SveltyCMS vs sveltycms). Alternatively, delete the conflicting database from your MongoDB server.`;
+  }
 
   // Log with structured context for better diagnostics, unless silent is requested.
   if (!silent) {

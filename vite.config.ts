@@ -253,17 +253,21 @@ const TAG = useColor ? "\x1b[34m[SveltyCMS]\x1b[0m" : "[SveltyCMS]";
 
 const log = {
   // Info level — tag is blue, message follows (may contain its own color codes)
-  info: (message: string) => console.log(`${TAG} ${message}`),
+  info: (message: string) => console.log(`${TAG} ℹ️ [INFO ] ${message}`),
   // Custom success level for clarity in build process
   success: (message: string) =>
-    console.log(`${TAG} ${useColor ? `✅ \x1b[32m${message}\x1b[0m` : `✅ ${message}`}`),
+    console.log(
+      `${TAG} ${useColor ? `✅ \x1b[32m[SUCCESS] ${message}\x1b[0m` : `✅ [SUCCESS] ${message}`}`,
+    ),
   // Corresponds to 'warn' level
   warn: (message: string) =>
-    console.warn(`${TAG} ${useColor ? `⚠️ \x1b[33m${message}\x1b[0m` : `⚠️ ${message}`}`),
+    console.warn(
+      `${TAG} ${useColor ? `⚠️ \x1b[33m[WARN ] ${message}\x1b[0m` : `⚠️ [WARN ] ${message}`}`,
+    ),
   // Corresponds to 'error' level
   error: (message: string, error?: unknown) =>
     console.error(
-      `${TAG} ${useColor ? `❌ \x1b[31m${message}\x1b[0m` : `❌ ${message}`}`,
+      `${TAG} ${useColor ? `❌ \x1b[31m[ERROR] ${message}\x1b[0m` : `❌ [ERROR] ${message}`}`,
       error ?? "",
     ),
 };

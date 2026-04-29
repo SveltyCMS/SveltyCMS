@@ -15,7 +15,7 @@
  * - Content Versioning is cached
  */
 
-import { contentSystem } from "@src/content";
+import { contentSystem } from "@src/content/index.server";
 import type { User } from "@src/databases/auth/types";
 import { auth } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";

@@ -162,7 +162,7 @@ mediaSchema.statics = {
     try {
       const result = await this.deleteMany({
         folderId: { $in: folderIds },
-      }).exec();
+      } as any).exec();
       logger.info(
         `Bulk deleted ${result.deletedCount} media items for folder IDs: ${folderIds.join(", ")}`,
       );

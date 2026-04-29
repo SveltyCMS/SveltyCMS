@@ -85,7 +85,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
   const contentLanguage = (cookies.get("contentLanguage") as Locale) ?? defaultContentLanguage;
 
   // Content System Hydration with error handling for preview mode
-  const { contentSystem } = await import("@src/content");
+  const { contentSystem } = await import("@src/content/index.server");
   let navigationStructure: NavigationNode[] = [];
   let contentNodes: any[] = [];
   let contentVersion = 0;

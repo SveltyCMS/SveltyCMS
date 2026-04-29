@@ -19,7 +19,7 @@ vi.mock("@src/databases/db", () => ({
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("@src/content", () => ({
+vi.mock("@src/content/index.server", () => ({
   contentSystem: {
     getCollections: vi.fn().mockResolvedValue([
       {

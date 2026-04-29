@@ -40,7 +40,7 @@ export class MongoThemeMethods {
         cacheKey,
         async () => {
           const theme = await this.themeModel
-            .findOne({ isActive: true, tenantId: effectiveTenantId })
+            .findOne({ isActive: true, tenantId: effectiveTenantId } as any)
             .lean()
             .exec();
           return { success: true, data: (theme as Theme) || null };
@@ -70,7 +70,7 @@ export class MongoThemeMethods {
       async () => {
         try {
           const theme = await this.themeModel
-            .findOne({ isDefault: true, tenantId: effectiveTenantId })
+            .findOne({ isDefault: true, tenantId: effectiveTenantId } as any)
             .lean()
             .exec();
           if (!theme) {
@@ -123,7 +123,7 @@ export class MongoThemeMethods {
         cacheKey,
         async () => {
           const themes = await this.themeModel
-            .find({ tenantId: effectiveTenantId })
+            .find({ tenantId: effectiveTenantId } as any)
             .sort({ order: 1 })
             .lean()
             .exec();
@@ -158,7 +158,7 @@ export class MongoThemeMethods {
       async () => {
         try {
           const theme = await this.themeModel
-            .findOne({ name: themeName, tenantId: effectiveTenantId })
+            .findOne({ name: themeName, tenantId: effectiveTenantId } as any)
             .lean()
             .exec();
           return { success: true, data: (theme as Theme) || null };
@@ -271,7 +271,7 @@ export class MongoThemeMethods {
       } = themeData as unknown as Record<string, unknown>;
       const result = await this.themeModel
         .findOneAndUpdate(
-          { name: themeData.name, tenantId: (themeData as any).tenantId || null },
+          { name: themeData.name, tenantId: (themeData as any).tenantId || null } as any,
           { $setOnInsert: { ...rest, _id: _id || uuidv4().replace(/-/g, "") } },
           { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
         )
@@ -297,7 +297,7 @@ export class MongoThemeMethods {
   async installOrUpdate(themeData: Theme): Promise<DatabaseResult<Theme>> {
     try {
       const result = await this.themeModel
-        .findOneAndUpdate({ _id: themeData._id }, themeData, {
+        .findOneAndUpdate({ _id: themeData._id } as any, themeData, {
           upsert: true,
           returnDocument: "after",
           setDefaultsOnInsert: true,
@@ -357,7 +357,7 @@ export class MongoThemeMethods {
       const effectiveTenantId = tenantId === undefined ? null : tenantId;
       const result = await this.themeModel
         .findOneAndUpdate(
-          { _id: themeId, tenantId: effectiveTenantId },
+          { _id: themeId, tenantId: effectiveTenantId } as any,
           { $set: { ...themeData, updatedAt: new Date() } },
           { returnDocument: "after" },
         )
@@ -388,20 +388,20 @@ export class MongoThemeMethods {
       await this.themeModel.bulkWrite([
         {
           updateMany: {
-            filter: { _id: { $ne: themeId }, tenantId: effectiveTenantId },
+            filter: { _id: { $ne: themeId }, tenantId: effectiveTenantId } as any,
             update: { $set: { [flag]: false } },
           },
         },
         {
           updateOne: {
-            filter: { _id: themeId, tenantId: effectiveTenantId },
+            filter: { _id: themeId, tenantId: effectiveTenantId } as any,
             update: { $set: { [flag]: true } },
           },
         },
       ]);
 
       const updatedTheme = await this.themeModel
-        .findOne({ _id: themeId, tenantId: effectiveTenantId })
+        .findOne({ _id: themeId, tenantId: effectiveTenantId } as any)
         .lean()
         .exec();
       return { success: true, data: (updatedTheme as Theme) || null };

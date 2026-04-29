@@ -3,7 +3,7 @@
  * @description System-level GraphQL resolvers for health, diagnostics, navigation, and collection stats.
  */
 
-import { contentSystem } from "@src/content";
+import { contentSystem } from "@src/content/index.server";
 import type { User } from "@src/databases/auth/types";
 import { logger } from "@utils/logger.server";
 

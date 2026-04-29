@@ -55,6 +55,7 @@
 	import SystemConfig from './system-config.svelte';
 	// Step Content Components
 	import WelcomeModal from './welcome-modal.svelte';
+	import { logger } from '@src/utils/logger.ts';
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
 	let { data } = $props();
@@ -150,7 +151,10 @@
 			if (dbConfigComponent && typeof dbConfigComponent.installDatabaseDriver === 'function') {
 				await dbConfigComponent.installDatabaseDriver(wizard.dbConfig.type);
 			}
-			await seedDatabase();
+			const seedSuccess = await seedDatabase();
+			if (!seedSuccess) {
+				return; // Block progression if seeding failed
+			}
 		}
 		if ((wizard.currentStep === 1 || wizard.currentStep === 2) && !validateStep(wizard.currentStep, true)) {
 			return;
@@ -174,14 +178,19 @@
 	}
 
 	async function handleCompleteSetup() {
-		console.log('[SetupPage] Complete Setup button clicked');
-		const success = await completeSetup((redirectPath: string) => {
-			console.log('[SetupPage] Setup successful, redirecting to:', redirectPath);
-			initialDataSnapshot = JSON.stringify(wizard);
-			goto(redirectPath);
-		});
-		if (success) {
-			initialDataSnapshot = JSON.stringify(wizard);
+		logger.info('[SetupPage] 🏁 handleCompleteSetup triggered');
+		try {
+			const success = await completeSetup((redirectPath: string) => {
+				logger.info('[SetupPage] ✅ Setup successful, redirecting to:', redirectPath);
+				initialDataSnapshot = JSON.stringify(wizard);
+				goto(redirectPath);
+			});
+			logger.info('[SetupPage] completeSetup result:', success);
+			if (success) {
+				initialDataSnapshot = JSON.stringify(wizard);
+			}
+		} catch (err) {
+			logger.error('[SetupPage] ❌ handleCompleteSetup failed:', err);
 		}
 	}
 
@@ -244,8 +253,6 @@
 								wizard.lastDbTestResult = null;
 								wizard.errorMessage = '';
 							}}
-							errorMessage={wizard.errorMessage}
-							successMessage={wizard.successMessage}
 							bind:this={dbConfigComponent}
 						/>
 					{:else if wizard.currentStep === 1}
@@ -278,7 +285,7 @@
 						/>
 					{/if}
 
-					{#if (wizard.successMessage || wizard.errorMessage) && wizard.lastDbTestResult}
+					{#if (wizard.successMessage || wizard.errorMessage) && wizard.lastDbTestResult && !setupStore.dbConfigChangedSinceTest}
 						<div
 							class="mt-4 flex flex-col rounded-md border-l-4 p-0 text-sm"
 							class:border-primary-400={!!wizard.successMessage}
@@ -300,7 +307,13 @@
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 									{/if}
 								</svg>
-								<div class="flex-1">{wizard.successMessage || wizard.errorMessage}</div>
+								<div class="flex-1">
+									{#if wizard.errorMessage}
+										<span class="font-bold">Connection Failed</span>{#if wizard.showDbDetails}: <span class="font-normal">{wizard.errorMessage}</span>{/if}
+									{:else}
+										{wizard.successMessage}
+									{/if}
+								</div>
 								<button
 									type="button"
 									class="btn-sm preset-outlined rounded flex shrink-0 items-center gap-1"
@@ -358,28 +371,21 @@
 									</div>
 									{#if !wizard.lastDbTestResult.success}
 										<div class="border-t border-surface-200 p-3 dark:border-surface-600">
-											{#if wizard.lastDbTestResult.userFriendly}
-												<div class="mb-2 font-semibold text-red-700">Error:</div>
-												<div class="mb-3 rounded bg-red-50 p-2 text-sm text-red-700 dark:bg-error-900/20 dark:text-white">
-													{wizard.lastDbTestResult.userFriendly}
-												</div>
-
-												{#if wizard.lastDbTestResult.canOverwrite}
-													<div class="mt-4 flex items-center gap-3">
-														<button
-															type="button"
-															class="btn variant-filled-error flex items-center gap-2"
-															onclick={() => setupStore.testDatabaseConnection(true, true)}
-															disabled={wizard.isLoading}
-														>
-															<iconify-icon icon="mdi:alert-remove"></iconify-icon>
-															<span>Confirm Overwrite</span>
-														</button>
-														<span class="text-[10px] text-red-600 dark:text-red-400 max-w-[200px]">
-															Warning: This will PERMANENTLY DELETE the existing database.
-														</span>
+											{#if wizard.lastDbTestResult.hint}
+												<div class="mb-1 rounded bg-amber-50 p-3 text-xs dark:bg-amber-900/20 dark:text-amber-200">
+													<div class="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-400 mb-1">
+														<iconify-icon icon="mdi:lightbulb-outline" class="text-lg"></iconify-icon>
+														<span>SUGGESTIONS:</span>
 													</div>
-												{/if}
+													<div class="space-y-1">
+														{#each wizard.lastDbTestResult.hint.split('\n') as step}
+															<div class="flex gap-2">
+																<span class="shrink-0 text-amber-500">•</span>
+																<span>{step.replace(/^\d+\.\s*/, '')}</span>
+															</div>
+														{/each}
+													</div>
+												</div>
 											{/if}
 										</div>
 									{/if}

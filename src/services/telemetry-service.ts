@@ -199,7 +199,7 @@ export const telemetryService = {
           }
 
           // 4. Content Dependency
-          const { contentSystem } = await import("@src/content");
+          const { contentSystem } = await import("@src/content/index.server");
 
           if (dbAdapter.ensureContent) {
             try {

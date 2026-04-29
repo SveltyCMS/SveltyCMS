@@ -111,28 +111,33 @@ graph TD
 The 2026 "Ultra-Elite" update introduced a massive architectural leap in content processing, achieving **sub-millisecond (0.04ms)** scan latencies for 1,000+ collections.
 
 ### 🧵 1. Worker Thread Pooling
+
 To prevent event-loop blocking during massive schema reloads, SveltyCMS now offloads module parsing and widget proxy creation to a **dedicated pool of background workers** (`module-worker.server.ts`). This ensures the main UI thread remains responsive even when thousands of schemas are being processed simultaneously.
 
 ### 🌳 2. Persistent Mtime Tree (Dirty Bits)
-The scanner now maintains a persistent, in-memory **"Dirty Bit" tree**. 
+
+The scanner now maintains a persistent, in-memory **"Dirty Bit" tree**.
+
 - **Steady State**: If the `ContentWatcher` hasn't flagged any changes, the scanner skips `fs.readdir` and `fs.stat` entirely, returning the cached schema map instantly.
 - **Micro-Surgical Invalidation**: When a file changes, only that specific node in the tree is marked dirty, triggering a single `fs.stat` and a single cache refresh.
 
 ### 📦 3. Batch Cache Retrieval (`getMany`)
+
 Individual cache lookups for every file have been replaced by a **Vectorized Batching** pattern. The system fetches all 1,000+ schema metadata blocks in a single `O(1)` trip to Redis/Memory using the new `CacheService.getMany` method.
 
 ### 🔢 4. Fast Deterministic Hashing
+
 Replaced heavy cryptographic MD5 with a lightweight, numeric string hash in `module-processor.server.ts`. This reduces reconciliation time for unchanged schemas by ~40%.
 
 ---
 
 ## 🚀 Performance Benchmarks
 
-| Metric | Baseline (v0.0.7) | Ultra-Elite (v0.0.8) | Status |
-| :--- | :--- | :--- | :--- |
-| **Warm Scan (120 files)** | 2.46ms | **0.014ms** | 🟢 **ULTRA ELITE** |
-| **Warm Scan (1,000 files)** | 14.23ms | **0.048ms** | 🟢 **ULTRA ELITE** |
-| **Cold Scan (1,000 files)** | 23.76ms | **9.16ms** | 🟢 **-61.4%** |
+| Metric                      | Baseline (v0.0.7) | Ultra-Elite (v0.0.8) | Status             |
+| :-------------------------- | :---------------- | :------------------- | :----------------- |
+| **Warm Scan (120 files)**   | 2.46ms            | **0.014ms**          | 🟢 **ULTRA ELITE** |
+| **Warm Scan (1,000 files)** | 14.23ms           | **0.048ms**          | 🟢 **ULTRA ELITE** |
+| **Cold Scan (1,000 files)** | 23.76ms           | **9.16ms**           | 🟢 **-61.4%**      |
 
 ---
 

@@ -219,12 +219,14 @@ export function updateServiceHealth(
     saveCurrentMetrics(systemStateStore);
   }
 
-  // Detect and report anomalies
-  const anomalies = detectAnomalies(serviceName, state);
-  if (anomalies.some((a) => a.severity === "critical" || a.severity === "high")) {
-    logger.error(
-      `🚨 ${anomalies.length} anomal${anomalies.length > 1 ? "ies" : "y"} detected for ${serviceName}`,
-    );
+  // Detect and report anomalies (Only if system is fully ready/warmed to avoid false positives during setup)
+  if (state.overallState !== "INITIALIZING" && state.overallState !== "SETUP") {
+    const anomalies = detectAnomalies(serviceName, state);
+    if (anomalies.some((a) => a.severity === "critical" || a.severity === "high")) {
+      logger.error(
+        `🚨 ${anomalies.length} anomal${anomalies.length > 1 ? "ies" : "y"} detected for ${serviceName}`,
+      );
+    }
   }
 }
 

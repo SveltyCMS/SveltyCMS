@@ -87,8 +87,6 @@ export async function safeFetch(
     headers.set("Referer", `${BASE_URL}/`);
   }
 
-
-
   const signal = init?.signal || AbortSignal.timeout(60000);
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {

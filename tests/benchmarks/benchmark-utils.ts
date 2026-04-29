@@ -74,18 +74,13 @@ function percentile(sorted: number[], p: number): number {
 /**
  * Computes high-fidelity statistics including CV for stability tracking.
  */
-export function computeStatistics(
-  times: number[],
-  rps: number,
-  config: any,
-): BenchmarkResult {
+export function computeStatistics(times: number[], rps: number, config: any): BenchmarkResult {
   const sorted = [...times].sort((a, b) => a - b);
   const sum = sorted.reduce((a, b) => a + b, 0);
   const avg = sum / sorted.length;
 
   // Standard Deviation for CV
-  const variance =
-    sorted.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / sorted.length;
+  const variance = sorted.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / sorted.length;
   const stdDev = Math.sqrt(variance);
   const cv = (stdDev / avg) * 100;
 
@@ -164,10 +159,7 @@ function discoverBenchmarkMetadata() {
   }
 
   // 🚀 If we found a file but no description, try to read it from the file header
-  if (
-    metadata.path !== "unknown" &&
-    metadata.proves === "Performance verification."
-  ) {
+  if (metadata.path !== "unknown" && metadata.proves === "Performance verification.") {
     try {
       const fullPath = path.resolve(process.cwd(), metadata.path);
       if (fs.existsSync(fullPath)) {
@@ -224,9 +216,7 @@ export function printTruthTable(options: {
   shortLabel?: string; // 🚀 Optional shortLabel for precise MDX targeting
 }) {
   const dbType = getDbType();
-  const dbNames = process.env.ALL_DBS?.split(",").map((s) => s.trim()) ?? [
-    dbType,
-  ];
+  const dbNames = process.env.ALL_DBS?.split(",").map((s) => s.trim()) ?? [dbType];
   const multi = dbNames.length > 1;
 
   for (const r of options.results) if (!r.db) r.db = dbType;
@@ -268,9 +258,7 @@ export function printTruthTable(options: {
     log("\n" + h.bar("╔", "╗"));
     log(h.center(options.title + " (MATRIX)"));
     if (options.subtitle) {
-      options.subtitle
-        .split("\n")
-        .forEach((line: string) => log(h.center(line)));
+      options.subtitle.split("\n").forEach((line: string) => log(h.center(line)));
     }
 
     // 🚀 Add File and Description for transparency
@@ -292,9 +280,7 @@ export function printTruthTable(options: {
       ["avg", "p95", "RPS"].forEach((m, i) => {
         let line = `║ ${(i === 0 ? sc : "").padEnd(SC_COL)} │ ${m.padEnd(METRIC_COL)}`;
         for (const db of dbNames) {
-          const r = options.results.find(
-            (x) => x.db === db && x.name.startsWith(sc),
-          );
+          const r = options.results.find((x) => x.db === db && x.name.startsWith(sc));
           const val = !r
             ? "—"
             : m === "avg"
@@ -310,25 +296,15 @@ export function printTruthTable(options: {
     }
     log(h.bar("╚", "╝"));
   } else if (options.layerMode) {
-    const W =
-      2 + SC_COL + 3 + 6 + 3 + VAL_COL + 3 + 12 + 3 + 12 + 3 + OVH_COL + 2;
+    const W = 2 + SC_COL + 3 + 6 + 3 + VAL_COL + 3 + 12 + 3 + 12 + 3 + OVH_COL + 2;
     const h = makeHelpers(W);
-    const row = (
-      sc: string,
-      c: string,
-      avg: string,
-      p95: string,
-      rps: string,
-      ovh: string,
-    ) =>
+    const row = (sc: string, c: string, avg: string, p95: string, rps: string, ovh: string) =>
       `║ ${sc.padEnd(SC_COL)} │ ${c.padEnd(6)} │ ${avg.padEnd(VAL_COL)} │ ${p95.padEnd(12)} │ ${rps.padEnd(12)} │ ${ovh.padEnd(OVH_COL)} ║`;
 
     log("\n" + h.bar("╔", "╗"));
     log(h.center(options.title.replace(" AUDIT", "") + " AUDIT"));
     if (options.subtitle) {
-      options.subtitle
-        .split("\n")
-        .forEach((line: string) => log(h.center(line)));
+      options.subtitle.split("\n").forEach((line: string) => log(h.center(line)));
     }
 
     // 🚀 Add File and Description for transparency
@@ -341,26 +317,16 @@ export function printTruthTable(options: {
     log(h.bar("╠", "╣"));
 
     const scenarios = Array.from(
-      new Set(
-        options.results.map(
-          (r) => r.name.replace(/^(SDK|Dispatcher) /, "").split(" @ ")[0],
-        ),
-      ),
+      new Set(options.results.map((r) => r.name.replace(/^(SDK|Dispatcher) /, "").split(" @ ")[0])),
     );
 
     scenarios.forEach((sc) => {
       const variants = options.results.filter((r) => r.name.includes(sc));
-      const concurrencyLevels = Array.from(
-        new Set(variants.map((r) => r.name.split(" @ ")[1])),
-      );
+      const concurrencyLevels = Array.from(new Set(variants.map((r) => r.name.split(" @ ")[1])));
 
       concurrencyLevels.forEach((c) => {
-        const sdk = variants.find(
-          (r) => r.name.includes(c) && r.name.startsWith("SDK"),
-        );
-        const dis = variants.find(
-          (r) => r.name.includes(c) && r.name.startsWith("Dispatcher"),
-        );
+        const sdk = variants.find((r) => r.name.includes(c) && r.name.startsWith("SDK"));
+        const dis = variants.find((r) => r.name.includes(c) && r.name.startsWith("Dispatcher"));
 
         if (sdk)
           log(
@@ -374,9 +340,7 @@ export function printTruthTable(options: {
             ),
           );
         if (dis) {
-          const overhead = sdk
-            ? `+${(dis.avgMs - sdk.avgMs).toFixed(2)} ms`
-            : "—";
+          const overhead = sdk ? `+${(dis.avgMs - sdk.avgMs).toFixed(2)} ms` : "—";
           log(
             row(
               "",
@@ -401,9 +365,7 @@ export function printTruthTable(options: {
     log("\n" + h.bar("╔", "╗"));
     log(h.center(options.title));
     if (options.subtitle) {
-      options.subtitle
-        .split("\n")
-        .forEach((line: string) => log(h.center(line)));
+      options.subtitle.split("\n").forEach((line: string) => log(h.center(line)));
     }
 
     // 🚀 Add File and Description for transparency
@@ -418,11 +380,7 @@ export function printTruthTable(options: {
     // 🚀 Load history for inline trend analysis
     let history: any[] = [];
     try {
-      const historyFile = path.resolve(
-        process.cwd(),
-        RESULTS_DIR,
-        "history.jsonl",
-      );
+      const historyFile = path.resolve(process.cwd(), RESULTS_DIR, "history.jsonl");
       if (fs.existsSync(historyFile)) {
         history = fs
           .readFileSync(historyFile, "utf8")
@@ -437,9 +395,7 @@ export function printTruthTable(options: {
 
     options.results.forEach((r) => {
       let trend = "";
-      const prev = history
-        .filter((h) => h.name === r.name && h.db === r.db)
-        .slice(-1)[0];
+      const prev = history.filter((h) => h.name === r.name && h.db === r.db).slice(-1)[0];
 
       if (prev && prev.avgMs > 0 && r.avgMs > 0) {
         const delta = ((r.avgMs - prev.avgMs) / prev.avgMs) * 100;
@@ -502,20 +458,14 @@ function pushTableToMdx(title: string, table: string, shortLabel?: string) {
     let trendStr = "";
     if (lastMdxResults && lastMdxResults.length > 0) {
       try {
-        const historyFile = path.resolve(
-          process.cwd(),
-          RESULTS_DIR,
-          "history.jsonl",
-        );
+        const historyFile = path.resolve(process.cwd(), RESULTS_DIR, "history.jsonl");
         if (fs.existsSync(historyFile)) {
           const lines = fs.readFileSync(historyFile, "utf8").trim().split("\n");
           const mainResult = lastMdxResults[lastMdxResults.length - 1];
           const historyLines = lines
             .filter((l) => l.trim().length > 0)
             .map((l) => JSON.parse(l))
-            .filter(
-              (h) => h.name === mainResult.name && h.db === mainResult.db,
-            );
+            .filter((h) => h.name === mainResult.name && h.db === mainResult.db);
 
           if (historyLines.length > 0) {
             const prev = historyLines[historyLines.length - 1];
@@ -536,9 +486,7 @@ function pushTableToMdx(title: string, table: string, shortLabel?: string) {
     const tableBlock = `\n### 🏷️ ${title.split("—")[1]?.trim() || title}${trendStr}\n\n\`\`\`text\n${table}\n\`\`\`\n`;
 
     if (content.includes(START) && content.includes(END)) {
-      const regex = new RegExp(
-        `<!-- ${tag}_START -->[\\s\\S]*?<!-- ${tag}_END -->`,
-      );
+      const regex = new RegExp(`<!-- ${tag}_START -->[\\s\\S]*?<!-- ${tag}_END -->`);
       content = content.replace(regex, `${START}${tableBlock}${END}`);
     } else {
       // Auto-Registration: Append to the "Detailed Performance Ledger" section
@@ -564,8 +512,7 @@ function saveTerminalTable(title: string, content: string) {
   const dir = path.resolve(process.cwd(), RESULTS_DIR, dbType);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-  const fileName =
-    title.toLowerCase().replace(/[^a-z0-9]/g, "_") + ".table.txt";
+  const fileName = title.toLowerCase().replace(/[^a-z0-9]/g, "_") + ".table.txt";
   fs.writeFileSync(path.join(dir, fileName), content);
 }
 
@@ -577,13 +524,7 @@ export function printSummaryTable(
     bar: (l: string, r: string) => l + "═".repeat(W - 2) + r,
     center: (s: string) => {
       const pad = W - 2 - s.length;
-      return (
-        "║" +
-        " ".repeat(Math.floor(pad / 2)) +
-        s +
-        " ".repeat(Math.ceil(pad / 2)) +
-        "║"
-      );
+      return "║" + " ".repeat(Math.floor(pad / 2)) + s + " ".repeat(Math.ceil(pad / 2)) + "║";
     },
   };
 
@@ -612,13 +553,7 @@ export function printSummaryTable(
 // ── core execution ───────────────────────────────────────────────────────────
 
 export async function runBenchmark(config: any) {
-  const {
-    iterations,
-    runs = 1,
-    concurrency = 1,
-    onIteration,
-    onSetup,
-  } = config;
+  const { iterations, runs = 1, concurrency = 1, onIteration, onSetup } = config;
   if (!onIteration) throw new Error("Benchmark must provide onIteration");
 
   const results: number[] = [];
@@ -681,9 +616,7 @@ export async function runStochasticLoadTest(config: {
   let totalReqs = 0;
   let failures = 0;
 
-  console.log(
-    `   [Stochastic] Starting ${config.name} with ${stages.length} stages...`,
-  );
+  console.log(`   [Stochastic] Starting ${config.name} with ${stages.length} stages...`);
 
   for (const stage of stages) {
     const startTime = Date.now();
@@ -712,8 +645,7 @@ export async function runStochasticLoadTest(config: {
   const violations: string[] = [];
   if (thresholds.p95) {
     const limit = parseFloat(thresholds.p95.replace(/[^\d.]/g, ""));
-    if (p95 > limit)
-      violations.push(`p95 latency ${p95.toFixed(2)}ms > threshold ${limit}ms`);
+    if (p95 > limit) violations.push(`p95 latency ${p95.toFixed(2)}ms > threshold ${limit}ms`);
   }
   if (thresholds.error_rate) {
     const limit = parseFloat(thresholds.error_rate.replace(/[^\d.]/g, ""));
@@ -743,16 +675,13 @@ export async function setupBenchmarkServer() {
   process.env.LOG_LEVEL = "fatal";
   process.env.QUIET = "true";
 
-  const { startServer, runSystemSetup } =
-    await import("../../scripts/benchmark-matrix/server");
-  const { ALL_DATABASES } =
-    await import("../../scripts/benchmark-matrix/config");
+  const { startServer, runSystemSetup } = await import("../../scripts/benchmark-matrix/server");
+  const { ALL_DATABASES } = await import("../../scripts/benchmark-matrix/config");
 
   const dbType = getDbType();
   const dbConf =
-    ALL_DATABASES.find(
-      (d) => (d.useRedis ? `${d.type}-redis` : d.type) === dbType,
-    ) || ALL_DATABASES[0];
+    ALL_DATABASES.find((d) => (d.useRedis ? `${d.type}-redis` : d.type) === dbType) ||
+    ALL_DATABASES[0];
   const port = 4173 + Math.floor(Math.random() * 500);
 
   process.env.API_BASE_URL = `http://127.0.0.1:${port}`;
@@ -813,10 +742,8 @@ export async function setupBenchmarkServer() {
 }
 
 export async function mockDispatch(pathOrEvent: any, method: string = "GET") {
-  const pathStr =
-    typeof pathOrEvent === "string" ? pathOrEvent : pathOrEvent.path;
-  const targetMethod =
-    typeof pathOrEvent === "string" ? method : pathOrEvent.method || "GET";
+  const pathStr = typeof pathOrEvent === "string" ? pathOrEvent : pathOrEvent.path;
+  const targetMethod = typeof pathOrEvent === "string" ? method : pathOrEvent.method || "GET";
 
   const { handleApiRequests } = await import("@src/hooks/handle-api-requests");
   const url = `http://localhost/api${pathStr.startsWith("/") ? pathStr : "/" + pathStr}`;
@@ -869,11 +796,7 @@ export function exportResult(r: any) {
 
   // 🚀 Automated Time-Series Trend Logging
   try {
-    const historyFile = path.resolve(
-      process.cwd(),
-      RESULTS_DIR,
-      "history.jsonl",
-    );
+    const historyFile = path.resolve(process.cwd(), RESULTS_DIR, "history.jsonl");
     const entry =
       JSON.stringify({
         timestamp: new Date().toISOString(),
@@ -934,43 +857,29 @@ export const TEST_API_SECRET = (() => {
   if (process.env.TEST_API_SECRET) return process.env.TEST_API_SECRET;
   if (process.env.VITE_TEST_API_SECRET) return process.env.VITE_TEST_API_SECRET;
   try {
-    const secretPath = path.join(
-      process.cwd(),
-      "tests",
-      "e2e",
-      ".auth",
-      "test-secret.txt",
-    );
+    const secretPath = path.join(process.cwd(), "tests", "e2e", ".auth", "test-secret.txt");
     const fs = require("node:fs");
-    if (fs.existsSync(secretPath))
-      return fs.readFileSync(secretPath, "utf8").trim();
+    if (fs.existsSync(secretPath)) return fs.readFileSync(secretPath, "utf8").trim();
   } catch {
     // Ignore
   }
   return "SVELTYCMS_TEST_SECRET_2026";
 })();
 
-console.log(
-  `[benchmark-utils.ts] TEST_API_SECRET resolved: ${TEST_API_SECRET.substring(0, 4)}...`,
-);
+console.log(`[benchmark-utils.ts] TEST_API_SECRET resolved: ${TEST_API_SECRET.substring(0, 4)}...`);
 
 /**
  * Ensures that the stable benchmark collection and entry exist in the DB.
  * Also registers them in the in-process contentStore for LocalCMS audits.
  */
-export async function ensureStableTestData(
-  db: any,
-  tenantId: string = "global",
-) {
+export async function ensureStableTestData(db: any, tenantId: string = "global") {
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
   if (!db && !getDb()) {
     await ensureFullInitialization();
   }
   const activeDb = db || getDb();
   if (!activeDb)
-    throw new Error(
-      "ensureStableTestData: activeDb is null after ensureFullInitialization",
-    );
+    throw new Error("ensureStableTestData: activeDb is null after ensureFullInitialization");
 
   const schema = {
     _id: STABLE_COLLECTION,
@@ -1007,10 +916,7 @@ export async function ensureStableTestData(
     ],
   };
 
-  const existingColRes = await activeDb.collection.getSchemaById(
-    STABLE_COLLECTION,
-    tenantId,
-  );
+  const existingColRes = await activeDb.collection.getSchemaById(STABLE_COLLECTION, tenantId);
   if (!existingColRes.success) {
     await activeDb.collection.create(schema as any, tenantId);
   }

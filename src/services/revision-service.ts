@@ -3,7 +3,7 @@
  * @description Service for handling entry revisions.
  */
 
-import { contentSystem } from "@src/content";
+import { contentSystem } from "@src/content/index.server";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 

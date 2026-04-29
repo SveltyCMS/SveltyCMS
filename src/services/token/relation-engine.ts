@@ -8,7 +8,7 @@
  * - Token Generation
  */
 
-import { contentSystem } from "@src/content";
+import { contentSystem } from "@src/content/index.server";
 import type { FieldInstance, Schema } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
 import { logger } from "@utils/logger";

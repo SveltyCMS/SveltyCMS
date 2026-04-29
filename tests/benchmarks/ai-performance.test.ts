@@ -19,7 +19,7 @@ async function runAIAudit() {
   console.log("🚀 Starting Enterprise AI Performance Audit...\n");
 
   const { aiService } = await import("@src/services/ai-service");
-  
+
   // Mock LLM Response to isolate CMS overhead
   const originalChat = aiService.chat;
   aiService.chat = async () => "Mocked LLM Response";
@@ -56,7 +56,7 @@ async function runAIAudit() {
       subtitle: `CMS Internal Tax (MOCKED LLM) • ${getDbType().toUpperCase()}`,
       results: [
         { ...enrichResult, layer: "Enrichment" },
-        { ...layoutResult, layer: "Layout Gen" }
+        { ...layoutResult, layer: "Layout Gen" },
       ],
     });
 

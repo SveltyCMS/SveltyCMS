@@ -9,21 +9,12 @@ import "../unit/setup.ts";
 
 // 🚀 Direct mock to ensure widgets are available in this isolated run
 mock.module("@src/widgets/scanner", () => {
-  const names = [
-    "Input",
-    "RichText",
-    "Relation",
-    "Select",
-    "DateTime",
-    "Group",
-    "Repeater",
-  ];
+  const names = ["Input", "RichText", "Relation", "Select", "DateTime", "Group", "Repeater"];
   const modules: Record<string, any> = {};
   for (const name of names) {
     const factory = (config: any) => ({
       ...config,
-      db_fieldName:
-        config?.db_fieldName || config?.label?.toLowerCase() || "field",
+      db_fieldName: config?.db_fieldName || config?.label?.toLowerCase() || "field",
       widget: { Name: name },
     });
     (factory as any).Name = name;
@@ -80,11 +71,7 @@ async function runWidgetAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        await db.crud.findMany(
-          STABLE_COLLECTION,
-          {},
-          { limit: 10, tenantId: "global" as any },
-        );
+        await db.crud.findMany(STABLE_COLLECTION, {}, { limit: 10, tenantId: "global" as any });
       },
     });
     allResults.push({ ...dbBaseline, layer: "Database" });
@@ -118,10 +105,7 @@ async function runWidgetAudit() {
 
     console.log("   Core Widgets:", widgets.coreWidgets.join(", "));
     console.log("   Active Widgets:", widgets.activeWidgets.join(", "));
-    console.log(
-      "   Available Functions:",
-      Object.keys(widgets.widgetFunctions).join(", "),
-    );
+    console.log("   Available Functions:", Object.keys(widgets.widgetFunctions).join(", "));
 
     const richTextWidget = widgets.RichText({
       label: "Content",
@@ -156,8 +140,7 @@ async function runWidgetAudit() {
       results: allResults,
     });
 
-    const taxPercent =
-      ((widgetPipeline.avgMs - dbBaseline.avgMs) / dbBaseline.avgMs) * 100;
+    const taxPercent = ((widgetPipeline.avgMs - dbBaseline.avgMs) / dbBaseline.avgMs) * 100;
 
     printSummaryTable([
       { key: "DB Baseline Latency", val: dbBaseline.avgMs, unit: "ms" },

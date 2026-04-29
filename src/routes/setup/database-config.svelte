@@ -55,9 +55,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		toggleDbPassword,
 		testDatabaseConnection,
 		dbConfigChangedSinceTest,
-		clearDbTestError,
-		errorMessage,
-		successMessage
+		clearDbTestError
 	} = $props();
 
 	let unsupportedDbSelected = $state(false);
@@ -723,37 +721,6 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				role="alert"
 			>
 				{setup_help_database_type?.() || 'Database settings changed since last successful test. Please re-test to proceed.'}
-			</div>
-		{/if}
-		{#if errorMessage && !dbConfigChangedSinceTest}
-			<div class="mt-4 rounded-md bg-error-500 p-4 text-sm text-white" role="alert">
-				<div class="flex items-center gap-2 font-bold">
-					<iconify-icon icon="mdi:alert-circle" width="24"></iconify-icon>
-					Connection Failed
-				</div>
-				<div class="mt-1">{errorMessage}</div>
-				{#if setupStore.wizard.lastDbTestResult?.hint}
-					<div class="mt-3 border-t border-white/20 pt-3 text-xs italic text-white/90">
-						<span class="font-bold uppercase tracking-wider text-white/50">Suggestion:</span>
-						<div class="mt-1 leading-relaxed">
-							{#each setupStore.wizard.lastDbTestResult.hint.split('\n') as step}
-								<div class="flex gap-2">
-									<span class="shrink-0 text-white/50">•</span>
-									<span>{step.replace(/^\d+\.\s*/, '')}</span>
-								</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
-			</div>
-		{/if}
-		{#if successMessage && !dbConfigChangedSinceTest}
-			<div class="mt-4 rounded-md bg-primary-500 p-4 text-sm text-white shadow-lg" role="alert">
-				<div class="flex items-center gap-2 font-bold">
-					<iconify-icon icon="mdi:check-circle" width="20" class="text-white"></iconify-icon>
-					Success!
-				</div>
-				<div class="mt-1 text-white/90 font-medium">{successMessage}</div>
 			</div>
 		{/if}
 	</form>

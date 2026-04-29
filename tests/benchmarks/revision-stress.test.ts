@@ -37,8 +37,12 @@ async function runRevisionAudit() {
     _id: COLLECTION_ID,
     name: "Revision Stress Test",
     fields: [
-      { name: "title", type: "text", widget: { Name: "Input", Icon: "mdi:text", Color: "#ccc" } }, 
-      { name: "version", type: "number", widget: { Name: "Input", Icon: "mdi:numeric", Color: "#ccc" } }
+      { name: "title", type: "text", widget: { Name: "Input", Icon: "mdi:text", Color: "#ccc" } },
+      {
+        name: "version",
+        type: "number",
+        widget: { Name: "Input", Icon: "mdi:numeric", Color: "#ccc" },
+      },
     ],
     status: "published",
     revision: true, // Enable revisions for this test
@@ -50,21 +54,27 @@ async function runRevisionAudit() {
 
   // 🚀 CRITICAL: Sync with in-memory contentStore
   const { contentStore } = await import("@src/stores/content-store.svelte");
-  contentStore.sync([{ 
-    _id: COLLECTION_ID, 
-    nodeType: "collection", 
-    path: `/${COLLECTION_ID}`,
-    name: COLLECTION_ID,
-    collectionDef: schema,
-    tenantId: "global"
-  } as any]);
+  contentStore.sync([
+    {
+      _id: COLLECTION_ID,
+      nodeType: "collection",
+      path: `/${COLLECTION_ID}`,
+      name: COLLECTION_ID,
+      collectionDef: schema,
+      tenantId: "global",
+    } as any,
+  ]);
 
   try {
     // 2. Initial Read (Empty History)
     // Clean existing if any to avoid UNIQUE constraint error
     await db!.crud.deleteMany(COLLECTION_ID, { _id: DOC_ID as any }, { tenantId: "global" as any });
-    await cms.collections.create(COLLECTION_ID, { _id: DOC_ID, title: "Original", version: 0 }, apiOptions);
-    
+    await cms.collections.create(
+      COLLECTION_ID,
+      { _id: DOC_ID, title: "Original", version: 0 },
+      apiOptions,
+    );
+
     console.log("   → Measuring Baseline Read (1 version)...");
     const baselineResult = await runBenchmark({
       name: "Baseline Read",
@@ -79,7 +89,12 @@ async function runRevisionAudit() {
     // 3. Create 100 Revisions
     console.log(`   → Creating ${VERSION_COUNT} revisions for document ${DOC_ID}...`);
     for (let i = 1; i <= VERSION_COUNT; i++) {
-      await cms.collections.update(COLLECTION_ID, DOC_ID, { title: `Version ${i}`, version: i }, apiOptions);
+      await cms.collections.update(
+        COLLECTION_ID,
+        DOC_ID,
+        { title: `Version ${i}`, version: i },
+        apiOptions,
+      );
       if (i % 20 === 0) process.stdout.write(".");
     }
     process.stdout.write("\n");
@@ -105,7 +120,7 @@ async function runRevisionAudit() {
       subtitle: `History Growth • ${VERSION_COUNT} Versions • ${getDbType().toUpperCase()}`,
       results: [
         { ...baselineResult, layer: "Baseline (v1)" },
-        { ...stressedResult, layer: "Stressed (v100)" }
+        { ...stressedResult, layer: "Stressed (v100)" },
       ],
     });
 

@@ -131,10 +131,16 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
     if (rolesRes.length === 0) {
       const roles = getDefaultRoles();
       for (const role of roles) {
-        await this.auth.createRole({
+        const result = await this.auth.createRole({
           ...role,
           tenantId: "global", // Default tenant for system roles
         } as any);
+
+        if (!result.success) {
+          throw new Error(
+            `Failed to seed role "${role.name}": ${result.error?.message || result.message}`,
+          );
+        }
       }
     }
   }

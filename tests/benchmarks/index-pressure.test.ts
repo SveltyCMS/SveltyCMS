@@ -40,7 +40,7 @@ async function runPressureAudit() {
     fields: [
       { name: "title", type: "text", widget: { Name: "Input" } },
       { name: "score", type: "number", widget: { Name: "Number" } },
-      { name: "category", type: "text", widget: { Name: "Select" } }
+      { name: "category", type: "text", widget: { Name: "Select" } },
     ],
     status: "published",
   };
@@ -51,7 +51,14 @@ async function runPressureAudit() {
 
   // Sync contentStore
   const { contentStore } = await import("@src/stores/content-store.svelte");
-  contentStore.sync([{ _id: COLLECTION_ID, nodeType: "collection", collectionDef: schema, tenantId: "global" } as any]);
+  contentStore.sync([
+    {
+      _id: COLLECTION_ID,
+      nodeType: "collection",
+      collectionDef: schema,
+      tenantId: "global",
+    } as any,
+  ]);
 
   // Seed data in background for speed
   for (let i = 0; i < ENTRY_COUNT / BATCH_SIZE; i++) {
@@ -60,7 +67,7 @@ async function runPressureAudit() {
       title: `Pressure Entry ${i * BATCH_SIZE + j}`,
       score: Math.floor(Math.random() * 1000),
       category: i % 2 === 0 ? "A" : "B",
-      tenantId: "global"
+      tenantId: "global",
     }));
     await cms.collections.bulkCreate(COLLECTION_ID, batch as any, apiOptions);
     if (i % 10 === 0) process.stdout.write(".");
@@ -77,11 +84,11 @@ async function runPressureAudit() {
       iterations: 200,
       runs: 1,
       onIteration: async () => {
-        await cms.collections.find(COLLECTION_ID, { 
-          sort: "score", 
-          order: "desc", 
+        await cms.collections.find(COLLECTION_ID, {
+          sort: "score",
+          order: "desc",
           limit: 20,
-          ...apiOptions
+          ...apiOptions,
         });
       },
       silent: true,
@@ -94,10 +101,10 @@ async function runPressureAudit() {
       iterations: 200,
       runs: 1,
       onIteration: async () => {
-        await cms.collections.find(COLLECTION_ID, { 
+        await cms.collections.find(COLLECTION_ID, {
           filter: { category: "A" },
           limit: 20,
-          ...apiOptions
+          ...apiOptions,
         });
       },
       silent: true,
@@ -108,7 +115,7 @@ async function runPressureAudit() {
       subtitle: `100,000 Entries • Multi-Field Filtering • ${getDbType().toUpperCase()}`,
       results: [
         { ...sortResult, layer: "Sorted" },
-        { ...filterResult, layer: "Filtered" }
+        { ...filterResult, layer: "Filtered" },
       ],
     });
 

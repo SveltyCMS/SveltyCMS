@@ -53,7 +53,7 @@ export async function handleUtilityRoutes(
   // ========================
   if (namespace === "openapi.json" && (request.method === "GET" || request.method === "HEAD")) {
     const service = await getApiSpecService();
-    const { contentSystem } = await import("@src/content");
+    const { contentSystem } = await import("@src/content/index.server");
 
     // AI Reconnaissance Blinding: Ensure only authenticated admins can view the full spec.
     if (!locals.isAdmin) {
@@ -202,7 +202,7 @@ export async function handleUtilityRoutes(
   // Trash Management
   // ========================
   if (namespace === "trash") {
-    const { contentSystem } = await import("@src/content");
+    const { contentSystem } = await import("@src/content/index.server");
 
     if (request.method === "GET") {
       const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 200);

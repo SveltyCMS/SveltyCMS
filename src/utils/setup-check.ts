@@ -90,16 +90,17 @@ export function isSetupComplete(): boolean {
     const configFileName = isTestMode ? "private.test.ts" : "private.ts";
     const privateConfigPath = path.join(process.cwd(), "config", configFileName);
 
+    const scLogger = logger.channel("setupCheck");
     if (!fs.existsSync(privateConfigPath)) {
-      console.warn(`[setupCheck] MISSING_CONFIG triggered. File not found: ${privateConfigPath}`);
+      scLogger.warn(`MISSING_CONFIG triggered. File not found: ${privateConfigPath}`);
       if (isTestMode) {
-        console.log(`[setupCheck] ${configFileName} NOT FOUND`);
+        scLogger.info(`${configFileName} NOT FOUND`);
       }
       setupConfigStatus = false;
       return setupConfigStatus;
     }
     if (isTestMode) {
-      console.log(`[setupCheck] ${configFileName} FOUND`);
+      scLogger.info(`${configFileName} FOUND`);
     }
 
     const configContent = fs.readFileSync(privateConfigPath, "utf8");
@@ -111,9 +112,11 @@ export function isSetupComplete(): boolean {
     const hasDbName = !/DB_NAME[:=]\s*(""|''|``)/.test(configContent);
 
     if (!hasJwtSecret || !hasDbHost || !hasDbName) {
-      console.warn(
-        `[setupCheck] MISSING_CONFIG triggered. hasJwtSecret: ${hasJwtSecret}, hasDbHost: ${hasDbHost}, hasDbName: ${hasDbName}`,
-      );
+      logger
+        .channel("setupCheck")
+        .warn(
+          `MISSING_CONFIG triggered. hasJwtSecret: ${hasJwtSecret}, hasDbHost: ${hasDbHost}, hasDbName: ${hasDbName}`,
+        );
     }
 
     // Config file exists and has values - assume setup complete for now
@@ -122,7 +125,7 @@ export function isSetupComplete(): boolean {
     return setupConfigStatus;
   } catch (error) {
     // Log error here as it's an exceptional case during a critical check
-    console.error("[SveltyCMS] ❌ Error during setup check:", error);
+    logger.error("Error during setup check:", error);
     setupConfigStatus = false;
     return setupConfigStatus;
   }
@@ -158,7 +161,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 
     // Guard against uninitialized adapter
     if (!dbAdapter) {
-      console.log("[setupCheck] DB adapter not available after initialization promise.");
+      logger.channel("setupCheck").info("DB adapter not available after initialization promise.");
       return false; // Stay in setup mode if adapter failed to init
     }
 
@@ -174,7 +177,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
     }
 
     if (!dbAdapter.auth) {
-      console.log("[setupCheck] Auth module not ready after initialization");
+      logger.channel("setupCheck").info("Auth module not ready after initialization");
       // Return true to avoid blocking if config exists
       return true;
     }
@@ -215,15 +218,14 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
     setupStatusCheckedDb = true;
     return true;
   } catch (error) {
-    console.error("[SveltyCMS] ❌ Database validation failed during setup check:", error);
+    const scLogger = logger.channel("setupCheck");
+    scLogger.error("Database validation failed during setup check:", error);
     // Log adapter status for diagnostics
     try {
       const db = await import("../databases/db");
-      console.error(`[setupCheck Diagnostic] dbAdapter availability: ${!!db.dbAdapter}`);
+      scLogger.error(`Diagnostic: dbAdapter availability: ${!!db.dbAdapter}`);
     } catch {
-      console.error(
-        "[setupCheck Diagnostic] Could not even import db module during error handling.",
-      );
+      scLogger.error("Diagnostic: Could not even import db module during error handling.");
     }
     // If config exists but DB check fails, we return false to stay in setup mode
     // This prevents blocking setup actions during transition.
@@ -258,7 +260,7 @@ export function invalidateSetupCache(
           typeof globalThis !== "undefined" &&
           (globalThis as any).process?.env?.NODE_ENV === "development";
         if (isDev) {
-          console.warn("[setupCheck] Could not clear private config cache:", err);
+          logger.channel("setupCheck").warn("Could not clear private config cache:", err);
         }
       });
   }

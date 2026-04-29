@@ -15,9 +15,12 @@ export function isSetupComplete(): boolean {
   if (typeof window !== "undefined") {
     return true; // Assume setup is complete if browser is running the app
   }
-  console.error(
-    `[isSetupComplete] BENCHMARK env: ${process.env.BENCHMARK}, TEST_MODE: ${process.env.TEST_MODE}`,
-  );
+  // Silence noisy debug logs in normal dev
+  if (process.env.VERBOSE_LOGS === "true") {
+    console.log(
+      `[isSetupComplete] BENCHMARK env: ${process.env.BENCHMARK}, TEST_MODE: ${process.env.TEST_MODE}`,
+    );
+  }
   if (process.env.BENCHMARK === "true" || process.env.TEST_MODE === "true") {
     return true; // Always allow in benchmark/test mode
   }

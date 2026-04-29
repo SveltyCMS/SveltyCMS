@@ -163,7 +163,16 @@ export function restrictedResponse(
     return json({ error: message, state }, { status, headers: baseHeaders });
   }
 
-  return new Response(message, { status, headers: baseHeaders });
+  const html =
+    state === "INITIALIZING"
+      ? `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="2"><title>Initializing</title><style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f8fafc;color:#334155;} .loader{border:4px solid #e2e8f0;border-top:4px solid #3b82f6;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin-right:15px;} @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}</style></head><body><div class="loader"></div><h2>System is starting up...</h2></body></html>`
+      : `<!DOCTYPE html><html><head><title>System Maintenance</title></head><body><h2>${message}</h2></body></html>`;
+
+  const headers = new Headers(baseHeaders);
+  headers.set("Content-Type", "text/html; charset=utf-8");
+  headers.set("Retry-After", "2");
+
+  return new Response(html, { status, headers });
 }
 
 /**

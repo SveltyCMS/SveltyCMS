@@ -220,7 +220,7 @@ export async function runBackgroundTasks(dbAdapter: DatabaseAdapter) {
         })(),
         (async () => {
           updateServiceHealth("contentSystem", "initializing", "Initializing content manager...");
-          const { contentSystem } = await import("../content");
+          const { contentSystem } = await import("../content/index.server");
           if (contentSystem?.initialize) {
             await contentSystem.initialize(null, true, dbAdapter);
             updateServiceHealth("contentSystem", "healthy", "Content manager initialized");

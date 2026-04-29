@@ -19,17 +19,39 @@ const HOST = process.env.HOST ?? "127.0.0.1";
 const API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
 
 // ---------------------------------------------------------------------------
-// Hardened Configuration (Synchronized with Benchmark Matrix)
+// Hardened Configuration (Independent of Benchmark Matrix)
 // ---------------------------------------------------------------------------
 const loadHardenedConfig = async () => {
-  const { JWT_SECRET_KEY, ENCRYPTION_KEY, TEST_API_SECRET, ADMIN_PASSWORD } =
-    await import("./benchmark-matrix/config");
+  const isCI = process.env.CI === "true";
+
+  // 1. Try to load TEST_API_SECRET from file or env
+  let testApiSecret = process.env.TEST_API_SECRET;
+  if (!testApiSecret) {
+    try {
+      const secretPath = join(ROOT, "tests", "e2e", ".auth", "test-secret.txt");
+      const { existsSync, readFileSync } = await import("node:fs");
+      if (existsSync(secretPath)) {
+        testApiSecret = readFileSync(secretPath, "utf8").trim();
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  // 2. Validate essential keys
+  const jwtSecret = process.env.JWT_SECRET_KEY || "Integration-Test-JWT-Secret-Key-2026";
+  const encryptionKey = process.env.ENCRYPTION_KEY || "Integration-Encryption-Key-2026-32ch";
+  const adminPassword = process.env.ADMIN_PASSWORD || "Password123!";
+
+  if (isCI && !testApiSecret) {
+    throw new Error("❌ CRITICAL: TEST_API_SECRET is missing in CI environment");
+  }
 
   return {
-    JWT_SECRET_KEY,
-    ENCRYPTION_KEY,
-    TEST_API_SECRET,
-    ADMIN_PASSWORD,
+    JWT_SECRET_KEY: jwtSecret,
+    ENCRYPTION_KEY: encryptionKey,
+    TEST_API_SECRET: testApiSecret || "SVELTYCMS_TEST_SECRET_2026",
+    ADMIN_PASSWORD: adminPassword,
   };
 };
 

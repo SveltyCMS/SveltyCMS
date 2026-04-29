@@ -22,7 +22,7 @@ export async function handleContentRoutes(
   // --- Content Version & Refresh ---
   if (namespace === "content") {
     if (method === "version") {
-      const { contentSystem } = await import("@src/content");
+      const { contentSystem } = await import("@src/content/index.server");
       return json({ version: contentSystem.getContentVersion() });
     }
     if (method === "refresh") {

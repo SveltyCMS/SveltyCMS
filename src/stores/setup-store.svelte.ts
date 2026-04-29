@@ -22,7 +22,6 @@ import { logger } from "@utils/logger";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { safeParse } from "valibot";
 import { deserialize } from "$app/forms";
-import { goto } from "$app/navigation";
 
 // --- Types ---
 export type SupportedDbType =
@@ -594,6 +593,7 @@ function createSetupStore() {
         method: "POST",
         body: formData,
       });
+      logger.debug("[SetupStore] ?/completeSetup fetch finished, status:", response.status);
 
       const responseText = await response.text();
       logger.debug("[SetupStore] ?/completeSetup response received");
@@ -645,12 +645,15 @@ function createSetupStore() {
       // Clear store state locally
       const targetPath = data.redirectPath || "/en/collections";
 
-      // Call the onSuccess callback with redirect path
-      if (onSuccess) {
-        onSuccess(targetPath);
-      } else {
-        goto(targetPath);
-      }
+      // Success! Give the toast a moment and then redirect hard to ensure clean slate after restart
+      setTimeout(() => {
+        if (onSuccess) {
+          onSuccess(targetPath);
+        } else {
+          // Use hard redirect for the very final step to ensure system state is fully re-synced in browser
+          window.location.href = targetPath;
+        }
+      }, 500);
 
       return true;
     } catch (e) {

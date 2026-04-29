@@ -32,7 +32,10 @@ export default async function globalSetup() {
   }
 
   // STEP 2: Clean up old test data (unless skipped)
-  if (process.env.SKIP_TEST_CLEANUP === "true") {
+  const isCI = process.env.CI === "true";
+  const skipCleanup = process.env.SKIP_TEST_CLEANUP === "true";
+
+  if (skipCleanup) {
     console.log("[Global Setup] Cleanup skipped (SKIP_TEST_CLEANUP=true)");
   } else {
     console.log("[Global Setup] Cleaning old test data...");
@@ -46,8 +49,10 @@ export default async function globalSetup() {
       join(process.cwd(), "config", "database", "SveltyCMS.db.sqlite-shm"),
       join(process.cwd(), "config", "database", "SveltyCMS.db.sqlite-wal"),
       // Config files (critical - forces setup wizard)
-      join(process.cwd(), "config", "private.ts"),
-      join(process.cwd(), "config", "private.js"),
+      // ONLY delete in non-CI or if we specifically want a fresh start
+      ...(!isCI
+        ? [join(process.cwd(), "config", "private.ts"), join(process.cwd(), "config", "private.js")]
+        : []),
     ];
 
     let deletedCount = 0;
