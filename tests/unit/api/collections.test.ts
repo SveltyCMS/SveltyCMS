@@ -43,7 +43,7 @@ vi.mock("@src/databases/db", () => ({
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("@src/content", () => ({
+vi.mock("@src/content/index.server", () => ({
   contentSystem: {
     getCollections: vi.fn(),
     getCollectionById: vi.fn(),
@@ -99,7 +99,7 @@ describe("Collections API Unit Tests", () => {
     vi.resetAllMocks();
     vi.clearAllMocks();
 
-    const contentModule = await import("@src/content");
+    const contentModule = await import("@src/content/index.server");
     mockContentSystem = contentModule.contentSystem;
 
     // Manually inject mocks into the hoist

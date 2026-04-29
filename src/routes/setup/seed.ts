@@ -495,7 +495,7 @@ export async function initSystemFromSetup(
   const [seedResults] = await Promise.all([
     (async () => {
       // NEW: UsecontentSystem for unified seeding
-      const { contentSystem } = await import("@src/content");
+      const { contentSystem } = await import("@src/content/index.server");
       await contentSystem.initialize(tenantId, false, adapter);
 
       if (isDemoSeed) {
@@ -583,7 +583,7 @@ export async function initSystemFast(
     // This creates the database tables/collections pre-emptively
     try {
       logger.info("📦 Pre-registering collection models...");
-      const { contentSystem } = await import("@src/content");
+      const { contentSystem } = await import("@src/content/index.server");
       await contentSystem.initialize(tenantId, false, adapter);
     } catch (cmError) {
       logger.warn("⚠️contentSystem pre-registration failed:", cmError);
@@ -599,7 +599,7 @@ export async function initSystemFast(
     if (!adapter) {
       return;
     }
-    const { contentSystem } = await import("@src/content");
+    const { contentSystem } = await import("@src/content/index.server");
     await contentSystem.initialize(tenantId, false, adapter);
   };
 

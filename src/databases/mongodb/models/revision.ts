@@ -54,7 +54,7 @@ revisionSchema.statics = {
   // Get revision history for a content ID
   async getRevisionHistory(contentId: string): Promise<DatabaseResult<ContentRevision[]>> {
     try {
-      const revisions = await this.find({ contentId })
+      const revisions = await this.find({ contentId } as any)
         .sort({ version: -1, createdAt: -1 }) // Sort by version and date descending
         .lean()
         .exec();
@@ -81,7 +81,7 @@ revisionSchema.statics = {
     try {
       const result = await this.deleteMany({
         contentId: { $in: contentIds },
-      }).exec();
+      } as any).exec();
       logger.info(
         `Bulk deleted ${result.deletedCount} revisions for content IDs: ${contentIds.join(", ")}`,
       );

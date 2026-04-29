@@ -1,4 +1,4 @@
-import { contentSystem } from "@src/content";
+import { contentSystem } from "@src/content/index.server";
 import type { Locale } from "@src/paraglide/runtime";
 import { logger } from "@utils/logger.server";
 import { SvelteMap } from "svelte/reactivity";

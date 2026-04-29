@@ -115,7 +115,9 @@ export class MongoWidgetMethods {
   async activate(widgetId: DatabaseId): Promise<DatabaseResult<Widget | null>> {
     try {
       const result = await this.widgetModel
-        .findByIdAndUpdate(widgetId, { $set: { isActive: true } }, { returnDocument: "after" })
+        .findByIdAndUpdate(widgetId, { $set: { isActive: true } } as any, {
+          returnDocument: "after",
+        })
         .lean()
         .exec();
 
@@ -150,7 +152,9 @@ export class MongoWidgetMethods {
   async deactivate(widgetId: DatabaseId): Promise<DatabaseResult<Widget | null>> {
     try {
       const result = await this.widgetModel
-        .findByIdAndUpdate(widgetId, { $set: { isActive: false } }, { returnDocument: "after" })
+        .findByIdAndUpdate(widgetId, { $set: { isActive: false } } as any, {
+          returnDocument: "after",
+        })
         .lean()
         .exec();
 
@@ -193,7 +197,7 @@ export class MongoWidgetMethods {
       });
 
       const result = await this.widgetModel
-        .findByIdAndUpdate(widgetId, { $set: widgetData }, { returnDocument: "after" })
+        .findByIdAndUpdate(widgetId, { $set: widgetData } as any, { returnDocument: "after" })
         .lean()
         .exec();
 
@@ -277,7 +281,7 @@ export class MongoWidgetMethods {
         `widget:active:${queryTenantId || "global"}`,
         async () => {
           const widgets = await this.widgetModel
-            .find({ isActive: true, tenantId: queryTenantId })
+            .find({ isActive: true, tenantId: queryTenantId } as any)
             .lean()
             .exec();
 

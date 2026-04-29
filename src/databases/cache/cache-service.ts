@@ -258,7 +258,7 @@ export class CacheService {
   async getMany<T>(keys: string[], tenantId?: string | null): Promise<(T | null)[]> {
     if (keys.length === 0) return [];
     const fullKeys = keys.map((k) => this.generateKey(k, tenantId));
-    const results: (T | null)[] = new Array(keys.length).fill(null);
+    const results: (T | null)[] = Array.from({ length: keys.length }, () => null);
     const missingIndices: number[] = [];
     const missingKeys: string[] = [];
 

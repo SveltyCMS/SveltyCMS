@@ -55,7 +55,9 @@ draftSchema.statics = {
   //Get drafts for a specific content ID
   async getDraftsForContent(contentId: string): Promise<DatabaseResult<ContentDraft[]>> {
     try {
-      const drafts = await this.find({ contentId }).lean().exec();
+      const drafts = await this.find({ contentId } as any)
+        .lean()
+        .exec();
       return { success: true, data: drafts };
     } catch (error) {
       const message = `Failed to retrieve drafts for content ID: ${contentId}`;
@@ -78,7 +80,7 @@ draftSchema.statics = {
     try {
       const result = await this.deleteMany({
         contentId: { $in: contentIds },
-      }).exec();
+      } as any).exec();
       logger.info(
         `Bulk deleted ${result.deletedCount} drafts for content IDs: ${contentIds.join(", ")}`,
       );

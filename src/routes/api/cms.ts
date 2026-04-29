@@ -6,7 +6,7 @@
  * the HTTP API for external consumers.
  */
 
-import { contentSystem } from "@src/content";
+import { contentSystem } from "@src/content/index.server";
 import { modifyRequest } from "@utils/modify-request";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { logger } from "@utils/logger.server";
@@ -2034,7 +2034,7 @@ class SystemNamespace {
   }
 
   async refresh(tenantId?: string | null, skipReconciliation: boolean = false) {
-    const { contentSystem } = await import("@src/content");
+    const { contentSystem } = await import("@src/content/index.server");
     return contentSystem.refresh(tenantId, skipReconciliation);
   }
 

@@ -146,7 +146,9 @@ const createDatabaseError = (error: unknown, code: string, message: string): Dat
 contentStructureSchema.statics = {
   async getContentStructure(tenantId: string): Promise<DatabaseResult<ContentStructureDocument[]>> {
     try {
-      const contentStructure = await this.find({ tenantId }).sort({ order: 1 }).lean();
+      const contentStructure = await this.find({ tenantId } as any)
+        .sort({ order: 1 })
+        .lean();
       return { success: true, data: contentStructure };
     } catch (error) {
       const message = "Error fetching content structure";
@@ -161,8 +163,8 @@ contentStructureSchema.statics = {
   async upsertCategory(category: ContentNode): Promise<DatabaseResult<CategoryDocument>> {
     try {
       const result = await this.findOneAndUpdate(
-        { _id: category._id },
-        { $set: { ...category, nodeType: "category" } },
+        { _id: category._id } as any,
+        { $set: { ...category, nodeType: "category" } } as any,
         { upsert: true, returnDocument: "after" },
       ).lean();
       if (!result) {
@@ -186,8 +188,8 @@ contentStructureSchema.statics = {
   async upsertCollection(collection: ContentNode): Promise<DatabaseResult<CollectionDocument>> {
     try {
       const result = await this.findOneAndUpdate(
-        { _id: collection._id },
-        { $set: { ...collection, nodeType: "collection" } },
+        { _id: collection._id } as any,
+        { $set: { ...collection, nodeType: "collection" } } as any,
         { upsert: true, returnDocument: "after" },
       ).lean();
       if (!result) {
@@ -215,7 +217,7 @@ contentStructureSchema.statics = {
 
   async getNodeById(id: string): Promise<DatabaseResult<ContentStructureDocument | null>> {
     try {
-      const node = await this.findOne({ _id: id }).lean();
+      const node = await this.findOne({ _id: id } as any).lean();
       return { success: true, data: node };
     } catch (error) {
       const message = `Error fetching node by id: ${id}`;
@@ -232,7 +234,9 @@ contentStructureSchema.statics = {
     parentId: string,
   ): Promise<DatabaseResult<ContentStructureDocument[]>> {
     try {
-      const children = await this.find({ tenantId, parentId }).sort({ order: 1 }).lean();
+      const children = await this.find({ tenantId, parentId } as any)
+        .sort({ order: 1 })
+        .lean();
       return { success: true, data: children };
     } catch (error) {
       const message = `Error fetching children for parent id: ${parentId}`;
@@ -253,9 +257,12 @@ contentStructureSchema.statics = {
     tenantId?: string,
   ): Promise<DatabaseResult<void>> {
     try {
-      const node = await this.findOne({ _id: nodeId, ...(tenantId ? { tenantId } : {}) }).lean();
+      const node = await this.findOne({
+        _id: nodeId,
+        ...(tenantId ? { tenantId } : {}),
+      } as any).lean();
       const parent = newParentId
-        ? await this.findOne({ _id: newParentId, ...(tenantId ? { tenantId } : {}) }).lean()
+        ? await this.findOne({ _id: newParentId, ...(tenantId ? { tenantId } : {}) } as any).lean()
         : null;
 
       if (!node) {
@@ -312,7 +319,7 @@ contentStructureSchema.statics = {
           currentParent = await this.findOne({
             _id: currentParent.parentId,
             ...(tenantId ? { tenantId } : {}),
-          }).lean();
+          } as any).lean();
         }
       }
 

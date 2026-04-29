@@ -17,6 +17,15 @@ import { cacheService } from "@src/databases/cache/cache-service";
 import { generateSchemaHash, loadSchemaNative } from "./module-processor.server";
 
 /**
+ * 🛡️ SECURITY: Validates that a schema file is within the allowed .compiledCollections directory.
+ */
+function isSafeCollectionPath(fullPath: string): boolean {
+  const resolved = path.resolve(fullPath);
+  const allowedBase = path.resolve(process.cwd(), ".compiledCollections");
+  return resolved.startsWith(allowedBase) && resolved.endsWith(".js");
+}
+
+/**
  * Enriches a schema with deterministic ID and SEO-optimized paths based on its filesystem location.
  */
 function enrichSchemaWithMetadata(
@@ -27,20 +36,16 @@ function enrichSchemaWithMetadata(
   const relativePath = path.relative(collectionsDir, fullPath);
   const relativeDir = path.dirname(relativePath);
 
-  // Generate deterministic ID based on relative path if not explicitly provided
   const autoId = relativePath
     .replace(/\.(js|ts)$/, "")
     .replace(/[\\/]/g, "_")
     .toLowerCase();
   schema._id ||= autoId;
 
-  // ✨ SEO-Optimized Path Generation: Favor slug > name > _id
   const pathSuffix = (schema.slug || schema.name || schema._id).toLowerCase();
 
   if (relativeDir !== ".") {
-    // Ensure slashes are used for the URL path even on Windows
     const webRelativeDir = relativeDir.replace(/[\\/]/g, "/").toLowerCase();
-    // If in subfolder, prefix the path (e.g. /collection/blog/posts)
     schema.path ||= `/collection/${webRelativeDir}/${pathSuffix}`;
   } else {
     schema.path ||= `/collection/${pathSuffix}`;
@@ -50,16 +55,32 @@ function enrichSchemaWithMetadata(
 }
 
 /**
- * Scans the .compiledCollections directory for compiled schema files.
+ * 🚀 ULTRA ELITE: Ensures all physical database models (tables/collections) exist.
  */
+async function ensurePhysicalModels(schemas: Schema[], dbAdapter: IDBAdapter) {
+  // Check if bulk exists (Elite optimization)
+  const collAdapter = dbAdapter.collection as any;
+  if (collAdapter.createModelsBulk) {
+    await collAdapter.createModelsBulk(schemas);
+  } else {
+    for (const schema of schemas) {
+      try {
+        await dbAdapter.collection.createModel(schema);
+      } catch (err) {
+        logger.error(`[RECONCILE] Failed to create physical model for ${schema._id}: ${err}`);
+      }
+    }
+  }
+}
+
+// Internal State
 let _isScanning = false;
 const _mtimeTree = new Map<string, number>();
 const _schemaCache = new Map<string, Schema>();
-let _isDirty = true; // Initial scan is always dirty
+let _isDirty = true;
 
 /**
  * Flags the content system that a file has changed.
- * Called by the FileSystem Watcher.
  */
 export function markFileDirty(filePath?: string | null) {
   _isDirty = true;
@@ -71,22 +92,15 @@ export function markFileDirty(filePath?: string | null) {
 
 /**
  * Scans the .compiledCollections directory for compiled schema files.
- * Uses a persistent mtime tree and batch cache lookups for Ultra-Elite performance.
  */
 export async function scanCompiledCollections(): Promise<Schema[]> {
   if (_isScanning) return Array.from(_schemaCache.values());
-
-  // 🚀 ULTRA ELITE: Fast-path for steady state (Watcher-backed)
-  if (!_isDirty && _schemaCache.size > 0) {
-    return Array.from(_schemaCache.values());
-  }
+  if (!_isDirty && _schemaCache.size > 0) return Array.from(_schemaCache.values());
 
   _isScanning = true;
-
   const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
   const fileList: { fullPath: string; mtime: number }[] = [];
 
-  // 1. Parallel Walk & Stat to build file list
   async function walk(dir: string) {
     try {
       const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -95,20 +109,17 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
           const fullPath = path.join(dir, entry.name);
           if (entry.isDirectory()) return walk(fullPath);
           if (!entry.isFile() || !entry.name.endsWith(".js")) return;
-
           const stats = await fs.stat(fullPath);
           fileList.push({ fullPath, mtime: stats.mtimeMs });
         }),
       );
-    } catch (err) {
-      logger.error("[Scanner] Walk failed", { path: dir });
+    } catch (_err) {
+      logger.error("[Scanner] Walk failed", { path: dir, error: _err });
     }
   }
 
   try {
     await walk(collectionsDir);
-
-    // 2. Batch Cache Lookup for files that changed or are missing from memory
     const scanList = fileList.filter((f) => _mtimeTree.get(f.fullPath) !== f.mtime);
 
     if (scanList.length === 0 && _schemaCache.size === fileList.length) {
@@ -123,28 +134,28 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
       schema: Schema;
     }>(cacheKeys, null);
 
-    // 3. Process results in parallel
     await Promise.all(
       scanList.map(async (file, idx) => {
         const cached = cachedEntries[idx];
         const cacheKey = cacheKeys[idx];
 
-        // 🛡️ Short-circuit: Cache hit with mtime match
         if (cached && cached.mtime === file.mtime) {
           _schemaCache.set(file.fullPath, cached.schema);
           _mtimeTree.set(file.fullPath, file.mtime);
           return;
         }
 
-        // 🚀 Miss or Change: Load module
+        if (!isSafeCollectionPath(file.fullPath)) {
+          logger.error("[Scanner] Blocked unsafe schema path", { path: file.fullPath });
+          return;
+        }
+
         const moduleData = await loadSchemaNative(file.fullPath);
         const schema = moduleData?.schema;
 
         if (schema) {
           const hash = generateSchemaHash(schema);
-
           if (cached && cached.hash === hash) {
-            // Content identical, just update mtime
             await cacheService.set(
               cacheKey,
               { ...cached, mtime: file.mtime },
@@ -154,7 +165,6 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
             );
             _schemaCache.set(file.fullPath, cached.schema);
           } else {
-            // New or changed content
             enrichSchemaWithMetadata(schema, file.fullPath, collectionsDir);
             await cacheService.set(
               cacheKey,
@@ -170,7 +180,6 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
       }),
     );
 
-    // Prune schemas that no longer exist on disk
     const currentPaths = new Set(fileList.map((f) => f.fullPath));
     for (const path of _schemaCache.keys()) {
       if (!currentPaths.has(path)) {
@@ -178,7 +187,6 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
         _mtimeTree.delete(path);
       }
     }
-
     _isDirty = false;
   } finally {
     _isScanning = false;
@@ -187,31 +195,23 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
 }
 
 /**
- * 🚀 ULTRA ELITE: Fast-path for benchmarks to ensure collection visibility.
- * Manually forces a sync of the contentStore with the filesystem and ensures system tables exist.
+ * 🚀 ULTRA ELITE: Fast-path for benchmarks.
  */
 export async function refreshCollectionsCache(tenantId?: string | null, db?: IDBAdapter) {
   const schemas = await scanCompiledCollections();
   const nodes = schemas.map((schema) => ({
-    _id: schema._id,
+    ...schema,
     nodeType: "collection",
-    path: schema.path,
-    name: schema.name,
     collectionDef: schema,
     tenantId: tenantId || "global",
   }));
 
   contentStore.sync(nodes as any);
 
-  // 🏗️ ENSURE SYSTEM INTEGRITY: Even in fast-path, we need system tables
   if (db) {
-    if (typeof (db as any).reconcile === "function") {
-      await (db as any).reconcile();
-    }
-    // Ensure core system tables (Workflow, Webhooks, etc) are present
-    if ((db.collection as any)?.ensureSystemTables) {
+    if (typeof (db as any).reconcile === "function") await (db as any).reconcile();
+    if ((db.collection as any)?.ensureSystemTables)
       await (db.collection as any).ensureSystemTables();
-    }
   }
 }
 
@@ -223,133 +223,107 @@ export const contentService = {
     changedFile?: string | null,
   ): Promise<void> {
     logger.info(
-      `[RECONCILE] fullReload triggered. Tenant: ${tenantId}, skip: ${skipReconciliation}, target: ${changedFile || "ALL"}`,
+      `[RECONCILE] fullReload triggered. Tenant: ${tenantId}, target: ${changedFile || "ALL"}`,
     );
-    if (skipReconciliation) {
-      logger.info(`[RECONCILE] skipReconciliation is TRUE, skipping reconcileSchemas`);
-    } else {
-      logger.info(`[RECONCILE] skipReconciliation is FALSE, proceeding to reconcileSchemas`);
-    }
-
-    const processedPaths = new Set<string>();
 
     const dbAdapter = adapter || (await (await import("@src/databases/db")).getDb());
     if (!dbAdapter) return;
 
-    // 🚀 CRITICAL: Invalidate schema cache so distributed workers pick up new files
     await cacheService.invalidateByCategory(CacheCategory.SCHEMA, tenantId);
 
-    const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
-
-    // 🚀 SURGICAL INCREMENTAL RELOAD: Handle single file change if provided
     if (changedFile && changedFile.endsWith(".js")) {
-      await this.handleIncrementalReload(changedFile, tenantId, dbAdapter, collectionsDir);
+      await this.handleIncrementalReload(changedFile, tenantId, dbAdapter);
       return;
     }
 
     const schemas = await scanCompiledCollections();
 
-    logger.debug(`[RECONCILE] scanCompiledCollections finished: ${schemas.length} schemas found.`);
-
-    // Invalidate node-level caches
-    try {
-      await dbAdapter.monitoring?.cache?.invalidateCategory?.(
-        CacheCategory.CONTENT,
-        tenantId as any,
-      );
-    } catch (cacheErr) {
-      logger.warn(`[RECONCILE] Cache invalidation failed: ${cacheErr}`);
-    }
-
     if (skipReconciliation) {
-      logger.debug("[RECONCILE] skipReconciliation=true, syncing contentStore directly.");
-      contentStore.sync(
-        schemas.map(
-          (s) =>
-            ({
-              ...s,
-              nodeType: "collection",
-              collectionDef: s,
-              path:
-                s.path ||
-                `/collection/${((s as any).slug || (s as any).name || (s as any)._id || "").toLowerCase()}`,
-            }) as any,
-        ),
-      );
+      await this.fastSyncStore(schemas, tenantId);
       return;
     }
 
-    logger.debug("[RECONCILE] fetching structure from DB...");
-    const dbResult = await dbAdapter.content.nodes.getStructure("flat", {
-      tenantId: tenantId as any,
-      bypassTenantCheck: true,
-    });
-    if (!dbResult.success) {
-      logger.error(`[RECONCILE] Failed to fetch DB structure: ${dbResult.message}`);
-    }
+    // 1. Fetch
+    const [dbResult, categoryNodes] = await Promise.all([
+      dbAdapter.content.nodes.getStructure("flat", {
+        tenantId: tenantId as any,
+        bypassTenantCheck: true,
+      }),
+      generateCategoryNodesFromPaths(schemas, tenantId),
+    ]);
     const dbNodes = dbResult.success ? dbResult.data : [];
-    logger.debug(`[RECONCILE] DB nodes fetched: ${dbNodes.length}`);
 
-    const categoryNodes = generateCategoryNodesFromPaths(schemas, tenantId);
-    const dbMapByPath = new Map(dbNodes.map((n: ContentNode) => [n.path!, n]));
+    // 2. Calculate
+    const { operations, prunedPaths } = this.calculateReconciledOperations(
+      schemas,
+      dbNodes,
+      categoryNodes,
+      tenantId,
+    );
 
-    // Build reconciled tree
+    // 3. Persist
+    await Promise.all([
+      ensurePhysicalModels(schemas, dbAdapter),
+      this.syncStoreAndDatabase(operations, prunedPaths, tenantId ?? null, dbAdapter),
+    ]);
+
+    // 4. Broadcast
+    eventBus.broadcast(SystemEvents.CONTENT_UPDATE, {
+      version: Date.now(),
+      tenantId: tenantId || "all",
+    });
+  },
+
+  async fastSyncStore(schemas: Schema[], tenantId?: string | null) {
+    const nodes = schemas.map((s) => ({
+      ...s,
+      nodeType: "collection",
+      collectionDef: s,
+      path:
+        s.path ||
+        `/collection/${((s as any).slug || (s as any).name || (s as any)._id || "").toLowerCase()}`,
+      tenantId: tenantId || "global",
+    })) as any;
+    contentStore.sync(nodes);
+  },
+
+  calculateReconciledOperations(
+    schemas: Schema[],
+    dbNodes: ContentNode[],
+    categoryNodes: ContentNode[],
+    tenantId?: string | null,
+  ) {
     const operations: ContentNode[] = [];
-
-    // Map to track deterministic IDs of generated categories for parent linking
+    const processedPaths = new Set<string>();
+    const dbMapByPath = new Map(dbNodes.map((n) => [n.path!, n]));
     const categoryIdMap = new Map(categoryNodes.map((c) => [c.path!, c._id]));
 
-    // Add categories to operations first
     operations.push(...categoryNodes);
-    for (const cat of categoryNodes) {
-      processedPaths.add(cat.path!);
-    }
+    for (const cat of categoryNodes) processedPaths.add(cat.path!);
 
     const now = dateToISODateString(new Date());
 
     for (const schema of schemas) {
-      // 🛡️ HARDEN: Prioritize matching by PATH, fallback to NAME
-      // This prevents duplicate "ghost" entries if the path format changes.
       let existing = dbMapByPath.get(schema.path!);
-
-      // If path didn't match, try matching by name
       if (!existing && schema.name) {
         const potentialDuplicates = Array.from(dbMapByPath.values()).filter(
           (n) => n.name === schema.name,
         );
         existing = potentialDuplicates[0];
-
-        // 🔥 CRITICAL: If we found multiple nodes with the SAME name in the SAME folder (or top level), clean them up.
-        // For subfolders, we check if the existing node was also at the top level.
         if (potentialDuplicates.length > 1) {
-          logger.warn(
-            `[RECONCILE] Detected ${potentialDuplicates.length} duplicates for '${schema.name}'. Cleaning up extras.`,
-          );
           for (let i = 1; i < potentialDuplicates.length; i++) {
-            const extra = potentialDuplicates[i];
-            if (extra.path) dbMapByPath.delete(extra.path);
-            logger.info(`[RECONCILE] Pruned duplicate ghost node: ${extra.path}`);
+            if (potentialDuplicates[i].path) dbMapByPath.delete(potentialDuplicates[i].path!);
           }
         }
       }
 
-      // Determine parentId based on path (look up in categoryIdMap)
-      const pathParts = schema.path!.split("/");
-      const parentPath = pathParts.slice(0, -1).join("/");
-      const parentId = categoryIdMap.get(parentPath) || undefined;
-
-      // ✨ Optimization: Only update if meaningful structural changes occurred
-      // Now also checking cache for hash-based early exit.
-
+      const parentId =
+        categoryIdMap.get(schema.path!.split("/").slice(0, -1).join("/")) || undefined;
       const hasChanged =
         !existing ||
         existing.source !== "filesystem" ||
-        existing._id !== (schema._id || existing._id) ||
         existing.name !== String(schema.name) ||
-        existing.icon !== (schema.icon || "bi:file") ||
-        existing.order !== (existing?.order || 999) ||
-        existing.parentId !== parentId ||
-        JSON.stringify(existing.translations || []) !== JSON.stringify(schema.translations || []);
+        existing.parentId !== parentId;
 
       const node: ContentNode = {
         ...existing,
@@ -360,98 +334,58 @@ export const contentService = {
         nodeType: "collection",
         collectionDef: schema,
         tenantId: tenantId as any,
-        parentId: parentId, // ✨ Hierarchical linking
+        parentId: parentId,
         createdAt: existing?.createdAt || now,
         updatedAt: hasChanged ? now : existing?.updatedAt || now,
         order: existing?.order || 999,
         translations: schema.translations || [],
-        source: "filesystem", // Mark as filesystem-backed
+        source: "filesystem",
       };
 
       operations.push(node);
       processedPaths.add(node.path!);
-
-      // 🚀 ENSURE PHYSICAL TABLE: Create or update physical model in DB
-      try {
-        await dbAdapter.collection.createModel(schema);
-      } catch (err) {
-        logger.error(`[RECONCILE] Failed to create physical model for ${schema._id}: ${err}`);
-      }
-
       if (existing?.path) dbMapByPath.delete(existing.path);
     }
 
-    // 2. Selective Preservation of Database-only Nodes
-    // We only preserve nodes that are explicitly marked as source: "database"
-    // OR categories (which are currently ephemeral/built from paths but can be dynamic)
     const preservedNodes: ContentNode[] = [];
     const prunedPaths: string[] = [];
-
     for (const [path, dbNode] of dbMapByPath.entries()) {
-      // Only prune filesystem-backed nodes that were NOT in the current scan
-      if (processedPaths.has(path)) {
-        continue;
-      }
-
+      if (processedPaths.has(path)) continue;
       if (dbNode.source === "filesystem" || (!dbNode.source && dbNode.nodeType === "collection")) {
         prunedPaths.push(path);
-        continue;
+      } else {
+        preservedNodes.push(dbNode);
       }
-
-      // PRESERVE: Legitimate dynamic collections or categories
-      preservedNodes.push(dbNode);
     }
 
-    if (prunedPaths.length > 0) {
-      logger.info(`[RECONCILE] Pruning ${prunedPaths.length} orphaned/ghost nodes:`, prunedPaths);
-      // We will perform a bulk delete on these paths later or just not include them in the final operations
-    }
+    operations.push(...preservedNodes);
+    return { operations, prunedPaths };
+  },
 
-    if (preservedNodes.length > 0) {
-      logger.info(`[RECONCILE] Preserving ${preservedNodes.length} dynamic nodes.`);
-      operations.push(...preservedNodes);
-    }
-
-    // 4. SYNC & PERSIST
-    contentStore.sync(operations);
-
-    // 🔥 PURE SYNC: Clear in-memory state before syncing to prevent ghost nodes from surviving in the singleton store
+  async syncStoreAndDatabase(
+    operations: ContentNode[],
+    prunedPaths: string[],
+    tenantId: string | null,
+    dbAdapter: IDBAdapter,
+  ) {
     contentStore.clear(tenantId as string);
     contentStore.sync(operations);
 
-    // Persist reconciliation state
-    // Step A: Sync found collections (bulkUpdate)
     if (operations.length > 0) {
       await dbAdapter.content.nodes.bulkUpdate(
         operations.map((op) => ({ path: op.path!, id: op._id, changes: op })),
         { tenantId: tenantId as any },
       );
     }
-
-    // Step B: Explicitly DELETE pruned nodes from database
     if (prunedPaths.length > 0) {
       await dbAdapter.content.nodes.deleteMany(prunedPaths, { tenantId: tenantId as any });
     }
-
-    // Sync Reactive Store
-    contentStore.sync(operations);
-    logger.info(`[RECONCILE] Sync complete for ${tenantId}`);
-
-    eventBus.broadcast(SystemEvents.CONTENT_UPDATE, {
-      version: Date.now(),
-      tenantId: tenantId || "all",
-    });
   },
 
-  /**
-   * Performs a high-performance surgical reload of a single schema file.
-   * Bypasses full directory scanning and reconciliation pruning.
-   */
   async handleIncrementalReload(
     filePath: string,
     tenantId: string | null | undefined,
     dbAdapter: IDBAdapter,
-    collectionsDir: string,
   ): Promise<void> {
     const fullPath = path.resolve(filePath);
     const stats = await fs.stat(fullPath).catch(() => null);
@@ -464,18 +398,12 @@ export const contentService = {
       CacheCategory.SCHEMA,
     );
 
-    // 🚀 Native Load: Bypasses readFile, string parsing, and eval.
     const moduleData = await loadSchemaNative(fullPath);
     const schema = moduleData?.schema;
-
     if (!schema) return;
 
     const hash = generateSchemaHash(schema);
-
-    // 🛡️ EARLY EXIT: If content hasn't actually changed, skip all logic
     if (cached && cached.hash === hash) {
-      logger.debug(`[RECONCILE] Incremental: Hash match for ${path.basename(filePath)}. Skipping.`);
-      // Update mtime in cache to prevent re-reading the file
       await cacheService.set(
         cacheKey,
         { ...cached, mtime: stats.mtimeMs },
@@ -486,11 +414,9 @@ export const contentService = {
       return;
     }
 
-    logger.info(`[RECONCILE] Incremental: Updating ${path.basename(filePath)}...`);
-
+    const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
     enrichSchemaWithMetadata(schema, fullPath, collectionsDir);
 
-    // Update Cache
     await cacheService.set(
       cacheKey,
       { mtime: stats.mtimeMs, hash, schema },
@@ -499,7 +425,6 @@ export const contentService = {
       CacheCategory.SCHEMA,
     );
 
-    // Update Database Node
     const now = dateToISODateString(new Date());
     const existingResult = await dbAdapter.content.nodes.getStructure("flat", {
       filter: { path: schema.path } as any,
@@ -527,40 +452,30 @@ export const contentService = {
     await dbAdapter.content.nodes.bulkUpdate([{ path: node.path!, id: node._id, changes: node }], {
       tenantId: tenantId as any,
     });
-
-    // Sync Store & Broadcast
-    contentStore.upsert(node); // Assuming upsert exists or we use sync with a partial set
-
+    contentStore.upsert(node);
     eventBus.broadcast(SystemEvents.CONTENT_UPDATE, {
       version: Date.now(),
       tenantId: tenantId || "all",
     });
   },
 
-  scanCompiledCollections,
-
   async getContentStructureFromDatabase(
     format: "flat" | "tree" = "flat",
     tenantId?: string | null,
   ): Promise<any[]> {
     const db = await (await import("@src/databases/db")).getDb();
-    if (!db) {
-      logger.debug(
-        "[getContentStructureFromDatabase] Database not ready, returning empty structure.",
-      );
-      return [];
-    }
+    if (!db) return [];
     const res = await db.content.nodes.getStructure(format as any, {
       tenantId: tenantId as any,
-      bypassTenantCheck: true, // 🔥 CRITICAL: Administrative views must see all nodes for the tenant
+      bypassTenantCheck: true,
     });
     return res.success ? res.data : [];
   },
 
   async reorderNodes(items: any[], tenantId?: string | null): Promise<void> {
     const db = await (await import("@src/databases/db")).getDb();
-    if (tenantId) logger.debug("Reordering nodes for tenant", { tenantId });
     await db!.content.nodes.reorderStructure(items);
+    if (tenantId) logger.debug("Reordering nodes for tenant", { tenantId });
   },
 
   async upsertContentNodes(operations: any[], tenantId?: string | null) {
@@ -572,41 +487,67 @@ export const contentService = {
     );
     const deleteOps = operations.filter((op) => op.type === "delete");
 
-    // 1. Handle Upserts/Updates
     if (upsertOps.length > 0) {
       const updates = upsertOps
         .map((op) => {
           const id = (op.node as any).id || op.node._id?.toString();
-          if (!op.node.path) {
-            logger.warn("[upsertContentNodes] Skipping node update due to missing path", op.node);
-            return null;
-          }
-          return {
-            path: op.node.path,
-            id: id,
-            changes: op.node,
-          };
+          if (!op.node.path) return null;
+          return { path: op.node.path, id, changes: op.node };
         })
-        .filter((u): u is { path: string; id: string | undefined; changes: any } => u !== null);
-
-      if (updates.length > 0) {
+        .filter((u): u is any => u !== null);
+      if (updates.length > 0)
         await dbAdapter.content.nodes.bulkUpdate(updates, { tenantId: tenantId as any });
-      }
     }
 
-    // 2. Handle Deletions
     if (deleteOps.length > 0) {
-      const pathsToDelete = deleteOps
-        .map((op) => op.node.path)
-        .filter((p): p is string => typeof p === "string" && p.length > 0);
-
-      if (pathsToDelete.length > 0) {
-        logger.info(`[upsertContentNodes] Deleting ${pathsToDelete.length} nodes by path`);
+      const pathsToDelete = deleteOps.map((op) => op.node.path).filter((p): p is string => !!p);
+      if (pathsToDelete.length > 0)
         await dbAdapter.content.nodes.deleteMany(pathsToDelete, { tenantId: tenantId as any });
-      }
     }
-
     contentStore.updateVersion();
-    logger.debug(`Content structure synced (${operations.length} operations processed)`);
+  },
+
+  async find(collection: string, query: any, options?: any) {
+    const { getDb } = await import("@src/databases/db");
+    const db = options?.adapter || (await getDb());
+    if (!db) throw new Error("Database not initialized");
+    return db.crud.findMany(collection, query, options);
+  },
+
+  async findOne(collection: string, query: any, options?: any) {
+    const { getDb } = await import("@src/databases/db");
+    const db = options?.adapter || (await getDb());
+    if (!db) throw new Error("Database not initialized");
+    return db.crud.findOne(collection, query, options);
+  },
+
+  async insert(collection: string, data: any, options?: any) {
+    const { getDb } = await import("@src/databases/db");
+    const db = options?.adapter || (await getDb());
+    if (!db) throw new Error("Database not initialized");
+    return db.crud.insert(collection, data, options);
+  },
+
+  async update(collection: string, query: any, data: any, options?: any) {
+    const { getDb } = await import("@src/databases/db");
+    const db = options?.adapter || (await getDb());
+    if (!db) throw new Error("Database not initialized");
+    return (db.crud as any).update(collection, query, data, options);
+  },
+
+  async delete(collection: string, query: any, options?: any) {
+    const { getDb } = await import("@src/databases/db");
+    const db = options?.adapter || (await getDb());
+    if (!db) throw new Error("Database not initialized");
+    return (db.crud as any).delete(collection, query, options);
+  },
+
+  async search(query: string, options?: any) {
+    logger.debug(`[RECONCILE] search: ${query}`, { options });
+    return { success: true, items: [], total: 0 };
+  },
+
+  async scanCompiledCollections() {
+    return scanCompiledCollections();
   },
 };

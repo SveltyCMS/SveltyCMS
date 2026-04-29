@@ -8,7 +8,7 @@
  */
 
 // System Logger
-import { contentSystem } from "@src/content";
+import { contentSystem } from "@src/content/index.server";
 // Auth - Use cached roles from locals instead of global config
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { error, fail, redirect } from "@sveltejs/kit";

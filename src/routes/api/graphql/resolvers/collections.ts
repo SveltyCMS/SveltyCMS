@@ -22,7 +22,7 @@
 
 // Collection Manager
 import { modifyRequest } from "@utils/modify-request";
-import { contentSystem } from "@src/content";
+import { contentSystem } from "@src/content/index.server";
 import type { FieldInstance, Schema } from "@src/content/types";
 // Types
 import type { User } from "@src/databases/auth/types";

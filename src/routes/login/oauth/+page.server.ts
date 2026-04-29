@@ -4,7 +4,7 @@
  */
 
 // Utils
-import { contentSystem } from "@src/content";
+import { contentSystem } from "@src/content/index.server";
 import type { DatabaseId, ISODateString } from "@src/content/types";
 // System Logger
 import { generateGoogleAuthUrl, getOAuthRedirectUri } from "@src/databases/auth/google-auth";

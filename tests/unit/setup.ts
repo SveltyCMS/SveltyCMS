@@ -1031,10 +1031,13 @@ setGlobal("metricsService", mockMetricsService);
 
 const cacheMock = {
   get: mock(async () => null),
+  getMany: mock(async (keys: string[]) => Array(keys.length).fill(null)),
   set: mock(async () => {}),
+  setWithCategory: mock(async () => {}),
   delete: mock(async () => {}),
   clearByPattern: mock(async () => true),
   invalidateAll: mock(async () => {}),
+  invalidateByCategory: mock(async () => {}),
   reconfigure: mock(async () => true),
 };
 setGlobal("cacheService", cacheMock);
@@ -1207,6 +1210,8 @@ const mockDbAdapter = {
       create: mock(() => Promise.resolve({ success: true })),
       update: mock(() => Promise.resolve({ success: true })),
       delete: mock(() => Promise.resolve({ success: true })),
+      deleteMany: mock(() => Promise.resolve({ success: true })),
+      bulkUpdate: mock(() => Promise.resolve({ success: true })),
     },
     drafts: {
       getForContent: mock(() => Promise.resolve({ success: true, data: [] })),

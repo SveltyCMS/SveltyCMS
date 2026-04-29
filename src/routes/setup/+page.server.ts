@@ -837,7 +837,7 @@ export const actions: Actions = {
         logger.info(
           "🚀 [completeSetup] Refreshing content-system state (skipping reconciliation)...",
         );
-        const { contentSystem } = await import("@src/content");
+        const { contentSystem } = await import("@src/content/index.server");
         // skipReconciliation: true is CRITICAL here to prevent the 4s blocking delay
         // 🚀 Elite Audit Fix: Pass active dbAdapter directly to bypass global singleton race conditions
         await contentSystem.refresh(undefined, true, false, dbAdapter);
@@ -905,7 +905,7 @@ export const actions: Actions = {
         } catch (configError) {
           logger.error("❌ [completeSetup] Failed to write private config:", configError);
         }
-      }, 1500);
+      }, 3000);
 
       // 4. Determine redirect path
       let redirectPath = "/config/collectionbuilder";
@@ -916,7 +916,7 @@ export const actions: Actions = {
       } else {
         // Fallback: Query content-system for smart first collection
         try {
-          const { contentSystem } = await import("@src/content");
+          const { contentSystem } = await import("@src/content/index.server");
           // Clear cache to ensure we see the newly initialized collections
           // (Runes handle this automatically, but keeping terminology consistent)
 

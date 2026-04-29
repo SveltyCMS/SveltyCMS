@@ -5,7 +5,7 @@
  * Usescontent-managerfor robust, canonical path resolution.
  */
 
-import { contentSystem } from "@src/content";
+import { contentSystem } from "@src/content/index.server";
 import { redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger.server";
 import type { PageServerLoad } from "./$types";
