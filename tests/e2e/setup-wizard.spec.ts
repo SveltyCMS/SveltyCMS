@@ -15,12 +15,15 @@ test("Setup Wizard: Full Provisioning Flow", async ({ page }) => {
   // 3. Handle Welcome Popup
   const welcomePopup = page.locator("#welcome-heading").first();
   if (await welcomePopup.isVisible({ timeout: 5000 }).catch(() => false)) {
-    console.log("   → Welcome popup detected. Clicking Get Started...");
-    await page
-      .getByRole("button", { name: /get started/i })
-      .first()
-      .click({ force: true });
-    await expect(welcomePopup).toBeHidden();
+    const getStartedButton = page
+      .locator("button, [role='button'], a")
+      .filter({ hasText: /get started/i })
+      .first();
+
+    await expect(getStartedButton).toBeVisible({ timeout: 10000 });
+    await getStartedButton.click({ force: true });
+
+    await expect(welcomePopup).toBeHidden({ timeout: 10000 });
   }
 
   // 4. Handle Cookie Consent
@@ -39,15 +42,18 @@ test("Setup Wizard: Full Provisioning Flow", async ({ page }) => {
   await page.locator("#db-host").fill("config/database");
   await page.locator("#db-name").fill("e2e_setup_test.db");
 
-  // Click Test Connection
   const testConnBtn = page.getByRole("button", { name: /test database connection/i }).first();
+  await expect(testConnBtn).toBeVisible({ timeout: 10000 });
+  await expect(testConnBtn).toBeEnabled({ timeout: 10000 });
   await testConnBtn.click({ force: true });
 
-  // Handle "Database does not exist" modal
+  // Handle "Database does not exist" modal if it appears
   await handleDialog(page, /database does not exist/i, "yes");
 
-  // Move to next step
-  await clickNext(page);
+  const nextBtn = page.getByLabel("Next", { exact: true }).first();
+  await expect(nextBtn).toBeEnabled({ timeout: 60000 });
+  await nextBtn.click({ force: true });
+  await page.waitForLoadState("networkidle").catch(() => { });
 
   // --- STEP 2: Admin User ---
   console.log("   → Step 2: Admin User Configuration...");

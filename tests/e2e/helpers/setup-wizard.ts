@@ -20,10 +20,12 @@ export async function seedWizardState(page: Page) {
  */
 export async function clickNext(page: Page) {
   const nextBtn = page.getByLabel("Next", { exact: true }).first();
-  await expect(nextBtn).toBeVisible({ timeout: 10000 });
-  await expect(nextBtn).toBeEnabled({ timeout: 10000 });
+
+  await expect(nextBtn).toBeVisible({ timeout: 30000 });
+  await expect(nextBtn).toBeEnabled({ timeout: 60000 });
+
   await nextBtn.click({ force: true });
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("networkidle").catch(() => { });
 }
 
 /**

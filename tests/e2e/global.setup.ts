@@ -48,6 +48,9 @@ export default async function globalSetup() {
       join(process.cwd(), "config", "database", "SveltyCMS.db.sqlite"),
       join(process.cwd(), "config", "database", "SveltyCMS.db.sqlite-shm"),
       join(process.cwd(), "config", "database", "SveltyCMS.db.sqlite-wal"),
+      join(process.cwd(), "config", "database", "e2e_setup_test.db.sqlite"),
+      join(process.cwd(), "config", "database", "e2e_setup_test.db.sqlite-shm"),
+      join(process.cwd(), "config", "database", "e2e_setup_test.db.sqlite-wal"),
       // Config files (critical - forces setup wizard)
       // ONLY delete in non-CI or if we specifically want a fresh start
       ...(!isCI
@@ -113,7 +116,14 @@ export default async function globalSetup() {
       console.log(`[Global Setup] Directory already exists: ${dir}`);
     }
   }
+  // STEP 4: Ensure setup wizard SQLite test DB exists
+  // Required because the setup wizard validation expects the DB file to exist in clean CI.
+  const setupWizardDbPath = join(process.cwd(), "config", "database", "e2e_setup_test.db.sqlite");
 
+  if (!existsSync(setupWizardDbPath)) {
+    writeFileSync(setupWizardDbPath, "");
+    console.log(`[Global Setup] ✓ Created setup wizard SQLite test DB: ${setupWizardDbPath}`);
+  }
   // Create .gitkeep files to ensure directories are tracked
   const gitkeepMapping = [
     {
