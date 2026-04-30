@@ -187,7 +187,7 @@ jobs:
     name: 🏗️ Build
     needs: bootstrap
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
@@ -260,7 +260,7 @@ jobs:
           --health-cmd "${{ matrix.health }}"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 8
 
     steps:
       - uses: actions/checkout@v6
@@ -285,7 +285,7 @@ jobs:
 
       - name: Wait for DB
         if: matrix.db != 'sqlite'
-        run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 60000
+        run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
 
       - name: Create MongoDB test user
         if: matrix.db == 'mongodb'
@@ -312,14 +312,14 @@ jobs:
               }
             '
 
-      - name: Run Integration Tests
+      - name: Run DB Integration Tests
         env:
           DB_TYPE: ${{ matrix.db }}
           DB_HOST: 127.0.0.1
           DB_PORT: ${{ matrix.port || '' }}
           DB_NAME: sveltycms_test
-          DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
-          DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
+          DB_USER: ${{ matrix.db != 'sqlite' && 'testuser' || '' }}
+          DB_PASSWORD: ${{ matrix.db != 'sqlite' && 'testpass' || '' }}
           ADMIN_PASSWORD: Password123!
           TEST_MODE: true
           PASSWORD_MIN_LENGTH: 8
@@ -327,21 +327,82 @@ jobs:
           if [ -f tests/e2e/.auth/test-secret.txt ]; then
             export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
           fi
-          bun run scripts/run-integration-tests.ts --filter=${{ matrix.db }}
 
-      - name: Upload Logs
+          bun run scripts/run-integration-tests.ts --suite=db --db=${{ matrix.db }}
+
+      - name: Upload DB Logs
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: db-log-${{ matrix.db }}
-          path: preview.log
+          path: |
+            preview.log
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+          retention-days: 7
+
+  integration-api:
+    name: 🌐 API Integration
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: workspace-meta
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: build-output
+
+      - uses: actions/cache@v5
+        with:
+          path: |
+            .bun-cache
+            ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+
+      - name: Run API Integration Tests
+        env:
+          DB_TYPE: sqlite
+          DB_HOST: 127.0.0.1
+          DB_PORT: ""
+          DB_NAME: sveltycms_test
+          DB_USER: ""
+          DB_PASSWORD: ""
+          ADMIN_PASSWORD: Password123!
+          TEST_MODE: true
+          PASSWORD_MIN_LENGTH: 8
+        run: |
+          if [ -f tests/e2e/.auth/test-secret.txt ]; then
+            export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+          fi
+
+          bun run scripts/run-integration-tests.ts --suite=api --db=sqlite
+
+      - name: Upload API Logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: api-integration-log
+          path: |
+            preview.log
+            playwright-report
+            test-results
+          if-no-files-found: ignore
           retention-days: 7
 
   e2e-wizard:
     name: 🧙 E2E (Wizard)
     needs: [bootstrap, build]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
@@ -375,12 +436,12 @@ jobs:
           DB_TYPE: sqlite
           DB_HOST: 127.0.0.1
           PASSWORD_MIN_LENGTH: 8
-          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
-          ADMIN_PASSWORD: ${{ secrets.BENCHMARK_ADMIN_PASSWORD || 'Password123!' }}
+          TEST_MODE: "true"
+          ADMIN_PASSWORD: Password123!
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
           DB_HOST=127.0.0.1 PASSWORD_MIN_LENGTH=8 TEST_MODE=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
-          bun x wait-on http://127.0.0.1:4173 --timeout 120000 --interval 2000
+          bun x wait-on http://127.0.0.1:4173 --timeout 180000 --interval 2000
           bun x playwright test --project=wizard
 
       - uses: actions/upload-artifact@v7
@@ -388,6 +449,7 @@ jobs:
         with:
           name: playwright-report-Wizard
           path: playwright-report
+          if-no-files-found: ignore
           retention-days: 14
 
       - uses: actions/upload-artifact@v7
@@ -395,13 +457,14 @@ jobs:
         with:
           name: preview-log-wizard
           path: preview.log
+          if-no-files-found: ignore
           retention-days: 7
 
   e2e-auth:
     name: 🔐 E2E (Auth Setup)
-    needs: [bootstrap, e2e-wizard]
+    needs: [bootstrap, build, e2e-wizard]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
@@ -436,16 +499,19 @@ jobs:
           PASSWORD_MIN_LENGTH: 8
           TEST_MODE: "true"
           SKIP_TEST_CLEANUP: "true"
+          ADMIN_PASSWORD: Password123!
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
           DB_HOST=127.0.0.1 PASSWORD_MIN_LENGTH=8 TEST_MODE=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
-          bun x wait-on http://127.0.0.1:4173 --timeout 120000 --interval 2000
+          bun x wait-on http://127.0.0.1:4173 --timeout 180000 --interval 2000
           bun x playwright test --project=auth-setup
 
       - uses: actions/upload-artifact@v7
         with:
           name: e2e-auth-state
           path: tests/e2e/.auth/
+          include-hidden-files: true
+          if-no-files-found: ignore
           retention-days: 1
 
       - uses: actions/upload-artifact@v7
@@ -453,6 +519,7 @@ jobs:
         with:
           name: playwright-report-Auth
           path: playwright-report
+          if-no-files-found: ignore
           retention-days: 7
 
       - uses: actions/upload-artifact@v7
@@ -460,13 +527,14 @@ jobs:
         with:
           name: preview-log-auth
           path: preview.log
+          if-no-files-found: ignore
           retention-days: 7
 
   e2e-app:
     name: 🧪 E2E (${{ matrix.project }})
-    needs: [bootstrap, e2e-auth]
+    needs: [bootstrap, build, e2e-auth]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -513,7 +581,7 @@ jobs:
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
           DB_HOST=127.0.0.1 PASSWORD_MIN_LENGTH=8 TEST_MODE=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
-          bun x wait-on http://127.0.0.1:4173 --timeout 120000 --interval 2000
+          bun x wait-on http://127.0.0.1:4173 --timeout 180000 --interval 2000
           bun x playwright test --project=${{ matrix.project }}
 
       - uses: actions/upload-artifact@v7
@@ -521,6 +589,7 @@ jobs:
         with:
           name: playwright-report-${{ matrix.project }}
           path: playwright-report
+          if-no-files-found: ignore
           retention-days: 14
 
       - uses: actions/upload-artifact@v7
@@ -528,6 +597,7 @@ jobs:
         with:
           name: preview-log-${{ matrix.project }}
           path: preview.log
+          if-no-files-found: ignore
           retention-days: 7
 
   benchmarks:
@@ -572,7 +642,7 @@ jobs:
           MONGO_INITDB_ROOT_USERNAME: ${{ matrix.db == 'mongodb' && 'testuser' || '' }}
           MONGO_INITDB_ROOT_PASSWORD: ${{ matrix.db == 'mongodb' && 'testpass' || '' }}
         options: >-
-          ${{ matrix.health && format('--health-cmd "{0}" --health-interval 10s --health-timeout 5s --health-retries 6', matrix.health) || '' }}
+          ${{ matrix.health && format('--health-cmd "{0}" --health-interval 10s --health-timeout 5s --health-retries 8', matrix.health) || '' }}
 
     steps:
       - uses: actions/checkout@v6
@@ -597,7 +667,7 @@ jobs:
 
       - name: Wait for DB
         if: matrix.db != 'sqlite'
-        run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000
+        run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
 
       - name: Create MongoDB benchmark user
         if: matrix.db == 'mongodb'
@@ -626,8 +696,8 @@ jobs:
 
       - name: Run Enterprise Benchmark Matrix
         env:
-          DB_USER: ${{ matrix.db == 'sqlite' && '' || 'testuser' }}
-          DB_PASSWORD: ${{ matrix.db == 'sqlite' && '' || 'testpass' }}
+          DB_USER: ${{ matrix.db != 'sqlite' && 'testuser' || '' }}
+          DB_PASSWORD: ${{ matrix.db != 'sqlite' && 'testpass' || '' }}
           ADMIN_PASSWORD: ${{ secrets.BENCHMARK_ADMIN_PASSWORD || 'Password123!' }}
           TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
         run: |
@@ -643,4 +713,5 @@ jobs:
         with:
           name: benchmark-results-${{ matrix.db }}
           path: tests/benchmarks/results/
+          if-no-files-found: ignore
           retention-days: 14
