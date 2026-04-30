@@ -27,6 +27,8 @@ const PORT = process.env.PORT ?? "4173";
 const HOST = process.env.HOST ?? "127.0.0.1";
 const API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
 
+type IntegrationSuite = "all" | "db" | "api";
+
 const loadHardenedConfig = async () => {
   const isCI = process.env.CI === "true";
 
@@ -64,27 +66,89 @@ let CONFIG: any = {};
 let previewProcess: ChildProcess | null = null;
 let isShuttingDown = false;
 
+function getEnvValue(name: string): string | undefined {
+  if (Object.prototype.hasOwnProperty.call(process.env, name)) {
+    return process.env[name] ?? "";
+  }
+
+  return undefined;
+}
+
 function getDbDefaults() {
   const dbType = process.env.DB_TYPE || "sqlite";
 
   const defaultPort =
-    process.env.DB_PORT ||
-    (dbType === "postgresql"
+    dbType === "postgresql"
       ? "5432"
       : dbType === "mariadb"
         ? "3306"
         : dbType === "mongodb"
           ? "27017"
-          : "");
+          : "";
+
+  const dbPort = getEnvValue("DB_PORT") ?? defaultPort;
 
   return {
     type: dbType,
-    host: process.env.DB_HOST || "127.0.0.1",
-    port: defaultPort,
-    name: process.env.DB_NAME || "sveltycms_test",
-    user: process.env.DB_USER || "testuser",
-    password: process.env.DB_PASSWORD || "testpass",
+    host: getEnvValue("DB_HOST") ?? "127.0.0.1",
+    port: dbPort,
+    name: getEnvValue("DB_NAME") ?? "sveltycms_test",
+    user: getEnvValue("DB_USER") ?? (dbType === "sqlite" ? "" : "testuser"),
+    password: getEnvValue("DB_PASSWORD") ?? (dbType === "sqlite" ? "" : "testpass"),
   };
+}
+
+function getArgValue(argv: string[], name: string) {
+  const prefix = `${name}=`;
+  return argv.find((arg) => arg.startsWith(prefix))?.slice(prefix.length);
+}
+
+function normalizePath(file: string) {
+  return file.replace(/\\/g, "/");
+}
+
+function filterTestsBySuite(testFiles: string[], suite: IntegrationSuite, dbType: string) {
+  if (suite === "db") {
+    return testFiles.filter((file) => {
+      const path = normalizePath(file);
+
+      if (!path.includes("tests/integration/databases/")) {
+        return false;
+      }
+
+      if (path.endsWith("mongodb-adapter.test.ts")) {
+        return dbType === "mongodb";
+      }
+
+      if (path.endsWith("mariadb-adapter.test.ts")) {
+        return dbType === "mariadb";
+      }
+
+      if (path.endsWith("postgresql-adapter.test.ts")) {
+        return dbType === "postgresql";
+      }
+
+      if (path.endsWith("sqlite-adapter.test.ts")) {
+        return dbType === "sqlite";
+      }
+
+      return true;
+    });
+  }
+
+  if (suite === "api") {
+    return testFiles.filter((file) => {
+      const path = normalizePath(file);
+
+      return (
+        path.includes("tests/integration/api/") ||
+        path.includes("tests/integration/routes/") ||
+        path.includes("tests/integration/sdk/")
+      );
+    });
+  }
+
+  return testFiles;
 }
 
 async function freePort(port: number) {
@@ -280,9 +344,18 @@ function ensurePrivateTestConfig() {
   const configDir = join(ROOT, "config");
   const privateTestPath = join(configDir, "private.test.ts");
   const privatePath = join(configDir, "private.ts");
+  const isCI = process.env.CI === "true";
 
   if (!existsSync(configDir)) {
     mkdirSync(configDir, { recursive: true });
+  }
+
+  if (isCI) {
+    generatePrivateTestConfig(privateTestPath);
+    copyFileSync(privateTestPath, privatePath);
+    console.log("✅ Mirrored config/private.test.ts to config/private.ts for CI build");
+    console.log(`✅ Test config verified: ${privateTestPath}`);
+    return;
   }
 
   if (!existsSync(privateTestPath) && existsSync(privatePath)) {
@@ -296,13 +369,6 @@ function ensurePrivateTestConfig() {
 
   if (!existsSync(privateTestPath)) {
     throw new Error(`System setup did not create required test config: ${privateTestPath}`);
-  }
-
-  // CI build still checks config/private.ts, not only config/private.test.ts.
-  // Mirror test config to private.ts only inside CI so local private config is not overwritten.
-  if (process.env.CI === "true" && !existsSync(privatePath)) {
-    copyFileSync(privateTestPath, privatePath);
-    console.log("✅ Mirrored config/private.test.ts to config/private.ts for CI build");
   }
 
   console.log(`✅ Test config verified: ${privateTestPath}`);
@@ -348,16 +414,13 @@ async function runCommand(cmd: string, args: string[], opts: any = {}) {
 }
 
 async function runSystemSetup() {
-  // Prepare config before build. CI was building in setup mode when config/private.ts was missing.
   ensurePrivateTestConfig();
 
-  console.log(
-    "⚙️ Integration test config ready. /api/testing will reset/seed per test file.",
-  );
+  console.log("⚙️ Integration test config ready. /api/testing will reset/seed per test file.");
 }
 
 function isSetupModeTest(filePath: string) {
-  const normalizedPath = filePath.replace(/\\/g, "/");
+  const normalizedPath = normalizePath(filePath);
 
   return (
     normalizedPath.endsWith("tests/integration/api/setup-actions.test.ts") ||
@@ -368,6 +431,8 @@ function isSetupModeTest(filePath: string) {
 
 async function prepareIsolatedServerForTestFile(filePath: string) {
   const setupModeTest = isSetupModeTest(filePath);
+
+  process.env.SVELTYCMS_SETUP_MODE_TEST = setupModeTest ? "true" : "false";
 
   await stopPreviewServer();
   await startPreviewServer();
@@ -429,11 +494,24 @@ function getExplicitFiles(argv: string[]) {
 async function main() {
   console.log("🚀 Starting SveltyCMS Black-Box Integration Test Suite...\n");
 
+  const argv = process.argv.slice(2);
+
+  const legacyFilter = getArgValue(argv, "--filter");
+  const suiteArg = getArgValue(argv, "--suite") as IntegrationSuite | undefined;
+  const dbArg = getArgValue(argv, "--db");
+
+  const suite: IntegrationSuite = suiteArg || (legacyFilter ? "db" : "all");
+  const dbType = dbArg || legacyFilter || process.env.DB_TYPE || "sqlite";
+
+  process.env.DB_TYPE = dbType;
+
   CONFIG = await loadHardenedConfig();
 
-  const argv = process.argv.slice(2);
   const explicitFiles = getExplicitFiles(argv);
   const skipBuild = argv.includes("--no-build");
+
+  console.log(`🧭 Suite: ${suite}`);
+  console.log(`🗄️ DB: ${dbType}`);
 
   await runSystemSetup();
 
@@ -466,15 +544,21 @@ async function main() {
 
   findTests(integrationDir);
 
+  testFiles = filterTestsBySuite(testFiles, suite, dbType);
+
   if (explicitFiles.length > 0) {
     testFiles = testFiles.filter((file) =>
       explicitFiles.some((explicitFile) =>
-        file.replace(/\\/g, "/").includes(explicitFile.replace(/\\/g, "/")),
+        normalizePath(file).includes(normalizePath(explicitFile)),
       ),
     );
   }
 
   console.log(`🧪 Found ${testFiles.length} integration test files`);
+
+  if (testFiles.length === 0) {
+    throw new Error(`No integration test files found for suite="${suite}" and db="${dbType}"`);
+  }
 
   let passed = 0;
   const results: { file: string; success: boolean; time: number }[] = [];
@@ -491,7 +575,7 @@ async function main() {
 
     console.log(`\n▶️ Running ${relPath}...`);
 
-    const bunTestPath = `./${relPath.replace(/\\/g, "/")}`;
+    const bunTestPath = `./${normalizePath(relPath)}`;
     const setupModeTest = isSetupModeTest(file);
     const db = getDbDefaults();
 
