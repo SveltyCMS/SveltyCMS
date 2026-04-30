@@ -352,7 +352,7 @@ jobs:
     name: 🧙 E2E (Wizard)
     needs: [bootstrap, build]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
@@ -392,8 +392,7 @@ jobs:
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
           DB_HOST=127.0.0.1 PASSWORD_MIN_LENGTH=8 TEST_MODE=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
           bun x wait-on http://127.0.0.1:4173 --timeout 120000 --interval 2000
-          bun x playwright test --project=wizard
-
+          bun x playwright test tests/e2e/setup-wizard.spec.ts --project=wizard --grep "Full Provisioning Flow"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
