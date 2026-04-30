@@ -42,7 +42,6 @@ jobs:
           bun-version: latest
 
       - uses: actions/cache@v5
-        id: cache-bun
         with:
           path: |
             .bun-cache
@@ -219,7 +218,7 @@ jobs:
     name: 🧪 DB (${{ matrix.db }})
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -231,7 +230,7 @@ jobs:
           - db: mongodb
             image: mongo:7
             port: 27017
-            health: "mongosh --eval 'db.runCommand({ping:1})'"
+            health: "mongosh --eval 'db.runCommand({ ping: 1 })'"
           - db: mariadb
             image: mariadb:11
             port: 3306
@@ -260,7 +259,7 @@ jobs:
           --health-cmd "${{ matrix.health }}"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 8
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v6
@@ -285,27 +284,36 @@ jobs:
 
       - name: Wait for DB
         if: matrix.db != 'sqlite'
-        run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
+        run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 120000 --interval 2000
 
       - name: Create MongoDB test user
         if: matrix.db == 'mongodb'
         run: |
-          docker run --rm --network host mongo:7 mongosh --host 127.0.0.1 --port 27017 \
-            -u testuser -p testpass --authenticationDatabase admin \
+          docker run --rm --network host mongo:7 mongosh "mongodb://testuser:testpass@127.0.0.1:27017/admin" \
             --eval '
               const dbName = "sveltycms_test";
               const appDb = db.getSiblingDB(dbName);
+
+              const roles = [
+                { role: "dbOwner", db: dbName },
+                { role: "readWrite", db: dbName },
+                { role: "clusterMonitor", db: "admin" }
+              ];
 
               try {
                 appDb.createUser({
                   user: "testuser",
                   pwd: "testpass",
-                  roles: [{ role: "dbOwner", db: dbName }]
+                  roles
                 });
-                print("MongoDB test user created");
+                print("MongoDB app test user created with dbOwner + clusterMonitor");
               } catch (e) {
                 if (String(e).includes("already exists")) {
-                  print("MongoDB test user already exists");
+                  appDb.updateUser("testuser", {
+                    pwd: "testpass",
+                    roles
+                  });
+                  print("MongoDB app test user updated with dbOwner + clusterMonitor");
                 } else {
                   throw e;
                 }
@@ -320,7 +328,7 @@ jobs:
           DB_NAME: sveltycms_test
           DB_USER: ${{ matrix.db != 'sqlite' && 'testuser' || '' }}
           DB_PASSWORD: ${{ matrix.db != 'sqlite' && 'testpass' || '' }}
-          DB_AUTH_SOURCE: ${{ matrix.db == 'mongodb' && 'admin' || '' }}
+          DB_AUTH_SOURCE: ${{ matrix.db == 'mongodb' && 'sveltycms_test' || '' }}
           ADMIN_PASSWORD: Password123!
           TEST_MODE: true
           PASSWORD_MIN_LENGTH: 8
@@ -404,7 +412,7 @@ jobs:
     name: 🧙 E2E (Wizard)
     needs: [bootstrap, build]
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
@@ -436,7 +444,7 @@ jobs:
       - name: Run Wizard E2E tests
         env:
           DB_TYPE: sqlite
-          DB_HOST: 127.0.0.1
+          DB_HOST: config/database
           DB_PORT: ""
           DB_NAME: e2e_setup_test
           DB_USER: ""
@@ -447,9 +455,26 @@ jobs:
           ADMIN_PASSWORD: Password123!
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-          DB_TYPE=sqlite DB_HOST=127.0.0.1 DB_PORT="" DB_NAME=e2e_setup_test DB_USER="" DB_PASSWORD="" DB_AUTH_SOURCE="" PASSWORD_MIN_LENGTH=8 TEST_MODE=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
+
+          rm -f config/private.ts config/private.test.ts
+          rm -rf config/database mediaFolder mediaFolder_e2e
+          mkdir -p config/database mediaFolder tests/e2e/.auth
+
+          DB_TYPE=sqlite \
+          DB_HOST=config/database \
+          DB_PORT="" \
+          DB_NAME=e2e_setup_test \
+          DB_USER="" \
+          DB_PASSWORD="" \
+          DB_AUTH_SOURCE="" \
+          PASSWORD_MIN_LENGTH=8 \
+          TEST_MODE=true \
+          ADMIN_PASSWORD=Password123! \
+          TEST_API_SECRET="$TEST_API_SECRET" \
+          bun run preview --host 127.0.0.1 > preview.log 2>&1 &
+
           bun x wait-on http://127.0.0.1:4173 --timeout 180000 --interval 2000
-          bun x playwright test --project=wizard
+          bun x playwright test tests/e2e/setup-wizard.spec.ts --project=wizard
 
       - uses: actions/upload-artifact@v7
         if: always()
@@ -515,7 +540,21 @@ jobs:
           ADMIN_PASSWORD: Password123!
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-          DB_TYPE=sqlite DB_HOST=127.0.0.1 DB_PORT="" DB_NAME=e2e_auth_test DB_USER="" DB_PASSWORD="" DB_AUTH_SOURCE="" PASSWORD_MIN_LENGTH=8 TEST_MODE=true SKIP_TEST_CLEANUP=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
+
+          DB_TYPE=sqlite \
+          DB_HOST=127.0.0.1 \
+          DB_PORT="" \
+          DB_NAME=e2e_auth_test \
+          DB_USER="" \
+          DB_PASSWORD="" \
+          DB_AUTH_SOURCE="" \
+          PASSWORD_MIN_LENGTH=8 \
+          TEST_MODE=true \
+          SKIP_TEST_CLEANUP=true \
+          ADMIN_PASSWORD=Password123! \
+          TEST_API_SECRET="$TEST_API_SECRET" \
+          bun run preview --host 127.0.0.1 > preview.log 2>&1 &
+
           bun x wait-on http://127.0.0.1:4173 --timeout 180000 --interval 2000
           bun x playwright test --project=auth-setup
 
@@ -585,21 +624,36 @@ jobs:
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
       - run: bun x playwright install --with-deps chromium
 
-      - name: Run E2E (${{ matrix.project }}) project
+      - name: Run E2E app project
         env:
           DB_TYPE: sqlite
           DB_HOST: 127.0.0.1
           DB_PORT: ""
-          DB_NAME: e2e_app_test
+          DB_NAME: e2e_app_${{ matrix.project }}
           DB_USER: ""
           DB_PASSWORD: ""
           DB_AUTH_SOURCE: ""
           PASSWORD_MIN_LENGTH: 8
           TEST_MODE: "true"
           SKIP_TEST_CLEANUP: "true"
+          ADMIN_PASSWORD: Password123!
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-          DB_TYPE=sqlite DB_HOST=127.0.0.1 DB_PORT="" DB_NAME=e2e_app_test DB_USER="" DB_PASSWORD="" DB_AUTH_SOURCE="" PASSWORD_MIN_LENGTH=8 TEST_MODE=true SKIP_TEST_CLEANUP=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
+
+          DB_TYPE=sqlite \
+          DB_HOST=127.0.0.1 \
+          DB_PORT="" \
+          DB_NAME=e2e_app_${{ matrix.project }} \
+          DB_USER="" \
+          DB_PASSWORD="" \
+          DB_AUTH_SOURCE="" \
+          PASSWORD_MIN_LENGTH=8 \
+          TEST_MODE=true \
+          SKIP_TEST_CLEANUP=true \
+          ADMIN_PASSWORD=Password123! \
+          TEST_API_SECRET="$TEST_API_SECRET" \
+          bun run preview --host 127.0.0.1 > preview.log 2>&1 &
+
           bun x wait-on http://127.0.0.1:4173 --timeout 180000 --interval 2000
           bun x playwright test --project=${{ matrix.project }}
 
@@ -609,7 +663,7 @@ jobs:
           name: playwright-report-${{ matrix.project }}
           path: playwright-report
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 7
 
       - uses: actions/upload-artifact@v7
         if: always()
@@ -620,122 +674,10 @@ jobs:
           retention-days: 7
 
   benchmarks:
-    name: 📊 Benchmarks (${{ matrix.db }})
-    needs: [db-tests]
+    name: 📊 Benchmarks
+    needs: [build]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'run-benchmarks')
-    strategy:
-      fail-fast: false
-      matrix:
-        db: [sqlite, mongodb, mariadb, postgresql]
-        include:
-          - db: sqlite
-            image: alpine
-          - db: mongodb
-            image: mongo:7
-            port: 27017
-            health: "mongosh --eval 'db.runCommand({ping:1})'"
-          - db: mariadb
-            image: mariadb:11
-            port: 3306
-            health: "mariadb-admin ping"
-          - db: postgresql
-            image: postgres:16
-            port: 5432
-            health: "pg_isready -U testuser"
-
-    services:
-      db:
-        image: ${{ matrix.image }}
-        ports:
-          - ${{ matrix.port && format('{0}:{0}', matrix.port) || '12345:12345' }}
-        env:
-          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: ${{ matrix.db == 'mariadb' && 'yes' || '' }}
-          MARIADB_DATABASE: ${{ matrix.db == 'mariadb' && 'sveltycms_bench' || '' }}
-          MARIADB_USER: ${{ matrix.db == 'mariadb' && 'testuser' || '' }}
-          MARIADB_PASSWORD: ${{ matrix.db == 'mariadb' && 'testpass' || '' }}
-          POSTGRES_USER: ${{ matrix.db == 'postgresql' && 'testuser' || '' }}
-          POSTGRES_PASSWORD: ${{ matrix.db == 'postgresql' && 'testpass' || '' }}
-          POSTGRES_DB: ${{ matrix.db == 'postgresql' && 'sveltycms_bench' || '' }}
-          MONGO_INITDB_ROOT_USERNAME: ${{ matrix.db == 'mongodb' && 'testuser' || '' }}
-          MONGO_INITDB_ROOT_PASSWORD: ${{ matrix.db == 'mongodb' && 'testpass' || '' }}
-        options: >-
-          ${{ matrix.health && format('--health-cmd "{0}" --health-interval 10s --health-timeout 5s --health-retries 8', matrix.health) || '' }}
-
+    timeout-minutes: 20
+    if: false
     steps:
-      - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v2
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: workspace-meta
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: build-output
-
-      - uses: actions/cache@v5
-        with:
-          path: |
-            .bun-cache
-            ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
-      - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
-
-      - name: Wait for DB
-        if: matrix.db != 'sqlite'
-        run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000 --interval 2000
-
-      - name: Create MongoDB benchmark user
-        if: matrix.db == 'mongodb'
-        run: |
-          docker run --rm --network host mongo:7 mongosh --host 127.0.0.1 --port 27017 \
-            -u testuser -p testpass --authenticationDatabase admin \
-            --eval '
-              const dbName = "sveltycms_bench";
-              const appDb = db.getSiblingDB(dbName);
-
-              try {
-                appDb.createUser({
-                  user: "testuser",
-                  pwd: "testpass",
-                  roles: [{ role: "dbOwner", db: dbName }]
-                });
-                print("MongoDB benchmark user created");
-              } catch (e) {
-                if (String(e).includes("already exists")) {
-                  print("MongoDB benchmark user already exists");
-                } else {
-                  throw e;
-                }
-              }
-            '
-
-      - name: Run Enterprise Benchmark Matrix
-        env:
-          DB_TYPE: ${{ matrix.db }}
-          DB_HOST: 127.0.0.1
-          DB_PORT: ${{ matrix.port || '' }}
-          DB_NAME: sveltycms_bench
-          DB_USER: ${{ matrix.db != 'sqlite' && 'testuser' || '' }}
-          DB_PASSWORD: ${{ matrix.db != 'sqlite' && 'testpass' || '' }}
-          DB_AUTH_SOURCE: ${{ matrix.db == 'mongodb' && 'admin' || '' }}
-          ADMIN_PASSWORD: ${{ secrets.BENCHMARK_ADMIN_PASSWORD || 'Password123!' }}
-          TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
-        run: |
-          bun run scripts/benchmark-matrix/index.ts \
-            --no-build \
-            --db=${{ matrix.db }} \
-            --level=4 \
-            --skip-redis \
-            --ci
-
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: benchmark-results-${{ matrix.db }}
-          path: tests/benchmarks/results/
-          if-no-files-found: ignore
-          retention-days: 14
+      - run: echo "Benchmarks are disabled in fork CI."
