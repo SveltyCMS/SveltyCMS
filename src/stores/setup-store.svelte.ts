@@ -235,6 +235,9 @@ function createSetupStore() {
     isSeeding: false,
     seedingProgress: 0,
     seedingError: null as string | null,
+    // Redis test state
+    redisTestPassed: false,
+    lastRedisTestResult: null as any | null,
   });
 
   // --- Validation Logic ---
@@ -353,8 +356,17 @@ function createSetupStore() {
     if (wizard.currentStep === 0) {
       return wizard.dbTestPassed;
     }
-    if (wizard.currentStep === 1 || wizard.currentStep === 2) {
+    if (wizard.currentStep === 1) {
       return validateStep(wizard.currentStep, false);
+    }
+    if (wizard.currentStep === 2) {
+      const isValid = validateStep(wizard.currentStep, false);
+      if (!isValid) return false;
+      // Enforce Redis test if enabled
+      if (wizard.systemSettings.useRedis && !wizard.redisTestPassed) {
+        return false;
+      }
+      return true;
     }
     if (wizard.currentStep === 3) {
       return true; // Email step is optional, always can proceed
@@ -688,6 +700,54 @@ function createSetupStore() {
     wizard.validationErrors = clearedErrors;
   }
 
+  /**
+   * Test Redis connection - Uses SvelteKit Form Actions
+   * @returns Promise<boolean> - true if connection successful
+   */
+  async function testRedisConnection(): Promise<boolean> {
+    wizard.isLoading = true;
+    wizard.errorMessage = "";
+    wizard.successMessage = "";
+    wizard.lastRedisTestResult = null;
+
+    try {
+      const formData = new FormData();
+      formData.append("host", wizard.systemSettings.redisHost);
+      formData.append("port", wizard.systemSettings.redisPort);
+      if (wizard.systemSettings.redisPassword) {
+        formData.append("password", wizard.systemSettings.redisPassword);
+      }
+
+      const response = await fetch("?/testRedis", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = deserialize(await response.text());
+      if (result.type === "success") {
+        const data = result.data as any;
+        wizard.lastRedisTestResult = data;
+
+        if (data.success) {
+          wizard.successMessage = data.message;
+          wizard.redisTestPassed = true;
+          return true;
+        }
+        wizard.errorMessage = data.error || "Redis connection failed.";
+        wizard.redisTestPassed = false;
+        return false;
+      }
+      return false;
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : "A server error occurred.";
+      wizard.errorMessage = `Redis Error: ${errorMsg}`;
+      wizard.redisTestPassed = false;
+      return false;
+    } finally {
+      wizard.isLoading = false;
+    }
+  }
+
   // --- CLEAR METHOD ---
   function clear() {
     const initialState = {
@@ -797,6 +857,7 @@ function createSetupStore() {
     testDatabaseConnection,
     seedDatabase,
     completeSetup,
+    testRedisConnection,
     clearDbTestError,
 
     // Derived state as getters

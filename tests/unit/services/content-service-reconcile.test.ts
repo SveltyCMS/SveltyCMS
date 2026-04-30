@@ -1,12 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock dependencies
-vi.mock("node:fs/promises", () => ({
-  default: {
+vi.mock("node:fs/promises", () => {
+  const mockFs = {
     stat: vi.fn(),
     readdir: vi.fn(),
-  },
-}));
+    mkdir: vi.fn(),
+  };
+  return {
+    ...mockFs,
+    default: mockFs,
+  };
+});
 
 vi.mock("../../../src/utils/logger", () => ({
   logger: {

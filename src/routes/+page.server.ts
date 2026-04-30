@@ -92,7 +92,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     if (isAdmin) {
       throw redirect(302, "/config/collectionbuilder");
     } else {
-      throw redirect(302, "/dashboard");
+      // Fallback for non-admins when no collections exist
+      throw redirect(302, "/user/profile");
     }
   } catch (err) {
     // Re-throw SvelteKit's internal redirect and error exceptions

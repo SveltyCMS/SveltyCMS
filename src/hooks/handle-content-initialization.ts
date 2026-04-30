@@ -82,7 +82,7 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
         logger.info(
           `[handleContentInitialization] No collections for tenant: ${tenantId}. Redirecting to dashboard.`,
         );
-        throw redirect(302, "/dashboard");
+        throw redirect(302, "/user/profile");
       }
     }
   }

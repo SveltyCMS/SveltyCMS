@@ -144,6 +144,11 @@
 
 	async function nextStep() {
 		if (!setupStore.canProceed) {
+			if (wizard.currentStep === 2 && wizard.systemSettings.useRedis && !setupStore.wizard.redisTestPassed) {
+				import('@src/stores/toast.svelte.ts').then(({ toast }) => {
+					toast.error('Please test your Redis connection before proceeding.');
+				});
+			}
 			return;
 		}
 		if (wizard.currentStep === 0) {

@@ -3,7 +3,8 @@
  * @description High-performance content reconciliation and schema management.
  */
 
-import fs from "node:fs/promises";
+import { existsSync } from "node:fs";
+import * as fsPromises from "node:fs/promises";
 import path from "node:path";
 import { logger } from "@utils/logger";
 import { CacheCategory } from "@src/databases/cache/types";
@@ -99,17 +100,20 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
 
   _isScanning = true;
   const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
+  if (!existsSync(collectionsDir)) {
+    await fsPromises.mkdir(collectionsDir, { recursive: true });
+  }
   const fileList: { fullPath: string; mtime: number }[] = [];
 
   async function walk(dir: string) {
     try {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
+      const entries = await fsPromises.readdir(dir, { withFileTypes: true });
       await Promise.all(
         entries.map(async (entry) => {
           const fullPath = path.join(dir, entry.name);
           if (entry.isDirectory()) return walk(fullPath);
           if (!entry.isFile() || !entry.name.endsWith(".js")) return;
-          const stats = await fs.stat(fullPath);
+          const stats = await fsPromises.stat(fullPath);
           fileList.push({ fullPath, mtime: stats.mtimeMs });
         }),
       );
@@ -388,7 +392,7 @@ export const contentService = {
     dbAdapter: IDBAdapter,
   ): Promise<void> {
     const fullPath = path.resolve(filePath);
-    const stats = await fs.stat(fullPath).catch(() => null);
+    const stats = await fsPromises.stat(fullPath).catch(() => null);
     if (!stats) return;
 
     const cacheKey = `schema:${fullPath}`;

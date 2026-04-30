@@ -184,7 +184,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
           pathname === "/"
             ? ""
             : `?from=${encodeURIComponent(event.url.pathname + event.url.search)}`;
-        logger.debug(`[Turbo] Config missing, redirecting to /setup from ${pathname}`);
+        logger.info(`[Turbo] Config missing, redirecting to /setup from ${pathname}`);
         throw redirect(302, `/setup${returnTo}`);
       }
     }

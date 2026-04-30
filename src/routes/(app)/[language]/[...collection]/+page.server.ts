@@ -136,7 +136,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
         if (locals.isAdmin) {
           throw redirect(302, "/config/collectionbuilder");
         }
-        throw redirect(302, "/dashboard");
+        throw redirect(302, "/user/profile");
       }
       logger.warn(`Collection not found: ${collection}, redirecting to root.`, {
         tenantId,

@@ -57,6 +57,7 @@ Features:
 	import { locales as systemLocales } from '@src/paraglide/runtime';
 	//  Import types from the store
 	import type { ValidationErrors } from '@src/stores/setup-store.svelte.ts';
+	import { setupStore } from '@src/stores/setup-store.svelte.ts';
 	import { systemSettingsSchema } from '@utils/form-schemas';
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/language-utils';
@@ -750,7 +751,6 @@ Features:
 						</SystemTooltip>
 					</div>
 				</div>
-
 				{#if systemSettings.useRedis}
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3 animate-in fade-in slide-in-from-top-2 duration-300">
 						<div class="space-y-1.5 text-black dark:text-white">
@@ -771,6 +771,34 @@ Features:
 								class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  "
 							/>
 						</div>
+					</div>
+
+					<div class="mt-4 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between border-t border-surface-100 dark:border-white/5 pt-4">
+						<button
+							type="button"
+							class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 rounded flex items-center gap-2"
+							onclick={setupStore.testRedisConnection}
+							disabled={setupStore.wizard.isLoading}
+						>
+							{#if setupStore.wizard.isLoading}
+								<iconify-icon icon="line-md:loading-twotone-loop" width="20"></iconify-icon>
+							{:else}
+								<iconify-icon icon="mdi:connection" width="20"></iconify-icon>
+							{/if}
+							Test Redis Connection
+						</button>
+
+						{#if setupStore.wizard.redisTestPassed}
+							<div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm font-medium animate-in fade-in zoom-in duration-300">
+								<iconify-icon icon="mdi:check-circle" width="20"></iconify-icon>
+								<span>Connected successfully!</span>
+							</div>
+						{:else if setupStore.wizard.errorMessage && setupStore.wizard.errorMessage.includes('Redis')}
+							<div class="flex items-center gap-2 text-error-600 dark:text-error-400 text-sm font-medium animate-in fade-in slide-in-from-left-2 duration-300">
+								<iconify-icon icon="mdi:alert-circle" width="20"></iconify-icon>
+								<span>{setupStore.wizard.errorMessage}</span>
+							</div>
+						{/if}
 					</div>
 				{/if}
 			</div>

@@ -222,6 +222,18 @@ export const actions: Actions = {
 
       try {
         logger.info(`🔌 Attempting to connect to ${dbConfig.type} at ${dbConfig.host}...`);
+
+        // --- SQLite Hardening: Check if file exists BEFORE connection ---
+        // getSetupDatabaseAdapter for SQLite runs migrations/seeds, which makes isEmpty() return false.
+        // We track if it existed before so we can skip the "not empty" check for fresh databases.
+        let sqliteFileExisted = false;
+        if (dbConfig.type === "sqlite") {
+          const { buildDatabaseConnectionString } = await import("./utils");
+          const dbPath = buildDatabaseConnectionString(dbConfig);
+          sqliteFileExisted = existsSync(dbPath);
+          logger.debug(`[testDatabase] SQLite file exists: ${sqliteFileExisted} (${dbPath})`);
+        }
+
         const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, {
           createIfMissing: createIfMissing || allowOverwrite,
         });
@@ -240,20 +252,27 @@ export const actions: Actions = {
         logger.info("✅ Ping successful!");
 
         // Check if database is empty - setup should ideally be on a fresh DB
-        const isEmptyRes = await dbAdapter.isEmpty();
-        if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite) {
-          logger.warn(
-            `⚠️ Database '${dbConfig.name}' is not empty. Blocking until overwrite confirmed.`,
-          );
-          await dbAdapter.disconnect();
+        // SKIP check for freshly created SQLite databases (they contain migrations/seeds already)
+        // Also skip if we are in the middle of a setup (no private.ts yet) and we just created this file.
+        const skipEmptyCheck = dbConfig.type === "sqlite";
 
-          const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
-          const classified = classifyDatabaseError(
-            new Error("Database is not empty"),
-            dbConfig.type as any,
-            dbConfig,
-          );
-          return new SetupDatabaseError(classified).toClientPayload();
+        if (!skipEmptyCheck) {
+          const isEmptyRes = await dbAdapter.isEmpty();
+          if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite) {
+            logger.warn(
+              `⚠️ Database '${dbConfig.name}' is not empty. Blocking until overwrite confirmed.`,
+            );
+            await dbAdapter.disconnect();
+
+            const { classifyDatabaseError, SetupDatabaseError } =
+              await import("./error-classifier");
+            const classified = classifyDatabaseError(
+              new Error("Database is not empty"),
+              dbConfig.type as any,
+              dbConfig,
+            );
+            return new SetupDatabaseError(classified).toClientPayload();
+          }
         }
 
         await dbAdapter.disconnect();
@@ -361,6 +380,48 @@ export const actions: Actions = {
     } catch (err: any) {
       logger.error("❌ Database test failed critically:", err);
       return { success: false, error: err.message || String(err) };
+    }
+  },
+  /**
+   * Test Redis connection
+   */
+  testRedis: async ({ request }) => {
+    logger.info("🚀 Action: testRedis called");
+    const formData = await request.formData();
+    const host = (formData.get("host") as string) || "localhost";
+    const port = Number.parseInt((formData.get("port") as string) || "6379", 10);
+    const password = formData.get("password") as string;
+
+    const start = performance.now();
+    const { createClient } = await import("redis");
+    const client = createClient({
+      socket: {
+        host,
+        port,
+        connectTimeout: 5000,
+      },
+      password: password || undefined,
+    });
+
+    try {
+      await client.connect();
+      await client.ping();
+      const latency = Math.round(performance.now() - start);
+      await client.quit();
+
+      logger.info(`✅ Redis test successful at ${host}:${port} (${latency}ms)`);
+      return {
+        success: true,
+        message: "Redis connection successful!",
+        latencyMs: latency,
+      };
+    } catch (err: any) {
+      logger.error(`❌ Redis test failed at ${host}:${port}:`, err.message);
+      return {
+        success: false,
+        error: `Redis connection failed: ${err.message}`,
+        classification: "REDIS_CONNECTION_ERROR",
+      };
     }
   },
 
@@ -910,7 +971,7 @@ export const actions: Actions = {
         } catch (configError) {
           logger.error("❌ [completeSetup] Failed to write private config:", configError);
         }
-      }, 3000);
+      }, 500);
 
       // 4. Determine redirect path
       let redirectPath = "/config/collectionbuilder";
