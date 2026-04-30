@@ -84,7 +84,7 @@ graph TB
 
 | Context                                 | Recommended        | Latency    | Reason                                                         |
 | :-------------------------------------- | :----------------- | :--------- | :------------------------------------------------------------- |
-| **Client-side** (`.svelte`, `+page.ts`) | **HTTP / GraphQL** | 50–150 ms  | Browser environment; requires auth, CORS, and network.         |
+| **Client-side** (`.svelte`, `+page.ts`) | **HTTP / [GraphQL API](./graphql.mdx)** | 50–150 ms  | Browser environment; requires auth, CORS, and network.         |
 | **Server-side** (`.server.ts`, actions) | **Local SDK**      | **0–5 ms** | Direct function calls; zero serialization or network overhead. |
 | **Mobile / External App**               | **GraphQL**        | 80–300+ ms | Optimized data fetching with nested population.                |
 | **Plugins / Background Jobs**           | **Local SDK**      | **0–5 ms** | Full access to core logic and security context.                |

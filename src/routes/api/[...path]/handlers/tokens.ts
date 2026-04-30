@@ -123,7 +123,7 @@ export async function handleIdentityTokenRoutes(
     }
 
     // If not found by technical ID, check if it's an invitation token value being validated
-    const validateRes = await cms.auth.validateToken(tokenId as string, "invitation", "general", {
+    const validateRes = await cms.auth.validateToken(tokenId as string, "invite-token", "general", {
       tenantId,
     });
     if (validateRes.success && validateRes.data?.success) {

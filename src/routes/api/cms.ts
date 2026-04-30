@@ -250,7 +250,7 @@ class AuthNamespace {
 
   async validateToken(
     token: string,
-    type: "session" | "invitation" | "reset" | "api" = "api",
+    type: "session" | "invite-token" | "reset" | "api" = "api",
     category: string = "general",
     options: { tenantId?: DatabaseId | null } = {},
   ) {

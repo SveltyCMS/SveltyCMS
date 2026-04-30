@@ -540,16 +540,8 @@ export class Auth {
     token: string,
     options?: BaseQueryOptions,
   ): Promise<{ isValid: boolean; message: string; details?: Token }> {
-    // Try both 'user-invite' (new) and 'invite' (legacy) types, and 'invitation' (current cms.ts type)
-    let result = await this.db.auth.validateToken(token, undefined, "user-invite", options);
-
-    if (!(result?.success && result.data && result.data.success)) {
-      result = await this.db.auth.validateToken(token, undefined, "invite", options);
-    }
-
-    if (!(result?.success && result.data && result.data.success)) {
-      result = await this.db.auth.validateToken(token, undefined, "invitation", options);
-    }
+    // Use the global standard 'invite-token' type
+    const result = await this.db.auth.validateToken(token, undefined, "invite-token", options);
 
     if (result?.success && result.data && result.data.success) {
       const tokenResult = await this.db.auth.getTokenByValue(token, options);
@@ -592,18 +584,8 @@ export class Auth {
     token: string,
     options?: BaseQueryOptions,
   ): Promise<{ status: boolean; message: string }> {
-    // Attempt to consume as 'user-invite' first
-    let result = await this.db.auth.consumeToken(token, undefined, "user-invite", options);
-
-    // If fails (likely wrong type), try legacy 'invite'
-    if (!(result?.success && result.data && result.data.status)) {
-      result = await this.db.auth.consumeToken(token, undefined, "invite", options);
-    }
-
-    // If fails, try 'invitation'
-    if (!(result?.success && result.data && result.data.status)) {
-      result = await this.db.auth.consumeToken(token, undefined, "invitation", options);
-    }
+    // Attempt to consume using the global standard 'invite-token'
+    const result = await this.db.auth.consumeToken(token, undefined, "invite-token", options);
 
     if (result?.success && result.data) {
       return result.data;
@@ -616,7 +598,6 @@ export class Auth {
           : result.message || "Failed to consume token",
     };
   }
-
   async authenticate(
     email: string,
     password: string,

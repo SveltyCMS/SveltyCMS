@@ -1,7 +1,7 @@
 <!--
 @file src/components/emails/user-token.svelte
 @component
-**userToken Email component to send user token invite to email**
+**userToken Email component to send invite-token to email**
 -->
 
 <script lang="ts">

@@ -81,17 +81,10 @@ events.addEventListener("entryUpdated", (e) => {
 
 ## 4. GraphQL API
 
-The GraphQL endpoint provides a flexible alternative to REST, allowing you to fetch complex nested data in a single round-trip.
+While GraphQL is the primary mechanism for structured querying, we have separated its reference into its own dedicated documentation page.
 
-**Endpoint**: `POST /api/graphql`  
-**Playground**: Available at `/api/graphql` (GET) in development mode.
-
-### Subscriptions
-
-Real-time GraphQL updates are supported via WebSockets on a dedicated port.
-
-- **WS URL**: `ws://localhost:3001/api/graphql`
-- **Supported Events**: `entryUpdated`, `contentStructureUpdated`.
+For comprehensive details on schema definitions, mutations, queries, and subscriptions, please see:
+- [GraphQL API Reference](./graphql.mdx)
 
 ---
 
