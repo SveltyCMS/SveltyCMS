@@ -718,7 +718,7 @@ class TokensNamespace {
             user_id: userId as DatabaseId,
             token: tokenValue,
             role,
-            type: "invitation",
+            type: "invite-token",
             expires: expiresDate as ISODateString,
             status: "active",
             createdAt: new Date().toISOString() as ISODateString,
