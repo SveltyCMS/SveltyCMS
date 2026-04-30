@@ -27,7 +27,7 @@ env:
 
 jobs:
   # ------------------------------------------------
-  # 1. Bootstrap (fast, produces artifacts)
+  # 1. Bootstrap
   # ------------------------------------------------
   bootstrap:
     name: 🏁 Bootstrap
@@ -83,7 +83,7 @@ jobs:
           retention-days: 1
 
   # ------------------------------------------------
-  # 2. Quality gates (parallel)
+  # 2. Quality Gates
   # ------------------------------------------------
   lint:
     name: 🔎 Lint
@@ -94,7 +94,8 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
+        with:
+          name: workspace-meta
       - uses: actions/cache@v5
         with:
           path: |
@@ -113,7 +114,8 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
+        with:
+          name: workspace-meta
       - uses: actions/cache@v5
         with:
           path: |
@@ -132,7 +134,8 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
+        with:
+          name: workspace-meta
       - uses: actions/cache@v5
         with:
           path: |
@@ -156,7 +159,8 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
+        with:
+          name: workspace-meta
       - uses: actions/cache@v5
         with:
           path: |
@@ -172,7 +176,7 @@ jobs:
           flags: bun
 
   # ------------------------------------------------
-  # 3. Build (supports db-tests + e2e)
+  # 3. Build
   # ------------------------------------------------
   build:
     name: 🏗️ Build
@@ -183,7 +187,8 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
+        with:
+          name: workspace-meta
       - uses: actions/cache@v5
         with:
           path: |
@@ -202,7 +207,7 @@ jobs:
           retention-days: 1
 
   # ------------------------------------------------
-  # 4. Database Matrix Tests (with health checks)
+  # 4. Database Matrix Tests
   # ------------------------------------------------
   db-tests:
     name: 🧪 DB (${{ matrix.db }})
@@ -229,6 +234,7 @@ jobs:
             image: postgres:16
             port: 5432
             health: "pg_isready -U testuser"
+
     services:
       db:
         image: ${{ matrix.image }}
@@ -249,23 +255,58 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
     steps:
       - uses: actions/checkout@v6
+
       - uses: oven-sh/setup-bun@v2
+
       - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
+        with:
+          name: workspace-meta
+
       - uses: actions/download-artifact@v8
-        with: { name: build-output }
+        with:
+          name: build-output
+
       - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
             ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+
       - name: Wait for DB
         if: matrix.db != 'sqlite'
         run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 60000
+
+      - name: Create MongoDB test user
+        if: matrix.db == 'mongodb'
+        run: |
+          mongosh --host 127.0.0.1 --port 27017 \
+            -u testuser -p testpass --authenticationDatabase admin \
+            --eval '
+              const dbName = "sveltycms_test";
+              const appDb = db.getSiblingDB(dbName);
+
+              try {
+                appDb.createUser({
+                  user: "testuser",
+                  pwd: "testpass",
+                  roles: [{ role: "readWrite", db: dbName }]
+                });
+                print("MongoDB test user created");
+              } catch (e) {
+                if (String(e).includes("already exists")) {
+                  print("MongoDB test user already exists");
+                } else {
+                  throw e;
+                }
+              }
+            '
+
       - name: Run Integration Tests
         env:
           DB_TYPE: ${{ matrix.db }}
@@ -282,6 +323,7 @@ jobs:
             export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
           fi
           bun run scripts/run-integration-tests.ts --filter=${{ matrix.db }}
+
       - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v7
@@ -301,23 +343,31 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
+
       - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
+        with:
+          name: workspace-meta
+
       - uses: actions/download-artifact@v8
-        with: { name: build-output }
+        with:
+          name: build-output
+
       - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
             ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
       - uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
           restore-keys: playwright-${{ runner.os }}-
+
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
       - run: bun x playwright install --with-deps chromium
+
       - name: Run Wizard E2E tests
         env:
           DB_TYPE: sqlite
@@ -330,12 +380,14 @@ jobs:
           DB_HOST=127.0.0.1 PASSWORD_MIN_LENGTH=8 TEST_MODE=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
           bun x wait-on http://127.0.0.1:4173 --timeout 120000 --interval 2000
           bun x playwright test --project=wizard
+
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report-Wizard
           path: playwright-report
           retention-days: 14
+
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -344,7 +396,7 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------
-  # 6. E2E – Auth Setup (seeds DB, saves role states)
+  # 6. E2E – Auth Setup
   # ------------------------------------------------
   e2e-auth:
     name: 🔐 E2E (Auth Setup)
@@ -354,46 +406,56 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
+
       - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
+        with:
+          name: workspace-meta
+
       - uses: actions/download-artifact@v8
-        with: { name: build-output }
+        with:
+          name: build-output
+
       - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
             ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
       - uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
           restore-keys: playwright-${{ runner.os }}-
+
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
       - run: bun x playwright install --with-deps chromium
+
       - name: Run Auth Setup project
         env:
           DB_TYPE: sqlite
           PASSWORD_MIN_LENGTH: 8
           TEST_MODE: "true"
-          # Skip global cleanup — the wizard job already created the DB
           SKIP_TEST_CLEANUP: "true"
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
           DB_HOST=127.0.0.1 PASSWORD_MIN_LENGTH=8 TEST_MODE=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
           bun x wait-on http://127.0.0.1:4173 --timeout 120000 --interval 2000
           bun x playwright test --project=auth-setup
+
       - uses: actions/upload-artifact@v7
         with:
           name: e2e-auth-state
           path: tests/e2e/.auth/
           retention-days: 1
+
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report-Auth
           path: playwright-report
           retention-days: 7
+
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -402,7 +464,7 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------
-  # 7. E2E – App Tests (signup / content / system)
+  # 7. E2E – App Tests
   # ------------------------------------------------
   e2e-app:
     name: 🧪 E2E (${{ matrix.project }})
@@ -416,27 +478,36 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
+
       - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
+        with:
+          name: workspace-meta
+
       - uses: actions/download-artifact@v8
-        with: { name: build-output }
+        with:
+          name: build-output
+
       - uses: actions/download-artifact@v8
         with:
           name: e2e-auth-state
           path: tests/e2e/.auth/
+
       - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
             ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
       - uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
           restore-keys: playwright-${{ runner.os }}-
+
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
       - run: bun x playwright install --with-deps chromium
+
       - name: Run E2E (${{ matrix.project }}) project
         env:
           DB_TYPE: sqlite
@@ -448,12 +519,14 @@ jobs:
           DB_HOST=127.0.0.1 PASSWORD_MIN_LENGTH=8 TEST_MODE=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
           bun x wait-on http://127.0.0.1:4173 --timeout 120000 --interval 2000
           bun x playwright test --project=${{ matrix.project }}
+
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report-${{ matrix.project }}
           path: playwright-report
           retention-days: 14
+
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -462,7 +535,7 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------
-  # 8. Benchmarks (runs after db-tests)
+  # 8. Benchmarks
   # ------------------------------------------------
   benchmarks:
     name: 📊 Benchmarks (${{ matrix.db }})
@@ -489,6 +562,7 @@ jobs:
             image: postgres:16
             port: 5432
             health: "pg_isready -U testuser"
+
     services:
       db:
         image: ${{ matrix.image }}
@@ -506,24 +580,56 @@ jobs:
           MONGO_INITDB_ROOT_PASSWORD: ${{ matrix.db == 'mongodb' && 'testpass' || '' }}
         options: >-
           ${{ matrix.health && format('--health-cmd "{0}" --health-interval 10s --health-timeout 5s --health-retries 6', matrix.health) || '' }}
+
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
+
       - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
+        with:
+          name: workspace-meta
+
       - uses: actions/download-artifact@v8
-        with: { name: build-output }
+        with:
+          name: build-output
+
       - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
             ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
 
       - name: Wait for DB
         if: matrix.db != 'sqlite'
         run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000
+
+      - name: Create MongoDB benchmark user
+        if: matrix.db == 'mongodb'
+        run: |
+          mongosh --host 127.0.0.1 --port 27017 \
+            -u testuser -p testpass --authenticationDatabase admin \
+            --eval '
+              const dbName = "sveltycms_bench";
+              const appDb = db.getSiblingDB(dbName);
+
+              try {
+                appDb.createUser({
+                  user: "testuser",
+                  pwd: "testpass",
+                  roles: [{ role: "readWrite", db: dbName }]
+                });
+                print("MongoDB benchmark user created");
+              } catch (e) {
+                if (String(e).includes("already exists")) {
+                  print("MongoDB benchmark user already exists");
+                } else {
+                  throw e;
+                }
+              }
+            '
 
       - name: Run Enterprise Benchmark Matrix
         env:
