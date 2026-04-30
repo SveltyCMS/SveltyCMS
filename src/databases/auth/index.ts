@@ -540,11 +540,15 @@ export class Auth {
     token: string,
     options?: BaseQueryOptions,
   ): Promise<{ isValid: boolean; message: string; details?: Token }> {
-    // Try both 'user-invite' (new) and 'invite' (legacy) types
+    // Try both 'user-invite' (new) and 'invite' (legacy) types, and 'invitation' (current cms.ts type)
     let result = await this.db.auth.validateToken(token, undefined, "user-invite", options);
 
     if (!(result?.success && result.data && result.data.success)) {
       result = await this.db.auth.validateToken(token, undefined, "invite", options);
+    }
+
+    if (!(result?.success && result.data && result.data.success)) {
+      result = await this.db.auth.validateToken(token, undefined, "invitation", options);
     }
 
     if (result?.success && result.data && result.data.success) {
@@ -594,6 +598,11 @@ export class Auth {
     // If fails (likely wrong type), try legacy 'invite'
     if (!(result?.success && result.data && result.data.status)) {
       result = await this.db.auth.consumeToken(token, undefined, "invite", options);
+    }
+
+    // If fails, try 'invitation'
+    if (!(result?.success && result.data && result.data.status)) {
+      result = await this.db.auth.consumeToken(token, undefined, "invitation", options);
     }
 
     if (result?.success && result.data) {

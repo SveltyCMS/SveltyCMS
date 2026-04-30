@@ -232,6 +232,10 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     // Optimized: using cached setupState from Phase 3.
 
     if (setupState !== SetupState.COMPLETE) {
+      // Allow finalization request to bypass redirect loop
+      const isFinalization = event.request.method === "POST" && pathname.includes("/completeSetup");
+      if (isFinalization) return await resolve(event);
+
       const destination = setupState === SetupState.MISSING_CONFIG ? "/setup" : "/setup/admin";
 
       if (isApiRoute) {
