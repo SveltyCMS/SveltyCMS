@@ -10,7 +10,6 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
-import mongoose from "mongoose";
 
 // @ts-ignore - optional test config generated at runtime
 const imported = await import("../../../config/private.test").catch(() => ({
@@ -57,8 +56,6 @@ function buildMongoUri(authSource?: string) {
     port = "27017";
   }
 
-  // IMPORTANT: use the same DB name as CI.
-  // Do not append "_integration", because CI creates the Mongo user for sveltycms_test.
   const dbName = privateEnv.DB_NAME || "sveltycms_test";
 
   if (privateEnv.DB_USER && privateEnv.DB_PASSWORD) {
@@ -74,13 +71,17 @@ function buildMongoUri(authSource?: string) {
 
 describeMongo("MongoDB Adapter Integration", () => {
   let db: IDBAdapter | null = null;
+
   const TEST_TENANT = "test_tenant_mongo" as any as DatabaseId;
+  const CRUD_COLLECTION = "test_mongo_crud";
+  const QUERY_COLLECTION = "test_nosql_query";
 
   beforeAll(async () => {
     if (!isMongo) return;
 
     try {
       const { MongoDBAdapter } = await import("../../../src/databases/mongodb/mongo-db-adapter");
+
       db = new MongoDBAdapter();
 
       if (!db) {
@@ -90,7 +91,9 @@ describeMongo("MongoDB Adapter Integration", () => {
       const dbName = privateEnv.DB_NAME || "sveltycms_test";
       const primaryUri = buildMongoUri(dbName);
       const adminFallbackUri = buildMongoUri("admin");
-      const noAuthUri = buildMongoUri(undefined).replace(/\/\/[^:@/]+:[^@/]+@/, "//").replace(/\?authSource=.*/, "");
+      const noAuthUri = buildMongoUri(undefined)
+        .replace(/\/\/[^:@/]+:[^@/]+@/, "//")
+        .replace(/\?authSource=.*/, "");
 
       console.log(
         "DEBUG: Attempting MongoDB connection to:",
@@ -123,14 +126,14 @@ describeMongo("MongoDB Adapter Integration", () => {
       }
 
       if (!result?.success) {
-        throw new Error(`Failed to connect to MongoDB: ${result?.message || "unknown error"}`);
+        throw new Error(`Failed to connect to MongoDB: ${(result as any)?.message || "unknown error"}`);
       }
 
       console.log("DEBUG: MongoDB Connected successfully");
-      console.log("DEBUG: Mongoose readyState =", mongoose.connection.readyState);
-      console.log("DEBUG: Mongoose DB Name =", mongoose.connection.name);
-      console.log("DEBUG: Mongoose Host =", mongoose.connection.host);
-      console.log("DEBUG: Mongoose Port =", mongoose.connection.port);
+      console.log("DEBUG: Adapter connection readyState =", (db as any).connection?.readyState);
+      console.log("DEBUG: Adapter DB Name =", (db as any).connection?.name);
+      console.log("DEBUG: Adapter Host =", (db as any).connection?.host);
+      console.log("DEBUG: Adapter Port =", (db as any).connection?.port);
 
       await db.ensureSystem?.();
       await db.ensureContent?.();
@@ -150,12 +153,21 @@ describeMongo("MongoDB Adapter Integration", () => {
   afterAll(async () => {
     try {
       if (db?.crud) {
-        await db.crud.deleteMany("system_preferences", { tenantId: TEST_TENANT } as any).catch(
-          () => {},
-        );
-        await db.crud.deleteMany("test_nosql_query", { tenantId: TEST_TENANT } as any).catch(
-          () => {},
-        );
+        await db.crud
+          .deleteMany(
+            CRUD_COLLECTION,
+            { tenantId: TEST_TENANT } as any,
+            { tenantId: TEST_TENANT, permanent: true } as any,
+          )
+          .catch(() => {});
+
+        await db.crud
+          .deleteMany(
+            QUERY_COLLECTION,
+            { tenantId: TEST_TENANT } as any,
+            { tenantId: TEST_TENANT, permanent: true } as any,
+          )
+          .catch(() => {});
       }
 
       if (db?.isConnected?.()) {
@@ -179,23 +191,29 @@ describeMongo("MongoDB Adapter Integration", () => {
   });
 
   describe("Functional CRUD Operations", () => {
-    const testCollection = "system_preferences";
-    let createdId: DatabaseId;
-
     it("should handle full document lifecycle including metadata", async () => {
       if (!db) return;
 
-      const testId = `pref-mongo-${Date.now()}` as any as DatabaseId;
+      const runId = `mongo-crud-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const testId = `pref-${runId}` as any as DatabaseId;
+
+      await db.crud.deleteMany(
+        CRUD_COLLECTION,
+        { tenantId: TEST_TENANT, runId } as any,
+        { tenantId: TEST_TENANT, permanent: true } as any,
+      );
+
       const testDoc = {
         _id: testId,
         key: "test_mongo_key",
-        value: { adapter: "mongodb", validated: true },
+        runId,
+        payload: { adapter: "mongodb", validated: true },
         scope: "test",
         visibility: "private",
         tenantId: TEST_TENANT,
       };
 
-      const insertRes = await db.crud.insert(testCollection, testDoc as any, {
+      const insertRes = await db.crud.insert(CRUD_COLLECTION, testDoc as any, {
         tenantId: TEST_TENANT,
       });
 
@@ -206,14 +224,19 @@ describeMongo("MongoDB Adapter Integration", () => {
         throw new Error(`Mongo insert failed: ${(insertRes as any).message || "unknown error"}`);
       }
 
-      createdId = (insertRes.data as any)._id;
+      const createdId = (insertRes.data as any)._id;
       expect(createdId).toBeDefined();
       expect((insertRes.data as any).key).toBe("test_mongo_key");
 
-      const findRes = await db.crud.findOne(testCollection, {
-        _id: createdId as any,
-        tenantId: TEST_TENANT,
-      } as any);
+      const findRes = await db.crud.findOne(
+        CRUD_COLLECTION,
+        {
+          _id: createdId as any,
+          tenantId: TEST_TENANT,
+          runId,
+        } as any,
+        { tenantId: TEST_TENANT },
+      );
 
       console.log("DEBUG 2: FindOne Result:", JSON.stringify(findRes, null, 2));
 
@@ -222,13 +245,14 @@ describeMongo("MongoDB Adapter Integration", () => {
         throw new Error(`Mongo findOne failed: ${(findRes as any).message || "document not found"}`);
       }
 
-      expect((findRes.data as any).value.adapter).toBe("mongodb");
+      expect((findRes.data as any).payload.adapter).toBe("mongodb");
 
       const updateRes = await db.crud.update(
-        testCollection,
+        CRUD_COLLECTION,
         createdId as any,
         {
-          value: { adapter: "mongodb", validated: false, updated: true },
+          payload: { adapter: "mongodb", validated: false, updated: true },
+          status: "updated",
         } as any,
         { tenantId: TEST_TENANT },
       );
@@ -240,22 +264,34 @@ describeMongo("MongoDB Adapter Integration", () => {
         throw new Error(`Mongo update failed: ${(updateRes as any).message || "unknown error"}`);
       }
 
-      const refetchRes = await db.crud.findOne(testCollection, {
-        _id: createdId as any,
-        tenantId: TEST_TENANT,
-      } as any);
+      const refetchRes = await db.crud.findOne(
+        CRUD_COLLECTION,
+        {
+          _id: createdId as any,
+          tenantId: TEST_TENANT,
+          runId,
+        } as any,
+        { tenantId: TEST_TENANT },
+      );
 
       expect(refetchRes.success).toBe(true);
       if (!refetchRes.success || !refetchRes.data) {
-        throw new Error(`Mongo refetch failed after update: ${(refetchRes as any).message || "not found"}`);
+        throw new Error(
+          `Mongo refetch failed after update: ${(refetchRes as any).message || "not found"}`,
+        );
       }
 
-      expect((refetchRes.data as any).value.updated).toBe(true);
+      expect((refetchRes.data as any).payload.updated).toBe(true);
 
-      const countRes = await db.crud.count(testCollection, {
-        scope: "test",
-        tenantId: TEST_TENANT,
-      } as any);
+      const countRes = await db.crud.count(
+        CRUD_COLLECTION,
+        {
+          scope: "test",
+          tenantId: TEST_TENANT,
+          runId,
+        } as any,
+        { tenantId: TEST_TENANT },
+      );
 
       console.log("DEBUG 4: Count Result:", JSON.stringify(countRes, null, 2));
 
@@ -267,11 +303,9 @@ describeMongo("MongoDB Adapter Integration", () => {
       expect(countRes.data).toBeGreaterThan(0);
 
       const existsRes = await db.crud.exists(
-        testCollection,
-        { _id: createdId as any } as any,
-        {
-          tenantId: TEST_TENANT,
-        },
+        CRUD_COLLECTION,
+        { _id: createdId as any, runId } as any,
+        { tenantId: TEST_TENANT },
       );
 
       expect(existsRes.success).toBe(true);
@@ -281,9 +315,10 @@ describeMongo("MongoDB Adapter Integration", () => {
 
       expect(existsRes.data).toBe(true);
 
-      const deleteRes = await db.crud.delete(testCollection, createdId, {
+      const deleteRes = await db.crud.delete(CRUD_COLLECTION, createdId, {
         tenantId: TEST_TENANT,
-      });
+        permanent: true,
+      } as any);
 
       expect(deleteRes.success).toBe(true);
       if (!deleteRes.success) {
@@ -291,11 +326,9 @@ describeMongo("MongoDB Adapter Integration", () => {
       }
 
       const verifyRes = await db.crud.findOne(
-        testCollection,
-        { _id: createdId as any } as any,
-        {
-          tenantId: TEST_TENANT,
-        },
+        CRUD_COLLECTION,
+        { _id: createdId as any, runId } as any,
+        { tenantId: TEST_TENANT },
       );
 
       expect(verifyRes.success).toBe(true);
@@ -309,25 +342,31 @@ describeMongo("MongoDB Adapter Integration", () => {
     it("should support $in operator via queryBuilder", async () => {
       if (!db) return;
 
-      const coll = "test_nosql_query";
+      const runId = `mongo-query-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-      await db.crud.deleteMany(coll, { tenantId: TEST_TENANT } as any).catch(() => {});
+      await db.crud
+        .deleteMany(
+          QUERY_COLLECTION,
+          { tenantId: TEST_TENANT, runId } as any,
+          { tenantId: TEST_TENANT, permanent: true } as any,
+        )
+        .catch(() => {});
 
       const insertA = await db.crud.insert(
-        coll,
-        { name: "A", val: 1, tenantId: TEST_TENANT } as any,
+        QUERY_COLLECTION,
+        { name: "A", val: 1, runId, tenantId: TEST_TENANT } as any,
         { tenantId: TEST_TENANT },
       );
 
       const insertB = await db.crud.insert(
-        coll,
-        { name: "B", val: 2, tenantId: TEST_TENANT } as any,
+        QUERY_COLLECTION,
+        { name: "B", val: 2, runId, tenantId: TEST_TENANT } as any,
         { tenantId: TEST_TENANT },
       );
 
       const insertC = await db.crud.insert(
-        coll,
-        { name: "C", val: 3, tenantId: TEST_TENANT } as any,
+        QUERY_COLLECTION,
+        { name: "C", val: 3, runId, tenantId: TEST_TENANT } as any,
         { tenantId: TEST_TENANT },
       );
 
@@ -335,8 +374,11 @@ describeMongo("MongoDB Adapter Integration", () => {
       expect(insertB.success).toBe(true);
       expect(insertC.success).toBe(true);
 
-      const qb = db.queryBuilder(coll);
-      const res = await qb.where({ val: { $in: [1, 3] }, tenantId: TEST_TENANT } as any).execute();
+      const qb = db.queryBuilder(QUERY_COLLECTION);
+
+      const res = await qb
+        .where({ val: { $in: [1, 3] }, runId, tenantId: TEST_TENANT } as any)
+        .execute();
 
       console.log("DEBUG 5: QueryBuilder Result:", JSON.stringify(res, null, 2));
 
@@ -351,7 +393,11 @@ describeMongo("MongoDB Adapter Integration", () => {
       expect(names).toContain("A");
       expect(names).toContain("C");
 
-      await db.crud.deleteMany(coll, { tenantId: TEST_TENANT } as any);
+      await db.crud.deleteMany(
+        QUERY_COLLECTION,
+        { tenantId: TEST_TENANT, runId } as any,
+        { tenantId: TEST_TENANT, permanent: true } as any,
+      );
     });
   });
 });
