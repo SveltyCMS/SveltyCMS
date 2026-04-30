@@ -210,7 +210,7 @@ async function main() {
 
   if (!existsSync(privateTestPath)) {
     console.log("⚙️  Running system setup...");
-    await runCommand("bun", ["run", "scripts/setup-system.ts"], {
+    await runCommand("bun", ["run", "scripts/setup-system.ts", "--clean"], {
       env: {
         ...process.env,
         TEST_MODE: "true",
