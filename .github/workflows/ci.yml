@@ -320,6 +320,7 @@ jobs:
           DB_NAME: sveltycms_test
           DB_USER: ${{ matrix.db != 'sqlite' && 'testuser' || '' }}
           DB_PASSWORD: ${{ matrix.db != 'sqlite' && 'testpass' || '' }}
+          DB_AUTH_SOURCE: ${{ matrix.db == 'mongodb' && 'admin' || '' }}
           ADMIN_PASSWORD: Password123!
           TEST_MODE: true
           PASSWORD_MIN_LENGTH: 8
@@ -376,6 +377,7 @@ jobs:
           DB_NAME: sveltycms_test
           DB_USER: ""
           DB_PASSWORD: ""
+          DB_AUTH_SOURCE: ""
           ADMIN_PASSWORD: Password123!
           TEST_MODE: true
           PASSWORD_MIN_LENGTH: 8
@@ -435,12 +437,17 @@ jobs:
         env:
           DB_TYPE: sqlite
           DB_HOST: 127.0.0.1
+          DB_PORT: ""
+          DB_NAME: e2e_setup_test
+          DB_USER: ""
+          DB_PASSWORD: ""
+          DB_AUTH_SOURCE: ""
           PASSWORD_MIN_LENGTH: 8
           TEST_MODE: "true"
           ADMIN_PASSWORD: Password123!
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-          DB_HOST=127.0.0.1 PASSWORD_MIN_LENGTH=8 TEST_MODE=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
+          DB_TYPE=sqlite DB_HOST=127.0.0.1 DB_PORT="" DB_NAME=e2e_setup_test DB_USER="" DB_PASSWORD="" DB_AUTH_SOURCE="" PASSWORD_MIN_LENGTH=8 TEST_MODE=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
           bun x wait-on http://127.0.0.1:4173 --timeout 180000 --interval 2000
           bun x playwright test --project=wizard
 
@@ -496,13 +503,19 @@ jobs:
       - name: Run Auth Setup project
         env:
           DB_TYPE: sqlite
+          DB_HOST: 127.0.0.1
+          DB_PORT: ""
+          DB_NAME: e2e_auth_test
+          DB_USER: ""
+          DB_PASSWORD: ""
+          DB_AUTH_SOURCE: ""
           PASSWORD_MIN_LENGTH: 8
           TEST_MODE: "true"
           SKIP_TEST_CLEANUP: "true"
           ADMIN_PASSWORD: Password123!
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-          DB_HOST=127.0.0.1 PASSWORD_MIN_LENGTH=8 TEST_MODE=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
+          DB_TYPE=sqlite DB_HOST=127.0.0.1 DB_PORT="" DB_NAME=e2e_auth_test DB_USER="" DB_PASSWORD="" DB_AUTH_SOURCE="" PASSWORD_MIN_LENGTH=8 TEST_MODE=true SKIP_TEST_CLEANUP=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
           bun x wait-on http://127.0.0.1:4173 --timeout 180000 --interval 2000
           bun x playwright test --project=auth-setup
 
@@ -575,12 +588,18 @@ jobs:
       - name: Run E2E (${{ matrix.project }}) project
         env:
           DB_TYPE: sqlite
+          DB_HOST: 127.0.0.1
+          DB_PORT: ""
+          DB_NAME: e2e_app_test
+          DB_USER: ""
+          DB_PASSWORD: ""
+          DB_AUTH_SOURCE: ""
           PASSWORD_MIN_LENGTH: 8
           TEST_MODE: "true"
           SKIP_TEST_CLEANUP: "true"
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
-          DB_HOST=127.0.0.1 PASSWORD_MIN_LENGTH=8 TEST_MODE=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
+          DB_TYPE=sqlite DB_HOST=127.0.0.1 DB_PORT="" DB_NAME=e2e_app_test DB_USER="" DB_PASSWORD="" DB_AUTH_SOURCE="" PASSWORD_MIN_LENGTH=8 TEST_MODE=true SKIP_TEST_CLEANUP=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
           bun x wait-on http://127.0.0.1:4173 --timeout 180000 --interval 2000
           bun x playwright test --project=${{ matrix.project }}
 
@@ -696,8 +715,13 @@ jobs:
 
       - name: Run Enterprise Benchmark Matrix
         env:
+          DB_TYPE: ${{ matrix.db }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ matrix.port || '' }}
+          DB_NAME: sveltycms_bench
           DB_USER: ${{ matrix.db != 'sqlite' && 'testuser' || '' }}
           DB_PASSWORD: ${{ matrix.db != 'sqlite' && 'testpass' || '' }}
+          DB_AUTH_SOURCE: ${{ matrix.db == 'mongodb' && 'admin' || '' }}
           ADMIN_PASSWORD: ${{ secrets.BENCHMARK_ADMIN_PASSWORD || 'Password123!' }}
           TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
         run: |
