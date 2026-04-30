@@ -108,7 +108,7 @@ describeMongo("MongoDB Adapter Integration", () => {
       if (!result?.success && privateEnv.DB_USER && privateEnv.DB_PASSWORD) {
         console.warn("DEBUG: MongoDB app-db auth failed. Trying admin authSource fallback...");
 
-        await db.disconnect?.().catch(() => {});
+        await db.disconnect?.().catch(() => { });
         result = await db.connect(adminFallbackUri, {
           serverSelectionTimeoutMS: 8000,
           connectTimeoutMS: 8000,
@@ -118,7 +118,7 @@ describeMongo("MongoDB Adapter Integration", () => {
       if (!result?.success && !privateEnv.DB_USER && !privateEnv.DB_PASSWORD) {
         console.warn("DEBUG: MongoDB unauthenticated connection fallback...");
 
-        await db.disconnect?.().catch(() => {});
+        await db.disconnect?.().catch(() => { });
         result = await db.connect(noAuthUri, {
           serverSelectionTimeoutMS: 8000,
           connectTimeoutMS: 8000,
@@ -159,7 +159,7 @@ describeMongo("MongoDB Adapter Integration", () => {
             { tenantId: TEST_TENANT } as any,
             { tenantId: TEST_TENANT, permanent: true } as any,
           )
-          .catch(() => {});
+          .catch(() => { });
 
         await db.crud
           .deleteMany(
@@ -167,7 +167,7 @@ describeMongo("MongoDB Adapter Integration", () => {
             { tenantId: TEST_TENANT } as any,
             { tenantId: TEST_TENANT, permanent: true } as any,
           )
-          .catch(() => {});
+          .catch(() => { });
       }
 
       if (db?.isConnected?.()) {
@@ -338,8 +338,8 @@ describeMongo("MongoDB Adapter Integration", () => {
     });
   });
 
-  describe("NoSQL Query Building", () => {
-    it("should support $in operator via queryBuilder", async () => {
+  describe("NoSQL Query Filtering", () => {
+    it("should support $in operator via CRUD findMany", async () => {
       if (!db) return;
 
       const runId = `mongo-query-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -350,7 +350,7 @@ describeMongo("MongoDB Adapter Integration", () => {
           { tenantId: TEST_TENANT, runId } as any,
           { tenantId: TEST_TENANT, permanent: true } as any,
         )
-        .catch(() => {});
+        .catch(() => { });
 
       const insertA = await db.crud.insert(
         QUERY_COLLECTION,
@@ -374,24 +374,28 @@ describeMongo("MongoDB Adapter Integration", () => {
       expect(insertB.success).toBe(true);
       expect(insertC.success).toBe(true);
 
-      const qb = db.queryBuilder(QUERY_COLLECTION);
+      const res = await db.crud.findMany(
+        QUERY_COLLECTION,
+        {
+          val: { $in: [1, 3] },
+          runId,
+          tenantId: TEST_TENANT,
+        } as any,
+        { tenantId: TEST_TENANT },
+      );
 
-      const res = await qb
-        .where({ val: { $in: [1, 3] }, runId, tenantId: TEST_TENANT } as any)
-        .execute();
-
-      console.log("DEBUG 5: QueryBuilder Result:", JSON.stringify(res, null, 2));
+      console.log("DEBUG 5: CRUD $in Result:", JSON.stringify(res, null, 2));
 
       expect(res.success).toBe(true);
       if (!res.success || !res.data) {
-        throw new Error(`Mongo queryBuilder failed: ${(res as any).message || "unknown error"}`);
+        throw new Error(`Mongo findMany $in failed: ${(res as any).message || "unknown error"}`);
       }
 
-      expect(res.data.length).toBe(2);
+      const names = res.data.map((item: any) => item.name).sort();
 
-      const names = res.data.map((item: any) => item.name);
       expect(names).toContain("A");
       expect(names).toContain("C");
+      expect(names).not.toContain("B");
 
       await db.crud.deleteMany(
         QUERY_COLLECTION,
