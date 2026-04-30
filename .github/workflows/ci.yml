@@ -36,7 +36,7 @@ jobs:
     outputs:
       pw-version: ${{ steps.pw.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -44,7 +44,7 @@ jobs:
         with:
           bun-version: latest
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         id: cache-bun
         with:
           path: |
@@ -72,7 +72,7 @@ jobs:
       - id: pw
         run: echo "version=$(bun x playwright --version | awk '{print $2}')" >> $GITHUB_OUTPUT
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: workspace-meta
           include-hidden-files: true
@@ -91,11 +91,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
@@ -110,11 +110,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
@@ -129,11 +129,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
@@ -153,11 +153,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
@@ -180,11 +180,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
@@ -192,7 +192,7 @@ jobs:
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
       - run: bun run build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: build-output
           include-hidden-files: true
@@ -247,13 +247,13 @@ jobs:
         options: >-
           ${{ matrix.db != 'sqlite' && format('--health-cmd "{0}" --health-interval 10s --health-timeout 5s --health-retries 10', matrix.health) || '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: build-output }
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
@@ -281,7 +281,7 @@ jobs:
           bun run scripts/run-integration-tests.ts --filter=${{ matrix.db }}
       - name: Upload Logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: db-log-${{ matrix.db }}
           path: preview.log
@@ -297,19 +297,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: build-output }
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
             ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
@@ -328,13 +328,13 @@ jobs:
           DB_HOST=127.0.0.1 PASSWORD_MIN_LENGTH=8 TEST_MODE=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
           bun x wait-on http://127.0.0.1:4173 --timeout 120000 --interval 2000
           bun x playwright test --project=wizard
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report-Wizard
           path: playwright-report
           retention-days: 14
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: preview-log-wizard
@@ -350,19 +350,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: build-output }
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
             ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
@@ -381,18 +381,18 @@ jobs:
           DB_HOST=127.0.0.1 PASSWORD_MIN_LENGTH=8 TEST_MODE=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
           bun x wait-on http://127.0.0.1:4173 --timeout 120000 --interval 2000
           bun x playwright test --project=auth-setup
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: e2e-auth-state
           path: tests/e2e/.auth/
           retention-days: 1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report-Auth
           path: playwright-report
           retention-days: 7
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: preview-log-auth
@@ -412,23 +412,23 @@ jobs:
       matrix:
         project: [signup, content, system]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: build-output }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: e2e-auth-state
           path: tests/e2e/.auth/
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
             ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
@@ -446,13 +446,13 @@ jobs:
           DB_HOST=127.0.0.1 PASSWORD_MIN_LENGTH=8 TEST_MODE=true bun run preview --host 127.0.0.1 > preview.log 2>&1 &
           bun x wait-on http://127.0.0.1:4173 --timeout 120000 --interval 2000
           bun x playwright test --project=${{ matrix.project }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report-${{ matrix.project }}
           path: playwright-report
           retention-days: 14
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: preview-log-${{ matrix.project }}
@@ -505,13 +505,13 @@ jobs:
         options: >-
           ${{ matrix.health && format('--health-cmd "{0}" --health-interval 10s --health-timeout 5s --health-retries 6', matrix.health) || '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: build-output }
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             .bun-cache
@@ -537,7 +537,7 @@ jobs:
             --skip-redis \
             --ci
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: benchmark-results-${{ matrix.db }}
