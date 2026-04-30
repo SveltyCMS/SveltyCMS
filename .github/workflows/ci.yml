@@ -263,6 +263,43 @@ jobs:
       - name: Wait for DB
         if: matrix.db != 'sqlite'
         run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000
+
+      - name: Create MongoDB test database user
+        if: matrix.db == 'mongodb'
+        run: |
+          echo "Creating MongoDB test user inside sveltycms_test database..."
+
+          MONGO_CONTAINER="$(docker ps --filter "ancestor=mongo:7" --format "{{.ID}}" | head -n 1)"
+
+          if [ -z "$MONGO_CONTAINER" ]; then
+            MONGO_CONTAINER="$(docker ps --format "{{.ID}} {{.Image}}" | awk '$2 ~ /mongo/ {print $1; exit}')"
+          fi
+
+          if [ -z "$MONGO_CONTAINER" ]; then
+            echo "MongoDB container not found"
+            docker ps
+            exit 1
+          fi
+
+          docker exec "$MONGO_CONTAINER" mongosh --quiet "mongodb://testuser:testpass@127.0.0.1:27017/admin" --eval '
+            const targetDb = db.getSiblingDB("sveltycms_test");
+
+            try {
+              targetDb.createUser({
+                user: "testuser",
+                pwd: "testpass",
+                roles: [{ role: "readWrite", db: "sveltycms_test" }]
+              });
+              print("MongoDB sveltycms_test user created");
+            } catch (error) {
+              if (String(error.message || error).includes("already exists")) {
+                print("MongoDB sveltycms_test user already exists");
+              } else {
+                throw error;
+              }
+            }
+          '
+
       - name: Run Integration Tests
         env:
           DB_TYPE: ${{ matrix.db }}
