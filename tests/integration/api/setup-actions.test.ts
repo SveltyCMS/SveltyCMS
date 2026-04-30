@@ -1,55 +1,16 @@
 /**
- * @file tests/bun/api/setup-actions.test.ts
+ * @file tests/integration/api/setup-actions.test.ts
  * @description Comprehensive integration tests for Setup Actions (SvelteKit Server Actions)
  */
 
 import { beforeEach, describe, expect, it } from "bun:test";
-
-// Increase default timeout for database-heavy setup tests
-const TEST_TIMEOUT = 60_000;
-
-/**
- * Helper to parse SvelteKit Server Action "devalue" serialization.
- * SvelteKit returns data as a JSON string with indexed values.
- */
-function parseActionResult(result: { type: string; data?: any }): any {
-  if (result.type === "success" && typeof result.data === "string") {
-    try {
-      const parsed = JSON.parse(result.data);
-      if (Array.isArray(parsed)) {
-        const [structure, ...values] = parsed;
-        if (typeof structure === "object" && structure !== null) {
-          const unmarshaler = (val: any): any => {
-            if (typeof val === "number") {
-              return values[val - 1];
-            }
-            if (Array.isArray(val)) {
-              return val.map(unmarshaler);
-            }
-            if (typeof val === "object" && val !== null) {
-              const obj: Record<string, any> = {};
-              for (const [k, v] of Object.entries(val)) {
-                obj[k] = unmarshaler(v);
-              }
-              return obj;
-            }
-            return val;
-          };
-          return unmarshaler(structure);
-        }
-        return values[0]; // Fallback for primitive returns
-      }
-    } catch (e) {
-      console.warn("[parseActionResult] Failed to parse data:", e);
-    }
-  }
-  return result.data;
-}
-
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { DatabaseConfig } from "@src/databases/schemas";
 import { getApiBaseUrl, safeFetch } from "../helpers/server";
 import { cleanupTestDatabase } from "../helpers/test-setup";
+
+// Increase default timeout for database-heavy setup tests
+const TEST_TIMEOUT = 60_000;
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -83,6 +44,54 @@ const testAdminUser = {
   confirmPassword: "Admin123!",
 };
 
+/**
+ * Helper to parse SvelteKit Server Action "devalue" serialization.
+ * SvelteKit returns data as a JSON string with indexed values.
+ */
+function parseActionResult(result: { type: string; data?: any }): any {
+  if (result.type === "success" && typeof result.data === "string") {
+    try {
+      const parsed = JSON.parse(result.data);
+
+      if (Array.isArray(parsed)) {
+        const [structure, ...values] = parsed;
+
+        if (typeof structure === "object" && structure !== null) {
+          const unmarshaler = (val: any): any => {
+            if (typeof val === "number") {
+              return values[val - 1];
+            }
+
+            if (Array.isArray(val)) {
+              return val.map(unmarshaler);
+            }
+
+            if (typeof val === "object" && val !== null) {
+              const obj: Record<string, any> = {};
+
+              for (const [k, v] of Object.entries(val)) {
+                obj[k] = unmarshaler(v);
+              }
+
+              return obj;
+            }
+
+            return val;
+          };
+
+          return unmarshaler(structure);
+        }
+
+        return values[0]; // Fallback for primitive returns
+      }
+    } catch (e) {
+      console.warn("[parseActionResult] Failed to parse data:", e);
+    }
+  }
+
+  return result.data;
+}
+
 // Helper: SvelteKit Actions return a serialized result.
 // For simple tests, we check if the response is OK and parse the JSON result.
 // SvelteKit actions return { type: 'success' | 'failure', status, data: ... }
@@ -96,16 +105,30 @@ async function postAction(actionName: string, formData: FormData) {
         Origin: API_BASE_URL,
       },
     });
+
     if (!res) {
       throw new Error(`Server returned undefined response for action: ${actionName}`);
     }
+
     return res;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
+
     throw new Error(
       `Failed to execute setup action '${actionName}'. Is the preview server running at ${API_BASE_URL}? Error: ${message}`,
     );
   }
+}
+
+function createDatabaseFormData(config: DatabaseConfig = testDbConfig) {
+  const formData = new FormData();
+  formData.append("config", JSON.stringify(config));
+
+  // Critical for repeated SQLite setup-action tests.
+  // Without this, later tests hit "Database is not empty" after the first DB check.
+  formData.append("allowOverwrite", "true");
+
+  return formData;
 }
 
 describe("Setup Actions - Database Connection", () => {
@@ -118,9 +141,7 @@ describe("Setup Actions - Database Connection", () => {
   it(
     `tests ${dbType} connection`,
     async () => {
-      const formData = new FormData();
-      formData.append("config", JSON.stringify(testDbConfig));
-      formData.append("allowOverwrite", "true");
+      const formData = createDatabaseFormData(testDbConfig);
 
       const res = await postAction("testDatabase", formData);
       expect(res.status).toBe(200);
@@ -138,17 +159,19 @@ describe("Setup Actions - Database Connection", () => {
   it(
     "returns error for invalid credentials",
     async () => {
-      const formData = new FormData();
-      formData.append("config", JSON.stringify({ ...testDbConfig, user: "bad", password: "bad" }));
+      const formData = createDatabaseFormData({
+        ...testDbConfig,
+        user: "bad",
+        password: "bad",
+      });
 
       const res = await postAction("testDatabase", formData);
 
-      // SvelteKit might return 200 even for action failure if handled handled, checking result
+      // SvelteKit might return 200 even for action failure if handled, checking result
       const result = await res.json();
       const data = parseActionResult(result);
 
-      // Logic might resolve to success: false but HTTP 200, matching +page.server.ts logic
-      // The action returns { success: false } which is a successful function execution returning cleanup data
+      // The action returns { success: false } which is still a successful function execution
       expect(result.type).toBe("success");
 
       if (dbType === "sqlite") {
@@ -164,14 +187,18 @@ describe("Setup Actions - Database Connection", () => {
   it(
     "detects invalid host/port",
     async () => {
-      const formData = new FormData();
-      formData.append("config", JSON.stringify({ ...testDbConfig, host: "invalid", port: 99_999 }));
+      const formData = createDatabaseFormData({
+        ...testDbConfig,
+        host: "invalid",
+        port: 99_999,
+      });
 
       const res = await postAction("testDatabase", formData);
       const result = await res.json();
       const data = parseActionResult(result);
 
       expect(result.type).toBe("success");
+
       if (dbType === "sqlite") {
         // SQLite ignores host/port
         expect(data.success).toBe(true);
@@ -193,6 +220,7 @@ describe("Setup Actions - Database Driver Installation", () => {
       const res = await postAction("installDriver", formData);
 
       expect(res.status).toBe(200);
+
       const result = await res.json();
       const data = parseActionResult(result);
 
@@ -205,6 +233,7 @@ describe("Setup Actions - Database Driver Installation", () => {
         // Package name depends on DB type
         const expectedPackage =
           dbType === "mongodb" ? "mongoose" : dbType === "mariadb" ? "mysql2" : "postgres";
+
         expect(data.package).toBe(expectedPackage);
         expect(data.alreadyInstalled).toBe(true);
       }
@@ -223,12 +252,12 @@ describe("Setup Actions - Database Seeding", () => {
   it(
     "writes private.ts config",
     async () => {
-      const formData = new FormData();
-      formData.append("config", JSON.stringify(testDbConfig));
+      const formData = createDatabaseFormData(testDbConfig);
 
       const res = await postAction("seedDatabase", formData);
 
       expect(res.status).toBe(200);
+
       const result = await res.json();
       const data = parseActionResult(result);
 
@@ -237,9 +266,11 @@ describe("Setup Actions - Database Seeding", () => {
 
       const fs = await import("node:fs/promises");
       const path = await import("node:path");
+
       // In TEST_MODE, it writes to private.test.ts
       const configName = process.env.TEST_MODE ? "private.test.ts" : "private.ts";
       const configPath = path.resolve(process.cwd(), "config", configName);
+
       await fs.access(configPath);
     },
     TEST_TIMEOUT,
@@ -251,6 +282,7 @@ describe.skip("Setup Actions - SMTP Configuration", () => {
     "tests SMTP",
     async () => {
       const formData = new FormData();
+
       // testEmail action expects individual fields
       Object.entries({
         ...testSmtpConfig,
@@ -265,7 +297,8 @@ describe.skip("Setup Actions - SMTP Configuration", () => {
 
       // SMTP might fail in test env without real creds, but we check structure
       expect(result.type).toBe("success");
-      // If it fails, success will be false, but response type is success (action ran)
+
+      // If it fails, success will be false, but response type is success/action ran
       if (data.success) {
         expect(data.testEmailSent).toBe(true);
       } else {
@@ -281,20 +314,24 @@ describe("Setup Actions - Complete Setup", () => {
     if (dbType === "mongodb") {
       await cleanupTestDatabase();
     }
+
     // Wait for cleanup to settle and zombie connections to close
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Seed first
-    const formData = new FormData();
-    formData.append("config", JSON.stringify(testDbConfig));
+    const formData = createDatabaseFormData(testDbConfig);
     await postAction("seedDatabase", formData);
   }, TEST_TIMEOUT);
 
   it("creates admin user and redirects", async () => {
     const formData = new FormData();
+
     // completeSetup expects { database, admin, system } in 'data'
     const payload = {
-      database: testDbConfig,
+      database: {
+        ...testDbConfig,
+        allowOverwrite: true,
+      },
       admin: testAdminUser,
       system: {
         multiTenant: false,
@@ -305,23 +342,27 @@ describe("Setup Actions - Complete Setup", () => {
         redisPassword: "",
       },
     };
+
     formData.append("data", JSON.stringify(payload));
+    formData.append("allowOverwrite", "true");
 
     const res = await postAction("completeSetup", formData);
     const result = await res.json();
     const data = parseActionResult(result);
 
     expect(result.type).toBe("success");
+
     if (!data.success) {
       console.error("❌ completeSetup failed with error:", data.error);
     }
+
     expect(data.success).toBe(true);
     expect(data.redirectPath).toBeDefined();
 
-    // Check for session cookie in response headers (ActionResult usually doesn't explicitly return Set-Cookie in pure JSON body,
-    // but the response object should have headers)
-    // With x-sveltekit-action, headers are set on the response
+    // Check for session cookie in response headers.
+    // With x-sveltekit-action, headers are set on the response.
     const cookie = res.headers.get("set-cookie");
+
     if (cookie) {
       expect(cookie).toContain(SESSION_COOKIE_NAME);
     } else if (data.sessionId) {
