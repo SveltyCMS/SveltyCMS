@@ -1,3 +1,8 @@
+/**
+ * @file tests\e2e\setup-wizard.spec.ts
+ * @description Tests the setup wizard for the SveltyCMS application.
+ */
+
 import { expect, test } from "@playwright/test";
 import { seedWizardState, clickNext, clickFinish, handleDialog } from "./helpers/setup-wizard";
 

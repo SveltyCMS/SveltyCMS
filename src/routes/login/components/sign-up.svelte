@@ -16,7 +16,7 @@
 
 ### Features:
  - Dynamic language selection with a debounced input field or dropdown for multiple languages
- - Demo mode support with auto-reset timer 
+ - Demo mode support with auto-reset timer
  - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `firstUserExists`)
  - Reset state functionality for easy return to initial screen
  - Accessibility features for language selection and form navigation
@@ -387,7 +387,7 @@ $effect(() => {
 						bind:showPassword
 						label={form_password()}
 						minlength={8}
-						maxlength={50}
+						maxlength={64}
 						icon="mdi:password"
 						iconColor="white"
 						textColor="white"
@@ -409,7 +409,7 @@ $effect(() => {
 						bind:showPassword
 						label={confirm_password?.() || form_confirmpassword?.()}
 						minlength={8}
-						maxlength={50}
+						maxlength={64}
 						icon="mdi:password"
 						iconColor="white"
 						textColor="white"
@@ -433,7 +433,7 @@ $effect(() => {
 							bind:value={signUpForm.data.token}
 							label="{registration_token()} (Optional)"
 							minlength={32}
-							maxlength={36}
+							maxlength={64}
 							icon="mdi:key-chain"
 							iconColor="white"
 							textColor="white"

@@ -43,7 +43,6 @@
 	import { showConfirm } from '@utils/modal-utils';
 	// Using iconify-icon web component
 	import { onMount, tick } from 'svelte';
-	import { goto } from '$app/navigation';
 	import AdminConfig from './admin-config.svelte';
 	import DatabaseConfig from './database-config.svelte';
 	import EmailConfig from './email-config.svelte';
@@ -183,7 +182,7 @@
 			const success = await completeSetup((redirectPath: string) => {
 				logger.info('[SetupPage] ✅ Setup successful, redirecting to:', redirectPath);
 				initialDataSnapshot = JSON.stringify(wizard);
-				goto(redirectPath);
+				window.location.href = redirectPath;
 			});
 			logger.info('[SetupPage] completeSetup result:', success);
 			if (success) {

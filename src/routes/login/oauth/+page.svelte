@@ -1,6 +1,6 @@
-﻿<!-- 
+﻿<!--
 @src/routes/login/oauth/+page.svelte
-@description OAuth login page 
+@description OAuth login page
 -->
 
 <script lang="ts">
@@ -98,7 +98,7 @@ function handleCancel() {
 					inputClass="text-white"
 					autocomplete="off"
 					minlength={16}
-					maxlength={48}
+					maxlength={64}
 				/>
 			</label>
 		{/if}

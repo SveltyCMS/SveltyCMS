@@ -559,6 +559,9 @@
 			(result: any) => {
 				// Refresh data if token was created
 				if (result?.success) {
+					// Automatically switch to Token view so the user can copy the newly generated token
+					showUsertoken = true;
+					showUserList = false;
 					fetchData();
 				}
 			}

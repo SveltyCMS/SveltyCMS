@@ -98,6 +98,9 @@ It's crucial to understand that **classical** and **quantum** algorithms operate
 - ✅ No RSA or ECC for data encryption
 - ✅ Key derivation from passwords, not public keys
 
+> [!NOTE]
+> While SveltyCMS's data at rest is secure, ensure your hosting provider (e.g., Cloudflare, Vercel) uses **X25519MLKEM768** (a hybrid post-quantum key exchange) for your TLS handshakes. This protects data in transit from "Harvest Now, Decrypt Later" state-sponsored scraping.
+
 #### 2. Memory-Hard Hashing (Argon2id)
 
 **Why Memory-Hard Algorithms Resist Quantum Attacks:**
@@ -118,7 +121,7 @@ Quantum Computer:
 - Quantum computers have limited qubits (quantum bits)
 - Memory access patterns can't be parallelized by quantum algorithms
 - 64 MB per hash remains expensive regardless of quantum speedup
-- Grover's algorithm doesn't help with memory-bound operations
+- Because Argon2id is a "memory-hard" function, the cost to implement the required Quantum RAM (QRAM) is currently estimated to be higher than classical memory by several orders of magnitude, effectively neutralizing the quantum speedup.
 
 #### 3. AES-256-GCM Remains Strong
 
@@ -154,11 +157,11 @@ Year 2055 (+30 years):     ████████████████░�
 * Migration to post-quantum cryptography recommended before this point
 ```
 
-### Quantum Computer Development Status (2025)
+### Quantum Computer Development Status (2026)
 
 **Current State:**
 
-- Small quantum computers with ~50-1000 qubits exist
+- Small-to-medium quantum computers with ~1,000–5,000 qubits exist
 - Limited coherence time (quantum states decay quickly)
 - High error rates requiring error correction
 - Not yet capable of breaking modern cryptography
@@ -171,7 +174,7 @@ Year 2055 (+30 years):     ████████████████░�
 
 **Expert Estimates:**
 
-- 2025-2030: Small quantum computers for research
+- 2026-2030: Research-scale quantum computers
 - 2030-2040: Medium-scale quantum computers
 - 2040-2050: Large-scale quantum computers potentially threatening RSA
 - 2050+: Quantum computers potentially impacting AES-128 (not AES-256)

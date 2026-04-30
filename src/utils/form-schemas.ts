@@ -84,7 +84,7 @@ const tokenSchema = pipe(
   string(),
   trim(),
   minLength(32),
-  maxLength(36, "Token must be either 32 or 36 characters"),
+  maxLength(64, "Token must be between 32 and 64 characters"),
 );
 
 // Form Schemas------------------------------------
@@ -126,7 +126,8 @@ export const signUpFormSchema = pipe(
     email: emailSchema,
     password: passwordSchema,
     confirm_password: confirmPasswordSchema,
-    token: optional(nullable(string())),
+    // Better to use tokenSchema for validation consistency
+    token: optional(tokenSchema),
   }),
   check(
     (input) => input.password === input.confirm_password,

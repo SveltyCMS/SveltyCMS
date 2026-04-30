@@ -328,6 +328,9 @@ export const actions: Actions = {
               await connection.end();
             }
 
+            // Add a small delay to allow the database engine to fully register the new database
+            await new Promise((r) => setTimeout(r, 500));
+
             // Retry connection now that DB/file exists
             const retry = await getSetupDatabaseAdapter(dbConfig, {
               createIfMissing: true,
@@ -340,6 +343,8 @@ export const actions: Actions = {
                 message: "Database created and connected successfully! ✨",
                 latencyMs: Math.round(performance.now() - start),
               };
+            } else {
+              throw new Error(health.message || "Connection health check failed after creation.");
             }
           } catch (createErr: any) {
             logger.error("❌ Database creation failed:", createErr.message);
