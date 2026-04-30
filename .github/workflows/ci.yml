@@ -300,7 +300,7 @@ jobs:
                 appDb.createUser({
                   user: "testuser",
                   pwd: "testpass",
-                  roles: [{ role: "readWrite", db: dbName }]
+                  roles: [{ role: "dbOwner", db: dbName }]
                 });
                 print("MongoDB test user created");
               } catch (e) {
@@ -612,7 +612,7 @@ jobs:
                 appDb.createUser({
                   user: "testuser",
                   pwd: "testpass",
-                  roles: [{ role: "readWrite", db: dbName }]
+                  roles: [{ role: "dbOwner", db: dbName }]
                 });
                 print("MongoDB benchmark user created");
               } catch (e) {
