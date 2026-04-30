@@ -13,6 +13,8 @@ import {
   existsSync,
   copyFileSync,
   readFileSync,
+  mkdirSync,
+  writeFileSync,
 } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,6 +35,7 @@ const loadHardenedConfig = async () => {
   if (!testApiSecret) {
     try {
       const secretPath = join(ROOT, "tests", "e2e", ".auth", "test-secret.txt");
+
       if (existsSync(secretPath)) {
         testApiSecret = readFileSync(secretPath, "utf8").trim();
       }
@@ -60,6 +63,29 @@ const loadHardenedConfig = async () => {
 let CONFIG: any = {};
 let previewProcess: ChildProcess | null = null;
 let isShuttingDown = false;
+
+function getDbDefaults() {
+  const dbType = process.env.DB_TYPE || "sqlite";
+
+  const defaultPort =
+    process.env.DB_PORT ||
+    (dbType === "postgresql"
+      ? "5432"
+      : dbType === "mariadb"
+        ? "3306"
+        : dbType === "mongodb"
+          ? "27017"
+          : "");
+
+  return {
+    type: dbType,
+    host: process.env.DB_HOST || "127.0.0.1",
+    port: defaultPort,
+    name: process.env.DB_NAME || "sveltycms_test",
+    user: process.env.DB_USER || "testuser",
+    password: process.env.DB_PASSWORD || "testpass",
+  };
+}
 
 async function freePort(port: number) {
   console.log(`🧹 Freeing port ${port}...`);
@@ -124,6 +150,8 @@ async function waitForServerReady(maxAttempts = 60) {
 async function startPreviewServer() {
   await freePort(Number(PORT));
 
+  const db = getDbDefaults();
+
   console.log(`🚀 Starting preview server on ${HOST}:${PORT}...`);
 
   previewProcess = spawn(
@@ -138,12 +166,12 @@ async function startPreviewServer() {
         ...process.env,
         NODE_ENV: "production",
         TEST_MODE: "true",
-        DB_TYPE: process.env.DB_TYPE || "sqlite",
-        DB_HOST: process.env.DB_HOST || "127.0.0.1",
-        DB_PORT: process.env.DB_PORT || "",
-        DB_NAME: process.env.DB_NAME || "sveltycms_test",
-        DB_USER: process.env.DB_USER || "testuser",
-        DB_PASSWORD: process.env.DB_PASSWORD || "testpass",
+        DB_TYPE: db.type,
+        DB_HOST: db.host,
+        DB_PORT: db.port,
+        DB_NAME: db.name,
+        DB_USER: db.user,
+        DB_PASSWORD: db.password,
         TEST_API_SECRET: CONFIG.TEST_API_SECRET,
         ADMIN_PASSWORD: CONFIG.ADMIN_PASSWORD,
         ORIGIN: API_BASE_URL,
@@ -186,9 +214,76 @@ async function stopPreviewServer() {
   await freePort(Number(PORT));
 }
 
+function generatePrivateTestConfig(privateTestPath: string) {
+  const db = getDbDefaults();
+
+  const dbPortValue =
+    db.type === "sqlite" || !db.port ? "undefined" : String(Number.parseInt(db.port, 10));
+
+  const content = `/**
+ * Auto-generated test config for integration tests.
+ * Created by scripts/run-integration-tests.ts.
+ */
+
+export const database = {
+  type: ${JSON.stringify(db.type)},
+  host: ${JSON.stringify(db.host)},
+  port: ${dbPortValue},
+  name: ${JSON.stringify(db.name)},
+  user: ${JSON.stringify(db.user)},
+  password: ${JSON.stringify(db.password)},
+};
+
+export const db = database;
+
+export const security = {
+  jwtSecret: ${JSON.stringify(CONFIG.JWT_SECRET_KEY)},
+  encryptionKey: ${JSON.stringify(CONFIG.ENCRYPTION_KEY)},
+  testApiSecret: ${JSON.stringify(CONFIG.TEST_API_SECRET)},
+  adminPassword: ${JSON.stringify(CONFIG.ADMIN_PASSWORD)},
+};
+
+export const secrets = security;
+
+export const system = {
+  multiTenant: false,
+  demoMode: false,
+  useRedis: false,
+  redisHost: "localhost",
+  redisPort: "6379",
+  redisPassword: "",
+};
+
+export const privateConfig = {
+  database,
+  db,
+  security,
+  secrets,
+  system,
+  multiTenant: false,
+  demoMode: false,
+  useRedis: false,
+  jwtSecret: security.jwtSecret,
+  encryptionKey: security.encryptionKey,
+  testApiSecret: security.testApiSecret,
+  adminPassword: security.adminPassword,
+};
+
+export default privateConfig;
+`;
+
+  writeFileSync(privateTestPath, content, "utf8");
+  console.log("✅ Generated config/private.test.ts from integration test environment");
+}
+
 function ensurePrivateTestConfig() {
-  const privateTestPath = join(ROOT, "config", "private.test.ts");
-  const privatePath = join(ROOT, "config", "private.ts");
+  const configDir = join(ROOT, "config");
+  const privateTestPath = join(configDir, "private.test.ts");
+  const privatePath = join(configDir, "private.ts");
+
+  if (!existsSync(configDir)) {
+    mkdirSync(configDir, { recursive: true });
+  }
 
   if (!existsSync(privateTestPath) && existsSync(privatePath)) {
     copyFileSync(privatePath, privateTestPath);
@@ -196,7 +291,18 @@ function ensurePrivateTestConfig() {
   }
 
   if (!existsSync(privateTestPath)) {
+    generatePrivateTestConfig(privateTestPath);
+  }
+
+  if (!existsSync(privateTestPath)) {
     throw new Error(`System setup did not create required test config: ${privateTestPath}`);
+  }
+
+  // CI build still checks config/private.ts, not only config/private.test.ts.
+  // Mirror test config to private.ts only inside CI so local private config is not overwritten.
+  if (process.env.CI === "true" && !existsSync(privatePath)) {
+    copyFileSync(privateTestPath, privatePath);
+    console.log("✅ Mirrored config/private.test.ts to config/private.ts for CI build");
   }
 
   console.log(`✅ Test config verified: ${privateTestPath}`);
@@ -242,49 +348,12 @@ async function runCommand(cmd: string, args: string[], opts: any = {}) {
 }
 
 async function runSystemSetup() {
-  const privateTestPath = join(ROOT, "config", "private.test.ts");
-
-  if (existsSync(privateTestPath)) {
-    console.log("⚙️ System already setup (private.test.ts found).");
-    ensurePrivateTestConfig();
-    return;
-  }
-
-  console.log("⚙️ Running clean system setup...");
-
-  await startPreviewServer();
-
-  const { code: setupCode } = await runCommand(
-    "bun",
-    ["run", "scripts/setup-system.ts", "--clean"],
-    {
-      env: {
-        ...process.env,
-        TEST_MODE: "true",
-        TEST_API_SECRET: CONFIG.TEST_API_SECRET,
-        ADMIN_PASSWORD: CONFIG.ADMIN_PASSWORD,
-        DB_TYPE: process.env.DB_TYPE || "sqlite",
-        DB_HOST: process.env.DB_HOST || "127.0.0.1",
-        DB_PORT: process.env.DB_PORT || "",
-        DB_NAME: process.env.DB_NAME || "sveltycms_test",
-        DB_USER: process.env.DB_USER || "testuser",
-        DB_PASSWORD: process.env.DB_PASSWORD || "testpass",
-        PASSWORD_MIN_LENGTH: "8",
-        JWT_SECRET_KEY: CONFIG.JWT_SECRET_KEY,
-        ENCRYPTION_KEY: CONFIG.ENCRYPTION_KEY,
-      },
-    },
-  );
-
-  await stopPreviewServer();
-
+  // Prepare config before build. CI was building in setup mode when config/private.ts was missing.
   ensurePrivateTestConfig();
 
-  if (setupCode !== 0) {
-    console.warn(
-      "⚠️ setup-system exited with a non-zero code, but required test config exists. Continuing.",
-    );
-  }
+  console.log(
+    "⚙️ Integration test config ready. /api/testing will reset/seed per test file.",
+  );
 }
 
 function isSetupModeTest(filePath: string) {
@@ -346,16 +415,24 @@ async function teardown() {
   }
 }
 
+function getExplicitFiles(argv: string[]) {
+  const files: string[] = [];
+
+  for (const arg of argv) {
+    if (arg.startsWith("--")) continue;
+    files.push(...arg.split(","));
+  }
+
+  return files.filter(Boolean);
+}
+
 async function main() {
   console.log("🚀 Starting SveltyCMS Black-Box Integration Test Suite...\n");
 
   CONFIG = await loadHardenedConfig();
 
   const argv = process.argv.slice(2);
-  const explicitFiles = argv
-    .filter((arg) => !arg.startsWith("--"))
-    .flatMap((arg) => arg.split(","));
-
+  const explicitFiles = getExplicitFiles(argv);
   const skipBuild = argv.includes("--no-build");
 
   await runSystemSetup();
@@ -416,6 +493,7 @@ async function main() {
 
     const bunTestPath = `./${relPath.replace(/\\/g, "/")}`;
     const setupModeTest = isSetupModeTest(file);
+    const db = getDbDefaults();
 
     const { code } = await runCommand("bun", ["test", "--timeout", "60000", bunTestPath], {
       env: {
@@ -425,12 +503,12 @@ async function main() {
         TEST_MODE: "true",
         SKIP_DESTRUCTIVE_TEST_CLEANUP: "true",
         SVELTYCMS_SETUP_MODE_TEST: setupModeTest ? "true" : "false",
-        DB_TYPE: process.env.DB_TYPE || "sqlite",
-        DB_HOST: process.env.DB_HOST || "127.0.0.1",
-        DB_PORT: process.env.DB_PORT || "",
-        DB_NAME: process.env.DB_NAME || "sveltycms_test",
-        DB_USER: process.env.DB_USER || "testuser",
-        DB_PASSWORD: process.env.DB_PASSWORD || "testpass",
+        DB_TYPE: db.type,
+        DB_HOST: db.host,
+        DB_PORT: db.port,
+        DB_NAME: db.name,
+        DB_USER: db.user,
+        DB_PASSWORD: db.password,
         JWT_SECRET_KEY: CONFIG.JWT_SECRET_KEY,
         ENCRYPTION_KEY: CONFIG.ENCRYPTION_KEY,
       },
