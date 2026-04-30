@@ -508,8 +508,11 @@ async function main() {
   CONFIG = await loadHardenedConfig();
 
   const explicitFiles = getExplicitFiles(argv);
-  const skipBuild = argv.includes("--no-build");
+  const hasExistingBuildOutput =
+    existsSync(join(ROOT, "build")) || existsSync(join(ROOT, ".svelte-kit", "output", "server"));
 
+  const skipBuild =
+    argv.includes("--no-build") || (process.env.CI === "true" && hasExistingBuildOutput);
   console.log(`🧭 Suite: ${suite}`);
   console.log(`🗄️ DB: ${dbType}`);
 
@@ -522,6 +525,8 @@ async function main() {
     if (code !== 0) {
       throw new Error("Build failed");
     }
+  } else {
+    console.log("⏭️ Skipping build; using existing CI build artifact.");
   }
 
   const integrationDir = join(ROOT, "tests", "integration");
