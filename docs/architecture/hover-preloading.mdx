@@ -218,17 +218,49 @@ if (editEntryId) {
 }
 ```
 
-### Client-Side Navigation
+### Client-Side Navigation (Standardized)
 
-**Recommended**: Use `<a>` tags with `data-sveltekit-preload-data="hover"` for automatic preloading:
+SveltyCMS mandates the **"Anchor-First"** pattern for all internal navigation to ensure consistent sub-50ms perceived latency.
+
+#### 1. Core Collection Lists
+
+Recommended for table rows and entry lists:
 
 ```svelte
-<!-- entry-list.svelte - Recommended approach -->
+<!-- entry-list.svelte -->
 <a href={`?edit=${originalEntry._id}`} data-sveltekit-preload-data="hover" class="table-row">
 	<!-- Row content -->
 </a>
+```
 
-<!-- SvelteKit automatically preloads on hover! -->
+#### 2. Dashboard Widgets (Speculative)
+
+For "At-a-glance" productivity, dashboard widgets use semantic links to prefetch content before the user clicks:
+
+```svelte
+<!-- last5-content-widget.svelte -->
+<li role="listitem">
+    <a href="/en/posts?edit=123" data-sveltekit-preload-data="hover">
+        <!-- Content preview -->
+    </a>
+</li>
+```
+
+> [!IMPORTANT]
+> **Accessibility (A11y)**: When using anchors within a list, always wrap the `<a>` tag inside an `<li>` element. Avoid applying `role="listitem"` directly to the anchor, as it conflicts with its interactive nature.
+
+#### 3. Configuration & Builders
+
+Even complex builders like the **Collection Builder** utilize anchor preloading for editing schemas:
+
+```svelte
+<!-- tree-view-node.svelte -->
+<a
+    href={`/config/collectionbuilder/edit/${item.id}`}
+    data-sveltekit-preload-data="hover"
+>
+    <iconify-icon icon="mdi:pencil"></iconify-icon>
+</a>
 ```
 
 **Alternative**: Programmatic navigation (when needed for complex interactions):
@@ -263,28 +295,27 @@ console.log(`[Preload] Entry ${entryId.substring(0, 8)} preloaded`);
 
 - Preload hit rate: 60-80%
 - Cache hit rate: 85-95%
-- Edit mode load: < 50ms
+- Edit mode load: **< 50ms (Perceived)**
 
-## Best Practices
+### Best Practices
 
 ### Do's ✅
 
-- ✅ **Use `<a>` tags with `data-sveltekit-preload-data="hover"`** for navigation links
-- ✅ Use intent detection (hover delay) for custom preload logic
-- ✅ Deduplicate preload requests
-- ✅ Clean up stale cache entries
-- ✅ Mark custom preload requests with header (`X-Preload: true`)
-- ✅ Leverage SvelteKit's built-in fetch caching
-- ✅ Monitor server load impact
+- ✅ **Standardize on `<a>` tags** with `data-sveltekit-preload-data="hover"`.
+- ✅ **Wrap anchors in `<li>`** when building list-based widgets.
+- ✅ Use intent detection (hover delay) for custom preload logic.
+- ✅ Deduplicate preload requests.
+- ✅ Clean up stale cache entries.
+- ✅ Leverage SvelteKit's built-in fetch caching.
+- ✅ Monitor server load impact.
 
 ### Don'ts ❌
 
-- ❌ Use `<button onclick={() => goto(url)}>` for navigation (prevents preloading)
-- ❌ Preload on short hovers (< 300ms) with custom logic
-- ❌ Preload same entry repeatedly
-- ❌ Keep preload cache indefinitely
-- ❌ Preload on mobile/slow connections (future)
-- ❌ Ignore server load metrics
+- ❌ **Avoid `goto()` for primary navigation** (it bypasses speculative preloading).
+- ❌ **Don't apply `role="listitem"` to `<a>` tags** (use proper `<li>` nesting).
+- ❌ Preload on short hovers (< 300ms) with custom logic.
+- ❌ Keep preload cache indefinitely.
+- ❌ Ignore server load metrics.
 
 ## Alternatives Considered
 

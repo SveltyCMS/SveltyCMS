@@ -30,6 +30,7 @@ export const widgetMeta = {
 <script lang="ts">
 	import type { WidgetSize } from '@src/content/types';
 	import { formatDistanceToNow } from 'date-fns';
+	import { app } from '@src/stores/store.svelte';
 	import BaseWidget from '../base-widget.svelte';
 
 	interface ContentItem {
@@ -90,21 +91,27 @@ export const widgetMeta = {
 		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
 			<div class="grid gap-2" style="max-height: 180px; overflow-y: auto;" role="list" aria-label="Last 5 content items">
 				{#each fetchedData.slice(0, 5) as item (item.id)}
-					<div class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60" role="listitem">
-						<div class="flex min-w-0 items-center gap-2">
-							<div class="h-2 w-2 rounded-full {getStatusColor(item.status)}" title="Status: {item.status}"></div>
-							<div class="flex min-w-0 flex-col">
-								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={item.title}> {item.title} </span>
-								<span class="text-xs text-surface-500 dark:text-surface-50" title={`Collection: ${item.collection}`}> {item.collection} </span>
+					<li role="listitem">
+						<a
+							href={`/${app.contentLanguage}/${item.collection}?edit=${item.id}`}
+							data-sveltekit-preload-data="hover"
+							class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs transition-colors hover:bg-surface-200 dark:bg-surface-700/60 dark:hover:bg-surface-700"
+						>
+							<div class="flex min-w-0 items-center gap-2">
+								<div class="h-2 w-2 rounded-full {getStatusColor(item.status)}" title="Status: {item.status}"></div>
+								<div class="flex min-w-0 flex-col">
+									<span class="text-text-900 dark:text-text-100 truncate font-medium" title={item.title}> {item.title} </span>
+									<span class="text-xs text-surface-500 dark:text-surface-50" title={`Collection: ${item.collection}`}> {item.collection} </span>
+								</div>
 							</div>
-						</div>
-						<div class="flex flex-col items-end">
-							<span class="text-xs font-medium uppercase text-surface-600 dark:text-surface-300">
-								{formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
-							</span>
-							<span class="text-xs text-surface-500 dark:text-surface-50" title={`By: ${item.createdBy}`}> {item.createdBy} </span>
-						</div>
-					</div>
+							<div class="flex flex-col items-end">
+								<span class="text-xs font-medium uppercase text-surface-600 dark:text-surface-300">
+									{formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+								</span>
+								<span class="text-xs text-surface-500 dark:text-surface-50" title={`By: ${item.createdBy}`}> {item.createdBy} </span>
+							</div>
+						</a>
+					</li>
 				{/each}
 			</div>
 		{:else}

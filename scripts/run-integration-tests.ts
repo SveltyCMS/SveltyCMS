@@ -6,7 +6,7 @@
  */
 
 import { spawn, execSync, type ChildProcess } from "node:child_process";
-import { readdirSync, unlinkSync, statSync } from "node:fs";
+import { readdirSync, unlinkSync, statSync, createWriteStream } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -82,12 +82,15 @@ async function startPreviewServer() {
 
   console.log(`🚀 Starting preview server on ${HOST}:${PORT}...`);
 
+  const logStream = createWriteStream(join(ROOT, "preview.log"), { flags: "a" });
+  console.log(`📝 Server logs will be saved to: ${join(ROOT, "preview.log")}`);
+
   previewProcess = spawn(
     "bun",
     ["run", "preview", "--port", PORT, "--host", HOST, "--strictPort"],
     {
       cwd: ROOT,
-      stdio: "inherit",
+      stdio: ["inherit", "pipe", "pipe"],
       env: {
         ...process.env,
         NODE_ENV: "production",
@@ -104,6 +107,14 @@ async function startPreviewServer() {
       },
     },
   );
+
+  if (previewProcess.stdout && previewProcess.stderr) {
+    previewProcess.stdout.pipe(logStream);
+    previewProcess.stderr.pipe(logStream);
+    // Also keep output in console for CI visibility
+    previewProcess.stdout.on("data", (data) => process.stdout.write(data));
+    previewProcess.stderr.on("data", (data) => process.stderr.write(data));
+  }
 
   await waitForServerReady();
 }

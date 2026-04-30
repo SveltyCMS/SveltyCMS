@@ -206,20 +206,17 @@ onMount(() => {
 
 	<div class="flex gap-2 overflow-x-auto pb-2 snap-x scrollbar-hide md:hidden">
 		{#each filteredGroups as g}
-			<button
-				onclick={() => {
-					const url = new URL(window.location.href);
-					url.searchParams.set('group', g.id);
-					goto(url.toString());
-				}}
-				class="btn {selectedGroupId === g.id ? 'preset-filled-primary-500' : 'preset-tonal-surface'} whitespace-nowrap snap-start"
+			<a
+				href={`?group=${g.id}`}
+				data-sveltekit-preload-data="hover"
+				class="btn {selectedGroupId === g.id ? 'preset-filled-primary-500' : 'preset-tonal-surface'} whitespace-nowrap snap-start flex items-center justify-center gap-2"
 			>
 				<span>{g.icon}</span>
 				<span>{g.name}</span>
 				{#if groupsNeedingConfig.has(g.id)}
 					<span class="ml-1 text-xs">⚠️</span>
 				{/if}
-			</button>
+			</a>
 		{/each}
 	</div>
 </div>

@@ -215,16 +215,16 @@ jobs:
         db: [sqlite, mongodb, mariadb, postgresql]
         include:
           - db: sqlite
-            image: alpine
+            image: alpine:latest
             health: "true"
           - db: mongodb
             image: mongo:7
             port: 27017
-            health: "mongosh --username testuser --password testpass --authenticationDatabase admin --quiet --eval 'db.adminCommand(\"ping\").ok' || mongosh --quiet --eval 'db.runCommand({ping:1}).ok'"
+            health: "mongosh --quiet --eval 'db.runCommand({ping:1}).ok'"
           - db: mariadb
             image: mariadb:11
             port: 3306
-            health: "mariadb-admin ping -h localhost -u root"
+            health: "mariadb-admin ping -h localhost"
           - db: postgresql
             image: postgres:16
             port: 5432
@@ -245,10 +245,7 @@ jobs:
           MONGO_INITDB_ROOT_USERNAME: ${{ matrix.db == 'mongodb' && 'testuser' || '' }}
           MONGO_INITDB_ROOT_PASSWORD: ${{ matrix.db == 'mongodb' && 'testpass' || '' }}
         options: >-
-          --health-cmd "${{ matrix.health }}"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          ${{ matrix.db != 'sqlite' && format('--health-cmd "{0}" --health-interval 10s --health-timeout 5s --health-retries 10', matrix.health) || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -265,7 +262,7 @@ jobs:
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
       - name: Wait for DB
         if: matrix.db != 'sqlite'
-        run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 60000
+        run: bun x wait-on tcp:127.0.0.1:${{ matrix.port }} --timeout 90000
       - name: Run Integration Tests
         env:
           DB_TYPE: ${{ matrix.db }}
@@ -288,6 +285,7 @@ jobs:
         with:
           name: db-log-${{ matrix.db }}
           path: preview.log
+          if-no-files-found: ignore
           retention-days: 7
 
   # ------------------------------------------------

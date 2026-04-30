@@ -49,14 +49,12 @@
 	import { contentStructure, setMode } from '@src/stores/collection-store.svelte';
 	import { ui, uiStateManager, toggleUIElement, userPreferredState } from '@src/stores/ui-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte';
 	import { avatarSrc, systemLanguage } from '@src/stores/store.svelte';
 	import { themeStore } from '@src/stores/theme-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
 	import { logger } from '@utils/logger';
 	// Removed axios import
 	import { browser } from '$app/environment';
-	import { goto } from '$app/navigation';
 	// Import necessary utilities and types
 	import { page } from '$app/state';
 
@@ -146,43 +144,6 @@
 		return browser && window.innerWidth < MOBILE_BREAKPOINT;
 	}
 
-	async function navigateTo(path: string): Promise<void> {
-		if (currentPath === path) {
-			return;
-		}
-
-		if (isMobile()) {
-			toggleUIElement('leftSidebar', 'hidden');
-		}
-
-		setMode('view');
-
-		// Start loading state for navigation
-		globalLoadingStore.startLoading(loadingOperations.navigation, `LeftSidebar.navigateTo(${path})`);
-
-		try {
-			// Special handling: System routes that don't use language prefixes
-			const unlocalizedRoutes = ['/mediagallery', '/config', '/user', '/dashboard', '/setup'];
-			const isUnlocalized = unlocalizedRoutes.some((r) => path === r || path.startsWith(`${r}/`));
-
-			if (isUnlocalized) {
-				await goto(path, { replaceState: false });
-				return;
-			}
-
-			// Ensure path includes language prefix for collection routes
-			const currentLocale = getLocale();
-			const pathWithLanguage = path.startsWith(`/${currentLocale}`) ? path : `/${currentLocale}${path}`;
-
-			await goto(pathWithLanguage, { replaceState: false });
-		} finally {
-			// Stop loading after navigation completes
-			// Note: SvelteKit will handle the actual page load, this just shows initial navigation
-			setTimeout(() => {
-				globalLoadingStore.stopLoading(loadingOperations.navigation);
-			}, 100);
-		}
-	}
 
 	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage): void {
@@ -198,14 +159,18 @@
 		userPreferredState.set(newState);
 	}
 
-	async function handleUserClick(event?: Event): Promise<void> {
-		event?.stopPropagation();
-		await navigateTo('/user');
+	function handleUserClick(): void {
+		if (isMobile()) {
+			toggleUIElement('leftSidebar', 'hidden');
+		}
+		setMode('view');
 	}
 
-	async function handleConfigClick(event?: Event): Promise<void> {
-		event?.stopPropagation();
-		await navigateTo('/config');
+	function handleConfigClick(): void {
+		if (isMobile()) {
+			toggleUIElement('leftSidebar', 'hidden');
+		}
+		setMode('view');
 	}
 
 	async function signOut(): Promise<void> {
@@ -227,14 +192,6 @@
 		}
 	}
 
-	// Keyboard handlers
-	function handleKeyPress(event: KeyboardEvent, callback: () => void | Promise<void>): void {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			event.stopPropagation();
-			callback();
-		}
-	}
 </script>
 
 <div class="flex h-full w-full flex-col justify-between bg-transparent">
@@ -285,11 +242,13 @@
 		<SettingsMenu isFullSidebar={isSidebarFull} />
 
 		<!-- Toggle to Collections Button -->
-		<button
-			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-4 transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
+		<a
+			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-4 no-underline! transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
+			href={firstCollectionPath}
+			data-sveltekit-preload-data="hover"
 			onclick={() => {
 				setMode('view');
-				navigateTo(firstCollectionPath);
+				if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
 			}}
 			aria-label="Switch to Collections"
 		>
@@ -300,16 +259,18 @@
 			{:else}
 				<iconify-icon icon="bi:collection" width="18" class="text-error-500"></iconify-icon>
 			{/if}
-		</button>
+		</a>
 	{:else if isMediaMode}
 		<MediaFolders />
 
 		<!-- Toggle to Collections Button -->
-		<button
-			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-4 transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
+		<a
+			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-4 no-underline! transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
+			href={firstCollectionPath}
+			data-sveltekit-preload-data="hover"
 			onclick={() => {
 				setMode('view');
-				navigateTo(firstCollectionPath);
+				if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
 			}}
 			aria-label="Switch to Collections"
 		>
@@ -320,16 +281,18 @@
 			{:else}
 				<iconify-icon icon="bi:collection" width="18" class="text-error-500"></iconify-icon>
 			{/if}
-		</button>
+		</a>
 	{:else}
 		<Collections />
 
 		<!-- Toggle to Media Gallery Button -->
-		<button
-			class="btn preset-outlined-surface-500 dark:preset-filled-surface-500 mt-2 flex h-14 w-full items-center justify-center gap-2 rounded"
+		<a
+			class="btn preset-outlined-surface-500 dark:preset-filled-surface-500 mt-2 flex h-14 w-full items-center justify-center gap-2 rounded no-underline!"
+			href="/mediagallery"
+			data-sveltekit-preload-data="hover"
 			onclick={() => {
 				setMode('media');
-				navigateTo('/mediagallery');
+				if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
 			}}
 			aria-label="Switch to Media Gallery"
 		>
@@ -341,7 +304,7 @@
 				<iconify-icon icon="bi:images" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				<span class="text-sm">{collections_media()}</span>
 			{/if}
-		</button>
+		</a>
 	{/if}
 
 	<!-- Plugin Sidebar Items -->
@@ -355,13 +318,14 @@
 			<!-- Avatar -->
 			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center">
 				<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'right' }}>
-					<button
+					<a
+						href="/user"
+						data-sveltekit-preload-data="hover"
 						onclick={handleUserClick}
-						onkeypress={(e) => handleKeyPress(e, handleUserClick)}
 						aria-label="User Profile"
 						class="{isSidebarFull
 							? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500/20'
-							: 'h-10 w-10 rounded-full hover:bg-surface-500/20'} relative text-center no-underline!"
+							: 'h-10 w-10 rounded-full hover:bg-surface-500/20'} relative flex items-center justify-center text-center no-underline!"
 					>
 						<Avatar class="mx-auto overflow-hidden rounded-full {isSidebarFull ? 'size-10' : 'size-9'}">
 							<Avatar.Image src={avatarUrl} alt="User Avatar" class="h-full w-full object-cover" />
@@ -375,7 +339,7 @@
 								{user.username}
 							</div>
 						{/if}
-					</button>
+					</a>
 				</SystemTooltip>
 			</div>
 
@@ -471,14 +435,15 @@
 			<!-- Config -->
 			<div class="{isSidebarFull ? 'order-5' : 'order-6'} flex items-center justify-center">
 				<SystemTooltip title={applayout_systemconfiguration()} positioning={{ placement: 'right' }}>
-					<button
+					<a
+						href="/config"
+						data-sveltekit-preload-data="hover"
 						onclick={handleConfigClick}
-						onkeypress={(e) => handleKeyPress(e, handleConfigClick)}
 						aria-label="System Configuration"
-						class="btn-icon hover:bg-surface-500/20"
+						class="btn-icon flex items-center justify-center rounded-full hover:bg-surface-500/20"
 					>
 						<iconify-icon icon="material-symbols:build-circle" width="38" class=""></iconify-icon>
-					</button>
+					</a>
 				</SystemTooltip>
 			</div>
 

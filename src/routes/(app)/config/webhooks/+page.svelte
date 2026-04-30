@@ -146,7 +146,7 @@ onMount(loadWebhooks);
 
 <PageTitle name="Webhooks" icon="mdi:webhook" showBackButton={true} backUrl="/config" />
 
-<div class="wrapper p-4">
+<div class="wrapper mx-auto max-w-[1000px] p-4">
 	<div class="flex items-center justify-between mb-6">
 		<div>
 			<h2 class="h2 font-bold">Manage Webhooks</h2>
@@ -312,9 +312,3 @@ onMount(loadWebhooks);
 	</div>
 {/if}
 
-<style>
-	.wrapper {
-		max-width: 1000px;
-		margin: 0 auto;
-	}
-</style>

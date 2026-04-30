@@ -15,7 +15,6 @@ Features:
 <script lang="ts">
 import SystemTooltip from "@src/components/system/system-tooltip.svelte";
 import { screen } from "@src/stores/screen-size-store.svelte.ts";
-import { goto } from "$app/navigation";
 import type { TreeViewItem } from "./tree-view-board.svelte";
 
 interface Props {
@@ -196,18 +195,29 @@ function handleKeyDown(e: KeyboardEvent) {
 	<!-- Action Buttons -->
 	<div class="flex gap-1 ml-auto shrink-0 transition-opacity duration-200">
 		<SystemTooltip title="Edit">
-			<button
-				type="button"
-				class="btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 rounded transition-all duration-200 hover:scale-110"
-				onclick={(e) => {
-					e.stopPropagation();
-					if (isCategory) onEditCategory(item);
-					else goto(`/config/collectionbuilder/edit/${item.id}`);
-				}}
-				aria-label="Edit {name}"
-			>
-				<iconify-icon icon="mdi:pencil" width={24} aria-hidden="true" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-			</button>
+			{#if isCategory}
+				<button
+					type="button"
+					class="btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 rounded transition-all duration-200 hover:scale-110"
+					onclick={(e) => {
+						e.stopPropagation();
+						onEditCategory(item);
+					}}
+					aria-label="Edit {name}"
+				>
+					<iconify-icon icon="mdi:pencil" width={24} aria-hidden="true" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				</button>
+			{:else}
+				<a
+					href={`/config/collectionbuilder/edit/${item.id}`}
+					data-sveltekit-preload-data="hover"
+					class="btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 rounded transition-all duration-200 hover:scale-110 flex items-center justify-center"
+					onclick={(e) => e.stopPropagation()}
+					aria-label="Edit {name}"
+				>
+					<iconify-icon icon="mdi:pencil" width={24} aria-hidden="true" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				</a>
+			{/if}
 		</SystemTooltip>
 
 		<!-- Duplicate -->

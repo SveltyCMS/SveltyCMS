@@ -12,7 +12,6 @@ import { AUTOMATION_EVENTS } from "@src/services/automation/types";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { onMount } from "svelte";
 import { slide } from "svelte/transition";
-import { goto } from "$app/navigation";
 
 let flows: AutomationFlow[] = $state([]);
 let isLoading = $state(true);
@@ -77,13 +76,6 @@ async function deleteFlow(flow: AutomationFlow) {
 	}
 }
 
-function createNew() {
-	goto("/config/automations/new");
-}
-
-function editFlow(flow: AutomationFlow) {
-	goto(`/config/automations/${flow.id}`);
-}
 
 async function testFlow(flow: AutomationFlow) {
 	toast.info(`Executing test run for "${flow.name}"...`);
@@ -186,7 +178,7 @@ onMount(loadFlows);
 	backUrl="/config"
 />
 
-<div class="wrapper p-4">
+<div class="wrapper mx-auto max-w-[1100px] p-4">
 	<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
 		<div class="flex-1 min-w-0">
 			<h2 class="h2 font-bold">Workflow Automations</h2>
@@ -195,10 +187,10 @@ onMount(loadFlows);
 			</p>
 		</div>
 		<div class="flex items-center gap-2">
-			<button class="preset-filled-primary-500 btn" onclick={createNew}>
+			<a class="preset-filled-primary-500 btn" href="/config/automations/new" data-sveltekit-preload-data="hover">
 				<iconify-icon icon="mdi:plus"></iconify-icon>
 				<span>New Automation</span>
-			</button>
+			</a>
 		</div>
 	</div>
 
@@ -247,10 +239,10 @@ onMount(loadFlows);
 			<h3 class="h3 font-bold">No Automations Yet</h3>
 			<p class="mb-2 opacity-60">Create your first automation to start streamlining workflows.</p>
 			<p class="mb-6 text-sm opacity-40">Example: Send an email when a new article is published.</p>
-			<button class="btn preset-filled-primary-500" onclick={createNew}>
+			<a class="preset-filled-primary-500 btn" href="/config/automations/new" data-sveltekit-preload-data="hover">
 				<iconify-icon icon="mdi:plus"></iconify-icon>
 				Get Started
-			</button>
+			</a>
 		</div>
 	{:else}
 		<div class="grid gap-4">
@@ -285,9 +277,9 @@ onMount(loadFlows);
 
 							<div class="flex-1 min-w-0">
 								<div class="flex items-center gap-2 mb-0.5">
-									<button class="font-bold text-lg truncate hover:text-primary-600 transition-colors text-left" onclick={() => editFlow(flow)}>
+									<a class="font-bold text-lg truncate hover:text-primary-600 transition-colors text-left" href={`/config/automations/${flow.id}`} data-sveltekit-preload-data="hover">
 										{flow.name}
-									</button>
+									</a>
 									{#if flow.active}
 										<span class="badge preset-filled-success-500 text-[10px] uppercase">Active</span>
 									{:else}
@@ -343,17 +335,18 @@ onMount(loadFlows);
 								>
 									<iconify-icon icon={flow.active ? 'mdi:pause' : 'mdi:play'}></iconify-icon>
 								</button>
-								<button class="btn btn-sm preset-tonal-surface" onclick={() => editFlow(flow)} title="Edit" aria-label="Edit Automation">
+								<a class="btn btn-sm preset-tonal-surface flex items-center justify-center" href={`/config/automations/${flow.id}`} title="Edit" aria-label="Edit Automation" data-sveltekit-preload-data="hover">
 									<iconify-icon icon="mdi:pencil-outline"></iconify-icon>
-								</button>
-								<button
-									class="btn btn-sm preset-tonal-surface"
-									onclick={() => editFlow(flow)}
+								</a>
+								<a
+									class="btn btn-sm preset-tonal-surface flex items-center justify-center"
+									href={`/config/automations/${flow.id}?duplicate=true`}
 									title="Duplicate"
 									aria-label="Duplicate Automation"
+									data-sveltekit-preload-data="hover"
 								>
 									<iconify-icon icon="mdi:content-copy"></iconify-icon>
-								</button>
+								</a>
 								<button class="btn btn-sm preset-tonal-error" onclick={() => deleteFlow(flow)} title="Delete" aria-label="Delete Automation">
 									<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
 								</button>
@@ -366,9 +359,3 @@ onMount(loadFlows);
 	{/if}
 </div>
 
-<style>
-	.wrapper {
-		max-width: 1100px;
-		margin: 0 auto;
-	}
-</style>

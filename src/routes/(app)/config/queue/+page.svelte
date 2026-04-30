@@ -61,7 +61,7 @@ function getFilterUrl(status?: string) {
 
 <PageTitle name="Background Queue" icon="mdi:queue-play-next" showBackButton={true} backUrl="/config" />
 
-<div class="wrapper p-4 space-y-6">
+<div class="wrapper mx-auto max-w-[1200px] p-4 space-y-6">
 	<!-- Statistics Cards -->
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
 		<a href={getFilterUrl()} class="card p-4 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 hover:border-primary-500 transition-colors">
@@ -288,10 +288,6 @@ function getFilterUrl(status?: string) {
 </div>
 
 <style>
-	.wrapper {
-		max-width: 1200px;
-		margin: 0 auto;
-	}
 
 	.disabled {
 		pointer-events: none;

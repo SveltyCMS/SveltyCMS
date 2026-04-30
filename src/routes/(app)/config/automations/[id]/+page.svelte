@@ -294,7 +294,7 @@ const steps = [
 {#if isLoading}
 	<div class="flex items-center justify-center py-20"><iconify-icon icon="mdi:loading" class="text-4xl animate-spin opacity-50"></iconify-icon></div>
 {:else}
-	<div class="wrapper p-4">
+	<div class="wrapper mx-auto max-w-[900px] p-4">
 		<!-- Stepper Header -->
 		<div class="flex flex-col sm:flex-row items-center justify-center gap-2 mb-8">
 			{#each steps as step (step.number)}
@@ -994,9 +994,3 @@ const steps = [
 	</div>
 {/if}
 
-<style>
-	.wrapper {
-		max-width: 900px;
-		margin: 0 auto;
-	}
-</style>

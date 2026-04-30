@@ -726,10 +726,10 @@ $effect(() => {
 			<span>{collection_addcategory()}</span>
 		</button>
 
-		<button onclick={handleAddCollectionClick} class="group btn-lg rounded-full preset-filled-primary-500" disabled={isLoading}>
+		<a href="/config/collectionbuilder/new" class="group btn-lg rounded-full preset-filled-primary-500" data-sveltekit-preload-data="hover">
 			<iconify-icon icon="ic:round-plus" width="24" class="transition-transform group-hover:rotate-90"></iconify-icon>
 			<span>{collection_add()}</span>
-		</button>
+		</a>
 
 		{#if selectedCategoryId}
 			<button
