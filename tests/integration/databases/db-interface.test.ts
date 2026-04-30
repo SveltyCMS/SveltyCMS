@@ -11,6 +11,18 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import type { DatabaseId, DatabaseResult, IDBAdapter } from "../../../src/databases/db-interface";
 
+function normalizeStoredValue(value: any) {
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+
+  return value;
+}
+
 describe("Database Interface Contract Tests", () => {
   let db: IDBAdapter | null = null;
   let currentDbType = process.env.DB_TYPE || "sqlite";
@@ -30,7 +42,8 @@ describe("Database Interface Contract Tests", () => {
       (imported as any).default ||
       {};
 
-    const databaseConfig = (imported as any).database || privateConfig.database || privateConfig.db || {};
+    const databaseConfig =
+      (imported as any).database || privateConfig.database || privateConfig.db || {};
 
     currentDbType =
       process.env.DB_TYPE ||
@@ -100,9 +113,16 @@ describe("Database Interface Contract Tests", () => {
         let connectionString = `mongodb://${host}:${port}/${dbName}`;
 
         if (user && pass) {
+          const authSource = encodeURIComponent(
+            process.env.DB_AUTH_SOURCE ||
+              privateConfig.DB_AUTH_SOURCE ||
+              databaseConfig.authSource ||
+              dbName,
+          );
+
           connectionString = `mongodb://${encodeURIComponent(user)}:${encodeURIComponent(
             pass,
-          )}@${host}:${port}/${dbName}`;
+          )}@${host}:${port}/${dbName}?authSource=${authSource}`;
         }
 
         await (db as any).connect(connectionString);
@@ -490,8 +510,6 @@ describe("Database Interface Contract Tests", () => {
     it("should handle full Auth user lifecycle", async () => {
       if (!db?.auth) return;
 
-      // MongoDB has a dedicated adapter integration suite.
-      // Keep this generic interface test focused on shared contract behavior.
       if (currentDbType === "mongodb") {
         console.warn("Skipping generic auth lifecycle in db-interface for MongoDB adapter.");
         return;
@@ -562,8 +580,6 @@ describe("Database Interface Contract Tests", () => {
     it("should handle standardized CRUD round-trips using system_preferences", async () => {
       if (!db?.crud) return;
 
-      // MongoDB has a dedicated adapter integration suite.
-      // This avoids duplicate failures from adapter-specific Mongo behavior here.
       if (currentDbType === "mongodb") {
         console.warn("Skipping generic CRUD round-trip in db-interface for MongoDB adapter.");
         return;
@@ -612,8 +628,6 @@ describe("Database Interface Contract Tests", () => {
       expect(updateRes.success).toBe(true);
       if (!updateRes.success) throw new Error("Update failed");
 
-      // Some adapters return the updated document, while others only return success.
-      // Refetch after update so the contract is stable across SQLite/MariaDB/PostgreSQL.
       const refetchAfterUpdate = await db.crud.findOne(collection, {
         _id: docId,
         tenantId: TEST_TENANT,
@@ -624,7 +638,7 @@ describe("Database Interface Contract Tests", () => {
         throw new Error("Refetch after update failed");
       }
 
-      const updatedValue = (refetchAfterUpdate.data as any).value;
+      const updatedValue = normalizeStoredValue((refetchAfterUpdate.data as any).value);
       expect(updatedValue?.data ?? updatedValue).toBe("updated_value_data");
 
       const countRes = await db.crud.count(
