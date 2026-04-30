@@ -27,7 +27,8 @@
     "config/**/*.ts",
     "types/**/*.ts",
     "scripts/**/*.ts",
-    "tests/**/*.ts"
+    "tests/**/*.ts",
+    "playwright.config.ts"
   ],
   "exclude": ["node_modules", ".svelte-kit", "src/paraglide/**/*.js"]
 }

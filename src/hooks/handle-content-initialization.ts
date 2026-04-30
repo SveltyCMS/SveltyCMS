@@ -4,7 +4,7 @@
  */
 
 import { redirect, type Handle } from "@sveltejs/kit";
-import { isBootstrapRoute, isSetupCompleteAsync } from "@utils/setup-check";
+import { isSetupCompleteAsync } from "@utils/setup-check";
 import { contentSystem } from "@src/content/index.server";
 import { logger } from "@utils/logger.server";
 import { getDbInitPromise } from "@src/databases/db";
@@ -16,19 +16,19 @@ const WHITELIST_REGEX =
   /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login)/;
 
 export const handleContentInitialization: Handle = async ({ event, resolve }) => {
-  // Ensure system is fully initialized for content requests
-  await getDbInitPromise(false, "FULL");
+  // Ensure system is ready for core operations (Login/Auth)
+  // FULL phase is now handled in the background by db.ts
+  await getDbInitPromise(false, "CORE");
 
   const { locals, url } = event;
   const { pathname } = url;
   const tenantId = locals.tenantId ?? null;
 
   // --- Phase 1: Gated Initialization ---
-  if (locals.__setupConfigExists === undefined) {
-    locals.__setupConfigExists = await isSetupCompleteAsync();
-  }
+  const setupState = (locals as any).__setupState || (await isSetupCompleteAsync());
+  locals.__setupConfigExists = setupState !== "MISSING_CONFIG";
 
-  if (!locals.__setupConfigExists) {
+  if (setupState !== "COMPLETE") {
     logger.debug(
       "[handleContentInitialization] System in SETUP mode. Skipping content initialization.",
     );
@@ -42,16 +42,16 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
       logger.error(`[handleContentInitialization] Init failed for tenant ${tenantId}:`, err);
     });
 
-    // Await initialization for authenticated requests, API routes, or specific bootstrap routes
-    if (
-      locals.user ||
-      pathname.startsWith("/api") ||
-      (isBootstrapRoute(pathname) && pathname !== "/" && !pathname.includes("dashboard"))
-    ) {
+    // Await initialization ONLY for content-specific routes or API calls
+    // Dashboard and Config Builder are fast-tracked to improve perceived performance
+    const isContentRoute = pathname.includes("/[language]/") || pathname.includes("/content");
+    const isApi = pathname.startsWith("/api") && !pathname.includes("/system/");
+
+    if (locals.user && (isContentRoute || isApi)) {
       logger.info(`[handleContentInitialization] Awaiting content system sync for ${pathname}...`);
       await initPromise;
     } else {
-      logger.debug(`[handleContentInitialization] Fast-tracking bootstrap page: ${pathname}`);
+      logger.debug(`[handleContentInitialization] Fast-tracking initialization for: ${pathname}`);
     }
   }
 

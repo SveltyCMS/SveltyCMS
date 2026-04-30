@@ -96,12 +96,12 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1038.0",
+    "@aws-sdk/client-s3": "^3.1039.0",
     "@boxyhq/saml-jackson": "^26.2.0",
     "@envelop/graphql-jit": "^11.1.1",
     "@floating-ui/dom": "^1.7.6",
     "@googlemaps/js-api-loader": "^2.0.2",
-    "@inlang/paraglide-js": "^2.17.0",
+    "@inlang/paraglide-js": "^2.18.0",
     "@mcp-b/webmcp-polyfill": "^2.2.0",
     "@skeletonlabs/skeleton": "^4.15.2",
     "@skeletonlabs/skeleton-svelte": "^4.15.2",
@@ -217,7 +217,7 @@
   },
   "optionalDependencies": {
     "better-sqlite3": "^12.9.0",
-    "mongoose": "^9.6.0",
+    "mongoose": "^9.6.1",
     "mysql2": "^3.22.3",
     "postgres": "^3.4.9"
   },

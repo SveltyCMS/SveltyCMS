@@ -66,8 +66,15 @@
 					const result = await res.json();
 					if (result.success) {
 						toast.success('Account anonymized successfully');
-						// Force logout by redirecting to logout
-						window.location.href = '/api/user/logout';
+						// Force logout by calling API with POST
+						await fetch('/api/user/logout', {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json',
+								'X-CSRF-Token': page.data.csrfToken
+							}
+						});
+						window.location.href = '/login';
 					} else {
 						toast.error(result.error || 'Anonymization failed');
 					}

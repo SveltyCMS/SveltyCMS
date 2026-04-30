@@ -195,6 +195,7 @@ async function main() {
   const argv = process.argv.slice(2);
   const explicitFiles = argv.filter((f) => !f.startsWith("--")).flatMap((f) => f.split(","));
   const skipBuild = argv.includes("--no-build");
+  const filter = argv.find((a) => a.startsWith("--filter="))?.split("=")[1];
 
   if (!skipBuild) {
     console.log("🏗️  Building project...");
@@ -276,6 +277,20 @@ async function main() {
     );
   }
 
+  if (filter) {
+    if (filter === "sqlite") {
+      // For sqlite, run all tests EXCEPT other database-specific ones
+      const otherDbs = ["mongodb", "mariadb", "postgresql"];
+      testFiles = testFiles.filter(
+        (f) => !otherDbs.some((db) => f.replace(/\\/g, "/").includes(db)),
+      );
+    } else {
+      testFiles = testFiles.filter((f) =>
+        f.replace(/\\/g, "/").includes(filter.replace(/\\/g, "/")),
+      );
+    }
+  }
+
   console.log(`🧪 Found ${testFiles.length} integration test files`);
 
   let passed = 0;
@@ -287,7 +302,8 @@ async function main() {
 
     console.log(`\n▶️  Running ${relPath}...`);
 
-    const { code } = await runCommand("bun", ["test", "--timeout", "60000", file], {
+    const normalizedPath = relative(ROOT, file).replace(/\\/g, "/");
+    const { code } = await runCommand("bun", ["test", "--timeout", "60000", normalizedPath], {
       env: {
         ...process.env,
         TEST_API_SECRET: CONFIG.TEST_API_SECRET,

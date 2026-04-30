@@ -61,10 +61,17 @@ export function getTestSecret(): string {
  * Higher-level wrapper around isSetupCompleteAsync.
  */
 export async function getSetupState(): Promise<SetupState> {
+  // FAST-PATH: Synchronous check for fully complete system
+  if (isSetupFullyComplete()) {
+    return SetupState.COMPLETE;
+  }
+
+  // Check config existence (sync)
   if (!isSetupComplete()) {
     return SetupState.MISSING_CONFIG;
   }
 
+  // Check DB state (async)
   const isComplete = await isSetupCompleteAsync();
   return isComplete ? SetupState.COMPLETE : SetupState.MISSING_ADMIN;
 }
@@ -148,11 +155,17 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 
   try {
     // 3. Dynamic Import & Await Initialization
-    const db = await import("../databases/db");
+    // Optimization: Check for existing adapter before heavy import wait
+    let db = (globalThis as any).__DB_MODULE_CACHE__;
+    if (!db) {
+      db = await import("../databases/db");
+      (globalThis as any).__DB_MODULE_CACHE__ = db;
+    }
 
     // Call the function instead of accessing the exported const to avoid circular dependency issues
     if (typeof db.getDbInitPromise === "function") {
-      await db.getDbInitPromise(); // CRITICAL: Wait for initialization to complete
+      // Use "CORE" phase for setup check to avoid waiting for background tasks
+      await db.getDbInitPromise(false, "CORE");
     } else if (db.dbInitPromise) {
       await db.dbInitPromise;
     }

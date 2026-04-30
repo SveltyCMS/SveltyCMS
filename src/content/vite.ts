@@ -148,7 +148,7 @@ import type { DatabaseId, ISODateString, CollectionEntry } from "./types";
       .map(([name, config]) => `  ${name}: ${config.type}`)
       .join(",\n");
 
-    const newTypeDefinitionContent = `\nexport type ContentTypes = ${collectionNames ? collectionNames + " | " : ""}(string & {});\n\nexport interface CollectionMap {\n${collectionMapEntries || ""}\n}\n`;
+    const newTypeDefinitionContent = `\nexport type ContentTypes = ${collectionNames ? collectionNames + " | " : ""}(string & {});\n\nexport interface CollectionMap {\n  [key: string]: CollectionEntry & Record<string, any>;\n${collectionMapEntries || ""}\n}\n`;
 
     const markerStart = "/* AUTOGEN_START: ContentTypes */";
     const markerEnd = "/* AUTOGEN_END: ContentTypes */";

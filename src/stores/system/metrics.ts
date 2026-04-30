@@ -11,6 +11,7 @@
  * - Record a specific benchmark (e.g. for a setup phase)
  */
 
+import { browser } from "$app/environment";
 import { logger } from "@utils/logger";
 import type { Writable } from "svelte/store";
 import type { AnomalyDetection, ServiceHealth, ServiceName, SystemStateStore } from "./types";
@@ -336,6 +337,7 @@ export function updateUptimeMetrics(
  * This is the "Learning" part of the state machine.
  */
 export async function loadHistoricalMetrics(store: Writable<SystemStateStore>): Promise<void> {
+  if (browser) return;
   try {
     const { performanceService } = await import("@src/services/performance-service");
     const historicalMetrics = await performanceService.loadMetrics();
@@ -374,6 +376,7 @@ export async function loadHistoricalMetrics(store: Writable<SystemStateStore>): 
  * Save current performance metrics to the database.
  */
 export async function saveCurrentMetrics(store: Writable<SystemStateStore>): Promise<void> {
+  if (browser) return;
   try {
     const { performanceService } = await import("@src/services/performance-service");
     const state = getSystemStateForSaving(store);

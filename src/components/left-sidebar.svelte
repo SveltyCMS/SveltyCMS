@@ -212,7 +212,10 @@
 		try {
 			await fetch('/api/user/logout', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' }
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken
+				}
 			});
 		} catch (error) {
 			logger.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');

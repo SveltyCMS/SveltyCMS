@@ -13,9 +13,10 @@
  */
 
 import { dev } from "$app/environment";
-import { getSetupState, SetupState } from "@src/utils/setup-check";
+import { getSetupState, SetupState, isSetupComplete, getTestSecret } from "@src/utils/setup-check";
 import { getSystemState } from "@src/stores/system/state";
 import { isRedirect, redirect, type Handle } from "@sveltejs/kit";
+import { getDbInitPromise, getDb } from "@src/databases/db";
 import {
   isApiLike,
   isBootstrapRoute,
@@ -123,12 +124,10 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
 
   if (isTest && testSecret) {
-    const { getTestSecret } = await import("@src/utils/setup-check");
     const expected = getTestSecret();
 
     if (expected && testSecret === expected) {
       // 🚀 HARD BYPASS: Verified test secret receives full system access and skips ALL middleware.
-      const { getDbInitPromise, getDb } = await import("@src/databases/db");
       await getDbInitPromise(false, "CORE");
 
       if (dev || isTest) {
@@ -175,9 +174,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
     // ── 2. ROBUST SETUP REDIRECT (FAST-PATH) ─────────────────────────────────
     // Check if config exists BEFORE any bootstrap bypass or DB initialization.
-    // This ensures that if config/private.ts is missing, we ALWAYS go to /setup,
-    // even if the DB is failing or the bootstrap route logic is complex.
-    const { isSetupComplete } = await import("@src/utils/setup-check");
+    // Optimization: isSetupComplete() is sync and memoized.
     if (!isSetupComplete()) {
       const isSetupRoute =
         pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
@@ -192,16 +189,20 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       }
     }
 
+    // ── 3. STATE DISCOVERY (ONE-TIME) ────────────────────────────────────────
+    // Consolidate setup state check to avoid redundant DB/File I/O
+    const setupState = await getSetupState();
+    (event.locals as any).__setupState = setupState;
+
     // ── 2. HEALTH CHECK BYPASS ──────────────────────────────────────────────
     if (pathname.startsWith("/api/system/health")) {
       return await resolve(event);
     }
 
-    // ── 3. BOOTSTRAP ROUTE BYPASS ───────────────────────────────────────────
+    // ── 4. BOOTSTRAP ROUTE BYPASS ───────────────────────────────────────────
     // We allow /setup and /login to bypass the main pipeline, but only if they are valid for the current state.
     // Specifically, /login should NOT bypass if the system is uninitialized (it needs to hit the setup gate).
-    const _setupState = await getSetupState();
-    const isLoginDuringSetup = pathname === "/login" && _setupState !== SetupState.COMPLETE;
+    const isLoginDuringSetup = pathname === "/login" && setupState !== SetupState.COMPLETE;
 
     if (isBootstrapRoute(pathname) && !isLoginDuringSetup) {
       const response = await resolve(event);
@@ -228,7 +229,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
     // ── 5. SETUP COMPLETENESS GATE (GRANULAR) ───────────────────────────────
     // This handles the MISSING_ADMIN state which requires DB access.
-    const setupState = await getSetupState();
+    // Optimized: using cached setupState from Phase 3.
 
     if (setupState !== SetupState.COMPLETE) {
       const destination = setupState === SetupState.MISSING_CONFIG ? "/setup" : "/setup/admin";

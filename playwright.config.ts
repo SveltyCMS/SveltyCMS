@@ -89,6 +89,8 @@ export default defineConfig({
     {
       name: "wizard",
       testMatch: /setup-wizard.*\.spec\.ts/,
+      // Force sequential to avoid race conditions during database provisioning
+      workers: 1,
     },
     {
       name: "auth-setup",

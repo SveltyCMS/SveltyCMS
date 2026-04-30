@@ -27,18 +27,21 @@ async function main() {
     process.exit(0);
   }
 
-  // 2. Start Tasks in Parallel
+  // 2. Mandatory Codegen (Pre-requisite for tests and type checking)
+  console.log("🛠️  Compiling i18n messages...");
+  await run("bun", ["run", "paraglide"]);
+
+  // 3. Start Tasks in Parallel
   const tasks = [
-    // Task A: Rust-powered Global Lint & Format (Blazing fast, no need to filter)
+    // Task A: Rust-powered Global Lint & Format
     run("bunx", ["oxfmt", "src", "--write"]),
     run("bunx", ["oxlint", "src", "--fix", "--no-error-on-unmatched-pattern"]),
 
-    // Task B: Incremental Unit Testing (Only test what you touched)
+    // Task B: Incremental Unit Testing
     run("bun", ["vitest", "related", ...stagedFiles, "--run", "--reporter=dot"]),
 
-    // Task C: Mandatory Codegen, Type Check & Lightweight Build Verification
+    // Task C: Type Check & Lightweight Build Verification
     (async () => {
-      await run("bun", ["run", "paraglide"]);
       const checkPassed = await run("bun", ["run", "check"]);
       if (!checkPassed) return false;
 
