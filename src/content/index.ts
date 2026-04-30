@@ -28,18 +28,20 @@ export const contentSystem = {
   ...contentSystemBase,
 
   // --- Lifecycle ---
-  async initialize(tenantId: string | null = null, force = false, adapter?: any): Promise<void> {
-    if (isBrowser) {
-      if (contentStore.initState === "uninitialized") {
-        contentStore.initState = "initialized";
-      }
-      const { contentLiveSync } = await import("./content-sse.svelte");
-      contentLiveSync.start();
-    } else {
-      // Server-side delegation to index.server.ts
-      const { contentSystem: serverSystem } = await import("./index.server");
-      return serverSystem.initialize(tenantId, force, adapter);
+  async initialize(_tenantId: string | null = null, _force = false, _adapter?: any): Promise<void> {
+    if (!isBrowser) {
+      console.warn(
+        "[contentSystem] initialize() called from browser-safe entry point on the server. Use the server-only content entry instead.",
+      );
+      return;
     }
+
+    if (contentStore.initState === "uninitialized") {
+      contentStore.initState = "initialized";
+    }
+
+    const { contentLiveSync } = await import("./content-sse.svelte");
+    contentLiveSync.start();
   },
 
   async refresh(
@@ -60,7 +62,7 @@ export const contentSystem = {
   // --- CRUD (Server-only) ---
   async find(..._args: any[]) {
     throw new Error(
-      "contentSystem.find() is server-only. Use contentSystem.server.find() instead.",
+      "contentSystem.find() is server-only. Use the server-only content entry instead.",
     );
   },
   async findOne(..._args: any[]) {
@@ -90,16 +92,6 @@ export const contentSystem = {
   },
   async scanForCollections() {
     return [];
-  },
-
-  // Optional: Explicit server namespace for clarity
-  server: {
-    find: () => {
-      throw new Error(
-        "Use the server import: import { contentSystem } from '@/content/index.server'",
-      );
-    },
-    // ... other server methods
   },
 };
 
