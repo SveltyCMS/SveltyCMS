@@ -115,7 +115,7 @@ export function isPublicRoute(pathname: string, testMode = false): boolean {
   if (pathname === "/api/security/csp-report") return true;
   if (pathname === "/api/auth/saml/acs" || pathname === "/api/auth/saml/login") return true;
 
-  // Invitation token validation is public (GET specific token)
+  // Public Token access (GET specific token validation)
   if (pathname.startsWith("/api/token/")) {
     const parts = pathname.split("/").filter(Boolean);
     if (parts.length === 3) {
