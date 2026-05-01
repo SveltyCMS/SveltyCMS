@@ -15,6 +15,7 @@ import type {
 export class MongoAdapterCore extends BaseAdapter {
   protected _connection: mongoose.Connection | null = null;
   protected _models: Map<string, mongoose.Model<any>> = new Map();
+
   public capabilities: DatabaseCapabilities = {
     maxBatchSize: 1000,
     supportsTransactions: true,
@@ -73,7 +74,6 @@ export class MongoAdapterCore extends BaseAdapter {
         waitQueueTimeoutMS: 10000,
       };
 
-      // Global BSON-to-String Normalization
       const globalOptions = {
         flattenUUIDs: true,
         flattenObjectIds: true,
@@ -81,15 +81,16 @@ export class MongoAdapterCore extends BaseAdapter {
         getters: true,
         virtuals: true,
       };
+
       mongoose.set("toObject", globalOptions);
       mongoose.set("toJSON", globalOptions);
 
       this._connection = await mongoose
         .createConnection(connectionString, connectOptions)
         .asPromise();
+
       this.connected = true;
 
-      // Register system models with correct schemas (fixes Cast to ObjectId issues)
       const { registerSystemModels } = await import("../methods/model-registration");
       await registerSystemModels(this._connection);
 
@@ -107,8 +108,10 @@ export class MongoAdapterCore extends BaseAdapter {
         await this._connection.close();
         this._connection = null;
       }
+
       this.connected = false;
       logger.info("Disconnected from MongoDB");
+
       return { success: true, data: undefined };
     } catch (err: any) {
       return this.handleError(err, "DB_DISCONNECT_FAILED");
@@ -116,18 +119,39 @@ export class MongoAdapterCore extends BaseAdapter {
   }
 
   public _getOrCreateModel(collection: string, schema?: mongoose.Schema): mongoose.Model<any> {
-    if (!this._connection) throw new Error("Database not connected");
+    if (!this._connection) {
+      throw new Error("Database not connected");
+    }
 
     if (this._connection.models[collection]) {
       return this._connection.models[collection];
     }
 
     if (schema) {
-      return this._connection.model(collection, schema);
+      return this._connection.model(collection, schema, collection);
     }
 
-    // Fallback to a generic schema if none provided
-    const genericSchema = new mongoose.Schema({ any: {} }, { strict: false, timestamps: true });
-    return this._connection.model(collection, genericSchema);
+    /*
+     * SveltyCMS uses string IDs across the database adapter contract.
+     * Without defining _id as String here, Mongoose uses ObjectId by default.
+     * That breaks generic CRUD collections because MongoCrudMethods inserts
+     * generated string IDs.
+     */
+    const genericSchema = new mongoose.Schema(
+      {
+        _id: {
+          type: String,
+          required: true,
+        },
+      },
+      {
+        strict: false,
+        timestamps: true,
+        versionKey: false,
+        id: false,
+      },
+    );
+
+    return this._connection.model(collection, genericSchema, collection);
   }
 }
