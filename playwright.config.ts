@@ -63,6 +63,7 @@ export default defineConfig({
 
     /* ✨ ISOLATION: Pass worker index and secure token to the server */
     extraHTTPHeaders: {
+      "x-test-mode": "true",
       "x-test-worker-index": process.env.TEST_WORKER_INDEX || "0",
       "x-test-secret": TEST_API_SECRET,
     },
@@ -129,11 +130,11 @@ export default defineConfig({
   ...(process.env.CI
     ? {}
     : {
-        webServer: {
-          command: `cross-env TEST_API_SECRET=${TEST_API_SECRET} bun run preview`,
-          port: 4173,
-          timeout: 300_000,
-          reuseExistingServer: true,
-        },
-      }),
+      webServer: {
+        command: `cross-env TEST_API_SECRET=${TEST_API_SECRET} bun run preview`,
+        port: 4173,
+        timeout: 300_000,
+        reuseExistingServer: true,
+      },
+    }),
 });
