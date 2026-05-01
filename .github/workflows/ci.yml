@@ -443,7 +443,7 @@ jobs:
       - run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
       - run: bun x playwright install --with-deps chromium
 
-      - name: Run Auth Setup project
+            - name: Run Auth Setup project
         env:
           DB_TYPE: sqlite
           DB_HOST: 127.0.0.1
@@ -456,10 +456,64 @@ jobs:
           TEST_MODE: "true"
           SKIP_TEST_CLEANUP: "true"
           ADMIN_PASSWORD: Password123!
+          JWT_SECRET_KEY: Auth-Setup-JWT-Secret-Key-2026
+          ENCRYPTION_KEY: Auth-Setup-Encryption-Key-2026-32ch
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
 
-              TEST_MODE=true \
+          mkdir -p config
+
+          cat > config/private.test.ts <<EOF
+          export const database = {
+            type: "sqlite",
+            host: "127.0.0.1",
+            port: undefined,
+            name: "e2e_auth_test",
+            user: "",
+            password: "",
+          };
+
+          export const db = database;
+
+          export const security = {
+            jwtSecret: "Auth-Setup-JWT-Secret-Key-2026",
+            encryptionKey: "Auth-Setup-Encryption-Key-2026-32ch",
+            testApiSecret: "${TEST_API_SECRET}",
+            adminPassword: "Password123!",
+          };
+
+          export const secrets = security;
+
+          export const system = {
+            multiTenant: false,
+            demoMode: false,
+            useRedis: false,
+            redisHost: "localhost",
+            redisPort: "6379",
+            redisPassword: "",
+          };
+
+          export const privateConfig = {
+            database,
+            db,
+            security,
+            secrets,
+            system,
+            multiTenant: false,
+            demoMode: false,
+            useRedis: false,
+            jwtSecret: security.jwtSecret,
+            encryptionKey: security.encryptionKey,
+            testApiSecret: security.testApiSecret,
+            adminPassword: security.adminPassword,
+          };
+
+          export default privateConfig;
+          EOF
+
+          cp config/private.test.ts config/private.ts
+
+          TEST_MODE=true \
           DB_TYPE=sqlite \
           DB_HOST=127.0.0.1 \
           DB_PORT="" \
@@ -470,6 +524,8 @@ jobs:
           PASSWORD_MIN_LENGTH=8 \
           SKIP_TEST_CLEANUP=true \
           ADMIN_PASSWORD=Password123! \
+          JWT_SECRET_KEY=Auth-Setup-JWT-Secret-Key-2026 \
+          ENCRYPTION_KEY=Auth-Setup-Encryption-Key-2026-32ch \
           TEST_API_SECRET="$TEST_API_SECRET" \
           bun run dev -- --host 127.0.0.1 --port 4173 > preview.log 2>&1 &
 
