@@ -41,6 +41,7 @@
 	import { navigationManager } from '@utils/navigation-manager';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { page } from '$app/state';
+	import Slot from '@src/components/system/slot.svelte';
 	// Utils
 	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entry-actions';
 
@@ -281,6 +282,8 @@
 					</div>
 				{/if}
 			</header>
+
+			<Slot name="entry_edit_sidebar" props={{ collection, currentEntry }} />
 
 			<main class="mt-6 flex w-full flex-col gap-4 text-left">
 				<div class="border-b border-surface-300 pb-2 dark:border-surface-600">

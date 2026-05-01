@@ -128,6 +128,9 @@ export const privateConfigSchema = object({
 
   // --- Common Public/Private Overlaps (Required for some services) ---
   HOST_PROD: optional(string()),
+  // --- Edge Sync (Upstash/Redis) ---
+  EDGE_KV_URL: optional(string()),
+  EDGE_KV_TOKEN: optional(string()),
 });
 
 export type PrivateConfig = InferOutput<typeof privateConfigSchema>;

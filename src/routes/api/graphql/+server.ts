@@ -14,6 +14,7 @@ import { registerCollections, collectionsResolvers } from "./resolvers/collectio
 import { mediaResolvers, mediaTypeDefs } from "./resolvers/media";
 import { systemResolvers, systemTypeDefs } from "./resolvers/system";
 import { userResolvers, userTypeDefs } from "./resolvers/users";
+import { seoResolvers, seoTypeDefs } from "./resolvers/seo";
 import { useServer } from "graphql-ws/use/ws";
 import { WebSocketServer } from "ws";
 
@@ -50,6 +51,7 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
     ${userTypeDefs()}
     ${systemTypeDefs}
     ${mediaTypeDefs()}
+    ${seoTypeDefs}
     ${collectionTypeDefs}
 
     type Query {
@@ -86,6 +88,7 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
       ...systemResolvers.Query,
       ...collectionResolversMap.Query,
       ...mediaResolvers(dbAdapter),
+      ...seoResolvers.Query,
     },
     Mutation: {
       ...(systemResolvers as any).Mutation,

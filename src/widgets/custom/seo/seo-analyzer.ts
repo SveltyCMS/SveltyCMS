@@ -22,6 +22,7 @@ import type {
   SeoSuggestion,
   TechnicalSeo,
 } from "./seo-types";
+import { calculateReadability } from "@src/utils/seo/readability";
 
 export class SeoAnalyzer {
   private readonly config: SeoAnalysisConfig;
@@ -243,20 +244,13 @@ export class SeoAnalyzer {
   }
 
   private analyzeReadability(content: string): ReadabilityAnalysis {
+    const stats = calculateReadability(content);
     const sentences = this.splitIntoSentences(content);
-    const words = this.tokenize(content);
-    const syllables = this.countSyllables(content);
-
-    const averageWordsPerSentence = words.length / sentences.length;
-    const averageSyllablesPerWord = syllables / words.length;
-
-    // Flesch-Kincaid Reading Ease Score
-    const fleschKincaidScore =
-      206.835 - 1.015 * averageWordsPerSentence - 84.6 * averageSyllablesPerWord;
 
     // Passive voice detection
     const passiveVoiceSentences = this.detectPassiveVoice(sentences);
-    const passiveVoicePercentage = (passiveVoiceSentences.length / sentences.length) * 100;
+    const passiveVoicePercentage =
+      sentences.length > 0 ? (passiveVoiceSentences.length / sentences.length) * 100 : 0;
 
     // Complex sentences (more than 20 words)
     const complexSentences = sentences.filter(
@@ -267,20 +261,20 @@ export class SeoAnalyzer {
     const transitionWordCount = this.countTransitionWords(content);
 
     // Reading time (average 200 words per minute)
-    const readingTime = Math.ceil(words.length / 200);
+    const readingTime = Math.ceil(stats.words / 200);
 
     return {
-      fleschKincaidScore,
-      readingLevel: this.getReadingLevel(fleschKincaidScore),
-      averageSentenceLength: averageWordsPerSentence,
-      averageWordsPerSentence,
+      fleschKincaidScore: stats.readingEase,
+      readingLevel: this.getReadingLevel(stats.readingEase),
+      averageSentenceLength: stats.words / (stats.sentences || 1),
+      averageWordsPerSentence: stats.words / (stats.sentences || 1),
       passiveVoicePercentage,
       sentencesWithPassiveVoice: passiveVoiceSentences.length,
       complexSentences,
       transitionWords: transitionWordCount,
       readingTime,
-      wordCount: words.length,
-      sentenceCount: sentences.length,
+      wordCount: stats.words,
+      sentenceCount: stats.sentences,
       paragraphCount: content.split("\n\n").filter((p) => p.trim().length > 0).length,
     };
   }
@@ -619,39 +613,6 @@ export class SeoAnalyzer {
 
   private splitIntoSentences(text: string): string[] {
     return text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
-  }
-
-  private countSyllables(text: string): number {
-    const words = this.tokenize(text);
-    return words.reduce((total, word) => {
-      return total + this.countSyllablesInWord(word);
-    }, 0);
-  }
-
-  private countSyllablesInWord(word: string): number {
-    word = word.toLowerCase();
-    if (word.length <= 3) {
-      return 1;
-    }
-
-    const vowels = "aeiouy";
-    let syllableCount = 0;
-    let previousWasVowel = false;
-
-    for (let i = 0; i < word.length; i++) {
-      const isVowel = vowels.includes(word[i]);
-      if (isVowel && !previousWasVowel) {
-        syllableCount++;
-      }
-      previousWasVowel = isVowel;
-    }
-
-    // Handle silent 'e'
-    if (word.endsWith("e")) {
-      syllableCount--;
-    }
-
-    return Math.max(1, syllableCount);
   }
 
   private detectPassiveVoice(sentences: string[]): string[] {

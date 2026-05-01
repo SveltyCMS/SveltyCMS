@@ -50,6 +50,7 @@
 	// Modal types import
 	// Stores
 	import { page } from '$app/state';
+	import Slot from '@src/components/system/slot.svelte';
 
 	// --- Derived from page & stores ---
 	let user = $derived(page.data.user);
@@ -358,6 +359,9 @@
 				</div>
 			{/if}
 		</div>
+
+		<Slot name="entry_edit_header" props={{ collection, currentEntry }} />
+
 		<!-- User -->
 		<div class="space-y-1 text-xs">
 			<p>Created by: <span class="text-tertiary-500 dark:text-primary-500 font-bold">{getDisplayName(currentEntry?.createdBy)}</span></p>

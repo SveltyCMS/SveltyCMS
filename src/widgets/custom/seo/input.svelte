@@ -16,6 +16,7 @@
 	import SocialPreview from './components/social-preview.svelte';
 	// Logic
 	import { analyzeSeo } from './seo-analyzer';
+	import { collections } from '@src/stores/collection-store.svelte';
 
 	interface Props {
 		field: any;
@@ -102,8 +103,10 @@
 		}
 		isAnalyzing = true;
 
-		// TODO: Connect to actual content store when available
-		const contentBody = '';
+		// Extract content from activeValue if possible
+		const activeValue = collections.activeValue as any;
+		const rawContent = activeValue?.content || activeValue?.body || '';
+		const contentBody = typeof rawContent === 'string' ? rawContent : '';
 
 		try {
 			analysisResults = await analyzeSeo(value[lang], contentBody);
@@ -165,7 +168,16 @@
 		</div>
 
 		<!-- Right: Analysis Panel -->
-		<div class="lg:col-span-1"><SeoAnalysisPanel analysisResult={analysisResults} {isAnalyzing} bind:expanded={showAnalysis} /></div>
+		<div class="lg:col-span-1">
+			<SeoAnalysisPanel 
+				analysisResult={analysisResults} 
+				{isAnalyzing} 
+				bind:expanded={showAnalysis} 
+				content={typeof (collections.activeValue as any)?.content === 'string' ? (collections.activeValue as any).content : (typeof (collections.activeValue as any)?.body === 'string' ? (collections.activeValue as any).body : '')}
+				currentId={String(collections.activeValue?._id || '')}
+				collectionId={String(collections.active?._id || '')}
+			/>
+		</div>
 	</div>
 
 	<!-- Bottom Area: Tabs & Inputs -->

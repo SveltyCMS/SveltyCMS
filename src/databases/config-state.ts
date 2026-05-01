@@ -164,6 +164,10 @@ function getEnvOverrides() {
     overrides.DB_REPLICA_URLS = process.env.DB_REPLICA_URLS.split(",").map((url) => url.trim());
   }
 
+  // Edge KV
+  if (process.env.EDGE_KV_URL) overrides.EDGE_KV_URL = process.env.EDGE_KV_URL;
+  if (process.env.EDGE_KV_TOKEN) overrides.EDGE_KV_TOKEN = process.env.EDGE_KV_TOKEN;
+
   return overrides;
 }
 

@@ -92,6 +92,12 @@ export interface PluginContext {
   tenantId: string;
   /** Current user making the request */
   user: User;
+
+  /** System settings for the current tenant */
+  settings?: Record<string, any>;
+
+  /** Configuration for the specific plugin */
+  pluginConfig?: Record<string, any>;
 }
 
 /**
@@ -170,6 +176,8 @@ export type InjectionZone =
   | "dashboard"
   | "sidebar"
   | "entry_edit"
+  | "entry_edit_sidebar"
+  | "entry_edit_header"
   | "config"
   | "entry_list_actions";
 

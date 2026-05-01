@@ -265,6 +265,7 @@ From the 2026 roadmap (v0.0.6, target A+ grade), prioritize these for parity/lea
 - [x] **CI Pipeline Restoration**: Playwright E2E suite stabilized across MongoDB, MariaDB, and PostgreSQL.
 - [x] **Svelte 5 / Skeleton v4 Migration**: Ongoing hardening of UI components using the latest runes and design tokens.
 - [x] **Automated Upgrade CLI (v0.0.7)**: Integrated `scripts/upgrade.ts` for safe, automated core updates.
+- [x] **Enterprise SEO Suite (v1.6)**: High-performance multi-tenant Redirect Manager and Dynamic Sitemap.xml with i18n/hreflang support.
 
 ## Upgrading SveltyCMS
 
@@ -481,4 +482,4 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 ---
 
-_Last Updated: 2026-03-29_
+_Last Updated: 2026-05-01_

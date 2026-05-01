@@ -11,10 +11,17 @@ export { pluginRegistry };
 import { logger } from "@utils/logger";
 import { editableWebsitePlugin } from "./editable-website";
 import { pageSpeedPlugin } from "./pagespeed";
+import { redirectManagerPlugin } from "./redirect-manager";
+import { sitemapPlugin } from "./sitemap";
 import type { Plugin } from "./types";
 
 // All available plugins
-export const availablePlugins: Plugin[] = [pageSpeedPlugin, editableWebsitePlugin];
+export const availablePlugins: Plugin[] = [
+  pageSpeedPlugin,
+  editableWebsitePlugin,
+  redirectManagerPlugin,
+  sitemapPlugin,
+];
 
 /**
  * Initialize plugin system

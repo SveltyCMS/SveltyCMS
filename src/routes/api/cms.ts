@@ -78,6 +78,9 @@ export interface LocalApiOptions {
  * LocalCMS SDK
  * The single source of truth for all CMS operations.
  */
+import { pluginRegistry } from "@src/plugins/registry";
+import type { PluginContext, PluginLifecycleHooks } from "@src/plugins/types";
+
 export class LocalCMS {
   public auth: AuthNamespace;
   public collections: CollectionsNamespace;
@@ -1614,13 +1617,21 @@ class CollectionsNamespace {
       createdBy: system ? "system" : user?._id,
       createdAt: new Date().toISOString(),
     };
+    const effectiveUser = system ? { _id: "system", role: "admin" } : user;
+
+    // --- BEFORE SAVE HOOKS ---
+    const finalData = await this.triggerLifecycleHook(
+      "beforeSave",
+      collectionId,
+      entryData,
+      options,
+      schema,
+    );
 
     const collectionModel = await this._dbAdapter.collection.getModel(schema._id as string);
 
-    const effectiveUser = system ? { _id: "system", role: "admin" } : user;
-
     await modifyRequest({
-      data: [entryData],
+      data: [finalData],
       fields: schema.fields as FieldInstance[],
       collection: collectionModel,
       user: effectiveUser,
@@ -1663,6 +1674,9 @@ class CollectionsNamespace {
           effectiveUser,
         );
       })();
+
+      // --- AFTER SAVE HOOKS ---
+      await this.triggerLifecycleHook("afterSave", collectionId, result.data, options, schema);
     }
 
     return result;
@@ -1687,8 +1701,17 @@ class CollectionsNamespace {
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
+    // --- BEFORE SAVE HOOKS ---
+    const finalData = await this.triggerLifecycleHook(
+      "beforeSave",
+      collectionId,
+      updateData,
+      options,
+      schema,
+    );
+
     await modifyRequest({
-      data: [updateData],
+      data: [finalData],
       fields: schema.fields as FieldInstance[],
       collection: collectionModel,
       user: effectiveUser,
@@ -1709,6 +1732,9 @@ class CollectionsNamespace {
 
     if (result && result.success && result.data) {
       await this.afterMutation(schema, tenantId, "update", entryId, result.data, effectiveUser);
+
+      // --- AFTER SAVE HOOKS ---
+      await this.triggerLifecycleHook("afterSave", collectionId, result.data, options, schema);
     }
 
     return result;
@@ -1722,6 +1748,9 @@ class CollectionsNamespace {
     }
 
     const schema = await this.getSchema(collectionId, tenantId);
+
+    // --- BEFORE DELETE HOOKS ---
+    await this.triggerLifecycleHook("beforeDelete", collectionId, entryId, options, schema);
 
     const result = await this._dbAdapter.crud.delete(
       this.getCollectionName(schema._id as string),
@@ -1741,6 +1770,9 @@ class CollectionsNamespace {
       { _id: entryId },
       user,
     );
+
+    // --- AFTER DELETE HOOKS ---
+    await this.triggerLifecycleHook("afterDelete", collectionId, entryId, options, schema);
 
     if (!result.success) return result;
     return { success: true, data: { _id: entryId } };
@@ -1793,6 +1825,72 @@ class CollectionsNamespace {
         .clearByPattern(pattern, (tenantId || undefined) as string | undefined)
         .catch(() => {});
     }
+  }
+
+  private async triggerLifecycleHook(
+    hookName: keyof PluginLifecycleHooks,
+    collectionId: string,
+    data: any,
+    options: LocalApiOptions,
+    schema: Schema,
+  ): Promise<any> {
+    const { tenantId, user, system } = options;
+    const effectiveUser = system ? { _id: "system", role: "admin" } : user;
+    const activeTenantId = tenantId || "default";
+
+    // Get general tenant settings
+    const systemSettings =
+      this._dbAdapter.system?.tenants &&
+      typeof this._dbAdapter.system.tenants.getById === "function"
+        ? await this._dbAdapter.system.tenants.getById(activeTenantId as DatabaseId)
+        : { success: false };
+    const settings = (systemSettings as any).success
+      ? (systemSettings as any).data?.settings || {}
+      : {};
+
+    let finalData = data;
+
+    for (const entry of pluginRegistry.getAll()) {
+      const hook = (entry.hooks as any)?.[hookName];
+      if (hook) {
+        // Check if enabled for this collection
+        if (
+          !(await pluginRegistry.isEnabledForCollection(
+            entry.metadata.id,
+            collectionId,
+            activeTenantId,
+            schema,
+          ))
+        )
+          continue;
+
+        const state = await pluginRegistry.getPluginState(entry.metadata.id, activeTenantId);
+        const context: PluginContext = {
+          collectionSchema: schema,
+          dbAdapter: this._dbAdapter,
+          language: (options as any).language || "en",
+          tenantId: activeTenantId,
+          user: effectiveUser as any,
+          settings,
+          pluginConfig: state?.settings || {},
+        };
+
+        try {
+          if (hookName === "beforeSave") {
+            finalData = await (hook as any)(context, collectionId, finalData);
+          } else {
+            await (hook as any)(context, collectionId, finalData);
+          }
+        } catch (err) {
+          logger.error(
+            `[PluginSystem] Error in ${entry.metadata.id} hook ${String(hookName)}:`,
+            err,
+          );
+        }
+      }
+    }
+
+    return finalData;
   }
 }
 

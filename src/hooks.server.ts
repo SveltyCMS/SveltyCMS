@@ -78,6 +78,7 @@ import { handleTestIsolation } from "./hooks/handle-test-isolation";
 import { handleStaticAssetCaching } from "./hooks/handle-static-asset-caching";
 import { isRedirect } from "@sveltejs/kit";
 import { handleApiError } from "@utils/error-handling";
+import { handleRedirects } from "./hooks/handle-redirects";
 
 // --- Server Startup Logic ---
 if (!building) {
@@ -181,6 +182,7 @@ const middleware: Handle[] = [
   handleSecurity, // ✨ 1. PROTECTION (Firewall, Rate Limit, Bot Detection)
   handleTurboPipeline, // ✨ 2. FAST-PATH (State Gate, Setup Redirect)
   handleCompression, // ✨ 3. OPTIMIZATION (Dynamic Content)
+  handleRedirects, // ✨ 4. SEO (Manual & Auto Redirects)
   handleSetup,
   handleUserPreferences,
   handleAuthentication,

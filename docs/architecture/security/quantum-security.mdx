@@ -185,10 +185,11 @@ Year 2055 (+30 years):     ████████████████░�
 
 ### NIST Post-Quantum Standards (2024)
 
-The U.S. National Institute of Standards and Technology has standardized quantum-resistant algorithms:
+The U.S. National Institute of Standards and Technology (NIST) has finalized the primary post-quantum cryptographic standards in **FIPS 203**, **FIPS 204**, and **FIPS 205**. These algorithms are also formally recommended by **ENISA** (European Union Agency for Cybersecurity) for long-term data protection.
 
-#### 1. CRYSTALS-Kyber (ML-KEM)
+#### 1. ML-KEM (formerly CRYSTALS-Kyber)
 
+**Standard:** FIPS 203
 **Purpose:** Key Encapsulation Mechanism (KEM)
 
 **Use Cases:**
@@ -214,12 +215,14 @@ Kyber-1024: ~AES-256 security (quantum)
 
 **Implementation Status:**
 
-- ✅ Standardized by NIST (2024)
+- ✅ Finalized by NIST as **FIPS 203** (August 2024)
+- ✅ Recommended by **ENISA** for post-quantum transition
 - ✅ Libraries available: `liboqs`, `pqcrypto`
 - ⚠️ Not yet in SveltyCMS (planned for future)
 
-#### 2. CRYSTALS-Dilithium (ML-DSA)
+#### 2. ML-DSA (formerly CRYSTALS-Dilithium)
 
+**Standard:** FIPS 204
 **Purpose:** Digital Signatures
 
 **Use Cases:**
@@ -243,8 +246,9 @@ Dilithium-3: ~AES-192 security (quantum)
 Dilithium-5: ~AES-256 security (quantum)
 ```
 
-#### 3. SPHINCS+ (SLH-DSA)
+#### 3. SLH-DSA (formerly SPHINCS+)
 
+**Standard:** FIPS 205
 **Purpose:** Stateless Hash-Based Signatures
 
 **Use Cases:**
@@ -621,7 +625,10 @@ For high-security deployments, consider HSM with PQC support:
 ### Official Standards
 
 - [NIST Post-Quantum Cryptography](https://csrc.nist.gov/projects/post-quantum-cryptography)
-- [NIST PQC Standardization (2024)](https://csrc.nist.gov/publications/detail/fips/203/final)
+- [FIPS 203: Module-Lattice-Based Key-Encapsulation Mechanism Standard](https://csrc.nist.gov/pubs/fips/203/final)
+- [FIPS 204: Module-Lattice-Based Digital Signature Standard](https://csrc.nist.gov/pubs/fips/204/final)
+- [FIPS 205: Stateless Hash-Based Digital Signature Standard](https://csrc.nist.gov/pubs/fips/205/final)
+- [ENISA: Post-Quantum Cryptography Recommendations](https://www.enisa.europa.eu/publications/post-quantum-cryptography-current-state-and-quantum-mitigation)
 - [RFC 9106: Argon2 Specification](https://datatracker.ietf.org/doc/html/rfc9106)
 
 ### Post-Quantum Algorithms

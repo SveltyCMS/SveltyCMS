@@ -12,6 +12,7 @@
  */
 
 import { widget_seo_description } from "@src/paraglide/messages";
+import { replaceTokens } from "@src/services/token/engine";
 import { createWidget } from "@src/widgets/widget-factory";
 import {
   custom,
@@ -142,6 +143,31 @@ const SeoWidget = createWidget({
     typeID: "String", // JSON string representation
     graphql: "", // No custom type definition needed
   }),
+
+  /**
+   * Enrich SEO data on retrieval (GET)
+   */
+  modifyRequest: async ({ data, type, user, tenantId }: any) => {
+    if (type !== "GET") return data;
+
+    const value = data.get() as SeoWidgetData;
+    if (!value) return data;
+
+    // Resolve tokens in title and description
+    const entry = (data as any).entry || {};
+    const context = { entry, user, tenantId: (tenantId as string) || "default" };
+
+    if (value.title && value.title.includes("{{")) {
+      value.title = await replaceTokens(value.title, context);
+    }
+
+    if (value.description && value.description.includes("{{")) {
+      value.description = await replaceTokens(value.description, context);
+    }
+
+    data.update(value);
+    return data;
+  },
 });
 
 export default SeoWidget;
