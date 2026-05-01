@@ -11,12 +11,14 @@
 import { browser } from "$app/environment";
 import { screen, ScreenSize } from "./screen-size-store.svelte";
 
-// Test-friendly browser check
+// Test-friendly runtime checks.
+// Important: TEST_MODE must not force browser behavior during SSR/API requests.
 const isTest =
   typeof globalThis !== "undefined" &&
   ((globalThis as any).process?.env?.TEST_MODE === "true" ||
     (globalThis as any).process?.env?.NODE_ENV === "test");
-const isBrowser = browser || isTest || typeof window !== "undefined";
+
+const isBrowser = browser || typeof window !== "undefined";
 
 export type ToastType = "success" | "error" | "warning" | "info" | "loading";
 
@@ -407,9 +409,8 @@ class ToastStore {
 
   private setTimer(id: string, ms: number): void {
     this.clearTimer(id);
-
-    // Skip auto-removal in TEST_MODE for stable unit tests
-    if (isTest) {
+    // Skip auto-removal in TEST_MODE/SSR for stable tests and API requests
+    if (isTest || !isBrowser || typeof window === "undefined") {
       return;
     }
 
