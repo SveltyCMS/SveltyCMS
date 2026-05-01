@@ -461,57 +461,32 @@ jobs:
         run: |
           export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
 
-          mkdir -p config
+          mkdir -p config config/database tests/e2e/.auth logs mediaFolder
 
           cat > config/private.test.ts <<EOF
-          export const database = {
-            type: "sqlite",
-            host: "127.0.0.1",
-            port: undefined,
-            name: "e2e_auth_test",
-            user: "",
-            password: "",
+          export const privateEnv = {
+            DB_TYPE: "sqlite",
+            DB_HOST: "127.0.0.1",
+            DB_NAME: "e2e_auth_test",
+            DB_USER: "",
+            DB_PASSWORD: "",
+            JWT_SECRET_KEY: "Auth-Setup-JWT-Secret-Key-2026",
+            ENCRYPTION_KEY: "Auth-Setup-Encryption-Key-2026-32ch",
+            TEST_API_SECRET: "${TEST_API_SECRET}",
+            PASSWORD_MIN_LENGTH: 8,
+            USE_REDIS: false,
+            MULTI_TENANT: false,
+            DEMO: false,
+            HOST_PROD: "http://127.0.0.1:4173"
           };
 
-          export const db = database;
-
-          export const security = {
-            jwtSecret: "Auth-Setup-JWT-Secret-Key-2026",
-            encryptionKey: "Auth-Setup-Encryption-Key-2026-32ch",
-            testApiSecret: "${TEST_API_SECRET}",
-            adminPassword: "Password123!",
-          };
-
-          export const secrets = security;
-
-          export const system = {
-            multiTenant: false,
-            demoMode: false,
-            useRedis: false,
-            redisHost: "localhost",
-            redisPort: "6379",
-            redisPassword: "",
-          };
-
-          export const privateConfig = {
-            database,
-            db,
-            security,
-            secrets,
-            system,
-            multiTenant: false,
-            demoMode: false,
-            useRedis: false,
-            jwtSecret: security.jwtSecret,
-            encryptionKey: security.encryptionKey,
-            testApiSecret: security.testApiSecret,
-            adminPassword: security.adminPassword,
-          };
-
-          export default privateConfig;
+          export const privateConfig = privateEnv;
+          export default privateEnv;
           EOF
 
           cp config/private.test.ts config/private.ts
+
+          trap 'echo "::group::preview.log"; cat preview.log || true; echo "::endgroup::"' EXIT
 
           TEST_MODE=true \
           DB_TYPE=sqlite \
