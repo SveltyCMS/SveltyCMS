@@ -17,7 +17,7 @@ import { error } from "@sveltejs/kit";
 
 // System Logger
 import { logger } from "@utils/logger.server";
-import { createEmail, emailList, sendEmail } from "better-svelte-email/preview";
+import { createEmail, emailList, sendEmail } from "@better-svelte-email/preview";
 import { LocalCMS } from "@src/routes/api/cms";
 
 // Define the return type for the load function.
@@ -58,7 +58,7 @@ export async function load({
 }
 
 export const actions = {
-  ...createEmail,
+  ...createEmail(),
   ...sendEmail({
     customSendEmailFunction: async ({ to, subject }: { to: string; subject: string }) => {
       // Extract template name from subject or use default

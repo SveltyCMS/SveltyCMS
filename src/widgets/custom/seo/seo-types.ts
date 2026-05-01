@@ -92,6 +92,7 @@ export interface TechnicalSeo {
   metaRobots: string;
   robotsTxt: boolean;
   schemaMarkup: string[];
+  jsonLd?: string; // 🚀 Added automated JSON-LD
   sitemap: boolean;
   titleLength: number;
   urlStructure: {

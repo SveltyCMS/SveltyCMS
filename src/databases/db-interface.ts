@@ -632,6 +632,11 @@ export interface ICrudAdapter {
     query: QueryFilter<T>,
     options?: FindOptions<T>,
   ): Promise<DatabaseResult<T | null>>;
+  find<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options?: FindOptions<T> & { rawSql?: boolean; sql?: string; params?: Record<string, any> },
+  ): Promise<DatabaseResult<T[]>>;
   insert<T extends BaseEntity>(
     collection: string,
     data: EntityCreate<T>,

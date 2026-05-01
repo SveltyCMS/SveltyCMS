@@ -180,18 +180,18 @@ const middleware: Handle[] = [
   handleTestIsolation, // ✨ CI: Tenant Isolation & Test Bypass
   handleStaticAssetCaching, // ✨ PERFORMANCE: Global Asset Caching
   handleSecurity, // ✨ 1. PROTECTION (Firewall, Rate Limit, Bot Detection)
-  handleTurboPipeline, // ✨ 2. FAST-PATH (State Gate, Setup Redirect)
-  handleCompression, // ✨ 3. OPTIMIZATION (Dynamic Content)
-  handleRedirects, // ✨ 4. SEO (Manual & Auto Redirects)
-  handleSetup,
-  handleUserPreferences,
-  handleAuthentication,
-  handleAuthorization,
-  handleLocalSdk,
-  handleContentInitialization,
-  handleAuditLogging,
-  handleApiRequests,
-  handleTokenResolution,
+  handleRedirects, // ✨ 2. SEO (Manual & Auto Redirects) - Must be before Turbo for Test Bypass support
+  handleTurboPipeline, // ✨ 3. FAST-PATH (State Gate, Setup Redirect, Test Bypass)
+  handleCompression, // ✨ 4. OPTIMIZATION (Dynamic Content)
+  handleSetup, // ✨ 5. SETUP (Setup Wizard runs only when DB is connected and system is ready)
+  handleUserPreferences, // ✨ 6. USER PREFERENCES (User Preferences)
+  handleAuthentication, // ✨ 7. AUTHENTICATION (Authentication)
+  handleAuthorization, // ✨ 8. AUTHORIZATION (Authorization)
+  handleLocalSdk, // ✨ 9. LOCAL SDK (Local SDK)
+  handleContentInitialization, // ✨ 10. CONTENT INITIALIZATION (Content Initialization)
+  handleAuditLogging, // ✨ 11. AUDIT LOGGING (Audit Logging)
+  handleApiRequests, // ✨ 12. API REQUESTS (API Requests)
+  handleTokenResolution, // ✨ 13. TOKEN RESOLUTION (Token Resolution)
 ];
 
 // ✨ ENTERPRISE: Pre-compiled pipeline (optimizes hot path by ~1-2%)

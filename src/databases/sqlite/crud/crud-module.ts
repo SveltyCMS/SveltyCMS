@@ -133,6 +133,29 @@ export class CrudModule {
       });
   }
 
+  async find<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options: FindOptions<T> & { rawSql?: boolean; sql?: string; params?: Record<string, any> } = {},
+  ): Promise<DatabaseResult<T[]>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        if (options.rawSql && options.sql) {
+          const results = this.core.queryRaw(options.sql, options.params || {});
+          return utils.convertArrayDatesToISO(results as Record<string, unknown>[]) as T[];
+        }
+
+        const res = await this.findMany(collection, query, options);
+        if (!res.success) throw res.error;
+        return res.data;
+      }, "CRUD_FIND_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
+
   async findByIds<T extends BaseEntity>(
     collection: string,
     ids: DatabaseId[],
@@ -176,17 +199,45 @@ export class CrudModule {
         const table = this.core.getTable(collection);
         const id = (data as Partial<T>)._id || (utils.generateId() as DatabaseId);
         const now = new Date(nowISODateString());
-        const values = utils.convertISOToDates({
-          ...data,
+
+        // 🚀 HYBRID SCHEMA SUPPORT: Identify fields that don't exist as columns
+        const columnNames = new Set(Object.keys(table));
+        const inputData = { ...data } as any;
+        const dynamicData = (inputData.data || {}) as Record<string, any>;
+        const values: Record<string, any> = {
           _id: id,
-          tenantId: options.tenantId || (data as any).tenantId,
+          tenantId: options.tenantId || inputData.tenantId,
+          status: inputData.status || "published",
           createdAt: now,
           updatedAt: now,
-        } as Record<string, unknown>);
+        };
 
-        await this.db
-          .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-          .values(values as any);
+        // Move extra fields to 'data' blob
+        for (const [key, value] of Object.entries(inputData)) {
+          if (["_id", "tenantId", "status", "createdAt", "updatedAt", "data"].includes(key))
+            continue;
+          if (columnNames.has(key)) {
+            values[key] = value;
+          } else {
+            dynamicData[key] = value;
+          }
+        }
+        values.data = dynamicData;
+
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          console.log(
+            `[DEBUG-CRUD] Collection: ${collection}, options.tenantId: ${options.tenantId}, inputData.tenantId: ${inputData.tenantId}, Final values.tenantId: ${values.tenantId}`,
+          );
+        }
+
+        const processedValues = utils.convertISOToDates(values);
+
+        const insertStmt = this.db.insert(table as any).values(processedValues as any);
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          console.log(`[DEBUG-SQL] INSERT SQL: ${insertStmt.toSQL().sql}`);
+          console.log(`[DEBUG-SQL] INSERT PARAMS:`, insertStmt.toSQL().params);
+        }
+        await insertStmt;
 
         // Reuse the findOne prepared statement for the result
         const findCacheKey = `findOne:${collection}`;
@@ -431,6 +482,7 @@ export class CrudModule {
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
           | undefined;
+
         const [result] = await this.db
           .select({ count: count() })
           .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)

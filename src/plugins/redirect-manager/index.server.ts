@@ -17,28 +17,19 @@ export const migrations: PluginMigration[] = [
     version: 1,
     description: "Creates the redirects collection",
     up: async (dbAdapter: IDBAdapter) => {
-      const table = "redirects";
+      const id = "redirects";
       try {
-        const count = await dbAdapter.crud.count(table, undefined, {
-          bypassTenantCheck: true,
-        });
-        if (count.success) return;
-      } catch {}
-
-      logger.info(`[RedirectManager] Creating ${table} collection...`);
-      await dbAdapter.crud.insert(
-        table,
-        {
-          from: "__INIT__",
-          to: "__INIT__",
-          tenantId: "system",
-          active: false,
-        } as any,
-        { bypassTenantCheck: true },
-      );
-      await dbAdapter.crud.deleteMany(table, { from: "__INIT__" } as any, {
-        bypassTenantCheck: true,
-      });
+        await dbAdapter.collection.createModel({
+          _id: id,
+          name: id,
+          slug: id,
+          fields: [],
+          status: "publish",
+        } as any);
+        logger.info(`[RedirectManager] Provisioned ${id} collection.`);
+      } catch (err) {
+        logger.error(`[RedirectManager] Failed to provision ${id} collection:`, err);
+      }
     },
   },
   {
@@ -47,27 +38,19 @@ export const migrations: PluginMigration[] = [
     version: 2,
     description: "Creates the 404 logs collection",
     up: async (dbAdapter: IDBAdapter) => {
-      const table = "404_logs";
+      const id = "404_logs";
       try {
-        const count = await dbAdapter.crud.count(table, undefined, {
-          bypassTenantCheck: true,
-        });
-        if (count.success) return;
-      } catch {}
-
-      logger.info(`[RedirectManager] Creating ${table} collection...`);
-      await dbAdapter.crud.insert(
-        table,
-        {
-          path: "__INIT__",
-          tenantId: "system",
-          hits: 0,
-        } as any,
-        { bypassTenantCheck: true },
-      );
-      await dbAdapter.crud.deleteMany(table, { path: "__INIT__" } as any, {
-        bypassTenantCheck: true,
-      });
+        await dbAdapter.collection.createModel({
+          _id: id,
+          name: id,
+          slug: id,
+          fields: [],
+          status: "publish",
+        } as any);
+        logger.info(`[RedirectManager] Provisioned ${id} collection.`);
+      } catch (err) {
+        logger.error(`[RedirectManager] Failed to provision ${id} collection:`, err);
+      }
     },
   },
 ];
@@ -124,6 +107,7 @@ export const hooks: PluginLifecycleHooks = {
       invalidateRedirectCache(context.tenantId);
       invalidateSitemapCache(context.tenantId);
       await syncToEdgeKV(context.tenantId);
+      await syncToMaterializedView(context.tenantId, context.dbAdapter);
     }
   },
 
@@ -132,6 +116,7 @@ export const hooks: PluginLifecycleHooks = {
       invalidateRedirectCache(context.tenantId);
       invalidateSitemapCache(context.tenantId);
       await syncToEdgeKV(context.tenantId);
+      await syncToMaterializedView(context.tenantId, context.dbAdapter);
     }
   },
 };
@@ -185,5 +170,50 @@ async function syncToEdgeKV(tenantId: string) {
     }
   } catch (err) {
     logger.error(`[RedirectManager] Edge KV sync error:`, err);
+  }
+}
+
+/**
+ * Syncs redirects for a tenant to the high-performance Materialized View table.
+ */
+async function syncToMaterializedView(tenantId: string, dbAdapter: IDBAdapter) {
+  // Only applicable to SQL adapters with the redirects_mv table
+  if (
+    dbAdapter.type !== "sqlite" &&
+    dbAdapter.type !== "postgresql" &&
+    dbAdapter.type !== "mariadb"
+  )
+    return;
+
+  try {
+    const result = await dbAdapter.crud.findMany("redirects", {
+      tenantId: tenantId as DatabaseId,
+    } as any);
+
+    if (result.success && Array.isArray(result.data)) {
+      // Clear existing entries for this tenant in the MV
+      await dbAdapter.crud.deleteMany("redirects_mv", { tenantId: tenantId as DatabaseId } as any);
+
+      if (result.data.length > 0) {
+        const mvEntries = result.data.map((r: any) => ({
+          _id: r._id,
+          tenantId: r.tenantId,
+          from: r.from,
+          to: r.to,
+          type: r.type || 301,
+          isRegex: r.isRegex ? 1 : 0,
+          active: r.active !== false ? 1 : 0,
+          metadata: JSON.stringify(r.data || {}),
+        }));
+
+        await dbAdapter.crud.insertMany("redirects_mv", mvEntries as any);
+      }
+
+      logger.info(
+        `[RedirectManager] Synced ${result.data.length} redirects to Materialized View for tenant ${tenantId}`,
+      );
+    }
+  } catch (err) {
+    logger.error(`[RedirectManager] Materialized View sync error:`, err);
   }
 }

@@ -33,6 +33,12 @@ export abstract class BaseSqlAdapter extends BaseAdapter {
    * Supports common operators: $eq, $ne, $gt, $gte, $lt, $lte, $in, $nin, $like, $contains, $or, $and.
    */
   public mapQuery(table: Record<string, unknown>, query: Record<string, unknown>): SQL | undefined {
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      console.log(
+        `[DEBUG-SQL] mapQuery Table: ${(table[Object.keys(table)[0]] as any)?.["table"]?.name || "unknown"}, Query:`,
+        JSON.stringify(query),
+      );
+    }
     if (!query || Object.keys(query).length === 0) {
       return undefined;
     }
@@ -46,53 +52,113 @@ export abstract class BaseSqlAdapter extends BaseAdapter {
       }
 
       const column = table[key] as Column;
-      if (!column) continue;
 
-      if (value === null) {
-        conditions.push(isNull(column));
-      } else if (Array.isArray(value)) {
-        conditions.push(value.length ? inArray(column, value) : sql`1=0`);
-      } else if (typeof value === "object" && value !== null) {
-        // Handle MongoDB-style operators: { field: { $in: [...] } }
-        const obj = value as Record<string, unknown>;
-        for (const [op, val] of Object.entries(obj)) {
-          switch (op) {
-            case "$in":
-              if (Array.isArray(val)) {
-                conditions.push(val.length ? inArray(column, val) : sql`1=0`);
-              }
-              break;
-            case "$nin":
-              if (Array.isArray(val)) {
-                conditions.push(val.length ? sql`${column} NOT IN ${val}` : sql`1=1`);
-              }
-              break;
-            case "$ne":
-              conditions.push(ne(column, val as any));
-              break;
-            case "$gt":
-              conditions.push(gt(column, val as any));
-              break;
-            case "$gte":
-              conditions.push(gte(column, val as any));
-              break;
-            case "$lt":
-              conditions.push(lt(column, val as any));
-              break;
-            case "$lte":
-              conditions.push(lte(column, val as any));
-              break;
-            case "$like":
-              conditions.push(sql`${column} LIKE ${val}`);
-              break;
-            case "$contains":
-              conditions.push(sql`${column} LIKE ${"%" + val + "%"}`);
-              break;
+      if (column) {
+        if (value === null) {
+          conditions.push(isNull(column));
+        } else if (Array.isArray(value)) {
+          conditions.push(value.length ? inArray(column, value) : sql`1=0`);
+        } else if (typeof value === "object" && value !== null) {
+          // Handle MongoDB-style operators: { field: { $in: [...] } }
+          const obj = value as Record<string, unknown>;
+          for (const [op, val] of Object.entries(obj)) {
+            switch (op) {
+              case "$in":
+                if (Array.isArray(val)) {
+                  conditions.push(val.length ? inArray(column, val) : sql`1=0`);
+                }
+                break;
+              case "$nin":
+                if (Array.isArray(val)) {
+                  conditions.push(val.length ? sql`${column} NOT IN ${val}` : sql`1=1`);
+                }
+                break;
+              case "$ne":
+                conditions.push(ne(column, val as any));
+                break;
+              case "$gt":
+                conditions.push(gt(column, val as any));
+                break;
+              case "$gte":
+                conditions.push(gte(column, val as any));
+                break;
+              case "$lt":
+                conditions.push(lt(column, val as any));
+                break;
+              case "$lte":
+                conditions.push(lte(column, val as any));
+                break;
+              case "$like":
+                conditions.push(sql`${column} LIKE ${val}`);
+                break;
+              case "$contains":
+                conditions.push(sql`${column} LIKE ${"%" + val + "%"}`);
+                break;
+            }
           }
+        } else {
+          // Simple equality
+          conditions.push(eq(column, value as any));
         }
       } else {
-        // Simple equality
-        conditions.push(eq(column, value as any));
+        // 🚀 HYBRID SCHEMA SUPPORT: Fallback to JSON extraction
+        // Only fallback if the table has a 'data' column
+        const hasDataColumn = "data" in table;
+
+        if (hasDataColumn) {
+          if (value === null) {
+            conditions.push(sql`json_extract(data, '$.' || ${key}) IS NULL`);
+          } else if (Array.isArray(value)) {
+            if (value.length > 0) {
+              conditions.push(
+                sql`json_extract(data, '$.' || ${key}) IN (${sql.join(
+                  value.map((v) => sql`${v as any}`),
+                  sql`, `,
+                )})`,
+              );
+            } else {
+              conditions.push(sql`1=0`);
+            }
+          } else if (typeof value === "object" && value !== null) {
+            const obj = value as Record<string, unknown>;
+            for (const [op, val] of Object.entries(obj)) {
+              switch (op) {
+                case "$in":
+                  if (Array.isArray(val) && val.length > 0) {
+                    conditions.push(
+                      sql`json_extract(data, '$.' || ${key}) IN (${sql.join(
+                        val.map((v) => sql`${v as any}`),
+                        sql`, `,
+                      )})`,
+                    );
+                  } else {
+                    conditions.push(sql`1=0`);
+                  }
+                  break;
+                case "$ne":
+                  // Use IS NOT for safe NULL handling (missing fields in JSON)
+                  conditions.push(sql`json_extract(data, '$.' || ${key}) IS NOT ${val as any}`);
+                  break;
+                case "$gt":
+                  conditions.push(sql`json_extract(data, '$.' || ${key}) > ${val as any}`);
+                  break;
+                case "$contains":
+                  conditions.push(sql`json_extract(data, '$.' || ${key}) LIKE ${"%" + val + "%"}`);
+                  break;
+              }
+            }
+          } else {
+            // Simple equality for JSON field
+            if (value === false) {
+              // 🚀 Optimization: If filtering for false, also include NULL (missing fields)
+              conditions.push(sql`json_extract(data, '$.' || ${key}) IS NOT true`);
+            } else if (value === true) {
+              conditions.push(sql`json_extract(data, '$.' || ${key}) IS true`);
+            } else {
+              conditions.push(sql`json_extract(data, '$.' || ${key}) = ${value as any}`);
+            }
+          }
+        }
       }
     }
 
@@ -164,6 +230,15 @@ export abstract class BaseSqlAdapter extends BaseAdapter {
     system_roles: "roles",
     audit_logs: "auditLogs",
     system_audit_logs: "auditLogs",
+    website_tokens: "websiteTokens",
+    plugin_pagespeed_results: "pluginPagespeedResults",
+    plugin_states: "pluginStates",
+    plugin_migrations: "pluginMigrations",
+    tenants: "tenants",
+    "404_logs": "fourOhFourLogs",
+    workflow_definitions: "workflowDefinitions",
+    workflow_instances: "workflowInstances",
+    redirects_mv: "redirectsMV",
   };
   protected getAliasedTable(collection: string, schema: any): Record<string, unknown> | null {
     // 🚀 Handle both flat and nested schema objects

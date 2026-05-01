@@ -27,25 +27,52 @@ beforeAll(async () => {
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
   await ensureFullInitialization();
   const db = getDb();
+  if (!db) throw new Error("Database initialization failed");
+
+  const { isSystemReady } = await import("@src/stores/system/state");
+  let attempts = 0;
+  while (!isSystemReady() && attempts < 20) {
+    await new Promise((r) => setTimeout(r, 500));
+    attempts++;
+  }
+
+  if (!isSystemReady()) {
+    logger.warn("System state is still not READY after timeout, proceeding anyway...");
+  }
+
   await ensureStableTestData(db!);
 
-  // Create a few test redirects for the benchmark
-  await db!.crud.insert("redirects", {
-    from: "/old-path-1",
-    to: "/new-path-1",
-    type: 301,
-    tenantId: "default",
-    active: true
-  } as any);
-  
-  await db!.crud.insert("redirects", {
-    from: "/old-path-2",
-    to: "/new-path-2",
-    type: 301,
-    tenantId: "default",
-    active: true
-  } as any);
-});
+  // 1. Setup redirects
+  const { LocalCMS } = await import("@src/routes/api/cms");
+  const cms = new LocalCMS(db);
+
+  await cms.collections.create(
+    "redirects",
+    {
+      from: "/old-path-1",
+      to: "/new-path-1",
+      type: 301,
+      tenantId: "default" as any,
+      active: true,
+    },
+    { system: true, tenantId: "default" as any },
+  );
+
+  await cms.collections.create(
+    "redirects",
+    {
+      from: "/old-path-2",
+      to: "/new-path-2",
+      type: 301,
+      tenantId: "default" as any,
+      active: true,
+    },
+    { system: true, tenantId: "default" as any },
+  );
+
+  // Wait to ensure database sync for the test redirects (since test runs on a spawned child)
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+}, 300000);
 
 afterAll(async () => {
   if (stopServer) await stopServer();
@@ -64,6 +91,12 @@ async function runSeoAudit() {
   try {
     // 1. Redirect Interception (In-Memory Cache)
     console.log("   → Measuring Redirect Middleware (Cached)...");
+    // Hit once with refresh to ensure server picks up our test redirects
+    await fetch(`${apiBaseUrl}/old-path-1`, {
+      redirect: "manual",
+      headers: { "x-test-mode": "true", "x-refresh-redirects": "true" },
+    });
+
     const redirectRes = await runBenchmark({
       name: "Redirect Interception (Cache)",
       iterations: ITERATIONS,

@@ -51,18 +51,21 @@ The pipeline is **pre-compiled** at server startup to eliminate function composi
 ```typescript
 const middleware: Handle[] = [
   handleSecurityHeaders, // 1. DEFENSE-IN-DEPTH (Essential Security Headers)
-  handleCompression, // 2. ESM-Native Streaming Compression
-  handleTestIsolation, // 3. ✨ CI ISOLATION (Tenant Routing & Bypass)
-  handleStaticAssetCaching, // 4. Dedicated Asset Cache Layer
-  handleTurboPipeline, // 5. CONSOLIDATED GATEWAY (State, Setup, CORS)
-  handleSecurity, // 6. Firewall & Load Shedding
-  handleUserPreferences, // 7. i18n and SSR theme
+  handleTestIsolation, // 2. ✨ CI ISOLATION (Tenant Routing & Bypass)
+  handleStaticAssetCaching, // 3. Dedicated Asset Cache Layer
+  handleSecurity, // 4. Firewall & Load Shedding
+  handleRedirects, // 5. ✨ SEO (Manual & Auto Redirects) - SUB-MILLISECOND
+  handleTurboPipeline, // 6. CONSOLIDATED GATEWAY (State, Setup, CORS)
+  handleCompression, // 7. ESM-Native Streaming Compression
   handleSetup, // 8. Granular Setup Gate
-  handleAuthentication, // 9. Identity & Multi-tenancy
-  handleContentInitialization, // 10. Content + Redirects
-  handleAuditLogging, // 11. Async Audit Trails
-  handleApiRequests, // 12. API Caching (ETags)
-  handleTokenResolution, // 13. RBAC Token Replacement
+  handleUserPreferences, // 9. i18n and SSR theme
+  handleAuthentication, // 10. Identity & Multi-tenancy
+  handleAuthorization, // 11. Role-Based Access Control
+  handleLocalSdk, // 12. Zero-Latency CMS Bridge
+  handleContentInitialization, // 13. Content + Redirects
+  handleAuditLogging, // 14. Async Audit Trails
+  handleApiRequests, // 15. API Caching (ETags)
+  handleTokenResolution, // 16. RBAC Token Replacement
 ];
 
 // Pre-compiled for maximum throughput

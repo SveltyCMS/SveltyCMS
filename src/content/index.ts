@@ -36,9 +36,11 @@ export const contentSystem = {
       const { contentLiveSync } = await import("./content-sse.svelte");
       contentLiveSync.start();
     } else {
-      // Server-side delegation to index.server.ts
-      const { contentSystem: serverSystem } = await import("./index.server");
-      return serverSystem.initialize(tenantId, force, adapter);
+      // Provide guidance instead of importing the server module dynamically.
+      console.warn(
+        "[contentSystem] initialize() called on server from client facade. Import from './index.server' instead.",
+      );
+      return Promise.resolve();
     }
   },
 

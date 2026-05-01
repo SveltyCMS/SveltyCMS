@@ -24,8 +24,14 @@ export class PerformanceService {
   }
 
   private async getDbAdapter() {
-    const { dbAdapter } = await import("@src/databases/db");
-    return dbAdapter;
+    const { browser } = await import("$app/environment");
+    if (browser) return null;
+    try {
+      const { dbAdapter } = await import("@src/databases/db");
+      return dbAdapter;
+    } catch {
+      return null;
+    }
   }
 
   /**

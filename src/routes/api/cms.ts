@@ -948,12 +948,26 @@ class CollectionsNamespace {
       return this._schemaCache.get(schemaKey)!;
     }
 
-    let schema = await this._contentSystem.getCollectionById(collectionId, tenantId);
+    let schema = null;
+    try {
+      schema = await this._contentSystem.getCollectionById(collectionId, tenantId);
+    } catch (e) {
+      // Ignore errors from content system lookup
+    }
 
-    // 🕊️ CASE-INSENSITIVE FALLBACK: Highly critical for synthetic workloads and REST consistency
-    if (!schema?._id) {
-      const all = await this._contentSystem.getCollections(tenantId);
-      schema = all.find((c: any) => c._id?.toLowerCase() === collectionId.toLowerCase());
+    // --- VIRTUAL COLLECTION FALLBACK ---
+    // Critical for system-level plugins that operate outside the standard content tree.
+    const idLower = collectionId.toLowerCase();
+    if (!schema?._id && (idLower === "redirects" || idLower === "404_logs")) {
+      schema = {
+        _id: collectionId,
+        name: collectionId,
+        slug: collectionId,
+        label: idLower === "redirects" ? "Redirects" : "404 Logs",
+        fields: [], // Minimal fields for SDK CRUD; physical schema is managed by plugin migrations
+        status: "publish",
+        plugins: ["redirect-manager"],
+      } as Schema;
     }
 
     if (!schema?._id) {

@@ -5,7 +5,7 @@
 
 import { nowISODateString } from "@src/utils/date-utils";
 import { safeQuery } from "@src/utils/security/safe-query";
-import { count, eq, inArray, placeholder } from "drizzle-orm";
+import { count, eq, inArray, placeholder, sql } from "drizzle-orm";
 import type {
   BaseEntity,
   DatabaseId,
@@ -14,6 +14,7 @@ import type {
   EntityCreate,
   EntityUpdate,
   BaseQueryOptions,
+  FindOptions,
   ICrudAdapter,
 } from "../../db-interface";
 import type { AdapterCore } from "../adapter/adapter-core";
@@ -120,6 +121,30 @@ export class CrudModule implements ICrudAdapter {
             : (utils.convertDatesToISO(results[0] as Record<string, unknown>) as T);
         return data;
       }, "CRUD_FIND_ONE_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
+
+  async find<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options: FindOptions<T> & { rawSql?: boolean; sql?: string; params?: any[]; tx?: any } = {},
+  ): Promise<DatabaseResult<T[]>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        if (options.rawSql && options.sql) {
+          const db = options?.tx || this.getDb("read");
+          const results = await db.execute(sql.raw(options.sql));
+          return utils.convertArrayDatesToISO(results.rows as Record<string, unknown>[]) as T[];
+        }
+
+        const res = await this.findMany(collection, query, options);
+        if (!res.success) throw res.error;
+        return res.data;
+      }, "CRUD_FIND_FAILED")
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
         return res;

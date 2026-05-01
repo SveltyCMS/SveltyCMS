@@ -30,8 +30,51 @@ beforeAll(async () => {
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
   await ensureFullInitialization();
   const db = getDb();
+
+  // Wait for system to reach READY/WARMED state
+  const { isSystemReady } = await import("@src/stores/system/state");
+  let attempts = 0;
+  while (!isSystemReady() && attempts < 10) {
+    console.log(`   ⏳ Waiting for system readiness (attempt ${attempts + 1})...`);
+    await new Promise((r) => setTimeout(r, 1000));
+    attempts++;
+  }
+
   await ensureStableTestData(db!);
-});
+
+  // Wait for server to reach READY/WARMED state (External check)
+  console.log("   🚀 Waiting for server to reach READY state (up to 120s)...");
+  let ready = false;
+  attempts = 0;
+  while (!ready && attempts < 120) {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/system/health`);
+      const data = await res.json();
+      if (res.status === 200 && (data.status === "READY" || data.status === "WARMED")) {
+        ready = true;
+        console.log("   ✅ Server is READY. Waiting 2s for stabilization...");
+        await new Promise((r) => setTimeout(r, 2000));
+      } else {
+        if (attempts % 5 === 0) {
+          console.log(
+            `   ⏳ Server status: ${res.status}, State: ${data.status || "UNKNOWN"}. Retrying... (${attempts}/120)`,
+          );
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    } catch {
+      if (attempts % 5 === 0) {
+        console.log(`   ⏳ Server not reachable yet. Retrying... (${attempts}/120)`);
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    attempts++;
+  }
+
+  if (!ready) {
+    throw new Error("Server failed to reach READY state after 120s");
+  }
+}, 180000);
 
 afterAll(async () => {
   if (stopServer) await stopServer();
@@ -113,7 +156,10 @@ async function runHooksAudit() {
             title: "Hook Test",
           }),
         });
-        if (!res.ok) throw new Error(`Audit hook failed: ${res.status}`);
+        if (!res.ok) {
+          const body = await res.text();
+          throw new Error(`Audit hook failed: ${res.status}. Body: ${body}`);
+        }
         await res.json();
       },
     });

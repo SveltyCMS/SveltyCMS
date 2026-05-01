@@ -328,31 +328,17 @@ class PluginRegistry implements IPluginService {
   private async ensureMigrationTable(dbAdapter: IDBAdapter): Promise<void> {
     const table = "pluginMigrations";
     try {
-      const count = await dbAdapter.crud.count(table, undefined, {
-        bypassTenantCheck: true,
-      });
-      if (count.success) {
-        return;
-      }
-    } catch {
-      // Expected if table doesn't exist
+      // Use createModel to ensure physical table exists in SQL adapters
+      await dbAdapter.collection.createModel({
+        _id: table,
+        name: table,
+        slug: table,
+        fields: [],
+        status: "publish",
+      } as any);
+    } catch (error) {
+      logger.error(`[PluginRegistry] Failed to ensure migration table:`, error);
     }
-
-    logger.info(`Creating ${table} database collection...`);
-    await dbAdapter.crud.insert(
-      table,
-      {
-        pluginId: "__INIT__",
-        migrationId: "__INIT__",
-        version: 0,
-        appliedAt: new Date(),
-        tenantId: "system",
-      } as any,
-      { bypassTenantCheck: true },
-    );
-    await dbAdapter.crud.deleteMany(table, { pluginId: "__INIT__" } as any, {
-      bypassTenantCheck: true,
-    });
   }
 
   // Get applied migrations from database

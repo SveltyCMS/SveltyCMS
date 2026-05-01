@@ -47,8 +47,7 @@ describe("System Load & Resilience Benchmark", () => {
     EXTREME: { total: 500_000, batch: 10_000, name: "Cluster / Mainframe" },
   };
 
-  const TARGET_LEVEL =
-    (process.env.LOAD_LEVEL as keyof typeof LOAD_PROFILES | "ALL") || "TINY";
+  const TARGET_LEVEL = (process.env.LOAD_LEVEL as keyof typeof LOAD_PROFILES | "ALL") || "TINY";
 
   it("should determine system limit by progressive loading", async () => {
     const resilience = getDatabaseResilience({
@@ -112,10 +111,7 @@ describe("System Load & Resilience Benchmark", () => {
         ? Object.entries(LOAD_PROFILES)
         : [[TARGET_LEVEL, LOAD_PROFILES[TARGET_LEVEL]]];
 
-    for (const [level, config] of profilesToRun as [
-      string,
-      (typeof LOAD_PROFILES)["TINY"],
-    ][]) {
+    for (const [level, config] of profilesToRun as [string, (typeof LOAD_PROFILES)["TINY"]][]) {
       try {
         await runLevel(level, config);
         maxStableLevel = level;

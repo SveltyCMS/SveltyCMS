@@ -81,11 +81,19 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
       const column = (
         this.table as unknown as Record<string, import("drizzle-orm/sqlite-core").SQLiteColumn>
       )[key];
+
       if (column) {
         if (value === null) {
           this.conditions.push(isNull(column));
         } else {
           this.conditions.push(eq(column, value as string | number | boolean));
+        }
+      } else {
+        // 🚀 HYBRID SCHEMA SUPPORT: Fallback to JSON extraction for dynamic fields
+        if (value === null) {
+          this.conditions.push(sql`json_extract(data, '$.' || ${key}) IS NULL`);
+        } else {
+          this.conditions.push(sql`json_extract(data, '$.' || ${key}) = ${value as any}`);
         }
       }
     }
@@ -96,10 +104,23 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
     const column = (
       this.table as unknown as Record<string, import("drizzle-orm/sqlite-core").SQLiteColumn>
     )[field as string];
+
     if (column) {
       const condition = inArray(column, values as (string | number | boolean)[]);
       if (condition) {
         this.conditions.push(condition);
+      }
+    } else {
+      // 🚀 HYBRID SCHEMA SUPPORT: Fallback to JSON extraction
+      if (values.length > 0) {
+        this.conditions.push(
+          sql`json_extract(data, '$.' || ${field as string}) IN (${sql.join(
+            values.map((v) => sql`${v as any}`),
+            sql`, `,
+          )})`,
+        );
+      } else {
+        this.conditions.push(sql`1=0`);
       }
     }
     return this;
@@ -161,7 +182,13 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
           const column = (
             this.table as unknown as Record<string, import("drizzle-orm/sqlite-core").SQLiteColumn>
           )[f as string];
-          return column && (column as any).dataType !== "json" ? like(column, `%${query}%`) : null;
+
+          if (column) {
+            return (column as any).dataType !== "json" ? like(column, `%${query}%`) : null;
+          } else {
+            // 🚀 HYBRID SCHEMA SUPPORT: Search in JSON data
+            return sql`json_extract(data, '$.' || ${f as string}) LIKE ${"%" + query + "%"}`;
+          }
         })
         .filter((c): c is SQL => c !== null);
 
@@ -171,6 +198,16 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
           this.conditions.push(condition);
         }
       }
+    } else {
+      // Default: Search in 'title', 'content', 'name' columns IF they exist, otherwise search in the whole 'data' column
+      const defaultFields = ["title", "content", "name", "slug", "description"];
+      const searchConditions = defaultFields.map((f) => {
+        const column = (this.table as any)[f];
+        if (column) return like(column, `%${query}%`);
+        return sql`json_extract(data, '$.' || ${f}) LIKE ${"%" + query + "%"}`;
+      });
+
+      this.conditions.push(or(...searchConditions) as SQL);
     }
     return this;
   }

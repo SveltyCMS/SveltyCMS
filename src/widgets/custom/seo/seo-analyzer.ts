@@ -334,6 +334,15 @@ export class SeoAnalyzer {
   }
 
   private analyzeTechnical(title: string, description: string, url?: string): TechnicalSeo {
+    // 🚀 Automated JSON-LD Generation
+    const jsonLdObj = {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      name: title,
+      description: description,
+      url: url || "",
+    };
+
     return {
       titleLength: title.length,
       descriptionLength: description.length,
@@ -354,6 +363,7 @@ export class SeoAnalyzer {
           },
       metaRobots: "index, follow",
       schemaMarkup: [],
+      jsonLd: JSON.stringify(jsonLdObj, null, 2),
       sitemap: false,
       robotsTxt: false,
     };

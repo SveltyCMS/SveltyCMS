@@ -391,6 +391,65 @@ export async function runMigrations(db: unknown): Promise<{ success: boolean; er
 			)
 		`);
 
+    // 404 Logs
+    execute(`
+			CREATE TABLE IF NOT EXISTS "404_logs" (
+				_id TEXT PRIMARY KEY,
+				path TEXT NOT NULL,
+				tenantId TEXT NOT NULL,
+				hits INTEGER DEFAULT 1,
+				lastHit INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+				metadata TEXT DEFAULT '{}',
+				createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+				updatedAt INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+			)
+		`);
+
+    // Workflow Definitions
+    execute(`
+			CREATE TABLE IF NOT EXISTS workflow_definitions (
+				_id TEXT PRIMARY KEY,
+				tenantId TEXT,
+				collectionId TEXT NOT NULL,
+				name TEXT NOT NULL,
+				description TEXT,
+				states TEXT DEFAULT '[]',
+				transitions TEXT DEFAULT '[]',
+				createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+				updatedAt INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+			)
+		`);
+
+    // Workflow Instances
+    execute(`
+			CREATE TABLE IF NOT EXISTS workflow_instances (
+				_id TEXT PRIMARY KEY,
+				tenantId TEXT,
+				entryId TEXT NOT NULL,
+				collectionId TEXT NOT NULL,
+				currentState TEXT NOT NULL,
+				history TEXT DEFAULT '[]',
+				createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+				updatedAt INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+			)
+		`);
+
+    // Redirects MV
+    execute(`
+			CREATE TABLE IF NOT EXISTS redirects_mv (
+				_id TEXT PRIMARY KEY,
+				tenantId TEXT NOT NULL,
+				"from" TEXT NOT NULL,
+				"to" TEXT NOT NULL,
+				type INTEGER DEFAULT 301,
+				isRegex INTEGER DEFAULT 0,
+				active INTEGER DEFAULT 1,
+				metadata TEXT DEFAULT '{}',
+				createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+				updatedAt INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+			)
+		`);
+
     logger.info("SQLite migrations completed successfully.");
     return { success: true };
   } catch (error) {

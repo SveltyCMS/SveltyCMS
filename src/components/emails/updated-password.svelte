@@ -7,7 +7,7 @@
 	// @ts-nocheck
 
 	import type { User } from '@src/databases/auth/types';
-	import { Section, Text } from 'better-svelte-email';
+	import { Section, Text } from '@better-svelte-email/components';
 
 	interface Props {
 		user: User;

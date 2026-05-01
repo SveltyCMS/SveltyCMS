@@ -89,10 +89,11 @@ export function applyTenantFilter<T extends Record<string, unknown>>(
  * Convert SQLite row dates to ISO strings and parse JSON fields.
  * This ensures all date fields are properly formatted as ISODateString
  * and JSON fields are returned as objects/arrays.
+ * 🚀 HYBRID SCHEMA: Flattens the 'data' column into the main object.
  */
 export function convertDatesToISO<T extends Record<string, unknown>>(row: T): T {
   if (!row) return row;
-  const result = { ...row };
+  let result = { ...row };
 
   const jsonFields = [
     "permissions",
@@ -125,9 +126,17 @@ export function convertDatesToISO<T extends Record<string, unknown>>(row: T): T 
       try {
         const parsed = JSON.parse(value);
         (result as Record<string, unknown>)[key] = parsed;
+
+        // 🚀 HYBRID SCHEMA SUPPORT: Flatten 'data' column
+        if (key === "data" && parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          result = { ...parsed, ...result };
+        }
       } catch {
         // Silently ignore parsing errors
       }
+    } else if (key === "data" && value && typeof value === "object" && !Array.isArray(value)) {
+      // 🚀 HYBRID SCHEMA SUPPORT: Already parsed object
+      result = { ...(value as any), ...result };
     }
   }
 

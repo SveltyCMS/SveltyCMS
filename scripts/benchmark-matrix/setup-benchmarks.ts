@@ -68,6 +68,17 @@ const COLLECTIONS = {
       { label: "Content", db_fieldName: "content", widget: { Name: "RichText" } },
     ],
   },
+  REDIRECTS: {
+    _id: "redirects",
+    name: "redirects",
+    icon: "mdi:link-out",
+    fields: [
+      { label: "From", db_fieldName: "from", widget: { Name: "Input" }, required: true },
+      { label: "To", db_fieldName: "to", widget: { Name: "Input" }, required: true },
+      { label: "Type", db_fieldName: "type", widget: { Name: "Select" }, required: true },
+      { label: "Tenant ID", db_fieldName: "tenantId", widget: { Name: "Text" }, required: true },
+    ],
+  },
 } as const;
 
 function log(msg: string): void {
@@ -81,10 +92,7 @@ async function ensureCompiledCollectionsDir(): Promise<string> {
   return dir;
 }
 
-async function writeCollectionSchema(
-  dir: string,
-  collection: typeof COLLECTIONS.AUTHORS | typeof COLLECTIONS.POSTS,
-): Promise<void> {
+async function writeCollectionSchema(dir: string, collection: any): Promise<void> {
   await fs.writeFile(
     path.join(dir, `${collection.name}.js`),
     `export default ${JSON.stringify(collection, null, 2)};`,
@@ -99,13 +107,15 @@ async function setupCollections(cms: any): Promise<{ authorsId: string; postsId:
 
   await writeCollectionSchema(compiledDir, COLLECTIONS.AUTHORS);
   await writeCollectionSchema(compiledDir, COLLECTIONS.POSTS);
-  await writeCollectionSchema(compiledDir, COLLECTIONS.STABLE as any);
+  await writeCollectionSchema(compiledDir, COLLECTIONS.STABLE);
+  await writeCollectionSchema(compiledDir, COLLECTIONS.REDIRECTS);
 
   // Create models in database adapter
   if (typeof cms.db.collection?.createModel === "function") {
     await cms.db.collection.createModel(COLLECTIONS.AUTHORS as any);
     await cms.db.collection.createModel(COLLECTIONS.POSTS as any);
     await cms.db.collection.createModel(COLLECTIONS.STABLE as any);
+    await cms.db.collection.createModel(COLLECTIONS.REDIRECTS as any);
   }
 
   log("Refreshing local collections and notifying server...");
@@ -231,7 +241,36 @@ async function seedData(cms: any, authorsId: string, postsId: string): Promise<v
     throw new Error(`Failed to seed stable entry: ${stableResult.message}`);
   }
 
-  log(`Successfully seeded ${authors.length} authors, ${posts.length} posts, and stable entry`);
+  // 🚀 Seed REDIRECTS collection entries
+  const redirects = [
+    {
+      _id: "bench-redirect-1",
+      from: "/old-path-1",
+      to: "/new-path-1",
+      type: 301,
+      tenantId: "default",
+    },
+    {
+      _id: "bench-redirect-2",
+      from: "/old-path-2",
+      to: "/new-path-2",
+      type: 301,
+      tenantId: "default",
+    },
+  ];
+
+  const redirectResult = await cms.collections.bulkCreate(COLLECTIONS.REDIRECTS._id, redirects, {
+    system: true,
+    tenantId: TENANT_ID as any,
+  });
+
+  if (!redirectResult.success) {
+    throw new Error(`Failed to seed redirects: ${redirectResult.message}`);
+  }
+
+  log(
+    `Successfully seeded ${authors.length} authors, ${posts.length} posts, stable entry, and ${redirects.length} redirects`,
+  );
 }
 
 export async function main(): Promise<void> {
@@ -263,11 +302,17 @@ export async function main(): Promise<void> {
       )
       .catch(() => null);
 
+    const existingRedirects = await db.crud
+      .findOne("redirects", { _id: "bench-redirect-1" as any }, { tenantId: TENANT_ID as any })
+      .catch(() => null);
+
     const hasData =
       existingResult?.success &&
       existingResult.data?._id === "author-1" &&
       existingStable?.success &&
-      existingStable.data?._id === "bench-shared-001";
+      existingStable.data?._id === "bench-shared-001" &&
+      existingRedirects?.success &&
+      existingRedirects.data?._id === "bench-redirect-1";
 
     if (hasData && !clearOnly && !force) {
       log("🚀 [SmartSeed] Benchmark data already exists. Reusing state...");

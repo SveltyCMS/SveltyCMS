@@ -97,6 +97,9 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1040.0",
+    "@better-svelte-email/components": "^2.0.0",
+    "@better-svelte-email/preview": "^2.0.0",
+    "@better-svelte-email/server": "^2.0.0",
     "@boxyhq/saml-jackson": "^26.2.0",
     "@envelop/graphql-jit": "^11.1.1",
     "@floating-ui/dom": "^1.7.6",
@@ -130,7 +133,6 @@
     "@tiptap/starter-kit": "^3.22.5",
     "@types/serialize-javascript": "^5.0.4",
     "argon2": "^0.44.0",
-    "better-svelte-email": "^1.4.0",
     "buffer": "^6.0.3",
     "chart.js": "^4.5.1",
     "chartjs-adapter-date-fns": "^3.0.0",
@@ -166,6 +168,7 @@
     "yjs": "^13.6.30"
   },
   "devDependencies": {
+    "@better-svelte-email/server": "^2.0.0",
     "@iconify/svelte": "^5.2.1",
     "@playwright/test": "^1.59.1",
     "@semantic-release/changelog": "^6.0.3",

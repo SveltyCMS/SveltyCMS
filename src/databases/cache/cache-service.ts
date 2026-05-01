@@ -67,6 +67,13 @@ export class CacheService {
     return this._metrics;
   }
 
+  // Fast Metrics (Sync if available)
+  private recordMetricSync(name: string, value: number) {
+    if (this._metrics && typeof this._metrics.recordMetric === "function") {
+      this._metrics.recordMetric(name, value);
+    }
+  }
+
   private cleanupTagsForKey(key: string) {
     const tags = this.keyToTags.get(key);
     if (tags) {
@@ -95,6 +102,8 @@ export class CacheService {
       const { loadPrivateConfig } = await import("@src/databases/db");
       config = await loadPrivateConfig();
     }
+    // Pre-warm metrics for sync recording
+    this.getMetrics().catch(() => {});
     return this.initializeL2(config);
   }
 
@@ -229,7 +238,7 @@ export class CacheService {
       this.recordLatency(performance.now() - start);
       this.stats.hits++;
       this.stats.l1Hits++;
-      (await this.getMetrics()).recordMetric("cache:hit:l1", 1);
+      this.recordMetricSync("cache:hit:l1", 1);
       return l1Value as T;
     }
 
@@ -242,7 +251,7 @@ export class CacheService {
           this.l1.set(fullKey, parsed);
           this.stats.hits++;
           this.stats.l2Hits++;
-          (await this.getMetrics()).recordMetric("cache:hit:l2", 1);
+          this.recordMetricSync("cache:hit:l2", 1);
           return parsed as T;
         }
       } catch (err) {
@@ -251,7 +260,23 @@ export class CacheService {
     }
 
     this.stats.misses++;
-    (await this.getMetrics()).recordMetric("cache:miss", 1);
+    this.recordMetricSync("cache:miss", 1);
+    return null;
+  }
+
+  /**
+   * High-performance synchronous L1 cache lookup.
+   * Bypasses async micro-task overhead for "hot" items.
+   */
+  getSync<T>(key: string, tenantId?: string | null): T | null {
+    const fullKey = this.generateKey(key, tenantId);
+    const l1Value = this.l1.get(fullKey);
+    if (l1Value !== undefined) {
+      this.stats.hits++;
+      this.stats.l1Hits++;
+      this.recordMetricSync("cache:hit:l1", 1);
+      return l1Value as T;
+    }
     return null;
   }
 

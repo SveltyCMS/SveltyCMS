@@ -113,6 +113,30 @@ export class CrudModule implements ICrudAdapter {
       });
   }
 
+  async find<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options: FindOptions<T> & { rawSql?: boolean; sql?: string; params?: any[]; tx?: any } = {},
+  ): Promise<DatabaseResult<T[]>> {
+    const startTime = performance.now();
+    return this.core
+      .wrap(async () => {
+        if (options.rawSql && options.sql) {
+          const db = options?.tx || this.db;
+          const results = await db.execute(sql.raw(options.sql));
+          return utils.convertArrayDatesToISO(results[0] as Record<string, unknown>[]) as T[];
+        }
+
+        const res = await this.findMany(collection, query, options);
+        if (!res.success) throw res.error;
+        return res.data;
+      }, "CRUD_FIND_FAILED")
+      .then((res) => {
+        if (res.success) res.meta = { executionTime: performance.now() - startTime };
+        return res;
+      });
+  }
+
   async findMany<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,

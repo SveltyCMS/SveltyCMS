@@ -23,11 +23,11 @@ The GraphQL API provides a powerful, flexible query language for accessing and m
 
 ## ⚡ Quick Reference
 
-| Feature                     | HTTP Endpoint               | High-Performance Alternative                          |
-| :-------------------------- | :-------------------------- | :-------------------------------------------- |
-| **Queries / Mutations**     | `POST /api/graphql`         | [**Local SDK QueryBuilder**](./local-vs-http-api.mdx) |
+| Feature                     | HTTP Endpoint               | High-Performance Alternative                             |
+| :-------------------------- | :-------------------------- | :------------------------------------------------------- |
+| **Queries / Mutations**     | `POST /api/graphql`         | [**Local SDK QueryBuilder**](./local-vs-http-api.mdx)    |
 | **Real-Time Subscriptions** | `ws://[domain]/api/graphql` | [**GraphQL Subscriptions**](./graphql-subscriptions.mdx) |
-| **Playground**              | `/api/graphql` (GET)        | N/A (Dev only)                                |
+| **Playground**              | `/api/graphql` (GET)        | N/A (Dev only)                                           |
 
 ---
 
@@ -42,6 +42,7 @@ Fetch complex, relational data structures in a single request while minimizing o
 SveltyCMS provides two primary methods for querying data:
 
 ### A. GraphQL (External API)
+
 Use standard GraphQL syntax to retrieve exactly the fields you need. This is mandatory for external clients that do not run in the SvelteKit backend.
 
 **Endpoint**: `POST /api/graphql`
@@ -61,6 +62,7 @@ query GetPosts {
 ```
 
 ### B. Local SDK (Internal Server-Side API) **(Recommended)**
+
 In SvelteKit `+page.server.ts`, **always prefer the Local SDK QueryBuilder**. It provides identical flexibility to GraphQL but achieves **0ms network latency** by making direct function calls that bypass the entire HTTP/JSON stack.
 
 ```typescript

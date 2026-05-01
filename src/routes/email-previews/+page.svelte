@@ -35,7 +35,7 @@ const emailList = $derived({
 
 {#if emailList.files && emailList.files.length}
 	{#if browser}
-		{#await import('better-svelte-email/preview')}
+		{#await import('@better-svelte-email/preview')}
 			<!-- Loading State -->
 			<div class="flex h-full items-center justify-center p-10">
 				<div class="text-center">

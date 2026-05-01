@@ -88,6 +88,7 @@ export async function updateIncrementalReport(results: BenchmarkResult[]) {
 
 /**
  * 🚀 ULTRA ELITE: Generates a master comparison leaderboard across all databases.
+ * Surgical update: Preserves data for databases that weren't part of this run.
  */
 async function generateMasterLeaderboard(results: any[]) {
   const readmePath = path.join(
@@ -96,7 +97,32 @@ async function generateMasterLeaderboard(results: any[]) {
   );
   const now = new Date().toLocaleString();
 
-  let md = `---
+  let existingReadme = await fs.readFile(readmePath, "utf8").catch(() => "");
+
+  const getVal = (db: string, key: string) => {
+    const res = results.find((r) => r.db === db);
+    if (!res || !res.metrics || !res.metrics[key]) return null;
+    const val = res.metrics[key];
+    return val < 1 ? `${(val * 1000).toFixed(0)}µs` : `${val.toFixed(2)}ms`;
+  };
+
+  const getRPS = (db: string) => {
+    const res = results.find((r) => r.db === db);
+    if (!res) return null;
+    return (res?.metrics?.["api.rest.rps"] || 0).toLocaleString();
+  };
+
+  const dbs = ["sqlite", "mariadb", "postgresql", "mongodb"];
+  const dbLabels: Record<string, string> = {
+    sqlite: "🚀 SQLite",
+    mariadb: "🐬 MariaDB",
+    postgresql: "🐘 Postgres",
+    mongodb: "🍃 MongoDB",
+  };
+
+  if (!existingReadme) {
+    // ... initial template if file missing ...
+    existingReadme = `---
 title: "Database Showdown: Master Performance Ledger"
 description: "Cross-engine performance comparison for SveltyCMS 2026."
 order: 1
@@ -113,11 +139,11 @@ icon: "mdi:trophy-outline"
 
 | Metric | 🚀 SQLite | 🐬 MariaDB | 🐘 Postgres | 🍃 MongoDB |
 | :--- | :--- | :--- | :--- | :--- |
-| **REST Read (p95)** | \${m.sqlite.read} | \${m.mariadb.read} | \${m.postgresql.read} | \${m.mongodb.read} |
-| **Insert Latency** | \${m.sqlite.insert} | \${m.mariadb.insert} | \${m.postgresql.insert} | \${m.mongodb.insert} |
-| **GraphQL (Avg)** | \${m.sqlite.gql} | \${m.mariadb.gql} | \${m.postgresql.gql} | \${m.mongodb.gql} |
-| **Ingestion (10k)** | \${m.sqlite.mig} | \${m.mariadb.mig} | \${m.postgresql.mig} | \${m.mongodb.mig} |
-| **Peak RPS** | \${m.sqlite.rps} | \${m.mariadb.rps} | \${m.postgresql.rps} | \${m.mongodb.rps} |
+| **REST Read (p95)** | 0.00ms | 0.00ms | 0.00ms | 0.00ms |
+| **Insert Latency** | 0.00ms | 0.00ms | 0.00ms | 0.00ms |
+| **GraphQL (Avg)** | 0.00ms | 0.00ms | 0.00ms | 0.00ms |
+| **Ingestion (10k)** | 0 | 0 | 0 | 0 |
+| **Peak RPS** | 0 | 0 | 0 | 0 |
 | **Stability Grade** | **ELITE** | **ENTERPRISE** | **ULTRA** | **SCALABLE** |
 
 ## 🏁 Technical Summary
@@ -134,71 +160,57 @@ SveltyCMS achieves **Database Agnosticism** without sacrificing performance. Whi
 
 <!-- COMPARISON_END -->
 `;
+  }
 
-  // Extraction logic for the table
-  const getVal = (db: string, key: string) => {
-    const res = results.find((r) => r.db === db);
-    if (!res || !res.metrics || !res.metrics[key]) return "0.00ms";
-    const val = res.metrics[key];
-    return val < 1 ? `${(val * 1000).toFixed(0)}µs` : `${val.toFixed(2)}ms`;
-  };
+  // Surgical Update of the Table
+  let rows = existingReadme.split("\n");
+  const tableStartIndex = rows.findIndex((l) => l.includes("| Metric |"));
 
-  const getRPS = (db: string) => {
-    const res = results.find((r) => r.db === db);
-    return (res?.metrics?.["api.rest.rps"] || 0).toLocaleString();
-  };
+  if (tableStartIndex !== -1) {
+    const tableHeader = rows[tableStartIndex];
+    const columns = tableHeader
+      .split("|")
+      .map((c) => c.trim())
+      .filter(Boolean);
 
-  const data = {
-    sqlite: {
-      read: getVal("sqlite", "adapter.read.avg"),
-      insert: getVal("sqlite", "adapter.insert.avg"),
-      gql: getVal("sqlite", "api.graphql.avg"),
-      mig: getVal("sqlite", "migration.throughput") || "N/A",
-      rps: getRPS("sqlite"),
-    },
-    mariadb: {
-      read: getVal("mariadb", "adapter.read.avg"),
-      insert: getVal("mariadb", "adapter.insert.avg"),
-      gql: getVal("mariadb", "api.graphql.avg"),
-      mig: getVal("mariadb", "migration.throughput") || "N/A",
-      rps: getRPS("mariadb"),
-    },
-    postgresql: {
-      read: getVal("postgresql", "adapter.read.avg"),
-      insert: getVal("postgresql", "adapter.insert.avg"),
-      gql: getVal("postgresql", "api.graphql.avg"),
-      mig: getVal("postgresql", "migration.throughput") || "N/A",
-      rps: getRPS("postgresql"),
-    },
-    mongodb: {
-      read: getVal("mongodb", "adapter.read.avg"),
-      insert: getVal("mongodb", "adapter.insert.avg"),
-      gql: getVal("mongodb", "api.graphql.avg"),
-      mig: getVal("mongodb", "migration.throughput") || "N/A",
-      rps: getRPS("mongodb"),
-    },
-  };
+    // Update Last Updated
+    const lastUpdateIndex = rows.findIndex((l) => l.includes("Last Updated:"));
+    if (lastUpdateIndex !== -1) {
+      rows[lastUpdateIndex] = `> Last Updated: ${now}`;
+    }
 
-  // Final interpolation
-  let finalMd = md
-    .replace(/\${m\.sqlite\.read}/g, data.sqlite.read)
-    .replace(/\${m\.mariadb\.read}/g, data.mariadb.read)
-    .replace(/\${m\.postgresql\.read}/g, data.postgresql.read)
-    .replace(/\${m\.mongodb\.read}/g, data.mongodb.read)
-    .replace(/\${m\.sqlite\.insert}/g, data.sqlite.insert)
-    .replace(/\${m\.mariadb\.insert}/g, data.mariadb.insert)
-    .replace(/\${m\.postgresql\.insert}/g, data.postgresql.insert)
-    .replace(/\${m\.mongodb\.insert}/g, data.mongodb.insert)
-    .replace(/\${m\.sqlite\.gql}/g, data.sqlite.gql)
-    .replace(/\${m\.mariadb\.gql}/g, data.mariadb.gql)
-    .replace(/\${m\.postgresql\.gql}/g, data.postgresql.gql)
-    .replace(/\${m\.mongodb\.gql}/g, data.mongodb.gql)
-    .replace(/\${m\.sqlite\.rps}/g, data.sqlite.rps)
-    .replace(/\${m\.mariadb\.rps}/g, data.mariadb.rps)
-    .replace(/\${m\.postgresql\.rps}/g, data.postgresql.rps)
-    .replace(/\${m\.mongodb\.rps}/g, data.mongodb.rps);
+    for (let i = tableStartIndex + 2; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row.trim().startsWith("|")) break;
 
-  await fs.writeFile(readmePath, finalMd);
+      const cells = row.split("|").map((c) => c.trim()); // index 0 is empty, index 1 is Metric
+      const metric = cells[1].toLowerCase();
+
+      for (const db of dbs) {
+        const colIndex = columns.findIndex((c) => c === dbLabels[db]);
+        if (colIndex === -1) continue;
+
+        let newVal: string | null = null;
+        if (metric.includes("read")) newVal = getVal(db, "adapter.read.avg");
+        else if (metric.includes("insert")) newVal = getVal(db, "adapter.insert.avg");
+        else if (metric.includes("graphql")) newVal = getVal(db, "api.graphql.avg");
+        else if (metric.includes("ingestion")) {
+          const res = results.find((r) => r.db === db);
+          newVal = res?.metrics?.["migration.throughput"] || null;
+        } else if (metric.includes("peak rps")) newVal = getRPS(db);
+
+        if (newVal !== null) {
+          cells[colIndex + 1] = newVal;
+        }
+      }
+      rows[i] = cells.join(" | ").trim();
+    }
+
+    await fs.writeFile(readmePath, rows.join("\n"));
+  } else {
+    // Fallback to full overwrite if table structure is not found
+    await fs.writeFile(readmePath, existingReadme);
+  }
 }
 
 /**
@@ -445,6 +457,7 @@ export async function generateFinalReport(
 
 /**
  * 🚀 Generates/Updates database-specific detail pages with historical trends and placeholders.
+ * Truly surgical: Preserves existing successful results in the MDX.
  */
 async function updateDatabaseSpecificReports(
   db: any,
@@ -462,8 +475,38 @@ async function updateDatabaseSpecificReports(
     };
     const filePath = path.join(DOCS_DIR, `benchmark_${dbKey.replace("-", "_")}.mdx`);
 
+    let doc = await fs.readFile(filePath, "utf8").catch(() => "");
+    if (!doc) {
+      // ... initial template if file missing ...
+      doc = `---
+path: "docs/project/benchmarks/benchmark_${dbKey.replace("-", "_")}.mdx"
+title: ${meta.label} Performance Audit
+description: Enterprise performance trends for ${meta.label}.
+order: 5
+icon: "mdi:speedometer"
+author: "SveltyCMS Team"
+created: "${new Date().toISOString().split("T")[0]}"
+updated: "${new Date().toISOString().split("T")[0]}"
+tags:
+  - "benchmark"
+  - "performance"
+  - "${dbConf.type}"
+---
+
+# ${meta.icon} ${meta.label} Performance Ledger
+
+> [!IMPORTANT]
+> **Performance Verification**: This report is automatically generated by the SveltyCMS Audit engine.
+
+<!-- BENCHMARK_START -->
+<!-- BENCHMARK_END -->
+`;
+    }
+
     // Get current results or last historical SUCCESS
     const curr = results.find((r) => r.db === dbKey);
+    if (!curr && !doc.includes("<!-- BENCHMARK_START -->")) continue;
+
     let m: ReturnType<typeof extractMetrics>;
     let status: string;
     let timestamp: string;
@@ -490,19 +533,19 @@ async function updateDatabaseSpecificReports(
     const restTrend = await getTrendDetails(db, dbKey, m.collections, "collections_p95");
     const gqlTrend = await getTrendDetails(db, dbKey, m.graphqlAvg, "graphql_avg");
 
-    let md = `\n## 📊 Latest Performance Audit (${timestamp})\n\n`;
-    md += `**Status:** ${status === "SUCCESS" ? "✅ PASS" : "❌ FAIL"}${isHistorical ? " *(Historical)*" : ""}\n\n`;
+    let headerMd = `\n## 📊 Latest Performance Audit (${timestamp})\n\n`;
+    headerMd += `**Status:** ${status === "SUCCESS" ? "✅ PASS" : "❌ FAIL"}${isHistorical ? " *(Historical)*" : ""}\n\n`;
 
-    md += `### ⚡ Executive Latency Matrix\n`;
-    md += `| Scenario | Avg Latency | Trend | Target Budget |\n`;
-    md += `| :--- | :--- | :--- | :--- |\n`;
-    md += `| **Cold Start** | ${curr?.coldStartMs || 0}ms | ${coldTrend.icon} (${coldTrend.pct}) | < 5000ms |\n`;
-    md += `| **REST (Collections)** | ${m.collections.toFixed(3)}ms | ${restTrend.icon} (${restTrend.pct}) | < 5ms |\n`;
-    md += `| **GraphQL (Avg)** | ${m.graphqlAvg.toFixed(3)}ms | ${gqlTrend.icon} (${gqlTrend.pct}) | < 5ms |\n`;
-    md += `| **DB Raw (p95)** | ${m.dbRaw.toFixed(3)}ms | ⚪ | < 50ms |\n\n`;
+    headerMd += `### ⚡ Executive Latency Matrix\n`;
+    headerMd += `| Scenario | Avg Latency | Trend | Target Budget |\n`;
+    headerMd += `| :--- | :--- | :--- | :--- |\n`;
+    headerMd += `| **Cold Start** | ${curr?.coldStartMs || 0}ms | ${coldTrend.icon} (${coldTrend.pct}) | < 5000ms |\n`;
+    headerMd += `| **REST (Collections)** | ${m.collections.toFixed(3)}ms | ${restTrend.icon} (${restTrend.pct}) | < 5ms |\n`;
+    headerMd += `| **GraphQL (Avg)** | ${m.graphqlAvg.toFixed(3)}ms | ${gqlTrend.icon} (${gqlTrend.pct}) | < 5ms |\n`;
+    headerMd += `| **DB Raw (p95)** | ${m.dbRaw.toFixed(3)}ms | ⚪ | < 50ms |\n\n`;
 
-    md += `### 📈 Historical Latency Trends\n`;
-    md += `\`\`\`mermaid\nxychart-beta\n  title "${meta.label} Latency Trend (last 10 runs)"\n  x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]\n  y-axis "Latency (ms)"\n  line "p95 Latency" : [${(() => {
+    headerMd += `### 📈 Historical Latency Trends\n`;
+    headerMd += `\`\`\`mermaid\nxychart-beta\n  title "${meta.label} Latency Trend (last 10 runs)"\n  x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]\n  y-axis "Latency (ms)"\n  line "p95 Latency" : [${(() => {
       const hist = db
         .query(
           `SELECT collections_p95 FROM runs WHERE db_key = ? AND status = 'SUCCESS' ORDER BY timestamp DESC LIMIT 10`,
@@ -514,8 +557,9 @@ async function updateDatabaseSpecificReports(
         .join(", ");
     })()}]\n\`\`\`\n`;
 
-    md += `\n## 🔬 Detailed Performance Ledger (20+ Modules)\n\n`;
+    headerMd += `\n## 🔬 Detailed Performance Ledger (20+ Modules)\n\n`;
 
+    // Reconstruct the internal sections surgically
     for (const script of BENCHMARK_SCRIPTS) {
       const isSql =
         dbKey.includes("sqlite") || dbKey.includes("postgres") || dbKey.includes("mariadb");
@@ -527,163 +571,56 @@ async function updateDatabaseSpecificReports(
       if (!isApplicable) continue;
 
       const tag = script.shortLabel.split(" ")[0].toUpperCase() + "_TABLE";
+      const START_TAG = `<!-- ${tag}_START -->`;
+      const END_TAG = `<!-- ${tag}_END -->`;
 
-      // 🚀 Try to find a persistent table file for this script
-      let tableContent = `> ⏳ **${script.label}**: Pending execution.\n> 📂 **Source**: [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")})`;
+      // Check if we have new data in ROOT_RESULTS_DIR
+      let tableContent = "";
       try {
         const dbResultsDir = path.join(ROOT_RESULTS_DIR, dbKey);
         const files = await fs.readdir(dbResultsDir).catch(() => []);
-        // Match files like 'api_layer_latency_audit.table.txt'
         const tableFile = files.find((f) => {
           if (!f.endsWith(".table.txt")) return false;
-          const nf = f
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, " ")
-            .replace("sveltycms", "")
-            .trim();
-          const sl = script.shortLabel.toLowerCase().replace(/[^a-z0-9]/g, " ");
-          const fl = script.label.toLowerCase().replace(/[^a-z0-9]/g, " ");
-
-          const nfWords = new Set(nf.split(" ").filter((w) => w.length > 2));
-          const slWords = sl.split(" ").filter((w) => w.length > 2);
-          const flWords = fl.split(" ").filter((w) => w.length > 2);
-
-          const slMatch = slWords.every((w) => nfWords.has(w)) || nfWords.has(sl);
-          const flMatch = flWords.every((w) => nfWords.has(w)) || nfWords.has(fl);
-
-          return slMatch || flMatch;
+          return f.toLowerCase().includes(script.shortLabel.toLowerCase().replace(/ /g, "_"));
         });
 
         if (tableFile) {
           const rawTable = await fs.readFile(path.join(dbResultsDir, tableFile), "utf8");
-          const history = db
-            .query(
-              `
-              SELECT metrics_json FROM runs
-              WHERE db_key = ? AND status = 'SUCCESS'
-              ORDER BY timestamp DESC LIMIT 2
-            `,
-            )
-            .all(dbKey) as any[];
-
-          let trendStr = "";
-          if (history.length === 2) {
-            const last = JSON.parse(history[0].metrics_json);
-            const prev = JSON.parse(history[1].metrics_json);
-
-            // 🚀 Try to find matching metric in history by path OR slug
-            const findMetric = (m: any) => {
-              // Try exact match by shortLabel
-              if (m[script.shortLabel]?.avgMs) return m[script.shortLabel].avgMs;
-              // Try slug match
-              const slug = script.shortLabel.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
-              if (m[slug]?.avgMs) return m[slug].avgMs;
-              // Try path match (looking inside metrics)
-              for (const key in m) {
-                if (m[key]?.scriptPath === script.path) return m[key].avgMs;
-                // Fallback for older data that might have base name
-                if (key.includes(path.basename(script.path, ".test.ts"))) return m[key].avgMs;
-              }
-              return 0;
-            };
-
-            const lastVal = findMetric(last);
-            const prevVal = findMetric(prev);
-
-            if (lastVal > 0 && prevVal > 0) {
-              const delta = ((lastVal - prevVal) / prevVal) * 100;
-              const icon = delta > 5 ? "🔴" : delta < -5 ? "🟢" : "⚪";
-              trendStr = ` (Trend: ${icon} ${delta > 0 ? "+" : ""}${delta.toFixed(1)}%)`;
-            }
-          }
-
-          tableContent = `### 🏷️ ${script.label}${trendStr}\n> 📂 **Source**: [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")})\n> 🎯 **Proves**: ${script.desc}\n\n\`\`\`text\n${rawTable}\n\`\`\``;
-        } else {
-          // 🛡️ NON-DESTRUCTIVE: Try to recover existing data from the file ONLY if no new tableFile was found
-          if (!tableFile) {
-            const docPath = path.resolve(
-              process.cwd(),
-              "docs/project/benchmarks",
-              `benchmark_${dbKey.replace("-", "_")}.mdx`,
-            );
-            const currentDoc = await fs.readFile(docPath, "utf8").catch(() => "");
-            const START = `<!-- ${tag}_START -->`;
-            const END = `<!-- ${tag}_END -->`;
-            if (currentDoc.includes(START) && currentDoc.includes(END)) {
-              const existing = currentDoc.split(START)[1].split(END)[0].trim();
-              if (existing && !existing.includes("Pending execution")) {
-                tableContent = existing;
-              }
-            }
-          }
+          tableContent = `### 🏷️ ${script.label}\n> 📂 **Source**: [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")})\n> 🎯 **Proves**: ${script.desc}\n\n\`\`\`text\n${rawTable}\n\`\`\``;
         }
-      } catch {
-        // Fallback to placeholder if file missing
+      } catch (err) {}
+
+      // If no new data, try to extract from current document
+      if (!tableContent && doc.includes(START_TAG) && doc.includes(END_TAG)) {
+        const existing = doc.split(START_TAG)[1].split(END_TAG)[0].trim();
+        if (existing && !existing.includes("Pending execution")) {
+          tableContent = existing;
+        }
       }
 
-      md += `<!-- ${tag}_START -->\n${tableContent}\n<!-- ${tag}_END -->\n\n`;
+      // If still no content, show pending
+      if (!tableContent) {
+        tableContent = `> ⏳ **${script.label}**: Pending execution.\n> 📂 **Source**: [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")})`;
+      }
+
+      headerMd += `${START_TAG}\n${tableContent}\n${END_TAG}\n\n`;
     }
 
-    md += `\n--- \n\n## 🔬 Host Environment\n`;
-    md += `| CPU | Cores | RAM | Runtime |\n`;
-    md += `| :--- | :--- | :--- | :--- |\n`;
-    md += `| ${curr?.hostInfo?.cpu || "Unknown"} | ${curr?.hostInfo?.cores || "-"} | ${curr?.hostInfo?.ram || "-"} | ${curr?.hostInfo?.runtime || "-"} |\n\n`;
+    headerMd += `\n--- \n\n## 🔬 Host Environment\n`;
+    headerMd += `| CPU | Cores | RAM | Runtime |\n`;
+    headerMd += `| :--- | :--- | :--- | :--- |\n`;
+    headerMd += `| ${curr?.hostInfo?.cpu || "Unknown"} | ${curr?.hostInfo?.cores || "-"} | ${curr?.hostInfo?.ram || "-"} | ${curr?.hostInfo?.runtime || "-"} |\n\n`;
 
-    let doc = await fs.readFile(filePath, "utf8").catch(() => "");
-    if (!doc) {
-      doc = `---
-title: ${meta.label} Performance Audit
-description: Enterprise performance trends for ${meta.label}.
-order: 5
-icon: "mdi:speedometer"
-author: "SveltyCMS Team"
-updated: "${new Date().toISOString().split("T")[0]}"
----
+    const BENCH_START = "<!-- BENCHMARK_START -->";
+    const BENCH_END = "<!-- BENCHMARK_END -->";
 
-# ${meta.icon} ${meta.label} Performance Ledger
-
-> [!IMPORTANT]
-> **Performance Verification**: This report is automatically generated by the SveltyCMS Audit engine.
-${dbKey === "sqlite" ? "> SQLite now features LRU Statement Caching, WAL tuning, and unified SQL core architecture." : ""}
-
-<!-- BENCHMARK_START -->
-<!-- BENCHMARK_END -->
-
----
-
-## 🔬 Optimization Summary
-
-The upgrade introduces several key optimizations to the ${meta.label} engine:
-
-${
-  dbKey.includes("sqlite")
-    ? `1. **Statement Caching**: High-performance LRU cache for prepared statements, reducing query overhead by ~15-40%.
-2. **Advanced PRAGMAs**: Optimized WAL mode, synchronous=NORMAL, and memory mapping.
-3. **Shared SQL Core**: Unified MongoDB-style query mapping and error handling.`
-    : `1. **Agnostic Logic**: Leverages the unified BaseSqlAdapter for consistent query parsing.
-2. **Standardized Telemetry**: Real-time performance tracking with 3-decimal precision.`
-}
-
----
-
-## 📑 Intent: Benchmark Matrix Integration
-
-This ledger is part of the SveltyCMS **Benchmark Matrix** infrastructure. Results are automatically updated via the reporting engine in \`scripts/benchmark-matrix/\`.
-
-> [!TIP]
-> Run \`bun run benchmark --db ${dbKey}\` to refresh this ledger.
-`;
-    }
-
-    const START = "<!-- BENCHMARK_START -->";
-    const END = "<!-- BENCHMARK_END -->";
-    if (doc.includes(START) && doc.includes(END)) {
+    if (doc.includes(BENCH_START) && doc.includes(BENCH_END)) {
       doc = doc.replace(
         /<!-- BENCHMARK_START -->[\s\S]*?<!-- BENCHMARK_END -->/,
-        `${START}${md}${END}`,
+        `${BENCH_START}${headerMd}${BENCH_END}`,
       );
     } else {
-      doc += `\n${START}${md}${END}`;
+      doc += `\n${BENCH_START}${headerMd}${BENCH_END}`;
     }
 
     await fs.writeFile(filePath, doc);

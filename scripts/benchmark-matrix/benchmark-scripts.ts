@@ -199,6 +199,17 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     strategy: "once",
   },
   {
+    path: "tests/benchmarks/seo-performance.test.ts",
+    label: "Enterprise SEO Suite Audit",
+    shortLabel: "SEO Audit",
+    level: 4,
+    section: "api",
+    intensity: "medium",
+    estimatedMs: 30_000,
+    desc: "E2E audit of Redirect Middleware, 404 Logging, and Sitemap Caching performance.",
+    strategy: "all",
+  },
+  {
     path: "tests/benchmarks/realtime-performance.test.ts",
     label: "WebSocket & Realtime Latency",
     shortLabel: "Realtime",

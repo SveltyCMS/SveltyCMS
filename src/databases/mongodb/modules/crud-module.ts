@@ -99,6 +99,21 @@ export class MongoCrudModule extends DatabaseModule<MongoAdapterCore> implements
     return this._getRepo(collection).findByIds(ids, options);
   }
 
+  async find<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options: FindOptions<T> & { rawSql?: boolean; sql?: string; params?: any[]; tx?: any } = {},
+  ): Promise<DatabaseResult<T[]>> {
+    if (options.rawSql) {
+      return {
+        success: false,
+        message: "rawSql not supported in MongoDB",
+        error: { code: "NOT_SUPPORTED", message: "rawSql not supported in MongoDB" },
+      };
+    }
+    return this.findMany(collection, query, options);
+  }
+
   async findMany<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,

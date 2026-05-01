@@ -82,12 +82,12 @@ graph TB
 
 ## When to Use Which
 
-| Context                                 | Recommended        | Latency    | Reason                                                         |
-| :-------------------------------------- | :----------------- | :--------- | :------------------------------------------------------------- |
+| Context                                 | Recommended                             | Latency    | Reason                                                         |
+| :-------------------------------------- | :-------------------------------------- | :--------- | :------------------------------------------------------------- |
 | **Client-side** (`.svelte`, `+page.ts`) | **HTTP / [GraphQL API](./graphql.mdx)** | 50–150 ms  | Browser environment; requires auth, CORS, and network.         |
-| **Server-side** (`.server.ts`, actions) | **Local SDK**      | **0–5 ms** | Direct function calls; zero serialization or network overhead. |
-| **Mobile / External App**               | **GraphQL**        | 80–300+ ms | Optimized data fetching with nested population.                |
-| **Plugins / Background Jobs**           | **Local SDK**      | **0–5 ms** | Full access to core logic and security context.                |
+| **Server-side** (`.server.ts`, actions) | **Local SDK**                           | **0–5 ms** | Direct function calls; zero serialization or network overhead. |
+| **Mobile / External App**               | **GraphQL**                             | 80–300+ ms | Optimized data fetching with nested population.                |
+| **Plugins / Background Jobs**           | **Local SDK**                           | **0–5 ms** | Full access to core logic and security context.                |
 
 > [!TIP]
 > **Rule of thumb**: If your code runs server-side (files ending in `.server.ts` or inside `+server.ts` routes), use the Local SDK.
@@ -116,15 +116,19 @@ await locals.cms.media.find("images", { limit: 5 });
 
 // Identity & Access
 await locals.cms.auth.listUsers();
-await locals.cms.websiteTokens.create({ /* ... */ });
+await locals.cms.websiteTokens.create({
+  /* ... */
+});
 
 // System & Infrastructure
 await locals.cms.system.getPreference("theme");
 await locals.cms.widgets.list();
 
 // Advanced APIs
-await locals.cms.graphql('{ posts { title } }');
-await locals.cms.transaction(async (tx) => { /* ... */ });
+await locals.cms.graphql("{ posts { title } }");
+await locals.cms.transaction(async (tx) => {
+  /* ... */
+});
 ```
 
 ---

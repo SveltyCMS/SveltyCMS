@@ -7,6 +7,7 @@ import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
+import { contentSystem } from "@src/content/index.server";
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   const { user, tenantId, cms } = locals;
@@ -16,15 +17,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const dbAdapter = cms.db;
 
   try {
-    const { content, currentId, collectionId } = await request.json();
-    if (!content) return json({ suggestions: [] });
+    const { content, currentId, collectionId, focusKeyword } = await request.json();
+    if (!content && !focusKeyword) return json({ suggestions: [] });
 
-    // 1. Extract keywords from content (simple version)
-    const words =
-      content
-        .toLowerCase()
-        .replace(/<[^>]*>/g, " ")
-        .match(/\b\w{4,}\b/g) || [];
+    // 1. Extract keywords from content
+    const text = content
+      ? content
+          .toLowerCase()
+          .replace(/<[^>]*>/g, " ")
+          .replace(/[^\w\s]/g, "")
+      : "";
+
+    const words = text.match(/\b\w{4,}\b/g) || [];
 
     // Count frequency
     const freq: Record<string, number> = {};
@@ -32,58 +36,80 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       freq[word] = (freq[word] || 0) + 1;
     }
 
-    // Top 5 keywords
-    const topKeywords = Object.entries(freq)
+    // Top 5 keywords from content
+    const contentKeywords = Object.entries(freq)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([word]) => word);
 
-    if (topKeywords.length === 0) return json({ suggestions: [] });
+    // Combine with focusKeyword if provided
+    const searchKeywords = focusKeyword
+      ? [
+          focusKeyword.toLowerCase(),
+          ...contentKeywords.filter((k) => k !== focusKeyword.toLowerCase()),
+        ].slice(0, 5)
+      : contentKeywords;
 
-    // 2. Search for other entries containing these keywords
+    if (searchKeywords.length === 0) return json({ suggestions: [] });
 
-    // Simple implementation: Search across all collections for these keywords
-    // In a real system, we might use an actual search index (Elastic/Algolia/Meilisearch)
-    const suggestions: Array<{ title: string; url: string; score: number }> = [];
+    // 2. Search for other entries using QueryBuilder's search capability
+    const suggestions: Array<{ title: string; url: string; score: number; collection: string }> =
+      [];
 
-    // For now, let's just search in the current collection or 'posts'/'pages'
-    const searchCollections = ["posts", "pages", "articles", collectionId].filter(Boolean);
-    const uniqueCollections = [...new Set(searchCollections)];
+    // Collections to search
+    const allCollections = await contentSystem.getCollections(tenantId);
+    const searchCollections = allCollections
+      .filter((c) =>
+        ["posts", "pages", "articles", "news", "blog", collectionId].includes(c._id as string),
+      )
+      .map((c) => c._id as string);
 
-    for (const col of uniqueCollections) {
+    if (searchCollections.length === 0 && collectionId) {
+      searchCollections.push(collectionId);
+    }
+
+    for (const colId of searchCollections) {
       try {
-        // Find entries that contain any of the top keywords
-        // This is a naive implementation; production would use $text or similar
-        const query = {
-          $or: topKeywords.map((k) => ({
-            $or: [
-              { title: { $regex: k, $options: "i" } },
-              { content: { $regex: k, $options: "i" } },
-            ],
-          })),
-          _id: { $ne: currentId },
-          tenantId: tenantId || "default",
-        };
+        const collection = await contentSystem.getCollectionById(colId, tenantId);
+        if (!collection) continue;
 
-        const result = await dbAdapter.crud.findMany(col, query as any, { limit: 5 });
-        if (result.success && Array.isArray(result.data)) {
-          for (const entry of result.data as any[]) {
-            suggestions.push({
-              title: entry.title || entry.name || entry.slug,
-              url: `/${col}/${entry.slug}`,
-              score: 1.0, // Simple score
-            });
+        // Use the native search capability of the database
+        // We search for the primary keywords
+        for (const keyword of searchKeywords.slice(0, 2)) {
+          const qb = dbAdapter.queryBuilder(colId);
+          const result = await qb
+            .search(keyword, ["title", "content"] as any)
+            .where({ status: "published", tenantId: tenantId || "default" } as any)
+            .limit(5)
+            .execute();
+
+          if (result.success && Array.isArray(result.data)) {
+            for (const entry of result.data as any[]) {
+              if (entry._id === currentId) continue;
+
+              // Calculate a simple relevancy score
+              let score = 1.0;
+              if (keyword === focusKeyword?.toLowerCase()) score += 0.5;
+              if (entry.isCornerstone) score += 1.0;
+
+              suggestions.push({
+                title: entry.title || entry.name || entry.slug,
+                url: `/${colId}/${entry.slug}`,
+                score,
+                collection: collection.name || colId,
+              });
+            }
           }
         }
-      } catch {
-        // Collection might not exist
+      } catch (err) {
+        logger.warn(`Error searching collection ${colId} for link suggestions:`, err);
       }
     }
 
-    // Unique suggestions
+    // Sort by score and unique by URL
     const uniqueSuggestions = Array.from(
-      new Map(suggestions.map((s) => [s.url, s])).values(),
-    ).slice(0, 5);
+      new Map(suggestions.sort((a, b) => b.score - a.score).map((s) => [s.url, s])).values(),
+    ).slice(0, 8);
 
     return json({ suggestions: uniqueSuggestions });
   } catch (err) {

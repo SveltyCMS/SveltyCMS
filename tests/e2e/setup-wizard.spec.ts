@@ -29,13 +29,20 @@ async function dismissWelcomeModal(page: Page) {
     page.getByRole("button", { name: /get started/i }).first(),
     page.getByRole("button", { name: /start/i }).first(),
     page.getByRole("button", { name: /continue/i }).first(),
-    page.locator("button, [role='button'], a").filter({ hasText: /get started|start|continue/i }).first(),
-    page.locator("[aria-label*='Get Started' i], [aria-label*='Start' i], [aria-label*='Continue' i]").first(),
+    page
+      .locator("button, [role='button'], a")
+      .filter({ hasText: /get started|start|continue/i })
+      .first(),
+    page
+      .locator("[aria-label*='Get Started' i], [aria-label*='Start' i], [aria-label*='Continue' i]")
+      .first(),
   ]);
 
   if (button) {
     await button.click({ force: true });
-    await expect(welcomePopup).toBeHidden({ timeout: 10000 }).catch(() => {});
+    await expect(welcomePopup)
+      .toBeHidden({ timeout: 10000 })
+      .catch(() => {});
     return;
   }
 
@@ -55,7 +62,9 @@ async function dismissWelcomeModal(page: Page) {
     await page.keyboard.press("Escape").catch(() => {});
   }
 
-  await expect(welcomePopup).toBeHidden({ timeout: 10000 }).catch(() => {});
+  await expect(welcomePopup)
+    .toBeHidden({ timeout: 10000 })
+    .catch(() => {});
 }
 
 async function dismissCookies(page: Page) {
@@ -85,13 +94,22 @@ async function handleAnyDbDialog(page: Page) {
 }
 
 async function submitDatabaseTest(page: Page) {
-  const dbForm = page.locator("form").filter({ has: page.locator("#db-type") }).first();
+  const dbForm = page
+    .locator("form")
+    .filter({ has: page.locator("#db-type") })
+    .first();
 
   const testButton = await firstVisible([
     page.getByRole("button", { name: /test database connection/i }).first(),
     page.getByRole("button", { name: /test connection/i }).first(),
-    page.locator("button[type='submit']").filter({ hasText: /test|connection/i }).first(),
-    dbForm.locator("button").filter({ hasText: /test|connection/i }).first(),
+    page
+      .locator("button[type='submit']")
+      .filter({ hasText: /test|connection/i })
+      .first(),
+    dbForm
+      .locator("button")
+      .filter({ hasText: /test|connection/i })
+      .first(),
   ]);
 
   if (testButton) {
@@ -146,7 +164,10 @@ async function clickFinish(page: Page) {
     page.getByLabel("Complete", { exact: true }).first(),
     page.getByRole("button", { name: /complete/i }).first(),
     page.getByRole("button", { name: /finish/i }).first(),
-    page.locator("button").filter({ hasText: /complete|finish/i }).first(),
+    page
+      .locator("button")
+      .filter({ hasText: /complete|finish/i })
+      .first(),
   ]);
 
   if (!finishButton) {

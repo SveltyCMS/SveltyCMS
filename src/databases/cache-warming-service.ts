@@ -50,7 +50,17 @@ export class CacheWarmingService {
         }
       }
 
-      // 3. Register standard prefetch patterns
+      // 3. Warm Hot Redirects (High-performance SEO Suite)
+      if (db?.crud?.find) {
+        const redirects = await db.crud.find("redirects", {}, { limit: 100 });
+        if (redirects.success && redirects.data) {
+          for (const r of redirects.data) {
+            await cacheService.set(`redirect:${r.from}`, r, 3600, r.tenantId, CacheCategory.API);
+          }
+        }
+      }
+
+      // 4. Register standard prefetch patterns
       cacheService.registerPrefetchPattern("schema:", ["collection:data:"]);
 
       // User lifecycle patterns (Predicted by docs/architecture/cache-system.mdx)

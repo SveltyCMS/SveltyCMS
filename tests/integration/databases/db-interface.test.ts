@@ -641,22 +641,18 @@ describe("Database Interface Contract Tests", () => {
       const updatedValue = normalizeStoredValue((refetchAfterUpdate.data as any).value);
       expect(updatedValue?.data ?? updatedValue).toBe("updated_value_data");
 
-      const countRes = await db.crud.count(
-        collection,
-        { key: "test_interface_key" } as any,
-        { tenantId: TEST_TENANT },
-      );
+      const countRes = await db.crud.count(collection, { key: "test_interface_key" } as any, {
+        tenantId: TEST_TENANT,
+      });
 
       expect(countRes.success).toBe(true);
       if (!countRes.success) throw new Error("Count failed");
 
       expect(countRes.data).toBeGreaterThan(0);
 
-      const existsRes = await db.crud.exists(
-        collection,
-        { _id: docId } as any,
-        { tenantId: TEST_TENANT },
-      );
+      const existsRes = await db.crud.exists(collection, { _id: docId } as any, {
+        tenantId: TEST_TENANT,
+      });
 
       expect(existsRes.success).toBe(true);
       if (!existsRes.success) throw new Error("Exists failed");

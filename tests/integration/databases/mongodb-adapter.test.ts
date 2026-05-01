@@ -108,7 +108,7 @@ describeMongo("MongoDB Adapter Integration", () => {
       if (!result?.success && privateEnv.DB_USER && privateEnv.DB_PASSWORD) {
         console.warn("DEBUG: MongoDB app-db auth failed. Trying admin authSource fallback...");
 
-        await db.disconnect?.().catch(() => { });
+        await db.disconnect?.().catch(() => {});
         result = await db.connect(adminFallbackUri, {
           serverSelectionTimeoutMS: 8000,
           connectTimeoutMS: 8000,
@@ -118,7 +118,7 @@ describeMongo("MongoDB Adapter Integration", () => {
       if (!result?.success && !privateEnv.DB_USER && !privateEnv.DB_PASSWORD) {
         console.warn("DEBUG: MongoDB unauthenticated connection fallback...");
 
-        await db.disconnect?.().catch(() => { });
+        await db.disconnect?.().catch(() => {});
         result = await db.connect(noAuthUri, {
           serverSelectionTimeoutMS: 8000,
           connectTimeoutMS: 8000,
@@ -126,7 +126,9 @@ describeMongo("MongoDB Adapter Integration", () => {
       }
 
       if (!result?.success) {
-        throw new Error(`Failed to connect to MongoDB: ${(result as any)?.message || "unknown error"}`);
+        throw new Error(
+          `Failed to connect to MongoDB: ${(result as any)?.message || "unknown error"}`,
+        );
       }
 
       console.log("DEBUG: MongoDB Connected successfully");
@@ -159,7 +161,7 @@ describeMongo("MongoDB Adapter Integration", () => {
             { tenantId: TEST_TENANT } as any,
             { tenantId: TEST_TENANT, permanent: true } as any,
           )
-          .catch(() => { });
+          .catch(() => {});
 
         await db.crud
           .deleteMany(
@@ -167,7 +169,7 @@ describeMongo("MongoDB Adapter Integration", () => {
             { tenantId: TEST_TENANT } as any,
             { tenantId: TEST_TENANT, permanent: true } as any,
           )
-          .catch(() => { });
+          .catch(() => {});
       }
 
       if (db?.isConnected?.()) {
@@ -242,7 +244,9 @@ describeMongo("MongoDB Adapter Integration", () => {
 
       expect(findRes.success).toBe(true);
       if (!findRes.success || !findRes.data) {
-        throw new Error(`Mongo findOne failed: ${(findRes as any).message || "document not found"}`);
+        throw new Error(
+          `Mongo findOne failed: ${(findRes as any).message || "document not found"}`,
+        );
       }
 
       expect((findRes.data as any).payload.adapter).toBe("mongodb");
@@ -350,7 +354,7 @@ describeMongo("MongoDB Adapter Integration", () => {
           { tenantId: TEST_TENANT, runId } as any,
           { tenantId: TEST_TENANT, permanent: true } as any,
         )
-        .catch(() => { });
+        .catch(() => {});
 
       const insertA = await db.crud.insert(
         QUERY_COLLECTION,

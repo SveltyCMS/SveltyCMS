@@ -98,8 +98,16 @@ export async function ensureFullInitialization(config?: any): Promise<any | null
         _settingsLoaded = true;
       }
 
-      // 4. Critical Services (Auth)
+      // 4. Critical Services (Auth & Plugins)
       auth = await dbInit.initializeCriticalServices(adapter);
+
+      try {
+        const { initializePlugins } = await import("../plugins");
+        await initializePlugins(adapter);
+      } catch (e) {
+        logger.error("Plugin initialization failed:", e);
+      }
+
       updateServiceHealth("database", "healthy", "Database initialized");
 
       // 5. Background Tasks (Fire-and-forget, exactly once)

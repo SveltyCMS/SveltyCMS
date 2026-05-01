@@ -5,7 +5,7 @@
 
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
-import Renderer, { toPlainText } from "better-svelte-email/render";
+import { Renderer, toPlainText } from "@better-svelte-email/server";
 import type { TransportOptions } from "nodemailer";
 import nodemailer from "nodemailer";
 import type { ComponentType } from "svelte";
@@ -70,7 +70,6 @@ interface RenderedEmailContent {
   html: string;
   text: string;
 }
-
 // Initialize the email renderer
 const renderer = new Renderer();
 

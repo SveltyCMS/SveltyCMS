@@ -321,15 +321,47 @@ export class AdapterCore extends BaseSqlAdapter {
       cache.set(sql, stmt);
     }
 
-    try {
-      return stmt[method](...args);
-    } catch (err: any) {
-      //  Retry on Busy with exponential backoff
-      if (err.code === "SQLITE_BUSY" || err.message?.includes("busy")) {
-        logger.warn("[SQLite] Database busy, retry recommended");
+    let attempts = 0;
+    const maxAttempts = 5;
+    const baseDelay = 50;
+
+    while (attempts < maxAttempts) {
+      try {
+        return stmt[method](...args);
+      } catch (err: any) {
+        attempts++;
+        const isBusy =
+          err.code === "SQLITE_BUSY" ||
+          err.message?.includes("busy") ||
+          err.message?.includes("locked");
+
+        if (isBusy && attempts < maxAttempts) {
+          const delay = baseDelay * Math.pow(2, attempts - 1);
+          logger.warn(
+            `[SQLite] Database busy/locked, retrying in ${delay}ms (Attempt ${attempts}/${maxAttempts})`,
+          );
+
+          // Use sync sleep if we are in a sync context (bun:sqlite is sync)
+          const start = Date.now();
+          while (Date.now() - start < delay) {
+            // spin
+          }
+          continue;
+        }
+
+        if (isBusy) {
+          logger.error(`[SQLite] Database remains busy after ${maxAttempts} attempts.`);
+        }
+        throw err;
       }
-      throw err;
     }
+  }
+
+  /**
+   * High-performance raw query execution with automatic retries and statement caching.
+   */
+  public queryRaw<T = any>(sql: string, params: Record<string, any> = {}): T[] {
+    return this.prepareAndExecute(sql, "all", params);
   }
 
   /* ------------------------------------------------ */

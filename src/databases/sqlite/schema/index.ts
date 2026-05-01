@@ -14,6 +14,9 @@
 
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
+import { fourOhFourLogs } from "../modules/404Logs";
+import { workflowDefinitions, workflowInstances } from "../modules/workflow";
+import { redirectsMV } from "../modules/seo";
 import type { TenantQuota, TenantUsage } from "../../db-interface";
 
 // Helper to create UUID primary key
@@ -517,4 +520,8 @@ export const schema = {
   pluginMigrations,
   tenants,
   auditLogs,
+  fourOhFourLogs,
+  workflowDefinitions,
+  workflowInstances,
+  redirectsMV,
 };
