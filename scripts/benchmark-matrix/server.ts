@@ -99,12 +99,14 @@ export function buildServerEnv(
     NODE_ENV: "production",
     SKIP_GRAPHQL_WS: "true",
     BENCHMARK: "true",
-    LOG_LEVEL: "debug",
-    VERBOSE_STDOUT: "true",
+    LOG_LEVEL: process.env.LOG_LEVEL || "info",
+    VERBOSE_STDOUT: process.env.VERBOSE_STDOUT || "false",
     PROTOCOL_HEADER: "x-forwarded-proto",
     HOST_HEADER: "host",
     BENCHMARK_DEBUG: process.env.BENCHMARK_DEBUG || "false",
     BENCHMARK_MODE: "true",
+    BENCHMARK_STABLE: "true",
+    STRICT_SETUP_CHECK: "true",
     SVELTY_AUDIT_ACTIVE: process.env.SVELTY_AUDIT_ACTIVE || "false",
   };
 
@@ -121,9 +123,25 @@ export function buildServerEnv(
 
 /**
  * Determines the server entry point.
+ * 🚀 SMART DISCOVERY: Checks build folder, then fallback to .svelte-kit output.
  */
 export async function getServerEntryPoint(): Promise<string> {
-  return path.resolve(process.cwd(), "build", "index.js");
+  const paths = [
+    path.resolve(process.cwd(), "build", "index.js"),
+    path.resolve(process.cwd(), ".svelte-kit", "adapter-node", "index.js"),
+    path.resolve(process.cwd(), "src", "hooks", "handle-turbo-pipeline.server.ts"), // Fallback to dev if no build exists
+  ];
+
+  for (const p of paths) {
+    if (fs.existsSync(p)) {
+      log.info(`🚀 Entry Point: Found at ${path.relative(process.cwd(), p)}`);
+      return p;
+    }
+  }
+
+  throw new Error(
+    "Could not find any server entry point (build/index.js or .svelte-kit/adapter-node/index.js)",
+  );
 }
 
 /**
@@ -192,9 +210,15 @@ export async function startServer(
   const serverPath = await getServerEntryPoint();
   const start = performance.now();
 
-  console.error(`[DEBUG-SERVER] serverPath: "${serverPath}"`);
-  console.error(`[SQLITE] Spawning bun with path: "${serverPath}"`);
-  const workerProcess = spawn("bun", [serverPath], {
+  const isDev = serverPath.endsWith(".ts") || !fs.existsSync(serverPath);
+  const cmd = isDev ? "bun" : "bun";
+  const args = isDev
+    ? ["x", "vite", "dev", "--port", port.toString(), "--host", "127.0.0.1"]
+    : [serverPath];
+
+  log.db(db.type, `Launching SveltyCMS instance (${isDev ? "DEV" : "PROD"}) on port ${port}...`);
+
+  const workerProcess = spawn(cmd, args, {
     cwd: process.cwd(),
     detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
@@ -233,15 +257,16 @@ export async function startServer(
         process.stdout.write(line + "\n");
 
         const clean = line.replace(ANSI_STRIP, "");
-        if (
-          !resolved &&
-          (clean.includes("Local:") ||
-            clean.includes("127.0.0.1:") ||
-            clean.includes("Listening on") ||
-            clean.includes("Listening at") ||
-            clean.includes("Turbo Pipeline Hook loaded") ||
-            clean.includes("Cold Start:"))
-        ) {
+        const isBootLog =
+          clean.includes("Turbo Pipeline Hook loaded") ||
+          clean.includes("Cold Start:") ||
+          clean.includes("Listening on");
+        const isViteLog =
+          clean.includes("Local:") ||
+          clean.includes("127.0.0.1:") ||
+          clean.includes("Listening on");
+
+        if (!resolved && (isBootLog || (isDev && isViteLog))) {
           resolved = true;
           clearTimeout(timeout);
           const coldStartMs = Math.round(performance.now() - start);

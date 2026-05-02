@@ -5,6 +5,7 @@
 
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
+import fs_sync from "node:fs";
 import path from "node:path";
 import { log } from "./logger";
 import { heavyTaskLock } from "./semaphore";
@@ -135,7 +136,7 @@ export async function executeWithTimeout(
       shell: process.platform === "win32",
     });
 
-    // 🚀 ULTRA ELITE: Parse metrics from stdout in real-time
+    // 🚀 Parse metrics from stdout in real-time
     proc.stdout.on("data", (data) => {
       const line = data.toString();
       process.stdout.write(data); // still print to terminal
@@ -324,11 +325,22 @@ export async function runAuditForDatabase(
 
     await writeTestConfig(dbConf, workerDbName);
 
+    // 🚀 GOLD STANDARD: Pre-flight cleanup for SQLite to avoid lock issues
+    if (dbConf.type === "sqlite") {
+      const dbPath = path.resolve(process.cwd(), "config/database", `${workerDbName}.sqlite`);
+      if (fs_sync.existsSync(dbPath)) {
+        log.db(dbKey, `Pre-flight cleanup: Removing ${dbPath}`);
+        fs_sync.unlinkSync(dbPath);
+      }
+    }
+
     const {
       coldStartMs,
       version,
       stop: stopWorkerServer,
     } = await startServer(dbConf, workerPort, workerDbName);
+
+    metrics["cold-start"] = coldStartMs;
 
     const dbDir = path.join(rootResultsDir, dbKey);
     await fs.rm(dbDir, { recursive: true, force: true }).catch(() => {});
@@ -343,14 +355,7 @@ export async function runAuditForDatabase(
       );
     }
 
-    if (
-      !(await runTask(
-        "Standard System Setup",
-        "bun run scripts/setup-system.ts --clean",
-        env,
-        cfg.ci,
-      ))
-    ) {
+    if (!(await runTask("Standard System Setup", "bun run scripts/setup-system.ts", env, cfg.ci))) {
       log.error(`Setup failed for ${meta.label}. Skipping.`);
       results.push({
         db: dbKey,

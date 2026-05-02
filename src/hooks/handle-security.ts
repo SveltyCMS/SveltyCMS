@@ -154,20 +154,33 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   // Allow bypass when a valid x-test-secret is present (Playwright sends this via extraHTTPHeaders).
   // This works regardless of how the server was started (dev, preview, or build).
   const incomingSecret = request.headers.get("x-test-secret");
-  const masterSecret = process.env.TEST_API_SECRET;
+
+  // 🚀 ROBUST SECRET RESOLUTION: Check process.env first, then falling back to getPrivateSettingSync
+  // We use the helper getTestSecret() from setup-check if possible for consistency.
+  let masterSecret = process.env.TEST_API_SECRET || process.env.VITE_TEST_API_SECRET;
+  if (!masterSecret) {
+    try {
+      masterSecret = getPrivateSettingSync("TEST_API_SECRET");
+    } catch {
+      // ignore
+    }
+  }
+
   const hasValidTestSecret = !!(incomingSecret && masterSecret && incomingSecret === masterSecret);
 
   if (process.env.BENCHMARK_DEBUG === "true") {
     console.log(
-      `[Security] IP: ${clientIp}, Path: ${url.pathname}, hasValidSecret: ${hasValidTestSecret}`,
+      `[Security] IP: ${clientIp}, Path: ${url.pathname}, isLocal: ${isLocal}, isTestMode: ${isTestMode}, hasValidSecret: ${hasValidTestSecret}`,
     );
-    if (!hasValidTestSecret) {
+    if (incomingSecret && !hasValidTestSecret) {
       console.log(
-        `[Security] incoming: ${incomingSecret?.substring(0, 4)}..., master: ${masterSecret?.substring(0, 4)}...`,
+        `[Security] SECRET MISMATCH: incoming=${incomingSecret.substring(0, 4)}..., master=${masterSecret?.substring(0, 4)}...`,
       );
     }
   }
 
+  // 🛡️ SECURITY BYPASS: If local and (dev or test or valid secret), allow with no further checks.
+  // Note: x-test-security header can be used to FORCE checks even in local test mode.
   if (
     isStaticOrInternalRequest(url.pathname) ||
     (isLocal &&

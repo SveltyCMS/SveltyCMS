@@ -4,7 +4,8 @@
  * 🛡️ SECURITY: This file MUST remain browser-safe. No server-only imports allowed.
  */
 
-import { browser as isBrowser } from "$app/environment";
+// Safe environment detection for SvelteKit and standalone/benchmark environments
+const isBrowser = typeof window !== "undefined";
 import { contentStore } from "@stores/content-store.svelte";
 import { contentSystemBase } from "./core";
 
@@ -28,7 +29,7 @@ export const contentSystem = {
   ...contentSystemBase,
 
   // --- Lifecycle ---
-  async initialize(tenantId: string | null = null, force = false, adapter?: any): Promise<void> {
+  async initialize(_tenantId: string | null = null, _force = false, _adapter?: any): Promise<void> {
     if (isBrowser) {
       if (contentStore.initState === "uninitialized") {
         contentStore.initState = "initialized";

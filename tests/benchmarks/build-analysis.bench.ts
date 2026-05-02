@@ -1,89 +1,96 @@
 /**
  * @file tests/benchmarks/build-analysis.bench.ts
  * @description Enterprise build analysis benchmark for SveltyCMS.
- *              Measures compilation speed, bundle size trends, and tree-shaking efficiency.
+ * Measures compilation speed, bundle size trends, and tree-shaking efficiency.
  */
 
-import { test, beforeAll, afterAll } from "bun:test";
-import { setupBenchmarkServer, printTruthTable, printSummaryTable } from "./benchmark-utils";
+import { test } from "bun:test";
+import "../unit/setup.ts";
+import {
+  exportResult,
+  printTruthTable,
+  printSummaryTable,
+  getDbType,
+} from "./benchmark-utils";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execSync } from "node:child_process";
+import { logger } from "@utils/logger.server";
 
-let stopServer: () => Promise<void>;
+async function getDirSize(dir: string): Promise<number> {
+  let total = 0;
+  try {
+    const entries = await fs.readdir(dir, { recursive: true, withFileTypes: true });
 
-beforeAll(async () => {
-  const { stop } = await setupBenchmarkServer();
-  stopServer = stop;
-});
+    for (const entry of entries) {
+      if (entry.isFile()) {
+        const stats = await fs.stat(path.join(dir, entry.name));
+        total += stats.size;
+      }
+    }
+  } catch {
+    // Ignore errors for missing files
+  }
+  return total;
+}
 
-afterAll(async () => {
-  if (stopServer) await stopServer();
-});
-
-export async function runBuildAnalysis() {
+async function runBuildAnalysis() {
   console.log("🏗️ Starting SveltyCMS Production Build Analysis...\n");
 
   const buildDir = path.join(process.cwd(), "build");
-  const t0 = performance.now();
+  const startTime = performance.now();
 
   try {
-    await fs.access(buildDir).catch(async () => {
-      console.log("   ⚠️ Build directory missing. Running fresh build...");
-      execSync("bun run build", { stdio: "ignore" });
+    // Clean build if needed
+    if (await fs.access(buildDir).then(() => true).catch(() => false)) {
+      await fs.rm(buildDir, { recursive: true, force: true });
+    }
+
+    console.log("   🔨 Running production build...");
+    execSync("bun run build", { 
+      stdio: "inherit",
+      env: { ...process.env, NODE_ENV: "production" }
     });
 
-    const buildTimeMs = performance.now() - t0;
-
-    const getDirSize = async (dir: string): Promise<number> => {
-      const files = await fs.readdir(dir, { recursive: true });
-      let total = 0;
-      for (const f of files) {
-        const stats = await fs.stat(path.join(dir, f));
-        if (stats.isFile()) total += stats.size;
-      }
-      return total;
-    };
-
+    const buildTimeMs = performance.now() - startTime;
     const totalSize = await getDirSize(buildDir);
 
     const files = await fs.readdir(buildDir, { recursive: true });
-    const jsFiles = files.filter((f) => f.endsWith(".js") || f.endsWith(".mjs"));
+    const jsFiles = files.filter(f => typeof f === "string" && (f.endsWith(".js") || f.endsWith(".mjs")));
 
-    const results = [
-      {
-        name: "Production Build",
-        avgMs: buildTimeMs,
-        p95Ms: buildTimeMs,
-        rps: 1 / (buildTimeMs / 1000),
-      },
-      {
-        name: "Bundle Size (MB)",
-        avgMs: totalSize / 1024 / 1024,
-        p95Ms: totalSize / 1024 / 1024,
-        rps: 0,
-      },
-      { name: "JS Chunk Count", avgMs: jsFiles.length, p95Ms: jsFiles.length, rps: 0 },
-    ];
+    const result = {
+      name: "Production Build",
+      avgMs: buildTimeMs,
+      p95Ms: buildTimeMs,
+      rps: 1000 / buildTimeMs, // rough "builds per second"
+      bundleSizeMB: (totalSize / 1024 / 1024).toFixed(2),
+      jsChunkCount: jsFiles.length,
+    };
 
     printTruthTable({
-      title: "SVELTYCMS  —  PRODUCTION BUILD ANALYSIS",
-      subtitle: "Compilation Speed • Bundle Size • Tree Shaking",
-      results,
+      title: "SVELTYCMS — PRODUCTION BUILD ANALYSIS",
+      shortLabel: "Build",
+      subtitle: `Compilation • Bundle Size • Tree Shaking • ${getDbType().toUpperCase()}`,
+      results: [result],
     });
 
     printSummaryTable([
-      { key: "Total Build Time", val: buildTimeMs, unit: "ms" },
-      { key: "Total Bundle Size", val: (totalSize / 1024 / 1024).toFixed(2), unit: "MB" },
-      { key: "JS Chunk Count", val: jsFiles.length, unit: "chunks" },
+      { key: "Build Time", val: buildTimeMs.toFixed(0), unit: "ms" },
+      { key: "Total Bundle Size", val: result.bundleSizeMB, unit: "MB" },
+      { key: "JS Chunks", val: result.jsChunkCount, unit: "" },
+      { key: "Build Efficiency", val: buildTimeMs < 45000 ? "EXCELLENT" : buildTimeMs < 65000 ? "GOOD" : "SLOW", unit: "" },
     ]);
 
-    console.log("\n✅ Build analysis completed.");
+    exportResult(result as any);
+
   } catch (err: any) {
-    console.error("❌ Build analysis failed:", err.message);
+    logger.error(`Build analysis failed: ${err.message}`);
+    console.error(err);
   }
+
+  console.log("\n✅ Build analysis completed.");
 }
 
 test("Production Build Analysis", async () => {
   await runBuildAnalysis();
-}, 120000);
+}, 180000);

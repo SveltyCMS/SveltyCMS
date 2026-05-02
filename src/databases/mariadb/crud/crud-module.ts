@@ -45,11 +45,31 @@ export class CrudModule implements ICrudAdapter {
   }
 
   /**
-   * Helper to determine if a query is a simple ID lookup.
+   * Helper to determine if a query is a simple ID lookup (optionally with tenantId).
    */
-  private isSimpleIdQuery(query: any): boolean {
+  private isLookupQuery(query: any): boolean {
     const keys = Object.keys(query);
-    return keys.length === 1 && keys[0] === "_id" && typeof query._id === "string";
+    if (keys.length === 1) return keys[0] === "_id";
+    if (keys.length === 2) {
+      return (
+        (keys.includes("_id") && keys.includes("tenantId")) ||
+        (keys.includes("_id") && keys.includes("isDeleted"))
+      );
+    }
+    if (keys.length === 3) {
+      return keys.includes("_id") && keys.includes("tenantId") && keys.includes("isDeleted");
+    }
+    return false;
+  }
+
+  /**
+   * Helper to determine if a query is a simple tenant-wide lookup.
+   */
+  private isTenantQuery(query: any): boolean {
+    const keys = Object.keys(query);
+    if (keys.length === 1) return keys[0] === "tenantId";
+    if (keys.length === 2) return keys.includes("tenantId") && keys.includes("isDeleted");
+    return false;
   }
 
   async findOne<T extends BaseEntity>(
@@ -68,21 +88,30 @@ export class CrudModule implements ICrudAdapter {
         const db = options?.tx || this.db;
 
         // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID lookups
-        if (this.isSimpleIdQuery(secureQuery) && !options?.tx) {
+        if (this.isLookupQuery(secureQuery) && !options?.tx) {
           const table = this.core.getTable(collection);
           const cacheKey = `findOne:${collection}`;
 
           let prepared = this.preparedStatements.get(cacheKey);
           if (!prepared) {
+            const { and, eq, placeholder } = await import("drizzle-orm");
             prepared = this.db
               .select()
               .from(table as unknown as import("drizzle-orm/mysql-core").MySqlTable)
-              .where(eq((table as any)._id, placeholder("id")))
+              .where(
+                and(
+                  eq((table as any)._id, placeholder("id")),
+                  eq((table as any).tenantId, placeholder("tenantId")),
+                ),
+              )
               .prepare();
             this.preparedStatements.set(cacheKey, prepared);
           }
 
-          const results = await prepared.execute({ id: secureQuery._id });
+          const results = await prepared.execute({
+            id: secureQuery._id,
+            tenantId: secureQuery.tenantId || options.tenantId,
+          });
           const data =
             results.length === 0
               ? null
@@ -149,6 +178,29 @@ export class CrudModule implements ICrudAdapter {
           bypassTenantCheck: options.bypassTenantCheck,
           includeDeleted: options.includeDeleted,
         });
+
+        // 🚀 OPTIMIZATION: Prepared Statement for Tenant-only lookups
+        if (this.isTenantQuery(secureQuery) && !options.offset && !options.tx) {
+          const table = this.core.getTable(collection);
+          const limit = options.limit || 1000;
+          const cacheKey = `findManyTenant:${collection}:${limit}`;
+          let prepared = this.preparedStatements.get(cacheKey);
+          if (!prepared) {
+            const { eq, placeholder } = await import("drizzle-orm");
+            prepared = this.db
+              .select()
+              .from(table as unknown as import("drizzle-orm/mysql-core").MySqlTable)
+              .where(eq((table as any).tenantId, placeholder("tenantId")))
+              .limit(limit)
+              .prepare();
+            this.preparedStatements.set(cacheKey, prepared);
+          }
+          const results = await prepared.execute({
+            tenantId: secureQuery.tenantId || options.tenantId,
+          });
+          return utils.convertArrayDatesToISO(results as Record<string, unknown>[]) as T[];
+        }
+
         const table = this.core.getTable(collection);
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
@@ -334,7 +386,7 @@ export class CrudModule implements ICrudAdapter {
         const db = options?.tx || this.db;
 
         // 1. Perform Update
-        if (this.isSimpleIdQuery(secureQuery)) {
+        if (this.isLookupQuery(secureQuery)) {
           await db
             .update(table as unknown as import("drizzle-orm/mysql-core").MySqlTable)
             .set(updateValues as unknown as Record<string, unknown>)
@@ -389,7 +441,7 @@ export class CrudModule implements ICrudAdapter {
         const db = options?.tx || this.db;
 
         // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID deletes
-        if (this.isSimpleIdQuery(query) && !options?.tx) {
+        if (this.isLookupQuery(query) && !options?.tx) {
           const table = this.core.getTable(collection);
           const cacheKey = `delete:${collection}`;
           let prepared = this.preparedStatements.get(cacheKey);

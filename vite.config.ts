@@ -23,7 +23,7 @@ import tailwindcss from "@tailwindcss/vite";
 import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vitest/config";
 import { compile } from "./src/utils/compilation/compile.ts";
-import { isSetupComplete } from "./src/utils/is-setup-complete.ts";
+import { isSetupComplete } from "./src/utils/setup-check.ts";
 import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check.ts";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -438,6 +438,25 @@ function sveltyCmsPlugin(): Plugin {
     const isWidgetFile =
       absoluteFile.startsWith(paths.widgets) &&
       (file.endsWith("index.ts") || file.endsWith(".svelte"));
+    const isPrivateConfig = absoluteFile === paths.privateConfig;
+
+    // ✨ SETUP COMPLETION DETECTION
+    if (isPrivateConfig) {
+      log.info(
+        "\x1b[32mconfig/private.ts detected!\x1b[0m Notifying client and triggering restart...",
+      );
+      // Send custom event to the browser to show a "System Starting" overlay
+      server.ws.send("svelty:setup-complete", {
+        timestamp: Date.now(),
+        message: "System initialized. Restarting...",
+      });
+
+      // Force a full reload after a short delay to let the file settle
+      setTimeout(() => {
+        server.ws.send({ type: "full-reload", path: "*" });
+      }, 500);
+      return;
+    }
 
     if (isCollectionFile) {
       clearTimeout(compileTimeout);

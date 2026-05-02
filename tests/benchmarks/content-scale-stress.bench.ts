@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/content-scale-stress.bench.ts
- * @description Ultra-Elite stress benchmark for SveltyCMS Content Scan.
+ * @description Stress benchmark for SveltyCMS Content Scan.
  * Measures performance at extreme scale (1,000+ collections).
  */
 
@@ -25,7 +25,7 @@ async function cleanupMockFiles() {
 
 async function prepareStressEnvironment() {
   console.log(
-    `📂 Preparing Ultra-Elite stress environment (${STRESS_FILE_COUNT} files, ${NESTED_LEVELS} levels)...`,
+    `📂 Preparing stress environment (${STRESS_FILE_COUNT} files, ${NESTED_LEVELS} levels)...`,
   );
 
   await fs.mkdir(COLLECTIONS_DIR, { recursive: true });
@@ -62,7 +62,7 @@ export default schema;
 }
 
 async function runStressAudit() {
-  console.log("🚀 Starting Ultra-Elite Content Scale Stress Audit...\n");
+  console.log("🚀 Starting Content Scale Stress Audit...\n");
 
   await cleanupMockFiles();
   await prepareStressEnvironment();
@@ -111,7 +111,7 @@ async function runStressAudit() {
       { key: "Warm Scan Latency", val: warmResult.avgMs, unit: "ms" },
       {
         key: "Scale Efficiency",
-        val: warmResult.avgMs < 0.5 ? "ULTRA ELITE" : "SCALABLE",
+        val: warmResult.avgMs < 0.5 ? "ELITE" : "SCALABLE",
         unit: "",
       },
     ]);

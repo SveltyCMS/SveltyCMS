@@ -45,7 +45,7 @@ async function main() {
       const checkPassed = await run("bun", ["run", "check"]);
       if (!checkPassed) return false;
 
-      // 🚀 ULTRA ELITE: Run a production build check to catch security leaks (.server guards)
+      // 🚀 Run a production build check to catch security leaks (.server guards)
       console.log("🏗️ Verifying Production Build Integrity (Security Guards)...");
       return run("bun", ["run", "build"]);
     })(),

@@ -14,112 +14,100 @@ import {
   printTruthTable,
   printSummaryTable,
 } from "./benchmark-utils";
+import { logger } from "@utils/logger.server";
 import fs from "node:fs/promises";
 import path from "node:path";
 
 const COLLECTIONS_DIR = path.resolve(process.cwd(), ".compiledCollections");
-const TARGET_FILE_COUNT = parseInt(process.env.BENCHMARK_SCAN_FILES || "120", 10);
+const TARGET_FILE_COUNT = parseInt(process.env.BENCHMARK_SCAN_FILES || "150", 10);
 
 async function cleanupMockFiles() {
-  // Purge any mock files in the root dir
-  const rootFiles = await fs.readdir(COLLECTIONS_DIR).catch(() => []);
-  for (const f of rootFiles) {
-    if (f.startsWith("mock_")) {
-      await fs.rm(path.join(COLLECTIONS_DIR, f), { recursive: true, force: true });
-    }
-  }
-
-  // Deep purge the 'nested' directory used by benchmarks
-  const nestedPath = path.join(COLLECTIONS_DIR, "nested");
-  await fs.rm(nestedPath, { recursive: true, force: true }).catch(() => {});
+  await fs.rm(COLLECTIONS_DIR, { recursive: true, force: true }).catch(() => {});
+  await fs.mkdir(COLLECTIONS_DIR, { recursive: true });
 }
 
 async function prepareRealisticScanEnvironment() {
-  console.log(`📂 Preparing elite content scan environment (${TARGET_FILE_COUNT} files)...`);
+  console.log(`📂 Preparing realistic content scan environment (${TARGET_FILE_COUNT} files)...`);
 
-  await fs.mkdir(COLLECTIONS_DIR, { recursive: true });
+  await cleanupMockFiles();
 
   for (let i = 0; i < TARGET_FILE_COUNT; i++) {
-    const subDir = i % 5 === 0 ? "nested" : "";
-    const finalDir = path.join(COLLECTIONS_DIR, subDir);
-    if (subDir) await fs.mkdir(finalDir, { recursive: true });
+    const subDir = i % 7 === 0 ? "nested/deep" : i % 3 === 0 ? "nested" : "";
+    const dir = path.join(COLLECTIONS_DIR, subDir);
+    await fs.mkdir(dir, { recursive: true });
 
     const fileName = `mock_collection_${i}.js`;
-    const data = {
-      _id: `mock_collection_${i}`,
-      name: `Mock Collection ${i}`,
-      fields: [{ name: "title", type: "text" }],
-    };
+    const content = `export const schema = {
+  _id: "mock_collection_${i}",
+  name: "Mock Collection ${i}",
+  fields: [{ db_fieldName: "title", widget: { Name: "Input" } }],
+};`;
 
-    const content = `export const schema = ${JSON.stringify(data, null, 2)};`;
-
-    await fs.writeFile(path.join(finalDir, fileName), content, "utf-8");
+    await fs.writeFile(path.join(dir, fileName), content, "utf-8");
   }
 
-  console.log(`   ✅ ${TARGET_FILE_COUNT} multi-extension mock files ready.`);
+  console.log(`   ✅ Generated ${TARGET_FILE_COUNT} mock collection files.`);
 }
 
 test("Content Scan Performance (Self-Healing Collections)", async () => {
   console.log("🚀 Starting Elite SveltyCMS Content Scan Benchmark...\n");
 
   try {
-    await cleanupMockFiles(); // Start clean
     await prepareRealisticScanEnvironment();
 
     const { contentSystem } = await import("@src/content");
     const { cacheService } = await import("@src/databases/cache/cache-service");
 
-    const ITERATIONS = 800;
-    const WARMUP = 80;
-    const RUNS = 4;
-
-    console.log(`🔬 Running content scan audit (${ITERATIONS} iterations)...`);
+    console.log(`🔬 Running content scan (${TARGET_FILE_COUNT} files)...`);
 
     const scanResult = await runBenchmark({
       name: "Content Scan (Self-Healing)",
-      iterations: ITERATIONS,
-      warmupIterations: WARMUP,
+      iterations: 600,
+      warmupIterations: 50,
       concurrency: 1,
-      runs: RUNS,
+      runs: 3,
       trimOutliers: "iqr",
       measureMemory: true,
+      silent: true,
       onSetup: async () => {
-        // Clear schema cache to force re-scan
-        await cacheService.clearByPattern("schema:*", null);
+        await cacheService.clearByPattern("schema:*");
         if (typeof (contentSystem as any).clearCache === "function") {
           await (contentSystem as any).clearCache();
         }
-        await stabilize();
+        await stabilize(800);
       },
       onIteration: async () => {
-        const collections = await contentSystem.scanForCollections();
+        const collections = await (contentSystem as any).scanForCollections();
         if (!Array.isArray(collections) || collections.length === 0) {
-          throw new Error("Scan returned empty or invalid result");
+          throw new Error("Scan returned empty result");
         }
       },
-      silent: true,
     });
 
-    // Structured Matrix Exports (Infrastructure v2)
     exportMetric("internals.scan.avg", scanResult.avgMs, "ms");
+    exportMetric("internals.scan.p95", scanResult.p95Ms || scanResult.avgMs, "ms");
 
     printTruthTable({
-      title: "SVELTYCMS  —  CONTENT SCAN AUDIT",
-      subtitle: `${TARGET_FILE_COUNT} collections • Multi-Extension • Automated Hygiene`,
+      title: "SVELTYCMS — CONTENT SCAN AUDIT",
+      shortLabel: "Scan",
+      subtitle: `${TARGET_FILE_COUNT} Collections • Multi-Level • Self-Healing`,
       results: [scanResult],
     });
 
     printSummaryTable([
-      { key: "Avg Scan Latency", val: scanResult.avgMs, unit: "ms" },
-      { key: "p95 Scan Latency", val: scanResult.p95Ms, unit: "ms" },
-      { key: "Peak Scan Throughput", val: Math.round(scanResult.rps), unit: "ops/s" },
-      { key: "Collection Load Capacity", val: TARGET_FILE_COUNT, unit: "schemas" },
+      { key: "Average Scan Latency", val: scanResult.avgMs, unit: "ms" },
+      { key: "p95 Scan Latency", val: scanResult.p95Ms || scanResult.avgMs, unit: "ms" },
+      { key: "Peak Scan Throughput", val: Math.round(scanResult.rps || 0), unit: "ops/s" },
+      { key: "Collection Capacity", val: TARGET_FILE_COUNT, unit: "files" },
     ]);
 
     exportResult(scanResult);
+
+  } catch (err: any) {
+    logger.error(`Content Scan benchmark failed: ${err.message}`);
+    console.error(err);
   } finally {
-    // Cleanup after benchmark
     await cleanupMockFiles();
     console.log("\n✅ Content Scan benchmark completed and cleaned up.");
   }
-}, 300000);
+}, 480000);

@@ -18,6 +18,12 @@ export const STATIC_ASSET_REGEX =
 export const ASSET_REGEX = STATIC_ASSET_REGEX;
 
 /**
+ * Pre-compiled regex for localized bootstrap and public routes.
+ */
+const LOCALIZED_BOOTSTRAP_REGEX = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register)/;
+const LOCALIZED_PUBLIC_REGEX = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register|forgot-password)/;
+
+/**
  * Common public routes that bypass authentication and authorization.
  */
 export const PUBLIC_ROUTES = [
@@ -87,16 +93,53 @@ export function getClientIp(event: RequestEvent): string {
 }
 
 /**
- * Checks if a pathname is a bootstrap route (/setup, /login, etc)
+ * Checks if a pathname is a core bootstrap route (setup, login, system APIs, assets).
+ * Used by hooks to allow non-blocking initialization and security bypass.
  */
 export function isBootstrapRoute(pathname: string): boolean {
-  return (
-    pathname === "/setup" ||
-    pathname === "/setup/admin" ||
+  // 1. Setup flow (fresh install)
+  if (pathname.startsWith("/setup") || pathname.startsWith("/api/setup")) {
+    return true;
+  }
+
+  // 2. Auth flow (login, register, logout)
+  if (
     pathname === "/login" ||
-    pathname === "/register" ||
-    pathname.startsWith("/api/setup")
-  );
+    pathname.startsWith("/login/") ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/user/login")
+  ) {
+    return true;
+  }
+
+  // 3. System core endpoints (health, debug, system state)
+  if (
+    pathname.startsWith("/api/system") ||
+    pathname.startsWith("/api/debug") ||
+    pathname.startsWith("/api/testing") ||
+    pathname.startsWith("/api/settings/public") ||
+    pathname.startsWith("/api/content/version") ||
+    pathname.startsWith("/api/dashboard/health") ||
+    pathname === "/" ||
+    pathname.startsWith("/ui-test")
+  ) {
+    return true;
+  }
+
+  // 4. Static assets and Vite internal paths (fast bypass)
+  if (
+    pathname.startsWith("/_") ||
+    pathname.startsWith("/static") ||
+    pathname.startsWith("/assets") ||
+    pathname.startsWith("/favicon.ico") ||
+    pathname.startsWith("/.well-known") ||
+    pathname.includes(".") // Extension check for other assets
+  ) {
+    return true;
+  }
+
+  // 5. Localized versions of core routes (using pre-compiled regex)
+  return LOCALIZED_BOOTSTRAP_REGEX.test(pathname);
 }
 
 /**
@@ -127,9 +170,9 @@ export function isPublicRoute(pathname: string, testMode = false): boolean {
     }
   }
 
-  // 2. Localized routes (e.g. /en/login) + Precise OAuth flow detection
+  // 2. Localized routes (e.g. /en/login) + Precise OAuth flow detection (using pre-compiled regex)
   return (
-    /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register|forgot-password)/.test(pathname) ||
+    LOCALIZED_PUBLIC_REGEX.test(pathname) ||
     (pathname.includes("/login?") && pathname.includes("OAuth"))
   );
 }

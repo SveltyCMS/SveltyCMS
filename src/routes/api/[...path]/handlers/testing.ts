@@ -5,7 +5,7 @@
 
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
-import type { LocalCMS } from "../../cms";
+import type { LocalCMS } from "@src/services/local-cms";
 import { rawResponse } from "./base";
 import { contentSystem } from "@src/content/index.server";
 import type { DatabaseId } from "@src/content/types";

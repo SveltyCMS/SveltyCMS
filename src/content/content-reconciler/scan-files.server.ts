@@ -6,7 +6,24 @@
  */
 import fs from "node:fs/promises";
 import path from "node:path";
-import { building, dev } from "$app/environment";
+// Safe environment detection for SvelteKit and standalone/benchmark environments
+const dev = (() => {
+  try {
+    // @ts-ignore
+    return import.meta.env?.DEV || process.env.NODE_ENV === "development";
+  } catch {
+    return false;
+  }
+})();
+
+const building = (() => {
+  try {
+    // @ts-ignore
+    return import.meta.env?.BUILDING || process.env.NODE_BUILDING === "true";
+  } catch {
+    return false;
+  }
+})();
 import { logger } from "@utils/logger.server";
 import type { Schema } from "../types";
 import { loadSchemaNative } from "../module-processor.server";

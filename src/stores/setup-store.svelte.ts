@@ -733,10 +733,11 @@ function createSetupStore() {
           wizard.redisTestPassed = true;
           return true;
         }
-        wizard.errorMessage = data.error || "Redis connection failed.";
+        wizard.errorMessage = data.error || "Redis connection failed (Non-success result).";
         wizard.redisTestPassed = false;
         return false;
       }
+      wizard.errorMessage = "Redis test action failed unexpectedly.";
       return false;
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : "A server error occurred.";

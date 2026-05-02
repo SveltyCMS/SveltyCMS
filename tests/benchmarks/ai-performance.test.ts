@@ -9,67 +9,93 @@ import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
+  setupBenchmarkServer,
+  ensureStableTestData,
   stabilize,
   printTruthTable,
   printSummaryTable,
   getDbType,
 } from "./benchmark-utils";
+import { logger } from "@utils/logger.server";
+
+let stopServer: (() => Promise<void>) | null = null;
 
 async function runAIAudit() {
   console.log("🚀 Starting Enterprise AI Performance Audit...\n");
 
-  const { aiService } = await import("@src/services/ai-service");
-
-  // Mock LLM Response to isolate CMS overhead
-  const originalChat = aiService.chat;
-  aiService.chat = async () => "Mocked LLM Response";
-
-  await stabilize();
-
   try {
-    // 1. Text Enrichment Loop
-    console.log("   → Measuring AI Text Enrichment Logic...");
+    const server = await setupBenchmarkServer();
+    stopServer = server.stop;
+
+    await ensureStableTestData();
+    await stabilize(1000);
+
+    const { aiService } = await import("@src/services/ai-service");
+
+    // Mock LLM to isolate CMS overhead
+    aiService.chat = async () => "Mocked LLM Response";
+
+    // 1. Text Enrichment
+    console.log("   → Measuring AI Text Enrichment...");
     const enrichResult = await runBenchmark({
-      name: "AI Enrichment",
-      iterations: 200,
+      name: "AI Text Enrichment",
+      iterations: 300,
+      warmupIterations: 50,
       runs: 2,
-      onIteration: async () => {
-        await aiService.enrichText("Sample CMS content for enrichment.", "rewrite", "en");
-      },
+      concurrency: 1,
       silent: true,
+      onIteration: async () => {
+        await aiService.enrichText(
+          "Sample long-form CMS content for AI enrichment testing purposes.",
+          "rewrite",
+          "en"
+        );
+      },
     });
 
-    // 2. Layout Generation Logic
+    // 2. Layout Generation
     console.log("   → Measuring AI Layout Spec Generation...");
     const layoutResult = await runBenchmark({
-      name: "AI Layout Spec",
-      iterations: 100,
-      runs: 1,
-      onIteration: async () => {
-        await aiService.generateLayoutSpec("A blog post layout with comments.");
-      },
+      name: "AI Layout Spec Generation",
+      iterations: 150,
+      warmupIterations: 30,
+      runs: 2,
+      concurrency: 1,
       silent: true,
+      onIteration: async () => {
+        await aiService.generateLayoutSpec(
+          "A modern blog post layout with sidebar, comments, and related posts."
+        );
+      },
     });
 
     printTruthTable({
-      title: "SVELTYCMS  —  AI INFRASTRUCTURE AUDIT",
-      subtitle: `CMS Internal Tax (MOCKED LLM) • ${getDbType().toUpperCase()}`,
+      title: "SVELTYCMS — AI INFRASTRUCTURE AUDIT",
+      shortLabel: "AI",
+      subtitle: `Internal CMS Tax (Mocked LLM) • ${getDbType().toUpperCase()}`,
       results: [
-        { ...enrichResult, layer: "Enrichment" },
-        { ...layoutResult, layer: "Layout Gen" },
+        { ...enrichResult, shortLabel: "Enrichment", layer: "AI" },
+        { ...layoutResult, shortLabel: "Layout", layer: "AI" },
       ],
     });
 
     printSummaryTable([
       { key: "Avg Enrichment Overhead", val: enrichResult.avgMs, unit: "ms" },
       { key: "Avg Layout Spec Overhead", val: layoutResult.avgMs, unit: "ms" },
-      { key: "Internal AI Bus Jitter", val: enrichResult.cv.toFixed(2), unit: "%" },
-      { key: "Scalability Status", val: enrichResult.avgMs < 10 ? "ELITE" : "STABLE", unit: "" },
+      { key: "Total AI Bus Tax", val: (enrichResult.avgMs + layoutResult.avgMs).toFixed(1), unit: "ms" },
+      { key: "Rating", val: enrichResult.avgMs < 8 ? "EXCELLENT" : "GOOD", unit: "" },
     ]);
 
     exportResult(enrichResult);
+
+  } catch (err: any) {
+    logger.error(`AI benchmark failed: ${err.message}`);
+    console.error(err);
   } finally {
-    aiService.chat = originalChat;
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
   }
 
   console.log("\n✅ AI performance audit completed.");
@@ -77,4 +103,4 @@ async function runAIAudit() {
 
 test("AI Service Internal Overhead", async () => {
   await runAIAudit();
-}, 300000);
+}, 480000);

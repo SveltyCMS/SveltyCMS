@@ -793,7 +793,7 @@ Features:
 								<iconify-icon icon="mdi:check-circle" width="20"></iconify-icon>
 								<span>Connected successfully!</span>
 							</div>
-						{:else if setupStore.wizard.errorMessage && setupStore.wizard.errorMessage.includes('Redis')}
+						{:else if setupStore.wizard.errorMessage && !setupStore.wizard.redisTestPassed}
 							<div class="flex items-center gap-2 text-error-600 dark:text-error-400 text-sm font-medium animate-in fade-in slide-in-from-left-2 duration-300">
 								<iconify-icon icon="mdi:alert-circle" width="20"></iconify-icon>
 								<span>{setupStore.wizard.errorMessage}</span>

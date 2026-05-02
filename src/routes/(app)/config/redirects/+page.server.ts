@@ -4,7 +4,7 @@
  */
 
 import type { RequestEvent, Actions } from "@sveltejs/kit";
-import { LocalCMS } from "@src/routes/api/cms";
+import { LocalCMS } from "@src/services/local-cms";
 import { dbAdapter } from "@src/databases/db";
 import { error } from "@sveltejs/kit";
 import { invalidateRedirectCache } from "@src/hooks/handle-redirects";

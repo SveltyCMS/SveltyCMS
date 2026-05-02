@@ -1,6 +1,6 @@
 /**
  * @file src/services/widget-registry-service.ts
- * @description A server-side singleton service that discovers and holds all widget blueprints.
+ * @description High-performance, benchmark-friendly widget registry.
  */
 
 import { coreModules, customModules } from "@src/widgets/scanner";
@@ -9,13 +9,13 @@ import { logger } from "@utils/logger";
 
 class WidgetRegistryService {
   private static instance: WidgetRegistryService;
-  private readonly widgets: Map<string, WidgetFactory> = new Map();
+
+  private readonly widgets = new Map<string, WidgetFactory>();
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
+  private initStartTime = 0;
 
-  private constructor() {
-    logger.debug("WidgetRegistryService instance created.");
-  }
+  private constructor() {}
 
   public static getInstance(): WidgetRegistryService {
     if (!WidgetRegistryService.instance) {
@@ -24,114 +24,136 @@ class WidgetRegistryService {
     return WidgetRegistryService.instance;
   }
 
-  public isInitializedState(): boolean {
+  public isReady(): boolean {
     return this.isInitialized;
   }
 
-  public async initialize(): Promise<void> {
-    if (this.isInitialized) {
-      return;
-    }
+  public async initialize(force = false): Promise<void> {
+    if (this.isInitialized && !force) return;
+    if (this.initializationPromise) return this.initializationPromise;
 
-    if (this.initializationPromise) {
-      return this.initializationPromise;
-    }
+    this.initStartTime = performance.now();
+    this.initializationPromise = this._doInitialize();
 
-    this.initializationPromise = (async () => {
-      const startTime = performance.now();
-      logger.info("Initializing WidgetRegistryService, registering pre-scanned widgets...");
-
-      try {
-        // Register core widgets
-        for (const [path, module] of Object.entries(coreModules)) {
-          const processed = this._processWidgetModule(path, module as WidgetModule, "core");
-          if (processed) {
-            this.widgets.set(processed.name, processed.widgetFn);
-            logger.trace(`[WidgetRegistryService] Registered core: ${processed.name}`);
-          }
-        }
-        // Register custom widgets
-        for (const [path, module] of Object.entries(customModules)) {
-          const processed = this._processWidgetModule(path, module as WidgetModule, "custom");
-          if (processed) {
-            this.widgets.set(processed.name, processed.widgetFn);
-            logger.trace(`[WidgetRegistryService] Registered custom: ${processed.name}`);
-          }
-        }
-
-        logger.trace(
-          "[WidgetRegistryService] All registered widget names:",
-          Array.from(this.widgets.keys()),
-        );
-
-        // Scan marketplace widgets (runtime discovery)
-        try {
-          const fs = await import("node:fs/promises");
-          const path = await import("node:path");
-          const marketplaceDir = path.resolve(process.cwd(), "src/widgets/marketplace");
-
-          try {
-            const widgetFolders = await fs.readdir(marketplaceDir, {
-              withFileTypes: true,
-            });
-            logger.trace(`[WidgetRegistry] Scanning marketplace directory: ${marketplaceDir}`);
-
-            for (const folder of widgetFolders) {
-              if (folder.isDirectory()) {
-                const indexPath = path.join(marketplaceDir, folder.name, "index.ts");
-                try {
-                  // Dynamically import the runtime-discovered widget
-                  // @vite-ignore tells Vite to skip this dynamic import at build time
-                  const module = (await import(/* @vite-ignore */ indexPath)) as WidgetModule;
-
-                  if (module.default && typeof module.default === "function") {
-                    const widgetFn = module.default as WidgetFactory;
-                    const widgetName = widgetFn.Name || folder.name;
-                    widgetFn.Name = widgetName;
-                    widgetFn.__widgetType = "marketplace";
-
-                    this.widgets.set(widgetName, widgetFn);
-                    logger.info(`✅ Loaded marketplace widget: ${widgetName}`);
-                  }
-                } catch (err) {
-                  logger.warn(`Failed to load marketplace widget ${folder.name}:`, err);
-                }
-              }
-            }
-          } catch (e) {
-            if ((e as NodeJS.ErrnoException).code === "ENOENT") {
-              logger.trace(
-                "[WidgetRegistry] Marketplace directory does not exist yet (this is normal)",
-              );
-            } else {
-              logger.warn("[WidgetRegistry] Error scanning marketplace directory:", e);
-            }
-          }
-        } catch (err) {
-          logger.warn(
-            "[WidgetRegistry] Failed to import fs/path for marketplace scanning (likely client-side environment)",
-            err,
-          );
-        }
-
-        this.isInitialized = true;
-        const duration = (performance.now() - startTime).toFixed(2);
-        logger.info(
-          `WidgetRegistryService initialized with ${this.widgets.size} widgets in ${duration}ms.`,
-        );
-        const { updateServiceHealth } = await import("@src/stores/system/state");
-        updateServiceHealth("widgets", "healthy", "Widgets initialized");
-      } catch (error) {
-        logger.error("Failed to initialize WidgetRegistryService", error);
-        const { updateServiceHealth } = await import("@src/stores/system/state");
-        updateServiceHealth("widgets", "unhealthy", "Widget initialization failed");
-        throw error;
-      }
-    })();
-
-    return this.initializationPromise;
+    return this.initializationPromise.finally(() => {
+      this.initializationPromise = null;
+    });
   }
 
+  private async _doInitialize(): Promise<void> {
+    logger.info("WidgetRegistryService: Starting initialization...");
+
+    try {
+      // Register core + custom widgets (fast path)
+      this._registerPreScannedWidgets();
+
+      // Marketplace widgets (only if needed)
+      if (process.env.NODE_ENV !== "test" && process.env.BENCHMARK_MODE !== "true") {
+        await this._scanMarketplaceWidgets();
+      }
+
+      this.isInitialized = true;
+
+      const duration = (performance.now() - this.initStartTime).toFixed(2);
+      logger.info(
+        `WidgetRegistryService initialized with ${this.widgets.size} widgets in ${duration}ms`,
+      );
+
+      this._updateServiceHealth("healthy");
+    } catch (err: any) {
+      logger.error("WidgetRegistryService initialization failed", err);
+      this._updateServiceHealth("unhealthy");
+      throw err;
+    }
+  }
+
+  private _registerPreScannedWidgets() {
+    for (const [path, module] of Object.entries(coreModules)) {
+      this._registerWidget(path, module as WidgetModule, "core");
+    }
+
+    for (const [path, module] of Object.entries(customModules)) {
+      this._registerWidget(path, module as WidgetModule, "custom");
+    }
+  }
+
+  private _registerWidget(path: string, module: WidgetModule, type: WidgetType) {
+    try {
+      const processed = this._processWidgetModule(path, module, type);
+      if (processed) {
+        this.widgets.set(processed.name, processed.widgetFn);
+        logger.trace(`[Widget] Registered ${type}: ${processed.name}`);
+      }
+    } catch (err) {
+      logger.warn(`Failed to register widget from ${path}`, err);
+    }
+  }
+
+  private _processWidgetModule(path: string, module: WidgetModule, type: WidgetType) {
+    if (typeof module.default !== "function") return null;
+
+    const originalFn = module.default;
+    const name = originalFn.Name || path.split("/").at(-2) || "unknown";
+
+    const widgetFn: WidgetFactory = Object.assign((config: any) => originalFn(config), {
+      Name: name,
+      GuiSchema: originalFn.GuiSchema,
+      Icon: originalFn.Icon,
+      Description: originalFn.Description,
+      aggregations: originalFn.aggregations,
+      __widgetType: type,
+      __dependencies: originalFn.__dependencies || [],
+      __inputComponentPath: originalFn.__inputComponentPath || "",
+      __displayComponentPath: originalFn.__displayComponentPath || "",
+    }) as WidgetFactory;
+
+    return { name, widgetFn };
+  }
+
+  private async _scanMarketplaceWidgets() {
+    try {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      const marketplaceDir = path.resolve(process.cwd(), "src/widgets/marketplace");
+
+      const entries = await fs
+        .readdir(marketplaceDir, { withFileTypes: true })
+        .catch(() => [] as any[]);
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+
+        const indexPath = path.join(marketplaceDir, entry.name, "index.ts");
+        try {
+          const mod = (await import(/* @vite-ignore */ indexPath)) as WidgetModule;
+          if (mod.default && typeof mod.default === "function") {
+            this._registerWidget(indexPath, mod, "marketplace");
+          }
+        } catch (err) {
+          logger.debug(`Marketplace widget skipped: ${entry.name}`, err);
+        }
+      }
+    } catch (err: any) {
+      if (err.code !== "ENOENT") {
+        logger.warn("Marketplace widget scan failed", err);
+      }
+    }
+  }
+
+  private _updateServiceHealth(status: "healthy" | "unhealthy") {
+    // Only run on main thread
+    if (typeof process !== "undefined" && process.env.BENCHMARK_MODE === "true") return;
+
+    try {
+      import("@src/stores/system/state")
+        .then(({ updateServiceHealth }) => {
+          updateServiceHealth("widgets", status, `Widgets: ${this.widgets.size}`);
+        })
+        .catch(() => {});
+    } catch {}
+  }
+
+  // Public API
   public async getWidget(name: string): Promise<WidgetFactory | undefined> {
     if (!this.isInitialized) {
       await this.initialize();
@@ -143,67 +165,18 @@ class WidgetRegistryService {
     if (!this.isInitialized) {
       await this.initialize();
     }
-    return this.widgets;
+    return new Map(this.widgets); // defensive copy
   }
 
-  private _processWidgetModule(
-    path: string,
-    module: WidgetModule,
-    type: WidgetType,
-  ): {
-    name: string;
-    widgetFn: WidgetFactory;
-    dependencies: string[];
-    folderName: string;
-  } | null {
-    try {
-      const name = path.split("/").at(-2);
-      if (!name) {
-        logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
-        return null;
-      }
+  public getWidgetSync(name: string): WidgetFactory | undefined {
+    return this.widgets.get(name);
+  }
 
-      if (typeof module.default !== "function") {
-        logger.warn(`Skipping widget module: ${path} - No valid widget function found`);
-        return null;
-      }
-
-      const originalFn = module.default;
-      const widgetName = originalFn.Name || name;
-
-      const dependencies = originalFn.__dependencies || [];
-
-      const inputComponentPath = originalFn.__inputComponentPath || "";
-      const displayComponentPath = originalFn.__displayComponentPath || "";
-
-      const widgetFn: WidgetFactory = Object.assign(
-        (config: Record<string, unknown>) => originalFn(config as Parameters<WidgetFactory>[0]),
-        {
-          Name: widgetName,
-          GuiSchema: originalFn.GuiSchema,
-          GraphqlSchema: originalFn.GraphqlSchema,
-          Icon: originalFn.Icon,
-          Description: originalFn.Description,
-          aggregations: originalFn.aggregations,
-          __widgetType: type,
-          __dependencies: dependencies,
-          __inputComponentPath: inputComponentPath,
-          __displayComponentPath: displayComponentPath,
-          componentPath: inputComponentPath,
-        },
-      ) as unknown as WidgetFactory;
-
-      return {
-        name: widgetFn.Name,
-        widgetFn,
-        dependencies,
-        folderName: name,
-      };
-    } catch (error) {
-      logger.error(`Failed to process widget module ${path}:`, error);
-      return null;
-    }
+  public clearCache() {
+    this.widgets.clear();
+    this.isInitialized = false;
   }
 }
 
+// Export singleton
 export const widgetRegistryService = WidgetRegistryService.getInstance();

@@ -5,7 +5,7 @@
 
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
-import type { LocalCMS } from "../../cms";
+import type { LocalCMS } from "@src/services/local-cms";
 import type { DatabaseId } from "@src/content/types";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import { TwoFactorAuthService } from "@src/databases/auth/two-factor-auth";

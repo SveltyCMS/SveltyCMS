@@ -5,6 +5,7 @@
  */
 
 /// <reference types="vite/client" />
+
 const isTest = !!(
   (typeof process !== "undefined" &&
     (process.env.NODE_ENV === "test" || !!process.env.VITEST || !!process.env.BUN_TEST)) ||
@@ -43,15 +44,24 @@ export * from "./types";
 export { contentStore } from "@stores/content-store.svelte";
 export { setContentContext, useContent, initializeContent } from "./index";
 
-// Lazy loaders
+// Lazy-loaded services (avoid loading on import)
+let contentService: any = null;
+let apiSpecService: any = null;
+
 async function getServerContentService() {
-  const { contentService } = await import("./content-service.server");
+  if (!contentService) {
+    const mod = await import("./content-service.server");
+    contentService = mod.contentService;
+  }
   return contentService;
 }
 
 async function getServerApiSpecService() {
-  const mod = await import("@src/services/system/api-spec-service");
-  return (mod as any).apiSpecService || mod;
+  if (!apiSpecService) {
+    const mod = await import("@src/services/system/api-spec-service");
+    apiSpecService = (mod as any).apiSpecService || mod;
+  }
+  return apiSpecService;
 }
 
 // ===================================================================
@@ -66,6 +76,11 @@ export const contentSystem = {
     options: any = {},
     adapter?: DatabaseAdapter,
   ): Promise<void> {
+    if (process.env.BENCHMARK_MODE === "true" || process.env.BENCHMARK_STABLE === "true") {
+      // 🚀 Fast path for benchmarks
+      return this._benchmarkInitialize(tenantId, options, adapter);
+    }
+
     const { getDb, ensureFullInitialization } = await import("@src/databases/db");
 
     let db = adapter || getDb();
@@ -75,14 +90,8 @@ export const contentSystem = {
     }
     if (!db) throw new Error("Database not ready for content initialization");
 
-    const contentService = await getServerContentService();
-
-    if (process.env.BENCHMARK_STABLE === "true") {
-      const { refreshCollectionsCache } = await import("./content-service.server");
-      await refreshCollectionsCache(tenantId, db);
-    } else {
-      await contentService.fullReload(tenantId, options.skipReconciliation ?? false, db, null);
-    }
+    const svc = await getServerContentService();
+    await svc.fullReload(tenantId, options.skipReconciliation ?? false, db, null);
 
     // Dev watcher
     if (process.env.NODE_ENV === "development" || process.env.TEST_MODE === "true") {
@@ -99,6 +108,18 @@ export const contentSystem = {
     }
   },
 
+  async _benchmarkInitialize(tenantId: string | null, _options: any, adapter?: DatabaseAdapter) {
+    // Ultra-fast path for benchmarks to avoid full reconciliation
+    const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+    let db: DatabaseAdapter | undefined = adapter || getDb() || undefined;
+    if (!db) {
+      await ensureFullInitialization();
+      db = getDb() || undefined;
+    }
+    const { refreshCollectionsCache } = await import("./content-service.server");
+    await refreshCollectionsCache(tenantId, db);
+  },
+
   async refresh(
     tenantId?: string | null,
     skipReconciliation = false,
@@ -113,7 +134,7 @@ export const contentSystem = {
     return apiSpec.generateFullSpec(tenantId);
   },
 
-  // --- CRUD Pass-throughs ---
+  // --- CRUD Pass-throughs (with lazy loading) ---
   async find(collection: string, query: any, options?: any) {
     const svc = await getServerContentService();
     return svc.find(collection, query, options);

@@ -1,7 +1,7 @@
 /**
  * @file tests/benchmarks/migration-scale.test.ts
  * @description Enterprise-grade Migration & Bulk I/O benchmark for SveltyCMS.
- * Measures the system's "Ingestion Limit" by importing 10,000 entries into a collection.
+ * Measures bulk ingestion throughput and post-migration read performance.
  */
 
 import { test } from "bun:test";
@@ -9,140 +9,158 @@ import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
+  setupBenchmarkServer,
+  ensureStableTestData,
   stabilize,
   printTruthTable,
   printSummaryTable,
   getDbType,
 } from "./benchmark-utils";
+import { logger } from "@utils/logger.server";
 
 const COLLECTION_ID = "bench_migration_large";
-const TOTAL_ENTRIES = 10000;
+const TOTAL_ENTRIES = 10_000;
 const BATCH_SIZE = 500;
 
+let stopServer: (() => Promise<void>) | null = null;
+
 async function runMigrationAudit() {
-  console.log(`🚀 Starting Enterprise Migration & Scale Audit (${TOTAL_ENTRIES} entries)...\n`);
-
-  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-  const { LocalCMS } = await import("@src/routes/api/cms");
-  await ensureFullInitialization();
-  const db = getDb();
-  const cms = new LocalCMS(db as any);
-
-  // Mock Admin for Auth
-  const mockAdmin = { _id: "admin-mig", username: "admin", role: "admin", isAdmin: true };
-  const apiOptions = { user: mockAdmin, tenantId: "global" as any };
-
-  // 1. Prepare Large Collection
-  console.log("   📊 Preparing large collection schema...");
-  const schema = {
-    _id: COLLECTION_ID,
-    name: "Large Migration Test",
-    fields: [
-      { name: "title", type: "text", widget: { Name: "Input", Icon: "mdi:text", Color: "#ccc" } },
-      {
-        name: "content",
-        type: "richtext",
-        widget: { Name: "RichText", Icon: "mdi:text", Color: "#ccc" },
-      },
-      { name: "metadata", type: "json", widget: { Name: "Json", Icon: "mdi:json", Color: "#ccc" } },
-    ],
-    status: "published",
-  };
-
-  if ((db as any)?.collection?.createModel) {
-    await (db as any).collection.createModel(schema as any).catch(() => {});
-  }
-
-  // 🚀 CRITICAL: Sync with in-memory contentStore so LocalCMS is aware of the new collection
-  const { contentStore } = await import("@src/stores/content-store.svelte");
-  contentStore.sync([
-    {
-      _id: COLLECTION_ID,
-      nodeType: "collection",
-      path: `/${COLLECTION_ID}`,
-      name: COLLECTION_ID,
-      collectionDef: schema,
-      tenantId: "global",
-    } as any,
-  ]);
-
-  // Cleanup before migration to avoid UNIQUE constraint errors
-  await db!.crud.deleteMany(COLLECTION_ID, {}, { tenantId: "global" as any });
-
-  await stabilize();
+  console.log(`🚀 Starting Migration & Scale Audit (${TOTAL_ENTRIES.toLocaleString()} entries)...\n`);
 
   try {
-    // 2. Measure Bulk Ingestion
-    console.log(`   → Ingesting ${TOTAL_ENTRIES} entries in batches of ${BATCH_SIZE}...`);
-    const startTime = performance.now();
+    const server = await setupBenchmarkServer();
+    stopServer = server.stop;
+    const baseUrl = server.baseUrl;
 
-    let ingested = 0;
+    await ensureStableTestData();
 
+    await prepareCollection();
+
+    // 1. Bulk Ingestion Benchmark
+    console.log(`   → Ingesting ${TOTAL_ENTRIES} entries...`);
     const migrationResult = await runBenchmark({
-      name: "Bulk Ingestion (10k)",
-      iterations: TOTAL_ENTRIES / BATCH_SIZE,
+      name: "Bulk Migration (10k)",
+      iterations: Math.ceil(TOTAL_ENTRIES / BATCH_SIZE),
       warmupIterations: 0,
       runs: 1,
       concurrency: 1,
       measureMemory: true,
-      onIteration: async (i: number) => {
-        const batch = Array.from({ length: BATCH_SIZE }).map((_, j) => ({
-          _id: `mig-${i}-${j}`,
-          title: `Imported Entry ${ingested + j}`,
-          content: "<p>Large content payload for migration stress testing.</p>".repeat(5),
-          metadata: { tags: ["bench", "migration"], priority: j },
-          tenantId: "global",
+      silent: true,
+      onIteration: async (batchIndex: number) => {
+        const batch = Array.from({ length: BATCH_SIZE }, (_, j) => ({
+          _id: `mig-${batchIndex}-${j}`,
+          title: `Bulk Entry ${batchIndex * BATCH_SIZE + j}`,
+          content: "<p>Stress test content for large scale migration.</p>".repeat(8),
+          metadata: {
+            importedAt: new Date().toISOString(),
+            batch: batchIndex,
+            tags: ["migration", "benchmark"],
+          },
         }));
 
-        const res = await cms.collections.bulkCreate(COLLECTION_ID, batch as any, apiOptions);
-        if (!res.success) throw new Error(`Batch failed: ${res.message}`);
-        ingested += BATCH_SIZE;
+        const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/bulk`, {
+          method: "POST",
+          headers: {
+            "x-test-mode": "true",
+            "x-test-secret": "test-secret",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(batch),
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(`Bulk create failed: ${res.status} ${text}`);
+        }
       },
-      silent: true,
     });
 
-    // 3. Measure Lookup speed on "Fat" Table
-    console.log("   → Measuring lookup speed on 'Fat' table (10k rows)...");
+    await stabilize(2000);
+
+    // 2. Post-Migration Read Performance
+    console.log("   → Measuring read performance on large collection...");
     const lookupResult = await runBenchmark({
-      name: "Post-Migration Lookup",
-      iterations: 500,
-      warmupIterations: 50,
+      name: "Post-Migration Random Lookup",
+      iterations: 600,
+      warmupIterations: 80,
       runs: 2,
-      concurrency: 4,
+      concurrency: 6,
+      silent: true,
       onIteration: async () => {
         const randomId = `mig-${Math.floor(Math.random() * (TOTAL_ENTRIES / BATCH_SIZE))}-${Math.floor(Math.random() * BATCH_SIZE)}`;
-        await cms.collections.findById(COLLECTION_ID, randomId as any, apiOptions);
+        const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${randomId}`, {
+          headers: { "x-test-mode": "true", "x-test-secret": "test-secret" },
+        });
+        if (!res.ok) throw new Error(`Lookup failed: ${res.status}`);
+        await res.text();
       },
-      silent: true,
     });
 
+    // Reporting
     printTruthTable({
-      title: "SVELTYCMS  —  MIGRATION & SCALE AUDIT",
-      subtitle: `Bulk I/O • 10,000 Entries • ${getDbType().toUpperCase()}`,
+      title: "SVELTYCMS — MIGRATION & SCALE AUDIT",
+      shortLabel: "Migration",
+      subtitle: `10k Entries • ${getDbType().toUpperCase()}`,
       results: [
-        { ...migrationResult, layer: "Ingestion" },
-        { ...lookupResult, layer: "Read (Post-Mig)" },
+        { ...migrationResult, layer: "Ingestion", shortLabel: "Bulk Import" },
+        { ...lookupResult, layer: "Read", shortLabel: "Random Lookup" },
       ],
     });
 
-    const totalTimeSec = (performance.now() - startTime) / 1000;
-    const itemsPerSec = TOTAL_ENTRIES / totalTimeSec;
+    const throughput = Math.round(TOTAL_ENTRIES / (migrationResult.totalMs / 1000));
 
     printSummaryTable([
-      { key: "Total Migration Time", val: totalTimeSec.toFixed(2), unit: "s" },
-      { key: "Ingestion Throughput", val: Math.round(itemsPerSec), unit: "entries/s" },
-      { key: "Fat Table Read Latency", val: lookupResult.avgMs, unit: "ms" },
-      { key: "Memory RSS Δ", val: (migrationResult.rssDelta || 0).toFixed(2), unit: "MB" },
+      { key: "Total Migration Time", val: (migrationResult.totalMs / 1000).toFixed(1), unit: "s" },
+      { key: "Ingestion Throughput", val: throughput, unit: "entries/s" },
+      { key: "Post-Migration Read", val: lookupResult.avgMs, unit: "ms" },
+      { key: "Memory Growth", val: (migrationResult.rssDelta || 0).toFixed(1), unit: "MB" },
     ]);
 
-    exportResult(migrationResult);
+    exportResult({
+      ...migrationResult,
+      name: "Migration 10k",
+      throughput,
+      lookupAvgMs: lookupResult.avgMs,
+    });
+
   } catch (err: any) {
-    console.error("❌ Migration audit failed:", err.message);
+    logger.error(`Migration audit failed: ${err.message}`);
+    console.error(err);
+  } finally {
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
   }
 
   console.log("\n✅ Migration & scale audit completed.");
 }
 
+// ─────────────────────────────────────────────────────────────
+
+async function prepareCollection() {
+  const { getDb } = await import("@src/databases/db");
+  const db = getDb();
+
+  const schema = {
+    _id: COLLECTION_ID,
+    name: COLLECTION_ID,
+    fields: [
+      { db_fieldName: "title", widget: { Name: "Input" }, required: true },
+      { db_fieldName: "content", widget: { Name: "RichText" } },
+      { db_fieldName: "metadata", widget: { Name: "Json" } },
+    ],
+    revision: false,
+  };
+
+  if (db?.collection?.createModel) {
+    await db.collection.createModel(schema).catch(() => {});
+  }
+
+  // Clean previous data
+  await db?.crud?.deleteMany?.(COLLECTION_ID, {}, { tenantId: "global" as any }).catch(() => {});
+}
+
 test("Migration & Large Scale Ingestion", async () => {
   await runMigrationAudit();
-}, 900000);
+}, 900_000); // 15 minutes

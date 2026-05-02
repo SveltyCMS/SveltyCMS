@@ -61,7 +61,7 @@ const middleware: Handle[] = [
   handleUserPreferences, // 9. i18n and SSR theme
   handleAuthentication, // 10. Identity & Multi-tenancy
   handleAuthorization, // 11. Role-Based Access Control
-  handleLocalSdk, // 12. Zero-Latency CMS Bridge
+  handleLocalSdk, // 12. Zero-Latency CMS Bridge (Service Layer)
   handleContentInitialization, // 13. Content + Redirects
   handleAuditLogging, // 14. Async Audit Trails
   handleApiRequests, // 15. API Caching (ETags)
@@ -726,7 +726,38 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 9. handleTokenResolution - RBAC Token Replacement
+---
+
+### 9. handleLocalSdk - Zero-Latency CMS Bridge
+
+**File**: `src/hooks/handle-local-sdk.ts`
+**Service**: `@src/services/local-cms`
+**Purpose**: Injects the `LocalCMS` SDK into the request context for server-side operations.
+
+**Key Features**:
+
+- **Service-Based**: Decoupled from the routing layer to prevent circular dependencies and bundling issues.
+- **Zero-Latency**: Direct database adapter access without HTTP overhead.
+- **Context Injection**: populates `event.locals.cms` for use in all downstream load functions and actions.
+- **Tenant-Aware**: Automatically initializes with the current `tenantId` resolved in earlier middleware.
+
+```typescript
+export const handleLocalSdk: Handle = async ({ event, resolve }) => {
+  const { locals } = event;
+  const adapter = locals.dbAdapter;
+
+  if (adapter) {
+    // Injected from @src/services/local-cms
+    locals.cms = new LocalCMS(adapter);
+  }
+
+  return resolve(event);
+};
+```
+
+---
+
+### 10. handleTokenResolution - RBAC Token Replacement
 
 **File**: `src/hooks/handle-token-resolution.ts`
 **Purpose**: Processes JSON API responses to replace secure placeholders with actual data based on user permissions.
@@ -906,78 +937,88 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 sequenceDiagram
     participant Client
     participant SvelteKit
-    participant Comp as 0. handleCompression
-    participant Static as 1. handleStaticAssetCaching
-    participant System as 2. handleSystemState
-    participant Rate as 3. handleRateLimit
-    participant FW as 4. handleFirewall
-    participant Setup as 5. handleSetup
-    participant Locale as 6. handleLocale
-    participant Theme as 7. handleTheme
-    participant Auth as 8. handleAuthentication
-    participant Authz as 9. handleAuthorization
-    participant API as 10. handleApiRequests
-    participant Token as 11. handleTokenResolution
-    participant Security as 12. addSecurityHeaders
+    participant Headers as 1. handleSecurityHeaders
+    participant Test as 2. handleTestIsolation
+    participant Static as 3. handleStaticAssetCaching
+    participant Security as 4. handleSecurity
+    participant SEO as 5. handleRedirects
+    participant Turbo as 6. handleTurboPipeline
+    participant Comp as 7. handleCompression
+    participant Setup as 8. handleSetup
+    participant Prefs as 9. handleUserPreferences
+    participant Auth as 10. handleAuthentication
+    participant Authz as 11. handleAuthorization
+    participant SDK as 12. handleLocalSdk
+    participant Init as 13. handleContentInitialization
+    participant Audit as 14. handleAuditLogging
+    participant API as 15. handleApiRequests
+    participant Token as 16. handleTokenResolution
+    participant Security as 17. addSecurityHeaders
     participant Endpoint
 
     Client->>SvelteKit: Request
-    SvelteKit->>Comp: resolve(event)
-    Comp->>Static: resolve(event)
+    SvelteKit->>Headers: resolve(event)
+    Headers->>Test: resolve(event)
+    Test->>Static: resolve(event)
     alt Static Asset Detected
-        Static-->>Comp: Response (31.5ms saved)
-        Comp-->>SvelteKit: Compressed Response
-        SvelteKit-->>Client: Final Response
+        Static-->>Test: Response (31.5ms saved)
+        Test-->>Headers: Response
+        Headers-->>SvelteKit: Final Response
     else Dynamic Request
-        Static->>System: resolve(event)
-        alt System NOT READY
-            System-->>Static: 503 Service Unavailable
-        else System READY
-            System->>Rate: resolve(event)
-            alt Rate Limit Exceeded
-                Rate-->>System: 429 Too Many Requests
-            else Allowed
-                Rate->>FW: resolve(event)
-                alt Threat Detected
-                    FW-->>Rate: 403 Forbidden
-                else Safe
-                    FW->>Setup: resolve(event)
+        Static->>Security: resolve(event)
+        alt Threat Detected
+            Security-->>Static: 403 Forbidden
+        else Safe
+            Security->>SEO: resolve(event)
+            alt Redirect Found
+                SEO-->>Security: 302 Redirect
+            else No Redirect
+                SEO->>Turbo: resolve(event)
+                alt System NOT READY
+                    Turbo-->>SEO: 503 Service Unavailable
+                else System READY
+                    Turbo->>Comp: resolve(event)
+                    Comp->>Setup: resolve(event)
                     alt Setup INCOMPLETE
-                        Setup-->>FW: 302 Redirect to /setup
+                        Setup-->>Comp: 302 Redirect to /setup
                     else Setup COMPLETE
-                        Setup->>Locale: resolve(event)
-                        Locale->>Theme: resolve(event)
-                        Theme->>Auth: resolve(event)
+                        Setup->>Prefs: resolve(event)
+                        Prefs->>Auth: resolve(event)
                         Auth->>Authz: resolve(event)
                         alt UNAUTHORIZED
                             Authz-->>Auth: 401/302 Response
                         else AUTHORIZED
-                            Authz->>API: resolve(event)
+                            Authz->>SDK: resolve(event)
+                            SDK->>Init: resolve(event)
+                            Init->>Audit: resolve(event)
+                            Audit->>API: resolve(event)
                             API->>Token: resolve(event)
                             Token->>Security: resolve(event)
                             Security->>Endpoint: resolve(event)
                             Endpoint-->>Security: RAW Response
                             Security-->>Token: Response + Headers
                             Token-->>API: Response (Tokens Resolved)
-                            API-->>Authz: Response (Cached)
+                            API-->>Audit: Response
+                            Audit-->>Init: Response
+                            Init-->>SDK: Response
+                            SDK-->>Authz: Response
                         end
                         Authz-->>Auth: Response
-                        Auth-->>Theme: Response
-                        Theme-->>Locale: Response
-                        Locale-->>Setup: Response
+                        Auth-->>Prefs: Response
+                        Prefs-->>Setup: Response
                     end
-                    Setup-->>FW: Response
+                    Setup-->>Comp: Response
+                    Comp-->>Turbo: Response
                 end
-                FW-->>Rate: Response
-            else Rate Allowed
-                Rate-->>System: Response
+                Turbo-->>SEO: Response
             end
-            System-->>Static: Response
+            SEO-->>Security: Response
         end
-        Static-->>Comp: Response
-        Comp-->>SvelteKit: Compressed Response
+        Security-->>Static: Response
     end
-    SvelteKit-->>Client: Final Response
+    Static-->>Test: Response
+    Test-->>Headers: Response
+    Headers-->>SvelteKit: Final Response
 ```
 
 ---

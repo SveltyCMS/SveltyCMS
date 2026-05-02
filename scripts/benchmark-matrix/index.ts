@@ -34,7 +34,12 @@ import { log } from "./logger";
 import { parseArgs, printList, filterScripts, filterDatabases, collectHostInfo } from "./cli";
 import { requiresRebuild } from "./utils";
 import { runAuditForDatabase, runTask } from "./runner";
-import { printSummaryTable, writeCISummary, generateFinalReport } from "./reporting";
+import {
+  printSummaryTable,
+  writeCISummary,
+  generateFinalReport,
+  scanResultsDirectory,
+} from "./reporting";
 import { startServer, stopServer, ensureDatabaseExists, setShuttingDown } from "./server";
 import { AsyncSemaphore } from "./semaphore";
 import {
@@ -343,9 +348,24 @@ async function main() {
   }
 }
 
-main().catch(async (err) => {
-  console.error(chalk.red("\n💥 FATAL ERROR:"), err);
-  await stopServer();
-  await ConfigSafeguard.restore(); // Ensure restoral on fatal error
-  process.exit(1);
-});
+if (process.argv.includes("--generate")) {
+  log.info("🔍 Crawling results directory for standalone report generation...");
+  generateFinalReport()
+    .then(async (regressions) => {
+      const results = await scanResultsDirectory();
+      await writeCISummary(results, regressions);
+      log.success("✅ Standalone report generated (MDX + JSON).");
+      process.exit(0);
+    })
+    .catch((err) => {
+      log.error(`❌ Standalone report failed: ${err.message}`);
+      process.exit(1);
+    });
+} else {
+  main().catch(async (err) => {
+    console.error(chalk.red("\n💥 FATAL ERROR:"), err);
+    await stopServer();
+    await ConfigSafeguard.restore(); // Ensure restoral on fatal error
+    process.exit(1);
+  });
+}

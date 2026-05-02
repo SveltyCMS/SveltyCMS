@@ -10,7 +10,7 @@ import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
 import { dbAdapter, getDbInitPromise } from "@src/databases/db";
-import { LocalCMS } from "../cms";
+import { LocalCMS } from "@src/services/local-cms";
 import type { DatabaseId } from "@src/content/types";
 import { getSegments } from "./handlers/base";
 import { isPublicRoute } from "@src/utils/hook-utils";

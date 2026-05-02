@@ -11,7 +11,15 @@
  * - Integration with central state machine (@stores/system).
  */
 
-import { dev } from "$app/environment";
+// Safe environment detection for SvelteKit and standalone/benchmark environments
+const dev = (() => {
+  try {
+    // @ts-ignore
+    return import.meta.env?.DEV || process.env.NODE_ENV === "development";
+  } catch {
+    return false;
+  }
+})();
 import { dbInitPromise } from "@src/databases/db";
 import { metricsService } from "@src/services/metrics-service";
 import { getSystemState, isSystemReady } from "@src/stores/system/state";
@@ -20,7 +28,8 @@ import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { error } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger.server";
-import { isBootstrapRoute, isSetupComplete } from "@utils/setup-check";
+import { isSetupComplete } from "@utils/setup-check";
+import { isBootstrapRoute } from "@utils/hook-utils";
 import { STATIC_ASSET_REGEX } from "./handle-static-asset-caching";
 
 const INIT_TIMEOUT_MS = 60_000;

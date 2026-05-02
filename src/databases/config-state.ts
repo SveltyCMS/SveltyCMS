@@ -248,7 +248,7 @@ export function getRedisConfig() {
 }
 
 /**
- * 🚀 Elite: Registry-based database driver pattern.
+ * 🚀 Registry-based database driver pattern.
  * Provides a clean, extensible way to generate connection strings and handle DB specifics.
  */
 interface DriverDefinition {

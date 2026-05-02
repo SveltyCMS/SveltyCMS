@@ -279,7 +279,7 @@ export async function main(): Promise<void> {
 
     // Dynamic imports to ensure proper initialization order
     const { getDb, getDbInitPromise, reinitializeSystem } = await import("@src/databases/db");
-    const { LocalCMS } = await import("@src/routes/api/cms");
+    const { LocalCMS } = await import("@src/services/local-cms");
 
     await reinitializeSystem(true);
     await getDbInitPromise();
@@ -291,20 +291,21 @@ export async function main(): Promise<void> {
     const force = process.argv.includes("--force");
 
     // 🚀 SMART SEEDING: Check if we already have data to avoid redundant setup
-    const existingResult = await db.crud
-      .findOne("benchmark_authors", { _id: "author-1" as any }, { tenantId: TENANT_ID as any })
-      .catch(() => null);
-    const existingStable = await db.crud
-      .findOne(
-        "benchmark_stable",
-        { _id: "bench-shared-001" as any },
-        { tenantId: TENANT_ID as any },
-      )
-      .catch(() => null);
+    let existingResult: any = null;
+    let existingStable: any = null;
+    let existingRedirects: any = null;
 
-    const existingRedirects = await db.crud
-      .findOne("redirects", { _id: "bench-redirect-1" as any }, { tenantId: TENANT_ID as any })
-      .catch(() => null);
+    try {
+      existingResult = await db.crud.findOne("benchmark_authors", { _id: "author-1" as any }, { tenantId: TENANT_ID as any });
+    } catch { /* Table likely missing */ }
+
+    try {
+      existingStable = await db.crud.findOne("benchmark_stable", { _id: "bench-shared-001" as any }, { tenantId: TENANT_ID as any });
+    } catch { /* Table likely missing */ }
+
+    try {
+      existingRedirects = await db.crud.findOne("redirects", { _id: "bench-redirect-1" as any }, { tenantId: TENANT_ID as any });
+    } catch { /* Table likely missing */ }
 
     const hasData =
       existingResult?.success &&

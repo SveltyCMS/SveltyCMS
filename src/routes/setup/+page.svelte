@@ -70,7 +70,19 @@
 
 	// --- 4. LIFECYCLE HOOKS ---
 	onMount(() => {
-		loadStore();
+		// --- Fresh Start Logic ---
+		// We clear the store on first entry to the setup wizard in a new session
+		// to ensure a clean slate, but allow data persistence across refreshes.
+		const isSetupActive = sessionStorage.getItem('sveltycms_setup_active');
+		if (!isSetupActive) {
+			logger.info('[Setup] Fresh start detected. Clearing previous data.');
+			clearStore();
+			sessionStorage.setItem('sveltycms_setup_active', 'true');
+		} else {
+			logger.info('[Setup] Existing session detected. Loading saved data.');
+			loadStore();
+		}
+
 		initialDataSnapshot = JSON.stringify(wizard);
 		setupPersistenceFn();
 
@@ -90,6 +102,21 @@
 			}
 		};
 		window.addEventListener('beforeunload', handleBeforeUnload);
+
+		// ✨ SMART SETUP TRANSITION
+		// Listen for the custom HMR event from Vite when setup is complete
+		if (import.meta.hot) {
+			import.meta.hot.on('svelty:setup-complete', (data) => {
+				logger.info('[Setup] HMR Signal: Setup Complete!', data);
+				wizard.isSubmitting = true; // Show loading state
+				wizard.successMessage = 'System Initialized! Transitioning to CMS...';
+				
+				// Force a smooth transition after a short delay to let the server stabilize
+				setTimeout(() => {
+					window.location.href = '/';
+				}, 1500);
+			});
+		}
 
 		return () => {
 			window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -313,7 +340,7 @@
 								</svg>
 								<div class="flex-1">
 									{#if wizard.errorMessage}
-										<span class="font-bold">Connection Failed</span>{#if wizard.showDbDetails}: <span class="font-normal">{wizard.errorMessage}</span>{/if}
+										<span class="font-bold">Connection Failed</span>{#if wizard.showDbDetails}: <span class="font-normal">{@html wizard.errorMessage}</span>{/if}
 									{:else}
 										{wizard.successMessage}
 									{/if}

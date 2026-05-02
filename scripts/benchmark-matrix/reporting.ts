@@ -87,7 +87,7 @@ export async function updateIncrementalReport(results: BenchmarkResult[]) {
 }
 
 /**
- * 🚀 ULTRA ELITE: Generates a master comparison leaderboard across all databases.
+ * 🚀 Generates a master comparison leaderboard across all databases.
  * Surgical update: Preserves data for databases that weren't part of this run.
  */
 async function generateMasterLeaderboard(results: any[]) {
@@ -588,7 +588,7 @@ tags:
           const rawTable = await fs.readFile(path.join(dbResultsDir, tableFile), "utf8");
           tableContent = `### 🏷️ ${script.label}\n> 📂 **Source**: [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")})\n> 🎯 **Proves**: ${script.desc}\n\n\`\`\`text\n${rawTable}\n\`\`\``;
         }
-      } catch (err) {}
+      } catch {}
 
       // If no new data, try to extract from current document
       if (!tableContent && doc.includes(START_TAG) && doc.includes(END_TAG)) {
@@ -685,16 +685,30 @@ export async function scanResultsDirectory(): Promise<BenchmarkResult[]> {
 
       const dbKey = entry.name;
       const dbPath = path.join(ROOT_RESULTS_DIR, dbKey);
-      const files = await fs.readdir(dbPath);
+
+      // 🚀 GOLD STANDARD: Recursive discovery for 2026 nested result structure
+      const getAllJsonFiles = async (dir: string): Promise<string[]> => {
+        const entries = await fs.readdir(dir, { withFileTypes: true });
+        const files = await Promise.all(
+          entries.map((entry) => {
+            const res = path.resolve(dir, entry.name);
+            return entry.isDirectory() ? getAllJsonFiles(res) : res;
+          }),
+        );
+        return Array.prototype
+          .concat(...files)
+          .filter((f) => f.endsWith(".json") && !f.endsWith(".meta.json"));
+      };
+
+      const files = await getAllJsonFiles(dbPath);
 
       const metrics: Record<string, any> = {};
       const scriptTimings: Record<string, number> = {};
       let status: "SUCCESS" | "FAILED" = "SUCCESS";
 
-      for (const f of files) {
-        if (!f.endsWith(".json")) continue;
+      for (const filePath of files) {
+        const f = path.basename(filePath);
         try {
-          const filePath = path.join(dbPath, f);
           const content = JSON.parse(await fs.readFile(filePath, "utf8"));
 
           // Handle suite summary results
@@ -741,18 +755,4 @@ export async function scanResultsDirectory(): Promise<BenchmarkResult[]> {
     log.warn(`Could not scan results directory: ${e.message}`);
   }
   return results;
-}
-
-// 🚀 Self-Execution Logic for Standalone Generating
-if (process.argv.includes("--generate")) {
-  log.info("🔍 Crawling results directory for standalone report generation...");
-  generateFinalReport()
-    .then(() => {
-      log.success("✅ Standalone report generated.");
-      process.exit(0);
-    })
-    .catch((err) => {
-      log.error(`❌ Standalone report failed: ${err.message}`);
-      process.exit(1);
-    });
 }

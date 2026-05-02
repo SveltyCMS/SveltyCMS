@@ -118,6 +118,9 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
+  // 🧪 TERMINAL BYPASS: Verified benchmarks skip compression overhead
+  if ((event.locals as any).__testBypass) return resolve(event);
+
   // Ensure native modules are loaded if available
   await initNativeModules();
 

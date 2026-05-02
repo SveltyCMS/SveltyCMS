@@ -113,6 +113,8 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
       getMetric("api.latency.http") ||
       getMetric("rest.collections.p95") ||
       getMetric("REST p95") ||
+      getMetric("Collection List") ||
+      getMetric("Entry Retrieval") ||
       getMetric("Dispatcher: findById") ||
       getMetric("REST (Average)") ||
       getMetric("rest-collections-p95") ||

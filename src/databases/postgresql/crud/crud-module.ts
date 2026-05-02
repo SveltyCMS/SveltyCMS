@@ -54,11 +54,31 @@ export class CrudModule implements ICrudAdapter {
   }
 
   /**
-   * Helper to determine if a query is a simple ID lookup.
+   * Helper to determine if a query is a simple ID lookup (optionally with tenantId).
    */
-  private isSimpleIdQuery(query: any): boolean {
+  private isLookupQuery(query: any): boolean {
     const keys = Object.keys(query);
-    return keys.length === 1 && keys[0] === "_id" && typeof query._id === "string";
+    if (keys.length === 1) return keys[0] === "_id";
+    if (keys.length === 2) {
+      return (
+        (keys.includes("_id") && keys.includes("tenantId")) ||
+        (keys.includes("_id") && keys.includes("isDeleted"))
+      );
+    }
+    if (keys.length === 3) {
+      return keys.includes("_id") && keys.includes("tenantId") && keys.includes("isDeleted");
+    }
+    return false;
+  }
+
+  /**
+   * Helper to determine if a query is a simple tenant-wide lookup.
+   */
+  private isTenantQuery(query: any): boolean {
+    const keys = Object.keys(query);
+    if (keys.length === 1) return keys[0] === "tenantId";
+    if (keys.length === 2) return keys.includes("tenantId") && keys.includes("isDeleted");
+    return false;
   }
 
   async findOne<T extends BaseEntity>(
@@ -83,21 +103,30 @@ export class CrudModule implements ICrudAdapter {
         const db = options?.tx || this.getDb("read");
 
         // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID lookups
-        if (this.isSimpleIdQuery(secureQuery) && !options?.tx) {
+        if (this.isLookupQuery(secureQuery) && !options?.tx) {
           const table = this.core.getTable(collection);
           const cacheKey = `findOne:${collection}`;
 
           let prepared = this.preparedStatements.get(cacheKey);
           if (!prepared) {
+            const { and, eq, placeholder } = await import("drizzle-orm");
             prepared = this.getDb("read")
               .select()
               .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
-              .where(eq((table as any)._id, placeholder("id")))
+              .where(
+                and(
+                  eq((table as any)._id, placeholder("id")),
+                  eq((table as any).tenantId, placeholder("tenantId")),
+                ),
+              )
               .prepare(cacheKey);
             this.preparedStatements.set(cacheKey, prepared);
           }
 
-          const results = await prepared.execute({ id: secureQuery._id });
+          const results = await prepared.execute({
+            id: secureQuery._id,
+            tenantId: secureQuery.tenantId || options.tenantId,
+          });
           const data =
             results.length === 0
               ? null
@@ -171,6 +200,29 @@ export class CrudModule implements ICrudAdapter {
           bypassTenantCheck: options.bypassTenantCheck,
           includeDeleted: options.includeDeleted,
         });
+
+        // 🚀 OPTIMIZATION: Prepared Statement for Tenant-only lookups
+        if (this.isTenantQuery(secureQuery) && !options.offset && !options.tx) {
+          const table = this.core.getTable(collection);
+          const limit = options.limit || 1000;
+          const cacheKey = `findManyTenant:${collection}:${limit}`;
+          let prepared = this.preparedStatements.get(cacheKey);
+          if (!prepared) {
+            const { eq, placeholder } = await import("drizzle-orm");
+            prepared = this.getDb("read")
+              .select()
+              .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
+              .where(eq((table as any).tenantId, placeholder("tenantId")))
+              .limit(limit)
+              .prepare(cacheKey);
+            this.preparedStatements.set(cacheKey, prepared);
+          }
+          const results = await prepared.execute({
+            tenantId: secureQuery.tenantId || options.tenantId,
+          });
+          return utils.convertArrayDatesToISO(results as Record<string, unknown>[]) as T[];
+        }
+
         const table = this.core.getTable(collection);
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
@@ -311,16 +363,11 @@ export class CrudModule implements ICrudAdapter {
         // 🚀 Fix: Use the transaction if provided, fallback to main connection
         const db = (options as any)?.tx || this.getDb("write");
 
-        await db
+        // 🚀 OPTIMIZATION: Use .returning() to get the row in a single query
+        const [result] = (await db
           .insert(table as unknown as import("drizzle-orm/pg-core").PgTable)
-          .values(values as unknown as Record<string, unknown>);
-
-        // Reuse the findOne prepared statement logic but execute on the correct context
-        const [result] = await db
-          .select()
-          .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
-          .where(eq((table as any)._id, id as string))
-          .limit(1);
+          .values(values as unknown as Record<string, unknown>)
+          .returning()) as any[];
 
         return utils.convertDatesToISO(result as Record<string, unknown>) as T;
       }, "CRUD_INSERT_FAILED")
@@ -355,7 +402,7 @@ export class CrudModule implements ICrudAdapter {
         const db = options?.tx || this.getDb("write");
 
         // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID updates
-        if (this.isSimpleIdQuery(secureQuery) && !options?.tx) {
+        if (this.isLookupQuery(secureQuery) && !options?.tx) {
           const cacheKey = `update:${collection}`;
           let prepared = this.preparedStatements.get(cacheKey);
           if (!prepared) {
@@ -363,23 +410,11 @@ export class CrudModule implements ICrudAdapter {
               .update(table as unknown as import("drizzle-orm/pg-core").PgTable)
               .set(placeholder("data"))
               .where(eq((table as any)._id, placeholder("id")))
+              .returning()
               .prepare(cacheKey);
             this.preparedStatements.set(cacheKey, prepared);
           }
-          await prepared.execute({ id: id as string, data: updateData });
-
-          // Reuse the findOne prepared statement
-          const findCacheKey = `findOne:${collection}`;
-          let findPrepared = this.preparedStatements.get(findCacheKey);
-          if (!findPrepared) {
-            findPrepared = this.getDb("read")
-              .select()
-              .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
-              .where(eq((table as any)._id, placeholder("id")))
-              .prepare(findCacheKey);
-            this.preparedStatements.set(findCacheKey, findPrepared);
-          }
-          const [result] = await findPrepared.execute({ id: id as string });
+          const [result] = await prepared.execute({ id: id as string, data: updateData });
           return utils.convertDatesToISO(result as Record<string, unknown>) as T;
         }
 
@@ -387,16 +422,13 @@ export class CrudModule implements ICrudAdapter {
           | import("drizzle-orm").SQL
           | undefined;
 
-        await db
+        // 🚀 OPTIMIZATION: Use .returning() for updates too
+        const [result] = await db
           .update(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .set(updateData as unknown as Record<string, unknown>)
-          .where(where);
-
-        const [result] = await db
-          .select()
-          .from(table as unknown as import("drizzle-orm/pg-core").PgTable)
           .where(where)
-          .limit(1);
+          .returning();
+
         return utils.convertDatesToISO(result as Record<string, unknown>) as T;
       }, "CRUD_UPDATE_FAILED")
       .then((res) => {
@@ -430,7 +462,7 @@ export class CrudModule implements ICrudAdapter {
         const db = options?.tx || this.getDb("write");
 
         // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID deletes
-        if (this.isSimpleIdQuery(query) && !options?.tx) {
+        if (this.isLookupQuery(query) && !options?.tx) {
           const table = this.core.getTable(collection);
           const cacheKey = `delete:${collection}`;
           let prepared = this.preparedStatements.get(cacheKey);

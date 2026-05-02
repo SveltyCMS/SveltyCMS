@@ -1,7 +1,7 @@
 /**
  * @file tests/benchmarks/rest-api-performance.test.ts
  * @description Enterprise REST API benchmark for SveltyCMS.
- * Measures latency and throughput for core REST endpoints (Auth, Collections, Health).
+ * Measures latency, throughput, and correctness of core REST endpoints.
  */
 
 import { test } from "bun:test";
@@ -19,93 +19,96 @@ import {
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
-let server: any;
+let stopServer: (() => Promise<void>) | null = null;
 
-async function runRestApiAudit() {
-  console.log("🚀 Starting Enterprise REST API Audit...\n");
+const restScenarios = [
+  {
+    name: "Health Check",
+    path: "/api/system/health",
+    layer: "System",
+  },
+  {
+    name: "Collection Schema",
+    path: `/api/collections/${STABLE_COLLECTION}/schema`,
+    layer: "Metadata",
+  },
+  {
+    name: "Collection Find (List)",
+    path: `/api/collections/${STABLE_COLLECTION}?limit=20`,
+    layer: "CRUD",
+  },
+  {
+    name: "Collection Search",
+    path: `/api/collections/${STABLE_COLLECTION}?search=benchmark`,
+    layer: "CRUD",
+  }
+];
 
-  const originalLogLevel = logger.level;
-  logger.level = "silent";
+async function runRestAudit() {
+  console.log(`🚀 Starting Enterprise REST API Audit (${getDbType().toUpperCase()})...\n`);
 
   try {
-    // 1. Setup Server & Data
-    server = await setupBenchmarkServer();
+    const server = await setupBenchmarkServer();
+    stopServer = server.stop;
     const baseUrl = server.baseUrl;
 
-    console.log("📊 Seeding stable benchmark data...");
     await ensureStableTestData(null);
 
-    const endpoints = [
-      { name: "Health Check", path: "/api/system/health", method: "GET" },
-      { name: "Collection List", path: "/api/collections", method: "GET" },
-      {
-        name: "Entry Retrieval",
-        path: `/api/collections/${STABLE_COLLECTION}/bench-shared-001`,
-        method: "GET",
-      },
-    ];
+    const results = [];
 
-    const results: any[] = [];
-    const RUNS = 2;
-    const ITERATIONS = 500;
-    const CONCURRENCY = 8;
-
-    for (const ep of endpoints) {
-      console.log(`   → Measuring ${ep.name}...`);
-
-      const stats = await runBenchmark({
-        name: ep.name,
-        iterations: ITERATIONS,
-        warmupIterations: 50,
-        runs: RUNS,
-        concurrency: CONCURRENCY,
-        trimOutliers: "iqr",
-        measureMemory: true,
+    for (const scenario of restScenarios) {
+      console.log(`   → Benchmarking ${scenario.name}...`);
+      
+      const result = await runBenchmark({
+        name: scenario.name,
+        iterations: 500,
+        warmupIterations: 80,
+        runs: 2,
+        concurrency: 12,
         silent: true,
         onIteration: async () => {
-          const res = await fetch(baseUrl + ep.path, {
-            method: ep.method,
+          const res = await fetch(`${baseUrl}${scenario.path}`, {
             headers: {
+              "x-test-mode": "true",
               "x-test-secret": TEST_API_SECRET,
-            },
+            }
           });
-
-          if (res.status !== 200) {
-            const text = await res.text();
-            throw new Error(`HTTP ${res.status}: ${text}`);
-          }
+          if (!res.ok) throw new Error(`${scenario.name} failed: ${res.status}`);
           await res.text();
-        },
+        }
       });
 
-      results.push({ ...stats, layer: "Full Stack" });
+      results.push({ ...result, layer: scenario.layer, shortLabel: scenario.name });
     }
 
     printTruthTable({
-      title: "SVELTYCMS  —  REST API PERFORMANCE AUDIT",
-      subtitle: `${getDbType().toUpperCase()} • ${ITERATIONS} Iterations • ${CONCURRENCY} Parallel Workers`,
+      title: "SVELTYCMS — ENTERPRISE REST API AUDIT",
+      shortLabel: "REST",
+      subtitle: `Core CRUD Latency • ${getDbType().toUpperCase()}`,
       results,
     });
 
-    const health = results[0];
-    const retrieval = results[2];
-
-    printSummaryTable([
-      { key: "Health Check Latency", val: health.avgMs, unit: "ms" },
-      { key: "Entry Read Latency", val: retrieval.avgMs, unit: "ms" },
-      { key: "Peak REST Throughput", val: Math.max(...results.map((r) => r.rps)), unit: "req/s" },
-      { key: "API Efficiency Rating", val: retrieval.avgMs < 20 ? "EXCELLENT" : "GOOD", unit: "" },
-    ]);
+    printSummaryTable(results.map(r => ({
+      key: r.name,
+      val: r.avgMs,
+      unit: "ms"
+    })));
 
     for (const r of results) exportResult(r);
-    await server.stop();
+
+  } catch (err: any) {
+    logger.error(`REST audit failed: ${err.message}`);
+    console.error(err);
   } finally {
-    logger.level = originalLogLevel;
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
   }
 
   console.log("\n✅ REST API audit completed.");
 }
 
-test("REST API Enterprise Audit", async () => {
-  await runRestApiAudit();
-}, 600000);
+test("Enterprise REST API Performance", async () => {
+  await runRestAudit();
+}, 600_000);

@@ -175,9 +175,27 @@ export abstract class BaseSqlAdapter extends BaseAdapter {
   public handleError<T>(error: unknown, code: string): DatabaseResult<T> {
     const message = error instanceof Error ? error.message : String(error);
 
-    // Check if we are in benchmark/debug mode for more verbose logging
-    if (process.env.BENCHMARK_DEBUG === "true" || process.env.SVELTY_AUDIT_ACTIVE) {
-      logger.error(`[SQL Adapter] Error [${code}]:`, error);
+    // 🛡️ SUPPRESSION: Ignore "no such table" errors for redirects/404_logs during warmup/cache warming.
+    // These are expected if the plugin hasn't finished provisioning yet.
+    const isNoSuchTable = message.includes("no such table");
+    const isTransientCollection = message.includes("redirects") || message.includes("404_logs");
+
+    if (isNoSuchTable && isTransientCollection) {
+      logger.debug(`[SQL Adapter] Expected transient error [${code}]: ${message}`);
+    } else if (process.env.BENCHMARK_DEBUG === "true" || process.env.SVELTY_AUDIT_ACTIVE) {
+      const detailedError =
+        error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+              ...(error as any),
+            }
+          : error;
+      logger.error(
+        `[SQL Adapter] Error [${code}]:`,
+        typeof detailedError === "object" ? JSON.stringify(detailedError, null, 2) : detailedError,
+      );
     } else {
       logger.error(`[SQL Adapter] Error [${code}]:`, message);
     }

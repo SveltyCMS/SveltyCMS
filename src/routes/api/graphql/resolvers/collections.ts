@@ -61,26 +61,31 @@ function getLocalizedValue(value: unknown, locale = "en"): unknown {
 
 /**
  * Creates a clean GraphQL type name from collection info
- * Uses collection name + short UUID suffix for uniqueness and readability
+ * Uses collection name (converted to PascalCase) + optional short UUID suffix for uniqueness.
  */
 export function createCleanTypeName(collection: { _id?: string; name?: string | unknown }): string {
   const rawName =
     typeof collection.name === "string" ? collection.name : String(collection._id || "Collection");
+
+  // 1. Convert to PascalCase (handle underscores and hyphens)
   const baseName = rawName.split("/").pop() || rawName;
   const cleanName = baseName
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .replace(/^[0-9]/, "Collection$&")
-    .replace(/^[a-z]/, (c) => c.toUpperCase());
+    .split(/[^a-zA-Z0-9]/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join("");
 
-  // Favors name for cleanliness, uses ID only if name is missing or too generic
   const id = collection._id ?? "";
-  const idSuffix = id.length <= 8 ? id : id.substring(0, 8);
+  const normalizedId = id.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  const normalizedClean = cleanName.toLowerCase();
 
-  // If the cleanName is just the ID, don't double it
-  if (cleanName.toLowerCase() === id.toLowerCase().substring(0, cleanName.length)) {
+  // 2. If the cleanName is essentially the same as the ID, return it directly
+  if (normalizedClean === normalizedId || normalizedId.startsWith(normalizedClean)) {
     return cleanName;
   }
 
+  // 3. Fallback: Append suffix for uniqueness
+  const idSuffix = id.length <= 6 ? id : id.substring(0, 6);
   return `${cleanName}_${idSuffix}`;
 }
 

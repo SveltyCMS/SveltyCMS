@@ -61,6 +61,7 @@ export class AdapterCore extends BaseSqlAdapter {
   //  Statement Cache (LRU-ish)
   private _statementCache = new Map<string, SQLiteStatement>();
   private readonly MAX_CACHE_SIZE = 200;
+  private readonly columnNamesCache = new Map<string, Set<string>>();
 
   protected metrics = {
     connectCount: 0,
@@ -403,6 +404,19 @@ export class AdapterCore extends BaseSqlAdapter {
     this.dynamicTables.set(tableId, table);
 
     return table;
+  }
+
+  /**
+   * 🚀 OPTIMIZATION: Gets cached column names for a table to speed up hybrid CRUD.
+   */
+  public getColumnNames(tableName: string): Set<string> {
+    if (this.columnNamesCache.has(tableName)) {
+      return this.columnNamesCache.get(tableName)!;
+    }
+    const table = this.getTable(tableName);
+    const names = new Set(Object.keys(table));
+    this.columnNamesCache.set(tableName, names);
+    return names;
   }
 
   public createDynamicTableDefinition(name: string) {

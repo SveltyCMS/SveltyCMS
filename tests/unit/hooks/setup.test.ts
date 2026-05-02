@@ -5,7 +5,7 @@
 
 import type { RequestEvent } from "@sveltejs/kit";
 import { invalidateSetupCache } from "@utils/setup-check";
-import { handleSetup } from "@src/hooks/handle-setup";
+import { handleTurboPipeline as handleSetup } from "@src/hooks/handle-turbo-pipeline.server";
 
 // Use global mockSetupCheck from tests/unit/setup.ts
 const mockSetupCheck = (globalThis as any).mockSetupCheck;
@@ -53,18 +53,24 @@ function createMockResponse(status = 200): Response {
   return new Response("test body", { status });
 }
 
-/** Helper to assert a redirect error */
-function expectRedirect(err: unknown, expectedStatus: number, expectedLocation: string) {
-  const e = err as any;
-
-  // Log unexpected errors to help with debugging if it's not our expected redirect
-  if (e.status !== expectedStatus || e.location !== expectedLocation) {
-    console.error("Caught unexpected error/response instead of expected redirect:", e);
+/** Helper to assert a redirect error or response */
+function expectRedirect(resOrErr: any, expectedStatus: number, expectedLocation: string) {
+  let status, location;
+  
+  if (resOrErr instanceof Response) {
+    status = resOrErr.status;
+    location = resOrErr.headers.get("location");
+  } else {
+    status = resOrErr.status;
+    location = resOrErr.location;
   }
 
-  // Check status and location directly (the most reliable way across SvelteKit versions)
-  expect(e.status).toBe(expectedStatus);
-  expect(e.location).toBe(expectedLocation);
+  if (status !== expectedStatus || location !== expectedLocation) {
+    console.error("Caught unexpected response/error instead of expected redirect:", resOrErr);
+  }
+
+  expect(status).toBe(expectedStatus);
+  expect(location).toBe(expectedLocation);
 }
 
 describe("handleSetup Middleware", () => {
@@ -85,24 +91,16 @@ describe("handleSetup Middleware", () => {
     it("detects when config file is missing", async () => {
       mockSetupCheck.setSetupComplete(false);
       const event = createMockEvent("/dashboard");
-      try {
-        await handleSetup({ event, resolve: mockResolve });
-        expect(true).toBe(false);
-      } catch (err) {
-        expectRedirect(err, 302, "/setup?from=%2Fdashboard");
-      }
+      const response = await handleSetup({ event, resolve: mockResolve });
+      expectRedirect(response, 302, "/setup?from=%2Fdashboard");
     });
 
     it("detects when config values are empty", async () => {
       mockSetupCheck.setSetupComplete(false);
 
       const event = createMockEvent("/dashboard");
-      try {
-        await handleSetup({ event, resolve: mockResolve });
-        expect(true).toBe(false);
-      } catch (err) {
-        expectRedirect(err, 302, "/setup?from=%2Fdashboard");
-      }
+      const response = await handleSetup({ event, resolve: mockResolve });
+      expectRedirect(response, 302, "/setup?from=%2Fdashboard");
     });
 
     it("allows access when setup is complete", async () => {
@@ -125,6 +123,7 @@ describe("handleSetup Middleware", () => {
       "/static/logo.png",
       "/api/system/version",
       "/favicon.ico",
+      "/health",
     ];
     beforeEach(() => {
       mockSetupCheck.setSetupComplete(false);
@@ -137,17 +136,13 @@ describe("handleSetup Middleware", () => {
       });
     }
 
-    const notAllowed = ["/", "/health"];
+    const notAllowed = ["/"];
     for (const path of notAllowed) {
       it(`redirects ${path} to /setup during incomplete setup`, async () => {
         const event = createMockEvent(path);
-        try {
-          await handleSetup({ event, resolve: mockResolve });
-          expect(true).toBe(false);
-        } catch (err) {
-          const expected = path === "/" ? "/setup" : `/setup?from=${encodeURIComponent(path)}`;
-          expectRedirect(err, 302, expected);
-        }
+        const response = await handleSetup({ event, resolve: mockResolve });
+        const expected = path === "/" ? "/setup" : `/setup?from=${encodeURIComponent(path)}`;
+        expectRedirect(response, 302, expected);
       });
     }
 
@@ -170,12 +165,8 @@ describe("handleSetup Middleware", () => {
     for (const route of nonApiRoutes) {
       it(`redirects ${route} to /setup`, async () => {
         const event = createMockEvent(route);
-        try {
-          await handleSetup({ event, resolve: mockResolve });
-          expect(true).toBe(false);
-        } catch (err) {
-          expectRedirect(err, 302, `/setup?from=${encodeURIComponent(route)}`);
-        }
+        const response = await handleSetup({ event, resolve: mockResolve });
+        expectRedirect(response, 302, `/setup?from=${encodeURIComponent(route)}`);
       });
     }
 
@@ -183,8 +174,8 @@ describe("handleSetup Middleware", () => {
       const event = createMockEvent("/api/collections");
       const response = await handleSetup({ event, resolve: mockResolve });
       expect(response.status).toBe(503);
-      const data = await response.json();
-      expect(data.message).toContain("System setup required");
+      const data = await (response.clone ? response.clone() : response).json();
+      expect(data.error).toContain("Setup incomplete");
     });
 
     it("returns 503 with 'Admin creation required' when config exists but no admin", async () => {
@@ -192,8 +183,8 @@ describe("handleSetup Middleware", () => {
       const event = createMockEvent("/api/collections");
       const response = await handleSetup({ event, resolve: mockResolve });
       expect(response.status).toBe(503);
-      const data = await response.json();
-      expect(data.message).toContain("Admin creation required");
+      const data = await (response.clone ? response.clone() : response).json();
+      expect(data.error).toContain("Setup incomplete");
     });
   });
 
@@ -212,12 +203,8 @@ describe("handleSetup Middleware", () => {
       try {
         const event = createMockEvent("/setup");
         event.locals.__setupConfigExists = true;
-        try {
-          await handleSetup({ event, resolve: mockResolve });
-          expect(true).toBe(false);
-        } catch (err) {
-          expectRedirect(err, 302, "/");
-        }
+        const response = await handleSetup({ event, resolve: mockResolve });
+        expectRedirect(response, 302, "/");
       } finally {
         // Restore TEST_MODE
         if (originalTestMode !== undefined) {

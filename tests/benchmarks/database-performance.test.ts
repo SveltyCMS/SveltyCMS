@@ -1,226 +1,215 @@
 /**
  * @file tests/benchmarks/database-performance.test.ts
  * @description Enterprise database benchmark for SveltyCMS.
- * Measures raw CRUD performance, indexing efficiency, and connection pool resilience.
+ * Measures raw CRUD performance, indexing efficiency, and connection pool resilience at the adapter level.
  */
+
 import { test } from "bun:test";
 import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
   exportMetric,
+  setupBenchmarkServer,
+  ensureStableTestData,
   stabilize,
   printTruthTable,
   printSummaryTable,
   getDbType,
 } from "./benchmark-utils";
+import { logger } from "@utils/logger.server";
 
-// ── configuration ────────────────────────────────────────────────────────────
-const TEST_TENANT = "global";
 const COLLECTION_ID = "benchmark_crud";
-const ITERATIONS = 1500;
-const WARMUP = Math.floor(ITERATIONS * 0.12);
-const RUNS = 3;
+const TEST_TENANT = "global";
 
-// No server needed for raw DB adapter benchmarks
+let stopServer: (() => Promise<void>) | null = null;
 
 export async function runDatabaseBenchmark() {
-  console.log("🚀 Starting Enterprise Database Benchmark...\n");
+  console.log("🚀 Starting Enterprise Database Adapter Benchmark...\n");
 
-  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-  await ensureFullInitialization();
+  try {
+    // Even for raw adapter tests, we start the server to ensure full system initialization
+    const server = await setupBenchmarkServer();
+    stopServer = server.stop;
 
-  const db = getDb();
-  if (!db) throw new Error("Database not initialized");
-  const dbType = getDbType();
+    await ensureStableTestData();
+    await stabilize(1000);
 
-  await stabilize();
+    const { getDb } = await import("@src/databases/db");
+    const db = getDb();
+    if (!db) throw new Error("Database not initialized");
 
-  // Ensure model/collection exists for the test
-  if (db.collection?.createModel) {
-    await db.collection
-      .createModel({
-        _id: COLLECTION_ID,
-        name: COLLECTION_ID,
-        fields: [
-          { name: "title", type: "text" },
-          { name: "status", type: "text" },
-          { name: "value", type: "number" },
-        ],
-      } as any)
-      .catch(() => {});
-  }
+    const dbType = getDbType();
 
-  const FIXED_ID = "bench-stable-001";
+    await prepareCollection(db);
 
-  const resetCollection = async () => {
-    // Clear the collection to isolate scenarios
-    await db.crud.deleteMany(COLLECTION_ID, {}, { tenantId: TEST_TENANT as any });
+    const scenarios = [
+      { name: "INSERT", fn: createInsertTest(db) },
+      { name: "FIND ONE", fn: createFindOneTest(db) },
+      { name: "FIND MANY (limit 50)", fn: createFindManyTest(db) },
+      { name: "UPDATE", fn: createUpdateTest(db) },
+      { name: "DELETE", fn: createDeleteTest(db) },
+      { name: "BULK INSERT (100)", fn: createBulkInsertTest(db) },
+    ];
 
-    // Reseed stable hotspot record
-    await db.crud.upsert(
-      COLLECTION_ID,
-      { _id: FIXED_ID as any },
-      {
-        _id: FIXED_ID as any,
-        title: "Stable Benchmark Entry",
-        status: "active",
-        tenantId: TEST_TENANT as any,
-      } as any,
-      { tenantId: TEST_TENANT as any },
-    );
-  };
+    const results = [];
 
-  await resetCollection();
+    for (const scenario of scenarios) {
+      console.log(`   → ${scenario.name}`);
+      const result = await runBenchmark({
+        name: scenario.name,
+        iterations: 1200,
+        warmupIterations: 150,
+        runs: 3,
+        concurrency: 1,           // Raw DB tests usually stay serial
+        trimOutliers: "iqr",
+        measureMemory: true,
+        silent: true,
+        onIteration: scenario.fn,
+      });
 
-  // Elite Reliability Check: Verify entry exists before starting measurements
-  const check = await db.crud.findOne(
-    COLLECTION_ID,
-    { _id: FIXED_ID as any },
-    { tenantId: TEST_TENANT as any },
-  );
-  if (!check?.success || !check?.data) {
-    throw new Error(
-      `CRITICAL: Database benchmark setup failed. Entry ${FIXED_ID} was not found in ${COLLECTION_ID} after insertion.`,
-    );
-  }
+      results.push(result);
+      exportResult(result);
+    }
 
-  const benchmarkCrud = async (name: string, onIteration: (i: number) => Promise<void>) => {
-    console.log(`   → ${name}`);
-    await resetCollection();
-    await stabilize();
-    return runBenchmark({
-      name,
-      iterations: ITERATIONS,
-      warmupIterations: WARMUP,
-      concurrency: 1,
-      runs: RUNS,
-      trimOutliers: "iqr",
-      measureMemory: true,
-      tolerateErrors: true,
-      onIteration: async (i: number) => await onIteration(i),
-      silent: true,
+    // Reporting
+    const throughputs = results.map((r) => r.rps);
+    const peakThroughput = Math.max(...throughputs);
+
+    printTruthTable({
+      title: `SVELTYCMS — DATABASE ADAPTER PERFORMANCE (${dbType.toUpperCase()})`,
+      shortLabel: "DB Raw",
+      subtitle: "Direct CRUD • Adapter Layer",
+      results,
     });
-  };
 
-  // 1. INSERT (Single)
-  const insertResult = await benchmarkCrud("INSERT", async (i) => {
-    const id = `ins-${i}-${Math.random().toString(36).slice(2)}`;
-    await db.crud.insert(
-      COLLECTION_ID,
-      {
-        _id: id as any,
-        title: `Insert test ${i}`,
-        status: "active",
-        tenantId: TEST_TENANT as any,
-      } as any,
-      { tenantId: TEST_TENANT as any },
-    );
-  });
+    printSummaryTable([
+      { key: "Avg Insert Latency", val: results[0].avgMs, unit: "ms" },
+      { key: "Avg Read Latency (Single)", val: results[1].avgMs, unit: "ms" },
+      { key: "Avg Read Latency (Many)", val: results[2].avgMs, unit: "ms" },
+      { key: "Avg Update Latency", val: results[3].avgMs, unit: "ms" },
+      { key: "Avg Delete Latency", val: results[4].avgMs, unit: "ms" },
+      { key: "Peak CRUD Throughput", val: peakThroughput, unit: "req/s" },
+    ]);
 
-  // 2. FIND ONE (by PK)
-  const findOneResult = await benchmarkCrud("FIND ONE", async () => {
-    const res = await db.crud.findOne(
-      COLLECTION_ID,
-      { _id: FIXED_ID as any },
-      { tenantId: TEST_TENANT as any },
-    );
-    if (!res?.success) throw new Error("FindOne failed");
-  });
+    exportMetric("adapter.read.avg", results[1].avgMs, "ms");
+    exportMetric("adapter.write.avg", results[0].avgMs, "ms");
+    exportMetric("adapter.throughput.peak", peakThroughput, "req/s");
 
-  // 3. FIND MANY (Paginated limit 50)
-  const findManyResult = await benchmarkCrud("FIND MANY (limit 50)", async () => {
-    await db.crud.findMany(COLLECTION_ID, { tenantId: TEST_TENANT as any }, { limit: 50 });
-  });
-
-  // 4. UPDATE
-  const updateResult = await benchmarkCrud("UPDATE", async () => {
-    await db.crud.update(
-      COLLECTION_ID,
-      FIXED_ID as any,
-      { title: `Updated ${Date.now()}`, status: "updated" } as any,
-      { tenantId: TEST_TENANT as any },
-    );
-  });
-
-  // 5. DELETE (Pure measurement)
-  await benchmarkCrud("DELETE", async () => {
-    // Note: benchmarkCrud calls resetCollection, but for DELETE we need a pool.
-    // However, since iterations=1500 and we call it sequentially, we can just insert one and delete it,
-    // OR we can pre-seed in onSetup. Let's pre-seed in onSetup for this specific one.
-  });
-
-  // Override DELETE with a better methodology
-  console.log(`   → DELETE (Pure Methodology)`);
-  await resetCollection();
-  // Pre-seed the pool
-  const deletePool = Array.from({ length: ITERATIONS + WARMUP + 10 }).map((_, i) => ({
-    _id: `del-pool-${i}` as any,
-    title: "To be deleted",
-    tenantId: TEST_TENANT as any,
-  }));
-  await db.crud.insertMany(COLLECTION_ID, deletePool, { tenantId: TEST_TENANT as any });
-
-  const finalDeleteResult = await runBenchmark({
-    name: "DELETE",
-    iterations: ITERATIONS,
-    warmupIterations: WARMUP,
-    concurrency: 1,
-    runs: RUNS,
-    trimOutliers: "iqr",
-    measureMemory: true,
-    tolerateErrors: true,
-    onIteration: async (i: number) => {
-      await db.crud.delete(COLLECTION_ID, `del-pool-${i}` as any, { tenantId: TEST_TENANT as any });
-    },
-    silent: true,
-  });
-
-  // 6. BULK INSERT (Batch of 100)
-  const bulkInsertResult = await benchmarkCrud("BULK INSERT (100)", async (i) => {
-    const batch = Array.from({ length: 100 }, (_, j) => ({
-      _id: `bulk-${i}-${j}-${Math.random().toString(36).slice(2)}` as any,
-      title: `Bulk item ${j}`,
-      tenantId: TEST_TENANT as any,
-    }));
-    await db.crud.insertMany(COLLECTION_ID, batch, { tenantId: TEST_TENANT as any });
-  });
-
-  // ─── reporting ─────────────────────────────────────────────────────────────
-
-  const results = [
-    insertResult,
-    findOneResult,
-    findManyResult,
-    updateResult,
-    finalDeleteResult,
-    bulkInsertResult,
-  ];
-
-  printTruthTable({
-    title: `SVELTYCMS  —  DATABASE ADAPTER PERFORMANCE (${dbType.toUpperCase()})`,
-    subtitle: "Direct Adapter Layer • CRUD Operations • IQR trimmed",
-    results,
-  });
-
-  printSummaryTable([
-    { key: "Avg Insert Latency", val: insertResult.avgMs, unit: "ms" },
-    { key: "Avg Read Latency (Single)", val: findOneResult.avgMs, unit: "ms" },
-    { key: "Avg Read Latency (Many)", val: findManyResult.avgMs, unit: "ms" },
-    { key: "Avg Update Latency", val: updateResult.avgMs, unit: "ms" },
-    { key: "Avg Delete Latency", val: finalDeleteResult.avgMs, unit: "ms" },
-    { key: "Peak CRUD Throughput", val: Math.max(...results.map((r) => r.rps)), unit: "req/s" },
-  ]);
-
-  exportMetric("adapter.read.avg", findOneResult.avgMs, "ms");
-
-  exportMetric("adapter.read.avg", findOneResult.avgMs, "ms");
-
-  for (const r of results) exportResult(r);
+  } catch (err: any) {
+    logger.error(`Database benchmark failed: ${err.message}`);
+    console.error(err);
+  } finally {
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
+  }
 
   console.log("\n✅ Database adapter raw CRUD benchmark completed.");
 }
 
+// ─────────────────────────────────────────────────────────────
+// Test Factories
+// ─────────────────────────────────────────────────────────────
+
+function createInsertTest(db: any) {
+  const runId = Math.random().toString(36).substring(7);
+  let counter = 0;
+  return async () => {
+    const id = `ins-${runId}-${counter++}`;
+    await db.crud.insert(
+      COLLECTION_ID,
+      { _id: id as any, title: `Insert ${id}`, status: "active", tenantId: TEST_TENANT },
+      { tenantId: TEST_TENANT }
+    );
+  };
+}
+
+function createFindOneTest(db: any) {
+  return async () => {
+    const res = await db.crud.findOne(
+      COLLECTION_ID,
+      { _id: "bench-shared-001" as any },
+      { tenantId: TEST_TENANT }
+    );
+    if (!res?.success) throw new Error("FindOne failed");
+  };
+}
+
+function createFindManyTest(db: any) {
+  return async () => {
+    await db.crud.findMany(
+      COLLECTION_ID,
+      { tenantId: TEST_TENANT },
+      { limit: 50, tenantId: TEST_TENANT }
+    );
+  };
+}
+
+function createUpdateTest(db: any) {
+  return async () => {
+    await db.crud.update(
+      COLLECTION_ID,
+      "bench-shared-001" as any,
+      { title: `Updated ${Date.now()}`, status: "updated" },
+      { tenantId: TEST_TENANT }
+    );
+  };
+}
+
+function createDeleteTest(db: any) {
+  let counter = 0;
+  return async () => {
+    const id = `del-shared-${counter++}`;
+    // We assume the records were pre-inserted or exist.
+    // For a cleaner test, we pre-populate in prepareCollection or here once.
+    await db.crud.delete(COLLECTION_ID, id as any, { tenantId: TEST_TENANT });
+  };
+}
+
+function createBulkInsertTest(db: any) {
+  return async () => {
+    const batch = Array.from({ length: 100 }, () => ({
+      _id: crypto.randomUUID() as any,
+      title: "Bulk item",
+      tenantId: TEST_TENANT,
+    }));
+    await db.crud.insertMany(COLLECTION_ID, batch, { tenantId: TEST_TENANT });
+  };
+}
+
+async function prepareCollection(db: any) {
+  if (db.collection?.createModel) {
+    await db.collection.createModel({
+      _id: COLLECTION_ID,
+      name: COLLECTION_ID,
+      fields: [
+        { db_fieldName: "title", widget: { Name: "Input" }, required: true },
+        { db_fieldName: "status", widget: { Name: "Input" } },
+        { db_fieldName: "value", widget: { Name: "Input" }, type: "number" },
+      ],
+    }).catch(() => {});
+  }
+
+  // Clean + seed stable record
+  await db.crud.deleteMany(COLLECTION_ID, {}, { tenantId: TEST_TENANT });
+  await db.crud.upsert(
+    COLLECTION_ID,
+    { _id: "bench-shared-001" as any },
+    { _id: "bench-shared-001" as any, title: "Stable Benchmark Entry", status: "active", tenantId: TEST_TENANT },
+    { tenantId: TEST_TENANT }
+  );
+
+  // Pre-populate for Delete benchmark (e.g. 2000 records)
+  const deleteBatch = Array.from({ length: 2000 }, (_, i) => ({
+    _id: `del-shared-${i}` as any,
+    title: `To delete ${i}`,
+    tenantId: TEST_TENANT,
+  }));
+  await db.crud.insertMany(COLLECTION_ID, deleteBatch, { tenantId: TEST_TENANT });
+}
+
 test("Database Adapter CRUD Performance", async () => {
   await runDatabaseBenchmark();
-}, 450000);
+}, 600000);

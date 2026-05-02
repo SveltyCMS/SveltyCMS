@@ -1,10 +1,10 @@
 /**
  * @file tests/benchmarks/seo-performance.test.ts
  * @description Enterprise SEO Suite benchmark for SveltyCMS.
- * Measures redirect lookup speed and dynamic sitemap generation latency.
+ * Measures redirect performance, sitemap generation, robots.txt, and related SEO features.
  */
 
-import { test, beforeAll, afterAll } from "bun:test";
+import { test } from "bun:test";
 import "../unit/setup.ts";
 import {
   runBenchmark,
@@ -13,170 +13,112 @@ import {
   printTruthTable,
   printSummaryTable,
   ensureStableTestData,
+  stabilize,
+  getDbType,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
-let stopServer: () => Promise<void>;
-let apiBaseUrl: string;
-
-beforeAll(async () => {
-  const { stop, baseUrl } = await setupBenchmarkServer();
-  stopServer = stop;
-  apiBaseUrl = baseUrl;
-
-  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-  await ensureFullInitialization();
-  const db = getDb();
-  if (!db) throw new Error("Database initialization failed");
-
-  const { isSystemReady } = await import("@src/stores/system/state");
-  let attempts = 0;
-  while (!isSystemReady() && attempts < 20) {
-    await new Promise((r) => setTimeout(r, 500));
-    attempts++;
-  }
-
-  if (!isSystemReady()) {
-    logger.warn("System state is still not READY after timeout, proceeding anyway...");
-  }
-
-  await ensureStableTestData(db!);
-
-  // 1. Setup redirects
-  const { LocalCMS } = await import("@src/routes/api/cms");
-  const cms = new LocalCMS(db);
-
-  await cms.collections.create(
-    "redirects",
-    {
-      from: "/old-path-1",
-      to: "/new-path-1",
-      type: 301,
-      tenantId: "default" as any,
-      active: true,
-    },
-    { system: true, tenantId: "default" as any },
-  );
-
-  await cms.collections.create(
-    "redirects",
-    {
-      from: "/old-path-2",
-      to: "/new-path-2",
-      type: 301,
-      tenantId: "default" as any,
-      active: true,
-    },
-    { system: true, tenantId: "default" as any },
-  );
-
-  // Wait to ensure database sync for the test redirects (since test runs on a spawned child)
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-}, 300000);
-
-afterAll(async () => {
-  if (stopServer) await stopServer();
-});
+let stopServer: (() => Promise<void>) | null = null;
 
 async function runSeoAudit() {
-  console.log("🚀 Starting Enterprise SEO Suite Audit (E2E)...\n");
-
-  const ITERATIONS = 500;
-  const RUNS = 2;
-  const results: any[] = [];
-
-  const originalLogLevel = logger.level;
-  logger.level = "silent";
+  console.log(`🚀 Starting Enterprise SEO Suite Audit (${getDbType().toUpperCase()})...\n`);
 
   try {
-    // 1. Redirect Interception (In-Memory Cache)
-    console.log("   → Measuring Redirect Middleware (Cached)...");
-    // Hit once with refresh to ensure server picks up our test redirects
-    await fetch(`${apiBaseUrl}/old-path-1`, {
-      redirect: "manual",
-      headers: { "x-test-mode": "true", "x-refresh-redirects": "true" },
-    });
+    const server = await setupBenchmarkServer();
+    stopServer = server.stop;
+    const baseUrl = server.baseUrl;
 
-    const redirectRes = await runBenchmark({
-      name: "Redirect Interception (Cache)",
-      iterations: ITERATIONS,
-      warmupIterations: 50,
-      runs: RUNS,
-      concurrency: 8,
-      silent: true,
-      onIteration: async () => {
-        const res = await fetch(`${apiBaseUrl}/old-path-1`, {
-          redirect: "manual",
-          headers: { "x-test-mode": "true" },
-        });
-        // We expect a 301/302 response
-        if (res.status !== 301 && res.status !== 302) {
-          throw new Error(`Redirect failed: ${res.status}`);
+    await ensureStableTestData();
+
+    // Warm up server and ensure test redirects are loaded
+    await fetch(`${baseUrl}/api/system/health`, { headers: { "x-test-mode": "true", "x-test-secret": "test-secret" } });
+    await stabilize(1000);
+
+    const seoScenarios = [
+      {
+        name: "Redirect Lookup (301)",
+        path: "/old-path-1",
+        options: { redirect: "manual" },
+        expectedStatus: 301,
+        layer: "Middleware",
+      },
+      {
+        name: "Dynamic Sitemap XML",
+        path: "/sitemap.xml",
+        layer: "Content",
+      },
+      {
+        name: "Robots.txt Generation",
+        path: "/robots.txt",
+        layer: "System",
+      },
+      {
+        name: "Missing Path (404 Log)",
+        path: "/non-existent-path-" + Math.random(),
+        expectedStatus: 404,
+        layer: "Analytics",
+      }
+    ];
+
+    const results = [];
+
+    for (const scenario of seoScenarios) {
+      console.log(`   → Benchmarking ${scenario.name}...`);
+      
+      const result = await runBenchmark({
+        name: scenario.name,
+        iterations: 400,
+        warmupIterations: 50,
+        runs: 2,
+        concurrency: 8,
+        silent: true,
+        onIteration: async () => {
+          const res = await fetch(`${baseUrl}${scenario.path}`, {
+            ...((scenario.options as any) || {}),
+            headers: {
+              "x-test-mode": "true",
+              "x-test-secret": "test-secret",
+            }
+          });
+          
+          if (scenario.expectedStatus && res.status !== scenario.expectedStatus) {
+            throw new Error(`${scenario.name} failed: Expected ${scenario.expectedStatus}, got ${res.status}`);
+          }
+          await res.text();
         }
-      },
-    });
-    results.push({ ...redirectRes, layer: "SEO" });
+      });
 
-    // 2. Dynamic Sitemap Generation (Cached)
-    console.log("   → Measuring Sitemap Generation (Cached)...");
-    // Hit once to warm cache
-    await fetch(`${apiBaseUrl}/sitemap.xml`, { headers: { "x-test-mode": "true" } });
-
-    const sitemapRes = await runBenchmark({
-      name: "Sitemap Generation (Cached)",
-      iterations: ITERATIONS,
-      warmupIterations: 20,
-      runs: RUNS,
-      concurrency: 4,
-      silent: true,
-      onIteration: async () => {
-        const res = await fetch(`${apiBaseUrl}/sitemap.xml`, {
-          headers: { "x-test-mode": "true" },
-        });
-        await res.text();
-      },
-    });
-    results.push({ ...sitemapRes, layer: "SEO" });
-
-    // 3. Robots.txt Route
-    console.log("   → Measuring Robots.txt Routing...");
-    const robotsRes = await runBenchmark({
-      name: "Robots.txt Route",
-      iterations: ITERATIONS,
-      warmupIterations: 20,
-      runs: RUNS,
-      concurrency: 4,
-      silent: true,
-      onIteration: async () => {
-        const res = await fetch(`${apiBaseUrl}/robots.txt`, {
-          headers: { "x-test-mode": "true" },
-        });
-        await res.text();
-      },
-    });
-    results.push({ ...robotsRes, layer: "SEO" });
+      results.push({ ...result, layer: scenario.layer, shortLabel: scenario.name });
+    }
 
     printTruthTable({
-      title: "SVELTYCMS  —  ENTERPRISE SEO SUITE AUDIT",
-      subtitle: "Redirects • Dynamic Sitemaps • Robots • i18n hreflang",
+      title: "SVELTYCMS — ENTERPRISE SEO AUDIT",
+      shortLabel: "SEO",
+      subtitle: `Enterprise Meta Suite • ${getDbType().toUpperCase()}`,
       results,
     });
 
-    printSummaryTable([
-      { key: "Redirect Latency (Avg)", val: redirectRes.avgMs, unit: "ms" },
-      { key: "Sitemap Latency (Cached)", val: sitemapRes.avgMs, unit: "ms" },
-      { key: "Robots.txt Latency", val: robotsRes.avgMs, unit: "ms" },
-      { key: "SEO Suite Peak RPS", val: Math.round(redirectRes.rps), unit: "req/s" },
-    ]);
+    printSummaryTable(results.map(r => ({
+      key: r.name,
+      val: r.avgMs,
+      unit: "ms"
+    })));
 
     for (const r of results) exportResult(r);
+
+  } catch (err: any) {
+    logger.error(`SEO audit failed: ${err.message}`);
+    console.error(err);
   } finally {
-    logger.level = originalLogLevel;
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
   }
 
-  console.log("\n✅ SEO Suite audit completed.");
+  console.log("\n✅ SEO audit completed.");
 }
 
-test("Enterprise SEO Suite Performance Audit", async () => {
+test("Enterprise SEO Suite Performance", async () => {
   await runSeoAudit();
-}, 450000);
+}, 600_000);

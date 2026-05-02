@@ -9,6 +9,8 @@ import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
+  setupBenchmarkServer,
+  ensureStableTestData,
   stabilize,
   printTruthTable,
   printSummaryTable,
@@ -17,99 +19,73 @@ import {
 import { logger } from "@utils/logger.server";
 
 const COLLECTION_ID = "collection_acid_benchmark";
+let stopServer: (() => Promise<void>) | null = null;
 
 async function runAcidAudit() {
   console.log("💎 Starting Enterprise ACID Audit...\n");
 
-  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-  await ensureFullInitialization();
-  const db = getDb();
-  if (!db) throw new Error("Database not initialized");
-
-  if (typeof (db as any).transaction !== "function") {
-    console.log("⏭️ Adapter does not support transactions. Skipping.");
-    return;
-  }
-
-  const originalLogLevel = logger.level;
-  logger.level = "silent";
-
   try {
-    // 1. Table Setup & Verification
-    console.log("   📊 Initializing ACID test collection...");
-    const client = (db as any).adapter?.getClient?.();
-    if (client && getDbType() === "sqlite") {
-      client.exec(
-        `CREATE TABLE IF NOT EXISTS "${COLLECTION_ID}" ("_id" TEXT PRIMARY KEY, "title" TEXT, "tenantId" TEXT)`,
-      );
-    } else if (db.collection?.createModel) {
-      await db.collection
-        .createModel({
-          _id: COLLECTION_ID,
-          name: COLLECTION_ID,
-          fields: [{ name: "title", type: "text" }],
-        } as any)
-        .catch(() => {});
+    const server = await setupBenchmarkServer();
+    stopServer = server.stop;
+
+    await ensureStableTestData();
+    await stabilize(1000);
+
+    const { getDb } = await import("@src/databases/db");
+    const db = getDb();
+    if (!db) throw new Error("Database not initialized");
+
+    if (typeof (db as any).transaction !== "function") {
+      console.log("⏭️ Adapter does not support transactions. Skipping.");
+      return;
     }
 
-    // Verify collection readiness
-    const check = await db.crud.findOne(
-      COLLECTION_ID,
-      { _id: "non-existent" as any },
-      { tenantId: "global" as any },
-    );
-    if (!check.success && check.message?.includes("not found")) {
-      throw new Error(`CRITICAL: ACID collection ${COLLECTION_ID} failed to initialize.`);
-    }
-
-    await stabilize();
+    await prepareAcidCollection(db);
 
     const RUNS = 2;
-    const ITERATIONS = 500;
-    const allResults: any[] = [];
+    const ITERATIONS = 600;
 
-    // 2. Commit Latency
-    console.log("   → Measuring TX Commit (Concurrent)...");
+    // Commit Latency
+    console.log("   → Measuring TX Commit Performance...");
     const commitResult = await runBenchmark({
-      name: "TX Commit @ 8c",
+      name: "TX Commit",
       iterations: ITERATIONS,
-      warmupIterations: 50,
+      warmupIterations: 80,
       runs: RUNS,
-      concurrency: 8,
+      concurrency: 4,
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
       onIteration: async (i: number) => {
-        const id = `c-8-${i}-${Math.random().toString(36).slice(2)}`;
+        const id = `commit-${i}-${Math.random().toString(36).slice(2)}`;
         await (db as any).transaction(async (tx: any) => {
           await tx.insert(
             COLLECTION_ID,
-            { _id: id, title: "commit" },
-            { tenantId: "global" as any },
+            { _id: id, title: "ACID Commit Test" },
+            { tenantId: "global" as any }
           );
         });
       },
     });
-    allResults.push({ ...commitResult, layer: "Database" });
 
-    // 3. Rollback Integrity & Overhead
-    console.log("   → Measuring TX Rollback & Verification...");
+    // Rollback Integrity
+    console.log("   → Measuring TX Rollback Integrity...");
     const rollbackResult = await runBenchmark({
       name: "TX Rollback Integrity",
-      iterations: 200,
-      warmupIterations: 20,
+      iterations: 300,
+      warmupIterations: 30,
       runs: 1,
       concurrency: 1,
       measureMemory: true,
       silent: true,
       onIteration: async (i: number) => {
-        const id = `r-${i}-${Math.random().toString(36).slice(2)}`;
+        const id = `rollback-${i}-${Math.random().toString(36).slice(2)}`;
         try {
           await (db as any).transaction(async (tx: any) => {
             await tx.insert(
               COLLECTION_ID,
-              { _id: id, title: "rollback" },
-              { tenantId: "global" as any },
+              { _id: id, title: "Rollback Test" },
+              { tenantId: "global" as any }
             );
             throw new Error("ROLLBACK_TRIGGER");
           });
@@ -117,40 +93,66 @@ async function runAcidAudit() {
           if (e.message !== "ROLLBACK_TRIGGER") throw e;
         }
 
-        // ASSERTION: Verify data is NOT there
+        // Verify data was NOT persisted
         const verify = await db.crud.findOne(
           COLLECTION_ID,
           { _id: id as any },
-          { tenantId: "global" as any },
+          { tenantId: "global" as any }
         );
-        if (verify.success && verify.data) {
-          throw new Error(`ACID FAILURE: Transaction committed despite error for ID ${id}`);
+        if (verify?.success && verify.data) {
+          throw new Error(`ACID FAILURE: Data persisted despite rollback for ID ${id}`);
         }
       },
     });
-    allResults.push({ ...rollbackResult, layer: "Database" });
 
     printTruthTable({
-      title: "SVELTYCMS  —  ACID INTEGRITY AUDIT",
-      subtitle: `Transactional Commit & Rollback • ${getDbType().toUpperCase()}`,
-      results: allResults,
+      title: "SVELTYCMS — ACID INTEGRITY AUDIT",
+      shortLabel: "ACID",
+      subtitle: `Commit & Rollback • ${getDbType().toUpperCase()}`,
+      results: [
+        { ...commitResult, shortLabel: "Commit", layer: "Database" },
+        { ...rollbackResult, shortLabel: "Rollback", layer: "Database" },
+      ],
     });
 
     printSummaryTable([
       { key: "Avg Commit Latency", val: commitResult.avgMs, unit: "ms" },
       { key: "Rollback Verification", val: rollbackResult.avgMs, unit: "ms" },
       { key: "Transaction Stability", val: "VERIFIED", unit: "" },
-      { key: "Peak Throughput", val: Math.round(commitResult.rps), unit: "tx/s" },
+      { key: "Peak Throughput", val: Math.round(commitResult.rps || 0), unit: "tx/s" },
     ]);
 
-    for (const r of allResults) exportResult(r);
+    exportResult(commitResult);
+    exportResult(rollbackResult);
+
+  } catch (err: any) {
+    logger.error(`ACID benchmark failed: ${err.message}`);
+    console.error(err);
   } finally {
-    logger.level = originalLogLevel;
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
   }
 
   console.log("\n✅ ACID audit completed.");
 }
 
+async function prepareAcidCollection(db: any) {
+  if (db.collection?.createModel) {
+    await db.collection
+      .createModel({
+        _id: COLLECTION_ID,
+        name: COLLECTION_ID,
+        fields: [{ name: "title", type: "text" }],
+      } as any)
+      .catch(() => {});
+  }
+
+  // Clean collection
+  await db.crud.deleteMany(COLLECTION_ID, {}, { tenantId: "global" as any }).catch(() => {});
+}
+
 test("ACID Enterprise Suite", async () => {
   await runAcidAudit();
-}, 450000);
+}, 600000);

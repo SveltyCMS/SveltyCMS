@@ -4,7 +4,6 @@
  */
 
 import { redirect, type Handle } from "@sveltejs/kit";
-import { isSetupCompleteAsync } from "@utils/setup-check";
 import { contentSystem } from "@src/content/index.server";
 import { logger } from "@utils/logger.server";
 import { getDbInitPromise } from "@src/databases/db";
@@ -14,6 +13,9 @@ import { app } from "@src/stores/store.svelte";
 // Matches unlocalized (e.g., /api) and localized (e.g., /en-US/api) paths.
 const WHITELIST_REGEX =
   /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login)/;
+
+// Module-level cache for initialization promises to prevent "storms"
+const initPromises = new Map<string | null, Promise<void>>();
 
 export const handleContentInitialization: Handle = async ({ event, resolve }) => {
   // Ensure system is ready for core operations (Login/Auth)
@@ -25,10 +27,11 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
   const tenantId = locals.tenantId ?? null;
 
   // --- Phase 1: Gated Initialization ---
-  const setupState = (locals as any).__setupState || (await isSetupCompleteAsync());
-  locals.__setupConfigExists = setupState !== "MISSING_CONFIG";
+  const { getSetupState, SetupState } = await import("@utils/setup-check");
+  const setupState = (locals as any).__setupState || (await getSetupState());
+  locals.__setupConfigExists = setupState !== SetupState.MISSING_CONFIG;
 
-  if (setupState !== "COMPLETE") {
+  if (setupState !== SetupState.COMPLETE) {
     logger.debug(
       "[handleContentInitialization] System in SETUP mode. Skipping content initialization.",
     );
@@ -38,9 +41,20 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
   // --- Phase 2: Content System Initialization ---
   if (!contentSystem.isInitializedForTenant(tenantId)) {
     // 🛡️ SAFETY: Use a shared promise to prevent initialization storms
-    const initPromise = contentSystem.initialize(tenantId, false).catch((err) => {
-      logger.error(`[handleContentInitialization] Init failed for tenant ${tenantId}:`, err);
-    });
+    let initPromise = initPromises.get(tenantId);
+
+    if (!initPromise) {
+      initPromise = (async () => {
+        try {
+          await contentSystem.initialize(tenantId, false);
+        } catch (err) {
+          logger.error(`[handleContentInitialization] Init failed for tenant ${tenantId}:`, err);
+          initPromises.delete(tenantId); // Allow retry on failure
+          throw err;
+        }
+      })();
+      initPromises.set(tenantId, initPromise);
+    }
 
     // Await initialization ONLY for content-specific routes or API calls
     // Dashboard and Config Builder are fast-tracked to improve perceived performance
@@ -57,7 +71,16 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
 
   // --- Phase 3: Auth & Fresh Install Redirects ---
   if (locals.user) {
-    const collections = contentSystem.getCollections(tenantId);
+    let collections = contentSystem.getCollections(tenantId);
+
+    // 🛡️ RECOVERY: If no collections found, double check if we are still initializing
+    if (collections.length === 0 && !contentSystem.isInitializedForTenant(tenantId)) {
+      logger.info(
+        `[handleContentInitialization] No collections found yet for ${pathname}. Awaiting sync...`,
+      );
+      await contentSystem.initialize(tenantId, false);
+      collections = contentSystem.getCollections(tenantId);
+    }
 
     // 1. Root Routing (Highest Priority)
     if (pathname === "/") {

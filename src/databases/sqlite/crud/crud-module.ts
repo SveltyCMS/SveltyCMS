@@ -5,7 +5,7 @@
 
 import { nowISODateString } from "@src/utils/date-utils";
 import { safeQuery } from "@src/utils/security/safe-query";
-import { count, eq, inArray, placeholder } from "drizzle-orm";
+import { count, eq, inArray } from "drizzle-orm";
 import type {
   BaseEntity,
   DatabaseId,
@@ -22,6 +22,9 @@ import * as utils from "../utils";
 export class CrudModule {
   private readonly core: AdapterCore;
   private readonly preparedStatements = new Map<string, any>();
+  private readonly preparedInserts = new Map<string, any>();
+
+  private readonly preparedUpdates = new Map<string, any>();
 
   constructor(core: AdapterCore) {
     this.core = core;
@@ -32,11 +35,56 @@ export class CrudModule {
   }
 
   /**
-   * Helper to determine if a query is a simple ID lookup.
+   * Helper to determine if a query is a simple ID lookup (optionally with tenantId and isDeleted).
    */
-  private isSimpleIdQuery(query: any): boolean {
+  private isLookupQuery(query: any): boolean {
     const keys = Object.keys(query);
-    return keys.length === 1 && keys[0] === "_id" && typeof query._id === "string";
+
+    // Check if the only complex object is the isDeleted condition from safeQuery
+    const hasComplexKeys = keys.some((k) => {
+      if (
+        k === "isDeleted" &&
+        typeof query[k] === "object" &&
+        query[k] !== null &&
+        query[k].$ne === true
+      ) {
+        return false; // This specific complex object is allowed
+      }
+      return typeof query[k] === "object" && query[k] !== null;
+    });
+
+    if (hasComplexKeys) return false;
+
+    // Must include _id
+    if (!keys.includes("_id")) return false;
+
+    // The other allowed keys are tenantId and isDeleted
+    return keys.every((k) => k === "_id" || k === "tenantId" || k === "isDeleted");
+  }
+
+  /**
+   * Helper to determine if a query is a simple tenant-wide lookup.
+   */
+  private isTenantQuery(query: any): boolean {
+    const keys = Object.keys(query);
+
+    // Check if the only complex object is the isDeleted condition from safeQuery
+    const hasComplexKeys = keys.some((k) => {
+      if (
+        k === "isDeleted" &&
+        typeof query[k] === "object" &&
+        query[k] !== null &&
+        query[k].$ne === true
+      ) {
+        return false; // This specific complex object is allowed
+      }
+      return typeof query[k] === "object" && query[k] !== null;
+    });
+
+    if (hasComplexKeys) return false;
+
+    // The allowed keys are tenantId and isDeleted
+    return keys.every((k) => k === "tenantId" || k === "isDeleted");
   }
 
   async findOne<T extends BaseEntity>(
@@ -53,21 +101,40 @@ export class CrudModule {
         });
 
         // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID lookups
-        if (this.isSimpleIdQuery(secureQuery)) {
+        if (this.isLookupQuery(secureQuery)) {
           const table = this.core.getTable(collection);
-          const cacheKey = `findOne:${collection}`;
+          // Key changes depending on whether tenantId is present
+          const hasTenant = !!(secureQuery.tenantId || options.tenantId);
+          const cacheKey = `findOne:${collection}:${hasTenant ? "tenant" : "global"}`;
 
           let prepared = this.preparedStatements.get(cacheKey);
           if (!prepared) {
+            const { and, eq, ne, placeholder } = await import("drizzle-orm");
+
+            const conditions = [eq((table as any)._id, placeholder("id"))];
+
+            if ((table as any).isDeleted) {
+              conditions.push(ne((table as any).isDeleted, true));
+            }
+
+            if (hasTenant) {
+              conditions.push(eq((table as any).tenantId, placeholder("tenantId")));
+            }
+
             prepared = this.db
               .select()
               .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-              .where(eq((table as any)._id, placeholder("id")))
+              .where(and(...conditions))
               .prepare();
             this.preparedStatements.set(cacheKey, prepared);
           }
 
-          const results = await prepared.all({ id: secureQuery._id });
+          const params: Record<string, any> = { id: secureQuery._id };
+          if (hasTenant) {
+            params.tenantId = secureQuery.tenantId || options.tenantId;
+          }
+
+          const results = await (prepared.all(params) as Promise<any[]>);
           const data =
             results.length === 0
               ? null
@@ -109,6 +176,49 @@ export class CrudModule {
           bypassTenantCheck: options.bypassTenantCheck,
           includeDeleted: options.includeDeleted,
         });
+
+        // 🚀 OPTIMIZATION: Prepared Statement for Tenant-only lookups
+        if (this.isTenantQuery(secureQuery) && !options.offset) {
+          const table = this.core.getTable(collection);
+          const limit = options.limit || 1000;
+
+          const hasTenant = !!(secureQuery.tenantId || options.tenantId);
+          const cacheKey = `findManyTenant:${collection}:${limit}:${hasTenant ? "tenant" : "global"}`;
+
+          let prepared = this.preparedStatements.get(cacheKey);
+          if (!prepared) {
+            const { and, eq, ne, placeholder } = await import("drizzle-orm");
+
+            const conditions = [];
+
+            if ((table as any).isDeleted) {
+              conditions.push(ne((table as any).isDeleted, true));
+            }
+
+            if (hasTenant) {
+              conditions.push(eq((table as any).tenantId, placeholder("tenantId")));
+            }
+
+            let query: any = this.db
+              .select()
+              .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable);
+
+            if (conditions.length > 0) {
+              query = query.where(conditions.length > 1 ? and(...conditions) : conditions[0]);
+            }
+
+            prepared = query.limit(limit).prepare();
+            this.preparedStatements.set(cacheKey, prepared);
+          }
+
+          const params: Record<string, any> = {};
+          if (hasTenant) {
+            params.tenantId = secureQuery.tenantId || options.tenantId;
+          }
+
+          const results = await (prepared.all(params) as Promise<any[]>);
+          return utils.convertArrayDatesToISO(results as Record<string, unknown>[]) as T[];
+        }
         const table = this.core.getTable(collection);
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
@@ -200,8 +310,8 @@ export class CrudModule {
         const id = (data as Partial<T>)._id || (utils.generateId() as DatabaseId);
         const now = new Date(nowISODateString());
 
-        // 🚀 HYBRID SCHEMA SUPPORT: Identify fields that don't exist as columns
-        const columnNames = new Set(Object.keys(table));
+        // 🚀 OPTIMIZATION: Use cached column names to avoid repeated Set creation
+        const columnNames = this.core.getColumnNames(collection);
         const inputData = { ...data } as any;
         const dynamicData = (inputData.data || {}) as Record<string, any>;
         const values: Record<string, any> = {
@@ -232,26 +342,25 @@ export class CrudModule {
 
         const processedValues = utils.convertISOToDates(values);
 
-        const insertStmt = this.db.insert(table as any).values(processedValues as any);
-        if (process.env.BENCHMARK_DEBUG === "true") {
-          console.log(`[DEBUG-SQL] INSERT SQL: ${insertStmt.toSQL().sql}`);
-          console.log(`[DEBUG-SQL] INSERT PARAMS:`, insertStmt.toSQL().params);
-        }
-        await insertStmt;
+        // 🚀 OPTIMIZATION: Use Prepared Statement for INSERT if keys are consistent
+        const cacheKey = `insert:${collection}:${Object.keys(processedValues).sort().join(",")}`;
+        let prepared = this.preparedInserts.get(cacheKey);
 
-        // Reuse the findOne prepared statement for the result
-        const findCacheKey = `findOne:${collection}`;
-        let findPrepared = this.preparedStatements.get(findCacheKey);
-        if (!findPrepared) {
-          findPrepared = this.db
-            .select()
-            .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-            .where(eq((table as any)._id, placeholder("id")))
+        if (!prepared) {
+          const { placeholder } = await import("drizzle-orm");
+          prepared = this.db
+            .insert(table as any)
+            .values(
+              Object.fromEntries(
+                Object.keys(processedValues).map((k) => [k, placeholder(k)]),
+              ) as any,
+            )
+            .returning()
             .prepare();
-          this.preparedStatements.set(findCacheKey, findPrepared);
+          this.preparedInserts.set(cacheKey, prepared);
         }
-        const [result] = await findPrepared.all({ id: id as string });
 
+        const [result] = (await (prepared as any).all(processedValues)) as any[];
         return utils.convertDatesToISO(result as Record<string, unknown>) as T;
       }, "CRUD_INSERT_FAILED")
       .then(async (res) => {
@@ -285,50 +394,49 @@ export class CrudModule {
         const updateData = { ...data, updatedAt: now };
         const values = utils.convertISOToDates(updateData as Record<string, unknown>);
 
-        // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID updates
-        if (this.isSimpleIdQuery(secureQuery)) {
-          const cacheKey = `update:${collection}`;
-          let prepared = this.preparedStatements.get(cacheKey);
-          if (!prepared) {
-            prepared = this.db
-              .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-              .set(placeholder("data"))
-              .where(eq((table as any)._id, placeholder("id")))
-              .prepare();
-            this.preparedStatements.set(cacheKey, prepared);
-          }
-          await prepared.run({ id: id as string, data: values });
+        // 🚀 OPTIMIZATION: Use Prepared Statement for UPDATE if keys are consistent
+        const hasTenant = !!secureQuery.tenantId;
+        const cacheKey = `update:${collection}:${Object.keys(values).sort().join(",")}:${hasTenant ? "tenant" : "global"}`;
 
-          // Reuse the findOne prepared statement
-          const findCacheKey = `findOne:${collection}`;
-          let findPrepared = this.preparedStatements.get(findCacheKey);
-          if (!findPrepared) {
-            findPrepared = this.db
-              .select()
-              .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-              .where(eq((table as any)._id, placeholder("id")))
-              .prepare();
-            this.preparedStatements.set(findCacheKey, findPrepared);
+        let prepared = this.preparedUpdates.get(cacheKey);
+        if (!prepared) {
+          const { eq, and, placeholder } = await import("drizzle-orm");
+
+          const conditions = [eq((table as any)._id, placeholder("id"))];
+          if (hasTenant) {
+            conditions.push(eq((table as any).tenantId, placeholder("tenantId")));
           }
-          const [result] = await findPrepared.all({ id: id as string });
-          return utils.convertDatesToISO(result as Record<string, unknown>) as T;
+
+          prepared = this.db
+            .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+            .set(
+              Object.fromEntries(
+                Object.keys(values).map((k) => [k, placeholder(`_val_${k}`)]),
+              ) as any,
+            )
+            .where(conditions.length > 1 ? and(...conditions) : conditions[0])
+            .prepare();
+
+          this.preparedUpdates.set(cacheKey, prepared);
         }
 
-        const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
-          | import("drizzle-orm").SQL
-          | undefined;
+        const params: Record<string, any> = { id };
+        if (hasTenant) {
+          params.tenantId = secureQuery.tenantId;
+        }
+        for (const [k, v] of Object.entries(values)) {
+          params[`_val_${k}`] = v;
+        }
 
-        await this.db
-          .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-          .set(values as Record<string, unknown>)
-          .where(where);
+        await prepared.all(params);
 
-        const [result] = await this.db
-          .select()
-          .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-          .where(where)
-          .limit(1);
-        return utils.convertDatesToISO(result as Record<string, unknown>) as T;
+        // Optimization: the findOne call will use the existing findOne prepared statement!
+        const result = await this.findOne(collection, { _id: id } as any, options);
+        if (!result.success || !result.data) {
+          throw new Error("Update failed or record not found after update");
+        }
+
+        return result.data as T;
       }, "CRUD_UPDATE_FAILED")
       .then(async (res) => {
         if (res.success) {
@@ -354,22 +462,6 @@ export class CrudModule {
             bypassTenantCheck: options.bypassTenantCheck,
           },
         );
-
-        // 🚀 OPTIMIZATION: Use Prepared Statement for simple ID deletes
-        if (this.isSimpleIdQuery(query)) {
-          const table = this.core.getTable(collection);
-          const cacheKey = `delete:${collection}`;
-          let prepared = this.preparedStatements.get(cacheKey);
-          if (!prepared) {
-            prepared = this.db
-              .delete(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-              .where(eq((table as any)._id, placeholder("id")))
-              .prepare();
-            this.preparedStatements.set(cacheKey, prepared);
-          }
-          await prepared.run({ id: id as string });
-          return;
-        }
 
         const table = this.core.getTable(collection);
         const where = this.core.mapQuery(table, query as Record<string, unknown>) as
@@ -426,11 +518,7 @@ export class CrudModule {
 
         // 🚀 STRATEGY: Capability-based Hybrid CRUD
         // If query matches a unique index (primary key _id) and database supports native upsert
-        if (
-          caps.nativeUpsert &&
-          caps.supportsConflictTargets &&
-          this.isSimpleIdQuery(secureQuery)
-        ) {
+        if (caps.nativeUpsert && caps.supportsConflictTargets && this.isLookupQuery(secureQuery)) {
           await this.db
             .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
             .values(values as any)
@@ -653,7 +741,7 @@ export class CrudModule {
           if (
             caps.nativeUpsert &&
             caps.supportsConflictTargets &&
-            this.isSimpleIdQuery(secureQuery)
+            this.isLookupQuery(secureQuery)
           ) {
             await this.db
               .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)

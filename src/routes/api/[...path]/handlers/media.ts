@@ -6,7 +6,7 @@
 import { dev } from "$app/environment";
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
-import type { LocalCMS } from "../../cms";
+import type { LocalCMS } from "@src/services/local-cms";
 import type { DatabaseId } from "@src/content/types";
 import { logger } from "@utils/logger.server";
 import { successResponse, rawResponse } from "./base";

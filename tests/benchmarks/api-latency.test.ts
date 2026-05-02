@@ -42,7 +42,7 @@ afterAll(async () => {
 
 export async function runApiLatencyAudit() {
   const { getDb } = await import("@src/databases/db");
-  const { LocalCMS } = await import("@src/routes/api/cms");
+  const { LocalCMS } = await import("@src/services/local-cms");
 
   const db = getDb();
   if (!db) throw new Error("Database adapter not initialized for benchmark");

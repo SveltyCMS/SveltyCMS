@@ -9,6 +9,8 @@ import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
+  setupBenchmarkServer,
+  ensureStableTestData,
   stabilize,
   printTruthTable,
   printSummaryTable,
@@ -16,58 +18,55 @@ import {
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
+let stopServer: (() => Promise<void>) | null = null;
+
 async function runSecurityAudit() {
   console.log("🚀 Starting Enterprise Security Audit...\n");
 
-  const { securityResponseService } = await import("@src/services/security-response-service");
-  const { auditLogService, AuditEventType } = await import("@src/services/audit-log-service");
-  const { hashPassword } = await import("@src/utils/password");
-
-  await stabilize();
-
-  const originalLogLevel = logger.level;
-  logger.level = "silent";
-
   try {
-    const RUNS = 2;
-    const ITERATIONS = 1000;
-    const results: any[] = [];
+    const server = await setupBenchmarkServer();
+    stopServer = server.stop;
 
-    // 1. WAF Analysis Overhead (Richer Mock)
-    console.log("   → Measuring WAF (Web Application Firewall) analysis...");
+    await ensureStableTestData();
+    await stabilize(1000);
+
+    const { securityResponseService } = await import("@src/services/security-response-service");
+    const { auditLogService, AuditEventType } = await import("@src/services/audit-log-service");
+    const { hashPassword } = await import("@src/utils/password");
+
+    const results = [];
+
+    // 1. WAF Analysis
+    console.log("   → Measuring WAF (Web Application Firewall) overhead...");
     const wafResult = await runBenchmark({
-      name: "WAF: Deep Analysis",
-      iterations: ITERATIONS,
+      name: "WAF Deep Analysis",
+      iterations: 800,
       warmupIterations: 100,
-      runs: RUNS,
-      concurrency: 1,
+      runs: 2,
+      concurrency: 4,
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        const req = new Request(
-          "http://localhost/api/collections/posts?limit=10&status=published",
-          {
-            headers: {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-              Accept: "application/json",
-              "X-Forwarded-For": "1.2.3.4",
-              Referer: "http://localhost/admin",
-            },
+        const req = new Request("http://localhost/api/collections/posts?limit=10", {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "X-Forwarded-For": "1.2.3.4",
+            Accept: "application/json",
           },
-        );
+        });
         await securityResponseService.analyzeRequest(req);
       },
     });
-    results.push({ ...wafResult, layer: "Security" });
+    results.push({ ...wafResult, shortLabel: "WAF", layer: "Security" });
 
-    // 2. Audit Logging Latency
+    // 2. Audit Logging
     console.log("   → Measuring Audit Log persistence...");
     const auditResult = await runBenchmark({
-      name: "Audit: Persistent Logging",
-      iterations: 500,
-      warmupIterations: 50,
-      runs: 1,
+      name: "Audit Log Persistence",
+      iterations: 600,
+      warmupIterations: 80,
+      runs: 2,
       concurrency: 1,
       measureMemory: true,
       silent: true,
@@ -84,44 +83,48 @@ async function runSecurityAudit() {
         });
       },
     });
-    results.push({ ...auditResult, layer: "Security" });
+    results.push({ ...auditResult, shortLabel: "Audit", layer: "Security" });
 
-    // 3. Password Hashing (Argon2id) - Heavy Computation
+    // 3. Password Hashing
     console.log("   → Measuring Password Hashing (Argon2id)...");
     const hashResult = await runBenchmark({
-      name: "Crypto: Argon2id Hashing",
-      iterations: 10, // Very slow, keep low
+      name: "Argon2id Password Hashing",
+      iterations: 8, // Very CPU intensive
       warmupIterations: 2,
       runs: 1,
       concurrency: 1,
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        await hashPassword("SuperSecretPassword123!");
+        await hashPassword("SuperSecretPassword123!@#");
       },
     });
-    results.push({ ...hashResult, layer: "Crypto" });
+    results.push({ ...hashResult, shortLabel: "Hashing", layer: "Crypto" });
 
     printTruthTable({
-      title: "SVELTYCMS  —  SECURITY INFRASTRUCTURE AUDIT",
-      subtitle: `WAF • Auditing • Cryptography • ${getDbType().toUpperCase()}`,
+      title: "SVELTYCMS — SECURITY INFRASTRUCTURE AUDIT",
+      shortLabel: "Security",
+      subtitle: `WAF • Audit • Cryptography • ${getDbType().toUpperCase()}`,
       results,
     });
 
     printSummaryTable([
-      { key: "WAF Analysis Latency", val: wafResult.avgMs, unit: "ms" },
-      { key: "Audit Log Persistence", val: auditResult.avgMs, unit: "ms" },
-      { key: "Password Hashing (Argon2id)", val: hashResult.avgMs, unit: "ms" },
-      {
-        key: "Security Overhead Rating",
-        val: wafResult.avgMs < 1 ? "EXCELLENT" : "GOOD",
-        unit: "",
-      },
+      { key: "WAF Analysis", val: wafResult.avgMs, unit: "ms" },
+      { key: "Audit Logging", val: auditResult.avgMs, unit: "ms" },
+      { key: "Password Hashing", val: hashResult.avgMs, unit: "ms" },
+      { key: "Security Overhead Rating", val: wafResult.avgMs < 1 ? "EXCELLENT" : "GOOD", unit: "" },
     ]);
 
     for (const r of results) exportResult(r);
+
+  } catch (err: any) {
+    logger.error(`Security benchmark failed: ${err.message}`);
+    console.error(err);
   } finally {
-    logger.level = originalLogLevel;
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
   }
 
   console.log("\n✅ Security audit completed.");

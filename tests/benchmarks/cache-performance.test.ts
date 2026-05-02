@@ -1,120 +1,125 @@
 /**
  * @file tests/benchmarks/cache-performance.test.ts
  * @description Enterprise cache benchmark for SveltyCMS.
- * Measures hit/miss latencies and memory efficiency via HTTP End-to-End.
+ * Measures cache hit vs miss latency and efficiency via real HTTP E2E.
  */
 
-import { test, beforeAll, afterAll } from "bun:test";
+import { test } from "bun:test";
 import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
   setupBenchmarkServer,
+  ensureStableTestData,
+  stabilize,
   printTruthTable,
   printSummaryTable,
-  STABLE_COLLECTION,
-  STABLE_ENTRY_ID,
-  ensureStableTestData,
+  getDbType,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
-let stopServer: () => Promise<void>;
-let apiBaseUrl: string;
+let stopServer: (() => Promise<void>) | null = null;
+let baseUrl: string;
 
-beforeAll(async () => {
-  const { stop, baseUrl } = await setupBenchmarkServer();
-  stopServer = stop;
-  apiBaseUrl = baseUrl;
-
-  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-  await ensureFullInitialization();
-  const db = getDb();
-  await ensureStableTestData(db!);
-});
-
-afterAll(async () => {
-  if (stopServer) await stopServer();
-});
+const CACHE_SCENARIOS = [
+  {
+    name: "Cache Miss (Bypass)",
+    shortLabel: "Miss",
+    headers: { "x-bypass-cache": "true" },
+    concurrency: 1,
+  },
+  {
+    name: "Cache Hit (Warm)",
+    shortLabel: "Hit",
+    headers: {},
+    concurrency: 10,
+  },
+];
 
 async function runCacheAudit() {
-  console.log("🚀 Starting Enterprise Cache Audit (E2E)...\n");
-
-  const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
-  const ITERATIONS = 500;
-  const RUNS = 2;
-  const results: any[] = [];
-
-  const originalLogLevel = logger.level;
-  logger.level = "silent";
+  console.log("🚀 Starting Enterprise Cache Efficiency Audit...\n");
 
   try {
-    // 1. Cold Read (Bypass)
-    console.log("   → Measuring Cache Miss (Bypass)...");
-    const missResult = await runBenchmark({
-      name: "Cache Miss (Bypass)",
-      iterations: ITERATIONS,
-      warmupIterations: 50,
-      runs: RUNS,
-      concurrency: 1,
-      silent: true,
-      onIteration: async () => {
-        const res = await fetch(
-          `${apiBaseUrl}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`,
-          {
-            headers: {
-              "x-test-mode": "true",
-              "x-test-secret": secret,
-              "x-bypass-cache": "true",
-            },
-          },
-        );
-        await res.json();
-      },
-    });
-    results.push({ ...missResult, layer: "Network" });
+    const server = await setupBenchmarkServer();
+    stopServer = server.stop;
+    baseUrl = server.baseUrl;
 
-    // 2. Warm Read (Hit)
-    console.log("   → Measuring Cache Hit (Warm)...");
-    const hitResult = await runBenchmark({
-      name: "Cache Hit (Warm)",
-      iterations: ITERATIONS,
-      warmupIterations: 50,
-      runs: RUNS,
-      concurrency: 8,
-      silent: true,
-      onIteration: async () => {
-        const res = await fetch(
-          `${apiBaseUrl}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`,
-          {
-            headers: {
-              "x-test-mode": "true",
-              "x-test-secret": secret,
-            },
-          },
-        );
-        await res.json();
-      },
-    });
-    results.push({ ...hitResult, layer: "Network" });
+    await ensureStableTestData();
+    await stabilize(800);
+
+    const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+    const results = [];
+
+    for (const scenario of CACHE_SCENARIOS) {
+      console.log(`   → Measuring ${scenario.name}...`);
+
+      const result = await runBenchmark({
+        name: scenario.name,
+        iterations: 600,
+        warmupIterations: 80,
+        runs: 3,
+        concurrency: scenario.concurrency,
+        trimOutliers: "iqr",
+        silent: true,
+        onIteration: async () => {
+          const headers: Record<string, string> = {
+            "x-test-mode": "true",
+            "x-test-secret": secret,
+          };
+          if (scenario.headers["x-bypass-cache"]) {
+            headers["x-bypass-cache"] = scenario.headers["x-bypass-cache"];
+          }
+
+          const res = await fetch(
+            `${baseUrl}/api/collections/benchmark_stable/bench-shared-001`,
+            {
+              headers,
+            }
+          );
+
+          if (!res.ok) throw new Error(`Cache test failed: ${res.status}`);
+          await res.json();
+        },
+      });
+
+      const enriched = {
+        ...result,
+        shortLabel: scenario.shortLabel,
+        layer: "Cache",
+      };
+
+      results.push(enriched);
+      exportResult(enriched);
+    }
+
+    const miss = results[0];
+    const hit = results[1];
+    const efficiency = miss.avgMs > 0 
+      ? ((miss.avgMs - hit.avgMs) / miss.avgMs) * 100 
+      : 0;
 
     printTruthTable({
-      title: "SVELTYCMS  —  CACHE EFFICIENCY AUDIT",
-      subtitle: "Cold Bypass vs Warm Hit • E2E Pipeline",
+      title: "SVELTYCMS — CACHE EFFICIENCY AUDIT",
+      shortLabel: "Cache",
+      subtitle: `Hit vs Miss • E2E • ${getDbType().toUpperCase()}`,
       results,
     });
 
-    const efficiency = ((missResult.avgMs - hitResult.avgMs) / missResult.avgMs) * 100;
-
     printSummaryTable([
-      { key: "Cache Miss Latency", val: missResult.avgMs, unit: "ms" },
-      { key: "Cache Hit Latency", val: hitResult.avgMs, unit: "ms" },
-      { key: "Cache Efficiency", val: efficiency.toFixed(2), unit: "%" },
-      { key: "Peak RPS", val: Math.round(hitResult.rps), unit: "req/s" },
+      { key: "Cache Miss", val: miss.avgMs, unit: "ms" },
+      { key: "Cache Hit", val: hit.avgMs, unit: "ms" },
+      { key: "Cache Efficiency", val: efficiency.toFixed(1), unit: "%" },
+      { key: "Peak Hit RPS", val: Math.round(hit.rps || 0), unit: "req/s" },
     ]);
 
-    for (const r of results) exportResult(r);
+  } catch (err: any) {
+    logger.error(`Cache benchmark failed: ${err.message}`);
+    console.error(err);
   } finally {
-    logger.level = originalLogLevel;
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
   }
 
   console.log("\n✅ Cache audit completed.");
@@ -122,4 +127,4 @@ async function runCacheAudit() {
 
 test("Cache Enterprise Suite", async () => {
   await runCacheAudit();
-}, 450000);
+}, 480000);

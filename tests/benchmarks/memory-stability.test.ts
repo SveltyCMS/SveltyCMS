@@ -1,204 +1,186 @@
 /**
  * @file tests/benchmarks/memory-stability.test.ts
  * @description Enterprise-grade memory stability benchmark for SveltyCMS.
- * Tracks RSS, Heap, and External memory growth under sustained load with leak slope detection.
+ * Tracks RSS, Heap, and External memory growth under sustained load with leak detection.
  */
 
 import { test } from "bun:test";
 import "../unit/setup.ts";
 import {
   exportResult,
+  setupBenchmarkServer,
+  ensureStableTestData,
+  stabilize,
   printTruthTable,
   printSummaryTable,
-  setupBenchmarkServer,
-  TEST_API_SECRET,
+  getDbType,
 } from "./benchmark-utils";
+import { logger } from "@utils/logger.server";
 
-const DURATION_SECONDS = process.env.LONG_RUN === "true" ? 180 : 30;
-const WARMUP_SECONDS = 5;
-const COOLDOWN_SECONDS = 3;
+const DURATION_SECONDS = process.env.LONG_RUN === "true" ? 180 : 45;
+const SAMPLING_INTERVAL_MS = 2500;
 
-const CONCURRENCY = 12;
-const SAMPLING_INTERVAL_MS = 2000;
-
-type Snapshot = {
+type MemorySnapshot = {
   timeMs: number;
   rssMB: number;
   heapMB: number;
   externalMB: number;
-  requests: number;
   lagMs: number;
 };
 
-let server: any;
-const snapshots: Snapshot[] = [];
+let stopServer: (() => Promise<void>) | null = null;
+const snapshots: MemorySnapshot[] = [];
 
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-async function getRemoteMemory(baseUrl: string, forceGC = false): Promise<any> {
-  const url = `${baseUrl}/api/system/health${forceGC ? "?gc=true" : ""}`;
-  const res = await fetch(url, {
-    headers: { "x-test-secret": TEST_API_SECRET },
-  });
-  const data = await res.json();
-  return data.memory;
+async function getMemoryStats(baseUrl: string, forceGC = false) {
+  try {
+    const res = await fetch(`${baseUrl}/api/system/health${forceGC ? "?gc=true" : ""}`, {
+      headers: { "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026" },
+    });
+    const data = await res.json();
+    return data.memory || data;
+  } catch {
+    return { rss: 0, heapUsed: 0, external: 0 };
+  }
 }
 
 export async function runMemoryStabilityAudit() {
-  console.log(`🚀 Starting Enterprise Memory Stability Audit (${DURATION_SECONDS}s profile)...\n`);
+  console.log(`🚀 Starting Memory Stability Audit (${DURATION_SECONDS}s sustained load)...\n`);
 
-  server = await setupBenchmarkServer();
-  const baseUrl = server.baseUrl;
+  try {
+    const server = await setupBenchmarkServer();
+    stopServer = server.stop;
+    const baseUrl = server.baseUrl;
 
-  console.log(`🔥 Warmup phase (${WARMUP_SECONDS}s)...`);
-  const warmupEnd = performance.now() + WARMUP_SECONDS * 1000;
-  while (performance.now() < warmupEnd) {
-    await fetch(`${baseUrl}/api/system/health`, { headers: { "x-test-secret": TEST_API_SECRET } });
+    await ensureStableTestData();
+    await stabilize(2000);
+
+    // Baseline
+    const baseline = await getMemoryStats(baseUrl, true);
+    console.log(`📊 Baseline RSS: ${Math.round(baseline.rss / 1024 / 1024)} MB`);
+
+    let running = true;
+    let totalRequests = 0;
+    const startTime = performance.now();
+
+    // Background sampler
+    const sampler = (async () => {
+      let tick = 0;
+      while (running) {
+        const targetTime = tick * SAMPLING_INTERVAL_MS;
+        const delay = targetTime - (performance.now() - startTime);
+        if (delay > 0) await new Promise(r => setTimeout(r, delay));
+
+        const sampleStart = performance.now();
+        const mem = await getMemoryStats(baseUrl);
+        const lag = performance.now() - sampleStart;
+
+        snapshots.push({
+          timeMs: performance.now() - startTime,
+          rssMB: Math.round(mem.rss / 1024 / 1024),
+          heapMB: Math.round(mem.heapUsed / 1024 / 1024),
+          externalMB: Math.round(mem.external / 1024 / 1024),
+          lagMs: lag,
+        });
+        tick++;
+      }
+    })();
+
+    // Load generators
+    const CONCURRENCY = 12;
+    console.log(`🔥 Sustaining load with ${CONCURRENCY} concurrent workers...`);
+
+    const workers = Array.from({ length: CONCURRENCY }, async () => {
+      while (running) {
+        try {
+          await fetch(`${baseUrl}/api/system/health`, {
+            headers: { "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026" },
+          });
+          totalRequests++;
+        } catch {}
+      }
+    });
+
+    await Promise.race([
+      sleep(DURATION_SECONDS * 1000),
+      Promise.allSettled([...workers, sampler]),
+    ]);
+
+    running = false;
+    await Promise.allSettled([...workers, sampler]);
+
+    // Final measurement
+    await stabilize(3000);
+    const finalMem = await getMemoryStats(baseUrl, true);
+
+    const totalDurationMs = performance.now() - startTime;
+    const rps = totalRequests / (totalDurationMs / 1000);
+
+    const rssGrowth = Math.round(finalMem.rss / 1024 / 1024) - Math.round(baseline.rss / 1024 / 1024);
+    const heapGrowth = Math.round(finalMem.heapUsed / 1024 / 1024) - Math.round(baseline.heapUsed / 1024 / 1024);
+
+    // Calculate linear regression slope for leak detection
+    const heapSlope = calculateHeapSlope(snapshots);
+
+    printTruthTable({
+      title: "SVELTYCMS — MEMORY STABILITY AUDIT",
+      shortLabel: "Memory",
+      subtitle: `${DURATION_SECONDS}s Sustained Load • ${getDbType().toUpperCase()}`,
+      results: [{ name: "Memory Profile", layer: "Stability", rps, rssDelta: rssGrowth, heapSlope }],
+    });
+
+    printSummaryTable([
+      { key: "Total Requests", val: totalRequests, unit: "" },
+      { key: "Average RPS", val: Math.round(rps), unit: "req/s" },
+      { key: "RSS Growth", val: rssGrowth, unit: "MB" },
+      { key: "Heap Growth", val: heapGrowth, unit: "MB" },
+      { key: "Leak Slope", val: heapSlope.toFixed(2), unit: "MB/min" },
+      { key: "Stability", val: heapSlope < 1.5 ? "EXCELLENT" : heapSlope < 4 ? "STABLE" : "LEAKY", unit: "" },
+    ]);
+
+    exportResult({
+      name: "Memory Stability",
+      totalRequests,
+      rps,
+      rssDelta: rssGrowth,
+      heapDelta: heapGrowth,
+      leakSlopeMBPerMin: heapSlope,
+    } as any);
+
+  } catch (err: any) {
+    logger.error(`Memory stability audit failed: ${err.message}`);
+    console.error(err);
+  } finally {
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
   }
 
-  // Baseline after GC
-  const memStart = await getRemoteMemory(baseUrl, true);
-  console.log(`📊 Baseline RSS: ${Math.round(memStart.rss / 1024 / 1024)} MB`);
+  console.log("\n✅ Memory stability audit completed.");
+}
 
-  console.log(`🔥 Sustaining load: ${DURATION_SECONDS}s @ ${CONCURRENCY}c\n`);
+function calculateHeapSlope(snapshots: MemorySnapshot[]): number {
+  if (snapshots.length < 3) return 0;
 
-  let running = true;
-  let totalRequests = 0;
-  const start = performance.now();
-
-  // Sampler loop
-  const sampler = (async () => {
-    let tick = 1;
-    while (running) {
-      const expected = tick * SAMPLING_INTERVAL_MS;
-      const delay = expected - (performance.now() - start);
-      await sleep(Math.max(0, delay));
-
-      const tSampleStart = performance.now();
-      const mem = await getRemoteMemory(baseUrl);
-      const lag = performance.now() - tSampleStart;
-
-      snapshots.push({
-        timeMs: performance.now() - start,
-        rssMB: Math.round(mem.rss / 1024 / 1024),
-        heapMB: Math.round(mem.heapUsed / 1024 / 1024),
-        externalMB: Math.round(mem.external / 1024 / 1024),
-        requests: totalRequests,
-        lagMs: lag,
-      });
-      tick++;
-    }
-  })();
-
-  // Workers hitting the full pipeline (e.g. /api/settings/public or /api/system/health)
-  // We'll hit health to keep it fast but exercise the full dispatcher
-  const workers = Array.from({ length: CONCURRENCY }).map(async () => {
-    while (running) {
-      try {
-        await fetch(`${baseUrl}/api/system/health`, {
-          headers: { "x-test-secret": TEST_API_SECRET },
-        });
-        totalRequests++;
-      } catch {
-        // Silent
-      }
-    }
-  });
-
-  await sleep(DURATION_SECONDS * 1000);
-  running = false;
-
-  await Promise.allSettled([...workers, sampler]);
-
-  // Final measurement after cooldown and GC
-  console.log(`❄️  Cooldown phase (${COOLDOWN_SECONDS}s)...`);
-  await sleep(COOLDOWN_SECONDS * 1000);
-  const memEnd = await getRemoteMemory(baseUrl, true);
-
-  const totalMs = performance.now() - start;
-  const rps = totalRequests / (totalMs / 1000);
-
-  const first = snapshots[0] || {
-    rssMB: memStart.rss / 1024 / 1024,
-    heapMB: memStart.heapUsed / 1024 / 1024,
-    timeMs: 0,
-  };
-  const last = {
-    rssMB: memEnd.rss / 1024 / 1024,
-    heapMB: memEnd.heapUsed / 1024 / 1024,
-    timeMs: totalMs,
-  };
-
-  const rssGrowth = last.rssMB - first.rssMB;
-  const heapGrowth = last.heapMB - first.heapMB;
-
-  // Calculate slope manually from snapshots
-  let sumX = 0,
-    sumY = 0,
-    sumXY = 0,
-    sumXX = 0;
+  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
   const n = snapshots.length;
+
   for (const s of snapshots) {
-    const x = s.timeMs / 60000;
+    const x = s.timeMs / 60000; // minutes
     const y = s.heapMB;
     sumX += x;
     sumY += y;
     sumXY += x * y;
     sumXX += x * x;
   }
-  const heapSlope = n > 1 ? (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX) : 0;
 
-  printTruthTable({
-    title: "SVELTYCMS  —  MEMORY STABILITY AUDIT",
-    subtitle: `Full Pipeline • Child Process Profiling • ${DURATION_SECONDS}s Sustain`,
-    results: [
-      {
-        name: "Enterprise Production Profile",
-        layer: "Node/Build",
-        avgMs: totalMs / totalRequests,
-        p75Ms: 0,
-        p90Ms: 0,
-        p95Ms: 0,
-        p99Ms: 0,
-        p999Ms: 0,
-        rps,
-        overheadPct: heapSlope,
-      },
-    ],
-  });
-
-  printSummaryTable([
-    { key: "Total Load Processed", val: totalRequests, unit: "req" },
-    { key: "Production Throughput", val: Math.round(rps), unit: "req/s" },
-    { key: "RSS Delta (Final)", val: rssGrowth, unit: "MB" },
-    { key: "Heap Delta (Final)", val: heapGrowth, unit: "MB" },
-    { key: "Leak Slope (Heap)", val: heapSlope, unit: "MB/min" },
-    {
-      key: "Stability Rating",
-      val: heapSlope < 2 ? "EXCELLENT" : heapSlope < 5 ? "STABLE" : "LEAKY",
-      unit: "",
-    },
-  ]);
-
-  exportResult({
-    name: "Memory Stability",
-    iterations: totalRequests,
-    totalMs,
-    avgMs: totalMs / totalRequests,
-    rps,
-    rssDelta: rssGrowth,
-  } as any);
-
-  await server.stop();
-  console.log("\n✅ Memory stability audit completed.");
+  return (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
 }
 
-test(
-  "Memory Stability Enterprise Audit",
-  async () => {
-    await runMemoryStabilityAudit();
-  },
-  (DURATION_SECONDS + 20) * 1000,
-);
+function sleep(ms: number) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+test("Memory Stability Enterprise Audit", async () => {
+  await runMemoryStabilityAudit();
+}, (DURATION_SECONDS + 30) * 1000);

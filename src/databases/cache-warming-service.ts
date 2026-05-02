@@ -50,13 +50,19 @@ export class CacheWarmingService {
         }
       }
 
-      // 3. Warm Hot Redirects (High-performance SEO Suite)
+      // 3. JIT Predictive Redirect Caching (Top 100)
       if (db?.crud?.find) {
-        const redirects = await db.crud.find("redirects", {}, { limit: 100 });
-        if (redirects.success && redirects.data) {
-          for (const r of redirects.data) {
-            await cacheService.set(`redirect:${r.from}`, r, 3600, r.tenantId, CacheCategory.API);
+        try {
+          const redirects = await db.crud.find("redirects", {}, { limit: 100 });
+          if (redirects.success && redirects.data) {
+            for (const r of redirects.data) {
+              await cacheService.set(`redirect:${r.from}`, r, 3600, r.tenantId, CacheCategory.API);
+            }
           }
+        } catch (err: any) {
+          logger.debug(
+            `Skipping redirect cache warming (collection may not exist yet): ${err.message}`,
+          );
         }
       }
 

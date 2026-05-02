@@ -160,6 +160,10 @@ export function convertISOToDates<T extends Record<string, unknown>>(data: T): T
     "appliedAt",
     "fetchedAt",
     "deletedAt",
+    "lastHit",
+    "last2FAVerification",
+    "last2FA",
+    "lastUpdated",
   ];
 
   const jsonFields = [

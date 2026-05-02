@@ -64,7 +64,6 @@ if (typeof (globalThis as any).__SVELTY_NODE_ID__ === "undefined") {
 import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
 import { handleCompression } from "./hooks/handle-compression";
 import { handleSecurity } from "./hooks/handle-security";
-import { handleSetup } from "./hooks/handle-setup";
 import { handleUserPreferences } from "./hooks/handle-user-preferences";
 import { handleAuthentication } from "./hooks/handle-authentication";
 import { handleAuthorization } from "./hooks/handle-authorization";
@@ -80,9 +79,34 @@ import { isRedirect } from "@sveltejs/kit";
 import { handleApiError } from "@utils/error-handling";
 import { handleRedirects } from "./hooks/handle-redirects";
 
+// --- Global Error Handling ---
+if (typeof process !== "undefined") {
+  process.on("unhandledRejection", (reason, _promise) => {
+    logger.error("UNHANDLED REJECTION:", {
+      reason: reason instanceof Error ? { message: reason.message, stack: reason.stack } : reason,
+    });
+  });
+
+  process.on("uncaughtException", (error) => {
+    logger.error("UNCAUGHT EXCEPTION:", {
+      message: error.message,
+      stack: error.stack,
+    });
+    // Give logger time to flush before exiting
+    setTimeout(() => process.exit(1), 500);
+  });
+}
+
 // --- Server Startup Logic ---
 if (!building) {
-  import("@src/databases/db");
+  const { getDbInitPromise } = await import("@src/databases/db");
+
+  // In Benchmark mode, we MUST await initialization to avoid race conditions on first requests
+  if (process.env.BENCHMARK === "true") {
+    await getDbInitPromise().catch((err) =>
+      logger.error("Benchmark early init failed (non-fatal):", err),
+    );
+  }
 
   // ✨ NEW: Smart initialization logic that respects the system state machine
   // This ensures setup-wizard stays lean and non-critical services only start when needed.
@@ -111,8 +135,10 @@ if (!building) {
         watchdog.start();
 
         // Start Content Watcher (dev only)
-        const { startContentWatcher } = await import("@src/content/content-watcher.server");
-        startContentWatcher();
+        if (dev) {
+          const { startContentWatcher } = await import("@src/content/content-watcher.server");
+          startContentWatcher();
+        }
 
         const globalWithTelemetry = globalThis as typeof globalThis & {
           __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
@@ -180,11 +206,10 @@ const middleware: Handle[] = [
   handleTestIsolation, // ✨ CI: Tenant Isolation & Test Bypass
   handleStaticAssetCaching, // ✨ PERFORMANCE: Global Asset Caching
   handleSecurity, // ✨ 1. PROTECTION (Firewall, Rate Limit, Bot Detection)
-  handleRedirects, // ✨ 2. SEO (Manual & Auto Redirects) - Must be before Turbo for Test Bypass support
-  handleTurboPipeline, // ✨ 3. FAST-PATH (State Gate, Setup Redirect, Test Bypass)
+  handleTurboPipeline, // ✨ 2. FAST-PATH (State Gate, Setup Redirect, Test Bypass)
+  handleRedirects, // ✨ 3. SEO (Manual & Auto Redirects)
   handleCompression, // ✨ 4. OPTIMIZATION (Dynamic Content)
-  handleSetup, // ✨ 5. SETUP (Setup Wizard runs only when DB is connected and system is ready)
-  handleUserPreferences, // ✨ 6. USER PREFERENCES (User Preferences)
+  handleUserPreferences, // ✨ 5. USER PREFERENCES (User Preferences)
   handleAuthentication, // ✨ 7. AUTHENTICATION (Authentication)
   handleAuthorization, // ✨ 8. AUTHORIZATION (Authorization)
   handleLocalSdk, // ✨ 9. LOCAL SDK (Local SDK)

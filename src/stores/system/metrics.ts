@@ -11,7 +11,8 @@
  * - Record a specific benchmark (e.g. for a setup phase)
  */
 
-import { browser } from "$app/environment";
+// Safe environment detection for SvelteKit and standalone/benchmark environments
+const browser = typeof window !== "undefined";
 import { logger } from "@utils/logger";
 import type { Writable } from "svelte/store";
 import type { AnomalyDetection, ServiceHealth, ServiceName, SystemStateStore } from "./types";

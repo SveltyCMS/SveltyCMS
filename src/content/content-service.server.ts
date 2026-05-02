@@ -56,10 +56,10 @@ function enrichSchemaWithMetadata(
 }
 
 /**
- * 🚀 ULTRA ELITE: Ensures all physical database models (tables/collections) exist.
+ * 🚀 Ensures all physical database models (tables/collections) exist.
  */
 async function ensurePhysicalModels(schemas: Schema[], dbAdapter: IDBAdapter) {
-  // Check if bulk exists (Elite optimization)
+  // Check if bulk exists
   const collAdapter = dbAdapter.collection as any;
   if (collAdapter.createModelsBulk) {
     await collAdapter.createModelsBulk(schemas);
@@ -199,9 +199,10 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
 }
 
 /**
- * 🚀 ULTRA ELITE: Fast-path for benchmarks.
+ * 🚀 Fast-path for benchmarks.
  */
 export async function refreshCollectionsCache(tenantId?: string | null, db?: IDBAdapter) {
+  markFileDirty();
   const schemas = await scanCompiledCollections();
   const nodes = schemas.map((schema) => ({
     ...schema,

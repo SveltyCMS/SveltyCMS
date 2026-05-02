@@ -23,6 +23,8 @@ try {
 // Fallback for non-Vite environments or production preview where glob might be stripped
 if (Object.keys(coreModulesRaw).length === 0 && typeof process !== "undefined") {
   try {
+    const { createRequire } = await import("node:module");
+    const require = createRequire(import.meta.url);
     const fs = require("node:fs");
     const path = require("node:path");
 

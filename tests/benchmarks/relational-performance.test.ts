@@ -10,113 +10,129 @@ import {
   runBenchmark,
   exportResult,
   setupBenchmarkServer,
+  ensureStableTestData,
+  stabilize,
   printTruthTable,
   printSummaryTable,
-  TEST_API_SECRET,
   getDbType,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
-let server: any;
+let stopServer: (() => Promise<void>) | null = null;
 
 async function runRelationalAudit() {
   console.log("🚀 Starting Enterprise Relational Audit...\n");
 
-  const originalLogLevel = logger.level;
-  logger.level = "silent";
-
   try {
-    // 1. Setup Server & Data
-    server = await setupBenchmarkServer();
+    const server = await setupBenchmarkServer();
+    stopServer = server.stop;
     const baseUrl = server.baseUrl;
 
-    console.log("📊 Seeding relational test data (Users + Audit Logs)...");
-    const { getDb } = await import("@src/databases/db");
-    const { ensureFullInitialization } = await import("@src/databases/db");
-    await ensureFullInitialization();
-    const db = getDb();
-    if (!db) throw new Error("Database not initialized");
+    await ensureStableTestData();
+    await stabilize(1500);
 
-    // Seed some users if they don't exist
-    const userIds = ["rel-user-1", "rel-user-2", "rel-user-3"];
-    for (const id of userIds) {
-      await db.crud
-        .insert(
-          "system_users",
-          {
-            _id: id as any,
-            username: id,
-            email: `${id}@test.com`,
-            role: "admin",
-            tenantId: "global" as any,
-          } as any,
-          "global" as any,
-        )
-        .catch(() => {});
+    const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
-      // Seed some audit logs for each user
-      const logs = Array.from({ length: 50 }).map((_, i) => ({
-        _id: `log-${id}-${i}` as any,
-        user: id,
-        action: "test.action",
-        collection: "benchmark",
-        timestamp: new Date().toISOString(),
-        tenantId: "global" as any,
-      }));
-      await db.crud.insertMany("system_audit_logs", logs as any[], "global" as any).catch(() => {});
-    }
-
-    const RUNS = 2;
-    const ITERATIONS = 300;
-    const WARMUP = 50;
-
-    const querySimple = {
+    // Simple shallow query
+    const simpleQuery = {
       query: `{
-        entries(collection: "system_users", limit: 10) {
+        allCollections {
           _id
-          username
+          name
         }
       }`,
     };
 
-    // 2. Measure Simple List
-    const simpleStats = await runBenchmark({
-      name: "Shallow List (Users)",
-      iterations: ITERATIONS,
-      warmupIterations: WARMUP,
-      runs: RUNS,
-      concurrency: 4,
+    // Deeper relational query
+    const deepQuery = {
+      query: `{
+        BenchmarkStable(limit: 5) {
+          _id
+          title
+          author {
+            _id
+            name
+          }
+        }
+      }`,
+    };
+
+    console.log("   → Measuring Shallow Relational Query...");
+    const shallow = await runBenchmark({
+      name: "Shallow Relational Query",
+      iterations: 600,
+      warmupIterations: 80,
+      runs: 3,
+      concurrency: 6,
+      trimOutliers: "iqr",
+      silent: true,
       onIteration: async () => {
-        const res = await fetch(baseUrl + "/api/graphql", {
+        const res = await fetch(`${baseUrl}/api/graphql`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-test-secret": TEST_API_SECRET,
+            "x-test-mode": "true",
+            "x-test-secret": secret,
           },
-          body: JSON.stringify(querySimple),
+          body: JSON.stringify(simpleQuery),
         });
-        if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         await res.json();
       },
+    });
+
+    console.log("   → Measuring Deep Relational Query...");
+    const deep = await runBenchmark({
+      name: "Deep Relational Query",
+      iterations: 400,
+      warmupIterations: 60,
+      runs: 2,
+      concurrency: 4,
+      trimOutliers: "iqr",
       silent: true,
+      onIteration: async () => {
+        const res = await fetch(`${baseUrl}/api/graphql`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-test-mode": "true",
+            "x-test-secret": secret,
+          },
+          body: JSON.stringify(deepQuery),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        await res.json();
+      },
     });
 
     printTruthTable({
-      title: "SVELTYCMS  —  RELATIONAL RESOLVER AUDIT",
-      subtitle: `GraphQL Join Performance • ${getDbType().toUpperCase()} • Full Pipeline`,
-      results: [{ ...simpleStats, layer: "Shallow", overheadPct: 0 }],
+      title: "SVELTYCMS — RELATIONAL RESOLVER AUDIT",
+      shortLabel: "Relational",
+      subtitle: `GraphQL Joins • Deep Population • ${getDbType().toUpperCase()}`,
+      results: [
+        { ...shallow, shortLabel: "Shallow", layer: "Relational" },
+        { ...deep, shortLabel: "Deep", layer: "Relational" },
+      ],
     });
 
     printSummaryTable([
-      { key: "User List Latency (Avg)", val: simpleStats.avgMs, unit: "ms" },
-      { key: "User List Latency (p95)", val: simpleStats.p95Ms, unit: "ms" },
-      { key: "Throughput", val: Math.round(simpleStats.rps), unit: "req/s" },
+      { key: "Shallow Query Latency", val: shallow.avgMs, unit: "ms" },
+      { key: "Deep Query Latency", val: deep.avgMs, unit: "ms" },
+      { key: "Peak Throughput", val: Math.round(shallow.rps || 0), unit: "req/s" },
+      { key: "Rating", val: deep.avgMs < 15 ? "EXCELLENT" : "GOOD", unit: "" },
     ]);
 
-    exportResult(simpleStats);
-    await server.stop();
+    exportResult(shallow);
+    exportResult(deep);
+
+  } catch (err: any) {
+    logger.error(`Relational benchmark failed: ${err.message}`);
+    console.error(err);
   } finally {
-    logger.level = originalLogLevel;
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
   }
 
   console.log("\n✅ Relational audit completed.");

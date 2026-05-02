@@ -48,8 +48,7 @@ vi.mock("@api/collections/modify-request", () => ({
 }));
 
 // Import what we are testing
-import { collectionsResolvers } from "@src/routes/api/graphql/resolvers/collections";
-import { createCleanTypeName } from "@utils/utils";
+import { collectionsResolvers, createCleanTypeName } from "@src/routes/api/graphql/resolvers/collections";
 
 describe("GraphQL Multi-Tenancy Isolation", () => {
   beforeEach(() => {
@@ -74,7 +73,6 @@ describe("GraphQL Multi-Tenancy Isolation", () => {
       name: "TestCollection",
     });
     const resolverFn = resolvers.Query[cleanTypeName] as Function;
-
     expect(resolverFn).toBeDefined();
 
     // Attempt to query with a context that has a different tenantId

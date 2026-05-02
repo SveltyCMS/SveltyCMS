@@ -5,7 +5,7 @@
 
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
-import type { LocalCMS } from "../../cms";
+import type { LocalCMS } from "@src/services/local-cms";
 import { metricsService } from "@src/services/metrics-service";
 import { auditLogService } from "@src/services/audit-log-service";
 import { getSystemInfo } from "@utils/system-info.server";

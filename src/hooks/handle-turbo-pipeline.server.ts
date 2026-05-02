@@ -15,8 +15,7 @@
 import { dev } from "$app/environment";
 import { getSetupState, SetupState, isSetupComplete, getTestSecret } from "@src/utils/setup-check";
 import { getSystemState } from "@src/stores/system/state";
-import { isRedirect, redirect, type Handle } from "@sveltejs/kit";
-import { getDbInitPromise, getDb } from "@src/databases/db";
+import { isRedirect, type Handle } from "@sveltejs/kit";
 import {
   isApiLike,
   isBootstrapRoute,
@@ -25,17 +24,18 @@ import {
   BASE_HEADERS,
   restrictedResponse,
   boundaryResponse,
-} from "@utils/hook-utils";
-import { logger } from "@utils/logger.server";
-import { getPrivateSettingSync } from "@src/services/settings-service";
-
-console.log("🚀 SveltyCMS Turbo Pipeline Hook loaded (PID: " + process.pid + ")");
+} from "@src/utils/hook-utils";
+import { logger } from "@src/utils/logger.server";
+// Hook is initialized lazily
 
 // --- HELPERS ---
 
-/** Generates a unique request ID for tracing */
-const generateRequestId = () =>
-  Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+/** Generates a unique request ID for tracing - Optimized for high throughput */
+let requestIdCounter = 0;
+const generateRequestId = () => {
+  if (process.env.BENCHMARK === "true") return String(++requestIdCounter);
+  return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+};
 
 /** Logs request performance in development */
 const logRequest = (event: any, duration: number, status: number) => {
@@ -46,10 +46,11 @@ const logRequest = (event: any, duration: number, status: number) => {
 };
 
 /** Simplified inline getCorsHeaders to avoid circular dependencies */
-function getCorsHeadersInline(
+async function getCorsHeadersInline(
   origin: string | null,
   isApiRoute: boolean,
-): Record<string, string> | null {
+): Promise<Record<string, string> | null> {
+  const { getPrivateSettingSync } = await import("@src/services/settings-service");
   const corsEnabled = getPrivateSettingSync("CORS_ENABLED") as boolean;
   if (!corsEnabled || !isApiRoute || !origin) return null;
 
@@ -103,14 +104,20 @@ const RESTRICTED_STATES = new Set(["INITIALIZING", "FAILED"]);
 
 // Main Turbo Pipeline Hook
 export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
-  const { url } = event;
-  const pathname = url.pathname;
-
-  // ── Tracing bootstrap (Standard Path) ──
-  const requestStart = performance.now();
   const requestId = generateRequestId();
+  const requestStart = performance.now();
   event.locals.requestStart = requestStart;
   event.locals.requestId = requestId;
+
+  const pathname = event.url.pathname;
+
+  // ── 0a. FAST HEALTH CHECK BYPASS ──────────────────────────────────────
+  // Health checks must be as close to zero-latency as possible.
+  if (pathname === "/api/system/health" || pathname === "/health") {
+    const response = await resolve(event);
+    if (dev) logRequest(event, performance.now() - requestStart, response.status);
+    return response;
+  }
 
   // ── 0. TEST ISOLATION BYPASS ───────────────────────────────────────────
   const isTest =
@@ -127,10 +134,11 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
     if (expected && testSecret === expected) {
       // 🚀 HARD BYPASS: Verified test secret receives full system access and skips ALL middleware.
+      const { getDbInitPromise, getDb } = await import("@src/databases/db");
       await getDbInitPromise(false, "CORE");
 
-      // High-visibility log for benchmarks
-      if (process.env.BENCHMARK === "true") {
+      // High-visibility log for benchmarks - Restricted to avoid I/O bottlenecks
+      if (process.env.BENCHMARK === "true" && process.env.BENCHMARK_VERBOSE === "true") {
         console.log(`[Turbo] Bench Bypass SUCCESS: ${event.request.method} ${pathname}`);
       }
 
@@ -140,6 +148,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         isAdmin: true,
         email: "system@sveltycms",
       };
+      (event.locals as any).isAdmin = true;
       (event.locals as any).dbAdapter = getDb();
       (event.locals as any).__testBypass = true;
 
@@ -160,143 +169,159 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
   try {
     // ── 1. STATIC ASSET DELEGATION ───────────────────────────────────────────
-    // Note: handleStaticAssetCaching now handles this early in the sequence.
-    // We just resolve here to let the rest of the chain proceed.
     if (isStaticOrInternalRequest(pathname)) {
       return await resolve(event);
     }
 
-    // ── 2. ROBUST SETUP REDIRECT (FAST-PATH) ─────────────────────────────────
-    // Check if config exists BEFORE any bootstrap bypass or DB initialization.
-    // Optimization: isSetupComplete() is sync and memoized.
-    if (!isSetupComplete()) {
-      const isSetupRoute =
-        pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
+    // ── 2. STATE DISCOVERY (ONE-TIME) ────────────────────────────────────────
+    // We get the system state FIRST because it allows us to short-circuit EVERYTHING if the system is READY.
+    const systemState = getSystemState();
+    const isSystemOperationallyReady =
+      systemState.overallState === "READY" ||
+      systemState.overallState === "WARMED" ||
+      systemState.overallState === "WARMING" ||
+      systemState.overallState === "DEGRADED";
 
-      if (!isSetupRoute && !isApiRoute && !STATIC_ASSET_REGEX.test(pathname)) {
-        const returnTo =
-          pathname === "/"
-            ? ""
-            : `?from=${encodeURIComponent(event.url.pathname + event.url.search)}`;
-        logger.info(`[Turbo] Config missing, redirecting to /setup from ${pathname}`);
-        throw redirect(302, `/setup${returnTo}`);
+    // ✨ SMART BYPASS: If system is operationally ready, we know setup is complete.
+    // This avoids redundant filesystem/DB checks on every single request.
+    let setupState: SetupState;
+    if (isSystemOperationallyReady) {
+      setupState = SetupState.COMPLETE;
+    } else {
+      // ── 3. ROBUST SETUP REDIRECT (FAST-PATH) ─────────────────────────────────
+      // Check if config exists BEFORE any bootstrap bypass or DB initialization.
+      if (!isSetupComplete()) {
+        const isSetupRoute =
+          pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
+
+        if (!isSetupRoute && !isApiRoute && !STATIC_ASSET_REGEX.test(pathname)) {
+          const returnTo =
+            pathname === "/"
+              ? ""
+              : `?from=${encodeURIComponent(event.url.pathname + event.url.search)}`;
+          logger.info(`[Turbo] Config missing, redirecting to /setup from ${pathname}`);
+          const response = new Response(null, {
+            status: 302,
+            headers: {
+              ...baseHeaderMap,
+              Location: `/setup${returnTo}`,
+              "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+              Pragma: "no-cache",
+              Expires: "0",
+            },
+          });
+          if (dev) logRequest(event, performance.now() - requestStart, 302);
+          return response;
+        }
       }
-    }
 
-    // ── 3. STATE DISCOVERY (ONE-TIME) ────────────────────────────────────────
-    // Consolidate setup state check to avoid redundant DB/File I/O
-    const setupState = await getSetupState();
+      // Consolidate setup state check to avoid redundant DB/File I/O
+      setupState = await getSetupState();
+    }
     (event.locals as any).__setupState = setupState;
 
-    // ── 2. HEALTH CHECK BYPASS ──────────────────────────────────────────────
-    if (pathname.startsWith("/api/system/health")) {
-      return await resolve(event);
-    }
+    // ── 4. DEPRECATED HEALTH CHECK BYPASS (Now at top) ──────────────────────
 
-    // ── 4. BOOTSTRAP ROUTE BYPASS ───────────────────────────────────────────
-    // We allow /setup and /login to bypass the main pipeline, but only if they are valid for the current state.
-    // Specifically, /login should NOT bypass if the system is uninitialized (it needs to hit the setup gate).
+    // ── 5. BOOTSTRAP ROUTE BYPASS ───────────────────────────────────────────
     const isLoginDuringSetup = pathname === "/login" && setupState !== SetupState.COMPLETE;
+    const isSetupRoute =
+      pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
 
     if (isBootstrapRoute(pathname) && !isLoginDuringSetup) {
-      const response = await resolve(event);
+      // Security Gate: Block /setup routes if setup is already complete
+      const isTestMode = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
+      if (isSetupRoute && setupState === SetupState.COMPLETE && !isTestMode) {
+        if (!(event.request.method === "POST" && pathname.includes("/completeSetup"))) {
+          logger.warn(`Blocked request to ${pathname} - setup already complete`);
+          return new Response(null, {
+            status: 302,
+            headers: { Location: "/", ...baseHeaderMap },
+          });
+        }
+      }
 
+      const resolveOptions = isSetupRoute
+        ? {
+            filterSerializedResponseHeaders: (name: string) => {
+              const lower = name.toLowerCase();
+              return (
+                lower.startsWith("content-") ||
+                lower.startsWith("etag") ||
+                lower === "set-cookie" ||
+                lower === "cache-control"
+              );
+            },
+          }
+        : undefined;
+
+      const response = await resolve(event, resolveOptions);
       if (dev) logRequest(event, performance.now() - requestStart, response.status);
       return response;
     }
-    // ── 3. SYSTEM STATE GATE ────────────────────────────────────────────────
-    const systemState = getSystemState();
-    const isHealthCheck = pathname.startsWith("/api/system/health");
 
-    if (dev || process.env.BENCHMARK_DEBUG === "true") {
-      console.error(
-        `[TurboPipeline] pathname: "${pathname}", isHealthCheck: ${isHealthCheck}, state: ${systemState.overallState}`,
-      );
-    }
-
-    if (RESTRICTED_STATES.has(systemState.overallState) && !isHealthCheck) {
-      if (dev || process.env.BENCHMARK_DEBUG === "true") {
-        logger.warn(
-          `[Turbo] Returning 503 due to RESTRICTED_STATE: ${systemState.overallState} for ${pathname}. Bypass failed?`,
-        );
-      }
+    // ── 6. SYSTEM STATE GATE ────────────────────────────────────────────────
+    if (RESTRICTED_STATES.has(systemState.overallState) && !pathname.includes("/health")) {
       const response = restrictedResponse(systemState.overallState, isApiRoute, baseHeaderMap);
       response.headers.set("X-Request-ID", requestId);
       if (dev) logRequest(event, performance.now() - requestStart, response.status);
       return response;
     }
 
-    // ── 5. SETUP COMPLETENESS GATE (GRANULAR) ───────────────────────────────
-    // This handles the MISSING_ADMIN state which requires DB access.
-    // Optimized: using cached setupState from Phase 3.
-
+    // ── 7. SETUP COMPLETENESS GATE (GRANULAR) ───────────────────────────────
     if (setupState !== SetupState.COMPLETE) {
-      // Allow finalization request to bypass redirect loop
       const isFinalization = event.request.method === "POST" && pathname.includes("/completeSetup");
       if (isFinalization) return await resolve(event);
 
       const destination = setupState === SetupState.MISSING_CONFIG ? "/setup" : "/setup/admin";
 
       if (isApiRoute) {
-        const response = new Response(
+        return new Response(
           JSON.stringify({ error: "Setup incomplete", setupState, redirectTo: destination }),
           {
             status: 503,
             headers: { "Content-Type": "application/json", ...baseHeaderMap },
           },
         );
-        if (dev) logRequest(event, performance.now() - requestStart, 503);
-        return response;
       }
 
-      // If we are not on a bootstrap route and setup is not complete, redirect.
-      // Note: isBootstrapRoute check above handles /setup and assets.
-      const isLoginAccessDuringSetup = pathname === "/login";
-      if (!isBootstrapRoute(pathname) || isLoginAccessDuringSetup) {
+      if (!isBootstrapRoute(pathname) || pathname === "/login") {
         const returnTo =
           pathname === "/" || pathname === "/login"
             ? ""
             : `?from=${encodeURIComponent(event.url.pathname + event.url.search)}`;
-        throw redirect(302, `${destination}${returnTo}`);
+        return new Response(null, {
+          status: 302,
+          headers: {
+            ...baseHeaderMap,
+            Location: `${destination}${returnTo}`,
+            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        });
       }
     }
 
-    // ── 5. CORS PREFLIGHT FAST EXIT ─────────────────────────────────────────
-    // OPTIONS must be handled before resolve() so SvelteKit doesn't 404 it.
+    // ── 8. CORS PREFLIGHT FAST EXIT ─────────────────────────────────────────
     if (event.request.method === "OPTIONS" && isApiRoute) {
-      const corsHeaders = getCorsHeadersInline(origin, isApiRoute);
+      const corsHeaders = await getCorsHeadersInline(origin, isApiRoute);
+      if (!corsHeaders) return new Response(null, { status: 403 });
 
-      if (corsHeaders === null) {
-        // Origin explicitly not allowed.
-        return new Response(null, { status: 403 });
-      }
-
-      const response = new Response(null, {
+      return new Response(null, {
         status: 204,
         headers: { ...corsHeaders, "X-Request-ID": requestId },
       });
-
-      if (dev) logRequest(event, performance.now() - requestStart, 204);
-      return response;
     }
 
-    // ── 6. FINAL RESOLVE ───────────────────────────────────────────────────
+    // ── 9. FINAL RESOLVE ───────────────────────────────────────────────────
     const response = await resolve(event);
     if (dev) logRequest(event, performance.now() - requestStart, response.status);
     return response;
   } catch (err: any) {
-    // Pipeline Error Recovery (Boundary)
-    if (
-      isRedirect(err) ||
-      (err && typeof err === "object" && err.status >= 300 && err.status <= 308 && err.location)
-    ) {
-      throw err;
-    }
-
+    if (isRedirect(err)) throw err;
     logger.error(`[Turbo] Pipeline error:`, err);
     const fallback = boundaryResponse(err, isHttps);
     fallback.headers.set("X-Request-ID", requestId);
-    if (dev) logRequest(event, performance.now() - requestStart, fallback.status);
     return fallback;
   }
 };

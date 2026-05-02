@@ -96,7 +96,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1040.0",
+    "@aws-sdk/client-s3": "^3.1041.0",
     "@better-svelte-email/components": "^2.0.0",
     "@better-svelte-email/preview": "^2.0.0",
     "@better-svelte-email/server": "^2.0.0",
@@ -146,7 +146,7 @@
     "graphql-ws": "^6.0.8",
     "graphql-yoga": "^5.21.0",
     "iconify-icon": "^3.0.2",
-    "isomorphic-dompurify": "^3.11.0",
+    "isomorphic-dompurify": "^3.12.0",
     "json-render-svelte": "^0.6.1",
     "lru-cache": "^11.3.5",
     "mime-types": "^3.0.2",
@@ -168,7 +168,6 @@
     "yjs": "^13.6.30"
   },
   "devDependencies": {
-    "@better-svelte-email/server": "^2.0.0",
     "@iconify/svelte": "^5.2.1",
     "@playwright/test": "^1.59.1",
     "@semantic-release/changelog": "^6.0.3",
@@ -178,7 +177,7 @@
     "@semantic-release/npm": "^13.1.5",
     "@semantic-release/release-notes-generator": "^14.1.0",
     "@sveltejs/adapter-node": "^5.5.4",
-    "@sveltejs/kit": "^2.58.0",
+    "@sveltejs/kit": "^2.59.0",
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@sveltejs/vite-plugin-svelte-inspector": "^5.0.2",
     "@tailwindcss/vite": "^4.2.4",
@@ -198,7 +197,7 @@
     "autoprefixer": "^10.5.0",
     "concurrently": "^9.2.1",
     "drizzle-kit": "^0.31.10",
-    "globals": "^17.5.0",
+    "globals": "^17.6.0",
     "mysql2": "^3.16.1",
     "playwright": "^1.59.1",
     "postgres": "^3.4.8",

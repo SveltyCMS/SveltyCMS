@@ -113,17 +113,33 @@ export async function ensureFullInitialization(config?: any): Promise<any | null
       // 5. Background Tasks (Fire-and-forget, exactly once)
       if (!_backgroundTasksStarted) {
         _backgroundTasksStarted = true;
-        void dbInit.runBackgroundTasks(adapter);
+        // 🛡️ SAFETY: Catch errors in background tasks to prevent unhandledRejection
+        dbInit.runBackgroundTasks(adapter).catch((err: any) => {
+          logger.error("Error in background system tasks:", {
+            message: err?.message || String(err),
+            stack: err?.stack,
+          });
+        });
       }
 
       const { metricsService } = await import("../services/metrics-service");
       metricsService.recordMetric("boot:total", performance.now() - start);
 
       return auth;
-    } catch (err) {
-      logger.error("CRITICAL: Full initialization failed:", err);
+    } catch (err: any) {
+      const errorDetails = {
+        message: err?.message || "Unknown error",
+        stack: err?.stack,
+        code: err?.code,
+      };
+
+      logger.error("CRITICAL: Full initialization failed:", errorDetails);
       const { updateServiceHealth } = await import("../stores/system/state");
-      updateServiceHealth("database", "unhealthy", "Critical system failure");
+      updateServiceHealth(
+        "database",
+        "unhealthy",
+        `Critical system failure: ${errorDetails.message}`,
+      );
       _dbInitializationPromise = null; // Allow retry
       return null;
     }

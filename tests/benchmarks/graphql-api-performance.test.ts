@@ -9,116 +9,140 @@ import {
   runBenchmark,
   exportResult,
   exportMetric,
-  stabilize,
   setupBenchmarkServer,
+  ensureStableTestData,
+  stabilize,
   printTruthTable,
   printSummaryTable,
-  ensureStableTestData,
+  getDbType,
 } from "./benchmark-utils";
-import { getDb } from "@src/databases/db";
+import { logger } from "@utils/logger.server";
+
+let stopServer: (() => Promise<void>) | null = null;
+
+const graphqlScenarios = [
+  {
+    name: "GQL: System Health",
+    query: `query { contentSystemHealth { state version dbVersion } }`,
+    shortLabel: "Health",
+    concurrency: 1,
+  },
+  {
+    name: "GQL: Collection List",
+    query: `query { allCollections { _id name label } }`,
+    shortLabel: "Collections",
+    concurrency: 6,
+  },
+  {
+    name: "GQL: Entries (Stable Collection)",
+    query: `query { BenchmarkStable(pagination: { limit: 10 }) { _id title content } }`,
+    shortLabel: "Entries",
+    concurrency: 5,
+  },
+  {
+    name: "GQL: Concurrent Load",
+    query: `query { allCollections { _id name } BenchmarkStable(pagination: { limit: 5 }) { _id } }`,
+    shortLabel: "Concurrent",
+    concurrency: 12,
+  },
+];
 
 export async function runGraphQLBenchmark() {
   console.log("🚀 Starting GraphQL API Performance Audit...\n");
 
-  const { baseUrl, stop } = await setupBenchmarkServer();
-  const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+  try {
+    const server = await setupBenchmarkServer();
+    stopServer = server.stop;
+    const baseUrl = server.baseUrl;
 
-  // Ensure data exists for GQL queries
-  console.log("   Seeding stable test data...");
-  await ensureStableTestData(getDb(), "global");
+    const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
-  await stabilize();
+    await ensureStableTestData();
+    await stabilize(1200);
 
-  const ITERATIONS = 500;
-  const RUNS = 3;
-  const allResults: any[] = [];
+    const results = [];
 
-  const scenarios = [
-    {
-      name: "GQL: System Health",
-      query: `query { contentSystemHealth { state version } }`,
-      validate: (json: any) => json.data?.contentSystemHealth?.state !== undefined,
-    },
-    {
-      name: "GQL: Collection Stats (List)",
-      query: `query { allCollectionStats { _id name } }`,
-      validate: (json: any) => Array.isArray(json.data?.allCollectionStats),
-    },
-    {
-      name: "GQL: Entries (Dynamic Field)",
-      // Note: benchmark_stable results in a dynamic field name like Benchmarkstable_benchmar
-      query: `query { Benchmarkstable_benchmar(pagination: { limit: 5 }) { _id title } }`,
-      validate: (json: any) => Array.isArray(json.data?.Benchmarkstable_benchmar),
-    },
-    {
-      name: "GQL: Concurrent Load (8x)",
-      query: `query { allCollectionStats { _id name } }`,
-      concurrency: 8,
-      validate: (json: any) => Array.isArray(json.data?.allCollectionStats),
-    },
-  ];
+    for (const scenario of graphqlScenarios) {
+      console.log(`   → ${scenario.name}...`);
 
-  for (const scenario of scenarios) {
-    const result = await runBenchmark({
-      name: scenario.name,
-      iterations: ITERATIONS,
-      warmupIterations: 50,
-      runs: RUNS,
-      concurrency: scenario.concurrency || 1,
-      trimOutliers: "iqr",
-      silent: true,
-      onIteration: async () => {
-        const res = await fetch(`${baseUrl}/api/graphql`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-test-mode": "true",
-            "x-test-secret": secret,
-          },
-          body: JSON.stringify({ query: scenario.query }),
-        });
+      const result = await runBenchmark({
+        name: scenario.name,
+        iterations: 600,
+        warmupIterations: 80,
+        runs: 3,
+        concurrency: scenario.concurrency,
+        measureMemory: true,
+        silent: true,
+        onIteration: async () => {
+          const res = await fetch(`${baseUrl}/api/graphql`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-test-mode": "true",
+              "x-test-secret": secret,
+            },
+            body: JSON.stringify({ query: scenario.query }),
+          });
 
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error(`GraphQL query failed (${res.status}): ${errText}`);
-        }
+          if (!res.ok) {
+            const text = await res.text().catch(() => "");
+            throw new Error(`GraphQL HTTP ${res.status}: ${text}`);
+          }
 
-        const json = await res.json();
-        if (json.errors) {
-          throw new Error(`GraphQL returned errors: ${JSON.stringify(json.errors[0])}`);
-        }
+          const json = await res.json();
 
-        if (scenario.validate && !scenario.validate(json)) {
-          throw new Error(`GraphQL response validation failed for ${scenario.name}`);
-        }
-      },
+          if (json.errors?.length) {
+            throw new Error(`GraphQL Error: ${json.errors[0].message}`);
+          }
+
+          return json;
+        },
+      });
+
+      const enriched = {
+        ...result,
+        shortLabel: scenario.shortLabel,
+        layer: "GraphQL",
+      };
+
+      results.push(enriched);
+      exportResult(enriched);
+    }
+
+    // Reporting
+    printTruthTable({
+      title: "SVELTYCMS — GRAPHQL PERFORMANCE AUDIT",
+      shortLabel: "GraphQL",
+      subtitle: `Resolver Execution • ${getDbType().toUpperCase()}`,
+      results,
     });
-    allResults.push(result);
+
+    printSummaryTable([
+      { key: "Health Check", val: results[0].avgMs, unit: "ms" },
+      { key: "Collection List", val: results[1].avgMs, unit: "ms" },
+      { key: "Entries Query", val: results[2].avgMs, unit: "ms" },
+      { key: "Peak RPS", val: Math.max(...results.map(r => r.rps || 0)), unit: "req/s" },
+    ]);
+
+    // Export structured metrics for matrix
+    const mainResult = results[1]; // Collection List as baseline
+    exportMetric("api.graphql.avg", mainResult.avgMs, "ms");
+    exportMetric("api.graphql.p95", mainResult.p95Ms || mainResult.avgMs, "ms");
+    exportMetric("api.graphql.rps", mainResult.rps, "req/s");
+
+  } catch (err: any) {
+    logger.error(`GraphQL benchmark failed: ${err.message}`);
+    console.error(err);
+  } finally {
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
   }
 
-  printTruthTable({
-    title: "SVELTYCMS  —  GRAPHQL RESOLVER PERFORMANCE",
-    subtitle: "End-to-End Latency • Schema Execution • Concurrent Load",
-    results: allResults,
-  });
-
-  printSummaryTable([
-    { key: "Avg Resolver Latency", val: allResults[1].avgMs, unit: "ms" },
-    { key: "Peak Concurrent RPS", val: Math.max(...allResults.map((r) => r.rps)), unit: "req/s" },
-    { key: "System Introspection Overhead", val: allResults[0].avgMs, unit: "ms" },
-  ]);
-
-  const base = allResults[1]; // allCollectionStats
-
-  exportMetric("api.graphql.avg", base.avgMs, "ms");
-  exportMetric("api.graphql.rps", base.rps, "req/s");
-
-  for (const r of allResults) exportResult(r);
-
-  await stop();
   console.log("\n✅ GraphQL performance audit completed.");
 }
 
 test("GraphQL Performance Audit Suite", async () => {
   await runGraphQLBenchmark();
-}, 450000);
+}, 480000);

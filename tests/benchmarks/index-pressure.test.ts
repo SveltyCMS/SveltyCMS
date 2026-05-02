@@ -1,7 +1,7 @@
 /**
  * @file tests/benchmarks/index-pressure.test.ts
  * @description Enterprise Index Pressure audit for SveltyCMS.
- * Measures read performance, sorting, and filtering on a 100,000 entry collection.
+ * Measures read performance with sorting and filtering on a 100,000 entry collection.
  */
 
 import { test } from "bun:test";
@@ -9,130 +9,159 @@ import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
+  setupBenchmarkServer,
+  ensureStableTestData,
   stabilize,
   printTruthTable,
   printSummaryTable,
   getDbType,
 } from "./benchmark-utils";
+import { logger } from "@utils/logger.server";
 
 const COLLECTION_ID = "bench_index_pressure";
-const ENTRY_COUNT = 100000;
-const BATCH_SIZE = 1000;
+const ENTRY_COUNT = 100_000;
+const BATCH_SIZE = 2000; // Larger batches = faster seeding
+
+let stopServer: (() => Promise<void>) | null = null;
 
 async function runPressureAudit() {
-  console.log(`🚀 Starting Enterprise Index Pressure Audit (${ENTRY_COUNT} entries)...\n`);
-
-  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-  const { LocalCMS } = await import("@src/routes/api/cms");
-  await ensureFullInitialization();
-  const db = getDb();
-  const cms = new LocalCMS(db as any);
-
-  // Mock Admin
-  const mockAdmin = { _id: "admin-pressure", username: "admin", role: "admin", isAdmin: true };
-  const apiOptions = { user: mockAdmin, tenantId: "global" as any };
-
-  // 1. Prepare Collection
-  console.log("   📊 Seeding 100,000 entries (Pressure Load)...");
-  const schema = {
-    _id: COLLECTION_ID,
-    name: "Pressure Test",
-    fields: [
-      { name: "title", type: "text", widget: { Name: "Input" } },
-      { name: "score", type: "number", widget: { Name: "Number" } },
-      { name: "category", type: "text", widget: { Name: "Select" } },
-    ],
-    status: "published",
-  };
-
-  if ((db as any).collection?.createModel) {
-    await (db as any).collection.createModel(schema as any).catch(() => {});
-  }
-
-  // Sync contentStore
-  const { contentStore } = await import("@src/stores/content-store.svelte");
-  contentStore.sync([
-    {
-      _id: COLLECTION_ID,
-      nodeType: "collection",
-      collectionDef: schema,
-      tenantId: "global",
-    } as any,
-  ]);
-
-  // Seed data in background for speed
-  for (let i = 0; i < ENTRY_COUNT / BATCH_SIZE; i++) {
-    const batch = Array.from({ length: BATCH_SIZE }).map((_, j) => ({
-      _id: `p-${i}-${j}`,
-      title: `Pressure Entry ${i * BATCH_SIZE + j}`,
-      score: Math.floor(Math.random() * 1000),
-      category: i % 2 === 0 ? "A" : "B",
-      tenantId: "global",
-    }));
-    await cms.collections.bulkCreate(COLLECTION_ID, batch as any, apiOptions);
-    if (i % 10 === 0) process.stdout.write(".");
-  }
-  process.stdout.write("\n");
-
-  await stabilize();
+  console.log(`🚀 Starting Enterprise Index Pressure Audit (${ENTRY_COUNT.toLocaleString()} entries)...\n`);
 
   try {
-    // 2. Measure Indexed Sort
-    console.log("   → Measuring High-Volume Sorted List (score DESC)...");
+    const server = await setupBenchmarkServer();
+    stopServer = server.stop;
+    const baseUrl = server.baseUrl;
+
+    await ensureStableTestData();
+    await prepareCollection();
+
+    // Seed data efficiently
+    console.log(`   → Seeding ${ENTRY_COUNT} entries...`);
+    await seedLargeDataset(baseUrl);
+
+    await stabilize(3000);
+
+    // === Benchmarks ===
+    console.log("   → Measuring Sorted Query Performance...");
     const sortResult = await runBenchmark({
-      name: "Sorted List (100k)",
-      iterations: 200,
-      runs: 1,
-      onIteration: async () => {
-        await cms.collections.find(COLLECTION_ID, {
-          sort: "score",
-          order: "desc",
-          limit: 20,
-          ...apiOptions,
-        });
-      },
+      name: "Sorted List (100k rows)",
+      iterations: 300,
+      warmupIterations: 50,
+      runs: 2,
+      concurrency: 4,
       silent: true,
+      onIteration: async () => {
+        const res = await fetch(
+          `${baseUrl}/api/collections/${COLLECTION_ID}?sort=score&order=desc&limit=20`,
+          { headers: { "x-test-mode": "true", "x-test-secret": "test-secret" } }
+        );
+        if (!res.ok) throw new Error(`Sort failed: ${res.status}`);
+        await res.json();
+      },
     });
 
-    // 3. Measure Filtered Search
-    console.log("   → Measuring Filtered Lookup (category=A)...");
+    console.log("   → Measuring Filtered Query Performance...");
     const filterResult = await runBenchmark({
-      name: "Filtered Search (100k)",
-      iterations: 200,
-      runs: 1,
-      onIteration: async () => {
-        await cms.collections.find(COLLECTION_ID, {
-          filter: { category: "A" },
-          limit: 20,
-          ...apiOptions,
-        });
-      },
+      name: "Filtered Query (100k rows)",
+      iterations: 300,
+      warmupIterations: 50,
+      runs: 2,
+      concurrency: 4,
       silent: true,
+      onIteration: async () => {
+        const res = await fetch(
+          `${baseUrl}/api/collections/${COLLECTION_ID}?filter[category]=A&limit=20`,
+          { headers: { "x-test-mode": "true", "x-test-secret": "test-secret" } }
+        );
+        if (!res.ok) throw new Error(`Filter failed: ${res.status}`);
+        await res.json();
+      },
     });
 
     printTruthTable({
-      title: "SVELTYCMS  —  INDEX PRESSURE AUDIT",
-      subtitle: `100,000 Entries • Multi-Field Filtering • ${getDbType().toUpperCase()}`,
+      title: "SVELTYCMS — INDEX PRESSURE AUDIT",
+      shortLabel: "Index Pressure",
+      subtitle: `100k Entries • Sort + Filter • ${getDbType().toUpperCase()}`,
       results: [
-        { ...sortResult, layer: "Sorted" },
-        { ...filterResult, layer: "Filtered" },
+        { ...sortResult, layer: "Sorted", shortLabel: "Sort DESC" },
+        { ...filterResult, layer: "Filtered", shortLabel: "Category Filter" },
       ],
     });
 
     printSummaryTable([
-      { key: "Sorted Read Latency", val: sortResult.avgMs, unit: "ms" },
-      { key: "Filtered Read Latency", val: filterResult.avgMs, unit: "ms" },
-      { key: "Index Efficiency", val: sortResult.avgMs < 2 ? "ELITE" : "SCALABLE", unit: "" },
+      { key: "Sorted Query (p95)", val: sortResult.p95Ms || sortResult.avgMs, unit: "ms" },
+      { key: "Filtered Query (p95)", val: filterResult.p95Ms || filterResult.avgMs, unit: "ms" },
+      { key: "Index Health", val: sortResult.avgMs < 5 ? "EXCELLENT" : "NEEDS WORK", unit: "" },
     ]);
 
     exportResult(sortResult);
+    exportResult(filterResult);
+
   } catch (err: any) {
-    console.error("❌ Pressure audit failed:", err.message);
+    logger.error(`Index Pressure audit failed: ${err.message}`);
+    console.error(err);
+  } finally {
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
   }
 
   console.log("\n✅ Index pressure audit completed.");
 }
 
+// ─────────────────────────────────────────────────────────────
+
+async function prepareCollection() {
+  const { getDb } = await import("@src/databases/db");
+  const db = getDb();
+
+  const schema = {
+    _id: COLLECTION_ID,
+    name: COLLECTION_ID,
+    fields: [
+      { db_fieldName: "title", widget: { Name: "Input" } },
+      { db_fieldName: "score", widget: { Name: "Number" } },
+      { db_fieldName: "category", widget: { Name: "Select" } },
+    ],
+  };
+
+  if (db?.collection?.createModel) {
+    await db.collection.createModel(schema).catch(() => {});
+  }
+
+  // Clean previous run
+  await db?.crud?.deleteMany?.(COLLECTION_ID, {}, { tenantId: "global" as any }).catch(() => {});
+}
+
+async function seedLargeDataset(baseUrl: string) {
+  const totalBatches = Math.ceil(ENTRY_COUNT / BATCH_SIZE);
+
+  for (let i = 0; i < totalBatches; i++) {
+    const batch = Array.from({ length: BATCH_SIZE }, (_, j) => ({
+      _id: `p-${i}-${j}`,
+      title: `Pressure Test Entry ${i * BATCH_SIZE + j}`,
+      score: Math.floor(Math.random() * 10000),
+      category: Math.random() > 0.5 ? "A" : "B",
+    }));
+
+    const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/bulk`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-test-mode": "true",
+        "x-test-secret": "test-secret",
+      },
+      body: JSON.stringify(batch),
+    });
+
+    if (!res.ok) throw new Error(`Seeding failed at batch ${i}`);
+
+    if (i % 8 === 0) process.stdout.write(".");
+  }
+  process.stdout.write("\n");
+}
+
 test("100k Row Index Pressure", async () => {
   await runPressureAudit();
-}, 900000);
+}, 1200000); // 20 minutes

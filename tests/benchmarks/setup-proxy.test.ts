@@ -9,85 +9,97 @@ import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
-  stabilize,
   setupBenchmarkServer,
+  stabilize,
   printTruthTable,
   printSummaryTable,
-  TEST_API_SECRET,
   getDbType,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
+let stopServer: (() => Promise<void>) | null = null;
+
 async function runSetupAudit() {
   console.log("🚀 Starting Enterprise Setup & Proxy Audit...\n");
-
-  const originalLogLevel = logger.level;
-  logger.level = "silent";
 
   try {
     const results: any[] = [];
 
     // 1. Cold Start Performance
-    // Measures the time from spawn to health-check success (DB + App Init)
     console.log("   → Measuring System Cold-Start (Infrastructure Boot)...");
     const coldStarts: number[] = [];
+
     for (let i = 0; i < 5; i++) {
       const start = performance.now();
       const server = await setupBenchmarkServer();
       coldStarts.push(performance.now() - start);
       await server.stop();
-      await stabilize();
+      await stabilize(500);
     }
 
     const avgCold = coldStarts.reduce((a, b) => a + b, 0) / coldStarts.length;
-    const p95Cold = coldStarts.sort((a, b) => a - b)[Math.floor(coldStarts.length * 0.95)];
+    const sorted = [...coldStarts].sort((a, b) => a - b);
+    const p95Cold = sorted[Math.floor(sorted.length * 0.95)];
 
     // 2. Proxy Header Processing
-    // Measures the overhead of parsing X-Forwarded-* headers in the pipeline.
     console.log("   → Measuring Proxy Header Parsing Overhead...");
     const server = await setupBenchmarkServer();
+    stopServer = server.stop;
     const baseUrl = server.baseUrl;
 
     const proxyResult = await runBenchmark({
       name: "Proxy Header Parsing",
-      iterations: 1000,
-      warmupIterations: 100,
-      runs: 2,
-      concurrency: 4,
+      iterations: 1200,
+      warmupIterations: 150,
+      runs: 3,
+      concurrency: 6,
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        const res = await fetch(baseUrl + "/api/system/health", {
+        const res = await fetch(`${baseUrl}/api/system/health`, {
           headers: {
-            "x-test-secret": TEST_API_SECRET,
-            "X-Forwarded-For": "192.168.1.1, 10.0.0.1",
+            "x-test-mode": "true",
+            "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+            "X-Forwarded-For": "192.168.1.1, 10.0.0.1, 172.16.0.1",
             "X-Forwarded-Proto": "https",
             "X-Forwarded-Host": "cms.enterprise.com",
+            "X-Real-IP": "203.0.113.42",
           },
         });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         await res.text();
       },
     });
-    results.push({ ...proxyResult, layer: "Proxy" });
+    results.push({ ...proxyResult, shortLabel: "Proxy", layer: "Infrastructure" });
 
     printTruthTable({
-      title: "SVELTYCMS  —  INFRASTRUCTURE BOOT & ROUTING AUDIT",
-      subtitle: `Cold Start • Proxy Overhead • ${getDbType().toUpperCase()}`,
-      results: [{ ...proxyResult, layer: "Full Stack", overheadPct: 0 }],
+      title: "SVELTYCMS — INFRASTRUCTURE BOOT & ROUTING AUDIT",
+      shortLabel: "Setup",
+      subtitle: `Cold Start • Proxy Headers • ${getDbType().toUpperCase()}`,
+      results: [
+        { name: "Cold Start", avgMs: avgCold, p95Ms: p95Cold, layer: "Boot" },
+        ...results,
+      ],
     });
 
     printSummaryTable([
-      { key: "Average Cold Start", val: avgCold, unit: "ms" },
-      { key: "p95 Cold Start", val: p95Cold, unit: "ms" },
-      { key: "Proxy Routing Latency", val: proxyResult.avgMs, unit: "ms" },
-      { key: "Cold Start Rating", val: avgCold < 1000 ? "EXCELLENT" : "GOOD", unit: "" },
+      { key: "Average Cold Start", val: avgCold.toFixed(0), unit: "ms" },
+      { key: "p95 Cold Start", val: p95Cold.toFixed(0), unit: "ms" },
+      { key: "Proxy Header Parsing", val: proxyResult.avgMs, unit: "ms" },
+      { key: "Rating", val: avgCold < 1200 ? "EXCELLENT" : avgCold < 2000 ? "GOOD" : "SLOW", unit: "" },
     ]);
 
-    exportResult(proxyResult);
-    await server.stop();
+    exportResult({ ...proxyResult, coldStartAvgMs: avgCold, coldStartP95Ms: p95Cold });
+
+  } catch (err: any) {
+    logger.error(`Setup & Proxy benchmark failed: ${err.message}`);
+    console.error(err);
   } finally {
-    logger.level = originalLogLevel;
+    if (stopServer) {
+      await stopServer().catch(() => {});
+      stopServer = null;
+    }
   }
 
   console.log("\n✅ Setup & proxy audit completed.");

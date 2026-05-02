@@ -23,7 +23,13 @@ export const migrations: PluginMigration[] = [
           _id: id,
           name: id,
           slug: id,
-          fields: [],
+          fields: [
+            { label: "From", name: "from", type: "text", required: true },
+            { label: "To", name: "to", type: "text", required: true },
+            { label: "Type", name: "type", type: "number", defaultValue: 301 },
+            { label: "Active", name: "active", type: "boolean", defaultValue: true },
+            { label: "Is Regex", name: "isRegex", type: "boolean", defaultValue: false },
+          ],
           status: "publish",
         } as any);
         logger.info(`[RedirectManager] Provisioned ${id} collection.`);
@@ -44,12 +50,56 @@ export const migrations: PluginMigration[] = [
           _id: id,
           name: id,
           slug: id,
-          fields: [],
+          fields: [
+            { label: "Path", name: "path", type: "text", required: true },
+            { label: "Hits", name: "hits", type: "number", defaultValue: 1 },
+            { label: "Last Hit", name: "lastHit", type: "text" },
+            { label: "Tenant ID", name: "tenantId", type: "text" },
+          ],
           status: "publish",
         } as any);
         logger.info(`[RedirectManager] Provisioned ${id} collection.`);
       } catch (err) {
         logger.error(`[RedirectManager] Failed to provision ${id} collection:`, err);
+      }
+    },
+  },
+  {
+    id: "create_redirects_mv_table",
+    pluginId: "redirect-manager",
+    version: 3,
+    description: "Creates the redirects_mv materialized view table for SQL adapters",
+    up: async (dbAdapter: IDBAdapter) => {
+      if (dbAdapter.type === "mongodb") return;
+
+      try {
+        // We use raw SQL to create the high-performance MV table
+        const sql = `
+          CREATE TABLE IF NOT EXISTS "redirects_mv" (
+            "_id" TEXT PRIMARY KEY,
+            "tenantId" TEXT NOT NULL,
+            "from" TEXT NOT NULL,
+            "to" TEXT NOT NULL,
+            "type" INTEGER DEFAULT 301,
+            "isRegex" INTEGER DEFAULT 0,
+            "active" INTEGER DEFAULT 1,
+            "metadata" TEXT DEFAULT '{}',
+            "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+          );
+          CREATE INDEX IF NOT EXISTS "idx_redirects_mv_lookup" ON "redirects_mv" ("tenantId", "from", "active");
+        `;
+
+        const client = (dbAdapter as any).getClient?.();
+        if (client) {
+          if (typeof client.exec === "function") {
+            client.exec(sql);
+          } else if (typeof client.query === "function") {
+            await client.query(sql);
+          }
+        }
+        logger.info(`[RedirectManager] Provisioned redirects_mv table.`);
+      } catch (err) {
+        logger.error(`[RedirectManager] Failed to provision redirects_mv table:`, err);
       }
     },
   },

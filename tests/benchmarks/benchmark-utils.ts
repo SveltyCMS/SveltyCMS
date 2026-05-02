@@ -44,6 +44,8 @@ export interface BenchmarkResult {
   rssDelta?: number;
   heapUsedDelta?: number;
   externalDelta?: number;
+  totalMs: number;
+  errorRate?: number;
   // Metadata
   timestamp: string;
   version: string;
@@ -54,6 +56,20 @@ export interface BenchmarkResult {
 
 // ── configuration ────────────────────────────────────────────────────────────
 const RESULTS_DIR = process.env.RESULTS_DIR ?? "tests/benchmarks/results";
+
+export const CONCURRENCY_GROUPS = {
+  sqlite: 1,
+  mariadb: 1,
+  postgresql: 2,
+  mongodb: 3,
+} as const;
+
+export function getRecommendedConcurrency(): number {
+  const dbType = getDbType().toLowerCase();
+  if (dbType.includes("sqlite") || dbType.includes("mariadb")) return CONCURRENCY_GROUPS.sqlite;
+  if (dbType.includes("postgresql")) return CONCURRENCY_GROUPS.postgresql;
+  return CONCURRENCY_GROUPS.mongodb;
+}
 
 // ── statistics ───────────────────────────────────────────────────────────────
 
@@ -98,6 +114,8 @@ export function computeStatistics(times: number[], rps: number, config: any): Be
     runs: config.runs || 1,
     concurrency: config.concurrency || 1,
     cv,
+    totalMs: sum,
+    errorRate: config.errorRate || 0,
     timestamp: new Date().toISOString(),
     version: "0.0.8-enterprise",
   };
@@ -181,13 +199,13 @@ function discoverBenchmarkMetadata() {
 /**
  * Aggressive GC stabilization and memory snapshotting.
  */
-export async function stabilize() {
+export async function stabilize(ms: number = 100) {
   if (typeof Bun !== "undefined" && typeof (Bun as any).gc === "function") {
     (Bun as any).gc(true);
   } else if (typeof (globalThis as any).gc === "function") {
     (globalThis as any).gc();
   }
-  await new Promise((r) => setTimeout(r, 100));
+  await new Promise((r) => setTimeout(r, ms));
 }
 
 export function getMemorySnapshot() {
@@ -403,12 +421,15 @@ export function printTruthTable(options: {
         trend = ` (${icon} ${delta > 0 ? "+" : ""}${delta.toFixed(1)}%)`;
       }
 
+      const avgStr = typeof r.avgMs === "number" ? `${r.avgMs.toFixed(3)} ms` : "N/A";
+      const p95Str = typeof r.p95Ms === "number" ? `${r.p95Ms.toFixed(3)} ms` : "N/A";
+
       log(
         row(
           r.name.replace(" (aggregate)", ""),
-          `${r.avgMs.toFixed(3)} ms${trend}`,
-          `${r.p95Ms.toFixed(3)} ms`,
-          Math.round(r.rps).toLocaleString(),
+          `${avgStr}${trend}`,
+          p95Str,
+          Math.round(r.rps || 0).toLocaleString(),
         ),
       );
     });
@@ -558,13 +579,19 @@ export async function runBenchmark(config: any) {
 
   const results: number[] = [];
 
+  let totalErrors = 0;
+
   for (let r = 0; r < runs; r++) {
     if (onSetup) await onSetup();
 
     // Warmup
     if (config.warmupIterations) {
       for (let i = 0; i < config.warmupIterations; i++) {
-        await onIteration(i);
+        try {
+          await onIteration(i);
+        } catch {
+          // ignore warmup errors
+        }
       }
     }
 
@@ -579,27 +606,40 @@ export async function runBenchmark(config: any) {
       }
 
       for (const chunk of chunks) {
-        await Promise.all(chunk.map((i) => onIteration(i)));
+        await Promise.all(
+          chunk.map(async (i) => {
+            try {
+              await onIteration(i);
+            } catch (err) {
+              totalErrors++;
+              if (!config.silent) logger.warn(`Benchmark iteration ${i} failed`, err);
+            }
+          }),
+        );
       }
     } else {
       // Sequential mode
       for (let i = 0; i < iterations; i++) {
         const iStart = performance.now();
-        await onIteration(i);
-        results.push(performance.now() - iStart);
+        try {
+          await onIteration(i);
+          results.push(performance.now() - iStart);
+        } catch (err) {
+          totalErrors++;
+          if (!config.silent) logger.warn(`Benchmark iteration ${i} failed`, err);
+        }
       }
     }
 
     const tTotal = performance.now() - tStart;
     if (concurrency > 1) {
-      // For parallel, results is just one giant avg/rps calc
       const avg = tTotal / iterations;
       for (let i = 0; i < iterations; i++) results.push(avg);
     }
   }
 
   const rps = (iterations * runs) / (results.reduce((a, b) => a + b, 0) / 1000);
-  return computeStatistics(results, rps, config);
+  return computeStatistics(results, rps, { ...config, errorRate: totalErrors / (iterations * runs) });
 }
 
 /**
@@ -741,6 +781,30 @@ export async function setupBenchmarkServer() {
   return { baseUrl: process.env.API_BASE_URL, stop };
 }
 
+/**
+ * Force kills a port on Windows.
+ */
+export async function forceKillPort(port: number) {
+  if (process.platform !== "win32") return;
+  try {
+    const { execSync } = require("node:child_process");
+    const output = execSync(`netstat -ano | findstr :${port}`).toString();
+    const lines = output.split("\n");
+    for (const line of lines) {
+      const parts = line.trim().split(/\s+/);
+      if (parts.length > 4) {
+        const pid = parts[parts.length - 1];
+        if (pid && pid !== "0" && pid !== process.pid.toString()) {
+          logger.debug(`Force killing process ${pid} on port ${port}`);
+          execSync(`taskkill /F /PID ${pid}`, { stdio: "ignore" });
+        }
+      }
+    }
+  } catch {
+    /* ignore if port is free */
+  }
+}
+
 export async function mockDispatch(pathOrEvent: any, method: string = "GET") {
   const pathStr = typeof pathOrEvent === "string" ? pathOrEvent : pathOrEvent.path;
   const targetMethod = typeof pathOrEvent === "string" ? method : pathOrEvent.method || "GET";
@@ -813,18 +877,38 @@ export function exportResult(r: any) {
   }
 }
 
+/**
+ * 🚀 Structured Metric Exporter for Matrix Dashboard
+ */
+export function exportMetric(key: string, value: number, unit: string) {
+  // 1. File Persistence
+  try {
+    const dir = path.resolve(process.cwd(), RESULTS_DIR, getDbType());
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const metricsFile = path.join(dir, "matrix_metrics.json");
+
+    let current: Record<string, any> = {};
+    if (fs.existsSync(metricsFile)) {
+      current = JSON.parse(fs.readFileSync(metricsFile, "utf8"));
+    }
+
+    current[key] = { value, unit, timestamp: new Date().toISOString() };
+    fs.writeFileSync(metricsFile, JSON.stringify(current, null, 2));
+  } catch (err: any) {
+    logger.error(`[exportMetric] Failed: ${err.message}`);
+  }
+
+  // 2. Console Output (for CI parsing)
+  const formattedVal = typeof value === "number" ? value.toFixed(3) : value;
+  console.log(`METRIC: ${key}=${formattedVal}${unit}`);
+}
+
 export function checkBenchmarkEnv() {
   const dbType = getDbType();
   if (!dbType) {
     console.warn("⚠️ DB_TYPE not set, defaulting to 'sql' for benchmark.");
     process.env.DB_TYPE = "sql";
   }
-}
-
-export function exportMetric(key: string, val: number, unit: string) {
-  // Simple console export for CI parsing
-  const formattedVal = typeof val === "number" ? val.toFixed(3) : val;
-  console.log(`METRIC: ${key}=${formattedVal}${unit}`);
 }
 
 // ── Core Utilities & Performance Assertions ───────────────────────────────────
@@ -858,7 +942,6 @@ export const TEST_API_SECRET = (() => {
   if (process.env.VITE_TEST_API_SECRET) return process.env.VITE_TEST_API_SECRET;
   try {
     const secretPath = path.join(process.cwd(), "tests", "e2e", ".auth", "test-secret.txt");
-    const fs = require("node:fs");
     if (fs.existsSync(secretPath)) return fs.readFileSync(secretPath, "utf8").trim();
   } catch {
     // Ignore
@@ -872,7 +955,7 @@ console.log(`[benchmark-utils.ts] TEST_API_SECRET resolved: ${TEST_API_SECRET.su
  * Ensures that the stable benchmark collection and entry exist in the DB.
  * Also registers them in the in-process contentStore for LocalCMS audits.
  */
-export async function ensureStableTestData(db: any, tenantId: string = "global") {
+export async function ensureStableTestData(db?: any, tenantId: string = "global") {
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
   if (!db && !getDb()) {
     await ensureFullInitialization();
@@ -917,8 +1000,8 @@ export async function ensureStableTestData(db: any, tenantId: string = "global")
   };
 
   const existingColRes = await activeDb.collection.getSchemaById(STABLE_COLLECTION, tenantId);
-  if (!existingColRes.success) {
-    await activeDb.collection.create(schema as any, tenantId);
+  if (!existingColRes.success || !existingColRes.data) {
+    await activeDb.collection.createModel(schema as any);
   }
 
   // Seed entry if missing

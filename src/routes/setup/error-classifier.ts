@@ -173,11 +173,12 @@ export function classifyDatabaseError(
   if (
     /database.*not found|db.*not found|unknown database|does not exist/i.test(lower) ||
     code === "3D000" ||
-    code === "ER_BAD_DB_ERROR"
+    code === "ER_BAD_DB_ERROR" ||
+    (engine === "sqlite" && lower.includes("does not exist"))
   ) {
     return {
       classification: "DB_NOT_FOUND",
-      userFriendly: `The database "${dbConfig?.name}" was not found.`,
+      userFriendly: `The database "<span class="text-tertiary-500 font-bold dark:text-primary-500">${dbConfig?.name}</span>" was not found.`,
       hint: "SveltyCMS can attempt to create it for you if your user has sufficient permissions.",
       raw,
     };

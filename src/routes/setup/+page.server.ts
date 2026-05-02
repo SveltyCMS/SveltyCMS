@@ -235,7 +235,7 @@ export const actions: Actions = {
         }
 
         const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, {
-          createIfMissing: createIfMissing || allowOverwrite,
+          createIfMissing: createIfMissing || allowOverwrite || dbConfig.type === "sqlite",
         });
 
         logger.info("📡 Connection established, sending ping...");
@@ -717,7 +717,6 @@ export const actions: Actions = {
       logger.info(`Set ${SESSION_COOKIE_NAME} cookie for new admin user`);
 
       // 3. Parallel Execution: Persist system settings (Skip private config until the very end)
-      // Elite Audit Fix: Initialize global DB state so we can transition without restart
       const { initializeWithConfig, clearPrivateConfigCache } = await import("@src/databases/db");
       await initializeWithConfig({
         ...database,
@@ -905,7 +904,6 @@ export const actions: Actions = {
         );
         const { contentSystem } = await import("@src/content/index.server");
         // skipReconciliation: true is CRITICAL here to prevent the 4s blocking delay
-        // 🚀 Elite Audit Fix: Pass active dbAdapter directly to bypass global singleton race conditions
         await contentSystem.refresh(undefined, true, false, dbAdapter);
         logger.info(
           "✅ [completeSetup] ContentSystem refreshed successfully (skipped reconciliation).",
@@ -971,7 +969,7 @@ export const actions: Actions = {
         } catch (configError) {
           logger.error("❌ [completeSetup] Failed to write private config:", configError);
         }
-      }, 500);
+      }, 100);
 
       // 4. Determine redirect path
       let redirectPath = "/config/collectionbuilder";
@@ -1001,9 +999,15 @@ export const actions: Actions = {
       // while the server waits to restart.
       try {
         const { systemStateStore } = await import("@src/stores/system/state");
+        const { invalidateSetupCache } = await import("@src/utils/setup-check");
+
+        // ✨ CRITICAL: Set global flag to prevent TurboPipeline redirect loop during server restart
+        (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = true;
+        invalidateSetupCache(false, true);
+
         systemStateStore.update((state) => ({ ...state, overallState: "READY" }));
         logger.info(
-          "✅ [completeSetup] Forced system state to READY to unblock frontend redirect.",
+          "✅ [completeSetup] Forced system state to READY and setup to COMPLETE to unblock frontend redirect.",
         );
       } catch (err) {
         logger.warn("⚠️ [completeSetup] Failed to force system state to READY:", err);
