@@ -71,7 +71,7 @@ async function runCacheAudit() {
           }
 
           const res = await fetch(
-            `${baseUrl}/api/collections/benchmark_stable/bench-shared-001`,
+            `${baseUrl}/api/collections/BenchmarkStable/bench-shared-001`,
             {
               headers,
             }

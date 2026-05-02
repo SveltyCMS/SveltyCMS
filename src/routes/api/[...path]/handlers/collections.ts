@@ -19,6 +19,7 @@ export async function handleCollectionsRoutes(
   const { user } = locals;
   const collectionId = segments[1];
   const entryId = segments[2];
+  const subAction = segments[3];
 
   // --- Collection Search ---
   if (collectionId === "search" && request.method === "GET") {
@@ -26,10 +27,16 @@ export async function handleCollectionsRoutes(
   }
 
   // --- Revisions ---
-  if (request.method === "GET" && collectionId && entryId === "revisions") {
+  // Matches: /api/collections/:id/revisions OR /api/collections/:id/:entryId/revisions
+  if (
+    request.method === "GET" &&
+    collectionId &&
+    (entryId === "revisions" || subAction === "revisions")
+  ) {
+    const targetEntryId = subAction === "revisions" ? entryId : null;
     return successResponse(
       event,
-      await cms.collections.getRevisions(collectionId, entryId, tenantId),
+      await cms.collections.getRevisions(collectionId, targetEntryId as string, tenantId),
     );
   }
 

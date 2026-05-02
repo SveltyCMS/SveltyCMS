@@ -79,35 +79,8 @@ import { isRedirect } from "@sveltejs/kit";
 import { handleApiError } from "@utils/error-handling";
 import { handleRedirects } from "./hooks/handle-redirects";
 
-// --- Global Error Handling ---
-if (typeof process !== "undefined") {
-  process.on("unhandledRejection", (reason, _promise) => {
-    logger.error("UNHANDLED REJECTION:", {
-      reason: reason instanceof Error ? { message: reason.message, stack: reason.stack } : reason,
-    });
-  });
-
-  process.on("uncaughtException", (error) => {
-    logger.error("UNCAUGHT EXCEPTION:", {
-      message: error.message,
-      stack: error.stack,
-    });
-    // Give logger time to flush before exiting
-    setTimeout(() => process.exit(1), 500);
-  });
-}
-
 // --- Server Startup Logic ---
 if (!building) {
-  const { getDbInitPromise } = await import("@src/databases/db");
-
-  // In Benchmark mode, we MUST await initialization to avoid race conditions on first requests
-  if (process.env.BENCHMARK === "true") {
-    await getDbInitPromise().catch((err) =>
-      logger.error("Benchmark early init failed (non-fatal):", err),
-    );
-  }
-
   // ✨ NEW: Smart initialization logic that respects the system state machine
   // This ensures setup-wizard stays lean and non-critical services only start when needed.
   import("@src/stores/system/state").then(({ overallState }) => {
@@ -200,23 +173,23 @@ if (!building) {
   process.on("SIGINT", () => handleSignal("SIGINT"));
 }
 
-// --- Updated middleware sequence (security headers FIRST) ---
+// --- Updated middleware sequence (Turbo Pipeline FIRST for performance) ---
 const middleware: Handle[] = [
-  handleSecurityHeaders,
-  handleTestIsolation, // ✨ CI: Tenant Isolation & Test Bypass
+  handleTurboPipeline, // ✨ FAST-PATH (Health Check, Static Assets, Test Bypass)
+  handleSecurityHeaders, // ✨ Security Headers
+  handleTestIsolation, // ✨ CI: Tenant Isolation
   handleStaticAssetCaching, // ✨ PERFORMANCE: Global Asset Caching
   handleSecurity, // ✨ 1. PROTECTION (Firewall, Rate Limit, Bot Detection)
-  handleTurboPipeline, // ✨ 2. FAST-PATH (State Gate, Setup Redirect, Test Bypass)
   handleRedirects, // ✨ 3. SEO (Manual & Auto Redirects)
   handleCompression, // ✨ 4. OPTIMIZATION (Dynamic Content)
-  handleUserPreferences, // ✨ 5. USER PREFERENCES (User Preferences)
-  handleAuthentication, // ✨ 7. AUTHENTICATION (Authentication)
-  handleAuthorization, // ✨ 8. AUTHORIZATION (Authorization)
-  handleLocalSdk, // ✨ 9. LOCAL SDK (Local SDK)
-  handleContentInitialization, // ✨ 10. CONTENT INITIALIZATION (Content Initialization)
-  handleAuditLogging, // ✨ 11. AUDIT LOGGING (Audit Logging)
-  handleApiRequests, // ✨ 12. API REQUESTS (API Requests)
-  handleTokenResolution, // ✨ 13. TOKEN RESOLUTION (Token Resolution)
+  handleUserPreferences, // ✨ 5. USER PREFERENCES
+  handleAuthentication, // ✨ 7. AUTHENTICATION
+  handleAuthorization, // ✨ 8. AUTHORIZATION
+  handleLocalSdk, // ✨ 9. LOCAL SDK
+  handleContentInitialization, // ✨ 10. CONTENT INITIALIZATION
+  handleAuditLogging, // ✨ 11. AUDIT LOGGING
+  handleApiRequests, // ✨ 12. API REQUESTS
+  handleTokenResolution, // ✨ 13. TOKEN RESOLUTION
 ];
 
 // ✨ ENTERPRISE: Pre-compiled pipeline (optimizes hot path by ~1-2%)

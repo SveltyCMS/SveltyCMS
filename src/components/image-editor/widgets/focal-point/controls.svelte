@@ -27,47 +27,77 @@ Toolbar controls for the FocalPoint widget
 	}
 </script>
 
-<div class="flex items-center gap-4 flex-wrap">
+<div class="flex flex-wrap items-center gap-4 py-1">
 	<!-- Focal Point Coordinates -->
-	<div class="flex items-center gap-2">
-		<span class="text-sm font-medium">Focal Point:</span>
-		<div class="grid grid-cols-2 gap-2">
-			<label class="flex items-center gap-2 text-xs text-surface-600 dark:text-surface-50">
-				<span>X</span>
+	<div class="flex items-center gap-4 rounded-xl border border-white/10 bg-white/5 p-2 px-3 backdrop-blur-md">
+		<div class="flex items-center gap-2">
+			<iconify-icon icon="mdi:target" width="18" class="text-primary-400"></iconify-icon>
+			<span class="text-xs font-semibold uppercase tracking-wider text-white/70">Focal Point</span>
+		</div>
+		
+		<div class="h-4 w-px bg-white/10"></div>
+
+		<div class="flex gap-3">
+			<div class="flex items-center gap-2">
+				<span class="text-[10px] font-bold text-white/40">X</span>
 				<input
 					type="number"
+					id="focal-x"
 					min="0"
 					max="100"
 					value={focalX}
 					oninput={(e) => updateField('x', (e.currentTarget as HTMLInputElement).value)}
-					class="input input-sm w-20"
+					class="w-12 rounded-lg border-none bg-black/40 p-1 text-center text-xs font-mono font-medium text-white ring-1 ring-white/10 transition-all hover:bg-black/60 focus:bg-black/80 focus:ring-primary-500/50 focus:outline-hidden"
+					aria-label="Focal X percentage"
 				/>
-			</label>
-			<label class="flex items-center gap-2 text-xs text-surface-600 dark:text-surface-50">
-				<span>Y</span>
+			</div>
+			<div class="flex items-center gap-2">
+				<span class="text-[10px] font-bold text-white/40">Y</span>
 				<input
 					type="number"
+					id="focal-y"
 					min="0"
 					max="100"
 					value={focalY}
 					oninput={(e) => updateField('y', (e.currentTarget as HTMLInputElement).value)}
-					class="input input-sm w-20"
+					class="w-12 rounded-lg border-none bg-black/40 p-1 text-center text-xs font-mono font-medium text-white ring-1 ring-white/10 transition-all hover:bg-black/60 focus:bg-black/80 focus:ring-primary-500/50 focus:outline-hidden"
+					aria-label="Focal Y percentage"
 				/>
-			</label>
+			</div>
 		</div>
 	</div>
 
 	<!-- Instructions -->
-	<span class="text-xs text-surface-600 dark:text-surface-50"> Click on the image to set focal point </span>
+	<div class="flex items-center gap-2 text-xs text-white/50 italic">
+		<iconify-icon icon="mdi:mouse-left-click-outline" width="16"></iconify-icon>
+		<span>Click on the image to position the focus area</span>
+	</div>
 
 	<!-- Spacer -->
 	<div class="grow"></div>
 
-	<!-- Actions: Only Reset remains, Cancel/Apply handled by global toolbar -->
-	<div class="flex items-center gap-2">
-		<button onclick={onReset} class="btn preset-outlined-surface-500 btn-sm" title="Reset to center">
-			<iconify-icon icon="mdi:restore" width="18"></iconify-icon>
-			<span>Reset</span>
-		</button>
-	</div>
+	<!-- Actions: Reset -->
+	<button 
+		onclick={onReset} 
+		class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-white/80 transition-all hover:border-primary-400/30 hover:bg-primary-500/10 hover:text-white active:scale-95 group" 
+		title="Reset to center (50%, 50%)"
+		aria-label="Reset focal point"
+	>
+		<iconify-icon icon="mdi:restore" width="18" class="transition-transform group-hover:rotate-180"></iconify-icon>
+		<span>Reset</span>
+	</button>
 </div>
+
+<style>
+	/* Hide spin buttons for numeric inputs */
+	input::-webkit-outer-spin-button,
+	input::-webkit-inner-spin-button {
+		-webkit-appearance: none;
+		appearance: none;
+		margin: 0;
+	}
+	input[type='number'] {
+		-moz-appearance: textfield;
+		appearance: textfield;
+	}
+</style>

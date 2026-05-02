@@ -126,6 +126,8 @@ async function getYogaApp(dbAdapter: any, tenantId?: string | null) {
     yogaAppPromise = (async () => {
       try {
         const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
+        if (!typeDefs) throw new Error("GraphQL typeDefs are empty");
+
         const schema = createSchema({ typeDefs, resolvers });
 
         return createYoga({
@@ -143,8 +145,14 @@ async function getYogaApp(dbAdapter: any, tenantId?: string | null) {
             pubSub,
           }),
         });
-      } catch (err) {
-        logger.error("[GraphQL] Yoga Init Error:", err);
+      } catch (err: any) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const stack = err instanceof Error ? err.stack : "";
+        logger.error(`[GraphQL] Yoga Init Error: ${msg}`, { stack });
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          console.error(`[GraphQL] Schema build failed: ${msg}`);
+          if (stack) console.error(stack);
+        }
         yogaAppPromise = null;
         throw err;
       }
@@ -230,6 +238,13 @@ async function handleRequest(event: RequestEvent) {
 
   try {
     const yogaApp = await getYogaApp(adapter, locals.tenantId);
+    if (!yogaApp) {
+      throw new AppError(
+        "GraphQL Yoga is currently unavailable (initialization failed)",
+        503,
+        "GRAPHQL_UNAVAILABLE",
+      );
+    }
 
     // Lazy WS init (fire-and-forget)
     if (!wsServerInitialized) {

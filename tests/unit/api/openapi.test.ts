@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import type { RequestEvent } from "@sveltejs/kit";
+import { contentSystem } from "@src/content/index.server";
 
 // Mock dependencies
 vi.mock("@src/databases/db", () => ({
@@ -21,8 +22,10 @@ vi.mock("@src/databases/db", () => ({
 
 vi.mock("@src/content/index.server", () => ({
   contentSystem: {
+    refresh: vi.fn().mockResolvedValue(undefined),
     getCollections: vi.fn().mockResolvedValue([
       {
+        _id: "Posts",
         name: "Posts",
         fields: [
           { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, translated: true },
@@ -65,6 +68,9 @@ describe("OpenAPI Specification API", () => {
   };
 
   it("should return a valid OpenAPI 3.1.0 JSON", async () => {
+    // Sync system before audit
+    await contentSystem.refresh(null, false, false);
+    
     const event = createMockEvent("openapi.json");
     const response = await dispatcherGET(event);
     const data = await response.json();

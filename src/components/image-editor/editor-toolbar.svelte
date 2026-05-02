@@ -65,7 +65,7 @@ Features:
 <svelte:window onkeydown={handleKeyDown} />
 
 <div
-	class="editor-toolbar relative z-10 flex flex-col border-t border-white/10 bg-[linear-gradient(180deg,_rgba(27,27,27,0.98),_rgba(12,12,12,0.98))] backdrop-blur-xl shadow-[0_-8px_24px_rgba(0,0,0,0.18)] shrink-0"
+	class="editor-toolbar relative z-10 flex flex-col border-t border-white/10 bg-[linear-gradient(180deg,rgba(27,27,27,0.98),rgba(12,12,12,0.98))] backdrop-blur-xl shadow-[0_-8px_24px_rgba(0,0,0,0.18)] shrink-0"
 	role="toolbar"
 	aria-label="Image editor"
 >
@@ -82,6 +82,7 @@ Features:
 				onclick={onCompareToggle}
 				title="Compare before / after"
 				aria-pressed={isComparing}
+				aria-label="Compare original and edited version"
 			>
 				<iconify-icon icon="mdi:compare" width="16"></iconify-icon>
 				<span class="text-xs font-medium">{isComparing ? 'After' : 'Before'}</span>
@@ -91,8 +92,9 @@ Features:
 					type="button"
 					class="toolbar-icon-btn"
 					onclick={onZoomOut}
-					title="Zoom out"
+					title="Zoom out (-)"
 					aria-label="Zoom out"
+					aria-keyshortcuts="-"
 				>
 					<iconify-icon icon="mdi:magnify-minus" width="16"></iconify-icon>
 				</button>
@@ -100,8 +102,9 @@ Features:
 					type="button"
 					class="toolbar-icon-btn"
 					onclick={onZoomReset}
-					title="Reset zoom"
+					title="Reset zoom (0)"
 					aria-label="Reset zoom"
+					aria-keyshortcuts="0"
 				>
 					<iconify-icon icon="mdi:magnify" width="16"></iconify-icon>
 				</button>
@@ -109,8 +112,9 @@ Features:
 					type="button"
 					class="toolbar-icon-btn"
 					onclick={onZoomIn}
-					title="Zoom in"
+					title="Zoom in (+)"
 					aria-label="Zoom in"
+					aria-keyshortcuts="+"
 				>
 					<iconify-icon icon="mdi:magnify-plus" width="16"></iconify-icon>
 				</button>
@@ -120,7 +124,9 @@ Features:
 				class="toolbar-btn"
 				onclick={() => imageEditorStore.handleUndo()}
 				disabled={!canUndo}
-				title="Undo (Ctrl+Z)"
+				title="Undo (Mod+Z)"
+				aria-label="Undo last change"
+				aria-keyshortcuts="Mod+Z"
 			>
 				<iconify-icon icon="mdi:undo" width="18"></iconify-icon>
 			</button>
@@ -129,7 +135,9 @@ Features:
 				class="toolbar-btn"
 				onclick={() => imageEditorStore.handleRedo()}
 				disabled={!canRedo}
-				title="Redo (Ctrl+Shift+Z)"
+				title="Redo (Mod+Shift+Z)"
+				aria-label="Redo last undone change"
+				aria-keyshortcuts="Mod+Shift+Z"
 			>
 				<iconify-icon icon="mdi:redo" width="18"></iconify-icon>
 			</button>
@@ -138,13 +146,14 @@ Features:
 				class="toolbar-btn toolbar-btn-primary"
 				onclick={onsave}
 				disabled={isSaving}
-				title="Save (Ctrl+S)"
-				aria-label="Save"
+				title="Save changes (Mod+S)"
+				aria-label="Save edited image"
+				aria-keyshortcuts="Mod+S"
 			>
 				{#if isSaving}
-					<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
+					<iconify-icon icon="mdi:loading" width="18" class="animate-spin" aria-hidden="true"></iconify-icon>
 				{:else}
-					<iconify-icon icon="mdi:check" width="18"></iconify-icon>
+					<iconify-icon icon="mdi:check" width="18" aria-hidden="true"></iconify-icon>
 				{/if}
 				<span class="text-xs font-medium">Save</span>
 			</button>

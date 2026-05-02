@@ -109,13 +109,17 @@ export const contentSystem = {
   },
 
   async _benchmarkInitialize(tenantId: string | null, _options: any, adapter?: DatabaseAdapter) {
-    // Ultra-fast path for benchmarks to avoid full reconciliation
-    const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-    let db: DatabaseAdapter | undefined = adapter || getDb() || undefined;
-    if (!db) {
-      await ensureFullInitialization();
-      db = getDb() || undefined;
+    // Ultra-fast path for benchmarks or manual refreshes to avoid full reconciliation
+    const { getDb, getDbInitPromise } = await import("@src/databases/db");
+
+    // 🛡️ DEADLOCK PROTECTION: Only await DB init if we don't already have an adapter.
+    // Background tasks (which run DURING init) provide the adapter to avoid waiting on themselves.
+    if (!adapter) {
+      await getDbInitPromise(false, "CORE").catch(() => {});
     }
+
+    const db: DatabaseAdapter | undefined = adapter || getDb() || undefined;
+
     const { refreshCollectionsCache } = await import("./content-service.server");
     await refreshCollectionsCache(tenantId, db);
   },

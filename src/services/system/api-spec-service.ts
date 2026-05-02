@@ -13,9 +13,8 @@ export class ApiSpecService {
   private static instance: ApiSpecService;
   private baseSpec: any;
 
-  // In-memory L1 cache
-  private cachedSpec: any = null;
-  private cacheTimestamp = 0;
+  // In-memory L1 cache (Tenant-aware)
+  private l1Cache = new Map<string, { spec: any; timestamp: number }>();
   private readonly CACHE_TTL_MS = 300_000; // 5 minutes
 
   private constructor() {
@@ -98,8 +97,7 @@ export class ApiSpecService {
    * Internal test helper to reset L1 cache
    */
   public __resetCache(): void {
-    this.cachedSpec = null;
-    this.cacheTimestamp = 0;
+    this.l1Cache.clear();
   }
 
   /**
@@ -107,8 +105,7 @@ export class ApiSpecService {
    */
   public async invalidateCache(tenantId?: string | null): Promise<void> {
     const cacheKey = `openapi:spec:${tenantId || "global"}`;
-    this.cachedSpec = null;
-    this.cacheTimestamp = 0;
+    this.l1Cache.delete(tenantId || "global");
     try {
       const { cacheService } = await import("@src/databases/cache/cache-service");
       await cacheService.delete(cacheKey, tenantId);
@@ -124,10 +121,12 @@ export class ApiSpecService {
   public async generateSpec(collections: Schema[] = [], tenantId?: string | null): Promise<any> {
     const now = Date.now();
     const cacheKey = `openapi:spec:${tenantId || "global"}`;
+    const l1Key = tenantId || "global";
 
-    // 1. Check L1 In-Memory Cache
-    if (this.cachedSpec && now - this.cacheTimestamp < this.CACHE_TTL_MS) {
-      return this.cachedSpec;
+    // 1. Check L1 In-Memory Cache (Tenant-Aware)
+    const l1Cached = this.l1Cache.get(l1Key);
+    if (l1Cached && now - l1Cached.timestamp < this.CACHE_TTL_MS) {
+      return l1Cached.spec;
     }
 
     // 2. Check L2 Global Cache (Redis/Memory)
@@ -135,8 +134,7 @@ export class ApiSpecService {
       const { cacheService } = await import("@src/databases/cache/cache-service");
       const l2Cached = await cacheService.get(cacheKey, tenantId);
       if (l2Cached) {
-        this.cachedSpec = l2Cached;
-        this.cacheTimestamp = now;
+        this.l1Cache.set(l1Key, { spec: l2Cached, timestamp: now });
         return l2Cached;
       }
     } catch (err) {
@@ -144,6 +142,7 @@ export class ApiSpecService {
       logger.debug("Non-fatal API spec cache miss:", err);
     }
 
+    // 3. ACTUAL GENERATION (Only if cache miss)
     const spec = JSON.parse(JSON.stringify(this.baseSpec));
 
     // 1. Add Auth & User Paths
@@ -169,8 +168,8 @@ export class ApiSpecService {
     }
 
     // Update Caches
-    this.cachedSpec = spec;
-    this.cacheTimestamp = now;
+    // Finalize L1 cache before returning
+    this.l1Cache.set(l1Key, { spec, timestamp: now });
 
     try {
       const { cacheService } = await import("@src/databases/cache/cache-service");
@@ -188,6 +187,15 @@ export class ApiSpecService {
    * Useful for background warming.
    */
   public async generateFullSpec(tenantId?: string | null): Promise<any> {
+    const now = Date.now();
+    const l1Key = tenantId || "global";
+
+    // 1. L1 Memory Check FIRST to avoid any work
+    const l1Cached = this.l1Cache.get(l1Key);
+    if (l1Cached && now - l1Cached.timestamp < this.CACHE_TTL_MS) {
+      return l1Cached.spec;
+    }
+
     try {
       const { contentService } = await import("@src/content/content-service.server");
       const collections = await contentService.getContentStructureFromDatabase("flat", tenantId);

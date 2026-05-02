@@ -638,8 +638,15 @@ export async function runBenchmark(config: any) {
     }
   }
 
-  const rps = (iterations * runs) / (results.reduce((a, b) => a + b, 0) / 1000);
-  return computeStatistics(results, rps, { ...config, errorRate: totalErrors / (iterations * runs) });
+  const validResults = results.filter(r => !isNaN(r));
+  const sum = validResults.reduce((a, b) => a + b, 0);
+  const rps = sum > 0 ? (iterations * runs) / (sum / 1000) : 0;
+  
+  if (validResults.length === 0) {
+     return computeStatistics([0], 0, { ...config, errorRate: 1 });
+  }
+
+  return computeStatistics(validResults, rps, { ...config, errorRate: totalErrors / (iterations * runs) });
 }
 
 /**
@@ -935,7 +942,7 @@ export function measureSuiteRuntime(baselineMs: number) {
 
 // ── Shared Benchmark Constants ───────────────────────────────────────────────
 
-export const STABLE_COLLECTION = "benchmark_stable";
+export const STABLE_COLLECTION = "BenchmarkStable";
 export const STABLE_ENTRY_ID = "bench-shared-001";
 export const TEST_API_SECRET = (() => {
   if (process.env.TEST_API_SECRET) return process.env.TEST_API_SECRET;
@@ -966,7 +973,7 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
 
   const schema = {
     _id: STABLE_COLLECTION,
-    name: "Stable Benchmark Collection",
+    name: STABLE_COLLECTION,
     fields: [
       {
         db_fieldName: "title",
@@ -999,8 +1006,11 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     ],
   };
 
-  const existingColRes = await activeDb.collection.getSchemaById(STABLE_COLLECTION, tenantId);
-  if (!existingColRes.success || !existingColRes.data) {
+  const existingColRes = await activeDb.collection.listSchemas(tenantId);
+  const existingSchemas = existingColRes.success ? (existingColRes.data as any[]) : [];
+  const exists = existingSchemas.some((s: any) => s._id === STABLE_COLLECTION);
+
+  if (!exists) {
     await activeDb.collection.createModel(schema as any);
   }
 
@@ -1008,9 +1018,10 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
   const existingEntry = await activeDb.crud.findOne(
     STABLE_COLLECTION,
     { _id: STABLE_ENTRY_ID },
-    tenantId,
+    tenantId as any,
   );
-  if (!existingEntry) {
+
+  if (!existingEntry.success || !existingEntry.data) {
     await activeDb.crud
       .insert(
         STABLE_COLLECTION,
@@ -1022,7 +1033,7 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
           status: "published",
           count: 42,
         },
-        tenantId,
+        tenantId as any,
       )
       .catch(() => {});
   }

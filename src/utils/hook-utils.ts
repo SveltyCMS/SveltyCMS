@@ -83,7 +83,10 @@ export function isAdmin(user: any): boolean {
 export function getClientIp(event: RequestEvent): string {
   try {
     return event.getClientAddress();
-  } catch {
+  } catch (err: any) {
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      console.log(`[getClientIp] Failed to get client address: ${err.message}. Using fallback.`);
+    }
     return (
       event.request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
       event.request.headers.get("x-real-ip") ||

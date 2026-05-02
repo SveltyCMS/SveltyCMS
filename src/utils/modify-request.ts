@@ -63,6 +63,8 @@ export async function modifyRequest({
   system = false,
 }: ModifyRequestParams) {
   const start = performance.now();
+  if (!data || data.length === 0) return data;
+
   try {
     const operation = type === "GET" ? "read" : "write";
 
@@ -70,33 +72,35 @@ export async function modifyRequest({
     // 🚀 Performance Optimization: Skip FLAC for system operations to avoid heavy audit logging and permission lookups
     if (!system) {
       for (let i = 0; i < data.length; i++) {
-        data[i] = (await enforceFieldAccess(fields, data[i] as any, user, operation, {
-          collectionName,
-          tenantId: tenantId ?? undefined,
-          entryId: (data[i] as any)._id,
-        })) as EntryData;
+        // Only run FLAC if we have a real user context
+        if (user && user._id !== "system") {
+          data[i] = (await enforceFieldAccess(fields, data[i] as any, user, operation, {
+            collectionName,
+            tenantId: tenantId ?? undefined,
+            entryId: (data[i] as any)._id,
+          })) as EntryData;
+        }
       }
     }
 
-    // User access is already validated by hooks
-    logger.trace(
-      `Starting modify-request for type: ${type}, user: ${user._id}, collection: ${collectionName ?? (collection as unknown as { id?: string }).id ?? "unknown"}, tenant: ${tenantId}, operation: ${operation}`,
-    );
+    // Optimize field iteration - Filter widgets once
+    const activeWidgets = fields
+      .map((f) => ({
+        field: f,
+        name: getFieldName(f),
+        widget: widgets.widgetFunctions[f.widget.Name],
+      }))
+      .filter((w) => w.widget && (w.widget.modifyRequest || w.widget.modifyRequestBatch));
 
-    // Optimize field iteration
-    for (const field of fields) {
+    if (activeWidgets.length === 0) return data;
+
+    for (const { field, name, widget } of activeWidgets) {
       // 2. Runtime FLAC Check (Skip widget logic if field is blocked)
-      if (!canAccessField(field, user, operation)) continue;
-
-      const widget = widgets.widgetFunctions[field.widget.Name];
-      if (!widget) continue;
+      if (!system && user && user._id !== "system" && !canAccessField(field, user, operation))
+        continue;
 
       const modifyFn = widget.modifyRequest;
       const modifyBatchFn = widget.modifyRequestBatch;
-
-      if (!modifyFn && !modifyBatchFn) continue;
-
-      const fieldName = getFieldName(field);
 
       if (modifyBatchFn) {
         // --- BATCH PROCESSING (Fastest) ---
@@ -120,11 +124,34 @@ export async function modifyRequest({
           }
         } catch (batchError) {
           logger.error(
-            `Batch widget error for field ${fieldName}: ${batchError instanceof Error ? batchError.message : batchError}`,
+            `Batch widget error for field ${name}: ${batchError instanceof Error ? batchError.message : batchError}`,
           );
         }
       } else if (modifyFn) {
         // --- VECTORIZED PROCESSING ---
+        // Optimization: For small sets, skip parallel chunking overhead
+        if (data.length === 1) {
+          const entry = data[0];
+          const dataAccessor: DataAccessor<unknown> = {
+            get: () => entry[name],
+            update: (newData) => {
+              entry[name] = newData;
+            },
+          };
+          await (modifyFn as any)({
+            collection,
+            field,
+            data: dataAccessor,
+            user,
+            type,
+            tenantId,
+            collectionName,
+            skipValidation,
+            action,
+          });
+          continue;
+        }
+
         const chunkSize = 100;
         const totalItems = data.length;
 
@@ -132,16 +159,13 @@ export async function modifyRequest({
           const chunk = data.slice(i, i + chunkSize);
 
           // Process chunk in parallel
-          const results = await Promise.all(
+          await Promise.all(
             chunk.map(async (entry) => {
               try {
-                // Optimized: Only copy if we absolute must, but here we keep for safety
-                // but use a more efficient accessor
-                const entryCopy = { ...entry };
                 const dataAccessor: DataAccessor<unknown> = {
-                  get: () => entryCopy[fieldName],
+                  get: () => entry[name],
                   update: (newData) => {
-                    entryCopy[fieldName] = newData;
+                    entry[name] = newData;
                   },
                 };
 
@@ -156,19 +180,14 @@ export async function modifyRequest({
                   skipValidation,
                   action,
                 });
-                return entryCopy;
               } catch {
-                return entry;
+                // ignore
               }
             }),
           );
 
-          for (let j = 0; j < results.length; j++) {
-            data[i + j] = results[j];
-          }
-
-          // Yield sparingly
-          if (totalItems > 500 && i + chunkSize < totalItems) {
+          // Yield sparingly to keep event loop responsive
+          if (totalItems > 1000 && i + chunkSize < totalItems) {
             await new Promise((resolve) => setTimeout(resolve, 0));
           }
         }
@@ -176,7 +195,11 @@ export async function modifyRequest({
     }
 
     const duration = performance.now() - start;
-    logger.debug(`ModifyRequest completed in ${duration.toFixed(2)}ms for ${data.length} entries`);
+    if (duration > 5) {
+      logger.debug(
+        `ModifyRequest completed in ${duration.toFixed(2)}ms for ${data.length} entries`,
+      );
+    }
 
     return data;
   } catch (error) {

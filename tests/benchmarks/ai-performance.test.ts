@@ -32,8 +32,11 @@ async function runAIAudit() {
 
     const { aiService } = await import("@src/services/ai-service");
 
-    // Mock LLM to isolate CMS overhead
+    // Mock LLM and internal processing to isolate CMS overhead
     aiService.chat = async () => "Mocked LLM Response";
+    aiService.process = async (_prompt: string, text: string) => `Processed: ${text}`;
+    aiService.generateLayoutSpec = async () => ({ root: "layout", elements: {} });
+    aiService.translate = async (text: string) => `Translated: ${text}`;
 
     // 1. Text Enrichment
     console.log("   → Measuring AI Text Enrichment...");

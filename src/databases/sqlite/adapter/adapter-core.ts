@@ -498,7 +498,7 @@ export class AdapterCore extends BaseSqlAdapter {
     safeExec("PRAGMA mmap_size=268435456"); // 256MB
     safeExec("PRAGMA cache_size=-64000"); // 64MB
     safeExec("PRAGMA journal_size_limit=67108864"); // 64MB WAL limit
-    safeExec("PRAGMA wal_autocheckpoint=1000");
+    safeExec("PRAGMA wal_autocheckpoint=10000"); // Tune up to 10k to smooth out p95 spikes during bulk inserts
   }
 
   private async resolvePath(config: string | SQLiteConfig): Promise<string> {

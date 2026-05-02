@@ -121,10 +121,16 @@ export function getFieldName(
     return specialMappings[name];
   }
 
-  return name
+  let result = name
     .toLowerCase()
     .replace(/\s+/g, "_")
     .replace(/[^a-z0-9_]/g, "");
+
+  // GraphQL identifiers cannot start with a digit
+  if (/^[0-9]/.test(result)) {
+    result = "_" + result;
+  }
+  return result;
 }
 
 // Extract data from fields

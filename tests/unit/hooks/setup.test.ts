@@ -132,7 +132,7 @@ describe("handleSetup Middleware", () => {
       it(`allows ${path}`, async () => {
         const event = createMockEvent(path);
         const response = await handleSetup({ event, resolve: mockResolve });
-        expect(response).toBe(mockResponse);
+        expect(response).toStrictEqual(mockResponse);
       });
     }
 

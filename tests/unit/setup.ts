@@ -335,15 +335,20 @@ const moduleMock = (path: string, factory: () => any) => {
   const currentTest = process.argv.find(
     (arg) => arg.includes("benchmark") || arg.endsWith(".test.ts"),
   );
-  const isBenchmark = currentTest?.includes("benchmark");
+  const isBenchmark =
+    process.env.BENCHMARK_MODE === "true" ||
+    process.env.BENCHMARK_MODE === "1" ||
+    process.env.BENCHMARK_STABLE === "true" ||
+    currentTest?.includes("benchmark");
 
-  if (
-    (!ENABLE_MOCKS || isBenchmark) &&
-    !path.startsWith("$") &&
-    !path.startsWith("svelte") &&
-    (!path.includes("scanner") || process.env.BUN_TEST_MOCKS === "false")
-  )
-    return; // âš¡ BENCHMARK MODE: Skip db/service mocks but keep SvelteKit environment intact
+  if (isBenchmark) {
+    // ⚡ BENCHMARK MODE: Only mock virtual SvelteKit modules ($app/*, $env/*)
+    // to allow the standalone server to start without crashing on missing internal imports.
+    // We MUST NOT mock @sveltejs/kit or svelte/* as the production build needs the real logic.
+    if (!path.startsWith("$")) return;
+  } else if (!ENABLE_MOCKS) {
+    if (!path.startsWith("$") && !path.includes("svelte") && !path.includes("scanner")) return;
+  }
 
   if (isBun) {
     mock.module(path, factory);

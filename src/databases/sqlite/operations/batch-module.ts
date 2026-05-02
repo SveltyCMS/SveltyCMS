@@ -131,18 +131,23 @@ export class BatchModule {
     return this.core.wrap(async () => {
       const table = this.core.getTable(collection);
       let modifiedCount = 0;
-      for (const update of updates) {
-        const result = await this.db
-          .update(table as any)
-          .set(
-            utils.convertISOToDates({
-              ...update.data,
-              updatedAt: isoDateStringToDate(nowISODateString()),
-            }) as unknown as Record<string, unknown>,
-          )
-          .where(eq((table as any)._id, update.id as string));
-        modifiedCount += (result as unknown as { changes: number }).changes;
-      }
+      await this.db.transaction(async (tx) => {
+        for (const update of updates) {
+          const result = (await tx
+            .update(table as any)
+            .set(
+              utils.convertISOToDates({
+                ...update.data,
+                updatedAt: isoDateStringToDate(nowISODateString()),
+              }) as unknown as Record<string, unknown>,
+            )
+            .where(eq((table as any)._id, update.id as string))
+            .run()) as any;
+
+          // Support Bun/Better-SQLite3 (.changes) and LibSQL (.rowsAffected)
+          modifiedCount += result?.changes ?? result?.rowsAffected ?? 0;
+        }
+      });
       return { modifiedCount };
     }, "BULK_UPDATE_FAILED");
   }

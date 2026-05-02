@@ -15,7 +15,9 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  TEST_API_SECRET,
 } from "./benchmark-utils";
+import { apiSpecService } from "@src/services/system/api-spec-service";
 import { logger } from "@utils/logger.server";
 
 let stopServer: (() => Promise<void>) | null = null;
@@ -31,12 +33,10 @@ async function runOpenApiAudit() {
     await ensureStableTestData();
     await stabilize(1000);
 
-    const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
-
     // Validate endpoint
     console.log("🔍 Validating OpenAPI endpoint...");
     const validationRes = await fetch(`${baseUrl}/api/openapi.json`, {
-      headers: { "x-test-secret": secret },
+      headers: { "x-test-secret": TEST_API_SECRET },
     });
 
     if (validationRes.status !== 200) {
@@ -52,9 +52,11 @@ async function runOpenApiAudit() {
 
     // Cold generation (cache miss)
     console.log("   → Measuring Cold Spec Generation...");
+    await apiSpecService.invalidateCache();
+    
     const coldResult = await runBenchmark({
       name: "Cold OpenAPI Generation",
-      iterations: 15,
+      iterations: 1, // Only 1 iteration for true cold measurement
       warmupIterations: 0,
       runs: 1,
       concurrency: 1,
@@ -62,7 +64,7 @@ async function runOpenApiAudit() {
       silent: true,
       onIteration: async () => {
         const res = await fetch(`${baseUrl}/api/openapi.json`, {
-          headers: { "x-test-secret": secret },
+          headers: { "x-test-secret": TEST_API_SECRET },
         });
         await res.text();
       },
@@ -81,7 +83,7 @@ async function runOpenApiAudit() {
       silent: true,
       onIteration: async () => {
         const res = await fetch(`${baseUrl}/api/openapi.json`, {
-          headers: { "x-test-secret": secret },
+          headers: { "x-test-secret": TEST_API_SECRET },
         });
         await res.text();
       },

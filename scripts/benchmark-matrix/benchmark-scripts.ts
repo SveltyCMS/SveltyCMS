@@ -15,7 +15,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "low",
     estimatedMs: 12_000,
     desc: "Measures the base network and HTTP overhead for the simplest possible API calls.",
-    lastRun: "2026-05-02T11:29:26.313Z",
+    lastRun: "2026-05-02T20:22:06.271Z",
     strategy: "all",
   },
   {
@@ -28,7 +28,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 15_000,
     desc: "The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).",
     strategy: "all",
-    lastRun: "2026-04-26T14:38:04.622Z",
+    lastRun: "2026-05-02T20:22:14.391Z",
   },
   {
     path: "tests/benchmarks/build-analysis.bench.ts",
@@ -39,7 +39,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "high",
     estimatedMs: 85_000,
     desc: "Measures production bundle size, chunk count, and build performance.",
-    lastRun: "2026-05-02T11:30:06.622Z",
+    lastRun: "2026-05-02T20:22:30.279Z",
     strategy: "once",
   },
   {
@@ -51,7 +51,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "medium",
     estimatedMs: 35_000,
     desc: "Direct low-level benchmarks of Create, Read, Update, Delete on the current database adapter.",
-    lastRun: "2026-05-02T11:30:30.460Z",
+    lastRun: "2026-05-02T20:22:46.985Z",
     strategy: "all",
   },
   {
@@ -63,7 +63,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "medium",
     estimatedMs: 25_000,
     desc: "Measures commit/rollback latency and transaction isolation performance.",
-    lastRun: "2026-05-02T11:30:32.772Z",
+    lastRun: "2026-05-02T20:22:49.302Z",
     strategy: "all",
   },
   {
@@ -75,7 +75,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "medium",
     estimatedMs: 15_000,
     desc: "Audits the performance gain of the 2-layer Hybrid Cache across various system modules.",
-    lastRun: "2026-05-02T11:30:53.503Z",
+    lastRun: "2026-05-02T20:22:55.304Z",
     strategy: "sql",
   },
   {
@@ -87,7 +87,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "low",
     estimatedMs: 8_000,
     desc: "Measures the 99.9% Self-Healing Cache scanner across the .compiledCollections directory.",
-    lastRun: "2026-05-02T11:30:56.609Z",
+    lastRun: "2026-05-02T20:22:58.336Z",
     strategy: "once",
   },
   {
@@ -99,7 +99,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "low",
     estimatedMs: 12_000,
     desc: "High-resolution micro-benchmarks (µs) for individual middleware layers.",
-    lastRun: "2026-05-02T11:31:00.904Z",
+    lastRun: "2026-05-02T20:27:04.052Z",
     strategy: "sql",
   },
   {
@@ -111,7 +111,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "medium",
     estimatedMs: 25_000,
     desc: "Audits server-side processing cost of built-in widgets (Input, RichText, Relation).",
-    lastRun: "2026-05-02T11:31:01.860Z",
+    lastRun: "2026-05-02T20:45:04.361Z",
     strategy: "once",
   },
   {
@@ -123,7 +123,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "high",
     estimatedMs: 50_000,
     desc: "Measures image resizing, SHA-256 media hashing, and metadata extraction efficiency.",
-    lastRun: "2026-05-02T11:31:04.146Z",
+    lastRun: "2026-05-02T20:45:06.938Z",
     strategy: "once",
   },
   {
@@ -135,7 +135,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "high",
     estimatedMs: 35_000,
     desc: "Stress-tests JOINs, population strategies, and deeply nested relationships (depth 2–3).",
-    lastRun: "2026-05-02T11:31:07.683Z",
+    lastRun: "2026-05-02T20:45:33.825Z",
     strategy: "all",
   },
   {
@@ -147,7 +147,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "medium",
     estimatedMs: 25_000,
     desc: "End-to-end throughput and latency of the unified REST dispatcher.",
-    lastRun: "2026-05-02T11:38:13.201Z",
+    lastRun: "2026-05-02T20:45:40.075Z",
     strategy: "all",
   },
   {
@@ -159,7 +159,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "medium",
     estimatedMs: 25_000,
     desc: "Resolver execution time and throughput for common queries.",
-    lastRun: "2026-05-02T11:38:20.652Z",
+    lastRun: "2026-05-02T20:45:50.717Z",
     strategy: "all",
   },
   {
@@ -171,7 +171,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "low",
     estimatedMs: 12_000,
     desc: "Generation and caching efficiency of the dynamic OpenAPI 3.1.0 specification.",
-    lastRun: "2026-05-02T11:38:24.162Z",
+    lastRun: "2026-05-02T20:48:15.944Z",
     strategy: "once",
   },
   {
@@ -183,7 +183,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "low",
     estimatedMs: 18_000,
     desc: "Measures JWT verification, session retrieval, and permission matrix resolution overhead.",
-    lastRun: "2026-05-02T11:38:26.938Z",
+    lastRun: "2026-05-02T20:48:19.060Z",
     strategy: "all",
   },
   {
@@ -195,7 +195,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "low",
     estimatedMs: 20_000,
     desc: "Impact of Fail-Closed Dispatcher, Payload scanning, and SHA-256 Audit Chaining.",
-    lastRun: "2026-05-02T11:38:29.511Z",
+    lastRun: "2026-05-02T20:48:21.858Z",
     strategy: "once",
   },
   {
@@ -208,7 +208,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 30_000,
     desc: "E2E audit of Redirect Middleware, 404 Logging, and Sitemap Caching performance.",
     strategy: "all",
-    lastRun: "2026-05-02T11:38:33.378Z",
+    lastRun: "2026-05-02T20:48:27.826Z",
   },
   {
     path: "tests/benchmarks/realtime-performance.test.ts",
@@ -219,7 +219,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "medium",
     estimatedMs: 15_000,
     desc: "Benchmarks WebSocket connection/broadcast latency.",
-    lastRun: "2026-05-02T11:38:35.256Z",
+    lastRun: "2026-05-02T20:48:29.552Z",
     strategy: "once",
   },
   {
@@ -232,7 +232,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 45_000,
     timeoutMs: 600_000,
     desc: "Stress-tests cross-tenant isolation and security boundary latency.",
-    lastRun: "2026-05-02T11:31:27.018Z",
+    lastRun: "2026-05-02T20:48:34.590Z",
     strategy: "all",
   },
   {
@@ -244,7 +244,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "high",
     estimatedMs: 60_000,
     desc: "Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.",
-    lastRun: "2026-05-02T11:31:29.518Z",
+    lastRun: "2026-05-02T20:48:38.844Z",
     strategy: "all",
   },
   {
@@ -257,7 +257,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 70_000,
     timeoutMs: 600_000,
     desc: "Long-running soak test to identify memory leaks and GC pressure.",
-    lastRun: "2026-05-02T11:32:20.455Z",
+    lastRun: "2026-05-02T20:49:29.689Z",
     strategy: "all",
   },
   {
@@ -270,7 +270,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 60_000,
     timeoutMs: 600_000,
     desc: "High-concurrency GraphQL query stress test for resolver efficiency.",
-    lastRun: "2026-05-02T11:32:23.909Z",
+    lastRun: "2026-05-02T20:49:37.910Z",
     strategy: "all",
   },
   {
@@ -295,7 +295,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 8_000,
     desc: "Measures the overhead of telemetry data collection and cryptographic signing.",
     strategy: "once",
-    lastRun: "2026-05-02T11:42:27.791Z",
+    lastRun: "2026-05-02T20:20:34.005Z",
   },
   {
     path: "tests/benchmarks/migration-scale.test.ts",
@@ -307,7 +307,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 120_000,
     desc: "Measures system ingestion limits and read performance on 10,000+ entries.",
     strategy: "all",
-    lastRun: "2026-05-02T11:27:41.626Z",
+    lastRun: "2026-05-02T20:49:42.965Z",
   },
   {
     path: "tests/benchmarks/revision-stress.test.ts",
@@ -319,7 +319,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 45_000,
     desc: "Benchmarks performance degradation as document history grows to 100+ versions.",
     strategy: "sql",
-    lastRun: "2026-05-02T11:27:51.878Z",
+    lastRun: "2026-05-02T20:49:48.680Z",
   },
   {
     path: "tests/benchmarks/ai-performance.test.ts",
@@ -331,7 +331,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 25_000,
     desc: "Measures the internal CMS tax for AI enrichment and layout generation.",
     strategy: "once",
-    lastRun: "2026-05-02T11:27:55.359Z",
+    lastRun: "2026-05-02T20:49:50.437Z",
   },
   {
     path: "tests/benchmarks/admin-ux-vitality.test.ts",
@@ -343,7 +343,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 30_000,
     desc: "Simulates complex Svelte 5 logic overhead for massive, multi-widget forms.",
     strategy: "once",
-    lastRun: "2026-05-02T11:27:56.458Z",
+    lastRun: "2026-05-02T20:49:51.433Z",
   },
   {
     path: "tests/benchmarks/chaos-resilience.test.ts",
@@ -355,7 +355,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 60_000,
     desc: "Simulates 500ms database brownouts and measures CMS availability and stability.",
     strategy: "sql",
-    lastRun: "2026-05-02T11:28:58.926Z",
+    lastRun: "2026-05-02T20:50:53.330Z",
   },
   {
     path: "tests/benchmarks/index-pressure.test.ts",
@@ -367,7 +367,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 180_000,
     desc: "Measures complex filtering and sorting performance on 100,000+ entry collections.",
     strategy: "sql",
-    lastRun: "2026-05-02T11:29:00.338Z",
+    lastRun: "2026-05-02T20:51:00.311Z",
   },
   {
     path: "tests/benchmarks/content-scale-stress.bench.ts",
@@ -379,6 +379,6 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 45_000,
     desc: "Measures content scan performance on 1,000+ collections across 5 nested levels.",
     strategy: "all",
-    lastRun: "2026-05-02T11:29:01.591Z",
+    lastRun: "2026-05-02T20:51:01.314Z",
   },
 ];

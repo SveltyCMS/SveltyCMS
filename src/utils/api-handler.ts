@@ -23,9 +23,25 @@ type ApiHandlerCallback = (event: RequestEvent) => Promise<Response> | Response;
  */
 export const apiHandler = (handler: ApiHandlerCallback): RequestHandler => {
   return async (event) => {
+    const start = performance.now();
     try {
-      return await handler(event);
-    } catch (err) {
+      const response = await handler(event);
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        const duration = performance.now() - start;
+        console.log(
+          `[API] ${event.request.method} ${event.url.pathname} -> ${response.status} (${duration.toFixed(2)}ms)`,
+        );
+      }
+      return response;
+    } catch (err: any) {
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        const duration = performance.now() - start;
+        const msg = err instanceof Error ? err.message : String(err);
+        console.log(
+          `[API] ERROR ${event.request.method} ${event.url.pathname} after ${duration.toFixed(2)}ms: ${msg}`,
+        );
+        if (err.stack) console.log(err.stack);
+      }
       return handleApiError(err, event);
     }
   };

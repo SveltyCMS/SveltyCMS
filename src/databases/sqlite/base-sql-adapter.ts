@@ -33,12 +33,6 @@ export abstract class BaseSqlAdapter extends BaseAdapter {
    * Supports common operators: $eq, $ne, $gt, $gte, $lt, $lte, $in, $nin, $like, $contains, $or, $and.
    */
   public mapQuery(table: Record<string, unknown>, query: Record<string, unknown>): SQL | undefined {
-    if (process.env.BENCHMARK_DEBUG === "true") {
-      console.log(
-        `[DEBUG-SQL] mapQuery Table: ${(table[Object.keys(table)[0]] as any)?.["table"]?.name || "unknown"}, Query:`,
-        JSON.stringify(query),
-      );
-    }
     if (!query || Object.keys(query).length === 0) {
       return undefined;
     }
@@ -178,7 +172,11 @@ export abstract class BaseSqlAdapter extends BaseAdapter {
     // 🛡️ SUPPRESSION: Ignore "no such table" errors for redirects/404_logs during warmup/cache warming.
     // These are expected if the plugin hasn't finished provisioning yet.
     const isNoSuchTable = message.includes("no such table");
-    const isTransientCollection = message.includes("redirects") || message.includes("404_logs");
+    const isTransientCollection =
+      message.includes("redirects") ||
+      message.includes("404_logs") ||
+      message.includes("bench_") ||
+      message.includes("benchmark_");
 
     if (isNoSuchTable && isTransientCollection) {
       logger.debug(`[SQL Adapter] Expected transient error [${code}]: ${message}`);
@@ -268,17 +266,11 @@ export abstract class BaseSqlAdapter extends BaseAdapter {
     // Strip prefix to handle variations like 'collection_system_users'
     const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
 
-    if (process.env.BENCHMARK_DEBUG === "true") {
-      logger.info(`[SQL Trace] Routing: "${collection}" (cleaned: "${cleanName}")`);
-    }
-
     if (schemaAny[collection]) return schemaAny[collection];
     if (schemaAny[cleanName]) return schemaAny[cleanName];
 
     const camelKey = this.snakeToCamel(cleanName);
     if (schemaAny[camelKey]) {
-      if (process.env.BENCHMARK_DEBUG === "true")
-        logger.info(`[SQL Trace] Matched Camel: "${camelKey}"`);
       return schemaAny[camelKey];
     }
 

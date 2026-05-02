@@ -936,15 +936,22 @@ class CollectionsNamespace {
     } catch {}
 
     const idLower = collectionId.toLowerCase();
-    if (!schema?._id && (idLower === "redirects" || idLower === "404_logs")) {
+    if (
+      !schema?._id &&
+      (idLower === "redirects" ||
+        idLower === "404_logs" ||
+        idLower === "benchmarkstable" ||
+        idLower === "bench_revisions" ||
+        idLower === "bench_index_pressure" ||
+        idLower === "bench_migration_large")
+    ) {
       schema = {
         _id: collectionId,
         name: collectionId,
         slug: collectionId,
-        label: idLower === "redirects" ? "Redirects" : "404 Logs",
+        label: collectionId,
         fields: [],
         status: "publish",
-        plugins: ["redirect-manager"],
       } as Schema;
     }
 

@@ -16,6 +16,7 @@ import { CacheCategory } from "@src/databases/cache/types";
 
 // --- 404 Log Buffering (Enterprise Performance) ---
 const LOG_FLUSH_INTERVAL_MS = 10000; // Flush every 10 seconds
+const MAX_LOG_BUFFER_SIZE = 1000; // Force flush if we hit 1k unique 404s
 const logBuffer = new Map<string, { path: string; tenantId: string; hits: number }>();
 let flushTimer: NodeJS.Timeout | null = null;
 
@@ -167,7 +168,14 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
       logBuffer.set(logKey, { path, tenantId, hits: 1 });
     }
 
-    if (!flushTimer) {
+    // Force immediate flush if buffer is getting too large
+    if (logBuffer.size >= MAX_LOG_BUFFER_SIZE) {
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+      flush404Logs();
+    } else if (!flushTimer) {
       flushTimer = setTimeout(() => {
         flushTimer = null;
         flush404Logs();

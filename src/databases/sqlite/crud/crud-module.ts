@@ -5,7 +5,7 @@
 
 import { nowISODateString } from "@src/utils/date-utils";
 import { safeQuery } from "@src/utils/security/safe-query";
-import { count, eq, inArray } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import type {
   BaseEntity,
   DatabaseId,
@@ -23,8 +23,14 @@ export class CrudModule {
   private readonly core: AdapterCore;
   private readonly preparedStatements = new Map<string, any>();
   private readonly preparedInserts = new Map<string, any>();
-
   private readonly preparedUpdates = new Map<string, any>();
+
+  private enforceCacheLimit(cache: Map<string, any>, limit = 100) {
+    if (cache.size > limit) {
+      const firstKey = cache.keys().next().value;
+      if (firstKey) cache.delete(firstKey);
+    }
+  }
 
   constructor(core: AdapterCore) {
     this.core = core;
@@ -334,33 +340,37 @@ export class CrudModule {
         }
         values.data = dynamicData;
 
-        if (process.env.BENCHMARK_DEBUG === "true") {
-          console.log(
-            `[DEBUG-CRUD] Collection: ${collection}, options.tenantId: ${options.tenantId}, inputData.tenantId: ${inputData.tenantId}, Final values.tenantId: ${values.tenantId}`,
-          );
-        }
-
         const processedValues = utils.convertISOToDates(values);
 
         // 🚀 OPTIMIZATION: Use Prepared Statement for INSERT if keys are consistent
-        const cacheKey = `insert:${collection}:${Object.keys(processedValues).sort().join(",")}`;
+        const cacheKey = `insert:${collection}:${Object.entries(processedValues)
+          .map(([k, v]) => `${k}:${v === null ? "null" : "val"}`)
+          .sort()
+          .join(",")}`;
         let prepared = this.preparedInserts.get(cacheKey);
 
         if (!prepared) {
-          const { placeholder } = await import("drizzle-orm");
+          const { placeholder, sql } = await import("drizzle-orm");
           prepared = this.db
             .insert(table as any)
             .values(
               Object.fromEntries(
-                Object.keys(processedValues).map((k) => [k, placeholder(k)]),
+                Object.entries(processedValues).map(([k, v]) => [
+                  k,
+                  v === null ? sql`NULL` : placeholder(k),
+                ]),
               ) as any,
             )
             .returning()
             .prepare();
           this.preparedInserts.set(cacheKey, prepared);
+          this.enforceCacheLimit(this.preparedInserts);
         }
 
-        const [result] = (await (prepared as any).all(processedValues)) as any[];
+        const params = Object.fromEntries(
+          Object.entries(processedValues).filter(([_, v]) => v !== null),
+        );
+        const [result] = (await (prepared as any).all(params)) as any[];
         return utils.convertDatesToISO(result as Record<string, unknown>) as T;
       }, "CRUD_INSERT_FAILED")
       .then(async (res) => {
@@ -396,11 +406,14 @@ export class CrudModule {
 
         // 🚀 OPTIMIZATION: Use Prepared Statement for UPDATE if keys are consistent
         const hasTenant = !!secureQuery.tenantId;
-        const cacheKey = `update:${collection}:${Object.keys(values).sort().join(",")}:${hasTenant ? "tenant" : "global"}`;
+        const cacheKey = `update:${collection}:${Object.entries(values)
+          .map(([k, v]) => `${k}:${v === null ? "null" : "val"}`)
+          .sort()
+          .join(",")}:${hasTenant ? "tenant" : "global"}`;
 
         let prepared = this.preparedUpdates.get(cacheKey);
         if (!prepared) {
-          const { eq, and, placeholder } = await import("drizzle-orm");
+          const { eq, and, placeholder, sql } = await import("drizzle-orm");
 
           const conditions = [eq((table as any)._id, placeholder("id"))];
           if (hasTenant) {
@@ -411,13 +424,17 @@ export class CrudModule {
             .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
             .set(
               Object.fromEntries(
-                Object.keys(values).map((k) => [k, placeholder(`_val_${k}`)]),
+                Object.entries(values).map(([k, v]) => [
+                  k,
+                  v === null ? sql`NULL` : placeholder(`_val_${k}`),
+                ]),
               ) as any,
             )
             .where(conditions.length > 1 ? and(...conditions) : conditions[0])
             .prepare();
 
           this.preparedUpdates.set(cacheKey, prepared);
+          this.enforceCacheLimit(this.preparedUpdates);
         }
 
         const params: Record<string, any> = { id };
@@ -425,10 +442,12 @@ export class CrudModule {
           params.tenantId = secureQuery.tenantId;
         }
         for (const [k, v] of Object.entries(values)) {
-          params[`_val_${k}`] = v;
+          if (v !== null) {
+            params[`_val_${k}`] = v;
+          }
         }
 
-        await prepared.all(params);
+        await prepared.run(params);
 
         // Optimization: the findOne call will use the existing findOne prepared statement!
         const result = await this.findOne(collection, { _id: id } as any, options);
@@ -625,15 +644,11 @@ export class CrudModule {
             updatedAt: now,
           } as Record<string, unknown>),
         );
-        await this.db
-          .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-          .values(values as Record<string, unknown>[]);
-
-        const ids = values.map((v) => v._id as string);
         const results = await this.db
-          .select()
-          .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-          .where(inArray((table as any)._id, ids));
+          .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+          .values(values as Record<string, unknown>[])
+          .returning();
+
         return utils
           .convertArrayDatesToISO(results as Record<string, unknown>[])
           .map((row) => row) as unknown as T[];

@@ -35,6 +35,7 @@ import { error } from "@sveltejs/kit";
 import mime from "mime-types";
 
 const execAsync = promisify(exec);
+import sharp from "sharp";
 
 // Types
 import type { BaseEntity, ISODateString } from "@src/content/types";
@@ -63,7 +64,6 @@ import {
   type ResizedImage,
   type WatermarkOptions,
 } from "@utils/media/media-models";
-import sharp from "sharp";
 
 // Static cache for processed watermarks to avoid re-scaling on every upload
 const WATERMARK_CACHE = new Map<string, Buffer>();
@@ -124,12 +124,26 @@ export class MediaService {
     resized: Record<string, ResizedImage>;
   }> {
     const startTime = performance.now();
-    const sharp = (await import("sharp")).default;
-
     try {
       logger.debug("Starting file upload", { fileName, fileSize: buffer.length, userId });
 
-      // 1. Initialize Sharp and Metadata ONCE
+      const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
+
+      // 🚀 BENCHMARK FAST-PATH: Bypass all heavy Sharp processing if skipResizing is requested
+      if (skipResizing) {
+        const fastHash = await hashFileContent(buffer);
+        const fastFileName = `${fileNameWithoutExt}-${fastHash}.${ext}`;
+        const fastPath = Path.posix.join(basePath, "original", fastFileName);
+        const fastUrl = await saveFileToDisk(buffer, fastPath);
+
+        return {
+          url: fastUrl,
+          path: fastPath,
+          hash: fastHash,
+          resized: {},
+        };
+      }
+
       let currentInstance = sharp(buffer);
       const meta = await currentInstance.metadata();
       const isImage = mimeType.startsWith("image/") && meta.format !== "svg";
@@ -170,8 +184,6 @@ export class MediaService {
       // 3. Get final buffer for hashing and original storage
       const imageBuffer = isImage ? await currentInstance.toBuffer() : buffer;
       const hash = await hashFileContent(imageBuffer);
-      const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
-
       const originalFileName = `${fileNameWithoutExt}-${hash}.${ext}`;
       const relativePath = Path.posix.join(basePath, "original", originalFileName);
 
@@ -370,7 +382,9 @@ export class MediaService {
 
       if (isImage && !mimeType.includes("svg")) {
         try {
-          advancedMetadata = await mediaProcessingService.getMetadata(buffer);
+          advancedMetadata = await mediaProcessingService.getMetadata(buffer, {
+            fastPath: skipResizing,
+          });
           width = advancedMetadata.width as number | undefined;
           height = advancedMetadata.height as number | undefined;
         } catch (sharpError) {
@@ -662,6 +676,9 @@ export class MediaService {
     }
 
     const manipulatedBuffer = await instance.toBuffer();
+
+    // 🚀 RECALCULATE METADATA for the manipulated image
+    const advancedMetadata = await mediaProcessingService.getMetadata(manipulatedBuffer);
     const meta = await instance.metadata();
 
     // Save as a new version
@@ -705,6 +722,7 @@ export class MediaService {
       versions: [...(mediaItem.versions || []), newVersion],
       metadata: {
         ...mediaItem.metadata,
+        ...advancedMetadata, // Include new placeholder & dominant color
         focalPoint: manipulations.focalPoint || mediaItem.metadata?.focalPoint,
         lastManipulation: manipulations,
       },

@@ -91,6 +91,28 @@ export const _handler = async (event: RequestEvent) => {
   const { user } = locals;
   let tenantId = (locals.tenantId as string) || null;
 
+  // 🚀 PERFORMANCE: L1 Synchronous Cache Hit (Bypass everything for hot GET requests)
+  if (request.method === "GET") {
+    try {
+      const { cacheService } = await import("@src/databases/cache/cache-service");
+      const cached = cacheService.getSync?.(url.pathname + url.search, tenantId);
+      if (cached) {
+        return json(cached, {
+          headers: {
+            "X-Cache": "HIT-L1",
+            "Content-Type": "application/json",
+          },
+        });
+      }
+    } catch {
+      /* ignore sync cache errors */
+    }
+  }
+
+  if (process.env.BENCHMARK_DEBUG === "true") {
+    console.log(`[_handler] Processing ${event.request.method} ${event.url.pathname}`);
+  }
+
   // Support tenantId override for super-admins
   if (url.searchParams.has("tenantId")) {
     if (user?.role === "super-admin") {
@@ -132,8 +154,12 @@ export const _handler = async (event: RequestEvent) => {
       memory: process.memoryUsage(),
     };
     if (dbAdapter && !cachedDbVersion) {
-      const v = await dbAdapter.getVersion();
-      if (v.success) cachedDbVersion = v.data;
+      try {
+        const v = await dbAdapter.getVersion();
+        if (v.success) cachedDbVersion = v.data;
+      } catch {
+        /* ignore version check errors during warmup */
+      }
     }
     return json(health);
   }

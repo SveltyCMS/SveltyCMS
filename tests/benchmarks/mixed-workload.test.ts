@@ -37,8 +37,8 @@ async function runMixedWorkloadAudit() {
     const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
     const operations = [
-      { type: "REST Read", path: `/api/collections/benchmark_stable/bench-shared-001`, method: "GET" },
-      { type: "REST Search", path: `/api/collections/benchmark_stable?limit=20&status=published`, method: "GET" },
+      { type: "REST Read", path: `/api/collections/BenchmarkStable/bench-shared-001`, method: "GET" },
+      { type: "REST Search", path: `/api/collections/BenchmarkStable?limit=20&status=published`, method: "GET" },
       { type: "GraphQL", path: "/api/graphql", method: "POST", body: { query: `{ BenchmarkStable(limit: 5) { _id title } }` } },
       { type: "Metadata", path: "/api/system/health", method: "GET" },
     ];

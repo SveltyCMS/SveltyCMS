@@ -11,7 +11,7 @@ import { log } from "./logger";
 import { heavyTaskLock } from "./semaphore";
 import { startServer, warmupServer, writeTestConfig, isShuttingDown } from "./server";
 import { extractMetrics, checkBudget, freePort } from "./utils";
-import { persistScriptMetadataAST, updateIncrementalReport } from "./reporting";
+import { persistScriptMetadataAST } from "./reporting";
 import {
   DB_METADATA,
   PORT_BASE,
@@ -51,30 +51,39 @@ export async function runTask(
       shell: process.platform === "win32",
     });
 
-    if (ci && proc.stdout && proc.stderr) {
-      let out = "";
-      proc.stdout.on("data", (d) => (out += d.toString()));
-      proc.stderr.on("data", (d) => (out += d.toString()));
+      const cleanup = () => {
+        proc.stdout?.removeAllListeners();
+        proc.stderr?.removeAllListeners();
+        proc.removeAllListeners();
+      };
 
-      proc.on("close", async (code) => {
-        if (env.RESULTS_DIR) {
-          const logPath = path.join(env.RESULTS_DIR, "setup_tasks.log");
-          await fs.appendFile(logPath, `--- TASK: ${name} ---\n${out}\n`, "utf8").catch(() => {});
-        }
-        resolve(code === 0);
-      });
-    } else {
-      proc.on("close", (code) => {
-        if (code !== 0 && !ci) process.stdout.write(` \x1b[31m[FAILED] ${name}\x1b[0m\n`);
-        else if (!ci) process.stdout.write(` \x1b[32m[DONE]\x1b[0m\n`);
-        resolve(code === 0);
-      });
-    }
+      if (ci && proc.stdout && proc.stderr) {
+        let out = "";
+        proc.stdout.on("data", (d) => (out += d.toString()));
+        proc.stderr.on("data", (d) => (out += d.toString()));
 
-    proc.on("error", (err) => {
-      if (!ci) process.stdout.write(` \x1b[31m[SPAWN ERROR] ${err.message}\x1b[0m\n`);
-      resolve(false);
-    });
+        proc.once("close", async (code) => {
+          if (env.RESULTS_DIR) {
+            const logPath = path.join(env.RESULTS_DIR, "setup_tasks.log");
+            await fs.appendFile(logPath, `--- TASK: ${name} ---\n${out}\n`, "utf8").catch(() => {});
+          }
+          cleanup();
+          resolve(code === 0);
+        });
+      } else {
+        proc.once("close", (code) => {
+          if (code !== 0 && !ci) process.stdout.write(` \x1b[31m[FAILED] ${name}\x1b[0m\n`);
+          else if (!ci) process.stdout.write(` \x1b[32m[DONE]\x1b[0m\n`);
+          cleanup();
+          resolve(code === 0);
+        });
+      }
+
+      proc.once("error", (err) => {
+        if (!ci) process.stdout.write(` \x1b[31m[SPAWN ERROR] ${err.message}\x1b[0m\n`);
+        cleanup();
+        resolve(false);
+      });
   });
 }
 
@@ -166,10 +175,17 @@ export async function executeWithTimeout(
       });
     }, timeoutMs);
 
+    const cleanup = () => {
+      proc.stdout?.removeAllListeners();
+      proc.stderr?.removeAllListeners();
+      proc.removeAllListeners();
+    };
+
     const finish = (code: number | null) => {
       if (resolved) return;
       resolved = true;
       clearTimeout(timer);
+      cleanup();
       resolve({
         passed: code === 0,
         attempts: attempt,
@@ -179,12 +195,13 @@ export async function executeWithTimeout(
       });
     };
 
-    proc.on("exit", finish);
-    proc.on("close", finish);
-    proc.on("error", (err) => {
+    proc.once("exit", finish);
+    proc.once("close", finish);
+    proc.once("error", (err) => {
       if (resolved) return;
       resolved = true;
       clearTimeout(timer);
+      cleanup();
       resolve({
         passed: false,
         attempts: attempt,
@@ -429,20 +446,9 @@ export async function runAuditForDatabase(
           await persistScriptMetadataAST(s.path, new Date().toISOString());
         }
 
-        // Deep copy results to avoid mutation issues during doc writing
-        await updateIncrementalReport([
-          ...results,
-          {
-            db: dbKey,
-            status: "RUNNING",
-            metrics: { ...metrics },
-            scriptTimings: { ...scriptTimings },
-            extra: {
-              API_BASE_URL: env.API_BASE_URL,
-              TEST_API_SECRET: env.TEST_API_SECRET,
-            },
-          },
-        ]);
+        // ✨ Progress Tracking: Keep terminal output live but skip expensive MDX writes
+        // printSummaryTable is now called explicitly in index.ts for the final view
+        // but we can call it here if we want live progress.
 
         if (!outcome.passed) {
           status = "FAILED";
@@ -486,6 +492,12 @@ export async function runAuditForDatabase(
     });
 
     await stopWorkerServer();
+
+    // 🚀 FINAL AUDIT PERSISTENCE (Once per database audit cycle)
+    // This handles the expensive MDX updates and AST metadata saves.
+    const { generateFinalReport } = await import("./reporting");
+    await generateFinalReport(results, cfg);
+
   } catch (e: any) {
     log.error(`${meta.label} worker failed: ${e.message}`);
     results.push({ db: dbKey, status: "FAILED", error: e.message });

@@ -61,7 +61,7 @@ SveltyCMS leverages Svelte's compiler to generate highly optimized vanilla JavaS
 In March 2026, SveltyCMS implemented several enterprise-grade infrastructure optimizations:
 
 - **Single-Trip Mutations:** Standardized `.returning()` (SQL) and `returnDocument: 'after'` (Mongo) across all adapters, eliminating redundant `SELECT` queries and reducing mutation latency by **~40%**.
-- **Cross-Adapter Prepared Statements (April 2026):** Implemented high-performance cached prepared statements for SQLite, PostgreSQL, and MariaDB. This optimization bypasses Drizzle's query compilation overhead for hot-path lookups and tenant-scoped queries, ensuring sub-millisecond database response times at scale.
+- **Cross-Adapter Prepared Statements (April 2026):** Implemented high-performance cached prepared statements for SQLite, PostgreSQL, and MariaDB. This optimization bypasses Drizzle's query compilation overhead for hot-path lookups and tenant-scoped queries, ensuring sub-millisecond database response times at scale (achieving **140,000+ RPS** and **0.007ms** latency for raw SQLite reads).
 - **Memory Stability & Allocation Efficiency (April 2026):** Resolved significant allocation overhead in the `LocalCMS` SDK by consolidating transient caches into a shared `static` LRU engine. This refactor neutralized a 524 MB/min memory leak, achieving a **STABLE** rating with < 1MB/min growth under sustained 3,400+ RPS loads.
 - **Active Driver Validation (Anti-False Positive):** Implemented mandatory `SELECT 1` verification in the MariaDB and PostgreSQL adapters. This ensures that the Setup Wizard provides immediate, clear feedback for missing or incorrect credentials, eliminating "lazy connection" false positives found in legacy ORM implementations.
 - **Micro-Telemetry:** Native per-operation timing (`performance.now()`) is bubbled up from the DB adapter to the API `meta` field, providing high-resolution observability without external dependencies.
@@ -154,11 +154,11 @@ Verified performance metrics from the SveltyCMS CI pipeline (March 2026). These 
 
 | CMS / Stack                | Avg API Read (ms) | Avg Insert (ms) | Middleware Overhead (µs) | Media Upload (ms) | Notes / Conditions             |
 | -------------------------- | ----------------- | --------------- | ------------------------ | ----------------- | ------------------------------ |
-| **SveltyCMS (API layer)**  | **0.06 - 0.45**   | **~0.1**        | **12–15**                | **0.12 (Async)**  | High-Frequency Data Engine     |
+| **SveltyCMS (API layer)**  | **0.06 - 0.36**   | **~0.1**        | **12–15**                | **0.12 (Async)**  | High-Frequency Data Engine     |
 | **Payload CMS 3.x**        | 4–12              | 3–10            | ~85                      | 100–350           | Similar full-stack             |
 | **Directus 11**            | 3–18              | 4–12            | ~110                     | 120–400           | Cache-dependent                |
 | **Strapi v5**              | 6–25              | 5–15            | ~150                     | 150–500           | Full stack, ORM overhead       |
-| **SveltyCMS (raw SQLite)** | **0.08**          | **0.05**        | —                        | —                 | Bun Native SQLite, zero-config |
+| **SveltyCMS (raw SQLite)** | **0.007**         | **0.1**         | —                        | —                 | Bun Native SQLite, zero-config |
 
 _Note: SveltyCMS metrics derived from high-resolution standalone benchmarks (`tests/benchmarks/`). Database metrics reflect raw MongoDB driver latency. Middleware overhead reflects compiled SvelteKit edge-ready hooks. Media upload time reflects block time (Phase 3 background jobs)._
 

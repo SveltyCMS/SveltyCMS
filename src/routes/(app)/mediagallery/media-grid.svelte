@@ -198,15 +198,31 @@ Features:
           aria-label="Preview {file.filename}"
         >
           {#if file.type === "image"}
-            <img
-              src={file.url}
-              alt={file.filename}
-              class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-              style:object-position={file.metadata?.focalPoint
-                ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
-                : "center"}
-              loading="lazy"
-            />
+            <div 
+              class="h-full w-full bg-surface-100 dark:bg-surface-800 transition-colors duration-500"
+              style:background-color={(file.metadata?.dominantColor as string) || 'transparent'}
+            >
+              <!-- ⚡ Progressive Loading: Placeholder -->
+              {#if file.metadata?.placeholder}
+                <img
+                  src={file.metadata.placeholder as string}
+                  alt=""
+                  class="absolute inset-0 h-full w-full object-cover blur-xl scale-110 opacity-50"
+                  aria-hidden="true"
+                />
+              {/if}
+
+              <img
+                src={file.url}
+                alt={file.filename}
+                class="relative h-full w-full object-cover transition-all duration-500 group-hover:scale-110"
+                style:object-position={file.metadata?.focalPoint
+                  ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
+                  : "center"}
+                loading="lazy"
+                onload={(e) => (e.currentTarget as HTMLElement).classList.add('opacity-100')}
+              />
+            </div>
           {:else}
             <div
               class="flex h-full w-full items-center justify-center text-surface-300 dark:text-surface-600"

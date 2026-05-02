@@ -123,24 +123,47 @@ async function handleEditImage(file: any) {
 }
 
 async function handleEditorSave(detail: any) {
-	const formData = new FormData();
-	formData.append("file", detail.file);
-	if (detail.mediaId) formData.append("mediaId", detail.mediaId);
-	if (detail.operations)
-		formData.append("operations", JSON.stringify(detail.operations));
-	if (detail.saveBehavior) formData.append("saveBehavior", detail.saveBehavior);
-
 	try {
-		const response = await fetch("/api/media/edit", {
+		const { mediaId, manipulations } = detail;
+		if (!mediaId) {
+			toast.error("Media ID missing");
+			return;
+		}
+
+		// --- SERVER-SIDE BAKING ---
+		// We send JSON instructions to the manipulate endpoint.
+		const response = await fetch(`/api/media/manipulate/${mediaId}`, {
 			method: "POST",
-			body: formData,
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(manipulations),
 		});
+
 		if (response.ok) {
-			toast.success("Image updated");
-			window.location.reload();
+			const { data: updatedMedia } = await response.json();
+			toast.success("Image processed and saved");
+			
+			// 🚀 SPA-Friendly Update: Update local state instead of full reload
+			if (updatedMedia) {
+				const index = files.findIndex(f => f._id === updatedMedia._id);
+				if (index !== -1) {
+					files[index] = updatedMedia;
+				} else {
+					// If it was saved as "New", add it to the list
+					files = [updatedMedia, ...files];
+				}
+			} else {
+				// Fallback if data is missing
+				window.location.reload();
+			}
+		} else {
+			const error = await response.json();
+			toast.error(`Save failed: ${error.message || "Unknown error"}`);
 		}
 	} catch (err) {
 		logger.error("Editor save failed", err);
+		toast.error("An unexpected error occurred during save");
 	}
 }
 

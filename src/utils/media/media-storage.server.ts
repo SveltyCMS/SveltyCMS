@@ -173,7 +173,7 @@ export async function getFile(rel: string): Promise<Buffer> {
   return await fs.readFile(fullPath);
 }
 
-/** Resize & save image variants */
+/** Resize & save image variants with multi-format optimization */
 export async function saveResized(
   buffer: Buffer,
   hash: string,
@@ -188,45 +188,68 @@ export async function saveResized(
   const format = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY?.format ?? "original";
   const quality = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY?.quality ?? 80;
 
-  const resizePromises = Object.entries(SIZES)
-    .filter(([_, w]) => w > 0)
-    .map(async ([key, w]) => {
-      // Use clone() to avoid re-parsing the original image header for every variant
-      let instance = baseInstance.clone().resize(w, null, {
-        fit: "cover",
-        position: "center",
-      });
+  // 🚀 PREMIUM FEATURE: Multi-format generation (AVIF + WebP)
+  const variants = Object.entries(SIZES).filter(([_, w]) => w > 0);
+  const results: [string, ResizedImage][] = [];
 
-      let outExt = ext;
-      let mimeType = mime.lookup(ext) || "application/octet-stream";
-
-      if (format !== "original") {
-        instance = instance.toFormat(format as "webp" | "avif", { quality });
-        outExt = format;
-        mimeType = `image/${format}`;
-      }
-
-      const fileName = `${baseName}-${hash}.${outExt}`;
-      const relPath = path.posix.join(baseDir, key, fileName);
-
-      const resizedBuf = await instance.toBuffer();
-      const url = await saveFile(resizedBuf, relPath);
-
-      const height = meta.height ? Math.round((w / (meta.width ?? w)) * meta.height) : w;
-
-      return [
-        key,
-        {
-          url,
-          width: w,
-          height,
-          size: resizedBuf ? (resizedBuf as any).length : 0,
-          mimeType,
-        },
-      ] as [string, ResizedImage];
+  for (const [key, w] of variants) {
+    const baseVariant = baseInstance.clone().resize(w, null, {
+      fit: "cover",
+      position: "center",
     });
 
-  const results = await Promise.all(resizePromises);
+    // 1. Original format (or configured default)
+    let outExt = ext;
+    let mimeType = mime.lookup(ext) || "application/octet-stream";
+    let instance = baseVariant.clone();
+
+    if (format !== "original") {
+      instance = instance.toFormat(format as "webp" | "avif", { quality });
+      outExt = format;
+      mimeType = `image/${format}`;
+    }
+
+    const fileName = `${baseName}-${hash}.${outExt}`;
+    const relPath = path.posix.join(baseDir, key, fileName);
+    const resizedBuf = await instance.toBuffer();
+    const url = await saveFile(resizedBuf, relPath);
+
+    const height = meta.height ? Math.round((w / (meta.width ?? w)) * meta.height) : w;
+
+    results.push([
+      key,
+      {
+        url,
+        width: w,
+        height,
+        size: resizedBuf.length,
+        mimeType,
+      },
+    ]);
+
+    // 2. ⚡ Auto-WebP generation (if not already WebP)
+    if (outExt !== "webp") {
+      const webpBuf = await baseVariant
+        .clone()
+        .webp({ quality: Math.max(quality, 75) })
+        .toBuffer();
+      const webpFileName = `${baseName}-${hash}.webp`;
+      const webpRelPath = path.posix.join(baseDir, key, webpFileName);
+      const webpUrl = await saveFile(webpBuf, webpRelPath);
+
+      results.push([
+        `${key}_webp`,
+        {
+          url: webpUrl,
+          width: w,
+          height,
+          size: webpBuf.length,
+          mimeType: "image/webp",
+        },
+      ]);
+    }
+  }
+
   return Object.fromEntries(results);
 }
 

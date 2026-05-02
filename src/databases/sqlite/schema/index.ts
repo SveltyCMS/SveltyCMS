@@ -499,6 +499,39 @@ export const auditLogs = sqliteTable(
   }),
 );
 
+// Benchmark Collections
+export const benchIndexPressure = sqliteTable(
+  "bench_index_pressure",
+  {
+    _id: uuidPk(),
+    title: text("title", { length: 255 }).notNull(),
+    category: text("category", { length: 100 }),
+    count: integer("count").default(0),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    titleIdx: index("bench_index_title_idx").on(table.title),
+    categoryIdx: index("bench_index_category_idx").on(table.category),
+    tenantIdx: index("tenant_idx").on(table.tenantId),
+  }),
+);
+
+export const benchRevisions = sqliteTable(
+  "bench_revisions",
+  {
+    _id: uuidPk(),
+    title: text("title", { length: 255 }).notNull(),
+    content: text("content"),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    titleIdx: index("bench_revisions_title_idx").on(table.title),
+    tenantIdx: index("tenant_idx").on(table.tenantId),
+  }),
+);
+
 // Export all tables as a schema object for Drizzle
 export const schema = {
   authUsers,
@@ -508,6 +541,8 @@ export const schema = {
   contentNodes,
   contentDrafts,
   contentRevisions,
+  benchIndexPressure,
+  benchRevisions,
   themes,
   widgets,
   mediaItems,

@@ -465,6 +465,39 @@ export const tenants = mysqlTable(
   }),
 );
 
+// Benchmark Collections
+export const benchIndexPressure = mysqlTable(
+  "bench_index_pressure",
+  {
+    _id: uuidPk(),
+    title: text("title").notNull(),
+    category: text("category"),
+    count: int("count").default(0),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    titleIdx: index("bench_index_title_idx").on(table.title),
+    categoryIdx: index("bench_index_category_idx").on(table.category),
+    tenantIdx: index("tenant_idx").on(table.tenantId),
+  }),
+);
+
+export const benchRevisions = mysqlTable(
+  "bench_revisions",
+  {
+    _id: uuidPk(),
+    title: text("title").notNull(),
+    content: text("content"),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    titleIdx: index("bench_revisions_title_idx").on(table.title),
+    tenantIdx: index("tenant_idx").on(table.tenantId),
+  }),
+);
+
 // Export all tables as a schema object for Drizzle
 export const schema = {
   authUsers,
@@ -474,6 +507,8 @@ export const schema = {
   contentNodes,
   contentDrafts,
   contentRevisions,
+  benchIndexPressure,
+  benchRevisions,
   themes,
   widgets,
   mediaItems,

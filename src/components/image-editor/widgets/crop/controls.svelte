@@ -178,17 +178,17 @@ Supports multiple aspect ratios including common social media formats.
 	<div class="control-group">
 		<span class="control-label">Transform</span>
 		<div class="btn-group">
-			<button type="button" class="btn" onclick={onRotateLeft} title="Rotate Left 90° (L)">
+			<button type="button" class="btn" onclick={onRotateLeft} title="Rotate Left 90° (L)" aria-label="Rotate Left 90 degrees" aria-keyshortcuts="L">
 				<iconify-icon icon="mdi:rotate-left" width="20"></iconify-icon>
 			</button>
-			<button type="button" class="btn" onclick={onRotateRight} title="Rotate Right 90° (R)">
+			<button type="button" class="btn" onclick={onRotateRight} title="Rotate Right 90° (R)" aria-label="Rotate Right 90 degrees" aria-keyshortcuts="R">
 				<iconify-icon icon="mdi:rotate-right" width="20"></iconify-icon>
 			</button>
-			<button type="button" class="btn" onclick={onFlipHorizontal} title="Flip Horizontal (F)">
+			<button type="button" class="btn" onclick={onFlipHorizontal} title="Flip Horizontal (F)" aria-label="Flip Horizontal" aria-keyshortcuts="F">
 				<iconify-icon icon="mdi:flip-horizontal" width="20"></iconify-icon>
 			</button>
 			{#if onFlipVertical}
-				<button type="button" class="btn" onclick={onFlipVertical} title="Flip Vertical">
+				<button type="button" class="btn" onclick={onFlipVertical} title="Flip Vertical" aria-label="Flip Vertical">
 					<iconify-icon icon="mdi:flip-vertical" width="20"></iconify-icon>
 				</button>
 			{/if}
@@ -199,21 +199,21 @@ Supports multiple aspect ratios including common social media formats.
 		<span class="control-label">Exact values</span>
 		<span class="control-help">Drag corners or type the crop box values</span>
 		<div class="value-grid">
-			<label>
+			<label for="crop-x">
 				<span>X</span>
-				<input type="number" value={crop.x} min="0" oninput={(e) => updateCropField('x', (e.currentTarget as HTMLInputElement).value)} />
+				<input id="crop-x" type="number" value={crop.x} min="0" oninput={(e) => updateCropField('x', (e.currentTarget as HTMLInputElement).value)} />
 			</label>
-			<label>
+			<label for="crop-y">
 				<span>Y</span>
-				<input type="number" value={crop.y} min="0" oninput={(e) => updateCropField('y', (e.currentTarget as HTMLInputElement).value)} />
+				<input id="crop-y" type="number" value={crop.y} min="0" oninput={(e) => updateCropField('y', (e.currentTarget as HTMLInputElement).value)} />
 			</label>
-			<label>
+			<label for="crop-w">
 				<span>W</span>
-				<input type="number" value={crop.width} min="1" oninput={(e) => updateCropField('width', (e.currentTarget as HTMLInputElement).value)} />
+				<input id="crop-w" type="number" value={crop.width} min="1" oninput={(e) => updateCropField('width', (e.currentTarget as HTMLInputElement).value)} />
 			</label>
-			<label>
+			<label for="crop-h">
 				<span>H</span>
-				<input type="number" value={crop.height} min="1" oninput={(e) => updateCropField('height', (e.currentTarget as HTMLInputElement).value)} />
+				<input id="crop-h" type="number" value={crop.height} min="1" oninput={(e) => updateCropField('height', (e.currentTarget as HTMLInputElement).value)} />
 			</label>
 		</div>
 	</div>

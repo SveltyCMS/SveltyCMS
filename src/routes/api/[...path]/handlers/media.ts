@@ -45,7 +45,7 @@ export async function handleMediaRoutes(
       if (method === "remote") return handleMediaRemote(event, cms, tenantId, user);
       if (method === "trash" || method === "delete")
         return handleMediaPostDelete(event, cms, tenantId);
-      if (method === "manipulate")
+      if (method === "manipulate" || method === "edit")
         return handleMediaManipulate(event, cms, tenantId, user, segments);
       break;
     }
@@ -204,10 +204,31 @@ export async function handleMediaManipulate(
   user: any,
   segments: string[],
 ) {
-  if (!segments[2]) throw new AppError("Media ID is required for manipulation", 400);
-  const id = segments[2];
+  const contentType = event.request.headers.get("content-type") || "";
+  let id = segments[2];
+  let body: any = {};
 
-  const body = await event.request.json().catch(() => ({}));
+  if (contentType.includes("application/json")) {
+    body = await event.request.json().catch(() => ({}));
+  } else if (contentType.includes("multipart/form-data")) {
+    const formData = await event.request.formData();
+    // Convert FormData to a flat object for the manipulate service
+    for (const [key, value] of formData.entries()) {
+      try {
+        body[key] = typeof value === "string" ? JSON.parse(value) : value;
+      } catch {
+        body[key] = value;
+      }
+    }
+  }
+
+  // Allow ID to be in segments OR in the body (from FormData/JSON)
+  id = id || body.mediaId || body.id;
+
+  if (!id) {
+    throw new AppError("Media ID is required for manipulation", 400);
+  }
+
   if (Object.keys(body).length === 0) {
     throw new AppError("Manipulation parameters are required", 400);
   }

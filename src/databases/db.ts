@@ -62,18 +62,21 @@ export async function ensureFullInitialization(config?: any): Promise<any | null
       }
 
       // 1. Core Adapter & Connection
+      const phase1 = performance.now();
       const dbInit = await getDbInit();
       const adapter = await dbInit.loadAdapters(cfg);
       if (!adapter) {
         updateServiceHealth("database", "unhealthy" as any, "Failed to load database adapter");
         return null;
       }
+      logger.debug(`[Boot] Adapter load: ${(performance.now() - phase1).toFixed(2)}ms`);
 
       // Global singleton assignment
       dbAdapter = adapter;
       (globalThis as any)[ADAPTER_KEY] = adapter;
       (process as any)[ADAPTER_KEY] = adapter;
 
+      const phase2 = performance.now();
       const connectionResult = await adapter.connect(cfg as any);
       if (!connectionResult.success) {
         logger.error(`Database connection failed: ${connectionResult.message}`);
@@ -81,29 +84,38 @@ export async function ensureFullInitialization(config?: any): Promise<any | null
       }
       isConnected = true;
       logger.info(`Database initialized with adapter: ${adapter.type}`);
+      logger.debug(`[Boot] DB Connection: ${(performance.now() - phase2).toFixed(2)}ms`);
       dbAdapter = adapter;
 
       if (!_redisCacheInitialized) {
+        const phase3 = performance.now();
         const { cacheService } = await import("./cache/cache-service");
         await cacheService.initializeL2(cfg).catch((e) => logger.warn("Redis Init Warning:", e));
         _redisCacheInitialized = true;
+        logger.debug(`[Boot] Cache Init: ${(performance.now() - phase3).toFixed(2)}ms`);
       }
 
       // 3. Settings (Memoized)
       if (!_settingsLoaded) {
+        const phase4 = performance.now();
         const settingsSuccess = await dbInit.loadSettingsFromDB(adapter, true);
         if (!settingsSuccess) {
           logger.warn("Core settings failed to load from DB. System may be in restricted mode.");
         }
         _settingsLoaded = true;
+        logger.debug(`[Boot] Settings Load: ${(performance.now() - phase4).toFixed(2)}ms`);
       }
 
       // 4. Critical Services (Auth & Plugins)
+      const phase5 = performance.now();
       auth = await dbInit.initializeCriticalServices(adapter);
+      logger.debug(`[Boot] Critical Services: ${(performance.now() - phase5).toFixed(2)}ms`);
 
       try {
+        const phase6 = performance.now();
         const { initializePlugins } = await import("../plugins");
         await initializePlugins(adapter);
+        logger.debug(`[Boot] Plugin Init: ${(performance.now() - phase6).toFixed(2)}ms`);
       } catch (e) {
         logger.error("Plugin initialization failed:", e);
       }

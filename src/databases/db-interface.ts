@@ -323,6 +323,8 @@ export interface CmsMediaMetadata {
   codec?: string;
   copyright?: string;
   description?: string;
+  dominantColor?: string;
+  placeholder?: string;
   duration?: number;
   exif?: Record<string, unknown>;
   focalPoint?: { x: number; y: number };

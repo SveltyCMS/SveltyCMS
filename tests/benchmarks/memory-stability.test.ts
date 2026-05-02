@@ -115,8 +115,8 @@ export async function runMemoryStabilityAudit() {
     const totalDurationMs = performance.now() - startTime;
     const rps = totalRequests / (totalDurationMs / 1000);
 
-    const rssGrowth = Math.round(finalMem.rss / 1024 / 1024) - Math.round(baseline.rss / 1024 / 1024);
-    const heapGrowth = Math.round(finalMem.heapUsed / 1024 / 1024) - Math.round(baseline.heapUsed / 1024 / 1024);
+    const rssGrowth = (finalMem.rss - baseline.rss) / 1024 / 1024;
+    const heapGrowth = (finalMem.heapUsed - baseline.heapUsed) / 1024 / 1024;
 
     // Calculate linear regression slope for leak detection
     const heapSlope = calculateHeapSlope(snapshots);
@@ -131,10 +131,10 @@ export async function runMemoryStabilityAudit() {
     printSummaryTable([
       { key: "Total Requests", val: totalRequests, unit: "" },
       { key: "Average RPS", val: Math.round(rps), unit: "req/s" },
-      { key: "RSS Growth", val: rssGrowth, unit: "MB" },
-      { key: "Heap Growth", val: heapGrowth, unit: "MB" },
+      { key: "RSS Growth", val: rssGrowth.toFixed(2), unit: "MB" },
+      { key: "Heap Growth", val: heapGrowth.toFixed(2), unit: "MB" },
       { key: "Leak Slope", val: heapSlope.toFixed(2), unit: "MB/min" },
-      { key: "Stability", val: heapSlope < 1.5 ? "EXCELLENT" : heapSlope < 4 ? "STABLE" : "LEAKY", unit: "" },
+      { key: "Stability", val: heapSlope < 1.5 && heapGrowth < 10 ? "EXCELLENT" : heapSlope < 4 ? "STABLE" : "LEAKY", unit: "" },
     ]);
 
     exportResult({

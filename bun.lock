@@ -55,7 +55,7 @@
         "graphql-ws": "^6.0.8",
         "graphql-yoga": "^5.21.0",
         "iconify-icon": "^3.0.2",
-        "isomorphic-dompurify": "^3.11.0",
+        "isomorphic-dompurify": "^3.12.0",
         "json-render-svelte": "^0.6.1",
         "lru-cache": "^11.3.5",
         "mime-types": "^3.0.2",
@@ -2371,7 +2371,7 @@
 
     "qs": ["qs@6.15.0", "", { "dependencies": { "side-channel": "^1.1.0" } }, "sha512-mAZTtNCeetKMH+pSjrb76NAM8V9a05I9aBZOHztWy/UqcJdQYNsf59vrRKWnojAT9Y+GbIvoTBC++CPHqpDBhQ=="],
 
-    "rate-limiter-flexible": ["rate-limiter-flexible@11.0.1", "", {}, "sha512-hvyCUefjRund2N6hro2H8Dql7OvB6+B3Qv2FLWWbdsdyQScXf4+N0tM0Bryz11awTtNxx6C1QbHYb1rCiAx7pA=="],
+    "rate-limiter-flexible": ["rate-limiter-flexible@11.0.2", "", {}, "sha512-KF/g/GrzzL8bm5K9ZZ8MM0ascA+8dUwv5xA6+/k/3TpT/5cfz3ab36sRUTZsWMd0zmkOOZBu5oXURsRvztjBhw=="],
 
     "rc": ["rc@1.2.8", "", { "dependencies": { "deep-extend": "^0.6.0", "ini": "~1.3.0", "minimist": "^1.2.0", "strip-json-comments": "~2.0.1" }, "bin": { "rc": "./cli.js" } }, "sha512-y3bGgqKj3QBdxLbLkomlohkvsA8gdAiUQlSBJnBhfn+BPxg4bc62d8TcBW15wavDfgexCgccckhcZvywyQYPOw=="],
 

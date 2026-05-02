@@ -23,7 +23,7 @@ let stopServer: (() => Promise<void>) | null = null;
 const graphqlScenarios = [
   {
     name: "GQL: System Health",
-    query: `query { contentSystemHealth { state version dbVersion } }`,
+    query: `query { contentSystemHealth { state version collectionCount } }`,
     shortLabel: "Health",
     concurrency: 1,
   },

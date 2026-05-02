@@ -125,31 +125,47 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 		const fx = offsetX + imageElement.width * pctToDecimal(fp.x);
 		const fy = offsetY + imageElement.height * pctToDecimal(fp.y);
 
-		// Draw Crosshair
-		context.strokeStyle = '#ff0000';
-		context.lineWidth = 2 / zoom;
+		// --- PREMIUM AESTHETICS ---
+		const primaryColor = '#3b82f6'; // Modern Svelty Blue
+		const secondaryColor = 'rgba(59, 130, 246, 0.4)';
+
+		// Setup glow
+		context.shadowBlur = 10 / zoom;
+		context.shadowColor = 'rgba(59, 130, 246, 0.8)';
+
+		// Draw Crosshair (Thin & Precise)
+		context.strokeStyle = primaryColor;
+		context.lineWidth = 1.5 / zoom;
 		context.beginPath();
-		context.moveTo(fx - 20 / zoom, fy);
-		context.lineTo(fx + 20 / zoom, fy);
-		context.moveTo(fx, fy - 20 / zoom);
-		context.lineTo(fx, fy + 20 / zoom);
+		context.moveTo(fx - 24 / zoom, fy);
+		context.lineTo(fx + 24 / zoom, fy);
+		context.moveTo(fx, fy - 24 / zoom);
+		context.lineTo(fx, fy + 24 / zoom);
 		context.stroke();
 
-		// Draw Circle
+		// Draw Core Circle (Glassy)
+		context.shadowBlur = 0; // Disable shadow for core to keep it sharp
 		context.beginPath();
-		context.arc(fx, fy, 5 / zoom, 0, Math.PI * 2);
-		context.fillStyle = '#ff0000';
+		context.arc(fx, fy, 4 / zoom, 0, Math.PI * 2);
+		context.fillStyle = '#ffffff'; // White center for contrast
 		context.fill();
-
-		// Draw target rings
-		context.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+		context.strokeStyle = primaryColor;
 		context.lineWidth = 1 / zoom;
-		context.beginPath();
-		context.arc(fx, fy, 15 / zoom, 0, Math.PI * 2);
 		context.stroke();
+
+		// Draw target rings (Multi-layered Translucency)
+		context.strokeStyle = secondaryColor;
+		context.lineWidth = 1 / zoom;
+		
 		context.beginPath();
-		context.arc(fx, fy, 25 / zoom, 0, Math.PI * 2);
+		context.arc(fx, fy, 16 / zoom, 0, Math.PI * 2);
 		context.stroke();
+		
+		context.setLineDash([4 / zoom, 4 / zoom]); // Dashed outer ring
+		context.beginPath();
+		context.arc(fx, fy, 32 / zoom, 0, Math.PI * 2);
+		context.stroke();
+		context.setLineDash([]); // Reset
 
 		context.restore();
 	};

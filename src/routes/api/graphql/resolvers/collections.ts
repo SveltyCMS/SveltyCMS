@@ -75,6 +75,11 @@ export function createCleanTypeName(collection: { _id?: string; name?: string | 
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join("");
 
+  // GraphQL identifiers cannot start with a digit
+  if (/^[0-9]/.test(cleanName)) {
+    return "_" + cleanName;
+  }
+
   const id = collection._id ?? "";
   const normalizedId = id.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
   const normalizedClean = cleanName.toLowerCase();

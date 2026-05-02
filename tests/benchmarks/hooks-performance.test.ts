@@ -32,14 +32,14 @@ const middlewareScenarios = [
   {
     name: "Full Security + Auth Pipeline",
     shortLabel: "Auth+Security",
-    path: "/api/collections/benchmark_stable/bench-shared-001",
+    path: "/api/collections/BenchmarkStable/bench-shared-001",
     method: "GET",
     concurrency: 8,
   },
   {
     name: "Mutation + Audit Logging",
     shortLabel: "Audit",
-    path: "/api/collections/benchmark_stable",
+    path: "/api/collections/BenchmarkStable",
     method: "POST",
     concurrency: 1,
     body: () => ({
@@ -58,7 +58,7 @@ async function runHooksAudit() {
     baseUrl = server.baseUrl;
 
     await ensureStableTestData();
-    await stabilize(1500);
+    await stabilize(3000); // Increased for audit log propagation
 
     const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
     const results = [];

@@ -15,6 +15,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  TEST_API_SECRET,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
@@ -62,7 +63,7 @@ async function runMigrationAudit() {
           method: "POST",
           headers: {
             "x-test-mode": "true",
-            "x-test-secret": "test-secret",
+            "x-test-secret": TEST_API_SECRET,
             "Content-Type": "application/json",
           },
           body: JSON.stringify(batch),
@@ -89,7 +90,7 @@ async function runMigrationAudit() {
       onIteration: async () => {
         const randomId = `mig-${Math.floor(Math.random() * (TOTAL_ENTRIES / BATCH_SIZE))}-${Math.floor(Math.random() * BATCH_SIZE)}`;
         const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${randomId}`, {
-          headers: { "x-test-mode": "true", "x-test-secret": "test-secret" },
+          headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
         });
         if (!res.ok) throw new Error(`Lookup failed: ${res.status}`);
         await res.text();

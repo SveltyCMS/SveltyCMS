@@ -50,7 +50,7 @@ async function runMultiTenantAudit() {
       concurrency: CONCURRENCY,
       silent: true,
       onIteration: async () => {
-        const res = await fetch(`${baseUrl}/api/collections/benchmark_stable?limit=5`, {
+        const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable?limit=5`, {
           headers: {
             "x-test-mode": "true",
             "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
@@ -72,7 +72,7 @@ async function runMultiTenantAudit() {
       silent: true,
       onIteration: async (i: number) => {
         const tenantId = `tenant-${i % TENANT_COUNT}`;
-        const res = await fetch(`${baseUrl}/api/collections/benchmark_stable?limit=5`, {
+        const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable?limit=5`, {
           headers: {
             "x-test-mode": "true",
             "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",

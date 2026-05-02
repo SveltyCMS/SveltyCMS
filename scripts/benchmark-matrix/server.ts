@@ -106,7 +106,6 @@ export function buildServerEnv(
     BENCHMARK_DEBUG: process.env.BENCHMARK_DEBUG || "false",
     BENCHMARK_MODE: "true",
     BENCHMARK_STABLE: "true",
-    STRICT_SETUP_CHECK: "true",
     SVELTY_AUDIT_ACTIVE: process.env.SVELTY_AUDIT_ACTIVE || "false",
   };
 
@@ -128,8 +127,7 @@ export function buildServerEnv(
 export async function getServerEntryPoint(): Promise<string> {
   const paths = [
     path.resolve(process.cwd(), "build", "index.js"),
-    path.resolve(process.cwd(), ".svelte-kit", "adapter-node", "index.js"),
-    path.resolve(process.cwd(), "src", "hooks", "handle-turbo-pipeline.server.ts"), // Fallback to dev if no build exists
+    path.resolve(process.cwd(), "src", "hooks", "handle-turbo-pipeline.server.ts"), // Turbo Dev fallback
   ];
 
   for (const p of paths) {
@@ -168,25 +166,41 @@ export async function waitForHealthCheck(
     if (isShuttingDown()) break;
     await new Promise((r) => setTimeout(r, 1000));
     try {
-      const r = await fetch(`http://127.0.0.1:${port}/api/system/health`, {
+      const url = `http://127.0.0.1:${port}/api/system/health`;
+      const r = await fetch(url, {
         headers: {
           "x-test-mode": "true",
           "x-test-secret": TEST_API_SECRET,
         },
         signal: AbortSignal.timeout(3000),
       });
+
       if (r.ok) {
         const body = await r.json();
         const data = body?.data ?? body ?? {};
         const status = data?.status ?? data?.overallStatus ?? data?.health ?? "";
         version = data.dbVersion ?? data.version ?? "unknown";
+
         if (ACCEPTABLE.has(status) || ACCEPTABLE.has(status.toLowerCase()) || status) {
           healthy = true;
           break;
+        } else {
+          if (process.env.BENCHMARK_DEBUG === "true") {
+            console.log(`[HealthCheck] Unexpected status: "${status}" from ${url}`);
+          }
+        }
+      } else {
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          const body = await r.text().catch(() => "no-body");
+          console.log(
+            `[HealthCheck] Failed with HTTP ${r.status} from ${url}. Body: ${body.substring(0, 200)}`,
+          );
         }
       }
-    } catch {
-      // Ignore fetch errors during startup
+    } catch (err: any) {
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        console.log(`[HealthCheck] Error: ${err.message}`);
+      }
     }
   }
   return { healthy, version };
@@ -214,7 +228,7 @@ export async function startServer(
   const cmd = isDev ? "bun" : "bun";
   const args = isDev
     ? ["x", "vite", "dev", "--port", port.toString(), "--host", "127.0.0.1"]
-    : [serverPath];
+    : ["-r", "./tests/unit/setup.ts", serverPath];
 
   log.db(db.type, `Launching SveltyCMS instance (${isDev ? "DEV" : "PROD"}) on port ${port}...`);
 
@@ -232,9 +246,17 @@ export async function startServer(
   workerProcess.stdout?.pipe(logStream);
   workerProcess.stderr?.pipe(logStream);
 
+  const cleanupListeners = () => {
+    workerProcess.stdout?.removeAllListeners();
+    workerProcess.stderr?.removeAllListeners();
+    workerProcess.removeAllListeners();
+  };
+
   const stop = async () => {
     if (globalServerProcess === workerProcess) globalServerProcess = null;
     await killProcess(workerProcess);
+    logStream.end();
+    cleanupListeners();
   };
 
   globalServerProcess = workerProcess;
@@ -244,7 +266,10 @@ export async function startServer(
     let buf = "";
 
     const timeout = setTimeout(() => {
-      if (!resolved) reject(new Error("Server startup timeout after 120s"));
+      if (!resolved) {
+        cleanupListeners();
+        reject(new Error("Server startup timeout after 120s"));
+      }
     }, 120_000);
 
     workerProcess.stdout?.on("data", async (d: Buffer) => {
@@ -292,20 +317,22 @@ export async function startServer(
       }
     });
 
-    workerProcess?.on("exit", (code) => {
+    workerProcess?.once("exit", (code) => {
       if (!resolved) {
         resolved = true;
         clearTimeout(timeout);
+        cleanupListeners();
         reject(new Error(`Server process exited early with code ${code}`));
-      } else if (!isShuttingDown() && code !== 0 && !(process.platform === "win32" && code === 1)) {
+      } else if (!isNoisyLine("") && !isShuttingDown() && code !== 0 && !(process.platform === "win32" && code === 1)) {
         log.error(`[${db.type.toUpperCase()}] Server process CRASHED with code ${code}`);
       }
     });
 
-    workerProcess?.on("error", (err) => {
+    workerProcess?.once("error", (err) => {
       if (!resolved) {
         resolved = true;
         clearTimeout(timeout);
+        cleanupListeners();
         reject(err);
       }
       stop();

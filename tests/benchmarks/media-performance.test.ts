@@ -45,10 +45,37 @@ async function runMediaAudit() {
     // Generate test image once
     testImageBuffer = await generateTestImage();
 
-    console.log("   → Measuring Media Upload + Processing Pipeline...");
+    const { getDb } = await import("@src/databases/db");
+    const { LocalCMS } = await import("@src/services/local-cms");
+    const db = getDb();
+    const cms = new LocalCMS(db!);
 
-    const result = await runBenchmark({
-      name: "Media Upload & Processing",
+    const results: any[] = [];
+
+    console.log("   → Measuring Local SDK Media Processing...");
+    const sdkResult = await runBenchmark({
+      name: "SDK: Media Processing",
+      iterations: 80,
+      warmupIterations: 8,
+      runs: 2,
+      concurrency: 2,
+      trimOutliers: "iqr",
+      measureMemory: true,
+      silent: true,
+      onIteration: async (i: number) => {
+        const noise = new Uint8Array([i % 256, Math.floor(Math.random() * 256)]);
+        const uniqueBuffer = Buffer.concat([testImageBuffer, Buffer.from(noise)]);
+        const file = new File([uniqueBuffer], `sdk-media-${i}.jpg`, { type: "image/jpeg" });
+        const res = await cms.media.upload(file, { userId: "system", tenantId: "global" as any, skipResizing: true });
+        if (!res.url) throw new Error(`SDK upload failed: Missing URL`);
+      },
+    });
+    results.push({ ...sdkResult, shortLabel: "SDK", layer: "SDK" });
+
+    console.log("   → Measuring HTTP Media Upload Pipeline...");
+
+    const httpResult = await runBenchmark({
+      name: "HTTP: Media Upload",
       iterations: 80,           // Media operations are heavy
       warmupIterations: 8,
       runs: 2,
@@ -83,22 +110,25 @@ async function runMediaAudit() {
         await res.json();
       },
     });
+    results.push({ ...httpResult, shortLabel: "HTTP", layer: "HTTP" });
 
     printTruthTable({
       title: "SVELTYCMS — MEDIA PIPELINE AUDIT",
       shortLabel: "Media",
-      subtitle: `Upload → Resize → Storage • ${getDbType().toUpperCase()}`,
-      results: [{ ...result, layer: "Media" }],
+      subtitle: `Upload → Resize → Storage • SDK vs HTTP • ${getDbType().toUpperCase()}`,
+      results,
     });
 
     printSummaryTable([
-      { key: "Avg Processing Latency", val: result.avgMs, unit: "ms" },
-      { key: "p95 Latency", val: result.p95Ms || result.avgMs, unit: "ms" },
-      { key: "Throughput", val: Math.round(result.rps || 0), unit: "images/s" },
-      { key: "Memory Growth", val: (result.rssDelta || 0).toFixed(1), unit: "MB" },
+      { key: "SDK Processing Latency", val: sdkResult.avgMs, unit: "ms" },
+      { key: "HTTP Pipeline Latency", val: httpResult.avgMs, unit: "ms" },
+      { key: "SDK Throughput", val: Math.round(sdkResult.rps || 0), unit: "images/s" },
+      { key: "HTTP Throughput", val: Math.round(httpResult.rps || 0), unit: "images/s" },
+      { key: "HTTP p95 Latency", val: httpResult.p95Ms || httpResult.avgMs, unit: "ms" },
+      { key: "Memory Growth", val: (httpResult.rssDelta || 0).toFixed(1), unit: "MB" },
     ]);
 
-    exportResult(result);
+    for (const r of results) exportResult(r);
 
   } catch (err: any) {
     logger.error(`Media benchmark failed: ${err.message}`);

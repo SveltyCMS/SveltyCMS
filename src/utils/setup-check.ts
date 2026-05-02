@@ -183,6 +183,7 @@ export function invalidateSetupCache(
   setupConfigStatus = forceStatus;
   setupDbStatus = forceStatus;
   setupStatusCheckedDb = forceStatus !== null;
+  cachedTestSecret = null; // 🚀 Clear cached secret
 
   if (clearPrivateEnv) {
     import(/* @vite-ignore */ "@src/databases/db").then((db) => {

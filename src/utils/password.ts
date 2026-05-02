@@ -17,64 +17,72 @@
  * @see https://csrc.nist.gov/projects/post-quantum-cryptography
  */
 
+import { Worker } from "node:worker_threads";
+import path from "node:path";
+import os from "node:os";
+
 // System Logger
 import { logger } from "@utils/logger";
 
-/**
- * Argon2id configuration - Quantum-resistant password hashing
- *
- * SECURITY RATIONALE:
- * - Memory (64 MB): Makes attacks expensive even with quantum computers
- * - Time (3 iterations): Adds computational cost without degrading UX
- * - Parallelism (4 threads): Optimized for modern multi-core CPUs
- * - Type (argon2id): Hybrid mode resistant to both side-channel and GPU attacks
- *
- * QUANTUM RESISTANCE:
- * Quantum computers excel at computation but are limited by:
- * 1. Limited qubits (can't allocate 64 MB per hash)
- * 2. Memory access patterns (not parallelizable by quantum algorithms)
- * 3. Grover's algorithm only helps with computation, not memory operations
- *
- * This makes Argon2id secure against quantum attacks for decades to come.
- */
 const ARGON2_CONFIG = {
-  memoryCost: 65_536, // 64 MB - Quantum-resistant memory requirement
-  timeCost: 3, // 3 iterations - Computational complexity
-  parallelism: 4, // 4 parallel threads - CPU optimization
-  type: 2, // argon2id (hybrid: side-channel + GPU resistant)
+  memoryCost: 65_536, // 64 MB
+  timeCost: 3,
+  parallelism: 4,
+  type: 2, // argon2id
 } as const;
 
-/**
- * Hash a password using argon2id with quantum-resistant parameters
- *
- * SECURITY FEATURES:
- * - Argon2id: Winner of Password Hashing Competition (2015)
- * - Memory-hard: 64 MB per hash (resists GPU/ASIC/quantum attacks)
- * - Quantum-resistant: No known quantum speedup for memory-bound algorithms
- * - Salt: Automatically generated per password (prevents rainbow tables)
- *
- * QUANTUM RESISTANCE:
- * Unlike computational algorithms vulnerable to Grover's algorithm,
- * memory-hard algorithms like Argon2 maintain full security because:
- * - Quantum computers have limited qubits (can't store 64 MB per hash)
- * - Memory access patterns aren't parallelizable
- * - No quantum advantage for memory-bound operations
- *
- * @param password - The plain text password to hash
- * @returns Promise<string> - The hashed password in PHC format
- * @throws Error if hashing fails
- */
+// --- Worker Pool Implementation ---
+const MAX_WORKERS = Math.max(2, Math.floor(os.cpus().length / 2));
+const workerPool: Worker[] = [];
+let nextWorker = 0;
+let msgIdCounter = 0;
+const pendingPromises = new Map<
+  number,
+  { resolve: (val: any) => void; reject: (err: any) => void }
+>();
+
+function getWorker(): Worker {
+  if (workerPool.length < MAX_WORKERS) {
+    // Note: In production build, .ts extension might need resolving if compiled,
+    // but in Bun/SvelteKit server context, we can usually resolve the source path or the transpiled chunk.
+    // For safety in SvelteKit builds, we use the transpiled file if it exists, or fallback to TS.
+    const workerPath = path.resolve(process.cwd(), "src/utils/password.worker.ts");
+    const worker = new Worker(workerPath);
+    worker.on("message", (msg) => {
+      const p = pendingPromises.get(msg.id);
+      if (p) {
+        pendingPromises.delete(msg.id);
+        if (msg.error) p.reject(new Error(msg.error));
+        else p.resolve(msg.result);
+      }
+    });
+    worker.on("error", (err) => logger.error("Argon2 worker error", err));
+    workerPool.push(worker);
+    return worker;
+  }
+  const worker = workerPool[nextWorker];
+  nextWorker = (nextWorker + 1) % workerPool.length;
+  return worker;
+}
+
+async function runInWorker(action: string, payload: any): Promise<any> {
+  // ⚡ Fast-path: If worker_threads are unavailable (e.g. browser) fallback to main thread
+  if (typeof Worker === "undefined") {
+    const argon2 = await import("argon2");
+    if (action === "hash") return argon2.hash(payload.password, payload.config);
+    if (action === "verify") return argon2.verify(payload.hash, payload.password);
+  }
+
+  return new Promise((resolve, reject) => {
+    const id = ++msgIdCounter;
+    pendingPromises.set(id, { resolve, reject });
+    getWorker().postMessage({ id, action, ...payload });
+  });
+}
+
 export async function hashPassword(password: string): Promise<string> {
   try {
-    const argon2 = await import("argon2");
-
-    const hashedPassword = await argon2.hash(password, {
-      memoryCost: ARGON2_CONFIG.memoryCost,
-      timeCost: ARGON2_CONFIG.timeCost,
-      parallelism: ARGON2_CONFIG.parallelism,
-      type: argon2.argon2id,
-    });
-
+    const hashedPassword = await runInWorker("hash", { password, config: ARGON2_CONFIG });
     logger.trace("Password hashed successfully");
     return hashedPassword;
   } catch (error) {
@@ -83,27 +91,12 @@ export async function hashPassword(password: string): Promise<string> {
   }
 }
 
-/**
- * Verify a password against a hash using constant-time comparison
- *
- * SECURITY FEATURES:
- * - Timing-safe: Prevents timing attacks (comparison time is constant)
- * - Automatic parameter extraction: Uses stored salt, memory, time settings
- * - Quantum-resistant: Argon2 verification maintains quantum resistance
- *
- * @param hashedPassword - The stored hash to verify against (PHC format)
- * @param plainPassword - The plain text password to verify
- * @returns Promise<boolean> - True if password matches, false otherwise
- */
 export async function verifyPassword(
   hashedPassword: string,
   plainPassword: string,
 ): Promise<boolean> {
   try {
-    const argon2 = await import("argon2");
-
-    const isValid = await argon2.verify(hashedPassword, plainPassword);
-
+    const isValid = await runInWorker("verify", { hash: hashedPassword, password: plainPassword });
     logger.trace("Password verification completed", { isValid });
     return isValid;
   } catch (error) {

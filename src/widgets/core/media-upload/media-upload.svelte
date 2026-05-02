@@ -122,35 +122,22 @@ functionality for image editing and basic file information display.
 		}, 300);
 	}
 
-	async function handleEditorSave(detail: {
-		dataURL: string;
-		file: File;
-		operations?: unknown;
-		focalPoint?: unknown;
-		mediaId?: string;
-		saveBehavior?: 'new' | 'overwrite';
-	}) {
-		const { file, operations, focalPoint, mediaId, saveBehavior } = detail;
+	async function handleEditorSave(detail: any) {
+		const { mediaId, manipulations } = detail;
 
-		const formData = new FormData();
-		formData.append('file', file);
-		if (mediaId) {
-			formData.append('mediaId', mediaId);
-		}
-		if (operations) {
-			formData.append('operations', JSON.stringify(operations));
-		}
-		if (focalPoint) {
-			formData.append('focalPoint', JSON.stringify(focalPoint));
-		}
-		if (saveBehavior) {
-			formData.append('saveBehavior', saveBehavior);
+		if (!mediaId) {
+			logger.error('Cannot save edits: Media ID is missing');
+			return;
 		}
 
 		try {
-			const response = await fetch('/api/media/edit', {
+			// --- SERVER-SIDE BAKING ---
+			const response = await fetch(`/api/media/manipulate/${mediaId}`, {
 				method: 'POST',
-				body: formData
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(manipulations)
 			});
 
 			if (!response.ok) {
@@ -164,7 +151,7 @@ functionality for image editing and basic file information display.
 			}
 
 			// Update the widget data with the new persisted image data
-			value = result.data; // Assign directly to the bindable prop
+			value = result.data;
 			showEditor = false;
 		} catch (error) {
 			logger.error('Error saving edited image:', error);

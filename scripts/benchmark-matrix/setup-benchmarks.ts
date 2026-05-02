@@ -60,8 +60,8 @@ const COLLECTIONS = {
     ],
   },
   STABLE: {
-    _id: "benchmark_stable",
-    name: "benchmark_stable",
+    _id: "BenchmarkStable",
+    name: "BenchmarkStable",
     icon: "mdi:database-check",
     fields: [
       { label: "Title", db_fieldName: "title", widget: { Name: "Input" }, required: true },
@@ -77,6 +77,34 @@ const COLLECTIONS = {
       { label: "To", db_fieldName: "to", widget: { Name: "Input" }, required: true },
       { label: "Type", db_fieldName: "type", widget: { Name: "Select" }, required: true },
       { label: "Tenant ID", db_fieldName: "tenantId", widget: { Name: "Text" }, required: true },
+    ],
+  },
+  REVISIONS: {
+    _id: "bench_revisions",
+    name: "bench_revisions",
+    icon: "mdi:history",
+    fields: [
+      { label: "Title", db_fieldName: "title", widget: { Name: "Input" }, indexed: true, required: true },
+      { label: "Content", db_fieldName: "content", widget: { Name: "RichText" } },
+    ],
+  },
+  INDEX_PRESSURE: {
+    _id: "bench_index_pressure",
+    name: "bench_index_pressure",
+    icon: "mdi:gauge",
+    fields: [
+      { label: "Title", db_fieldName: "title", widget: { Name: "Input" }, indexed: true, required: true },
+      { label: "Category", db_fieldName: "category", widget: { Name: "Select" }, indexed: true },
+      { label: "Count", db_fieldName: "count", widget: { Name: "Number" } },
+    ],
+  },
+  MIGRATION: {
+    _id: "bench_migration_large",
+    name: "bench_migration_large",
+    icon: "mdi:transfer",
+    fields: [
+      { label: "Title", db_fieldName: "title", widget: { Name: "Input" }, required: true },
+      { label: "Data", db_fieldName: "data", widget: { Name: "JSON" } },
     ],
   },
 } as const;
@@ -109,36 +137,38 @@ async function setupCollections(cms: any): Promise<{ authorsId: string; postsId:
   await writeCollectionSchema(compiledDir, COLLECTIONS.POSTS);
   await writeCollectionSchema(compiledDir, COLLECTIONS.STABLE);
   await writeCollectionSchema(compiledDir, COLLECTIONS.REDIRECTS);
+  await writeCollectionSchema(compiledDir, COLLECTIONS.REVISIONS);
+  await writeCollectionSchema(compiledDir, COLLECTIONS.INDEX_PRESSURE);
+  await writeCollectionSchema(compiledDir, COLLECTIONS.MIGRATION);
 
   // Create models in database adapter
   if (typeof cms.db.collection?.createModel === "function") {
+    // For SQL adapters (SQLite/Postgres/Maria), drop existing tables if they exist to ensure a clean state
+    if (typeof cms.db.raw?.execute === "function") {
+      try {
+        await cms.db.raw.execute("DROP TABLE IF EXISTS benchmark_authors");
+        await cms.db.raw.execute("DROP TABLE IF EXISTS benchmark_posts");
+        await cms.db.raw.execute("DROP TABLE IF EXISTS BenchmarkStable");
+        await cms.db.raw.execute("DROP TABLE IF EXISTS redirects");
+        await cms.db.raw.execute("DROP TABLE IF EXISTS bench_revisions");
+        await cms.db.raw.execute("DROP TABLE IF EXISTS bench_index_pressure");
+        await cms.db.raw.execute("DROP TABLE IF EXISTS bench_migration_large");
+      } catch (e) {
+        log(`Cleanup attempt failed: ${e}`);
+      }
+    }
     await cms.db.collection.createModel(COLLECTIONS.AUTHORS as any);
     await cms.db.collection.createModel(COLLECTIONS.POSTS as any);
     await cms.db.collection.createModel(COLLECTIONS.STABLE as any);
     await cms.db.collection.createModel(COLLECTIONS.REDIRECTS as any);
+    await cms.db.collection.createModel(COLLECTIONS.REVISIONS as any);
+    await cms.db.collection.createModel(COLLECTIONS.INDEX_PRESSURE as any);
+    await cms.db.collection.createModel(COLLECTIONS.MIGRATION as any);
   }
 
-  log("Refreshing local collections and notifying server...");
+  log("Refreshing local content system...");
   await cms.collections.refresh(TENANT_ID as any, false); // full refresh with reconciliation
 
-  // 🚀 NOTIFY SERVER: Force the remote server process to re-scan collections from .compiledCollections
-  if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
-    log(`   → Notifying server at ${process.env.API_BASE_URL}...`);
-    try {
-      const res = await fetch(`${process.env.API_BASE_URL}/api/system/refresh`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-secret": process.env.TEST_API_SECRET,
-        },
-        body: JSON.stringify({ tenantId: TENANT_ID, skipReconciliation: false }),
-      });
-      if (res.ok) log("   → Server refresh successful.");
-      else log(`   → Server refresh failed: ${res.status} ${res.statusText}`);
-    } catch (err: any) {
-      log(`   → Server refresh notification error: ${err.message}`);
-    }
-  }
   if (typeof (cms.db as any).reconcile === "function") {
     await (cms.db as any).reconcile();
   }
@@ -147,15 +177,33 @@ async function setupCollections(cms: any): Promise<{ authorsId: string; postsId:
   // This prevents "Collection not found" errors due to async file system watchers.
   let authorsCollection: any = null;
   let postsCollection: any = null;
+  let stableCollection: any = null;
+  let revisionsCollection: any = null;
+  let pressureCollection: any = null;
+  let migrationCollection: any = null;
+  let redirectsCollection: any = null;
+
   const MAX_POLL_ATTEMPTS = 15;
 
   for (let attempt = 1; attempt <= MAX_POLL_ATTEMPTS; attempt++) {
     const collections = await cms.collections.list({ tenantId: TENANT_ID as any });
     authorsCollection = collections.find((c: any) => c.name === "benchmark_authors");
     postsCollection = collections.find((c: any) => c.name === "benchmark_posts");
-    const stableCollection = collections.find((c: any) => c.name === "benchmark_stable");
+    stableCollection = collections.find((c: any) => c.name === "BenchmarkStable");
+    revisionsCollection = collections.find((c: any) => c.name === "bench_revisions");
+    pressureCollection = collections.find((c: any) => c.name === "bench_index_pressure");
+    migrationCollection = collections.find((c: any) => c.name === "bench_migration_large");
+    redirectsCollection = collections.find((c: any) => c.name === "redirects");
 
-    if (authorsCollection && postsCollection && stableCollection) {
+    if (
+      authorsCollection &&
+      postsCollection &&
+      stableCollection &&
+      revisionsCollection &&
+      pressureCollection &&
+      migrationCollection &&
+      redirectsCollection
+    ) {
       if (attempt > 1) log(`✅ Collections reconciled on attempt ${attempt}.`);
       break;
     }
@@ -186,9 +234,37 @@ async function setupCollections(cms: any): Promise<{ authorsId: string; postsId:
   if (typeof cms.db.collection?.createModel === "function") {
     if (authorsCollection) await cms.db.collection.createModel(authorsCollection as any);
     if (postsCollection) await cms.db.collection.createModel(postsCollection as any);
+    if (stableCollection) await cms.db.collection.createModel(stableCollection as any);
+    if (revisionsCollection) await cms.db.collection.createModel(revisionsCollection as any);
+    if (pressureCollection) await cms.db.collection.createModel(pressureCollection as any);
+    if (migrationCollection) await cms.db.collection.createModel(migrationCollection as any);
+    if (redirectsCollection) await cms.db.collection.createModel(redirectsCollection as any);
   }
 
   return { authorsId, postsId };
+}
+
+/**
+ * 🚀 NOTIFY SERVER: Force the remote server process to re-scan collections
+ */
+async function notifyServer() {
+  if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
+    log(`   → Notifying server at ${process.env.API_BASE_URL}...`);
+    try {
+      const res = await fetch(`${process.env.API_BASE_URL}/api/system/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-secret": process.env.TEST_API_SECRET,
+        },
+        body: JSON.stringify({ tenantId: TENANT_ID, skipReconciliation: false }),
+      });
+      if (res.ok) log("   → Server refresh successful.");
+      else log(`   → Server refresh failed: ${res.status} ${res.statusText}`);
+    } catch (err: any) {
+      log(`   → Server refresh notification error: ${err.message}`);
+    }
+  }
 }
 
 async function seedData(cms: any, authorsId: string, postsId: string): Promise<void> {
@@ -278,10 +354,9 @@ export async function main(): Promise<void> {
     log("Starting benchmark data setup...");
 
     // Dynamic imports to ensure proper initialization order
-    const { getDb, getDbInitPromise, reinitializeSystem } = await import("@src/databases/db");
+    const { getDb, getDbInitPromise } = await import("@src/databases/db");
     const { LocalCMS } = await import("@src/services/local-cms");
 
-    await reinitializeSystem(true);
     await getDbInitPromise();
 
     const db = getDb();
@@ -296,16 +371,34 @@ export async function main(): Promise<void> {
     let existingRedirects: any = null;
 
     try {
-      existingResult = await db.crud.findOne("benchmark_authors", { _id: "author-1" as any }, { tenantId: TENANT_ID as any });
-    } catch { /* Table likely missing */ }
+      existingResult = await db.crud.findOne(
+        "benchmark_authors",
+        { _id: "author-1" as any },
+        { tenantId: TENANT_ID as any },
+      );
+    } catch {
+      /* Table likely missing */
+    }
 
     try {
-      existingStable = await db.crud.findOne("benchmark_stable", { _id: "bench-shared-001" as any }, { tenantId: TENANT_ID as any });
-    } catch { /* Table likely missing */ }
+      existingStable = await db.crud.findOne(
+        "BenchmarkStable",
+        { _id: "bench-shared-001" as any },
+        { tenantId: TENANT_ID as any },
+      );
+    } catch {
+      /* Table likely missing */
+    }
 
     try {
-      existingRedirects = await db.crud.findOne("redirects", { _id: "bench-redirect-1" as any }, { tenantId: TENANT_ID as any });
-    } catch { /* Table likely missing */ }
+      existingRedirects = await db.crud.findOne(
+        "redirects",
+        { _id: "bench-redirect-1" as any },
+        { tenantId: TENANT_ID as any },
+      );
+    } catch {
+      /* Table likely missing */
+    }
 
     const hasData =
       existingResult?.success &&
@@ -317,6 +410,7 @@ export async function main(): Promise<void> {
 
     if (hasData && !clearOnly && !force) {
       log("🚀 [SmartSeed] Benchmark data already exists. Reusing state...");
+      await notifyServer();
       process.exit(0);
     }
 
@@ -421,9 +515,8 @@ export async function main(): Promise<void> {
     const { authorsId, postsId } = await setupCollections(cms);
     await seedData(cms, authorsId, postsId);
 
-    // Final reconciliation
-    log("Performing final system reconciliation...");
-    await cms.collections.refresh(TENANT_ID as any, false); // full refresh with reconciliation
+    // 🚀 FINAL NOTIFICATION: Notify the server AFTER all data is seeded and local locks are released
+    await notifyServer();
 
     log(
       `✅ Setup completed successfully: ${AUTHOR_COUNT} authors + ${AUTHOR_COUNT * POSTS_PER_AUTHOR} posts`,

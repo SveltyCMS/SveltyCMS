@@ -45,10 +45,10 @@ async function runChaosAudit() {
         const jitter = Math.random() < 0.35 ? Math.random() * 600 + 200 : 0;
         if (jitter > 0) await new Promise(r => setTimeout(r, jitter));
 
-        const res = await fetch(`${baseUrl}/api/collections/benchmark_stable`, {
+        const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable`, {
           headers: {
             "x-test-mode": "true",
-            "x-test-secret": "test-secret",
+            "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
           },
         });
 

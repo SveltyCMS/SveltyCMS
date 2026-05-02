@@ -53,7 +53,6 @@ export async function handleUtilityRoutes(
   // ========================
   if (namespace === "openapi.json" && (request.method === "GET" || request.method === "HEAD")) {
     const service = await getApiSpecService();
-    const { contentSystem } = await import("@src/content/index.server");
 
     // AI Reconnaissance Blinding: Ensure only authenticated admins can view the full spec.
     if (!locals.isAdmin) {
@@ -67,8 +66,13 @@ export async function handleUtilityRoutes(
       );
     }
 
-    const collections = await contentSystem.getCollections(tenantId);
-    const spec = await service.generateSpec(collections, tenantId as string);
+    const spec = await service.generateFullSpec(tenantId as string);
+
+    // Seed Dispatcher L1 Cache for sub-millisecond future hits
+    const cache = await getCacheService();
+    if (cache?.set) {
+      await cache.set(url.pathname + url.search, spec, 300, tenantId as string);
+    }
 
     return rawResponse(event, spec);
   }

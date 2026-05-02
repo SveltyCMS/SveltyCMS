@@ -26,6 +26,11 @@ export function getCachedSitemap(tenantId: string): string | null {
  * Set sitemap cache
  */
 export function setCachedSitemap(tenantId: string, xml: string) {
+  // Simple eviction: clear if too large (Enterprise safeguard)
+  if (sitemapCache.size > 100) {
+    sitemapCache.clear();
+  }
+
   sitemapCache.set(tenantId, {
     xml,
     timestamp: Date.now(),

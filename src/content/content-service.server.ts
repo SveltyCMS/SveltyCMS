@@ -203,8 +203,28 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
  */
 export async function refreshCollectionsCache(tenantId?: string | null, db?: IDBAdapter) {
   markFileDirty();
-  const schemas = await scanCompiledCollections();
-  const nodes = schemas.map((schema) => ({
+  const fileSchemas = await scanCompiledCollections();
+  let dbSchemas: Schema[] = [];
+
+  if (db?.collection?.listSchemas) {
+    try {
+      const res = await db.collection.listSchemas();
+      if (res.success && res.data) {
+        dbSchemas = res.data;
+      }
+    } catch (err) {
+      logger.error("[RECONCILE] Failed to list schemas from DB:", err);
+    }
+  }
+
+  // Merge schemas (file-based takes precedence, but DB-only ones are kept)
+  const schemaMap = new Map<string, Schema>();
+  for (const s of dbSchemas) if (s._id) schemaMap.set(s._id, s);
+  for (const s of fileSchemas) if (s._id) schemaMap.set(s._id, s);
+
+  const finalSchemas = Array.from(schemaMap.values());
+
+  const nodes = finalSchemas.map((schema) => ({
     ...schema,
     nodeType: "collection",
     collectionDef: schema,

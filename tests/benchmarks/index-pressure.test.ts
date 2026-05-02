@@ -15,6 +15,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  TEST_API_SECRET,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger.server";
 
@@ -53,7 +54,7 @@ async function runPressureAudit() {
       onIteration: async () => {
         const res = await fetch(
           `${baseUrl}/api/collections/${COLLECTION_ID}?sort=score&order=desc&limit=20`,
-          { headers: { "x-test-mode": "true", "x-test-secret": "test-secret" } }
+          { headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET } }
         );
         if (!res.ok) throw new Error(`Sort failed: ${res.status}`);
         await res.json();
@@ -71,7 +72,7 @@ async function runPressureAudit() {
       onIteration: async () => {
         const res = await fetch(
           `${baseUrl}/api/collections/${COLLECTION_ID}?filter[category]=A&limit=20`,
-          { headers: { "x-test-mode": "true", "x-test-secret": "test-secret" } }
+          { headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET } }
         );
         if (!res.ok) throw new Error(`Filter failed: ${res.status}`);
         await res.json();
@@ -150,7 +151,7 @@ async function seedLargeDataset(baseUrl: string) {
       headers: {
         "Content-Type": "application/json",
         "x-test-mode": "true",
-        "x-test-secret": "test-secret",
+        "x-test-secret": TEST_API_SECRET,
       },
       body: JSON.stringify(batch),
     });

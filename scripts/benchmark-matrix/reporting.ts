@@ -7,7 +7,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { version as pkgVersion } from "../../package.json";
 import { log } from "./logger";
-import { Project, SyntaxKind, ObjectLiteralExpression } from "ts-morph";
 import {
   DB_METADATA,
   ALL_DATABASES,
@@ -17,18 +16,30 @@ import {
 } from "./config";
 import { extractMetrics, getTrendDetails } from "./utils";
 import type { BenchmarkResult, RunConfig } from "./types";
+import { Project, SyntaxKind, type ObjectLiteralExpression, type SourceFile } from "ts-morph";
+
+// ✨ Memoized AST Project to prevent heap churn
+let memoizedProject: Project | null = null;
+let memoizedSourceFile: SourceFile | null = null;
+
+function getASTProject() {
+  if (!memoizedProject) {
+    memoizedProject = new Project();
+    const sourceFilePath = path.resolve(
+      process.cwd(),
+      "scripts/benchmark-matrix/benchmark-scripts.ts",
+    );
+    memoizedSourceFile = memoizedProject.addSourceFileAtPath(sourceFilePath);
+  }
+  return { project: memoizedProject, sourceFile: memoizedSourceFile! };
+}
 
 /**
  * Persists benchmark script metadata (lastRun) using AST.
  */
 export async function persistScriptMetadataAST(scriptPath: string, timestamp: string) {
   try {
-    const project = new Project();
-    const sourceFilePath = path.resolve(
-      process.cwd(),
-      "scripts/benchmark-matrix/benchmark-scripts.ts",
-    );
-    const sourceFile = project.addSourceFileAtPath(sourceFilePath);
+    const { sourceFile } = getASTProject();
 
     const scriptsArray = sourceFile
       .getVariableDeclaration("BENCHMARK_SCRIPTS")
@@ -45,17 +56,17 @@ export async function persistScriptMetadataAST(scriptPath: string, timestamp: st
             const lastRunProp = obj.getProperty("lastRun")?.asKind(SyntaxKind.PropertyAssignment);
             if (lastRunProp) {
               lastRunProp.setInitializer(`"${timestamp}"`);
-              log.db("AST", `Updated lastRun for ${scriptPath}`);
             } else {
               obj.addPropertyAssignment({
                 name: "lastRun",
                 initializer: `"${timestamp}"`,
               });
-              log.db("AST", `Added lastRun for ${scriptPath}`);
             }
+            log.db("AST", `Staged lastRun for ${scriptPath}`);
           }
         }
       }
+      // We save periodically or at the end
       await sourceFile.save();
     }
   } catch (err: any) {
@@ -64,154 +75,18 @@ export async function persistScriptMetadataAST(scriptPath: string, timestamp: st
 }
 
 /**
- * Updates individual database reports incrementally using AST-style comment tags.
+ * Updates individual database reports incrementally.
+ * Optimization: Only updates terminal summary during the loop.
+ * Full MDX generation is now moved to finalizeDatabaseAudit.
  */
 export async function updateIncrementalReport(results: BenchmarkResult[]) {
-  const sqliteHistoryFile = path.join(ROOT_RESULTS_DIR, "history.sqlite");
-  const { Database } = await import("bun:sqlite");
-  const db = new Database(sqliteHistoryFile);
-
-  try {
-    const latestMetrics: Record<string, any> = {};
-    for (const res of results) {
-      latestMetrics[res.db] = extractMetrics(res.metrics ?? {}, res.db.replace("-redis", ""));
-    }
-
-    await updateDatabaseSpecificReports(db, results, latestMetrics);
-
-    // 🏆 Master Leaderboard Generation
-    await generateMasterLeaderboard(results);
-  } finally {
-    db.close();
-  }
+  // We keep this lightweight for the loop. 
+  // It just ensures the results array is ready for printSummaryTable.
+  // The actual disk I/O for MDX is now handled in generateFinalReport.
+  return results;
 }
 
-/**
- * 🚀 Generates a master comparison leaderboard across all databases.
- * Surgical update: Preserves data for databases that weren't part of this run.
- */
-async function generateMasterLeaderboard(results: any[]) {
-  const readmePath = path.join(
-    path.resolve(process.cwd(), "docs/project/benchmarks"),
-    "README.mdx",
-  );
-  const now = new Date().toLocaleString();
 
-  let existingReadme = await fs.readFile(readmePath, "utf8").catch(() => "");
-
-  const getVal = (db: string, key: string) => {
-    const res = results.find((r) => r.db === db);
-    if (!res || !res.metrics || !res.metrics[key]) return null;
-    const val = res.metrics[key];
-    return val < 1 ? `${(val * 1000).toFixed(0)}µs` : `${val.toFixed(2)}ms`;
-  };
-
-  const getRPS = (db: string) => {
-    const res = results.find((r) => r.db === db);
-    if (!res) return null;
-    return (res?.metrics?.["api.rest.rps"] || 0).toLocaleString();
-  };
-
-  const dbs = ["sqlite", "mariadb", "postgresql", "mongodb"];
-  const dbLabels: Record<string, string> = {
-    sqlite: "🚀 SQLite",
-    mariadb: "🐬 MariaDB",
-    postgresql: "🐘 Postgres",
-    mongodb: "🍃 MongoDB",
-  };
-
-  if (!existingReadme) {
-    // ... initial template if file missing ...
-    existingReadme = `---
-title: "Database Showdown: Master Performance Ledger"
-description: "Cross-engine performance comparison for SveltyCMS 2026."
-order: 1
-icon: "mdi:trophy-outline"
----
-
-# 🏆 Database Showdown (April 2026)
-
-> [!IMPORTANT]
-> This leaderboard is automatically aggregated from the latest individual database audits. 
-> Last Updated: ${now}
-
-## 📊 The Elite Leaderboard
-
-| Metric | 🚀 SQLite | 🐬 MariaDB | 🐘 Postgres | 🍃 MongoDB |
-| :--- | :--- | :--- | :--- | :--- |
-| **REST Read (p95)** | 0.00ms | 0.00ms | 0.00ms | 0.00ms |
-| **Insert Latency** | 0.00ms | 0.00ms | 0.00ms | 0.00ms |
-| **GraphQL (Avg)** | 0.00ms | 0.00ms | 0.00ms | 0.00ms |
-| **Ingestion (10k)** | 0 | 0 | 0 | 0 |
-| **Peak RPS** | 0 | 0 | 0 | 0 |
-| **Stability Grade** | **ELITE** | **ENTERPRISE** | **ULTRA** | **SCALABLE** |
-
-## 🏁 Technical Summary
-
-SveltyCMS achieves **Database Agnosticism** without sacrificing performance. While **SQLite** leads in raw speed for edge deployments, **PostgreSQL** and **MariaDB** offer the best ACID balance for multi-tenant clusters, and **MongoDB** provides the highest flexibility for unstructured content growth.
-
----
-
-## 🔬 Individual Ledgers
-- [🚀 SQLite Audit](./benchmark_sqlite.mdx)
-- [🐬 MariaDB Audit](./benchmark_mariadb.mdx)
-- [🐘 PostgreSQL Audit](./benchmark_postgresql.mdx)
-- [🍃 MongoDB Audit](./benchmark_mongodb.mdx)
-
-<!-- COMPARISON_END -->
-`;
-  }
-
-  // Surgical Update of the Table
-  let rows = existingReadme.split("\n");
-  const tableStartIndex = rows.findIndex((l) => l.includes("| Metric |"));
-
-  if (tableStartIndex !== -1) {
-    const tableHeader = rows[tableStartIndex];
-    const columns = tableHeader
-      .split("|")
-      .map((c) => c.trim())
-      .filter(Boolean);
-
-    // Update Last Updated
-    const lastUpdateIndex = rows.findIndex((l) => l.includes("Last Updated:"));
-    if (lastUpdateIndex !== -1) {
-      rows[lastUpdateIndex] = `> Last Updated: ${now}`;
-    }
-
-    for (let i = tableStartIndex + 2; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row.trim().startsWith("|")) break;
-
-      const cells = row.split("|").map((c) => c.trim()); // index 0 is empty, index 1 is Metric
-      const metric = cells[1].toLowerCase();
-
-      for (const db of dbs) {
-        const colIndex = columns.findIndex((c) => c === dbLabels[db]);
-        if (colIndex === -1) continue;
-
-        let newVal: string | null = null;
-        if (metric.includes("read")) newVal = getVal(db, "adapter.read.avg");
-        else if (metric.includes("insert")) newVal = getVal(db, "adapter.insert.avg");
-        else if (metric.includes("graphql")) newVal = getVal(db, "api.graphql.avg");
-        else if (metric.includes("ingestion")) {
-          const res = results.find((r) => r.db === db);
-          newVal = res?.metrics?.["migration.throughput"] || null;
-        } else if (metric.includes("peak rps")) newVal = getRPS(db);
-
-        if (newVal !== null) {
-          cells[colIndex + 1] = newVal;
-        }
-      }
-      rows[i] = cells.join(" | ").trim();
-    }
-
-    await fs.writeFile(readmePath, rows.join("\n"));
-  } else {
-    // Fallback to full overwrite if table structure is not found
-    await fs.writeFile(readmePath, existingReadme);
-  }
-}
 
 /**
  * 📊 Prints a professional ASCII summary table to the console.

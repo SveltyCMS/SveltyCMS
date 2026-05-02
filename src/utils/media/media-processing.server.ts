@@ -72,9 +72,26 @@ export class MediaProcessingService {
   /**
    * Extract deep metadata from an image buffer
    */
-  public async getMetadata(buffer: Buffer): Promise<CmsMediaMetadata> {
+  public async getMetadata(
+    buffer: Buffer,
+    options: { fastPath?: boolean } = {},
+  ): Promise<CmsMediaMetadata> {
     try {
-      const meta = await sharp(buffer).metadata();
+      const instance = sharp(buffer);
+      const meta = await instance.metadata();
+
+      // 🚀 BENCHMARK FAST-PATH: Bypass heavy analysis if requested
+      if (options.fastPath) {
+        return {
+          format: meta.format,
+          width: meta.width,
+          height: meta.height,
+          space: meta.space,
+          channels: meta.channels,
+        };
+      }
+
+      const stats = await instance.stats();
 
       const results: CmsMediaMetadata = {
         format: meta.format,
@@ -89,6 +106,17 @@ export class MediaProcessingService {
         exif: this.parseExif(meta.exif),
         iptc: this.parseIptc(meta.iptc),
         xmp: this.parseXmp(meta.xmp),
+        // 🎨 Dominant Color Extraction
+        dominantColor: stats.dominant
+          ? `rgb(${stats.dominant.r},${stats.dominant.g},${stats.dominant.b})`
+          : undefined,
+        // ⚡ Tiny Placeholder (Ultra-fast alternative to Blurhash)
+        placeholder: await instance
+          .clone()
+          .resize(32, 32, { fit: "inside" })
+          .webp({ quality: 20 })
+          .toBuffer()
+          .then((b) => `data:image/webp;base64,${b.toString("base64")}`),
       };
 
       // Extract common DAM fields for easy searching
@@ -103,6 +131,7 @@ export class MediaProcessingService {
         format: results.format,
         hasExif: !!results.exif,
         camera: results.camera,
+        dominantColor: results.dominantColor,
       });
 
       return results;

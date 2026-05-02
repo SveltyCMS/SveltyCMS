@@ -55,8 +55,10 @@ async function runUXAudit() {
       onIteration: async () => {
         // Simulates the logic that runs when opening the editor
         await cms.collections.modifyRequest({
-          schema: complexSchema as any,
-          data: {},
+          collection: complexSchema as any,
+          fields: complexSchema.fields,
+          data: [{}],
+          type: "GET",
           ...apiOptions,
         } as any);
       },

@@ -20,7 +20,13 @@ export const handleTestIsolation: Handle = async ({ event, resolve }) => {
   const { request, url } = event;
   const workerIndex = request.headers.get("x-test-worker-index");
   const testSecret = request.headers.get("x-test-secret");
-  const clientAddress = event.getClientAddress?.() || "";
+
+  let clientAddress = "";
+  try {
+    clientAddress = event.getClientAddress?.() || "";
+  } catch {
+    /* ignore IP resolution errors */
+  }
 
   if (workerIndex) {
     // LOCK 2: Network Guard (Localhost only)
