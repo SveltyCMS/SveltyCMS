@@ -20,7 +20,6 @@ import {
   TEST_API_SECRET,
 } from "./benchmark-utils";
 
-
 let stopServer: () => Promise<void>;
 let apiBaseUrl: string;
 
@@ -49,8 +48,6 @@ export async function runApiLatencyAudit() {
   const cms = new LocalCMS(db);
 
   await stabilize();
-
-
 
   console.log("\n🚀 Starting Enterprise API Latency Audit (E2E)...\n");
 
@@ -126,7 +123,6 @@ export async function runApiLatencyAudit() {
     exportMetric("api.latency.sdk", sdkRes.avgMs, "ms");
     exportMetric("api.latency.http", httpRes.avgMs, "ms");
   } finally {
-
   }
 
   console.log("\n✅ API latency audit completed.");

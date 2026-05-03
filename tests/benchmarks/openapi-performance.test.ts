@@ -53,7 +53,7 @@ async function runOpenApiAudit() {
     // Cold generation (cache miss)
     console.log("   → Measuring Cold Spec Generation...");
     await apiSpecService.invalidateCache();
-    
+
     const coldResult = await runBenchmark({
       name: "Cold OpenAPI Generation",
       iterations: 1, // Only 1 iteration for true cold measurement
@@ -110,7 +110,6 @@ async function runOpenApiAudit() {
     ]);
 
     exportResult(warmResult);
-
   } catch (err: any) {
     logger.error(`OpenAPI benchmark failed: ${err.message}`);
     console.error(err);

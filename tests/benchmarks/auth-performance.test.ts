@@ -120,7 +120,6 @@ async function runAuthAudit() {
     ]);
 
     for (const r of results) exportResult(r);
-
   } catch (err: any) {
     logger.error(`Auth audit failed: ${err.message}`);
     console.error(err);

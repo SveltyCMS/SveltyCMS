@@ -121,7 +121,7 @@ export async function runGraphQLBenchmark() {
       { key: "Health Check", val: results[0].avgMs, unit: "ms" },
       { key: "Collection List", val: results[1].avgMs, unit: "ms" },
       { key: "Entries Query", val: results[2].avgMs, unit: "ms" },
-      { key: "Peak RPS", val: Math.max(...results.map(r => r.rps || 0)), unit: "req/s" },
+      { key: "Peak RPS", val: Math.max(...results.map((r) => r.rps || 0)), unit: "req/s" },
     ]);
 
     // Export structured metrics for matrix
@@ -129,7 +129,6 @@ export async function runGraphQLBenchmark() {
     exportMetric("api.graphql.avg", mainResult.avgMs, "ms");
     exportMetric("api.graphql.p95", mainResult.p95Ms || mainResult.avgMs, "ms");
     exportMetric("api.graphql.rps", mainResult.rps, "req/s");
-
   } catch (err: any) {
     logger.error(`GraphQL benchmark failed: ${err.message}`);
     console.error(err);

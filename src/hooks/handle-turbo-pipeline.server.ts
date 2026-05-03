@@ -111,26 +111,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
   const pathname = event.url.pathname;
 
-  // ── 0a. TERMINAL HEALTH CHECK BYPASS ──────────────────────────────────
-  // Health checks must be zero-latency and bypass ALL other hooks.
-  if (pathname === "/api/system/health" || pathname === "/health") {
-    const { dbAdapter } = await import("@src/databases/db");
-    const health = {
-      status: dbAdapter ? "healthy" : "initializing",
-      overallStatus: dbAdapter ? "READY" : "SETUP",
-      database: !!dbAdapter,
-      uptime: process.uptime(),
-      timestamp: Date.now(),
-      dbType: process.env.DB_TYPE || "unknown",
-      memory: process.memoryUsage(),
-    };
-    return new Response(JSON.stringify(health), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...Object.fromEntries(BASE_HEADERS) },
-    });
-  }
-
-  // ── 0b. TERMINAL TEST BYPASS ──────────────────────────────────────────
+  // ── 0a. TERMINAL TEST BYPASS ──────────────────────────────────────────
   const isTest =
     String(process.env.TEST_MODE) === "true" ||
     String(process.env.VITE_TEST_MODE) === "true" ||
@@ -164,11 +145,48 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       (event.locals as any).dbAdapter = db;
       (event.locals as any).__testBypass = true;
 
+      // If it's a health check, we still want to return the health response
+      // but NOW we've triggered the initialization.
+      if (pathname === "/api/system/health" || pathname === "/health") {
+        const health = {
+          status: db ? "healthy" : "initializing",
+          overallStatus: db ? "READY" : "SETUP",
+          database: !!db,
+          uptime: process.uptime(),
+          timestamp: Date.now(),
+          dbType: process.env.DB_TYPE || "unknown",
+          memory: process.memoryUsage(),
+        };
+        return new Response(JSON.stringify(health), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...Object.fromEntries(BASE_HEADERS) },
+        });
+      }
+
       // For Benchmarks, if it's an API route, we can skip the remaining hooks and go to the dispatcher
       // However, since we can't easily call the dispatcher here without circular imports,
       // we'll let it continue but FLAG it so other hooks skip their logic.
       return await resolve(event);
     }
+  }
+
+  // ── 0b. TERMINAL HEALTH CHECK BYPASS ──────────────────────────────────
+  // Health checks must be zero-latency and bypass ALL other hooks.
+  if (pathname === "/api/system/health" || pathname === "/health") {
+    const { dbAdapter } = await import("@src/databases/db");
+    const health = {
+      status: dbAdapter ? "healthy" : "initializing",
+      overallStatus: dbAdapter ? "READY" : "SETUP",
+      database: !!dbAdapter,
+      uptime: process.uptime(),
+      timestamp: Date.now(),
+      dbType: process.env.DB_TYPE || "unknown",
+      memory: process.memoryUsage(),
+    };
+    return new Response(JSON.stringify(health), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...Object.fromEntries(BASE_HEADERS) },
+    });
   }
 
   const isHttps = event.url.protocol === "https:";

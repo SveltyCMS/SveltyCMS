@@ -12,7 +12,8 @@
 
 import { exec } from "node:child_process";
 process.env.ESBUILD_WORKER_THREADS = "0";
-import { existsSync, promises as fs } from "node:fs";
+
+import { existsSync, promises as fsPromises } from "node:fs";
 import { builtinModules } from "node:module";
 import { platform } from "node:os";
 import path from "node:path";
@@ -283,10 +284,10 @@ async function initializeCollectionsStructure() {
   }
   (globalThis as any).__COLLECTIONS_COMPILED__ = true;
 
-  await fs.mkdir(paths.userCollections, { recursive: true });
-  await fs.mkdir(paths.compiledCollections, { recursive: true });
+  await fsPromises.mkdir(paths.userCollections, { recursive: true });
+  await fsPromises.mkdir(paths.compiledCollections, { recursive: true });
 
-  const sourceFiles = (await fs.readdir(paths.userCollections, { recursive: true })).filter(
+  const sourceFiles = (await fsPromises.readdir(paths.userCollections, { recursive: true })).filter(
     (file): file is string =>
       typeof file === "string" && (file.endsWith(".ts") || file.endsWith(".js")),
   );
@@ -530,7 +531,7 @@ function sveltyCmsPlugin(): Plugin {
     async buildStart() {
       wasPrivateConfigMissing = !existsSync(paths.privateConfig);
       if (wasPrivateConfigMissing) {
-        await fs.mkdir(paths.configDir, { recursive: true });
+        await fsPromises.mkdir(paths.configDir, { recursive: true });
         log.info("Setup mode: config/private.ts missing");
       }
       await initializeCollectionsStructure();
@@ -591,7 +592,7 @@ function buildMetadataPlugin(): Plugin {
 
       // Create output directory if it doesn't exist (it should, but safety first)
       if (!existsSync(outputPath)) {
-        await fs.mkdir(outputPath, { recursive: true });
+        await fsPromises.mkdir(outputPath, { recursive: true });
       }
 
       const metadata = {
@@ -602,7 +603,10 @@ function buildMetadataPlugin(): Plugin {
       };
 
       const filename = `build-metadata-${isSSR ? "server" : "client"}.json`;
-      await fs.writeFile(path.resolve(outputPath, filename), JSON.stringify(metadata, null, 2));
+      await fsPromises.writeFile(
+        path.resolve(outputPath, filename),
+        JSON.stringify(metadata, null, 2),
+      );
 
       // Log explicitly to console for immediate visibility
       const color = isSSR ? "\x1b[36m" : "\x1b[32m"; // Cyan for server, Green for client

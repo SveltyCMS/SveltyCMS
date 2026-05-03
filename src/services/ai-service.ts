@@ -22,6 +22,8 @@ interface KnowledgeResult {
 export class AIService {
   private static instance: AIService;
   private readonly knowledgeUrl: string;
+  private ollamaClient: import("ollama").Ollama | null = null;
+  private lastOllamaHost: string | null = null;
 
   private constructor() {
     this.knowledgeUrl = DEFAULT_KNOWLEDGE_URL;
@@ -73,16 +75,25 @@ export class AIService {
     }
   }
 
+  private async getOllamaClient(): Promise<import("ollama").Ollama> {
+    const ollamaUrl = (await getPrivateSetting("OLLAMA_URL")) || "";
+    if (this.ollamaClient && this.lastOllamaHost === ollamaUrl) {
+      return this.ollamaClient;
+    }
+
+    const { Ollama } = await import("ollama");
+    this.ollamaClient = ollamaUrl ? new Ollama({ host: ollamaUrl }) : ollama;
+    this.lastOllamaHost = ollamaUrl;
+    return this.ollamaClient;
+  }
+
   /**
    * Internal helper to generate text from the local LLM.
    */
   private async generateText(prompt: string): Promise<string> {
     try {
-      const ollamaUrl = await getPrivateSetting("OLLAMA_URL");
       const chatModel = (await getPrivateSetting("AI_MODEL_CHAT")) || "ministral-3:latest";
-      const localOllama = ollamaUrl
-        ? new (await import("ollama")).Ollama({ host: ollamaUrl })
-        : ollama;
+      const localOllama = await this.getOllamaClient();
 
       const response = await localOllama.generate({
         model: chatModel,
@@ -125,12 +136,7 @@ export class AIService {
       }
 
       const model = (await getPrivateSetting("AI_MODEL_VISION")) || "llava:latest";
-      const ollamaUrl = await getPrivateSetting("OLLAMA_URL");
-
-      // Create a local ollama instance with the configured URL
-      const localOllama = ollamaUrl
-        ? new (await import("ollama")).Ollama({ host: ollamaUrl })
-        : ollama;
+      const localOllama = await this.getOllamaClient();
 
       // Convert buffer to base64 for Ollama
       const base64 = buffer.toString("base64");
@@ -229,12 +235,8 @@ Format example:
 ${contextRules}`;
 
     try {
-      const ollamaUrl = await getPrivateSetting("OLLAMA_URL");
       const chatModel = (await getPrivateSetting("AI_MODEL_CHAT")) || "ministral-3:latest";
-      // Dynamically import Ollama to allow custom hosts
-      const localOllama = ollamaUrl
-        ? new (await import("ollama")).Ollama({ host: ollamaUrl })
-        : ollama;
+      const localOllama = await this.getOllamaClient();
 
       const response = await localOllama.chat({
         model: chatModel,

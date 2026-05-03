@@ -35,7 +35,7 @@ import { error } from "@sveltejs/kit";
 import mime from "mime-types";
 
 const execAsync = promisify(exec);
-import sharp from "sharp";
+// sharp imported dynamically in methods
 
 // Types
 import type { BaseEntity, ISODateString } from "@src/content/types";
@@ -144,6 +144,7 @@ export class MediaService {
         };
       }
 
+      const sharp = (await import("sharp")).default;
       let currentInstance = sharp(buffer);
       const meta = await currentInstance.metadata();
       const isImage = mimeType.startsWith("image/") && meta.format !== "svg";
@@ -158,6 +159,7 @@ export class MediaService {
             const watermarkImagePath = Path.join(process.cwd(), "static", watermarkOptions.url);
             const targetWidth = Math.floor((meta.width || 1000) * (watermarkOptions.scale / 100));
 
+            const sharp = (await import("sharp")).default;
             watermarkBuffer = await sharp(watermarkImagePath)
               .resize({ width: targetWidth })
               .png()
@@ -630,6 +632,7 @@ export class MediaService {
       originalBuffer = await fs.readFile(fullPath);
     }
 
+    const sharp = (await import("sharp")).default;
     let instance = sharp(originalBuffer);
 
     // Apply transformations

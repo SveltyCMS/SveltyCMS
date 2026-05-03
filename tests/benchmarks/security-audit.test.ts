@@ -112,11 +112,14 @@ async function runSecurityAudit() {
       { key: "WAF Analysis", val: wafResult.avgMs, unit: "ms" },
       { key: "Audit Logging", val: auditResult.avgMs, unit: "ms" },
       { key: "Password Hashing", val: hashResult.avgMs, unit: "ms" },
-      { key: "Security Overhead Rating", val: wafResult.avgMs < 1 ? "EXCELLENT" : "GOOD", unit: "" },
+      {
+        key: "Security Overhead Rating",
+        val: wafResult.avgMs < 1 ? "EXCELLENT" : "GOOD",
+        unit: "",
+      },
     ]);
 
     for (const r of results) exportResult(r);
-
   } catch (err: any) {
     logger.error(`Security benchmark failed: ${err.message}`);
     console.error(err);

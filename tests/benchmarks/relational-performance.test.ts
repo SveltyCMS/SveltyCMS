@@ -124,7 +124,6 @@ async function runRelationalAudit() {
 
     exportResult(shallow);
     exportResult(deep);
-
   } catch (err: any) {
     logger.error(`Relational benchmark failed: ${err.message}`);
     console.error(err);

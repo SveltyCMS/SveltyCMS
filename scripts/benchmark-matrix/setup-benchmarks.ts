@@ -84,7 +84,13 @@ const COLLECTIONS = {
     name: "bench_revisions",
     icon: "mdi:history",
     fields: [
-      { label: "Title", db_fieldName: "title", widget: { Name: "Input" }, indexed: true, required: true },
+      {
+        label: "Title",
+        db_fieldName: "title",
+        widget: { Name: "Input" },
+        indexed: true,
+        required: true,
+      },
       { label: "Content", db_fieldName: "content", widget: { Name: "RichText" } },
     ],
   },
@@ -93,7 +99,13 @@ const COLLECTIONS = {
     name: "bench_index_pressure",
     icon: "mdi:gauge",
     fields: [
-      { label: "Title", db_fieldName: "title", widget: { Name: "Input" }, indexed: true, required: true },
+      {
+        label: "Title",
+        db_fieldName: "title",
+        widget: { Name: "Input" },
+        indexed: true,
+        required: true,
+      },
       { label: "Category", db_fieldName: "category", widget: { Name: "Select" }, indexed: true },
       { label: "Count", db_fieldName: "count", widget: { Name: "Number" } },
     ],

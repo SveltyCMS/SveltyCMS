@@ -77,21 +77,21 @@ async function runSetupAudit() {
       title: "SVELTYCMS — INFRASTRUCTURE BOOT & ROUTING AUDIT",
       shortLabel: "Setup",
       subtitle: `Cold Start • Proxy Headers • ${getDbType().toUpperCase()}`,
-      results: [
-        { name: "Cold Start", avgMs: avgCold, p95Ms: p95Cold, layer: "Boot" },
-        ...results,
-      ],
+      results: [{ name: "Cold Start", avgMs: avgCold, p95Ms: p95Cold, layer: "Boot" }, ...results],
     });
 
     printSummaryTable([
       { key: "Average Cold Start", val: avgCold.toFixed(0), unit: "ms" },
       { key: "p95 Cold Start", val: p95Cold.toFixed(0), unit: "ms" },
       { key: "Proxy Header Parsing", val: proxyResult.avgMs, unit: "ms" },
-      { key: "Rating", val: avgCold < 1200 ? "EXCELLENT" : avgCold < 2000 ? "GOOD" : "SLOW", unit: "" },
+      {
+        key: "Rating",
+        val: avgCold < 1200 ? "EXCELLENT" : avgCold < 2000 ? "GOOD" : "SLOW",
+        unit: "",
+      },
     ]);
 
     exportResult({ ...proxyResult, coldStartAvgMs: avgCold, coldStartP95Ms: p95Cold });
-
   } catch (err: any) {
     logger.error(`Setup & Proxy benchmark failed: ${err.message}`);
     console.error(err);

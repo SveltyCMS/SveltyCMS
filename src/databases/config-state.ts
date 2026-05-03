@@ -79,8 +79,9 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
 
       return privateEnv;
     } catch (error: any) {
-      logger.trace("Private config not available (expected during initial setup)", {
+      logger.error("Private config validation failed:", {
         error: error.message,
+        issues: error.issues,
       });
       return null;
     }

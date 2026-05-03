@@ -26,7 +26,9 @@ const BATCH_SIZE = 2000; // Larger batches = faster seeding
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runPressureAudit() {
-  console.log(`🚀 Starting Enterprise Index Pressure Audit (${ENTRY_COUNT.toLocaleString()} entries)...\n`);
+  console.log(
+    `🚀 Starting Enterprise Index Pressure Audit (${ENTRY_COUNT.toLocaleString()} entries)...\n`,
+  );
 
   try {
     const server = await setupBenchmarkServer();
@@ -54,7 +56,7 @@ async function runPressureAudit() {
       onIteration: async () => {
         const res = await fetch(
           `${baseUrl}/api/collections/${COLLECTION_ID}?sort=score&order=desc&limit=20`,
-          { headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET } }
+          { headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET } },
         );
         if (!res.ok) throw new Error(`Sort failed: ${res.status}`);
         await res.json();
@@ -72,7 +74,7 @@ async function runPressureAudit() {
       onIteration: async () => {
         const res = await fetch(
           `${baseUrl}/api/collections/${COLLECTION_ID}?filter[category]=A&limit=20`,
-          { headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET } }
+          { headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET } },
         );
         if (!res.ok) throw new Error(`Filter failed: ${res.status}`);
         await res.json();
@@ -97,7 +99,6 @@ async function runPressureAudit() {
 
     exportResult(sortResult);
     exportResult(filterResult);
-
   } catch (err: any) {
     logger.error(`Index Pressure audit failed: ${err.message}`);
     console.error(err);

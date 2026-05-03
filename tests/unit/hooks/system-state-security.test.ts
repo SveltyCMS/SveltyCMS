@@ -21,7 +21,7 @@ import { isSetupComplete } from "@src/utils/setup-check";
 
 // Mock setup check to control bootstrap behavior
 vi.mock("@src/utils/setup-check", async (importOriginal) => {
-  const actual = await importOriginal() as any;
+  const actual = (await importOriginal()) as any;
   return {
     ...actual,
     isSetupComplete: vi.fn(() => true),

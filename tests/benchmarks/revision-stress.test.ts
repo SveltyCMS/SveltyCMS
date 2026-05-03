@@ -36,21 +36,35 @@ async function runRevisionAudit() {
     await ensureStableTestData();
 
     // 1. Prepare Target Entry
-    console.log(`   → Preparing entry in ${REVISION_COLLECTION} with ${TOTAL_REVISIONS} revisions...`);
-    
+    console.log(
+      `   → Preparing entry in ${REVISION_COLLECTION} with ${TOTAL_REVISIONS} revisions...`,
+    );
+
     // Create initial
     await fetch(`${baseUrl}/api/collections/${REVISION_COLLECTION}`, {
       method: "POST",
-      headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET, "Content-Type": "application/json" },
-      body: JSON.stringify({ _id: STRESS_TARGET_ID, title: "Initial Version", content: "Initial content" })
+      headers: {
+        "x-test-mode": "true",
+        "x-test-secret": TEST_API_SECRET,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        _id: STRESS_TARGET_ID,
+        title: "Initial Version",
+        content: "Initial content",
+      }),
     });
 
     // Create revisions
     for (let i = 0; i < TOTAL_REVISIONS; i++) {
       await fetch(`${baseUrl}/api/collections/${REVISION_COLLECTION}/${STRESS_TARGET_ID}`, {
         method: "PATCH",
-        headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET, "Content-Type": "application/json" },
-        body: JSON.stringify({ title: `Version ${i + 1}`, content: `Content update ${i + 1}` })
+        headers: {
+          "x-test-mode": "true",
+          "x-test-secret": TEST_API_SECRET,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title: `Version ${i + 1}`, content: `Content update ${i + 1}` }),
       });
     }
 
@@ -66,9 +80,12 @@ async function runRevisionAudit() {
       concurrency: 4,
       silent: true,
       onIteration: async () => {
-        const res = await fetch(`${baseUrl}/api/collections/${REVISION_COLLECTION}/${STRESS_TARGET_ID}`, {
-          headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET }
-        });
+        const res = await fetch(
+          `${baseUrl}/api/collections/${REVISION_COLLECTION}/${STRESS_TARGET_ID}`,
+          {
+            headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
+          },
+        );
         if (!res.ok) throw new Error(`Read failed: ${res.status}`);
         await res.text();
       },
@@ -84,9 +101,12 @@ async function runRevisionAudit() {
       concurrency: 2,
       silent: true,
       onIteration: async () => {
-        const res = await fetch(`${baseUrl}/api/collections/${REVISION_COLLECTION}/${STRESS_TARGET_ID}/revisions`, {
-          headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET }
-        });
+        const res = await fetch(
+          `${baseUrl}/api/collections/${REVISION_COLLECTION}/${STRESS_TARGET_ID}/revisions`,
+          {
+            headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
+          },
+        );
         if (!res.ok) throw new Error(`List failed: ${res.status}`);
         await res.text();
       },
@@ -110,7 +130,6 @@ async function runRevisionAudit() {
     ]);
 
     for (const r of [readResult, listResult]) exportResult(r);
-
   } catch (err: any) {
     logger.error(`Revision audit failed: ${err.message}`);
     console.error(err);

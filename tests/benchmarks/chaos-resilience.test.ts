@@ -43,7 +43,7 @@ async function runChaosAudit() {
       onIteration: async () => {
         // Simulate network brownout with jitter
         const jitter = Math.random() < 0.35 ? Math.random() * 600 + 200 : 0;
-        if (jitter > 0) await new Promise(r => setTimeout(r, jitter));
+        if (jitter > 0) await new Promise((r) => setTimeout(r, jitter));
 
         const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable`, {
           headers: {
@@ -73,11 +73,14 @@ async function runChaosAudit() {
       { key: "Avg Latency (with jitter)", val: results.avgMs, unit: "ms" },
       { key: "p95 Latency", val: results.p95Ms || results.avgMs, unit: "ms" },
       { key: "Availability", val: availability.toFixed(1), unit: "%" },
-      { key: "Resilience Rating", val: availability > 98 ? "EXCELLENT" : availability > 92 ? "GOOD" : "NEEDS WORK", unit: "" },
+      {
+        key: "Resilience Rating",
+        val: availability > 98 ? "EXCELLENT" : availability > 92 ? "GOOD" : "NEEDS WORK",
+        unit: "",
+      },
     ]);
 
     exportResult(results);
-
   } catch (err: any) {
     logger.error(`Chaos audit failed: ${err.message}`);
     console.error(err);

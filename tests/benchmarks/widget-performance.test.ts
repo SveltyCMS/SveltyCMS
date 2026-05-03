@@ -37,7 +37,6 @@ import {
   ensureStableTestData,
 } from "./benchmark-utils";
 
-
 async function runWidgetAudit() {
   console.log("🚀 Starting SveltyCMS Widget Performance Audit...\n");
 
@@ -54,9 +53,6 @@ async function runWidgetAudit() {
   const ITERATIONS = 500;
   const RUNS = 2;
   const allResults: any[] = [];
-
-
-
 
   try {
     // 1. Baseline: Direct Database Read (No Widgets)
@@ -151,7 +147,6 @@ async function runWidgetAudit() {
 
     for (const r of allResults) exportResult(r);
   } finally {
-
   }
 
   console.log("\n✅ Widget performance audit completed.");

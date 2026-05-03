@@ -62,7 +62,7 @@ async function runAcidAudit() {
           await tx.insert(
             COLLECTION_ID,
             { _id: id, title: "ACID Commit Test" },
-            { tenantId: "global" as any }
+            { tenantId: "global" as any },
           );
         });
       },
@@ -85,7 +85,7 @@ async function runAcidAudit() {
             await tx.insert(
               COLLECTION_ID,
               { _id: id, title: "Rollback Test" },
-              { tenantId: "global" as any }
+              { tenantId: "global" as any },
             );
             throw new Error("ROLLBACK_TRIGGER");
           });
@@ -97,7 +97,7 @@ async function runAcidAudit() {
         const verify = await db.crud.findOne(
           COLLECTION_ID,
           { _id: id as any },
-          { tenantId: "global" as any }
+          { tenantId: "global" as any },
         );
         if (verify?.success && verify.data) {
           throw new Error(`ACID FAILURE: Data persisted despite rollback for ID ${id}`);
@@ -124,7 +124,6 @@ async function runAcidAudit() {
 
     exportResult(commitResult);
     exportResult(rollbackResult);
-
   } catch (err: any) {
     logger.error(`ACID benchmark failed: ${err.message}`);
     console.error(err);

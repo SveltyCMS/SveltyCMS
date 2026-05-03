@@ -70,12 +70,9 @@ async function runCacheAudit() {
             headers["x-bypass-cache"] = scenario.headers["x-bypass-cache"];
           }
 
-          const res = await fetch(
-            `${baseUrl}/api/collections/BenchmarkStable/bench-shared-001`,
-            {
-              headers,
-            }
-          );
+          const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable/bench-shared-001`, {
+            headers,
+          });
 
           if (!res.ok) throw new Error(`Cache test failed: ${res.status}`);
           await res.json();
@@ -94,9 +91,7 @@ async function runCacheAudit() {
 
     const miss = results[0];
     const hit = results[1];
-    const efficiency = miss.avgMs > 0 
-      ? ((miss.avgMs - hit.avgMs) / miss.avgMs) * 100 
-      : 0;
+    const efficiency = miss.avgMs > 0 ? ((miss.avgMs - hit.avgMs) / miss.avgMs) * 100 : 0;
 
     printTruthTable({
       title: "SVELTYCMS — CACHE EFFICIENCY AUDIT",
@@ -111,7 +106,6 @@ async function runCacheAudit() {
       { key: "Cache Efficiency", val: efficiency.toFixed(1), unit: "%" },
       { key: "Peak Hit RPS", val: Math.round(hit.rps || 0), unit: "req/s" },
     ]);
-
   } catch (err: any) {
     logger.error(`Cache benchmark failed: ${err.message}`);
     console.error(err);

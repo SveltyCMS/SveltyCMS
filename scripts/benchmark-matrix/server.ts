@@ -228,7 +228,7 @@ export async function startServer(
   const cmd = isDev ? "bun" : "bun";
   const args = isDev
     ? ["x", "vite", "dev", "--port", port.toString(), "--host", "127.0.0.1"]
-    : ["-r", "./tests/unit/setup.ts", serverPath];
+    : [serverPath];
 
   log.db(db.type, `Launching SveltyCMS instance (${isDev ? "DEV" : "PROD"}) on port ${port}...`);
 
@@ -323,7 +323,12 @@ export async function startServer(
         clearTimeout(timeout);
         cleanupListeners();
         reject(new Error(`Server process exited early with code ${code}`));
-      } else if (!isNoisyLine("") && !isShuttingDown() && code !== 0 && !(process.platform === "win32" && code === 1)) {
+      } else if (
+        !isNoisyLine("") &&
+        !isShuttingDown() &&
+        code !== 0 &&
+        !(process.platform === "win32" && code === 1)
+      ) {
         log.error(`[${db.type.toUpperCase()}] Server process CRASHED with code ${code}`);
       }
     });

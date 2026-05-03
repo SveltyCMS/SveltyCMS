@@ -64,9 +64,7 @@ class AutomationService {
     }
     this.initialized = true;
 
-    eventBus.on("*", async (payload) => {
-      await this.handleEvent(payload);
-    });
+    eventBus.on("*", this.onAutomationEvent.bind(this));
 
     logger.info("⚡ AutomationService initialized — listening for events");
   }
@@ -158,6 +156,12 @@ class AutomationService {
     // Update cache immediately
     this.flowsCache.set(tenantId, { data: updated, timestamp: Date.now() });
 
+    // Prune cache if it grows too large (e.g. > 500 tenants) to prevent heap pressure
+    if (this.flowsCache.size > 500) {
+      const oldestKey = this.flowsCache.keys().next().value;
+      if (oldestKey) this.flowsCache.delete(oldestKey);
+    }
+
     return savedFlow;
   }
 
@@ -203,6 +207,11 @@ class AutomationService {
   }
 
   // ── Event Handling ─────────────────────────────────────────
+
+  /** Wildcard listener for EventBus */
+  private async onAutomationEvent(payload: AutomationEventPayload): Promise<void> {
+    await this.handleEvent(payload);
+  }
 
   /** Handle an incoming event: find matching flows and execute */
   private async handleEvent(payload: AutomationEventPayload): Promise<void> {
@@ -267,7 +276,7 @@ class AutomationService {
       operationResults: [],
       duration: 0,
       timestamp: new Date().toISOString(),
-      triggerPayload: payload,
+      triggerPayload: this.sanitizePayload(payload),
       tenantId: flow.tenantId,
     };
 
@@ -569,8 +578,35 @@ class AutomationService {
   private addLogEntry(entry: ExecutionLogEntry): void {
     this.executionLogs.unshift(entry);
     if (this.executionLogs.length > this.MAX_LOGS) {
-      this.executionLogs = this.executionLogs.slice(0, this.MAX_LOGS);
+      this.executionLogs.pop(); // Faster than slice(0, MAX_LOGS)
     }
+  }
+
+  /**
+   * Sanitizes the payload to prevent memory leaks from large document snapshots.
+   * Truncates strings over 5KB and limits nested object depth.
+   */
+  private sanitizePayload(payload: any, depth = 0): any {
+    if (depth > 3 || payload === null || typeof payload !== "object") {
+      return payload;
+    }
+
+    if (Array.isArray(payload)) {
+      return payload.slice(0, 10).map((item) => this.sanitizePayload(item, depth + 1));
+    }
+
+    const sanitized: any = {};
+    for (const [key, value] of Object.entries(payload)) {
+      if (typeof value === "string") {
+        // Truncate large strings (e.g. base64 images or massive text fields)
+        sanitized[key] = value.length > 5120 ? value.substring(0, 5120) + "... [Truncated]" : value;
+      } else if (typeof value === "object") {
+        sanitized[key] = this.sanitizePayload(value, depth + 1);
+      } else {
+        sanitized[key] = value;
+      }
+    }
+    return sanitized;
   }
 
   /** Get recent execution logs (optionally filtered by automation ID and tenant) */

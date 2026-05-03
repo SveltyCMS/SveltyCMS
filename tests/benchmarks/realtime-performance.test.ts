@@ -46,7 +46,9 @@ export async function runRealtimeAudit() {
 
       // Register listeners
       for (let i = 0; i < listenerCount; i++) {
-        const listener = () => { received++; };
+        const listener = () => {
+          received++;
+        };
         eventBus.on("content.create" as any, listener);
         listeners.push(listener);
       }
@@ -72,7 +74,7 @@ export async function runRealtimeAudit() {
           // Wait for all listeners to fire
           let attempts = 0;
           while (received < listenerCount && attempts < 100) {
-            await new Promise(r => setTimeout(r, 1));
+            await new Promise((r) => setTimeout(r, 1));
             attempts++;
           }
 
@@ -106,11 +108,14 @@ export async function runRealtimeAudit() {
       { key: "50 Listeners", val: heavy.avgMs, unit: "ms" },
       { key: "Overhead / Listener", val: overheadPerListener.toFixed(3), unit: "ms" },
       { key: "Peak Throughput", val: Math.round(baseline.rps || 0), unit: "events/s" },
-      { key: "Rating", val: heavy.avgMs < 2 ? "EXCELLENT" : heavy.avgMs < 5 ? "GOOD" : "DEGRADED", unit: "" },
+      {
+        key: "Rating",
+        val: heavy.avgMs < 2 ? "EXCELLENT" : heavy.avgMs < 5 ? "GOOD" : "DEGRADED",
+        unit: "",
+      },
     ]);
 
     exportResult(heavy);
-
   } catch (err: any) {
     logger.error(`Real-time benchmark failed: ${err.message}`);
     console.error(err);

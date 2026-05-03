@@ -147,7 +147,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "medium",
     estimatedMs: 25_000,
     desc: "End-to-end throughput and latency of the unified REST dispatcher.",
-    lastRun: "2026-05-02T20:45:40.075Z",
+    lastRun: "2026-05-03T19:06:29.643Z",
     strategy: "all",
   },
   {
@@ -257,7 +257,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     estimatedMs: 70_000,
     timeoutMs: 600_000,
     desc: "Long-running soak test to identify memory leaks and GC pressure.",
-    lastRun: "2026-05-02T20:49:29.689Z",
+    lastRun: "2026-05-03T18:43:40.381Z",
     strategy: "all",
   },
   {

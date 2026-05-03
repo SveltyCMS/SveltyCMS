@@ -6,12 +6,7 @@
 
 import { test } from "bun:test";
 import "../unit/setup.ts";
-import {
-  exportResult,
-  printTruthTable,
-  printSummaryTable,
-  getDbType,
-} from "./benchmark-utils";
+import { exportResult, printTruthTable, printSummaryTable, getDbType } from "./benchmark-utils";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execSync } from "node:child_process";
@@ -42,21 +37,28 @@ async function runBuildAnalysis() {
 
   try {
     // Clean build if needed
-    if (await fs.access(buildDir).then(() => true).catch(() => false)) {
+    if (
+      await fs
+        .access(buildDir)
+        .then(() => true)
+        .catch(() => false)
+    ) {
       await fs.rm(buildDir, { recursive: true, force: true });
     }
 
     console.log("   🔨 Running production build...");
-    execSync("bun run build", { 
+    execSync("bun run build", {
       stdio: "inherit",
-      env: { ...process.env, NODE_ENV: "production" }
+      env: { ...process.env, NODE_ENV: "production" },
     });
 
     const buildTimeMs = performance.now() - startTime;
     const totalSize = await getDirSize(buildDir);
 
     const files = await fs.readdir(buildDir, { recursive: true });
-    const jsFiles = files.filter(f => typeof f === "string" && (f.endsWith(".js") || f.endsWith(".mjs")));
+    const jsFiles = files.filter(
+      (f) => typeof f === "string" && (f.endsWith(".js") || f.endsWith(".mjs")),
+    );
 
     const result = {
       name: "Production Build",
@@ -78,11 +80,14 @@ async function runBuildAnalysis() {
       { key: "Build Time", val: buildTimeMs.toFixed(0), unit: "ms" },
       { key: "Total Bundle Size", val: result.bundleSizeMB, unit: "MB" },
       { key: "JS Chunks", val: result.jsChunkCount, unit: "" },
-      { key: "Build Efficiency", val: buildTimeMs < 45000 ? "EXCELLENT" : buildTimeMs < 65000 ? "GOOD" : "SLOW", unit: "" },
+      {
+        key: "Build Efficiency",
+        val: buildTimeMs < 45000 ? "EXCELLENT" : buildTimeMs < 65000 ? "GOOD" : "SLOW",
+        unit: "",
+      },
     ]);
 
     exportResult(result as any);
-
   } catch (err: any) {
     logger.error(`Build analysis failed: ${err.message}`);
     console.error(err);

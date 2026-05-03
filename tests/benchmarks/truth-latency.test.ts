@@ -19,7 +19,6 @@ import {
   ensureStableTestData,
 } from "./benchmark-utils";
 
-
 let stopServer: () => Promise<void>;
 let apiBaseUrl: string;
 
@@ -52,9 +51,6 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
   const allResults: any[] = [];
 
   console.log(`\n🕵️  Executing SRE Truth Audit for "${STABLE_COLLECTION}"...\n`);
-
-
-
 
   try {
     // 1. Logic Baseline (Harness Overhead)
@@ -160,7 +156,6 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
 
     for (const r of allResults) exportResult(r);
   } finally {
-
   }
 
   console.log("\n✅ Truth latency audit completed.");

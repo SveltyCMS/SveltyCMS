@@ -128,9 +128,12 @@ async function runHooksAudit() {
       { key: "Turbo Pipeline", val: turbo.avgMs, unit: "ms" },
       { key: "Full Pipeline", val: full.avgMs, unit: "ms" },
       { key: "Audit Overhead", val: (audit.avgMs - full.avgMs).toFixed(2), unit: "ms" },
-      { key: "Peak RPS", val: Math.round(Math.max(...results.map(r => r.rps || 0))), unit: "req/s" },
+      {
+        key: "Peak RPS",
+        val: Math.round(Math.max(...results.map((r) => r.rps || 0))),
+        unit: "req/s",
+      },
     ]);
-
   } catch (err: any) {
     logger.error(`Hooks benchmark failed: ${err.message}`);
     console.error(err);

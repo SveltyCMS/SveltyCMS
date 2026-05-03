@@ -22,31 +22,9 @@ import os from "node:os";
 import { runWithContext } from "@utils/context";
 import { shutdownSystem } from "@src/databases/db";
 
-/**
- * ✨ Hardware Optimization (Enterprise)
- * Maximizes usage of available CPU cores for I/O and heavy processing.
- */
-if (!building) {
-  const cores = os.cpus().length;
-  // Node/Bun I/O Thread Pool
-  process.env.UV_THREADPOOL_SIZE = String(cores);
-
-  // Sharp (Image Engine) Concurrency
-  import("sharp")
-    .then((sharp) => {
-      // Rule: match concurrency to physical cores (approx 1/3 of total logical cores)
-      const physicalCores = Math.max(4, Math.floor(cores * 0.33));
-      sharp.default.concurrency(physicalCores);
-      if (!dev) {
-        logger.info(
-          `[System] Hardware optimized: ThreadPool=${cores} | SharpConcurrency=${physicalCores}`,
-        );
-      }
-    })
-    .catch(() => {
-      // Sharp optional
-    });
-}
+// ✨ Hardware Optimization (Enterprise)
+// Maximized usage of available CPU cores for I/O and heavy processing is deferred
+// to the background service initialization phase to ensure ultra-fast cold starts.
 
 // ESM Shims for legacy CJS compatibility in production build
 if (typeof (globalThis as any).__filename === "undefined") {
@@ -90,7 +68,18 @@ if (!building) {
       const readyStates = ["READY", "WARMING", "WARMED", "DEGRADED"];
       if (readyStates.includes(state) && !isServicesInitialized) {
         isServicesInitialized = true;
-        logger.info(`🚀 System reached ${state}. Initializing background services...`);
+        // ✨ Hardware Optimization (Enterprise)
+        const cores = os.cpus().length;
+        process.env.UV_THREADPOOL_SIZE = String(cores);
+        import("sharp")
+          .then((sharp) => {
+            const physicalCores = Math.max(4, Math.floor(cores * 0.33));
+            sharp.default.concurrency(physicalCores);
+            logger.debug(
+              `[System] Hardware optimized: ThreadPool=${cores} | SharpConcurrency=${physicalCores}`,
+            );
+          })
+          .catch(() => {});
 
         // Initialize Scheduler
         const { scheduler } = await import("@src/services/scheduler");

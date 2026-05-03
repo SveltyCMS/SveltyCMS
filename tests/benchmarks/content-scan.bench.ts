@@ -102,7 +102,6 @@ test("Content Scan Performance (Self-Healing Collections)", async () => {
     ]);
 
     exportResult(scanResult);
-
   } catch (err: any) {
     logger.error(`Content Scan benchmark failed: ${err.message}`);
     console.error(err);

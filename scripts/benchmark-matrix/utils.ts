@@ -15,8 +15,8 @@ import type { NumericMetric } from "./types";
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Shallow check if a rebuild is needed by comparing mtime of src/ top-level files
- * against the build/ directory. Avoids deep walks and symlink issues.
+ * Deep check if a rebuild is needed by comparing mtime of all files in src/
+ * against the build/ directory.
  */
 export function requiresRebuild(): boolean {
   const buildPath = path.join(process.cwd(), "build");
@@ -25,16 +25,24 @@ export function requiresRebuild(): boolean {
   const buildTime = statSync(buildPath).mtimeMs;
   const srcPath = path.join(process.cwd(), "src");
 
-  try {
-    for (const entry of readdirSync(srcPath, { withFileTypes: true })) {
-      if (statSync(path.join(srcPath, entry.name)).mtimeMs > buildTime) {
-        return true;
+  function scan(dir: string): boolean {
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (scan(fullPath)) return true;
+        } else {
+          if (statSync(fullPath).mtimeMs > buildTime) return true;
+        }
       }
+    } catch {
+      return false;
     }
-  } catch {
     return false;
   }
-  return false;
+
+  return scan(srcPath);
 }
 
 // ─────────────────────────────────────────────────────────────

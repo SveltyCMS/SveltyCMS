@@ -61,7 +61,7 @@ export async function runDatabaseBenchmark() {
         iterations: 1200,
         warmupIterations: 150,
         runs: 3,
-        concurrency: 1,           // Raw DB tests usually stay serial
+        concurrency: 1, // Raw DB tests usually stay serial
         trimOutliers: "iqr",
         measureMemory: true,
         silent: true,
@@ -95,7 +95,6 @@ export async function runDatabaseBenchmark() {
     exportMetric("adapter.read.avg", results[1].avgMs, "ms");
     exportMetric("adapter.write.avg", results[0].avgMs, "ms");
     exportMetric("adapter.throughput.peak", peakThroughput, "req/s");
-
   } catch (err: any) {
     logger.error(`Database benchmark failed: ${err.message}`);
     console.error(err);
@@ -121,7 +120,7 @@ function createInsertTest(db: any) {
     await db.crud.insert(
       COLLECTION_ID,
       { _id: id as any, title: `Insert ${id}`, status: "active", tenantId: TEST_TENANT },
-      { tenantId: TEST_TENANT }
+      { tenantId: TEST_TENANT },
     );
   };
 }
@@ -131,7 +130,7 @@ function createFindOneTest(db: any) {
     const res = await db.crud.findOne(
       COLLECTION_ID,
       { _id: "bench-shared-001" as any },
-      { tenantId: TEST_TENANT }
+      { tenantId: TEST_TENANT },
     );
     if (!res?.success) throw new Error("FindOne failed");
   };
@@ -142,7 +141,7 @@ function createFindManyTest(db: any) {
     await db.crud.findMany(
       COLLECTION_ID,
       { tenantId: TEST_TENANT },
-      { limit: 50, tenantId: TEST_TENANT }
+      { limit: 50, tenantId: TEST_TENANT },
     );
   };
 }
@@ -153,7 +152,7 @@ function createUpdateTest(db: any) {
       COLLECTION_ID,
       "bench-shared-001" as any,
       { title: `Updated ${Date.now()}`, status: "updated" },
-      { tenantId: TEST_TENANT }
+      { tenantId: TEST_TENANT },
     );
   };
 }
@@ -181,15 +180,17 @@ function createBulkInsertTest(db: any) {
 
 async function prepareCollection(db: any) {
   if (db.collection?.createModel) {
-    await db.collection.createModel({
-      _id: COLLECTION_ID,
-      name: COLLECTION_ID,
-      fields: [
-        { db_fieldName: "title", widget: { Name: "Input" }, required: true },
-        { db_fieldName: "status", widget: { Name: "Input" } },
-        { db_fieldName: "value", widget: { Name: "Input" }, type: "number" },
-      ],
-    }).catch(() => {});
+    await db.collection
+      .createModel({
+        _id: COLLECTION_ID,
+        name: COLLECTION_ID,
+        fields: [
+          { db_fieldName: "title", widget: { Name: "Input" }, required: true },
+          { db_fieldName: "status", widget: { Name: "Input" } },
+          { db_fieldName: "value", widget: { Name: "Input" }, type: "number" },
+        ],
+      })
+      .catch(() => {});
   }
 
   // Clean + seed stable record
@@ -197,8 +198,13 @@ async function prepareCollection(db: any) {
   await db.crud.upsert(
     COLLECTION_ID,
     { _id: "bench-shared-001" as any },
-    { _id: "bench-shared-001" as any, title: "Stable Benchmark Entry", status: "active", tenantId: TEST_TENANT },
-    { tenantId: TEST_TENANT }
+    {
+      _id: "bench-shared-001" as any,
+      title: "Stable Benchmark Entry",
+      status: "active",
+      tenantId: TEST_TENANT,
+    },
+    { tenantId: TEST_TENANT },
   );
 
   // Pre-populate for Delete benchmark (e.g. 2000 records)

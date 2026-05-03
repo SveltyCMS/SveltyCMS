@@ -14,7 +14,6 @@ process.env.LOG_LEVEL = "error";
 process.env.DEBUG = "";
 process.env.QUIET = "true";
 
-
 // Suppress console.info/warn during init
 const originalInfo = console.info;
 const originalWarn = console.warn;
@@ -638,15 +637,18 @@ export async function runBenchmark(config: any) {
     }
   }
 
-  const validResults = results.filter(r => !isNaN(r));
+  const validResults = results.filter((r) => !isNaN(r));
   const sum = validResults.reduce((a, b) => a + b, 0);
   const rps = sum > 0 ? (iterations * runs) / (sum / 1000) : 0;
-  
+
   if (validResults.length === 0) {
-     return computeStatistics([0], 0, { ...config, errorRate: 1 });
+    return computeStatistics([0], 0, { ...config, errorRate: 1 });
   }
 
-  return computeStatistics(validResults, rps, { ...config, errorRate: totalErrors / (iterations * runs) });
+  return computeStatistics(validResults, rps, {
+    ...config,
+    errorRate: totalErrors / (iterations * runs),
+  });
 }
 
 /**

@@ -51,7 +51,7 @@ async function runAIAudit() {
         await aiService.enrichText(
           "Sample long-form CMS content for AI enrichment testing purposes.",
           "rewrite",
-          "en"
+          "en",
         );
       },
     });
@@ -67,7 +67,7 @@ async function runAIAudit() {
       silent: true,
       onIteration: async () => {
         await aiService.generateLayoutSpec(
-          "A modern blog post layout with sidebar, comments, and related posts."
+          "A modern blog post layout with sidebar, comments, and related posts.",
         );
       },
     });
@@ -85,12 +85,15 @@ async function runAIAudit() {
     printSummaryTable([
       { key: "Avg Enrichment Overhead", val: enrichResult.avgMs, unit: "ms" },
       { key: "Avg Layout Spec Overhead", val: layoutResult.avgMs, unit: "ms" },
-      { key: "Total AI Bus Tax", val: (enrichResult.avgMs + layoutResult.avgMs).toFixed(1), unit: "ms" },
+      {
+        key: "Total AI Bus Tax",
+        val: (enrichResult.avgMs + layoutResult.avgMs).toFixed(1),
+        unit: "ms",
+      },
       { key: "Rating", val: enrichResult.avgMs < 8 ? "EXCELLENT" : "GOOD", unit: "" },
     ]);
 
     exportResult(enrichResult);
-
   } catch (err: any) {
     logger.error(`AI benchmark failed: ${err.message}`);
     console.error(err);

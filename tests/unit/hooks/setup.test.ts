@@ -56,7 +56,7 @@ function createMockResponse(status = 200): Response {
 /** Helper to assert a redirect error or response */
 function expectRedirect(resOrErr: any, expectedStatus: number, expectedLocation: string) {
   let status, location;
-  
+
   if (resOrErr instanceof Response) {
     status = resOrErr.status;
     location = resOrErr.headers.get("location");

@@ -85,9 +85,8 @@ async function runMultiTenantAudit() {
       },
     });
 
-    const overhead = baseline.avgMs > 0 
-      ? ((multi.avgMs - baseline.avgMs) / baseline.avgMs) * 100 
-      : 0;
+    const overhead =
+      baseline.avgMs > 0 ? ((multi.avgMs - baseline.avgMs) / baseline.avgMs) * 100 : 0;
 
     printTruthTable({
       title: "SVELTYCMS — MULTI-TENANCY PERFORMANCE AUDIT",
@@ -103,11 +102,14 @@ async function runMultiTenantAudit() {
       { key: "Single Tenant Latency", val: baseline.avgMs, unit: "ms" },
       { key: "Multi-Tenant Latency", val: multi.avgMs, unit: "ms" },
       { key: "Isolation Overhead", val: overhead.toFixed(2), unit: "%" },
-      { key: "Scalability Rating", val: overhead < 12 ? "EXCELLENT" : overhead < 25 ? "GOOD" : "DEGRADED", unit: "" },
+      {
+        key: "Scalability Rating",
+        val: overhead < 12 ? "EXCELLENT" : overhead < 25 ? "GOOD" : "DEGRADED",
+        unit: "",
+      },
     ]);
 
     exportResult(multi);
-
   } catch (err: any) {
     logger.error(`Multi-tenancy benchmark failed: ${err.message}`);
     console.error(err);

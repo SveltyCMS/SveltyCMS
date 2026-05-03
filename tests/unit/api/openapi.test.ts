@@ -46,7 +46,12 @@ vi.mock("@src/content/content-service.server", () => ({
           name: "Posts",
           fields: [
             { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, translated: true },
-            { db_fieldName: "views", label: "Views", widget: { Name: "Number" }, translated: false },
+            {
+              db_fieldName: "views",
+              label: "Views",
+              widget: { Name: "Number" },
+              translated: false,
+            },
           ],
         },
       },
@@ -88,7 +93,7 @@ describe("OpenAPI Specification API", () => {
   it("should return a valid OpenAPI 3.1.0 JSON", async () => {
     // Sync system before audit
     await contentSystem.refresh(null, false, false);
-    
+
     const event = createMockEvent("openapi.json");
     const response = await dispatcherGET(event);
     const data = await response.json();

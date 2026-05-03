@@ -27,7 +27,9 @@ class SimulatedRedisBus {
     const subs = this.subscribers.get(channel);
     if (subs) {
       for (const cb of subs) {
-        try { cb(message); } catch {}
+        try {
+          cb(message);
+        } catch {}
       }
     }
   }
@@ -73,7 +75,7 @@ async function runEdgeSyncAudit() {
     const bus = new SimulatedRedisBus();
     const nodeA = await createSimulatedNode(bus, "node-A");
     const remoteNodes = await Promise.all(
-      Array.from({ length: 6 }, (_, i) => createSimulatedNode(bus, `node-${i}`))
+      Array.from({ length: 6 }, (_, i) => createSimulatedNode(bus, `node-${i}`)),
     );
 
     await stabilize(800);
@@ -117,7 +119,7 @@ async function runEdgeSyncAudit() {
             propagated = true;
             break;
           }
-          await new Promise(r => setTimeout(r, 2));
+          await new Promise((r) => setTimeout(r, 2));
         }
 
         if (!propagated) throw new Error("Edge sync propagation timeout");
@@ -141,7 +143,6 @@ async function runEdgeSyncAudit() {
     exportResult(result);
 
     if (stopServer) await stopServer();
-
   } catch (err: any) {
     logger.error(`Edge Sync benchmark failed: ${err.message}`);
     console.error(err);

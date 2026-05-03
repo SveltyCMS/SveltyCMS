@@ -31,7 +31,9 @@ async function runSeoAudit() {
     await ensureStableTestData();
 
     // Warm up server and ensure test redirects are loaded
-    await fetch(`${baseUrl}/api/system/health`, { headers: { "x-test-mode": "true", "x-test-secret": "test-secret" } });
+    await fetch(`${baseUrl}/api/system/health`, {
+      headers: { "x-test-mode": "true", "x-test-secret": "test-secret" },
+    });
     await stabilize(1000);
 
     const seoScenarios = [
@@ -57,14 +59,14 @@ async function runSeoAudit() {
         path: "/non-existent-path-" + Math.random(),
         expectedStatus: 404,
         layer: "Analytics",
-      }
+      },
     ];
 
     const results = [];
 
     for (const scenario of seoScenarios) {
       console.log(`   → Benchmarking ${scenario.name}...`);
-      
+
       const result = await runBenchmark({
         name: scenario.name,
         iterations: 400,
@@ -78,14 +80,16 @@ async function runSeoAudit() {
             headers: {
               "x-test-mode": "true",
               "x-test-secret": "test-secret",
-            }
+            },
           });
-          
+
           if (scenario.expectedStatus && res.status !== scenario.expectedStatus) {
-            throw new Error(`${scenario.name} failed: Expected ${scenario.expectedStatus}, got ${res.status}`);
+            throw new Error(
+              `${scenario.name} failed: Expected ${scenario.expectedStatus}, got ${res.status}`,
+            );
           }
           await res.text();
-        }
+        },
       });
 
       results.push({ ...result, layer: scenario.layer, shortLabel: scenario.name });
@@ -98,14 +102,15 @@ async function runSeoAudit() {
       results,
     });
 
-    printSummaryTable(results.map(r => ({
-      key: r.name,
-      val: r.avgMs,
-      unit: "ms"
-    })));
+    printSummaryTable(
+      results.map((r) => ({
+        key: r.name,
+        val: r.avgMs,
+        unit: "ms",
+      })),
+    );
 
     for (const r of results) exportResult(r);
-
   } catch (err: any) {
     logger.error(`SEO audit failed: ${err.message}`);
     console.error(err);

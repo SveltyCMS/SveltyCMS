@@ -51,39 +51,39 @@ export async function runTask(
       shell: process.platform === "win32",
     });
 
-      const cleanup = () => {
-        proc.stdout?.removeAllListeners();
-        proc.stderr?.removeAllListeners();
-        proc.removeAllListeners();
-      };
+    const cleanup = () => {
+      proc.stdout?.removeAllListeners();
+      proc.stderr?.removeAllListeners();
+      proc.removeAllListeners();
+    };
 
-      if (ci && proc.stdout && proc.stderr) {
-        let out = "";
-        proc.stdout.on("data", (d) => (out += d.toString()));
-        proc.stderr.on("data", (d) => (out += d.toString()));
+    if (ci && proc.stdout && proc.stderr) {
+      let out = "";
+      proc.stdout.on("data", (d) => (out += d.toString()));
+      proc.stderr.on("data", (d) => (out += d.toString()));
 
-        proc.once("close", async (code) => {
-          if (env.RESULTS_DIR) {
-            const logPath = path.join(env.RESULTS_DIR, "setup_tasks.log");
-            await fs.appendFile(logPath, `--- TASK: ${name} ---\n${out}\n`, "utf8").catch(() => {});
-          }
-          cleanup();
-          resolve(code === 0);
-        });
-      } else {
-        proc.once("close", (code) => {
-          if (code !== 0 && !ci) process.stdout.write(` \x1b[31m[FAILED] ${name}\x1b[0m\n`);
-          else if (!ci) process.stdout.write(` \x1b[32m[DONE]\x1b[0m\n`);
-          cleanup();
-          resolve(code === 0);
-        });
-      }
-
-      proc.once("error", (err) => {
-        if (!ci) process.stdout.write(` \x1b[31m[SPAWN ERROR] ${err.message}\x1b[0m\n`);
+      proc.once("close", async (code) => {
+        if (env.RESULTS_DIR) {
+          const logPath = path.join(env.RESULTS_DIR, "setup_tasks.log");
+          await fs.appendFile(logPath, `--- TASK: ${name} ---\n${out}\n`, "utf8").catch(() => {});
+        }
         cleanup();
-        resolve(false);
+        resolve(code === 0);
       });
+    } else {
+      proc.once("close", (code) => {
+        if (code !== 0 && !ci) process.stdout.write(` \x1b[31m[FAILED] ${name}\x1b[0m\n`);
+        else if (!ci) process.stdout.write(` \x1b[32m[DONE]\x1b[0m\n`);
+        cleanup();
+        resolve(code === 0);
+      });
+    }
+
+    proc.once("error", (err) => {
+      if (!ci) process.stdout.write(` \x1b[31m[SPAWN ERROR] ${err.message}\x1b[0m\n`);
+      cleanup();
+      resolve(false);
+    });
   });
 }
 
@@ -497,7 +497,6 @@ export async function runAuditForDatabase(
     // This handles the expensive MDX updates and AST metadata saves.
     const { generateFinalReport } = await import("./reporting");
     await generateFinalReport(results, cfg);
-
   } catch (e: any) {
     log.error(`${meta.label} worker failed: ${e.message}`);
     results.push({ db: dbKey, status: "FAILED", error: e.message });

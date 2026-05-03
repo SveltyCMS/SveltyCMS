@@ -48,7 +48,10 @@ vi.mock("@api/collections/modify-request", () => ({
 }));
 
 // Import what we are testing
-import { collectionsResolvers, createCleanTypeName } from "@src/routes/api/graphql/resolvers/collections";
+import {
+  collectionsResolvers,
+  createCleanTypeName,
+} from "@src/routes/api/graphql/resolvers/collections";
 
 describe("GraphQL Multi-Tenancy Isolation", () => {
   beforeEach(() => {

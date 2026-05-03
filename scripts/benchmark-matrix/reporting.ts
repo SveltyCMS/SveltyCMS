@@ -80,13 +80,11 @@ export async function persistScriptMetadataAST(scriptPath: string, timestamp: st
  * Full MDX generation is now moved to finalizeDatabaseAudit.
  */
 export async function updateIncrementalReport(results: BenchmarkResult[]) {
-  // We keep this lightweight for the loop. 
+  // We keep this lightweight for the loop.
   // It just ensures the results array is ready for printSummaryTable.
   // The actual disk I/O for MDX is now handled in generateFinalReport.
   return results;
 }
-
-
 
 /**
  * 📊 Prints a professional ASCII summary table to the console.

@@ -44,7 +44,7 @@ export const authUsers = sqliteTable(
     _id: uuidPk(),
     email: text("email", { length: 255 }).notNull(),
     username: text("username", { length: 255 }),
-    password: text("security", { length: 255 }),
+    password: text("password", { length: 255 }),
     emailVerified: integer("emailVerified", { mode: "boolean" }).notNull().default(false),
     blocked: integer("blocked", { mode: "boolean" }).notNull().default(false),
     firstName: text("firstName", { length: 255 }),

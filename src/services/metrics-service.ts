@@ -125,6 +125,11 @@ class MetricsService {
 
     let counters = this.tenantCounters.get(tenantId);
     if (!counters) {
+      // Memory safety: Limit number of tracked tenants to prevent heap exhaustion
+      if (this.tenantCounters.size >= 1000) {
+        const oldestId = this.tenantCounters.keys().next().value;
+        if (oldestId) this.tenantCounters.delete(oldestId);
+      }
       counters = new MetricsCounters();
       this.tenantCounters.set(tenantId, counters);
     }

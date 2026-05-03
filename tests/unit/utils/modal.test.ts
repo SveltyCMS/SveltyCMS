@@ -14,7 +14,6 @@ import ScheduleModal from "@components/collection-display/schedule-modal.svelte"
 // Spy on modalState.trigger for assertions
 modalState.trigger = vi.fn();
 
-
 // Mock paraglide messages
 vi.mock("@src/paraglide/messages", () => ({
   button_cancel: () => "Cancel",

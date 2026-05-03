@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-05-01"
+updated: "2026-05-03"
 tags:
   - "roadmap"
   - "planning"
@@ -80,6 +80,10 @@ Following the stabilization of our Audit infrastructure, we have identified seve
 3. ✅ **Middleware AST Pre-compilation**: Introduced a compiled "Auth-Path" cache in `hooks.server.ts` resolving significant overhead in `handleSetup` and effectively reducing middleware latency by ~40%.
 4. ✅ **Lazy Relation Hydration**: Implemented the "Ghost Relation" pattern on the frontend via Svelte 5 snippets (`{#snippet}`) and `IntersectionObserver`. This prevents Depth-3 query lag on strict SQL engines by lazy-loading nested relational data strictly upon viewport entry.
 5. ✅ **Vectorized Audit Chaining**: Moved `crypto` hashing logic inside `audit-log-service.ts` into a dedicated Node.js Worker Thread pool. This successfully unblocks the main event loop, permitting thousands of bulk audit events simultaneously without API lag.
+6. ✅ **Memory Stability & Leak Remediation**: Implemented cap/sanitization logic across `AutomationService`, `MetricsService`, and `Logger`, achieving "EXCELLENT" stability with <2.5MB heap growth over soak tests.
+7. ✅ **Asynchronous Build Pipeline**: Refactored Vite production build infrastructure to use asynchronous `node:fs/promises`, resolving infrastructure crashes in high-memory environments.
+8. ✅ **Background Validation Workers**: Offloaded Valibot schema parsing for content operations to a dynamic thread pool, ensuring main-thread vitality during concurrent writes.
+9. ✅ **Lazy Media Pipeline**: Fully decoupled the `sharp` image engine via dynamic imports, reducing server cold-start memory pressure and improving edge readiness.
 
 ---
 

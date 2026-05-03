@@ -26,7 +26,9 @@ const BATCH_SIZE = 500;
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runMigrationAudit() {
-  console.log(`🚀 Starting Migration & Scale Audit (${TOTAL_ENTRIES.toLocaleString()} entries)...\n`);
+  console.log(
+    `🚀 Starting Migration & Scale Audit (${TOTAL_ENTRIES.toLocaleString()} entries)...\n`,
+  );
 
   try {
     const server = await setupBenchmarkServer();
@@ -123,7 +125,6 @@ async function runMigrationAudit() {
       throughput,
       lookupAvgMs: lookupResult.avgMs,
     });
-
   } catch (err: any) {
     logger.error(`Migration audit failed: ${err.message}`);
     console.error(err);

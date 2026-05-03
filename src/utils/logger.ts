@@ -206,7 +206,10 @@ if (!IS_BROWSER) {
 
       serverEngine = {
         enqueue: (level, msg, args) => {
-          logQueue.push({ level, msg, args });
+          // Hard cap on log queue to prevent OOM during massive bursts
+          if (logQueue.length < 5000) {
+            logQueue.push({ level, msg, args });
+          }
           if (logQueue.length >= 100) flush();
           else setTimeout(flush, 5000);
         },

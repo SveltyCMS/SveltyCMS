@@ -66,7 +66,11 @@ async function runMediaAudit() {
         const noise = new Uint8Array([i % 256, Math.floor(Math.random() * 256)]);
         const uniqueBuffer = Buffer.concat([testImageBuffer, Buffer.from(noise)]);
         const file = new File([uniqueBuffer], `sdk-media-${i}.jpg`, { type: "image/jpeg" });
-        const res = await cms.media.upload(file, { userId: "system", tenantId: "global" as any, skipResizing: true });
+        const res = await cms.media.upload(file, {
+          userId: "system",
+          tenantId: "global" as any,
+          skipResizing: true,
+        });
         if (!res.url) throw new Error(`SDK upload failed: Missing URL`);
       },
     });
@@ -76,10 +80,10 @@ async function runMediaAudit() {
 
     const httpResult = await runBenchmark({
       name: "HTTP: Media Upload",
-      iterations: 80,           // Media operations are heavy
+      iterations: 80, // Media operations are heavy
       warmupIterations: 8,
       runs: 2,
-      concurrency: 2,           // Conservative concurrency for I/O heavy work
+      concurrency: 2, // Conservative concurrency for I/O heavy work
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
@@ -129,7 +133,6 @@ async function runMediaAudit() {
     ]);
 
     for (const r of results) exportResult(r);
-
   } catch (err: any) {
     logger.error(`Media benchmark failed: ${err.message}`);
     console.error(err);

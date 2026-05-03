@@ -103,16 +103,13 @@ class AutomationEventBus {
     this.listeners.clear();
   }
 
-  /** Get count of registered listeners */
-  public listenerCount(event?: AutomationEvent | "*"): number {
-    if (event) {
-      return this.listeners.get(event)?.size ?? 0;
+  /** Get detailed breakdown of registered listeners */
+  public getListenerStats(): Record<string, number> {
+    const stats: Record<string, number> = {};
+    for (const [event, set] of this.listeners.entries()) {
+      stats[event] = set.size;
     }
-    let total = 0;
-    for (const set of this.listeners.values()) {
-      total += set.size;
-    }
-    return total;
+    return stats;
   }
 }
 

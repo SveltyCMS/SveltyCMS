@@ -121,14 +121,18 @@ The Image Editor is optimized for a keyboard-driven workflow, providing high-eff
 SveltyCMS 2026 includes a high-performance media pipeline that goes beyond simple editing:
 
 ### 🌈 Progressive Loading (Smart Shimmer)
+
 For every processed image, the server automatically extracts:
+
 - **Dominant Color**: The primary RGB color of the asset, used as a shimmer background in the Media Gallery.
 - **Tiny Placeholder**: A 32x32px ultra-low-quality WebP base64 string for instant progressive previews.
 
 ### 📦 Multi-Format Variants
+
 The server-side Sharp pipeline automatically generates **WebP** and **AVIF** variants for all resized assets, ensuring optimal performance for modern browsers while maintaining original compatibility.
 
 ### 🎯 Refined Focal Point
+
 The focal point picker provides a high-precision visual target with glassmorphism-styled coordinates. This metadata is utilized by the frontend to ensure that critical subjects are never cropped out during responsive resizing.
 
 ---

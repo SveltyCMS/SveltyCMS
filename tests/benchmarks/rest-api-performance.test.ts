@@ -41,7 +41,7 @@ const restScenarios = [
     name: "Collection Search",
     path: `/api/collections/${STABLE_COLLECTION}?search=benchmark`,
     layer: "CRUD",
-  }
+  },
 ];
 
 async function runRestAudit() {
@@ -58,7 +58,7 @@ async function runRestAudit() {
 
     for (const scenario of restScenarios) {
       console.log(`   → Benchmarking ${scenario.name}...`);
-      
+
       const result = await runBenchmark({
         name: scenario.name,
         iterations: 500,
@@ -71,11 +71,11 @@ async function runRestAudit() {
             headers: {
               "x-test-mode": "true",
               "x-test-secret": TEST_API_SECRET,
-            }
+            },
           });
           if (!res.ok) throw new Error(`${scenario.name} failed: ${res.status}`);
           await res.text();
-        }
+        },
       });
 
       results.push({ ...result, layer: scenario.layer, shortLabel: scenario.name });
@@ -88,14 +88,15 @@ async function runRestAudit() {
       results,
     });
 
-    printSummaryTable(results.map(r => ({
-      key: r.name,
-      val: r.avgMs,
-      unit: "ms"
-    })));
+    printSummaryTable(
+      results.map((r) => ({
+        key: r.name,
+        val: r.avgMs,
+        unit: "ms",
+      })),
+    );
 
     for (const r of results) exportResult(r);
-
   } catch (err: any) {
     logger.error(`REST audit failed: ${err.message}`);
     console.error(err);

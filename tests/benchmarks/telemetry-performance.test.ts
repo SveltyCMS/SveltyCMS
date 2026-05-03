@@ -32,16 +32,13 @@ async function runTelemetryAudit() {
 
     const { telemetryService } = await import("@src/services/telemetry-service");
 
-
-
-
     // Mock fetch for controlled testing
     const originalFetch = global.fetch;
     global.fetch = (async () =>
-      new Response(
-        JSON.stringify({ status: "up-to-date", version: "1.0.0" }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      )) as any;
+      new Response(JSON.stringify({ status: "up-to-date", version: "1.0.0" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })) as any;
 
     try {
       const results = [];
@@ -96,10 +93,8 @@ async function runTelemetryAudit() {
       ]);
 
       for (const r of results) exportResult(r);
-
     } finally {
       global.fetch = originalFetch;
-
     }
   } catch (err: any) {
     logger.error(`Telemetry benchmark failed: ${err.message}`);
