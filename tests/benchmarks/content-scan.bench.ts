@@ -14,7 +14,7 @@ import {
   printTruthTable,
   printSummaryTable,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import fs from "node:fs/promises";
 import path from "node:path";
 

@@ -42,16 +42,22 @@ export class TransactionModule {
           rollback: async () => {
             throw new Error("ROLLBACK_TRANSACTION");
           },
-          // 🚀 CRUD Support: Note that we use the main db instance because SQLite 
+          // 🚀 CRUD Support: Note that we use the main db instance because SQLite
           // transaction is connection-bound, and we've already opened it with BEGIN.
           insert: async (collection: string, data: any, options: any = {}) =>
             this.core.crud.insert(collection, data, { ...options, transaction: { db: this.db } }),
           update: async (collection: string, id: any, data: any, options: any = {}) =>
-            this.core.crud.update(collection, id, data, { ...options, transaction: { db: this.db } }),
+            this.core.crud.update(collection, id, data, {
+              ...options,
+              transaction: { db: this.db },
+            }),
           delete: async (collection: string, id: any, options: any = {}) =>
             this.core.crud.delete(collection, id, { ...options, transaction: { db: this.db } }),
           findById: async (collection: string, id: any, options: any = {}) =>
-            this.core.crud.findOne(collection, { _id: id } as any, { ...options, transaction: { db: this.db } }),
+            this.core.crud.findOne(collection, { _id: id } as any, {
+              ...options,
+              transaction: { db: this.db },
+            }),
           db: this.db,
         };
 

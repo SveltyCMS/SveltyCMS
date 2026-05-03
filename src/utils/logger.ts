@@ -1,7 +1,7 @@
 /**
  * @file src/utils/logger.ts
  * @description Universal isomorphic logger (Client + Server) with enterprise audit features.
- * 
+ *
  * Features:
  * - Isomorphic: Works in Browser, Node.js, and Bun.
  * - Server-side Audit: Tamper-evident SHA-256 HMAC log chaining (server-only).
@@ -39,7 +39,18 @@ const ICONS: Record<string, string> = {
   NONE: "",
 };
 
-const SENSITIVE = ["security", "passwd", "pwd", "token", "secret", "key", "authorization", "auth", "api_key", "apikey"];
+const SENSITIVE = [
+  "security",
+  "passwd",
+  "pwd",
+  "token",
+  "secret",
+  "key",
+  "authorization",
+  "auth",
+  "api_key",
+  "apikey",
+];
 const EMAILS = ["email", "mail"];
 
 const IS_BROWSER = typeof window !== "undefined";
@@ -50,7 +61,10 @@ const LOG_LEVEL_STR = (
   import.meta.env?.VITE_LOG_LEVELS ??
   (typeof process !== "undefined" ? process.env?.LOG_LEVELS : undefined) ??
   "info"
-).split(",")[0].trim().toLowerCase() as LogLevel;
+)
+  .split(",")[0]
+  .trim()
+  .toLowerCase() as LogLevel;
 
 const CURRENT_PRIORITY = PRIORITY[LOG_LEVEL_STR] ?? PRIORITY.info;
 
@@ -81,7 +95,11 @@ function mask(v: unknown, depth = 0): unknown {
 
 const highlightPatterns = [
   { re: /\b\d+(\.\d+)?(ms|s)\b/g, color: pc.green, css: "color:#22c55e" },
-  { re: /([a-f0-9]{24}|[a-f0-9]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi, color: pc.yellow, css: "color:#f59e0b" },
+  {
+    re: /([a-f0-9]{24}|[a-f0-9]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi,
+    color: pc.yellow,
+    css: "color:#f59e0b",
+  },
   { re: /\/api\/[^\s]+/g, color: pc.cyan, css: "color:#06b6d4" },
   { re: /\b(true)\b/g, color: pc.green, css: "color:#22c55e" },
   { re: /\b(false)\b/g, color: pc.red, css: "color:#ef4444" },
@@ -172,7 +190,10 @@ if (!IS_BROWSER) {
           for (const e of batch) {
             const ts = new Date().toISOString().slice(0, 19).replace("T", " ");
             const plainText = `${ts} [${e.level.toUpperCase().padEnd(5)}] ${e.msg} ${JSON.stringify(e.args)}`;
-            lastHash = crypto.createHmac("sha256", HMAC_SECRET).update(lastHash + plainText).digest("hex");
+            lastHash = crypto
+              .createHmac("sha256", HMAC_SECRET)
+              .update(lastHash + plainText)
+              .digest("hex");
             const logLine = `${ts} [${e.level.toUpperCase().padEnd(5)}] ${e.msg} ${JSON.stringify(e.args)} [CHAIN:${lastHash}]\n`;
             s.write(logLine);
           }
@@ -188,7 +209,7 @@ if (!IS_BROWSER) {
           logQueue.push({ level, msg, args });
           if (logQueue.length >= 100) flush();
           else setTimeout(flush, 5000);
-        }
+        },
       };
     } catch (e) {
       console.error("[Logger] Failed to initialize server engine", e);
@@ -204,17 +225,18 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
   const ts = new Date().toISOString().slice(0, 19).replace("T", " ");
   const icon = ICONS[level.toUpperCase()] || "●";
   const maskedArgs = args.map((a) => mask(a));
-  const method = level === "fatal" || level === "error" ? "error" : level === "warn" ? "warn" : "log";
+  const method =
+    level === "fatal" || level === "error" ? "error" : level === "warn" ? "warn" : "log";
 
   if (IS_BROWSER) {
     const styles: string[] = [];
     const formattedMsg = msg.replace(
-      new RegExp(highlightPatterns.map(p => p.re.source).join("|"), "gi"),
+      new RegExp(highlightPatterns.map((p) => p.re.source).join("|"), "gi"),
       (m) => {
-        const pattern = highlightPatterns.find(p => m.match(p.re));
+        const pattern = highlightPatterns.find((p) => m.match(p.re));
         styles.push(pattern?.css || "color:inherit", "color:inherit");
         return `%c${m}%c`;
-      }
+      },
     );
     console[method](
       `%c${ts}%c ${icon} [${level.toUpperCase()}] %c${formattedMsg}`,
@@ -222,18 +244,22 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
       "",
       "color:inherit",
       ...styles,
-      ...maskedArgs
+      ...maskedArgs,
     );
   } else {
     const coloredMsg = formatMessage(msg).replace(/\n/g, " ");
-    const argsStr = maskedArgs.map(a => {
+    const argsStr = maskedArgs
+      .map((a) => {
         if (a instanceof Error) return `\n${pc.red(a.stack || a.message)}`;
         if (typeof a === "object") return JSON.stringify(a).replace(/\n/g, " ");
         return String(a);
-    }).join(" ");
+      })
+      .join(" ");
 
-    console[method](`${pc.dim(ts)} ${pc.bold(icon)} [${level.toUpperCase().padEnd(5)}] ${coloredMsg} ${argsStr}`);
-    
+    console[method](
+      `${pc.dim(ts)} ${pc.bold(icon)} [${level.toUpperCase().padEnd(5)}] ${coloredMsg} ${argsStr}`,
+    );
+
     // Send to server audit engine
     serverEngine?.enqueue(level, msg, maskedArgs);
   }

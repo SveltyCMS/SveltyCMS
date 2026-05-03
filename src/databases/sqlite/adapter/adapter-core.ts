@@ -72,7 +72,6 @@ export class AdapterCore extends BaseSqlAdapter {
    */
   public readonly writeMutex = new Mutex();
 
-
   protected metrics = {
     connectCount: 0,
     errorCount: 0,

@@ -1,7 +1,7 @@
 /**
  * @file src/utils/preview.ts
  * @description Unified live preview system for SveltyCMS.
- * 
+ *
  * Consolidates:
  * - Live Preview Listener (frontend message handling, visual editing)
  * - Preview Verification (server-side token validation)
@@ -68,7 +68,8 @@ export function createLivePreviewListener(options: LivePreviewOptions): { destro
     const handleClick = (e: MouseEvent) => {
       const target = (e.target as HTMLElement).closest("[data-svelty-field]");
       if (target) {
-        e.preventDefault(); e.stopPropagation();
+        e.preventDefault();
+        e.stopPropagation();
         const fieldName = target.getAttribute("data-svelty-field");
         if (fieldName && window.parent && window.parent !== window) {
           window.parent.postMessage({ type: "svelty:field:click", fieldName }, "*");
@@ -116,7 +117,10 @@ export function createLivePreviewListener(options: LivePreviewOptions): { destro
 /**
  * Verifies a HMAC-signed preview token.
  */
-export async function verifyPreviewToken(token: string, secret: string): Promise<VerificationResult> {
+export async function verifyPreviewToken(
+  token: string,
+  secret: string,
+): Promise<VerificationResult> {
   try {
     const { createHmac } = await import("node:crypto");
     const decoded = Buffer.from(token, "base64url").toString();
@@ -126,7 +130,10 @@ export async function verifyPreviewToken(token: string, secret: string): Promise
     if (Date.now() > expires) return { valid: false, userId, entryId, expires };
 
     const payload = `${userId}:${entryId}:${expiresStr}`;
-    const expectedSignature = createHmac("sha256", secret).update(payload).digest("hex").slice(0, 32);
+    const expectedSignature = createHmac("sha256", secret)
+      .update(payload)
+      .digest("hex")
+      .slice(0, 32);
 
     if (signature !== expectedSignature) return { valid: false, userId, entryId, expires };
     return { valid: true, userId, entryId, expires };

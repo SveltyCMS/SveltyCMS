@@ -111,7 +111,7 @@ export const resetFormSchema = pipe(
   }),
   forward(
     partialCheck(
-      [["security"], ["confirmPassword"]],
+      [["password"], ["confirmPassword"]],
       (input) => input.password === input.confirmPassword,
       "The passwords do not match. Please ensure both fields are identical.",
     ),

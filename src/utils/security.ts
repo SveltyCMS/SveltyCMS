@@ -1,7 +1,7 @@
 /**
  * @file src/utils/security.ts
  * @description Unified security and cryptography system for SveltyCMS.
- * 
+ *
  * Consolidates:
  * - Password hashing and verification (Argon2id with Worker Pool)
  * - AES-256-GCM data encryption/decryption
@@ -31,7 +31,8 @@ export const ENCRYPTION_CONFIG = {
   authTagLength: 16,
 };
 
-const IS_SERVER = typeof window === "undefined" || (typeof process !== "undefined" && process.versions != null);
+const IS_SERVER =
+  typeof window === "undefined" || (typeof process !== "undefined" && process.versions != null);
 
 // --- Worker Pool (for Argon2) ---
 
@@ -39,7 +40,10 @@ const MAX_WORKERS = Math.max(2, Math.floor((os.cpus?.().length || 4) / 2));
 const workerPool: Worker[] = [];
 let nextWorker = 0;
 let msgIdCounter = 0;
-const pendingPromises = new Map<number, { resolve: (val: any) => void; reject: (err: any) => void }>();
+const pendingPromises = new Map<
+  number,
+  { resolve: (val: any) => void; reject: (err: any) => void }
+>();
 
 function getWorker(): Worker {
   if (workerPool.length < MAX_WORKERS) {
@@ -104,18 +108,18 @@ export async function encryptData(data: any, password: string): Promise<string> 
   const salt = crypto.randomBytes(ENCRYPTION_CONFIG.saltLength);
   const iv = crypto.randomBytes(ENCRYPTION_CONFIG.ivLength);
   const key = await deriveKey(password, salt);
-  
+
   const cipher = crypto.createCipheriv(ENCRYPTION_CONFIG.algorithm, key, iv);
   const encrypted = Buffer.concat([cipher.update(JSON.stringify(data), "utf8"), cipher.final()]);
   const authTag = cipher.getAuthTag();
-  
+
   return Buffer.concat([salt, iv, authTag, encrypted]).toString("base64");
 }
 
 export async function decryptData(encryptedData: string, password: string): Promise<any> {
   const crypto = await import("node:crypto");
   const combined = Buffer.from(encryptedData, "base64");
-  
+
   let offset = 0;
   const salt = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.saltLength));
   const iv = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.ivLength));
@@ -125,7 +129,7 @@ export async function decryptData(encryptedData: string, password: string): Prom
   const key = await deriveKey(password, Buffer.from(salt));
   const decipher = crypto.createDecipheriv(ENCRYPTION_CONFIG.algorithm, key, iv);
   decipher.setAuthTag(authTag);
-  
+
   const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
   return JSON.parse(decrypted.toString("utf8"));
 }

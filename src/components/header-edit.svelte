@@ -159,7 +159,7 @@
 
 		if (currentMode === 'edit' && !hasChanges) {
 			logger.debug('[HeaderEdit] No changes – returning to list');
-			await navigationManager.navigateToList();
+			await navigationManager.toList();
 			return;
 		}
 
@@ -184,7 +184,7 @@
 			return;
 		}
 
-		await navigationManager.navigateToList();
+		await navigationManager.toList();
 	}
 
 	function cancel(): void {
@@ -193,7 +193,7 @@
 		ui.toggle('rightSidebar', 'hidden');
 		ui.toggle('leftSidebar', isDesktop ? 'full' : 'collapsed');
 		ui.toggle('pageheader', 'hidden');
-		navigationManager.navigateToList();
+		navigationManager.toList();
 	}
 
 	function openDelete(): void {

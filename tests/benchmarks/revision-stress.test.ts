@@ -17,7 +17,7 @@ import {
   TEST_API_SECRET,
   getDbType,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 const REVISION_COLLECTION = "bench_revisions";
 const STRESS_TARGET_ID = "stress-target-1";

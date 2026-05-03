@@ -88,7 +88,7 @@ vi.mock("@src/services/settings-service", () => ({
   getPublicSettingSync: vi.fn().mockReturnValue(undefined),
 }));
 
-vi.mock("@utils/logger.server", () => ({
+vi.mock("@utils/logger", () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),

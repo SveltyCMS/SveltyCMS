@@ -19,7 +19,7 @@ import {
   ensureStableTestData,
   TEST_API_SECRET,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
+
 
 let stopServer: () => Promise<void>;
 let apiBaseUrl: string;
@@ -50,8 +50,8 @@ export async function runApiLatencyAudit() {
 
   await stabilize();
 
-  const originalLogLevel = logger.level;
-  logger.level = "silent";
+
+
   console.log("\n🚀 Starting Enterprise API Latency Audit (E2E)...\n");
 
   const RUNS = 2;
@@ -126,7 +126,7 @@ export async function runApiLatencyAudit() {
     exportMetric("api.latency.sdk", sdkRes.avgMs, "ms");
     exportMetric("api.latency.http", httpRes.avgMs, "ms");
   } finally {
-    logger.level = originalLogLevel;
+
   }
 
   console.log("\n✅ API latency audit completed.");

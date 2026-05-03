@@ -37,7 +37,7 @@ describe("NavigationManager", () => {
     dataChangeStore.setHasChanges(true);
 
     // Execute
-    await navigationManager.navigateToList();
+    await navigationManager.toList();
 
     // Assertions
     expect(dataChangeStore.hasChanges).toBe(false);
@@ -45,8 +45,8 @@ describe("NavigationManager", () => {
   });
 
   it("should prevent concurrent navigations", async () => {
-    const p1 = navigationManager.navigateToList();
-    const p2 = navigationManager.navigateToList();
+    const p1 = navigationManager.toList();
+    const p2 = navigationManager.toList();
 
     await Promise.all([p1, p2]);
     // Behavior check
@@ -54,7 +54,7 @@ describe("NavigationManager", () => {
   });
 
   it("should set loading state during navigation", async () => {
-    await navigationManager.navigateToList();
+    await navigationManager.toList();
     // It should be false after
     expect(globalLoadingStore.isLoading).toBe(false);
   });

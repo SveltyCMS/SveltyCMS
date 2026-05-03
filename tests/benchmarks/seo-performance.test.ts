@@ -16,7 +16,7 @@ import {
   stabilize,
   getDbType,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
 
@@ -74,7 +74,7 @@ async function runSeoAudit() {
         silent: true,
         onIteration: async () => {
           const res = await fetch(`${baseUrl}${scenario.path}`, {
-            ...((scenario.options as any) || {}),
+            ...(scenario.options as any),
             headers: {
               "x-test-mode": "true",
               "x-test-secret": "test-secret",

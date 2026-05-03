@@ -43,7 +43,8 @@ functionality for image editing and basic file information display.
 	import { logger } from '@utils/logger';
 	import { updateMediaMetadata } from '@utils/media/api';
 	import type { MediaImage, WatermarkOptions } from '@utils/media/media-models';
-	import { convertTimestampToDateString, getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/utils';
+	import { formatDateString } from '@utils/date';
 
 	// Define reactive state
 	let isFlipped = $state(false);
@@ -302,11 +303,11 @@ functionality for image editing and basic file information display.
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as Any).path}</p>
 							<p class="">{widget_ImageUpload_Uploaded()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">
-								{convertTimestampToDateString(getTimestamp((value as Any) instanceof File ? (value as Any).lastModified : (value as Any).createdAt))}
+								{formatDateString(getTimestamp((value as Any) instanceof File ? (value as Any).lastModified : (value as Any).createdAt))}
 							</p>
 							<p class="">{widget_ImageUpload_LastModified()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">
-								{convertTimestampToDateString(getTimestamp((value as Any) instanceof File ? (value as Any).lastModified : (value as Any).updatedAt))}
+								{formatDateString(getTimestamp((value as Any) instanceof File ? (value as Any).lastModified : (value as Any).updatedAt))}
 							</p>
 
 							{#if !(value instanceof File) && value.metadata?.aiTags?.length}

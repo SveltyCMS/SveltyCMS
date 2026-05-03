@@ -17,7 +17,7 @@ import {
   getDbType,
   TEST_API_SECRET,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "bench_index_pressure";
 const ENTRY_COUNT = 100_000;

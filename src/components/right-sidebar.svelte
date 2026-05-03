@@ -191,7 +191,7 @@
 		if (currentMode === 'edit' && !hasChanges) {
 			logger.debug('[RightSidebar] No changes – navigating to list');
 			ui.forceUpdate();
-			await navigationManager.navigateToList();
+			await navigationManager.toList();
 			return;
 		}
 
@@ -222,7 +222,7 @@
 		}
 
 		ui.forceUpdate();
-		await navigationManager.navigateToList();
+		await navigationManager.toList();
 	}
 </script>
 

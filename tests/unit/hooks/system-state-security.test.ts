@@ -17,6 +17,16 @@ const originalTestMode = process.env.TEST_MODE;
 process.env.TEST_MODE = "false";
 
 import { handleSystemState } from "@src/hooks/handle-system-state";
+import { isSetupComplete } from "@src/utils/setup-check";
+
+// Mock setup check to control bootstrap behavior
+vi.mock("@src/utils/setup-check", async (importOriginal) => {
+  const actual = await importOriginal() as any;
+  return {
+    ...actual,
+    isSetupComplete: vi.fn(() => true),
+  };
+});
 
 /**
  * Helper to create a minimal RequestEvent for testing
@@ -126,6 +136,7 @@ describe("handleSystemState - Host Validation Security", () => {
   });
 
   it("should correctly handle SETUP state with root redirect", async () => {
+    vi.mocked(isSetupComplete).mockReturnValue(false);
     setSystemState("SETUP");
     const event = createMockEvent("/", "localhost");
     const response = await handleSystemState({ event, resolve: mockResolve });

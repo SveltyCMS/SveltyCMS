@@ -15,7 +15,7 @@ import {
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execSync } from "node:child_process";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 async function getDirSize(dir: string): Promise<number> {
   let total = 0;

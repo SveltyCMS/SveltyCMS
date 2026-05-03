@@ -21,7 +21,7 @@ vi.mock("@src/databases/db", () => ({
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("@utils/logger.server", () => ({
+vi.mock("@utils/logger", () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),

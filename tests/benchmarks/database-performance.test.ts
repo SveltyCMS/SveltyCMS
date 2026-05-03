@@ -17,7 +17,7 @@ import {
   printSummaryTable,
   getDbType,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "benchmark_crud";
 const TEST_TENANT = "global";

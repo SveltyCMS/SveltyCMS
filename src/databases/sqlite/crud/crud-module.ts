@@ -311,68 +311,73 @@ export class CrudModule {
   ): Promise<DatabaseResult<T>> {
     const startTime = performance.now();
     return this.core
-      .wrap(async () => {
-        const table = this.core.getTable(collection);
-        const id = (data as Partial<T>)._id || (utils.generateId() as DatabaseId);
-        const now = new Date(nowISODateString());
+      .wrap(
+        async () => {
+          const table = this.core.getTable(collection);
+          const id = (data as Partial<T>)._id || (utils.generateId() as DatabaseId);
+          const now = new Date(nowISODateString());
 
-        // 🚀 OPTIMIZATION: Use cached column names to avoid repeated Set creation
-        const columnNames = this.core.getColumnNames(collection);
-        const inputData = { ...data } as any;
-        const dynamicData = (inputData.data || {}) as Record<string, any>;
-        const values: Record<string, any> = {
-          _id: id,
-          tenantId: options.tenantId || inputData.tenantId,
-          status: inputData.status || "published",
-          createdAt: now,
-          updatedAt: now,
-        };
+          // 🚀 OPTIMIZATION: Use cached column names to avoid repeated Set creation
+          const columnNames = this.core.getColumnNames(collection);
+          const inputData = { ...data } as any;
+          const dynamicData = (inputData.data || {}) as Record<string, any>;
+          const values: Record<string, any> = {
+            _id: id,
+            tenantId: options.tenantId || inputData.tenantId,
+            status: inputData.status || "published",
+            createdAt: now,
+            updatedAt: now,
+          };
 
-        // Move extra fields to 'data' blob
-        for (const [key, value] of Object.entries(inputData)) {
-          if (["_id", "tenantId", "status", "createdAt", "updatedAt", "data"].includes(key))
-            continue;
-          if (columnNames.has(key)) {
-            values[key] = value;
-          } else {
-            dynamicData[key] = value;
+          // Move extra fields to 'data' blob
+          for (const [key, value] of Object.entries(inputData)) {
+            if (["_id", "tenantId", "status", "createdAt", "updatedAt", "data"].includes(key))
+              continue;
+            if (columnNames.has(key)) {
+              values[key] = value;
+            } else {
+              dynamicData[key] = value;
+            }
           }
-        }
-        values.data = dynamicData;
+          values.data = dynamicData;
 
-        const processedValues = utils.convertISOToDates(values);
+          const processedValues = utils.convertISOToDates(values);
 
-        // 🚀 OPTIMIZATION: Use Prepared Statement for INSERT if keys are consistent
-        const cacheKey = `insert:${collection}:${Object.entries(processedValues)
-          .map(([k, v]) => `${k}:${v === null ? "null" : "val"}`)
-          .sort()
-          .join(",")}`;
-        let prepared = this.preparedInserts.get(cacheKey);
+          // 🚀 OPTIMIZATION: Use Prepared Statement for INSERT if keys are consistent
+          const cacheKey = `insert:${collection}:${Object.entries(processedValues)
+            .map(([k, v]) => `${k}:${v === null ? "null" : "val"}`)
+            .sort()
+            .join(",")}`;
+          let prepared = this.preparedInserts.get(cacheKey);
 
-        if (!prepared) {
-          const { placeholder, sql } = await import("drizzle-orm");
-          prepared = this.getDb(options)
-            .insert(table as any)
-            .values(
-              Object.fromEntries(
-                Object.entries(processedValues).map(([k, v]) => [
-                  k,
-                  v === null ? sql`NULL` : placeholder(k),
-                ]),
-              ) as any,
-            )
-            .returning()
-            .prepare();
-          this.preparedInserts.set(cacheKey, prepared);
-          this.enforceCacheLimit(this.preparedInserts);
-        }
+          if (!prepared) {
+            const { placeholder, sql } = await import("drizzle-orm");
+            prepared = this.getDb(options)
+              .insert(table as any)
+              .values(
+                Object.fromEntries(
+                  Object.entries(processedValues).map(([k, v]) => [
+                    k,
+                    v === null ? sql`NULL` : placeholder(k),
+                  ]),
+                ) as any,
+              )
+              .returning()
+              .prepare();
+            this.preparedInserts.set(cacheKey, prepared);
+            this.enforceCacheLimit(this.preparedInserts);
+          }
 
-        const params = Object.fromEntries(
-          Object.entries(processedValues).filter(([_, v]) => v !== null),
-        );
-        const [result] = (await (prepared as any).all(params)) as any[];
-        return utils.convertDatesToISO(result as Record<string, unknown>) as T;
-      }, "CRUD_INSERT_FAILED", undefined, { isWrite: true, transaction: options.transaction })
+          const params = Object.fromEntries(
+            Object.entries(processedValues).filter(([_, v]) => v !== null),
+          );
+          const [result] = (await (prepared as any).all(params)) as any[];
+          return utils.convertDatesToISO(result as Record<string, unknown>) as T;
+        },
+        "CRUD_INSERT_FAILED",
+        undefined,
+        { isWrite: true, transaction: options.transaction },
+      )
       .then(async (res) => {
         if (res.success) {
           res.meta = { executionTime: performance.now() - startTime };
@@ -390,73 +395,78 @@ export class CrudModule {
   ): Promise<DatabaseResult<T>> {
     const startTime = performance.now();
     return this.core
-      .wrap(async () => {
-        const secureQuery = safeQuery(
-          { _id: id } as unknown as QueryFilter<T>,
-          options.tenantId as string,
-          {
-            bypassTenantCheck: options.bypassTenantCheck,
-          },
-        );
+      .wrap(
+        async () => {
+          const secureQuery = safeQuery(
+            { _id: id } as unknown as QueryFilter<T>,
+            options.tenantId as string,
+            {
+              bypassTenantCheck: options.bypassTenantCheck,
+            },
+          );
 
-        const table = this.core.getTable(collection);
-        const now = new Date(nowISODateString());
-        const updateData = { ...data, updatedAt: now };
-        const values = utils.convertISOToDates(updateData as Record<string, unknown>);
+          const table = this.core.getTable(collection);
+          const now = new Date(nowISODateString());
+          const updateData = { ...data, updatedAt: now };
+          const values = utils.convertISOToDates(updateData as Record<string, unknown>);
 
-        // 🚀 OPTIMIZATION: Use Prepared Statement for UPDATE if keys are consistent
-        const hasTenant = !!secureQuery.tenantId;
-        const cacheKey = `update:${collection}:${Object.entries(values)
-          .map(([k, v]) => `${k}:${v === null ? "null" : "val"}`)
-          .sort()
-          .join(",")}:${hasTenant ? "tenant" : "global"}`;
+          // 🚀 OPTIMIZATION: Use Prepared Statement for UPDATE if keys are consistent
+          const hasTenant = !!secureQuery.tenantId;
+          const cacheKey = `update:${collection}:${Object.entries(values)
+            .map(([k, v]) => `${k}:${v === null ? "null" : "val"}`)
+            .sort()
+            .join(",")}:${hasTenant ? "tenant" : "global"}`;
 
-        let prepared = this.preparedUpdates.get(cacheKey);
-        if (!prepared) {
-          const { eq, and, placeholder, sql } = await import("drizzle-orm");
+          let prepared = this.preparedUpdates.get(cacheKey);
+          if (!prepared) {
+            const { eq, and, placeholder, sql } = await import("drizzle-orm");
 
-          const conditions = [eq((table as any)._id, placeholder("id"))];
+            const conditions = [eq((table as any)._id, placeholder("id"))];
+            if (hasTenant) {
+              conditions.push(eq((table as any).tenantId, placeholder("tenantId")));
+            }
+
+            prepared = this.getDb(options)
+              .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+              .set(
+                Object.fromEntries(
+                  Object.entries(values).map(([k, v]) => [
+                    k,
+                    v === null ? sql`NULL` : placeholder(`_val_${k}`),
+                  ]),
+                ) as any,
+              )
+              .where(conditions.length > 1 ? and(...conditions) : conditions[0])
+              .prepare();
+
+            this.preparedUpdates.set(cacheKey, prepared);
+            this.enforceCacheLimit(this.preparedUpdates);
+          }
+
+          const params: Record<string, any> = { id };
           if (hasTenant) {
-            conditions.push(eq((table as any).tenantId, placeholder("tenantId")));
+            params.tenantId = secureQuery.tenantId;
+          }
+          for (const [k, v] of Object.entries(values)) {
+            if (v !== null) {
+              params[`_val_${k}`] = v;
+            }
           }
 
-          prepared = this.getDb(options)
-            .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-            .set(
-              Object.fromEntries(
-                Object.entries(values).map(([k, v]) => [
-                  k,
-                  v === null ? sql`NULL` : placeholder(`_val_${k}`),
-                ]),
-              ) as any,
-            )
-            .where(conditions.length > 1 ? and(...conditions) : conditions[0])
-            .prepare();
+          await prepared.run(params);
 
-          this.preparedUpdates.set(cacheKey, prepared);
-          this.enforceCacheLimit(this.preparedUpdates);
-        }
-
-        const params: Record<string, any> = { id };
-        if (hasTenant) {
-          params.tenantId = secureQuery.tenantId;
-        }
-        for (const [k, v] of Object.entries(values)) {
-          if (v !== null) {
-            params[`_val_${k}`] = v;
+          // Optimization: the findOne call will use the existing findOne prepared statement!
+          const result = await this.findOne(collection, { _id: id } as any, options);
+          if (!result.success || !result.data) {
+            throw new Error("Update failed or record not found after update");
           }
-        }
 
-        await prepared.run(params);
-
-        // Optimization: the findOne call will use the existing findOne prepared statement!
-        const result = await this.findOne(collection, { _id: id } as any, options);
-        if (!result.success || !result.data) {
-          throw new Error("Update failed or record not found after update");
-        }
-
-        return result.data as T;
-      }, "CRUD_UPDATE_FAILED", undefined, { isWrite: true, transaction: options.transaction })
+          return result.data as T;
+        },
+        "CRUD_UPDATE_FAILED",
+        undefined,
+        { isWrite: true, transaction: options.transaction },
+      )
       .then(async (res) => {
         if (res.success) {
           res.meta = { executionTime: performance.now() - startTime };
@@ -473,23 +483,28 @@ export class CrudModule {
   ): Promise<DatabaseResult<void>> {
     const startTime = performance.now();
     return this.core
-      .wrap(async () => {
-        const query = safeQuery(
-          { _id: id } as unknown as QueryFilter<BaseEntity>,
-          options.tenantId as string,
-          {
-            bypassTenantCheck: options.bypassTenantCheck,
-          },
-        );
+      .wrap(
+        async () => {
+          const query = safeQuery(
+            { _id: id } as unknown as QueryFilter<BaseEntity>,
+            options.tenantId as string,
+            {
+              bypassTenantCheck: options.bypassTenantCheck,
+            },
+          );
 
-        const table = this.core.getTable(collection);
-        const where = this.core.mapQuery(table, query as Record<string, unknown>) as
-          | import("drizzle-orm").SQL
-          | undefined;
-        await this.getDb(options)
-          .delete(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-          .where(where);
-      }, "CRUD_DELETE_FAILED", undefined, { isWrite: true, transaction: options.transaction })
+          const table = this.core.getTable(collection);
+          const where = this.core.mapQuery(table, query as Record<string, unknown>) as
+            | import("drizzle-orm").SQL
+            | undefined;
+          await this.getDb(options)
+            .delete(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+            .where(where);
+        },
+        "CRUD_DELETE_FAILED",
+        undefined,
+        { isWrite: true, transaction: options.transaction },
+      )
       .then(async (res) => {
         if (res.success) {
           res.meta = { executionTime: performance.now() - startTime };
@@ -515,58 +530,67 @@ export class CrudModule {
   ): Promise<DatabaseResult<T>> {
     const startTime = performance.now();
     return this.core
-      .wrap(async () => {
-        const secureQuery = safeQuery(query, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
-        });
-        const table = this.core.getTable(collection);
-        const caps = this.core.getCapabilities();
-
-        const id =
-          (secureQuery as any)._id ||
-          (data as Partial<T>)._id ||
-          (utils.generateId() as DatabaseId);
-        const now = new Date(nowISODateString());
-        const values = utils.convertISOToDates({
-          ...data,
-          _id: id,
-          tenantId: options.tenantId || (data as any).tenantId,
-          createdAt: now,
-          updatedAt: now,
-        } as Record<string, unknown>);
-
-        // 🚀 STRATEGY: Capability-based Hybrid CRUD
-        // If query matches a unique index (primary key _id) and database supports native upsert
-        if (caps.nativeUpsert && caps.supportsConflictTargets && this.isLookupQuery(secureQuery)) {
-          await this.getDb(options)
-            .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-            .values(values as any)
-            .onConflictDoUpdate({
-              target: (table as any)._id,
-              set: values as any,
-            });
-        } else {
-          // 🛡️ FALLBACK: Portable "Lookup then Insert/Update"
-          const existing = await this.findOne<T>(collection, query, {
-            ...options,
-            includeDeleted: true,
+      .wrap(
+        async () => {
+          const secureQuery = safeQuery(query, options.tenantId as string, {
+            bypassTenantCheck: options.bypassTenantCheck,
           });
+          const table = this.core.getTable(collection);
+          const caps = this.core.getCapabilities();
 
-          if (existing.success && existing.data) {
-            await this.update<T>(collection, (existing.data as any)._id, data, options);
+          const id =
+            (secureQuery as any)._id ||
+            (data as Partial<T>)._id ||
+            (utils.generateId() as DatabaseId);
+          const now = new Date(nowISODateString());
+          const values = utils.convertISOToDates({
+            ...data,
+            _id: id,
+            tenantId: options.tenantId || (data as any).tenantId,
+            createdAt: now,
+            updatedAt: now,
+          } as Record<string, unknown>);
+
+          // 🚀 STRATEGY: Capability-based Hybrid CRUD
+          // If query matches a unique index (primary key _id) and database supports native upsert
+          if (
+            caps.nativeUpsert &&
+            caps.supportsConflictTargets &&
+            this.isLookupQuery(secureQuery)
+          ) {
+            await this.getDb(options)
+              .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+              .values(values as any)
+              .onConflictDoUpdate({
+                target: (table as any)._id,
+                set: values as any,
+              });
           } else {
-            await this.insert<T>(collection, data, options);
+            // 🛡️ FALLBACK: Portable "Lookup then Insert/Update"
+            const existing = await this.findOne<T>(collection, query, {
+              ...options,
+              includeDeleted: true,
+            });
+
+            if (existing.success && existing.data) {
+              await this.update<T>(collection, (existing.data as any)._id, data, options);
+            } else {
+              await this.insert<T>(collection, data, options);
+            }
           }
-        }
 
-        const [result] = await this.getDb(options)
-          .select()
-          .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-          .where(eq((table as any)._id, id as string))
-          .limit(1);
+          const [result] = await this.getDb(options)
+            .select()
+            .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+            .where(eq((table as any)._id, id as string))
+            .limit(1);
 
-        return utils.convertDatesToISO(result as Record<string, unknown>) as T;
-      }, "CRUD_UPSERT_FAILED", undefined, { isWrite: true, transaction: options.transaction })
+          return utils.convertDatesToISO(result as Record<string, unknown>) as T;
+        },
+        "CRUD_UPSERT_FAILED",
+        undefined,
+        { isWrite: true, transaction: options.transaction },
+      )
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
         return res;
@@ -629,30 +653,35 @@ export class CrudModule {
   ): Promise<DatabaseResult<T[]>> {
     const startTime = performance.now();
     return this.core
-      .wrap(async () => {
-        if (data.length === 0) {
-          return [];
-        }
-        const table = this.core.getTable(collection);
-        const now = new Date(nowISODateString());
-        const values = data.map((d) =>
-          utils.convertISOToDates({
-            ...d,
-            _id: (d as any)._id || (utils.generateId() as DatabaseId),
-            tenantId: options.tenantId || (d as any).tenantId,
-            createdAt: now,
-            updatedAt: now,
-          } as Record<string, unknown>),
-        );
-        const results = await this.getDb(options)
-          .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-          .values(values as Record<string, unknown>[])
-          .returning();
+      .wrap(
+        async () => {
+          if (data.length === 0) {
+            return [];
+          }
+          const table = this.core.getTable(collection);
+          const now = new Date(nowISODateString());
+          const values = data.map((d) =>
+            utils.convertISOToDates({
+              ...d,
+              _id: (d as any)._id || (utils.generateId() as DatabaseId),
+              tenantId: options.tenantId || (d as any).tenantId,
+              createdAt: now,
+              updatedAt: now,
+            } as Record<string, unknown>),
+          );
+          const results = await this.getDb(options)
+            .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+            .values(values as Record<string, unknown>[])
+            .returning();
 
-        return utils
-          .convertArrayDatesToISO(results as Record<string, unknown>[])
-          .map((row) => row) as unknown as T[];
-      }, "CRUD_INSERT_MANY_FAILED", undefined, { isWrite: true, transaction: options.transaction })
+          return utils
+            .convertArrayDatesToISO(results as Record<string, unknown>[])
+            .map((row) => row) as unknown as T[];
+        },
+        "CRUD_INSERT_MANY_FAILED",
+        undefined,
+        { isWrite: true, transaction: options.transaction },
+      )
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
         return res;
@@ -667,25 +696,30 @@ export class CrudModule {
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     const startTime = performance.now();
     return this.core
-      .wrap(async () => {
-        const table = this.core.getTable(collection);
-        const secureQuery = safeQuery(query, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
-        });
-        const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
-          | import("drizzle-orm").SQL
-          | undefined;
-        const now = new Date(nowISODateString());
-        const values = utils.convertISOToDates({ ...data, updatedAt: now } as Record<
-          string,
-          unknown
-        >);
-        const result = await this.getDb(options)
-          .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-          .set(values as Record<string, unknown>)
-          .where(where);
-        return { modifiedCount: (result as any).changes };
-      }, "CRUD_UPDATE_MANY_FAILED", undefined, { isWrite: true, transaction: options.transaction })
+      .wrap(
+        async () => {
+          const table = this.core.getTable(collection);
+          const secureQuery = safeQuery(query, options.tenantId as string, {
+            bypassTenantCheck: options.bypassTenantCheck,
+          });
+          const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
+            | import("drizzle-orm").SQL
+            | undefined;
+          const now = new Date(nowISODateString());
+          const values = utils.convertISOToDates({ ...data, updatedAt: now } as Record<
+            string,
+            unknown
+          >);
+          const result = await this.getDb(options)
+            .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+            .set(values as Record<string, unknown>)
+            .where(where);
+          return { modifiedCount: (result as any).changes };
+        },
+        "CRUD_UPDATE_MANY_FAILED",
+        undefined,
+        { isWrite: true, transaction: options.transaction },
+      )
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
         return res;
@@ -699,19 +733,24 @@ export class CrudModule {
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
     const startTime = performance.now();
     return this.core
-      .wrap(async () => {
-        const table = this.core.getTable(collection);
-        const secureQuery = safeQuery(query, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
-        });
-        const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
-          | import("drizzle-orm").SQL
-          | undefined;
-        const result = await this.getDb(options)
-          .delete(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
-          .where(where);
-        return { deletedCount: (result as any).changes };
-      }, "CRUD_DELETE_MANY", undefined, { isWrite: true, transaction: options.transaction })
+      .wrap(
+        async () => {
+          const table = this.core.getTable(collection);
+          const secureQuery = safeQuery(query, options.tenantId as string, {
+            bypassTenantCheck: options.bypassTenantCheck,
+          });
+          const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
+            | import("drizzle-orm").SQL
+            | undefined;
+          const result = await this.getDb(options)
+            .delete(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
+            .where(where);
+          return { deletedCount: (result as any).changes };
+        },
+        "CRUD_DELETE_MANY",
+        undefined,
+        { isWrite: true, transaction: options.transaction },
+      )
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
         return res;

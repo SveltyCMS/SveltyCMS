@@ -7,13 +7,13 @@
 import { performance } from "node:perf_hooks";
 import fs from "node:fs";
 import path from "node:path";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 // ── silencing noise ─────────────────────────────────────────────────────────
 process.env.LOG_LEVEL = "error";
 process.env.DEBUG = "";
 process.env.QUIET = "true";
-if (logger) logger.level = "error";
+
 
 // Suppress console.info/warn during init
 const originalInfo = console.info;

@@ -18,7 +18,7 @@ import {
   TEST_API_SECRET,
 } from "./benchmark-utils";
 import { apiSpecService } from "@src/services/system/api-spec-service";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
 

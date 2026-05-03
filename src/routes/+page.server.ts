@@ -49,7 +49,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       logger.warn("ContentSystem not initialized in page load - still waiting...", {
         state: healthStatus.state,
       });
-      // Small safety delay or retry logic could go here if needed, 
+      // Small safety delay or retry logic could go here if needed,
       // but runBackgroundTasks should have finished.
     }
     logger.debug("System is ready, proceeding with page load.", { tenantId });

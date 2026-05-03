@@ -8,11 +8,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import * as ts from "typescript";
 import os from "node:os";
-import {
-  getCollectionsPath,
-  getCompiledCollectionsPath,
-  isValidTenantId,
-} from "../tenant-paths.ts";
+import { getCollectionsPath, getCompiledCollectionsPath, isValidTenantId } from "../tenant.ts";
 import {
   addJsExtensionTransformer,
   commonjsToEsModuleTransformer,

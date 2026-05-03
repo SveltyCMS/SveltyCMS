@@ -6,7 +6,6 @@
 import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { sha256 } from "@utils/utils";
-import sharp from "sharp";
 import type { CmsMediaMetadata } from "./media-models";
 
 /** Hash file content (SHA-256, 20-char hex) */
@@ -31,8 +30,9 @@ export async function hashFileContent(buffer: ArrayBuffer | Buffer): Promise<str
 }
 
 /** Extract standard image metadata with Sharp */
-export async function extractMetadata(buffer: Buffer): Promise<sharp.Metadata> {
+export async function extractMetadata(buffer: Buffer): Promise<any> {
   try {
+    const sharp = (await import("sharp")).default;
     const meta = await sharp(buffer).metadata();
 
     logger.debug("Metadata extracted", {
@@ -77,6 +77,7 @@ export class MediaProcessingService {
     options: { fastPath?: boolean } = {},
   ): Promise<CmsMediaMetadata> {
     try {
+      const sharp = (await import("sharp")).default;
       const instance = sharp(buffer);
       const meta = await instance.metadata();
 

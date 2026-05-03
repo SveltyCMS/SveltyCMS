@@ -17,7 +17,7 @@ import {
 } from "./benchmark-utils";
 import { CacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 class SimulatedRedisBus {
   private subscribers: Map<string, Set<(msg: string) => void>> = new Map();

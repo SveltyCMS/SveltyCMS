@@ -1,7 +1,7 @@
 /**
  * @file src/utils/tenant.ts
  * @description Unified multi-tenancy system for SveltyCMS.
- * 
+ *
  * Consolidates:
  * - Tenant path resolution (collections, compiled output)
  * - Hostname-based tenant identification
@@ -12,7 +12,6 @@
 import path from "node:path";
 import { logger } from "./logger";
 import { AppError } from "./error-handling";
-import { getPrivateSettingSync } from "@src/services/settings-service";
 
 // --- Path Resolution (Merged from tenant-paths.ts) ---
 
@@ -87,7 +86,11 @@ export function getCollectionDisplayPath(collectionName: string, tenantId?: stri
  */
 export function getTenantIdFromHostname(hostname: string, multiTenant = true): string | null {
   if (!multiTenant) return null;
-  if (hostname === "localhost" || hostname.startsWith("127.0.0.1") || hostname.startsWith("192.168.")) {
+  if (
+    hostname === "localhost" ||
+    hostname.startsWith("127.0.0.1") ||
+    hostname.startsWith("192.168.")
+  ) {
     return "default";
   }
   const parts = hostname.split(".");
@@ -100,8 +103,11 @@ export function getTenantIdFromHostname(hostname: string, multiTenant = true): s
 /**
  * Ensures a valid tenant context is present for the current operation.
  */
-export function requireTenantContext(locals: App.Locals, operationName: string): string | null {
-  const isMultiTenant = getPrivateSettingSync("MULTI_TENANT");
+export function requireTenantContext(
+  locals: App.Locals,
+  operationName: string,
+  isMultiTenant = false,
+): string | null {
   const tenantId = locals.tenantId || locals.user?.tenantId || null;
 
   if (isMultiTenant && !tenantId) {

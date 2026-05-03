@@ -26,7 +26,7 @@ import { JobsModule } from "../modules/system/jobs-module";
 import { PerformanceModule } from "../performance/performance-module";
 import { CacheModule } from "../performance/cache-module";
 import { PostgresQueryBuilder } from "../query-builder/postgres-query-builder";
-import { TransactionModule } from "../operations/transaction-module";
+
 import { getDefaultRoles } from "../../auth/default-roles";
 import * as schema from "../schema/index";
 
@@ -41,7 +41,6 @@ export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {
   public readonly batch: IDBAdapter["batch"];
   public readonly collection: IDBAdapter["collection"];
   public readonly utils = utils;
-  private readonly transactionModule: TransactionModule;
 
   constructor() {
     super();
@@ -51,7 +50,6 @@ export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {
     this.media = new MediaModule(this);
     this.batch = new BatchModule(this);
     this.collection = new CollectionModule(this);
-    this.transactionModule = new TransactionModule(this);
 
     // Initialize nested adapters
     this.system = {
@@ -227,14 +225,5 @@ export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {
     collection: string,
   ): import("../../db-interface").QueryBuilder<T> {
     return new PostgresQueryBuilder<T>(this, collection);
-  }
-
-  async transaction<T>(
-    fn: (
-      transaction: import("../../db-interface").DatabaseTransaction,
-    ) => Promise<DatabaseResult<T>>,
-    options?: { timeout?: number; isolationLevel?: string },
-  ): Promise<DatabaseResult<T>> {
-    return this.transactionModule.execute(fn, options as any);
   }
 }

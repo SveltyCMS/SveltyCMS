@@ -23,50 +23,8 @@ import path from "node:path";
  * Checks if config/private.ts exists.
  * Safe to call from anywhere (middleware, Vite, etc.)
  */
-export function isSetupComplete(): boolean {
-  if (
-    typeof globalThis !== "undefined" &&
-    (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ === true
-  ) {
-    return true;
-  }
-
-  try {
-    const isTestMode =
-      typeof process !== "undefined" &&
-      (process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true");
-
-    if (isTestMode && !process.env.STRICT_SETUP_CHECK) return true;
-
-    const configFileName = isTestMode ? "private.test.ts" : "private.ts";
-    const privateConfigPath = path.join(process.cwd(), "config", configFileName);
-
-    if (!fs.existsSync(privateConfigPath)) {
-      return false;
-    }
-
-    // 🚀 RESILIENCE: If we just finished setup, the file might be in the OS buffer.
-    // We use a small retry loop (3x 50ms) to handle tiny filesystem race conditions.
-    let content = "";
-    let attempts = 0;
-    while (attempts < 3) {
-      content = fs.readFileSync(privateConfigPath, "utf8");
-      if (content.includes("JWT_SECRET_KEY") && content.includes("DB_HOST")) {
-        return true;
-      }
-      attempts++;
-      if (attempts < 3) {
-        // Sync sleep (fine for setup-only gate during cold start)
-        const start = Date.now();
-        while (Date.now() - start < 50) {}
-      }
-    }
-
-    return false;
-  } catch {
-    return false;
-  }
-}
+import { isSetupComplete } from "./setup-check-fast";
+export { isSetupComplete };
 
 // Memoization
 let setupDbStatus: boolean | null = null;
@@ -77,8 +35,6 @@ export enum SetupState {
   MISSING_ADMIN = "MISSING_ADMIN", // Config exists but DB is empty
   COMPLETE = "COMPLETE", // Everything ready
 }
-
-
 
 /**
  * 🔎 DEEP ASYNC CHECK
@@ -130,7 +86,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
     setupDbStatus = true;
     setupStatusCheckedDb = true;
     return true;
-  } catch (_err) {
+  } catch {
     // Fail safe to false to stay in setup mode if DB is unreachable
     return false;
   }

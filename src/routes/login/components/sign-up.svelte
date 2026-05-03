@@ -214,7 +214,7 @@ function handleOAuth() {
 		return;
 	}
 
-	const form = document.createElement("form.svelte");
+	const form = document.createElement("form");
 	form.method = "post";
 
 	// Use signInOAuth action when in invite flow to preserve invite token

@@ -16,7 +16,7 @@ import {
   printSummaryTable,
   getDbType,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 const TENANT_COUNT = 50;
 const ITERATIONS = 1200;

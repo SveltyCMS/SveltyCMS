@@ -1,7 +1,7 @@
 /**
  * @file src/utils/form.svelte.ts
  * @description Modern Svelte 5 Form Suite for SveltyCMS.
- * 
+ *
  * Consolidates:
  * - Form class (rune-based state management)
  * - Validation helpers (Valibot integration)
@@ -52,7 +52,7 @@ export async function col2formData(
   for (const [key, getter] of Object.entries(getData)) {
     let value = getter();
     if (value instanceof Promise) value = await value;
-    
+
     if (value instanceof Blob) {
       formData.append(key, value);
     } else if (typeof value === "object" && value !== null) {
@@ -187,7 +187,10 @@ export class Form<T extends Record<string, unknown>> {
 /**
  * Procedural validation for one-off checks.
  */
-export function validateData<T>(schema: BaseSchema<T, T, any>, value: T): Record<string, string[]> | null {
+export function validateData<T>(
+  schema: BaseSchema<T, T, any>,
+  value: T,
+): Record<string, string[]> | null {
   try {
     const result = safeParse(schema, value);
     if (result.success) return null;

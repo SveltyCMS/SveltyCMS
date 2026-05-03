@@ -16,7 +16,7 @@ import {
   printSummaryTable,
   getDbType,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
 
@@ -32,8 +32,8 @@ async function runTelemetryAudit() {
 
     const { telemetryService } = await import("@src/services/telemetry-service");
 
-    const originalLogLevel = logger.level;
-    logger.level = "silent";
+
+
 
     // Mock fetch for controlled testing
     const originalFetch = global.fetch;
@@ -99,7 +99,7 @@ async function runTelemetryAudit() {
 
     } finally {
       global.fetch = originalFetch;
-      logger.level = originalLogLevel;
+
     }
   } catch (err: any) {
     logger.error(`Telemetry benchmark failed: ${err.message}`);

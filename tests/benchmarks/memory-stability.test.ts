@@ -15,7 +15,7 @@ import {
   printSummaryTable,
   getDbType,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 const DURATION_SECONDS = process.env.LONG_RUN === "true" ? 180 : 45;
 const SAMPLING_INTERVAL_MS = 2500;

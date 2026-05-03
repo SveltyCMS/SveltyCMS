@@ -36,6 +36,24 @@ vi.mock("@src/content/index.server", () => ({
   },
 }));
 
+vi.mock("@src/content/content-service.server", () => ({
+  contentService: {
+    getContentStructureFromDatabase: vi.fn().mockResolvedValue([
+      {
+        nodeType: "collection",
+        collectionDef: {
+          _id: "Posts",
+          name: "Posts",
+          fields: [
+            { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, translated: true },
+            { db_fieldName: "views", label: "Views", widget: { Name: "Number" }, translated: false },
+          ],
+        },
+      },
+    ]),
+  },
+}));
+
 vi.mock("@src/services/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
   getPublicSettingSync: vi.fn().mockReturnValue(true),

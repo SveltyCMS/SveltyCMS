@@ -36,7 +36,7 @@ import {
   STABLE_COLLECTION,
   ensureStableTestData,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
+
 
 async function runWidgetAudit() {
   console.log("🚀 Starting SveltyCMS Widget Performance Audit...\n");
@@ -55,8 +55,8 @@ async function runWidgetAudit() {
   const RUNS = 2;
   const allResults: any[] = [];
 
-  const originalLogLevel = logger.level;
-  logger.level = "silent";
+
+
 
   try {
     // 1. Baseline: Direct Database Read (No Widgets)
@@ -151,7 +151,7 @@ async function runWidgetAudit() {
 
     for (const r of allResults) exportResult(r);
   } finally {
-    logger.level = originalLogLevel;
+
   }
 
   console.log("\n✅ Widget performance audit completed.");

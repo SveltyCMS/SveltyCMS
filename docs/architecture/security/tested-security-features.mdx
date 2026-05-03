@@ -95,9 +95,9 @@ All tests adhere to strict no-backdoor principles:
 | Session validation        | `tests/integration/databases/auth-system.test.ts` | ✅     |
 | Session deletion          | `tests/integration/databases/auth-system.test.ts` | ✅     |
 | Session timeout handling  | `tests/unit/hooks/authentication.test.ts`         | ✅     |
-| Password hashing (Argon2) | `tests/unit/utils/crypto.test.ts`                 | ✅     |
-| Password verification     | `tests/unit/utils/crypto.test.ts`                 | ✅     |
-| Timing attack resistance  | `tests/unit/utils/crypto.test.ts`                 | ✅     |
+| Password hashing (Argon2) | `tests/unit/utils/security.test.ts`                 | ✅     |
+| Password verification     | `tests/unit/utils/security.test.ts`                 | ✅     |
+| Timing attack resistance  | `tests/unit/utils/security.test.ts`                 | ✅     |
 | OAuth/Google signup       | `tests/e2e/oauth-signup-firstuser.spec.ts`        | ✅     |
 | SAML authentication       | `tests/unit/auth/saml.test.ts`                    | ✅     |
 

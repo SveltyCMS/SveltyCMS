@@ -263,7 +263,9 @@ export class AdapterCore extends BaseSqlAdapter {
   }
 
   public transaction = async <T>(
-    fn: (transaction: import("../../db-interface").DatabaseTransaction) => Promise<DatabaseResult<T>>,
+    fn: (
+      transaction: import("../../db-interface").DatabaseTransaction,
+    ) => Promise<DatabaseResult<T>>,
     options?: {
       isolationLevel?: "read uncommitted" | "read committed" | "repeatable read" | "serializable";
     },

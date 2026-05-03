@@ -207,7 +207,9 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
     if (restricted.includes(systemState.overallState as any)) {
       // If we are actually finished with setup but the state hasn't updated yet, allow a retry or wait
       if (isSetupComplete() && systemState.overallState === "SETUP") {
-        logger.debug("[handleSystemState] Setup complete but state still SETUP - awaiting one more time");
+        logger.debug(
+          "[handleSystemState] Setup complete but state still SETUP - awaiting one more time",
+        );
         await waitForInitialization();
       } else {
         const msg =

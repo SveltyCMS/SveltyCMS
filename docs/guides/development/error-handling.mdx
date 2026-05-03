@@ -27,7 +27,7 @@ The unified error handling system consists of three core modules:
 
 | Module               | Path                         | Purpose                                        |
 | -------------------- | ---------------------------- | ---------------------------------------------- |
-| **errorHandling.ts** | `src/utils/errorHandling.ts` | Core error types, handlers, and utilities      |
+| **error-handling.ts** | `src/utils/error-handling.ts` | Core error types, handlers, and utilities      |
 | **apiHandler.ts**    | `src/utils/apiHandler.ts`    | Higher-order function for API route protection |
 | **apiClient.ts**     | `src/utils/apiClient.ts`     | Client-side fetch wrapper with error handling  |
 
@@ -507,7 +507,7 @@ throw new AppError("Email address is not valid", 400, "INVALID_EMAIL");
 
 ## API Reference
 
-### Exports from errorHandling.ts
+### Exports from error-handling.ts
 
 ```typescript
 // Classes

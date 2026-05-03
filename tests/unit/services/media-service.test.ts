@@ -16,7 +16,7 @@ vi.mock("sharp", () => ({
 
 const mockDbAdapter = (globalThis as any).mockDbAdapter;
 
-vi.mock("@utils/logger.server", () => ({
+vi.mock("@utils/logger", () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),

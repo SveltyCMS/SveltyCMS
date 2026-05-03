@@ -1,7 +1,7 @@
 /**
  * @file src/utils/navigation.ts
  * @description Unified navigation system for SveltyCMS.
- * 
+ *
  * Consolidates:
  * - NavigationManager (locking, mode transitions, loading state)
  * - Navigation Utilities (preloading, URL parsing, reflection)
@@ -59,7 +59,10 @@ export function slugify(string: string, options: SlugifyOptions = {}): string {
     slug = slug.replace(strictRegex, "");
   }
 
-  const multiReplaceRegex = new RegExp(`(${replacement.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}){2,}`, "g");
+  const multiReplaceRegex = new RegExp(
+    `(${replacement.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}){2,}`,
+    "g",
+  );
   slug = slug.replace(multiReplaceRegex, replacement);
 
   if (trim) {
@@ -108,7 +111,11 @@ export function cancelPreload(entryId: string): void {
 /**
  * Reflects the current UI mode and entry in the URL without a full navigation.
  */
-export function reflectModeInURL(mode: ModeType, entryId?: string, options: { replaceState?: boolean } = {}): void {
+export function reflectModeInURL(
+  mode: ModeType,
+  entryId?: string,
+  options: { replaceState?: boolean } = {},
+): void {
   if (!IS_BROWSER) return;
 
   const url = new URL(window.location.href);
@@ -184,7 +191,9 @@ class NavigationManager {
   async toList(options?: { invalidate?: boolean }): Promise<void> {
     await this.executeNavigation("toList", async () => {
       if (IS_BROWSER) {
-        document.dispatchEvent(new CustomEvent("entrySaved", { bubbles: true, detail: { timestamp: Date.now() } }));
+        document.dispatchEvent(
+          new CustomEvent("entrySaved", { bubbles: true, detail: { timestamp: Date.now() } }),
+        );
       }
 
       dataChangeStore.reset();

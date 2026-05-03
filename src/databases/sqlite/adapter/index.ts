@@ -279,7 +279,6 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
     return new SQLiteQueryBuilder<T>(this, collection);
   };
 
-
   // Global CRUD data methods
   getCollectionData = async (
     collection: string,

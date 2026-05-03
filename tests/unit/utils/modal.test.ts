@@ -85,11 +85,17 @@ describe("Modal Utilities", () => {
 
       expect(modalState.trigger).toHaveBeenCalledWith(
         ConfirmDialog,
-        expect.objectContaining({
-          htmlTitle: "Confirm Delete",
-          body: expect.stringContaining("5 item(s)"),
+        {
+          htmlTitle: "Delete 5 item",
+          body: 'Are you sure you want to delete <span class="text-primary-500 font-bold">5 item(s)</span>?',
           buttonTextConfirm: "Delete",
-        }),
+          buttonTextCancel: "Cancel",
+          modalClasses: "!bg-error-500/10 !border-error-500/20",
+          meta: {
+            buttonConfirmClasses: "variant-filled-error",
+            buttonCancelClasses: "preset-outlined-surface-500",
+          },
+        },
         expect.any(Function),
       );
     });
@@ -98,10 +104,17 @@ describe("Modal Utilities", () => {
       showDeleteConfirm({ isArchive: true, onConfirm: vi.fn() });
       expect(modalState.trigger).toHaveBeenCalledWith(
         ConfirmDialog,
-        expect.objectContaining({
-          htmlTitle: "Confirm Archive",
+        {
+          htmlTitle: "Archive  item",
+          body: 'Are you sure you want to archive <span class="text-primary-500 font-bold">1 item(s)</span>?',
           buttonTextConfirm: "Archive",
-        }),
+          buttonTextCancel: "Cancel",
+          modalClasses: "!bg-warning-500/10 !border-warning-500/20",
+          meta: {
+            buttonConfirmClasses: "variant-filled-warning",
+            buttonCancelClasses: "preset-outlined-surface-500",
+          },
+        },
         expect.any(Function),
       );
     });

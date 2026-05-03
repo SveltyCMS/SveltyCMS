@@ -288,7 +288,7 @@ SveltyCMS includes comprehensive security testing:
 
 ```bash
 # Encryption and cryptography tests
-bun test tests/unit/utils/crypto.test.ts
+bun test tests/unit/utils/security.test.ts
 
 # Account lockout and session security tests
 bun test tests/unit/auth-lockout.test.ts
@@ -373,7 +373,7 @@ While the CMS provides built-in tools, a secure production deployment requires p
 ### Data Protection
 
 - [x] Audit logging enabled - `tests/integration/api/*`
-- [x] Sensitive data encrypted at rest - `tests/unit/utils/crypto.test.ts`
+- [x] Sensitive data encrypted at rest - `tests/unit/utils/security.test.ts`
 - [ ] Backup encryption enabled (infrastructure)
 - [ ] Key rotation schedule defined (operational)
 - [ ] Data retention policies configured (not tested)

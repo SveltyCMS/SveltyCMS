@@ -32,6 +32,21 @@ const isTestTarget = (path: string) => {
 // 1. EARLY DOM SHIMS (Critical for Bun; Vitest uses native jsdom)
 const isBun = typeof Bun !== "undefined";
 
+vi.mock("$app/navigation", () => ({
+  goto: vi.fn(),
+  preloadData: vi.fn(),
+  invalidateAll: vi.fn(),
+}));
+vi.mock("$app/environment", () => ({
+  browser: true,
+  dev: true,
+  building: false,
+  version: "1.0.0",
+}));
+vi.mock("$app/state", () => ({
+  page: { subscribe: vi.fn() },
+}));
+
 // Shimming import.meta.glob specifically for Bun/Node
 if (typeof (import.meta as any).glob !== "function") {
   (import.meta as any).glob = (pattern: string, options?: any) => {
@@ -396,7 +411,7 @@ moduleMock("@src/utils/logger", () => ({
   logger: mockLogger,
   default: mockLogger,
 }));
-moduleMock("@utils/logger.server", () => ({
+moduleMock("@utils/logger", () => ({
   logger: mockLogger,
   default: mockLogger,
 }));

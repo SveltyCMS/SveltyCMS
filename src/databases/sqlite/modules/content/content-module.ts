@@ -177,7 +177,7 @@ export class ContentModule {
       return this.core.transaction(async (tx: any) => {
         const results: ContentNode[] = [];
         const now = isoDateStringToDate(nowISODateString());
-        
+
         // 🚀 BATCH OPTIMIZATION: We process in smaller chunks to avoid SQLite statement limits
         // but within the SAME transaction for maximum performance.
         for (const update of updates) {
@@ -192,23 +192,20 @@ export class ContentModule {
 
           // We use the internal DB handle from the transaction to bypass the wrap overhead per-item
           const table = schema.contentNodes;
-          
-          await tx.db
-            .insert(table)
-            .values(values)
-            .onConflictDoUpdate({
-              target: table.path,
-              set: values,
-            });
-            
+
+          await tx.db.insert(table).values(values).onConflictDoUpdate({
+            target: table.path,
+            set: values,
+          });
+
           // We don't select back every item to save time during bulk operations
           results.push({ ...update.changes, path: update.path, _id: id } as ContentNode);
         }
 
-        return { 
-          success: true, 
+        return {
+          success: true,
           data: results,
-          meta: { executionTime: performance.now() - startTime } 
+          meta: { executionTime: performance.now() - startTime },
         };
       });
     },

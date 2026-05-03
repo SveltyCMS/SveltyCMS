@@ -163,7 +163,7 @@ class ConfigService {
       if (!(collection._id && collection.name)) {
         continue;
       }
-      const hash = createChecksum(collection);
+      const hash = await createChecksum(collection);
       state.set(collection._id, {
         uuid: collection._id,
         type: "collection",
@@ -199,7 +199,7 @@ class ConfigService {
           if (!(id && name)) {
             continue;
           }
-          const hash = createChecksum(collection);
+          const hash = await createChecksum(collection);
           state.set(id, {
             uuid: id,
             type: "collection",

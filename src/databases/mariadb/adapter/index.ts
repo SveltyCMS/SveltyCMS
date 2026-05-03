@@ -24,7 +24,6 @@ import type {
   BaseEntity,
   DatabaseId,
   DatabaseResult,
-  DatabaseTransaction,
   IDBAdapter,
   PaginationOption,
   QueryBuilder,
@@ -42,7 +41,7 @@ import { ThemesModule } from "../modules/themes/themes-module";
 import { WebsiteTokensModule } from "../modules/website/tokens-module";
 import { WidgetsModule } from "../modules/widgets/widgets-module";
 import { BatchModule } from "../operations/batch-module";
-import { TransactionModule } from "../operations/transaction-module";
+
 import { CacheModule } from "../performance/cache-module";
 import { PerformanceModule } from "../performance/performance-module";
 import { MariaDBQueryBuilder } from "../query-builder/maria-db-query-builder";
@@ -62,7 +61,6 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
   public readonly batch: BatchModule;
   public readonly collection: CollectionModule;
   public readonly utils = utils;
-  private readonly transactionModule: TransactionModule;
 
   constructor() {
     super();
@@ -72,7 +70,6 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
     this.media = new MediaModule(this);
     this.collection = new CollectionModule(this);
     this.batch = new BatchModule(this);
-    this.transactionModule = new TransactionModule(this);
 
     // Initialize nested adapters
     this.system = {
@@ -311,15 +308,6 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 
   public queryBuilder = <T extends BaseEntity>(collection: string): QueryBuilder<T> => {
     return new MariaDBQueryBuilder<T>(this, collection);
-  };
-
-  public transaction = async <T>(
-    fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
-    options?: {
-      isolationLevel?: "read uncommitted" | "read committed" | "repeatable read" | "serializable";
-    },
-  ): Promise<DatabaseResult<T>> => {
-    return this.transactionModule.execute(fn, options);
   };
 
   // Global CRUD data methods

@@ -48,7 +48,7 @@ vi.mock("@src/services/settings-service", () => ({
 }));
 
 // Mock logger
-vi.mock("@utils/logger.server", () => ({
+vi.mock("@utils/logger", () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),

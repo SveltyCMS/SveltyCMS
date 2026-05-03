@@ -16,7 +16,7 @@ import {
   printSummaryTable,
   getDbType,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "collection_acid_benchmark";
 let stopServer: (() => Promise<void>) | null = null;

@@ -1,7 +1,7 @@
 /**
  * @file src/utils/modal.svelte.ts
  * @description Centralized modal state and utility system for SveltyCMS.
- * 
+ *
  * Features:
  * - Unified Svelte 5 state management ($state).
  * - Standardized modal templates (Confirm, Delete, Archive, Schedule).
@@ -93,7 +93,7 @@ class ModalManager {
    */
   showConfirm(options: ConfirmModalOptions) {
     const theme = options.theme || DEFAULT_THEMES.default;
-    
+
     this.trigger(
       ConfirmDialog,
       {
@@ -110,7 +110,7 @@ class ModalManager {
       (confirmed: boolean) => {
         if (confirmed) options.onConfirm?.();
         else options.onCancel?.();
-      }
+      },
     );
   }
 
@@ -134,19 +134,20 @@ class ModalManager {
       ? `Are you sure you want to ${action.toLowerCase()} <span class="text-primary-500 font-bold">${count} ${itemType}(s)</span>?`
       : `Are you sure you want to ${action.toLowerCase()} <span class="text-primary-500 font-bold">${itemName}</span>?`;
 
-    const adminWarning = isAdmin && !isArchive
-      ? `<div class="alert variant-filled-warning mt-4">
+    const adminWarning =
+      isAdmin && !isArchive
+        ? `<div class="alert variant-filled-warning mt-4">
           <i class="fa-solid fa-triangle-exclamation"></i>
           <div><h3>Important</h3><p>This action is irreversible.</p></div>
          </div>`
-      : "";
+        : "";
 
     this.showConfirm({
       title: `${action} ${count > 1 ? count : ""} ${itemType}`,
       body: body + adminWarning,
       confirmText: action,
       theme,
-      onConfirm
+      onConfirm,
     });
   }
 
@@ -164,7 +165,7 @@ class ModalManager {
       body: `Change <span class="text-primary-500 font-bold">${count} item(s)</span> to <span class="text-primary-500 font-bold">${status}</span>?`,
       confirmText: "Change Status",
       theme: DEFAULT_THEMES[status] || DEFAULT_THEMES.default,
-      onConfirm
+      onConfirm,
     });
   }
 
@@ -192,7 +193,7 @@ class ModalManager {
       body: `Clone <span class="text-primary-500 font-bold">${count} item(s)</span>?`,
       confirmText: "Clone",
       theme: DEFAULT_THEMES.clone,
-      onConfirm
+      onConfirm,
     });
   }
 
@@ -216,9 +217,10 @@ class ModalManager {
 
     const key = mapping[action] || "entry_saved";
     const fn = (m as any)[key];
-    const message = typeof fn === "function" 
-      ? fn({ count, type: itemType }) 
-      : `${count > 1 ? count : ""} ${itemType} ${action}ed successfully.`;
+    const message =
+      typeof fn === "function"
+        ? fn({ count, type: itemType })
+        : `${count > 1 ? count : ""} ${itemType} ${action}ed successfully.`;
 
     toast.success(message);
   }
@@ -227,7 +229,12 @@ class ModalManager {
 export const modalState = new ModalManager();
 
 // For backward compatibility during migration
-export const showModal = (settings: any) => modalState.trigger(settings.component?.ref || settings.component, settings.props || settings.meta || {}, settings.response);
+export const showModal = (settings: any) =>
+  modalState.trigger(
+    settings.component?.ref || settings.component,
+    settings.props || settings.meta || {},
+    settings.response,
+  );
 export const showConfirm = (options: ConfirmModalOptions) => modalState.showConfirm(options);
 
 export const showDeleteConfirm = (options: any) => {
@@ -235,7 +242,7 @@ export const showDeleteConfirm = (options: any) => {
     itemType: "item",
     itemName: Array(options.count || 1).fill("item"),
     onConfirm: options.onConfirm,
-    isArchive: options.isArchive
+    isArchive: options.isArchive,
   });
 };
 
@@ -243,20 +250,20 @@ export const showStatusChangeConfirm = (options: any) => {
   return modalState.showStatusChange({
     status: options.status,
     count: options.count,
-    onConfirm: options.onConfirm
+    onConfirm: options.onConfirm,
   });
 };
 
 export const showScheduleModal = (options: any) => {
   return modalState.showSchedule({
     initialAction: options.initialAction,
-    onSchedule: options.onSchedule
+    onSchedule: options.onSchedule,
   });
 };
 
 export const showCloneModal = (options: any) => {
   return modalState.showClone({
     count: options.count,
-    onConfirm: options.onConfirm
+    onConfirm: options.onConfirm,
   });
 };

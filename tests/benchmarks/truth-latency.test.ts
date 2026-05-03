@@ -18,7 +18,7 @@ import {
   STABLE_ENTRY_ID,
   ensureStableTestData,
 } from "./benchmark-utils";
-import { logger } from "@utils/logger.server";
+
 
 let stopServer: () => Promise<void>;
 let apiBaseUrl: string;
@@ -53,8 +53,8 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
 
   console.log(`\n🕵️  Executing SRE Truth Audit for "${STABLE_COLLECTION}"...\n`);
 
-  const originalLogLevel = logger.level;
-  logger.level = "silent";
+
+
 
   try {
     // 1. Logic Baseline (Harness Overhead)
@@ -160,7 +160,7 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
 
     for (const r of allResults) exportResult(r);
   } finally {
-    logger.level = originalLogLevel;
+
   }
 
   console.log("\n✅ Truth latency audit completed.");

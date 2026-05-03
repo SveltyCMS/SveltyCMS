@@ -11,6 +11,7 @@
  */
 
 import { exec } from "node:child_process";
+process.env.ESBUILD_WORKER_THREADS = "0";
 import { existsSync, promises as fs } from "node:fs";
 import { builtinModules } from "node:module";
 import { platform } from "node:os";
@@ -23,7 +24,7 @@ import tailwindcss from "@tailwindcss/vite";
 import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vitest/config";
 import { compile } from "./src/utils/compilation/compile.ts";
-import { isSetupComplete } from "./src/utils/setup-check.ts";
+import { isSetupComplete } from "./src/utils/setup-check-fast.ts";
 import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check.ts";
 
 const __filename = fileURLToPath(import.meta.url);

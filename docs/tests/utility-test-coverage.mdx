@@ -30,7 +30,7 @@ This document provides comprehensive test coverage information for SveltyCMS uti
 
 ## Test Coverage by Category
 
-### 1. Date Utilities (`dateUtils.ts`)
+### 1. Date Utilities (`date.ts`)
 
 **Tests:** 18 | **Status:** ✅ Passing
 
@@ -66,7 +66,7 @@ This document provides comprehensive test coverage information for SveltyCMS uti
 
 ---
 
-### 2. Cryptography (`crypto.ts`)
+### 2. Cryptography (`security.ts`)
 
 **Tests:** 25 | **Status:** ✅ Passing
 
@@ -109,7 +109,7 @@ This document provides comprehensive test coverage information for SveltyCMS uti
 
 ---
 
-### 3. Error Handling (`errorHandling.ts`)
+### 3. Error Handling (`error-handling.ts`)
 
 **Tests:** 22 | **Status:** ✅ Passing
 
@@ -182,8 +182,8 @@ This document provides comprehensive test coverage information for SveltyCMS uti
 
 | File                                      | Tests  | Categories                                       | Status             |
 | ----------------------------------------- | ------ | ------------------------------------------------ | ------------------ |
-| `tests/unit/utils/date-utils.test.ts`     | 18     | Type Guards, Conversions, Formatting, Edge Cases | ✅ Passing         |
-| `tests/unit/utils/crypto.test.ts`         | 25     | Password Hashing, Tokens, Checksums, Security    | ✅ Passing         |
+| `tests/unit/utils/date.test.ts`     | 18     | Type Guards, Conversions, Formatting, Edge Cases | ✅ Passing         |
+| `tests/unit/utils/security.test.ts`         | 25     | Password Hashing, Tokens, Checksums, Security    | ✅ Passing         |
 | `tests/unit/utils/error-handling.test.ts` | 22     | AppError, Type Guards, Messages, Wrapping        | ✅ Passing         |
 | `tests/unit/utils/language-utils.test.ts` | 11     | Basic, Common Languages, Edge Cases              | ✅ Passing         |
 | **Total**                                 | **76** | **15 categories**                                | **✅ All Passing** |
@@ -201,8 +201,8 @@ bun run test:unit -- utils
 ### Run Specific Utility Test File
 
 ```bash
-bun run test:unit -- crypto
-bun run test:unit -- date-utils
+bun run test:unit -- security
+bun run test:unit -- date
 ```
 
 ### Run with Coverage
