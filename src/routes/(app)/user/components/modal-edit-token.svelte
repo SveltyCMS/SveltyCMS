@@ -32,9 +32,9 @@ It handles token creation, updates, and deletion with proper validation and erro
 	// Skeleton & Stores
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { Form } from '@utils/form.svelte.ts';
-	import { addUserTokenSchema } from '@utils/form-schemas';
+	import { addUserTokenSchema } from '@utils/schemas';
 	// Utils
-	import { modalState } from '@utils/modal-state.svelte';
+	import { modalState } from '@utils/modal.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 

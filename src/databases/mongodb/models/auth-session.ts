@@ -7,9 +7,9 @@ import type { Session } from "@src/databases/auth/types";
 import type { DatabaseId, DatabaseResult, ISODateString } from "@src/databases/db-interface";
 import mongoose, { Schema, type Model } from "mongoose";
 import { generateId, getOrCreateModel } from "../methods/mongodb-utils";
-import { toISOString } from "@src/utils/date-utils";
+import { toISOString } from "@src/utils/date";
 import { safeQuery } from "@src/utils/security/safe-query";
-import { logger } from "@src/utils/logger.server";
+import { logger } from "@src/utils/logger";
 
 export const SessionSchema = new Schema(
   {

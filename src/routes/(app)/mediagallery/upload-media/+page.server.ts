@@ -7,7 +7,7 @@ import type { MediaAccess } from "@root/src/utils/media/media-models";
 import { dbAdapter } from "@src/databases/db";
 import { MediaService } from "@src/utils/media/media-service.server";
 import { error, redirect } from "@sveltejs/kit";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { Actions } from "./$types";
 
 export const actions: Actions = {

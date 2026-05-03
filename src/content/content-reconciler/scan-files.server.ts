@@ -24,7 +24,7 @@ const building = (() => {
     return false;
   }
 })();
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { Schema } from "../types";
 import { loadSchemaNative } from "../module-processor.server";
 

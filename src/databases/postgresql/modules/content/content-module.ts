@@ -3,7 +3,7 @@
  * @description Content management module for PostgreSQL
  */
 
-import { isoDateStringToDate, nowISODateString } from "@src/utils/date-utils";
+import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type {
   ContentDraft,
@@ -149,8 +149,10 @@ export class ContentModule {
     update: async (
       path: string,
       changes: Partial<ContentNode>,
+      options: { tx?: any } = {},
     ): Promise<DatabaseResult<ContentNode>> => {
       return this.core.wrap(async () => {
+        const db = options.tx || this.db;
         // Explicitly map properties to avoid sending non-column props to Drizzle
         const c = changes as any;
         const updateData: any = {
@@ -164,7 +166,7 @@ export class ContentModule {
         if (c.data !== undefined) updateData.data = c.data;
         if (c.parentId !== undefined) updateData.parentId = c.parentId;
 
-        const [updated] = await this.db
+        const [updated] = await db
           .update(schema.contentNodes)
           .set(updateData)
           .where(eq(schema.contentNodes.path, path))
@@ -181,14 +183,14 @@ export class ContentModule {
         bypassCache?: boolean;
       },
     ): Promise<DatabaseResult<ContentNode[]>> => {
-      return this.core.wrap(async () => {
+      return this.core.transaction(async (tx) => {
         const results: ContentNode[] = [];
         for (const update of updates) {
-          const res = await this.nodes.update(update.path, update.changes);
+          const res = await this.nodes.update(update.path, update.changes, { tx });
           if (res.success && res.data) results.push(res.data);
         }
-        return results;
-      }, "BULK_UPDATE_NODES_FAILED");
+        return { success: true, data: results };
+      });
     },
 
     delete: async (path: string): Promise<DatabaseResult<void>> => {
@@ -231,9 +233,10 @@ export class ContentModule {
         path: string;
       }>,
     ): Promise<DatabaseResult<void>> => {
-      return this.core.wrap(async () => {
+      return this.core.transaction(async (tx) => {
+        const db = (tx as any).db;
         for (const item of items) {
-          await this.db
+          await db
             .update(schema.contentNodes)
             .set({
               parentId: item.parentId,
@@ -242,7 +245,8 @@ export class ContentModule {
             })
             .where(eq(schema.contentNodes._id, item.id));
         }
-      }, "REORDER_STRUCTURE_FAILED");
+        return { success: true, data: undefined };
+      });
     },
   };
 

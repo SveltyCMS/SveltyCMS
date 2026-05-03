@@ -22,7 +22,7 @@ import type { Role, User } from "@src/databases/auth/types";
 import { auth } from "@src/databases/db";
 // System Logger
 import { getUntypedSetting } from "@src/services/settings-service";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async (event) => {

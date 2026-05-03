@@ -15,7 +15,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 
 <script lang="ts">
 	import { slide, fade } from 'svelte/transition';
-	import { modalState } from '@utils/modal-state.svelte';
+	import { modalState } from '@utils/modal.svelte';
 	import FloatingInput from '@components/system/inputs/floating-input.svelte';
 	import { button_cancel, button_save } from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte.ts';

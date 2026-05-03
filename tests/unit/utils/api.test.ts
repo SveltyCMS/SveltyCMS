@@ -12,7 +12,7 @@ import {
   getData,
   invalidateCollectionCache,
   getCollections,
-} from "@src/utils/api-client";
+} from "@src/utils/api";
 
 // Mock the publicEnv to avoid unresolved imports
 vi.mock("@src/stores/global-settings.svelte.ts", () => ({

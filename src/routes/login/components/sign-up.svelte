@@ -46,7 +46,7 @@ import { publicEnv } from "@src/stores/global-settings.svelte";
 import { screen } from "@src/stores/screen-size-store.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { Form } from "@utils/form.svelte.ts";
-import { signUpFormSchema } from "@utils/form-schemas";
+import { signUpFormSchema } from "@utils/schemas";
 import { logger } from "@utils/logger";
 import { browser } from "$app/environment";
 import { enhance } from "$app/forms";
@@ -214,7 +214,7 @@ function handleOAuth() {
 		return;
 	}
 
-	const form = document.createElement("form");
+	const form = document.createElement("form.svelte");
 	form.method = "post";
 
 	// Use signInOAuth action when in invite flow to preserve invite token
@@ -379,8 +379,8 @@ $effect(() => {
 					<!-- Password field -->
 					<FloatingInput
 						id="passwordsignUp"
-						name="password"
-						type="password"
+						name="security"
+						type="security"
 						tabindex={passwordTabIndex}
 						required
 						bind:value={signUpForm.data.password}
@@ -402,7 +402,7 @@ $effect(() => {
 					<FloatingInput
 						id="confirm_passwordsignUp"
 						name="confirm_password"
-						type="password"
+						type="security"
 						tabindex={confirmPasswordTabIndex}
 						required
 						bind:value={signUpForm.data.confirm_password}
@@ -428,7 +428,7 @@ $effect(() => {
 						<FloatingInput
 							id="tokensignUp"
 							name="token"
-							type="password"
+							type="security"
 							tabindex={tokenTabIndex}
 							bind:value={signUpForm.data.token}
 							label="{registration_token()} (Optional)"

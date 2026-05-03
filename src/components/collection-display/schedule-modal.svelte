@@ -29,7 +29,7 @@
 	} from '@src/paraglide/messages';
 
 	// Skeleton
-	import { modalState } from '@utils/modal-state.svelte';
+	import { modalState } from '@utils/modal.svelte';
 
 	// No Props needed
 

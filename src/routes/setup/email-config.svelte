@@ -79,7 +79,7 @@
 		setup_email_why_title
 	} from '@src/paraglide/messages';
 	import { setupStore } from '@src/stores/setup-store.svelte.ts';
-	import { type SmtpConfigSchema, smtpConfigSchema } from '@utils/form-schemas';
+	import { type SmtpConfigSchema, smtpConfigSchema } from '@utils/schemas';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { safeParse } from 'valibot';
 	import { deserialize } from '$app/forms';
@@ -413,7 +413,7 @@
 			formData.append('host', wizard.emailSettings.host);
 			formData.append('port', String(effectivePort()));
 			formData.append('user', wizard.emailSettings.user);
-			formData.append('password', wizard.emailSettings.password);
+			formData.append('security', wizard.emailSettings.password);
 			formData.append('from', wizard.emailSettings.from || wizard.emailSettings.user);
 			formData.append('secure', String(effectiveSecure()));
 			formData.append('testEmail', wizard.adminUser.email);
@@ -755,7 +755,7 @@
 			</div>
 			<div class="relative">
 				<input
-					type={showPassword ? 'text' : 'password'}
+					type={showPassword ? 'text' : 'security'}
 					class="input w-full rounded border border-slate-300 dark:border-surface-600   pr-10"
 					class:input-error={displayErrors.password}
 					bind:value={wizard.emailSettings.password}
@@ -767,7 +767,7 @@
 						if (trimmed !== wizard.emailSettings.password) {
 							wizard.emailSettings.password = trimmed;
 						}
-						handleBlur('password');
+						handleBlur('security');
 					}}
 					onchange={() => {
 						testSuccess = false;

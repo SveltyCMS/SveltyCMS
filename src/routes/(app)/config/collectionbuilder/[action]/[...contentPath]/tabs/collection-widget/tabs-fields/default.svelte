@@ -20,7 +20,7 @@ Features:
 
 import InputSwitch from "@src/components/system/builder/input-switch.svelte";
 import { collections } from "@src/stores/collection-store.svelte";
-import { modalState } from "@utils/modal-state.svelte";
+import { modalState } from "@utils/modal.svelte";
 import { asAny } from "@utils/utils";
 import type { Component } from "svelte";
 

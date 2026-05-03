@@ -3,7 +3,7 @@
  * @description Service for managing and dispatching system webhooks with tenant isolation.
  */
 
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
 import { auditLogService, AuditEventType } from "./audit-log-service";
 

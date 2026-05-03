@@ -3,7 +3,7 @@
  * @description CRUD operations module for SQLite.
  */
 
-import { nowISODateString } from "@src/utils/date-utils";
+import { nowISODateString } from "@src/utils/date";
 import { safeQuery } from "@src/utils/security/safe-query";
 import { count, eq } from "drizzle-orm";
 import type {
@@ -36,8 +36,8 @@ export class CrudModule {
     this.core = core;
   }
 
-  private get db() {
-    return this.core.db!;
+  private getDb(options?: BaseQueryOptions) {
+    return options?.transaction?.db || this.core.db!;
   }
 
   /**
@@ -127,7 +127,7 @@ export class CrudModule {
               conditions.push(eq((table as any).tenantId, placeholder("tenantId")));
             }
 
-            prepared = this.db
+            prepared = this.getDb(options)
               .select()
               .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
               .where(and(...conditions))
@@ -152,7 +152,7 @@ export class CrudModule {
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
           | undefined;
-        const results = await this.db
+        const results = await this.getDb(options)
           .select()
           .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
           .where(where)
@@ -205,7 +205,7 @@ export class CrudModule {
               conditions.push(eq((table as any).tenantId, placeholder("tenantId")));
             }
 
-            let query: any = this.db
+            let query: any = this.getDb(options)
               .select()
               .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable);
 
@@ -229,7 +229,7 @@ export class CrudModule {
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
           | undefined;
-        let q = this.db
+        let q = this.getDb(options)
           .select()
           .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
           .where(where)
@@ -292,7 +292,7 @@ export class CrudModule {
         const where = this.core.mapQuery(table, query as Record<string, unknown>) as
           | import("drizzle-orm").SQL
           | undefined;
-        const results = await this.db
+        const results = await this.getDb(options)
           .select()
           .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
           .where(where);
@@ -351,7 +351,7 @@ export class CrudModule {
 
         if (!prepared) {
           const { placeholder, sql } = await import("drizzle-orm");
-          prepared = this.db
+          prepared = this.getDb(options)
             .insert(table as any)
             .values(
               Object.fromEntries(
@@ -372,7 +372,7 @@ export class CrudModule {
         );
         const [result] = (await (prepared as any).all(params)) as any[];
         return utils.convertDatesToISO(result as Record<string, unknown>) as T;
-      }, "CRUD_INSERT_FAILED")
+      }, "CRUD_INSERT_FAILED", undefined, { isWrite: true, transaction: options.transaction })
       .then(async (res) => {
         if (res.success) {
           res.meta = { executionTime: performance.now() - startTime };
@@ -420,7 +420,7 @@ export class CrudModule {
             conditions.push(eq((table as any).tenantId, placeholder("tenantId")));
           }
 
-          prepared = this.db
+          prepared = this.getDb(options)
             .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
             .set(
               Object.fromEntries(
@@ -456,7 +456,7 @@ export class CrudModule {
         }
 
         return result.data as T;
-      }, "CRUD_UPDATE_FAILED")
+      }, "CRUD_UPDATE_FAILED", undefined, { isWrite: true, transaction: options.transaction })
       .then(async (res) => {
         if (res.success) {
           res.meta = { executionTime: performance.now() - startTime };
@@ -486,10 +486,10 @@ export class CrudModule {
         const where = this.core.mapQuery(table, query as Record<string, unknown>) as
           | import("drizzle-orm").SQL
           | undefined;
-        await this.db
+        await this.getDb(options)
           .delete(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
           .where(where);
-      }, "CRUD_DELETE_FAILED")
+      }, "CRUD_DELETE_FAILED", undefined, { isWrite: true, transaction: options.transaction })
       .then(async (res) => {
         if (res.success) {
           res.meta = { executionTime: performance.now() - startTime };
@@ -538,7 +538,7 @@ export class CrudModule {
         // 🚀 STRATEGY: Capability-based Hybrid CRUD
         // If query matches a unique index (primary key _id) and database supports native upsert
         if (caps.nativeUpsert && caps.supportsConflictTargets && this.isLookupQuery(secureQuery)) {
-          await this.db
+          await this.getDb(options)
             .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
             .values(values as any)
             .onConflictDoUpdate({
@@ -559,14 +559,14 @@ export class CrudModule {
           }
         }
 
-        const [result] = await this.db
+        const [result] = await this.getDb(options)
           .select()
           .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
           .where(eq((table as any)._id, id as string))
           .limit(1);
 
         return utils.convertDatesToISO(result as Record<string, unknown>) as T;
-      }, "CRUD_UPSERT_FAILED")
+      }, "CRUD_UPSERT_FAILED", undefined, { isWrite: true, transaction: options.transaction })
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
         return res;
@@ -590,7 +590,7 @@ export class CrudModule {
           | import("drizzle-orm").SQL
           | undefined;
 
-        const [result] = await this.db
+        const [result] = await this.getDb(options)
           .select({ count: count() })
           .from(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
           .where(where);
@@ -644,7 +644,7 @@ export class CrudModule {
             updatedAt: now,
           } as Record<string, unknown>),
         );
-        const results = await this.db
+        const results = await this.getDb(options)
           .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
           .values(values as Record<string, unknown>[])
           .returning();
@@ -652,7 +652,7 @@ export class CrudModule {
         return utils
           .convertArrayDatesToISO(results as Record<string, unknown>[])
           .map((row) => row) as unknown as T[];
-      }, "CRUD_INSERT_MANY_FAILED")
+      }, "CRUD_INSERT_MANY_FAILED", undefined, { isWrite: true, transaction: options.transaction })
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
         return res;
@@ -680,12 +680,12 @@ export class CrudModule {
           string,
           unknown
         >);
-        const result = await this.db
+        const result = await this.getDb(options)
           .update(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
           .set(values as Record<string, unknown>)
           .where(where);
         return { modifiedCount: (result as any).changes };
-      }, "CRUD_UPDATE_MANY_FAILED")
+      }, "CRUD_UPDATE_MANY_FAILED", undefined, { isWrite: true, transaction: options.transaction })
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
         return res;
@@ -707,11 +707,11 @@ export class CrudModule {
         const where = this.core.mapQuery(table, secureQuery as Record<string, unknown>) as
           | import("drizzle-orm").SQL
           | undefined;
-        const result = await this.db
+        const result = await this.getDb(options)
           .delete(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
           .where(where);
         return { deletedCount: (result as any).changes };
-      }, "CRUD_DELETE_MANY")
+      }, "CRUD_DELETE_MANY", undefined, { isWrite: true, transaction: options.transaction })
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
         return res;
@@ -728,11 +728,13 @@ export class CrudModule {
   ): Promise<DatabaseResult<{ upsertedCount: number; modifiedCount: number }>> {
     const startTime = performance.now();
     return this.core
-      .wrap(async () => {
+      .transaction<{ upsertedCount: number; modifiedCount: number }>(async (tx) => {
         const table = this.core.getTable(collection);
         const caps = this.core.getCapabilities();
         let upsertedCount = 0;
         let modifiedCount = 0;
+
+        const txOptions = { ...options, transaction: tx };
 
         for (const item of items) {
           const secureQuery = safeQuery(item.query, options.tenantId as string, {
@@ -758,31 +760,32 @@ export class CrudModule {
             caps.supportsConflictTargets &&
             this.isLookupQuery(secureQuery)
           ) {
-            await this.db
+            await this.getDb(txOptions)
               .insert(table as unknown as import("drizzle-orm/sqlite-core").SQLiteTable)
               .values(values as any)
               .onConflictDoUpdate({
                 target: (table as any)._id,
                 set: values as any,
               });
+            upsertedCount++; // Close enough for bulk metrics
           } else {
             // 🛡️ FALLBACK: Portable "Lookup then Insert/Update"
             const existing = await this.findOne<T>(collection, item.query, {
-              ...options,
+              ...txOptions,
               includeDeleted: true,
             });
 
             if (existing.success && existing.data) {
-              await this.update<T>(collection, (existing.data as any)._id, item.data, options);
+              await this.update<T>(collection, (existing.data as any)._id, item.data, txOptions);
               modifiedCount++;
             } else {
-              await this.insert<T>(collection, item.data, options);
+              await this.insert<T>(collection, item.data, txOptions);
               upsertedCount++;
             }
           }
         }
-        return { upsertedCount, modifiedCount };
-      }, "CRUD_UPSERT_MANY_FAILED")
+        return { success: true, data: { upsertedCount, modifiedCount } };
+      }, options as any)
       .then((res) => {
         if (res.success) res.meta = { executionTime: performance.now() - startTime };
         return res;

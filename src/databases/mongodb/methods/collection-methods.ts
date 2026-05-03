@@ -16,7 +16,7 @@
  */
 
 import type { Schema } from "@src/content/types";
-import { nowISODateString } from "@utils/date-utils";
+import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
 import mongoose, { type Model, Schema as MongooseSchema } from "mongoose";
 import type { CollectionModel } from "../../db-interface";

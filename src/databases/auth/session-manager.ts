@@ -18,7 +18,7 @@
 
 // Auth
 import type { ISODateString, User, DatabaseId } from "@databases/db-interface";
-import { isoDateStringToDate } from "@utils/date-utils";
+import { isoDateStringToDate } from "@utils/date";
 // System Logger
 import { logger } from "@utils/logger";
 import type { SessionStore } from "./types";

@@ -4,9 +4,9 @@
  * @description UI for browsing and restoring soft-deleted content.
  */
 import { onMount } from "svelte";
-import { fetchApi } from "@utils/api-client";
+import { fetchApi } from "@utils/api";
 import { toast } from "@src/stores/toast.svelte";
-import { formatDate } from "@utils/date-utils";
+import { formatDate } from "@utils/date";
 let trashedItems = $state<any[]>([]);
 let isLoading = $state(true);
 

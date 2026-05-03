@@ -89,7 +89,7 @@ export function applyTenantFilter<T extends Record<string, unknown>>(
   return conditions;
 }
 
-import { toISOString } from "@src/utils/date-utils";
+import { toISOString } from "@src/utils/date";
 export { toISOString };
 
 /**

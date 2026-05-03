@@ -23,7 +23,7 @@ import {
 import { auth } from "@src/databases/db";
 import { error, type Handle, redirect } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 
 // --- MODULE-LEVEL CACHES ---

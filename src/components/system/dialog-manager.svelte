@@ -3,7 +3,7 @@
 <script lang="ts">
 	// Skeleton V4
 	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
-	import { modalState } from '@utils/modal-state.svelte';
+	import { modalState } from '@utils/modal.svelte';
 	import { tick } from 'svelte';
 
 	// Handle closing via the Store

@@ -8,7 +8,7 @@ import * as fsPromises from "node:fs/promises";
 import path from "node:path";
 import { logger } from "@utils/logger";
 import { CacheCategory } from "@src/databases/cache/types";
-import { dateToISODateString } from "@utils/date-utils";
+import { dateToISODateString } from "@utils/date";
 import { contentStore } from "@src/stores/content-store.svelte";
 import type { ContentNode, Schema, DatabaseId } from "./types";
 import type { IDBAdapter } from "@src/databases/db-interface";

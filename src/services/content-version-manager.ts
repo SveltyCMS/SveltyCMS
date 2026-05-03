@@ -7,7 +7,7 @@
 
 import { dbAdapter } from "@src/databases/db";
 import { pubSub } from "./pub-sub";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 export class ContentVersionManager {
   /**

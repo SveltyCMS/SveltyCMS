@@ -5,7 +5,7 @@
  */
 
 import type { DatabaseConfig } from "@src/databases/schemas";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 /**
  * Writes database credentials and security keys to private.ts

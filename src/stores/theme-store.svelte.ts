@@ -7,7 +7,7 @@
 
 import type { ISODateString } from "@src/content/types";
 import type { Theme } from "@src/databases/db-interface";
-import { nowISODateString } from "@src/utils/date-utils";
+import { nowISODateString } from "@src/utils/date";
 import { logger } from "@utils/logger";
 import { browser } from "$app/environment";
 

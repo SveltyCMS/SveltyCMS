@@ -22,8 +22,8 @@ import {
 	type MediaImage,
 	MediaTypeEnum,
 } from "@utils/media/media-models";
-import { modalState } from "@utils/modal-state.svelte";
-import { showConfirm } from "@utils/modal-utils";
+import { modalState } from "@utils/modal.svelte";
+import { showConfirm } from "@utils/modal.svelte";
 import { registerHotkey } from "@src/utils/hotkeys";
 import { SvelteSet } from "svelte/reactivity";
 

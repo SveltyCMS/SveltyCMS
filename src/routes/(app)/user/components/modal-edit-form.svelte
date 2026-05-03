@@ -20,8 +20,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 	// Paraglide Messages
 	import { button_cancel, button_delete, button_save, form_confirmpassword, modaleditform_newpassword } from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { editUserSchema } from '@utils/form-schemas';
-	import { modalState } from '@utils/modal-state.svelte';
+	import { editUserSchema } from '@utils/schemas';
+	import { modalState } from '@utils/modal.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 
@@ -120,7 +120,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			changes.push(`role (${oldRole} → ${newRole})`);
 		}
 		if (editForm.data.password && editForm.data.password.trim() !== '') {
-			changes.push('password');
+			changes.push('security');
 		}
 
 		// Create a clean data object for the API call (just the user fields)
@@ -312,7 +312,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			{#if isOwnProfile}
 				<!-- Current Password (Required for own profile password change) -->
 				<FloatingInput
-					type="password"
+					type="security"
 					name="current_password"
 					id="current_password"
 					label="Current Password"
@@ -336,9 +336,9 @@ Efficiently manages user data updates with validation, role selection, and delet
 			<!-- Password field -->
 			<div class:opacity-50={isOwnProfile && !isCurrentPasswordValidated} class="transition-opacity duration-200">
 				<FloatingInput
-					type="password"
-					name="password"
-					id="password"
+					type="security"
+					name="security"
+					id="security"
 					label={isOwnProfile ? modaleditform_newpassword() : 'Set New Password'}
 					bind:value={editForm.data.password}
 					bind:showPassword
@@ -356,7 +356,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			<!-- Password Confirm -->
 			<div class:opacity-50={isOwnProfile && !isCurrentPasswordValidated} class="transition-opacity duration-200">
 				<FloatingInput
-					type="password"
+					type="security"
 					name="confirm_password"
 					id="confirm_password"
 					label={form_confirmpassword()}

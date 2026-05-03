@@ -3,7 +3,7 @@
  * @description CRUD operations module for MariaDB.
  */
 
-import { nowISODateString } from "@src/utils/date-utils";
+import { nowISODateString } from "@src/utils/date";
 import { safeQuery } from "@src/utils/security/safe-query";
 import { count, eq, inArray, placeholder, sql } from "drizzle-orm";
 import type {

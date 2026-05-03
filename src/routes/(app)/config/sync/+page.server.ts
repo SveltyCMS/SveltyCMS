@@ -13,7 +13,7 @@
  */
 
 import { error, redirect } from "@sveltejs/kit";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {

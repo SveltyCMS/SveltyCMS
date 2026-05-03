@@ -264,5 +264,5 @@ export async function getRemoteVideoData(url: string): Promise<RemoteVideoData |
   return result;
 }
 
-import { formatIsoDuration } from "@utils/date-utils";
+import { formatIsoDuration } from "@utils/date";
 export { formatIsoDuration };

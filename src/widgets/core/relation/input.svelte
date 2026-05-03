@@ -28,7 +28,7 @@ Interactive selector with "Select" button and clear functionality
 
 <script lang="ts">
 	import { app } from '@src/stores/store.svelte';
-	import { showModal } from '@utils/modal-utils';
+	import { showModal } from '@utils/modal.svelte';
 	import type { FieldType } from './';
 
 	let {

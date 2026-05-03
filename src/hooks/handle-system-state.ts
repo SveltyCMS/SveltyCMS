@@ -27,7 +27,7 @@ import type { SystemState } from "@src/stores/system/types";
 import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { error } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { isSetupComplete } from "@utils/setup-check";
 import { isBootstrapRoute } from "@utils/hook-utils";
 import { STATIC_ASSET_REGEX } from "./handle-static-asset-caching";
@@ -183,7 +183,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
       }
 
       // Root redirect during setup
-      if (pathname === "/" && systemState.overallState === "SETUP") {
+      if (pathname === "/" && systemState.overallState === "SETUP" && !isSetupComplete()) {
         return new Response(null, { status: 302, headers: { Location: "/setup" } });
       }
 
@@ -192,23 +192,34 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
     // --- Phase 3: Restricted Access Handling ---
 
-    // Explicit wait if system is still initializing
-    if (systemState.overallState === "INITIALIZING" || initializationState === "in-progress") {
+    // Explicit wait if system is still initializing or transitioning from SETUP
+    const isTransitioning = systemState.overallState === "SETUP" && isSetupComplete();
+    if (
+      systemState.overallState === "INITIALIZING" ||
+      initializationState === "in-progress" ||
+      isTransitioning
+    ) {
       await waitForInitialization();
     }
 
     // Block non-bootstrap routes if system is not in a 'Ready' state
     const restricted: SystemState[] = ["IDLE", "INITIALIZING", "SETUP", "MAINTENANCE", "FAILED"];
     if (restricted.includes(systemState.overallState as any)) {
-      const msg =
-        systemState.overallState === "SETUP"
-          ? "System is in Setup Mode. Please complete configuration."
-          : `System is currently in ${systemState.overallState} mode. Non-bootstrap access is restricted.`;
+      // If we are actually finished with setup but the state hasn't updated yet, allow a retry or wait
+      if (isSetupComplete() && systemState.overallState === "SETUP") {
+        logger.debug("[handleSystemState] Setup complete but state still SETUP - awaiting one more time");
+        await waitForInitialization();
+      } else {
+        const msg =
+          systemState.overallState === "SETUP"
+            ? "System is in Setup Mode. Please complete configuration."
+            : `System is currently in ${systemState.overallState} mode. Non-bootstrap access is restricted.`;
 
-      logger.warn(
-        `[handleSystemState] Request blocked: ${pathname} | System state: ${systemState.overallState}`,
-      );
-      throw new AppError(msg, 503, `SYSTEM_${systemState.overallState}`);
+        logger.warn(
+          `[handleSystemState] Request blocked: ${pathname} | System state: ${systemState.overallState}`,
+        );
+        throw new AppError(msg, 503, `SYSTEM_${systemState.overallState}`);
+      }
     }
 
     // Final readiness check via internal state helper

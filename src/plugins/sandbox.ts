@@ -23,7 +23,7 @@ function getLogger(): any {
     try {
       // Dynamic import at first use — lazy loaded
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      LOGGER = require("@utils/logger.server")?.logger;
+      LOGGER = require("@utils/logger")?.logger;
     } catch {
       LOGGER = null;
     }

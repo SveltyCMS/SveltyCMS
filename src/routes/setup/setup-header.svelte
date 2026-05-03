@@ -17,7 +17,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 	import { applayout_systemlanguage, setup_heading_subtitle, setup_search_placeholder } from '@src/paraglide/messages';
 	import { getLanguageName } from '@utils/language-utils';
 	// Utils
-	import { modalState } from '@utils/modal-state.svelte';
+	import { modalState } from '@utils/modal.svelte';
 
 	let { siteName, systemLanguages, currentLanguageTag, onselectLanguage = () => {} } = $props();
 

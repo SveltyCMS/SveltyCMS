@@ -24,8 +24,8 @@ import { defaultRoles as importedDefaultRoles } from "@src/databases/auth/defaul
 import type { DatabaseAdapter, Theme } from "@src/databases/db-interface";
 import { publicConfigSchema } from "@src/databases/schemas";
 import { invalidateSettingsCache } from "@src/services/settings-service";
-import { dateToISODateString } from "@utils/date-utils";
-import { logger } from "@utils/logger.server";
+import { dateToISODateString } from "@utils/date";
+import { logger } from "@utils/logger";
 import { safeParse } from "valibot";
 import { setupManager } from "./setup-manager";
 
@@ -348,11 +348,19 @@ export async function seedCollectionsForSetup(
         if (structResult.success) {
           logger.info(`✅ Successfully persisted ${structResult.data.length} content nodes.`);
         } else {
-          logger.warn("⚠️ Failed to persist content nodes:", structResult.message);
+          logger.warn(
+            "⚠️ Failed to persist content nodes:",
+            typeof structResult.message === "object"
+              ? JSON.stringify(structResult.message)
+              : structResult.message,
+          );
         }
       }
-    } catch (structError) {
-      logger.warn("⚠️ Error building/persisting content structure:", structError);
+    } catch (structError: any) {
+      logger.warn(
+        "⚠️ Error building/persisting content structure:",
+        structError?.message || JSON.stringify(structError),
+      );
     }
 
     const overallTime = performance.now() - overallStart;

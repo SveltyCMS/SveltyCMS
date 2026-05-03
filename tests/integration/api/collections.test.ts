@@ -7,7 +7,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { unlink } from "node:fs/promises";
 import { write } from "bun";
-import { getCollectionDisplayPath, getCollectionFilePath } from "../../../src/utils/tenant-paths";
+import { getCollectionDisplayPath, getCollectionFilePath } from "../../../src/utils/tenant";
 import { getApiBaseUrl, safeFetch } from "../helpers/server";
 import { initializeTestEnvironment, prepareAuthenticatedContext } from "../helpers/test-setup";
 

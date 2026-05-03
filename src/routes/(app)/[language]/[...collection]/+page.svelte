@@ -25,7 +25,7 @@ import { collections } from "@src/stores/collection-store.svelte";
 import { widgets } from "@src/stores/widget-store.svelte";
 import { app, validationStore } from "@src/stores/store.svelte.ts";
 import { logger } from "@utils/logger";
-import { parseURLToMode } from "@utils/navigation-utils";
+import { parseURLToMode } from "@utils/navigation";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { getFieldName } from "@utils/utils";
 import { onMount, untrack } from "svelte";

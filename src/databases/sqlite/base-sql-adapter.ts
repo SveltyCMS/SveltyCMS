@@ -6,7 +6,7 @@
  * This ensures feature parity and consistent behavior across all SQL engines.
  */
 
-import { logger } from "@src/utils/logger.server";
+import { logger } from "@src/utils/logger";
 import {
   and,
   type Column,
@@ -167,7 +167,12 @@ export abstract class BaseSqlAdapter extends BaseAdapter {
    * Standardized SQL error handler.
    */
   public handleError<T>(error: unknown, code: string): DatabaseResult<T> {
-    const message = error instanceof Error ? error.message : String(error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof error === "object" && error !== null
+          ? JSON.stringify(error)
+          : String(error);
 
     // 🛡️ SUPPRESSION: Ignore "no such table" errors for redirects/404_logs during warmup/cache warming.
     // These are expected if the plugin hasn't finished provisioning yet.

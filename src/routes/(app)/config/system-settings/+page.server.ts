@@ -14,7 +14,7 @@
 
 import { error, redirect } from "@sveltejs/kit";
 // System Logs
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { contentService } from "@src/content/content-service.server";
 import type { PageServerLoad, Actions } from "./$types";
 

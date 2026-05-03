@@ -18,7 +18,7 @@
  - `required` {boolean}: Whether input is required (default: false)
  - `showPasswordBackgroundColor` {'light' | 'dark'}: Password toggle color (default: 'light')
  - `textColor` {string}: Text color class (default: '!text-error-500')
- - `type` {'text' | 'email' | 'password'}: Input type (default: 'text')
+ - `type` {'text' | 'email' | 'security'}: Input type (default: 'text')
  - `tabindex` {number}: Input tabindex (default: 0)
  - `id` {string}: Input ID (default: derived from label or 'defaultInputId')
  - `autocomplete` {string}: Autocomplete attribute (default: null)
@@ -71,7 +71,7 @@
 	let inputElement = $state<HTMLInputElement | null>(null);
 	const currentId = $derived(id || (label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId'));
 	const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
-	const effectiveType = $derived(showPassword && type === 'password' ? 'text' : type);
+	const effectiveType = $derived(showPassword && type === 'security' ? 'text' : type);
 	const isTextColorClass = $derived(textColor.includes('text-') || textColor.includes(' '));
 
 	$effect(() => {
@@ -120,7 +120,7 @@
 				: ''}"
 			class:!border-error-500={invalid}
 			class:dark:!border-error-500={invalid}
-			class:pr-10={type === 'password'}
+			class:pr-10={type === 'security'}
 			placeholder=" "
 			id={currentId}
 			{...rest}
@@ -136,7 +136,7 @@
 			></iconify-icon>
 		{/if}
 
-		{#if type === 'password'}
+		{#if type === 'security'}
 			{@const passwordIcon = showPassword ? 'mdi:eye' : 'mdi:eye-off'}
 			<iconify-icon
 				tabindex={0}

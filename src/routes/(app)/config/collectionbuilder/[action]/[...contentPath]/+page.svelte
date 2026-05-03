@@ -18,7 +18,7 @@ import { validationStore } from "@src/stores/store.svelte.ts";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { widgetStoreActions } from "@src/stores/widget-store.svelte.ts";
 import { logger } from "@utils/logger";
-import { showConfirm } from "@utils/modal-utils";
+import { showConfirm } from "@utils/modal.svelte";
 import { obj2formData } from "@utils/utils";
 import { registerHotkey } from "@src/utils/hotkeys";
 import { onMount, onDestroy } from "svelte";

@@ -38,9 +38,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	} from '@src/paraglide/messages';
 	import type { ValidationErrors } from '@src/stores/setup-store.svelte';
 	import { setupStore } from '@src/stores/setup-store.svelte.ts';
-	import { dbConfigSchema } from '@utils/form-schemas';
+	import { dbConfigSchema } from '@utils/schemas';
 	import { logger } from '@utils/logger';
-	import { showConfirm } from '@utils/modal-utils';
+	import { showConfirm } from '@utils/modal.svelte';
 	import { safeParse } from 'valibot';
 	import { deserialize } from '$app/forms';
 
@@ -607,7 +607,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					<div class="relative">
 						<input
 							id="db-password"
-							name="password"
+							name="security"
 							bind:value={dbConfig.password}
 							onchange={clearDbTestError}
 							onblur={() => {
@@ -615,9 +615,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 								if (trimmed !== dbConfig.password) {
 									dbConfig.password = trimmed;
 								}
-								handleBlur('password');
+								handleBlur('security');
 							}}
-							type={showDbPassword ? 'text' : 'password'}
+							type={showDbPassword ? 'text' : 'security'}
 							autocomplete="current-password"
 							placeholder={setup_database_password_placeholder?.() || 'Leave blank if none'}
 							class="input w-full rounded border border-slate-300 dark:border-surface-600 dark:bg-surface-900 {displayErrors.password ? 'border-error-500' : ''}"

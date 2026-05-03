@@ -6,8 +6,8 @@
 
 <script lang="ts">
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { modalState } from '@utils/modal-state.svelte';
-	import { showConfirm } from '@utils/modal-utils';
+	import { modalState } from '@utils/modal.svelte';
+	import { showConfirm } from '@utils/modal.svelte';
 	import { page } from '$app/state';
 
 	// Props

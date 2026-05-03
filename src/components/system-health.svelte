@@ -20,7 +20,7 @@ Displays real-time system state and individual service health with comprehensive
 <script lang="ts">
 	import { systemState } from '@src/stores/system/state';
 	import type { ServiceHealth, SystemState } from '@src/stores/system/types';
-	import { formatDisplayDate } from '@utils/date-utils';
+	import { formatDisplayDate } from '@utils/date';
 	import { logger } from '@utils/logger';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { onDestroy, onMount } from 'svelte';

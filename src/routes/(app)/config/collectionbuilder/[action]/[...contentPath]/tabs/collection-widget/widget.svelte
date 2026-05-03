@@ -21,7 +21,7 @@ import {
 import { tabSet } from "@src/stores/store.svelte.ts";
 import { widgetFunctions } from "@src/stores/widget-store.svelte.ts";
 // Skeleton
-import { modalState } from "@utils/modal-state.svelte";
+import { modalState } from "@utils/modal.svelte";
 // Using iconify-icon web component
 import { getGuiFields } from "@utils/utils";
 import { get } from "svelte/store";

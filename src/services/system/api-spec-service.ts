@@ -228,10 +228,10 @@ export class ApiSpecService {
             "application/json": {
               schema: {
                 type: "object",
-                required: ["email", "password"],
+                required: ["email", "security"],
                 properties: {
                   email: { type: "string", format: "email", example: "admin@example.com" },
-                  password: { type: "string", format: "password", example: "********" },
+                  password: { type: "string", format: "security", example: "********" },
                 },
               },
             },

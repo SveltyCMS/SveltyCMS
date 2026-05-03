@@ -87,8 +87,8 @@
 	import { toast } from '@src/stores/toast.svelte.ts';
 	// Stores
 	import { logger } from '@utils/logger';
-	import { modalState } from '@utils/modal-state.svelte';
-	import { showConfirm } from '@utils/modal-utils';
+	import { modalState } from '@utils/modal.svelte';
+	import { showConfirm } from '@utils/modal.svelte';
 	import { debounce } from '@utils/utils';
 	import { untrack } from 'svelte';
 	import { flip } from 'svelte/animate';

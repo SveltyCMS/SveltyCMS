@@ -10,7 +10,7 @@
  * - Bulk upsert
  */
 
-import { isoDateStringToDate, nowISODateString } from "@src/utils/date-utils";
+import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { eq, inArray } from "drizzle-orm";
 import type {
   BaseEntity,

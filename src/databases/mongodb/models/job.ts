@@ -5,7 +5,7 @@
 
 import type { DatabaseResult, Job, PaginationOption } from "@src/databases/db-interface";
 import { generateId } from "@src/databases/mongodb/methods/mongodb-utils";
-import { nowISODateString } from "@utils/date-utils";
+import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
 import type { Model } from "mongoose";
 import mongoose, { Schema } from "mongoose";

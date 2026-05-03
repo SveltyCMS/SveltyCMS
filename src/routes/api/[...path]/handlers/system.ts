@@ -295,7 +295,7 @@ export async function handleAiRoutes(
   const body = await request.json();
   const { aiService } = await import("@src/services/ai-service");
   const { eventBus } = await import("@src/services/automation/event-bus");
-  const { logger } = await import("@utils/logger.server");
+  const { logger } = await import("@utils/logger");
 
   if (action === "chat") {
     const { userMessage, history = [], content, room, tab } = body;

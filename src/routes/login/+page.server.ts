@@ -28,7 +28,7 @@ import {
   loginFormSchema,
   resetFormSchema,
   signUpFormSchema,
-} from "@utils/form-schemas";
+} from "@utils/schemas";
 import { invalidateSetupCache } from "@utils/setup-check";
 // Rate Limiter
 import { RateLimiter } from "sveltekit-rate-limiter/server";
@@ -50,7 +50,7 @@ import { tenantService } from "@src/services/tenant-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { app } from "@src/stores/store.svelte";
 // System Logger
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 // Email Utility
 import { sendMail } from "@utils/email.server";
 
@@ -833,7 +833,7 @@ export const actions: Actions = {
           role, // Use determined role
           tenantId: tenantId as DatabaseId, // Assign tenantId (new for demo, or from token)
           isRegistered: true,
-          lastAuthMethod: "password",
+          lastAuthMethod: "security",
           lastActiveAt: new Date().toISOString() as ISODateString,
         },
         {
@@ -1006,7 +1006,7 @@ export const actions: Actions = {
     // Validate form
     const formData = await event.request.formData();
     const emailRaw = formData.get("email")?.toString() ?? "";
-    const passwordRaw = formData.get("password")?.toString() ?? "";
+    const passwordRaw = formData.get("security")?.toString() ?? "";
     const isTokenRaw = formData.get("isToken");
     const isToken = isTokenRaw === "true" || isTokenRaw === "on";
 
@@ -1620,7 +1620,7 @@ async function signInUser(
     const updatePromise = auth.updateUserAttributes(
       user._id as any,
       {
-        lastAuthMethod: isToken ? "token" : "password",
+        lastAuthMethod: isToken ? "token" : "security",
         lastActiveAt: new Date().toISOString() as any,
       },
       { bypassTenantCheck: true },
@@ -1637,7 +1637,7 @@ async function signInUser(
       "USER_LOGIN",
       { id: user._id.toString(), email: user.email, ip: "N/A" },
       { type: "user", id: user._id.toString() },
-      { method: isToken ? "token" : "password" },
+      { method: isToken ? "token" : "security" },
     );
 
     return { status: true, message: "Login successful", user };

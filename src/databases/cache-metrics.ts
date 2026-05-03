@@ -9,7 +9,7 @@
  */
 
 import type { ISODateString } from "@src/content/types";
-import { dateToISODateString } from "@src/utils/date-utils";
+import { dateToISODateString } from "@src/utils/date";
 import { logger } from "@utils/logger";
 
 export interface CacheMetricSnapshot {

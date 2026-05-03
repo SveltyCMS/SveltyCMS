@@ -550,7 +550,7 @@ const steps = [
 											{#if cfg.url?.startsWith('https')}
 												<label class="label" transition:slide>
 													<span class="text-sm">Secret (HMAC-SHA256)</span>
-													<input type="password" class="input font-mono text-xs" placeholder="Optional signing secret" bind:value={cfg.secret} />
+													<input type="security" class="input font-mono text-xs" placeholder="Optional signing secret" bind:value={cfg.secret} />
 												</label>
 											{/if}
 										</div>

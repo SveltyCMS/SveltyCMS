@@ -6,7 +6,7 @@
 
 import { onMount } from "svelte";
 import { toast } from "@src/stores/toast.svelte";
-import { getCollections } from "@utils/api-client";
+import { getCollections } from "@utils/api";
 import type { Schema } from "@src/content/types";
 import { Progress as ProgressBar } from "@skeletonlabs/skeleton-svelte";
 
@@ -192,7 +192,7 @@ async function handleScaffold() {
 				</label>
 				<label class="label">
 					<span>API Key / Secret (Optional)</span>
-					<input type="password" class="input" placeholder="Bearer Token or Basic Auth" bind:value={apiKey} />
+					<input type="security" class="input" placeholder="Bearer Token or Basic Auth" bind:value={apiKey} />
 				</label>
 				<label class="label">
 					<span>Source Content Type / Bundle</span>

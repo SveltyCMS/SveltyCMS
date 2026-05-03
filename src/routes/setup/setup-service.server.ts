@@ -13,7 +13,7 @@
 import { dirname } from "node:path";
 import { mkdirSync } from "node:fs";
 import type { DatabaseConfig } from "@src/databases/schemas";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { buildDatabaseConnectionString, getSetupDatabaseAdapter } from "./utils";
 import { SetupDatabaseError } from "./error-classifier";
 

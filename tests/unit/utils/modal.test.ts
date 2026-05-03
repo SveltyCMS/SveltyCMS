@@ -6,18 +6,14 @@ import {
   showStatusChangeConfirm,
   showScheduleModal,
   showCloneModal,
-} from "@src/utils/modal-utils";
-import { modalState } from "@utils/modal-state.svelte";
+} from "@src/utils/modal.svelte";
+import { modalState } from "@src/utils/modal.svelte";
 import ConfirmDialog from "@components/system/confirm-dialog.svelte";
 import ScheduleModal from "@components/collection-display/schedule-modal.svelte";
 
-// Mock modalState
-vi.mock("@utils/modal-state.svelte", () => ({
-  modalState: {
-    trigger: vi.fn(),
-    close: vi.fn(),
-  },
-}));
+// Spy on modalState.trigger for assertions
+modalState.trigger = vi.fn();
+
 
 // Mock paraglide messages
 vi.mock("@src/paraglide/messages", () => ({

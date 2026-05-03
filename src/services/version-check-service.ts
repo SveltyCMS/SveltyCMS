@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { AppError } from "@utils/error-handling";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 export type VersionStatus = "match" | "minor" | "major" | "error";
 

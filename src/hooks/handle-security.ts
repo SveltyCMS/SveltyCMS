@@ -15,8 +15,8 @@ import { metricsService } from "@src/services/metrics-service";
 import { securityResponseService } from "@src/services/security-response-service";
 import { error, type Handle } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
-import { logger } from "@utils/logger.server";
-import { getTenantIdFromHostname } from "@utils/tenant-utils";
+import { logger } from "@utils/logger";
+import { getTenantIdFromHostname } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 import { getClientIp, isStaticOrInternalRequest } from "@utils/hook-utils";
 
@@ -207,7 +207,13 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
   const mem = process.memoryUsage();
   const heapUsedRatio = mem.heapUsed / mem.heapTotal;
-  if (heapUsedRatio > 0.9 && request.method !== "GET" && !url.pathname.startsWith("/api/system")) {
+  if (
+    heapUsedRatio > 0.98 &&
+    request.method !== "GET" &&
+    !url.pathname.startsWith("/api/system") &&
+    !url.pathname.startsWith("/setup") &&
+    !url.pathname.startsWith("/api/setup")
+  ) {
     logger.error(
       `[LoadShedding] Memory pressure critical (${(heapUsedRatio * 100).toFixed(1)}%). Rejecting mutation to ${url.pathname}`,
     );

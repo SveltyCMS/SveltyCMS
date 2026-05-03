@@ -53,7 +53,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
 			"email" VARCHAR(255) NOT NULL,
 			"username" VARCHAR(255),
-			"password" VARCHAR(255),
+			"security" VARCHAR(255),
 			"emailVerified" BOOLEAN NOT NULL DEFAULT FALSE,
 			"blocked" BOOLEAN NOT NULL DEFAULT FALSE,
 			"isAdmin" BOOLEAN NOT NULL DEFAULT FALSE,

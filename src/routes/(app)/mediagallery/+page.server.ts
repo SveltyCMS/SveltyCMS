@@ -22,7 +22,7 @@ import { dbAdapter } from "@src/databases/db";
 import { MediaService } from "@src/utils/media/media-service.server";
 import { error, redirect } from "@sveltejs/kit";
 // System Logger
-import { type LoggableValue, logger } from "@utils/logger.server";
+import { type LoggableValue, logger } from "@utils/logger";
 import { getImageSizes, moveMediaToTrash } from "@utils/media/media-storage.server";
 import type { Actions, PageServerLoad } from "./$types";
 

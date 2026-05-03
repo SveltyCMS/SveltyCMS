@@ -4,7 +4,7 @@
  */
 
 import { dbAdapter } from "@src/databases/db";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { User } from "@src/databases/auth/types";
 
 interface GraphQLContext {

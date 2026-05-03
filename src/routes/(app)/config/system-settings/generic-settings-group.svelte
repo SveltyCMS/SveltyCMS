@@ -19,7 +19,7 @@ import { toast } from "@src/stores/toast.svelte.ts";
 import iso6391 from "@utils/iso639-1.json";
 import { getLanguageName } from "@utils/language-utils";
 import { logger } from "@utils/logger";
-import { showConfirm } from "@utils/modal-utils";
+import { showConfirm } from "@utils/modal.svelte";
 import { onMount } from "svelte";
 import type { SvelteSet } from "svelte/reactivity";
 
@@ -176,7 +176,7 @@ function getFieldIcon(field: SettingField): string {
 		return "mdi:email";
 	}
 	if (
-		key.includes("password") ||
+		key.includes("security") ||
 		key.includes("secret") ||
 		key.includes("token")
 	) {
@@ -252,7 +252,7 @@ function getFieldIcon(field: SettingField): string {
 	if (field.type === "select") {
 		return "mdi:form-dropdown";
 	}
-	if (field.type === "password") {
+	if (field.type === "security") {
 		return "mdi:lock";
 	}
 	if (field.type === "loglevel-multi") {
@@ -391,7 +391,7 @@ function validateAll(): boolean {
 	return isValid;
 }
 
-import { modalState } from "@utils/modal-state.svelte";
+import { modalState } from "@utils/modal.svelte";
 import { page } from "$app/state";
 
 // ... previous code until saveSettings ...
@@ -984,7 +984,7 @@ onMount(() => {
 					{#each group.fields as field (field.key)}
 						<div
 							class="space-y-2 overflow-visible max-w-full {field.type === 'array' ||
-							['password', 'language-multi', 'loglevel-multi', 'textarea'].includes(field.type as any)
+							['security', 'language-multi', 'loglevel-multi', 'textarea'].includes(field.type as any)
 								? 'md:col-span-2'
 								: ''}"
 						>
@@ -1043,11 +1043,11 @@ onMount(() => {
 									{/if}
 								</div>
 								<!-- Password Input -->
-							{:else if field.type === 'password'}
+							{:else if field.type === 'security'}
 								<div class="relative">
 									<input
 										id={field.key}
-										type={showPassword[field.key] ? 'text' : 'password'}
+										type={showPassword[field.key] ? 'text' : 'security'}
 										class="input w-full max-w-full min-h-[44px] pr-10"
 										bind:value={values[field.key]}
 										placeholder={field.sensitive ? '********' : field.placeholder}

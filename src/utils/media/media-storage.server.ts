@@ -17,7 +17,7 @@ import { writeFileSync, readFileSync, unlinkSync } from "node:fs";
 import { getPublicSettingSync } from "@src/services/settings-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import mime from "mime-types";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 import { exists, getConfig, getUrl, isCloud, remove, upload, download } from "./cloud-storage";
 
@@ -121,7 +121,7 @@ export async function deleteFile(url: string): Promise<void> {
   const full = path.resolve(process.cwd(), MEDIA_ROOT, rel);
 
   if (!full.startsWith(MEDIA_ROOT_FULL)) {
-    const { logger } = await import("@utils/logger.server");
+    const { logger } = await import("@utils/logger");
     logger.error("Attempted path traversal delete blocked", {
       path: rel,
       resolved: full,

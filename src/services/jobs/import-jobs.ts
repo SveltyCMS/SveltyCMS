@@ -4,7 +4,7 @@
  */
 
 import { dbAdapter, getDb } from "@src/databases/db";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { JobHandler } from "./job-queue-service";
 import { getTempPayload, deleteTempPayload } from "@utils/temp-store";
 import type { Job, DatabaseId } from "@src/databases/db-interface";

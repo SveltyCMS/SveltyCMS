@@ -248,7 +248,7 @@ onMount(() => {
 			const ACCESSIBILITY_HELP = (
 				await import("@components/system/accessibility-help.svelte")
 			).default;
-			const { modalState } = await import("@utils/modal-state.svelte");
+			const { modalState } = await import("@utils/modal.svelte");
 
 			if (controller.signal.aborted) {
 				return;

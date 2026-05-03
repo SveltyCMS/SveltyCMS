@@ -8,7 +8,7 @@ Features:
 - Provides suggestions for resolving conflicts
 -->
 <script lang="ts">
-import { modalState } from "@utils/modal-state.svelte";
+import { modalState } from "@utils/modal.svelte";
 
 interface Props {
 	conflictingName: string;

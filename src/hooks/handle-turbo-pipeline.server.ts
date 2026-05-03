@@ -25,7 +25,7 @@ import {
   restrictedResponse,
   boundaryResponse,
 } from "@src/utils/hook-utils";
-import { logger } from "@src/utils/logger.server";
+import { logger } from "@src/utils/logger";
 // Hook is initialized lazily
 
 // --- HELPERS ---
@@ -200,7 +200,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       setupState = SetupState.COMPLETE;
     } else {
       // ── 3. ROBUST SETUP REDIRECT (FAST-PATH) ─────────────────────────────────
-      // Check if config exists BEFORE any bootstrap bypass or DB initialization.
+      // Shallow check first: If no private.ts, we DEFINITELY need setup.
       if (!isSetupComplete()) {
         const isSetupRoute =
           pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
@@ -224,10 +224,24 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
           if (dev) logRequest(event, performance.now() - requestStart, 302);
           return response;
         }
-      }
+        // Deep check only if config is missing (unlikely here) or we need to know if admin is missing
+        setupState = await getSetupState();
+      } else {
+        // 🚀 CRITICAL: If config exists, we are NOT in MISSING_CONFIG.
+        // We might be MISSING_ADMIN, but we should NOT redirect back to /setup
+        // if the database is simply initializing/busy.
+        // We assume COMPLETE for the sake of the Turbo Gate, and let the
+        // handleSystemState hook handle the "INITIALIZING" wait.
+        setupState = SetupState.COMPLETE;
 
-      // Consolidate setup state check to avoid redundant DB/File I/O
-      setupState = await getSetupState();
+        // However, if we are specifically ON a setup route, we might want the real state
+        // to show the "Admin created" step etc.
+        const isSetupRoute =
+          pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
+        if (isSetupRoute) {
+          setupState = await getSetupState();
+        }
+      }
     }
     (event.locals as any).__setupState = setupState;
 

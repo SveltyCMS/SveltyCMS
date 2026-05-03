@@ -8,7 +8,7 @@
 
 import { getDb } from "@src/databases/db";
 import type { Job, DatabaseId } from "@src/databases/db-interface";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { processMediaHandler } from "./media-jobs";
 import { webhookDeliveryHandler } from "./webhook-jobs";
 import { importDataHandler } from "./import-jobs";

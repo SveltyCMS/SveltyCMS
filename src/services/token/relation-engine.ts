@@ -97,7 +97,7 @@ export async function getRelationTokens(
         }
 
         // Skip sensitive fields
-        if (relFieldName.toLowerCase().includes("password")) {
+        if (relFieldName.toLowerCase().includes("security")) {
           continue;
         }
 

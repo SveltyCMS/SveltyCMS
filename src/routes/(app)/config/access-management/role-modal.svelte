@@ -24,7 +24,7 @@
 // Stores
 
 import { button_cancel } from "@src/paraglide/messages";
-import { modalState } from "@utils/modal-state.svelte";
+import { modalState } from "@utils/modal.svelte";
 import type { SvelteComponent } from "svelte";
 
 // Props

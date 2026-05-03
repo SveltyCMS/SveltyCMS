@@ -1,13 +1,18 @@
 /**
- * @file: src/utils/Form.svelte.ts
- * @description: Form class for handling form data and validation
- *
- * @requires @sveltejs/kit - For action and submit function types
- * @requires valibot - For schema definition and validation
+ * @file src/utils/form.svelte.ts
+ * @description Modern Svelte 5 Form Suite for SveltyCMS.
+ * 
+ * Consolidates:
+ * - Form class (rune-based state management)
+ * - Validation helpers (Valibot integration)
+ * - Transformation utilities (obj2formData, col2formData)
  */
 
 import type { ActionResult, SubmitFunction } from "@sveltejs/kit";
 import { type BaseSchema, flatten, safeParse } from "valibot";
+import { logger } from "./logger";
+
+// --- Types ---
 
 interface EnhanceOptions {
   onResult?: (input: {
@@ -17,6 +22,50 @@ interface EnhanceOptions {
   onSubmit?: (input: Parameters<SubmitFunction>[0]) => void;
 }
 
+// --- Utilities (Merged from form.ts) ---
+
+/**
+ * Converts an object to FormData with support for Blobs and JSON stringification.
+ */
+export function obj2formData(obj: Record<string, unknown>): FormData {
+  const formData = new FormData();
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === undefined || value === null) continue;
+    if (value instanceof Blob) {
+      formData.append(key, value);
+    } else if (typeof value === "object") {
+      formData.append(key, JSON.stringify(value));
+    } else {
+      formData.append(key, String(value));
+    }
+  }
+  return formData;
+}
+
+/**
+ * Converts data to FormData object with optimized file handling and type safety.
+ */
+export async function col2formData(
+  getData: Record<string, () => Promise<unknown> | unknown>,
+): Promise<FormData> {
+  const formData = new FormData();
+  for (const [key, getter] of Object.entries(getData)) {
+    let value = getter();
+    if (value instanceof Promise) value = await value;
+    
+    if (value instanceof Blob) {
+      formData.append(key, value);
+    } else if (typeof value === "object" && value !== null) {
+      formData.append(key, JSON.stringify(value));
+    } else {
+      formData.append(key, String(value));
+    }
+  }
+  return formData;
+}
+
+// --- Form Class Implementation ---
+
 export class Form<T extends Record<string, unknown>> {
   data = $state<T>({} as T);
   errors = $state<Record<string, string[]>>({});
@@ -25,57 +74,52 @@ export class Form<T extends Record<string, unknown>> {
 
   constructor(
     initialData: T,
-    private readonly schema?: BaseSchema<unknown, unknown, any>,
+    private readonly schema?: BaseSchema<any, any, any>,
   ) {
     this.data = { ...initialData };
   }
 
-  // Helper to reset form
+  /**
+   * Resets the form state and optionally data.
+   */
   reset(newData?: T) {
-    if (newData) {
-      this.data = { ...newData };
-    }
+    if (newData) this.data = { ...newData };
     this.errors = {};
     this.message = undefined;
     this.submitting = false;
   }
 
-  // Validate form data against schema
+  /**
+   * Validates form data against the provided schema.
+   */
   validate(): boolean {
     this.errors = {};
     this.message = undefined;
+    if (!this.schema) return true;
 
-    if (this.schema) {
-      const result = safeParse(this.schema, this.data);
-      if (!result.success) {
-        const flatErrors = flatten(result.issues).nested;
-        this.errors = flatErrors as Record<string, string[]>;
-        return false;
-      }
+    const result = safeParse(this.schema, this.data);
+    if (!result.success) {
+      this.errors = flatten(result.issues).nested as Record<string, string[]>;
+      return false;
     }
     return true;
   }
 
-  // Enhance action for SvelteKit forms
+  /**
+   * SvelteKit use:enhance integration.
+   */
   enhance(options?: EnhanceOptions): SubmitFunction {
     return (input) => {
       this.submitting = true;
       this.message = undefined;
       this.errors = {};
 
-      if (options?.onSubmit) {
-        options.onSubmit(input);
-        // Note: We can't easily check if cancel() was called effectively unless we wrap it,
-        // but standard SvelteKit cancel() throws or sets a flag.
-        // For now we assume if onSubmit cancels, it handles it.
-      }
+      if (options?.onSubmit) options.onSubmit(input);
 
-      // Client-side validation
       if (this.schema) {
         const result = safeParse(this.schema, this.data);
         if (!result.success) {
-          const flatErrors = flatten(result.issues).nested;
-          this.errors = flatErrors as Record<string, string[]>;
+          this.errors = flatten(result.issues).nested as Record<string, string[]>;
           this.submitting = false;
           input.cancel();
           return;
@@ -87,40 +131,29 @@ export class Form<T extends Record<string, unknown>> {
         this.submitting = false;
 
         if (result.type === "failure") {
-          if (result.data?.errors) {
-            this.errors = result.data.errors as Record<string, string[]>;
-          }
-          if (result.data?.message) {
-            this.message = result.data.message as string;
-          }
+          if (result.data?.errors) this.errors = result.data.errors as Record<string, string[]>;
+          if (result.data?.message) this.message = result.data.message as string;
         } else if (result.type === "success" && result.data?.message) {
           this.message = result.data.message as string;
         }
 
-        if (options?.onResult) {
-          await options.onResult(resultInput);
-        } else {
-          await update();
-        }
+        if (options?.onResult) await options.onResult(resultInput);
+        else await update();
       };
     };
   }
 
-  // Manual submit handler for standard API endpoints
+  /**
+   * Manual submission for standard API endpoints.
+   */
   async submit(url: string, options: RequestInit = {}) {
     this.submitting = true;
     this.message = undefined;
     this.errors = {};
 
-    // Client-side validation
-    if (this.schema) {
-      const result = safeParse(this.schema, this.data);
-      if (!result.success) {
-        const flatErrors = flatten(result.issues).nested;
-        this.errors = flatErrors as Record<string, string[]>;
-        this.submitting = false;
-        return { success: false, errors: this.errors };
-      }
+    if (!this.validate()) {
+      this.submitting = false;
+      return { success: false, errors: this.errors };
     }
 
     try {
@@ -132,7 +165,6 @@ export class Form<T extends Record<string, unknown>> {
       });
 
       const data = await response.json();
-
       if (!response.ok) {
         this.errors = data.errors || {};
         this.message = data.message || "An error occurred";
@@ -147,5 +179,21 @@ export class Form<T extends Record<string, unknown>> {
     } finally {
       this.submitting = false;
     }
+  }
+}
+
+// --- Global Validation Helper ---
+
+/**
+ * Procedural validation for one-off checks.
+ */
+export function validateData<T>(schema: BaseSchema<T, T, any>, value: T): Record<string, string[]> | null {
+  try {
+    const result = safeParse(schema, value);
+    if (result.success) return null;
+    return flatten(result.issues).nested as Record<string, string[]>;
+  } catch (error) {
+    logger.error("Validation error:", error);
+    return null;
   }
 }

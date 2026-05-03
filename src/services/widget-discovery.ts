@@ -10,7 +10,7 @@
  * 5. Provide widget status to Widget Store
  */
 
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { WidgetModule } from "@widgets/types";
 
 export interface DiscoveredWidget {

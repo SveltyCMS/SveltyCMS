@@ -45,7 +45,7 @@ export const authUsers = mysqlTable(
     _id: uuidPk(),
     email: varchar("email", { length: 255 }).notNull(),
     username: varchar("username", { length: 255 }),
-    password: varchar("password", { length: 255 }),
+    password: varchar("security", { length: 255 }),
     emailVerified: boolean("emailVerified").notNull().default(false),
     blocked: boolean("blocked").notNull().default(false),
     isAdmin: boolean("isAdmin").notNull().default(false),

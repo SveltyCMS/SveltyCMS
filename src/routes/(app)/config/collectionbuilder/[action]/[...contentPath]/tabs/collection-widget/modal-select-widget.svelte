@@ -10,7 +10,7 @@
 import { widgets } from "@src/stores/widget-store.svelte.ts";
 import { logger } from "@utils/logger";
 // Skeleton Stores
-import { modalState } from "@utils/modal-state.svelte";
+import { modalState } from "@utils/modal.svelte";
 import { onMount } from "svelte";
 
 // Props

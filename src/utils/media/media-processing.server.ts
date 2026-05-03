@@ -4,7 +4,7 @@
  */
 
 import { error } from "@sveltejs/kit";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { sha256 } from "@utils/utils";
 import sharp from "sharp";
 import type { CmsMediaMetadata } from "./media-models";

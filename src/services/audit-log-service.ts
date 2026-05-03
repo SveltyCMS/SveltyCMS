@@ -22,7 +22,7 @@ import type {
   DatabaseResult,
   IDBAdapter,
 } from "@src/databases/db-interface";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 // Get the database adapter instance
 async function getDbAdapter(): Promise<IDBAdapter> {

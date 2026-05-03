@@ -29,8 +29,8 @@ import type {
 import type { AdapterCore } from "../../adapter/adapter-core";
 import { schema } from "../../schema";
 import * as utils from "../../utils";
-import { logger } from "../../../../utils/logger.server";
-import { isoDateStringToDate, nowISODateString } from "../../../../utils/date-utils";
+import { logger } from "../../../../utils/logger";
+import { isoDateStringToDate, nowISODateString } from "../../../../utils/date";
 import type { ISODateString } from "@src/content/types";
 
 export class AuthModule implements IAuthAdapter {
@@ -94,7 +94,7 @@ export class AuthModule implements IAuthAdapter {
       // Ensure password is hashed if provided and not already hashed
       let password = userData.password;
       if (password && !password.startsWith("$argon2")) {
-        const { hashPassword } = await import("@utils/password");
+        const { hashPassword } = await import("@utils/security");
         password = await hashPassword(password);
       }
 
@@ -358,7 +358,7 @@ export class AuthModule implements IAuthAdapter {
       // do not allow async callbacks inside db.transaction().
       let password = userData.password;
       if (password && !password.startsWith("$argon2")) {
-        const { hashPassword } = await import("@utils/password");
+        const { hashPassword } = await import("@utils/security");
         password = await hashPassword(password);
       }
 

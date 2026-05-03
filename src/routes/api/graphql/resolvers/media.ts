@@ -6,7 +6,7 @@
 import type { User } from "@src/databases/auth/types";
 import type { BaseEntity, DatabaseAdapter, DatabaseId } from "@src/databases/db-interface";
 import { getPrivateSettingSync } from "@src/services/settings-service";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 // Registers media schemas dynamically.
 export function mediaTypeDefs() {

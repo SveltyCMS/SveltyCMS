@@ -18,8 +18,57 @@
 import fs from "node:fs";
 import path from "node:path";
 
+/**
+ * ⚡️ FAST SHALLOW CHECK
+ * Checks if config/private.ts exists.
+ * Safe to call from anywhere (middleware, Vite, etc.)
+ */
+export function isSetupComplete(): boolean {
+  if (
+    typeof globalThis !== "undefined" &&
+    (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ === true
+  ) {
+    return true;
+  }
+
+  try {
+    const isTestMode =
+      typeof process !== "undefined" &&
+      (process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true");
+
+    if (isTestMode && !process.env.STRICT_SETUP_CHECK) return true;
+
+    const configFileName = isTestMode ? "private.test.ts" : "private.ts";
+    const privateConfigPath = path.join(process.cwd(), "config", configFileName);
+
+    if (!fs.existsSync(privateConfigPath)) {
+      return false;
+    }
+
+    // 🚀 RESILIENCE: If we just finished setup, the file might be in the OS buffer.
+    // We use a small retry loop (3x 50ms) to handle tiny filesystem race conditions.
+    let content = "";
+    let attempts = 0;
+    while (attempts < 3) {
+      content = fs.readFileSync(privateConfigPath, "utf8");
+      if (content.includes("JWT_SECRET_KEY") && content.includes("DB_HOST")) {
+        return true;
+      }
+      attempts++;
+      if (attempts < 3) {
+        // Sync sleep (fine for setup-only gate during cold start)
+        const start = Date.now();
+        while (Date.now() - start < 50) {}
+      }
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // Memoization
-let setupConfigStatus: boolean | null = null;
 let setupDbStatus: boolean | null = null;
 let setupStatusCheckedDb = false;
 
@@ -29,49 +78,7 @@ export enum SetupState {
   COMPLETE = "COMPLETE", // Everything ready
 }
 
-/**
- * ⚡️ FAST SHALLOW CHECK
- * Used by vite.config.ts and early middleware.
- * Only checks for file existence.
- */
-export function isSetupComplete(): boolean {
-  // 1. Forced flag bypass (Set during setup completion)
-  if (
-    typeof globalThis !== "undefined" &&
-    (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ === true
-  ) {
-    return true;
-  }
 
-  // 2. Cache hit
-  if (setupConfigStatus === true) return true;
-
-  try {
-    const isTestMode =
-      typeof process !== "undefined" &&
-      (process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true");
-
-    // Skip heavy checks in CI/Test unless explicitly needed
-    if (isTestMode && !process.env.STRICT_SETUP_CHECK) return true;
-
-    const configFileName = isTestMode ? "private.test.ts" : "private.ts";
-    const privateConfigPath = path.join(process.cwd(), "config", configFileName);
-
-    if (!fs.existsSync(privateConfigPath)) {
-      setupConfigStatus = false;
-      return false;
-    }
-
-    // Deep check if file is not just empty (Vite-safe version)
-    const content = fs.readFileSync(privateConfigPath, "utf8");
-    const hasKeys = content.includes("JWT_SECRET_KEY") && content.includes("DB_HOST");
-
-    setupConfigStatus = hasKeys;
-    return hasKeys;
-  } catch {
-    return false;
-  }
-}
 
 /**
  * 🔎 DEEP ASYNC CHECK
@@ -90,8 +97,9 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 
   try {
     // Dynamic imports to avoid Vite/SSR side-effects at top-level
-    const { logger } = await import(/* @vite-ignore */ "./logger.server");
-    const db = await import(/* @vite-ignore */ "@src/databases/db");
+    // Vite will resolve these during the main app build and bundle them correctly.
+    const { logger } = await import("./logger");
+    const db = await import("../databases/db");
 
     // Wait for DB boot
     if (typeof db.getDbInitPromise === "function") {
@@ -122,7 +130,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
     setupDbStatus = true;
     setupStatusCheckedDb = true;
     return true;
-  } catch (_error) {
+  } catch (_err) {
     // Fail safe to false to stay in setup mode if DB is unreachable
     return false;
   }
@@ -180,13 +188,12 @@ export function invalidateSetupCache(
   clearPrivateEnv = false,
   forceStatus: boolean | null = null,
 ): void {
-  setupConfigStatus = forceStatus;
   setupDbStatus = forceStatus;
   setupStatusCheckedDb = forceStatus !== null;
   cachedTestSecret = null; // 🚀 Clear cached secret
 
   if (clearPrivateEnv) {
-    import(/* @vite-ignore */ "@src/databases/db").then((db) => {
+    import("../databases/db").then((db) => {
       if (typeof db.clearPrivateConfigCache === "function") {
         db.clearPrivateConfigCache(false);
       }

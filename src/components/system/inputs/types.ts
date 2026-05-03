@@ -52,7 +52,7 @@ export type FullAutoFill =
   | "url"
   | "photo";
 
-export type InputType = "text" | "email" | "password";
+export type InputType = "text" | "email" | "security";
 
 export type AutoCapitalize = "off" | "none" | "on" | "sentences" | "words" | "characters";
 

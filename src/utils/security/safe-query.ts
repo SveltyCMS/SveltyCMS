@@ -42,7 +42,7 @@ export function safeQuery<T extends Record<string, any>>(
       // Redact PII fields before logging
       const PII_KEYS = new Set([
         "email",
-        "password",
+        "security",
         "username",
         "name",
         "phone",

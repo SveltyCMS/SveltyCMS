@@ -43,7 +43,7 @@
 		setup_help_admin_username
 	} from '@src/paraglide/messages';
 	import type { ValidationErrors } from '@src/stores/setup-store.svelte.ts';
-	import { setupAdminSchema } from '@utils/form-schemas';
+	import { setupAdminSchema } from '@utils/schemas';
 	import { safeParse } from 'valibot';
 
 	// Props from parent
@@ -216,8 +216,8 @@
 						id="admin-password"
 						bind:value={adminUser.password}
 						oninput={checkPasswordRequirements}
-						onblur={() => handleBlur('password')}
-						type={showAdminPassword ? 'text' : 'password'}
+						onblur={() => handleBlur('security')}
+						type={showAdminPassword ? 'text' : 'security'}
 						autocomplete="new-password"
 						placeholder={setup_admin_placeholder_password?.() || 'Enter secure password'}
 						class="input w-full rounded border border-slate-300 dark:border-surface-600   {displayErrors.password ? 'border-error-500' : ''}"
@@ -283,7 +283,7 @@
 						bind:value={adminUser.confirmPassword}
 						oninput={checkPasswordRequirements}
 						onblur={() => handleBlur('confirmPassword')}
-						type={showConfirmPassword ? 'text' : 'password'}
+						type={showConfirmPassword ? 'text' : 'security'}
 						autocomplete="new-password"
 						placeholder={setup_admin_placeholder_confirm_password?.() || 'Confirm your password'}
 						class="input w-full rounded border border-slate-300 dark:border-surface-600   {displayErrors.confirmPassword ? 'border-error-500' : ''}"

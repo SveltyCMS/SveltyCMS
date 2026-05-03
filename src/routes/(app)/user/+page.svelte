@@ -47,8 +47,8 @@
 	import { setCollection } from '@src/stores/collection-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { triggerActionStore } from '@utils/global-search-index';
-	import { modalState } from '@utils/modal-state.svelte';
-	import { showConfirm } from '@utils/modal-utils';
+	import { modalState } from '@utils/modal.svelte';
+	import { showConfirm } from '@utils/modal.svelte';
 	import ModalEditAvatar from './components/modal-edit-avatar.svelte';
 	import ModalEditForm from './components/modal-edit-form.svelte';
 	import ModalPrivacyData from './components/modal-privacy-data.svelte';
@@ -308,7 +308,7 @@
 						<iconify-icon icon="mdi:lock" class="text-primary-500" width={20}></iconify-icon>
 						<span class="text-sm font-bold">{form_password()}:</span>
 					</div>
-					<input bind:value={password} name="password" type="password" autocomplete="current-password" disabled class="input" />
+					<input bind:value={password} name="security" type="security" autocomplete="current-password" disabled class="input" />
 
 
 					<div class="mt-4 flex flex-col items-center justify-center gap-2">

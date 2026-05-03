@@ -18,7 +18,7 @@
 	import Toggles from '@src/components/system/inputs/toggles.svelte';
 	import type { Schema } from '@src/content/types';
 	// Utils
-	import { getCollections } from '@utils/api-client';
+	import { getCollections } from '@utils/api';
 	import { logger } from '@utils/logger';
 	// Skeleton components
 	import { toast } from '@src/stores/toast.svelte.ts';

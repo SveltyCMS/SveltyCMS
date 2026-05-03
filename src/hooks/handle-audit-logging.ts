@@ -8,7 +8,7 @@
  * - Observability: Captures micro-latency of mutation operations.
  */
 
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { Handle } from "@sveltejs/kit";
 import { getClientIp } from "@utils/hook-utils";
 

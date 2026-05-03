@@ -12,7 +12,7 @@
  * - Non-blocking async execution
  */
 
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
 import { eventBus } from "./event-bus";
 import type {

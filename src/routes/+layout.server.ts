@@ -18,6 +18,7 @@
 import type { NavigationNode } from "@src/content";
 import type { Locale } from "@src/paraglide/runtime";
 import { getPrivateSettingSync, loadSettingsCache } from "@src/services/settings-service";
+import { dev } from "$app/environment";
 import { version } from "../../package.json";
 import type { LayoutServerLoad } from "./$types";
 

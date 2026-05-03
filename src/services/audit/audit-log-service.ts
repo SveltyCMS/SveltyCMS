@@ -6,7 +6,7 @@
 import { appendFile, readFile, mkdir, rename } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { Worker } from "node:worker_threads";
 
 export interface AuditLogEntry {

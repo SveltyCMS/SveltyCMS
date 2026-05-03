@@ -18,7 +18,7 @@ import type {
 } from "@src/databases/db-interface";
 // Import global settings service for DB-based configuration
 import { getPrivateSettingSync } from "@src/services/settings-service";
-import { dateToISODateString, isoDateStringToDate } from "@src/utils/date-utils";
+import { dateToISODateString, isoDateStringToDate } from "@src/utils/date";
 import { error } from "@sveltejs/kit";
 import { cacheService } from "@src/databases/cache/cache-service";
 // System Logger
@@ -68,7 +68,7 @@ export type {
 import {
   hashPassword as cryptoHashPassword,
   verifyPassword as cryptoVerifyPassword,
-} from "@utils/password";
+} from "@utils/security";
 // Import for internal use
 import { SESSION_COOKIE_NAME } from "./constants";
 

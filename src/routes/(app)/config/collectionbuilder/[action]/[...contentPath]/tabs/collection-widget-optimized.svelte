@@ -18,7 +18,7 @@ import { toast } from "@src/stores/toast.svelte.ts";
 import { widgetFunctions } from "@src/stores/widget-store.svelte.ts";
 import { sveltyRegistry } from "@src/services/json-render/catalog";
 import { Renderer, JSONUIProvider, type Spec } from "json-render-svelte";
-import { modalState } from "@utils/modal-state.svelte";
+import { modalState } from "@utils/modal.svelte";
 import { asAny, getGuiFields } from "@utils/utils";
 import { untrack } from "svelte";
 import { flip } from "svelte/animate";

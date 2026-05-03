@@ -8,7 +8,7 @@ import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/local-cms";
 import type { DatabaseId } from "@src/content/types";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { successResponse, rawResponse } from "./base";
 
 export async function handleMediaRoutes(

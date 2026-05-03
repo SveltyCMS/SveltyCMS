@@ -3,7 +3,7 @@
  * @description Adapters for fetching content from external CMS APIs (Drupal, WordPress).
  */
 
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 export interface ExternalSourceSchemaField {
   name: string;

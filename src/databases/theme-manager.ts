@@ -10,7 +10,7 @@
  * - Fallback to default theme if database is unavailable
  */
 import { error } from "@sveltejs/kit";
-import { nowISODateString } from "@utils/date-utils";
+import { nowISODateString } from "@utils/date";
 // System Logger
 import { logger } from "@utils/logger";
 import type { DatabaseId } from "../content/types";

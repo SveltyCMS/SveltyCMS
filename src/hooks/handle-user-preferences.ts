@@ -10,7 +10,7 @@ import type { Locale } from "@src/paraglide/runtime";
 import { locales } from "@src/paraglide/runtime";
 import { app } from "@src/stores/store.svelte";
 import type { Handle } from "@sveltejs/kit";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 // --- UTILITY FUNCTIONS ---
 

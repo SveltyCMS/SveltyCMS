@@ -3,7 +3,7 @@
  * @description Media management module for SQLite
  */
 
-import { isoDateStringToDate, nowISODateString } from "@src/utils/date-utils";
+import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { logger } from "@src/utils/logger";
 import { and, asc, count, desc, eq, inArray, isNull, like, or } from "drizzle-orm";
 import type {

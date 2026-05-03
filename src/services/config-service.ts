@@ -7,8 +7,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { dbAdapter } from "@src/databases/db";
-import { createChecksum } from "@utils/crypto";
-import { logger } from "@utils/logger.server";
+import { createChecksum } from "@utils/security";
+import { logger } from "@utils/logger";
 
 interface ConfigEntity {
   entity: Record<string, unknown>;

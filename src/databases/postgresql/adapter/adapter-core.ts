@@ -3,7 +3,7 @@
  * @description Core functionality for PostgreSQL adapter, unified via BaseSqlAdapter.
  */
 
-import { logger } from "@src/utils/logger.server";
+import { logger } from "@src/utils/logger";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import type {
@@ -33,6 +33,7 @@ export class AdapterCore extends BaseSqlAdapter {
   private allReplicaSqls: ReturnType<typeof postgres>[] = [];
   public crud!: ICrudAdapter;
   public batch!: IBatchAdapter;
+  private transactionModule?: import("../operations/transaction-module").TransactionModule;
 
   /**
    * Returns the appropriate SQL client based on the operation mode (read/write).
@@ -149,6 +150,10 @@ export class AdapterCore extends BaseSqlAdapter {
 
       this.connected = true;
       logger.info("Connected to PostgreSQL");
+
+      const { TransactionModule } = await import("../operations/transaction-module");
+      this.transactionModule = new TransactionModule(this);
+
       return { success: true, data: undefined };
     } catch (error) {
       this.connected = false;
@@ -257,6 +262,18 @@ export class AdapterCore extends BaseSqlAdapter {
     }
     return schema.contentNodes as unknown as Record<string, unknown>;
   }
+
+  public transaction = async <T>(
+    fn: (transaction: import("../../db-interface").DatabaseTransaction) => Promise<DatabaseResult<T>>,
+    options?: {
+      isolationLevel?: "read uncommitted" | "read committed" | "repeatable read" | "serializable";
+    },
+  ): Promise<DatabaseResult<T>> => {
+    if (!this.transactionModule) {
+      throw new Error("Transaction module not initialized. Connect to database first.");
+    }
+    return this.transactionModule.execute(fn, options as any);
+  };
 
   public createDynamicTableDefinition(tableName: string) {
     const { pgTable, varchar, jsonb, timestamp } = require("drizzle-orm/pg-core");

@@ -3,7 +3,7 @@
  * @description Enterprise-grade automated security response system with dynamic threat detection
  */
 
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { building } from "$app/environment";
 import { metricsService } from "./metrics-service";
 import { SECURITY_PATTERNS } from "./security-patterns";

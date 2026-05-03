@@ -6,7 +6,7 @@
 
 import * as Y from "yjs";
 import { Awareness } from "y-protocols/awareness";
-import { encodeYjsToBase64, decodeBase64ToYjs } from "@utils/tenant-utils";
+import { encodeYjsToBase64, decodeBase64ToYjs } from "@utils/tenant";
 import { browser } from "$app/environment";
 import { logger } from "@utils/logger";
 

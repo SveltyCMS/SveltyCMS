@@ -45,7 +45,7 @@ import type { User } from "@src/databases/auth/types";
 import { collectionService } from "@src/services/collection-service";
 import { getPublicSettingSync } from "@src/services/settings-service";
 import { isRedirect, redirect } from "@sveltejs/kit";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {

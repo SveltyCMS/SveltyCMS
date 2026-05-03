@@ -9,7 +9,7 @@
 
 import { testWorkerContext } from "@utils/test-worker-context";
 import type { Handle } from "@sveltejs/kit";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 export const handleTestIsolation: Handle = async ({ event, resolve }) => {
   // LOCK 1: Environment Guard

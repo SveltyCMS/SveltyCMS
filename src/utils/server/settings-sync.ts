@@ -6,7 +6,7 @@
  * to all connected clients via SSE for instant UI updates.
  */
 
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 let syncId = 0;
 type SyncListener = (id: number) => void;

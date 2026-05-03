@@ -13,7 +13,7 @@ import { auth } from "@src/databases/db";
 import { SCIM_SCHEMAS } from "@src/types/scim";
 import type { ScimError, ScimPatchOp } from "@src/types/scim";
 import { AppError } from "@utils/error-handling";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { json } from "@sveltejs/kit";
 
 // ============================================================================

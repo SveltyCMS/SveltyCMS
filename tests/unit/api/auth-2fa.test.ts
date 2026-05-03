@@ -109,7 +109,7 @@ vi.mock("@src/databases/auth", () => ({
   validateUserPermission: vi.fn().mockReturnValue(true),
 }));
 
-vi.mock("@utils/password", () => ({
+vi.mock("@utils/security", () => ({
   verifyPassword: vi.fn().mockResolvedValue(true),
   hashPassword: vi.fn().mockResolvedValue("hashed"),
 }));

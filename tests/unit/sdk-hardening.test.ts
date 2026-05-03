@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MediaService } from "../../src/utils/media/media-service.server";
-import crypto from "crypto";
+import crypto from "security";
 
 // Mock the dependencies that Vitest might try to import and fail
 vi.mock("$app/environment", () => ({

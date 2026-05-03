@@ -22,7 +22,7 @@ It provides functionality to:
 import type { Role } from "@src/databases/auth/types";
 // Components
 import { toast } from "@src/stores/toast.svelte.ts";
-import { showConfirm } from "@utils/modal-utils";
+import { showConfirm } from "@utils/modal.svelte";
 import { tick } from "svelte";
 
 const { roleData, setRoleData } = $props();

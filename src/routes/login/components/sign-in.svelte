@@ -68,7 +68,7 @@ import {
 	forgotFormSchema,
 	loginFormSchema,
 	resetFormSchema,
-} from "@utils/form-schemas";
+} from "@utils/schemas";
 import { browser } from "$app/environment";
 import { enhance } from "$app/forms";
 import { goto, preloadData } from "$app/navigation";
@@ -581,8 +581,8 @@ $effect(() => {
 						<!-- Password field -->
 						<FloatingInput
 							id="passwordsignIn"
-							name="password"
-							type="password"
+							name="security"
+							type="security"
 							autocomplete="current-password"
 							tabindex={passwordTabIndex}
 							bind:value={loginForm.data.password}
@@ -797,8 +797,8 @@ $effect(() => {
 						<!-- Password field -->
 						<FloatingInput
 							id="passwordreset"
-							name="password"
-							type="password"
+							name="security"
+							type="security"
 							tabindex={passwordTabIndex}
 							bind:value={resetForm.data.password}
 							required
@@ -817,7 +817,7 @@ $effect(() => {
 						<FloatingInput
 							id="confirm_passwordreset"
 							name="confirm_password"
-							type="password"
+							type="security"
 							tabindex={confirmPasswordTabIndex}
 							bind:value={resetForm.data.confirm_password}
 							{showPassword}
@@ -834,7 +834,7 @@ $effect(() => {
 						<FloatingInput
 							id="tokenresetPW"
 							name="token"
-							type="password"
+							type="security"
 							bind:value={resetForm.data.token}
 							{showPassword}
 							label={registration_token?.() || signin_registrationtoken?.()}

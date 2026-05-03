@@ -14,7 +14,7 @@
  */
 
 import type { ISODateString } from "@src/content/types";
-import { isoDateStringToDate, nowISODateString } from "@src/utils/date-utils";
+import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { logger } from "@src/utils/logger";
 import { and, asc, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
 import type {
@@ -91,7 +91,7 @@ export class AuthModule {
       // Ensure password is hashed if provided and not already hashed
       let password = userData.password;
       if (password && !password.startsWith("$argon2")) {
-        const { hashPassword } = await import("@utils/password");
+        const { hashPassword } = await import("@utils/security");
         password = await hashPassword(password);
       }
 
@@ -369,7 +369,7 @@ export class AuthModule {
         // Ensure password is hashed if provided and not already hashed
         let password = userData.password;
         if (password && !password.startsWith("$argon2")) {
-          const { hashPassword } = await import("@utils/password");
+          const { hashPassword } = await import("@utils/security");
           password = await hashPassword(password);
         }
         const userValues: typeof schema.authUsers.$inferInsert = {

@@ -14,7 +14,7 @@
 import { metricsService } from "@src/services/metrics-service";
 import type { Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { building, dev } from "$app/environment";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";

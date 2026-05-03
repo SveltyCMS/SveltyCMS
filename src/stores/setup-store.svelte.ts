@@ -17,7 +17,7 @@
  */
 
 import { updatePublicEnv } from "@src/stores/global-settings.svelte";
-import { dbConfigSchema, setupAdminSchema, systemSettingsSchema } from "@utils/form-schemas";
+import { dbConfigSchema, setupAdminSchema, systemSettingsSchema } from "@utils/schemas";
 import { logger } from "@utils/logger";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { safeParse } from "valibot";
@@ -693,7 +693,7 @@ function createSetupStore() {
     // Clear field-specific validation errors
     const clearedErrors: ValidationErrors = {};
     for (const key in wizard.validationErrors) {
-      if (!["host", "port", "name", "user", "password"].includes(key)) {
+      if (!["host", "port", "name", "user", "security"].includes(key)) {
         clearedErrors[key] = wizard.validationErrors[key];
       }
     }
@@ -715,7 +715,7 @@ function createSetupStore() {
       formData.append("host", wizard.systemSettings.redisHost);
       formData.append("port", wizard.systemSettings.redisPort);
       if (wizard.systemSettings.redisPassword) {
-        formData.append("password", wizard.systemSettings.redisPassword);
+        formData.append("security", wizard.systemSettings.redisPassword);
       }
 
       const response = await fetch("?/testRedis", {

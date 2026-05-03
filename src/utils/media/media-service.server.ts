@@ -53,7 +53,7 @@ import { saveFileToDisk, saveResizedImages, SIZES } from "@src/utils/media/media
 import { validateMediaFileServer } from "@src/utils/media/media-utils";
 import { AppError } from "@utils/error-handling";
 // System Logger
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import {
   type MediaAccess,
   type MediaBase,

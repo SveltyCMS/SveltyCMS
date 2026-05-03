@@ -7,7 +7,7 @@
 import type { StatusType } from "@src/content/types";
 import { StatusTypes } from "@src/content/types";
 import { collections } from "@src/stores/collection-store.svelte";
-import { updateEntryStatus } from "@src/utils/api-client";
+import { updateEntryStatus } from "@src/utils/api";
 import { logger } from "@utils/logger";
 import { toast } from "@src/stores/toast.svelte.ts";
 

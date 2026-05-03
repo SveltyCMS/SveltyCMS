@@ -22,7 +22,7 @@
 	import { logger } from '@utils/logger';
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
 	import { mediaUrl } from '@utils/media/media-utils';
-	import { modalState } from '@utils/modal-state.svelte';
+	import { modalState } from '@utils/modal.svelte';
 	import { onMount } from 'svelte';
 	import type { ISODateString } from '@src/content/types';
 

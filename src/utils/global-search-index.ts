@@ -5,7 +5,7 @@
 
 import ModalEditAvatar from "@src/routes/(app)/user/components/modal-edit-avatar.svelte";
 import { logger } from "@utils/logger";
-import { modalState } from "@utils/modal-state.svelte";
+import { modalState } from "@utils/modal.svelte";
 import { writable } from "svelte/store";
 
 export const isSearchVisible = writable(false);

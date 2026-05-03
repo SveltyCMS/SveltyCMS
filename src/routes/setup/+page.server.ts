@@ -10,10 +10,10 @@ import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { version as pkgVersion } from "../../../package.json";
 import { databaseConfigSchema } from "@src/databases/schemas";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { safeParse } from "valibot";
 import nodemailer from "nodemailer";
-import { setupAdminSchema, smtpConfigSchema } from "@utils/form-schemas";
+import { setupAdminSchema, smtpConfigSchema } from "@utils/schemas";
 import type { ISODateString } from "@src/databases/db-interface";
 import type { Actions, PageServerLoad } from "./$types";
 import { checkRedis } from "./utils";
@@ -390,7 +390,7 @@ export const actions: Actions = {
     const formData = await request.formData();
     const host = (formData.get("host") as string) || "localhost";
     const port = Number.parseInt((formData.get("port") as string) || "6379", 10);
-    const password = formData.get("password") as string;
+    const password = formData.get("security") as string;
 
     const start = performance.now();
     const { createClient } = await import("redis");
@@ -567,6 +567,16 @@ export const actions: Actions = {
         logger.info("⏳ completeSetup: Waiting for active seeding task to finish...");
         await seedingPromise;
         logger.info("✅ completeSetup: Active seeding task finished");
+      }
+
+      if (setupManager.seedingError) {
+        logger.error("❌ completeSetup: Seeding failed in background", {
+          error: setupManager.seedingError,
+        });
+        return {
+          success: false,
+          error: `Background seeding failed: ${setupManager.seedingError}. Please check logs and try again.`,
+        };
       }
 
       const formData = await request.formData();
@@ -965,11 +975,15 @@ export const actions: Actions = {
             multiTenant: system.multiTenant,
             demoMode: system.demoMode,
           });
+
+          // 🚀 Set global flag to prevent race conditions in the current process
+          (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = true;
+
           logger.info("✅ [completeSetup] Private configuration written successfully.");
         } catch (configError) {
           logger.error("❌ [completeSetup] Failed to write private config:", configError);
         }
-      }, 100);
+      }, 300);
 
       // 4. Determine redirect path
       let redirectPath = "/config/collectionbuilder";

@@ -4,7 +4,7 @@
  */
 
 import { getDb } from "@src/databases/db";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import {
   saveResizedImages,
   getFile,

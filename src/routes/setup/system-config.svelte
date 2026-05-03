@@ -58,7 +58,7 @@ Features:
 	//  Import types from the store
 	import type { ValidationErrors } from '@src/stores/setup-store.svelte.ts';
 	import { setupStore } from '@src/stores/setup-store.svelte.ts';
-	import { systemSettingsSchema } from '@utils/form-schemas';
+	import { systemSettingsSchema } from '@utils/schemas';
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/language-utils';
 	import { safeParse } from 'valibot';
@@ -766,7 +766,7 @@ Features:
 							<input
 								id="redis-password"
 								bind:value={systemSettings.redisPassword}
-								type="password"
+								type="security"
 								placeholder="••••••••"
 								class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  "
 							/>
@@ -827,7 +827,7 @@ Features:
 							<input
 								id="cf-token"
 								bind:value={systemSettings.cfApiToken}
-								type="password"
+								type="security"
 								placeholder="Enter API Token"
 								class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  "
 							/>

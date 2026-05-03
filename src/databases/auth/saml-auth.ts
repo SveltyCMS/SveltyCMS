@@ -10,12 +10,12 @@
  */
 
 import { getPrivateSettingSync } from "@src/services/settings-service";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import jackson from "@boxyhq/saml-jackson";
 import { dbAdapter } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { json } from "@sveltejs/kit";
-import { dateToISODateString } from "@utils/date-utils";
+import { dateToISODateString } from "@utils/date";
 
 // Use any for Jackson instance to avoid version-specific type mismatches in build environments
 let jacksonInstance: any = null;

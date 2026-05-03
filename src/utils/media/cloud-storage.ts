@@ -10,7 +10,7 @@
 
 import { getPublicSettingSync } from "@src/services/settings-service";
 import { error } from "@sveltejs/kit";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { StorageType } from "./media-models";
 
 // Lazy-load clients to avoid init cost if unused

@@ -10,7 +10,7 @@
  */
 
 import { dbAdapter } from "@databases/db";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { auditLogService } from "./audit/audit-log-service";
 import type { DatabaseId } from "@src/content/types";
 

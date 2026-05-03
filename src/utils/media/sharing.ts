@@ -105,7 +105,7 @@ export function validateLink(
     return { ok: false, reason: "ip" };
   }
   if (link.passwordHash && passwordHash !== link.passwordHash) {
-    return { ok: false, reason: "password" };
+    return { ok: false, reason: "security" };
   }
 
   return { ok: true };

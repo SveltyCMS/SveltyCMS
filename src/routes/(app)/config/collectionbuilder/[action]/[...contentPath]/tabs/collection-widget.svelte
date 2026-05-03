@@ -29,7 +29,7 @@ import {
 	collection_widgetfield_drag,
 } from "@src/paraglide/messages";
 import { tabSet } from "@src/stores/store.svelte.ts";
-import { modalState } from "@utils/modal-state.svelte";
+import { modalState } from "@utils/modal.svelte";
 import ModalSelectWidget from "./collection-widget/modal-select-widget.svelte";
 import ModalWidgetForm from "./collection-widget/modal-widget-form.svelte";
 

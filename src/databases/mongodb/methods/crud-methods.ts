@@ -4,7 +4,7 @@
  */
 
 import { safeQuery } from "@src/utils/security/safe-query";
-import { nowISODateString } from "@utils/date-utils";
+import { nowISODateString } from "@utils/date";
 import mongoose, { type Model } from "mongoose";
 import type {
   BaseEntity,

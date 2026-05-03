@@ -28,7 +28,7 @@ export const widgetMeta = {
 <script lang="ts">
 	import type { WidgetSize } from '@src/content/types';
 	// Using iconify-icon web component
-	import { formatDisplayDate } from '@utils/date-utils';
+	import { formatDisplayDate } from '@utils/date';
 	import BaseWidget from '../base-widget.svelte';
 
 	interface MediaFile {

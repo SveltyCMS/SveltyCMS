@@ -16,7 +16,7 @@ import type { User } from "@src/databases/auth/types";
 import { error } from "@sveltejs/kit";
 
 // System Logger
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { createEmail, emailList, sendEmail } from "@better-svelte-email/preview";
 import { LocalCMS } from "@src/services/local-cms";
 

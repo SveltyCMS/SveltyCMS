@@ -7,7 +7,7 @@
 import { getAllPermissions } from "@src/databases/auth/permissions";
 import { error, redirect } from "@sveltejs/kit";
 // System Logger - Ensure logger is optimized for performance in production (e.g., disabled debug logs)
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {

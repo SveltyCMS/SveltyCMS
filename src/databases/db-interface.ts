@@ -125,6 +125,7 @@ export interface BaseQueryOptions {
   bypassTenantCheck?: boolean;
   silent?: boolean; // Useful for skipping trigger/audit logs
   hints?: QueryOptimizationHints;
+  transaction?: any; // Database-specific transaction object
 }
 
 export interface FindOptions<T> extends BaseQueryOptions {

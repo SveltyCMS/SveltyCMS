@@ -15,7 +15,7 @@ import { mkdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { MediaBase } from "./media-models";
 
 /** Minimal TAR creator */

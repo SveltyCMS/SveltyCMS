@@ -10,7 +10,7 @@
  * - Delete widget
  */
 
-import { isoDateStringToDate, nowISODateString } from "@src/utils/date-utils";
+import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { logger } from "@src/utils/logger";
 import { eq } from "drizzle-orm";
 import type { DatabaseId, DatabaseResult, Widget } from "../../../db-interface";

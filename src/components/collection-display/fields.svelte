@@ -56,7 +56,7 @@
     widgetFunctions as widgetFunctionsStore,
     widgets,
   } from "@src/stores/widget-store.svelte";
-  import { showConfirm } from "@utils/modal-utils";
+  import { showConfirm } from "@utils/modal.svelte";
   import WidgetLoader from "./widget-loader.svelte";
 
   import { Portal } from "@skeletonlabs/skeleton-svelte";

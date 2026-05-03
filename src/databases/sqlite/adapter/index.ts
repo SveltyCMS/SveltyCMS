@@ -15,7 +15,6 @@ import type {
   BaseEntity,
   DatabaseId,
   DatabaseResult,
-  DatabaseTransaction,
   IDBAdapter,
   PaginationOption,
   QueryBuilder,
@@ -33,7 +32,6 @@ import { ThemesModule } from "../modules/themes/themes-module";
 import { WebsiteTokensModule } from "../modules/website/tokens-module";
 import { WidgetsModule } from "../modules/widgets/widgets-module";
 import { BatchModule } from "../operations/batch-module";
-import { TransactionModule } from "../operations/transaction-module";
 import { CacheModule } from "../performance/cache-module";
 import { PerformanceModule } from "../performance/performance-module";
 import { SQLiteQueryBuilder } from "../query-builder/sq-lite-query-builder";
@@ -53,7 +51,6 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
   declare public readonly batch: BatchModule;
   declare public readonly collection: CollectionModule;
   public readonly utils = utils;
-  private readonly transactionModule: TransactionModule;
 
   constructor() {
     super();
@@ -74,8 +71,6 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
     define("media", new MediaModule(this));
     define("collection", new CollectionModule(this));
     define("batch", new BatchModule(this));
-
-    this.transactionModule = new TransactionModule(this);
 
     // Initialize nested adapters
     define("system", {
@@ -284,14 +279,6 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
     return new SQLiteQueryBuilder<T>(this, collection);
   };
 
-  public transaction = async <T>(
-    fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
-    options?: {
-      isolationLevel?: "READ UNCOMMITTED" | "READ COMMITTED" | "REPEATABLE READ" | "SERIALIZABLE";
-    },
-  ): Promise<DatabaseResult<T>> => {
-    return this.transactionModule.execute(fn, options);
-  };
 
   // Global CRUD data methods
   getCollectionData = async (

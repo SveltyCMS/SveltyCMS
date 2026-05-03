@@ -17,7 +17,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { error, json, redirect } from "@sveltejs/kit";
 // System Logger
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
 import type { Actions, PageServerLoad } from "./$types";
 

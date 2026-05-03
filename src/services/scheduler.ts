@@ -5,7 +5,7 @@
  */
 
 import { StatusTypes } from "@src/content/types";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { webhookService } from "./webhook-service";
 
 // Lazy load adapter to avoid circular deps during init

@@ -37,8 +37,8 @@
 
 	// Utils
 	import { logger } from '@utils/logger';
-	import { showScheduleModal } from '@utils/modal-utils';
-	import { navigationManager } from '@utils/navigation-manager';
+	import { showScheduleModal } from '@utils/modal.svelte';
+	import { navigationManager } from '@utils/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { page } from '$app/state';
 	import Slot from '@src/components/system/slot.svelte';

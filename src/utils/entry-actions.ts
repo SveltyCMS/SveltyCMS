@@ -25,7 +25,7 @@ import {
 } from "@src/stores/collection-store.svelte.ts";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { showCloneModal, showConfirm, showScheduleModal } from "@utils/modal-utils";
+import { showCloneModal, showConfirm, showScheduleModal } from "@utils/modal.svelte";
 import {
   batchDeleteEntries,
   batchUpdateEntries,
@@ -35,7 +35,7 @@ import {
   invalidateCollectionCache,
   updateEntry,
   updateEntryStatus,
-} from "./api-client";
+} from "./api";
 import { entryMessages } from "./entry-actions-messages";
 import { logger } from "./logger";
 

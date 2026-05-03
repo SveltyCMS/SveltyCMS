@@ -6,7 +6,7 @@
 import crypto from "node:crypto";
 import type { CollectionEntry, Schema } from "@src/content/types";
 import { getPrivateSettingSync, getPublicSettingSync } from "./settings-service";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 export class PreviewService {
   private static instance: PreviewService;

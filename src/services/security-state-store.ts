@@ -4,7 +4,7 @@
  */
 
 import { cacheService } from "@src/databases/cache/cache-service";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { SecurityIncident } from "./security-types";
 
 const PREFIX = "svelty:sec:";

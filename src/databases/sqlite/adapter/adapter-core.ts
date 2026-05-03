@@ -6,9 +6,10 @@
  * with statement caching, WAL tuning, and robust connection management.
  */
 
-import { logger } from "@src/utils/logger.server";
+import { logger } from "@src/utils/logger";
 import { testWorkerContext } from "@src/utils/test-worker-context";
 import { sql } from "drizzle-orm";
+import { Mutex } from "@src/utils/mutex";
 
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
@@ -57,11 +58,20 @@ export class AdapterCore extends BaseSqlAdapter {
 
   public crud!: import("../crud/crud-module").CrudModule;
   public batch!: import("../operations/batch-module").BatchModule;
+  protected transactionModule!: import("../operations/transaction-module").TransactionModule;
 
   //  Statement Cache (LRU-ish)
   private _statementCache = new Map<string, SQLiteStatement>();
   private readonly MAX_CACHE_SIZE = 200;
   private readonly columnNamesCache = new Map<string, Set<string>>();
+
+  /**
+   * 🛡️ WRITE SERIALIZATION (Mutex)
+   * SQLite with a single connection (especially in Bun) performs best when writes
+   * are serialized to avoid 'database is locked' errors and WAL contention.
+   */
+  public readonly writeMutex = new Mutex();
+
 
   protected metrics = {
     connectCount: 0,
@@ -141,8 +151,10 @@ export class AdapterCore extends BaseSqlAdapter {
       // Initialize modules
       const { CrudModule } = await import("../crud/crud-module");
       const { BatchModule } = await import("../operations/batch-module");
+      const { TransactionModule } = await import("../operations/transaction-module");
       this.crud = new CrudModule(this);
       this.batch = new BatchModule(this);
+      this.transactionModule = new TransactionModule(this);
 
       this.applyPragmas(sqlite);
       this._statementCache.clear();
@@ -291,6 +303,30 @@ export class AdapterCore extends BaseSqlAdapter {
       client.exec("ANALYZE;");
       logger.info("[SQLite] Optimization completed (VACUUM/ANALYZE)");
     }, "OPTIMIZE_FAILED");
+  }
+
+  public override async wrap<T>(
+    fn: () => Promise<T>,
+    code: string,
+    message?: string,
+    options?: { isWrite?: boolean; transaction?: any },
+  ): Promise<DatabaseResult<T>> {
+    // 🚀 SERIALIZE WRITES: If it's a write and NOT already in a transaction, use the mutex.
+    // Re-entrance check: if options.transaction is set, we assume the caller (e.g. TransactionModule)
+    // already holds the mutex or handles serialization.
+    if (options?.isWrite && !options?.transaction) {
+      return this.writeMutex.runExclusive(() => super.wrap(fn, code, message, options));
+    }
+    return super.wrap(fn, code, message, options);
+  }
+
+  public async transaction<T>(
+    fn: (transaction: any) => Promise<DatabaseResult<T>>,
+    options?: {
+      isolationLevel?: "READ UNCOMMITTED" | "READ COMMITTED" | "REPEATABLE READ" | "SERIALIZABLE";
+    },
+  ): Promise<DatabaseResult<T>> {
+    return (this as any).transactionModule.execute(fn, options);
   }
 
   /* ------------------------------------------------ */

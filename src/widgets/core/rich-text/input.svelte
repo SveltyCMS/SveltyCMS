@@ -18,7 +18,7 @@
 	// Stores
 	import { app } from '@src/stores/store.svelte';
 	import type { Editor } from '@tiptap/core';
-	import { showModal } from '@utils/modal-utils';
+	import { showModal } from '@utils/modal.svelte';
 	// Svelte
 	import { onMount } from 'svelte';
 	// Removed static createEditor import for lazy-loading

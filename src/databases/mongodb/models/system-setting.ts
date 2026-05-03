@@ -11,7 +11,7 @@
  */
 
 import { generateId } from "@src/databases/mongodb/methods/mongodb-utils";
-import { nowISODateString } from "@utils/date-utils";
+import { nowISODateString } from "@utils/date";
 import mongoose, { Schema } from "mongoose";
 
 export interface SystemSetting {

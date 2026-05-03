@@ -38,9 +38,9 @@
 	import { app } from '@src/stores/store.svelte';
 	// Utils
 	import { getLanguageName } from '@utils/language-utils';
-	import { modalState } from '@utils/modal-state.svelte';
+	import { modalState } from '@utils/modal.svelte';
 	// Utils
-	import { showConfirm } from '@utils/modal-utils';
+	import { showConfirm } from '@utils/modal.svelte';
 	// Using iconify-icon web component
 	import { onMount, tick } from 'svelte';
 	import AdminConfig from './admin-config.svelte';

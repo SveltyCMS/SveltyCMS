@@ -4,7 +4,7 @@
  * High-performance module processor for content collection definitions.
  */
 import { widgetRegistryService } from "@src/services/widget-registry-service";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { Schema } from "./types";
 import path from "node:path";
 import { Worker } from "node:worker_threads";

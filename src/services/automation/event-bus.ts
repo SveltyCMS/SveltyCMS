@@ -11,7 +11,7 @@
  * - Integration point for dbAdapter CRUD hooks
  */
 
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { AutomationEvent, AutomationEventPayload } from "./types";
 
 type EventListener = (payload: AutomationEventPayload) => void | Promise<void>;

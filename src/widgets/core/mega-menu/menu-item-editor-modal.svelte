@@ -12,7 +12,7 @@ menu item at a specific level. Uses the standard widget loading system.
 <script lang="ts">
 	import WidgetLoader from '@src/components/collection-display/widget-loader.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte';
-	import { modalState } from '@utils/modal-state.svelte';
+	import { modalState } from '@utils/modal.svelte';
 	import { getFieldName } from '@utils/utils';
 	import type { MenuEditContext } from './types';
 

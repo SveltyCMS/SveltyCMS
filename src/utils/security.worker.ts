@@ -1,7 +1,6 @@
 /**
- * @file src\utils\password.worker.ts
- * @description Password worker for Argon2 password hashing and verification.
- *              Uses worker_threads for CPU-intensive operations.
+ * @file src/utils/security.worker.ts
+ * @description Dedicated worker for CPU-intensive cryptographic operations (Argon2).
  */
 
 import argon2 from "argon2";

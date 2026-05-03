@@ -13,7 +13,7 @@ vi.mock("$app/environment", () => ({
 }));
 
 // Mock tenant-utils
-vi.mock("@utils/tenant-utils", () => ({
+vi.mock("@utils/tenant", () => ({
   encodeYjsToBase64: vi.fn((_arr) => "base64-string"),
   decodeBase64ToYjs: vi.fn((_str) => new Uint8Array([1, 2, 3])),
 }));

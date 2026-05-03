@@ -39,12 +39,12 @@
 	import { statusStore } from '@src/stores/status-store.svelte';
 	import { app, dataChangeStore, validationStore } from '@src/stores/store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
-	import { createEntry, invalidateCollectionCache } from '@utils/api-client';
+	import { createEntry, invalidateCollectionCache } from '@utils/api';
 	import { deleteCurrentEntry, saveEntry } from '@utils/entry-actions';
 	// --- Derived from page & stores ---
 	import { logger } from '@utils/logger';
-	import { showCloneModal, showScheduleModal } from '@utils/modal-utils';
-	import { navigationManager } from '@utils/navigation-manager';
+	import { showCloneModal, showScheduleModal } from '@utils/modal.svelte';
+	import { navigationManager } from '@utils/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { untrack } from 'svelte';
 	// Modal types import

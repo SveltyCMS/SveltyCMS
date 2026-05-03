@@ -23,7 +23,7 @@ import { toast } from "@src/stores/toast.svelte.ts";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId, ISODateString } from "@src/databases/db-interface";
 // Skeleton
-import { modalState } from "@utils/modal-state.svelte";
+import { modalState } from "@utils/modal.svelte";
 import { SvelteSet } from "svelte/reactivity";
 import { dndzone } from "svelte-dnd-action";
 // Components

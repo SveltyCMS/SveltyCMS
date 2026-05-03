@@ -34,7 +34,7 @@ import type { TokenContext } from "@src/services/token/types";
 import { widgets } from "@src/stores/widget-store.svelte.ts";
 
 // System Logger
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { getFieldName } from "@utils/utils";
 // deepmerge import removed
 import type { GraphQLFieldResolver } from "graphql";

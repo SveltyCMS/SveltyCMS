@@ -19,8 +19,8 @@ import {
   encryptData,
   decryptData,
   deriveKey,
-  encryptionConfig,
-} from "@src/utils/crypto";
+  ENCRYPTION_CONFIG as encryptionConfig,
+} from "@src/utils/security";
 
 describe("Crypto Utils - AES-256-GCM Encryption", () => {
   const testPassword = "TestPassword123!";
@@ -226,90 +226,90 @@ describe("Crypto Utils - Password Hashing", () => {
 });
 
 describe("Crypto Utils - Random Token Generation", () => {
-  it("should generate random token of default length", () => {
-    const token = generateRandomToken();
+  it("should generate random token of default length", async () => {
+    const token = await generateRandomToken();
 
     expect(typeof token).toBe("string");
     expect(token.length).toBe(64); // 32 bytes = 64 hex chars
   });
 
-  it("should generate token of specified length", () => {
-    const token = generateRandomToken(16);
+  it("should generate token of specified length", async () => {
+    const token = await generateRandomToken(16);
 
     expect(typeof token).toBe("string");
     expect(token.length).toBe(32); // 16 bytes = 32 hex chars
   });
 
-  it("should generate unique tokens", () => {
-    const token1 = generateRandomToken();
-    const token2 = generateRandomToken();
+  it("should generate unique tokens", async () => {
+    const token1 = await generateRandomToken();
+    const token2 = await generateRandomToken();
 
     expect(token1).not.toBe(token2);
   });
 
-  it("should generate hexadecimal tokens", () => {
-    const token = generateRandomToken();
+  it("should generate hexadecimal tokens", async () => {
+    const token = await generateRandomToken();
 
     // Should only contain hex characters (0-9, a-f)
     expect(/^[0-9a-f]+$/.test(token)).toBe(true);
   });
 
-  it("should handle small token sizes", () => {
-    const token = generateRandomToken(1);
+  it("should handle small token sizes", async () => {
+    const token = await generateRandomToken(1);
 
     expect(token.length).toBe(2); // 1 byte = 2 hex chars
   });
 
-  it("should handle large token sizes", () => {
-    const token = generateRandomToken(256);
+  it("should handle large token sizes", async () => {
+    const token = await generateRandomToken(256);
 
     expect(token.length).toBe(512); // 256 bytes = 512 hex chars
   });
 });
 
 describe("Crypto Utils - Checksum", () => {
-  it("should create checksum for string", () => {
+  it("should create checksum for string", async () => {
     const data = "test data";
-    const checksum = createChecksum(data);
+    const checksum = await createChecksum(data);
 
     expect(typeof checksum).toBe("string");
     expect(checksum.length).toBeGreaterThan(0);
   });
 
-  it("should create checksum for object", () => {
+  it("should create checksum for object", async () => {
     const data = { key: "value", number: 123 };
-    const checksum = createChecksum(data);
+    const checksum = await createChecksum(data);
 
     expect(typeof checksum).toBe("string");
     expect(checksum.length).toBeGreaterThan(0);
   });
 
-  it("should create consistent checksums", () => {
+  it("should create consistent checksums", async () => {
     const data = "test data";
-    const checksum1 = createChecksum(data);
-    const checksum2 = createChecksum(data);
+    const checksum1 = await createChecksum(data);
+    const checksum2 = await createChecksum(data);
 
     expect(checksum1).toBe(checksum2);
   });
 
-  it("should create different checksums for different data", () => {
-    const checksum1 = createChecksum("data1");
-    const checksum2 = createChecksum("data2");
+  it("should create different checksums for different data", async () => {
+    const checksum1 = await createChecksum("data1");
+    const checksum2 = await createChecksum("data2");
 
     expect(checksum1).not.toBe(checksum2);
   });
 
-  it("should handle object property order", () => {
+  it("should handle object property order", async () => {
     const obj1 = { a: 1, b: 2 };
     const obj2 = { b: 2, a: 1 };
 
-    const checksum1 = createChecksum(obj1);
-    const checksum2 = createChecksum(obj2);
+    const checksum1 = await createChecksum(obj1);
+    const checksum2 = await createChecksum(obj2);
 
     // JSON.stringify does NOT sort keys, so order matters
     expect(checksum1).not.toBe(checksum2);
   });
-  it("should handle nested objects", () => {
+  it("should handle nested objects", async () => {
     const data = {
       level1: {
         level2: {
@@ -318,20 +318,20 @@ describe("Crypto Utils - Checksum", () => {
       },
     };
 
-    const checksum = createChecksum(data);
+    const checksum = await createChecksum(data);
     expect(typeof checksum).toBe("string");
   });
 
-  it("should handle arrays", () => {
+  it("should handle arrays", async () => {
     const data = [1, 2, 3, 4, 5];
-    const checksum = createChecksum(data);
+    const checksum = await createChecksum(data);
 
     expect(typeof checksum).toBe("string");
   });
 
-  it("should handle null", () => {
+  it("should handle null", async () => {
     // null stringifies to 'null'
-    const checksumNull = createChecksum(null);
+    const checksumNull = await createChecksum(null);
     expect(typeof checksumNull).toBe("string");
     expect(checksumNull.length).toBe(64); // SHA-256 hex is 64 chars
   });

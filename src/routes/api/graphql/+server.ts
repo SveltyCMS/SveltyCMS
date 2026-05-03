@@ -20,7 +20,7 @@ import { WebSocketServer } from "ws";
 
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 import { registerPermission } from "@src/databases/auth/permissions";
 import { PermissionAction, PermissionType } from "@src/databases/auth/types";

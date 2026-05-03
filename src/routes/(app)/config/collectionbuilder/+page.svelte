@@ -59,8 +59,8 @@ import { toast } from "@src/stores/toast.svelte.ts";
 import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 // Logger
 import { logger } from "@utils/logger";
-import { modalState } from "@utils/modal-state.svelte";
-import { showConfirm } from "@utils/modal-utils";
+import { modalState } from "@utils/modal.svelte";
+import { showConfirm } from "@utils/modal.svelte";
 import { deserialize } from "$app/forms";
 import { afterNavigate, goto, invalidate } from "$app/navigation";
 import { registerHotkey } from "@src/utils/hotkeys";

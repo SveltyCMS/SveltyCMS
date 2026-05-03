@@ -62,7 +62,7 @@
         "node-os-utils": "^2.0.3",
         "nodemailer": "^8.0.7",
         "ollama": "^0.6.3",
-        "rate-limiter-flexible": "^11.0.1",
+        "rate-limiter-flexible": "^11.0.2",
         "redis": "^5.12.1",
         "sanitize-filename": "^1.6.4",
         "sharp": "^0.34.5",

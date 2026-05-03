@@ -19,7 +19,7 @@ import type { FieldInstance } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
 import type { CollectionModel } from "@src/databases/db-interface";
 import { widgets } from "@src/stores/widget-store.svelte";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { getFieldName } from "@utils/utils";
 
 interface DataAccessor<T> {

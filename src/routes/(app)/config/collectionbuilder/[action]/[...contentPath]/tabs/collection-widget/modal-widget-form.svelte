@@ -16,7 +16,7 @@ import {
 	targetWidget,
 } from "@src/stores/collection-store.svelte";
 import { widgets } from "@src/stores/widget-store.svelte.ts";
-import { modalState } from "@utils/modal-state.svelte";
+import { modalState } from "@utils/modal.svelte";
 import type { Role } from "@src/databases/auth/types";
 import type { SvelteComponent } from "svelte";
 import Default from "./tabs-fields/default.svelte";

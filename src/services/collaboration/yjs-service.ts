@@ -5,7 +5,7 @@
  */
 
 import * as Y from "yjs";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { pubSub } from "@src/services/pub-sub";
 
 class YjsService {

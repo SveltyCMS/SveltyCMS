@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { toggleEntryStatus, getInitialPublishStatus } from "@src/utils/status-toggle";
 
 // Mock api-client
-vi.mock("@src/utils/api-client", () => ({
+vi.mock("@src/utils/api", () => ({
   updateEntryStatus: vi.fn(),
 }));
 
-import { updateEntryStatus } from "@src/utils/api-client";
+import { updateEntryStatus } from "@src/utils/api";
 
 describe("Status Toggle Utilities", () => {
   beforeEach(() => {

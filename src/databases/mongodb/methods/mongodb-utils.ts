@@ -6,7 +6,7 @@
  */
 
 import type { DatabaseId } from "@src/content/types";
-import { logger } from "@src/utils/logger.server";
+import { logger } from "@src/utils/logger";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
 import type { DatabaseError, PaginatedResult, PaginationOptions } from "../../db-interface";
 import type { Model, Schema, Connection } from "mongoose";

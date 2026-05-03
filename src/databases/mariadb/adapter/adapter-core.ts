@@ -3,7 +3,7 @@
  * @description Core functionality for MariaDB adapter, unified via BaseSqlAdapter.
  */
 
-import { logger } from "@src/utils/logger.server";
+import { logger } from "@src/utils/logger";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import type { DatabaseCapabilities, DatabaseResult } from "../../db-interface";
@@ -38,6 +38,7 @@ export class AdapterCore extends BaseSqlAdapter {
   public activeDatabaseName: string = "unknown";
   public crud!: import("../crud/crud-module").CrudModule;
   public batch!: import("../operations/batch-module").BatchModule;
+  private transactionModule?: import("../operations/transaction-module").TransactionModule;
 
   public getDb(): MySql2Database<typeof schema> {
     if (!this.db) throw new Error("Database not connected");
@@ -133,6 +134,9 @@ export class AdapterCore extends BaseSqlAdapter {
 
       this.db = drizzle(this.pool, { schema, mode: "default" });
       await this.pool.query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
+
+      const { TransactionModule } = await import("../operations/transaction-module");
+      this.transactionModule = new TransactionModule(this);
 
       this.connected = true;
       logger.info("Connected to MariaDB");
@@ -257,6 +261,18 @@ export class AdapterCore extends BaseSqlAdapter {
     }
     return schema.contentNodes as unknown as Record<string, unknown>;
   }
+
+  public transaction = async <T>(
+    fn: (transaction: import("../../db-interface").DatabaseTransaction) => Promise<DatabaseResult<T>>,
+    options?: {
+      isolationLevel?: "read uncommitted" | "read committed" | "repeatable read" | "serializable";
+    },
+  ): Promise<DatabaseResult<T>> => {
+    if (!this.transactionModule) {
+      throw new Error("Transaction module not initialized. Connect to database first.");
+    }
+    return this.transactionModule.execute(fn, options as any);
+  };
 
   public createDynamicTableDefinition(tableName: string) {
     const { mysqlTable, varchar, json, datetime } = require("drizzle-orm/mysql-core");

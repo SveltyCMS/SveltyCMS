@@ -3,7 +3,7 @@
  * @description System preferences module for PostgreSQL
  */
 
-import { isoDateStringToDate, nowISODateString } from "@src/utils/date-utils";
+import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { DatabaseId, DatabaseResult } from "../../../db-interface";
 import type { AdapterCore } from "../../adapter/adapter-core";

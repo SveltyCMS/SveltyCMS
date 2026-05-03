@@ -58,7 +58,7 @@ export async function handleTestingRoutes(
     const { email, password, username } = params;
     if (!email || !password) throw new AppError("Email and password required for seeding", 400);
 
-    const { logger } = await import("@utils/logger.server");
+    const { logger } = await import("@utils/logger");
     logger.debug("Seeding test user", { email, tenantId });
 
     // Create admin user

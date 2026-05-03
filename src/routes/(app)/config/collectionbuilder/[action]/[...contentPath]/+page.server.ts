@@ -31,8 +31,8 @@ import { widgets } from "@src/stores/widget-store.svelte.ts";
 import { compile } from "@src/utils/compilation/compile";
 import { type Actions, error, redirect } from "@sveltejs/kit";
 // System Logger
-import { logger } from "@utils/logger.server";
-import { getCollectionDisplayPath, getCollectionFilePath } from "@utils/tenant-paths";
+import { logger } from "@utils/logger";
+import { getCollectionDisplayPath, getCollectionFilePath } from "@utils/tenant";
 import prettier from "prettier";
 import * as ts from "typescript";
 import type { PageServerLoad } from "./$types";

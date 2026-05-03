@@ -12,7 +12,7 @@ import { contentSystem } from "@src/content/index.server";
 // Auth - Use cached roles from locals instead of global config
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { error, fail, redirect } from "@sveltejs/kit";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {

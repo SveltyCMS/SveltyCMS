@@ -72,7 +72,13 @@ export abstract class BaseAdapter {
    * Standard error handler that logs and returns a formatted DatabaseResult.
    */
   public handleError<T>(error: unknown, code: string, message?: string): DatabaseResult<T> {
-    const errMessage = message || (error instanceof Error ? error.message : String(error));
+    const errMessage =
+      message ||
+      (error instanceof Error
+        ? error.message
+        : typeof error === "object" && error !== null
+          ? JSON.stringify(error)
+          : String(error));
     logger.error(`Database adapter error [${code}]:`, errMessage);
 
     return {
@@ -90,6 +96,7 @@ export abstract class BaseAdapter {
     fn: () => Promise<T>,
     code: string,
     message?: string,
+    _options?: { isWrite?: boolean; transaction?: any },
   ): Promise<DatabaseResult<T>> {
     if (!this.isConnected()) {
       return this.notConnectedError<T>();

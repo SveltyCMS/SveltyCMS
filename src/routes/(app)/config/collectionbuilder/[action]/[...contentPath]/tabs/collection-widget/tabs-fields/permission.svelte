@@ -13,7 +13,7 @@ import { SvelteSet } from "svelte/reactivity";
 import type { Role } from "@src/databases/auth/types";
 import type { WidgetFieldPermissions } from "@src/content/types";
 import { collections } from "@src/stores/collection-store.svelte";
-import { modalState } from "@utils/modal-state.svelte";
+import { modalState } from "@utils/modal.svelte";
 
 interface Props {
 	/** Roles for role-based access (e.g. from edit page data). Used when not in modal. */

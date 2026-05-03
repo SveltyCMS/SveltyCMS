@@ -19,7 +19,7 @@
 	import { collection, collectionValue } from '@src/stores/collection-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
-	import { nowISODateString } from '@utils/date-utils';
+	import { nowISODateString } from '@utils/date';
 	import { fade, slide } from 'svelte/transition';
 
 	import { page } from '$app/state';

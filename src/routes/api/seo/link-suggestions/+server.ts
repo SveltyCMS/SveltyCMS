@@ -6,7 +6,7 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import { AppError } from "@utils/error-handling";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { contentSystem } from "@src/content/index.server";
 
 export const POST: RequestHandler = async ({ request, locals }) => {

@@ -15,7 +15,7 @@
 import { eventBus } from "@src/services/automation/event-bus";
 import { aiService } from "@src/services/ai-service";
 import { json } from "@sveltejs/kit";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ request, locals }) => {

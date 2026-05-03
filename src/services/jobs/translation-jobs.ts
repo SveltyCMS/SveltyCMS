@@ -4,7 +4,7 @@
  */
 
 import { dbAdapter, getDb } from "@src/databases/db";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { aiService } from "@src/services/ai-service";
 import { getPublicSettingSync } from "@src/services/settings-service";
 import type { JobHandler } from "./job-queue-service";

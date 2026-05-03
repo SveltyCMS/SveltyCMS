@@ -6,7 +6,7 @@
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseAdapter, ISODateString, DatabaseId } from "@src/databases/db-interface";
 import { getPrivateSettingSync } from "@src/services/settings-service";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 // GraphQL types
 type GraphQLValue = string | number | boolean | Date | object | GraphQLValue[];

@@ -6,7 +6,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { generateUUID } from "@utils/native-utils";
-import { logger } from "./logger.server";
+import { logger } from "./logger";
 
 const TEMP_DIR = path.join(process.cwd(), "tmp", "job-payloads");
 

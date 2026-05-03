@@ -7,7 +7,7 @@ import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import { invalidateRedirectCache } from "@src/hooks/handle-redirects";
 import { invalidateSitemapCache } from "@src/services/seo/sitemap-cache";
 import type { PluginContext, PluginLifecycleHooks, PluginMigration } from "../types";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { getPrivateEnv } from "@src/databases/config-state";
 
 export const migrations: PluginMigration[] = [

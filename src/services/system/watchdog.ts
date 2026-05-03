@@ -10,7 +10,7 @@
  * - Phase-aware recovery (only re-init what is broken)
  */
 
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { getSystemState, updateServiceHealth } from "@src/stores/system/state";
 import { getDbInitPromise, getBootPhase } from "@src/databases/db";
 import { maintenanceService } from "./maintenance-service";

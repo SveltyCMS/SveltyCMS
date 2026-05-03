@@ -16,7 +16,7 @@
 import type { DatabaseId } from "@src/content/types";
 import type { ContentRevision, DatabaseResult } from "@src/databases/db-interface";
 import { generateId } from "@src/databases/mongodb/methods/mongodb-utils";
-import { toISOString } from "@utils/date-utils";
+import { toISOString } from "@utils/date";
 // System Logger
 import { logger } from "@utils/logger";
 import type { Model } from "mongoose";

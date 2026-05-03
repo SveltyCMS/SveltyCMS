@@ -8,7 +8,7 @@ import type { WorkflowDefinition, WorkflowInstance } from "@src/types/workflow-t
 import type { User, Role } from "@src/databases/auth/types";
 import type { IDBAdapter, DatabaseId } from "@src/databases/db-interface";
 import { AppError } from "@utils/error-handling";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { auditLogService, AuditEventType } from "@src/services/audit-log-service";
 import { hasPermissionWithRoles, registerPermission } from "@src/databases/auth/permissions";
 

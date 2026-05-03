@@ -7,7 +7,7 @@
 
 import { contentSystem } from "@src/content/index.server";
 import { redirect } from "@sveltejs/kit";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ params, locals }) => {

@@ -23,7 +23,7 @@ interface Props {
 	required?: boolean;
 	passwordIconColor?: string;
 	textColor?: string;
-	type?: 'text' | 'email' | 'password';
+	type?: 'text' | 'email' | 'security';
 	tabindex?: number;
 	id?: string;
 	autocomplete?: any;
@@ -78,7 +78,7 @@ let inputElement = $state<HTMLInputElement | null>(null);
 const generatedId = $derived(label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId');
 const currentId = $derived(id || generatedId);
 const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
-const effectiveType = $derived(showPassword && type === 'password' ? 'text' : type);
+const effectiveType = $derived(showPassword && type === 'security' ? 'text' : type);
 
 $effect(() => {
 	if (autofocus && inputElement) {
@@ -126,7 +126,7 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 					? 'border-white/50 text-white focus:border-white' 
 					: 'border-surface-300 focus:border-tertiary-600 dark:border-surface-400 dark:focus:border-tertiary-500 text-surface-900 dark:text-white',
 				invalid && '!border-error-500 dark:!border-error-500',
-				type === 'password' && 'pr-10',
+				type === 'security' && 'pr-10',
 				inputClass
 			)}
 			placeholder=" "
@@ -146,7 +146,7 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 			></iconify-icon>
 		{/if}
 
-		{#if type === 'password'}
+		{#if type === 'security'}
 			<iconify-icon
 				tabindex={0}
 				role="button"

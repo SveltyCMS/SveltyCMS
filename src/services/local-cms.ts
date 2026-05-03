@@ -12,9 +12,9 @@ import { contentSystem } from "@src/content/index.server";
 import { modifyRequest } from "@utils/modify-request";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { LRUCache } from "lru-cache";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
-import { verifyPassword } from "@utils/password";
+import { verifyPassword } from "@utils/security";
 import { parseSessionDuration } from "@utils/auth-utils";
 import {
   getPrivateSettingSync,

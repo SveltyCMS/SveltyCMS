@@ -9,7 +9,7 @@
  */
 
 import type { WebhookEvent } from "@src/services/webhook-service";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { ICrudAdapter, IDBAdapter, IMediaAdapter } from "./db-interface";
 
 // Constants for identifying events

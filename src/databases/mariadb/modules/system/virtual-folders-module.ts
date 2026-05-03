@@ -14,7 +14,7 @@
  * - Add to virtual folder
  */
 
-import { isoDateStringToDate, nowISODateString } from "@src/utils/date-utils";
+import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { eq, sql } from "drizzle-orm";
 import type {
   DatabaseId,

@@ -10,7 +10,7 @@ import type { DatabaseId } from "@src/content/types";
 import { successResponse } from "./base";
 import { safeParse } from "valibot";
 import { databaseConfigSchema } from "@src/databases/schemas";
-import { setupAdminSchema } from "@utils/form-schemas";
+import { setupAdminSchema } from "@utils/schemas";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { ISODateString } from "@src/databases/db-interface";
 import { setupManager } from "@src/routes/setup/setup-manager";

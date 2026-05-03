@@ -4,9 +4,9 @@
  * @description UI for monitoring Webhook delivery logs and the Dead-Letter Queue (DLQ).
  */
 import { onMount } from "svelte";
-import { fetchApi } from "@utils/api-client";
+import { fetchApi } from "@utils/api";
 import { toast } from "@src/stores/toast.svelte";
-import { formatDate } from "@utils/date-utils";
+import { formatDate } from "@utils/date";
 
 let logs = $state<any[]>([]);
 let isLoading = $state(true);

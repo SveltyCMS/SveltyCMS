@@ -5,7 +5,7 @@
 
 import { contentSystem } from "@src/content/index.server";
 import type { User } from "@src/databases/auth/types";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 interface GraphQLContext {
   locale?: string;

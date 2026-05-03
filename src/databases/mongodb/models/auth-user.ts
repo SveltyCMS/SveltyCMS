@@ -20,7 +20,7 @@ import {
 import { safeQuery } from "@src/utils/security/safe-query";
 import type { Model } from "mongoose";
 import mongoose, { Schema } from "mongoose";
-import { toISOString } from "@src/utils/date-utils";
+import { toISOString } from "@src/utils/date";
 
 // Define the User schema
 export const UserSchema = new Schema(
@@ -140,7 +140,7 @@ export class UserAdapter {
 
       // Ensure password is hashed if provided and not already hashed
       if (normalizedData.password && !normalizedData.password.startsWith("$argon2")) {
-        const { hashPassword } = await import("@src/utils/password");
+        const { hashPassword } = await import("@src/utils/security");
         normalizedData.password = await hashPassword(normalizedData.password);
       }
 
@@ -176,7 +176,7 @@ export class UserAdapter {
 
       // Ensure password is hashed if provided and not already hashed
       if (normalizedData.password && !normalizedData.password.startsWith("$argon2")) {
-        const { hashPassword } = await import("@src/utils/password");
+        const { hashPassword } = await import("@src/utils/security");
         normalizedData.password = await hashPassword(normalizedData.password);
       }
 

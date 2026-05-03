@@ -8,7 +8,7 @@ import { API_CACHE_TTL_S, cacheService } from "@src/databases/cache/cache-servic
 import { metricsService } from "@src/services/metrics-service";
 import type { Handle } from "@sveltejs/kit";
 import { AppError, getErrorMessage, handleApiError } from "@utils/error-handling";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { isAdmin, isPublicRoute } from "@utils/hook-utils";
 import crypto from "node:crypto";
 

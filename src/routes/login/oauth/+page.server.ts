@@ -18,7 +18,7 @@ import { getPrivateSettingSync } from "@src/services/settings-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { app } from "@src/stores/store.svelte";
 import { type Cookies, error, redirect } from "@sveltejs/kit";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { saveAvatarImage } from "@utils/media/media-storage.server";
 // Auth
 import { OAuth2Client } from "google-auth-library";

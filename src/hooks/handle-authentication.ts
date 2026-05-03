@@ -32,11 +32,11 @@ import { metricsService } from "@src/services/metrics-service";
 import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { error } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import { isStaticOrInternalRequest } from "@utils/hook-utils";
 import { getPrivateSettingSync } from "@src/services/settings-service";
-import { getTenantIdFromHostname } from "@utils/tenant-utils";
+import { getTenantIdFromHostname } from "@utils/tenant";
 import { dev } from "$app/environment";
 import { runWithContext } from "@src/utils/context";
 

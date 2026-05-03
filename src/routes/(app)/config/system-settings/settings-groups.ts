@@ -21,7 +21,7 @@ export interface SettingField {
     | "text"
     | "number"
     | "boolean"
-    | "password"
+    | "security"
     | "select"
     | "array"
     | "language-multi"
@@ -63,7 +63,7 @@ export const settingsGroups: SettingGroup[] = [
         label: "Enterprise License Key",
         description:
           "Required if your organization revenue exceeds $1M USD (BSL 1.1). Leave empty for free usage.",
-        type: "password", // Masked for security
+        type: "security", // Masked for security
         category: "private",
         sensitive: true,
         placeholder: "SK-XXXX-XXXX-XXXX",
@@ -239,7 +239,7 @@ export const settingsGroups: SettingGroup[] = [
         key: "DB_PASSWORD",
         label: "Database Password",
         description: "Password for database authentication (optional for some setups)",
-        type: "password",
+        type: "security",
         category: "private",
         sensitive: true,
       },
@@ -300,7 +300,7 @@ export const settingsGroups: SettingGroup[] = [
         key: "CF_API_TOKEN",
         label: "Cloudflare API Token",
         description: "API Token with Zone.Cache Purge permissions",
-        type: "password",
+        type: "security",
         category: "private",
         sensitive: true,
       },
@@ -364,7 +364,7 @@ export const settingsGroups: SettingGroup[] = [
         key: "REDIS_PASSWORD",
         label: "Redis Password",
         description: "Password for Redis authentication (optional - no default)",
-        type: "password",
+        type: "security",
         category: "private",
         sensitive: true,
       },
@@ -410,7 +410,7 @@ export const settingsGroups: SettingGroup[] = [
         key: "SMTP_PASS",
         label: "SMTP Password",
         description: "Password or app-specific password for SMTP",
-        type: "password",
+        type: "security",
         category: "private",
         sensitive: true,
       },
@@ -447,7 +447,7 @@ export const settingsGroups: SettingGroup[] = [
         label: "JWT Secret Key",
         description:
           "Secret key for JSON Web Token signing (read-only, configured via environment)",
-        type: "password",
+        type: "security",
         category: "private",
         required: true,
         readonly: true,
@@ -457,7 +457,7 @@ export const settingsGroups: SettingGroup[] = [
         key: "ENCRYPTION_KEY",
         label: "Encryption Key",
         description: "Key for encrypting sensitive data (min 32 characters)",
-        type: "password",
+        type: "security",
         category: "private",
         required: true,
         sensitive: true,
@@ -522,7 +522,7 @@ export const settingsGroups: SettingGroup[] = [
         key: "GOOGLE_CLIENT_SECRET",
         label: "Google Client Secret",
         description: "OAuth 2.0 client secret from Google Cloud Console (optional - no default)",
-        type: "password",
+        type: "security",
         category: "private",
         sensitive: true,
       },
@@ -530,7 +530,7 @@ export const settingsGroups: SettingGroup[] = [
         key: "GOOGLE_API_KEY",
         label: "Google API Key",
         description: "API key for Google services (optional - no default)",
-        type: "password",
+        type: "security",
         category: "private",
         sensitive: true,
       },
@@ -538,7 +538,7 @@ export const settingsGroups: SettingGroup[] = [
         key: "GOOGLE_MAPS_API_KEY",
         label: "Google Maps API Key",
         description: "API Key for Google Maps integration (optional)",
-        type: "password",
+        type: "security",
         category: "public",
         sensitive: true,
         placeholder: "AIza...",
@@ -686,7 +686,7 @@ export const settingsGroups: SettingGroup[] = [
         key: "TWITCH_TOKEN",
         label: "Twitch Access Token",
         description: "Access token for Twitch API",
-        type: "password",
+        type: "security",
         category: "private",
         sensitive: true,
       },
@@ -694,7 +694,7 @@ export const settingsGroups: SettingGroup[] = [
         key: "TIKTOK_TOKEN",
         label: "TikTok API Token",
         description: "Access token for TikTok API",
-        type: "password",
+        type: "security",
         category: "private",
         sensitive: true,
       },

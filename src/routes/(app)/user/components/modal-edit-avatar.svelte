@@ -20,8 +20,8 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import { avatarSrc } from '@src/stores/store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@src/utils/logger';
-	import { modalState } from '@utils/modal-state.svelte';
-	import { showConfirm } from '@utils/modal-utils';
+	import { modalState } from '@utils/modal.svelte';
+	import { showConfirm } from '@utils/modal.svelte';
 	import { invalidateAll } from '$app/navigation';
 
 	// Removed axios import

@@ -13,7 +13,7 @@
 import type { User } from "@src/databases/auth/types";
 import { getPrivateEnv } from "@src/databases/config-state";
 import type { DatabaseId } from "@src/databases/db-interface";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 interface Tenanted {
   tenantId?: string | null;

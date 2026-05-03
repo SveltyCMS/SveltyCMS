@@ -24,7 +24,7 @@ import {
 	loadingOperations,
 } from "@src/stores/loading-store.svelte.ts";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { showConfirm } from "@utils/modal-utils";
+import { showConfirm } from "@utils/modal.svelte";
 import { onMount } from "svelte";
 import { flip } from "svelte/animate";
 import { SvelteDate, SvelteURLSearchParams } from "svelte/reactivity";

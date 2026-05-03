@@ -5,7 +5,7 @@
 
 import crypto from "node:crypto";
 import { generateUUID } from "@utils/native-utils";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { Webhook, WebhookEvent } from "@src/services/webhook-service";
 
 export interface WebhookJobPayload {

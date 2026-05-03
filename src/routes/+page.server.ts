@@ -16,7 +16,7 @@ import type { PageServerLoad } from "./$types";
 // Roles
 
 // System Logger
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   const { user, tenantId, roles } = locals as {
@@ -31,15 +31,26 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   }
 
   try {
-    // Wait for the database andcontent-managerto be ready
+    // Wait for the database and content-manager to be ready
     await dbInitPromise;
 
-    // Verifycontent-manageris ready (should be from hooks)
+    // 🚀 NEW: Specifically wait for background tasks (Content, Themes, Cache)
+    // before making redirect decisions based on content availability.
+    const { runBackgroundTasks } = await import("@src/databases/db-init");
+    const { getDb } = await import("@src/databases/db");
+    const adapter = getDb();
+    if (adapter) {
+      await runBackgroundTasks(adapter);
+    }
+
+    // Verify content-manager is ready (should be from hooks)
     const healthStatus = contentSystem.getHealthStatus();
     if (healthStatus.state !== "initialized") {
-      logger.warn("ContentSystem not initialized in page load", {
+      logger.warn("ContentSystem not initialized in page load - still waiting...", {
         state: healthStatus.state,
       });
+      // Small safety delay or retry logic could go here if needed, 
+      // but runBackgroundTasks should have finished.
     }
     logger.debug("System is ready, proceeding with page load.", { tenantId });
 

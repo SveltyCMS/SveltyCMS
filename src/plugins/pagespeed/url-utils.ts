@@ -5,7 +5,7 @@
  */
 
 import type { Schema } from "@content/types";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 /**
  * Derive the public URL for an entry using schema definitions and localization rules.

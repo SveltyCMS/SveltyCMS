@@ -113,7 +113,7 @@ export function parseJsonField<T>(value: unknown, fallback: T): T {
   return value as T;
 }
 
-import { toISOString } from "@src/utils/date-utils";
+import { toISOString } from "@src/utils/date";
 /**
  * Convert Date objects in a record to ISO strings.
  * PostgreSQL TIMESTAMP fields come back as Date objects from postgres.js.

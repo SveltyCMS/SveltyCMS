@@ -10,7 +10,7 @@
  * - Cleanup
  */
 
-import { createLivePreviewListener } from "@src/utils/use-live-preview";
+import { createLivePreviewListener } from "@src/utils/preview";
 
 describe("LivePreview Utility", () => {
   let mockOnUpdate: any;

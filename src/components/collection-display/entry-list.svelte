@@ -78,14 +78,14 @@ bulk actions, and predictive preloading.
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import Sanitize from '@src/utils/sanitize.svelte';
 	// Utils
-	import { batchDeleteEntries, deleteEntry, invalidateCollectionCache, updateEntryStatus } from '@utils/api-client';
-	import { formatDisplayDate } from '@utils/date-utils';
+	import { batchDeleteEntries, deleteEntry, invalidateCollectionCache, updateEntryStatus } from '@utils/api';
+	import { formatDisplayDate } from '@utils/date';
 	import { cloneEntries, setEntriesStatus } from '@utils/entry-actions';
 	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 	// Skeleton
-	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modal-utils';
-	import { preloadEntry, reflectModeInURL } from '@utils/navigation-utils';
+	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modal.svelte';
+	import { preloadEntry, reflectModeInURL } from '@utils/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { debounce, getFieldName, meta_data } from '@utils/utils';
 	import { untrack } from 'svelte';

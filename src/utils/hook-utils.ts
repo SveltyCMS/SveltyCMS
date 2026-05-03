@@ -101,7 +101,7 @@ export function getClientIp(event: RequestEvent): string {
  */
 export function isBootstrapRoute(pathname: string): boolean {
   // 1. Setup flow (fresh install)
-  if (pathname.startsWith("/setup") || pathname.startsWith("/api/setup")) {
+  if (pathname === "/" || pathname.startsWith("/setup") || pathname.startsWith("/api/setup")) {
     return true;
   }
 
@@ -123,7 +123,6 @@ export function isBootstrapRoute(pathname: string): boolean {
     pathname.startsWith("/api/settings/public") ||
     pathname.startsWith("/api/content/version") ||
     pathname.startsWith("/api/dashboard/health") ||
-    pathname === "/" ||
     pathname.startsWith("/ui-test")
   ) {
     return true;

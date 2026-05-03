@@ -19,7 +19,7 @@
 
 import type { DatabaseResult, Widget } from "@src/databases/db-interface";
 import { generateId } from "@src/databases/mongodb/methods/mongodb-utils";
-import { nowISODateString } from "@utils/date-utils";
+import { nowISODateString } from "@utils/date";
 // System Logger
 import { logger } from "@utils/logger";
 import type { Model } from "mongoose";

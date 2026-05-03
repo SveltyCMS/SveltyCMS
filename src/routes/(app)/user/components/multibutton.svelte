@@ -22,8 +22,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import { storeListboxValue } from '@src/stores/store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
-	import { modalState } from '@utils/modal-state.svelte';
-	import { showConfirm } from '@utils/modal-utils';
+	import { modalState } from '@utils/modal.svelte';
+	import { showConfirm } from '@utils/modal.svelte';
 	// Using iconify-icon web component
 	import { onDestroy, onMount } from 'svelte';
 	import { quintOut } from 'svelte/easing';

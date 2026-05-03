@@ -5,7 +5,7 @@
  * Translates low-level database and system errors into actionable user feedback.
  */
 
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 export type DbErrorClassification =
   | "CONNECTION_REFUSED"

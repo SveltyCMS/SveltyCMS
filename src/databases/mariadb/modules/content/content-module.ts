@@ -13,6 +13,7 @@ import type {
   PaginatedResult,
   EntityCreate,
 } from "../../../db-interface";
+import { eq } from "drizzle-orm";
 import type { MariaDBAdapter } from "../../adapter";
 
 export class ContentModule {
@@ -175,14 +176,14 @@ export class ContentModule {
         bypassCache?: boolean;
       },
     ): Promise<DatabaseResult<ContentNode[]>> =>
-      this.adapter.wrap(async () => {
+      this.adapter.transaction(async (_tx) => {
         const results: ContentNode[] = [];
         for (const update of updates) {
           const res = await this.nodes.update(update.path, update.changes);
           if (res.success && res.data) results.push(res.data);
         }
-        return results;
-      }, "BULK_UPDATE_NODES_FAILED"),
+        return { success: true, data: results };
+      }),
 
     delete: (path: string): Promise<DatabaseResult<void>> =>
       this.adapter.wrap(async () => {
@@ -217,19 +218,25 @@ export class ContentModule {
         path: string;
       }>,
     ): Promise<DatabaseResult<void>> =>
-      this.adapter.wrap(async () => {
+      this.adapter.transaction(async (tx: any) => {
+        const db = tx.db;
         for (const item of items) {
-          await this.adapter.crud.update(
-            "system_content_structure",
-            item.id as DatabaseId,
-            {
+          await db
+            .update(this.adapter.getTable("system_content_structure") as any)
+            .set({
               parentId: item.parentId as DatabaseId | null,
               order: item.order,
               path: item.path,
-            } as any,
-          );
+            })
+            .where(
+              eq(
+                (this.adapter.getTable("system_content_structure") as any)._id,
+                item.id as DatabaseId,
+              ),
+            );
         }
-      }, "REORDER_STRUCTURE_FAILED"),
+        return { success: true, data: undefined };
+      }),
   };
 
   public readonly revisions = {

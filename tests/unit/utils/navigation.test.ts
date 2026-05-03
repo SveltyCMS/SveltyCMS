@@ -16,7 +16,7 @@ let dataChangeStore: any;
 
 beforeAll(async () => {
   // Rely on setup.ts for runes and modules
-  const NAV_MOD = await import("@src/utils/navigation-manager");
+  const NAV_MOD = await import("@src/utils/navigation");
   const COL_STORE = await import("@src/stores/collection-store.svelte");
   const LOAD_STORE = await import("@src/stores/loading-store.svelte");
   const STORE = await import("@src/stores/store.svelte");

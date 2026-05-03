@@ -18,7 +18,7 @@ import {
 } from "@src/databases/auth/permissions";
 import { error, redirect } from "@sveltejs/kit";
 // System Logger
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {

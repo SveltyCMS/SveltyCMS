@@ -13,7 +13,7 @@ import { lookup } from "mime-types";
 import { getPublicSettingSync } from "@src/services/settings-service";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 export const GET = apiHandler(async ({ params, request }) => {
   let filePath = params.path?.trim();

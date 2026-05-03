@@ -9,7 +9,7 @@ import mongoose, { Schema, type Model } from "mongoose";
 import { generateId, getOrCreateModel } from "../methods/mongodb-utils";
 import { generateRandomToken } from "@src/databases/auth/constants";
 import { safeQuery } from "@src/utils/security/safe-query";
-import { logger } from "@src/utils/logger.server";
+import { logger } from "@src/utils/logger";
 
 export const TokenSchema = new Schema(
   {

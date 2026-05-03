@@ -11,7 +11,7 @@ import type { IDBAdapter } from "@src/databases/db-interface";
 import { modifyRequest } from "@utils/modify-request";
 import { getPrivateSettingSync } from "@src/services/settings-service";
 import { error } from "@sveltejs/kit";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 
 // Helper to get dbAdapter safely via dynamic import to avoid circular dep issues
 const getDbAdapter = async () => (await import("@src/databases/db")).dbAdapter as IDBAdapter;

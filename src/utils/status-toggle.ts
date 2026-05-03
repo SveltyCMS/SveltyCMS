@@ -30,7 +30,7 @@ export async function toggleEntryStatus(options: StatusToggleOptions): Promise<{
 
   if (entryId) {
     try {
-      const { updateEntryStatus } = await import("@src/utils/api-client");
+      const { updateEntryStatus } = await import("@src/utils/api");
       const result = await updateEntryStatus(collectionId, entryId, newStatus);
 
       if (result.success) {

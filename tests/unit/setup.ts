@@ -309,7 +309,7 @@ if (isBun) {
   };
   bunTest.mock.module("vitest", () => vitestMock);
 
-  // node:crypto is available globally in Bun as 'crypto' or via require
+  // node:crypto is available globally in Bun as 'security' or via require
   if (!(globalThis as any).crypto) (globalThis as any).crypto = require("node:crypto");
   if (!globalThis.describe) setGlobal("describe", bunTest.describe);
   if (!globalThis.test) setGlobal("test", bunTest.test);

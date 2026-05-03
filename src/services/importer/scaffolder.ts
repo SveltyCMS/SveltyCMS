@@ -4,7 +4,7 @@
  */
 
 import { aiService } from "@src/services/ai-service";
-import { logger } from "@utils/logger.server";
+import { logger } from "@utils/logger";
 import type { ExternalSourceSchemaField } from "./source-adapters";
 
 /**
