@@ -199,7 +199,7 @@
 		"svelte-canvas": "^2.1.0",
 		"tailwind-merge": "^3.5.0",
 		"typescript": "^5.9.3",
-		"uuid": "^13.0.0",
+		"uuid": "^14.0.0",
 		"ws": "^8.19.0"
 	},
 	"optionalDependencies": {
