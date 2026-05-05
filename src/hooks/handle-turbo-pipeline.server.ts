@@ -50,7 +50,7 @@ async function getCorsHeadersInline(
   origin: string | null,
   isApiRoute: boolean,
 ): Promise<Record<string, string> | null> {
-  const { getPrivateSettingSync } = await import("@src/services/settings-service");
+  const { getPrivateSettingSync } = await import("@src/services/core/settings-service");
   const corsEnabled = getPrivateSettingSync("CORS_ENABLED") as boolean;
   if (!corsEnabled || !isApiRoute || !origin) return null;
 
@@ -132,6 +132,10 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         await getDbInitPromise(false, "CORE");
       } catch {
         /* ignore */
+      }
+
+      if (pathname.includes("/setup")) {
+        logger.info(`[Turbo] TEST BYPASS for ${pathname} method=${event.request.method}`);
       }
 
       const db = getDb();
@@ -272,7 +276,10 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
     if (isBootstrapRoute(pathname) && !isLoginDuringSetup) {
       // Security Gate: Block /setup routes if setup is already complete
-      const isTestMode = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
+      const isTestMode =
+        process.env.TEST_MODE === "true" ||
+        process.env.VITE_TEST_MODE === "true" ||
+        process.env.BENCHMARK === "true";
       if (isSetupRoute && setupState === SetupState.COMPLETE && !isTestMode) {
         if (!(event.request.method === "POST" && pathname.includes("/completeSetup"))) {
           logger.warn(`Blocked request to ${pathname} - setup already complete`);

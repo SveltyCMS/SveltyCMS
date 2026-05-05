@@ -33,29 +33,56 @@ import { getDefaultRoles } from "../auth/default-roles";
 export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
   public readonly type = "mongodb";
 
-  // Domain-Specific Adapters (Modules)
-  crud: ICrudAdapter;
-  auth: IAuthAdapter;
-  content: IContentAdapter;
-  media: IMediaAdapter;
-  system: ISystemAdapter;
-  monitoring: IMonitoringAdapter;
-  collection: ICollectionAdapter;
-  batch: IDBAdapter["batch"];
-  private transactionModule: MongoTransactionModule;
+  // Public interface modules (Lazy-loaded via Getters)
+  public get crud(): ICrudAdapter {
+    return (this._crud ??= new MongoCrudModule(this));
+  }
+
+  public get auth(): IAuthAdapter {
+    return (this._auth ??= new MongoAuthModule(this));
+  }
+
+  public get content(): IContentAdapter {
+    return (this._content ??= new MongoContentModule(this));
+  }
+
+  public get media(): IMediaAdapter {
+    return (this._media ??= new MongoMediaModule(this));
+  }
+
+  public get system(): ISystemAdapter {
+    return (this._system ??= new MongoSystemModule(this));
+  }
+
+  public get monitoring(): IMonitoringAdapter {
+    return (this._monitoring ??= new MongoMonitoringModule(this));
+  }
+
+  public get collection(): ICollectionAdapter {
+    return (this._collection ??= new MongoCollectionModule(this));
+  }
+
+  public get batch(): IDBAdapter["batch"] {
+    return (this._batch ??= new MongoBatchModule(this) as any);
+  }
+
+  // Internal lazy modules
+  private _crud?: ICrudAdapter;
+  private _auth?: IAuthAdapter;
+  private _content?: IContentAdapter;
+  private _media?: IMediaAdapter;
+  private _system?: ISystemAdapter;
+  private _monitoring?: IMonitoringAdapter;
+  private _collection?: ICollectionAdapter;
+  private _batch?: IDBAdapter["batch"];
+  private _transactionModule?: MongoTransactionModule;
+
+  public get transactionModule(): MongoTransactionModule {
+    return (this._transactionModule ??= new MongoTransactionModule(this));
+  }
 
   constructor() {
     super();
-    // Initialize Modules
-    this.crud = new MongoCrudModule(this);
-    this.auth = new MongoAuthModule(this);
-    this.content = new MongoContentModule(this);
-    this.media = new MongoMediaModule(this);
-    this.system = new MongoSystemModule(this);
-    this.monitoring = new MongoMonitoringModule(this);
-    this.collection = new MongoCollectionModule(this);
-    this.batch = new MongoBatchModule(this) as any;
-    this.transactionModule = new MongoTransactionModule(this);
   }
 
   async getVersion(): Promise<DatabaseResult<string>> {

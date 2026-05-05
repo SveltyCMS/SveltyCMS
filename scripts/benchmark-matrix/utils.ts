@@ -76,16 +76,32 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
         }
       }
 
-      // Check nested objects (some results are wrapped)
+      // Check nested objects (some results are wrapped, like matrix_metrics or individual benchmark JSONs)
       if (typeof entry === "object" && entry !== null) {
         for (const subKey of Object.keys(entry)) {
           const subEntry = (entry as Record<string, unknown>)[subKey];
+
+          // Case 1: subEntry is a numeric metric
           if (isNumericMetric(subEntry)) {
             if (slugPattern && slugify(subEntry.name).includes(slugPattern)) {
               return subEntry.value;
             }
             if (matchesPattern(subEntry.name, pattern)) {
               return subEntry.value;
+            }
+          }
+
+          // Case 2: subKey itself matches the pattern (for matrix_metrics.json structure)
+          const subMatch =
+            (slugPattern && slugify(subKey).includes(slugPattern)) ||
+            (typeof pattern === "string" && subKey.toLowerCase().includes(pattern.toLowerCase()));
+
+          if (subMatch) {
+            if (typeof subEntry === "number") return subEntry;
+            if (typeof subEntry === "object" && subEntry !== null) {
+              const val =
+                (subEntry as any).value ?? (subEntry as any).avgMs ?? (subEntry as any).p95Ms;
+              if (typeof val === "number") return val;
             }
           }
         }
@@ -104,10 +120,10 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
     if (typeof entry === "number") return entry;
 
     return (
+      (entry as any)?.value ??
       (entry as any)?.p95Ms ??
       (entry as any)?.avgMs ??
       (entry as any)?.rps ??
-      (entry as any)?.value ??
       fallback
     );
   };

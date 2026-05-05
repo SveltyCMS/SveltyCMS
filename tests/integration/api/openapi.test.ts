@@ -35,15 +35,22 @@ describe("OpenAPI Specification Integration", () => {
   });
 
   it("should contain dynamic collection paths in the spec", async () => {
-    const response = await safeFetch(`${API_BASE_URL}/api/openapi.json`, {
-      headers: { Cookie: adminCookie },
-    });
-    const data = await response.json();
+    // 🚀  Await dynamic paths with retry to allow async sync to complete
+    let collections: string[] = [];
+    for (let attempt = 1; attempt <= 15; attempt++) {
+      const response = await safeFetch(`${API_BASE_URL}/api/openapi.json`, {
+        headers: { Cookie: adminCookie },
+      });
+      const data = await response.json();
 
-    // In the blog preset, we expect these collections
-    const collections = Object.keys(data.paths)
-      .filter((path) => path.startsWith("/collections/"))
-      .map((path) => path.split("/")[2]);
+      collections = Object.keys(data.paths || {})
+        .filter((path) => path.startsWith("/collections/"))
+        .map((path) => path.split("/")[2]);
+
+      if (collections.length > 0) break;
+      console.log(`⏳ Waiting for dynamic collections in OpenAPI (attempt ${attempt}/15)...`);
+      await new Promise((r) => setTimeout(r, 1000));
+    }
 
     expect(collections.length).toBeGreaterThan(0);
   });

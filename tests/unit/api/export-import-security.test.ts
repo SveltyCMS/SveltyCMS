@@ -39,7 +39,7 @@ vi.mock("@src/databases/db", () => ({
 }));
 
 // Mock settings service
-vi.mock("@src/services/settings-service", () => ({
+vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(true), // MULTI_TENANT = true
   getAllSettings: vi.fn().mockResolvedValue({ public: {}, private: {} }),
   invalidateSettingsCache: vi.fn(),

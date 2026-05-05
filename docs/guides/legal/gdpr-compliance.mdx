@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2026-02-10"
-updated: "2026-03-27"
+updated: "2026-05-05"
 tags:
   - "gdpr"
   - "compliance"
@@ -47,7 +47,7 @@ System Administrators can generate a full JSON export of all data associated wit
   - Metadata (Export timestamp)
 
 ```typescript
-import { gdprService } from "$services/GDPRService";
+import { gdprService } from "@src/services/security/gdpr-service";
 
 // Generates a JSON export of all user data
 const userData = await gdprService.exportUserData(userId);
@@ -67,7 +67,7 @@ Permanently remove a user's Personal Identifiable Information (PII) without brea
   6.  **Logs:** Audit logs are cryptographically immutable but the actor's mapping is anonymized.
 
 ```typescript
-import { gdprService } from "$services/GDPRService";
+import { gdprService } from "@src/services/security/gdpr-service";
 
 // Anonymizes user and logs the erasure request
 await gdprService.anonymizeUser(userId, "User initiated deletion");

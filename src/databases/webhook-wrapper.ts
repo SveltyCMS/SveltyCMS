@@ -8,7 +8,7 @@
  * (count, findOne, findMany, etc.) on class-based adapter instances.
  */
 
-import type { WebhookEvent } from "@src/services/webhook-service";
+import type { WebhookEvent } from "@src/services/background/webhook-service";
 import { logger } from "@utils/logger";
 import type { ICrudAdapter, IDBAdapter, IMediaAdapter } from "./db-interface";
 
@@ -18,8 +18,8 @@ const CONTENT_COLLECTION_PREFIX = "collection_";
 export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBAdapter> {
   // Dynamically import services to avoid circular dependency with db.ts
   const [{ webhookService }, { eventBus }] = await Promise.all([
-    import("@src/services/webhook-service"),
-    import("@src/services/automation/event-bus"),
+    import("@src/services/background/webhook-service"),
+    import("@src/services/background/automation/event-bus"),
   ]);
 
   logger.info("🔌 Webhook & EventBus Proxy Wrapper active on Database Adapter");

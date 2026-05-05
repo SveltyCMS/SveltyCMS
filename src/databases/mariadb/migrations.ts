@@ -376,8 +376,35 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
     await connection.query(`ALTER TABLE auth_users ADD COLUMN backupCodes JSON`);
     await connection.query(`ALTER TABLE auth_users ADD COLUMN last2FAVerification DATETIME`);
     await connection.query(`ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS collectionDef JSON`);
+
+    // 🚀 MIGRATION: Rename 'security' to 'password' if needed (v0.0.8 compatibility)
+    try {
+      const [columns] = await connection.query("SHOW COLUMNS FROM auth_users LIKE 'security'");
+      if (Array.isArray(columns) && columns.length > 0) {
+        logger.info("[MariaDB] Migrating 'security' column to 'password' in auth_users...");
+        await connection.query("ALTER TABLE auth_users CHANGE security password VARCHAR(255)");
+      }
+    } catch {
+      // Ignore
+    }
   } catch {
     // Column already exists or other error we can ignore
+  }
+
+  // 🚀 MIGRATION: Ensure 'isDeleted' column exists in all dynamic collections
+  try {
+    const [tables] = await connection.query("SHOW TABLES LIKE 'collection_%'");
+    if (Array.isArray(tables)) {
+      for (const row of tables) {
+        const tableName = Object.values(row as any)[0] as string;
+        // MariaDB supports ADD COLUMN IF NOT EXISTS
+        await connection.query(
+          `ALTER TABLE \`${tableName}\` ADD COLUMN IF NOT EXISTS isDeleted BOOLEAN NOT NULL DEFAULT FALSE`,
+        );
+      }
+    }
+  } catch {
+    // Ignore
   }
 
   logger.info("All tables created/verified");

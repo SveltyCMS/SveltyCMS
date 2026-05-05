@@ -5,12 +5,12 @@
 
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
-import type { LocalCMS } from "@src/services/local-cms";
+import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { rawResponse, successResponse } from "./base";
-import { webhookService } from "@src/services/webhook-service";
+import { webhookService } from "@src/services/background/webhook-service";
 import { settingsGroups } from "@src/routes/(app)/config/system-settings/settings-groups";
-import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
 
 export async function handleSystemRoutes(
   event: RequestEvent,
@@ -35,7 +35,10 @@ export async function handleSystemRoutes(
     case "automations":
       return handleAutomationRoutes(event, cms, tenantId, segments);
     case "metrics":
-      return successResponse(event, await cms.metrics.getReport(tenantId as string));
+      return successResponse(
+        event,
+        await cms.telemetry.checkUpdateStatus({ tenantId: tenantId as any }),
+      );
     case "telemetry":
       return handleTelemetryRoutes(event, cms, tenantId, segments);
     case "security":
@@ -74,7 +77,7 @@ export async function handleWidgetRoutes(
       return successResponse(event, result.data);
     }
     if (action === "list") {
-      const widgetList = await cms.widgets.list(tenantId);
+      const widgetList = await cms.widgets.list({ tenantId: tenantId as any });
       return successResponse(event, { widgets: widgetList, tenantId });
     }
   }
@@ -95,7 +98,7 @@ export async function handleWidgetRoutes(
       throw new AppError("Security validation failed for widget", 422);
     }
 
-    const widgetList = await cms.widgets.list(tenantId);
+    const widgetList = await cms.widgets.list({ tenantId: tenantId as any });
     const exists = widgetList.some((w: any) => w.name === target);
     if (!exists && action !== "install") {
       throw new AppError(`Widget ${target} not found`, 404);
@@ -208,11 +211,17 @@ export async function handleSettingsRoutes(
           },
         });
       }
-      return successResponse(event, await cms.system.settings.getPublic(tenantId as string));
+      return successResponse(
+        event,
+        await cms.system.settings.getPublic({ tenantId: tenantId as any }),
+      );
     }
 
     if (action === "export") {
-      return successResponse(event, await cms.system.settings.getAll(tenantId as string));
+      return successResponse(
+        event,
+        await cms.system.settings.getAll({ tenantId: tenantId as any }),
+      );
     }
 
     const group = settingsGroups.find((g) => g.id === action);
@@ -220,14 +229,19 @@ export async function handleSettingsRoutes(
       throw new AppError(`Settings group ${action} not found`, 404);
     }
 
-    const settings = await cms.system.settings.get(action || "all", tenantId as string);
+    const settings = await cms.system.settings.get(action || "all", {
+      tenantId: tenantId as any,
+    });
     // Align with system.test.ts expectation: return { success: true, values: ... }
     return rawResponse(event, { success: true, values: settings || {} });
   }
 
   if (["POST", "PATCH", "PUT"].includes(request.method)) {
     if (action === "export") {
-      return successResponse(event, await cms.system.settings.getAll(tenantId as string));
+      return successResponse(
+        event,
+        await cms.system.settings.getAll({ tenantId: tenantId as any }),
+      );
     }
     if (action === "import") {
       return successResponse(event, { success: true });
@@ -247,7 +261,9 @@ export async function handleSettingsRoutes(
       }
     }
 
-    const result = await cms.system.settings.set(action || "all", body, tenantId as string);
+    const result = await cms.system.settings.set(action || "all", body, {
+      tenantId: tenantId as any,
+    });
     return successResponse(event, result);
   }
 
@@ -272,7 +288,10 @@ export async function handleSystemMgmtRoutes(
     const body = await event.request.json().catch(() => ({}));
     return successResponse(
       event,
-      await cms.system.refresh(body.tenantId, body.skipReconciliation ?? false),
+      await cms.system.refresh({
+        tenantId: body.tenantId,
+        skipReconciliation: body.skipReconciliation ?? false,
+      }),
     );
   }
   throw new AppError(`System action ${action} not implemented`, 404);
@@ -293,8 +312,8 @@ export async function handleAiRoutes(
   }
   const action = segments[1];
   const body = await request.json();
-  const { aiService } = await import("@src/services/ai-service");
-  const { eventBus } = await import("@src/services/automation/event-bus");
+  const { aiService } = await import("@src/services/core/ai-service");
+  const { eventBus } = await import("@src/services/background/automation/event-bus");
   const { logger } = await import("@utils/logger");
 
   if (action === "chat") {
@@ -367,24 +386,26 @@ export async function handleAutomationRoutes(
     if (!id || id === "list")
       return successResponse(
         event,
-        await cms.automation.getFlow(undefined as any, tenantId as string),
+        await cms.automation.getFlow(undefined as any, { tenantId: tenantId as any }),
       );
 
     if (segments[2] === "logs")
       return successResponse(event, await cms.automation.getLogs(id, { tenantId }));
 
-    const flow = await cms.automation.getFlow(id, tenantId as string);
+    const flow = await cms.automation.getFlow(id, { tenantId: tenantId as any });
     if (!flow) throw new AppError("Automation flow not found", 404);
     return successResponse(event, flow);
   }
 
   if (request.method === "POST") {
     if (segments[2] === "test") {
-      const result = await cms.automation.executeFlow(id, await request.json(), tenantId as string);
+      const result = await cms.automation.executeFlow(id, await request.json(), {
+        tenantId: tenantId as any,
+      });
       return successResponse(event, result);
     }
     const { automationService: service } =
-      await import("@src/services/automation/automation-service");
+      await import("@src/services/background/automation/automation-service");
     return successResponse(
       event,
       await service.saveFlow(await request.json(), tenantId as string),
@@ -393,21 +414,21 @@ export async function handleAutomationRoutes(
   }
 
   if ((request.method === "DELETE" || request.method === "PATCH") && id) {
-    const flow = await cms.automation.getFlow(id, tenantId as string);
+    const flow = await cms.automation.getFlow(id, { tenantId: tenantId as any });
     if (!flow) throw new AppError("Automation flow not found", 404);
 
     const { automationService: service } =
-      await import("@src/services/automation/automation-service");
+      await import("@src/services/background/automation/automation-service");
 
     if (request.method === "DELETE") {
-      await service.deleteFlow(id, tenantId as string);
+      await service.deleteFlow(id, tenantId as any);
       return successResponse(event, { success: true });
     }
 
     if (request.method === "PATCH") {
       return successResponse(
         event,
-        await service.saveFlow({ ...flow, ...(await request.json()) }, tenantId as string),
+        await service.saveFlow({ ...flow, ...(await request.json()) }, tenantId as any),
       );
     }
   }
@@ -425,7 +446,11 @@ export async function handleTelemetryRoutes(
   segments: string[],
 ) {
   const action = segments[1];
-  if (action === "stats") return successResponse(event, await cms.telemetry.checkUpdateStatus());
+  if (action === "stats")
+    return successResponse(
+      event,
+      await cms.telemetry.checkUpdateStatus({ tenantId: _tenantId as any }),
+    );
   if (action === "report" && event.request.method === "POST") {
     return rawResponse(event, { status: "active", success: true });
   }
@@ -578,10 +603,13 @@ export async function handleImporterRoutes(
   if (request.method === "POST") {
     const body = await request.json();
     if (action === "external")
-      return successResponse(event, await cms.system.importer.importExternal(body, user, tenantId));
+      return successResponse(
+        event,
+        await cms.system.importer.importExternal(body, { user, tenantId }),
+      );
     if (action === "scaffold")
       return successResponse(event, await cms.system.importer.scaffold(body));
-    return successResponse(event, await cms.system.importer.importData(body, tenantId));
+    return successResponse(event, await cms.system.importer.importData(body, { tenantId }));
   }
   throw new AppError(`Importer route not implemented`, 404);
 }
@@ -602,8 +630,8 @@ export async function handleSecurityRoutes(
     if (!locals.user || locals.user.role !== "admin") {
       throw new AppError("Forbidden", 403, "FORBIDDEN");
     }
-    const { securityResponseService } = await import("@src/services/security-response-service");
-    const { metricsService } = await import("@src/services/metrics-service");
+    const { securityResponseService } = await import("@src/services/security/response-service");
+    const { metricsService } = await import("@src/services/observability/metrics-service");
 
     const stats = await securityResponseService.getSecurityStats();
     const report = metricsService.getReport(tenantId as string);
@@ -617,7 +645,7 @@ export async function handleSecurityRoutes(
 
   if (action === "csp-report" && request.method === "POST") {
     const report = await request.json();
-    const { metricsService } = await import("@src/services/metrics-service");
+    const { metricsService } = await import("@src/services/observability/metrics-service");
 
     const blockedUri = report["csp-report"]?.["blocked-uri"];
     const isFalsePositive =

@@ -1,4 +1,4 @@
-﻿<!-- 
+<!-- 
 @file src/components/highlighted-text.svelte
 @component
 **Enhanced HighlightedText - Svelte 5 Optimized**

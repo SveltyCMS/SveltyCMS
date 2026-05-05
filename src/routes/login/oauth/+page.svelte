@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 @src/routes/login/oauth/+page.svelte
 @description OAuth login page
 -->

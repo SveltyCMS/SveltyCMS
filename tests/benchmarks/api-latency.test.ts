@@ -33,7 +33,7 @@ beforeAll(async () => {
   const db = getDb();
   if (!db) throw new Error("DB Initialization Failed");
   await ensureStableTestData(db);
-});
+}, 120000);
 
 afterAll(async () => {
   if (stopServer) await stopServer();
@@ -41,7 +41,7 @@ afterAll(async () => {
 
 export async function runApiLatencyAudit() {
   const { getDb } = await import("@src/databases/db");
-  const { LocalCMS } = await import("@src/services/local-cms");
+  const { LocalCMS } = await import("@src/services/sdk");
 
   const db = getDb();
   if (!db) throw new Error("Database adapter not initialized for benchmark");

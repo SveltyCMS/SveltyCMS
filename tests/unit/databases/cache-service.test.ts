@@ -6,7 +6,7 @@
 (globalThis as any).vi.unmock("@src/databases/cache/cache-service");
 
 // Mock settings-service specifically for these tests
-vi.mock("@src/services/settings-service", () => ({
+vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn((key: string) => {
     if (key === "MULTI_TENANT") return (globalThis as any).__mockMultiTenant ?? false;
     if (key.startsWith("CACHE_TTL_")) return 300;

@@ -1,4 +1,4 @@
-﻿<!-- 
+<!-- 
 @file src/components/autocomplete.svelte
 @description
 Advanced autocomplete component with fuzzy search, keyboard navigation, and accessibility.

@@ -8,7 +8,34 @@
  * NOTE: TypeScript errors for 'bun:test' module are expected - it's a runtime module.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
+import { createSchemaProxy } from "../../../src/databases/agnostic-core/schema-proxy";
+
+// 🚀  Aggressively mock SvelteKit and Store environment for standalone adapter tests
+mock.module("$app/environment", () => ({
+  browser: false,
+  dev: false,
+  building: false,
+  version: "1.0.0",
+}));
+mock.module("@src/stores/screen-size-store.svelte", () => ({
+  screenSize: { isMobile: false, isTablet: false, isDesktop: true },
+}));
+mock.module("@src/stores/toast.svelte", () => ({ toast: { show: () => {} } }));
+mock.module("@src/stores/store.svelte", () => ({
+  appStore: { isMobile: false },
+  app: { isMobile: false },
+}));
+mock.module("@src/stores/widget-store.svelte", () => ({ widgets: { initialize: () => {} } }));
+mock.module("svelte", () => ({
+  mount: () => ({}),
+  unmount: () => ({}),
+}));
+// Mock Svelte 5 Runes
+(globalThis as any).$state = (v: any) => v;
+(globalThis as any).$derived = (v: any) => v;
+(globalThis as any).$effect = () => {};
+
 import type { DatabaseId, DatabaseResult, IDBAdapter } from "../../../src/databases/db-interface";
 
 function normalizeStoredValue(value: any) {
@@ -56,17 +83,17 @@ describe("Database Interface Contract Tests", () => {
 
     if (currentDbType === "mongodb") {
       const { MongoDBAdapter } = await import("../../../src/databases/mongodb/mongo-db-adapter");
-      db = new MongoDBAdapter();
+      db = createSchemaProxy(new MongoDBAdapter());
     } else if (currentDbType === "mariadb") {
       const { MariaDBAdapter } = await import("../../../src/databases/mariadb/mariadb-adapter");
-      db = new MariaDBAdapter() as any;
+      db = createSchemaProxy(new MariaDBAdapter()) as any;
     } else if (currentDbType === "postgresql") {
       const { PostgreSQLAdapter } =
         await import("../../../src/databases/postgresql/postgres-adapter");
-      db = new PostgreSQLAdapter() as any;
+      db = createSchemaProxy(new PostgreSQLAdapter()) as any;
     } else {
       const { SQLiteAdapter } = await import("../../../src/databases/sqlite/adapter/index");
-      db = new SQLiteAdapter() as any;
+      db = createSchemaProxy(new SQLiteAdapter()) as any;
     }
 
     try {

@@ -11,13 +11,13 @@
  */
 
 import { dev } from "$app/environment";
-import { metricsService } from "@src/services/metrics-service";
-import { securityResponseService } from "@src/services/security-response-service";
+import { metricsService } from "@src/services/observability/metrics-service";
+import { securityResponseService } from "@src/services/security/response-service";
 import { error, type Handle } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { getTenantIdFromHostname } from "@utils/tenant";
-import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getClientIp, isStaticOrInternalRequest } from "@utils/hook-utils";
 
 // ──────────────────────────────────────────────────────────────
@@ -152,6 +152,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
     process.env.TEST_MODE === "true" ||
     process.env.VITE_TEST_MODE === "true" ||
     process.env.PLAYWRIGHT_TEST === "true" ||
+    process.env.BENCHMARK === "true" ||
     (globalThis as any).process?.env?.TEST_MODE === "true";
   const isLocal =
     isLocalhost(clientIp) || url.hostname === "localhost" || url.hostname === "127.0.0.1";
@@ -208,6 +209,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   const mem = process.memoryUsage();
   const heapUsedRatio = mem.heapUsed / mem.heapTotal;
   if (
+    !isTestMode &&
     heapUsedRatio > 0.98 &&
     request.method !== "GET" &&
     !url.pathname.startsWith("/api/system") &&

@@ -218,35 +218,64 @@ async function startPreviewServer() {
 
   console.log(`🚀 Starting preview server on ${HOST}:${PORT}...`);
 
-  previewProcess = spawn(
-    "bun",
-    ["run", "preview", "--port", PORT, "--host", HOST, "--strictPort"],
-    {
-      cwd: ROOT,
-      stdio: "inherit",
-      shell: process.platform === "win32",
-      detached: process.platform !== "win32",
-      env: {
-        ...process.env,
-        NODE_ENV: "production",
-        TEST_MODE: "true",
-        DB_TYPE: db.type,
-        DB_HOST: db.host,
-        DB_PORT: db.port,
-        DB_NAME: db.name,
-        DB_USER: db.user,
-        DB_PASSWORD: db.password,
-        TEST_API_SECRET: CONFIG.TEST_API_SECRET,
-        ADMIN_PASSWORD: CONFIG.ADMIN_PASSWORD,
-        ORIGIN: API_BASE_URL,
-        PASSWORD_MIN_LENGTH: "8",
-        JWT_SECRET_KEY: CONFIG.JWT_SECRET_KEY,
-        ENCRYPTION_KEY: CONFIG.ENCRYPTION_KEY,
-      },
+  // 🚀 HARDENING: Use bun directly to run the build artifact.
+  // This ensures we use Bun's native SQLite driver and avoids better-sqlite3 binding issues on Windows.
+  previewProcess = spawn("bun", ["build/index.js"], {
+    cwd: ROOT,
+    stdio: "inherit",
+    shell: process.platform === "win32",
+    detached: process.platform !== "win32",
+    env: {
+      ...process.env,
+      NODE_ENV: "production",
+      TEST_MODE: "true",
+      PORT: PORT,
+      DB_TYPE: db.type,
+      DB_HOST: db.host,
+      DB_PORT: db.port,
+      DB_NAME: db.name,
+      DB_USER: db.user,
+      DB_PASSWORD: db.password,
+      TEST_API_SECRET: CONFIG.TEST_API_SECRET,
+      ADMIN_PASSWORD: CONFIG.ADMIN_PASSWORD,
+      ORIGIN: API_BASE_URL,
+      PASSWORD_MIN_LENGTH: "8",
+      JWT_SECRET_KEY: CONFIG.JWT_SECRET_KEY,
+      ENCRYPTION_KEY: CONFIG.ENCRYPTION_KEY,
     },
-  );
+  });
 
   await waitForServerReady();
+}
+
+async function prepareIsolatedServerForTestFile(filePath: string) {
+  const setupModeTest = isSetupModeTest(filePath);
+
+  process.env.SVELTYCMS_SETUP_MODE_TEST = setupModeTest ? "true" : "false";
+
+  // Ensure server is running for reset/seed
+  if (!previewProcess) {
+    await startPreviewServer();
+  }
+
+  console.log("🧹 Resetting test data for isolated test file...");
+  await testingAction("reset");
+
+  if (setupModeTest) {
+    console.log("⚙️ Setup-mode test detected. Skipping seed so the app stays in setup mode.");
+    // Force a restart to ensure setup-mode is detected on boot if needed
+    await stopPreviewServer();
+    await startPreviewServer();
+    return;
+  }
+
+  console.log("🌱 Seeding test data for isolated test file...");
+  await testingAction("seed");
+
+  // Only one restart after seed to ensure all systems are fully reconciled for the test
+  console.log("🔁 Final restart to ensure clean state...");
+  await stopPreviewServer();
+  await startPreviewServer();
 }
 
 async function stopPreviewServer() {
@@ -427,34 +456,6 @@ function isSetupModeTest(filePath: string) {
     normalizedPath.endsWith("tests/integration/setup-wizard.test.ts") ||
     normalizedPath.endsWith("tests/integration/setup-presets.test.ts")
   );
-}
-
-async function prepareIsolatedServerForTestFile(filePath: string) {
-  const setupModeTest = isSetupModeTest(filePath);
-
-  process.env.SVELTYCMS_SETUP_MODE_TEST = setupModeTest ? "true" : "false";
-
-  await stopPreviewServer();
-  await startPreviewServer();
-
-  console.log("🧹 Resetting test data for isolated test file...");
-  await testingAction("reset");
-
-  console.log("🔁 Restarting preview server after isolated reset...");
-  await stopPreviewServer();
-  await startPreviewServer();
-
-  if (setupModeTest) {
-    console.log("⚙️ Setup-mode test detected. Skipping seed so the app stays in setup mode.");
-    return;
-  }
-
-  console.log("🌱 Seeding test data for isolated test file...");
-  await testingAction("seed");
-
-  console.log("🔁 Restarting preview server after isolated seed...");
-  await stopPreviewServer();
-  await startPreviewServer();
 }
 
 async function teardown() {

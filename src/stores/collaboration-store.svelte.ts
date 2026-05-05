@@ -4,7 +4,7 @@
  * Handles EventSource connection to the SSE endpoint and manages activity logs.
  */
 
-import type { AutomationEventPayload } from "@src/services/automation/types";
+import type { AutomationEventPayload } from "@src/services/background/automation/types";
 import { collections } from "@src/stores/collection-store.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { isReady } from "@src/stores/system/state";

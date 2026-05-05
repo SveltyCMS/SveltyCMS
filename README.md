@@ -285,10 +285,10 @@ Verified performance metrics from our CI pipeline. These are factual raw latenci
 Measured directly via driver to ensure baseline CMS overhead is sub-millisecond.
 | Operation | SQLite Latency | MongoDB Latency |
 | :--- | :--- | :--- |
-| **Document Insert** | **0.17 ms** | **0.72 ms** |
-| **Primary Key Read** | **0.10 ms** | **0.48 ms** |
-| **Document Update** | **0.18 ms** | **1.10 ms** |
-| **Document Delete** | **0.05 ms** | **1.49 ms** |
+| **Document Insert** | **0.17 ms** | **0.53 ms** |
+| **Primary Key Read** | **0.10 ms** | **0.65 ms** |
+| **Document Update** | **0.18 ms** | **0.67 ms** |
+| **Document Delete** | **0.05 ms** | **1.59 ms** |
 
 _Metrics collected on 2026-04-05. Individual results may vary by hosting provider and DB configuration._
 

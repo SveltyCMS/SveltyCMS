@@ -12,7 +12,7 @@ import type {
   ICrudAdapter,
   IBatchAdapter,
 } from "../../db-interface";
-import { BaseSqlAdapter } from "../../sqlite/base-sql-adapter";
+import { BaseSqlAdapter } from "../../relational/base-sql-adapter";
 import * as schema from "../schema/index";
 
 export class AdapterCore extends BaseSqlAdapter {
@@ -28,7 +28,16 @@ export class AdapterCore extends BaseSqlAdapter {
   };
 
   public sql: ReturnType<typeof postgres> | null = null;
-  public db: PostgresJsDatabase<typeof schema> | null = null;
+  public get db(): PostgresJsDatabase<typeof schema> {
+    if (!this._db) {
+      throw new Error(
+        `[PostgreSQLAdapter] Database not connected (state: ${this.connected ? "connected" : "idle"})`,
+      );
+    }
+    return this._db;
+  }
+
+  private _db: PostgresJsDatabase<typeof schema> | null = null;
   private replicaSqls = new Map<string, ReturnType<typeof postgres>>();
   private allReplicaSqls: ReturnType<typeof postgres>[] = [];
   public crud!: ICrudAdapter;
@@ -102,7 +111,7 @@ export class AdapterCore extends BaseSqlAdapter {
             onnotice: () => {},
             transform: { undefined: null },
           });
-          this.db = drizzle(this.sql, { schema });
+          this._db = drizzle(this.sql, { schema });
           this.connected = true;
           logger.info("Connected to PostgreSQL (String Mode)");
           return { success: true, data: undefined };
@@ -124,7 +133,7 @@ export class AdapterCore extends BaseSqlAdapter {
       }
 
       this.sql = postgres(options);
-      this.db = drizzle(this.sql, { schema });
+      this._db = drizzle(this.sql, { schema });
 
       // Verification
       try {
@@ -137,7 +146,7 @@ export class AdapterCore extends BaseSqlAdapter {
             await adminSql.unsafe(`CREATE DATABASE "${options.database}"`);
             await adminSql.end();
             this.sql = postgres(options);
-            this.db = drizzle(this.sql, { schema });
+            this._db = drizzle(this.sql, { schema });
             await this.sql`SELECT 1`;
           } catch (createErr) {
             await adminSql.end();
@@ -165,7 +174,7 @@ export class AdapterCore extends BaseSqlAdapter {
     if (this.sql) {
       await this.sql.end();
       this.sql = null;
-      this.db = null;
+      this._db = null;
       this.connected = false;
       logger.info("Disconnected from PostgreSQL");
     }
@@ -278,13 +287,14 @@ export class AdapterCore extends BaseSqlAdapter {
   };
 
   public createDynamicTableDefinition(tableName: string) {
-    const { pgTable, varchar, jsonb, timestamp } = require("drizzle-orm/pg-core");
+    const { pgTable, varchar, jsonb, timestamp, boolean } = require("drizzle-orm/pg-core");
     const { sql } = require("drizzle-orm");
     return pgTable(tableName, {
       _id: varchar("_id", { length: 36 }).primaryKey(),
       tenantId: varchar("tenantId", { length: 36 }),
       data: jsonb("data").notNull().default({}),
       status: varchar("status", { length: 50 }).notNull().default("draft"),
+      isDeleted: boolean("isDeleted").notNull().default(false),
       createdAt: timestamp("createdAt", { withTimezone: true })
         .notNull()
         .default(sql`CURRENT_TIMESTAMP`),
@@ -313,5 +323,22 @@ export class AdapterCore extends BaseSqlAdapter {
         logger.warn(`Failed to initialize replica ${urlStr}:`, e);
       }
     }
+  }
+
+  /**
+   * 🚀 RAW ACCESS: Implementation for PostgreSQL (postgres.js)
+   */
+  public override get raw(): {
+    execute: (sql: string, params?: any[]) => Promise<any>;
+    client: any;
+  } {
+    return {
+      execute: async (sqlText: string, params: any[] = []) => {
+        if (!this.sql) throw new Error("Database not connected");
+        // Use unsafe for raw string execution with parameters
+        return this.sql.unsafe(sqlText, params);
+      },
+      client: this.sql,
+    };
   }
 }

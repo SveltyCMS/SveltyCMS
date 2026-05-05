@@ -4,6 +4,7 @@
  * during the setup process.
  */
 
+import { generateSecureToken } from "@utils/native-utils";
 import type { DatabaseConfig } from "@src/databases/schemas";
 import { logger } from "@utils/logger";
 
@@ -17,16 +18,14 @@ export async function writePrivateConfig(
 ): Promise<void> {
   const fs = await import("node:fs/promises");
   const path = await import("node:path");
-  const { randomBytes } = await import("node:crypto");
 
   // Support TEST_MODE for isolated testing
   const configFileName = process.env.TEST_MODE ? "private.test.ts" : "private.ts";
   const privateConfigPath = path.resolve(process.cwd(), "config", configFileName);
 
   // Generate random keys
-  const generateRandomKey = () => randomBytes(32).toString("base64");
-  const jwtSecret = generateRandomKey();
-  const encryptionKey = generateRandomKey();
+  const jwtSecret = generateSecureToken(32);
+  const encryptionKey = generateSecureToken(32);
 
   // Sanitization helper to prevent code injection via single quotes
   const escape = (val: string | number | undefined) => {

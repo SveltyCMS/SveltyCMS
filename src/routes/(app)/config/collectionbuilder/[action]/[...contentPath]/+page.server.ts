@@ -25,7 +25,7 @@ import {
   permissionConfigs,
   permissions,
 } from "@src/databases/auth/permissions";
-import { MigrationEngine } from "@src/services/migration-engine";
+import { MigrationEngine } from "@src/services/core/migration-engine";
 // Widgets
 import { widgets } from "@src/stores/widget-store.svelte.ts";
 import { compile } from "@src/utils/compilation/compile";

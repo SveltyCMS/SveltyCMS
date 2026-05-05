@@ -347,7 +347,23 @@ export async function runAuditForDatabase(
       const dbPath = path.resolve(process.cwd(), "config/database", `${workerDbName}.sqlite`);
       if (fs_sync.existsSync(dbPath)) {
         log.db(dbKey, `Pre-flight cleanup: Removing ${dbPath}`);
-        fs_sync.unlinkSync(dbPath);
+
+        let attempts = 0;
+        const maxAttempts = 10;
+        while (attempts < maxAttempts) {
+          try {
+            fs_sync.unlinkSync(dbPath);
+            break;
+          } catch (e: any) {
+            attempts++;
+            if (e.code === "EBUSY" || e.code === "EPERM") {
+              log.warn(`  [SQLite] File busy, retrying cleanup (${attempts}/${maxAttempts})...`);
+              await new Promise((r) => setTimeout(r, 1000));
+            } else {
+              throw e;
+            }
+          }
+        }
       }
     }
 
@@ -492,11 +508,6 @@ export async function runAuditForDatabase(
     });
 
     await stopWorkerServer();
-
-    // 🚀 FINAL AUDIT PERSISTENCE (Once per database audit cycle)
-    // This handles the expensive MDX updates and AST metadata saves.
-    const { generateFinalReport } = await import("./reporting");
-    await generateFinalReport(results, cfg);
   } catch (e: any) {
     log.error(`${meta.label} worker failed: ${e.message}`);
     results.push({ db: dbKey, status: "FAILED", error: e.message });

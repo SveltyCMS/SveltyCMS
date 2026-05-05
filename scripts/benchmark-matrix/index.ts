@@ -131,7 +131,12 @@ function registerShutdownHandlers() {
 /**
  * Purges the results directory before/after a run, but ONLY for the databases currently being audited.
  */
-async function cleanupResults(activeDatabases: any[]) {
+async function cleanupResults(activeDatabases: any[], activeScripts?: any[]) {
+  if (activeScripts && activeScripts.length === 1) {
+    log.info("Single benchmark mode — preserving all previous results");
+    return; // ← Critical fix: Don't delete other results when running just one test
+  }
+
   log.info("Cleaning up session benchmark result files...");
   try {
     const activeKeys = new Set(
@@ -187,7 +192,7 @@ async function main() {
   const activeDatabases = filterDatabases(cfg);
 
   // Clean up existing results only for the databases we are about to audit
-  await cleanupResults(activeDatabases);
+  await cleanupResults(activeDatabases, activeScripts);
 
   if (cfg.sectionFilter) log.info(`Section filter: ${cfg.sectionFilter.join(", ")}`);
   if (cfg.levelFilter !== null) log.info(`Level filter: ≤ ${cfg.levelFilter}`);

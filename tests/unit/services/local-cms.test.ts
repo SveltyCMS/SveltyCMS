@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { LocalCMS } from "@src/services/local-cms";
+import { LocalCMS } from "@src/services/sdk";
 
 describe("LocalCMS - Server-Side SDK Bridge", () => {
   let mockAdapter: any;

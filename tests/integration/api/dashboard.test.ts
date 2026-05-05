@@ -113,7 +113,12 @@ describe("Dashboard API - Metrics Endpoint", () => {
       headers: { Cookie: authCookie },
     });
 
-    expect(response.ok).toBe(true);
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(
+        `GET /api/dashboard/metrics failed (HTTP ${response.status}): ${JSON.stringify(err)}`,
+      );
+    }
     const data = await response.json();
 
     expect(data).toHaveProperty("requests");
@@ -566,14 +571,20 @@ describe("Dashboard API - Cache Metrics Endpoint", () => {
       headers: { Cookie: authCookie },
     });
 
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(
+        `GET /api/dashboard/cache-metrics failed (HTTP ${response.status}): ${JSON.stringify(err)}`,
+      );
+    }
     const data = await response.json();
 
-    const total = data.overall.hits + data.overall.misses;
+    const total = (data.overall?.hits || 0) + (data.overall?.misses || 0);
     if (total > 0) {
       const expectedHitRate = (data.overall.hits / total) * 100;
       expect(Math.abs(data.overall.hitRate - expectedHitRate)).toBeLessThan(1);
     } else {
-      expect(data.overall.hitRate).toBe(0);
+      expect(data.overall?.hitRate || 0).toBe(0);
     }
   });
 });

@@ -5,7 +5,7 @@
 
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import { invalidateRedirectCache } from "@src/hooks/handle-redirects";
-import { invalidateSitemapCache } from "@src/services/seo/sitemap-cache";
+import { invalidateSitemapCache } from "@src/services/content/seo/sitemap-cache";
 import type { PluginContext, PluginLifecycleHooks, PluginMigration } from "../types";
 import { logger } from "@utils/logger";
 import { getPrivateEnv } from "@src/databases/config-state";
@@ -225,25 +225,33 @@ async function syncToEdgeKV(tenantId: string) {
 
 /**
  * Syncs redirects for a tenant to the high-performance Materialized View table.
+ * 🚀 HARDENING: Uses a transaction to ensure atomic clear-then-insert.
  */
 async function syncToMaterializedView(tenantId: string, dbAdapter: IDBAdapter) {
   // Only applicable to SQL adapters with the redirects_mv table
-  if (
-    dbAdapter.type !== "sqlite" &&
-    dbAdapter.type !== "postgresql" &&
-    dbAdapter.type !== "mariadb"
-  )
-    return;
+  const sqlAdapters = ["sqlite", "postgresql", "mariadb"];
+  if (!sqlAdapters.includes(dbAdapter.type)) return;
 
   try {
     const result = await dbAdapter.crud.findMany("redirects", {
       tenantId: tenantId as DatabaseId,
     } as any);
 
-    if (result.success && Array.isArray(result.data)) {
-      // Clear existing entries for this tenant in the MV
-      await dbAdapter.crud.deleteMany("redirects_mv", { tenantId: tenantId as DatabaseId } as any);
+    if (!result.success) {
+      throw new Error(`Failed to fetch source redirects: ${result.message}`);
+    }
+    if (!Array.isArray(result.data)) {
+      throw new Error(`Failed to fetch source redirects: Data is not an array`);
+    }
 
+    // Atomic update via transaction
+    await dbAdapter.transaction(async (tx: any) => {
+      // 1. Clear existing entries for this tenant in the MV
+      await dbAdapter.crud.deleteMany("redirects_mv", { tenantId: tenantId as DatabaseId } as any, {
+        transaction: tx,
+      });
+
+      // 2. Batch insert new entries if any
       if (result.data.length > 0) {
         const mvEntries = result.data.map((r: any) => ({
           _id: r._id,
@@ -256,13 +264,21 @@ async function syncToMaterializedView(tenantId: string, dbAdapter: IDBAdapter) {
           metadata: JSON.stringify(r.data || {}),
         }));
 
-        await dbAdapter.crud.insertMany("redirects_mv", mvEntries as any);
+        // Use the new relational core's insertMany if available, or fallback to sequential
+        if (dbAdapter.crud.insertMany) {
+          await dbAdapter.crud.insertMany("redirects_mv", mvEntries as any, { transaction: tx });
+        } else {
+          for (const entry of mvEntries) {
+            await dbAdapter.crud.insert("redirects_mv", entry as any, { transaction: tx });
+          }
+        }
       }
+      return { success: true, data: undefined };
+    });
 
-      logger.info(
-        `[RedirectManager] Synced ${result.data.length} redirects to Materialized View for tenant ${tenantId}`,
-      );
-    }
+    logger.info(
+      `[RedirectManager] Atomically synced ${result.data.length} redirects to MV for tenant ${tenantId}`,
+    );
   } catch (err) {
     logger.error(`[RedirectManager] Materialized View sync error:`, err);
   }

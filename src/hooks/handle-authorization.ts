@@ -24,7 +24,7 @@ import { auth } from "@src/databases/db";
 import { error, type Handle, redirect } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
 
 // --- MODULE-LEVEL CACHES ---
 let multiTenantCached: boolean | null = null;
@@ -119,6 +119,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
   // 🧪 TEST MODE BYPASS: If cryptographic handshake verified, skip auth logic
   if ((locals as any).__testBypass) {
+    locals.isAdmin = isAdmin(user);
     return resolve(event);
   }
 

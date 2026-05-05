@@ -25,16 +25,15 @@ import type {
 import type { AdapterCore } from "../../adapter/adapter-core";
 import * as schema from "../../schema";
 import * as utils from "../../utils";
+import { DatabaseModule } from "../../../base-adapter";
 
-export class VirtualFoldersModule {
-  private readonly core: AdapterCore;
-
+export class VirtualFoldersModule extends DatabaseModule<AdapterCore> {
   constructor(core: AdapterCore) {
-    this.core = core;
+    super(core);
   }
 
-  private get db() {
-    return this.core.db;
+  protected get core() {
+    return this.adapter;
   }
 
   async getAll(): Promise<DatabaseResult<SystemVirtualFolder[]>> {

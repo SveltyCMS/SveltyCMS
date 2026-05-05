@@ -37,7 +37,7 @@ import {
   array,
   maxLength,
   minLength,
-  optional,
+  nullish,
   pipe,
   string,
   type InferInput as ValibotInput,
@@ -45,7 +45,7 @@ import {
 import type { RelationProps } from "./types";
 
 // The validation schema ensures the value is a string ID or array of IDs.
-const validationSchema = (field: FieldInstance) => {
+const validationSchema = (field: FieldInstance & RelationProps) => {
   if (field.multiple) {
     let arraySchema: any = array(string());
     if (field.min) {
@@ -60,17 +60,13 @@ const validationSchema = (field: FieldInstance) => {
         maxLength(field.max as number, `Select at most ${field.max} entries.`),
       );
     }
-    return (
-      field.required
-        ? pipe(arraySchema, minLength(1, "At least one entry is required."))
-        : optional(arraySchema)
-    ) as any;
+    return field.required
+      ? pipe(arraySchema, minLength(1, "At least one entry is required."))
+      : nullish(arraySchema);
   }
 
-  if (field.required) {
-    return pipe(string(), minLength(1, "An entry must be selected."));
-  }
-  return optional(string(), "");
+  const schema = pipe(string(), minLength(1, "An entry must be selected."));
+  return field.required ? schema : nullish(schema);
 };
 
 // Create the widget definition using the factory.
@@ -213,4 +209,4 @@ export default RelationWidget;
 
 // Export helper types.
 export type FieldType = ReturnType<typeof RelationWidget>;
-export type RelationWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
+export type RelationWidgetData = ValibotInput<any>;

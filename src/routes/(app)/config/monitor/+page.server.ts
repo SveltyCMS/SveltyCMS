@@ -4,9 +4,9 @@
  */
 
 import { error } from "@sveltejs/kit";
-import { securityResponseService } from "@src/services/security-response-service";
-import { metricsService } from "@src/services/metrics-service";
-import { webhookService } from "@src/services/webhook-service";
+import { securityResponseService } from "@src/services/security/response-service";
+import { metricsService } from "@src/services/observability/metrics-service";
+import { webhookService } from "@src/services/background/webhook-service";
 import type { IDBAdapter } from "@src/databases/db-interface";
 
 const getDbAdapter = async () => (await import("@src/databases/db")).dbAdapter as IDBAdapter;

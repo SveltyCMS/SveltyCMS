@@ -204,7 +204,7 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
   }
 
   public async ensureAuth(): Promise<void> {
-    const db = this.getDb();
+    const db = this.db;
     if (!db) return;
 
     // Check if roles exist

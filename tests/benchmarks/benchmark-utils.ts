@@ -642,7 +642,9 @@ export async function runBenchmark(config: any) {
   const rps = sum > 0 ? (iterations * runs) / (sum / 1000) : 0;
 
   if (validResults.length === 0) {
-    return computeStatistics([0], 0, { ...config, errorRate: 1 });
+    throw new Error(
+      `Benchmark "${config.name}" failed completely: 0 valid results, ${totalErrors} errors.`,
+    );
   }
 
   return computeStatistics(validResults, rps, {
@@ -721,8 +723,8 @@ export async function setupBenchmarkServer() {
   if (apiBase) return { baseUrl: apiBase, stop: async () => {} };
 
   // Aggressive silence for startup noise
-  process.env.LOG_LEVEL = "fatal";
-  process.env.QUIET = "true";
+  process.env.LOG_LEVEL = "info";
+  process.env.QUIET = "false";
 
   const { startServer, runSystemSetup } = await import("../../scripts/benchmark-matrix/server");
   const { ALL_DATABASES } = await import("../../scripts/benchmark-matrix/config");
@@ -860,7 +862,13 @@ export async function mockDispatch(pathOrEvent: any, method: string = "GET") {
 }
 
 export function exportResult(r: any) {
-  const dir = path.resolve(process.cwd(), RESULTS_DIR, getDbType());
+  const dbType = getDbType();
+  let dir = path.resolve(process.cwd(), RESULTS_DIR);
+  // Only append dbType if it's not already at the end of RESULTS_DIR
+  if (!dir.toLowerCase().endsWith(dbType.toLowerCase())) {
+    dir = path.join(dir, dbType);
+  }
+
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(
     path.join(dir, `${r.name.replace(/\s/g, "_")}.json`),
@@ -890,9 +898,15 @@ export function exportResult(r: any) {
  * 🚀 Structured Metric Exporter for Matrix Dashboard
  */
 export function exportMetric(key: string, value: number, unit: string) {
+  const dbType = getDbType();
   // 1. File Persistence
   try {
-    const dir = path.resolve(process.cwd(), RESULTS_DIR, getDbType());
+    let dir = path.resolve(process.cwd(), RESULTS_DIR);
+    // Only append dbType if it's not already at the end of RESULTS_DIR
+    if (!dir.toLowerCase().endsWith(dbType.toLowerCase())) {
+      dir = path.join(dir, dbType);
+    }
+
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const metricsFile = path.join(dir, "matrix_metrics.json");
 
@@ -901,7 +915,13 @@ export function exportMetric(key: string, value: number, unit: string) {
       current = JSON.parse(fs.readFileSync(metricsFile, "utf8"));
     }
 
-    current[key] = { value, unit, timestamp: new Date().toISOString() };
+    current[key] = {
+      _type: "numeric-metric",
+      name: key,
+      value,
+      unit,
+      timestamp: new Date().toISOString(),
+    };
     fs.writeFileSync(metricsFile, JSON.stringify(current, null, 2));
   } catch (err: any) {
     logger.error(`[exportMetric] Failed: ${err.message}`);
@@ -1020,25 +1040,32 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
   const existingEntry = await activeDb.crud.findOne(
     STABLE_COLLECTION,
     { _id: STABLE_ENTRY_ID },
-    tenantId as any,
+    { tenantId },
   );
 
-  if (!existingEntry.success || !existingEntry.data) {
-    await activeDb.crud
-      .insert(
-        STABLE_COLLECTION,
-        {
-          _id: STABLE_ENTRY_ID,
-          title: "Stable Benchmark Entry",
-          content:
-            "This is a stable entry for benchmarking purposes. It contains enough text to measure transformation overhead.",
-          status: "published",
-          count: 42,
-        },
-        tenantId as any,
-      )
-      .catch(() => {});
+  if (existingEntry.success && existingEntry.data) {
+    logger.debug(`[Benchmark] Stable test data already exists for ${STABLE_COLLECTION}`);
+    return;
   }
+
+  logger.info(`[Benchmark] Seeding stable test data for ${STABLE_COLLECTION}...`);
+  await activeDb.crud
+    .upsert(
+      STABLE_COLLECTION,
+      { _id: STABLE_ENTRY_ID },
+      {
+        _id: STABLE_ENTRY_ID,
+        title: "Stable Benchmark Entry",
+        content:
+          "This is a stable entry for benchmarking purposes. It contains enough text to measure transformation overhead.",
+        status: "published",
+        count: 42,
+      },
+      { tenantId },
+    )
+    .catch((err: any) => {
+      logger.error(`[Benchmark] Failed to seed stable test data: ${err.message}`);
+    });
 
   // Ensure it's registered in the in-process contentStore for LocalCMS audits
   try {

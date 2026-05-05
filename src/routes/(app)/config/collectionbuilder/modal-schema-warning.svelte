@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 @file src/routes/(app)/config/collectionbuilder/ModalSchemaWarning.svelte
 @component
 **Schema Warning Modal - Data Loss Prevention**

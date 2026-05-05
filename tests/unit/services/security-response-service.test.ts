@@ -24,7 +24,7 @@ vi.mock("@src/databases/db", () => ({
   dbInitPromise: Promise.resolve(),
 }));
 
-import { securityResponseService } from "@src/services/security-response-service";
+import { securityResponseService } from "@src/services/security/response-service";
 
 describe("SecurityResponseService", () => {
   // Helper to create a mock Request object that looks like a web Request

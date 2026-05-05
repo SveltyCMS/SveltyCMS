@@ -8,7 +8,7 @@
  * - Execution Logic
  */
 
-import { automationService } from "@src/services/automation/automation-service";
+import { automationService } from "@src/services/background/automation/automation-service";
 import { TokenRegistry } from "@src/services/token/engine";
 import * as TokenEngine from "@src/services/token/engine";
 

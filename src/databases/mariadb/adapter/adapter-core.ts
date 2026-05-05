@@ -7,7 +7,7 @@ import { logger } from "@src/utils/logger";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import type { DatabaseCapabilities, DatabaseResult } from "../../db-interface";
-import { BaseSqlAdapter } from "../../sqlite/base-sql-adapter";
+import { BaseSqlAdapter } from "../../relational/base-sql-adapter";
 import * as schema from "../schema";
 
 interface InternalPool {
@@ -34,16 +34,20 @@ export class AdapterCore extends BaseSqlAdapter {
   };
 
   public pool: mysql.Pool | null = null;
-  public db: MySql2Database<typeof schema> | null = null;
+  public get db(): MySql2Database<typeof schema> {
+    if (!this._db) {
+      throw new Error(
+        `[MariaDBAdapter] Database not connected (state: ${this.connected ? "connected" : "idle"})`,
+      );
+    }
+    return this._db;
+  }
+
+  private _db: MySql2Database<typeof schema> | null = null;
   public activeDatabaseName: string = "unknown";
   public crud!: import("../crud/crud-module").CrudModule;
   public batch!: import("../operations/batch-module").BatchModule;
   private transactionModule?: import("../operations/transaction-module").TransactionModule;
-
-  public getDb(): MySql2Database<typeof schema> {
-    if (!this.db) throw new Error("Database not connected");
-    return this.db;
-  }
 
   async connect(
     connection: string | mysql.PoolOptions,
@@ -132,7 +136,7 @@ export class AdapterCore extends BaseSqlAdapter {
         }
       }
 
-      this.db = drizzle(this.pool, { schema, mode: "default" });
+      this._db = drizzle(this.pool, { schema, mode: "default" });
       await this.pool.query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
 
       const { TransactionModule } = await import("../operations/transaction-module");
@@ -151,7 +155,7 @@ export class AdapterCore extends BaseSqlAdapter {
     if (this.pool) {
       await this.pool.end();
       this.pool = null;
-      this.db = null;
+      this._db = null;
       this.connected = false;
       logger.info("Disconnected from MariaDB");
     }
@@ -277,13 +281,14 @@ export class AdapterCore extends BaseSqlAdapter {
   };
 
   public createDynamicTableDefinition(tableName: string) {
-    const { mysqlTable, varchar, json, datetime } = require("drizzle-orm/mysql-core");
+    const { mysqlTable, varchar, json, datetime, boolean } = require("drizzle-orm/mysql-core");
     const { sql } = require("drizzle-orm");
     return mysqlTable(tableName, {
       _id: varchar("_id", { length: 36 }).primaryKey(),
       tenantId: varchar("tenantId", { length: 36 }),
       data: json("data").notNull().default({}),
       status: varchar("status", { length: 50 }).notNull().default("draft"),
+      isDeleted: boolean("isDeleted").notNull().default(false),
       createdAt: datetime("createdAt")
         .notNull()
         .default(sql`CURRENT_TIMESTAMP`),
@@ -291,5 +296,22 @@ export class AdapterCore extends BaseSqlAdapter {
         .notNull()
         .default(sql`CURRENT_TIMESTAMP`),
     });
+  }
+
+  /**
+   * 🚀 RAW ACCESS: Implementation for MariaDB (mysql2)
+   */
+  public override get raw(): {
+    execute: (sql: string, params?: any[]) => Promise<any>;
+    client: any;
+  } {
+    return {
+      execute: async (sqlText: string, params: any[] = []) => {
+        if (!this.pool) throw new Error("Database not connected");
+        const [rows] = await this.pool.query(sqlText, params);
+        return rows;
+      },
+      client: this.pool,
+    };
   }
 }

@@ -30,8 +30,9 @@ async function runSecurityAudit() {
     await ensureStableTestData();
     await stabilize(1000);
 
-    const { securityResponseService } = await import("@src/services/security-response-service");
-    const { auditLogService, AuditEventType } = await import("@src/services/audit-log-service");
+    const { securityResponseService } = await import("@src/services/security/response-service");
+    const { auditLogService, AuditEventType } =
+      await import("@src/services/security/audit-service");
     const { hashPassword } = await import("@src/utils/security");
 
     const results = [];

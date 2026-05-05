@@ -17,7 +17,7 @@ import type {
   PaginationOptions,
 } from "@src/databases/db-interface";
 // Import global settings service for DB-based configuration
-import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { dateToISODateString, isoDateStringToDate } from "@src/utils/date";
 import { error } from "@sveltejs/kit";
 import { cacheService } from "@src/databases/cache/cache-service";

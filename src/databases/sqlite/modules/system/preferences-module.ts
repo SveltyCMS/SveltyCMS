@@ -10,15 +10,15 @@ import type { AdapterCore } from "../../adapter/adapter-core";
 import * as schema from "../../schema";
 import * as utils from "../../utils";
 
-export class PreferencesModule {
-  private readonly core: AdapterCore;
+import { DatabaseModule } from "../../../base-adapter";
 
+export class PreferencesModule extends DatabaseModule<AdapterCore> {
   constructor(core: AdapterCore) {
-    this.core = core;
+    super(core);
   }
 
-  private get db() {
-    return this.core.db;
+  protected get core() {
+    return this.adapter;
   }
 
   async get<T>(

@@ -56,8 +56,11 @@ export class CollectionModule implements ICollectionAdapter {
     }
 
     // Clear any cached prepared statements for this collection to avoid stale plans
-    if (this.core.crud instanceof CrudModule) {
-      this.core.crud.clearPreparedStatements(id);
+    if (
+      this.core.crud instanceof CrudModule &&
+      typeof (this.core.crud as any).clearPreparedStatements === "function"
+    ) {
+      (this.core.crud as any).clearPreparedStatements(id);
     }
 
     // Register collection ID so getTable() knows it's a dynamic collection
@@ -70,6 +73,7 @@ export class CollectionModule implements ICollectionAdapter {
         "tenantId" VARCHAR(36),
         "data" JSONB NOT NULL DEFAULT '{}',
         "status" VARCHAR(50) NOT NULL DEFAULT 'draft',
+        "isDeleted" BOOLEAN NOT NULL DEFAULT FALSE,
         "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
@@ -96,8 +100,11 @@ export class CollectionModule implements ICollectionAdapter {
     await this.db.execute(sql`DROP TABLE IF EXISTS ${sql.identifier(tableName)} CASCADE`);
 
     // Invalidate prepared statements
-    if (this.core.crud instanceof CrudModule) {
-      this.core.crud.clearPreparedStatements(id);
+    if (
+      this.core.crud instanceof CrudModule &&
+      typeof (this.core.crud as any).clearPreparedStatements === "function"
+    ) {
+      (this.core.crud as any).clearPreparedStatements(id);
     }
   }
 

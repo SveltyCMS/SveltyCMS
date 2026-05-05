@@ -1,4 +1,4 @@
-﻿<!-- 
+<!-- 
  @file src/components/modal-prompt.svelte
  @component 
  **ModalPrompt component**

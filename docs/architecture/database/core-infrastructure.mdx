@@ -89,6 +89,20 @@ graph TD
 
 ---
 
+## 🏛️ The `agnostic-core` Directory
+
+The `src/databases/agnostic-core` directory serves as the engine room for the Unified Query IR architecture. It is responsible for providing high-level abstractions that remain consistent regardless of the underlying storage engine.
+
+### Role in Unified Query IR
+
+Instead of forcing database adapters (MongoDB, PostgreSQL, etc.) to handle security, tenant filtering, or data sanitization independently, `agnostic-core` provides:
+
+- **Query Normalization**: A standardized format for complex queries, enabling multi-tenant isolation through uniform middleware.
+- **Security Injection**: A centralized, hook-based system to inject mandatory filters (e.g., `tenantId`, `isDeleted`, `visibilityStatus`) before the query ever hits the adapter.
+- **Transformation Pipeline**: Automatic conversion of application-level data models into engine-specific formats, ensuring that developers write code once and deploy across any database.
+
+---
+
 ## 📁 File 1: `src/databases/db.ts`
 
 **Purpose**: Central orchestration and lifecycle management for the entire database system

@@ -126,7 +126,8 @@ export class ContentModule {
       },
     ): Promise<DatabaseResult<ContentNode[]>> => {
       return this.crud.findMany<ContentNode>("content_nodes", (options?.filter || {}) as any, {
-        tenantId: options?.tenantId as DatabaseId,
+        tenantId: options?.tenantId as any,
+        bypassTenantCheck: options?.bypassTenantCheck,
       });
     },
 

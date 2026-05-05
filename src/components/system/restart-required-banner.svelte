@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 @file src/components/system/RestartRequiredBanner.svelte
 @component
 **Enhanced Restart Required Banner - Svelte 5 Optimized**

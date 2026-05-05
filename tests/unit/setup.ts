@@ -1,3 +1,8 @@
+/**
+ * @file tests\unit\setup.ts
+ * @description
+ */
+
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 
@@ -443,6 +448,10 @@ moduleMock("$app/navigation", () => ({
   invalidateAll: mock(() => Promise.resolve()),
   beforeNavigate: mock(() => {}),
   afterNavigate: mock(() => {}),
+  preloadData: mock(() => Promise.resolve()),
+  preloadCode: mock(() => Promise.resolve()),
+  pushState: mock(() => {}),
+  replaceState: mock(() => {}),
 }));
 
 moduleMock("@sveltejs/kit", () => ({
@@ -476,13 +485,7 @@ moduleMock("svelte/reactivity", () => ({
   SvelteSet: Set,
 }));
 
-moduleMock("$app/navigation", () => ({
-  goto: mock(() => Promise.resolve()),
-  invalidate: mock(() => Promise.resolve()),
-  invalidateAll: mock(() => Promise.resolve()),
-  afterNavigate: mock(() => {}),
-  beforeNavigate: mock(() => {}),
-}));
+// Redundant mock removed
 
 moduleMock("$app/forms", () => ({
   applyAction: mock(() => Promise.resolve()),
@@ -646,8 +649,16 @@ const svelteCommon = {
   getContext: () => undefined,
   setContext: (_unused: any, v: any) => v,
   hasContext: () => false,
-  mount: (component: any, options: any) => ({ component, options, unmount: () => {} }),
-  hydrate: (component: any, options: any) => ({ component, options, unmount: () => {} }),
+  mount: (component: any, options: any) => ({
+    component,
+    options,
+    unmount: () => {},
+  }),
+  hydrate: (component: any, options: any) => ({
+    component,
+    options,
+    unmount: () => {},
+  }),
   unmount: () => {},
   flushSync: (cb?: any) => cb?.(),
   createContext: () => [() => {}, () => {}],
@@ -863,34 +874,9 @@ moduleMock("@utils/error-handling", () => ({
 // "widgets.Input is undefined" when reconciling .compiledCollections schemas.
 // ============================================================================
 
-const WIDGET_NAMES = [
-  "Input",
-  "RichText",
-  "Relation",
-  "Select",
-  "DateTime",
-  "Group",
-  "Repeater",
-  "MediaUpload",
-  "MegaMenu",
-  "Radio",
-  "Checkbox",
-  "Date",
-  "DateRange",
-  "Slug",
-  "Seo",
-  "Email",
-  "Number",
-  "PhoneNumber",
-  "ColorPicker",
-  "Rating",
-  "Address",
-  "RemoteVideo",
-  "AIEnrichment",
-  "ImageArray",
-];
+const { CORE_WIDGETS, CUSTOM_WIDGETS } = require("./widget-constants");
 
-const createWidgetFactory = (name: string) => {
+const createWidgetFactory = (name: string, type: "core" | "custom" = "core") => {
   const fn = (config: any) => ({
     ...config,
     db_fieldName: config?.db_fieldName || config?.label?.toLowerCase() || "field",
@@ -900,31 +886,43 @@ const createWidgetFactory = (name: string) => {
     Name: name,
     Icon: "mdi:widgets",
     Description: `${name} widget`,
-    __widgetType: "core" as const,
+    __widgetType: type,
     __inputComponentPath: `/${name.toLowerCase()}/input.svelte`,
     __displayComponentPath: `/${name.toLowerCase()}/display.svelte`,
   });
 };
 
 const widgetMap = new Map<string, any>();
-const scannerModules: Record<string, any> = {};
-for (const name of WIDGET_NAMES) {
-  const factory = createWidgetFactory(name);
+const coreModules: Record<string, any> = {};
+const customModules: Record<string, any> = {};
+
+for (const name of CORE_WIDGETS) {
+  const factory = createWidgetFactory(name, "core");
   widgetMap.set(name, factory);
-  scannerModules[`./core/${name.toLowerCase()}/index.ts`] = { default: factory };
+  coreModules[`./core/${name.toLowerCase()}/index.ts`] = { default: factory };
 }
+
+for (const name of CUSTOM_WIDGETS) {
+  const factory = createWidgetFactory(name, "custom");
+  widgetMap.set(name, factory);
+  customModules[`./custom/${name.toLowerCase()}/index.ts`] = { default: factory };
+}
+
+const allWidgetModules = { ...coreModules, ...customModules };
 console.log(
-  `[setup.ts] scannerModules populated with ${Object.keys(scannerModules).length} entries`,
+  `[setup.ts] scannerModules populated with ${Object.keys(allWidgetModules).length} entries`,
 );
 
 // Direct mock.module â€” bypasses moduleMock's benchmark skip logic
 if (isBun) {
   const scannerMock = () => {
-    console.log(`[setup.ts] Mocking scanner with ${Object.keys(scannerModules).length} modules`);
+    console.log(
+      `[setup.ts] Mocking scanner with ${Object.keys(allWidgetModules).length} modules (${Object.keys(coreModules).length} core, ${Object.keys(customModules).length} custom)`,
+    );
     return {
-      coreModules: scannerModules,
-      customModules: {},
-      allWidgetModules: scannerModules,
+      coreModules,
+      customModules,
+      allWidgetModules,
       getWidgetNameFromPath: (p: string) => p.split("/").at(-2) || null,
     };
   };
@@ -945,9 +943,11 @@ if (isBun) {
     mock.module(setupPath, setupMock);
     mock.module("@src/utils/is-setup-complete", setupMock);
   } catch {
-    mock.module("@src/utils/is-setup-complete", () => ({ isSetupComplete: () => true }));
+    mock.module("@src/utils/is-setup-complete", () => ({
+      isSetupComplete: () => true,
+    }));
   }
-  mock.module("@src/services/widget-registry-service", () => ({
+  mock.module("@src/services/core/widget-registry-service", () => ({
     widgetRegistryService: {
       getAllWidgets: async () => widgetMap,
       getWidget: async (name: string) => widgetMap.get(name),
@@ -1138,7 +1138,7 @@ const settingsMock = {
   getUntypedSetting: mock(async () => undefined),
 };
 if (!isTestTarget("settings-service")) {
-  moduleMock("@src/services/settings-service", () => settingsMock);
+  moduleMock("@src/services/core/settings-service", () => settingsMock);
 }
 
 const mockAuditLog = {
@@ -1282,7 +1282,11 @@ const dbMock = {
   dbInitPromise: Promise.resolve(),
   collection: {
     getModel: mock(() =>
-      Promise.resolve({ _id: "mock_collection", name: "mock_collection", fields: [] }),
+      Promise.resolve({
+        _id: "mock_collection",
+        name: "mock_collection",
+        fields: [],
+      }),
     ),
     createModel: mock(() => Promise.resolve({ success: true })),
     listSchemas: mock(() => Promise.resolve({ success: true, data: [] })),
@@ -1302,7 +1306,7 @@ moduleMock("@src/databases/db", () => dbMock);
 moduleMock("@databases/db", () => dbMock);
 setGlobal("auth", dbMock.auth);
 
-moduleMock("@src/services/audit/audit-log-service", () => ({
+moduleMock("@src/services/security/audit-service", () => ({
   auditLogService: mockAuditLog,
   default: mockAuditLog,
 }));
@@ -1315,7 +1319,7 @@ const mockEventBus = {
   removeAllListeners: mock(() => {}),
 };
 setGlobal("mockEventBus", mockEventBus);
-moduleMock("@src/services/automation/event-bus", () => ({
+moduleMock("@src/services/background/automation/event-bus", () => ({
   eventBus: mockEventBus,
   default: mockEventBus,
 }));
@@ -1418,7 +1422,7 @@ moduleMock("node:dns/promises", () => ({
 }));
 
 if (!isTestTarget("metrics-service")) {
-  moduleMock("@src/services/metrics-service", () => ({
+  moduleMock("@src/services/observability/metrics-service", () => ({
     metricsService: mockMetricsService,
     default: { metricsService: mockMetricsService },
   }));
@@ -1427,7 +1431,7 @@ if (!isTestTarget("metrics-service")) {
 }
 
 if (!isTestTarget("security-response-service")) {
-  moduleMock("@src/services/security-response-service", () => ({
+  moduleMock("@src/services/security/response-service", () => ({
     securityResponseService: mockSecurityResponseService,
     default: { securityResponseService: mockSecurityResponseService },
   }));

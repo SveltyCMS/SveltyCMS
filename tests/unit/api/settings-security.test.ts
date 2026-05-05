@@ -33,7 +33,7 @@ vi.mock("@src/databases/db", () => ({
   getAuth: vi.fn(),
 }));
 
-vi.mock("@src/services/settings-service", () => ({
+vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
   getPublicSettingSync: vi.fn().mockReturnValue(true),
   getUntypedSetting: vi.fn().mockResolvedValue(undefined),
@@ -53,7 +53,7 @@ vi.mock("@utils/api-handler", () => ({
 }));
 
 import { GET as dispatcherGET } from "@src/routes/api/[...path]/+server";
-import * as settingsService from "@src/services/settings-service";
+import * as settingsService from "@src/services/core/settings-service";
 
 describe("Settings API Security Unit Tests", () => {
   // Removed unused createMockEvent

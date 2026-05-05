@@ -154,4 +154,82 @@ export class MongoAdapterCore extends BaseAdapter {
 
     return this._connection.model(collection, genericSchema, collection);
   }
+
+  /**
+   * Translates a raw MongoDB-style query into a structured Mongo filter via Query IR.
+   * 🚀 Agnostic Core: Standardizes processing even for native MongoDB.
+   */
+  public mapQuery(query: Record<string, unknown>): Record<string, any> {
+    if (!query || Object.keys(query).length === 0) return {};
+
+    // 1. Translate to IR
+    const { queryTranslator } = require("../../agnostic-core/query-ir");
+    const ir = queryTranslator.translate("temp", query);
+
+    // 2. Map IR back to Mongo Filter (Ensures operator consistency)
+    return this.mapIRToMongo(ir.filter);
+  }
+
+  /**
+   * Recursively maps the Unified Query IR LogicalGroup back to a MongoDB filter.
+   */
+  private mapIRToMongo(group: any): Record<string, any> {
+    const filter: Record<string, any> = {};
+    const conditions: Record<string, any>[] = [];
+
+    for (const item of group.conditions) {
+      if ("operator" in item && "conditions" in item) {
+        // Nested logical group
+        const sub = this.mapIRToMongo(item);
+        if (Object.keys(sub).length > 0) {
+          const mongoOp =
+            item.operator === "$or" ? "$or" : item.operator === "$and" ? "$and" : "$nor";
+          conditions.push({ [mongoOp]: [sub] });
+        }
+      } else {
+        // Query condition
+        const cond = item;
+        const opMap: Record<string, string> = {
+          $eq: "$eq",
+          $ne: "$ne",
+          $gt: "$gt",
+          $gte: "$gte",
+          $lt: "$lt",
+          $lte: "$lte",
+          $in: "$in",
+          $nin: "$nin",
+          $exists: "$exists",
+          $contains: "$regex",
+          $like: "$regex",
+        };
+
+        const mongoOp = opMap[cond.operator] || cond.operator;
+        let value = cond.value;
+
+        if (cond.operator === "$contains") {
+          value = new RegExp(String(value), "i");
+        } else if (cond.operator === "$like") {
+          value = new RegExp("^" + String(value).replace(/%/g, ".*") + "$", "i");
+        }
+
+        if (mongoOp === "$eq") {
+          filter[cond.field] = value;
+        } else {
+          filter[cond.field] = filter[cond.field] || {};
+          filter[cond.field][mongoOp] = value;
+        }
+      }
+    }
+
+    if (conditions.length > 0) {
+      const groupOp =
+        group.operator === "$or" ? "$or" : group.operator === "$and" ? "$and" : "$nor";
+      if (Object.keys(filter).length > 0) {
+        return { [groupOp]: [...conditions, filter] };
+      }
+      return conditions.length === 1 ? conditions[0] : { [groupOp]: conditions };
+    }
+
+    return filter;
+  }
 }

@@ -41,7 +41,7 @@ async function runWidgetAudit() {
   console.log("🚀 Starting SveltyCMS Widget Performance Audit...\n");
 
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-  const { LocalCMS } = await import("@src/services/local-cms");
+  const { LocalCMS } = await import("@src/services/sdk");
 
   await ensureFullInitialization();
   const db = getDb();

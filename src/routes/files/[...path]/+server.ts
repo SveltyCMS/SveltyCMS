@@ -10,7 +10,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { lookup } from "mime-types";
 
-import { getPublicSettingSync } from "@src/services/settings-service";
+import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";

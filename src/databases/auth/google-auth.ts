@@ -7,7 +7,7 @@
  * - Google OAuth client setup
  */
 
-import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 // System Logger
 import { logger } from "@utils/logger";

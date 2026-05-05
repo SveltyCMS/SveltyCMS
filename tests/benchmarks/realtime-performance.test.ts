@@ -30,7 +30,7 @@ export async function runRealtimeAudit() {
     await ensureStableTestData();
     await stabilize(1000);
 
-    const { eventBus } = await import("@src/services/automation/event-bus");
+    const { eventBus } = await import("@src/services/background/automation/event-bus");
 
     const LISTENER_COUNTS = [1, 10, 50];
     const results = [];

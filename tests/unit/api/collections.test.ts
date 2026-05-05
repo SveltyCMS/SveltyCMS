@@ -50,7 +50,7 @@ vi.mock("@src/content/index.server", () => ({
   },
 }));
 
-vi.mock("@src/services/settings-service", () => ({
+vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
   getPublicSettingSync: vi.fn().mockReturnValue(false),
   loadSettingsCache: vi.fn(),
@@ -61,7 +61,7 @@ vi.mock("@src/services/token/engine", () => ({
   replaceTokens: vi.fn().mockImplementation((text) => Promise.resolve(text)),
 }));
 
-vi.mock("@src/services/pub-sub", () => ({
+vi.mock("@src/services/background/pub-sub", () => ({
   pubSub: {
     publish: vi.fn(),
   },
@@ -111,7 +111,7 @@ describe("Collections API Unit Tests", () => {
       .mockResolvedValue({ success: true, data: { _id: "updated-id" } });
     mockDbAdapter.crud.delete = vi.fn().mockResolvedValue({ success: true });
 
-    const settingsModule = await import("@src/services/settings-service");
+    const settingsModule = await import("@src/services/core/settings-service");
     mockGetPrivateSettingSync = settingsModule.getPrivateSettingSync;
   });
 

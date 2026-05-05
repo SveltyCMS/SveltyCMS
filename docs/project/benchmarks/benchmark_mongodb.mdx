@@ -20,18 +20,18 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (26/04/2026, 21:04:57)
+## 📊 Latest Performance Audit (05/05/2026, 13:38:35)
 
-**Status:** ✅ PASS _(Historical)_
+**Status:** ✅ PASS
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend  | Target Budget |
-| :--------------------- | :---------- | :----- | :------------ |
-| **Cold Start**         | 0ms         | ⚪ (—) | < 5000ms      |
-| **REST (Collections)** | 0.000ms     | ⚪ (—) | < 5ms         |
-| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—) | < 5ms         |
-| **DB Raw (p95)**       | 0.000ms     | ⚪     | < 50ms        |
+| Scenario               | Avg Latency | Trend       | Target Budget |
+| :--------------------- | :---------- | :---------- | :------------ |
+| **Cold Start**         | 631ms       | 🔴 (+48.6%) | < 5000ms      |
+| **REST (Collections)** | 0.367ms     | 🟢 (-49.4%) | < 5ms         |
+| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—)      | < 5ms         |
+| **DB Raw (p95)**       | 0.420ms     | ⚪          | < 50ms        |
 
 ### 📈 Historical Latency Trends
 
@@ -40,14 +40,14 @@ xychart-beta
   title "MONGODB Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [0.0, 0.0, 0.7, 1.1, 1.3, 0.7, 0.7, 0.0, 0.0, 0.0]
+  line "p95 Latency" : [0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.4]
 ```
 
 ## 🔬 Detailed Performance Ledger (20+ Modules)
 
 <!-- API_TABLE_START -->
 
-### 🏷️ API LAYER LATENCY (Trend: 🟢 -77.0%)
+### 🏷️ API LAYER LATENCY
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
@@ -58,17 +58,17 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ SDK: findById @ 1c           │ 0.003 ms (🟢 -39.8%) │ 0.005 ms     │ 347,899      ║
-║ HTTP: findById @ 8c          │ 0.415 ms (🟢 -77.0%) │ 0.442 ms     │ 2,411        ║
+║ SDK: findById @ 1c           │ 0.004 ms       │ 0.007 ms     │ 285,527      ║
+║ HTTP: findById @ 8c          │ 0.583 ms       │ 0.686 ms     │ 1,714        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ SDK Latency (findById)                             │        0.003 ms       ║
-║ HTTP Latency (findById)                            │        0.415 ms       ║
-║ Full Pipeline Overhead                             │         0.41 ms       ║
-║ Peak Throughput                                    │     2411.000 req/s    ║
+║ SDK Latency (findById)                             │        0.004 ms       ║
+║ HTTP Latency (findById)                            │        0.583 ms       ║
+║ Full Pipeline Overhead                             │         0.58 ms       ║
+║ Peak Throughput                                    │     1714.000 req/s    ║
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -96,8 +96,36 @@ xychart-beta
 
 <!-- DB_TABLE_START -->
 
-> ⏳ **Database Adapter Raw CRUD**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/database-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/database-performance.test.ts)
+### 🏷️ DATABASE ADAPTER PERFORMANCE (MONGODB) (Trend: ⚪ 0.0%)
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║             SVELTYCMS — DATABASE ADAPTER PERFORMANCE (MONGODB)              ║
+║                         Direct CRUD • Adapter Layer                         ║
+║             File: tests/benchmarks/database-performance.test.ts             ║
+║ Proves: Direct low-level benchmarks of Create, Read, Update, Delete on t... ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ INSERT                       │ 0.531 ms (⚪ 0.0%) │ 0.849 ms     │ 1,883        ║
+║ FIND ONE                     │ 0.648 ms (⚪ 0.0%) │ 0.958 ms     │ 1,543        ║
+║ FIND MANY (limit 50)         │ 0.922 ms (⚪ 0.0%) │ 1.437 ms     │ 1,085        ║
+║ UPDATE                       │ 0.673 ms (⚪ 0.0%) │ 1.031 ms     │ 1,487        ║
+║ DELETE                       │ 1.591 ms (⚪ 0.0%) │ 2.128 ms     │ 628          ║
+║ BULK INSERT (100)            │ 6.844 ms (⚪ 0.0%) │ 8.774 ms     │ 146          ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Avg Insert Latency                                 │        0.531 ms       ║
+║ Avg Read Latency (Single)                          │        0.648 ms       ║
+║ Avg Read Latency (Many)                            │        0.922 ms       ║
+║ Avg Update Latency                                 │        0.673 ms       ║
+║ Avg Delete Latency                                 │        1.591 ms       ║
+║ Peak CRUD Throughput                               │     1882.516 req/s    ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 
 <!-- DB_TABLE_END -->
 
@@ -157,29 +185,30 @@ xychart-beta
 
 <!-- REST_TABLE_START -->
 
-### 🏷️ REST API PERFORMANCE AUDIT (Trend: 🔴 +36.8%)
+### 🏷️ ENTERPRISE REST API AUDIT
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
-║                  SVELTYCMS  —  REST API PERFORMANCE AUDIT                   ║
-║                MONGODB • 500 Iterations • 8 Parallel Workers                ║
+║                    SVELTYCMS — ENTERPRISE REST API AUDIT                    ║
+║                         Core CRUD Latency • MONGODB                         ║
 ║             File: tests/benchmarks/rest-api-performance.test.ts             ║
 ║  Proves: End-to-end throughput and latency of the unified REST dispatcher.  ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                 │ 0.415 ms (🔴 +32.5%) │ 0.458 ms     │ 2,408        ║
-║ Collection List              │ 0.320 ms (🟢 -21.4%) │ 0.334 ms     │ 3,121        ║
-║ Entry Retrieval              │ 0.468 ms (🔴 +36.8%) │ 0.689 ms     │ 2,138        ║
+║ Health Check                 │ 0.444 ms       │ 0.464 ms     │ 2,254        ║
+║ Collection Schema            │ 0.758 ms       │ 0.865 ms     │ 1,320        ║
+║ Collection Find (List)       │ 0.647 ms       │ 0.660 ms     │ 1,547        ║
+║ Collection Search            │ 0.791 ms       │ 0.827 ms     │ 1,264        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check Latency                               │        0.415 ms       ║
-║ Entry Read Latency                                 │        0.468 ms       ║
-║ Peak REST Throughput                               │     3120.940 req/s    ║
-║ API Efficiency Rating                              │    EXCELLENT          ║
+║ Health Check                                       │        0.444 ms       ║
+║ Collection Schema                                  │        0.758 ms       ║
+║ Collection Find (List)                             │        0.647 ms       ║
+║ Collection Search                                  │        0.791 ms       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -187,27 +216,30 @@ xychart-beta
 
 <!-- GRAPHQL_TABLE_START -->
 
-### 🏷️ GRAPHQL STRESS AUDIT
+### 🏷️ GRAPHQL PERFORMANCE AUDIT (Trend: ⚪ 0.0%)
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
-║                     SVELTYCMS  —  GRAPHQL STRESS AUDIT                      ║
-║            Real HTTP Load • High Concurrency • Error Validation             ║
-║                File: tests/benchmarks/graphql-stress.test.ts                ║
-║ Proves: High-concurrency GraphQL query stress test for resolver efficiency. ║
+║                    SVELTYCMS — GRAPHQL PERFORMANCE AUDIT                    ║
+║                        Resolver Execution • MONGODB                         ║
+║           File: tests/benchmarks/graphql-api-performance.test.ts            ║
+║     Proves: Resolver execution time and throughput for common queries.      ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ GQL Stress: TINY             │ 39.841 ms      │ 52.233 ms    │ 75           ║
+║ GQL: System Health           │ 0.615 ms (⚪ 0.0%) │ 0.884 ms     │ 1,626        ║
+║ GQL: Collection List         │ 0.480 ms (⚪ 0.0%) │ 0.499 ms     │ 2,082        ║
+║ GQL: Entries (Stable Collection) │ 0.562 ms (⚪ 0.0%) │ 0.587 ms     │ 1,780        ║
+║ GQL: Concurrent Load         │ 0.471 ms (⚪ 0.0%) │ 0.485 ms     │ 2,125        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Avg Stress Latency                                 │       39.841 ms       ║
-║ p95 Stress Latency                                 │       52.233 ms       ║
-║ Peak Stress Throughput                             │       75.000 req/s    ║
-║ Error Rate                                         │        87.30 %        ║
+║ Health Check                                       │        0.615 ms       ║
+║ Collection List                                    │        0.480 ms       ║
+║ Entries Query                                      │        0.562 ms       ║
+║ Peak RPS                                           │     2125.031 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -300,8 +332,29 @@ xychart-beta
 
 <!-- GQL_TABLE_START -->
 
-> ⏳ **GraphQL Load Stress**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/graphql-stress.test.ts](file:///D:/SveltyCMS/tests/benchmarks/graphql-stress.test.ts)
+### 🏷️ GRAPHQL STRESS AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS — GRAPHQL STRESS AUDIT                       ║
+║                          Tiny (CI) • 20c • MONGODB                          ║
+║                File: tests/benchmarks/graphql-stress.test.ts                ║
+║ Proves: High-concurrency GraphQL query stress test for resolver efficiency. ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ GQL Stress: TINY             │ 0.487 ms       │ 0.505 ms     │ 2,053        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Average Latency                                    │        0.487 ms       ║
+║ p95 Latency                                        │        0.505 ms       ║
+║ Peak Throughput                                    │     2053.000 req/s    ║
+║ Memory Growth                                      │          0.0 MB       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 
 <!-- GQL_TABLE_END -->
 
@@ -366,9 +419,9 @@ xychart-beta
 
 ## 🔬 Host Environment
 
-| CPU     | Cores | RAM | Runtime |
-| :------ | :---- | :-- | :------ |
-| Unknown | -     | -   | -       |
+| CPU                             | Cores | RAM  | Runtime                   |
+| :------------------------------ | :---- | :--- | :------------------------ |
+| Intel(R) Core(TM) Ultra 9 275HX | 24    | 63GB | Bun 1.3.11 / Node v24.3.0 |
 
 <!-- BENCHMARK_END -->
 

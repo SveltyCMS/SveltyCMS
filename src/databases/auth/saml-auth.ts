@@ -9,7 +9,7 @@
  * - JIT provisioning configuration handling.
  */
 
-import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { logger } from "@utils/logger";
 import jackson from "@boxyhq/saml-jackson";
 import { dbAdapter } from "@src/databases/db";

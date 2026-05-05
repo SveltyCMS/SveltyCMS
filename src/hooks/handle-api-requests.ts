@@ -5,7 +5,7 @@
 
 import { hasApiPermission } from "@src/databases/auth/api-permissions";
 import { API_CACHE_TTL_S, cacheService } from "@src/databases/cache/cache-service";
-import { metricsService } from "@src/services/metrics-service";
+import { metricsService } from "@src/services/observability/metrics-service";
 import type { Handle } from "@sveltejs/kit";
 import { AppError, getErrorMessage, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";

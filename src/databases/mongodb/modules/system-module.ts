@@ -20,21 +20,29 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
       await import("../methods/system-virtual-folder-methods");
     const { MongoWidgetMethods } = await import("../methods/widget-methods");
 
+    const { MongoWebsiteTokenMethods } = await import("../methods/website-token-methods");
+    const { websiteTokenSchema } = await import("../models/website-token");
+
     const SystemSettingModel = (this.adapter as any)._getOrCreateModel("SystemSetting");
     const SystemPreferencesModel = (this.adapter as any)._getOrCreateModel("SystemPreferences");
     const ThemeModel = (this.adapter as any)._getOrCreateModel("Theme");
     const WidgetModel = (this.adapter as any)._getOrCreateModel("Widget");
     const TenantModel = (this.adapter as any)._getOrCreateModel("Tenant");
     const JobModel = (this.adapter as any)._getOrCreateModel("Job");
+    const WebsiteTokenModel = (this.adapter as any)._getOrCreateModel(
+      "WebsiteToken",
+      websiteTokenSchema,
+    );
 
-    const tenantRepo = new MongoCrudMethods(TenantModel);
-    const jobRepo = new MongoCrudMethods(JobModel);
+    const tenantRepo = new MongoCrudMethods(TenantModel, this.adapter);
+    const jobRepo = new MongoCrudMethods(JobModel, this.adapter);
 
     this._methods = {
       preferences: new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel),
       themes: new MongoThemeMethods(ThemeModel),
       virtualFolder: new MongoSystemVirtualFolderMethods(),
       widgets: new MongoWidgetMethods(WidgetModel),
+      websiteTokens: new MongoWebsiteTokenMethods(WebsiteTokenModel, this.adapter),
       tenants: {
         create: (t: any) => tenantRepo.insert(t),
         getById: (id: DatabaseId) => tenantRepo.findOne({ _id: id } as any),

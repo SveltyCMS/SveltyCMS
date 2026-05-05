@@ -1,4 +1,4 @@
-﻿<!-- 
+<!-- 
 @file src/components/system/floating-nav.svelte
 @component
 **Floating navigation component for quick access to different pages**

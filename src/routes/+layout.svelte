@@ -303,8 +303,34 @@ onMount(() => {
 <DialogManager />
 <ToastContainer position="responsive" />
 
-{#key currentLocale}
-	{@render children?.()}
-{/key}
+<svelte:boundary>
+	{#snippet failed(error: any, reset: any)}
+		<div class="flex h-screen w-full flex-col items-center justify-center space-y-6 bg-surface-50 text-center dark:bg-surface-900">
+			<div class="space-y-2">
+				<h1 class="text-4xl font-bold text-error-500">System Error</h1>
+				<p class="text-surface-600 dark:text-surface-400">
+					An unexpected runtime error occurred. Our self-healing systems are investigating.
+				</p>
+			</div>
+			
+			<div class="max-w-md rounded-lg border border-surface-200 bg-surface-100 p-4 text-left text-sm font-mono dark:border-surface-800 dark:bg-surface-800">
+				<p class="text-error-600 dark:text-error-400">{error.message}</p>
+			</div>
+
+			<div class="flex space-x-4">
+				<button class="btn variant-filled-primary" onclick={reset}>
+					Try Again
+				</button>
+				<button class="btn variant-ghost-surface" onclick={() => window.location.reload()}>
+					Reload Page
+				</button>
+			</div>
+		</div>
+	{/snippet}
+
+	{#key currentLocale}
+		{@render children?.()}
+	{/key}
+</svelte:boundary>
 
 <CookieConsent />

@@ -398,6 +398,38 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
       `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "last2FAVerification" TIMESTAMP WITH TIME ZONE`,
     );
     await sql.unsafe(`ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS "collectionDef" JSONB`);
+
+    // 🚀 MIGRATION: Rename 'security' to 'password' if needed (v0.0.8 compatibility)
+    try {
+      const columns = await sql`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'auth_users' AND column_name = 'security'
+      `;
+      if (columns.length > 0) {
+        logger.info("[PostgreSQL] Migrating 'security' column to 'password' in auth_users...");
+        await sql.unsafe('ALTER TABLE auth_users RENAME COLUMN "security" TO "password"');
+      }
+    } catch {
+      // Ignore
+    }
+
+    // 🚀 MIGRATION: Ensure 'isDeleted' column exists in all dynamic collections
+    try {
+      const tables = await sql`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_name LIKE 'collection_%'
+      `;
+      for (const row of tables) {
+        const tableName = row.table_name;
+        await sql.unsafe(
+          `ALTER TABLE "${tableName}" ADD COLUMN IF NOT EXISTS "isDeleted" BOOLEAN NOT NULL DEFAULT FALSE`,
+        );
+      }
+    } catch {
+      // Ignore
+    }
   } catch {
     // Ignore error
   }

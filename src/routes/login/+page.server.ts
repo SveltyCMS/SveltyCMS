@@ -44,9 +44,9 @@ import { contentSystem } from "@src/content/index.server";
 import type { ISODateString, DatabaseId } from "@src/content/types";
 // Stores
 import type { Locale } from "@src/paraglide/runtime";
-import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
 // Tenant Service
-import { tenantService } from "@src/services/tenant-service";
+import { tenantService } from "@src/services/core/tenant-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { app } from "@src/stores/store.svelte";
 // System Logger
@@ -542,7 +542,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
             hostLink: publicEnv.HOST_PROD || `https://${request.headers.get("host")}`,
             sitename: publicEnv.SITE_NAME || "SveltyCMS",
           };
-          await import("@src/services/settings-service");
+          await import("@src/services/core/settings-service");
           try {
             const mailResult = await sendMail({
               recipientEmail: email,
@@ -1632,11 +1632,14 @@ async function signInUser(
     logger.info(`User logged in successfully: ${user.username} (${user._id})`);
 
     // Audit Log
-    const { auditLogService } = await import("@src/services/audit/audit-log-service");
+    const { auditLogService, AuditEventType } =
+      await import("@src/services/security/audit-service");
     await auditLogService.log(
-      "USER_LOGIN",
-      { id: user._id.toString(), email: user.email, ip: "N/A" },
-      { type: "user", id: user._id.toString() },
+      "User logged in successfully",
+      { id: user._id as any, email: user.email, ip: "N/A" },
+      { type: "user", id: user._id as any },
+      AuditEventType.USER_LOGIN,
+      "medium",
       { method: isToken ? "token" : "security" },
     );
 
@@ -1685,11 +1688,13 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
     logger.info("Password reset token created", { email });
 
     // Audit Log
-    const { auditLogService } = await import("@src/services/audit/audit-log-service");
+    const { auditLogService, AuditEventType } =
+      await import("@src/services/security/audit-service");
     await auditLogService.log(
-      "PASSWORD_RESET_REQUESTED",
-      { id: user._id.toString(), email: user.email, ip: "N/A" },
-      { type: "user", id: user._id.toString() },
+      "Password reset requested",
+      { id: user._id as any, email: user.email, ip: "N/A" },
+      { type: "user", id: user._id as any },
+      AuditEventType.PASSWORD_RESET_REQUESTED,
     );
 
     return {
@@ -1769,11 +1774,13 @@ async function resetPWCheck(
     logger.info("Password reset successfully", { email });
 
     // Audit Log
-    const { auditLogService } = await import("@src/services/audit/audit-log-service");
+    const { auditLogService, AuditEventType } =
+      await import("@src/services/security/audit-service");
     await auditLogService.log(
-      "PASSWORD_RESET_SUCCESS",
-      { id: user._id.toString(), email: user.email, ip: "N/A" },
-      { type: "user", id: user._id.toString() },
+      "Password reset success",
+      { id: user._id as any, email: user.email, ip: "N/A" },
+      { type: "user", id: user._id as any },
+      AuditEventType.PASSWORD_RESET_SUCCESS,
     );
 
     return { status: true, username: user.username };

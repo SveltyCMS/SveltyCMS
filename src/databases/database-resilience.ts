@@ -529,7 +529,7 @@ export async function notifyAdminsOfDatabaseFailure(
 ): Promise<void> {
   try {
     // Check if SMTP is configured
-    const { getPrivateSetting } = await import("../services/settings-service");
+    const { getPrivateSetting } = await import("../services/core/settings-service");
     const smtpHost = await getPrivateSetting("SMTP_HOST" as any);
 
     if (!smtpHost) {

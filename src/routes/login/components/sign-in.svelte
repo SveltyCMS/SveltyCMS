@@ -1,4 +1,4 @@
-﻿<!-- 
+<!-- 
 @file src/routes/login/components/SignIn.svelte
 @component
 **SignIn component with OAuth support**

@@ -83,7 +83,7 @@ vi.mock("@src/databases/auth/two-factor-auth", () => ({
   }),
 }));
 
-vi.mock("@src/services/settings-service", () => ({
+vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
   getPublicSettingSync: vi.fn().mockReturnValue(undefined),
 }));
@@ -165,7 +165,7 @@ describe("2FA API Unit Tests", () => {
     const { getDefaultTwoFactorAuthService } = await import("@src/databases/auth/two-factor-auth");
     mockTwoFactorService = getDefaultTwoFactorAuthService({} as any);
 
-    const { getPrivateSettingSync } = await import("@src/services/settings-service");
+    const { getPrivateSettingSync } = await import("@src/services/core/settings-service");
     mockGetPrivateSettingSync = getPrivateSettingSync;
     mockGetPrivateSettingSync.mockReturnValue(false);
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { loadSettingsCache, invalidateSettingsCache } from "@src/services/settings-service";
+import { loadSettingsCache, invalidateSettingsCache } from "@src/services/core/settings-service";
 
 describe("SettingsService - Dynamic Scaling Infrastructure", () => {
   let mockAdapter: any;

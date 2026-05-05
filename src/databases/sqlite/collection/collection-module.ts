@@ -41,6 +41,7 @@ export class CollectionModule extends DatabaseModule<AdapterCore> {
 					"tenantId" TEXT,
 					"data" TEXT NOT NULL DEFAULT '{}',
 					"status" TEXT NOT NULL DEFAULT 'draft',
+					"isDeleted" INTEGER NOT NULL DEFAULT 0,
 					"createdAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
 					"updatedAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 				);

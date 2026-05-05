@@ -28,14 +28,14 @@ import type { User } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
 import { cacheService, SESSION_CACHE_TTL_MS } from "@src/databases/cache/cache-service";
 import { getDbInitPromise, auth, dbAdapter } from "@src/databases/db";
-import { metricsService } from "@src/services/metrics-service";
+import { metricsService } from "@src/services/observability/metrics-service";
 import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { error } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import { isStaticOrInternalRequest } from "@utils/hook-utils";
-import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getTenantIdFromHostname } from "@utils/tenant";
 import { dev } from "$app/environment";
 import { runWithContext } from "@src/utils/context";
@@ -224,6 +224,7 @@ async function handleSessionRotation(
   oldSessionId: string,
 ): Promise<void> {
   const now = Date.now();
+  if (process.env.TEST_MODE === "true") return; // Disable rotation in test mode to prevent cookie invalidation
   const lastRotation = lastRotationAttempt.get(oldSessionId);
   if (lastRotation && now - lastRotation < SESSION_ROTATION_INTERVAL_MS) return;
 

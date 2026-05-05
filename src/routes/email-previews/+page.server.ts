@@ -18,7 +18,7 @@ import { error } from "@sveltejs/kit";
 // System Logger
 import { logger } from "@utils/logger";
 import { createEmail, emailList, sendEmail } from "@better-svelte-email/preview";
-import { LocalCMS } from "@src/services/local-cms";
+import { LocalCMS } from "@src/services/sdk";
 
 // Define the return type for the load function.
 interface PreviewData {

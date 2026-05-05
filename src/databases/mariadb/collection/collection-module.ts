@@ -68,6 +68,7 @@ export class CollectionModule {
           \`tenantId\` VARCHAR(36),
           \`data\` JSON NOT NULL,
           \`status\` VARCHAR(50) NOT NULL DEFAULT 'draft',
+          \`isDeleted\` TINYINT(1) NOT NULL DEFAULT 0,
           \`createdAt\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
           \`updatedAt\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
           INDEX idx_tenantid (\`tenantId\`)

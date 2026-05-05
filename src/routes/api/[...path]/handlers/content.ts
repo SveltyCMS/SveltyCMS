@@ -6,7 +6,7 @@
 import { json } from "@sveltejs/kit";
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
-import type { LocalCMS } from "@src/services/local-cms";
+import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 
 export async function handleContentRoutes(

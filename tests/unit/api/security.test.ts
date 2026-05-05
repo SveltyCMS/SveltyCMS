@@ -14,9 +14,10 @@ const vi = (globalThis as any).vi;
 import { GET as dispatcherGET, POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";
 
 // Import services for verification in tests - dynamic for mocking
-const { metricsService: testMetricsService } = await import("@src/services/metrics-service");
+const { metricsService: testMetricsService } =
+  await import("@src/services/observability/metrics-service");
 const { securityResponseService: testSecurityService } =
-  await import("@src/services/security-response-service");
+  await import("@src/services/security/response-service");
 
 describe("Security API Unit Tests", () => {
   beforeEach(() => {

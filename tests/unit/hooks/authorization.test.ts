@@ -21,7 +21,7 @@ vi.mock("$app/environment", () => ({
   dev: true,
 }));
 
-vi.mock("@src/services/settings-service", () => ({
+vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
 }));
 

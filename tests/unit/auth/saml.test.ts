@@ -9,7 +9,7 @@
  *
  */
 
-// which mock @boxyhq/saml-jackson, @src/services/settings-service, etc.
+// which mock @boxyhq/saml-jackson, @src/services/core/settings-service, etc.
 
 describe("SAML Authentication Service", () => {
   let originalEnv: any;

@@ -5,7 +5,7 @@
 
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
-import type { LocalCMS } from "@src/services/local-cms";
+import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { rawResponse, successResponse } from "./base";
 
@@ -37,7 +37,7 @@ export async function handleWebsiteTokenRoutes(
     const page = Number(url.searchParams.get("page") ?? 1);
     const limit = Number(url.searchParams.get("limit") ?? 10);
     const sort = url.searchParams.get("sort") ?? "createdAt";
-    const order = url.searchParams.get("order") ?? "desc";
+    const order = (url.searchParams.get("order") ?? "desc") as "asc" | "desc";
     const result = await cms.websiteTokens.list({ tenantId, page, limit, sort, order });
     // Standardize structure: { success, data, pagination }
     return url.searchParams.get("raw") === "true"
@@ -64,7 +64,7 @@ export async function handleWebsiteTokenRoutes(
   }
 
   if (request.method === "DELETE" && method) {
-    await cms.websiteTokens.delete(method, tenantId);
+    await cms.websiteTokens.delete(method, { tenantId });
     return new Response(null, { status: 204 });
   }
 }
@@ -113,7 +113,7 @@ export async function handleIdentityTokenRoutes(
 
     // Try finding by ID first
     // This is public if it's an invitation token validation
-    const token = await cms.auth.tokens.findById(tokenId, tenantId);
+    const token = await cms.auth.tokens.findById(tokenId, { tenantId });
     if (token) {
       // If the client expects the validation shape (valid: true)
       if (url.searchParams.get("validate") === "true" || !locals.user) {
@@ -123,8 +123,10 @@ export async function handleIdentityTokenRoutes(
     }
 
     // If not found by technical ID, check if it's an invitation token value being validated
-    const validateRes = await cms.auth.validateToken(tokenId as string, "invite-token", "general", {
+    const validateRes = await cms.auth.validateToken(tokenId as string, {
       tenantId,
+      type: "invite-token",
+      category: "general",
     });
     if (validateRes.success && validateRes.data?.success) {
       return successResponse(event, { ...validateRes.data, valid: true });
@@ -138,7 +140,8 @@ export async function handleIdentityTokenRoutes(
 
   if ((request.method === "PATCH" || request.method === "PUT") && method) {
     const body = await request.json();
-    const result = await cms.auth.tokens.update(method, body, tenantId);
+    const updateData = body.newTokenData || body.data || body;
+    const result = await cms.auth.tokens.update(method, updateData, { tenantId });
     if (!result) throw new AppError("Token not found", 404);
     return successResponse(event, result);
   }
@@ -163,23 +166,20 @@ export async function handleIdentityTokenRoutes(
       if (!Array.isArray(tokenIds) || tokenIds.length === 0) {
         throw new AppError("tokenIds must be a non-empty array", 400);
       }
-      return successResponse(event, await cms.auth.tokens.batchAction(tokenIds, act, tenantId));
+      return rawResponse(event, await cms.auth.tokens.batchAction(tokenIds, act, tenantId));
     }
     if (normalizedAction === "resolve") {
       const locale = (locals as any).locale || "en";
-      return successResponse(event, {
-        resolved: await cms.auth.tokens.resolve(body.text, locals.user, tenantId, locale),
-      });
+      const resolved = await cms.auth.tokens.resolve(body.text, locals.user, tenantId, locale);
+      return successResponse(event, resolved);
     }
   }
 
   if (request.method === "DELETE" && method) {
-    const result = await cms.auth.tokens.delete(method, tenantId);
-    if (!result || (result as any).deletedCount === 0 || (result as any).success === false) {
-      // Just return success for idempotency, or if tests expect 404 we'd throw
-      // Wait, the tests expect 404 for GET after DELETE, not necessarily 404 ON delete.
-      // Actually, the legacy code returned { success: true }.
+    const result = await cms.auth.tokens.delete(method, { tenantId });
+    if (!result.success || (result.data as any).deletedCount === 0) {
+      throw new AppError("Token not found", 404);
     }
-    return successResponse(event, { success: true });
+    return successResponse(event, { deletedCount: 1 });
   }
 }

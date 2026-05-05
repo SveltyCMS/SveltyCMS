@@ -24,7 +24,7 @@ vi.mock("@src/databases/auth/saml-auth", () => ({
   generateSAMLAuthUrl: vi.fn().mockResolvedValue("http://idp.com/auth"),
 }));
 
-vi.mock("@src/services/settings-service", () => ({
+vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
   getPublicSettingSync: vi.fn().mockReturnValue(undefined),
 }));

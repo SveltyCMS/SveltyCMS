@@ -5,7 +5,7 @@
 import type { FieldInstance } from "@src/content/types";
 import { widget_richText_description } from "@src/paraglide/messages";
 import { createWidget } from "@src/widgets/widget-factory";
-import { custom, type InferInput, object, optional, pipe, string } from "valibot";
+import { custom, type InferInput, nullable, object, optional, pipe, string } from "valibot";
 import type { RichTextProps } from "./types";
 
 // Helper to strip HTML-like tags and angle brackets from a string.
@@ -51,7 +51,7 @@ const isContentEmpty = (html: string) => {
 // The validation schema is a function to accommodate the `required` flag.
 const validationSchema = (field: FieldInstance) => {
   // The base schema for the rich text data object.
-  const schema = object({
+  const baseSchema = object({
     title: optional(string()), // Title can be optional.
     content: string(), // HTML content.
   });
@@ -67,7 +67,7 @@ const validationSchema = (field: FieldInstance) => {
     });
   }
 
-  return optional(schema);
+  return nullable(baseSchema);
 };
 
 // Create the widget definition using the factory.

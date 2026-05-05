@@ -8,7 +8,7 @@ import { building } from "$app/environment";
 
 import { createYoga, createSchema } from "graphql-yoga";
 import { useGraphQlJit } from "@envelop/graphql-jit";
-import { pubSub } from "@src/services/pub-sub";
+import { pubSub } from "@src/services/background/pub-sub";
 import { contentSystem } from "@src/content/index.server";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
 import { mediaResolvers, mediaTypeDefs } from "./resolvers/media";

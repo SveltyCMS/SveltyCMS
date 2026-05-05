@@ -5,13 +5,13 @@
 
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
-import type { LocalCMS } from "@src/services/local-cms";
+import type { LocalCMS } from "@src/services/sdk";
 import { rawResponse } from "./base";
 import { contentSystem } from "@src/content/index.server";
 import type { DatabaseId } from "@src/content/types";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getPublicSettingSync } from "@src/services/settings-service";
+import { getPublicSettingSync } from "@src/services/core/settings-service";
 
 export async function handleTestingRoutes(
   event: RequestEvent,
@@ -71,7 +71,7 @@ export async function handleTestingRoutes(
         isRegistered: true,
         emailVerified: true,
       },
-      tenantId,
+      { tenantId },
     );
 
     logger.debug("Seed user creation result", {

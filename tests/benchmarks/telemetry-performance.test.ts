@@ -30,7 +30,7 @@ async function runTelemetryAudit() {
     await ensureStableTestData();
     await stabilize(1000);
 
-    const { telemetryService } = await import("@src/services/telemetry-service");
+    const { telemetryService } = await import("@src/services/observability/telemetry-service");
 
     // Mock fetch for controlled testing
     const originalFetch = global.fetch;

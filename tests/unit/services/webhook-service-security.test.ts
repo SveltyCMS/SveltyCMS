@@ -3,7 +3,7 @@
  * @description Unit tests for WebhookService security, focusing on cache and tenant isolation.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { WebhookService, type WebhookEvent } from "@src/services/webhook-service";
+import { WebhookService, type WebhookEvent } from "@src/services/background/webhook-service";
 
 const { mockDb } = vi.hoisted(() => ({
   mockDb: {
@@ -33,7 +33,7 @@ vi.mock("@utils/logger", () => ({
 // Mock jobQueue (we'll control dispatch behavior)
 const mockDispatch = vi.fn().mockResolvedValue("job-123");
 
-vi.mock("@src/services/jobs/job-queue-service", () => ({
+vi.mock("@src/services/background/jobs/job-queue-service", () => ({
   jobQueue: {
     dispatch: mockDispatch,
   },

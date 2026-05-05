@@ -1,0 +1,104 @@
+---
+path: "src/widgets/custom/json-editor/json-editor.mdx"
+title: "JSON Editor Widget"
+description: "Structured data editor with real-time validation and syntax highlighting"
+order: 120
+icon: "mdi:json"
+author: "Antigravity"
+created: "2026-05-04"
+updated: "2026-05-04"
+tags:
+  - widget
+  - custom
+  - json
+  - developer
+  - structured-data
+---
+
+# JSON Editor Widget
+
+<blockquote>
+  **Advanced developer widget** for managing structured JSON data with real-time linting, automatic
+  formatting, and a premium monospaced interface.
+</blockquote>
+
+## Overview
+
+The **JSON Editor widget** is designed for power users and developers who need to store complex, nested objects that don't fit into standard flat fields. It provides a robust editing environment with instant syntax feedback, preventing the storage of malformed data.
+
+### Key Features
+
+- ✅ **Real-time Validation**: Instant feedback on syntax errors with specific line indicators.
+- ✅ **Auto-Formatting**: One-click prettify/beautify for messy JSON strings.
+- ✅ **Monospaced Aesthetic**: High-legibility coding font for better data management.
+- ✅ **Flexible Type Support**: Can store objects, arrays, or primitive JSON-valid types.
+- ✅ **Smart Parsing**: Automatically handles conversion between UI string and DB object.
+
+---
+
+## Basic Usage
+
+### Configuration Metadata
+
+```typescript
+import JsonEditor from "@src/widgets/custom/json-editor";
+
+export const systemCollection = {
+  name: "System Settings",
+  fields: [
+    JsonEditor({
+      label: "Custom Configuration",
+      db_fieldName: "config",
+      required: true,
+      height: "400px",
+      helper: "Enter valid JSON for advanced system flags",
+    }),
+  ],
+};
+```
+
+---
+
+## Configuration Properties
+
+| Property   | Type      | Required | Default   | Description                         |
+| ---------- | --------- | -------- | --------- | ----------------------------------- |
+| `height`   | `string`  | ❌ No    | `'300px'` | The pixel height of the editor area |
+| `required` | `boolean` | ❌ No    | `false`   | Whether valid JSON is mandatory     |
+| `helper`   | `string`  | ❌ No    | -         | Contextual guidance for the user    |
+
+---
+
+## Data Structure
+
+### Storage Format
+
+Data is stored as a standard JavaScript object (BSON/JSON) in the database, allowing for deep indexing and querying.
+
+```json
+{
+  "config": {
+    "featureFlags": {
+      "beta": true,
+      "version": 2.1
+    },
+    "retryPolicy": [1, 2, 5, 10]
+  }
+}
+```
+
+---
+
+## Best Practices
+
+### ✅ Use JSON Editor When:
+
+- Storing dynamic configurations or metadata.
+- Managing complex lists that don't require a full Repeater.
+- Developer-only settings or technical overrides.
+
+### ❌ Don't Use JSON Editor When:
+
+- The data structure is fixed (use standard fields for better schema safety).
+- Non-technical users need to edit the content (use `Group` or `Repeater`).
+- Large-scale binary data is involved.

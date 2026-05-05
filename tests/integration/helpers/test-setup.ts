@@ -87,29 +87,33 @@ export async function cleanupTestDatabase(): Promise<void> {
 /**
  * Prepares a clean environment and returns an authenticated session cookie.
  */
-export async function prepareAuthenticatedContext(): Promise<string> {
-  // 1. Reset database
-  await cleanupTestDatabase();
+export async function prepareAuthenticatedContext(
+  options: { skipReset?: boolean } = {},
+): Promise<string> {
+  if (!options.skipReset) {
+    // 1. Reset database
+    await cleanupTestDatabase();
 
-  // 2. Seed database
-  console.log("🌱 Seeding test database...");
-  const seedResp = await safeFetch(`${API_BASE_URL}/api/testing`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-test-secret": TEST_API_SECRET,
-      Origin: API_BASE_URL,
-    },
-    body: JSON.stringify({
-      action: "seed",
-      email: testFixtures.adminUser.email,
-      password: testFixtures.adminUser.password,
-    }),
-  });
+    // 2. Seed database
+    console.log("🌱 Seeding test database...");
+    const seedResp = await safeFetch(`${API_BASE_URL}/api/testing`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-test-secret": TEST_API_SECRET,
+        Origin: API_BASE_URL,
+      },
+      body: JSON.stringify({
+        action: "seed",
+        email: testFixtures.adminUser.email,
+        password: testFixtures.adminUser.password,
+      }),
+    });
 
-  if (!seedResp.ok) {
-    const error = await seedResp.text();
-    throw new Error(`Failed to seed database: ${error}`);
+    if (!seedResp.ok) {
+      const error = await seedResp.text();
+      throw new Error(`Failed to seed database: ${error}`);
+    }
   }
 
   // 🚀 HARDENING: Wait for system to settle and reach a READY state
@@ -189,6 +193,37 @@ export async function prepareAuthenticatedContext(): Promise<string> {
 
   console.log(`🔑 Login successful. Session Cookie: ${sessionCookie}`);
   return sessionCookie;
+}
+
+/**
+ * Executes a testing action via the /api/testing endpoint.
+ */
+export async function testingAction(action: "reset" | "seed", preset?: string): Promise<void> {
+  const body: any = { action, preset };
+  if (action === "seed") {
+    body.email = testFixtures.adminUser.email;
+    body.password = testFixtures.adminUser.password;
+  }
+
+  const response = await safeFetch(`${API_BASE_URL}/api/testing`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-test-secret": TEST_API_SECRET,
+      Origin: API_BASE_URL,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Testing action ${action} failed with HTTP ${response.status}: ${error}`);
+  }
+
+  const result = await response.json().catch(() => ({}));
+  if (result && result.success === false) {
+    throw new Error(`Testing action ${action} failed: ${result.message || JSON.stringify(result)}`);
+  }
 }
 
 /**

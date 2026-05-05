@@ -23,11 +23,11 @@ import type {
 	OperationType,
 	SetFieldOperationConfig,
 	WebhookOperationConfig,
-} from "@src/services/automation/types";
+} from "@src/services/background/automation/types";
 import {
 	AUTOMATION_EVENTS,
 	OPERATION_TYPES,
-} from "@src/services/automation/types";
+} from "@src/services/background/automation/types";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { onMount } from "svelte";
 import { fade, slide } from "svelte/transition";

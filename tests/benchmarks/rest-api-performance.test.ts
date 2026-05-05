@@ -9,6 +9,7 @@ import "../unit/setup.ts";
 import {
   runBenchmark,
   exportResult,
+  exportMetric,
   setupBenchmarkServer,
   ensureStableTestData,
   STABLE_COLLECTION,
@@ -97,6 +98,12 @@ async function runRestAudit() {
     );
 
     for (const r of results) exportResult(r);
+
+    // Export structured metrics for matrix
+    const listResult = results.find((r) => r.name.includes("List")) || results[0];
+    exportMetric("rest.collections.avg", listResult.avgMs, "ms");
+    exportMetric("rest.collections.p95", listResult.p95Ms, "ms");
+    exportMetric("rest.collections.rps", listResult.rps, "req/s");
   } catch (err: any) {
     logger.error(`REST audit failed: ${err.message}`);
     console.error(err);

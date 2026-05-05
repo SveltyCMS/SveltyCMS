@@ -5,11 +5,11 @@
 
 import type { CollectionExport, ExportMetadata, ExportOptions, Schema } from "@src/content/types";
 import { dbAdapter } from "@src/databases/db";
-import { getAllSettings } from "@src/services/settings-service";
+import { getAllSettings } from "@src/services/core/settings-service";
 import { encryptData, decryptData } from "@utils/security";
 import { logger } from "@utils/logger";
 import { nanoid } from "nanoid";
-import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
 
 // Sensitive field patterns
 export const SENSITIVE_PATTERNS: string[] = [

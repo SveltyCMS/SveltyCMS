@@ -3,10 +3,10 @@
  * @description Tests for AI service
  */
 
-import { AIService } from "@src/services/ai-service";
+import { AIService } from "@src/services/core/ai-service";
 
 // Mock settings-service
-vi.mock("@src/services/settings-service", () => ({
+vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSetting: vi.fn((key: string) => {
     if (key === "USE_REMOTE_AI_KNOWLEDGE") return Promise.resolve(true);
     if (key === "USE_AI_TAGGING") return Promise.resolve(true);

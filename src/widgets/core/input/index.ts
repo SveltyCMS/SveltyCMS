@@ -15,13 +15,6 @@
  * - **Prefix/Suffix Support**: Flexible UI composition
  */
 
-// Import components needed for the GuiSchema
-// Import components needed for the GuiSchema
-// import IconifyIconsPicker from '@components/iconify-icons-picker.svelte';
-// import PermissionsSetting from '@components/permissions-setting.svelte';
-// import Input from '@components/system/inputs/input.svelte';
-// import Toggles from '@components/system/inputs/toggles.svelte';
-
 import { widget_text_description } from "@src/paraglide/messages";
 import { createWidget } from "@src/widgets/widget-factory";
 

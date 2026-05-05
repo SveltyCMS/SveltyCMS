@@ -6,7 +6,7 @@
 
 import * as Y from "yjs";
 import { logger } from "@utils/logger";
-import { pubSub } from "@src/services/pub-sub";
+import { pubSub } from "@src/services/background/pub-sub";
 
 class YjsService {
   private static instance: YjsService;

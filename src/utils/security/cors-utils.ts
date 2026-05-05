@@ -3,7 +3,7 @@
  * @description Centralized CORS configuration utility.
  */
 
-import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
 
 /**
  * Returns CORS headers if allowed, otherwise null.

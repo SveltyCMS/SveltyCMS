@@ -29,7 +29,7 @@ export class MongoCrudModule extends DatabaseModule<MongoAdapterCore> implements
     }
 
     const model = (this.adapter as any)._getOrCreateModel(normalizedColl);
-    const repo = new MongoCrudMethods(model);
+    const repo = new MongoCrudMethods(model, this.adapter);
     this._repos.set(normalizedColl, repo);
     return repo;
   }

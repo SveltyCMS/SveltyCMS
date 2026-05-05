@@ -21,18 +21,18 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (26/04/2026, 21:06:22)
+## 📊 Latest Performance Audit (05/05/2026, 10:39:50)
 
 **Status:** ✅ PASS _(Historical)_
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend  | Target Budget |
-| :--------------------- | :---------- | :----- | :------------ |
-| **Cold Start**         | 0ms         | ⚪ (—) | < 5000ms      |
-| **REST (Collections)** | 0.000ms     | ⚪ (—) | < 5ms         |
-| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—) | < 5ms         |
-| **DB Raw (p95)**       | 0.000ms     | ⚪     | < 50ms        |
+| Scenario               | Avg Latency | Trend       | Target Budget |
+| :--------------------- | :---------- | :---------- | :------------ |
+| **Cold Start**         | 0ms         | ⚪ (—)      | < 5000ms      |
+| **REST (Collections)** | 0.661ms     | 🟢 (-6.4%)  | < 5ms         |
+| **GraphQL (Avg)**      | 0.860ms     | 🟢 (-47.2%) | < 5ms         |
+| **DB Raw (p95)**       | 0.000ms     | ⚪          | < 50ms        |
 
 ### 📈 Historical Latency Trends
 
@@ -41,7 +41,7 @@ xychart-beta
   title "MARIADB+REDIS Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [0.0, 0.0, 0.0, 0.0, 0.8, 0.5, 1.0, 0.5, 0.0, 0.0]
+  line "p95 Latency" : [0.8, 0.5, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7]
 ```
 
 ## 🔬 Detailed Performance Ledger (20+ Modules)

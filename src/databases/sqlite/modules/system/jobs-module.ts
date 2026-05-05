@@ -15,15 +15,15 @@ import type { AdapterCore } from "../../adapter/adapter-core";
 import * as schema from "../../schema";
 import * as utils from "../../utils";
 
-export class JobsModule {
-  private readonly core: AdapterCore;
+import { DatabaseModule } from "../../../base-adapter";
 
+export class JobsModule extends DatabaseModule<AdapterCore> {
   constructor(core: AdapterCore) {
-    this.core = core;
+    super(core);
   }
 
-  private get db() {
-    return this.core.db;
+  protected get core() {
+    return this.adapter;
   }
 
   async create(job: EntityCreate<Job>): Promise<DatabaseResult<Job>> {
@@ -37,8 +37,9 @@ export class JobsModule {
         createdAt: now,
         updatedAt: now,
       };
-      await this.db!.insert(schema.sveltyJobs).values(values);
-      const [result] = await this.db!.select()
+      await this.db.insert(schema.sveltyJobs).values(values);
+      const [result] = await this.db
+        .select()
         .from(schema.sveltyJobs)
         .where(eq(schema.sveltyJobs._id, id));
       return result as unknown as Job;
@@ -47,7 +48,8 @@ export class JobsModule {
 
   async getById(jobId: DatabaseId): Promise<DatabaseResult<Job | null>> {
     return this.core.wrap(async () => {
-      const [result] = await this.db!.select()
+      const [result] = await this.db
+        .select()
         .from(schema.sveltyJobs)
         .where(eq(schema.sveltyJobs._id, jobId as string));
       return (result as unknown as Job) || null;
@@ -64,7 +66,8 @@ export class JobsModule {
         conditions.push(eq(schema.sveltyJobs.tenantId, tenantId));
       }
 
-      const results = await this.db!.select()
+      const results = await this.db
+        .select()
         .from(schema.sveltyJobs)
         .where(and(...conditions))
         .orderBy(schema.sveltyJobs.nextRunAt)
@@ -78,7 +81,7 @@ export class JobsModule {
     options?: PaginationOption & { status?: string; taskType?: string },
   ): Promise<DatabaseResult<Job[]>> {
     return this.core.wrap(async () => {
-      let q = this.db!.select().from(schema.sveltyJobs).$dynamic();
+      let q = this.db.select().from(schema.sveltyJobs).$dynamic();
       const conditions = [];
 
       if (options?.status) {
@@ -104,7 +107,8 @@ export class JobsModule {
 
   async count(filter?: Record<string, unknown>): Promise<DatabaseResult<number>> {
     return this.core.wrap(async () => {
-      let q = this.db!.select({ count: sql<number>`count(*)` })
+      let q = this.db
+        .select({ count: sql<number>`count(*)` })
         .from(schema.sveltyJobs)
         .$dynamic();
       const conditions = [];
@@ -128,11 +132,13 @@ export class JobsModule {
   async update(jobId: DatabaseId, data: Partial<EntityCreate<Job>>): Promise<DatabaseResult<Job>> {
     return this.core.wrap(async () => {
       const now = new Date();
-      await this.db!.update(schema.sveltyJobs)
+      await this.db
+        .update(schema.sveltyJobs)
         .set({ ...data, updatedAt: now } as any)
         .where(eq(schema.sveltyJobs._id, jobId as string));
 
-      const [result] = await this.db!.select()
+      const [result] = await this.db
+        .select()
         .from(schema.sveltyJobs)
         .where(eq(schema.sveltyJobs._id, jobId as string));
       return result as unknown as Job;
@@ -141,15 +147,15 @@ export class JobsModule {
 
   async delete(jobId: DatabaseId): Promise<DatabaseResult<void>> {
     return this.core.wrap(async () => {
-      await this.db!.delete(schema.sveltyJobs).where(eq(schema.sveltyJobs._id, jobId as string));
+      await this.db.delete(schema.sveltyJobs).where(eq(schema.sveltyJobs._id, jobId as string));
     }, "JOB_DELETE_FAILED");
   }
 
   async cleanup(olderThan: Date): Promise<DatabaseResult<number>> {
     return this.core.wrap(async () => {
-      const result = await this.db!.delete(schema.sveltyJobs).where(
-        lte(schema.sveltyJobs.createdAt, olderThan),
-      );
+      const result = await this.db
+        .delete(schema.sveltyJobs)
+        .where(lte(schema.sveltyJobs.createdAt, olderThan));
       return (result as any).changes || 0;
     }, "JOB_CLEANUP_FAILED");
   }

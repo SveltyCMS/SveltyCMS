@@ -8,7 +8,7 @@
 import { contentSystem } from "@src/content/index.server";
 import type { Role, User } from "@src/databases/auth/types";
 import { dbInitPromise } from "@src/databases/db";
-import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { error, redirect } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";

@@ -20,6 +20,23 @@ import type { FieldInstance, Schema } from "../content/types";
 
 export type WidgetType = "core" | "custom" | "marketplace";
 
+/**
+ * Base interface for widget configuration properties.
+ * All widget-specific property interfaces should extend this.
+ */
+export interface WidgetProps extends Record<string, unknown> {
+  // Standard fields that all widgets might have
+  label?: string;
+  db_fieldName?: string;
+  required?: boolean;
+  translated?: boolean;
+  width?: number;
+  helper?: string;
+  permissions?: Record<string, unknown>;
+  placeholder?: string;
+  [key: string]: any;
+}
+
 export interface WidgetMetadata {
   author?: string;
   dependencies?: string[];

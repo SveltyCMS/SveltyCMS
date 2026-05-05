@@ -89,6 +89,7 @@ export class ContentModule {
     ): Promise<DatabaseResult<ContentNode[]>> =>
       this.adapter.crud.findMany("system_content_structure", (options?.filter || {}) as any, {
         tenantId: (options?.tenantId || undefined) as DatabaseId | undefined,
+        bypassTenantCheck: options?.bypassTenantCheck,
       }),
 
     upsertContentStructureNode: (

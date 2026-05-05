@@ -10,16 +10,7 @@
  * - Multi-tenancy
  */
 
-import { eq } from "drizzle-orm";
-import type {
-  BaseEntity,
-  DatabaseId,
-  DatabaseResult,
-  IDBAdapter,
-  PaginationOption,
-  QueryBuilder,
-  Tenant,
-} from "../../db-interface";
+import type { BaseEntity, DatabaseResult, IDBAdapter, QueryBuilder } from "../../db-interface";
 import { CollectionModule } from "../collection/collection-module";
 import { CrudModule } from "../crud/crud-module";
 import { AuthModule } from "../modules/auth/auth-module";
@@ -27,6 +18,8 @@ import { ContentModule } from "../modules/content/content-module";
 import { MediaModule } from "../modules/media/media-module";
 import { PreferencesModule } from "../modules/system/preferences-module";
 import { JobsModule } from "../modules/system/jobs-module";
+import { TenantsModule } from "../modules/system/tenants-module";
+import { HealthModule } from "../modules/system/health-module";
 import { VirtualFoldersModule } from "../modules/system/virtual-folders-module";
 import { ThemesModule } from "../modules/themes/themes-module";
 import { WebsiteTokensModule } from "../modules/website/tokens-module";
@@ -80,58 +73,8 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
       widgets: new WidgetsModule(this),
       websiteTokens: new WebsiteTokensModule(this),
       jobs: new JobsModule(this),
-      tenants: {
-        create: async (tenant: Tenant) =>
-          this.wrap(async () => {
-            const id = (tenant._id || utils.generateId()) as string;
-            const now = new Date();
-            const values: typeof schema.tenants.$inferInsert = {
-              ...tenant,
-              _id: id,
-              createdAt: now,
-              updatedAt: now,
-            };
-            await this.db.insert(schema.tenants).values(values);
-            const [result] = await this.db
-              .select()
-              .from(schema.tenants)
-              .where(eq(schema.tenants._id, id));
-            return result as unknown as Tenant;
-          }, "TENANT_CREATE_FAILED"),
-        getById: async (tenantId: DatabaseId) =>
-          this.wrap(async () => {
-            const [result] = await this.db
-              .select()
-              .from(schema.tenants)
-              .where(eq(schema.tenants._id, tenantId as string));
-            return (result as unknown as Tenant) || null;
-          }, "TENANT_GET_FAILED"),
-        update: async (tenantId: DatabaseId, data: any) =>
-          this.wrap(async () => {
-            const now = new Date();
-            await this.db
-              .update(schema.tenants)
-              .set({ ...data, updatedAt: now } as any)
-              .where(eq(schema.tenants._id, tenantId as string));
-            const [result] = await this.db
-              .select()
-              .from(schema.tenants)
-              .where(eq(schema.tenants._id, tenantId as string));
-            return result as unknown as Tenant;
-          }, "TENANT_UPDATE_FAILED"),
-        delete: async (tenantId: DatabaseId) =>
-          this.wrap(async () => {
-            await this.db.delete(schema.tenants).where(eq(schema.tenants._id, tenantId as string));
-          }, "TENANT_DELETE_FAILED"),
-        list: async (options?: PaginationOption) =>
-          this.wrap(async () => {
-            let q = this.db.select().from(schema.tenants).$dynamic();
-            if (options?.limit) q = q.limit(options.limit);
-            if (options?.offset) q = q.offset(options.offset);
-            const results = await q;
-            return results as unknown as Tenant[];
-          }, "TENANT_LIST_FAILED"),
-      },
+      tenants: new TenantsModule(this),
+      health: new HealthModule(this),
     });
 
     define("monitoring", {

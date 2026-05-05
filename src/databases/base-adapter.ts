@@ -196,6 +196,20 @@ export abstract class DatabaseModule<T extends BaseAdapter = BaseAdapter> {
   constructor(protected readonly adapter: T) {}
 
   /**
+   * 🚀 AGNOSTIC CORE: Safe access to the underlying database instance.
+   * Throws a descriptive error if the adapter is not fully initialized.
+   */
+  protected get db() {
+    const db = (this.adapter as any).db;
+    if (!db) {
+      throw new Error(
+        `[${this.constructor.name}] Database instance (db) is undefined on adapter ${this.adapter.constructor.name}. Ensure connect() has completed before calling this module.`,
+      );
+    }
+    return db;
+  }
+
+  /**
    * Proxy wrap for consistent error handling within modules
    */
   protected async wrap<R>(

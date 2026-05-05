@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:account-group"
 author: "SveltyCMS Team"
 created: "2025-10-17"
-updated: "2026-03-27"
+updated: "2026-05-05"
 tags:
   - "user-management"
   - "admin"
@@ -144,7 +144,7 @@ graph TD
     end
 
     subgraph Services["🔧 Services"]
-        J["AuditLogService"]
+        J["AuditService"]
         K["Database Interface"]
     end
 
@@ -228,10 +228,10 @@ The system tracks 24 different event types organized into key categories:
 ### Usage Examples
 
 ```typescript
-import { logAuditEvent, AuditEventType } from "@src/services/auditLogService";
+import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 
 // Log a successful user login
-await logAuditEvent({
+await auditLogService.logAuditEvent({
   eventType: AuditEventType.USER_LOGIN,
   severity: "low",
   actorId: user.id,
@@ -243,7 +243,7 @@ await logAuditEvent({
 });
 
 // Log a failed privilege escalation attempt
-await logAuditEvent({
+await auditLogService.logAuditEvent({
   eventType: AuditEventType.PRIVILEGE_ESCALATION,
   severity: "critical",
   actorId: user.id,
@@ -256,7 +256,7 @@ await logAuditEvent({
 });
 
 // Log a collection data export
-await logAuditEvent({
+await auditLogService.logAuditEvent({
   eventType: AuditEventType.DATA_EXPORT,
   severity: "medium",
   actorId: user.id,
@@ -308,3 +308,5 @@ The audit logging system is designed for minimal performance impact:
 The SveltyCMS user management system provides a robust, secure, and scalable foundation for both personal profile management and enterprise-grade administration. With integrated audit logging, the system ensures comprehensive visibility into all security-critical events while maintaining optimal performance and user experience.
 
 The audit logging system extends far beyond user management, providing system-wide security monitoring for all CMS components including collections, content operations, API usage, and administrative functions.
+functions.
+I usage, and administrative functions.

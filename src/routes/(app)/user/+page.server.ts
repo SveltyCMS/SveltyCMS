@@ -21,7 +21,7 @@ import type { Role, User } from "@src/databases/auth/types";
 // Auth
 import { auth } from "@src/databases/db";
 // System Logger
-import { getUntypedSetting } from "@src/services/settings-service";
+import { getUntypedSetting } from "@src/services/core/settings-service";
 import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
 

@@ -7,8 +7,8 @@ Lists all configured workflow automations with status, trigger, and operation su
 
 <script lang="ts">
 import PageTitle from "@src/components/page-title.svelte";
-import type { AutomationFlow } from "@src/services/automation/types";
-import { AUTOMATION_EVENTS } from "@src/services/automation/types";
+import type { AutomationFlow } from "@src/services/background/automation/types";
+import { AUTOMATION_EVENTS } from "@src/services/background/automation/types";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { onMount } from "svelte";
 import { slide } from "svelte/transition";

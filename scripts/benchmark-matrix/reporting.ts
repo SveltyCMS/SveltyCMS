@@ -37,7 +37,17 @@ function getASTProject() {
 /**
  * Persists benchmark script metadata (lastRun) using AST.
  */
-export async function persistScriptMetadataAST(scriptPath: string, timestamp: string) {
+export async function persistScriptMetadataAST(
+  scriptPath: string,
+  timestamp: string,
+  dbKey?: string, // NEW: optional per-database context
+  force = false,
+) {
+  if (!force && !process.env.UPDATE_BENCHMARK_METADATA) {
+    // Only update when explicitly requested (e.g. full suite or --update-metadata flag)
+    return;
+  }
+
   try {
     const { sourceFile } = getASTProject();
 
@@ -45,32 +55,55 @@ export async function persistScriptMetadataAST(scriptPath: string, timestamp: st
       .getVariableDeclaration("BENCHMARK_SCRIPTS")
       ?.getInitializerIfKind(SyntaxKind.ArrayLiteralExpression);
 
-    if (scriptsArray) {
-      for (const element of scriptsArray.getElements()) {
-        if (element.getKind() === SyntaxKind.ObjectLiteralExpression) {
-          const obj = element as ObjectLiteralExpression;
-          const pathProp = obj.getProperty("path")?.asKind(SyntaxKind.PropertyAssignment);
-          const pathValue = pathProp?.getInitializer()?.getText().replace(/['"]/g, "");
+    if (!scriptsArray) return;
 
-          if (pathValue === scriptPath) {
-            const lastRunProp = obj.getProperty("lastRun")?.asKind(SyntaxKind.PropertyAssignment);
-            if (lastRunProp) {
-              lastRunProp.setInitializer(`"${timestamp}"`);
-            } else {
-              obj.addPropertyAssignment({
-                name: "lastRun",
-                initializer: `"${timestamp}"`,
-              });
-            }
-            log.db("AST", `Staged lastRun for ${scriptPath}`);
+    let updated = false;
+
+    for (const element of scriptsArray.getElements()) {
+      if (element.getKind() !== SyntaxKind.ObjectLiteralExpression) continue;
+
+      const obj = element as ObjectLiteralExpression;
+      const pathProp = obj.getProperty("path")?.asKind(SyntaxKind.PropertyAssignment);
+      const pathValue = pathProp?.getInitializer()?.getText().replace(/['"]/g, "");
+
+      if (pathValue === scriptPath) {
+        let lastRunProp = obj.getProperty("lastRun")?.asKind(SyntaxKind.PropertyAssignment);
+
+        if (lastRunProp) {
+          lastRunProp.setInitializer(`"${timestamp}"`);
+        } else {
+          obj.addPropertyAssignment({
+            name: "lastRun",
+            initializer: `"${timestamp}"`,
+          });
+        }
+
+        // Optional: store per-database last run
+        if (dbKey) {
+          const dbLastRunProp = obj
+            .getProperty(`lastRun_${dbKey}`)
+            ?.asKind(SyntaxKind.PropertyAssignment);
+          if (dbLastRunProp) {
+            dbLastRunProp.setInitializer(`"${timestamp}"`);
+          } else {
+            obj.addPropertyAssignment({
+              name: `lastRun_${dbKey}`,
+              initializer: `"${timestamp}"`,
+            });
           }
         }
+
+        updated = true;
+        log.info(`Updated lastRun for ${scriptPath}${dbKey ? ` (${dbKey})` : ""}`);
+        break; // Only update the matching script
       }
-      // We save periodically or at the end
+    }
+
+    if (updated) {
       await sourceFile.save();
     }
   } catch (err: any) {
-    log.warn(`AST Metadata persistence failed: ${err.message}`);
+    log.warn(`AST update failed: ${err.message}`);
   }
 }
 
@@ -263,6 +296,28 @@ export async function buildFullAuditLedger(
 }
 
 /**
+ * 🔒 Simple File System Lock to prevent concurrent MDX updates.
+ */
+async function acquireLock(lockName: string): Promise<boolean> {
+  const lockDir = path.join(ROOT_RESULTS_DIR, `${lockName}.lock`);
+  const maxRetries = 30;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      await fs.mkdir(lockDir);
+      return true;
+    } catch {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
+  return false;
+}
+
+async function releaseLock(lockName: string) {
+  const lockDir = path.join(ROOT_RESULTS_DIR, `${lockName}.lock`);
+  await fs.rm(lockDir, { recursive: true, force: true }).catch(() => {});
+}
+
+/**
  * Orchestrates the final report generation.
  */
 export async function generateFinalReport(
@@ -319,9 +374,18 @@ export async function generateFinalReport(
     }
 
     // 🚀 Update per-database specific technical ledgers
-    await updateDatabaseSpecificReports(db, results, latestMetrics);
+    const hasLock = await acquireLock("mdx_report");
+    if (hasLock) {
+      try {
+        await updateDatabaseSpecificReports(db, results, latestMetrics);
+        log.success("Enterprise Benchmark technical ledgers updated.");
+      } finally {
+        await releaseLock("mdx_report");
+      }
+    } else {
+      log.warn("Could not acquire lock for MDX report. Skipping incremental update.");
+    }
 
-    log.success("Enterprise Benchmark technical ledgers updated.");
     return regressions;
   } finally {
     db.close();
@@ -561,19 +625,31 @@ export async function scanResultsDirectory(): Promise<BenchmarkResult[]> {
 
       // 🚀 GOLD STANDARD: Recursive discovery for 2026 nested result structure
       const getAllJsonFiles = async (dir: string): Promise<string[]> => {
-        const entries = await fs.readdir(dir, { withFileTypes: true });
-        const files = await Promise.all(
-          entries.map((entry) => {
-            const res = path.resolve(dir, entry.name);
-            return entry.isDirectory() ? getAllJsonFiles(res) : res;
-          }),
-        );
-        return Array.prototype
-          .concat(...files)
-          .filter((f) => f.endsWith(".json") && !f.endsWith(".meta.json"));
+        try {
+          const stats = await fs.stat(dir);
+          if (!stats.isDirectory()) return [];
+
+          const entries = await fs.readdir(dir, { withFileTypes: true });
+          const files = await Promise.all(
+            entries.map((entry) => {
+              const res = path.resolve(dir, entry.name);
+              return entry.isDirectory() ? getAllJsonFiles(res) : res;
+            }),
+          );
+          return Array.prototype
+            .concat(...files)
+            .filter(
+              (f) => typeof f === "string" && f.endsWith(".json") && !f.endsWith(".meta.json"),
+            );
+        } catch (e) {
+          log.warn(`Recursive discovery failed for ${dir}: ${e}`);
+          return [];
+        }
       };
 
       const files = await getAllJsonFiles(dbPath);
+
+      if (files.length === 0) continue;
 
       const metrics: Record<string, any> = {};
       const scriptTimings: Record<string, number> = {};
@@ -582,7 +658,10 @@ export async function scanResultsDirectory(): Promise<BenchmarkResult[]> {
       for (const filePath of files) {
         const f = path.basename(filePath);
         try {
-          const content = JSON.parse(await fs.readFile(filePath, "utf8"));
+          const raw = await fs.readFile(filePath, "utf8");
+          if (!raw || raw.trim() === "") continue;
+
+          const content = JSON.parse(raw);
 
           // Handle suite summary results
           if (content.name && content.avgMs !== undefined) {

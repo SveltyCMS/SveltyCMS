@@ -20,9 +20,11 @@ import { createDatabaseError, generateId, processDates } from "./mongodb-utils";
 
 export class MongoCrudMethods<T extends BaseEntity> {
   public readonly model: Model<T>;
+  protected readonly adapter: any;
 
-  constructor(model: Model<T>) {
+  constructor(model: Model<T>, adapter: any) {
     this.model = model;
+    this.adapter = adapter;
   }
 
   async findOne(
@@ -31,10 +33,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
   ): Promise<DatabaseResult<T | null>> {
     const startTime = performance.now();
     try {
-      const secureQuery = safeQuery(query, options.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
-        includeDeleted: options.includeDeleted,
-      });
+      const secureQuery = this.adapter.mapQuery(
+        safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+          includeDeleted: options.includeDeleted,
+        }),
+      );
 
       // Handle _id casting safely (SveltyCMS uses string UUIDs/slugs for many models)
       if (
@@ -85,13 +89,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
   async findByIds(ids: DatabaseId[], options: FindOptions<T> = {}): Promise<DatabaseResult<T[]>> {
     const startTime = performance.now();
     try {
-      const secureQuery = safeQuery(
-        { _id: { $in: ids } } as unknown as QueryFilter<T>,
-        options.tenantId as string,
-        {
+      const secureQuery = this.adapter.mapQuery(
+        safeQuery({ _id: { $in: ids } } as unknown as QueryFilter<T>, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
           includeDeleted: options.includeDeleted,
-        },
+        }),
       );
       const queryOptions: any = {};
       if (options.hints?.readConcern) {
@@ -129,10 +131,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
   ): Promise<DatabaseResult<T[]>> {
     const startTime = performance.now();
     try {
-      const secureQuery = safeQuery(query, options.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
-        includeDeleted: options.includeDeleted,
-      });
+      const secureQuery = this.adapter.mapQuery(
+        safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+          includeDeleted: options.includeDeleted,
+        }),
+      );
 
       // Convert sort options if they exist
       const sort = options.sort as any;
@@ -217,28 +221,40 @@ export class MongoCrudMethods<T extends BaseEntity> {
   ): Promise<DatabaseResult<T[]>> {
     const startTime = performance.now();
     try {
+      if (data.length === 0) return { success: true, data: [] };
+
       const now = nowISODateString();
-      const docs = data.map((d) => {
+      const ops = data.map((d) => {
         const secureData = safeQuery(d as Record<string, unknown>, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
         });
-        return {
+        const doc = {
           ...secureData,
           _id: (secureData._id as string) || generateId(),
           createdAt: now,
           updatedAt: now,
           isDeleted: false,
         };
+        return { insertOne: { document: doc } };
       });
-      const insertOptions: any = { lean: true };
+
+      const bulkOptions: any = { ordered: false };
       if (options.hints?.writeConcern) {
-        insertOptions.w = options.hints.writeConcern;
+        bulkOptions.w = options.hints.writeConcern;
       }
-      const result = await this.model.insertMany(docs, insertOptions);
+
+      const result = await this.model.bulkWrite(ops as any[], bulkOptions);
+
+      // Extract the inserted documents from the ops for the result
+      const insertedDocs = ops.map((op) => op.insertOne.document) as unknown as T[];
+
       return {
         success: true,
-        data: result as unknown as T[],
-        meta: { executionTime: performance.now() - startTime },
+        data: insertedDocs,
+        meta: {
+          executionTime: performance.now() - startTime,
+          recordsExamined: result.insertedCount,
+        },
       };
     } catch (error) {
       return {
@@ -256,9 +272,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
   ): Promise<DatabaseResult<T>> {
     const startTime = performance.now();
     try {
-      const query = safeQuery({ _id: id } as QueryFilter<T>, options.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
-      });
+      const query = this.adapter.mapQuery(
+        safeQuery({ _id: id } as QueryFilter<T>, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+        }),
+      );
       const now = nowISODateString();
       const { _id: _, ...updateData } = {
         ...data,
@@ -306,9 +324,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     try {
-      const secureQuery = safeQuery(query, options.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
-      });
+      const secureQuery = this.adapter.mapQuery(
+        safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+        }),
+      );
       const updateOptions: any = { cloneUpdate: false };
       if (options.hints?.writeConcern) {
         updateOptions.w = options.hints.writeConcern;
@@ -339,9 +359,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T>> {
     try {
-      const secureQuery = safeQuery(query, options.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
-      });
+      const secureQuery = this.adapter.mapQuery(
+        safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+        }),
+      );
       const now = nowISODateString();
       const upsertOptions: any = {
         returnDocument: "after",
@@ -387,9 +409,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
   ): Promise<DatabaseResult<void>> {
     try {
       const { tenantId, bypassTenantCheck, permanent, userId } = options;
-      const query = safeQuery({ _id: id } as QueryFilter<T>, tenantId as string, {
-        bypassTenantCheck,
-      });
+      const query = this.adapter.mapQuery(
+        safeQuery({ _id: id } as QueryFilter<T>, tenantId as string, {
+          bypassTenantCheck,
+        }),
+      );
 
       const deleteOptions: any = {};
       if (options.hints?.writeConcern) {
@@ -467,7 +491,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
   ): Promise<DatabaseResult<{ deletedCount: number; matchedCount: number }>> {
     try {
       const { tenantId, bypassTenantCheck, permanent, userId } = options;
-      const secureQuery = safeQuery(query, tenantId as string, { bypassTenantCheck });
+      const secureQuery = this.adapter.mapQuery(
+        safeQuery(query, tenantId as string, { bypassTenantCheck }),
+      );
 
       const deleteOptions: any = {};
       if (options.hints?.writeConcern) {
@@ -507,10 +533,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
   async restore(id: DatabaseId, options: BaseQueryOptions = {}): Promise<DatabaseResult<T>> {
     try {
       const { tenantId, bypassTenantCheck } = options;
-      const query = safeQuery({ _id: id, isDeleted: true } as QueryFilter<T>, tenantId as string, {
-        bypassTenantCheck,
-        includeDeleted: true,
-      });
+      const query = this.adapter.mapQuery(
+        safeQuery({ _id: id, isDeleted: true } as QueryFilter<T>, tenantId as string, {
+          bypassTenantCheck,
+          includeDeleted: true,
+        }),
+      );
 
       // Fetch document to identify mangled unique fields
       const doc = await this.model.findOne(query).lean().exec();
@@ -598,10 +626,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
     options: BaseQueryOptions & { includeDeleted?: boolean } = {},
   ): Promise<DatabaseResult<number>> {
     try {
-      const secureQuery = safeQuery(query, options.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
-        includeDeleted: options.includeDeleted,
-      });
+      const secureQuery = this.adapter.mapQuery(
+        safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+          includeDeleted: options.includeDeleted,
+        }),
+      );
       const count = await this.model.countDocuments(secureQuery);
       return { success: true, data: count };
     } catch (error) {
@@ -618,10 +648,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
     options: BaseQueryOptions & { includeDeleted?: boolean } = {},
   ): Promise<DatabaseResult<boolean>> {
     try {
-      const secureQuery = safeQuery(query, options.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
-        includeDeleted: options.includeDeleted,
-      });
+      const secureQuery = this.adapter.mapQuery(
+        safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+          includeDeleted: options.includeDeleted,
+        }),
+      );
       const doc = await this.model.findOne(secureQuery, { _id: 1 }).lean().exec();
       return { success: true, data: !!doc };
     } catch (error) {
@@ -635,9 +667,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
   async aggregate(pipeline: any[], options: BaseQueryOptions = {}): Promise<DatabaseResult<any[]>> {
     try {
-      const filter = safeQuery({}, options.tenantId as string, {
-        bypassTenantCheck: options.bypassTenantCheck,
-      });
+      const filter = this.adapter.mapQuery(
+        safeQuery({}, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+        }),
+      );
       const securePipeline = [...pipeline];
 
       // Inject mandatory filter (e.g. tenantId) at the start of the pipeline
@@ -687,9 +721,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const now = nowISODateString();
       const ops = items.map((item) => ({
         updateOne: {
-          filter: safeQuery(item.query, options.tenantId as string, {
-            bypassTenantCheck: options.bypassTenantCheck,
-          }),
+          filter: this.adapter.mapQuery(
+            safeQuery(item.query, options.tenantId as string, {
+              bypassTenantCheck: options.bypassTenantCheck,
+            }),
+          ),
           update: {
             $set: (() => {
               const { _id: _, ...d } = { ...(item.data as any), updatedAt: now };
@@ -705,7 +741,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
           upsert: true,
         },
       }));
-      const bulkOptions: any = {};
+      const bulkOptions: any = { ordered: false };
       if (options.hints?.writeConcern) {
         bulkOptions.w = options.hints.writeConcern;
       }
@@ -719,6 +755,52 @@ export class MongoCrudMethods<T extends BaseEntity> {
         success: false,
         message: "Upsert many failed",
         error: createDatabaseError(error, "UPSERT_MANY_ERROR", "Upsert many failed"),
+      };
+    }
+  }
+
+  /**
+   * Performs multiple different update operations in a single bulk request.
+   */
+  async bulkUpdate(
+    updates: Array<{ query: QueryFilter<T>; data: EntityUpdate<T> }>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<{ modifiedCount: number }>> {
+    const startTime = performance.now();
+    try {
+      if (updates.length === 0) return { success: true, data: { modifiedCount: 0 } };
+
+      const now = nowISODateString();
+      const ops = updates.map((update) => ({
+        updateOne: {
+          filter: this.adapter.mapQuery(
+            safeQuery(update.query, options.tenantId as string, {
+              bypassTenantCheck: options.bypassTenantCheck,
+            }),
+          ),
+          update: {
+            $set: { ...(update.data as any), updatedAt: now },
+          },
+        },
+      }));
+
+      const bulkOptions: any = { ordered: false };
+      if (options.hints?.writeConcern) {
+        bulkOptions.w = options.hints.writeConcern;
+      }
+
+      const result = await this.model.bulkWrite(ops as any[], bulkOptions);
+
+      return {
+        success: true,
+        data: { modifiedCount: result.modifiedCount },
+        meta: { executionTime: performance.now() - startTime },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: "Bulk update failed",
+        error: createDatabaseError(error, "BULK_UPDATE_ERROR", "Bulk update failed"),
       };
     }
   }

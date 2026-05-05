@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 @file src/components/collection-display/entry-list-multi-button.svelte
 @component
 **Enterprise-Grade MultiButton with Action Queue, Progress Tracking, and Undo Support**

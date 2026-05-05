@@ -44,7 +44,7 @@ vi.mock("@src/utils/media/media-utils", () => ({
   validateMediaFileServer: vi.fn().mockReturnValue({ valid: true }),
 }));
 
-vi.mock("@src/services/settings-service", () => ({
+vi.mock("@src/services/core/settings-service", () => ({
   getPublicSettingSync: vi.fn().mockImplementation((key) => {
     if (key === "MEDIASERVER_URL") return "http://localhost:3000";
     if (key === "MEDIA_FOLDER") return "mediaFolder";

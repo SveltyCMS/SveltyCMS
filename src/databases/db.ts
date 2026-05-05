@@ -134,7 +134,7 @@ export async function ensureFullInitialization(config?: any): Promise<any | null
         });
       }
 
-      const { metricsService } = await import("../services/metrics-service");
+      const { metricsService } = await import("../services/observability/metrics-service");
       metricsService.recordMetric("boot:total", performance.now() - start);
 
       return auth;

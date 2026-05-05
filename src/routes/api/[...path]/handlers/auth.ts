@@ -5,7 +5,7 @@
 
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
-import type { LocalCMS } from "@src/services/local-cms";
+import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import { TwoFactorAuthService } from "@src/databases/auth/two-factor-auth";
@@ -19,7 +19,7 @@ import { getAllPermissions } from "@src/databases/auth/permissions";
 import { successResponse, rawResponse } from "./base";
 import { invalidateSessionCache } from "@src/hooks/handle-authentication";
 import { verifyPassword } from "@src/databases/auth";
-import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { generateCsrfToken } from "@utils/security/csrf-utils";
 import { dev } from "$app/environment";
 
@@ -119,20 +119,26 @@ export async function handleLogin(
   let result;
   if ((event.locals as any).__testBypass) {
     const requestedEmail = email || "admin@example.com";
-    const userResult = await cms.auth.getUserByEmail({ email: requestedEmail, tenantId });
+    let userResult;
+    try {
+      userResult = await cms.auth.getUserByEmail(requestedEmail, { tenantId });
+    } catch (e: any) {
+      console.error("🔥 Error in getUserByEmail during login:", e);
+      userResult = null;
+    }
 
-    if (userResult.success && userResult.data) {
+    if (userResult && (userResult as any)._id) {
       // Use existing user
       const { Auth } = await import("@src/databases/auth");
       const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
       const highLevelAuth = new Auth(cms.db, getDefaultSessionStore());
 
       const session = await highLevelAuth.createSession({
-        user_id: userResult.data._id as DatabaseId,
+        user_id: (userResult as any)._id as DatabaseId,
         expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
         tenantId: tenantId as DatabaseId,
       });
-      result = { user: userResult.data, session };
+      result = { user: userResult, session };
     } else {
       // Create a virtual session for a system user
       result = {
@@ -169,7 +175,7 @@ export async function handleLogin(
  */
 export async function handleCreateUser(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
   const body = await event.request.json();
-  const result = await cms.auth.createUser(body, tenantId);
+  const result = await cms.auth.createUser(body, { tenantId });
   if (!result.success) {
     throw new AppError(result.message || "Failed to create user", 400);
   }
@@ -190,7 +196,7 @@ export async function handleUpdateUserAttributesRoute(
 
   if (!targetId) throw new AppError("User ID is required", 400);
 
-  const result = await cms.auth.updateUserAttributes(targetId, newUserData || body, tenantId);
+  const result = await cms.auth.updateUserAttributes(targetId, newUserData || body, { tenantId });
   if (!result.success) throw new AppError(result.message || "Update failed", 400);
   return successResponse(event, result.data);
 }
@@ -236,7 +242,7 @@ export async function handleSaveAvatarRoute(
     finalAvatarUrl = avatarValue;
   }
 
-  const result = await cms.auth.saveAvatar(targetId, finalAvatarUrl, tenantId);
+  const result = await cms.auth.saveAvatar(finalAvatarUrl, { userId: targetId, tenantId });
   if (!result.success) throw new AppError(result.message || "Failed to save avatar", 400);
 
   return rawResponse(event, {
@@ -414,7 +420,7 @@ export async function handleUserSpecificRoutes(
     // Support both 'ids' (legacy/API) and 'userIds' (frontend/AdminArea)
     const ids = body.ids || body.userIds;
     const action = body.action;
-    const result = await cms.auth.batchAction(ids, action, tenantId);
+    const result = await cms.auth.batchAction(ids, action, { tenantId });
     return successResponse(event, result);
   }
 
@@ -424,12 +430,12 @@ export async function handleUserSpecificRoutes(
 
   if (!subAction) {
     if (request.method === "GET") {
-      const targetUser = await cms.auth.getUserById(userId, tenantId);
+      const targetUser = await cms.auth.getUserById(userId, { tenantId });
       return successResponse(event, targetUser);
     }
     if (request.method === "PATCH" || request.method === "PUT") {
       const data = await request.json();
-      const result = await cms.auth.updateUserAttributes(userId, data, tenantId);
+      const result = await cms.auth.updateUserAttributes(userId, data, { tenantId });
       return successResponse(event, result);
     }
   }
@@ -437,11 +443,11 @@ export async function handleUserSpecificRoutes(
   if (subAction === "avatar") {
     if (request.method === "POST") {
       const { avatar } = await request.json();
-      const result = await cms.auth.saveAvatar(userId, avatar, tenantId);
+      const result = await cms.auth.saveAvatar(avatar, { userId, tenantId });
       return successResponse(event, result);
     }
     if (request.method === "DELETE") {
-      const result = await cms.auth.deleteAvatar(userId, tenantId);
+      const result = await cms.auth.deleteAvatar({ userId, tenantId });
       return successResponse(event, result);
     }
   }

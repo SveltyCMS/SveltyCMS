@@ -7,15 +7,15 @@ import type { DatabaseResult, DatabaseTransaction } from "../../db-interface";
 import type { AdapterCore } from "../adapter/adapter-core";
 import * as utils from "../utils";
 
-export class TransactionModule {
-  private readonly core: AdapterCore;
+import { DatabaseModule } from "../../base-adapter";
 
+export class TransactionModule extends DatabaseModule<AdapterCore> {
   constructor(core: AdapterCore) {
-    this.core = core;
+    super(core);
   }
 
-  private get db() {
-    return this.core.db;
+  protected get core() {
+    return this.adapter;
   }
 
   async execute<T>(

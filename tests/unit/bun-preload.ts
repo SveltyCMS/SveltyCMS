@@ -26,30 +26,7 @@ const createMockWidgetInternal = (name: string) => {
   });
 };
 
-const widgetNames = [
-  "Input",
-  "RichText",
-  "Relation",
-  "Select",
-  "DateTime",
-  "Group",
-  "Repeater",
-  "MediaUpload",
-  "MegaMenu",
-  "Radio",
-  "Checkbox",
-  "Date",
-  "DateRange",
-  "Slug",
-  "Seo",
-  "Email",
-  "Number",
-  "PhoneNumber",
-  "ColorPicker",
-  "Rating",
-  "Address",
-  "RemoteVideo",
-];
+const { ALL_WIDGET_NAMES: widgetNames } = require("./widget-constants");
 
 const mockWidgets: Record<string, any> = {};
 for (const name of widgetNames) {
@@ -183,9 +160,21 @@ mock.module("$app/environment", () => ({
   version: "test",
 }));
 mock.module("$env/dynamic/private", () => ({ env: process.env }));
+mock.module("$app/navigation", () => ({
+  goto: mockFn(),
+  pushState: mockFn(),
+  replaceState: mockFn(),
+  invalidate: mockFn(),
+  invalidateAll: mockFn(),
+  beforeNavigate: mockFn(),
+  afterNavigate: mockFn(),
+  onNavigate: mockFn(),
+  preloadData: mockFn(),
+  preloadCode: mockFn(),
+}));
 
 // 🚀 PRECISE MOCK FOR widgetRegistryService
-mock.module("@src/services/widget-registry-service", () => {
+mock.module("@src/services/core/widget-registry-service", () => {
   const wsMap = new Map();
   for (const name of widgetNames) {
     wsMap.set(name, createMockWidgetInternal(name));

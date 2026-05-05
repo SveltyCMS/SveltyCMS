@@ -23,7 +23,7 @@ import { getAllPermissions } from "@src/databases/auth";
 import { defaultRoles as importedDefaultRoles } from "@src/databases/auth/default-roles";
 import type { DatabaseAdapter, Theme } from "@src/databases/db-interface";
 import { publicConfigSchema } from "@src/databases/schemas";
-import { invalidateSettingsCache } from "@src/services/settings-service";
+import { invalidateSettingsCache } from "@src/services/core/settings-service";
 import { dateToISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
 import { safeParse } from "valibot";

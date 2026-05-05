@@ -1,23 +1,18 @@
 /**
  * @file src/databases/db-init.ts
  * @description Core initialization logic for SveltyCMS Database system.
- * Separated from db.ts to reduce initial module count and improve cold-starts.
+ * 🚀 V8 UPDATE: Uses the BootEngine for declarative, dependency-aware startup.
  */
 
 import { logger } from "@utils/logger";
-import { updateServiceHealth } from "../stores/system/state";
-import { cacheService } from "./cache/cache-service";
-import { loadPrivateConfig } from "./config-state";
-import { KNOWN_PUBLIC_KEYS, KNOWN_PRIVATE_KEYS, CRITICAL_SETTINGS } from "./db-utils";
-import type { PublicEnv } from "../services/settings-service";
 import type { DatabaseAdapter } from "./db-interface";
+import { BootEngine } from "./agnostic-core/boot-engine";
+import { createSchemaProxy } from "./agnostic-core/schema-proxy";
 
-// Lazy Holders for Server-Only Modules (Optimized for Cold-Starts & Build Safety)
+// Lazy Holders for Server-Only Modules
 let _settingsService: any = null;
 async function getSettingsService() {
-  if (!_settingsService) {
-    _settingsService = await import("../services/settings-service");
-  }
+  if (!_settingsService) _settingsService = await import("../services/core/settings-service");
   return _settingsService;
 }
 
@@ -25,89 +20,16 @@ let _resilience: any = null;
 async function getResilience() {
   if (!_resilience) {
     const { getDatabaseResilience } = await import("./database-resilience");
-    _resilience = getDatabaseResilience({
-      maxAttempts: 3,
-      initialDelayMs: 500,
-      backoffMultiplier: 2,
-      maxDelayMs: 5000,
-      jitterMs: 200,
-    });
+    _resilience = getDatabaseResilience({ maxAttempts: 3, initialDelayMs: 500 });
   }
   return _resilience;
 }
 
-// Loads all settings from the database and populates the in-memory cache.
-export async function loadSettingsFromDB(
-  dbAdapter: DatabaseAdapter,
-  criticalOnly = false,
-  tenantId?: string | null,
-): Promise<boolean> {
-  try {
-    if (!dbAdapter) {
-      const { invalidateSettingsCache } = await getSettingsService();
-      await invalidateSettingsCache(tenantId || undefined);
-      return false;
-    }
-
-    if (dbAdapter.ensureSystem) {
-      await dbAdapter.ensureSystem();
-    }
-
-    const keysToLoad = criticalOnly ? CRITICAL_SETTINGS : KNOWN_PUBLIC_KEYS;
-    const privateKeys = criticalOnly ? [] : KNOWN_PRIVATE_KEYS;
-
-    const [settingsResult, privateDynResult] = await Promise.all([
-      dbAdapter.system.preferences.getMany(keysToLoad, "system", tenantId as any),
-      privateKeys.length > 0
-        ? dbAdapter.system.preferences.getMany(privateKeys, "system", tenantId as any)
-        : Promise.resolve({ success: true, data: {} }),
-    ]);
-
-    if (!settingsResult.success) {
-      throw new Error(`Could not load settings: ${settingsResult.error?.message}`);
-    }
-
-    const settings = settingsResult.data || {};
-    const privateDynamic = privateDynResult.success ? privateDynResult.data || {} : {};
-
-    if (Object.keys(settings).length === 0 && !criticalOnly) {
-      const { invalidateSettingsCache } = await getSettingsService();
-      await invalidateSettingsCache();
-      return false;
-    }
-
-    const privateConfig = await loadPrivateConfig(false);
-    if (!privateConfig) return false;
-
-    const mergedPrivate = { ...privateConfig, ...privateDynamic };
-    const { setSettingsCache } = await getSettingsService();
-    await setSettingsCache(
-      mergedPrivate as any,
-      settings as unknown as PublicEnv,
-      tenantId || undefined,
-    );
-
-    await cacheService
-      .reconfigure(mergedPrivate)
-      .catch((e: any) => logger.warn("Failed to reconfigure CacheService:", e));
-
-    if (!criticalOnly) {
-      logger.info("✅ Full system settings loaded and cached.");
-    }
-    return true;
-  } catch (error) {
-    if (!criticalOnly) logger.error("Failed to load settings:", error);
-    const { invalidateSettingsCache } = await getSettingsService();
-    await invalidateSettingsCache(tenantId || undefined);
-    return false;
-  }
-}
-
+/**
+ * Loads adapters and wraps with the V8 Schema Proxy.
+ */
 export async function loadAdapters(config: any): Promise<DatabaseAdapter | null> {
-  const isSSR =
-    typeof import.meta.env !== "undefined" && (import.meta.env as any).SSR !== undefined
-      ? (import.meta.env as any).SSR
-      : true;
+  const isSSR = typeof import.meta.env !== "undefined" ? (import.meta.env as any).SSR : true;
   if (!isSSR) return null;
 
   const resilience = await getResilience();
@@ -143,102 +65,179 @@ export async function loadAdapters(config: any): Promise<DatabaseAdapter | null>
     if (dbAdapter) {
       const { wrapAdapterWithWebhooks } = await import("./webhook-wrapper");
       dbAdapter = await wrapAdapterWithWebhooks(dbAdapter);
+
+      // 🚀Apply Schema Proxy for db.collection.find() syntax
+      dbAdapter = createSchemaProxy(dbAdapter);
+
+      // 🚀 Lazy-Loading Core Services
+      // This allows the system to boot without instantiating heavy services until needed.
+      const target = dbAdapter as any;
+      let _auth: any = null;
+      let _content: any = null;
+      let _media: any = null;
+
+      Object.defineProperties(target, {
+        authService: {
+          get: () => {
+            if (_auth) return _auth;
+            // Note: This is an async-capable getter pattern.
+            // While getters are sync, the internal init can be triggered.
+            // For V8, we still rely on runSystemBoot for the actual critical init.
+            return _auth;
+          },
+          set: (val) => {
+            _auth = val;
+          },
+          configurable: true,
+          enumerable: true,
+        },
+        contentService: {
+          get: () => _content,
+          set: (val) => {
+            _content = val;
+          },
+          configurable: true,
+          enumerable: true,
+        },
+        mediaService: {
+          get: () => _media,
+          set: (val) => {
+            _media = val;
+          },
+          configurable: true,
+          enumerable: true,
+        },
+      });
     }
   }, "Database Adapter Loading");
 
   return dbAdapter;
 }
 
-export async function initializeCriticalServices(dbAdapter: DatabaseAdapter) {
-  const start = performance.now();
-  updateServiceHealth("auth", "initializing", "Initializing authentication service...");
+/**
+ * Orchestrates the full system boot using the V8 Boot Engine.
+ */
+export async function runSystemBoot(dbAdapter: DatabaseAdapter) {
+  const engine = new BootEngine();
 
-  if (dbAdapter?.ensureAuth) await dbAdapter.ensureAuth();
+  // 0. Base Adapter (already initialized, but needed for dependency resolution)
+  engine.register({
+    id: "adapter",
+    dependencies: [],
+    init: async () => {},
+  });
 
-  // NOTE: ensureCollections/Content/Media moved to background tasks or FULL phase
-  // to keep CORE phase (Login) fast and lightweight.
+  // 1. Settings & Core
+  engine.register({
+    id: "settings",
+    dependencies: ["adapter"],
+    critical: true,
+    init: async () => {
+      await loadSettingsFromDB(dbAdapter, false);
+    },
+  });
 
-  const [{ Auth }, { getDefaultSessionStore }] = await Promise.all([
-    import("./auth"),
-    import("./auth/session-manager"),
-  ]);
+  // 2. Authentication
+  engine.register({
+    id: "auth",
+    dependencies: ["settings"],
+    critical: true,
+    init: async () => {
+      if (dbAdapter.ensureAuth) await dbAdapter.ensureAuth();
+      const { Auth } = await import("./auth");
+      const { getDefaultSessionStore } = await import("./auth/session-manager");
+      (dbAdapter as any).authService = new Auth(dbAdapter, getDefaultSessionStore());
+    },
+  });
 
-  const auth = new Auth(dbAdapter, getDefaultSessionStore());
-  updateServiceHealth("auth", "healthy", "Authentication service ready");
+  // 3. Content System
+  engine.register({
+    id: "content",
+    dependencies: ["settings"],
+    critical: true,
+    init: async () => {
+      if (dbAdapter.ensureSystem) await dbAdapter.ensureSystem();
+      if (dbAdapter.ensureCollections) await dbAdapter.ensureCollections();
+      if (dbAdapter.ensureContent) await dbAdapter.ensureContent();
+      const { contentSystem } = await import("../content/index.server");
+      await contentSystem.initialize(null, { skipReconciliation: true }, dbAdapter);
+    },
+  });
 
-  const { metricsService } = await import("../services/metrics-service");
-  metricsService.recordMetric("boot:service:auth", performance.now() - start);
-  return auth;
+  // 4. Media & Assets
+  engine.register({
+    id: "media",
+    dependencies: ["settings"],
+    init: async () => {
+      if (dbAdapter.ensureMedia) await dbAdapter.ensureMedia();
+    },
+  });
+
+  // 5. Themes
+  engine.register({
+    id: "themes",
+    dependencies: ["content"],
+    init: async () => {
+      const { ThemeManager } = await import("./theme-manager");
+      await ThemeManager.getInstance().initialize(dbAdapter);
+    },
+  });
+
+  // 6. Cache Warming
+  engine.register({
+    id: "cache",
+    dependencies: ["content", "themes"],
+    init: async () => {
+      const { cacheWarmingService } = await import("./cache-warming-service");
+      await cacheWarmingService.initialize(dbAdapter);
+    },
+  });
+
+  // 7. Optimizer & Monitoring
+  engine.register({
+    id: "optimizer",
+    dependencies: ["adapter"],
+    init: async () => {
+      if (dbAdapter.ensureMonitoring) await dbAdapter.ensureMonitoring();
+      const { initializeIndexOptimizer, indexOptimizer } =
+        await import("../services/database/index-optimizer.server");
+      initializeIndexOptimizer(dbAdapter);
+      void indexOptimizer?.optimizeAll();
+    },
+  });
+
+  // Start the DAG boot process
+  await engine.boot();
 }
 
-let backgroundTasksPromise: Promise<void> | null = null;
+/**
+ * Legacy compatibility wrappers
+ */
+export async function loadSettingsFromDB(
+  dbAdapter: DatabaseAdapter,
+  _criticalOnly = false,
+  tenantId?: string | null,
+): Promise<boolean> {
+  try {
+    if (!dbAdapter) return false;
+    const { settingsService } = await getSettingsService();
+    await settingsService.loadSettingsCache(tenantId || undefined, {
+      dbAdapter,
+      getPrivateEnv: () => (globalThis as any)._privateEnv,
+    });
+    return true;
+  } catch (error) {
+    logger.error("Failed to load settings:", error);
+    return false;
+  }
+}
 
-export async function runBackgroundTasks(dbAdapter: DatabaseAdapter) {
-  if (backgroundTasksPromise) return backgroundTasksPromise;
+export async function initializeCriticalServices(dbAdapter: DatabaseAdapter) {
+  await runSystemBoot(dbAdapter);
+  return (dbAdapter as any).authService;
+}
 
-  backgroundTasksPromise = (async () => {
-    const start = performance.now();
-    try {
-      // Phase 2: Ensure core content schemas are live before managers start
-      if (dbAdapter?.ensureSystem) await dbAdapter.ensureSystem();
-      if (dbAdapter?.ensureCollections) await dbAdapter.ensureCollections();
-      if (dbAdapter?.ensureContent) await dbAdapter.ensureContent();
-      if (dbAdapter?.ensureMedia)
-        await dbAdapter.ensureMedia().catch((e) => logger.warn("Media activation issue:", e));
-      if (dbAdapter?.ensureMonitoring) await dbAdapter.ensureMonitoring();
-
-      // Initialize Index Optimizer
-      if (typeof import.meta.env !== "undefined" && import.meta.env.SSR) {
-        try {
-          const { initializeIndexOptimizer, indexOptimizer } =
-            await import("../services/database/index-optimizer.server");
-          initializeIndexOptimizer(dbAdapter);
-          void indexOptimizer?.optimizeAll();
-        } catch (e) {
-          logger.warn("[db] Index optimization failed to start:", e);
-        }
-      }
-
-      updateServiceHealth("cache", "initializing", "Warming up cache...");
-      updateServiceHealth("themeManager", "initializing", "Initializing themes...");
-
-      await Promise.all([
-        (async () => {
-          const { ThemeManager } = await import("./theme-manager");
-          const instance = ThemeManager?.getInstance();
-          if (instance?.initialize) {
-            await instance.initialize(dbAdapter);
-            updateServiceHealth("themeManager", "healthy", "Themes initialized");
-          }
-        })(),
-        (async () => {
-          const { cacheWarmingService } = await import("./cache-warming-service");
-          if (cacheWarmingService?.initialize) {
-            await cacheWarmingService.initialize(dbAdapter);
-            updateServiceHealth("cache", "healthy", "Cache warmed up");
-          }
-        })(),
-        (async () => {
-          updateServiceHealth("contentSystem", "initializing", "Initializing content manager...");
-          const { contentSystem } = await import("../content/index.server");
-          if (contentSystem?.initialize) {
-            await contentSystem.initialize(null, { skipReconciliation: true }, dbAdapter);
-            updateServiceHealth("contentSystem", "healthy", "Content manager initialized");
-          }
-        })(),
-      ]);
-
-      logger.info("✅ All background services ready.");
-      const { metricsService } = await import("../services/metrics-service");
-      metricsService.recordMetric("boot:background:total", performance.now() - start);
-    } catch (error) {
-      logger.error("Error in background system tasks:", error);
-      backgroundTasksPromise = null; // Allow retry on failure
-      throw error;
-    } finally {
-      cacheService.setBootstrapping(false);
-    }
-  })();
-
-  return backgroundTasksPromise;
+export async function runBackgroundTasks(_dbAdapter: DatabaseAdapter) {
+  // runSystemBoot already covers background tasks in V8
+  return Promise.resolve();
 }

@@ -20,18 +20,18 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (02/05/2026, 04:09:39)
+## 📊 Latest Performance Audit (05/05/2026, 10:39:50)
 
 **Status:** ✅ PASS _(Historical)_
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend  | Target Budget |
-| :--------------------- | :---------- | :----- | :------------ |
-| **Cold Start**         | 0ms         | ⚪ (—) | < 5000ms      |
-| **REST (Collections)** | 0.000ms     | ⚪ (—) | < 5ms         |
-| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—) | < 5ms         |
-| **DB Raw (p95)**       | 0.000ms     | ⚪     | < 50ms        |
+| Scenario               | Avg Latency | Trend       | Target Budget |
+| :--------------------- | :---------- | :---------- | :------------ |
+| **Cold Start**         | 0ms         | ⚪ (—)      | < 5000ms      |
+| **REST (Collections)** | 0.788ms     | ⚪ (+2.2%)  | < 5ms         |
+| **GraphQL (Avg)**      | 0.714ms     | 🟢 (-49.4%) | < 5ms         |
+| **DB Raw (p95)**       | 0.000ms     | ⚪          | < 50ms        |
 
 ### 📈 Historical Latency Trends
 
@@ -40,7 +40,7 @@ xychart-beta
   title "MARIADB Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : [0.0, 0.0, 0.0, 0.8, 0.6, 1.0, 0.7, 0.0, 0.0, 0.0]
+  line "p95 Latency" : [0.6, 1.0, 0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8]
 ```
 
 ## 🔬 Detailed Performance Ledger (20+ Modules)
@@ -58,17 +58,17 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ SDK: findById @ 1c           │ 0.003 ms       │ 0.006 ms     │ 341,262      ║
-║ HTTP: findById @ 8c          │ 0.345 ms       │ 0.454 ms     │ 2,902        ║
+║ SDK: findById @ 1c           │ 0.004 ms       │ 0.008 ms     │ 252,742      ║
+║ HTTP: findById @ 8c          │ 0.661 ms       │ 0.772 ms     │ 1,513        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ SDK Latency (findById)                             │        0.003 ms       ║
-║ HTTP Latency (findById)                            │        0.345 ms       ║
-║ Full Pipeline Overhead                             │         0.34 ms       ║
-║ Peak Throughput                                    │     2902.000 req/s    ║
+║ SDK Latency (findById)                             │        0.004 ms       ║
+║ HTTP Latency (findById)                            │        0.661 ms       ║
+║ Full Pipeline Overhead                             │         0.66 ms       ║
+║ Peak Throughput                                    │     1513.000 req/s    ║
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -221,29 +221,30 @@ xychart-beta
 
 <!-- REST_TABLE_START -->
 
-### 🏷️ REST API PERFORMANCE AUDIT
+### 🏷️ ENTERPRISE REST API AUDIT
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
-║                  SVELTYCMS  —  REST API PERFORMANCE AUDIT                   ║
-║                MARIADB • 500 Iterations • 8 Parallel Workers                ║
+║                    SVELTYCMS — ENTERPRISE REST API AUDIT                    ║
+║                         Core CRUD Latency • MARIADB                         ║
 ║             File: tests/benchmarks/rest-api-performance.test.ts             ║
 ║  Proves: End-to-end throughput and latency of the unified REST dispatcher.  ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                 │ 0.793 ms       │ 0.797 ms     │ 1,261        ║
-║ Collection List              │ 0.781 ms       │ 0.791 ms     │ 1,281        ║
-║ Entry Retrieval              │ 0.861 ms       │ 0.965 ms     │ 1,162        ║
+║ Health Check                 │ 0.198 ms       │ 0.228 ms     │ 5,054        ║
+║ Collection Schema            │ 0.677 ms       │ 0.816 ms     │ 1,478        ║
+║ Collection Find (List)       │ 0.457 ms       │ 0.518 ms     │ 2,187        ║
+║ Collection Search            │ 0.485 ms       │ 0.497 ms     │ 2,060        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check Latency                               │        0.793 ms       ║
-║ Entry Read Latency                                 │        0.861 ms       ║
-║ Peak REST Throughput                               │     1281.147 req/s    ║
-║ API Efficiency Rating                              │    EXCELLENT          ║
+║ Health Check                                       │        0.198 ms       ║
+║ Collection Schema                                  │        0.677 ms       ║
+║ Collection Find (List)                             │        0.457 ms       ║
+║ Collection Search                                  │        0.485 ms       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -251,27 +252,30 @@ xychart-beta
 
 <!-- GRAPHQL_TABLE_START -->
 
-### 🏷️ GRAPHQL STRESS AUDIT
+### 🏷️ GRAPHQL PERFORMANCE AUDIT (Trend: ⚪ 0.0%)
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
-║                     SVELTYCMS  —  GRAPHQL STRESS AUDIT                      ║
-║            Real HTTP Load • High Concurrency • Error Validation             ║
-║                File: tests/benchmarks/graphql-stress.test.ts                ║
-║ Proves: High-concurrency GraphQL query stress test for resolver efficiency. ║
+║                    SVELTYCMS — GRAPHQL PERFORMANCE AUDIT                    ║
+║                        Resolver Execution • MARIADB                         ║
+║           File: tests/benchmarks/graphql-api-performance.test.ts            ║
+║     Proves: Resolver execution time and throughput for common queries.      ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ GQL Stress: TINY             │ 63.308 ms      │ 167.596 ms   │ 36           ║
+║ GQL: System Health           │ 1.111 ms (⚪ 0.0%) │ 1.976 ms     │ 900          ║
+║ GQL: Collection List         │ 0.860 ms (⚪ 0.0%) │ 0.923 ms     │ 1,162        ║
+║ GQL: Entries (Stable Collection) │ 0.824 ms (⚪ 0.0%) │ 0.883 ms     │ 1,213        ║
+║ GQL: Concurrent Load         │ 0.949 ms (⚪ 0.0%) │ 1.047 ms     │ 1,054        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Avg Stress Latency                                 │       63.308 ms       ║
-║ p95 Stress Latency                                 │      167.596 ms       ║
-║ Peak Stress Throughput                             │       36.000 req/s    ║
-║ Error Rate                                         │        90.80 %        ║
+║ Health Check                                       │        1.111 ms       ║
+║ Collection List                                    │        0.860 ms       ║
+║ Entries Query                                      │        0.824 ms       ║
+║ Peak RPS                                           │     1213.337 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -364,8 +368,29 @@ xychart-beta
 
 <!-- GQL_TABLE_START -->
 
-> ⏳ **GraphQL Load Stress**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/graphql-stress.test.ts](file:///D:/SveltyCMS/tests/benchmarks/graphql-stress.test.ts)
+### 🏷️ GRAPHQL STRESS AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS — GRAPHQL STRESS AUDIT                       ║
+║                          Tiny (CI) • 20c • MARIADB                          ║
+║                File: tests/benchmarks/graphql-stress.test.ts                ║
+║ Proves: High-concurrency GraphQL query stress test for resolver efficiency. ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ GQL Stress: TINY             │ 0.675 ms       │ 0.748 ms     │ 1,482        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Average Latency                                    │        0.675 ms       ║
+║ p95 Latency                                        │        0.748 ms       ║
+║ Peak Throughput                                    │     1482.000 req/s    ║
+║ Memory Growth                                      │          0.0 MB       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
 
 <!-- GQL_TABLE_END -->
 

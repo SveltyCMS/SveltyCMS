@@ -73,18 +73,32 @@ export class RedisStore implements CacheStore {
 
   async set<T>(key: string, value: T, ttlSeconds: number, tags?: string[]): Promise<void> {
     await this.ensureReady();
-    const multi = this.client?.multi();
-    multi?.set(key, JSON.stringify(value), { EX: ttlSeconds });
 
-    if (tags) {
-      for (const tag of tags) {
-        const tagKey = `tag:${tag}`;
-        multi?.sAdd(tagKey, key);
-        multi?.expire(tagKey, ttlSeconds);
+    // Defensive check for 'multi' support (critical for mocks and edge-sync resilience)
+    if (typeof this.client?.multi === "function") {
+      const multi = this.client.multi();
+      multi.set(key, JSON.stringify(value), { EX: ttlSeconds });
+
+      if (tags) {
+        for (const tag of tags) {
+          const tagKey = `tag:${tag}`;
+          multi.sAdd(tagKey, key);
+          multi.expire(tagKey, ttlSeconds);
+        }
+      }
+
+      await multi.exec();
+    } else {
+      // Fallback for non-transactional clients
+      await this.client?.set(key, JSON.stringify(value), { EX: ttlSeconds });
+      if (tags) {
+        for (const tag of tags) {
+          const tagKey = `tag:${tag}`;
+          await this.client?.sAdd(tagKey, key);
+          await this.client?.expire(tagKey, ttlSeconds);
+        }
       }
     }
-
-    await multi?.exec();
   }
 
   async delete(key: string | string[]): Promise<void> {
@@ -111,12 +125,27 @@ export class RedisStore implements CacheStore {
 
   async clearByTags(tags: string[]): Promise<void> {
     await this.ensureReady();
-    for (const tag of tags) {
-      const tagKey = `tag:${tag}`;
-      const keys = await this.client?.sMembers(tagKey);
-      if (keys && keys.length > 0) {
-        await this.client?.del(keys);
-        await this.client?.del(tagKey);
+
+    if (typeof this.client?.multi === "function") {
+      const multi = this.client.multi();
+      for (const tag of tags) {
+        const tagKey = `tag:${tag}`;
+        const keys = await this.client.sMembers(tagKey);
+        if (keys && keys.length > 0) {
+          multi.del(keys);
+          multi.del(tagKey);
+        }
+      }
+      await multi.exec();
+    } else {
+      // Fallback for non-transactional clients
+      for (const tag of tags) {
+        const tagKey = `tag:${tag}`;
+        const keys = await this.client?.sMembers(tagKey);
+        if (keys && keys.length > 0) {
+          await this.client?.del(keys);
+          await this.client?.del(tagKey);
+        }
       }
     }
   }

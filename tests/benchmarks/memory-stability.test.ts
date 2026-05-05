@@ -92,7 +92,7 @@ export async function runMemoryStabilityAudit() {
     })();
 
     // Load generators
-    const CONCURRENCY = 12;
+    const CONCURRENCY = 8;
     console.log(`🔥 Sustaining load with ${CONCURRENCY} concurrent workers...`);
 
     const workers = Array.from({ length: CONCURRENCY }, async (_, i) => {

@@ -1,4 +1,4 @@
-﻿<!-- 
+<!-- 
 @file src/components/global-loading.svelte
 @component
 **Enhanced Global Loading Overlay - Svelte 5 Optimized**

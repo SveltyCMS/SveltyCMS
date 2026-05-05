@@ -12,8 +12,8 @@
  * - authenticated user payload resolution
  */
 
-import { eventBus } from "@src/services/automation/event-bus";
-import { aiService } from "@src/services/ai-service";
+import { eventBus } from "@src/services/background/automation/event-bus";
+import { aiService } from "@src/services/core/ai-service";
 import { json } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import type { RequestHandler } from "./$types";

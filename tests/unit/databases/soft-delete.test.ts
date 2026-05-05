@@ -57,7 +57,8 @@ describe("Soft Delete Engine", () => {
       },
     };
 
-    crud = new MongoCrudMethods(mockModel as unknown as Model<any>);
+    const mockAdapter = { mapQuery: vi.fn((q) => q) };
+    crud = new MongoCrudMethods(mockModel as unknown as Model<any>, mockAdapter);
   });
 
   describe("Read Operations", () => {

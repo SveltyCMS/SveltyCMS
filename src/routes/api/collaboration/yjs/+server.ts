@@ -6,7 +6,7 @@
 import { json } from "@sveltejs/kit";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
-import { pubSub } from "@src/services/pub-sub";
+import { pubSub } from "@src/services/background/pub-sub";
 import { encodeYjsToBase64, decodeBase64ToYjs } from "@utils/tenant";
 
 export const POST = apiHandler(async ({ locals, request }) => {

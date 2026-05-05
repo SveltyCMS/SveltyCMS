@@ -23,15 +23,15 @@ import type {
 import type { AdapterCore } from "../adapter/adapter-core";
 import * as utils from "../utils";
 
-export class BatchModule {
-  private readonly core: AdapterCore;
+import { DatabaseModule } from "../../base-adapter";
 
+export class BatchModule extends DatabaseModule<AdapterCore> {
   constructor(core: AdapterCore) {
-    this.core = core;
+    super(core);
   }
 
-  private get db() {
-    return this.core.db!;
+  protected get core() {
+    return this.adapter;
   }
 
   private get crud() {
@@ -131,7 +131,7 @@ export class BatchModule {
     return this.core.wrap(async () => {
       const table = this.core.getTable(collection);
       let modifiedCount = 0;
-      await this.db.transaction(async (tx) => {
+      await this.db.transaction(async (tx: any) => {
         for (const update of updates) {
           const result = (await tx
             .update(table as any)

@@ -5,7 +5,7 @@
 
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
-import type { LocalCMS } from "@src/services/local-cms";
+import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
 
@@ -36,7 +36,7 @@ export async function handleCollectionsRoutes(
     const targetEntryId = subAction === "revisions" ? entryId : null;
     return successResponse(
       event,
-      await cms.collections.getRevisions(collectionId, targetEntryId as string, tenantId),
+      await cms.collections.getRevisions(collectionId, targetEntryId as string, { tenantId }),
     );
   }
 
@@ -54,6 +54,13 @@ export async function handleCollectionsRoutes(
       }),
     );
   }
+
+  if (request.method === "POST" && entryId === "bulk")
+    return handleCollectionBulkCreate(event, cms, tenantId, user, collectionId);
+  if (request.method === "PATCH" && entryId === "bulk")
+    return handleCollectionBulkUpdate(event, cms, tenantId, user, collectionId);
+  if (request.method === "DELETE" && entryId === "bulk")
+    return handleCollectionBulkDelete(event, cms, tenantId, user, collectionId);
 
   if (request.method === "POST")
     return handleCollectionCreate(event, cms, tenantId, user, collectionId);
@@ -181,6 +188,48 @@ export async function handleCollectionDelete(
     user: user!,
     tenantId,
     permanent,
+  });
+  return successResponse(event, result);
+}
+
+export async function handleCollectionBulkCreate(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+) {
+  const result = await cms.collections.bulkCreate(collectionId, await event.request.json(), {
+    user: user!,
+    tenantId,
+  });
+  return successResponse(event, result, 201);
+}
+
+export async function handleCollectionBulkUpdate(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+) {
+  const result = await cms.collections.bulkUpdate(collectionId, await event.request.json(), {
+    user: user!,
+    tenantId,
+  });
+  return successResponse(event, result);
+}
+
+export async function handleCollectionBulkDelete(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+) {
+  const result = await cms.collections.bulkDelete(collectionId, await event.request.json(), {
+    user: user!,
+    tenantId,
   });
   return successResponse(event, result);
 }

@@ -13,6 +13,7 @@ import { Worker } from "node:worker_threads";
 import path from "node:path";
 import os from "node:os";
 import { logger } from "./logger";
+import { generateSecureToken, generateUUID as uuidv4 } from "./native-utils";
 
 // --- Types & Constants ---
 
@@ -136,16 +137,25 @@ export async function decryptData(encryptedData: string, password: string): Prom
 
 // --- Token & Hash Utilities ---
 
+/**
+ * Generates a high-entropy secure token.
+ * Uses platform-native CSPRNG via native-utils.
+ */
 export async function generateRandomToken(length = 32): Promise<string> {
-  const { randomBytes } = await import("node:crypto");
-  return randomBytes(length).toString("hex");
+  return generateSecureToken(length);
 }
 
+/**
+ * Generates a RFC 4122 compliant v4 UUID.
+ * Uses platform-native CSPRNG via native-utils.
+ */
 export async function generateUUID(): Promise<string> {
-  const { randomUUID } = await import("node:crypto");
-  return randomUUID();
+  return uuidv4();
 }
 
+/**
+ * Creates a SHA-256 checksum for the provided data.
+ */
 export async function createChecksum(data: any): Promise<string> {
   const { createHash } = await import("node:crypto");
   return createHash("sha256").update(JSON.stringify(data)).digest("hex");

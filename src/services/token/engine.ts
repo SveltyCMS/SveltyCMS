@@ -55,7 +55,7 @@ class TokenRegistryService {
     if (tokenKey.startsWith("site.")) {
       try {
         const parts = tokenKey.split(".");
-        const { getAllSettings } = await import("../settings-service");
+        const { getAllSettings } = await import("../core/settings-service");
         const settings = await getAllSettings();
         return parts.slice(1).reduce((curr: any, key) => curr?.[key], settings);
       } catch (e) {

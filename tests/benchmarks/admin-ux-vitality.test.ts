@@ -18,7 +18,7 @@ async function runUXAudit() {
   console.log("🚀 Starting Simulated Admin UX Vitality Audit...\n");
 
   const { widgets: widgetStore } = await import("@src/stores/widget-store.svelte");
-  const { LocalCMS } = await import("@src/services/local-cms");
+  const { LocalCMS } = await import("@src/services/sdk");
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
 
   await ensureFullInitialization();

@@ -65,6 +65,23 @@ export async function runMigrations(db: unknown): Promise<{ success: boolean; er
       }
     };
 
+    // 🚀 MIGRATION: Rename 'security' to 'password' if needed (v0.0.8 compatibility)
+    try {
+      // Check if 'security' exists in auth_users
+      const tableInfo = (db as any).prepare
+        ? (db as any).prepare("PRAGMA table_info(auth_users)").all()
+        : [];
+      const hasSecurity = tableInfo.some((c: any) => c.name === "security");
+      const hasPassword = tableInfo.some((c: any) => c.name === "password");
+
+      if (hasSecurity && !hasPassword) {
+        logger.info("[SQLite] Migrating 'security' column to 'password' in auth_users...");
+        execute("ALTER TABLE auth_users RENAME COLUMN security TO password");
+      }
+    } catch {
+      // Ignore if table doesn't exist yet
+    }
+
     addColumn("auth_users", "isRegistered", "INTEGER DEFAULT 0");
     addColumn("auth_users", "isAdmin", "INTEGER DEFAULT 0");
     addColumn("auth_users", "role", "TEXT NOT NULL DEFAULT 'user'");
@@ -72,6 +89,26 @@ export async function runMigrations(db: unknown): Promise<{ success: boolean; er
     addColumn("auth_users", "totpSecret", "TEXT");
     addColumn("auth_users", "backupCodes", "TEXT");
     addColumn("auth_users", "last2FAVerification", "INTEGER");
+
+    // 🚀 MIGRATION: Ensure 'isDeleted' column exists in all dynamic collections
+    try {
+      const tables = (db as any).prepare
+        ? (db as any)
+            .prepare(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'collection_%'",
+            )
+            .all()
+        : [];
+      for (const { name } of tables) {
+        const tableInfo = (db as any).prepare(`PRAGMA table_info("${name}")`).all();
+        if (!tableInfo.some((c: any) => c.name === "isDeleted")) {
+          logger.info(`[SQLite] Adding missing 'isDeleted' column to ${name}...`);
+          execute(`ALTER TABLE "${name}" ADD COLUMN isDeleted INTEGER DEFAULT 0`);
+        }
+      }
+    } catch {
+      // Ignore
+    }
 
     // Auth Sessions
     execute(`

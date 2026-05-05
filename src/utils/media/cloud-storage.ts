@@ -8,7 +8,7 @@
  * - Unified interface exports
  */
 
-import { getPublicSettingSync } from "@src/services/settings-service";
+import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import type { StorageType } from "./media-models";

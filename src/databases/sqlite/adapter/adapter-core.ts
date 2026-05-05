@@ -16,7 +16,7 @@ import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import type { DatabaseCapabilities, DatabaseResult } from "../../db-interface";
 
-import { BaseSqlAdapter } from "../base-sql-adapter";
+import { BaseSqlAdapter } from "../../relational/base-sql-adapter";
 import * as schema from "../schema";
 
 type SQLiteDB = BaseSQLiteDatabase<"sync", unknown, typeof schema>;
@@ -90,7 +90,17 @@ export class AdapterCore extends BaseSqlAdapter {
   public get db(): SQLiteDB {
     const worker = testWorkerContext.getStore();
     if (worker && process.env.TEST_MODE === "true") {
-      return this.connections.get(worker)?.db ?? this._db;
+      const conn = this.connections.get(worker);
+      if (conn) return conn.db;
+
+      // 🛡️ RACE CONDITION GUARD: If worker is set but connection not yet initialized,
+      // fallback to main DB but warn. This prevents hard crashes during rapid test re-seeds.
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        logger.warn(
+          `[SQLite] Test worker ${worker} requested DB but connection not ready. Falling back.`,
+        );
+      }
+      return this._db;
     }
     return this._db;
   }
@@ -462,6 +472,7 @@ export class AdapterCore extends BaseSqlAdapter {
         tenantId: text("tenantId", { length: 36 }),
         data: text("data", { mode: "json" }).notNull().default("{}"),
         status: text("status", { length: 50 }).notNull().default("draft"),
+        isDeleted: integer("isDeleted", { mode: "boolean" }).notNull().default(false),
         createdAt: integer("createdAt", { mode: "timestamp_ms" })
           .notNull()
           .default(sql`(strftime('%s','now')*1000)`),
@@ -481,7 +492,7 @@ export class AdapterCore extends BaseSqlAdapter {
   /* ------------------------------------------------ */
 
   private async createDriver(dbPath: string) {
-    const isBun = typeof Bun !== "undefined";
+    const isBun = !!(globalThis as any).Bun || !!(process as any).versions?.bun;
     const readonly = (this.config as SQLiteConfig)?.readonly || dbPath.includes("mode=ro") || false;
 
     // 🚀 If in Bun, use Bun's native driver exclusively.
@@ -534,6 +545,19 @@ export class AdapterCore extends BaseSqlAdapter {
     safeExec("PRAGMA cache_size=-64000"); // 64MB
     safeExec("PRAGMA journal_size_limit=67108864"); // 64MB WAL limit
     safeExec("PRAGMA wal_autocheckpoint=10000"); // Tune up to 10k to smooth out p95 spikes during bulk inserts
+  }
+
+  public override get raw(): {
+    execute: (sql: string, params?: any[]) => Promise<any>;
+    client: any;
+  } {
+    return {
+      execute: async (sqlText: string, params: any[] = []) => {
+        // Use the high-performance prepareAndExecute helper
+        return this.prepareAndExecute(sqlText, "all", ...params);
+      },
+      client: this.sqlite,
+    };
   }
 
   private async resolvePath(config: string | SQLiteConfig): Promise<string> {

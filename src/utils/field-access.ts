@@ -6,7 +6,7 @@
 import type { User } from "@src/databases/auth/types";
 import type { FieldInstance } from "@src/content/types";
 import { AppError } from "@utils/error-handling";
-import { auditLogService, AuditEventType } from "@src/services/audit-log-service";
+import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 import type { DatabaseId } from "@src/databases/db-interface";
 
 /**

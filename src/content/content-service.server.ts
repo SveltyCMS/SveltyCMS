@@ -108,6 +108,7 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
   async function walk(dir: string) {
     try {
       const entries = await fsPromises.readdir(dir, { withFileTypes: true });
+      logger.info(`[Scanner] readdir ${dir} found ${entries.length} entries`);
       await Promise.all(
         entries.map(async (entry) => {
           const fullPath = path.join(dir, entry.name);
@@ -124,7 +125,9 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
 
   try {
     await walk(collectionsDir);
+    logger.info(`[Scanner] Total files found: ${fileList.length}`);
     const scanList = fileList.filter((f) => _mtimeTree.get(f.fullPath) !== f.mtime);
+    logger.info(`[Scanner] Files needing scan: ${scanList.length}`);
 
     if (scanList.length === 0 && _schemaCache.size === fileList.length) {
       _isDirty = false;

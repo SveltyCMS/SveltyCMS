@@ -1,0 +1,101 @@
+---
+path: "src/widgets/custom/markdown/markdown.mdx"
+title: "Markdown Widget"
+description: "High-performance split-pane Markdown editor with real-time preview"
+order: 130
+icon: "mdi:language-markdown"
+author: "Antigravity"
+created: "2026-05-04"
+updated: "2026-05-04"
+tags:
+  - widget
+  - custom
+  - markdown
+  - editor
+  - content
+---
+
+# Markdown Widget
+
+<blockquote>
+  **Premium content editor** featuring a dual-pane interface for distraction-free writing with
+  instant HTML preview.
+</blockquote>
+
+## Overview
+
+The **Markdown widget** provides a middle ground between plain text and full Rich-Text editors. It is ideal for developers and technical writers who prefer the precision of Markdown while requiring immediate visual feedback. It supports all standard GFM (GitHub Flavored Markdown) syntax.
+
+### Key Features
+
+- ✅ **Split-Pane UI**: Write on the left, see the result on the right.
+- ✅ **Instant Preview**: Optimized rendering engine with minimal latency.
+- ✅ **Translatable**: Full support for multi-language content models.
+- ✅ **Clean Output**: Stores raw Markdown strings, ensuring zero HTML pollution in your DB.
+- ✅ **Tooling Integrated**: Built-in support for bold, italics, links, and image syntax.
+
+---
+
+## Basic Usage
+
+### Blog Post Body
+
+```typescript
+import Markdown from "@src/widgets/custom/markdown";
+
+export const postsCollection = {
+  name: "Posts",
+  fields: [
+    Markdown({
+      label: "Body Content",
+      db_fieldName: "body",
+      translated: true,
+      required: true,
+      helper: "Use Markdown for rich content",
+    }),
+  ],
+};
+```
+
+---
+
+## Configuration Properties
+
+| Property      | Type      | Required | Default | Description                         |
+| ------------- | --------- | -------- | ------- | ----------------------------------- |
+| `translated`  | `boolean` | ❌ No    | `false` | Enable multi-language support       |
+| `required`    | `boolean` | ❌ No    | `false` | Whether content is mandatory        |
+| `placeholder` | `string`  | ❌ No    | -       | Placeholder text in the editor area |
+
+---
+
+## Data Structure
+
+### Storage Format
+
+The widget stores a raw string (or a language-keyed object if translated).
+
+```json
+{
+  "body": {
+    "en": "# Hello World\nThis is **markdown**.",
+    "de": "# Hallo Welt\nDas ist **Markdown**."
+  }
+}
+```
+
+---
+
+## Best Practices
+
+### ✅ Use Markdown When:
+
+- Writing technical documentation or blog posts.
+- You need clean, portable data without HTML bloat.
+- The audience is comfortable with Markdown syntax.
+
+### ❌ Don't Use Markdown When:
+
+- Users need complex table builders or visual formatting tools (use `Rich-Text`).
+- You need to strictly enforce a specific design system (Markdown is too flexible).
+- Handling deeply nested media galleries inside text.

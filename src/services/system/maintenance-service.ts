@@ -5,7 +5,7 @@
 
 import { cacheService } from "@src/databases/cache/cache-service";
 import { logger } from "@utils/logger";
-import { metricsService } from "@src/services/metrics-service";
+import { metricsService } from "@src/services/observability/metrics-service";
 
 export class MaintenanceService {
   private static instance: MaintenanceService;

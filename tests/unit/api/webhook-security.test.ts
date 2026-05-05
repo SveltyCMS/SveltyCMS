@@ -9,10 +9,10 @@ import {
   PATCH as dispatcherPATCH,
   DELETE as dispatcherDELETE,
 } from "@src/routes/api/[...path]/+server";
-import { webhookService } from "@src/services/webhook-service";
+import { webhookService } from "@src/services/background/webhook-service";
 
 // Mock webhook service
-vi.mock("@src/services/webhook-service", () => ({
+vi.mock("@src/services/background/webhook-service", () => ({
   webhookService: {
     getWebhooks: vi.fn().mockResolvedValue([]),
     saveWebhook: vi.fn().mockResolvedValue({ id: "webhook-1", name: "Test" }),

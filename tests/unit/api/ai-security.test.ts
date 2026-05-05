@@ -5,10 +5,10 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { POST as dispatcher } from "@src/routes/api/[...path]/+server";
-import { aiService } from "@src/services/ai-service";
+import { aiService } from "@src/services/core/ai-service";
 
 // Mock AI service
-vi.mock("@src/services/ai-service", () => ({
+vi.mock("@src/services/core/ai-service", () => ({
   aiService: {
     chat: vi.fn().mockResolvedValue("AI Response"),
     enrichText: vi.fn().mockResolvedValue("Enriched Text"),
@@ -17,7 +17,7 @@ vi.mock("@src/services/ai-service", () => ({
 }));
 
 // Mock settings service
-vi.mock("@src/services/settings-service", () => ({
+vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(true), // MULTI_TENANT = true
   getPublicSettingSync: vi.fn().mockReturnValue("mediaFolder"),
   getUntypedSetting: vi.fn().mockResolvedValue(undefined),

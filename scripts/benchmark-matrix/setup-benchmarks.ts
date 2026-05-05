@@ -17,8 +17,21 @@ plugin({
     });
     build.onLoad({ filter: /.*/, namespace: "svelte-kit-mock" }, (_args) => {
       return {
-        contents:
-          "export const browser = false; export const dev = false; export const building = false; export const version = '1.0.0';",
+        contents: `
+          export const browser = false; 
+          export const dev = false; 
+          export const building = false; 
+          export const version = '1.0.0';
+          export const goto = () => Promise.resolve();
+          export const invalidate = () => Promise.resolve();
+          export const invalidateAll = () => Promise.resolve();
+          export const preloadData = () => Promise.resolve();
+          export const preloadCode = () => Promise.resolve();
+          export const beforeNavigate = () => {};
+          export const afterNavigate = () => {};
+          export const pushState = () => {};
+          export const replaceState = () => {};
+        `,
         loader: "js",
       };
     });
@@ -270,6 +283,7 @@ async function notifyServer() {
           "x-test-secret": process.env.TEST_API_SECRET,
         },
         body: JSON.stringify({ tenantId: TENANT_ID, skipReconciliation: false }),
+        signal: AbortSignal.timeout(30000), // 30s timeout
       });
       if (res.ok) log("   → Server refresh successful.");
       else log(`   → Server refresh failed: ${res.status} ${res.statusText}`);
@@ -367,7 +381,7 @@ export async function main(): Promise<void> {
 
     // Dynamic imports to ensure proper initialization order
     const { getDb, getDbInitPromise } = await import("@src/databases/db");
-    const { LocalCMS } = await import("@src/services/local-cms");
+    const { LocalCMS } = await import("@src/services/sdk");
 
     await getDbInitPromise();
 

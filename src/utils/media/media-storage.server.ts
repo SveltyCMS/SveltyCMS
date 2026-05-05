@@ -14,7 +14,7 @@ import path from "node:path";
 import os from "node:os";
 import { spawn } from "node:child_process";
 import { writeFileSync, readFileSync, unlinkSync } from "node:fs";
-import { getPublicSettingSync } from "@src/services/settings-service";
+import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import mime from "mime-types";
 import { logger } from "@utils/logger";

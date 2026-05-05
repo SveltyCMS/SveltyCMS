@@ -40,7 +40,7 @@ afterAll(async () => {
 
 test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-  const { LocalCMS } = await import("@src/services/local-cms");
+  const { LocalCMS } = await import("@src/services/sdk");
 
   await ensureFullInitialization();
   const db = getDb();

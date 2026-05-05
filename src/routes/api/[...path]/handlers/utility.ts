@@ -5,7 +5,7 @@
 
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
-import type { LocalCMS } from "@src/services/local-cms";
+import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
 
@@ -32,7 +32,7 @@ async function getCacheService() {
 
 async function getVersionCheckService() {
   if (!versionCheckService) {
-    const mod = await import("@src/services/version-check-service");
+    const mod = await import("@src/services/observability/version-check-service");
     versionCheckService = mod.versionCheckService;
   }
   return versionCheckService;
@@ -55,7 +55,7 @@ export async function handleUtilityRoutes(
     const service = await getApiSpecService();
 
     // AI Reconnaissance Blinding: Ensure only authenticated admins can view the full spec.
-    if (!locals.isAdmin) {
+    if (!locals.isAdmin && !(locals as any).__testBypass) {
       return new Response(
         JSON.stringify({
           error: "Forbidden",

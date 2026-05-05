@@ -179,7 +179,9 @@ function createBulkInsertTest(db: any) {
 }
 
 async function prepareCollection(db: any) {
+  console.log("   [DB Trace] Preparing collection...");
   if (db.collection?.createModel) {
+    console.log("   [DB Trace] Creating model...");
     await db.collection
       .createModel({
         _id: COLLECTION_ID,
@@ -194,7 +196,10 @@ async function prepareCollection(db: any) {
   }
 
   // Clean + seed stable record
+  console.log("   [DB Trace] Deleting old records...");
   await db.crud.deleteMany(COLLECTION_ID, {}, { tenantId: TEST_TENANT });
+
+  console.log("   [DB Trace] Seeding stable record...");
   await db.crud.upsert(
     COLLECTION_ID,
     { _id: "bench-shared-001" as any },
@@ -207,13 +212,15 @@ async function prepareCollection(db: any) {
     { tenantId: TEST_TENANT },
   );
 
-  // Pre-populate for Delete benchmark (e.g. 2000 records)
-  const deleteBatch = Array.from({ length: 2000 }, (_, i) => ({
+  // Pre-populate for Delete benchmark (e.g. 4000 records to accommodate 3 runs of 1200 iterations)
+  console.log("   [DB Trace] Pre-populating delete batch (4000 records)...");
+  const deleteBatch = Array.from({ length: 4000 }, (_, i) => ({
     _id: `del-shared-${i}` as any,
     title: `To delete ${i}`,
     tenantId: TEST_TENANT,
   }));
   await db.crud.insertMany(COLLECTION_ID, deleteBatch, { tenantId: TEST_TENANT });
+  console.log("   [DB Trace] Collection prepared.");
 }
 
 test("Database Adapter CRUD Performance", async () => {

@@ -44,7 +44,7 @@ import type { Role, User } from "@src/databases/auth/types";
 import { cacheService } from "@src/databases/cache/cache-service";
 // Database Interface
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
-import { getPublicSettingSync } from "@src/services/settings-service";
+import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { getUrl, isCloud } from "@src/utils/media/cloud-storage";
 import { getSanitizedFileName } from "@src/utils/media/media-processing";
 import { hashFileContent, mediaProcessingService } from "@src/utils/media/media-processing.server";

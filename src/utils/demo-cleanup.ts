@@ -44,7 +44,7 @@ export async function cleanupExpiredDemoTenants() {
   }
 
   // Dynamic TTL from settings
-  const { getPublicSettingSync } = await import("@src/services/settings-service");
+  const { getPublicSettingSync } = await import("@src/services/core/settings-service");
   const demoTTL = Number(getPublicSettingSync("DEMO_TTL")) || 60;
   const EXPIRATION_MS = demoTTL * 60 * 1000;
   const cutoffDate = new Date(Date.now() - EXPIRATION_MS);

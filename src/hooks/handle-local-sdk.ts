@@ -5,7 +5,7 @@
  */
 
 import { getDbInitPromise, dbAdapter } from "@src/databases/db";
-import { LocalCMS } from "@src/services/local-cms";
+import { LocalCMS } from "@src/services/sdk";
 import type { Handle } from "@sveltejs/kit";
 
 export const handleLocalSdk: Handle = async ({ event, resolve }) => {

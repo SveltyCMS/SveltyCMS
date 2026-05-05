@@ -5,8 +5,8 @@
 
 import type { RequestHandler } from "@sveltejs/kit";
 import { dbAdapter } from "@src/databases/db";
-import { LocalCMS } from "@src/services/local-cms";
-import { getCachedSitemap, setCachedSitemap } from "@src/services/seo/sitemap-cache";
+import { LocalCMS } from "@src/services/sdk";
+import { getCachedSitemap, setCachedSitemap } from "@src/services/content/seo/sitemap-cache";
 
 export const GET: RequestHandler = async ({ locals, url }: { locals: any; url: URL }) => {
   const { tenantId } = locals;

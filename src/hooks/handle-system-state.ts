@@ -21,7 +21,7 @@ const dev = (() => {
   }
 })();
 import { dbInitPromise } from "@src/databases/db";
-import { metricsService } from "@src/services/metrics-service";
+import { metricsService } from "@src/services/observability/metrics-service";
 import { getSystemState, isSystemReady } from "@src/stores/system/state";
 import type { SystemState } from "@src/stores/system/types";
 import type { Handle, RequestEvent } from "@sveltejs/kit";

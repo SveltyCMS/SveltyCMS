@@ -371,6 +371,18 @@ class WidgetState {
       }
     }
   }
+  /**
+   * Compatibility alias for widget registry lookup.
+   * Used by benchmarks and legacy components.
+   */
+  getWidgetModule(name: string | { label: string }): WidgetFactory | undefined {
+    const widgetName = typeof name === "string" ? name : name.label;
+    // Normalize name to PascalCase if not found as-is
+    if (this.widgetFunctions[widgetName]) return this.widgetFunctions[widgetName] as WidgetFactory;
+
+    const pascalName = widgetName.charAt(0).toUpperCase() + widgetName.slice(1);
+    return this.widgetFunctions[pascalName] as WidgetFactory;
+  }
 }
 
 const widgetStateInstance = new WidgetState();
@@ -389,7 +401,13 @@ export const widgets = new Proxy(widgetStateInstance, {
       }
       return own;
     }
-    return target.widgetFunctions[prop];
+    // Fallback to widget functions
+    const fn = target.widgetFunctions[prop];
+    if (fn) return fn;
+
+    // Support camelCase fallback for common widget lookups
+    const pascalName = prop.charAt(0).toUpperCase() + prop.slice(1);
+    return target.widgetFunctions[pascalName];
   },
 }) as WidgetState & Record<string, WidgetFactory>;
 

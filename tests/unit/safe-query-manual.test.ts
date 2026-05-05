@@ -1,3 +1,8 @@
+/**
+ * @file tests\unit\safe-query-manual.test.ts
+ * @description
+ */
+
 // Properly mock @src/databases/config-state
 vi.mock("@src/databases/config-state", () => ({
   getPrivateEnv: () => (globalThis as any).__privateEnv,

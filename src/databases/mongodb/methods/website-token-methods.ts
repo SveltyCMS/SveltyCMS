@@ -11,8 +11,8 @@ import { createDatabaseError } from "./mongodb-utils";
 export class MongoWebsiteTokenMethods {
   private readonly crud: MongoCrudMethods<WebsiteToken>;
 
-  constructor(websiteTokenModel: Model<WebsiteToken>) {
-    this.crud = new MongoCrudMethods(websiteTokenModel);
+  constructor(websiteTokenModel: Model<WebsiteToken>, adapter: any) {
+    this.crud = new MongoCrudMethods(websiteTokenModel, adapter);
   }
 
   /**

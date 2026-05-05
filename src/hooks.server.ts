@@ -11,7 +11,7 @@
  *   including errors thrown by earlier middlewares (rate-limit 429, firewall blocks, etc.)
  */
 
-import { metricsService } from "@src/services/metrics-service";
+import { metricsService } from "@src/services/observability/metrics-service";
 import type { Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
 import { logger } from "@utils/logger";
@@ -81,16 +81,16 @@ if (!building) {
           })
           .catch(() => {});
 
-        // Initialize Scheduler
-        const { scheduler } = await import("@src/services/scheduler");
-        scheduler.start();
+        // Initialize Background Job Queue
+        const { jobQueue } = await import("@src/services/background/jobs/job-queue-service");
+        jobQueue.startPolling();
 
         // Initialize Automation
-        const { automationService } = await import("@src/services/automation");
+        const { automationService } = await import("@src/services/background/automation");
         automationService.init();
 
         // Initialize Telemetry
-        const { telemetryService } = await import("@src/services/telemetry-service");
+        const { telemetryService } = await import("@src/services/observability/telemetry-service");
 
         // ✨ ENTERPRISE: Start the Autonomous Watchdog
         const { watchdog } = await import("@src/services/system/watchdog");
@@ -160,6 +160,18 @@ if (!building) {
 
   process.on("SIGTERM", () => handleSignal("SIGTERM"));
   process.on("SIGINT", () => handleSignal("SIGINT"));
+
+  // ✨ ENTERPRISE: Diagnostic Error Catching
+  process.on("uncaughtException", (err) => {
+    logger.error("FATAL: Uncaught Exception:", err);
+    process.stderr.write(`FATAL: Uncaught Exception: ${err}\n`);
+    process.exit(255);
+  });
+
+  process.on("unhandledRejection", (reason) => {
+    logger.error("FATAL: Unhandled Rejection:", reason);
+    process.stderr.write(`FATAL: Unhandled Rejection: ${reason}\n`);
+  });
 }
 
 // --- Updated middleware sequence (Turbo Pipeline FIRST for performance) ---

@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
 import PageTitle from "@src/components/page-title.svelte";
-import type { Webhook } from "@src/services/webhook-service";
+import type { Webhook } from "@src/services/background/webhook-service";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { onMount } from "svelte";
 import { fade, slide } from "svelte/transition";

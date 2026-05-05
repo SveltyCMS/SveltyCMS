@@ -1,0 +1,101 @@
+---
+path: "src/widgets/custom/email/email.mdx"
+title: "Email Widget"
+description: "High-performance email input widget with disposable domain blocking, lowercase normalization, and accessibility parity."
+order: 1
+icon: "mdi:email-outline"
+author: "admin"
+created: "2025-10-01"
+updated: "2026-05-04"
+tags:
+  - "widget"
+  - "email"
+  - "form"
+  - "validation"
+  - "security"
+  - "custom"
+---
+
+# Email Widget
+
+The **Email Widget** is a specialized input component designed exclusively for email address entry. It provides HTML5 email validation, disposable email blocking, automatic lowercase normalization, and strict accessibility compliance.
+
+## 🚀 Features
+
+| Feature                        | Description                                                 |
+| ------------------------------ | ----------------------------------------------------------- |
+| ✅ **Valibot Integration**     | Uses `email()` validator for schema-level format checking   |
+| ✅ **Disposable Blocking**     | Prevents registration with temporary email services         |
+| ✅ **Lowercase Normalization** | Automatically normalizes input to lowercase for consistency |
+| ✅ **Non-Translatable**        | Correctly treats email as universal, context-free data      |
+| ✅ **Semantic HTML**           | Uses `type="email"` for optimized mobile keyboard layouts   |
+| ✅ **Clean UI**                | Integrated "Clear" button and improved visual feedback      |
+| ✅ **WCAG 2.2 AA**             | Full ARIA support, keyboard nav, and error associations     |
+
+## 📦 Usage
+
+### Basic Example
+
+```typescript
+import { widgets } from "@widgets";
+
+export default {
+  fields: [
+    widgets.Email({
+      label: "Email Address",
+      db_fieldName: "email",
+      required: true,
+      placeholder: "user@example.com",
+    }),
+  ],
+};
+```
+
+## ⚙️ Configuration
+
+| Option        | Type      | Default | Description                       |
+| ------------- | --------- | ------- | --------------------------------- |
+| `label`       | `string`  | -       | Field display label (Required)    |
+| `required`    | `boolean` | `false` | Whether the field is mandatory    |
+| `placeholder` | `string`  | -       | Custom input placeholder          |
+| `prefix`      | `string`  | -       | Visual text/icon before the input |
+| `suffix`      | `string`  | -       | Visual text/icon after the input  |
+
+## ♿ Accessibility
+
+- **ARIA Labeled**: The input is explicitly associated with its label or an `aria-label`.
+- **Error Description**: Validation errors are linked via `aria-describedby` for real-time screen reader feedback.
+- **Semantic HTML**: Uses `type="email"` and proper `role="alert"` for error messages.
+- **Focus Management**: Consistent focus rings and clear tab order.
+- **Interaction**: "Clear" button is keyboard reachable and labeled.
+
+## 🔒 Security
+
+### Disposable Email Blocking
+
+The widget automatically blocks common disposable domains (e.g., `mailinator.com`, `yopmail.com`) at the schema level, preventing abuse of sign-up forms.
+
+### Normalization
+
+Input is automatically trimmed and converted to lowercase during the `oninput` event, ensuring data consistency across the system without manual sanitization steps.
+
+## 🛠 Technical Implementation
+
+### Validation Schema
+
+Centralized in `index.ts` using Valibot:
+
+```typescript
+const validationSchema = (field: FieldInstance) => {
+  const base = pipe(string(), email("Please enter a valid email address"), blockDisposableEmail);
+  return field.required ? pipe(string(), minLength(1, "Required"), base) : optional(base, "");
+};
+```
+
+### State Management
+
+Uses **Svelte 5 Runes** for fine-grained reactivity:
+
+- `$derived.by()`: Handles cross-language value resolution.
+- `$bindable()`: Ensures two-way synchronization with parent forms.
+- `handleWidgetValidation`: Unified error handling bridge.

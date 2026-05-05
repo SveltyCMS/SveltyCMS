@@ -9,7 +9,7 @@
  * - Required field handling
  */
 
-import RepeaterWidget from "@widgets/core/repeater";
+import RepeaterWidget from "@widgets/custom/repeater";
 import { parse } from "valibot";
 
 // Mock dependencies

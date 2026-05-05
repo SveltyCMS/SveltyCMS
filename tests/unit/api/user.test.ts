@@ -23,7 +23,7 @@ vi.mock("@src/databases/db", () => ({
   getAuth: vi.fn(),
 }));
 
-vi.mock("@src/services/settings-service", () => ({
+vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
   getPublicSettingSync: vi.fn().mockReturnValue(true),
 }));

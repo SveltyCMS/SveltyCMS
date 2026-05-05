@@ -13,7 +13,7 @@ vi.mock("$app/environment", () => ({
 }));
 
 // Mocking settings
-vi.mock("@src/services/settings-service", () => ({
+vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn((key: string) => {
     if (key === "MULTI_TENANT") return true;
     if (key === "USE_REDIS") return false;

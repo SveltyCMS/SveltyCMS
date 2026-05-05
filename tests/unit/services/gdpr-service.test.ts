@@ -11,7 +11,7 @@
  * - Audit logging
  */
 
-import { gdprService } from "@src/services/gdpr-service";
+import { gdprService } from "@src/services/security/gdpr-service";
 
 // Access global mocks from setup.ts
 const mockAuditLog = (globalThis as any).mockAuditLog;

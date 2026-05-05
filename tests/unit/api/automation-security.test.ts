@@ -10,10 +10,10 @@ import {
   PATCH as dispatcherPATCH,
   DELETE as dispatcherDELETE,
 } from "@src/routes/api/[...path]/+server";
-import { automationService } from "@src/services/automation/automation-service";
+import { automationService } from "@src/services/background/automation/automation-service";
 
 // Mock automation service
-vi.mock("@src/services/automation/automation-service", () => ({
+vi.mock("@src/services/background/automation/automation-service", () => ({
   automationService: {
     getFlows: vi.fn().mockResolvedValue([]),
     getFlow: vi.fn().mockResolvedValue(null),
@@ -23,7 +23,7 @@ vi.mock("@src/services/automation/automation-service", () => ({
 }));
 
 // Mock settings service
-vi.mock("@src/services/settings-service", () => ({
+vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(true), // MULTI_TENANT = true
   getPublicSettingSync: vi.fn().mockReturnValue("mediaFolder"),
   getUntypedSetting: vi.fn().mockResolvedValue(undefined),

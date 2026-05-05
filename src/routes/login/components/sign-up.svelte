@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 @file src/routes/login/components/SignUp.svelte
 @component
 **SignUP with optional OAuth support**
@@ -209,7 +209,7 @@ function handleOAuth() {
 	if (!(isInviteFlow || hasExistingOAuthUsers || currentFormToken)) {
 		// Show a helpful message
 		alert(
-			"⚠️ Please enter your invitation token first before using Google OAuth signup. OAuth registration requires an invitation from an administrator.",
+			"?? Please enter your invitation token first before using Google OAuth signup. OAuth registration requires an invitation from an administrator.",
 		);
 		return;
 	}
@@ -368,7 +368,7 @@ $effect(() => {
 						errorMessage={signUpForm.errors.email?.[0] || ''}
 					/>
 					{#if isInviteFlow}
-						<span class="text-xs text-primary-400">✓ Email pre-filled from invitation</span>
+						<span class="text-xs text-primary-400">? Email pre-filled from invitation</span>
 					{/if}
 
 					<!-- Hidden email input to ensure form submission when disabled -->
@@ -444,12 +444,12 @@ $effect(() => {
 							errorMessage={signUpForm.errors.token?.[0] || ''}
 						/>
 						{#if signUpForm.data.token && inviteError}
-							<span class="text-xs text-warning-400">⚠️ Token was pre-filled from URL and will be validated against the server</span>
+							<span class="text-xs text-warning-400">?? Token was pre-filled from URL and will be validated against the server</span>
 						{/if}
 					{:else if isInviteFlow}
 						<!-- Hidden token field for invite flow -->
 						<input type="hidden" name="token" value={token} />
-						<span class="text-xs text-primary-400">✓ Using invitation token</span>
+						<span class="text-xs text-primary-400">? Using invitation token</span>
 					{/if}
 
 					{#if response}
@@ -491,10 +491,10 @@ $effect(() => {
 
 						{#if !isInviteFlow && firstUserExists && !hasExistingOAuthUsers}
 							<p class="mt-2 text-xs text-surface-400">
-								💡 Note: Both email/password and Google OAuth registration require an invitation token from an administrator.
+								?? Note: Both email/password and Google OAuth registration require an invitation token from an administrator.
 							</p>
 						{:else if !isInviteFlow && hasExistingOAuthUsers}
-							<p class="mt-2 text-xs text-surface-400">💡 Note: New user registration requires an invitation token from an administrator.</p>
+							<p class="mt-2 text-xs text-surface-400">?? Note: New user registration requires an invitation token from an administrator.</p>
 						{/if}
 					{/if}
 				</form>

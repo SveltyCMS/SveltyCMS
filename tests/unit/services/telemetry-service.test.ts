@@ -10,7 +10,7 @@
  * - Node env detection
  */
 
-import { telemetryService } from "@src/services/telemetry-service";
+import { telemetryService } from "@src/services/observability/telemetry-service";
 
 describe("TelemetryService Environment Checks", () => {
   const originalEnv = process.env;

@@ -20,18 +20,18 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (03/05/2026, 21:06:31)
+## 📊 Latest Performance Audit (05/05/2026, 12:34:09)
 
-**Status:** ✅ PASS
+**Status:** ✅ PASS _(Historical)_
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend       | Target Budget |
-| :--------------------- | :---------- | :---------- | :------------ |
-| **Cold Start**         | 528ms       | 🔴 (+21.5%) | < 5000ms      |
-| **REST (Collections)** | 0.000ms     | ⚪ (—)      | < 5ms         |
-| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—)      | < 5ms         |
-| **DB Raw (p95)**       | 0.000ms     | ⚪          | < 50ms        |
+| Scenario               | Avg Latency | Trend  | Target Budget |
+| :--------------------- | :---------- | :----- | :------------ |
+| **Cold Start**         | 0ms         | ⚪ (—) | < 5000ms      |
+| **REST (Collections)** | 0.000ms     | ⚪ (—) | < 5ms         |
+| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—) | < 5ms         |
+| **DB Raw (p95)**       | 0.008ms     | ⚪     | < 50ms        |
 
 ### 📈 Historical Latency Trends
 
@@ -44,6 +44,35 @@ xychart-beta
 ```
 
 ## 🔬 Detailed Performance Ledger (20+ Modules)
+
+<!-- ADMIN_TABLE_START -->
+
+### 🏷️ ADMIN UX VITALITY AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                    SVELTYCMS  —  ADMIN UX VITALITY AUDIT                    ║
+║            Form Processor • Widget Registry • Stress: 50 Fields             ║
+║              File: tests/benchmarks/admin-ux-vitality.test.ts               ║
+║        Proves: Simulated Admin UX Vitality benchmark for SveltyCMS.         ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Form Logic (50f)             │ 0.026 ms       │ 0.041 ms     │ 38,469       ║
+║ Widget Registry              │ 0.001 ms       │ 0.003 ms     │ 803,213      ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Complex Form Overhead                              │        0.026 ms       ║
+║ Widget Lookup Latency                              │        0.001 ms       ║
+║ Simulated Rendering Vitality                       │        99.97 /100     ║
+║ UX Performance Tier                                │     PLATINUM          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
+
+<!-- ADMIN_TABLE_END -->
 
 <!-- API_TABLE_START -->
 
@@ -58,17 +87,17 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ SDK: findById @ 1c           │ 0.004 ms       │ 0.010 ms     │ 226,342      ║
-║ HTTP: findById @ 8c          │ 0.508 ms       │ 0.569 ms     │ 1,968        ║
+║ SDK: findById @ 1c           │ 0.003 ms       │ 0.007 ms     │ 303,721      ║
+║ HTTP: findById @ 8c          │ 1.028 ms       │ 1.143 ms     │ 973          ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ SDK Latency (findById)                             │        0.004 ms       ║
-║ HTTP Latency (findById)                            │        0.508 ms       ║
-║ Full Pipeline Overhead                             │         0.50 ms       ║
-║ Peak Throughput                                    │     1968.000 req/s    ║
+║ SDK Latency (findById)                             │        0.003 ms       ║
+║ HTTP Latency (findById)                            │        1.028 ms       ║
+║ Full Pipeline Overhead                             │         1.02 ms       ║
+║ Peak Throughput                                    │      973.000 req/s    ║
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -128,23 +157,23 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ INSERT                       │ 0.116 ms (⚪ 0.0%) │ 0.235 ms     │ 8,622        ║
-║ FIND ONE                     │ 0.008 ms (⚪ 0.0%) │ 0.011 ms     │ 118,273      ║
-║ FIND MANY (limit 50)         │ 0.095 ms (⚪ 0.0%) │ 0.149 ms     │ 10,555       ║
-║ UPDATE                       │ 0.053 ms (⚪ 0.0%) │ 0.090 ms     │ 18,892       ║
-║ DELETE                       │ 0.078 ms (⚪ 0.0%) │ 0.153 ms     │ 12,863       ║
-║ BULK INSERT (100)            │ 3.254 ms (⚪ 0.0%) │ 3.938 ms     │ 307          ║
+║ INSERT                       │ 0.088 ms (⚪ 0.0%) │ 0.143 ms     │ 11,367       ║
+║ FIND ONE                     │ 0.007 ms (⚪ 0.0%) │ 0.010 ms     │ 138,996      ║
+║ FIND MANY (limit 50)         │ 0.169 ms (⚪ 0.0%) │ 0.255 ms     │ 5,915        ║
+║ UPDATE                       │ 0.108 ms (⚪ 0.0%) │ 0.210 ms     │ 9,286        ║
+║ DELETE                       │ 0.059 ms (⚪ 0.0%) │ 0.093 ms     │ 16,882       ║
+║ BULK INSERT (100)            │ 5.623 ms (⚪ 0.0%) │ 6.324 ms     │ 178          ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Avg Insert Latency                                 │        0.116 ms       ║
-║ Avg Read Latency (Single)                          │        0.008 ms       ║
-║ Avg Read Latency (Many)                            │        0.095 ms       ║
-║ Avg Update Latency                                 │        0.053 ms       ║
-║ Avg Delete Latency                                 │        0.078 ms       ║
-║ Peak CRUD Throughput                               │   118273.211 req/s    ║
+║ Avg Insert Latency                                 │        0.088 ms       ║
+║ Avg Read Latency (Single)                          │        0.007 ms       ║
+║ Avg Read Latency (Many)                            │        0.169 ms       ║
+║ Avg Update Latency                                 │        0.108 ms       ║
+║ Avg Delete Latency                                 │        0.059 ms       ║
+║ Peak CRUD Throughput                               │   138995.602 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -163,17 +192,17 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ TX Commit                    │ 0.184 ms       │ 0.229 ms     │ 5,434        ║
-║ TX Rollback Integrity        │ 0.268 ms       │ 0.500 ms     │ 3,727        ║
+║ TX Commit                    │ 0.176 ms       │ 0.177 ms     │ 5,675        ║
+║ TX Rollback Integrity        │ 0.546 ms       │ 0.598 ms     │ 1,831        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Avg Commit Latency                                 │        0.184 ms       ║
-║ Rollback Verification                              │        0.268 ms       ║
+║ Avg Commit Latency                                 │        0.176 ms       ║
+║ Rollback Verification                              │        0.546 ms       ║
 ║ Transaction Stability                              │     VERIFIED          ║
-║ Peak Throughput                                    │     5434.000 tx/s     ║
+║ Peak Throughput                                    │     5675.000 tx/s     ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -192,17 +221,17 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Cache Miss (Bypass)          │ 0.606 ms (⚪ 0.0%) │ 1.191 ms     │ 1,649        ║
-║ Cache Hit (Warm)             │ 0.350 ms (⚪ 0.0%) │ 0.359 ms     │ 2,856        ║
+║ Cache Miss (Bypass)          │ 0.862 ms (⚪ 0.0%) │ 1.094 ms     │ 1,159        ║
+║ Cache Hit (Warm)             │ 0.574 ms (⚪ 0.0%) │ 0.581 ms     │ 1,742        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Cache Miss                                         │        0.606 ms       ║
-║ Cache Hit                                          │        0.350 ms       ║
-║ Cache Efficiency                                   │         42.3 %        ║
-║ Peak Hit RPS                                       │     2856.000 req/s    ║
+║ Cache Miss                                         │        0.862 ms       ║
+║ Cache Hit                                          │        0.574 ms       ║
+║ Cache Efficiency                                   │         33.4 %        ║
+║ Peak Hit RPS                                       │     1742.000 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -216,20 +245,20 @@ xychart-beta
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                       SVELTYCMS — CONTENT SCAN AUDIT                        ║
 ║                150 Collections • Multi-Level • Self-Healing                 ║
-║                File: tests/benchmarks/content-scan.bench.ts                 ║
+║                 File: tests/benchmarks/content-scan.test.ts                 ║
 ║ Proves: Measures the 99.9% Self-Healing Cache scanner across the .compil... ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Content Scan (Self-Healing)  │ 0.000 ms       │ 0.000 ms     │ 0            ║
+║ Content Scan (Self-Healing)  │ 0.014 ms       │ 0.026 ms     │ 73,884       ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Average Scan Latency                               │        0.000 ms       ║
-║ p95 Scan Latency                                   │        0.000 ms       ║
-║ Peak Scan Throughput                               │        0.000 ops/s    ║
+║ Average Scan Latency                               │        0.014 ms       ║
+║ p95 Scan Latency                                   │        0.026 ms       ║
+║ Peak Scan Throughput                               │    73884.000 ops/s    ║
 ║ Collection Capacity                                │      150.000 files    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -245,22 +274,22 @@ xychart-beta
 ║                    SVELTYCMS — MIDDLEWARE & HOOKS AUDIT                     ║
 ║                  Turbo • Security • Auth • Audit • SQLITE                   ║
 ║              File: tests/benchmarks/hooks-performance.test.ts               ║
-║       Proves: Enterprise Hooks & Middleware benchmark for SveltyCMS.        ║
+║ Proves: High-resolution micro-benchmarks (µs) for individual middleware ... ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Turbo Pipeline (Light)       │ 0.307 ms (⚪ 0.0%) │ 0.368 ms     │ 3,254        ║
-║ Full Security + Auth Pipeline │ 0.502 ms (⚪ 0.0%) │ 0.533 ms     │ 1,992        ║
-║ Mutation + Audit Logging     │ 1.615 ms (⚪ 0.0%) │ 3.026 ms     │ 619          ║
+║ Turbo Pipeline (Light)       │ 0.326 ms (⚪ 0.0%) │ 0.331 ms     │ 3,068        ║
+║ Full Security + Auth Pipeline │ 0.600 ms (⚪ 0.0%) │ 0.679 ms     │ 1,667        ║
+║ Mutation + Audit Logging     │ 3.180 ms (⚪ 0.0%) │ 4.668 ms     │ 315          ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Turbo Pipeline                                     │        0.307 ms       ║
-║ Full Pipeline                                      │        0.502 ms       ║
-║ Audit Overhead                                     │         1.11 ms       ║
-║ Peak RPS                                           │     3254.000 req/s    ║
+║ Turbo Pipeline                                     │        0.326 ms       ║
+║ Full Pipeline                                      │        0.600 ms       ║
+║ Audit Overhead                                     │         2.58 ms       ║
+║ Peak RPS                                           │     3068.000 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -300,18 +329,18 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ SDK: Media Processing        │ 1.543 ms       │ 1.754 ms     │ 648          ║
-║ HTTP: Media Upload           │ 0.592 ms       │ 0.615 ms     │ 1,690        ║
+║ SDK: Media Processing        │ 102.080 ms     │ 128.508 ms   │ 10           ║
+║ HTTP: Media Upload           │ 0.227 ms       │ 0.250 ms     │ 4,411        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ SDK Processing Latency                             │        1.543 ms       ║
-║ HTTP Pipeline Latency                              │        0.592 ms       ║
-║ SDK Throughput                                     │      648.000 images/s ║
-║ HTTP Throughput                                    │     1690.000 images/s ║
-║ HTTP p95 Latency                                   │        0.615 ms       ║
+║ SDK Processing Latency                             │      102.080 ms       ║
+║ HTTP Pipeline Latency                              │        0.227 ms       ║
+║ SDK Throughput                                     │       10.000 images/s ║
+║ HTTP Throughput                                    │     4411.000 images/s ║
+║ HTTP p95 Latency                                   │        0.250 ms       ║
 ║ Memory Growth                                      │          0.0 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -331,16 +360,16 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Shallow Relational Query     │ 0.836 ms       │ 0.947 ms     │ 1,197        ║
-║ Deep Relational Query        │ 1.078 ms       │ 1.115 ms     │ 928          ║
+║ Shallow Relational Query     │ 0.403 ms       │ 0.465 ms     │ 2,482        ║
+║ Deep Relational Query        │ 0.387 ms       │ 0.400 ms     │ 2,585        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Shallow Query Latency                              │        0.836 ms       ║
-║ Deep Query Latency                                 │        1.078 ms       ║
-║ Peak Throughput                                    │     1197.000 req/s    ║
+║ Shallow Query Latency                              │        0.403 ms       ║
+║ Deep Query Latency                                 │        0.387 ms       ║
+║ Peak Throughput                                    │     2482.000 req/s    ║
 ║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -360,19 +389,19 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                 │ 0.229 ms       │ 0.278 ms     │ 4,370        ║
-║ Collection Schema            │ 0.635 ms       │ 0.662 ms     │ 1,575        ║
-║ Collection Find (List)       │ 0.394 ms       │ 0.397 ms     │ 2,539        ║
-║ Collection Search            │ 0.433 ms       │ 0.445 ms     │ 2,310        ║
+║ Health Check                 │ 0.162 ms       │ 0.193 ms     │ 6,182        ║
+║ Collection Schema            │ 0.313 ms       │ 0.318 ms     │ 3,191        ║
+║ Collection Find (List)       │ 0.285 ms       │ 0.291 ms     │ 3,509        ║
+║ Collection Search            │ 0.284 ms       │ 0.291 ms     │ 3,527        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                                       │        0.229 ms       ║
-║ Collection Schema                                  │        0.635 ms       ║
-║ Collection Find (List)                             │        0.394 ms       ║
-║ Collection Search                                  │        0.433 ms       ║
+║ Health Check                                       │        0.162 ms       ║
+║ Collection Schema                                  │        0.313 ms       ║
+║ Collection Find (List)                             │        0.285 ms       ║
+║ Collection Search                                  │        0.284 ms       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -391,19 +420,19 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ GQL: System Health           │ 0.952 ms (⚪ 0.0%) │ 1.352 ms     │ 1,051        ║
-║ GQL: Collection List         │ 0.677 ms (⚪ 0.0%) │ 0.718 ms     │ 1,476        ║
-║ GQL: Entries (Stable Collection) │ 0.771 ms (⚪ 0.0%) │ 0.852 ms     │ 1,297        ║
-║ GQL: Concurrent Load         │ 1.081 ms (⚪ 0.0%) │ 1.103 ms     │ 925          ║
+║ GQL: System Health           │ 0.463 ms (⚪ 0.0%) │ 0.566 ms     │ 2,158        ║
+║ GQL: Collection List         │ 0.374 ms (⚪ 0.0%) │ 0.381 ms     │ 2,676        ║
+║ GQL: Entries (Stable Collection) │ 0.359 ms (⚪ 0.0%) │ 0.373 ms     │ 2,786        ║
+║ GQL: Concurrent Load         │ 0.362 ms (⚪ 0.0%) │ 0.364 ms     │ 2,763        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                                       │        0.952 ms       ║
-║ Collection List                                    │        0.677 ms       ║
-║ Entries Query                                      │        0.771 ms       ║
-║ Peak RPS                                           │     1476.084 req/s    ║
+║ Health Check                                       │        0.463 ms       ║
+║ Collection List                                    │        0.374 ms       ║
+║ Entries Query                                      │        0.359 ms       ║
+║ Peak RPS                                           │     2786.485 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -422,17 +451,17 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Cold OpenAPI Generation      │ 136.372 ms     │ 136.372 ms   │ 7            ║
-║ Warm OpenAPI Hit (Cached)    │ 102.682 ms     │ 105.398 ms   │ 10           ║
+║ Cold OpenAPI Generation      │ 1.879 ms       │ 1.879 ms     │ 532          ║
+║ Warm OpenAPI Hit (Cached)    │ 0.886 ms       │ 0.912 ms     │ 1,128        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Cold Generation                                    │      136.372 ms       ║
-║ Warm Cached Hit                                    │      102.682 ms       ║
-║ Cache Speedup                                      │          1.3 x        ║
-║ Peak Throughput                                    │       10.000 req/s    ║
+║ Cold Generation                                    │        1.879 ms       ║
+║ Warm Cached Hit                                    │        0.886 ms       ║
+║ Cache Speedup                                      │          2.1 x        ║
+║ Peak Throughput                                    │     1128.000 req/s    ║
 ║ Rating                                             │         FAIR          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -441,27 +470,27 @@ xychart-beta
 
 <!-- AUTH_TABLE_START -->
 
-### 🏷️ AUTHENTICATION TELEMETRY
+### 🏷️ AUTHENTICATION TELEMETRY (Trend: 🔴 +65.9%)
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                    SVELTYCMS — AUTHENTICATION TELEMETRY                     ║
 ║               Session Verification • RBAC Resolution • SQLITE               ║
 ║               File: tests/benchmarks/auth-performance.test.ts               ║
-║ Proves: Measures JWT verification, session retrieval, and permission mat... ║
+║         Proves: Enterprise authentication benchmark for SveltyCMS.          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ SDK Session Validation       │ 0.290 ms       │ 0.464 ms     │ 3,452        ║
-║ HTTP Auth Pipeline @ 8c      │ 0.478 ms       │ 0.486 ms     │ 2,092        ║
+║ SDK Session Validation       │ 0.276 ms (🔴 +31.9%) │ 0.507 ms     │ 3,628        ║
+║ HTTP Auth Pipeline @ 8c      │ 0.499 ms (🔴 +65.9%) │ 0.551 ms     │ 2,003        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ SDK Validation Latency                             │        0.290 ms       ║
-║ HTTP Pipeline Latency                              │        0.478 ms       ║
-║ Peak Auth RPS                                      │     2092.000 req/s    ║
+║ SDK Validation Latency                             │        0.276 ms       ║
+║ HTTP Pipeline Latency                              │        0.499 ms       ║
+║ Peak Auth RPS                                      │     2003.000 req/s    ║
 ║ Auth Memory RSS Δ                                  │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -469,33 +498,31 @@ xychart-beta
 <!-- AUTH_TABLE_END -->
 
 <!-- SECURITY_TABLE_START -->
-
-### 🏷️ SECURITY INFRASTRUCTURE AUDIT
+### 🏷️ SECURITY INFRASTRUCTURE AUDIT (Trend: 🟢 -6.3%)
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                  SVELTYCMS — SECURITY INFRASTRUCTURE AUDIT                  ║
 ║                     WAF • Audit • Cryptography • SQLITE                     ║
 ║                File: tests/benchmarks/security-audit.test.ts                ║
-║ Proves: Impact of Fail-Closed Dispatcher, Payload scanning, and SHA-256 ... ║
+║        Proves: Enterprise security performance audit for SveltyCMS.         ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ WAF Deep Analysis            │ 0.003 ms       │ 0.004 ms     │ 289,818      ║
-║ Audit Log Persistence        │ 0.186 ms       │ 0.292 ms     │ 5,370        ║
-║ Argon2id Password Hashing    │ 70.332 ms      │ 73.419 ms    │ 14           ║
+║ WAF Deep Analysis            │ 0.006 ms (🔴 +27.4%) │ 0.007 ms     │ 172,682      ║
+║ Audit Log Persistence        │ 0.281 ms (🟢 -70.2%) │ 0.623 ms     │ 3,564        ║
+║ Argon2id Password Hashing    │ 111.172 ms (🟢 -6.3%) │ 122.593 ms   │ 9            ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ WAF Analysis                                       │        0.003 ms       ║
-║ Audit Logging                                      │        0.186 ms       ║
-║ Password Hashing                                   │       70.332 ms       ║
+║ WAF Analysis                                       │        0.006 ms       ║
+║ Audit Logging                                      │        0.281 ms       ║
+║ Password Hashing                                   │      111.172 ms       ║
 ║ Security Overhead Rating                           │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-
 <!-- SECURITY_TABLE_END -->
 
 <!-- SEO_TABLE_START -->
@@ -511,19 +538,19 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Redirect Lookup (301)        │ 0.777 ms       │ 0.863 ms     │ 1,287        ║
-║ Dynamic Sitemap XML          │ 1.760 ms       │ 1.858 ms     │ 568          ║
-║ Robots.txt Generation        │ 0.231 ms       │ 0.259 ms     │ 4,336        ║
-║ Missing Path (404 Log)       │ 1.442 ms       │ 1.459 ms     │ 693          ║
+║ Redirect Lookup (301)        │ 0.170 ms       │ 0.180 ms     │ 5,895        ║
+║ Dynamic Sitemap XML          │ 0.419 ms       │ 0.523 ms     │ 2,385        ║
+║ Robots.txt Generation        │ 0.079 ms       │ 0.095 ms     │ 12,620       ║
+║ Missing Path (404 Log)       │ 0.515 ms       │ 0.582 ms     │ 1,941        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Redirect Lookup (301)                              │        0.777 ms       ║
-║ Dynamic Sitemap XML                                │        1.760 ms       ║
-║ Robots.txt Generation                              │        0.231 ms       ║
-║ Missing Path (404 Log)                             │        1.442 ms       ║
+║ Redirect Lookup (301)                              │        0.170 ms       ║
+║ Dynamic Sitemap XML                                │        0.419 ms       ║
+║ Robots.txt Generation                              │        0.079 ms       ║
+║ Missing Path (404 Log)                             │        0.515 ms       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -542,18 +569,18 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ 1 Listeners                  │ 0.001 ms       │ 0.004 ms     │ 717,843      ║
-║ 10 Listeners                 │ 0.002 ms       │ 0.004 ms     │ 456,908      ║
-║ 50 Listeners                 │ 0.003 ms       │ 0.005 ms     │ 346,223      ║
+║ 1 Listeners                  │ 0.002 ms       │ 0.004 ms     │ 547,870      ║
+║ 10 Listeners                 │ 0.002 ms       │ 0.005 ms     │ 497,033      ║
+║ 50 Listeners                 │ 0.003 ms       │ 0.006 ms     │ 376,479      ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Single Listener                                    │        0.001 ms       ║
+║ Single Listener                                    │        0.002 ms       ║
 ║ 50 Listeners                                       │        0.003 ms       ║
 ║ Overhead / Listener                                │        0.000 ms       ║
-║ Peak Throughput                                    │   717843.000 events/s ║
+║ Peak Throughput                                    │   547870.000 events/s ║
 ║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -594,15 +621,15 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Mixed Workload               │ 0.586 ms       │ 0.609 ms     │ 1,706        ║
+║ Mixed Workload               │ 0.400 ms       │ 0.465 ms     │ 2,500        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Average Latency                                    │        0.586 ms       ║
-║ p95 Latency                                        │        0.609 ms       ║
-║ Effective Throughput                               │     1706.000 req/s    ║
+║ Average Latency                                    │        0.400 ms       ║
+║ p95 Latency                                        │        0.465 ms       ║
+║ Effective Throughput                               │     2500.000 req/s    ║
 ║ Memory Growth                                      │          0.0 MB       ║
 ║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -623,18 +650,18 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Memory Profile               │ N/A            │ N/A          │ 3,509        ║
+║ Memory Profile               │ N/A            │ N/A          │ 7,731        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Total Requests                                     │   168619.000          ║
-║ Average RPS                                        │     3509.000 req/s    ║
-║ RSS Growth                                         │       -67.45 MB       ║
-║ Heap Growth                                        │         2.47 MB       ║
-║ Leak Slope                                         │      -119.75 MB/min   ║
-║ Stability                                          │    EXCELLENT          ║
+║ Total Requests                                     │   371481.000          ║
+║ Average RPS                                        │     7731.000 req/s    ║
+║ RSS Growth                                         │        -1.65 MB       ║
+║ Heap Growth                                        │        19.33 MB       ║
+║ Leak Slope                                         │      -108.12 MB/min   ║
+║ Stability                                          │       STABLE          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -653,15 +680,15 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ GQL Stress: TINY             │ 0.895 ms       │ 1.025 ms     │ 1,118        ║
+║ GQL Stress: TINY             │ 0.596 ms       │ 0.599 ms     │ 1,679        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Average Latency                                    │        0.895 ms       ║
-║ p95 Latency                                        │        1.025 ms       ║
-║ Peak Throughput                                    │     1118.000 req/s    ║
+║ Average Latency                                    │        0.596 ms       ║
+║ p95 Latency                                        │        0.599 ms       ║
+║ Peak Throughput                                    │     1679.000 req/s    ║
 ║ Memory Growth                                      │          0.0 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -698,7 +725,7 @@ xychart-beta
 
 <!-- TELEMETRY_TABLE_START -->
 
-### 🏷️ TELEMETRY & UPDATE PERFORMANCE
+### 🏷️ TELEMETRY & UPDATE PERFORMANCE (Trend: 🟢 -16.6%)
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
@@ -709,8 +736,8 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Telemetry (Happy Path)       │ 0.001 ms       │ 0.003 ms     │ 901,984      ║
-║ Telemetry (Failure Path)     │ 0.002 ms       │ 0.007 ms     │ 538,503      ║
+║ Telemetry (Happy Path)       │ 0.001 ms (🟢 -16.3%) │ 0.003 ms     │ 979,912      ║
+║ Telemetry (Failure Path)     │ 0.002 ms (🟢 -16.6%) │ 0.007 ms     │ 500,125      ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -718,7 +745,7 @@ xychart-beta
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Happy Path Latency                                 │        0.001 ms       ║
 ║ Error Path Latency                                 │        0.002 ms       ║
-║ Peak Throughput                                    │   901984.000 req/s    ║
+║ Peak Throughput                                    │   979912.000 req/s    ║
 ║ Memory Growth                                      │          0.0 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -738,16 +765,16 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Bulk Migration (10k)         │ 15.540 ms      │ 37.690 ms    │ 64           ║
-║ Post-Migration Random Lookup │ 1.348 ms       │ 1.357 ms     │ 742          ║
+║ Bulk Migration (10k)         │ 46.971 ms      │ 70.618 ms    │ 21           ║
+║ Post-Migration Random Lookup │ 1.558 ms       │ 1.604 ms     │ 642          ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Total Migration Time                               │          0.3 s        ║
-║ Ingestion Throughput                               │    32174.000 entries/s ║
-║ Post-Migration Read                                │        1.348 ms       ║
+║ Total Migration Time                               │          0.9 s        ║
+║ Ingestion Throughput                               │    10645.000 entries/s ║
+║ Post-Migration Read                                │        1.558 ms       ║
 ║ Memory Growth                                      │          0.0 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -756,7 +783,7 @@ xychart-beta
 
 <!-- REVISION_TABLE_START -->
 
-### 🏷️ REVISION STRESS AUDIT
+### 🏷️ REVISION STRESS AUDIT (Trend: 🔴 +33.8%)
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
@@ -767,16 +794,16 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Latest Read (High Revision Count) │ 0.709 ms       │ 0.737 ms     │ 1,411        ║
-║ History List Retrieval       │ 1.249 ms       │ 1.292 ms     │ 801          ║
+║ Latest Read (High Revision Count) │ 0.697 ms (🟢 -6.1%) │ 0.727 ms     │ 1,435        ║
+║ History List Retrieval       │ 0.900 ms (🔴 +33.8%) │ 0.955 ms     │ 1,111        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Read Latency (with history)                        │        0.709 ms       ║
-║ History List Latency                               │        1.249 ms       ║
-║ History Growth Impact                              │         0.47 x        ║
+║ Read Latency (with history)                        │        0.697 ms       ║
+║ History List Latency                               │        0.900 ms       ║
+║ History Growth Impact                              │         0.46 x        ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -791,19 +818,19 @@ xychart-beta
 ║                     SVELTYCMS — AI INFRASTRUCTURE AUDIT                     ║
 ║                   Internal CMS Tax (Mocked LLM) • SQLITE                    ║
 ║                File: tests/benchmarks/ai-performance.test.ts                ║
-║ Proves: Measures the internal CMS tax for AI enrichment and layout gener... ║
+║           Proves: Enterprise AI performance audit for SveltyCMS.            ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ AI Text Enrichment           │ 0.001 ms       │ 0.003 ms     │ 776,900      ║
-║ AI Layout Spec Generation    │ 0.003 ms       │ 0.007 ms     │ 389,864      ║
+║ AI Text Enrichment           │ 0.001 ms (🔴 +15.8%) │ 0.003 ms     │ 694,043      ║
+║ AI Layout Spec Generation    │ 0.001 ms       │ 0.003 ms     │ 1,125,281    ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║ Avg Enrichment Overhead                            │        0.001 ms       ║
-║ Avg Layout Spec Overhead                           │        0.003 ms       ║
+║ Avg Layout Spec Overhead                           │        0.001 ms       ║
 ║ Total AI Bus Tax                                   │          0.0 ms       ║
 ║ Rating                                             │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -827,7 +854,7 @@ xychart-beta
 
 <!-- INDEX_TABLE_START -->
 
-### 🏷️ INDEX PRESSURE AUDIT
+### 🏷️ INDEX PRESSURE AUDIT (Trend: 🔴 +134.0%)
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
@@ -838,15 +865,15 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Sorted List (100k rows)      │ 0.858 ms       │ 0.860 ms     │ 1,166        ║
-║ Filtered Query (100k rows)   │ 0.872 ms       │ 0.884 ms     │ 1,146        ║
+║ Sorted List (100k rows)      │ 0.806 ms (🔴 +37.5%) │ 0.964 ms     │ 1,241        ║
+║ Filtered Query (100k rows)   │ 0.995 ms (🔴 +134.0%) │ 1.161 ms     │ 1,005        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Sorted Query (p95)                                 │        0.860 ms       ║
-║ Filtered Query (p95)                               │        0.884 ms       ║
+║ Sorted Query (p95)                                 │        0.964 ms       ║
+║ Filtered Query (p95)                               │        1.161 ms       ║
 ║ Index Health                                       │    EXCELLENT          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -855,7 +882,7 @@ xychart-beta
 
 <!-- CONTENT_TABLE_START -->
 
-### 🏷️ CONTENT SCALE STRESS AUDIT
+### 🏷️ CONTENT SCALE STRESS AUDIT (Trend: 🔴 +11.3%)
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
@@ -866,14 +893,14 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Cold Stress Scan (1k)        │ 0.028 ms       │ 0.079 ms     │ 35,280       ║
-║ Warm Stress Scan (1k)        │ 0.002 ms       │ 0.005 ms     │ 544,366      ║
+║ Cold Stress Scan (1k)        │ 0.026 ms       │ 0.096 ms     │ 39,108       ║
+║ Warm Stress Scan (1k)        │ 0.002 ms (🔴 +11.3%) │ 0.005 ms     │ 625,782      ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                             FINAL AUDIT SUMMARY                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║ Cold Scan Latency                                  │        0.028 ms       ║
+║ Cold Scan Latency                                  │        0.026 ms       ║
 ║ Warm Scan Latency                                  │        0.002 ms       ║
 ║ Scale Efficiency                                   │        ELITE          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -885,9 +912,9 @@ xychart-beta
 
 ## 🔬 Host Environment
 
-| CPU                             | Cores | RAM  | Runtime                   |
-| :------------------------------ | :---- | :--- | :------------------------ |
-| Intel(R) Core(TM) Ultra 9 275HX | 24    | 63GB | Bun 1.3.11 / Node v24.3.0 |
+| CPU     | Cores | RAM | Runtime |
+| :------ | :---- | :-- | :------ |
+| Unknown | -     | -   | -       |
 
 <!-- BENCHMARK_END -->
 

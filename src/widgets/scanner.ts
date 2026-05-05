@@ -46,11 +46,12 @@ if (Object.keys(coreModulesRaw).length === 0 && typeof process !== "undefined") 
               // UNIVERSAL PROXY FACTORY:
               // In production fallback, we don't care about the real widget implementation
               // during schema parsing, just that it returns a valid descriptor object.
-              const widgetName = entry.name.charAt(0).toUpperCase() + entry.name.slice(1);
-              const originalName = entry.name; // e.g. rich-text
-              const camelName = entry.name.replace(/-([a-z])/g, (_: string, g: string) =>
-                g.toUpperCase(),
-              ); // e.g. richText
+              const originalName = entry.name;
+              const widgetName = originalName
+                .split("-")
+                .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join("");
+              const camelName = widgetName.charAt(0).toLowerCase() + widgetName.slice(1);
 
               const factory = (args: any) => ({
                 Name: widgetName,

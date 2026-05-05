@@ -5,9 +5,9 @@
 
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
-import type { LocalCMS } from "@src/services/local-cms";
-import { metricsService } from "@src/services/metrics-service";
-import { auditLogService } from "@src/services/audit-log-service";
+import type { LocalCMS } from "@src/services/sdk";
+import { metricsService } from "@src/services/observability/metrics-service";
+import { auditLogService } from "@src/services/security/audit-service";
 import { getSystemInfo } from "@utils/system-info.server";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { rawResponse } from "./base";
@@ -186,16 +186,21 @@ export async function handleDashboardRoutes(
       }
 
       case "cache-metrics": {
-        const stats = await cacheService.getStats();
-        const total = (stats as any).hits + (stats as any).misses;
-        const hitRate = total > 0 ? ((stats as any).hits / total) * 100 : 0;
+        const stats = (await cacheService.getStats()) || {
+          hits: 0,
+          misses: 0,
+          sets: 0,
+          deletes: 0,
+          size: 0,
+        };
+        const total = (Number(stats.hits) || 0) + (Number(stats.misses) || 0);
+        const hitRate = total > 0 ? (Number(stats.hits) / total) * 100 : 0;
 
-        // Construct expected test structure
         return rawResponse(event, {
           overall: {
-            hits: (stats as any).hits || 0,
-            misses: (stats as any).misses || 0,
-            hitRate: hitRate,
+            hits: Number(stats.hits) || 0,
+            misses: Number(stats.misses) || 0,
+            hitRate: Number(hitRate.toFixed(2)),
             sets: (stats as any).sets || 0,
             deletes: (stats as any).deletes || 0,
             size: stats.size || 0,

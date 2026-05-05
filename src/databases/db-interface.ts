@@ -123,6 +123,7 @@ export interface PaginatedResult<T> {
 export interface BaseQueryOptions {
   tenantId?: DatabaseId | null;
   bypassTenantCheck?: boolean;
+  includeDeleted?: boolean;
   silent?: boolean; // Useful for skipping trigger/audit logs
   hints?: QueryOptimizationHints;
   transaction?: any; // Database-specific transaction object

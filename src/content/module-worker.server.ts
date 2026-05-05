@@ -7,7 +7,7 @@ import { parentPort } from "node:worker_threads";
 import path from "node:path";
 
 async function getWidgetsProxy() {
-  const { widgetRegistryService } = await import("@src/services/widget-registry-service");
+  const { widgetRegistryService } = await import("@src/services/core/widget-registry-service");
   const widgetsMap = await widgetRegistryService.getAllWidgets();
   const widgetsObject = Object.fromEntries(widgetsMap.entries());
   return new Proxy(widgetsObject, {

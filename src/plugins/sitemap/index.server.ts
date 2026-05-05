@@ -5,7 +5,7 @@
 
 import type { PluginLifecycleHooks } from "../types";
 import { logger } from "@utils/logger";
-import { invalidateSitemapCache } from "@src/services/seo/sitemap-cache";
+import { invalidateSitemapCache } from "@src/services/content/seo/sitemap-cache";
 
 /**
  * Ping search engines to notify them of a sitemap update

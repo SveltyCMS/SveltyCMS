@@ -23,7 +23,7 @@ import { DEFAULT_THEME } from "@src/databases/theme-manager";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
-import { getPrivateSetting } from "@src/services/settings-service";
+import { getPrivateSetting } from "@src/services/core/settings-service";
 import type { LayoutServerLoad } from "./$types";
 
 interface LayoutError {

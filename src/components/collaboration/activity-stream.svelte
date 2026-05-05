@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 @file src/components/collaboration/activity-stream.svelte
 @component
 **Real-time Activity Stream and AI Assistant Panel**

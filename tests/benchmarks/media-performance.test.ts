@@ -46,7 +46,7 @@ async function runMediaAudit() {
     testImageBuffer = await generateTestImage();
 
     const { getDb } = await import("@src/databases/db");
-    const { LocalCMS } = await import("@src/services/local-cms");
+    const { LocalCMS } = await import("@src/services/sdk");
     const db = getDb();
     const cms = new LocalCMS(db!);
 
@@ -69,9 +69,8 @@ async function runMediaAudit() {
         const res = await cms.media.upload(file, {
           userId: "system",
           tenantId: "global" as any,
-          skipResizing: true,
         });
-        if (!res.url) throw new Error(`SDK upload failed: Missing URL`);
+        if (!res.success || !res.data?.url) throw new Error(`SDK upload failed: Missing URL`);
       },
     });
     results.push({ ...sdkResult, shortLabel: "SDK", layer: "SDK" });

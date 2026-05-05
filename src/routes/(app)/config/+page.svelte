@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 @files src/routes/(app)/config/+page.svelte
 @component
 **This file sets up and displays the config page. It provides a user-friendly interface for managing configuration settings.**

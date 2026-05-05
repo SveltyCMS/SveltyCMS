@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 @file src/routes/(app)/mediagallery/FocalQuickModal.svelte
 @component
 **Quick Focal Point Adjustment Modal**

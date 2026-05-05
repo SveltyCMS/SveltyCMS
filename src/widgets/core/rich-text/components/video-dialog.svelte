@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 @file src/widgets/richText/components/VideoDialog.svelte
 @component
 **VideoDialog for richText editor**

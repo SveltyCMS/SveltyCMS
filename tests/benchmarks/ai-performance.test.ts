@@ -30,7 +30,7 @@ async function runAIAudit() {
     await ensureStableTestData();
     await stabilize(1000);
 
-    const { aiService } = await import("@src/services/ai-service");
+    const { aiService } = await import("@src/services/core/ai-service");
 
     // Mock LLM and internal processing to isolate CMS overhead
     aiService.chat = async () => "Mocked LLM Response";

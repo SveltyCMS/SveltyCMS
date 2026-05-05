@@ -59,7 +59,7 @@ export class CacheService {
   private async getMetrics() {
     if (this._metrics) return this._metrics;
     try {
-      const { metricsService } = await import("@src/services/metrics-service");
+      const { metricsService } = await import("@src/services/observability/metrics-service");
       this._metrics = metricsService;
     } catch {
       this._metrics = { recordMetric: () => {} };
@@ -361,7 +361,7 @@ export class CacheService {
     if (this.isL2Ready()) {
       try {
         await this.l2.set(fullKey, JSON.stringify(value), { EX: finalTTL });
-        if (tags.length > 0) {
+        if (tags.length > 0 && typeof this.l2.multi === "function") {
           const multi = this.l2.multi();
           for (const tag of tags) multi.sAdd(`tag:${tag}`, fullKey);
           await multi.exec();
@@ -429,14 +429,24 @@ export class CacheService {
     this.clearLocalL1ByTags(tags, tenantId);
     if (this.isL2Ready()) {
       try {
-        const multi = this.l2.multi();
-        for (const tag of tags) {
-          const tagKey = `tag:${tag}`;
-          const keys = await this.l2.sMembers(tagKey);
-          if (keys?.length > 0) multi.del(keys);
-          multi.del(tagKey);
+        if (typeof this.l2.multi === "function") {
+          const multi = this.l2.multi();
+          for (const tag of tags) {
+            const tagKey = `tag:${tag}`;
+            const keys = await this.l2.sMembers(tagKey);
+            if (keys?.length > 0) multi.del(keys);
+            multi.del(tagKey);
+          }
+          await multi.exec();
+        } else {
+          // Fallback for non-redis L2 or restricted clients
+          for (const tag of tags) {
+            const tagKey = `tag:${tag}`;
+            const keys = await this.l2.sMembers(tagKey);
+            if (keys?.length > 0) await this.l2.del(keys);
+            await this.l2.del(tagKey);
+          }
         }
-        await multi.exec();
         await this.publishInvalidation(null, tenantId, tags);
       } catch (err) {
         logger.error(`L2 Cache ClearByTags Failure: ${tags.join(",")}`, err);

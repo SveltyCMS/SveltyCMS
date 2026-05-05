@@ -45,7 +45,7 @@ vi.mock("@src/stores/widget-store.svelte.ts", () => ({
   getWidgetDependencies: vi.fn(() => []),
 }));
 
-vi.mock("@src/services/settings-service", () => ({
+vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
   getPublicSettingSync: vi.fn().mockReturnValue(true),
 }));

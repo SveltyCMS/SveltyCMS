@@ -6,7 +6,7 @@
 import { dev } from "$app/environment";
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
-import type { LocalCMS } from "@src/services/local-cms";
+import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { logger } from "@utils/logger";
 import { successResponse, rawResponse } from "./base";
@@ -51,7 +51,7 @@ export async function handleMediaRoutes(
     }
     case "PATCH":
       return method
-        ? rawResponse(event, await cms.media.update(method, await request.json(), tenantId))
+        ? rawResponse(event, await cms.media.update(method, await request.json(), { tenantId }))
         : successResponse(event, null);
     case "DELETE":
       if (method === "delete" || method === "trash") {
@@ -154,12 +154,11 @@ export async function handleMediaProcess(
     if (!mediaIdsRaw) throw new AppError("mediaIds is required", 400);
     const mediaIds = JSON.parse(mediaIdsRaw);
     const options = optionsRaw ? JSON.parse(optionsRaw) : {};
-    const result = await cms.media.batchProcess(
-      mediaIds,
-      options,
-      (user?._id as string) || "system",
+    const result = await cms.media.batchProcess(mediaIds, {
+      ...options,
+      userId: (user?._id as string) || "system",
       tenantId,
-    );
+    });
     return successResponse(event, result);
   }
   throw new AppError(`Process type ${processType} not implemented`, 404);
@@ -175,13 +174,17 @@ export async function handleMediaRemote(
   const { url: remoteUrl, access } = body;
   if (!remoteUrl) throw new AppError("remote URL is required", 400);
 
-  const result = await cms.media.remote(
-    remoteUrl,
-    (user?._id as string) || "system",
-    access || "private",
+  const result = await cms.media.remote(remoteUrl, {
+    userId: (user?._id as string) || "system",
+    access: access || "private",
     tenantId,
-  );
-  return successResponse(event, result);
+  });
+
+  if (!result.success) {
+    throw result.error || new AppError(result.message || "Remote upload failed", 500);
+  }
+
+  return successResponse(event, result.data);
 }
 
 export async function handleMediaPostDelete(
@@ -193,7 +196,12 @@ export async function handleMediaPostDelete(
   const { id } = body;
   if (!id) throw new AppError("Media ID is required for deletion", 400);
 
-  await cms.media.delete(id, { tenantId });
+  const result = await cms.media.delete(id, { tenantId });
+
+  if (!result.success) {
+    throw result.error || new AppError(result.message || "Deletion failed", 500);
+  }
+
   return successResponse(event, { success: true });
 }
 
@@ -233,6 +241,16 @@ export async function handleMediaManipulate(
     throw new AppError("Manipulation parameters are required", 400);
   }
 
-  const result = await cms.media.manipulate(id, body, (user?._id as string) || "system", tenantId);
-  return successResponse(event, result);
+  const result = await cms.media.manipulate(id, body, {
+    userId: (user?._id as string) || "system",
+    tenantId,
+  });
+
+  if (!result.success) {
+    // 🚀 UNWRAP ERROR: If the namespace returns a 404/403 error, we MUST propagate it.
+    if (result.error instanceof AppError) throw result.error;
+    throw new AppError(result.message || "Manipulation failed", 500);
+  }
+
+  return successResponse(event, result.data);
 }

@@ -5,7 +5,7 @@
  */
 
 import type { IDBAdapter } from "@databases/db-interface";
-import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { logger } from "@utils/logger";
 import type { GooglePageSpeedResponse, PageSpeedResult } from "./types";
 import { validateUrl } from "./url-utils";

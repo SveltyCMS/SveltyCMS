@@ -19,15 +19,15 @@ import type { AdapterCore } from "../../adapter/adapter-core";
 import { schema } from "../../schema";
 import * as utils from "../../utils";
 
-export class ContentModule {
-  private readonly core: AdapterCore;
+import { DatabaseModule } from "../../../base-adapter";
 
+export class ContentModule extends DatabaseModule<AdapterCore> {
   constructor(core: AdapterCore) {
-    this.core = core;
+    super(core);
   }
 
-  private get db() {
-    return this.core.db!;
+  protected get core() {
+    return this.adapter;
   }
 
   private get crud() {
@@ -127,6 +127,7 @@ export class ContentModule {
     ): Promise<DatabaseResult<ContentNode[]>> => {
       return this.crud.findMany<ContentNode>("content_nodes", (options?.filter || {}) as any, {
         tenantId: options?.tenantId as any,
+        bypassTenantCheck: options?.bypassTenantCheck,
       });
     },
 

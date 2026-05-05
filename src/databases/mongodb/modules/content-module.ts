@@ -40,9 +40,9 @@ export class MongoContentModule
     );
 
     this._content = new MongoContentMethods(
-      new MongoCrudMethods(nodeModel),
-      new MongoCrudMethods(draftModel),
-      new MongoCrudMethods(revisionModel),
+      new MongoCrudMethods(nodeModel, this.adapter),
+      new MongoCrudMethods(draftModel, this.adapter),
+      new MongoCrudMethods(revisionModel, this.adapter),
     );
     return this._content;
   }

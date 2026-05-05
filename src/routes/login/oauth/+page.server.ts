@@ -14,7 +14,7 @@ import { auth, dbInitPromise } from "@src/databases/db";
 import { invalidateUserCountCache } from "@src/hooks/handle-authorization";
 import type { Locale } from "@src/paraglide/runtime";
 // Stores
-import { getPrivateSettingSync } from "@src/services/settings-service";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { app } from "@src/stores/store.svelte";
 import { type Cookies, error, redirect } from "@sveltejs/kit";
