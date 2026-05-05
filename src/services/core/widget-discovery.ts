@@ -241,7 +241,7 @@ export class WidgetDiscoveryService {
 
     logger.info(`📝 Auto-registering ${newWidgets.length} new widgets...`);
 
-    for (const widget of newWidgets) {
+    const tasks = newWidgets.map(async (widget) => {
       try {
         await widgetModel.create({
           name: widget.name,
@@ -259,7 +259,9 @@ export class WidgetDiscoveryService {
       } catch (error) {
         logger.error(`Failed to auto-register widget ${widget.name}:`, error);
       }
-    }
+    });
+
+    await Promise.allSettled(tasks);
   }
 }
 

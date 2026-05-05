@@ -26,6 +26,7 @@ async function main() {
     .toString()
     .trim()
     .split("\n")
+    .map((f) => f.trim())
     .filter(Boolean);
 
   if (stagedFiles.length === 0) {
@@ -46,7 +47,9 @@ async function main() {
 
     // Incremental tests only on changed files
     hasTsOrSvelte
-      ? run("bun vitest related", [...stagedFiles, "--run", "--reporter=dot"])
+      ? stagedFiles.join(" ").length > 6000
+        ? run("bun vitest run", ["--reporter=dot"])
+        : run("bun vitest related", [...stagedFiles, "--run", "--reporter=dot"])
       : Promise.resolve(true),
   ];
 

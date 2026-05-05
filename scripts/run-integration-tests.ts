@@ -108,38 +108,26 @@ function normalizePath(file: string) {
 }
 
 function filterTestsBySuite(testFiles: string[], suite: IntegrationSuite, dbType: string) {
+  // First, always filter out db tests that don't match the current dbType
+  let filtered = testFiles.filter((file) => {
+    const path = normalizePath(file);
+    if (!path.includes("tests/integration/databases/")) return true;
+
+    if (path.endsWith("mongodb-adapter.test.ts")) return dbType === "mongodb";
+    if (path.endsWith("mariadb-adapter.test.ts")) return dbType === "mariadb";
+    if (path.endsWith("postgresql-adapter.test.ts")) return dbType === "postgresql";
+    if (path.endsWith("sqlite-adapter.test.ts")) return dbType === "sqlite";
+
+    return true;
+  });
+
   if (suite === "db") {
-    return testFiles.filter((file) => {
-      const path = normalizePath(file);
-
-      if (!path.includes("tests/integration/databases/")) {
-        return false;
-      }
-
-      if (path.endsWith("mongodb-adapter.test.ts")) {
-        return dbType === "mongodb";
-      }
-
-      if (path.endsWith("mariadb-adapter.test.ts")) {
-        return dbType === "mariadb";
-      }
-
-      if (path.endsWith("postgresql-adapter.test.ts")) {
-        return dbType === "postgresql";
-      }
-
-      if (path.endsWith("sqlite-adapter.test.ts")) {
-        return dbType === "sqlite";
-      }
-
-      return true;
-    });
+    return filtered.filter((file) => normalizePath(file).includes("tests/integration/databases/"));
   }
 
   if (suite === "api") {
-    return testFiles.filter((file) => {
+    return filtered.filter((file) => {
       const path = normalizePath(file);
-
       return (
         path.includes("tests/integration/api/") ||
         path.includes("tests/integration/routes/") ||
@@ -148,7 +136,7 @@ function filterTestsBySuite(testFiles: string[], suite: IntegrationSuite, dbType
     });
   }
 
-  return testFiles;
+  return filtered;
 }
 
 async function freePort(port: number) {

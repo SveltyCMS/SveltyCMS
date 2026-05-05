@@ -164,18 +164,23 @@ export class ConfigService {
 
     // 1. Scan Collections (scoped by tenantId)
     const collections = await contentSystem.getCollections(tenantId);
-    for (const collection of collections) {
-      if (!(collection._id && collection.name)) {
-        continue;
-      }
+
+    // Parallelize checksum generation
+    const tasks = collections.map(async (collection) => {
+      if (!(collection._id && collection.name)) return null;
       const hash = await createChecksum(collection);
-      state.set(collection._id, {
+      return {
         uuid: collection._id,
         type: "collection",
         name: collection.name,
         hash,
         entity: collection as unknown as Record<string, unknown>,
-      });
+      };
+    });
+
+    const results = await Promise.all(tasks);
+    for (const res of results) {
+      if (res) state.set(res.uuid, res);
     }
 
     return state;
@@ -198,20 +203,26 @@ export class ConfigService {
       );
 
       if (collectionsResult.success && Array.isArray(collectionsResult.data)) {
-        for (const collection of collectionsResult.data as unknown as Record<string, unknown>[]) {
-          const id = String(collection._id || "");
-          const name = String(collection.name || "");
-          if (!(id && name)) {
-            continue;
-          }
-          const hash = await createChecksum(collection);
-          state.set(id, {
-            uuid: id,
-            type: "collection",
-            name,
-            hash,
-            entity: collection,
-          });
+        // Parallelize checksum generation
+        const tasks = (collectionsResult.data as unknown as Record<string, unknown>[]).map(
+          async (collection) => {
+            const id = String(collection._id || "");
+            const name = String(collection.name || "");
+            if (!(id && name)) return null;
+            const hash = await createChecksum(collection);
+            return {
+              uuid: id,
+              type: "collection",
+              name,
+              hash,
+              entity: collection,
+            };
+          },
+        );
+
+        const results = await Promise.all(tasks);
+        for (const res of results) {
+          if (res) state.set(res.uuid, res);
         }
       }
     } catch (err) {

@@ -222,8 +222,8 @@ class JobQueueService {
       const now = Date.now();
       if (now - this.lastScheduleCheck >= 60000) {
         this.lastScheduleCheck = now;
-        this.dispatch("publish-scheduled", {}).catch(err => 
-          logger.error("[JobQueue] Failed to dispatch scheduled tick", err)
+        this.dispatch("publish-scheduled", {}).catch((err) =>
+          logger.error("[JobQueue] Failed to dispatch scheduled tick", err),
         );
       }
 
