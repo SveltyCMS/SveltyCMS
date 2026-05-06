@@ -24,7 +24,6 @@
 	import { logger } from '@utils/logger';
 	import { getFieldName } from '@utils/utils';
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
-	import { Portal } from '@skeletonlabs/skeleton-svelte';
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 	import { page } from '$app/state';
@@ -47,6 +46,7 @@
 		'audio/mpeg',
 		'audio/wav'
 	];
+
 	const MAX_FILE_SIZE = 10 * 1024 * 1024;
 	const VALID_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp4', 'webm', 'ogg', 'pdf', 'mp3', 'wav'];
 
@@ -87,12 +87,14 @@
 
 	let selectedFiles = $state<MediaFile[]>([]);
 	let showMediaLibrary = $state(false);
+
 	const dndItems = $derived(
 		selectedFiles.map((file) => ({
 			...file,
 			id: file._id
 		}))
 	);
+
 	const fieldKey = $derived(getFieldName(field, false));
 
 	function syncCollectionValue(nextValue: string | string[] | null) {
@@ -116,14 +118,11 @@
 		try {
 			const fetchedFiles: MediaFile[] = [];
 
-			// Normalize path to ensure consistent `/files/` prefix without duplicates
 			const normalizePath = (p: string | undefined | null): string => {
 				if (!p) return '';
-				// If already normalized with /files/, return as-is
 				if (p.startsWith('/files/')) return p;
-				// If it's an absolute URL, return as-is
 				if (p.startsWith('http://') || p.startsWith('https://')) return p;
-				// Remove any existing prefix and normalize
+
 				let path = p.replace(/^mediaFolder\//, '').replace(/^files\//, '');
 				path = path.replace(/^\/+/, '');
 				return `/files/${path}`;
@@ -183,11 +182,9 @@
 	$effect(() => {
 		const ids = Array.isArray(value) ? value : value ? [value] : [];
 		if (ids.length > 0) {
-			// Check if we need to fetch - either missing IDs or selectedFiles is empty
 			const missingIds = ids.filter((id) => !selectedFiles.some((f) => f._id === id));
 			if (missingIds.length > 0 || selectedFiles.length === 0) {
 				fetchMediaData(ids).then((files) => {
-					// Merge with existing files, avoiding duplicates
 					const existingIds = new Set(selectedFiles.map((f) => f._id));
 					const newFiles = files.filter((f) => !existingIds.has(f._id));
 					selectedFiles = [...selectedFiles, ...newFiles];
@@ -278,6 +275,7 @@
 							</div>
 						{/if}
 					</button>
+
 					<div class="p-1">
 						<span class="block truncate text-center text-xs font-bold">{file.name}</span>
 						{#if (file as any).aiTags?.length}
@@ -291,6 +289,7 @@
 							</div>
 						{/if}
 					</div>
+
 					<button
 						type="button"
 						onclick={() => removeFile(file._id)}
@@ -321,17 +320,15 @@
 </div>
 
 {#if showMediaLibrary}
-	<Portal>
-		<div class="fixed inset-0 z-[99999] bg-black/70 p-4 backdrop-blur-sm">
-			<div class="flex h-full w-full overflow-hidden rounded-2xl border border-surface-500 bg-surface-100 shadow-2xl dark:bg-surface-900">
-				<MediaLibraryModal
-					standalone={true}
-					allowedTypes={(field.allowedTypes as string[] | undefined) ?? []}
-					folder={((field as { folder?: string }).folder ?? (collectionName ? `collections/${collectionName.toLowerCase()}` : tenantId || 'global')) as string}
-					onConfirm={handleMediaSelection}
-					onClose={closeMediaLibrary}
-				/>
-			</div>
+	<div class="fixed inset-0 z-[99999] bg-black/70 p-4 backdrop-blur-sm">
+		<div class="flex h-full w-full overflow-hidden rounded-2xl border border-surface-500 bg-surface-100 shadow-2xl dark:bg-surface-900">
+			<MediaLibraryModal
+				standalone={true}
+				allowedTypes={(field.allowedTypes as string[] | undefined) ?? []}
+				folder={((field as { folder?: string }).folder ?? (collectionName ? `collections/${collectionName.toLowerCase()}` : tenantId || 'global')) as string}
+				onConfirm={handleMediaSelection}
+				onClose={closeMediaLibrary}
+			/>
 		</div>
-	</Portal>
+	</div>
 {/if}

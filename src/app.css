@@ -1,20 +1,16 @@
 /**
  * @file src/app.css
- * @description Main stylesheet for SveltyCMS (TailwindCSS v4 + Skeleton v4)
+ * @description Main stylesheet for SveltyCMS (TailwindCSS v4)
  */
 
 /* TailwindCSS v4 - CSS-first configuration */
 @import "tailwindcss";
 
-/* Skeleton v4 - Import the theme and components */
-@import "@skeletonlabs/skeleton";
-@import "@skeletonlabs/skeleton-svelte";
-
 /* Tailwind v4: Enable class-based dark mode with .dark class on <html> */
 /* @tailwind v4 custom-variant - standard syntax but may trigger IDE warnings */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* =~= SveltyCMS Theme (Skeleton v4 format) =~= */
+/* =~= SveltyCMS Theme =~= */
 [data-theme="sveltycms"] {
   /* =~= Theme Properties =~= */
   --text-scaling: 1;
@@ -262,7 +258,6 @@
  * - Dark mode: Green gradients (primary colors)
  */
 @layer components {
-  /* Primary Gradients - Uses Adaptive var(--color-primary-X) */
   .gradient-primary {
     background-image: linear-gradient(
       to bottom right,
@@ -320,7 +315,6 @@
     );
   }
 
-  /* Secondary Gradients */
   .gradient-secondary {
     background-image: linear-gradient(
       to bottom right,
@@ -340,7 +334,6 @@
     );
   }
 
-  /* Error Gradients */
   .gradient-error {
     background-image: linear-gradient(
       to bottom right,
@@ -360,7 +353,6 @@
     );
   }
 
-  /* Tertiary Gradients - BLUE in light mode, GREEN in dark mode */
   .gradient-tertiary {
     background-image: linear-gradient(
       to bottom right,
@@ -380,7 +372,6 @@
     );
   }
 
-  /* Warning/Yellow Gradients */
   .gradient-yellow,
   .gradient-warning {
     background-image: linear-gradient(
@@ -403,7 +394,6 @@
     );
   }
 
-  /* Success Gradients */
   .gradient-success {
     background-image: linear-gradient(
       to bottom right,
@@ -484,16 +474,16 @@
   outline: 2px solid var(--color-tertiary-500);
   outline-offset: 2px;
 }
+
 :where(.dark) :focus-visible:not(input, textarea, select) {
   outline-color: var(--color-primary-500);
 }
 
-/* Specific Focus logic for Skeleton & Standard Inputs */
+/* Specific Focus logic for Standard Inputs */
 .input:focus,
 input:focus,
 textarea:focus,
 select:focus {
-  /* Blue in Light mode */
   box-shadow: 0 0 0 1px inset var(--color-tertiary-500) !important;
   border-color: var(--color-tertiary-500) !important;
   outline: none !important;
@@ -503,7 +493,6 @@ select:focus {
 :where(.dark) input:focus,
 :where(.dark) textarea:focus,
 :where(.dark) select:focus {
-  /* Green in Dark mode */
   background-color: var(--color-surface-900) !important;
   color: white !important;
   box-shadow: 0 0 0 1px inset var(--color-primary-500) !important;

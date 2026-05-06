@@ -17,268 +17,225 @@
 -->
 
 <script lang="ts">
-// Skeleton V4
-import { Menu, Portal } from "@skeletonlabs/skeleton-svelte";
-import Seasons from "@src/components/system/icons/seasons.svelte";
-import SveltyCMSLogoFull from "@src/components/system/icons/svelty-cms-logo-full.svelte";
-import VersionCheck from "@src/components/version-check.svelte";
-// Paraglide Messages
-import {
-	applayout_systemlanguage,
-	db_error_description,
-	db_error_reason_label,
-	db_error_refresh_page,
-	db_error_reset_confirm,
-	db_error_reset_setup,
-	db_error_solution_1,
-	db_error_solution_2,
-	db_error_solution_3,
-	db_error_solution_4,
-	db_error_solutions_title,
-	db_error_title,
-	login_demo_message,
-	login_demo_nextreset,
-	login_demo_title,
-} from "@src/paraglide/messages";
-import { locales as availableLocales } from "@src/paraglide/runtime";
-import {
-	getPublicSetting,
-	publicEnv,
-} from "@src/stores/global-settings.svelte";
-// Stores
-import { systemLanguage } from "@src/stores/store.svelte.ts";
-import { getLanguageName } from "@utils/language-utils";
-// SvelteKit
-import { deserialize } from "$app/forms";
-// Components
-import SignIn from "./components/sign-in.svelte";
-import SignUp from "./components/sign-up.svelte";
+	import Seasons from "@src/components/system/icons/seasons.svelte";
+	import SveltyCMSLogoFull from "@src/components/system/icons/svelty-cms-logo-full.svelte";
+	import VersionCheck from "@src/components/version-check.svelte";
+	import {
+		applayout_systemlanguage,
+		db_error_description,
+		db_error_reason_label,
+		db_error_refresh_page,
+		db_error_reset_confirm,
+		db_error_reset_setup,
+		db_error_solution_1,
+		db_error_solution_2,
+		db_error_solution_3,
+		db_error_solution_4,
+		db_error_solutions_title,
+		db_error_title,
+		login_demo_message,
+		login_demo_nextreset,
+		login_demo_title
+	} from "@src/paraglide/messages";
+	import { locales as availableLocales } from "@src/paraglide/runtime";
+	import { getPublicSetting, publicEnv } from "@src/stores/global-settings.svelte";
+	import { systemLanguage } from "@src/stores/store.svelte.ts";
+	import { getLanguageName } from "@utils/language-utils";
+	import { deserialize } from "$app/forms";
+	import SignIn from "./components/sign-in.svelte";
+	import SignUp from "./components/sign-up.svelte";
 
-// Props
-const { data } = $props();
+	const { data } = $props();
 
-// Derive firstUserExists to make it reactive (fixes state_referenced_locally warning)
-const firstUserExists = $derived(data.firstUserExists);
+	const firstUserExists = $derived(data.firstUserExists);
 
-// Check for reset password URL parameters (initially false, updated by effect)
-let hasResetParams = $state(false);
+	let hasResetParams = $state(false);
+	let active: undefined | 0 | 1 = $state(undefined);
 
-// Set Initial active state - always starts undefined, will be set by user interaction
-let active: undefined | 0 | 1 = $state(undefined);
+	$effect(() => {
+		if (typeof window !== "undefined") {
+			const urlParams = new URLSearchParams(window.location.search);
+			const token = urlParams.get("token");
+			const email = urlParams.get("email");
+			const hasParams = !!(token && email);
 
-// Update active state when URL parameters are detected
-$effect(() => {
-	if (typeof window !== "undefined") {
-		const urlParams = new URLSearchParams(window.location.search);
-		const token = urlParams.get("token");
-		const email = urlParams.get("email");
-		const hasParams = !!(token && email);
-
-		if (hasParams !== hasResetParams) {
-			hasResetParams = hasParams;
-			if (hasResetParams) {
-				active = 0; // Show SignIn component for reset password
+			if (hasParams !== hasResetParams) {
+				hasResetParams = hasParams;
+				if (hasResetParams) {
+					active = 0;
+				}
 			}
 		}
+	});
+
+	let background = $state("#242728");
+
+	$effect(() => {
+		if (active === undefined && !hasResetParams) {
+			if (data.demoMode) {
+				background = "#242728";
+			} else if (publicEnv.SEASONS) {
+				background = "white";
+			} else if (firstUserExists) {
+				background = "white";
+			} else {
+				background = "#242728";
+			}
+		}
+	});
+
+	$effect(() => {
+		if (hasResetParams) {
+			background = "white";
+		}
+	});
+
+	let timeRemaining = $state({ minutes: 0, seconds: 0 });
+	let searchQuery = $state("");
+	let isDropdownOpen = $state(false);
+	let searchInput: HTMLInputElement | null = $state(null);
+	let isTransitioning = $state(false);
+	let debounceTimeout: ReturnType<typeof setTimeout> | undefined = $state();
+
+	const languageMenuId = "login-language-menu";
+
+	const availableLanguages = $derived(
+		[...availableLocales].sort((a, b) => getLanguageName(a, "en").localeCompare(getLanguageName(b, "en")))
+	);
+
+	const filteredLanguages = $derived(
+		availableLanguages.filter(
+			(lang: string) =>
+				getLanguageName(lang, systemLanguage.value).toLowerCase().includes(searchQuery.toLowerCase()) ||
+				getLanguageName(lang, "en").toLowerCase().includes(searchQuery.toLowerCase())
+		)
+	);
+
+	const currentLanguage = $derived(systemLanguage.value && availableLocales.includes(systemLanguage.value) ? systemLanguage.value : "en");
+
+	function handleLanguageSelection(lang: string) {
+		clearTimeout(debounceTimeout);
+		debounceTimeout = setTimeout(() => {
+			systemLanguage.set(lang as (typeof systemLanguage)["value"]);
+			isDropdownOpen = false;
+			searchQuery = "";
+		}, 100);
 	}
-});
 
-// Background state - mutable for user interactions
-let background = $state("#242728");
-
-// Initialize background based on conditions
-$effect(() => {
-	// Only set initial background, don't override user interactions
-	if (active === undefined && !hasResetParams) {
-		if (data.demoMode) {
-			background = "#242728";
-		} else if (publicEnv.SEASONS) {
-			background = "white";
-		} else if (firstUserExists) {
-			background = "white";
-		} else {
-			background = "#242728";
+	function handleClickOutside(event: MouseEvent) {
+		const target = event.target as HTMLElement;
+		if (!target.closest(".language-selector")) {
+			isDropdownOpen = false;
+			searchQuery = "";
 		}
 	}
-});
 
-// Update background when hasResetParams changes
-$effect(() => {
-	if (hasResetParams) {
-		background = "white"; // White background for reset password form
+	function toggleLanguageDropdown(event: MouseEvent) {
+		event.stopPropagation();
+		isDropdownOpen = !isDropdownOpen;
 	}
-});
 
-let timeRemaining = $state({ minutes: 0, seconds: 0 });
-let searchQuery = $state("");
-let isDropdownOpen = $state(false);
-let searchInput: HTMLInputElement | null = $state(null);
-let isTransitioning = $state(false);
-let debounceTimeout: ReturnType<typeof setTimeout> | undefined = $state();
+	$effect(() => {
+		if (typeof window !== "undefined" && isDropdownOpen) {
+			window.addEventListener("click", handleClickOutside);
+			setTimeout(() => searchInput?.focus(), 0);
+			return () => window.removeEventListener("click", handleClickOutside);
+		}
+	});
 
-// Derived state using $derived rune
-const availableLanguages = $derived(
-	[...availableLocales].sort((a, b) =>
-		getLanguageName(a, "en").localeCompare(getLanguageName(b, "en")),
-	),
-);
-
-const filteredLanguages = $derived(
-	availableLanguages.filter(
-		(lang: string) =>
-			getLanguageName(lang, systemLanguage.value)
-				.toLowerCase()
-				.includes(searchQuery.toLowerCase()) ||
-			getLanguageName(lang, "en")
-				.toLowerCase()
-				.includes(searchQuery.toLowerCase()),
-	),
-);
-
-// Ensure a valid language is always used
-const currentLanguage = $derived(
-	systemLanguage.value && availableLocales.includes(systemLanguage.value)
-		? systemLanguage.value
-		: "en",
-);
-
-// Language selection
-function handleLanguageSelection(lang: string) {
-	clearTimeout(debounceTimeout);
-	debounceTimeout = setTimeout(() => {
-		// Set cookie via store (bridge to ParaglideJS)
-		systemLanguage.set(lang as (typeof systemLanguage)["value"]);
-		isDropdownOpen = false;
-		searchQuery = "";
-	}, 100); // Reduced delay for faster feedback
-}
-
-// Function to handle clicks outside of the language selector
-function handleClickOutside(event: MouseEvent) {
-	const target = event.target as HTMLElement;
-	if (!target.closest(".language-selector")) {
-		isDropdownOpen = false;
-		searchQuery = "";
-	}
-}
-
-// Side effects using $effect rune
-$effect(() => {
-	if (typeof window !== "undefined" && isDropdownOpen) {
-		window.addEventListener("click", handleClickOutside);
-		// Focus search input when dropdown opens
-		setTimeout(() => searchInput?.focus(), 0);
-		return () => window.removeEventListener("click", handleClickOutside);
-	}
-});
-
-// Demo mode timer management
-function calculateTimeRemaining() {
-	const now = new Date();
-	const minutes = now.getMinutes();
-	const seconds = now.getSeconds();
-	const ttlMinutes = publicEnv.DEMO_TTL || 60;
-	const timePassed = (minutes % ttlMinutes) * 60 + seconds;
-	const timeRemainingInSeconds = ttlMinutes * 60 - timePassed;
-	return {
-		minutes: Math.floor(timeRemainingInSeconds / 60),
-		seconds: timeRemainingInSeconds % 60,
-	};
-}
-
-// Function to update the time remaining every second
-function updateTimeRemaining() {
-	timeRemaining = calculateTimeRemaining();
-}
-
-// Set up the interval to update the countdown every second
-$effect(() => {
-	let interval: ReturnType<typeof setInterval> | undefined;
-	if (data.demoMode) {
-		updateTimeRemaining();
-		interval = setInterval(updateTimeRemaining, 1000);
-		return () => {
-			if (interval) {
-				clearInterval(interval);
-			}
+	function calculateTimeRemaining() {
+		const now = new Date();
+		const minutes = now.getMinutes();
+		const seconds = now.getSeconds();
+		const ttlMinutes = publicEnv.DEMO_TTL || 60;
+		const timePassed = (minutes % ttlMinutes) * 60 + seconds;
+		const timeRemainingInSeconds = ttlMinutes * 60 - timePassed;
+		return {
+			minutes: Math.floor(timeRemainingInSeconds / 60),
+			seconds: timeRemainingInSeconds % 60
 		};
 	}
-});
 
-// State management functions
-function resetToInitialState() {
-	if (isTransitioning) {
-		return;
+	function updateTimeRemaining() {
+		timeRemaining = calculateTimeRemaining();
 	}
-	isTransitioning = true;
-	active = undefined;
-	background = data.demoMode
-		? "#242728"
-		: getPublicSetting("SEASONS")
-			? "#242728"
-			: firstUserExists
-				? "white"
-				: "#242728";
-	setTimeout(() => {
-		isTransitioning = false;
-	}, 300);
-}
 
-// Special case for the first user on fresh installation
-function handleSignInClick(event?: Event) {
-	if (event) {
-		event.stopPropagation();
-	}
-	if (isTransitioning) {
-		return;
-	}
-	isTransitioning = true;
+	$effect(() => {
+		let interval: ReturnType<typeof setInterval> | undefined;
+		if (data.demoMode) {
+			updateTimeRemaining();
+			interval = setInterval(updateTimeRemaining, 1000);
+			return () => {
+				if (interval) {
+					clearInterval(interval);
+				}
+			};
+		}
+	});
 
-	if (firstUserExists) {
-		active = 0; // Show SignIn for existing users
-		background = "white";
-	} else {
-		active = 1; // Show SignUp for fresh installation
+	function resetToInitialState() {
+		if (isTransitioning) {
+			return;
+		}
+		isTransitioning = true;
+		active = undefined;
+		background = data.demoMode ? "#242728" : getPublicSetting("SEASONS") ? "#242728" : firstUserExists ? "white" : "#242728";
+		setTimeout(() => {
+			isTransitioning = false;
+		}, 300);
+	}
+
+	function handleSignInClick(event?: Event) {
+		if (event) {
+			event.stopPropagation();
+		}
+		if (isTransitioning) {
+			return;
+		}
+		isTransitioning = true;
+
+		if (firstUserExists) {
+			active = 0;
+			background = "white";
+		} else {
+			active = 1;
+			background = "#242728";
+		}
+
+		setTimeout(() => {
+			isTransitioning = false;
+		}, 400);
+	}
+
+	function handleSignUpClick(event?: Event) {
+		if (event) {
+			event.stopPropagation();
+		}
+		if (isTransitioning) {
+			return;
+		}
+		isTransitioning = true;
+		active = 1;
 		background = "#242728";
+		setTimeout(() => {
+			isTransitioning = false;
+		}, 400);
 	}
 
-	setTimeout(() => {
-		isTransitioning = false;
-	}, 400); // Match CSS transition duration
-}
+	function handleSignInPointerEnter() {
+		if (active === undefined && !data.demoMode && !getPublicSetting("SEASONS")) {
+			background = "white";
+		}
+	}
 
-// Handle SignUp click
-function handleSignUpClick(event?: Event) {
-	if (event) {
-		event.stopPropagation();
+	function handleSignUpPointerEnter() {
+		if (active === undefined && !data.demoMode && !getPublicSetting("SEASONS")) {
+			background = "#242728";
+		}
 	}
-	if (isTransitioning) {
-		return;
-	}
-	isTransitioning = true;
-	active = 1;
-	background = "#242728";
-	setTimeout(() => {
-		isTransitioning = false;
-	}, 400); // Match CSS transition duration
-}
-
-// Handle pointer enter events
-function handleSignInPointerEnter() {
-	if (active === undefined && !data.demoMode && !getPublicSetting("SEASONS")) {
-		background = "white";
-	}
-}
-
-function handleSignUpPointerEnter() {
-	if (active === undefined && !data.demoMode && !getPublicSetting("SEASONS")) {
-		background = "#242728";
-	}
-}
 </script>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`} role="main" aria-label="Authentication Page">
-	<!-- Seasons (always present, opacity/position managed) -->
 	<div
 		class="pointer-events-none fixed inset-0 z-10 transition-all duration-300"
 		class:opacity-0={active === undefined}
@@ -287,7 +244,6 @@ function handleSignUpPointerEnter() {
 		<Seasons />
 	</div>
 
-	<!-- Database Error Display -->
 	{#if data.showDatabaseError}
 		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
 			<div class="max-w-2xl rounded-lg bg-white p-8 shadow-xl">
@@ -353,7 +309,6 @@ function handleSignUpPointerEnter() {
 		</div>
 	{/if}
 
-	<!-- SignIn and SignUp Forms -->
 	<SignIn
 		bind:active
 		onClick={handleSignInClick}
@@ -376,7 +331,6 @@ function handleSignUpPointerEnter() {
 
 	{#if active == undefined}
 		{#if data.demoMode}
-			<!-- DEMO MODE -->
 			<div
 				class="absolute bottom-2.75 left-1/2 flex min-w-87.5 -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 p-3 text-center text-white transition-opacity duration-300 sm:bottom-12"
 				class:opacity-50={isTransitioning}
@@ -389,7 +343,6 @@ function handleSignUpPointerEnter() {
 				<p>{login_demo_message()}</p>
 				<p class="text-xl font-bold">
 					{login_demo_nextreset()}
-					<!-- Announce remaining time in an accessible format -->
 					<span aria-label="Time remaining: {timeRemaining.minutes} minutes and {timeRemaining.seconds} seconds">
 						{timeRemaining.minutes}:{timeRemaining.seconds < 10 ? `0${timeRemaining.seconds}` : timeRemaining.seconds}
 					</span>
@@ -397,7 +350,6 @@ function handleSignUpPointerEnter() {
 			</div>
 		{/if}
 
-		<!-- CMS Logo -->
 		<div
 			class="absolute left-1/2 top-1/4 -translate-x-1/2 -translate-y-1/2 transform items-center justify-center transition-[filter] duration-300"
 			style="filter: drop-shadow(0 6px 10px {background === 'white' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.85)'});"
@@ -405,79 +357,83 @@ function handleSignUpPointerEnter() {
 			<SveltyCMSLogoFull />
 		</div>
 
-		<!-- Language Select -->
 		<div
 			class="language-selector absolute bottom-1/4 left-1/2 -translate-x-1/2 transform transition-opacity duration-300"
 			class:opacity-50={isTransitioning}
 		>
-			<Menu positioning={{ placement: 'top', gutter: 10 }}>
-				<Menu.Trigger
-					class="flex w-30 items-center justify-between gap-2 rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 hover:bg-[#363a3b] focus:ring-2"
-					aria-label="Select language"
+			<button
+				type="button"
+				class="flex w-30 items-center justify-between gap-2 rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 hover:bg-[#363a3b] focus:ring-2"
+				aria-label="Select language"
+				aria-haspopup="menu"
+				aria-expanded={isDropdownOpen}
+				aria-controls={languageMenuId}
+				onclick={toggleLanguageDropdown}
+			>
+				<span>{getLanguageName(currentLanguage)}</span>
+				<iconify-icon icon="mdi:chevron-up" width={20} class:isDropdownOpen></iconify-icon>
+			</button>
+
+			{#if isDropdownOpen}
+				<div
+					id={languageMenuId}
+					role="menu"
+					class="card preset-filled-surface-100-900 absolute bottom-full left-1/2 z-9999 mb-2 w-64 -translate-x-1/2 border border-surface-200 p-2 shadow-xl dark:border-surface-500"
 				>
-					<span>{getLanguageName(currentLanguage)}</span>
-					<iconify-icon icon="mdi:chevron-up" width={20}></iconify-icon>
-				</Menu.Trigger>
+					<div
+						class="mb-1 border-b border-surface-200 px-3 py-2 text-center text-xs font-bold uppercase tracking-wider text-tertiary-500 dark:border-surface-50 dark:text-primary-500"
+					>
+						{applayout_systemlanguage()}
+					</div>
 
-				<Portal>
-					<Menu.Positioner>
-						<Menu.Content class="card p-2 shadow-xl preset-filled-surface-100-900 z-9999 w-64 border border-surface-200 dark:border-surface-500">
-							<!-- Header to inform user about System Language context -->
-							<div
-								class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
+					{#if Array.isArray(getPublicSetting('LOCALES')) && (getPublicSetting('LOCALES') as any[]).length > 5}
+						<div class="mb-1 border-b border-surface-200 px-2 pb-2 dark:border-surface-50">
+							<input
+								type="text"
+								bind:this={searchInput}
+								bind:value={searchQuery}
+								placeholder="Search language..."
+								class="w-full rounded-md border-none bg-surface-200 px-3 py-2 text-sm text-surface-900 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-white"
+								aria-label="Search languages"
+								onclick={(e) => e.stopPropagation()}
+							/>
+						</div>
+
+						<div class="max-h-64 divide-y divide-surface-200 overflow-y-auto dark:divide-surface-700">
+							{#each filteredLanguages as lang (lang)}
+								<button
+									type="button"
+									role="menuitem"
+									onclick={() => handleLanguageSelection(lang)}
+									class="flex w-full cursor-pointer items-center justify-between rounded-sm px-3 py-2 text-left hover:bg-surface-200 dark:hover:bg-surface-700"
+								>
+									<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
+									<span class="ml-2 text-xs font-normal text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
+								</button>
+							{/each}
+						</div>
+					{:else}
+						{#each availableLanguages.filter((l) => l !== currentLanguage) as lang (lang)}
+							<button
+								type="button"
+								role="menuitem"
+								onclick={() => handleLanguageSelection(lang)}
+								class="flex w-full cursor-pointer items-center justify-between rounded-sm px-3 py-2 text-left hover:bg-surface-200 dark:hover:bg-surface-700"
 							>
-								{applayout_systemlanguage()}
-							</div>
-
-							{#if Array.isArray(getPublicSetting('LOCALES')) && (getPublicSetting('LOCALES') as any[]).length > 5}
-								<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
-									<input
-										type="text"
-										bind:this={searchInput}
-										bind:value={searchQuery}
-										placeholder="Search language..."
-										class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
-										aria-label="Search languages"
-										onclick={(e) => e.stopPropagation()}
-									/>
-								</div>
-
-								<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
-									{#each filteredLanguages as lang (lang)}
-										<Menu.Item
-											value={lang}
-											onclick={() => handleLanguageSelection(lang)}
-											class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer"
-										>
-											<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
-											<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
-										</Menu.Item>
-									{/each}
-								</div>
-							{:else}
-								{#each availableLanguages.filter((l) => l !== currentLanguage) as lang (lang)}
-									<Menu.Item
-										value={lang}
-										onclick={() => handleLanguageSelection(lang)}
-										class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer"
-									>
-										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
-										<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
-									</Menu.Item>
-								{/each}
-							{/if}
-						</Menu.Content>
-					</Menu.Positioner>
-				</Portal>
-			</Menu>
+								<span class="text-sm font-medium">{getLanguageName(lang)}</span>
+								<span class="ml-2 text-xs font-normal text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
+							</button>
+						{/each}
+					{/if}
+				</div>
+			{/if}
 		</div>
-		<!-- CMS Version -->
+
 		<div class="absolute bottom-5 left-1/2 -translate-x-1/2"><VersionCheck transparent={true} /></div>
 	{/if}
 </div>
 
 <style>
-	/* Scrollbar styling */
 	.overflow-y-auto {
 		scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
 		scrollbar-width: thin;

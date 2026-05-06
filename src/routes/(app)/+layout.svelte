@@ -17,206 +17,161 @@ This layout provides the administrative shell, including sidebars and header con
 -->
 
 <script lang="ts">
-import FloatingChat from "@src/components/collaboration/floating-chat.svelte";
-import FloatingNav from "@src/components/system/floating-nav.svelte";
-import HeaderEdit from "@src/components/header-edit.svelte";
-import LeftSidebar from "@src/components/left-sidebar.svelte";
-import PageFooter from "@src/components/page-footer.svelte";
-import RightSidebar from "@src/components/right-sidebar.svelte";
-import SearchComponent from "@src/components/search-component.svelte";
-// Type Imports
-import type { User } from "@src/databases/auth/types";
-// Stores
-import {
-	setMode,
-} from "@src/stores/collection-store.svelte.ts";
-import {
-	globalLoadingStore,
-	loadingOperations,
-} from "@src/stores/loading-store.svelte.ts";
-import { screen } from "@src/stores/screen-size-store.svelte";
-import { app } from "@src/stores/store.svelte";
-import { initializeDarkMode } from "@src/stores/theme-store.svelte.ts";
-import { ui } from "@src/stores/ui-store.svelte";
-import { widgets } from "@src/stores/widget-store.svelte.ts";
-import { Portal } from "@skeletonlabs/skeleton-svelte";
-// Utils
-import { isSearchVisible } from "@utils/global-search-index";
-import { getTextDirection } from "@utils/utils";
-import { onMount, untrack } from "svelte";
-import { registerHotkey } from "@src/utils/hotkeys";
-import CommandBar from "@src/components/command-bar.svelte";
-// SvelteKit Navigation
-import { afterNavigate, beforeNavigate } from "$app/navigation";
-import { page } from "$app/state";
-import type { Schema, ContentNode } from "../../content/types";
-import { setContentContext } from "@src/content";
+	import FloatingChat from '@src/components/collaboration/floating-chat.svelte';
+	import FloatingNav from '@src/components/system/floating-nav.svelte';
+	import HeaderEdit from '@src/components/header-edit.svelte';
+	import LeftSidebar from '@src/components/left-sidebar.svelte';
+	import PageFooter from '@src/components/page-footer.svelte';
+	import RightSidebar from '@src/components/right-sidebar.svelte';
+	import SearchComponent from '@src/components/search-component.svelte';
+	import type { User } from '@src/databases/auth/types';
+	import { setMode } from '@src/stores/collection-store.svelte.ts';
+	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
+	import { screen } from '@src/stores/screen-size-store.svelte';
+	import { app } from '@src/stores/store.svelte';
+	import { initializeDarkMode } from '@src/stores/theme-store.svelte.ts';
+	import { ui } from '@src/stores/ui-store.svelte';
+	import { widgets } from '@src/stores/widget-store.svelte.ts';
+	import { isSearchVisible } from '@utils/global-search-index';
+	import { getTextDirection } from '@utils/utils';
+	import { onMount, untrack } from 'svelte';
+	import { registerHotkey } from '@src/utils/hotkeys';
+	import CommandBar from '@src/components/command-bar.svelte';
+	import { afterNavigate, beforeNavigate } from '$app/navigation';
+	import { page } from '$app/state';
+	import type { Schema, ContentNode } from '../../content/types';
+	import { setContentContext } from '@src/content';
 
-// =============================================
-// TYPE DEFINITIONS
-// =============================================
-
-interface LayoutData {
-	contentStructure: Promise<ContentNode[]>;
-	firstCollection: Promise<Schema | null>;
-	settings: Record<string, any>;
-	user: User | null;
-	tenantId?: string | null;
-	darkMode: boolean;
-	nonce: string;
-	theme: import("@src/databases/db-interface").Theme;
-}
-
-interface Props {
-	children?: import("svelte").Snippet;
-	data: LayoutData;
-}
-
-// =============================================
-// STATE & DERIVED
-// =============================================
-
-const { children, data }: Props = $props();
-
-// Initialize Content Context
-setContentContext(untrack(() => data.tenantId) || null);
-
-// Component State
-let loadError = $state<Error | null>(null);
-
-// =============================================
-// DERIVED STATE
-// =============================================
-
-// seoDescription logic
-const siteName = $derived(data.settings?.siteName || "SveltyCMS");
-const seoDescription = $derived(`${siteName} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`);
-
-// =============================================
-// REACTIVE EFFECTS
-// =============================================
-
-// Sync mode from URL (helps UI store show/hide sidebars even on error pages)
-$effect(() => {
-	const isCreate = page.url.searchParams.get("create") === "true";
-	const isEdit = page.url.searchParams.get("edit") === "true";
-
-	if (isCreate) {
-		setMode("create");
-	} else if (isEdit) {
-		setMode("edit");
-	} else if (page.url.pathname.includes("/mediagallery")) {
-		setMode("media");
-	}
-});
-
-
-// Effect: Handle system language changes
-$effect(() => {
-	const lang = app.systemLanguage;
-	if (!lang) {
-		return;
+	interface LayoutData {
+		contentStructure: Promise<ContentNode[]>;
+		firstCollection: Promise<Schema | null>;
+		settings: Record<string, any>;
+		user: User | null;
+		tenantId?: string | null;
+		darkMode: boolean;
+		nonce: string;
+		theme: import('@src/databases/db-interface').Theme;
 	}
 
-	const dir = getTextDirection(lang);
-	if (!dir) {
-		return;
+	interface Props {
+		children?: import('svelte').Snippet;
+		data: LayoutData;
 	}
 
-	document.documentElement.dir = dir;
-	document.documentElement.lang = lang;
-});
+	const { children, data }: Props = $props();
 
-// 🔥 SYNC: Connect streamed content structure to global stores for sidebar/navigation reactivity
-$effect(() => {
-	data.contentStructure.then((nodes) => {
-		untrack(() => {
-			import("@src/stores/collection-store.svelte").then(({ setContentStructure }) => {
-				setContentStructure(nodes);
+	setContentContext(untrack(() => data.tenantId) || null);
+
+	let loadError = $state<Error | null>(null);
+
+	const siteName = $derived(data.settings?.siteName || 'SveltyCMS');
+	const seoDescription = $derived(
+		`${siteName} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`
+	);
+
+	$effect(() => {
+		const isCreate = page.url.searchParams.get('create') === 'true';
+		const isEdit = page.url.searchParams.get('edit') === 'true';
+
+		if (isCreate) {
+			setMode('create');
+		} else if (isEdit) {
+			setMode('edit');
+		} else if (page.url.pathname.includes('/mediagallery')) {
+			setMode('media');
+		}
+	});
+
+	$effect(() => {
+		const lang = app.systemLanguage;
+		if (!lang) {
+			return;
+		}
+
+		const dir = getTextDirection(lang);
+		if (!dir) {
+			return;
+		}
+
+		document.documentElement.dir = dir;
+		document.documentElement.lang = lang;
+	});
+
+	$effect(() => {
+		data.contentStructure.then((nodes) => {
+			untrack(() => {
+				import('@src/stores/collection-store.svelte').then(({ setContentStructure }) => {
+					setContentStructure(nodes);
+				});
 			});
 		});
 	});
-});
 
-// =============================================
-// EVENT HANDLERS
-// =============================================
+	function initializeUserAvatar(user: User | null): void {
+		console.log('[AppLayout] initializeUserAvatar for user:', user?.username || 'Guest');
 
-// Initialize avatar from user data
-function initializeUserAvatar(user: User | null): void {
-	console.log(
-		"[AppLayout] initializeUserAvatar for user:",
-		user?.username || "Guest",
-	);
-	if (!user) {
-		app.avatarSrc = "/Default_User.svg";
-		return;
-	}
-
-	if (user.avatar && user.avatar !== "/Default_User.svg") {
-		app.avatarSrc = user.avatar;
-	} else {
-		app.avatarSrc = "/Default_User.svg";
-	}
-	console.log("[AppLayout] Avatar source set to:", app.avatarSrc);
-}
-
-// =============================================
-// LIFECYCLE HOOKS
-// =============================================
-
-onMount(() => {
-	console.log("[AppLayout] Mounted. User:", data.user?.username || "None");
-
-
-	widgets.initialize();
-	initializeDarkMode(data.theme as any);
-	initializeUserAvatar(data.user);
-
-	registerHotkey(
-		"mod+k",
-		() => {
-			ui.isCommandBarVisible = !ui.isCommandBarVisible;
-		},
-		"Open command palette (AI-powered)",
-	);
-
-	registerHotkey(
-		"mod+s",
-		() => {
-			window.dispatchEvent(new CustomEvent("global-save-request"));
-		},
-		"Save (global)",
-	);
-
-	registerHotkey(
-		"escape",
-		() => {
-			ui.isCommandBarVisible = false;
-			isSearchVisible.set(false);
-		},
-		"Close Overlays/Command Palette",
-		false,
-	);
-});
-
-beforeNavigate(({ from, to }) => {
-	if (from && to && from.route.id !== to.route.id) {
-		globalLoadingStore.startLoading(loadingOperations.navigation);
-	}
-});
-
-afterNavigate(() => {
-	globalLoadingStore.stopLoading(loadingOperations.navigation);
-	setTimeout(() => {
-		if (
-			globalLoadingStore.loadingStack.size === 1 &&
-			globalLoadingStore.isLoadingReason(loadingOperations.navigation)
-		) {
-			globalLoadingStore.stopLoading(loadingOperations.navigation);
+		if (!user) {
+			app.avatarSrc = '/Default_User.svg';
+			return;
 		}
-	}, 100);
-});
+
+		if (user.avatar && user.avatar !== '/Default_User.svg') {
+			app.avatarSrc = user.avatar;
+		} else {
+			app.avatarSrc = '/Default_User.svg';
+		}
+
+		console.log('[AppLayout] Avatar source set to:', app.avatarSrc);
+	}
+
+	onMount(() => {
+		console.log('[AppLayout] Mounted. User:', data.user?.username || 'None');
+
+		widgets.initialize();
+		initializeDarkMode(data.theme as any);
+		initializeUserAvatar(data.user);
+
+		registerHotkey(
+			'mod+k',
+			() => {
+				ui.isCommandBarVisible = !ui.isCommandBarVisible;
+			},
+			'Open command palette (AI-powered)'
+		);
+
+		registerHotkey(
+			'mod+s',
+			() => {
+				window.dispatchEvent(new CustomEvent('global-save-request'));
+			},
+			'Save (global)'
+		);
+
+		registerHotkey(
+			'escape',
+			() => {
+				ui.isCommandBarVisible = false;
+				isSearchVisible.set(false);
+			},
+			'Close Overlays/Command Palette',
+			false
+		);
+	});
+
+	beforeNavigate(({ from, to }) => {
+		if (from && to && from.route.id !== to.route.id) {
+			globalLoadingStore.startLoading(loadingOperations.navigation);
+		}
+	});
+
+	afterNavigate(() => {
+		globalLoadingStore.stopLoading(loadingOperations.navigation);
+		setTimeout(() => {
+			if (globalLoadingStore.loadingStack.size === 1 && globalLoadingStore.isLoadingReason(loadingOperations.navigation)) {
+				globalLoadingStore.stopLoading(loadingOperations.navigation);
+			}
+		}, 100);
+	});
 </script>
 
 <svelte:head>
@@ -281,7 +236,7 @@ afterNavigate(() => {
 
 					{#if ui.state.pagefooter !== 'hidden'}
 						<footer class="mt-auto w-full bg-surface-50 bg-linear-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
-								<PageFooter />
+							<PageFooter />
 						</footer>
 					{/if}
 				</main>
@@ -302,15 +257,11 @@ afterNavigate(() => {
 		</div>
 
 		{#if screen.isMobile}
-			<Portal>
-				<FloatingNav />
-			</Portal>
+			<FloatingNav />
 		{/if}
 
 		{#if data.user}
-			<Portal>
-				<FloatingChat />
-			</Portal>
+			<FloatingChat />
 		{/if}
 	</div>
 {/if}

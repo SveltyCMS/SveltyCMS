@@ -15,10 +15,8 @@
 -->
 
 <script lang="ts">
-	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 	import PageTitle from '@src/components/page-title.svelte';
 	import PermissionGuard from '@src/components/permission-guard.svelte';
-	// ParaglideJS
 	import {
 		button_delete,
 		email,
@@ -35,13 +33,11 @@
 		userpage_title,
 		userpage_user_id
 	} from '@src/paraglide/messages';
-	// Stores
 	import { collaboration } from '@src/stores/collaboration-store.svelte';
 	import { avatarSrc, normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import AdminArea from './components/admin-area.svelte';
-	// Auth
 	import ModalTwoFactorAuth from './components/modal-two-factor-auth.svelte';
 	import '@src/stores/store.svelte.ts';
 	import { setCollection } from '@src/stores/collection-store.svelte';
@@ -53,36 +49,43 @@
 	import ModalEditForm from './components/modal-edit-form.svelte';
 	import ModalPrivacyData from './components/modal-privacy-data.svelte';
 
-	// Props
 	const { data } = $props();
 	const { user: serverUser, isFirstUser, isMultiTenant, is2FAEnabledGlobal } = $derived(data);
 
-	// Make user data reactive
 	const user = $derived({
 		_id: serverUser?._id ?? '',
 		email: serverUser?.email ?? '',
 		username: serverUser?.username ?? '',
 		role: serverUser?.role ?? '',
 		avatar: serverUser?.avatar ?? '/Default_User.svg',
-		tenantId: serverUser?.tenantId ?? '', // Add tenantId
+		tenantId: serverUser?.tenantId ?? '',
 		is2FAEnabled: serverUser?.is2FAEnabled ?? false,
 		permissions: []
 	});
 
-	// Define password as state
 	let password = $state('hash-password');
+	let avatarLoadFailed = $state(false);
+	let previousAvatarUrl = $state('');
 
-	// Function to open 2FA modal
+	const currentAvatarUrl = $derived(normalizeAvatarUrl(avatarSrc.value));
+
+	$effect(() => {
+		const nextAvatarUrl = currentAvatarUrl;
+
+		if (nextAvatarUrl !== previousAvatarUrl) {
+			previousAvatarUrl = nextAvatarUrl;
+			avatarLoadFailed = false;
+		}
+	});
+
 	function open2FAModal(): void {
 		modalState.trigger(ModalTwoFactorAuth, { user }, async (r: any) => {
 			if (r) {
-				// Refresh user data after 2FA changes
 				await invalidateAll();
 			}
 		});
 	}
 
-	// Function to update RTC preferences
 	async function updateRtcPreference(key: 'enabled' | 'sound', value: boolean) {
 		const newUserData = {
 			preferences: {
@@ -103,7 +106,7 @@
 			if (res.ok) {
 				toast.success('Preferences updated');
 				await invalidateAll();
-				// If RTC was disabled, close connection
+
 				if (key === 'enabled' && !value) {
 					collaboration.close();
 				} else if (key === 'enabled' && value) {
@@ -117,7 +120,6 @@
 		}
 	}
 
-	// Function to execute actions
 	function executeActions() {
 		const actions = $triggerActionStore;
 		if (actions.length === 1) {
@@ -130,18 +132,13 @@
 		triggerActionStore.set([]);
 	}
 
-	// Execute actions on mount if triggerActionStore has data
 	onMount(() => {
 		if ($triggerActionStore.length > 0) {
 			executeActions();
 		}
 		setCollection(null);
-
-		// Note: Avatar initialization is handled by the layout component
-		// to ensure consistent avatar state across the application
 	});
 
-	// Modal Trigger - User Form
 	function modalUserForm(): void {
 		modalState.trigger(ModalEditForm, {
 			title: usermodaluser_edittitle(),
@@ -149,7 +146,6 @@
 		});
 	}
 
-	// Modal Trigger - Edit Avatar
 	function modalEditAvatar(): void {
 		modalState.trigger(
 			ModalEditAvatar,
@@ -167,17 +163,14 @@
 		);
 	}
 
-	// Modal Trigger - Privacy & Data (GDPR)
 	function modalPrivacyData(): void {
 		modalState.trigger(ModalPrivacyData as any, { user });
 	}
 
-	// Modal Confirm
 	function modalConfirm(): void {
 		showConfirm({
 			title: usermodalconfirmtitle(),
 			body: usermodalconfirmbody(),
-			// confirmText: usermodalconfirmdeleteuser(),
 			onConfirm: async () => {
 				const res = await fetch('/api/user/deleteUsers', {
 					method: 'POST',
@@ -192,41 +185,53 @@
 	}
 </script>
 
-<!-- Page Title with Back Button -->
 <PageTitle name={userpage_title()} icon="mdi:account-circle" showBackButton={true} backUrl="/config" />
 
 <div class="max-h-[calc(100vh-65px)] overflow-auto">
 	<h2 class="sr-only">Profile Information</h2>
+
 	<div class="wrapper mb-2">
 		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
-			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1">
-				<div class="relative group">
-					<Avatar class="w-32 h-32 rounded-full border border-white shadow-lg dark:border-surface-800">
-						<Avatar.Image src={normalizeAvatarUrl(avatarSrc.value)} class="object-cover" />
-						<Avatar.Fallback>AV</Avatar.Fallback>
-					</Avatar>
+				<div class="group relative">
+					<div class="h-32 w-32 overflow-hidden rounded-full border border-white bg-surface-200 shadow-lg dark:border-surface-800 dark:bg-surface-700">
+						{#if avatarLoadFailed}
+							<div class="flex h-full w-full items-center justify-center text-2xl font-bold text-surface-700 dark:text-surface-100">
+								AV
+							</div>
+						{:else}
+							<img
+								src={currentAvatarUrl}
+								alt="User Avatar"
+								class="h-full w-full object-cover"
+								onerror={() => (avatarLoadFailed = true)}
+							/>
+						{/if}
+					</div>
 
-					<!-- Edit button - icon overlay -->
 					<button
 						onclick={modalEditAvatar}
-						class="absolute bottom-0 right-0 p-2 rounded-full gradient-tertiary dark:gradient-primary btn-icon"
+						class="gradient-tertiary btn-icon absolute bottom-0 right-0 rounded-full p-2 dark:gradient-primary"
 						title={userpage_editavatar()}
 					>
 						<iconify-icon icon="mdi:pencil" width={18}></iconify-icon>
 					</button>
 				</div>
-				<!-- User ID -->
+
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
 					{userpage_user_id()}<span class="ml-2 font-bold">{user?._id || 'N/A'}</span>
 				</div>
-				<!-- Role -->
-				<div class="gradient-tertiary badge w-full max-w-xs text-white">{role()}:<span class="ml-2 font-bold">{user?.role || 'N/A'}</span></div>
-				<!-- Tenant ID -->
+
+				<div class="gradient-tertiary badge w-full max-w-xs text-white">
+					{role()}:<span class="ml-2 font-bold">{user?.role || 'N/A'}</span>
+				</div>
+
 				{#if isMultiTenant && user?.tenantId}
-					<div class="gradient-warning badge w-full max-w-xs text-white">Tenant ID:<span class="ml-2">{user?.tenantId || 'N/A'}</span></div>
+					<div class="gradient-warning badge w-full max-w-xs text-white">
+						Tenant ID:<span class="ml-2">{user?.tenantId || 'N/A'}</span>
+					</div>
 				{/if}
-				<!-- Two-Factor Authentication Status -->
+
 				{#if is2FAEnabledGlobal}
 					<button
 						onclick={open2FAModal}
@@ -249,8 +254,7 @@
 					</button>
 				{/if}
 
-				<!-- Collaboration Settings -->
-				<div class="card p-4 w-full max-w-xs space-y-1 bg-surface-200-700-token border border-surface-500 shadow-sm">
+				<div class="card bg-surface-200-700-token w-full max-w-xs space-y-1 border border-surface-500 p-4 shadow-sm">
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
 							<iconify-icon icon="mdi:forum" class="text-primary-500" width={18}></iconify-icon>
@@ -266,6 +270,7 @@
 							}}
 						/>
 					</div>
+
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
 							<iconify-icon icon="material-symbols:volume-up-outline" class="text-primary-500" width={18}></iconify-icon>
@@ -283,43 +288,38 @@
 					</div>
 				</div>
 
-				<!-- Permissions List -->
 				{#each user.permissions as permission (permission)}
 					<div class="gradient-primary badge mt-1 w-full max-w-xs text-white">{permission}</div>
 				{/each}
 			</div>
 
-			<!-- User fields -->
 			{#if user}
 				<form>
-					<div class="flex items-center gap-2 mb-1">
+					<div class="mb-1 flex items-center gap-2">
 						<iconify-icon icon="mdi:account" class="text-primary-500" width={20}></iconify-icon>
 						<span class="text-sm font-bold">{username()}:</span>
 					</div>
 					<input value={user.username} name="username" type="text" autocomplete="username" disabled class="input mb-4" />
 
-					<div class="flex items-center gap-2 mb-1">
+					<div class="mb-1 flex items-center gap-2">
 						<iconify-icon icon="mdi:email" class="text-primary-500" width={20}></iconify-icon>
 						<span class="text-sm font-bold">{email()}:</span>
 					</div>
 					<input value={user.email} name="email" type="email" autocomplete="email" disabled class="input mb-4" />
 
-					<div class="flex items-center gap-2 mb-1">
+					<div class="mb-1 flex items-center gap-2">
 						<iconify-icon icon="mdi:lock" class="text-primary-500" width={20}></iconify-icon>
 						<span class="text-sm font-bold">{form_password()}:</span>
 					</div>
 					<input bind:value={password} name="security" type="security" autocomplete="current-password" disabled class="input" />
 
-
 					<div class="mt-4 flex flex-col items-center justify-center gap-2">
-						<!-- Edit Modal Button -->
 						<button onclick={modalUserForm} aria-label={userpage_edit_usersetting()} class="gradient-tertiary btn w-full max-w-sm text-white">
 							<iconify-icon icon="bi:pencil-fill" width={24}></iconify-icon>
 							{userpage_edit_usersetting()}
 						</button>
 
-						<!-- GDPR Compact Tile -->
-						<button onclick={modalPrivacyData} class="gradient-tertiary btn w-full max-w-sm flex items-center justify-between text-white">
+						<button onclick={modalPrivacyData} class="gradient-tertiary btn flex w-full max-w-sm items-center justify-between text-white">
 							<div class="flex items-center gap-3">
 								<iconify-icon icon="mdi:shield-account" width={24}></iconify-icon>
 								<div class="text-left">
@@ -329,7 +329,6 @@
 							<iconify-icon icon="mdi:chevron-right" width={24}></iconify-icon>
 						</button>
 
-						<!-- Delete Modal Button -->
 						{#if isFirstUser}
 							<button onclick={modalConfirm} aria-label={button_delete()} class="gradient-error btn w-full max-w-sm text-white">
 								<iconify-icon icon="bi:trash3-fill" width={24}></iconify-icon>
@@ -342,7 +341,6 @@
 		</div>
 	</div>
 
-	<!-- Admin area -->
 	<PermissionGuard
 		config={{
 			name: 'Admin Area Access',

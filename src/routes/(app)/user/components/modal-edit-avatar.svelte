@@ -2,38 +2,23 @@
 @file src/routes/(app)/user/components/modal-edit-avatar.svelte
 @component
 **Modal for editing user avatar thumbnail image**
-
-Efficiently handles avatar uploads with validation, deletion, and real-time preview. Optimized for performance and accessibility.
-
-@props
-- `parent` {ModalComponent['props']} - Parent modal properties including `regionFooter`, `onClose`, and `buttonPositive`
-- `avatarSrc` {string} - Current avatar source from store (default: '/Default_User.svg')
 -->
 
 <script lang="ts">
-	// Lucide icons
-
-	import { Avatar, FileUpload } from '@skeletonlabs/skeleton-svelte';
-	// ParaglideJS
 	import { button_cancel, button_delete, button_save, modaledit_avatarfilesallowed, modaledit_avatarfilesize } from '@src/paraglide/messages';
-	// Stores
 	import { avatarSrc } from '@src/stores/store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@src/utils/logger';
 	import { modalState } from '@utils/modal.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { invalidateAll } from '$app/navigation';
-
-	// Removed axios import
+	import { check, type InferInput, instance, object, parse, pipe, type ValiError } from 'valibot';
 
 	let files = $state<File[]>([]);
 	let isUploading = $state(false);
 	let uploadProgress = $state(0);
-	let previewUrl = $state<string | null>(null); // Local preview URL, separate from global store
-	let imageLoadError = $state(false); // Track if current avatar failed to load
-
-	// Valibot validation schema
-	import { check, type InferInput, instance, object, parse, pipe, type ValiError } from 'valibot';
+	let previewUrl = $state<string | null>(null);
+	let imageLoadError = $state(false);
 
 	interface Props {
 		isGivenData?: boolean;
@@ -46,26 +31,27 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 	let { isGivenData: _isGivenData = false, parent: _parent = {} }: Props = $props();
 
-	// ... (rest of code) ...
+	const fileInputId = 'avatar-file-upload';
 
-	// Computed value for avatar display with fallback
 	const displayAvatar = $derived.by(() => {
 		if (previewUrl) {
 			return previewUrl;
 		}
+
 		if (imageLoadError) {
 			return '/Default_User.svg';
 		}
+
 		let src = avatarSrc.value || '/Default_User.svg';
 
 		if (src === '/Default_User.svg') {
 			return src;
 		}
+
 		if (src.startsWith('data:')) {
 			return src;
 		}
 
-		// Normalize path
 		src = src.replace(/^\/+/, '');
 		src = src.replace(/^mediaFolder\//, '').replace(/^files\//, '');
 		src = src.replace(/^\/+/, '');
@@ -74,10 +60,8 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	});
 
 	const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'image/gif'];
-	const MAX_FILE_SIZE = 5_242_880; // 5MB
-	const COMPRESSION_THRESHOLD = 1024 * 1024; // 1MB - compress files larger than this
-
-	// Unified accept string for file inputs
+	const MAX_FILE_SIZE = 5_242_880;
+	const COMPRESSION_THRESHOLD = 1024 * 1024;
 	const acceptMime = imageTypes.join(',');
 
 	const blobSchema = instance(Blob);
@@ -100,70 +84,73 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		file: fileSchema
 	});
 
-	// Handle file input change
-	function onFileChange(details: { acceptedFiles: File[] }) {
-		// v4 FileUpload passes details with acceptedFiles array
-		const inputFiles = details.acceptedFiles;
+	function setSelectedFiles(inputFiles: File[]) {
 		if (!inputFiles || inputFiles.length === 0) {
 			return;
 		}
 
-		files = inputFiles;
-		const lastFile = files.at(-1);
-
-		// Reset error state when new file is selected
+		files = [inputFiles[0]];
 		imageLoadError = false;
-
-		// Create optimized preview for large files
-		createOptimizedPreview(lastFile!);
+		createOptimizedPreview(inputFiles[0]);
 	}
 
-	// Create optimized preview to avoid blocking UI
+	function handleFileInputChange(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		setSelectedFiles(Array.from(input.files ?? []));
+	}
+
+	function handleDrop(event: DragEvent) {
+		event.preventDefault();
+		setSelectedFiles(Array.from(event.dataTransfer?.files ?? []));
+	}
+
 	async function createOptimizedPreview(file: File) {
 		try {
-			// For very large files, create a smaller preview
 			if (file.size > 1024 * 1024) {
-				// 1MB
 				const canvas = document.createElement('canvas');
 				const ctx = canvas.getContext('2d');
 				const img = new Image();
+				const objectUrl = URL.createObjectURL(file);
 
 				img.onload = () => {
-					// Scale down large images for preview
 					const maxSize = 200;
 					const ratio = Math.min(maxSize / img.width, maxSize / img.height);
 					canvas.width = img.width * ratio;
 					canvas.height = img.height * ratio;
 
 					ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-					previewUrl = canvas.toDataURL('image/jpeg', 0.8); // Update local preview only
+					previewUrl = canvas.toDataURL('image/jpeg', 0.8);
+					URL.revokeObjectURL(objectUrl);
 				};
 
-				img.src = URL.createObjectURL(file);
+				img.onerror = () => {
+					URL.revokeObjectURL(objectUrl);
+					previewUrl = null;
+				};
+
+				img.src = objectUrl;
 			} else {
-				// For smaller files, use direct FileReader
 				const fileReader = new FileReader();
 				fileReader.onload = (e) => {
 					if (e.target instanceof FileReader) {
-						previewUrl = e.target.result as string; // Update local preview only
+						previewUrl = e.target.result as string;
 					}
 				};
 				fileReader.readAsDataURL(file);
 			}
 		} catch (error) {
 			logger.error('Error creating preview:', error);
-			// Fallback to default avatar
 			previewUrl = null;
 		}
 	}
 
-	// Handle form submit
 	async function onFormSubmit(): Promise<void> {
 		if (!files || files.length === 0) {
 			return;
 		}
+
 		if (isUploading) {
-			return; // Prevent double submission
+			return;
 		}
 
 		const file = files[0];
@@ -171,7 +158,6 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		try {
 			parse(avatarSchema, { file });
 
-			// Show confirmation if replacing existing avatar
 			if (avatarSrc.value && avatarSrc.value !== '/Default_User.svg') {
 				showConfirm({
 					title: 'Replace Avatar',
@@ -181,7 +167,6 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					}
 				});
 			} else {
-				// No existing avatar, upload directly
 				await uploadAvatar(file);
 			}
 		} catch (error) {
@@ -193,15 +178,13 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				});
 				return;
 			}
+
 			logger.error((error as Error).message);
 			toast.error({ description: (error as Error).message || 'Upload failed' });
-			return;
 		}
 	}
 
-	// Compress large files before upload
 	async function compressFile(file: File): Promise<File> {
-		// Don't compress SVGs or files already small enough
 		if (file.type === 'image/svg+xml' || file.size < COMPRESSION_THRESHOLD) {
 			return file;
 		}
@@ -210,18 +193,19 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			const canvas = document.createElement('canvas');
 			const ctx = canvas.getContext('2d');
 			const img = new Image();
+			const objectUrl = URL.createObjectURL(file);
 
 			img.onload = () => {
-				// Calculate new dimensions (max 1024px)
 				const maxSize = 1024;
 				const ratio = Math.min(maxSize / img.width, maxSize / img.height);
 				canvas.width = img.width * ratio;
 				canvas.height = img.height * ratio;
 
-				// Draw and compress
 				ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
 				canvas.toBlob(
 					(blob) => {
+						URL.revokeObjectURL(objectUrl);
+
 						if (blob) {
 							const compressedFile = new File([blob], file.name, {
 								type: 'image/jpeg',
@@ -229,33 +213,35 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 							});
 							resolve(compressedFile);
 						} else {
-							resolve(file); // Fallback to original
+							resolve(file);
 						}
 					},
 					'image/jpeg',
-					0.85 // Quality
+					0.85
 				);
 			};
 
-			img.onerror = () => resolve(file); // Fallback to original
-			img.src = URL.createObjectURL(file);
+			img.onerror = () => {
+				URL.revokeObjectURL(objectUrl);
+				resolve(file);
+			};
+
+			img.src = objectUrl;
 		});
 	}
 
-	// Upload avatar
 	async function uploadAvatar(file: File): Promise<void> {
 		isUploading = true;
 		uploadProgress = 0;
 
 		try {
-			// Compress large files first
 			const processedFile = await compressFile(file);
 
-			// Create FormData
 			const formData = new FormData();
 			formData.append('avatar', processedFile);
 
-			// Upload with fetch
+			uploadProgress = 50;
+
 			const response = await fetch('/api/user/save-avatar', {
 				method: 'POST',
 				body: formData
@@ -267,27 +253,24 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 			const result = await response.json();
 
-			// Update the avatar store with the new URL from API
+			uploadProgress = 100;
+
 			if (result.avatarUrl) {
 				avatarSrc.value = result.avatarUrl;
 				logger.info('Avatar store updated', { avatarUrl: result.avatarUrl });
 			}
 
-			// Invalidate all data to ensure consistency
 			await invalidateAll();
 
-			// Show success toast
 			toast.success('Avatar updated successfully!');
 			modalState.close();
 		} catch (error) {
 			console.error('Avatar upload failed:', error);
 			imageLoadError = true;
 			toast.error('Failed to update avatar');
-			// Revert preview on error
 			previewUrl = null;
 		} finally {
 			isUploading = false;
-			// Keep progress at 100 briefly so user sees it completed
 			setTimeout(() => {
 				if (!isUploading) {
 					uploadProgress = 0;
@@ -296,7 +279,6 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		}
 	}
 
-	// Delete avatar with confirmation
 	async function deleteAvatar(): Promise<void> {
 		logger.info('deleteAvatar function called');
 
@@ -304,7 +286,6 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			title: 'Delete Avatar',
 			body: 'Are you sure you want to delete your avatar? This action cannot be undone.',
 			onConfirm: async () => {
-				// User confirmed - proceed with deletion
 				try {
 					const currentAvatar = avatarSrc.value;
 					logger.info('Attempting to delete avatar:', currentAvatar);
@@ -320,19 +301,15 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					logger.info('Delete response:', result);
 
 					if (response.ok && result.success) {
-						// Update the avatar store
 						avatarSrc.value = '/Default_User.svg';
 						previewUrl = null;
 
-						// Show success message
 						toast.success({
 							description: '<iconify-icon icon="radix-icons:avatar" width={24} ></iconify-icon> Avatar Deleted'
 						});
 
-						// Close dialog
 						modalState.close();
 
-						// Reload page data
 						await invalidateAll();
 					} else {
 						throw new Error(result.message || 'Delete failed');
@@ -350,57 +327,66 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		});
 	}
 
-	// Base Classes
-
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-xl';
 </script>
 
 <div class="modal-avatar space-y-4">
 	<form class="modal-form {cForm}">
 		<div class="grid grid-cols-1 grid-rows-{avatarSrc.value ? '1' : '2'} items-center justify-center">
-			<FileUpload acceptedFiles={files} accept={acceptMime} maxFiles={1} {onFileChange} class="w-full flex flex-col items-center gap-4">
-				<!-- Hidden Input -->
-				<FileUpload.HiddenInput />
+			<input id={fileInputId} type="file" accept={acceptMime} class="sr-only" onchange={handleFileInputChange} />
 
-				<!-- Avatar Trigger (Clickable) -->
-				<FileUpload.Trigger class="outline-none relative mx-auto mb-3 cursor-pointer rounded-full focus:ring-2 focus:ring-primary-500">
-					<Avatar
-						class="size-32 flex items-center justify-center rounded-full overflow-hidden border-4 border-surface-200 dark:border-surface-700 shadow-xl bg-surface-100 dark:bg-surface-800 aspect-square"
-					>
-						<Avatar.Image src={displayAvatar} alt="User avatar" class="size-full object-cover" />
-						<Avatar.Fallback class="flex size-full items-center justify-center bg-surface-500 text-3xl font-bold uppercase text-white">
+			<label for={fileInputId} class="relative mx-auto mb-3 cursor-pointer rounded-full outline-none focus-within:ring-2 focus-within:ring-primary-500">
+				<div
+					class="flex size-32 aspect-square items-center justify-center overflow-hidden rounded-full border-4 border-surface-200 bg-surface-100 shadow-xl dark:border-surface-700 dark:bg-surface-800"
+				>
+					{#if imageLoadError}
+						<div class="flex size-full items-center justify-center bg-surface-500 text-3xl font-bold uppercase text-white">
 							AB
-						</Avatar.Fallback>
-					</Avatar>
-
-					<!-- Hover/Focus overlay cue when not uploading -->
-					{#if !isUploading}
-						<div class="absolute inset-0 hidden items-center justify-center rounded-full bg-black/30 text-white focus-within:flex hover:flex">
-							<span class="text-xs font-medium">Click to upload</span>
 						</div>
+					{:else}
+						<img
+							src={displayAvatar}
+							alt="User avatar"
+							class="size-full object-cover"
+							onerror={() => {
+								imageLoadError = true;
+							}}
+						/>
 					{/if}
-					{#if isUploading}
-						<div class="absolute inset-0 flex items-center justify-center rounded-full bg-black/60">
-							<div class="text-sm font-medium text-white">...</div>
-						</div>
-					{/if}
-				</FileUpload.Trigger>
+				</div>
 
-				<!-- Dropzone Area -->
-				<FileUpload.Dropzone class="w-full">
-					<div class="flex flex-col items-center justify-center p-4">
-						<iconify-icon icon="mdi:cloud-upload" width={24}></iconify-icon>
-						<p class="text-sm">{modaledit_avatarfilesallowed()}</p>
+				{#if !isUploading}
+					<div class="absolute inset-0 hidden items-center justify-center rounded-full bg-black/30 text-white hover:flex">
+						<span class="text-xs font-medium">Click to upload</span>
 					</div>
-				</FileUpload.Dropzone>
-			</FileUpload>
+				{/if}
+
+				{#if isUploading}
+					<div class="absolute inset-0 flex items-center justify-center rounded-full bg-black/60">
+						<div class="text-sm font-medium text-white">...</div>
+					</div>
+				{/if}
+			</label>
+
+			<label
+				for={fileInputId}
+				class="w-full cursor-pointer rounded-lg border border-dashed border-surface-400 transition-colors hover:bg-surface-100 dark:hover:bg-surface-800"
+				ondragover={(event) => event.preventDefault()}
+				ondrop={handleDrop}
+			>
+				<div class="flex flex-col items-center justify-center p-4">
+					<iconify-icon icon="mdi:cloud-upload" width={24}></iconify-icon>
+					<p class="text-sm">{modaledit_avatarfilesallowed()}</p>
+				</div>
+			</label>
 		</div>
+
 		{#if !files.length && !isUploading}
 			<small class="block text-center text-tertiary-500 opacity-75 dark:text-primary-500">{modaledit_avatarfilesize()}</small>
 		{/if}
-		<!-- Progress Bar -->
+
 		{#if isUploading}
-			<div class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
+			<div class="absolute inset-0 flex items-center justify-center rounded-xl bg-black/50">
 				<div class="flex flex-col items-center gap-2">
 					<div class="h-16 w-16 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
 					{#if uploadProgress > 0}
@@ -411,8 +397,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		{/if}
 	</form>
 
-	<footer class="modal-footer justify-between pt-4 border-t border-surface-500/20">
-		<!-- Delete Avatar -->
+	<footer class="modal-footer justify-between border-t border-surface-500/20 pt-4">
 		{#if avatarSrc.value && avatarSrc.value !== '/Default_User.svg'}
 			<button type="button" onclick={deleteAvatar} class="preset-filled-error-500 btn">
 				<iconify-icon icon="icomoon-free:bin" width={24}></iconify-icon>
@@ -420,13 +405,12 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			</button>
 		{:else}
 			<div></div>
-			<!-- Empty div when using the default avatar -->
 		{/if}
+
 		<div class="flex justify-between gap-2">
-			<!-- Cancel -->
-			<button class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()} disabled={isUploading}>{button_cancel()}</button>
-			<!-- Save -->
-			<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={onFormSubmit} disabled={!files.length || isUploading}>
+			<button type="button" class="preset-outlined-secondary-500 btn" onclick={() => modalState.close()} disabled={isUploading}>{button_cancel()}</button>
+
+			<button type="button" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500" onclick={onFormSubmit} disabled={!files.length || isUploading}>
 				{#if isUploading}
 					<div class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
 					Uploading...

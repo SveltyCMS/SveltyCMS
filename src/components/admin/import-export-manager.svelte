@@ -11,16 +11,11 @@
 -->
 
 <script lang="ts">
-	// Types
-
-	import { Progress as ProgressBar } from '@skeletonlabs/skeleton-svelte';
 	import Input from '@src/components/system/inputs/input.svelte';
 	import Toggles from '@src/components/system/inputs/toggles.svelte';
 	import type { Schema } from '@src/content/types';
-	// Utils
 	import { getCollections } from '@utils/api';
 	import { logger } from '@utils/logger';
-	// Skeleton components
 	import { toast } from '@src/stores/toast.svelte.ts';
 
 	interface ExportOptions {
@@ -47,14 +42,12 @@
 		totalSkipped: number;
 	}
 
-	// --- State using Svelte 5 Runes ---
 	let collections = $state<Partial<Schema>[]>([]);
 	let loading = $state(false);
 	let showExportModal = $state(false);
 	let showImportModal = $state(false);
 	let showResultsModal = $state(false);
 
-	// Export state
 	const exportOptions = $state<ExportOptions>({
 		format: 'json',
 		collections: [],
@@ -65,7 +58,6 @@
 	let exportUrl = $state('');
 	let exportLimitString = $state('');
 
-	// Import state
 	const importOptions = $state<ImportOptions>({
 		format: 'json',
 		overwrite: false,
@@ -78,7 +70,8 @@
 	let importResult = $state<ImportResult | null>(null);
 	let importBatchSizeString = $state('100');
 
-	// Sync string and number values
+	const currentProgress = $derived(Math.min(Math.max(exportProgress || importProgress, 0), 100));
+
 	$effect(() => {
 		const limitNum = Number.parseInt(exportLimitString, 10);
 		exportOptions.limit = Number.isNaN(limitNum) ? undefined : limitNum;
@@ -89,7 +82,6 @@
 		importOptions.batchSize = Number.isNaN(batchSizeNum) ? 100 : batchSizeNum;
 	});
 
-	// --- Data Loading ---
 	loadCollections();
 
 	async function loadCollections() {
@@ -98,7 +90,6 @@
 			const response = await getCollections({ includeFields: false });
 
 			if (response.success && response.data) {
-				// Handle different response structures and map to our Collection interface
 				let rawCollections: any[] = [];
 				if (Array.isArray(response.data)) {
 					rawCollections = response.data;
@@ -106,7 +97,6 @@
 					rawCollections = (response.data as any).collections || [];
 				}
 
-				// Map to our Collection interface
 				collections = rawCollections.map((col) => ({
 					id: col.id || col.name,
 					name: col.name,
@@ -114,7 +104,6 @@
 					description: col.description
 				}));
 
-				// Select all collections by default
 				exportOptions.collections = collections.map((c) => String(c.id));
 			} else {
 				showAlertMessage('Failed to load collections', 'error');
@@ -127,7 +116,6 @@
 		}
 	}
 
-	// --- Export Functions ---
 	async function exportAllData() {
 		try {
 			loading = true;
@@ -173,7 +161,6 @@
 				exportProgress = Math.min(exportProgress + 10, 90);
 			}, 100);
 
-			// Export each collection individually
 			const exportData: Record<string, any> = {};
 
 			for (let i = 0; i < exportOptions.collections.length; i++) {
@@ -197,7 +184,6 @@
 			clearInterval(progressInterval);
 			exportProgress = 100;
 
-			// Create download
 			const blob = new Blob([JSON.stringify(exportData, null, 2)], {
 				type: 'application/json'
 			});
@@ -214,7 +200,6 @@
 		}
 	}
 
-	// --- Import Functions ---
 	async function handleImport() {
 		if (!importFiles || importFiles.length === 0) {
 			showAlertMessage('Please select a file to import', 'warning');
@@ -228,12 +213,10 @@
 			const file = importFiles[0];
 			let importData: any = null;
 
-			// Read file content
 			if (importOptions.format === 'json') {
 				const text = await file.text();
 				importData = JSON.parse(text);
 			} else {
-				// CSV format
 				const text = await file.text();
 				importData = text;
 			}
@@ -242,7 +225,6 @@
 				importProgress = Math.min(importProgress + 5, 90);
 			}, 200);
 
-			// Import data
 			const response = await fetch('/api/importData', {
 				method: 'POST',
 				headers: {
@@ -273,8 +255,6 @@
 			importProgress = 0;
 		}
 	}
-
-	// --- UI & Utility Functions ---
 
 	function showAlertMessage(message: string, type: 'success' | 'error' | 'info' | 'warning') {
 		if (type === 'success') {
@@ -394,13 +374,23 @@
 		</div>
 	</div>
 
-	{#if loading && (exportProgress > 0 || importProgress > 0)}
+	{#if loading && currentProgress > 0}
 		<div class="mb-6">
 			<div class="mb-2 flex justify-between text-sm">
 				<span>{exportProgress > 0 ? 'Exporting...' : 'Importing...'}</span>
-				<span>{Math.round(exportProgress || importProgress)}%</span>
+				<span>{Math.round(currentProgress)}%</span>
 			</div>
-			<ProgressBar value={exportProgress || importProgress} />
+
+			<div
+				class="h-2 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700"
+				role="progressbar"
+				aria-valuemin="0"
+				aria-valuemax="100"
+				aria-valuenow={Math.round(currentProgress)}
+				aria-label={exportProgress > 0 ? 'Export progress' : 'Import progress'}
+			>
+				<div class="h-full rounded-full bg-primary-500 transition-[width] duration-300" style={`width: ${currentProgress}%`}></div>
+			</div>
 		</div>
 	{/if}
 

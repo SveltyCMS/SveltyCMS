@@ -3,32 +3,11 @@
 @component
 **Rating Widget Input Component**
 
-Provides interactive star rating input using Skeleton Labs Ratings component.
+Provides interactive star rating input without Skeleton Labs dependency.
 Part of the Three Pillars Architecture for widget system.
-
-@example
-<RatingInput bind:value={rating} field={{ max: 5, iconFull: "star", iconEmpty: "star-outline" }} />
-Interactive star rating with hover states and click selection
-
-### Props
-- `field: FieldType` - Widget field definition with max rating and icon configuration
-- `value: number | null | undefined` - Selected rating value (bindable)
-- `error?: string | null` - Validation error message for display
-
-### Features
-- **Skeleton Labs Integration**: Professional Ratings component with built-in interactions
-- **Interactive Stars**: Click and hover states for intuitive rating selection
-- **Customizable Icons**: Configurable full/empty star icons via Iconify
-- **Flexible Rating Scale**: Supports any maximum rating value with step="1"
-- **Accessibility**: Full ARIA support with labels and error association
-- **Error State Styling**: Visual error indication with red star coloring
-- **Snippet Customization**: Custom empty and full star rendering
-- **Responsive Design**: Adapts to different screen sizes and contexts
-- **PostCSS Styling**: Modern CSS with utility-first approach
 -->
 
 <script lang="ts">
-	import { RatingGroup } from '@skeletonlabs/skeleton-svelte';
 	import type { FieldType } from './';
 
 	let {
@@ -41,20 +20,67 @@ Interactive star rating with hover states and click selection
 		error?: string | null;
 	} = $props();
 
-	// Derived properties from field config
-	const max = $derived(Math.max(1, Number(field.max) || 5));
-	const step = $derived(Number(field.step) || 1);
+	const max = $derived(Math.max(1, Math.floor(Number(field.max) || 5)));
+	const step = $derived(Number(field.step) === 0.5 ? 0.5 : 1);
 	const showValue = $derived(field.showValue !== false);
-	
-	// Direct binding with proper null handling
 	const ratingValue = $derived(typeof value === 'number' ? value : 0);
 
-	function handleChange(e: { value: number }) {
-		// Allow clearing if not required and clicking the same value (or 0)
-		if (e.value === 0 && !field.required) {
+	let hoverValue = $state<number | null>(null);
+
+	const displayValue = $derived(hoverValue ?? ratingValue);
+
+	const iconFull = $derived((field.iconFull as string) || 'material-symbols:star');
+	const iconHalf = $derived((field.iconHalf as string) || 'material-symbols:star-half');
+	const iconEmpty = $derived((field.iconEmpty as string) || 'material-symbols:star-outline');
+
+	function setRating(nextValue: number) {
+		if (!field.required && value === nextValue) {
 			value = null;
-		} else {
-			value = e.value;
+			return;
+		}
+
+		value = nextValue;
+	}
+
+	function handlePointerSelect(event: MouseEvent, index: number) {
+		if (step === 0.5) {
+			const target = event.currentTarget as HTMLElement;
+			const rect = target.getBoundingClientRect();
+			const isHalf = event.clientX - rect.left < rect.width / 2;
+			setRating(index + (isHalf ? 0.5 : 1));
+			return;
+		}
+
+		setRating(index + 1);
+	}
+
+	function handlePointerMove(event: MouseEvent, index: number) {
+		if (step === 0.5) {
+			const target = event.currentTarget as HTMLElement;
+			const rect = target.getBoundingClientRect();
+			const isHalf = event.clientX - rect.left < rect.width / 2;
+			hoverValue = index + (isHalf ? 0.5 : 1);
+			return;
+		}
+
+		hoverValue = index + 1;
+	}
+
+	function handleKeydown(event: KeyboardEvent, index: number) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			setRating(index + 1);
+		}
+
+		if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+			event.preventDefault();
+			setRating(Math.min(max, ratingValue + step));
+		}
+
+		if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+			event.preventDefault();
+			const nextValue = Math.max(field.required ? step : 0, ratingValue - step);
+			value = nextValue === 0 && !field.required ? null : nextValue;
 		}
 	}
 
@@ -62,56 +88,73 @@ Interactive star rating with hover states and click selection
 		value = field.required ? 1 : null;
 	}
 
-	// Icon handling - support full names or legacy material-symbols stripping
-	const iconFull = $derived((field.iconFull as string) || 'material-symbols:star');
-	const iconHalf = $derived((field.iconHalf as string) || 'material-symbols:star-half');
-	const iconEmpty = $derived((field.iconEmpty as string) || 'material-symbols:star-outline');
+	function getIcon(index: number) {
+		const starValue = index + 1;
+
+		if (displayValue >= starValue) {
+			return iconFull;
+		}
+
+		if (step === 0.5 && displayValue >= starValue - 0.5) {
+			return iconHalf;
+		}
+
+		return iconEmpty;
+	}
+
+	function getIconClass(index: number) {
+		const starValue = index + 1;
+
+		if (displayValue >= starValue || (step === 0.5 && displayValue >= starValue - 0.5)) {
+			return error ? 'text-error-500' : 'text-warning-500';
+		}
+
+		return 'text-surface-300 dark:text-surface-600';
+	}
 </script>
 
 <div
-	class="relative flex flex-col gap-2 rounded-lg border p-3 border-surface-400 dark:border-surface-600 bg-white dark:bg-surface-900 transition-all"
+	class="relative flex flex-col gap-2 rounded-lg border border-surface-400 bg-white p-3 transition-all dark:border-surface-600 dark:bg-surface-900"
 	class:ring-2={!!error}
 	class:ring-error-500={!!error}
 	class:border-error-500={!!error}
 >
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-3">
-			<RatingGroup 
-				value={ratingValue} 
-				onValueChange={handleChange} 
-				aria-label={field.label}
-				class={error ? 'text-error-500' : ''}
-			>
-				<RatingGroup.Control class="flex gap-0.5">
-					{#each { length: max } as _, i}
-						<RatingGroup.Item index={i + 1}>
-							{#snippet empty()}
-								<iconify-icon icon={iconEmpty} width="28" class="text-surface-300 dark:text-surface-600"></iconify-icon>
-							{/snippet}
-							{#snippet half()}
-								<iconify-icon icon={iconHalf} width="28" class="text-warning-500"></iconify-icon>
-							{/snippet}
-							{#snippet full()}
-								<iconify-icon icon={iconFull} width="28" class={error ? 'text-error-500' : 'text-warning-500'}></iconify-icon>
-							{/snippet}
-						</RatingGroup.Item>
-					{/each}
-				</RatingGroup.Control>
-			</RatingGroup>
+			<div class="flex gap-0.5" role="radiogroup" aria-label={field.label}>
+				{#each Array(max) as _, i}
+					<button
+						type="button"
+						role="radio"
+						aria-checked={ratingValue === i + 1}
+						aria-label={`${i + 1} of ${max}`}
+						class="rounded p-0.5 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary-500"
+						onclick={(event) => handlePointerSelect(event, i)}
+						onmousemove={(event) => handlePointerMove(event, i)}
+						onfocus={() => (hoverValue = i + 1)}
+						onblur={() => (hoverValue = null)}
+						onmouseleave={() => (hoverValue = null)}
+						onkeydown={(event) => handleKeydown(event, i)}
+					>
+						<iconify-icon icon={getIcon(i)} width="28" class={getIconClass(i)}></iconify-icon>
+					</button>
+				{/each}
+			</div>
 
 			{#if showValue}
-				<span class="text-lg font-bold text-surface-900 dark:text-surface-50 min-w-8 text-center">
+				<span class="min-w-8 text-center text-lg font-bold text-surface-900 dark:text-surface-50">
 					{value?.toFixed(step === 0.5 ? 1 : 0) || '0'}
 				</span>
 			{/if}
 		</div>
 
 		{#if !field.required || (value !== null && value !== undefined)}
-			<button 
-				type="button" 
-				class="btn btn-sm variant-soft-surface p-1 opacity-60 hover:opacity-100 transition-opacity"
+			<button
+				type="button"
+				class="btn btn-sm variant-soft-surface p-1 opacity-60 transition-opacity hover:opacity-100"
 				onclick={handleClear}
 				title="Reset Rating"
+				aria-label="Reset Rating"
 			>
 				<iconify-icon icon="mdi:refresh" width="18"></iconify-icon>
 			</button>
@@ -119,14 +162,6 @@ Interactive star rating with hover states and click selection
 	</div>
 
 	{#if error}
-		<p class="text-xs text-error-500 font-medium" role="alert">{error}</p>
+		<p class="text-xs font-medium text-error-500" role="alert">{error}</p>
 	{/if}
 </div>
-
-<style>
-	/* Custom styles to ensure RatingGroup looks good with our theme */
-	:global(.rating-group-control) {
-		display: flex;
-		gap: 0.125rem;
-	}
-</style>

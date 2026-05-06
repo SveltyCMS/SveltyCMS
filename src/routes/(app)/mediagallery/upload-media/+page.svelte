@@ -2,43 +2,29 @@
 @files src/routes/(app)/mediagallery/uploadMedia/+page.svelte
 @component
 **This page is used to upload media to the media gallery**
-
-@example
-<ModalUploadMedia parent={parent} sectionName={sectionName} files={files} onDelete={onDelete} uploadFiles={uploadFiles} />
-
-### Props
-- `parent` {any} - Parent component
-- `sectionName` {string} - Name of the section
-- `files` {File[]} - Array of files to be uploaded **Optional**
-- `onDelete` {Function} - Function to delete a file
-- `uploadFiles` {Function} - Function to upload files
-
-### Features
-- Displays a collection of media files based on the specified media type.
-- Provides a user-friendly interface for searching, filtering, and navigating through media files.
-- Emits the `mediaDeleted` event when a media file is deleted.
 -->
 
 <script lang="ts">
-import { Tabs } from "@skeletonlabs/skeleton-svelte";
-import PageTitle from "@src/components/page-title.svelte";
-import { uploadMedia_title } from "@src/paraglide/messages";
-import { goto } from "$app/navigation";
-import LocalUpload from "./local-upload.svelte";
-import RemoteUpload from "./remote-upload.svelte";
+	import PageTitle from "@src/components/page-title.svelte";
+	import { uploadMedia_title } from "@src/paraglide/messages";
+	import { goto } from "$app/navigation";
+	import LocalUpload from "./local-upload.svelte";
+	import RemoteUpload from "./remote-upload.svelte";
 
-let tabSet = $state("0");
+	let tabSet = $state("0");
 
-function handleUploadComplete() {
-	goto("/mediagallery");
-}
+	function handleUploadComplete() {
+		goto("/mediagallery");
+	}
+
+	function tabButtonClass(value: string) {
+		return `flex-1 ${tabSet === value ? "border-b-2 border-primary-500 bg-surface-100 dark:bg-surface-800" : "border-b-2 border-transparent"}`;
+	}
 </script>
 
-<!-- PageTitle -->
 <div class="mb-4 flex items-center justify-between">
 	<PageTitle name={uploadMedia_title()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
 
-	<!-- Back -->
 	<button
 		onclick={() => history.back()}
 		aria-label="Back"
@@ -49,24 +35,45 @@ function handleUploadComplete() {
 </div>
 
 <div class="wrapper">
-	<Tabs value={tabSet} onValueChange={(e) => (tabSet = e.value)}>
-		<Tabs.List class="flex border-b border-surface-200-800 font-bold">
-			<Tabs.Trigger value="0" class="flex-1">
+	<div>
+		<div class="flex border-b border-surface-200-800 font-bold" role="tablist" aria-label="Upload media tabs">
+			<button
+				type="button"
+				role="tab"
+				aria-selected={tabSet === "0"}
+				class={tabButtonClass("0")}
+				onclick={() => (tabSet = "0")}
+			>
 				<div class="flex items-center justify-center gap-2 py-4">
 					<iconify-icon icon="mdi:database" width="24"></iconify-icon>
 					<p class="text-tertiary-500 dark:text-primary-500">Local Upload</p>
 				</div>
-			</Tabs.Trigger>
-			<Tabs.Trigger value="1" class="flex-1">
+			</button>
+
+			<button
+				type="button"
+				role="tab"
+				aria-selected={tabSet === "1"}
+				class={tabButtonClass("1")}
+				onclick={() => (tabSet = "1")}
+			>
 				<div class="flex items-center justify-center gap-2 py-4">
 					<iconify-icon icon="mdi:radio" width="24"></iconify-icon>
 					<p class="text-tertiary-500 dark:text-primary-500">Remote Upload</p>
 				</div>
-			</Tabs.Trigger>
-			<Tabs.Indicator />
-		</Tabs.List>
+			</button>
+		</div>
 
-		<Tabs.Content value="0"><div class="p-4"><LocalUpload onUploadComplete={handleUploadComplete} /></div></Tabs.Content>
-		<Tabs.Content value="1"><div class="p-4"><RemoteUpload onUploadComplete={handleUploadComplete} /></div></Tabs.Content>
-	</Tabs>
+		{#if tabSet === "0"}
+			<div class="p-4" role="tabpanel">
+				<LocalUpload onUploadComplete={handleUploadComplete} />
+			</div>
+		{/if}
+
+		{#if tabSet === "1"}
+			<div class="p-4" role="tabpanel">
+				<RemoteUpload onUploadComplete={handleUploadComplete} />
+			</div>
+		{/if}
+	</div>
 </div>

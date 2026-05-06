@@ -1,55 +1,63 @@
-<!-- @file src/components/system/dialog-manager.svelte @description DialogManager for handling modals features: [modal lifecycle management, backdrop/escape close support, skeleton v4 integration, fullscreen mode support] -->
+<!-- @file src/components/system/dialog-manager.svelte @description DialogManager for handling modals features: [modal lifecycle management, backdrop/escape close support, fullscreen mode support] -->
 
 <script lang="ts">
-	// Skeleton V4
-	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { modalState } from '@utils/modal.svelte';
-	import { tick } from 'svelte';
 
-	// Handle closing via the Store
+	const dialogTitleId = 'system-dialog-title';
+
 	function onClose() {
 		modalState.close();
 	}
 
-	// Handle open change from the Dialog (e.g. clicking backdrop or pressing Escape)
-	async function onOpenChange(details: { open: boolean }) {
-		if (!details.open) {
-			await tick();
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape' && modalState.isOpen) {
 			onClose();
 		}
 	}
-	/* Derived state for fullscreen mode */
+
 	const isFullscreen = $derived(modalState.active?.props?.size === 'fullscreen');
 </script>
 
-<Dialog open={modalState.isOpen} {onOpenChange}>
-	<Portal>
-		<Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-900/40 backdrop-blur-sm transition-opacity" />
+<svelte:window onkeydown={handleKeydown} />
 
-		<Dialog.Positioner class="fixed inset-0 z-50 flex items-center justify-center {isFullscreen ? 'p-0' : 'p-4'}">
-			<Dialog.Content
-				class="card w-full shadow-xl bg-surface-100-900 border border-surface-300 dark:border-surface-50 
-				{isFullscreen ? 'h-full rounded-none border-0 flex flex-col' : 'space-y-4 p-4'} 
+{#if modalState.isOpen}
+	<div
+		class="fixed inset-0 z-50"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby={modalState.active?.props?.title ? dialogTitleId : undefined}
+	>
+		<button
+			type="button"
+			class="fixed inset-0 z-50 bg-surface-900/40 backdrop-blur-sm transition-opacity"
+			aria-label="Close dialog"
+			onclick={onClose}
+		></button>
+
+		<div class="fixed inset-0 z-50 flex items-center justify-center {isFullscreen ? 'p-0' : 'p-4'} pointer-events-none">
+			<section
+				class="card pointer-events-auto w-full border border-surface-300 bg-surface-100-900 shadow-xl dark:border-surface-50
+				{isFullscreen ? 'flex h-full flex-col rounded-none border-0' : 'space-y-4 p-4'}
 				{modalState.active?.props?.modalClasses ?? 'max-w-lg'}"
 			>
 				{#if modalState.active}
 					{#if modalState.active.props?.title}
-						<div class="flex items-center justify-between {isFullscreen ? 'p-4 border-b border-surface-200 dark:border-surface-700' : ''}">
-							<Dialog.Title class="h3 font-bold">{modalState.active.props.title}</Dialog.Title>
-							<Dialog.CloseTrigger class="btn-icon btn-sm preset-tonal hover:variant-filled" aria-label="Close dialog">
+						<div class="flex items-center justify-between {isFullscreen ? 'border-b border-surface-200 p-4 dark:border-surface-700' : ''}">
+							<h2 id={dialogTitleId} class="h3 font-bold">{modalState.active.props.title}</h2>
+							<button type="button" class="btn-icon btn-sm preset-tonal hover:variant-filled" aria-label="Close dialog" onclick={onClose}>
 								<iconify-icon icon="mingcute:close-fill"></iconify-icon>
-							</Dialog.CloseTrigger>
+							</button>
 						</div>
 					{/if}
 
 					{#if modalState.active.component}
 						{@const ActiveComponent = modalState.active.component}
-						<div class="modal-body {isFullscreen ? 'flex-1 overflow-hidden flex flex-col' : ''}">
+						<div class="modal-body {isFullscreen ? 'flex flex-1 flex-col overflow-hidden' : ''}">
 							<ActiveComponent {...modalState.active.props || {}} close={modalState.close.bind(modalState)} />
 						</div>
 					{/if}
 				{/if}
-			</Dialog.Content>
-		</Dialog.Positioner>
-	</Portal>
-</Dialog>
+			</section>
+		</div>
+	</div>
+{/if}

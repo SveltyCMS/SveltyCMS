@@ -14,34 +14,45 @@
 -->
 
 <script lang="ts">
-	import { Slider } from '@skeletonlabs/skeleton-svelte';
-
 	let {
 		value = $bindable({
 			max: 100,
 			current: 0
 		}),
 		onChange
-	} = $props(); // Maximum value for the slider
-	// Current selected value
-	// Callback when value changes
+	} = $props<{
+		value?: {
+			max: number;
+			current: number;
+		};
+		onChange?: (value: number) => void;
+	}>();
 
-	// Function to handle value changes
-	function handleChange(event: Event) {
-		const customEvent = event as CustomEvent;
-		value.current = customEvent.detail;
-		onChange?.(customEvent.detail);
+	function handleInput(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const nextValue = Number(input.value);
+
+		value.current = nextValue;
+		onChange?.(nextValue);
 	}
 </script>
 
 <label class="label" for="range-slider">
 	<span>Rating</span>
-	<Slider
+
+	<input
+		id="range-slider"
 		name="range-slider"
-		value={[value.current]}
-		onValueChange={(e: { value: number[] }) => handleChange({ detail: e.value[0] } as any)}
+		type="range"
+		min="0"
 		max={value.max}
-		step={0.5}
-		class="w-full"
+		step="0.5"
+		bind:value={value.current}
+		oninput={handleInput}
+		class="w-full accent-primary-500"
+		aria-label="Rating"
+		aria-valuemin="0"
+		aria-valuemax={value.max}
+		aria-valuenow={value.current}
 	/>
 </label>

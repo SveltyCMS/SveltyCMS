@@ -19,21 +19,16 @@
 -->
 
 <script lang="ts">
-	// Skeleton V4
-	import { Avatar, Menu, Portal } from '@skeletonlabs/skeleton-svelte';
 	import Collections from '@src/components/collections.svelte';
 	import MediaFolders from '@src/components/media-folders.svelte';
 	import SettingsMenu from '@src/components/settings-menu.svelte';
 	import SiteName from '@src/components/site-name.svelte';
-	// Components
 	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
-	// System Components
 	import Slot from '@src/components/system/slot.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import ThemeToggle from '@src/components/theme-toggle.svelte';
 	import VersionCheck from '@src/components/version-check.svelte';
-	import type { ContentNode } from '@src/content/types'; // Import Schema type (collection definition)
-	// Paraglide Messages
+	import type { ContentNode } from '@src/content/types';
 	import {
 		applayout_signout,
 		applayout_systemconfiguration,
@@ -45,7 +40,6 @@
 	} from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
 	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
-	// Stores
 	import { contentStructure, setMode } from '@src/stores/collection-store.svelte';
 	import { ui, uiStateManager, toggleUIElement, userPreferredState } from '@src/stores/ui-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
@@ -53,42 +47,35 @@
 	import { themeStore } from '@src/stores/theme-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
 	import { logger } from '@utils/logger';
-	// Removed axios import
 	import { browser } from '$app/environment';
-	// Import necessary utilities and types
 	import { page } from '$app/state';
 
-	// Constants
 	const MOBILE_BREAKPOINT = 768;
 	const LANGUAGE_DROPDOWN_THRESHOLD = 5;
 	const AVATAR_CACHE_BUSTER = Date.now();
+	const languageMenuId = 'left-sidebar-language-menu';
 
-	// Types
 	type AvailableLanguage = string;
 	type SidebarState = 'full' | 'collapsed' | 'hidden';
 
-	// Reactive user data
 	const user = $derived(page.data.user);
 	const currentPath = $derived(page.url.pathname);
 	const collections: ContentNode[] = $derived(contentStructure.value || []);
-	// Check if we're in media mode
 	const isMediaMode = $derived(currentPath.includes('/mediagallery'));
-	// Check if we're in settings mode
 	const isSettingsMode = $derived(currentPath.includes('/config/systemsetting'));
 
-	// Language state
 	let languageTag = $state(getLocale() as AvailableLanguage);
 	let searchQuery = $state('');
-	// Removed isDropdownOpen and dropdownRef as Menu handles this
+	let isLanguageMenuOpen = $state(false);
+	let avatarLoadFailed = $state(false);
 
-	// Derived values
 	const isSidebarFull = $derived(ui.state.leftSidebar === 'full');
 
 	const firstCollectionPath = $derived.by(() => {
 		if (collections?.[0]) {
 			const node = collections[0] as any;
 			const pathValue = node.path || `/collection/${node._id}`;
-			return `/${getLocale()}${pathValue.startsWith("/") ? pathValue : `/${pathValue}`}`;
+			return `/${getLocale()}${pathValue.startsWith('/') ? pathValue : `/${pathValue}`}`;
 		}
 		return '/collections';
 	});
@@ -99,7 +86,7 @@
 
 	const filteredLanguages = $derived(
 		availableLanguages
-			.filter((lang) => lang !== languageTag) // Hide current language
+			.filter((lang) => lang !== languageTag)
 			.filter((lang: string) => {
 				const searchLower = searchQuery.toLowerCase();
 				const systemLangName = getLanguageName(lang, systemLanguage.value).toLowerCase();
@@ -117,12 +104,8 @@
 			return src;
 		}
 
-		// Normalize path
-		// 1. Remove leading slashes
 		src = src.replace(/^\/+/, '');
-		// 2. Remove prefixes
 		src = src.replace(/^mediaFolder\//, '').replace(/^files\//, '');
-		// 3. Remove leading slashes again just in case
 		src = src.replace(/^\/+/, '');
 
 		return `/files/${src}?t=${AVATAR_CACHE_BUSTER}`;
@@ -139,17 +122,29 @@
 		return 'Dark theme (click for System)';
 	});
 
-	// Helper functions
 	function isMobile(): boolean {
 		return browser && window.innerWidth < MOBILE_BREAKPOINT;
 	}
 
-
-	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage): void {
 		systemLanguage.set(lang as Locale);
 		languageTag = lang;
 		searchQuery = '';
+		isLanguageMenuOpen = false;
+	}
+
+	function toggleLanguageMenu(): void {
+		isLanguageMenuOpen = !isLanguageMenuOpen;
+	}
+
+	function closeLanguageMenu(): void {
+		isLanguageMenuOpen = false;
+	}
+
+	function handleWindowKeydown(event: KeyboardEvent): void {
+		if (event.key === 'Escape') {
+			closeLanguageMenu();
+		}
 	}
 
 	function toggleSidebar(): void {
@@ -173,6 +168,12 @@
 		setMode('view');
 	}
 
+	function handleAvatarError(event: Event): void {
+		const img = event.currentTarget as HTMLImageElement;
+		avatarLoadFailed = true;
+		img.src = '/Default_User.svg';
+	}
+
 	async function signOut(): Promise<void> {
 		try {
 			await fetch('/api/user/logout', {
@@ -185,17 +186,16 @@
 		} catch (error) {
 			logger.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');
 		} finally {
-			// Always redirect to login, even if logout fails
 			if (browser) {
 				window.location.href = '/login';
 			}
 		}
 	}
-
 </script>
 
+<svelte:window onclick={closeLanguageMenu} onkeydown={handleWindowKeydown} />
+
 <div class="flex h-full w-full flex-col justify-between bg-transparent">
-	<!-- Corporate Identity -->
 	{#if isSidebarFull}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 no-underline!" data-sveltekit-preload-data="hover">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
@@ -218,7 +218,6 @@
 		</div>
 	{/if}
 
-	<!-- Expand/Collapse Button -->
 	<SystemTooltip title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'} positioning={{ placement: 'right' }}>
 		<button
 			type="button"
@@ -237,11 +236,9 @@
 		</button>
 	</SystemTooltip>
 
-	<!-- Navigation: Collections, Media Folders, or Settings -->
 	{#if isSettingsMode}
 		<SettingsMenu isFullSidebar={isSidebarFull} />
 
-		<!-- Toggle to Collections Button -->
 		<a
 			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-4 no-underline! transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
 			href={firstCollectionPath}
@@ -255,7 +252,7 @@
 			<iconify-icon icon="bi:arrow-left" width="18" class="text-error-500"></iconify-icon>
 			{#if isSidebarFull}
 				<iconify-icon icon="bi:collection" width="20" class="text-error-500"></iconify-icon>
-				<span class="">{button_Collections()} </span>
+				<span>{button_Collections()} </span>
 			{:else}
 				<iconify-icon icon="bi:collection" width="18" class="text-error-500"></iconify-icon>
 			{/if}
@@ -263,7 +260,6 @@
 	{:else if isMediaMode}
 		<MediaFolders />
 
-		<!-- Toggle to Collections Button -->
 		<a
 			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-4 no-underline! transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
 			href={firstCollectionPath}
@@ -277,7 +273,7 @@
 			<iconify-icon icon="bi:arrow-left" width="18" class="text-error-500"></iconify-icon>
 			{#if isSidebarFull}
 				<iconify-icon icon="bi:collection" width="20" class="text-error-500"></iconify-icon>
-				<span class="">{button_Collections()} </span>
+				<span>{button_Collections()} </span>
 			{:else}
 				<iconify-icon icon="bi:collection" width="18" class="text-error-500"></iconify-icon>
 			{/if}
@@ -285,7 +281,6 @@
 	{:else}
 		<Collections />
 
-		<!-- Toggle to Media Gallery Button -->
 		<a
 			class="btn preset-outlined-surface-500 dark:preset-filled-surface-500 mt-2 flex h-14 w-full items-center justify-center gap-2 rounded no-underline!"
 			href="/mediagallery"
@@ -298,7 +293,7 @@
 		>
 			{#if isSidebarFull}
 				<iconify-icon icon="bi:images" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				<span class="">{Collections_MediaGallery()}</span>
+				<span>{Collections_MediaGallery()}</span>
 				<iconify-icon icon="bi:arrow-right" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			{:else}
 				<iconify-icon icon="bi:images" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -307,15 +302,12 @@
 		</a>
 	{/if}
 
-	<!-- Plugin Sidebar Items -->
 	<div class="mt-2 w-full px-1"><Slot name="sidebar" /></div>
 
-	<!-- Footer -->
 	<div class="mb-2 mt-auto w-full px-1">
 		<div class="mx-1 mb-2 border-0 border-t border-surface-500"></div>
 
 		<div class="grid w-full items-center justify-center gap-2 {isSidebarFull ? 'grid-cols-3' : 'grid-cols-2'}">
-			<!-- Avatar -->
 			<div class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center">
 				<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'right' }}>
 					<a
@@ -327,10 +319,14 @@
 							? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500/20'
 							: 'h-10 w-10 rounded-full hover:bg-surface-500/20'} relative flex items-center justify-center text-center no-underline!"
 					>
-						<Avatar class="mx-auto overflow-hidden rounded-full {isSidebarFull ? 'size-10' : 'size-9'}">
-							<Avatar.Image src={avatarUrl} alt="User Avatar" class="h-full w-full object-cover" />
-							<Avatar.Fallback>AV</Avatar.Fallback>
-						</Avatar>
+						<div class="mx-auto overflow-hidden rounded-full bg-surface-300 dark:bg-surface-700 {isSidebarFull ? 'size-10' : 'size-9'}">
+							{#if avatarLoadFailed}
+								<div class="flex h-full w-full items-center justify-center text-xs font-semibold text-surface-900 dark:text-white">AV</div>
+							{:else}
+								<img src={avatarUrl} alt="User Avatar" class="h-full w-full object-cover" onerror={handleAvatarError} />
+							{/if}
+						</div>
+
 						{#if isSidebarFull && user?.username}
 							<div
 								class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-[11px] font-medium leading-tight"
@@ -343,96 +339,98 @@
 				</SystemTooltip>
 			</div>
 
-			<!-- Theme Toggle -->
 			<div class="{isSidebarFull ? 'order-2' : 'order-2'} flex items-center justify-center">
 				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
-					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
 					<div class="flex items-center justify-center">
 						<ThemeToggle showTooltip={false} buttonClass="btn-icon  rounded-full hover:bg-surface-300/20" iconSize={32} />
 					</div>
 				</SystemTooltip>
 			</div>
 
-			<!-- Language Selector -->
 			<div class="{isSidebarFull ? 'order-3 row-span-2' : 'order-4'} flex items-center justify-center px-1">
 				<SystemTooltip title={applayout_systemlanguage()} positioning={{ placement: 'right' }}>
 					<div class="language-selector relative">
-						<Menu positioning={{ placement: 'right-start', gutter: 10 }}>
-							<Menu.Trigger
-								class="preset-filled-surface-500 hover:bg-surface-400 rounded-full btn-icon flex items-center justify-center uppercase transition-colors {isSidebarFull
-									? 'mb-3 w-6.5 h-6.5 text-xs'
-									: 'w-6 h-6 text-xs'}"
-								aria-label="Select language"
+						<button
+							type="button"
+							class="preset-filled-surface-500 hover:bg-surface-400 btn-icon flex items-center justify-center rounded-full uppercase transition-colors {isSidebarFull
+								? 'mb-3 h-6.5 w-6.5 text-xs'
+								: 'h-6 w-6 text-xs'}"
+							aria-label="Select language"
+							aria-haspopup="menu"
+							aria-expanded={isLanguageMenuOpen}
+							aria-controls={languageMenuId}
+							onclick={(event) => {
+								event.stopPropagation();
+								toggleLanguageMenu();
+							}}
+						>
+							{languageTag}
+						</button>
+
+						{#if isLanguageMenuOpen}
+							<div
+								id={languageMenuId}
+								role="menu"
+								class="card preset-filled-surface-100-900 absolute bottom-full left-full z-9999 mb-2 ml-2 w-56 border border-surface-200 p-2 shadow-xl dark:border-surface-500"
 							>
-								{languageTag}
-							</Menu.Trigger>
+								<div
+									class="mb-1 border-b border-surface-200 px-3 py-2 text-center text-xs font-bold uppercase tracking-wider text-tertiary-500 dark:border-surface-50 dark:text-primary-500"
+								>
+									{applayout_systemlanguage()}
+								</div>
 
-							<Portal>
-								<Menu.Positioner>
-									<Menu.Content
-										class="card p-2 shadow-xl preset-filled-surface-100-900 z-9999 w-56 border border-surface-200 dark:border-surface-500"
-									>
-										<!-- Header to inform user about System Language context -->
-										<div
-											class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1"
+								{#if showLanguageDropdown}
+									<div class="mb-1 border-b border-surface-200 px-2 pb-2 dark:border-surface-50">
+										<input
+											type="text"
+											bind:value={searchQuery}
+											placeholder="Search language..."
+											class="w-full rounded-md border-none bg-surface-200 px-3 py-2 text-sm text-surface-900 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-white"
+											aria-label="Search languages"
+											onclick={(event) => event.stopPropagation()}
+										/>
+									</div>
+
+									<div class="max-h-64 divide-y divide-surface-200 overflow-y-auto dark:divide-surface-700">
+										{#each filteredLanguages as lang (lang)}
+											<button
+												type="button"
+												role="menuitem"
+												onclick={() => handleLanguageSelection(lang)}
+												class="flex w-full cursor-pointer items-center justify-between rounded-sm px-3 py-2 text-left hover:bg-surface-200 dark:hover:bg-surface-700"
+											>
+												<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
+												<span class="ml-2 text-xs font-normal text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
+											</button>
+										{/each}
+									</div>
+								{:else}
+									{#each availableLanguages.filter((l) => l !== languageTag) as lang (lang)}
+										<button
+											type="button"
+											role="menuitem"
+											onclick={() => handleLanguageSelection(lang)}
+											class="flex w-full cursor-pointer items-center justify-between rounded-sm px-3 py-2 text-left hover:bg-surface-200 dark:hover:bg-surface-700"
 										>
-											{applayout_systemlanguage()}
-										</div>
-
-										{#if showLanguageDropdown}
-											<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
-												<input
-													type="text"
-													bind:value={searchQuery}
-													placeholder="Search language..."
-													class="w-full rounded-md bg-surface-200 dark:bg-surface-800 px-3 py-2 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-surface-900 dark:text-white border-none"
-													aria-label="Search languages"
-													onclick={(e) => e.stopPropagation()}
-												/>
-											</div>
-
-											<div class="max-h-64 divide-y divide-surface-200 dark:divide-surface-700 overflow-y-auto">
-												{#each filteredLanguages as lang (lang)}
-													<Menu.Item
-														value={lang}
-														onclick={() => handleLanguageSelection(lang)}
-														class="flex w-full items-center justify-between px-3 py-2 text-left rounded-sm cursor-pointer"
-													>
-														<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
-														<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
-													</Menu.Item>
-												{/each}
-											</div>
-										{:else}
-											{#each availableLanguages.filter((l) => l !== languageTag) as lang (lang)}
-												<Menu.Item
-													value={lang}
-													onclick={() => handleLanguageSelection(lang)}
-													class="flex w-full items-center justify-between px-3 py-2 text-left  rounded-sm cursor-pointer"
-												>
-													<span class="text-sm font-medium">{getLanguageName(lang)}</span>
-													<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ml-2">{lang.toUpperCase()}</span>
-												</Menu.Item>
-											{/each}
-										{/if}
-									</Menu.Content>
-								</Menu.Positioner>
-							</Portal>
-						</Menu>
+											<span class="text-sm font-medium">{getLanguageName(lang)}</span>
+											<span class="ml-2 text-xs font-normal text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
+										</button>
+									{/each}
+								{/if}
+							</div>
+						{/if}
 					</div>
 				</SystemTooltip>
 			</div>
 
-			<!-- Sign Out -->
 			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
 				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
 					<button onclick={signOut} type="button" aria-label="Sign Out" class="btn-icon hover:bg-surface-500/20">
-						<iconify-icon icon="uil:signout" width="26" class=""></iconify-icon>
+						<iconify-icon icon="uil:signout" width="26"></iconify-icon>
 					</button>
 				</SystemTooltip>
 			</div>
 
-			<!-- Config -->
 			<div class="{isSidebarFull ? 'order-5' : 'order-6'} flex items-center justify-center">
 				<SystemTooltip title={applayout_systemconfiguration()} positioning={{ placement: 'right' }}>
 					<a
@@ -442,15 +440,13 @@
 						aria-label="System Configuration"
 						class="btn-icon flex items-center justify-center rounded-full hover:bg-surface-500/20"
 					>
-						<iconify-icon icon="material-symbols:build-circle" width="38" class=""></iconify-icon>
+						<iconify-icon icon="material-symbols:build-circle" width="38"></iconify-icon>
 					</a>
 				</SystemTooltip>
 			</div>
 
-			<!-- Version -->
 			<div class="{isSidebarFull ? 'order-6' : 'order-5'} flex items-center justify-center"><VersionCheck compact={!isSidebarFull} /></div>
 
-			<!-- Community Links (only when expanded) -->
 			{#if isSidebarFull}
 				<div class="order-7 flex items-center justify-center gap-1">
 					<SystemTooltip title="Discord Community" positioning={{ placement: 'right' }}>
@@ -461,7 +457,7 @@
 							aria-label="Discord Community"
 							class="btn-icon flex items-center justify-center hover:bg-surface-500/20"
 						>
-							<iconify-icon icon="ic:baseline-discord" width="30" class=""></iconify-icon>
+							<iconify-icon icon="ic:baseline-discord" width="30"></iconify-icon>
 						</a>
 					</SystemTooltip>
 				</div>
@@ -471,7 +467,6 @@
 </div>
 
 <style>
-	/* Scrollbar styling */
 	.overflow-y-auto {
 		scrollbar-color: rgb(var(--color-surface-500)) transparent;
 		scrollbar-width: thin;

@@ -12,10 +12,10 @@
 -->
 
 <script lang="ts">
-	// Type guards for template and logic
 	function isToken(row: User | Token): row is Token {
 		return 'token' in row && typeof row.token === 'string';
 	}
+
 	function isUser(row: User | Token): row is User {
 		return '_id' in row && typeof row._id === 'string';
 	}
@@ -40,9 +40,6 @@
 		return new Date(row.expires) < new Date();
 	}
 
-	// Components
-	import { Avatar } from '@skeletonlabs/skeleton-svelte';
-
 	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import Boolean from '@src/components/system/table/boolean.svelte';
@@ -50,9 +47,7 @@
 	import TableFilter from '@src/components/system/table/table-filter.svelte';
 	import TableIcons from '@src/components/system/table/table-icons.svelte';
 	import TablePagination from '@src/components/system/table/table-pagination.svelte';
-	// Types
 	import { type Role as RoleType, type Token, type User } from '@src/databases/auth/types';
-	// Types
 	import {
 		adminarea_activesession,
 		adminarea_adminarea,
@@ -85,7 +80,6 @@
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
 	import { avatarSrc, normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	// Stores
 	import { logger } from '@utils/logger';
 	import { modalState } from '@utils/modal.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
@@ -106,13 +100,11 @@
 		visible: boolean;
 	}
 
-	// Props - Using API for scalability
 	const { currentUser = null, isMultiTenant = false, roles = [] }: { currentUser: User | null; isMultiTenant: boolean; roles: RoleType[] } = $props();
 
 	const waitFilter = debounce(300);
 	const flipDurationMs = 300;
 
-	// State for API-fetched data (replaces adminData usage for scalability)
 	let tableData: TableDataType[] = $state([]);
 	let totalItems = $state(0);
 
@@ -121,7 +113,6 @@
 			loadingOperations.dataFetch,
 			async () => {
 				const endpoint = showUserList ? '/api/user' : '/api/token';
-				// eslint-disable-next-line svelte/prefer-svelte-reactivity
 				const params = new URLSearchParams();
 				params.set('page', String(currentPage));
 				params.set('limit', String(rowsPerPage));
@@ -141,7 +132,6 @@
 					}
 					const result = await response.json();
 					if (result.success) {
-						// Standardized API returns { success: true, data: Array, pagination: { totalItems: number } }
 						tableData = result.data;
 						totalItems = result.pagination.totalItems;
 					}
@@ -157,7 +147,6 @@
 		);
 	}
 
-	// Custom event handler for updates from Multibutton
 	function handleBatchUpdate(data: { ids: string[]; action: string; type: 'user' | 'token' }) {
 		const { ids, action, type } = data;
 
@@ -166,12 +155,10 @@
 			return;
 		}
 
-		// Update the tableData instead of adminData for scalability
 		if (tableData) {
 			let updated = false;
 
 			if (action === 'delete') {
-				// Remove deleted items from the table
 				const updatedData = tableData.filter((item: User | Token) => {
 					if (type === 'user' && isUser(item)) {
 						return !ids.includes(item._id);
@@ -187,7 +174,6 @@
 					updated = true;
 				}
 			} else {
-				// Handle block/unblock actions
 				const updatedData = tableData.map((item: User | Token) => {
 					let shouldUpdate = false;
 					if (type === 'user' && isUser(item) && ids.includes(item._id)) {
@@ -214,13 +200,13 @@
 				}
 			}
 
-			// Clear selection after any action
 			if (updated) {
 				selectedMap = {};
 				selectAll = false;
 			}
 		}
-	} // Table header definitions
+	}
+
 	const tableHeadersUser = [
 		{ label: adminarea_blocked(), key: 'blocked' },
 		{ label: form_avatar(), key: 'avatar' },
@@ -246,7 +232,6 @@
 		{ label: adminarea_updatedat(), key: 'updatedAt' }
 	] as const;
 
-	// Core state with proper initialization
 	let showUserList = $state(true);
 	let showUsertoken = $state(false);
 	let showExpiredTokens = $state(false);
@@ -257,25 +242,22 @@
 	let selectAll = $state(false);
 	let selectedMap: Record<number, boolean> = $state({});
 
-	// Derived rows to display and selection will be defined below
 	let density = $state(
 		(() => {
 			const settings = localStorage.getItem('userPaginationSettings');
 			return settings ? (JSON.parse(settings).density ?? 'normal') : 'normal';
 		})()
 	);
+
 	let selectAllColumns = $state(true);
-	// pagesCount becomes derived below
 	let currentPage = $state(1);
 	let rowsPerPage = $state(10);
 	let filters = $state({});
 	let sorting = $state({ sortedBy: '', isSorted: 0 });
 
-	// Initialize displayTableHeaders with a safe default
 	let displayTableHeaders: TableHeader[] = $state([]);
 
 	$effect(() => {
-		// Update displayTableHeaders when view changes
 		const baseHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
 		const relevantHeaders = isMultiTenant ? baseHeaders : baseHeaders.filter((h) => h.key !== 'tenantId');
 		displayTableHeaders = relevantHeaders.map((header) => ({
@@ -286,23 +268,38 @@
 		}));
 	});
 
-	// Reactive effect to fetch data when dependencies change
 	$effect(() => {
-		// Rerun when any of these reactive variables change
 		void showUserList;
 		void showUsertoken;
 		void currentPage;
 		void rowsPerPage;
 		void sorting;
 		void globalSearchValue;
-		void currentUser; // Watch for changes to current user (triggers refresh after user update)
+		void currentUser;
 
 		untrack(() => {
 			fetchData();
 		});
 	});
 
-	// Function to edit a specific token
+	function getAvatarUrl(row: TableDataType): string {
+		if (currentUser && isUser(row) && row._id === currentUser._id) {
+			return normalizeAvatarUrl(avatarSrc.value);
+		}
+
+		if (isUser(row)) {
+			return normalizeAvatarUrl(row.avatar);
+		}
+
+		return '/Default_User.svg';
+	}
+
+	function handleAvatarError(event: Event) {
+		const img = event.currentTarget as HTMLImageElement;
+		img.onerror = null;
+		img.src = '/Default_User.svg';
+	}
+
 	function editToken(tokenId: Token) {
 		const tokenData = tokenId;
 		if (!tokenData) {
@@ -318,7 +315,7 @@
 				expires: convertDateToExpiresFormat(tokenData.expires),
 				title: multibuttontoken_modaltitle(),
 				body: multibuttontoken_modalbody(),
-				roles // Pass roles explicitly
+				roles
 			},
 			(result: any) => {
 				if (result?.success) {
@@ -332,10 +329,9 @@
 		);
 	}
 
-	// Helper function to convert Date to expires format expected by ModalEditToken
 	function convertDateToExpiresFormat(expiresDate: Date | string | null): string {
 		if (!expiresDate) {
-			return '2 days'; // Default
+			return '2 days';
 		}
 
 		const now = new Date();
@@ -344,30 +340,16 @@
 		const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
 		const diffDays = Math.ceil(diffHours / 24);
 
-		// Match the available options in ModalEditToken
-		if (diffHours <= 2) {
-			return '2 hrs';
-		}
-		if (diffHours <= 12) {
-			return '12 hrs';
-		}
-		if (diffDays <= 2) {
-			return '2 days';
-		}
-		if (diffDays <= 7) {
-			return '1 week';
-		}
-		if (diffDays <= 14) {
-			return '2 weeks';
-		}
-		if (diffDays <= 30) {
-			return '1 month';
-		}
+		if (diffHours <= 2) return '2 hrs';
+		if (diffHours <= 12) return '12 hrs';
+		if (diffDays <= 2) return '2 days';
+		if (diffDays <= 7) return '1 week';
+		if (diffDays <= 14) return '2 weeks';
+		if (diffDays <= 30) return '1 month';
 
-		return '1 month'; // Max available option
+		return '1 month';
 	}
 
-	// Helper function to calculate remaining time until expiration for display in table
 	function getRemainingTime(expiresDate: Date | string | null): string {
 		if (!expiresDate) {
 			return 'Never';
@@ -377,7 +359,6 @@
 		const expires = new Date(expiresDate);
 		const diffMs = expires.getTime() - now.getTime();
 
-		// If expired, return 'Expired'
 		if (diffMs <= 0) {
 			return 'Expired';
 		}
@@ -397,7 +378,6 @@
 		return `${diffMinutes}m`;
 	}
 
-	// Safe date formatter for unknown values coming from API
 	function formatDate(value: unknown): string {
 		if (value === null || value === undefined || value === '') {
 			return '-';
@@ -413,13 +393,11 @@
 		}
 	}
 
-	// Toggle user blocked status - always show confirmation modal (like Multibutton)
 	async function toggleUserBlocked(user: User) {
 		if (!user._id) {
 			return;
 		}
 
-		// Prevent admins from blocking themselves
 		if (currentUser && user._id === currentUser._id) {
 			toast.warning('You cannot block your own account');
 			return;
@@ -428,7 +406,6 @@
 		const action = user.blocked ? 'unblock' : 'block';
 		const actionPastTense = user.blocked ? 'unblocked' : 'blocked';
 
-		// Always show confirmation modal (same logic as Multibutton) with enhanced styling using theme colors
 		const actionColor = user.blocked ? 'text-success-500' : 'text-error-500';
 		const actionWord = user.blocked ? 'Unblock' : 'Block';
 
@@ -463,7 +440,6 @@
 			const result = await response.json();
 
 			if (result.success) {
-				// Update the user in tableData to reflect changes immediately
 				const updatedData = tableData.map((item: User | Token) =>
 					'_id' in item && (item as User)._id === user._id ? { ...item, blocked: !item.blocked } : item
 				);
@@ -478,7 +454,6 @@
 		}
 	}
 
-	// Toggle token blocked status - similar to user blocking
 	async function toggleTokenBlocked(token: Token) {
 		if (!token.token) {
 			return;
@@ -487,7 +462,6 @@
 		const action = token.blocked ? 'unblock' : 'block';
 		const actionPastTense = token.blocked ? 'unblocked' : 'blocked';
 
-		// Show confirmation modal with enhanced styling using theme colors
 		const actionColor = token.blocked ? 'text-success-500' : 'text-error-500';
 		const actionWord = token.blocked ? 'Unblock' : 'Block';
 
@@ -522,7 +496,6 @@
 			const result = await response.json();
 
 			if (result.success) {
-				// Update the token in tableData to reflect changes immediately
 				const updatedData = tableData.map((item: User | Token) => {
 					const isTokenItem = 'token' in item && item.token !== undefined;
 					return isTokenItem && item.token === token.token ? { ...item, blocked: !item.blocked } : item;
@@ -553,13 +526,11 @@
 			{
 				title: multibuttontoken_modaltitle(),
 				body: multibuttontoken_modalbody(),
-				roles, // Pass available roles
-				user: currentUser // Pass current user context if needed
+				roles,
+				user: currentUser
 			},
 			(result: any) => {
-				// Refresh data if token was created
 				if (result?.success) {
-					// Automatically switch to Token view so the user can copy the newly generated token
 					showUsertoken = true;
 					showUserList = false;
 					fetchData();
@@ -568,7 +539,6 @@
 		);
 	}
 
-	// Toggle views
 	function toggleUserList() {
 		showUserList = !showUserList;
 		if (showUsertoken) {
@@ -581,13 +551,8 @@
 		showUserList = false;
 	}
 
-	// --- SERVER-SIDE PAGINATION: API handles filtering, sorting, pagination ---
-	// tableData is now the current page from API, not all data
-	// totalItems is the total count from API
-
 	const pagesCount = $derived.by(() => Math.ceil(totalItems / rowsPerPage) || 1);
 
-	// Derive selected rows from selectedMap; ensure type compatibility by mapping to UserData | TokenData
 	let selectedRows: TableDataType[] = $derived.by(() =>
 		Object.entries(selectedMap)
 			.filter(([, isSelected]) => isSelected)
@@ -595,9 +560,8 @@
 			.filter((item): item is User | Token => item !== undefined && item !== null)
 	);
 
-	// Reset selection and page when the data source changes
 	$effect(() => {
-		void tableData; // track dependency
+		void tableData;
 		untrack(() => {
 			selectedMap = {};
 			selectAll = false;
@@ -605,7 +569,6 @@
 		});
 	});
 
-	// Keep current page in bounds when page count shrinks
 	$effect(() => {
 		if (currentPage > pagesCount) {
 			currentPage = pagesCount;
@@ -658,9 +621,7 @@
 
 		{#if showUsertoken && !showUserList && tableData}
 			{@const now = new Date()}
-			{@const expiredTokens = tableData.filter(
-				(item): item is Token => isToken(item) && item.expires != null && new Date(String(item.expires)) < now
-			)}
+			{@const expiredTokens = tableData.filter((item): item is Token => isToken(item) && item.expires != null && new Date(String(item.expires)) < now)}
 			{#if expiredTokens.length > 0}
 				<button
 					onclick={() => (showExpiredTokens = !showExpiredTokens)}
@@ -741,7 +702,7 @@
 			<div class="table-container max-h-[calc(100vh-120px)] overflow-auto">
 				<table class="table table-interactive {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 					<thead
-						class="divide-x divide-surface-200/50 dark:divide-surface-50 text-surface-500 dark:text-surface-300 bg-secondary-100 dark:bg-surface-800/50"
+						class="divide-x divide-surface-200/50 bg-secondary-100 text-surface-500 dark:divide-surface-50 dark:bg-surface-800/50 dark:text-surface-300"
 					>
 						{#if filterShow}
 							<tr class="divide-x divide-surface-200/50 dark:divide-surface-700/50">
@@ -769,9 +730,7 @@
 							</tr>
 						{/if}
 
-						<tr
-							class="divide-x divide-surface-300 dark:divide-surface-50 border-b border-surface-300 dark:border-surface-50 font-semibold tracking-wide uppercase text-xs"
-						>
+						<tr class="divide-x divide-surface-300 border-b border-surface-300 text-xs font-semibold uppercase tracking-wide dark:divide-surface-50 dark:border-surface-50">
 							<TableIcons
 								cellClass="w-10 text-center"
 								checked={selectAll}
@@ -785,7 +744,7 @@
 
 							{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
 								<th
-									class="cursor-pointer text-tertiary-500 dark:text-primary-500 hover:bg-surface-100/50 dark:hover:bg-surface-800/50 transition-colors"
+									class="cursor-pointer text-tertiary-500 transition-colors hover:bg-surface-100/50 dark:text-primary-500 dark:hover:bg-surface-800/50"
 									onclick={() => {
 										sorting = {
 											sortedBy: header.key,
@@ -809,7 +768,7 @@
 					</thead>
 
 					<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
-						{#each tableData as row, index (row._id || index)}
+						{#each tableData as row, index (isUser(row) ? row._id : isToken(row) ? row.token : index)}
 							{@const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
 							{@const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
 							<tr
@@ -817,7 +776,6 @@
 									? 'bg-error-50 opacity-60 dark:bg-error-900/20'
 									: ''} {showUsertoken ? 'cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800' : ''}"
 								onclick={(event) => {
-									// Only handle click if it's on a token row and not on the checkbox
 									if (showUsertoken && !(event.target as HTMLElement)?.closest('td:first-child')) {
 										if (isToken(row)) editToken(row);
 									}
@@ -829,6 +787,7 @@
 										selectedMap[index] = checked;
 									}}
 								/>
+
 								{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
 									<td class="text-center">
 										{#if header.key === 'blocked'}
@@ -855,24 +814,15 @@
 												</button>
 											{/if}
 										{:else if showUserList && header.key === 'avatar'}
-											<Avatar class="size-10 overflow-hidden rounded-full border border-surface-200/50 dark:text-surface-50/50">
-												<Avatar.Image
-													src={currentUser && isUser(row) && row._id === currentUser._id
-														? normalizeAvatarUrl(avatarSrc.value)
-														: isUser(row) && header.key === 'avatar'
-															? normalizeAvatarUrl(row.avatar)
-															: '/Default_User.svg'}
-													class="h-full w-full object-cover"
-												/>
-												<Avatar.Fallback>User</Avatar.Fallback>
-											</Avatar>
+											<div class="mx-auto size-10 overflow-hidden rounded-full border border-surface-200/50 bg-surface-200 dark:bg-surface-700 dark:text-surface-50/50">
+												<img src={getAvatarUrl(row)} alt="User avatar" class="h-full w-full object-cover" onerror={handleAvatarError} />
+											</div>
 										{:else if header.key === 'role'}
 											<Role
 												value={isUser(row) && header.key === 'role' ? row.role : isToken(row) && header.key === 'role' ? (row.role ?? '') : ''}
 												{roles}
 											/>
 										{:else if header.key === '_id'}
-											<!-- User ID with clipboard functionality -->
 											<div class="flex items-center justify-center gap-2">
 												<span class="font-mono text-sm">{isUser(row) ? row._id : isToken(row) ? row._id : '-'}</span>
 												<SystemTooltip title="Copy User ID to clipboard">
@@ -897,7 +847,6 @@
 												</SystemTooltip>
 											</div>
 										{:else if header.key === 'token'}
-											<!-- Token with clipboard functionality -->
 											<div class="flex items-center justify-center gap-2">
 												<span class="max-w-50 truncate font-mono text-sm">{isToken(row) && header.key === 'token' ? row.token : '-'}</span>
 												<SystemTooltip title="Copy Token to clipboard">
@@ -937,7 +886,6 @@
 												-
 											{/if}
 										{:else}
-											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 											{@html getDisplayValue(row, header)}
 										{/if}
 									</td>
@@ -948,7 +896,6 @@
 				</table>
 			</div>
 
-			<!-- Pagination  -->
 			<div class="mt-4 flex flex-col items-center justify-between px-2 md:flex-row md:p-4">
 				<TablePagination
 					bind:currentPage
