@@ -291,11 +291,18 @@ mock.module("@utils/api-handler", () => ({
   },
 }));
 
-mock.module("@utils/logger", () => ({
-  logger: {
+mock.module("@utils/logger", () => {
+  const mockLogger = {
     info: mockFn(),
     error: mockFn(),
     warn: mockFn(),
     debug: mockFn(),
-  },
-}));
+    trace: mockFn(),
+    fatal: mockFn(),
+    success: mockFn(),
+    db: mockFn(),
+    req: mockFn(),
+    channel: mockFn(() => mockLogger),
+  };
+  return { logger: mockLogger };
+});

@@ -263,6 +263,17 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
     return result;
   }
 
+  public async disconnect(): Promise<DatabaseResult<void>> {
+    logger.info("[MariaDBAdapter] System shutdown initiated. Cleaning up modules...");
+    if (this.crud?.destroy) this.crud.destroy();
+
+    // Clear shared SQL adapter caches
+    this.collectionRegistry.clear();
+    this.dynamicTables.clear();
+
+    return super.disconnect();
+  }
+
   public async clearDatabase(): Promise<DatabaseResult<void>> {
     return this.wrap(async () => {
       if (!this.pool) {

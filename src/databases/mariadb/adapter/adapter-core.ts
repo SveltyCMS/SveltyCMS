@@ -10,17 +10,6 @@ import type { DatabaseCapabilities, DatabaseResult } from "../../db-interface";
 import { BaseSqlAdapter } from "../../relational/base-sql-adapter";
 import * as schema from "../schema";
 
-interface InternalPool {
-  pool?: {
-    _allConnections: unknown[];
-    _freeConnections: unknown[];
-    _connectionQueue: unknown[];
-    config?: {
-      connectionLimit: number;
-    };
-  };
-}
-
 export class AdapterCore extends BaseSqlAdapter {
   public capabilities: DatabaseCapabilities = {
     supportsTransactions: true,
@@ -146,6 +135,10 @@ export class AdapterCore extends BaseSqlAdapter {
       logger.info("Connected to MariaDB");
       return { success: true, data: undefined };
     } catch (error) {
+      if (this.pool) {
+        await this.pool.end().catch(() => {});
+        this.pool = null;
+      }
       this.connected = false;
       return this.handleError(error, "CONNECTION_FAILED");
     }
@@ -188,13 +181,16 @@ export class AdapterCore extends BaseSqlAdapter {
     try {
       await this.pool.query("SELECT 1");
       const latency = Date.now() - start;
-      const internalPool = (this.pool as unknown as InternalPool).pool;
+      const internalPool = (this.pool as any).pool || this.pool;
+      const all = internalPool._allConnections?.length || 0;
+      const free = internalPool._freeConnections?.length || 0;
+
       return {
         success: true,
         data: {
           healthy: true,
           latency,
-          activeConnections: internalPool ? internalPool._allConnections.length : 0,
+          activeConnections: Math.max(0, all - free),
         },
       };
     } catch (error) {
@@ -219,28 +215,24 @@ export class AdapterCore extends BaseSqlAdapter {
   async getConnectionPoolStats(): Promise<
     DatabaseResult<import("../../db-interface").ConnectionPoolStats>
   > {
-    try {
-      if (!this.pool) return this.handleError("Not initialized", "POOL_STATS_FAILED");
-      const pool = (this.pool as unknown as InternalPool).pool;
-      if (!pool)
-        return {
-          success: true,
-          data: { total: 10, active: 0, idle: 0, waiting: 0, avgConnectionTime: 0 },
-        };
+    if (!this.pool) return this.notConnectedError();
+    return this.wrap(async () => {
+      // mysql2/promise Pool wraps the internal Pool in a .pool property
+      const internalPool = (this.pool as any).pool || this.pool;
+
+      const total = internalPool.config?.connectionLimit || 100;
+      const all = internalPool._allConnections?.length || 0;
+      const free = internalPool._freeConnections?.length || 0;
+      const queue = internalPool._connectionQueue?.length || 0;
 
       return {
-        success: true,
-        data: {
-          total: pool.config?.connectionLimit || 10,
-          active: pool._allConnections?.length || 0,
-          idle: pool._freeConnections?.length || 0,
-          waiting: pool._connectionQueue?.length || 0,
-          avgConnectionTime: 0,
-        },
+        total,
+        active: Math.max(0, all - free),
+        idle: free,
+        waiting: queue,
+        avgConnectionTime: 0,
       };
-    } catch (error) {
-      return this.handleError(error, "POOL_STATS_FAILED");
-    }
+    }, "POOL_STATS_FAILED");
   }
 
   public getTable(collection: string): Record<string, unknown> {

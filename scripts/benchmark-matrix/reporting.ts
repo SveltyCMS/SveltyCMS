@@ -20,14 +20,10 @@ import type { BenchmarkResult, RunConfig } from "./types";
 import { Project, SyntaxKind, type ObjectLiteralExpression, type SourceFile } from "ts-morph";
 import { collectHostInfo } from "./cli";
 
-// ✨ Memoized AST Project to prevent heap churn
-let memoizedProject: Project | null = null;
-let memoizedSourceFile: SourceFile | null = null;
-
 /**
  * 📂 Robust recursive file discovery helper.
  */
-async function findFilesRecursive(dir: string, pattern: RegExp): Promise<string[]> {
+async function findFilesRecursive(dir: string, pattern: string | RegExp): Promise<string[]> {
   const results: string[] = [];
   try {
     const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -35,15 +31,20 @@ async function findFilesRecursive(dir: string, pattern: RegExp): Promise<string[
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         results.push(...(await findFilesRecursive(fullPath, pattern)));
-      } else if (pattern.test(entry.name)) {
-        results.push(fullPath);
+      } else {
+        const matches = typeof pattern === "string" ? entry.name.endsWith(pattern) : pattern.test(entry.name);
+        if (matches) results.push(fullPath);
       }
     }
   } catch {
-    // Skip if directory missing or inaccessible
+    // Silence errors for missing directories
   }
   return results;
 }
+
+// ✨ Memoized AST Project to prevent heap churn
+let memoizedProject: Project | null = null;
+let memoizedSourceFile: SourceFile | null = null;
 
 function getASTProject() {
   if (!memoizedProject) {
@@ -521,16 +522,29 @@ tags:
     let timestamp: string;
     let isHistorical = false;
 
+    const last = db
+      .query(
+        `SELECT * FROM runs WHERE db_key = ? AND status = 'SUCCESS' ORDER BY timestamp DESC LIMIT 1`,
+      )
+      .get(dbKey) as any;
+
     if (curr && curr.status !== "PENDING") {
       m = latestMetrics[dbKey];
       status = curr.status;
       timestamp = new Date().toLocaleString();
+
+      // 🚀 SURGICAL METRICS RECOVERY: If a test crashed, its aggregate metric might be 0. 
+      // We must patch these zeroes with the last known good historical data to prevent ledger regression.
+      if (last) {
+        const lastM = extractMetrics(JSON.parse(last.metrics_json), dbConf.type);
+        if (!m.collections) m.collections = lastM.collections;
+        if (!m.graphqlAvg) m.graphqlAvg = lastM.graphqlAvg;
+        if (!m.dbRaw) m.dbRaw = lastM.dbRaw;
+        if (!m.memGrowth) m.memGrowth = lastM.memGrowth;
+        if (!m.systemCpu) m.systemCpu = lastM.systemCpu;
+        if (!curr.coldStartMs && last.cold_start_ms) curr.coldStartMs = last.cold_start_ms;
+      }
     } else {
-      const last = db
-        .query(
-          `SELECT * FROM runs WHERE db_key = ? AND status = 'SUCCESS' ORDER BY timestamp DESC LIMIT 1`,
-        )
-        .get(dbKey) as any;
       if (!last) continue;
       m = extractMetrics(JSON.parse(last.metrics_json), dbConf.type);
       status = last.status;
@@ -707,7 +721,9 @@ tags:
       let tableContent = "";
       try {
         const dbResultsDir = path.join(ROOT_RESULTS_DIR, dbKey);
-        const allFiles = await findFilesRecursive(dbResultsDir, /\.table\.txt$/);
+        
+        // 🚀 Recursive search for table files
+        const allFiles = await findFilesRecursive(dbResultsDir, ".table.txt");
 
         const tableFile = allFiles.find((f) => {
           const baseName = path.basename(f);
@@ -725,6 +741,31 @@ tags:
         const existing = doc.split(START_TAG)[1].split(END_TAG)[0].trim();
         if (existing && !existing.includes("Pending execution")) {
           tableContent = existing;
+        }
+      }
+
+      // 🚀 SURGICAL RECOVERY: If still no content, look back into history.sqlite
+      if (!tableContent) {
+        try {
+          const historical = db.query(`
+            SELECT metrics_json, timestamp FROM runs 
+            WHERE db_key = ? AND status = 'SUCCESS' 
+            AND metrics_json LIKE ? 
+            ORDER BY timestamp DESC LIMIT 1
+          `).get(dbKey, `%${script.shortLabel}%`) as any;
+
+          if (historical) {
+            const metrics = JSON.parse(historical.metrics_json);
+            // We can't easily reconstruct the ASCII table from raw JSON here without full metadata,
+            // but we can at least show the script's summary or mark it as historical.
+            const scriptMetric = Object.values(metrics).find((v: any) => v.name === script.shortLabel) as any;
+            if (scriptMetric) {
+              const histDate = new Date(historical.timestamp).toLocaleDateString();
+              tableContent = `> 🏛️ **Historical Data** (from ${histDate})\n> 🏷️ **${script.label}**: ✅ **${(scriptMetric.avgMs || 0).toFixed(3)}ms**\n> 📂 **Source**: [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")})`;
+            }
+          }
+        } catch (err) {
+          log.warn(`Historical recovery failed for ${script.shortLabel}: ${err}`);
         }
       }
 

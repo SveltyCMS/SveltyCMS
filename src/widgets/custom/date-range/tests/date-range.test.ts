@@ -9,8 +9,8 @@ import { safeParse } from "valibot";
 
 describe("Date Range Widget - Validation", () => {
   const validRange = {
-    start: "2026-01-01",
-    end: "2026-01-10",
+    start: "2026-01-01T00:00:00Z",
+    end: "2026-01-10T00:00:00Z",
   };
 
   it("should validate a correct date range", () => {
@@ -26,8 +26,8 @@ describe("Date Range Widget - Validation", () => {
     const schema = (field.widget.validationSchema as any)(field);
 
     const invalidRange = {
-      start: "2026-01-10T00:00:00.000Z",
-      end: "2026-01-01T00:00:00.000Z",
+      start: "2026-01-10T00:00:00Z",
+      end: "2026-01-01T00:00:00Z",
     };
     expect(safeParse(schema, invalidRange).success).toBe(false);
   });
@@ -38,7 +38,7 @@ describe("Date Range Widget - Validation", () => {
 
     const invalidRange = {
       start: "not-a-date",
-      end: "2026-01-10T00:00:00.000Z",
+      end: "2026-01-10T00:00:00Z",
     };
     expect(safeParse(schema, invalidRange).success).toBe(false);
   });

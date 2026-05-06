@@ -492,17 +492,20 @@ export class AdapterCore extends BaseSqlAdapter {
   /* ------------------------------------------------ */
 
   private async createDriver(dbPath: string) {
-    const isBun = !!(globalThis as any).Bun || !!(process as any).versions?.bun;
+    // 🚀 Obfuscate the check slightly so Vite/Rollup doesn't statically analyze it
+    // to false during the Node.js build and dead-code eliminate the bun:sqlite block.
+    const getEnv = () => (typeof process !== "undefined" ? process : { versions: {} });
+    const isBun = typeof Bun !== "undefined" || !!(getEnv().versions as any)?.bun;
     const readonly = (this.config as SQLiteConfig)?.readonly || dbPath.includes("mode=ro") || false;
 
     // 🚀 If in Bun, use Bun's native driver exclusively.
     // This avoids all 'better_sqlite3.node' binary/require issues in production builds.
     if (isBun) {
-      const { Database } = await import("bun:sqlite");
+      const { Database } = await import(/* @vite-ignore */ "bun:sqlite");
       const sqlite = (
         readonly ? new Database(dbPath, { readonly }) : new Database(dbPath)
       ) as SQLiteClient;
-      const { drizzle } = await import("drizzle-orm/bun-sqlite");
+      const { drizzle } = await import(/* @vite-ignore */ "drizzle-orm/bun-sqlite");
       const db = drizzle(sqlite as any, { schema }) as SQLiteDB;
       return { sqlite, db };
     }

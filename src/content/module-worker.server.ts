@@ -23,7 +23,7 @@ async function getWidgetsProxy() {
 
 if (parentPort) {
   parentPort.on("message", async (message) => {
-    const { action, filePath, version } = message;
+    const { id, action, filePath, version } = message;
 
     if (action === "load") {
       try {
@@ -42,12 +42,13 @@ if (parentPort) {
               .toLowerCase()
               .replace(/[^a-z0-9]/g, "");
           }
-          parentPort?.postMessage({ success: true, schema });
+          parentPort?.postMessage({ id, success: true, schema });
         } else {
-          parentPort?.postMessage({ success: false, error: "Invalid schema" });
+          parentPort?.postMessage({ id, success: false, error: "Invalid schema" });
         }
       } catch (err) {
         parentPort?.postMessage({
+          id,
           success: false,
           error: err instanceof Error ? err.message : String(err),
         });

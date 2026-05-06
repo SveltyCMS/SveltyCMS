@@ -31,7 +31,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     lastRun: "2026-05-02T20:22:14.391Z",
   },
   {
-    path: "tests/benchmarks/build-analysis.bench.ts",
+    path: "tests/benchmarks/build-analysis.test.ts",
     label: "Production Build Analysis",
     shortLabel: "Build",
     level: 0,

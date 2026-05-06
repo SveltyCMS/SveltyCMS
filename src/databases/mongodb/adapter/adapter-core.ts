@@ -157,12 +157,25 @@ export class MongoAdapterCore extends BaseAdapter {
 
   /**
    * Translates a raw MongoDB-style query into a structured Mongo filter via Query IR.
-   * 🚀 Agnostic Core: Standardizes processing even for native MongoDB.
+   * 🚀 Fast-Path: Bypasses IR translation for simple ID lookups to minimize heap churn.
    */
   public mapQuery(query: Record<string, unknown>): Record<string, any> {
     if (!query || Object.keys(query).length === 0) return {};
 
-    // 1. Translate to IR
+    // 🚀 Fast-Path: Simple _id lookup bypasses the heavy IR translator
+    const keys = Object.keys(query);
+    if (keys.length === 1 && (keys[0] === "_id" || keys[0] === "token")) {
+      return query;
+    }
+    if (
+      keys.length === 2 &&
+      (keys.includes("_id") || keys.includes("token")) &&
+      keys.includes("tenantId")
+    ) {
+      return query;
+    }
+
+    // 1. Translate to IR (HEAVY: Uses dynamic require and complex AST walk)
     const { queryTranslator } = require("../../agnostic-core/query-ir");
     const ir = queryTranslator.translate("temp", query);
 

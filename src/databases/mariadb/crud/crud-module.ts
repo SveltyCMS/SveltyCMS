@@ -38,6 +38,12 @@ export class CrudModule extends RelationalCrudModule implements ICrudAdapter {
 
           let prepared = this.preparedStatements.get(cacheKey);
           if (!prepared) {
+            // Memory safety: prevent Map from growing indefinitely during stress tests
+            if (this.preparedStatements.size >= this.MAX_PREPARED_STATEMENTS) {
+              const oldestKey = this.preparedStatements.keys().next().value;
+              if (oldestKey) this.preparedStatements.delete(oldestKey);
+            }
+
             const { and, eq, placeholder } = await import("drizzle-orm");
             prepared = (this.adapter as any).db
               .select()

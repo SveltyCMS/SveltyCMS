@@ -121,7 +121,7 @@ class WidgetState {
     wsLogger.debug(`initialize called for tenant: ${tenantId}. isLoaded: ${this.isLoaded}`);
     // 🛡️ Optimization: Don't load widgets during setup wizard
     // We only need them for the actual CMS functionality.
-    const { isSetupComplete } = await import("@src/utils/setup-check");
+    const { isSetupComplete } = await import("@src/utils/setup-check-fast");
     const setupDone = isSetupComplete();
     if (!setupDone) {
       wsLogger.trace("setup NOT complete, exiting initialize early.");

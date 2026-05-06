@@ -229,8 +229,9 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
     memGrowth:
       getMetric("internals.memory.rss_delta") ||
       getMetric("Memory RSS Delta") ||
+      (m["Memory_Stability"] as any)?.rssDelta ||
       (m["memory-stability"] as any)?.rssDelta ||
-      getMetric("memory-stability") ||
+      (m["memory-stability"] as any)?.rssGrowth ||
       0,
     securityMs:
       getMetric("security.waf.avg") ||

@@ -33,27 +33,25 @@ export class MongoCrudMethods<T extends BaseEntity> {
   ): Promise<DatabaseResult<T | null>> {
     const startTime = performance.now();
     try {
+      // 🚀 Fast-Path: Direct ID lookup bypasses safeQuery and mapQuery overhead
+      const isIdQuery =
+        query && typeof query === "object" && Object.keys(query).length === 1 && (query as any)._id;
+      if (isIdQuery && !options.includeDeleted && !options.tenantId) {
+        const result = await this.model
+          .findOne({ _id: (query as any)._id }, options.fields?.join(" "))
+          .lean()
+          .exec();
+        const meta = { executionTime: performance.now() - startTime };
+        if (!result) return { success: true, data: null, meta };
+        return { success: true, data: processDates(result) as T, meta };
+      }
+
       const secureQuery = this.adapter.mapQuery(
         safeQuery(query, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
           includeDeleted: options.includeDeleted,
         }),
       );
-
-      // Handle _id casting safely (SveltyCMS uses string UUIDs/slugs for many models)
-      if (
-        secureQuery._id &&
-        typeof secureQuery._id === "string" &&
-        !mongoose.Types.ObjectId.isValid(secureQuery._id)
-      ) {
-        // If the model's _id is expected to be an ObjectId but we received a string,
-        // Mongoose will throw a CastError. However, SveltyCMS often overrides _id to be String.
-        // Let's check the schema.
-        const schemaType = this.model.schema.path("_id");
-        if (schemaType instanceof mongoose.Schema.Types.ObjectId) {
-          return { success: true, data: null, meta: { executionTime: 0 } };
-        }
-      }
 
       const queryOptions: any = {};
       if (options.hints?.readConcern) {
@@ -89,6 +87,19 @@ export class MongoCrudMethods<T extends BaseEntity> {
   async findByIds(ids: DatabaseId[], options: FindOptions<T> = {}): Promise<DatabaseResult<T[]>> {
     const startTime = performance.now();
     try {
+      // 🚀 Fast-Path: Direct ID list lookup
+      if (!options.tenantId && !options.includeDeleted && !options.bypassTenantCheck) {
+        const results = await this.model
+          .find({ _id: { $in: ids } } as any, options.fields?.join(" ") || "")
+          .lean()
+          .exec();
+        return {
+          success: true,
+          data: processDates(results) as T[],
+          meta: { executionTime: performance.now() - startTime },
+        };
+      }
+
       const secureQuery = this.adapter.mapQuery(
         safeQuery({ _id: { $in: ids } } as unknown as QueryFilter<T>, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
@@ -272,6 +283,30 @@ export class MongoCrudMethods<T extends BaseEntity> {
   ): Promise<DatabaseResult<T>> {
     const startTime = performance.now();
     try {
+      // 🚀 Fast-Path: Direct ID update
+      if (!options.tenantId && !options.bypassTenantCheck) {
+        const now = nowISODateString();
+        const { _id: _, ...updateData } = { ...data, updatedAt: now } as any;
+        const result = await this.model
+          .findOneAndUpdate(
+            { _id: id },
+            { $set: updateData },
+            { returnDocument: "after", lean: true, runValidators: true, cloneUpdate: false },
+          )
+          .exec();
+        if (!result)
+          return {
+            success: false,
+            message: "Not found",
+            error: { code: "RECORD_NOT_FOUND", message: "Not found" },
+          };
+        return {
+          success: true,
+          data: processDates(result) as T,
+          meta: { executionTime: performance.now() - startTime },
+        };
+      }
+
       const query = this.adapter.mapQuery(
         safeQuery({ _id: id } as QueryFilter<T>, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,

@@ -8,8 +8,9 @@ const { describe, it, expect, vi, beforeEach } = (globalThis as any).vi
   : await import("vitest");
 import { createMockRequestEvent } from "../utils/mock-event";
 
-const { mockDbAdapter, mockTwoFactorAuthService } = vi.hoisted(() => {
-  const mockDbAdapter = {
+// Mock all dependencies
+vi.mock("@src/databases/db", () => {
+  const dbAdapter = {
     auth: {
       authInterface: {},
       validateSession: vi.fn(),
@@ -55,8 +56,16 @@ const { mockDbAdapter, mockTwoFactorAuthService } = vi.hoisted(() => {
       delete: vi.fn(),
     },
   };
+  return {
+    dbAdapter: dbAdapter,
+    auth: dbAdapter.auth,
+    getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+    getAuth: vi.fn().mockReturnValue(dbAdapter.auth),
+  };
+});
 
-  const mockTwoFactorAuthService = {
+vi.mock("@src/databases/auth/two-factor-auth", () => {
+  const twoFactorAuthService = {
     verify2FA: vi.fn(),
     initiate2FASetup: vi.fn(),
     complete2FASetup: vi.fn(),
@@ -64,25 +73,10 @@ const { mockDbAdapter, mockTwoFactorAuthService } = vi.hoisted(() => {
     get2FAStatus: vi.fn(),
     regenerateBackupCodes: vi.fn(),
   };
-
-  return { mockDbAdapter, mockTwoFactorAuthService };
-});
-
-// Mock all dependencies
-vi.mock("@src/databases/db", () => {
   return {
-    dbAdapter: mockDbAdapter,
-    auth: mockDbAdapter.auth,
-    getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-    getAuth: vi.fn().mockReturnValue(mockDbAdapter.auth),
-  };
-});
-
-vi.mock("@src/databases/auth/two-factor-auth", () => {
-  return {
-    getDefaultTwoFactorAuthService: vi.fn(() => mockTwoFactorAuthService),
+    getDefaultTwoFactorAuthService: vi.fn(() => twoFactorAuthService),
     TwoFactorAuthService: vi.fn().mockImplementation(function () {
-      return mockTwoFactorAuthService;
+      return twoFactorAuthService;
     }),
   };
 });

@@ -22,6 +22,7 @@ import { logger } from "@utils/logger";
 class SimulatedRedisBus {
   private subscribers: Map<string, Set<(msg: string) => void>> = new Map();
   private storage: Map<string, any> = new Map();
+  private sets: Map<string, Set<string>> = new Map();
 
   publish(channel: string, message: string) {
     const subs = this.subscribers.get(channel);
@@ -40,15 +41,33 @@ class SimulatedRedisBus {
   }
 
   createClient(nodeId: string) {
-    return {
+    const client: any = {
       nodeId,
       isOpen: true,
       publish: (chan: string, msg: string) => this.publish(chan, msg),
       subscribe: (chan: string, cb: (msg: string) => void) => this.subscribe(chan, cb),
       get: (key: string) => this.storage.get(key) ?? null,
       set: (key: string, val: any) => this.storage.set(key, val),
-      del: (key: string) => this.storage.delete(key),
+      del: (keys: string | string[]) => {
+        const toDelete = Array.isArray(keys) ? keys : [keys];
+        for (const k of toDelete) this.storage.delete(k);
+      },
+      sMembers: (key: string) => Array.from(this.sets.get(key) || []),
+      sAdd: (key: string, member: string) => {
+        if (!this.sets.has(key)) this.sets.set(key, new Set());
+        this.sets.get(key)!.add(member);
+      },
+      multi: () => {
+        const queue: (() => void)[] = [];
+        const m = {
+          sAdd: (k: string, v: string) => { queue.push(() => client.sAdd(k, v)); return m; },
+          del: (k: string | string[]) => { queue.push(() => client.del(k)); return m; },
+          exec: async () => { queue.forEach(fn => fn()); return []; }
+        };
+        return m;
+      }
     };
+    return client;
   }
 }
 

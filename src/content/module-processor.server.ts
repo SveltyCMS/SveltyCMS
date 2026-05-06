@@ -10,9 +10,14 @@ import path from "node:path";
 import { Worker } from "node:worker_threads";
 import os from "node:os";
 
+interface WorkerWithCallbacks extends Worker {
+  _callbacks?: Map<number, (msg: any) => void>;
+}
+
 let _cachedWidgetsProxy: any = null;
-let _workerPool: Worker[] = [];
+let _workerPool: WorkerWithCallbacks[] = [];
 let _nextWorker = 0;
+let _nextMessageId = 0;
 const MAX_WORKERS = Math.min(os.cpus().length, 8); // Cap at 8 workers for I/O bound tasks
 
 /**
@@ -50,11 +55,18 @@ async function getWidgetsProxy() {
 /**
  * Initializes the worker pool if not already present.
  */
-function getWorker(): Worker {
+function getWorker(): WorkerWithCallbacks {
   if (_workerPool.length < MAX_WORKERS) {
     const workerPath = path.resolve(process.cwd(), "src/content/module-worker.server.ts");
-    const worker = new Worker(workerPath);
-    worker.setMaxListeners(200); // Increase limit for high-concurrency scans
+    const worker = new Worker(workerPath) as WorkerWithCallbacks;
+    worker._callbacks = new Map();
+    worker.on("message", (msg) => {
+      const cb = worker._callbacks?.get(msg.id);
+      if (cb) {
+        worker._callbacks?.delete(msg.id);
+        cb(msg);
+      }
+    });
     _workerPool.push(worker);
     return worker;
   }
@@ -79,12 +91,13 @@ export async function loadSchemaNative(filePath: string): Promise<{ schema?: Sch
     return new Promise((resolve) => {
       const worker = getWorker();
       const version = process.env.BENCHMARK_STABLE === "true" ? "1" : Date.now();
+      const msgId = ++_nextMessageId;
 
-      worker.once("message", (message: any) => {
+      worker._callbacks?.set(msgId, (message: any) => {
         if (message.success) resolve({ schema: message.schema });
         else resolve(null);
       });
-      worker.postMessage({ action: "load", filePath: fullPath, version });
+      worker.postMessage({ id: msgId, action: "load", filePath: fullPath, version });
     });
   }
 

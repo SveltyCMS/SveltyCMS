@@ -79,7 +79,7 @@ export abstract class BaseAdapter {
     } else if (typeof error === "object" && error !== null) {
       try {
         errorString = JSON.stringify(error);
-      } catch (e) {
+      } catch {
         errorString = "[Cyclic or unstringifiable object]";
       }
     }
@@ -101,9 +101,9 @@ export abstract class BaseAdapter {
     fn: () => Promise<T>,
     code: string,
     message?: string,
-    _options?: { isWrite?: boolean; transaction?: any },
+    options?: { isWrite?: boolean; transaction?: any; skipMeta?: boolean },
   ): Promise<DatabaseResult<T>> {
-    if (!this.isConnected()) {
+    if (!this.connected) {
       return this.notConnectedError<T>();
     }
     const startTime = performance.now();
@@ -116,6 +116,11 @@ export abstract class BaseAdapter {
       if (latency > 500) {
         this.metrics.slowQueryCount++;
         logger.warn(`Slow database operation detected: ${code} took ${latency.toFixed(2)}ms`);
+      }
+
+      // 🚀 PERFORMANCE: Avoid meta object allocation if skipMeta is true (internal calls)
+      if (options?.skipMeta) {
+        return { success: true, data } as DatabaseResult<T>;
       }
 
       return { success: true, data, meta: { executionTime: latency } };

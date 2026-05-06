@@ -330,27 +330,21 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   // Initialize tenant context
   locals.tenantId = null as any;
 
-  if (isStaticOrInternalRequest(pathname)) return resolve(event);
-
-  // 🧪 TEST MODE BYPASS: If cryptographic handshake verified, skip auth logic
-  if ((locals as any).__testBypass) {
-    return resolve(event);
+  // 🧪 TEST MODE BYPASS: If cryptographic handshake verified by handleTurboPipeline, skip EVERYTHING.
+  // This must be the very first check to eliminate overhead from CSRF, DB init, and session lookups.
+  if ((locals as any).__testBypass === true) {
+    return await resolve(event);
   }
 
+  if (isStaticOrInternalRequest(pathname)) return resolve(event);
+
   // 🛡️ Ensure CSRF token is established for every visitor (guest or user)
-  // Moved after fast-exit to save cycles on static assets.
   const isProd = !dev && process.env.TEST_MODE !== "true";
   const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
   ensureCsrfToken(cookies, isSecure);
 
   // Ensure DB is initialized to at least CORE phase before proceeding with auth checks
   await getDbInitPromise(false, "CORE");
-
-  // 🚀 FAST BYPASS: If already verified by handleTurboPipeline (x-test-secret), skip EVERYTHING.
-  // This is essential for black-box testing and benchmarks.
-  if ((locals as any).__testBypass === true) {
-    return await resolve(event);
-  }
 
   const isBypassed = (locals as any).__testBypass === true;
   const isSystemUser = (locals as any).user?._id === "system";

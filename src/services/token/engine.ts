@@ -37,6 +37,12 @@ class TokenRegistryService {
   >();
   private readonly CACHE_TTL = 1000 * 60 * 5; // 5 minutes
 
+  private siteResolver?: () => Promise<any>;
+
+  setSiteResolver(resolver: () => Promise<any>) {
+    this.siteResolver = resolver;
+  }
+
   async resolve(tokenKey: string, ctx: TokenContext): Promise<unknown> {
     const resolver = this.resolvers.get(tokenKey);
     if (resolver) {
@@ -55,8 +61,10 @@ class TokenRegistryService {
     if (tokenKey.startsWith("site.")) {
       try {
         const parts = tokenKey.split(".");
-        const { getAllSettings } = await import("../core/settings-service");
-        const settings = await getAllSettings();
+        let settings = ctx.site;
+        if (!settings && this.siteResolver) {
+          settings = await this.siteResolver();
+        }
         return parts.slice(1).reduce((curr: any, key) => curr?.[key], settings);
       } catch (e) {
         logger.error(`Failed to resolve site token ${tokenKey}:`, e);

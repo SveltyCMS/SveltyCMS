@@ -4,7 +4,7 @@
  * Tracks RSS, Heap, and External memory growth under sustained load with leak detection.
  */
 
-import { test } from "bun:test";
+import { test } from "vitest";
 import "../unit/setup.ts";
 import {
   exportResult,
@@ -31,20 +31,15 @@ type MemorySnapshot = {
 let stopServer: (() => Promise<void>) | null = null;
 const snapshots: MemorySnapshot[] = [];
 
-async function getMemoryStats(baseUrl: string, forceGC = false) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), 5000); // 5s timeout for stats
-
+async function getMemoryStats(baseUrl: string, forceGC = false, signal?: AbortSignal) {
   try {
-    const res = await fetch(`${baseUrl}/api/system/health${forceGC ? "?gc=true" : ""}`, {
+    const res: any = await fetch(`${baseUrl}/api/system/health?verbose=true${forceGC ? "&gc=true" : ""}`, {
       headers: { "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026" },
-      signal: controller.signal,
+      signal,
     });
-    clearTimeout(id);
     const data = await res.json();
-    return data.memory || data;
+    return data.memory || { rss: 0, heapUsed: 0, external: 0 };
   } catch {
-    clearTimeout(id);
     return { rss: 0, heapUsed: 0, external: 0 };
   }
 }
@@ -60,8 +55,13 @@ export async function runMemoryStabilityAudit() {
     await ensureStableTestData();
     await stabilize(2000);
 
+    const controllers = new Set<AbortController>();
+
     // Baseline
-    const baseline = await getMemoryStats(baseUrl, true);
+    const baselineController = new AbortController();
+    const baselineId = setTimeout(() => baselineController.abort(), 5000);
+    const baseline = await getMemoryStats(baseUrl, true, baselineController.signal);
+    clearTimeout(baselineId);
     console.log(`📊 Baseline RSS: ${Math.round(baseline.rss / 1024 / 1024)} MB`);
 
     let running = true;
@@ -75,18 +75,28 @@ export async function runMemoryStabilityAudit() {
         const targetTime = tick * SAMPLING_INTERVAL_MS;
         const delay = targetTime - (performance.now() - startTime);
         if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+        if (!running) break;
 
         const sampleStart = performance.now();
-        const mem = await getMemoryStats(baseUrl);
-        const lag = performance.now() - sampleStart;
+        const controller = new AbortController();
+        controllers.add(controller);
+        const tid = setTimeout(() => controller.abort(), 5000);
+        
+        try {
+          const mem = await getMemoryStats(baseUrl, false, controller.signal);
+          const lag = performance.now() - sampleStart;
 
-        snapshots.push({
-          timeMs: performance.now() - startTime,
-          rssMB: Math.round(mem.rss / 1024 / 1024),
-          heapMB: Math.round(mem.heapUsed / 1024 / 1024),
-          externalMB: Math.round(mem.external / 1024 / 1024),
-          lagMs: lag,
-        });
+          snapshots.push({
+            timeMs: performance.now() - startTime,
+            rssMB: Math.round(mem.rss / 1024 / 1024),
+            heapMB: Math.round(mem.heapUsed / 1024 / 1024),
+            externalMB: Math.round(mem.external / 1024 / 1024),
+            lagMs: lag,
+          });
+        } finally {
+          clearTimeout(tid);
+          controllers.delete(controller);
+        }
         tick++;
       }
     })();
@@ -98,18 +108,22 @@ export async function runMemoryStabilityAudit() {
     const workers = Array.from({ length: CONCURRENCY }, async (_, i) => {
       while (running) {
         const controller = new AbortController();
-        const tid = setTimeout(() => controller.abort(), 10000); // 10s timeout for load
+        controllers.add(controller);
+        const tid = setTimeout(() => controller.abort(), 5000);
+
         try {
-          await fetch(`${baseUrl}/api/system/health`, {
+          const res: any = await fetch(`${baseUrl}/api/system/health`, {
             headers: {
               "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
             },
             signal: controller.signal,
           });
+          await res.arrayBuffer();
           totalRequests++;
         } catch {
         } finally {
           clearTimeout(tid);
+          controllers.delete(controller);
         }
       }
       if (process.env.BENCHMARK_DEBUG === "true") console.log(`[Worker ${i}] Finished.`);
@@ -118,17 +132,28 @@ export async function runMemoryStabilityAudit() {
     await Promise.race([sleep(DURATION_SECONDS * 1000), Promise.allSettled([...workers, sampler])]);
 
     running = false;
+    // 🚀 CRITICAL: Instantly terminate all pending fetches so the workers drain immediately.
+    // Convert to array first to prevent Set iteration bugs if elements are deleted synchronously.
+    Array.from(controllers).forEach(c => c.abort());
+
     console.log(
-      `⏹ Load stopped at ${Math.round(performance.now() - startTime)}ms. Draining 12 workers and 1 sampler...`,
+      `⏹ Load stopped at ${Math.round(performance.now() - startTime)}ms. Draining ${CONCURRENCY} workers and 1 sampler...`,
     );
 
     const drainStart = performance.now();
-    await Promise.allSettled([...workers, sampler]);
+    // Add a hard timeout to the drain phase to completely prevent test hangs
+    await Promise.race([
+      Promise.allSettled([...workers, sampler]),
+      sleep(5000).then(() => console.log("⚠️ Hard timeout reached during worker drain. Forcing continuation."))
+    ]);
     console.log(`✅ All workers drained in ${Math.round(performance.now() - drainStart)}ms.`);
 
     // Final measurement
     await stabilize(3000);
-    const finalMem = await getMemoryStats(baseUrl, true);
+    const finalController = new AbortController();
+    const finalId = setTimeout(() => finalController.abort(), 5000);
+    const finalMem = await getMemoryStats(baseUrl, true, finalController.signal);
+    clearTimeout(finalId);
 
     const totalDurationMs = performance.now() - startTime;
     const rps = totalRequests / (totalDurationMs / 1000);

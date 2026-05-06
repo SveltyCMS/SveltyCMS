@@ -23,11 +23,15 @@ export class PerformanceService {
     return PerformanceService.instance;
   }
 
+  private cachedDbAdapter: any = null;
+
   private async getDbAdapter() {
     const isBrowser = typeof window !== "undefined";
     if (isBrowser) return null;
+    if (this.cachedDbAdapter) return this.cachedDbAdapter;
     try {
       const { dbAdapter } = await import("@src/databases/db");
+      this.cachedDbAdapter = dbAdapter;
       return dbAdapter;
     } catch {
       return null;

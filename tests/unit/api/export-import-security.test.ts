@@ -11,36 +11,36 @@ beforeAll(async () => {
   dispatcherPOST = mod.POST;
 });
 
-const { dbAdapter } = vi.hoisted(() => {
-  const dbAdapter = {
-    auth: {
-      getAllUsers: vi.fn().mockResolvedValue({ success: true, data: [] }),
-      getUserCount: vi.fn().mockResolvedValue({ success: true, data: 0 }),
-    },
-    crud: {
-      findOne: vi.fn().mockResolvedValue({ success: true, data: null }),
-      insert: vi.fn().mockResolvedValue({ success: true, data: {} }),
-      update: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    },
-    system: {
-      preferences: {
-        getMany: vi.fn().mockResolvedValue({ success: true, data: {} }),
-        set: vi.fn().mockResolvedValue({ success: true }),
-        setMany: vi.fn().mockResolvedValue({ success: true }),
-      },
-    },
-    collection: {
-      getModel: vi.fn(),
-    },
-  };
-  return { dbAdapter };
-});
+// Mock db adapter functions
+const getAllUsers = vi.fn().mockResolvedValue({ success: true, data: [] });
+const getUserCount = vi.fn().mockResolvedValue({ success: true, data: 0 });
+const findOne = vi.fn().mockResolvedValue({ success: true, data: null });
+const insert = vi.fn().mockResolvedValue({ success: true, data: {} });
+const update = vi.fn().mockResolvedValue({ success: true, data: {} });
+const prefGetMany = vi.fn().mockResolvedValue({ success: true, data: {} });
+const prefSet = vi.fn().mockResolvedValue({ success: true });
+const prefSetMany = vi.fn().mockResolvedValue({ success: true });
+const getModel = vi.fn();
 
 // Mock db adapter
 vi.mock("@src/databases/db", () => ({
-  dbAdapter: dbAdapter,
+  dbAdapter: {
+    auth: { getAllUsers, getUserCount },
+    crud: { findOne, insert, update },
+    system: {
+      preferences: { getMany: prefGetMany, set: prefSet, setMany: prefSetMany },
+    },
+    collection: { getModel },
+  },
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-  getDb: vi.fn().mockReturnValue(dbAdapter),
+  getDb: vi.fn().mockReturnValue({
+    auth: { getAllUsers, getUserCount },
+    crud: { findOne, insert, update },
+    system: {
+      preferences: { getMany: prefGetMany, set: prefSet, setMany: prefSetMany },
+    },
+    collection: { getModel },
+  }),
 }));
 
 // Mock settings service
@@ -95,7 +95,7 @@ describe("Export/Import API Security - Tenant Isolation", () => {
       } as any;
 
       await dispatcherPOST(event);
-      expect(dbAdapter!.auth.getAllUsers).toHaveBeenCalledWith(
+      expect(getAllUsers).toHaveBeenCalledWith(
         expect.objectContaining({
           filter: expect.objectContaining({ tenantId: myTenant }),
         }),
@@ -117,7 +117,7 @@ describe("Export/Import API Security - Tenant Isolation", () => {
       } as any;
 
       await dispatcherPOST(event);
-      expect(dbAdapter!.auth.getAllUsers).toHaveBeenCalledWith(
+      expect(getAllUsers).toHaveBeenCalledWith(
         expect.objectContaining({
           filter: expect.objectContaining({ tenantId: otherTenant }),
         }),
@@ -127,8 +127,8 @@ describe("Export/Import API Security - Tenant Isolation", () => {
 
     it("should prevent regular admin from overriding tenantId", async () => {
       const event = {
-        params: { path: "export" },
         locals: { user: mockAdmin, tenantId: myTenant },
+        params: { path: "export" },
         request: {
           method: "POST",
           json: vi.fn().mockResolvedValue({ type: "users" }),
@@ -143,9 +143,7 @@ describe("Export/Import API Security - Tenant Isolation", () => {
       } catch (error: any) {
         expect(error.status).toBe(403);
       }
-      expect(dbAdapter!.auth.getAllUsers).not.toHaveBeenCalledWith({
-        filter: { tenantId: otherTenant },
-      });
+      expect(getAllUsers).not.toHaveBeenCalled();
     });
   });
 
@@ -173,9 +171,7 @@ describe("Export/Import API Security - Tenant Isolation", () => {
       } as any;
 
       await dispatcherPOST(event);
-      // Check if db.system.preferences.set was called with myTenant
-      const db = (await import("@src/databases/db")).getDb();
-      expect(db!.system.preferences.set).toHaveBeenCalledWith(
+      expect(prefSet).toHaveBeenCalledWith(
         expect.any(String),
         expect.any(String),
         "system",

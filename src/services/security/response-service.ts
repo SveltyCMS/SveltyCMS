@@ -83,7 +83,7 @@ const SCAN_BODY_MAX_SIZE = 32768; // 32KB
 // SECURITY RESPONSE SERVICE
 // ============================================================================
 
-class SecurityResponseService {
+export class SecurityResponseService {
   private readonly policies: SecurityPolicy[] = [];
   private readonly limiters = new Map<string, RateLimiterMemory | RateLimiterRedis>();
   private readonly lastAlertTime = new Map<string, number>();
@@ -118,7 +118,8 @@ class SecurityResponseService {
       keyPrefix,
     };
 
-    const redisClient = cacheService.getRedisClient();
+    // 🚀 Robust redis client acquisition with fallback
+    const redisClient = (cacheService as any).getRedisClient ? cacheService.getRedisClient() : null;
     let limiter: RateLimiterMemory | RateLimiterRedis;
 
     if (redisClient) {
@@ -526,10 +527,16 @@ class SecurityResponseService {
     return incidents.filter((i) => !i.resolved);
   }
 
+  /**
+   * Gracefully shuts down the security service, dumping state to disk.
+   */
   public async destroy(): Promise<void> {
     await this.dumpState();
   }
 
+  /**
+   * Dumps current rate limiter state to a JSON file for persistence.
+   */
   private async dumpState(): Promise<void> {
     if (building) return;
     const data: Record<string, any> = {};
@@ -551,6 +558,9 @@ class SecurityResponseService {
     }
   }
 
+  /**
+   * Restores rate limiter state from a JSON file.
+   */
   private async restoreState(): Promise<void> {
     if (building) return;
     try {
@@ -583,16 +593,27 @@ class SecurityResponseService {
 const g = globalThis as any;
 if (g.__SVELTY_SECURITY_INSTANCE__) {
   try {
-    g.__SVELTY_SECURITY_INSTANCE__.destroy();
+    // If destroy exists, call it to prevent leaks on HMR
+    if (typeof g.__SVELTY_SECURITY_INSTANCE__.destroy === "function") {
+      g.__SVELTY_SECURITY_INSTANCE__.destroy();
+    }
   } catch {}
 }
 
+/**
+ * Singleton instance of the SecurityResponseService.
+ * Recreates the instance if it lacks critical methods (HMR safety).
+ */
 export const securityResponseService = (() => {
-  if (!g.__SVELTY_SECURITY_INSTANCE__)
+  if (
+    !g.__SVELTY_SECURITY_INSTANCE__ ||
+    typeof g.__SVELTY_SECURITY_INSTANCE__.destroy !== "function"
+  )
     g.__SVELTY_SECURITY_INSTANCE__ = new SecurityResponseService();
   return g.__SVELTY_SECURITY_INSTANCE__;
 })();
 
+// Process hooks for persistent state
 if (!(building || g.__SVELTY_SECURITY_READY__)) {
   process.on("SIGTERM", () => securityResponseService.destroy());
   process.on("SIGINT", () => securityResponseService.destroy());

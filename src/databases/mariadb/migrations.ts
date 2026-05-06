@@ -404,7 +404,7 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
     // 404 Logs
     `CREATE TABLE IF NOT EXISTS \`404_logs\` (
 			_id VARCHAR(36) PRIMARY KEY,
-			path VARCHAR(2000) NOT NULL,
+			path VARCHAR(500) NOT NULL,
 			tenantId VARCHAR(36) NOT NULL,
 			hits INT NOT NULL DEFAULT 1,
 			lastHit DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -418,7 +418,7 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
     `CREATE TABLE IF NOT EXISTS redirects_mv (
 			_id VARCHAR(36) PRIMARY KEY,
 			tenantId VARCHAR(36) NOT NULL,
-			\`from\` VARCHAR(2000) NOT NULL,
+			\`from\` VARCHAR(500) NOT NULL,
 			\`to\` VARCHAR(2000) NOT NULL,
 			type INT NOT NULL DEFAULT 301,
 			isRegex BOOLEAN NOT NULL DEFAULT FALSE,

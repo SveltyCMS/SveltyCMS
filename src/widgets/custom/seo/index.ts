@@ -12,7 +12,6 @@
  */
 
 import { widget_seo_description } from "@src/paraglide/messages";
-import { replaceTokens } from "@src/services/token/engine";
 import { createWidget } from "@src/widgets/widget-factory";
 import {
   custom,
@@ -173,12 +172,19 @@ const SeoWidget = createWidget({
     const entry = (data as any).entry || {};
     const context = { entry, user, tenantId: (tenantId as string) || "default" };
 
-    if (value.title && value.title.includes("{{")) {
-      value.title = await replaceTokens(value.title, context);
-    }
+    if (
+      (value.title && value.title.includes("{{")) ||
+      (value.description && value.description.includes("{{"))
+    ) {
+      const { replaceTokens } = await import(/* @vite-ignore */ "@src/services/token/engine");
 
-    if (value.description && value.description.includes("{{")) {
-      value.description = await replaceTokens(value.description, context);
+      if (value.title && value.title.includes("{{")) {
+        value.title = await replaceTokens(value.title, context);
+      }
+
+      if (value.description && value.description.includes("{{")) {
+        value.description = await replaceTokens(value.description, context);
+      }
     }
 
     data.update(value);
