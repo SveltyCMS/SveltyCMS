@@ -17,26 +17,17 @@ vi.mock("@src/services/background/automation/automation-service", () => ({
   automationService: {
     getFlows: vi.fn().mockResolvedValue([]),
     getFlow: vi.fn().mockResolvedValue(null),
-    saveFlow: vi.fn().mockResolvedValue({ id: "flow-1", name: "Test" }),
-    deleteFlow: vi.fn().mockResolvedValue(undefined),
+    saveFlow: vi.fn().mockResolvedValue({ success: true }),
+    deleteFlow: vi.fn().mockResolvedValue({ success: true }),
+    executeFlow: vi.fn().mockResolvedValue({ success: true }),
   },
 }));
 
 // Mock settings service
 vi.mock("@src/services/core/settings-service", () => ({
-  getPrivateSettingSync: vi.fn().mockReturnValue(true), // MULTI_TENANT = true
+  getPrivateSettingSync: vi.fn().mockReturnValue(true),
   getPublicSettingSync: vi.fn().mockReturnValue("mediaFolder"),
   getUntypedSetting: vi.fn().mockResolvedValue(undefined),
-}));
-
-// Mock logger
-vi.mock("@utils/logger", () => ({
-  logger: {
-    info: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn(),
-  },
 }));
 
 describe("Automation API Security - IDOR and Tenant Isolation", () => {

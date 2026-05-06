@@ -111,6 +111,11 @@ export async function handleIdentityTokenRoutes(
           });
     }
 
+    // 🚀 CRITICAL: If tokenId is a known action, it's not a valid token ID for GET
+    if (["create-token", "batch", "resolve"].includes(tokenId)) {
+      throw new AppError(`Action "${tokenId}" only supports POST`, 405);
+    }
+
     // Try finding by ID first
     // This is public if it's an invitation token validation
     const token = await cms.auth.tokens.findById(tokenId, { tenantId });
@@ -128,6 +133,7 @@ export async function handleIdentityTokenRoutes(
       type: "invite-token",
       category: "general",
     });
+
     if (validateRes.success && validateRes.data?.success) {
       return successResponse(event, { ...validateRes.data, valid: true });
     }

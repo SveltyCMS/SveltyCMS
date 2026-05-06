@@ -270,8 +270,8 @@ export class CollectionService {
     let revisionsMeta: RevisionData[] = [];
     if (editEntryId && collection.revision) {
       try {
-        const { getRevisions } = await import("@src/services/content/revision-service");
-        const revisionsResult = await getRevisions({
+        const { HistoryService } = await import("@src/services/content/history-service");
+        const revisionsResult = await HistoryService.getRevisions({
           collectionId: collection._id as string,
           entryId: editEntryId,
           tenantId: tenantId || "",

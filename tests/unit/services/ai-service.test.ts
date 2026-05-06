@@ -27,7 +27,12 @@ vi.mock("ollama", () => {
     }
     return Promise.resolve({ message: { content: "AI response" } });
   });
-  const mockGenerate = vi.fn(() => Promise.resolve({ response: "tag1, tag2, tag3" }));
+  const mockGenerate = vi.fn((params: any) => {
+    if (params?.prompt?.includes("Return ONLY raw JSON")) {
+      return Promise.resolve({ response: '{"root":"mock", "elements":{}}' });
+    }
+    return Promise.resolve({ response: "tag1, tag2, tag3" });
+  });
 
   return {
     default: {

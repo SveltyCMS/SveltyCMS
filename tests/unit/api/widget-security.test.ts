@@ -48,16 +48,23 @@ vi.mock("@src/stores/widget-store.svelte.ts", () => ({
 vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
   getPublicSettingSync: vi.fn().mockReturnValue(true),
+  getPrivateSetting: vi.fn().mockResolvedValue(false),
+  getPublicSetting: vi.fn().mockResolvedValue(true),
+  getAllSettings: vi.fn().mockResolvedValue({ public: {}, private: {} }),
+  invalidateSettingsCache: vi.fn(),
+  updateSettingsFromSnapshot: vi.fn().mockResolvedValue({ updated: 0 }),
 }));
 
-vi.mock("@utils/logger", () => ({
-  logger: {
+vi.mock("@utils/logger", () => {
+  const mockLogger = {
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
     debug: vi.fn(),
-  },
-}));
+    channel: vi.fn(() => mockLogger),
+  };
+  return { logger: mockLogger };
+});
 
 // Import dispatcher
 import { GET as dispatcherGET, POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";

@@ -279,6 +279,11 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
       getMetric("workload.mixed.avg") ||
       getMetric("mixed-workload-aggregate") ||
       0,
+    telemetryAvg:
+      getMetric("internals.telemetry.avg") ||
+      getMetric("Telemetry p95") ||
+      getMetric("telemetry-performance") ||
+      0,
   };
 }
 

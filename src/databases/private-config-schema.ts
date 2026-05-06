@@ -14,20 +14,15 @@ import {
   optional,
   pipe,
   string,
-  transform,
+  toBoolean,
+  toNumber,
   union,
 } from "valibot";
 import type { InferOutput } from "valibot";
 
-// Helper to allow numeric strings (from env) to be used where numbers are expected
-const coercedNumber = union([
-  number(),
-  pipe(
-    string(),
-    transform((val) => Number(val)),
-    number(),
-  ),
-]);
+// Helper to allow strings (from env) to be used where numbers or booleans are expected
+const coercedNumber = union([number(), pipe(string(), toNumber(), number())]);
+const coercedBoolean = union([boolean(), pipe(string(), toBoolean(), boolean())]);
 
 /**
  * The PRIVATE configuration for the application.
@@ -48,9 +43,9 @@ export const privateConfigSchema = object({
   DB_NAME: pipe(string(), minLength(1, "Database name is required.")),
   DB_USER: optional(string()),
   DB_PASSWORD: optional(string()),
-  DB_RETRY_ATTEMPTS: optional(pipe(number(), minValue(1))),
-  DB_RETRY_DELAY: optional(pipe(number(), minValue(1))),
-  DB_POOL_SIZE: optional(pipe(number(), minValue(1))),
+  DB_RETRY_ATTEMPTS: optional(pipe(coercedNumber, minValue(1))),
+  DB_RETRY_DELAY: optional(pipe(coercedNumber, minValue(1))),
+  DB_POOL_SIZE: optional(pipe(coercedNumber, minValue(1))),
 
   // --- JWT Secret (Essential for startup) ---
   JWT_SECRET_KEY: pipe(
@@ -65,29 +60,29 @@ export const privateConfigSchema = object({
   ),
 
   // --- Multi-tenancy (Essential for startup) ---
-  MULTI_TENANT: optional(boolean()),
-  DEMO: optional(boolean()),
+  MULTI_TENANT: optional(coercedBoolean),
+  DEMO: optional(coercedBoolean),
 
   // --- Licensing & Telemetry (BSL 1.1 Support) ---
   LICENSE_KEY: optional(string()),
-  SVELTYCMS_TELEMETRY: optional(boolean()),
+  SVELTYCMS_TELEMETRY: optional(coercedBoolean),
   TELEMETRY_CLIENT_SECRET: optional(string()),
 
   // --- Optional service toggles (populated dynamically post-startup) ---
-  USE_REDIS: optional(boolean()),
+  USE_REDIS: optional(coercedBoolean),
   REDIS_HOST: optional(pipe(string(), minLength(1))),
   REDIS_PORT: optional(pipe(coercedNumber, minValue(1))),
   REDIS_PASSWORD: optional(string()),
 
   // --- Cache TTL Configuration (in seconds) ---
-  CACHE_TTL_SCHEMA: optional(pipe(number(), minValue(1))),
-  CACHE_TTL_WIDGET: optional(pipe(number(), minValue(1))),
-  CACHE_TTL_THEME: optional(pipe(number(), minValue(1))),
-  CACHE_TTL_CONTENT: optional(pipe(number(), minValue(1))),
-  CACHE_TTL_MEDIA: optional(pipe(number(), minValue(1))),
-  CACHE_TTL_SESSION: optional(pipe(number(), minValue(1))),
-  CACHE_TTL_USER: optional(pipe(number(), minValue(1))),
-  CACHE_TTL_API: optional(pipe(number(), minValue(1))),
+  CACHE_TTL_SCHEMA: optional(pipe(coercedNumber, minValue(1))),
+  CACHE_TTL_WIDGET: optional(pipe(coercedNumber, minValue(1))),
+  CACHE_TTL_THEME: optional(pipe(coercedNumber, minValue(1))),
+  CACHE_TTL_CONTENT: optional(pipe(coercedNumber, minValue(1))),
+  CACHE_TTL_MEDIA: optional(pipe(coercedNumber, minValue(1))),
+  CACHE_TTL_SESSION: optional(pipe(coercedNumber, minValue(1))),
+  CACHE_TTL_USER: optional(pipe(coercedNumber, minValue(1))),
+  CACHE_TTL_API: optional(pipe(coercedNumber, minValue(1))),
 
   GOOGLE_CLIENT_ID: optional(pipe(string(), minLength(1))),
   GOOGLE_CLIENT_SECRET: optional(pipe(string(), minLength(1))),
@@ -102,10 +97,10 @@ export const privateConfigSchema = object({
   CF_PURGE_MODE: optional(union([literal("all"), literal("tags")]), "tags"),
 
   // --- AI Configuration ---
-  USE_REMOTE_AI_KNOWLEDGE: optional(boolean()),
+  USE_REMOTE_AI_KNOWLEDGE: optional(coercedBoolean),
   OLLAMA_URL: optional(string()),
   AI_MODEL_CHAT: optional(string()),
-  USE_AI_TAGGING: optional(boolean()),
+  USE_AI_TAGGING: optional(coercedBoolean),
   AI_MODEL_VISION: optional(string()),
 
   // --- Authentication & Security ---
@@ -113,18 +108,18 @@ export const privateConfigSchema = object({
   PREVIEW_SECRET: optional(string()),
 
   // --- CORS Configuration ---
-  CORS_ENABLED: optional(boolean()),
+  CORS_ENABLED: optional(coercedBoolean),
   CORS_ALLOWED_ORIGINS: optional(array(string())),
   CORS_ALLOWED_METHODS: optional(array(string())),
   CORS_ALLOWED_HEADERS: optional(array(string())),
   CORS_MAX_AGE: optional(coercedNumber),
-  CORS_ALLOW_CREDENTIALS: optional(boolean()),
+  CORS_ALLOW_CREDENTIALS: optional(coercedBoolean),
 
   // --- Social Media & OAuth ---
   TWITCH_CLIENT_ID: optional(string()),
   TWITCH_TOKEN: optional(string()),
   TIKTOK_TOKEN: optional(string()),
-  SAML_JIT_PROVISIONING: optional(boolean()),
+  SAML_JIT_PROVISIONING: optional(coercedBoolean),
 
   // --- Common Public/Private Overlaps (Required for some services) ---
   HOST_PROD: optional(string()),

@@ -26,7 +26,7 @@ const createMockWidgetInternal = (name: string) => {
   });
 };
 
-const { ALL_WIDGET_NAMES: widgetNames } = require("./widget-constants");
+const { ALL_WIDGET_NAMES: widgetNames } = require("./widget-constants.ts");
 
 const mockWidgets: Record<string, any> = {};
 for (const name of widgetNames) {
@@ -173,19 +173,27 @@ mock.module("$app/navigation", () => ({
   preloadCode: mockFn(),
 }));
 
+// --- HELPERS ---
+const isTestTarget = (target: string) => {
+  const currentTest = process.argv.find((arg) => arg.endsWith(".test.ts"));
+  return currentTest && currentTest.includes(target);
+};
+
 // 🚀 PRECISE MOCK FOR widgetRegistryService
-mock.module("@src/services/core/widget-registry-service", () => {
-  const wsMap = new Map();
-  for (const name of widgetNames) {
-    wsMap.set(name, createMockWidgetInternal(name));
-  }
-  return {
-    widgetRegistryService: {
-      getAllWidgets: async () => wsMap,
-      initialize: async () => {},
-    },
-  };
-});
+if (!isTestTarget("widget-registry-service")) {
+  mock.module("@src/services/core/widget-registry-service", () => {
+    const wsMap = new Map();
+    for (const name of widgetNames) {
+      wsMap.set(name, createMockWidgetInternal(name));
+    }
+    return {
+      widgetRegistryService: {
+        getAllWidgets: async () => wsMap,
+        initialize: async () => {},
+      },
+    };
+  });
+}
 
 const mockMetrics = {
   recordMetric: mockFn(),
@@ -197,3 +205,97 @@ const mockMetrics = {
 };
 
 (globalThis as any).metricsService = mockMetrics;
+
+// --- CORE SERVICE MOCKS ---
+if (!isTestTarget("settings-service")) {
+  mock.module("@src/services/core/settings-service", () => {
+    const mockSettings = {
+      getPrivateSettingSync: vi.fn().mockReturnValue(false),
+      getPublicSettingSync: vi.fn().mockReturnValue(undefined),
+      getPrivateSetting: vi.fn().mockResolvedValue(false),
+      getPublicSetting: vi.fn().mockResolvedValue(undefined),
+      getUntypedSetting: vi.fn().mockResolvedValue(undefined),
+      invalidateSettingsCache: vi.fn(),
+      loadSettingsCache: vi.fn().mockResolvedValue({ loaded: true, private: {}, public: {} }),
+      setSettingsCache: vi.fn(),
+      isCacheLoaded: vi.fn().mockReturnValue(true),
+      getAllSettings: vi.fn().mockResolvedValue({ public: {}, private: {} }),
+    };
+    return {
+      ...mockSettings,
+      settingsService: mockSettings,
+    };
+  });
+}
+
+if (!isTestTarget("automation-service")) {
+  mock.module("@src/services/background/automation/automation-service", () => {
+    const mockAutomation = {
+      getFlows: vi.fn().mockResolvedValue([]),
+      getFlow: vi.fn().mockResolvedValue(null),
+      saveFlow: vi.fn().mockResolvedValue({ id: "flow-1", name: "Test" }),
+      deleteFlow: vi.fn().mockResolvedValue(undefined),
+      init: vi.fn(),
+      invalidateCache: vi.fn(),
+      executeFlow: vi.fn().mockResolvedValue({ status: "success", operationResults: [] }),
+      getLogs: vi.fn().mockReturnValue([]),
+    };
+    return {
+      ...mockAutomation,
+      automationService: mockAutomation,
+    };
+  });
+}
+
+mock.module("@src/databases/auth/saml-auth", () => {
+  return {
+    handleSAMLResponse: vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true }))),
+    generateSAMLAuthUrl: async () => "http://idp.com/auth",
+    createSAMLConnection: vi.fn().mockResolvedValue({ success: true }),
+    getJackson: vi.fn().mockResolvedValue({}),
+  };
+});
+
+const isBenchmark = process.env.BENCHMARK_MODE === "true" || process.env.BENCHMARK_STABLE === "true";
+
+if (!isBenchmark) {
+  mock.module("@src/databases/db", () => ({
+    dbAdapter: {
+      auth: { getUserById: vi.fn(), getUserByEmail: vi.fn() },
+      collection: {
+        getModel: vi.fn().mockResolvedValue({}),
+        listSchemas: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      },
+      crud: { find: vi.fn().mockResolvedValue([]) },
+    },
+    getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+    getDb: vi.fn().mockReturnValue({
+      auth: { getUserById: vi.fn(), getUserByEmail: vi.fn() },
+      collection: { getModel: vi.fn().mockResolvedValue({}) },
+    }),
+  }));
+}
+
+mock.module("@utils/api-handler", () => ({
+  apiHandler: (fn: any) => async (event: any) => {
+    try {
+      return await fn(event);
+    } catch (err: any) {
+      if (err.status) {
+        return new Response(JSON.stringify({ message: err.message, code: err.code }), {
+          status: err.status,
+        });
+      }
+      return new Response(err.message || "Internal Error", { status: 500 });
+    }
+  },
+}));
+
+mock.module("@utils/logger", () => ({
+  logger: {
+    info: mockFn(),
+    error: mockFn(),
+    warn: mockFn(),
+    debug: mockFn(),
+  },
+}));

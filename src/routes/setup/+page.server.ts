@@ -200,8 +200,22 @@ export const actions: Actions = {
         } else if (dbConfig.type === "sqlite") {
           const { buildDatabaseConnectionString } = await import("./utils");
           const dbPath = buildDatabaseConnectionString(dbConfig);
-          if ((await import("fs")).existsSync(dbPath)) {
-            await (await import("fs")).promises.unlink(dbPath);
+          const fs = await import("node:fs");
+          if (fs.existsSync(dbPath)) {
+            // Retry loop for unlinking (resilience against Windows EBUSY)
+            let attempts = 0;
+            while (attempts < 5) {
+              try {
+                fs.unlinkSync(dbPath);
+                logger.info(`✅ Successfully dropped SQLite database: ${dbPath}`);
+                break;
+              } catch (e: any) {
+                attempts++;
+                if (attempts >= 5) throw e;
+                logger.warn(`⚠️ SQLite file busy, retrying in 500ms (Attempt ${attempts}/5)...`);
+                await new Promise((r) => setTimeout(r, 500));
+              }
+            }
           }
         }
         logger.info(`✅ Successfully dropped database '${targetName}'.`);

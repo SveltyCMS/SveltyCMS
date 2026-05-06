@@ -6,6 +6,142 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 
+const isBun = typeof Bun !== "undefined";
+
+const setGlobal = (name: string, value: any) => {
+  try {
+    Object.defineProperty(globalThis, name, {
+      value,
+      writable: true,
+      configurable: true,
+      enumerable: true,
+    });
+  } catch {
+    (globalThis as any)[name] = value;
+  }
+};
+
+// detect environment
+let mock: any;
+let vitest: any;
+
+// 🚀 CRITICAL: Mock 'vitest' IMMEDIATELY for Bun to prevent real vitest from loading
+if (isBun) {
+  const bunTest = require("bun:test");
+  mock = bunTest.mock;
+  const spies: any[] = [];
+  const originalGlobals = new Map<string, any>();
+
+  const viShim = {
+    fn: (impl?: any) => {
+      const m = bunTest.mock(impl || (() => {}));
+      spies.push(m);
+      const augment = (prop: string, val: any) => {
+        try {
+          Object.defineProperty(m, prop, {
+            value: val,
+            writable: true,
+            configurable: true,
+          });
+        } catch {
+          (m as any)[prop] = val;
+        }
+      };
+      augment("mockResolvedValue", (val: any) => {
+        (m as any).mockImplementation(() => Promise.resolve(val));
+        return m;
+      });
+      augment("mockResolvedValueOnce", (val: any) => {
+        (m as any).mockImplementationOnce(() => Promise.resolve(val));
+        return m;
+      });
+      augment("mockReturnValue", (val: any) => {
+        (m as any).mockImplementation(() => val);
+        return m;
+      });
+      augment("mockReturnValueOnce", (val: any) => {
+        (m as any).mockImplementationOnce(() => val);
+        return m;
+      });
+      return m;
+    },
+    spyOn: (obj: any, method: string) => {
+      if (!obj) throw new Error(`spyOn: target object is undefined for method "${method}"`);
+      const spy = bunTest.spyOn(obj, method);
+      spies.push(spy);
+      return spy;
+    },
+    mock: (path: string, factory?: (importOriginal: () => Promise<any>) => any) => {
+      const importOriginal = () => import(`${path}?bun-unmock=${Date.now()}`);
+      if (factory) {
+        bunTest.mock.module(path, () => factory(importOriginal));
+      } else {
+        bunTest.mock.module(path, () => ({}));
+      }
+    },
+    unmock: (_path: string) => {},
+    stubGlobal: (name: string, value: any) => {
+      if (!originalGlobals.has(name)) {
+        originalGlobals.set(name, (globalThis as any)[name]);
+      }
+      setGlobal(name, value);
+    },
+    unstubAllGlobals: () => {
+      for (const [name, value] of originalGlobals.entries()) {
+        setGlobal(name, value);
+      }
+      originalGlobals.clear();
+    },
+    clearAllMocks: () => {
+      for (const spy of spies) if (spy && spy.mockClear) spy.mockClear();
+    },
+    restoreAllMocks: () => {
+      for (const spy of spies) if (spy && spy.mockRestore) spy.mockRestore();
+      spies.length = 0;
+    },
+    resetAllMocks: () => {
+      for (const spy of spies) if (spy && spy.mockReset) spy.mockReset();
+    },
+    mocked: (v: any) => v,
+    hoisted: (factory: () => any) => factory(),
+    importActual: (path: string) => import(`${path}?bun-unmock=${Date.now()}`),
+  };
+
+  setGlobal("vi", viShim);
+  setGlobal("vitest", viShim);
+
+  const vitestMock = {
+    ...bunTest,
+    vi: viShim,
+    vitest: viShim,
+    describe: bunTest.describe,
+    it: bunTest.it,
+    test: bunTest.test,
+    expect: bunTest.expect,
+    beforeEach: bunTest.beforeEach,
+    afterEach: bunTest.afterEach,
+    beforeAll: bunTest.beforeAll,
+    afterAll: bunTest.afterAll,
+    default: { ...bunTest, vi: viShim },
+  };
+
+  bunTest.mock.module("vitest", () => vitestMock);
+  try {
+    const vitestPath = import.meta.resolve("vitest");
+    bunTest.mock.module(vitestPath, () => vitestMock);
+  } catch {}
+
+  (globalThis as any).mock = bunTest.mock;
+  if (!globalThis.describe) setGlobal("describe", bunTest.describe);
+  if (!globalThis.test) setGlobal("test", bunTest.test);
+  if (!globalThis.it) setGlobal("it", bunTest.it);
+  if (!globalThis.expect) setGlobal("expect", bunTest.expect);
+  if (!globalThis.beforeEach) setGlobal("beforeEach", bunTest.beforeEach);
+  if (!globalThis.afterEach) setGlobal("afterEach", bunTest.afterEach);
+  if (!globalThis.beforeAll) setGlobal("beforeAll", bunTest.beforeAll);
+  if (!globalThis.afterAll) setGlobal("afterAll", bunTest.afterAll);
+}
+
 // Moved up to support conditional mocking
 const isTestTarget = (path: string) => {
   let currentTest = process.argv.find((arg) => arg.endsWith(".test.ts"));
@@ -35,8 +171,6 @@ const isTestTarget = (path: string) => {
 };
 
 // 1. EARLY DOM SHIMS (Critical for Bun; Vitest uses native jsdom)
-const isBun = typeof Bun !== "undefined";
-
 if (typeof vi !== "undefined") {
   vi.mock("$app/navigation", () => ({
     goto: vi.fn(),
@@ -99,20 +233,6 @@ if (typeof (import.meta as any).glob !== "function") {
     return {};
   };
 }
-
-const setGlobal = (name: string, value: any) => {
-  if (globalThis[name as keyof typeof globalThis] !== undefined) return;
-  try {
-    Object.defineProperty(globalThis, name, {
-      value,
-      writable: true,
-      configurable: true,
-      enumerable: true,
-    });
-  } catch {
-    (globalThis as any)[name] = value;
-  }
-};
 
 class Node {
   nodeType = 1;
@@ -231,117 +351,7 @@ if (isBun) {
 // 2. TESTING LIBRARIES (Dynamic import to avoid hoisting before shims)
 await import("@testing-library/jest-dom/vitest");
 
-// detect environment
-let mock: any;
-let vitest: any;
-
-if (isBun) {
-  // Bun environment - try to use synchronous require if possible for better timing in preload
-  const bunTest = require("bun:test");
-  mock = bunTest.mock;
-  // Force set vi for cross-runner compatibility
-  const spies: any[] = [];
-  const originalGlobals = new Map<string, any>();
-
-  const viShim = {
-    fn: (impl?: any) => {
-      const m = bunTest.mock(impl || (() => {}));
-      spies.push(m);
-      // Augment with Vitest-like helpers safely
-      const augment = (prop: string, val: any) => {
-        try {
-          Object.defineProperty(m, prop, {
-            value: val,
-            writable: true,
-            configurable: true,
-          });
-        } catch {
-          (m as any)[prop] = val;
-        }
-      };
-      augment("mockResolvedValue", (val: any) => {
-        (m as any).mockImplementation(() => Promise.resolve(val));
-        return m;
-      });
-      augment("mockResolvedValueOnce", (val: any) => {
-        (m as any).mockImplementationOnce(() => Promise.resolve(val));
-        return m;
-      });
-      augment("mockReturnValue", (val: any) => {
-        (m as any).mockImplementation(() => val);
-        return m;
-      });
-      augment("mockReturnValueOnce", (val: any) => {
-        (m as any).mockImplementationOnce(() => val);
-        return m;
-      });
-      return m;
-    },
-    spyOn: (obj: any, method: string) => {
-      if (!obj) throw new Error(`spyOn: target object is undefined for method "${method}"`);
-      const spy = bunTest.spyOn(obj, method);
-      spies.push(spy);
-      return spy;
-    },
-    mock: (path: string, factory?: (importOriginal: () => Promise<any>) => any) => {
-      if (factory) {
-        const importOriginal = () => import(`${path}?bun-unmock=${Date.now()}`);
-        bunTest.mock.module(path, () => factory(importOriginal));
-      } else {
-        bunTest.mock.module(path, () => ({}));
-      }
-    },
-    unmock: (_path: string) => {},
-    stubGlobal: (name: string, value: any) => {
-      if (!originalGlobals.has(name)) {
-        originalGlobals.set(name, (globalThis as any)[name]);
-      }
-      setGlobal(name, value);
-    },
-    unstubAllGlobals: () => {
-      for (const [name, value] of originalGlobals.entries()) {
-        setGlobal(name, value);
-      }
-      originalGlobals.clear();
-    },
-    clearAllMocks: () => {
-      for (const spy of spies) if (spy && spy.mockClear) spy.mockClear();
-    },
-    restoreAllMocks: () => {
-      for (const spy of spies) if (spy && spy.mockRestore) spy.mockRestore();
-      spies.length = 0;
-    },
-    resetAllMocks: () => {
-      for (const spy of spies) if (spy && spy.mockReset) spy.mockReset();
-    },
-    mocked: (v: any) => v,
-    hoisted: (factory: () => any) => factory(),
-    importActual: (path: string) => import(`${path}?bun-unmock=${Date.now()}`),
-  };
-  setGlobal("vi", viShim);
-  setGlobal("vitest", viShim);
-  if (!(globalThis as any).mock) setGlobal("mock", bunTest.mock);
-
-  // Mock vitest module for Bun to return our shims
-  const vitestMock = {
-    ...bunTest,
-    vi: viShim,
-    vitest: viShim,
-    default: { ...bunTest, vi: viShim },
-  };
-  bunTest.mock.module("vitest", () => vitestMock);
-
-  // node:crypto is available globally in Bun as 'security' or via require
-  if (!(globalThis as any).crypto) (globalThis as any).crypto = require("node:crypto");
-  if (!globalThis.describe) setGlobal("describe", bunTest.describe);
-  if (!globalThis.test) setGlobal("test", bunTest.test);
-  if (!globalThis.it) setGlobal("it", bunTest.it);
-  if (!globalThis.expect) setGlobal("expect", bunTest.expect);
-  if (!globalThis.beforeEach) setGlobal("beforeEach", bunTest.beforeEach);
-  if (!globalThis.afterEach) setGlobal("afterEach", bunTest.afterEach);
-  if (!globalThis.beforeAll) setGlobal("beforeAll", bunTest.beforeAll);
-  if (!globalThis.afterAll) setGlobal("afterAll", bunTest.afterAll);
-} else {
+if (!isBun) {
   // Node/Vitest environment - Vitest handles globals via config
   const vitestModule = await import("vitest");
   vitest = vitestModule;
@@ -365,8 +375,6 @@ const moduleMock = (path: string, factory: () => any) => {
 
   if (isBenchmark) {
     // ⚡ BENCHMARK MODE: Only mock virtual SvelteKit modules ($app/*, $env/*)
-    // to allow the standalone server to start without crashing on missing internal imports.
-    // We MUST NOT mock @sveltejs/kit or svelte/* as the production build needs the real logic.
     if (!path.startsWith("$")) return;
   } else if (!ENABLE_MOCKS) {
     if (!path.startsWith("$") && !path.includes("svelte") && !path.includes("scanner")) return;
@@ -415,10 +423,6 @@ moduleMock("@utils/logger", () => ({
   default: mockLogger,
 }));
 moduleMock("@src/utils/logger", () => ({
-  logger: mockLogger,
-  default: mockLogger,
-}));
-moduleMock("@utils/logger", () => ({
   logger: mockLogger,
   default: mockLogger,
 }));
@@ -874,7 +878,7 @@ moduleMock("@utils/error-handling", () => ({
 // "widgets.Input is undefined" when reconciling .compiledCollections schemas.
 // ============================================================================
 
-const { CORE_WIDGETS, CUSTOM_WIDGETS } = require("./widget-constants");
+const { CORE_WIDGETS, CUSTOM_WIDGETS } = require("./widget-constants.ts");
 
 const createWidgetFactory = (name: string, type: "core" | "custom" = "core") => {
   const fn = (config: any) => ({
@@ -1247,6 +1251,7 @@ const mockDbAdapter = {
   collection: {
     getModel: mock(() => Promise.resolve({ _id: "mock_col", name: "mock_col", fields: [] })),
     createModel: mock(() => Promise.resolve({ success: true })),
+    listSchemas: mock(() => Promise.resolve({ success: true, data: [] })),
   },
   batch: {
     execute: mock(() => Promise.resolve({ success: true, data: [] })),
@@ -1306,10 +1311,43 @@ moduleMock("@src/databases/db", () => dbMock);
 moduleMock("@databases/db", () => dbMock);
 setGlobal("auth", dbMock.auth);
 
-moduleMock("@src/services/security/audit-service", () => ({
-  auditLogService: mockAuditLog,
-  default: mockAuditLog,
-}));
+moduleMock("@src/services/security/audit-service", () => {
+  const AuditEventType = {
+    USER_LOGIN: "user_login",
+    USER_LOGOUT: "user_logout",
+    USER_LOGIN_FAILED: "user_login_failed",
+    PASSWORD_CHANGE: "password_change",
+    PASSWORD_RESET: "password_reset",
+    PASSWORD_RESET_REQUESTED: "password_reset_requested",
+    PASSWORD_RESET_SUCCESS: "password_reset_success",
+    TWO_FACTOR_ENABLED: "two_factor_enabled",
+    TWO_FACTOR_DISABLED: "two_factor_disabled",
+    USER_CREATED: "user_created",
+    USER_UPDATED: "user_updated",
+    USER_DELETED: "user_deleted",
+    USER_ROLE_CHANGED: "user_role_changed",
+    USER_STATUS_CHANGED: "user_status_changed",
+    TOKEN_CREATED: "token_created",
+    TOKEN_UPDATED: "token_updated",
+    TOKEN_DELETED: "token_deleted",
+    TOKEN_USED: "token_used",
+    TOKEN_MISUSE: "token_misuse",
+    DATA_EXPORT: "data_export",
+    DATA_IMPORT: "data_import",
+    DATA_DELETION: "data_deletion",
+    UNAUTHORIZED_ACCESS: "unauthorized_access",
+    PRIVILEGE_ESCALATION: "privilege_escalation",
+    DATA_BREACH_ATTEMPT: "data_breach_attempt",
+    SUSPICIOUS_ACTIVITY: "suspicious_activity",
+    WEBHOOK_TRIGGERED: "webhook_triggered",
+    WORKFLOW_TRANSITION: "workflow_transition",
+  };
+  return {
+    auditLogService: mockAuditLog,
+    AuditEventType,
+    default: mockAuditLog,
+  };
+});
 
 const mockEventBus = {
   on: mock(() => {}),
@@ -1344,6 +1382,7 @@ const mockSetupCheck = {
   setSetupState: mock((state: any) => {
     setupStateValue = state;
   }),
+  getTestSecret: mock(() => "SVELTYCMS_TEST_SECRET_2026"),
   isBootstrapRoute: mock((p: string) => {
     const path = p.startsWith("/") ? p.slice(1) : p;
     return (
@@ -1368,6 +1407,7 @@ const mockSetupCheck = {
   }),
 };
 moduleMock("@utils/setup-check", () => mockSetupCheck);
+moduleMock("@src/utils/setup-check", () => mockSetupCheck);
 setGlobal("mockSetupCheck", mockSetupCheck);
 
 moduleMock("@src/widgets/scanner", () => ({
@@ -1487,9 +1527,11 @@ if (typeof (globalThis as any).beforeEach !== "undefined") {
       }
 
       // Restore all spies/mocks if vishim is active
+      /*
       if ((globalThis as any).vi && (globalThis as any).vi.restoreAllMocks) {
         (globalThis as any).vi.restoreAllMocks();
       }
+      */
     });
   } catch (e) {
     if (typeof Bun === "undefined") throw e;

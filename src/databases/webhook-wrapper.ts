@@ -284,24 +284,15 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       if (prop === "crud" && crudProxy) return crudProxy;
       if (prop === "media" && mediaProxy) return mediaProxy;
       if (prop === "__isSveltyProxy__") return true;
+      if (prop === "constructor") return target.constructor;
 
-      // Absolute property lookup
-      let value = (target as any)[prop];
-      if (value === undefined) {
-        value = Reflect.get(target, prop, receiver);
-      }
+      let value = Reflect.get(target, prop, receiver);
 
       // Final Resilience: If still missing but is a known critical interface, return empty object to prevent crash
       if (!value && (prop === "collection" || prop === "batch")) {
-        console.warn(
-          `🔴 [WebhookProxy] Critical: Interface '${String(prop)}' missing on target! Attempting recovery.`,
-        );
         // Try one last thing: check if it's on the class prototype
         const protoValue = (target.constructor?.prototype as any)?.[prop];
-        if (protoValue) {
-          console.log(`🟢 [WebhookProxy] Recovered '${String(prop)}' from prototype.`);
-          return protoValue;
-        }
+        if (protoValue) return protoValue;
         // 🚀 Self-Healing Dummy: Returns a function that returns null/empty for any method call.
         // This prevents "is not a function" crashes during high-concurrency bootstrap races.
         return new Proxy(
@@ -322,8 +313,9 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       }
 
       if (typeof value === "function") {
-        return value.bind(target);
+        value = value.bind(target);
       }
+
       return value;
     },
     ownKeys(target) {

@@ -28,6 +28,7 @@ import type { User } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
 import { cacheService, SESSION_CACHE_TTL_MS } from "@src/databases/cache/cache-service";
 import { getDbInitPromise, auth, dbAdapter } from "@src/databases/db";
+import { AuthGuardService } from "@src/services/security/auth-guard";
 import { metricsService } from "@src/services/observability/metrics-service";
 import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { error } from "@sveltejs/kit";
@@ -199,7 +200,7 @@ async function getUserFromSession(
   }
 
   try {
-    const user = await auth.validateSession(sessionId as DatabaseId);
+    const user = await AuthGuardService.validateSession(sessionId);
     if (user) {
       const sessionData: SessionCacheEntry = { user, timestamp: now };
       setSessionInCache(sessionId, sessionData);

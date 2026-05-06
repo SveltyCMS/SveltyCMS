@@ -13,14 +13,37 @@ import {
   BENCHMARK_SCRIPTS,
   ROOT_RESULTS_DIR,
   CI_SUMMARY_FILE,
+  PERFORMANCE_BUDGET,
 } from "./config";
 import { extractMetrics, getTrendDetails } from "./utils";
 import type { BenchmarkResult, RunConfig } from "./types";
 import { Project, SyntaxKind, type ObjectLiteralExpression, type SourceFile } from "ts-morph";
+import { collectHostInfo } from "./cli";
 
 // ✨ Memoized AST Project to prevent heap churn
 let memoizedProject: Project | null = null;
 let memoizedSourceFile: SourceFile | null = null;
+
+/**
+ * 📂 Robust recursive file discovery helper.
+ */
+async function findFilesRecursive(dir: string, pattern: RegExp): Promise<string[]> {
+  const results: string[] = [];
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        results.push(...(await findFilesRecursive(fullPath, pattern)));
+      } else if (pattern.test(entry.name)) {
+        results.push(fullPath);
+      }
+    }
+  } catch {
+    // Skip if directory missing or inaccessible
+  }
+  return results;
+}
 
 function getASTProject() {
   if (!memoizedProject) {
@@ -208,6 +231,48 @@ function buildAsciiTable(title: string, subtitle: string, scenarios: any[]): str
 }
 
 /**
+ * Surgical SQL-based trend extractor for individual scripts.
+ */
+async function getScriptTrend(
+  db: any,
+  dbKey: string,
+  scriptShortLabel: string,
+  currentVal: number = 0,
+) {
+  if (!currentVal) return { icon: "⚪", pct: "—", isRegression: false };
+
+  try {
+    const row = db
+      .query(
+        `
+        SELECT AVG(p95Ms) as avg_val 
+        FROM (
+          SELECT json_extract(metrics_json, '$.' || ? || '.p95Ms') as p95Ms 
+          FROM runs 
+          WHERE db_key = ? AND status = 'SUCCESS' 
+          ORDER BY timestamp DESC LIMIT 8
+        )
+      `,
+      )
+      .get(scriptShortLabel, dbKey) as { avg_val: number | null };
+
+    if (!row?.avg_val) return { icon: "⚪", pct: "—", isRegression: false };
+
+    const pct = ((currentVal - row.avg_val) / row.avg_val) * 100;
+    const icon = pct < -3 ? "🟢" : pct > 8 ? "🔴" : "⚪";
+
+    return {
+      icon,
+      pct: `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`,
+      isRegression: pct > 8,
+    };
+  } catch (e) {
+    console.warn(`Trend failed for ${scriptShortLabel}:`, e);
+    return { icon: "⚪", pct: "—", isRegression: false };
+  }
+}
+
+/**
  * 🚀 Builds a detailed section for each of the 20 benchmarks.
  */
 export async function buildFullAuditLedger(
@@ -239,6 +304,9 @@ export async function buildFullAuditLedger(
       md += `> ⏳ **Status**: Pending execution for this engine.\n\n`;
       continue;
     }
+
+    const trend = await getScriptTrend(db, dbKey, script.shortLabel, timing);
+    md = md.replace(`### 🏷️ ${script.label}`, `### 🏷️ ${script.label} ${trend.icon} ${trend.pct}`);
 
     // 1. Reconstruct Scenario Table
     // We extract scenarios from the metrics_json or direct result files
@@ -343,6 +411,7 @@ export async function generateFinalReport(
         graphql_avg REAL,
         mem_growth REAL,
         cpu_load REAL,
+        host_info_json TEXT,
         metrics_json TEXT
       )
     `);
@@ -351,11 +420,13 @@ export async function generateFinalReport(
     const latestMetrics: Record<string, ReturnType<typeof extractMetrics>> = {};
 
     const insert = db.prepare(`
-      INSERT INTO runs (timestamp, db_key, status, cold_start_ms, collections_p95, graphql_avg, mem_growth, cpu_load, metrics_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO runs (timestamp, db_key, status, cold_start_ms, collections_p95, graphql_avg, mem_growth, cpu_load, host_info_json, metrics_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
+    const hostInfo = await collectHostInfo();
     for (const res of results) {
+      if (!res.hostInfo) res.hostInfo = hostInfo;
       const dbKey = res.db;
       const m = extractMetrics(res.metrics || {}, dbKey.replace("-redis", ""));
       latestMetrics[dbKey] = m;
@@ -369,6 +440,7 @@ export async function generateFinalReport(
         m.graphqlAvg,
         m.memGrowth,
         m.systemCpu,
+        JSON.stringify(res.hostInfo || {}),
         JSON.stringify(res.metrics || {}),
       );
     }
@@ -441,7 +513,7 @@ tags:
     }
 
     // Get current results or last historical SUCCESS
-    const curr = results.find((r) => r.db === dbKey);
+    let curr = results.find((r) => r.db === dbKey);
     if (!curr && !doc.includes("<!-- BENCHMARK_START -->")) continue;
 
     let m: ReturnType<typeof extractMetrics>;
@@ -464,6 +536,14 @@ tags:
       status = last.status;
       timestamp = new Date(last.timestamp).toLocaleString();
       isHistorical = true;
+
+      // 🚀 RESTORE Host Info from History
+      if (last.host_info_json) {
+        (curr as any) = {
+          ...curr,
+          hostInfo: JSON.parse(last.host_info_json),
+        };
+      }
     }
 
     const coldTrend = await getTrendDetails(db, dbKey, curr?.coldStartMs || 0, "cold_start_ms");
@@ -481,6 +561,18 @@ tags:
     headerMd += `| **GraphQL (Avg)** | ${m.graphqlAvg.toFixed(3)}ms | ${gqlTrend.icon} (${gqlTrend.pct}) | < 5ms |\n`;
     headerMd += `| **DB Raw (p95)** | ${m.dbRaw.toFixed(3)}ms | ⚪ | < 50ms |\n\n`;
 
+    /**
+     * Standardized trend block generator for audit ledgers.
+     */
+    headerMd += await generateTrendBlock(
+      "mixedAvg",
+      "Mixed p95",
+      "Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.",
+      "mixed-workload-aggregate",
+      "mixedAvg",
+      "Mixed Workload Performance",
+    );
+
     headerMd += `### 📈 Historical Latency Trends\n`;
     headerMd += `\`\`\`mermaid\nxychart-beta\n  title "${meta.label} Latency Trend (last 10 runs)"\n  x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]\n  y-axis "Latency (ms)"\n  line "p95 Latency" : [${(() => {
       const hist = db
@@ -496,6 +588,103 @@ tags:
 
     headerMd += `\n## 🔬 Detailed Performance Ledger (20+ Modules)\n\n`;
 
+    async function generateTrendBlock(
+      metricKey: string,
+      label: string,
+      desc: string,
+      historyKey: string,
+      liveKey: string,
+      title: string,
+      unit: string = "ms",
+    ) {
+      const trend = await getTrendDetails(db, dbKey, (m as any)[liveKey], historyKey);
+      const budget = (PERFORMANCE_BUDGET as any)[metricKey];
+      const budgetText = budget ? ` | **Target:** < ${budget}${unit}` : "";
+
+      let block = `### 🏷️ ${title} {#${metricKey}}\n`;
+      block += `**${label}:** ${(m as any)[liveKey].toFixed(3)}${unit}${budgetText} | **Trend:** ${trend.icon} (${trend.pct})\n`;
+      block += `> ${desc}\n\n`;
+      return block;
+    }
+
+
+    // 1. CORE TREND AUDIT
+    headerMd += `\n## 📈 Core Infrastructure Trends\n\n`;
+
+    const coreTrends = [
+      {
+        metric: "dbRaw",
+        label: "Raw Adapter p95",
+        desc: "Direct database access latency (bypass CMS logic).",
+        historyKey: "adapter_read_avg",
+        liveKey: "dbRaw",
+        title: "Database Adapter Performance",
+      },
+      {
+        metric: "hooks",
+        label: "Middleware p95",
+        desc: "Total overhead of security, logging, and auth hooks.",
+        historyKey: "middleware_hooks_p95",
+        liveKey: "hooks",
+        title: "Middleware & Hooks Audit",
+      },
+      {
+        metric: "memGrowth",
+        label: "Memory RSS Δ",
+        desc: "Peak memory growth during stress workload.",
+        historyKey: "mem_growth",
+        liveKey: "memGrowth",
+        title: "Memory Stability Audit",
+        unit: "MB",
+      },
+    ];
+
+    for (const item of coreTrends) {
+      headerMd += await generateTrendBlock(
+        item.metric,
+        item.label,
+        item.desc,
+        item.historyKey,
+        item.liveKey,
+        item.title,
+        item.unit,
+      );
+    }
+
+    // 2. ENTERPRISE SCALE AUDIT
+    headerMd += `\n## 🏢 Enterprise Scale Audit\n\n`;
+
+    headerMd += await generateTrendBlock(
+      "tenancyAvg",
+      "Tenancy p95",
+      "Measures latency across tenant isolation boundaries.",
+      "collections_p95",
+      "tenancyAvg",
+      "Multi-Tenancy Performance",
+    );
+
+    headerMd += await generateTrendBlock(
+      "relationalAvg",
+      "Relational p95",
+      "Tests performance of complex JOINs and nested relationship population.",
+      "graphql_avg",
+      "relationalAvg",
+      "Relational Resolver Latency",
+    );
+
+    headerMd += await generateTrendBlock(
+      "telemetryAvg",
+      "Telemetry p95",
+      "Measures overhead of telemetry collection and cryptographic signing.",
+      "middleware_hooks_p95",
+      "telemetryAvg",
+      "Telemetry & Update Performance",
+    );
+
+    headerMd += `\n### 🏷️ Mixed Workload Performance\n`;
+
+    headerMd += `\n## 🔬 Detailed Performance Ledger (20+ Modules)\n\n`;
+
     // Reconstruct the internal sections surgically
     for (const script of BENCHMARK_SCRIPTS) {
       const isSql =
@@ -507,6 +696,9 @@ tags:
 
       if (!isApplicable) continue;
 
+      const timing = curr?.scriptTimings?.[script.shortLabel] || 0;
+      const trend = await getScriptTrend(db, dbKey, script.shortLabel, timing);
+
       const tag = script.shortLabel.split(" ")[0].toUpperCase() + "_TABLE";
       const START_TAG = `<!-- ${tag}_START -->`;
       const END_TAG = `<!-- ${tag}_END -->`;
@@ -515,15 +707,16 @@ tags:
       let tableContent = "";
       try {
         const dbResultsDir = path.join(ROOT_RESULTS_DIR, dbKey);
-        const files = await fs.readdir(dbResultsDir).catch(() => []);
-        const tableFile = files.find((f) => {
-          if (!f.endsWith(".table.txt")) return false;
-          return f.toLowerCase().includes(script.shortLabel.toLowerCase().replace(/ /g, "_"));
+        const allFiles = await findFilesRecursive(dbResultsDir, /\.table\.txt$/);
+
+        const tableFile = allFiles.find((f) => {
+          const baseName = path.basename(f);
+          return baseName.toLowerCase().includes(script.shortLabel.toLowerCase().replace(/ /g, "_"));
         });
 
         if (tableFile) {
-          const rawTable = await fs.readFile(path.join(dbResultsDir, tableFile), "utf8");
-          tableContent = `### 🏷️ ${script.label}\n> 📂 **Source**: [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")})\n> 🎯 **Proves**: ${script.desc}\n\n\`\`\`text\n${rawTable}\n\`\`\``;
+          const rawTable = await fs.readFile(tableFile, "utf8");
+          tableContent = `### 🏷️ ${script.label} ${trend.icon} ${trend.pct}\n> 📂 **Source**: [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")})\n> 🎯 **Proves**: ${script.desc}\n\n\`\`\`text\n${rawTable}\n\`\`\``;
         }
       } catch {}
 
@@ -623,33 +816,10 @@ export async function scanResultsDirectory(): Promise<BenchmarkResult[]> {
       const dbKey = entry.name;
       const dbPath = path.join(ROOT_RESULTS_DIR, dbKey);
 
-      // 🚀 GOLD STANDARD: Recursive discovery for 2026 nested result structure
-      const getAllJsonFiles = async (dir: string): Promise<string[]> => {
-        try {
-          const stats = await fs.stat(dir);
-          if (!stats.isDirectory()) return [];
+      const files = await findFilesRecursive(dbPath, /\.json$/);
+      const filteredFiles = files.filter((f) => !f.endsWith(".meta.json"));
 
-          const entries = await fs.readdir(dir, { withFileTypes: true });
-          const files = await Promise.all(
-            entries.map((entry) => {
-              const res = path.resolve(dir, entry.name);
-              return entry.isDirectory() ? getAllJsonFiles(res) : res;
-            }),
-          );
-          return Array.prototype
-            .concat(...files)
-            .filter(
-              (f) => typeof f === "string" && f.endsWith(".json") && !f.endsWith(".meta.json"),
-            );
-        } catch (e) {
-          log.warn(`Recursive discovery failed for ${dir}: ${e}`);
-          return [];
-        }
-      };
-
-      const files = await getAllJsonFiles(dbPath);
-
-      if (files.length === 0) continue;
+      if (filteredFiles.length === 0) continue;
 
       const metrics: Record<string, any> = {};
       const scriptTimings: Record<string, number> = {};

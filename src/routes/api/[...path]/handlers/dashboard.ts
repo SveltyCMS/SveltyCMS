@@ -47,7 +47,7 @@ export async function handleDashboardRoutes(
       }
 
       case "health":
-        return rawResponse(event, cms.system.getHealth() || { status: "unknown" });
+        return rawResponse(event, (await cms.system.getHealth()) || { status: "unknown" });
 
       case "metrics": {
         const detailed = url.searchParams.get("detailed") === "true";

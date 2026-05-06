@@ -19,7 +19,7 @@
 import type { FieldInstance } from "@src/content/types";
 import { widget_phoneNumber_description } from "@src/paraglide/messages";
 import { createWidget } from "@src/widgets/widget-factory";
-import { nullable, pipe, regex, string, type InferInput as ValibotInput } from "valibot";
+import { nullable, optional, pipe, regex, string, type InferInput as ValibotInput } from "valibot";
 import type { PhoneNumberProps } from "./types";
 
 // SECURITY: More robust phone validation
@@ -31,8 +31,9 @@ const validationSchema = (field: FieldInstance) => {
   const message = "Please enter a valid phone number (e.g., +49123456789)";
 
   const base = pipe(string(), regex(pattern, message));
+  const schema = field.required ? base : optional(nullable(base));
 
-  return field.required ? base : nullable(base);
+  return schema;
 };
 
 // Create the widget definition using the factory.

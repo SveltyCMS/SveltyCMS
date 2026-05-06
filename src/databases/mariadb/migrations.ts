@@ -355,6 +355,105 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX tenant_idx (tenantId),
 			UNIQUE INDEX plugin_migration_unique (pluginId, migrationId, tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // Audit Logs
+    `CREATE TABLE IF NOT EXISTS audit_logs (
+			_id VARCHAR(36) PRIMARY KEY,
+			action VARCHAR(255) NOT NULL,
+			actorEmail VARCHAR(255),
+			actorId VARCHAR(36),
+			actorRole VARCHAR(50),
+			correlationId VARCHAR(36),
+			details JSON NOT NULL,
+			errorDetails TEXT,
+			eventType VARCHAR(100) NOT NULL,
+			ipAddress VARCHAR(45),
+			result VARCHAR(50) NOT NULL,
+			sessionId VARCHAR(36),
+			severity VARCHAR(20) NOT NULL,
+			targetId VARCHAR(255),
+			targetType VARCHAR(100),
+			timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			userAgent TEXT,
+			tenantId VARCHAR(36),
+			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX timestamp_idx (timestamp),
+			INDEX event_type_idx (eventType),
+			INDEX tenant_idx (tenantId)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // Svelty Jobs
+    `CREATE TABLE IF NOT EXISTS svelty_jobs (
+			_id VARCHAR(36) PRIMARY KEY,
+			taskType VARCHAR(255) NOT NULL,
+			payload JSON NOT NULL,
+			status VARCHAR(50) NOT NULL DEFAULT 'pending',
+			attempts INT NOT NULL DEFAULT 0,
+			maxAttempts INT NOT NULL DEFAULT 3,
+			nextRunAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			lastError TEXT,
+			tenantId VARCHAR(36),
+			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX status_idx (status),
+			INDEX next_run_idx (nextRunAt),
+			INDEX tenant_idx (tenantId)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // 404 Logs
+    `CREATE TABLE IF NOT EXISTS \`404_logs\` (
+			_id VARCHAR(36) PRIMARY KEY,
+			path VARCHAR(2000) NOT NULL,
+			tenantId VARCHAR(36) NOT NULL,
+			hits INT NOT NULL DEFAULT 1,
+			lastHit DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			metadata JSON NOT NULL,
+			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX path_tenant_idx (path, tenantId)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // Redirects MV
+    `CREATE TABLE IF NOT EXISTS redirects_mv (
+			_id VARCHAR(36) PRIMARY KEY,
+			tenantId VARCHAR(36) NOT NULL,
+			\`from\` VARCHAR(2000) NOT NULL,
+			\`to\` VARCHAR(2000) NOT NULL,
+			type INT NOT NULL DEFAULT 301,
+			isRegex BOOLEAN NOT NULL DEFAULT FALSE,
+			active BOOLEAN NOT NULL DEFAULT TRUE,
+			metadata JSON NOT NULL,
+			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX tenant_from_idx (tenantId, \`from\`)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // Workflow Definitions
+    `CREATE TABLE IF NOT EXISTS workflow_definitions (
+			_id VARCHAR(36) PRIMARY KEY,
+			tenantId VARCHAR(36),
+			collectionId VARCHAR(255) NOT NULL,
+			name VARCHAR(255) NOT NULL,
+			description TEXT,
+			states JSON NOT NULL,
+			transitions JSON NOT NULL,
+			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // Workflow Instances
+    `CREATE TABLE IF NOT EXISTS workflow_instances (
+			_id VARCHAR(36) PRIMARY KEY,
+			tenantId VARCHAR(36),
+			entryId VARCHAR(36) NOT NULL,
+			collectionId VARCHAR(255) NOT NULL,
+			currentState VARCHAR(100) NOT NULL,
+			history JSON NOT NULL,
+			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX entry_idx (entryId, collectionId)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   ];
 
   for (const query of queries) {

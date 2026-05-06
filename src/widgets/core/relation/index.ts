@@ -65,8 +65,10 @@ const validationSchema = (field: FieldInstance & RelationProps) => {
       : nullish(arraySchema);
   }
 
-  const schema = pipe(string(), minLength(1, "An entry must be selected."));
-  return field.required ? schema : nullish(schema);
+  if (field.required) {
+    return pipe(string(), minLength(1, "An entry must be selected."));
+  }
+  return nullish(string());
 };
 
 // Create the widget definition using the factory.

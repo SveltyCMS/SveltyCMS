@@ -154,6 +154,14 @@ When falling back from unified interfaces to adapter-specific implementations (e
 
 For specialized testing of edge cases (e.g. injecting network failures or verifying ESM mocking with `vi.hoisted()`), these principles are mirrored in our White-Box Unit Tests. However, in the Black-Box suite, verify the _Network Layer_ explicitly (fetching via HTTP) to guarantee that SvelteKit's parsing, middleware chain, and payload validation operate as a single harmonious unit.
 
+### 5. Widget Logic Validation (No-Mount Strategy)
+
+To maintain extreme test velocity, widgets are tested as logic units rather than UI components. By isolating the `validationSchema` from the Svelte component, we verify the data contract without the overhead of DOM mounting.
+
+- **Portable Verification**: Tests reside within the widget folder (`src/widgets/custom/.../tests/`) and execute via Bun.
+- **Strict Contracts**: Every widget must pass a "Boundary Chaos" test, ensuring it rejects invalid data types and out-of-range values.
+- **Schema Parity**: Unit tests use the exact same Valibot schema that the production API uses for server-side validation.
+
 ---
 
 > [!IMPORTANT]

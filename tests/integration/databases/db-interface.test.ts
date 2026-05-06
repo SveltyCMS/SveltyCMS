@@ -686,9 +686,16 @@ describe("Database Interface Contract Tests", () => {
 
       expect(existsRes.data).toBe(true);
 
-      const deleteRes = await db.crud.delete(collection, docId, {
-        tenantId: TEST_TENANT,
-      });
+      let deleteRes;
+      try {
+        deleteRes = await db.crud.delete(collection, docId, {
+          tenantId: TEST_TENANT,
+        });
+      } catch (err: any) {
+        console.error("DELETE CRASHED. Error keys:", err ? Object.keys(err) : "null");
+        console.error("Error message:", err?.message);
+        throw err;
+      }
 
       expect(deleteRes.success).toBe(true);
     });

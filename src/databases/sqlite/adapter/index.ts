@@ -36,37 +36,26 @@ import { AdapterCore } from "./adapter-core";
 export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
   public readonly type = "sqlite";
   public readonly system!: import("../../db-interface").ISystemAdapter;
-  declare public readonly monitoring: import("../../db-interface").IMonitoringAdapter;
-  declare public readonly crud: CrudModule;
-  declare public readonly auth: AuthModule;
-  public readonly content!: ContentModule;
-  declare public readonly media: MediaModule;
-  declare public readonly batch: BatchModule;
-  declare public readonly collection: CollectionModule;
+  public auth!: AuthModule;
+  public content!: ContentModule;
+  public media!: MediaModule;
+  public collection!: CollectionModule;
+  public monitoring!: import("../../db-interface").IMonitoringAdapter;
   public readonly utils = utils;
 
   constructor() {
     super();
 
-    // Use Object.defineProperty to ENSURE enumerability and visibility across all environments
-    const define = (prop: string, value: any) => {
-      Object.defineProperty(this, prop, {
-        value,
-        enumerable: true,
-        configurable: true,
-        writable: true,
-      });
-    };
-
-    define("crud", new CrudModule(this));
-    define("auth", new AuthModule(this));
-    define("content", new ContentModule(this));
-    define("media", new MediaModule(this));
-    define("collection", new CollectionModule(this));
-    define("batch", new BatchModule(this));
+    // Initialize modules
+    this.auth = new AuthModule(this);
+    this.content = new ContentModule(this);
+    this.media = new MediaModule(this);
+    this.collection = new CollectionModule(this);
+    this.crud = new CrudModule(this);
+    this.batch = new BatchModule(this);
 
     // Initialize nested adapters
-    define("system", {
+    this.system = {
       preferences: new PreferencesModule(this),
       virtualFolder: new VirtualFoldersModule(this),
       themes: new ThemesModule(this),
@@ -75,15 +64,13 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
       jobs: new JobsModule(this),
       tenants: new TenantsModule(this),
       health: new HealthModule(this),
-    });
+    } as any;
 
-    define("monitoring", {
+    this.monitoring = {
       performance: new PerformanceModule(this),
       cache: new CacheModule(this),
       getConnectionPoolStats: async () =>
         this.wrap(async () => {
-          // SQLite doesn't have a connection pool in the same way asPG/MariaDB,
-          // but we return dummy stats or research Bun-specific pool stats if available.
           return {
             total: 1,
             active: 1,
@@ -92,7 +79,7 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
             avgConnectionTime: 0,
           };
         }, "POOL_STATS_FAILED"),
-    });
+    } as any;
   }
 
   public async ensureAuth(): Promise<void> {

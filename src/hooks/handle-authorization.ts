@@ -9,7 +9,7 @@
  * - Removed redundant role deduplication
  */
 
-import { hasPermissionByAction } from "@src/databases/auth/permissions";
+import { AuthGuardService } from "@src/services/security/auth-guard";
 import { isAdmin, isStaticOrInternalRequest, isPublicRoute } from "@utils/hook-utils";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
@@ -180,7 +180,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
       locals.isAdmin = isAdminUser;
       locals.hasAdminPermission = isAdminUser;
       locals.hasManageUsersPermission =
-        isAdminUser || hasPermissionByAction(user, "manage", "user", undefined, roles);
+        isAdminUser || AuthGuardService.checkPermissions(user, "manage", "user", undefined, roles);
 
       if (isPublic && !isApi) throw redirect(302, "/");
     } else if (!(isPublic || locals.isFirstUser)) {

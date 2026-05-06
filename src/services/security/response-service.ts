@@ -6,10 +6,12 @@
 import { logger } from "@utils/logger";
 import { building } from "$app/environment";
 import { metricsService } from "../observability/metrics-service";
-import { SECURITY_PATTERNS } from "./patterns";
+import { AuthGuardService } from "./auth-guard";
 import { securityStore } from "./state-store";
 import { RateLimiterMemory, RateLimiterRedis } from "rate-limiter-flexible";
 import { cacheService } from "@src/databases/cache/cache-service";
+import fs from "node:fs/promises";
+import path from "node:path";
 import type {
   SecurityIncident,
   SecurityPolicy,
@@ -86,9 +88,12 @@ class SecurityResponseService {
   private readonly limiters = new Map<string, RateLimiterMemory | RateLimiterRedis>();
   private readonly lastAlertTime = new Map<string, number>();
   private readonly ALERT_COOLDOWN = 5 * 60 * 1000;
+  private restoredData: Record<string, any> = {};
+  private readonly DUMP_PATH = path.resolve(process.cwd(), "config/database/security_rl_dump.json");
 
   constructor() {
     this.policies = [...DEFAULT_POLICIES];
+    this.restoreState();
   }
 
   private async getOrCreateLimiter(
@@ -120,9 +125,18 @@ class SecurityResponseService {
       limiter = new RateLimiterRedis({ storeClient: redisClient, ...options });
     } else {
       limiter = new RateLimiterMemory(options);
+      // 🚀 Restore state if available
+      if (this.restoredData[cacheKey]) {
+        try {
+          limiter.restore(this.restoredData[cacheKey]);
+          delete this.restoredData[cacheKey]; // Clear after restore
+        } catch (err) {
+          logger.debug(`[Security] Failed to restore state for ${cacheKey}`, err);
+        }
+      }
     }
 
-    this.limiters.set(cacheKey, limiter); // Fixed: was using 'scope' instead of 'cacheKey'
+    this.limiters.set(cacheKey, limiter);
     return limiter;
   }
 
@@ -202,12 +216,7 @@ class SecurityResponseService {
 
     // 2. Scan User Agent
     const userAgent = request.headers.get("user-agent") || "";
-    for (const pattern of SECURITY_PATTERNS.suspicious_ua) {
-      if (pattern.test(userAgent)) {
-        maxThreat = this.upgradeThreat(maxThreat, "high");
-        break;
-      }
-    }
+    maxThreat = this.upgradeThreat(maxThreat, AuthGuardService.scanUserAgent(userAgent));
 
     // 3. Scan Body (Only for state-changing methods)
     const mutationMethods = ["POST", "PUT", "PATCH", "DELETE"];
@@ -247,12 +256,7 @@ class SecurityResponseService {
 
     // App-specific threats
     const fullUrl = url.pathname + url.search;
-    for (const pattern of SECURITY_PATTERNS.app_threats) {
-      if (pattern.test(fullUrl)) {
-        maxThreat = this.upgradeThreat(maxThreat, "high");
-        break;
-      }
-    }
+    maxThreat = this.upgradeThreat(maxThreat, AuthGuardService.scanUrl(fullUrl));
 
     return maxThreat;
   }
@@ -277,29 +281,7 @@ class SecurityResponseService {
   }
 
   private checkValue(value: string, checkLdap = false): ThreatLevel {
-    if (!value || value.length > SCAN_BODY_MAX_SIZE) return "none";
-    const decoded = this.tryDecode(value);
-    const content = (value + " " + decoded).substring(0, SCAN_BODY_MAX_SIZE);
-
-    for (const pattern of SECURITY_PATTERNS.sqli) if (pattern.test(content)) return "critical";
-    for (const pattern of SECURITY_PATTERNS.commandInjection)
-      if (pattern.test(content)) return "critical";
-    for (const pattern of SECURITY_PATTERNS.xss) if (pattern.test(content)) return "high";
-    for (const pattern of SECURITY_PATTERNS.pathTraversal) if (pattern.test(content)) return "high";
-    if (checkLdap) {
-      for (const pattern of SECURITY_PATTERNS.ldapInjection)
-        if (pattern.test(content)) return "high";
-    }
-
-    return "none";
-  }
-
-  private tryDecode(value: string): string {
-    try {
-      return decodeURIComponent(value);
-    } catch {
-      return "";
-    }
+    return AuthGuardService.scanPayload(value, checkLdap);
   }
 
   private upgradeThreat(current: ThreatLevel, next: ThreatLevel): ThreatLevel {
@@ -544,8 +526,53 @@ class SecurityResponseService {
     return incidents.filter((i) => !i.resolved);
   }
 
-  public destroy(): void {
-    // No manual cleanup needed
+  public async destroy(): Promise<void> {
+    await this.dumpState();
+  }
+
+  private async dumpState(): Promise<void> {
+    if (building) return;
+    const data: Record<string, any> = {};
+    let count = 0;
+    for (const [key, limiter] of this.limiters.entries()) {
+      if (limiter instanceof RateLimiterMemory) {
+        data[key] = limiter.dump();
+        count++;
+      }
+    }
+    if (count === 0) return;
+
+    try {
+      await fs.mkdir(path.dirname(this.DUMP_PATH), { recursive: true });
+      await fs.writeFile(this.DUMP_PATH, JSON.stringify(data), "utf8");
+      logger.info(`[Security] Rate limiter state dumped (${count} limiters)`);
+    } catch (err) {
+      logger.error("[Security] Failed to dump rate limiter state", err);
+    }
+  }
+
+  private async restoreState(): Promise<void> {
+    if (building) return;
+    try {
+      if (
+        !(await fs
+          .access(this.DUMP_PATH)
+          .then(() => true)
+          .catch(() => false))
+      )
+        return;
+
+      const raw = await fs.readFile(this.DUMP_PATH, "utf8");
+      this.restoredData = JSON.parse(raw);
+      const count = Object.keys(this.restoredData).length;
+      if (count > 0) {
+        logger.info(`[Security] Rate limiter state loaded (${count} pending restores)`);
+      }
+      // Clean up file after loading to prevent stale restores on crash
+      await fs.unlink(this.DUMP_PATH).catch(() => {});
+    } catch (err) {
+      logger.error("[Security] Failed to restore rate limiter state", err);
+    }
   }
 }
 

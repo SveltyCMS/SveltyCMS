@@ -443,10 +443,20 @@ export class CollectionsNamespace {
     return contentSystem.reorderContentNodes(items, tenantId);
   }
 
-  async getRevisions(collectionId: string, entryId: string, options: LocalApiOptions = {}) {
-    const { tenantId } = options;
-    return this._dbAdapter.content.revisions.getHistory(entryId as DatabaseId, {
-      filter: { collectionId: collectionId as any, tenantId: tenantId as any },
+  async getRevisions(
+    collectionId: string,
+    entryId: string,
+    options: LocalApiOptions & { limit?: number; page?: number } = {},
+  ) {
+    const { tenantId, limit, page } = options;
+    const { HistoryService } = await import("@src/services/content/history-service");
+    return HistoryService.getRevisions({
+      collectionId,
+      entryId,
+      tenantId: tenantId as string,
+      dbAdapter: this._dbAdapter,
+      limit: limit || 100,
+      page: page || 1,
     });
   }
 

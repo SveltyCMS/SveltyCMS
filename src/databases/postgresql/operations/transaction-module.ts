@@ -37,13 +37,17 @@ export class TransactionModule {
           },
           // 🚀 Add basic CRUD support for the benchmark
           insert: async (collection: string, data: any, options: any = {}) =>
-            this.core.crud.insert(collection, data, { ...options, tx: _tx }),
+            this.core.crud.insert(collection, data, { ...options, transaction: { db: _tx } }),
           update: async (collection: string, id: any, data: any, options: any = {}) =>
-            this.core.crud.update(collection, id, data, { ...options, tx: _tx }),
+            this.core.crud.update(collection, id, data, { ...options, transaction: { db: _tx } }),
           delete: async (collection: string, id: any, options: any = {}) =>
-            this.core.crud.delete(collection, id, { ...options, tx: _tx }),
+            this.core.crud.delete(collection, id, { ...options, transaction: { db: _tx } }),
           findById: async (collection: string, id: any, options: any = {}) =>
-            this.core.crud.findOne(collection, { _id: id } as any, { ...options, tx: _tx }),
+            this.core.crud.findOne(collection, { _id: id } as any, {
+              ...options,
+              transaction: { db: _tx },
+            }),
+          db: _tx,
         };
 
         const result = await fn(dbTransaction);

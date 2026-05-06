@@ -72,13 +72,18 @@ export abstract class BaseAdapter {
    * Standard error handler that logs and returns a formatted DatabaseResult.
    */
   public handleError<T>(error: unknown, code: string, message?: string): DatabaseResult<T> {
-    const errMessage =
-      message ||
-      (error instanceof Error
-        ? error.message
-        : typeof error === "object" && error !== null
-          ? JSON.stringify(error)
-          : String(error));
+    console.error("RAW ADAPTER ERROR:", error);
+    let errorString = String(error);
+    if (error instanceof Error) {
+      errorString = error.message;
+    } else if (typeof error === "object" && error !== null) {
+      try {
+        errorString = JSON.stringify(error);
+      } catch (e) {
+        errorString = "[Cyclic or unstringifiable object]";
+      }
+    }
+    const errMessage = message || errorString;
     logger.error(`Database adapter error [${code}]:`, errMessage);
 
     return {

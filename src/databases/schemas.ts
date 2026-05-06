@@ -13,6 +13,7 @@ import {
   optional,
   pipe,
   string,
+  toNumber,
   transform,
   union,
   safeParse,
@@ -23,16 +24,7 @@ import type { DatabaseId, ISODateString } from "../content/types";
 // ----------------- HELPERS -----------------
 
 /** Helper to allow numeric strings (from env) to be used where numbers are expected */
-const coercedNumber = optional(
-  union([
-    number(),
-    pipe(
-      string(),
-      transform((val) => Number(val)),
-      number(),
-    ),
-  ]),
-);
+const coercedNumber = optional(union([number(), pipe(string(), toNumber(), number())]));
 
 // ----------------- CONFIGURATION SCHEMAS -----------------
 

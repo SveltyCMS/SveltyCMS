@@ -25,14 +25,14 @@ describe("Address Widget - Validation", () => {
 
   it("should validate a correct address object", () => {
     const field = AddressWidget({ label: "Home" });
-    const schema = field.widget.validationSchema as any;
+    const schema = (field.widget.validationSchema as any)(field);
     const result = safeParse(schema, validAddress);
     expect(result.success).toBe(true);
   });
 
   it("should reject missing required fields", () => {
     const field = AddressWidget({ label: "Home" });
-    const schema = field.widget.validationSchema as any;
+    const schema = (field.widget.validationSchema as any)(field);
 
     const invalidAddress = { ...validAddress, street: "" };
     expect(safeParse(schema, invalidAddress).success).toBe(false);
@@ -44,7 +44,7 @@ describe("Address Widget - Validation", () => {
 
   it("should reject invalid types", () => {
     const field = AddressWidget({ label: "Home" });
-    const schema = field.widget.validationSchema as any;
+    const schema = (field.widget.validationSchema as any)(field);
 
     const invalidLat = { ...validAddress, latitude: "not-a-number" };
     expect(safeParse(schema, invalidLat).success).toBe(false);
@@ -52,7 +52,7 @@ describe("Address Widget - Validation", () => {
 
   it("should validate 2-letter country code min length", () => {
     const field = AddressWidget({ label: "Home" });
-    const schema = field.widget.validationSchema as any;
+    const schema = (field.widget.validationSchema as any)(field);
 
     const shortCountry = { ...validAddress, country: "D" };
     expect(safeParse(schema, shortCountry).success).toBe(false);

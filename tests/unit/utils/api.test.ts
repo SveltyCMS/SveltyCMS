@@ -26,7 +26,7 @@ describe("API Client Utilities", () => {
 
   beforeEach(() => {
     globalFetchMock = vi.fn();
-    vi.stubGlobal("fetch", globalFetchMock);
+    (globalThis as any).fetch = globalFetchMock;
 
     // Clear internal cache by trying to invalidate
     invalidateCollectionCache("test-collection");
@@ -34,7 +34,6 @@ describe("API Client Utilities", () => {
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
 

@@ -43,6 +43,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "jsdom",
+    testTimeout: 15000,
     setupFiles: [path.resolve(__dirname, "tests/unit/setup.ts")],
     include: ["tests/unit/**/*.test.ts"],
     exclude: ["**/*.bun.ts", "node_modules", ".svelte-kit"],

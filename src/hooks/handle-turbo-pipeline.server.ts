@@ -215,10 +215,14 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       systemState.overallState === "WARMING" ||
       systemState.overallState === "DEGRADED";
 
-    // ✨ SMART BYPASS: If system is operationally ready, we know setup is complete.
-    // This avoids redundant filesystem/DB checks on every single request.
+    const isTestMode =
+      process.env.TEST_MODE === "true" ||
+      process.env.VITE_TEST_MODE === "true" ||
+      process.env.BENCHMARK === "true";
+
     let setupState: SetupState;
-    if (isSystemOperationallyReady) {
+
+    if (isSystemOperationallyReady && !isTestMode) {
       setupState = SetupState.COMPLETE;
     } else {
       // ── 3. ROBUST SETUP REDIRECT (FAST-PATH) ─────────────────────────────────
@@ -260,7 +264,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         // to show the "Admin created" step etc.
         const isSetupRoute =
           pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
-        if (isSetupRoute) {
+        if (isSetupRoute || isTestMode) {
           setupState = await getSetupState();
         }
       }

@@ -24,7 +24,7 @@ interface AggregationField {
 
 import {
   check,
-  isoDate,
+  isoTimestamp,
   nullable,
   object,
   pipe,
@@ -37,8 +37,8 @@ import type { DateRangeProps } from "./types";
 const createValidationSchema = (field: DateRangeProps) => {
   const schema = pipe(
     object({
-      start: pipe(string(), isoDate()),
-      end: pipe(string(), isoDate()),
+      start: pipe(string(), isoTimestamp()),
+      end: pipe(string(), isoTimestamp()),
     }),
     check(
       (data) => new Date(data.start) <= new Date(data.end),

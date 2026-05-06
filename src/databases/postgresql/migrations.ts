@@ -375,6 +375,105 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 
     // ── Partial index for unconsumed tokens ──
     "CREATE INDEX IF NOT EXISTS auth_tokens_active_idx ON auth_tokens (token) WHERE consumed = FALSE AND blocked = FALSE",
+
+    // Audit Logs
+    `CREATE TABLE IF NOT EXISTS audit_logs (
+			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+			"action" VARCHAR(255) NOT NULL,
+			"actorEmail" VARCHAR(255),
+			"actorId" VARCHAR(36),
+			"actorRole" VARCHAR(50),
+			"correlationId" VARCHAR(36),
+			"details" JSONB NOT NULL DEFAULT '{}',
+			"errorDetails" TEXT,
+			"eventType" VARCHAR(100) NOT NULL,
+			"ipAddress" VARCHAR(45),
+			"result" VARCHAR(50) NOT NULL,
+			"sessionId" VARCHAR(36),
+			"severity" VARCHAR(20) NOT NULL,
+			"targetId" VARCHAR(255),
+			"targetType" VARCHAR(100),
+			"timestamp" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"userAgent" TEXT,
+			"tenantId" VARCHAR(36),
+			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+    `CREATE INDEX IF NOT EXISTS audit_logs_timestamp_idx ON audit_logs ("timestamp")`,
+    `CREATE INDEX IF NOT EXISTS audit_logs_event_type_idx ON audit_logs ("eventType")`,
+    `CREATE INDEX IF NOT EXISTS audit_logs_tenant_idx ON audit_logs ("tenantId")`,
+
+    // Svelty Jobs
+    `CREATE TABLE IF NOT EXISTS svelty_jobs (
+			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+			"taskType" VARCHAR(255) NOT NULL,
+			"payload" JSONB NOT NULL DEFAULT '{}',
+			"status" VARCHAR(50) NOT NULL DEFAULT 'pending',
+			"attempts" INT NOT NULL DEFAULT 0,
+			"maxAttempts" INT NOT NULL DEFAULT 3,
+			"nextRunAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"lastError" TEXT,
+			"tenantId" VARCHAR(36),
+			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+    `CREATE INDEX IF NOT EXISTS svelty_jobs_status_idx ON svelty_jobs (status)`,
+    `CREATE INDEX IF NOT EXISTS svelty_jobs_next_run_idx ON svelty_jobs ("nextRunAt")`,
+    `CREATE INDEX IF NOT EXISTS svelty_jobs_tenant_idx ON svelty_jobs ("tenantId")`,
+
+    // 404 Logs
+    `CREATE TABLE IF NOT EXISTS "404_logs" (
+			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+			"path" VARCHAR(2000) NOT NULL,
+			"tenantId" VARCHAR(36) NOT NULL,
+			"hits" INT NOT NULL DEFAULT 1,
+			"lastHit" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"metadata" JSONB NOT NULL DEFAULT '{}',
+			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+    `CREATE INDEX IF NOT EXISTS "404_logs_path_tenant_idx" ON "404_logs" (path, "tenantId")`,
+
+    // Redirects MV
+    `CREATE TABLE IF NOT EXISTS redirects_mv (
+			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+			"tenantId" VARCHAR(36) NOT NULL,
+			"from" VARCHAR(2000) NOT NULL,
+			"to" VARCHAR(2000) NOT NULL,
+			"type" INT NOT NULL DEFAULT 301,
+			"isRegex" BOOLEAN NOT NULL DEFAULT FALSE,
+			"active" BOOLEAN NOT NULL DEFAULT TRUE,
+			"metadata" JSONB NOT NULL DEFAULT '{}',
+			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+    `CREATE INDEX IF NOT EXISTS redirects_mv_tenant_from_idx ON redirects_mv ("tenantId", "from")`,
+
+    // Workflow Definitions
+    `CREATE TABLE IF NOT EXISTS workflow_definitions (
+			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+			"tenantId" VARCHAR(36),
+			"collectionId" VARCHAR(255) NOT NULL,
+			"name" VARCHAR(255) NOT NULL,
+			"description" TEXT,
+			"states" JSONB NOT NULL DEFAULT '[]',
+			"transitions" JSONB NOT NULL DEFAULT '[]',
+			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+
+    // Workflow Instances
+    `CREATE TABLE IF NOT EXISTS workflow_instances (
+			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+			"tenantId" VARCHAR(36),
+			"entryId" VARCHAR(36) NOT NULL,
+			"collectionId" VARCHAR(255) NOT NULL,
+			"currentState" VARCHAR(100) NOT NULL,
+			"history" JSONB NOT NULL DEFAULT '[]',
+			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+    `CREATE INDEX IF NOT EXISTS workflow_instances_entry_idx ON workflow_instances ("entryId", "collectionId")`,
   ];
 
   for (const query of queries) {

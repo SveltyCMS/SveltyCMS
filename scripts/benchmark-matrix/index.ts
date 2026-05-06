@@ -355,9 +355,9 @@ async function main() {
 
 if (process.argv.includes("--generate")) {
   log.info("🔍 Crawling results directory for standalone report generation...");
-  generateFinalReport()
-    .then(async (regressions) => {
-      const results = await scanResultsDirectory();
+  scanResultsDirectory()
+    .then(async (results) => {
+      const regressions = await generateFinalReport(results);
       await writeCISummary(results, regressions);
       log.success("✅ Standalone report generated (MDX + JSON).");
       process.exit(0);

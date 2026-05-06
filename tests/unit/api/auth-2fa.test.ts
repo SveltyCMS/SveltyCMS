@@ -3,11 +3,13 @@
  * @description Whitebox unit tests for 2FA Authentication API endpoints
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+const { describe, it, expect, vi, beforeEach } = (globalThis as any).vi
+  ? (globalThis as any)
+  : await import("vitest");
 import { createMockRequestEvent } from "../utils/mock-event";
 
-const { mockDbAdapter } = vi.hoisted(() => ({
-  mockDbAdapter: {
+const { mockDbAdapter, mockTwoFactorAuthService } = vi.hoisted(() => {
+  const mockDbAdapter = {
     auth: {
       authInterface: {},
       validateSession: vi.fn(),
@@ -52,8 +54,19 @@ const { mockDbAdapter } = vi.hoisted(() => ({
       update: vi.fn(),
       delete: vi.fn(),
     },
-  },
-}));
+  };
+
+  const mockTwoFactorAuthService = {
+    verify2FA: vi.fn(),
+    initiate2FASetup: vi.fn(),
+    complete2FASetup: vi.fn(),
+    disable2FA: vi.fn(),
+    get2FAStatus: vi.fn(),
+    regenerateBackupCodes: vi.fn(),
+  };
+
+  return { mockDbAdapter, mockTwoFactorAuthService };
+});
 
 // Mock all dependencies
 vi.mock("@src/databases/db", () => {
@@ -65,23 +78,14 @@ vi.mock("@src/databases/db", () => {
   };
 });
 
-const { mockTwoFactorAuthService } = vi.hoisted(() => ({
-  mockTwoFactorAuthService: {
-    verify2FA: vi.fn(),
-    initiate2FASetup: vi.fn(),
-    complete2FASetup: vi.fn(),
-    disable2FA: vi.fn(),
-    get2FAStatus: vi.fn(),
-    regenerateBackupCodes: vi.fn(),
-  },
-}));
-
-vi.mock("@src/databases/auth/two-factor-auth", () => ({
-  getDefaultTwoFactorAuthService: vi.fn().mockReturnValue(mockTwoFactorAuthService),
-  TwoFactorAuthService: vi.fn().mockImplementation(function () {
-    return mockTwoFactorAuthService;
-  }),
-}));
+vi.mock("@src/databases/auth/two-factor-auth", () => {
+  return {
+    getDefaultTwoFactorAuthService: vi.fn(() => mockTwoFactorAuthService),
+    TwoFactorAuthService: vi.fn().mockImplementation(function () {
+      return mockTwoFactorAuthService;
+    }),
+  };
+});
 
 vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),

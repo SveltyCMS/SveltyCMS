@@ -1028,6 +1028,8 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     ],
   };
 
+
+
   const existingColRes = await activeDb.collection.listSchemas(tenantId);
   const existingSchemas = existingColRes.success ? (existingColRes.data as any[]) : [];
   const exists = existingSchemas.some((s: any) => s._id === STABLE_COLLECTION);

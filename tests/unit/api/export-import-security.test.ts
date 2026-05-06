@@ -3,12 +3,16 @@
  * @description Unit tests for Export/Import API security, focusing on tenant isolation and IDOR.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";
-import { dbAdapter } from "@src/databases/db";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 
-const { mockAdapter } = vi.hoisted(() => ({
-  mockAdapter: {
+let dispatcherPOST: any;
+beforeAll(async () => {
+  const mod = await import("../../../src/routes/api/[...path]/+server");
+  dispatcherPOST = mod.POST;
+});
+
+const { dbAdapter } = vi.hoisted(() => {
+  const dbAdapter = {
     auth: {
       getAllUsers: vi.fn().mockResolvedValue({ success: true, data: [] }),
       getUserCount: vi.fn().mockResolvedValue({ success: true, data: 0 }),
@@ -28,14 +32,15 @@ const { mockAdapter } = vi.hoisted(() => ({
     collection: {
       getModel: vi.fn(),
     },
-  },
-}));
+  };
+  return { dbAdapter };
+});
 
 // Mock db adapter
 vi.mock("@src/databases/db", () => ({
-  dbAdapter: mockAdapter,
+  dbAdapter: dbAdapter,
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-  getDb: vi.fn().mockReturnValue(mockAdapter),
+  getDb: vi.fn().mockReturnValue(dbAdapter),
 }));
 
 // Mock settings service

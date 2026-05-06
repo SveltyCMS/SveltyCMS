@@ -15,10 +15,9 @@ import { toDbId } from "@src/utils/db-id";
  */
 export function createSchemaProxy(adapter: IDBAdapter): any {
   return new Proxy(adapter, {
-    get(target, prop: string | symbol) {
-      // 1. If property exists on target, return it (properly bound)
-      if (prop in target) {
-        const value = (target as any)[prop];
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+      if (value !== undefined) {
         return typeof value === "function" ? value.bind(target) : value;
       }
 

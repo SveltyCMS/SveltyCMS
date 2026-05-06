@@ -3,7 +3,9 @@
  * @description Comprehensive tests for handleAuthentication middleware (session management, rotation, caching)
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+const { describe, it, expect, beforeEach, vi } = (globalThis as any).vi
+  ? (globalThis as any)
+  : await import("vitest");
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import { handleAuthentication, clearAllSessionCaches } from "@src/hooks/handle-authentication";
 import { auth } from "@src/databases/db";
@@ -23,18 +25,6 @@ vi.mock("$app/navigation", () => ({
   afterNavigate: vi.fn(),
   beforeNavigate: vi.fn(),
 }));
-
-vi.mock("@sveltejs/kit", async () => {
-  const actual = await vi.importActual("@sveltejs/kit");
-  return {
-    ...actual,
-    error: vi.fn((status, message) => {
-      const err = new Error(message) as any;
-      err.status = status;
-      throw err;
-    }),
-  };
-});
 
 // --- Test Utilities ---
 

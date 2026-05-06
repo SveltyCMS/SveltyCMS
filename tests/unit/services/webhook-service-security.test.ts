@@ -5,16 +5,14 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { WebhookService, type WebhookEvent } from "@src/services/background/webhook-service";
 
-const { mockDb } = vi.hoisted(() => ({
-  mockDb: {
-    system: {
-      preferences: {
-        get: vi.fn(),
-        set: vi.fn(),
-      },
+const mockDb = {
+  system: {
+    preferences: {
+      get: vi.fn(),
+      set: vi.fn(),
     },
   },
-}));
+};
 
 vi.mock("@src/databases/db", () => ({
   dbAdapter: mockDb,

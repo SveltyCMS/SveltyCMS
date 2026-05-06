@@ -52,6 +52,8 @@ interface TokenCreateInput extends LocalApiOptions {
   userId: string;
 }
 
+import { AuthGuardService } from "@src/services/security/auth-guard";
+
 // ─── AuthNamespace ───────────────────────────────────────────────────────────
 
 /**
@@ -77,10 +79,7 @@ export class AuthNamespace {
     } = {},
   ) {
     const { type = "api", tenantId } = options;
-    const auth = await this.getAuth();
-    if (!auth) throw new AppError("Authentication system not initialized", 500);
-    // userId is not passed here, so we pass undefined as the second argument
-    return auth.validateToken(token, undefined, type as any, {
+    return AuthGuardService.validateToken(token, type, {
       tenantId: (tenantId || undefined) as DatabaseId,
     });
   }
@@ -438,6 +437,10 @@ export class TokensNamespace {
   }
 
   private async findToken(tokenId: string, tenantId?: DatabaseId): Promise<DatabaseResult<any>> {
+    if (!tokenId) {
+      return { success: true, data: null };
+    }
+
     let existing = await this._dbAdapter.crud.findOne("tokens", { token: tokenId } as any, {
       tenantId: tenantId as DatabaseId,
     });
@@ -454,6 +457,8 @@ export class TokensNamespace {
 
   async findById(tokenId: string, options: LocalApiOptions = {}) {
     const { tenantId } = options;
+    if (!tokenId) return null;
+
     return withTenant(
       tenantId ?? null,
       async () => {

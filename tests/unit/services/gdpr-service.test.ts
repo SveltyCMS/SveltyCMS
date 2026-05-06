@@ -56,7 +56,9 @@ describe("GDPRService", () => {
       expect(result.history).toHaveLength(1);
       expect(result.history[0].action).toBe("entry.create");
       expect(mockAuditLog.log).toHaveBeenCalledWith(
-        "gdpr.export",
+        "GDPR Data Export",
+        expect.anything(),
+        expect.anything(),
         expect.anything(),
         expect.anything(),
         expect.anything(),
@@ -89,7 +91,9 @@ describe("GDPRService", () => {
         { tenantId },
       );
       expect(mockAuditLog.log).toHaveBeenCalledWith(
-        "gdpr.erasure",
+        "GDPR Data Erasure",
+        expect.anything(),
+        expect.anything(),
         expect.anything(),
         expect.anything(),
         expect.anything(),

@@ -4,37 +4,15 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
+
+import { beforeAll } from "vitest";
+let dispatcherGET: any, dispatcherPOST: any;
+beforeAll(async () => {
+  const mod = await import("../../../src/routes/api/[...path]/+server");
+  dispatcherGET = mod.GET;
+  dispatcherPOST = mod.POST;
+});
 import { createMockRequestEvent } from "../utils/mock-event";
-
-// Mock dependencies
-vi.mock("@src/databases/db", () => ({
-  dbAdapter: {
-    auth: { getUserById: vi.fn() },
-  },
-  getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-  getAuth: vi.fn(),
-}));
-
-vi.mock("@src/databases/auth/saml-auth", () => ({
-  samlAuth: {
-    getConfig: vi.fn().mockResolvedValue({ success: true, config: {} }),
-    initializeLogin: vi.fn().mockResolvedValue({ success: true, url: "http://idp.com/auth" }),
-  },
-  getJackson: vi.fn().mockResolvedValue({}),
-  generateSAMLAuthUrl: vi.fn().mockResolvedValue("http://idp.com/auth"),
-}));
-
-vi.mock("@src/services/core/settings-service", () => ({
-  getPrivateSettingSync: vi.fn().mockReturnValue(false),
-  getPublicSettingSync: vi.fn().mockReturnValue(undefined),
-}));
-
-vi.mock("@utils/api-handler", () => ({
-  apiHandler: (fn: any) => fn,
-}));
-
-// Import dispatcher (handler)
-import { GET as dispatcherGET, POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";
 
 describe("SAML API Unit Tests", () => {
   const createMockEvent = (

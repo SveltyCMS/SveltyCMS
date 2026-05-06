@@ -3,39 +3,43 @@
  * @description Whitebox unit tests for Collections API endpoints
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 
-const { mockDbAdapter } = vi.hoisted(() => ({
-  mockDbAdapter: {
-    collection: {
-      getModel: vi.fn().mockResolvedValue({ name: "collection_test" }),
-      createModel: vi.fn().mockResolvedValue({ success: true }),
-    },
-    auth: {
-      getRoles: vi.fn().mockResolvedValue([]),
-    },
-    media: {},
-    widgets: {},
-    system: {
-      preferences: {
-        getMany: vi.fn().mockResolvedValue({ success: true, data: {} }),
-      },
-    },
-    crud: {
-      findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
-      findOne: vi.fn().mockResolvedValue({ success: true, data: {} }),
-      insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-id" } }),
-      update: vi.fn().mockResolvedValue({ success: true, data: { _id: "updated-id" } }),
-      delete: vi.fn().mockResolvedValue({ success: true }),
-    },
-    content: {
-      nodes: {
-        bulkUpdate: vi.fn().mockResolvedValue({ success: true, data: [] }),
-      },
-    },
-    transaction: vi.fn().mockImplementation((fn) => fn()),
+let dispatcher: any;
+beforeAll(async () => {
+  const mod = await import("../../../src/routes/api/[...path]/+server");
+  dispatcher = mod._handler;
+});
+
+const mockDbAdapter = {
+  collection: {
+    getModel: vi.fn().mockResolvedValue({ name: "collection_test" }),
+    createModel: vi.fn().mockResolvedValue({ success: true }),
   },
-}));
+  auth: {
+    getRoles: vi.fn().mockResolvedValue([]),
+  },
+  media: {},
+  widgets: {},
+  system: {
+    preferences: {
+      getMany: vi.fn().mockResolvedValue({ success: true, data: {} }),
+    },
+  },
+  crud: {
+    findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
+    findOne: vi.fn().mockResolvedValue({ success: true, data: {} }),
+    insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-id" } }),
+    update: vi.fn().mockResolvedValue({ success: true, data: { _id: "updated-id" } }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
+  },
+  content: {
+    nodes: {
+      bulkUpdate: vi.fn().mockResolvedValue({ success: true, data: [] }),
+    },
+  },
+  transaction: vi.fn().mockImplementation((fn: any) => fn()),
+};
 
 // Mock all dependencies
 vi.mock("@src/databases/db", () => ({
@@ -83,11 +87,11 @@ vi.mock("node:crypto", () => ({
 }));
 
 // Import dispatcher handler (raw logic for testing)
-import { _handler as dispatcher } from "@src/routes/api/[...path]/+server";
-const GET_LIST = dispatcher;
-const POST_CREATE = dispatcher;
-const PATCH_ENTRY = dispatcher;
-const DELETE_ENTRY = dispatcher;
+// In collections.test.ts, we use the _handler directly for various actions
+const GET_LIST = (event: any) => dispatcher(event);
+const POST_CREATE = (event: any) => dispatcher(event);
+const PATCH_ENTRY = (event: any) => dispatcher(event);
+const DELETE_ENTRY = (event: any) => dispatcher(event);
 
 import { createMockRequestEvent } from "../utils/mock-event";
 

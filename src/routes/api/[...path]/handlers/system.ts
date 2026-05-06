@@ -377,6 +377,11 @@ export async function handleAutomationRoutes(
   segments: string[],
 ) {
   const { request } = event;
+  if (process.env.VERBOSE_TESTS === "true") {
+    console.log(
+      `[handleAutomationRoutes] Method: ${request.method}, segments: ${segments.join(",")}, tenantId: ${tenantId}`,
+    );
+  }
   if (getPrivateSettingSync("MULTI_TENANT") === true && !tenantId) {
     throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
   }

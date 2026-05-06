@@ -19,7 +19,7 @@
 
 import { createWidget } from "@src/widgets/widget-factory";
 import { widget_date_description } from "@src/paraglide/messages";
-import { isoDate, pipe, string, nullable, type InferInput as ValibotInput } from "valibot";
+import { isoTimestamp, pipe, string, nullable, type InferInput as ValibotInput } from "valibot";
 import type { DateProps } from "./types";
 
 // Type for aggregation field parameter
@@ -32,7 +32,7 @@ interface AggregationField {
 const createValidationSchema = (field: DateProps) => {
   const schema = pipe(
     string("A value is required."),
-    isoDate("The date must be a valid ISO 8601 string."),
+    isoTimestamp("The date must be a valid ISO 8601 string."),
   );
 
   return field.required ? schema : nullable(schema);

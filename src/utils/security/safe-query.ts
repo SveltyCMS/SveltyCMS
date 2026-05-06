@@ -25,7 +25,7 @@ interface SafeQueryOptions {
  */
 export function safeQuery<T extends Record<string, any>>(
   query: T,
-  tenantId?: string | null | null,
+  tenantId?: string | null,
   options: SafeQueryOptions = {},
 ): T {
   // 1. Get private config
@@ -37,33 +37,25 @@ export function safeQuery<T extends Record<string, any>>(
   const isMultiTenant =
     (privateEnv as any)?.MULTI_TENANT === true || (privateEnv as any)?.MULTI_TENANT === "true";
 
-  if (isMultiTenant && !options.bypassTenantCheck) {
-    if (!tenantId) {
-      // Redact PII fields before logging
-      const PII_KEYS = new Set([
-        "email",
-        "security",
-        "username",
-        "name",
-        "phone",
-        "token",
-        "secret",
-      ]);
-      const redactedQuery = Object.fromEntries(
-        Object.entries(query).map(([k, v]) => [
-          k,
-          PII_KEYS.has(k.toLowerCase()) ? "[REDACTED]" : v,
-        ]),
-      );
-      logger.error(
-        `[SafeQuery] Security Violation! Query: ${JSON.stringify(redactedQuery)}, Options: ${JSON.stringify(options)}, MultiTenant: ${privateEnv?.MULTI_TENANT}`,
-      );
-      throw new AppError(
-        "Security Violation: Attempted to execute query without tenant context in Multi-Tenant mode.",
-        500,
-        "TENANT_CONTEXT_MISSING",
-      );
-    }
+  // 🛡️ SECURITY: If multi-tenancy is enabled but no tenantId provided, it's a violation
+  if (isMultiTenant && !tenantId && !options.bypassTenantCheck) {
+    // Redact PII fields before logging
+    const PII_KEYS = new Set(["email", "security", "username", "name", "phone", "token", "secret"]);
+    const redactedQuery = Object.fromEntries(
+      Object.entries(query).map(([k, v]) => [k, PII_KEYS.has(k.toLowerCase()) ? "[REDACTED]" : v]),
+    );
+    logger.error(
+      `[SafeQuery] Security Violation! Query: ${JSON.stringify(redactedQuery)}, Options: ${JSON.stringify(options)}, MultiTenant: ${privateEnv?.MULTI_TENANT}`,
+    );
+    throw new AppError(
+      "Security Violation: Attempted to execute query without tenant context in Multi-Tenant mode.",
+      500,
+      "TENANT_CONTEXT_MISSING",
+    );
+  }
+
+  // If a tenantId is provided (or we are in single-tenant mode), add it to the query
+  if (tenantId !== undefined && !options.bypassTenantCheck) {
     secureQuery.tenantId = tenantId;
   }
 

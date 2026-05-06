@@ -375,6 +375,28 @@ async function seedData(cms: any, authorsId: string, postsId: string): Promise<v
   );
 }
 
+async function provisionAdmin(db: any) {
+  const adminData = {
+    username: "admin",
+    email: "admin@example.com",
+    password: "Password123!",
+    role: "admin",
+    isAdmin: true,
+    isRegistered: true,
+  };
+
+  // Hash password manually to ensure Argon2id consistency
+  const argon2 = await import("argon2");
+  adminData.password = await argon2.hash(adminData.password);
+
+  try {
+    await db.auth.createUser(adminData);
+    log("✅ Admin re-provisioned for clean state.");
+  } catch (err) {
+    log(`Warning: Admin creation failed: ${err}`);
+  }
+}
+
 export async function main(): Promise<void> {
   try {
     log("Starting benchmark data setup...");
@@ -395,6 +417,13 @@ export async function main(): Promise<void> {
     let existingResult: any = null;
     let existingStable: any = null;
     let existingRedirects: any = null;
+    let existingAdmin: any = null;
+
+    try {
+      existingAdmin = await db.auth.getUserByEmail({ email: "admin@example.com" });
+    } catch {
+      /* Table missing */
+    }
 
     try {
       existingResult = await db.crud.findOne(
@@ -427,6 +456,7 @@ export async function main(): Promise<void> {
     }
 
     const hasData =
+      existingAdmin?.success &&
       existingResult?.success &&
       existingResult.data?._id === "author-1" &&
       existingStable?.success &&
@@ -463,6 +493,9 @@ export async function main(): Promise<void> {
           }
         }
       }
+
+      // Always provision admin after a clear
+      await provisionAdmin(db);
 
       // 🚀 SEED ESSENTIAL SETTINGS: Needed for CMS to function correctly
       log("Seeding essential system settings...");
@@ -505,27 +538,7 @@ export async function main(): Promise<void> {
 
     if (clearOnly) {
       log("✅ Database cleared (clear-only mode).");
-
-      const adminData = {
-        username: "admin",
-        email: "admin@example.com",
-        password: "Password123!",
-        role: "admin",
-        isAdmin: true,
-        isRegistered: true,
-      };
-
-      // Hash password manually to ensure Argon2id consistency
-      const argon2 = await import("argon2");
-      adminData.password = await argon2.hash(adminData.password);
-
-      try {
-        await db.auth.createUser(adminData);
-        log("✅ Admin re-provisioned for clean state.");
-      } catch (err) {
-        log(`Warning: Admin creation failed: ${err}`);
-      }
-
+      await provisionAdmin(db);
       process.exit(0);
     }
 

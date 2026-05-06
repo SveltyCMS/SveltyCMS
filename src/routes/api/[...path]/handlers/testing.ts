@@ -51,6 +51,10 @@ export async function handleTestingRoutes(
     const { invalidateSetupCache } = await import("@src/utils/setup-check");
     invalidateSetupCache(false, null);
 
+    // ✨ Fix: Reset system state store so the system transitions back to SETUP/INITIALIZING
+    const { resetSystemState } = await import("@src/stores/system/state");
+    resetSystemState();
+
     return rawResponse(event, { success: true, message: "System reset successfully" });
   }
 
