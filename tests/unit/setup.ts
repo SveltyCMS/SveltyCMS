@@ -1067,23 +1067,25 @@ const cacheMock = {
   reconfigure: mock(async () => true),
 };
 setGlobal("cacheService", cacheMock);
-moduleMock("@src/databases/cache/cache-service", () => ({
-  cacheService: cacheMock,
-  default: cacheMock,
-  CacheCategory,
-  getSessionCacheTTL: mock(() => 3600),
-  getUserPermCacheTTL: mock(() => 60),
-  getApiCacheTTL: mock(() => 300),
-  REDIS_TTL_S: 300,
-  USER_COUNT_CACHE_TTL_S: 300,
-  SESSION_CACHE_TTL_S: 3600,
-  API_CACHE_TTL_S: 300,
-  USER_PERM_CACHE_TTL_S: 60,
-  USER_COUNT_CACHE_TTL_MS: 300000,
-  SESSION_CACHE_TTL_MS: 3600000,
-  USER_PERM_CACHE_TTL_MS: 60000,
-  API_CACHE_TTL_MS: 300000,
-}));
+if (!isTestTarget("cache-service")) {
+  moduleMock("@src/databases/cache/cache-service", () => ({
+    cacheService: cacheMock,
+    default: cacheMock,
+    CacheCategory,
+    getSessionCacheTTL: mock(() => 3600),
+    getUserPermCacheTTL: mock(() => 60),
+    getApiCacheTTL: mock(() => 300),
+    REDIS_TTL_S: 300,
+    USER_COUNT_CACHE_TTL_S: 300,
+    SESSION_CACHE_TTL_S: 3600,
+    API_CACHE_TTL_S: 300,
+    USER_PERM_CACHE_TTL_S: 60,
+    USER_COUNT_CACHE_TTL_MS: 300000,
+    SESSION_CACHE_TTL_MS: 3600000,
+    USER_PERM_CACHE_TTL_MS: 60000,
+    API_CACHE_TTL_MS: 300000,
+  }));
+}
 
 moduleMock("sharp", () => {
   const sharpInstance: any = {
@@ -1115,12 +1117,13 @@ const settingsMock = {
   getPrivateSettingSync: mock((key: string) => {
     const env = (globalThis as any).privateEnv || (globalThis as any).__privateEnv;
     if (env && key in env) return env[key];
-    return {
+    const defaults: Record<string, any> = {
       DB_TYPE: "mongodb",
       MULTI_TENANT: false,
       FIREWALL_ENABLED: true,
       USE_REDIS: false,
-    }[key];
+    };
+    return defaults[key];
   }),
   getPublicSettingSync: mock((key: string) => (key === "SITE_NAME" ? "SveltyCMS Test" : undefined)),
   getPrivateSetting: mock(async (key: string) => {
@@ -1142,7 +1145,29 @@ const settingsMock = {
   getUntypedSetting: mock(async () => undefined),
 };
 if (!isTestTarget("settings-service")) {
-  moduleMock("@src/services/core/settings-service", () => settingsMock);
+  const factory = () => ({
+    settingsService: settingsMock,
+    loadSettingsCache: settingsMock.loadSettingsCache,
+    invalidateSettingsCache: settingsMock.invalidateSettingsCache,
+    getPrivateSetting: settingsMock.getPrivateSetting,
+    getPublicSetting: settingsMock.getPublicSetting,
+    getUntypedSetting: settingsMock.getUntypedSetting,
+    getPublicSettingSync: settingsMock.getPublicSettingSync,
+    getPrivateSettingSync: settingsMock.getPrivateSettingSync,
+    getAllSettings: settingsMock.getAllSettings,
+    setPrivateSetting: settingsMock.setSettingsCache,
+    updateSettingsFromSnapshot: settingsMock.updateSettingsFromSnapshot,
+    default: settingsMock,
+  });
+  try {
+    const sPath = import.meta.resolve("@src/services/core/settings-service");
+    mock.module(sPath, factory);
+    mock.module(sPath.replace(".ts", ""), factory);
+  } catch {
+    /* ignore */
+  }
+  moduleMock("@src/services/core/settings-service", factory);
+  moduleMock("@services/core/settings-service", factory);
 }
 
 const mockAuditLog = {
@@ -1263,7 +1288,10 @@ setGlobal("mockDbAdapter", mockDbAdapter);
 const dbMock = {
   dbAdapter: mockDbAdapter,
   auth: mockDbAdapter.auth,
-  getDb: () => mockDbAdapter,
+  getDb: () => {
+    if (process.env.TEST_MODE === "true") console.log("[setup.ts] dbMock.getDb called");
+    return mockDbAdapter;
+  },
   getAuth: () => mockDbAdapter.auth,
   getPrivateEnv: mock(
     () =>
@@ -1307,8 +1335,31 @@ const dbMock = {
   loadSettingsFromDB: mock(() => Promise.resolve(true)),
   isAuthReady: () => true,
 };
-moduleMock("@src/databases/db", () => dbMock);
-moduleMock("@databases/db", () => dbMock);
+  const dbFactory = () => ({
+    dbAdapter: mockDbAdapter,
+    auth: mockDbAdapter.auth,
+    getDb: dbMock.getDb,
+    getAuth: dbMock.getAuth,
+    getDbInitPromise: dbMock.getDbInitPromise,
+    ensureFullInitialization: dbMock.ensureFullInitialization,
+    getPrivateEnv: dbMock.getPrivateEnv,
+    loadPrivateConfig: mock(() => Promise.resolve({})),
+    reinitializeSystem: mock(() => Promise.resolve({})),
+    resetDbInitPromise: mock(() => {}),
+    dbInitPromise: mock(() => Promise.resolve({})),
+    default: dbMock,
+  });
+
+  try {
+    const dbPath = import.meta.resolve("@src/databases/db");
+    console.log(`[setup.ts] Resolved dbPath: ${dbPath}`);
+    mock.module(dbPath, dbFactory);
+    mock.module(dbPath.replace(".ts", ""), dbFactory);
+  } catch {
+    /* ignore */
+  }
+  moduleMock("@src/databases/db", dbFactory);
+  moduleMock("@databases/db", dbFactory);
 setGlobal("auth", dbMock.auth);
 
 moduleMock("@src/services/security/audit-service", () => {
@@ -1471,6 +1522,16 @@ if (!isTestTarget("metrics-service")) {
 }
 
 if (!isTestTarget("security-response-service")) {
+  try {
+    const rsPath = import.meta.resolve("@src/services/security/response-service");
+    console.log(`[setup.ts] Resolved rsPath: ${rsPath}`);
+    mock.module(rsPath, () => ({
+      securityResponseService: mockSecurityResponseService,
+      default: { securityResponseService: mockSecurityResponseService },
+    }));
+  } catch {
+    /* ignore */
+  }
   moduleMock("@src/services/security/response-service", () => ({
     securityResponseService: mockSecurityResponseService,
     default: { securityResponseService: mockSecurityResponseService },

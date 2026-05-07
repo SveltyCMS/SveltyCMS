@@ -268,7 +268,7 @@ const DATABASE_REGISTRY: Record<string, DriverDefinition> = {
   mongodb: {
     protocol: "mongodb",
     buildConnectionString: (c) => {
-      const auth = c.user ? `${c.user}:${c.password}@` : "";
+      const auth = c.user && c.user.trim() ? `${c.user}:${c.password}@` : "";
       return `mongodb://${auth}${c.host}:${c.port}/${c.name}`;
     },
   },

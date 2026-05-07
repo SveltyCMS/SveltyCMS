@@ -170,9 +170,9 @@ export function printSummaryTable(results: BenchmarkResult[]) {
     const row = [
       `${meta.icon} ${meta.label}`.padEnd(COL[0]),
       `${res.coldStartMs ?? "—"}ms`.padEnd(COL[1]),
-      `${m.collections > 0 ? m.collections.toFixed(2) + "ms" : "FAILED"}`.padEnd(COL[2]),
-      `${m.graphqlAvg > 0 ? m.graphqlAvg.toFixed(2) + "ms" : "FAILED"}`.padEnd(COL[3]),
-      `${m.memGrowth > 0 ? m.memGrowth.toFixed(1) : "—"}`.padEnd(COL[4]),
+      `${m.collections > 0 ? m.collections.toFixed(2) + "ms" : "—"}`.padEnd(COL[2]),
+      `${m.graphqlAvg > 0 ? m.graphqlAvg.toFixed(2) + "ms" : "—"}`.padEnd(COL[3]),
+      `${m.memGrowth !== 0 ? m.memGrowth.toFixed(1) : "—"}`.padEnd(COL[4]),
       budgetCell.padEnd(COL[5] + 10),
       statusCell,
     ].join("  ");

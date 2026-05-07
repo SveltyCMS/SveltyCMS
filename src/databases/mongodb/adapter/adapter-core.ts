@@ -4,6 +4,7 @@
  */
 
 import mongoose from "mongoose";
+import { queryTranslator } from "../../agnostic-core/query-ir";
 import { logger } from "@utils/logger";
 import { BaseAdapter } from "../../base-adapter";
 import type {
@@ -175,8 +176,7 @@ export class MongoAdapterCore extends BaseAdapter {
       return query;
     }
 
-    // 1. Translate to IR (HEAVY: Uses dynamic require and complex AST walk)
-    const { queryTranslator } = require("../../agnostic-core/query-ir");
+    // 1. Translate to IR (Uses IR translator)
     const ir = queryTranslator.translate("temp", query);
 
     // 2. Map IR back to Mongo Filter (Ensures operator consistency)

@@ -549,9 +549,10 @@ graph TB
         B7 --> B8
         B8 --> B9[handleSystemState]
         B9 --> B10[Boot Phase: SETUP]
-        B10 --> B11[Boot Phase: CORE]
-        B11 --> B12[Boot Phase: FULL]
-        B12 --> B13[READY State]
+        B10 --> B11[Boot Phase: CORE (Auth/Content)]
+        B11 --> B13[READY State]
+        B13 --> B12[Boot Phase: FULL (Cache/Themes)]
+        B12 --> B14[WARMED State]
     end
 
     A17 -.->|Restart Server| B1
@@ -618,9 +619,10 @@ graph TB
     H --> I[First HTTP Request]
     I --> J[handleSystemState]
     J --> K[Boot Phase: SETUP (Connection)]
-    K --> L[Boot Phase: CORE (Auth/Settings)]
-    L --> M[Boot Phase: FULL (Content/Widgets)]
-    M --> N[READY State]
+    K --> L[Boot Phase: CORE (Auth/Settings/Content)]
+    L --> N[READY State]
+    N --> M[Boot Phase: FULL (Cache/Themes/Background)]
+    M --> P[WARMED State]
 
     N --> Q[Content System Auto-Init]
     Q --> R[Register Collections]

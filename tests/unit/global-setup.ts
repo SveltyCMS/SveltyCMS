@@ -47,26 +47,44 @@ import {
 const viShim = {
   fn: (impl?: any) => {
     const f = mock(impl || (() => {}));
-    Object.defineProperty(f, "mockImplementation", {
-      value: (fn: any) => {
-        (f as any)._fn = fn;
-        return f;
-      },
-      writable: true,
+    const augment = (prop: string, val: any) => {
+      try {
+        Object.defineProperty(f, prop, {
+          value: val,
+          writable: true,
+          configurable: true,
+        });
+      } catch {
+        (f as any)[prop] = val;
+      }
+    };
+    augment("mockResolvedValue", (val: any) => {
+      f.mockImplementation(() => Promise.resolve(val));
+      return f;
     });
-    Object.defineProperty(f, "mockResolvedValue", {
-      value: (val: any) => {
-        (f as any)._fn = () => Promise.resolve(val);
-        return f;
-      },
-      writable: true,
+    augment("mockResolvedValueOnce", (val: any) => {
+      f.mockImplementationOnce(() => Promise.resolve(val));
+      return f;
     });
-    Object.defineProperty(f, "mockReturnValue", {
-      value: (val: any) => {
-        (f as any)._fn = () => val;
-        return f;
-      },
-      writable: true,
+    augment("mockReturnValue", (val: any) => {
+      f.mockImplementation(() => val);
+      return f;
+    });
+    augment("mockReturnValueOnce", (val: any) => {
+      f.mockImplementationOnce(() => val);
+      return f;
+    });
+    augment("mockClear", () => {
+      f.mockClear();
+      return f;
+    });
+    augment("mockReset", () => {
+      f.mockReset();
+      return f;
+    });
+    augment("mockRestore", () => {
+      f.mockRestore();
+      return f;
     });
     return f;
   },
@@ -83,15 +101,20 @@ const viShim = {
   stubGlobal: (name: string, value: any) => {
     (globalThis as any)[name] = value;
   },
-  unstubAllGlobals: () => {
-    if (globalThis.fetch && (globalThis.fetch as any)._isMock) {
-      delete (globalThis as any).fetch;
-    }
-  },
+  unstubAllGlobals: () => {},
   resetAllMocks: () => {},
   clearAllMocks: () => {},
+  restoreAllMocks: () => {},
   importActual: (path: string) => import(`${path}?bun-unmock=${Date.now()}`),
   spyOn: (obj: any, method: string) => bunSpyOn(obj, method),
+  unmock: (path: string) => {
+    try {
+      const resolved = import.meta.resolve(path);
+      (mock as any).unmock(resolved);
+    } catch {
+      (mock as any).unmock(path);
+    }
+  },
 };
 
 // @ts-ignore

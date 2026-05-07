@@ -279,6 +279,13 @@ export async function shutdownSystem(): Promise<void> {
     const { cacheService } = await import("./cache/cache-service");
     await cacheService.cleanup();
 
+    try {
+      const { securityResponseService } = await import("../services/security/response-service");
+      await securityResponseService.destroy();
+    } catch (e) {
+      logger.debug("Security service shutdown skipped or failed:", e);
+    }
+
     isConnected = false;
     resetDbInitPromise();
     logger.info("✅ Shutdown complete.");

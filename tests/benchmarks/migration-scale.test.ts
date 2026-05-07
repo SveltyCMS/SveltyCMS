@@ -159,8 +159,8 @@ async function prepareCollection() {
     await db.collection.createModel(schema).catch(() => {});
   }
 
-  // Clean previous data
-  await db?.crud?.deleteMany?.(COLLECTION_ID, {}, { tenantId: "global" as any }).catch(() => {});
+  // Clean previous data with permanent delete to prevent E11000 on re-runs
+  await db?.crud?.deleteMany?.(COLLECTION_ID, {}, { tenantId: "global" as any, permanent: true }).catch(() => {});
 }
 
 test("Migration & Large Scale Ingestion", async () => {

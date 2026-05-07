@@ -195,9 +195,9 @@ async function prepareCollection(db: any) {
       .catch(() => {});
   }
 
-  // Clean + seed stable record
+  // Clean + seed stable record with permanent delete to prevent E11000 on re-runs
   console.log("   [DB Trace] Deleting old records...");
-  await db.crud.deleteMany(COLLECTION_ID, {}, { tenantId: TEST_TENANT });
+  await db.crud.deleteMany(COLLECTION_ID, {}, { tenantId: TEST_TENANT, permanent: true });
 
   console.log("   [DB Trace] Seeding stable record...");
   await db.crud.upsert(

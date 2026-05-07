@@ -12,6 +12,7 @@ import { RateLimiterMemory, RateLimiterRedis } from "rate-limiter-flexible";
 import { cacheService } from "@src/databases/cache/cache-service";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { systemMonitor } from "@utils/system-monitor";
 import type {
   SecurityIncident,
   SecurityPolicy,
@@ -360,7 +361,12 @@ export class SecurityResponseService {
 
     try {
       const limiter = await this.getOrCreateLimiter(endpoint, tenantId);
-      await limiter.consume(ip, points);
+
+      // ⚡ ADAPTIVE LOGIC: Scale points (cost) based on system pressure
+      const multiplier = systemMonitor.getAdaptiveCostMultiplier();
+      const adaptivePoints = Math.max(1, Math.ceil(points * multiplier));
+
+      await limiter.consume(ip, adaptivePoints);
       return { level: "none", action: "allow" };
     } catch (rej: any) {
       const retryAfter = Math.ceil((rej.msBeforeNext || 1000) / 1000);

@@ -16,6 +16,7 @@ class MockAdapter {
         where: () => chain,
         limit: () => chain,
         // Make the chain thenable to simulate final execution
+        // eslint-disable-next-line unicorn/no-thenable
         then: (onFullfilled: any) => Promise.resolve([{ _id: "123", name: "test" }]).then(onFullfilled)
       };
       return chain;

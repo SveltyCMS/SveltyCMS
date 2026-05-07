@@ -117,7 +117,7 @@ class MetricsService {
     return false;
   }
 
-  private getCounters(tenantId?: string): MetricsCounters {
+  private getCounters(tenantId?: string | null): MetricsCounters {
     if (!tenantId || tenantId === "global") {
       this.globalCounters.lastActivity = Date.now();
       return this.globalCounters;
@@ -138,73 +138,73 @@ class MetricsService {
   }
 
   // ── Request Metrics ─────────────────────────────────────
-  incrementRequests(tenantId?: string): void {
+  incrementRequests(tenantId?: string | null): void {
     this.getCounters(tenantId).requests.total++;
   }
 
-  incrementErrors(tenantId?: string): void {
+  incrementErrors(tenantId?: string | null): void {
     this.getCounters(tenantId).requests.errors++;
   }
 
-  recordResponseTime(timeMs: number, tenantId?: string): void {
+  recordResponseTime(timeMs: number, tenantId?: string | null): void {
     const c = this.getCounters(tenantId);
     c.requests.totalResponseTime += timeMs;
     if (timeMs > 2000) c.performance.slowRequests++;
   }
 
   // ── Authentication Metrics ─────────────────────────────
-  incrementAuthValidations(tenantId?: string): void {
+  incrementAuthValidations(tenantId?: string | null): void {
     this.getCounters(tenantId).auth.validations++;
   }
 
-  incrementAuthFailures(tenantId?: string): void {
+  incrementAuthFailures(tenantId?: string | null): void {
     const c = this.getCounters(tenantId);
     c.auth.failures++;
     c.security.authFailures++;
   }
 
-  recordAuthCacheHit(tenantId?: string): void {
+  recordAuthCacheHit(tenantId?: string | null): void {
     this.getCounters(tenantId).auth.cacheHits++;
   }
 
-  recordAuthCacheMiss(tenantId?: string): void {
+  recordAuthCacheMiss(tenantId?: string | null): void {
     this.getCounters(tenantId).auth.cacheMisses++;
   }
 
   // ── API Metrics ─────────────────────────────────────────
-  incrementApiRequests(tenantId?: string): void {
+  incrementApiRequests(tenantId?: string | null): void {
     this.getCounters(tenantId).api.requests++;
   }
 
-  incrementApiErrors(tenantId?: string): void {
+  incrementApiErrors(tenantId?: string | null): void {
     this.getCounters(tenantId).api.errors++;
   }
 
-  recordApiCacheHit(tenantId?: string, layer: "l1" | "l2" = "l2"): void {
+  recordApiCacheHit(tenantId?: string | null, layer: "l1" | "l2" = "l2"): void {
     const c = this.getCounters(tenantId);
     if (layer === "l1") c.api.l1Hits++;
     else c.api.l2Hits++;
   }
 
-  recordApiCacheMiss(tenantId?: string): void {
+  recordApiCacheMiss(tenantId?: string | null): void {
     this.getCounters(tenantId).api.cacheMisses++;
   }
 
   // ── Security Metrics ────────────────────────────────────
-  incrementRateLimitViolations(tenantId?: string): void {
+  incrementRateLimitViolations(tenantId?: string | null): void {
     this.getCounters(tenantId).security.rateLimitViolations++;
   }
 
-  incrementCSPViolations(tenantId?: string): void {
+  incrementCSPViolations(tenantId?: string | null): void {
     this.getCounters(tenantId).security.cspViolations++;
   }
 
-  incrementSecurityViolations(tenantId?: string): void {
+  incrementSecurityViolations(tenantId?: string | null): void {
     this.getCounters(tenantId).security.cspViolations++;
   }
 
   // ── Performance Metrics ─────────────────────────────────
-  recordHookExecutionTime(hookName: string, timeMs: number, tenantId?: string): void {
+  recordHookExecutionTime(hookName: string, timeMs: number, tenantId?: string | null): void {
     const c = this.getCounters(tenantId);
     c.performance.totalHookTime += timeMs;
     c.performance.hookExecutions++;
@@ -220,7 +220,7 @@ class MetricsService {
     }
   }
 
-  recordMetric(name: string, value: number, tenantId?: string): void {
+  recordMetric(name: string, value: number, tenantId?: string | null): void {
     const c = this.getCounters(tenantId);
 
     switch (name) {
@@ -238,7 +238,7 @@ class MetricsService {
   }
 
   // ── Reporting ───────────────────────────────────────────
-  getReport(tenantId?: string): MetricsReport {
+  getReport(tenantId?: string | null): MetricsReport {
     if (this.shouldReset()) {
       this.reset();
     }

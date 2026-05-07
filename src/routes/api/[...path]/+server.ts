@@ -182,12 +182,16 @@ export const _handler = async (event: RequestEvent) => {
   if (!adapter) {
     const { getDb } = await import("@src/databases/db");
     adapter = getDb();
+    if (process.env.TEST_MODE === "true" && !adapter) {
+      console.log(`[_handler] adapter is null from getDb(). Path: ${path}`);
+    }
   }
 
   if (!adapter) {
     const { getPrivateEnv } = await import("@src/databases/config-state");
     const env = getPrivateEnv();
     const details = `DB_TYPE=${env?.DB_TYPE}, TEST_MODE=${process.env.TEST_MODE}, NODE_ENV=${process.env.NODE_ENV}`;
+
     throw new AppError(`Database unavailable: Adapter not initialized (${details})`, 503);
   }
 

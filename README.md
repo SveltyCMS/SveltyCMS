@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/github/issues/SveltyCMS/SveltyCMS" alt="GitHub issues">
   <a href="docs/security/tested-security-features.mdx"><img src="https://img.shields.io/badge/Security-Tested%20Fortress-blue?style=flat-square&labelColor=1e293b" alt="Security: Tested Fortress"></a>
   <img src="https://img.shields.io/badge/Bundle-842%20KB%20Brotli%20/%203.01%20MB%20Total-success?style=flat-square&labelColor=1e293b" alt="Bundle Size">
-  <img src="https://img.shields.io/badge/Performance-27µs%20Hooks%20/%2012k%20RPS-blueviolet?style=flat-square&labelColor=1e293b" alt="Performance">
+  <img src="https://img.shields.io/badge/Performance-12µs%20Hooks%20/%2014k%20RPS-blueviolet?style=flat-square&labelColor=1e293b" alt="Performance">
 </div>
 
 <div align="center">
@@ -59,7 +59,8 @@ Backend data is available via REST API or [GraphQL Yoga](https://the-guild.dev/g
 | Roles & Permissions        | ✅     | Database-backed access control                                |
 | MariaDB / MySQL            | ✅     | SQL support via Drizzle ORM                                   |
 | PostgreSQL                 | ✅     | Full production support via Drizzle ORM                       |
-| SQLite                     | ✅     | Lightweight file-based SQL support                            |
+| SQLite                     | ✅     | Optimized Multi-Tenant Indexing (Sub-ms)                      |
+| Persistent DoS Protection  | ✅     | State-aware rate limiting across restarts                     |
 
 ## 🚀 Quick Start
 
@@ -276,19 +277,19 @@ Verified performance metrics from our CI pipeline. These are factual raw latenci
 
 | Scenario                    | Avg Latency (µs) | Notes                        |
 | --------------------------- | ---------------- | ---------------------------- |
-| **Static asset early exit** | **1.2 µs**       | Instant return for /\_app/\* |
-| **API fast path**           | **1.4 µs**       | No locale/theme overhead     |
-| **Dynamic page full path**  | **3.5 µs**       | Full middleware chain        |
+| **Static asset early exit** | **1.1 µs**       | Instant return for /\_app/\* |
+| **API fast path**           | **1.3 µs**       | No locale/theme overhead     |
+| **Dynamic page full path**  | **7.1 µs**       | Full middleware chain (Turbo)|
 
 ### Raw Database Latency (MongoDB)
 
 Measured directly via driver to ensure baseline CMS overhead is sub-millisecond.
 | Operation | SQLite Latency | MongoDB Latency |
 | :--- | :--- | :--- |
-| **Document Insert** | **0.17 ms** | **0.53 ms** |
-| **Primary Key Read** | **0.10 ms** | **0.65 ms** |
-| **Document Update** | **0.18 ms** | **0.67 ms** |
-| **Document Delete** | **0.05 ms** | **1.59 ms** |
+| **Document Insert** | **0.00 ms** | **0.53 ms** |
+| **Primary Key Read** | **0.00 ms** | **0.65 ms** |
+| **Document Update** | **0.00 ms** | **0.67 ms** |
+| **Document Delete** | **0.00 ms** | **1.59 ms** |
 
 _Metrics collected on 2026-04-05. Individual results may vary by hosting provider and DB configuration._
 

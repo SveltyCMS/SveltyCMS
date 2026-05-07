@@ -23,25 +23,22 @@ const prefSetMany = vi.fn().mockResolvedValue({ success: true });
 const getModel = vi.fn();
 
 // Mock db adapter
-vi.mock("@src/databases/db", () => ({
-  dbAdapter: {
+vi.mock("@src/databases/db", () => {
+  const db = {
     auth: { getAllUsers, getUserCount },
     crud: { findOne, insert, update },
     system: {
       preferences: { getMany: prefGetMany, set: prefSet, setMany: prefSetMany },
     },
     collection: { getModel },
-  },
-  getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-  getDb: vi.fn().mockReturnValue({
-    auth: { getAllUsers, getUserCount },
-    crud: { findOne, insert, update },
-    system: {
-      preferences: { getMany: prefGetMany, set: prefSet, setMany: prefSetMany },
-    },
-    collection: { getModel },
-  }),
-}));
+  };
+  return {
+    dbAdapter: db,
+    auth: db.auth,
+    getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+    getDb: vi.fn().mockReturnValue(db),
+  };
+});
 
 // Mock settings service
 vi.mock("@src/services/core/settings-service", () => ({

@@ -34,6 +34,7 @@ async function runRevisionAudit() {
     const baseUrl = server.baseUrl;
 
     await ensureStableTestData();
+    await prepareCollection();
 
     // 1. Prepare Target Entry
     console.log(
@@ -141,6 +142,28 @@ async function runRevisionAudit() {
   }
 
   console.log("\n✅ Revision stress audit completed.");
+}
+
+async function prepareCollection() {
+  const { getDb } = await import("@src/databases/db");
+  const db = getDb();
+
+  const schema = {
+    _id: REVISION_COLLECTION,
+    name: REVISION_COLLECTION,
+    fields: [
+      { db_fieldName: "title", widget: { Name: "Input" }, required: true },
+      { db_fieldName: "content", widget: { Name: "RichText" } },
+    ],
+    revision: true,
+  };
+
+  if (db?.collection?.createModel) {
+    await db.collection.createModel(schema).catch(() => {});
+  }
+
+  // Clean previous data
+  await db?.crud?.deleteMany?.(REVISION_COLLECTION, {}, { tenantId: "global" as any, permanent: true }).catch(() => {});
 }
 
 test("Revision & History Stress Performance", async () => {

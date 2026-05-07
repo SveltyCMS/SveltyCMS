@@ -46,7 +46,7 @@ export default defineConfig({
     testTimeout: 15000,
     setupFiles: [path.resolve(__dirname, "tests/unit/setup.ts")],
     include: ["tests/unit/**/*.test.ts"],
-    exclude: ["**/*.bun.ts", "node_modules", ".svelte-kit"],
+    exclude: ["**/*.bun.ts", "**/*.bun.test.ts", "node_modules", ".svelte-kit"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],

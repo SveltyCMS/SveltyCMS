@@ -64,6 +64,7 @@ export const authUsers = sqliteTable(
   (table) => ({
     emailIdx: index("email_idx").on(table.email),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    tenantEmailIdx: index("tenant_email_idx").on(table.tenantId, table.email), // 🚀 Optimization
     emailTenantUnique: unique("email_tenant_unique").on(table.email, table.tenantId),
   }),
 );
@@ -107,6 +108,7 @@ export const authTokens = sqliteTable(
     userIdx: index("user_idx").on(table.user_id),
     expiresIdx: index("expires_idx").on(table.expires),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    tenantTokenIdx: index("tenant_token_idx").on(table.tenantId, table.token), // 🚀 Optimization
   }),
 );
 
@@ -165,6 +167,7 @@ export const contentNodes = sqliteTable(
     nodeTypeIdx: index("nodeType_idx").on(table.nodeType),
     statusIdx: index("status_idx").on(table.status),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    tenantPathIdx: index("tenant_path_idx").on(table.tenantId, table.path), // 🚀 Optimization
   }),
 );
 

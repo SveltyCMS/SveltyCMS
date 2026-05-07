@@ -50,6 +50,24 @@ export function requiresRebuild(): boolean {
 // ─────────────────────────────────────────────────────────────
 
 /**
+ * Normalizes a key by replacing non-alphanumeric chars with underscores.
+ */
+function normalizeKey(s: string): string {
+  return s.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+}
+
+/**
+ * Attempts to find a result in the metrics object by normalizing the key.
+ */
+function findResult(m: Record<string, unknown>, target: string): unknown {
+  const normTarget = normalizeKey(target);
+  for (const key of Object.keys(m)) {
+    if (normalizeKey(key) === normTarget) return m[key];
+  }
+  return undefined;
+}
+
+/**
  * Extracts standardized metrics from benchmark output files.
  * Supports both legacy flat fields and new structured `numeric-metric` format.
  */
@@ -137,153 +155,142 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
       getMetric("api.latency.http") ||
       getMetric("rest.collections.p95") ||
       getMetric("REST p95") ||
-      getMetric("Collection List") ||
-      getMetric("Entry Retrieval") ||
-      getMetric("Dispatcher: findById") ||
-      getMetric("REST (Average)") ||
-      getMetric("rest-collections-p95") ||
+      (findResult(m, "truth-rest") as any)?.p95Ms ||
+      (findResult(m, "truth-latency") as any)?.p95Ms ||
       0,
     restAvg:
       getMetric("rest.collections.avg") ||
       getMetric("REST Avg") ||
-      getMetric("truth.sdk.avg") ||
-      getMetric("api.latency.sdk") ||
-      getMetric("Dispatcher: findById") ||
-      getMetric("REST (Average)") ||
-      getMetric("rest-collections-avg") ||
+      (findResult(m, "rest-api-performance") as any)?.avgMs ||
+      (findResult(m, "rest-collections") as any)?.avgMs ||
       0,
     restRps:
       getMetric("rest.collections.rps") ||
       getMetric("REST RPS") ||
-      getMetric("rest-api-performance") ||
-      getMetric("rest-collections-rps") ||
+      (findResult(m, "rest-api-performance") as any)?.rps ||
       0,
     dbRaw:
       getMetric("adapter.read.avg") ||
       getMetric("DB Raw p95") ||
-      getMetric("Adapter:") ||
-      getMetric("adapter-read-avg") ||
+      (findResult(m, "database-performance") as any)?.p95Ms ||
+      (findResult(m, "DB Baseline") as any)?.p95Ms ||
       0,
     hooks:
       getMetric("middleware.hooks.p95") ||
       getMetric("Hooks p95") ||
-      getMetric("hooks-performance") ||
-      getMetric("middleware-hooks-p95") ||
+      (findResult(m, "hooks-performance") as any)?.avgMs ||
+      (findResult(m, "Auth+Security") as any)?.avgMs ||
+      (findResult(m, "Turbo") as any)?.avgMs ||
+      (findResult(m, "Full Security + Auth Pipeline") as any)?.avgMs ||
+      (findResult(m, "Turbo Pipeline") as any)?.avgMs ||
       0,
     graphqlAvg:
       getMetric("api.graphql.avg") ||
       getMetric("graphql.query.avg") ||
-      getMetric("GQL Avg") ||
-      getMetric("GQL: Basic Collection") ||
-      getMetric("GQL_Basic_Collection") ||
-      getMetric("GraphQL (Average)") ||
-      getMetric("graphql-average") ||
+      getMetric("GQL Stress") ||
+      getMetric("graphql-stress") ||
+      (findResult(m, "graphql-api-performance") as any)?.avgMs ||
+      (findResult(m, "graphql-stress") as any)?.avgMs ||
       0,
     gqlRps:
       getMetric("api.graphql.rps") ||
       getMetric("graphql.query.rps") ||
-      getMetric("GQL RPS") ||
-      getMetric("GQL: Basic Collection") ||
-      getMetric("GQL_Basic_Collection") ||
-      getMetric("graphql-api-performance") ||
-      getMetric("graphql-query-rps") ||
+      (findResult(m, "graphql-api-performance") as any)?.rps ||
       0,
     authAvg:
       getMetric("auth.middleware.avg") ||
       getMetric("Auth Avg") ||
-      getMetric("auth.verification.avg") ||
-      getMetric("Auth (Average)") ||
-      getMetric("auth-middleware-avg") ||
+      (findResult(m, "auth-performance") as any)?.avgMs ||
       0,
     authRps:
       getMetric("auth.max_rps") ||
       getMetric("Auth RPS") ||
-      getMetric("auth.verification.rps") ||
-      getMetric("auth-performance") ||
-      getMetric("auth-max-rps") ||
+      (findResult(m, "auth-performance") as any)?.rps ||
       0,
     relationalAvg:
       getMetric("logic.relational.avg") ||
       getMetric("Relational p95") ||
-      getMetric("relational-performance") ||
-      getMetric("logic-relational-avg") ||
+      (findResult(m, "relational-performance") as any)?.avgMs ||
+      (findResult(m, "Deep Relational Query") as any)?.p95Ms ||
+      (findResult(m, "Deep Relational Query") as any)?.avgMs ||
       0,
     widgetAvg:
       getMetric("logic.widget.avg") ||
       getMetric("Widget Avg") ||
-      getMetric("widget-performance") ||
-      getMetric("logic-widget-avg") ||
+      (findResult(m, "widget-performance") as any)?.avgMs ||
       0,
     mediaAvg:
       getMetric("media.processing.avg") ||
       getMetric("Media Avg") ||
-      getMetric("media-performance") ||
-      getMetric("media-bulk-avg") ||
+      (findResult(m, "media-performance") as any)?.avgMs ||
       0,
     scanAvg:
       getMetric("internals.scan.avg") ||
       getMetric("Scan Avg") ||
-      getMetric("Content Scan") ||
-      getMetric("internals-scan-avg") ||
+      (findResult(m, "content-scan") as any)?.avgMs ||
       0,
     memGrowth:
       getMetric("internals.memory.rss_delta") ||
       getMetric("Memory RSS Delta") ||
-      (m["Memory_Stability"] as any)?.rssDelta ||
-      (m["memory-stability"] as any)?.rssDelta ||
-      (m["memory-stability"] as any)?.rssGrowth ||
+      (findResult(m, "Memory Stability") as any)?.rssDelta ||
+      (findResult(m, "memory-stability") as any)?.rssDelta ||
       0,
     securityMs:
       getMetric("security.waf.avg") ||
       getMetric("Security WAF Avg") ||
-      getMetric("security.firewall.p95") ||
-      getMetric("security-waf-avg") ||
+      (findResult(m, "security-audit") as any)?.avgMs ||
       0,
     openapiHit:
       getMetric("api.openapi.warm.p95") ||
       getMetric("OpenAPI Warm Hit") ||
-      getMetric("openapi.spec.avg") ||
-      getMetric("api-openapi-warm-p95") ||
+      (findResult(m, "openapi-performance") as any)?.avgMs ||
       0,
     buildDuration:
       getMetric("dx.build.duration") ||
       getMetric("Build Duration") ||
-      (m["dx-build"] as any)?.durationMs ||
-      getMetric("dx-build-duration") ||
+      (findResult(m, "Production Build") as any)?.avgMs ||
+      (findResult(m, "dx-build") as any)?.durationMs ||
       0,
     bundleSize:
       getMetric("dx.bundle.size.total") ||
       getMetric("Bundle Size") ||
-      getMetric("dx-bundle-size-total") ||
       0,
     txCommit:
       getMetric("adapter.transaction.commit.avg") ||
       getMetric("TX Commit Avg") ||
-      getMetric("adapter-transaction-commit-avg") ||
+      (findResult(m, "transaction-acid") as any)?.avgMs ||
+      (findResult(m, "TX Commit") as any)?.avgMs ||
       0,
     systemCpu:
-      getMetric("cpu-audit") || getMetric("CPU Load") || (m["cpu-audit"] as any)?.loadPct || 0,
+      getMetric("cpu-audit") ||
+      getMetric("CPU Load") ||
+      (findResult(m, "cpu-audit") as any)?.loadPct ||
+      0,
     realtimeLatency:
       getMetric("realtime.broadcast.avg") ||
       getMetric("Realtime Latency") ||
-      getMetric("realtime-performance") ||
+      (findResult(m, "realtime-performance") as any)?.avgMs ||
       0,
     tenancyAvg:
       getMetric("scale.tenancy.avg") ||
       getMetric("Tenancy p95") ||
-      getMetric("multi.tenant.p95") ||
-      getMetric("multi-tenant-average") ||
+      (findResult(m, "multi-tenant-performance") as any)?.avgMs ||
+      (findResult(m, "Multi-Tenant Context Switching") as any)?.p95Ms ||
+      (findResult(m, "Multi-Tenant Context Switching") as any)?.avgMs ||
       0,
     mixedAvg:
       getMetric("scale.mixed.avg") ||
       getMetric("Mixed Workload Avg") ||
-      getMetric("workload.mixed.avg") ||
-      getMetric("mixed-workload-aggregate") ||
+      (findResult(m, "mixed-workload") as any)?.avgMs ||
       0,
     telemetryAvg:
       getMetric("internals.telemetry.avg") ||
       getMetric("Telemetry p95") ||
-      getMetric("telemetry-performance") ||
+      (findResult(m, "telemetry-performance") as any)?.avgMs ||
+      (findResult(m, "Happy") as any)?.p95Ms ||
+      (findResult(m, "Happy") as any)?.avgMs ||
+      (findResult(m, "Telemetry (Happy Path)") as any)?.p95Ms ||
+      (findResult(m, "Telemetry (Happy Path)") as any)?.avgMs ||
       0,
   };
 }

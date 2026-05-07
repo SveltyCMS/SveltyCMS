@@ -44,10 +44,10 @@ SveltyCMS 2026 utilizes a **Context-Aware Phased Boot** to minimize resource was
 ### Boot Phases
 
 1.  **`SETUP` Phase**: Establishes basic database connectivity. Results in system state **`SETUP`**. Required for the Setup Wizard. No heavy widgets or background jobs are loaded.
-2.  **`CORE` Phase**: Loads Authentication, Security, and Critical Settings. Results in system state **`READY`**. Required for the Login screen. Triggers non-critical background services.
-3.  **`FULL` Phase**: Finalizes the boot by loading the Content Manager, Widget Proxy, and all background optimization tasks. Results in system state **`WARMED`**. Required for the CMS Dashboard.
+2.  **`CORE` Phase**: Loads Authentication, Security, and Critical Settings. Results in system state **`READY`**. Required for the Login screen. Triggers non-critical background services (Cache Warming, Indexing).
+3.  **`FULL` Phase**: Finalizes the boot by performing **Predictive Cache Pre-Warming**, Widget Reconciliation, and Background Optimizations. Results in system state **`WARMED`**. Required for the CMS Dashboard.
 
-This **Just-In-Time (JIT) Escalation** ensures that the Setup Wizard remains ultra-lean and starts in milliseconds, even in environments with hundreds of custom collections.
+This **Adaptive Phased Boot** ensures that the system is live and serving traffic within milliseconds, while heavy resource-intensive tasks are deferred to background threads.
 
 > [!TIP]
 > **Logical vs. Technical Lazy Loading**: While **Phased Initialization** handles the _logical_ order of service startup, SveltyCMS uses the **[Lazy Holder](./database/index.mdx#lazy-holder-architecture)** technical pattern to ensure physical code isolation, preventing server-only modules from leaking into client bundles.
@@ -103,7 +103,15 @@ The system manages a one-shot initialization lifecycle using a `dbInitPromise`:
 - **Background Warming**: For high-concurrency environments, only the first request triggers the init flow; subsequent requests wait on the same shared promise, preventing "thundering herd" connection storms.
 - **Cleanup on Failure**: Failed boot attempts log the full stack trace and inform the `metricsService` for alerting.
 
-### 2. Trusted Host Validation
+### 2. Adaptive Rate Limiting (Hardware-Aware)
+
+SveltyCMS 2026 features a **Dynamic Hardware-Aware Rate Limiter** that adjusts request costs based on real-time system pressure.
+
+- **System Monitoring**: The `SystemMonitor` utility (`src/utils/system-monitor.ts`) tracks CPU load and Event Loop lag with millisecond precision.
+- **Dynamic Cost Scaling**: When system pressure is high (e.g., lag > 80ms), the cost of a request is automatically multiplied (up to 2.0x).
+- **Capacity Boost**: During idle periods, request costs can be reduced (0.8x), rewarding users with higher throughput when resources are abundant.
+
+### 3. Trusted Host Validation
 
 To prevent SSRF and unauthorized configuration during the setup phase, the middleware enforces **Dynamic Host Trust**:
 
@@ -111,13 +119,14 @@ To prevent SSRF and unauthorized configuration during the setup phase, the middl
 - **Origin Sync**: If `process.env.ORIGIN` is defined, only that specific host is allowed access to bootstrap routes.
 - **Fail-Safe**: If no host is configured, only local access is permitted.
 
-### 3. Integrated Performance Telemetry
+### 4. Integrated Performance Telemetry
 
 The gatekeeper tracks system health metrics in real-time:
 
 - **Init Duration**: Records how long the system takes to reach the `READY` state.
 - **Security Violations**: Increments counters for untrusted host attempts or restricted route access.
 - **Service Degradation**: Real-time heartbeat monitoring of DB, Cache, and Media adapters.
+- **Adaptive Multiplier**: Records the current rate-limit multiplier based on hardware stress.
 
 ### 4. Incremental Service Refresh
 

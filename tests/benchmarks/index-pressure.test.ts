@@ -132,8 +132,8 @@ async function prepareCollection() {
     await db.collection.createModel(schema).catch(() => {});
   }
 
-  // Clean previous run
-  await db?.crud?.deleteMany?.(COLLECTION_ID, {}, { tenantId: "global" as any }).catch(() => {});
+  // Clean previous run with permanent delete to prevent E11000 on re-runs
+  await db?.crud?.deleteMany?.(COLLECTION_ID, {}, { tenantId: "global" as any, permanent: true }).catch(() => {});
 }
 
 async function seedLargeDataset(baseUrl: string) {

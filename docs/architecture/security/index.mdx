@@ -362,6 +362,7 @@ While the CMS provides built-in tools, a secure production deployment requires p
 
 ### User Management
 
+- [x] **Adaptive Rate Limiting (Hardware-Aware)**: Automatically scales request costs based on real-time CPU load and Event Loop lag, preventing resource exhaustion during traffic spikes.
 - [x] Password complexity requirements enforced - `tests/integration/routes/login/signup.test.ts`
 - [x] User roles and permissions reviewed - `tests/unit/hooks/authorization.test.ts`
 - [x] 2FA enabled for admin accounts - `tests/integration/api/auth-2fa.test.ts`

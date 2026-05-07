@@ -416,6 +416,20 @@ export async function runAuditForDatabase(
     for (const s of activeScripts) {
       if (isShuttingDown()) break;
 
+      // 🚀 STRATEGY FILTERING: Skip scripts not meant for this DB type
+      if (s.strategy === "sql" && dbConf.type === "mongodb") {
+        log.db(dbKey, `\x1b[90mSkipping SQL-only benchmark: ${s.shortLabel}\x1b[0m`);
+        continue;
+      }
+
+      if (s.strategy === "once") {
+        const alreadyRun = results.some((r) => r.scriptTimings && r.scriptTimings[s.shortLabel]);
+        if (alreadyRun) {
+          log.db(dbKey, `\x1b[90mSkipping 'once' strategy benchmark (already run): ${s.shortLabel}\x1b[0m`);
+          continue;
+        }
+      }
+
       // 🚀 SMART STATE STRATEGY:
       // We no longer blindly drop tables before every script.
       // setup-benchmarks.ts now implements "Smart Seeding" to reuse data if possible.

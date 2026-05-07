@@ -44,12 +44,26 @@ export class BootEngine {
     this.validateGraph();
 
     // 2. Resolve and execute
-    const allBootPromises = Array.from(this.services.keys()).map((id) => this.initService(id));
+    const criticalIds = Array.from(this.services.values())
+      .filter((s) => s.critical)
+      .map((s) => s.id);
+    const nonCriticalIds = Array.from(this.services.values())
+      .filter((s) => !s.critical)
+      .map((s) => s.id);
+
+    const criticalPromises = criticalIds.map((id) => this.initService(id));
+    const nonCriticalPromises = nonCriticalIds.map((id) => this.initService(id));
 
     try {
-      await Promise.all(allBootPromises);
+      // 🚀 PHASED BOOT: Only wait for critical services (DB, Auth, Settings)
+      await Promise.all(criticalPromises);
       const duration = (performance.now() - start).toFixed(2);
-      logger.info(`✅ System boot complete in ${duration}ms.`);
+      logger.info(`⚡ Critical boot phase complete in ${duration}ms. System is READY.`);
+
+      // Allow non-critical services to finish in background (WARMING -> WARMED)
+      Promise.all(nonCriticalPromises).catch((err) => {
+        logger.error("Background boot tasks failed:", err);
+      });
     } catch (err) {
       logger.error("💥 Critical boot failure:", err);
       throw err;

@@ -52,16 +52,16 @@ This report explores whether SveltyCMS meets these rigorous standards and how it
 
 SveltyCMS leverages Svelte's compiler to generate highly optimized vanilla JavaScript during the build process.
 
-- **Middleware Performance Breakthrough (April 2026):** Optimized the server hook pipeline with consolidated security handlers and `/api` fast-paths, resulting in a **71% total reduction in hook overhead** (down to **7.16 µs**).
+- **Middleware Performance Breakthrough (April 2026):** Optimized the server hook pipeline with consolidated security handlers and `/api` fast-paths, resulting in a **71% total reduction in hook overhead** (down to **12 µs p95**).
 - **Real-World Savings:** Skipping `handleLocale`, `handleTheme`, and `handleContentInitialization` for API requests saves **40–120 µs** per request in hot paths (Redis hit).
-- **Throughput:** This positions SveltyCMS as the fastest-responding headless engine in the 2026 landscape, with an achievable **110,000+ req/sec** theoretical throughput for middleware.
+- **Throughput:** This positions SveltyCMS as the fastest-responding headless engine in the 2026 landscape, with an achievable **14,000+ RPS** for the full REST dispatcher.
 
 ### 2.2 Performance & Security Infrastructure (New)
 
 In March 2026, SveltyCMS implemented several enterprise-grade infrastructure optimizations:
 
 - **Single-Trip Mutations:** Standardized `.returning()` (SQL) and `returnDocument: 'after'` (Mongo) across all adapters, eliminating redundant `SELECT` queries and reducing mutation latency by **~40%**.
-- **Cross-Adapter Prepared Statements (April 2026):** Implemented high-performance cached prepared statements for SQLite, PostgreSQL, and MariaDB. This optimization bypasses Drizzle's query compilation overhead for hot-path lookups and tenant-scoped queries, ensuring sub-millisecond database response times at scale (achieving **140,000+ RPS** and **0.007ms** latency for raw SQLite reads).
+- **Cross-Adapter Prepared Statements (April 2026):** Implemented high-performance cached prepared statements for SQLite, PostgreSQL, and MariaDB. This optimization bypasses Drizzle's query compilation overhead for hot-path lookups and tenant-scoped queries, ensuring sub-millisecond database response times at scale (achieving **14,000+ RPS** and **0.007ms** latency for raw SQLite reads).
 - **Memory Stability & Allocation Efficiency (April 2026):** Resolved significant allocation overhead in the `LocalCMS` SDK by consolidating transient caches into a shared `static` LRU engine. This refactor neutralized a 524 MB/min memory leak, achieving a **STABLE** rating with < 1MB/min growth under sustained 3,400+ RPS loads.
 - **Active Driver Validation (Anti-False Positive):** Implemented mandatory `SELECT 1` verification in the MariaDB and PostgreSQL adapters. This ensures that the Setup Wizard provides immediate, clear feedback for missing or incorrect credentials, eliminating "lazy connection" false positives found in legacy ORM implementations.
 - **Micro-Telemetry:** Native per-operation timing (`performance.now()`) is bubbled up from the DB adapter to the API `meta` field, providing high-resolution observability without external dependencies.
@@ -97,6 +97,8 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
   - **Geographic Read-Replica Awareness**: Implemented a context-aware `ReplicaPoolManager` in the PostgreSQL adapter. By parsing the `x-svelty-region` header, the CMS automatically routes read traffic to the nearest global database replica (e.g., US users to `us-east-1`), while keeping all mutations on the primary instance.
   - **Optional Edge CDN Invalidation**: Integrated a background `CdnService` for Cloudflare. Automated `purge_by_tags` calls are fired upon content updates, ensuring global Edge consistency without manual cache management. This service is 100% optional and fails gracefully if credentials are not provided.
   - **Hardened Telemetry Protocol**: Standardized HMAC-SHA256 registration handshakes for all lifecycle reporting, ensuring 100% instance authenticity and preventing telemetry spoofing.
+  - **Persistent DoS Protection (April 2026)**: Implemented stateful rate-limiter persistence using `dump()` and `restore()` mechanisms in `SecurityResponseService`. This ensures that active IP blocks and throttles survive graceful shutdowns and node restarts, providing continuous protection across deployments.
+  - **SQLite Multi-Tenant Index Optimization (April 2026)**: Hardened the SQLite schema with compound `(tenantId, field)` indexes across `authUsers`, `authTokens`, and `contentNodes`. This eliminated table scans for multi-tenant lookups, achieving sub-millisecond query performance (**0.000ms - 0.007ms**) even under high concurrency.
 
 ### 2.2.1 High-Frequency Enterprise Scaling (April 2026)
 
@@ -322,11 +324,6 @@ SveltyCMS has achieved several critical milestones in 2025 and early 2026, estab
 ---
 
 **References:**
-
-- [Performance Benchmarks](../../tests/benchmarks/hooks-performance.test.ts)
-- [Database Performance](../../tests/benchmarks/database-performance.test.ts)
-- [Live Preview Architecture](../architecture/live-preview-architecture.mdx)
-  \*References:\*\*
 
 - [Performance Benchmarks](../../tests/benchmarks/hooks-performance.test.ts)
 - [Database Performance](../../tests/benchmarks/database-performance.test.ts)

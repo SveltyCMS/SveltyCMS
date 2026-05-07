@@ -70,7 +70,7 @@ xychart-beta
 > Measures latency across tenant isolation boundaries.
 
 ### 🏷️ Relational Resolver Latency {#relationalAvg}
-**Relational p95:** 0.000ms | **Trend:** ⚪ (—)
+**Relational p95:** 1.998ms | **Trend:** ⚪ (—)
 > Tests performance of complex JOINs and nested relationship population.
 
 ### 🏷️ Telemetry & Update Performance {#telemetryAvg}
@@ -88,8 +88,24 @@ xychart-beta
 <!-- API_TABLE_END -->
 
 <!-- TRUTH_TABLE_START -->
-> ⏳ **SRE TRUTH AUDIT**: Pending execution.
+### 🏷️ SRE TRUTH AUDIT ⚪ —
 > 📂 **Source**: [tests/benchmarks/truth-latency.test.ts](file:///D:/SveltyCMS/tests/benchmarks/truth-latency.test.ts)
+> 🎯 **Proves**: The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                         SVELTYCMS — SRE TRUTH AUDIT                         ║
+║                      3-Layer Production Reality Model                       ║
+║                File: tests/benchmarks/truth-latency.test.ts                 ║
+║ Proves: The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Prod... ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Logic Baseline               │ 0.000 ms       │ 0.001 ms     │ 3,861,004    ║
+║ Local SDK (Full)             │ 0.003 ms       │ 0.006 ms     │ 304,105      ║
+║ HTTP End-to-End              │ 0.398 ms       │ 0.492 ms     │ 2,513        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- TRUTH_TABLE_END -->
 
 <!-- DB_TABLE_START -->
@@ -116,8 +132,8 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Cache Miss (Bypass)          │ 20.998 ms (⚪ 0.0%) │ 163.201 ms   │ 48           ║
-║ Cache Hit (Warm)             │ 3.285 ms (⚪ 0.0%) │ 3.780 ms     │ 304          ║
+║ Cache Miss (Bypass)          │ 0.321 ms (⚪ 0.0%) │ 0.590 ms     │ 3,120        ║
+║ Cache Hit (Warm)             │ 0.190 ms (⚪ 0.0%) │ 0.220 ms     │ 5,251        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- CACHE_TABLE_END -->
@@ -141,8 +157,8 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Shallow Relational Query     │ 4.771 ms       │ 4.982 ms     │ 210          ║
-║ Deep Relational Query        │ 5.961 ms       │ 6.053 ms     │ 168          ║
+║ Shallow Relational Query     │ 0.474 ms       │ 0.611 ms     │ 2,111        ║
+║ Deep Relational Query        │ 0.336 ms       │ 0.336 ms     │ 2,978        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- RELATIONAL_TABLE_END -->
@@ -161,10 +177,10 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                 │ 0.484 ms       │ 0.488 ms     │ 2,067        ║
-║ Collection Schema            │ 2.903 ms       │ 3.271 ms     │ 345          ║
-║ Collection Find (List)       │ 3.346 ms       │ 3.814 ms     │ 299          ║
-║ Collection Search            │ 2.878 ms       │ 3.355 ms     │ 348          ║
+║ Health Check                 │ 0.172 ms       │ 0.193 ms     │ 5,821        ║
+║ Collection Schema            │ 0.370 ms       │ 0.395 ms     │ 2,703        ║
+║ Collection Find (List)       │ 0.256 ms       │ 0.272 ms     │ 3,904        ║
+║ Collection Search            │ 0.294 ms       │ 0.327 ms     │ 3,407        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- REST_TABLE_END -->
@@ -183,10 +199,10 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ GQL: System Health           │ 20.534 ms (⚪ 0.0%) │ 169.464 ms   │ 49           ║
-║ GQL: Collection List         │ 5.091 ms (⚪ 0.0%) │ 5.381 ms     │ 196          ║
-║ GQL: Entries (Stable Collection) │ 5.348 ms (⚪ 0.0%) │ 5.699 ms     │ 187          ║
-║ GQL: Concurrent Load         │ 2.114 ms (⚪ 0.0%) │ 2.913 ms     │ 473          ║
+║ GQL: System Health           │ 0.444 ms (⚪ 0.0%) │ 0.706 ms     │ 2,255        ║
+║ GQL: Collection List         │ 0.255 ms (⚪ 0.0%) │ 0.264 ms     │ 3,921        ║
+║ GQL: Entries (Stable Collection) │ 0.277 ms (⚪ 0.0%) │ 0.301 ms     │ 3,616        ║
+║ GQL: Concurrent Load         │ 0.403 ms (⚪ 0.0%) │ 0.491 ms     │ 2,482        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- GRAPHQL_TABLE_END -->
@@ -197,23 +213,83 @@ xychart-beta
 <!-- AUTH_TABLE_END -->
 
 <!-- SEO_TABLE_START -->
-> ⏳ **Enterprise SEO Suite Audit**: Pending execution.
+### 🏷️ Enterprise SEO Suite Audit ⚪ —
 > 📂 **Source**: [tests/benchmarks/seo-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/seo-performance.test.ts)
+> 🎯 **Proves**: E2E audit of Redirect Middleware, 404 Logging, and Sitemap Caching performance.
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS — ENTERPRISE SEO AUDIT                       ║
+║                       Enterprise Meta Suite • MARIADB                       ║
+║               File: tests/benchmarks/seo-performance.test.ts                ║
+║ Proves: E2E audit of Redirect Middleware, 404 Logging, and Sitemap Cachi... ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Redirect Lookup (301)        │ 0.243 ms       │ 0.254 ms     │ 4,123        ║
+║ Dynamic Sitemap XML          │ 0.382 ms       │ 0.416 ms     │ 2,615        ║
+║ Robots.txt Generation        │ 0.085 ms       │ 0.090 ms     │ 11,817       ║
+║ Missing Path (404 Log)       │ 0.116 ms       │ 0.127 ms     │ 8,653        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- SEO_TABLE_END -->
 
 <!-- TENANCY_TABLE_START -->
-> ⏳ **Multi-Tenant Performance & Isolation**: Pending execution.
+### 🏷️ Multi-Tenant Performance & Isolation ⚪ —
 > 📂 **Source**: [tests/benchmarks/multi-tenant-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/multi-tenant-performance.test.ts)
+> 🎯 **Proves**: Stress-tests cross-tenant isolation and security boundary latency.
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                 SVELTYCMS — MULTI-TENANCY PERFORMANCE AUDIT                 ║
+║                  50 Tenants • Isolation Overhead • MARIADB                  ║
+║           File: tests/benchmarks/multi-tenant-performance.test.ts           ║
+║ Proves: Stress-tests cross-tenant isolation and security boundary latency.  ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Single Tenant Baseline       │ 0.370 ms       │ 0.425 ms     │ 2,702        ║
+║ Multi-Tenant Context Switching │ 0.248 ms       │ 0.272 ms     │ 4,038        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- TENANCY_TABLE_END -->
 
 <!-- MIXED_TABLE_START -->
-> ⏳ **Realistic Mixed Workload**: Pending execution.
+### 🏷️ Realistic Mixed Workload ⚪ —
 > 📂 **Source**: [tests/benchmarks/mixed-workload.test.ts](file:///D:/SveltyCMS/tests/benchmarks/mixed-workload.test.ts)
+> 🎯 **Proves**: Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS — MIXED WORKLOAD AUDIT                       ║
+║                      60/20/15/5 Distribution • MARIADB                      ║
+║                File: tests/benchmarks/mixed-workload.test.ts                ║
+║ Proves: Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% M... ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Mixed Workload               │ 0.317 ms       │ 0.349 ms     │ 3,158        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- MIXED_TABLE_END -->
 
 <!-- MEMORY_TABLE_START -->
-> ⏳ **Memory Stability & GC Behavior**: Pending execution.
+### 🏷️ Memory Stability & GC Behavior ⚪ —
 > 📂 **Source**: [tests/benchmarks/memory-stability.test.ts](file:///D:/SveltyCMS/tests/benchmarks/memory-stability.test.ts)
+> 🎯 **Proves**: Long-running soak test to identify memory leaks and GC pressure.
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                     SVELTYCMS — MEMORY STABILITY AUDIT                      ║
+║                        45s Sustained Load • MARIADB                         ║
+║               File: tests/benchmarks/memory-stability.test.ts               ║
+║  Proves: Long-running soak test to identify memory leaks and GC pressure.   ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Memory Profile               │ N/A            │ N/A          │ 10,828       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- MEMORY_TABLE_END -->
 
 <!-- GQL_TABLE_START -->
@@ -235,8 +311,8 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Bulk Migration (10k)         │ 551.763 ms     │ 695.029 ms   │ 2            ║
-║ Post-Migration Random Lookup │ 7.550 ms       │ 7.958 ms     │ 132          ║
+║ Bulk Migration (10k)         │ 456.076 ms     │ 541.803 ms   │ 2            ║
+║ Post-Migration Random Lookup │ 1.412 ms       │ 1.417 ms     │ 708          ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- MIGRATION_TABLE_END -->
@@ -255,8 +331,8 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Latest Read (High Revision Count) │ 11.004 ms      │ 11.069 ms    │ 91           ║
-║ History List Retrieval       │ 17.416 ms      │ 19.160 ms    │ 57           ║
+║ Latest Read (High Revision Count) │ 0.916 ms       │ 0.993 ms     │ 1,091        ║
+║ History List Retrieval       │ 0.925 ms       │ 0.989 ms     │ 1,082        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- REVISION_TABLE_END -->
@@ -275,14 +351,29 @@ xychart-beta
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Chaos Resilience (Brownout)  │ 100.760 ms     │ 103.293 ms   │ 10           ║
+║ Chaos Resilience (Brownout)  │ 91.306 ms      │ 94.801 ms    │ 11           ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- RESILIENCE_TABLE_END -->
 
 <!-- INDEX_TABLE_START -->
-> ⏳ **Million-Row Index Pressure**: Pending execution.
+### 🏷️ Million-Row Index Pressure ⚪ —
 > 📂 **Source**: [tests/benchmarks/index-pressure.test.ts](file:///D:/SveltyCMS/tests/benchmarks/index-pressure.test.ts)
+> 🎯 **Proves**: Measures complex filtering and sorting performance on 100,000+ entry collections.
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS — INDEX PRESSURE AUDIT                       ║
+║                   100k Entries • Sort + Filter • MARIADB                    ║
+║                File: tests/benchmarks/index-pressure.test.ts                ║
+║ Proves: Measures complex filtering and sorting performance on 100,000+ e... ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Sorted List (100k rows)      │ 1.902 ms       │ 2.119 ms     │ 526          ║
+║ Filtered Query (100k rows)   │ 1.694 ms       │ 1.763 ms     │ 590          ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- INDEX_TABLE_END -->
 
 <!-- CONTENT_TABLE_START -->

@@ -35,17 +35,14 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 
 | Metric                   | SveltyCMS (Intel 2026)         | PayloadCMS (v3.x)              | Directus (v11.x)                   | Strapi (v5.x)            | Sveltia CMS         |
 | :----------------------- | :----------------------------- | :----------------------------- | :--------------------------------- | :----------------------- | :------------------ |
-| **Avg API Read Latency** | **0.06 - 0.367 ms** (Platinum) | 4–12 ms (sub-10 ms co-located) | 3–18 ms (avg ~35 ms in some tests) | 6–25 ms (avg 120–150 ms) | N/A (Git-based)     |
+| **Avg API Read Latency** | **0.00 - 0.367 ms** (Platinum) | 4–12 ms (sub-10 ms co-located) | 3–18 ms (avg ~35 ms in some tests) | 6–25 ms (avg 120–150 ms) | N/A (Git-based)     |
 | **SEO Redirect Latency** | **0.92 ms** (Sub-Millisecond)  | ~45 ms (Plugin)                | ~60 ms (Hook)                      | ~120 ms (Middleware)     | N/A                 |
 | **Content Scan (1k)**    | **0.05 ms** (Industry First)   | ~1,200 ms                      | ~800 ms                            | ~2,500 ms                | N/A                 |
 | **Ingestion (Bulk I/O)** | **8,223 entries/s**            | ~1,200 entries/s               | ~800 entries/s                     | ~400 entries/s           | N/A                 |
 | **Avg GraphQL Latency**  | **0.08–0.45 ms** (JIT)         | 15–150+ ms                     | 15–150+ ms                         | ~120–150 ms              | N/A                 |
 | **UX Logic Prep**        | **0.05 ms** (Ultra-Elite)      | ~150 ms (React Hydration)      | ~120 ms                            | ~250 ms                  | Fast (Local)        |
-| **Middleware Overhead**  | **0.012–0.015 ms** (12 µs p95) | ~115 µs                        | ~145 µs                            | ~180 µs                  | N/A (browser-based) |
-| **Throughput (RPS)**     | **14,000+ RPS** (Content Core) | ~900–2,100 RPS (REST/GraphQL)  | Lower (optimized ~ higher)         | 900–1,200 RPS (REST)     | N/A (static/Git)    |
-| **Media Upload**         | **0.12 ms** (async/background) | 100–350 ms                     | 120–400 ms                         | 150–500 ms               | N/A                 |
-| **Cold Start**           | **~120–210 ms** (READY state)  | Variable (Next.js)             | ~5 s                               | ~8 s                     | Very fast (<300 ms) |
-| **AI Overhead (Tax)**    | **~1.3 ms** (Native Bridge)    | ~50-100 ms (Middleware)        | Not specified                      | Not specified            | N/A                 |
+| **Middleware Overhead**  | **0.012 ms** (12 µs p95)       | ~115 µs                        | ~145 µs                            | ~180 µs                  | N/A (browser-based) |
+| **Persistent DoS**       | **✅ Native (Persistent)**     | ⚠️ Plugin / External           | ⚠️ External WAF                    | ⚠️ External WAF          | N/A                 |
 | **Media Upload**         | **0.12 ms** (async/background) | 100–350 ms                     | 120–400 ms                         | 150–500 ms               | N/A                 |
 | **Cold Start**           | **~120–210 ms** (READY state)  | Variable (Next.js)             | ~5 s                               | ~8 s                     | Very fast (<300 ms) |
 | **AI Overhead (Tax)**    | **~1.3 ms** (Native Bridge)    | ~50-100 ms (Middleware)        | Not specified                      | Not specified            | N/A                 |

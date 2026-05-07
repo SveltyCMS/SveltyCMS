@@ -447,6 +447,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const query = this.adapter.mapQuery(
         safeQuery({ _id: id } as QueryFilter<T>, tenantId as string, {
           bypassTenantCheck,
+          includeDeleted: permanent,
         }),
       );
 
@@ -527,7 +528,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
     try {
       const { tenantId, bypassTenantCheck, permanent, userId } = options;
       const secureQuery = this.adapter.mapQuery(
-        safeQuery(query, tenantId as string, { bypassTenantCheck }),
+        safeQuery(query, tenantId as string, { bypassTenantCheck, includeDeleted: permanent }),
       );
 
       const deleteOptions: any = {};

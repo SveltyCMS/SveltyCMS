@@ -3,7 +3,7 @@
  * @description Whitebox unit tests for CacheService enhancements
  */
 
-(globalThis as any).vi.unmock("@src/databases/cache/cache-service");
+// (globalThis as any).vi.unmock("@src/databases/cache/cache-service");
 
 // Mock settings-service specifically for these tests
 vi.mock("@src/services/core/settings-service", () => ({

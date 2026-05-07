@@ -72,9 +72,55 @@ export class CacheWarmingService {
       // User lifecycle patterns (Predicted by docs/architecture/cache-system.mdx)
       cacheService.registerPrefetchPattern("user:", ["user:permissions:", "user:roles:"]);
 
+      // 5. Predictive Telemetry Warming (v1.2 "Agency OS" Feature)
+      // ⚡ NON-BLOCKING: Run in background after a short delay to allow system to settle
+      setTimeout(() => {
+        this.warmFromTelemetry(db).catch((err) =>
+          logger.trace("Predictive warming background error:", err),
+        );
+      }, 2000).unref();
+
       logger.info(`✨ Cache Warming Complete in ${(performance.now() - start).toFixed(2)}ms`);
     } catch (err) {
       logger.error("Failed to warm cache", err);
+    }
+  }
+
+  /**
+   * 🧠 ENTERPRISE: Predictive Telemetry Warming
+   * Analyzes audit logs to find the top 5% most accessed collections and entries.
+   */
+  async warmFromTelemetry(db: any) {
+    if (!db?.crud?.aggregate) return;
+
+    try {
+      logger.debug("🧠 [PredictiveCache] Analyzing telemetry for pre-warming...");
+
+      // Query audit logs for top accessed collections in the last 24h
+      // Note: This uses the agnostic aggregation layer
+      const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const topAccess = await db.crud.aggregate("audit_logs", [
+        { $match: { eventType: "collection_find", timestamp: { $gte: last24h } } },
+        { $group: { _id: "$targetId", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]);
+
+      if (topAccess.success && topAccess.data) {
+        for (const entry of topAccess.data) {
+          const collection = entry._id;
+          if (!collection) continue;
+
+          logger.debug(
+            `🧠 [PredictiveCache] Priming hot cache for "${collection}" (${entry.count} hits)`,
+          );
+
+          // Prime first page of data
+          await db.crud.find(collection, {}, { limit: 20, skipMeta: true });
+        }
+      }
+    } catch (err) {
+      logger.trace("Predictive telemetry warming skipped (not supported or no data)", err);
     }
   }
 

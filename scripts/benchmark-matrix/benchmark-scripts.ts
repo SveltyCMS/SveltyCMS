@@ -19,6 +19,17 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     strategy: "all",
   },
   {
+    path: "tests/benchmarks/cold-start-phased.test.ts",
+    label: "PHASED COLD START",
+    shortLabel: "Cold Start",
+    level: 0,
+    section: "baseline",
+    intensity: "low",
+    estimatedMs: 10_000,
+    desc: "Measures the time to READY state (serving traffic) vs WARMED state (background tasks).",
+    strategy: "all",
+  },
+  {
     path: "tests/benchmarks/truth-latency.test.ts",
     label: "SRE TRUTH AUDIT",
     shortLabel: "Truth Audit",

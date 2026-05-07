@@ -10,6 +10,7 @@ import { and, eq, isNull, sql, count as drizzleCount } from "drizzle-orm";
 import { logger } from "@utils/logger";
 import { safeQuery } from "@src/utils/security/safe-query";
 import { generateUUID } from "@utils/native-utils";
+import { slowQueryCollector } from "@src/services/observability/slow-query-collector";
 import * as utils from "../relational-utils";
 import type { BaseSqlAdapter } from "../base-sql-adapter";
 import type {
@@ -162,7 +163,11 @@ export class RelationalCrudModule implements ICrudAdapter {
       { transaction: options?.transaction },
     );
 
-    if (res.success) res.meta = { executionTime: performance.now() - startTime };
+    if (res.success) {
+      const execTime = performance.now() - startTime;
+      res.meta = { executionTime: execTime };
+      slowQueryCollector.recordQuery(collection, query, execTime, options.tenantId);
+    }
     return res;
   }
 
@@ -202,7 +207,11 @@ export class RelationalCrudModule implements ICrudAdapter {
       { transaction: options?.transaction },
     );
 
-    if (res.success) res.meta = { executionTime: performance.now() - startTime };
+    if (res.success) {
+      const execTime = performance.now() - startTime;
+      res.meta = { executionTime: execTime };
+      slowQueryCollector.recordQuery(collection, query, execTime, options.tenantId);
+    }
     return res;
   }
 
@@ -371,7 +380,11 @@ export class RelationalCrudModule implements ICrudAdapter {
       { transaction: options?.transaction },
     );
 
-    if (res.success) res.meta = { executionTime: performance.now() - startTime };
+    if (res.success) {
+      const execTime = performance.now() - startTime;
+      res.meta = { executionTime: execTime };
+      slowQueryCollector.recordQuery(collection, query, execTime, options.tenantId);
+    }
     return res;
   }
 
