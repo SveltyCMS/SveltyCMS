@@ -5,8 +5,25 @@
 
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
+import { CORE_WIDGETS, CUSTOM_WIDGETS } from "./widget-constants";
 
 const isBun = typeof Bun !== "undefined";
+
+// 🚀 CRITICAL: Detect benchmark mode early
+const currentTest = process.argv.find(
+  (arg) => arg.includes("benchmark") || arg.endsWith(".test.ts"),
+);
+const isBenchmark =
+  process.env.BENCHMARK_MODE === "true" ||
+  process.env.BENCHMARK_MODE === "1" ||
+  process.env.BENCHMARK_STABLE === "true" ||
+  currentTest?.includes("benchmark");
+
+if (isBenchmark) {
+  (globalThis as any).__SVELTY_QUIET__ = true;
+}
+
+const ENABLE_MOCKS = process.env.BUN_TEST_MOCKS !== "false";
 
 const setGlobal = (name: string, value: any) => {
   try {
@@ -142,10 +159,8 @@ if (isBun) {
   if (!globalThis.afterAll) setGlobal("afterAll", bunTest.afterAll);
 }
 
-// Moved up to support conditional mocking
+// Normalized backslashes for Windows
 const isTestTarget = (path: string) => {
-  let currentTest = process.argv.find((arg) => arg.endsWith(".test.ts"));
-
   // Normalize backslashes for Windows
   const normalizedPath = path.replace(/\\/g, "/");
   const normalizedCurrentTest = currentTest ? currentTest.replace(/\\/g, "/") : "";
@@ -161,14 +176,17 @@ const isTestTarget = (path: string) => {
         if (normalizedTestPath.includes("security-response-service")) {
           if (normalizedPath.includes("security-response-service")) return true;
         }
-        currentTest = testPath;
+        // Use testPath as the primary source of truth if available
+        const targetPart = path.split("/").pop()?.replace(".ts", "") || "___NON_EXISTENT___";
+        return normalizedTestPath.includes(targetPart);
       }
     } catch {}
   }
-  // Fallback to simpler check for path
+  // Fallback to simpler check for path using global currentTest
   const targetPart = path.split("/").pop()?.replace(".ts", "") || "___NON_EXISTENT___";
   return currentTest && currentTest.includes(targetPart);
 };
+
 
 // 1. EARLY DOM SHIMS (Critical for Bun; Vitest uses native jsdom)
 if (typeof vi !== "undefined") {
@@ -213,7 +231,9 @@ if (typeof (import.meta as any).glob !== "function") {
 
       const modules: Record<string, any> = {};
       const entries = fs.readdirSync(scanDir, { withFileTypes: true });
-      console.log(`[setup.ts] Scanning ${scanDir}, found ${entries.length} entries`);
+      if (process.env.VERBOSE_TESTS === "true") {
+        console.log(`[setup.ts] Scanning ${scanDir}, found ${entries.length} entries`);
+      }
 
       for (const entry of entries) {
         if (entry.isDirectory()) {
@@ -361,18 +381,9 @@ if (!isBun) {
 
 // 2. COMMON MOCKS
 // Master switch for benchmarking - allows running 'bun test' with ZERO mocks
-const ENABLE_MOCKS = process.env.BUN_TEST_MOCKS !== "false";
+
 
 const moduleMock = (path: string, factory: () => any) => {
-  const currentTest = process.argv.find(
-    (arg) => arg.includes("benchmark") || arg.endsWith(".test.ts"),
-  );
-  const isBenchmark =
-    process.env.BENCHMARK_MODE === "true" ||
-    process.env.BENCHMARK_MODE === "1" ||
-    process.env.BENCHMARK_STABLE === "true" ||
-    currentTest?.includes("benchmark");
-
   if (isBenchmark) {
     // ⚡ BENCHMARK MODE: Only mock virtual SvelteKit modules ($app/*, $env/*)
     if (!path.startsWith("$")) return;
@@ -872,15 +883,9 @@ moduleMock("@utils/error-handling", () => ({
 }));
 
 // ============================================================================
-// WIDGET INFRASTRUCTURE MOCKS (CRITICAL â€” always active, even for benchmarks)
-// The Vite-dependent import.meta.glob scanner cannot function in Bun's test
-// runtime. Without this mock, safelyParseSchema() fails with
-// "widgets.Input is undefined" when reconciling .compiledCollections schemas.
+// WIDGET INFRASTRUCTURE MOCKS
 // ============================================================================
-
-const { CORE_WIDGETS, CUSTOM_WIDGETS } = require("./widget-constants.ts");
-
-const createWidgetFactory = (name: string, type: "core" | "custom" = "core") => {
+function createWidgetFactory(name: string, type: "core" | "custom" = "core") {
   const fn = (config: any) => ({
     ...config,
     db_fieldName: config?.db_fieldName || config?.label?.toLowerCase() || "field",
@@ -894,7 +899,7 @@ const createWidgetFactory = (name: string, type: "core" | "custom" = "core") => 
     __inputComponentPath: `/${name.toLowerCase()}/input.svelte`,
     __displayComponentPath: `/${name.toLowerCase()}/display.svelte`,
   });
-};
+}
 
 const widgetMap = new Map<string, any>();
 const coreModules: Record<string, any> = {};
@@ -913,16 +918,15 @@ for (const name of CUSTOM_WIDGETS) {
 }
 
 const allWidgetModules = { ...coreModules, ...customModules };
-console.log(
-  `[setup.ts] scannerModules populated with ${Object.keys(allWidgetModules).length} entries`,
-);
+if (process.env.VERBOSE_TESTS === "true") {
+  console.log(
+    `[setup.ts] scannerModules populated with ${Object.keys(allWidgetModules).length} entries`,
+  );
+}
 
 // Direct mock.module â€” bypasses moduleMock's benchmark skip logic
-if (isBun) {
+if (isBun && !isBenchmark && ENABLE_MOCKS) {
   const scannerMock = () => {
-    console.log(
-      `[setup.ts] Mocking scanner with ${Object.keys(allWidgetModules).length} modules (${Object.keys(coreModules).length} core, ${Object.keys(customModules).length} custom)`,
-    );
     return {
       coreModules,
       customModules,
@@ -933,7 +937,6 @@ if (isBun) {
 
   try {
     const scannerPath = import.meta.resolve("@src/widgets/scanner");
-    console.log(`[setup.ts] Resolved scannerPath: ${scannerPath}`);
     mock.module(scannerPath, scannerMock);
     mock.module("@src/widgets/scanner", scannerMock);
   } catch (e) {
@@ -1289,7 +1292,7 @@ const dbMock = {
   dbAdapter: mockDbAdapter,
   auth: mockDbAdapter.auth,
   getDb: () => {
-    if (process.env.TEST_MODE === "true") console.log("[setup.ts] dbMock.getDb called");
+    if (process.env.VERBOSE_TESTS === "true") console.log("[setup.ts] dbMock.getDb called");
     return mockDbAdapter;
   },
   getAuth: () => mockDbAdapter.auth,
@@ -1307,6 +1310,7 @@ const dbMock = {
   ),
   clearPrivateConfigCache: mock(() => {}),
   initializeWithConfig: mock(() => Promise.resolve({ status: "success" })),
+  isDbConnected: mock(() => true),
   reinitializeSystem: mock(() => Promise.resolve({ status: "initialized" })),
   initConnection: mock(() => Promise.resolve()),
   getDbInitPromise: mock(() => Promise.resolve()),
@@ -1347,19 +1351,21 @@ const dbMock = {
     reinitializeSystem: mock(() => Promise.resolve({})),
     resetDbInitPromise: mock(() => {}),
     dbInitPromise: mock(() => Promise.resolve({})),
+    isDbConnected: mock(() => true),
     default: dbMock,
   });
 
-  try {
-    const dbPath = import.meta.resolve("@src/databases/db");
-    console.log(`[setup.ts] Resolved dbPath: ${dbPath}`);
-    mock.module(dbPath, dbFactory);
-    mock.module(dbPath.replace(".ts", ""), dbFactory);
-  } catch {
-    /* ignore */
+  if (!isBenchmark && ENABLE_MOCKS) {
+    try {
+      const dbPath = import.meta.resolve("@src/databases/db");
+      mock.module(dbPath, dbFactory);
+      mock.module(dbPath.replace(".ts", ""), dbFactory);
+    } catch {
+      /* ignore */
+    }
+    moduleMock("@src/databases/db", dbFactory);
+    moduleMock("@databases/db", dbFactory);
   }
-  moduleMock("@src/databases/db", dbFactory);
-  moduleMock("@databases/db", dbFactory);
 setGlobal("auth", dbMock.auth);
 
 moduleMock("@src/services/security/audit-service", () => {
@@ -1524,7 +1530,6 @@ if (!isTestTarget("metrics-service")) {
 if (!isTestTarget("security-response-service")) {
   try {
     const rsPath = import.meta.resolve("@src/services/security/response-service");
-    console.log(`[setup.ts] Resolved rsPath: ${rsPath}`);
     mock.module(rsPath, () => ({
       securityResponseService: mockSecurityResponseService,
       default: { securityResponseService: mockSecurityResponseService },

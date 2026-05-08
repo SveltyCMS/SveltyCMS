@@ -3,7 +3,7 @@
  * @description MongoDB adapter for SveltyCMS - Modularized version.
  */
 
-import { MongoAdapterCore } from "./adapter/adapter-core";
+import { MongoAdapterCore } from "./adapter-core";
 import type {
   IDBAdapter,
   DatabaseResult,
@@ -18,17 +18,18 @@ import type {
   QueryBuilder,
 } from "../db-interface";
 
-import { MongoCrudModule } from "./modules/crud-module";
-import { MongoAuthModule } from "./modules/auth-module";
-import { MongoContentModule } from "./modules/content-module";
-import { MongoMediaModule } from "./modules/media-module";
-import { MongoSystemModule } from "./modules/system-module";
-import { MongoMonitoringModule } from "./modules/monitoring-module";
-import { MongoCollectionModule } from "./modules/collection-module";
-import { MongoBatchModule } from "./modules/batch-module";
-import { MongoTransactionModule } from "./modules/transaction-module";
+import { MongoCrudModule } from "./crud-module";
+import { MongoAuthModule } from "./auth-module";
+import { MongoContentModule } from "./content-module";
+import { MongoMediaModule } from "./media-module";
+import { MongoSystemModule } from "./system-module";
+import { MongoMonitoringModule } from "./monitoring-module";
+import { MongoCollectionModule } from "./collection-module";
+import { MongoBatchModule } from "./batch-module";
+import { MongoTransactionModule } from "./transaction-module";
 import { MongoQueryBuilder } from "./mongo-query-builder";
 import { getDefaultRoles } from "../auth/default-roles";
+import { generateId, normalizePath, validateId, createPagination } from "./mongodb-utils";
 
 export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
   public readonly type = "mongodb";
@@ -188,81 +189,10 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
     // Logic handled in MonitoringModule
   }
 
-  async getCollectionData(
-    collectionName: string,
-    options?: {
-      limit?: number;
-      offset?: number;
-      fields?: string[];
-      sort?: { field: string; direction: "asc" | "desc" };
-      filter?: Record<string, unknown>;
-      includeMetadata?: boolean;
-    },
-  ): Promise<
-    DatabaseResult<{
-      data: unknown[];
-      metadata?: { totalCount: number; schema?: unknown; indexes?: string[] };
-    }>
-  > {
-    const filter = options?.filter || {};
-    const countRes = await this.crud.count(collectionName, filter as any);
-    if (!countRes.success) return countRes as any;
-
-    const dataRes = await this.crud.findMany(collectionName, filter as any, {
-      limit: options?.limit,
-      offset: options?.offset,
-      fields: options?.fields as any,
-      sort: options?.sort as any,
-    });
-    if (!dataRes.success) return dataRes as any;
-
-    return {
-      success: true,
-      data: {
-        data: dataRes.data as unknown[],
-        metadata: options?.includeMetadata
-          ? {
-              totalCount: countRes.data,
-            }
-          : undefined,
-      },
-    };
-  }
-
-  async getMultipleCollectionData(
-    collectionNames: string[],
-    options?: { limit?: number; fields?: string[] },
-  ): Promise<DatabaseResult<Record<string, unknown[]>>> {
-    const results: Record<string, unknown[]> = {};
-    for (const name of collectionNames) {
-      const res = await this.crud.findMany(
-        name,
-        {},
-        { limit: options?.limit, fields: options?.fields as any },
-      );
-      if (res.success) {
-        results[name] = res.data;
-      }
-    }
-    return { success: true, data: results };
-  }
-
   public utils = {
-    generateId: () => {
-      const { generateId } = require("./methods/mongodb-utils");
-      return generateId();
-    },
-    normalizePath: (path: string) => {
-      const { normalizePath } = require("./methods/mongodb-utils");
-      return normalizePath(path);
-    },
-    validateId: (id: string) => {
-      const { validateId } = require("./methods/mongodb-utils");
-      return validateId(id);
-    },
-    createPagination: <T>(items: T[], options: any) => {
-      const { createPagination } = require("./methods/mongodb-utils");
-      return createPagination(items, options);
-    },
+    generateId: () => generateId(),
+    normalizePath: (path: string) => normalizePath(path),
+    validateId: (id: string) => validateId(id),
+    createPagination: <T>(items: T[], options: any) => createPagination(items, options),
   };
 }

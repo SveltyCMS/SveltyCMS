@@ -13,6 +13,11 @@ vi.mock("@src/databases/db", () => ({
     auth: { validateSession: vi.fn() },
     collection: { getModel: vi.fn() },
   },
+  getDb: vi.fn().mockReturnValue({
+    auth: { validateSession: vi.fn() },
+    collection: { getModel: vi.fn() },
+  }),
+  isDbConnected: vi.fn().mockReturnValue(true),
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
 }));
 

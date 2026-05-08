@@ -224,14 +224,14 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
   {
     path: "tests/benchmarks/realtime-performance.test.ts",
     label: "WebSocket & Realtime Latency",
-    shortLabel: "Realtime",
+    shortLabel: "Real-Time",
     level: 4,
     section: "api",
     intensity: "medium",
     estimatedMs: 15_000,
     desc: "Benchmarks WebSocket connection/broadcast latency.",
     lastRun: "2026-05-03T20:23:32.129Z",
-    strategy: "once",
+    strategy: "all",
   },
   {
     path: "tests/benchmarks/multi-tenant-performance.test.ts",
@@ -377,7 +377,7 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     intensity: "high",
     estimatedMs: 180_000,
     desc: "Measures complex filtering and sorting performance on 100,000+ entry collections.",
-    strategy: "sql",
+    strategy: "all",
     lastRun: "2026-05-03T20:35:45.046Z",
   },
   {

@@ -4,7 +4,7 @@
  */
 
 import { SERVICE_BASELINE_TIMES } from "./config";
-import { getSystemState } from "./state";
+import { getSystemState } from "./state.svelte";
 
 /**
  * Export comprehensive system state for health check endpoint with performance data

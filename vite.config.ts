@@ -765,10 +765,11 @@ export default defineConfig((): any => {
           // See /docs/architecture/state-management.mdx for details.
           if (warning.message?.includes("dynamic import will not move module")) {
             const isWidgetStore = warning.id?.includes("widget-store.svelte.ts");
+            const isStateStore = warning.id?.includes("state.svelte.ts");
             const isRichTextInput = warning.id?.includes("rich-text/input.svelte");
             const isSettingsService = warning.id?.includes("services/settings-service.ts");
             const isDb = warning.id?.includes("databases/db.ts");
-            if (isWidgetStore || isRichTextInput || isSettingsService || isDb) {
+            if (isWidgetStore || isStateStore || isRichTextInput || isSettingsService || isDb) {
               return;
             }
           }

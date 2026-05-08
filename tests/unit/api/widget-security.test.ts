@@ -16,7 +16,6 @@ vi.mock("@utils/api-handler", () => ({
 }));
 
 vi.mock("@src/databases/db", () => ({
-  auth: {},
   dbAdapter: {
     collection: {
       getModel: vi.fn(),
@@ -28,7 +27,22 @@ vi.mock("@src/databases/db", () => ({
         deactivate: vi.fn().mockResolvedValue({ success: true }),
       },
     },
+    isConnected: vi.fn().mockReturnValue(true),
   },
+  getDb: vi.fn().mockReturnValue({
+    collection: {
+      getModel: vi.fn(),
+    },
+    system: {
+      widgets: {
+        getActiveWidgets: vi.fn().mockResolvedValue({ success: true, data: [] }),
+        activate: vi.fn().mockResolvedValue({ success: true }),
+        deactivate: vi.fn().mockResolvedValue({ success: true }),
+      },
+    },
+    isConnected: vi.fn().mockReturnValue(true),
+  }),
+  isDbConnected: vi.fn().mockReturnValue(true),
   dbInitPromise: Promise.resolve(),
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
   getAuth: vi.fn(),

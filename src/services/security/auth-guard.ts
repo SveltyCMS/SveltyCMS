@@ -21,8 +21,14 @@ export class AuthGuardService {
    * Validates an active session ID and returns the associated User.
    */
   static async validateSession(sessionId: string): Promise<User | null> {
-    if (!auth) return null;
-    return auth.validateSession(sessionId as any);
+    const { getAuth } = await import("@src/databases/db");
+    const authService = getAuth();
+    if (!authService) {
+      console.warn(`[AuthGuardService] Auth service NOT available for sessionId: ${sessionId}`);
+      return null;
+    }
+    const result = await authService.validateSession(sessionId as any, { suppressErrorLog: true });
+    return result?.success ? result.data : null;
   }
 
   /**

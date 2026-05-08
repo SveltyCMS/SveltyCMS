@@ -51,6 +51,7 @@ vi.mock("@src/databases/db", () => {
     getDb: vi.fn().mockReturnValue(dbAdapter),
     dbInitPromise: Promise.resolve(),
     getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+    isDbConnected: vi.fn().mockReturnValue(true),
   };
 });
 

@@ -11,6 +11,7 @@ import {
   exportResult,
   setupBenchmarkServer,
   ensureStableTestData,
+  forceRefreshServer,
   stabilize,
   printTruthTable,
   printSummaryTable,
@@ -32,9 +33,11 @@ async function runMixedWorkloadAudit() {
     const baseUrl = server.baseUrl;
 
     await ensureStableTestData();
+    await forceRefreshServer(baseUrl);
     await stabilize(1500);
 
-    const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+    const { TEST_API_SECRET } = await import("./benchmark-utils");
+    const secret = TEST_API_SECRET;
 
     const operations = [
       {

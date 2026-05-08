@@ -13,8 +13,10 @@ import {
   printTruthTable,
   printSummaryTable,
   ensureStableTestData,
+  forceRefreshServer,
   stabilize,
   getDbType,
+  TEST_API_SECRET,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger";
 
@@ -29,10 +31,11 @@ async function runSeoAudit() {
     const baseUrl = server.baseUrl;
 
     await ensureStableTestData();
+    await forceRefreshServer(baseUrl);
 
     // Warm up server and ensure test redirects are loaded
     await fetch(`${baseUrl}/api/system/health`, {
-      headers: { "x-test-mode": "true", "x-test-secret": "test-secret" },
+      headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
     });
     await stabilize(1000);
 
@@ -79,7 +82,7 @@ async function runSeoAudit() {
             ...(scenario.options as any),
             headers: {
               "x-test-mode": "true",
-              "x-test-secret": "test-secret",
+              "x-test-secret": TEST_API_SECRET,
             },
           });
 

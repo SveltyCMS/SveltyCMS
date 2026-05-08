@@ -29,8 +29,8 @@ Frontend/API → db.ts → dbInterface → Adapter (MongoDB/SQL) → Modules/Met
 
 **Method Modules Location:**
 
-- **MongoDB**: `src/databases/mongodb/methods/`
-- **SQL (Drizzle)**: `src/databases/sqlite/` (and variants, e.g., `sqlite/crud/`, `sqlite/modules/auth/`)
+- **MongoDB**: `src/databases/mongodb/` (flattened structure)
+- **SQL (Drizzle)**: `src/databases/agnostic/` (base modules) and engine folders (`sqlite/`, `postgresql/`, `mariadb/`).
 
 ---
 
@@ -228,7 +228,7 @@ stateDiagram-v2
         - Normal operation
     end note
 
-    note right of DEGRADED
+note right of DEGRADED
         - Core services working
         - Some features limited
         - Requests still processed
@@ -239,6 +239,32 @@ stateDiagram-v2
         - Most requests blocked
         - Requires intervention
     end note
+
+---
+
+## 💎 Platinum Performance Tiers (2026)
+
+### 1. `bypassSafeQuery` Hook
+
+**Purpose:** Bypass security middleware for internal, trusted lookups.
+
+- **Usage:** Set `bypassSafeQuery: true` in the options object.
+- **Impact:** Eliminates ~0.5ms of overhead per request by skipping tenant injection and soft-delete filtering.
+- **Safety:** Automatically restricted to internal SDK calls.
+
+### 2. `isLookupQuery` Fast-Path
+
+**Purpose:** Skip Query IR translation for simple lookups.
+
+- **Detection:** Automatically identifies queries targeting only `_id` or `token`.
+- **Impact:** Bypasses the entire intermediate representation layer, calling the driver directly.
+
+### 3. `hasChanges` Zero-Allocation
+
+**Purpose:** Prevent unnecessary object cloning.
+
+- **Pattern:** Utility functions (`processDates`) check for modifications before returning a new object.
+- **Impact:** Significant reduction in memory allocation and GC pressure.
 ```
 
 ---

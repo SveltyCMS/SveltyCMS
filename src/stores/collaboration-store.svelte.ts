@@ -7,7 +7,7 @@
 import type { AutomationEventPayload } from "@src/services/background/automation/types";
 import { collections } from "@src/stores/collection-store.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { isReady } from "@src/stores/system/state";
+import { isReady } from "@src/stores/system/state.svelte";
 import { ui } from "@src/stores/ui-store.svelte";
 import { get } from "svelte/store";
 import { browser } from "$app/environment";

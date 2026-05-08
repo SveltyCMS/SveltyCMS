@@ -5,9 +5,25 @@
  */
 
 import { logger } from "@utils/logger";
-import type { DatabaseCapabilities, DatabaseError, DatabaseResult } from "./db-interface";
+import type {
+  DatabaseCapabilities,
+  DatabaseError,
+  DatabaseResult,
+  ICrudAdapter,
+  IBatchAdapter,
+} from "./db-interface";
 
 export abstract class BaseAdapter {
+  /**
+   * 🚀 AGNOSTIC CORE: Access to the CRUD module must be provided by subclasses.
+   */
+  public abstract get crud(): ICrudAdapter;
+
+  /**
+   * 🚀 AGNOSTIC CORE: Access to the Batch module.
+   */
+  public abstract get batch(): IBatchAdapter;
+
   protected connected = false;
   protected capabilities: DatabaseCapabilities = {
     supportsTransactions: false,
@@ -71,8 +87,17 @@ export abstract class BaseAdapter {
   /**
    * Standard error handler that logs and returns a formatted DatabaseResult.
    */
-  public handleError<T>(error: unknown, code: string, message?: string): DatabaseResult<T> {
-    console.error("RAW ADAPTER ERROR:", error);
+  public handleError<T>(
+    error: unknown,
+    code: string,
+    message?: string,
+    options?: { suppressErrorLog?: boolean },
+  ): DatabaseResult<T> {
+    const shouldLog = !options?.suppressErrorLog && process.env.BENCHMARK !== "true";
+
+    if (shouldLog) {
+      console.error("RAW ADAPTER ERROR:", error);
+    }
     let errorString = String(error);
     if (error instanceof Error) {
       errorString = error.message;
@@ -84,7 +109,10 @@ export abstract class BaseAdapter {
       }
     }
     const errMessage = message || errorString;
-    logger.error(`Database adapter error [${code}]:`, errMessage);
+
+    if (shouldLog) {
+      logger.error(`Database adapter error [${code}]:`, errMessage);
+    }
 
     return {
       success: false,
@@ -101,9 +129,19 @@ export abstract class BaseAdapter {
     fn: () => Promise<T>,
     code: string,
     message?: string,
-    options?: { isWrite?: boolean; transaction?: any; skipMeta?: boolean },
+    options?: {
+      isWrite?: boolean;
+      transaction?: any;
+      skipMeta?: boolean;
+      suppressErrorLog?: boolean;
+      bypassSafeQuery?: boolean;
+    },
   ): Promise<DatabaseResult<T>> {
     if (!this.connected) {
+      const shouldLog = !options?.suppressErrorLog && process.env.BENCHMARK !== "true";
+      if (shouldLog) {
+        logger.error(`[BaseAdapter] Operation ${code} rejected: Adapter is not connected.`);
+      }
       return this.notConnectedError<T>();
     }
     const startTime = performance.now();
@@ -126,7 +164,9 @@ export abstract class BaseAdapter {
       return { success: true, data, meta: { executionTime: latency } };
     } catch (error) {
       this.metrics.errorCount++;
-      return this.handleError<T>(error, code, message);
+      return this.handleError<T>(error, code, message, {
+        suppressErrorLog: options?.suppressErrorLog,
+      });
     }
   }
 
@@ -162,9 +202,7 @@ export abstract class BaseAdapter {
   }
 
   /**
-   * Invalidates the query cache for a specific collection/tenant.
-   * Leverages the centralized cacheService to clear L1/L2 entries.
-   * Surgical Field-Level Caching.
+   * Surgical Invalidation of Query Cache.
    */
   public async invalidateQueryCache(
     collection: string,
@@ -175,20 +213,18 @@ export abstract class BaseAdapter {
       const { cacheService } = await import("./cache/cache-service");
 
       if (options?.tags && options.tags.length > 0) {
-        // 🚀 Surgical: Clear only specific tags (e.g. field-level or document-level)
+        // 🚀 Surgical: Clear only specific tags
         await cacheService.clearByTags(options.tags, tenantId);
       } else {
         // Standard: Pattern matches collection:name:* for that tenant
         await cacheService.clearByPattern(`collection:${collection}:*`, tenantId);
       }
 
-      // Also clear specific document IDs if provided
       if (options?.ids && options.ids.length > 0) {
         const idTags = options.ids.map((id) => `doc:${collection}:${id}`);
         await cacheService.clearByTags(idTags, tenantId);
       }
 
-      // Also increment the global content version to trigger re-checks if needed
       await cacheService.set("system:content_version", Date.now(), 0, tenantId);
       logger.debug(
         `[BaseAdapter] Invalidated cache for ${collection} (Tags: ${options?.tags?.length || 0})`,
@@ -196,6 +232,75 @@ export abstract class BaseAdapter {
     } catch (err) {
       logger.error(`[BaseAdapter] Failed to invalidate query cache: ${err}`);
     }
+  }
+
+  /**
+   * 🚀 AGNOSTIC CORE: High-performance data retrieval for a single collection.
+   * Shared implementation across all database adapters.
+   */
+  public async getCollectionData(
+    collectionName: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+      fields?: string[];
+      sort?: { field: string; direction: "asc" | "desc" };
+      filter?: Record<string, unknown>;
+      includeMetadata?: boolean;
+    },
+  ): Promise<
+    DatabaseResult<{
+      data: unknown[];
+      metadata?: { totalCount: number; schema?: unknown; indexes?: string[] };
+    }>
+  > {
+    return this.wrap(async () => {
+      const filter = options?.filter || {};
+      const countRes = await this.crud.count(collectionName, filter as any, {
+        bypassTenantCheck: (options as any)?.bypassTenantCheck,
+      });
+      if (!countRes.success) throw new Error(countRes.message);
+
+      const dataRes = await this.crud.findMany(collectionName, filter as any, {
+        limit: options?.limit,
+        offset: options?.offset,
+        fields: options?.fields as any,
+        sort: options?.sort as any,
+        bypassTenantCheck: (options as any)?.bypassTenantCheck,
+      });
+      if (!dataRes.success) throw new Error(dataRes.message);
+
+      return {
+        data: dataRes.data as unknown[],
+        metadata: options?.includeMetadata
+          ? {
+              totalCount: countRes.data,
+            }
+          : undefined,
+      };
+    }, "GET_COLLECTION_DATA_FAILED");
+  }
+
+  /**
+   * 🚀 AGNOSTIC CORE: Batch data retrieval across multiple collections.
+   */
+  public async getMultipleCollectionData(
+    collectionNames: string[],
+    options?: { limit?: number; fields?: string[] },
+  ): Promise<DatabaseResult<Record<string, unknown[]>>> {
+    return this.wrap(async () => {
+      const results: Record<string, unknown[]> = {};
+      for (const name of collectionNames) {
+        const res = await this.getCollectionData(name, {
+          limit: options?.limit,
+          fields: options?.fields,
+        });
+        if (res.success) {
+          results[name] = res.data.data;
+        }
+      }
+      return results;
+    }, "GET_MULTIPLE_COLLECTION_DATA_FAILED");
   }
 }
 
@@ -211,9 +316,10 @@ export abstract class DatabaseModule<T extends BaseAdapter = BaseAdapter> {
    */
   protected get db() {
     const db = (this.adapter as any).db;
-    if (!db) {
+    if (!db && this.adapter.isConnected()) {
+      // This should only happen if the adapter claims to be connected but has no db instance
       throw new Error(
-        `[${this.constructor.name}] Database instance (db) is undefined on adapter ${this.adapter.constructor.name}. Ensure connect() has completed before calling this module.`,
+        `[${this.constructor.name}] Database instance (db) is missing on connected adapter ${this.adapter.constructor.name}.`,
       );
     }
     return db;

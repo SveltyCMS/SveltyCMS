@@ -10,10 +10,12 @@ import {
   exportResult,
   setupBenchmarkServer,
   ensureStableTestData,
+  forceRefreshServer,
   stabilize,
   printTruthTable,
   printSummaryTable,
   getDbType,
+  TEST_API_SECRET,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger";
 
@@ -34,7 +36,7 @@ const snapshots: MemorySnapshot[] = [];
 async function getMemoryStats(baseUrl: string, forceGC = false, signal?: AbortSignal) {
   try {
     const res: any = await fetch(`${baseUrl}/api/system/health?verbose=true${forceGC ? "&gc=true" : ""}`, {
-      headers: { "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026" },
+      headers: { "x-test-secret": TEST_API_SECRET },
       signal,
     });
     const data = await res.json();
@@ -53,6 +55,7 @@ export async function runMemoryStabilityAudit() {
     const baseUrl = server.baseUrl;
 
     await ensureStableTestData();
+    await forceRefreshServer(baseUrl);
     await stabilize(2000);
 
     const controllers = new Set<AbortController>();
@@ -114,7 +117,7 @@ export async function runMemoryStabilityAudit() {
         try {
           const res: any = await fetch(`${baseUrl}/api/system/health`, {
             headers: {
-              "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+              "x-test-secret": TEST_API_SECRET,
             },
             signal: controller.signal,
           });

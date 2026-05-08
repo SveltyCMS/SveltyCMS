@@ -51,9 +51,6 @@ export async function handleAuthUserRoutes(
   // --- 2FA Routes ---
   if (method === "2fa") return handle2FARoutes(event, cms, tenantId, user, segments);
 
-  // --- 2FA Routes ---
-  if (method === "2fa") return handle2FARoutes(event, cms, tenantId, user, segments);
-
   // --- SAML 2.0 Routes ---
   if (method === "saml") return handleSAMLRoutes(event, tenantId, segments);
 
@@ -71,7 +68,14 @@ export async function handleAuthUserRoutes(
     return handleUpdateUserAttributesRoute(event, cms, tenantId);
   if (method === "save-avatar" && request.method === "POST")
     return handleSaveAvatarRoute(event, cms, tenantId);
-  if (method === "me" && request.method === "GET") return successResponse(event, user);
+  if (method === "me" && request.method === "GET") {
+    try {
+      return successResponse(event, user);
+    } catch (err: any) {
+      console.error(`[DEBUG] /api/user/me crash:`, err);
+      throw err;
+    }
+  }
   if (method === "update-roles" && request.method === "POST")
     return handleUpdateRoles(event, cms, tenantId, user);
 
@@ -123,7 +127,10 @@ export async function handleLogin(
     try {
       userResult = await cms.auth.getUserByEmail(requestedEmail, { tenantId });
     } catch (e: any) {
-      console.error("🔥 Error in getUserByEmail during login:", e);
+      // 🛡️ Suppress 404s in test mode since we fallback to system user anyway
+      if (!(e instanceof AppError && e.status === 404)) {
+        console.error("🔥 Error in getUserByEmail during login:", e);
+      }
       userResult = null;
     }
 

@@ -61,6 +61,7 @@ vi.mock("@src/databases/db", () => {
     auth: dbAdapter.auth,
     getDbInitPromise: vi.fn().mockResolvedValue(undefined),
     getAuth: vi.fn().mockReturnValue(dbAdapter.auth),
+    isDbConnected: vi.fn().mockReturnValue(true),
   };
 });
 
@@ -175,7 +176,7 @@ describe("2FA API Unit Tests", () => {
     it("should verify TOTP code successfully", async () => {
       mockTwoFactorService.verify2FA.mockResolvedValue({
         success: true,
-        user: { _id: "user-1" },
+        data: { user: { _id: "user-1" } },
       });
 
       const event = createMockEvent(
@@ -198,7 +199,7 @@ describe("2FA API Unit Tests", () => {
     it("should verify backup code successfully", async () => {
       mockTwoFactorService.verify2FA.mockResolvedValue({
         success: true,
-        user: { _id: "user-1" },
+        data: { user: { _id: "user-1" } },
       });
 
       const event = createMockEvent(
@@ -281,8 +282,10 @@ describe("2FA API Unit Tests", () => {
       const user = { _id: "user-1", email: "test@example.com" };
       mockTwoFactorService.initiate2FASetup.mockResolvedValue({
         success: true,
-        qrCode: "qr-data",
-        secret: "secret",
+        data: {
+          qrCode: "qr-data",
+          secret: "secret",
+        },
       });
 
       const event = createMockEvent({}, user, undefined, "setup", {
@@ -306,15 +309,16 @@ describe("2FA API Unit Tests", () => {
       mockTwoFactorService.initiate2FASetup.mockResolvedValue({
         success: false,
         message: "2FA is already enabled",
-      });
+        error: { code: "ALREADY_ENABLED", message: "2FA is already enabled" },
+      } as any);
       const event = createMockEvent({}, user, undefined, "setup", {
         headers: { "X-CSRF-Token": "mock-csrf-token" },
         cookies: { csrf_token: "mock-csrf-token" },
       });
       const response = await POST_SETUP(event);
       const result = await response!.json();
-      expect(result.success).toBe(true);
-      expect(result.data.success).toBe(false);
+      expect(result.success).toBe(false);
+      expect(result.message).toBe("2FA is already enabled");
     });
   });
 

@@ -14,7 +14,7 @@
 
 import { dev } from "$app/environment";
 import { getSetupState, SetupState, isSetupComplete, getTestSecret } from "@src/utils/setup-check";
-import { getSystemState } from "@src/stores/system/state";
+import { getSystemState } from "@src/stores/system/state.svelte";
 import { isRedirect, type Handle } from "@sveltejs/kit";
 import {
   isApiLike,
@@ -30,12 +30,15 @@ import { logger } from "@src/utils/logger";
 let cachedDbAdapter: any = null;
 let healthHeaders: Record<string, string> | null = null;
 
+// ✨ PERFORMANCE: Pre-import database utilities to avoid dynamic import overhead
+import { getDbInitPromise, getDb } from "@src/databases/db";
+
 // --- HELPERS ---
 
 /** Generates a unique request ID for tracing - Optimized for high throughput */
 let requestIdCounter = 0;
 const generateRequestId = () => {
-  if (process.env.BENCHMARK === "true") return ++requestIdCounter;
+  if (IS_BENCHMARK) return ++requestIdCounter;
   return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
 };
 
@@ -101,8 +104,16 @@ async function getCorsHeadersInline(
   return headers;
 }
 
-// --- STATES TO BLOCK ---
-const RESTRICTED_STATES = new Set(["INITIALIZING", "FAILED"]);
+// ✨ PERFORMANCE: Cache environment lookups to avoid process.env overhead on every request
+const IS_TEST_MODE =
+  typeof process !== "undefined" &&
+  (String(process.env.TEST_MODE) === "true" ||
+    String(process.env.VITE_TEST_MODE) === "true" ||
+    process.env.NODE_ENV === "test" ||
+    process.env.BENCHMARK === "true");
+
+const IS_BENCHMARK = typeof process !== "undefined" && process.env.BENCHMARK === "true";
+const DB_TYPE = typeof process !== "undefined" ? process.env.DB_TYPE : "unknown";
 
 // Main Turbo Pipeline Hook
 export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
@@ -114,11 +125,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   const pathname = event.url.pathname;
 
   // ── 0a. TERMINAL TEST BYPASS ──────────────────────────────────────────
-  const isTest =
-    String(process.env.TEST_MODE) === "true" ||
-    String(process.env.VITE_TEST_MODE) === "true" ||
-    process.env.NODE_ENV === "test" ||
-    process.env.BENCHMARK === "true";
+  const isTest = IS_TEST_MODE;
 
   const testSecret =
     event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
@@ -130,19 +137,23 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       // 🚀 TERMINAL BYPASS: Verified test secret receives full system access.
       // We explicitly skip ALL other middleware by calling the dispatcher or returning a direct response.
       if (!cachedDbAdapter) {
-        const { getDbInitPromise, dbAdapter } = await import("@src/databases/db");
-        cachedDbAdapter = dbAdapter;
         try {
           await getDbInitPromise(false, "CORE");
+          cachedDbAdapter = getDb();
         } catch {
           /* ignore */
         }
       }
 
       const db = cachedDbAdapter;
+      if (!IS_BENCHMARK || event.url.searchParams.has("verbose")) {
+        logger.debug(
+          `[Turbo] TEST BYPASS for ${pathname} (db: ${!!db}, connected: ${db?.isConnected()})`,
+        );
+      }
 
-      if (pathname.includes("/setup")) {
-        logger.info(`[Turbo] TEST BYPASS for ${pathname} method=${event.request.method}`);
+      if (pathname.includes("/setup") && !IS_BENCHMARK) {
+        logger.debug(`[Turbo] TEST BYPASS for ${pathname} method=${event.request.method}`);
       }
 
       (event.locals as any).user = {
@@ -166,7 +177,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
           database: !!db,
           uptime: process.uptime(),
           timestamp: Date.now(),
-          dbType: process.env.DB_TYPE || "unknown",
+          dbType: DB_TYPE || "unknown",
           memory: (() => {
             if (event.url.searchParams.has("gc")) {
               if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
@@ -176,7 +187,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
           })(),
         };
 
-        if (process.env.BENCHMARK === "true" && !event.url.searchParams.has("verbose")) {
+        if (IS_BENCHMARK && !event.url.searchParams.has("verbose")) {
           // Keep it lean for high-frequency benchmark polling but satisfy setup-system.ts
           return new Response(
             JSON.stringify({
@@ -220,8 +231,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   // Health checks must be zero-latency and bypass ALL other hooks.
   if (pathname === "/api/system/health" || pathname === "/health") {
     if (!cachedDbAdapter) {
-      const { dbAdapter } = await import("@src/databases/db");
-      cachedDbAdapter = dbAdapter;
+      cachedDbAdapter = getDb();
     }
 
     if (!healthHeaders) {
@@ -240,7 +250,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       database: !!cachedDbAdapter,
       uptime: process.uptime(),
       timestamp: Date.now(),
-      dbType: process.env.DB_TYPE || "unknown",
+      dbType: DB_TYPE || "unknown",
       memory: (() => {
         if (event.url.searchParams.has("gc")) {
           if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
@@ -392,8 +402,18 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     }
 
     // ── 6. SYSTEM STATE GATE ────────────────────────────────────────────────
-    if (RESTRICTED_STATES.has(systemState.overallState) && !pathname.includes("/health")) {
-      const response = restrictedResponse(systemState.overallState, isApiRoute, baseHeaderMap);
+    if (systemState.overallState === "INITIALIZING" && !pathname.includes("/health")) {
+      logger.info(`[Turbo] System initializing, waiting for CORE boot... [ID:${requestId}]`);
+      const { getDbInitPromise } = await import("@src/databases/db");
+      await getDbInitPromise(false, "CORE");
+
+      // Verify if it failed during wait
+      const { getSystemState: getNewState } = await import("@src/stores/system/state.svelte");
+      if (getNewState().overallState === "FAILED") {
+        return restrictedResponse("FAILED", isApiRoute, baseHeaderMap);
+      }
+    } else if (systemState.overallState === "FAILED" && !pathname.includes("/health")) {
+      const response = restrictedResponse("FAILED", isApiRoute, baseHeaderMap);
       response.headers.set("X-Request-ID", requestId.toString());
       if (dev) logRequest(event, performance.now() - requestStart, response.status);
       return response;

@@ -124,7 +124,10 @@ export interface BaseQueryOptions {
   tenantId?: DatabaseId | null;
   bypassTenantCheck?: boolean;
   includeDeleted?: boolean;
+  bypassSafeQuery?: boolean; // 🚀 ULTRA FAST PATH: Skip all security and allocation checks
   silent?: boolean; // Useful for skipping trigger/audit logs
+  skipMeta?: boolean; // 🚀 PERFORMANCE: Skip executionTime/meta object allocation
+  suppressErrorLog?: boolean; // 🚀 SECURITY/PERF: Mute error logging for expected failures
   hints?: QueryOptimizationHints;
   transaction?: any; // Database-specific transaction object
 }
@@ -499,7 +502,7 @@ export interface IAuthAdapter {
   deleteExpiredSessions(): Promise<DatabaseResult<number>>;
   deleteExpiredTokens(): Promise<DatabaseResult<number>>;
   deleteRole(roleId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
-  deleteSession(sessionId: DatabaseId): Promise<DatabaseResult<void>>;
+  deleteSession(sessionId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
   deleteTokens(
     tokenIds: DatabaseId[],
     options?: BaseQueryOptions,
@@ -581,7 +584,10 @@ export interface IAuthAdapter {
     userData: Partial<User>,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<User>>;
-  validateSession(sessionId: DatabaseId): Promise<DatabaseResult<User | null>>;
+  validateSession(
+    sessionId: DatabaseId,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<User | null>>;
   validateToken(
     token: string,
     userId?: DatabaseId,
@@ -1160,20 +1166,9 @@ export interface IDBAdapter {
   ): Promise<DatabaseResult<T>>;
 
   // Database Agnostic Utilities
-  utils: {
-    generateId(): DatabaseId;
-    normalizePath(path: string): string;
-    validateId(id: string): boolean;
-    createPagination<T>(items: T[], options: PaginationOptions): PaginatedResult<T>;
-  };
+  utils: any;
 
   waitForConnection?(): Promise<void>;
-  ensureSystem?(): Promise<void>;
-  ensureAuth?(): Promise<void>;
-  ensureCollections?(): Promise<void>;
-  ensureMedia?(): Promise<void>;
-  ensureContent?(): Promise<void>;
-  ensureMonitoring?(): Promise<void>;
 
   /**
    * 🚀 Dynamic Enterprise Scaling

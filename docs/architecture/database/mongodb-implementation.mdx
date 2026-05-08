@@ -116,11 +116,13 @@ SveltyCMS MongoDB implementation is built with **enterprise-scale performance as
 - **Typed Collection Proxy**: Generated types provide full IntelliSense for database operations, reducing developer error and improving speed.
 - **Index Optimizer**: A background service that periodically verifies and builds missing indexes based on field configurations.
 
-**Phase 7: Modularization & Engine 9.5 Alignment (NEW)**
-
-- **Unified Transactions**: Implementation of the `MongoTransactionModule` which wraps native MongoDB sessions in a SQL-compatible interface (`tx.insert`, `tx.update`).
-- **Agnostic Query IR (NEW)**: Migrated to the Unified Query Intermediate Representation (`mapQuery`), ensuring that security, tenant isolation, and soft-delete logic are decoupled from the MongoDB driver.
 - **Native Bulk Operations (NEW)**: Replaced iterative batching with native `bulkWrite`, yielding a ~50% improvement in high-throughput data ingestion and updates.
+
+**Phase 8: Platinum Performance & Zero-Allocation (MAY 2026)**
+
+- **Zero-Allocation Dates (`processDates`)**: Implemented a "dirty-bit" check to prevent object cloning when no date transformation is needed.
+- **Security Fast-Path (`bypassSafeQuery`)**: High-performance toggle for internal system lookups, bypassing redundant tenant/security checks.
+- **ID Lookup Fast-Path (`isLookupQuery`)**: Direct collection access for ID/token queries, bypassing the Query IR translation pipeline entirely.
 
 ---
 
@@ -147,11 +149,11 @@ As of April 2026, the MongoDB adapter has been fully modularized to align with t
 
 | Module                | Responsibility                                          | Optimization                                           |
 | :-------------------- | :------------------------------------------------------ | :----------------------------------------------------- |
-| **AuthModule**        | Session validation, RBAC, and JIT provisioning.         | Composed adapter pattern for sub-1ms validation.       |
-| **CrudModule**        | High-speed document operations with name normalization. | `.lean()` by default with zero-serialization overhead. |
-| **MediaModule**       | GridFS/Filesystem hybrid storage and metadata.          | SHA-256 deduplication and metadata extraction.         |
-| **SystemModule**      | Preferences, themes, widgets, and background jobs.      | Integrated L1/L2 cache versioning.                     |
-| **TransactionModule** | ACID compliance via native sessions.                    | Unified SQL-like wrapper for cross-DB logic.           |
+| **auth-user.ts**      | Session validation, RBAC, and JIT provisioning.         | Platinum Fast-Path for sub-0.5ms validation.           |
+| **crud-methods.ts**   | High-speed document operations with name normalization. | `.lean()` with zero-allocation `processDates` logic.   |
+| **media-methods.ts**  | GridFS/Filesystem hybrid storage and metadata.          | SHA-256 deduplication and metadata extraction.         |
+| **content-methods.ts**| Advanced content tree and structure management.         | Optimized recursive lookups for large hierarchies.     |
+| **adapter-core.ts**   | Unified connection and Query IR management.            | Hardened `isLookupQuery` ID-bypass.                    |
 
 ### Explicit Schema Registration
 

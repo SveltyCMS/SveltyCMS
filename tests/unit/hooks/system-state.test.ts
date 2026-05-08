@@ -17,7 +17,7 @@ import {
   setSystemState,
   updateServiceHealth,
   type ServiceName,
-} from "@src/stores/system/state";
+} from "@src/stores/system/state.svelte";
 
 // Disable TEST_MODE so the state machine logic actually runs (CI sets TEST_MODE=true)
 const originalTestMode = process.env.TEST_MODE;

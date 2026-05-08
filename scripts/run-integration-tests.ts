@@ -88,13 +88,16 @@ function getDbDefaults() {
 
   const dbPort = getEnvValue("DB_PORT") ?? defaultPort;
 
+  const dbUser = getEnvValue("DB_USER") ?? (dbType === "mariadb" ? "root" : dbType === "postgresql" ? "postgres" : dbType === "sqlite" ? "" : "testuser");
+  const dbPassword = getEnvValue("DB_PASSWORD") ?? (dbType === "mariadb" ? "mariadb" : dbType === "postgresql" ? "postgres" : dbType === "sqlite" ? "" : "testpass");
+
   return {
     type: dbType,
     host: getEnvValue("DB_HOST") ?? "127.0.0.1",
     port: dbPort,
     name: getEnvValue("DB_NAME") ?? "sveltycms_test",
-    user: getEnvValue("DB_USER") ?? (dbType === "sqlite" ? "" : "testuser"),
-    password: getEnvValue("DB_PASSWORD") ?? (dbType === "sqlite" ? "" : "testpass"),
+    user: dbUser,
+    password: dbPassword,
   };
 }
 
@@ -208,7 +211,7 @@ async function startPreviewServer() {
 
   // 🚀 HARDENING: Use bun directly to run the build artifact.
   // This ensures we use Bun's native SQLite driver and avoids better-sqlite3 binding issues on Windows.
-  previewProcess = spawn("bun", ["build/index.js"], {
+  previewProcess = spawn("bun", [join(ROOT, "build", "index.js")], {
     cwd: ROOT,
     stdio: "inherit",
     shell: process.platform === "win32",
@@ -391,26 +394,46 @@ function ensurePrivateTestConfig() {
   console.log(`✅ Test config verified: ${privateTestPath}`);
 }
 
-async function testingAction(action: "reset" | "seed") {
-  const response = await fetch(`${API_BASE_URL}/api/testing`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-test-mode": "true",
-      "x-test-secret": CONFIG.TEST_API_SECRET,
-      Origin: API_BASE_URL,
-    },
-    body: JSON.stringify({
-      action,
-      email: "admin@example.com",
-      password: CONFIG.ADMIN_PASSWORD,
-    }),
-  });
+async function testingAction(action: "reset" | "seed", maxRetries = 5) {
+  let lastError: Error | null = null;
 
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new Error(`/api/testing ${action} failed with HTTP ${response.status}: ${text}`);
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/testing`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-mode": "true",
+          "x-test-secret": CONFIG.TEST_API_SECRET,
+          Origin: API_BASE_URL,
+        },
+        body: JSON.stringify({
+          action,
+          email: "admin@example.com",
+          password: CONFIG.ADMIN_PASSWORD,
+        }),
+      });
+
+      if (response.ok) return;
+
+      const text = await response.text().catch(() => "");
+      if (response.status === 503 && i < maxRetries - 1) {
+        console.log(`⏳ /api/testing ${action} returned 503 (initializing). Retrying in 2s...`);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        continue;
+      }
+
+      throw new Error(`/api/testing ${action} failed with HTTP ${response.status}: ${text}`);
+    } catch (err: any) {
+      lastError = err;
+      if (i < maxRetries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        continue;
+      }
+    }
   }
+
+  throw lastError || new Error(`Failed /api/testing ${action} after ${maxRetries} retries`);
 }
 
 async function runCommand(cmd: string, args: string[], opts: any = {}) {

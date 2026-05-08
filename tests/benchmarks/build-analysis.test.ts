@@ -46,13 +46,24 @@ async function runBuildAnalysis() {
       await fs.rm(buildDir, { recursive: true, force: true });
     }
 
-    console.log("   🔨 Running production build...");
-    execSync("bun run build", {
-      stdio: "inherit",
-      env: { ...process.env, NODE_ENV: "production" },
-    });
+    const isSuite = process.env.SVELTY_BENCHMARK_SUITE === "true";
+    const passedDuration = process.env.DX_BUILD_DURATION;
+    let buildTimeMs: number;
 
-    const buildTimeMs = performance.now() - startTime;
+    if (passedDuration) {
+      buildTimeMs = parseFloat(passedDuration);
+      console.log(`   ⏭️ Using pre-computed build duration: ${buildTimeMs.toFixed(0)}ms`);
+    } else if (isSuite) {
+      console.log("   ⏭️ Skipping redundant build (Suite Mode active).");
+      buildTimeMs = 0; // Fallback if not passed
+    } else {
+      console.log("   🔨 Running production build...");
+      execSync("bun run build", {
+        stdio: "inherit",
+        env: { ...process.env, NODE_ENV: "production" },
+      });
+      buildTimeMs = performance.now() - startTime;
+    }
     const totalSize = await getDirSize(buildDir);
 
     const files = await fs.readdir(buildDir, { recursive: true });

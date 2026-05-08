@@ -52,7 +52,7 @@ export async function handleTestingRoutes(
     invalidateSetupCache(false, null);
 
     // ✨ Fix: Reset system state store so the system transitions back to SETUP/INITIALIZING
-    const { resetSystemState } = await import("@src/stores/system/state");
+    const { resetSystemState } = await import("@src/stores/system/state.svelte");
     resetSystemState();
 
     return rawResponse(event, { success: true, message: "System reset successfully" });

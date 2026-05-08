@@ -142,7 +142,9 @@ class WidgetState {
     this.initPromise = (async () => {
       wsLogger.debug(`Starting internal init promise for tenant: ${tenantId}`);
       try {
-        wsLogger.info(`Initializing for tenant: ${tenantId}`);
+        if (process.env.VERBOSE_TESTS === "true") {
+          wsLogger.info(`Initializing for tenant: ${tenantId}`);
+        }
         // 1. Load modules from scanner
         const newWidgetFunctions: WidgetRegistry = {};
         const newCoreWidgets: string[] = [];
@@ -279,9 +281,11 @@ class WidgetState {
         this.healthStatus = "healthy";
         this.lastHealthCheck = Date.now();
 
-        logger.info(
-          `[WidgetStore] Initialized: ${this.coreWidgets.length} core, ${this.customWidgets.length} custom widgets.`,
-        );
+        if (process.env.VERBOSE_TESTS === "true") {
+          logger.info(
+            `[WidgetStore] Initialized: ${this.coreWidgets.length} core, ${this.customWidgets.length} custom widgets.`,
+          );
+        }
       } catch (e) {
         this.healthStatus = "unhealthy";
         logger.error("[WidgetStore] Initialization failed:", e);
@@ -329,7 +333,9 @@ class WidgetState {
         this.activeWidgets = this.activeWidgets.filter((w) => w !== name);
       }
 
-      logger.info(`[WidgetStore] Widget '${name}' status changed to '${status}'`);
+      if (process.env.VERBOSE_TESTS === "true") {
+        logger.info(`[WidgetStore] Widget '${name}' status changed to '${status}'`);
+      }
     } catch (e) {
       logger.error(`[WidgetStore] Failed to update status for ${name}:`, e);
       throw e;

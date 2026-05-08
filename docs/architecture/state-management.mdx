@@ -20,7 +20,18 @@ SveltyCMS employs a robust **State Machine** to manage the application's lifecyc
 
 ## 🧠 Core Concepts
 
-The system state is managed by a central store (`@stores/system`) and enforced by the `handleSystemState` server hook.
+In 2026, SveltyCMS migrated its core state management from traditional Svelte Stores to **Svelte 5 Runes** to eliminate the performance overhead of synchronous state lookups.
+
+### Reactive State with Svelte 5 Runes
+
+The system state is now managed by a reactive class (`SystemStateContainer`) utilizing `$state` and `$derived` runes. This architecture provides several enterprise-tier benefits:
+
+1.  **Zero-Tax Synchronous Access**: Unlike standard stores which require the expensive `get()` helper (iterating all subscribers), Svelte 5 runes allow direct, zero-overhead access to the current state via `system.current`.
+2.  **Fine-Grained Reactivity**: UI components only re-render when the specific service they are watching (e.g., `databaseStatus`) changes, rather than on every system update.
+3.  **Derived Intelligence**: The `overallState` is a `$derived` rune, ensuring it is always calculated on-demand with zero computation tax when idle.
+4.  **Backward Compatibility**: The system maintains a legacy `systemStateStore` (Writable) that is automatically synchronized with the reactive class, ensuring that older Svelte 4/Kit components and hooks continue to function without modification.
+
+The state is enforced by the `handleSystemState` server hook, which gates all incoming requests based on the reactive status.
 
 ### System States
 

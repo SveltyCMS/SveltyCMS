@@ -11,10 +11,11 @@ import {
   exportResult,
   setupBenchmarkServer,
   ensureStableTestData,
+  forceRefreshServer,
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType,
+  getDbLabel,
   TEST_API_SECRET,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger";
@@ -37,6 +38,7 @@ async function runPressureAudit() {
 
     await ensureStableTestData();
     await prepareCollection();
+    await forceRefreshServer(baseUrl);
 
     // Seed data efficiently
     console.log(`   → Seeding ${ENTRY_COUNT} entries...`);
@@ -84,7 +86,7 @@ async function runPressureAudit() {
     printTruthTable({
       title: "SVELTYCMS — INDEX PRESSURE AUDIT",
       shortLabel: "Index Pressure",
-      subtitle: `100k Entries • Sort + Filter • ${getDbType().toUpperCase()}`,
+      subtitle: `100k Entries • Sort + Filter • ${getDbLabel()}`,
       results: [
         { ...sortResult, layer: "Sorted", shortLabel: "Sort DESC" },
         { ...filterResult, layer: "Filtered", shortLabel: "Category Filter" },
@@ -132,8 +134,14 @@ async function prepareCollection() {
     await db.collection.createModel(schema).catch(() => {});
   }
 
-  // Clean previous run with permanent delete to prevent E11000 on re-runs
-  await db?.crud?.deleteMany?.(COLLECTION_ID, {}, { tenantId: "global" as any, permanent: true }).catch(() => {});
+  // 🛡️ SECURITY BYPASS: We use bypassTenantCheck: true for benchmark cleanup
+  // This ensures we clear data from ANY previous run regardless of the active tenant context.
+  await db?.crud?.deleteMany?.(COLLECTION_ID, {}, { 
+    bypassTenantCheck: true, 
+    permanent: true 
+  }).catch((err: any) => {
+    console.warn(`   [Cleanup] Warning: Failed to clear previous data: ${err.message}`);
+  });
 }
 
 async function seedLargeDataset(baseUrl: string) {
@@ -147,17 +155,38 @@ async function seedLargeDataset(baseUrl: string) {
       category: Math.random() > 0.5 ? "A" : "B",
     }));
 
-    const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/bulk`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-test-mode": "true",
-        "x-test-secret": TEST_API_SECRET,
-      },
-      body: JSON.stringify(batch),
-    });
+    let retryCount = 0;
+    const maxRetries = 5;
+    let res: Response;
 
-    if (!res.ok) throw new Error(`Seeding failed at batch ${i}`);
+    while (true) {
+      res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/bulk`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-mode": "true",
+          "x-test-secret": TEST_API_SECRET,
+        },
+        body: JSON.stringify(batch),
+      });
+
+      if (res.ok) break;
+
+      if (retryCount < maxRetries) {
+        retryCount++;
+        const delay = 1000 * retryCount;
+        console.warn(`   [WARN] Seeding batch ${i} failed (${res.status}). Retrying in ${delay}ms...`);
+        await new Promise((r) => setTimeout(r, delay));
+        // Try refreshing again if it's a 404 or 500
+        if (res.status === 404 || res.status === 500) {
+          await forceRefreshServer(baseUrl);
+        }
+        continue;
+      }
+
+      const body = await res.text().catch(() => "N/A");
+      throw new Error(`Seeding failed at batch ${i}: ${res.status} ${res.statusText}\nBody: ${body.substring(0, 500)}`);
+    }
 
     if (i % 8 === 0) process.stdout.write(".");
   }

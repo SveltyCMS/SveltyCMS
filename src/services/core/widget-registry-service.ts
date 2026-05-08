@@ -145,7 +145,7 @@ class WidgetRegistryService {
     if (typeof process !== "undefined" && process.env.BENCHMARK_MODE === "true") return;
 
     try {
-      import("@src/stores/system/state")
+      import("@src/stores/system/state.svelte")
         .then(({ updateServiceHealth }) => {
           updateServiceHealth("widgets", status, `Widgets: ${this.widgets.size}`);
         })

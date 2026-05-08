@@ -91,15 +91,17 @@ describe("handleAuthentication Middleware", () => {
 
   describe("Session Validation", () => {
     it("should validate session cookie when present", async () => {
+      const mockUser = { _id: "user123", tenantId: "tenant1" };
+      (auth!.validateSession as any).mockResolvedValue({ success: true, data: mockUser });
       const event = createMockEvent("/dashboard", "valid-session-id");
       await handleAuthentication({ event, resolve: mockResolve });
 
       expect(mockResolve).toHaveBeenCalled();
-      expect(auth!.validateSession).toHaveBeenCalledWith("valid-session-id");
+      expect(auth!.validateSession).toHaveBeenCalledWith("valid-session-id", { suppressErrorLog: true });
     });
 
     it("should delete invalid session cookie when auth is ready", async () => {
-      (auth!.validateSession as any).mockImplementation(() => Promise.resolve(null));
+      (auth!.validateSession as any).mockImplementation(() => Promise.resolve({ success: true, data: null }));
 
       const event = createMockEvent("/dashboard", "invalid-session");
       await handleAuthentication({ event, resolve: mockResolve });
@@ -119,7 +121,7 @@ describe("handleAuthentication Middleware", () => {
 
     it("should reject session from different tenant", async () => {
       const mockUser = { _id: "user123", tenantId: "tenant1" };
-      (auth!.validateSession as any).mockImplementation(() => Promise.resolve(mockUser));
+      (auth!.validateSession as any).mockImplementation(() => Promise.resolve({ success: true, data: mockUser }));
 
       const event = createMockEvent("/dashboard", "session-t1", "tenant2.example.com");
       event.locals.tenantId = "tenant2" as DatabaseId;
@@ -135,7 +137,7 @@ describe("handleAuthentication Middleware", () => {
 
     it("should allow global admin to access any tenant", async () => {
       const mockUser = { _id: "admin123", tenantId: null };
-      (auth!.validateSession as any).mockImplementation(() => Promise.resolve(mockUser));
+      (auth!.validateSession as any).mockImplementation(() => Promise.resolve({ success: true, data: mockUser }));
 
       const event = createMockEvent("/dashboard", "session-global", "tenant2.example.com");
       event.locals.tenantId = "tenant2" as DatabaseId;

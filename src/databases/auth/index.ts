@@ -357,16 +357,16 @@ export class Auth {
     return session;
   }
 
-  async validateSession(sessionId: DatabaseId): Promise<User | null> {
-    const result = await this.db.auth.validateSession(sessionId);
+  async validateSession(sessionId: DatabaseId, options?: BaseQueryOptions): Promise<User | null> {
+    const result = await this.db.auth.validateSession(sessionId, options);
     if (result?.success) {
       return result.data;
     }
     return null;
   }
 
-  async destroySession(sessionId: DatabaseId): Promise<void> {
-    await this.db.auth.deleteSession(sessionId);
+  async destroySession(sessionId: DatabaseId, options?: BaseQueryOptions): Promise<void> {
+    await this.db.auth.deleteSession(sessionId, options);
     await this.sessionStore.delete(sessionId);
   }
 

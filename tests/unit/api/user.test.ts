@@ -20,6 +20,18 @@ vi.mock("@src/databases/db", () => ({
     },
   },
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+  getDb: vi.fn().mockReturnValue({
+    auth: {
+      getAllUsers: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      getUserCount: vi.fn().mockResolvedValue({ success: true, data: 0 }),
+      updateUserAttributes: vi.fn().mockResolvedValue({ success: true, data: { _id: "u1" } }),
+      batchAction: vi.fn().mockResolvedValue({ success: true, data: { modifiedCount: 1 } }),
+    },
+    isConnected: vi.fn().mockReturnValue(true),
+    isDbConnected: vi.fn().mockReturnValue(true),
+    getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+  }),
+  isDbConnected: vi.fn().mockReturnValue(true),
   getAuth: vi.fn(),
 }));
 

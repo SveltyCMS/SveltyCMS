@@ -28,7 +28,6 @@ import type { User } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
 import { cacheService, SESSION_CACHE_TTL_MS } from "@src/databases/cache/cache-service";
 import { getDbInitPromise, auth, dbAdapter } from "@src/databases/db";
-import { AuthGuardService } from "@src/services/security/auth-guard";
 import { metricsService } from "@src/services/observability/metrics-service";
 import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { error } from "@sveltejs/kit";
@@ -193,25 +192,46 @@ async function getUserFromSession(
   if (lastAttempt && now - lastAttempt < 60_000) {
     return null;
   }
-  lastRefreshAttempt.set(sessionId, now);
 
-  if (!auth) {
+  const { getDb } = await import("@src/databases/db");
+  const adapter = getDb();
+  if (!adapter) {
     return null;
   }
 
+  // Use a short-lived pending marker to prevent stampedes while validating
+  lastRefreshAttempt.set(sessionId, now);
+
   try {
-    const user = await AuthGuardService.validateSession(sessionId);
-    if (user) {
-      const sessionData: SessionCacheEntry = { user, timestamp: now };
-      setSessionInCache(sessionId, sessionData);
-      const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
-      await cacheService
-        .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as DatabaseId)
-        .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
-      return user;
+    // Call the adapter directly to get the raw DatabaseResult (success vs error)
+    const result = await adapter.auth.validateSession(sessionId as any, { suppressErrorLog: true });
+
+    if (result?.success) {
+      if (result.data) {
+        const user = result.data;
+        const sessionData: SessionCacheEntry = { user, timestamp: now };
+        setSessionInCache(sessionId, sessionData);
+        const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
+        await cacheService
+          .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as any)
+          .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
+        return user;
+      } else {
+        // Definitive: Session not found or expired.
+        // Keep the 60s cooldown to prevent brute force / hammering
+        return null;
+      }
+    } else {
+      // System error (e.g. DB locked). Clear the cooldown to allow immediate retry on next request.
+      lastRefreshAttempt.delete(sessionId);
+      logger.warn(
+        `[Auth] Transient session validation error for ${sessionId}: ${result?.message || "Unknown"}`,
+      );
+      return null;
     }
   } catch (err) {
-    logger.error(`Session validation failed: ${err instanceof Error ? err.message : String(err)}`);
+    lastRefreshAttempt.delete(sessionId);
+    logger.error(`Session validation crashed: ${err instanceof Error ? err.message : String(err)}`);
   }
   return null;
 }
@@ -377,7 +397,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     const sessionId = cookies.get(cookieName) || cookies.get(SESSION_COOKIE_NAME);
     if (sessionId) {
       metricsService.incrementAuthValidations();
-      if (!auth) return await resolve(event);
+      if (!auth) {
+        logger.warn(`[Auth] Auth service NOT initialized! (sessionId: ${sessionId})`);
+        return await resolve(event);
+      }
 
       const user = await getUserFromSession(sessionId as string, locals.tenantId as DatabaseId);
 
@@ -408,9 +431,11 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         locals.permissions = user.permissions || [];
         await handleSessionRotation(event, user, sessionId);
       } else {
-        logger.warn(`[Auth] Invalid session: ${sessionId}`, {
+        logger.warn(`[Auth] Invalid session or user not found: ${sessionId}`, {
           cookieName,
           hasSession: !!sessionId,
+          authInitialized: !!auth,
+          tenantId: locals.tenantId,
         });
         metricsService.incrementAuthFailures();
         cookies.delete(cookieName, { path: "/" });

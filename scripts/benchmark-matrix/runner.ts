@@ -46,7 +46,7 @@ export async function runTask(
 
   return new Promise((resolve) => {
     const proc = spawn("bun", args, {
-      env: { ...process.env, ...env, BENCHMARK_DEBUG: "true" },
+      env: { ...process.env, ...env, BENCHMARK_DEBUG: "true", SVELTY_BENCHMARK_SUITE: "true" },
       stdio: ci ? ["ignore", "pipe", "pipe"] : "inherit",
       shell: process.platform === "win32",
     });
@@ -270,13 +270,20 @@ export function buildWorkerEnv(
   workerPort: number,
   workerDbName: string,
   dbDir: string,
+  buildDurationMs?: number,
 ): NodeJS.ProcessEnv {
+  const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
+  const meta = (DB_METADATA as any)[dbKey] ?? {
+    label: dbKey.toUpperCase(),
+  };
+
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     API_BASE_URL: `http://127.0.0.1:${workerPort}`,
     TEST_MODE: "true",
     RESULTS_DIR: dbDir,
     DB_TYPE: dbConf.type,
+    DB_LABEL: meta.label,
     DB_NAME: workerDbName,
     DB_HOST: dbConf.host,
     DB_PORT: dbConf.port.toString(),
@@ -303,6 +310,8 @@ export function buildWorkerEnv(
     BUN_TEST_MOCKS: "false",
     DISABLE_AUDIT_LOGS: "true",
     SUPPRESS_JEST_WARNINGS: "true",
+    SVELTY_BENCHMARK_SUITE: "true",
+    DX_BUILD_DURATION: buildDurationMs?.toString(),
   };
 
   delete env.USER;
@@ -379,7 +388,7 @@ export async function runAuditForDatabase(
     await fs.rm(dbDir, { recursive: true, force: true }).catch(() => {});
     await fs.mkdir(dbDir, { recursive: true });
 
-    const env = buildWorkerEnv(dbConf, workerPort, workerDbName, dbDir);
+    const env = buildWorkerEnv(dbConf, workerPort, workerDbName, dbDir, buildMetrics?.durationMs);
 
     if (process.env.BENCHMARK_DEBUG === "true") {
       log.db(

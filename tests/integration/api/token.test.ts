@@ -108,6 +108,10 @@ describe("Token API Endpoints", () => {
         const response = await safeFetch(`${API_BASE_URL}/api/token/${invitationToken}`);
         const result = await response.json();
 
+        if (response.status !== 200) {
+          console.log("TEST DEBUG: GET token failed!", invitationToken, response.status, result);
+        }
+
         expect(response.status).toBe(200);
         expect(result.success).toBe(true);
         expect(result.data.valid).toBe(true);

@@ -9,7 +9,7 @@ import { dev } from "$app/environment";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
-import { dbAdapter, getDbInitPromise } from "@src/databases/db";
+import { dbAdapter, getDbInitPromise, isDbConnected } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { getSegments } from "./handlers/base";
@@ -143,10 +143,11 @@ export const _handler = async (event: RequestEvent) => {
       }
     }
 
+    const connected = isDbConnected();
     const health = {
-      status: dbAdapter ? "healthy" : "initializing",
-      overallStatus: dbAdapter ? "READY" : "SETUP",
-      database: !!dbAdapter,
+      status: connected ? "healthy" : "initializing",
+      overallStatus: connected ? "READY" : "INITIALIZING",
+      database: connected,
       uptime: process.uptime(),
       timestamp: Date.now(),
       dbType: process.env.DB_TYPE || "unknown",
@@ -177,6 +178,26 @@ export const _handler = async (event: RequestEvent) => {
 
   // --- Init & Auth ---
   await getDbInitPromise();
+
+  // 🛡️ SECURITY & STABILITY: Fail fast if database is not connected
+  // This prevents 500 errors from uninitialized adapters downstream.
+  if (!(locals as any).dbAdapter && !isDbConnected() && namespace !== "system") {
+    if (process.env.TEST_MODE === "true") {
+      const adapter = (locals as any).dbAdapter || (await import("@src/databases/db")).getDb();
+      console.warn(
+        `[Gatekeeper] 503 Return: namespace=${namespace}, isDbConnected=${isDbConnected()}, adapterReady=${adapter?.connected === true}, localsAdapter=${!!(locals as any).dbAdapter}`,
+      );
+    }
+    return new Response(
+      JSON.stringify({
+        success: false,
+        status: "INITIALIZING",
+        message: "Database is still initializing or failed to connect. Please retry.",
+        code: "DB_NOT_CONNECTED",
+      }),
+      { status: 503, headers: { "Content-Type": "application/json" } },
+    );
+  }
 
   let adapter = locals.dbAdapter as any;
   if (!adapter) {

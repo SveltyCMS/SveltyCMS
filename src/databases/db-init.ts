@@ -6,8 +6,8 @@
 
 import { logger } from "@utils/logger";
 import type { DatabaseAdapter } from "./db-interface";
-import { BootEngine } from "./agnostic-core/boot-engine";
-import { createSchemaProxy } from "./agnostic-core/schema-proxy";
+import { BootEngine } from "./agnostic/boot-engine";
+import { createSchemaProxy } from "./agnostic/schema-proxy";
 
 // Lazy Holders for Server-Only Modules
 let _settingsService: any = null;
@@ -54,7 +54,7 @@ export async function loadAdapters(config: any): Promise<DatabaseAdapter | null>
         break;
       }
       case "sqlite": {
-        const { SQLiteAdapter } = await import("./sqlite/adapter");
+        const { SQLiteAdapter } = await import("./sqlite/sqlite-adapter");
         dbAdapter = new SQLiteAdapter() as unknown as DatabaseAdapter;
         break;
       }
@@ -183,17 +183,27 @@ export async function runSystemBoot(dbAdapter: DatabaseAdapter) {
     },
   });
 
-  // 6. Cache Warming
+  // 6. Widgets
+  engine.register({
+    id: "widgets",
+    dependencies: ["content"],
+    init: async () => {
+      const { widgets } = await import("@src/stores/widget-store.svelte");
+      await widgets.initialize("default", dbAdapter);
+    },
+  });
+
+  // 7. Cache Warming
   engine.register({
     id: "cache",
-    dependencies: ["content", "themes"],
+    dependencies: ["content", "themes", "widgets"],
     init: async () => {
       const { cacheWarmingService } = await import("./cache-warming-service");
       await cacheWarmingService.initialize(dbAdapter);
     },
   });
 
-  // 7. Optimizer & Monitoring
+  // 8. Optimizer & Monitoring
   engine.register({
     id: "optimizer",
     dependencies: ["adapter"],

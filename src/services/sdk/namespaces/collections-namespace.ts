@@ -401,6 +401,15 @@ export class CollectionsNamespace {
           (tenantId || undefined) as string,
           CacheCategory.CONTENT,
         );
+
+        // Negative Caching: If result is empty and it was a specific ID query
+        if (
+          query._id &&
+          (!result.data || (Array.isArray(result.data) && result.data.length === 0))
+        ) {
+          cacheService.recordMiss(cacheKey, (tenantId || undefined) as string);
+        }
+
         CollectionsNamespace._requestCache.set(cacheKey, result);
       } catch {}
     }
@@ -705,6 +714,10 @@ export class CollectionsNamespace {
               (tenantId || undefined) as string,
               CacheCategory.CONTENT,
             );
+          } else if (!item && !options.bypassCache) {
+            // Negative Caching: record miss for unfound item in batch
+            const cacheKey = `${tenantId || "global"}:collection:${schema._id}:${id}`;
+            cacheService.recordMiss(cacheKey, (tenantId || undefined) as string);
           }
           entryPromise.resolve(finalResult);
         }

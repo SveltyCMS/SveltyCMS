@@ -9,7 +9,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
-import { createSchemaProxy } from "../../../src/databases/agnostic-core/schema-proxy";
+import { createSchemaProxy } from "../../../src/databases/agnostic/schema-proxy";
 
 // 🚀  Aggressively mock SvelteKit and Store environment for standalone adapter tests
 mock.module("$app/environment", () => ({
@@ -92,7 +92,7 @@ describe("Database Interface Contract Tests", () => {
         await import("../../../src/databases/postgresql/postgres-adapter");
       db = createSchemaProxy(new PostgreSQLAdapter()) as any;
     } else {
-      const { SQLiteAdapter } = await import("../../../src/databases/sqlite/adapter/index");
+      const { SQLiteAdapter } = await import("../../../src/databases/sqlite/sqlite-adapter");
       db = createSchemaProxy(new SQLiteAdapter()) as any;
     }
 

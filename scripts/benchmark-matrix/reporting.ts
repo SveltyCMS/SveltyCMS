@@ -170,8 +170,8 @@ export function printSummaryTable(results: BenchmarkResult[]) {
     const row = [
       `${meta.icon} ${meta.label}`.padEnd(COL[0]),
       `${res.coldStartMs ?? "—"}ms`.padEnd(COL[1]),
-      `${m.collections > 0 ? m.collections.toFixed(2) + "ms" : "—"}`.padEnd(COL[2]),
-      `${m.graphqlAvg > 0 ? m.graphqlAvg.toFixed(2) + "ms" : "—"}`.padEnd(COL[3]),
+      `${m.collections > 0 ? m.collections.toFixed(3) + "ms" : "—"}`.padEnd(COL[2]),
+      `${m.graphqlAvg > 0 ? m.graphqlAvg.toFixed(3) + "ms" : "—"}`.padEnd(COL[3]),
       `${m.memGrowth !== 0 ? m.memGrowth.toFixed(1) : "—"}`.padEnd(COL[4]),
       budgetCell.padEnd(COL[5] + 10),
       statusCell,
@@ -355,7 +355,7 @@ export async function buildFullAuditLedger(
 
     if (trendPoints.length > 1) {
       md += `\n#### 📈 ${script.shortLabel} Trend\n`;
-      md += `\`\`\`mermaid\nxychart-beta\n  title "${script.shortLabel} Latency Trend"\n  x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]\n  y-axis "Latency (ms)"\n  line "Latency" : [${trendPoints.map((p) => p.toFixed(2)).join(", ")}]\n\`\`\`\n\n`;
+      md += `\`\`\`mermaid\nxychart-beta\n  title "${script.shortLabel} Latency Trend"\n  x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]\n  y-axis "Latency (ms)"\n  line "Latency" : [${trendPoints.map((p) => p.toFixed(3)).join(", ")}]\n\`\`\`\n\n`;
     }
 
     md += `---\n\n`;
@@ -595,12 +595,11 @@ tags:
         )
         .all(dbKey) as any[];
       return hist
-        .map((h) => h.collections_p95.toFixed(1))
+        .map((h) => h.collections_p95.toFixed(3))
         .reverse()
         .join(", ");
     })()}]\n\`\`\`\n`;
 
-    headerMd += `\n## 🔬 Detailed Performance Ledger (20+ Modules)\n\n`;
 
     async function generateTrendBlock(
       metricKey: string,
@@ -695,8 +694,6 @@ tags:
       "Telemetry & Update Performance",
     );
 
-    headerMd += `\n### 🏷️ Mixed Workload Performance\n`;
-
     headerMd += `\n## 🔬 Detailed Performance Ledger (20+ Modules)\n\n`;
 
     // Reconstruct the internal sections surgically
@@ -726,8 +723,9 @@ tags:
         const allFiles = await findFilesRecursive(dbResultsDir, ".table.txt");
 
         const tableFile = allFiles.find((f) => {
-          const baseName = path.basename(f);
-          return baseName.toLowerCase().includes(script.shortLabel.toLowerCase().replace(/ /g, "_"));
+          const baseName = path.basename(f).toLowerCase();
+          const targetSlug = script.shortLabel.toLowerCase().replace(/[^a-z0-9]/g, "_");
+          return baseName.includes(targetSlug);
         });
 
         if (tableFile) {

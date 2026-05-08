@@ -11,6 +11,10 @@ import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { parse, type InferOutput } from "valibot";
 
+if (process.env.TEST_MODE === "true" && process.env.BENCHMARK !== "true") {
+  logger.debug("config-state.ts initialized");
+}
+
 // Types based on schema
 export type AppPrivateConfig = Readonly<InferOutput<typeof privateConfigSchema>>;
 type RawEnv = Partial<Record<string, string | number | boolean>>;
@@ -30,7 +34,7 @@ export function setPrivateEnv(env: AppPrivateConfig | null) {
  */
 export async function loadPrivateConfig(forceReload = false): Promise<AppPrivateConfig | null> {
   if (privateEnv && !forceReload) return privateEnv;
-  if (loadPromise && !forceReload) return loadPromise;
+  // if (loadPromise && !forceReload) return loadPromise;
 
   loadPromise = (async (): Promise<AppPrivateConfig | null> => {
     try {
@@ -44,7 +48,7 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
         svelteEnv = process.env as RawEnv;
       } else {
         try {
-          if (import.meta.env.SSR) {
+          if (import.meta.env?.SSR) {
             // @ts-ignore - Dynamic SvelteKit environment variable loading
             const mod = await import("$env/dynamic/private");
             svelteEnv = mod.env;
@@ -55,7 +59,6 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
       }
 
       let config: RawEnv = { ...svelteEnv };
-
       // 2. Optional file-based override
       const fileConfig = await loadConfigFromFileIfNeeded(svelteEnv);
       if (fileConfig) {
@@ -81,7 +84,10 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
     } catch (error: any) {
       logger.error("Private config validation failed:", {
         error: error.message,
-        issues: error.issues,
+        issues: error.issues?.map((i: any) => ({
+          path: i.path?.map((p: any) => p.key).join("."),
+          message: i.message,
+        })),
       });
       return null;
     }

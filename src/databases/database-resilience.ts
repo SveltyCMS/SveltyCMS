@@ -10,7 +10,7 @@
  * - Comprehensive error tracking
  */
 
-import { getSystemState, updateServiceHealth } from "@src/stores/system/state";
+import { getSystemState, updateServiceHealth } from "@src/stores/system/state.svelte";
 import { logger } from "@utils/logger";
 import { sendMail } from "@utils/email.server";
 import type { DatabaseError } from "./db-interface";

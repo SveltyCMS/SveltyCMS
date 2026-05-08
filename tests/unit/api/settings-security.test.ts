@@ -30,6 +30,7 @@ vi.mock("@src/databases/db", () => ({
     collection: { getModel: vi.fn().mockResolvedValue({}) },
   }),
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+  isDbConnected: vi.fn().mockReturnValue(true),
   getAuth: vi.fn(),
 }));
 

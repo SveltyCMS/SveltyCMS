@@ -91,7 +91,7 @@ async function checkDatabaseHealth(): Promise<{
 }> {
   try {
     // First check system state - leverage existing state management
-    const { getSystemState, isServiceHealthy } = await import("@src/stores/system/state");
+    const { getSystemState, isServiceHealthy } = await import("@src/stores/system/state.svelte");
     const systemState = getSystemState();
 
     // If database service is explicitly unhealthy in state management, return early
@@ -249,7 +249,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
   try {
     // Check system state first - leverage existing state management for performance
-    const { getSystemState } = await import("@src/stores/system/state");
+    const { getSystemState } = await import("@src/stores/system/state.svelte");
     const systemState = getSystemState();
 
     // If system is FAILED, provide detailed error immediately without waiting
@@ -1455,7 +1455,7 @@ export const actions: Actions = {
   resetSetup: async ({ locals }) => {
     try {
       // Security check: Only allow reset if user is admin OR system is in failed state
-      const { getSystemState } = await import("@src/stores/system/state");
+      const { getSystemState } = await import("@src/stores/system/state.svelte");
       const systemState = getSystemState();
 
       const isAdmin = locals.user?.role === "admin";

@@ -19,7 +19,7 @@ import {
   setSystemState,
   startServiceInitialization,
   updateServiceHealth,
-} from "@src/stores/system/state";
+} from "@src/stores/system/state.svelte";
 
 describe("System Store - Service Health Management", () => {
   beforeEach(() => {
@@ -163,6 +163,7 @@ describe("System Store - Performance Metrics", () => {
   });
 
   it("should track initialization attempts", () => {
+    setSystemState("IDLE");
     setSystemState("INITIALIZING");
     const services: ServiceName[] = [
       "database",

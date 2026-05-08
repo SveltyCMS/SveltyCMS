@@ -1,0 +1,540 @@
+/**
+ * @file src/databases/postgresql/schema/index.ts
+ * @description Drizzle schema definitions for PostgreSQL tables
+ *
+ * This file defines the relational schema for SveltyCMS using Drizzle ORM.
+ * All tables include multi-tenant support via nullable tenantId columns.
+ * Date fields are stored as TIMESTAMP and converted to ISODateString at boundaries.
+ */
+
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+  varchar,
+} from "drizzle-orm/pg-core";
+import type { TenantQuota, TenantUsage } from "../db-interface";
+
+// Helper for timestamps
+const timestamps = {
+  createdAt: timestamp("createdAt")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updatedAt")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+};
+
+// Helper for tenantId (nullable for multi-tenant support)
+const tenantField = () => varchar("tenantId", { length: 36 });
+
+// Auth Users Table
+export const authUsers = pgTable(
+  "auth_users",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    email: varchar("email", { length: 255 }).notNull(),
+    username: varchar("username", { length: 255 }),
+    password: varchar("password", { length: 255 }),
+    emailVerified: boolean("emailVerified").notNull().default(false),
+    blocked: boolean("blocked").notNull().default(false),
+    isAdmin: boolean("isAdmin").notNull().default(false),
+    firstName: varchar("firstName", { length: 255 }),
+    lastName: varchar("lastName", { length: 255 }),
+    avatar: text("avatar"),
+    roleIds: jsonb("roleIds").$type<string[]>().notNull().default([]),
+    role: varchar("role", { length: 50 }).notNull().default("user"),
+    isRegistered: boolean("isRegistered").notNull().default(false),
+    is2FAEnabled: boolean("is2FAEnabled").notNull().default(false),
+    totpSecret: text("totpSecret"),
+    backupCodes: jsonb("backupCodes").$type<string[]>(),
+    last2FAVerification: timestamp("last2FAVerification"),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    emailIdx: index("auth_users_email_idx").on(table.email),
+    tenantIdx: index("auth_users_tenant_idx").on(table.tenantId),
+    emailTenantUnique: unique("auth_users_email_tenant_unique").on(table.email, table.tenantId),
+  }),
+);
+
+// Auth Sessions Table
+export const authSessions = pgTable(
+  "auth_sessions",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    user_id: varchar("user_id", { length: 36 }).notNull(),
+    expires: timestamp("expires").notNull(),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    userIdx: index("auth_sessions_user_idx").on(table.user_id),
+    expiresIdx: index("auth_sessions_expires_idx").on(table.expires),
+    tenantIdx: index("auth_sessions_tenant_idx").on(table.tenantId),
+  }),
+);
+
+// Auth Tokens Table
+export const authTokens = pgTable(
+  "auth_tokens",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    user_id: varchar("user_id", { length: 36 }).notNull(),
+    email: varchar("email", { length: 255 }).notNull(),
+    token: varchar("token", { length: 255 }).notNull(),
+    type: varchar("type", { length: 50 }).notNull(),
+    expires: timestamp("expires").notNull(),
+    consumed: boolean("consumed").notNull().default(false),
+    blocked: boolean("blocked").notNull().default(false),
+    role: varchar("role", { length: 50 }),
+    username: varchar("username", { length: 255 }),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    tokenIdx: index("auth_tokens_token_idx").on(table.token),
+    userIdx: index("auth_tokens_user_idx").on(table.user_id),
+    expiresIdx: index("auth_tokens_expires_idx").on(table.expires),
+    tenantIdx: index("auth_tokens_tenant_idx").on(table.tenantId),
+  }),
+);
+
+// Roles Table
+export const roles = pgTable(
+  "roles",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
+    permissions: jsonb("permissions").$type<string[]>().notNull().default([]),
+    isAdmin: boolean("isAdmin").notNull().default(false),
+    icon: varchar("icon", { length: 100 }),
+    color: varchar("color", { length: 50 }),
+
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    nameIdx: index("roles_name_idx").on(table.name),
+    tenantIdx: index("roles_tenant_idx").on(table.tenantId),
+  }),
+);
+
+// Content Nodes Table (Pages/Collections)
+export const contentNodes = pgTable(
+  "content_nodes",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    path: varchar("path", { length: 500 }).notNull(),
+    parentId: varchar("parentId", { length: 36 }),
+    nodeType: varchar("nodeType", { length: 50 }).notNull(),
+    status: varchar("status", { length: 50 }).notNull().default("draft"),
+    name: varchar("name", { length: 500 }),
+    slug: varchar("slug", { length: 500 }),
+    icon: varchar("icon", { length: 100 }),
+    description: text("description"),
+    collectionDef: jsonb("collectionDef").$type<import("@src/content/types").Schema>(),
+    data: jsonb("data"),
+    metadata: jsonb("metadata"),
+    translations: jsonb("translations")
+      .$type<{ languageTag: string; translationName: string }[]>()
+      .default([]),
+    order: integer("order").notNull().default(0),
+    isPublished: boolean("isPublished").notNull().default(false),
+    publishedAt: timestamp("publishedAt"),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    pathIdx: unique("content_nodes_path_unique").on(table.path),
+    parentIdx: index("content_nodes_parent_idx").on(table.parentId),
+    nodeTypeIdx: index("content_nodes_nodeType_idx").on(table.nodeType),
+    statusIdx: index("content_nodes_status_idx").on(table.status),
+    tenantIdx: index("content_nodes_tenant_idx").on(table.tenantId),
+  }),
+);
+
+// Content Drafts Table
+export const contentDrafts = pgTable(
+  "content_drafts",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    contentId: varchar("contentId", { length: 36 }).notNull(),
+    data: jsonb("data").notNull(),
+    version: integer("version").notNull().default(1),
+    status: varchar("status", { length: 50 }).notNull().default("draft"),
+    authorId: varchar("authorId", { length: 36 }).notNull(),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    contentIdx: index("content_drafts_content_idx").on(table.contentId),
+    authorIdx: index("content_drafts_author_idx").on(table.authorId),
+    statusIdx: index("content_drafts_status_idx").on(table.status),
+    tenantIdx: index("content_drafts_tenant_idx").on(table.tenantId),
+  }),
+);
+
+// Content Revisions Table
+export const contentRevisions = pgTable(
+  "content_revisions",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    contentId: varchar("contentId", { length: 36 }).notNull(),
+    data: jsonb("data").notNull(),
+    version: integer("version").notNull().default(1),
+    commitMessage: text("commitMessage"),
+    authorId: varchar("authorId", { length: 36 }).notNull(),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    contentIdx: index("content_revisions_content_idx").on(table.contentId),
+    versionIdx: index("content_revisions_version_idx").on(table.version),
+    authorIdx: index("content_revisions_author_idx").on(table.authorId),
+    tenantIdx: index("content_revisions_tenant_idx").on(table.tenantId),
+  }),
+);
+
+// Themes Table
+export const themes = pgTable(
+  "themes",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    name: varchar("name", { length: 255 }).notNull(),
+    path: varchar("path", { length: 500 }).notNull(),
+    isActive: boolean("isActive").notNull().default(false),
+    isDefault: boolean("isDefault").notNull().default(false),
+    config: jsonb("config").notNull(),
+    previewImage: text("previewImage"),
+    customCss: text("customCss"),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    nameIdx: index("themes_name_idx").on(table.name),
+    activeIdx: index("themes_active_idx").on(table.isActive),
+    tenantIdx: index("themes_tenant_idx").on(table.tenantId),
+  }),
+);
+
+// Widgets Table
+export const widgets = pgTable(
+  "widgets",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    name: varchar("name", { length: 255 }).notNull(),
+    isActive: boolean("isActive").notNull().default(true),
+    instances: jsonb("instances").notNull().default({}),
+    dependencies: jsonb("dependencies").$type<string[]>().notNull().default([]),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    nameIdx: unique("widgets_name_unique").on(table.name),
+    activeIdx: index("widgets_active_idx").on(table.isActive),
+    tenantIdx: index("widgets_tenant_idx").on(table.tenantId),
+  }),
+);
+
+// Media Items Table
+export const mediaItems = pgTable(
+  "media_items",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    filename: varchar("filename", { length: 500 }).notNull(),
+    originalFilename: varchar("originalFilename", { length: 500 }).notNull(),
+    hash: varchar("hash", { length: 255 }).notNull(),
+    path: varchar("path", { length: 1000 }).notNull(),
+    size: integer("size").notNull(),
+    mimeType: varchar("mimeType", { length: 255 }).notNull(),
+    folderId: varchar("folderId", { length: 36 }),
+    originalId: varchar("originalId", { length: 36 }),
+    thumbnails: jsonb("thumbnails").notNull().default({}),
+    metadata: jsonb("metadata").notNull().default({}),
+    access: varchar("access", { length: 50 }).notNull().default("public"),
+    createdBy: varchar("createdBy", { length: 36 }).notNull(),
+    updatedBy: varchar("updatedBy", { length: 36 }).notNull(),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    hashIdx: index("media_items_hash_idx").on(table.hash),
+    folderIdx: index("media_items_folder_idx").on(table.folderId),
+    createdByIdx: index("media_items_created_by_idx").on(table.createdBy),
+    tenantIdx: index("media_items_tenant_idx").on(table.tenantId),
+    // Performance: Trigram indexes for fast media searching
+    filenameTrgmIdx: index("media_items_filename_trgm_idx").using(
+      "gin",
+      table.filename.op("gin_trgm_ops"),
+    ),
+    originalFilenameTrgmIdx: index("media_items_original_filename_trgm_idx").using(
+      "gin",
+      table.originalFilename.op("gin_trgm_ops"),
+    ),
+  }),
+);
+
+// System Virtual Folders Table
+export const systemVirtualFolders = pgTable(
+  "system_virtual_folders",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    name: varchar("name", { length: 500 }).notNull(),
+    path: varchar("path", { length: 1000 }).notNull(),
+    parentId: varchar("parentId", { length: 36 }),
+    icon: varchar("icon", { length: 100 }),
+    order: integer("order").notNull().default(0),
+    type: varchar("type", { length: 50 }).notNull().default("folder"),
+    metadata: jsonb("metadata"),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    pathIdx: unique("system_virtual_folders_path_unique").on(table.path),
+    parentIdx: index("system_virtual_folders_parent_idx").on(table.parentId),
+    typeIdx: index("system_virtual_folders_type_idx").on(table.type),
+    tenantIdx: index("system_virtual_folders_tenant_idx").on(table.tenantId),
+  }),
+);
+
+// System Preferences Table
+export const systemPreferences = pgTable(
+  "system_preferences",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    key: varchar("key", { length: 255 }).notNull(),
+    value: jsonb("value"),
+    category: varchar("category", { length: 255 }),
+    scope: varchar("scope", { length: 50 }).notNull().default("system"),
+    userId: varchar("userId", { length: 36 }),
+    visibility: varchar("visibility", { length: 50 }).notNull().default("private"),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    uniqueKeyTenant: uniqueIndex("system_preferences_key_tenant_unique").on(
+      table.key,
+      table.tenantId,
+    ),
+    keyIdx: index("system_preferences_key_idx").on(table.key),
+    categoryIdx: index("system_preferences_category_idx").on(table.category),
+    scopeIdx: index("system_preferences_scope_idx").on(table.scope),
+    userIdx: index("system_preferences_user_idx").on(table.userId),
+    tenantIdx: index("system_preferences_tenant_idx").on(table.tenantId),
+  }),
+);
+
+// Background Jobs Table
+export const sveltyJobs = pgTable(
+  "svelty_jobs",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    taskType: varchar("taskType", { length: 255 }).notNull(),
+    payload: jsonb("payload").notNull(),
+    status: varchar("status", { length: 50 }).notNull().default("pending"), // pending, running, completed, failed
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("maxAttempts").notNull().default(3),
+    nextRunAt: timestamp("nextRunAt")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    lastError: text("lastError"),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    statusIdx: index("svelty_jobs_status_idx").on(table.status),
+    nextRunIdx: index("svelty_jobs_next_run_idx").on(table.nextRunAt),
+    tenantIdx: index("svelty_jobs_tenant_idx").on(table.tenantId),
+  }),
+);
+
+// Website Tokens Table
+export const websiteTokens = pgTable(
+  "website_tokens",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    name: varchar("name", { length: 255 }).notNull(),
+    token: varchar("token", { length: 255 }).notNull(),
+    createdBy: varchar("createdBy", { length: 36 }).notNull(),
+    permissions: jsonb("permissions").$type<string[]>().notNull().default([]),
+    expiresAt: timestamp("expiresAt"),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    tokenIdx: unique("website_tokens_token_unique").on(table.token),
+    nameIdx: index("website_tokens_name_idx").on(table.name),
+    tenantIdx: index("website_tokens_tenant_idx").on(table.tenantId),
+  }),
+);
+
+// Plugin: PageSpeed Results Table
+export const pluginPagespeedResults = pgTable(
+  "plugin_pagespeed_results",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    entryId: varchar("entryId", { length: 36 }).notNull(),
+    collectionId: varchar("collectionId", { length: 36 }).notNull(),
+    tenantId: tenantField(),
+    language: varchar("language", { length: 10 }).notNull().default("en"),
+    device: varchar("device", { length: 20 }).notNull().default("mobile"),
+    url: varchar("url", { length: 2000 }).notNull(),
+    performanceScore: integer("performanceScore").notNull().default(0),
+    fetchedAt: timestamp("fetchedAt")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    ...timestamps,
+  },
+  (table) => ({
+    entryIdx: index("plugin_pagespeed_entry_idx").on(table.entryId),
+    collectionIdx: index("plugin_pagespeed_collection_idx").on(table.collectionId),
+    tenantIdx: index("plugin_pagespeed_tenant_idx").on(table.tenantId),
+    deviceIdx: index("plugin_pagespeed_device_idx").on(table.device),
+  }),
+);
+
+// Plugin States Table
+export const pluginStates = pgTable(
+  "plugin_states",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    pluginId: varchar("pluginId", { length: 255 }).notNull(),
+    tenantId: tenantField(),
+    enabled: boolean("enabled").notNull().default(false),
+    settings: jsonb("settings"),
+    updatedBy: varchar("updatedBy", { length: 36 }),
+    ...timestamps,
+  },
+  (table) => ({
+    pluginIdx: index("plugin_states_plugin_idx").on(table.pluginId),
+    tenantIdx: index("plugin_states_tenant_idx").on(table.tenantId),
+    pluginTenantUnique: unique("plugin_states_plugin_tenant_unique").on(
+      table.pluginId,
+      table.tenantId,
+    ),
+  }),
+);
+
+// Plugin Migrations Table
+export const pluginMigrations = pgTable(
+  "plugin_migrations",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    pluginId: varchar("pluginId", { length: 255 }).notNull(),
+    migrationId: varchar("migrationId", { length: 255 }).notNull(),
+    version: integer("version").notNull(),
+    tenantId: tenantField(),
+    appliedAt: timestamp("appliedAt")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    ...timestamps,
+  },
+  (table) => ({
+    pluginIdx: index("plugin_migrations_plugin_idx").on(table.pluginId),
+    tenantIdx: index("plugin_migrations_tenant_idx").on(table.tenantId),
+    pluginMigrationUnique: unique("plugin_migrations_unique").on(
+      table.pluginId,
+      table.migrationId,
+      table.tenantId,
+    ),
+  }),
+);
+
+// Tenants Table
+export const tenants = pgTable(
+  "tenants",
+  {
+    _id: varchar("_id", { length: 36 })
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    name: varchar("name", { length: 255 }).notNull(),
+    ownerId: varchar("ownerId", { length: 36 }).notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("active"),
+    plan: varchar("plan", { length: 20 }).notNull().default("free"),
+    quota: jsonb("quota").$type<TenantQuota>().notNull().default({
+      maxUsers: 10,
+      maxStorageBytes: 1_073_741_824,
+      maxCollections: 20,
+      maxApiRequestsPerMonth: 10_000,
+    }),
+    usage: jsonb("usage").$type<TenantUsage>().notNull().default({
+      usersCount: 0,
+      storageBytes: 0,
+      collectionsCount: 0,
+      apiRequestsMonth: 0,
+      lastUpdated: new Date(),
+    }),
+    settings: jsonb("settings").default({}),
+    ...timestamps,
+  },
+  (table) => ({
+    nameIdx: index("tenants_name_idx").on(table.name),
+    ownerIdx: index("tenants_owner_idx").on(table.ownerId),
+  }),
+);
+
+// Export all tables as a schema object for Drizzle
+export const schema = {
+  authUsers,
+  authSessions,
+  authTokens,
+  roles,
+  contentNodes,
+  contentDrafts,
+  contentRevisions,
+  themes,
+  widgets,
+  mediaItems,
+  systemVirtualFolders,
+  systemPreferences,
+  sveltyJobs,
+  websiteTokens,
+  pluginPagespeedResults,
+  pluginStates,
+  pluginMigrations,
+  tenants,
+};

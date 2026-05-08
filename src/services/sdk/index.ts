@@ -24,15 +24,17 @@ import type {
 } from "./namespaces/misc-namespaces";
 
 /**
- * Creates a lazy-loaded Proxy for a namespace to defer dynamic imports.
+ * Defines a lazy-loaded namespace using Object.defineProperty.
+ * This eliminates Proxy overhead after the first access.
  */
-function createLazyNamespace<T extends object>(
+function defineLazyNamespace<T extends object>(
+  target: any,
+  property: string,
   factory: () => Promise<T>,
   nestedNamespaces: Record<string, boolean> = {},
-): T {
+) {
   let instance: T | null = null;
   let initPromise: Promise<T> | null = null;
-  const nestedProxies: Record<string, any> = {};
 
   const getInstance = async () => {
     if (instance) return instance;
@@ -45,41 +47,52 @@ function createLazyNamespace<T extends object>(
     return initPromise;
   };
 
-  return new Proxy({} as T, {
-    get: (_, prop: string) => {
-      // Handle nested namespaces (e.g. auth.tokens)
-      if (nestedNamespaces[prop]) {
-        if (!nestedProxies[prop]) {
-          nestedProxies[prop] = new Proxy(
-            {},
-            {
-              get:
-                (_, nestedProp: string) =>
-                async (...args: any[]) => {
-                  const targetInstance = await getInstance();
-                  const nested = (targetInstance as any)[prop];
-                  const targetFn = nested[nestedProp];
-                  if (typeof targetFn === "function") {
-                    return targetFn.apply(nested, args);
-                  }
-                  return targetFn;
-                },
-            },
-          );
-        }
-        return nestedProxies[prop];
-      }
+  let proxyInstance: any = null;
 
-      // Handle direct method calls
-      return async (...args: any[]) => {
-        const targetInstance = await getInstance();
-        const targetProp = (targetInstance as any)[prop];
-        if (typeof targetProp === "function") {
-          return targetProp.apply(targetInstance, args);
-        }
-        return targetProp;
-      };
+  Object.defineProperty(target, property, {
+    get: () => {
+      if (proxyInstance) return proxyInstance;
+
+      proxyInstance = new Proxy({} as T, {
+        get: (_, prop: string) => {
+          if (nestedNamespaces[prop]) {
+            return new Proxy(
+              {},
+              {
+                get:
+                  (_, nestedProp: string) =>
+                  async (...args: any[]) => {
+                    const targetInstance = await getInstance();
+                    const nested = (targetInstance as any)[prop];
+                    return nested[nestedProp].apply(nested, args);
+                  },
+              },
+            );
+          }
+
+          return async (...args: any[]) => {
+            const targetInstance = await getInstance();
+
+            // HOT-SWAP: Replace the property on the main target with the actual instance.
+            // Future accesses to target[property] will bypass the Proxy entirely.
+            Object.defineProperty(target, property, {
+              value: targetInstance,
+              writable: false,
+              configurable: true,
+              enumerable: true,
+            });
+
+            const targetProp = (targetInstance as any)[prop];
+            return typeof targetProp === "function"
+              ? targetProp.apply(targetInstance, args)
+              : targetProp;
+          };
+        },
+      });
+      return proxyInstance;
     },
+    configurable: true,
+    enumerable: true,
   });
 }
 
@@ -90,15 +103,15 @@ function createLazyNamespace<T extends object>(
 export class LocalCMS {
   private _contentSystem: any;
 
-  public readonly auth: AuthNamespace;
-  public readonly tokens: TokensNamespace;
-  public readonly collections: CollectionsNamespace;
-  public readonly media: MediaNamespace;
-  public readonly widgets: WidgetsNamespace;
-  public readonly system: SystemNamespace;
-  public readonly telemetry: TelemetryNamespace;
-  public readonly automation: AutomationNamespace;
-  public readonly websiteTokens: WebsiteTokensNamespace;
+  public readonly auth!: AuthNamespace;
+  public readonly tokens!: TokensNamespace;
+  public readonly collections!: CollectionsNamespace;
+  public readonly media!: MediaNamespace;
+  public readonly widgets!: WidgetsNamespace;
+  public readonly system!: SystemNamespace;
+  public readonly telemetry!: TelemetryNamespace;
+  public readonly automation!: AutomationNamespace;
+  public readonly websiteTokens!: WebsiteTokensNamespace;
 
   /**
    * Access the underlying database adapter directly.
@@ -120,8 +133,10 @@ export class LocalCMS {
         ? contentSystemOrOptions.contentSystem
         : contentSystemOrOptions;
 
-    // Initialize Namespaces lazily using Proxies
-    this.auth = createLazyNamespace<AuthNamespace>(
+    // Initialize Namespaces lazily using defineLazyNamespace (Hyper-Performance)
+    defineLazyNamespace(
+      this,
+      "auth",
       async () => {
         const { AuthNamespace } = await import("./namespaces/auth-namespace");
         return new AuthNamespace(this._dbAdapter);
@@ -129,27 +144,29 @@ export class LocalCMS {
       { tokens: true },
     );
 
-    this.tokens = createLazyNamespace<TokensNamespace>(async () => {
+    defineLazyNamespace(this, "tokens", async () => {
       const { TokensNamespace } = await import("./namespaces/auth-namespace");
       return new TokensNamespace(this._dbAdapter);
     });
 
-    this.collections = createLazyNamespace<CollectionsNamespace>(async () => {
+    defineLazyNamespace(this, "collections", async () => {
       const { CollectionsNamespace } = await import("./namespaces/collections-namespace");
       return new CollectionsNamespace(this._dbAdapter, this._contentSystem);
     });
 
-    this.media = createLazyNamespace<MediaNamespace>(async () => {
+    defineLazyNamespace(this, "media", async () => {
       const { MediaNamespace } = await import("./namespaces/media-namespace");
       return new MediaNamespace(this._dbAdapter);
     });
 
-    this.widgets = createLazyNamespace<WidgetsNamespace>(async () => {
+    defineLazyNamespace(this, "widgets", async () => {
       const { WidgetsNamespace } = await import("./namespaces/misc-namespaces");
       return new WidgetsNamespace(this._dbAdapter);
     });
 
-    this.system = createLazyNamespace<SystemNamespace>(
+    defineLazyNamespace(
+      this,
+      "system",
       async () => {
         const { SystemNamespace } = await import("./namespaces/misc-namespaces");
         return new SystemNamespace(this._dbAdapter);
@@ -157,17 +174,17 @@ export class LocalCMS {
       { settings: true, importer: true },
     );
 
-    this.automation = createLazyNamespace<AutomationNamespace>(async () => {
+    defineLazyNamespace(this, "automation", async () => {
       const { AutomationNamespace } = await import("./namespaces/misc-namespaces");
       return new AutomationNamespace(this._dbAdapter);
     });
 
-    this.telemetry = createLazyNamespace<TelemetryNamespace>(async () => {
+    defineLazyNamespace(this, "telemetry", async () => {
       const { TelemetryNamespace } = await import("./namespaces/misc-namespaces");
       return new TelemetryNamespace(this._dbAdapter);
     });
 
-    this.websiteTokens = createLazyNamespace<WebsiteTokensNamespace>(async () => {
+    defineLazyNamespace(this, "websiteTokens", async () => {
       const { WebsiteTokensNamespace } = await import("./namespaces/misc-namespaces");
       return new WebsiteTokensNamespace(this._dbAdapter);
     });

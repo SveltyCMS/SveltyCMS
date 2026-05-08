@@ -1026,7 +1026,7 @@ export const actions: Actions = {
       // Force system state to READY to prevent the TurboPipeline from blocking the redirect
       // while the server waits to restart.
       try {
-        const { systemStateStore } = await import("@src/stores/system/state");
+        const { systemStateStore } = await import("@src/stores/system/state.svelte");
         const { invalidateSetupCache } = await import("@src/utils/setup-check");
 
         // ✨ CRITICAL: Set global flag to prevent TurboPipeline redirect loop during server restart

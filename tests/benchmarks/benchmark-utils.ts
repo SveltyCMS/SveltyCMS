@@ -7,12 +7,16 @@
 import { performance } from "node:perf_hooks";
 import fs from "node:fs";
 import path from "node:path";
-import { logger } from "@utils/logger";
-
 // ── silencing noise ─────────────────────────────────────────────────────────
-process.env.LOG_LEVEL = "error";
+(globalThis as any).__SVELTY_QUIET__ = true;
+process.env.BENCHMARK = "true";
+process.env.LOG_LEVEL = process.env.LOG_LEVEL || "error";
 process.env.DEBUG = "";
 process.env.QUIET = "true";
+process.env.DB_TYPE = "sqlite";
+process.env.DB_NAME = "bench_parent";
+
+import { logger } from "@utils/logger";
 
 // Suppress console.info/warn during init
 const originalInfo = console.info;
@@ -123,7 +127,14 @@ export function computeStatistics(times: number[], rps: number, config: any): Be
 // ── infrastructure ───────────────────────────────────────────────────────────
 
 /**
- * Returns the current database type being audited.
+ * Returns the descriptive label for the database (e.g. "MONGODB+REDIS").
+ */
+export function getDbLabel(): string {
+  return process.env.DB_LABEL || getDbType().toUpperCase();
+}
+
+/**
+ * Returns the current database type being audited (e.g. "mongodb").
  * 🚀 SMART DISCOVERY: Checks ENV first, then falls back to active DB adapter state.
  */
 export function getDbType(): string {
@@ -276,9 +287,9 @@ export function printTruthTable(options: {
     log(h.center(options.title + " (MATRIX)"));
     if (options.subtitle) {
       options.subtitle.split("\n").forEach((line: string) => log(h.center(line)));
+    } else {
+      log(h.center(`Matrix Audit • ${getDbLabel()}`));
     }
-
-    // 🚀 Add File and Description for transparency
     const meta = discoverBenchmarkMetadata();
     log(h.center(`File: ${meta.path}`));
     log(h.center(`Proves: ${meta.proves}`));
@@ -383,6 +394,8 @@ export function printTruthTable(options: {
     log(h.center(options.title));
     if (options.subtitle) {
       options.subtitle.split("\n").forEach((line: string) => log(h.center(line)));
+    } else {
+      log(h.center(`${getDbLabel()} Audit`));
     }
 
     // 🚀 Add File and Description for transparency
@@ -529,7 +542,12 @@ function pushTableToMdx(title: string, table: string, shortLabel?: string) {
  */
 function saveTerminalTable(title: string, content: string) {
   const dbType = getDbType();
-  const dir = path.resolve(process.cwd(), RESULTS_DIR, dbType);
+  let dir = path.resolve(process.cwd(), RESULTS_DIR);
+  // Only append dbType if it's not already at the end of RESULTS_DIR
+  if (!dir.toLowerCase().endsWith(dbType.toLowerCase())) {
+    dir = path.join(dir, dbType);
+  }
+
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
   const fileName = title.toLowerCase().replace(/[^a-z0-9]/g, "_") + ".table.txt";
@@ -722,12 +740,17 @@ export async function setupBenchmarkServer() {
   const apiBase = process.env.API_BASE_URL;
   if (apiBase) return { baseUrl: apiBase, stop: async () => {} };
 
-  // Aggressive silence for startup noise
-  process.env.LOG_LEVEL = "info";
-  process.env.QUIET = "false";
+  // Respect global silence for startup noise
+  process.env.LOG_LEVEL = process.env.LOG_LEVEL || "error";
+  process.env.QUIET = process.env.QUIET || "true";
 
   const { startServer, runSystemSetup } = await import("../../scripts/benchmark-matrix/server");
   const { ALL_DATABASES } = await import("../../scripts/benchmark-matrix/config");
+
+  // 🚀 Set mandatory environment variables EARLY to prevent race conditions in loadPrivateConfig
+  const dbName = `bench_tmp_${process.pid}`;
+  process.env.DB_NAME = dbName;
+  process.env.DB_TYPE = process.env.DB_TYPE || "sqlite";
 
   const dbType = getDbType();
   const dbConf =
@@ -736,8 +759,7 @@ export async function setupBenchmarkServer() {
   const port = 4173 + Math.floor(Math.random() * 500);
 
   process.env.API_BASE_URL = `http://127.0.0.1:${port}`;
-  const dbName = `bench_tmp_${process.pid}`;
-  process.env.DB_NAME = dbName;
+  // (DB_NAME and DB_TYPE already set above)
 
   // 🚀 Ensure mandatory secrets are in env for the test process too
   const {
@@ -749,7 +771,6 @@ export async function setupBenchmarkServer() {
   process.env.ENCRYPTION_KEY = ENCRYPTION_KEY;
   process.env.TEST_API_SECRET = configSecret;
   process.env.DB_HOST = dbConf.host || "127.0.0.1";
-  process.env.DB_TYPE = dbConf.type;
   process.env.DB_PORT = dbConf.port.toString();
 
   const { stop: originalStop } = await startServer(dbConf, port, dbName);
@@ -1030,19 +1051,21 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
 
 
 
-  const existingColRes = await activeDb.collection.listSchemas(tenantId);
-  const existingSchemas = existingColRes.success ? (existingColRes.data as any[]) : [];
-  const exists = existingSchemas.some((s: any) => s._id === STABLE_COLLECTION);
 
-  if (!exists) {
+  // Always attempt to create the model. In SQL databases, this runs CREATE TABLE IF NOT EXISTS.
+  // In MongoDB, it's an idempotent schema registration. This prevents "no such table" errors
+  // when the .js file exists but the DB is fresh.
+  try {
     await activeDb.collection.createModel(schema as any);
+  } catch (err: any) {
+    logger.debug(`[Benchmark] createModel error (safe to ignore if exists): ${err.message}`);
   }
 
   // Seed entry if missing
   const existingEntry = await activeDb.crud.findOne(
     STABLE_COLLECTION,
     { _id: STABLE_ENTRY_ID },
-    { tenantId },
+    { tenantId, suppressErrorLog: true },
   );
 
   if (existingEntry.success && existingEntry.data) {
@@ -1050,7 +1073,9 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     return;
   }
 
-  logger.info(`[Benchmark] Seeding stable test data for ${STABLE_COLLECTION}...`);
+  if (process.env.VERBOSE_TESTS === "true") {
+    logger.info(`[Benchmark] Seeding stable test data for ${STABLE_COLLECTION}...`);
+  }
   await activeDb.crud
     .upsert(
       STABLE_COLLECTION,
@@ -1063,7 +1088,7 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
         status: "published",
         count: 42,
       },
-      { tenantId },
+      { tenantId, suppressErrorLog: true },
     )
     .catch((err: any) => {
       logger.error(`[Benchmark] Failed to seed stable test data: ${err.message}`);
@@ -1089,3 +1114,51 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     // Silent fail if store not available
   }
 }
+
+/**
+ * 🚀 ENTERPRISE: Force the server-side content system to refresh.
+ * This resolves 404/500 errors in benchmarks caused by stale server-side caches.
+ */
+export async function forceRefreshServer(baseUrl: string, tenantId: string = "global") {
+  if (process.env.VERBOSE_TESTS === "true") {
+    console.log(`   [Refresh] Forcing server-side refresh for tenant: ${tenantId}...`);
+  }
+
+  // 🚀 GOLD STANDARD: Wait a moment for server to settle
+  await new Promise((r) => setTimeout(r, 500));
+
+  let attempts = 0;
+  const maxAttempts = 3;
+
+  while (attempts < maxAttempts) {
+    attempts++;
+    try {
+      const res = await fetch(`${baseUrl}/api/system/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-mode": "true",
+          "x-test-secret": TEST_API_SECRET,
+        },
+        body: JSON.stringify({ tenantId }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        logger.warn(`[Refresh] Server refresh failed (${res.status}): ${text}`);
+      } else {
+        if (process.env.VERBOSE_TESTS === "true") {
+          console.log("   [Refresh] Server-side state synchronized.");
+        }
+        return; // Success
+      }
+    } catch (err: any) {
+      if (attempts === maxAttempts) {
+        logger.error(`[Refresh] Failed to call refresh API after ${attempts} attempts: ${err.message}`);
+      } else {
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+  }
+}
+

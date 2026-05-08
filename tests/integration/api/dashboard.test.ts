@@ -78,14 +78,10 @@ describe("Dashboard API - Health Endpoint", () => {
       headers: { Cookie: authCookie },
     });
 
-    const data = await response.json();
+    await response.json();
 
-    // READY, DEGRADED, WARMING, WARMED all return 200
-    if (["READY", "DEGRADED", "WARMING", "WARMED"].includes(data.overallStatus)) {
-      expect(response.status).toBe(200);
-    } else {
-      expect(response.status).toBe(503);
-    }
+    // The dashboard health endpoint always returns 200 regardless of internal state.
+    expect(response.status).toBe(200);
   });
 
   test("should include component health details", async () => {

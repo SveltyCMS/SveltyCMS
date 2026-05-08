@@ -19,7 +19,7 @@ vi.mock("@src/utils/setup-check", () => ({
 // Disable TEST_MODE early to run hook logic
 const originalTestMode = process.env.TEST_MODE;
 
-import { setSystemState, resetSystemState, updateServiceHealth } from "@src/stores/system/state";
+import { setSystemState, resetSystemState, updateServiceHealth } from "@src/stores/system/state.svelte";
 import { handleSystemState } from "@src/hooks/handle-system-state";
 import { isSetupComplete } from "@src/utils/setup-check";
 

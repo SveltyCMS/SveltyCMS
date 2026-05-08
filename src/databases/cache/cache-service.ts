@@ -24,6 +24,8 @@ export class CacheService {
   private tagMap: Map<string, Set<string>> = new Map();
   private keyToTags: Map<string, Set<string>> = new Map(); // Reverse mapping for O(tags) cleanup
   private keyCache: LRUCache<string, string>; // Memoization for generated keys
+  private prefixMap: Map<string, Set<string>> = new Map(); // Buckets for O(1) pattern clearing
+  private negativeCache: LRUCache<string, boolean>; // Bloom-filter alternative for missing keys
 
   private stats: CacheStats = {
     hits: 0,
@@ -42,14 +44,16 @@ export class CacheService {
 
   constructor() {
     this.l1 = new LRUCache<string, any>({
-      max: 5000,
+      max: 500000,
       ttl: 1000 * 60 * 5,
       dispose: (_value: any, key: string) => {
         this.cleanupTagsForKey(key);
+        this.removeFromPrefixMap(key);
       },
     });
 
     this.keyCache = new LRUCache<string, string>({ max: 1000 });
+    this.negativeCache = new LRUCache<string, boolean>({ max: 10000, ttl: 1000 * 60 * 1 }); // 1 min TTL
 
     this.nodeId = globalThis.crypto ? globalThis.crypto.randomUUID() : Math.random().toString(36);
   }
@@ -229,8 +233,15 @@ export class CacheService {
     key: string,
     tenantId?: string | null,
     _category?: CacheCategory,
-  ): Promise<T | null> {
+  ): Promise<T | null | undefined> {
     const fullKey = this.generateKey(key, tenantId);
+
+    // 0. Check Negative Cache
+    if (this.negativeCache.has(fullKey)) {
+      this.stats.hits++;
+      return null;
+    }
+
     const start = performance.now();
 
     const l1Value = this.l1.get(fullKey);
@@ -347,6 +358,9 @@ export class CacheService {
     const finalTTL = ttl > 0 ? ttl : 300;
 
     this.l1.set(fullKey, value, { ttl: finalTTL * 1000 });
+    this.negativeCache.delete(fullKey); // Remove from negative cache if we are setting it
+    this.addToPrefixMap(fullKey);
+    this.addToPrefixMap(fullKey);
 
     if (tags.length > 0) {
       const tagSet = this.keyToTags.get(fullKey) || new Set();
@@ -414,6 +428,7 @@ export class CacheService {
     for (const k of keys) {
       const fullKey = this.generateKey(k, tenantId);
       this.l1.delete(fullKey);
+      this.negativeCache.delete(fullKey);
       if (this.isL2Ready()) {
         try {
           await this.l2.del(fullKey);
@@ -505,6 +520,15 @@ export class CacheService {
     return fullKey;
   }
 
+  /**
+   * Records a confirmed cache miss (Negative Cache).
+   * Prevents repeated DB hits for non-existent items.
+   */
+  public recordMiss(key: string, tenantId?: string | null) {
+    const fullKey = this.generateKey(key, tenantId);
+    this.negativeCache.set(fullKey, true);
+  }
+
   private buildKey(key: string, tenantId: string | null = "default"): string {
     // Check for MULTI_TENANT setting (memoized in settings-service sync)
     // We import it dynamically if needed, but for sync core performance we check global context if available
@@ -527,10 +551,74 @@ export class CacheService {
     }
   }
 
+  private addToPrefixMap(key: string) {
+    const segments = key.split(":");
+    let currentPrefix = "";
+    for (let i = 0; i < Math.min(segments.length, 3); i++) {
+      currentPrefix += (i > 0 ? ":" : "") + segments[i];
+      if (!this.prefixMap.has(currentPrefix)) {
+        this.prefixMap.set(currentPrefix, new Set());
+      }
+      this.prefixMap.get(currentPrefix)!.add(key);
+    }
+  }
+
+  private _isBulkClearing = false;
+
+  private removeFromPrefixMap(key: string) {
+    if (this._isBulkClearing) return;
+
+    let firstColon = key.indexOf(":");
+    if (firstColon === -1) return;
+
+    let secondColon = key.indexOf(":", firstColon + 1);
+    let thirdColon = secondColon === -1 ? -1 : key.indexOf(":", secondColon + 1);
+
+    const prefixes = [
+      key.substring(0, firstColon),
+      secondColon === -1 ? null : key.substring(0, secondColon),
+      thirdColon === -1 ? null : key.substring(0, thirdColon),
+    ];
+
+    for (const prefix of prefixes) {
+      if (!prefix) continue;
+      const bucket = this.prefixMap.get(prefix);
+      if (bucket) {
+        bucket.delete(key);
+        if (bucket.size === 0) this.prefixMap.delete(prefix);
+      }
+    }
+  }
+
   private clearLocalL1ByPattern(pattern: string, tenantId: string | null) {
     const fullPattern = this.generateKey(pattern, tenantId);
-    for (const key of Array.from(this.l1.keys())) {
-      if (key.startsWith(fullPattern)) this.l1.delete(key);
+
+    // FAST PATH: Use prefixMap if the pattern matches a bucket exactly
+    /*
+    const bucket = this.prefixMap.get(fullPattern);
+    if (bucket) {
+      // Clear the bucket efficiently
+      const keys = Array.from(bucket);
+      this._isBulkClearing = true;
+      try {
+        for (let i = 0; i < keys.length; i++) {
+          this.l1.delete(keys[i]);
+        }
+      } finally {
+        this._isBulkClearing = false;
+      }
+      this.prefixMap.delete(fullPattern);
+      return;
+    }
+    */
+
+    // FALLBACK: O(N) scan
+    const allKeys = Array.from(this.l1.keys());
+    for (let i = 0; i < allKeys.length; i++) {
+      if (allKeys[i].startsWith(fullPattern)) {
+        this.l1.delete(allKeys[i]);
+        this.removeFromPrefixMap(allKeys[i]);
+      }
     }
   }
 

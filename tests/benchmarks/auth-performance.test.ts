@@ -48,6 +48,7 @@ async function runAuthAudit() {
 
     if (!userRes.success) throw new Error("Failed to create bench user");
     const testUser = userRes.data;
+    console.log("     - Test User created:", testUser?._id);
 
     const sessionRes = await db.auth.createSession({
       user_id: testUser._id,
@@ -55,7 +56,10 @@ async function runAuthAudit() {
       expires: new Date(Date.now() + 86400000).toISOString() as any,
     });
 
-    if (!sessionRes.success) throw new Error("Failed to create bench session");
+    if (!sessionRes.success) {
+      console.error("Session creation failed. sessionRes:", JSON.stringify(sessionRes, null, 2));
+      throw new Error("Failed to create bench session");
+    }
     const testSessionId = (sessionRes.data as any)._id || sessionRes.data;
 
     await stabilize(1000);

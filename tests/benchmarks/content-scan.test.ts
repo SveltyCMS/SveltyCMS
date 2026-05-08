@@ -50,7 +50,7 @@ async function prepareRealisticScanEnvironment() {
 }
 
 test("Content Scan Performance (Self-Healing Collections)", async () => {
-  console.log("🚀 Starting Elite SveltyCMS Content Scan Benchmark...\n");
+  console.log("🚀 Starting SveltyCMS Content Scan Benchmark...\n");
 
   try {
     await prepareRealisticScanEnvironment();

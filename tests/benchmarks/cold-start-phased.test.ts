@@ -5,7 +5,7 @@
 
 import { describe, it } from "bun:test";
 import { runSystemBoot } from "@src/databases/db-init";
-import { systemStateStore } from "@src/stores/system/state";
+import { systemStateStore } from "@src/stores/system/state.svelte";
 import { get } from "svelte/store";
 
 describe("Cold Start Benchmark (Phased)", () => {
@@ -15,11 +15,14 @@ describe("Cold Start Benchmark (Phased)", () => {
     // We assume the adapter is already mocked or we use a real one
     // In our setup.ts, the adapter is usually mocked.
     // We need a real-ish adapter to measure actual boot time.
-    const { SQLiteAdapter } = await import("@src/databases/sqlite/adapter");
-    const { createSchemaProxy } = await import("@src/databases/agnostic-core/schema-proxy");
+    const { SQLiteAdapter } = await import("@src/databases/sqlite/sqlite-adapter");
+    const { createSchemaProxy } = await import("@src/databases/agnostic/schema-proxy");
     
     let dbAdapter = new SQLiteAdapter() as any;
     dbAdapter = createSchemaProxy(dbAdapter);
+    
+    // 🔌 Ensure adapter is connected before boot
+    await dbAdapter.connect(":memory:");
 
     console.log("⏱️  Phase 1: Measuring CORE Boot (READY State)...");
     const t0 = performance.now();

@@ -59,14 +59,23 @@ const IS_BROWSER = typeof window !== "undefined";
 
 const LOG_LEVEL_STR = (
   import.meta.env?.VITE_LOG_LEVELS ??
-  (typeof process !== "undefined" ? process.env?.LOG_LEVELS : undefined) ??
-  "info"
+  (typeof process !== "undefined"
+    ? process.env?.LOG_LEVELS || process.env?.LOG_LEVEL
+    : undefined) ??
+  (typeof process !== "undefined" && process.env.NODE_ENV === "production" ? "error" : "info")
 )
   .split(",")[0]
   .trim()
   .toLowerCase() as LogLevel;
 
 const CURRENT_PRIORITY = PRIORITY[LOG_LEVEL_STR] ?? PRIORITY.info;
+
+// ✨ PERFORMANCE: Module-level capture of initial environment
+// Note: These may be overridden by dynamic checks if environment changes during runtime (e.g. benchmarks)
+const CAPTURED_QUIET =
+  typeof process !== "undefined" &&
+  (process.env?.QUIET === "true" || process.env?.BENCHMARK === "true");
+const IS_VERBOSE_MODE = typeof process !== "undefined" && process.env?.VERBOSE === "true";
 
 // --- Masking Logic ---
 
@@ -224,6 +233,16 @@ if (!IS_BROWSER) {
 
 function log(level: LogLevel, msg: string, args: unknown[]) {
   if (PRIORITY[level] > CURRENT_PRIORITY) return;
+
+  // 🚀 SILENCE: Skip info/debug/trace in quiet mode unless verbose is explicitly requested
+  // ✨ PERFORMANCE: Use globalThis for zero-tax late-binding in benchmarks
+  const isQuiet =
+    CAPTURED_QUIET ||
+    (typeof globalThis !== "undefined" && (globalThis as any).__SVELTY_QUIET__) ||
+    (typeof process !== "undefined" &&
+      (process.env.QUIET === "true" || process.env.BENCHMARK === "true"));
+
+  if (isQuiet && PRIORITY[level] > PRIORITY.warn && !IS_VERBOSE_MODE) return;
 
   const ts = new Date().toISOString().slice(0, 19).replace("T", " ");
   const icon = ICONS[level.toUpperCase()] || "●";

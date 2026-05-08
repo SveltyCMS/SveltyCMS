@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MongoCrudMethods } from "@src/databases/mongodb/methods/crud-methods";
+import { MongoCrudMethods } from "@src/databases/mongodb/crud-methods";
 import { safeQuery } from "@src/utils/security/safe-query";
 import type { Model } from "mongoose";
 
@@ -20,7 +20,7 @@ vi.mock("@src/utils/security/safe-query", () => ({
 }));
 
 // Mock mongodb-utils
-vi.mock("@src/databases/mongodb/methods/mongodb-utils", () => ({
+vi.mock("@src/databases/mongodb/mongodb-utils", () => ({
   createDatabaseError: vi.fn((error, code, message) => ({
     code,
     message,

@@ -11,6 +11,11 @@ vi.mock("@src/databases/db", () => ({
     crud: { findOne: vi.fn() },
     collection: { getModel: vi.fn() },
   },
+  getDb: vi.fn().mockReturnValue({
+    crud: { findOne: vi.fn() },
+    collection: { getModel: vi.fn() },
+  }),
+  isDbConnected: vi.fn().mockReturnValue(true),
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
   ensureFullInitialization: vi.fn().mockResolvedValue(undefined),
   resetDbInitPromise: vi.fn(),

@@ -11,41 +11,50 @@ beforeAll(async () => {
   dispatcher = mod._handler;
 });
 
-const mockDbAdapter = {
-  collection: {
-    getModel: vi.fn().mockResolvedValue({ name: "collection_test" }),
-    createModel: vi.fn().mockResolvedValue({ success: true }),
-  },
-  auth: {
-    getRoles: vi.fn().mockResolvedValue([]),
-  },
-  media: {},
-  widgets: {},
-  system: {
-    preferences: {
-      getMany: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    },
-  },
-  crud: {
-    findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
-    findOne: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-id" } }),
-    update: vi.fn().mockResolvedValue({ success: true, data: { _id: "updated-id" } }),
-    delete: vi.fn().mockResolvedValue({ success: true }),
-  },
-  content: {
-    nodes: {
-      bulkUpdate: vi.fn().mockResolvedValue({ success: true, data: [] }),
-    },
-  },
-  transaction: vi.fn().mockImplementation((fn: any) => fn()),
-};
-
 // Mock all dependencies
-vi.mock("@src/databases/db", () => ({
-  dbAdapter: mockDbAdapter,
-  getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock("@src/databases/db", () => {
+  const adapter = {
+    collection: {
+      getModel: vi.fn().mockResolvedValue({ name: "collection_test" }),
+      createModel: vi.fn().mockResolvedValue({ success: true }),
+    },
+    auth: {
+      getRoles: vi.fn().mockResolvedValue([]),
+    },
+    media: {},
+    widgets: {},
+    system: {
+      preferences: {
+        getMany: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      },
+    },
+    crud: {
+      findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      findOne: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-id" } }),
+      update: vi.fn().mockResolvedValue({ success: true, data: { _id: "updated-id" } }),
+      delete: vi.fn().mockResolvedValue({ success: true }),
+    },
+    content: {
+      nodes: {
+        bulkUpdate: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      },
+    },
+    transaction: vi.fn().mockImplementation((fn: any) => fn()),
+    connected: true, // ADDED: Required for adapterReady check
+  };
+
+  return {
+    dbAdapter: adapter,
+    getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+    isDbConnected: vi.fn().mockReturnValue(true),
+    getDb: vi.fn().mockReturnValue(adapter),
+  };
+});
+
+import { dbAdapter as mockDbAdapter } from "@src/databases/db";
+// ... in beforeEach, ensure event.locals.dbAdapter = mockDbAdapter;
+
 
 vi.mock("@src/content/index.server", () => ({
   contentSystem: {
@@ -107,13 +116,13 @@ describe("Collections API Unit Tests", () => {
     mockContentSystem = contentModule.contentSystem;
 
     // Manually inject mocks into the hoist
-    mockDbAdapter.crud.insert = vi
+    (mockDbAdapter as any).crud.insert = vi
       .fn()
       .mockResolvedValue({ success: true, data: { _id: "new-id" } });
-    mockDbAdapter.crud.update = vi
+    (mockDbAdapter as any).crud.update = vi
       .fn()
       .mockResolvedValue({ success: true, data: { _id: "updated-id" } });
-    mockDbAdapter.crud.delete = vi.fn().mockResolvedValue({ success: true });
+    (mockDbAdapter as any).crud.delete = vi.fn().mockResolvedValue({ success: true });
 
     const settingsModule = await import("@src/services/core/settings-service");
     mockGetPrivateSettingSync = settingsModule.getPrivateSettingSync;
@@ -126,19 +135,23 @@ describe("Collections API Unit Tests", () => {
     user: any = { _id: "user-123", email: "test@example.com", isAdmin: true },
     tenantId: any = "t1",
   ) => {
+    const event = createMockRequestEvent({
+      method,
+      url: `http://localhost/api/${path}`,
+      body,
+      user: user === null ? null : { ...user, isAdmin: user?.isAdmin ?? true },
+      tenantId,
+      roles:
+        user === null
+          ? []
+          : [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
+      dbAdapter: mockDbAdapter,
+    });
+
+    (event.locals as any).dbAdapter = mockDbAdapter;
+    
     return {
-      ...createMockRequestEvent({
-        method,
-        url: `http://localhost/api/${path}`,
-        body,
-        user: user === null ? null : { ...user, isAdmin: user?.isAdmin ?? true },
-        tenantId,
-        roles:
-          user === null
-            ? []
-            : [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
-        dbAdapter: mockDbAdapter,
-      }),
+      ...event,
       params: { path },
     };
   };
@@ -175,13 +188,13 @@ describe("Collections API Unit Tests", () => {
         name: "posts",
         fields: [],
       });
-      mockDbAdapter.crud.update.mockResolvedValue({ success: true, data: { _id: "updated-id" } });
+      (mockDbAdapter as any).crud.update.mockResolvedValue({ success: true, data: { _id: "updated-id" } });
       const event = createMockEvent("PATCH", "collections/col-1/entry-1", { title: "Updated" });
       const response = await PATCH_ENTRY(event);
       const data = await response!.json();
       // No-op
       expect(data.success).toBe(true);
-      expect(data.data.data._id).toBe("updated-id");
+      expect(data.data._id).toBe("updated-id");
     });
   });
 

@@ -37,6 +37,8 @@ vi.mock("@src/databases/db", () => {
     auth: db.auth,
     getDbInitPromise: vi.fn().mockResolvedValue(undefined),
     getDb: vi.fn().mockReturnValue(db),
+    getAuth: vi.fn().mockReturnValue(db.auth),
+    isDbConnected: vi.fn().mockReturnValue(true),
   };
 });
 

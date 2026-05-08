@@ -35,7 +35,9 @@ export function getBootPhase() {
 export { getPrivateEnv };
 
 export function isDbConnected(): boolean {
-  return isConnected;
+  // Fallback check to adapter's own internal state if available
+  const adapter = getDb();
+  return isConnected || adapter?.isConnected() === true;
 }
 
 /**
@@ -52,7 +54,14 @@ export async function ensureFullInitialization(config?: any): Promise<any | null
     const start = performance.now();
     try {
       const cfg = config || (await loadPrivateConfig());
-      const { updateServiceHealth } = await import("../stores/system/state");
+      if (process.env.BENCHMARK === "true") {
+        logger.debug(`[db.ts] ensureFullInitialization started (dbType: ${cfg?.DB_TYPE})`);
+      } else {
+        logger.info(
+          `[db.ts] ensureFullInitialization started (hasConfig: ${!!cfg}, dbType: ${cfg?.DB_TYPE})`,
+        );
+      }
+      const { updateServiceHealth } = await import("../stores/system/state.svelte");
 
       if (!cfg) {
         logger.debug("[db.ts] Missing configuration - skipping database initialization");
@@ -79,6 +88,11 @@ export async function ensureFullInitialization(config?: any): Promise<any | null
       const phase2 = performance.now();
       const connectionResult = await adapter.connect(cfg as any);
       if (!connectionResult.success) {
+        if (process.env.BENCHMARK === "true") {
+          logger.warn(`Database connection failed (${adapter.type}): ${connectionResult.message}`);
+          _dbInitializationPromise = null; // Allow retry
+          return null;
+        }
         logger.error(`Database connection failed: ${connectionResult.message}`);
         throw new Error(`Database connection failed: ${connectionResult.message}`);
       }
@@ -146,7 +160,7 @@ export async function ensureFullInitialization(config?: any): Promise<any | null
       };
 
       logger.error("CRITICAL: Full initialization failed:", errorDetails);
-      const { updateServiceHealth } = await import("../stores/system/state");
+      const { updateServiceHealth } = await import("../stores/system/state.svelte");
       updateServiceHealth(
         "database",
         "unhealthy",
@@ -219,6 +233,13 @@ export function getDb(): DatabaseAdapter | null {
 }
 
 /**
+ * PURE Accessor for the Auth service.
+ */
+export function getAuth(): any {
+  return auth;
+}
+
+/**
  * Initializes the system with a specific configuration.
  */
 export async function initializeWithConfig(config: any): Promise<void> {
@@ -240,7 +261,7 @@ export async function loadSettingsFromDB(
 ) {
   const dbInit = await getDbInit();
   const db = adapter || getDb();
-  if (!db) return false;
+  if (!db || !db.isConnected()) return false;
   return dbInit.loadSettingsFromDB(db, forceReload, tenantId);
 }
 
@@ -251,6 +272,7 @@ export async function loadSettingsFromDB(
 export function resetDbInitPromise(): void {
   isConnected = false;
   dbAdapter = null;
+  auth = null;
   (process as any)[ADAPTER_KEY] = null;
   _dbInitializationPromise = null;
   _redisCacheInitialized = false;

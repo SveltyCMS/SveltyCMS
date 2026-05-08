@@ -16,6 +16,8 @@ const mockDb = {
 
 vi.mock("@src/databases/db", () => ({
   dbAdapter: mockDb,
+  getDb: vi.fn().mockReturnValue(mockDb),
+  isDbConnected: vi.fn().mockReturnValue(true),
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
 }));
 

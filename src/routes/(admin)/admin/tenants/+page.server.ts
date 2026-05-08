@@ -13,7 +13,7 @@
  * - Proper typing for user data
  */
 
-import { TenantModel } from "@src/databases/mongodb/models/tenant";
+import { TenantModel } from "@src/databases/mongodb/tenant";
 import { redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 

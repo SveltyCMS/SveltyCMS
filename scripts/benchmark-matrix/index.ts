@@ -179,6 +179,14 @@ async function main() {
 
   const cfg = parseArgs();
 
+  // 🚀 WINDOWS RESILIENCE: Set local TMP/TEMP to avoid AppData\Local\Temp locking issues
+  if (process.platform === "win32") {
+    const localTmp = path.join(process.cwd(), "tmp");
+    await fs.mkdir(localTmp, { recursive: true });
+    process.env.TMP = localTmp;
+    process.env.TEMP = localTmp;
+  }
+
   // Initialize Safeguard before any logic
   await ConfigSafeguard.backup();
 
@@ -260,9 +268,10 @@ async function main() {
       try {
         execSync("bun run build:high-memory", {
           stdio: cfg.ci ? "pipe" : "inherit",
+          env: { ...process.env, SVELTY_BENCHMARK_SUITE: "true" },
         });
         const buildTimeMs = Math.round(performance.now() - t0);
-        log.success(`Build complete in ${(buildTimeMs / 1000).toFixed(1)}s.`);
+        log.success(`Build complete in ${(buildTimeMs / 1000).toFixed(3)}s.`);
         buildMetrics = { durationMs: buildTimeMs };
       } catch {
         log.error("Build failed. Aborting.");

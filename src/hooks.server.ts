@@ -57,11 +57,15 @@ import { isRedirect } from "@sveltejs/kit";
 import { handleApiError } from "@utils/error-handling";
 import { handleRedirects } from "./hooks/handle-redirects";
 
+const IS_BENCHMARK = typeof process !== "undefined" && process.env.BENCHMARK === "true";
+const TEST_API_SECRET = typeof process !== "undefined" ? process.env.TEST_API_SECRET : null;
+const IS_QUIET = typeof process !== "undefined" && process.env.QUIET === "true";
+
 // --- Server Startup Logic ---
 if (!building) {
   // ✨ NEW: Smart initialization logic that respects the system state machine
   // This ensures setup-wizard stays lean and non-critical services only start when needed.
-  import("@src/stores/system/state").then(({ overallState }) => {
+  import("@src/stores/system/state.svelte").then(({ overallState }) => {
     let isServicesInitialized = false;
 
     const unsubscribe = overallState.subscribe(async (state) => {
@@ -142,7 +146,9 @@ if (!building) {
     });
   });
 
-  logger.info("✅ DB module loaded. System will initialize background services when READY.");
+  if (!IS_BENCHMARK && !IS_QUIET) {
+    logger.info("✅ DB module loaded. System will initialize background services when READY.");
+  }
 }
 
 // ✨ ENTERPRISE: Graceful Shutdown Registry
@@ -222,10 +228,7 @@ export const handle: Handle = async ({ event, resolve }) => {
       try {
         // 🚀 TERMINAL BYPASS (Performance Fast-Path)
         // If it's a verified benchmark request, we skip the entire 15-hook pipeline.
-        if (
-          process.env.BENCHMARK === "true" &&
-          event.request.headers.get("x-test-secret") === process.env.TEST_API_SECRET
-        ) {
+        if (IS_BENCHMARK && event.request.headers.get("x-test-secret") === TEST_API_SECRET) {
           const pathname = event.url.pathname;
 
           // 🚀 ULTRA-FAST TERMINAL HEALTH CHECK (Bypasses SvelteKit Routing & Turbo)

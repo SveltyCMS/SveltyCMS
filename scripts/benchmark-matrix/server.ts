@@ -107,6 +107,7 @@ export function buildServerEnv(
     BENCHMARK_MODE: "true",
     BENCHMARK_STABLE: "true",
     SVELTY_AUDIT_ACTIVE: process.env.SVELTY_AUDIT_ACTIVE || "false",
+    QUIET: process.env.QUIET || "true",
   };
 
   delete env.USER;
@@ -227,7 +228,7 @@ export async function startServer(
   const isDev = serverPath.endsWith(".ts") || !fs.existsSync(serverPath);
   const cmd = "bun"; // 🚀 Use Bun for production to avoid Node binary binding issues on Windows
   const args = isDev
-    ? ["x", "vite", "dev", "--port", port.toString(), "--host", "127.0.0.1"]
+    ? ["--bun", "x", "vite", "dev", "--port", port.toString(), "--host", "127.0.0.1"]
     : [serverPath]; // Bun can run the build/index.js directly
 
   log.db(db.type, `Launching SveltyCMS instance (${isDev ? "DEV" : "PROD"}) on port ${port}...`);

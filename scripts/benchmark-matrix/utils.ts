@@ -445,6 +445,9 @@ const NOISY_SERVER_PATTERNS: RegExp[] = [
   /Initial PostgreSQL connection check failed/i,
   /MariaDB adapter error/i,
   /force rollback/i,
+  /\[Turbo\] TEST BYPASS/i,
+  /\[Turbo\].*method=/i,
+  /\[DEBUG\] config-state\.ts/i,
 ];
 
 // eslint-disable-next-line no-control-regex
@@ -452,6 +455,12 @@ const ANSI_STRIP = /[\u001b\u009b]\[[0-9;]*[JKmsu]/g;
 
 export function isNoisyLine(line: string): boolean {
   const clean = line.replace(ANSI_STRIP, "");
+  const isQuiet = process.env.QUIET === "true";
+
+  if (isQuiet && (clean.includes("[INFO ]") || clean.includes("[DEBUG]"))) {
+    return true;
+  }
+
   return (
     /→\s+[0-9]{3}/.test(clean) ||
     /(GET|POST|PUT|DELETE|PATCH) \/.* [0-9]{3}/i.test(clean) ||

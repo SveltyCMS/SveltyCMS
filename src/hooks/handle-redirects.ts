@@ -7,7 +7,7 @@
  */
 
 import { getDb, isDbConnected } from "@src/databases/db";
-import { isSystemReady, getSystemState } from "@src/stores/system/state";
+import { isSystemReady, getSystemState } from "@src/stores/system/state.svelte";
 import type { Handle } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 
@@ -39,7 +39,7 @@ function flush404Logs() {
           path: log.path,
           tenantId: log.tenantId,
         } as any);
-        if (existing.success && existing.data) {
+        if (existing.success && existing.data && (existing.data as any)._id) {
           await db.crud.update(table, (existing.data as any)._id, {
             hits: ((existing.data as any).hits || 0) + log.hits,
             lastHit: new Date().toISOString(),
