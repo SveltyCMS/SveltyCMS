@@ -187,7 +187,6 @@ const isTestTarget = (path: string) => {
   return currentTest && currentTest.includes(targetPart);
 };
 
-
 // 1. EARLY DOM SHIMS (Critical for Bun; Vitest uses native jsdom)
 if (typeof vi !== "undefined") {
   vi.mock("$app/navigation", () => ({
@@ -381,7 +380,6 @@ if (!isBun) {
 
 // 2. COMMON MOCKS
 // Master switch for benchmarking - allows running 'bun test' with ZERO mocks
-
 
 const moduleMock = (path: string, factory: () => any) => {
   if (isBenchmark) {
@@ -1339,33 +1337,33 @@ const dbMock = {
   loadSettingsFromDB: mock(() => Promise.resolve(true)),
   isAuthReady: () => true,
 };
-  const dbFactory = () => ({
-    dbAdapter: mockDbAdapter,
-    auth: mockDbAdapter.auth,
-    getDb: dbMock.getDb,
-    getAuth: dbMock.getAuth,
-    getDbInitPromise: dbMock.getDbInitPromise,
-    ensureFullInitialization: dbMock.ensureFullInitialization,
-    getPrivateEnv: dbMock.getPrivateEnv,
-    loadPrivateConfig: mock(() => Promise.resolve({})),
-    reinitializeSystem: mock(() => Promise.resolve({})),
-    resetDbInitPromise: mock(() => {}),
-    dbInitPromise: mock(() => Promise.resolve({})),
-    isDbConnected: mock(() => true),
-    default: dbMock,
-  });
+const dbFactory = () => ({
+  dbAdapter: mockDbAdapter,
+  auth: mockDbAdapter.auth,
+  getDb: dbMock.getDb,
+  getAuth: dbMock.getAuth,
+  getDbInitPromise: dbMock.getDbInitPromise,
+  ensureFullInitialization: dbMock.ensureFullInitialization,
+  getPrivateEnv: dbMock.getPrivateEnv,
+  loadPrivateConfig: mock(() => Promise.resolve({})),
+  reinitializeSystem: mock(() => Promise.resolve({})),
+  resetDbInitPromise: mock(() => {}),
+  dbInitPromise: mock(() => Promise.resolve({})),
+  isDbConnected: mock(() => true),
+  default: dbMock,
+});
 
-  if (!isBenchmark && ENABLE_MOCKS) {
-    try {
-      const dbPath = import.meta.resolve("@src/databases/db");
-      mock.module(dbPath, dbFactory);
-      mock.module(dbPath.replace(".ts", ""), dbFactory);
-    } catch {
-      /* ignore */
-    }
-    moduleMock("@src/databases/db", dbFactory);
-    moduleMock("@databases/db", dbFactory);
+if (!isBenchmark && ENABLE_MOCKS) {
+  try {
+    const dbPath = import.meta.resolve("@src/databases/db");
+    mock.module(dbPath, dbFactory);
+    mock.module(dbPath.replace(".ts", ""), dbFactory);
+  } catch {
+    /* ignore */
   }
+  moduleMock("@src/databases/db", dbFactory);
+  moduleMock("@databases/db", dbFactory);
+}
 setGlobal("auth", dbMock.auth);
 
 moduleMock("@src/services/security/audit-service", () => {

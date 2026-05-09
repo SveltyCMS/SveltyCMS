@@ -150,7 +150,9 @@ async function prepareAcidCollection(db: any) {
 
   // Clean collection
   // Clean previous run with permanent delete to prevent E11000 on re-runs
-  await db.crud.deleteMany(COLLECTION_ID, {}, { tenantId: "global" as any, permanent: true }).catch(() => {});
+  await db.crud
+    .deleteMany(COLLECTION_ID, {}, { tenantId: "global" as any, permanent: true })
+    .catch(() => {});
 }
 
 test("ACID Enterprise Suite", async () => {

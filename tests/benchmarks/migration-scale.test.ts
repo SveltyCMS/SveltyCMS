@@ -160,7 +160,9 @@ async function prepareCollection() {
   }
 
   // Clean previous data with permanent delete to prevent E11000 on re-runs
-  await db?.crud?.deleteMany?.(COLLECTION_ID, {}, { tenantId: "global" as any, permanent: true }).catch(() => {});
+  await db?.crud
+    ?.deleteMany?.(COLLECTION_ID, {}, { tenantId: "global" as any, permanent: true })
+    .catch(() => {});
 }
 
 test("Migration & Large Scale Ingestion", async () => {

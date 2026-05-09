@@ -293,14 +293,16 @@ async function initializeCollectionsStructure() {
   );
 
   if (sourceFiles.length > 0) {
-    log.info(`Found \x1b[32m${sourceFiles.length}\x1b[0m collection(s), compiling...`);
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      log.info(`Found \x1b[32m${sourceFiles.length}\x1b[0m collection(s), compiling...`);
+    }
     await compile({
       userCollections: paths.userCollections,
       compiledCollections: paths.compiledCollections,
     });
-    log.success("Initial collection compilation successful!");
-  } else {
-    log.info("No user collections found. Starting with empty structure.");
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      log.success("Initial collection compilation successful!");
+    }
   }
 }
 
@@ -532,7 +534,6 @@ function sveltyCmsPlugin(): Plugin {
       wasPrivateConfigMissing = !existsSync(paths.privateConfig);
       if (wasPrivateConfigMissing) {
         await fsPromises.mkdir(paths.configDir, { recursive: true });
-        log.info("Setup mode: config/private.ts missing");
       }
       await initializeCollectionsStructure();
     },
@@ -557,7 +558,6 @@ function sveltyCmsPlugin(): Plugin {
               const address = server.httpServer?.address();
               const resolvedPort = typeof address === "object" && address ? address.port : 5173;
               const setupUrl = `http://127.0.0.1:${resolvedPort}/setup`;
-              log.info(`Opening setup wizard: ${setupUrl}`);
               openUrl(setupUrl);
             }, 1000);
           });
@@ -626,9 +626,9 @@ export default defineConfig((): any => {
   // Only log during dev mode, not during builds
   if (!isBuild) {
     if (setupComplete) {
-      log.success("Setup check passed. Initializing full dev environment...");
-    } else {
-      log.info("Starting in setup mode...");
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        log.success("Setup check passed. Initializing full dev environment...");
+      }
     }
   }
 

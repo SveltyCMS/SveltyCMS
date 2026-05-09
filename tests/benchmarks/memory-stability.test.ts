@@ -35,10 +35,13 @@ const snapshots: MemorySnapshot[] = [];
 
 async function getMemoryStats(baseUrl: string, forceGC = false, signal?: AbortSignal) {
   try {
-    const res: any = await fetch(`${baseUrl}/api/system/health?verbose=true${forceGC ? "&gc=true" : ""}`, {
-      headers: { "x-test-secret": TEST_API_SECRET },
-      signal,
-    });
+    const res: any = await fetch(
+      `${baseUrl}/api/system/health?verbose=true${forceGC ? "&gc=true" : ""}`,
+      {
+        headers: { "x-test-secret": TEST_API_SECRET },
+        signal,
+      },
+    );
     const data = await res.json();
     return data.memory || { rss: 0, heapUsed: 0, external: 0 };
   } catch {
@@ -84,7 +87,7 @@ export async function runMemoryStabilityAudit() {
         const controller = new AbortController();
         controllers.add(controller);
         const tid = setTimeout(() => controller.abort(), 5000);
-        
+
         try {
           const mem = await getMemoryStats(baseUrl, false, controller.signal);
           const lag = performance.now() - sampleStart;
@@ -137,7 +140,7 @@ export async function runMemoryStabilityAudit() {
     running = false;
     // 🚀 CRITICAL: Instantly terminate all pending fetches so the workers drain immediately.
     // Convert to array first to prevent Set iteration bugs if elements are deleted synchronously.
-    Array.from(controllers).forEach(c => c.abort());
+    Array.from(controllers).forEach((c) => c.abort());
 
     console.log(
       `⏹ Load stopped at ${Math.round(performance.now() - startTime)}ms. Draining ${CONCURRENCY} workers and 1 sampler...`,
@@ -147,7 +150,9 @@ export async function runMemoryStabilityAudit() {
     // Add a hard timeout to the drain phase to completely prevent test hangs
     await Promise.race([
       Promise.allSettled([...workers, sampler]),
-      sleep(5000).then(() => console.log("⚠️ Hard timeout reached during worker drain. Forcing continuation."))
+      sleep(5000).then(() =>
+        console.log("⚠️ Hard timeout reached during worker drain. Forcing continuation."),
+      ),
     ]);
     console.log(`✅ All workers drained in ${Math.round(performance.now() - drainStart)}ms.`);
 

@@ -88,8 +88,24 @@ function getDbDefaults() {
 
   const dbPort = getEnvValue("DB_PORT") ?? defaultPort;
 
-  const dbUser = getEnvValue("DB_USER") ?? (dbType === "mariadb" ? "root" : dbType === "postgresql" ? "postgres" : dbType === "sqlite" ? "" : "testuser");
-  const dbPassword = getEnvValue("DB_PASSWORD") ?? (dbType === "mariadb" ? "mariadb" : dbType === "postgresql" ? "postgres" : dbType === "sqlite" ? "" : "testpass");
+  const dbUser =
+    getEnvValue("DB_USER") ??
+    (dbType === "mariadb"
+      ? "root"
+      : dbType === "postgresql"
+        ? "postgres"
+        : dbType === "sqlite"
+          ? ""
+          : "testuser");
+  const dbPassword =
+    getEnvValue("DB_PASSWORD") ??
+    (dbType === "mariadb"
+      ? "mariadb"
+      : dbType === "postgresql"
+        ? "postgres"
+        : dbType === "sqlite"
+          ? ""
+          : "testpass");
 
   return {
     type: dbType,

@@ -60,12 +60,21 @@ class SimulatedRedisBus {
       multi: () => {
         const queue: (() => void)[] = [];
         const m = {
-          sAdd: (k: string, v: string) => { queue.push(() => client.sAdd(k, v)); return m; },
-          del: (k: string | string[]) => { queue.push(() => client.del(k)); return m; },
-          exec: async () => { queue.forEach(fn => fn()); return []; }
+          sAdd: (k: string, v: string) => {
+            queue.push(() => client.sAdd(k, v));
+            return m;
+          },
+          del: (k: string | string[]) => {
+            queue.push(() => client.del(k));
+            return m;
+          },
+          exec: async () => {
+            queue.forEach((fn) => fn());
+            return [];
+          },
         };
         return m;
-      }
+      },
     };
     return client;
   }

@@ -9,7 +9,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
-import { createSchemaProxy } from "../../../src/databases/agnostic/schema-proxy";
+import { createSchemaProxy } from "../../../src/databases/core/schema-proxy";
 
 // 🚀  Aggressively mock SvelteKit and Store environment for standalone adapter tests
 mock.module("$app/environment", () => ({

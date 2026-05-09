@@ -309,13 +309,13 @@ Layer 3: Database (Persistent)   → Sub-10ms latency (resilient pool)
 
 ### Performance Metrics
 
-| Operation      | Without Cache | With Cache | Improvement |
-| -------------- | ------------- | ---------- | ----------- |
-| Get User       | 45ms          | 0.8ms      | **56x**     |
-| List Posts     | 120ms         | 1.2ms      | **100x**    |
-| Search         | 350ms         | 2.5ms      | **140x**    |
-| Dashboard      | 800ms         | 5ms        | **160x**    |
-| **Negative Miss** | **2.45ms**   | **0.001ms** | **2392x** 🚀 |
+| Operation         | Without Cache | With Cache  | Improvement  |
+| ----------------- | ------------- | ----------- | ------------ |
+| Get User          | 45ms          | 0.8ms       | **56x**      |
+| List Posts        | 120ms         | 1.2ms       | **100x**     |
+| Search            | 350ms         | 2.5ms       | **140x**     |
+| Dashboard         | 800ms         | 5ms         | **160x**     |
+| **Negative Miss** | **2.45ms**    | **0.001ms** | **2392x** 🚀 |
 
 ### Cache Hit Rates
 
@@ -428,7 +428,7 @@ Implemented a high-performance **Negative Cache** within the `CacheService` to h
 Refactored the `CacheService` to support **O(1) Pattern-Based Clearing** via namespace bucketing.
 
 - **Goal**: Eliminate the $O(N)$ performance cliff when clearing parts of a large cache.
-- **Implementation**: The system maintains a `prefixMap` that groups cache keys by their logical namespace (e.g., `collection:posts:*`). 
+- **Implementation**: The system maintains a `prefixMap` that groups cache keys by their logical namespace (e.g., `collection:posts:*`).
 - **Result**: Calling `clearByPattern` now only iterates over keys in the relevant bucket, maintaining sub-millisecond invalidation speed even with **500,000+** total items in the L1 cache.
 
 ### 9.4 Svelte 5 Rune-Based System State

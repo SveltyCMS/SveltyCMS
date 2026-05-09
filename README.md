@@ -275,11 +275,11 @@ Verified performance metrics from our CI pipeline. These are factual raw latenci
 
 ### Middleware & Hooks
 
-| Scenario                    | Avg Latency (µs) | Notes                        |
-| --------------------------- | ---------------- | ---------------------------- |
-| **Static asset early exit** | **1.1 µs**       | Instant return for /\_app/\* |
-| **API fast path**           | **1.3 µs**       | No locale/theme overhead     |
-| **Dynamic page full path**  | **7.1 µs**       | Full middleware chain (Turbo)|
+| Scenario                    | Avg Latency (µs) | Notes                         |
+| --------------------------- | ---------------- | ----------------------------- |
+| **Static asset early exit** | **1.1 µs**       | Instant return for /\_app/\*  |
+| **API fast path**           | **1.3 µs**       | No locale/theme overhead      |
+| **Dynamic page full path**  | **7.1 µs**       | Full middleware chain (Turbo) |
 
 ### Raw Database Latency (MongoDB)
 

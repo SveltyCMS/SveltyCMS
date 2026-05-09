@@ -162,6 +162,7 @@
 	// Custom event handler for updates from Multibutton
 	function handleBatchUpdate(data: { ids: string[]; action: string; type: 'user' | 'token' }) {
 		const { ids, action, type } = data;
+		console.log(`[AdminArea] handleBatchUpdate: ${action} on ${type}`, ids);
 
 		if (action === 'refresh') {
 			fetchData().catch(() => {});
@@ -169,7 +170,7 @@
 		}
 
 		// Update the tableData instead of adminData for scalability
-		if (tableData) {
+		if (tableData && tableData.length > 0) {
 			let updated = false;
 
 			if (action === 'delete') {
@@ -212,7 +213,10 @@
 				});
 
 				if (updated) {
-					tableData = updatedData;
+					console.log(`[AdminArea] Updating tableData locally for ${action}`);
+					tableData = [...updatedData]; // Ensure new array reference for Svelte 5
+				} else {
+					console.warn(`[AdminArea] No items matched for ${action} in current tableData`);
 				}
 			}
 

@@ -55,7 +55,6 @@ vi.mock("@src/databases/db", () => {
 import { dbAdapter as mockDbAdapter } from "@src/databases/db";
 // ... in beforeEach, ensure event.locals.dbAdapter = mockDbAdapter;
 
-
 vi.mock("@src/content/index.server", () => ({
   contentSystem: {
     getCollections: vi.fn(),
@@ -149,7 +148,7 @@ describe("Collections API Unit Tests", () => {
     });
 
     (event.locals as any).dbAdapter = mockDbAdapter;
-    
+
     return {
       ...event,
       params: { path },
@@ -188,7 +187,10 @@ describe("Collections API Unit Tests", () => {
         name: "posts",
         fields: [],
       });
-      (mockDbAdapter as any).crud.update.mockResolvedValue({ success: true, data: { _id: "updated-id" } });
+      (mockDbAdapter as any).crud.update.mockResolvedValue({
+        success: true,
+        data: { _id: "updated-id" },
+      });
       const event = createMockEvent("PATCH", "collections/col-1/entry-1", { title: "Updated" });
       const response = await PATCH_ENTRY(event);
       const data = await response!.json();

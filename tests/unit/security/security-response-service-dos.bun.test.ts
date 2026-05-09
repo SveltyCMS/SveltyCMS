@@ -16,7 +16,13 @@ describe("Persistent DoS Protection", () => {
     const endpoint = "/api/auth/login";
 
     // Use public API with forceSecurity to bypass test-mode bypass
-    const resFirst = await securityResponseService.checkRateLimit(ip, endpoint, undefined, true, 10);
+    const resFirst = await securityResponseService.checkRateLimit(
+      ip,
+      endpoint,
+      undefined,
+      true,
+      10,
+    );
     expect(resFirst.action).toBe("throttle");
 
     // 2. Trigger dump
@@ -38,7 +44,7 @@ describe("Persistent DoS Protection", () => {
 
     expect(resAfter.action).toBe("throttle");
     expect(resAfter.reason).toContain("Rate limit exceeded");
-    
+
     // 6. Verify file is cleaned up after restore
     const existsAfter = await fs
       .access(DUMP_PATH)

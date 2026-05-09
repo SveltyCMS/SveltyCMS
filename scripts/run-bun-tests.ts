@@ -9,10 +9,7 @@ async function run() {
   console.log("\x1b[36m🧪 Running Bun Unit Tests in Isolated Mode...\x1b[0m");
 
   // 1. Use native Bun.Glob instead of npm 'glob'
-  const globs = [
-    new Glob("tests/unit/**/*.test.ts"),
-    new Glob("src/widgets/custom/**/*.test.ts")
-  ];
+  const globs = [new Glob("tests/unit/**/*.test.ts"), new Glob("src/widgets/custom/**/*.test.ts")];
   const allFiles = [];
   for (const g of globs) {
     allFiles.push(...Array.from(g.scanSync(".")));

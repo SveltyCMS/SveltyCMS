@@ -29,10 +29,9 @@ beforeAll(async () => {
 
   const { getDb, ensureFullInitialization } = await import("@src/databases/db");
   await ensureFullInitialization();
-  await ensureFullInitialization();
   const db = getDb();
   await ensureStableTestData(db!);
-});
+}, 60000); // 60s timeout for setup
 
 afterAll(async () => {
   if (stopServer) await stopServer();

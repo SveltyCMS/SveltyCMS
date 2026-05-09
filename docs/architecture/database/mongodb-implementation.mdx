@@ -147,13 +147,13 @@ As of April 2026, the MongoDB adapter has been fully modularized to align with t
 
 ### Module Breakdown
 
-| Module                | Responsibility                                          | Optimization                                           |
-| :-------------------- | :------------------------------------------------------ | :----------------------------------------------------- |
-| **auth-user.ts**      | Session validation, RBAC, and JIT provisioning.         | Platinum Fast-Path for sub-0.5ms validation.           |
-| **crud-methods.ts**   | High-speed document operations with name normalization. | `.lean()` with zero-allocation `processDates` logic.   |
-| **media-methods.ts**  | GridFS/Filesystem hybrid storage and metadata.          | SHA-256 deduplication and metadata extraction.         |
-| **content-methods.ts**| Advanced content tree and structure management.         | Optimized recursive lookups for large hierarchies.     |
-| **adapter-core.ts**   | Unified connection and Query IR management.            | Hardened `isLookupQuery` ID-bypass.                    |
+| Module                 | Responsibility                                          | Optimization                                         |
+| :--------------------- | :------------------------------------------------------ | :--------------------------------------------------- |
+| **auth-user.ts**       | Session validation, RBAC, and JIT provisioning.         | Platinum Fast-Path for sub-0.5ms validation.         |
+| **crud-methods.ts**    | High-speed document operations with name normalization. | `.lean()` with zero-allocation `processDates` logic. |
+| **media-methods.ts**   | GridFS/Filesystem hybrid storage and metadata.          | SHA-256 deduplication and metadata extraction.       |
+| **content-methods.ts** | Advanced content tree and structure management.         | Optimized recursive lookups for large hierarchies.   |
+| **adapter-core.ts**    | Unified connection and Query IR management.             | Hardened `isLookupQuery` ID-bypass.                  |
 
 ### Explicit Schema Registration
 

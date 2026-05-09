@@ -5,11 +5,7 @@
 
 import { test } from "bun:test";
 import "../unit/setup.ts";
-import {
-  runBenchmark,
-  getDbType,
-  printTruthTable,
-} from "./benchmark-utils";
+import { runBenchmark, getDbType, printTruthTable } from "./benchmark-utils";
 import { LocalCMS } from "@src/services/sdk";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 
@@ -22,10 +18,10 @@ async function runLocalApiBenchmark() {
     if (!adapter) throw new Error("Database not initialized");
 
     const cms = new LocalCMS(adapter);
-    
+
     // Ensure namespaces are warmed up for a fair "hot" comparison
     await (cms.auth as any).getUserCount();
-    
+
     const results = [];
 
     // 1. Baseline: Direct Adapter Call
@@ -70,7 +66,6 @@ async function runLocalApiBenchmark() {
 
     const overhead = ((sdkResult.avgMs - baselineResult.avgMs) / baselineResult.avgMs) * 100;
     console.log(`\n📊 SDK Middleware Tax: ${overhead.toFixed(2)}%`);
-
   } catch (err: any) {
     console.error("Benchmark failed:", err);
   }

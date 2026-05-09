@@ -251,10 +251,7 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
       (findResult(m, "Production Build") as any)?.avgMs ||
       (findResult(m, "dx-build") as any)?.durationMs ||
       0,
-    bundleSize:
-      getMetric("dx.bundle.size.total") ||
-      getMetric("Bundle Size") ||
-      0,
+    bundleSize: getMetric("dx.bundle.size.total") || getMetric("Bundle Size") || 0,
     txCommit:
       getMetric("adapter.transaction.commit.avg") ||
       getMetric("TX Commit Avg") ||

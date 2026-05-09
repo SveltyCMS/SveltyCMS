@@ -22,12 +22,12 @@ SveltyCMS has achieved **100% Unit Test Coverage** for all core widgets. The tes
 
 ### Test Statistics (May 2026)
 
-| Category | Test Files | Status | Coverage |
-| :--- | :--- | :--- | :--- |
-| **Core Widgets** | 12 | ✅ 100% Pass | Validation, Defaults, Aggregations, i18n |
-| **Custom Widgets** | 3+ | ✅ 100% Pass | Portable tests (Address, Price, Repeater) |
-| **Widget System** | 2 | ✅ 100% Pass | Factory Pattern, Validation Utils |
-| **Total** | **17+** | ✅ **Passed** | **Universal Bun/Vitest Compatibility** |
+| Category           | Test Files | Status        | Coverage                                  |
+| :----------------- | :--------- | :------------ | :---------------------------------------- |
+| **Core Widgets**   | 12         | ✅ 100% Pass  | Validation, Defaults, Aggregations, i18n  |
+| **Custom Widgets** | 3+         | ✅ 100% Pass  | Portable tests (Address, Price, Repeater) |
+| **Widget System**  | 2          | ✅ 100% Pass  | Factory Pattern, Validation Utils         |
+| **Total**          | **17+**    | ✅ **Passed** | **Universal Bun/Vitest Compatibility**    |
 
 ---
 
@@ -36,7 +36,9 @@ SveltyCMS has achieved **100% Unit Test Coverage** for all core widgets. The tes
 Following the **May 2026 Stabilization**, the widget testing suite is organized into two primary categories:
 
 ### 1. Core Widget Tests (`tests/unit/widgets/core/`)
+
 Core widgets are the backbone of the CMS. Each widget now has a dedicated test file ensuring zero regressions in data contracts and validation schemas.
+
 - ✅ `checkbox.test.ts`
 - ✅ `date.test.ts`
 - ✅ `email.test.ts`
@@ -51,7 +53,9 @@ Core widgets are the backbone of the CMS. Each widget now has a dedicated test f
 - ✅ `slug.test.ts`
 
 ### 2. Portable Custom Widgets (`src/widgets/custom/[name]/tests/`)
+
 Inspired by the **Drupal Module Pattern**, custom widgets are now self-contained. Their tests live inside the widget folder, making them fully portable and marketplace-ready.
+
 - ✅ `address/tests/address.test.ts`
 - ✅ `price/tests/price.test.ts`
 - ✅ `repeater/tests/repeater.test.ts`
@@ -61,6 +65,7 @@ Inspired by the **Drupal Module Pattern**, custom widgets are now self-contained
 ## 🧪 Testing Patterns
 
 ### Validation Schema Testing (Black-Box)
+
 We test widgets without mounting Svelte components to keep the CI pipeline extremely fast. We validate the `validationSchema` returned by the `createWidget` factory.
 
 ```typescript
@@ -77,9 +82,11 @@ test("Email Widget Validation", () => {
 ```
 
 ### Multilingual Support
+
 Tests verify that translated fields correctly handle `Record<string, string>` structures versus primitive values.
 
 ### Database Aggregations
+
 Verified via unit tests ensuring that `filters` and `sorts` return valid MongoDB/SQL-compatible query fragments.
 
 ---
@@ -87,16 +94,19 @@ Verified via unit tests ensuring that `filters` and `sorts` return valid MongoDB
 ## 🚀 Execution Guide
 
 ### Run All Widget Tests (Bun)
+
 ```bash
 bun run test:unit:bun
 ```
 
 ### Run Specific Core Test
+
 ```bash
 bun test tests/unit/widgets/core/input.test.ts
 ```
 
 ### Run Portable Custom Test
+
 ```bash
 bun test src/widgets/custom/address/tests/address.test.ts
 ```
@@ -104,6 +114,7 @@ bun test src/widgets/custom/address/tests/address.test.ts
 ---
 
 ## Status Report
+
 - ✅ **Core Logic Coverage**: 100%
 - ✅ **Schema Validation**: 100%
 - ✅ **Portable Pattern**: Fully Implemented

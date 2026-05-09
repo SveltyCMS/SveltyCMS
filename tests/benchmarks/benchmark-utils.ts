@@ -1049,9 +1049,6 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     ],
   };
 
-
-
-
   // Always attempt to create the model. In SQL databases, this runs CREATE TABLE IF NOT EXISTS.
   // In MongoDB, it's an idempotent schema registration. This prevents "no such table" errors
   // when the .js file exists but the DB is fresh.
@@ -1154,11 +1151,12 @@ export async function forceRefreshServer(baseUrl: string, tenantId: string = "gl
       }
     } catch (err: any) {
       if (attempts === maxAttempts) {
-        logger.error(`[Refresh] Failed to call refresh API after ${attempts} attempts: ${err.message}`);
+        logger.error(
+          `[Refresh] Failed to call refresh API after ${attempts} attempts: ${err.message}`,
+        );
       } else {
         await new Promise((r) => setTimeout(r, 1000));
       }
     }
   }
 }
-

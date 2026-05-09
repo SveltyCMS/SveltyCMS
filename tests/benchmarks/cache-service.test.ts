@@ -5,10 +5,7 @@
 
 import { test } from "bun:test";
 import "../unit/setup.ts";
-import {
-  runBenchmark,
-  printTruthTable,
-} from "./benchmark-utils";
+import { runBenchmark, printTruthTable } from "./benchmark-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
 
 async function runCacheServiceBenchmark() {
@@ -20,7 +17,7 @@ async function runCacheServiceBenchmark() {
 
     // 1. Warm-up
     for (let i = 0; i < 1000; i++) {
-        await cacheService.set(`key-${i}`, { data: "test" }, 300, TENANT);
+      await cacheService.set(`key-${i}`, { data: "test" }, 300, TENANT);
     }
 
     // 2. L1 Hit Baseline
@@ -40,14 +37,16 @@ async function runCacheServiceBenchmark() {
     results.push({ ...hitResult, layer: "L1", shortLabel: "Hit" });
 
     // 3. Pattern Invalidation Stress (O(N) Bottleneck)
-    console.log("   → Measuring Pattern Invalidation (Stress: 1k target items, 200k background)...");
-    
+    console.log(
+      "   → Measuring Pattern Invalidation (Stress: 1k target items, 200k background)...",
+    );
+
     // Fill with background noise
     for (let i = 0; i < 200000; i++) {
-        if (i % 10000 === 0) console.log(`      ... seeded ${i} noise keys`);
-        await cacheService.set(`noise-key-${i}`, { data: "noise" }, 300, TENANT);
+      if (i % 10000 === 0) console.log(`      ... seeded ${i} noise keys`);
+      await cacheService.set(`noise-key-${i}`, { data: "noise" }, 300, TENANT);
     }
-    
+
     const invalidationResult = await runBenchmark({
       name: "Pattern Invalidation (1k items @ 200k noise)",
       iterations: 10,
@@ -58,7 +57,7 @@ async function runCacheServiceBenchmark() {
       onIteration: async () => {
         // Seed 1k items to clear
         for (let i = 0; i < 1000; i++) {
-            await cacheService.set(`bench-key-${i}`, { data: "test" }, 300, TENANT);
+          await cacheService.set(`bench-key-${i}`, { data: "test" }, 300, TENANT);
         }
         // Measure the clear
         await cacheService.clearByPattern("bench-key-", TENANT);
@@ -72,7 +71,6 @@ async function runCacheServiceBenchmark() {
       subtitle: "Internal Cache Logic Overhead",
       results,
     });
-
   } catch (err: any) {
     console.error("Benchmark failed:", err);
   }

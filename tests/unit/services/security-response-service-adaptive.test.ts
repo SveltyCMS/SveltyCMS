@@ -11,14 +11,14 @@ import { SecurityResponseService } from "@services/security/response-service";
 vi.mock("@src/utils/system-monitor", () => ({
   systemMonitor: {
     getAdaptiveCostMultiplier: vi.fn(() => 1.0),
-    getMetrics: vi.fn(() => ({ 
+    getMetrics: vi.fn(() => ({
       cpuLoad: 0.1,
       eventLoopLag: 1,
       memoryUsage: 100,
       pressureScore: 0.1,
-      status: "nominal" 
+      status: "nominal",
     })),
-  }
+  },
 }));
 
 describe("Adaptive Rate Limiting", () => {
@@ -37,7 +37,7 @@ describe("Adaptive Rate Limiting", () => {
     // We verify the systemMonitor is being called as expected
     const multiplier = systemMonitor.getAdaptiveCostMultiplier();
     expect(multiplier).toBe(1.0);
-    
+
     (systemMonitor.getAdaptiveCostMultiplier as any).mockReturnValue(2.0);
     expect(systemMonitor.getAdaptiveCostMultiplier()).toBe(2.0);
   });

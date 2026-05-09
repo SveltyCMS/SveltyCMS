@@ -163,7 +163,9 @@ async function prepareCollection() {
   }
 
   // Clean previous data
-  await db?.crud?.deleteMany?.(REVISION_COLLECTION, {}, { tenantId: "global" as any, permanent: true }).catch(() => {});
+  await db?.crud
+    ?.deleteMany?.(REVISION_COLLECTION, {}, { tenantId: "global" as any, permanent: true })
+    .catch(() => {});
 }
 
 test("Revision & History Stress Performance", async () => {

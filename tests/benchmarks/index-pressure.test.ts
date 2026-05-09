@@ -136,12 +136,18 @@ async function prepareCollection() {
 
   // 🛡️ SECURITY BYPASS: We use bypassTenantCheck: true for benchmark cleanup
   // This ensures we clear data from ANY previous run regardless of the active tenant context.
-  await db?.crud?.deleteMany?.(COLLECTION_ID, {}, { 
-    bypassTenantCheck: true, 
-    permanent: true 
-  }).catch((err: any) => {
-    console.warn(`   [Cleanup] Warning: Failed to clear previous data: ${err.message}`);
-  });
+  await db?.crud
+    ?.deleteMany?.(
+      COLLECTION_ID,
+      {},
+      {
+        bypassTenantCheck: true,
+        permanent: true,
+      },
+    )
+    .catch((err: any) => {
+      console.warn(`   [Cleanup] Warning: Failed to clear previous data: ${err.message}`);
+    });
 }
 
 async function seedLargeDataset(baseUrl: string) {
@@ -175,7 +181,9 @@ async function seedLargeDataset(baseUrl: string) {
       if (retryCount < maxRetries) {
         retryCount++;
         const delay = 1000 * retryCount;
-        console.warn(`   [WARN] Seeding batch ${i} failed (${res.status}). Retrying in ${delay}ms...`);
+        console.warn(
+          `   [WARN] Seeding batch ${i} failed (${res.status}). Retrying in ${delay}ms...`,
+        );
         await new Promise((r) => setTimeout(r, delay));
         // Try refreshing again if it's a 404 or 500
         if (res.status === 404 || res.status === 500) {
@@ -185,7 +193,9 @@ async function seedLargeDataset(baseUrl: string) {
       }
 
       const body = await res.text().catch(() => "N/A");
-      throw new Error(`Seeding failed at batch ${i}: ${res.status} ${res.statusText}\nBody: ${body.substring(0, 500)}`);
+      throw new Error(
+        `Seeding failed at batch ${i}: ${res.status} ${res.statusText}\nBody: ${body.substring(0, 500)}`,
+      );
     }
 
     if (i % 8 === 0) process.stdout.write(".");

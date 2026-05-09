@@ -31,7 +31,7 @@ vi.mock("@sveltejs/kit", () => ({
     },
     isRedirect: (err: any) => err && err.__isRedirect === true,
     isHttpError: (err: any) => err && err.__is_http_error === true,
-  }
+  },
 }));
 
 import type { Handle, RequestEvent } from "@sveltejs/kit";

@@ -197,7 +197,11 @@ async function prepareCollection(db: any) {
 
   // Clean + seed stable record with permanent delete to prevent E11000 on re-runs
   console.log("   [DB Trace] Deleting old records...");
-  const delRes = await db.crud.deleteMany(COLLECTION_ID, {}, { bypassTenantCheck: true, permanent: true });
+  const delRes = await db.crud.deleteMany(
+    COLLECTION_ID,
+    {},
+    { bypassTenantCheck: true, permanent: true },
+  );
   console.log(`   [DB Trace] Deleted ${delRes.data?.deletedCount || 0} records.`);
 
   console.log("   [DB Trace] Seeding stable record...");

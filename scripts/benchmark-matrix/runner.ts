@@ -434,7 +434,10 @@ export async function runAuditForDatabase(
       if (s.strategy === "once") {
         const alreadyRun = results.some((r) => r.scriptTimings && r.scriptTimings[s.shortLabel]);
         if (alreadyRun) {
-          log.db(dbKey, `\x1b[90mSkipping 'once' strategy benchmark (already run): ${s.shortLabel}\x1b[0m`);
+          log.db(
+            dbKey,
+            `\x1b[90mSkipping 'once' strategy benchmark (already run): ${s.shortLabel}\x1b[0m`,
+          );
           continue;
         }
       }

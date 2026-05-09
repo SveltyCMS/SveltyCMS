@@ -32,7 +32,8 @@ async function findFilesRecursive(dir: string, pattern: string | RegExp): Promis
       if (entry.isDirectory()) {
         results.push(...(await findFilesRecursive(fullPath, pattern)));
       } else {
-        const matches = typeof pattern === "string" ? entry.name.endsWith(pattern) : pattern.test(entry.name);
+        const matches =
+          typeof pattern === "string" ? entry.name.endsWith(pattern) : pattern.test(entry.name);
         if (matches) results.push(fullPath);
       }
     }
@@ -533,7 +534,7 @@ tags:
       status = curr.status;
       timestamp = new Date().toLocaleString();
 
-      // 🚀 SURGICAL METRICS RECOVERY: If a test crashed, its aggregate metric might be 0. 
+      // 🚀 SURGICAL METRICS RECOVERY: If a test crashed, its aggregate metric might be 0.
       // We must patch these zeroes with the last known good historical data to prevent ledger regression.
       if (last) {
         const lastM = extractMetrics(JSON.parse(last.metrics_json), dbConf.type);
@@ -600,7 +601,6 @@ tags:
         .join(", ");
     })()}]\n\`\`\`\n`;
 
-
     async function generateTrendBlock(
       metricKey: string,
       label: string,
@@ -619,7 +619,6 @@ tags:
       block += `> ${desc}\n\n`;
       return block;
     }
-
 
     // 1. CORE TREND AUDIT
     headerMd += `\n## 📈 Core Infrastructure Trends\n\n`;
@@ -718,7 +717,7 @@ tags:
       let tableContent = "";
       try {
         const dbResultsDir = path.join(ROOT_RESULTS_DIR, dbKey);
-        
+
         // 🚀 Recursive search for table files
         const allFiles = await findFilesRecursive(dbResultsDir, ".table.txt");
 
@@ -745,18 +744,22 @@ tags:
       // 🚀 SURGICAL RECOVERY: If still no content, look back into history.sqlite
       if (!tableContent) {
         try {
-          const historical = db.query(`
+          const historical = db
+            .query(`
             SELECT metrics_json, timestamp FROM runs 
             WHERE db_key = ? AND status = 'SUCCESS' 
             AND metrics_json LIKE ? 
             ORDER BY timestamp DESC LIMIT 1
-          `).get(dbKey, `%${script.shortLabel}%`) as any;
+          `)
+            .get(dbKey, `%${script.shortLabel}%`) as any;
 
           if (historical) {
             const metrics = JSON.parse(historical.metrics_json);
             // We can't easily reconstruct the ASCII table from raw JSON here without full metadata,
             // but we can at least show the script's summary or mark it as historical.
-            const scriptMetric = Object.values(metrics).find((v: any) => v.name === script.shortLabel) as any;
+            const scriptMetric = Object.values(metrics).find(
+              (v: any) => v.name === script.shortLabel,
+            ) as any;
             if (scriptMetric) {
               const histDate = new Date(historical.timestamp).toLocaleDateString();
               tableContent = `> 🏛️ **Historical Data** (from ${histDate})\n> 🏷️ **${script.label}**: ✅ **${(scriptMetric.avgMs || 0).toFixed(3)}ms**\n> 📂 **Source**: [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")})`;
