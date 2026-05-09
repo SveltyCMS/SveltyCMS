@@ -34,9 +34,10 @@ vi.mock("@sveltejs/kit", () => ({
   },
 }));
 
-import type { Handle, RequestEvent } from "@sveltejs/kit";
-let handleSetup: Handle;
+import type { RequestEvent } from "@sveltejs/kit";
+import { handleTurboPipeline as handleSetup } from "@src/hooks/handle-turbo-pipeline.server";
 import { invalidateSetupCache } from "@utils/setup-check";
+import { setSystemState } from "@src/stores/system/state.svelte";
 
 // Use global mockSetupCheck from tests/unit/setup.ts
 const mockSetupCheck = (globalThis as any).mockSetupCheck;
@@ -90,8 +91,7 @@ describe("handleSetup Middleware", () => {
   let mockResponse: Response;
 
   beforeAll(async () => {
-    const mod = await import("@src/hooks/handle-turbo-pipeline.server");
-    handleSetup = mod.handleTurboPipeline;
+    // handleSetup is already imported statically
   });
 
   beforeEach(async () => {
@@ -214,6 +214,9 @@ describe("handleSetup Middleware", () => {
     });
 
     it("redirects /setup to / when setup complete", async () => {
+      // Set system state to READY so the redirect logic triggers
+      setSystemState("READY");
+
       // Disable TEST_MODE so the redirect logic actually runs (CI sets TEST_MODE=true globally)
       const originalTestMode = process.env.TEST_MODE;
       process.env.TEST_MODE = undefined;
