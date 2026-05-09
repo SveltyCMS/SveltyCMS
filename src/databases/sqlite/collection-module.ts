@@ -6,7 +6,7 @@
 import type { Schema } from "@src/content/types";
 import type { CollectionModel, DatabaseResult } from "../db-interface";
 import type { AdapterCore } from "./adapter-core";
-import { DatabaseModule } from "../base-adapter";
+import { DatabaseModule } from "../core/base-adapter";
 
 export class CollectionModule extends DatabaseModule<AdapterCore> {
   private get crud() {
@@ -69,9 +69,9 @@ export class CollectionModule extends DatabaseModule<AdapterCore> {
     };
 
     const tableId = id.startsWith("collection_") ? id : `collection_${id}`;
-    const dynamicTable = this.adapter.createDynamicTableDefinition(tableId);
-    this.adapter.dynamicTables.set(id, dynamicTable);
-    this.adapter.dynamicTables.set(tableId, dynamicTable);
+    const dynamicTable = (this.adapter as any).createDynamicTableDefinition(tableId);
+    (this.adapter as any).dynamicTables.set(id, dynamicTable);
+    (this.adapter as any).dynamicTables.set(tableId, dynamicTable);
 
     this.collectionRegistry.set(id, wrappedModel);
   }

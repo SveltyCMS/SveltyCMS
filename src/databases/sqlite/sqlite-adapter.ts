@@ -10,6 +10,7 @@
  * - Multi-tenancy
  */
 
+import { logger } from "@utils/logger";
 import type {
   BaseEntity,
   DatabaseResult,
@@ -40,7 +41,7 @@ import { PerformanceModule } from "./performance-module";
 import { SQLiteQueryBuilder } from "./sq-lite-query-builder";
 import { getDefaultRoles } from "../auth/default-roles";
 import * as schema from "./schema";
-import * as utils from "./utils";
+import * as utils from "../core/relational-utils";
 import { AdapterCore } from "./adapter-core";
 
 export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
@@ -113,24 +114,28 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
   }
 
   public async ensureAuth(): Promise<void> {
-    if (!this.db) {
-      logger.warn("[SQLiteAdapter] Cannot ensureAuth: Database not connected.");
-      return;
-    }
-    // Check if roles exist
-    const existingRoles = await this.db.select().from(schema.roles).limit(1);
-    if (existingRoles.length > 0) {
-      return;
-    }
+    if (!this.db) return;
 
-    const now = new Date();
-    const rolesPayload: (typeof schema.roles.$inferInsert)[] = getDefaultRoles().map((role) => ({
-      ...role,
-      createdAt: now,
-      updatedAt: now,
-    })) as any;
+    try {
+      // Check if roles exist
+      const existingRoles = await this.db.select().from(schema.roles).limit(1);
+      if (existingRoles && existingRoles.length > 0) return;
 
-    await this.db.insert(schema.roles).values(rolesPayload).onConflictDoNothing();
+      const now = new Date();
+      const rolesPayload: (typeof schema.roles.$inferInsert)[] = getDefaultRoles().map((role) => ({
+        ...role,
+        createdAt: now,
+        updatedAt: now,
+      })) as any;
+
+      await this.db.insert(schema.roles).values(rolesPayload).onConflictDoNothing();
+    } catch (err: any) {
+      logger.error("[SQLiteAdapter] ensureAuth failed:", {
+        message: err?.message,
+        stack: err?.stack,
+      });
+      throw err;
+    }
   }
 
   public async ensureSystem(): Promise<void> {
@@ -214,7 +219,7 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
   public async cleanupExpiredData(): Promise<DatabaseResult<{ sessions: number; tokens: number }>> {
     return this.wrap(async () => {
       const now = Date.now();
-      const dayAgo = now - 86400000; // 24 hours in ms
+      const weekAgo = now - 7 * 24 * 60 * 60 * 1000; // 7 days in ms
       // Delete expired sessions
       const execQuery = (q: string, params: unknown[]): number => {
         if (this.sqlite.query) {
@@ -229,7 +234,7 @@ export class SQLiteAdapter extends AdapterCore implements IDBAdapter {
       const sessions = execQuery("DELETE FROM auth_sessions WHERE expires < ?", [now]);
       const tokens = execQuery(
         "DELETE FROM auth_tokens WHERE (expires < ?) OR (consumed = 1 AND updatedAt < ?)",
-        [now, dayAgo],
+        [now, weekAgo],
       );
       return { sessions, tokens };
     }, "CLEANUP_EXPIRED_DATA_FAILED");

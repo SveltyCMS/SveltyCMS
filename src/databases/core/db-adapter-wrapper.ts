@@ -5,7 +5,7 @@
 
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { getPrivateEnv, loadPrivateConfig } from "./db";
+import { getPrivateEnv, loadPrivateConfig } from "../db";
 import type { DatabaseId } from "@src/content/types";
 
 /**

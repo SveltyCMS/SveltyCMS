@@ -108,7 +108,9 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
   async function walk(dir: string) {
     try {
       const entries = await fsPromises.readdir(dir, { withFileTypes: true });
-      logger.info(`[Scanner] readdir ${dir} found ${entries.length} entries`);
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        logger.info(`[Scanner] readdir ${dir} found ${entries.length} entries`);
+      }
       await Promise.all(
         entries.map(async (entry) => {
           const fullPath = path.join(dir, entry.name);
@@ -125,9 +127,12 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
 
   try {
     await walk(collectionsDir);
-    logger.info(`[Scanner] Total files found: ${fileList.length}`);
     const scanList = fileList.filter((f) => _mtimeTree.get(f.fullPath) !== f.mtime);
-    logger.info(`[Scanner] Files needing scan: ${scanList.length}`);
+
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      logger.info(`[Scanner] Total files found: ${fileList.length}`);
+      logger.info(`[Scanner] Files needing scan: ${scanList.length}`);
+    }
 
     if (scanList.length === 0 && _schemaCache.size === fileList.length) {
       _isDirty = false;
@@ -250,9 +255,11 @@ export const contentService = {
     adapter?: IDBAdapter,
     changedFile?: string | null,
   ): Promise<void> {
-    logger.info(
-      `[RECONCILE] fullReload triggered. Tenant: ${tenantId}, target: ${changedFile || "ALL"}`,
-    );
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      logger.info(
+        `[RECONCILE] fullReload triggered. Tenant: ${tenantId}, target: ${changedFile || "ALL"}`,
+      );
+    }
 
     const dbAdapter = adapter || (await (await import("@src/databases/db")).getDb());
     if (!dbAdapter) return;

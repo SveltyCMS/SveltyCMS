@@ -17,7 +17,7 @@ import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { logger } from "@src/utils/logger";
 import { eq } from "drizzle-orm";
 import type { DatabaseId, DatabaseResult, Theme } from "../db-interface";
-import { DatabaseModule } from "../base-adapter";
+import { DatabaseModule } from "../core/base-adapter";
 import type { AdapterCore } from "./adapter-core";
 import * as schema from "./schema";
 import * as utils from "./utils";

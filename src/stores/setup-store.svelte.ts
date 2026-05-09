@@ -665,7 +665,7 @@ function createSetupStore() {
           // Use hard redirect for the very final step to ensure system state is fully re-synced in browser
           window.location.href = targetPath;
         }
-      }, 500);
+      }, 2000);
 
       return true;
     } catch (e) {
@@ -787,17 +787,17 @@ function createSetupStore() {
     }
     try {
       const rawDb = storage.getItem(KEYS.db);
-      if (rawDb) {
+      if (rawDb && rawDb !== "undefined" && rawDb !== "null") {
         wizard.dbConfig = { ...initialDbConfig, ...JSON.parse(rawDb) };
       }
 
       const rawAdmin = storage.getItem(KEYS.admin);
-      if (rawAdmin) {
+      if (rawAdmin && rawAdmin !== "undefined" && rawAdmin !== "null") {
         wizard.adminUser = { ...initialAdminUser, ...JSON.parse(rawAdmin) };
       }
 
       const rawSystem = storage.getItem(KEYS.system);
-      if (rawSystem) {
+      if (rawSystem && rawSystem !== "undefined" && rawSystem !== "null") {
         const loadedSystem = JSON.parse(rawSystem);
 
         // Migration: If old data only has ['en'], upgrade to ['en', 'de']
@@ -820,15 +820,23 @@ function createSetupStore() {
       }
 
       const rawEmail = storage.getItem(KEYS.email);
-      if (rawEmail) {
+      if (rawEmail && rawEmail !== "undefined" && rawEmail !== "null") {
         wizard.emailSettings = {
           ...initialEmailSettings,
           ...JSON.parse(rawEmail),
         };
       }
 
-      wizard.currentStep = Number.parseInt(storage.getItem(KEYS.step) || "0", 10);
-      wizard.highestStepReached = Number.parseInt(storage.getItem(KEYS.highestStep) || "0", 10);
+      const stepRaw = storage.getItem(KEYS.step);
+      wizard.currentStep =
+        stepRaw && stepRaw !== "undefined" && stepRaw !== "null" ? Number.parseInt(stepRaw, 10) : 0;
+
+      const highestStepRaw = storage.getItem(KEYS.highestStep);
+      wizard.highestStepReached =
+        highestStepRaw && highestStepRaw !== "undefined" && highestStepRaw !== "null"
+          ? Number.parseInt(highestStepRaw, 10)
+          : 0;
+
       wizard.dbTestPassed = storage.getItem(KEYS.dbTest) === "true";
 
       // Sanity check

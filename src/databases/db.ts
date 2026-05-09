@@ -54,19 +54,16 @@ export async function ensureFullInitialization(config?: any): Promise<any | null
     const start = performance.now();
     try {
       const cfg = config || (await loadPrivateConfig());
-      if (process.env.BENCHMARK === "true") {
-        logger.debug(`[db.ts] ensureFullInitialization started (dbType: ${cfg?.DB_TYPE})`);
-      } else {
-        logger.info(
-          `[db.ts] ensureFullInitialization started (hasConfig: ${!!cfg}, dbType: ${cfg?.DB_TYPE})`,
-        );
-      }
+      logger.debug(
+        `[db.ts] ensureFullInitialization started (hasConfig: ${!!cfg}, dbType: ${cfg?.DB_TYPE})`,
+      );
       const { updateServiceHealth } = await import("../stores/system/state.svelte");
 
       if (!cfg) {
         logger.debug("[db.ts] Missing configuration - skipping database initialization");
         // During setup, missing config is expected. Do NOT mark as unhealthy or it blocks the redirect after setup.
         updateServiceHealth("database", "initializing", "Waiting for configuration...");
+        _dbInitializationPromise = null; // 🚀 CRITICAL: Allow retry once config is available
         return null;
       }
 
@@ -245,8 +242,18 @@ export function getAuth(): any {
 export async function initializeWithConfig(config: any): Promise<void> {
   if (config) {
     const { setPrivateEnv } = await import("./config-state");
-    setPrivateEnv(config);
-    _cachedPrivateConfig = config;
+    // 🚀 Map setup format fields to internal format if needed
+    const mappedConfig = { ...config };
+    if (config.type) mappedConfig.DB_TYPE = config.type;
+    if (config.host) mappedConfig.DB_HOST = config.host;
+    if (config.port) mappedConfig.DB_PORT = config.port;
+    if (config.name) mappedConfig.DB_NAME = config.name;
+    if (config.user) mappedConfig.DB_USER = config.user;
+    if (config.password) mappedConfig.DB_PASSWORD = config.password;
+
+    setPrivateEnv(mappedConfig);
+    _cachedPrivateConfig = mappedConfig;
+    config = mappedConfig;
   }
   await ensureFullInitialization(config);
 }

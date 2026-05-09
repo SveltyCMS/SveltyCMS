@@ -52,7 +52,7 @@ import { PerformanceModule } from "./performance-module";
 import { MariaDBQueryBuilder } from "./maria-db-query-builder";
 import { getDefaultRoles } from "../auth/default-roles";
 import type * as schema from "./schema";
-import * as utils from "./utils";
+import * as utils from "../core/relational-utils";
 import { AdapterCore } from "./adapter-core";
 
 export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
@@ -331,7 +331,7 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
         "DELETE FROM auth_sessions WHERE expires < NOW()",
       );
       const [tokenResult] = await this.pool.query(
-        "DELETE FROM auth_tokens WHERE (expires < NOW()) OR (consumed = TRUE AND updatedAt < DATE_SUB(NOW(), INTERVAL 24 HOUR))",
+        "DELETE FROM auth_tokens WHERE (expires < NOW()) OR (consumed = TRUE AND updatedAt < DATE_SUB(NOW(), INTERVAL 7 DAY))",
       );
       const sessions = (sessionResult as { affectedRows?: number }).affectedRows || 0;
       const tokens = (tokenResult as { affectedRows?: number }).affectedRows || 0;

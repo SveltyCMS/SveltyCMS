@@ -44,7 +44,7 @@ class JobQueueService {
    */
   registerHandler(taskType: string, handler: JobHandler) {
     this.handlers.set(taskType, handler);
-    logger.info(`[JobQueue] Registered handler for task: ${taskType}`);
+    logger.debug(`[JobQueue] Registered handler for task: ${taskType}`);
   }
 
   /**
@@ -57,7 +57,10 @@ class JobQueueService {
   ): Promise<string | null> {
     const db = getDb();
     if (!db || !db.system.jobs) {
-      logger.error("[JobQueue] Database adapter not ready or jobs not supported.");
+      // Be quiet about this during initialization - it's expected until the adapter is fully warm
+      logger.debug(
+        "[JobQueue] Database adapter not ready or jobs not supported. Skipping dispatch.",
+      );
       return null;
     }
 
@@ -213,7 +216,7 @@ class JobQueueService {
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
     }
-    logger.info(`[JobQueue] Starting background worker (interval: ${intervalMs}ms)`);
+    logger.debug(`[JobQueue] Starting background worker (interval: ${intervalMs}ms)`);
     this.pollInterval = setInterval(() => {
       // 1. Process jobs
       this.processNextBatch().catch((err) => logger.error("[JobQueue] Polling error", err));

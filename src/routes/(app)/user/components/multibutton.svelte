@@ -16,16 +16,19 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 <script lang="ts">
 	import type { Token, User } from '@src/databases/auth/types';
 	// ParaglideJS
-	import { multibuttontoken_modalbody, multibuttontoken_modaltitle, usermodaluser_editbody, usermodaluser_edittitle } from '@src/paraglide/messages';
+	import {
+		multibuttontoken_modalbody,
+		multibuttontoken_modaltitle,
+		usermodaluser_editbody,
+		usermodaluser_edittitle
+	} from '@src/paraglide/messages';
 	// Stores
-	// Skeleton & Utils
 	import { storeListboxValue } from '@src/stores/store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { logger } from '@utils/logger';
 	import { modalState } from '@utils/modal.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
-	// Using iconify-icon web component
-	import { onDestroy, onMount } from 'svelte';
+	// Svelte core
+	import { onDestroy, onMount, untrack, tick } from 'svelte';
 	import { quintOut } from 'svelte/easing';
 	import { scale } from 'svelte/transition';
 	import { invalidateAll } from '$app/navigation';
@@ -33,10 +36,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import ModalEditForm from './modal-edit-form.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';
 
-	const isUser = (row: unknown): row is User => {
-		return !!row && typeof row === 'object' && '_id' in row;
+	// 🛡️ REFINED TYPE GUARDS: Prevent collisions between User and Token
+	const isUser = (row: any): row is User => {
+		return !!row && typeof row === 'object' && '_id' in row && ('username' in row || 'role' in row) && !('token' in row);
 	};
-	const isToken = (row: unknown): row is Token => {
+	const isToken = (row: any): row is Token => {
 		return !!row && typeof row === 'object' && 'token' in row;
 	};
 
@@ -48,13 +52,15 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	// State
 	let listboxValue = $state<ActionType>('edit');
 	let isDropdownOpen = $state(false);
-	let hoveredAction = $state<ActionType | null>(null);
 	let dropdownRef = $state<HTMLElement | null>(null);
 
 	// Sync local listboxValue with global store for TableIcons
 	$effect(() => {
 		storeListboxValue.set(listboxValue);
 	});
+
+	// Helper to get identifier for display
+	const getDisplayIdentifier = (row: any) => isUser(row) ? row.username : (row as Token).email;
 
 	// Handle click outside to close dropdown
 	function handleClickOutside(event: MouseEvent) {
@@ -76,135 +82,100 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	// Derived values
 	const isDisabled = $derived(safeSelectedRows.length === 0);
-	const isMultipleSelected = $derived(safeSelectedRows.length > 1);
 
 	// Smart state detection for block/unblock actions
-	const blockState = $derived(() => {
-		if (safeSelectedRows.length === 0) {
-			return null;
-		}
+	const currentBlockState = $derived.by(() => {
+		if (safeSelectedRows.length === 0) return null;
 
-		if (type === 'user') {
-			const users = safeSelectedRows.filter(isUser);
-			if (users.length === 0) {
-				return null;
-			}
-			const blockedCount = users.filter((user: User) => user.blocked).length;
-			const unblockedCount = users.filter((user: User) => !user.blocked).length;
+		const items = type === 'user' ? safeSelectedRows.filter(isUser) : safeSelectedRows.filter(isToken);
+		if (items.length === 0) return null;
 
-			if (blockedCount === users.length) {
-				return 'all-blocked';
-			}
-			if (unblockedCount === users.length) {
-				return 'all-unblocked';
-			}
-			return 'mixed';
-		}
-		const tokens = safeSelectedRows.filter(isToken);
-		if (tokens.length === 0) {
-			return null;
-		}
-		const blockedCount = tokens.filter((token: Token) => token.blocked).length;
-		const unblockedCount = tokens.filter((token: Token) => !token.blocked).length;
+		const blockedCount = items.filter((i) => i.blocked).length;
+		const unblockedCount = items.filter((i) => !i.blocked).length;
 
-		if (blockedCount === tokens.length) {
-			return 'all-blocked';
-		}
-		if (unblockedCount === tokens.length) {
-			return 'all-unblocked';
-		}
+		if (blockedCount === items.length) return 'all-blocked';
+		if (unblockedCount === items.length) return 'all-unblocked';
 		return 'mixed';
 	});
 
-	// Available actions based on current state
-	const availableActions = $derived.by<ActionType[]>(() => {
-		const baseActions: ActionType[] = ['edit', 'delete'];
-		const currentBlockState = blockState;
+	// Check if a specific action should be disabled for the current selection
+	const disabledMap = $derived.by(() => {
+		const map: Record<ActionType, boolean> = { edit: false, delete: false, block: false, unblock: false };
+		if (safeSelectedRows.length === 0) return { edit: true, delete: true, block: true, unblock: true };
 
-		if (currentBlockState() === 'all-blocked') {
-			return [...baseActions, 'unblock'];
-		}
-		if (currentBlockState() === 'all-unblocked') {
-			return [...baseActions, 'block'];
-		}
-		if (currentBlockState() === 'mixed') {
-			return [...baseActions, 'block', 'unblock'];
+		// 1. Edit: only one row allowed
+		map.edit = safeSelectedRows.length !== 1;
+
+		// 2. Delete: depend on selection and total counts
+		if (type === 'user') {
+			const isSelfSelected = safeSelectedRows.some((r) => isUser(r) && currentUser && r._id === currentUser._id);
+			const isLastUser = totalUsers <= 1 || (isSelfSelected && safeSelectedRows.length >= totalUsers);
+			
+			// System protection: admins cannot be blocked or deleted via UI (safety first)
+			const adminsSelected = safeSelectedRows.some((r) => isUser(r) && (r.role === 'admin' || r.isAdmin));
+			
+			map.delete = isLastUser || adminsSelected;
+			
+			// Disable block/unblock for admins as well
+			if (adminsSelected) {
+				map.block = true;
+				map.unblock = true;
+			}
 		}
 
-		return baseActions;
+		// 3. Block/Unblock: depend on current state
+		if (map.block === false) {
+			map.block = currentBlockState === 'all-blocked';
+		}
+		if (map.unblock === false) {
+			map.unblock = currentBlockState === 'all-unblocked';
+		}
+
+		return map;
 	});
+
+	// Available actions to show in the UI
+	const availableActions: ActionType[] = ['edit', 'delete', 'block', 'unblock'];
 
 	// Actions to show in dropdown
 	const filteredActions = $derived.by<ActionType[]>(() => {
-		const actions = Array.isArray(availableActions) ? availableActions : [];
-		return actions.filter((action) => action !== listboxValue);
+		return availableActions.filter((action) => action !== listboxValue);
 	});
 
-	// Auto-adjust listboxValue when selection changes
+	// Auto-adjust listboxValue when selection changes to keep it on an enabled action if possible
 	$effect(() => {
-		if (safeSelectedRows.length > 0 && !availableActions.includes(listboxValue)) {
-			const currentBlockState = blockState;
-			// If current action is not available, switch to the most appropriate one
-			if (currentBlockState() === 'all-blocked' && listboxValue === 'block') {
-				listboxValue = 'unblock';
-			} else if (currentBlockState() === 'all-unblocked' && listboxValue === 'unblock') {
-				listboxValue = 'block';
-			} else if (!availableActions.includes(listboxValue)) {
-				listboxValue = 'edit'; // Default fallback
-			}
+		if (safeSelectedRows.length > 0 && disabledMap[listboxValue]) {
+			untrack(() => {
+				// Try to switch to an available action
+				if (!disabledMap.edit) listboxValue = 'edit';
+				else if (!disabledMap.delete) listboxValue = 'delete';
+				else if (!disabledMap.block) listboxValue = 'block';
+				else if (!disabledMap.unblock) listboxValue = 'unblock';
+			});
 		}
 	});
-
-	// Check if delete should be disabled for users
-	const isDeleteDisabled = $derived(
-		type === 'user' &&
-			listboxValue === 'delete' &&
-			(totalUsers <= 1 ||
-				(currentUser &&
-					safeSelectedRows.length === 1 &&
-					isUser(safeSelectedRows[0]) &&
-					(safeSelectedRows[0] as User)._id === currentUser._id &&
-					totalUsers === 1) ||
-				safeSelectedRows.length >= totalUsers)
-	);
 
 	// Helper function to convert Date to expires format expected by ModalEditToken
 	function convertDateToExpiresFormat(expiresDate: Date | string | null): string {
-		if (!expiresDate) {
-			return '7d'; // Default
-		}
-
+		if (!expiresDate) return '2 days';
 		const now = new Date();
 		const expires = new Date(expiresDate);
 		const diffMs = expires.getTime() - now.getTime();
 		const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
 		const diffDays = Math.ceil(diffHours / 24);
 
-		// Match the available options in ModalEditToken
-		if (diffHours <= 1) {
-			return '1h';
-		}
-		if (diffDays <= 1) {
-			return '1d';
-		}
-		if (diffDays <= 7) {
-			return '7d';
-		}
-		if (diffDays <= 30) {
-			return '30d';
-		}
-		if (diffDays <= 90) {
-			return '90d';
-		}
-
-		return '90d'; // Max available option
+		if (diffHours <= 2) return '2 hrs';
+		if (diffHours <= 12) return '12 hrs';
+		if (diffDays <= 2) return '2 days';
+		if (diffDays <= 7) return '1 week';
+		if (diffDays <= 14) return '2 weeks';
+		return '1 month';
 	}
 
-	// Unified batch endpoints for consistent API design
+	// Action Configurations
 	interface ActionConfigItem {
 		buttonClass: string;
 		endpoint: () => string;
-		hoverClass: string;
 		iconValue: string;
 		label: string;
 		method: () => string;
@@ -217,55 +188,27 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	const actionConfig = $derived<Record<ActionType, ActionConfigItem>>({
 		edit: {
 			buttonClass: 'gradient-primary',
-			hoverClass: 'gradient-primary-hover',
 			iconValue: 'bi:pencil-fill',
 			label: 'Edit',
 			modalTitle: () => (type === 'user' ? usermodaluser_edittitle() : multibuttontoken_modaltitle()),
 			modalBody: () => (type === 'user' ? usermodaluser_editbody() : multibuttontoken_modalbody()),
-			endpoint: () => {
-				if (type === 'user') {
-					return '/api/user/update-user-attributes';
-				}
-				const firstRow = safeSelectedRows[0];
-				if (isToken(firstRow)) {
-					return `/api/token/${firstRow.token}`;
-				}
-				throw new Error('No token selected for editing');
-			},
+			endpoint: () => (type === 'user' ? '/api/user/update-user-attributes' : `/api/token/${(safeSelectedRows[0] as Token).token}`),
 			method: () => 'PUT',
 			toastMessage: () => `${type === 'user' ? 'User' : 'Token'} Updated`,
 			toastBackground: 'gradient-primary'
 		},
 		delete: {
 			buttonClass: 'gradient-error',
-			hoverClass: 'gradient-error-hover',
 			iconValue: 'bi:trash3-fill',
 			label: 'Delete',
-			modalTitle: () => {
-				if (type === 'user') {
-					return `Please Confirm User <span class="text-error-500 font-bold">Deletion</span>`;
-				}
-				return `Please Confirm Token <span class="text-error-500 font-bold">Deletion</span>`;
-			},
+			modalTitle: () => `Confirm ${type === 'user' ? 'User' : 'Token'} Deletion`,
 			modalBody: () => {
-				if (type === 'user') {
-					if (safeSelectedRows.length === 1) {
-						const user = safeSelectedRows[0];
-						if (isUser(user)) {
-							return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This action cannot be undone and will permanently remove the user from the system.`;
-						}
-						return '';
-					}
-					return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} users</span>? This action cannot be undone and will permanently remove all selected users from the system.`;
-				}
 				if (safeSelectedRows.length === 1) {
-					const token = safeSelectedRows[0];
-					if (isToken(token)) {
-						return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This action cannot be undone and will permanently remove the token from the system.`;
-					}
-					return '';
+					const row = safeSelectedRows[0];
+					const identifier = getDisplayIdentifier(row);
+					return `Are you sure you want to delete ${type} <strong>${identifier}</strong>? This action is permanent.`;
 				}
-				return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} tokens</span>? This action cannot be undone and will permanently remove all selected tokens from the system.`;
+				return `Are you sure you want to delete <strong>${safeSelectedRows.length} ${type}s</strong>? This action is permanent.`;
 			},
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
@@ -274,35 +217,15 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		},
 		block: {
 			buttonClass: 'gradient-pink',
-			hoverClass: 'gradient-yellow-hover',
 			iconValue: 'material-symbols:lock',
 			label: 'Block',
-			modalTitle: () => {
-				if (type === 'user') {
-					return `Please Confirm User <span class="text-error-500 font-bold">Block</span>`;
-				}
-				return `Please Confirm Token <span class="text-error-500 font-bold">Block</span>`;
-			},
+			modalTitle: () => `Confirm ${type === 'user' ? 'User' : 'Token'} Block`,
 			modalBody: () => {
-				if (type === 'user') {
-					if (safeSelectedRows.length === 1) {
-						const user = safeSelectedRows[0];
-						if (isUser(user)) {
-							return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will prevent them from accessing the system.`;
-						}
-						return '';
-					}
-					return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} users</span>? This will prevent them from accessing the system.`;
-				}
-				// Token blocking with enhanced styling
 				if (safeSelectedRows.length === 1) {
-					const token = safeSelectedRows[0];
-					if (isToken(token)) {
-						return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will prevent the token from being used.`;
-					}
-					return '';
+					const identifier = getDisplayIdentifier(safeSelectedRows[0]);
+					return `Are you sure you want to block the ${type} <span class="text-error-500 font-bold">${identifier}</span>? They will lose access immediately.`;
 				}
-				return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} tokens</span>? This will prevent them from being used.`;
+				return `Are you sure you want to block <span class="text-error-500 font-bold">${safeSelectedRows.length}</span> selected ${type}(s)? They will lose access immediately.`;
 			},
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
@@ -311,35 +234,15 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		},
 		unblock: {
 			buttonClass: 'gradient-yellow',
-			hoverClass: 'gradient-primary-hover',
 			iconValue: 'material-symbols:lock-open',
 			label: 'Unblock',
-			modalTitle: () => {
-				if (type === 'user') {
-					return `Please Confirm User <span class="text-success-500 font-bold">Unblock</span>`;
-				}
-				return `Please Confirm Token <span class="text-success-500 font-bold">Unblock</span>`;
-			},
+			modalTitle: () => `Confirm ${type === 'user' ? 'User' : 'Token'} Unblock`,
 			modalBody: () => {
-				if (type === 'user') {
-					if (safeSelectedRows.length === 1) {
-						const user = safeSelectedRows[0];
-						if (isUser(user)) {
-							return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will allow them to access the system again.`;
-						}
-						return '';
-					}
-					return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} users</span>? This will allow them to access the system again.`;
-				}
-				// Token unblocking with enhanced styling
 				if (safeSelectedRows.length === 1) {
-					const token = safeSelectedRows[0];
-					if (isToken(token)) {
-						return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will allow the token to be used again.`;
-					}
-					return '';
+					const identifier = getDisplayIdentifier(safeSelectedRows[0]);
+					return `Are you sure you want to unblock the ${type} <span class="text-success-500 font-bold">${identifier}</span>? This will restore their access.`;
 				}
-				return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} tokens</span>? This will allow them to be used again.`;
+				return `Are you sure you want to unblock <span class="text-success-500 font-bold">${safeSelectedRows.length}</span> selected ${type}(s)? This will restore their access.`;
 			},
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
@@ -348,256 +251,142 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		}
 	});
 
-	async function executeBatchAction(action: ActionType, config: any) {
+	async function executeBatchAction(action: ActionType, config: ActionConfigItem) {
 		try {
-			let body: string;
-			// Handle batch operations (delete, block, unblock)
-			if (type === 'user') {
-				body = JSON.stringify({
-					userIds: safeSelectedRows.filter(isUser).map((row: User) => row._id),
-					action
-				});
-			} else {
-				// Token batch operations
-				body = JSON.stringify({
-					tokenIds: safeSelectedRows.filter(isToken).map((row: Token) => row.token),
-					action
-				});
-			}
+			const body =
+				type === 'user'
+					? { userIds: safeSelectedRows.map((r) => (r as User)._id), action }
+					: { tokenIds: safeSelectedRows.map((r) => (r as Token).token), action };
 
-			const endpoint = config.endpoint();
-			const res = await fetch(endpoint, {
+			const res = await fetch(config.endpoint(), {
 				method: config.method(),
-				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRF-Token': page.data.csrfToken
-				},
-				body
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': page.data.csrfToken },
+				body: JSON.stringify(body)
 			});
 
-			if (!res.ok) {
-				// Try to parse error response
-				let errorMessage = `Failed to ${action} ${type}`;
-				try {
-					const errorData = await res.json();
-					errorMessage = errorData.message || errorMessage;
-				} catch {
-					// If JSON parsing fails, use status text
-					errorMessage = res.statusText || errorMessage;
-				}
-				throw new Error(errorMessage);
-			}
-
 			const data = await res.json();
+			if (!res.ok || data.success === false) throw new Error(data.message || 'Operation failed');
 
-			// Generate smart toast message based on what actually changed
-			let toastMessage = data.message || config.toastMessage();
-
-			toast.success({ description: toastMessage });
-
-			// Dispatch update event for parent component to handle local state updates
-			if (action === 'block' || action === 'unblock' || action === 'delete') {
-				const ids =
-					type === 'user'
-						? safeSelectedRows.filter(isUser).map((row: User) => row._id)
-						: safeSelectedRows.filter(isToken).map((row: Token) => row.token);
-
-				onUpdate({
-					ids,
-					action,
-					type
-				});
-			}
-
+			toast.success({ description: data.message || config.toastMessage() });
+			onUpdate({ ids: type === 'user' ? (body as any).userIds : (body as any).tokenIds, action, type });
 			await invalidateAll();
 		} catch (error) {
-			logger.error(`Error during action '${action}' for type '${type}':`, error);
-			const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-			toast.error({ description: errorMessage });
+			toast.error({ description: error instanceof Error ? error.message : 'An error occurred' });
 		}
 	}
 
 	async function handleAction(action: ActionType) {
-		if (isDisabled) {
-			toast.error(`Please select ${type}(s) to ${action}`);
+		if (isDisabled) return;
+		if (disabledMap[action]) {
+			const reason = action === 'edit' ? `Please select only one ${type}` : `Action restricted for this selection`;
+			toast.warning(reason);
 			return;
-		}
-
-		// Check if delete is disabled for users
-		if (action === 'delete' && isDeleteDisabled) {
-			toast.error('Cannot delete the last user in the system');
-			return;
-		}
-
-		if (action === 'edit' && isMultipleSelected) {
-			toast.error(`Please select only one ${type} to edit`);
-			return;
-		}
-
-		// Check if action is available (shouldn't happen with smart UI, but good safeguard)
-		if (!availableActions.includes(action)) {
-			const currentBlockState = blockState;
-			if (currentBlockState() === 'all-blocked' && action === 'block') {
-				toast.warning('All selected items are already blocked');
-				return;
-			}
-			if (currentBlockState() === 'all-unblocked' && action === 'unblock') {
-				toast.warning('All selected items are already unblocked');
-				return;
-			}
-		}
-
-		// Additional validation for token editing
-		if (action === 'edit' && type === 'token') {
-			const tokenData = isToken(safeSelectedRows[0]) ? safeSelectedRows[0] : undefined;
-			if (!tokenData?.token) {
-				toast.error('Invalid token data selected');
-				return;
-			}
 		}
 
 		const config = actionConfig[action];
-		const isEdit = action === 'edit';
-
-		if (isEdit) {
-			// Component Dialog
+		if (action === 'edit') {
 			if (type === 'user') {
+				const u = safeSelectedRows[0] as User;
 				modalState.trigger(ModalEditForm as any, {
 					isGivenData: true,
-					username: isUser(safeSelectedRows[0]) ? ((safeSelectedRows[0] as User).username ?? null) : null,
-					email: safeSelectedRows[0].email,
-					role: safeSelectedRows[0].role,
-					user_id: (safeSelectedRows[0] as User)._id,
-					title: config.modalTitle(),
-					body: config.modalBody() // Pass body if ModalEditForm supports it
+					username: u.username,
+					email: u.email,
+					role: u.role,
+					user_id: u._id,
+					title: config.modalTitle()
 				});
 			} else {
+				const t = safeSelectedRows[0] as Token;
 				modalState.trigger(
 					ModalEditToken as any,
 					{
-						token: (safeSelectedRows[0] as Token).token,
-						email: safeSelectedRows[0].email,
-						role: safeSelectedRows[0].role,
-						user_id: (safeSelectedRows[0] as Token).user_id,
-						expires: convertDateToExpiresFormat((safeSelectedRows[0] as Token).expires),
-						title: config.modalTitle(),
-						body: config.modalBody()
+						token: t.token,
+						email: t.email,
+						role: t.role,
+						user_id: t.user_id,
+						expires: convertDateToExpiresFormat(t.expires),
+						title: config.modalTitle()
 					},
-					(res: any) => {
-						if (res?.success) {
-							onUpdate({
-								action: 'refresh',
-								type: 'token',
-								ids: []
-							});
-						}
-					}
+					(res: any) => res?.success && onUpdate({ action: 'refresh', type: 'token', ids: [] })
 				);
 			}
 		} else {
-			// Confirm Dialog
 			showConfirm({
 				title: config.modalTitle(),
 				body: config.modalBody(),
-				onConfirm: async () => {
-					await executeBatchAction(action, config);
-					modalState.close();
-				}
+				onConfirm: () => executeBatchAction(action, config)
 			});
 		}
 	}
 
-	function toggleDropdown(e: MouseEvent) {
-		e.stopPropagation();
-		if (isDisabled) {
+	async function handleOptionClick(action: ActionType) {
+		if (disabledMap[action]) {
 			return;
 		}
-		isDropdownOpen = !isDropdownOpen;
-		if (isDropdownOpen) {
-			// Focus first item next tick
-			setTimeout(() => {
-				const firstBtn = document.querySelector('[role="menu"] button') as HTMLElement;
-				firstBtn?.focus();
-			}, 0);
-		}
-	}
 
-	function handleOptionClick(event: Event, action: ActionType) {
-		event.preventDefault();
-		event.stopPropagation();
 		listboxValue = action;
 		isDropdownOpen = false;
+
+		// Sync with store for other components (like TableIcons)
+		storeListboxValue.set(action);
+
+		// 2. Await tick to ensure UI state reflects the change
+		await tick();
+
+		// 3. Trigger action
+		console.log('Multibutton - triggering handleAction for:', action);
 		handleAction(action);
 	}
 
 	function handleDropdownKeydown(event: KeyboardEvent) {
-		if (!isDropdownOpen) {
-			return;
-		}
-
-		const menuItems = document.querySelectorAll('[role="menu"] button');
-		const currentIndex = Array.from(menuItems).indexOf(document.activeElement as HTMLElement);
-
-		switch (event.key) {
-			case 'ArrowDown': {
-				event.preventDefault();
-				const nextIndex = (currentIndex + 1) % menuItems.length;
-				(menuItems[nextIndex] as HTMLElement).focus();
-				break;
-			}
-			case 'ArrowUp': {
-				event.preventDefault();
-				const prevIndex = (currentIndex - 1 + menuItems.length) % menuItems.length;
-				(menuItems[prevIndex] as HTMLElement).focus();
-				break;
-			}
-			case 'Escape':
-				event.preventDefault();
-				isDropdownOpen = false;
-				(dropdownRef?.querySelector('[aria-haspopup="menu"]') as HTMLElement)?.focus();
-				break;
-			case 'Tab':
-				isDropdownOpen = false;
-				break;
+		if (!isDropdownOpen) return;
+		const items = Array.from(document.querySelectorAll('[role="menu"] button:not(:disabled)')) as HTMLElement[];
+		const idx = items.indexOf(document.activeElement as HTMLElement);
+		if (event.key === 'ArrowDown') {
+			event.preventDefault();
+			items[(idx + 1) % items.length].focus();
+		} else if (event.key === 'ArrowUp') {
+			event.preventDefault();
+			items[(idx - 1 + items.length) % items.length].focus();
+		} else if (event.key === 'Escape') {
+			isDropdownOpen = false;
 		}
 	}
 </script>
 
-<!-- Multi-button group -->
 <div class="relative flex items-center" bind:this={dropdownRef}>
 	<div
-		class="group/main relative flex items-center shadow-xl overflow-visible transition-all duration-200 {!isDisabled
-			? 'active:scale-95 cursor-pointer'
-			: ''} rounded-l-full rounded-r-md border border-white/20 {isDropdownOpen ? 'ring-2 ring-primary-500/50' : ''}"
+		class="group/main relative flex items-center shadow-xl overflow-visible transition-all duration-200 {!isDisabled ? 'active:scale-95' : ''} rounded-l-full rounded-r-md border border-white/20 {isDropdownOpen ? 'ring-2 ring-primary-500/50' : ''}"
 		role="group"
 	>
 		<!-- Main Action Button -->
 		<button
 			type="button"
 			onclick={() => handleAction(listboxValue)}
-			disabled={isDisabled || (listboxValue === 'delete' && isDeleteDisabled)}
-			class="h-10 min-w-30 font-bold transition-all duration-200
-				{!isDisabled ? 'active:scale-95' : 'pointer-events-none opacity-50 grayscale'}
-				{actionConfig[listboxValue].buttonClass} text-white
-				rounded-l-full rounded-r-none px-6 flex items-center justify-center gap-2 border-r border-white/20"
-			aria-label="{listboxValue} selected items"
+			disabled={isDisabled || disabledMap[listboxValue]}
+			aria-label="Execute {actionConfig[listboxValue].label} action"
+			title="Execute {actionConfig[listboxValue].label} action"
+			class="h-10 min-w-[120px] font-bold transition-all duration-200 {!isDisabled && !disabledMap[listboxValue] ? 'active:scale-95' : 'pointer-events-none opacity-50 grayscale'} {actionConfig[listboxValue].buttonClass} text-white rounded-l-full rounded-r-none px-6 flex items-center justify-center gap-2 border-r border-white/20"
 		>
 			<iconify-icon icon={actionConfig[listboxValue].iconValue} width="20"></iconify-icon>
-			<span class="uppercase tracking-wider">{listboxValue}</span>
+			<span class="uppercase tracking-wider">{actionConfig[listboxValue].label}</span>
 		</button>
 
 		<!-- Dropdown Toggle -->
 		<button
 			type="button"
-			onclick={toggleDropdown}
+			onclick={(e) => {
+				e.stopPropagation();
+				if (!isDisabled) isDropdownOpen = !isDropdownOpen;
+			}}
 			disabled={isDisabled}
-			class="h-10 w-10 transition-all duration-200 text-white flex items-center justify-center shadow-inner rounded-r-md
-				{!isDisabled ? 'bg-surface-800 hover:bg-surface-700 active:scale-95 cursor-pointer' : 'opacity-50 pointer-events-none'}"
 			aria-haspopup="menu"
 			aria-expanded={isDropdownOpen}
-			aria-label="Toggle actions menu"
+			aria-label="Toggle bulk actions menu"
+			title="Select action"
+			class="h-10 w-10 transition-all duration-200 text-white flex items-center justify-center shadow-inner rounded-r-md {!isDisabled ? 'bg-surface-800 hover:bg-surface-700 active:scale-95 cursor-pointer' : 'opacity-50 pointer-events-none'}"
 		>
-			<iconify-icon icon="mdi:chevron-down" width="24" ></iconify-icon>
+			<iconify-icon icon="mdi:chevron-down" width={24}></iconify-icon>
 		</button>
 
 		<!-- Dropdown Menu -->
@@ -605,7 +394,6 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			<div
 				class="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md origin-top-right"
 				role="menu"
-				aria-label="Available actions"
 				transition:scale={{ duration: 150, easing: quintOut, start: 0.95, opacity: 0 }}
 				onkeydown={handleDropdownKeydown}
 				tabindex="-1"
@@ -613,37 +401,36 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 				<ul class="flex flex-col py-1">
 					{#each filteredActions as action (action)}
 						{@const config = actionConfig[action]}
+						{@const disabled = disabledMap[action]}
 						<li role="none">
 							<button
 								type="button"
-								onclick={(e) => handleOptionClick(e, action)}
-								onmouseenter={() => (hoveredAction = action)}
-								onmouseleave={() => (hoveredAction = null)}
-								onfocus={() => (hoveredAction = action)}
-								onblur={() => (hoveredAction = null)}
+								onclick={(e) => {
+									e.preventDefault();
+									e.stopPropagation();
+									handleOptionClick(action);
+								}}
+								disabled={disabled}
+								aria-label="Select {action} action"
 								role="menuitem"
-								class="group/item relative flex w-full items-center gap-3 px-4 py-3 text-left text-white transition-all duration-200 hover:bg-white/5"
+								class="group/item relative flex w-full items-center gap-3 px-4 py-3 text-left text-white transition-all duration-200 hover:bg-white/5 {disabled ? 'opacity-20 cursor-not-allowed grayscale' : ''}"
 							>
-								<!-- Hover Gradient Indicator - Full Background -->
-								<div class="absolute inset-0 {config.buttonClass} opacity-0 transition-opacity duration-200 group-hover/item:opacity-100"></div>
+								<!-- Hover Indicator -->
+								{#if !disabled}
+									<div class="absolute inset-0 {config.buttonClass} opacity-0 transition-opacity duration-200 group-hover/item:opacity-100"></div>
+								{/if}
 
 								<!-- Icon -->
-								<div
-									class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700/50 transition-transform group-hover/item:scale-110"
-								>
-								<iconify-icon icon={config.iconValue} width="16"></iconify-icon>
+								<div class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700/50 transition-transform {!disabled ? 'group-hover/item:scale-110' : ''}">
+									<iconify-icon icon={config.iconValue} width="16"></iconify-icon>
 								</div>
 
 								<!-- Label -->
-								<div class="relative z-10 flex-1">
-									<div class="font-semibold capitalize">{action}</div>
-								</div>
+								<div class="relative z-10 flex-1 font-semibold capitalize">{action}</div>
 
-								<!-- Check Indicator or Chevron -->
-								{#if hoveredAction === action}
-									<iconify-icon icon="mdi:chevron-right" width="18" class="relative z-10 dark:text-white"></iconify-icon>
-								{:else if listboxValue === action}
-									<iconify-icon icon="mdi:check" width="18" class="relative z-10 text-primary-500 "></iconify-icon>
+								<!-- Current Selection Indicator -->
+								{#if listboxValue === action}
+									<iconify-icon icon="mdi:check" width={18} class="relative z-10 text-primary-500"></iconify-icon>
 								{/if}
 							</button>
 						</li>

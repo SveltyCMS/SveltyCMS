@@ -64,6 +64,9 @@ async function getServerApiSpecService() {
   return apiSpecService;
 }
 
+// Module-level cache for initialization promises to prevent "storms"
+const initPromises = new Map<string | null, Promise<void>>();
+
 // ===================================================================
 // SERVER CONTENT SYSTEM (extends browser base)
 // ===================================================================
@@ -81,31 +84,50 @@ export const contentSystem = {
       return this._benchmarkInitialize(tenantId, options, adapter);
     }
 
-    const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+    // 🛡️ SAFETY: Use a shared promise per tenant to prevent initialization storms
+    let initPromise = initPromises.get(tenantId);
 
-    let db = adapter || getDb();
-    if (!db) {
-      await ensureFullInitialization();
-      db = getDb();
+    if (!initPromise || options.force) {
+      initPromise = (async () => {
+        try {
+          const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+
+          let db = adapter || getDb();
+          if (!db) {
+            await ensureFullInitialization();
+            db = getDb();
+          }
+          if (!db) throw new Error("Database not ready for content initialization");
+
+          const svc = await getServerContentService();
+          await svc.fullReload(tenantId, options.skipReconciliation ?? false, db, null);
+
+          // Mark as initialized to prevent redundant initialization calls
+          contentStore.initState = "initialized";
+
+          // Dev watcher
+          if (process.env.NODE_ENV === "development" || process.env.TEST_MODE === "true") {
+            try {
+              const { startContentWatcher } = await import("./content-watcher.server");
+              startContentWatcher();
+            } catch (e) {
+              logger.warn("Content watcher failed to start", { error: e });
+            }
+          }
+
+          if (!options.skipReconciliation) {
+            void this.generateApiSpec(tenantId || "global");
+          }
+        } catch (err) {
+          logger.error(`[ContentSystem] Init failed for tenant ${tenantId}:`, err);
+          initPromises.delete(tenantId); // Allow retry on failure
+          throw err;
+        }
+      })();
+      initPromises.set(tenantId, initPromise);
     }
-    if (!db) throw new Error("Database not ready for content initialization");
 
-    const svc = await getServerContentService();
-    await svc.fullReload(tenantId, options.skipReconciliation ?? false, db, null);
-
-    // Dev watcher
-    if (process.env.NODE_ENV === "development" || process.env.TEST_MODE === "true") {
-      try {
-        const { startContentWatcher } = await import("./content-watcher.server");
-        startContentWatcher();
-      } catch (e) {
-        logger.warn("Content watcher failed to start", { error: e });
-      }
-    }
-
-    if (!options.skipReconciliation) {
-      void this.generateApiSpec(tenantId || "global");
-    }
+    return initPromise;
   },
 
   async _benchmarkInitialize(tenantId: string | null, _options: any, adapter?: DatabaseAdapter) {

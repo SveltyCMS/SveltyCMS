@@ -23,6 +23,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import { modalState } from '@utils/modal.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 
 	// Removed axios import
 
@@ -258,6 +259,9 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			// Upload with fetch
 			const response = await fetch('/api/user/save-avatar', {
 				method: 'POST',
+				headers: {
+					'X-CSRF-Token': page.data.csrfToken || ''
+				},
 				body: formData
 			});
 
@@ -311,7 +315,10 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 					const response = await fetch('/api/user/delete-avatar', {
 						method: 'DELETE',
-						headers: { 'Content-Type': 'application/json' },
+						headers: {
+							'Content-Type': 'application/json',
+							'X-CSRF-Token': page.data.csrfToken || ''
+						},
 						body: JSON.stringify({ avatarUrl: currentAvatar })
 					});
 

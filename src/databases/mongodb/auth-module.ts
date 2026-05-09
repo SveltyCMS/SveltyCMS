@@ -3,7 +3,7 @@
  * @description Authentication module for MongoDB.
  */
 
-import { DatabaseModule } from "../base-adapter";
+import { DatabaseModule } from "../core/base-adapter";
 import type {
   IAuthAdapter,
   DatabaseResult,

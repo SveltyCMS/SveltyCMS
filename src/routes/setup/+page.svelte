@@ -293,8 +293,6 @@
 							passwordRequirements={setupStore.passwordRequirements}
 							bind:showAdminPassword
 							bind:showConfirmPassword
-							toggleAdminPassword={() => (showAdminPassword = !showAdminPassword)}
-							toggleConfirmPassword={() => (showConfirmPassword = !showConfirmPassword)}
 							checkPasswordRequirements={() => {
 								/* now handled by derived rune */
 							}}

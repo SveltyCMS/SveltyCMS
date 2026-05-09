@@ -51,7 +51,7 @@ const SENSITIVE = [
   "api_key",
   "apikey",
 ];
-const EMAILS = ["email", "mail"];
+const EMAILS = ["email", "mail", "userid", "username"];
 
 const IS_BROWSER = typeof window !== "undefined";
 

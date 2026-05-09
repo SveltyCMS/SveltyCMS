@@ -71,7 +71,7 @@
 	let inputElement = $state<HTMLInputElement | null>(null);
 	const currentId = $derived(id || (label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId'));
 	const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
-	const effectiveType = $derived(showPassword && type === 'security' ? 'text' : type);
+	const effectiveType = $derived(type === 'security' ? (showPassword ? 'text' : 'password') : type);
 	const isTextColorClass = $derived(textColor.includes('text-') || textColor.includes(' '));
 
 	$effect(() => {
@@ -131,7 +131,7 @@
 				{icon}
 				width="18"
 				class="absolute left-0 top-3 {iconColor === 'gray' ? 'text-surface-500 dark:text-surface-50' : ''}"
-				style={iconColor !== 'gray' ? `color: ${iconColor};` : ''}
+				style={iconColor !== 'gray' ? `--icon-color: ${iconColor}; color: var(--icon-color);` : ''}
 				aria-hidden="true"
 			></iconify-icon>
 		{/if}
@@ -146,7 +146,7 @@
 				aria-pressed={showPassword}
 				class="absolute right-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none text-surface-500 dark:text-surface-50"
 				width="24"
-				style={passwordIconColor !== 'gray' ? `color: ${passwordIconColor};` : ''}
+				style={passwordIconColor !== 'gray' ? `--icon-color: ${passwordIconColor}; color: var(--icon-color);` : ''}
 				onkeydown={handleIconKeyDown}
 				onclick={togglePasswordVisibility}
 			></iconify-icon>
@@ -172,3 +172,19 @@
 		<p id={errorId} class="mt-1 text-xs text-error-500" role="alert">{errorMessage}</p>
 	{/if}
 </div>
+
+<style>
+	/* Hide native browser password reveal button in Chrome/Edge/Safari */
+	input::-ms-reveal,
+	input::-ms-clear {
+		display: none;
+	}
+
+	input::-webkit-contacts-auto-fill-button,
+	input::-webkit-credentials-auto-fill-button {
+		visibility: hidden;
+		pointer-events: none;
+		position: absolute;
+		right: 0;
+	}
+</style>

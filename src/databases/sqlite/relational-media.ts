@@ -1,5 +1,5 @@
 /**
- * @file src/databases/relational/modules/relational-media-module.ts
+ * @file src/databases/sqlite/relational-media.ts
  * @description
  * Unified Media module for all SQL-based database adapters.
  * Consolidates file and folder management logic using Drizzle ORM.
@@ -19,7 +19,7 @@ import type {
   EntityCreate,
 } from "../db-interface";
 import type { BaseSqlAdapter } from "./base-sql-adapter";
-import * as utils from "./relational-utils";
+import * as utils from "../core/relational-utils";
 
 export class RelationalMediaModule {
   protected readonly adapter: BaseSqlAdapter;

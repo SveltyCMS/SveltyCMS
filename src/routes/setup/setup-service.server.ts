@@ -28,10 +28,10 @@ export async function testAndCreateDatabase(
   const start = performance.now();
 
   try {
-    logger.info(`🔌 Attempting to connect to ${dbConfig.type} at ${dbConfig.host}...`);
+    // Silent connection check
     const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, { createIfMissing });
 
-    logger.info("📡 Connection established, sending ping...");
+    // Silent health check
     const health = await dbAdapter.getConnectionHealth();
 
     if (!health.success) {
@@ -40,7 +40,7 @@ export async function testAndCreateDatabase(
       return { success: false, error: health.message || "Database ping failed" };
     }
 
-    logger.info("✅ Ping successful!");
+    // Ping successful (silent)
 
     // Check if database is empty
     const emptyCheck = await dbAdapter.isEmpty();
@@ -65,7 +65,9 @@ export async function testAndCreateDatabase(
 
     if (isMissing && createIfMissing) {
       try {
-        logger.info("🛠 Attempting to create missing database:", dbConfig.name);
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          logger.info("🛠 Attempting to create missing database:", dbConfig.name);
+        }
         if (dbConfig.type === "sqlite") {
           const dbPath = buildDatabaseConnectionString(dbConfig);
           mkdirSync(dirname(dbPath), { recursive: true });

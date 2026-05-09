@@ -3,7 +3,7 @@
  * @description Collection management module for MongoDB.
  */
 
-import { DatabaseModule } from "../base-adapter";
+import { DatabaseModule } from "../core/base-adapter";
 import type { ICollectionAdapter, DatabaseId, Schema } from "../db-interface";
 import type { MongoAdapterCore } from "./adapter-core";
 

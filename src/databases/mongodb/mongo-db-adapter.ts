@@ -144,6 +144,14 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
     return this.transactionModule.execute(fn);
   }
 
+  /**
+   * Placeholder for cleanup maintenance.
+   * MongoDB handles this automatically via TTL indexes.
+   */
+  public async cleanupExpiredData(): Promise<DatabaseResult<{ sessions: number; tokens: number }>> {
+    return { success: true, data: { sessions: 0, tokens: 0 } };
+  }
+
   // Lifecycle methods to ensure specific domains are initialized
   async ensureSystem(): Promise<void> {
     // Logic moved to SystemModule, but we can call it if needed

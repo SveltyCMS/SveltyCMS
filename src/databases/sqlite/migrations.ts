@@ -433,7 +433,7 @@ export async function runMigrations(db: unknown): Promise<{ success: boolean; er
 			CREATE TABLE IF NOT EXISTS "404_logs" (
 				_id TEXT PRIMARY KEY,
 				path TEXT NOT NULL,
-				tenantId TEXT NOT NULL,
+				tenantId TEXT,
 				hits INTEGER DEFAULT 1,
 				lastHit INTEGER DEFAULT (strftime('%s', 'now') * 1000),
 				metadata TEXT DEFAULT '{}',
@@ -475,7 +475,7 @@ export async function runMigrations(db: unknown): Promise<{ success: boolean; er
     execute(`
 			CREATE TABLE IF NOT EXISTS redirects_mv (
 				_id TEXT PRIMARY KEY,
-				tenantId TEXT NOT NULL,
+				tenantId TEXT,
 				"from" TEXT NOT NULL,
 				"to" TEXT NOT NULL,
 				type INTEGER DEFAULT 301,
@@ -485,6 +485,31 @@ export async function runMigrations(db: unknown): Promise<{ success: boolean; er
 				createdAt INTEGER DEFAULT (strftime('%s', 'now') * 1000),
 				updatedAt INTEGER DEFAULT (strftime('%s', 'now') * 1000)
 			)
+		`);
+
+    // Dynamic collections placeholders to avoid errors during bootstrap
+    execute(`
+			CREATE TABLE IF NOT EXISTS collection_redirects (
+				_id TEXT PRIMARY KEY,
+				tenantId TEXT,
+				data TEXT NOT NULL DEFAULT '{}',
+				status TEXT NOT NULL DEFAULT 'draft',
+				isDeleted INTEGER NOT NULL DEFAULT 0,
+				createdAt INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+				updatedAt INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+			);
+		`);
+
+    execute(`
+			CREATE TABLE IF NOT EXISTS collection_404_logs (
+				_id TEXT PRIMARY KEY,
+				tenantId TEXT,
+				data TEXT NOT NULL DEFAULT '{}',
+				status TEXT NOT NULL DEFAULT 'draft',
+				isDeleted INTEGER NOT NULL DEFAULT 0,
+				createdAt INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+				updatedAt INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+			);
 		`);
 
     logger.info("SQLite migrations completed successfully.");

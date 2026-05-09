@@ -105,7 +105,7 @@ function transitionServiceState(
         (process.env.QUIET === "true" || process.env.BENCHMARK === "true"));
 
     if (!isQuiet) {
-      logger.info(
+      logger.debug(
         `[ServiceTransition] ${serviceName}: ${service.status} → ${newStatus} (${message})`,
       );
     }

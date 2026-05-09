@@ -592,6 +592,7 @@ $effect(() => {
 							icon="mdi:lock"
 							iconColor="black"
 							textColor="black"
+							passwordIconColor="black"
 							data-testid="signin-password"
 							invalid={!!loginForm.errors.password}
 							errorMessage={loginForm.errors.password?.[0] || ''}
@@ -808,6 +809,7 @@ $effect(() => {
 							icon="mdi:lock"
 							iconColor="black"
 							textColor="black"
+							passwordIconColor="black"
 						/>
 						{#if resetForm.errors.password}
 							<span class="invalid text-xs text-error-500"> {resetForm.errors.password[0]} </span>
@@ -826,6 +828,7 @@ $effect(() => {
 							icon="mdi:lock"
 							iconColor="black"
 							textColor="black"
+							passwordIconColor="black"
 						/>
 
 						<!-- Password Strength Indicator -->
@@ -841,6 +844,7 @@ $effect(() => {
 							icon="mdi:lock"
 							iconColor="black"
 							textColor="black"
+							passwordIconColor="black"
 							required
 						/>
 

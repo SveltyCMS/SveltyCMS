@@ -58,7 +58,9 @@ class SetupManager {
         const result = await task();
         this.isSeeding = false;
         this._seedingProgress = 100;
-        logger.info("🚀 Seeding successfully completed in background");
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          logger.info("🚀 Seeding successfully completed in background");
+        }
         return result;
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -85,7 +87,9 @@ class SetupManager {
     (async () => {
       try {
         await task();
-        logger.info("✨ Background setup task completed successfully");
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          logger.info("✨ Background setup task completed successfully");
+        }
       } catch (error) {
         logger.error("❌ Background setup task failed:", error);
       }

@@ -3,7 +3,7 @@
  * @description Media management module for MariaDB, inheriting from RelationalMediaModule.
  */
 
-import { RelationalMediaModule } from "../agnostic/relational-media-module";
+import { RelationalMediaModule } from "../sqlite/relational-media";
 import type { AdapterCore } from "./adapter-core";
 import { schema } from "./schema";
 

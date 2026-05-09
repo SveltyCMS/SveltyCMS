@@ -10,7 +10,7 @@ import type {
   BaseEntity,
 } from "../db-interface";
 import { AdapterCore } from "./adapter-core";
-import * as utils from "./utils";
+import * as utils from "../core/relational-utils";
 import { AuthModule } from "./auth-module";
 import { ContentModule } from "./content-module";
 import { MediaModule } from "./media-module";
@@ -195,5 +195,31 @@ export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {
     collection: string,
   ): import("../db-interface").QueryBuilder<T> {
     return new PostgresQueryBuilder<T>(this, collection);
+  }
+
+  /**
+   * Performs periodic maintenance and cleanup of expired data.
+   */
+  public async cleanupExpiredData(): Promise<DatabaseResult<{ sessions: number; tokens: number }>> {
+    return this.wrap(async () => {
+      if (!this.sql) throw new Error("Not connected");
+
+      // Use raw SQL for efficient bulk deletes
+      const sessionResult = await this.sql`
+        DELETE FROM auth_sessions 
+        WHERE expires < CURRENT_TIMESTAMP
+      `;
+
+      const tokenResult = await this.sql`
+        DELETE FROM auth_tokens 
+        WHERE (expires < CURRENT_TIMESTAMP) 
+        OR (consumed = TRUE AND "updatedAt" < CURRENT_TIMESTAMP - INTERVAL '7 days')
+      `;
+
+      return {
+        sessions: sessionResult.count || 0,
+        tokens: tokenResult.count || 0,
+      };
+    }, "CLEANUP_EXPIRED_DATA_FAILED");
   }
 }

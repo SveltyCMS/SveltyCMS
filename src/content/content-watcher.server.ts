@@ -17,7 +17,9 @@ let isReloading = false;
 export function startContentWatcher() {
   const targetDir = path.resolve(process.cwd(), ".compiledCollections");
 
-  logger.info(`[Watcher] Monitoring collections at: ${targetDir}`);
+  if (process.env.BENCHMARK_DEBUG === "true") {
+    logger.info(`[Watcher] Monitoring collections at: ${targetDir}`);
+  }
 
   const watcher = chokidar.watch(targetDir, {
     persistent: true,

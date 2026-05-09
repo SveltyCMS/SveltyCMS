@@ -40,12 +40,19 @@ function flush404Logs() {
           tenantId: log.tenantId,
         } as any);
         if (existing.success && existing.data && (existing.data as any)._id) {
-          await db.crud.update(table, (existing.data as any)._id, {
-            hits: ((existing.data as any).hits || 0) + log.hits,
-            lastHit: new Date().toISOString(),
-          } as any);
+          await db.crud.update(
+            table,
+            (existing.data as any)._id,
+            {
+              hits: ((existing.data as any).hits || 0) + log.hits,
+              lastHit: new Date().toISOString(),
+            } as any,
+            { tenantId: log.tenantId as any },
+          );
         } else {
-          await db.crud.insert(table, { ...log, lastHit: new Date().toISOString() } as any);
+          await db.crud.insert(table, { ...log, lastHit: new Date().toISOString() } as any, {
+            tenantId: log.tenantId as any,
+          });
         }
       }
     } catch (err) {

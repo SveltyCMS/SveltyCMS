@@ -154,9 +154,19 @@ export class DatabaseResilience {
         }
 
         return result;
-      } catch (error) {
+      } catch (error: any) {
         lastError = error as Error;
         this.metrics.totalRetries++;
+
+        // 🚀 FAIL FAST for configuration errors that won't change with a retry
+        const isConfigError =
+          lastError.message?.includes("DB_TYPE_MISSING") ||
+          lastError.message?.includes("UNSUPPORTED_DB_TYPE");
+
+        if (isConfigError) {
+          this.onFailure(lastError);
+          throw lastError;
+        }
 
         if (attempt < this.retryConfig.maxAttempts) {
           const delay = this.calculateBackoffDelay(attempt);

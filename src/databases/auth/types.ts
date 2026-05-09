@@ -108,6 +108,7 @@ export interface Session {
 export interface Token {
   _id: DatabaseId; // Unique identifier for the token
   blocked?: boolean; // Whether the token is blocked
+  consumed?: boolean; // Whether the token has been used
   createdAt?: ISODateString; // When the token was created
   email: string; // Email associated with the token
   expires: ISODateString; // When the session expires (ISO date string)

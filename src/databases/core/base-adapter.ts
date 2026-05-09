@@ -1,5 +1,5 @@
 /**
- * @file src/databases/base-adapter.ts
+ * @file src/databases/core/base-adapter.ts
  * @description Standard base class for all SveltyCMS database adapters.
  * Provides common state management, capability reporting, and error wrapping.
  */
@@ -11,7 +11,7 @@ import type {
   DatabaseResult,
   ICrudAdapter,
   IBatchAdapter,
-} from "./db-interface";
+} from "../db-interface";
 
 export abstract class BaseAdapter {
   /**
@@ -210,7 +210,7 @@ export abstract class BaseAdapter {
     options?: { ids?: any[]; tags?: string[] },
   ): Promise<void> {
     try {
-      const { cacheService } = await import("./cache/cache-service");
+      const { cacheService } = await import("@src/databases/cache/cache-service");
 
       if (options?.tags && options.tags.length > 0) {
         // 🚀 Surgical: Clear only specific tags

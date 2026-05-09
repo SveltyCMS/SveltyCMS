@@ -9,7 +9,7 @@
 import { privateConfigSchema } from "@src/databases/private-config-schema";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { parse, type InferOutput } from "valibot";
+import { safeParse, type InferOutput } from "valibot";
 
 if (process.env.TEST_MODE === "true" && process.env.BENCHMARK !== "true") {
   logger.debug("config-state.ts initialized");
@@ -70,7 +70,24 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
       config = { ...config, ...overrides };
 
       // 4. Validate and Freeze
-      const validated = parse(privateConfigSchema, config);
+      const result = safeParse(privateConfigSchema, config);
+
+      if (!result.success) {
+        const hasEssentialKeys = !!(config.DB_TYPE || config.DB_HOST || config.JWT_SECRET_KEY);
+        // Only log error if we actually have some configuration attempted
+        if (hasEssentialKeys || fileConfig) {
+          logger.error("Private config validation failed:", {
+            error: result.issues[0]?.message || "Validation failed",
+            issues: result.issues.map((i: any) => ({
+              path: i.path?.map((p: any) => p.key).join("."),
+              message: i.message,
+            })),
+          });
+        }
+        return null;
+      }
+
+      const validated = result.output;
 
       // 5. Test mode safety checks
       await enforceTestSafety(validated);
@@ -82,13 +99,7 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
 
       return privateEnv;
     } catch (error: any) {
-      logger.error("Private config validation failed:", {
-        error: error.message,
-        issues: error.issues?.map((i: any) => ({
-          path: i.path?.map((p: any) => p.key).join("."),
-          message: i.message,
-        })),
-      });
+      logger.error("Unexpected error during config loading:", error);
       return null;
     }
   })();

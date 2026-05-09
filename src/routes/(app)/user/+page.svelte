@@ -66,6 +66,7 @@
 		avatar: serverUser?.avatar ?? '/Default_User.svg',
 		tenantId: serverUser?.tenantId ?? '', // Add tenantId
 		is2FAEnabled: serverUser?.is2FAEnabled ?? false,
+		isAdmin: serverUser?.isAdmin ?? false, // Add isAdmin property
 		permissions: []
 	});
 

@@ -110,7 +110,7 @@ export async function loadSchemaNative(filePath: string): Promise<{ schema?: Sch
     // Query param provides cache-busting for HMR (disabled in benchmarks for speed).
     const fileUrl = `file://${fullPath.replace(/\\/g, "/")}`;
     const version = process.env.BENCHMARK_STABLE === "true" ? "1" : Date.now();
-    const module = await import(`${fileUrl}?v=${version}`);
+    const module = await import(/* @vite-ignore */ `${fileUrl}?v=${version}`);
 
     const schema = module.default || module.schema;
 

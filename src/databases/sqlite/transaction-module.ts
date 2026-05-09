@@ -7,7 +7,7 @@ import type { DatabaseResult, DatabaseTransaction } from "../db-interface";
 import type { AdapterCore } from "./adapter-core";
 import * as utils from "./utils";
 
-import { DatabaseModule } from "../base-adapter";
+import { DatabaseModule } from "../core/base-adapter";
 
 export class TransactionModule extends DatabaseModule<AdapterCore> {
   constructor(core: AdapterCore) {

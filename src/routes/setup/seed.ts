@@ -72,10 +72,7 @@ export async function seedDefaultTheme(
   dbAdapter: DatabaseAdapter,
   tenantId?: string | null,
 ): Promise<void> {
-  logger.info(
-    `🎨 Checking if default theme needs seeding${tenantId ? ` for tenant ${tenantId}` : ""}...`,
-  );
-
+  // Silent check by default
   if (!dbAdapter?.system.themes) {
     throw new Error("Database adapter or themes interface not available");
   }
@@ -83,12 +80,7 @@ export async function seedDefaultTheme(
   try {
     // Check if themes already exist
     const existingThemes = await dbAdapter.system.themes.getAllThemes();
-    if (Array.isArray(existingThemes) && existingThemes.length > 0) {
-      logger.info(
-        `✅ Themes already exist${tenantId ? ` for tenant ${tenantId}` : ""}, skipping theme seeding`,
-      );
-      return;
-    }
+    if (Array.isArray(existingThemes) && existingThemes.length > 0) return;
 
     // Seed the default theme
     logger.info(`🎨 Seeding default theme${tenantId ? ` for tenant ${tenantId}` : ""}...`);
@@ -543,13 +535,9 @@ export async function initSystemFast(
 }> {
   // Critical: Settings, Default Theme, Roles (needed for Admin User creation)
   const criticalPromise = (async () => {
-    logger.info(
-      `🚀 Starting critical system initialization${tenantId ? ` for tenant ${tenantId}` : ""}...`,
-    );
+    if (!adapter) throw new Error("Database adapter not available.");
 
-    if (!adapter) {
-      throw new Error("Database adapter not available.");
-    }
+    logger.info("🚀 Initializing system...");
 
     await Promise.all([
       seedSettings(adapter, tenantId, isDemoSeed),
@@ -1045,10 +1033,6 @@ export async function seedSettings(
   tenantId?: string | null,
   isDemoSeed = false,
 ): Promise<void> {
-  logger.info(
-    `🌱 Checking which settings need seeding${tenantId ? ` for tenant ${tenantId}` : ""}...`,
-  );
-
   if (!dbAdapter?.system.preferences) {
     throw new Error("Database adapter or system.preferences interface not available");
   }
@@ -1079,23 +1063,14 @@ export async function seedSettings(
     if (result.success && result.data) {
       existingSettings = result.data;
     }
-  } catch (error) {
-    logger.debug(`Could not check existing settings for tenant ${tenantId}, will seed all:`, error);
-  }
+  } catch {}
 
   // Filter out settings that already exist
   const settingsToSeed = allSettings.filter((setting) => !(setting.key in existingSettings));
 
-  if (settingsToSeed.length === 0) {
-    logger.info(
-      `✅ All settings already exist${tenantId ? ` for tenant ${tenantId}` : ""}, skipping settings seeding`,
-    );
-    return;
-  }
+  if (settingsToSeed.length === 0) return;
 
-  logger.info(
-    `🌱 Seeding ${settingsToSeed.length} missing settings${tenantId ? ` for tenant ${tenantId}` : ""} (${Object.keys(existingSettings).length} already exist)...`,
-  );
+  logger.info(`🌱 Seeding ${settingsToSeed.length} settings...`);
 
   // Prepare settings for batch operation with category
   const settingsToSet: Array<{

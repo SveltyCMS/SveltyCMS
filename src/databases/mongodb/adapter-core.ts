@@ -4,9 +4,9 @@
  */
 
 import mongoose from "mongoose";
-import { queryTranslator } from "../agnostic/query-ir";
+import { queryTranslator } from "../core/query-ir";
 import { logger } from "@utils/logger";
-import { BaseAdapter } from "../base-adapter";
+import { BaseAdapter } from "../core/base-adapter";
 import type { DatabaseCapabilities, DatabaseResult, ConnectionPoolOptions } from "../db-interface";
 
 export abstract class MongoAdapterCore extends BaseAdapter {

@@ -10,7 +10,7 @@ import { parseSessionDuration } from "@utils/auth-utils";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getAllPermissions } from "@src/databases/auth/permissions";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
-import { withTenant } from "@src/databases/db-adapter-wrapper";
+import { withTenant } from "@src/databases/core/db-adapter-wrapper";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 import { generateSecureToken } from "@utils/native-utils";
 import type {
@@ -503,6 +503,16 @@ export class TokensNamespace {
     return withTenant(
       tenantId ?? null,
       async () => {
+        // 🚀 Check if user already exists
+        const existingUserRes = await this._dbAdapter.auth.getUserByEmail(
+          { email, tenantId: tenantId as DatabaseId },
+          { tenantId: tenantId as DatabaseId },
+        );
+
+        if (existingUserRes.success && existingUserRes.data) {
+          throw new AppError(`A user with email ${email} already exists.`, 400);
+        }
+
         const tokenValue = generateSecureToken(32);
         const now = Date.now();
         let expiresDate: string;
@@ -540,7 +550,7 @@ export class TokensNamespace {
             role,
             type: "invite-token",
             expires: expiresDate as ISODateString,
-            status: "active",
+            blocked: false,
             createdAt: new Date().toISOString() as ISODateString,
           } as any,
           { tenantId: tenantId as DatabaseId },
@@ -602,7 +612,7 @@ export class TokensNamespace {
             await this._dbAdapter.crud.update(
               "tokens",
               existing.data._id as DatabaseId,
-              { status: "blocked" } as any,
+              { blocked: true } as any,
               { tenantId: tenantId as DatabaseId },
             );
           }
@@ -624,7 +634,7 @@ export class TokensNamespace {
             await this._dbAdapter.crud.update(
               "tokens",
               existing.data._id as DatabaseId,
-              { status: "active" } as any,
+              { blocked: false } as any,
               { tenantId: tenantId as DatabaseId },
             );
           }

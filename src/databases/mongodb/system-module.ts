@@ -3,7 +3,7 @@
  * @description System management module for MongoDB.
  */
 
-import { DatabaseModule } from "../base-adapter";
+import { DatabaseModule } from "../core/base-adapter";
 import type { ISystemAdapter, DatabaseResult, DatabaseId } from "../db-interface";
 import type { MongoAdapterCore } from "./adapter-core";
 import { MongoCrudMethods } from "./crud-methods";

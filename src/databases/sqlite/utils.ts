@@ -15,7 +15,7 @@ export {
   convertISOToDates,
   isoDateStringToDate,
   nowISODateString,
-} from "../agnostic/relational-utils";
+} from "../core/relational-utils";
 
 // Create a paginated result from an array of items (in-memory)
 export function createPagination<T>(items: T[], options: PaginationOptions): PaginatedResult<T> {

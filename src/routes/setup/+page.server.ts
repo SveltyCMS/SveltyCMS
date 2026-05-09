@@ -69,30 +69,49 @@ export const actions: Actions = {
    * Tests the database connection
    */
   testDatabase: async ({ request }) => {
-    logger.info("🚀 Action: VerifyDatabaseConfig starting...");
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      logger.info("🚀 Action: VerifyDatabaseConfig starting...");
+    }
     try {
       const formData = await request.formData();
       const configRaw = formData.get("config") as string;
       const createIfMissing = formData.get("createIfMissing") === "true";
       const allowOverwrite = formData.get("allowOverwrite") === "true";
-      logger.info(
-        "📦 Received config raw:",
-        configRaw ? `Yes (length: ${configRaw.length})` : "No",
-      );
-      logger.info("🛠 Create missing DB if needed:", createIfMissing);
 
-      if (!configRaw) {
-        logger.error("❌ Action: No config data provided in form");
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        logger.info("📦 [testDatabase] Received config raw:", {
+          exists: !!configRaw,
+          length: configRaw?.length,
+          isLiteralUndefined: configRaw === "undefined",
+          isLiteralNull: configRaw === "null",
+          value: configRaw?.slice(0, 100),
+        });
+      }
+
+      if (!configRaw || configRaw === "undefined") {
+        logger.error("❌ [testDatabase] No valid config data provided in form");
         return { success: false, error: "No configuration data provided" };
       }
 
-      const configData = JSON.parse(configRaw);
-      logger.info("🔍 Parsed config for type:", configData?.type);
+      let configData;
+      try {
+        configData = JSON.parse(configRaw);
+      } catch (err: any) {
+        logger.error("❌ [testDatabase] JSON.parse failed:", {
+          error: err.message,
+          raw: configRaw,
+        });
+        return { success: false, error: `Invalid configuration format: ${err.message}` };
+      }
 
-      // Coerce port to number for validation (Frontend sends string "27017" or "")
-      if (configData.port === "" || configData.port === null) {
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        logger.info("🔍 [testDatabase] Parsed config for type:", configData?.type);
+      }
+
+      // Coerce port to number for validation
+      if (configData && (configData.port === "" || configData.port === null)) {
         configData.port = undefined;
-      } else if (configData.port !== undefined) {
+      } else if (configData && configData.port !== undefined) {
         const portNum = Number(configData.port);
         if (!Number.isNaN(portNum)) {
           configData.port = portNum;
@@ -109,7 +128,9 @@ export const actions: Actions = {
         };
       }
 
-      logger.info("✅ Action: Configuration validated successfully");
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        logger.info("✅ Action: Configuration validated successfully");
+      }
 
       const start = performance.now();
       const { getSetupDatabaseAdapter } = await import("./utils");
@@ -443,22 +464,55 @@ export const actions: Actions = {
    * Seeds the database
    */
   seedDatabase: async ({ request }) => {
-    logger.info("🚀 Action: seedDatabase called");
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      logger.info("🚀 Action: seedDatabase called");
+    }
     const formData = await request.formData();
     const configRaw = formData.get("config") as string;
     const systemRaw = formData.get("system") as string;
 
-    if (!configRaw) {
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      logger.info("📦 [seedDatabase] Received raw data:", {
+        configExists: !!configRaw,
+        configIsUndefined: configRaw === "undefined",
+        systemExists: !!systemRaw,
+        systemIsUndefined: systemRaw === "undefined",
+      });
+    }
+
+    if (!configRaw || configRaw === "undefined") {
+      logger.error("❌ [seedDatabase] No valid config data provided");
       return { success: false, error: "No configuration data provided" };
     }
 
-    const configData = JSON.parse(configRaw);
-    const systemData = systemRaw ? JSON.parse(systemRaw) : {};
+    let configData;
+    try {
+      configData = JSON.parse(configRaw);
+    } catch (err: any) {
+      logger.error("❌ [seedDatabase] JSON.parse(config) failed:", {
+        error: err.message,
+        raw: configRaw,
+      });
+      return { success: false, error: `Invalid configuration format: ${err.message}` };
+    }
+
+    let systemData: any = {};
+    if (systemRaw && systemRaw !== "undefined") {
+      try {
+        systemData = JSON.parse(systemRaw);
+      } catch (err: any) {
+        logger.error("❌ [seedDatabase] JSON.parse(system) failed:", {
+          error: err.message,
+          raw: systemRaw,
+        });
+        // Non-fatal, but good to know
+      }
+    }
 
     // Coerce port to number for validation
-    if (configData.port === "" || configData.port === null) {
+    if (configData && (configData.port === "" || configData.port === null)) {
       configData.port = undefined;
-    } else if (configData.port !== undefined) {
+    } else if (configData && configData.port !== undefined) {
       const portNum = Number(configData.port);
       if (!Number.isNaN(portNum)) {
         configData.port = portNum;
@@ -475,16 +529,18 @@ export const actions: Actions = {
       };
     }
 
-    logger.info("DEBUG: [seedDatabase] dbConfig details:", {
-      type: dbConfig.type,
-      host: dbConfig.host,
-      port: dbConfig.port,
-      name: dbConfig.name,
-      hasUser: !!dbConfig.user,
-      hasPassword: !!dbConfig.password,
-      userLength: dbConfig.user?.length,
-      passLength: dbConfig.password?.length,
-    });
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      logger.info("DEBUG: [seedDatabase] dbConfig details:", {
+        type: dbConfig.type,
+        host: dbConfig.host,
+        port: dbConfig.port,
+        name: dbConfig.name,
+        hasUser: !!dbConfig.user,
+        hasPassword: !!dbConfig.password,
+        userLength: dbConfig.user?.length,
+        passLength: dbConfig.password?.length,
+      });
+    }
 
     try {
       // 0. Copy Preset Files Before Anything compile triggers
@@ -595,14 +651,13 @@ export const actions: Actions = {
 
       const formData = await request.formData();
       const dataRaw = formData.get("data") as string;
-      if (!dataRaw) {
-        logger.error("❌ completeSetup: Missing 'data' field in form data");
-        return { success: false, error: "Missing setup data." };
+
+      if (!dataRaw || dataRaw === "undefined") {
+        logger.error("❌ [completeSetup] No valid data provided in form");
+        return { success: false, error: "No setup data provided" };
       }
 
-      logger.info("DEBUG: [completeSetup] data raw length:", dataRaw.length);
-
-      let payload: any;
+      let payload;
       try {
         payload = JSON.parse(dataRaw);
       } catch (parseErr) {
@@ -618,7 +673,6 @@ export const actions: Actions = {
         hasSystem: !!system,
         dbType: database?.type,
       });
-      logger.info("DEBUG: extracted system data:", JSON.stringify(system, null, 2));
       const adminValidation = safeParse(setupAdminSchema, admin);
       if (!adminValidation.success) {
         return { success: false, error: "Invalid admin user data" };
@@ -1031,7 +1085,7 @@ export const actions: Actions = {
 
         // ✨ CRITICAL: Set global flag to prevent TurboPipeline redirect loop during server restart
         (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = true;
-        invalidateSetupCache(false, true);
+        invalidateSetupCache(true, true);
 
         systemStateStore.update((state) => ({ ...state, overallState: "READY" }));
         logger.info(

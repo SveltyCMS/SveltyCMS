@@ -822,6 +822,24 @@ export const actions: Actions = {
       });
     }
 
+    // 🚀 Explicitly determine admin status based on role
+    const isAdminUser = role === "admin";
+
+    // --- CHECK FOR EXISTING USER ---
+    try {
+      const existingUser = await auth.getUserByEmail({ email, tenantId: tenantId as DatabaseId });
+      if (existingUser) {
+        logger.warn("SignUp attempt for existing user", { email, tenantId });
+        return fail(400, {
+          message: "An account with this email already exists. Please sign in instead.",
+          form,
+        });
+      }
+    } catch (checkErr) {
+      // Ignore errors in existence check, allow creation to attempt and handle database-level constraints
+      logger.debug("Error during user existence check (non-fatal)", checkErr);
+    }
+
     try {
       // Use optimized createUserAndSession for single database transaction
       const sessionExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -831,6 +849,7 @@ export const actions: Actions = {
           username,
           password,
           role, // Use determined role
+          isAdmin: isAdminUser, // 🚀 Pass explicit admin status
           tenantId: tenantId as DatabaseId, // Assign tenantId (new for demo, or from token)
           isRegistered: true,
           lastAuthMethod: "security",
@@ -850,6 +869,17 @@ export const actions: Actions = {
         throw new Error(errorMessage);
       }
       const { user: newUser, session: newSession } = userAndSessionResult.data;
+
+      // --- CRITICAL FIX: Set session cookie after signup ---
+      if (auth && newSession) {
+        const sessionCookie = auth.createSessionCookie(newSession._id as DatabaseId);
+        const attributes = sessionCookie.attributes as Record<string, unknown>;
+        event.cookies.set(sessionCookie.name, sessionCookie.value, {
+          ...attributes,
+          path: "/",
+        });
+        logger.debug(`Session cookie set for new user: ${newUser._id}`);
+      }
 
       logger.info(
         `User and session created successfully via ${isInvited ? "token" : "open demo"} registration`,
@@ -891,7 +921,7 @@ export const actions: Actions = {
         const mailResult = await sendMail({
           recipientEmail: email,
           subject: `Welcome to ${emailProps.sitename}`,
-          templateName: "welcomeUser",
+          templateName: "welcome-user",
           props: emailProps,
           languageTag: userLanguage,
         });

@@ -15,7 +15,7 @@ import type { AdapterCore } from "./adapter-core";
 import * as schema from "./schema";
 import * as utils from "./utils";
 
-import { DatabaseModule } from "../base-adapter";
+import { DatabaseModule } from "../core/base-adapter";
 
 export class JobsModule extends DatabaseModule<AdapterCore> {
   constructor(core: AdapterCore) {

@@ -47,17 +47,22 @@ export function getPermissionById(permissionId: string): Permission | undefined 
 
 // Check if a user has a specific permission (with roles parameter to avoid circular dependency)
 export function hasPermissionWithRoles(user: User, permissionId: string, roles: Role[]): boolean {
-  // Check cache first (skip for admin users as they always have permission)
-  if (!user.isAdmin) {
-    const cachedResult = permissionCache.get(
-      user._id as string,
-      permissionId,
-      roles.map((r) => r._id as string),
-    );
+  // ADMIN FAST-PATH: If the user object is already marked as admin, grant immediately.
+  // This prevents failures when user.role is a name string ("admin") that doesn't match
+  // any role._id (which are UUIDs in relational databases).
+  if (user.isAdmin) {
+    return true;
+  }
 
-    if (cachedResult !== null) {
-      return cachedResult;
-    }
+  // Check cache first
+  const cachedResult = permissionCache.get(
+    user._id as string,
+    permissionId,
+    roles.map((r) => r._id as string),
+  );
+
+  if (cachedResult !== null) {
+    return cachedResult;
   }
 
   let userRole = roles.find((role) => role._id === user.role);

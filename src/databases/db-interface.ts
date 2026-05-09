@@ -128,6 +128,7 @@ export interface BaseQueryOptions {
   silent?: boolean; // Useful for skipping trigger/audit logs
   skipMeta?: boolean; // 🚀 PERFORMANCE: Skip executionTime/meta object allocation
   suppressErrorLog?: boolean; // 🚀 SECURITY/PERF: Mute error logging for expected failures
+  cache?: CacheOptions; // 🚀 ADAPTIVE CACHING: Control caching at the query level
   hints?: QueryOptimizationHints;
   transaction?: any; // Database-specific transaction object
 }
@@ -1094,6 +1095,14 @@ export interface IDBAdapter {
 
   // Test/Dev Utilities
   clearDatabase(): Promise<DatabaseResult<void>>;
+
+  /**
+   * Performs periodic maintenance and cleanup of expired data (sessions, tokens, logs).
+   * Replicates TTL index functionality for databases that do not support it natively.
+   */
+  cleanupExpiredData?(): Promise<
+    DatabaseResult<{ sessions: number; tokens: number; logs?: number }>
+  >;
 
   collection: ICollectionAdapter;
 

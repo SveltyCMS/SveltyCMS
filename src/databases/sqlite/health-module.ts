@@ -3,7 +3,7 @@
  * @description Health and status module for SQLite
  */
 
-import { DatabaseModule } from "../base-adapter";
+import { DatabaseModule } from "../core/base-adapter";
 import type { AdapterCore } from "./adapter-core";
 import type { DatabaseResult } from "../db-interface";
 

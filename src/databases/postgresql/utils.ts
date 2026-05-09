@@ -3,10 +3,10 @@
  * @description PostgreSQL specific utility functions, mostly re-exporting from relational-utils.
  */
 
-export * from "../agnostic/relational-utils";
+export * from "../core/relational-utils";
 
 import type { PaginationOptions, PaginatedResult } from "../db-interface";
-import { createPagination as baseCreatePagination } from "../agnostic/relational-utils";
+import { createPagination as baseCreatePagination } from "../core/relational-utils";
 
 /**
  * Re-export createPagination with explicit types for PostgreSQL

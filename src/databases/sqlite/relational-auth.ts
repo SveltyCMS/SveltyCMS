@@ -1,5 +1,5 @@
 /**
- * @file src/databases/relational/modules/relational-auth-module.ts
+ * @file src/databases/sqlite/relational-auth.ts
  * @description
  * Unified Authentication module for all SQL-based database adapters.
  * Consolidates user, session, token, and role management logic.
@@ -20,7 +20,7 @@ import type {
   User,
 } from "../db-interface";
 import type { BaseSqlAdapter } from "./base-sql-adapter";
-import * as utils from "./relational-utils";
+import * as utils from "../core/relational-utils";
 import type { ISODateString } from "@src/content/types";
 
 export class RelationalAuthModule implements IAuthAdapter {
@@ -55,20 +55,51 @@ export class RelationalAuthModule implements IAuthAdapter {
 
   protected mapUser(dbUser: any): User {
     if (!dbUser) throw new Error("User not found");
+
+    // Diagnostic Logging for specific user
+    if (dbUser.email?.toLowerCase().includes("kroells")) {
+      logger.info(`[Auth] mapUser raw data for ${dbUser.email}:`, {
+        role: dbUser.role,
+        roleIds: dbUser.roleIds,
+        roleIdsType: typeof dbUser.roleIds,
+        isAdmin: dbUser.isAdmin,
+        permissions: (dbUser as any).permissions,
+        permissionsType: typeof (dbUser as any).permissions,
+      });
+    }
+
     // 🚀 Optimized mapper to bypass generic column scanning
     const converted = utils.convertUserToISO(dbUser);
     const finalRoleIds = converted.roleIds || [];
+
+    // Priority: roleIds[0] > dbUser.role > "user"
+    // This ensures that if we set roleIds during creation, it becomes the primary role.
+    const activeRole =
+      finalRoleIds.length > 0
+        ? (finalRoleIds[0] as string)
+        : dbUser.role && dbUser.role !== "user"
+          ? dbUser.role
+          : "user";
+
+    logger.info(`[Auth] mapUser call for ${dbUser.email || "unknown"}:`, {
+      id: dbUser._id,
+      role: dbUser.role,
+      roleIds: dbUser.roleIds,
+      isAdmin: dbUser.isAdmin,
+      activeRole,
+      finalRoleIds,
+    });
 
     return {
       ...converted,
       _id: converted._id as DatabaseId,
       roleIds: finalRoleIds,
-      role: dbUser.role || (finalRoleIds.length > 0 ? (finalRoleIds[0] as string) : "user"),
+      role: activeRole,
       isRegistered: !!dbUser.isRegistered,
       blocked: !!dbUser.blocked,
-      isAdmin: !!dbUser.isAdmin,
+      isAdmin: !!dbUser.isAdmin || activeRole === "admin",
       emailVerified: !!dbUser.emailVerified,
-      permissions: (dbUser as any).permissions || [],
+      permissions: (converted as any).permissions || [],
       tenantId: converted.tenantId as DatabaseId | null,
       createdAt: converted.createdAt as unknown as ISODateString,
       updatedAt: converted.updatedAt as unknown as ISODateString,
@@ -111,20 +142,64 @@ export class RelationalAuthModule implements IAuthAdapter {
           firstName: userData.firstName || null,
           lastName: userData.lastName || null,
           avatar: userData.avatar || null,
-          roleIds: userData.roleIds || (userData.role ? [userData.role as DatabaseId] : []),
+          roleIds: Array.isArray(userData.roleIds)
+            ? userData.roleIds
+            : userData.role
+              ? [userData.role as DatabaseId]
+              : [],
           isRegistered: userData.isRegistered || false,
           blocked: userData.blocked || false,
-          isAdmin: userData.isAdmin || false,
+          isAdmin: userData.isAdmin || false, // 🚀 Default to false for security (setup explicitly sets this to true)
           emailVerified: userData.emailVerified || false,
           tenantId: userData.tenantId || null,
-          role: userData.role || "user",
+          role:
+            userData.role ||
+            (Array.isArray(userData.roleIds) && userData.roleIds.length > 0
+              ? (userData.roleIds[0] as string)
+              : "user"),
           _id: id,
           createdAt: now,
           updatedAt: now,
         };
 
+        // 🚀 HARDENING: Ensure admin role always gets admin flag
+        if (values.role === "admin") {
+          values.isAdmin = true;
+        }
+
+        // Diagnostic Logging
+        logger.info(`[Auth] createUser: values before preparation for ${values.email}:`, {
+          role: values.role,
+          roleIds: values.roleIds,
+          isAdmin: values.isAdmin,
+        });
+
         const db = this.getDb(options);
-        await db.insert(this.schema.authUsers).values(values);
+
+        // Explicitly stringify JSON fields if they are objects, to ensure SQLite compatibility
+        if (values.roleIds && typeof values.roleIds === "object") {
+          values.roleIds = JSON.stringify(values.roleIds);
+        }
+        if (values.permissions && typeof values.permissions === "object") {
+          values.permissions = JSON.stringify(values.permissions);
+        }
+
+        // Diagnostic Logging (Info level to ensure visibility during setup)
+        logger.info("[Auth] createUser: values before preparation:", {
+          email: values.email,
+          roleIds: values.roleIds,
+          roleIdsType: typeof values.roleIds,
+        });
+
+        const preparedValues = utils.convertISOToDates(values);
+
+        logger.info("[Auth] createUser: values after preparation:", {
+          email: preparedValues.email,
+          roleIds: preparedValues.roleIds,
+          roleIdsType: typeof preparedValues.roleIds,
+        });
+
+        await db.insert(this.schema.authUsers).values(preparedValues);
         const [result] = await db
           .select()
           .from(this.schema.authUsers)
@@ -165,12 +240,26 @@ export class RelationalAuthModule implements IAuthAdapter {
         if (userData.role) {
           updateData.role = userData.role;
           if (!updateData.roleIds) updateData.roleIds = [userData.role as DatabaseId];
+          // 🚀 HARDENING: If role is admin, ensure isAdmin is true
+          if (userData.role === "admin") {
+            updateData.isAdmin = true;
+          }
         }
 
         const db = this.getDb(options);
+
+        // Explicitly stringify JSON fields if they are objects, to ensure SQLite compatibility
+        if (updateData.roleIds && typeof updateData.roleIds === "object") {
+          updateData.roleIds = JSON.stringify(updateData.roleIds);
+        }
+        if (updateData.permissions && typeof updateData.permissions === "object") {
+          updateData.permissions = JSON.stringify(updateData.permissions);
+        }
+
+        const preparedUpdate = utils.convertISOToDates(updateData);
         await db
           .update(this.schema.authUsers)
-          .set(updateData)
+          .set(preparedUpdate)
           .where(and(...conditions));
 
         const [result] = await db
@@ -408,7 +497,17 @@ export class RelationalAuthModule implements IAuthAdapter {
         if (!result) return null;
 
         // Map the user directly from the joined result to bypass the second getUserById roundtrip
-        return this.mapUser(result.user);
+        try {
+          return this.mapUser(result.user);
+        } catch (mapErr: any) {
+          logger.error(
+            `[Auth] validateSession mapping failed for user ${result.user._id}: ${mapErr.message}`,
+            {
+              userRaw: result.user,
+            },
+          );
+          throw mapErr;
+        }
       },
       "VALIDATE_SESSION_FAILED",
       undefined,
@@ -417,24 +516,34 @@ export class RelationalAuthModule implements IAuthAdapter {
   }
 
   async deleteUsers(userIds: DatabaseId[], options?: BaseQueryOptions) {
-    return this.adapter.wrap(
-      async () => {
-        const conditions = [inArray(this.schema.authUsers._id, userIds as string[])];
-        if (options?.tenantId !== undefined)
-          conditions.push(
-            options.tenantId === null
-              ? isNull(this.schema.authUsers.tenantId)
-              : eq(this.schema.authUsers.tenantId, options.tenantId as string),
-          );
-        await this.getDb(options)
-          .delete(this.schema.authUsers)
-          .where(and(...conditions));
-        return { deletedCount: userIds.length };
-      },
-      "DELETE_USERS_FAILED",
-      undefined,
-      { isWrite: true, transaction: options?.transaction },
-    );
+    return this.adapter.transaction(async (tx: any) => {
+      const conditions = [inArray(this.schema.authUsers._id, userIds as string[])];
+      if (options?.tenantId !== undefined) {
+        conditions.push(
+          options.tenantId === null
+            ? isNull(this.schema.authUsers.tenantId)
+            : eq(this.schema.authUsers.tenantId, options.tenantId as string),
+        );
+      }
+
+      const db = tx.db || tx;
+
+      // 1. Delete associated sessions
+      await db
+        .delete(this.schema.authSessions)
+        .where(inArray(this.schema.authSessions.user_id, userIds as string[]));
+
+      // 2. Delete associated tokens
+      await db
+        .delete(this.schema.authTokens)
+        .where(inArray(this.schema.authTokens.user_id, userIds as string[]));
+
+      // 3. Delete the users themselves
+      const result = await db.delete(this.schema.authUsers).where(and(...conditions));
+
+      const deletedCount = (result as any).changes || userIds.length;
+      return { success: true, data: { deletedCount } };
+    }, options as any);
   }
 
   async updateSessionExpiry(

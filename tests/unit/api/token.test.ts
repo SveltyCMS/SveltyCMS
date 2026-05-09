@@ -78,6 +78,7 @@ describe("Token API Unit Tests", () => {
             updateToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "token-id" } }),
             createToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
             deleteTokens: vi.fn().mockResolvedValue({ success: true, data: { deletedCount: 1 } }),
+            getUserByEmail: vi.fn().mockResolvedValue({ success: true, data: null }),
           },
           collection: {
             getModel: vi.fn().mockResolvedValue({}),

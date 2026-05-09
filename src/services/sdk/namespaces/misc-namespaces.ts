@@ -18,7 +18,7 @@ import { reinitializeSystem } from "@src/databases/db";
 import { aiService } from "@src/services/core/ai-service";
 import * as settingsService from "@src/services/core/settings-service";
 import { generateSecureToken } from "@utils/native-utils";
-import { withTenant } from "@src/databases/db-adapter-wrapper";
+import { withTenant } from "@src/databases/core/db-adapter-wrapper";
 import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
 import { MediaService } from "@utils/media/media-service.server";
 import { type LocalApiOptions, type TokenOptions } from "./types";

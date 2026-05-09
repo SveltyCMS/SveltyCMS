@@ -29,6 +29,7 @@
   "adminarea_adminarea": "Admin Area:",
   "adminarea_blocked": "Blocked",
   "adminarea_body": "Provide Users Email Role & Validity, then press Send.",
+  "adminarea_consumed": "Consumed",
   "adminarea_createat": "Created At",
   "adminarea_emailtoken": "Email User Registration token",
   "adminarea_expiresin": "Expires In",

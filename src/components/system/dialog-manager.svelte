@@ -30,7 +30,8 @@
 			<Dialog.Content
 				class="card w-full shadow-xl bg-surface-100-900 border border-surface-300 dark:border-surface-50 
 				{isFullscreen ? 'h-full rounded-none border-0 flex flex-col' : 'space-y-4 p-4'} 
-				{modalState.active?.props?.modalClasses ?? 'max-w-lg'}"
+				{modalState.active?.props?.modalClasses?.includes('max-w-') ? '' : 'max-w-lg'}
+				{modalState.active?.props?.modalClasses ?? ''}"
 			>
 				{#if modalState.active}
 					{#if modalState.active.props?.title}

@@ -3,7 +3,7 @@
  * @description Media management module for SQLite, inheriting from RelationalMediaModule.
  */
 
-import { RelationalMediaModule } from "../agnostic/relational-media-module";
+import { RelationalMediaModule } from "./relational-media";
 import type { AdapterCore } from "./adapter-core";
 import { schema } from "./schema";
 

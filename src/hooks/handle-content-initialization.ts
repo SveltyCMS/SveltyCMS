@@ -46,13 +46,20 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
     if (!initPromise) {
       initPromise = (async () => {
         try {
+          // Give the DB a moment to finish its OWN internal warm-up if we're coming from a fresh restart
+          await getDbInitPromise(false, "CORE");
           await contentSystem.initialize(tenantId, false);
         } catch (err) {
           logger.error(`[handleContentInitialization] Init failed for tenant ${tenantId}:`, err);
           initPromises.delete(tenantId); // Allow retry on failure
           throw err;
         }
-      })();
+      })().catch((err) => {
+        // Prevent unhandled rejection since this promise might not be awaited immediately
+        logger.debug(
+          `[handleContentInitialization] Background init failed (suppressed unhandled): ${err.message}`,
+        );
+      }) as Promise<void>;
       initPromises.set(tenantId, initPromise);
     }
 

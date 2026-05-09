@@ -9,9 +9,6 @@
  * - SHA256 checksums
  */
 
-import { Worker } from "node:worker_threads";
-import path from "node:path";
-import os from "node:os";
 import { logger } from "./logger";
 import { generateSecureToken, generateUUID as uuidv4 } from "./native-utils";
 
@@ -37,8 +34,10 @@ const IS_SERVER =
 
 // --- Worker Pool (for Argon2) ---
 
-const MAX_WORKERS = Math.max(2, Math.floor((os.cpus?.().length || 4) / 2));
-const workerPool: Worker[] = [];
+let _maxWorkers = 2;
+let _isMaxWorkersInitialized = false;
+
+const workerPool: any[] = [];
 let nextWorker = 0;
 let msgIdCounter = 0;
 const pendingPromises = new Map<
@@ -46,8 +45,23 @@ const pendingPromises = new Map<
   { resolve: (val: any) => void; reject: (err: any) => void }
 >();
 
-function getWorker(): Worker {
-  if (workerPool.length < MAX_WORKERS) {
+async function getWorker(): Promise<any> {
+  if (!IS_SERVER) throw new Error("Security workers are only available on the server");
+
+  const { Worker } = await import("node:worker_threads");
+  const path = await import("node:path");
+
+  if (!_isMaxWorkersInitialized) {
+    try {
+      const os = await import("node:os");
+      _maxWorkers = Math.max(2, Math.floor((os.cpus?.().length || 4) / 2));
+    } catch {
+      _maxWorkers = 2;
+    }
+    _isMaxWorkersInitialized = true;
+  }
+
+  if (workerPool.length < _maxWorkers) {
     const workerPath = path.resolve(process.cwd(), "src/utils/security.worker.ts");
     const worker = new Worker(workerPath);
     worker.on("message", (msg) => {
@@ -73,10 +87,13 @@ async function runSecurityTask(action: string, payload: any): Promise<any> {
     if (action === "hash") return argon2.hash(payload.password, payload.config);
     if (action === "verify") return argon2.verify(payload.hash, payload.password);
   }
+
+  const worker = await getWorker();
+
   return new Promise((resolve, reject) => {
     const id = ++msgIdCounter;
     pendingPromises.set(id, { resolve, reject });
-    getWorker().postMessage({ id, action, ...payload });
+    worker.postMessage({ id, action, ...payload });
   });
 }
 

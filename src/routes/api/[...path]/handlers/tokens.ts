@@ -154,10 +154,18 @@ export async function handleIdentityTokenRoutes(
 
   if (request.method === "POST") {
     const body = await request.json();
+    if (!action) {
+      throw new AppError("Token action is required", 400);
+    }
     const normalizedAction = action.toLowerCase().replace("-", "");
     if (normalizedAction === "createtoken") {
       if (body.expiresIn && !body.expires) body.expires = body.expiresIn;
-      const result = await cms.auth.tokens.create({ ...body, userId: locals.user?._id, tenantId });
+      const result = await cms.auth.tokens.create({
+        ...body,
+        userId: locals.user?._id,
+        tenantId,
+        templateName: "welcome-user",
+      });
       if (!result.success) throw new AppError(result.message || "Failed to create token", 400);
       const tokenValue = result.data;
       return rawResponse(

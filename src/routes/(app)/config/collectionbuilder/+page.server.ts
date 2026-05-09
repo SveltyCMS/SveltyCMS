@@ -11,7 +11,7 @@
 import { contentSystem } from "@src/content/index.server";
 // Auth - Use cached roles from locals instead of global config
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
-import { error, fail, redirect } from "@sveltejs/kit";
+import { error, fail, redirect, isRedirect, isHttpError } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -41,40 +41,79 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     // Ensure content system is initialized for this tenant
     if (!contentSystem.isInitialized) {
+      logger.debug("[CollectionBuilder] System not initialized, initializing now...");
       await contentSystem.initialize(tenantId, true);
     }
 
     // Fetch the initial content structure directly from database for organizational work
+    logger.debug("[CollectionBuilder] Fetching content structure from database...");
     const contentStructure = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
 
-    // Serialize and sanitize structures for client-side usage
-    const serializedStructure = contentStructure.map((node: any) => {
-      // Deep clone and strip non-serializable properties (like validationSchema functions)
-      const sanitizedNode = JSON.parse(JSON.stringify(node));
+    if (!Array.isArray(contentStructure)) {
+      logger.error("[CollectionBuilder] contentStructure is not an array!", {
+        type: typeof contentStructure,
+        value: contentStructure,
+      });
+    }
 
-      return {
-        ...sanitizedNode,
-        _id: sanitizedNode._id.toString(),
-        ...(sanitizedNode.parentId ? { parentId: sanitizedNode.parentId.toString() } : {}),
-      };
+    // Serialize and sanitize structures for client-side usage
+    const serializedStructure = (contentStructure || []).map((node: any) => {
+      try {
+        // Deep clone and strip non-serializable properties (like validationSchema functions)
+        const sanitizedNode = JSON.parse(JSON.stringify(node));
+
+        if (!sanitizedNode._id) {
+          logger.warn("[CollectionBuilder] Node missing _id!", { node });
+        }
+
+        return {
+          ...sanitizedNode,
+          _id: sanitizedNode._id?.toString() || "missing-id",
+          ...(sanitizedNode.parentId ? { parentId: sanitizedNode.parentId.toString() } : {}),
+        };
+      } catch (mapErr) {
+        logger.error("[CollectionBuilder] Error mapping node:", {
+          error: mapErr instanceof Error ? mapErr.message : String(mapErr),
+          node,
+        });
+        return {
+          _id: "error-node",
+          name: "Error Node",
+          nodeType: "category" as const,
+          path: "/error",
+          order: 0,
+          translations: [],
+          createdAt: new Date().toISOString() as any,
+          updatedAt: new Date().toISOString() as any,
+        };
+      }
     });
 
     // Return user data with proper admin status and the content structure
     const { _id, ...rest } = user;
+
+    if (!_id) {
+      logger.error("[CollectionBuilder] user._id is missing!", { user });
+    }
+
     return {
       user: {
-        id: _id.toString(),
+        id: _id?.toString() || "missing-user-id",
         ...rest,
         isAdmin, // Add the properly calculated admin status
       },
       contentStructure: serializedStructure,
     };
   } catch (err) {
+    // Re-throw SvelteKit's special error/redirect objects (they are NOT instanceof Error)
+    if (isRedirect(err) || isHttpError(err)) {
+      throw err;
+    }
     if (err instanceof Error && "status" in err) {
       throw err;
     }
     const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;
-    logger.error(message);
+    logger.error(message, { stack: err instanceof Error ? err.stack : undefined });
     throw error(500, message);
   }
 };

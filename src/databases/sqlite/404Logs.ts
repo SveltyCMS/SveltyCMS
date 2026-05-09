@@ -22,7 +22,7 @@ export const fourOhFourLogs = sqliteTable(
     /**
      * The tenant ID context where the 404 occurred.
      */
-    tenantId: text("tenantId", { length: 36 }).notNull(),
+    tenantId: text("tenantId", { length: 36 }),
 
     /**
      * The number of times this specific path has been hit.

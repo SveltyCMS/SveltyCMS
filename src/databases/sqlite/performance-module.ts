@@ -5,7 +5,7 @@
 
 import type { DatabaseResult, PerformanceMetrics } from "../db-interface";
 import type { AdapterCore } from "./adapter-core";
-import { DatabaseModule } from "../base-adapter";
+import { DatabaseModule } from "../core/base-adapter";
 
 export class PerformanceModule extends DatabaseModule<AdapterCore> {
   async getMetrics(): Promise<DatabaseResult<PerformanceMetrics>> {

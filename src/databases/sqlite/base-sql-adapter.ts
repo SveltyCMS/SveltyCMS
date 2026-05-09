@@ -23,7 +23,7 @@ import {
   type SQL,
   count as drizzleCount,
 } from "drizzle-orm";
-import { BaseAdapter } from "../base-adapter";
+import { BaseAdapter } from "../core/base-adapter";
 import type {
   BaseEntity,
   BaseQueryOptions,
@@ -39,8 +39,8 @@ import type {
 import { generateUUID } from "@utils/native-utils";
 import { safeQuery } from "@src/utils/security/safe-query";
 import { slowQueryCollector } from "@src/services/observability/slow-query-collector";
-import * as utils from "./relational-utils";
-import { queryTranslator, type LogicalGroup, type QueryCondition } from "./query-ir";
+import * as utils from "../core/relational-utils";
+import { queryTranslator, type LogicalGroup, type QueryCondition } from "../core/query-ir";
 
 export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter {
   public abstract readonly type: string;
@@ -302,6 +302,24 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     query: QueryFilter<T>,
     options: FindOptions<T> = {},
   ): Promise<DatabaseResult<T | null>> {
+    const startTime = performance.now();
+
+    // 🚀 ADAPTIVE CACHE: Check if caching is enabled for this query
+    const cacheOptions = options.cache;
+    if (cacheOptions?.enabled) {
+      const { cacheService } = await import("@src/databases/cache/cache-service");
+      const cacheKey =
+        cacheOptions.key ||
+        `sql:${collection}:findOne:${JSON.stringify(query)}:${options.tenantId || "global"}`;
+      const cached = await cacheService.get<T>(cacheKey, options.tenantId);
+      if (cached) {
+        return {
+          success: true,
+          data: cached,
+          meta: { cached: true, executionTime: performance.now() - startTime },
+        };
+      }
+    }
     // 🚀 ULTRA FAST PATH: Bypass wrap, performance.now, and abstraction layers for ID lookups.
     const isLookup = this.isLookupQuery(query);
     if (
@@ -373,7 +391,6 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     }
 
     // Standard Path
-    const startTime = performance.now();
     const res = await this.wrap(
       async () => {
         const table = this.getTable(collection);
@@ -406,6 +423,22 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       const execTime = performance.now() - startTime;
       res.meta = { executionTime: execTime };
       slowQueryCollector.recordQuery(collection, query, execTime, options.tenantId);
+
+      // 🚀 ADAPTIVE CACHE: Set result in cache if enabled
+      if (cacheOptions?.enabled && res.data) {
+        const { cacheService } = await import("@src/databases/cache/cache-service");
+        const cacheKey =
+          cacheOptions.key ||
+          `sql:${collection}:findOne:${JSON.stringify(query)}:${options.tenantId || "global"}`;
+        await cacheService.set(
+          cacheKey,
+          res.data,
+          cacheOptions.ttl || 300,
+          options.tenantId,
+          undefined,
+          [`collection:${collection}`, ...(cacheOptions.tags || [])],
+        );
+      }
     }
     return res;
   }
@@ -416,6 +449,23 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     options: FindOptions<T> = {},
   ): Promise<DatabaseResult<T[]>> {
     const startTime = performance.now();
+
+    // 🚀 ADAPTIVE CACHE: Check if caching is enabled
+    const cacheOptions = options.cache;
+    if (cacheOptions?.enabled) {
+      const { cacheService } = await import("@src/databases/cache/cache-service");
+      const cacheKey =
+        cacheOptions.key ||
+        `sql:${collection}:findMany:${JSON.stringify(query)}:${options.limit || "all"}:${options.offset || 0}:${options.tenantId || "global"}`;
+      const cached = await cacheService.get<T[]>(cacheKey, options.tenantId);
+      if (cached) {
+        return {
+          success: true,
+          data: cached,
+          meta: { cached: true, executionTime: performance.now() - startTime },
+        };
+      }
+    }
     const res = await this.wrap(
       async () => {
         const table = this.getTable(collection);
@@ -448,6 +498,22 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       const execTime = performance.now() - startTime;
       res.meta = { executionTime: execTime };
       slowQueryCollector.recordQuery(collection, query, execTime, options.tenantId);
+
+      // 🚀 ADAPTIVE CACHE: Set result in cache if enabled
+      if (cacheOptions?.enabled && res.data) {
+        const { cacheService } = await import("@src/databases/cache/cache-service");
+        const cacheKey =
+          cacheOptions.key ||
+          `sql:${collection}:findMany:${JSON.stringify(query)}:${options.limit || "all"}:${options.offset || 0}:${options.tenantId || "global"}`;
+        await cacheService.set(
+          cacheKey,
+          res.data,
+          cacheOptions.ttl || 300,
+          options.tenantId,
+          undefined,
+          [`collection:${collection}`, ...(cacheOptions.tags || [])],
+        );
+      }
     }
     return res;
   }
@@ -511,7 +577,16 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       },
     );
 
-    if (res.success) res.meta = { executionTime: performance.now() - startTime };
+    if (res.success) {
+      res.meta = { executionTime: performance.now() - startTime };
+
+      // 🚀 ADAPTIVE INVALIDATION: Invalidate the entire collection on write
+      import("@src/databases/cache/cache-service")
+        .then(({ cacheService }) => {
+          cacheService.clearByTags([`collection:${collection}`], options.tenantId || "global");
+        })
+        .catch(() => {});
+    }
     return res;
   }
 
@@ -571,7 +646,16 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       { isWrite: true, transaction: options?.transaction },
     );
 
-    if (res.success) res.meta = { executionTime: performance.now() - startTime };
+    if (res.success) {
+      res.meta = { executionTime: performance.now() - startTime };
+
+      // 🚀 ADAPTIVE INVALIDATION: Invalidate the entire collection on write
+      import("@src/databases/cache/cache-service")
+        .then(({ cacheService }) => {
+          cacheService.clearByTags([`collection:${collection}`], options.tenantId || "global");
+        })
+        .catch(() => {});
+    }
     return res;
   }
 
@@ -600,7 +684,16 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       undefined,
       { isWrite: true, transaction: (options as any)?.transaction || (options as any)?.tx },
     );
-    if (res.success) res.meta = { executionTime: performance.now() - startTime };
+    if (res.success) {
+      res.meta = { executionTime: performance.now() - startTime };
+
+      // 🚀 ADAPTIVE INVALIDATION: Invalidate the entire collection on write
+      import("@src/databases/cache/cache-service")
+        .then(({ cacheService }) => {
+          cacheService.clearByTags([`collection:${collection}`], options.tenantId || "global");
+        })
+        .catch(() => {});
+    }
     return res;
   }
 
@@ -665,13 +758,22 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   ]);
 
   protected prepareValues(table: any, data: any, id: DatabaseId, now: Date, options: any) {
+    const isInsert = !!id;
     const values: any = {
-      _id: id ? id.toString() : generateUUID(),
       updatedAt: now,
-      tenantId: options.tenantId || null,
     };
 
-    if (!data.updatedAt) values.createdAt = now;
+    if (isInsert) {
+      values._id = id.toString();
+      if (!data.updatedAt) values.createdAt = now;
+    }
+
+    // 🚀 Only set tenantId if explicitly provided in options or if it's a new record
+    if (options.tenantId !== undefined) {
+      values.tenantId = options.tenantId;
+    } else if (isInsert) {
+      values.tenantId = null;
+    }
 
     if (table.data) {
       const dynamicData: any = {};
@@ -1001,8 +1103,25 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       return aliased;
     }
 
-    // 4. Fallback: Create dynamic definition if not found anywhere
-    const dynamicTable = (this as any).createDynamicTableDefinition(collection);
+    // 4. Fallback: Create dynamic definition
+    // 🚀 HARDENING: Try collection_ prefix if not already present and not a system table
+    let tableName = collection;
+    if (
+      !collection.startsWith("collection_") &&
+      !collection.startsWith("system_") &&
+      !collection.startsWith("bench_")
+    ) {
+      // We only add the prefix if it's likely a user collection
+      tableName = `collection_${collection}`;
+    }
+
+    const dynamicTable = (this as any).createDynamicTableDefinition(tableName);
+    logger.info(
+      `[SQL Adapter] getTable("${collection}") -> Resolved to DynamicTable("${tableName}")`,
+      {
+        columns: Object.keys(dynamicTable),
+      },
+    );
     this.dynamicTables.set(collection, dynamicTable);
     return dynamicTable;
   }
@@ -1027,6 +1146,7 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     users: "authUsers",
     auth_users: "authUsers",
     system_users: "authUsers",
+    redirects: "collection_redirects",
     system_content_structure: "contentNodes",
     roles: "roles",
     system_roles: "roles",

@@ -9,8 +9,6 @@
 - `passwordRequirements`
 - `showAdminPassword`
 - `showConfirmPassword`
-- `toggleAdminPassword`
-- `toggleConfirmPassword`
 - `checkPasswordRequirements`
 
 ### Features
@@ -53,8 +51,6 @@
 		passwordRequirements,
 		showAdminPassword = $bindable(),
 		showConfirmPassword = $bindable(),
-		toggleAdminPassword,
-		toggleConfirmPassword,
 		checkPasswordRequirements // This is still called by oninput
 	} = $props(); // Now uses imported type
 
@@ -216,11 +212,11 @@
 						id="admin-password"
 						bind:value={adminUser.password}
 						oninput={checkPasswordRequirements}
-						onblur={() => handleBlur('security')}
-						type={showAdminPassword ? 'text' : 'security'}
+						onblur={() => handleBlur('password')}
+						type={showAdminPassword ? 'text' : 'password'}
 						autocomplete="new-password"
 						placeholder={setup_admin_placeholder_password?.() || 'Enter secure password'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600   {displayErrors.password ? 'border-error-500' : ''}"
+						class="input w-full rounded border border-slate-300 dark:border-surface-600 pr-8 {displayErrors.password ? 'border-error-500' : ''}"
 						aria-invalid={!!displayErrors.password}
 						aria-describedby={displayErrors.password ? 'admin-password-error' : undefined}
 						aria-required="true"
@@ -228,8 +224,8 @@
 					<button
 						type="button"
 						tabindex="-1"
-						onclick={toggleAdminPassword}
-						class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
+						onclick={() => (showAdminPassword = !showAdminPassword)}
+						class="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
 						aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
 					>
 						<iconify-icon icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
@@ -283,10 +279,10 @@
 						bind:value={adminUser.confirmPassword}
 						oninput={checkPasswordRequirements}
 						onblur={() => handleBlur('confirmPassword')}
-						type={showConfirmPassword ? 'text' : 'security'}
+						type={showConfirmPassword ? 'text' : 'password'}
 						autocomplete="new-password"
 						placeholder={setup_admin_placeholder_confirm_password?.() || 'Confirm your password'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600   {displayErrors.confirmPassword ? 'border-error-500' : ''}"
+						class="input w-full rounded border border-slate-300 dark:border-surface-600 pr-8 {displayErrors.confirmPassword ? 'border-error-500' : ''}"
 						aria-invalid={!!displayErrors.confirmPassword}
 						aria-describedby={displayErrors.confirmPassword ? 'admin-confirm-password-error' : undefined}
 						aria-required="true"
@@ -294,8 +290,8 @@
 					<button
 						type="button"
 						tabindex="-1"
-						onclick={toggleConfirmPassword}
-						class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
+						onclick={() => (showConfirmPassword = !showConfirmPassword)}
+						class="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
 						aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
 					>
 						<iconify-icon icon={showConfirmPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>

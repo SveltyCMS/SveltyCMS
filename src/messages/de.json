@@ -29,6 +29,7 @@
   "adminarea_adminarea": "Admin-Bereich:",
   "adminarea_blocked": "Blockiert",
   "adminarea_body": "Geben Sie die Rolle und Gültigkeit der E-Mail-Adresse des Benutzers an und drücken Sie dann auf \"Senden\".",
+  "adminarea_consumed": "Verbraucht",
   "adminarea_createat": "Erstellt am",
   "adminarea_emailtoken": "E-Mail-Benutzerregistrierungstoken",
   "adminarea_expiresin": "Läuft ab in",

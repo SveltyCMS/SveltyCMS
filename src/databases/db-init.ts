@@ -6,8 +6,8 @@
 
 import { logger } from "@utils/logger";
 import type { DatabaseAdapter } from "./db-interface";
-import { BootEngine } from "./agnostic/boot-engine";
-import { createSchemaProxy } from "./agnostic/schema-proxy";
+import { BootEngine } from "./core/boot-engine";
+import { createSchemaProxy } from "./core/schema-proxy";
 
 // Lazy Holders for Server-Only Modules
 let _settingsService: any = null;
@@ -36,6 +36,10 @@ export async function loadAdapters(config: any): Promise<DatabaseAdapter | null>
   let dbAdapter: DatabaseAdapter | null = null;
 
   await resilience.executeWithRetry(async () => {
+    if (!config.DB_TYPE) {
+      throw new Error("DB_TYPE_MISSING");
+    }
+
     switch (config.DB_TYPE) {
       case "mongodb":
       case "mongodb+srv": {
@@ -59,7 +63,7 @@ export async function loadAdapters(config: any): Promise<DatabaseAdapter | null>
         break;
       }
       default:
-        throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}`);
+        throw new Error(`UNSUPPORTED_DB_TYPE: ${config.DB_TYPE}`);
     }
 
     if (dbAdapter) {

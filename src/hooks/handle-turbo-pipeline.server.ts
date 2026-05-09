@@ -372,9 +372,14 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         process.env.TEST_MODE === "true" ||
         process.env.VITE_TEST_MODE === "true" ||
         process.env.BENCHMARK === "true";
-      if (isSetupRoute && setupState === SetupState.COMPLETE && !isTestMode) {
+      if (
+        isSetupRoute &&
+        setupState === SetupState.COMPLETE &&
+        !isTestMode &&
+        isSystemOperationallyReady
+      ) {
         if (!(event.request.method === "POST" && pathname.includes("/completeSetup"))) {
-          logger.warn(`Blocked request to ${pathname} - setup already complete`);
+          logger.debug(`Blocked request to ${pathname} - setup already complete and system ready`);
           return new Response(null, {
             status: 302,
             headers: { Location: "/", ...baseHeaderMap },

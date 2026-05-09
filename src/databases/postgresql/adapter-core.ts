@@ -7,7 +7,7 @@ import { logger } from "@src/utils/logger";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import type { DatabaseCapabilities, DatabaseResult } from "../db-interface";
-import { BaseSqlAdapter } from "../agnostic/base-sql-adapter";
+import { BaseSqlAdapter } from "../sqlite/base-sql-adapter";
 import * as schema from "./schema";
 import { pgTable, varchar, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
 import { sql as drizzleSql } from "drizzle-orm";

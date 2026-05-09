@@ -115,6 +115,7 @@ export async function handleSetupRoutes(
         email: admin.email,
         password: admin.password,
         role: "admin" as any,
+        isAdmin: true, // 🚀 Explicitly mark first user as admin
         isRegistered: true,
       },
       {

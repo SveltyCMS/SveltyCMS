@@ -32,8 +32,35 @@ export class MaintenanceService {
 
     await this.checkCacheHealth();
     await this.checkIndexHealth();
+    await this.cleanupExpiredData();
 
     logger.trace("✅ Maintenance Cycle Completed.");
+  }
+
+  /**
+   * Purges expired data from the database (sessions, tokens, logs).
+   */
+  private async cleanupExpiredData() {
+    try {
+      const { getDb } = await import("@src/databases/db");
+      const db = getDb();
+
+      if (db && typeof db.cleanupExpiredData === "function") {
+        logger.debug("[Maintenance] Triggering database TTL cleanup...");
+        const result = await db.cleanupExpiredData();
+
+        if (result.success) {
+          const { sessions, tokens } = result.data;
+          if (sessions > 0 || tokens > 0) {
+            logger.info(
+              `[Maintenance] Cleanup successful: ${sessions} sessions, ${tokens} tokens purged.`,
+            );
+          }
+        }
+      }
+    } catch (err) {
+      logger.warn("[Maintenance] Database cleanup failed:", err);
+    }
   }
 
   /**

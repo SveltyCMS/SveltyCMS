@@ -50,13 +50,16 @@ export const authUsers = sqliteTable(
     firstName: text("firstName", { length: 255 }),
     lastName: text("lastName", { length: 255 }),
     avatar: text("avatar"),
-    roleIds: text("roleIds", { mode: "json" }).$type<string[]>().notNull().default([]),
+    roleIds: text("roleIds")
+      .$type<string[]>()
+      .notNull()
+      .default("[]" as any),
     role: text("role", { length: 50 }).notNull().default("user"),
     isAdmin: integer("isAdmin", { mode: "boolean" }).notNull().default(false),
     isRegistered: integer("isRegistered", { mode: "boolean" }).notNull().default(false),
     is2FAEnabled: integer("is2FAEnabled", { mode: "boolean" }).notNull().default(false),
     totpSecret: text("totpSecret"),
-    backupCodes: text("backupCodes", { mode: "json" }).$type<string[]>(),
+    backupCodes: text("backupCodes").$type<string[]>(),
     last2FAVerification: integer("last2FAVerification", { mode: "timestamp_ms" }),
     tenantId: tenantField(),
     ...timestamps,

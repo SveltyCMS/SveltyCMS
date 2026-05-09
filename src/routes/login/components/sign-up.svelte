@@ -379,7 +379,7 @@ $effect(() => {
 					<!-- Password field -->
 					<FloatingInput
 						id="passwordsignUp"
-						name="security"
+						name="password"
 						type="security"
 						tabindex={passwordTabIndex}
 						required

@@ -7,7 +7,7 @@ import { logger } from "@src/utils/logger";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import type { DatabaseCapabilities, DatabaseResult } from "../db-interface";
-import { BaseSqlAdapter } from "../agnostic/base-sql-adapter";
+import { BaseSqlAdapter } from "../sqlite/base-sql-adapter";
 import * as schema from "./schema";
 import { mysqlTable, varchar, json, datetime, boolean } from "drizzle-orm/mysql-core";
 import { sql } from "drizzle-orm";

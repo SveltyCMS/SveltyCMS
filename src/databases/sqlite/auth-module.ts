@@ -3,7 +3,7 @@
  * @description Authentication and authorization module for SQLite, inheriting from RelationalAuthModule.
  */
 
-import { RelationalAuthModule } from "../agnostic/relational-auth-module";
+import { RelationalAuthModule } from "./relational-auth";
 import type { AdapterCore } from "./adapter-core";
 import { schema } from "./schema";
 

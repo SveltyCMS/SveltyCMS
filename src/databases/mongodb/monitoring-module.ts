@@ -3,7 +3,7 @@
  * @description Monitoring module for MongoDB.
  */
 
-import { DatabaseModule } from "../base-adapter";
+import { DatabaseModule } from "../core/base-adapter";
 import type { IMonitoringAdapter } from "../db-interface";
 import type { MongoAdapterCore } from "./adapter-core";
 import { cacheService } from "@src/databases/cache/cache-service";

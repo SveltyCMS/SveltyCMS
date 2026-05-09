@@ -16,8 +16,25 @@ import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import type { DatabaseCapabilities, DatabaseResult } from "../db-interface";
 
-import { BaseSqlAdapter } from "../agnostic/base-sql-adapter";
+import { BaseSqlAdapter } from "./base-sql-adapter";
 import * as schema from "./schema";
+
+/** 🚀 Helper to handle dynamic requires in ESM */
+let _require: any = null;
+async function getRequire() {
+  if (_require) return _require;
+  if (typeof require !== "undefined") {
+    _require = require;
+    return _require;
+  }
+  try {
+    const { createRequire } = await import("module");
+    _require = createRequire(import.meta.url);
+    return _require;
+  } catch {
+    return null;
+  }
+}
 
 type SQLiteDB = BaseSQLiteDatabase<"sync", unknown, typeof schema>;
 type AdapterState = "idle" | "connecting" | "connected" | "closing" | "closed";
@@ -166,7 +183,10 @@ export abstract class AdapterCore extends BaseSqlAdapter {
       this.metrics.connectCount++;
       this.metrics.lastConnectedAt = Date.now();
 
-      logger.info(`[SQLite] Connected -> ${dbPath} (db exists: ${!!this._db})`);
+      // Silent connection by default in core
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        logger.info(`[SQLite] Connected -> ${dbPath}`);
+      }
       this.connected = true;
       return { success: true, data: undefined };
     } catch (error) {
@@ -193,9 +213,12 @@ export abstract class AdapterCore extends BaseSqlAdapter {
 
       this.connections.clear();
       this.state = "closed";
-      this.connected = false;
-
-      logger.info("[SQLite] Disconnected");
+      if (this.connected) {
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          logger.info("[SQLite] Disconnected");
+        }
+        this.connected = false;
+      }
       return { success: true, data: undefined };
     } catch (error) {
       return this.handleError(error, "DISCONNECT_FAILED");
@@ -482,50 +505,124 @@ export abstract class AdapterCore extends BaseSqlAdapter {
   /* ------------------------------------------------ */
   /* INTERNALS                                        */
   /* ------------------------------------------------ */
-
   private async createDriver(dbPath: string) {
-    // 🚀 Obfuscate the check slightly so Vite/Rollup doesn't statically analyze it
-    // to false during the Node.js build and dead-code eliminate the bun:sqlite block.
-    const getEnv = () => (typeof process !== "undefined" ? process : { versions: {} });
+    const versions = (process as any)?.versions || {};
+    const isBun = typeof Bun !== "undefined";
+    const nodeVersion = versions.node;
 
-    // Obfuscate Bun check completely to bypass Vite static analysis
-    const getGlobal = () =>
-      (typeof globalThis !== "undefined"
-        ? globalThis
-        : typeof global !== "undefined"
-          ? global
-          : typeof window !== "undefined"
-            ? window
-            : {}) as any;
-    const isBun = !!getGlobal().Bun || !!(getEnv().versions as any)?.bun;
-
-    const readonly = (this.config as SQLiteConfig)?.readonly || dbPath.includes("mode=ro") || false;
-
-    // 🚀 If in Bun, use Bun's native driver exclusively.
-    // This avoids all 'better_sqlite3.node' binary/require issues in production builds.
-    if (isBun) {
-      const { Database } = await import(/* @vite-ignore */ "bun:sqlite");
-      const sqlite = (
-        readonly ? new Database(dbPath, { readonly }) : new Database(dbPath)
-      ) as SQLiteClient;
-      const { drizzle } = await import(/* @vite-ignore */ "drizzle-orm/bun-sqlite");
-      const db = drizzle(sqlite as any, { schema }) as SQLiteDB;
-      return { sqlite, db };
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      logger.info(`[SQLite] createDriver: isBun=${isBun}, node=${nodeVersion}`);
     }
 
-    // 🔌 NODE FALLBACK: Use better-sqlite3 for standard Node.js environments.
+    const readonly = (this.config as SQLiteConfig)?.readonly || dbPath.includes("mode=ro") || false;
+    const options = readonly ? { readonly } : {};
+
+    // 🚀 If in Bun, use Bun's native driver exclusively.
+    if (isBun) {
+      try {
+        const { Database } = await import(/* @vite-ignore */ "bun:sqlite");
+        const sqlite = new Database(dbPath, options) as SQLiteClient;
+        const { drizzle } = await import(/* @vite-ignore */ "drizzle-orm/bun-sqlite");
+        const db = drizzle(sqlite as any, { schema }) as SQLiteDB;
+        logger.info(`[SQLite] Using native 'bun:sqlite' driver.`);
+        return { sqlite, db };
+      } catch (e: any) {
+        if (!nodeVersion) throw e;
+        logger.warn(`[SQLite] Bun driver fallback due to: ${e.message}`);
+      }
+    }
+
     try {
-      const requireFunc =
-        typeof require !== "undefined"
-          ? require
-          : (await import("node:module")).createRequire(import.meta.url);
-      const Database = requireFunc("better-sqlite3");
-      const sqlite = new Database(dbPath, { readonly }) as SQLiteClient;
-      const { drizzle } = await import("drizzle-orm/better-sqlite3");
-      const db = drizzle(sqlite as any, { schema }) as SQLiteDB;
-      return { sqlite, db };
+      // 🔌 NODE FALLBACK 1: Try better-sqlite3 (Legacy Node)
+      const req = await getRequire();
+      if (req) {
+        const sqlite = req("better-sqlite3")(dbPath, options);
+        const { drizzle } = await import("drizzle-orm/better-sqlite3");
+        const db = drizzle(sqlite, { schema });
+        logger.info(`[SQLite] Using 'better-sqlite3' driver.`);
+        return { sqlite, db };
+      } else {
+        throw new Error("requireFunc not available for better-sqlite3");
+      }
     } catch (e: any) {
-      throw new Error(`SQLite driver initialization failed: ${e.message}`);
+      // 🔌 NODE FALLBACK 2: Try native node:sqlite (Node 22.5+) via shim
+      if (nodeVersion) {
+        const v = nodeVersion.replace("v", "");
+        const [major, minor] = v.split(".").map(Number);
+
+        if (major > 22 || (major === 22 && minor >= 5)) {
+          try {
+            const req = await getRequire();
+            if (!req) throw new Error("requireFunc not available for node:sqlite");
+            const { DatabaseSync } = req("node:sqlite");
+            const sqlite = new DatabaseSync(dbPath);
+
+            // 🚀 Shim node:sqlite using drizzle-orm/sqlite-proxy
+            const { drizzle: proxyDrizzle } = await import("drizzle-orm/sqlite-proxy");
+
+            const db = proxyDrizzle(
+              async (sql, params, method) => {
+                try {
+                  // 🚀 CRITICAL: node:sqlite does not auto-serialize objects/arrays to JSON strings.
+                  const serializedParams = params.map((p) =>
+                    p !== null && typeof p === "object" ? JSON.stringify(p) : p,
+                  );
+
+                  const stmt = sqlite.prepare(sql);
+
+                  // 🚀 FIX: Force results as arrays to avoid column name collisions in JOINs
+                  if (typeof (stmt as any).setReturnArrays === "function") {
+                    (stmt as any).setReturnArrays(true);
+                  }
+
+                  if (method === "run") {
+                    const result = stmt.run(...serializedParams);
+                    return { rows: [], ...result };
+                  }
+
+                  const rows = stmt.all(...serializedParams) as any[];
+
+                  // If the driver doesn't support setReturnArrays, we fallback to Object.values
+                  // (but this won't solve the JOIN collision issue)
+                  const arrayRows = rows.map((row) =>
+                    Array.isArray(row) ? row : Object.values(row),
+                  );
+
+                  return { rows: arrayRows };
+                } catch (err: any) {
+                  if (!err.message?.includes("no such table")) {
+                    logger.error(`[SQLite Shim] execution error: ${err.message}`, { sql });
+                  }
+                  throw err;
+                }
+              },
+              { schema },
+            ) as unknown as SQLiteDB;
+
+            logger.info(`[SQLite] Using 'node:sqlite' shim with array-result fix.`);
+
+            return { sqlite: sqlite as any, db };
+          } catch (nodeSqliteErr: any) {
+            logger.warn(`[SQLite] Fallback to node:sqlite failed: ${nodeSqliteErr.message}`);
+          }
+        }
+      }
+
+      const isBindingError =
+        e.message.includes("bindings file") ||
+        e.message.includes("Cannot find module 'better-sqlite3'");
+      const isWindows = process.platform === "win32";
+
+      if (isBindingError) {
+        // Only log the full error if we couldn't even fall back to node:sqlite
+        logger.error(`[SQLite] Driver initialization failed: ${e.message.split("\n")[0]}`);
+        let hint = `\n\n💡 SUGGESTION:\n1. Run 'npm install better-sqlite3' to rebuild the native bindings for Node ${nodeVersion}.\n`;
+        if (isWindows) {
+          hint += `2. If you are using Bun, try running 'bun dev' directly. If that fails, ensure you have VS Build Tools installed.\n`;
+        }
+        throw new Error(`SQLite driver initialization failed: ${e.message.split("\n")[0]}${hint}`);
+      }
+      throw new Error(`SQLite Connection failed: ${e.message.split("\n")[0]}`);
     }
   }
 

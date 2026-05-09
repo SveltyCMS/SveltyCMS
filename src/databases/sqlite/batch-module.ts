@@ -23,7 +23,7 @@ import type {
 import type { AdapterCore } from "./adapter-core";
 import * as utils from "./utils";
 
-import { DatabaseModule } from "../base-adapter";
+import { DatabaseModule } from "../core/base-adapter";
 
 export class BatchModule extends DatabaseModule<AdapterCore> {
   constructor(core: AdapterCore) {

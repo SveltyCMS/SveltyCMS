@@ -1,6 +1,7 @@
 /**
- * @file src/databases/sqlite/modules/content/content-module.ts
- * @description Content management module for SQLite
+ * @file src/databases/sqlite/relational-content.ts
+ * @description Consolidated Content module for all SQL-based database adapters.
+ * Merges nodes, drafts, and revisions into a single domain module.
  */
 
 import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
@@ -14,26 +15,31 @@ import type {
   PaginatedResult,
   PaginationOptions,
   EntityCreate,
+  IContentAdapter,
 } from "../db-interface";
-import type { AdapterCore } from "./adapter-core";
-import { schema } from "./schema";
-import * as utils from "./utils";
+import type { BaseSqlAdapter } from "./base-sql-adapter";
+import * as utils from "../core/relational-utils";
 
-import { DatabaseModule } from "../core/base-adapter";
+export class RelationalContentModule implements IContentAdapter {
+  protected readonly adapter: BaseSqlAdapter;
+  protected readonly schema: any;
 
-export class ContentModule extends DatabaseModule<AdapterCore> {
-  constructor(core: AdapterCore) {
-    super(core);
+  constructor(adapter: BaseSqlAdapter, schema: any) {
+    this.adapter = adapter;
+    this.schema = schema;
   }
 
-  protected get core() {
-    return this.adapter;
+  protected get db() {
+    return (this.adapter as any).db;
   }
 
-  private get crud() {
-    return this.core.crud;
+  protected get crud() {
+    return this.adapter.crud;
   }
 
+  // ============================================================
+  // DRAFTS
+  // ============================================================
   public readonly drafts = {
     create: async (draft: EntityCreate<ContentDraft>): Promise<DatabaseResult<ContentDraft>> => {
       return this.crud.insert<ContentDraft>("content_drafts", draft);
@@ -50,22 +56,22 @@ export class ContentModule extends DatabaseModule<AdapterCore> {
     },
 
     publish: async (draftId: DatabaseId): Promise<DatabaseResult<void>> => {
-      return this.core.wrap(async () => {
+      return this.adapter.wrap(async () => {
         await this.db
-          .update(schema.contentDrafts)
+          .update(this.schema.contentDrafts)
           .set({ status: "archived" })
-          .where(eq(schema.contentDrafts._id, draftId as string));
+          .where(eq(this.schema.contentDrafts._id, draftId as string));
       }, "PUBLISH_DRAFT_FAILED");
     },
 
     publishMany: async (
       draftIds: DatabaseId[],
     ): Promise<DatabaseResult<{ publishedCount: number }>> => {
-      return this.core.wrap(async () => {
+      return this.adapter.wrap(async () => {
         const result = await this.db
-          .update(schema.contentDrafts)
+          .update(this.schema.contentDrafts)
           .set({ status: "archived" })
-          .where(inArray(schema.contentDrafts._id, draftIds as string[]))
+          .where(inArray(this.schema.contentDrafts._id, draftIds as string[]))
           .returning();
         return { publishedCount: result.length };
       }, "PUBLISH_MANY_DRAFTS_FAILED");
@@ -75,17 +81,17 @@ export class ContentModule extends DatabaseModule<AdapterCore> {
       contentId: DatabaseId,
       options?: PaginationOptions,
     ): Promise<DatabaseResult<PaginatedResult<ContentDraft>>> => {
-      return this.core.wrap(async () => {
+      return this.adapter.wrap(async () => {
         const limit = options?.pageSize || 20;
         const offset = ((options?.page || 1) - 1) * limit;
 
         const results = await this.db
           .select()
-          .from(schema.contentDrafts)
-          .where(eq(schema.contentDrafts.contentId, contentId as string))
+          .from(this.schema.contentDrafts)
+          .where(eq(this.schema.contentDrafts.contentId, contentId as string))
           .limit(limit)
           .offset(offset)
-          .orderBy(desc(schema.contentDrafts.version));
+          .orderBy(desc(this.schema.contentDrafts.version));
 
         return {
           items: utils.convertArrayDatesToISO(results) as unknown as ContentDraft[],
@@ -115,12 +121,15 @@ export class ContentModule extends DatabaseModule<AdapterCore> {
     },
   };
 
+  // ============================================================
+  // NODES
+  // ============================================================
   public readonly nodes = {
     getStructure: async (
       _mode: "flat" | "nested",
       options?: {
         filter?: Partial<ContentNode>;
-        tenantId?: string | null;
+        tenantId?: DatabaseId | null;
         bypassCache?: boolean;
         bypassTenantCheck?: boolean;
       },
@@ -150,18 +159,34 @@ export class ContentModule extends DatabaseModule<AdapterCore> {
     update: async (
       path: string,
       changes: Partial<ContentNode>,
+      options: { tx?: any } = {},
     ): Promise<DatabaseResult<ContentNode>> => {
-      return this.core.wrap(async () => {
+      return this.adapter.wrap(async () => {
+        const db = options.tx || this.db;
+        const now = isoDateStringToDate(nowISODateString());
+
+        // Use dialect-specific returning if supported
+        const query = db
+          .update(this.schema.contentNodes)
+          .set({
+            ...changes,
+            updatedAt: now,
+          } as any)
+          .where(eq(this.schema.contentNodes.path, path));
+
+        if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
+          const [updated] = await query.returning();
+          if (updated) return utils.convertDatesToISO(updated) as unknown as ContentNode;
+        }
+
+        // Fallback for MariaDB or missing returning
+        await query;
         const [updated] = await this.db
-          .update(schema.contentNodes)
-          .set(
-            utils.convertISOToDates({
-              ...changes,
-              updatedAt: isoDateStringToDate(nowISODateString()),
-            }) as any,
-          )
-          .where(eq(schema.contentNodes.path, path))
-          .returning();
+          .select()
+          .from(this.schema.contentNodes)
+          .where(eq(this.schema.contentNodes.path, path))
+          .limit(1);
+
         return utils.convertDatesToISO(updated) as unknown as ContentNode;
       }, "UPDATE_NODE_FAILED");
     },
@@ -174,46 +199,23 @@ export class ContentModule extends DatabaseModule<AdapterCore> {
         bypassCache?: boolean;
       },
     ): Promise<DatabaseResult<ContentNode[]>> => {
-      const startTime = performance.now();
-      return this.core.transaction(async (tx: any) => {
+      return this.adapter.transaction(async (tx) => {
         const results: ContentNode[] = [];
-        const now = isoDateStringToDate(nowISODateString());
-
-        // 🚀 BATCH OPTIMIZATION: We process in smaller chunks to avoid SQLite statement limits
-        // but within the SAME transaction for maximum performance.
         for (const update of updates) {
-          const id = update.id || (update.changes as any)._id || utils.generateId();
-          const values = utils.convertISOToDates({
-            ...update.changes,
-            _id: id,
-            path: update.path,
-            tenantId: _options?.tenantId || (update.changes as any).tenantId,
-            updatedAt: now,
-          }) as any;
-
-          // We use the internal DB handle from the transaction to bypass the wrap overhead per-item
-          const table = schema.contentNodes;
-
-          await tx.db.insert(table).values(values).onConflictDoUpdate({
-            target: table.path,
-            set: values,
+          const res = await this.nodes.update(update.path, update.changes, {
+            tx: (tx as any).db || tx,
           });
-
-          // We don't select back every item to save time during bulk operations
-          results.push({ ...update.changes, path: update.path, _id: id } as ContentNode);
+          if (res.success && res.data) results.push(res.data);
         }
-
-        return {
-          success: true,
-          data: results,
-          meta: { executionTime: performance.now() - startTime },
-        };
+        return { success: true, data: results };
       });
     },
 
     delete: async (path: string): Promise<DatabaseResult<void>> => {
-      return this.core.wrap(async () => {
-        await this.db.delete(schema.contentNodes).where(eq(schema.contentNodes.path, path));
+      return this.adapter.wrap(async () => {
+        await this.db
+          .delete(this.schema.contentNodes)
+          .where(eq(this.schema.contentNodes.path, path));
       }, "DELETE_NODE_FAILED");
     },
 
@@ -221,21 +223,28 @@ export class ContentModule extends DatabaseModule<AdapterCore> {
       paths: string[],
       options?: { tenantId?: string | null },
     ): Promise<DatabaseResult<{ deletedCount: number }>> => {
-      return this.core.wrap(async () => {
-        const conditions = [inArray(schema.contentNodes.path, paths)];
-        if (options?.tenantId) conditions.push(eq(schema.contentNodes.tenantId, options.tenantId));
-        const result = await this.db
-          .delete(schema.contentNodes)
-          .where(and(...conditions))
-          .returning();
-        return { deletedCount: result.length };
+      return this.adapter.wrap(async () => {
+        const conditions = [inArray(this.schema.contentNodes.path, paths)];
+        if (options?.tenantId)
+          conditions.push(eq(this.schema.contentNodes.tenantId, options.tenantId));
+        const q = this.db.delete(this.schema.contentNodes).where(and(...conditions));
+
+        let count = 0;
+        if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
+          const result = await (q as any).returning();
+          count = result.length;
+        } else {
+          const [result] = await q;
+          count = (result as any).affectedRows || 0;
+        }
+        return { deletedCount: count };
       }, "DELETE_MANY_NODES_FAILED");
     },
 
     reorder: async (
       nodeUpdates: Array<{ path: string; newOrder: number }>,
     ): Promise<DatabaseResult<ContentNode[]>> => {
-      return this.core.wrap(async () => {
+      return this.adapter.wrap(async () => {
         for (const update of nodeUpdates) {
           await this.nodes.update(update.path, { order: update.newOrder });
         }
@@ -251,23 +260,26 @@ export class ContentModule extends DatabaseModule<AdapterCore> {
         path: string;
       }>,
     ): Promise<DatabaseResult<void>> => {
-      return this.core.transaction(async (tx: any) => {
-        const db = tx.db as any;
+      return this.adapter.transaction(async (tx) => {
+        const db = (tx as any).db || tx;
         for (const item of items) {
           await db
-            .update(schema.contentNodes)
+            .update(this.schema.contentNodes)
             .set({
               parentId: item.parentId,
               order: item.order,
               path: item.path,
             })
-            .where(eq(schema.contentNodes._id, item.id));
+            .where(eq(this.schema.contentNodes._id, item.id));
         }
         return { success: true, data: undefined };
       });
     },
   };
 
+  // ============================================================
+  // REVISIONS
+  // ============================================================
   public readonly revisions = {
     create: async (
       revision: EntityCreate<ContentRevision>,
@@ -279,17 +291,17 @@ export class ContentModule extends DatabaseModule<AdapterCore> {
       contentId: DatabaseId,
       options?: PaginationOptions,
     ): Promise<DatabaseResult<PaginatedResult<ContentRevision>>> => {
-      return this.core.wrap(async () => {
+      return this.adapter.wrap(async () => {
         const limit = options?.pageSize || 20;
         const offset = ((options?.page || 1) - 1) * limit;
 
         const results = await this.db
           .select()
-          .from(schema.contentRevisions)
-          .where(eq(schema.contentRevisions.contentId, contentId as string))
+          .from(this.schema.contentRevisions)
+          .where(eq(this.schema.contentRevisions.contentId, contentId as string))
           .limit(limit)
           .offset(offset)
-          .orderBy(desc(schema.contentRevisions.version));
+          .orderBy(desc(this.schema.contentRevisions.version));
 
         return {
           items: utils.convertArrayDatesToISO(results) as unknown as ContentRevision[],
@@ -322,7 +334,7 @@ export class ContentModule extends DatabaseModule<AdapterCore> {
       contentId: DatabaseId,
       keepLatest: number,
     ): Promise<DatabaseResult<{ deletedCount: number }>> => {
-      return this.core.wrap(async () => {
+      return this.adapter.wrap(async () => {
         const history = await this.revisions.getHistory(contentId, {
           pageSize: 1000,
         });
