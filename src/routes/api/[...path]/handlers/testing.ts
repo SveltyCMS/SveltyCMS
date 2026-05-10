@@ -4,6 +4,7 @@
  */
 
 import { AppError } from "@utils/error-handling";
+import { logger } from "@utils/logger";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import { rawResponse } from "./base";
@@ -35,7 +36,7 @@ export async function handleTestingRoutes(
     // Standardized database clear across all adapters
     await cms.db.clearDatabase();
 
-    // 🚀 HARDENING: Clear Media Folder for test isolation
+    // 🚀  Clear Media Folder for test isolation
     const mediaRoot = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
     const fullMediaRoot = path.resolve(process.cwd(), mediaRoot);
     if (fs.existsSync(fullMediaRoot)) {
@@ -62,7 +63,6 @@ export async function handleTestingRoutes(
     const { email, password, username } = params;
     if (!email || !password) throw new AppError("Email and password required for seeding", 400);
 
-    const { logger } = await import("@utils/logger");
     logger.debug("Seeding test user", { email, tenantId });
 
     // Create admin user
@@ -109,15 +109,25 @@ export async function handleTestingRoutes(
       params.collectionId || params.collection || params.schema?._id || params.name;
     const schema = params.schema || params.data || params;
 
-    // 1. Force registration in DB adapter (so it can handle CRUD)
-    const { dbAdapter } = await import("@src/databases/db");
+    // 1. Ensure database is fully connected before proceeding
+    const { getDbInitPromise, isDbConnected, getDb } = await import("@src/databases/db");
+    if (!isDbConnected()) {
+      const initResult = await getDbInitPromise();
+      if (!initResult) {
+        throw new AppError("Database initialization failed during test setup", 503);
+      }
+    }
+
     try {
-      if (!dbAdapter) throw new Error("Database adapter not initialized");
-      await dbAdapter.collection.createModel(schema);
+      // Re-fetch dbAdapter to get the initialized instance (guaranteed singleton)
+      const initializedAdapter = getDb();
+      if (!initializedAdapter) throw new Error("Database adapter not initialized");
+
+      // Force registration in DB adapter (so it can handle CRUD)
+      await initializedAdapter.collection.createModel(schema);
 
       // ✨ PERSISTENCE FIX: Register the node in the DB so it survives server restarts
-      // This is critical for benchmarks like "Enterprise Matrix" that restart the server to test cold starts.
-      if (dbAdapter.content?.nodes?.upsertContentStructureNode) {
+      if (initializedAdapter.content?.nodes?.upsertContentStructureNode) {
         const node: any = {
           _id: collectionId,
           path: `/collection/${(schema.name || collectionId).toLowerCase()}`,
@@ -127,15 +137,17 @@ export async function handleTestingRoutes(
           status: "published",
           tenantId,
         };
-        await dbAdapter.content.nodes.upsertContentStructureNode(node);
+        await initializedAdapter.content.nodes.upsertContentStructureNode(node);
 
         // Force the content system to re-initialize and reconcile the newly created node
-        // This is critical for benchmarks that seed data immediately after creating the collection
         await contentSystem.initialize(tenantId, false);
       }
     } catch (e: any) {
-      // Ignore if already exists or fails, but log the error message for diagnostics
-      console.warn(`[testing] create-collection persist warning for ${collectionId}: ${e.message}`);
+      logger.error(
+        `[testing] create-collection persistence failed for ${collectionId}:`,
+        e.message,
+      );
+      throw new AppError(`Failed to persist benchmark collection: ${e.message}`, 500);
     }
 
     // 2. Add to Content Store (immediate in-memory sync for the current process)

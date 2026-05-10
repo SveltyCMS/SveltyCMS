@@ -6,14 +6,14 @@
 import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { DatabaseId, DatabaseResult } from "../db-interface";
-import type { AdapterCore } from "./adapter-core";
+import type { SQLiteAdapterCore } from "./adapter-core";
 import * as schema from "./schema";
 import * as utils from "./utils";
 
 import { DatabaseModule } from "../core/base-adapter";
 
-export class PreferencesModule extends DatabaseModule<AdapterCore> {
-  constructor(core: AdapterCore) {
+export class PreferencesModule extends DatabaseModule<SQLiteAdapterCore> {
+  constructor(core: SQLiteAdapterCore) {
     super(core);
   }
 

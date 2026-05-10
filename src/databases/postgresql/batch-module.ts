@@ -3,7 +3,7 @@
  * @description Batch operations module for PostgreSQL
  */
 
-import { inArray } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import type {
   BaseEntity,
   BatchOperation,
@@ -12,12 +12,12 @@ import type {
   DatabaseResult,
   IBatchAdapter,
 } from "../db-interface";
-import type { AdapterCore } from "./adapter-core";
+import type { PostgresAdapterCore } from "./adapter-core";
 
 export class BatchModule implements IBatchAdapter {
-  private readonly core: AdapterCore;
+  private readonly core: PostgresAdapterCore;
 
-  constructor(core: AdapterCore) {
+  constructor(core: PostgresAdapterCore) {
     this.core = core;
   }
 
@@ -84,7 +84,29 @@ export class BatchModule implements IBatchAdapter {
     collection: string,
     items: import("../db-interface").EntityCreate<T>[],
   ): Promise<DatabaseResult<T[]>> {
-    return this.core.crud.insertMany<T>(collection, items);
+    if (!items || items.length === 0) return { success: true, data: [] };
+
+    // 🚀 Performance: For small batches, use direct insertMany
+    if (items.length <= 100) {
+      return this.core.crud.insertMany<T>(collection, items);
+    }
+
+    // 🚀  Chunked batch processing for massive datasets
+    return this.core.wrap(async () => {
+      const results: T[] = [];
+      const chunkSize = 500; // Optimal for balancing latency and throughput
+
+      for (let i = 0; i < items.length; i += chunkSize) {
+        const chunk = items.slice(i, i + chunkSize);
+        const res = await this.core.crud.insertMany<T>(collection, chunk);
+        if (res.success && res.data) {
+          results.push(...res.data);
+        } else if (!res.success) {
+          throw new Error(res.message);
+        }
+      }
+      return results;
+    }, "BULK_INSERT_FAILED");
   }
 
   async bulkUpdate<T extends BaseEntity>(
@@ -134,22 +156,31 @@ export class BatchModule implements IBatchAdapter {
     collection: string,
     items: Array<Partial<T> & { id?: DatabaseId }>,
   ): Promise<DatabaseResult<T[]>> {
+    if (!items || items.length === 0) return { success: true, data: [] };
+
     return this.core.wrap(async () => {
-      const results: T[] = [];
-      for (const item of items) {
-        const query = {
-          _id: item.id || (item as unknown as { _id: DatabaseId })._id,
-        } as unknown as import("../db-interface").QueryFilter<T>;
-        const res = await this.core.crud.upsert(
-          collection,
-          query,
-          item as unknown as Omit<T, "_id" | "createdAt" | "updatedAt">,
-        );
-        if (res.success) {
-          results.push(res.data as T);
-        }
-      }
-      return results;
+      const table = this.core.getTable(collection);
+      const now = new Date();
+
+      const values = items.map((item) => {
+        const id = item.id || (item as any)._id || (this.core as any).generateUUID();
+        return (this.core as any).prepareValues(table, item, id, now, {});
+      });
+
+      // 🚀 Native PostgreSQL UPSERT (ON CONFLICT DO UPDATE)
+      const results = await this.db
+        .insert(table as any)
+        .values(values)
+        .onConflictDoUpdate({
+          target: (table as any)._id,
+          set: {
+            data: sql`EXCLUDED.data`,
+            updatedAt: now,
+          },
+        })
+        .returning();
+
+      return (this.core as any).utils.convertDatesToISO(results) as T[];
     }, "BULK_UPSERT_FAILED");
   }
 }

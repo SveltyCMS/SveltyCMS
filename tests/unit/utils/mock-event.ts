@@ -100,6 +100,7 @@ export function createMockRequestEvent(options: MockEventOptions = {}): RequestE
         crud: {},
       },
       isAdmin: user?.isAdmin || false,
+      __testBypass: true,
     },
     cookies: {
       get: vi.fn((name: string) => mergedCookies[name]),

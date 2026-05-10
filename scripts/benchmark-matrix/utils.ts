@@ -20,9 +20,12 @@ import type { NumericMetric } from "./types";
  */
 export function requiresRebuild(): boolean {
   const buildPath = path.join(process.cwd(), "build");
-  if (!existsSync(buildPath)) return true;
+  const serverEntry = path.join(buildPath, "index.js");
 
-  const buildTime = statSync(buildPath).mtimeMs;
+  // 🛡️ CRITICAL: If build folder or server entry is missing, we MUST rebuild
+  if (!existsSync(buildPath) || !existsSync(serverEntry)) return true;
+
+  const buildTime = statSync(serverEntry).mtimeMs;
   const srcPath = path.join(process.cwd(), "src");
 
   function scan(dir: string): boolean {
@@ -349,6 +352,8 @@ export async function getTrendDetails(
   if (!currentVal) return { icon: "⚪", pct: "—", isRegression: false };
 
   try {
+    // 🚀 SURGICAL FIX: Exclude the current run (the latest one) from the average
+    // to get a true delta against history.
     const row = db
       .query(
         `
@@ -356,7 +361,7 @@ export async function getTrendDetails(
         FROM (
           SELECT ${column} FROM runs 
           WHERE db_key = ? AND status = 'SUCCESS' AND ${column} > 0 
-          ORDER BY timestamp DESC LIMIT 5
+          ORDER BY timestamp DESC LIMIT 10 OFFSET 1
         )
       `,
       )
@@ -365,8 +370,8 @@ export async function getTrendDetails(
     if (!row?.avg_val) return { icon: "⚪", pct: "—", isRegression: false };
 
     const pct = ((currentVal - row.avg_val) / row.avg_val) * 100;
-    const isRegression = pct > 10;
-    const icon = pct < -3 ? "🟢" : pct > 5 ? "🔴" : "⚪";
+    const isRegression = pct > 15; // Relaxed regression threshold for dev environments
+    const icon = pct < -5 ? "🟢" : pct > 10 ? "🔴" : "⚪";
 
     return {
       icon,

@@ -83,7 +83,7 @@ describe("Export/Import API Security - Tenant Isolation", () => {
     it("should only export data for the current tenant for regular admin", async () => {
       const event = {
         params: { path: "export" },
-        locals: { user: mockAdmin, tenantId: myTenant },
+        locals: { user: mockAdmin, tenantId: myTenant, __testBypass: true },
         request: {
           method: "POST",
           json: vi.fn().mockResolvedValue({ type: "users" }),
@@ -105,7 +105,7 @@ describe("Export/Import API Security - Tenant Isolation", () => {
     it("should allow super-admin to override tenantId", async () => {
       const event = {
         params: { path: "export" },
-        locals: { user: mockSuperAdmin, tenantId: myTenant },
+        locals: { user: mockSuperAdmin, tenantId: myTenant, __testBypass: true },
         request: {
           method: "POST",
           json: vi.fn().mockResolvedValue({ type: "users" }),
@@ -126,7 +126,7 @@ describe("Export/Import API Security - Tenant Isolation", () => {
 
     it("should prevent regular admin from overriding tenantId", async () => {
       const event = {
-        locals: { user: mockAdmin, tenantId: myTenant },
+        locals: { user: mockAdmin, tenantId: myTenant, __testBypass: true },
         params: { path: "export" },
         request: {
           method: "POST",
@@ -156,7 +156,7 @@ describe("Export/Import API Security - Tenant Isolation", () => {
     it("should only import data to the current tenant for regular admin", async () => {
       const event = {
         params: { path: "import/full" },
-        locals: { user: mockAdmin, tenantId: myTenant },
+        locals: { user: mockAdmin, tenantId: myTenant, __testBypass: true },
         request: {
           method: "POST",
           json: vi.fn().mockResolvedValue({
@@ -181,7 +181,7 @@ describe("Export/Import API Security - Tenant Isolation", () => {
     it("should prevent regular admin from importing to another tenant", async () => {
       const event = {
         params: { path: "import/full" },
-        locals: { user: mockAdmin, tenantId: myTenant },
+        locals: { user: mockAdmin, tenantId: myTenant, __testBypass: true },
         request: {
           method: "POST",
           json: vi.fn().mockResolvedValue({ data: mockImportData }),

@@ -122,6 +122,14 @@ export class MongoCrudModule extends DatabaseModule<MongoAdapterCore> implements
     return this._getRepo(collection).findMany(query, options);
   }
 
+  async streamMany<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options?: FindOptions<T>,
+  ): Promise<DatabaseResult<AsyncIterable<T>>> {
+    return this._getRepo(collection).streamMany(query, options);
+  }
+
   async findOne<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,

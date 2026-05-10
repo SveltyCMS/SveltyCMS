@@ -61,6 +61,7 @@ export abstract class MongoAdapterCore extends BaseAdapter {
       const connectOptions: mongoose.ConnectOptions = {
         ...options,
         autoIndex: false,
+        autoCreate: false,
         bufferCommands: false,
         maxPoolSize: poolOptions.maxConnections || 100,
         minPoolSize: poolOptions.minConnections || 10,
@@ -81,6 +82,8 @@ export abstract class MongoAdapterCore extends BaseAdapter {
 
       mongoose.set("toObject", globalOptions);
       mongoose.set("toJSON", globalOptions);
+      mongoose.set("bufferCommands", false);
+      mongoose.set("autoCreate", false);
 
       this._connection = await mongoose
         .createConnection(connectionString, connectOptions)

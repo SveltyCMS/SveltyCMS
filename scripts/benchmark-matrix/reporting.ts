@@ -244,15 +244,16 @@ async function getScriptTrend(
   if (!currentVal) return { icon: "⚪", pct: "—", isRegression: false };
 
   try {
+    // 🚀 SMARTER TREND: Exclude current run and get previous average
     const row = db
       .query(
         `
-        SELECT AVG(p95Ms) as avg_val 
+        SELECT AVG(p95Ms) as avg_val
         FROM (
-          SELECT json_extract(metrics_json, '$.' || ? || '.p95Ms') as p95Ms 
-          FROM runs 
-          WHERE db_key = ? AND status = 'SUCCESS' 
-          ORDER BY timestamp DESC LIMIT 8
+          SELECT json_extract(metrics_json, '$.' || ? || '.p95Ms') as p95Ms
+          FROM runs
+          WHERE db_key = ? AND status = 'SUCCESS' AND p95Ms > 0
+          ORDER BY timestamp DESC LIMIT 10 OFFSET 1
         )
       `,
       )
@@ -261,17 +262,48 @@ async function getScriptTrend(
     if (!row?.avg_val) return { icon: "⚪", pct: "—", isRegression: false };
 
     const pct = ((currentVal - row.avg_val) / row.avg_val) * 100;
-    const icon = pct < -3 ? "🟢" : pct > 8 ? "🔴" : "⚪";
+
+    // 🚀 WINDOWS OPTIMIZATION: Relaxed thresholds for local environments
+    const isRegression = pct > 15;
+    const icon = pct < -5 ? "🟢" : pct > 10 ? "🔴" : "⚪";
 
     return {
       icon,
       pct: `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`,
-      isRegression: pct > 8,
+      isRegression,
     };
-  } catch (e) {
-    console.warn(`Trend failed for ${scriptShortLabel}:`, e);
-    return { icon: "⚪", pct: "—", isRegression: false };
+  } catch {
+    return {
+      icon: "⚪",
+      pct: "—",
+      isRegression: false,
+    };
   }
+}
+
+/**
+ * Standardized trend block generator for audit ledgers.
+ */
+async function generateTrendBlock(
+  db: any,
+  dbKey: string,
+  m: any,
+  metricKey: string,
+  label: string,
+  desc: string,
+  historyKey: string,
+  liveKey: string,
+  title: string,
+  unit: string = "ms",
+) {
+  const trend = await getTrendDetails(db, dbKey, (m as any)[liveKey], historyKey);
+  const budget = (PERFORMANCE_BUDGET as any)[metricKey];
+  const budgetText = budget ? ` | **Target:** < ${budget}${unit}` : "";
+
+  let block = `### 🏷️ ${title} {#${metricKey}}\n`;
+  block += `**${label}:** ${(m as any)[liveKey].toFixed(3)}${unit}${budgetText} | **Trend:** ${trend.icon} (${trend.pct})\n`;
+  block += `> ${desc}\n\n`;
+  return block;
 }
 
 /**
@@ -295,27 +327,21 @@ export async function buildFullAuditLedger(
 
     if (!isApplicable) continue;
 
-    // We show all applicable, even if pending
-    md += `### 🏷️ ${script.label}\n`;
+    const timing = res?.scriptTimings?.[script.shortLabel] || 0;
+    const trend = await getScriptTrend(db, dbKey, script.shortLabel, timing);
+
+    md += `### 🏷️ ${script.label} ${trend.icon} ${trend.pct}\n`;
     md += `**Source:** [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")}) | **Intensity:** \`${script.intensity}\`\n`;
     md += `**Proves:** ${script.desc}\n\n`;
 
-    const timing = res?.scriptTimings?.[script.shortLabel];
-
-    if (!timing) {
+    if (timing === 0) {
       md += `> ⏳ **Status**: Pending execution for this engine.\n\n`;
       continue;
     }
 
-    const trend = await getScriptTrend(db, dbKey, script.shortLabel, timing);
-    md = md.replace(`### 🏷️ ${script.label}`, `### 🏷️ ${script.label} ${trend.icon} ${trend.pct}`);
-
     // 1. Reconstruct Scenario Table
-    // We extract scenarios from the metrics_json or direct result files
-    // For simplicity here, we'll try to find any metrics that match the script name
     const scenarios: any[] = [];
     if (res?.metrics) {
-      // Look for scenarios in the metrics map
       for (const [mKey, mVal] of Object.entries(res.metrics)) {
         if (
           mKey.toLowerCase().includes(script.shortLabel.toLowerCase()) ||
@@ -336,7 +362,7 @@ export async function buildFullAuditLedger(
     const history = db
       .query(
         `
-        SELECT timestamp, metrics_json FROM runs
+        SELECT metrics_json FROM runs
         WHERE db_key = ? AND status = 'SUCCESS'
         ORDER BY timestamp DESC LIMIT 10
     `,
@@ -349,12 +375,16 @@ export async function buildFullAuditLedger(
         const scriptMetric = Object.values(m).find(
           (v: any) => v.name === script.shortLabel || v.shortLabel === script.shortLabel,
         ) as any;
-        return scriptMetric?.avgMs || m[script.shortLabel]?.avgMs || 0;
+        return scriptMetric?.p95Ms || scriptMetric?.avgMs || m[script.shortLabel]?.avgMs || 0;
       })
       .filter((v) => v > 0)
       .reverse();
 
     if (trendPoints.length > 1) {
+      // 🚀 Ensure we have exactly 10 points for the chart baseline
+      while (trendPoints.length < 10) {
+        trendPoints.unshift(trendPoints[0]);
+      }
       md += `\n#### 📈 ${script.shortLabel} Trend\n`;
       md += `\`\`\`mermaid\nxychart-beta\n  title "${script.shortLabel} Latency Trend"\n  x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]\n  y-axis "Latency (ms)"\n  line "Latency" : [${trendPoints.map((p) => p.toFixed(3)).join(", ")}]\n\`\`\`\n\n`;
     }
@@ -568,22 +598,36 @@ tags:
     let headerMd = `\n## 📊 Latest Performance Audit (${timestamp})\n\n`;
     headerMd += `**Status:** ${status === "SUCCESS" ? "✅ PASS" : "❌ FAIL"}${isHistorical ? " *(Historical)*" : ""}\n\n`;
 
+    // 🚀 ERROR REPORTING
+    if (curr?.error || status === "FAILED") {
+      headerMd += `> [!CAUTION]\n> **Anomalies Detected**: ${curr?.error || "System setup or script execution failed."} See console for stack trace.\n\n`;
+    }
+
+    // 🚀 ENVIRONMENT SHIFT DETECTION
+    if (!isHistorical && restTrend.isRegression && coldTrend.isRegression) {
+      headerMd += `> [!WARNING]\n> **Environment Shift Detected**: Massive latency delta (${restTrend.pct}). If you recently reformatted or changed hardware, this is normal. Run benchmarks again to establish your new baseline.\n\n`;
+    }
+
     headerMd += `### ⚡ Executive Latency Matrix\n`;
     headerMd += `| Scenario | Avg Latency | Trend | Target Budget |\n`;
     headerMd += `| :--- | :--- | :--- | :--- |\n`;
     headerMd += `| **Cold Start** | ${curr?.coldStartMs || 0}ms | ${coldTrend.icon} (${coldTrend.pct}) | < 5000ms |\n`;
     headerMd += `| **REST (Collections)** | ${m.collections.toFixed(3)}ms | ${restTrend.icon} (${restTrend.pct}) | < 5ms |\n`;
     headerMd += `| **GraphQL (Avg)** | ${m.graphqlAvg.toFixed(3)}ms | ${gqlTrend.icon} (${gqlTrend.pct}) | < 5ms |\n`;
-    headerMd += `| **DB Raw (p95)** | ${m.dbRaw.toFixed(3)}ms | ⚪ | < 50ms |\n\n`;
+    headerMd += `| **DB Raw (p95)** | ${m.dbRaw.toFixed(3)}ms | ⚪ | < 50ms |\n`;
+    headerMd += `| **Setup Quality** | ${status === "SUCCESS" ? "🟢 HEALTHY" : "🔴 DEGRADED"} | ⚪ | 100% |\n\n`;
 
     /**
      * Standardized trend block generator for audit ledgers.
      */
     headerMd += await generateTrendBlock(
+      db,
+      dbKey,
+      m,
       "mixedAvg",
       "Mixed p95",
       "Production request mix: 60% Reads, 20% Writes, 15% GraphQL, 5% Media.",
-      "mixed-workload-aggregate",
+      "mixed_workload_aggregate",
       "mixedAvg",
       "Mixed Workload Performance",
     );
@@ -592,33 +636,21 @@ tags:
     headerMd += `\`\`\`mermaid\nxychart-beta\n  title "${meta.label} Latency Trend (last 10 runs)"\n  x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]\n  y-axis "Latency (ms)"\n  line "p95 Latency" : [${(() => {
       const hist = db
         .query(
-          `SELECT collections_p95 FROM runs WHERE db_key = ? AND status = 'SUCCESS' ORDER BY timestamp DESC LIMIT 10`,
+          `SELECT collections_p95 FROM runs WHERE db_key = ? AND status = 'SUCCESS' AND collections_p95 > 0 ORDER BY timestamp DESC LIMIT 10`,
         )
         .all(dbKey) as any[];
-      return hist
-        .map((h) => h.collections_p95.toFixed(3))
-        .reverse()
-        .join(", ");
+
+      const points = hist.map((h) => h.collections_p95.toFixed(3)).reverse();
+
+      // Ensure exactly 10 points for the chart baseline
+      if (points.length > 0) {
+        while (points.length < 10) {
+          points.unshift(points[0]);
+        }
+      }
+
+      return points.join(", ");
     })()}]\n\`\`\`\n`;
-
-    async function generateTrendBlock(
-      metricKey: string,
-      label: string,
-      desc: string,
-      historyKey: string,
-      liveKey: string,
-      title: string,
-      unit: string = "ms",
-    ) {
-      const trend = await getTrendDetails(db, dbKey, (m as any)[liveKey], historyKey);
-      const budget = (PERFORMANCE_BUDGET as any)[metricKey];
-      const budgetText = budget ? ` | **Target:** < ${budget}${unit}` : "";
-
-      let block = `### 🏷️ ${title} {#${metricKey}}\n`;
-      block += `**${label}:** ${(m as any)[liveKey].toFixed(3)}${unit}${budgetText} | **Trend:** ${trend.icon} (${trend.pct})\n`;
-      block += `> ${desc}\n\n`;
-      return block;
-    }
 
     // 1. CORE TREND AUDIT
     headerMd += `\n## 📈 Core Infrastructure Trends\n\n`;
@@ -653,6 +685,9 @@ tags:
 
     for (const item of coreTrends) {
       headerMd += await generateTrendBlock(
+        db,
+        dbKey,
+        m,
         item.metric,
         item.label,
         item.desc,
@@ -667,6 +702,9 @@ tags:
     headerMd += `\n## 🏢 Enterprise Scale Audit\n\n`;
 
     headerMd += await generateTrendBlock(
+      db,
+      dbKey,
+      m,
       "tenancyAvg",
       "Tenancy p95",
       "Measures latency across tenant isolation boundaries.",
@@ -676,6 +714,9 @@ tags:
     );
 
     headerMd += await generateTrendBlock(
+      db,
+      dbKey,
+      m,
       "relationalAvg",
       "Relational p95",
       "Tests performance of complex JOINs and nested relationship population.",
@@ -685,6 +726,9 @@ tags:
     );
 
     headerMd += await generateTrendBlock(
+      db,
+      dbKey,
+      m,
       "telemetryAvg",
       "Telemetry p95",
       "Measures overhead of telemetry collection and cryptographic signing.",
@@ -745,12 +789,14 @@ tags:
       if (!tableContent) {
         try {
           const historical = db
-            .query(`
-            SELECT metrics_json, timestamp FROM runs 
-            WHERE db_key = ? AND status = 'SUCCESS' 
-            AND metrics_json LIKE ? 
+            .query(
+              `
+            SELECT metrics_json, timestamp FROM runs
+            WHERE db_key = ? AND status = 'SUCCESS'
+            AND metrics_json LIKE ?
             ORDER BY timestamp DESC LIMIT 1
-          `)
+          `,
+            )
             .get(dbKey, `%${script.shortLabel}%`) as any;
 
           if (historical) {

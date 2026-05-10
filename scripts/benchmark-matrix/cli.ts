@@ -68,6 +68,7 @@ export function parseArgs(): RunConfig {
     timeoutMs: Number.isNaN(timeoutRaw) ? 1_200_000 : Math.max(10_000, timeoutRaw),
     warmup: !hasFlag("--no-warmup"),
     ci: hasFlag("--ci"),
+    failFast: hasFlag("--fail-fast"),
     list: hasFlag("--list"),
   };
 
@@ -118,6 +119,7 @@ export function printCLIOptions() {
     ["--timeout=<ms>", "Timeout per script in ms (default: 300,000)."],
     ["--no-warmup", "Disable JIT warmup pings before suite starts."],
     ["--ci", "CI mode: compact logs, exit 1 on regressions/violations."],
+    ["--fail-fast", "Stop the entire suite immediately if any test fails."],
   ];
   for (const [flag, desc] of options) {
     console.log(`  \x1b[36m${flag.padEnd(18)}\x1b[0m ${desc}`);

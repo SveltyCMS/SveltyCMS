@@ -72,16 +72,16 @@ async function runSecurityAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async (i: number) => {
-        await auditLogService.logEvent({
-          action: "bench.test",
-          actorId: "admin" as any,
-          actorEmail: "admin@test.com",
-          eventType: AuditEventType.SUSPICIOUS_ACTIVITY,
-          severity: "low",
-          details: { entryId: `entry-${i}` },
-          result: "success",
-          tenantId: "global" as any,
-        });
+        await auditLogService.log(
+          "bench.test",
+          { id: "admin" as any, email: "admin@test.com", role: "admin" },
+          { id: `entry-${i}` as any, type: "benchmark" },
+          AuditEventType.SUSPICIOUS_ACTIVITY,
+          "low",
+          { entryId: `entry-${i}` },
+          "global" as any,
+          "success"
+        );
       },
     });
     results.push({ ...auditResult, shortLabel: "Audit", layer: "Security" });

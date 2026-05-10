@@ -11,14 +11,14 @@ import type {
   Job,
   PaginationOption,
 } from "../db-interface";
-import type { AdapterCore } from "./adapter-core";
+import type { SQLiteAdapterCore } from "./adapter-core";
 import * as schema from "./schema";
 import * as utils from "./utils";
 
 import { DatabaseModule } from "../core/base-adapter";
 
-export class JobsModule extends DatabaseModule<AdapterCore> {
-  constructor(core: AdapterCore) {
+export class JobsModule extends DatabaseModule<SQLiteAdapterCore> {
+  constructor(core: SQLiteAdapterCore) {
     super(core);
   }
 

@@ -1,5 +1,5 @@
 /**
- * @file src/databases/sqlite/performance/cache-module.ts
+ * @file src/databases/core/cache-module.ts
  * @description Cache module for SQLite
  *
  * Features:
@@ -11,11 +11,11 @@
  * - Invalidate category
  */
 
-import type { CacheOptions, DatabaseResult } from "../db-interface";
-import type { AdapterCore } from "./adapter-core";
+import type { DatabaseResult, CacheOptions } from "../db-interface";
+import type { BaseSqlAdapter } from "./base-sql-adapter";
 
 export class CacheModule {
-  constructor(_core: AdapterCore) {}
+  constructor(_core: BaseSqlAdapter) {}
 
   async get<T>(key: string): Promise<DatabaseResult<T | null>> {
     const { cacheService } = await import("@src/databases/cache/cache-service");

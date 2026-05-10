@@ -20,13 +20,13 @@ import type {
   DatabaseId,
   DatabaseResult,
 } from "../db-interface";
-import type { AdapterCore } from "./adapter-core";
-import * as utils from "./utils";
+import type { BaseSqlAdapter } from "./base-sql-adapter";
+import * as utils from "./relational-utils";
 
 import { DatabaseModule } from "../core/base-adapter";
 
-export class BatchModule extends DatabaseModule<AdapterCore> {
-  constructor(core: AdapterCore) {
+export class BatchModule extends DatabaseModule<BaseSqlAdapter> {
+  constructor(core: BaseSqlAdapter) {
     super(core);
   }
 

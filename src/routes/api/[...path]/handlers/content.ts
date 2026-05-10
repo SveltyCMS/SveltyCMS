@@ -29,6 +29,13 @@ export async function handleContentRoutes(
       await cms.collections.refresh(tenantId);
       return json({ success: true, message: "Content system refreshed" });
     }
+    if (method === "collections") {
+      // 🚀 SMART RECONCILIATION: Force a refresh before listing
+      // to ensure newly written benchmark schemas are discovered.
+      await cms.collections.refresh(tenantId);
+      const list = await cms.collections.list({ tenantId, includeFields: true });
+      return json({ success: true, data: list });
+    }
   }
 
   // --- Content Structure ---

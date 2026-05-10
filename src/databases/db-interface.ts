@@ -638,6 +638,11 @@ export interface ICrudAdapter {
     query: QueryFilter<T>,
     options?: FindOptions<T>,
   ): Promise<DatabaseResult<T[]>>;
+  streamMany<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options?: FindOptions<T>,
+  ): Promise<DatabaseResult<AsyncIterable<T>>>;
   findOne<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
@@ -1105,6 +1110,7 @@ export interface IDBAdapter {
   >;
 
   collection: ICollectionAdapter;
+  registerHook?(hook: any): void;
 
   // Connection Management with Pooling
   connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;

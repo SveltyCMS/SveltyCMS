@@ -258,7 +258,7 @@ export const actions: Actions = {
       try {
         logger.info(`🔌 Attempting to connect to ${dbConfig.type} at ${dbConfig.host}...`);
 
-        // --- SQLite Hardening: Check if file exists BEFORE connection ---
+        // --- SQLite  Check if file exists BEFORE connection ---
         // getSetupDatabaseAdapter for SQLite runs migrations/seeds, which makes isEmpty() return false.
         // We track if it existed before so we can skip the "not empty" check for fresh databases.
         let sqliteFileExisted = false;
@@ -547,8 +547,6 @@ export const actions: Actions = {
       if (systemData.preset && systemData.preset !== "blank") {
         logger.info(`✨ Copying preset files for: ${systemData.preset}`);
         try {
-          const { compile } = await import("@utils/compilation/compile");
-
           const sourceDir = resolve(process.cwd(), "src", "presets", systemData.preset);
           const targetDir = resolve(process.cwd(), "config", "collections");
 
@@ -559,8 +557,16 @@ export const actions: Actions = {
 
             // Force compilation of new preset files
             try {
-              await compile();
-              logger.info(`✅ Compiled preset collections successfully`);
+              const mod: any = await import("@utils/compilation/compile");
+              const compileFn = mod.compile || mod.default?.compile || mod.default || mod;
+              if (typeof compileFn === "function") {
+                await compileFn();
+                logger.info(`✅ Compiled preset collections successfully`);
+              } else {
+                logger.warn("⚠️ compile function not found in @utils/compilation/compile", {
+                  type: typeof compileFn,
+                });
+              }
             } catch (e) {
               logger.error(`❌ Failed to compile newly copied preset files`, e);
             }

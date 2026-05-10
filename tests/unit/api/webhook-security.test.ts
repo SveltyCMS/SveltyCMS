@@ -38,7 +38,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
   describe("List Webhooks (GET /api/webhooks)", () => {
     it("should only list webhooks for the current tenant for regular admin", async () => {
       const event = {
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         params: { path: "webhooks" },
         request: { method: "GET" },
         url: new URL("http://localhost/api/webhooks"),
@@ -50,7 +50,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
 
     it("should allow super-admin to override tenantId via query parameter", async () => {
       const event = {
-        locals: { user: mockSuperAdmin, tenantId: myTenant },
+        locals: { user: mockSuperAdmin, tenantId: myTenant, __testBypass: true },
         params: { path: "webhooks" },
         request: { method: "GET" },
         url: new URL(`http://localhost/api/webhooks?tenantId=${otherTenant}`),
@@ -62,7 +62,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
 
     it("should prevent regular admin from overriding tenantId", async () => {
       const event = {
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         params: { path: "webhooks" },
         request: { method: "GET" },
         url: new URL(`http://localhost/api/webhooks?tenantId=${otherTenant}`),
@@ -78,7 +78,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
 
     it("should reject non-admins", async () => {
       const event = {
-        locals: { user: { role: "user" }, tenantId: myTenant },
+        locals: { user: { role: "user" }, tenantId: myTenant, __testBypass: true },
         params: { path: "webhooks" },
         url: new URL("http://localhost/api/webhooks"),
       } as any;
@@ -94,7 +94,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
   describe("Create Webhook (POST /api/webhooks)", () => {
     it("should allow authenticated users with tenantId", async () => {
       const event = {
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         params: { path: "webhooks" },
         request: {
           method: "POST",
@@ -119,7 +119,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
 
       const event = {
         params: { path: `webhooks/${webhookId}` },
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         url: new URL(`http://localhost/api/webhooks/${webhookId}`),
         request: {
           method: "PATCH",
@@ -139,7 +139,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
 
       const event = {
         params: { path: `webhooks/${webhookId}` },
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         url: new URL(`http://localhost/api/webhooks/${webhookId}`),
         request: { method: "DELETE", headers: new Headers() },
         cookies: { get: vi.fn() },
@@ -158,7 +158,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
       const updates = { name: "Updated" };
       const event = {
         params: { path: `webhooks/${webhookId}` },
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         url: new URL(`http://localhost/api/webhooks/${webhookId}`),
         request: {
           method: "PATCH",
@@ -183,7 +183,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
 
       const event = {
         params: { path: `webhooks/${webhookId}` },
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         request: { method: "DELETE", headers: new Headers() },
         url: new URL(`http://localhost/api/system/webhooks/${webhookId}`),
         cookies: { get: vi.fn() },
@@ -204,7 +204,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
 
       const event = {
         params: { path: `webhooks/${webhookId}/test` },
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         request: { method: "POST", json: vi.fn(), headers: new Headers() },
         url: new URL(`http://localhost/api/system/webhooks/${webhookId}/test`),
         cookies: { get: vi.fn() },
@@ -222,7 +222,7 @@ describe("Webhook API Security - IDOR and Tenant Isolation", () => {
 
       const event = {
         params: { path: `webhooks/${webhookId}/test` },
-        locals: { user: mockSuperAdmin, tenantId: myTenant },
+        locals: { user: mockSuperAdmin, tenantId: myTenant, __testBypass: true },
         request: { method: "POST", json: vi.fn(), headers: new Headers() },
         url: new URL(`http://localhost/api/system/webhooks/${webhookId}/test`),
         cookies: { get: vi.fn() },

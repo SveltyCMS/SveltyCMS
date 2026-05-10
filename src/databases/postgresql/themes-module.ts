@@ -6,14 +6,14 @@
 import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { eq } from "drizzle-orm";
 import type { DatabaseId, DatabaseResult, Theme } from "../db-interface";
-import type { AdapterCore } from "./adapter-core";
+import type { PostgresAdapterCore } from "./adapter-core";
 import * as schema from "./schema";
 import * as utils from "./utils";
 
 export class ThemesModule {
-  private readonly core: AdapterCore;
+  private readonly core: PostgresAdapterCore;
 
-  constructor(core: AdapterCore) {
+  constructor(core: PostgresAdapterCore) {
     this.core = core;
   }
 

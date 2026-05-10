@@ -1,108 +1,206 @@
 /**
  * @file src/databases/sqlite/adapter/adapter-core.ts
- * @description SQLite Adapter Core
- *
- * Provides a high-performance core for SQLite operations, supporting Bun/Node
- * with statement caching, WAL tuning, and robust connection management.
+ * @description Core functionality for SQLite adapter, optimized for performance and Windows resilience.
  */
 
-import { logger } from "@src/utils/logger";
-import { testWorkerContext } from "@src/utils/test-worker-context";
-import { sql } from "drizzle-orm";
-import { Mutex } from "@src/utils/mutex";
-
-import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-
-import type { DatabaseCapabilities, DatabaseResult } from "../db-interface";
-
-import { BaseSqlAdapter } from "./base-sql-adapter";
+import { logger } from "@utils/logger";
+import { BaseSqlAdapter } from "../core/base-sql-adapter";
+import {
+  type BaseEntity,
+  type BaseQueryOptions,
+  type DatabaseCapabilities,
+  type DatabaseResult,
+} from "../db-interface";
+import { AsyncLocalStorage } from "node:async_hooks";
 import * as schema from "./schema";
+import { sql, type SQL } from "drizzle-orm";
+import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import * as utils from "../core/relational-utils";
 
-/** 🚀 Helper to handle dynamic requires in ESM */
-let _require: any = null;
-async function getRequire() {
-  if (_require) return _require;
-  if (typeof require !== "undefined") {
-    _require = require;
-    return _require;
+// --- Types ---
+export type SQLiteConfig = { connectionString?: string; readonly?: boolean };
+export type SQLiteClient = any; // Union of bun:sqlite Database, better-sqlite3 Database, node:sqlite DatabaseSync
+export type SQLiteDB = any; // Drizzle instance
+
+// Isolation for multi-threaded testing
+const testWorkerContext = new AsyncLocalStorage<string>();
+
+/**
+ * 🚀 PERFORMANCE: Lightweight Mutex for serializing database writes.
+ * Replaces 'async-mutex' to reduce dependency bloat.
+ */
+class Mutex {
+  private queue: Promise<void> = Promise.resolve();
+
+  async runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+    const current = this.queue;
+    let resolveNext: () => void;
+    this.queue = new Promise((res) => {
+      resolveNext = res;
+    });
+
+    try {
+      await current;
+      return await fn();
+    } finally {
+      resolveNext!();
+    }
   }
-  try {
-    const { createRequire } = await import("module");
-    _require = createRequire(import.meta.url);
-    return _require;
-  } catch {
-    return null;
-  }
 }
 
-type SQLiteDB = BaseSQLiteDatabase<"sync", unknown, typeof schema>;
-type AdapterState = "idle" | "connecting" | "connected" | "closing" | "closed";
-
-interface SQLiteConfig {
-  connectionString?: string;
-  filename?: string;
-  DB_NAME?: string;
-  DB_HOST?: string;
-  readonly?: boolean;
-}
-
-interface SQLiteStatement {
-  get(...args: unknown[]): unknown;
-  all(...args: unknown[]): unknown[];
-  run(...args: unknown[]): unknown;
-}
-
-interface SQLiteClient {
-  close(): void;
-  exec(sql: string): void;
-  query?(sql: string): SQLiteStatement;
-  prepare?(sql: string): SQLiteStatement;
-}
-
-interface WorkerConnection {
-  db: SQLiteDB;
-  sqlite: SQLiteClient;
-  statementCache: Map<string, SQLiteStatement>;
-}
-
-export abstract class AdapterCore extends BaseSqlAdapter {
-  private _db!: SQLiteDB;
-  private _sqlite!: SQLiteClient;
-  private state: AdapterState = "idle";
-  private config!: string | SQLiteConfig;
-  private readonly connections = new Map<string, WorkerConnection>();
-
-  protected _transactionModule?: import("./transaction-module").TransactionModule;
-
-  //  Statement Cache (LRU-ish)
-  private _statementCache = new Map<string, SQLiteStatement>();
-  private readonly MAX_CACHE_SIZE = 200;
-  private readonly columnNamesCache = new Map<string, Set<string>>();
-
-  /**
-   * 🛡️ WRITE SERIALIZATION (Mutex)
-   * SQLite with a single connection (especially in Bun) performs best when writes
-   * are serialized to avoid 'database is locked' errors and WAL contention.
-   */
+export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
   public readonly writeMutex = new Mutex();
+  public readonly schema = schema;
 
-  protected metrics = {
-    connectCount: 0,
-    errorCount: 0,
-    queryCount: 0,
-    slowQueryCount: 0,
-    lastLatency: 0,
-    lastConnectedAt: 0,
-    cacheHits: 0,
-    cacheMisses: 0,
+  public capabilities: DatabaseCapabilities = {
+    supportsTransactions: true,
+    supportsIndexing: true,
+    supportsFullTextSearch: false,
+    supportsAggregation: true,
+    supportsStreaming: false,
+    supportsPartitioning: false,
+    maxBatchSize: 100,
+    maxQueryComplexity: 50,
   };
 
-  /* ------------------------------------------------ */
-  /* ACTIVE CONNECTION GETTERS                        */
-  /* ------------------------------------------------ */
+  // 🚀 AGNOSTIC CORE: SQLite implementation of JSON field extraction.
+  public getJsonField(field: string): SQL {
+    // Correct SQLite JSON path syntax: '$."field"'
+    // We explicitly quote the field inside the path to handle keywords.
+    return sql`json_extract(data, '$."' || ${field} || '"')`;
+  }
+
+  // 🚀 AGNOSTIC CORE: Reports the current connection state and checks if the SQLite client is responsive.
+  public async getConnectionHealth(): Promise<
+    DatabaseResult<{
+      healthy: boolean;
+      latency: number;
+      activeConnections: number;
+    }>
+  > {
+    const start = performance.now();
+    try {
+      if (!this._sqlite) {
+        return {
+          success: true,
+          data: { healthy: false, latency: 0, activeConnections: 0 },
+        };
+      }
+
+      // 🚀  Advanced PRAGMAs for benchmark stability and performance
+      this.applyPragmas(this._sqlite);
+
+      // Ping check
+      if (this._sqlite.query) {
+        this._sqlite.query("SELECT 1").get();
+      } else if (this._sqlite.prepare) {
+        this._sqlite.prepare("SELECT 1").get();
+      } else if (typeof this._sqlite.exec === "function") {
+        this._sqlite.exec("SELECT 1");
+      }
+
+      return {
+        success: true,
+        data: {
+          healthy: true,
+          latency: performance.now() - start,
+          activeConnections: 1,
+        },
+      };
+    } catch (e: any) {
+      return {
+        success: false,
+        message: e.message,
+        error: utils.createDatabaseError("HEALTH_CHECK_FAILED", e.message, e),
+      };
+    }
+  }
+
+  // 🚀 AGNOSTIC CORE: Resolves a collection name to its Drizzle schema object.
+  protected getAliasedTable(collection: string): any {
+    const schemaAny = this.schema as any;
+
+    // 1. Check direct alias map
+    const alias = (BaseSqlAdapter as any).TABLE_ALIASES[collection];
+    if (alias && schemaAny[alias]) return schemaAny[alias];
+
+    // 2. Check if the name itself is a schema export
+    if (schemaAny[collection]) return schemaAny[collection];
+
+    // 3. 🚀 HARDENING: Try snake_case conversion for system tables
+    // This handles cases where 'pluginMigrations' is used but schema has 'plugin_migrations'
+    const snakeCase = collection.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    if (schemaAny[snakeCase]) return schemaAny[snakeCase];
+
+    // 4. Try aliases of the snakeCase variant
+    const snakeAlias = (BaseSqlAdapter as any).TABLE_ALIASES[snakeCase];
+    if (snakeAlias && schemaAny[snakeAlias]) return schemaAny[snakeAlias];
+
+    return null;
+  }
+
+  protected getDrizzleInstance(_options?: BaseQueryOptions): SQLiteDB {
+    return this._db!;
+  }
+
+  public createDynamicTableDefinition(name: string) {
+    return sqliteTable(
+      name,
+      {
+        _id: text("_id").primaryKey(),
+        tenantId: text("tenantId"),
+        data: text("data", { mode: "json" }).notNull(),
+        status: text("status").notNull().default("draft"),
+        isDeleted: integer("isDeleted", { mode: "boolean" }).notNull().default(false),
+        createdAt: integer("createdAt", { mode: "timestamp_ms" })
+          .notNull()
+          .default(sql`(strftime('%s','now')*1000)`),
+        updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+          .notNull()
+          .default(sql`(strftime('%s','now')*1000)`),
+      },
+      (t) => ({
+        tenantIdx: index(`${name}_tenant_idx`).on(t.tenantId),
+        statusIdx: index(`${name}_status_idx`).on(t.status),
+      }),
+    );
+  }
+
+  protected _sqlite: SQLiteClient | null = null;
+  protected _db: SQLiteDB | null = null;
+  protected connections = new Map<
+    string,
+    { sqlite: SQLiteClient; db: SQLiteDB; statementCache: Map<string, any> }
+  >();
+  protected _statementCache = new Map<string, any>();
+
+  protected state: "idle" | "connecting" | "connected" | "closing" | "closed" = "idle";
+  protected config: string | SQLiteConfig = "";
+
+  public get sqlite(): SQLiteClient {
+    if (!this._sqlite) {
+      throw new Error(`[SQLite] Database client not initialized (state: ${this.state})`);
+    }
+    const worker = testWorkerContext.getStore();
+    if (worker && process.env.TEST_MODE === "true") {
+      const conn = this.connections.get(worker);
+      if (conn) return conn.sqlite;
+    }
+    return this._sqlite;
+  }
+
+  // 🚀 AGNOSTIC CORE: Returns the raw database client.
+  public getClient(): SQLiteClient {
+    return this.sqlite;
+  }
 
   public get db(): SQLiteDB {
+    if (!this.isConnected()) {
+      const worker = testWorkerContext.getStore();
+      if (!(worker && process.env.TEST_MODE === "true")) {
+        throw new Error(`[SQLite] Database connection not established (state: ${this.state})`);
+      }
+    }
     const worker = testWorkerContext.getStore();
     if (worker && process.env.TEST_MODE === "true") {
       const conn = this.connections.get(worker);
@@ -115,49 +213,34 @@ export abstract class AdapterCore extends BaseSqlAdapter {
           `[SQLite] Test worker ${worker} requested DB but connection not ready. Falling back.`,
         );
       }
-      return this._db;
+      return this._db!;
     }
-    return this._db;
-  }
-
-  public get sqlite(): SQLiteClient {
-    const worker = testWorkerContext.getStore();
-    if (worker && process.env.TEST_MODE === "true") {
-      return this.connections.get(worker)?.sqlite ?? this._sqlite;
-    }
-    return this._sqlite;
-  }
-
-  /**
-   * Required for collection-module and migrations
-   */
-  public getClient(): SQLiteClient {
-    return this.sqlite;
-  }
-
-  private getActiveStatementCache(): Map<string, SQLiteStatement> {
-    const worker = testWorkerContext.getStore();
-    if (worker && process.env.TEST_MODE === "true") {
-      return this.connections.get(worker)?.statementCache ?? this._statementCache;
-    }
-    return this._statementCache;
-  }
-
-  public readonly schema = schema;
-
-  public isConnected(): boolean {
-    return this.state === "connected";
+    return this._db!;
   }
 
   /* ------------------------------------------------ */
   /* CONNECT                                          */
   /* ------------------------------------------------ */
 
-  public async connect(config: string | SQLiteConfig): Promise<DatabaseResult<void>> {
+  async connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;
+  async connect(
+    poolOptions: import("../db-interface").ConnectionPoolOptions,
+  ): Promise<DatabaseResult<void>>;
+  public async connect(
+    config?: string | SQLiteConfig | import("../db-interface").ConnectionPoolOptions,
+    _options?: any,
+  ): Promise<DatabaseResult<void>> {
+    let finalConfig = config;
+
+    if (!finalConfig) {
+      const { getDatabaseConnectionString } = await import("../config-state");
+      finalConfig = getDatabaseConnectionString() as string;
+    }
+
     if (this.state === "connected") {
       // Robust check: if path changed, we should reconnect
-      const currentPath = await this.resolvePath(this.config);
-      const newPath = await this.resolvePath(config);
+      const currentPath = await this.resolvePath(this.config as any);
+      const newPath = await this.resolvePath(finalConfig as any);
       if (currentPath === newPath) {
         return { success: true, data: undefined };
       }
@@ -167,21 +250,20 @@ export abstract class AdapterCore extends BaseSqlAdapter {
     this.state = "connecting";
 
     try {
-      this.config = config;
-      const dbPath = await this.resolvePath(config);
+      this.config = finalConfig as any;
+      const dbPath = await this.resolvePath(finalConfig as any);
       const { sqlite, db } = await this.createDriver(dbPath);
 
       this._sqlite = sqlite;
       this._db = db;
 
-      // Modules are now lazy-loaded via getters in the final adapter class
-
+      // 🚀 Performance: Apply pragmas immediately to the raw client
       this.applyPragmas(sqlite);
       this._statementCache.clear();
 
       this.state = "connected";
-      this.metrics.connectCount++;
-      this.metrics.lastConnectedAt = Date.now();
+      this.metrics.queryCount = 0; // Reset metrics on new connection
+      this.metrics.errorCount = 0;
 
       // Silent connection by default in core
       if (process.env.BENCHMARK_DEBUG === "true") {
@@ -194,6 +276,73 @@ export abstract class AdapterCore extends BaseSqlAdapter {
       this.connected = false;
       return this.handleError(error, "CONNECTION_FAILED");
     }
+  }
+
+  /* ------------------------------------------------ */
+  /* PROVISIONING (Standalone Mode Support)           */
+  /* ------------------------------------------------ */
+
+  private _provisioned = false;
+
+  public override async provision() {
+    if (this._provisioned) return;
+    try {
+      // @ts-ignore - Dynamic import to avoid circular dependency
+      const { runMigrations } = await import("./migrations");
+      await runMigrations(this._sqlite);
+      this._provisioned = true;
+    } catch (err: any) {
+      logger.error(`[SQLite] Provisioning failed: ${err.message}`);
+    }
+  }
+
+  public async ensureAuth() {
+    await this.provision();
+  }
+  public async ensureSystem() {
+    await this.provision();
+  }
+  public async ensureMedia() {
+    await this.provision();
+  }
+  public async ensureContent() {
+    await this.provision();
+  }
+  public async ensureMonitoring() {
+    await this.provision();
+  }
+  public async ensureCollections() {
+    await this.provision();
+  }
+
+  public async waitForConnection(): Promise<void> {
+    if (this.isConnected()) return;
+    // Simple polling wait for connection
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const interval = setInterval(() => {
+        if (this.isConnected() || Date.now() - start > 10000) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 50);
+    });
+  }
+
+  public queryBuilder<_T extends BaseEntity>(collection: string): any {
+    // @ts-ignore - Dynamic import for circular safety
+    const { SQLiteQueryBuilder } = require("./sq-lite-query-builder");
+    return new SQLiteQueryBuilder(this as any, collection);
+  }
+
+  public async transaction<T>(
+    fn: (transaction: import("../db-interface").DatabaseTransaction) => Promise<DatabaseResult<T>>,
+    options?: { timeout?: number; isolationLevel?: string },
+  ): Promise<DatabaseResult<T>> {
+    // @ts-ignore - Dynamic import for circular safety
+    const { TransactionModule } = require("./transaction-module");
+    const module = new TransactionModule(this as any);
+    return module.execute(fn, options as any);
   }
 
   /* ------------------------------------------------ */
@@ -235,284 +384,113 @@ export abstract class AdapterCore extends BaseSqlAdapter {
     const path = await import("node:path");
     const base = await this.resolvePath(this.config);
     const ext = path.extname(base);
-    const name = base.slice(0, -ext.length);
-    const workerFile = `${name}_worker${index}${ext}`;
+    const workerPath = base.replace(ext, `_test_${index}${ext}`);
 
-    const { sqlite, db } = await this.createDriver(workerFile);
+    const { sqlite, db } = await this.createDriver(workerPath);
     this.applyPragmas(sqlite);
-
-    this.connections.set(index, {
-      sqlite,
-      db,
-      statementCache: new Map<string, SQLiteStatement>(),
-    });
-
-    logger.info(`[SQLite] Worker DB ready ${workerFile}`);
+    this.connections.set(index, { sqlite, db, statementCache: new Map() });
   }
 
-  /* ------------------------------------------------ */
-  /* HEALTH & MONITORING                              */
-  /* ------------------------------------------------ */
-
-  public async getConnectionHealth(): Promise<
-    DatabaseResult<{
-      healthy: boolean;
-      latency: number;
-      activeConnections: number;
-      dbSize?: number;
-      pageCount?: number;
-      freelistCount?: number;
-      journalMode?: string;
-    }>
-  > {
-    try {
-      const start = performance.now();
-
-      // Probe
-      this.prepareAndExecute("SELECT 1", "get");
-
-      const latency = performance.now() - start;
-
-      //  Metrics
-      const pageCountRes = this.prepareAndExecute("PRAGMA page_count", "get") as any;
-      const pageCount = Number(pageCountRes?.["page_count"] ?? pageCountRes ?? 0);
-
-      const pageSizeRes = this.prepareAndExecute("PRAGMA page_size", "get") as any;
-      const pageSize = Number(pageSizeRes?.["page_size"] ?? pageSizeRes ?? 4096);
-
-      const freelistCountRes = this.prepareAndExecute("PRAGMA freelist_count", "get") as any;
-      const freelistCount = Number(freelistCountRes?.["freelist_count"] ?? freelistCountRes ?? 0);
-
-      const journalModeRes = this.prepareAndExecute("PRAGMA journal_mode", "get") as any;
-      const journalMode = String(journalModeRes?.["journal_mode"] ?? journalModeRes ?? "unknown");
-
-      return {
-        success: true,
-        data: {
-          healthy: true,
-          latency,
-          activeConnections: 1 + this.connections.size,
-          dbSize: pageCount * pageSize,
-          pageCount,
-          freelistCount,
-          journalMode,
-        },
-      };
-    } catch (error) {
-      return this.handleError(error, "HEALTH_FAILED");
-    }
-  }
-
-  async isEmpty(): Promise<DatabaseResult<boolean>> {
-    try {
-      const res = this.prepareAndExecute(
-        "SELECT COUNT(*) as count FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
-        "get",
-      ) as any;
-      const count = Number(res?.count ?? res ?? 0);
-      return { success: true, data: count === 0 };
-    } catch (error) {
-      return this.handleError(error, "CHECK_EMPTY_FAILED");
-    }
-  }
-
-  /**
-   *  Database Maintenance
-   */
-  public async optimize(): Promise<DatabaseResult<void>> {
-    return this.wrap(async () => {
-      const client = this.sqlite;
-      client.exec("PRAGMA optimize;");
-      client.exec("VACUUM;");
-      client.exec("ANALYZE;");
-      logger.info("[SQLite] Optimization completed (VACUUM/ANALYZE)");
-    }, "OPTIMIZE_FAILED");
-  }
-
-  public override async wrap<T>(
-    fn: () => Promise<T>,
-    code: string,
-    message?: string,
-    options?: { isWrite?: boolean; transaction?: any },
-  ): Promise<DatabaseResult<T>> {
-    // 🚀 SERIALIZE WRITES: If it's a write and NOT already in a transaction, use the mutex.
-    // Re-entrance check: if options.transaction is set, we assume the caller (e.g. TransactionModule)
-    // already holds the mutex or handles serialization.
-    if (options?.isWrite && !options?.transaction) {
-      return this.writeMutex.runExclusive(() => super.wrap(fn, code, message, options));
-    }
-    return super.wrap(fn, code, message, options);
-  }
-
-  public async transaction<T>(
-    fn: (transaction: any) => Promise<DatabaseResult<T>>,
-    options?: {
-      timeout?: number;
-      isolationLevel?: "READ UNCOMMITTED" | "READ COMMITTED" | "REPEATABLE READ" | "SERIALIZABLE";
-    },
-  ): Promise<DatabaseResult<T>> {
-    if (!this._transactionModule) {
-      const { TransactionModule } = await import("./transaction-module");
-      this._transactionModule = new TransactionModule(this);
-    }
-    return this._transactionModule.execute(fn, options);
-  }
-
-  /* ------------------------------------------------ */
-  /* STATEMENT CACHE HELPER                           */
-  /* ------------------------------------------------ */
-
-  private prepareAndExecute(sql: string, method: "get" | "all" | "run", ...args: unknown[]): any {
-    const cache = this.getActiveStatementCache();
-    let stmt = cache.get(sql);
-
-    if (stmt) {
-      this.metrics.cacheHits++;
-    } else {
-      this.metrics.cacheMisses++;
-      const client = this.sqlite;
-
-      // Support both Bun (query) and Node (prepare)
-      stmt = (client.prepare ? client.prepare(sql) : client.query?.(sql)) as SQLiteStatement;
-
-      if (!stmt) {
-        throw new Error(`Failed to prepare statement: ${sql}`);
-      }
-
-      if (cache.size >= this.MAX_CACHE_SIZE) {
-        // Simple eviction: clear oldest
-        const firstKey = cache.keys().next().value;
-        if (firstKey) cache.delete(firstKey);
-      }
-      cache.set(sql, stmt);
-    }
-
-    let attempts = 0;
-    const maxAttempts = 5;
-    const baseDelay = 50;
-
-    while (attempts < maxAttempts) {
-      try {
-        return stmt[method](...args);
-      } catch (err: any) {
-        attempts++;
-        const isBusy =
-          err.code === "SQLITE_BUSY" ||
-          err.message?.includes("busy") ||
-          err.message?.includes("locked");
-
-        if (isBusy && attempts < maxAttempts) {
-          const delay = baseDelay * Math.pow(2, attempts - 1);
-          logger.warn(
-            `[SQLite] Database busy/locked, retrying in ${delay}ms (Attempt ${attempts}/${maxAttempts})`,
-          );
-
-          // Use sync sleep if we are in a sync context (bun:sqlite is sync)
-          const start = Date.now();
-          while (Date.now() - start < delay) {
-            // spin
-          }
-          continue;
-        }
-
-        if (isBusy) {
-          logger.error(`[SQLite] Database remains busy after ${maxAttempts} attempts.`);
-        }
-        throw err;
-      }
-    }
-  }
-
-  /**
-   * High-performance raw query execution with automatic retries and statement caching.
-   */
-  public queryRaw<T = any>(sql: string, params: Record<string, any> = {}): T[] {
-    return this.prepareAndExecute(sql, "all", params);
+  public runInWorkerContext<T>(index: string, fn: () => T): T {
+    return testWorkerContext.run(index, fn);
   }
 
   /* ------------------------------------------------ */
   /* CAPABILITIES                                     */
   /* ------------------------------------------------ */
 
-  public getCapabilities(): DatabaseCapabilities {
-    return {
-      supportsTransactions: true,
-      supportsIndexing: true,
-      supportsFullTextSearch: true,
-      supportsAggregation: true,
-      supportsStreaming: true,
-      supportsPartitioning: false,
-      maxBatchSize: 1000,
-      maxQueryComplexity: 100,
-      nativeUpsert: true,
-      supportsConflictTargets: true,
-    };
+  public isConnected(): boolean {
+    return this.connected && this._sqlite !== null;
   }
 
-  /* ------------------------------------------------ */
-  /* DYNAMIC TABLES                                   */
-  /* ------------------------------------------------ */
-
-  public override getTable(name: string) {
-    return super.getTable(name);
+  public async isEmpty(): Promise<DatabaseResult<boolean>> {
+    return this.wrap(async () => {
+      const tables = this.prepareAndExecute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+        "all",
+      );
+      return tables.length === 0;
+    }, "CHECK_EMPTY_FAILED");
   }
 
-  public override destroy(): void {
-    if (this.preparedStatements.size > 0) this.preparedStatements.clear();
-    if (this._statementCache.size > 0) this._statementCache.clear();
-    for (const conn of this.connections.values()) {
-      conn.statementCache.clear();
-    }
-    this.columnNamesCache.clear();
-  }
-
-  /**
-   * 🚀 OPTIMIZATION: Gets cached column names for a table to speed up hybrid CRUD.
-   */
-  public getColumnNames(tableName: string): Set<string> {
-    if (this.columnNamesCache.has(tableName)) {
-      return this.columnNamesCache.get(tableName)!;
-    }
-    const table = this.getTable(tableName);
-    const names = new Set(Object.keys(table));
-    this.columnNamesCache.set(tableName, names);
-    return names;
-  }
-
-  public createDynamicTableDefinition(name: string) {
-    return sqliteTable(
-      name,
-      {
-        _id: text("_id", { length: 36 }).primaryKey(),
-        tenantId: text("tenantId", { length: 36 }),
-        data: text("data", { mode: "json" }).notNull().default("{}"),
-        status: text("status", { length: 50 }).notNull().default("draft"),
-        isDeleted: integer("isDeleted", { mode: "boolean" }).notNull().default(false),
-        createdAt: integer("createdAt", { mode: "timestamp_ms" })
-          .notNull()
-          .default(sql`(strftime('%s','now')*1000)`),
-        updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
-          .notNull()
-          .default(sql`(strftime('%s','now')*1000)`),
-      },
-      (t) => ({
-        tenantIdx: index(`${name}_tenant_idx`).on(t.tenantId),
-        statusIdx: index(`${name}_status_idx`).on(t.status),
-      }),
-    );
+  public async getVersion(): Promise<DatabaseResult<string>> {
+    return this.wrap(async () => {
+      const row = this.prepareAndExecute("SELECT sqlite_version() as version", "get");
+      return row.version as string;
+    }, "GET_VERSION_FAILED");
   }
 
   /* ------------------------------------------------ */
   /* INTERNALS                                        */
   /* ------------------------------------------------ */
+
+  /**
+   * High-performance execution helper that abstracts away driver differences.
+   */
+  protected prepareAndExecute(
+    sqlText: string,
+    method: "all" | "get" | "run" | "values" = "all",
+    ...params: any[]
+  ): any {
+    if (process.env.VERBOSE_TESTS === "true") {
+      console.log(`[SQLite RAW] ${sqlText} | Params: ${JSON.stringify(params)}`);
+    }
+    const client = this.sqlite;
+
+    // 🚀 Performance: Prepared Statement Caching
+    let stmt = this._statementCache.get(sqlText);
+    if (!stmt) {
+      stmt = client.prepare(sqlText);
+      if (this._statementCache.size < 500) {
+        this._statementCache.set(sqlText, stmt);
+      }
+    }
+
+    // 🚀 Metrics
+    this.metrics.queryCount++;
+
+    // Driver-specific execution
+    if (client.query) {
+      // bun:sqlite
+      if (method === "all") return stmt.all(...params);
+      if (method === "get") return stmt.get(...params);
+      if (method === "run") return stmt.run(...params);
+      if (method === "values") return stmt.values(...params);
+    } else {
+      // better-sqlite3 or node:sqlite
+      if (method === "all") return stmt.all(...params);
+      if (method === "get") return stmt.get(...params);
+      if (method === "run") return stmt.run(...params);
+      // node:sqlite doesn't have .values(), fallback to all()
+      if (method === "values") return stmt.all(...params);
+    }
+
+    return stmt.all(...params);
+  }
+
   private async createDriver(dbPath: string) {
     const versions = (process as any)?.versions || {};
     const isBun = typeof Bun !== "undefined";
     const nodeVersion = versions.node;
 
-    if (process.env.BENCHMARK_DEBUG === "true") {
-      logger.info(`[SQLite] createDriver: isBun=${isBun}, node=${nodeVersion}`);
+    // 🚀 WINDOWS OPTIMIZATION: bun:sqlite on Windows can fail with SQLITE_MISUSE (21)
+    // if given absolute paths with drive letters in certain formats.
+    // Converting to a relative path or ensuring forward slashes fixes this.
+    let normalizedPath = dbPath.replace(/\\/g, "/");
+    if (process.platform === "win32") {
+      const root = process.cwd().replace(/\\/g, "/").toLowerCase();
+      const normLower = normalizedPath.toLowerCase();
+
+      if (normLower.startsWith(root)) {
+        normalizedPath = normalizedPath.substring(root.length).replace(/^\//, "");
+      } else if (normalizedPath.includes(":/") && !normalizedPath.startsWith("file:")) {
+        // Absolute path on Windows but not in CWD, use file URI
+        normalizedPath = `file:///${normalizedPath}`;
+      }
     }
+
+    // ALWAYS log this to server-debug.log for diagnosis
+    logger.info(`[SQLite] Opening database at: ${normalizedPath} (Original: ${dbPath})`);
 
     const readonly = (this.config as SQLiteConfig)?.readonly || dbPath.includes("mode=ro") || false;
     const options = readonly ? { readonly } : {};
@@ -521,14 +499,65 @@ export abstract class AdapterCore extends BaseSqlAdapter {
     if (isBun) {
       try {
         const { Database } = await import(/* @vite-ignore */ "bun:sqlite");
-        const sqlite = new Database(dbPath, options) as SQLiteClient;
+        logger.debug(`[SQLite] Bun detected. Attempting to use native 'bun:sqlite'...`);
+
+        // 🚀 WINDOWS RESILIENCE: Retry on "SQLITE_MISUSE" or "busy" which often indicates
+        // a transient file lock or path access issue on Windows.
+        let sqlite: any;
+        let lastErr: any;
+        for (let i = 0; i < 5; i++) {
+          try {
+            // On Windows, sometimes file:/// is needed, sometimes not.
+            // We'll try the normalizedPath first, then raw dbPath.
+            const target = i >= 3 ? dbPath.replace(/\\/g, "/") : normalizedPath;
+
+            if (Object.keys(options).length > 0) {
+              sqlite = new Database(target, options);
+            } else {
+              sqlite = new Database(target);
+            }
+            break;
+          } catch (e: any) {
+            lastErr = e;
+            const isRetryable =
+              e.message?.includes("misuse") ||
+              e.message?.includes("busy") ||
+              e.code === "SQLITE_MISUSE" ||
+              e.errno === 21;
+
+            if (process.platform === "win32" && isRetryable) {
+              await new Promise((r) => setTimeout(r, 100 * (i + 1)));
+              continue;
+            }
+            throw e;
+          }
+        }
+        if (!sqlite) throw lastErr;
+
         const { drizzle } = await import(/* @vite-ignore */ "drizzle-orm/bun-sqlite");
         const db = drizzle(sqlite as any, { schema }) as SQLiteDB;
-        logger.info(`[SQLite] Using native 'bun:sqlite' driver.`);
+        logger.info(`[SQLite] 🚀 SUCCESS: Using high-performance 'bun:sqlite' driver.`);
         return { sqlite, db };
       } catch (e: any) {
-        if (!nodeVersion) throw e;
-        logger.warn(`[SQLite] Bun driver fallback due to: ${e.message}`);
+        logger.warn(`[SQLite] ⚠️ Bun driver probe failed: ${e.message}. Falling back...`);
+
+        // 🚀 WINDOWS OPTIMIZATION: On Windows Bun, if bun:sqlite fails,
+        // we likely have a serious environment issue. better-sqlite3 is
+        // even more likely to fail due to native bindings.
+        if (process.platform === "win32") {
+          const isMisuse =
+            e.message?.includes("misuse") || e.code === "SQLITE_MISUSE" || e.errno === 21;
+
+          if (isMisuse && process.env.BENCHMARK_DEBUG !== "true") {
+            // Silently continue to fallbacks if misuse (expected in some path formats)
+          } else {
+            logger.error(`[SQLite] Native 'bun:sqlite' failed on Windows: ${e.message}`);
+          }
+
+          // Don't fall through to better-sqlite3 on Windows Bun to avoid extreme noise
+          // unless explicitly requested via an environment variable.
+          if (process.env.FORCE_SQLITE_FALLBACK !== "true") throw e;
+        }
       }
     }
 
@@ -536,15 +565,32 @@ export abstract class AdapterCore extends BaseSqlAdapter {
       // 🔌 NODE FALLBACK 1: Try better-sqlite3 (Legacy Node)
       const req = await getRequire();
       if (req) {
-        const sqlite = req("better-sqlite3")(dbPath, options);
-        const { drizzle } = await import("drizzle-orm/better-sqlite3");
-        const db = drizzle(sqlite, { schema });
-        logger.info(`[SQLite] Using 'better-sqlite3' driver.`);
-        return { sqlite, db };
+        // Suppress noisy binding errors on Windows if we're just checking drivers
+        try {
+          const sqlite = req("better-sqlite3")(normalizedPath, options);
+          const { drizzle } = await import("drizzle-orm/better-sqlite3");
+          const db = drizzle(sqlite, { schema });
+          logger.info(`[SQLite] Using 'better-sqlite3' driver.`);
+          return { sqlite, db };
+        } catch (bindingError: any) {
+          if (process.platform === "win32" && bindingError.message.includes("bindings")) {
+            throw new Error("BETTER_SQLITE3_BINDINGS_MISSING");
+          }
+          throw bindingError;
+        }
       } else {
         throw new Error("requireFunc not available for better-sqlite3");
       }
     } catch (e: any) {
+      // If we're on Windows and it's just missing bindings, log a concise warning instead of a stack trace
+      if (e.message === "BETTER_SQLITE3_BINDINGS_MISSING") {
+        logger.debug(
+          "[SQLite] better-sqlite3 bindings missing (Expected on Windows without build tools).",
+        );
+      } else {
+        logger.debug(`[SQLite] better-sqlite3 fallback failed: ${e.message}`);
+      }
+
       // 🔌 NODE FALLBACK 2: Try native node:sqlite (Node 22.5+) via shim
       if (nodeVersion) {
         const v = nodeVersion.replace("v", "");
@@ -561,68 +607,59 @@ export abstract class AdapterCore extends BaseSqlAdapter {
             const { drizzle: proxyDrizzle } = await import("drizzle-orm/sqlite-proxy");
 
             const db = proxyDrizzle(
-              async (sql, params, method) => {
+              async (sql, params = [], method) => {
+                const serializedParams = (params || []).map((p) =>
+                  p !== null && typeof p === "object" ? JSON.stringify(p) : p,
+                );
+
+                const stmt = sqlite.prepare(sql);
+                let result: any;
+
                 try {
-                  // 🚀 CRITICAL: node:sqlite does not auto-serialize objects/arrays to JSON strings.
-                  const serializedParams = params.map((p) =>
-                    p !== null && typeof p === "object" ? JSON.stringify(p) : p,
-                  );
-
-                  const stmt = sqlite.prepare(sql);
-
-                  // 🚀 FIX: Force results as arrays to avoid column name collisions in JOINs
-                  if (typeof (stmt as any).setReturnArrays === "function") {
-                    (stmt as any).setReturnArrays(true);
+                  if (method === "all") {
+                    result = stmt.all(...serializedParams);
+                  } else if (method === "get") {
+                    result = stmt.get(...serializedParams);
+                  } else if (method === "run") {
+                    result = stmt.run(...serializedParams);
+                  } else if (method === "values") {
+                    result = stmt.values
+                      ? stmt.values(...serializedParams)
+                      : stmt.all(...serializedParams);
+                  } else {
+                    result = stmt.run(...serializedParams);
                   }
-
-                  if (method === "run") {
-                    const result = stmt.run(...serializedParams);
-                    return { rows: [], ...result };
-                  }
-
-                  const rows = stmt.all(...serializedParams) as any[];
-
-                  // If the driver doesn't support setReturnArrays, we fallback to Object.values
-                  // (but this won't solve the JOIN collision issue)
-                  const arrayRows = rows.map((row) =>
-                    Array.isArray(row) ? row : Object.values(row),
-                  );
-
-                  return { rows: arrayRows };
-                } catch (err: any) {
-                  if (!err.message?.includes("no such table")) {
-                    logger.error(`[SQLite Shim] execution error: ${err.message}`, { sql });
-                  }
-                  throw err;
+                } catch (execErr: any) {
+                  logger.error(`[SQLite Proxy] Execution failed for ${method}: ${sql}`, execErr);
+                  throw execErr;
                 }
+
+                if (!result && (method === "all" || method === "values")) {
+                  if (process.env.BENCHMARK_DEBUG === "true") {
+                    logger.warn(
+                      `[SQLite Proxy] Method '${method}' returned falsy (${result}) for SQL: ${sql}`,
+                    );
+                  }
+                  result = [];
+                }
+
+                if (method === "run") return result;
+                return { rows: result };
               },
               { schema },
-            ) as unknown as SQLiteDB;
+            );
 
-            logger.info(`[SQLite] Using 'node:sqlite' shim with array-result fix.`);
-
+            logger.info(`[SQLite] Using native 'node:sqlite' driver (Shimmed).`);
             return { sqlite: sqlite as any, db };
           } catch (nodeSqliteErr: any) {
-            logger.warn(`[SQLite] Fallback to node:sqlite failed: ${nodeSqliteErr.message}`);
+            logger.error(`[SQLite] node:sqlite fallback failed: ${nodeSqliteErr.message}`);
           }
         }
       }
 
-      const isBindingError =
-        e.message.includes("bindings file") ||
-        e.message.includes("Cannot find module 'better-sqlite3'");
-      const isWindows = process.platform === "win32";
-
-      if (isBindingError) {
-        // Only log the full error if we couldn't even fall back to node:sqlite
-        logger.error(`[SQLite] Driver initialization failed: ${e.message.split("\n")[0]}`);
-        let hint = `\n\n💡 SUGGESTION:\n1. Run 'npm install better-sqlite3' to rebuild the native bindings for Node ${nodeVersion}.\n`;
-        if (isWindows) {
-          hint += `2. If you are using Bun, try running 'bun dev' directly. If that fails, ensure you have VS Build Tools installed.\n`;
-        }
-        throw new Error(`SQLite driver initialization failed: ${e.message.split("\n")[0]}${hint}`);
-      }
-      throw new Error(`SQLite Connection failed: ${e.message.split("\n")[0]}`);
+      throw new Error(
+        `No compatible SQLite driver found. Tried bun:sqlite, better-sqlite3, and node:sqlite. Error: ${e.message}`,
+      );
     }
   }
 
@@ -656,7 +693,6 @@ export abstract class AdapterCore extends BaseSqlAdapter {
   } {
     return {
       execute: async (sqlText: string, params: any[] = []) => {
-        // Use the high-performance prepareAndExecute helper
         return this.prepareAndExecute(sqlText, "all", ...params);
       },
       client: this.sqlite,
@@ -667,36 +703,39 @@ export abstract class AdapterCore extends BaseSqlAdapter {
     const path = await import("node:path");
     const fs = await import("node:fs");
 
-    let file =
-      typeof config === "string"
-        ? config
-        : config.connectionString || config.filename || config.DB_NAME || "cms.db";
+    let dbPath = typeof config === "string" ? config : config.connectionString;
 
-    if (file.startsWith("sqlite://")) {
-      file = file.slice(9);
+    if (!dbPath) {
+      dbPath = process.env.DB_PATH || "content/data.db";
     }
 
-    // Support memory databases
-    if (file === ":memory:" || file.startsWith("file::memory:")) {
-      return file;
+    // 🚀 HARDENING: Don't treat URIs as local paths
+    if (dbPath.includes("://")) {
+      throw new Error(
+        `Invalid SQLite path: '${dbPath}' looks like a URI. Check your DB configuration.`,
+      );
     }
 
-    // 🚀 Ensure consistent extension (align with config-state.ts)
-    if (!file.endsWith(".sqlite") && !file.endsWith(".db")) {
-      file = `${file}.sqlite`;
+    // Handle standard relative paths
+    if (!path.isAbsolute(dbPath) && !dbPath.startsWith("file:")) {
+      dbPath = path.resolve(process.cwd(), dbPath);
     }
 
-    if (!path.isAbsolute(file) && !file.includes("/") && !file.includes("\\")) {
-      file = path.join("config", "database", file);
-    }
-
-    const full = path.resolve(process.cwd(), file);
-    const dir = path.dirname(full);
-
+    // Ensure directory exists
+    const dir = path.dirname(dbPath.replace("file:///", ""));
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
 
-    return full;
+    return dbPath;
+  }
+}
+
+async function getRequire() {
+  try {
+    const { createRequire } = await import("node:module");
+    return createRequire(import.meta.url);
+  } catch {
+    return null;
   }
 }

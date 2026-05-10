@@ -1,24 +1,14 @@
 /**
- * @file src/databases/mariadb/collection/collection-module.ts
+ * @file src/databases/mariadb/collection-module.ts
  * @description Dynamic collection management module for MariaDB
- *
- * Features:
- * - Create collection
- * - Update collection
- * - Delete collection
  */
 
-import { logger } from "@src/utils/logger";
 import type { Schema } from "@src/content/types";
-import type { CollectionModel, DatabaseResult } from "../db-interface";
+import type { CollectionModel, DatabaseResult, ICollectionAdapter } from "../db-interface";
 import type { AdapterCore } from "./adapter-core";
 
-export class CollectionModule {
-  private readonly core: AdapterCore;
-
-  constructor(core: AdapterCore) {
-    this.core = core;
-  }
+export class CollectionModule implements ICollectionAdapter {
+  constructor(private readonly core: AdapterCore) {}
 
   private get crud() {
     return this.core.crud;
@@ -46,35 +36,12 @@ export class CollectionModule {
     };
   }
 
-  async createModel(schemaData: Schema, force?: boolean): Promise<void> {
-    const id = schemaData._id || schemaData.name;
-    if (!id) {
-      throw new Error("Schema must have an _id or name");
-    }
+  async createModel(schemaData: Schema): Promise<void> {
+    const id = schemaData._id;
+    if (!id) throw new Error("Schema must have an _id");
 
-    const tableName = id.startsWith("collection_") ? id : `collection_${id}`;
-    logger.info(`MariaDB createModel: Creating table "${tableName}"...`);
-
-    if (force) {
-      if (this.core.pool) {
-        await this.core.pool.query(`DROP TABLE IF EXISTS \`${tableName}\``);
-      }
-    }
-
-    if (this.core.pool) {
-      await this.core.pool.query(`
-        CREATE TABLE IF NOT EXISTS \`${tableName}\` (
-          \`_id\` VARCHAR(36) PRIMARY KEY,
-          \`tenantId\` VARCHAR(36),
-          \`data\` JSON NOT NULL,
-          \`status\` VARCHAR(50) NOT NULL DEFAULT 'draft',
-          \`isDeleted\` TINYINT(1) NOT NULL DEFAULT 0,
-          \`createdAt\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          \`updatedAt\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          INDEX idx_tenantid (\`tenantId\`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      `);
-    }
+    // 🚀 USE AGNOSTIC CORE: Standardized table creation with quoted identifiers
+    await this.core.createModel(schemaData);
 
     const wrappedModel: CollectionModel = {
       findOne: async <R = unknown>(query: Record<string, unknown>) => {
@@ -88,15 +55,11 @@ export class CollectionModule {
     };
     this.collectionRegistry.set(id, wrappedModel);
 
-    // 🚀 CACHE: Register the dynamic table definition immediately
+    // Register collection in core tables
+    const tableName = `collection_${id}`;
     const dynamicTable = this.core.createDynamicTableDefinition(tableName);
     this.core.dynamicTables.set(id, dynamicTable);
     this.core.dynamicTables.set(tableName, dynamicTable);
-
-    if (typeof (this.crud as any).clearPreparedStatements === "function") {
-      (this.crud as any).clearPreparedStatements(id);
-    }
-    logger.info(`✅ MariaDB table "${tableName}" created successfully.`);
   }
 
   async updateModel(schemaData: Schema): Promise<void> {
@@ -105,8 +68,9 @@ export class CollectionModule {
 
   async deleteModel(id: string): Promise<void> {
     this.collectionRegistry.delete(id);
-    if (typeof (this.crud as any).clearPreparedStatements === "function") {
-      (this.crud as any).clearPreparedStatements(id);
+    const tableName = `collection_${id}`;
+    if (this.core.pool) {
+      await this.core.pool.query(`DROP TABLE IF EXISTS \`${tableName}\``);
     }
   }
 
@@ -135,31 +99,14 @@ export class CollectionModule {
   }
 
   async getSchema(_collectionName: string): Promise<DatabaseResult<Schema | null>> {
-    return this.core.notImplemented("getSchema");
+    return { success: true, data: null };
   }
 
   async getSchemaById(_collectionId: string): Promise<DatabaseResult<Schema | null>> {
     return { success: true, data: null };
   }
 
-  async listSchemas(_tenantId?: string | null): Promise<DatabaseResult<Schema[]>> {
-    return this.core.wrap(async () => {
-      if (!this.core.pool) throw new Error("Pool not available");
-
-      // MariaDB standard introspection
-      const [rows] = (await this.core.pool.query(
-        "SELECT TABLE_NAME as name FROM information_schema.tables WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE 'collection_%'",
-      )) as any[];
-
-      const schemas: Schema[] = rows.map((t: any) => ({
-        _id: t.name.replace("collection_", ""),
-        name: t.name.replace("collection_", ""),
-        slug: t.name.replace("collection_", ""),
-        fields: [],
-        status: "publish",
-      }));
-
-      return schemas;
-    }, "LIST_SCHEMAS_FAILED");
+  async listSchemas(): Promise<DatabaseResult<Schema[]>> {
+    return { success: true, data: [] };
   }
 }

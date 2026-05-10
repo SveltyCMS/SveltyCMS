@@ -15,14 +15,14 @@ import type {
   PaginationOptions,
   EntityCreate,
 } from "../db-interface";
-import type { AdapterCore } from "./adapter-core";
+import type { PostgresAdapterCore } from "./adapter-core";
 import { schema } from "./schema";
 import * as utils from "./utils";
 
 export class ContentModule {
-  private readonly core: AdapterCore;
+  private readonly core: PostgresAdapterCore;
 
-  constructor(core: AdapterCore) {
+  constructor(core: PostgresAdapterCore) {
     this.core = core;
   }
 
@@ -184,7 +184,7 @@ export class ContentModule {
         bypassCache?: boolean;
       },
     ): Promise<DatabaseResult<ContentNode[]>> => {
-      return this.core.transaction(async (tx) => {
+      return this.core.transaction(async (tx: any) => {
         const results: ContentNode[] = [];
         for (const update of updates) {
           const res = await this.nodes.update(update.path, update.changes, { tx });
@@ -234,7 +234,7 @@ export class ContentModule {
         path: string;
       }>,
     ): Promise<DatabaseResult<void>> => {
-      return this.core.transaction(async (tx) => {
+      return this.core.transaction(async (tx: any) => {
         const db = (tx as any).db;
         for (const item of items) {
           await db

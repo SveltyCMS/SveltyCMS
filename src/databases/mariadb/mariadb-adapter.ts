@@ -50,7 +50,6 @@ import { BatchModule } from "./batch-module";
 import { CacheModule } from "./cache-module";
 import { PerformanceModule } from "./performance-module";
 import { MariaDBQueryBuilder } from "./maria-db-query-builder";
-import { getDefaultRoles } from "../auth/default-roles";
 import type * as schema from "./schema";
 import * as utils from "../core/relational-utils";
 import { AdapterCore } from "./adapter-core";
@@ -213,44 +212,10 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
     });
   }
 
-  public readonly utils = utils;
+  // Internal lazy modules are inherited from BaseSqlAdapter
 
-  // Internal lazy modules
-  private _auth?: IAuthAdapter;
-  private _content?: IContentAdapter;
-  private _media?: IMediaAdapter;
-  private _collection?: ICollectionAdapter;
-  private _batch?: IDBAdapter["batch"];
-  private _system?: ISystemAdapter;
-  private _monitoring?: IMonitoringAdapter;
-
-  constructor() {
+  constructor(_config: any = {}) {
     super();
-  }
-
-  public async ensureAuth(): Promise<void> {
-    const db = this.db;
-    if (!db) return;
-
-    // Check if roles exist
-    const { roles } = await import("./schema");
-    const existingRoles = await db.select().from(roles).limit(1);
-    if (existingRoles.length > 0) {
-      return;
-    }
-
-    const now = new Date();
-    const rolesPayload: (typeof roles.$inferInsert)[] = getDefaultRoles().map((role) => ({
-      ...role,
-      createdAt: now,
-      updatedAt: now,
-    })) as any;
-
-    await db.insert(roles).values(rolesPayload);
-  }
-
-  public async ensureSystem(): Promise<void> {
-    return Promise.resolve();
   }
 
   async connect(
@@ -278,10 +243,10 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
         return {
           success: false,
           message: "Migration failed",
-          error: this.utils.createDatabaseError(
-            "MIGRATION_FAILED",
-            migrationResult.error || "Unknown migration error",
-          ),
+          error: {
+            code: "MIGRATION_FAILED",
+            message: migrationResult.error || "Unknown migration error",
+          } as any,
         };
       }
     }
@@ -290,7 +255,7 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 
   public async disconnect(): Promise<DatabaseResult<void>> {
     // Clear shared SQL adapter caches
-    this.collectionRegistry.clear();
+    this.tableRegistry.clear();
     this.dynamicTables.clear();
 
     return super.disconnect();

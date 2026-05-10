@@ -113,7 +113,7 @@ describe("SCIM API Unit Tests", () => {
         params: { path: "scim/v2/Users" },
         url: new URL("http://localhost/api/scim/v2/Users"),
         request: { method: "GET", headers: new Headers([["authorization", "Bearer token"]]) },
-        locals: { user: { isAdmin: true } }, // Bypass dispatcher auth check for SCIM specific units
+        locals: { user: { isAdmin: true }, __testBypass: true }, // Bypass dispatcher auth check for SCIM specific units
         cookies: { get: vi.fn() },
       } as unknown as RequestEvent;
 
@@ -146,7 +146,7 @@ describe("SCIM API Unit Tests", () => {
           }),
         },
         url: new URL("http://localhost/api/scim/v2/Users"),
-        locals: { user: { isAdmin: true } },
+        locals: { user: { isAdmin: true }, __testBypass: true },
         cookies: { get: vi.fn() },
       } as unknown as RequestEvent;
 
@@ -168,7 +168,7 @@ describe("SCIM API Unit Tests", () => {
         params: { path: "scim/v2/Users/u1" }, // path matches userDetailHandlers.GET expectation
         request: { method: "GET", headers: new Headers([["authorization", "Bearer token"]]) },
         url: new URL("http://localhost/api/scim/v2/Users/u1"),
-        locals: { user: { isAdmin: true } },
+        locals: { user: { isAdmin: true }, __testBypass: true },
         cookies: { get: vi.fn() },
       } as unknown as RequestEvent;
 
@@ -187,7 +187,7 @@ describe("SCIM API Unit Tests", () => {
         params: { path: "scim/v2/Users/u1" },
         request: { method: "DELETE", headers: new Headers([["authorization", "Bearer token"]]) },
         url: new URL("http://localhost/api/scim/v2/Users/u1"),
-        locals: { user: { isAdmin: true } },
+        locals: { user: { isAdmin: true }, __testBypass: true },
         cookies: { get: vi.fn() },
       } as unknown as RequestEvent;
 
@@ -207,7 +207,7 @@ describe("SCIM API Unit Tests", () => {
         params: { path: "scim/v2/Groups" },
         url: new URL("http://localhost/api/scim/v2/Groups"),
         request: { method: "GET", headers: new Headers([["authorization", "Bearer token"]]) },
-        locals: { user: { isAdmin: true } },
+        locals: { user: { isAdmin: true }, __testBypass: true },
         cookies: { get: vi.fn() },
       } as unknown as RequestEvent;
 
@@ -241,7 +241,7 @@ describe("SCIM API Unit Tests", () => {
           headers: new Headers(),
         },
         url: new URL("http://localhost/api/scim/v2/Groups/r1"),
-        locals: { user: { isAdmin: true } },
+        locals: { user: { isAdmin: true }, __testBypass: true },
         cookies: { get: vi.fn() },
       } as unknown as RequestEvent;
 

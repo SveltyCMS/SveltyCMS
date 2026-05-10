@@ -156,7 +156,7 @@ export const contentNodes = sqliteTable(
     translations: text("translations", { mode: "json" })
       .$type<{ languageTag: string; translationName: string }[]>()
       .default([]),
-    order: integer("order").notNull().default(0),
+    position: integer("position").notNull().default(0),
     isPublished: integer("isPublished", { mode: "boolean" }).notNull().default(false),
     publishedAt: integer("publishedAt", { mode: "timestamp_ms" }),
     isDeleted: integer("isDeleted", { mode: "boolean" }).notNull().default(false),
@@ -295,7 +295,7 @@ export const systemVirtualFolders = sqliteTable(
     path: text("path", { length: 1000 }).notNull(),
     parentId: text("parentId", { length: 36 }),
     icon: text("icon", { length: 100 }),
-    order: integer("order").notNull().default(0),
+    position: integer("position").notNull().default(0),
     type: text("type", { length: 50 }).notNull().default("folder"),
     metadata: text("metadata", { mode: "json" }),
     tenantId: tenantField(),
@@ -327,6 +327,7 @@ export const systemPreferences = sqliteTable(
     scopeIdx: index("scope_idx").on(table.scope),
     userIdx: index("user_idx").on(table.userId),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    keyTenantUnique: unique("key_tenant_unique").on(table.key, table.tenantId),
   }),
 );
 

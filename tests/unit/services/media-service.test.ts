@@ -106,16 +106,12 @@ describe("MediaService (Whitebox)", () => {
 
   describe("Transformation Utilities", () => {
     it("should determine correct media type from mime", () => {
-      // @ts-expect-error - accessing private for whitebox testing
       expect(mediaService.getMediaType("image/jpeg")).toBe("image");
-      // @ts-expect-error
       expect(mediaService.getMediaType("video/mp4")).toBe("video");
-      // @ts-expect-error
       expect(mediaService.getMediaType("application/pdf")).toBe("document");
     });
 
     it("should fallback to document for unknown application/ types", () => {
-      // @ts-expect-error
       expect(mediaService.getMediaType("application/x-executable")).toBe("document");
     });
   });

@@ -25,6 +25,7 @@ vi.mock("@src/databases/db", () => ({
         getActiveWidgets: vi.fn().mockResolvedValue({ success: true, data: [] }),
         activate: vi.fn().mockResolvedValue({ success: true }),
         deactivate: vi.fn().mockResolvedValue({ success: true }),
+        findAll: vi.fn().mockResolvedValue({ success: true, data: [{ name: "test-widget" }] }),
       },
     },
     isConnected: vi.fn().mockReturnValue(true),
@@ -103,6 +104,7 @@ describe("Widget API Security - Tenant Isolation", () => {
         headers: { get: vi.fn().mockImplementation((name) => eventOverrides.headers?.[name]) },
       },
       locals: {
+        __testBypass: true,
         dbAdapter: mockDbAdapter,
         user: { _id: "u1", email: "admin@test.com", role: "admin", isAdmin: true },
         roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
@@ -130,7 +132,7 @@ describe("Widget API Security - Tenant Isolation", () => {
       });
 
       const response = await callDispatcher("widgets/list", "GET", {
-        locals: { tenantId: "tenant-1" },
+        locals: { tenantId: "tenant-1", __testBypass: true },
       });
       const data = await response!.json();
 
@@ -147,7 +149,7 @@ describe("Widget API Security - Tenant Isolation", () => {
       });
 
       const response = await callDispatcher("widgets/activate/test-widget", "POST", {
-        locals: { tenantId: "tenant-1" },
+        locals: { tenantId: "tenant-1", __testBypass: true },
       });
       const data = await response!.json();
 
@@ -164,7 +166,7 @@ describe("Widget API Security - Tenant Isolation", () => {
       });
 
       const response = await callDispatcher("widgets/deactivate/test-widget", "POST", {
-        locals: { tenantId: "tenant-1" },
+        locals: { tenantId: "tenant-1", __testBypass: true },
       });
       const data = await response!.json();
 

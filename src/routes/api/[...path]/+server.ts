@@ -9,7 +9,7 @@ import { dev } from "$app/environment";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
-import { dbAdapter, getDbInitPromise, isDbConnected } from "@src/databases/db";
+import { getDbInitPromise, isDbConnected } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { getSegments } from "./handlers/base";
@@ -80,37 +80,29 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   graphql: { handler: "content", fn: "handleGraphqlRoutes" },
 };
 
-let cachedDbVersion: string | null = null;
+// ✨ CACHED SDK: Reusable instance to prevent object churn
+let sharedCMS: LocalCMS | null = null;
 
 /**
  * Main API Dispatcher - Exported for internal testing only
  */
 export const _handler = async (event: RequestEvent) => {
   const { request, url, params, locals, cookies } = event;
-  const { path } = params;
+
+  // 🚀 RESILIENCE: Derive path from URL if params are missing (common in Hook Bypasses)
+  const rawPath = params.path || url.pathname.replace(/^\/api\//, "");
   const { user } = locals;
   let tenantId = (locals.tenantId as string) || null;
 
-  // 🚀 PERFORMANCE: L1 Synchronous Cache Hit (Bypass everything for hot GET requests)
+  // 🚀 PERFORMANCE: L1 Synchronous Cache Hit
   if (request.method === "GET") {
-    try {
-      const { cacheService } = await import("@src/databases/cache/cache-service");
-      const cached = cacheService.getSync?.(url.pathname + url.search, tenantId);
-      if (cached) {
-        return json(cached, {
-          headers: {
-            "X-Cache": "HIT-L1",
-            "Content-Type": "application/json",
-          },
-        });
-      }
-    } catch {
-      /* ignore sync cache errors */
+    const { cacheService } = await import("@src/databases/cache/cache-service");
+    const cached = cacheService.getSync?.(url.pathname + url.search, tenantId);
+    if (cached) {
+      return json(cached, {
+        headers: { "X-Cache": "HIT-L1", "Content-Type": "application/json" },
+      });
     }
-  }
-
-  if (process.env.BENCHMARK_DEBUG === "true") {
-    console.log(`[_handler] Processing ${event.request.method} ${event.url.pathname}`);
   }
 
   // Support tenantId override for super-admins
@@ -118,129 +110,79 @@ export const _handler = async (event: RequestEvent) => {
     if (user?.role === "super-admin") {
       tenantId = url.searchParams.get("tenantId")!;
     } else {
-      throw new AppError(
-        "Forbidden: Tenant override only allowed for super-admins",
-        403,
-        "FORBIDDEN",
-      );
+      throw new AppError("Forbidden: Cannot override tenantId", 403, "FORBIDDEN");
     }
   }
-  const segments = getSegments(path as string);
+
+  const segments = getSegments(rawPath as string);
   const namespace = segments[0];
 
-  if (!namespace) {
-    return new Response("Not Found", { status: 404 });
+  if (!namespace) return new Response("Not Found", { status: 404 });
+
+  // 🚀 HYPER-TURBO: Direct Health Check
+  if (namespace === "system" && segments[1] === "health") {
+    const connected = isDbConnected();
+    return json(
+      {
+        status: connected ? "healthy" : "initializing",
+        overallStatus: connected ? "READY" : "INITIALIZING",
+        database: connected,
+        uptime: process.uptime(),
+        timestamp: Date.now(),
+        dbType: process.env.DB_TYPE || "unknown",
+        memory: process.memoryUsage(),
+      },
+      { status: connected ? 200 : 533 }, // Use 533 to differentiate from standard 503 if needed
+    );
   }
 
-  // --- Health Check ---
-  if (namespace === "system" && segments[1] === "health") {
-    // Force GC if requested in test mode to measure baseline memory correctly
-    if (url.searchParams.get("gc") === "true" && process.env.TEST_MODE === "true") {
-      if (globalThis.gc) {
-        globalThis.gc();
-      } else if ((globalThis as any).Bun?.gc) {
-        (globalThis as any).Bun.gc(true);
-      }
+  // 🛡️ ADAPTER ACQUISITION: Optimized for speed
+  let adapter = locals.dbAdapter as any;
+  if (!adapter) {
+    if (!isDbConnected()) {
+      await getDbInitPromise();
     }
+    const { getDb } = await import("@src/databases/db");
+    adapter = getDb();
+  }
 
-    const connected = isDbConnected();
-    const health = {
-      status: connected ? "healthy" : "initializing",
-      overallStatus: connected ? "READY" : "INITIALIZING",
-      database: connected,
-      uptime: process.uptime(),
-      timestamp: Date.now(),
-      dbType: process.env.DB_TYPE || "unknown",
-      dbVersion: cachedDbVersion || "unknown",
-      memory: process.memoryUsage(),
-    };
-    if (dbAdapter && !cachedDbVersion) {
-      try {
-        const v = await dbAdapter.getVersion();
-        if (v.success) cachedDbVersion = v.data;
-      } catch {
-        /* ignore version check errors during warmup */
-      }
-    }
-    return json(health);
+  if (!adapter) throw new AppError("Database unavailable", 503);
+
+  // 🚀 MEMORY OPTIMIZATION: Reuse CMS instance to prevent garbage collector pressure
+  if (!sharedCMS || sharedCMS.db !== adapter) {
+    sharedCMS = new LocalCMS(adapter);
+  }
+  const cms = sharedCMS;
+
+  // Fail-closed authentication
+  if (!user && !isPublicRoute(url.pathname, (locals as any).__testBypass === true)) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
   }
 
   // --- CSRF Protection ---
-  const isSecure = url.protocol === "https:" || (!dev && url.hostname !== "localhost");
   if (
-    process.env.TEST_MODE !== "true" &&
+    !(locals as any).__testBypass &&
     ["POST", "PUT", "PATCH", "DELETE"].includes(request.method)
   ) {
+    const isSecure = url.protocol === "https:" || (!dev && url.hostname !== "localhost");
     const csrfResult = validateCsrfForRequest(cookies, request, isSecure);
     if (!csrfResult.isValid)
       throw new AppError(`Security violation: ${csrfResult.error}`, 403, "CSRF_VIOLATION");
   }
 
-  // --- Init & Auth ---
-  await getDbInitPromise();
-
-  // 🛡️ SECURITY & STABILITY: Fail fast if database is not connected
-  // This prevents 500 errors from uninitialized adapters downstream.
-  if (!(locals as any).dbAdapter && !isDbConnected() && namespace !== "system") {
-    if (process.env.TEST_MODE === "true") {
-      const adapter = (locals as any).dbAdapter || (await import("@src/databases/db")).getDb();
-      console.warn(
-        `[Gatekeeper] 503 Return: namespace=${namespace}, isDbConnected=${isDbConnected()}, adapterReady=${adapter?.connected === true}, localsAdapter=${!!(locals as any).dbAdapter}`,
-      );
-    }
-    return new Response(
-      JSON.stringify({
-        success: false,
-        status: "INITIALIZING",
-        message: "Database is still initializing or failed to connect. Please retry.",
-        code: "DB_NOT_CONNECTED",
-      }),
-      { status: 503, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
-  let adapter = locals.dbAdapter as any;
-  if (!adapter) {
-    const { getDb } = await import("@src/databases/db");
-    adapter = getDb();
-    if (process.env.TEST_MODE === "true" && !adapter) {
-      console.log(`[_handler] adapter is null from getDb(). Path: ${path}`);
-    }
-  }
-
-  if (!adapter) {
-    const { getPrivateEnv } = await import("@src/databases/config-state");
-    const env = getPrivateEnv();
-    const details = `DB_TYPE=${env?.DB_TYPE}, TEST_MODE=${process.env.TEST_MODE}, NODE_ENV=${process.env.NODE_ENV}`;
-
-    throw new AppError(`Database unavailable: Adapter not initialized (${details})`, 503);
-  }
-
-  const cms = new LocalCMS(adapter);
-
-  // Fail-closed authentication check for non-public routes
-  const isPublic = isPublicRoute(url.pathname, process.env.TEST_MODE === "true");
-  if (!user && !isPublic) {
-    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-  }
-
   if (!NAMESPACE_CONFIG[namespace]) {
     throw new AppError(`API Namespace "/api/${namespace}" not found`, 404, "NAMESPACE_NOT_FOUND");
   }
-  const config = NAMESPACE_CONFIG[namespace];
 
+  const config = NAMESPACE_CONFIG[namespace];
   const handlerModule = await HANDLERS[config.handler]();
   const fn = handlerModule[config.fn];
-
-  if (typeof fn !== "function") {
-    throw new AppError(`Handler function ${config.fn} not found in ${config.handler}`, 500);
-  }
 
   const response = await fn(event, cms, tenantId as DatabaseId, segments);
 
   if (!(response instanceof Response)) {
     throw new AppError(
-      `API Error: Handler for "${path}" did not return a valid Response.`,
+      `API Error: Handler for "${rawPath}" did not return a valid Response.`,
       500,
       "INVALID_HANDLER_RESPONSE",
     );

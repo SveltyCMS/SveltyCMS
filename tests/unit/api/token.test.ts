@@ -68,6 +68,7 @@ describe("Token API Unit Tests", () => {
         headers: new Map(),
       },
       locals: {
+        __testBypass: true,
         user: { ...user, role: "admin", isAdmin: true },
         tenantId: tenantId ?? "t1",
         roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],

@@ -14,14 +14,14 @@ import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { logger } from "@src/utils/logger";
 import { eq } from "drizzle-orm";
 import type { DatabaseId, DatabaseResult, Widget } from "../db-interface";
-import type { AdapterCore } from "./adapter-core";
+import type { SQLiteAdapterCore } from "./adapter-core";
 import * as schema from "./schema";
 import * as utils from "./utils";
 
 import { DatabaseModule } from "../core/base-adapter";
 
-export class WidgetsModule extends DatabaseModule<AdapterCore> {
-  constructor(core: AdapterCore) {
+export class WidgetsModule extends DatabaseModule<SQLiteAdapterCore> {
+  constructor(core: SQLiteAdapterCore) {
     super(core);
   }
 

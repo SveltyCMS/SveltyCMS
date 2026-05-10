@@ -6,6 +6,7 @@
 import { logger } from "@utils/logger";
 import { LRUCache } from "lru-cache";
 import { CacheCategory, type CacheStats } from "./types";
+import { BloomFilter } from "@utils/bloom-filter";
 
 // --- EXPORTED CONSTANTS (API Compatibility) ---
 export const API_CACHE_TTL_S = 300;
@@ -25,7 +26,11 @@ export class CacheService {
   private keyToTags: Map<string, Set<string>> = new Map(); // Reverse mapping for O(tags) cleanup
   private keyCache: LRUCache<string, string>; // Memoization for generated keys
   private prefixMap: Map<string, Set<string>> = new Map(); // Buckets for O(1) pattern clearing
-  private negativeCache: LRUCache<string, boolean>; // Bloom-filter alternative for missing keys
+
+  // 🚀 HYBRID NEGATIVE CACHE (Memory Optimized)
+  private negativeBloom: BloomFilter;
+  private negativeInvalidated: Set<string>; // Tiny set for immediate overrides
+  private negativeRotationTimer: any;
 
   private stats: CacheStats = {
     hits: 0,
@@ -53,9 +58,30 @@ export class CacheService {
     });
 
     this.keyCache = new LRUCache<string, string>({ max: 1000 });
-    this.negativeCache = new LRUCache<string, boolean>({ max: 10000, ttl: 1000 * 60 * 1 }); // 1 min TTL
+
+    // Initialize Hybrid Negative Cache
+    this.negativeBloom = new BloomFilter(100000, 0.01);
+    this.negativeInvalidated = new Set<string>();
+    this.startNegativeCacheRotation();
 
     this.nodeId = globalThis.crypto ? globalThis.crypto.randomUUID() : Math.random().toString(36);
+  }
+
+  private startNegativeCacheRotation() {
+    if (this.negativeRotationTimer) clearInterval(this.negativeRotationTimer);
+    // Rotate the bloom filter every 5 minutes to prevent stale data accumulation
+    this.negativeRotationTimer = setInterval(
+      () => {
+        this.negativeBloom = new BloomFilter(100000, 0.01);
+        this.negativeInvalidated.clear();
+      },
+      1000 * 60 * 5,
+    );
+
+    // Allow the process to exit even if the timer is running (Crucial for test runners)
+    if (typeof this.negativeRotationTimer.unref === "function") {
+      this.negativeRotationTimer.unref();
+    }
   }
 
   // Lazy Metrics Service
@@ -236,14 +262,9 @@ export class CacheService {
   ): Promise<T | null | undefined> {
     const fullKey = this.generateKey(key, tenantId);
 
-    // 0. Check Negative Cache
-    if (this.negativeCache.has(fullKey)) {
-      this.stats.hits++;
-      return null;
-    }
-
     const start = performance.now();
 
+    // 🚀 Performance: Check L1 first to handle "stale" negative cache hits
     const l1Value = this.l1.get(fullKey);
     if (l1Value !== undefined) {
       this.recordLatency(performance.now() - start);
@@ -251,6 +272,12 @@ export class CacheService {
       this.stats.l1Hits++;
       this.recordMetricSync("cache:hit:l1", 1);
       return l1Value as T;
+    }
+
+    // 0. Check Negative Cache (Hybrid)
+    if (!this.negativeInvalidated.has(fullKey) && this.negativeBloom.has(fullKey)) {
+      this.stats.hits++;
+      return null;
     }
 
     if (this.isL2Ready()) {
@@ -358,8 +385,7 @@ export class CacheService {
     const finalTTL = ttl > 0 ? ttl : 300;
 
     this.l1.set(fullKey, value, { ttl: finalTTL * 1000 });
-    this.negativeCache.delete(fullKey); // Remove from negative cache if we are setting it
-    this.addToPrefixMap(fullKey);
+    this.negativeInvalidated.add(fullKey); // Override bloom filter
     this.addToPrefixMap(fullKey);
 
     if (tags.length > 0) {
@@ -428,7 +454,7 @@ export class CacheService {
     for (const k of keys) {
       const fullKey = this.generateKey(k, tenantId);
       this.l1.delete(fullKey);
-      this.negativeCache.delete(fullKey);
+      this.negativeInvalidated.add(fullKey); // Override bloom filter
       if (this.isL2Ready()) {
         try {
           await this.l2.del(fullKey);
@@ -526,7 +552,7 @@ export class CacheService {
    */
   public recordMiss(key: string, tenantId?: string | null) {
     const fullKey = this.generateKey(key, tenantId);
-    this.negativeCache.set(fullKey, true);
+    this.negativeBloom.add(fullKey);
   }
 
   private buildKey(key: string, tenantId: string | null = "default"): string {
@@ -628,6 +654,10 @@ export class CacheService {
   }
 
   async cleanup() {
+    if (this.negativeRotationTimer) {
+      clearInterval(this.negativeRotationTimer);
+      this.negativeRotationTimer = null;
+    }
     if (this.l2) await this.l2.quit().catch(() => {});
     if (this.subscriber) await this.subscriber.quit().catch(() => {});
     this.l2 = null;

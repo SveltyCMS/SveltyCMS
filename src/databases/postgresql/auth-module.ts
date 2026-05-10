@@ -3,12 +3,12 @@
  * @description Authentication and authorization module for PostgreSQL, inheriting from RelationalAuthModule.
  */
 
-import { RelationalAuthModule } from "../sqlite/relational-auth";
-import type { AdapterCore } from "./adapter-core";
+import { RelationalAuthModule } from "../core/relational-auth";
+import type { PostgresAdapterCore } from "./adapter-core";
 import * as schema from "./schema";
 
 export class AuthModule extends RelationalAuthModule {
-  constructor(core: AdapterCore) {
+  constructor(core: PostgresAdapterCore) {
     super(core as any, schema);
   }
 

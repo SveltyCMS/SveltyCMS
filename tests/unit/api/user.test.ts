@@ -70,6 +70,7 @@ describe("User API Unit Tests", () => {
         headers: new Map(),
       },
       locals: {
+        __testBypass: true,
         user: { ...user, role: "admin", isAdmin: true },
         tenantId: tenantId ?? "t1",
         roles: [

@@ -16,9 +16,7 @@
 
 // Import inlang settings directly (TypeScript/SvelteKit handles JSON imports)
 import inlangSettings from "@root/project.inlang/settings.json";
-import { scanCompiledCollections } from "@src/content/content-service.server";
 import type { ContentNode, DatabaseId, Schema } from "@src/content/types";
-import { generateCategoryNodesFromPaths } from "@src/content/content-utils";
 import { getAllPermissions } from "@src/databases/auth";
 import { defaultRoles as importedDefaultRoles } from "@src/databases/auth/default-roles";
 import type { DatabaseAdapter, Theme } from "@src/databases/db-interface";
@@ -125,7 +123,11 @@ export async function seedRoles(
         // Admin role gets all permissions
         // For tenant-scoped roles, generate unique IDs to avoid
         // primary key collisions with roles from other tenants
-        const roleId = (tenantId ? crypto.randomUUID() : role._id) as DatabaseId;
+        const uuid =
+          typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : (await import("node:crypto")).randomUUID();
+        const roleId = (tenantId ? uuid : role._id) as DatabaseId;
 
         // Check if role already exists
         const existingRoles = await dbAdapter.auth.getAllRoles({ bypassTenantCheck: true });
@@ -205,12 +207,16 @@ export async function seedCollectionsForSetup(
 
   try {
     // Import the collection scanner directly to avoid content-manager dependency issues during setup phase
-    // scanCompiledCollections is already imported at the top of the file
+    const contentMod = await import("@src/content/content-service.server");
+    const scanFn =
+      contentMod.scanCompiledCollections || (contentMod as any).default?.scanCompiledCollections;
+
+    if (typeof scanFn !== "function") {
+      throw new Error("scanCompiledCollections is not a function");
+    }
 
     const scanStart = performance.now();
-    const collections = (await scanCompiledCollections()).sort((a, b) =>
-      (a.name || "").localeCompare(b.name || ""),
-    );
+    const collections = (await scanFn()).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     const scanTime = performance.now() - scanStart;
     logger.debug(
       `⏱️  Collection scan: ${scanTime.toFixed(2)}ms (found ${collections.length}, sorted alphabetically)`,
@@ -294,7 +300,16 @@ export async function seedCollectionsForSetup(
     // This ensures skipReconciliation: true in content-manager works correctly after setup.
     try {
       logger.info("🌳 Generating category nodes and mapping structure...");
-      const categoryNodes = generateCategoryNodesFromPaths(collections as Schema[]);
+      const utilsMod = await import("@src/content/content-utils");
+      const genFn =
+        utilsMod.generateCategoryNodesFromPaths ||
+        (utilsMod as any).default?.generateCategoryNodesFromPaths;
+
+      if (typeof genFn !== "function") {
+        throw new Error("generateCategoryNodesFromPaths is not a function");
+      }
+
+      const categoryNodes = genFn(collections as Schema[]);
       const updates: { path: string; changes: Partial<ContentNode> }[] = [];
 
       // Add Category Nodes
@@ -448,19 +463,19 @@ export async function seedDemoRecords(
           {
             label: "Home",
             url: "/",
-            order: 1,
+            position: 1,
             ...(tenantId && { tenantId: tenantId as DatabaseId }),
           },
           {
             label: "Blog",
             url: "/blog",
-            order: 2,
+            position: 2,
             ...(tenantId && { tenantId: tenantId as DatabaseId }),
           },
           {
             label: "Contact",
             url: "/contact",
-            order: 3,
+            position: 3,
             ...(tenantId && { tenantId: tenantId as DatabaseId }),
           },
         ];
@@ -499,7 +514,11 @@ export async function initSystemFromSetup(
       await contentSystem.initialize(tenantId, false, adapter);
 
       if (isDemoSeed) {
-        const collections = await scanCompiledCollections();
+        const contentMod = await import("@src/content/content-service.server");
+        const scanFn =
+          contentMod.scanCompiledCollections ||
+          (contentMod as any).default?.scanCompiledCollections;
+        const collections = typeof scanFn === "function" ? await scanFn() : [];
         await seedDemoRecords(adapter, collections, tenantId);
       }
 
@@ -515,8 +534,11 @@ export async function initSystemFromSetup(
 
   // Invalidate the settings cache and reload from database
   invalidateSettingsCache();
-  const { loadSettingsFromDB } = await import("@src/databases/db");
-  await loadSettingsFromDB();
+  const dbInitMod = await import("@src/databases/db-init");
+  const loadFn = dbInitMod.loadSettingsFromDB || (dbInitMod as any).default?.loadSettingsFromDB;
+  if (typeof loadFn === "function") {
+    await loadFn(adapter, true);
+  }
 
   logger.info(`✅ System initialization completed${tenantId ? ` for tenant ${tenantId}` : ""}`);
 
@@ -572,17 +594,29 @@ export async function initSystemFast(
 
     // Reload settings immediately
     invalidateSettingsCache();
-    const { loadSettingsFromDB } = await import("@src/databases/db");
-    await loadSettingsFromDB();
+    const { loadSettingsFromDB } = await import("@src/databases/db-init");
+    if (typeof loadSettingsFromDB === "function") {
+      await loadSettingsFromDB(adapter, true);
+    }
 
-    // NEW: Pre-register collection models viacontentSystem
+    // NEW: Pre-register collection models via contentSystem
     // This creates the database tables/collections pre-emptively
     try {
       logger.info("📦 Pre-registering collection models...");
-      const { contentSystem } = await import("@src/content/index.server");
-      await contentSystem.initialize(tenantId, false, adapter);
+      const mod = await import("@src/content/index.server");
+      const cs = mod.contentSystem || mod.default || mod;
+
+      if (cs && typeof cs.initialize === "function") {
+        await cs.initialize(tenantId, { force: true }, adapter);
+      } else {
+        logger.warn("⚠️ contentSystem.initialize is not a function or module not found", {
+          hasMod: !!mod,
+          hasCS: !!cs,
+          type: typeof cs?.initialize,
+        });
+      }
     } catch (cmError) {
-      logger.warn("⚠️contentSystem pre-registration failed:", cmError);
+      logger.warn("⚠️ contentSystem pre-registration failed:", cmError);
     }
 
     logger.info(
@@ -595,8 +629,17 @@ export async function initSystemFast(
     if (!adapter) {
       return;
     }
-    const { contentSystem } = await import("@src/content/index.server");
-    await contentSystem.initialize(tenantId, false, adapter);
+    try {
+      const mod = await import("@src/content/index.server");
+      const cs = mod.contentSystem || mod.default || mod;
+      if (cs && typeof cs.initialize === "function") {
+        await cs.initialize(tenantId, { force: true }, adapter);
+      } else {
+        logger.error("❌ Background task: contentSystem.initialize is not a function");
+      }
+    } catch (e) {
+      logger.error("❌ Background content initialization failed:", e);
+    }
   };
 
   return { criticalPromise, backgroundTask };

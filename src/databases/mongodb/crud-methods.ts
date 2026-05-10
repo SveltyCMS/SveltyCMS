@@ -213,6 +213,43 @@ export class MongoCrudMethods<T extends BaseEntity> {
     }
   }
 
+  async streamMany(
+    query: QueryFilter<T>,
+    options: FindOptions<T> = {},
+  ): Promise<DatabaseResult<AsyncIterable<T>>> {
+    try {
+      const secureQuery = this.adapter.mapQuery(
+        safeQuery(query, options.tenantId as string, {
+          bypassTenantCheck: options.bypassTenantCheck,
+          includeDeleted: options.includeDeleted,
+          bypassSafeQuery: options.bypassSafeQuery,
+        }),
+      );
+
+      const cursor = this.model
+        .find(secureQuery, options.fields?.join(" ") || "")
+        .sort((options.sort as any) || {})
+        .skip(options.offset ?? 0)
+        .limit(options.limit || 1000)
+        .lean()
+        .cursor();
+
+      const generator = async function* () {
+        for await (const doc of cursor) {
+          yield processDates(doc) as T;
+        }
+      };
+
+      return { success: true, data: generator() as AsyncIterable<T> };
+    } catch (error) {
+      return {
+        success: false,
+        message: "Streaming failed",
+        error: createDatabaseError(error, "STREAM_MANY_ERROR", "Streaming failed"),
+      };
+    }
+  }
+
   async insert(data: EntityCreate<T>, options: BaseQueryOptions = {}): Promise<DatabaseResult<T>> {
     const startTime = performance.now();
     try {

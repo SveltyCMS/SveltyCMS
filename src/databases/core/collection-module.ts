@@ -1,24 +1,29 @@
 /**
- * @file src/databases/sqlite/collection/collection-module.ts
+ * @file src/databases/core/collection-module.ts
  * @description Dynamic collection management module for SQLite
  */
 
 import type { Schema } from "@src/content/types";
-import type { CollectionModel, DatabaseResult } from "../db-interface";
-import type { AdapterCore } from "./adapter-core";
-import { DatabaseModule } from "../core/base-adapter";
+import type { CollectionModel, DatabaseResult, ICollectionAdapter } from "../db-interface";
+import { DatabaseModule } from "./base-adapter";
+import type { BaseSqlAdapter } from "./base-sql-adapter";
+import { logger } from "@src/utils/logger";
 
-export class CollectionModule extends DatabaseModule<AdapterCore> {
+export class CollectionModule extends DatabaseModule<BaseSqlAdapter> implements ICollectionAdapter {
   private get crud() {
     return this.adapter.crud;
   }
 
-  private get collectionRegistry() {
-    return this.adapter.collectionRegistry;
+  private get modelRegistry() {
+    return (this.adapter as any).modelRegistry;
+  }
+
+  private get tableRegistry() {
+    return (this.adapter as any).tableRegistry;
   }
 
   async getModel(id: string): Promise<CollectionModel> {
-    const model = this.collectionRegistry.get(id);
+    const model = this.modelRegistry.get(id);
     if (model) {
       return model;
     }
@@ -32,27 +37,8 @@ export class CollectionModule extends DatabaseModule<AdapterCore> {
       throw new Error("Schema must have an _id");
     }
 
-    const tableName = `collection_${id}`;
-
-    try {
-      const sql = `
-				CREATE TABLE IF NOT EXISTS "${tableName}" (
-					"_id" TEXT PRIMARY KEY,
-					"tenantId" TEXT,
-					"data" TEXT NOT NULL DEFAULT '{}',
-					"status" TEXT NOT NULL DEFAULT 'draft',
-					"isDeleted" INTEGER NOT NULL DEFAULT 0,
-					"createdAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-					"updatedAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-				);
-			`;
-      const client = this.adapter.getClient();
-      if (client) {
-        client.exec(sql);
-      }
-    } catch (error) {
-      console.error(`[SQLite] Failed to create physical table ${tableName}:`, error);
-    }
+    // 🚀 USE AGNOSTIC CORE: Standardized table creation with quoted identifiers
+    await this.adapter.createModel(schemaData);
 
     const wrappedModel: CollectionModel = {
       findOne: async <R = unknown>(query: Record<string, unknown>) => {
@@ -70,10 +56,11 @@ export class CollectionModule extends DatabaseModule<AdapterCore> {
 
     const tableId = id.startsWith("collection_") ? id : `collection_${id}`;
     const dynamicTable = (this.adapter as any).createDynamicTableDefinition(tableId);
-    (this.adapter as any).dynamicTables.set(id, dynamicTable);
-    (this.adapter as any).dynamicTables.set(tableId, dynamicTable);
 
-    this.collectionRegistry.set(id, wrappedModel);
+    // 🚀 Store in the correct registries
+    this.tableRegistry.set(id, dynamicTable);
+    this.tableRegistry.set(tableId, dynamicTable);
+    this.modelRegistry.set(id, wrappedModel);
   }
 
   async updateModel(schemaData: Schema): Promise<void> {
@@ -81,15 +68,21 @@ export class CollectionModule extends DatabaseModule<AdapterCore> {
   }
 
   async deleteModel(id: string): Promise<void> {
-    this.collectionRegistry.delete(id);
+    this.modelRegistry.delete(id);
+    this.tableRegistry.delete(id);
   }
 
   async createIndexes(id: string, schema: Schema): Promise<DatabaseResult<void>> {
     return this.adapter.wrap(async () => {
       const tableName = `collection_${id}`;
       const fields = (schema.fields || []) as any[];
-      const client = this.adapter.getClient();
-      if (!client) throw new Error("Client not available");
+
+      // SQLite-specific indexing (Hardened)
+      const client = (this.adapter as any).sqlite;
+      if (!client) {
+        logger.warn("[CollectionModule] Native SQL client not available for index creation");
+        return;
+      }
 
       for (const field of fields) {
         if (field.unique || field.indexed) {
@@ -98,7 +91,8 @@ export class CollectionModule extends DatabaseModule<AdapterCore> {
           const unique = field.unique ? "UNIQUE " : "";
           try {
             const sql = `CREATE ${unique}INDEX IF NOT EXISTS "${indexName}" ON "${tableName}" ("${fieldName}")`;
-            client.exec(sql);
+            if (typeof client.exec === "function") client.exec(sql);
+            else if (typeof client.run === "function") client.run(sql);
           } catch (e) {
             console.warn(`[SQLite] Failed to create index ${indexName}:`, e);
           }
@@ -108,7 +102,7 @@ export class CollectionModule extends DatabaseModule<AdapterCore> {
   }
 
   async getSchema(_collectionName: string): Promise<DatabaseResult<Schema | null>> {
-    return this.adapter.notImplemented("getSchema");
+    return { success: true, data: null };
   }
 
   async getSchemaById(_collectionId: string): Promise<DatabaseResult<Schema | null>> {
@@ -117,17 +111,18 @@ export class CollectionModule extends DatabaseModule<AdapterCore> {
 
   async listSchemas(): Promise<DatabaseResult<Schema[]>> {
     return this.adapter.wrap(async () => {
-      const client = this.adapter.getClient();
-      const query =
-        "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'collection_%'";
+      const client = (this.adapter as any).sqlite;
+      if (!client) return [];
 
-      let tables: any[];
+      let tables: any[] = [];
       if (client.query) {
-        tables = client.query(query).all() as any[];
+        tables = client
+          .query("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'collection_%'")
+          .all() as any[];
       } else if (client.prepare) {
-        tables = client.prepare(query).all() as any[];
-      } else {
-        throw new Error("SQLite client not available for listing schemas");
+        tables = client
+          .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'collection_%'")
+          .all() as any[];
       }
 
       return tables.map(

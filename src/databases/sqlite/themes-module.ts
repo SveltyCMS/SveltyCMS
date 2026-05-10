@@ -18,12 +18,12 @@ import { logger } from "@src/utils/logger";
 import { eq } from "drizzle-orm";
 import type { DatabaseId, DatabaseResult, Theme } from "../db-interface";
 import { DatabaseModule } from "../core/base-adapter";
-import type { AdapterCore } from "./adapter-core";
+import type { SQLiteAdapterCore } from "./adapter-core";
 import * as schema from "./schema";
 import * as utils from "./utils";
 
-export class ThemesModule extends DatabaseModule<AdapterCore> {
-  constructor(core: AdapterCore) {
+export class ThemesModule extends DatabaseModule<SQLiteAdapterCore> {
+  constructor(core: SQLiteAdapterCore) {
     super(core);
   }
 

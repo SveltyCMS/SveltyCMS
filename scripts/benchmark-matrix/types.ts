@@ -82,6 +82,7 @@ export interface RunConfig {
   timeoutMs: number;
   warmup: boolean;
   ci: boolean;
+  failFast: boolean;
   list: boolean;
 }
 

@@ -3,12 +3,12 @@
  * @description Authentication and authorization module for SQLite, inheriting from RelationalAuthModule.
  */
 
-import { RelationalAuthModule } from "./relational-auth";
-import type { AdapterCore } from "./adapter-core";
+import { RelationalAuthModule } from "../core/relational-auth";
+import type { SQLiteAdapterCore } from "./adapter-core";
 import { schema } from "./schema";
 
 export class AuthModule extends RelationalAuthModule {
-  constructor(core: AdapterCore) {
+  constructor(core: SQLiteAdapterCore) {
     super(core as any, schema);
   }
 

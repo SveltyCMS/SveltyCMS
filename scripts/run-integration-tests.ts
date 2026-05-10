@@ -180,7 +180,7 @@ async function freePort(port: number) {
 async function waitForServerReady(maxAttempts = 60) {
   console.log("⏳ Waiting for server to reach READY state...");
 
-  const targetStates = ["ready", "healthy"];
+  const targetStates = ["ready", "healthy", "setup"];
 
   for (let i = 0; i < maxAttempts; i++) {
     try {
@@ -225,9 +225,21 @@ async function startPreviewServer() {
 
   console.log(`🚀 Starting preview server on ${HOST}:${PORT}...`);
 
-  // 🚀 HARDENING: Use bun directly to run the build artifact.
+  const entryPoint = [
+    join(ROOT, "build", "index.js"),
+    join(ROOT, "build", "server", "index.js"),
+    join(ROOT, ".svelte-kit", "output", "server", "index.js"),
+  ].find((p) => existsSync(p));
+
+  if (!entryPoint) {
+    throw new Error("Could not find server entry point (build/index.js)");
+  }
+
+  console.log(`🚀 Starting preview server with entry point: ${relative(ROOT, entryPoint)}`);
+
+  // 🚀  Use bun directly to run the build artifact.
   // This ensures we use Bun's native SQLite driver and avoids better-sqlite3 binding issues on Windows.
-  previewProcess = spawn("bun", [join(ROOT, "build", "index.js")], {
+  previewProcess = spawn("bun", [entryPoint], {
     cwd: ROOT,
     stdio: "inherit",
     shell: process.platform === "win32",

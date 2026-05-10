@@ -333,6 +333,17 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     lastRun: "2026-05-03T20:34:39.370Z",
   },
   {
+    path: "tests/benchmarks/negative-cache.test.ts",
+    label: "Negative Cache Performance",
+    shortLabel: "Negative Cache",
+    level: 4,
+    section: "scale",
+    intensity: "medium",
+    estimatedMs: 20_000,
+    desc: "Benchmarks 404-miss response times and cache lookup speedup.",
+    strategy: "all",
+  },
+  {
     path: "tests/benchmarks/ai-performance.test.ts",
     label: "AI Bus & Inference Overhead",
     shortLabel: "AI Overhead",

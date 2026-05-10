@@ -4,11 +4,11 @@
  */
 
 import { DatabaseModule } from "../core/base-adapter";
-import type { AdapterCore } from "./adapter-core";
+import type { SQLiteAdapterCore } from "./adapter-core";
 import type { DatabaseResult } from "../db-interface";
 
-export class HealthModule extends DatabaseModule<AdapterCore> {
-  constructor(core: AdapterCore) {
+export class HealthModule extends DatabaseModule<SQLiteAdapterCore> {
+  constructor(core: SQLiteAdapterCore) {
     super(core);
   }
 

@@ -59,6 +59,13 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
       }
 
       let config: RawEnv = { ...svelteEnv };
+
+      // 🚀 HARDENING: If running in test mode and DB_TYPE is in process.env,
+      // strictly prioritize it to avoid config-file pollution from parallel runs.
+      if (isTest && process.env.DB_TYPE) {
+        config.DB_TYPE = process.env.DB_TYPE;
+      }
+
       // 2. Optional file-based override
       const fileConfig = await loadConfigFromFileIfNeeded(svelteEnv);
       if (fileConfig) {
@@ -88,6 +95,13 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
       }
 
       const validated = result.output;
+
+      // 🚀 DEBUG: Trace benchmark configuration leakage
+      if (isTest && (validated.DB_TYPE !== "sqlite" || process.env.BENCHMARK_DEBUG === "true")) {
+        console.log(
+          `[Config] Loaded type: ${validated.DB_TYPE}, host: ${validated.DB_HOST}, name: ${validated.DB_NAME}`,
+        );
+      }
 
       // 5. Test mode safety checks
       await enforceTestSafety(validated);
@@ -130,6 +144,8 @@ async function loadConfigFromFileIfNeeded(svelteEnv: any): Promise<any | null> {
     const url = `${pathToFileURL(configPath).href}?t=${Date.now()}`;
 
     const module = await import(/* @vite-ignore */ url);
+    const rawContent = fs.readFileSync(configPath, "utf8");
+    console.log(`[Config] Raw ${filename} content:\n${rawContent}`);
     return module.privateEnv ?? module; // support both export styles
   } catch (err) {
     logger.trace(`Failed to load ${filename}`, { error: (err as Error).message });
@@ -141,13 +157,23 @@ async function loadConfigFromFileIfNeeded(svelteEnv: any): Promise<any | null> {
 function getEnvOverrides() {
   const overrides: any = {};
 
+  // --- Environment variable overrides ---
+  const type = process.env.DB_TYPE || "sqlite";
+  const isSqlite = type.startsWith("sqlite");
+
   // Database
   if (process.env.DB_TYPE) overrides.DB_TYPE = process.env.DB_TYPE;
-  if (process.env.DB_HOST) overrides.DB_HOST = process.env.DB_HOST;
-  if (process.env.DB_PORT) overrides.DB_PORT = Number(process.env.DB_PORT);
+
+  // 🚀 HARDENING: Only set relational/network fields if NOT in SQLite mode
+  if (!isSqlite) {
+    if (process.env.DB_HOST) overrides.DB_HOST = process.env.DB_HOST;
+    if (process.env.DB_PORT) overrides.DB_PORT = Number(process.env.DB_PORT);
+    if (process.env.DB_USER) overrides.DB_USER = process.env.DB_USER;
+    if (process.env.DB_PASSWORD) overrides.DB_PASSWORD = process.env.DB_PASSWORD;
+  }
+
   if (process.env.DB_NAME) overrides.DB_NAME = process.env.DB_NAME;
-  if (process.env.DB_USER) overrides.DB_USER = process.env.DB_USER;
-  if (process.env.DB_PASSWORD) overrides.DB_PASSWORD = process.env.DB_PASSWORD;
+  if (process.env.DB_PATH) overrides.DB_PATH = process.env.DB_PATH;
   if (process.env.DB_POOL_SIZE) overrides.DB_POOL_SIZE = Number(process.env.DB_POOL_SIZE);
   if (process.env.DB_RETRY_ATTEMPTS)
     overrides.DB_RETRY_ATTEMPTS = Number(process.env.DB_RETRY_ATTEMPTS);
@@ -393,6 +419,10 @@ export function resolveSqlitePath(host: string | undefined, name: string): strin
 
 export function clearPrivateConfigCache(keepPrivateEnv = false) {
   logger.debug("Clearing private config cache", { keepPrivateEnv });
-  if (!keepPrivateEnv) privateEnv = null;
-  loadPromise = null;
+  if (!keepPrivateEnv) {
+    privateEnv = null;
+    loadPromise = null;
+  }
+  dbConfigCache = null;
+  redisConfigCache = null;
 }

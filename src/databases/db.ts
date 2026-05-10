@@ -1,27 +1,154 @@
 /**
  * @file src/databases/db.ts
  * @description Core Database system with enhanced resilience and performance optimization.
+ * 🚀 V10 UPDATE: Ultra-stable Proxy-based singleton pattern for cross-chunk synchronization.
  */
 
 import { logger } from "@utils/logger";
-import { type DatabaseAdapter } from "./db-interface";
-import { loadPrivateConfig as loadConfig, getPrivateEnv } from "./config-state";
+import { type DatabaseAdapter, type IDBAdapter } from "./db-interface";
+import { loadPrivateConfig as loadConfig, getPrivateEnv as getEnv } from "./config-state";
+import { getGlobal, setGlobal } from "@src/utils/native-utils";
 
 const ADAPTER_KEY = "__DB_ADAPTER_INSTANCE__";
+const INIT_PROMISE_KEY = "__DB_INIT_PROMISE__";
+const AUTH_KEY = "__AUTH_INSTANCE__";
+const BOOT_PHASE_KEY = "__BOOT_PHASE__";
 
-export let dbAdapter: DatabaseAdapter | null = null;
-export let auth: any = null;
-let isConnected = false;
+/**
+ * 🚀 AGNOSTIC CORE: High-performance, safe access to the database adapter.
+ */
+export async function getDbSafe(): Promise<DatabaseAdapter> {
+  const adapter = getGlobal<DatabaseAdapter>(ADAPTER_KEY);
+  if (adapter && adapter.isConnected()) return adapter;
 
-// Initialization Guards (Optimized for Multi-Threaded/Async Resilience)
-let _dbInitializationPromise: Promise<any | null> | null = null;
-let _redisCacheInitialized = false;
-let _backgroundTasksStarted = false;
-let _settingsLoaded = false;
-let _cachedPrivateConfig: any = null;
+  const initPromise = getGlobal<Promise<any>>(INIT_PROMISE_KEY);
+  if (initPromise) {
+    const result = await initPromise;
+    if (result?.adapter) return result.adapter;
+  }
 
-// Lazy Holders for Server-Only Modules (Optimized for Cold-Starts & Build Safety)
+  throw new Error("Database connection not established. Ensure initializeDatabase() was called.");
+}
+
+export function getDb(): DatabaseAdapter | null {
+  return getGlobal(ADAPTER_KEY);
+}
+
+/**
+ * 🚀 COMPATIBILITY: Restore missing exports for build safety.
+ */
+export function isDbConnected(): boolean {
+  const adapter = getGlobal<IDBAdapter>(ADAPTER_KEY);
+  return !!adapter && adapter.isConnected();
+}
+
+export function getPrivateEnv(): any {
+  return getEnv();
+}
+export function loadPrivateConfig(): any {
+  return loadConfig();
+}
+export function getBootPhase(): string {
+  return getGlobal(BOOT_PHASE_KEY, "IDLE");
+}
+
+/**
+ * Direct access to the current auth service instance.
+ */
+export function getAuth(): any {
+  return getGlobal(AUTH_KEY);
+}
+
+/**
+ * Returns the global initialization promise.
+ */
+export function getDbInitPromise(_force = false, _context = "CORE"): Promise<any | null> {
+  const promise = getGlobal<Promise<any>>(INIT_PROMISE_KEY);
+  if (promise) return promise;
+  return ensureFullInitialization();
+}
+
+/**
+ * 🛡️ THE REACTIVE SHIELD: A Proxy that survives Vite chunking AND wait-for-instance.
+ */
+const createInstanceProxy = (targetProp?: string) => {
+  return new Proxy({} as any, {
+    get(_, prop) {
+      if (prop === "then") return undefined;
+      if (prop === "toJSON") return () => `[Proxy:${targetProp || "adapter"}]`;
+
+      const instance = getGlobal<IDBAdapter>(ADAPTER_KEY);
+
+      // Handle special properties like 'collection' and 'system'
+      if (
+        prop === "collection" ||
+        prop === "system" ||
+        prop === "crud" ||
+        prop === "auth" ||
+        prop === "raw" ||
+        prop === "media"
+      ) {
+        return createInstanceProxy(prop as string);
+      }
+
+      if (instance) {
+        const target = targetProp ? (instance as any)[targetProp] : instance;
+        if (!target) return undefined;
+        const val = target[prop];
+        return typeof val === "function" ? val.bind(target) : val;
+      }
+
+      // ASYNC RECOVERY
+      return (...args: any[]) => {
+        const inst = getGlobal<IDBAdapter>(ADAPTER_KEY);
+        if (!inst) {
+          if (prop === "isConnected" || prop === "connected") return false;
+          throw new Error(
+            `CRITICAL: Database access attempt on '${String(targetProp || "adapter")}.${String(prop)}' before initialization.`,
+          );
+        }
+        const target = targetProp ? (inst as any)[targetProp] : inst;
+        const fn = target[prop];
+        if (typeof fn !== "function") {
+          throw new Error(
+            `Property '${String(prop)}' is not a function on ${String(targetProp || "adapter")}`,
+          );
+        }
+        return fn.apply(target, args);
+      };
+    },
+  });
+};
+
+export const dbAdapter: DatabaseAdapter = createInstanceProxy();
+
+export const auth: any = new Proxy(
+  {},
+  {
+    get(_, prop) {
+      const instance = getGlobal(AUTH_KEY);
+      if (!instance) return undefined;
+      const val = instance[prop];
+      return typeof val === "function" ? val.bind(instance) : val;
+    },
+  },
+);
+
+/**
+ * Global initialization promise proxy.
+ */
+export const dbInitPromise: Promise<any | null> = new Proxy(Promise.resolve(null), {
+  get(_, prop) {
+    const promise = getDbInitPromise();
+    if (prop === "then") return promise.then.bind(promise);
+    const val = (promise as any)[prop];
+    return typeof val === "function" ? val.bind(promise) : val;
+  },
+});
+
+// Lazy Holders for Server-Only Modules
 let _dbInit: any = null;
+
 async function getDbInit() {
   if (!_dbInit) {
     _dbInit = await import("./db-init");
@@ -29,296 +156,125 @@ async function getDbInit() {
   return _dbInit;
 }
 
-export function getBootPhase() {
-  return "FULL";
-}
-export { getPrivateEnv };
-
-export function isDbConnected(): boolean {
-  // Fallback check to adapter's own internal state if available
-  const adapter = getDb();
-  return isConnected || adapter?.isConnected() === true;
-}
-
 /**
- * Initializes the database and core services.
- * This is the primary entry point for ensuring the CMS is ready for traffic.
- *
- * @param config - Optional override configuration.
- * @returns {Promise<any | null>} The initialized Auth service.
+ * Centralized, idempotent system initialization.
  */
-export async function ensureFullInitialization(config?: any): Promise<any | null> {
-  if (_dbInitializationPromise) return _dbInitializationPromise;
+export async function ensureFullInitialization(): Promise<any | null> {
+  // 1. Double-Check Lock
+  let existingPromise = getGlobal<Promise<any>>(INIT_PROMISE_KEY);
+  if (existingPromise) return existingPromise;
 
-  _dbInitializationPromise = (async () => {
-    const start = performance.now();
+  const initPromise = (async () => {
     try {
-      const cfg = config || (await loadPrivateConfig());
-      logger.debug(
-        `[db.ts] ensureFullInitialization started (hasConfig: ${!!cfg}, dbType: ${cfg?.DB_TYPE})`,
-      );
-      const { updateServiceHealth } = await import("../stores/system/state.svelte");
-
-      if (!cfg) {
-        logger.debug("[db.ts] Missing configuration - skipping database initialization");
-        // During setup, missing config is expected. Do NOT mark as unhealthy or it blocks the redirect after setup.
-        updateServiceHealth("database", "initializing", "Waiting for configuration...");
-        _dbInitializationPromise = null; // 🚀 CRITICAL: Allow retry once config is available
-        return null;
-      }
-
-      // 1. Core Adapter & Connection
-      const phase1 = performance.now();
+      setGlobal(BOOT_PHASE_KEY, "INITIALIZING");
+      logger.info("[Boot] Starting initialization...");
       const dbInit = await getDbInit();
-      const adapter = await dbInit.loadAdapters(cfg);
-      if (!adapter) {
-        updateServiceHealth("database", "unhealthy" as any, "Failed to load database adapter");
-        return null;
-      }
-      logger.debug(`[Boot] Adapter load: ${(performance.now() - phase1).toFixed(2)}ms`);
+      const cfg = await loadConfig();
+      setGlobal("__CACHED_CONFIG__", cfg);
 
-      // Global singleton assignment
-      dbAdapter = adapter;
-      (globalThis as any)[ADAPTER_KEY] = adapter;
-      (process as any)[ADAPTER_KEY] = adapter;
-
-      const phase2 = performance.now();
-      const connectionResult = await adapter.connect(cfg as any);
-      if (!connectionResult.success) {
-        if (process.env.BENCHMARK === "true") {
-          logger.warn(`Database connection failed (${adapter.type}): ${connectionResult.message}`);
-          _dbInitializationPromise = null; // Allow retry
-          return null;
+      if (process.env.TEST_MODE === "true") {
+        console.log(`[Boot] Loading adapter with type: ${cfg?.DB_TYPE || "MISSING"}`);
+        // 🚀 FAIL-FAST: Ensure we don't accidentally fall back to SQLite in test mode
+        if (!cfg?.DB_TYPE && !process.env.DATABASE_ENGINE) {
+          throw new Error(
+            "[Boot] CRITICAL: No database engine type specified in test mode (DB_TYPE or DATABASE_ENGINE). Defaulting is disabled.",
+          );
         }
-        logger.error(`Database connection failed: ${connectionResult.message}`);
+      }
+
+      let adapter = await dbInit.loadAdapters(cfg);
+      if (!adapter) throw new Error("Failed to load database adapter");
+
+      const connectionResult = await adapter.connect();
+      if (!connectionResult.success) {
         throw new Error(`Database connection failed: ${connectionResult.message}`);
       }
-      isConnected = true;
-      logger.info(`Database initialized with adapter: ${adapter.type}`);
-      logger.debug(`[Boot] DB Connection: ${(performance.now() - phase2).toFixed(2)}ms`);
-      dbAdapter = adapter;
 
-      if (!_redisCacheInitialized) {
-        const phase3 = performance.now();
-        const { cacheService } = await import("./cache/cache-service");
-        await cacheService.initializeL2(cfg).catch((e) => logger.warn("Redis Init Warning:", e));
-        _redisCacheInitialized = true;
-        logger.debug(`[Boot] Cache Init: ${(performance.now() - phase3).toFixed(2)}ms`);
-      }
+      setGlobal(ADAPTER_KEY, adapter);
+      logger.debug(`[Boot] Adapter Connected: ${(performance.now() - 0).toFixed(2)}ms`);
 
-      // 3. Settings (Memoized)
-      if (!_settingsLoaded) {
-        const phase4 = performance.now();
-        const settingsSuccess = await dbInit.loadSettingsFromDB(adapter, true);
-        if (!settingsSuccess) {
-          logger.warn("Core settings failed to load from DB. System may be in restricted mode.");
+      // 🚀 HARDENING: Verify instance integrity
+      if (!adapter.crud || !adapter.auth) {
+        logger.warn("[Boot] Adapter instance is incomplete. Attempting re-hydration...");
+        const type = (adapter as any).type || (adapter as any).DB_TYPE || "sqlite";
+        const reloaded = await dbInit.loadAdapters({ DB_TYPE: type });
+        if (reloaded) {
+          await reloaded.connect();
+          adapter = reloaded;
+          setGlobal(ADAPTER_KEY, adapter);
         }
-        _settingsLoaded = true;
-        logger.debug(`[Boot] Settings Load: ${(performance.now() - phase4).toFixed(2)}ms`);
       }
 
-      // 4. Critical Services (Auth & Plugins)
-      const phase5 = performance.now();
-      auth = await dbInit.initializeCriticalServices(adapter);
-      logger.debug(`[Boot] Critical Services: ${(performance.now() - phase5).toFixed(2)}ms`);
+      const phase2 = performance.now();
+      await dbInit.initializeDatabase(adapter);
 
-      try {
-        const phase6 = performance.now();
-        const { initializePlugins } = await import("../plugins");
-        await initializePlugins(adapter);
-        logger.debug(`[Boot] Plugin Init: ${(performance.now() - phase6).toFixed(2)}ms`);
-      } catch (e) {
-        logger.error("Plugin initialization failed:", e);
-      }
+      const authInstance = (adapter as any).authService;
+      setGlobal(AUTH_KEY, authInstance);
+      setGlobal(BOOT_PHASE_KEY, "READY");
+      logger.debug(`[Boot] Services Initialized: ${(performance.now() - phase2).toFixed(2)}ms`);
 
-      updateServiceHealth("database", "healthy", "Database initialized");
-
-      // 5. Background Tasks (Fire-and-forget, exactly once)
-      if (!_backgroundTasksStarted) {
-        _backgroundTasksStarted = true;
-        // 🛡️ SAFETY: Catch errors in background tasks to prevent unhandledRejection
-        dbInit.runBackgroundTasks(adapter).catch((err: any) => {
-          logger.error("Error in background system tasks:", {
-            message: err?.message || String(err),
-            stack: err?.stack,
-          });
-        });
-      }
-
-      const { metricsService } = await import("../services/observability/metrics-service");
-      metricsService.recordMetric("boot:total", performance.now() - start);
-
-      return auth;
-    } catch (err: any) {
-      const errorDetails = {
-        message: err?.message || "Unknown error",
-        stack: err?.stack,
-        code: err?.code,
-      };
-
-      logger.error("CRITICAL: Full initialization failed:", errorDetails);
-      const { updateServiceHealth } = await import("../stores/system/state.svelte");
-      updateServiceHealth(
-        "database",
-        "unhealthy",
-        `Critical system failure: ${errorDetails.message}`,
-      );
-      _dbInitializationPromise = null; // Allow retry
-      return null;
+      return { adapter, auth: authInstance };
+    } catch (error) {
+      logger.error("[Boot] Initialization CRASHED:", error);
+      setGlobal(BOOT_PHASE_KEY, "FAILED");
+      setGlobal(INIT_PROMISE_KEY, null);
+      throw error;
     }
   })();
 
-  return _dbInitializationPromise;
+  setGlobal(INIT_PROMISE_KEY, initPromise);
+  return initPromise;
 }
 
 /**
- * Loads the private configuration.
- * Results are cached in-memory to avoid redundant disk/environment access.
- *
- * @param forceReload - If true, ignores the cache and re-reads the config.
+ * 🚀 High-level entry point.
  */
-export async function loadPrivateConfig(forceReload = false) {
-  if (_cachedPrivateConfig && !forceReload) return _cachedPrivateConfig;
-  _cachedPrivateConfig = await loadConfig(forceReload);
-  return _cachedPrivateConfig;
+export async function initializeDatabase(): Promise<void> {
+  await ensureFullInitialization();
 }
 
 /**
- * Compatibility Export: Clears the private config cache.
- */
-export function clearPrivateConfigCache(forceReload = false) {
-  _cachedPrivateConfig = null;
-  if (forceReload) return loadPrivateConfig(true);
-}
-
-/**
- * Compatibility Export: can be used as a Promise-like object OR called as a function
- */
-export function getDbInitPromise(forceReload = false, _phase?: string) {
-  if (forceReload) resetDbInitPromise();
-  return ensureFullInitialization();
-}
-
-/**
- * Compatibility Export Proxy
- * @deprecated Use ensureFullInitialization() instead.
- */
-export const dbInitPromise = new Proxy(getDbInitPromise, {
-  get(target, prop) {
-    const promise = target();
-    if (prop === "then") return promise.then.bind(promise);
-    if (prop === "catch") return promise.catch.bind(promise);
-    if (prop === "finally") return promise.finally.bind(promise);
-    const val = (promise as any)[prop];
-    return typeof val === "function" ? val.bind(promise) : val;
-  },
-  apply(target, thisArg, argumentsList) {
-    return Reflect.apply(target, thisArg, argumentsList);
-  },
-}) as any;
-
-/**
- * Alias for backward compatibility.
- */
-export const initializeSystem = ensureFullInitialization;
-
-/**
- * PURE Accessor: Does not trigger initialization to avoid recursion.
- */
-export function getDb(): DatabaseAdapter | null {
-  return (process as any)[ADAPTER_KEY] || (globalThis as any)[ADAPTER_KEY] || dbAdapter;
-}
-
-/**
- * PURE Accessor for the Auth service.
- */
-export function getAuth(): any {
-  return auth;
-}
-
-/**
- * Initializes the system with a specific configuration.
- */
-export async function initializeWithConfig(config: any): Promise<void> {
-  if (config) {
-    const { setPrivateEnv } = await import("./config-state");
-    // 🚀 Map setup format fields to internal format if needed
-    const mappedConfig = { ...config };
-    if (config.type) mappedConfig.DB_TYPE = config.type;
-    if (config.host) mappedConfig.DB_HOST = config.host;
-    if (config.port) mappedConfig.DB_PORT = config.port;
-    if (config.name) mappedConfig.DB_NAME = config.name;
-    if (config.user) mappedConfig.DB_USER = config.user;
-    if (config.password) mappedConfig.DB_PASSWORD = config.password;
-
-    setPrivateEnv(mappedConfig);
-    _cachedPrivateConfig = mappedConfig;
-    config = mappedConfig;
-  }
-  await ensureFullInitialization(config);
-}
-
-/**
- * Compatibility Export: Loads settings from database.
- */
-export async function loadSettingsFromDB(
-  adapter?: DatabaseAdapter,
-  forceReload = false,
-  tenantId?: string | null,
-) {
-  const dbInit = await getDbInit();
-  const db = adapter || getDb();
-  if (!db || !db.isConnected()) return false;
-  return dbInit.loadSettingsFromDB(db, forceReload, tenantId);
-}
-
-/**
- * Resets the database initialization state.
- * Sync function used by tests to clear memory before re-init.
- */
-export function resetDbInitPromise(): void {
-  isConnected = false;
-  dbAdapter = null;
-  auth = null;
-  (process as any)[ADAPTER_KEY] = null;
-  _dbInitializationPromise = null;
-  _redisCacheInitialized = false;
-  _backgroundTasksStarted = false;
-  _settingsLoaded = false;
-  _cachedPrivateConfig = null;
-}
-
-export async function reinitializeSystem(force: boolean = true): Promise<any> {
-  if (force) resetDbInitPromise();
-  return ensureFullInitialization();
-}
-
-/**
- * ✨ ENTERPRISE: Graceful Shutdown
- * Ensures all connections and caches are closed cleanly.
+ * 🚀 AGNOSTIC CORE: Shutdown helper.
  */
 export async function shutdownSystem(): Promise<void> {
-  logger.info("🛑 Shutting down system database and caches...");
-  try {
-    const adapter = getDb();
-    if (adapter) {
-      await adapter.disconnect();
-    }
-
-    const { cacheService } = await import("./cache/cache-service");
-    await cacheService.cleanup();
-
-    try {
-      const { securityResponseService } = await import("../services/security/response-service");
-      await securityResponseService.destroy();
-    } catch (e) {
-      logger.debug("Security service shutdown skipped or failed:", e);
-    }
-
-    isConnected = false;
-    resetDbInitPromise();
-    logger.info("✅ Shutdown complete.");
-  } catch (err) {
-    logger.error("❌ Error during shutdown:", err);
+  const adapter = getGlobal<IDBAdapter>(ADAPTER_KEY);
+  if (adapter && typeof adapter.disconnect === "function") {
+    await adapter.disconnect();
   }
+
+  // 🚀 HARDENING: Clear registries and promises
+  const { dbPluginRegistry } = await import("./core/plugin-registry");
+  dbPluginRegistry.reset();
+
+  setGlobal(ADAPTER_KEY, null);
+  setGlobal(INIT_PROMISE_KEY, null);
+  setGlobal(AUTH_KEY, null);
+  setGlobal(BOOT_PHASE_KEY, "IDLE");
+  setGlobal("__SETTINGS_LOADED__", false);
+}
+
+/**
+ * 🚀 AGNOSTIC CORE: Re-initialization helper.
+ */
+export async function reinitializeSystem(_force = true): Promise<void> {
+  await shutdownSystem();
+  await ensureFullInitialization();
+}
+
+/**
+ * 🧪 TEST HELPERS: Manual state control for integration suites.
+ */
+export function resetDbInitPromise(): void {
+  setGlobal(INIT_PROMISE_KEY, null);
+  setGlobal(BOOT_PHASE_KEY, "IDLE");
+}
+
+export async function initializeWithConfig(config: any): Promise<any> {
+  setGlobal("__CACHED_CONFIG__", config);
+  return ensureFullInitialization();
+}
+
+export function clearPrivateConfigCache(_keepPrivateEnv = false): void {
+  setGlobal("__CACHED_CONFIG__", null);
+  setGlobal("__SETTINGS_LOADED__", false);
 }

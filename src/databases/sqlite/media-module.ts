@@ -3,12 +3,12 @@
  * @description Media management module for SQLite, inheriting from RelationalMediaModule.
  */
 
-import { RelationalMediaModule } from "./relational-media";
-import type { AdapterCore } from "./adapter-core";
+import { RelationalMediaModule } from "../core/relational-media";
+import type { SQLiteAdapterCore } from "./adapter-core";
 import { schema } from "./schema";
 
 export class MediaModule extends RelationalMediaModule {
-  constructor(core: AdapterCore) {
+  constructor(core: SQLiteAdapterCore) {
     super(core as any, schema);
   }
 

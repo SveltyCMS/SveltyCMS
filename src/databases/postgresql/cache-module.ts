@@ -4,13 +4,13 @@
  */
 
 import type { DatabaseResult } from "../db-interface";
-import type { AdapterCore } from "./adapter-core";
+import type { PostgresAdapterCore } from "./adapter-core";
 
 export class CacheModule {
-  private readonly core: AdapterCore;
+  private readonly core: PostgresAdapterCore;
   private readonly _cache = new Map<string, { value: unknown; expires?: number }>();
 
-  constructor(core: AdapterCore) {
+  constructor(core: PostgresAdapterCore) {
     this.core = core;
   }
 

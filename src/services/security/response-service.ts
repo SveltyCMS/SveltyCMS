@@ -349,7 +349,7 @@ export class SecurityResponseService {
     forceSecurity = false,
     points = 1,
   ): Promise<SecurityStatus> {
-    // 🚀 HARDENING: Robust test mode detection to prevent rate-limit flicker in CI
+    // 🚀  Robust test mode detection to prevent rate-limit flicker in CI
     const isTest =
       process.env.TEST_MODE === "true" ||
       process.env.VITE_TEST_MODE === "true" ||

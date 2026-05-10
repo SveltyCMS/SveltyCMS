@@ -44,7 +44,7 @@ describe("AI API Security - Authentication and Tenant Isolation", () => {
   describe("AI Chat (POST /api/ai/chat)", () => {
     it("should reject unauthenticated users", async () => {
       const event = {
-        locals: { user: null },
+        locals: { user: null, __testBypass: true },
         params: { path: "ai/chat" },
         request: {
           method: "POST",
@@ -61,7 +61,7 @@ describe("AI API Security - Authentication and Tenant Isolation", () => {
 
     it("should reject if tenantId is missing in multi-tenant mode", async () => {
       const event = {
-        locals: { user: mockUser, tenantId: null },
+        locals: { user: mockUser, tenantId: null, __testBypass: true },
         params: { path: "ai/chat" },
         request: {
           method: "POST",
@@ -78,7 +78,7 @@ describe("AI API Security - Authentication and Tenant Isolation", () => {
 
     it("should allow authenticated users with tenantId", async () => {
       const event = {
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         params: { path: "ai/chat" },
         request: {
           method: "POST",
@@ -98,7 +98,7 @@ describe("AI API Security - Authentication and Tenant Isolation", () => {
   describe("AI Enrich (POST /api/ai/enrich)", () => {
     it("should reject unauthenticated users", async () => {
       const event = {
-        locals: { user: null },
+        locals: { user: null, __testBypass: true },
         params: { path: "ai/enrich" },
         request: {
           method: "POST",
@@ -115,7 +115,7 @@ describe("AI API Security - Authentication and Tenant Isolation", () => {
 
     it("should allow authenticated users with tenantId", async () => {
       const event = {
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         params: { path: "ai/enrich" },
         request: {
           method: "POST",
@@ -139,7 +139,7 @@ describe("AI API Security - Authentication and Tenant Isolation", () => {
   describe("AI Generate Layout (POST /api/ai/generate-layout)", () => {
     it("should reject unauthenticated users", async () => {
       const event = {
-        locals: { user: null },
+        locals: { user: null, __testBypass: true },
         params: { path: "ai/generate-layout" },
         request: {
           method: "POST",
@@ -156,7 +156,7 @@ describe("AI API Security - Authentication and Tenant Isolation", () => {
 
     it("should allow authenticated users with tenantId", async () => {
       const event = {
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         params: { path: "ai/generate-layout" },
         request: {
           method: "POST",

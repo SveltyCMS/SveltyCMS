@@ -23,17 +23,17 @@ import type {
   QueryBuilder,
   QueryOptimizationHints,
 } from "../db-interface";
-import type { AdapterCore } from "./adapter-core";
+import type { PostgresAdapterCore } from "./adapter-core";
 
 export class PostgresQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
-  private readonly core: AdapterCore;
+  private readonly core: PostgresAdapterCore;
   private readonly collection: string;
   private conditions: import("drizzle-orm").SQL[] = [];
   private limitValue?: number;
   private offsetValue?: number;
   private sorts: import("drizzle-orm").SQL[] = [];
 
-  constructor(core: AdapterCore, collection: string) {
+  constructor(core: PostgresAdapterCore, collection: string) {
     this.core = core;
     this.collection = collection;
   }
@@ -124,9 +124,14 @@ export class PostgresQueryBuilder<T extends BaseEntity> implements QueryBuilder<
         const column = (
           this.table as unknown as Record<string, import("drizzle-orm/pg-core").PgColumn>
         )[f as string];
-        return column && (column as any).dataType !== "json"
-          ? sql`${column} ILIKE ${"%" + query + "%"}`
-          : null;
+
+        if (column && (column as any).dataType !== "json") {
+          return sql`${column} ILIKE ${"%" + query + "%"}`;
+        }
+
+        // 🚀 AGNOSTIC JSON SEARCH
+        const jsonField = this.core.getJsonField(f as string);
+        return sql`${jsonField} ILIKE ${"%" + query + "%"}`;
       })
       .filter((c): c is import("drizzle-orm").SQL => c !== null);
     if (searchConditions.length > 0) {
@@ -266,7 +271,35 @@ export class PostgresQueryBuilder<T extends BaseEntity> implements QueryBuilder<
   }
 
   async stream(): Promise<DatabaseResult<AsyncIterable<T>>> {
-    return this.core.notImplemented("queryBuilder.stream");
+    return this.core.wrap(async () => {
+      let q = this.db
+        .select()
+        .from(this.table as unknown as import("drizzle-orm/pg-core").PgTable)
+        .$dynamic();
+      if (this.conditions.length > 0) {
+        q = q.where(and(...this.conditions));
+      }
+      if (this.sorts.length > 0) {
+        q = q.orderBy(...this.sorts);
+      }
+      if (this.limitValue !== undefined) {
+        q = q.limit(this.limitValue);
+      }
+      if (this.offsetValue !== undefined) {
+        q = q.offset(this.offsetValue);
+      }
+
+      const stream = await (q as any).stream();
+      const convertFn = (this.core as any).utils.convertDatesToISO;
+
+      async function* generator() {
+        for await (const row of stream) {
+          yield convertFn(row) as T;
+        }
+      }
+
+      return generator() as AsyncIterable<T>;
+    }, "QUERY_STREAM_FAILED");
   }
 
   async updateMany(data: Partial<T>): Promise<DatabaseResult<{ modifiedCount: number }>> {

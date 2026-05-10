@@ -159,7 +159,7 @@
     "sanitize-filename": "^1.6.4",
     "sharp": "^0.34.5",
     "svelte-canvas": "^2.1.0",
-    "tailwind-merge": "^3.5.0",
+    "tailwind-merge": "^3.6.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "valibot": "^1.4.0",
@@ -218,7 +218,7 @@
     "vite": "^8.0.11",
     "vite-plus": "^0.1.20",
     "vitest": "^4.1.5",
-    "wait-on": "^9.0.5"
+    "wait-on": "^9.0.6"
   },
   "optionalDependencies": {
     "better-sqlite3": "^12.9.0",

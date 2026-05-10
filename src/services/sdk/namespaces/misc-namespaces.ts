@@ -283,7 +283,11 @@ export class ImporterNamespace {
                 "public",
                 tenantId as DatabaseId,
               );
-              value = media._id;
+              if (media.success) {
+                value = media.data._id;
+              } else {
+                value = null;
+              }
             } catch {
               value = null;
             }

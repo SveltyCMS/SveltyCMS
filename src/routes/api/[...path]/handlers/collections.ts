@@ -8,6 +8,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
+import { streamingJsonResponse } from "./streaming";
 
 export async function handleCollectionsRoutes(
   event: RequestEvent,
@@ -45,12 +46,42 @@ export async function handleCollectionsRoutes(
     if (!collectionId || collectionId === "list")
       return handleCollectionList(event, cms, tenantId, url);
     if (entryId) return handleCollectionEntry(event, cms, tenantId, collectionId, entryId);
+
+    const limit = Number(url.searchParams.get("limit")) || 50;
+    const offset = Number(url.searchParams.get("offset")) || 0;
+    const sortField = url.searchParams.get("sortField") || undefined;
+    const sortDirection = (url.searchParams.get("sortDirection") as "asc" | "desc") || "desc";
+
+    // 🚀 Performance: Use Streaming for large datasets (>500 items) or if explicitly requested
+    const isLargeRequest = limit > 500;
+    if (url.searchParams.get("stream") === "true" || isLargeRequest) {
+      const iterator = await cms.collections.findStreaming(collectionId, {
+        tenantId,
+        user,
+        limit,
+        offset,
+        sortField,
+        sortDirection,
+      });
+
+      // Get total count for metadata if requested
+      let totalCount: number | undefined;
+      if (url.searchParams.get("includeCount") === "true") {
+        const countRes = await cms.collections.count(collectionId, { tenantId });
+        if (countRes.success) totalCount = countRes.data;
+      }
+
+      return streamingJsonResponse(iterator, totalCount);
+    }
+
     return successResponse(
       event,
       await cms.collections.find(collectionId, {
         tenantId,
-        limit: Number(url.searchParams.get("limit")) || 50,
-        offset: Number(url.searchParams.get("offset")) || 0,
+        limit,
+        offset,
+        sortField,
+        sortDirection,
       }),
     );
   }

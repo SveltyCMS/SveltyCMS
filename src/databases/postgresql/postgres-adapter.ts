@@ -9,7 +9,7 @@ import type {
   DatabaseResult,
   BaseEntity,
 } from "../db-interface";
-import { AdapterCore } from "./adapter-core";
+import { PostgresAdapterCore } from "./adapter-core";
 import * as utils from "../core/relational-utils";
 import { AuthModule } from "./auth-module";
 import { ContentModule } from "./content-module";
@@ -26,10 +26,7 @@ import { PerformanceModule } from "./performance-module";
 import { CacheModule } from "./cache-module";
 import { PostgresQueryBuilder } from "./postgres-query-builder";
 
-import { getDefaultRoles } from "../auth/default-roles";
-import * as schema from "./schema";
-
-export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {
+export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter {
   public readonly type = "postgresql";
 
   // Public interface modules (Lazy-loaded via Getters)
@@ -79,43 +76,8 @@ export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {
     });
   }
 
-  public readonly utils = utils;
-
-  // Internal lazy modules
-  private _auth?: IAuthAdapter;
-  private _content?: IContentAdapter;
-  private _media?: IMediaAdapter;
-  private _collection?: ICollectionAdapter;
-  private _batch?: IDBAdapter["batch"];
-  private _system?: ISystemAdapter;
-  private _monitoring?: IMonitoringAdapter;
-
-  constructor() {
+  constructor(_config: any = {}) {
     super();
-  }
-
-  public async ensureAuth(): Promise<void> {
-    if (!this.db) {
-      return;
-    }
-    // Check if roles exist
-    const existingRoles = await this.db.select().from(schema.roles).limit(1);
-    if (existingRoles.length > 0) {
-      return;
-    }
-
-    const now = new Date();
-    const rolesPayload: (typeof schema.roles.$inferInsert)[] = getDefaultRoles().map((role) => ({
-      ...role,
-      createdAt: now,
-      updatedAt: now,
-    })) as any;
-
-    await this.db.insert(schema.roles).values(rolesPayload).onConflictDoNothing();
-  }
-
-  public async ensureSystem(): Promise<void> {
-    return Promise.resolve();
   }
 
   async connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;
@@ -143,10 +105,6 @@ export class PostgreSQLAdapter extends AdapterCore implements IDBAdapter {
 
   async disconnect(): Promise<DatabaseResult<void>> {
     return super.disconnect();
-  }
-
-  isConnected(): boolean {
-    return super.isConnected();
   }
 
   async getVersion(): Promise<DatabaseResult<string>> {

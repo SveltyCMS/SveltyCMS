@@ -38,7 +38,7 @@ import type { MediaProps } from "./types";
 
 // ✅ SSOT: Validation Schema - Exported for use in Input.svelte
 export const createValidationSchema = (
-  field: ReturnType<typeof MediaWidget>,
+  field: MediaProps & { required?: boolean },
 ): BaseSchema<unknown, unknown, BaseIssue<unknown>> => {
   // The base schema for a single media ID (must be a non-empty string).
   const idSchema = pipe(string(), minLength(1, "A media file is required."));
@@ -107,7 +107,9 @@ const MediaWidget = createWidget<MediaProps>({
           "private",
           basePath,
         );
-        accessor.update(savedMedia._id);
+        if (savedMedia.success) {
+          accessor.update(savedMedia.data._id);
+        }
       } else if (Array.isArray(value)) {
         // Handle multiupload
         const processedIds: string[] = [];
@@ -133,7 +135,9 @@ const MediaWidget = createWidget<MediaProps>({
               "private",
               basePath,
             );
-            processedIds.push(savedMedia._id);
+            if (savedMedia.success) {
+              processedIds.push(savedMedia.data._id);
+            }
           } else {
             processedIds.push(item);
           }

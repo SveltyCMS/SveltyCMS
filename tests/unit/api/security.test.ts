@@ -98,7 +98,7 @@ describe("Security API Unit Tests", () => {
           },
           json: vi.fn().mockResolvedValue(report),
         },
-        locals: { tenantId: "tenant1" },
+        locals: { tenantId: "tenant1", __testBypass: true },
         url: new URL("http://localhost/api/security/csp-report"),
         cookies: { get: vi.fn() },
         getClientAddress: () => "127.0.0.1",
@@ -137,7 +137,7 @@ describe("Security API Unit Tests", () => {
           json: vi.fn().mockResolvedValue(report),
         },
         getClientAddress: () => "127.0.0.1",
-        locals: { tenantId: "tenant1" },
+        locals: { tenantId: "tenant1", __testBypass: true },
         url: new URL("http://localhost/api/security/csp-report"),
         cookies: { get: vi.fn() },
       } as any;

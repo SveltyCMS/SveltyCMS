@@ -62,6 +62,11 @@ export class QueryTranslator {
   private parseLogicalGroup(op: "$and" | "$or", query: Record<string, any>): LogicalGroup {
     const conditions: (QueryCondition | LogicalGroup)[] = [];
 
+    // 🚀 DEFENSIVE: Handle null or non-object queries gracefully
+    if (!query || typeof query !== "object") {
+      return { operator: op, conditions };
+    }
+
     for (const [key, value] of Object.entries(query)) {
       if (key === "$or" && Array.isArray(value)) {
         conditions.push({
@@ -101,6 +106,10 @@ export class QueryTranslator {
         return s;
       });
     }
+
+    // 🚀 DEFENSIVE: Handle null or non-object sort gracefully
+    if (typeof sort !== "object" || sort === null) return undefined;
+
     return Object.entries(sort).map(([field, direction]) => ({
       field,
       direction: direction === 1 || direction === "asc" ? "asc" : "desc",

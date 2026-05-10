@@ -38,10 +38,26 @@ export function createSchemaProxy(adapter: IDBAdapter): any {
       }
 
       // 3. Logic: If property is not found, we treat it as a virtual collection access.
-      const isCollectionName = /^[a-z]/.test(prop) && !/[A-Z]/.test(prop);
+      // Match typical collection names (alphanumeric, camelCase, or snake_case)
+      const isCollectionName = /^[a-z][a-zA-Z0-9_]*$/.test(prop);
       const isForcedCollection = prop.startsWith("collection_");
 
-      if (isCollectionName || isForcedCollection) {
+      // 🛡️ EXCLUSION GUARD: Never treat 'ensure...' or lifecycle methods as collections
+      const isReserved =
+        prop.startsWith("ensure") ||
+        prop.startsWith("is") ||
+        [
+          "connect",
+          "disconnect",
+          "clearDatabase",
+          "getSql",
+          "transaction",
+          "getClient",
+          "waitForConnection",
+          "queryBuilder",
+        ].includes(prop);
+
+      if ((isCollectionName || isForcedCollection) && !isReserved) {
         // 🚀 CACHE HIT: Return existing wrapper if available
         let wrapper = wrapperCache.get(prop);
         if (wrapper) return wrapper;

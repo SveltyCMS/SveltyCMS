@@ -47,7 +47,7 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
   describe("List Automations (GET /api/automations)", () => {
     it("should allow authenticated users with tenantId", async () => {
       const event = {
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         params: { path: "automations" },
         request: { method: "GET", headers: new Headers() },
         url: new URL("http://localhost/api/automations"),
@@ -60,7 +60,7 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
 
     it("should allow super-admin to override tenantId via query parameter", async () => {
       const event = {
-        locals: { user: mockSuperAdmin, tenantId: myTenant },
+        locals: { user: mockSuperAdmin, tenantId: myTenant, __testBypass: true },
         params: { path: "automations" },
         request: { method: "GET", headers: new Headers() },
         url: new URL(`http://localhost/api/automations?tenantId=${otherTenant}`),
@@ -73,7 +73,7 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
 
     it("should prevent regular admin from overriding tenantId", async () => {
       const event = {
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         params: { path: "automations" },
         request: { method: "GET", headers: new Headers() },
         url: new URL(`http://localhost/api/automations?tenantId=${otherTenant}`),
@@ -94,7 +94,7 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
 
       const event = {
         params: { path: `automations/${flowId}` },
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         request: { method: "GET", headers: new Headers() },
         url: new URL(`http://localhost/api/automations/${flowId}`),
         cookies: { get: vi.fn() },
@@ -113,7 +113,7 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
 
       const event = {
         params: { path: `automations/${flowId}` },
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         request: { method: "GET", headers: new Headers() },
         url: new URL(`http://localhost/api/automations/${flowId}`),
         cookies: { get: vi.fn() },
@@ -126,7 +126,7 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
 
     it("should allow authenticated users with tenantId", async () => {
       const event = {
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         params: { path: "automations" },
         request: {
           method: "POST",
@@ -149,7 +149,7 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
 
       const event = {
         params: { path: `automations/${flowId}` },
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         request: {
           method: "PATCH",
           json: vi.fn().mockResolvedValue({ name: "Updated" }),
@@ -169,7 +169,7 @@ describe("Automation API Security - IDOR and Tenant Isolation", () => {
 
       const event = {
         params: { path: `automations/${flowId}` },
-        locals: { user: mockUser, tenantId: myTenant },
+        locals: { user: mockUser, tenantId: myTenant, __testBypass: true },
         request: { method: "DELETE", headers: new Headers() },
         url: new URL(`http://localhost/api/automations/${flowId}`),
         cookies: { get: vi.fn() },

@@ -21,6 +21,10 @@ describe("Cold Start Benchmark (Phased)", () => {
     let dbAdapter = new SQLiteAdapter() as any;
     dbAdapter = createSchemaProxy(dbAdapter);
 
+    // 🚀 RESET STATE: Ensure we are starting from a clean IDLE state
+    const { setSystemState } = await import("@src/stores/system/state.svelte");
+    setSystemState("IDLE", "Resetting for cold start benchmark");
+
     // 🔌 Ensure adapter is connected before boot
     await dbAdapter.connect(":memory:");
 

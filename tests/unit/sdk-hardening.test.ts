@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MediaService } from "../../src/utils/media/media-service.server";
 import crypto from "node:crypto";
+import type { DatabaseId } from "../../src/content/types";
 
 // Mock the dependencies that Vitest might try to import and fail
 vi.mock("$app/environment", () => ({
@@ -106,11 +107,15 @@ describe("SDK & Media Hardening", () => {
           "user_1",
           "public",
           null,
-          "global",
+          "global" as any as DatabaseId,
         );
 
         expect(dbAdapterMock.media.files.getByHash).toHaveBeenCalled();
-        expect(result1._id).toBe("new_id");
+        if (result1.success) {
+          expect(result1.data._id).toBe("new_id");
+        } else {
+          throw new Error(result1.message);
+        }
 
         // Mock existing file for second upload
         dbAdapterMock.media.files.getByHash.mockResolvedValue({
@@ -128,11 +133,15 @@ describe("SDK & Media Hardening", () => {
           "user_1",
           "public",
           null,
-          "global",
+          "global" as any as DatabaseId,
         );
 
-        expect(result2._id).toBe("existing_id");
-        expect(result2.url).toBe("/files/existing.png");
+        if (result2.success) {
+          expect(result2.data._id).toBe("existing_id");
+          expect(result2.data.url).toBe("/files/existing.png");
+        } else {
+          throw new Error(result2.message);
+        }
       } catch (err: any) {
         console.error("Test Error:", err.message, err.stack);
         throw err;

@@ -5,13 +5,20 @@
 
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
-import fs_sync from "node:fs";
+import _fs_sync from "node:fs";
 import path from "node:path";
 import { log } from "./logger";
 import { heavyTaskLock } from "./semaphore";
-import { startServer, warmupServer, writeTestConfig, isShuttingDown } from "./server";
+import {
+  startServer,
+  warmupServer,
+  writeTestConfig,
+  isShuttingDown,
+  setShuttingDown,
+} from "./server";
 import { extractMetrics, checkBudget, freePort } from "./utils";
 import { persistScriptMetadataAST } from "./reporting";
+import { progressTracker } from "./progress";
 import {
   DB_METADATA,
   PORT_BASE,
@@ -19,7 +26,6 @@ import {
   JWT_EXPIRES_IN,
   ENCRYPTION_KEY,
   ADMIN_PASSWORD,
-  DB_NAME_BENCHMARK,
   TEST_API_SECRET,
 } from "./config";
 import type {
@@ -338,9 +344,11 @@ export async function runAuditForDatabase(
     label: dbKey.toUpperCase(),
   };
   const workerPort = PORT_BASE;
-  const workerDbName = DB_NAME_BENCHMARK;
+  // 🚀 HARDENING: Use a unique DB name per process AND variant to avoid EBUSY locks
+  const workerDbName = `bench_tmp_${dbKey}_${process.pid}`;
 
-  log.db(dbKey, `Worker starting on port ${workerPort}...`);
+  log.db(dbKey, `Worker starting on port ${workerPort} (DB: ${workerDbName})...`);
+
 
   try {
     const metrics: Record<string, any> = {};
@@ -350,31 +358,6 @@ export async function runAuditForDatabase(
     await freePort(workerPort);
 
     await writeTestConfig(dbConf, workerDbName);
-
-    // 🚀 GOLD STANDARD: Pre-flight cleanup for SQLite to avoid lock issues
-    if (dbConf.type === "sqlite") {
-      const dbPath = path.resolve(process.cwd(), "config/database", `${workerDbName}.sqlite`);
-      if (fs_sync.existsSync(dbPath)) {
-        log.db(dbKey, `Pre-flight cleanup: Removing ${dbPath}`);
-
-        let attempts = 0;
-        const maxAttempts = 10;
-        while (attempts < maxAttempts) {
-          try {
-            fs_sync.unlinkSync(dbPath);
-            break;
-          } catch (e: any) {
-            attempts++;
-            if (e.code === "EBUSY" || e.code === "EPERM") {
-              log.warn(`  [SQLite] File busy, retrying cleanup (${attempts}/${maxAttempts})...`);
-              await new Promise((r) => setTimeout(r, 1000));
-            } else {
-              throw e;
-            }
-          }
-        }
-      }
-    }
 
     const {
       coldStartMs,
@@ -397,7 +380,14 @@ export async function runAuditForDatabase(
       );
     }
 
-    if (!(await runTask("Standard System Setup", "bun run scripts/setup-system.ts", env, cfg.ci))) {
+    if (
+      !(await runTask(
+        "Standard System Setup",
+        "bun run scripts/setup-system.ts --overwrite",
+        env,
+        cfg.ci,
+      ))
+    ) {
       log.error(`Setup failed for ${meta.label}. Skipping.`);
       results.push({
         db: dbKey,
@@ -405,12 +395,21 @@ export async function runAuditForDatabase(
         error: "Setup failed",
         metrics,
       });
+
+      if (cfg.failFast) {
+        log.error("Fail-Fast enabled: Terminating benchmark suite.");
+        setShuttingDown(true);
+      }
+
+      // 🚀 Mark all scripts as completed for this failed DB
+      progressTracker?.update(activeScripts.length);
       await stopWorkerServer();
       return;
     }
 
-    log.db(dbKey, "Allowing server to settle after seeding (1s)...");
-    await new Promise((r) => setTimeout(r, 1000));
+    const settleTime = dbConf.type === "postgresql" ? 5000 : 3000;
+    log.db(dbKey, `Allowing server to settle after seeding (${settleTime / 1000}s)...`);
+    await new Promise((r) => setTimeout(r, settleTime));
 
     await warmupServer(cfg, workerPort);
 
@@ -428,6 +427,7 @@ export async function runAuditForDatabase(
       // 🚀 STRATEGY FILTERING: Skip scripts not meant for this DB type
       if (s.strategy === "sql" && dbConf.type === "mongodb") {
         log.db(dbKey, `\x1b[90mSkipping SQL-only benchmark: ${s.shortLabel}\x1b[0m`);
+        progressTracker?.update();
         continue;
       }
 
@@ -438,6 +438,7 @@ export async function runAuditForDatabase(
             dbKey,
             `\x1b[90mSkipping 'once' strategy benchmark (already run): ${s.shortLabel}\x1b[0m`,
           );
+          progressTracker?.update();
           continue;
         }
       }
@@ -453,12 +454,22 @@ export async function runAuditForDatabase(
         s.path.includes("rest") ||
         s.path.includes("graphql")
       ) {
-        await runTask(
+        const setupOk = await runTask(
           "Seeding Relational Data",
           "bun run --preload ./tests/unit/setup.ts scripts/benchmark-matrix/setup-benchmarks.ts",
           env,
           cfg.ci,
         );
+        if (!setupOk) {
+          status = "FAILED";
+          error = (error ? error + "; " : "") + "Seeding Relational Data failed";
+          
+          if (cfg.failFast) {
+            log.error("Fail-Fast: Seeding Relational Data failed. Terminating suite.");
+            setShuttingDown(true);
+            break;
+          }
+        }
       }
 
       const isHigh = s.intensity === "high";
@@ -495,7 +506,14 @@ export async function runAuditForDatabase(
         if (!outcome.passed) {
           status = "FAILED";
           error = (error ? error + "; " : "") + s.label + " failed";
+
+          if (cfg.failFast) {
+            log.error(`Fail-Fast: ${s.shortLabel} failed. Terminating suite.`);
+            setShuttingDown(true);
+          }
         }
+
+        progressTracker?.update();
       } catch (err: any) {
         log.error(`Benchmark ${s.shortLabel} crashed: ${err.message}`);
         status = "FAILED";

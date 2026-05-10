@@ -1,5 +1,5 @@
 /**
- * @file src/databases/sqlite/relational-auth.ts
+ * @file src/databases/core/relational-auth.ts
  * @description
  * Unified Authentication module for all SQL-based database adapters.
  * Consolidates user, session, token, and role management logic.
@@ -20,7 +20,7 @@ import type {
   User,
 } from "../db-interface";
 import type { BaseSqlAdapter } from "./base-sql-adapter";
-import * as utils from "../core/relational-utils";
+import * as utils from "./relational-utils";
 import type { ISODateString } from "@src/content/types";
 
 export class RelationalAuthModule implements IAuthAdapter {
@@ -162,7 +162,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           updatedAt: now,
         };
 
-        // 🚀 HARDENING: Ensure admin role always gets admin flag
+        // 🚀  Ensure admin role always gets admin flag
         if (values.role === "admin") {
           values.isAdmin = true;
         }
@@ -240,7 +240,7 @@ export class RelationalAuthModule implements IAuthAdapter {
         if (userData.role) {
           updateData.role = userData.role;
           if (!updateData.roleIds) updateData.roleIds = [userData.role as DatabaseId];
-          // 🚀 HARDENING: If role is admin, ensure isAdmin is true
+          // 🚀  If role is admin, ensure isAdmin is true
           if (userData.role === "admin") {
             updateData.isAdmin = true;
           }

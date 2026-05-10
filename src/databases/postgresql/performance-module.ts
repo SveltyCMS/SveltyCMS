@@ -4,12 +4,12 @@
  */
 
 import type { DatabaseResult, ISODateString, PerformanceMetrics } from "../db-interface";
-import type { AdapterCore } from "./adapter-core";
+import type { PostgresAdapterCore } from "./adapter-core";
 
 export class PerformanceModule {
-  private readonly core: AdapterCore;
+  private readonly core: PostgresAdapterCore;
 
-  constructor(core: AdapterCore) {
+  constructor(core: PostgresAdapterCore) {
     this.core = core;
   }
 

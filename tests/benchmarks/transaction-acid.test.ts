@@ -18,7 +18,7 @@ import {
 } from "./benchmark-utils";
 import { logger } from "@utils/logger";
 
-const COLLECTION_ID = "collection_acid_benchmark";
+const COLLECTION_ID = "bench_acid";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runAcidAudit() {

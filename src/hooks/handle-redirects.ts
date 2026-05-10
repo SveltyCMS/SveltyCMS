@@ -83,19 +83,24 @@ class RedirectIndexService {
       };
     }
 
-    // --- CRITICAL FIX AREA: SQL JSON Robustness ---
-    // We use raw SQL to target the 'redirects_mv' table for sub-millisecond lookups.
-    // The "from" column is quoted because 'from' is a reserved SQL keyword.
-    const sql = `
-        SELECT * FROM redirects_mv WHERE tenantId = :tenantId AND "from" = :path;
-    `;
+    try {
+      const results = await db.crud.findMany<any>("redirectsMV", {
+        tenantId: tenantId,
+        source: path,
+        active: true,
+      } as any);
 
-    return await (db.crud as any).find("redirects_mv", { from: path } as any, {
-      rawSql: true,
-      sql: sql,
-      params: { tenantId, path },
-      tenantId: tenantId as any,
-    });
+      return {
+        success: true,
+        data: results.success ? results.data || [] : [],
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message,
+        error: { code: "QUERY_FAILED", message: err.message },
+      };
+    }
   }
 }
 

@@ -13,7 +13,60 @@ import type {
   IBatchAdapter,
 } from "../db-interface";
 
+export type HookType = "before" | "after";
+export type HookAction = "insert" | "update" | "delete" | "find";
+
+export interface DatabaseHook {
+  id: string;
+  type: HookType;
+  action: HookAction;
+  priority?: number;
+  handler: (collection: string, data: any, options?: any) => Promise<void | any>;
+}
+
 export abstract class BaseAdapter {
+  protected hooks: DatabaseHook[] = [];
+
+  /**
+   * 🚀  Registers a global interceptor for database operations.
+   */
+  public registerHook(hook: DatabaseHook): void {
+    this.hooks.push({ priority: 100, ...hook });
+    this.hooks.sort((a, b) => (a.priority || 100) - (b.priority || 100));
+    logger.debug(`[Hooks] Registered ${hook.type}:${hook.action} for ${hook.id}`);
+  }
+
+  /**
+   * Executes all hooks for a specific action and type.
+   */
+  protected async runHooks(
+    type: HookType,
+    action: HookAction,
+    collection: string,
+    data: any,
+    options?: any,
+  ): Promise<any> {
+    let result = data;
+    const activeHooks = this.hooks.filter((h) => h.type === type && h.action === action);
+
+    for (const hook of activeHooks) {
+      try {
+        const hookResult = await hook.handler(collection, result, options);
+        if (hookResult !== undefined && type === "before") {
+          result = hookResult;
+        }
+      } catch (error) {
+        logger.error(`[Hooks] Hook '${hook.id}' failed:`, error);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Cleanup and resource release.
+   */
+  public destroy(): void {}
+
   /**
    * 🚀 AGNOSTIC CORE: Access to the CRUD module must be provided by subclasses.
    */
@@ -41,6 +94,8 @@ export abstract class BaseAdapter {
     slowQueryCount: 0,
     errorCount: 0,
     lastLatency: 0,
+    cacheHits: 0,
+    cacheMisses: 0,
   };
 
   /**

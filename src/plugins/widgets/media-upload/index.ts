@@ -1,22 +1,10 @@
 /**
- * @file src/widgets/custom/MediaUpload/index.ts
+ * @file src/plugins/widgets/media-upload/index.ts
  * @description Media Widget Definition.
- *
- * Implements a powerful media selector using the Three Pillars Architecture.
- * Stores references (IDs) to media files, keeping content documents lightweight.
- *
- * @features
- * - **Relational Data**: Stores media IDs, not the full media objects.
- * - **Dynamic Validation**: Schema adapts to `multiupload` (single ID vs. array of IDs).
- * - **Modal-Based UX**: Designed to work with a separate media library modal.
- * - **Advanced Aggregation**: Performs a `$lookup` to filter/sort based on actual media metadata.
  */
 
 import { widget_media_description } from "@src/paraglide/messages";
 import { createWidget } from "@src/widgets/widget-factory";
-
-// import Checkbox from '@src/widgets/core/checkbox/index';
-// import Input from '@src/widgets/core/input/index';
 
 // Type for aggregation field parameter
 interface AggregationField {
@@ -38,7 +26,7 @@ import type { MediaProps } from "./types";
 
 // ✅ SSOT: Validation Schema - Exported for use in Input.svelte
 export const createValidationSchema = (
-  field: ReturnType<typeof MediaWidget>,
+  field: MediaProps & { required?: boolean },
 ): BaseSchema<unknown, unknown, BaseIssue<unknown>> => {
   // The base schema for a single media ID (must be a non-empty string).
   const idSchema = pipe(string(), minLength(1, "A media file is required."));
@@ -91,10 +79,6 @@ const MediaWidget = createWidget<MediaProps>({
         const service = new MediaService(dbAdapter);
         const f = field as any;
 
-        // DYNAMIC FOLDER RESOLUTION:
-        // 1. Explicitly configured field.folder (from schema)
-        // 2. Default to collections/[collectionName] if available
-        // 3. Fallback to tenantId or 'global'
         const basePath =
           f.folder ||
           (collectionName
@@ -107,7 +91,9 @@ const MediaWidget = createWidget<MediaProps>({
           "private",
           basePath,
         );
-        accessor.update(savedMedia._id);
+        if (savedMedia.success) {
+          accessor.update(savedMedia.data._id);
+        }
       } else if (Array.isArray(value)) {
         // Handle multiupload
         const processedIds: string[] = [];
@@ -133,7 +119,9 @@ const MediaWidget = createWidget<MediaProps>({
               "private",
               basePath,
             );
-            processedIds.push(savedMedia._id);
+            if (savedMedia.success) {
+              processedIds.push(savedMedia.data._id);
+            }
           } else {
             processedIds.push(item);
           }
@@ -171,10 +159,8 @@ const MediaWidget = createWidget<MediaProps>({
     },
   },
 
-  // Aggregation performs a lookup to search by the actual media file name.
   aggregations: {
     filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
-      // Join with the 'media_files' collection.
       {
         $lookup: {
           from: "media_files",
@@ -183,17 +169,14 @@ const MediaWidget = createWidget<MediaProps>({
           as: "media_docs",
         },
       },
-      // Filter based on the name of the joined media files.
       {
         $match: {
           "media_docs.name": { $regex: filter, $options: "i" },
         },
       },
     ],
-    // Sorting would follow a similar `$lookup` pattern.
   },
 
-  // GraphQL schema for media (returns MediaImage type for population)
   GraphqlSchema: ({ field, fieldName }) => {
     const isMulti = (field as MediaProps).multiupload;
     return {

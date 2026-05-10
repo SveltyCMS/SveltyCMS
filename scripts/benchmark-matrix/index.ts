@@ -40,7 +40,13 @@ import {
   generateFinalReport,
   scanResultsDirectory,
 } from "./reporting";
-import { startServer, stopServer, ensureDatabaseExists, setShuttingDown } from "./server";
+import {
+  startServer,
+  stopServer,
+  ensureDatabaseExists,
+  setShuttingDown,
+  isShuttingDown,
+} from "./server";
 import { AsyncSemaphore } from "./semaphore";
 import {
   ALL_DATABASES,
@@ -56,6 +62,8 @@ import {
   HEALING_PORT_OFFSET,
 } from "./config";
 import type { BenchmarkResult } from "./types";
+
+import { initProgressTracker } from "./progress";
 
 /**
  * ✨ Configuration Safeguard (Enterprise Resilience)
@@ -214,6 +222,10 @@ async function main() {
   log.info(`Databases to test: ${activeDatabases.length} / ${ALL_DATABASES.length}`);
   log.info(`Retry attempts per script: ${cfg.retryCount}`);
 
+  // 🚀 Initialize Progress Tracker
+  const totalTasks = activeDatabases.length * activeScripts.length;
+  initProgressTracker(totalTasks);
+
   const privateTestPath = path.join(process.cwd(), "config/private.test.ts");
   try {
     await fs.access(privateTestPath);
@@ -304,6 +316,7 @@ async function main() {
 
   if (cfg.parallelMode === "off") {
     for (let i = 0; i < sortedDbs.length; i++) {
+      if (isShuttingDown()) break;
       const db = sortedDbs[i];
       const dbKey = (db.label || db.type).toLowerCase().replace("+", "-");
       log.info(`[${i + 1}/${sortedDbs.length}] Starting audit for ${dbKey.toUpperCase()}...`);
@@ -320,8 +333,10 @@ async function main() {
   } else {
     const semaphore = new AsyncSemaphore(MAX_CONCURRENCY);
     const tasks = sortedDbs.map(async (db, _i) => {
+      if (isShuttingDown()) return;
       await semaphore.acquire();
       try {
+        if (isShuttingDown()) return;
         await runAuditForDatabase(
           db,
           hostInfo,
@@ -342,6 +357,9 @@ async function main() {
 
   printSummaryTable(results);
 
+  // 🚀 HARDENING: Fail the entire suite if ANY test failed
+  const failedTests = results.filter((r) => r.status === "FAILED");
+  
   if (cfg.ci) {
     const summary = await writeCISummary(results, regressions);
     if (summary.overall !== "PASS") {
@@ -349,8 +367,20 @@ async function main() {
         `CI check FAILED — ${summary.failed} DB(s) failed, ${regressions.length} regression(s), ${summary.budgetViolations.length} budget violation(s).`,
       );
       await stopServer();
+      await ConfigSafeguard.restore();
       process.exit(1);
     }
+  } else if (failedTests.length > 0) {
+    log.error(`\n❌ Audit FAILED — ${failedTests.length} benchmark(s) failed. Check logs above.`);
+    
+    // Log individual failures for visibility
+    for (const failure of failedTests) {
+        log.error(`   ✗ ${failure.db}: ${failure.error || "Unknown error"}`);
+    }
+    
+    await stopServer();
+    await ConfigSafeguard.restore();
+    process.exit(1);
   }
 
   try {

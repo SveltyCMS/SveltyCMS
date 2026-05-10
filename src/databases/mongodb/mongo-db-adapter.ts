@@ -82,7 +82,7 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
     return (this._transactionModule ??= new MongoTransactionModule(this));
   }
 
-  constructor() {
+  constructor(_config: any = {}) {
     super();
   }
 

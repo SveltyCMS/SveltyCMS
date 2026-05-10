@@ -15,10 +15,12 @@ export const MAX_STATE_TRANSITIONS_TO_KEEP = 50; // Max history for state transi
 export const SERVICE_BASELINE_TIMES = {
   database: 500, // DB connection is usually fast
   auth: 50, // Auth initialization is nearly instant
-  cache: 200, // Cache/media setup
+  cache: 200, // Cache setup
+  media: 150, // Media processing
   contentSystem: 300, // Content loading
   themeManager: 200, // Theme loading
   widgets: 150, // Widget store initialization
+  search: 250, // Search indexing
 } as const;
 
 // --- Default Anomaly Thresholds ---
@@ -71,6 +73,11 @@ export const initialState: SystemStateStore = {
       message: "Not initialized",
       metrics: structuredClone(initialServiceMetrics),
     },
+    media: {
+      status: "initializing",
+      message: "Not initialized",
+      metrics: structuredClone(initialServiceMetrics),
+    },
     contentSystem: {
       status: "initializing",
       message: "Not initialized",
@@ -82,6 +89,11 @@ export const initialState: SystemStateStore = {
       metrics: structuredClone(initialServiceMetrics),
     },
     widgets: {
+      status: "initializing",
+      message: "Not initialized",
+      metrics: structuredClone(initialServiceMetrics),
+    },
+    search: {
       status: "initializing",
       message: "Not initialized",
       metrics: structuredClone(initialServiceMetrics),

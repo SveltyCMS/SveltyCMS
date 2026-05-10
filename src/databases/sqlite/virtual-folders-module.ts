@@ -17,13 +17,13 @@
 import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { eq, sql } from "drizzle-orm";
 import type { DatabaseId, DatabaseResult, MediaItem, SystemVirtualFolder } from "../db-interface";
-import type { AdapterCore } from "./adapter-core";
+import type { SQLiteAdapterCore } from "./adapter-core";
 import * as schema from "./schema";
 import * as utils from "./utils";
 import { DatabaseModule } from "../core/base-adapter";
 
-export class VirtualFoldersModule extends DatabaseModule<AdapterCore> {
-  constructor(core: AdapterCore) {
+export class VirtualFoldersModule extends DatabaseModule<SQLiteAdapterCore> {
+  constructor(core: SQLiteAdapterCore) {
     super(core);
   }
 

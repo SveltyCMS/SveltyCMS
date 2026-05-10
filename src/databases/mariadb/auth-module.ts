@@ -3,7 +3,7 @@
  * @description Authentication and authorization module for MariaDB, inheriting from RelationalAuthModule.
  */
 
-import { RelationalAuthModule } from "../sqlite/relational-auth";
+import { RelationalAuthModule } from "../core/relational-auth";
 import type { AdapterCore } from "./adapter-core";
 import * as schema from "./schema";
 

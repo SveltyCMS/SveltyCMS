@@ -13,8 +13,8 @@ process.env.BENCHMARK = "true";
 process.env.LOG_LEVEL = process.env.LOG_LEVEL || "error";
 process.env.DEBUG = "";
 process.env.QUIET = "true";
-process.env.DB_TYPE = "sqlite";
-process.env.DB_NAME = "bench_parent";
+// process.env.DB_TYPE = process.env.DB_TYPE || "sqlite"; // REMOVED: too aggressive for matrix runs
+process.env.DB_NAME = process.env.DB_NAME || "bench_parent";
 
 import { logger } from "@utils/logger";
 
@@ -138,16 +138,23 @@ export function getDbLabel(): string {
  * 🚀 SMART DISCOVERY: Checks ENV first, then falls back to active DB adapter state.
  */
 export function getDbType(): string {
-  const envType = process.env.DB_TYPE;
-  if (envType) return envType.toLowerCase();
+  // 1. Explicit environment variable (set by runner)
+  if (process.env.DB_TYPE) return process.env.DB_TYPE.toLowerCase();
 
-  // Attempt to get type from active adapter if available
+  // 2. Active adapter detection (most accurate)
   try {
     const { getDb } = require("@src/databases/db");
     const db = getDb();
     if (db?.type) return db.type.toLowerCase();
   } catch {
     /* ignore */
+  }
+
+  // 3. Label check (used by some reporters)
+  if (process.env.DB_LABEL) {
+    if (process.env.DB_LABEL.toLowerCase().includes("postgres")) return "postgresql";
+    if (process.env.DB_LABEL.toLowerCase().includes("maria")) return "mariadb";
+    if (process.env.DB_LABEL.toLowerCase().includes("mongo")) return "mongodb";
   }
 
   return "sqlite";
@@ -643,6 +650,9 @@ export async function runBenchmark(config: any) {
           results.push(performance.now() - iStart);
         } catch (err) {
           totalErrors++;
+          if (totalErrors === 1) {
+            console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
+          }
           if (!config.silent) logger.warn(`Benchmark iteration ${i} failed`, err);
         }
       }
@@ -747,15 +757,19 @@ export async function setupBenchmarkServer() {
   const { startServer, runSystemSetup } = await import("../../scripts/benchmark-matrix/server");
   const { ALL_DATABASES } = await import("../../scripts/benchmark-matrix/config");
 
-  // 🚀 Set mandatory environment variables EARLY to prevent race conditions in loadPrivateConfig
+  const dbType = getDbType() || "sqlite";
   const dbName = `bench_tmp_${process.pid}`;
-  process.env.DB_NAME = dbName;
-  process.env.DB_TYPE = process.env.DB_TYPE || "sqlite";
+  
+  // 🚀 HARDENING: Prioritize SQLite as the safe default and find the correct config
+  const dbConf = ALL_DATABASES.find(
+    (d) => (d.useRedis ? `${d.type}-redis` : d.type) === dbType
+  ) || ALL_DATABASES.find(d => d.type === "sqlite") || ALL_DATABASES[0];
 
-  const dbType = getDbType();
-  const dbConf =
-    ALL_DATABASES.find((d) => (d.useRedis ? `${d.type}-redis` : d.type) === dbType) ||
-    ALL_DATABASES[0];
+  console.log(`[Benchmark] Selected Config: ${dbConf.type} (Requested: ${dbType})`);
+
+  process.env.DB_TYPE = dbType;
+  process.env.DB_NAME = dbName;
+  process.env.DATABASE_ENGINE = dbType; // Compatibility
   const port = 4173 + Math.floor(Math.random() * 500);
 
   process.env.API_BASE_URL = `http://127.0.0.1:${port}`;

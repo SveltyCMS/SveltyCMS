@@ -132,6 +132,8 @@ export const SERVICE_NAMES = [
   "contentSystem",
   "themeManager",
   "widgets",
+  "media",
+  "search",
 ] as const;
 export type ServiceName = (typeof SERVICE_NAMES)[number];
 export type ServicesMap = {

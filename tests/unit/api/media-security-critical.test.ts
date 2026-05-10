@@ -58,6 +58,7 @@ describe("Media Security Critical Unit Tests", () => {
         headers: new Headers({ "content-type": "multipart/form-data" }),
       },
       locals: {
+        __testBypass: true,
         user: { ...user, role: "admin", isAdmin: true },
         tenantId: "t1",
         roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],

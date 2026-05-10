@@ -6,19 +6,25 @@
 import { logger } from "@src/utils/logger";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import type { DatabaseCapabilities, DatabaseResult } from "../db-interface";
-import { BaseSqlAdapter } from "../sqlite/base-sql-adapter";
+import type {
+  BaseEntity,
+  DatabaseCapabilities,
+  DatabaseResult,
+  FindOptions,
+  QueryFilter,
+} from "../db-interface";
+import { BaseSqlAdapter } from "../core/base-sql-adapter";
 import * as schema from "./schema";
 import { pgTable, varchar, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
 import { sql as drizzleSql } from "drizzle-orm";
 
-export abstract class AdapterCore extends BaseSqlAdapter {
+export abstract class PostgresAdapterCore extends BaseSqlAdapter {
   public capabilities: DatabaseCapabilities = {
     supportsTransactions: true,
     supportsIndexing: true,
     supportsFullTextSearch: true,
     supportsAggregation: true,
-    supportsStreaming: false,
+    supportsStreaming: true,
     supportsPartitioning: true,
     maxBatchSize: 1000,
     maxQueryComplexity: 100,
@@ -59,6 +65,13 @@ export abstract class AdapterCore extends BaseSqlAdapter {
     return this.allReplicaSqls[index];
   }
 
+  /**
+   * 🚀 AGNOSTIC CORE: Returns the raw database client.
+   */
+  public getClient(): ReturnType<typeof postgres> | null {
+    return this.sql;
+  }
+
   public getDrizzle(mode: "read" | "write" = "write"): PostgresJsDatabase<typeof schema> {
     if (mode === "write") return this.db;
     if (this._readDb) return this._readDb;
@@ -66,6 +79,28 @@ export abstract class AdapterCore extends BaseSqlAdapter {
     const client = this.getSql("read");
     this._readDb = drizzle(client, { schema });
     return this._readDb;
+  }
+
+  /**
+   * 🚀 AGNOSTIC CORE: Resolves a collection name to its Drizzle schema object.
+   */
+  protected getAliasedTable(collection: string): any {
+    const schemaAny = this.schema as any;
+
+    // 1. Check direct alias map
+    const alias = BaseSqlAdapter.TABLE_ALIASES[collection];
+    if (alias && schemaAny[alias]) return schemaAny[alias];
+
+    // 2. Check if the name itself is a schema export
+    if (schemaAny[collection]) return schemaAny[collection];
+
+    return null;
+  }
+
+  protected getDrizzleInstance(
+    _options?: import("../db-interface").BaseQueryOptions,
+  ): PostgresJsDatabase<typeof schema> {
+    return this.db;
   }
 
   async connect(
@@ -132,7 +167,12 @@ export abstract class AdapterCore extends BaseSqlAdapter {
         };
       }
 
-      this.sql = postgres(options);
+      this.sql = postgres({
+        ...options,
+        connect_timeout: 30,
+        idle_timeout: 20,
+        max_lifetime: 60 * 30, // 30 minutes
+      });
       this._db = drizzle(this.sql, { schema });
 
       // Verification
@@ -178,6 +218,10 @@ export abstract class AdapterCore extends BaseSqlAdapter {
       logger.info("Disconnected from PostgreSQL");
     }
     return { success: true, data: undefined };
+  }
+
+  public isConnected(): boolean {
+    return this.connected;
   }
 
   public async waitForConnection(): Promise<void> {
@@ -250,12 +294,52 @@ export abstract class AdapterCore extends BaseSqlAdapter {
 
   public readonly schema = schema;
 
-  public override getTable(collection: string): Record<string, unknown> {
+  public override getTable(collection: string): any {
     return super.getTable(collection);
+  }
+
+  public override async streamMany<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    options: FindOptions<T> = {},
+  ): Promise<DatabaseResult<AsyncIterable<T>>> {
+    return this.wrap(async () => {
+      const q = (await this.runHooks("before", "find", collection, query, options)) as any;
+      const table = this.getTable(collection);
+      const where = this.mapQuery(table, q, options);
+      let builder = (this.db as any).select().from(table).where(where);
+      if (options.limit) builder = builder.limit(options.limit);
+      if (options.offset) builder = builder.offset(options.offset);
+
+      // 🚀 Native PostgreSQL Streaming
+      const stream = await (builder as any).stream();
+      const convertFn = (this as any).utils.convertDatesToISO;
+
+      async function* generator() {
+        for await (const row of stream) {
+          yield convertFn(row) as T;
+        }
+      }
+
+      return generator() as AsyncIterable<T>;
+    }, "STREAM_MANY_FAILED");
   }
 
   public override destroy(): void {
     if (this.preparedStatements.size > 0) this.preparedStatements.clear();
+  }
+
+  /**
+   * 🚀 AGNOSTIC CORE: PostgreSQL implementation of JSON field extraction.
+   */
+  public getJsonField(field: string): import("drizzle-orm").SQL {
+    // 🚀 Performance: Use the #>> operator for faster path-based extraction if field contains dots
+    if (field.includes(".")) {
+      const path = `{${field.split(".").join(",")}}`;
+      return drizzleSql`data#>>${path}`;
+    }
+    // Uses the ->> operator for direct text extraction from JSONB
+    return drizzleSql`data->>${field}`;
   }
 
   public transaction = async <T>(

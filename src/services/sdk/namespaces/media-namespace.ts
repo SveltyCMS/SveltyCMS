@@ -171,7 +171,7 @@ export class MediaNamespace {
         file,
         userId,
         access,
-        tenantId as DatabaseId,
+        tenantId as any as DatabaseId,
         folder,
         watermarkOptions,
         null,
@@ -179,7 +179,7 @@ export class MediaNamespace {
       );
 
       this.invalidateCache(tenantId);
-      return { success: true, data: result };
+      return result;
     } catch (err: any) {
       return { success: false, message: err.message, error: err };
     }
@@ -199,7 +199,7 @@ export class MediaNamespace {
       );
 
       this.invalidateCache(tenantId);
-      return { success: true, data: result };
+      return result;
     } catch (err: any) {
       return { success: false, message: err.message, error: err };
     }

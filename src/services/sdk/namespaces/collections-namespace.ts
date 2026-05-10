@@ -4,13 +4,13 @@
  */
 
 import { contentSystem } from "@src/content/index.server";
-import { modifyRequest } from "@utils/modify-request";
+import { modifyRequest, modifyStream, type EntryData } from "@utils/modify-request";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { LRUCache } from "lru-cache";
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
-import crypto from "node:crypto";
+import * as crypto from "node:crypto";
 import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
 import type { Schema, FieldInstance } from "@src/content/types";
 import { type LocalApiOptions, type CollectionProxy } from "./types";
@@ -103,6 +103,16 @@ export class CollectionsNamespace {
     return `collection_${schemaId.replace(/-/g, "")}`;
   }
 
+  /**
+   * 🚀 HYDRATION: Manually register a schema in the local cache.
+   * Useful for setup scripts and benchmarks.
+   */
+  public registerSchema(collectionId: string, schema: Schema, tenantId?: DatabaseId | null): void {
+    const schemaKey = `${tenantId || "global"}:${collectionId.toLowerCase()}`;
+    CollectionsNamespace._schemaCache.set(schemaKey, schema);
+    logger.debug(`[Collections] Manually registered schema: ${schemaKey}`);
+  }
+
   private async getSchema(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema> {
     const schemaKey = `${tenantId || "global"}:${collectionId.toLowerCase()}`;
     if (CollectionsNamespace._schemaCache.has(schemaKey)) {
@@ -122,7 +132,9 @@ export class CollectionsNamespace {
         idLower === "benchmarkstable" ||
         idLower === "bench_revisions" ||
         idLower === "bench_index_pressure" ||
-        idLower === "bench_migration_large")
+        idLower === "bench_migration_large" ||
+        idLower === "benchmark_authors" ||
+        idLower === "benchmark_posts")
     ) {
       schema = {
         _id: collectionId,
@@ -291,12 +303,18 @@ export class CollectionsNamespace {
               skipValidation: options.skipValidation,
               action: "search",
             });
+
+            // 🚀 Zero-Copy Projection: Mutate directly to avoid spread/allocation overhead
+            for (let i = 0; i < items.length; i++) {
+              (items[i] as any)._collection = {
+                id: collection._id,
+                name: collection.name,
+                label: collection.label,
+              };
+            }
           }
 
-          return items.map((item) => ({
-            ...item,
-            _collection: { id: collection._id, name: collection.name, label: collection.label },
-          }));
+          return items;
         }
         return [];
       } catch {
@@ -389,6 +407,16 @@ export class CollectionsNamespace {
         skipValidation: options.skipValidation,
         action: "find",
       });
+
+      // 🚀 Zero-Copy Projection: Add collection metadata
+      const items = result.data as any[];
+      for (let i = 0; i < items.length; i++) {
+        items[i]._collection = {
+          id: schema._id,
+          name: schema.name,
+          label: schema.label,
+        };
+      }
     }
 
     if (result.success && !bypassCache) {
@@ -415,6 +443,66 @@ export class CollectionsNamespace {
     }
 
     return result;
+  }
+
+  async findStreaming(
+    collectionId: string,
+    options: LocalApiOptions & {
+      limit?: number;
+      offset?: number;
+      fields?: string[];
+      sortField?: string;
+      sortDirection?: "asc" | "desc";
+      filter?: any;
+      skipValidation?: boolean;
+    } = {},
+  ) {
+    const { tenantId, user } = options;
+    const schema = await contentSystem.getCollectionById(collectionId, tenantId);
+    if (!schema) throw new AppError(`Collection ${collectionId} not found`, 404);
+
+    const query = this.normalizeRelationshipFilter({ ...options.filter });
+    const findOptions = {
+      limit: options.limit,
+      offset: options.offset,
+      sort: options.sortField
+        ? ([[options.sortField, options.sortDirection || "desc"]] as [string, "asc" | "desc"][])
+        : undefined,
+      fields: options.fields as any,
+      tenantId: tenantId as DatabaseId,
+    };
+
+    const streamResult = await this._dbAdapter.crud.streamMany(
+      this.getCollectionName(schema._id as string),
+      query,
+      findOptions,
+    );
+
+    if (!streamResult.success) throw new Error(streamResult.message);
+
+    const collectionModel = await this._dbAdapter.collection.getModel(schema._id as string);
+
+    return modifyStream(streamResult.data as any as AsyncIterable<EntryData>, {
+      collection: collectionModel,
+      fields: schema.fields as FieldInstance[],
+      user: user || ({ _id: "system", role: "admin" } as any),
+      type: "GET",
+      tenantId: tenantId as string,
+      collectionName: schema.name,
+      skipValidation: options.skipValidation,
+      action: "find",
+    });
+  }
+
+  async count(collectionId: string, options: { tenantId?: DatabaseId | null; filter?: any } = {}) {
+    const { tenantId, filter = {} } = options;
+    const schema = await this.getSchema(collectionId, tenantId);
+    const normalizedFilter = this.normalizeRelationshipFilter(filter);
+    const query = { ...normalizedFilter, ...(tenantId && { tenantId: tenantId as DatabaseId }) };
+
+    return this._dbAdapter.crud.count(this.getCollectionName(schema._id as string), query as any, {
+      tenantId: tenantId as DatabaseId,
+    });
   }
 
   queryBuilder(collectionId: string, options: { tenantId?: DatabaseId | null } = {}) {
@@ -476,12 +564,19 @@ export class CollectionsNamespace {
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
-    const entries = data.map((item) => ({
-      ...item,
-      tenantId,
-      createdBy: effectiveUser?._id,
-      createdAt: new Date().toISOString(),
-    }));
+    const now = new Date().toISOString();
+    const createdBy = effectiveUser?._id;
+
+    // 🚀 Zero-Copy: Mutate input data directly to avoid object spread churn
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i];
+      if (item && typeof item === "object") {
+        item.tenantId = tenantId;
+        item.createdBy = createdBy;
+        item.createdAt = now;
+      }
+    }
+    const entries = data as EntryData[];
 
     const collectionIdToUse = schema._id as string;
     let collectionModel;
@@ -513,12 +608,12 @@ export class CollectionsNamespace {
     if (this._dbAdapter.batch && typeof this._dbAdapter.batch.bulkInsert === "function") {
       result = await this._dbAdapter.batch.bulkInsert(
         this.getCollectionName(schema._id as string),
-        entries,
+        entries as any[],
       );
     } else if (this._dbAdapter.crud && typeof this._dbAdapter.crud.insertMany === "function") {
       result = await this._dbAdapter.crud.insertMany(
         this.getCollectionName(schema._id as string),
-        entries,
+        entries as any[],
         { tenantId } as any,
       );
     } else {
@@ -528,7 +623,11 @@ export class CollectionsNamespace {
     if (result.success) {
       try {
         const { workflowService } = await import("@src/services/background/workflow-service");
-        const insertedIds = (result.data as any[]).map((item) => item._id as string);
+        const insertedIds = Array.from({ length: (result.data as any[]).length }) as string[];
+        const resultsData = result.data as any[];
+        for (let i = 0; i < resultsData.length; i++) {
+          insertedIds[i] = resultsData[i]._id as string;
+        }
         await workflowService.bulkInitializeWorkflow(
           insertedIds,
           schema._id as string,
@@ -693,9 +792,21 @@ export class CollectionsNamespace {
           skipValidation: options.skipValidation,
           action: "findById_batch",
         });
+
+        // 🚀 Zero-Copy Projection: Add collection metadata
+        for (let i = 0; i < foundItems.length; i++) {
+          foundItems[i]._collection = {
+            id: schema._id,
+            name: schema.name,
+            label: schema.label,
+          };
+        }
       }
 
-      const itemsMap = new Map(foundItems.map((item) => [String(item._id), item]));
+      const itemsMap = new Map();
+      for (let i = 0; i < foundItems.length; i++) {
+        itemsMap.set(String(foundItems[i]._id), foundItems[i]);
+      }
 
       for (const id of ids) {
         const item = itemsMap.get(id);

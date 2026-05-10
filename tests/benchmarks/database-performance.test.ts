@@ -98,6 +98,7 @@ export async function runDatabaseBenchmark() {
   } catch (err: any) {
     logger.error(`Database benchmark failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});
@@ -132,7 +133,9 @@ function createFindOneTest(db: any) {
       { _id: "bench-shared-001" as any },
       { tenantId: TEST_TENANT },
     );
-    if (!res?.success) throw new Error("FindOne failed");
+    if (!res?.success) {
+        throw new Error(`FindOne failed: ${res?.message || "Unknown error"}. Details: ${JSON.stringify(res?.error || {})}`);
+    }
   };
 }
 

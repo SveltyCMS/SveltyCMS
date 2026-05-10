@@ -9,8 +9,8 @@ export const redirectsMV = sqliteTable(
   {
     _id: text("_id", { length: 36 }).primaryKey(),
     tenantId: text("tenantId", { length: 36 }).notNull(),
-    from: text("from").notNull(),
-    to: text("to").notNull(),
+    source: text("source").notNull(),
+    target: text("target").notNull(),
     type: integer("type").notNull().default(301),
     isRegex: integer("isRegex", { mode: "boolean" }).notNull().default(false),
     active: integer("active", { mode: "boolean" }).notNull().default(true),
@@ -18,6 +18,6 @@ export const redirectsMV = sqliteTable(
   },
   (table) => ({
     tenantIdx: index("redirects_mv_tenant_idx").on(table.tenantId),
-    fromIdx: index("redirects_mv_from_idx").on(table.from),
+    sourceIdx: index("redirects_mv_source_idx").on(table.source),
   }),
 );

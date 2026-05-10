@@ -42,6 +42,7 @@ const cfg = {
   },
   flags: {
     clean: process.argv.includes("--clean"),
+    overwrite: process.argv.includes("--overwrite"),
     verbose: process.argv.includes("--verbose"),
   },
 } as const;
@@ -149,7 +150,11 @@ async function main() {
 
   // Test DB Connection
   console.log("🔌 Testing database connection...");
-  await postAction("testDatabase", { config: cfg.db, createIfMissing: true });
+  await postAction("testDatabase", {
+    config: cfg.db,
+    createIfMissing: true,
+    allowOverwrite: cfg.flags.overwrite,
+  });
 
   // Seed Data
   console.log(`🌱 Seeding database (preset: ${cfg.system.preset})...`);

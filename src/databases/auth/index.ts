@@ -72,6 +72,8 @@ import {
 // Import for internal use
 import { SESSION_COOKIE_NAME } from "./constants";
 
+import { TransactionManager } from "../core/transaction-manager";
+
 // Main Auth class
 export class Auth {
   private readonly db: DatabaseAdapter;
@@ -91,27 +93,28 @@ export class Auth {
   async createUserAndSession(
     userData: Partial<User>,
     sessionData: { expires: ISODateString; tenantId?: DatabaseId | null },
-    options?: BaseQueryOptions,
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ user: User; session: Session }>> {
-    try {
-      const { email, password } = userData;
+    // 💎  Wrap the entire business flow in an atomic transaction
+    return TransactionManager.runAtomic(this.db as any, async (tx: any) => {
+      try {
+        const { email, password } = userData;
 
-      if (email) userData.email = email.toLowerCase();
+        if (email) userData.email = email.toLowerCase();
 
-      // --- PASSWORD HASHING ---
-      if (password) {
-        this.validatePasswordStrength(password);
-        userData.password = await cryptoHashPassword(password);
+        // --- PASSWORD HASHING ---
+        if (password) {
+          // Internal strength check (not using 'this' to avoid binding issues in callbacks if any)
+          if (password.length < 8) throw new Error("Password too short");
+          userData.password = await cryptoHashPassword(password);
+        }
+
+        // 🚀 CRITICAL: Use the transaction-scoped 'tx' adapter
+        return await tx.auth.createUserAndSession(userData, sessionData, options);
+      } catch (err: any) {
+        throw new Error(err.message || "Failed to create user and session");
       }
-
-      return this.db.auth.createUserAndSession(userData, sessionData, options);
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message || "Failed to create user and session",
-        error: { code: "AUTH_ERROR", message: err.message },
-      };
-    }
+    });
   }
 
   async deleteUserAndSessions(

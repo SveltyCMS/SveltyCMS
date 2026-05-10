@@ -72,3 +72,17 @@ export const pc = {
   magentaBright: (s: string) => `${ESC}95m${s}${RESET}`,
   cyanBright: (s: string) => `${ESC}96m${s}${RESET}`,
 };
+
+/**
+ * 🚀 GLOBAL STATE HELPERS
+ * Safe way to manage globals that survive bundling and tree-shaking.
+ */
+export const setGlobal = (key: string, val: any) => {
+  (globalThis as any)[key] = val;
+  return val;
+};
+
+export const getGlobal = <T = any>(key: string, defaultVal: T = null as any): T => {
+  const val = (globalThis as any)[key];
+  return val !== undefined ? val : defaultVal;
+};

@@ -21,7 +21,7 @@ import type {
   MediaItem,
 } from "../db-interface";
 import type { BaseSqlAdapter } from "./base-sql-adapter";
-import * as utils from "../core/relational-utils";
+import * as utils from "./relational-utils";
 
 export class RelationalSystemModule implements ISystemAdapter {
   protected readonly adapter: BaseSqlAdapter;
@@ -685,14 +685,14 @@ export class RelationalSystemModule implements ISystemAdapter {
       limit?: number;
       skip?: number;
       sort?: string;
-      order?: string;
+      direction?: "asc" | "desc";
     }): Promise<
       DatabaseResult<{ data: import("../db-interface").WebsiteToken[]; total: number }>
     > => {
       return this.adapter.wrap(async () => {
         let q = this.db.select().from(this.schema.websiteTokens).$dynamic();
         if (options.sort) {
-          const orderFn = options.order === "desc" ? desc : asc;
+          const orderFn = options.direction === "desc" ? desc : asc;
           const column = (this.schema.websiteTokens as any)[options.sort];
           if (column) q = q.orderBy(orderFn(column));
         }

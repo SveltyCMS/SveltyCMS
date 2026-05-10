@@ -1,6 +1,6 @@
 /**
  * @file tests/benchmarks/content-scan.bench.ts
- * @description Elite-grade benchmark for SveltyCMS Content Scan (self-healing collections discovery).
+ * @description Benchmark for SveltyCMS Content Scan (self-healing collections discovery).
  * Measures filesystem + metadata processing performance with realistic multi-extension projects.
  */
 

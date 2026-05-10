@@ -27,7 +27,7 @@ interface DataAccessor<T> {
   update(newData: T): void;
 }
 
-interface EntryData {
+export interface EntryData {
   _id?: string;
   meta_data?: Record<string, unknown>;
   [key: string]: unknown;
@@ -71,14 +71,25 @@ export async function modifyRequest({
     // 1. Initial FLAC Sanitization (Physical field stripping)
     // 🚀 Performance Optimization: Skip FLAC for system operations to avoid heavy audit logging and permission lookups
     if (!system) {
-      for (let i = 0; i < data.length; i++) {
-        // Only run FLAC if we have a real user context
-        if (user && user._id !== "system") {
-          data[i] = (await enforceFieldAccess(fields, data[i] as any, user, operation, {
+      // 🚀 Parallel FLAC Sanitization: Use Promise.all to process entries concurrently
+      // We only run FLAC if we have a real user context and the user is NOT an admin
+      if (user && user._id !== "system" && user.role !== "admin") {
+        if (data.length === 1) {
+          data[0] = (await enforceFieldAccess(fields, data[0] as any, user, operation, {
             collectionName,
             tenantId: tenantId ?? undefined,
-            entryId: (data[i] as any)._id,
+            entryId: (data[0] as any)._id,
           })) as EntryData;
+        } else {
+          await Promise.all(
+            data.map(async (item, i) => {
+              data[i] = (await enforceFieldAccess(fields, item as any, user, operation, {
+                collectionName,
+                tenantId: tenantId ?? undefined,
+                entryId: (item as any)._id,
+              })) as EntryData;
+            }),
+          );
         }
       }
     }
@@ -210,5 +221,19 @@ export async function modifyRequest({
       stack: errorStack,
     });
     throw error;
+  }
+}
+
+/**
+ * 🚀 STREAMING CORE: Transforms a stream of entries per-item.
+ */
+export async function* modifyStream(
+  stream: AsyncIterable<EntryData>,
+  params: Omit<ModifyRequestParams, "data">,
+) {
+  for await (const item of stream) {
+    const data = [item];
+    await modifyRequest({ ...params, data });
+    yield data[0];
   }
 }

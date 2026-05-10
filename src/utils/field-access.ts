@@ -61,7 +61,11 @@ export async function enforceFieldAccess(
   operation: "read" | "write",
   context?: { collectionName?: string; entryId?: string; tenantId?: string },
 ): Promise<Record<string, any>> {
+  // 🚀 Performance: System/Admin bypass early
+  if (user.role === "admin" || user._id === "system") return data;
+
   const sanitized = { ...data };
+  const dataKeys = Object.keys(sanitized);
 
   for (const field of fields) {
     const fieldName = field.db_fieldName || (field as any).name;
@@ -69,8 +73,9 @@ export async function enforceFieldAccess(
 
     // Check if field exists in the data payload
     const hasField = fieldName in sanitized;
-    // Check for i18n variants
-    const i18nKeys = Object.keys(sanitized).filter((k) => k.startsWith(`${fieldName}_`));
+
+    // 🚀 Optimize i18n lookup: Use pre-fetched keys
+    const i18nKeys = dataKeys.filter((k) => k.startsWith(`${fieldName}_`));
 
     if (!hasField && i18nKeys.length === 0) continue;
 
@@ -78,22 +83,21 @@ export async function enforceFieldAccess(
       // F1: Throw on Write Violation instead of silent stripping
       if (operation === "write") {
         // F3: Audit the blocked attempt
-        await auditLogService.logEvent({
-          eventType: AuditEventType.UNAUTHORIZED_ACCESS,
-          action: `Blocked unauthorized write to field: ${fieldName}`,
-          actorId: user._id as DatabaseId,
-          severity: "medium",
-          result: "failure",
-          details: {
+        await auditLogService.log(
+          `Blocked unauthorized write to field: ${fieldName}`,
+          { id: user._id as DatabaseId, email: (user as any).email || "unknown", role: user.role },
+          { type: "field", id: fieldName as any },
+          AuditEventType.UNAUTHORIZED_ACCESS,
+          "medium",
+          {
             field: fieldName,
             collection: context?.collectionName || "unknown",
             entryId: context?.entryId || "new",
             operation,
           },
-          targetType: "field",
-          targetId: fieldName as any,
-          tenantId: context?.tenantId as DatabaseId,
-        });
+          context?.tenantId as DatabaseId,
+          "failure",
+        );
 
         throw new AppError(
           `Access Denied: You do not have permission to modify the field '${field.label || fieldName}'`,

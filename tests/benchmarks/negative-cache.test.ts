@@ -59,10 +59,16 @@ test("Negative Cache Performance Audit", async () => {
   results.push({ ...cachedMiss, label: "Hot Miss (Cache)" });
 
   printTruthTable({
-    title: "NEGATIVE CACHE PERFORMANCE",
+    title: "NEGATIVE CACHE PERFORMANCE AUDIT",
     subtitle: "Verifying 404-Miss Latency Gains",
-    results: results.map((r) => ({ ...r, db: "SQLite" })),
-    layerMode: true,
+    results: results.map((r) => ({
+      ...r,
+      shortLabel: r.label,
+      avg: r.avgMs,
+      p95: r.p95Ms,
+      rps: r.rps,
+    })),
+    layerMode: false,
   });
 
   // Verification

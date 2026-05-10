@@ -116,7 +116,7 @@ export async function prepareAuthenticatedContext(
     }
   }
 
-  // 🚀 HARDENING: Wait for system to settle and reach a READY state
+  // 🚀  Wait for system to settle and reach a READY state
   console.log("⏳ Waiting for system to settle and reach READY state...");
   let isReady = false;
   for (let i = 0; i < 10; i++) {
@@ -138,7 +138,7 @@ export async function prepareAuthenticatedContext(
     console.warn("⚠️ System did not reach READY state, attempting login anyway...");
   }
 
-  // 🚀 HARDENING: Obtain CSRF token first
+  // 🚀  Obtain CSRF token first
   console.log("🛡️ Obtaining CSRF token...");
   const initialResp = await safeFetch(`${API_BASE_URL}/api/system/health`);
   const initialCookies = initialResp.headers.get("set-cookie") || "";

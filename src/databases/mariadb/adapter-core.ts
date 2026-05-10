@@ -7,7 +7,7 @@ import { logger } from "@src/utils/logger";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import type { DatabaseCapabilities, DatabaseResult } from "../db-interface";
-import { BaseSqlAdapter } from "../sqlite/base-sql-adapter";
+import { BaseSqlAdapter } from "../core/base-sql-adapter";
 import * as schema from "./schema";
 import { mysqlTable, varchar, json, datetime, boolean } from "drizzle-orm/mysql-core";
 import { sql } from "drizzle-orm";
@@ -141,6 +141,13 @@ export abstract class AdapterCore extends BaseSqlAdapter {
     }
   }
 
+  /**
+   * 🚀 AGNOSTIC CORE: Returns the raw database client.
+   */
+  public getClient(): import("mysql2/promise").Pool | null {
+    return this.pool;
+  }
+
   async disconnect(): Promise<DatabaseResult<void>> {
     if (this.pool) {
       await this.pool.end();
@@ -150,6 +157,10 @@ export abstract class AdapterCore extends BaseSqlAdapter {
       logger.info("Disconnected from MariaDB");
     }
     return { success: true, data: undefined };
+  }
+
+  public isConnected(): boolean {
+    return this.connected;
   }
 
   public async waitForConnection(): Promise<void> {
@@ -234,7 +245,36 @@ export abstract class AdapterCore extends BaseSqlAdapter {
 
   public readonly schema = schema;
 
-  public override getTable(collection: string): Record<string, unknown> {
+  /**
+   * 🚀 AGNOSTIC CORE: MariaDB implementation of JSON field extraction.
+   */
+  public getJsonField(field: string): import("drizzle-orm").SQL {
+    return sql`JSON_VALUE(data, '$.' || ${field})`;
+  }
+
+  /**
+   * 🚀 AGNOSTIC CORE: Resolves a collection name to its Drizzle schema object.
+   */
+  protected getAliasedTable(collection: string): any {
+    const schemaAny = this.schema as any;
+
+    // 1. Check direct alias map
+    const alias = BaseSqlAdapter.TABLE_ALIASES[collection];
+    if (alias && schemaAny[alias]) return schemaAny[alias];
+
+    // 2. Check if the name itself is a schema export
+    if (schemaAny[collection]) return schemaAny[collection];
+
+    return null;
+  }
+
+  protected getDrizzleInstance(
+    _options?: import("../db-interface").BaseQueryOptions,
+  ): MySql2Database<typeof schema> {
+    return this.db;
+  }
+
+  public override getTable(collection: string): any {
     return super.getTable(collection);
   }
 

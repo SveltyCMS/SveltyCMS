@@ -1,5 +1,5 @@
 /**
- * @file src/databases/sqlite/relational-content.ts
+ * @file src/databases/core/relational-content.ts
  * @description Consolidated Content module for all SQL-based database adapters.
  * Merges nodes, drafts, and revisions into a single domain module.
  */
@@ -18,7 +18,7 @@ import type {
   IContentAdapter,
 } from "../db-interface";
 import type { BaseSqlAdapter } from "./base-sql-adapter";
-import * as utils from "../core/relational-utils";
+import * as utils from "./relational-utils";
 
 export class RelationalContentModule implements IContentAdapter {
   protected readonly adapter: BaseSqlAdapter;
@@ -199,7 +199,7 @@ export class RelationalContentModule implements IContentAdapter {
         bypassCache?: boolean;
       },
     ): Promise<DatabaseResult<ContentNode[]>> => {
-      return this.adapter.transaction(async (tx) => {
+      return this.adapter.transaction(async (tx: any) => {
         const results: ContentNode[] = [];
         for (const update of updates) {
           const res = await this.nodes.update(update.path, update.changes, {
@@ -246,7 +246,7 @@ export class RelationalContentModule implements IContentAdapter {
     ): Promise<DatabaseResult<ContentNode[]>> => {
       return this.adapter.wrap(async () => {
         for (const update of nodeUpdates) {
-          await this.nodes.update(update.path, { order: update.newOrder });
+          await this.nodes.update(update.path, { position: update.newOrder } as any);
         }
         return [];
       }, "REORDER_NODES_FAILED");
@@ -260,14 +260,14 @@ export class RelationalContentModule implements IContentAdapter {
         path: string;
       }>,
     ): Promise<DatabaseResult<void>> => {
-      return this.adapter.transaction(async (tx) => {
+      return this.adapter.transaction(async (tx: any) => {
         const db = (tx as any).db || tx;
         for (const item of items) {
           await db
             .update(this.schema.contentNodes)
             .set({
               parentId: item.parentId,
-              order: item.order,
+              position: item.order,
               path: item.path,
             })
             .where(eq(this.schema.contentNodes._id, item.id));

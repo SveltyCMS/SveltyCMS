@@ -1,20 +1,20 @@
 /**
- * @file src/databases/sqlite/performance/performance-module.ts
+ * @file src\databases\sqlite\performance-module.ts
  * @description Performance metrics module for SQLite
  */
 
 import type { DatabaseResult, PerformanceMetrics } from "../db-interface";
-import type { AdapterCore } from "./adapter-core";
+import type { BaseSqlAdapter } from "../core/base-sql-adapter";
 import { DatabaseModule } from "../core/base-adapter";
 
-export class PerformanceModule extends DatabaseModule<AdapterCore> {
+export class PerformanceModule extends DatabaseModule<BaseSqlAdapter> {
   async getMetrics(): Promise<DatabaseResult<PerformanceMetrics>> {
     const stats = this.adapter["metrics"];
     return {
       success: true,
       data: {
         queryCount: stats.queryCount,
-        slowQueries: [], // TODO: Implement slow query tracking in AdapterCore
+        slowQueries: [], // TODO: Implement slow query tracking in SQLiteAdapterCore
         averageQueryTime: stats.lastLatency,
         cacheHitRate: stats.cacheHits / (stats.cacheHits + stats.cacheMisses || 1),
         connectionPoolUsage: 1,

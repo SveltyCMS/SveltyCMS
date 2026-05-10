@@ -94,6 +94,16 @@ function transitionServiceState(
   error?: string,
 ): SystemStateStore {
   const now = Date.now();
+
+  // 🚀 HARDENING: Defensive check for missing services
+  if (!state.services[serviceName]) {
+    state.services[serviceName] = {
+      status: "initializing",
+      message: "Auto-registered during transition",
+      metrics: structuredClone(initialServiceMetrics),
+    };
+  }
+
   const service = state.services[serviceName];
   const metrics: ServicePerformanceMetrics = { ...service.metrics };
 
@@ -463,7 +473,7 @@ function deriveOverallState(services: SystemStateStore["services"]): SystemState
   // 5. Check if all services are healthy (WARMED)
   // Ignore 'skipped' services for this check unless ALL non-critical are skipped (which is handled by SETUP above)
   const allHealthy = allServices.every(
-    (service) => services[service].status === "healthy" || services[service].status === "skipped",
+    (service) => services[service]?.status === "healthy" || services[service]?.status === "skipped",
   );
   if (allHealthy) {
     return "WARMED";

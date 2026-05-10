@@ -24,8 +24,8 @@ export const migrations: PluginMigration[] = [
           name: id,
           slug: id,
           fields: [
-            { label: "From", name: "from", type: "text", required: true },
-            { label: "To", name: "to", type: "text", required: true },
+            { label: "From", name: "source", type: "text", required: true },
+            { label: "To", name: "target", type: "text", required: true },
             { label: "Type", name: "type", type: "number", defaultValue: 301 },
             { label: "Active", name: "active", type: "boolean", defaultValue: true },
             { label: "Is Regex", name: "isRegex", type: "boolean", defaultValue: false },
@@ -78,15 +78,15 @@ export const migrations: PluginMigration[] = [
           CREATE TABLE IF NOT EXISTS "redirects_mv" (
             "_id" TEXT PRIMARY KEY,
             "tenantId" TEXT NOT NULL,
-            "from" TEXT NOT NULL,
-            "to" TEXT NOT NULL,
+            "source" TEXT NOT NULL,
+            "target" TEXT NOT NULL,
             "type" INTEGER DEFAULT 301,
             "isRegex" INTEGER DEFAULT 0,
             "active" INTEGER DEFAULT 1,
             "metadata" TEXT DEFAULT '{}',
             "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
           );
-          CREATE INDEX IF NOT EXISTS "idx_redirects_mv_lookup" ON "redirects_mv" ("tenantId", "from", "active");
+          CREATE INDEX IF NOT EXISTS "idx_redirects_mv_lookup" ON "redirects_mv" ("tenantId", "source", "active");
         `;
 
         const client = (dbAdapter as any).getClient?.();
@@ -225,7 +225,7 @@ async function syncToEdgeKV(tenantId: string) {
 
 /**
  * Syncs redirects for a tenant to the high-performance Materialized View table.
- * 🚀 HARDENING: Uses a transaction to ensure atomic clear-then-insert.
+ * 🚀  Uses a transaction to ensure atomic clear-then-insert.
  */
 async function syncToMaterializedView(tenantId: string, dbAdapter: IDBAdapter) {
   // Only applicable to SQL adapters with the redirects_mv table
