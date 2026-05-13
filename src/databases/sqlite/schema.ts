@@ -122,7 +122,10 @@ export const roles = sqliteTable(
     _id: uuidPk(),
     name: text("name", { length: 255 }).notNull(),
     description: text("description"),
-    permissions: text("permissions", { mode: "json" }).$type<string[]>().notNull().default([]),
+    permissions: text("permissions")
+      .$type<string[]>()
+      .notNull()
+      .default([] as any),
     isAdmin: integer("isAdmin", { mode: "boolean" }).notNull().default(false),
     icon: text("icon", { length: 100 }),
     color: text("color", { length: 50 }),
@@ -148,14 +151,12 @@ export const contentNodes = sqliteTable(
     slug: text("slug", { length: 500 }),
     icon: text("icon", { length: 100 }),
     description: text("description"),
-    collectionDef: text("collectionDef", { mode: "json" }).$type<
-      import("@src/content/types").Schema
-    >(),
-    data: text("data", { mode: "json" }),
-    metadata: text("metadata", { mode: "json" }),
-    translations: text("translations", { mode: "json" })
+    collectionDef: text("collectionDef").$type<import("@src/content/types").Schema>(),
+    data: text("data"),
+    metadata: text("metadata"),
+    translations: text("translations")
       .$type<{ languageTag: string; translationName: string }[]>()
-      .default([]),
+      .default("[]" as any),
     position: integer("position").notNull().default(0),
     isPublished: integer("isPublished", { mode: "boolean" }).notNull().default(false),
     publishedAt: integer("publishedAt", { mode: "timestamp_ms" }),
@@ -180,7 +181,7 @@ export const contentDrafts = sqliteTable(
   {
     _id: uuidPk(),
     contentId: text("contentId", { length: 36 }).notNull(),
-    data: text("data", { mode: "json" }).notNull(),
+    data: text("data").notNull(),
     version: integer("version").notNull().default(1),
     status: text("status", { length: 50 }).notNull().default("draft"),
     authorId: text("authorId", { length: 36 }).notNull(),
@@ -201,7 +202,7 @@ export const contentRevisions = sqliteTable(
   {
     _id: uuidPk(),
     contentId: text("contentId", { length: 36 }).notNull(),
-    data: text("data", { mode: "json" }).notNull(),
+    data: text("data").notNull(),
     version: integer("version").notNull().default(1),
     commitMessage: text("commitMessage"),
     authorId: text("authorId", { length: 36 }).notNull(),
@@ -225,7 +226,7 @@ export const themes = sqliteTable(
     path: text("path", { length: 500 }).notNull(),
     isActive: integer("isActive", { mode: "boolean" }).notNull().default(false),
     isDefault: integer("isDefault", { mode: "boolean" }).notNull().default(false),
-    config: text("config", { mode: "json" }).notNull(),
+    config: text("config").notNull(),
     previewImage: text("previewImage"),
     customCss: text("customCss"),
     tenantId: tenantField(),
@@ -245,8 +246,13 @@ export const widgets = sqliteTable(
     _id: uuidPk(),
     name: text("name", { length: 255 }).notNull(),
     isActive: integer("isActive", { mode: "boolean" }).notNull().default(true),
-    instances: text("instances", { mode: "json" }).notNull().default({}),
-    dependencies: text("dependencies", { mode: "json" }).$type<string[]>().notNull().default([]),
+    instances: text("instances")
+      .notNull()
+      .default("{}" as any),
+    dependencies: text("dependencies")
+      .$type<string[]>()
+      .notNull()
+      .default("[]" as any),
     tenantId: tenantField(),
     ...timestamps,
   },
@@ -270,8 +276,12 @@ export const mediaItems = sqliteTable(
     mimeType: text("mimeType", { length: 255 }).notNull(),
     folderId: text("folderId", { length: 36 }),
     originalId: text("originalId", { length: 36 }),
-    thumbnails: text("thumbnails", { mode: "json" }).notNull().default({}),
-    metadata: text("metadata", { mode: "json" }).notNull().default({}),
+    thumbnails: text("thumbnails")
+      .notNull()
+      .default("{}" as any),
+    metadata: text("metadata")
+      .notNull()
+      .default("{}" as any),
     access: text("access", { length: 50 }).notNull().default("public"),
     createdBy: text("createdBy", { length: 36 }).notNull(),
     updatedBy: text("updatedBy", { length: 36 }).notNull(),
@@ -297,7 +307,7 @@ export const systemVirtualFolders = sqliteTable(
     icon: text("icon", { length: 100 }),
     position: integer("position").notNull().default(0),
     type: text("type", { length: 50 }).notNull().default("folder"),
-    metadata: text("metadata", { mode: "json" }),
+    metadata: text("metadata"),
     tenantId: tenantField(),
     ...timestamps,
   },
@@ -315,7 +325,7 @@ export const systemPreferences = sqliteTable(
   {
     _id: uuidPk(),
     key: text("key", { length: 255 }).notNull(),
-    value: text("value", { mode: "json" }),
+    value: text("value"),
     scope: text("scope", { length: 50 }).notNull().default("system"),
     userId: text("userId", { length: 36 }),
     visibility: text("visibility", { length: 50 }).notNull().default("private"),
@@ -337,7 +347,7 @@ export const sveltyJobs = sqliteTable(
   {
     _id: uuidPk(),
     taskType: text("taskType", { length: 255 }).notNull(),
-    payload: text("payload", { mode: "json" }).notNull(),
+    payload: text("payload").notNull(),
     status: text("status", { length: 50 }).notNull().default("pending"), // pending, running, completed, failed
     attempts: integer("attempts").notNull().default(0),
     maxAttempts: integer("maxAttempts").notNull().default(3),
@@ -362,7 +372,10 @@ export const websiteTokens = sqliteTable(
     _id: uuidPk(),
     name: text("name", { length: 255 }).notNull(),
     token: text("token", { length: 255 }).notNull(),
-    permissions: text("permissions", { mode: "json" }).$type<string[]>().notNull().default([]),
+    permissions: text("permissions")
+      .$type<string[]>()
+      .notNull()
+      .default([] as any),
     expiresAt: integer("expiresAt", { mode: "timestamp_ms" }),
     createdBy: text("createdBy", { length: 36 }).notNull(),
     tenantId: tenantField(),
@@ -453,20 +466,26 @@ export const tenants = sqliteTable(
     ownerId: text("ownerId", { length: 36 }).notNull(),
     status: text("status", { length: 20 }).notNull().default("active"),
     plan: text("plan", { length: 20 }).notNull().default("free"),
-    quota: text("quota", { mode: "json" }).$type<TenantQuota>().notNull().default({
-      maxUsers: 10,
-      maxStorageBytes: 1_073_741_824, // 1GB
-      maxCollections: 20,
-      maxApiRequestsPerMonth: 10_000,
-    }),
-    usage: text("usage", { mode: "json" }).$type<TenantUsage>().notNull().default({
-      usersCount: 0,
-      storageBytes: 0,
-      collectionsCount: 0,
-      apiRequestsMonth: 0,
-      lastUpdated: new Date(),
-    }),
-    settings: text("settings", { mode: "json" }).default({}),
+    quota: text("quota")
+      .$type<TenantQuota>()
+      .notNull()
+      .default({
+        maxUsers: 10,
+        maxStorageBytes: 1_073_741_824, // 1GB
+        maxCollections: 20,
+        maxApiRequestsPerMonth: 10_000,
+      } as any),
+    usage: text("usage")
+      .$type<TenantUsage>()
+      .notNull()
+      .default({
+        usersCount: 0,
+        storageBytes: 0,
+        collectionsCount: 0,
+        apiRequestsMonth: 0,
+        lastUpdated: new Date(),
+      } as any),
+    settings: text("settings").default("{}" as any),
     ...timestamps,
   },
   (table) => ({
@@ -485,7 +504,9 @@ export const auditLogs = sqliteTable(
     actorId: text("actorId"),
     actorRole: text("actorRole"),
     correlationId: text("correlationId"),
-    details: text("details", { mode: "json" }).notNull().default({}),
+    details: text("details")
+      .notNull()
+      .default("{}" as any),
     errorDetails: text("errorDetails"),
     eventType: text("eventType").notNull(),
     ipAddress: text("ipAddress"),
@@ -494,7 +515,7 @@ export const auditLogs = sqliteTable(
     severity: text("severity").notNull(),
     targetId: text("targetId"),
     targetType: text("targetType"),
-    timestamp: text("timestamp").notNull(),
+    timestamp: integer("timestamp", { mode: "timestamp_ms" }).notNull(),
     userAgent: text("userAgent"),
     tenantId: tenantField(),
     ...timestamps,

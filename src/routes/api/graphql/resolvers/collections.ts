@@ -42,18 +42,13 @@ import type { GraphQLFieldResolver } from "graphql";
 // Helper to extract localized value
 function getLocalizedValue(value: unknown, locale = "en"): unknown {
   if (value && typeof value === "object" && !Array.isArray(value)) {
-    // Check if it looks like a localized object (keys are language codes)
     const valObj = value as Record<string, unknown>;
-    if (locale in valObj) {
-      return valObj[locale];
-    }
-    // Fallback to 'en' or first key
-    if ("en" in valObj) {
-      return valObj.en;
-    }
-    const keys = Object.keys(valObj);
-    if (keys.length > 0) {
-      return valObj[keys[0]];
+    // 🚀 Fast-path for direct locale hit
+    if (valObj[locale] !== undefined) return valObj[locale];
+    if (valObj.en !== undefined) return valObj.en;
+    // 🚀 Slow-path fallback
+    for (const k in valObj) {
+      if (Object.hasOwn(valObj, k)) return valObj[k];
     }
   }
   return value;
@@ -432,37 +427,46 @@ export async function collectionsResolvers(
           }
         }
 
+        // 🚀 PERFORMANCE: Merge loops and skip token scan if not needed
         const processedResults = await Promise.all(
           resultArray.map(async (doc) => {
-            const tokenContext: TokenContext = {
-              entry: doc,
-              user: ctx.user,
-            };
+            const tokenContext: TokenContext = { entry: doc, user: ctx.user };
 
-            const processedDoc = { ...doc };
-            for (const key in processedDoc) {
-              if (!Object.hasOwn(processedDoc, key)) {
-                continue;
-              }
-              const value = processedDoc[key];
-              if (typeof value === "string" && value.includes("{{")) {
+            // 1. Token Replacement (Only if possible)
+            for (const key in doc) {
+              if (!Object.hasOwn(doc, key)) continue;
+              const value = doc[key];
+              if (
+                typeof value === "string" &&
+                value.charCodeAt(0) === 123 &&
+                value.includes("{{")
+              ) {
                 try {
-                  processedDoc[key] = await replaceTokens(value, tokenContext);
-                } catch (err) {
-                  logger.warn(`Token replacement failed for field ${key}`, err);
+                  doc[key] = await replaceTokens(value, tokenContext);
+                } catch {
+                  /* ignore */
                 }
               }
             }
-            return processedDoc;
+
+            // 2. Date Normalization (Optimized: Skip re-parsing if already ISO)
+            const c = doc.createdAt as string;
+            if (c && typeof c === "string" && c.length >= 20 && c.endsWith("Z")) {
+              // Already ISO, skip re-parse
+            } else {
+              doc.createdAt = c ? new Date(c).toISOString() : new Date().toISOString();
+            }
+
+            const u = doc.updatedAt as string;
+            if (u && typeof u === "string" && u.length >= 20 && u.endsWith("Z")) {
+              // Already ISO, skip re-parse
+            } else {
+              doc.updatedAt = u ? new Date(u).toISOString() : doc.createdAt;
+            }
+
+            return doc;
           }),
         );
-
-        for (const doc of processedResults) {
-          doc.createdAt = doc.createdAt
-            ? new Date(doc.createdAt).toISOString()
-            : new Date().toISOString();
-          doc.updatedAt = doc.updatedAt ? new Date(doc.updatedAt).toISOString() : doc.createdAt;
-        }
 
         if (getPrivateSettingSync("USE_REDIS") && cacheClient) {
           await cacheClient.set(

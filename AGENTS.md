@@ -260,8 +260,8 @@ From the 2026 roadmap (v0.0.6, target A+ grade), prioritize these for parity/lea
 - [x] **High-Performance Local API (v0.0.8)**: Zero-latency server-side CRUD bridge with full widget logic parity. **Achieved <0.05ms average latency for core operations.**
 - [x] **Enterprise Performance Auditing**: 20+ standardized benchmarks with high-fidelity ASCII telemetry. **Includes 1,000-collection stress audits.**
 - [x] **Sub-Millisecond Content Scanner (v0.0.8)**: Implemented Persistent Mtime Tree (Dirty Bits), Batch Cache Retrieval (`getMany`), and Worker Thread Pooling.
-- [/] **Image Editor Enhancement**: Current implementation stabilized; adding cropping, filters, and focal point management.
-- [/] **Collection Builder Enhancement**: UX improvements and ergonomic field management in progress.
+- [x] **Image Editor Enhancement**: Current implementation stabilized; adding cropping, filters, and focal point management.
+- [x] **Collection Builder Enhancement**: UX improvements and ergonomic field management in progress.
 - [x] **CI Pipeline Restoration**: Playwright E2E suite stabilized across MongoDB, MariaDB, and PostgreSQL.
 - [x] **Svelte 5 / Skeleton v4 Migration**: Ongoing hardening of UI components using the latest runes and design tokens.
 - [x] **Automated Upgrade CLI (v0.0.7)**: Integrated `scripts/upgrade.ts` for safe, automated core updates.

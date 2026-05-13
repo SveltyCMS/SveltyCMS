@@ -18,6 +18,7 @@ import type {
   PaginationOptions,
   EntityCreate,
   IMediaAdapter,
+  BaseQueryOptions,
 } from "../db-interface";
 import type { BaseSqlAdapter } from "./base-sql-adapter";
 import * as utils from "./relational-utils";
@@ -37,6 +38,14 @@ export class RelationalMediaModule implements IMediaAdapter {
 
   protected get crud() {
     return (this.adapter as any).crud;
+  }
+
+  protected getDb(options?: BaseQueryOptions) {
+    const tx = options?.transaction;
+    if (tx) {
+      return tx.db || tx;
+    }
+    return this.db;
   }
 
   async setupMediaModels(): Promise<void> {
@@ -80,55 +89,61 @@ export class RelationalMediaModule implements IMediaAdapter {
         options?: PaginationOptions,
         _recursive?: boolean,
         tenantId?: string | null | null,
+        dbOptions?: BaseQueryOptions,
       ): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
-        return this.adapter.wrap(async () => {
-          const conditions = folderId
-            ? [eq(this.schema.mediaItems.folderId, folderId as string)]
-            : [isNull(this.schema.mediaItems.folderId)];
+        return this.adapter.wrap(
+          async () => {
+            const conditions = folderId
+              ? [eq(this.schema.mediaItems.folderId, folderId as string)]
+              : [isNull(this.schema.mediaItems.folderId)];
 
-          if (tenantId) conditions.push(eq(this.schema.mediaItems.tenantId, tenantId));
+            if (tenantId) conditions.push(eq(this.schema.mediaItems.tenantId, tenantId));
 
-          if (options?.user) {
-            const isAdmin = options.user.role === "admin" || options.user.isAdmin === true;
-            if (!isAdmin) {
-              const userConditions = or(
-                eq(this.schema.mediaItems.createdBy, options.user._id as string),
-                like(this.schema.mediaItems.path, "global/%"),
-              );
-              if (userConditions) conditions.push(userConditions);
+            if (options?.user) {
+              const isAdmin = options.user.role === "admin" || options.user.isAdmin === true;
+              if (!isAdmin) {
+                const userConditions = or(
+                  eq(this.schema.mediaItems.createdBy, options.user._id as string),
+                  like(this.schema.mediaItems.path, "global/%"),
+                );
+                if (userConditions) conditions.push(userConditions);
+              }
             }
-          }
 
-          let q = this.db.select().from(this.schema.mediaItems).$dynamic();
-          if (conditions.length > 0) q = q.where(and(...conditions));
+            let q = this.getDb(dbOptions).select().from(this.schema.mediaItems).$dynamic();
+            if (conditions.length > 0) q = q.where(and(...conditions));
 
-          if (options?.sortField) {
-            const order = options.sortDirection === "desc" ? desc : asc;
-            const column = (this.schema.mediaItems as any)[options.sortField];
-            if (column) q = q.orderBy(order(column));
-          }
+            if (options?.sortField) {
+              const order = options.sortDirection === "desc" ? desc : asc;
+              const column = (this.schema.mediaItems as any)[options.sortField];
+              if (column) q = q.orderBy(order(column));
+            }
 
-          const limit = options?.pageSize || 20;
-          const offset = ((options?.page || 1) - 1) * limit;
-          q = q.limit(limit).offset(offset);
+            const limit = options?.pageSize || 20;
+            const offset = ((options?.page || 1) - 1) * limit;
+            q = q.limit(limit).offset(offset);
 
-          const results = await q;
-          const [countResult] = await this.db
-            .select({ count: count() })
-            .from(this.schema.mediaItems)
-            .where(and(...conditions));
+            const results = await q;
+            const [countResult] = await this.getDb(dbOptions)
+              .select({ count: count() })
+              .from(this.schema.mediaItems)
+              .where(and(...conditions));
 
-          const total = Number(countResult?.count || 0);
+            const total = Number(countResult?.count || 0);
 
-          return {
-            items: utils.convertArrayDatesToISO(results) as unknown as MediaItem[],
-            total,
-            page: options?.page || 1,
-            pageSize: limit,
-            hasNextPage: offset + limit < total,
-            hasPreviousPage: (options?.page || 1) > 1,
-          };
-        }, "GET_FILES_BY_FOLDER_FAILED");
+            return {
+              items: utils.convertArrayDatesToISO(results) as unknown as MediaItem[],
+              total,
+              page: options?.page || 1,
+              pageSize: limit,
+              hasNextPage: offset + limit < total,
+              hasPreviousPage: (options?.page || 1) > 1,
+            };
+          },
+          "GET_FILES_BY_FOLDER_FAILED",
+          undefined,
+          { transaction: dbOptions?.transaction },
+        );
       },
 
       search: async (

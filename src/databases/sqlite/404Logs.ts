@@ -39,7 +39,7 @@ export const fourOhFourLogs = sqliteTable(
     /**
      * Optional metadata regarding the source of the request (e.g., IP, user agent).
      */
-    metadata: text("metadata", { mode: "json" }),
+    metadata: text("metadata"),
   },
   (table) => ({
     pathIdx: index("four_oh_four_path_idx").on(table.path),

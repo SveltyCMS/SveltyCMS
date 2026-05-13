@@ -52,7 +52,9 @@ Features:
 		setup_system_multi_tenant_desc,
 		setup_system_site_name,
 		setup_system_site_name_placeholder,
-		setup_system_timezone
+		setup_system_timezone,
+		setup_db_test_redis_button,
+		setup_db_test_redis_success
 	} from '@src/paraglide/messages';
 	import { locales as systemLocales } from '@src/paraglide/runtime';
 	//  Import types from the store
@@ -69,7 +71,7 @@ Features:
 	const presets = PRESETS;
 
 	// --- PROPS ---
-	let { systemSettings = $bindable(), validationErrors, redisAvailable = $bindable() } = $props();
+	let { systemSettings = $bindable(), validationErrors, redisAvailable } = $props();
 
 	const availableLanguages: string[] = [...systemLocales];
 
@@ -785,13 +787,13 @@ Features:
 							{:else}
 								<iconify-icon icon="mdi:connection" width="20"></iconify-icon>
 							{/if}
-							Test Redis Connection
+							{setup_db_test_redis_button?.() || 'Test Redis Connection'}
 						</button>
 
 						{#if setupStore.wizard.redisTestPassed}
-							<div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm font-medium animate-in fade-in zoom-in duration-300">
+							<div class="flex items-center gap-2 text-primary-500 text-sm font-medium animate-in fade-in zoom-in duration-300">
 								<iconify-icon icon="mdi:check-circle" width="20"></iconify-icon>
-								<span>Connected successfully!</span>
+								<span>{setup_db_test_redis_success?.() || 'Connected successfully!'}</span>
 							</div>
 						{:else if setupStore.wizard.errorMessage && !setupStore.wizard.redisTestPassed}
 							<div class="flex items-center gap-2 text-error-600 dark:text-error-400 text-sm font-medium animate-in fade-in slide-in-from-left-2 duration-300">

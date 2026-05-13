@@ -32,6 +32,7 @@ const isBrowser = (() => {
 type PublicEnv = InferOutput<typeof publicConfigSchema> & {
   PKG_VERSION?: string;
   FIRST_COLLECTION_REDIRECT_URL?: string;
+  SETUP_COMPLETE?: boolean;
 };
 
 /**
@@ -40,7 +41,12 @@ type PublicEnv = InferOutput<typeof publicConfigSchema> & {
  */
 class GlobalStore {
   private static instance: GlobalStore;
-  state = $state<PublicEnv>({} as PublicEnv);
+  state = $state<PublicEnv>({
+    SETUP_COMPLETE:
+      typeof (globalThis as any).__SVELTY_SETUP_COMPLETE__ !== "undefined"
+        ? (globalThis as any).__SVELTY_SETUP_COMPLETE__
+        : false,
+  } as PublicEnv);
   isReady = $derived(Object.keys(this.state).length > 0);
 
   private constructor() {}

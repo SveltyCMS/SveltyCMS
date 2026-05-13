@@ -26,11 +26,9 @@ export async function loadAdapters(config: any): Promise<IDBAdapter | null> {
       ? "config.DB_TYPE"
       : config?.type
         ? "config.type"
-        : config?.DATABASE_ENGINE
-          ? "config.DATABASE_ENGINE"
-          : process.env.DATABASE_ENGINE
-            ? "DATABASE_ENGINE"
-            : "Default";
+        : process.env.DATABASE_ENGINE
+          ? "DATABASE_ENGINE"
+          : "Default";
     console.log(`[DB Init] Resolved adapter type: ${type} (Source: ${source})`);
   }
 
@@ -67,6 +65,53 @@ export async function loadAdapters(config: any): Promise<IDBAdapter | null> {
 export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
   const { setSystemState, getSystemState, updateServiceHealth, startServiceInitialization } =
     await import("@src/stores/system/state.svelte");
+  const { isSetupComplete } = await import("@utils/setup-check");
+
+  const setupComplete = isSetupComplete();
+
+  if (!setupComplete) {
+    logger.info("[DB Init] Fresh install detected. Entering SETUP mode.");
+
+    // 1. Critical Base Setup
+    dbPluginRegistry.register({
+      id: "base",
+      critical: true,
+      initialize: async (adapter) => {
+        startServiceInitialization("database");
+        // For setup, we only need basic system tables
+        const target = adapter as any;
+        if (typeof target.ensureSystem === "function") await target.ensureSystem();
+        updateServiceHealth("database", "healthy", "Database service ready (SETUP mode)");
+      },
+    });
+
+    // 2. Critical Auth Setup
+    dbPluginRegistry.register({
+      id: "auth",
+      dependencies: ["base"],
+      critical: true,
+      initialize: async (adapter) => {
+        startServiceInitialization("auth");
+        const { Auth } = await import("./auth");
+        const { getDefaultSessionStore } = await import("./auth/session-manager");
+        (adapter as any).authService = new Auth(adapter, getDefaultSessionStore());
+        updateServiceHealth("auth", "healthy", "Auth service ready (SETUP mode)");
+      },
+    });
+
+    // 3. Skip non-critical services
+    const skipped: any[] = ["media", "widgets", "themeManager", "search", "contentSystem", "cache"];
+    for (const s of skipped) {
+      updateServiceHealth(s, "skipped", "Skipped during setup phase");
+    }
+
+    setSystemState("SETUP", "System awaiting configuration");
+    logger.info(`[DB Init] System entered SETUP mode.`);
+
+    // Bootstrap critical setup services
+    await dbPluginRegistry.bootAll(adapter);
+    return;
+  }
 
   // 1. Base Setup (Critical)
   dbPluginRegistry.register({
@@ -161,10 +206,12 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
 
   // 🚀 Start the parallel topological boot
   setSystemState("INITIALIZING", "Starting phased topological boot");
+  logger.info(`[DB Init] Starting bootAll...`);
   await dbPluginRegistry.bootAll(adapter);
+  logger.info(`[DB Init] bootAll complete.`);
 
-  // 🚀 FINAL SYNC: Ensure all services have a valid state to reach WARMED
-  await new Promise((r) => setTimeout(r, 50));
+  // 🚀 PERFORMANCE: Reduced sync delay from 50ms to 5ms
+  await new Promise((r) => setTimeout(r, 5));
   const services: any[] = ["cache", "media", "widgets", "themeManager", "search", "contentSystem"];
   for (const s of services) {
     const current = (getSystemState().services as any)[s];

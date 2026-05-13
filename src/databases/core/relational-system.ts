@@ -8,6 +8,7 @@ import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { logger } from "@src/utils/logger";
 import { and, asc, desc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import type {
+  BaseQueryOptions,
   DatabaseId,
   DatabaseResult,
   EntityCreate,
@@ -36,6 +37,10 @@ export class RelationalSystemModule implements ISystemAdapter {
     return (this.adapter as any).db;
   }
 
+  protected getDb(options?: BaseQueryOptions) {
+    return options?.transaction?.db || this.db;
+  }
+
   // ============================================================
   // PREFERENCES
   // ============================================================
@@ -44,6 +49,7 @@ export class RelationalSystemModule implements ISystemAdapter {
       key: string,
       scope: "user" | "system" = "system",
       userId?: DatabaseId,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<T | null>> => {
       return this.adapter.wrap(async () => {
         const conditions: any[] = [eq(this.schema.systemPreferences.key, key)];
@@ -54,7 +60,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
         }
 
-        const [result] = await this.db
+        const [result] = await this.getDb(options)
           .select()
           .from(this.schema.systemPreferences)
           .where(and(...conditions))
@@ -69,6 +75,7 @@ export class RelationalSystemModule implements ISystemAdapter {
       keys: string[],
       scope: "user" | "system" = "system",
       userId?: DatabaseId,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<Record<string, T>>> => {
       return this.adapter.wrap(async () => {
         if (!keys || keys.length === 0) return {};
@@ -80,7 +87,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
         }
 
-        const results = await this.db
+        const results = await this.getDb(options)
           .select()
           .from(this.schema.systemPreferences)
           .where(and(...conditions));
@@ -97,6 +104,7 @@ export class RelationalSystemModule implements ISystemAdapter {
       category: string,
       scope: "user" | "system" = "system",
       userId?: DatabaseId,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<Record<string, T>>> => {
       return this.adapter.wrap(async () => {
         const conditions: any[] = [eq(this.schema.systemPreferences.visibility, category)];
@@ -107,7 +115,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
         }
 
-        const results = await this.db
+        const results = await this.getDb(options)
           .select()
           .from(this.schema.systemPreferences)
           .where(and(...conditions));
@@ -126,26 +134,29 @@ export class RelationalSystemModule implements ISystemAdapter {
       scope: "user" | "system" = "system",
       userId?: DatabaseId,
       category?: string,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>> => {
       return this.adapter.wrap(async () => {
         const now = isoDateStringToDate(nowISODateString());
         const tenantId = scope === "system" ? (userId as string) || null : null;
         const user_id = scope === "user" ? (userId as string) || null : null;
 
-        await this.db
+        await this.getDb(options)
           .insert(this.schema.systemPreferences)
-          .values({
-            _id: utils.generateId(),
-            key,
-            value: value as any,
-            category: category || "general",
-            scope: scope || "system",
-            userId: user_id,
-            tenantId,
-            visibility: category || "private",
-            createdAt: now,
-            updatedAt: now,
-          })
+          .values(
+            utils.convertISOToDates({
+              _id: utils.generateId(),
+              key,
+              value: value as any,
+              category: category || "general",
+              scope: scope || "system",
+              userId: user_id,
+              tenantId,
+              visibility: category || "private",
+              createdAt: now,
+              updatedAt: now,
+            }),
+          )
           .onConflictDoUpdate({
             target: [this.schema.systemPreferences.key, this.schema.systemPreferences.tenantId],
             set: { value: value as any, updatedAt: now },
@@ -161,10 +172,18 @@ export class RelationalSystemModule implements ISystemAdapter {
         userId?: DatabaseId;
         category?: string;
       }>,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>> => {
       return this.adapter.wrap(async () => {
         for (const pref of preferences) {
-          await this.preferences.set(pref.key, pref.value, pref.scope, pref.userId, pref.category);
+          await this.preferences.set(
+            pref.key,
+            pref.value,
+            pref.scope,
+            pref.userId,
+            pref.category,
+            options,
+          );
         }
       }, "SET_PREFERENCES_FAILED");
     },
@@ -173,6 +192,7 @@ export class RelationalSystemModule implements ISystemAdapter {
       key: string,
       scope: "user" | "system" = "system",
       userId?: DatabaseId,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>> => {
       return this.adapter.wrap(async () => {
         const conditions: any[] = [eq(this.schema.systemPreferences.key, key)];
@@ -182,7 +202,9 @@ export class RelationalSystemModule implements ISystemAdapter {
         } else if (userId) {
           conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
         }
-        await this.db.delete(this.schema.systemPreferences).where(and(...conditions));
+        await this.getDb(options)
+          .delete(this.schema.systemPreferences)
+          .where(and(...conditions));
       }, "DELETE_PREFERENCE_FAILED");
     },
 
@@ -190,6 +212,7 @@ export class RelationalSystemModule implements ISystemAdapter {
       keys: string[],
       scope: "user" | "system" = "system",
       userId?: DatabaseId,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>> => {
       return this.adapter.wrap(async () => {
         if (!keys || keys.length === 0) return;
@@ -200,20 +223,23 @@ export class RelationalSystemModule implements ISystemAdapter {
         } else if (userId) {
           conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
         }
-        await this.db.delete(this.schema.systemPreferences).where(and(...conditions));
+        await this.getDb(options)
+          .delete(this.schema.systemPreferences)
+          .where(and(...conditions));
       }, "DELETE_PREFERENCES_FAILED");
     },
 
     clear: async (
       scope?: "user" | "system",
       userId?: DatabaseId,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>> => {
       return this.adapter.wrap(async () => {
         const conditions: any[] = [];
         if (scope) conditions.push(eq(this.schema.systemPreferences.scope, scope));
         if (userId) conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
 
-        const q = this.db.delete(this.schema.systemPreferences);
+        const q = this.getDb(options).delete(this.schema.systemPreferences);
         if (conditions.length > 0) await q.where(and(...conditions));
         else await q;
       }, "CLEAR_PREFERENCES_FAILED");
@@ -224,33 +250,50 @@ export class RelationalSystemModule implements ISystemAdapter {
   // JOBS
   // ============================================================
   public readonly jobs = {
-    create: async (job: EntityCreate<Job>): Promise<DatabaseResult<Job>> => {
-      return this.adapter.wrap(async () => {
-        const id = utils.generateId();
-        const now = new Date();
-        const values = {
-          ...(job as any),
-          _id: id,
-          createdAt: now,
-          updatedAt: now,
-        };
-        await this.db.insert(this.schema.sveltyJobs).values(values);
-        const [result] = await this.db
-          .select()
-          .from(this.schema.sveltyJobs)
-          .where(eq(this.schema.sveltyJobs._id, id));
-        return result as unknown as Job;
-      }, "JOB_CREATE_FAILED");
+    create: async (
+      job: EntityCreate<Job>,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<Job>> => {
+      return this.adapter.wrap(
+        async () => {
+          const id = utils.generateId();
+          const now = new Date();
+          const values = {
+            ...(job as any),
+            _id: id,
+            createdAt: now,
+            updatedAt: now,
+          };
+          const db = this.getDb(options);
+          await db.insert(this.schema.sveltyJobs).values(utils.convertISOToDates(values));
+          const [result] = await db
+            .select()
+            .from(this.schema.sveltyJobs)
+            .where(eq(this.schema.sveltyJobs._id, id));
+          return result as unknown as Job;
+        },
+        "JOB_CREATE_FAILED",
+        undefined,
+        { transaction: options?.transaction },
+      );
     },
 
-    getById: async (jobId: DatabaseId): Promise<DatabaseResult<Job | null>> => {
-      return this.adapter.wrap(async () => {
-        const [result] = await this.db
-          .select()
-          .from(this.schema.sveltyJobs)
-          .where(eq(this.schema.sveltyJobs._id, jobId as string));
-        return (result as unknown as Job) || null;
-      }, "JOB_GET_FAILED");
+    getById: async (
+      jobId: DatabaseId,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<Job | null>> => {
+      return this.adapter.wrap(
+        async () => {
+          const [result] = await this.getDb(options)
+            .select()
+            .from(this.schema.sveltyJobs)
+            .where(eq(this.schema.sveltyJobs._id, jobId as string));
+          return (result as unknown as Job) || null;
+        },
+        "JOB_GET_FAILED",
+        undefined,
+        { transaction: options?.transaction },
+      );
     },
 
     getNextReady: async (limit = 10, tenantId?: string | null): Promise<DatabaseResult<Job[]>> => {
@@ -318,7 +361,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         const now = new Date();
         await this.db
           .update(this.schema.sveltyJobs)
-          .set({ ...data, updatedAt: now } as any)
+          .set(utils.convertISOToDates({ ...data, updatedAt: now }) as any)
           .where(eq(this.schema.sveltyJobs._id, jobId as string));
 
         const [result] = await this.db
@@ -364,7 +407,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           createdAt: now,
           updatedAt: now,
         };
-        await this.db.insert(this.schema.tenants).values(values as any);
+        await this.db.insert(this.schema.tenants).values(utils.convertISOToDates(values) as any);
         const [created] = await this.db
           .select()
           .from(this.schema.tenants)
@@ -391,7 +434,12 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         await this.db
           .update(this.schema.tenants)
-          .set({ ...data, updatedAt: isoDateStringToDate(nowISODateString()) } as any)
+          .set(
+            utils.convertISOToDates({
+              ...data,
+              updatedAt: isoDateStringToDate(nowISODateString()),
+            }) as any,
+          )
           .where(eq(this.schema.tenants._id, tenantId));
         const [updated] = await this.db
           .select()
@@ -459,7 +507,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           createdAt: now,
           updatedAt: now,
         };
-        await this.db.insert(this.schema.themes).values(values as any);
+        await this.db.insert(this.schema.themes).values(utils.convertISOToDates(values) as any);
         const [inserted] = await this.db
           .select()
           .from(this.schema.themes)
@@ -481,7 +529,12 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         await this.db
           .update(this.schema.themes)
-          .set({ ...theme, updatedAt: isoDateStringToDate(nowISODateString()) } as any)
+          .set(
+            utils.convertISOToDates({
+              ...theme,
+              updatedAt: isoDateStringToDate(nowISODateString()),
+            }) as any,
+          )
           .where(eq(this.schema.themes._id, themeId));
         const [updated] = await this.db
           .select()
@@ -491,30 +544,34 @@ export class RelationalSystemModule implements ISystemAdapter {
       }, "UPDATE_THEME_FAILED");
     },
 
-    getAllThemes: async (): Promise<Theme[]> => {
+    getAllThemes: async (options?: BaseQueryOptions): Promise<Theme[]> => {
       try {
-        const results = await this.db.select().from(this.schema.themes);
+        const results = await this.getDb(options).select().from(this.schema.themes);
         return utils.convertArrayDatesToISO(results) as unknown as Theme[];
       } catch {
         return [];
       }
     },
 
-    storeThemes: async (themes: Theme[]): Promise<void> => {
+    storeThemes: async (themes: Theme[], options?: BaseQueryOptions): Promise<void> => {
       const now = isoDateStringToDate(nowISODateString());
       for (const theme of themes) {
-        const exists = await this.db
+        const exists = await this.getDb(options)
           .select()
           .from(this.schema.themes)
           .where(eq(this.schema.themes.name, theme.name))
           .limit(1);
         if (exists.length === 0) {
-          await this.db.insert(this.schema.themes).values({
-            ...theme,
-            _id: theme._id || utils.generateId(),
-            createdAt: now,
-            updatedAt: now,
-          } as any);
+          await this.getDb(options)
+            .insert(this.schema.themes)
+            .values(
+              utils.convertISOToDates({
+                ...theme,
+                _id: theme._id || utils.generateId(),
+                createdAt: now,
+                updatedAt: now,
+              }) as any,
+            );
         }
       }
     },
@@ -572,7 +629,12 @@ export class RelationalSystemModule implements ISystemAdapter {
         if (exists.length > 0) {
           await this.db
             .update(this.schema.widgets)
-            .set({ ...widget, updatedAt: isoDateStringToDate(nowISODateString()) } as any)
+            .set(
+              utils.convertISOToDates({
+                ...widget,
+                updatedAt: isoDateStringToDate(nowISODateString()),
+              }) as any,
+            )
             .where(eq(this.schema.widgets.name, widget.name));
           const [updated] = await this.db
             .select()
@@ -582,12 +644,14 @@ export class RelationalSystemModule implements ISystemAdapter {
           return utils.convertDatesToISO(updated) as unknown as Widget;
         }
         const id = utils.generateId();
-        await this.db.insert(this.schema.widgets).values({
-          ...widget,
-          _id: id,
-          createdAt: isoDateStringToDate(nowISODateString()),
-          updatedAt: isoDateStringToDate(nowISODateString()),
-        } as any);
+        await this.db.insert(this.schema.widgets).values(
+          utils.convertISOToDates({
+            ...widget,
+            _id: id,
+            createdAt: isoDateStringToDate(nowISODateString()),
+            updatedAt: isoDateStringToDate(nowISODateString()),
+          }) as any,
+        );
         const [created] = await this.db
           .select()
           .from(this.schema.widgets)
@@ -639,7 +703,12 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         await this.db
           .update(this.schema.widgets)
-          .set({ ...widget, updatedAt: isoDateStringToDate(nowISODateString()) } as any)
+          .set(
+            utils.convertISOToDates({
+              ...widget,
+              updatedAt: isoDateStringToDate(nowISODateString()),
+            }) as any,
+          )
           .where(eq(this.schema.widgets._id, widgetId));
         const [updated] = await this.db
           .select()
@@ -672,7 +741,9 @@ export class RelationalSystemModule implements ISystemAdapter {
           createdAt: now,
           updatedAt: now,
         };
-        await this.db.insert(this.schema.websiteTokens).values(values as any);
+        await this.db
+          .insert(this.schema.websiteTokens)
+          .values(utils.convertISOToDates(values) as any);
         const [result] = await this.db
           .select()
           .from(this.schema.websiteTokens)
@@ -747,13 +818,15 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         const id = utils.generateId();
         const now = isoDateStringToDate(nowISODateString());
-        await this.db.insert(this.schema.systemVirtualFolders).values({
-          ...folder,
-          _id: id,
-          tenantId: tenantId || folder.tenantId || null,
-          createdAt: now,
-          updatedAt: now,
-        } as any);
+        await this.db.insert(this.schema.systemVirtualFolders).values(
+          utils.convertISOToDates({
+            ...folder,
+            _id: id,
+            tenantId: tenantId || folder.tenantId || null,
+            createdAt: now,
+            updatedAt: now,
+          }) as any,
+        );
         const [created] = await this.db
           .select()
           .from(this.schema.systemVirtualFolders)
@@ -820,7 +893,12 @@ export class RelationalSystemModule implements ISystemAdapter {
           conditions.push(eq(this.schema.systemVirtualFolders.tenantId, tenantId as string));
         await this.db
           .update(this.schema.systemVirtualFolders)
-          .set({ ...updateData, updatedAt: isoDateStringToDate(nowISODateString()) } as any)
+          .set(
+            utils.convertISOToDates({
+              ...updateData,
+              updatedAt: isoDateStringToDate(nowISODateString()),
+            }) as any,
+          )
           .where(and(...conditions));
         const [updated] = await this.db
           .select()

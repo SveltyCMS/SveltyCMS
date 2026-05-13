@@ -129,6 +129,20 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
   // 1. ULTRA-FAST SHORT-CIRCUIT
   if (isStaticOrInternalRequest(pathname)) return resolve(event);
 
+  // --- Phase 1: Gated Initialization ---
+  const { getSetupState, SetupState } = await import("@utils/setup-check");
+  const setupState = (locals as any).__setupState || (await getSetupState());
+  locals.__setupConfigExists = setupState !== SetupState.MISSING_CONFIG;
+
+  if (setupState !== SetupState.COMPLETE) {
+    logger.debug(
+      `[handleAuthorization] System in SETUP mode (${setupState}). Skipping authorization.`,
+    );
+    locals.isAdmin = false;
+    locals.hasManageUsersPermission = false;
+    return await resolve(event);
+  }
+
   const isApi = pathname.startsWith("/api/");
   if (isTestMode && (pathname.startsWith("/api/testing") || isApi)) {
     locals.isAdmin = isAdmin(user);

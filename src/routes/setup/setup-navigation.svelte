@@ -31,7 +31,7 @@ Features:
 	} = $props();
 </script>
 
-<div class="flex flex-col border-t border-slate-200 dark:text-white">
+<div class="flex flex-col dark:text-white">
 	{#if isSeeding}
 		<div class="bg-surface-100 h-1.5 w-full overflow-hidden dark:bg-surface-700">
 			<div
@@ -53,7 +53,7 @@ Features:
 		<!-- Previous Button -->
 		<div class="flex-1">
 			{#if currentStep > 0}
-				<SystemTooltip title={button_previous()}>
+				<SystemTooltip title={button_previous()} positioning={{ placement: 'top', gutter: 8 }}>
 					<button
 						onclick={() => onprev()}
 						class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 flex items-center gap-1"
@@ -75,7 +75,7 @@ Features:
 		<!-- Next/Complete Button -->
 		<div class="flex flex-1 justify-end">
 			{#if currentStep < totalSteps - 1}
-				<SystemTooltip title={button_next()}>
+				<SystemTooltip title={button_next()} positioning={{ placement: 'top', gutter: 8 }}>
 					<button
 						onclick={() => onnext()}
 						disabled={!canProceed || isLoading}
@@ -95,7 +95,7 @@ Features:
 					</button>
 				</SystemTooltip>
 			{:else if currentStep === totalSteps - 1}
-				<SystemTooltip title={button_complete?.() || 'Complete'}>
+				<SystemTooltip title={button_complete?.() || 'Complete'} positioning={{ placement: 'top', gutter: 8 }}>
 					<button
 						onclick={() => {
 							console.log('🏁 SetupNavigation: Complete button clicked');

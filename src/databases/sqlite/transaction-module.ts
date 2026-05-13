@@ -4,7 +4,7 @@
  */
 
 import type { DatabaseResult, DatabaseTransaction } from "../db-interface";
-import type { SQLiteAdapterCore } from "./adapter-core";
+import { SQLiteAdapterCore } from "./adapter-core";
 import * as utils from "./utils";
 
 import { DatabaseModule } from "../core/base-adapter";
@@ -28,9 +28,7 @@ export class TransactionModule extends DatabaseModule<SQLiteAdapterCore> {
       return this.core.notConnectedError();
     }
 
-    // 🚀 SERIALIZE: Use the write mutex to ensure only one transaction (or write) at a time
-    // This is critical for SQLite/Bun to avoid 'database is locked' errors.
-    return this.core.writeMutex.runExclusive(async () => {
+    return SQLiteAdapterCore.writeMutex.runExclusive(async () => {
       const sqlite = this.core.sqlite;
       try {
         // Use BEGIN IMMEDIATE to lock the database immediately for writes
@@ -59,6 +57,15 @@ export class TransactionModule extends DatabaseModule<SQLiteAdapterCore> {
               transaction: { db: this.db },
             }),
           db: this.db,
+
+          // 🛡️ Domain Support: Injecting domain modules into the transaction object
+          // This allows tx.auth, tx.content, etc. to be used within TransactionManager.runAtomic blocks.
+          auth: this.core.auth,
+          content: this.core.content,
+          media: this.core.media,
+          system: this.core.system,
+          batch: this.core.batch,
+          collection: this.core.collection,
         };
 
         const result = await fn(dbTransaction);

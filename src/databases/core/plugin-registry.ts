@@ -36,30 +36,41 @@ export class DBPluginRegistry {
    * Uses a basic topological sort to resolve dependencies.
    */
   public async bootAll(adapter: IDBAdapter): Promise<void> {
-    this.initialized.clear(); // 🚀  Clear state for clean boot
+    logger.info(`[DB Registry] bootAll started with ${this.plugins.size} plugins`);
+    this.initialized.clear();
     const queue = Array.from(this.plugins.values());
-    let progressed = true;
 
     logger.info(`[DB Registry] Booting ${queue.length} services...`);
 
-    // 🚀  Settling delay to ensure proxy registration is finalized
-    await new Promise((r) => setTimeout(r, 50));
+    // 🚀 PERFORMANCE: Reduced settling delay from 50ms to 5ms.
+    // This is just to ensure any Proxy-based registration is finalized.
+    await new Promise((r) => setTimeout(r, 5));
+    logger.info(`[DB Registry] bootAll settling delay finished`);
 
-    while (queue.length > 0 && progressed) {
-      progressed = false;
-
-      for (let i = 0; i < queue.length; i++) {
-        const plugin = queue[i];
+    while (queue.length > 0) {
+      // Find all plugins whose dependencies are met
+      const readyToBoot = queue.filter((plugin) => {
         const deps = plugin.dependencies || [];
-        const depsMet = deps.every((d) => this.initialized.has(d));
+        return deps.every((d) => this.initialized.has(d));
+      });
 
-        if (depsMet) {
+      if (readyToBoot.length === 0) {
+        const remaining = queue.map((p) => p.id).join(", ");
+        throw new Error(
+          `[DB Registry] Circular dependency or missing services detected: ${remaining}`,
+        );
+      }
+
+      // 🚀 PERFORMANCE: Parallelize initialization of all ready plugins
+      await Promise.all(
+        readyToBoot.map(async (plugin) => {
           try {
+            logger.info(`[DB Registry] Initializing service: ${plugin.id}...`);
             await plugin.initialize(adapter);
             this.initialized.add(plugin.id);
-            queue.splice(i, 1);
-            i--;
-            progressed = true;
+            // Remove from queue
+            const index = queue.findIndex((p) => p.id === plugin.id);
+            if (index !== -1) queue.splice(index, 1);
             logger.debug(`[DB Registry] Initialized: ${plugin.id}`);
           } catch (error) {
             logger.error(`[DB Registry] Failed to initialize ${plugin.id}:`, error);
@@ -68,20 +79,11 @@ export class DBPluginRegistry {
                 `CRITICAL BOOT FAILURE: Service '${plugin.id}' failed to initialize.`,
               );
             }
-            // Non-critical failures still count as "progress" to prevent infinite loops
             this.initialized.add(plugin.id);
-            queue.splice(i, 1);
-            i--;
-            progressed = true;
+            const index = queue.findIndex((p) => p.id === plugin.id);
+            if (index !== -1) queue.splice(index, 1);
           }
-        }
-      }
-    }
-
-    if (queue.length > 0) {
-      const remaining = queue.map((p) => p.id).join(", ");
-      throw new Error(
-        `[DB Registry] Circular dependency or missing services detected: ${remaining}`,
+        }),
       );
     }
 

@@ -40,7 +40,6 @@ Interactive menu builder with add/edit/reorder capabilities
 	import type { FieldType } from './';
 	// biome-ignore lint/correctness/noUnusedImports: used for recursive rendering in template
 	import MegaMenuInput from './input.svelte';
-	import MenuItemEditorModal from './menu-item-editor-modal.svelte';
 	import type { MenuEditContext, MenuItem } from './types';
 
 	let {
@@ -150,7 +149,8 @@ Interactive menu builder with add/edit/reorder capabilities
 	}
 
 	// Function to open edit modal
-	function editItem(item: MenuItem, level: number) {
+	async function editItem(item: MenuItem, level: number) {
+		const MenuItemEditorModal = (await import('./menu-item-editor-modal.svelte')).default;
 		const modalContext: MenuEditContext = {
 			item,
 			level,

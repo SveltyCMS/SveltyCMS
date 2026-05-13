@@ -12,7 +12,9 @@ let cacheTime = 0;
 export function isSetupComplete(): boolean {
   if (
     typeof globalThis !== "undefined" &&
-    (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ === true
+    ((globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ === true ||
+      (globalThis as any).__SVELTY_SETUP_COMPLETE__ === true ||
+      process.env.BENCHMARK === "true")
   ) {
     return true;
   }

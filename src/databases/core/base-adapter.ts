@@ -26,6 +26,7 @@ export interface DatabaseHook {
 
 export abstract class BaseAdapter {
   protected hooks: DatabaseHook[] = [];
+  private hookCache = new Map<string, DatabaseHook[]>();
 
   /**
    * 🚀  Registers a global interceptor for database operations.
@@ -33,11 +34,13 @@ export abstract class BaseAdapter {
   public registerHook(hook: DatabaseHook): void {
     this.hooks.push({ priority: 100, ...hook });
     this.hooks.sort((a, b) => (a.priority || 100) - (b.priority || 100));
+    this.hookCache.clear(); // Invalidate cache
     logger.debug(`[Hooks] Registered ${hook.type}:${hook.action} for ${hook.id}`);
   }
 
   /**
    * Executes all hooks for a specific action and type.
+   * ⚡ PERFORMANCE: Uses a pre-filtered cache to avoid O(N) filter on every call.
    */
   protected async runHooks(
     type: HookType,
@@ -46,10 +49,21 @@ export abstract class BaseAdapter {
     data: any,
     options?: any,
   ): Promise<any> {
-    let result = data;
-    const activeHooks = this.hooks.filter((h) => h.type === type && h.action === action);
+    if (this.hooks.length === 0) return data;
 
-    for (const hook of activeHooks) {
+    const cacheKey = `${type}:${action}`;
+    let activeHooks = this.hookCache.get(cacheKey);
+
+    if (activeHooks === undefined) {
+      activeHooks = this.hooks.filter((h) => h.type === type && h.action === action);
+      this.hookCache.set(cacheKey, activeHooks);
+    }
+
+    if (activeHooks.length === 0) return data;
+
+    let result = data;
+    for (let i = 0, len = activeHooks.length; i < len; i++) {
+      const hook = activeHooks[i];
       try {
         const hookResult = await hook.handler(collection, result, options);
         if (hookResult !== undefined && type === "before") {
@@ -148,10 +162,12 @@ export abstract class BaseAdapter {
     message?: string,
     options?: { suppressErrorLog?: boolean },
   ): DatabaseResult<T> {
-    const shouldLog = !options?.suppressErrorLog && process.env.BENCHMARK !== "true";
+    const shouldLog =
+      (!options?.suppressErrorLog && process.env.BENCHMARK !== "true") ||
+      process.env.BENCHMARK_DEBUG === "true";
 
     if (shouldLog) {
-      console.error("RAW ADAPTER ERROR:", error);
+      console.error(`[Adapter Error] Code: ${code}`, error);
     }
     let errorString = String(error);
     if (error instanceof Error) {
@@ -387,7 +403,14 @@ export abstract class DatabaseModule<T extends BaseAdapter = BaseAdapter> {
     fn: () => Promise<R>,
     code: string,
     message?: string,
+    options?: {
+      isWrite?: boolean;
+      transaction?: any;
+      skipMeta?: boolean;
+      suppressErrorLog?: boolean;
+      bypassSafeQuery?: boolean;
+    },
   ): Promise<DatabaseResult<R>> {
-    return this.adapter.wrap(fn, code, message);
+    return this.adapter.wrap(fn, code, message, options);
   }
 }

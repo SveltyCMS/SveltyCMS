@@ -30,9 +30,6 @@ import { logger } from "@src/utils/logger";
 let cachedDbAdapter: any = null;
 let healthHeaders: Record<string, string> | null = null;
 
-// ✨ PERFORMANCE: Pre-import database utilities to avoid dynamic import overhead
-import { getDbInitPromise, getDb } from "@src/databases/db";
-
 // --- HELPERS ---
 
 /** Generates a unique request ID for tracing - Optimized for high throughput */
@@ -138,6 +135,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       // We explicitly skip ALL other middleware by calling the dispatcher or returning a direct response.
       if (!cachedDbAdapter) {
         try {
+          const { getDbInitPromise, getDb } = await import("@src/databases/db");
           await getDbInitPromise(false, "CORE");
           cachedDbAdapter = getDb();
         } catch {
@@ -231,6 +229,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   // Health checks must be zero-latency and bypass ALL other hooks.
   if (pathname === "/api/system/health" || pathname === "/health") {
     if (!cachedDbAdapter) {
+      const { getDb } = await import("@src/databases/db");
       cachedDbAdapter = getDb();
     }
 
@@ -315,7 +314,13 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     } else {
       // ── 3. ROBUST SETUP REDIRECT (FAST-PATH) ─────────────────────────────────
       // Shallow check first: If no private.ts, we DEFINITELY need setup.
-      if (!isSetupComplete()) {
+      // ⚡️ PERFORMANCE: Bypass expensive filesystem check if build-time constant says it's complete
+      const isComplete =
+        (typeof (globalThis as any).__SVELTY_SETUP_COMPLETE__ !== "undefined" &&
+          (globalThis as any).__SVELTY_SETUP_COMPLETE__ === true) ||
+        isSetupComplete();
+
+      if (!isComplete) {
         const isSetupRoute =
           pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
 

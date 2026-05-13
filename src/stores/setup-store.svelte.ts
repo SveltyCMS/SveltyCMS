@@ -16,7 +16,7 @@
  * - Simplified components (pure UI, no fetch calls)
  */
 
-import { updatePublicEnv } from "@src/stores/global-settings.svelte";
+import { initPublicEnv } from "@src/stores/global-settings.svelte";
 import { dbConfigSchema, setupAdminSchema, systemSettingsSchema } from "@utils/schemas";
 import { logger } from "@utils/logger";
 import { toast } from "@src/stores/toast.svelte.ts";
@@ -120,10 +120,10 @@ export interface SeedDatabaseResponse {
 
 // --- Initial State Constants ---
 const initialDbConfig: DbConfig = {
-  type: "mongodb",
-  host: "localhost",
-  port: "27017",
-  name: "sveltycms",
+  type: "sqlite",
+  host: "config/database",
+  port: "",
+  name: "sveltycms.db",
   user: "",
   password: "",
   replicaUrls: [],
@@ -454,6 +454,11 @@ function createSetupStore() {
           wizard.errorMessage = "";
           wizard.showDbDetails = false;
           wizard.validationErrors = {};
+
+          // ✨ TRIGGER BACKGROUND SEEDING & CONFIG WRITING
+          // This allows the user to continue to Step 1 while the database initializes
+          seedDatabase();
+
           return true;
         }
         wizard.errorMessage = data?.error || "Database connection failed.";
@@ -627,8 +632,8 @@ function createSetupStore() {
 
       // Update the public settings store instantly for near-zero delay
       if (data.publicSettings) {
-        logger.debug("[SetupStore] Updating public environment...");
-        updatePublicEnv(data.publicSettings, true);
+        logger.debug("[SetupStore] Initializing public environment...");
+        initPublicEnv(data.publicSettings);
       }
 
       // Success!
@@ -665,7 +670,7 @@ function createSetupStore() {
           // Use hard redirect for the very final step to ensure system state is fully re-synced in browser
           window.location.href = targetPath;
         }
-      }, 2000);
+      }, 500);
 
       return true;
     } catch (e) {

@@ -74,8 +74,11 @@ const CURRENT_PRIORITY = PRIORITY[LOG_LEVEL_STR] ?? PRIORITY.info;
 // Note: These may be overridden by dynamic checks if environment changes during runtime (e.g. benchmarks)
 const CAPTURED_QUIET =
   typeof process !== "undefined" &&
-  (process.env?.QUIET === "true" || process.env?.BENCHMARK === "true");
-const IS_VERBOSE_MODE = typeof process !== "undefined" && process.env?.VERBOSE === "true";
+  (process.env?.QUIET === "true" || process.env?.BENCHMARK === "true") &&
+  process.env?.BENCHMARK_DEBUG !== "true";
+const IS_VERBOSE_MODE =
+  typeof process !== "undefined" &&
+  (process.env?.VERBOSE === "true" || process.env?.BENCHMARK_DEBUG === "true");
 
 // --- Masking Logic ---
 

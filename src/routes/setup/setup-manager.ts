@@ -9,8 +9,6 @@ class SetupManager {
   private _isSeeding = false;
   private _seedingError: string | null = null;
   private _seedingProgress = 0;
-  // Store the background seeding promise
-  private _seedingPromise: Promise<unknown> | null = null;
 
   private constructor() {}
 
@@ -50,50 +48,72 @@ class SetupManager {
     this._seedingProgress = total > 0 ? Math.round((completed / total) * 100) : 0;
   }
 
+  private _criticalQueue: Promise<unknown> = Promise.resolve();
+  private _backgroundQueue: Promise<unknown> = Promise.resolve();
+
   // Starts a seeding task in the background and tracks its completion.
+  // This is considered CRITICAL and will be waited for by completeSetup.
   public startSeeding(task: () => Promise<unknown>): void {
     this.isSeeding = true;
-    this._seedingPromise = (async () => {
+    const promise = (async () => {
       try {
         const result = await task();
         this.isSeeding = false;
         this._seedingProgress = 100;
         if (process.env.BENCHMARK_DEBUG === "true") {
-          logger.info("🚀 Seeding successfully completed in background");
+          logger.info("🚀 Critical seeding successfully completed");
         }
         return result;
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
-        this.seedingError = msg;
-        logger.error("❌ Background seeding failed:", error);
+        this._seedingError = msg;
+        logger.error("❌ Critical seeding failed:", error);
+        throw error;
       }
     })();
+    this._criticalQueue = this._criticalQueue.then(() => promise).catch(() => {});
   }
 
-  // Returns the current seeding promise or null.
+  // Returns a promise that resolves when all currently queued CRITICAL background work is done.
   public async waitTillDone(): Promise<unknown> {
-    if (this._seedingPromise) {
-      return this._seedingPromise;
+    let lastQueue;
+    while (lastQueue !== this._criticalQueue) {
+      lastQueue = this._criticalQueue;
+      await lastQueue;
     }
     return null;
   }
 
   /**
-   * Starts a valid background task that does NOT block completeSetup.
-   * Used for heavy content seeding that can happen post-setup.
+   * Starts a background task that does NOT block the 'Complete' step.
+   * Useful for heavy content seeding that can happen while the user is already in the CMS.
    */
   public startBackgroundWork(task: () => Promise<unknown>): void {
-    // Fire and forget, but handle errors
-    (async () => {
+    const promise = (async () => {
       try {
         await task();
         if (process.env.BENCHMARK_DEBUG === "true") {
-          logger.info("✨ Background setup task completed successfully");
+          logger.info("✨ Non-critical background task completed");
         }
       } catch (error) {
-        logger.error("❌ Background setup task failed:", error);
+        logger.error("❌ Non-critical background task failed:", error);
       }
     })();
+    this._backgroundQueue = this._backgroundQueue.then(() => promise).catch(() => {});
+  }
+
+  /**
+   * Waits for ALL work (critical + background) to be done.
+   * Useful for tests or benchmarks.
+   */
+  public async waitAll(): Promise<unknown> {
+    await this.waitTillDone();
+    let lastQueue;
+    while (lastQueue !== this._backgroundQueue) {
+      lastQueue = this._backgroundQueue;
+      await lastQueue;
+    }
+    return null;
   }
 }
 

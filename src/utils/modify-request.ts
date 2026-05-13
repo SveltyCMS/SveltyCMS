@@ -74,34 +74,41 @@ export async function modifyRequest({
       // 🚀 Parallel FLAC Sanitization: Use Promise.all to process entries concurrently
       // We only run FLAC if we have a real user context and the user is NOT an admin
       if (user && user._id !== "system" && user.role !== "admin") {
-        if (data.length === 1) {
+        const len = data.length;
+        if (len === 1) {
           data[0] = (await enforceFieldAccess(fields, data[0] as any, user, operation, {
             collectionName,
             tenantId: tenantId ?? undefined,
             entryId: (data[0] as any)._id,
           })) as EntryData;
-        } else {
-          await Promise.all(
-            data.map(async (item, i) => {
-              data[i] = (await enforceFieldAccess(fields, item as any, user, operation, {
-                collectionName,
-                tenantId: tenantId ?? undefined,
-                entryId: (item as any)._id,
-              })) as EntryData;
-            }),
-          );
+        } else if (len > 0) {
+          // 🚀 PERFORMANCE: Use a simple loop for small-to-medium batches to avoid Promise.all overhead
+          for (let i = 0; i < len; i++) {
+            data[i] = (await enforceFieldAccess(fields, data[i] as any, user, operation, {
+              collectionName,
+              tenantId: tenantId ?? undefined,
+              entryId: (data[i] as any)._id,
+            })) as EntryData;
+          }
         }
       }
     }
 
     // Optimize field iteration - Filter widgets once
-    const activeWidgets = fields
-      .map((f) => ({
-        field: f,
-        name: getFieldName(f),
-        widget: widgets.widgetFunctions[f.widget.Name],
-      }))
-      .filter((w) => w.widget && (w.widget.modifyRequest || w.widget.modifyRequestBatch));
+    // 🚀 PERFORMANCE: Cache activeWidgets on the fields array object to avoid Proxy lookups and regex in every request
+    const activeWidgets =
+      (fields as any)._activeWidgets ||
+      fields
+        .map((f) => ({
+          field: f,
+          name: getFieldName(f),
+          widget: widgets.widgetFunctions[f.widget.Name],
+        }))
+        .filter((w) => w.widget && (w.widget.modifyRequest || w.widget.modifyRequestBatch));
+
+    if (!(fields as any)._activeWidgets) {
+      (fields as any)._activeWidgets = activeWidgets;
+    }
 
     if (activeWidgets.length === 0) return data;
 

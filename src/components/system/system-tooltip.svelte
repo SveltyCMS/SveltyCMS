@@ -61,7 +61,7 @@ This component provides a tooltip for any element.
 		positioning = { placement: 'top', gutter: 10 }
 	}: Props = $props();
 
-	const TOOLTIP_CLASS = 'card rounded-md bg-surface-900 dark:bg-white p-2 text-xs shadow-xl text-white dark:text-surface-900';
+	const TOOLTIP_CLASS = 'rounded-lg bg-surface-900 dark:bg-white px-3 py-1.5 text-[11px] font-medium shadow-2xl text-white dark:text-surface-900 border border-white/10 dark:border-black/5';
 	const ARROW_CLASS = '[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-900)] dark:[--arrow-background:var(--color-white)]';
 
 	// Skeleton V4
@@ -76,8 +76,8 @@ This component provides a tooltip for any element.
 		{@render children?.()}
 	</Tooltip.Trigger>
 	<Portal>
-		<Tooltip.Positioner>
-			<Tooltip.Content class={`${TOOLTIP_CLASS} ${contentClass}`}>
+		<Tooltip.Positioner class="z-100">
+			<Tooltip.Content class={`${TOOLTIP_CLASS} ${contentClass} z-100`}>
 				{#if content}
 					{@render content()}
 				{:else}

@@ -146,7 +146,9 @@ export function invalidateSetupCache(
 ): void {
   setupDbStatus = forceStatus;
   setupStatusCheckedDb = forceStatus !== null;
-  cachedTestSecret = null; // 🚀 Clear cached secret
+  if (typeof globalThis !== "undefined") {
+    (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = forceStatus;
+  }
 
   if (clearPrivateEnv) {
     import("../databases/db").then((db) => {

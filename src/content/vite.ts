@@ -71,8 +71,8 @@ export async function generateContentTypes(
       };
 
       return fields.map((field: any) => {
-        const rawName = field.db_fieldName || field.label;
-        const safeName = sanitizeIdentifier(rawName);
+        const rawName = field.db_fieldName || field.name || field.label;
+        const safeName = sanitizeIdentifier(rawName || "field");
         let tsType = "any";
 
         // Logic refined for widgets and nested groups

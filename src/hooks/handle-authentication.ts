@@ -358,6 +358,18 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
   if (isStaticOrInternalRequest(pathname)) return resolve(event);
 
+  // --- Phase 1: Gated Initialization ---
+  const { getSetupState, SetupState } = await import("@utils/setup-check");
+  const setupState = (locals as any).__setupState || (await getSetupState());
+  locals.__setupConfigExists = setupState !== SetupState.MISSING_CONFIG;
+
+  if (setupState !== SetupState.COMPLETE) {
+    logger.debug(
+      `[handleAuthentication] System in SETUP mode (${setupState}). Skipping authentication.`,
+    );
+    return await resolve(event);
+  }
+
   // 🛡️ Ensure CSRF token is established for every visitor (guest or user)
   const isProd = !dev && process.env.TEST_MODE !== "true";
   const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);

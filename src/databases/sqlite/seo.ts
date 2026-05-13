@@ -14,7 +14,7 @@ export const redirectsMV = sqliteTable(
     type: integer("type").notNull().default(301),
     isRegex: integer("isRegex", { mode: "boolean" }).notNull().default(false),
     active: integer("active", { mode: "boolean" }).notNull().default(true),
-    metadata: text("metadata", { mode: "json" }),
+    metadata: text("metadata"),
   },
   (table) => ({
     tenantIdx: index("redirects_mv_tenant_idx").on(table.tenantId),

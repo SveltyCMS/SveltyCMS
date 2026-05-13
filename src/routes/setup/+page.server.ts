@@ -579,15 +579,21 @@ export const actions: Actions = {
         }
       }
 
-      // 1. Start background seeding (Split Strategy)
-      // Note: We NO LONGER write private config here to avoid server restart
-      // which would kill this background task. Configuration is now written
-      // exclusively in the final 'completeSetup' step.
+      // 1. Write Private Config (Bootstrap)
+      // We do this immediately so the system has a valid config/private.ts
+      try {
+        const { writePrivateConfig } = await import("./write-private-config");
+        await writePrivateConfig(dbConfig, {
+          multiTenant: systemData.multiTenant,
+          demoMode: systemData.demoMode,
+        });
+        logger.info("✅ [seedDatabase] Private configuration written successfully");
+      } catch (configError) {
+        logger.error("❌ [seedDatabase] Failed to write private config:", configError);
+        // Non-fatal if seeding can still proceed, but usually indicates FS issues
+      }
 
       // 2. Start background seeding (Split Strategy)
-      // Critical phases (roles/settings) are tracked by startSeeding (blocking completeSetup)
-      // Content phases are tracked by startBackgroundWork (non-blocking)
-      // Get split promises
       const { initSystemFast } = await import("./seed");
       const { getSetupDatabaseAdapter } = await import("./utils");
       const { setupManager } = await import("./setup-manager");
@@ -600,11 +606,24 @@ export const actions: Actions = {
 
       // Track critical seeding (blocking)
       setupManager.startSeeding(async () => {
-        await criticalPromise;
+        try {
+          await criticalPromise;
 
-        // Queue background content seeding (non-blocking)
-        // This allows completeSetup to return immediately after critical data is ready
-        setupManager.startBackgroundWork(backgroundTask);
+          // Queue background content seeding (non-blocking)
+          // This allows completeSetup to return immediately after critical data is ready
+          setupManager.startBackgroundWork(async () => {
+            try {
+              await backgroundTask();
+            } finally {
+              logger.info("🔌 [seedDatabase] Disconnecting seeding adapter...");
+              await dbAdapter.disconnect();
+            }
+          });
+        } catch (err) {
+          logger.error("❌ [seedDatabase] Critical seeding failed:", err);
+          await dbAdapter.disconnect();
+          throw err;
+        }
       });
 
       return {
@@ -632,28 +651,13 @@ export const actions: Actions = {
    */
   completeSetup: async ({ request, cookies, url }) => {
     const setupStartTime = performance.now();
-    const { setupManager } = await import("./setup-manager");
     logger.info("🚀 Action: completeSetup called");
 
     try {
-      // 1. Await CRITICAL seeding only (roles/settings/themes)
-      // Background content seeding continues independently
-      const seedingPromise = setupManager.waitTillDone();
-      if (seedingPromise) {
-        logger.info("⏳ completeSetup: Waiting for active seeding task to finish...");
-        await seedingPromise;
-        logger.info("✅ completeSetup: Active seeding task finished");
-      }
-
-      if (setupManager.seedingError) {
-        logger.error("❌ completeSetup: Seeding failed in background", {
-          error: setupManager.seedingError,
-        });
-        return {
-          success: false,
-          error: `Background seeding failed: ${setupManager.seedingError}. Please check logs and try again.`,
-        };
-      }
+      // 1. Skip background seeding wait - the new process is fresh.
+      // We rely on the fact that critical tables (roles/settings) are already
+      // verified during the global bootAll phase.
+      logger.info("⏳ completeSetup: Proceeding with final account creation...");
 
       const formData = await request.formData();
       const dataRaw = formData.get("data") as string;
@@ -684,10 +688,29 @@ export const actions: Actions = {
         return { success: false, error: "Invalid admin user data" };
       }
 
-      const { getSetupDatabaseAdapter } = await import("./utils");
-      const { dbAdapter } = await getSetupDatabaseAdapter(database, {
-        createIfMissing: true,
-      });
+      // 2. Get Database Adapter
+      // We prioritize the global initialization if it's already running (due to private.ts write)
+      // otherwise we fall back to a manual setup adapter.
+      const { ensureFullInitialization, dbAdapter: globalAdapter } =
+        await import("@src/databases/db");
+
+      let dbAdapter: any;
+      try {
+        logger.info("⏳ [completeSetup] Attempting to use global database instance...");
+        const result = await ensureFullInitialization();
+        dbAdapter = result?.adapter || globalAdapter;
+        logger.info("✅ [completeSetup] Using global database instance.");
+      } catch (err) {
+        logger.warn(
+          "⚠️ [completeSetup] Global initialization failed or not ready, falling back to manual adapter:",
+          err,
+        );
+        const { getSetupDatabaseAdapter } = await import("./utils");
+        const manualResult = await getSetupDatabaseAdapter(database, {
+          createIfMissing: true,
+        });
+        dbAdapter = manualResult.dbAdapter;
+      }
 
       const { Auth } = await import("@src/databases/auth");
       const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
@@ -740,7 +763,7 @@ export const actions: Actions = {
           isRegistered: true,
         };
 
-        logger.info(`Creating admin user: ${userData.email}`);
+        logger.info(`Creating admin user: ${userData.email.replace(/(.{2})(.*)(@.*)/, "$1***$3")}`);
         logger.debug("Admin user data (excluding password):", {
           ...userData,
           password: "[REDACTED]",
@@ -800,13 +823,9 @@ export const actions: Actions = {
       });
       logger.info(`Set ${SESSION_COOKIE_NAME} cookie for new admin user`);
 
-      // 3. Parallel Execution: Persist system settings (Skip private config until the very end)
-      const { initializeWithConfig, clearPrivateConfigCache } = await import("@src/databases/db");
-      await initializeWithConfig({
-        ...database,
-        MULTI_TENANT: system.multiTenant,
-        DEMO: system.demoMode,
-      });
+      // 3. Persist system settings
+      // Note: We don't call initializeWithConfig here because we just waited for it above.
+      const { clearPrivateConfigCache } = await import("@src/databases/db");
       clearPrivateConfigCache(false);
 
       const persistSettingsPromise = (async () => {
@@ -961,23 +980,9 @@ export const actions: Actions = {
       const { invalidateSetupCache } = await import("@src/utils/setup-check");
       invalidateSetupCache(true, true);
 
-      // Initialize global system
-      // (Already imported dynamic above, but ensuring consistency within this block)
-      await initializeWithConfig({
-        DB_TYPE: database.type,
-        DB_HOST: database.host,
-        DB_PORT: Number(database.port),
-        DB_NAME: database.name,
-        DB_USER: database.user || "",
-        DB_PASSWORD: database.password || "",
-        JWT_SECRET_KEY: "temp_secret",
-        ENCRYPTION_KEY: "temp_key",
-        USE_REDIS: system.useRedis,
-        REDIS_HOST: system.redisHost,
-        REDIS_PORT: Number(system.redisPort),
-        REDIS_PASSWORD: system.redisPassword,
-        PASSWORD_MIN_LENGTH: Number(system.passwordMinLength || 8),
-      } as any);
+      // 4. Final System Health Check
+      // We don't call initializeWithConfig here as it is already handled by the global boot.
+      logger.info("✅ [completeSetup] Skipping redundant system initialization.");
 
       // OPTIMIZATION: Initialize content-system IMMEDIATELY with skipReconciliation: true
       // This prevents the 4s blocking delay on the subsequent redirect request.
@@ -1000,52 +1005,28 @@ export const actions: Actions = {
       // We effectively rely on lazy loading upon the first request to /Collections
       // The background content seeding (setupManager) handles the data.
 
-      // --- PRESET INSTALLATION ---
-      if (system.preset && system.preset !== "blank") {
-        logger.info(`📦 Installing preset: ${system.preset}`);
-        try {
-          const { compile } = await import("@utils/compilation/compile");
+      // --- PRESET INSTALLATION (DEPRECATED: Now handled in seedDatabase) ---
+      // We keep a small log here to confirm it was skipped if already done
+      logger.debug("📦 [completeSetup] Preset installation handled in previous step.");
 
-          // Source: src/presets/[preset]
-          const presetDir = resolve(process.cwd(), "src", "presets", system.preset);
-
-          // Target: config/collections
-          const targetDir = resolve(process.cwd(), "config", "collections");
-
-          // Ensure target exists
-          mkdirSync(targetDir, { recursive: true });
-
-          try {
-            if (existsSync(presetDir)) {
-              // Use cpSync with recursive option for simplified and efficient copying
-              cpSync(presetDir, targetDir, { recursive: true, force: true });
-              logger.info(`✅ Copied preset ${system.preset} to config/collections`);
-
-              // Trigger compilation to register new collections
-              logger.info("🔄 Compiling new collections...");
-              await compile();
-              logger.info("✅ Preset installation complete.");
-            } else {
-              logger.warn(`⚠️ Preset directory not found: ${presetDir}`);
-            }
-          } catch (presetError) {
-            logger.warn(`⚠️ Preset directory not found or empty: ${presetDir}`, presetError);
-          }
-        } catch (err) {
-          logger.error("❌ Failed to install preset:", err);
-          // Non-fatal, continue setup
-        }
+      // --- 3. PERSIST FINAL SYSTEM SETTINGS TO DB ---
+      try {
+        const { updateSystemSettings } = await import("./seed");
+        await updateSystemSettings(dbAdapter, system);
+        logger.info("✅ [completeSetup] System settings updated in database.");
+      } catch (err) {
+        logger.warn("⚠️ [completeSetup] Failed to update system settings in DB (non-fatal):", err);
       }
 
-      // --- FINAL STEP: WRITE PRIVATE CONFIG ---
+      // --- FINAL STEP: UPDATE PRIVATE CONFIG MODES ---
       // We do this at the very end because it triggers a Vite restart.
       // We use setTimeout to allow the HTTP response to be sent to the client FIRST,
       // preventing "Failed to fetch" errors on the frontend.
       setTimeout(async () => {
         try {
-          logger.info("💾 [completeSetup] Writing final private configuration (deferred)...");
-          const { writePrivateConfig } = await import("./write-private-config");
-          await writePrivateConfig(database, {
+          logger.info("💾 [completeSetup] Updating private configuration modes (deferred)...");
+          const { updatePrivateConfigMode } = await import("./write-private-config");
+          await updatePrivateConfigMode({
             multiTenant: system.multiTenant,
             demoMode: system.demoMode,
           });
@@ -1053,11 +1034,11 @@ export const actions: Actions = {
           // 🚀 Set global flag to prevent race conditions in the current process
           (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = true;
 
-          logger.info("✅ [completeSetup] Private configuration written successfully.");
+          logger.info("✅ [completeSetup] Private configuration updated successfully.");
         } catch (configError) {
-          logger.error("❌ [completeSetup] Failed to write private config:", configError);
+          logger.error("❌ [completeSetup] Failed to update private config:", configError);
         }
-      }, 300);
+      }, 3000);
 
       // 4. Determine redirect path
       let redirectPath = "/config/collectionbuilder";
@@ -1118,6 +1099,7 @@ export const actions: Actions = {
           DEMO: system.demoMode,
           USE_REDIS: system.useRedis,
           PKG_VERSION: pkgVersion,
+          SETUP_COMPLETE: true,
         },
       };
     } catch (err) {

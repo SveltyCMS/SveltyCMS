@@ -9,11 +9,11 @@ import { dev } from "$app/environment";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
-import { getDbInitPromise, isDbConnected } from "@src/databases/db";
+import { getDb, getDbInitPromise, isDbConnected } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
-import { getSegments } from "./handlers/base";
 import { isPublicRoute } from "@src/utils/hook-utils";
+import { cacheService } from "@src/databases/cache/cache-service";
 
 // Dynamic handlers map for build-time tree-shaking
 const HANDLERS: Record<string, () => Promise<any>> = {
@@ -96,7 +96,6 @@ export const _handler = async (event: RequestEvent) => {
 
   // 🚀 PERFORMANCE: L1 Synchronous Cache Hit
   if (request.method === "GET") {
-    const { cacheService } = await import("@src/databases/cache/cache-service");
     const cached = cacheService.getSync?.(url.pathname + url.search, tenantId);
     if (cached) {
       return json(cached, {
@@ -114,7 +113,8 @@ export const _handler = async (event: RequestEvent) => {
     }
   }
 
-  const segments = getSegments(rawPath as string);
+  // 🚀 PERFORMANCE: Segment parsing
+  const segments = rawPath.split("/").filter(Boolean);
   const namespace = segments[0];
 
   if (!namespace) return new Response("Not Found", { status: 404 });
@@ -142,7 +142,6 @@ export const _handler = async (event: RequestEvent) => {
     if (!isDbConnected()) {
       await getDbInitPromise();
     }
-    const { getDb } = await import("@src/databases/db");
     adapter = getDb();
   }
 

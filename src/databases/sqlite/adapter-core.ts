@@ -16,6 +16,8 @@ import * as schema from "./schema";
 import { sql, type SQL } from "drizzle-orm";
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 import * as utils from "../core/relational-utils";
+import { SQLiteQueryBuilder } from "./sq-lite-query-builder";
+import { TransactionModule } from "./transaction-module";
 
 // --- Types ---
 export type SQLiteConfig = { connectionString?: string; readonly?: boolean };
@@ -26,13 +28,19 @@ export type SQLiteDB = any; // Drizzle instance
 const testWorkerContext = new AsyncLocalStorage<string>();
 
 /**
- * 🚀 PERFORMANCE: Lightweight Mutex for serializing database writes.
- * Replaces 'async-mutex' to reduce dependency bloat.
+ * 🚀 PERFORMANCE: Lightweight Re-entrant Mutex for serializing database writes.
+ * Uses AsyncLocalStorage to allow the same execution context to re-acquire the lock.
  */
 class Mutex {
   private queue: Promise<void> = Promise.resolve();
+  private storage = new AsyncLocalStorage<boolean>();
 
   async runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+    // If we already hold the lock in this context, just execute
+    if (this.storage.getStore()) {
+      return await fn();
+    }
+
     const current = this.queue;
     let resolveNext: () => void;
     this.queue = new Promise((res) => {
@@ -41,7 +49,7 @@ class Mutex {
 
     try {
       await current;
-      return await fn();
+      return await this.storage.run(true, fn);
     } finally {
       resolveNext!();
     }
@@ -49,7 +57,7 @@ class Mutex {
 }
 
 export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
-  public readonly writeMutex = new Mutex();
+  public static readonly writeMutex = new Mutex();
   public readonly schema = schema;
 
   public capabilities: DatabaseCapabilities = {
@@ -116,25 +124,39 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
     }
   }
 
+  public override async wrap<T>(
+    fn: () => Promise<T>,
+    code: string,
+    message?: string,
+    options?: any,
+  ): Promise<DatabaseResult<T>> {
+    // 🚀 SERIALIZE: SQLite is a single-writer database.
+    // If this is a write operation and not already in a transaction (which has its own mutex),
+    // we MUST use the global write mutex to prevent 'database is locked' errors.
+    if (options?.isWrite && !options?.transaction) {
+      return SQLiteAdapterCore.writeMutex.runExclusive(() =>
+        super.wrap(fn, code, message, options),
+      );
+    }
+    return super.wrap(fn, code, message, options);
+  }
+
   // 🚀 AGNOSTIC CORE: Resolves a collection name to its Drizzle schema object.
   protected getAliasedTable(collection: string): any {
     const schemaAny = this.schema as any;
 
-    // 1. Check direct alias map
-    const alias = (BaseSqlAdapter as any).TABLE_ALIASES[collection];
-    if (alias && schemaAny[alias]) return schemaAny[alias];
+    // 1. O(1) Centralized Resolution
+    const physicalName = this.resolveSystemTableName(collection);
 
-    // 2. Check if the name itself is a schema export
+    // 2. Try physical name in schema
+    if (schemaAny[physicalName]) return schemaAny[physicalName];
+
+    // 3. Try camelCase variant if physical is snake_case
+    const camelName = physicalName.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+    if (schemaAny[camelName]) return schemaAny[camelName];
+
+    // 4. Final fallback: try raw collection name
     if (schemaAny[collection]) return schemaAny[collection];
-
-    // 3. 🚀 HARDENING: Try snake_case conversion for system tables
-    // This handles cases where 'pluginMigrations' is used but schema has 'plugin_migrations'
-    const snakeCase = collection.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-    if (schemaAny[snakeCase]) return schemaAny[snakeCase];
-
-    // 4. Try aliases of the snakeCase variant
-    const snakeAlias = (BaseSqlAdapter as any).TABLE_ALIASES[snakeCase];
-    if (snakeAlias && schemaAny[snakeAlias]) return schemaAny[snakeAlias];
 
     return null;
   }
@@ -149,7 +171,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
       {
         _id: text("_id").primaryKey(),
         tenantId: text("tenantId"),
-        data: text("data", { mode: "json" }).notNull(),
+        data: text("data").notNull(),
         status: text("status").notNull().default("draft"),
         isDeleted: integer("isDeleted", { mode: "boolean" }).notNull().default(false),
         createdAt: integer("createdAt", { mode: "timestamp_ms" })
@@ -282,18 +304,27 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
   /* PROVISIONING (Standalone Mode Support)           */
   /* ------------------------------------------------ */
 
-  private _provisioned = false;
+  protected _provisioned = false;
+  protected _provisionPromise: Promise<void> | null = null;
 
   public override async provision() {
     if (this._provisioned) return;
-    try {
-      // @ts-ignore - Dynamic import to avoid circular dependency
-      const { runMigrations } = await import("./migrations");
-      await runMigrations(this._sqlite);
-      this._provisioned = true;
-    } catch (err: any) {
-      logger.error(`[SQLite] Provisioning failed: ${err.message}`);
-    }
+    if (this._provisionPromise) return this._provisionPromise;
+
+    this._provisionPromise = (async () => {
+      try {
+        // @ts-ignore - Dynamic import to avoid circular dependency
+        const { runMigrations } = await import("./migrations");
+        await runMigrations(this._sqlite);
+        this._provisioned = true;
+      } catch (err: any) {
+        logger.error(`[SQLite] Provisioning failed: ${err.message}`);
+        this._provisionPromise = null; // Allow retry on failure
+        throw err;
+      }
+    })();
+
+    return this._provisionPromise;
   }
 
   public async ensureAuth() {
@@ -330,8 +361,6 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
   }
 
   public queryBuilder<_T extends BaseEntity>(collection: string): any {
-    // @ts-ignore - Dynamic import for circular safety
-    const { SQLiteQueryBuilder } = require("./sq-lite-query-builder");
     return new SQLiteQueryBuilder(this as any, collection);
   }
 
@@ -339,8 +368,6 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
     fn: (transaction: import("../db-interface").DatabaseTransaction) => Promise<DatabaseResult<T>>,
     options?: { timeout?: number; isolationLevel?: string },
   ): Promise<DatabaseResult<T>> {
-    // @ts-ignore - Dynamic import for circular safety
-    const { TransactionModule } = require("./transaction-module");
     const module = new TransactionModule(this as any);
     return module.execute(fn, options as any);
   }
@@ -424,17 +451,12 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
   /* INTERNALS                                        */
   /* ------------------------------------------------ */
 
-  /**
-   * High-performance execution helper that abstracts away driver differences.
-   */
+  // High-performance execution helper that abstracts away driver differences.
   protected prepareAndExecute(
     sqlText: string,
     method: "all" | "get" | "run" | "values" = "all",
     ...params: any[]
   ): any {
-    if (process.env.VERBOSE_TESTS === "true") {
-      console.log(`[SQLite RAW] ${sqlText} | Params: ${JSON.stringify(params)}`);
-    }
     const client = this.sqlite;
 
     // 🚀 Performance: Prepared Statement Caching
@@ -536,6 +558,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
 
         const { drizzle } = await import(/* @vite-ignore */ "drizzle-orm/bun-sqlite");
         const db = drizzle(sqlite as any, { schema }) as SQLiteDB;
+        console.log(`[SQLite] 🚀 SUCCESS: Using high-performance 'bun:sqlite' driver.`);
         logger.info(`[SQLite] 🚀 SUCCESS: Using high-performance 'bun:sqlite' driver.`);
         return { sqlite, db };
       } catch (e: any) {
@@ -601,50 +624,75 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
             const req = await getRequire();
             if (!req) throw new Error("requireFunc not available for node:sqlite");
             const { DatabaseSync } = req("node:sqlite");
-            const sqlite = new DatabaseSync(dbPath);
+            // 🚀 WINDOWS HARDENING: Use normalized path (absolute/file URI) for native driver
+            const sqlite = new DatabaseSync(normalizedPath);
+
+            // Apply pragmas to the proxy driver as well
+            sqlite.exec("PRAGMA journal_mode=WAL");
+            sqlite.exec("PRAGMA synchronous=NORMAL");
+            sqlite.exec("PRAGMA foreign_keys=ON");
+            sqlite.exec("PRAGMA busy_timeout=30000"); // 30s for setup-phase resilience
 
             // 🚀 Shim node:sqlite using drizzle-orm/sqlite-proxy
             const { drizzle: proxyDrizzle } = await import("drizzle-orm/sqlite-proxy");
 
             const db = proxyDrizzle(
-              async (sql, params = [], method) => {
-                const serializedParams = (params || []).map((p) =>
-                  p !== null && typeof p === "object" ? JSON.stringify(p) : p,
-                );
+              async (sqlText, params = [], method) => {
+                const serializedParams = (params || []).map((p) => {
+                  if (typeof p === "boolean") return p ? 1 : 0;
+                  return p !== null && typeof p === "object" ? JSON.stringify(p) : p;
+                });
 
-                const stmt = sqlite.prepare(sql);
-                let result: any;
+                // 🚀 HARDENING: Detect transactions as writes to prevent mutex deadlocks
+                const isWrite =
+                  /^\s*(insert|update|delete|create|drop|alter|replace|begin|commit|rollback|savepoint)/i.test(
+                    sqlText,
+                  );
 
-                try {
-                  if (method === "all") {
-                    result = stmt.all(...serializedParams);
-                  } else if (method === "get") {
-                    result = stmt.get(...serializedParams);
-                  } else if (method === "run") {
-                    result = stmt.run(...serializedParams);
-                  } else if (method === "values") {
-                    result = stmt.values
-                      ? stmt.values(...serializedParams)
-                      : stmt.all(...serializedParams);
-                  } else {
-                    result = stmt.run(...serializedParams);
-                  }
-                } catch (execErr: any) {
-                  logger.error(`[SQLite Proxy] Execution failed for ${method}: ${sql}`, execErr);
-                  throw execErr;
-                }
+                const execute = async () => {
+                  const stmt = sqlite.prepare(sqlText);
+                  let result: any;
 
-                if (!result && (method === "all" || method === "values")) {
-                  if (process.env.BENCHMARK_DEBUG === "true") {
-                    logger.warn(
-                      `[SQLite Proxy] Method '${method}' returned falsy (${result}) for SQL: ${sql}`,
+                  try {
+                    if (method === "all") {
+                      result = stmt.all(...serializedParams);
+                    } else if (method === "get") {
+                      result = stmt.get(...serializedParams);
+                    } else if (method === "run") {
+                      result = stmt.run(...serializedParams);
+                    } else if (method === "values") {
+                      result = stmt.values
+                        ? stmt.values(...serializedParams)
+                        : stmt.all(...serializedParams);
+                    } else {
+                      result = stmt.run(...serializedParams);
+                    }
+                  } catch (execErr: any) {
+                    logger.error(
+                      `[SQLite Proxy] Execution failed for ${method}: ${sqlText}`,
+                      execErr,
                     );
+                    throw execErr;
                   }
-                  result = [];
-                }
 
-                if (method === "run") return result;
-                return { rows: result };
+                  if (!result && (method === "all" || method === "values")) {
+                    result = [];
+                  }
+
+                  if (method === "run") {
+                    return {
+                      rows: [],
+                      lastInsertRowid: result.lastInsertRowid,
+                      changes: result.changes,
+                    };
+                  }
+                  return { rows: result };
+                };
+
+                if (isWrite) {
+                  return SQLiteAdapterCore.writeMutex.runExclusive(execute);
+                }
+                return execute();
               },
               { schema },
             );
@@ -667,6 +715,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
     // Tuning - wrapped in try-catch to be safe
     const safeExec = (cmd: string) => {
       try {
+        logger.debug(`[SQLite] Executing PRAGMA: ${cmd}`);
         client.exec(cmd);
       } catch (e) {
         // Only log warning, don't crash
@@ -679,7 +728,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
     safeExec("PRAGMA journal_mode=WAL");
     safeExec("PRAGMA synchronous=NORMAL");
     safeExec("PRAGMA foreign_keys=ON");
-    safeExec("PRAGMA busy_timeout=5000");
+    safeExec("PRAGMA busy_timeout=15000"); // Standardized high timeout for Windows resilience
     safeExec("PRAGMA temp_store=MEMORY");
     safeExec("PRAGMA mmap_size=268435456"); // 256MB
     safeExec("PRAGMA cache_size=-64000"); // 64MB
@@ -706,7 +755,8 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
     let dbPath = typeof config === "string" ? config : config.connectionString;
 
     if (!dbPath) {
-      dbPath = process.env.DB_PATH || "content/data.db";
+      const { isSetupComplete } = await import("@utils/setup-check-fast");
+      dbPath = process.env.DB_PATH || (isSetupComplete() ? "content/data.db" : ":memory:");
     }
 
     // 🚀 HARDENING: Don't treat URIs as local paths
@@ -717,7 +767,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
     }
 
     // Handle standard relative paths
-    if (!path.isAbsolute(dbPath) && !dbPath.startsWith("file:")) {
+    if (dbPath !== ":memory:" && !path.isAbsolute(dbPath) && !dbPath.startsWith("file:")) {
       dbPath = path.resolve(process.cwd(), dbPath);
     }
 

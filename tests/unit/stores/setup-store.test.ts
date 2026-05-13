@@ -21,7 +21,7 @@ describe("Setup Store", () => {
   it("should initialize with default values", () => {
     const { wizard } = setupStore;
     expect(wizard.currentStep).toBe(0);
-    expect(wizard.dbConfig.type).toBe("mongodb");
+    expect(wizard.dbConfig.type).toBe("sqlite");
     expect(wizard.adminUser.username).toBe("");
   });
 

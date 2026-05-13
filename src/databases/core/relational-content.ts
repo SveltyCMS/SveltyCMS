@@ -16,6 +16,7 @@ import type {
   PaginationOptions,
   EntityCreate,
   IContentAdapter,
+  BaseQueryOptions,
 } from "../db-interface";
 import type { BaseSqlAdapter } from "./base-sql-adapter";
 import * as utils from "./relational-utils";
@@ -37,6 +38,14 @@ export class RelationalContentModule implements IContentAdapter {
     return this.adapter.crud;
   }
 
+  protected getDb(options?: BaseQueryOptions) {
+    const tx = options?.transaction;
+    if (tx) {
+      return tx.db || tx;
+    }
+    return this.db;
+  }
+
   // ============================================================
   // DRAFTS
   // ============================================================
@@ -55,53 +64,72 @@ export class RelationalContentModule implements IContentAdapter {
       return this.crud.update<ContentDraft>("content_drafts", draftId, data);
     },
 
-    publish: async (draftId: DatabaseId): Promise<DatabaseResult<void>> => {
-      return this.adapter.wrap(async () => {
-        await this.db
-          .update(this.schema.contentDrafts)
-          .set({ status: "archived" })
-          .where(eq(this.schema.contentDrafts._id, draftId as string));
-      }, "PUBLISH_DRAFT_FAILED");
+    publish: async (
+      draftId: DatabaseId,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<void>> => {
+      return this.adapter.wrap(
+        async () => {
+          await this.getDb(options)
+            .update(this.schema.contentDrafts)
+            .set({ status: "archived" })
+            .where(eq(this.schema.contentDrafts._id, draftId as string));
+        },
+        "PUBLISH_DRAFT_FAILED",
+        undefined,
+        { transaction: options?.transaction, isWrite: true },
+      );
     },
 
     publishMany: async (
       draftIds: DatabaseId[],
     ): Promise<DatabaseResult<{ publishedCount: number }>> => {
-      return this.adapter.wrap(async () => {
-        const result = await this.db
-          .update(this.schema.contentDrafts)
-          .set({ status: "archived" })
-          .where(inArray(this.schema.contentDrafts._id, draftIds as string[]))
-          .returning();
-        return { publishedCount: result.length };
-      }, "PUBLISH_MANY_DRAFTS_FAILED");
+      return this.adapter.wrap(
+        async () => {
+          const result = await this.db
+            .update(this.schema.contentDrafts)
+            .set({ status: "archived" })
+            .where(inArray(this.schema.contentDrafts._id, draftIds as string[]))
+            .returning();
+          return { publishedCount: result.length };
+        },
+        "PUBLISH_MANY_DRAFTS_FAILED",
+        undefined,
+        { isWrite: true },
+      );
     },
 
     getForContent: async (
       contentId: DatabaseId,
       options?: PaginationOptions,
+      dbOptions?: BaseQueryOptions,
     ): Promise<DatabaseResult<PaginatedResult<ContentDraft>>> => {
-      return this.adapter.wrap(async () => {
-        const limit = options?.pageSize || 20;
-        const offset = ((options?.page || 1) - 1) * limit;
+      return this.adapter.wrap(
+        async () => {
+          const limit = options?.pageSize || 20;
+          const offset = ((options?.page || 1) - 1) * limit;
 
-        const results = await this.db
-          .select()
-          .from(this.schema.contentDrafts)
-          .where(eq(this.schema.contentDrafts.contentId, contentId as string))
-          .limit(limit)
-          .offset(offset)
-          .orderBy(desc(this.schema.contentDrafts.version));
+          const results = await this.getDb(dbOptions)
+            .select()
+            .from(this.schema.contentDrafts)
+            .where(eq(this.schema.contentDrafts.contentId, contentId as string))
+            .limit(limit)
+            .offset(offset)
+            .orderBy(desc(this.schema.contentDrafts.version));
 
-        return {
-          items: utils.convertArrayDatesToISO(results) as unknown as ContentDraft[],
-          total: results.length,
-          page: options?.page || 1,
-          pageSize: limit,
-          hasNextPage: false,
-          hasPreviousPage: false,
-        };
-      }, "GET_DRAFTS_FAILED");
+          return {
+            items: utils.convertArrayDatesToISO(results) as unknown as ContentDraft[],
+            total: results.length,
+            page: options?.page || 1,
+            pageSize: limit,
+            hasNextPage: false,
+            hasPreviousPage: false,
+          };
+        },
+        "GET_DRAFTS_FAILED",
+        undefined,
+        { transaction: dbOptions?.transaction },
+      );
     },
 
     restore: async (draftId: DatabaseId): Promise<DatabaseResult<void>> => {
@@ -161,34 +189,41 @@ export class RelationalContentModule implements IContentAdapter {
       changes: Partial<ContentNode>,
       options: { tx?: any } = {},
     ): Promise<DatabaseResult<ContentNode>> => {
-      return this.adapter.wrap(async () => {
-        const db = options.tx || this.db;
-        const now = isoDateStringToDate(nowISODateString());
+      return this.adapter.wrap(
+        async () => {
+          const db = options.tx || this.db;
+          const now = isoDateStringToDate(nowISODateString());
 
-        // Use dialect-specific returning if supported
-        const query = db
-          .update(this.schema.contentNodes)
-          .set({
-            ...changes,
-            updatedAt: now,
-          } as any)
-          .where(eq(this.schema.contentNodes.path, path));
+          // Use dialect-specific returning if supported
+          const query = db
+            .update(this.schema.contentNodes)
+            .set(
+              utils.convertISOToDates({
+                ...changes,
+                updatedAt: now,
+              }) as any,
+            )
+            .where(eq(this.schema.contentNodes.path, path));
 
-        if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
-          const [updated] = await query.returning();
-          if (updated) return utils.convertDatesToISO(updated) as unknown as ContentNode;
-        }
+          if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
+            const [updated] = await query.returning();
+            if (updated) return utils.convertDatesToISO(updated) as unknown as ContentNode;
+          }
 
-        // Fallback for MariaDB or missing returning
-        await query;
-        const [updated] = await this.db
-          .select()
-          .from(this.schema.contentNodes)
-          .where(eq(this.schema.contentNodes.path, path))
-          .limit(1);
+          // Fallback for MariaDB or missing returning
+          await query;
+          const [updated] = await this.db
+            .select()
+            .from(this.schema.contentNodes)
+            .where(eq(this.schema.contentNodes.path, path))
+            .limit(1);
 
-        return utils.convertDatesToISO(updated) as unknown as ContentNode;
-      }, "UPDATE_NODE_FAILED");
+          return utils.convertDatesToISO(updated) as unknown as ContentNode;
+        },
+        "UPDATE_NODE_FAILED",
+        undefined,
+        { isWrite: true },
+      );
     },
 
     bulkUpdate: async (
@@ -212,44 +247,59 @@ export class RelationalContentModule implements IContentAdapter {
     },
 
     delete: async (path: string): Promise<DatabaseResult<void>> => {
-      return this.adapter.wrap(async () => {
-        await this.db
-          .delete(this.schema.contentNodes)
-          .where(eq(this.schema.contentNodes.path, path));
-      }, "DELETE_NODE_FAILED");
+      return this.adapter.wrap(
+        async () => {
+          await this.db
+            .delete(this.schema.contentNodes)
+            .where(eq(this.schema.contentNodes.path, path));
+        },
+        "DELETE_NODE_FAILED",
+        undefined,
+        { isWrite: true },
+      );
     },
 
     deleteMany: async (
       paths: string[],
       options?: { tenantId?: string | null },
     ): Promise<DatabaseResult<{ deletedCount: number }>> => {
-      return this.adapter.wrap(async () => {
-        const conditions = [inArray(this.schema.contentNodes.path, paths)];
-        if (options?.tenantId)
-          conditions.push(eq(this.schema.contentNodes.tenantId, options.tenantId));
-        const q = this.db.delete(this.schema.contentNodes).where(and(...conditions));
+      return this.adapter.wrap(
+        async () => {
+          const conditions = [inArray(this.schema.contentNodes.path, paths)];
+          if (options?.tenantId)
+            conditions.push(eq(this.schema.contentNodes.tenantId, options.tenantId));
+          const q = this.db.delete(this.schema.contentNodes).where(and(...conditions));
 
-        let count = 0;
-        if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
-          const result = await (q as any).returning();
-          count = result.length;
-        } else {
-          const [result] = await q;
-          count = (result as any).affectedRows || 0;
-        }
-        return { deletedCount: count };
-      }, "DELETE_MANY_NODES_FAILED");
+          let count = 0;
+          if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
+            const result = await (q as any).returning();
+            count = result.length;
+          } else {
+            const [result] = await q;
+            count = (result as any).affectedRows || 0;
+          }
+          return { deletedCount: count };
+        },
+        "DELETE_MANY_NODES_FAILED",
+        undefined,
+        { isWrite: true },
+      );
     },
 
     reorder: async (
       nodeUpdates: Array<{ path: string; newOrder: number }>,
     ): Promise<DatabaseResult<ContentNode[]>> => {
-      return this.adapter.wrap(async () => {
-        for (const update of nodeUpdates) {
-          await this.nodes.update(update.path, { position: update.newOrder } as any);
-        }
-        return [];
-      }, "REORDER_NODES_FAILED");
+      return this.adapter.wrap(
+        async () => {
+          for (const update of nodeUpdates) {
+            await this.nodes.update(update.path, { position: update.newOrder } as any);
+          }
+          return [];
+        },
+        "REORDER_NODES_FAILED",
+        undefined,
+        { isWrite: true },
+      );
     },
 
     reorderStructure: async (
@@ -260,20 +310,23 @@ export class RelationalContentModule implements IContentAdapter {
         path: string;
       }>,
     ): Promise<DatabaseResult<void>> => {
-      return this.adapter.transaction(async (tx: any) => {
-        const db = (tx as any).db || tx;
-        for (const item of items) {
-          await db
-            .update(this.schema.contentNodes)
-            .set({
-              parentId: item.parentId,
-              position: item.order,
-              path: item.path,
-            })
-            .where(eq(this.schema.contentNodes._id, item.id));
-        }
-        return { success: true, data: undefined };
-      });
+      return this.adapter.transaction(
+        async (tx: any) => {
+          const db = (tx as any).db || tx;
+          for (const item of items) {
+            await db
+              .update(this.schema.contentNodes)
+              .set({
+                parentId: item.parentId,
+                position: item.order,
+                path: item.path,
+              })
+              .where(eq(this.schema.contentNodes._id, item.id));
+          }
+          return { success: true, data: undefined };
+        },
+        { isWrite: true },
+      );
     },
   };
 

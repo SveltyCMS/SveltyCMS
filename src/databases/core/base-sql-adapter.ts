@@ -40,6 +40,12 @@ import type {
 import { generateUUID } from "@utils/native-utils";
 import * as utils from "../core/relational-utils";
 import { queryTranslator, type LogicalGroup, type QueryCondition } from "../core/query-ir";
+import { CollectionModule } from "./collection-module";
+import { RelationalAuthModule } from "./relational-auth";
+import { RelationalContentModule } from "./relational-content";
+import { RelationalMediaModule } from "./relational-media";
+import { RelationalSystemModule } from "./relational-system";
+import { BatchModule } from "./batch-module";
 
 import {
   type IAuthAdapter,
@@ -51,63 +57,93 @@ import {
   type ICollectionAdapter,
 } from "../db-interface";
 
+// 🚀  CENTRALIZED TABLE ALIASES: Shared across all SQL adapters.
+export const SQL_TABLE_ALIASES: Record<string, string> = {
+  media: "mediaItems",
+  MediaItem: "mediaItems",
+  mediaItems: "mediaItems",
+  media_items: "mediaItems",
+  contentNodes: "contentNodes",
+  content_nodes: "contentNodes",
+  preferences: "systemPreferences",
+  system_preferences: "systemPreferences",
+  systemPreferences: "systemPreferences",
+  tokens: "authTokens",
+  auth_tokens: "authTokens",
+  authTokens: "authTokens",
+  sessions: "authSessions",
+  auth_sessions: "authSessions",
+  authSessions: "authSessions",
+  users: "authUsers",
+  auth_users: "authUsers",
+  authUsers: "authUsers",
+  system_users: "authUsers",
+  content_drafts: "contentDrafts",
+  contentDrafts: "contentDrafts",
+  content_revisions: "contentRevisions",
+  contentRevisions: "contentRevisions",
+  redirects: "redirectsMV",
+  system_redirects: "redirectsMV",
+  systemRedirects: "redirectsMV",
+  system_content_structure: "contentNodes",
+  systemContentStructure: "contentNodes",
+  roles: "roles",
+  system_roles: "roles",
+  audit_logs: "auditLogs",
+  auditLogs: "auditLogs",
+  system_audit_logs: "auditLogs",
+  website_tokens: "websiteTokens",
+  websiteTokens: "websiteTokens",
+  plugin_pagespeed_results: "pluginPagespeedResults",
+  pluginPagespeedResults: "pluginPagespeedResults",
+  plugin_states: "pluginStates",
+  pluginStates: "pluginStates",
+  plugin_migrations: "pluginMigrations",
+  pluginMigrations: "pluginMigrations",
+  tenants: "tenants",
+  system_tenants: "tenants",
+  "404_logs": "fourOhFourLogs",
+  fourOhFourLogs: "fourOhFourLogs",
+  workflow_definitions: "workflowDefinitions",
+  workflowDefinitions: "workflowDefinitions",
+  workflow_instances: "workflowInstances",
+  workflowInstances: "workflowInstances",
+  redirects_mv: "redirectsMV",
+  redirectsMV: "redirectsMV",
+  svelty_jobs: "sveltyJobs",
+  sveltyJobs: "sveltyJobs",
+  system_virtual_folders: "systemVirtualFolders",
+  systemVirtualFolders: "systemVirtualFolders",
+};
+
+const SYSTEM_COLLECTIONS = new Set([
+  ...Object.keys(SQL_TABLE_ALIASES),
+  "audit_logs",
+  "auditLogs",
+  "plugin_migrations",
+  "pluginMigrations",
+  "plugin_states",
+  "pluginStates",
+  "media_items",
+  "mediaItems",
+  "content_nodes",
+  "contentNodes",
+  "system_preferences",
+  "systemPreferences",
+  "system_virtual_folders",
+  "systemVirtualFolders",
+]);
+
+const SYSTEM_NAME_MAP = new Map<string, string>();
+for (const [key, val] of Object.entries(SQL_TABLE_ALIASES)) {
+  // Map both snake_case and camelCase to the normalized physical name
+  const snake = val.replace(/[A-Z]/g, (l) => `_${l.toLowerCase()}`);
+  SYSTEM_NAME_MAP.set(key, snake);
+  SYSTEM_NAME_MAP.set(val, snake);
+}
+
 export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter {
-  // 🚀  CENTRALIZED TABLE ALIASES: Shared across all SQL adapters.
-  public static readonly TABLE_ALIASES: Record<string, string> = {
-    media: "mediaItems",
-    MediaItem: "mediaItems",
-    mediaItems: "mediaItems",
-    media_items: "mediaItems",
-    contentNodes: "contentNodes",
-    content_nodes: "contentNodes",
-    preferences: "systemPreferences",
-    system_preferences: "systemPreferences",
-    systemPreferences: "systemPreferences",
-    tokens: "authTokens",
-    auth_tokens: "authTokens",
-    authTokens: "authTokens",
-    sessions: "authSessions",
-    auth_sessions: "authSessions",
-    authSessions: "authSessions",
-    users: "authUsers",
-    auth_users: "authUsers",
-    authUsers: "authUsers",
-    system_users: "authUsers",
-    content_drafts: "contentDrafts",
-    contentDrafts: "contentDrafts",
-    content_revisions: "contentRevisions",
-    contentRevisions: "contentRevisions",
-    redirects: "systemRedirects",
-    system_redirects: "systemRedirects",
-    systemRedirects: "systemRedirects",
-    system_content_structure: "contentNodes",
-    systemContentStructure: "contentNodes",
-    roles: "roles",
-    system_roles: "roles",
-    audit_logs: "auditLogs",
-    auditLogs: "auditLogs",
-    system_audit_logs: "auditLogs",
-    website_tokens: "websiteTokens",
-    websiteTokens: "websiteTokens",
-    plugin_pagespeed_results: "pluginPagespeedResults",
-    pluginPagespeedResults: "pluginPagespeedResults",
-    plugin_states: "pluginStates",
-    pluginStates: "pluginStates",
-    plugin_migrations: "pluginMigrations",
-    pluginMigrations: "pluginMigrations",
-    tenants: "tenants",
-    system_tenants: "tenants",
-    "404_logs": "fourOhFourLogs",
-    fourOhFourLogs: "fourOhFourLogs",
-    workflow_definitions: "workflowDefinitions",
-    workflowDefinitions: "workflowDefinitions",
-    workflow_instances: "workflowInstances",
-    workflowInstances: "workflowInstances",
-    redirects_mv: "systemRedirects",
-    redirectsMV: "systemRedirects",
-    svelty_jobs: "sveltyJobs",
-    sveltyJobs: "sveltyJobs",
-  };
+  public static readonly TABLE_ALIASES = SQL_TABLE_ALIASES;
   public abstract readonly type: string;
   protected abstract readonly schema: any;
   protected preparedStatements = new Map<string, any>();
@@ -152,8 +188,6 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   // 🗂️ COLLECTION DOMAIN: Dynamic Schema and Model Management.
   public get collection(): ICollectionAdapter {
     if (!this._collection) {
-      // @ts-ignore - Dynamic import for circular safety
-      const { CollectionModule } = require("./collection-module");
       this._collection = new CollectionModule(this as any);
     }
     return this._collection!;
@@ -162,8 +196,6 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   // 🛡️ AUTH DOMAIN: Unified Authentication Module.
   public get auth(): IAuthAdapter {
     if (!this._auth) {
-      // @ts-ignore - Dynamic import for circular safety
-      const { RelationalAuthModule } = require("./relational-auth");
       this._auth = new RelationalAuthModule(this, this.schema) as IAuthAdapter;
     }
     return this._auth!;
@@ -172,8 +204,6 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   // 📦 CONTENT DOMAIN: Nodes, Drafts, and Revisions.
   public get content(): IContentAdapter {
     if (!this._content) {
-      // @ts-ignore - Dynamic import for circular safety
-      const { RelationalContentModule } = require("./relational-content");
       this._content = new RelationalContentModule(this as any, this.schema) as IContentAdapter;
     }
     return this._content!;
@@ -182,8 +212,6 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   // 🖼️ MEDIA DOMAIN: Files and Folders.
   public get media(): IMediaAdapter {
     if (!this._media) {
-      // @ts-ignore - Dynamic import for circular safety
-      const { RelationalMediaModule } = require("./relational-media");
       this._media = new RelationalMediaModule(this as any, this.schema) as IMediaAdapter;
     }
     return this._media!;
@@ -192,8 +220,6 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   // ⚙️ SYSTEM DOMAIN: Preferences, Tenants, Themes, and Jobs.
   public get system(): ISystemAdapter {
     if (!this._system) {
-      // @ts-ignore - Dynamic import for circular safety
-      const { RelationalSystemModule } = require("./relational-system");
       this._system = new RelationalSystemModule(this as any, this.schema) as ISystemAdapter;
     }
     return this._system!;
@@ -202,8 +228,6 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   // ⚡ BATCH DOMAIN: High-Performance Bulk Operations.
   public get batch(): IBatchAdapter {
     if (!this._batch) {
-      // @ts-ignore - Dynamic import for circular safety
-      const { BatchModule } = require("./batch-module");
       this._batch = new BatchModule(this as any) as IBatchAdapter;
     }
     return this._batch!;
@@ -250,55 +274,45 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
 
   // 🚀 AGNOSTIC CORE: Resolves a collection name to a Drizzle table object.
   public getTable(collection: string): any {
-    // 1. Check registry (Physical tables only)
+    // 1. Fast Cache
     const cached = this.tableRegistry.get(collection);
     if (cached) return cached;
 
-    // 2. Try Aliased Table (Core/System) - DO THIS BEFORE PREFIXING
-    const aliased = this.getAliasedTable(collection);
-    if (aliased) {
-      this.tableRegistry.set(collection, aliased);
-      return aliased;
+    // 2. System Table Check (O(1))
+    if (SYSTEM_COLLECTIONS.has(collection)) {
+      const aliased = this.getAliasedTable(collection);
+      if (aliased) {
+        this.tableRegistry.set(collection, aliased);
+        return aliased;
+      }
     }
 
-    // 3. Fallback: Create dynamic definition
-    const lowerColl = collection.toLowerCase();
+    // 3. Dynamic Prefixing (Only for non-system collections)
+    const tableName = collection.startsWith("collection_")
+      ? collection
+      : `collection_${collection}`;
+
+    // Final defensive check: if it's actually a system table despite the prefix, resolve properly
     const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
-    let tableName = collection;
-
-    // 🚀 DEFENSIVE: Ensure system tables are NEVER prefixed
-    const isSystem =
-      BaseSqlAdapter.TABLE_ALIASES[collection] !== undefined ||
-      BaseSqlAdapter.TABLE_ALIASES[cleanName] !== undefined ||
-      lowerColl.startsWith("system_") ||
-      lowerColl.startsWith("auth_") ||
-      lowerColl.startsWith("audit") ||
-      lowerColl.startsWith("plugin") ||
-      lowerColl.startsWith("redirects") ||
-      lowerColl.startsWith("content") ||
-      lowerColl.startsWith("history") ||
-      lowerColl.startsWith("404") ||
-      lowerColl === "users" ||
-      lowerColl === "sessions" ||
-      lowerColl === "tokens" ||
-      lowerColl === "roles";
-
-    if (!isSystem) {
-      tableName = `collection_${collection}`;
-    } else {
-      // Normalize dynamic system table names to snake_case for migrations
-      if (collection === "auditLogs") tableName = "audit_logs";
-      else if (collection === "pluginMigrations") tableName = "plugin_migrations";
-      else if (collection === "pluginStates") tableName = "plugin_states";
-      else if (collection === "mediaItems") tableName = "media_items";
-      else if (collection === "contentNodes") tableName = "content_nodes";
-      else if (collection === "systemRedirects" || collection === "redirectsMV")
-        tableName = "system_redirects";
+    if (SYSTEM_COLLECTIONS.has(cleanName) && cleanName !== collection) {
+      return this.getTable(cleanName);
     }
 
     const dynamicTable = this.createDynamicTableDefinition(tableName);
     this.tableRegistry.set(collection, dynamicTable);
     return dynamicTable;
+  }
+
+  // 🚀 AGNOSTIC CORE: Resolves a system collection name to its physical snake_case table name.
+  public resolveSystemTableName(collection: string): string {
+    const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
+    return SYSTEM_NAME_MAP.get(cleanName) || SYSTEM_NAME_MAP.get(collection) || collection;
+  }
+
+  // 🚀 AGNOSTIC CORE: Determines if a collection name refers to a system table.
+  public isSystemTable(collection: string): boolean {
+    const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
+    return SYSTEM_COLLECTIONS.has(cleanName) || SYSTEM_COLLECTIONS.has(collection);
   }
 
   public abstract getClient(): any;
@@ -318,14 +332,32 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   protected abstract getDrizzleInstance(options?: BaseQueryOptions): any;
   public abstract getJsonField(field: string): SQL;
 
+  private _tableColumnsCache = new WeakMap<any, Record<string, Column>>();
+  private _lastTable: any = null;
+  private _lastCols: Record<string, Column> | null = null;
+
   protected getColumn(table: any, name: string): Column | undefined {
     if (!table) return undefined;
-    try {
-      const cols = getTableColumns(table);
-      return cols[name];
-    } catch {
-      return table[name];
+
+    // 🚀 PERFORMANCE: Hot Table Cache (O(1) No-Lookup)
+    let cols = table === this._lastTable ? this._lastCols : this._tableColumnsCache.get(table);
+
+    if (!cols) {
+      try {
+        const resolvedCols = getTableColumns(table);
+        if (resolvedCols) {
+          cols = resolvedCols as any;
+          this._tableColumnsCache.set(table, cols!);
+        }
+      } catch {}
     }
+
+    if (cols) {
+      this._lastTable = table;
+      this._lastCols = cols;
+      return cols[name];
+    }
+    return table[name];
   }
 
   protected prepareValues(
@@ -336,10 +368,16 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     options: any,
   ) {
     const values: any = {};
-    let schemaCols: Record<string, Column> = {};
-    try {
-      schemaCols = getTableColumns(table);
-    } catch {}
+    let schemaCols: Record<string, Column> | undefined = this._tableColumnsCache.get(table);
+    if (!schemaCols) {
+      try {
+        const resolvedCols = getTableColumns(table);
+        if (resolvedCols) {
+          schemaCols = resolvedCols as any;
+          this._tableColumnsCache.set(table, schemaCols!);
+        }
+      } catch {}
+    }
 
     const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
     if (id && idCol) values[idCol.name] = id.toString();
@@ -356,7 +394,9 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       for (const k in data) {
         if (!Object.hasOwn(data, k)) continue;
         if (BaseSqlAdapter.FIXED_COLUMNS.has(k) && (schemaCols?.[k] || table[k])) {
-          values[k] = data[k];
+          // 🚀 HARDENING: Never overwrite explicit ID with payload ID during updates/inserts
+          if ((k === "_id" || k === "id") && id) continue;
+          values[k] = data[k] ?? null; // Ensure null instead of undefined
         } else {
           dynamicData[k] = data[k];
         }
@@ -365,7 +405,7 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     } else {
       for (const k in data) {
         if (Object.hasOwn(data, k) && (schemaCols?.[k] || table[k])) {
-          values[k] = data[k];
+          values[k] = data[k] ?? null; // Ensure null instead of undefined
         }
       }
     }
@@ -380,7 +420,10 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     options: FindOptions<T> = {},
   ): Promise<DatabaseResult<T | null>> {
     return this.wrap(async () => {
-      const q = await this.runHooks("before", "find", collection, query, options);
+      const q =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "find", collection, query, options)
+          : query;
       const table = this.getTable(collection);
       const where = this.mapQuery(table, q as any, options);
 
@@ -391,7 +434,9 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
         .limit(1);
 
       const data = results.length ? (utils.convertDatesToISO(results[0]) as T) : null;
-      return await this.runHooks("after", "find", collection, data, options);
+      return this.hooks.length > 0
+        ? await this.runHooks("after", "find", collection, data, options)
+        : data;
     }, "FIND_ONE_FAILED");
   }
 
@@ -401,7 +446,10 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     options: FindOptions<T> = {},
   ): Promise<DatabaseResult<T[]>> {
     return this.wrap(async () => {
-      const q = await this.runHooks("before", "find", collection, query, options);
+      const q =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "find", collection, query, options)
+          : query;
       const table = this.getTable(collection);
       const where = this.mapQuery(table, q as any, options);
       let builder = this.getDrizzleInstance(options).select().from(table).where(where);
@@ -409,8 +457,10 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       if (options.offset) builder = builder.offset(options.offset);
 
       const results = await builder;
-      const data = utils.convertDatesToISO(results) as T[];
-      return await this.runHooks("after", "find", collection, data, options);
+      const data = utils.convertArrayDatesToISO(results as any) as T[];
+      return this.hooks.length > 0
+        ? await this.runHooks("after", "find", collection, data, options)
+        : data;
     }, "FIND_MANY_FAILED");
   }
 
@@ -420,7 +470,10 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     options: FindOptions<T> = {},
   ): Promise<DatabaseResult<AsyncIterable<T>>> {
     return this.wrap(async () => {
-      const q = await this.runHooks("before", "find", collection, query, options);
+      const q =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "find", collection, query, options)
+          : query;
       const table = this.getTable(collection);
       const where = this.mapQuery(table, q as any, options);
       let builder = this.getDrizzleInstance(options).select().from(table).where(where);
@@ -488,20 +541,30 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     data: EntityCreate<T>,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T>> {
-    return this.wrap(async () => {
-      const d = await this.runHooks("before", "insert", collection, data, options);
-      const table = this.getTable(collection);
-      const id = (d as any)._id || generateUUID();
-      const now = new Date();
-      const values = this.prepareValues(table, d, id, now, options);
+    return this.wrap(
+      async () => {
+        const d =
+          this.hooks.length > 0
+            ? await this.runHooks("before", "insert", collection, data, options)
+            : data;
+        const table = this.getTable(collection);
+        const id = (d as any)._id || generateUUID();
+        const now = new Date();
+        const values = this.prepareValues(table, d, id, now, options);
 
-      const result = await this.getDrizzleInstance(options)
-        .insert(table)
-        .values(values)
-        .returning();
-      const finalData = utils.convertDatesToISO(result[0]) as T;
-      return await this.runHooks("after", "insert", collection, finalData, options);
-    }, "INSERT_FAILED");
+        const result = await this.getDrizzleInstance(options)
+          .insert(table)
+          .values(values)
+          .returning();
+        const finalData = utils.convertDatesToISO(result[0]) as T;
+        return this.hooks.length > 0
+          ? await this.runHooks("after", "insert", collection, finalData, options)
+          : finalData;
+      },
+      "INSERT_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async insertMany<T extends BaseEntity>(
@@ -511,23 +574,31 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   ): Promise<DatabaseResult<T[]>> {
     if (!data || data.length === 0) return { success: true, data: [] };
 
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      const now = new Date();
+    return this.wrap(
+      async () => {
+        const table = this.getTable(collection);
+        const now = new Date();
 
-      // 🚀 Batch processing
-      const batchValues = data.map((item) => {
-        const id = (item as any)._id || generateUUID();
-        return this.prepareValues(table, item, id, now, options);
-      });
+        // 🚀 Batch processing: Manual loop is faster than .map for high-speed seeding
+        const len = data.length;
+        const batchValues = Array.from({ length: len });
+        for (let i = 0; i < len; i++) {
+          const item = data[i];
+          const id = (item as any)._id || generateUUID();
+          batchValues[i] = this.prepareValues(table, item, id, now, options);
+        }
 
-      const results = await this.getDrizzleInstance(options)
-        .insert(table)
-        .values(batchValues)
-        .returning();
+        const results = await this.getDrizzleInstance(options)
+          .insert(table)
+          .values(batchValues)
+          .returning();
 
-      return utils.convertDatesToISO(results) as T[];
-    }, "INSERT_MANY_FAILED");
+        return utils.convertArrayDatesToISO(results as any) as T[];
+      },
+      "INSERT_MANY_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async update<T extends BaseEntity>(
@@ -536,26 +607,65 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     data: EntityUpdate<T>,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T>> {
-    return this.wrap(async () => {
-      const d = await this.runHooks("before", "update", collection, data, options);
-      const table = this.getTable(collection);
-      const now = new Date();
-      const values = this.prepareValues(table, d, id, now, options);
+    return this.wrap(
+      async () => {
+        const d =
+          this.hooks.length > 0
+            ? await this.runHooks("before", "update", collection, data, options)
+            : data;
+        const table = this.getTable(collection);
+        const now = new Date();
+        const values = this.prepareValues(table, d, id, now, options);
 
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+        if (!idCol) throw new Error("ID column not found");
 
-      await this.getDrizzleInstance(options)
-        .update(table)
-        .set(values)
-        .where(eq(idCol, id as any));
+        const tableName = getTableName(table);
 
-      const updated = await this.findOne<T>(collection, { _id: id } as any, options);
-      if (!updated.success) throw new Error(updated.message);
-      if (!updated.data) throw new Error("Record not found after update");
+        const query = this.getDrizzleInstance(options)
+          .update(table)
+          .set(values)
+          .where(eq(idCol, id as any));
 
-      return await this.runHooks("after", "update", collection, updated.data, options);
-    }, "UPDATE_FAILED");
+        if (this.type === "sqlite" || this.type === "postgresql") {
+          const results = await query.returning();
+          let res = results[0];
+
+          // 🚀 RESILIENCE: If RETURNING is empty, double-check if the record exists.
+          // Some drivers/versions might return empty if no rows were *changed*, even if matched.
+          if (!res) {
+            const check = await this.getDrizzleInstance(options)
+              .select()
+              .from(table)
+              .where(eq(idCol, id as any));
+            res = check[0];
+          }
+
+          if (!res) {
+            logger.error(`[BaseSqlAdapter] Update failed: Record ${id} not found in ${tableName}`);
+            throw new Error("Record not found after update");
+          }
+
+          const data = utils.convertDatesToISO(res) as unknown as T;
+          return this.hooks.length > 0
+            ? await this.runHooks("after", "update", collection, data, options)
+            : data;
+        }
+
+        // Fallback for MariaDB or missing returning
+        await query;
+        const updated = await this.findOne<T>(collection, { _id: id } as any, options);
+        if (!updated.success) throw new Error(updated.message);
+        if (!updated.data) throw new Error("Record not found after update");
+
+        return this.hooks.length > 0
+          ? await this.runHooks("after", "update", collection, updated.data, options)
+          : updated.data;
+      },
+      "UPDATE_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async updateMany<T extends BaseEntity>(
@@ -564,17 +674,22 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     data: EntityUpdate<T>,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
-    return this.wrap(async () => {
-      const items = await this.findMany(collection, query, options);
-      if (!items.success) throw new Error(items.message);
+    return this.wrap(
+      async () => {
+        const items = await this.findMany(collection, query, options);
+        if (!items.success) throw new Error(items.message);
 
-      let modifiedCount = 0;
-      for (const item of items.data || []) {
-        const res = await this.update(collection, (item as any)._id, data, options);
-        if (res.success) modifiedCount++;
-      }
-      return { modifiedCount };
-    }, "UPDATE_MANY_FAILED");
+        let modifiedCount = 0;
+        for (const item of items.data || []) {
+          const res = await this.update(collection, (item as any)._id, data, options);
+          if (res.success) modifiedCount++;
+        }
+        return { modifiedCount };
+      },
+      "UPDATE_MANY_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async delete(
@@ -582,24 +697,31 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     id: DatabaseId,
     options: BaseQueryOptions & { permanent?: boolean; userId?: DatabaseId } = {},
   ): Promise<DatabaseResult<void>> {
-    return this.wrap(async () => {
-      await this.runHooks("before", "delete", collection, { _id: id }, options);
-      const table = this.getTable(collection);
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
+    return this.wrap(
+      async () => {
+        if (this.hooks.length > 0)
+          await this.runHooks("before", "delete", collection, { _id: id }, options);
+        const table = this.getTable(collection);
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+        if (!idCol) throw new Error("ID column not found");
 
-      if (options.permanent) {
-        await this.getDrizzleInstance(options)
-          .delete(table)
-          .where(eq(idCol, id as any));
-      } else {
-        await this.getDrizzleInstance(options)
-          .update(table)
-          .set({ isDeleted: true, updatedAt: new Date() })
-          .where(eq(idCol, id as any));
-      }
-      await this.runHooks("after", "delete", collection, { _id: id }, options);
-    }, "DELETE_FAILED");
+        if (options.permanent) {
+          await this.getDrizzleInstance(options)
+            .delete(table)
+            .where(eq(idCol, id as any));
+        } else {
+          await this.getDrizzleInstance(options)
+            .update(table)
+            .set({ isDeleted: true, updatedAt: new Date() })
+            .where(eq(idCol, id as any));
+        }
+        if (this.hooks.length > 0)
+          await this.runHooks("after", "delete", collection, { _id: id }, options);
+      },
+      "DELETE_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async deleteMany<T extends BaseEntity>(
@@ -682,19 +804,24 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     const physicalName = getTableName(table as any);
 
     // Execute physical table creation
-    await this.wrap(async () => {
-      let ddl = "";
-      if (this.type === "sqlite") {
-        ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" TEXT PRIMARY KEY, "tenantId" TEXT, "createdAt" INTEGER, "updatedAt" INTEGER, "data" TEXT);`;
-      } else if (this.type === "postgresql") {
-        ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" TEXT PRIMARY KEY, "tenantId" TEXT, "createdAt" TIMESTAMP, "updatedAt" TIMESTAMP, "data" JSONB);`;
-      } else if (this.type === "mariadb") {
-        ddl = `CREATE TABLE IF NOT EXISTS \`${physicalName}\` (\`_id\` VARCHAR(36) PRIMARY KEY, \`tenantId\` VARCHAR(36), \`createdAt\` DATETIME, \`updatedAt\` DATETIME, \`data\` LONGTEXT);`;
-      }
+    await this.wrap(
+      async () => {
+        let ddl = "";
+        if (this.type === "sqlite") {
+          ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" TEXT PRIMARY KEY, "tenantId" TEXT, "status" TEXT DEFAULT 'draft', "isDeleted" INTEGER DEFAULT 0, "createdAt" INTEGER, "updatedAt" INTEGER, "data" TEXT);`;
+        } else if (this.type === "postgresql") {
+          ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" TEXT PRIMARY KEY, "tenantId" TEXT, "status" TEXT DEFAULT 'draft', "isDeleted" BOOLEAN DEFAULT false, "createdAt" TIMESTAMP, "updatedAt" TIMESTAMP, "data" JSONB);`;
+        } else if (this.type === "mariadb") {
+          ddl = `CREATE TABLE IF NOT EXISTS \`${physicalName}\` (\`_id\` VARCHAR(36) PRIMARY KEY, \`tenantId\` VARCHAR(36), \`status\` VARCHAR(255) DEFAULT 'draft', \`isDeleted\` TINYINT(1) DEFAULT 0, \`createdAt\` DATETIME, \`updatedAt\` DATETIME, \`data\` LONGTEXT);`;
+        }
 
-      if (ddl) await this.raw.execute(ddl);
-      logger.info(`[${this.type.toUpperCase()} Adapter] Provisioned table: ${physicalName}`);
-    }, "CREATE_MODEL_FAILED");
+        if (ddl) await this.raw.execute(ddl);
+        logger.info(`[${this.type.toUpperCase()} Adapter] Provisioned table: ${physicalName}`);
+      },
+      "CREATE_MODEL_FAILED",
+      undefined,
+      { isWrite: true },
+    );
   }
 
   public mapQuery(
@@ -702,6 +829,23 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     query: Record<string, any>,
     options: BaseQueryOptions = {},
   ): SQL | undefined {
+    // 🚀 Performance Optimization: Fast-path for simple ID queries
+    if (query && query._id && Object.keys(query).length === 1 && !options.bypassTenantCheck) {
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (idCol) {
+        const conditions = [eq(idCol, query._id as string)];
+        const tenantCol = this.getColumn(table, "tenantId");
+        if (options.tenantId !== undefined && tenantCol) {
+          conditions.push(
+            options.tenantId === null
+              ? isNull(tenantCol)
+              : eq(tenantCol, options.tenantId as string),
+          );
+        }
+        return and(...conditions);
+      }
+    }
+
     const ir = queryTranslator.translate("dummy", query || {});
     const conditions: SQL[] = [];
 

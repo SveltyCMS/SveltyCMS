@@ -385,11 +385,11 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				</label>
 
 				<select id="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input w-full rounded border dark:border-surface-600">
+					<option value="sqlite">SQLite (via Drizzle) - RECOMMENDED</option>
 					<option value="mongodb">MongoDB (localhost/Docker)</option>
 					<option value="mongodb+srv">MongoDB Atlas (SRV)</option>
 					<option value="mariadb">MariaDB (via Drizzle)</option>
 					<option value="postgresql">PostgreSQL (via Drizzle)</option>
-					<option value="sqlite">SQLite (via Drizzle)</option>
 				</select>
 			</div>
 

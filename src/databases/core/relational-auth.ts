@@ -57,7 +57,7 @@ export class RelationalAuthModule implements IAuthAdapter {
     if (!dbUser) throw new Error("User not found");
 
     // Diagnostic Logging for specific user
-    if (dbUser.email?.toLowerCase().includes("kroells")) {
+    if (dbUser.email?.toLowerCase().includes("kroells") && process.env.BENCHMARK !== "true") {
       logger.info(`[Auth] mapUser raw data for ${dbUser.email}:`, {
         role: dbUser.role,
         roleIds: dbUser.roleIds,
@@ -81,14 +81,16 @@ export class RelationalAuthModule implements IAuthAdapter {
           ? dbUser.role
           : "user";
 
-    logger.info(`[Auth] mapUser call for ${dbUser.email || "unknown"}:`, {
-      id: dbUser._id,
-      role: dbUser.role,
-      roleIds: dbUser.roleIds,
-      isAdmin: dbUser.isAdmin,
-      activeRole,
-      finalRoleIds,
-    });
+    if (process.env.BENCHMARK !== "true") {
+      logger.info(`[Auth] mapUser call for ${dbUser.email || "unknown"}:`, {
+        id: dbUser._id,
+        role: dbUser.role,
+        roleIds: dbUser.roleIds,
+        isAdmin: dbUser.isAdmin,
+        activeRole,
+        finalRoleIds,
+      });
+    }
 
     return {
       ...converted,
@@ -168,36 +170,17 @@ export class RelationalAuthModule implements IAuthAdapter {
         }
 
         // Diagnostic Logging
-        logger.info(`[Auth] createUser: values before preparation for ${values.email}:`, {
-          role: values.role,
-          roleIds: values.roleIds,
-          isAdmin: values.isAdmin,
-        });
+        if (process.env.BENCHMARK !== "true") {
+          logger.info(`[Auth] createUser: values before preparation for ${values.email}:`, {
+            role: values.role,
+            roleIds: values.roleIds,
+            isAdmin: values.isAdmin,
+          });
+        }
 
         const db = this.getDb(options);
 
-        // Explicitly stringify JSON fields if they are objects, to ensure SQLite compatibility
-        if (values.roleIds && typeof values.roleIds === "object") {
-          values.roleIds = JSON.stringify(values.roleIds);
-        }
-        if (values.permissions && typeof values.permissions === "object") {
-          values.permissions = JSON.stringify(values.permissions);
-        }
-
-        // Diagnostic Logging (Info level to ensure visibility during setup)
-        logger.info("[Auth] createUser: values before preparation:", {
-          email: values.email,
-          roleIds: values.roleIds,
-          roleIdsType: typeof values.roleIds,
-        });
-
         const preparedValues = utils.convertISOToDates(values);
-
-        logger.info("[Auth] createUser: values after preparation:", {
-          email: preparedValues.email,
-          roleIds: preparedValues.roleIds,
-          roleIdsType: typeof preparedValues.roleIds,
-        });
 
         await db.insert(this.schema.authUsers).values(preparedValues);
         const [result] = await db
@@ -247,14 +230,6 @@ export class RelationalAuthModule implements IAuthAdapter {
         }
 
         const db = this.getDb(options);
-
-        // Explicitly stringify JSON fields if they are objects, to ensure SQLite compatibility
-        if (updateData.roleIds && typeof updateData.roleIds === "object") {
-          updateData.roleIds = JSON.stringify(updateData.roleIds);
-        }
-        if (updateData.permissions && typeof updateData.permissions === "object") {
-          updateData.permissions = JSON.stringify(updateData.permissions);
-        }
 
         const preparedUpdate = utils.convertISOToDates(updateData);
         await db
@@ -553,9 +528,11 @@ export class RelationalAuthModule implements IAuthAdapter {
     return this.adapter.wrap(
       async () => {
         const db = this.getDb();
+        const updateData = { expires: new Date(newExpiry), updatedAt: new Date() };
+        const preparedUpdate = utils.convertISOToDates(updateData as any);
         await db
           .update(this.schema.authSessions)
-          .set({ expires: new Date(newExpiry), updatedAt: new Date() })
+          .set(preparedUpdate)
           .where(eq(this.schema.authSessions._id, sessionId as string));
         const [res] = await db
           .select()
@@ -728,9 +705,10 @@ export class RelationalAuthModule implements IAuthAdapter {
               : eq(this.schema.authTokens.tenantId, options.tenantId as string),
           );
         const db = this.getDb(options);
+        const preparedUpdate = utils.convertISOToDates(tokenData);
         await db
           .update(this.schema.authTokens)
-          .set(tokenData)
+          .set(preparedUpdate)
           .where(and(...conditions));
         const [res] = await db
           .select()
@@ -835,12 +813,34 @@ export class RelationalAuthModule implements IAuthAdapter {
   }
 
   // Role methods
-  async createRole(roleData: Partial<Role>): Promise<DatabaseResult<Role>> {
+  async createRole(
+    roleData: Partial<Role>,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<Role>> {
     return this.adapter.wrap(
       async () => {
         const id = utils.generateId();
-        const db = this.getDb();
-        await db.insert(this.schema.roles).values({ ...roleData, _id: id });
+        const now = new Date();
+        const values = {
+          ...roleData,
+          _id: id,
+          createdAt: roleData.createdAt || now,
+          updatedAt: roleData.updatedAt || now,
+        };
+        const preparedValues = utils.convertISOToDates(values);
+
+        const db = this.getDb(options);
+
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          console.log(`[RelationalAuth] Creating role ${values.name}:`, {
+            id,
+            permissionsType: typeof preparedValues.permissions,
+            permissions: preparedValues.permissions,
+          });
+        }
+
+        await db.insert(this.schema.roles).values(preparedValues);
+
         const [res] = await db
           .select()
           .from(this.schema.roles)
@@ -850,17 +850,26 @@ export class RelationalAuthModule implements IAuthAdapter {
       },
       "CREATE_ROLE_FAILED",
       undefined,
-      { isWrite: true },
+      { isWrite: true, transaction: options?.transaction },
     );
   }
 
-  async updateRole(roleId: DatabaseId, roleData: Partial<Role>): Promise<DatabaseResult<Role>> {
+  async updateRole(
+    roleId: DatabaseId,
+    roleData: Partial<Role>,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<Role>> {
     return this.adapter.wrap(
       async () => {
-        const db = this.getDb();
+        const db = this.getDb(options);
+        const updateData = {
+          ...roleData,
+          updatedAt: new Date(),
+        };
+        const preparedUpdate = utils.convertISOToDates(updateData);
         await db
           .update(this.schema.roles)
-          .set(roleData)
+          .set(preparedUpdate)
           .where(eq(this.schema.roles._id, roleId as string));
         const [res] = await db
           .select()
@@ -871,47 +880,76 @@ export class RelationalAuthModule implements IAuthAdapter {
       },
       "UPDATE_ROLE_FAILED",
       undefined,
-      { isWrite: true },
+      { isWrite: true, transaction: options?.transaction },
     );
   }
 
-  async deleteRole(roleId: DatabaseId): Promise<DatabaseResult<void>> {
-    return this.adapter.wrap(async () => {
-      await this.getDb()
-        .delete(this.schema.roles)
-        .where(eq(this.schema.roles._id, roleId as string));
-    }, "DELETE_ROLE_FAILED");
+  async deleteRole(roleId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>> {
+    return this.adapter.wrap(
+      async () => {
+        await this.getDb(options)
+          .delete(this.schema.roles)
+          .where(eq(this.schema.roles._id, roleId as string));
+      },
+      "DELETE_ROLE_FAILED",
+      undefined,
+      { isWrite: true, transaction: options?.transaction },
+    );
   }
 
-  async getRoleById(roleId: DatabaseId): Promise<DatabaseResult<Role | null>> {
-    return this.adapter.wrap(async () => {
-      const [res] = await this.getDb()
-        .select()
-        .from(this.schema.roles)
-        .where(eq(this.schema.roles._id, roleId as string))
-        .limit(1);
-      return res ? this.mapRole(res) : null;
-    }, "GET_ROLE_FAILED");
+  async getRoleById(
+    roleId: DatabaseId,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<Role | null>> {
+    return this.adapter.wrap(
+      async () => {
+        const [res] = await this.getDb(options)
+          .select()
+          .from(this.schema.roles)
+          .where(eq(this.schema.roles._id, roleId as string))
+          .limit(1);
+        return res ? this.mapRole(res) : null;
+      },
+      "GET_ROLE_FAILED",
+      undefined,
+      { transaction: options?.transaction },
+    );
   }
 
-  async getRoles(options?: PaginationOptions): Promise<DatabaseResult<Role[]>> {
-    return this.adapter.wrap(async () => {
-      const res = await this.getDb()
-        .select()
-        .from(this.schema.roles)
-        .limit(options?.limit || 100);
-      return res.map((r: any) => this.mapRole(r));
-    }, "GET_ROLES_FAILED");
+  async getRoles(
+    options?: PaginationOptions,
+    dbOptions?: BaseQueryOptions,
+  ): Promise<DatabaseResult<Role[]>> {
+    return this.adapter.wrap(
+      async () => {
+        const res = await this.getDb(dbOptions)
+          .select()
+          .from(this.schema.roles)
+          .limit(options?.limit || 100);
+        return res.map((r: any) => this.mapRole(r));
+      },
+      "GET_ROLES_FAILED",
+      undefined,
+      { transaction: dbOptions?.transaction },
+    );
   }
 
-  async getRolesByIds(roleIds: DatabaseId[]): Promise<DatabaseResult<Role[]>> {
-    return this.adapter.wrap(async () => {
-      const res = await this.getDb()
-        .select()
-        .from(this.schema.roles)
-        .where(inArray(this.schema.roles._id, roleIds as string[]));
-      return res.map((r: any) => this.mapRole(r));
-    }, "GET_ROLES_FAILED");
+  async getRolesByIds(
+    roleIds: DatabaseId[],
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<Role[]>> {
+    return this.adapter.wrap(
+      async () => {
+        const res = await this.getDb(options)
+          .select()
+          .from(this.schema.roles)
+          .where(inArray(this.schema.roles._id, roleIds as string[]));
+        return res.map((r: any) => this.mapRole(r));
+      },
+      "GET_ROLES_FAILED",
+      undefined,
+      { transaction: options?.transaction },
+    );
   }
 
   async getRoleCount(options?: BaseQueryOptions): Promise<DatabaseResult<number>> {
@@ -1018,7 +1056,7 @@ export class RelationalAuthModule implements IAuthAdapter {
     sessionData: { expires: ISODateString; tenantId?: DatabaseId | null },
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ user: User; session: Session }>> {
-    return this.adapter.transaction(async (tx: any) => {
+    const runWork = async (tx: any) => {
       const userRes = await this.createUser(
         {
           ...userData,
@@ -1036,7 +1074,18 @@ export class RelationalAuthModule implements IAuthAdapter {
         { transaction: tx },
       );
       if (!sessionRes.success) throw new Error(sessionRes.message);
-      return { success: true, data: { user: userRes.data, session: sessionRes.data } };
+      return {
+        success: true,
+        data: { user: userRes.data, session: sessionRes.data },
+      } as DatabaseResult<{ user: User; session: Session }>;
+    };
+
+    if (options?.transaction) {
+      return runWork(options.transaction);
+    }
+
+    return this.adapter.transaction(async (tx: any) => {
+      return runWork(tx);
     }, options as any);
   }
 
@@ -1058,16 +1107,27 @@ export class RelationalAuthModule implements IAuthAdapter {
     userId: DatabaseId,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>> {
-    return this.adapter.transaction(async (tx: any) => {
+    const runWork = async (tx: any) => {
       await this.invalidateAllUserSessions(userId, { ...options, transaction: tx });
       const result = await this.deleteUser(userId, { ...options, transaction: tx });
       if (!result.success) throw new Error(result.message);
-      return { success: true, data: { deletedUser: true, deletedSessionCount: 1 } };
+      return {
+        success: true,
+        data: { deletedUser: true, deletedSessionCount: 1 },
+      } as DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>;
+    };
+
+    if (options?.transaction) {
+      return runWork(options.transaction);
+    }
+
+    return this.adapter.transaction(async (tx: any) => {
+      return runWork(tx);
     }, options as any);
   }
 
-  async getAllRoles(_options?: BaseQueryOptions): Promise<Role[]> {
-    const res = await this.getRoles({ limit: 1000 });
+  async getAllRoles(options?: BaseQueryOptions): Promise<Role[]> {
+    const res = await this.getRoles({ limit: 1000 }, options);
     return res.success ? res.data : [];
   }
 

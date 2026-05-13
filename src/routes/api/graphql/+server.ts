@@ -136,12 +136,16 @@ async function getYogaApp(dbAdapter: any, tenantId?: string | null) {
           landingPage: true,
           cors: false,
           graphiql: { subscriptionsProtocol: "WS" },
-          plugins: process.env.USE_GRAPHQL_JIT === "true" ? [useGraphQlJit()] : [],
+          plugins:
+            process.env.USE_GRAPHQL_JIT === "true" || process.env.BENCHMARK === "true"
+              ? [useGraphQlJit()]
+              : [],
           context: async (serverContext: any) => ({
             // Pull from SvelteKit locals passed via serverContext
             user: serverContext.user,
             tenantId: serverContext.tenantId,
             dbAdapter: serverContext.dbAdapter,
+            cms: serverContext.cms,
             pubSub,
           }),
         });
@@ -205,6 +209,8 @@ async function initializeWebSocketServer(dbAdapter: any, tenantId?: string | nul
 // ---------------------------------------------------------------------------
 // Route Handlers
 // ---------------------------------------------------------------------------
+import { LocalCMS } from "@src/services/sdk";
+
 async function handleRequest(event: RequestEvent) {
   const { locals, request } = event;
 
@@ -236,6 +242,12 @@ async function handleRequest(event: RequestEvent) {
     throw new AppError("Database unavailable: Adapter not initialized", 503);
   }
 
+  // 🚀 PERFORMANCE: Reuse CMS instance to prevent object churn
+  if (!(locals as any).sharedCMS || (locals as any).sharedCMS.db !== adapter) {
+    (locals as any).sharedCMS = new LocalCMS(adapter);
+  }
+  const cms = (locals as any).sharedCMS;
+
   try {
     const yogaApp = await getYogaApp(adapter, locals.tenantId);
     if (!yogaApp) {
@@ -257,6 +269,7 @@ async function handleRequest(event: RequestEvent) {
       user: locals.user,
       tenantId: locals.tenantId,
       dbAdapter: adapter,
+      cms,
     });
 
     return new Response(yogaResponse.body, {

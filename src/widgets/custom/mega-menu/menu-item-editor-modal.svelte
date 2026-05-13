@@ -10,7 +10,6 @@ menu item at a specific level. Uses the standard widget loading system.
 -->
 
 <script lang="ts">
-	import WidgetLoader from '@src/components/collection-display/widget-loader.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte';
 	import { modalState } from '@utils/modal.svelte';
 	import { getFieldName } from '@utils/utils';
@@ -19,10 +18,12 @@ menu item at a specific level. Uses the standard widget loading system.
 	let { meta }: { meta: MenuEditContext } = $props();
 
 	// Locally import modules for widget loading to support code-splitting
-	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob('../../**/*.svelte') as Record<
-		string,
-		() => Promise<{ default: any }>
-	>;
+	// 🚀 HARDENING: Exclude our own folder to break potential circular glob references
+	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob([
+		'../../**/input.svelte',
+		'../../**/index.svelte',
+		'!../../custom/mega-menu/**/*'
+	]) as Record<string, () => Promise<{ default: any }>>;
 
 	/**
 	 * Resolves the appropriate widget loader for a given widget name.
@@ -112,7 +113,9 @@ menu item at a specific level. Uses the standard widget loading system.
 
 					<div class="field-wrapper">
 						{#if widgetLoader}
-							<WidgetLoader loader={widgetLoader} {field} bind:value={meta.item._fields[fieldName]} />
+							{#await import('@src/components/collection-display/widget-loader.svelte') then { default: WidgetLoader }}
+								<WidgetLoader loader={widgetLoader} {field} bind:value={meta.item._fields[fieldName]} />
+							{/await}
 						{:else}
 							<div
 								class="p-4 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg text-error-700 dark:text-error-400 flex items-center gap-3"

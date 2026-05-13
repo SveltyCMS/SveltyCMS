@@ -58,8 +58,9 @@
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
 	let { data } = $props();
+	// Stores
 	const wizard = setupStore.wizard;
-	const { load: loadStore, clear: clearStore, setupPersistence: setupPersistenceFn, validateStep, seedDatabase, completeSetup } = setupStore;
+	const { load: loadStore, clear: clearStore, setupPersistence: setupPersistenceFn, validateStep, completeSetup } = setupStore;
 
 	// --- 1. COMPONENT IMPORTS ---
 	let showDbPassword = $state(false);
@@ -103,6 +104,13 @@
 		};
 		window.addEventListener('beforeunload', handleBeforeUnload);
 
+		// Clean up the URL if it has the "from" parameter
+		if (window.location.search.includes('from=')) {
+			const url = new URL(window.location.href);
+			url.searchParams.delete('from');
+			window.history.replaceState({}, '', url.pathname);
+		}
+
 		// ✨ SMART SETUP TRANSITION
 		// Listen for the custom HMR event from Vite when setup is complete
 		if (import.meta.hot) {
@@ -110,7 +118,7 @@
 				logger.info('[Setup] HMR Signal: Setup Complete!', data);
 				wizard.isSubmitting = true; // Show loading state
 				wizard.successMessage = 'System Initialized! Transitioning to CMS...';
-				
+
 				// Force a smooth transition after a short delay to let the server stabilize
 				setTimeout(() => {
 					window.location.href = '/';
@@ -182,10 +190,8 @@
 			if (dbConfigComponent && typeof dbConfigComponent.installDatabaseDriver === 'function') {
 				await dbConfigComponent.installDatabaseDriver(wizard.dbConfig.type);
 			}
-			const seedSuccess = await seedDatabase();
-			if (!seedSuccess) {
-				return; // Block progression if seeding failed
-			}
+			// Seeding is now triggered automatically by the store when the test passes.
+			// If it's already in progress or done, we just move to the next step.
 		}
 		if ((wizard.currentStep === 1 || wizard.currentStep === 2) && !validateStep(wizard.currentStep, true)) {
 			return;
@@ -234,14 +240,42 @@
 
 <svelte:head><title>SveltyCMS Setup</title></svelte:head>
 
-<div class="bg-surface-50-900 min-h-screen w-full transition-colors">
-	<DialogManager />
+<div class="h-screen flex flex-col overflow-hidden bg-surface-50 dark:bg-surface-900 transition-colors">
+	<!-- Top Navigation Bar -->
+	<header class="shrink-0 bg-white dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 z-30">
+		<div class="px-4 py-0">
+			<SetupHeader
+				siteName={wizard.systemSettings.siteName}
+				{systemLanguages}
+				{currentLanguageTag}
+				onselectLanguage={selectLanguage}
+			/>
+		</div>
+	</header>
 
-	<div class="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8" role="main" aria-label="SveltyCMS Setup Wizard">
-		<SetupHeader siteName={wizard.systemSettings.siteName} {systemLanguages} {currentLanguageTag} onselectLanguage={selectLanguage} />
+	<div class="flex flex-1 overflow-hidden">
+		<!-- Left Sidebar: Stepper -->
+		<aside class="hidden lg:flex w-80 xl:w-96 flex-col border-r border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 overflow-hidden h-full">
+			<div class="flex-1">
+				<SetupStepper
+					{steps}
+					currentStep={wizard.currentStep}
+					stepCompleted={setupStore.stepCompleted}
+					stepClickable={setupStore.stepClickable}
+					{legendItems}
+					onselectStep={async (e: number) => {
+						wizard.currentStep = e;
+						await focusStepContent();
+					}}
+				/>
+			</div>
+		</aside>
 
-		<div class="flex flex-col gap-4 lg:flex-row lg:gap-6">
-			<div role="region" aria-label="Progress navigation">
+		<!-- Main Content Area -->
+		<main class="flex-1 flex flex-col min-w-0 bg-surface-100 dark:bg-surface-800 overflow-hidden relative">
+			<DialogManager />
+			<!-- Mobile Stepper (only visible on small screens) -->
+			<div class="lg:hidden shrink-0 border-b border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-2">
 				<SetupStepper
 					{steps}
 					currentStep={wizard.currentStep}
@@ -255,186 +289,187 @@
 				/>
 			</div>
 
-			<div
-				class="flex flex-1 flex-col w-full min-w-0 rounded-xl border border-surface-200 bg-white shadow-xl dark:text-surface-50 dark:bg-surface-800"
-			>
-				<SetupCardHeader
-					currentStep={wizard.currentStep}
-					{steps}
-					onreset={() => {
-						showConfirm({
-							title: 'Reset Setup Data',
-							body: 'Are you sure you want to clear all setup data? This cannot be undone.',
-							onConfirm: () => clearStore()
-						});
-					}}
-				/>
-
-				<div class="p-4 sm:p-6 lg:p-8" role="region" aria-label="Current step content" id="step-content" tabindex="-1">
-					{#if wizard.currentStep === 0}
-						<DatabaseConfig
-							bind:dbConfig={wizard.dbConfig}
-							validationErrors={wizard.validationErrors}
-							isLoading={wizard.isLoading}
-							bind:showDbPassword
-							toggleDbPassword={() => (showDbPassword = !showDbPassword)}
-							testDatabaseConnection={setupStore.testDatabaseConnection}
-							dbConfigChangedSinceTest={setupStore.dbConfigChangedSinceTest}
-							clearDbTestError={() => {
-								wizard.lastDbTestResult = null;
-								wizard.errorMessage = '';
-							}}
-							bind:this={dbConfigComponent}
-						/>
-					{:else if wizard.currentStep === 1}
-						<AdminConfig
-							bind:adminUser={wizard.adminUser}
-							validationErrors={wizard.validationErrors}
-							passwordRequirements={setupStore.passwordRequirements}
-							bind:showAdminPassword
-							bind:showConfirmPassword
-							checkPasswordRequirements={() => {
-								/* now handled by derived rune */
+			<!-- Scrollable Step Content -->
+			<div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 scroll-smooth" id="step-content" tabindex="-1">
+				<div class="mx-auto max-w-4xl">
+					<div class="mb-8">
+						<SetupCardHeader
+							currentStep={wizard.currentStep}
+							{steps}
+							onreset={() => {
+								showConfirm({
+									title: 'Reset Setup Data',
+									body: 'Are you sure you want to clear all setup data? This cannot be undone.',
+									onConfirm: () => clearStore()
+								});
 							}}
 						/>
-					{:else if wizard.currentStep === 2}
-						<SystemConfig
-							bind:systemSettings={wizard.systemSettings}
-							bind:redisAvailable={data.redisAvailable}
-							validationErrors={wizard.validationErrors}
-						/>
-					{:else if wizard.currentStep === 3}
-						<EmailConfig />
-					{:else if wizard.currentStep === 4}
-						<ReviewConfig
-							dbConfig={wizard.dbConfig}
-							adminUser={wizard.adminUser}
-							systemSettings={wizard.systemSettings}
-							emailSettings={wizard.emailSettings}
-						/>
-					{/if}
+					</div>
 
-					{#if (wizard.successMessage || wizard.errorMessage) && wizard.lastDbTestResult && !setupStore.dbConfigChangedSinceTest}
-						<div
-							class="mt-4 flex flex-col rounded-md border-l-4 p-0 text-sm"
-							class:border-primary-400={!!wizard.successMessage}
-							class:border-error-400={!!wizard.errorMessage}
-							aria-live="polite"
-							aria-atomic="true"
-						>
+					<div class="rounded-xl border border-surface-200 bg-white p-6 shadow-sm dark:border-surface-700 dark:bg-surface-800">
+						{#if wizard.currentStep === 0}
+							<DatabaseConfig
+								bind:dbConfig={wizard.dbConfig}
+								validationErrors={wizard.validationErrors}
+								isLoading={wizard.isLoading}
+								bind:showDbPassword
+								toggleDbPassword={() => (showDbPassword = !showDbPassword)}
+								testDatabaseConnection={setupStore.testDatabaseConnection}
+								dbConfigChangedSinceTest={setupStore.dbConfigChangedSinceTest}
+								clearDbTestError={() => {
+									wizard.lastDbTestResult = null;
+									wizard.errorMessage = '';
+								}}
+								bind:this={dbConfigComponent}
+							/>
+						{:else if wizard.currentStep === 1}
+							<AdminConfig
+								bind:adminUser={wizard.adminUser}
+								validationErrors={wizard.validationErrors}
+								passwordRequirements={setupStore.passwordRequirements}
+								bind:showAdminPassword
+								bind:showConfirmPassword
+								checkPasswordRequirements={() => {
+									/* now handled by derived rune */
+								}}
+							/>
+						{:else if wizard.currentStep === 2}
+							<SystemConfig
+								bind:systemSettings={wizard.systemSettings}
+								redisAvailable={data.redisAvailable}
+								validationErrors={wizard.validationErrors}
+							/>
+						{:else if wizard.currentStep === 3}
+							<EmailConfig />
+						{:else if wizard.currentStep === 4}
+							<ReviewConfig
+								dbConfig={wizard.dbConfig}
+								adminUser={wizard.adminUser}
+								systemSettings={wizard.systemSettings}
+								emailSettings={wizard.emailSettings}
+							/>
+						{/if}
+
+						{#if (wizard.successMessage || wizard.errorMessage) && wizard.lastDbTestResult && !setupStore.dbConfigChangedSinceTest}
 							<div
-								class="flex items-center gap-2 px-3.5 py-3"
-								class:bg-primary-50={!!wizard.successMessage}
-								class:text-emerald-800={!!wizard.successMessage}
-								class:bg-red-50={!!wizard.errorMessage}
-								class:text-red-700={!!wizard.errorMessage}
+								class="mt-6 flex flex-col rounded-md border-l-4 p-0 text-sm overflow-hidden"
+								class:border-primary-400={!!wizard.successMessage}
+								class:border-error-400={!!wizard.errorMessage}
+								aria-live="polite"
+								aria-atomic="true"
 							>
-								<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									{#if wizard.successMessage}
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-									{:else}
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-									{/if}
-								</svg>
-								<div class="flex-1">
-									{#if wizard.errorMessage}
-										<span class="font-bold">Connection Failed</span>{#if wizard.showDbDetails}: <span class="font-normal">{@html wizard.errorMessage}</span>{/if}
-									{:else}
-										{wizard.successMessage}
-									{/if}
-								</div>
-								<button
-									type="button"
-									class="btn-sm preset-outlined rounded flex shrink-0 items-center gap-1"
-									onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}
+								<div
+									class="flex items-center gap-2 px-4 py-3"
+									class:bg-primary-50={!!wizard.successMessage}
+									class:text-emerald-800={!!wizard.successMessage}
+									class:bg-red-50={!!wizard.errorMessage}
+									class:text-red-700={!!wizard.errorMessage}
 								>
-									<iconify-icon icon={wizard.showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
-									<span class="hidden sm:inline">{wizard.showDbDetails ? setup_db_test_details_hide() : setup_db_test_details_show()}</span>
-								</button>
-								<button
-									type="button"
-									class="btn-icon btn-sm h-6 w-6 shrink-0 rounded hover:bg-surface-200/60 dark:hover:bg-surface-600/60"
-									aria-label="Close message"
-									onclick={setupStore.clearDbTestError}
-								>
-									<iconify-icon icon="mdi:close" class="h-4 w-4"></iconify-icon>
-								</button>
-							</div>
-							{#if wizard.showDbDetails && wizard.lastDbTestResult}
-								<div class="border-t border-surface-200 bg-secondary-50 text-xs dark:border-surface-600 dark:bg-surface-700">
-									<div class="grid grid-cols-2 gap-x-4 gap-y-2 p-3 sm:grid-cols-6">
-										<div class="sm:col-span-1 flex items-center gap-1 whitespace-nowrap">
-											<span class="font-semibold">{setup_db_test_latency()}:</span>
-											<span class="text-tertiary-500 dark:text-primary-500 font-semibold">{wizard.lastDbTestResult.latencyMs ?? '—'} ms</span>
-										</div>
-										<div class="sm:col-span-1 flex items-center gap-1 whitespace-nowrap">
-											<span class="font-semibold">{setup_db_test_engine()}:</span>
-											<span class="text-tertiary-500 dark:text-primary-500 font-semibold">{wizard.dbConfig.type}</span>
-										</div>
-										<div class="sm:col-span-1 flex items-center gap-1 whitespace-nowrap">
-											<span class="font-semibold">{label_host()}:</span>
-											<span class="text-tertiary-500 dark:text-primary-500 font-semibold">{wizard.dbConfig.host}</span>
-										</div>
-										{#if !isFullUri}
-											<div class="sm:col-span-1 flex items-center gap-1 whitespace-nowrap">
-												<span class="font-semibold">{label_port()}:</span>
-												<span class="text-tertiary-500 dark:text-primary-500 font-semibold">{wizard.dbConfig.port}</span>
-											</div>
+									<svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										{#if wizard.successMessage}
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+										{:else}
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 										{/if}
-										<div class="sm:col-span-1 flex items-center gap-1 whitespace-nowrap">
-											<span class="font-semibold">{label_database()}:</span>
-											<span class="text-tertiary-500 dark:text-primary-500 font-semibold">{wizard.dbConfig.name}</span>
-										</div>
-										{#if wizard.dbConfig.user}
-											<div class="sm:col-span-1 flex items-center gap-1 whitespace-nowrap">
-												<span class="font-semibold">{label_user?.() || setup_db_test_user()}:</span>
-												<span class="text-tertiary-500 dark:text-primary-500 font-semibold">{wizard.dbConfig.user}</span>
-											</div>
-										{/if}
-										{#if wizard.lastDbTestResult.classification}
-											<div class="sm:col-span-2 flex items-center gap-1 whitespace-nowrap">
-												<span class="font-semibold">Code:</span>
-												<span class="text-tertiary-500 dark:text-primary-500 font-semibold">{wizard.lastDbTestResult.classification}</span>
-											</div>
+									</svg>
+									<div class="flex-1">
+										{#if wizard.errorMessage}
+											<span class="font-bold">Connection Failed</span>{#if wizard.showDbDetails}: <span class="font-normal">{@html wizard.errorMessage}</span>{/if}
+										{:else}
+											{wizard.successMessage}
 										{/if}
 									</div>
-									{#if !wizard.lastDbTestResult.success}
-										<div class="border-t border-surface-200 p-3 dark:border-surface-600">
-											{#if wizard.lastDbTestResult.hint}
-												<div class="mb-1 rounded bg-amber-50 p-3 text-xs dark:bg-amber-900/20 dark:text-amber-200">
-													<div class="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-400 mb-1">
-														<iconify-icon icon="mdi:lightbulb-outline" class="text-lg"></iconify-icon>
-														<span>SUGGESTIONS:</span>
-													</div>
-													<div class="space-y-1">
-														{#each wizard.lastDbTestResult.hint.split('\n') as step}
-															<div class="flex gap-2">
-																<span class="shrink-0 text-amber-500">•</span>
-																<span>{step.replace(/^\d+\.\s*/, '')}</span>
-															</div>
-														{/each}
-													</div>
+									<div class="flex gap-2">
+										<button
+											type="button"
+											class="btn-sm preset-outlined rounded flex items-center gap-1"
+											onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}
+										>
+											<iconify-icon icon={wizard.showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
+											<span class="hidden sm:inline">{wizard.showDbDetails ? setup_db_test_details_hide() : setup_db_test_details_show()}</span>
+										</button>
+										<button
+											type="button"
+											class="btn-icon btn-sm h-7 w-7 rounded-full hover:bg-black/5 dark:hover:bg-white/5"
+											aria-label="Close message"
+											onclick={setupStore.clearDbTestError}
+										>
+											<iconify-icon icon="mdi:close" class="h-4 w-4"></iconify-icon>
+										</button>
+									</div>
+								</div>
+								{#if wizard.showDbDetails && wizard.lastDbTestResult}
+									<div class="border-t border-surface-200 bg-secondary-50/50 text-xs dark:border-surface-700 dark:bg-surface-900/50">
+										<div class="grid grid-cols-2 gap-x-4 gap-y-2 p-4 sm:grid-cols-3 lg:grid-cols-6">
+											<div class="flex flex-col">
+												<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{setup_db_test_latency()}:</span>
+												<span class="text-tertiary-500 dark:text-primary-500 font-bold">{wizard.lastDbTestResult.latencyMs ?? '—'} ms</span>
+											</div>
+											<div class="flex flex-col">
+												<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{setup_db_test_engine()}:</span>
+												<span class="text-tertiary-500 dark:text-primary-500 font-bold">{wizard.dbConfig.type}</span>
+											</div>
+											<div class="flex flex-col">
+												<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{label_host()}:</span>
+												<span class="text-tertiary-500 dark:text-primary-500 font-bold truncate" title={wizard.dbConfig.host}>{wizard.dbConfig.host}</span>
+											</div>
+											{#if !isFullUri}
+												<div class="flex flex-col">
+													<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{label_port()}:</span>
+													<span class="text-tertiary-500 dark:text-primary-500 font-bold">{wizard.dbConfig.port}</span>
+												</div>
+											{/if}
+											<div class="flex flex-col">
+												<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{label_database()}:</span>
+												<span class="text-tertiary-500 dark:text-primary-500 font-bold truncate" title={wizard.dbConfig.name}>{wizard.dbConfig.name}</span>
+											</div>
+											{#if wizard.dbConfig.user}
+												<div class="flex flex-col">
+													<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{label_user?.() || setup_db_test_user()}:</span>
+													<span class="text-tertiary-500 dark:text-primary-500 font-bold truncate" title={wizard.dbConfig.user}>{wizard.dbConfig.user}</span>
 												</div>
 											{/if}
 										</div>
-									{/if}
-								</div>
-							{/if}
-						</div>
-					{/if}
+										{#if !wizard.lastDbTestResult.success && wizard.lastDbTestResult.hint}
+											<div class="border-t border-surface-200 p-4 dark:border-surface-700 bg-amber-50/30 dark:bg-amber-900/10">
+												<div class="flex items-center gap-2 font-bold text-amber-700 dark:text-amber-400 mb-2">
+													<iconify-icon icon="mdi:lightbulb-outline" class="text-lg"></iconify-icon>
+													<span class="uppercase tracking-widest text-[10px]">Troubleshooting Suggestions</span>
+												</div>
+												<div class="space-y-2">
+													{#each wizard.lastDbTestResult.hint.split('\n') as step}
+														<div class="flex gap-2 text-slate-700 dark:text-slate-300">
+															<span class="shrink-0 text-amber-500">•</span>
+															<span>{step.replace(/^\d+\.\s*/, '')}</span>
+														</div>
+													{/each}
+												</div>
+											</div>
+										{/if}
+									</div>
+								{/if}
+							</div>
+						{/if}
+					</div>
 				</div>
-				<SetupNavigation
-					currentStep={wizard.currentStep}
-					{totalSteps}
-					canProceed={setupStore.canProceed}
-					isLoading={wizard.isLoading || wizard.isSubmitting}
-					isSeeding={wizard.isSeeding}
-					seedingProgress={wizard.seedingProgress}
-					onprev={prevStep}
-					onnext={nextStep}
-					oncomplete={handleCompleteSetup}
-				/>
 			</div>
-		</div>
+
+			<!-- Fixed Navigation Footer -->
+			<footer class="shrink-0 border-t border-surface-200/50 dark:border-surface-700/50 bg-white dark:bg-surface-800 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+				<div class="mx-auto max-w-4xl">
+					<SetupNavigation
+						currentStep={wizard.currentStep}
+						{totalSteps}
+						canProceed={setupStore.canProceed}
+						isLoading={wizard.isLoading || wizard.isSubmitting}
+						isSeeding={wizard.isSeeding}
+						seedingProgress={wizard.seedingProgress}
+						onprev={prevStep}
+						onnext={nextStep}
+						oncomplete={handleCompleteSetup}
+					/>
+				</div>
+			</footer>
+		</main>
 	</div>
 </div>

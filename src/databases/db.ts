@@ -71,8 +71,14 @@ export function getDbInitPromise(_force = false, _context = "CORE"): Promise<any
 /**
  * 🛡️ THE REACTIVE SHIELD: A Proxy that survives Vite chunking AND wait-for-instance.
  */
+const proxyCache = new Map<string, any>();
+const boundFunctionsCache = new WeakMap<any, Map<string | symbol, Function>>();
+
 const createInstanceProxy = (targetProp?: string) => {
-  return new Proxy({} as any, {
+  const cacheKey = targetProp || "root";
+  if (proxyCache.has(cacheKey)) return proxyCache.get(cacheKey);
+
+  const proxy = new Proxy({} as any, {
     get(_, prop) {
       if (prop === "then") return undefined;
       if (prop === "toJSON") return () => `[Proxy:${targetProp || "adapter"}]`;
@@ -95,7 +101,21 @@ const createInstanceProxy = (targetProp?: string) => {
         const target = targetProp ? (instance as any)[targetProp] : instance;
         if (!target) return undefined;
         const val = target[prop];
-        return typeof val === "function" ? val.bind(target) : val;
+
+        if (typeof val === "function") {
+          let targetCache = boundFunctionsCache.get(target);
+          if (!targetCache) {
+            targetCache = new Map();
+            boundFunctionsCache.set(target, targetCache);
+          }
+          const cachedFn = targetCache.get(prop);
+          if (cachedFn) return cachedFn;
+
+          const boundFn = val.bind(target);
+          targetCache.set(prop, boundFn);
+          return boundFn;
+        }
+        return val;
       }
 
       // ASYNC RECOVERY
@@ -118,6 +138,9 @@ const createInstanceProxy = (targetProp?: string) => {
       };
     },
   });
+
+  proxyCache.set(cacheKey, proxy);
+  return proxy;
 };
 
 export const dbAdapter: DatabaseAdapter = createInstanceProxy();
@@ -173,7 +196,7 @@ export async function ensureFullInitialization(): Promise<any | null> {
       setGlobal("__CACHED_CONFIG__", cfg);
 
       if (process.env.TEST_MODE === "true") {
-        console.log(`[Boot] Loading adapter with type: ${cfg?.DB_TYPE || "MISSING"}`);
+        logger.info(`[Boot] Loading adapter with type: ${cfg?.DB_TYPE || "MISSING"}`);
         // 🚀 FAIL-FAST: Ensure we don't accidentally fall back to SQLite in test mode
         if (!cfg?.DB_TYPE && !process.env.DATABASE_ENGINE) {
           throw new Error(
@@ -182,10 +205,13 @@ export async function ensureFullInitialization(): Promise<any | null> {
         }
       }
 
+      logger.info(`[Boot] Loading adapters for ${cfg?.DB_TYPE}...`);
       let adapter = await dbInit.loadAdapters(cfg);
       if (!adapter) throw new Error("Failed to load database adapter");
+      logger.info(`[Boot] Adapter loaded. Connecting...`);
 
       const connectionResult = await adapter.connect();
+      logger.info(`[Boot] Connection result: ${connectionResult.success}`);
       if (!connectionResult.success) {
         throw new Error(`Database connection failed: ${connectionResult.message}`);
       }
@@ -206,7 +232,9 @@ export async function ensureFullInitialization(): Promise<any | null> {
       }
 
       const phase2 = performance.now();
+      logger.info(`[Boot] Starting service initialization...`);
       await dbInit.initializeDatabase(adapter);
+      logger.info(`[Boot] Service initialization complete.`);
 
       const authInstance = (adapter as any).authService;
       setGlobal(AUTH_KEY, authInstance);

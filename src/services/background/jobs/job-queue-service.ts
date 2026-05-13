@@ -151,6 +151,11 @@ class JobQueueService {
     const handler = this.handlers.get(job.taskType);
 
     // Mark as running
+    if (!job._id) {
+      logger.error(`[JobQueue] Cannot execute job: missing _id`, job);
+      return;
+    }
+
     await db.system.jobs.update(job._id, {
       status: "running",
       attempts: job.attempts + 1,

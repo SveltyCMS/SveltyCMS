@@ -130,6 +130,11 @@ export function buildServerEnv(
  * 🚀 SMART DISCOVERY: Checks build folder, then fallback to .svelte-kit output.
  */
 export async function getServerEntryPoint(): Promise<string> {
+  if (process.env.BENCHMARK_DEV === "true") {
+    log.info("🚀 BENCHMARK_DEV mode: Forcing Vite Dev entry point.");
+    return join(ROOT, "src", "hooks.server.ts"); // Dummy path that exists and ends in .ts
+  }
+
   const entryPoint = [
     join(ROOT, "build", "index.js"),
     join(ROOT, "build", "server", "index.js"),
@@ -142,7 +147,6 @@ export async function getServerEntryPoint(): Promise<string> {
       `Could not find any server entry point in ${ROOT}/build or .svelte-kit. Check your adapter-node configuration.`,
     );
   }
-
 
   log.info(`🚀 Entry Point: Found at ${relative(ROOT, entryPoint)}`);
 

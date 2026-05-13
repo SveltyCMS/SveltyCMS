@@ -10,50 +10,382 @@
 import { logger } from "@utils/logger";
 import type { DatabaseResult } from "../db-interface";
 
-/**
- * 🚀 AGNOSTIC CORE: Standardized SQLite migrations.
- */
+// 🚀 AGNOSTIC CORE: Standardized SQLite migrations.
 export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
   logger.info("🚀 [SQLite] Running system migrations...");
 
   const execute = (sql: string) => {
     try {
+      const snippet = sql.trim().substring(0, 50).replace(/\n/g, " ");
+      logger.debug(`[SQLite Migration] Executing: ${snippet}...`);
       if (typeof db.exec === "function") db.exec(sql);
       else if (typeof db.run === "function") db.run(sql);
       else if (typeof db.query === "function") db.query(sql).run();
     } catch (err: any) {
-      if (!err.message.includes("already exists")) {
+      if (
+        !err.message.includes("already exists") &&
+        !err.message.includes("duplicate column name")
+      ) {
+        logger.error(`[SQLite Migration] FAILED: ${err.message}`);
         throw err;
       }
     }
   };
 
   try {
-    // Auth Users Table
+    // 🚀 PERFORMANCE: Consolidate all core table creations into a single batch execution
     execute(`
-			CREATE TABLE IF NOT EXISTS "auth_users" (
-				"_id" TEXT PRIMARY KEY,
-				"email" TEXT NOT NULL,
-				"username" TEXT,
-				"password" TEXT,
-				"emailVerified" INTEGER DEFAULT 0,
-				"blocked" INTEGER DEFAULT 0,
-				"firstName" TEXT,
-				"lastName" TEXT,
-				"avatar" TEXT,
-				"roleIds" TEXT DEFAULT '[]',
-				"role" TEXT NOT NULL DEFAULT 'user',
-				"isAdmin" INTEGER DEFAULT 0,
-				"isRegistered" INTEGER DEFAULT 0,
-				"is2FAEnabled" INTEGER DEFAULT 0,
-				"totpSecret" TEXT,
-				"backupCodes" TEXT,
-				"last2FAVerification" INTEGER,
-				"tenantId" TEXT,
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
+      CREATE TABLE IF NOT EXISTS "auth_users" (
+        "_id" TEXT PRIMARY KEY,
+        "email" TEXT NOT NULL,
+        "username" TEXT,
+        "password" TEXT,
+        "emailVerified" INTEGER DEFAULT 0,
+        "blocked" INTEGER DEFAULT 0,
+        "firstName" TEXT,
+        "lastName" TEXT,
+        "avatar" TEXT,
+        "roleIds" TEXT DEFAULT '[]',
+        "role" TEXT NOT NULL DEFAULT 'user',
+        "isAdmin" INTEGER DEFAULT 0,
+        "isRegistered" INTEGER DEFAULT 0,
+        "is2FAEnabled" INTEGER DEFAULT 0,
+        "totpSecret" TEXT,
+        "backupCodes" TEXT,
+        "last2FAVerification" INTEGER,
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "auth_sessions" (
+        "_id" TEXT PRIMARY KEY,
+        "user_id" TEXT NOT NULL,
+        "expires" INTEGER NOT NULL,
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "auth_tokens" (
+        "_id" TEXT PRIMARY KEY,
+        "user_id" TEXT NOT NULL,
+        "email" TEXT NOT NULL,
+        "token" TEXT NOT NULL,
+        "type" TEXT NOT NULL,
+        "expires" INTEGER NOT NULL,
+        "consumed" INTEGER DEFAULT 0,
+        "blocked" INTEGER DEFAULT 0,
+        "isRegistered" INTEGER DEFAULT 0,
+        "role" TEXT,
+        "username" TEXT,
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "roles" (
+        "_id" TEXT PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "description" TEXT,
+        "permissions" TEXT DEFAULT '[]',
+        "isAdmin" INTEGER DEFAULT 0,
+        "icon" TEXT,
+        "color" TEXT,
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "content_nodes" (
+        "_id" TEXT PRIMARY KEY,
+        "path" TEXT NOT NULL UNIQUE,
+        "parentId" TEXT,
+        "nodeType" TEXT NOT NULL,
+        "status" TEXT NOT NULL DEFAULT 'draft',
+        "name" TEXT,
+        "slug" TEXT,
+        "icon" TEXT,
+        "description" TEXT,
+        "data" TEXT DEFAULT '{}',
+        "metadata" TEXT DEFAULT '{}',
+        "translations" TEXT DEFAULT '[]',
+        "position" INTEGER DEFAULT 0,
+        "isPublished" INTEGER DEFAULT 0,
+        "publishedAt" INTEGER,
+        "collectionDef" TEXT DEFAULT '{}',
+        "isDeleted" INTEGER DEFAULT 0,
+        "deletedAt" INTEGER,
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "content_drafts" (
+        "_id" TEXT PRIMARY KEY,
+        "contentId" TEXT NOT NULL,
+        "data" TEXT NOT NULL,
+        "version" INTEGER DEFAULT 1,
+        "status" TEXT DEFAULT 'draft',
+        "authorId" TEXT NOT NULL,
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "content_revisions" (
+        "_id" TEXT PRIMARY KEY,
+        "contentId" TEXT NOT NULL,
+        "data" TEXT NOT NULL,
+        "version" INTEGER DEFAULT 1,
+        "commitMessage" TEXT,
+        "authorId" TEXT NOT NULL,
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "media_items" (
+        "_id" TEXT PRIMARY KEY,
+        "filename" TEXT NOT NULL,
+        "originalFilename" TEXT NOT NULL,
+        "hash" TEXT NOT NULL,
+        "path" TEXT NOT NULL,
+        "size" INTEGER NOT NULL,
+        "mimeType" TEXT NOT NULL,
+        "folderId" TEXT,
+        "originalId" TEXT,
+        "thumbnails" TEXT DEFAULT '{}',
+        "metadata" TEXT DEFAULT '{}',
+        "access" TEXT DEFAULT 'public',
+        "createdBy" TEXT NOT NULL,
+        "updatedBy" TEXT NOT NULL,
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "system_virtual_folders" (
+        "_id" TEXT PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "path" TEXT NOT NULL,
+        "parentId" TEXT,
+        "icon" TEXT,
+        "position" INTEGER DEFAULT 0,
+        "type" TEXT DEFAULT 'folder',
+        "metadata" TEXT DEFAULT '{}',
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "system_preferences" (
+        "_id" TEXT PRIMARY KEY,
+        "key" TEXT NOT NULL,
+        "value" TEXT DEFAULT '{}',
+        "category" TEXT DEFAULT 'general',
+        "scope" TEXT DEFAULT 'system',
+        "userId" TEXT,
+        "visibility" TEXT DEFAULT 'private',
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "themes" (
+        "_id" TEXT PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "path" TEXT NOT NULL,
+        "isActive" INTEGER DEFAULT 0,
+        "isDefault" INTEGER DEFAULT 0,
+        "config" TEXT NOT NULL DEFAULT '{}',
+        "previewImage" TEXT,
+        "customCss" TEXT,
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "widgets" (
+        "_id" TEXT PRIMARY KEY,
+        "name" TEXT NOT NULL UNIQUE,
+        "isActive" INTEGER DEFAULT 1,
+        "instances" TEXT DEFAULT '{}',
+        "dependencies" TEXT DEFAULT '[]',
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "website_tokens" (
+        "_id" TEXT PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "token" TEXT NOT NULL UNIQUE,
+        "permissions" TEXT DEFAULT '[]',
+        "expiresAt" INTEGER,
+        "createdBy" TEXT NOT NULL,
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "plugin_pagespeed_results" (
+        "_id" TEXT PRIMARY KEY,
+        "entryId" TEXT NOT NULL,
+        "collectionId" TEXT NOT NULL,
+        "tenantId" TEXT,
+        "language" TEXT DEFAULT 'en',
+        "device" TEXT DEFAULT 'mobile',
+        "url" TEXT NOT NULL,
+        "performanceScore" INTEGER DEFAULT 0,
+        "fetchedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "plugin_states" (
+        "_id" TEXT PRIMARY KEY,
+        "pluginId" TEXT NOT NULL,
+        "tenantId" TEXT,
+        "enabled" INTEGER DEFAULT 0,
+        "settings" TEXT DEFAULT '{}',
+        "updatedBy" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "plugin_migrations" (
+        "_id" TEXT PRIMARY KEY,
+        "pluginId" TEXT NOT NULL,
+        "migrationId" TEXT NOT NULL,
+        "version" INTEGER NOT NULL,
+        "tenantId" TEXT,
+        "appliedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "svelty_jobs" (
+        "_id" TEXT PRIMARY KEY,
+        "taskType" TEXT NOT NULL,
+        "payload" TEXT NOT NULL,
+        "status" TEXT DEFAULT 'pending',
+        "attempts" INTEGER DEFAULT 0,
+        "maxAttempts" INTEGER DEFAULT 3,
+        "nextRunAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "lastError" TEXT,
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "tenants" (
+        "_id" TEXT PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "ownerId" TEXT NOT NULL,
+        "status" TEXT DEFAULT 'active',
+        "plan" TEXT DEFAULT 'free',
+        "quota" TEXT DEFAULT '{}',
+        "usage" TEXT DEFAULT '{}',
+        "settings" TEXT DEFAULT '{}',
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "404_logs" (
+        "_id" TEXT PRIMARY KEY,
+        "path" TEXT NOT NULL,
+        "tenantId" TEXT,
+        "hits" INTEGER DEFAULT 1,
+        "lastHit" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "metadata" TEXT DEFAULT '{}',
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "audit_logs" (
+        "_id" TEXT PRIMARY KEY,
+        "action" TEXT NOT NULL,
+        "actorEmail" TEXT,
+        "actorId" TEXT,
+        "actorRole" TEXT,
+        "correlationId" TEXT,
+        "details" TEXT DEFAULT '{}',
+        "errorDetails" TEXT,
+        "eventType" TEXT NOT NULL,
+        "ipAddress" TEXT,
+        "result" TEXT NOT NULL,
+        "sessionId" TEXT,
+        "severity" TEXT NOT NULL,
+        "targetId" TEXT,
+        "targetType" TEXT,
+        "timestamp" INTEGER NOT NULL,
+        "userAgent" TEXT,
+        "tenantId" TEXT,
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "workflow_definitions" (
+        "_id" TEXT PRIMARY KEY,
+        "tenantId" TEXT,
+        "collectionId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "description" TEXT,
+        "states" TEXT DEFAULT '[]',
+        "transitions" TEXT DEFAULT '[]',
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "workflow_instances" (
+        "_id" TEXT PRIMARY KEY,
+        "tenantId" TEXT,
+        "entryId" TEXT NOT NULL,
+        "collectionId" TEXT NOT NULL,
+        "currentState" TEXT NOT NULL,
+        "history" TEXT DEFAULT '[]',
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "redirects_mv" (
+        "_id" TEXT PRIMARY KEY,
+        "tenantId" TEXT NOT NULL,
+        "source" TEXT NOT NULL,
+        "target" TEXT NOT NULL,
+        "type" INTEGER DEFAULT 301,
+        "isRegex" INTEGER DEFAULT 0,
+        "active" INTEGER DEFAULT 1,
+        "metadata" TEXT DEFAULT '{}',
+        "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "collection_redirects" (
+        "_id" TEXT PRIMARY KEY,
+        "tenantId" TEXT,
+        "data" TEXT NOT NULL DEFAULT '{}',
+        "status" TEXT NOT NULL DEFAULT 'draft',
+        "isDeleted" INTEGER NOT NULL DEFAULT 0,
+        "createdAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE TABLE IF NOT EXISTS "collection_404_logs" (
+        "_id" TEXT PRIMARY KEY,
+        "tenantId" TEXT,
+        "data" TEXT NOT NULL DEFAULT '{}',
+        "status" TEXT NOT NULL DEFAULT 'draft',
+        "isDeleted" INTEGER NOT NULL DEFAULT 0,
+        "createdAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+        "updatedAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS "idx_system_prefs_key_tenant" ON "system_preferences" ("key", "tenantId");
+      CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_states_unique" ON "plugin_states" ("pluginId", "tenantId");
+      CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_migrations_unique" ON "plugin_migrations" ("pluginId", "migrationId", "tenantId");
+    `);
 
     // Helper to safely add columns
     const addColumn = (table: string, col: string, type: string) => {
@@ -87,384 +419,6 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
     addColumn("auth_users", "totpSecret", "TEXT");
     addColumn("auth_users", "backupCodes", "TEXT");
     addColumn("auth_users", "last2FAVerification", "INTEGER");
-
-    // Auth Sessions
-    execute(`
-			CREATE TABLE IF NOT EXISTS "auth_sessions" (
-				"_id" TEXT PRIMARY KEY,
-				"user_id" TEXT NOT NULL,
-				"expires" INTEGER NOT NULL,
-				"tenantId" TEXT,
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // Auth Tokens
-    execute(`
-			CREATE TABLE IF NOT EXISTS "auth_tokens" (
-				"_id" TEXT PRIMARY KEY,
-				"user_id" TEXT NOT NULL,
-				"email" TEXT NOT NULL,
-				"token" TEXT NOT NULL,
-				"type" TEXT NOT NULL,
-				"expires" INTEGER NOT NULL,
-				"consumed" INTEGER DEFAULT 0,
-				"blocked" INTEGER DEFAULT 0,
-				"isRegistered" INTEGER DEFAULT 0,
-				"role" TEXT,
-				"username" TEXT,
-				"tenantId" TEXT,
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // Roles
-    execute(`
-			CREATE TABLE IF NOT EXISTS "roles" (
-				"_id" TEXT PRIMARY KEY,
-				"name" TEXT NOT NULL,
-				"description" TEXT,
-				"permissions" TEXT DEFAULT '[]',
-				"isAdmin" INTEGER DEFAULT 0,
-				"icon" TEXT,
-				"color" TEXT,
-				"tenantId" TEXT,
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // Content Nodes
-    execute(`
-			CREATE TABLE IF NOT EXISTS "content_nodes" (
-				"_id" TEXT PRIMARY KEY,
-				"path" TEXT NOT NULL UNIQUE,
-				"parentId" TEXT,
-				"nodeType" TEXT NOT NULL,
-				"status" TEXT NOT NULL DEFAULT 'draft',
-				"name" TEXT,
-				"slug" TEXT,
-				"icon" TEXT,
-				"description" TEXT,
-				"data" TEXT DEFAULT '{}',
-				"metadata" TEXT DEFAULT '{}',
-				"translations" TEXT DEFAULT '[]',
-				"position" INTEGER DEFAULT 0,
-				"isPublished" INTEGER DEFAULT 0,
-				"publishedAt" INTEGER,
-				"collectionDef" TEXT DEFAULT '{}',
-				"isDeleted" INTEGER DEFAULT 0,
-				"deletedAt" INTEGER,
-				"tenantId" TEXT,
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // Content Drafts
-    execute(`
-			CREATE TABLE IF NOT EXISTS "content_drafts" (
-				"_id" TEXT PRIMARY KEY,
-				"contentId" TEXT NOT NULL,
-				"data" TEXT NOT NULL,
-				"version" INTEGER DEFAULT 1,
-				"status" TEXT DEFAULT 'draft',
-				"authorId" TEXT NOT NULL,
-				"tenantId" TEXT,
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // Content Revisions
-    execute(`
-			CREATE TABLE IF NOT EXISTS "content_revisions" (
-				"_id" TEXT PRIMARY KEY,
-				"contentId" TEXT NOT NULL,
-				"data" TEXT NOT NULL,
-				"version" INTEGER DEFAULT 1,
-				"commitMessage" TEXT,
-				"authorId" TEXT NOT NULL,
-				"tenantId" TEXT,
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // Media Items
-    execute(`
-			CREATE TABLE IF NOT EXISTS "media_items" (
-				"_id" TEXT PRIMARY KEY,
-				"filename" TEXT NOT NULL,
-				"originalFilename" TEXT NOT NULL,
-				"hash" TEXT NOT NULL,
-				"path" TEXT NOT NULL,
-				"size" INTEGER NOT NULL,
-				"mimeType" TEXT NOT NULL,
-				"folderId" TEXT,
-				"originalId" TEXT,
-				"thumbnails" TEXT DEFAULT '{}',
-				"metadata" TEXT DEFAULT '{}',
-				"access" TEXT DEFAULT 'public',
-				"createdBy" TEXT NOT NULL,
-				"updatedBy" TEXT NOT NULL,
-				"tenantId" TEXT,
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // System Virtual Folders
-    execute(`
-			CREATE TABLE IF NOT EXISTS "system_virtual_folders" (
-				"_id" TEXT PRIMARY KEY,
-				"name" TEXT NOT NULL,
-				"path" TEXT NOT NULL,
-				"parentId" TEXT,
-				"icon" TEXT,
-				"position" INTEGER DEFAULT 0,
-				"type" TEXT DEFAULT 'folder',
-				"metadata" TEXT DEFAULT '{}',
-				"tenantId" TEXT,
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // System Preferences
-    execute(`
-			CREATE TABLE IF NOT EXISTS "system_preferences" (
-				"_id" TEXT PRIMARY KEY,
-				"key" TEXT NOT NULL,
-				"value" TEXT DEFAULT '{}',
-				"category" TEXT DEFAULT 'general',
-				"scope" TEXT DEFAULT 'system',
-				"userId" TEXT,
-				"visibility" TEXT DEFAULT 'private',
-				"tenantId" TEXT,
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-    execute(
-      'CREATE UNIQUE INDEX IF NOT EXISTS "idx_system_prefs_key_tenant" ON "system_preferences" ("key", "tenantId")',
-    );
-
-    // Themes
-    execute(`
-			CREATE TABLE IF NOT EXISTS "themes" (
-				"_id" TEXT PRIMARY KEY,
-				"name" TEXT NOT NULL,
-				"path" TEXT NOT NULL,
-				"isActive" INTEGER DEFAULT 0,
-				"isDefault" INTEGER DEFAULT 0,
-				"config" TEXT NOT NULL DEFAULT '{}',
-				"previewImage" TEXT,
-				"customCss" TEXT,
-				"tenantId" TEXT,
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // Widgets
-    execute(`
-			CREATE TABLE IF NOT EXISTS "widgets" (
-				"_id" TEXT PRIMARY KEY,
-				"name" TEXT NOT NULL UNIQUE,
-				"isActive" INTEGER DEFAULT 1,
-				"instances" TEXT DEFAULT '{}',
-				"dependencies" TEXT DEFAULT '[]',
-				"tenantId" TEXT,
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // Website Tokens
-    execute(`
-			CREATE TABLE IF NOT EXISTS "website_tokens" (
-				"_id" TEXT PRIMARY KEY,
-				"name" TEXT NOT NULL,
-				"token" TEXT NOT NULL UNIQUE,
-				"permissions" TEXT DEFAULT '[]',
-				"expiresAt" INTEGER,
-				"createdBy" TEXT NOT NULL,
-				"tenantId" TEXT,
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // Plugin: PageSpeed Results
-    execute(`
-			CREATE TABLE IF NOT EXISTS "plugin_pagespeed_results" (
-				"_id" TEXT PRIMARY KEY,
-				"entryId" TEXT NOT NULL,
-				"collectionId" TEXT NOT NULL,
-				"tenantId" TEXT,
-				"language" TEXT DEFAULT 'en',
-				"device" TEXT DEFAULT 'mobile',
-				"url" TEXT NOT NULL,
-				"performanceScore" INTEGER DEFAULT 0,
-				"fetchedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // Plugin States
-    execute(`
-			CREATE TABLE IF NOT EXISTS "plugin_states" (
-				"_id" TEXT PRIMARY KEY,
-				"pluginId" TEXT NOT NULL,
-				"tenantId" TEXT,
-				"enabled" INTEGER DEFAULT 0,
-				"settings" TEXT DEFAULT '{}',
-				"updatedBy" TEXT,
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-    execute(
-      'CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_states_unique" ON "plugin_states" ("pluginId", "tenantId")',
-    );
-
-    // Plugin Migrations
-    execute(`
-			CREATE TABLE IF NOT EXISTS "plugin_migrations" (
-				"_id" TEXT PRIMARY KEY,
-				"pluginId" TEXT NOT NULL,
-				"migrationId" TEXT NOT NULL,
-				"version" INTEGER NOT NULL,
-				"tenantId" TEXT,
-				"appliedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-    execute(
-      'CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_migrations_unique" ON "plugin_migrations" ("pluginId", "migrationId", "tenantId")',
-    );
-
-    // Svelty Jobs
-    execute(`
-			CREATE TABLE IF NOT EXISTS "svelty_jobs" (
-				"_id" TEXT PRIMARY KEY,
-				"taskType" TEXT NOT NULL,
-				"payload" TEXT NOT NULL,
-				"status" TEXT DEFAULT 'pending',
-				"attempts" INTEGER DEFAULT 0,
-				"maxAttempts" INTEGER DEFAULT 3,
-				"nextRunAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"lastError" TEXT,
-				"tenantId" TEXT,
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // Tenants
-    execute(`
-			CREATE TABLE IF NOT EXISTS "tenants" (
-				"_id" TEXT PRIMARY KEY,
-				"name" TEXT NOT NULL,
-				"ownerId" TEXT NOT NULL,
-				"status" TEXT DEFAULT 'active',
-				"plan" TEXT DEFAULT 'free',
-				"quota" TEXT DEFAULT '{}',
-				"usage" TEXT DEFAULT '{}',
-				"settings" TEXT DEFAULT '{}',
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // 404 Logs
-    execute(`
-			CREATE TABLE IF NOT EXISTS "404_logs" (
-				"_id" TEXT PRIMARY KEY,
-				"path" TEXT NOT NULL,
-				"tenantId" TEXT,
-				"hits" INTEGER DEFAULT 1,
-				"lastHit" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"metadata" TEXT DEFAULT '{}',
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // Workflow Definitions
-    execute(`
-			CREATE TABLE IF NOT EXISTS "workflow_definitions" (
-				"_id" TEXT PRIMARY KEY,
-				"tenantId" TEXT,
-				"collectionId" TEXT NOT NULL,
-				"name" TEXT NOT NULL,
-				"description" TEXT,
-				"states" TEXT DEFAULT '[]',
-				"transitions" TEXT DEFAULT '[]',
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // Workflow Instances
-    execute(`
-			CREATE TABLE IF NOT EXISTS "workflow_instances" (
-				"_id" TEXT PRIMARY KEY,
-				"tenantId" TEXT,
-				"entryId" TEXT NOT NULL,
-				"collectionId" TEXT NOT NULL,
-				"currentState" TEXT NOT NULL,
-				"history" TEXT DEFAULT '[]',
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // Redirects MV
-    execute(`
-			CREATE TABLE IF NOT EXISTS "redirects_mv" (
-				"_id" TEXT PRIMARY KEY,
-				"tenantId" TEXT NOT NULL,
-				"source" TEXT NOT NULL,
-				"target" TEXT NOT NULL,
-				"type" INTEGER DEFAULT 301,
-				"isRegex" INTEGER DEFAULT 0,
-				"active" INTEGER DEFAULT 1,
-				"metadata" TEXT DEFAULT '{}',
-				"createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
-			)
-		`);
-
-    // Dynamic collections placeholders to avoid errors during bootstrap
-    execute(`
-			CREATE TABLE IF NOT EXISTS "collection_redirects" (
-				"_id" TEXT PRIMARY KEY,
-				"tenantId" TEXT,
-				"data" TEXT NOT NULL DEFAULT '{}',
-				"status" TEXT NOT NULL DEFAULT 'draft',
-				"isDeleted" INTEGER NOT NULL DEFAULT 0,
-				"createdAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-			);
-		`);
-
-    execute(`
-			CREATE TABLE IF NOT EXISTS "collection_404_logs" (
-				"_id" TEXT PRIMARY KEY,
-				"tenantId" TEXT,
-				"data" TEXT NOT NULL DEFAULT '{}',
-				"status" TEXT NOT NULL DEFAULT 'draft',
-				"isDeleted" INTEGER NOT NULL DEFAULT 0,
-				"createdAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
-				"updatedAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
-			);
-		`);
 
     logger.info("SQLite migrations completed successfully.");
     return { success: true, data: undefined };

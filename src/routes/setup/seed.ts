@@ -19,7 +19,7 @@ import inlangSettings from "@root/project.inlang/settings.json";
 import type { ContentNode, DatabaseId, Schema } from "@src/content/types";
 import { getAllPermissions } from "@src/databases/auth";
 import { defaultRoles as importedDefaultRoles } from "@src/databases/auth/default-roles";
-import type { DatabaseAdapter, Theme } from "@src/databases/db-interface";
+import type { DatabaseAdapter, Theme, BaseQueryOptions } from "@src/databases/db-interface";
 import { publicConfigSchema } from "@src/databases/schemas";
 import { invalidateSettingsCache } from "@src/services/core/settings-service";
 import { dateToISODateString } from "@utils/date";
@@ -69,6 +69,7 @@ export const defaultRoles = importedDefaultRoles;
 export async function seedDefaultTheme(
   dbAdapter: DatabaseAdapter,
   tenantId?: string | null,
+  options?: BaseQueryOptions,
 ): Promise<void> {
   // Silent check by default
   if (!dbAdapter?.system.themes) {
@@ -77,7 +78,7 @@ export async function seedDefaultTheme(
 
   try {
     // Check if themes already exist
-    const existingThemes = await dbAdapter.system.themes.getAllThemes();
+    const existingThemes = await dbAdapter.system.themes.getAllThemes(options);
     if (Array.isArray(existingThemes) && existingThemes.length > 0) return;
 
     // Seed the default theme
@@ -86,7 +87,7 @@ export async function seedDefaultTheme(
       ...defaultTheme,
       ...(tenantId && { tenantId: tenantId as DatabaseId }),
     };
-    await dbAdapter.system.themes.storeThemes([themeToStore]);
+    await dbAdapter.system.themes.storeThemes([themeToStore], options);
     logger.info(`✅ Default theme seeded successfully${tenantId ? ` for tenant ${tenantId}` : ""}`);
   } catch (error) {
     logger.error(
@@ -105,6 +106,7 @@ export async function seedDefaultTheme(
 export async function seedRoles(
   dbAdapter: DatabaseAdapter,
   tenantId?: string | null,
+  options?: BaseQueryOptions,
 ): Promise<void> {
   logger.info(`🔐 Seeding default roles${tenantId ? ` for tenant ${tenantId}` : ""}...`);
 
@@ -130,7 +132,7 @@ export async function seedRoles(
         const roleId = (tenantId ? uuid : role._id) as DatabaseId;
 
         // Check if role already exists
-        const existingRoles = await dbAdapter.auth.getAllRoles({ bypassTenantCheck: true });
+        const existingRoles = await dbAdapter.auth.getAllRoles(options);
         const exists = existingRoles.some((r: any) => r._id === roleId);
         if (exists) {
           logger.debug(`⏩ Role "${role.name}" (${roleId}) already exists, skipping.`);
@@ -144,7 +146,7 @@ export async function seedRoles(
           ...(tenantId && { tenantId: tenantId as DatabaseId }),
         };
 
-        const result = await dbAdapter.auth.createRole(roleToCreate); // createRole returns DatabaseResult — check success instead of relying on exceptions
+        const result = await dbAdapter.auth.createRole(roleToCreate, options); // createRole returns DatabaseResult — check success instead of relying on exceptions
         if (result && "success" in result && !result.success) {
           logger.warn(
             `Role "${role.name}" creation returned failure${tenantId ? ` for tenant ${tenantId}` : ""}: ${result.error?.message || "unknown"}`,
@@ -193,6 +195,7 @@ export async function seedRoles(
 export async function seedCollectionsForSetup(
   dbAdapter: DatabaseAdapter,
   tenantId?: string | null,
+  options?: BaseQueryOptions,
 ): Promise<{ firstCollection: { name: string; path: string } | null }> {
   const overallStart = performance.now();
   logger.info(
@@ -243,7 +246,7 @@ export async function seedCollectionsForSetup(
           const createStart = performance.now();
           // Try to create the collection model in database
           // Setting force=false (default) to use the new idempotency check
-          await dbAdapter.collection.createModel(schema);
+          await dbAdapter.collection.createModel(schema, false, options);
 
           const createTime = performance.now() - createStart;
           logger.info(
@@ -351,6 +354,7 @@ export async function seedCollectionsForSetup(
           tenantId: tenantId as DatabaseId,
           bypassTenantCheck: true,
           bypassCache: true,
+          transaction: options?.transaction,
         });
         if (structResult.success) {
           logger.info(`✅ Successfully persisted ${structResult.data.length} content nodes.`);
@@ -415,6 +419,7 @@ export async function seedDemoRecords(
   dbAdapter: DatabaseAdapter,
   collections: Schema[],
   tenantId?: string | null,
+  options?: BaseQueryOptions,
 ): Promise<void> {
   logger.info(`📝 Seeding demo records${tenantId ? ` for tenant ${tenantId}` : ""}...`);
 
@@ -453,6 +458,7 @@ export async function seedDemoRecords(
         await dbAdapter.crud.insertMany(collectionId, posts, {
           tenantId: tenantId as DatabaseId,
           bypassTenantCheck: true,
+          ...options,
         });
         logger.info(`✅ Seeded ${posts.length} demo posts into ${collectionId}`);
       }
@@ -482,6 +488,7 @@ export async function seedDemoRecords(
         await dbAdapter.crud.insertMany(collectionId, menuItems, {
           tenantId: tenantId as DatabaseId,
           bypassTenantCheck: true,
+          ...options,
         });
         logger.info(`✅ Seeded ${menuItems.length} demo menu items into ${collectionId}`);
       }
@@ -506,43 +513,59 @@ export async function initSystemFromSetup(
     throw new Error("Database adapter not available. Database must be initialized first.");
   }
 
-  // Run seeding steps in parallel for maximum performance
-  const [seedResults] = await Promise.all([
-    (async () => {
-      // NEW: UsecontentSystem for unified seeding
-      const { contentSystem } = await import("@src/content/index.server");
-      await contentSystem.initialize(tenantId, false, adapter);
+  // Use a single transaction for the entire seeding process to prevent SQLite locking
+  const result = await adapter.transaction<{
+    firstCollection: { name: string; path: string } | null;
+  }>(async (tx) => {
+    const options = { transaction: tx, tenantId: tenantId as DatabaseId };
 
-      if (isDemoSeed) {
-        const contentMod = await import("@src/content/content-service.server");
-        const scanFn =
-          contentMod.scanCompiledCollections ||
-          (contentMod as any).default?.scanCompiledCollections;
-        const collections = typeof scanFn === "function" ? await scanFn() : [];
-        await seedDemoRecords(adapter, collections, tenantId);
-      }
+    // Run seeding steps in parallel for maximum performance
+    const [seedResults] = await Promise.all([
+      (async () => {
+        // NEW: Use contentSystem for unified seeding
+        const { contentSystem } = await import("@src/content/index.server");
+        await contentSystem.initialize(tenantId, { force: false, transaction: tx }, adapter);
 
-      const first = contentSystem.collections.getSmartFirst(tenantId);
-      return {
-        firstCollection: first ? { name: first.name as string, path: first.path as string } : null,
-      };
-    })(),
-    seedSettings(adapter, tenantId, isDemoSeed),
-    seedDefaultTheme(adapter, tenantId),
-    seedRoles(adapter, tenantId),
-  ]);
+        if (isDemoSeed) {
+          const contentMod = await import("@src/content/content-service.server");
+          const scanFn =
+            contentMod.scanCompiledCollections ||
+            (contentMod as any).default?.scanCompiledCollections;
+          const collections = typeof scanFn === "function" ? await scanFn() : [];
+          await seedDemoRecords(adapter, collections, tenantId, options);
+        }
 
-  // Invalidate the settings cache and reload from database
-  invalidateSettingsCache();
-  const dbInitMod = await import("@src/databases/db-init");
-  const loadFn = dbInitMod.loadSettingsFromDB || (dbInitMod as any).default?.loadSettingsFromDB;
-  if (typeof loadFn === "function") {
-    await loadFn(adapter, true);
+        const first = contentSystem.collections.getSmartFirst(tenantId);
+        return {
+          firstCollection: first
+            ? { name: first.name as string, path: first.path as string }
+            : null,
+        };
+      })(),
+      seedSettings(adapter, tenantId, isDemoSeed, options),
+      seedDefaultTheme(adapter, tenantId, options),
+      seedRoles(adapter, tenantId, options),
+    ]);
+
+    // Invalidate the settings cache and reload from database
+    invalidateSettingsCache();
+    const dbInitMod = await import("@src/databases/db-init");
+    const loadFn = dbInitMod.loadSettingsFromDB || (dbInitMod as any).default?.loadSettingsFromDB;
+    if (typeof loadFn === "function") {
+      await loadFn(adapter, true);
+    }
+
+    logger.info(`✅ System initialization completed${tenantId ? ` for tenant ${tenantId}` : ""}`);
+
+    return { success: true, data: seedResults };
+  });
+
+  if (result.success) {
+    return result.data;
+  } else {
+    logger.error("❌ System initialization failed:", result.message);
+    return { firstCollection: null };
   }
-
-  logger.info(`✅ System initialization completed${tenantId ? ` for tenant ${tenantId}` : ""}`);
-
-  return seedResults;
 }
 
 // Initialize system with separate critical (sync) and content (async) phases
@@ -1075,6 +1098,7 @@ export async function seedSettings(
   dbAdapter: DatabaseAdapter,
   tenantId?: string | null,
   isDemoSeed = false,
+  options?: BaseQueryOptions,
 ): Promise<void> {
   if (!dbAdapter?.system.preferences) {
     throw new Error("Database adapter or system.preferences interface not available");
@@ -1083,7 +1107,7 @@ export async function seedSettings(
   // Test database accessibility
   try {
     // Try a simple getMany operation to test connectivity
-    await dbAdapter.system.preferences.getMany(["HOST_DEV"], "system");
+    await dbAdapter.system.preferences.getMany(["HOST_DEV"], "system", undefined, options);
     logger.debug("Database adapter is accessible");
   } catch (error) {
     logger.error("Database adapter is not accessible:", error);
@@ -1098,15 +1122,21 @@ export async function seedSettings(
   const privateSettingKeys = new Set(defaultPrivateSettings.map((s) => s.key));
 
   // Check which settings already exist
-  const allKeys = allSettings.map((s) => s.key);
   let existingSettings: Record<string, unknown> = {};
 
-  try {
-    const result = await dbAdapter.system.preferences.getMany(allKeys, "system");
-    if (result.success && result.data) {
-      existingSettings = result.data;
-    }
-  } catch {}
+  for (const setting of allSettings) {
+    try {
+      const existing = await dbAdapter.system.preferences.get(
+        setting.key,
+        "system",
+        tenantId as any,
+        options,
+      );
+      if (existing.success && existing.data) {
+        existingSettings[setting.key] = existing.data;
+      }
+    } catch {}
+  }
 
   // Filter out settings that already exist
   const settingsToSeed = allSettings.filter((setting) => !(setting.key in existingSettings));
@@ -1114,16 +1144,6 @@ export async function seedSettings(
   if (settingsToSeed.length === 0) return;
 
   logger.info(`🌱 Seeding ${settingsToSeed.length} settings...`);
-
-  // Prepare settings for batch operation with category
-  const settingsToSet: Array<{
-    key: string;
-    value: unknown;
-    category: "public" | "private";
-    scope: "user" | "system";
-    userId?: DatabaseId;
-    tenantId?: string | null;
-  }> = [];
 
   for (const setting of settingsToSeed) {
     // Determine category based on whether the setting is in the private list
@@ -1144,43 +1164,17 @@ export async function seedSettings(
       }
     }
 
-    settingsToSet.push({
-      key: setting.key,
-      value, // Store the actual value directly
-      category, // Add category field for proper classification
-      scope: "system",
-      ...(tenantId && { tenantId }),
-    });
-  }
-
-  // Use batch operation for better performance
-  try {
-    const result = await dbAdapter.system.preferences.setMany(settingsToSet);
-
-    if (!result.success) {
-      const errorMsg = result.error?.message || "Failed to seed settings";
-      if (errorMsg.includes("already exists with different case")) {
-        throw new Error(
-          `MongoDB Case Sensitivity Conflict: ${errorMsg}. Please ensure the database name in Step 1 matches the existing database exactly (e.g., SveltyCMS vs sveltycms).`,
-        );
-      }
-      throw new Error(errorMsg);
-    }
-
-    logger.info(`✅ Seeded ${settingsToSeed.length} missing settings`);
-  } catch (error) {
-    let finalError = error;
-    if (error instanceof Error && error.message.includes("already exists with different case")) {
-      finalError = new Error(
-        `MongoDB Case Sensitivity Conflict: ${error.message}. Please ensure the database name in Step 1 matches the existing database exactly (e.g., SveltyCMS vs sveltycms).`,
-      );
-    }
-    logger.error(
-      `Failed to seed settings${tenantId ? ` for tenant ${tenantId}` : ""}:`,
-      finalError,
+    await dbAdapter.system.preferences.set(
+      setting.key,
+      value,
+      "system",
+      tenantId as any,
+      category,
+      options,
     );
-    throw finalError;
   }
+
+  logger.info(`✅ Seeded ${settingsToSeed.length} missing settings`);
 
   // Populate public settings cache immediately after seeding
   // Private settings will be loaded later when the app starts and reads the private config file
@@ -1224,6 +1218,53 @@ export async function seedSettings(
     // Don't throw here - seeding was successful, cache population is just an optimization
   }
 }
+/**
+ * Updates existing system settings in the database with final values from the setup wizard
+ */
+export async function updateSystemSettings(
+  dbAdapter: DatabaseAdapter,
+  settings: Partial<import("../../stores/setup-store.svelte").SystemSettings>,
+  tenantId?: string | null,
+  options?: BaseQueryOptions,
+): Promise<void> {
+  if (!dbAdapter?.system.preferences) return;
+
+  const mapping: Record<string, keyof import("../../stores/setup-store.svelte").SystemSettings> = {
+    SITE_NAME: "siteName",
+    HOST_PROD: "hostProd",
+    TIMEZONE: "timezone",
+    DEFAULT_SYSTEM_LANGUAGE: "defaultSystemLanguage",
+    LOCALES: "systemLanguages",
+    DEFAULT_CONTENT_LANGUAGE: "defaultContentLanguage",
+    AVAILABLE_CONTENT_LANGUAGES: "contentLanguages",
+    MEDIA_STORAGE_TYPE: "mediaStorageType",
+    MEDIA_FOLDER: "mediaFolder",
+    USE_REDIS: "useRedis",
+    REDIS_HOST: "redisHost",
+    REDIS_PORT: "redisPort",
+    REDIS_PASSWORD: "redisPassword",
+    CF_API_TOKEN: "cfApiToken",
+    CF_ZONE_ID: "cfZoneId",
+    CF_PURGE_MODE: "cfPurgeMode",
+  };
+
+  const updatePromises = Object.entries(mapping).map(async ([dbKey, wizardKey]) => {
+    const value = settings[wizardKey];
+    if (value !== undefined) {
+      const isPrivate = defaultPrivateSettings.some((s) => s.key === dbKey);
+      await dbAdapter.system.preferences.set(
+        dbKey,
+        value,
+        "system",
+        tenantId as any,
+        isPrivate ? "private" : "public",
+        options,
+      );
+    }
+  });
+
+  await Promise.all(updatePromises);
+}
 
 /**
  * Exports all current settings to a JSON file using database-agnostic interface.
@@ -1237,6 +1278,7 @@ interface SettingsSnapshot {
 
 export async function exportSettingsSnapshot(
   dbAdapter: DatabaseAdapter,
+  options?: BaseQueryOptions,
 ): Promise<SettingsSnapshot> {
   if (!dbAdapter?.system.preferences) {
     throw new Error("Database adapter or system.preferences interface not available");
@@ -1246,7 +1288,12 @@ export async function exportSettingsSnapshot(
   // For now, we'll get the known settings keys
   const allSettingKeys = [...defaultPublicSettings, ...defaultPrivateSettings].map((s) => s.key);
 
-  const settingsResult = await dbAdapter.system.preferences.getMany(allSettingKeys, "system");
+  const settingsResult = await dbAdapter.system.preferences.getMany(
+    allSettingKeys,
+    "system",
+    undefined,
+    options,
+  );
 
   if (!settingsResult.success) {
     throw new Error(`Failed to export settings: ${settingsResult.error?.message}`);
@@ -1280,6 +1327,7 @@ export async function exportSettingsSnapshot(
 export async function importSettingsSnapshot(
   snapshot: Record<string, unknown>,
   dbAdapter: DatabaseAdapter,
+  options?: BaseQueryOptions,
 ): Promise<void> {
   if (!dbAdapter?.system.preferences) {
     throw new Error("Database adapter or system.preferences interface not available");
@@ -1314,7 +1362,7 @@ export async function importSettingsSnapshot(
     });
   }
 
-  const result = await dbAdapter.system.preferences.setMany(settingsToSet);
+  const result = await dbAdapter.system.preferences.setMany(settingsToSet as any, options);
 
   if (!result.success) {
     throw new Error(`Failed to import settings: ${result.error?.message}`);
@@ -1326,17 +1374,21 @@ export async function importSettingsSnapshot(
 /**
  * Seeds a demo tenant with default settings, theme, roles, and a user.
  */
-export async function seedDemoTenant(dbAdapter: DatabaseAdapter, tenantId: string): Promise<void> {
+export async function seedDemoTenant(
+  dbAdapter: DatabaseAdapter,
+  tenantId: string,
+  options?: BaseQueryOptions,
+): Promise<void> {
   logger.info(`🚀 Seeding demo tenant ${tenantId}...`);
 
   // 1. Seed Settings (Force Demo Mode)
-  await seedSettings(dbAdapter, tenantId, true);
+  await seedSettings(dbAdapter, tenantId, true, options);
 
   // 2. Seed Default Theme
-  await seedDefaultTheme(dbAdapter, tenantId);
+  await seedDefaultTheme(dbAdapter, tenantId, options);
 
   // 3. Seed Roles
-  await seedRoles(dbAdapter, tenantId);
+  await seedRoles(dbAdapter, tenantId, options);
 
   // 4. Create Admin User
   // We need to import auth service or use dbAdapter.auth directly
@@ -1344,19 +1396,23 @@ export async function seedDemoTenant(dbAdapter: DatabaseAdapter, tenantId: strin
     const result = await dbAdapter.auth.getRoleById("admin" as DatabaseId, {
       tenantId: tenantId as DatabaseId,
       bypassTenantCheck: true,
+      ...options,
     });
     const adminRole = result.success ? result.data : null;
     if (adminRole) {
       const email = `demo-${tenantId.substring(0, 8)}@sveltycms.com`;
       const password = "demo"; // Simple password for demo
       try {
-        await dbAdapter.auth.createUser({
-          email,
-          password,
-          role: adminRole._id,
-          username: "Demo Admin",
-          tenantId: tenantId as DatabaseId,
-        });
+        await dbAdapter.auth.createUser(
+          {
+            email,
+            password,
+            role: adminRole._id,
+            username: "Demo Admin",
+            tenantId: tenantId as DatabaseId,
+          },
+          options,
+        );
         logger.info(`✅ Demo admin user created: ${email}`);
       } catch (e) {
         logger.warn(

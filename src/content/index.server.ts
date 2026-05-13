@@ -79,7 +79,11 @@ export const contentSystem = {
     options: any = {},
     adapter?: DatabaseAdapter,
   ): Promise<void> {
-    if (process.env.BENCHMARK_MODE === "true" || process.env.BENCHMARK_STABLE === "true") {
+    if (
+      process.env.BENCHMARK_MODE === "true" ||
+      process.env.BENCHMARK_MODE === "1" ||
+      process.env.BENCHMARK_STABLE === "true"
+    ) {
       // 🚀 Fast path for benchmarks
       return this._benchmarkInitialize(tenantId, options, adapter);
     }
@@ -144,6 +148,9 @@ export const contentSystem = {
 
     const { refreshCollectionsCache } = await import("./content-service.server");
     await refreshCollectionsCache(tenantId, db);
+
+    // 🚀 Performance: Mark as initialized so benchmarks don't re-init on every request
+    contentStore.initState = "initialized";
   },
 
   async refresh(

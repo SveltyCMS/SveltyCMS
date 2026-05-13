@@ -175,11 +175,32 @@ const RelationWidget = createWidget<RelationProps>({
         graphql: "",
         resolver: {
           [fieldName as string]: async (parent: any, _args: any, context: any) => {
-            const { dbAdapter, tenantId } = context;
-            if (!dbAdapter) return null;
+            const { dbAdapter, cms, tenantId, user } = context;
 
             const val = parent[fieldName as string];
             if (!val) return null;
+
+            // 🚀 PERFORMANCE: Use cms.collections.findById if available (LocalSDK)
+            // This leverages the built-in batchLoader to solve the N+1 query problem.
+            if (cms) {
+              if (relProps.multiple && Array.isArray(val)) {
+                const results = await Promise.all(
+                  val.map((id) =>
+                    cms.collections.findById(targetCollection, id, { tenantId, user }),
+                  ),
+                );
+                return results.map((r: any) => (r.success ? r.data : null)).filter(Boolean);
+              }
+
+              const result = await cms.collections.findById(targetCollection, val, {
+                tenantId,
+                user,
+              });
+              return result.success ? result.data : null;
+            }
+
+            // Fallback to direct DB adapter if LocalSDK is missing
+            if (!dbAdapter) return null;
 
             if (relProps.multiple && Array.isArray(val)) {
               const result = await dbAdapter.crud.findMany(targetCollection, {

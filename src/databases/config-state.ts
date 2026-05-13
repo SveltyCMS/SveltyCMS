@@ -144,8 +144,8 @@ async function loadConfigFromFileIfNeeded(svelteEnv: any): Promise<any | null> {
     const url = `${pathToFileURL(configPath).href}?t=${Date.now()}`;
 
     const module = await import(/* @vite-ignore */ url);
-    const rawContent = fs.readFileSync(configPath, "utf8");
-    console.log(`[Config] Raw ${filename} content:\n${rawContent}`);
+    // Security: Do NOT log rawContent. It contains secrets and keys.
+    logger.debug(`[Config] Loaded ${filename} successfully.`);
     return module.privateEnv ?? module; // support both export styles
   } catch (err) {
     logger.trace(`Failed to load ${filename}`, { error: (err as Error).message });

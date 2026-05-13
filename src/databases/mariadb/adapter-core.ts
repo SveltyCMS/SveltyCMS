@@ -259,7 +259,7 @@ export abstract class AdapterCore extends BaseSqlAdapter {
     const schemaAny = this.schema as any;
 
     // 1. Check direct alias map
-    const alias = BaseSqlAdapter.TABLE_ALIASES[collection];
+    const alias = (BaseSqlAdapter as any).TABLE_ALIASES[collection];
     if (alias && schemaAny[alias]) return schemaAny[alias];
 
     // 2. Check if the name itself is a schema export

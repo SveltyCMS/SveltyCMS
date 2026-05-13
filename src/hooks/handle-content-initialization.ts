@@ -18,10 +18,6 @@ const WHITELIST_REGEX =
 const initPromises = new Map<string | null, Promise<void>>();
 
 export const handleContentInitialization: Handle = async ({ event, resolve }) => {
-  // Ensure system is ready for core operations (Login/Auth)
-  // FULL phase is now handled in the background by db.ts
-  await getDbInitPromise(false, "CORE");
-
   const { locals, url } = event;
   const { pathname } = url;
   const tenantId = locals.tenantId ?? null;
@@ -37,6 +33,10 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
     );
     return await resolve(event);
   }
+
+  // Ensure system is ready for core operations (Login/Auth)
+  // FULL phase is now handled in the background by db.ts
+  await getDbInitPromise(false, "CORE");
 
   // --- Phase 2: Content System Initialization ---
   if (!contentSystem.isInitializedForTenant(tenantId)) {

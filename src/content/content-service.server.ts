@@ -91,119 +91,126 @@ export function markFileDirty(filePath?: string | null) {
   }
 }
 
+let _scanPromise: Promise<Schema[]> | null = null;
+
 /**
  * Scans the .compiledCollections directory for compiled schema files.
  */
 export async function scanCompiledCollections(): Promise<Schema[]> {
-  if (_isScanning) return Array.from(_schemaCache.values());
+  if (_isScanning || _scanPromise) return _scanPromise || Array.from(_schemaCache.values());
   if (!_isDirty && _schemaCache.size > 0) return Array.from(_schemaCache.values());
 
-  _isScanning = true;
-  const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
-  if (!existsSync(collectionsDir)) {
-    await fsPromises.mkdir(collectionsDir, { recursive: true });
-  }
-  const fileList: { fullPath: string; mtime: number }[] = [];
+  _scanPromise = (async () => {
+    _isScanning = true;
+    const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
+    if (!existsSync(collectionsDir)) {
+      await fsPromises.mkdir(collectionsDir, { recursive: true });
+    }
+    const fileList: { fullPath: string; mtime: number }[] = [];
 
-  async function walk(dir: string) {
-    try {
-      const entries = await fsPromises.readdir(dir, { withFileTypes: true });
-      if (process.env.BENCHMARK_DEBUG === "true") {
-        logger.info(`[Scanner] readdir ${dir} found ${entries.length} entries`);
+    async function walk(dir: string) {
+      try {
+        const entries = await fsPromises.readdir(dir, { withFileTypes: true });
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          logger.info(`[Scanner] readdir ${dir} found ${entries.length} entries`);
+        }
+        await Promise.all(
+          entries.map(async (entry) => {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) return walk(fullPath);
+            if (!entry.isFile() || !entry.name.endsWith(".js")) return;
+            const stats = await fsPromises.stat(fullPath);
+            fileList.push({ fullPath, mtime: stats.mtimeMs });
+          }),
+        );
+      } catch (_err) {
+        logger.error("[Scanner] Walk failed", { path: dir, error: _err });
       }
+    }
+
+    try {
+      await walk(collectionsDir);
+      const scanList = fileList.filter((f) => _mtimeTree.get(f.fullPath) !== f.mtime);
+
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        logger.info(`[Scanner] Total files found: ${fileList.length}`);
+        logger.info(`[Scanner] Files needing scan: ${scanList.length}`);
+      }
+
+      if (scanList.length === 0 && _schemaCache.size === fileList.length) {
+        _isDirty = false;
+        return Array.from(_schemaCache.values());
+      }
+
+      const cacheKeys = scanList.map((f) => `schema:${f.fullPath}`);
+      const cachedEntries = await cacheService.getMany<{
+        mtime: number;
+        hash: string;
+        schema: Schema;
+      }>(cacheKeys, null);
+
       await Promise.all(
-        entries.map(async (entry) => {
-          const fullPath = path.join(dir, entry.name);
-          if (entry.isDirectory()) return walk(fullPath);
-          if (!entry.isFile() || !entry.name.endsWith(".js")) return;
-          const stats = await fsPromises.stat(fullPath);
-          fileList.push({ fullPath, mtime: stats.mtimeMs });
+        scanList.map(async (file, idx) => {
+          const cached = cachedEntries[idx];
+          const cacheKey = cacheKeys[idx];
+
+          if (cached && cached.mtime === file.mtime) {
+            _schemaCache.set(file.fullPath, cached.schema);
+            _mtimeTree.set(file.fullPath, file.mtime);
+            return;
+          }
+
+          if (!isSafeCollectionPath(file.fullPath)) {
+            logger.error("[Scanner] Blocked unsafe schema path", { path: file.fullPath });
+            return;
+          }
+
+          const moduleData = await loadSchemaNative(file.fullPath);
+          const schema = moduleData?.schema;
+
+          if (schema) {
+            const hash = generateSchemaHash(schema);
+            if (cached && cached.hash === hash) {
+              await cacheService.set(
+                cacheKey,
+                { ...cached, mtime: file.mtime },
+                3600,
+                null,
+                CacheCategory.SCHEMA,
+              );
+              _schemaCache.set(file.fullPath, cached.schema);
+            } else {
+              enrichSchemaWithMetadata(schema, file.fullPath, collectionsDir);
+              await cacheService.set(
+                cacheKey,
+                { mtime: file.mtime, hash, schema },
+                3600,
+                null,
+                CacheCategory.SCHEMA,
+              );
+              _schemaCache.set(file.fullPath, schema);
+            }
+            _mtimeTree.set(file.fullPath, file.mtime);
+          }
         }),
       );
-    } catch (_err) {
-      logger.error("[Scanner] Walk failed", { path: dir, error: _err });
-    }
-  }
 
-  try {
-    await walk(collectionsDir);
-    const scanList = fileList.filter((f) => _mtimeTree.get(f.fullPath) !== f.mtime);
-
-    if (process.env.BENCHMARK_DEBUG === "true") {
-      logger.info(`[Scanner] Total files found: ${fileList.length}`);
-      logger.info(`[Scanner] Files needing scan: ${scanList.length}`);
-    }
-
-    if (scanList.length === 0 && _schemaCache.size === fileList.length) {
-      _isDirty = false;
-      return Array.from(_schemaCache.values());
-    }
-
-    const cacheKeys = scanList.map((f) => `schema:${f.fullPath}`);
-    const cachedEntries = await cacheService.getMany<{
-      mtime: number;
-      hash: string;
-      schema: Schema;
-    }>(cacheKeys, null);
-
-    await Promise.all(
-      scanList.map(async (file, idx) => {
-        const cached = cachedEntries[idx];
-        const cacheKey = cacheKeys[idx];
-
-        if (cached && cached.mtime === file.mtime) {
-          _schemaCache.set(file.fullPath, cached.schema);
-          _mtimeTree.set(file.fullPath, file.mtime);
-          return;
+      const currentPaths = new Set(fileList.map((f) => f.fullPath));
+      for (const path of _schemaCache.keys()) {
+        if (!currentPaths.has(path)) {
+          _schemaCache.delete(path);
+          _mtimeTree.delete(path);
         }
-
-        if (!isSafeCollectionPath(file.fullPath)) {
-          logger.error("[Scanner] Blocked unsafe schema path", { path: file.fullPath });
-          return;
-        }
-
-        const moduleData = await loadSchemaNative(file.fullPath);
-        const schema = moduleData?.schema;
-
-        if (schema) {
-          const hash = generateSchemaHash(schema);
-          if (cached && cached.hash === hash) {
-            await cacheService.set(
-              cacheKey,
-              { ...cached, mtime: file.mtime },
-              3600,
-              null,
-              CacheCategory.SCHEMA,
-            );
-            _schemaCache.set(file.fullPath, cached.schema);
-          } else {
-            enrichSchemaWithMetadata(schema, file.fullPath, collectionsDir);
-            await cacheService.set(
-              cacheKey,
-              { mtime: file.mtime, hash, schema },
-              3600,
-              null,
-              CacheCategory.SCHEMA,
-            );
-            _schemaCache.set(file.fullPath, schema);
-          }
-          _mtimeTree.set(file.fullPath, file.mtime);
-        }
-      }),
-    );
-
-    const currentPaths = new Set(fileList.map((f) => f.fullPath));
-    for (const path of _schemaCache.keys()) {
-      if (!currentPaths.has(path)) {
-        _schemaCache.delete(path);
-        _mtimeTree.delete(path);
       }
+      _isDirty = false;
+    } finally {
+      _isScanning = false;
+      _scanPromise = null;
     }
-    _isDirty = false;
-  } finally {
-    _isScanning = false;
-  }
-  return Array.from(_schemaCache.values());
+    return Array.from(_schemaCache.values());
+  })();
+
+  return _scanPromise;
 }
 
 /**

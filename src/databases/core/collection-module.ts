@@ -54,12 +54,13 @@ export class CollectionModule extends DatabaseModule<BaseSqlAdapter> implements 
       },
     };
 
-    const tableId = id.startsWith("collection_") ? id : `collection_${id}`;
-    const dynamicTable = (this.adapter as any).createDynamicTableDefinition(tableId);
+    const table = (this.adapter as any).getTable(id);
 
     // 🚀 Store in the correct registries
-    this.tableRegistry.set(id, dynamicTable);
-    this.tableRegistry.set(tableId, dynamicTable);
+    (this.adapter as any).tableRegistry.set(id, table);
+    if (!(this.adapter as any).isSystemTable(id)) {
+      (this.adapter as any).dynamicTables.set(id, table);
+    }
     this.modelRegistry.set(id, wrappedModel);
   }
 

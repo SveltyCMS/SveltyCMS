@@ -20,7 +20,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { sveltekit } from "@sveltejs/kit/vite";
-import { svelteInspector } from "@sveltejs/vite-plugin-svelte-inspector";
 import tailwindcss from "@tailwindcss/vite";
 import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vitest/config";
@@ -538,7 +537,10 @@ function sveltyCmsPlugin(): Plugin {
       await initializeCollectionsStructure();
     },
     config: () => ({
-      define: { __FRESH_INSTALL__: JSON.stringify(wasPrivateConfigMissing) },
+      define: {
+        __FRESH_INSTALL__: JSON.stringify(wasPrivateConfigMissing),
+        __SVELTY_SETUP_COMPLETE__: JSON.stringify(!wasPrivateConfigMissing),
+      },
     }),
     configureServer(server) {
       // Watch for changes regardless of setup status
@@ -639,7 +641,6 @@ export default defineConfig((): any => {
       privateConfigFallbackPlugin(),
       stubServerModulesPlugin(),
       sveltekit(),
-      svelteInspector(),
       sveltyCmsPlugin(),
       securityCheckPlugin(),
       suppressThirdPartyWarningsPlugin(),
@@ -711,6 +712,7 @@ export default defineConfig((): any => {
     },
     define: {
       __FRESH_INSTALL__: false, // Default, may be overridden by setupWizardPlugin
+      __SVELTY_SETUP_COMPLETE__: setupComplete,
       global: "globalThis", // `global` polyfill for libraries that expect it (e.g., older crypto libs)
       "import.meta.env.VITE_LOG_LEVELS": JSON.stringify(
         process.env.LOG_LEVELS || (isBuild ? "info,warn,error" : "info,warn,error,debug"),
@@ -803,6 +805,8 @@ export default defineConfig((): any => {
         "svelte-dnd-action",
         "svelte-awesome-color-picker",
         "json-render-svelte",
+        "valibot",
+        "drizzle-orm",
       ],
       entries: ["!tests/**/*", "!**/*.server.ts", "!**/*.server.js"],
     },

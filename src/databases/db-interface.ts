@@ -129,8 +129,10 @@ export interface BaseQueryOptions {
   skipMeta?: boolean; // 🚀 PERFORMANCE: Skip executionTime/meta object allocation
   suppressErrorLog?: boolean; // 🚀 SECURITY/PERF: Mute error logging for expected failures
   cache?: CacheOptions; // 🚀 ADAPTIVE CACHING: Control caching at the query level
+  bypassCache?: boolean; // 🚀 PERFORMANCE: Force bypass of all caching layers
   hints?: QueryOptimizationHints;
   transaction?: any; // Database-specific transaction object
+  filter?: any; // 🚀 FLEXIBILITY: Allow arbitrary filters for structure/bulk queries
 }
 
 export interface FindOptions<T> extends BaseQueryOptions {
@@ -480,21 +482,27 @@ export interface IAuthAdapter {
     type?: string,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ status: boolean; message: string }>>;
-  createRole(role: Role): Promise<DatabaseResult<Role>>;
-  createSession(sessionData: {
-    user_id: DatabaseId;
-    expires: ISODateString;
-    tenantId?: DatabaseId | null;
-  }): Promise<DatabaseResult<Session>>;
-  createToken(data: {
-    user_id: DatabaseId;
-    email: string;
-    expires: ISODateString;
-    type: string;
-    tenantId?: DatabaseId | null;
-    role?: string;
-  }): Promise<DatabaseResult<string>>;
-  createUser(userData: Partial<User>): Promise<DatabaseResult<User>>;
+  createRole(role: Role, options?: BaseQueryOptions): Promise<DatabaseResult<Role>>;
+  createSession(
+    sessionData: {
+      user_id: DatabaseId;
+      expires: ISODateString;
+      tenantId?: DatabaseId | null;
+    },
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<Session>>;
+  createToken(
+    data: {
+      user_id: DatabaseId;
+      email: string;
+      expires: ISODateString;
+      type: string;
+      tenantId?: DatabaseId | null;
+      role?: string;
+    },
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<string>>;
+  createUser(userData: Partial<User>, options?: BaseQueryOptions): Promise<DatabaseResult<User>>;
   createUserAndSession(
     userData: Partial<User>,
     sessionData: { expires: ISODateString; tenantId?: DatabaseId | null },
@@ -557,7 +565,7 @@ export interface IAuthAdapter {
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<void>>;
   rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>>;
-  setupAuthModels(): Promise<void>;
+  setupAuthModels(options?: BaseQueryOptions): Promise<void>;
   unblockTokens(
     tokenIds: DatabaseId[],
     options?: BaseQueryOptions,
@@ -795,12 +803,7 @@ export interface IContentAdapter {
   nodes: {
     getStructure(
       mode: "flat" | "nested",
-      options?: {
-        filter?: Partial<ContentNodeType>;
-        tenantId?: DatabaseId | null;
-        bypassCache?: boolean;
-        bypassTenantCheck?: boolean;
-      },
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<ContentNodeType[]>>;
     upsertContentStructureNode(
       node: EntityCreate<ContentNodeType>,
@@ -817,11 +820,7 @@ export interface IContentAdapter {
         id?: string;
         changes: Partial<ContentNodeType>;
       }[],
-      options?: {
-        tenantId?: DatabaseId | null;
-        bypassTenantCheck?: boolean;
-        bypassCache?: boolean;
-      },
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<ContentNodeType[]>>;
     fixMismatchedNodeIds?(
       nodes: {
@@ -833,7 +832,7 @@ export interface IContentAdapter {
     delete(path: string): Promise<DatabaseResult<void>>;
     deleteMany(
       paths: string[],
-      options?: { tenantId?: DatabaseId | null },
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<{ deletedCount: number }>>;
     reorder(
       nodeUpdates: Array<{ path: string; newOrder: number }>,
@@ -869,16 +868,19 @@ export interface ISystemAdapter {
       key: string,
       scope?: "user" | "system",
       userId?: DatabaseId,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<T | null>>;
     getMany<T>(
       keys: string[],
       scope?: "user" | "system",
       userId?: DatabaseId,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<Record<string, T>>>;
     getByCategory<T>(
       category: string,
       scope?: "user" | "system",
       userId?: DatabaseId,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<Record<string, T>>>;
     set<T>(
       key: string,
@@ -886,6 +888,7 @@ export interface ISystemAdapter {
       scope?: "user" | "system",
       userId?: DatabaseId,
       category?: string,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>>;
     setMany<T>(
       preferences: Array<{
@@ -895,18 +898,25 @@ export interface ISystemAdapter {
         userId?: DatabaseId;
         category?: string;
       }>,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>>;
     delete(
       key: string,
       scope?: "user" | "system",
       userId?: DatabaseId,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>>;
     deleteMany(
       keys: string[],
       scope?: "user" | "system",
       userId?: DatabaseId,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>>;
-    clear(scope?: "user" | "system", userId?: DatabaseId): Promise<DatabaseResult<void>>;
+    clear(
+      scope?: "user" | "system",
+      userId?: DatabaseId,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<void>>;
   };
   virtualFolder: {
     create(
@@ -954,7 +964,7 @@ export interface ISystemAdapter {
     list(options?: PaginationOption): Promise<DatabaseResult<Tenant[]>>;
   };
   themes: {
-    setupThemeModels(): Promise<void>;
+    setupThemeModels(options?: BaseQueryOptions): Promise<void>;
     getActive(): Promise<DatabaseResult<Theme | null>>;
     setDefault(themeId: DatabaseId): Promise<DatabaseResult<void>>;
     install(theme: EntityCreate<Theme>): Promise<DatabaseResult<Theme>>;
@@ -963,9 +973,9 @@ export interface ISystemAdapter {
       themeId: DatabaseId,
       theme: Partial<EntityCreate<Theme>>,
     ): Promise<DatabaseResult<Theme>>;
-    getAllThemes(): Promise<Theme[]>;
-    storeThemes(themes: Theme[]): Promise<void>;
-    ensure(theme: EntityCreate<Theme>): Promise<Theme>;
+    getAllThemes(options?: BaseQueryOptions): Promise<Theme[]>;
+    storeThemes(themes: Theme[], options?: BaseQueryOptions): Promise<void>;
+    ensure(theme: EntityCreate<Theme>, options?: BaseQueryOptions): Promise<Theme>;
     getDefaultTheme(tenantId?: DatabaseId | null): Promise<DatabaseResult<Theme | null>>;
   };
   websiteTokens: {
@@ -1069,9 +1079,9 @@ export interface IBatchAdapter {
 
 export interface ICollectionAdapter {
   getModel(id: string): Promise<CollectionModel>;
-  createModel(schema: Schema, force?: boolean): Promise<void>;
-  updateModel(schema: Schema): Promise<void>;
-  deleteModel(id: string): Promise<void>;
+  createModel(schema: Schema, force?: boolean, options?: BaseQueryOptions): Promise<void>;
+  updateModel(schema: Schema, options?: BaseQueryOptions): Promise<void>;
+  deleteModel(id: string, options?: BaseQueryOptions): Promise<void>;
   createIndexes?(collectionId: string, schema: Schema): Promise<DatabaseResult<void>>;
   getSchema(
     collectionName: string,

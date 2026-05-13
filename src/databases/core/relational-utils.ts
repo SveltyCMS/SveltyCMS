@@ -74,6 +74,11 @@ const JSON_FIELDS = new Set([
   "collectionDef",
   "value",
   "thumbnails",
+  "author",
+  "categories",
+  "tags",
+  "featuredImage",
+  "relatedPosts",
 ]);
 
 const DATE_FIELDS = new Set([
@@ -93,55 +98,75 @@ const DATE_FIELDS = new Set([
 /**
  * Convert database row dates to ISO strings and parse JSON fields.
  * 🚀 HYBRID SCHEMA SUPPORT: Flattens the 'data' column into the main object.
- * ⚡ PERFORMANCE: Zero-allocation fast-path for clean rows.
+ * ⚡ PERFORMANCE: High-speed scanner with early-exit and zero-allocation fast-path.
  */
 export function convertDatesToISO<T extends Record<string, unknown>>(row: T): T {
   if (!row) return row;
 
+  // 🚀 PERFORMANCE: Most rows don't need transformation. Avoid cloning unless necessary.
   let result: any = null;
-  let hasChanges = false;
 
   for (const key in row) {
     if (!Object.hasOwn(row, key)) continue;
     const value = row[key];
 
-    // Handle Dates (PostgreSQL/MariaDB native Date objects)
+    // 1. Handle Dates (Most frequent transformation in Postgres/MariaDB)
     if (value instanceof Date) {
-      if (!hasChanges) {
-        result = { ...row };
-        hasChanges = true;
-      }
+      if (!result) result = { ...row };
       result[key] = toISOString(value);
+      continue;
     }
-    // Handle JSON strings (SQLite/MariaDB if not auto-parsed)
-    else if (JSON_FIELDS.has(key)) {
-      if (typeof value === "string") {
-        try {
-          const parsed = JSON.parse(value);
-          if (!hasChanges) {
-            result = { ...row };
-            hasChanges = true;
-          }
-          result[key] = parsed;
 
-          // 🚀 HYBRID SCHEMA SUPPORT: Flatten 'data' column
-          if (key === "data" && parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-            Object.assign(result, parsed);
+    // 2. Handle known JSON fields (High frequency in SQLite/MariaDB)
+    if (JSON_FIELDS.has(key) && typeof value === "string") {
+      // 🚀 HARDENING: Guard against 'undefined' or empty strings stored in DB
+      if (
+        value === "undefined" ||
+        value === "" ||
+        value === "null" ||
+        value === "undefined" ||
+        value.trim() === "undefined"
+      ) {
+        if (!result) result = { ...row };
+        result[key] = null; // Always null for botched JSON strings
+        continue;
+      }
+
+      try {
+        const parsed = JSON.parse(value);
+        if (!result) result = { ...row };
+        result[key] = parsed;
+
+        // 🚀 HYBRID SCHEMA SUPPORT: Flatten 'data' column without Object.assign
+        if (key === "data" && parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          for (const pKey in parsed) {
+            result[pKey] = (parsed as any)[pKey];
           }
-        } catch {
-          // Silently ignore parsing errors
         }
-      } else if (key === "data" && value && typeof value === "object" && !Array.isArray(value)) {
-        if (!hasChanges) {
-          result = { ...row };
-          hasChanges = true;
-        }
-        Object.assign(result, value);
+      } catch (err: any) {
+        if (!result) result = { ...row };
+        result[key] = null; // Fallback to null on parse error for JSON fields
+
+        // Log everything on error to find the culprit
+        console.warn(`[RelationalUtils] Failed to parse JSON field '${key}': ${err.message}`, {
+          valueType: typeof value,
+          valueLength: value.length,
+          valueSnippet: value.substring(0, 100),
+        });
+      }
+      continue;
+    }
+
+    // 3. Handle already parsed 'data' object (already done by some adapters)
+    if (key === "data" && value && typeof value === "object" && !Array.isArray(value)) {
+      if (!result) result = { ...row };
+      for (const pKey in value as any) {
+        result[pKey] = (value as any)[pKey];
       }
     }
   }
 
-  return hasChanges ? (result as T) : row;
+  return result || row;
 }
 
 /**
@@ -180,7 +205,12 @@ export function convertUserToISO<T extends Record<string, any>>(user: T): T {
  */
 export function convertArrayDatesToISO<T extends Record<string, unknown>>(rows: T[]): T[] {
   if (!rows || rows.length === 0) return rows;
-  return rows.map((row) => convertDatesToISO(row));
+  const len = rows.length;
+  const result = Array.from({ length: len }) as T[];
+  for (let i = 0; i < len; i++) {
+    result[i] = convertDatesToISO(rows[i]);
+  }
+  return result;
 }
 
 /**
@@ -196,28 +226,52 @@ export function convertISOToDates<T extends Record<string, unknown>>(data: T): T
     if (!Object.hasOwn(data, key)) continue;
     const value = data[key];
 
-    // Stringify JSON fields for SQLite/MariaDB
-    if (
-      JSON_FIELDS.has(key) &&
-      value !== undefined &&
-      typeof value === "object" &&
-      value !== null
-    ) {
+    // 1. Catch undefined values early to prevent driver crashes
+    if (value === undefined) {
       if (!hasChanges) {
         result = { ...data };
         hasChanges = true;
       }
-      result[key] = JSON.stringify(value);
+      result[key] = null;
+      continue;
     }
-    // Parse Date fields
-    else if (DATE_FIELDS.has(key) && typeof value === "string") {
-      const d = new Date(value);
-      if (!Number.isNaN(d.getTime())) {
+
+    // 2. Stringify JSON fields for SQLite/MariaDB
+    if (JSON_FIELDS.has(key)) {
+      if (value === null || value === "undefined") {
+        if (value === "undefined") {
+          console.error(
+            `[RelationalUtils] CRITICAL: Detected 'undefined' string in JSON field '${key}' during serialization!`,
+            {
+              data: JSON.stringify(data).substring(0, 500),
+            },
+          );
+        }
         if (!hasChanges) {
           result = { ...data };
           hasChanges = true;
         }
-        result[key] = d;
+        result[key] = null;
+      } else if (typeof value === "object") {
+        if (!hasChanges) {
+          result = { ...data };
+          hasChanges = true;
+        }
+        result[key] = JSON.stringify(value);
+      }
+      continue;
+    }
+    // 3. Parse Date fields
+    else if (DATE_FIELDS.has(key)) {
+      if (typeof value === "string") {
+        const d = new Date(value);
+        if (!Number.isNaN(d.getTime())) {
+          if (!hasChanges) {
+            result = { ...data };
+            hasChanges = true;
+          }
+          result[key] = d;
+        }
       }
     }
   }
@@ -229,15 +283,22 @@ export function convertISOToDates<T extends Record<string, unknown>>(data: T): T
  * Parse a JSON field safely with a fallback.
  */
 export function parseJsonField<T>(value: unknown, fallback: T): T {
-  if (value === null || value === undefined) return fallback;
-  if (typeof value === "string") {
-    try {
-      return JSON.parse(value) as T;
-    } catch {
-      return fallback;
-    }
+  if (
+    value === null ||
+    value === undefined ||
+    value === "" ||
+    value === "undefined" ||
+    value === "null"
+  ) {
+    return fallback;
   }
-  return value as T;
+  if (typeof value === "object") return value as T;
+
+  try {
+    return JSON.parse(value as string) as T;
+  } catch {
+    return fallback;
+  }
 }
 
 /**

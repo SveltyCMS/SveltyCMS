@@ -15,17 +15,11 @@ import { metricsService } from "@src/services/observability/metrics-service";
 import type { Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
 import { logger } from "@utils/logger";
-import { building, dev } from "$app/environment";
+import { building } from "$app/environment";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import os from "node:os";
 import { runWithContext } from "@utils/context";
-import { shutdownSystem } from "@src/databases/db";
-
-// ✨ Hardware Optimization (Enterprise)
-// Maximized usage of available CPU cores for I/O and heavy processing is deferred
-// to the background service initialization phase to ensure ultra-fast cold starts.
-
 // ESM Shims for legacy CJS compatibility in production build
 if (typeof (globalThis as any).__filename === "undefined") {
   (globalThis as any).__filename = fileURLToPath(import.meta.url);
@@ -34,6 +28,14 @@ if (typeof (globalThis as any).__dirname === "undefined") {
   (globalThis as any).__dirname = dirname((globalThis as any).__filename);
 }
 
+const { isSetupComplete } = await import("@utils/setup-check-fast");
+// ⚡️ PERFORMANCE: Prioritize build-time constant from Vite to avoid filesystem I/O
+// This constant is injected by Vite and is true if config/private.ts existed at build/start time.
+const setupComplete =
+  (typeof (globalThis as any).__SVELTY_SETUP_COMPLETE__ !== "undefined" &&
+    (globalThis as any).__SVELTY_SETUP_COMPLETE__ === true) ||
+  isSetupComplete();
+
 // ✨ ENTERPRISE: Stable Node ID for Distributed Cache Sync (Phase 8)
 if (typeof (globalThis as any).__SVELTY_NODE_ID__ === "undefined") {
   (globalThis as any).__SVELTY_NODE_ID__ = crypto.randomUUID();
@@ -41,25 +43,60 @@ if (typeof (globalThis as any).__SVELTY_NODE_ID__ === "undefined") {
 
 import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
 import { handleCompression } from "./hooks/handle-compression";
-import { handleSecurity } from "./hooks/handle-security";
-import { handleUserPreferences } from "./hooks/handle-user-preferences";
-import { handleAuthentication } from "./hooks/handle-authentication";
-import { handleAuthorization } from "./hooks/handle-authorization";
-import { handleLocalSdk } from "./hooks/handle-local-sdk";
-import { handleContentInitialization } from "./hooks/handle-content-initialization";
-import { handleApiRequests } from "./hooks/handle-api-requests";
-import { handleAuditLogging } from "./hooks/handle-audit-logging";
-import { handleTokenResolution } from "./hooks/handle-token-resolution";
 import { handleSecurityHeaders, applyAllSecurityHeaders } from "./hooks/handle-security-headers";
-import { handleTestIsolation } from "./hooks/handle-test-isolation";
-import { handleStaticAssetCaching } from "./hooks/handle-static-asset-caching";
-import { isRedirect } from "@sveltejs/kit";
-import { handleApiError } from "@utils/error-handling";
-import { handleRedirects } from "./hooks/handle-redirects";
+
+// Only import full CMS hooks if setup is complete to avoid premature DB load
+const passThrough: Handle = ({ event, resolve }) => resolve(event);
+
+let handleSecurity: Handle = passThrough,
+  handleUserPreferences: Handle = passThrough,
+  handleAuthentication: Handle = passThrough,
+  handleAuthorization: Handle = passThrough,
+  handleLocalSdk: Handle = passThrough,
+  handleContentInitialization: Handle = passThrough,
+  handleApiRequests: Handle = passThrough,
+  handleAuditLogging: Handle = passThrough,
+  handleTokenResolution: Handle = passThrough,
+  handleRedirects: Handle = passThrough,
+  handleSystemState: Handle = passThrough,
+  handleTestIsolation: Handle = passThrough,
+  handleStaticAssetCaching: Handle = passThrough;
+
+if (setupComplete) {
+  const security = await import("./hooks/handle-security");
+  handleSecurity = security.handleSecurity;
+  const preferences = await import("./hooks/handle-user-preferences");
+  handleUserPreferences = preferences.handleUserPreferences;
+  const auth = await import("./hooks/handle-authentication");
+  handleAuthentication = auth.handleAuthentication;
+  const authz = await import("./hooks/handle-authorization");
+  handleAuthorization = authz.handleAuthorization;
+  const sdk = await import("./hooks/handle-local-sdk");
+  handleLocalSdk = sdk.handleLocalSdk;
+  const content = await import("./hooks/handle-content-initialization");
+  handleContentInitialization = content.handleContentInitialization;
+  const api = await import("./hooks/handle-api-requests");
+  handleApiRequests = api.handleApiRequests;
+  const audit = await import("./hooks/handle-audit-logging");
+  handleAuditLogging = audit.handleAuditLogging;
+  const token = await import("./hooks/handle-token-resolution");
+  handleTokenResolution = token.handleTokenResolution;
+  const redirects = await import("./hooks/handle-redirects");
+  handleRedirects = redirects.handleRedirects;
+  const state = await import("./hooks/handle-system-state");
+  handleSystemState = state.handleSystemState;
+  const isolation = await import("./hooks/handle-test-isolation");
+  handleTestIsolation = isolation.handleTestIsolation;
+  const caching = await import("./hooks/handle-static-asset-caching");
+  handleStaticAssetCaching = caching.handleStaticAssetCaching;
+}
 
 const IS_BENCHMARK = typeof process !== "undefined" && process.env.BENCHMARK === "true";
 const TEST_API_SECRET = typeof process !== "undefined" ? process.env.TEST_API_SECRET : null;
 const IS_QUIET = typeof process !== "undefined" && process.env.QUIET === "true";
+
+import { isRedirect } from "@sveltejs/kit";
+import { handleApiError } from "@utils/error-handling";
 
 // --- Server Startup Logic ---
 if (!building) {
@@ -85,63 +122,67 @@ if (!building) {
           })
           .catch(() => {});
 
-        // Initialize Background Job Queue
-        if (process.env.BENCHMARK_MODE !== "true") {
-          const { jobQueue } = await import("@src/services/background/jobs/job-queue-service");
-          jobQueue.startPolling();
-        }
+        // ✨ Parallel Service Initialization (Optimized for Cold Start)
+        const isBenchmarkMode = process.env.BENCHMARK_MODE === "true";
 
-        // Initialize Automation
-        if (process.env.BENCHMARK_MODE !== "true") {
-          const { automationService } = await import("@src/services/background/automation");
-          automationService.init();
-        }
+        if (!isBenchmarkMode) {
+          Promise.all([
+            import("@src/services/background/jobs/job-queue-service"),
+            import("@src/services/background/automation"),
+            import("@src/services/system/watchdog"),
+            import("@src/services/observability/telemetry-service"),
+          ])
+            .then(([{ jobQueue }, { automationService }, { watchdog }, { telemetryService }]) => {
+              jobQueue.startPolling();
+              automationService.init();
+              watchdog.start();
 
-        // Initialize Telemetry
-        const { telemetryService } = await import("@src/services/observability/telemetry-service");
+              // Telemetry check
+              const globalWithTelemetry = globalThis as typeof globalThis & {
+                __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
+              };
 
-        // ✨ ENTERPRISE: Start the Autonomous Watchdog
-        if (process.env.BENCHMARK_MODE !== "true") {
-          const { watchdog } = await import("@src/services/system/watchdog");
-          watchdog.start();
+              if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
+                clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
+              }
+
+              setTimeout(() => {
+                telemetryService
+                  .checkUpdateStatus()
+                  .catch((err) => logger.error("Initial telemetry check failed", err));
+              }, 10_000);
+
+              globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
+                () => {
+                  telemetryService
+                    .checkUpdateStatus()
+                    .catch((err) => logger.error("Periodic telemetry check failed", err));
+                },
+                1000 * 60 * 60 * 12, // 12 hours
+              );
+            })
+            .catch((err) => logger.error("[System] Parallel initialization failed:", err));
         } else {
-          logger.info("🛡️ Autonomous Watchdog DISABLED (Benchmark Mode)");
-        }
-
-        // Start Content Watcher (dev only)
-        if (dev && process.env.BENCHMARK_MODE !== "true") {
-          const { startContentWatcher } = await import("@src/content/content-watcher.server");
-          startContentWatcher();
-        }
-
-        if (process.env.BENCHMARK_MODE !== "true") {
-          const globalWithTelemetry = globalThis as typeof globalThis & {
-            __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
-          };
-
-          if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
-            logger.debug("Stopping old telemetry interval (HMR detected)");
-            clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
-          }
-
-          setTimeout(() => {
-            telemetryService
-              .checkUpdateStatus()
-              .catch((err) => logger.error("Initial telemetry check failed", err));
-          }, 10_000);
-
-          globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
-            () => {
-              telemetryService
-                .checkUpdateStatus()
-                .catch((err) => logger.error("Periodic telemetry check failed", err));
-            },
-            1000 * 60 * 60 * 12, // 12 hours
-          );
+          logger.info("🛡️ Background Services DISABLED (Benchmark Mode)");
+          // 🚀 COLD START OPTIMIZATION: Pre-warm the heaviest dispatchers
+          Promise.all([
+            import("./routes/api/[...path]/+server"),
+            import("./routes/api/graphql/+server"),
+            import("@src/databases/db"),
+          ])
+            .then(() => {
+              logger.debug("[System] API and GraphQL dispatchers pre-warmed.");
+            })
+            .catch(() => {});
         }
 
         // Cleanup: Unsubscribe once services are initialized
-        unsubscribe();
+        // ✨ FIXED: Defer unsubscribe to next tick to avoid ReferenceError if subscribe is synchronous
+        Promise.resolve().then(() => {
+          if (typeof unsubscribe === "function") {
+            unsubscribe();
+          }
+        });
       }
     });
   });
@@ -168,6 +209,7 @@ if (!building) {
       await new Promise((r) => setTimeout(r, 1000));
     }
 
+    const { shutdownSystem } = await import("@src/databases/db");
     await shutdownSystem();
     clearTimeout(shutdownTimeout);
     logger.info("✅ All systems finalized. Exit.");
@@ -191,23 +233,30 @@ if (!building) {
 }
 
 // --- Updated middleware sequence (Turbo Pipeline FIRST for performance) ---
-const middleware: Handle[] = [
-  handleTurboPipeline, // ✨ FAST-PATH (Health Check, Static Assets, Test Bypass)
-  handleSecurityHeaders, // ✨ Security Headers
-  handleTestIsolation, // ✨ CI: Tenant Isolation
-  handleStaticAssetCaching, // ✨ PERFORMANCE: Global Asset Caching
-  handleSecurity, // ✨ 1. PROTECTION (Firewall, Rate Limit, Bot Detection)
-  handleRedirects, // ✨ 3. SEO (Manual & Auto Redirects)
-  handleCompression, // ✨ 4. OPTIMIZATION (Dynamic Content)
-  handleUserPreferences, // ✨ 5. USER PREFERENCES
-  handleAuthentication, // ✨ 7. AUTHENTICATION
-  handleAuthorization, // ✨ 8. AUTHORIZATION
-  handleLocalSdk, // ✨ 9. LOCAL SDK
-  handleContentInitialization, // ✨ 10. CONTENT INITIALIZATION
-  handleAuditLogging, // ✨ 11. AUDIT LOGGING
-  handleApiRequests, // ✨ 12. API REQUESTS
-  handleTokenResolution, // ✨ 13. TOKEN RESOLUTION
-];
+const middleware: Handle[] = setupComplete
+  ? [
+      handleTurboPipeline,
+      handleSecurityHeaders,
+      handleTestIsolation,
+      handleStaticAssetCaching,
+      handleSecurity,
+      handleSystemState,
+      handleRedirects,
+      handleCompression,
+      handleUserPreferences,
+      handleAuthentication,
+      handleAuthorization,
+      handleLocalSdk,
+      handleContentInitialization,
+      handleAuditLogging,
+      handleApiRequests,
+      handleTokenResolution,
+    ]
+  : [
+      handleTurboPipeline, // Minimal pipeline for setup wizard
+      handleSecurityHeaders,
+      handleCompression,
+    ];
 
 // ✨ ENTERPRISE: Pre-compiled pipeline (optimizes hot path by ~1-2%)
 const pipeline = sequence(...middleware);
@@ -237,9 +286,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 
           // 2. ULTRA-FAST HEALTH CHECK (Bypass SvelteKit Routing)
           if (pathname === "/api/system/health" || pathname === "/health") {
-            const { overallState } = await import("@src/stores/system/state.svelte");
-            const { isDbConnected, ensureFullInitialization } = await import("@src/databases/db");
-            const { get } = await import("svelte/store");
+            // 🚀 Parallel Health Check Boot
+            const [{ overallState }, { isDbConnected, ensureFullInitialization }, { get }] =
+              await Promise.all([
+                import("@src/stores/system/state.svelte"),
+                import("@src/databases/db"),
+                import("svelte/store"),
+              ]);
 
             // ✨ Trigger initialization if not already started
             if (!isDbConnected()) {
