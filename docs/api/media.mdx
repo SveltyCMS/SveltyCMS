@@ -6,7 +6,7 @@ order: 11
 icon: "mdi:image-multiple-outline"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-04-12"
+updated: "2026-05-11"
 tags:
   - "api"
   - "media"
@@ -22,14 +22,15 @@ The Media API provides a centralized interface for managing all assets within Sv
 
 ## ⚡ Quick Reference
 
-| Feature             | HTTP Endpoint        | Method   | Permission Required |
-| :------------------ | :------------------- | :------- | :------------------ |
-| **List Media**      | `/api/media`         | `GET`    | `media:read`        |
-| **Get Manifest**    | `/api/media/{id}`    | `GET`    | `media:read`        |
-| **Upload Media**    | `/api/media`         | `POST`   | `media:create`      |
-| **Update Metadata** | `/api/media/{id}`    | `PATCH`  | `media:update`      |
-| **Delete Media**    | `/api/media/{id}`    | `DELETE` | `media:delete`      |
-| **Folders**         | `/api/media/folders` | `GET`    | `media:read`        |
+| Feature             | HTTP Endpoint             | Method   | Permission Required |
+| :------------------ | :------------------------ | :------- | :------------------ |
+| **List Media**      | `/api/media`              | `GET`    | `media:read`        |
+| **Get Manifest**    | `/api/media/{id}`         | `GET`    | `media:read`        |
+| **Upload Media**    | `/api/media`              | `POST`   | `media:create`      |
+| **Update Metadata** | `/api/media/{id}`         | `PATCH`  | `media:update`      |
+| **Delete Media**    | `/api/media/{id}`         | `DELETE` | `media:delete`      |
+| **Job Status**      | `/api/media/jobs/{id}`    | `GET`    | `media:read`        |
+| **Folders**         | `/api/media/folders`      | `GET`    | `media:read`        |
 
 ---
 
@@ -56,15 +57,16 @@ Virtual folders allow you to organize your asset library without relying on phys
 
 The media engine calculates high-entropy hashes (SHA-256) for every upload. If an identical file already exists in the system, SveltyCMS will automatically link the new metadata to the existing physical file, saving storage space.
 
-### Intelligent Resizing & Optimization
+### Asynchronous Operations
 
-SveltyCMS employs a 2-tier optimization strategy for media delivery:
+For long-running tasks (AI tagging, batch transforms, heavy ingestion), the API returns a `202 Accepted` status with an **`OperationID`**.
 
-- **Parallel Multi-Size Processing**: Automated variant generation (sm, md, lg) happens in parallel using the `libvips` thread pool, resulting in ~70% faster response times during ingestion.
-- **Instance Cloning**: Uses Sharp's memory-efficient `clone()` mechanism to generate all responsive sizes from a single header parse, minimizing CPU and RAM pressure.
-- **Watermark Caching**: Pre-rendered watermark buffers are cached in-memory to avoid redundant re-scaling during bulk uploads.
-- **Advanced Metadata Extraction**: Automatic extraction of `dominantColor` (hex) and `placeholder` (32px WebP base64) for progressive loading.
-- **Next-Gen Formats**: Auto-generation of **WebP** and **AVIF** variants for all resized images.
+**Endpoint**: `GET /api/media/jobs/{id}`  
+**Returns**: 
+- `pending`: Job is in queue.
+- `processing`: Job is currently executing.
+- `completed`: Job finished successfully.
+- `failed`: Job encountered an error (includes error details).
 
 ### Image Manipulation API
 
@@ -90,26 +92,31 @@ SveltyCMS provides a dedicated endpoint for server-side image baking.
 
 ### Storage Adapters
 
-The Media API is storage-agnostic. It can be configured to use local disk storage, AWS S3, Google Cloud Storage, or Azure Blob Storage through the **MediaAdapter** interface.
+The Media API is storage-agnostic. It can be configured to use local disk storage, AWS S3, or Cloudflare R2 through the **MediaAdapter** interface.
 
 ```mermaid
 sequenceDiagram
     participant User
     participant API as Media Handler
-    participant SDK as LocalCMS SDK
-    participant Storage as Storage Adapter (disk/S3)
+    participant Jobs as Job Queue Service
+    participant Storage as Storage Adapter
 
-    User->>API: POST /api/media (upload)
-    API->>API: Calculate Hash
-    API->>Storage: Store File
-    API->>SDK: Create Media Meta
-    SDK-->>User: 201 Created (Asset JSON)
+    User->>API: POST /api/media
+    API->>API: Calculate Hash & Deduplicate
+    API->>Storage: Store Original File
+    API->>Jobs: Spawn Processing Job
+    API-->>User: 202 Accepted (OperationID)
+    
+    loop Polling
+        User->>API: GET /api/media/jobs/{id}
+        API-->>User: status: completed
+    end
 ```
 
 ---
 
 ## Related Documents
 
+- [Media System Architecture](../architecture/media-system.mdx)
 - [Collections Reference (collections.ts)](./collections.mdx)
 - [System Reference (system.ts)](./system.mdx)
-- [Secure Media Engine Guide](../architecture/security/widget-security.mdx)

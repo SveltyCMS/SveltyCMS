@@ -359,7 +359,7 @@ async function main() {
 
   // 🚀 HARDENING: Fail the entire suite if ANY test failed
   const failedTests = results.filter((r) => r.status === "FAILED");
-  
+
   if (cfg.ci) {
     const summary = await writeCISummary(results, regressions);
     if (summary.overall !== "PASS") {
@@ -372,12 +372,12 @@ async function main() {
     }
   } else if (failedTests.length > 0) {
     log.error(`\n❌ Audit FAILED — ${failedTests.length} benchmark(s) failed. Check logs above.`);
-    
+
     // Log individual failures for visibility
     for (const failure of failedTests) {
-        log.error(`   ✗ ${failure.db}: ${failure.error || "Unknown error"}`);
+      log.error(`   ✗ ${failure.db}: ${failure.error || "Unknown error"}`);
     }
-    
+
     await stopServer();
     await ConfigSafeguard.restore();
     process.exit(1);

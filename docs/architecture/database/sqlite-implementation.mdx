@@ -90,13 +90,24 @@ SQLite is a file-based database. When running SveltyCMS with SQLite, the system 
 > **Database files are included in `.gitignore` by default.**
 > Committing binary database files to version control is discouraged as it leads to repository bloat and potential exposure of sensitive data.
 
-### Self-Healing & Recovery
+### Provisioning System & Self-Healing
 
-If you delete the `.db` file, the CMS will automatically recreate a fresh, empty database on the next startup. The setup wizard also handles the automatic creation of the directory structure (e.g., `/config/database`) if it doesn't exist.
+The SQLite adapter implements a robust provisioning system that handles the complete lifecycle of the database file and schema:
+
+1.  **Idempotent Provisioning**: The `provision()` method checks the internal `_provisioned` state and only executes schema creation (`CREATE TABLE IF NOT EXISTS`) if necessary.
+2.  **Explicit Reset**: During integration tests or system resets, `clearDatabase()` drops all tables and resets the `_provisioned` flag, ensuring the next access re-creates a clean schema.
+3.  **Path Auto-Creation**: The adapter automatically detects if the `DB_HOST` directory exists and creates it recursively if missing, preventing "File not found" errors on new installations.
+
+### ESM-First Driver Loading
+
+To comply with SvelteKit 5's strict ESM requirements and avoid "require is not defined" errors:
+- The adapter uses **Dynamic Imports** to load binary drivers.
+- It detects the runtime environment (`Bun` vs `Node.js`) and imports the appropriate library (`bun:sqlite` or `better-sqlite3`) at runtime.
+- This allows a single codebase to run seamlessly across local development (Bun) and production (Node.js) environments.
 
 ### WAL Mode & Performance PRAGMAs
 
-SveltyCMS enables **WAL mode** and **6 performance PRAGMAs** on every connection. This provides concurrent read/write operations, 2-5x faster writes, resilience under load (busy_timeout), and enforced referential integrity.
+SveltyCMS enables **WAL mode** and **7 performance PRAGMAs** on every connection. This provides concurrent read/write operations, 2-5x faster writes, resilience under load (busy_timeout), and enforced referential integrity.
 
 ---
 

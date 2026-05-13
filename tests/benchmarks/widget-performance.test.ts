@@ -50,6 +50,11 @@ async function runWidgetAudit() {
   const cms = new LocalCMS(db);
   await ensureStableTestData(db);
 
+  // 🚀 Initialize WidgetStore for the benchmark
+  const { widgets, widgetStoreActions } = await import("@src/stores/widget-store.svelte");
+  (globalThis as any).widgets = widgets;
+  await widgetStoreActions.initializeWidgets("global", db);
+
   const ITERATIONS = 500;
   const RUNS = 2;
   const allResults: any[] = [];

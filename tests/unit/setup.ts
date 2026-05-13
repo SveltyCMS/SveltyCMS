@@ -483,14 +483,18 @@ moduleMock("@sveltejs/kit", () => ({
     err.status = status;
     err.statusCode = status; // Fallback for some tests
     err.body = { message: msg };
+    err.__is_http_error = true;
     throw err;
   }),
   redirect: mock((status: number, location: string) => {
     const err = new Error("Redirect") as any;
     err.status = status;
     err.location = location;
+    err.__isRedirect = true;
     throw err;
   }),
+  isRedirect: (err: any) => err && err.__isRedirect === true,
+  isHttpError: (err: any) => err && err.__is_http_error === true,
 }));
 
 moduleMock("svelte/reactivity", () => ({

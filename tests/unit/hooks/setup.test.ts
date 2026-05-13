@@ -3,36 +3,7 @@
  * @description Comprehensive tests for handleSetup middleware with proper redirect validation
  */
 
-// --- Mock SvelteKit ---
-vi.mock("@sveltejs/kit", () => ({
-  __esModule: true,
-  redirect: (status: number, location: string) => {
-    throw { status, location, __isRedirect: true };
-  },
-  error: (status: number, message: string | { message: string }) => {
-    const body = typeof message === "string" ? { message } : message;
-    throw { status, body, message: body.message, __is_http_error: true };
-  },
-  isRedirect: (err: any) => err && err.__isRedirect === true,
-  isHttpError: (err: any) => err && err.__is_http_error === true,
-  json: (data: unknown, init?: ResponseInit) =>
-    new Response(JSON.stringify(data), {
-      ...init,
-      headers: { "Content-Type": "application/json", ...init?.headers },
-    }),
-  text: (data: string, init?: ResponseInit) => new Response(data, init),
-  default: {
-    redirect: (status: number, location: string) => {
-      throw { status, location, __isRedirect: true };
-    },
-    error: (status: number, message: string | { message: string }) => {
-      const body = typeof message === "string" ? { message } : message;
-      throw { status, body, message: body.message, __is_http_error: true };
-    },
-    isRedirect: (err: any) => err && err.__isRedirect === true,
-    isHttpError: (err: any) => err && err.__is_http_error === true,
-  },
-}));
+// --- SvelteKit is globally mocked in tests/unit/setup.ts ---
 
 import type { RequestEvent } from "@sveltejs/kit";
 import { handleTurboPipeline as handleSetup } from "@src/hooks/handle-turbo-pipeline.server";

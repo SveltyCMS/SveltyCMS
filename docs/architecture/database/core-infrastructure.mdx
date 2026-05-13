@@ -254,6 +254,21 @@ export async function loadSettingsFromDB() {
 
 **Key Point**: Settings are stored in the database but cached in memory for performance. Changes to settings invalidate the cache and reload automatically.
 
+### Provisioning Lifecycle (SQL Adapters)
+
+SQL-based adapters (PostgreSQL, MariaDB, SQLite) implement a specialized **Provisioning Lifecycle** to ensure database schema integrity while avoiding redundant overhead.
+
+1.  **State Tracking**: Each adapter maintains an internal `_provisioned` flag.
+2.  **`provision()`**: An idempotent method that runs on the first system access. It ensures all tables, indexes, and constraints exist.
+3.  **Automatic Healing**: If `clearDatabase()` is called (e.g., during testing), the `_provisioned` flag is reset, forcing a re-provisioning on the next request.
+
+### `SQLiteAdapterCore` - ESM & Environment Awareness
+
+The SQLite adapter is specifically engineered for high-performance edge environments:
+- **ESM-First Driver Loading**: Uses dynamic `import()` to load `better-sqlite3` (Node.js) or `bun:sqlite` (Bun), complying with strict SvelteKit 5 ESM requirements.
+- **Path Resolution**: Handles relative and absolute paths for the `.db` file, ensuring portability across local dev and deployed containers.
+- **Mutex Protection**: Implements a low-overhead mutex to prevent "Database is locked" errors during high-concurrency write operations.
+
 ### Exported API
 
 ```typescript
@@ -611,7 +626,7 @@ export interface QueryMeta {
 **Size**: 250 lines  
 **Complexity**: High - Uses advanced JS meta-programming for "Hot-Swap" memoization
 
-### The Zero-Tax Dispatcher
+### The Zero-Tax Dispatcher {#lazy-holder-architecture}
 
 Traditional SDKs use `Proxies` or heavy class instances that incur a performance penalty on every method call. `LocalCMS` uses a **Hot-Swap Self-Overwriting Getter** pattern to achieve statistical parity with direct database access.
 

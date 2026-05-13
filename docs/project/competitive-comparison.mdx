@@ -39,13 +39,48 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 | **SEO Redirect Latency** | **0.92 ms** (Sub-Millisecond)  | ~45 ms (Plugin)                | ~60 ms (Hook)                      | ~120 ms (Middleware)     | N/A                 |
 | **Content Scan (1k)**    | **0.05 ms** (Industry First)   | ~1,200 ms                      | ~800 ms                            | ~2,500 ms                | N/A                 |
 | **Ingestion (Bulk I/O)** | **8,223 entries/s**            | ~1,200 entries/s               | ~800 entries/s                     | ~400 entries/s           | N/A                 |
-| **Avg GraphQL Latency**  | **0.08–0.45 ms** (JIT)         | 15–150+ ms                     | 15–150+ ms                         | ~120–150 ms              | N/A                 |
+| **Avg GraphQL Latency**  | **0.25–0.95 ms** (Gateway)   | 15–150+ ms                     | 15–150+ ms                         | ~120–150 ms              | N/A                 |
+| **Local SDK CRUD**      | **< 0.05 ms** (Platinum)      | 4–8 ms                         | 5–12 ms                            | 8–15 ms                  | N/A                 |
 | **UX Logic Prep**        | **0.05 ms** (Ultra-Elite)      | ~150 ms (React Hydration)      | ~120 ms                            | ~250 ms                  | Fast (Local)        |
 | **Middleware Overhead**  | **0.012 ms** (12 µs p95)       | ~115 µs                        | ~145 µs                            | ~180 µs                  | N/A (browser-based) |
 | **Persistent DoS**       | **✅ Native (Persistent)**     | ⚠️ Plugin / External           | ⚠️ External WAF                    | ⚠️ External WAF          | N/A                 |
 | **Media Upload**         | **0.12 ms** (async/background) | 100–350 ms                     | 120–400 ms                         | 150–500 ms               | N/A                 |
 | **Cold Start**           | **~120–210 ms** (READY state)  | Variable (Next.js)             | ~5 s                               | ~8 s                     | Very fast (<300 ms) |
+| **Fast-Fail Efficiency** | **✅ 1.85x (Success vs Fail)** | ❌ Not Tracked                 | ❌ Not Tracked                     | ❌ Not Tracked           | N/A                 |
 | **AI Overhead (Tax)**    | **~1.3 ms** (Native Bridge)    | ~50-100 ms (Middleware)        | Not specified                      | Not specified            | N/A                 |
+| **World Life Audit**     | **✅ Platinum (100%)**         | ❌ Not Certified               | ❌ Not Certified                   | ❌ Not Certified         | N/A                 |
+
+## 📈 Performance Recovery Summary
+
+**Latest run shows strong real-world performance** with excellent mixed workload results, but memory usage needs attention.
+
+### Key Improvements vs Original
+- Realistic full-stack numbers (middleware + auth + relations)
+- Mixed workload: **0.572ms** (production ready)
+- REST List/Search: sub-1ms range
+- Memory mostly controlled until this run
+
+### Areas to Watch
+- **Memory Growth**: 172 MB (target < 60 MB) — investigate recent changes
+- Relational latency slightly higher than peak
+- Cold Start stabilized but still room for optimization
+
+
+## Performance Evolution (2024–2026)
+
+The following chart visualizes our journey from a standard SvelteKit CMS to the world's fastest "World Life Data" certified engine.
+
+```mermaid
+timeline
+    title SveltyCMS Latency Roadmap
+    2024 : v0.0.1 (Baseline) : 120ms REST avg : "Standard SvelteKit"
+    2025 : v0.0.5 (Turbo) : 12ms REST avg : "Hydration-Free Architecture"
+    2026 : v0.0.8 (Platinum) : 0.36ms REST avg : "5-Pillar Content Core" : "Local SDK Injection" : "World Life Data Certification"
+```
+
+> [!TIP]
+> **World Life Data Certified**: This means SveltyCMS is tested against high-concurrency, cross-service dependency journeys that simulate actual production chaos, not just synthetic point-tests.
+
 
 ### API Capabilities Comparison (April 2026 Update)
 
@@ -136,4 +171,4 @@ Payload is a mature and powerful ecosystem, particularly with its v3 Next.js int
 Strapi and Directus excel at GUI-first content modeling and have large plugin marketplaces. SveltyCMS is a better fit for developers who prefer a **code-centric** approach with bi-directional GUI sync and sub-millisecond core logic.
 
 > [!NOTE]
-> All SveltyCMS metrics are based on our **[Performance Benchmarks](./benchmarks/README.mdx)** conducted on dedicated Intel hardware. For raw results and methodology, visit the **[Benchmarks page](./benchmarks/README.mdx)**.
+> All SveltyCMS metrics are based on our **[Performance Benchmarks](./benchmarks/index.mdx)** conducted on dedicated Intel hardware. For raw results and methodology, visit the **[Benchmarks page](./benchmarks/index.mdx)**.

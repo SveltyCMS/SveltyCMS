@@ -349,7 +349,6 @@ export async function runAuditForDatabase(
 
   log.db(dbKey, `Worker starting on port ${workerPort} (DB: ${workerDbName})...`);
 
-
   try {
     const metrics: Record<string, any> = {};
     if (dbConf.useRedis) metrics["USE_REDIS"] = "true";
@@ -463,7 +462,7 @@ export async function runAuditForDatabase(
         if (!setupOk) {
           status = "FAILED";
           error = (error ? error + "; " : "") + "Seeding Relational Data failed";
-          
+
           if (cfg.failFast) {
             log.error("Fail-Fast: Seeding Relational Data failed. Terminating suite.");
             setShuttingDown(true);

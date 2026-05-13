@@ -1,135 +1,42 @@
 ---
 path: "docs/project/roadmap-2026.mdx"
 title: "Project Roadmap 2026"
-description: "Internal assessment and gap analysis of SveltyCMS for 2026."
+description: "SveltyCMS 2026 Todo List and Future Milestones."
 order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-05-03"
+updated: "2026-05-12"
 tags:
   - "roadmap"
+  - "todo"
   - "planning"
-  - "internal"
-  - "ai"
-  - "mcp"
 ---
 
-# SveltyCMS: 2026 State-of-the-Art Assessment
+# SveltyCMS: 2026 Todo List
 
-**Assessment Date:** April 2026
-**Target Score:** 100/100 (Enterprise-Ready)
+This document outlines the remaining high-priority tasks and strategic objectives for SveltyCMS in 2026.
 
-## Strategic Vision: The Intelligent Content Platform
+## 🚀 Phase 5: Secure Upgrade & Cloud Strategy (Q2-Q4 2026)
 
-SveltyCMS has transitioned from a high-performance CMS into the first **Intelligent Content Platform**. Having successfully won the "Engine War" and the "Experience War," our focus now shifts from building foundations to autonomous operations.
+- 🚀 **Phase 2: Hybrid Package Model (Q2 2026)**: Publishing core modules as scoped packages (`@sveltycms/core`, `@sveltycms/widgets`) while maintaining Git-based "Agency OS" flexibility.
+- 🚀 **Phase 3: Intelligence & Rollbacks (Q3 2026)**: Support for version channels (LTS, Stable, Next), automated visual regression diffs before upgrades, and one-click database/code rollbacks.
+- 🚀 **Svelty Managed Cloud (Q4 2026)**: Optional managed Postgres + Redis tier (Fly.io/Cloudflare) for zero-ops enterprise deployments.
 
-### ✅ Phase 4: Autonomous Operations (Q4 2026 - COMPLETE)
+## 🎯 Gap Analysis (Priority Todo)
 
-_Focus: Evolution from "Intelligent Tool" to "Proactive Agent Ecosystem."_
+These items are required to achieve total feature parity with enterprise competitors:
 
-- ✅ **Autonomous Schema-Aware AI Co-Pilot** - Client-side MCP AI that reads `$state.snapshot()` and Valibot schemas to autonomously spawn UI blocks and "Ghost" data structures.
-- ✅ **Conversational UI** - Full "Agent Mode" for the CMS dashboard using modern LLM tool-calling for system operations.
-- ✅ **Enterprise SEO Suite (v1.6)**: Implemented a high-performance, multi-tenant Redirect Manager and Dynamic Sitemap engine with sub-millisecond middleware and automated indexing pings.
-- ✅ **Enterprise Monitor UI** - Unified auditing dashboard for trash recovery, security incidents, and webhook health.
-- ✅ **Smart Diff View** - Comparison modal showing "only modified fields" (Directus-style) inside the Enterprise Monitor and Revisions UI.
-- ✅ **Sveltia Parity Suite** - Locale-agnostic slug preservation, improved regex handling, CI publish status badges ("Publishing..."), and Blob URL resolution in slug templates.
-- ✅ **Review Stage FSM** - Exposing RBAC-gated "Move to stage" workflows within the Visual Workflow Engine for enterprise governance.
-- ✅ **Hardened Auth Fields** - Implementing field-level access control (FLAC) on internal authentication fields.
-- ✅ **AI-Driven Layout Optimization** - Automated A/B testing of `json-render` layouts based on engagement metrics.
-- ✅ **Autonomous Maintenance** - Self-healing cache fragmentation and automated database index optimization.
-- ✅ **Collaborative Editing (Phase 2)** - CRDT-based concurrent editing with Yjs, Hocuspocus sync, and real-time remote cursors.
-- ✅ **Collaborative Editing (Phase 1)** - Field-level locking and real-time presence indicators via SSE.
-- ✅ **Widget Performance Matrix** - Integrated audit pass for core and custom widget overhead in the server-side pipeline.
-- ✅ **Multi-DB CI/CD Parity** - Containerized E2E testing for PRs across all 4 database targets. Optimized with "Bootstrap" artifact reuse and global BSON-to-String normalization for consistent serialization.
+1. **Deep Draft/Versioning Integration**: Maturing the "Enterprise Handshake Protocol" to seamlessly bind Live Preview with complex document revision histories.
+2. **Nested UI Logic**: Stabilizing the nested drag-and-drop treeview layer for ultra-complex hierarchy management without UI flicker.
 
-### ✅ Completed Milestones (2026)
+## 🚀 Competitive Leapfrog Opportunities
 
-- ✅ **Enterprise Media Engine** - Server-side image baking with Sharp.js, JSON-instruction payloads, automated WebP/AVIF generation, and full WCAG 2.2 AA gallery compliance.
-- ✅ **Enterprise Audit Suite** - Full-matrix benchmark runner with sub-millisecond core service latencies, LRU prepared-statement caching, and self-healing content scan diagnostics.
-- ✅ **Vectorized Request Modification** - High-performance chunked processing for bulk operations, reducing event loop blocking by 70%.
-- ✅ **Atomic Content Versioning** - Native `ContentVersionManager` for race-condition-free state synchronization.
-- ✅ **Media Storage Deduplication** - Hash-based pre-upload check to prevent redundant storage and DB growth.
-- ✅ **Multi-Tenant Media Isolation** - Dynamic URL prefixing via `?prefix=` for isolated tenant media.
-- ✅ **Hardened Validation Pipeline** - Support for `skipValidation` and `action` context across the widget lifecycle.
-- ✅ **Drizzle Relationship Fix** - Automatic $eq/$ne to $in/$nin conversion for hasMany relationship arrays.
-- ✅ **Remote Media Loop Protection** - Prevent infinite re-upload loops by detecting local URLs in remote fetches.
-- ✅ **Local SDK System Context** - Support for `system: true` and `disableErrors` in internal API calls.
-- ✅ **Dynamic OpenAPI 3.1.0 Export** - Automated API contract generation for SDKs and interactive documentation.
-- ✅ **3-Pillar Performance Shield** - Isolated server-side widget logic protecting the API hot path from UI-driven lag.
-- ✅ **Fail-Closed API Dispatcher** - Exhaustive endpoint registration ensuring 100% security coverage by default.
+Strategic features designed to push SveltyCMS ahead of the 2026 market:
 
-### 🚀 Phase 5: Secure Upgrade & Cloud Strategy (Q1-Q2 2026)
-
-_Focus: Transitioning from manual Git management to an automated, safe, and intelligent upgrade ecosystem._
-
-- ✅ **Phase 1: Immediate CLI Smarts (March 2026)** - Introduction of `upgrade.ts` (Phase 1 CLI). Automated Git fetch/merge with visual conflict guidance, `bun install` orchestration, and pre-upgrade schema validation.
-- ✅ **Architectural Consolidation (April 2026)** - Purged 13 redundant API route directories and fully decoupled the `LocalCMS` SDK from the routing layer into a dedicated service layer. Eradicated all route-based legacy imports, achieving a stable zero-regression production build environment and an 80% reduction in AST parsing overhead with fail-closed security enforcement.
-- ✅ **Advanced Telemetry & Secure Handshake (April 2026)** - HMAC-SHA256 registration and signed heartbeat payloads for guaranteed instance authenticity.
-- ✅ **Edge Sync & Distributed Invalidation (April 2026)** - Redis Pub/Sub invalidation channel for real-time cross-node consistency in multi-region deployments.
-- 🚀 **Phase 2: Hybrid Package Model (Q2 2026)** - Publishing core modules as scoped packages (`@sveltycms/core`, `@sveltycms/widgets`) while maintaining Git-based "Agency OS" flexibility.
-- 🚀 **Phase 3: Intelligence & Rollbacks (Q3 2026)** - Support for version channels (LTS, Stable, Next), automated visual regression diffs before upgrades, and one-click database/code rollbacks.
-- 🚀 **Svelty Managed Cloud** - Optional managed Postgres + Redis tier (Fly.io/Cloudflare) for zero-ops enterprise deployments.
-
-### 🚀 Benchmark-Driven Optimizations (NEW - April 2026)
-
-Following the stabilization of our Audit infrastructure, we have identified several critical optimization targets for the Q2 2026 cycle:
-
-1. ✅ **MongoDB Connection Pool Tuning**: Modularized the MongoDB adapter into domain-specific modules and optimized connection strategies to prevent deadlock-style hangs during concurrent REST operations.
-2. ✅ **Hardened Authentication Core**: Implemented WeakRef L0 Session caching to prevent OOM memory leaks, secured TOTP validation against timing attacks, and stabilized fallback garbage collection loops.
-3. ✅ **Middleware AST Pre-compilation**: Introduced a compiled "Auth-Path" cache in `hooks.server.ts` resolving significant overhead in `handleSetup` and effectively reducing middleware latency by ~40%.
-4. ✅ **Lazy Relation Hydration**: Implemented the "Ghost Relation" pattern on the frontend via Svelte 5 snippets (`{#snippet}`) and `IntersectionObserver`. This prevents Depth-3 query lag on strict SQL engines by lazy-loading nested relational data strictly upon viewport entry.
-5. ✅ **Vectorized Audit Chaining**: Moved `crypto` hashing logic inside `audit-log-service.ts` into a dedicated Node.js Worker Thread pool. This successfully unblocks the main event loop, permitting thousands of bulk audit events simultaneously without API lag.
-6. ✅ **Memory Stability & Leak Remediation**: Implemented cap/sanitization logic across `AutomationService`, `MetricsService`, and `Logger`, achieving "EXCELLENT" stability with <2.5MB heap growth over soak tests. **Remediated Relational CRUD memory pressure via fast-path ID lookups.**
-7. ✅ **Asynchronous Build Pipeline**: Refactored Vite production build infrastructure to use asynchronous `node:fs/promises`, resolving infrastructure crashes in high-memory environments.
-8. ✅ **Background Validation Workers**: Offloaded Valibot schema parsing for content operations to a dynamic thread pool, ensuring main-thread vitality during concurrent writes.
-9. ✅ **Relational CRUD Fast-Path**: Implemented direct ID-based SQL lookups and updates in `RelationalCrudModule`, bypassing IR translation and closure overhead. Achieved a stable 2.59MB heap delta over 100,000 operations.
-10. ✅ **Lazy Media Pipeline**: Fully decoupled the `sharp` image engine via dynamic imports, reducing server cold-start memory pressure and improving edge readiness.
-11. ✅ **Persistent DoS Protection**: Implemented `dump()` and `restore()` hooks in `SecurityResponseService`, ensuring rate-limiter state survives graceful shutdowns and node restarts.
-12. ✅ **SQLite Multi-Tenant Index Optimization**: Hardened the SQLite schema with compound `(tenantId, field)` indexes, eliminating table scans and achieving sub-millisecond query performance at scale.
-13. ✅ **Zero-Tax SDK Dispatcher**: Implemented "Hot-Swap" lazy getters in `LocalCMS`, achieving 0% middleware overhead and direct-access parity after the first call.
-14. ✅ **Negative Cache Shield**: Prevented "DB Miss Storms" with an O(1) missing-key cache, achieving a verified **2392x speedup** for repeated 404/miss queries.
-15. ✅ **Prefix-Bucketed Invalidation**: Refactored cache clearing to use namespaced buckets, ensuring O(1) performance for large-scale invalidations (tested with 500k+ items).
-16. ✅ **Svelte 5 Rune System State**: Migrated the core state machine to reactive runes, enabling zero-tax synchronous access and eliminating store subscription overhead.
-
----
-
-## 📊 Competitor Comparison (March 2026)
-
-| Feature               | SveltyCMS (Direct SDK) | Strapi 5   | Payload 3.0   | Sanity      |
-| :-------------------- | :--------------------- | :--------- | :------------ | :---------- |
-| **API Latency (Hot)** | **✅ 0.1 – 0.4 ms**    | 30–80 ms   | 20–50 ms      | 30–100 ms   |
-| **Middleware**        | **✅ < 0.1 ms**        | 2–6 ms     | 1–4 ms        | N/A         |
-| **AI Architecture**   | **✅ MCP Native**      | ⚠️ Partial | ✅ MCP Native | ✅          |
-| **Live Preview**      | **✅ Visual DnD**      | ⚠️ Basic   | ⚠️ Basic      | ✅ Advanced |
-| **Multi-Tenancy**     | **✅ Adapter Level**   | ❌ Paid    | ✅ Plugin     | ✅ Native   |
-
----
-
-## 🎯 Gap Analysis vs. other CMS
-
-While SveltyCMS has surpassed competitors on performance, there are two engineering targets remaining for total parity:
-
-1.  **Deep Draft/Versioning Integration**: Maturing the "Enterprise Handshake Protocol" to seamlessly bind Live Preview with complex document revision histories.
-2.  **Nested UI Logic**: Stabilizing the nested drag-and-drop treeview layer for ultra-complex hierarchy management without UI flicker.
-
-### 🚀 Competitive Leapfrog Opportunities (The "Untouchable in 2026" Strategy)
-
-Based on recent update drops from Strapi (v5.33-v5.40) and Directus (v11.13-v11.16), here is our tactical plan to push our Svelte 5 architecture so far ahead that competitors cannot catch up without rewriting their entire tech stacks:
-
-1. **Autonomous Schema-Aware AI Co-Pilot**: Directus recently attached visual editor context and file uploads to their AI chat. **The SveltyCMS Leapfrog**: Move beyond "chat." Our client-side MCP AI seamlessly reads `$state.snapshot()` and the active Valibot schema. If an author writes a recipe, the AI _autonomously spawns_ the required "Ingredients" block UI natively via Svelte 5 snippets. It inserts "Ghost" data (grayed-out text/images). You hit `Tab`, and complex block structures (images, relations, text) instantly materialize inside the drag-and-drop hierarchy.
-2. **Bulk AI Content Localization (NEW)**: While competitors offer per-field translation generation, SveltyCMS introduces the **Autonomous Translation Utility**. This background service iterates through 10,000+ entries, identifies missing locales, and utilizes the AI Service to bulk-translate content while respecting field-level constraints and brand-voice guidelines.
-3. **AI-Verified Zero-Downtime Deployments**: Directus just added basic Vercel and Netlify deployment trigger buttons. **The SveltyCMS Leapfrog**: We will integrate Deployments into the Visual Automation Builder to create _Self-Healing Pipelines_. A deployment triggers an edge preview → SveltyCMS runs dynamic Lighthouse CI/visual regression tests → If the build degrades Core Web Vitals by >5% or throws console errors, the pipeline _autonomously halts, rolls back the content state_, and pings Discord with the exact schema change that caused the failure.
-4. **Autonomous Import Optimization**: SveltyCMS background imports now feature **Dynamic Concurrency & TTL-Backing**. Large 30,000+ row imports automatically switch to a high-speed temporary file-store to prevent DB bloat, with a smart worker that adjusts concurrency based on system load, providing real-time percentage feedback in the UI.
-5. **Ghost Caching Engine (v0.0.7)**: Achieved a **98.8% reduction** in read latency using a reactive L1 (Memory) + L2 (Redis) hybrid architecture, transforming the CMS into a near-zero-latency content delivery engine.
-6. **"Time-Travel" Git-Style Content Branching**: Treat CMS content exactly like Git. Agencies can create a "Black Friday Sale" content branch encompassing _multiple collections at once_ (Products, Banners, Blog Posts). Stakeholders review the entire branched state via Live Preview. When approved, zero-runtime visual diffs in Svelte 5 identify conflicts, and the entire branch is mathematically merged into `main` without locking the database.
-7. **Fine-Grained Field-Level Caching**: [x] Surgically targeting only affected cache keys via `tagMap` invalidation; prevents whole-document purges and maintains 99%+ hit rates during high-frequency edits.
-8. **Geographic Read-Replica Awareness**: [x] Intelligently routing database driver traffic to the nearest regional read-replica (PostgreSQL/MongoDB) based on the `x-svelty-region` header, minimizing cross-region transit latency.
-9. **Native CDN Adapters (Optional)**: [x] Automated invalidation hooks for Cloudflare integrated directly into the Edge Sync Pub/Sub pipeline for instant global propagation; fails gracefully if credentials are missing.
-10. **Decentralized WebGPU Media Engine**: Strapi introduced focal point picking and retroactive paid-API AI metadata. **The SveltyCMS Leapfrog**: We utilize the user's raw hardware via **WebGPU/WASM** directly in the browser to immediately compress, focal-crop, and generate blurhashes _before_ the file hits the network. During upload, our local zero-cost Ollama AI not only tags the image, but utilizes Paraglide i18n to dynamically generate accessible `alt` text and ARIA descriptions perfectly tailored to the language of the surrounding article content.
-
----
-
-## 🎓 Conclusion
-
-SveltyCMS is no longer just a CMS; it is a proactive **Autonomous Agency OS**. By moving beyond the manual workflows of Phase 3, we are setting a new industry standard where the platform itself optimizes, protects, and scales content autonomously.
+1. **Autonomous Schema-Aware AI Co-Pilot**: Client-side MCP AI that autonomously spawns UI blocks and "Ghost" data structures based on Valibot schemas.
+2. **Bulk AI Content Localization**: Background service for high-volume automated translation of existing entries while respecting brand-voice guidelines.
+3. **AI-Verified Zero-Downtime Deployments**: Self-healing pipelines with automated visual regression and performance audits (Lighthouse CI) before final production promote.
+4. **Autonomous Import Optimization**: Dynamic concurrency and TTL-backed background imports for 30k+ row datasets.
+5. **"Time-Travel" Git-Style Content Branching**: Multi-collection branching for campaign management (e.g., "Black Friday Sale") with visual diffs and mathematical merge conflict resolution.
+6. **Decentralized WebGPU Media Engine**: Client-side WASM/WebGPU image processing and focal-crop generation to reduce server load and improve edge performance.

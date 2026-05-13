@@ -61,7 +61,7 @@ SveltyCMS 2026 utilizes a **Context-Aware Phased Boot** to minimize resource was
 This **Adaptive Phased Boot** ensures that the system is live and serving traffic within milliseconds, while heavy resource-intensive tasks are deferred to background threads.
 
 > [!TIP]
-> **Logical vs. Technical Lazy Loading**: While **Phased Initialization** handles the _logical_ order of service startup, SveltyCMS uses the **[Lazy Holder](./database/index.mdx#lazy-holder-architecture)** technical pattern to ensure physical code isolation, preventing server-only modules from leaking into client bundles.
+> **Logical vs. Technical Lazy Loading**: While **Phased Initialization** handles the _logical_ order of service startup, SveltyCMS uses the **[Lazy Holder](./database/core-infrastructure.mdx#lazy-holder-architecture)** technical pattern to ensure physical code isolation, preventing server-only modules from leaking into client bundles.
 
 ---
 

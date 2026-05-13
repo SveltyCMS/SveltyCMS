@@ -10,7 +10,7 @@ import path from "node:path";
 // ── silencing noise ─────────────────────────────────────────────────────────
 (globalThis as any).__SVELTY_QUIET__ = true;
 process.env.BENCHMARK = "true";
-process.env.LOG_LEVEL = process.env.LOG_LEVEL || "error";
+process.env.LOG_LEVEL = process.env.BENCHMARK_DEBUG === "true" ? "debug" : (process.env.LOG_LEVEL || "error");
 process.env.DEBUG = "";
 process.env.QUIET = "true";
 // process.env.DB_TYPE = process.env.DB_TYPE || "sqlite"; // REMOVED: too aggressive for matrix runs
@@ -49,6 +49,8 @@ export interface BenchmarkResult {
   externalDelta?: number;
   totalMs: number;
   errorRate?: number;
+  failAvgMs?: number;
+  failP95Ms?: number;
   // Metadata
   timestamp: string;
   version: string;
@@ -93,25 +95,30 @@ function percentile(sorted: number[], p: number): number {
 /**
  * Computes high-fidelity statistics including CV for stability tracking.
  */
-export function computeStatistics(times: number[], rps: number, config: any): BenchmarkResult {
+export function computeStatistics(
+  times: number[],
+  rps: number,
+  config: any,
+  failTimes: number[] = [],
+): BenchmarkResult {
   const sorted = [...times].sort((a, b) => a - b);
   const sum = sorted.reduce((a, b) => a + b, 0);
-  const avg = sum / sorted.length;
+  const avg = sum / (sorted.length || 1);
 
   // Standard Deviation for CV
-  const variance = sorted.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / sorted.length;
+  const variance = sorted.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / (sorted.length || 1);
   const stdDev = Math.sqrt(variance);
-  const cv = (stdDev / avg) * 100;
+  const cv = avg > 0 ? (stdDev / avg) * 100 : 0;
 
-  return {
+  const result: BenchmarkResult = {
     name: config.name,
     db: getDbType(),
     avgMs: avg,
     p50Ms: percentile(sorted, 50),
     p95Ms: percentile(sorted, 95),
     p99Ms: percentile(sorted, 99),
-    minMs: sorted[0],
-    maxMs: sorted[sorted.length - 1],
+    minMs: sorted[0] || 0,
+    maxMs: sorted[sorted.length - 1] || 0,
     rps,
     iterations: times.length,
     runs: config.runs || 1,
@@ -122,6 +129,15 @@ export function computeStatistics(times: number[], rps: number, config: any): Be
     timestamp: new Date().toISOString(),
     version: "0.0.8-enterprise",
   };
+
+  if (failTimes.length > 0) {
+    const sortedFails = [...failTimes].sort((a, b) => a - b);
+    const sumFails = sortedFails.reduce((a, b) => a + b, 0);
+    result.failAvgMs = sumFails / sortedFails.length;
+    result.failP95Ms = percentile(sortedFails, 95);
+  }
+
+  return result;
 }
 
 // ── infrastructure ───────────────────────────────────────────────────────────
@@ -451,6 +467,20 @@ export function printTruthTable(options: {
           Math.round(r.rps || 0).toLocaleString(),
         ),
       );
+
+      // 🚀 FAILURE LATENCY SPLIT: If we have failure metrics, display them in a sub-row
+      if (r.failAvgMs !== undefined) {
+        const failAvgStr = `${r.failAvgMs.toFixed(3)} ms`;
+        const failP95Str = `${r.failP95Ms?.toFixed(3)} ms`;
+        log(
+          row(
+            `  └─ FAILURE PATH`,
+            failAvgStr,
+            failP95Str,
+            `Rate: ${(r.errorRate! * 100).toFixed(2)}%`,
+          ),
+        );
+      }
     });
     log(h.bar("╚", "╝"));
   }
@@ -602,6 +632,7 @@ export async function runBenchmark(config: any) {
   if (!onIteration) throw new Error("Benchmark must provide onIteration");
 
   const results: number[] = [];
+  const failResults: number[] = [];
 
   let totalErrors = 0;
 
@@ -619,8 +650,6 @@ export async function runBenchmark(config: any) {
       }
     }
 
-    const tStart = performance.now();
-
     if (concurrency > 1) {
       // Parallel mode
       const tasks = Array.from({ length: iterations }, (_, i) => i);
@@ -632,10 +661,23 @@ export async function runBenchmark(config: any) {
       for (const chunk of chunks) {
         await Promise.all(
           chunk.map(async (i) => {
+            if (config.thinkTimeMs) {
+              const [min, max] = Array.isArray(config.thinkTimeMs)
+                ? config.thinkTimeMs
+                : [config.thinkTimeMs, config.thinkTimeMs];
+              await waitThinkTime(min, max);
+            }
+
+            const iStart = performance.now();
             try {
               await onIteration(i);
+              results.push(performance.now() - iStart);
             } catch (err) {
               totalErrors++;
+              failResults.push(performance.now() - iStart);
+              if (totalErrors === 1) {
+                console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
+              }
               if (!config.silent) logger.warn(`Benchmark iteration ${i} failed`, err);
             }
           }),
@@ -644,12 +686,20 @@ export async function runBenchmark(config: any) {
     } else {
       // Sequential mode
       for (let i = 0; i < iterations; i++) {
+        if (config.thinkTimeMs) {
+          const [min, max] = Array.isArray(config.thinkTimeMs)
+            ? config.thinkTimeMs
+            : [config.thinkTimeMs, config.thinkTimeMs];
+          await waitThinkTime(min, max);
+        }
+
         const iStart = performance.now();
         try {
           await onIteration(i);
           results.push(performance.now() - iStart);
         } catch (err) {
           totalErrors++;
+          failResults.push(performance.now() - iStart);
           if (totalErrors === 1) {
             console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
           }
@@ -658,27 +708,24 @@ export async function runBenchmark(config: any) {
       }
     }
 
-    const tTotal = performance.now() - tStart;
-    if (concurrency > 1) {
-      const avg = tTotal / iterations;
-      for (let i = 0; i < iterations; i++) results.push(avg);
-    }
+    // (We don't inject synthetic averages in modern audit mode)
   }
 
   const validResults = results.filter((r) => !isNaN(r));
   const sum = validResults.reduce((a, b) => a + b, 0);
-  const rps = sum > 0 ? (iterations * runs) / (sum / 1000) : 0;
+  const totalCompleted = validResults.length + failResults.length;
+  const rps = sum > 0 ? (totalCompleted) / (sum / 1000) : 0;
 
-  if (validResults.length === 0) {
+  if (validResults.length === 0 && failResults.length === 0) {
     throw new Error(
-      `Benchmark "${config.name}" failed completely: 0 valid results, ${totalErrors} errors.`,
+      `Benchmark "${config.name}" failed completely: 0 results, ${totalErrors} errors.`,
     );
   }
 
   return computeStatistics(validResults, rps, {
     ...config,
-    errorRate: totalErrors / (iterations * runs),
-  });
+    errorRate: totalErrors / totalCompleted,
+  }, failResults);
 }
 
 /**
@@ -759,11 +806,12 @@ export async function setupBenchmarkServer() {
 
   const dbType = getDbType() || "sqlite";
   const dbName = `bench_tmp_${process.pid}`;
-  
+
   // 🚀 HARDENING: Prioritize SQLite as the safe default and find the correct config
-  const dbConf = ALL_DATABASES.find(
-    (d) => (d.useRedis ? `${d.type}-redis` : d.type) === dbType
-  ) || ALL_DATABASES.find(d => d.type === "sqlite") || ALL_DATABASES[0];
+  const dbConf =
+    ALL_DATABASES.find((d) => (d.useRedis ? `${d.type}-redis` : d.type) === dbType) ||
+    ALL_DATABASES.find((d) => d.type === "sqlite") ||
+    ALL_DATABASES[0];
 
   console.log(`[Benchmark] Selected Config: ${dbConf.type} (Requested: ${dbType})`);
 
@@ -1028,82 +1076,49 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
   if (!activeDb)
     throw new Error("ensureStableTestData: activeDb is null after ensureFullInitialization");
 
+  // Define schema for the stable collection
   const schema = {
     _id: STABLE_COLLECTION,
     name: STABLE_COLLECTION,
     fields: [
-      {
-        db_fieldName: "title",
-        label: "Title",
-        widget: { Name: "Input" },
-        type: "string",
-        required: true,
-      },
-      {
-        db_fieldName: "content",
-        label: "Content",
-        widget: { Name: "RichText" },
-        type: "string",
-        required: false,
-      },
-      {
-        db_fieldName: "status",
-        label: "Status",
-        widget: { Name: "Input" },
-        type: "string",
-        required: false,
-      },
-      {
-        db_fieldName: "count",
-        label: "Count",
-        widget: { Name: "Input" },
-        type: "number",
-        required: false,
-      },
+      { db_fieldName: "_id", label: "ID", widget: { Name: "Input" }, type: "string" },
+      { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" },
+      { db_fieldName: "slug", label: "Slug", widget: { Name: "Input" }, type: "string" },
+      { db_fieldName: "content", label: "Content", widget: { Name: "RichText" }, type: "string" },
+      { db_fieldName: "excerpt", label: "Excerpt", widget: { Name: "RichText" }, type: "string" },
+      { db_fieldName: "status", label: "Status", widget: { Name: "Input" }, type: "string" },
+      { db_fieldName: "author", label: "Author", widget: { Name: "Relation" }, type: "json" },
+      { db_fieldName: "categories", label: "Categories", widget: { Name: "Input" }, type: "json" },
+      { db_fieldName: "tags", label: "Tags", widget: { Name: "Input" }, type: "json" },
+      { db_fieldName: "metadata", label: "Metadata", widget: { Name: "Input" }, type: "json" },
+      { db_fieldName: "featuredImage", label: "Featured Image", widget: { Name: "Input" }, type: "json" },
+      { db_fieldName: "thumbnails", label: "Thumbnails", widget: { Name: "Input" }, type: "json" },
+      { db_fieldName: "relatedPosts", label: "Related Posts", widget: { Name: "Relation" }, type: "json" },
+      { db_fieldName: "count", label: "Count", widget: { Name: "Input" }, type: "number" },
+      { db_fieldName: "readingTime", label: "Reading Time", widget: { Name: "Input" }, type: "number" },
+      { db_fieldName: "viewCount", label: "View Count", widget: { Name: "Input" }, type: "number" },
+      { db_fieldName: "featured", label: "Featured", widget: { Name: "Input" }, type: "boolean" },
     ],
   };
 
   // Always attempt to create the model. In SQL databases, this runs CREATE TABLE IF NOT EXISTS.
-  // In MongoDB, it's an idempotent schema registration. This prevents "no such table" errors
-  // when the .js file exists but the DB is fresh.
   try {
     await activeDb.collection.createModel(schema as any);
   } catch (err: any) {
     logger.debug(`[Benchmark] createModel error (safe to ignore if exists): ${err.message}`);
   }
 
-  // Seed entry if missing
-  const existingEntry = await activeDb.crud.findOne(
-    STABLE_COLLECTION,
-    { _id: STABLE_ENTRY_ID },
-    { tenantId, suppressErrorLog: true },
-  );
-
-  if (existingEntry.success && existingEntry.data) {
-    logger.debug(`[Benchmark] Stable test data already exists for ${STABLE_COLLECTION}`);
-    return;
+  // 🚀 HARDENING: Seed multiple stable entries for concurrency benchmarks
+  for (let i = 1; i <= 100; i++) {
+    const entryId = `bench-shared-${i.toString().padStart(3, "0")}`;
+    await activeDb.crud.upsert(STABLE_COLLECTION, { _id: entryId }, {
+      _id: entryId,
+      title: `Stable Entry ${i}`,
+      content: "Enterprise benchmark data chunk ".repeat(10),
+      status: "published",
+      count: i,
+    }, { tenantId, skipValidation: true, suppressErrorLog: true });
   }
-
-  if (process.env.VERBOSE_TESTS === "true") {
-    logger.info(`[Benchmark] Seeding stable test data for ${STABLE_COLLECTION}...`);
-  }
-  await activeDb.crud
-    .upsert(
-      STABLE_COLLECTION,
-      { _id: STABLE_ENTRY_ID },
-      {
-        _id: STABLE_ENTRY_ID,
-        title: "Stable Benchmark Entry",
-        content:
-          "This is a stable entry for benchmarking purposes. It contains enough text to measure transformation overhead.",
-        status: "published",
-        count: 42,
-      },
-      { tenantId, suppressErrorLog: true },
-    )
-    .catch((err: any) => {
-      logger.error(`[Benchmark] Failed to seed stable test data: ${err.message}`);
-    });
 
   // Ensure it's registered in the in-process contentStore for LocalCMS audits
   try {
@@ -1118,7 +1133,7 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
       } as any);
     }
 
-    // 🚀 NEW: Initialize widgets for this environment
+    // Initialize widgets for this environment
     const { widgets } = await import("@src/stores/widget-store.svelte");
     await widgets.initialize(tenantId, activeDb);
   } catch {
@@ -1174,3 +1189,82 @@ export async function forceRefreshServer(baseUrl: string, tenantId: string = "gl
     }
   }
 }
+
+/**
+ * 🚀 REALISTIC DATA GENERATION
+ * Generates production-like content with varying complexity.
+ */
+export function generateRealisticEntry(i: number, complexity: "light" | "medium" | "heavy" = "medium") {
+  const contentSize = complexity === "light" ? 500 : complexity === "medium" ? 2500 : 10000;
+  return {
+    _id: `real-${i}`,
+    title: `Realistic Post Title ${i} — Benchmarking SveltyCMS 2026`,
+    slug: `real-post-${i}-${Math.random().toString(36).substring(7)}`,
+    content: generateRichHtml(contentSize + Math.random() * (contentSize / 2)),
+    excerpt: "Short summary with <strong>HTML</strong> and realistic snippet text...",
+    author: { _id: `user-${i % 200}`, name: `Author ${i % 50}` },
+    categories: Array.from(
+      { length: 2 + Math.floor(Math.random() * 4) },
+      (_, k) => `cat-${(i + k) % 20}`,
+    ),
+    tags: Array.from({ length: 5 + Math.floor(Math.random() * 10) }, () => `tag-${Math.floor(Math.random() * 500)}`),
+    score: Math.floor(Math.random() * 10000), // Common sorting field
+    category: Math.random() > 0.5 ? "A" : "B", // Common filtering field
+    metadata: {
+      seo: {
+        title: `SEO Title for Post ${i}`,
+        description: `This is a realistic SEO description for the benchmarking post ${i}. It should be around 160 characters long to simulate real-world usage patterns accurately.`,
+        ogImage: `/media/og-image-${i % 100}.jpg`,
+      },
+      readingTime: Math.floor(Math.random() * 15) + 5,
+      publishedAt: new Date(Date.now() - Math.random() * 3_600_000_000).toISOString(),
+      viewCount: Math.floor(Math.random() * 50_000),
+      isFeatured: Math.random() > 0.8,
+    },
+    featuredImage: {
+      url: `/media/real-image-${i % 200}.jpg`,
+      width: 1920,
+      height: 1080,
+      alt: `Realistic Alt Text for Image ${i}`,
+      format: ["webp", "avif", "jpg"][i % 3],
+    },
+    relatedPosts: Array.from(
+      { length: Math.random() > 0.7 ? 3 : 0 },
+      () => `real-${Math.floor(Math.random() * i)}`,
+    ),
+  };
+}
+
+/**
+ * Generates a string of rich HTML content to simulate realistic payload sizes.
+ */
+export function generateRichHtml(approxLength: number): string {
+  const chunks = [
+    "<h2>Section Title</h2>",
+    "<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>",
+    "<ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul>",
+    "<blockquote>This is a citation to test blockquote rendering performance.</blockquote>",
+    "<p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>",
+    "<img src='/api/media/image.jpg' alt='Test image' />",
+    "<p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>",
+    "<a href='/internal-link'>Internal Link</a>",
+    "<h3>Sub-heading for depth</h3>",
+    "<p>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>",
+  ];
+
+  let html = "";
+  while (html.length < approxLength) {
+    html += chunks[Math.floor(Math.random() * chunks.length)];
+  }
+  return html;
+}
+
+/**
+ * 🚀 WORKLOAD SIMULATION
+ * Helper to simulate user 'think time' or bursty patterns.
+ */
+export async function waitThinkTime(minMs = 200, maxMs = 1500) {
+  const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+  return new Promise((r) => setTimeout(r, ms));
+}
+

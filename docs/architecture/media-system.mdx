@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:sitemap"
 author: "SveltyCMS Team"
 created: "2026-02-16"
-updated: "2026-03-27"
+updated: "2026-05-11"
 tags:
   - "architecture"
   - "media"
@@ -23,7 +23,7 @@ The SveltyCMS Media system is a decoupled, performance-first engine. Built with 
 
 ## 🏗️ Layered Architecture
 
-The system follows a strict 3-layer architecture to ensure storage and framework portability.
+The system follows a strict 4-layer architecture to ensure storage and framework portability.
 
 ```mermaid
 graph TB
@@ -32,12 +32,13 @@ graph TB
         UW[MediaUpload Widget]
         VGRID[virtual-media-grid.svelte]
         EDITOR[ImageEditor Shell]
+        WGPU[WebGPU/WASM Optimizer]
     end
 
     subgraph "API Layer (src/routes/api/[...path])"
         API1[GET /api/media]
         API2[POST /api/media/edit]
-        API3[POST /api/media/ai-tag]
+        API3[POST /api/media/process]
         API4[GET /api/media/transform]
     end
 
@@ -48,137 +49,80 @@ graph TB
         CS[cloudStorage.ts]
     end
 
-    subgraph "External Services"
-        AIS[AIService.ts]
+    subgraph "Infrastructure"
+        JOBS[Job Queue Service]
         DB[(Database)]
-        STORE[Storage: Local/S3/R2/Cloudinary]
+        STORE[Storage: Local/S3/R2]
     end
 
     UI --> VGRID
     VGRID --> API1
     UI --> EDITOR
+    WGPU --> UI
     EDITOR --> API2
     API2 --> MS
     MS --> MPS
     MS --> MST
     MST --> CS
+    MS --> JOBS
     MS --> DB
     CS --> STORE
 ```
 
 ---
 
-## 📤 Media Upload & AI Processing Pipeline
+## 🚀 The Media Pipeline (4-Stage Workflow)
 
-The ingestion pipeline is designed to never block the user UI. Uploads execute critical persistence instantly, while heavy lifting (like AI tagging and image variants) runs asynchronously.
+SveltyCMS employs a high-performance ingestion and delivery pipeline designed for massive scale and resilience.
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant Gallery as Media Gallery / Upload
-    participant API as /api/media/process
-    participant Engine as MediaEngine
-    participant Storage as S3 / Local
-    participant AI as Local Ollama AI
+### Phase I: Ingestion (Client-Side & Hashing)
+- **WebGPU/WASM Optimization**: **[Client-Only]** Large images are compressed, focal-cropped, and converted to WebP/AVIF directly in the browser *before* upload, saving >90% bandwidth.
+- **Hash-First Approach**: Every file is identified by a **20-character SHA-256 hash**. This hash is the primary key for global deduplication across the entire system.
+- **SlimSniffer**: A lightweight native Magic Byte inspector replaces heavy MIME detection libraries, ensuring instant file validation.
 
-    User->>Gallery: Drop Image
-    Gallery->>API: POST multipart/form-data
-    API->>Engine: Validate & Hash (Native SHA-256)
-    Engine->>Storage: Save Original File
-    Engine-->>API: ⚡ Return Success (0.17ms)
-    API-->>Gallery: Render Thumbnail
+### Phase II: Processing (Deep Metadata & AI)
+- **Deep Metadata Extraction**: Automatically parses **EXIF, IPTC, and XMP** data using a single `sharp.metadata()` call to minimize CPU overhead.
+- **AI-Native Tagging [WIP]**: A conceptual background task that hooks into local Ollama (`llava`) for privacy-first image analysis.
+- **Document Thumbnails**: Automated extraction of PDF first-pages (requires `imagemagick`).
 
-    note over Engine, AI: Background Job Processing
-    Engine->>Engine: Generate Variants (Sharp.js)
-    Engine->>AI: Analyze Image Content
-    AI-->>Engine: Return Tags & Descriptions
-    Engine->>Database: Update MediaItem Metadata
-```
+### Phase III: Storage & Deduplication
+- **Deduplication Engine**: Before storing, the system checks if a file with the same SHA-256 hash already exists. If so, it increments the reference count instead of duplicating physical bytes.
+- **Hybrid Storage**: Supports Local, S3, and R2 storage backends via the `CloudStorage` abstraction.
+- **ETag/304 Handling**: Unified ETag strategy ensures high-performance browser caching and avoids redundant 307 redirects for cloud assets.
 
-### 1. High-Performance Client Rendering
+### Phase IV: Delivery & Transformation
+- **On-the-Fly Transforms**: Responsive images are generated via `GET /api/media/transform` using the `Sharp.js` thread pool and instance cloning for ~70% lower latency.
+- **Focal Points**: Visual crosshair coordinates are injected into delivery APIs to support art-directed cropping in the frontend.
+- **Lazy Loading**: `virtual-media-grid.svelte` handles 10,000+ files with sub-millisecond scroll performance using Svelte 5 runes.
 
-- **Virtual Scrolling**: `virtual-media-grid.svelte` handles 10,000+ files by rendering only visible items.
-- **Lazy Loading**: Images load only when visible using Intersection Observer.
-- **On-the-Fly Transforms**: Responsive images via `GET /api/media/transform` using Sharp.js.
+---
 
-### 2. AI-Native Tagging (Ollama Integration)
+## 🔄 Asynchronous Processing & Job Queue
 
-Unlike standard CMS platforms that use simple keyword matching, SveltyCMS features **native AI image analysis**.
+Heavy processing tasks (AI analysis, bulk variant generation, video transcoding) are decoupled from the main request/response cycle.
 
-- **Fully Automated**: Triggers automatically during background job processing (`MediaService.saveMedia`).
-- **Privacy-First**: Uses local Ollama inference (`llava`), analyzing on your own infrastructure without exposing raw images to third-party APIs.
-
-### 3. Enterprise DAM Capabilities
-
-- **Batch Image Processor**: Apply Vivid, B&W, Sepia, and HDR filters to 100+ images simultaneously.
-- **Deep Metadata Extraction**: Automatically parses **EXIF, IPTC, and XMP** data into searchable database fields.
-- **Document Thumbnails**: Automated extraction of the first page of PDFs as a high-quality preview (Requires `imagemagick` and `ghostscript`).
-
-### 4. Performance-First Philosophy
-
-SveltyCMS has been optimized to remove legacy dependencies, replacing them with modern native counterparts:
-
-- **Parallel Multi-Size Processing**: Responsive image variants (sm, md, lg, etc.) are generated in parallel using `Promise.all` and Sharp's `clone()` mechanism, achieving ~70% lower latency during ingestion.
-- **Watermark Caching**: Processed watermark buffers are cached in-memory, eliminating redundant scaling overhead for high-volume uploads.
-- **Metadata Reuse**: Unified metadata extraction ensures a single `sharp.metadata()` call per file upload, shared across all processing stages.
-- **Decentralized Media Tier (WebGPU)**: SveltyCMS 2026 utilizes the client's raw hardware via **WebGPU/WASM** directly in the browser. Large images are immediately compressed, focal-cropped, and converted to WebP/AVIF _before_ hitting the network.
-- **Optimization Feedback**: The upload UI provides real-time "Optimization Score" metrics, showing exactly how much bandwidth was saved by client-side processing (often > 90%).
-- **Hashing**: Powered by native `crypto` (SHA-256).
-- **ID Generation**: Uses high-entropy `crypto.randomUUID()`.
-- **MIME Detection**: Implemented via **SlimSniffer**, a lightweight native Magic Byte inspector that replaces `file-type`.
-- **Type Safety**: Unified `CmsMediaMetadata` interface ensures strict database agnosticism across all adapters.
-
-### 5. Performance & Search Optimization
-
-SveltyCMS employs several advanced techniques to ensure the Media Hub scales to hundreds of thousands of assets:
-
-- **Trigram GIN Indexes (PostgreSQL)**: The `media_items` table utilizes GIN-based trigram indexes on the `filename` and `originalFilename` fields. This enables high-performance, case-insensitive partial searches (e.g., searching for "logo" within a filename), achieving O(log n) complexity instead of full table scans.
-- **Unified ETag Caching**: The `/files/[...path]` route implements a unified ETag strategy.
-  - **Local Storage**: Generates stable ETags based on file `mtimeMs` and `size`.
-  - **Cloud Storage**: Prefetches asset ETags (from S3/R2 metadata) to support **304 Not Modified** responses, avoiding redundant 307 redirects and saving client-side round-trips.
-- **Incremental Settings Reload**: System-wide media settings changes (like switching from Local to S3) are applied instantly via optimized `reinitializeSystem` logic, which reloads specific database settings without a destructive system reset.
-
-### Intelligent Resizing & Optimization
-
-SveltyCMS employs a 2-tier optimization strategy for media delivery:
-
-- **Parallel Multi-Size Processing**: Automated variant generation (sm, md, lg) happens in parallel using the `libvips` thread pool, resulting in ~70% faster response times during ingestion.
-- **Instance Cloning**: Uses Sharp's memory-efficient `clone()` mechanism to generate all responsive sizes from a single header parse, minimizing CPU and RAM pressure.
-- **Watermark Caching**: Pre-rendered watermark buffers are cached in-memory to avoid redundant re-scaling during bulk uploads.
+1. **Immediate Success**: The API returns a `202 Accepted` status along with an **`OperationID`**.
+2. **Background Execution**: The `Job Queue Service` picks up the task and executes it across multiple worker threads.
+3. **Polling/SSE**: The client polls the **`/api/media/jobs/:id`** endpoint or listens via SSE for the completion event.
+4. **Metadata Update**: Once complete, the `MediaItem` metadata in the database is atomically updated.
 
 ---
 
 ## 🎨 Image Editor Integration
 
 The gallery is deeply integrated with the canvas-based Image Editor:
-
-- **Non-Destructive Editing**: Originals are preserved; edits are saved as variants.
-- **Interactive Focal Points**: Visual crosshair selection for art-directed cropping. This focal point is injected natively into our GraphQL API delivery.
-- **Watermarking**: Automatic application of collection-level watermark presets.
+- **Non-Destructive Editing**: Originals are preserved; edits are saved as linked variants.
+- **Interactive Focal Points**: Visual crosshair selection for art-directed cropping.
+- **Watermark Caching**: Pre-rendered watermark buffers are cached in-memory to avoid redundant re-scaling.
 
 ---
 
 ## ⚡ Performance Benchmarks
 
-For comprehensive performance details regarding media hashing, metadata extraction, and multi-scale resizing block times, please reference the central [Benchmarks Report](../project/benchmarks/README.mdx).
-
----
-
-## ⌨️ Accessibility & Hotkeys
-
-The Media System implements **WCAG 3.0 Functional Performance** principles via a centralized hotkey manager.
-
-| Shortcut  | Action        | Scope              |
-| :-------- | :------------ | :----------------- |
-| `Mod + F` | Focus Search  | Gallery            |
-| `Mod + A` | Select All    | Gallery / Widget   |
-| `Mod + O` | Open Library  | MediaUpload Widget |
-| `Delete`  | Bulk Delete   | Gallery (Selected) |
-| `Escape`  | Clear Filters | Gallery / Editor   |
-| `Mod + Z` | Undo Edit     | ImageEditor        |
+For comprehensive performance details regarding media hashing, metadata extraction, and multi-scale resizing block times, please reference the [**SQLite Benchmarks**](../project/benchmarks/benchmark_sqlite.mdx).
 
 ---
 
 ## 📚 API Reference
 
-For detailed developer endpoints (upload, transform, AI-tag, focal points), read the comprehensive [**Media Reference**](../api/media.mdx).
+For detailed developer endpoints (upload, transform, job polling, focal points), read the comprehensive [**Media Reference**](../api/media.mdx).

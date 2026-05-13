@@ -1,0 +1,32 @@
+---
+path: "docs/project/benchmarks/index.mdx"
+title: "Database Performance Benchmarks"
+description: "High-fidelity performance metrics across all SveltyCMS supported database engines."
+order: 1
+icon: "mdi:speedometer"
+author: "SveltyCMS Team"
+created: "2026-05-11"
+updated: "2026-05-11"
+tags:
+  - "benchmarks"
+  - "performance"
+  - "database"
+---
+
+# Database Performance Benchmarks
+
+SveltyCMS delivers consistent, sub-millisecond performance across all supported database adapters thanks to our **Unified Caching Layer**.
+
+## 📊 Benchmark Reports
+
+Select a database engine to view detailed latency splits, client journey simulations, and stress audit results:
+
+- [**SQLite (via Drizzle)**](./benchmark_sqlite.mdx) — Default for local and edge.
+- [**PostgreSQL**](./benchmark_postgresql.mdx) — Enterprise scaling with JSONB.
+- [**MariaDB**](./benchmark_mariadb.mdx) — High-concurrency relational pooling.
+- [**MongoDB**](./benchmark_mongodb.mdx) — High-volume unstructured data.
+
+## 🚀 Methodology
+
+All benchmarks are executed using the integrated `bun run tests/benchmarks/database-performance.ts` harness.
+For more details on the testing environment, see the [Project Infrastructure](../../architecture/database/core-infrastructure.mdx).

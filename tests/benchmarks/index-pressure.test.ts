@@ -17,12 +17,13 @@ import {
   printSummaryTable,
   getDbLabel,
   TEST_API_SECRET,
+  generateRealisticEntry,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "bench_index_pressure";
 const ENTRY_COUNT = 100_000;
-const BATCH_SIZE = 2000; // Larger batches = faster seeding
+const BATCH_SIZE = 100; // Smaller batches to avoid parameter limits
 
 let stopServer: (() => Promise<void>) | null = null;
 
@@ -125,8 +126,13 @@ async function prepareCollection() {
     name: COLLECTION_ID,
     fields: [
       { db_fieldName: "title", widget: { Name: "Input" } },
+      { db_fieldName: "slug", widget: { Name: "Input" } },
+      { db_fieldName: "content", widget: { Name: "RichText" } },
       { db_fieldName: "score", widget: { Name: "Number" } },
       { db_fieldName: "category", widget: { Name: "Select" } },
+      { db_fieldName: "author", widget: { Name: "Relation" } },
+      { db_fieldName: "tags", widget: { Name: "Input" } },
+      { db_fieldName: "metadata", widget: { Name: "Group" } },
     ],
   };
 
@@ -154,12 +160,10 @@ async function seedLargeDataset(baseUrl: string) {
   const totalBatches = Math.ceil(ENTRY_COUNT / BATCH_SIZE);
 
   for (let i = 0; i < totalBatches; i++) {
-    const batch = Array.from({ length: BATCH_SIZE }, (_, j) => ({
-      _id: `p-${i}-${j}`,
-      title: `Pressure Test Entry ${i * BATCH_SIZE + j}`,
-      score: Math.floor(Math.random() * 10000),
-      category: Math.random() > 0.5 ? "A" : "B",
-    }));
+    const batch = Array.from({ length: BATCH_SIZE }, (_, j) => {
+      const idx = i * BATCH_SIZE + j;
+      return generateRealisticEntry(idx, idx % 10 === 0 ? "heavy" : "medium");
+    });
 
     let retryCount = 0;
     const maxRetries = 5;

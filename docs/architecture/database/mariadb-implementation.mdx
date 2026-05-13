@@ -69,24 +69,20 @@ SveltyCMS uses **Drizzle ORM** for MariaDB, providing:
 #### Relational Tables (14 total)
 
 ```typescript
-// Authentication Tables
--auth_users - // User accounts with roles
-  auth_sessions - // Active user sessions
-  auth_tokens - // Verification/reset tokens
-  roles - // Permission-based roles
-  // Content Tables
-  content_nodes - // Pages and collections
-  content_drafts - // Draft versions
-  content_revisions - // Version history
-  // Media Tables
-  media_items - // File metadata
-  system_virtual_folders - // Folder organization
-  // System Tables
-  themes - // Theme configurations
-  widgets - // Widget instances
-  system_preferences - // System/user settings
-  website_tokens; // API tokens
-tenants; // Multi-tenant management (name, owner, plan, quota, usage, settings)
+- auth_users: User accounts with roles
+- auth_sessions: Active user sessions
+- auth_tokens: Verification/reset tokens
+- roles: Permission-based roles
+- content_nodes: Pages and collections
+- content_drafts: Draft versions
+- content_revisions: Version history
+- media_items: File metadata
+- system_virtual_folders: Folder organization
+- themes: Theme configurations
+- widgets: Widget instances
+- system_preferences: System/user settings
+- website_tokens: API tokens
+- tenants: Multi-tenant management (name, owner, plan, quota, usage, settings)
 ```
 
 ---
@@ -254,25 +250,10 @@ npm run db:studio
 The seeding system creates essential data during setup:
 
 ```typescript
-// Default Roles
-- Admin (full system access, all permissions)
-- Editor (content management access)
-- User (basic read access)
-
-// Admin User
-- Created with credentials from setup wizard
-- Assigned Admin role
-- Email verified automatically
-
-// Default Theme
-- SveltyCMS Default theme
-- Active and set as default
-- Basic configuration included
-
-// Root Virtual Folder
-- Media folder organization
-- Named "mediaFolder"
-- Parent for all media
+- **Default Roles**: Admin (full system access), Editor (content management), User (read access).
+- **Admin User**: Created with credentials from setup wizard, assigned Admin role, email verified automatically.
+- **Default Theme**: SveltyCMS Default theme, active and set as default.
+- **Root Virtual Folder**: Media folder organization, named "mediaFolder", parent for all media.
 ```
 
 ---

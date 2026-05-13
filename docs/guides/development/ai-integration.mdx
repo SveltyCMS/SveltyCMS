@@ -26,7 +26,7 @@ SveltyCMS 2026 leverages a fully implemented and hosted **Model Context Protocol
 > - **Real-time Tools:** SSE-based live access to codebase, docs, and system schemas.
 > - **Local (RAG):** Fallback for local environments using **LanceDB**.
 
-### 1. Hosted MCP Server (mcp.sveltycms.com)
+## 1. Hosted MCP Server (mcp.sveltycms.com)
 
 The hosted Knowledge Core provides absolute project context for remote AI agents (Claude, ChatGPT, etc.):
 
@@ -35,7 +35,7 @@ The hosted Knowledge Core provides absolute project context for remote AI agents
 - **Schema Awareness**: Understands your specific collection schemas and widget configurations.
 - **Read-Only Safety**: Agents can study the codebase and docs but cannot modify data.
 
-### 2. The Local Knowledge Core
+## 2. The Local Knowledge Core
 
 This service acts as the "Long-term Memory" for SveltyCMS locally:
 
@@ -43,12 +43,12 @@ This service acts as the "Long-term Memory" for SveltyCMS locally:
 - **Deep Implementation Knowledge:** Indexes `src/`, `docs/`, and `package.json` expert patterns.
 - **Expert Discovery:** Automatically syncs with `llms-full.txt` from Svelte 5, Skeleton UI, and Valibot.
 
-### 3. AI-Native Generative Layouts
+## 3. AI-Native Generative Layouts
 
 SveltyCMS pushes beyond Chat-based AI into interactive generative layouts powered by [`json-render-svelte`](https://github.com/dummdidumm/json-render/tree/skills/json-render-svelte).
 When a user prompts the MCP Server or the local AI service to build a complex collection form or a custom dashboard view, the LLM outputs a structured JSON spec. This spec is then fed directly into our `<Renderer>` component, instantly generating a fully functional, state-bound Svelte 5 interface utilizing your exact widgets and plugins without touching the codebase.
 
-#### Where Generative UI is Integrated:
+### Where Generative UI is Integrated:
 
 - **[Agentic Dashboard](../../architecture/index.mdx)**: The main dashboard features an "AI Dashboard Mode" that bypasses manual grid configuration. It now supports **interactive re-prompting**, allowing users to refine the layout in real-time. A live status indicator confirms connection to the hosted Knowledge Core at `mcp.sveltycms.com`.
 - **[Collection Builder](../../architecture/components/fields.mdx)**: Translates schema configurations into live preview specs for immediate visual feedback of your custom fields using the same rendering engine.
@@ -70,21 +70,21 @@ SveltyCMS provides a suite of AI-native components registered in the `sveltyRegi
 
 In Q1 2026, the SveltyCMS Knowledge Core was updated to understand the CMS's own operational infrastructure. This allows AI agents to assist with high-level administrative and maintenance tasks.
 
-### 4.1 Trash & Recovery Logic
+## 4.1 Trash & Recovery Logic
 
 The MCP server now indexes the Soft Delete "Mangle-on-Delete" patterns.
 
 - **AI Tooling**: Agents can help locate "lost" content by querying the Trash Bin via semantic search, even if the original slug was mangled (e.g., `my-post_DELETED_1742332800`).
 - **Context**: The AI understands that items in the trash are isolated from production APIs but restorable to their original state.
 
-### 4.2 Durable Webhook & DLQ Monitoring
+## 4.2 Durable Webhook & DLQ Monitoring
 
 The Knowledge Core provides real-time visibility into the system's integration health.
 
 - **Poison Pill Detection**: AI agents can analyze failed webhook payloads in the Dead-Letter Queue (DLQ) and suggest fixes for 4xx errors (e.g., "The destination API rejected this JSON because the 'title' field was too long").
 - **Retry Strategy**: The AI can recommend manual retries for transient 5xx errors based on the high-resolution operation timing bubbled up through the DB adapters.
 
-### 4.3 Collaboration & State Handshaking
+## 4.3 Collaboration & State Handshaking
 
 The AI Assistant is aware of the binary Yjs collaboration state.
 
@@ -159,7 +159,7 @@ If running the local core directly:
 "args": ["run", "./mpc-server/index.ts"]
 ```
 
-#### Available Tools
+## Available Tools
 
 Once connected, your AI agent can use these read-only tools to explore the SveltyCMS codebase and documentation:
 
@@ -172,7 +172,7 @@ Once connected, your AI agent can use these read-only tools to explore the Svelt
 
 All tools are **completely read-only** — your agent can explore and learn, but cannot modify, delete, or create anything. Sensitive paths like `.git`, `node_modules`, and `.env` are automatically blocked.
 
-### Deployment & Updates
+## Deployment & Updates
 
 The SveltyCMS MCP server follows a "Local Build, Remote Host" model:
 

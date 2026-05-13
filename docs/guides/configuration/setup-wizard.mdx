@@ -64,7 +64,59 @@ flowchart TD
     Review --> |Final Validation| Seed[Seed Database]
     Seed --> Complete[Complete Setup]
     Complete --> Redirect((Dashboard))
+
+    subgraph Initialization_Performance
+        B[Bootstrap Pipeline]
+        P[Production Pipeline]
+        V[Vite Define Guard]
+    end
 ```
+
+### High-Performance Lifecycle
+
+SveltyCMS employs a "State-Aware" initialization strategy to ensure the setup wizard is ultra-responsive while the production environment remains enterprise-grade.
+
+```mermaid
+sequenceDiagram
+    participant V as Vite / Build
+    participant H as hooks.server.ts
+    participant D as db-init.ts
+    participant U as User
+
+    Note over V, U: PHASE 1: FRESH INSTALL
+    V->>H: __SVELTY_SETUP_COMPLETE__ = false
+    H->>H: Select "Bootstrap Pipeline" (Minimal)
+    H->>U: Redirect to /setup
+    U->>H: POST /setup (Complete)
+    H->>V: Write config/private.ts
+    V->>V: Hot Restart / Reload
+
+    Note over V, U: PHASE 2: PRODUCTION BOOT
+    V->>H: __SVELTY_SETUP_COMPLETE__ = true
+    H->>H: Select "Full Pipeline" (Enterprise)
+    H->>D: Trigger ensureFullInitialization()
+    D->>D: Topological Phased Boot (READY)
+    H->>U: Serve Dashboard (Full Speed)
+
+    Note over V, U: PHASE 3: STEADY STATE
+    U->>H: Incoming Request
+    H->>H: Fast Check: __SVELTY_SETUP_COMPLETE__ (Zero I/O)
+    H->>H: Execute Turbo Pipeline (~0.05ms)
+```
+
+#### Performance Benchmarks
+
+Based on `tests/benchmarks/hooks-performance.test.ts`, the setup-aware gating achieves significantly lower latency for fresh installs:
+
+| Pipeline | Features | Avg Latency | Context |
+| :--- | :--- | :--- | :--- |
+| **Bootstrap** | Health, Security, Compression | **< 0.1ms** | During /setup phase |
+| **Turbo** | Fast-path routing, Assets | **~0.05ms** | Production steady-state |
+| **Full** | Auth, Audit, Content, SDK | **~1.2ms** | Standard API operations |
+
+<Callout type="info">
+  **Zero-I/O Optimization**: By injecting the setup status via Vite's `define` constant, we eliminate the need to check for `private.ts` on every request. This reduces I/O pressure on the filesystem, especially critical for high-concurrency environments.
+</Callout>
 
 ### Quick Stats
 
@@ -75,10 +127,9 @@ flowchart TD
 - **✨ NO SERVER RESTART REQUIRED**: System becomes operational immediately after setup completion
 
 <Callout type="success">
-  **Zero-Restart Architecture**: Unlike traditional CMSs that require server restart after initial
-  setup, SveltyCMS uses dynamic in-memory configuration loading (`initializeWithConfig()`). The
-  system transitions from `IDLE` → `READY` state instantly, with cache warming ensuring the first
-  page load is blazing fast.
+  **Zero-Restart Architecture**: SveltyCMS uses dynamic in-memory configuration loading (`initializeWithConfig()`). 
+  While Vite may perform a hot-restart in development when `private.ts` is written, the production system transitions 
+  from `IDLE` → `READY` state instantly without process recycling, ensuring zero downtime.
 </Callout>
 
 ---
@@ -132,17 +183,30 @@ WCAG 2.1 AA compliant features:
 
 ```text
 src/routes/setup/
-├── +page.svelte               # Main orchestrator UI
-├── +page.server.ts            # Server-side actions and load function
-├── setup-service.server.ts    # Tree-shakeable DB driver and setup logic
-├── error-classifier.ts        # Consolidated DB error mapping and classification
-├── database-config.svelte     # Step 1: Database setup
-├── admin-config.svelte        # Step 2: Admin user
-├── system-config.svelte       # Step 3: System settings
+├── +page.svelte               # Main orchestrator UI (Svelte 5 Runes)
+├── +page.server.ts            # Consolidated setup actions and DB orchestration
+├── database-config.svelte     # Step 1: Database setup with Proxy-Mutex support
+├── admin-config.svelte        # Step 2: Admin user with Strength-Validation
+├── system-config.svelte       # Step 3: System settings & i18n
 ├── email-config.svelte        # Step 4: SMTP (optional)
-├── review-config.svelte       # Step 5: Review & complete
-└── welcome-modal.svelte       # First-time welcome modal
+└── review-config.svelte       # Step 5: Review & zero-latency completion
+
+System Hardening:
+├── src/databases/db-init.ts   # Topological Phased Boot engine
+└── src/databases/config-state.ts # Security-masked configuration loader
 ```
+
+### State-Aware Initialization
+
+This separation prevents the "Initialization Storm" where multiple requests try to boot the database simultaneously. The **Turbo Pipeline** (introduced in v0.0.8) ensures that setup checks consume **zero CPU/IO cycles** once the system is READY.
+
+### Security Hardening (V10)
+
+The setup process includes several enterprise-grade security features:
+
+- **PII Masking**: All logs during setup (account creation, DB connection) are automatically redacted to prevent leaking emails or passwords in terminal outputs.
+- **Secret Redaction**: The configuration loader (`config-state.ts`) prevents character-for-character printing of `private.ts` to any log stream.
+- **Write-Mutex Protection**: SQLite writes during the high-pressure setup phase are serialized via a global mutex to prevent "Database is Locked" errors.
 
 ### State Management
 

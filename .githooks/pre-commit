@@ -4,5 +4,8 @@ set -e
 # Run the high-performance parallel quality gate
 bun run scripts/quality-gate.ts
 
+# Run the documentation linter
+bun run lint:docs
+
 # Ensure any automatic fixes (fmt/lint) are added to the commit
 git add src

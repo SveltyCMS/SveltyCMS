@@ -80,7 +80,7 @@ async function runSecurityAudit() {
           "low",
           { entryId: `entry-${i}` },
           "global" as any,
-          "success"
+          "success",
         );
       },
     });

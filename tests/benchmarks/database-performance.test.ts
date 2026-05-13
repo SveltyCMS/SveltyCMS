@@ -134,7 +134,9 @@ function createFindOneTest(db: any) {
       { tenantId: TEST_TENANT },
     );
     if (!res?.success) {
-        throw new Error(`FindOne failed: ${res?.message || "Unknown error"}. Details: ${JSON.stringify(res?.error || {})}`);
+      throw new Error(
+        `FindOne failed: ${res?.message || "Unknown error"}. Details: ${JSON.stringify(res?.error || {})}`,
+      );
     }
   };
 }
