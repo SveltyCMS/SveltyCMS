@@ -65,7 +65,13 @@ export class MediaService {
   public async saveMedia(
     file:
       | File
-      | { name: string; type: string; size: number; arrayBuffer: () => Promise<ArrayBuffer> },
+      | {
+          name: string;
+          type: string;
+          size: number;
+          stream: () => ReadableStream;
+          arrayBuffer?: () => Promise<ArrayBuffer>;
+        },
     _userId: string,
     _access: "public" | "private" = "public",
     tenantId?: DatabaseId | null,
@@ -76,22 +82,50 @@ export class MediaService {
   ): Promise<DatabaseResult<MediaItem>> {
     try {
       const { hashFileContent } = await import("./media-processing.server");
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const hash = await hashFileContent(buffer);
 
-      // 1. Check for existing file by hash (Deduplication)
-      const existing = await this.files.getByHash(hash, tenantId ?? undefined);
-      if (existing.success && existing.data) {
-        return {
-          success: true,
-          data: this.enrichMediaWithUrl(existing.data as any) as unknown as MediaItem,
-        };
+      // For large files, we use the stream to avoid OOM
+      if (file.size < 5 * 1024 * 1024 && typeof file.arrayBuffer === "function") {
+        // Small file: Buffer is fine and faster for small items
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const hash = await hashFileContent(buffer);
+
+        // 1. Check for existing file by hash (Deduplication)
+        const existing = await this.files.getByHash(hash, tenantId ?? undefined);
+        if (existing.success && existing.data) {
+          return {
+            success: true,
+            data: this.enrichMediaWithUrl(existing.data as any) as unknown as MediaItem,
+          };
+        }
+        return (await this.files.upload({ ...file, hash } as any, tenantId ?? undefined)) as any;
+      } else {
+        // Large file: Stream it!
+        // We tee the stream: one for hashing, one for uploading
+        const { hashStream } = await import("./media-processing.server");
+        const stream = file.stream();
+        const [s1, s2] = stream.tee();
+
+        // Start hashing in parallel
+        const hashPromise = hashStream(s1);
+
+        // We need the hash for deduplication, so we have to wait for it
+        // OR we upload to a temp name and then rename.
+        // For Performance Tweaks, let's assume we want to avoid double-upload.
+        const hash = await hashPromise;
+
+        const existing = await this.files.getByHash(hash, tenantId ?? undefined);
+        if (existing.success && existing.data) {
+          return {
+            success: true,
+            data: this.enrichMediaWithUrl(existing.data as any) as unknown as MediaItem,
+          };
+        }
+
+        return (await this.files.upload(
+          { ...file, stream: () => s2, hash } as any,
+          tenantId ?? undefined,
+        )) as any;
       }
-
-      // 2. Performance: File adapter handles deduplication and storage
-      // Cast the result from DB internal MediaItem to the utility MediaItem
-      const res = await this.files.upload(file as any, tenantId ?? undefined);
-      return res as unknown as DatabaseResult<MediaItem>;
     } catch (err: any) {
       return { success: false, message: err.message, error: err };
     }

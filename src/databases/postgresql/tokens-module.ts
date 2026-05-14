@@ -90,6 +90,17 @@ export class WebsiteTokensModule {
     }, "GET_WEBSITE_TOKEN_BY_NAME_FAILED");
   }
 
+  async getByToken(token: string): Promise<DatabaseResult<WebsiteToken | null>> {
+    return this.core.wrap(async () => {
+      const [result] = await this.db
+        .select()
+        .from(schema.websiteTokens)
+        .where(eq(schema.websiteTokens.token, token))
+        .limit(1);
+      return result ? (utils.convertDatesToISO(result) as unknown as WebsiteToken) : null;
+    }, "GET_WEBSITE_TOKEN_BY_TOKEN_FAILED");
+  }
+
   async delete(tokenId: DatabaseId): Promise<DatabaseResult<void>> {
     return this.core.wrap(async () => {
       await this.db

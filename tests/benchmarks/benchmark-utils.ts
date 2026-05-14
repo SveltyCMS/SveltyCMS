@@ -10,7 +10,8 @@ import path from "node:path";
 // ── silencing noise ─────────────────────────────────────────────────────────
 (globalThis as any).__SVELTY_QUIET__ = true;
 process.env.BENCHMARK = "true";
-process.env.LOG_LEVEL = process.env.BENCHMARK_DEBUG === "true" ? "debug" : (process.env.LOG_LEVEL || "error");
+process.env.LOG_LEVEL =
+  process.env.BENCHMARK_DEBUG === "true" ? "debug" : process.env.LOG_LEVEL || "error";
 process.env.DEBUG = "";
 process.env.QUIET = "true";
 // process.env.DB_TYPE = process.env.DB_TYPE || "sqlite"; // REMOVED: too aggressive for matrix runs
@@ -714,7 +715,7 @@ export async function runBenchmark(config: any) {
   const validResults = results.filter((r) => !isNaN(r));
   const sum = validResults.reduce((a, b) => a + b, 0);
   const totalCompleted = validResults.length + failResults.length;
-  const rps = sum > 0 ? (totalCompleted) / (sum / 1000) : 0;
+  const rps = sum > 0 ? totalCompleted / (sum / 1000) : 0;
 
   if (validResults.length === 0 && failResults.length === 0) {
     throw new Error(
@@ -722,10 +723,15 @@ export async function runBenchmark(config: any) {
     );
   }
 
-  return computeStatistics(validResults, rps, {
-    ...config,
-    errorRate: totalErrors / totalCompleted,
-  }, failResults);
+  return computeStatistics(
+    validResults,
+    rps,
+    {
+      ...config,
+      errorRate: totalErrors / totalCompleted,
+    },
+    failResults,
+  );
 }
 
 /**
@@ -1091,11 +1097,26 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
       { db_fieldName: "categories", label: "Categories", widget: { Name: "Input" }, type: "json" },
       { db_fieldName: "tags", label: "Tags", widget: { Name: "Input" }, type: "json" },
       { db_fieldName: "metadata", label: "Metadata", widget: { Name: "Input" }, type: "json" },
-      { db_fieldName: "featuredImage", label: "Featured Image", widget: { Name: "Input" }, type: "json" },
+      {
+        db_fieldName: "featuredImage",
+        label: "Featured Image",
+        widget: { Name: "Input" },
+        type: "json",
+      },
       { db_fieldName: "thumbnails", label: "Thumbnails", widget: { Name: "Input" }, type: "json" },
-      { db_fieldName: "relatedPosts", label: "Related Posts", widget: { Name: "Relation" }, type: "json" },
+      {
+        db_fieldName: "relatedPosts",
+        label: "Related Posts",
+        widget: { Name: "Relation" },
+        type: "json",
+      },
       { db_fieldName: "count", label: "Count", widget: { Name: "Input" }, type: "number" },
-      { db_fieldName: "readingTime", label: "Reading Time", widget: { Name: "Input" }, type: "number" },
+      {
+        db_fieldName: "readingTime",
+        label: "Reading Time",
+        widget: { Name: "Input" },
+        type: "number",
+      },
       { db_fieldName: "viewCount", label: "View Count", widget: { Name: "Input" }, type: "number" },
       { db_fieldName: "featured", label: "Featured", widget: { Name: "Input" }, type: "boolean" },
     ],
@@ -1111,13 +1132,18 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
   // 🚀 HARDENING: Seed multiple stable entries for concurrency benchmarks
   for (let i = 1; i <= 100; i++) {
     const entryId = `bench-shared-${i.toString().padStart(3, "0")}`;
-    await activeDb.crud.upsert(STABLE_COLLECTION, { _id: entryId }, {
-      _id: entryId,
-      title: `Stable Entry ${i}`,
-      content: "Enterprise benchmark data chunk ".repeat(10),
-      status: "published",
-      count: i,
-    }, { tenantId, skipValidation: true, suppressErrorLog: true });
+    await activeDb.crud.upsert(
+      STABLE_COLLECTION,
+      { _id: entryId },
+      {
+        _id: entryId,
+        title: `Stable Entry ${i}`,
+        content: "Enterprise benchmark data chunk ".repeat(10),
+        status: "published",
+        count: i,
+      },
+      { tenantId, skipValidation: true, suppressErrorLog: true },
+    );
   }
 
   // Ensure it's registered in the in-process contentStore for LocalCMS audits
@@ -1194,7 +1220,10 @@ export async function forceRefreshServer(baseUrl: string, tenantId: string = "gl
  * 🚀 REALISTIC DATA GENERATION
  * Generates production-like content with varying complexity.
  */
-export function generateRealisticEntry(i: number, complexity: "light" | "medium" | "heavy" = "medium") {
+export function generateRealisticEntry(
+  i: number,
+  complexity: "light" | "medium" | "heavy" = "medium",
+) {
   const contentSize = complexity === "light" ? 500 : complexity === "medium" ? 2500 : 10000;
   return {
     _id: `real-${i}`,
@@ -1207,7 +1236,10 @@ export function generateRealisticEntry(i: number, complexity: "light" | "medium"
       { length: 2 + Math.floor(Math.random() * 4) },
       (_, k) => `cat-${(i + k) % 20}`,
     ),
-    tags: Array.from({ length: 5 + Math.floor(Math.random() * 10) }, () => `tag-${Math.floor(Math.random() * 500)}`),
+    tags: Array.from(
+      { length: 5 + Math.floor(Math.random() * 10) },
+      () => `tag-${Math.floor(Math.random() * 500)}`,
+    ),
     score: Math.floor(Math.random() * 10000), // Common sorting field
     category: Math.random() > 0.5 ? "A" : "B", // Common filtering field
     metadata: {
@@ -1267,4 +1299,3 @@ export async function waitThinkTime(minMs = 200, maxMs = 1500) {
   const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
   return new Promise((r) => setTimeout(r, ms));
 }
-

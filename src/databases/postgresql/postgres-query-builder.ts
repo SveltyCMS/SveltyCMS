@@ -217,6 +217,15 @@ export class PostgresQueryBuilder<T extends BaseEntity> implements QueryBuilder<
       if (this.sorts.length > 0) {
         q = q.orderBy(...this.sorts);
       }
+
+      // 🚀 STABILITY TIE-BREAKER: Ensure deterministic ordering for paginated queries
+      if (this.limitValue !== undefined || this.offsetValue !== undefined) {
+        const idCol = (this.table as any)._id;
+        if (idCol) {
+          q = q.orderBy(asc(idCol));
+        }
+      }
+
       if (this.limitValue !== undefined) {
         q = q.limit(this.limitValue);
       }

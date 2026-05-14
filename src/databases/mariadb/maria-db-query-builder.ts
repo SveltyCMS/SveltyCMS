@@ -279,6 +279,14 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
       q = q.orderBy(...orderBys);
     }
 
+    // 🚀 STABILITY TIE-BREAKER: Ensure deterministic ordering for paginated queries
+    if (this.limitValue !== undefined || this.skipValue !== undefined) {
+      const idCol = (this.table as any)._id;
+      if (idCol) {
+        q = q.orderBy(asc(idCol));
+      }
+    }
+
     if (this.limitValue !== undefined) {
       q = q.limit(this.limitValue);
     }

@@ -7,6 +7,8 @@ import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { sha256 } from "@utils/utils";
 import type { CmsMediaMetadata } from "./media-models";
+import { Readable } from "node:stream";
+import { createHash } from "node:crypto";
 
 /** Hash file content (SHA-256, 20-char hex) */
 export async function hashFileContent(buffer: ArrayBuffer | Buffer): Promise<string> {
@@ -27,6 +29,18 @@ export async function hashFileContent(buffer: ArrayBuffer | Buffer): Promise<str
     logger.error("Hashing failed", { size: buffer.byteLength, error: msg });
     throw error(500, `Hashing error: ${msg}`);
   }
+}
+
+/** Hash a stream (SHA-256) without buffering */
+export async function hashStream(stream: ReadableStream | Readable): Promise<string> {
+  const hash = createHash("sha256");
+  const nodeStream = stream instanceof ReadableStream ? Readable.fromWeb(stream as any) : stream;
+
+  return new Promise((resolve, reject) => {
+    nodeStream.on("data", (chunk) => hash.update(chunk));
+    nodeStream.on("end", () => resolve(hash.digest("hex").slice(0, 20)));
+    nodeStream.on("error", (err) => reject(err));
+  });
 }
 
 /** Extract standard image metadata with Sharp */

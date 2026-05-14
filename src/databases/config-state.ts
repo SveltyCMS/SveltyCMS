@@ -212,6 +212,9 @@ function getEnvOverrides() {
   if (process.env.EDGE_KV_URL) overrides.EDGE_KV_URL = process.env.EDGE_KV_URL;
   if (process.env.EDGE_KV_TOKEN) overrides.EDGE_KV_TOKEN = process.env.EDGE_KV_TOKEN;
 
+  if (process.env.CONCURRENT_UPLOAD_SIZE)
+    overrides.CONCURRENT_UPLOAD_SIZE = Number(process.env.CONCURRENT_UPLOAD_SIZE);
+
   return overrides;
 }
 

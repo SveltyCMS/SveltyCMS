@@ -93,6 +93,9 @@ const DATE_FIELDS = new Set([
   "deletedAt",
   "lastHit",
   "last2FAVerification",
+  "lastLoginAt",
+  "lastActivityAt",
+  "lastRun",
 ]);
 
 /**
@@ -262,7 +265,7 @@ export function convertISOToDates<T extends Record<string, unknown>>(data: T): T
       continue;
     }
     // 3. Parse Date fields
-    else if (DATE_FIELDS.has(key)) {
+    else if (DATE_FIELDS.has(key) || key.endsWith("At") || key.endsWith("Date")) {
       if (typeof value === "string") {
         const d = new Date(value);
         if (!Number.isNaN(d.getTime())) {

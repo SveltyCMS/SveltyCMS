@@ -162,9 +162,7 @@ const getSecret = (key: string, defaultValue: string): string => {
   const val = process.env[key];
   if (!val) {
     if (process.env.DEBUG_BENCHMARKS) {
-      console.warn(
-        `[DEBUG] Missing environment variable ${key}, using default.`,
-      );
+      console.warn(`[DEBUG] Missing environment variable ${key}, using default.`);
     }
     return defaultValue;
   }
@@ -193,19 +191,12 @@ export const ENCRYPTION_KEY = getSecret(
 );
 
 // --- PATHS & DIRECTORIES ---
-export const ROOT_RESULTS_DIR = path.join(
-  process.cwd(),
-  "tests/benchmarks/results",
-);
-export const BENCHMARKS_DOC = path.join(
-  process.cwd(),
-  "docs/project/benchmarks.mdx",
-);
+export const ROOT_RESULTS_DIR = path.join(process.cwd(), "tests/benchmarks/results");
+export const BENCHMARKS_DOC = path.join(process.cwd(), "docs/project/benchmarks.mdx");
 export const CI_SUMMARY_FILE = path.join(ROOT_RESULTS_DIR, "ci-summary.json");
 export const DB_NAME_BASE = "SveltyCMS_audit";
 /** The single, unified database name used for ALL SQL benchmarks to ensure realism. */
-export const DB_NAME_BENCHMARK =
-  process.env.DB_NAME_BENCHMARK || "sveltycms_bench";
+export const DB_NAME_BENCHMARK = process.env.DB_NAME_BENCHMARK || "sveltycms_bench";
 
 // --- EXECUTION CONTROL ---
 /**

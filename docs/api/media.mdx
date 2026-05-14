@@ -22,15 +22,15 @@ The Media API provides a centralized interface for managing all assets within Sv
 
 ## ⚡ Quick Reference
 
-| Feature             | HTTP Endpoint             | Method   | Permission Required |
-| :------------------ | :------------------------ | :------- | :------------------ |
-| **List Media**      | `/api/media`              | `GET`    | `media:read`        |
-| **Get Manifest**    | `/api/media/{id}`         | `GET`    | `media:read`        |
-| **Upload Media**    | `/api/media`              | `POST`   | `media:create`      |
-| **Update Metadata** | `/api/media/{id}`         | `PATCH`  | `media:update`      |
-| **Delete Media**    | `/api/media/{id}`         | `DELETE` | `media:delete`      |
-| **Job Status**      | `/api/media/jobs/{id}`    | `GET`    | `media:read`        |
-| **Folders**         | `/api/media/folders`      | `GET`    | `media:read`        |
+| Feature             | HTTP Endpoint          | Method   | Permission Required |
+| :------------------ | :--------------------- | :------- | :------------------ |
+| **List Media**      | `/api/media`           | `GET`    | `media:read`        |
+| **Get Manifest**    | `/api/media/{id}`      | `GET`    | `media:read`        |
+| **Upload Media**    | `/api/media`           | `POST`   | `media:create`      |
+| **Update Metadata** | `/api/media/{id}`      | `PATCH`  | `media:update`      |
+| **Delete Media**    | `/api/media/{id}`      | `DELETE` | `media:delete`      |
+| **Job Status**      | `/api/media/jobs/{id}` | `GET`    | `media:read`        |
+| **Folders**         | `/api/media/folders`   | `GET`    | `media:read`        |
 
 ---
 
@@ -62,7 +62,8 @@ The media engine calculates high-entropy hashes (SHA-256) for every upload. If a
 For long-running tasks (AI tagging, batch transforms, heavy ingestion), the API returns a `202 Accepted` status with an **`OperationID`**.
 
 **Endpoint**: `GET /api/media/jobs/{id}`  
-**Returns**: 
+**Returns**:
+
 - `pending`: Job is in queue.
 - `processing`: Job is currently executing.
 - `completed`: Job finished successfully.
@@ -106,7 +107,7 @@ sequenceDiagram
     API->>Storage: Store Original File
     API->>Jobs: Spawn Processing Job
     API-->>User: 202 Accepted (OperationID)
-    
+
     loop Polling
         User->>API: GET /api/media/jobs/{id}
         API-->>User: status: completed

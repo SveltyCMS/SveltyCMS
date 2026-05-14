@@ -602,7 +602,9 @@ export interface IAuthAdapter {
     userId?: DatabaseId,
     type?: string,
     options?: BaseQueryOptions,
-  ): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>>;
+  ): Promise<
+    DatabaseResult<{ success: boolean; message: string; email?: string; details?: Token }>
+  >;
 }
 
 export interface ICrudAdapter {
@@ -987,6 +989,7 @@ export interface ISystemAdapter {
       order?: string;
     }): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>>;
     getByName(name: string): Promise<DatabaseResult<WebsiteToken | null>>;
+    getByToken(token: string): Promise<DatabaseResult<WebsiteToken | null>>;
     delete(tokenId: DatabaseId): Promise<DatabaseResult<void>>;
   };
   jobs: {

@@ -10,6 +10,7 @@ import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { logger } from "@utils/logger";
 import { successResponse, rawResponse } from "./base";
+import { getPrivateEnv } from "@src/databases/db";
 
 export async function handleMediaRoutes(
   event: RequestEvent,
@@ -108,19 +109,28 @@ export async function handleMediaUpload(
     throw new AppError("No files provided for upload", 400);
   }
 
+  const config = getPrivateEnv();
+  const concurrency = config?.CONCURRENT_UPLOAD_SIZE || 1;
+
   const results = [];
-  for (const file of files) {
-    if (file instanceof File) {
+  for (let i = 0; i < files.length; i += concurrency) {
+    const chunk = files.slice(i, i + concurrency);
+    const chunkPromises = chunk.map(async (file) => {
+      if (!(file instanceof File)) return null;
       const res = (await cms.media.upload(file, {
         userId: (user?._id as string) || "system",
         tenantId,
       })) as any;
+
       if (!res.success) {
-        results.push({ fileName: file.name, success: false, message: res.message });
+        return { fileName: file.name, success: false, message: res.message };
       } else {
-        results.push({ fileName: file.name, success: true, data: res.data });
+        return { fileName: file.name, success: true, data: res.data };
       }
-    }
+    });
+
+    const chunkResults = await Promise.all(chunkPromises);
+    results.push(...chunkResults.filter((r): r is any => r !== null));
   }
   return successResponse(event, results);
 }

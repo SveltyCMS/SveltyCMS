@@ -65,8 +65,11 @@ export function getImageSizes() {
 
 const MEDIA_ROOT = getPublicSettingSync("MEDIA_FOLDER") ?? "mediaFolder";
 
-/** Save buffer to storage (local or cloud) */
-export async function saveFile(buffer: Buffer, relPath: string): Promise<string> {
+/** Save buffer or stream to storage (local or cloud) */
+export async function saveFile(
+  data: Buffer | ReadableStream | import("node:stream").Readable,
+  relPath: string,
+): Promise<string> {
   const MEDIA_ROOT_FULL = path.resolve(process.cwd(), MEDIA_ROOT) + path.sep;
   const fullRelPath = path.resolve(process.cwd(), MEDIA_ROOT, relPath);
 
@@ -75,14 +78,32 @@ export async function saveFile(buffer: Buffer, relPath: string): Promise<string>
   }
 
   if (isCloud()) {
-    await upload(buffer, relPath);
+    await upload(data, relPath);
     return getUrl(relPath);
   }
 
   // Local
   const fs = await import("node:fs/promises");
   await fs.mkdir(path.dirname(fullRelPath), { recursive: true });
-  await fs.writeFile(fullRelPath, buffer);
+
+  if (data instanceof Buffer) {
+    await fs.writeFile(fullRelPath, data);
+  } else {
+    const { createWriteStream } = await import("node:fs");
+    const { Readable } = await import("node:stream");
+    const writeStream = createWriteStream(fullRelPath);
+    const nodeStream =
+      data instanceof ReadableStream
+        ? Readable.fromWeb(data as any)
+        : (data as import("node:stream").Readable);
+
+    await new Promise((resolve, reject) => {
+      nodeStream.pipe(writeStream);
+      writeStream.on("finish", resolve);
+      writeStream.on("error", reject);
+      nodeStream.on("error", reject);
+    });
+  }
 
   return `/files/${relPath}`;
 }

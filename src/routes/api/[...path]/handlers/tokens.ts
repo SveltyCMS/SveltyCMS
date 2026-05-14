@@ -116,27 +116,22 @@ export async function handleIdentityTokenRoutes(
       throw new AppError(`Action "${tokenId}" only supports POST`, 405);
     }
 
-    // Try finding by ID first
-    // This is public if it's an invitation token validation
-    const token = await cms.auth.tokens.findById(tokenId, { tenantId });
-    if (token) {
-      // If the client expects the validation shape (valid: true)
-      if (url.searchParams.get("validate") === "true" || !locals.user) {
-        return successResponse(event, { ...token, valid: true });
-      }
-      return successResponse(event, token);
-    }
-
-    // If not found by technical ID, check if it's an invitation token value being validated
+    // Try validating using the auth system (checks expiry, consumed status, etc.)
     const validateRes = await cms.auth.validateToken(tokenId as string, {
       tenantId,
-      type: "invite-token",
-      category: "general",
+      type: (url.searchParams.get("type") as any) || "invite-token",
     });
 
     if (validateRes.success && validateRes.data?.success) {
+      // If valid, return the validation shape.
+      // If the user is authenticated, we can provide more details from the already-fetched token doc.
+      if (locals.user) {
+        return successResponse(event, { ...validateRes.data.details, valid: true });
+      }
       return successResponse(event, { ...validateRes.data, valid: true });
     }
+
+    throw new AppError("Token not found or invalid", 404);
 
     throw new AppError("Token not found or invalid", 404);
   }

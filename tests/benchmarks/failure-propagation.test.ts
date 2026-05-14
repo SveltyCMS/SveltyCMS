@@ -109,11 +109,15 @@ export async function runFailurePropagationAudit() {
     { key: "Success Latency (Avg)", val: validRes.avgMs, unit: "ms" },
     { key: "Auth Failure Latency (Avg)", val: failAuthRes.failAvgMs || 0, unit: "ms" },
     { key: "404 Failure Latency (Avg)", val: failDataRes.failAvgMs || 0, unit: "ms" },
-    { key: "Fast-Fail Efficiency", val: (validRes.avgMs / (failAuthRes.failAvgMs || 1)).toFixed(2), unit: "x" },
+    {
+      key: "Fast-Fail Efficiency",
+      val: (validRes.avgMs / (failAuthRes.failAvgMs || 1)).toFixed(2),
+      unit: "x",
+    },
   ]);
 
   for (const r of allResults) exportResult(r);
-  
+
   console.log("\n✅ Failure propagation audit completed.");
 }
 

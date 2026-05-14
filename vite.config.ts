@@ -20,6 +20,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { sveltekit } from "@sveltejs/kit/vite";
+import { svelteInspector } from "@sveltejs/vite-plugin-svelte-inspector";
 import tailwindcss from "@tailwindcss/vite";
 import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vitest/config";
@@ -641,6 +642,7 @@ export default defineConfig((): any => {
       privateConfigFallbackPlugin(),
       stubServerModulesPlugin(),
       sveltekit(),
+      svelteInspector(),
       sveltyCmsPlugin(),
       securityCheckPlugin(),
       suppressThirdPartyWarningsPlugin(),

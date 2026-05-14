@@ -101,6 +101,7 @@ The SQLite adapter implements a robust provisioning system that handles the comp
 ### ESM-First Driver Loading
 
 To comply with SvelteKit 5's strict ESM requirements and avoid "require is not defined" errors:
+
 - The adapter uses **Dynamic Imports** to load binary drivers.
 - It detects the runtime environment (`Bun` vs `Node.js`) and imports the appropriate library (`bun:sqlite` or `better-sqlite3`) at runtime.
 - This allows a single codebase to run seamlessly across local development (Bun) and production (Node.js) environments.

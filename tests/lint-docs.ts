@@ -77,25 +77,25 @@ function slugify(text: string): string {
 const headerCache = new Map<string, Set<string>>();
 function getSlugsFromFile(file: string): Set<string> {
   if (headerCache.has(file)) return headerCache.get(file)!;
-  
+
   if (!fs.existsSync(file)) return new Set();
-  
+
   const content = fs.readFileSync(file, "utf-8");
   const slugs = new Set<string>();
-  
+
   // Match headers: # Header, ## Header, etc.
   const headerRegex = /^#+\s+(.*)$/gm;
   let match;
   while ((match = headerRegex.exec(content)) !== null) {
     slugs.add(slugify(match[1]));
   }
-  
+
   // Match explicit anchors: {#custom-id}
   const anchorRegex = /\{#([\w-]+)\}/g;
   while ((match = anchorRegex.exec(content)) !== null) {
     slugs.add(match[1]);
   }
-  
+
   headerCache.set(file, slugs);
   return slugs;
 }
@@ -116,7 +116,11 @@ function parseFrontmatter(content: string): Record<string, unknown> {
     if (!line.trim()) continue;
 
     if (currentKey && line.trim().startsWith("-")) {
-      const val = line.trim().replace(/^-/, "").trim().replace(/^['"]|['"]$/g, "");
+      const val = line
+        .trim()
+        .replace(/^-/, "")
+        .trim()
+        .replace(/^['"]|['"]$/g, "");
       if (!Array.isArray(data[currentKey])) data[currentKey] = [];
       (data[currentKey] as unknown[]).push(val);
       continue;
@@ -127,7 +131,10 @@ function parseFrontmatter(content: string): Record<string, unknown> {
     currentKey = key.trim();
 
     if (rawValue.startsWith("[") && rawValue.endsWith("]")) {
-      data[currentKey] = rawValue.slice(1, -1).split(",").map((v) => v.trim().replace(/^['"]|['"]$/g, ""));
+      data[currentKey] = rawValue
+        .slice(1, -1)
+        .split(",")
+        .map((v) => v.trim().replace(/^['"]|['"]$/g, ""));
     } else if (rawValue === "") {
       data[currentKey] = [];
     } else if (rawValue.startsWith("'") || rawValue.startsWith('"')) {
@@ -179,23 +186,23 @@ function checkInternalLinks(file: string, content: string): string[] {
       // Internal anchor in same file - optional check
       continue;
     }
-    
+
     const absoluteLinkPath = path.resolve(path.dirname(file), linkPath || "");
-    const possiblePaths = [
-      absoluteLinkPath,
-      absoluteLinkPath + ".mdx",
-      absoluteLinkPath + ".md"
-    ];
-    
-    const actualPath = possiblePaths.find(p => fs.existsSync(p));
+    const possiblePaths = [absoluteLinkPath, absoluteLinkPath + ".mdx", absoluteLinkPath + ".md"];
+
+    const actualPath = possiblePaths.find((p) => fs.existsSync(p));
 
     if (!actualPath) {
       const relativeToRoot = path.relative(process.cwd(), absoluteLinkPath);
-      fileIssues.push(`${c.red}Broken link:${c.reset} "${linkPath}" (Resolved to: ${relativeToRoot})`);
+      fileIssues.push(
+        `${c.red}Broken link:${c.reset} "${linkPath}" (Resolved to: ${relativeToRoot})`,
+      );
     } else if (anchor) {
       const slugs = getSlugsFromFile(actualPath);
       if (!slugs.has(anchor)) {
-        fileIssues.push(`${c.yellow}Broken anchor:${c.reset} "#${anchor}" not found in ${path.basename(actualPath)}`);
+        fileIssues.push(
+          `${c.yellow}Broken anchor:${c.reset} "#${anchor}" not found in ${path.basename(actualPath)}`,
+        );
       }
     }
   }
@@ -269,9 +276,9 @@ for (const dir of SCAN_DIRS) {
     let raw = fs.readFileSync(file, "utf-8");
     let data = parseFrontmatter(raw);
     const result = safeParse(frontmatterSchema, data);
-    
+
     // Strip code blocks to avoid false positives for examples
-    const contentWithoutCodeBlocks = raw.replace(/```[\s\S]*?```/g, '');
+    const contentWithoutCodeBlocks = raw.replace(/```[\s\S]*?```/g, "");
 
     const linkIssues = checkInternalLinks(file, contentWithoutCodeBlocks);
     const imageIssues = checkImages(file, contentWithoutCodeBlocks);
@@ -293,7 +300,7 @@ for (const dir of SCAN_DIRS) {
         updatedRaw = updatedRaw.replace(/path:\s*['"].*?['"]/, `path: "${filesystemPath}"`);
         changed = true;
       }
-      
+
       // Update 'updated' date to today if schema is valid or was fixed
       const today = new Date().toISOString().split("T")[0];
       if (data.updated !== today) {
@@ -318,7 +325,9 @@ for (const dir of SCAN_DIRS) {
     }
 
     if (pathMismatch) {
-      fileIssues.push(`${c.red}Path mismatch:${c.reset} Expected "${filesystemPath}" but found "${frontmatterPath}"`);
+      fileIssues.push(
+        `${c.red}Path mismatch:${c.reset} Expected "${filesystemPath}" but found "${frontmatterPath}"`,
+      );
     }
 
     fileIssues.push(...linkIssues, ...imageIssues, ...hierarchyIssues, ...alertIssues);
@@ -328,9 +337,9 @@ for (const dir of SCAN_DIRS) {
     } else {
       invalidFiles++;
       errors.push({ file, issues: fileIssues });
-      
+
       console.log(`${c.red}❌ ${relativePath}${c.reset}`);
-      fileIssues.forEach(issue => console.log(`   • ${issue}`));
+      fileIssues.forEach((issue) => console.log(`   • ${issue}`));
       console.log("");
     }
   }

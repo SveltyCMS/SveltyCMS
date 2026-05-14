@@ -118,6 +118,25 @@ SveltyCMS follows industry best practices:
 
 ---
 
+## 7. Data Integrity & Lifecycle
+
+### Cascading User Deletion
+
+To ensure comprehensive access termination and prevent orphaned data, SveltyCMS implements cascading logic during user deletion:
+
+- **Session Invalidation**: All active sessions (L0, L1, and L2) are immediately purged from memory, Redis, and the database.
+- **Token Cleanup**: All pending cryptographic tokens (invites, resets, API keys) associated with the user are permanently deleted to prevent unauthorized reuse.
+
+### Hardened Token Validation
+
+The token validation system enforces strict metadata checks to prevent exploitation:
+
+- **Purpose Mapping**: Tokens are validated against their intended `type` (e.g., `invite-token` vs `reset`).
+- **Consumption State**: Tokens marked as `consumed` are rejected even if they are within their expiry window.
+- **Atomic Retrieval**: Retrieval via API is gated by a full validation check, preventing metadata leakage for invalid or expired tokens.
+
+---
+
 ## Related Documentation
 
 - [Cache System Architecture](./cache-system.mdx)

@@ -1,7 +1,7 @@
 /**
  * @file tests/benchmarks/client-journey.test.ts
  * @description World Life Data: Full Client Journey Simulation.
- * Measures cumulative latency of a realistic user workflow: 
+ * Measures cumulative latency of a realistic user workflow:
  * Auth -> List -> View -> Edit -> Save -> Realtime.
  */
 
@@ -63,14 +63,14 @@ _beforeAll(async () => {
   await ensureFullInitialization();
   const db = getDb();
   if (!db) throw new Error("DB Initialization Failed");
-    if (db) {
-      try {
-        await db.crud.deleteMany(STABLE_COLLECTION, {}, { permanent: true, bypassTenantCheck: true });
-      } catch {
-        // Table might not exist yet, ignore
-      }
+  if (db) {
+    try {
+      await db.crud.deleteMany(STABLE_COLLECTION, {}, { permanent: true, bypassTenantCheck: true });
+    } catch {
+      // Table might not exist yet, ignore
     }
-    await ensureStableTestData(db);
+  }
+  await ensureStableTestData(db);
 }, 120000);
 
 _afterAll(async () => {
@@ -192,6 +192,10 @@ export async function runClientJourneyAudit() {
   console.log("\n✅ Client journey audit completed.");
 }
 
-_test("Client Journey World Life Suite", async () => {
-  await runClientJourneyAudit();
-}, 450000);
+_test(
+  "Client Journey World Life Suite",
+  async () => {
+    await runClientJourneyAudit();
+  },
+  450000,
+);

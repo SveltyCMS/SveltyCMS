@@ -100,11 +100,15 @@ async function runSecurityTask(action: string, payload: any): Promise<any> {
 // --- Password Utilities ---
 
 export async function hashPassword(password: string): Promise<string> {
-  return runSecurityTask("hash", { password, config: ARGON2_CONFIG });
+  // Ensure consistent UTF-8 encoding for unicode passwords
+  const pwd = Buffer.from(password, "utf8");
+  return runSecurityTask("hash", { password: pwd, config: ARGON2_CONFIG });
 }
 
 export async function verifyPassword(hash: string, password: string): Promise<boolean> {
-  return runSecurityTask("verify", { hash, password });
+  // Ensure consistent UTF-8 encoding for unicode passwords
+  const pwd = Buffer.from(password, "utf8");
+  return runSecurityTask("verify", { hash, password: pwd });
 }
 
 export async function needsRehashing(hash: string): Promise<boolean> {
@@ -117,7 +121,8 @@ export async function needsRehashing(hash: string): Promise<boolean> {
 
 export async function deriveKey(password: string, salt: Buffer): Promise<Buffer> {
   const argon2 = await import("argon2");
-  const hash = await argon2.hash(password, { ...ARGON2_CONFIG, salt, raw: true });
+  const pwd = Buffer.from(password, "utf8");
+  const hash = await argon2.hash(pwd, { ...ARGON2_CONFIG, salt, raw: true });
   return Buffer.from(hash).subarray(0, ENCRYPTION_CONFIG.keyLength);
 }
 

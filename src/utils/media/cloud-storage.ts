@@ -139,8 +139,11 @@ export function getUrl(relativePath: string, prefix?: string): string {
   return `${config.publicUrl.replace(/\/+$/, "")}/${fullPath}`;
 }
 
-/** Upload file */
-export async function upload(buffer: Buffer, relativePath: string): Promise<string> {
+/** Upload file (Buffer or Stream) */
+export async function upload(
+  data: Buffer | ReadableStream | import("node:stream").Readable,
+  relativePath: string,
+): Promise<string> {
   const config = getConfig();
   const fullPath = getPath(relativePath);
 
@@ -159,7 +162,7 @@ export async function upload(buffer: Buffer, relativePath: string): Promise<stri
       new PutObjectCommand({
         Bucket: config.bucketName,
         Key: fullPath,
-        Body: buffer,
+        Body: data as any,
         ContentType: mime,
       }),
     );
@@ -185,7 +188,17 @@ export async function upload(buffer: Buffer, relativePath: string): Promise<stri
           resolve(res.secure_url);
         },
       );
-      stream.end(buffer);
+
+      if (data instanceof Buffer) {
+        stream.end(data);
+      } else if (data instanceof ReadableStream) {
+        // Convert Web Stream to Node Stream for Cloudinary lib
+        import("node:stream").then(({ Readable }) => {
+          Readable.fromWeb(data as any).pipe(stream);
+        });
+      } else {
+        (data as any).pipe(stream);
+      }
     });
   }
 

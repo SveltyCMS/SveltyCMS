@@ -265,6 +265,7 @@ SQL-based adapters (PostgreSQL, MariaDB, SQLite) implement a specialized **Provi
 ### `SQLiteAdapterCore` - ESM & Environment Awareness
 
 The SQLite adapter is specifically engineered for high-performance edge environments:
+
 - **ESM-First Driver Loading**: Uses dynamic `import()` to load `better-sqlite3` (Node.js) or `bun:sqlite` (Bun), complying with strict SvelteKit 5 ESM requirements.
 - **Path Resolution**: Handles relative and absolute paths for the `.db` file, ensuring portability across local dev and deployed containers.
 - **Mutex Protection**: Implements a low-overhead mutex to prevent "Database is locked" errors during high-concurrency write operations.

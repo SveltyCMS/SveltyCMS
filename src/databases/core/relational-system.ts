@@ -756,14 +756,14 @@ export class RelationalSystemModule implements ISystemAdapter {
       limit?: number;
       skip?: number;
       sort?: string;
-      direction?: "asc" | "desc";
+      order?: string;
     }): Promise<
       DatabaseResult<{ data: import("../db-interface").WebsiteToken[]; total: number }>
     > => {
       return this.adapter.wrap(async () => {
         let q = this.db.select().from(this.schema.websiteTokens).$dynamic();
         if (options.sort) {
-          const orderFn = options.direction === "desc" ? desc : asc;
+          const orderFn = options.order === "desc" ? desc : asc;
           const column = (this.schema.websiteTokens as any)[options.sort];
           if (column) q = q.orderBy(orderFn(column));
         }
@@ -796,6 +796,21 @@ export class RelationalSystemModule implements ISystemAdapter {
           ? (utils.convertDatesToISO(result) as unknown as import("../db-interface").WebsiteToken)
           : null;
       }, "GET_WEBSITE_TOKEN_BY_NAME_FAILED");
+    },
+
+    getByToken: async (
+      token: string,
+    ): Promise<DatabaseResult<import("../db-interface").WebsiteToken | null>> => {
+      return this.adapter.wrap(async () => {
+        const [result] = await this.db
+          .select()
+          .from(this.schema.websiteTokens)
+          .where(eq(this.schema.websiteTokens.token, token))
+          .limit(1);
+        return result
+          ? (utils.convertDatesToISO(result) as unknown as import("../db-interface").WebsiteToken)
+          : null;
+      }, "GET_WEBSITE_TOKEN_BY_TOKEN_FAILED");
     },
 
     delete: async (tokenId: DatabaseId): Promise<DatabaseResult<void>> => {

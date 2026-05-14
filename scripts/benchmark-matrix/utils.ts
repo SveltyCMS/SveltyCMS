@@ -74,15 +74,11 @@ function findResult(m: Record<string, unknown>, target: string): unknown {
  * Extracts standardized metrics from benchmark output files.
  * Supports both legacy flat fields and new structured `numeric-metric` format.
  */
-export function extractMetrics(
-  metrics: Record<string, unknown> = {},
-  _dbType: string,
-) {
+export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: string) {
   const m = metrics ?? {};
 
   const getMetric = (pattern: string | RegExp, fallback = 0): number => {
-    const slugify = (s: string) =>
-      s.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
+    const slugify = (s: string) => s.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
     const slugPattern = typeof pattern === "string" ? slugify(pattern) : null;
 
     // 1. Search structured numeric-metric entries (preferred)
@@ -92,8 +88,7 @@ export function extractMetrics(
 
       const isMatch =
         (slugPattern && slugify(cleanKey).includes(slugPattern)) ||
-        (typeof pattern === "string" &&
-          cleanKey.toLowerCase().includes(pattern.toLowerCase()));
+        (typeof pattern === "string" && cleanKey.toLowerCase().includes(pattern.toLowerCase()));
 
       if (isNumericMetric(entry)) {
         if (isMatch) return entry.value;
@@ -120,16 +115,13 @@ export function extractMetrics(
           // Case 2: subKey itself matches the pattern (for matrix_metrics.json structure)
           const subMatch =
             (slugPattern && slugify(subKey).includes(slugPattern)) ||
-            (typeof pattern === "string" &&
-              subKey.toLowerCase().includes(pattern.toLowerCase()));
+            (typeof pattern === "string" && subKey.toLowerCase().includes(pattern.toLowerCase()));
 
           if (subMatch) {
             if (typeof subEntry === "number") return subEntry;
             if (typeof subEntry === "object" && subEntry !== null) {
               const val =
-                (subEntry as any).value ??
-                (subEntry as any).avgMs ??
-                (subEntry as any).p95Ms;
+                (subEntry as any).value ?? (subEntry as any).avgMs ?? (subEntry as any).p95Ms;
               if (typeof val === "number") return val;
             }
           }
@@ -262,8 +254,7 @@ export function extractMetrics(
       (findResult(m, "Production Build") as any)?.avgMs ||
       (findResult(m, "dx-build") as any)?.durationMs ||
       0,
-    bundleSize:
-      getMetric("dx.bundle.size.total") || getMetric("Bundle Size") || 0,
+    bundleSize: getMetric("dx.bundle.size.total") || getMetric("Bundle Size") || 0,
     txCommit:
       getMetric("adapter.transaction.commit.avg") ||
       getMetric("TX Commit Avg") ||
@@ -326,10 +317,7 @@ function matchesPattern(value: string, pattern: string | RegExp): boolean {
 // Budget Checking
 // ─────────────────────────────────────────────────────────────
 
-export function checkBudget(
-  m: ReturnType<typeof extractMetrics>,
-  coldStartMs: number,
-): string[] {
+export function checkBudget(m: ReturnType<typeof extractMetrics>, coldStartMs: number): string[] {
   const violations: string[] = [];
 
   const check = (key: string, value: number) => {
@@ -399,10 +387,7 @@ export async function getTrendDetails(
 // Port Management
 // ─────────────────────────────────────────────────────────────
 
-export async function waitForPortFree(
-  port: number,
-  timeoutMs = 8000,
-): Promise<void> {
+export async function waitForPortFree(port: number, timeoutMs = 8000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
@@ -416,9 +401,7 @@ export async function waitForPortFree(
     }
   }
 
-  log.warn(
-    `Port ${port} did not become free within ${timeoutMs}ms — proceeding anyway.`,
-  );
+  log.warn(`Port ${port} did not become free within ${timeoutMs}ms — proceeding anyway.`);
 }
 
 export async function freePort(port: number): Promise<void> {

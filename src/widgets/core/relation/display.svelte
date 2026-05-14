@@ -28,7 +28,7 @@ Renders: "Article Title" (fetched from related entry's display field)
 <script lang="ts">
 	import type { FieldType } from './';
 
-	const { value }: { field: FieldType; value: string | string[] | null | undefined } = $props();
+	const { field, value }: { field: FieldType; value: string | string[] | null | undefined } = $props();
 
 	// Local state for the resolved entry's display text.
 	let displayText = $state('Loading...');
@@ -37,9 +37,19 @@ Renders: "Article Title" (fetched from related entry's display field)
 	let elementRef = $state<HTMLElement | null>(null);
 
 	// Stub function for fetching entry display - implement with your API
+	// Fetches the entry's display field value from the API.
 	async function fetchEntryDisplay(_id: string): Promise<string | null> {
-		// TODO: Implement API call to fetch entry display field
-		return null;
+		if (!field.collection || !field.displayField) return null;
+		try {
+			const res = await fetch(`/api/collections/${field.collection}/${_id}?fields=${field.displayField}`);
+			if (!res.ok) return null;
+			const result = await res.json();
+			const entry = (result.data || result) as Record<string, any>;
+			return entry[field.displayField as string] || null;
+		} catch (e) {
+			console.error('[RelationDisplay] Failed to fetch entry display:', e);
+			return null;
+		}
 	}
 
 	// Set up IntersectionObserver to detect when the element enters the viewport

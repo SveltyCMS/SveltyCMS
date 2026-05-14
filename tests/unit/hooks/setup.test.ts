@@ -120,7 +120,15 @@ describe("handleSetup Middleware", () => {
       it(`allows ${path}`, async () => {
         const event = createMockEvent(path);
         const response = await handleSetup({ event, resolve: mockResolve });
-        expect(response).toStrictEqual(mockResponse);
+
+        if (path === "/health" || path === "/api/system/health") {
+          // Health check bypass returns its own response, not mockResponse
+          expect(response.status).toBe(200);
+          const data = await response.json();
+          expect(data.status).toBeDefined();
+        } else {
+          expect(response).toStrictEqual(mockResponse);
+        }
       });
     }
 

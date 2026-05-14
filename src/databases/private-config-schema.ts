@@ -126,6 +126,9 @@ export const privateConfigSchema = object({
   // --- Edge Sync (Upstash/Redis) ---
   EDGE_KV_URL: optional(string()),
   EDGE_KV_TOKEN: optional(string()),
+
+  // --- Media & Uploads ---
+  CONCURRENT_UPLOAD_SIZE: optional(pipe(coercedNumber, minValue(1))),
 });
 
 export type PrivateConfig = InferOutput<typeof privateConfigSchema>;

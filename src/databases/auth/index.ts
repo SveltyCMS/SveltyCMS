@@ -547,8 +547,7 @@ export class Auth {
     const result = await this.db.auth.validateToken(token, undefined, "invite-token", options);
 
     if (result?.success && result.data && result.data.success) {
-      const tokenResult = await this.db.auth.getTokenByValue(token, options);
-      const tokenDoc = tokenResult?.success ? tokenResult.data : null;
+      const tokenDoc = result.data.details;
       return {
         isValid: true,
         message: result.data.message,

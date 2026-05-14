@@ -105,6 +105,7 @@ export interface WebsiteToken extends BaseEntity {
   name: string;
   permissions?: string[];
   token: string;
+  type?: "content-api" | "admin-api";
 }
 
 // Widget field type definition

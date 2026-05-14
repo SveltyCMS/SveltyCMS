@@ -203,6 +203,7 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
     create: async (token: any) => (await this._getMethods()).websiteTokens.create(token),
     getAll: async (options: any) => (await this._getMethods()).websiteTokens.getAll(options),
     getByName: async (name: string) => (await this._getMethods()).websiteTokens.getByName(name),
+    getByToken: async (token: string) => (await this._getMethods()).websiteTokens.getByToken(token),
     delete: async (id: DatabaseId) => (await this._getMethods()).websiteTokens.delete(id),
   };
 }

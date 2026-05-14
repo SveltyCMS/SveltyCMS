@@ -14,6 +14,8 @@
  * - Only listed roles can access the endpoint
  */
 
+import { Trie } from "@utils/trie";
+
 export const API_PERMISSIONS: Record<string, string[]> = {
   // System Administration - Admin only
   "api:config": ["admin"], // System configuration
@@ -82,6 +84,16 @@ export const API_PERMISSIONS: Record<string, string[]> = {
   "api:get-tokens-provided": ["admin"], // Token information - admin only
 };
 
+// Pre-compiled Trie for O(L) lookups
+const PERMISSION_TRIE = new Trie<string[]>();
+
+// Initialize the trie once at startup
+for (const [endpoint, roles] of Object.entries(API_PERMISSIONS)) {
+  // Support both 'api:endpoint' and 'api:parent/child' formats
+  const path = endpoint.replace(":", "/").split("/");
+  PERMISSION_TRIE.insert(path, roles);
+}
+
 /**
  * Check if a user role has permission to access an API endpoint
  * @param userRole - The user's role
@@ -95,7 +107,8 @@ export function hasApiPermission(userRole: string, apiEndpoint: string, isAdmin 
     return true;
   }
 
-  const allowedRoles = API_PERMISSIONS[`api:${apiEndpoint}`];
+  // O(L) Trie Lookup instead of object property check
+  const allowedRoles = PERMISSION_TRIE.find(["api", ...apiEndpoint.split("/")], { fallback: true });
 
   if (!allowedRoles) {
     // If endpoint is not defined, deny access by default (secure by default)

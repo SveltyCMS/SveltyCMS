@@ -103,7 +103,7 @@ export class TokenAdapter {
           error: { code: "TOKEN_INVALID", message: "Token not found or expired" },
         };
       }
-      return { success: true, data: { email: found.email } };
+      return { success: true, data: { email: found.email } as any };
     } catch (err) {
       const message = "Token validation error";
       logger.error(message, err);

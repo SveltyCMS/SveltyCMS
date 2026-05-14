@@ -209,7 +209,7 @@ When generating/modifying code:
 11. **Empirical Performance Verification**: When implementing logic enhancements or optimizations:
     - **Baseline**: Run the relevant benchmark (e.g., `bun run scripts/benchmark-matrix/index.ts --only=REST`) BEFORE applying changes.
     - **Verification**: Run the same benchmark AFTER implementation.
-    - **Reporting**: You MUST report the percentage delta (e.g., "REST latency improved by 12.5% vs baseline") in your final response to the user.
+    - **Commit Messages**: Do NOT add `Co-Authored-By` or AI tags.
 
 ### Mandatory Documentation Updates
 
@@ -259,6 +259,7 @@ From the 2026 roadmap (v0.0.6, target A+ grade), prioritize these for parity/lea
 - [x] **99.9% Self-Healing Cache (v0.0.8)**: Incremental file scanning (mtime-hashing) and smart structural reconciliation.
 - [x] **High-Performance Local API (v0.0.8)**: Zero-latency server-side CRUD bridge with full widget logic parity. **Achieved <0.05ms average latency for core operations.**
 - [x] **Enterprise Performance Auditing**: 20+ standardized benchmarks with high-fidelity ASCII telemetry. **Includes 1,000-collection stress audits.**
+- [x] **Hardened Relation Token Engine (v0.0.9)**: Resolved field property access bugs and implemented high-performance Bearer token validation with multi-tenant isolation.
 - [x] **Sub-Millisecond Content Scanner (v0.0.8)**: Implemented Persistent Mtime Tree (Dirty Bits), Batch Cache Retrieval (`getMany`), and Worker Thread Pooling.
 - [x] **Image Editor Enhancement**: Current implementation stabilized; adding cropping, filters, and focal point management.
 - [x] **Collection Builder Enhancement**: UX improvements and ergonomic field management in progress.
@@ -479,7 +480,8 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 ## Version Control
 
 - Branches: `next` (dev), `main` (stable).
-- Commits: Conventional (`feat:`, `fix:`, `docs:`); include `Co-Authored-By: <agent>`.
+- **Commit Attribution**: **NEVER** include `Co-Authored-By` or any AI-attribution lines in commit messages unless explicitly requested by the USER for a specific commit. All work should appear as the USER's own work for seamless integration into enterprise workflows.
+- Commits: Conventional (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `security:`, `perf:`).
 - Pre-commit: `bun run format && bun run lint && bun run check && bun run test:unit && bun run test:unit:bun` (100% CI parity).
 
 ---

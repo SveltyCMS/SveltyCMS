@@ -251,24 +251,18 @@ export class RelationalAuthModule implements IAuthAdapter {
   }
 
   async deleteUser(userId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>> {
-    return this.adapter.wrap(
-      async () => {
-        const conditions = [eq(this.schema.authUsers._id, userId as string)];
-        if (options?.tenantId !== undefined) {
-          conditions.push(
-            options.tenantId === null
-              ? isNull(this.schema.authUsers.tenantId)
-              : eq(this.schema.authUsers.tenantId, options.tenantId as string),
-          );
-        }
-        await this.getDb(options)
-          .delete(this.schema.authUsers)
-          .where(and(...conditions));
-      },
-      "DELETE_USER_FAILED",
-      undefined,
-      { isWrite: true, transaction: options?.transaction },
-    );
+    const res = await this.deleteUsers([userId], options);
+    if (!res.success) {
+      return {
+        success: false,
+        message: res.message,
+        error: res.error,
+      };
+    }
+    return {
+      success: true,
+      data: undefined,
+    };
   }
 
   async getUserById(
@@ -745,7 +739,12 @@ export class RelationalAuthModule implements IAuthAdapter {
           .where(and(...conditions))
           .limit(1);
         return t
-          ? { success: true, message: "Valid", email: t.email }
+          ? {
+              success: true,
+              message: "Valid",
+              email: t.email,
+              details: utils.convertDatesToISO(t) as any,
+            }
           : { success: false, message: "Invalid" };
       },
       "VALIDATE_TOKEN_FAILED",

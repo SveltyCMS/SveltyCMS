@@ -31,12 +31,7 @@ export async function getRelationTokens(
 
   for (const field of relationFields) {
     const fieldName = field.db_fieldName || field.label;
-    const widget = field.widget as unknown as {
-      collection?: string;
-      display_field?: string;
-      multiple?: boolean;
-    };
-    const relatedCollection = widget?.collection;
+    const relatedCollection = (field as any).collection;
 
     if (!(fieldName && relatedCollection)) {
       continue;
@@ -59,7 +54,7 @@ export async function getRelationTokens(
       }
 
       // Generate tokens for related collection fields
-      const displayField = widget?.display_field || "title";
+      const displayField = (field as any).displayField || (field as any).display_field || "title";
 
       // Primary display field token
       tokens.push({
@@ -125,7 +120,7 @@ export async function getRelationTokens(
       }
 
       // Special token for multiple relations (array handling)
-      if (widget?.multiple) {
+      if ((field as any).multiple) {
         tokens.push({
           token: `entry.${fieldName}.count`,
           name: `${field.label || fieldName} → Count`,

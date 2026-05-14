@@ -48,8 +48,14 @@ async function main() {
     // Incremental tests only on changed files
     hasTsOrSvelte
       ? stagedFiles.join(" ").length > 6000
-        ? run("bun vitest run", ["--reporter=dot"])
-        : run("bun vitest related", [...stagedFiles, "--run", "--reporter=dot"])
+        ? Promise.all([
+            run("bun vitest run", ["--reporter=dot"]),
+            run("bun run test:unit:bun"),
+          ]).then((results) => results.every((r) => r === true))
+        : Promise.all([
+            run("bun vitest related", [...stagedFiles, "--run", "--reporter=dot"]),
+            run("bun run test:unit:bun"), // Unfortunately bun test doesn't have 'related' yet
+          ]).then((results) => results.every((r) => r === true))
       : Promise.resolve(true),
   ];
 

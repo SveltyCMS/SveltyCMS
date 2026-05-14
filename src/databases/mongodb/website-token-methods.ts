@@ -170,4 +170,25 @@ export class MongoWebsiteTokenMethods {
       };
     }
   }
+
+  async getByToken(
+    plaintextToken: string,
+    tenantId?: string,
+  ): Promise<DatabaseResult<WebsiteToken | null>> {
+    try {
+      const hashed = await this._hashToken(plaintextToken);
+      const filter: any = { token: hashed };
+      if (tenantId) filter.tenantId = tenantId;
+
+      return this.crud.findOne(filter as QueryFilter<WebsiteToken>, {
+        tenantId: tenantId as DatabaseId,
+      });
+    } catch (error: any) {
+      return {
+        success: false,
+        message: "Failed to get token by value",
+        error: createDatabaseError(error, "TOKEN_GET_FAILED", error.message),
+      };
+    }
+  }
 }

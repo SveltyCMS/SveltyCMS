@@ -108,14 +108,16 @@ sequenceDiagram
 
 Based on `tests/benchmarks/hooks-performance.test.ts`, the setup-aware gating achieves significantly lower latency for fresh installs:
 
-| Pipeline | Features | Avg Latency | Context |
-| :--- | :--- | :--- | :--- |
-| **Bootstrap** | Health, Security, Compression | **< 0.1ms** | During /setup phase |
-| **Turbo** | Fast-path routing, Assets | **~0.05ms** | Production steady-state |
-| **Full** | Auth, Audit, Content, SDK | **~1.2ms** | Standard API operations |
+| Pipeline      | Features                      | Avg Latency | Context                 |
+| :------------ | :---------------------------- | :---------- | :---------------------- |
+| **Bootstrap** | Health, Security, Compression | **< 0.1ms** | During /setup phase     |
+| **Turbo**     | Fast-path routing, Assets     | **~0.05ms** | Production steady-state |
+| **Full**      | Auth, Audit, Content, SDK     | **~1.2ms**  | Standard API operations |
 
 <Callout type="info">
-  **Zero-I/O Optimization**: By injecting the setup status via Vite's `define` constant, we eliminate the need to check for `private.ts` on every request. This reduces I/O pressure on the filesystem, especially critical for high-concurrency environments.
+  **Zero-I/O Optimization**: By injecting the setup status via Vite's `define` constant, we
+  eliminate the need to check for `private.ts` on every request. This reduces I/O pressure on the
+  filesystem, especially critical for high-concurrency environments.
 </Callout>
 
 ### Quick Stats
@@ -127,9 +129,10 @@ Based on `tests/benchmarks/hooks-performance.test.ts`, the setup-aware gating ac
 - **✨ NO SERVER RESTART REQUIRED**: System becomes operational immediately after setup completion
 
 <Callout type="success">
-  **Zero-Restart Architecture**: SveltyCMS uses dynamic in-memory configuration loading (`initializeWithConfig()`). 
-  While Vite may perform a hot-restart in development when `private.ts` is written, the production system transitions 
-  from `IDLE` → `READY` state instantly without process recycling, ensuring zero downtime.
+  **Zero-Restart Architecture**: SveltyCMS uses dynamic in-memory configuration loading
+  (`initializeWithConfig()`). While Vite may perform a hot-restart in development when `private.ts`
+  is written, the production system transitions from `IDLE` → `READY` state instantly without
+  process recycling, ensuring zero downtime.
 </Callout>
 
 ---

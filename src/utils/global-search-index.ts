@@ -1,6 +1,15 @@
 /**
  * @file src/utils/global-search-index.ts
- * @description Global Search Index with new advanced CMS features.
+ * @description
+ * Global Search Index for managing searchable CMS content.
+ *
+ * Features:
+ * - **Local State**: Maintains the index in a reactive writable store.
+ *
+ * ### Refactoring Note:
+ * This currently uses a client-side `writable` store which is suitable for small-to-medium datasets.
+ * **Technical Debt**: If server-side search is implemented, this module must be refactored to support
+ * asynchronous remote indexing and pagination to maintain "sub-millisecond" goals at enterprise scale.
  */
 
 import ModalEditAvatar from "@src/routes/(app)/user/components/modal-edit-avatar.svelte";

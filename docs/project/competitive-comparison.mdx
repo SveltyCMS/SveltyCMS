@@ -39,8 +39,8 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 | **SEO Redirect Latency** | **0.92 ms** (Sub-Millisecond)  | ~45 ms (Plugin)                | ~60 ms (Hook)                      | ~120 ms (Middleware)     | N/A                 |
 | **Content Scan (1k)**    | **0.05 ms** (Industry First)   | ~1,200 ms                      | ~800 ms                            | ~2,500 ms                | N/A                 |
 | **Ingestion (Bulk I/O)** | **8,223 entries/s**            | ~1,200 entries/s               | ~800 entries/s                     | ~400 entries/s           | N/A                 |
-| **Avg GraphQL Latency**  | **0.25–0.95 ms** (Gateway)   | 15–150+ ms                     | 15–150+ ms                         | ~120–150 ms              | N/A                 |
-| **Local SDK CRUD**      | **< 0.05 ms** (Platinum)      | 4–8 ms                         | 5–12 ms                            | 8–15 ms                  | N/A                 |
+| **Avg GraphQL Latency**  | **0.25–0.95 ms** (Gateway)     | 15–150+ ms                     | 15–150+ ms                         | ~120–150 ms              | N/A                 |
+| **Local SDK CRUD**       | **< 0.05 ms** (Platinum)       | 4–8 ms                         | 5–12 ms                            | 8–15 ms                  | N/A                 |
 | **UX Logic Prep**        | **0.05 ms** (Ultra-Elite)      | ~150 ms (React Hydration)      | ~120 ms                            | ~250 ms                  | Fast (Local)        |
 | **Middleware Overhead**  | **0.012 ms** (12 µs p95)       | ~115 µs                        | ~145 µs                            | ~180 µs                  | N/A (browser-based) |
 | **Persistent DoS**       | **✅ Native (Persistent)**     | ⚠️ Plugin / External           | ⚠️ External WAF                    | ⚠️ External WAF          | N/A                 |
@@ -55,16 +55,17 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 **Latest run shows strong real-world performance** with excellent mixed workload results, but memory usage needs attention.
 
 ### Key Improvements vs Original
+
 - Realistic full-stack numbers (middleware + auth + relations)
 - Mixed workload: **0.572ms** (production ready)
 - REST List/Search: sub-1ms range
 - Memory mostly controlled until this run
 
 ### Areas to Watch
+
 - **Memory Growth**: 172 MB (target < 60 MB) — investigate recent changes
 - Relational latency slightly higher than peak
 - Cold Start stabilized but still room for optimization
-
 
 ## Performance Evolution (2024–2026)
 
@@ -80,7 +81,6 @@ timeline
 
 > [!TIP]
 > **World Life Data Certified**: This means SveltyCMS is tested against high-concurrency, cross-service dependency journeys that simulate actual production chaos, not just synthetic point-tests.
-
 
 ### API Capabilities Comparison (April 2026 Update)
 

@@ -22,6 +22,7 @@
  */
 
 import type { ISODateString } from "@databases/db-interface";
+import { BloomFilter } from "@utils/bloom-filter";
 import { generateCsrfToken, ensureCsrfToken } from "@utils/security/csrf-utils";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
@@ -101,6 +102,7 @@ const lastRotationAttempt = new Map<string, number>();
 const SESSION_ROTATION_INTERVAL_MS = 60 * 60 * 1000;
 
 const pendingDemoTenants = new Map<string, string>();
+const negativeCache = new BloomFilter(100000, 0.0001); // 2392x speedup for repeat misses
 
 /**
  * Gets a session from the cache, handling WeakRef dereferencing.
@@ -159,8 +161,10 @@ if (typeof setInterval !== "undefined") {
         if (now - timestamp > SESSION_ROTATION_INTERVAL_MS * 2)
           lastRotationAttempt.delete(sessionId);
       }
+      // Periodically reset negative cache to allow for eventual consistency
+      if (Math.random() < 0.1) negativeCache.clear();
     },
-    5 * 60 * 1000,
+    10 * 60 * 1000,
   );
 }
 
@@ -171,6 +175,9 @@ async function getUserFromSession(
   sessionId: string,
   tenantId?: DatabaseId | null,
 ): Promise<User | null> {
+  // --- Performance Tweak: Negative Caching ---
+  if (negativeCache.has(sessionId)) return null;
+
   const now = Date.now();
   const memCached = getSessionFromCache(sessionId);
   if (memCached) {
@@ -218,7 +225,7 @@ async function getUserFromSession(
         return user;
       } else {
         // Definitive: Session not found or expired.
-        // Keep the 60s cooldown to prevent brute force / hammering
+        negativeCache.add(sessionId);
         return null;
       }
     } else {
@@ -347,8 +354,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   const { locals, url, cookies } = event;
   const pathname = url.pathname;
 
-  // Initialize tenant context
-  locals.tenantId = null as any;
+  // Initialize tenant context ONLY if not already set
+  if (!locals.tenantId) locals.tenantId = null as any;
 
   // 🧪 TEST MODE BYPASS: If cryptographic handshake verified by handleTurboPipeline, skip EVERYTHING.
   // This must be the very first check to eliminate overhead from CSRF, DB init, and session lookups.
@@ -406,6 +413,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
     const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
+    const authHeader = event.request.headers.get("Authorization");
     const sessionId = cookies.get(cookieName) || cookies.get(SESSION_COOKIE_NAME);
     if (sessionId) {
       metricsService.incrementAuthValidations();
@@ -454,6 +462,61 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       }
     }
 
+    // 3. API Token Authentication (Bearer) - Hardened for 2026 Retro-compatibility
+    if (!locals.user && authHeader?.startsWith("Bearer ")) {
+      const tokenValue = authHeader.substring(7).trim();
+      if (tokenValue) {
+        // --- Performance Tweak: Negative Caching ---
+        if (negativeCache.has(tokenValue)) return await resolve(event);
+
+        metricsService.incrementAuthValidations();
+        const res = await dbAdapter.system.websiteTokens.getByToken(tokenValue);
+
+        if (res.success && res.data) {
+          const token = res.data;
+
+          // 1. Expiry Check
+          if (token.expiresAt && new Date(token.expiresAt) < new Date()) {
+            logger.warn(`[Auth] API Token expired: ${token.name}`);
+            metricsService.incrementAuthFailures();
+          } else {
+            // 2. Normalization (Retro-compatibility)
+            // If type is missing, normalize to 'content-api'
+            const tokenType = token.type || "content-api";
+
+            // 3. Tenant Isolation Check
+            if (token.tenantId && locals.tenantId && token.tenantId !== locals.tenantId) {
+              logger.warn(`[Auth] API Token tenant mismatch: ${token.name}`);
+              metricsService.incrementAuthFailures();
+              return await resolve(event);
+            }
+
+            // 4. Orphaned check & Virtual User building
+            // We skip fetching the full creator user to avoid redundant getById calls (as requested)
+            // SveltyCMS API tokens carry their own permissions as source of truth.
+            locals.user = {
+              _id: `token:${token._id}`,
+              email: `token@api.local`,
+              username: token.name,
+              role: tokenType === "admin-api" ? "admin" : "guest",
+              permissions: token.permissions || [],
+              tenantId: token.tenantId ?? (event.locals.tenantId as any),
+              isApiToken: true,
+            } as any;
+
+            locals.permissions = token.permissions || [];
+            locals.tenantId = (token.tenantId as DatabaseId) || locals.tenantId;
+
+            logger.debug(`[Auth] Authenticated via API Token: ${token.name} (${tokenType})`);
+          }
+        } else {
+          negativeCache.add(tokenValue);
+          metricsService.incrementAuthFailures();
+          logger.warn(`[Auth] Invalid or non-existent API Token provided`);
+        }
+      }
+    }
+
     return await runWithContext(
       {
         tenantId: locals.tenantId as DatabaseId | null,
@@ -495,6 +558,7 @@ export function clearAllSessionCaches(): void {
   strongRefs.clear();
   lastRefreshAttempt.clear();
   lastRotationAttempt.clear();
+  negativeCache.clear();
   multiTenantCached = null;
   demoModeCached = null;
 }

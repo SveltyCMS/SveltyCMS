@@ -76,28 +76,37 @@ async function runProductionDayAudit() {
 
         switch (selected.type) {
           case "READ_LIST":
-            const lRes = await fetch(`${apiBaseUrl}/api/collections/${STABLE_COLLECTION}?limit=10`, {
-              headers: requestHeaders,
-            });
+            const lRes = await fetch(
+              `${apiBaseUrl}/api/collections/${STABLE_COLLECTION}?limit=10`,
+              {
+                headers: requestHeaders,
+              },
+            );
             if (!lRes.ok) throw new Error(`List failed: ${lRes.status}`);
             await lRes.json();
             break;
 
           case "READ_ENTRY":
-            const vRes = await fetch(`${apiBaseUrl}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`, {
-              headers: requestHeaders,
-            });
+            const vRes = await fetch(
+              `${apiBaseUrl}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`,
+              {
+                headers: requestHeaders,
+              },
+            );
             if (!vRes.ok) throw new Error(`View failed: ${vRes.status}`);
             await vRes.json();
             break;
 
           case "UPDATE":
             const payload = generateRealisticEntry(i, "medium");
-            const sRes = await fetch(`${apiBaseUrl}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`, {
-              method: "PATCH",
-              headers: requestHeaders,
-              body: JSON.stringify(payload),
-            });
+            const sRes = await fetch(
+              `${apiBaseUrl}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`,
+              {
+                method: "PATCH",
+                headers: requestHeaders,
+                body: JSON.stringify(payload),
+              },
+            );
             if (!sRes.ok) {
               const errText = await sRes.text();
               console.error(`[Benchmark] Update failed: ${sRes.status} - ${errText}`);
@@ -107,7 +116,10 @@ async function runProductionDayAudit() {
             break;
 
           case "MEDIA":
-            const mRes = await fetch(`${apiBaseUrl}/api/system/health`, { method: "HEAD", headers: requestHeaders });
+            const mRes = await fetch(`${apiBaseUrl}/api/system/health`, {
+              method: "HEAD",
+              headers: requestHeaders,
+            });
             if (!mRes.ok) throw new Error(`Media probe failed: ${mRes.status}`);
             break;
 

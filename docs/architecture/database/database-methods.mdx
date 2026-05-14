@@ -50,92 +50,98 @@ export type DatabaseResult<T> =
 ---
 
 ## 🛡️ `auth.*` Namespace
+
 **Responsibility:** Identity, Session Management, and RBAC.
 
-| Method | Description |
-| :--- | :--- |
-| `createUser(data, options)` | Creates a new user with encrypted password. |
-| `getUserById(id)` | Retrieves a user by their primary key. |
-| `getUserByEmail(email)` | Retrieves a user for login flows. |
-| `validatePassword(userId, password)` | Securely verifies password hashes. |
-| `createSession(userId, data)` | Generates a persistent session. |
-| `invalidateSession(sessionId)` | Revokes a specific session. |
-| `listUsers(options)` | Paginated retrieval of system users. |
+| Method                               | Description                                 |
+| :----------------------------------- | :------------------------------------------ |
+| `createUser(data, options)`          | Creates a new user with encrypted password. |
+| `getUserById(id)`                    | Retrieves a user by their primary key.      |
+| `getUserByEmail(email)`              | Retrieves a user for login flows.           |
+| `validatePassword(userId, password)` | Securely verifies password hashes.          |
+| `createSession(userId, data)`        | Generates a persistent session.             |
+| `invalidateSession(sessionId)`       | Revokes a specific session.                 |
+| `listUsers(options)`                 | Paginated retrieval of system users.        |
 
 ---
 
 ## 🗂️ `collection.*` Namespace
+
 **Responsibility:** Dynamic Schema and Model Management.
 
-| Method | Description |
-| :--- | :--- |
-| `createModel(schema)` | Provisions tables or collections for a new content type. |
-| `listSchemas(tenantId)` | Retrieves all registered collection definitions. |
-| `updateModel(schema)` | Handles bi-directional schema synchronization. |
-| `deleteModel(id)` | Drops the physical storage and definition. |
+| Method                  | Description                                              |
+| :---------------------- | :------------------------------------------------------- |
+| `createModel(schema)`   | Provisions tables or collections for a new content type. |
+| `listSchemas(tenantId)` | Retrieves all registered collection definitions.         |
+| `updateModel(schema)`   | Handles bi-directional schema synchronization.           |
+| `deleteModel(id)`       | Drops the physical storage and definition.               |
 
 ---
 
 ## ⚡ `crud.*` Namespace
+
 **Responsibility:** High-performance, standardized data operations.
 
-| Method | Description |
-| :--- | :--- |
+| Method                                | Description                               |
+| :------------------------------------ | :---------------------------------------- |
 | `find(collection, criteria, options)` | Advanced filtering with Query IR support. |
-| `findOne(collection, criteria)` | Single record retrieval fast-path. |
-| `insert(collection, data, options)` | Standard record creation. |
-| `update(collection, criteria, data)` | Scoped updates with multi-tenant safety. |
-| `delete(collection, criteria)` | Permanent or soft-deletion of records. |
-| `upsert(collection, criteria, data)` | Atomic "Update or Insert" operation. |
+| `findOne(collection, criteria)`       | Single record retrieval fast-path.        |
+| `insert(collection, data, options)`   | Standard record creation.                 |
+| `update(collection, criteria, data)`  | Scoped updates with multi-tenant safety.  |
+| `delete(collection, criteria)`        | Permanent or soft-deletion of records.    |
+| `upsert(collection, criteria, data)`  | Atomic "Update or Insert" operation.      |
 
 ---
 
 ## 📦 `content.*` Namespace
+
 **Responsibility:** CMS Workflows (Nodes, Drafts, Revisions).
 
-| Method | Description |
-| :--- | :--- |
-| `nodes.getStructure(tenantId)` | Retrieves the hierarchical content tree. |
-| `nodes.upsertNode(node)` | Persists structural nodes (Menus, Categories). |
-| `drafts.create(data)` | Manages work-in-progress content nodes. |
-| `revisions.list(contentId)` | Retrieves historical audit trail and snapshots. |
+| Method                         | Description                                     |
+| :----------------------------- | :---------------------------------------------- |
+| `nodes.getStructure(tenantId)` | Retrieves the hierarchical content tree.        |
+| `nodes.upsertNode(node)`       | Persists structural nodes (Menus, Categories).  |
+| `drafts.create(data)`          | Manages work-in-progress content nodes.         |
+| `revisions.list(contentId)`    | Retrieves historical audit trail and snapshots. |
 
 ---
 
 ## 🖼️ `media.*` Namespace
+
 **Responsibility:** File Metadata and Organization.
 
-| Method | Description |
-| :--- | :--- |
-| `saveMetadata(data)` | Persists file size, dimensions, and SHA-256 hash. |
-| `getFilesByFolder(folderId)` | Paginated retrieval of media items. |
-| `updateMetadata(id, data)` | Updates Alt text, tags, or focal points. |
+| Method                       | Description                                       |
+| :--------------------------- | :------------------------------------------------ |
+| `saveMetadata(data)`         | Persists file size, dimensions, and SHA-256 hash. |
+| `getFilesByFolder(folderId)` | Paginated retrieval of media items.               |
+| `updateMetadata(id, data)`   | Updates Alt text, tags, or focal points.          |
 
 ---
 
 ## ⚙️ `system.*` Namespace
+
 **Responsibility:** Preferences, Jobs, and Multi-Tenancy.
 
-| Method | Description |
-| :--- | :--- |
-| `preferences.get(key, scope)` | Retrieves User or System settings. |
+| Method                        | Description                                          |
+| :---------------------------- | :--------------------------------------------------- |
+| `preferences.get(key, scope)` | Retrieves User or System settings.                   |
 | `preferences.set(key, value)` | Persists settings with automatic cache invalidation. |
-| `tenants.create(data)` | Provisions a new isolated workspace. |
-| `themes.ensure(theme)` | Idempotent theme registration during setup. |
+| `tenants.create(data)`        | Provisions a new isolated workspace.                 |
+| `themes.ensure(theme)`        | Idempotent theme registration during setup.          |
 
 ---
 
 ## 🚀 Implementation Matrix (Status 2026)
 
-| Namespace | MongoDB | PostgreSQL | MariaDB | SQLite |
-| :--- | :--- | :--- | :--- | :--- |
-| **Auth** | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
-| **CRUD** | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
+| Namespace   | MongoDB       | PostgreSQL    | MariaDB       | SQLite        |
+| :---------- | :------------ | :------------ | :------------ | :------------ |
+| **Auth**    | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
+| **CRUD**    | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
 | **Content** | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
-| **Media** | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
-| **System** | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
-| **Batch** | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
-| **SCIM** | ✅ Beta | ✅ Beta | ✅ Beta | ✅ Beta |
+| **Media**   | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
+| **System**  | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
+| **Batch**   | ✅ Production | ✅ Production | ✅ Production | ✅ Production |
+| **SCIM**    | ✅ Beta       | ✅ Beta       | ✅ Beta       | ✅ Beta       |
 
 ---
 
