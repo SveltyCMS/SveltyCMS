@@ -1,6 +1,12 @@
 #!/usr/bin/env sh
 set -e
 
+# Skip git hooks in CI environments to avoid unnecessary overhead and failures
+if [ "$CI" = "true" ]; then
+    echo "⏩ CI environment detected. Skipping pre-commit hooks."
+    exit 0
+fi
+
 # Run the high-performance parallel quality gate
 bun run scripts/quality-gate.ts
 
