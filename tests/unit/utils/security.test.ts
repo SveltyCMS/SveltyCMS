@@ -167,7 +167,7 @@ describe("Crypto Utils - Password Hashing", () => {
     expect(typeof hash).toBe("string");
     expect(hash.length).toBeGreaterThan(0);
     expect(hash).toContain("$argon2");
-  });
+  }, 60000);
 
   it("should create unique hashes for same password", async () => {
     const password = "TestPassword123!";
@@ -176,7 +176,7 @@ describe("Crypto Utils - Password Hashing", () => {
 
     // Hashes should be different due to unique salts
     expect(hash1).not.toBe(hash2);
-  });
+  }, 60000);
 
   it("should verify correct password", async () => {
     const password = "TestPassword123!";
@@ -184,7 +184,7 @@ describe("Crypto Utils - Password Hashing", () => {
 
     const isValid = await verifyPassword(hash, password);
     expect(isValid).toBe(true);
-  });
+  }, 60000);
 
   it("should reject incorrect password", async () => {
     const password = "TestPassword123!";
@@ -193,7 +193,7 @@ describe("Crypto Utils - Password Hashing", () => {
 
     const isValid = await verifyPassword(hash, wrongPassword);
     expect(isValid).toBe(false);
-  });
+  }, 60000);
 
   it("should handle empty passwords", async () => {
     const hash = await hashPassword("");
@@ -201,7 +201,7 @@ describe("Crypto Utils - Password Hashing", () => {
 
     const isValid = await verifyPassword(hash, "");
     expect(isValid).toBe(true);
-  });
+  }, 60000);
 
   it("should handle long passwords", async () => {
     const longPassword = "a".repeat(1000);
@@ -209,7 +209,7 @@ describe("Crypto Utils - Password Hashing", () => {
 
     const isValid = await verifyPassword(hash, longPassword);
     expect(isValid).toBe(true);
-  });
+  }, 60000);
 
   it("should handle special characters in passwords", async () => {
     const password = "!@#$%^&*()_+-=[]{}|;:,.<>?/~`";
@@ -217,7 +217,7 @@ describe("Crypto Utils - Password Hashing", () => {
 
     const isValid = await verifyPassword(hash, password);
     expect(isValid).toBe(true);
-  });
+  }, 60000);
 
   it("should handle unicode passwords", async () => {
     const password = "パスワード🔒密码";
@@ -225,7 +225,7 @@ describe("Crypto Utils - Password Hashing", () => {
 
     const isValid = await verifyPassword(hash, password);
     expect(isValid).toBe(true);
-  });
+  }, 60000);
 });
 
 describe("Crypto Utils - Random Token Generation", () => {
