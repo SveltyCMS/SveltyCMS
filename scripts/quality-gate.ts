@@ -5,6 +5,7 @@
 
 import { spawn } from "node:child_process";
 import { execSync } from "node:child_process";
+import { existsSync } from "node:fs";
 
 const run = (cmd: string, args: string[] = [], options: { silent?: boolean } = {}) => {
   return new Promise<boolean>((resolve) => {
@@ -35,6 +36,8 @@ async function main() {
   }
 
   const hasTsOrSvelte = stagedFiles.some((f) => /\.(ts|js|svelte)$/.test(f));
+  const hasDatabaseChanges = stagedFiles.some((f) => f.includes("src/databases/"));
+  const buildExists = existsSync("build/index.js");
 
   // 2. Parallel fast checks
   const tasks = [
@@ -56,6 +59,12 @@ async function main() {
             run("bun vitest related", [...stagedFiles, "--run", "--reporter=dot"]),
             run("bun run test:unit:bun"), // Unfortunately bun test doesn't have 'related' yet
           ]).then((results) => results.every((r) => r === true))
+      : Promise.resolve(true),
+
+    // 🚀 NEW: Database Smoke Test (SQLite Integration)
+    // Only runs if database files changed and a build exists
+    hasDatabaseChanges && buildExists
+      ? run("bun run scripts/run-integration-tests.ts --filter=sqlite --no-build")
       : Promise.resolve(true),
   ];
 

@@ -152,7 +152,7 @@ export abstract class PostgresAdapterCore extends BaseSqlAdapter {
           return { success: true, data: undefined };
         }
       } else {
-        const c = finalConnection as any;
+        const c = (finalConnection || {}) as any;
         options = {
           host: c.host || c.DB_HOST || "127.0.0.1",
           port: Number(c.port || c.DB_PORT || 5432),

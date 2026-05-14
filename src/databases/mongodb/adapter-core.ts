@@ -40,7 +40,7 @@ export abstract class MongoAdapterCore extends BaseAdapter {
       let connectionString =
         typeof connectionStringOrOptions === "string"
           ? connectionStringOrOptions
-          : (connectionStringOrOptions as any).connectionString || "";
+          : (connectionStringOrOptions as any)?.connectionString || "";
 
       if (!connectionString) {
         const { getDatabaseConnectionString } = await import("../config-state");
@@ -56,7 +56,9 @@ export abstract class MongoAdapterCore extends BaseAdapter {
       }
 
       const poolOptions =
-        typeof connectionStringOrOptions === "object" ? connectionStringOrOptions : {};
+        typeof connectionStringOrOptions === "object" && connectionStringOrOptions !== null
+          ? connectionStringOrOptions
+          : {};
 
       const connectOptions: mongoose.ConnectOptions = {
         ...options,

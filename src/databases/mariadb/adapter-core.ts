@@ -62,7 +62,7 @@ export abstract class AdapterCore extends BaseSqlAdapter {
       if (typeof finalConnection === "string") {
         poolConfig = { uri: finalConnection, connectionLimit: 100, connectTimeout: 30000 };
       } else {
-        const c = connection as any;
+        const c = (finalConnection || {}) as any;
         poolConfig = {
           host: c.host || c.DB_HOST || "127.0.0.1",
           port: Number(c.port || c.DB_PORT || 3306),
