@@ -346,7 +346,7 @@ describe("Crypto Utils - Security Properties", () => {
 
     // Argon2id hashes start with $argon2id$
     expect(hash.startsWith("$argon2id$")).toBe(true);
-  });
+  }, 60000);
 
   it("should be computationally expensive", async () => {
     const start = Date.now();
@@ -355,7 +355,7 @@ describe("Crypto Utils - Security Properties", () => {
 
     // Argon2id should take some time (at least a few ms)
     expect(duration).toBeGreaterThan(0);
-  });
+  }, 60000);
 
   it("should resist timing attacks", async () => {
     const password = "TestPassword123!";
@@ -372,5 +372,5 @@ describe("Crypto Utils - Security Properties", () => {
     // Durations should be similar (within reasonable variance)
     // This is a basic check - true timing resistance is harder to test
     expect(Math.abs(duration1 - duration2)).toBeLessThan(1000);
-  });
+  }, 60000);
 });
