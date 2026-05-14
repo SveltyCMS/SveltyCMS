@@ -10,56 +10,18 @@ menu item at a specific level. Uses the standard widget loading system.
 -->
 
 <script lang="ts">
-	import { widgets } from '@src/stores/widget-store.svelte';
+	import { getComponentLoader } from '@src/widgets/scanner';
 	import { modalState } from '@utils/modal.svelte';
 	import { getFieldName } from '@utils/utils';
 	import type { MenuEditContext } from './types';
 
 	let { meta }: { meta: MenuEditContext } = $props();
 
-	// Locally import modules for widget loading to support code-splitting
-	// 🚀 HARDENING: Exclude our own folder to break potential circular glob references
-	const modules: Record<string, () => Promise<{ default: any }>> = import.meta.glob([
-		'../../**/input.svelte',
-		'../../**/index.svelte',
-		'!../../custom/mega-menu/**/*'
-	]) as Record<string, () => Promise<{ default: any }>>;
-
 	/**
 	 * Resolves the appropriate widget loader for a given widget name.
 	 */
 	function getWidgetLoader(widgetName: string) {
-		if (!widgetName) return null;
-
-		// 1. Try exact path from widget store
-		const fn = widgets.widgetFunctions[widgetName];
-		const storePath = (fn as any)?.componentPath || (fn as any)?.inputComponentPath;
-		if (storePath && storePath in modules) {
-			return modules[storePath];
-		}
-
-		// 2. Try normalized casing
-		const normalized = widgetName.toLowerCase();
-		for (const path in modules) {
-			const lowerPath = path.toLowerCase();
-			if (
-				lowerPath.includes(`/widgets/core/${normalized}/input.svelte`) ||
-				lowerPath.includes(`/widgets/core/${normalized}/index.svelte`) ||
-				lowerPath.includes(`/widgets/custom/${normalized}/input.svelte`) ||
-				lowerPath.includes(`/widgets/custom/${normalized}/index.svelte`)
-			) {
-				return modules[path];
-			}
-		}
-
-		// 3. Last resort: search for anything ending in input.svelte within the widget's folder
-		for (const path in modules) {
-			if (path.toLowerCase().includes(`/${normalized}/input.svelte`)) {
-				return modules[path];
-			}
-		}
-
-		return null;
+		return getComponentLoader(widgetName, 'input');
 	}
 
 	/**

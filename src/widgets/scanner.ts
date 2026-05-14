@@ -1,35 +1,35 @@
 /**
  * @file src/widgets/scanner.ts
- * @description Centralized widget scanner using Vite's import.meta.glob.
+ * @description Centralized widget scanner using Vite's import.meta.glob with Bun fallback.
  * Provides a single source of truth for widget discovery to avoid redundant scanning.
  */
 
-// Scan for core widgets
-let coreModulesRaw = {};
+// 1. Vite/SvelteKit Native Scanning
+let coreModulesRaw: Record<string, any> = {};
+let customModulesRaw: Record<string, any> = {};
+let widgetComponentsRaw: Record<string, any> = {};
+
 try {
+  // Vite requires these to be statically analyzable without conditionals
   coreModulesRaw = import.meta.glob("./core/*/index.ts", { eager: true });
-} catch {
-  // Fallback handled below
-}
-
-// Scan for custom widgets
-let customModulesRaw = {};
-try {
   customModulesRaw = import.meta.glob("./custom/*/index.ts", { eager: true });
+  widgetComponentsRaw = import.meta.glob(["./core/*/*.svelte", "./custom/*/*.svelte"]);
 } catch {
-  // Fallback handled below
+  // Fallback for non-Vite environments
 }
 
-// Fallback for non-Vite environments or production preview where glob might be stripped
-if (Object.keys(coreModulesRaw).length === 0 && typeof process !== "undefined") {
+export const coreModules = coreModulesRaw;
+export const customModules = customModulesRaw;
+export const widgetComponents = widgetComponentsRaw;
+
+// 2. Bun/Production Fallback (for Benchmarks and Non-Vite environments)
+if (Object.keys(coreModules).length === 0 && typeof process !== "undefined") {
   try {
     const { createRequire } = await import("node:module");
     const require = createRequire(import.meta.url);
     const fs = require("node:fs");
     const path = require("node:path");
 
-    // In production build (preview), we are often in .svelte-kit/output/server
-    // but the source widgets might be reachable via process.cwd()
     const projectRoot = process.cwd();
     const corePath = path.join(projectRoot, "src/widgets/core");
     const customPath = path.join(projectRoot, "src/widgets/custom");
@@ -42,48 +42,73 @@ if (Object.keys(coreModulesRaw).length === 0 && typeof process !== "undefined") 
         if (entry.isDirectory()) {
           const indexPath = path.join(dirPath, entry.name, "index.ts");
           if (fs.existsSync(indexPath)) {
-            try {
-              // UNIVERSAL PROXY FACTORY:
-              // In production fallback, we don't care about the real widget implementation
-              // during schema parsing, just that it returns a valid descriptor object.
-              const originalName = entry.name;
-              const widgetName = originalName
-                .split("-")
-                .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-                .join("");
-              const camelName = widgetName.charAt(0).toLowerCase() + widgetName.slice(1);
+            // In Bun/Node fallback, we create a proxy factory that mimics the widget
+            const widgetName = entry.name
+              .split("-")
+              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join("");
 
-              const factory = (args: any) => ({
-                Name: widgetName,
-                ...args,
-                widget: { Name: widgetName },
-              });
+            const factory = (args: any) => ({
+              Name: widgetName,
+              ...args,
+              widget: { Name: widgetName },
+            });
+            factory.Name = widgetName;
 
-              // Add required property BEFORE assignment
-              (factory as any).Name = widgetName;
-              (factory as any).originalName = originalName;
-              (factory as any).camelName = camelName;
-
-              modules[`./${subDir}/${entry.name}/index.ts`] = { default: factory };
-            } catch {
-              // Silent fail
-            }
+            modules[`./${subDir}/${entry.name}/index.ts`] = { default: factory };
           }
         }
       }
       return modules;
     };
 
-    coreModulesRaw = scan(corePath, "core");
-    customModulesRaw = scan(customPath, "custom");
+    Object.assign(coreModules, scan(corePath, "core"));
+    Object.assign(customModules, scan(customPath, "custom"));
   } catch {
-    // Silent fail
+    // Silent fail in environments where fs is not available
   }
 }
 
-export const coreModules = coreModulesRaw;
-export const customModules = customModulesRaw;
 export const allWidgetModules = { ...coreModules, ...customModules };
+
+/**
+ * Resolves a component loader for a widget.
+ */
+export function getComponentLoader(
+  widgetName: string,
+  type: "input" | "display" = "input",
+): (() => Promise<{ default: any }>) | null {
+  const normalized = widgetName.toLowerCase();
+
+  // Search in known components (Vite mode)
+  const searchPatterns = [
+    `./core/${normalized}/${type}.svelte`,
+    `./custom/${normalized}/${type}.svelte`,
+    `./core/${normalized}/index.svelte`,
+    `./custom/${normalized}/index.svelte`,
+  ];
+
+  for (const pattern of searchPatterns) {
+    if (widgetComponents[pattern]) {
+      return widgetComponents[pattern] as () => Promise<{ default: any }>;
+    }
+  }
+
+  // Final fuzzy search
+  for (const path in widgetComponents) {
+    const lowerPath = path.toLowerCase();
+    if (lowerPath.includes(`/${normalized}/${type}.svelte`)) {
+      return widgetComponents[path] as () => Promise<{ default: any }>;
+    }
+  }
+
+  // Bun Fallback: Return a stub loader that yields a placeholder component
+  if (Object.keys(coreModules).length === 0) {
+    return async () => ({ default: { name: "Placeholder" } });
+  }
+
+  return null;
+}
 
 /**
  * Extracts widget name from file path

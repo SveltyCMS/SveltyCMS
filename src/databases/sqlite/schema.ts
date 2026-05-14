@@ -505,10 +505,8 @@ export const auditLogs = sqliteTable(
     actorId: text("actorId"),
     actorRole: text("actorRole"),
     correlationId: text("correlationId"),
-    details: text("details")
-      .notNull()
-      .default("{}" as any),
-    errorDetails: text("errorDetails"),
+    details: text("details", { mode: "json" }).notNull().default({}),
+    errorDetails: text("errorDetails", { mode: "json" }),
     eventType: text("eventType").notNull(),
     ipAddress: text("ipAddress"),
     result: text("result").notNull(),

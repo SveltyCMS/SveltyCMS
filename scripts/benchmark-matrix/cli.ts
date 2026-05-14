@@ -68,7 +68,7 @@ export function parseArgs(): RunConfig {
     timeoutMs: Number.isNaN(timeoutRaw) ? 1_200_000 : Math.max(10_000, timeoutRaw),
     warmup: !hasFlag("--no-warmup"),
     ci: hasFlag("--ci"),
-    failFast: hasFlag("--fail-fast"),
+    failFast: hasFlag("--fail-fast") || hasFlag("--ci"),
     list: hasFlag("--list"),
   };
 

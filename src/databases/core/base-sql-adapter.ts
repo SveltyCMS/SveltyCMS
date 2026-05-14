@@ -382,18 +382,19 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
     if (id && idCol) values[idCol.name] = id.toString();
 
-    if (schemaCols?.["tenantId"] || table["tenantId"]) {
+    if (schemaCols?.["tenantId"] || this.getColumn(table, "tenantId")) {
       values.tenantId = options.tenantId || (data as any).tenantId || null;
     }
 
-    if (id && (schemaCols?.["createdAt"] || table["createdAt"])) values.createdAt = now;
-    if (schemaCols?.["updatedAt"] || table["updatedAt"]) values.updatedAt = now;
+    if (id && (schemaCols?.["createdAt"] || this.getColumn(table, "createdAt")))
+      values.createdAt = now;
+    if (schemaCols?.["updatedAt"] || this.getColumn(table, "updatedAt")) values.updatedAt = now;
 
     if (this.getColumn(table, "data")) {
       const dynamicData: any = {};
       for (const k in data) {
         if (!Object.hasOwn(data, k)) continue;
-        if (BaseSqlAdapter.FIXED_COLUMNS.has(k) && (schemaCols?.[k] || table[k])) {
+        if (BaseSqlAdapter.FIXED_COLUMNS.has(k) && (schemaCols?.[k] || this.getColumn(table, k))) {
           // 🚀 HARDENING: Never overwrite explicit ID with payload ID during updates/inserts
           if ((k === "_id" || k === "id") && id) continue;
           values[k] = data[k] ?? null; // Ensure null instead of undefined
@@ -404,7 +405,7 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       values.data = JSON.stringify(dynamicData);
     } else {
       for (const k in data) {
-        if (Object.hasOwn(data, k) && (schemaCols?.[k] || table[k])) {
+        if (Object.hasOwn(data, k) && (schemaCols?.[k] || this.getColumn(table, k))) {
           values[k] = data[k] ?? null; // Ensure null instead of undefined
         }
       }

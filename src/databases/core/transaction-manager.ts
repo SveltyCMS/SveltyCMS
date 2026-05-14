@@ -7,8 +7,15 @@
 
 import { logger } from "@src/utils/logger";
 import type { IDBAdapter, DatabaseResult, DatabaseTransaction } from "../db-interface";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 export class TransactionManager {
+  /**
+   * 💎  AsyncLocalStorage to track active transactions for nesting support.
+   * Maps adapters to their current active transaction.
+   */
+  private static readonly txStorage = new AsyncLocalStorage<Map<IDBAdapter, any>>();
+
   /**
    * Executes a block of code within a database transaction.
    * If the block throws an error, the transaction is automatically rolled back.
@@ -20,6 +27,15 @@ export class TransactionManager {
     adapter: IDBAdapter,
     work: (tx: DatabaseTransaction) => Promise<DatabaseResult<T>>,
   ): Promise<DatabaseResult<T>> {
+    // 🛡️  NESTING SUPPORT: Check if we are already in a transaction for this adapter
+    const store = this.txStorage.getStore();
+    const activeTx = store?.get(adapter);
+
+    if (activeTx) {
+      logger.debug(`[Transaction] Re-using active transaction for ${adapter.type}`);
+      return await work(activeTx);
+    }
+
     if (typeof adapter.transaction !== "function") {
       logger.warn(
         `[Transaction] Adapter ${adapter.type} does not support transactions. Executing without atomicity.`,
@@ -34,7 +50,13 @@ export class TransactionManager {
       try {
         // Use casting to bypass strict return type inference issues between T and DatabaseResult<T>
         return await (adapter.transaction as any)(async (tx: any) => {
-          return await work(tx);
+          // 🚀  Register this transaction in the context for nested calls
+          const newStore = store ? new Map(store) : new Map();
+          newStore.set(adapter, tx);
+
+          return await this.txStorage.run(newStore, async () => {
+            return await work(tx);
+          });
         });
       } catch (error: any) {
         lastError = error;

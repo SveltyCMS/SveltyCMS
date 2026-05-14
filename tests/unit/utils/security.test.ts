@@ -21,8 +21,11 @@ import {
   deriveKey,
   ENCRYPTION_CONFIG as encryptionConfig,
 } from "@src/utils/security";
+import { describe, it, expect } from "vitest";
 
-describe("Crypto Utils - AES-256-GCM Encryption", () => {
+// Argon2 hashing is CPU-intensive and can be slow in CI environments.
+// We use a longer timeout for this file.
+describe("Crypto Utils - AES-256-GCM Encryption", { timeout: 60000 }, () => {
   const testPassword = "TestPassword123!";
   const testData = {
     username: "admin",

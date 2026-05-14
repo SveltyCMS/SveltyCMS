@@ -636,6 +636,8 @@ export async function runBenchmark(config: any) {
   const failResults: number[] = [];
 
   let totalErrors = 0;
+  const maxConsecutiveErrors = 10;
+  let consecutiveErrors = 0;
 
   for (let r = 0; r < runs; r++) {
     if (onSetup) await onSetup();
@@ -660,6 +662,9 @@ export async function runBenchmark(config: any) {
       }
 
       for (const chunk of chunks) {
+        if (consecutiveErrors >= maxConsecutiveErrors) {
+          throw new Error(`\x1b[31mBenchmark aborted: Exceeded ${maxConsecutiveErrors} consecutive errors.\x1b[0m`);
+        }
         await Promise.all(
           chunk.map(async (i) => {
             if (config.thinkTimeMs) {
@@ -673,8 +678,10 @@ export async function runBenchmark(config: any) {
             try {
               await onIteration(i);
               results.push(performance.now() - iStart);
+              consecutiveErrors = 0;
             } catch (err) {
               totalErrors++;
+              consecutiveErrors++;
               failResults.push(performance.now() - iStart);
               if (totalErrors === 1) {
                 console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
@@ -687,6 +694,10 @@ export async function runBenchmark(config: any) {
     } else {
       // Sequential mode
       for (let i = 0; i < iterations; i++) {
+        if (consecutiveErrors >= maxConsecutiveErrors) {
+          throw new Error(`\x1b[31mBenchmark aborted: Exceeded ${maxConsecutiveErrors} consecutive errors.\x1b[0m`);
+        }
+
         if (config.thinkTimeMs) {
           const [min, max] = Array.isArray(config.thinkTimeMs)
             ? config.thinkTimeMs
@@ -698,8 +709,10 @@ export async function runBenchmark(config: any) {
         try {
           await onIteration(i);
           results.push(performance.now() - iStart);
+          consecutiveErrors = 0;
         } catch (err) {
           totalErrors++;
+          consecutiveErrors++;
           failResults.push(performance.now() - iStart);
           if (totalErrors === 1) {
             console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
