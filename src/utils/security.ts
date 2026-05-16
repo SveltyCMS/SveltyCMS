@@ -14,12 +14,25 @@ import { generateSecureToken, generateUUID as uuidv4 } from "./native-utils";
 
 // --- Types & Constants ---
 
-export const ARGON2_CONFIG = {
-  memoryCost: 65_536, // 64 MB
-  timeCost: 3,
-  parallelism: 4,
-  type: 2, // argon2id
-} as const;
+const IS_TEST =
+  typeof process !== "undefined" &&
+  (process.env.NODE_ENV === "test" ||
+    process.env.TEST_MODE === "true" ||
+    process.env.VITEST === "true");
+
+export const ARGON2_CONFIG = IS_TEST
+  ? ({
+      memoryCost: 1024, // 1 MB
+      timeCost: 1,
+      parallelism: 1,
+      type: 2, // argon2id
+    } as const)
+  : ({
+      memoryCost: 65_536, // 64 MB
+      timeCost: 3,
+      parallelism: 4,
+      type: 2, // argon2id
+    } as const);
 
 export const ENCRYPTION_CONFIG = {
   algorithm: "aes-256-gcm" as const,
