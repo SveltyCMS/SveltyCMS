@@ -120,8 +120,14 @@ export class SettingsService {
       }
 
       const [publicResult, privateResult] = await Promise.all([
-        dbAdapter.system.preferences.getMany(KNOWN_PUBLIC_KEYS, "system", tenantId as any),
-        dbAdapter.system.preferences.getMany(KNOWN_PRIVATE_KEYS, "system", tenantId as any),
+        dbAdapter.system.preferences.getMany(KNOWN_PUBLIC_KEYS, {
+          scope: "system",
+          tenantId: tenantId as any,
+        }),
+        dbAdapter.system.preferences.getMany(KNOWN_PRIVATE_KEYS, {
+          scope: "system",
+          tenantId: tenantId as any,
+        }),
       ]);
 
       if (!publicResult.success) {
@@ -262,9 +268,10 @@ export class SettingsService {
       throw new Error("Database adapter not available");
     }
 
-    const res = await dbAdapter.system.preferences.setMany([
-      { key: key as string, value, scope: "system", userId: tenantId as any },
-    ]);
+    const res = await dbAdapter.system.preferences.set(key as string, value, {
+      scope: "system",
+      tenantId: tenantId as any,
+    });
 
     if (!res.success) {
       throw new Error(res.error?.message || `Failed to update private setting: ${key as string}`);
@@ -296,10 +303,10 @@ export class SettingsService {
 
     for (const [key, value] of Object.entries(settings)) {
       const v = (value as any)?.value !== undefined ? (value as any).value : value;
-      ops.push({ key, value: v, scope: "system", userId: tenantId });
+      ops.push({ key, value: v, scope: "system" });
     }
 
-    const res = await dbAdapter.system.preferences.setMany(ops);
+    const res = await dbAdapter.system.preferences.setMany(ops, { tenantId: tenantId as any });
     if (!res.success) {
       throw new Error(res.error?.message || "Failed to update settings");
     }

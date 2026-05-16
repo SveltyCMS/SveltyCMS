@@ -125,7 +125,8 @@ export async function prepareAuthenticatedContext(
     });
     if (health.ok) {
       const data = await health.json();
-      if ((data.overallStatus || data.status || "").toUpperCase() === "READY") {
+      const status = (data.overallStatus || data.status || "").toUpperCase();
+      if (["READY", "WARMED", "WARMING"].includes(status)) {
         isReady = true;
         break;
       }
@@ -181,6 +182,8 @@ export async function prepareAuthenticatedContext(
 
   const setCookie = loginResp.headers.get("set-cookie") || "";
   if (!setCookie) {
+    const body = await loginResp.text().catch(() => "N/A");
+    process.stderr.write(`❌ Login failed (HTTP ${loginResp.status}): ${body}\n`);
     throw new Error("No session cookie returned");
   }
 

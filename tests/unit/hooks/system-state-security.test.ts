@@ -14,6 +14,15 @@ import type { RequestEvent } from "@sveltejs/kit";
 // Hoist mocks for Bun
 vi.mock("@src/utils/setup-check", () => ({
   isSetupComplete: vi.fn(() => true),
+  getSetupState: vi.fn(() => Promise.resolve("COMPLETE")),
+  SetupState: {
+    COMPLETE: "COMPLETE",
+    IDLE: "IDLE",
+    SETUP: "SETUP",
+    MAINTENANCE: "MAINTENANCE",
+    FAILED: "FAILED",
+    MISSING_CONFIG: "MISSING_CONFIG",
+  },
 }));
 
 // Disable TEST_MODE early to run hook logic
@@ -25,7 +34,7 @@ import {
   updateServiceHealth,
 } from "@src/stores/system/state.svelte";
 import { handleSystemState } from "@src/hooks/handle-system-state";
-import { isSetupComplete } from "@src/utils/setup-check";
+import { isSetupComplete, getSetupState } from "@src/utils/setup-check";
 
 /**
  * Helper to create a minimal RequestEvent for testing
@@ -73,6 +82,10 @@ describe("handleSystemState - Host Validation Security", () => {
 
     // Ensure TEST_MODE is disabled for hook logic
     process.env.TEST_MODE = "false";
+
+    // Reset mocks
+    (isSetupComplete as any).mockReturnValue(true);
+    (getSetupState as any).mockResolvedValue("COMPLETE");
   });
 
   afterAll(() => {
@@ -138,6 +151,8 @@ describe("handleSystemState - Host Validation Security", () => {
   it("should correctly handle SETUP state with root redirect", async () => {
     // @ts-ignore - Bun shim compatibility
     (isSetupComplete as any).mockReturnValue(false);
+    (getSetupState as any).mockResolvedValue("IDLE"); // Anything but COMPLETE
+
     setSystemState("SETUP");
     const event = createMockEvent("/", "localhost");
     const response = await handleSystemState({ event, resolve: mockResolve });

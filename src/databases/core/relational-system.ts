@@ -1,5 +1,5 @@
 /**
- * @file src/databases/sqlite/relational-system.ts
+ * @file src/databases/core/relational-system.ts
  * @description Consolidated System module for all SQL-based database adapters.
  * Merges preferences, jobs, tenants, themes, widgets, and virtual folders.
  */
@@ -47,54 +47,76 @@ export class RelationalSystemModule implements ISystemAdapter {
   public readonly preferences = {
     get: async <T>(
       key: string,
-      scope: "user" | "system" = "system",
-      userId?: DatabaseId,
-      options?: BaseQueryOptions,
+      options?: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      },
     ): Promise<DatabaseResult<T | null>> => {
+      const scope = options?.scope || "system";
+      const userId = options?.userId;
+      const tenantId = options?.tenantId;
+
       return this.adapter.wrap(async () => {
         const conditions: any[] = [eq(this.schema.systemPreferences.key, key)];
         if (scope === "system") {
-          if (userId) conditions.push(eq(this.schema.systemPreferences.tenantId, userId as string));
+          if (tenantId)
+            conditions.push(eq(this.schema.systemPreferences.tenantId, tenantId as string));
           else conditions.push(isNull(this.schema.systemPreferences.tenantId));
         } else if (userId) {
           conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
         }
 
-        const [result] = await this.getDb(options)
+        const [result] = await this.getDb(options as any)
           .select()
           .from(this.schema.systemPreferences)
           .where(and(...conditions))
           .limit(1);
 
         if (!result) return null;
-        return result.value as T;
+        try {
+          return JSON.parse(result.value) as T;
+        } catch {
+          return result.value as T;
+        }
       }, "GET_PREFERENCE_FAILED");
     },
 
     getMany: async <T>(
       keys: string[],
-      scope: "user" | "system" = "system",
-      userId?: DatabaseId,
-      options?: BaseQueryOptions,
+      options?: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      },
     ): Promise<DatabaseResult<Record<string, T>>> => {
+      const scope = options?.scope || "system";
+      const userId = options?.userId;
+      const tenantId = options?.tenantId;
+
       return this.adapter.wrap(async () => {
         if (!keys || keys.length === 0) return {};
         const conditions: any[] = [inArray(this.schema.systemPreferences.key, keys)];
         if (scope === "system") {
-          if (userId) conditions.push(eq(this.schema.systemPreferences.tenantId, userId as string));
+          if (tenantId)
+            conditions.push(eq(this.schema.systemPreferences.tenantId, tenantId as string));
           else conditions.push(isNull(this.schema.systemPreferences.tenantId));
         } else if (userId) {
           conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
         }
 
-        const results = await this.getDb(options)
+        const results = await this.getDb(options as any)
           .select()
           .from(this.schema.systemPreferences)
           .where(and(...conditions));
 
         const prefs: Record<string, T> = {};
         for (const result of results) {
-          prefs[result.key] = result.value as T;
+          try {
+            prefs[result.key] = JSON.parse(result.value) as T;
+          } catch {
+            prefs[result.key] = result.value as T;
+          }
         }
         return prefs;
       }, "GET_PREFERENCES_FAILED");
@@ -102,27 +124,38 @@ export class RelationalSystemModule implements ISystemAdapter {
 
     getByCategory: async <T>(
       category: string,
-      scope: "user" | "system" = "system",
-      userId?: DatabaseId,
-      options?: BaseQueryOptions,
+      options?: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      },
     ): Promise<DatabaseResult<Record<string, T>>> => {
+      const scope = options?.scope || "system";
+      const userId = options?.userId;
+      const tenantId = options?.tenantId;
+
       return this.adapter.wrap(async () => {
         const conditions: any[] = [eq(this.schema.systemPreferences.visibility, category)];
         if (scope === "system") {
-          if (userId) conditions.push(eq(this.schema.systemPreferences.tenantId, userId as string));
+          if (tenantId)
+            conditions.push(eq(this.schema.systemPreferences.tenantId, tenantId as string));
           else conditions.push(isNull(this.schema.systemPreferences.tenantId));
         } else if (userId) {
           conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
         }
 
-        const results = await this.getDb(options)
+        const results = await this.getDb(options as any)
           .select()
           .from(this.schema.systemPreferences)
           .where(and(...conditions));
 
         const prefs: Record<string, T> = {};
         for (const result of results) {
-          prefs[result.key] = result.value as T;
+          try {
+            prefs[result.key] = JSON.parse(result.value) as T;
+          } catch {
+            prefs[result.key] = result.value as T;
+          }
         }
         return prefs;
       }, "GET_BY_CATEGORY_FAILED");
@@ -131,36 +164,42 @@ export class RelationalSystemModule implements ISystemAdapter {
     set: async <T>(
       key: string,
       value: T,
-      scope: "user" | "system" = "system",
-      userId?: DatabaseId,
-      category?: string,
-      options?: BaseQueryOptions,
+      options?: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        category?: string;
+        tenantId?: DatabaseId | null;
+      },
     ): Promise<DatabaseResult<void>> => {
-      return this.adapter.wrap(async () => {
-        const now = isoDateStringToDate(nowISODateString());
-        const tenantId = scope === "system" ? (userId as string) || null : null;
-        const user_id = scope === "user" ? (userId as string) || null : null;
+      const scope = options?.scope || "system";
+      const userId = options?.userId;
+      const category = options?.category;
+      const tenantId = options?.tenantId;
 
-        await this.getDb(options)
-          .insert(this.schema.systemPreferences)
-          .values(
-            utils.convertISOToDates({
-              _id: utils.generateId(),
-              key,
-              value: value as any,
-              category: category || "general",
-              scope: scope || "system",
-              userId: user_id,
-              tenantId,
-              visibility: category || "private",
-              createdAt: now,
-              updatedAt: now,
-            }),
-          )
-          .onConflictDoUpdate({
-            target: [this.schema.systemPreferences.key, this.schema.systemPreferences.tenantId],
-            set: { value: value as any, updatedAt: now },
-          });
+      return this.adapter.wrap(async () => {
+        const now = new Date();
+        const tid = scope === "system" ? (tenantId as string) || null : null;
+        const uid = scope === "user" ? (userId as string) || null : null;
+
+        // 🚀 HARDENING: Use primitives for all values to avoid driver binding errors
+        const data = {
+          key: String(key),
+          value: typeof value === "object" ? JSON.stringify(value) : String(value),
+          scope: String(scope),
+          userId: uid ? String(uid) : null,
+          visibility: String(category || "private"),
+          tenantId: tid ? String(tid) : null,
+          updatedAt: now,
+        };
+
+        // Now handled by upsertNative
+
+        await this.adapter.upsertNative(
+          this.schema.systemPreferences,
+          { ...data, _id: String(utils.generateId()), createdAt: now },
+          [this.schema.systemPreferences.key, this.schema.systemPreferences.tenantId],
+          options as any,
+        );
       }, "SET_PREFERENCE_FAILED");
     },
 
@@ -176,33 +215,38 @@ export class RelationalSystemModule implements ISystemAdapter {
     ): Promise<DatabaseResult<void>> => {
       return this.adapter.wrap(async () => {
         for (const pref of preferences) {
-          await this.preferences.set(
-            pref.key,
-            pref.value,
-            pref.scope,
-            pref.userId,
-            pref.category,
-            options,
-          );
+          await this.preferences.set(pref.key, pref.value, {
+            scope: pref.scope,
+            userId: pref.userId,
+            category: pref.category,
+            tenantId: (options as any)?.tenantId,
+          });
         }
       }, "SET_PREFERENCES_FAILED");
     },
 
     delete: async (
       key: string,
-      scope: "user" | "system" = "system",
-      userId?: DatabaseId,
-      options?: BaseQueryOptions,
+      options?: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      },
     ): Promise<DatabaseResult<void>> => {
+      const scope = options?.scope || "system";
+      const userId = options?.userId;
+      const tenantId = options?.tenantId;
+
       return this.adapter.wrap(async () => {
         const conditions: any[] = [eq(this.schema.systemPreferences.key, key)];
         if (scope === "system") {
-          if (userId) conditions.push(eq(this.schema.systemPreferences.tenantId, userId as string));
+          if (tenantId)
+            conditions.push(eq(this.schema.systemPreferences.tenantId, tenantId as string));
           else conditions.push(isNull(this.schema.systemPreferences.tenantId));
         } else if (userId) {
           conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
         }
-        await this.getDb(options)
+        await this.getDb(options as any)
           .delete(this.schema.systemPreferences)
           .where(and(...conditions));
       }, "DELETE_PREFERENCE_FAILED");
@@ -210,38 +254,53 @@ export class RelationalSystemModule implements ISystemAdapter {
 
     deleteMany: async (
       keys: string[],
-      scope: "user" | "system" = "system",
-      userId?: DatabaseId,
-      options?: BaseQueryOptions,
+      options?: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      },
     ): Promise<DatabaseResult<void>> => {
+      const scope = options?.scope || "system";
+      const userId = options?.userId;
+      const tenantId = options?.tenantId;
+
       return this.adapter.wrap(async () => {
         if (!keys || keys.length === 0) return;
         const conditions: any[] = [inArray(this.schema.systemPreferences.key, keys)];
         if (scope === "system") {
-          if (userId) conditions.push(eq(this.schema.systemPreferences.tenantId, userId as string));
+          if (tenantId)
+            conditions.push(eq(this.schema.systemPreferences.tenantId, tenantId as string));
           else conditions.push(isNull(this.schema.systemPreferences.tenantId));
         } else if (userId) {
           conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
         }
-        await this.getDb(options)
+        await this.getDb(options as any)
           .delete(this.schema.systemPreferences)
           .where(and(...conditions));
       }, "DELETE_PREFERENCES_FAILED");
     },
 
-    clear: async (
-      scope?: "user" | "system",
-      userId?: DatabaseId,
-      options?: BaseQueryOptions,
-    ): Promise<DatabaseResult<void>> => {
+    clear: async (options?: {
+      scope?: "user" | "system";
+      userId?: DatabaseId;
+      tenantId?: DatabaseId | null;
+    }): Promise<DatabaseResult<void>> => {
+      const scope = options?.scope || "system";
+      const userId = options?.userId;
+      const tenantId = options?.tenantId;
+
       return this.adapter.wrap(async () => {
         const conditions: any[] = [];
-        if (scope) conditions.push(eq(this.schema.systemPreferences.scope, scope));
-        if (userId) conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
-
-        const q = this.getDb(options).delete(this.schema.systemPreferences);
-        if (conditions.length > 0) await q.where(and(...conditions));
-        else await q;
+        if (scope === "system") {
+          if (tenantId)
+            conditions.push(eq(this.schema.systemPreferences.tenantId, tenantId as string));
+          else conditions.push(isNull(this.schema.systemPreferences.tenantId));
+        } else if (userId) {
+          conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
+        }
+        await this.getDb(options as any)
+          .delete(this.schema.systemPreferences)
+          .where(and(...conditions));
       }, "CLEAR_PREFERENCES_FAILED");
     },
   };
@@ -555,24 +614,22 @@ export class RelationalSystemModule implements ISystemAdapter {
 
     storeThemes: async (themes: Theme[], options?: BaseQueryOptions): Promise<void> => {
       const now = isoDateStringToDate(nowISODateString());
+      // Now handled by upsertNative
+
       for (const theme of themes) {
-        const exists = await this.getDb(options)
-          .select()
-          .from(this.schema.themes)
-          .where(eq(this.schema.themes.name, theme.name))
-          .limit(1);
-        if (exists.length === 0) {
-          await this.getDb(options)
-            .insert(this.schema.themes)
-            .values(
-              utils.convertISOToDates({
-                ...theme,
-                _id: theme._id || utils.generateId(),
-                createdAt: now,
-                updatedAt: now,
-              }) as any,
-            );
-        }
+        const values = utils.convertISOToDates({
+          ...theme,
+          _id: theme._id || utils.generateId(),
+          createdAt: now,
+          updatedAt: now,
+        }) as any;
+
+        await this.adapter.upsertNative(
+          this.schema.themes,
+          values,
+          [this.schema.themes.name, this.schema.themes.tenantId],
+          options,
+        );
       }
     },
 
@@ -620,44 +677,25 @@ export class RelationalSystemModule implements ISystemAdapter {
 
     register: async (widget: EntityCreate<Widget>): Promise<DatabaseResult<Widget>> => {
       return this.adapter.wrap(async () => {
-        const exists = await this.db
+        const now = isoDateStringToDate(nowISODateString());
+        // Now handled by upsertNative
+        const values = utils.convertISOToDates({
+          ...widget,
+          updatedAt: now,
+        }) as any;
+
+        await this.adapter.upsertNative(
+          this.schema.widgets,
+          { ...values, _id: utils.generateId(), createdAt: now },
+          [this.schema.widgets.name],
+        );
+
+        const [result] = await this.db
           .select()
           .from(this.schema.widgets)
           .where(eq(this.schema.widgets.name, widget.name))
           .limit(1);
-
-        if (exists.length > 0) {
-          await this.db
-            .update(this.schema.widgets)
-            .set(
-              utils.convertISOToDates({
-                ...widget,
-                updatedAt: isoDateStringToDate(nowISODateString()),
-              }) as any,
-            )
-            .where(eq(this.schema.widgets.name, widget.name));
-          const [updated] = await this.db
-            .select()
-            .from(this.schema.widgets)
-            .where(eq(this.schema.widgets.name, widget.name))
-            .limit(1);
-          return utils.convertDatesToISO(updated) as unknown as Widget;
-        }
-        const id = utils.generateId();
-        await this.db.insert(this.schema.widgets).values(
-          utils.convertISOToDates({
-            ...widget,
-            _id: id,
-            createdAt: isoDateStringToDate(nowISODateString()),
-            updatedAt: isoDateStringToDate(nowISODateString()),
-          }) as any,
-        );
-        const [created] = await this.db
-          .select()
-          .from(this.schema.widgets)
-          .where(eq(this.schema.widgets._id, id))
-          .limit(1);
-        return utils.convertDatesToISO(created) as unknown as Widget;
+        return utils.convertDatesToISO(result) as unknown as Widget;
       }, "REGISTER_WIDGET_FAILED");
     },
 

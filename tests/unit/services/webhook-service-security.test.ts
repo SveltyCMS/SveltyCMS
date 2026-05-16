@@ -80,7 +80,8 @@ describe("WebhookService Security - Tenant Isolation", () => {
     ];
 
     mockDb.system.preferences.get.mockImplementation(
-      (_key: string, _scope: string, tId?: string) => {
+      (_key: string, options?: { scope?: string; tenantId?: string }) => {
+        const tId = options?.tenantId;
         if (tId === tenant1) return Promise.resolve({ success: true, data: hooks1 });
         if (tId === tenant2) return Promise.resolve({ success: true, data: hooks2 });
         return Promise.resolve({ success: true, data: [] });
@@ -126,11 +127,14 @@ describe("WebhookService Security - Tenant Isolation", () => {
       },
     ];
 
-    mockDb.system.preferences.get.mockImplementation((_key: any, _scope: any, tId?: string) => {
-      if (tId === tenant1) return Promise.resolve({ success: true, data: hooks1 });
-      if (tId === tenant2) return Promise.resolve({ success: true, data: hooks2 });
-      return Promise.resolve({ success: true, data: [] });
-    });
+    mockDb.system.preferences.get.mockImplementation(
+      (_key: any, options?: { scope?: string; tenantId?: string }) => {
+        const tId = options?.tenantId;
+        if (tId === tenant1) return Promise.resolve({ success: true, data: hooks1 });
+        if (tId === tenant2) return Promise.resolve({ success: true, data: hooks2 });
+        return Promise.resolve({ success: true, data: [] });
+      },
+    );
 
     // Trigger only for tenant 1
     await service.trigger("entry:create", { some: "data" }, tenant1);
@@ -167,8 +171,7 @@ describe("WebhookService Security - Tenant Isolation", () => {
           name: "New Hook",
         }),
       ]),
-      "system",
-      tenant1,
+      { scope: "system", tenantId: tenant1 },
     );
   });
 });

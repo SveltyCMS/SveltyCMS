@@ -132,6 +132,10 @@ const SYSTEM_COLLECTIONS = new Set([
   "systemPreferences",
   "system_virtual_folders",
   "systemVirtualFolders",
+  "workflow_definitions",
+  "workflowDefinitions",
+  "workflow_instances",
+  "workflowInstances",
 ]);
 
 const SYSTEM_NAME_MAP = new Map<string, string>();
@@ -148,6 +152,9 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   protected abstract readonly schema: any;
   protected preparedStatements = new Map<string, any>();
   protected readonly MAX_PREPARED_STATEMENTS = 500;
+
+  // 🚀 PERFORMANCE: Recursion guard for table resolution
+  private _resolving = new Set<string>();
 
   // 🚀 HARDENING: Separate Physical Table objects from High-Level Models
   protected tableRegistry = new Map<string, any>(); // Stores Drizzle table objects
@@ -264,12 +271,19 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   protected static FIXED_COLUMNS = new Set([
     "_id",
     "id",
+    "path",
+    "nodeType",
+    "status",
+    "parentId",
     "tenantId",
     "createdAt",
     "updatedAt",
     "isDeleted",
     "data",
     "position",
+    "source",
+    "isPublished",
+    "publishedAt",
   ]);
 
   // 🚀 AGNOSTIC CORE: Resolves a collection name to a Drizzle table object.
@@ -278,29 +292,40 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     const cached = this.tableRegistry.get(collection);
     if (cached) return cached;
 
-    // 2. System Table Check (O(1))
-    if (SYSTEM_COLLECTIONS.has(collection)) {
-      const aliased = this.getAliasedTable(collection);
-      if (aliased) {
-        this.tableRegistry.set(collection, aliased);
-        return aliased;
+    // 2. Recursion Guard
+    if (this._resolving.has(collection)) {
+      logger.error(`Infinite recursion detected in getTable for: ${collection}`);
+      return null;
+    }
+    this._resolving.add(collection);
+
+    try {
+      // 3. System Table Check (O(1))
+      if (this.isSystemTable(collection)) {
+        const aliased = this.getAliasedTable(collection);
+        if (aliased) {
+          this.tableRegistry.set(collection, aliased);
+          return aliased;
+        }
       }
+
+      // 4. Dynamic Prefixing (Only for non-system collections)
+      // 🚀 HARDENING: Standardize ID format by stripping hyphens (Matches SDK getCollectionName)
+      const cleanId = collection.replace(/-/g, "");
+      const tableName = cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`;
+
+      // Final defensive check: if it's actually a system table despite the prefix, resolve properly
+      const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
+      if (this.isSystemTable(cleanName) && cleanName !== collection) {
+        return this.getTable(cleanName);
+      }
+
+      const dynamicTable = this.createDynamicTableDefinition(tableName);
+      this.tableRegistry.set(collection, dynamicTable);
+      return dynamicTable;
+    } finally {
+      this._resolving.delete(collection);
     }
-
-    // 3. Dynamic Prefixing (Only for non-system collections)
-    const tableName = collection.startsWith("collection_")
-      ? collection
-      : `collection_${collection}`;
-
-    // Final defensive check: if it's actually a system table despite the prefix, resolve properly
-    const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
-    if (SYSTEM_COLLECTIONS.has(cleanName) && cleanName !== collection) {
-      return this.getTable(cleanName);
-    }
-
-    const dynamicTable = this.createDynamicTableDefinition(tableName);
-    this.tableRegistry.set(collection, dynamicTable);
-    return dynamicTable;
   }
 
   // 🚀 AGNOSTIC CORE: Resolves a system collection name to its physical snake_case table name.
@@ -397,7 +422,7 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
         if (BaseSqlAdapter.FIXED_COLUMNS.has(k) && (schemaCols?.[k] || this.getColumn(table, k))) {
           // 🚀 HARDENING: Never overwrite explicit ID with payload ID during updates/inserts
           if ((k === "_id" || k === "id") && id) continue;
-          values[k] = data[k] ?? null; // Ensure null instead of undefined
+          if (data[k] !== undefined) values[k] = data[k];
         } else {
           dynamicData[k] = data[k];
         }
@@ -406,7 +431,7 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     } else {
       for (const k in data) {
         if (Object.hasOwn(data, k) && (schemaCols?.[k] || this.getColumn(table, k))) {
-          values[k] = data[k] ?? null; // Ensure null instead of undefined
+          if (data[k] !== undefined) values[k] = data[k];
         }
       }
     }
@@ -553,11 +578,17 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
         const now = new Date();
         const values = this.prepareValues(table, d, id, now, options);
 
-        const result = await this.getDrizzleInstance(options)
-          .insert(table)
-          .values(values)
-          .returning();
-        const finalData = utils.convertDatesToISO(result[0]) as T;
+        const query = this.getDrizzleInstance(options).insert(table).values(values);
+
+        let finalData: T;
+        if (this.type === "mariadb" || this.type === "mysql") {
+          await (query as any);
+          finalData = utils.convertDatesToISO(values) as T;
+        } else {
+          const result = await (query as any).returning();
+          finalData = utils.convertDatesToISO(result[0]) as T;
+        }
+
         return this.hooks.length > 0
           ? await this.runHooks("after", "insert", collection, finalData, options)
           : finalData;
@@ -589,11 +620,14 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
           batchValues[i] = this.prepareValues(table, item, id, now, options);
         }
 
-        const results = await this.getDrizzleInstance(options)
-          .insert(table)
-          .values(batchValues)
-          .returning();
+        const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
 
+        if (this.type === "mariadb" || this.type === "mysql") {
+          await (query as any);
+          return utils.convertArrayDatesToISO(batchValues as Record<string, any>[]) as T[];
+        }
+
+        const results = await (query as any).returning();
         return utils.convertArrayDatesToISO(results as any) as T[];
       },
       "INSERT_MANY_FAILED",
@@ -643,8 +677,11 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
           }
 
           if (!res) {
-            logger.error(`[BaseSqlAdapter] Update failed: Record ${id} not found in ${tableName}`);
-            throw new Error("Record not found after update");
+            return {
+              success: false,
+              message: `Record ${id} not found in ${tableName}`,
+              error: { code: "NOT_FOUND", message: "Record not found" },
+            };
           }
 
           const data = utils.convertDatesToISO(res) as unknown as T;
@@ -656,8 +693,13 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
         // Fallback for MariaDB or missing returning
         await query;
         const updated = await this.findOne<T>(collection, { _id: id } as any, options);
-        if (!updated.success) throw new Error(updated.message);
-        if (!updated.data) throw new Error("Record not found after update");
+        if (!updated.success || !updated.data) {
+          return {
+            success: false,
+            message: `Record ${id} not found in ${tableName}`,
+            error: { code: "NOT_FOUND", message: "Record not found" },
+          };
+        }
 
         return this.hooks.length > 0
           ? await this.runHooks("after", "update", collection, updated.data, options)
@@ -795,18 +837,76 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   }
 
   /**
+   * 🚀 AGNOSTIC CORE: Atomic native upsert across SQL drivers.
+   */
+  async upsertNative(
+    table: any,
+    values: any,
+    conflictTarget: any[],
+    options: BaseQueryOptions = {},
+  ): Promise<void> {
+    const db = this.getDrizzleInstance(options);
+    const type = this.type;
+
+    try {
+      if (type === "sqlite") {
+        // Use the driver's native onConflictDoUpdate via type casting
+        await (db.insert(table).values(values) as any).onConflictDoUpdate({
+          target: conflictTarget,
+          set: values,
+        });
+      } else if (type === "postgresql") {
+        // Use the driver's native onConflictDoUpdate via type casting
+        await (db.insert(table).values(values) as any).onConflictDoUpdate({
+          target: conflictTarget,
+          set: values,
+        });
+      } else if (type === "mariadb" || type === "mysql") {
+        // Use the driver's native onDuplicateKeyUpdate via type casting
+        await (db.insert(table).values(values) as any).onDuplicateKeyUpdate({
+          set: values,
+        });
+      } else {
+        // Fallback for non-native drivers: manual find-then-update
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+        if (idCol && values[idCol.name]) {
+          const [exists] = await db
+            .select()
+            .from(table)
+            .where(eq(idCol, values[idCol.name]))
+            .limit(1);
+          if (exists) {
+            await db.update(table).set(values).where(eq(idCol, values[idCol.name]));
+            return;
+          }
+        }
+        await db.insert(table).values(values);
+      }
+    } catch (err) {
+      logger.error(`[DB UpsertNative] Failed for ${type}:`, err);
+      throw err;
+    }
+  }
+
+  /**
    * 🚀 AGNOSTIC CORE: High-level table provisioning.
    */
   public async createModel(schemaData: any): Promise<void> {
     const tableName = schemaData._id || schemaData.id;
     if (!tableName) throw new Error("Schema must have an _id");
 
-    const table = this.getTable(tableName);
+    // 🚀 HARDENING: Standardize normalization BEFORE looking up the table object
+    const normalizedName = tableName.replace(/-/g, "");
+
+    const table = this.getTable(normalizedName);
     const physicalName = getTableName(table as any);
 
     // Execute physical table creation
     await this.wrap(
       async () => {
+        console.error(
+          `[DB Provision] SVELTY_BENCHMARK_SUITE=${process.env.SVELTY_BENCHMARK_SUITE}`,
+        );
         let ddl = "";
         if (this.type === "sqlite") {
           ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" TEXT PRIMARY KEY, "tenantId" TEXT, "status" TEXT DEFAULT 'draft', "isDeleted" INTEGER DEFAULT 0, "createdAt" INTEGER, "updatedAt" INTEGER, "data" TEXT);`;
@@ -816,7 +916,68 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
           ddl = `CREATE TABLE IF NOT EXISTS \`${physicalName}\` (\`_id\` VARCHAR(36) PRIMARY KEY, \`tenantId\` VARCHAR(36), \`status\` VARCHAR(255) DEFAULT 'draft', \`isDeleted\` TINYINT(1) DEFAULT 0, \`createdAt\` DATETIME, \`updatedAt\` DATETIME, \`data\` LONGTEXT);`;
         }
 
-        if (ddl) await this.raw.execute(ddl);
+        if (ddl) {
+          console.error(
+            `[DB Provision] [${this.type.toUpperCase()}] Executing DDL for ${physicalName}: ${ddl}`,
+          );
+          await this.raw.execute(ddl);
+        }
+
+        // 🚀 HARDENING: Ensure all system columns exist (for existing tables or legacy schemas)
+        const columns = [
+          {
+            name: "isDeleted",
+            type: this.type === "postgresql" ? "BOOLEAN DEFAULT false" : "INTEGER DEFAULT 0",
+          },
+          {
+            name: "status",
+            type: this.type === "mariadb" ? "VARCHAR(255) DEFAULT 'draft'" : "TEXT DEFAULT 'draft'",
+          },
+          { name: "tenantId", type: this.type === "mariadb" ? "VARCHAR(36)" : "TEXT" },
+          {
+            name: "createdAt",
+            type:
+              this.type === "postgresql"
+                ? "TIMESTAMP"
+                : this.type === "mariadb"
+                  ? "DATETIME"
+                  : "INTEGER",
+          },
+          {
+            name: "updatedAt",
+            type:
+              this.type === "postgresql"
+                ? "TIMESTAMP"
+                : this.type === "mariadb"
+                  ? "DATETIME"
+                  : "INTEGER",
+          },
+        ];
+
+        for (const col of columns) {
+          try {
+            const alterSql =
+              this.type === "mariadb"
+                ? `ALTER TABLE \`${physicalName}\` ADD COLUMN \`${col.name}\` ${col.type}`
+                : `ALTER TABLE "${physicalName}" ADD COLUMN "${col.name}" ${col.type}`;
+            await this.raw.execute(alterSql);
+            // Optionally log on success, but keep console clean for benchmarks
+            if (process.env.BENCHMARK_DEBUG === "true" && !process.env.SVELTY_BENCHMARK_SUITE) {
+              logger.debug(`[DB Provision] Added column: ${col.name} in ${physicalName}`);
+            }
+          } catch (e: any) {
+            // Log only if it's NOT a "duplicate column" error
+            if (
+              !e.message.toLowerCase().includes("duplicate") &&
+              !e.message.toLowerCase().includes("already exists")
+            ) {
+              logger.warn(
+                `[DB Provision] Failed to add column ${col.name} to ${physicalName}: ${e.message}`,
+              );
+            }
+          }
+        }
+
         logger.info(`[${this.type.toUpperCase()} Adapter] Provisioned table: ${physicalName}`);
       },
       "CREATE_MODEL_FAILED",

@@ -78,11 +78,10 @@ describe("AutomationService", () => {
 
       const flows = await automationService.getFlows("tenant-1");
       expect(flows as any).toEqual(mockFlows);
-      expect(mockDbAdapter.system.preferences.get).toHaveBeenCalledWith(
-        "automations_config",
-        "system",
-        "tenant-1",
-      );
+      expect(mockDbAdapter.system.preferences.get).toHaveBeenCalledWith("automations_config", {
+        scope: "system",
+        tenantId: "tenant-1",
+      });
     });
 
     it("should save a new flow", async () => {
@@ -111,12 +110,10 @@ describe("AutomationService", () => {
       );
 
       await automationService.deleteFlow("flow-1", "tenant-1");
-      expect(mockDbAdapter.system.preferences.set).toHaveBeenCalledWith(
-        "automations_config",
-        [],
-        "system",
-        "tenant-1",
-      );
+      expect(mockDbAdapter.system.preferences.set).toHaveBeenCalledWith("automations_config", [], {
+        scope: "system",
+        tenantId: "tenant-1",
+      });
     });
   });
 

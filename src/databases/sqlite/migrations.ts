@@ -116,6 +116,7 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
         "collectionDef" TEXT DEFAULT '{}',
         "isDeleted" INTEGER DEFAULT 0,
         "deletedAt" INTEGER,
+        "source" TEXT NOT NULL DEFAULT 'filesystem',
         "tenantId" TEXT,
         "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
         "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
@@ -383,6 +384,7 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       );
 
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_system_prefs_key_tenant" ON "system_preferences" ("key", "tenantId");
+      CREATE UNIQUE INDEX IF NOT EXISTS "idx_system_themes_name_tenant" ON "themes" ("name", "tenantId");
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_states_unique" ON "plugin_states" ("pluginId", "tenantId");
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_migrations_unique" ON "plugin_migrations" ("pluginId", "migrationId", "tenantId");
     `);
@@ -419,6 +421,7 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
     addColumn("auth_users", "totpSecret", "TEXT");
     addColumn("auth_users", "backupCodes", "TEXT");
     addColumn("auth_users", "last2FAVerification", "INTEGER");
+    addColumn("content_nodes", "source", "TEXT NOT NULL DEFAULT 'filesystem'");
 
     logger.info("SQLite migrations completed successfully.");
     return { success: true, data: undefined };

@@ -195,6 +195,23 @@ async function main() {
     process.env.TEMP = localTmp;
   }
 
+  // 🚀 HARDENING: Purge stale SQLite files to avoid boot-time state contamination
+  const dbDir = path.join(process.cwd(), "config/database");
+  try {
+    const dbFiles = await fs.readdir(dbDir);
+    for (const f of dbFiles) {
+      if (
+        f.startsWith("bench_tmp_") &&
+        (f.endsWith(".sqlite") || f.endsWith(".sqlite-shm") || f.endsWith(".sqlite-wal"))
+      ) {
+        await fs.unlink(path.join(dbDir, f)).catch(() => {});
+      }
+    }
+    log.info("🛡️ Isolation: Stale SQLite files purged.");
+  } catch {
+    // Ignore if directory missing
+  }
+
   // Initialize Safeguard before any logic
   await ConfigSafeguard.backup();
 

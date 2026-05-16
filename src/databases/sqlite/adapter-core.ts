@@ -145,15 +145,22 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
   protected getAliasedTable(collection: string): any {
     const schemaAny = this.schema as any;
 
-    // 1. O(1) Centralized Resolution
+    // 1. O(1) Centralized Resolution (gets physical name like 'workflow_definitions')
     const physicalName = this.resolveSystemTableName(collection);
 
-    // 2. Try physical name in schema
+    // 2. Direct physical name check
     if (schemaAny[physicalName]) return schemaAny[physicalName];
 
-    // 3. Try camelCase variant if physical is snake_case
+    // 3. Normalized CamelCase check (e.g. 'workflow_definitions' -> 'workflowDefinitions')
+    // This is where most system tables live in the Drizzle schema export
     const camelName = physicalName.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
     if (schemaAny[camelName]) return schemaAny[camelName];
+
+    // 🛡️ HARDENING: Explicit fallback for workflow tables if naming normalization fails
+    if (physicalName.includes("workflow_definitions") && schemaAny.workflowDefinitions)
+      return schemaAny.workflowDefinitions;
+    if (physicalName.includes("workflow_instances") && schemaAny.workflowInstances)
+      return schemaAny.workflowInstances;
 
     // 4. Final fallback: try raw collection name
     if (schemaAny[collection]) return schemaAny[collection];

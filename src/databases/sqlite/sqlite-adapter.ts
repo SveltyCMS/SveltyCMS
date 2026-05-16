@@ -35,8 +35,42 @@ export class SQLiteAdapter extends SQLiteAdapterCore implements IDBAdapter {
         }
 
         this.sqlite.run("PRAGMA foreign_keys = OFF;");
+
+        // 🛡️ SYSTEM TABLES PROTECTION: Do NOT drop critical infra tables
+        // This ensures the server process remains stable during benchmarks.
+        const systemTables = new Set([
+          "auth_users",
+          "auth_sessions",
+          "auth_tokens",
+          "roles",
+          "content_nodes",
+          "content_drafts",
+          "content_revisions",
+          "themes",
+          "widgets",
+          "media_items",
+          "system_virtual_folders",
+          "system_preferences",
+          "svelty_jobs",
+          "website_tokens",
+          "tenants",
+          "audit_logs",
+          "404_logs",
+          "redirects_mv",
+          "workflow_definitions",
+          "workflow_instances",
+        ]);
+
         for (const table of tables) {
-          this.sqlite.run(`DROP TABLE IF EXISTS "${table.name}"`);
+          const name = table.name.toLowerCase();
+          // ONLY drop collections, benchmarks, or explicit mock tables
+          const isCollection = name.startsWith("collection_");
+          const isBenchmark = name.startsWith("bench_") || name.startsWith("benchmark_");
+          const isMock = name.includes("mock") || name.includes("test_");
+
+          if ((isCollection || isBenchmark || isMock) && !systemTables.has(name)) {
+            this.sqlite.run(`DROP TABLE IF EXISTS "${table.name}"`);
+          }
         }
         this.sqlite.run("PRAGMA foreign_keys = ON;");
 

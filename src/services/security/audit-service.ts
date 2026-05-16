@@ -80,6 +80,10 @@ export class AuditService {
 
   public async flush() {
     if (this.buffer.length === 0) return;
+    if (process.env.DISABLE_AUDIT_LOGS === "true") {
+      this.buffer = [];
+      return;
+    }
 
     const entriesToFlush = [...this.buffer];
     this.buffer = [];
@@ -100,12 +104,31 @@ export class AuditService {
       await appendFile(this.logFile, logData);
     } catch (error) {
       logger.error("[Audit] Flush failed, restoring buffer", error);
-      this.buffer = [...entriesToFlush, ...this.buffer];
+      // 🛡️ MEMORY LEAK FIX: Cap the restoration to prevent unbounded growth
+      // If we already have 500+ items, we must drop the oldest ones.
+      const combined = [...entriesToFlush, ...this.buffer];
+      if (combined.length > 500) {
+        logger.warn(`[Audit] Buffer overflow, dropping ${combined.length - 500} logs`);
+        this.buffer = combined.slice(-500);
+      } else {
+        this.buffer = combined;
+      }
     }
   }
 
   public registerHooks(adapter: IDBAdapter) {
     if (!adapter.registerHook) return;
+
+    // 🛡️ CRITICAL PERFORMANCE FIX: Physically skip hook registration during benchmarks.
+    // This prevents the buffer from capturing 100k+ inserts even if flush() is called.
+    if (process.env.DISABLE_AUDIT_LOGS === "true") {
+      logger.info("[Audit] Skipping hook registration (DISABLE_AUDIT_LOGS=true)");
+      return;
+    }
+
+    // 🚀 PERFORMANCE: Use a flag to prevent multiple registrations
+    if ((adapter as any).__auditHookRegistered) return;
+    (adapter as any).__auditHookRegistered = true;
 
     adapter.registerHook({
       id: "global-audit",
@@ -130,6 +153,10 @@ export class AuditService {
 
   private async init() {
     if (this.initialized) return;
+    if (process.env.DISABLE_AUDIT_LOGS === "true") {
+      this.initialized = true;
+      return;
+    }
     try {
       await mkdir(path.dirname(this.logFile), { recursive: true });
       this.initialized = true;
@@ -148,6 +175,8 @@ export class AuditService {
     tenantId?: DatabaseId | null,
     result: "success" | "failure" | "partial" = "success",
   ): Promise<void> {
+    if (process.env.DISABLE_AUDIT_LOGS === "true") return;
+
     const timestamp = new Date().toISOString();
     const entry: Omit<AuditLogEntry, "_id"> = {
       action,

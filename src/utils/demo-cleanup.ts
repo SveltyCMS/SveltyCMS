@@ -178,7 +178,10 @@ export async function cleanupExpiredDemoTenants() {
 
         // System Preferences - clear user-scoped preferences for tenant users
         for (const userId of tenantUserIds) {
-          await db.system.preferences.clear("user", userId as DatabaseId);
+          await db.system.preferences.clear({
+            scope: "user",
+            userId: userId as DatabaseId,
+          });
         }
 
         // Virtual Folders - list all, filter by tenantId, delete each

@@ -73,6 +73,7 @@ async function runCacheServiceBenchmark() {
     });
   } catch (err: any) {
     console.error("Benchmark failed:", err);
+    throw err;
   }
 }
 

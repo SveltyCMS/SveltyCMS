@@ -39,6 +39,7 @@ const _test = isManual
         await fn();
       } catch (err: any) {
         console.error(`\n❌ Standalone Run Failed: ${err.message}`);
+        throw err;
         if (err.stack) console.error(err.stack);
         process.exit(1);
       } finally {
@@ -166,10 +167,14 @@ export async function runClientJourneyAudit() {
         await sRes.json();
       } catch (err: any) {
         fs.appendFileSync(ERROR_LOG, `[Iteration ${i}] ${err.stack || err}\n`);
-        throw err;
       }
     },
   });
+
+  if ((journeyRes.errorRate || 0) > 0) {
+    throw new Error(`Benchmark failed with errors. Check journey_errors.log for details.`);
+  }
+
   allResults.push({ ...journeyRes, shortLabel: "Journey" });
 
   printTruthTable({

@@ -112,18 +112,33 @@ export class CollectionModule extends DatabaseModule<BaseSqlAdapter> implements 
 
   async listSchemas(): Promise<DatabaseResult<Schema[]>> {
     return this.adapter.wrap(async () => {
-      const client = (this.adapter as any).sqlite;
-      if (!client) return [];
-
       let tables: any[] = [];
-      if (client.query) {
-        tables = client
-          .query("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'collection_%'")
-          .all() as any[];
-      } else if (client.prepare) {
-        tables = client
-          .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'collection_%'")
-          .all() as any[];
+
+      if (this.adapter.type === "sqlite") {
+        const client = (this.adapter as any).sqlite;
+        if (!client) return [];
+        if (client.query) {
+          tables = client
+            .query("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'collection_%'")
+            .all() as any[];
+        } else if (client.prepare) {
+          tables = client
+            .prepare(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'collection_%'",
+            )
+            .all() as any[];
+        }
+      } else if (this.adapter.type === "mariadb" || this.adapter.type === "mysql") {
+        const dbName = (this.adapter as any).config.name;
+        const res = await (this.adapter as any).db.execute(
+          `SELECT TABLE_NAME as name FROM information_schema.TABLES WHERE TABLE_SCHEMA = '${dbName}' AND TABLE_NAME LIKE 'collection_%'`,
+        );
+        tables = res[0] || [];
+      } else if (this.adapter.type === "postgresql") {
+        const res = await (this.adapter as any).db.execute(
+          "SELECT tablename as name FROM pg_catalog.pg_tables WHERE tablename LIKE 'collection_%'",
+        );
+        tables = res.rows || [];
       }
 
       return tables.map(

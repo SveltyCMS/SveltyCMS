@@ -226,7 +226,7 @@ async function prepareCollection(db: any) {
   console.log("   [DB Trace] Pre-populating delete batch (4000 records)...");
   const deleteBatch = Array.from({ length: 4000 }, (_, i) => ({
     _id: `del-shared-${i}` as any,
-    title: `To delete ${i}`,
+    title: `To remove ${i}`,
     tenantId: TEST_TENANT,
   }));
   await db.crud.insertMany(COLLECTION_ID, deleteBatch, { tenantId: TEST_TENANT });

@@ -35,48 +35,74 @@ async function main() {
     process.exit(0);
   }
 
+  console.log(`🔎 Staged files: ${stagedFiles.length}`);
+  if (stagedFiles.length < 10) {
+    console.log(`📄 Files: ${stagedFiles.join(", ")}`);
+  }
+
   const hasTsOrSvelte = stagedFiles.some((f) => /\.(ts|js|svelte)$/.test(f));
   const hasDatabaseChanges = stagedFiles.some((f) => f.includes("src/databases/"));
+  const hasApiChanges = stagedFiles.some((f) => f.includes("src/routes/api/"));
+  const hasServiceChanges = stagedFiles.some((f) => f.includes("src/services/"));
+  const hasConfigChanges = stagedFiles.some((f) => f.includes("config/"));
+  const hasIntegrationTestChanges = stagedFiles.some((f) => f.includes("tests/integration/"));
+  const hasScriptChanges = stagedFiles.some((f) => f.includes("scripts/"));
+
+  const shouldRunIntegration =
+    hasDatabaseChanges ||
+    hasApiChanges ||
+    hasServiceChanges ||
+    hasConfigChanges ||
+    hasIntegrationTestChanges ||
+    hasScriptChanges;
+
   const buildExists = existsSync("build/index.js");
 
-  // 2. Parallel fast checks
+  // 2. Sequential checks (clearer output)
   const tasks = [
-    // Format + Lint (very fast)
-    run("bunx oxfmt src --write"),
-    run("bunx oxlint src --fix --no-error-on-unmatched-pattern"),
-
-    // Type checking (important but can be lighter)
-    hasTsOrSvelte ? run("bun run check") : Promise.resolve(true),
-
-    // Incremental tests only on changed files
-    hasTsOrSvelte
-      ? stagedFiles.join(" ").length > 6000
-        ? Promise.all([
-            run("bun vitest run", ["--reporter=dot"]),
-            run("bun run test:unit:bun"),
-          ]).then((results) => results.every((r) => r === true))
-        : Promise.all([
-            run("bun vitest related", [...stagedFiles, "--run", "--reporter=dot"]),
-            run("bun run test:unit:bun"), // Unfortunately bun test doesn't have 'related' yet
-          ]).then((results) => results.every((r) => r === true))
-      : Promise.resolve(true),
-
-    // 🚀 NEW: Database Smoke Test (SQLite Integration)
-    // Only runs if database files changed and a build exists
-    hasDatabaseChanges && buildExists
-      ? run("bun run scripts/run-integration-tests.ts --filter=sqlite --no-build")
-      : Promise.resolve(true),
+    { name: "Format", run: () => run("bunx oxfmt src --write") },
+    { name: "Lint", run: () => run("bunx oxlint src --fix --no-error-on-unmatched-pattern") },
+    {
+      name: "Type Check",
+      skip: !hasTsOrSvelte,
+      run: () => run("bun run check"),
+    },
+    {
+      name: "Unit Tests",
+      skip: !hasTsOrSvelte,
+      run: () =>
+        stagedFiles.join(" ").length > 6000
+          ? run("bun run test:unit")
+          : run("bun vitest related", [...stagedFiles, "--run", "--reporter=dot"]),
+    },
+    {
+      name: "Integration Tests (SQLite)",
+      skip: !shouldRunIntegration,
+      run: () =>
+        buildExists
+          ? run("bun run scripts/run-integration-tests.ts --filter=sqlite --no-build")
+          : (console.warn(
+              "⚠️ Build missing! Skipping integration tests. Run 'bun run build' to enable.",
+            ),
+            Promise.resolve(true)),
+    },
   ];
 
-  const results = await Promise.all(tasks);
+  for (const task of tasks) {
+    if (task.skip) continue;
 
-  if (results.every((r) => r === true)) {
-    console.log("\n✅ Quality gate passed.\n");
-    process.exit(0);
-  } else {
-    console.error("\n❌ Quality gate failed. Please fix the issues above.\n");
-    process.exit(1);
+    console.log(`\n▶️ Running ${task.name}...`);
+    const success = await task.run();
+
+    if (!success) {
+      console.error(`\n❌ ${task.name} failed. Please fix the issues above.\n`);
+      process.exit(1);
+    }
+    console.log(`✅ ${task.name} passed.`);
   }
+
+  console.log("\n✨ Quality gate passed.\n");
+  process.exit(0);
 }
 
 main().catch((err) => {

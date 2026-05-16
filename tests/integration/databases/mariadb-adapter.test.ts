@@ -47,6 +47,8 @@ describeMariaDB("MariaDB Adapter Integration", () => {
         err.message,
       );
       db = null;
+
+      throw err;
     }
   });
 

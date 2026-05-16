@@ -68,6 +68,8 @@ async function runLocalApiBenchmark() {
     console.log(`\n📊 SDK Middleware Tax: ${overhead.toFixed(2)}%`);
   } catch (err: any) {
     console.error("Benchmark failed:", err);
+
+    throw err;
   }
 }
 

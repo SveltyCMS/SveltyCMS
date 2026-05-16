@@ -117,6 +117,7 @@ describe("System Load & Resilience Benchmark", () => {
         maxStableLevel = level;
       } catch (err: any) {
         console.error(`\n❌ [${level}] FAILED: ${err.message}`);
+        throw err;
         console.log("\n⚠️  System Limit Reached!");
         console.log(`   The server switched off/failed at level: ${level}`);
         console.log(`   Last Stable Level: ${maxStableLevel}`);

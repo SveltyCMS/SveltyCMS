@@ -180,7 +180,7 @@ async function freePort(port: number) {
 async function waitForServerReady(maxAttempts = 60) {
   console.log("⏳ Waiting for server to reach READY state...");
 
-  const targetStates = ["ready", "healthy", "setup"];
+  const targetStates = ["ready", "healthy", "setup", "warmed", "warming"];
 
   for (let i = 0; i < maxAttempts; i++) {
     try {
@@ -192,7 +192,7 @@ async function waitForServerReady(maxAttempts = 60) {
         signal: AbortSignal.timeout(3000),
       });
 
-      if (res.ok) {
+      if (res.ok || res.status === 533) {
         const data = await res.json().catch(() => ({}));
         const rawStatus = (data.overallStatus || data.status || data.health || "")
           .toString()
@@ -218,6 +218,28 @@ async function waitForServerReady(maxAttempts = 60) {
   throw new Error("Server failed to reach READY state within timeout");
 }
 
+function getTestEnv(db: any) {
+  return {
+    ...process.env,
+    NODE_ENV: "production",
+    TEST_MODE: "true",
+    SKIP_GATEKEEPER: "true",
+    PORT: PORT,
+    DB_TYPE: db.type,
+    DB_HOST: db.host,
+    DB_PORT: db.port,
+    DB_NAME: db.name,
+    DB_USER: db.user,
+    DB_PASSWORD: db.password,
+    TEST_API_SECRET: CONFIG.TEST_API_SECRET,
+    ADMIN_PASSWORD: CONFIG.ADMIN_PASSWORD,
+    ORIGIN: API_BASE_URL,
+    PASSWORD_MIN_LENGTH: "8",
+    JWT_SECRET_KEY: CONFIG.JWT_SECRET_KEY,
+    ENCRYPTION_KEY: CONFIG.ENCRYPTION_KEY,
+  };
+}
+
 async function startPreviewServer() {
   await freePort(Number(PORT));
 
@@ -237,31 +259,12 @@ async function startPreviewServer() {
 
   console.log(`🚀 Starting preview server with entry point: ${relative(ROOT, entryPoint)}`);
 
-  // 🚀  Use bun directly to run the build artifact.
-  // This ensures we use Bun's native SQLite driver and avoids better-sqlite3 binding issues on Windows.
   previewProcess = spawn("bun", [entryPoint], {
     cwd: ROOT,
     stdio: "inherit",
     shell: process.platform === "win32",
     detached: process.platform !== "win32",
-    env: {
-      ...process.env,
-      NODE_ENV: "production",
-      TEST_MODE: "true",
-      PORT: PORT,
-      DB_TYPE: db.type,
-      DB_HOST: db.host,
-      DB_PORT: db.port,
-      DB_NAME: db.name,
-      DB_USER: db.user,
-      DB_PASSWORD: db.password,
-      TEST_API_SECRET: CONFIG.TEST_API_SECRET,
-      ADMIN_PASSWORD: CONFIG.ADMIN_PASSWORD,
-      ORIGIN: API_BASE_URL,
-      PASSWORD_MIN_LENGTH: "8",
-      JWT_SECRET_KEY: CONFIG.JWT_SECRET_KEY,
-      ENCRYPTION_KEY: CONFIG.ENCRYPTION_KEY,
-    },
+    env: getTestEnv(db),
   });
 
   await waitForServerReady();
@@ -539,6 +542,7 @@ async function main() {
   const legacyFilter = getArgValue(argv, "--filter");
   const suiteArg = getArgValue(argv, "--suite") as IntegrationSuite | undefined;
   const dbArg = getArgValue(argv, "--db");
+  const failFast = argv.includes("--fail-fast") || process.env.CI === "true";
 
   const suite: IntegrationSuite = suiteArg || (legacyFilter ? "db" : "all");
   const dbType = dbArg || legacyFilter || process.env.DB_TYPE || "sqlite";
@@ -555,6 +559,7 @@ async function main() {
     argv.includes("--no-build") || (process.env.CI === "true" && hasExistingBuildOutput);
   console.log(`🧭 Suite: ${suite}`);
   console.log(`🗄️ DB: ${dbType}`);
+  if (failFast) console.log("🛑 Fail-fast enabled.");
 
   await runSystemSetup();
 
@@ -626,20 +631,9 @@ async function main() {
 
     const { code } = await runCommand("bun", ["test", "--timeout", "60000", bunTestPath], {
       env: {
-        ...process.env,
-        TEST_API_SECRET: CONFIG.TEST_API_SECRET,
-        API_BASE_URL,
-        TEST_MODE: "true",
+        ...getTestEnv(db),
         SKIP_DESTRUCTIVE_TEST_CLEANUP: "true",
         SVELTYCMS_SETUP_MODE_TEST: setupModeTest ? "true" : "false",
-        DB_TYPE: db.type,
-        DB_HOST: db.host,
-        DB_PORT: db.port,
-        DB_NAME: db.name,
-        DB_USER: db.user,
-        DB_PASSWORD: db.password,
-        JWT_SECRET_KEY: CONFIG.JWT_SECRET_KEY,
-        ENCRYPTION_KEY: CONFIG.ENCRYPTION_KEY,
       },
     });
 
@@ -655,6 +649,11 @@ async function main() {
     console.log(success ? `✅ Passed (${(duration / 1000).toFixed(1)}s)` : "❌ Failed");
 
     await stopPreviewServer();
+
+    if (!success && failFast) {
+      console.log("\n🛑 Fail-fast: Aborting integration test suite due to failure.");
+      break;
+    }
   }
 
   console.log("\n" + "=".repeat(80));

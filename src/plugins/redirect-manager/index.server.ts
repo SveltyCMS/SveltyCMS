@@ -74,27 +74,77 @@ export const migrations: PluginMigration[] = [
 
       try {
         // We use raw SQL to create the high-performance MV table
-        const sql = `
-          CREATE TABLE IF NOT EXISTS "redirects_mv" (
-            "_id" TEXT PRIMARY KEY,
-            "tenantId" TEXT NOT NULL,
-            "source" TEXT NOT NULL,
-            "target" TEXT NOT NULL,
-            "type" INTEGER DEFAULT 301,
-            "isRegex" INTEGER DEFAULT 0,
-            "active" INTEGER DEFAULT 1,
-            "metadata" TEXT DEFAULT '{}',
-            "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+        const statements: string[] = [];
+        if (dbAdapter.type === "sqlite") {
+          statements.push(`
+            CREATE TABLE IF NOT EXISTS "redirects_mv" (
+              "_id" TEXT PRIMARY KEY,
+              "tenantId" TEXT NOT NULL,
+              "source" TEXT NOT NULL,
+              "target" TEXT NOT NULL,
+              "type" INTEGER DEFAULT 301,
+              "isRegex" INTEGER DEFAULT 0,
+              "active" INTEGER DEFAULT 1,
+              "metadata" TEXT DEFAULT '{}',
+              "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+            );
+          `);
+          statements.push(
+            `CREATE INDEX IF NOT EXISTS "idx_redirects_mv_lookup" ON "redirects_mv" ("tenantId", "source", "active");`,
           );
-          CREATE INDEX IF NOT EXISTS "idx_redirects_mv_lookup" ON "redirects_mv" ("tenantId", "source", "active");
-        `;
+        } else if (dbAdapter.type === "mariadb" || dbAdapter.type === "mysql") {
+          statements.push(`
+            CREATE TABLE IF NOT EXISTS \`redirects_mv\` (
+              \`_id\` VARCHAR(255) PRIMARY KEY,
+              \`tenantId\` VARCHAR(255) NOT NULL,
+              \`source\` TEXT NOT NULL,
+              \`target\` TEXT NOT NULL,
+              \`type\` INTEGER DEFAULT 301,
+              \`isRegex\` TINYINT DEFAULT 0,
+              \`active\` TINYINT DEFAULT 1,
+              \`metadata\` JSON,
+              \`updatedAt\` BIGINT DEFAULT (UNIX_TIMESTAMP() * 1000)
+            );
+          `);
+          // MariaDB 10.5+ supports IF NOT EXISTS for indexes. For older ones, we'd need a different approach.
+          // We'll wrap in try-catch at execution time.
+          statements.push(
+            `CREATE INDEX IF NOT EXISTS \`idx_redirects_mv_lookup\` ON \`redirects_mv\` (\`tenantId\`(50), \`source\`(100), \`active\`);`,
+          );
+        } else {
+          // PostgreSQL
+          statements.push(`
+            CREATE TABLE IF NOT EXISTS "redirects_mv" (
+              "_id" TEXT PRIMARY KEY,
+              "tenantId" TEXT NOT NULL,
+              "source" TEXT NOT NULL,
+              "target" TEXT NOT NULL,
+              "type" INTEGER DEFAULT 301,
+              "isRegex" INTEGER DEFAULT 0,
+              "active" INTEGER DEFAULT 1,
+              "metadata" JSONB DEFAULT '{}',
+              "updatedAt" BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)
+            );
+          `);
+          statements.push(
+            `CREATE INDEX IF NOT EXISTS "idx_redirects_mv_lookup" ON "redirects_mv" ("tenantId", "source", "active");`,
+          );
+        }
 
         const client = (dbAdapter as any).getClient?.();
         if (client) {
-          if (typeof client.exec === "function") {
-            client.exec(sql);
-          } else if (typeof client.query === "function") {
-            await client.query(sql);
+          for (const sql of statements) {
+            try {
+              if (typeof client.exec === "function") {
+                client.exec(sql);
+              } else if (typeof client.query === "function") {
+                await client.query(sql);
+              }
+            } catch (indexErr) {
+              // Ignore "Index already exists" errors
+              if (sql.includes("CREATE INDEX")) continue;
+              throw indexErr;
+            }
           }
         }
         logger.info(`[RedirectManager] Provisioned redirects_mv table.`);

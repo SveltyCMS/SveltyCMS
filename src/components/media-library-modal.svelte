@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/media-library-modal.svelte
 @component
 **Media library modal for selecting and uploading media files**
@@ -211,7 +211,7 @@
 								{@const isSelected = selectedFiles.has(fileId)}
 								<button
 									type="button"
-									class="group relative flex min-h-[300px] flex-col overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 sm:min-h-[340px] {isSelected
+									class="group relative flex min-h-75] flex-col overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 sm:min-h-85 {isSelected
 										? 'border-primary-500 ring-2 ring-primary-500/20'
 										: 'border-surface-200 dark:border-surface-800'}"
 									onclick={() => {
@@ -224,7 +224,7 @@
 									aria-pressed={isSelected}
 									aria-label={`Select ${file.filename}`}
 								>
-									<div class="relative h-[200px] w-full overflow-hidden bg-surface-100 dark:bg-surface-800 sm:h-[240px]">
+									<div class="relative h-50 w-full overflow-hidden bg-surface-100 dark:bg-surface-800 sm:h-60">
 										{#if getPreviewUrl(file)}
 											<img
 												src={getPreviewUrl(file)}

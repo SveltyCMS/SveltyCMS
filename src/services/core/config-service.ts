@@ -272,8 +272,11 @@ export class ConfigService {
       }
 
       for (const req of entity._requiredSettings) {
-        // ✨ ISOLATION: Pass tenantId as userId
-        const result = await dbAdapter.system.preferences.get(req.key, "system", tenantId as any);
+        // ✨ ISOLATION: Pass tenantId explicitly in options
+        const result = await dbAdapter.system.preferences.get(req.key, {
+          scope: "system",
+          tenantId: tenantId as any,
+        });
         if (!(result.success && result.data)) {
           unmet.push(req);
         }

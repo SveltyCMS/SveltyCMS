@@ -149,11 +149,12 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
   try {
     // --- Phase 1: Initialization Flow ---
-    if (
-      systemState.overallState === "IDLE" &&
-      initializationState === "pending" &&
-      isSetupComplete()
-    ) {
+    const { getSetupState, SetupState } = await import("@utils/setup-check");
+    const setupState = await getSetupState();
+    (event.locals as any).__setupState = setupState;
+    const setupComplete = setupState === SetupState.COMPLETE;
+
+    if (systemState.overallState === "IDLE" && initializationState === "pending" && setupComplete) {
       initializationState = "in-progress";
       logger.info("[handleSystemState] Starting system initialization flow...");
 
@@ -183,7 +184,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
       }
 
       // Root redirect during setup
-      if (pathname === "/" && systemState.overallState === "SETUP" && !isSetupComplete()) {
+      if (pathname === "/" && systemState.overallState === "SETUP" && !setupComplete) {
         return new Response(null, { status: 302, headers: { Location: "/setup" } });
       }
 
@@ -193,7 +194,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
     // --- Phase 3: Restricted Access Handling ---
 
     // Explicit wait if system is still initializing or transitioning from SETUP
-    const isTransitioning = systemState.overallState === "SETUP" && isSetupComplete();
+    const isTransitioning = systemState.overallState === "SETUP" && setupComplete;
     if (
       systemState.overallState === "INITIALIZING" ||
       initializationState === "in-progress" ||
@@ -206,7 +207,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
     const restricted: SystemState[] = ["IDLE", "INITIALIZING", "SETUP", "MAINTENANCE", "FAILED"];
     if (restricted.includes(systemState.overallState as any)) {
       // If we are actually finished with setup but the state hasn't updated yet, allow a retry or wait
-      if (isSetupComplete() && systemState.overallState === "SETUP") {
+      if (setupComplete && systemState.overallState === "SETUP") {
         logger.debug(
           "[handleSystemState] Setup complete but state still SETUP - awaiting one more time",
         );

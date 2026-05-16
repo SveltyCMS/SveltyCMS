@@ -16,7 +16,6 @@ import {
   isShuttingDown,
   setShuttingDown,
 } from "./server";
-import { extractMetrics, checkBudget, freePort } from "./utils";
 import { persistScriptMetadataAST } from "./reporting";
 import { progressTracker } from "./progress";
 import {
@@ -36,6 +35,8 @@ import type {
   BenchmarkResult,
   HostInfo,
 } from "./types";
+
+import { extractMetrics, checkBudget, freePort, validateEnvironment } from "./utils";
 
 /**
  * Runs a task with the given command and environment.
@@ -287,6 +288,8 @@ export function buildWorkerEnv(
     ...process.env,
     API_BASE_URL: `http://127.0.0.1:${workerPort}`,
     TEST_MODE: "true",
+    SVELTY_BENCHMARK_SUITE: "true",
+    TENANT_ID: "default-tenant",
     RESULTS_DIR: dbDir,
     DB_TYPE: dbConf.type,
     DB_LABEL: meta.label,
@@ -316,13 +319,11 @@ export function buildWorkerEnv(
     BUN_TEST_MOCKS: "false",
     DISABLE_AUDIT_LOGS: "true",
     SUPPRESS_JEST_WARNINGS: "true",
-    SVELTY_BENCHMARK_SUITE: "true",
     DX_BUILD_DURATION: buildDurationMs?.toString(),
   };
 
   delete env.USER;
   delete env.USERNAME;
-
   return env;
 }
 
@@ -343,6 +344,23 @@ export async function runAuditForDatabase(
     icon: "❓",
     label: dbKey.toUpperCase(),
   };
+
+  // 🛡️ ENVIRONMENT HEALTH CHECK (Docker & Redis)
+  const envCheck = validateEnvironment(dbConf.type, !!dbConf.useRedis);
+  if (!envCheck.success) {
+    log.error(`❌ Skipped ${dbKey}: Environment unready.`);
+    for (const err of envCheck.errors) {
+      log.error(`   - ${err}`);
+    }
+    results.push({
+      db: dbKey,
+      status: "FAILED",
+      error: "Environment unready (Docker services offline)",
+      metrics: {},
+    });
+    return;
+  }
+
   const workerPort = PORT_BASE;
   // 🚀 HARDENING: Use a unique DB name per process AND variant to avoid EBUSY locks
   const workerDbName = `bench_tmp_${dbKey}_${process.pid}`;

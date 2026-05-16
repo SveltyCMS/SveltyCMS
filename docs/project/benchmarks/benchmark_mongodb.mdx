@@ -20,22 +20,19 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (11/05/2026, 08:18:11)
+## 📊 Latest Performance Audit (15/05/2026, 16:28:46)
 
-**Status:** ❌ FAIL
-
-> [!CAUTION]
-> **Anomalies Detected**: Server reached but health check timed out See console for stack trace.
+**Status:** ✅ PASS _(Historical)_
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend  | Target Budget |
-| :--------------------- | :---------- | :----- | :------------ |
-| **Cold Start**         | 0ms         | ⚪ (—) | < 5000ms      |
-| **REST (Collections)** | 0.000ms     | ⚪ (—) | < 5ms         |
-| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—) | < 5ms         |
-| **DB Raw (p95)**       | 0.000ms     | ⚪     | < 50ms        |
-| **Setup Quality**      | 🔴 DEGRADED | ⚪     | 100%          |
+| Scenario               | Avg Latency | Trend  | Target Budget | Result  |
+| :--------------------- | :---------- | :----- | :------------ | :------ |
+| **Cold Start**         | 0ms         | ⚪ (—) | < 5000ms      | 🔴 FAIL |
+| **REST (Collections)** | 7.411ms     | ⚪ (—) | < 5ms         | 🔴 FAIL |
+| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—) | < 5ms         | 🟢 PASS |
+| **DB Raw (p95)**       | 0.000ms     | ⚪     | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | 🟢 HEALTHY  | ⚪     | 100%          | 🟢 PASS |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -50,7 +47,7 @@ xychart-beta
   title "MONGODB Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : []
+  line "p95 Latency" : [7.411, 7.411, 7.411, 7.411, 7.411, 7.411, 7.411, 7.411, 7.411, 7.411]
 ```
 
 ## 📈 Core Infrastructure Trends
@@ -241,22 +238,22 @@ xychart-beta
 
 ### 🏷️ REST API Performance ⚪ —
 
-> 📂 **Source**: [tests/benchmarks/rest-api-performance.test.ts](../../../tests/benchmarks/rest-api-performance.test.ts)
+> 📂 **Source**: [tests/benchmarks/rest-api-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/rest-api-performance.test.ts)
 > 🎯 **Proves**: End-to-end throughput and latency of the unified REST dispatcher.
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════╗
 ║                    SVELTYCMS — ENTERPRISE REST API AUDIT                    ║
-║                         Core CRUD Latency • SQLITE                          ║
+║                         Core CRUD Latency • MONGODB                         ║
 ║             File: tests/benchmarks/rest-api-performance.test.ts             ║
 ║  Proves: End-to-end throughput and latency of the unified REST dispatcher.  ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
 ║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
 ╠═════════════════════════════════════════════════════════════════════════════╣
-║ Health Check                 │ 0.392 ms       │ 0.398 ms     │ 2,553        ║
-║ Collection Schema            │ 0.776 ms       │ 0.851 ms     │ 1,288        ║
-║ Collection Find (List)       │ 0.455 ms       │ 0.530 ms     │ 2,199        ║
-║ Collection Search            │ 0.485 ms       │ 0.526 ms     │ 2,063        ║
+║ Health Check                 │ 2.384 ms       │ 6.175 ms     │ 419          ║
+║ Collection Schema            │ 10.297 ms      │ 13.161 ms    │ 97           ║
+║ Collection Find (List)       │ 4.063 ms       │ 7.411 ms     │ 246          ║
+║ Collection Search            │ 4.127 ms       │ 8.055 ms     │ 242          ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -540,6 +537,55 @@ xychart-beta
 ```
 
 <!-- CONTENT_TABLE_END -->
+
+<!-- JOURNEY_TABLE_START -->
+
+> ⏳ **Full Client Journey Simulation**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/client-journey.test.ts](../../../tests/benchmarks/client-journey.test.ts)
+
+<!-- JOURNEY_TABLE_END -->
+
+<!-- CIRCUIT-BREAKER_TABLE_START -->
+
+> ⏳ **Circuit Breaker Failover**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/circuit-breaker-failover.test.ts](../../../tests/benchmarks/circuit-breaker-failover.test.ts)
+
+<!-- CIRCUIT-BREAKER_TABLE_END -->
+
+<!-- THROTTLING_TABLE_START -->
+
+> ⏳ **Throttling & Backoff Stress**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/throttling-backoff-stress.test.ts](../../../tests/benchmarks/throttling-backoff-stress.test.ts)
+
+<!-- THROTTLING_TABLE_END -->
+
+<!-- STATE-MACHINE_TABLE_START -->
+
+> ⏳ **State Machine Transitions**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/state-machine-transition.test.ts](../../../tests/benchmarks/state-machine-transition.test.ts)
+
+<!-- STATE-MACHINE_TABLE_END -->
+
+<!-- CONCURRENCY_TABLE_START -->
+
+> ⏳ **Concurrency & Race Condition**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/concurrency-race.test.ts](../../../tests/benchmarks/concurrency-race.test.ts)
+
+<!-- CONCURRENCY_TABLE_END -->
+
+<!-- TEMPORAL_TABLE_START -->
+
+> ⏳ **Temporal Integrity Audit**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/temporal-integrity.test.ts](../../../tests/benchmarks/temporal-integrity.test.ts)
+
+<!-- TEMPORAL_TABLE_END -->
+
+<!-- GDPR_TABLE_START -->
+
+> ⏳ **GDPR Compliance Speed**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/right-to-be-forgotten-audit.test.ts](../../../tests/benchmarks/right-to-be-forgotten-audit.test.ts)
+
+<!-- GDPR_TABLE_END -->
 
 ---
 

@@ -17,6 +17,7 @@ export const PERFORMANCE_BUDGET = {
   memGrowth: 60,
   securityMs: 25,
   openapiHit: 10,
+  indexPressure: 250,
   buildDuration: 80000,
   bundleSizeTotal: 25,
 } as const;

@@ -30,9 +30,14 @@ export async function handleContentRoutes(
       return json({ success: true, message: "Content system refreshed" });
     }
     if (method === "collections") {
-      // 🚀 SMART RECONCILIATION: Force a refresh before listing
-      // to ensure newly written benchmark schemas are discovered.
-      await cms.collections.refresh(tenantId);
+      // 🚀 SMART REFRESH: Use refreshCollectionsCache instead of cms.collections.refresh.
+      // cms.collections.refresh triggers fullReload which calls contentStore.clear(null),
+      // nuking ALL tenant buckets and rebuilding from filesystem only.
+      // This destroys API-injected collections (benchmarks, dynamic schemas).
+      // refreshCollectionsCache merges file + DB schemas without clearing.
+      const { refreshCollectionsCache } = await import("@src/content/content-service.server");
+      const { getDb } = await import("@src/databases/db");
+      await refreshCollectionsCache(tenantId, getDb() || undefined);
       const list = await cms.collections.list({ tenantId, includeFields: true });
       return json({ success: true, data: list });
     }

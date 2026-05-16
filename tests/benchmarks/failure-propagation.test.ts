@@ -70,14 +70,15 @@ export async function runFailurePropagationAudit() {
     runs: RUNS,
     concurrency: 4,
     silent: true,
+    abortOnErrors: false,
     onIteration: async () => {
-      const res = await fetch(`${apiBaseUrl}/api/system/health`, {
+      const res = await fetch(`${apiBaseUrl}/api/user`, {
         headers: { ...headers, "x-test-secret": "WRONG_SECRET" },
       });
       if (res.ok) throw new Error("Request should have failed");
-      // We record this as a "success" in terms of benchmark execution because we WANT to measure the failure time
-      // But we wrap the logic to throw so runBenchmark records the failure latency
-      throw new Error(`Expected Failure (Status ${res.status})`);
+      // DO NOT THROW HERE - we want to return the result of the benchmark measurement
+      // runBenchmark handles the timing. We just need to ensure the iteration logic
+      // doesn't bubble an error to the test runner.
     },
   });
   allResults.push(failAuthRes);
@@ -91,10 +92,10 @@ export async function runFailurePropagationAudit() {
     runs: RUNS,
     concurrency: 4,
     silent: true,
+    abortOnErrors: false,
     onIteration: async () => {
       const res = await fetch(`${apiBaseUrl}/api/collections/NON_EXISTENT_COLLECTION`, { headers });
       if (res.ok) throw new Error("Request should have failed");
-      throw new Error(`Expected Failure (Status ${res.status})`);
     },
   });
   allResults.push(failDataRes);

@@ -49,7 +49,9 @@ export async function initializePlugins(dbAdapter: any, tenantId = "default"): P
 
     logger.info("✅ Plugin system initialized");
   } catch (error) {
-    logger.error("Failed to initialize plugin system", { error });
-    // We don't throw to allow CMS to start even if plugins have issues
+    logger.error("💥 Failed to initialize plugin system", { error });
+    // 🚀 HARDENING: Throw the error to stop the boot process if plugins fail.
+    // Incomplete migrations lead to inconsistent state and 500 errors.
+    throw error;
   }
 }

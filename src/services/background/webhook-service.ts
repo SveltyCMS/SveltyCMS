@@ -139,11 +139,10 @@ export class WebhookService {
         return [];
       }
 
-      const result = await db.system.preferences.get<Webhook[]>(
-        "webhooks_config",
-        "system",
-        tenantId as any,
-      );
+      const result = await db.system.preferences.get<Webhook[]>("webhooks_config", {
+        scope: "system",
+        tenantId: tenantId as any,
+      });
 
       const webhooks = result.success && Array.isArray(result.data) ? result.data : [];
 
@@ -199,7 +198,10 @@ export class WebhookService {
       updated = [...current, newWebhook];
     }
 
-    await db.system.preferences.set("webhooks_config", updated, "system", tenantId as any);
+    await db.system.preferences.set("webhooks_config", updated, {
+      scope: "system",
+      tenantId: tenantId as any,
+    });
 
     // Update cache immediately
     this.webhooksCache.set(tenantId, { data: updated, timestamp: Date.now() });
@@ -220,7 +222,10 @@ export class WebhookService {
     const updated = current.filter((w) => w.id !== id);
 
     if (updated.length !== current.length) {
-      await db.system.preferences.set("webhooks_config", updated, "system", tenantId as any);
+      await db.system.preferences.set("webhooks_config", updated, {
+        scope: "system",
+        tenantId: tenantId as any,
+      });
 
       // Update cache
       this.webhooksCache.set(tenantId, { data: updated, timestamp: Date.now() });

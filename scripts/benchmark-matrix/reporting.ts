@@ -330,8 +330,9 @@ export async function buildFullAuditLedger(
     const timing = res?.scriptTimings?.[script.shortLabel] || 0;
     const trend = await getScriptTrend(db, dbKey, script.shortLabel, timing);
 
+    const relativePath = `../../../${script.path.replace(/\\/g, "/")}`;
     md += `### 🏷️ ${script.label} ${trend.icon} ${trend.pct}\n`;
-    md += `**Source:** [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")}) | **Intensity:** \`${script.intensity}\`\n`;
+    md += `**Source:** [${script.path}](${relativePath}) | **Intensity:** \`${script.intensity}\`\n`;
     md += `**Proves:** ${script.desc}\n\n`;
 
     if (timing === 0) {
@@ -609,13 +610,15 @@ tags:
     }
 
     headerMd += `### ⚡ Executive Latency Matrix\n`;
-    headerMd += `| Scenario | Avg Latency | Trend | Target Budget |\n`;
-    headerMd += `| :--- | :--- | :--- | :--- |\n`;
-    headerMd += `| **Cold Start** | ${curr?.coldStartMs || 0}ms | ${coldTrend.icon} (${coldTrend.pct}) | < 5000ms |\n`;
-    headerMd += `| **REST (Collections)** | ${m.collections.toFixed(3)}ms | ${restTrend.icon} (${restTrend.pct}) | < 5ms |\n`;
-    headerMd += `| **GraphQL (Avg)** | ${m.graphqlAvg.toFixed(3)}ms | ${gqlTrend.icon} (${gqlTrend.pct}) | < 5ms |\n`;
-    headerMd += `| **DB Raw (p95)** | ${m.dbRaw.toFixed(3)}ms | ⚪ | < 50ms |\n`;
-    headerMd += `| **Setup Quality** | ${status === "SUCCESS" ? "🟢 HEALTHY" : "🔴 DEGRADED"} | ⚪ | 100% |\n\n`;
+    headerMd += `| Scenario | Avg Latency | Trend | Target Budget | Result |\n`;
+    headerMd += `| :--- | :--- | :--- | :--- | :--- |\n`;
+    headerMd += `| **Cold Start** | ${curr?.coldStartMs || 0}ms | ${coldTrend.icon} (${coldTrend.pct}) | < 5000ms | ${curr?.coldStartMs && curr.coldStartMs <= 5000 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
+    headerMd += `| **REST (Collections)** | ${m.collections.toFixed(3)}ms | ${restTrend.icon} (${restTrend.pct}) | < 5ms | ${m.collections <= 5 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
+    headerMd += `| **Middleware Hooks** | ${m.hooks.toFixed(3)}ms | ⚪ | < 1.5ms | ${m.hooks <= 1.5 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
+    headerMd += `| **GraphQL (Avg)** | ${m.graphqlAvg.toFixed(3)}ms | ${gqlTrend.icon} (${gqlTrend.pct}) | < 5ms | ${m.graphqlAvg <= 5 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
+    headerMd += `| **Million-Row Index** | ${m.indexPressure === 0 ? "FAILED" : m.indexPressure.toFixed(3) + "ms"} | ⚪ | < 250ms | ${m.indexPressure > 0 && m.indexPressure <= 250 ? "🟢 PASS" : dbKey === "sqlite" ? "🔴 LOCK WALL" : "🔴 FAIL"} |\n`;
+    headerMd += `| **DB Raw (p95)** | ${m.dbRaw.toFixed(3)}ms | ⚪ | < 50ms | ${m.dbRaw <= 50 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
+    headerMd += `| **Setup Quality** | ${status === "SUCCESS" ? "🟢 HEALTHY" : "🔴 DEGRADED"} | ⚪ | 100% | ${status === "SUCCESS" ? "🟢 PASS" : "🔴 FAIL"} |\n\n`;
 
     /**
      * Standardized trend block generator for audit ledgers.
@@ -773,7 +776,8 @@ tags:
 
         if (tableFile) {
           const rawTable = await fs.readFile(tableFile, "utf8");
-          tableContent = `### 🏷️ ${script.label} ${trend.icon} ${trend.pct}\n> 📂 **Source**: [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")})\n> 🎯 **Proves**: ${script.desc}\n\n\`\`\`text\n${rawTable}\n\`\`\``;
+          const relativePath = `../../../${script.path.replace(/\\/g, "/")}`;
+          tableContent = `### 🏷️ ${script.label} ${trend.icon} ${trend.pct}\n> 📂 **Source**: [${script.path}](${relativePath})\n> 🎯 **Proves**: ${script.desc}\n\n\`\`\`text\n${rawTable}\n\`\`\``;
         }
       } catch {}
 
@@ -808,7 +812,8 @@ tags:
             ) as any;
             if (scriptMetric) {
               const histDate = new Date(historical.timestamp).toLocaleDateString();
-              tableContent = `> 🏛️ **Historical Data** (from ${histDate})\n> 🏷️ **${script.label}**: ✅ **${(scriptMetric.avgMs || 0).toFixed(3)}ms**\n> 📂 **Source**: [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")})`;
+              const relativePath = `../../../${script.path.replace(/\\/g, "/")}`;
+              tableContent = `> 🏛️ **Historical Data** (from ${histDate})\n> 🏷️ **${script.label}**: ✅ **${(scriptMetric.avgMs || 0).toFixed(3)}ms**\n> 📂 **Source**: [${script.path}](${relativePath})`;
             }
           }
         } catch (err) {
@@ -818,7 +823,8 @@ tags:
 
       // If still no content, show pending
       if (!tableContent) {
-        tableContent = `> ⏳ **${script.label}**: Pending execution.\n> 📂 **Source**: [${script.path}](file:///${path.resolve(process.cwd(), script.path).replace(/\\/g, "/")})`;
+        const relativePath = `../../../${script.path.replace(/\\/g, "/")}`;
+        tableContent = `> ⏳ **${script.label}**: Pending execution.\n> 📂 **Source**: [${script.path}](${relativePath})`;
       }
 
       headerMd += `${START_TAG}\n${tableContent}\n${END_TAG}\n\n`;

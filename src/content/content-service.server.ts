@@ -234,8 +234,23 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
 
   // Merge schemas (file-based takes precedence, but DB-only ones are kept)
   const schemaMap = new Map<string, Schema>();
-  for (const s of dbSchemas) if (s._id) schemaMap.set(s._id, s);
-  for (const s of fileSchemas) if (s._id) schemaMap.set(s._id, s);
+
+  // 🚀 Standardize IDs to lowercase for case-insensitive system mapping
+  for (const s of dbSchemas) {
+    if (s._id) {
+      const lowerId = s._id.toLowerCase();
+      s._id = lowerId; // Standardize original object as well
+      schemaMap.set(lowerId, s);
+    }
+  }
+
+  for (const s of fileSchemas) {
+    if (s._id) {
+      const lowerId = s._id.toLowerCase();
+      s._id = lowerId; // Standardize original object as well
+      schemaMap.set(lowerId, s);
+    }
+  }
 
   const finalSchemas = Array.from(schemaMap.values());
 
@@ -394,8 +409,16 @@ export const contentService = {
     for (const [path, dbNode] of dbMapByPath.entries()) {
       if (processedPaths.has(path)) continue;
       if (dbNode.source === "filesystem" || (!dbNode.source && dbNode.nodeType === "collection")) {
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          console.log(
+            `[Reconcile] Pruning node: ${path} (source: ${dbNode.source}, type: ${dbNode.nodeType})`,
+          );
+        }
         prunedPaths.push(path);
       } else {
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          console.log(`[Reconcile] Preserving node: ${path} (source: ${dbNode.source})`);
+        }
         preservedNodes.push(dbNode);
       }
     }

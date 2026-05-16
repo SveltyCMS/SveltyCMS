@@ -15,6 +15,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  forceRefreshServer,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger";
 
@@ -29,6 +30,7 @@ async function runRelationalAudit() {
     const baseUrl = server.baseUrl;
 
     await ensureStableTestData();
+    await forceRefreshServer(baseUrl);
     await stabilize(1500);
 
     const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";

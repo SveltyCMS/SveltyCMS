@@ -69,11 +69,11 @@ export async function waitForServer(timeoutMs = 60_000): Promise<void> {
 
 /**
  * Safely performs a fetch with retries to handle server re-initialization flickers.
- * Automatically adds the Origin header to bypass CSRF protection.
+ * Automatically adds the Origin header and x-test-secret to bypass security/CSRF in tests.
  */
 export async function safeFetch(
   url: string,
-  init?: RequestInit,
+  init?: RequestInit & { skipTestSecret?: boolean },
   maxRetries = 5,
   delay = 2000,
 ): Promise<Response> {
@@ -85,6 +85,12 @@ export async function safeFetch(
   }
   if (!headers.has("Referer")) {
     headers.set("Referer", `${BASE_URL}/`);
+  }
+
+  // Inject test secret by default to bypass security middleware (unless explicitly skipped)
+  if (!init?.skipTestSecret) {
+    const testSecret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+    headers.set("x-test-secret", testSecret);
   }
 
   const signal = init?.signal || AbortSignal.timeout(60000);

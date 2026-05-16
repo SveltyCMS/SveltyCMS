@@ -80,11 +80,10 @@ export class AutomationService {
         return [];
       }
 
-      const result = await db.system.preferences.get<AutomationFlow[]>(
-        "automations_config",
-        "system",
-        tenantId as any,
-      );
+      const result = await db.system.preferences.get<AutomationFlow[]>("automations_config", {
+        scope: "system",
+        tenantId: tenantId as any,
+      });
       const flows = result.success && Array.isArray(result.data) ? result.data : [];
 
       // Enforce tenantId consistency
@@ -143,7 +142,10 @@ export class AutomationService {
       updated = [...current, savedFlow];
     }
 
-    await db.system.preferences.set("automations_config", updated, "system", tenantId as any);
+    await db.system.preferences.set("automations_config", updated, {
+      scope: "system",
+      tenantId: tenantId as any,
+    });
 
     // Update cache immediately
     this.flowsCache.set(tenantId, { data: updated, timestamp: Date.now() });
@@ -173,7 +175,10 @@ export class AutomationService {
     const updated = current.filter((f) => f.id !== id);
 
     if (updated.length !== initialLength) {
-      await db.system.preferences.set("automations_config", updated, "system", tenantId as any);
+      await db.system.preferences.set("automations_config", updated, {
+        scope: "system",
+        tenantId: tenantId as any,
+      });
       this.flowsCache.set(tenantId, { data: updated, timestamp: Date.now() });
     }
   }
@@ -561,7 +566,10 @@ export class AutomationService {
       const db = await getDbAdapter();
       if (db && db.system) {
         await db.system.preferences
-          .set("automations_config", cached.data, "system", tenantId as any)
+          .set("automations_config", cached.data, {
+            scope: "system",
+            tenantId: tenantId as any,
+          })
           .catch(() => {});
       }
     }

@@ -80,17 +80,19 @@ async function runAcidAudit() {
       silent: true,
       onIteration: async (i: number) => {
         const id = `rollback-${i}-${Math.random().toString(36).slice(2)}`;
-        try {
-          await (db as any).transaction(async (tx: any) => {
-            await tx.insert(
-              COLLECTION_ID,
-              { _id: id, title: "Rollback Test" },
-              { tenantId: "global" as any },
-            );
-            throw new Error("ROLLBACK_TRIGGER");
-          });
-        } catch (e: any) {
-          if (e.message !== "ROLLBACK_TRIGGER") throw e;
+        const txResult = await (db as any).transaction(async (tx: any) => {
+          await tx.insert(
+            COLLECTION_ID,
+            { _id: id, title: "Rollback Test" },
+            { tenantId: "global" as any },
+          );
+          await tx.rollback();
+        });
+
+        if (txResult.success) {
+          throw new Error(
+            `ACID FAILURE: Transaction reported success despite rollback for ID ${id}`,
+          );
         }
 
         // Verify data was NOT persisted

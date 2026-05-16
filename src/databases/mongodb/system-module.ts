@@ -76,30 +76,46 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
   preferences = {
     get: async <T>(
       key: string,
-      scope?: "user" | "system",
-      userId?: DatabaseId,
+      options: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      } = {},
     ): Promise<DatabaseResult<T | null>> =>
-      (await this._getMethods()).preferences.get(key, scope, userId),
+      (await this._getMethods()).preferences.get(key, options),
+
     getMany: async <T>(
       keys: string[],
-      scope?: "user" | "system",
-      userId?: DatabaseId,
+      options: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      } = {},
     ): Promise<DatabaseResult<Record<string, T>>> =>
-      (await this._getMethods()).preferences.getMany(keys, scope, userId),
+      (await this._getMethods()).preferences.getMany(keys, options),
+
     getByCategory: async <T>(
       category: string,
-      scope?: "user" | "system",
-      userId?: DatabaseId,
+      options: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      } = {},
     ): Promise<DatabaseResult<Record<string, T>>> =>
-      (await this._getMethods()).preferences.getByCategory(category, scope, userId),
+      (await this._getMethods()).preferences.getByCategory(category, options),
+
     set: async <T>(
       key: string,
       value: T,
-      scope?: "user" | "system",
-      userId?: DatabaseId,
-      category?: string,
+      options: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        category?: string;
+        tenantId?: DatabaseId | null;
+      } = {},
     ): Promise<DatabaseResult<void>> =>
-      (await this._getMethods()).preferences.set(key, value, scope, userId, category),
+      (await this._getMethods()).preferences.set(key, value, options),
+
     setMany: async <T>(
       prefs: Array<{
         key: string;
@@ -108,21 +124,38 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
         userId?: DatabaseId;
         category?: string;
       }>,
-    ): Promise<DatabaseResult<void>> => (await this._getMethods()).preferences.setMany(prefs),
+      options: {
+        tenantId?: DatabaseId | null;
+      } = {},
+    ): Promise<DatabaseResult<void>> =>
+      (await this._getMethods()).preferences.setMany(prefs, options),
+
     delete: async (
       key: string,
-      scope?: "user" | "system",
-      userId?: DatabaseId,
-    ): Promise<DatabaseResult<void>> =>
-      (await this._getMethods()).preferences.delete(key, scope, userId),
+      options: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      } = {},
+    ): Promise<DatabaseResult<void>> => (await this._getMethods()).preferences.delete(key, options),
+
     deleteMany: async (
       keys: string[],
-      scope?: "user" | "system",
-      userId?: DatabaseId,
+      options: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      } = {},
     ): Promise<DatabaseResult<void>> =>
-      (await this._getMethods()).preferences.deleteMany(keys, scope, userId),
-    clear: async (scope?: "user" | "system", userId?: DatabaseId): Promise<DatabaseResult<void>> =>
-      (await this._getMethods()).preferences.clear(scope, userId),
+      (await this._getMethods()).preferences.deleteMany(keys, options),
+
+    clear: async (
+      options: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      } = {},
+    ): Promise<DatabaseResult<void>> => (await this._getMethods()).preferences.clear(options),
   };
 
   tenants = {

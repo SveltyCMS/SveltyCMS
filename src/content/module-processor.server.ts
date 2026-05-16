@@ -90,7 +90,9 @@ export async function loadSchemaNative(filePath: string): Promise<{ schema?: Sch
   if (useWorker) {
     return new Promise((resolve) => {
       const worker = getWorker();
-      const version = process.env.BENCHMARK_STABLE === "true" ? "1" : Date.now();
+      const isBenchmark =
+        process.env.BENCHMARK_STABLE === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true";
+      const version = isBenchmark ? "1" : Date.now();
       const msgId = ++_nextMessageId;
 
       worker._callbacks?.set(msgId, (message: any) => {
@@ -107,9 +109,12 @@ export async function loadSchemaNative(filePath: string): Promise<{ schema?: Sch
 
     // 🚀 Performance: Use native dynamic import
     // Note: 'file://' prefix is mandatory for absolute paths in Node/Bun on Windows.
-    // Query param provides cache-busting for HMR (disabled in benchmarks for speed).
+    // Query param provides cache-busting for HMR.
+    // 🛡️ MEMORY LEAK FIX: Disable cache-busting during benchmarks to avoid filling Node.js module cache.
     const fileUrl = `file://${fullPath.replace(/\\/g, "/")}`;
-    const version = process.env.BENCHMARK_STABLE === "true" ? "1" : Date.now();
+    const isBenchmark =
+      process.env.BENCHMARK_STABLE === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true";
+    const version = isBenchmark ? "1" : Date.now();
     const module = await import(/* @vite-ignore */ `${fileUrl}?v=${version}`);
 
     const schema = module.default || module.schema;
@@ -119,7 +124,7 @@ export async function loadSchemaNative(filePath: string): Promise<{ schema?: Sch
       if (!schema._id) {
         schema._id = (schema.slug || schema.name || "unknown")
           .toLowerCase()
-          .replace(/[^a-z0-9]/g, "");
+          .replace(/[^a-z0-9-]/g, "");
       }
       return { schema: schema as Schema };
     }

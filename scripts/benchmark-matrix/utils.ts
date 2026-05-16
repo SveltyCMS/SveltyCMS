@@ -49,6 +49,71 @@ export function requiresRebuild(): boolean {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Environment Health Checks
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Checks if a Docker container for a specific service is running and responsive.
+ */
+export function checkServiceHealth(type: string): { healthy: boolean; error?: string } {
+  try {
+    switch (type) {
+      case "mariadb":
+      case "mysql":
+        execSync(
+          "docker exec svelty-mariadb mariadb-admin ping -h 127.0.0.1 -u root --password=mariadb",
+          { stdio: "ignore" },
+        );
+        return { healthy: true };
+      case "postgresql":
+      case "postgres":
+        execSync("docker exec svelty-postgres pg_isready -U postgres", { stdio: "ignore" });
+        return { healthy: true };
+      case "mongodb":
+      case "mongo":
+        execSync("docker exec svelty-mongodb mongosh --eval \"db.adminCommand('ping')\" --quiet", {
+          stdio: "ignore",
+        });
+        return { healthy: true };
+      case "redis":
+        execSync("docker exec svelty-redis redis-cli ping", { stdio: "ignore" });
+        return { healthy: true };
+      default:
+        return { healthy: true }; // Assume unknown/local services are managed externally
+    }
+  } catch {
+    return {
+      healthy: false,
+      error: `Service ${type} is not responding. Ensure Docker container 'svelty-${type}' is running.`,
+    };
+  }
+}
+
+/**
+ * Validates the entire environment for a specific database configuration.
+ */
+export function validateEnvironment(
+  dbType: string,
+  useRedis: boolean,
+): { success: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  // Check main DB
+  if (dbType !== "sqlite") {
+    const dbHealth = checkServiceHealth(dbType);
+    if (!dbHealth.healthy) errors.push(dbHealth.error!);
+  }
+
+  // Check Redis if enabled
+  if (useRedis) {
+    const redisHealth = checkServiceHealth("redis");
+    if (!redisHealth.healthy) errors.push(redisHealth.error!);
+  }
+
+  return { success: errors.length === 0, errors };
+}
+
+// ─────────────────────────────────────────────────────────────
 // Metrics Extraction
 // ─────────────────────────────────────────────────────────────
 
@@ -291,6 +356,12 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
       (findResult(m, "Happy") as any)?.avgMs ||
       (findResult(m, "Telemetry (Happy Path)") as any)?.p95Ms ||
       (findResult(m, "Telemetry (Happy Path)") as any)?.avgMs ||
+      0,
+    indexPressure:
+      getMetric("index.pressure.p95") ||
+      getMetric("Million-Row Index") ||
+      (findResult(m, "index-pressure") as any)?.p95Ms ||
+      (findResult(m, "Sorted List (100k rows)") as any)?.p95Ms ||
       0,
   };
 }

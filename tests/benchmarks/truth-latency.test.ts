@@ -27,29 +27,38 @@ beforeAll(async () => {
   stopServer = stop;
   apiBaseUrl = baseUrl;
 
-  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
-  await ensureFullInitialization();
-  const db = getDb();
-  await ensureStableTestData(db!);
-}, 60000); // 60s timeout for setup
+  // 🚀 Remote setup only
+  await ensureStableTestData();
+}, 120000);
 
 afterAll(async () => {
   if (stopServer) await stopServer();
 });
 
 test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
-  const { getDb, ensureFullInitialization } = await import("@src/databases/db");
+  await import("@src/databases/db");
   const { LocalCMS } = await import("@src/services/sdk");
-
-  await ensureFullInitialization();
-  const db = getDb();
-  const cms = new LocalCMS(db!);
   const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+
+  // 🚀 ISOLATED SDK BASELINE: Use in-memory DB to avoid server file locks
+  const { loadAdapters } = await import("@src/databases/db-init");
+  const isolatedDb = await loadAdapters({
+    type: "sqlite",
+    database: ":memory:",
+  });
+  if (!isolatedDb) throw new Error("Failed to create isolated DB");
+  await isolatedDb.connect(":memory:");
+  const sdkCms = new LocalCMS(isolatedDb);
+
+  // Seed the in-memory DB with the same schema/data
+  await ensureStableTestData(isolatedDb);
 
   const ITERATIONS = 300;
   const allResults: any[] = [];
 
-  console.log(`\n🕵️  Executing SRE Truth Audit for "${STABLE_COLLECTION}"...\n`);
+  console.log(
+    `\n🕵️  Executing SRE Truth Audit for "${STABLE_COLLECTION}" (Isolated Baseline)...\n`,
+  );
 
   try {
     // 1. Logic Baseline (Harness Overhead)
@@ -59,13 +68,11 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
       warmupIterations: 50,
       runs: 1,
       silent: true,
-      onIteration: async () => {
-        // Just return void
-      },
+      onIteration: async () => {},
     });
     allResults.push({ ...logicRes, layer: "Logic", proves: "JS Harness Overhead" });
 
-    // 2. SDK Layer (Local API - DB + Widgets)
+    // 2. SDK Layer (Isolated In-Memory)
     const sdkRes = await runBenchmark({
       name: "Local SDK (Full)",
       iterations: ITERATIONS,
@@ -74,7 +81,7 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
       silent: true,
       measureMemory: true,
       onIteration: async () => {
-        await cms.collections.find(STABLE_COLLECTION as any, {
+        await sdkCms.collections.find(STABLE_COLLECTION as any, {
           _id: STABLE_ENTRY_ID,
           tenantId: "global",
         });

@@ -64,8 +64,9 @@ async function getServerApiSpecService() {
   return apiSpecService;
 }
 
-// Module-level cache for initialization promises to prevent "storms"
+// Module-level cache for initialization promises and initialized state
 const initPromises = new Map<string | null, Promise<void>>();
+const initializedTenants = new Set<string | null>();
 
 // ===================================================================
 // SERVER CONTENT SYSTEM (extends browser base)
@@ -79,19 +80,25 @@ export const contentSystem = {
     options: any = {},
     adapter?: DatabaseAdapter,
   ): Promise<void> {
+    const isForced = options === true || options?.force === true;
+
+    // 🚀 Fast path for benchmarks: Skip if already initialized for this specific tenant
     if (
-      process.env.BENCHMARK_MODE === "true" ||
-      process.env.BENCHMARK_MODE === "1" ||
-      process.env.BENCHMARK_STABLE === "true"
+      (process.env.BENCHMARK_MODE === "true" ||
+        process.env.BENCHMARK_MODE === "1" ||
+        process.env.BENCHMARK_STABLE === "true") &&
+      !isForced
     ) {
-      // 🚀 Fast path for benchmarks
-      return this._benchmarkInitialize(tenantId, options, adapter);
+      if (initializedTenants.has(tenantId)) return;
+      await this._benchmarkInitialize(tenantId, options, adapter);
+      initializedTenants.add(tenantId);
+      return;
     }
 
     // 🛡️ SAFETY: Use a shared promise per tenant to prevent initialization storms
     let initPromise = initPromises.get(tenantId);
 
-    if (!initPromise || options.force) {
+    if (!initPromise || isForced) {
       initPromise = (async () => {
         try {
           const { getDb, ensureFullInitialization } = await import("@src/databases/db");
@@ -108,6 +115,7 @@ export const contentSystem = {
 
           // Mark as initialized to prevent redundant initialization calls
           contentStore.initState = "initialized";
+          initializedTenants.add(tenantId);
 
           // Dev watcher
           if (process.env.NODE_ENV === "development" || process.env.TEST_MODE === "true") {
@@ -159,7 +167,7 @@ export const contentSystem = {
     incremental = false,
     adapter?: DatabaseAdapter,
   ) {
-    return this.initialize(tenantId, { skipReconciliation, incremental }, adapter);
+    return this.initialize(tenantId, { skipReconciliation, incremental, force: true }, adapter);
   },
 
   async generateApiSpec(tenantId: string = "global", _force = false) {

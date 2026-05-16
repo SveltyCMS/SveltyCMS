@@ -149,14 +149,21 @@ export function convertDatesToISO<T extends Record<string, unknown>>(row: T): T 
         }
       } catch (err: any) {
         if (!result) result = { ...row };
-        result[key] = null; // Fallback to null on parse error for JSON fields
 
-        // Log everything on error to find the culprit
-        console.warn(`[RelationalUtils] Failed to parse JSON field '${key}': ${err.message}`, {
-          valueType: typeof value,
-          valueLength: value.length,
-          valueSnippet: value.substring(0, 100),
-        });
+        // 🚀 HARDENING: If it's not valid JSON, but it's a non-empty string, keep it as raw string.
+        // This is critical for fields like 'value' which can store both JSON and plain text.
+        if (value && value !== "undefined" && value !== "null") {
+          result[key] = value;
+        } else {
+          result[key] = null;
+        }
+
+        // Log warning only for truly botched values that look like they SHOULD have been JSON
+        if (value.startsWith("{") || value.startsWith("[")) {
+          console.warn(`[RelationalUtils] Failed to parse JSON field '${key}': ${err.message}`, {
+            valueSnippet: value.substring(0, 100),
+          });
+        }
       }
       continue;
     }
@@ -236,7 +243,7 @@ export function convertISOToDates<T extends Record<string, unknown>>(data: T): T
         result = { ...data };
         hasChanges = true;
       }
-      result[key] = null;
+      delete result[key];
       continue;
     }
 

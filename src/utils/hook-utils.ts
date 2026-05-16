@@ -5,6 +5,7 @@
 
 import type { RequestEvent } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
+import { BASE_HEADERS } from "./security-constants";
 
 /**
  * Compiled regular expression for all static assets and internal Vite/SvelteKit routes.
@@ -37,17 +38,6 @@ export const PUBLIC_ROUTES = [
   "/api/user/login",
   "/api/auth/login",
   "/api/preview",
-];
-
-/**
- * Common security headers applied to all responses
- */
-export const BASE_HEADERS: [string, string][] = [
-  ["X-Frame-Options", "SAMEORIGIN"],
-  ["X-Content-Type-Options", "nosniff"],
-  ["Referrer-Policy", "strict-origin-when-cross-origin"],
-  ["Cross-Origin-Opener-Policy", "same-origin"],
-  ["Cross-Origin-Embedder-Policy", "credentialless"],
 ];
 
 /**
@@ -183,7 +173,7 @@ export function isPublicRoute(pathname: string, testMode = false): boolean {
  * Applies standard security headers to a Headers object
  */
 export function applySecurityHeaders(headers: Headers, isHttps: boolean) {
-  for (const [key, value] of BASE_HEADERS) {
+  for (const [key, value] of Object.entries(BASE_HEADERS)) {
     headers.set(key, value);
   }
 

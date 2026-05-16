@@ -135,6 +135,7 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			\`order\` INT NOT NULL DEFAULT 0,
 			isPublished BOOLEAN NOT NULL DEFAULT FALSE,
 			publishedAt DATETIME,
+			source VARCHAR(50) NOT NULL DEFAULT 'filesystem',
 			tenantId VARCHAR(36),
 			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -475,6 +476,9 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
     await connection.query(`ALTER TABLE auth_users ADD COLUMN backupCodes JSON`);
     await connection.query(`ALTER TABLE auth_users ADD COLUMN last2FAVerification DATETIME`);
     await connection.query(`ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS collectionDef JSON`);
+    await connection.query(
+      `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'filesystem'`,
+    );
 
     // 🚀 MIGRATION: Rename 'security' to 'password' if needed (v0.0.8 compatibility)
     try {

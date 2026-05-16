@@ -24,8 +24,8 @@ describe("AST Transformers", () => {
       const code = "export const schema = { fields: [] };";
       const output = transform(code, [schemaTransformer("tenant-1")]);
 
-      // Verify UUID generation (length check or pattern)
-      expect(output).toMatch(/_id: "[a-f0-9-]{36}"/i);
+      // Verify deterministic ID generation (from "test.ts")
+      expect(output).toContain('_id: "test"');
       expect(output).toContain('tenantId: "tenant-1"');
       expect(output).toContain("fields: []");
     });
@@ -50,7 +50,7 @@ describe("AST Transformers", () => {
       const output = transform(code, [schemaTransformer(undefined)]);
 
       expect(output).not.toContain("tenantId");
-      expect(output).toMatch(/_id: "[a-f0-9-]{36}"/i);
+      expect(output).toMatch(/_id: "test"/i);
     });
   });
 

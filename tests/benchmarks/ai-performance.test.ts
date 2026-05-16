@@ -97,6 +97,7 @@ async function runAIAudit() {
   } catch (err: any) {
     logger.error(`AI benchmark failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});

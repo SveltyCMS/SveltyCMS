@@ -170,12 +170,10 @@ describe("Export/Import API Security - Tenant Isolation", () => {
       } as any;
 
       await dispatcherPOST(event);
-      expect(prefSet).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.any(String),
-        "system",
-        myTenant,
-      );
+      expect(prefSet).toHaveBeenCalledWith(expect.any(String), expect.any(String), {
+        scope: "system",
+        tenantId: myTenant,
+      });
     });
 
     it("should prevent regular admin from importing to another tenant", async () => {

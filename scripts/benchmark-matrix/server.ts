@@ -110,6 +110,7 @@ export function buildServerEnv(
     BENCHMARK_DEBUG: process.env.BENCHMARK_DEBUG || "false",
     BENCHMARK_MODE: "true",
     BENCHMARK_STABLE: "true",
+    SVELTY_BENCHMARK_SUITE: "true",
     SVELTY_AUDIT_ACTIVE: process.env.SVELTY_AUDIT_ACTIVE || "false",
     QUIET: process.env.QUIET || "true",
   };

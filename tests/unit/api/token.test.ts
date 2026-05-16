@@ -16,7 +16,7 @@ vi.mock("@src/databases/db", () => {
       getAllTokens: vi.fn().mockResolvedValue({ success: true, data: [] }),
       getTokenById: vi.fn().mockResolvedValue({ success: true, data: {} }),
       updateToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "token-id" } }),
-      createToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
+      createToken: vi.fn().mockResolvedValue({ success: true, data: "a".repeat(64) }),
       deleteTokens: vi.fn().mockResolvedValue({ success: true, data: { deletedCount: 1 } }),
     },
     collection: {
@@ -77,7 +77,7 @@ describe("Token API Unit Tests", () => {
             getAllTokens: vi.fn().mockResolvedValue({ success: true, data: [] }),
             getTokenById: vi.fn().mockResolvedValue({ success: true, data: {} }),
             updateToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "token-id" } }),
-            createToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
+            createToken: vi.fn().mockResolvedValue({ success: true, data: "a".repeat(64) }),
             deleteTokens: vi.fn().mockResolvedValue({ success: true, data: { deletedCount: 1 } }),
             getUserByEmail: vi.fn().mockResolvedValue({ success: true, data: null }),
           },
@@ -118,6 +118,6 @@ describe("Token API Unit Tests", () => {
     const result = await response!.json();
     expect(result.success).toBe(true);
     expect(result.token).toBeDefined();
-    expect(result.token.token).toMatch(/^[a-f0-9]{64}$/);
+    expect(result.token.value).toMatch(/^[a-f0-9]{64}$/);
   });
 });

@@ -1,31 +1,61 @@
 # .github/workflows/docs-lint.yml
-# Test documentation files for linting errors on pull requests that modify docs.
-# NOTE: This workflow does not require database testing (docs only)
-name: Docs Lint
+# Test documentation files for linting errors and build verification on pull requests that modify documentation or related source code.
+name: Docs & Component Build Verification
 
 on:
   pull_request:
     paths:
-      - "src/widgets/**/*.mdx" # Trigger only when docs or mdx change
+      # --- Trigger on any documentation file change ---
+      - "docs/**.mdx"
       - "docs/**/*.mdx"
-      - "docs/**/*.ts"
+      # --- Trigger on any component/widget change that impacts docs ---
+      - "src/widgets/**/*.svelte"
+      - "src/widgets/**/*.ts"
+      # --- Trigger on core logic or utilities that define contracts ---
+      - "src/utils/**/*.ts"
+      - "src/databases/**.ts"
+      - "scripts/**/*.ts"
+      - "tests/**.ts"
 
 # Set minimal permissions for all jobs in this workflow
 permissions:
   contents: read
+  write: write # Needed if the documentation build generates artifacts/assets
 
 jobs:
-  lint-docs:
+  validate-documentation:
     runs-on: ubuntu-latest # Ubuntu environment for CI
-    timeout-minutes: 5
+    timeout-minutes: 10 # Increased timeout for comprehensive build/linting
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - name: Setup Bun # Use Bun instead of Node+pnpm
-        uses: oven-sh/setup-bun@v2
+      - name: Setup Bun Runtime
+        uses: oven-sh/setup-bun@v1
 
-      - name: Install deps # Install dependencies with Bun
+      - name: Install Dependencies
         run: bun install --frozen-lockfile
 
-      - name: Lint docs # Run doc linter using bun directly
+      # === STEP 1: LINTING (The quick check) ===
+      - name: Run Documentation Linter (Semantic Check)
+        # This assumes 'tests/lint-docs.ts' exists and runs structural checks.
+        # This catches misplaced tags or structural errors.
         run: bun tests/lint-docs.ts
+
+      # === STEP 2: STATIC ANALYSIS (The Deep Code Check) ===
+      - name: Run Comprehensive Code & Doc Linting
+        # Running the full 'check' suite ensures all type contracts are valid,
+        # and running 'lint' ensures code style consistency.
+        run: bun run check && bun run lint
+
+      # === STEP 3: DOCUMENTATION BUILD (The Crucial Step) ===
+      - name: Build Documentation Artifacts (Build Verification)
+        # This attempts to compile the entire documentation site.
+        # If any MDX component fails to load, resolve, or compile, this step will fail.
+        run: bun run build
+        # Note: We use 'bun run build' as it typically handles MDX compilation in SvelteKit
+
+      # === STEP 4: Full Integration Sanity Check ===
+      # After documenting the system, we must prove the system works.
+      - name: Run Core Integration Sanity Checks
+        # Run a limited, fast subset of integration tests to ensure the core API is functional.
+        run: bun run scripts/run-integration-tests.ts --filter=sqlite --no-build

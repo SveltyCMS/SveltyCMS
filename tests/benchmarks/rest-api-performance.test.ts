@@ -17,6 +17,7 @@ import {
   printSummaryTable,
   TEST_API_SECRET,
   getDbType,
+  forceRefreshServer,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger";
 
@@ -54,6 +55,7 @@ async function runRestAudit() {
     const baseUrl = server.baseUrl;
 
     await ensureStableTestData(null);
+    await forceRefreshServer(baseUrl);
 
     const results = [];
 
@@ -74,7 +76,10 @@ async function runRestAudit() {
               "x-test-secret": TEST_API_SECRET,
             },
           });
-          if (!res.ok) throw new Error(`${scenario.name} failed: ${res.status}`);
+          if (!res.ok) {
+            const body = await res.text();
+            throw new Error(`${scenario.name} failed: ${res.status} - ${body}`);
+          }
           await res.text();
         },
       });

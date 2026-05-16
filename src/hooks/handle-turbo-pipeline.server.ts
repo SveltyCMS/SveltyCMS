@@ -21,10 +21,10 @@ import {
   isBootstrapRoute,
   isStaticOrInternalRequest,
   STATIC_ASSET_REGEX,
-  BASE_HEADERS,
   restrictedResponse,
   boundaryResponse,
 } from "@src/utils/hook-utils";
+import { BASE_HEADERS } from "@src/utils/security-constants";
 import { logger } from "@src/utils/logger";
 // Hook is initialized lazily
 let cachedDbAdapter: any = null;
@@ -154,13 +154,63 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         logger.debug(`[Turbo] TEST BYPASS for ${pathname} method=${event.request.method}`);
       }
 
-      (event.locals as any).user = {
-        _id: "system",
-        role: "admin",
-        isAdmin: true,
-        email: "system@sveltycms",
-      };
-      (event.locals as any).isAdmin = true;
+      // 🛡️ HARDENING: Resolve real user from session if possible to maintain test state
+      const sessionId = event.cookies.get("auth_sessions");
+      if (sessionId) {
+        // Using globalThis access for the auth service to ensure we don't trigger recursive imports
+        const authService = (globalThis as any).__AUTH_INSTANCE__;
+        if (authService) {
+          try {
+            const result = await authService.validateSession(sessionId);
+            // 🛡️ HARDENING: Handle both high-level Auth (User|null) and adapter (DatabaseResult<User|null>)
+            const user = (result as any)?.success !== undefined ? (result as any).data : result;
+
+            if (user && user._id) {
+              (event.locals as any).user = user;
+              (event.locals as any).tenantId = user.tenantId || null;
+              if (!IS_BENCHMARK) logger.debug(`[Turbo] Resolved REAL user: ${user.email}`);
+            }
+          } catch {
+            /* ignore session errors in bypass */
+          }
+        }
+      }
+
+      if (!event.locals.user) {
+        // 🛡️ HARDENING: Only fallback to system user for management endpoints, setup, or benchmarks.
+        // This prevents false positives in integration tests checking for 401/403.
+        const isManagement =
+          pathname.includes("/api/testing") ||
+          pathname.includes("/api/setup") ||
+          pathname.includes("/api/system/health") ||
+          pathname.includes("/health") ||
+          pathname.includes("/api/user/login"); // Allow login bypass to proceed
+
+        if (isManagement || IS_BENCHMARK) {
+          (event.locals as any).user = {
+            _id: "system",
+            role: "admin",
+            isAdmin: true,
+            email: "system@sveltycms",
+          };
+
+          // 🚀 TENANT SYNC: Extract tenantId from header if provided (critical for benchmarks)
+          const headerTenant =
+            event.request.headers.get("x-tenant-id") || event.request.headers.get("X-Tenant-Id");
+          (event.locals as any).tenantId = headerTenant || null;
+
+          if (!IS_BENCHMARK) {
+            logger.debug(
+              `[Turbo] Fallback to SYSTEM user for ${pathname} (Tenant: ${headerTenant || "null"})`,
+            );
+          }
+        } else {
+          if (!IS_BENCHMARK)
+            logger.debug(`[Turbo] No session found and not a management endpoint. Proceeding...`);
+        }
+      }
+
+      (event.locals as any).isAdmin = !!event.locals.user?.isAdmin;
       (event.locals as any).dbAdapter = db;
       (event.locals as any).__testBypass = true;
 
@@ -197,7 +247,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
               status: 200,
               headers: {
                 "Content-Type": "application/json",
-                ...Object.fromEntries(BASE_HEADERS),
+                ...BASE_HEADERS,
                 "Cache-Control": "no-store, no-cache, must-revalidate",
                 Pragma: "no-cache",
                 Expires: "0",
@@ -210,7 +260,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
           status: 200,
           headers: {
             "Content-Type": "application/json",
-            ...Object.fromEntries(BASE_HEADERS),
+            ...BASE_HEADERS,
             "Cache-Control": "no-store, no-cache, must-revalidate",
             Pragma: "no-cache",
             Expires: "0",
@@ -236,7 +286,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     if (!healthHeaders) {
       healthHeaders = {
         "Content-Type": "application/json",
-        ...Object.fromEntries(BASE_HEADERS),
+        ...BASE_HEADERS,
         "Cache-Control": "no-store, no-cache, must-revalidate",
         Pragma: "no-cache",
         Expires: "0",
@@ -285,22 +335,28 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   const origin = event.request.headers.get("Origin");
 
   // Base security header map
-  const baseHeaderMap = Object.fromEntries(BASE_HEADERS);
+  const baseHeaderMap = BASE_HEADERS;
 
-  try {
-    // ── 1. STATIC ASSET DELEGATION ───────────────────────────────────────────
+  // ── 1. STATIC ASSET DELEGATION ───────────────────────────────────────────
+  // We use a high-performance regex check first.
+  if (
+    pathname.length > 1 &&
+    (pathname[1] === "_" || pathname[1] === "." || STATIC_ASSET_REGEX.test(pathname))
+  ) {
     if (isStaticOrInternalRequest(pathname)) {
       return await resolve(event);
     }
+  }
 
+  try {
     // ── 2. STATE DISCOVERY (ONE-TIME) ────────────────────────────────────────
-    // We get the system state FIRST because it allows us to short-circuit EVERYTHING if the system is READY.
     const systemState = getSystemState();
+    const overallState = systemState.overallState;
     const isSystemOperationallyReady =
-      systemState.overallState === "READY" ||
-      systemState.overallState === "WARMED" ||
-      systemState.overallState === "WARMING" ||
-      systemState.overallState === "DEGRADED";
+      overallState === "READY" ||
+      overallState === "WARMED" ||
+      overallState === "WARMING" ||
+      overallState === "DEGRADED";
 
     const isTestMode =
       process.env.TEST_MODE === "true" ||

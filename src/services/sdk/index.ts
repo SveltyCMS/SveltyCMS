@@ -122,6 +122,13 @@ export class LocalCMS {
   }
 
   /**
+   * Access the internal content system.
+   */
+  public get content(): any {
+    return this._contentSystem;
+  }
+
+  /**
    * Constructor with backward compatibility for (adapter, contentSystem) signature.
    */
   constructor(

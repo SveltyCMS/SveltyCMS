@@ -43,13 +43,16 @@ export class MongoSystemMethods {
    */
   async get<T>(
     key: string,
-    scope: "user" | "system" = "system",
-    userId?: DatabaseId,
-    tenantId?: string | null,
+    options: {
+      scope?: "user" | "system";
+      userId?: DatabaseId;
+      tenantId?: DatabaseId | null;
+    } = {},
   ): Promise<DatabaseResult<T | null>> {
+    const scope = options.scope || "system";
     try {
       if (scope === "system") {
-        const queryTenantId = tenantId || null;
+        const queryTenantId = options.tenantId || null;
         const setting = await this.SystemSettingModel.findOne({
           key,
           tenantId: queryTenantId,
@@ -57,7 +60,7 @@ export class MongoSystemMethods {
         return { success: true, data: setting ? (setting.value as T) : null };
       }
 
-      if (!userId) {
+      if (!options.userId) {
         return {
           success: false,
           message: "User ID is required for user-scoped preferences.",
@@ -70,7 +73,7 @@ export class MongoSystemMethods {
       }
 
       const userPrefs = await this.SystemPreferencesModel.findOne(
-        { userId: userId.toString() },
+        { userId: options.userId.toString() },
         { [`preferences.${key}`]: 1 },
       ).lean<{
         preferences: Record<string, unknown>;
@@ -105,21 +108,24 @@ export class MongoSystemMethods {
   async set<T>(
     key: string,
     value: T,
-    scope: "user" | "system" = "system",
-    userId?: DatabaseId,
-    category?: string,
-    tenantId?: string | null,
+    options: {
+      scope?: "user" | "system";
+      userId?: DatabaseId;
+      category?: string;
+      tenantId?: DatabaseId | null;
+    } = {},
   ): Promise<DatabaseResult<void>> {
     try {
+      const scope = options.scope || "system";
       if (scope === "system") {
-        const queryTenantId = tenantId || null;
+        const queryTenantId = options.tenantId || null;
         const updateData: Record<string, unknown> = {
           value,
           updatedAt: new Date(),
           tenantId: queryTenantId,
         };
-        if (category) {
-          updateData.category = category;
+        if (options.category) {
+          updateData.category = options.category;
         }
         await this.SystemSettingModel.updateOne(
           { key, tenantId: queryTenantId },
@@ -129,7 +135,7 @@ export class MongoSystemMethods {
         return { success: true, data: undefined };
       }
 
-      if (!userId) {
+      if (!options.userId) {
         return {
           success: false,
           message: "User ID is required for user-scoped preferences.",
@@ -142,7 +148,7 @@ export class MongoSystemMethods {
       }
 
       await this.SystemPreferencesModel.updateOne(
-        { userId: userId.toString() },
+        { userId: options.userId.toString() },
         { $set: { [`preferences.${key}`]: value }, updatedAt: new Date() },
         { upsert: true },
       );
@@ -163,13 +169,16 @@ export class MongoSystemMethods {
   // Deletes a single preference by key
   async delete(
     key: string,
-    scope: "user" | "system" = "system",
-    userId?: DatabaseId,
-    tenantId?: string | null,
+    options: {
+      scope?: "user" | "system";
+      userId?: DatabaseId;
+      tenantId?: DatabaseId | null;
+    } = {},
   ): Promise<DatabaseResult<void>> {
     try {
+      const scope = options.scope || "system";
       if (scope === "system") {
-        const queryTenantId = tenantId || null;
+        const queryTenantId = options.tenantId || null;
         const result = await this.SystemSettingModel.deleteOne({
           key,
           tenantId: queryTenantId,
@@ -182,7 +191,7 @@ export class MongoSystemMethods {
         return { success: true, data: undefined };
       }
 
-      if (!userId) {
+      if (!options.userId) {
         return {
           success: false,
           message: "User ID is required for user-scoped preferences.",
@@ -195,12 +204,14 @@ export class MongoSystemMethods {
       }
 
       const result = await this.SystemPreferencesModel.updateOne(
-        { userId: userId.toString() },
+        { userId: options.userId.toString() },
         { $unset: { [`preferences.${key}`]: "" } },
       );
 
       if (result.modifiedCount === 0) {
-        logger.warn(`User preference '${key}' not found for user '${userId}' during deletion.`);
+        logger.warn(
+          `User preference '${key}' not found for user '${options.userId}' during deletion.`,
+        );
       }
       return { success: true, data: undefined };
     } catch (error) {
@@ -222,17 +233,20 @@ export class MongoSystemMethods {
    */
   async getMany<T>(
     keys: string[],
-    scope: "user" | "system" = "system",
-    userId?: DatabaseId,
-    tenantId?: string | null,
+    options: {
+      scope?: "user" | "system";
+      userId?: DatabaseId;
+      tenantId?: DatabaseId | null;
+    } = {},
   ): Promise<DatabaseResult<Record<string, T>>> {
     try {
       if (keys.length === 0) {
         return { success: true, data: {} };
       }
 
+      const scope = options.scope || "system";
       if (scope === "system") {
-        const queryTenantId = tenantId || null;
+        const queryTenantId = options.tenantId || null;
         const settings = await this.SystemSettingModel.find({
           key: { $in: keys },
           tenantId: queryTenantId,
@@ -247,7 +261,7 @@ export class MongoSystemMethods {
         return { success: true, data: result };
       }
 
-      if (!userId) {
+      if (!options.userId) {
         return {
           success: false,
           message: "User ID is required for user-scoped preferences.",
@@ -268,7 +282,7 @@ export class MongoSystemMethods {
       );
 
       const userPrefs = await this.SystemPreferencesModel.findOne(
-        { userId: userId.toString() },
+        { userId: options.userId.toString() },
         projection,
       ).lean<{
         preferences: Record<string, T>;
@@ -306,13 +320,16 @@ export class MongoSystemMethods {
    */
   async getByCategory<T>(
     category: string,
-    scope: "user" | "system" = "system",
-    userId?: DatabaseId,
-    tenantId?: string | null,
+    options: {
+      scope?: "user" | "system";
+      userId?: DatabaseId;
+      tenantId?: DatabaseId | null;
+    } = {},
   ): Promise<DatabaseResult<Record<string, T>>> {
     try {
+      const scope = options.scope || "system";
       if (scope === "system") {
-        const queryTenantId = tenantId || null;
+        const queryTenantId = options.tenantId || null;
 
         const settings = await this.SystemSettingModel.find({
           category,
@@ -328,7 +345,7 @@ export class MongoSystemMethods {
         return { success: true, data: result };
       }
 
-      if (!userId) {
+      if (!options.userId) {
         return {
           success: false,
           message: "User ID is required for user-scoped preferences.",
@@ -341,7 +358,7 @@ export class MongoSystemMethods {
       }
 
       const userPrefs = await this.SystemPreferencesModel.findOne({
-        userId: userId.toString(),
+        userId: options.userId.toString(),
       }).lean<{ preferences?: Record<string, unknown> }>();
 
       if (!userPrefs?.preferences) {
@@ -478,17 +495,20 @@ export class MongoSystemMethods {
    */
   async deleteMany(
     keys: string[],
-    scope: "user" | "system" = "system",
-    userId?: DatabaseId,
-    tenantId?: string | null,
+    options: {
+      scope?: "user" | "system";
+      userId?: DatabaseId;
+      tenantId?: DatabaseId | null;
+    } = {},
   ): Promise<DatabaseResult<void>> {
+    const scope = options.scope || "system";
     try {
       if (keys.length === 0) {
         return { success: true, data: undefined };
       }
 
       if (scope === "system") {
-        const queryTenantId = tenantId || null;
+        const queryTenantId = options.tenantId || null;
         await this.SystemSettingModel.deleteMany({
           key: { $in: keys },
           tenantId: queryTenantId,
@@ -496,7 +516,7 @@ export class MongoSystemMethods {
         return { success: true, data: undefined };
       }
 
-      if (!userId) {
+      if (!options.userId) {
         return {
           success: false,
           message: "User ID is required for user-scoped preferences.",
@@ -517,7 +537,7 @@ export class MongoSystemMethods {
       );
 
       await this.SystemPreferencesModel.updateOne(
-        { userId: userId.toString() },
+        { userId: options.userId.toString() },
         { $unset: unsetFields },
       );
       return { success: true, data: undefined };
@@ -536,18 +556,21 @@ export class MongoSystemMethods {
 
   // Clears all preferences within a given scope
   async clear(
-    scope: "user" | "system" = "system",
-    userId?: DatabaseId,
-    tenantId?: string | null,
+    options: {
+      scope?: "user" | "system";
+      userId?: DatabaseId;
+      tenantId?: DatabaseId | null;
+    } = {},
   ): Promise<DatabaseResult<void>> {
+    const scope = options.scope || "system";
     try {
       if (scope === "system") {
-        const queryTenantId = tenantId === undefined ? null : tenantId;
+        const queryTenantId = options.tenantId === undefined ? null : options.tenantId;
         await this.SystemSettingModel.deleteMany({ tenantId: queryTenantId });
         return { success: true, data: undefined };
       }
 
-      if (!userId && !tenantId) {
+      if (!options.userId && !options.tenantId) {
         return {
           success: false,
           message:
@@ -556,10 +579,10 @@ export class MongoSystemMethods {
         };
       }
 
-      if (userId) {
-        await this.SystemPreferencesModel.deleteMany({ userId: userId.toString() });
-      } else if (tenantId !== undefined) {
-        await this.SystemPreferencesModel.deleteMany({ tenantId: tenantId });
+      if (options.userId) {
+        await this.SystemPreferencesModel.deleteMany({ userId: options.userId.toString() });
+      } else if (options.tenantId !== undefined) {
+        await this.SystemPreferencesModel.deleteMany({ tenantId: options.tenantId });
       } else {
         return {
           success: false,

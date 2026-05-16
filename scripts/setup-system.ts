@@ -102,7 +102,25 @@ async function postAction(action: string, payload: Record<string, any>) {
       }
 
       const json = await res.json();
-      return json;
+
+      // 🚀 HARDENING: SvelteKit actions return JSON with "type" and "data"
+      // "data" is often a JSON string that we need to parse to check internal success.
+      let result = json;
+      if (typeof json.data === "string") {
+        try {
+          result = JSON.parse(json.data);
+        } catch {
+          // data is not a JSON string, use the outer object
+        }
+      } else if (json.data) {
+        result = json.data;
+      }
+
+      if (json.type === "failure" || result.success === false) {
+        throw new Error(result.message || result.error || "Action failed without message");
+      }
+
+      return result;
     } catch (err: any) {
       if (attempt === cfg.retry.maxAttempts) throw err;
 

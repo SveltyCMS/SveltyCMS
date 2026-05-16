@@ -248,11 +248,17 @@ export const schemaTransformer =
 
           // 1. Ensure _id exists (Unique identity for this collection)
           if (!hasProperty(updated, "_id")) {
+            // 🚀 DETERMINISTIC ID: Use the filename (slugified) instead of a random UUID
+            // This ensures stable table names across compilations.
+            const fileName = sourceFile.fileName;
+            const baseName = fileName.split(/[\\/]/).pop() || "unknown";
+            const slugId = baseName
+              .replace(/\.(ts|js|svelte)$/, "")
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, "");
+
             updated = ts.factory.updateObjectLiteralExpression(updated, [
-              ts.factory.createPropertyAssignment(
-                "_id",
-                ts.factory.createStringLiteral(generateUUID()),
-              ),
+              ts.factory.createPropertyAssignment("_id", ts.factory.createStringLiteral(slugId)),
               ...updated.properties,
             ]);
           }

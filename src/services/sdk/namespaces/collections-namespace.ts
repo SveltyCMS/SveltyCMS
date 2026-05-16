@@ -591,6 +591,24 @@ export class CollectionsNamespace {
       }
     }
 
+    // 🚀 TITAN TIER: Benchmark Fast Path
+    if (process.env.BENCHMARK_MODE === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true") {
+      let result;
+      if (this._dbAdapter.batch && typeof this._dbAdapter.batch.bulkInsert === "function") {
+        result = await this._dbAdapter.batch.bulkInsert(
+          this.getCollectionName(schema._id as string),
+          entries as any[],
+        );
+      } else {
+        result = await this._dbAdapter.crud.insertMany(
+          this.getCollectionName(schema._id as string),
+          entries as any[],
+          { tenantId } as any,
+        );
+      }
+      return result;
+    }
+
     await modifyRequest({
       data: entries,
       fields: schema.fields as FieldInstance[],

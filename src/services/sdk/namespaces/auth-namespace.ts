@@ -423,14 +423,17 @@ export class TokensNamespace {
         if (!totalItemsRes.success) throw new AppError(totalItemsRes.message, 500);
 
         return {
+          success: true,
           data: tokensRes.data,
-          pagination: {
-            totalItems: totalItemsRes.data,
-            page,
-            limit,
-            totalPages: Math.ceil((totalItemsRes.data as number) / limit),
+          meta: {
+            pagination: {
+              totalItems: totalItemsRes.data,
+              page,
+              limit,
+              totalPages: Math.ceil((totalItemsRes.data as number) / limit),
+            },
           },
-        };
+        } as DatabaseResult<any>;
       },
       { collection: "tokens" },
     );
@@ -660,7 +663,7 @@ export class TokensNamespace {
   async resolve(text: string, _user: any, tenantId: DatabaseId, locale: string) {
     // Implementation to satisfy the API and tests
     const result = await this.list({ tenantId: tenantId as any, search: text });
-    if (result.data && result.data.length > 0) {
+    if (result.success && result.data && result.data.length > 0) {
       return result.data[0];
     }
     return { text, tenantId, locale, status: "unresolved" };

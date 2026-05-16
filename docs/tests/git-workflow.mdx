@@ -90,15 +90,30 @@ We have two primary, long-lived branches: `main` and `next`.
 
 Our automated release process depends on a strict commit message format. We use the **Conventional Commits** specification.
 
-### Format
+### Commit Message Model (Conventional Commits + TQA)
+
+We follow an enhanced **Conventional Commits** specification to maintain a clear Technical Ledger.
+
+**Format:**
 
 ```
-<type>(<scope>): <subject>
-
-[optional body]
-
-[optional footer]
+<type>(<scope>): <subject> [TQA-Verified]
 ```
+
+**Types:**
+
+- `tqa` - **Resilience & Integrity**: Adding chaos tests, state-machine audits, or GDPR verification.
+- `perf` - **Throughput & Latency**: Memory leak fixes, JIT optimizations, and benchmark improvements.
+- `feat` - **Feature**: New functionality.
+- `fix` - **Stability**: Bug fixes.
+- `refactor` - **Clean Code**: Internal restructuring without behavior changes.
+
+**Mandatory Scopes:**
+
+- `resilience`: For any changes to circuit breakers or failover logic.
+- `temporal`: For timezone/date normalization changes.
+- `concurrency`: For locking and atomic transaction changes.
+- `ledger`: For documentation and benchmark result updates.
 
 ---
 

@@ -183,9 +183,28 @@ async function getDbInit() {
  * Centralized, idempotent system initialization.
  */
 export async function ensureFullInitialization(): Promise<any | null> {
-  // 1. Double-Check Lock
+  // 🚀 HARDENING: Double-Check Locking with Connectivity Guard
+  // If we have an existing promise, we must ensure it still represents a live connection.
   let existingPromise = getGlobal<Promise<any>>(INIT_PROMISE_KEY);
-  if (existingPromise) return existingPromise;
+  if (existingPromise) {
+    const phase = getBootPhase();
+    // If we are currently initializing, we must wait for it.
+    if (phase === "INITIALIZING") return existingPromise;
+
+    // If we are READY but the adapter lost connection, we need to re-initialize.
+    const adapter = getGlobal<DatabaseAdapter>(ADAPTER_KEY);
+    if (adapter && adapter.isConnected() && phase === "READY") {
+      return existingPromise;
+    }
+
+    // If we reached here, the previous initialization is either FAILED or the connection was lost.
+    // We fall through to start a new initialization cycle.
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      logger.info(
+        `[Init] Re-initializing detected. Phase: ${phase}, Connected: ${adapter?.isConnected()}`,
+      );
+    }
+  }
 
   const initPromise = (async () => {
     try {

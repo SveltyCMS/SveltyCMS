@@ -14,17 +14,13 @@ import * as utils from "../core/relational-utils";
 import { AuthModule } from "./auth-module";
 import { ContentModule } from "./content-module";
 import { MediaModule } from "./media-module";
+import { RelationalSystemModule } from "../core/relational-system";
 import { BatchModule } from "./batch-module";
 import { CollectionModule } from "./collection-module";
-import { PreferencesModule } from "./preferences-module";
-import { VirtualFoldersModule } from "./virtual-folders-module";
-import { ThemesModule } from "./themes-module";
-import { WidgetsModule } from "./widgets-module";
-import { WebsiteTokensModule } from "./tokens-module";
-import { JobsModule } from "./jobs-module";
 import { PerformanceModule } from "./performance-module";
 import { CacheModule } from "./cache-module";
 import { PostgresQueryBuilder } from "./postgres-query-builder";
+import * as schema from "./schema";
 
 export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter {
   public readonly type = "postgresql";
@@ -51,21 +47,7 @@ export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter
   }
 
   public get system(): ISystemAdapter {
-    return (this._system ??= {
-      preferences: new PreferencesModule(this),
-      virtualFolder: new VirtualFoldersModule(this),
-      themes: new ThemesModule(this),
-      widgets: new WidgetsModule(this),
-      websiteTokens: new WebsiteTokensModule(this),
-      jobs: new JobsModule(this),
-      tenants: {
-        create: async (_tenant: any) => this.notImplemented("system.tenants.create"),
-        getById: async (_tenantId: any) => this.notImplemented("system.tenants.getById"),
-        update: async (_tenantId: any, _data: any) => this.notImplemented("system.tenants.update"),
-        delete: async (_tenantId: any) => this.notImplemented("system.tenants.delete"),
-        list: async (_options: any) => this.notImplemented("system.tenants.list"),
-      },
-    } as any);
+    return (this._system ??= new RelationalSystemModule(this, schema));
   }
 
   public get monitoring(): IMonitoringAdapter {

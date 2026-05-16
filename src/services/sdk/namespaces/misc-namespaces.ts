@@ -337,18 +337,26 @@ export class SystemNamespace {
   }
   async getPreferences(
     keys: string[],
-    options: { userId?: string; scope?: "user" | "system" } = {},
+    options: { userId?: string; scope?: "user" | "system"; tenantId?: string } = {},
   ) {
-    const { userId, scope = "system" } = options;
-    return this._dbAdapter.system.preferences.getMany(keys, scope, userId as DatabaseId);
+    const { userId, scope = "system", tenantId } = options;
+    return this._dbAdapter.system.preferences.getMany(keys, {
+      scope,
+      userId: userId as DatabaseId,
+      tenantId: tenantId as DatabaseId,
+    });
   }
   async setPreference(
     key: string,
     value: any,
-    options: { userId?: string; scope?: "user" | "system" } = {},
+    options: { userId?: string; scope?: "user" | "system"; tenantId?: string } = {},
   ) {
-    const { userId, scope = "system" } = options;
-    return this._dbAdapter.system.preferences.set(key, value, scope, userId as DatabaseId);
+    const { userId, scope = "system", tenantId } = options;
+    return this._dbAdapter.system.preferences.set(key, value, {
+      scope,
+      userId: userId as DatabaseId,
+      tenantId: tenantId as DatabaseId,
+    });
   }
   async sendMail(params: {
     recipientEmail: string;

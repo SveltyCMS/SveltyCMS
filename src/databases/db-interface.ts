@@ -868,29 +868,37 @@ export interface ISystemAdapter {
   preferences: {
     get<T>(
       key: string,
-      scope?: "user" | "system",
-      userId?: DatabaseId,
-      options?: BaseQueryOptions,
+      options?: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      },
     ): Promise<DatabaseResult<T | null>>;
     getMany<T>(
       keys: string[],
-      scope?: "user" | "system",
-      userId?: DatabaseId,
-      options?: BaseQueryOptions,
+      options?: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      },
     ): Promise<DatabaseResult<Record<string, T>>>;
     getByCategory<T>(
       category: string,
-      scope?: "user" | "system",
-      userId?: DatabaseId,
-      options?: BaseQueryOptions,
+      options?: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      },
     ): Promise<DatabaseResult<Record<string, T>>>;
     set<T>(
       key: string,
       value: T,
-      scope?: "user" | "system",
-      userId?: DatabaseId,
-      category?: string,
-      options?: BaseQueryOptions,
+      options?: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        category?: string;
+        tenantId?: DatabaseId | null;
+      },
     ): Promise<DatabaseResult<void>>;
     setMany<T>(
       preferences: Array<{
@@ -904,21 +912,25 @@ export interface ISystemAdapter {
     ): Promise<DatabaseResult<void>>;
     delete(
       key: string,
-      scope?: "user" | "system",
-      userId?: DatabaseId,
-      options?: BaseQueryOptions,
+      options?: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      },
     ): Promise<DatabaseResult<void>>;
     deleteMany(
       keys: string[],
-      scope?: "user" | "system",
-      userId?: DatabaseId,
-      options?: BaseQueryOptions,
+      options?: {
+        scope?: "user" | "system";
+        userId?: DatabaseId;
+        tenantId?: DatabaseId | null;
+      },
     ): Promise<DatabaseResult<void>>;
-    clear(
-      scope?: "user" | "system",
-      userId?: DatabaseId,
-      options?: BaseQueryOptions,
-    ): Promise<DatabaseResult<void>>;
+    clear(options?: {
+      scope?: "user" | "system";
+      userId?: DatabaseId;
+      tenantId?: DatabaseId | null;
+    }): Promise<DatabaseResult<void>>;
   };
   virtualFolder: {
     create(

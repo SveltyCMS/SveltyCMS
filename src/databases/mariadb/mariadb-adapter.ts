@@ -22,12 +22,9 @@
 
 import type {
   BaseEntity,
-  DatabaseId,
   DatabaseResult,
   IDBAdapter,
-  PaginationOption,
   QueryBuilder,
-  Tenant,
   IAuthAdapter,
   IContentAdapter,
   IMediaAdapter,
@@ -39,19 +36,13 @@ import { CollectionModule } from "./collection-module";
 import { AuthModule } from "./auth-module";
 import { ContentModule } from "./content-module";
 import { MediaModule } from "./media-module";
-import { PreferencesModule } from "./preferences-module";
-import { JobsModule } from "./jobs-module";
-import { VirtualFoldersModule } from "./virtual-folders-module";
-import { ThemesModule } from "./themes-module";
-import { WebsiteTokensModule } from "./tokens-module";
-import { WidgetsModule } from "./widgets-module";
+import { RelationalSystemModule } from "../core/relational-system";
 import { BatchModule } from "./batch-module";
 
 import { CacheModule } from "./cache-module";
 import { PerformanceModule } from "./performance-module";
 import { MariaDBQueryBuilder } from "./maria-db-query-builder";
-import type * as schema from "./schema";
-import * as utils from "../core/relational-utils";
+import * as schema from "./schema";
 import { AdapterCore } from "./adapter-core";
 
 export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
@@ -79,110 +70,7 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
   }
 
   public get system(): ISystemAdapter {
-    return (this._system ??= {
-      preferences: new PreferencesModule(this),
-      virtualFolder: new VirtualFoldersModule(this),
-      themes: new ThemesModule(this),
-      widgets: new WidgetsModule(this),
-      websiteTokens: new WebsiteTokensModule(this),
-      jobs: new JobsModule(this),
-      tenants: {
-        create: async (tenant: any) =>
-          this.wrap(async () => {
-            const id = (tenant._id || utils.generateId()) as string;
-            const now = new Date();
-            const values: typeof schema.tenants.$inferInsert = {
-              ...tenant,
-              _id: id,
-              createdAt: now,
-              updatedAt: now,
-            };
-            await this.pool!.query(
-              `INSERT INTO tenants (_id, name, ownerId, status, plan, quota, \`usage\`, settings, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [
-                id,
-                values.name,
-                values.ownerId,
-                values.status,
-                values.plan,
-                JSON.stringify(values.quota),
-                JSON.stringify(values.usage),
-                JSON.stringify(values.settings),
-                now,
-                now,
-              ],
-            );
-            const [rows] = await this.pool!.query("SELECT * FROM tenants WHERE _id = ?", [id]);
-            const result = (rows as Record<string, unknown>[])[0];
-            return utils.parseJsonField(result, [
-              "quota",
-              "usage",
-              "settings",
-            ]) as unknown as Tenant;
-          }, "TENANT_CREATE_FAILED"),
-        getById: async (tenantId: DatabaseId) =>
-          this.wrap(async () => {
-            const [rows] = await this.pool!.query("SELECT * FROM tenants WHERE _id = ?", [
-              tenantId as string,
-            ]);
-            const result = (rows as Record<string, unknown>[])[0];
-            if (!result) return null;
-            return utils.parseJsonField(result, [
-              "quota",
-              "usage",
-              "settings",
-            ]) as unknown as Tenant;
-          }, "TENANT_GET_FAILED"),
-        update: async (tenantId: DatabaseId, data: any) =>
-          this.wrap(async () => {
-            const now = new Date();
-            const setClauses: string[] = ["updatedAt = ?"];
-            const values: unknown[] = [now];
-            for (const [key, value] of Object.entries(data)) {
-              if (key === "_id") continue;
-              setClauses.push(`\`${key}\` = ?`);
-              values.push(
-                ["quota", "usage", "settings"].includes(key) ? JSON.stringify(value) : value,
-              );
-            }
-            values.push(tenantId as string);
-            await this.pool!.query(
-              `UPDATE tenants SET ${setClauses.join(", ")} WHERE _id = ?`,
-              values,
-            );
-            const [rows] = await this.pool!.query("SELECT * FROM tenants WHERE _id = ?", [
-              tenantId as string,
-            ]);
-            const result = (rows as Record<string, unknown>[])[0];
-            return utils.parseJsonField(result, [
-              "quota",
-              "usage",
-              "settings",
-            ]) as unknown as Tenant;
-          }, "TENANT_UPDATE_FAILED"),
-        delete: async (tenantId: DatabaseId) =>
-          this.wrap(async () => {
-            await this.pool!.query("DELETE FROM tenants WHERE _id = ?", [tenantId as string]);
-          }, "TENANT_DELETE_FAILED"),
-        list: async (options?: PaginationOption) =>
-          this.wrap(async () => {
-            let query = "SELECT * FROM tenants";
-            const params: unknown[] = [];
-            if (options?.limit) {
-              query += " LIMIT ?";
-              params.push(options.limit);
-            }
-            if (options?.offset) {
-              query += " OFFSET ?";
-              params.push(options.offset);
-            }
-            const [rows] = await this.pool!.query(query, params);
-            return (rows as Record<string, unknown>[]).map((r) =>
-              utils.parseJsonField(r, ["quota", "usage", "settings"]),
-            ) as unknown as Tenant[];
-          }, "TENANT_LIST_FAILED"),
-      },
-    } as any);
+    return (this._system ??= new RelationalSystemModule(this, schema));
   }
 
   public get monitoring(): IMonitoringAdapter {

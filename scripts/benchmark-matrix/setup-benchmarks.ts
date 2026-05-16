@@ -44,7 +44,7 @@ import { LocalCMS } from "@src/services/sdk";
 
 export const AUTHOR_COUNT = Number(process.env.AUTHOR_COUNT ?? 10);
 export const POSTS_PER_AUTHOR = Number(process.env.POSTS_PER_AUTHOR ?? 5);
-export const TENANT_ID = process.env.TENANT_ID || null;
+export const TENANT_ID = process.env.TENANT_ID || "default-tenant";
 
 const COLLECTIONS = {
   AUTHORS: {
@@ -81,8 +81,8 @@ const COLLECTIONS = {
     ],
   },
   REDIRECTS: {
-    _id: "redirects",
-    name: "redirects",
+    _id: "bench_redirects",
+    name: "bench_redirects",
     icon: "mdi:link-out",
     fields: [
       { label: "From", db_fieldName: "source", widget: { Name: "Input" }, required: true },
@@ -148,43 +148,51 @@ function log(msg: string): void {
  * Returns the resolved IDs for authors and posts.
  */
 async function setupCollections(cms: LocalCMS) {
-  log("Registering benchmark collections with server...");
+  const schemas = Object.values(COLLECTIONS);
 
-  const list = Object.values(COLLECTIONS);
-  for (const schema of list) {
-    // 🚀 HYPER-ROBUST REGISTRATION: Use the server's testing API to ensure the
-    // server is 1000% aware of the collection before we start the benchmark.
-    if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
-      try {
-        await fetch(`${process.env.API_BASE_URL}/api/testing`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-test-secret": process.env.TEST_API_SECRET,
-          },
-          body: JSON.stringify({
-            action: "create-collection",
-            collectionId: schema._id,
-            schema: schema,
-          }),
-          signal: AbortSignal.timeout(15000), // Increased for PostgreSQL/Windows
-        });
-      } catch (err: any) {
-        log(`  ⚠ Server registration error for ${schema._id}: ${err.message}`);
-      }
-    }
-
-    // Still register locally in the setup process's CMS instance
+  // 🚀 PREFER HTTP API: Avoid local locks if server is already running
+  if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
     try {
-      await cms.db.collection.createModel(schema as any);
+      log(`Registering ${schemas.length} benchmark collections via HTTP API...`);
+      const res = await fetch(`${process.env.API_BASE_URL}/api/testing`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-mode": "true",
+          "x-test-secret": process.env.TEST_API_SECRET!,
+          "x-tenant-id": TENANT_ID,
+        },
+        body: JSON.stringify({
+          action: "bulk-create-collections",
+          schemas: schemas,
+        }),
+        signal: AbortSignal.timeout(30000), // High timeout for bulk operation
+      });
 
-      // 🚀 SDK HYDRATION: Manually register the schema in the local SDK's cache
-      // so that seeding works even if reconciliation is slightly delayed.
-      if (typeof (cms.collections as any).registerSchema === "function") {
-        (cms.collections as any).registerSchema(schema._id, schema, TENANT_ID as any);
+      if (res.ok) {
+        log("   ✅ Collections provisioned via API.");
+      } else {
+        const body = await res.text();
+        log(`   ⚠️ API provisioning FAILED (${res.status}): ${body.substring(0, 100)}`);
+        // Fall through to local fallback if API failed
       }
-    } catch {
-      /* ignore duplicates */
+    } catch (e: any) {
+      log(`   ⚠️ API connection failed: ${e.message}. Falling back to local SDK...`);
+    }
+  }
+
+  // FALLBACK: Local SDK (Only if API not available or failed)
+  // We only do this if we ARE NOT running against a background server to avoid lock contention
+  if (!process.env.API_BASE_URL) {
+    for (const schema of schemas) {
+      try {
+        await cms.db.collection.createModel(schema as any);
+        if (typeof (cms.collections as any).registerSchema === "function") {
+          (cms.collections as any).registerSchema(schema._id, schema, TENANT_ID as any);
+        }
+      } catch {
+        /* ignore duplicates */
+      }
     }
   }
 
@@ -201,8 +209,11 @@ async function setupCollections(cms: LocalCMS) {
     if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
       try {
         const res = await fetch(`${process.env.API_BASE_URL}/api/content/collections`, {
-          headers: { "x-test-secret": process.env.TEST_API_SECRET },
-          signal: AbortSignal.timeout(10000), // Increased
+          headers: {
+            "x-test-secret": process.env.TEST_API_SECRET,
+            "x-tenant-id": TENANT_ID,
+          },
+          signal: AbortSignal.timeout(10000),
         });
         if (res.ok) {
           const data = await res.json();
@@ -213,30 +224,44 @@ async function setupCollections(cms: LocalCMS) {
       }
     }
 
-    // Fallback to local SDK if REST failed
-    if (collections.length === 0) {
+    // Fallback to local SDK if REST failed or returned nothing
+    if (collections.length === 0 && cms) {
+      // 🚀 FORCE REFRESH: Ensure the local content system cache is updated with DB schemas
+      if (typeof cms.content?.refresh === "function") {
+        await cms.content.refresh(TENANT_ID as any, false);
+      }
       collections = await cms.collections.list({ tenantId: TENANT_ID as any });
     }
 
-    authors = collections.find(
-      (c: any) => c.name === "benchmark_authors" || c._id === "benchmark_authors",
-    );
-    posts = collections.find(
-      (c: any) => c.name === "benchmark_posts" || c._id === "benchmark_posts",
-    );
-    const acid = collections.find((c: any) => c.name === "bench_acid" || c._id === "bench_acid");
+    const findCollection = (key: string) => {
+      const search = key.toLowerCase().replace("benchmark_", "").replace("bench_", "");
+      return collections.find((c: any) => {
+        const name = (c.name || "").toLowerCase().replace("benchmark_", "").replace("bench_", "");
+        const id = (c._id || "").toLowerCase().replace("benchmark_", "").replace("bench_", "");
+        return (
+          name === search || id === search || name === key.toLowerCase() || id === key.toLowerCase()
+        );
+      });
+    };
+
+    authors = findCollection("benchmark_authors");
+    posts = findCollection("benchmark_posts");
+    const acid = findCollection("bench_acid");
 
     if (authors && posts && acid) {
       // 🚀 PERFECT SETUP VERIFICATION: Ensure tables actually exist in the DB
       try {
-        await cms.db.crud.count("benchmark_authors", { tenantId: TENANT_ID as any });
-        await cms.db.crud.count("benchmark_posts", { tenantId: TENANT_ID as any });
-        await cms.db.crud.count("bench_acid", { tenantId: TENANT_ID as any });
+        await cms.db.crud.count(authors._id || "benchmark_authors", { tenantId: TENANT_ID as any });
+        await cms.db.crud.count(posts._id || "benchmark_posts", { tenantId: TENANT_ID as any });
+        await cms.db.crud.count(acid._id || "bench_acid", { tenantId: TENANT_ID as any });
 
         log(`✅ Collections reconciled on attempt ${attempt}.`);
         break;
-      } catch {
+      } catch (err: any) {
         /* Table might still be creating */
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          log(`  ⚠ Table verification failed: ${err.message}`);
+        }
       }
     }
 
@@ -276,85 +301,137 @@ async function notifyServer() {
 }
 
 async function seedData(cms: any, authorsId: string, postsId: string): Promise<void> {
-  log(`Seeding ${AUTHOR_COUNT} authors with ${POSTS_PER_AUTHOR} posts each...`);
+  const maxRetries = 10;
+  let retryCount = 0;
 
-  const authors = Array.from({ length: AUTHOR_COUNT }, (_, i) => ({
-    _id: `author-${i + 1}`,
-    name: `Author ${i + 1}`,
-    bio: `Bio for author ${i + 1}`,
-  }));
+  while (retryCount < maxRetries) {
+    try {
+      const authors = Array.from({ length: AUTHOR_COUNT }, (_, i) => ({
+        _id: `author-${i + 1}`,
+        name: `Author ${i + 1}`,
+        bio: `Bio for author ${i + 1}`,
+      }));
 
-  const authorResult = await cms.collections.bulkCreate(authorsId, authors, {
-    system: true,
-    tenantId: TENANT_ID as any,
-  });
+      // 🚀 VERIFY: Ensure tables are actually ready before seeding
+      const collectionIds = [authorsId, postsId, COLLECTIONS.STABLE._id, COLLECTIONS.REDIRECTS._id];
+      await verifyTablesExist(cms, collectionIds, TENANT_ID);
 
-  if (!authorResult.success) {
-    throw new Error(`Failed to seed authors: ${authorResult.message}`);
+      log(`   [SEED] Inserting ${authors.length} authors...`);
+      const authorResult = await cms.collections.bulkCreate(authorsId, authors, {
+        system: true,
+        tenantId: TENANT_ID as any,
+      });
+
+      if (!authorResult.success) {
+        throw new Error(`Failed to seed authors: ${authorResult.message}`);
+      }
+
+      const posts = authors.flatMap((author, ai) =>
+        Array.from({ length: POSTS_PER_AUTHOR }, (_, pi) => ({
+          title: `Post ${pi + 1} by Author ${ai + 1}`,
+          author: author._id,
+        })),
+      );
+
+      log(`   [SEED] Inserting ${posts.length} posts...`);
+      const postResult = await cms.collections.bulkCreate(postsId, posts, {
+        system: true,
+        tenantId: TENANT_ID as any,
+      });
+
+      if (!postResult.success) {
+        throw new Error(`Failed to seed posts: ${postResult.message}`);
+      }
+
+      // 🚀 Seed STABLE collection entry
+      const stableEntry = {
+        _id: "bench-shared-001",
+        title: "Stable Benchmark Entry",
+        content: "This is a stable entry for REST and API performance testing.",
+      };
+
+      const stableResult = await cms.collections.create(COLLECTIONS.STABLE._id, stableEntry, {
+        system: true,
+        tenantId: TENANT_ID as any,
+      });
+
+      if (!stableResult.success) {
+        throw new Error(`Failed to seed stable entry: ${stableResult.message}`);
+      }
+
+      // 🚀 Seed REDIRECTS collection entries
+      const redirects = [
+        {
+          _id: "bench-redirect-1",
+          from: "/old-path-1",
+          to: "/new-path-1",
+          type: 301,
+          tenantId: "default",
+        },
+        {
+          _id: "bench-redirect-2",
+          from: "/old-path-2",
+          to: "/new-path-2",
+          type: 301,
+          tenantId: "default",
+        },
+      ];
+
+      log(`   [SEED] Inserting redirects...`);
+      const redirectResult = await cms.collections.bulkCreate(
+        COLLECTIONS.REDIRECTS._id,
+        redirects,
+        {
+          system: true,
+          tenantId: TENANT_ID as any,
+        },
+      );
+
+      if (!redirectResult.success) {
+        throw new Error(`Failed to seed redirects: ${redirectResult.message}`);
+      }
+
+      log(
+        `Successfully seeded ${authors.length} authors, ${posts.length} posts, stable entry, and ${redirects.length} redirects`,
+      );
+      return; // Success!
+    } catch (err: any) {
+      if (
+        err.message.includes("database is locked") ||
+        err.message.includes("NOT_CONNECTED") ||
+        err.message.includes("Collection model not found")
+      ) {
+        retryCount++;
+        const delay = 1000 * retryCount;
+        log(`   [RETRY] DB Busy/Reconciling (${err.message}). Waiting ${delay}ms...`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      throw err;
+    }
   }
+}
 
-  const posts = authors.flatMap((author, ai) =>
-    Array.from({ length: POSTS_PER_AUTHOR }, (_, pi) => ({
-      title: `Post ${pi + 1} by Author ${ai + 1}`,
-      author: author._id,
-    })),
-  );
-
-  const postResult = await cms.collections.bulkCreate(postsId, posts, {
-    system: true,
-    tenantId: TENANT_ID as any,
-  });
-
-  if (!postResult.success) {
-    throw new Error(`Failed to seed posts: ${postResult.message}`);
+/**
+ * 🚀 HARDENING: Proactive table existence verification.
+ * Prevents race conditions between DDL registration and DML seeding.
+ */
+async function verifyTablesExist(cms: any, collectionIds: string[], tenantId: string | null) {
+  for (const id of collectionIds) {
+    let exists = false;
+    for (let i = 0; i < 20; i++) {
+      try {
+        await cms.db.collection.getModel(id);
+        exists = true;
+        break;
+      } catch {
+        // Force a tiny reconciliation pulse
+        if (i % 5 === 0) await cms.collections.refresh(tenantId, true);
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    }
+    if (!exists) throw new Error(`Collection model not found: ${id} (Verification Timeout)`);
   }
-
-  // 🚀 Seed STABLE collection entry
-  const stableEntry = {
-    _id: "bench-shared-001",
-    title: "Stable Benchmark Entry",
-    content: "This is a stable entry for REST and API performance testing.",
-  };
-
-  const stableResult = await cms.collections.create(COLLECTIONS.STABLE._id, stableEntry, {
-    system: true,
-    tenantId: TENANT_ID as any,
-  });
-
-  if (!stableResult.success) {
-    throw new Error(`Failed to seed stable entry: ${stableResult.message}`);
-  }
-
-  // 🚀 Seed REDIRECTS collection entries
-  const redirects = [
-    {
-      _id: "bench-redirect-1",
-      from: "/old-path-1",
-      to: "/new-path-1",
-      type: 301,
-      tenantId: "default",
-    },
-    {
-      _id: "bench-redirect-2",
-      from: "/old-path-2",
-      to: "/new-path-2",
-      type: 301,
-      tenantId: "default",
-    },
-  ];
-
-  const redirectResult = await cms.collections.bulkCreate(COLLECTIONS.REDIRECTS._id, redirects, {
-    system: true,
-    tenantId: TENANT_ID as any,
-  });
-
-  if (!redirectResult.success) {
-    throw new Error(`Failed to seed redirects: ${redirectResult.message}`);
-  }
-
-  log(
-    `Successfully seeded ${authors.length} authors, ${posts.length} posts, stable entry, and ${redirects.length} redirects`,
-  );
 }
 
 async function provisionAdmin(db: any) {
@@ -383,6 +460,143 @@ export async function main(): Promise<void> {
   try {
     log("Starting benchmark data setup...");
 
+    const clearOnly = process.argv.includes("--clear-only");
+    const force = process.argv.includes("--force");
+
+    // 🚀 HYPER-ISOLATION: If API_BASE_URL is present, perform ALL setup via HTTP
+    // This prevents the setup script from opening the SQLite file while the server is running.
+    if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
+      log(`🚀 [HyperIsolation] Using Remote API for setup: ${process.env.API_BASE_URL}`);
+
+      if (clearOnly || force) {
+        log("   → Triggering remote database reset...");
+        await fetch(`${process.env.API_BASE_URL}/api/testing`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-test-secret": process.env.TEST_API_SECRET,
+          },
+          body: JSON.stringify({ action: "reset" }),
+        });
+        // Wait for system to settle after reset
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+
+      // 1. Provision collections individually (resilient to old server builds)
+      log("   → Provisioning 8 benchmark collections...");
+      const schemas = Object.values(COLLECTIONS);
+      for (const schema of schemas) {
+        const res = await fetch(`${process.env.API_BASE_URL}/api/testing`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-test-secret": process.env.TEST_API_SECRET!,
+            "x-tenant-id": TENANT_ID,
+          },
+          body: JSON.stringify({
+            action: "create-collection",
+            schema,
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
+        if (res.ok) log(`      ✅ ${schema._id}`);
+        else log(`      ❌ ${schema._id} (${res.status})`);
+      }
+
+      if (clearOnly) {
+        log("✅ Remote database cleared.");
+        process.exit(0);
+      }
+
+      // 2. High-Performance Seeding via Bulk API
+      log("   → Seeding 100% accurate benchmark data...");
+
+      // Authors
+      const authors = Array.from({ length: AUTHOR_COUNT }, (_, i) => ({
+        _id: `author-${i + 1}`,
+        name: `Author ${i + 1}`,
+        bio: `Bio for author ${i + 1}`,
+        tenantId: TENANT_ID,
+      }));
+      await fetch(`${process.env.API_BASE_URL}/api/collections/benchmark_authors/bulk`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-secret": process.env.TEST_API_SECRET!,
+          "x-tenant-id": TENANT_ID,
+        },
+        body: JSON.stringify(authors),
+      });
+
+      // Posts
+      const posts = authors.flatMap((author, ai) =>
+        Array.from({ length: POSTS_PER_AUTHOR }, (_, pi) => ({
+          title: `Post ${pi + 1} by Author ${ai + 1}`,
+          author: author._id,
+          tenantId: TENANT_ID,
+        })),
+      );
+      await fetch(`${process.env.API_BASE_URL}/api/collections/benchmark_posts/bulk`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-secret": process.env.TEST_API_SECRET!,
+          "x-tenant-id": TENANT_ID,
+        },
+        body: JSON.stringify(posts),
+      });
+
+      // Stable Entry
+      const stableEntry = {
+        _id: "bench-shared-001",
+        title: "Stable Benchmark Entry",
+        content: "This is a stable entry for REST and API performance testing.",
+        tenantId: TENANT_ID,
+      };
+      await fetch(`${process.env.API_BASE_URL}/api/collections/BenchmarkStable`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-secret": process.env.TEST_API_SECRET!,
+          "x-tenant-id": TENANT_ID,
+        },
+        body: JSON.stringify(stableEntry),
+      });
+
+      // Redirects
+      const redirects = [
+        {
+          _id: "bench-redirect-1",
+          from: "/old-path-1",
+          to: "/new-path-1",
+          type: 301,
+          tenantId: TENANT_ID,
+        },
+        {
+          _id: "bench-redirect-2",
+          from: "/old-path-2",
+          to: "/new-path-2",
+          type: 301,
+          tenantId: TENANT_ID,
+        },
+      ];
+      await fetch(`${process.env.API_BASE_URL}/api/collections/bench_redirects/bulk`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-secret": process.env.TEST_API_SECRET!,
+          "x-tenant-id": TENANT_ID,
+        },
+        body: JSON.stringify(redirects),
+      });
+
+      await notifyServer();
+
+      log(`✅ Remote setup completed successfully.`);
+      process.exit(0);
+    }
+
+    // ─── LOCAL FALLBACK ──────────────────────────────────────────────────────
     // Dynamic imports to ensure proper initialization order
     const { getDb, getDbInitPromise } = await import("@src/databases/db");
     const { LocalCMS } = await import("@src/services/sdk");
@@ -391,9 +605,6 @@ export async function main(): Promise<void> {
 
     const db = getDb();
     if (!db) throw new Error("Database failed to initialize");
-
-    const clearOnly = process.argv.includes("--clear-only");
-    const force = process.argv.includes("--force");
 
     // 🚀 SMART SEEDING: Check if we already have data to avoid redundant setup
     let existingResult: any = null;
@@ -541,7 +752,7 @@ export async function main(): Promise<void> {
 
     // 🚀 SYNC SDK: Ensure local SDK instance is 1000% in sync with the reconciled server state
     if (typeof (cms as any).content?.refresh === "function") {
-      await (cms as any).content.refresh(TENANT_ID as any, true);
+      await (cms as any).content.refresh(TENANT_ID as any, false);
     }
 
     await seedData(cms, authorsCollection._id, postsCollection._id);

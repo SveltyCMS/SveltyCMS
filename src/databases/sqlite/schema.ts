@@ -14,6 +14,13 @@
 
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
+
+// --- Direct Exports from Sub-modules ---
+export { fourOhFourLogs } from "./404Logs";
+export { redirectsMV } from "./seo";
+export { workflowDefinitions, workflowInstances } from "./workflow";
+
+// --- Local Schema Definitions ---
 import { fourOhFourLogs } from "./404Logs";
 import { redirectsMV } from "./seo";
 import { workflowDefinitions, workflowInstances } from "./workflow";
@@ -162,6 +169,7 @@ export const contentNodes = sqliteTable(
     publishedAt: integer("publishedAt", { mode: "timestamp_ms" }),
     isDeleted: integer("isDeleted", { mode: "boolean" }).notNull().default(false),
     deletedAt: integer("deletedAt", { mode: "timestamp_ms" }),
+    source: text("source").notNull().default("filesystem"),
     tenantId: tenantField(),
     ...timestamps,
   },
@@ -233,7 +241,7 @@ export const themes = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    nameIdx: index("name_idx").on(table.name),
+    nameIdx: unique("themes_name_tenant_unique").on(table.name, table.tenantId),
     activeIdx: index("active_idx").on(table.isActive),
     tenantIdx: index("tenant_idx").on(table.tenantId),
   }),

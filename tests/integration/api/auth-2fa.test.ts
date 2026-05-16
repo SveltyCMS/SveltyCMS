@@ -86,6 +86,7 @@ describe("2FA Authentication API - Setup", () => {
     const response = await safeFetch(`${BASE_URL}/api/auth/2fa/setup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      skipTestSecret: true,
     });
 
     expect(response.status).toBe(401);
@@ -135,6 +136,7 @@ describe("2FA Authentication API - Verify Setup", () => {
         verificationCode: "123456",
         backupCodes: [],
       }),
+      skipTestSecret: true,
     });
 
     expect(response.status).toBe(401);
@@ -213,6 +215,7 @@ describe("2FA Authentication API - Backup Codes", () => {
     const response = await safeFetch(`${BASE_URL}/api/auth/2fa/backup-codes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      skipTestSecret: true,
     });
 
     expect(response.status).toBe(401);
@@ -247,6 +250,7 @@ describe("2FA Authentication API - Disable", () => {
       body: JSON.stringify({
         password: testFixtures.users.admin.password,
       }),
+      skipTestSecret: true,
     });
 
     expect(response.status).toBe(401);

@@ -138,7 +138,9 @@ export const _handler = async (event: RequestEvent) => {
 
   // 🛡️ ADAPTER ACQUISITION: Optimized for speed
   let adapter = locals.dbAdapter as any;
-  if (!adapter) {
+
+  // 🚀 HARDENING: If adapter is missing or disconnected (e.g. after reinitialize), refresh it
+  if (!adapter || (typeof adapter.isConnected === "function" && !adapter.isConnected())) {
     if (!isDbConnected()) {
       await getDbInitPromise();
     }

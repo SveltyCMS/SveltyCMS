@@ -1107,7 +1107,10 @@ export async function seedSettings(
   // Test database accessibility
   try {
     // Try a simple getMany operation to test connectivity
-    await dbAdapter.system.preferences.getMany(["HOST_DEV"], "system", undefined, options);
+    await dbAdapter.system.preferences.getMany(["HOST_DEV"], {
+      scope: "system",
+      ...options,
+    });
     logger.debug("Database adapter is accessible");
   } catch (error) {
     logger.error("Database adapter is not accessible:", error);
@@ -1126,12 +1129,11 @@ export async function seedSettings(
 
   for (const setting of allSettings) {
     try {
-      const existing = await dbAdapter.system.preferences.get(
-        setting.key,
-        "system",
-        tenantId as any,
-        options,
-      );
+      const existing = await dbAdapter.system.preferences.get(setting.key, {
+        scope: "system",
+        tenantId: tenantId as any,
+        ...options,
+      });
       if (existing.success && existing.data) {
         existingSettings[setting.key] = existing.data;
       }
@@ -1164,14 +1166,12 @@ export async function seedSettings(
       }
     }
 
-    await dbAdapter.system.preferences.set(
-      setting.key,
-      value,
-      "system",
-      tenantId as any,
+    await dbAdapter.system.preferences.set(setting.key, value, {
+      scope: "system",
+      tenantId: tenantId as any,
       category,
-      options,
-    );
+      ...options,
+    });
   }
 
   logger.info(`✅ Seeded ${settingsToSeed.length} missing settings`);
@@ -1252,14 +1252,12 @@ export async function updateSystemSettings(
     const value = settings[wizardKey];
     if (value !== undefined) {
       const isPrivate = defaultPrivateSettings.some((s) => s.key === dbKey);
-      await dbAdapter.system.preferences.set(
-        dbKey,
-        value,
-        "system",
-        tenantId as any,
-        isPrivate ? "private" : "public",
-        options,
-      );
+      await dbAdapter.system.preferences.set(dbKey, value, {
+        scope: "system",
+        tenantId: tenantId as any,
+        category: isPrivate ? "private" : "public",
+        ...options,
+      });
     }
   });
 
@@ -1288,12 +1286,10 @@ export async function exportSettingsSnapshot(
   // For now, we'll get the known settings keys
   const allSettingKeys = [...defaultPublicSettings, ...defaultPrivateSettings].map((s) => s.key);
 
-  const settingsResult = await dbAdapter.system.preferences.getMany(
-    allSettingKeys,
-    "system",
-    undefined,
-    options,
-  );
+  const settingsResult = await dbAdapter.system.preferences.getMany(allSettingKeys, {
+    scope: "system",
+    ...options,
+  });
 
   if (!settingsResult.success) {
     throw new Error(`Failed to export settings: ${settingsResult.error?.message}`);

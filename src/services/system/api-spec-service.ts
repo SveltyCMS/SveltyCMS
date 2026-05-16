@@ -13,8 +13,8 @@ export class ApiSpecService {
   private static instance: ApiSpecService;
   private baseSpec: any;
 
-  // In-memory L1 cache (Tenant-aware)
-  private l1Cache = new Map<string, { spec: any; timestamp: number }>();
+  // In-memory L1 cache (Tenant-Aware)
+  private l1Cache = new Map<string, { spec: any; specString: string; timestamp: number }>();
   private readonly CACHE_TTL_MS = 300_000; // 5 minutes
 
   private constructor() {
@@ -132,9 +132,13 @@ export class ApiSpecService {
     // 2. Check L2 Global Cache (Redis/Memory)
     try {
       const { cacheService } = await import("@src/databases/cache/cache-service");
-      const l2Cached = await cacheService.get(cacheKey, tenantId);
+      const l2Cached = await cacheService.get<any>(cacheKey, tenantId);
       if (l2Cached) {
-        this.l1Cache.set(l1Key, { spec: l2Cached, timestamp: now });
+        this.l1Cache.set(l1Key, {
+          spec: l2Cached,
+          specString: JSON.stringify(l2Cached),
+          timestamp: now,
+        });
         return l2Cached;
       }
     } catch (err) {
@@ -168,8 +172,8 @@ export class ApiSpecService {
     }
 
     // Update Caches
-    // Finalize L1 cache before returning
-    this.l1Cache.set(l1Key, { spec, timestamp: now });
+    const specString = JSON.stringify(spec);
+    this.l1Cache.set(l1Key, { spec, specString, timestamp: now });
 
     try {
       const { cacheService } = await import("@src/databases/cache/cache-service");

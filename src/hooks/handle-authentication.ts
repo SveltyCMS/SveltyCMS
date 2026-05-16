@@ -47,8 +47,14 @@ let demoModeCached: boolean | null = null;
 let rotationRateLimiter: RateLimiter | null = null;
 
 function getCachedSettings() {
-  if (multiTenantCached === null) multiTenantCached = !!getPrivateSettingSync("MULTI_TENANT");
-  if (demoModeCached === null) demoModeCached = !!getPrivateSettingSync("DEMO");
+  if (multiTenantCached === null) {
+    const val = getPrivateSettingSync("MULTI_TENANT");
+    multiTenantCached = String(val) === "true" || val === true;
+  }
+  if (demoModeCached === null) {
+    const val = getPrivateSettingSync("DEMO");
+    demoModeCached = String(val) === "true" || val === true;
+  }
   return { multiTenant: multiTenantCached, isDemoMode: demoModeCached };
 }
 
@@ -354,41 +360,39 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   const { locals, url, cookies } = event;
   const pathname = url.pathname;
 
-  // Initialize tenant context ONLY if not already set
-  if (!locals.tenantId) locals.tenantId = null as any;
-
-  // 🧪 TEST MODE BYPASS: If cryptographic handshake verified by handleTurboPipeline, skip EVERYTHING.
-  // This must be the very first check to eliminate overhead from CSRF, DB init, and session lookups.
+  // 🧪 TEST MODE BYPASS: Verified early in pipeline, skip everything else
   if ((locals as any).__testBypass === true) {
     return await resolve(event);
   }
 
+  // 🚀 PERFORMANCE: Ultra-fast exit for static assets and internal SvelteKit chunks
   if (isStaticOrInternalRequest(pathname)) return resolve(event);
+
+  // Initialize tenant context ONLY if not already set
+  if (!locals.tenantId) locals.tenantId = null as any;
 
   // --- Phase 1: Gated Initialization ---
   const { getSetupState, SetupState } = await import("@utils/setup-check");
   const setupState = (locals as any).__setupState || (await getSetupState());
-  locals.__setupConfigExists = setupState !== SetupState.MISSING_CONFIG;
 
   if (setupState !== SetupState.COMPLETE) {
-    logger.debug(
-      `[handleAuthentication] System in SETUP mode (${setupState}). Skipping authentication.`,
-    );
+    if (setupState === SetupState.MISSING_CONFIG) locals.__setupConfigExists = false;
     return await resolve(event);
   }
 
-  // 🛡️ Ensure CSRF token is established for every visitor (guest or user)
-  const isProd = !dev && process.env.TEST_MODE !== "true";
-  const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
-  ensureCsrfToken(cookies, isSecure);
+  // 🛡️ Ensure CSRF token established (Skip for Bearer auth to avoid overhead)
+  const authHeader = event.request.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    const isProd = !dev && process.env.TEST_MODE !== "true";
+    const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
+    ensureCsrfToken(cookies, isSecure);
+  }
 
-  // Ensure DB is initialized to at least CORE phase before proceeding with auth checks
+  // Ensure DB is initialized to at least CORE phase
   await getDbInitPromise(false, "CORE");
 
-  const isBypassed = (locals as any).__testBypass === true;
   const isSystemUser = (locals as any).user?._id === "system";
-
-  if (isSystemUser || isBypassed) return resolve(event); // Already provisioned by early bypass in pipeline
+  if (isSystemUser) return resolve(event);
 
   try {
     locals.dbAdapter = dbAdapter;

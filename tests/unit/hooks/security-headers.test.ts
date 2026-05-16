@@ -47,14 +47,14 @@ describe("handleSecurityHeaders Middleware", () => {
   });
 
   describe("X-Frame-Options Header", () => {
-    it("should add X-Frame-Options: SAMEORIGIN header", async () => {
+    it("should add X-Frame-Options: DENY header", async () => {
       const event = createMockEvent("/dashboard");
       const response = await handleSecurityHeaders({
         event,
         resolve: mockResolve,
       });
 
-      expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
     });
 
     it("should prevent clickjacking attacks", async () => {
@@ -65,8 +65,8 @@ describe("handleSecurityHeaders Middleware", () => {
       });
 
       const xFrameOptions = response.headers.get("X-Frame-Options");
-      expect(xFrameOptions as any).toBe("SAMEORIGIN");
-      expect(["DENY", "SAMEORIGIN"]).toContain(xFrameOptions as any);
+      expect(xFrameOptions as any).toBe("DENY");
+      expect(["DENY", "DENY"]).toContain(xFrameOptions as any);
     });
   });
 
@@ -329,7 +329,7 @@ describe("handleSecurityHeaders Middleware", () => {
           resolve: mockResolve,
         });
 
-        expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+        expect(response.headers.get("X-Frame-Options")).toBe("DENY");
         expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
         expect(response.headers.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
         expect(response.headers.get("Permissions-Policy")).toBeDefined();
@@ -343,7 +343,7 @@ describe("handleSecurityHeaders Middleware", () => {
         resolve: mockResolve,
       });
 
-      expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
       expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
     });
 
@@ -354,7 +354,7 @@ describe("handleSecurityHeaders Middleware", () => {
         resolve: mockResolve,
       });
 
-      expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
     });
   });
 
@@ -379,7 +379,7 @@ describe("handleSecurityHeaders Middleware", () => {
         resolve: mockResolve,
       });
 
-      expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
     });
 
     it("should handle paths with query parameters", async () => {
@@ -389,7 +389,7 @@ describe("handleSecurityHeaders Middleware", () => {
         resolve: mockResolve,
       });
 
-      expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
     });
 
     it("should handle paths with hash fragments", async () => {
@@ -399,7 +399,7 @@ describe("handleSecurityHeaders Middleware", () => {
         resolve: mockResolve,
       });
 
-      expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
     });
 
     it("should handle deep nested paths", async () => {
@@ -409,7 +409,7 @@ describe("handleSecurityHeaders Middleware", () => {
         resolve: mockResolve,
       });
 
-      expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
     });
   });
 
@@ -429,8 +429,8 @@ describe("handleSecurityHeaders Middleware", () => {
       });
 
       // Basic headers apply to both
-      expect(httpResponse.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
-      expect(httpsResponse.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+      expect(httpResponse.headers.get("X-Frame-Options")).toBe("DENY");
+      expect(httpsResponse.headers.get("X-Frame-Options")).toBe("DENY");
     });
 
     it("should differentiate HSTS based on protocol", async () => {
@@ -461,7 +461,7 @@ describe("handleSecurityHeaders Middleware", () => {
         resolve: mockResolve,
       });
 
-      expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
     });
 
     it("should have correct X-Content-Type-Options value", async () => {

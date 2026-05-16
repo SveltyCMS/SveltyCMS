@@ -153,6 +153,7 @@ export const contentNodes = mysqlTable(
     order: int("order").notNull().default(0),
     isPublished: boolean("isPublished").notNull().default(false),
     publishedAt: datetime("publishedAt"),
+    source: varchar("source", { length: 50 }).notNull().default("filesystem"),
     tenantId: tenantField(),
     ...timestamps,
   },
@@ -223,7 +224,7 @@ export const themes = mysqlTable(
     ...timestamps,
   },
   (table) => ({
-    nameIdx: index("name_idx").on(table.name),
+    nameIdx: unique("themes_name_tenant_unique").on(table.name, table.tenantId),
     activeIdx: index("active_idx").on(table.isActive),
     tenantIdx: index("tenant_idx").on(table.tenantId),
   }),
@@ -314,9 +315,42 @@ export const systemPreferences = mysqlTable(
     ...timestamps,
   },
   (table) => ({
-    keyIdx: index("key_idx").on(table.key),
+    keyIdx: unique("system_preferences_key_tenant_unique").on(table.key, table.tenantId),
     scopeIdx: index("scope_idx").on(table.scope),
     userIdx: index("user_idx").on(table.userId),
+    tenantIdx: index("tenant_idx").on(table.tenantId),
+  }),
+);
+
+// Audit Logs Table
+export const auditLogs = mysqlTable(
+  "audit_logs",
+  {
+    _id: uuidPk(),
+    action: varchar("action", { length: 255 }).notNull(),
+    actorEmail: varchar("actorEmail", { length: 255 }),
+    actorId: varchar("actorId", { length: 36 }),
+    actorRole: varchar("actorRole", { length: 50 }),
+    correlationId: varchar("correlationId", { length: 36 }),
+    details: json("details").notNull(),
+    errorDetails: text("errorDetails"),
+    eventType: varchar("eventType", { length: 100 }).notNull(),
+    ipAddress: varchar("ipAddress", { length: 45 }),
+    result: varchar("result", { length: 50 }).notNull(),
+    sessionId: varchar("sessionId", { length: 36 }),
+    severity: varchar("severity", { length: 20 }).notNull(),
+    targetId: varchar("targetId", { length: 255 }),
+    targetType: varchar("targetType", { length: 100 }),
+    timestamp: datetime("timestamp")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    userAgent: text("userAgent"),
+    tenantId: tenantField(),
+    ...timestamps,
+  },
+  (table) => ({
+    timestampIdx: index("timestamp_idx").on(table.timestamp),
+    eventTypeIdx: index("event_type_idx").on(table.eventType),
     tenantIdx: index("tenant_idx").on(table.tenantId),
   }),
 );
@@ -485,4 +519,5 @@ export const schema = {
   pluginStates,
   pluginMigrations,
   tenants,
+  auditLogs,
 };

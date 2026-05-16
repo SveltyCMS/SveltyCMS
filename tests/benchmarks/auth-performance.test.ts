@@ -127,6 +127,7 @@ async function runAuthAudit() {
   } catch (err: any) {
     logger.error(`Auth audit failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});

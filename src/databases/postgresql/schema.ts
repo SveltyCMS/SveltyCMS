@@ -161,6 +161,7 @@ export const contentNodes = pgTable(
     order: integer("order").notNull().default(0),
     isPublished: boolean("isPublished").notNull().default(false),
     publishedAt: timestamp("publishedAt"),
+    source: varchar("source", { length: 50 }).notNull().default("filesystem"),
     tenantId: tenantField(),
     ...timestamps,
   },
@@ -237,7 +238,7 @@ export const themes = pgTable(
     ...timestamps,
   },
   (table) => ({
-    nameIdx: index("themes_name_idx").on(table.name),
+    nameIdx: unique("themes_name_tenant_unique").on(table.name, table.tenantId),
     activeIdx: index("themes_active_idx").on(table.isActive),
     tenantIdx: index("themes_tenant_idx").on(table.tenantId),
   }),

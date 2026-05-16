@@ -32,6 +32,9 @@ export abstract class BaseAdapter {
    * 🚀  Registers a global interceptor for database operations.
    */
   public registerHook(hook: DatabaseHook): void {
+    // 🛡️ Prevent duplicate registrations
+    if (this.hooks.some((h) => h.id === hook.id)) return;
+
     this.hooks.push({ priority: 100, ...hook });
     this.hooks.sort((a, b) => (a.priority || 100) - (b.priority || 100));
     this.hookCache.clear(); // Invalidate cache

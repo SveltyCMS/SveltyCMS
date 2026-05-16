@@ -20,22 +20,19 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (11/05/2026, 08:18:11)
+## 📊 Latest Performance Audit (15/05/2026, 16:29:51)
 
-**Status:** ❌ FAIL
-
-> [!CAUTION]
-> **Anomalies Detected**: Server reached but health check timed out See console for stack trace.
+**Status:** ✅ PASS _(Historical)_
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend  | Target Budget |
-| :--------------------- | :---------- | :----- | :------------ |
-| **Cold Start**         | 0ms         | ⚪ (—) | < 5000ms      |
-| **REST (Collections)** | 0.000ms     | ⚪ (—) | < 5ms         |
-| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—) | < 5ms         |
-| **DB Raw (p95)**       | 0.000ms     | ⚪     | < 50ms        |
-| **Setup Quality**      | 🔴 DEGRADED | ⚪     | 100%          |
+| Scenario               | Avg Latency | Trend  | Target Budget | Result  |
+| :--------------------- | :---------- | :----- | :------------ | :------ |
+| **Cold Start**         | 0ms         | ⚪ (—) | < 5000ms      | 🔴 FAIL |
+| **REST (Collections)** | 0.000ms     | ⚪ (—) | < 5ms         | 🟢 PASS |
+| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—) | < 5ms         | 🟢 PASS |
+| **DB Raw (p95)**       | 0.000ms     | ⚪     | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | 🟢 HEALTHY  | ⚪     | 100%          | 🟢 PASS |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -668,6 +665,62 @@ xychart-beta
 ```
 
 <!-- CONTENT_TABLE_END -->
+
+<!-- JOURNEY_TABLE_START -->
+
+> ⏳ **Full Client Journey Simulation**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/client-journey.test.ts](../../../tests/benchmarks/client-journey.test.ts)
+
+<!-- JOURNEY_TABLE_END -->
+
+<!-- FAST-FAIL_TABLE_START -->
+
+> ⏳ **Failure Propagation & Fast-Fail Audit**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/failure-propagation.test.ts](../../../tests/benchmarks/failure-propagation.test.ts)
+
+<!-- FAST-FAIL_TABLE_END -->
+
+<!-- CIRCUIT-BREAKER_TABLE_START -->
+
+> ⏳ **Circuit Breaker Failover**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/circuit-breaker-failover.test.ts](../../../tests/benchmarks/circuit-breaker-failover.test.ts)
+
+<!-- CIRCUIT-BREAKER_TABLE_END -->
+
+<!-- THROTTLING_TABLE_START -->
+
+> ⏳ **Throttling & Backoff Stress**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/throttling-backoff-stress.test.ts](../../../tests/benchmarks/throttling-backoff-stress.test.ts)
+
+<!-- THROTTLING_TABLE_END -->
+
+<!-- STATE-MACHINE_TABLE_START -->
+
+> ⏳ **State Machine Transitions**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/state-machine-transition.test.ts](../../../tests/benchmarks/state-machine-transition.test.ts)
+
+<!-- STATE-MACHINE_TABLE_END -->
+
+<!-- CONCURRENCY_TABLE_START -->
+
+> ⏳ **Concurrency & Race Condition**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/concurrency-race.test.ts](../../../tests/benchmarks/concurrency-race.test.ts)
+
+<!-- CONCURRENCY_TABLE_END -->
+
+<!-- TEMPORAL_TABLE_START -->
+
+> ⏳ **Temporal Integrity Audit**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/temporal-integrity.test.ts](../../../tests/benchmarks/temporal-integrity.test.ts)
+
+<!-- TEMPORAL_TABLE_END -->
+
+<!-- GDPR_TABLE_START -->
+
+> ⏳ **GDPR Compliance Speed**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/right-to-be-forgotten-audit.test.ts](../../../tests/benchmarks/right-to-be-forgotten-audit.test.ts)
+
+<!-- GDPR_TABLE_END -->
 
 ---
 

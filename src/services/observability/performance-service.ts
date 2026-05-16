@@ -58,14 +58,15 @@ export class PerformanceService {
 
         await dbAdapter.system.preferences.set(
           this.SNAPSHOT_KEY,
-          JSON.stringify({
+          {
             version: "2.0",
             updatedAt: Date.now(),
             data: metricsMap,
-          }),
-          "system",
-          undefined,
-          "performance",
+          },
+          {
+            scope: "system",
+            category: "performance",
+          },
         );
 
         const duration = (performance.now() - start).toFixed(2);
@@ -85,7 +86,9 @@ export class PerformanceService {
 
     try {
       // 1. Try to load modern consolidated snapshot
-      const snapshotResult = await dbAdapter.system.preferences.get(this.SNAPSHOT_KEY, "system");
+      const snapshotResult = await dbAdapter.system.preferences.get(this.SNAPSHOT_KEY, {
+        scope: "system",
+      });
 
       if (snapshotResult.success && snapshotResult.data) {
         const snapshot =
@@ -99,10 +102,9 @@ export class PerformanceService {
       }
 
       // 2. Fallback: Load legacy individual metrics (for migration path)
-      const legacyResult = await dbAdapter.system.preferences.getByCategory(
-        "performance",
-        "system",
-      );
+      const legacyResult = await dbAdapter.system.preferences.getByCategory("performance", {
+        scope: "system",
+      });
       if (legacyResult.success && legacyResult.data) {
         const metrics: Record<string, ServicePerformanceMetrics> = {};
         for (const [key, value] of Object.entries(legacyResult.data)) {
@@ -133,10 +135,11 @@ export class PerformanceService {
       try {
         await dbAdapter.system.preferences.set(
           `${this.BENCHMARK_PREFIX}${name}`,
-          JSON.stringify({ v: value, t: Date.now() }),
-          "system",
-          undefined,
-          "benchmark",
+          { v: value, t: Date.now() },
+          {
+            scope: "system",
+            category: "benchmark",
+          },
         );
       } catch (error) {
         logger.error(`[PerformanceService] Failed to record benchmark ${name}:`, error);

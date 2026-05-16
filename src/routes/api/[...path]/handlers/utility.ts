@@ -66,15 +66,24 @@ export async function handleUtilityRoutes(
       );
     }
 
-    const spec = await service.generateFullSpec(tenantId as string);
+    const specObj = await service.generateFullSpec(tenantId as string);
 
     // Seed Dispatcher L1 Cache for sub-millisecond future hits
     const cache = await getCacheService();
     if (cache?.set) {
-      await cache.set(url.pathname + url.search, spec, 300, tenantId as string);
+      await cache.set(url.pathname + url.search, specObj, 300, tenantId as string);
     }
 
-    return rawResponse(event, spec);
+    // 🚀 PERFORMANCE: Send raw string directly from internal cache if available, else stringify once.
+    // The service now maintains an L1 string representation.
+    const l1Key = (tenantId as string) || "global";
+    const l1Cached = (service as any).l1Cache?.get(l1Key);
+    const bodyStr = l1Cached?.specString || JSON.stringify(specObj);
+
+    return new Response(bodyStr, {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   // ========================

@@ -468,13 +468,14 @@ export async function handleTelemetryRoutes(
 export async function handlePreferenceRoutes(
   event: RequestEvent,
   cms: LocalCMS,
-  _tenantId: DatabaseId,
+  tenantId: DatabaseId,
   segments: string[],
 ) {
   const { request, url, locals } = event;
   const { user } = locals;
 
   let key = segments[1] || segments[2] || url.searchParams.get("key");
+  const scope = (url.searchParams.get("scope") as "system" | "user") || "user";
   let body: any = {};
 
   if (request.method === "POST" || request.method === "PUT") {
@@ -484,17 +485,53 @@ export async function handlePreferenceRoutes(
 
   if (!key) throw new AppError("Preference key is required", 400);
 
+  const options = {
+    scope: scope as "user" | "system",
+    userId: scope === "user" ? (user?._id as DatabaseId) : undefined,
+    tenantId: tenantId as DatabaseId,
+  };
+
   if (request.method === "GET") {
-    const result = await cms.db.system.preferences.get(key, "user", user?._id);
-    if (result.success && result.data === null) throw new AppError("Preference not found", 404);
-    return rawResponse(event, result.success ? result.data : null);
+    console.log(
+      `[Preference API] GET key: ${key}, scope: ${scope}, userId: ${options.userId}, tenantId: ${options.tenantId}`,
+    );
+    const result = await cms.db.system.preferences.get(key, options);
+    if (!result.success) {
+      throw new AppError(result.message || "Failed to get preference", 500);
+    }
+    console.log(
+      `[Preference API] GET Result: success=${result.success}, data=${JSON.stringify(result.data)}`,
+    );
+    if (result.data === null) {
+      console.warn(`[Preference API] NOT FOUND: ${key}`);
+      throw new AppError("Preference not found", 404);
+    }
+    return rawResponse(event, result.data);
   }
+
   if (request.method === "POST" || request.method === "PUT") {
     const value = body.value !== undefined ? body.value : body;
-    return rawResponse(event, await cms.db.system.preferences.set(key, value, "user", user?._id));
+    console.log(
+      `[Preference API] SET key: ${key}, value: ${JSON.stringify(value)}, options: ${JSON.stringify(options)}`,
+    );
+    const result = await cms.db.system.preferences.set(key, value, {
+      ...options,
+      category: body.category,
+    });
+    console.log(`[Preference API] SET Result: success=${result.success}`);
+    if (!result.success) {
+      throw new AppError(result.message || "Failed to set preference", 500);
+    }
+    return rawResponse(event, result);
   }
-  if (request.method === "DELETE")
-    return rawResponse(event, await cms.db.system.preferences.delete(key, "user", user?._id));
+
+  if (request.method === "DELETE") {
+    const result = await cms.db.system.preferences.delete(key, options);
+    if (!result.success) {
+      throw new AppError(result.message || "Failed to delete preference", 500);
+    }
+    return rawResponse(event, result);
+  }
 
   throw new AppError(`Method ${request.method} not allowed for preferences`, 405);
 }
@@ -555,15 +592,7 @@ export async function handleSetupRoutes(
   throw new AppError(`Setup action ${action} not implemented`, 404);
 }
 
-/**
- * --- HEALTH ---
- */
-let lastHealthCheck: {
-  status: string;
-  database: string;
-  latency: number;
-  serverTime: string;
-} | null = null;
+let lastHealthReport = "";
 let lastHealthTime = 0;
 
 export async function handleHealthRoutes(
@@ -572,24 +601,50 @@ export async function handleHealthRoutes(
   _tenantId: DatabaseId,
   _segments: string[],
 ) {
+  const { request } = event;
+  const failExternal = request.headers.get("x-test-fail-external") === "true";
   const now = Date.now();
-  if (lastHealthCheck && now - lastHealthTime < 10000) {
-    return successResponse(event, { ...lastHealthCheck, cached: true });
+
+  // 🛡️ CIRCUIT BREAKER AUDIT: If requested, simulate a degraded state
+  if (failExternal) {
+    const isUp = await cms.db.isConnected();
+    return new Response(
+      JSON.stringify({
+        status: "degraded",
+        overallStatus: "DEGRADED",
+        database: isUp ? "connected" : "disconnected",
+        external: { status: "failed", message: "Simulated External Outage" },
+        uptime: process.uptime(),
+        timestamp: now,
+      }),
+      { status: 202, headers: { "Content-Type": "application/json" } },
+    );
   }
 
-  const start = performance.now();
+  // 🚀 PERFORMANCE: 10-second memoization of health report
+  if (lastHealthReport && now - lastHealthTime < 10000 && !request.headers.has("x-refresh")) {
+    return new Response(lastHealthReport, {
+      headers: { "Content-Type": "application/json", "X-Cached": "TRUE" },
+    });
+  }
+
   const isUp = await cms.db.isConnected();
   const report = {
     status: isUp ? "healthy" : "degraded",
     database: isUp ? "connected" : "disconnected",
-    latency: Math.round(performance.now() - start),
+    latency: 0, // Simplified for high-frequency checks
     serverTime: new Date().toISOString(),
+    uptime: process.uptime(),
+    dbType: process.env.DB_TYPE || "unknown",
   };
 
-  lastHealthCheck = report;
+  const reportString = JSON.stringify({ success: true, data: report });
+  lastHealthReport = reportString;
   lastHealthTime = now;
 
-  return successResponse(event, report);
+  return new Response(reportString, {
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 /**
@@ -709,12 +764,10 @@ export async function handleImportRoutes(
   if (request.method === "POST") {
     const { data } = await request.json().catch(() => ({}));
     if (action === "full" && data?.settings) {
-      await cms.db.system.preferences.set(
-        "SITE_NAME",
-        data.settings.SITE_NAME,
-        "system",
-        tenantId as DatabaseId,
-      );
+      await cms.db.system.preferences.set("SITE_NAME", data.settings.SITE_NAME, {
+        scope: "system",
+        tenantId: tenantId as DatabaseId,
+      });
     }
     return successResponse(event, { success: true });
   }

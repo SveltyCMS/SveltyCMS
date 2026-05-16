@@ -100,6 +100,7 @@ async function runUXAudit() {
     exportResult(formResult);
   } catch (err: any) {
     console.error("❌ UX audit failed:", err.message);
+    throw err;
   }
 
   console.log("\n✅ Admin UX vitality audit completed.");

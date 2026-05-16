@@ -15,6 +15,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  forceRefreshServer,
 } from "./benchmark-utils";
 import { logger } from "@utils/logger";
 
@@ -58,6 +59,7 @@ export async function runGraphQLBenchmark() {
     const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
     await ensureStableTestData();
+    await forceRefreshServer(baseUrl);
     await stabilize(1200);
 
     const results = [];
