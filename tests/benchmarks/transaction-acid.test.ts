@@ -4,9 +4,8 @@
  * Measures transaction commit latencies and rollback overhead.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   setupBenchmarkServer,
@@ -14,8 +13,9 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType,
+  getDbType
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "bench_acid";
@@ -129,6 +129,7 @@ async function runAcidAudit() {
   } catch (err: any) {
     logger.error(`ACID benchmark failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});

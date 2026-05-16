@@ -168,11 +168,18 @@ class WidgetState {
             wsLogger.trace(`Processing module at ${path}`);
             const fn = (module as { default: WidgetFactory }).default;
             if (typeof fn !== "function") {
-              wsLogger.warn(`Module at ${path} default export is NOT a function: ${typeof fn}`);
+              wsLogger.warn(
+                `Module at ${path} default export is NOT a function: ${typeof fn}. Keys: ${Object.keys(module || {})}`,
+              );
               continue;
             }
 
             const widgetName = fn.Name || name;
+            if (process.env.BENCHMARK_DEBUG === "true") {
+              console.info(
+                `[WidgetStore] Registered core widget: ${widgetName} (has modifyRequest: ${!!fn.modifyRequest})`,
+              );
+            }
             fn.Name = widgetName;
             fn.__widgetType = "core";
 

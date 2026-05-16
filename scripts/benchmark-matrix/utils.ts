@@ -67,22 +67,22 @@ export function checkServiceHealth(type: string): { healthy: boolean; error?: st
       case "mariadb":
       case "mysql":
         execSync(
-          "docker exec svelty-mariadb mariadb-admin ping -h 127.0.0.1 -u root --password=mariadb",
+          "docker exec mariadb mariadb-admin ping -h 127.0.0.1 -u root --password=mariadb",
           { stdio: "ignore" },
         );
         return { healthy: true };
       case "postgresql":
       case "postgres":
-        execSync("docker exec svelty-postgres pg_isready -U postgres", { stdio: "ignore" });
+        execSync("docker exec postgres pg_isready -U postgres", { stdio: "ignore" });
         return { healthy: true };
       case "mongodb":
       case "mongo":
-        execSync("docker exec svelty-mongodb mongosh --eval \"db.adminCommand('ping')\" --quiet", {
+        execSync("docker exec mongo mongosh --eval \"db.adminCommand('ping')\" --quiet", {
           stdio: "ignore",
         });
         return { healthy: true };
       case "redis":
-        execSync("docker exec svelty-redis redis-cli ping", { stdio: "ignore" });
+        execSync("docker exec redis redis-cli ping", { stdio: "ignore" });
         return { healthy: true };
       default:
         return { healthy: true }; // Assume unknown/local services are managed externally
@@ -90,7 +90,7 @@ export function checkServiceHealth(type: string): { healthy: boolean; error?: st
   } catch {
     return {
       healthy: false,
-      error: `Service ${type} is not responding. Ensure Docker container 'svelty-${type}' is running.`,
+      error: `Service ${type} is not responding. Ensure Docker container '${type}' or equivalent is running.`,
     };
   }
 }
@@ -425,8 +425,8 @@ export async function getTrendDetails(
   dbKey: string,
   currentVal: number,
   column: string,
-): Promise<{ icon: string; pct: string; isRegression: boolean }> {
-  if (!currentVal) return { icon: "⚪", pct: "—", isRegression: false };
+): Promise<{ icon: string; pct: string; isRegression: boolean; previousAvg: number }> {
+  if (!currentVal) return { icon: "⚪", pct: "—", isRegression: false, previousAvg: 0 };
 
   try {
     // 🚀 SURGICAL FIX: Exclude the current run (the latest one) from the average
@@ -444,7 +444,7 @@ export async function getTrendDetails(
       )
       .get(dbKey) as { avg_val: number | null };
 
-    if (!row?.avg_val) return { icon: "⚪", pct: "—", isRegression: false };
+    if (!row?.avg_val) return { icon: "⚪", pct: "—", isRegression: false, previousAvg: 0 };
 
     const pct = ((currentVal - row.avg_val) / row.avg_val) * 100;
     const isRegression = pct > 15; // Relaxed regression threshold for dev environments
@@ -454,9 +454,10 @@ export async function getTrendDetails(
       icon,
       pct: `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`,
       isRegression,
+      previousAvg: row.avg_val,
     };
   } catch {
-    return { icon: "⚪", pct: "—", isRegression: false };
+    return { icon: "⚪", pct: "—", isRegression: false, previousAvg: 0 };
   }
 }
 
@@ -529,6 +530,10 @@ const NOISY_SERVER_PATTERNS: RegExp[] = [
   /\[Turbo\] TEST BYPASS/i,
   /\[Turbo\].*method=/i,
   /\[DEBUG\] config-state\.ts/i,
+  /\[DB Init\] Resolved adapter type/i,
+  /\[Boot\]/i,
+  /\[TestingHandler\]/i,
+  /BenchmarkStable/i,
 ];
 
 // eslint-disable-next-line no-control-regex

@@ -4,9 +4,8 @@
  * Measures the full upload, processing, and storage pipeline via HTTP E2E.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   setupBenchmarkServer,
@@ -14,8 +13,9 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType,
+  getDbType
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 import sharp from "sharp";
 
@@ -70,7 +70,10 @@ async function runMediaAudit() {
           userId: "system",
           tenantId: "global" as any,
         });
-        if (!res.success || !res.data?.url) throw new Error(`SDK upload failed: Missing URL`);
+        if (!res.success || (!res.data?.url && !res.data?.path)) {
+          console.error("SDK upload failed, FULL res:", res);
+          throw new Error(`SDK upload failed: Missing URL/Path`);
+        }
       },
     });
     results.push({ ...sdkResult, shortLabel: "SDK", layer: "SDK" });
@@ -101,6 +104,7 @@ async function runMediaAudit() {
           headers: {
             "x-test-mode": "true",
             "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+            "Origin": baseUrl, // 🛡️ Bypasses SvelteKit CSRF check
           },
           body: formData,
         });
@@ -135,6 +139,7 @@ async function runMediaAudit() {
   } catch (err: any) {
     logger.error(`Media benchmark failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});

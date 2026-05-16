@@ -66,6 +66,8 @@ export interface BenchmarkScript {
   lastRun?: string;
   /** Execution strategy: run on all dbs, only SQL dbs, or once as baseline */
   strategy: "all" | "sql" | "once";
+  /** Optional performance baseline for anomaly detection */
+  expectedDurationMs?: number;
 }
 
 /** Parsed CLI configuration */
@@ -83,6 +85,7 @@ export interface RunConfig {
   warmup: boolean;
   ci: boolean;
   failFast: boolean;
+  forceClean: boolean;
   list: boolean;
 }
 

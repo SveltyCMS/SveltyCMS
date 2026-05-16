@@ -4,12 +4,10 @@
  * Measures the "Middleware Tax" of widget transformations and validation.
  */
 
-import { test, mock } from "bun:test";
-import "../unit/setup.ts";
 
 // 🚀 Direct mock to ensure widgets are available in this isolated run
 mock.module("@src/widgets/scanner", () => {
-  const names = ["Input", "RichText", "Relation", "Select", "DateTime", "Group", "Repeater"];
+  const names = ["Input", "RichText", "Relation", "Select", "DateTime", "Group", "Repeater", "Seo"];
   const modules: Record<string, any> = {};
   for (const name of names) {
     const factory = (config: any) => ({
@@ -28,6 +26,7 @@ mock.module("@src/widgets/scanner", () => {
   };
 });
 
+import { test, mock } from "bun:test";
 import {
   runBenchmark,
   exportResult,
@@ -35,7 +34,9 @@ import {
   printSummaryTable,
   STABLE_COLLECTION,
   ensureStableTestData,
+  getRecommendedConcurrency
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 
 async function runWidgetAudit() {
   console.log("🚀 Starting SveltyCMS Widget Performance Audit...\n");
@@ -67,7 +68,7 @@ async function runWidgetAudit() {
       iterations: ITERATIONS,
       warmupIterations: 50,
       runs: RUNS,
-      concurrency: 1,
+      concurrency: getRecommendedConcurrency(),
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
@@ -84,7 +85,7 @@ async function runWidgetAudit() {
       iterations: ITERATIONS,
       warmupIterations: 50,
       runs: RUNS,
-      concurrency: 1,
+      concurrency: getRecommendedConcurrency(),
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
@@ -92,6 +93,7 @@ async function runWidgetAudit() {
         await cms.collections.find(STABLE_COLLECTION as any, {
           limit: 10,
           tenantId: "global",
+          bypassCache: true,
         });
       },
     });
@@ -118,7 +120,7 @@ async function runWidgetAudit() {
       iterations: ITERATIONS,
       warmupIterations: 20,
       runs: 1,
-      concurrency: 1,
+      concurrency: getRecommendedConcurrency(),
       measureMemory: true,
       silent: true,
       onIteration: async () => {
@@ -151,6 +153,10 @@ async function runWidgetAudit() {
     ]);
 
     for (const r of allResults) exportResult(r);
+  } catch (err: any) {
+    logger.error(`Widget audit failed: ${err.message}`);
+    console.error(err);
+    throw err;
   } finally {
   }
 

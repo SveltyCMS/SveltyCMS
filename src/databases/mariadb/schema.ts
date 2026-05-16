@@ -158,11 +158,11 @@ export const contentNodes = mysqlTable(
     ...timestamps,
   },
   (table) => ({
-    pathIdx: unique("path_unique").on(table.path),
     parentIdx: index("parent_idx").on(table.parentId),
     nodeTypeIdx: index("nodeType_idx").on(table.nodeType),
     statusIdx: index("status_idx").on(table.status),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    pathTenantUnique: unique("path_tenant_unique").on(table.path, table.tenantId),
   }),
 );
 

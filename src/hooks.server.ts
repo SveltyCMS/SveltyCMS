@@ -84,6 +84,12 @@ const handleHyperTurbo: Handle = async ({ event, resolve }) => {
         (event.locals as any).tenantId = event.request.headers.get("x-tenant-id") || null;
         (event.locals as any).__testBypass = true;
 
+        // 🚀 CRITICAL: Initialize widget store if not already loaded (HyperTurbo bypasses normal hooks)
+        const { widgets } = await import("@src/stores/widget-store.svelte");
+        if (!widgets.isLoaded) {
+          await widgets.initialize((event.locals as any).tenantId || "default");
+        }
+
         const response = await cachedApiHandler(event);
 
         // Apply minimal security headers

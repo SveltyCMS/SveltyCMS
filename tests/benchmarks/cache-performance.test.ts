@@ -4,9 +4,8 @@
  * Measures cache hit vs miss latency and efficiency via real HTTP E2E.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   setupBenchmarkServer,
@@ -14,8 +13,9 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType,
+  getDbType
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;

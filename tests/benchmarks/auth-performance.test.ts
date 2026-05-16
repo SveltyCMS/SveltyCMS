@@ -4,9 +4,8 @@
  * Measures session validation, RBAC resolution, and middleware overhead.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   stabilize,
@@ -15,8 +14,9 @@ import {
   printTruthTable,
   printSummaryTable,
   TEST_API_SECRET,
-  getDbType,
+  getDbType
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;

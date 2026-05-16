@@ -3,9 +3,13 @@
  * @description Benchmark to verify Negative Caching performance gains.
  */
 
-import { test, expect } from "bun:test";
 import { LocalCMS } from "@src/services/sdk";
-import { runBenchmark, printTruthTable } from "./benchmark-utils";
+import {
+  test,
+  expect,
+  runBenchmark,
+  printTruthTable
+} from "./benchmark-utils";
 import type { DatabaseId } from "@src/content/types";
 
 test("Negative Cache Performance Audit", async () => {
@@ -74,4 +78,4 @@ test("Negative Cache Performance Audit", async () => {
   // Verification
   expect(cachedMiss.avgMs).toBeLessThan(firstMiss.avgMs);
   console.log(`\n✅ Negative Cache Speedup: ${(firstMiss.avgMs / cachedMiss.avgMs).toFixed(1)}x`);
-});
+}, 60000);

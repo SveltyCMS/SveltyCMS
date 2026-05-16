@@ -3,9 +3,8 @@
  * @description GraphQL resolver performance and throughput audit.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   exportMetric,
@@ -15,8 +14,9 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  forceRefreshServer,
+  forceRefreshServer
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
@@ -30,19 +30,19 @@ const graphqlScenarios = [
   },
   {
     name: "GQL: Collection List",
-    query: `query { allCollections { _id name label } }`,
+    query: `query { allCollectionStats { _id name } }`,
     shortLabel: "Collections",
     concurrency: 6,
   },
   {
     name: "GQL: Entries (Stable Collection)",
-    query: `query { BenchmarkStable(pagination: { limit: 10 }) { _id title content } }`,
+    query: `query { Benchmarkstable(pagination: { limit: 10 }) { _id title content } }`,
     shortLabel: "Entries",
     concurrency: 5,
   },
   {
     name: "GQL: Concurrent Load",
-    query: `query { allCollections { _id name } BenchmarkStable(pagination: { limit: 5 }) { _id } }`,
+    query: `query { allCollectionStats { _id name } Benchmarkstable(pagination: { limit: 5 }) { _id } }`,
     shortLabel: "Concurrent",
     concurrency: 12,
   },
@@ -134,6 +134,7 @@ export async function runGraphQLBenchmark() {
   } catch (err: any) {
     logger.error(`GraphQL benchmark failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});

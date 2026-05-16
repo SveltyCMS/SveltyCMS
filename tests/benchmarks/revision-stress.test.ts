@@ -4,9 +4,8 @@
  * Measures performance degradation when reading the latest version as history grows.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   setupBenchmarkServer,
@@ -15,8 +14,9 @@ import {
   printTruthTable,
   printSummaryTable,
   TEST_API_SECRET,
-  getDbType,
+  getDbType
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 
 const REVISION_COLLECTION = "bench_revisions";

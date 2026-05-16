@@ -4,9 +4,8 @@
  * Simulates a realistic multi-user workload with a weighted mix of operations.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportMetric,
   setupBenchmarkServer,
@@ -17,8 +16,9 @@ import {
   generateRealisticEntry,
   printTruthTable,
   printSummaryTable,
-  getDbLabel,
+  getDbLabel
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 
 let stopServer: (() => Promise<void>) | null = null;
 let apiBaseUrl: string;

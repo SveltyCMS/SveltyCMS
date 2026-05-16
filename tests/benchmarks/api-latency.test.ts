@@ -4,9 +4,10 @@
  * Measures the precise cost of the middleware stack compared to direct SDK calls.
  */
 
-import { test, beforeAll, afterAll } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
+  beforeAll,
+  afterAll,
   runBenchmark,
   exportResult,
   exportMetric,
@@ -17,8 +18,9 @@ import {
   STABLE_COLLECTION,
   STABLE_ENTRY_ID,
   ensureStableTestData,
-  TEST_API_SECRET,
+  TEST_API_SECRET
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 
 let stopServer: () => Promise<void>;
 let apiBaseUrl: string;

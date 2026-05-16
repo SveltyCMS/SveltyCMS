@@ -4,9 +4,8 @@
  * Measures read performance with sorting and filtering on a large entry collection.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   setupBenchmarkServer,
@@ -17,8 +16,9 @@ import {
   printSummaryTable,
   getDbLabel,
   TEST_API_SECRET,
-  generateRealisticEntry,
+  generateRealisticEntry
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "bench_index_pressure";

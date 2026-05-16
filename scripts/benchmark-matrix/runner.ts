@@ -294,6 +294,8 @@ export function buildWorkerEnv(
     DB_TYPE: dbConf.type,
     DB_LABEL: meta.label,
     DB_NAME: workerDbName,
+    DB_PATH: dbConf.type === "sqlite" ? `config/database/${workerDbName}.sqlite` : "",
+    FORCE_DB_NAME: workerDbName,
     DB_HOST: dbConf.host,
     DB_PORT: dbConf.port.toString(),
     DB_USER: dbConf.user,
@@ -414,8 +416,9 @@ export async function runAuditForDatabase(
       });
 
       if (cfg.failFast) {
-        log.error("Fail-Fast enabled: Terminating benchmark suite.");
+        log.error(`❌ Fail-Fast: Setup failed for ${dbKey.toUpperCase()}. Aborting suite.`);
         setShuttingDown(true);
+        process.exit(1);
       }
 
       // 🚀 Mark all scripts as completed for this failed DB
@@ -473,7 +476,7 @@ export async function runAuditForDatabase(
       ) {
         const setupOk = await runTask(
           "Seeding Relational Data",
-          "bun run --preload ./tests/unit/setup.ts scripts/benchmark-matrix/setup-benchmarks.ts",
+          "bun test --preload ./tests/unit/setup.ts ./scripts/benchmark-matrix/setup-benchmarks.ts",
           env,
           cfg.ci,
         );
@@ -481,10 +484,12 @@ export async function runAuditForDatabase(
           status = "FAILED";
           error = (error ? error + "; " : "") + "Seeding Relational Data failed";
 
+          log.error(`Benchmark setup failed: Seeding Relational Data (${dbKey})`);
+          
           if (cfg.failFast) {
-            log.error("Fail-Fast: Seeding Relational Data failed. Terminating suite.");
+            log.error(`❌ Fail-Fast: Seeding failed for ${s.shortLabel} on ${dbKey.toUpperCase()}. Aborting.`);
             setShuttingDown(true);
-            break;
+            process.exit(1);
           }
         }
       }
@@ -516,17 +521,21 @@ export async function runAuditForDatabase(
           await persistScriptMetadataAST(s.path, new Date().toISOString());
         }
 
-        // ✨ Progress Tracking: Keep terminal output live but skip expensive MDX writes
-        // printSummaryTable is now called explicitly in index.ts for the final view
-        // but we can call it here if we want live progress.
+        const expected = s.expectedDurationMs || s.estimatedMs;
+        if (expected && outcome.elapsedMs > expected * 2.2) {
+          log.warn(`Performance anomaly: ${s.shortLabel} took ${outcome.elapsedMs}ms (expected ~${expected}ms)`);
+        }
 
         if (!outcome.passed) {
           status = "FAILED";
-          error = (error ? error + "; " : "") + s.label + " failed";
+          error = (error ? error + "; " : "") + `${s.shortLabel} failed`;
+
+          log.error(`Benchmark failed: ${s.shortLabel} (${dbKey})`);
 
           if (cfg.failFast) {
-            log.error(`Fail-Fast: ${s.shortLabel} failed. Terminating suite.`);
+            log.error(`❌ Fail-Fast: ${s.shortLabel} failed on ${dbKey.toUpperCase()}. Aborting suite.`);
             setShuttingDown(true);
+            process.exit(1);
           }
         }
 
@@ -534,7 +543,15 @@ export async function runAuditForDatabase(
       } catch (err: any) {
         log.error(`Benchmark ${s.shortLabel} crashed: ${err.message}`);
         status = "FAILED";
-        error = (error ? error + "; " : "") + s.shortLabel + " crashed";
+        error = (error ? error + "; " : "") + `${s.shortLabel} crashed`;
+        
+        log.error(`Benchmark crashed: ${s.shortLabel} (${dbKey})`);
+
+        if (cfg.failFast) {
+          log.error(`Fail-Fast: ${s.shortLabel} crashed. Terminating suite immediately.`);
+          setShuttingDown(true);
+          process.exit(1);
+        }
       } finally {
         if (useLock) heavyTaskLock.release();
       }

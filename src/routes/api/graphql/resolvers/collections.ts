@@ -31,7 +31,7 @@ import { getPrivateSettingSync } from "@src/services/core/settings-service";
 // Token Engine
 import { replaceTokens } from "@src/services/token/engine";
 import type { TokenContext } from "@src/services/token/types";
-import { widgets } from "@src/stores/widget-store.svelte.ts";
+import { widgets } from "@src/stores/widget-store.svelte";
 
 // System Logger
 import { logger } from "@utils/logger";

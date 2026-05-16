@@ -350,6 +350,18 @@ export class MongoCrudMethods<T extends BaseEntity> {
     data: EntityUpdate<T>,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T>> {
+    // 🛡️ HARDENING: Prevent driver-level crashes if ID is accidentally undefined/null
+    if (id === undefined || id === null) {
+      return {
+        success: false,
+        message: `Update failed: ID is ${id}`,
+        error: {
+          code: "INVALID_ID",
+          message: `Cannot update ${this.model.modelName} with ${id} ID`,
+        },
+      };
+    }
+
     const startTime = performance.now();
     try {
       // 🚀 Fast-Path: Direct ID update
@@ -515,6 +527,18 @@ export class MongoCrudMethods<T extends BaseEntity> {
     id: DatabaseId,
     options: BaseQueryOptions & { permanent?: boolean; userId?: DatabaseId } = {},
   ): Promise<DatabaseResult<void>> {
+    // 🛡️ HARDENING: Prevent driver-level crashes if ID is accidentally undefined/null
+    if (id === undefined || id === null) {
+      return {
+        success: false,
+        message: `Delete failed: ID is ${id}`,
+        error: {
+          code: "INVALID_ID",
+          message: `Cannot delete ${this.model.modelName} with ${id} ID`,
+        },
+      };
+    }
+
     try {
       const { tenantId, bypassTenantCheck, permanent, userId } = options;
       const query = this.adapter.mapQuery(
@@ -645,6 +669,18 @@ export class MongoCrudMethods<T extends BaseEntity> {
   }
 
   async restore(id: DatabaseId, options: BaseQueryOptions = {}): Promise<DatabaseResult<T>> {
+    // 🛡️ HARDENING: Prevent driver-level crashes if ID is accidentally undefined/null
+    if (id === undefined || id === null) {
+      return {
+        success: false,
+        message: `Restore failed: ID is ${id}`,
+        error: {
+          code: "INVALID_ID",
+          message: `Cannot restore ${this.model.modelName} with ${id} ID`,
+        },
+      };
+    }
+
     try {
       const { tenantId, bypassTenantCheck } = options;
       const query = this.adapter.mapQuery(

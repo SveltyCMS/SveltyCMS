@@ -38,8 +38,16 @@ export async function handleTestingRoutes(
     const params = await request.json().catch(() => ({}));
     const action = params.action || event.url.searchParams.get("action");
 
+    // 🚀 Robust Parameter Logging (to stderr for benchmark visibility)
+    process.stderr.write(
+      `[TestingHandler] action: ${action}, collectionId: ${params.collectionId || "N/A"}, tenant: ${tenantId}\n`,
+    );
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      process.stderr.write(`[TestingHandler] Params: ${JSON.stringify(params)}\n`);
+    }
+
     if (action === "reset") {
-      logger.info(`[TestingHandler] RESET TRIGGERED for tenant: ${tenantId}`);
+      process.stderr.write(`[TestingHandler] RESET TRIGGERED for tenant: ${tenantId}\n`);
 
       // 1. Wipe Database (Collections + Data)
       if (cms.db?.reset) {
@@ -122,22 +130,60 @@ export async function handleTestingRoutes(
     const { isDbConnected, getDbInitPromise, getDb } = await import("@src/databases/db");
     if (!isDbConnected()) {
       logger.info("[testing] DB not connected, waiting for initialization...");
-      await getDbInitPromise().catch(() => {});
+      await getDbInitPromise().catch((err) => {
+        logger.error("[testing] getDbInitPromise failed:", err);
+      });
 
       // Secondary poll for safety
-      let retries = 10;
+      let retries = 15; // Increased for Windows/Slow DBs
       while (!isDbConnected() && retries-- > 0) {
+        logger.info(`[testing] Polling for DB connection... (${15 - retries}/15)`);
         await new Promise((r) => setTimeout(r, 1000));
       }
     }
 
     const initializedAdapter = getDb();
     if (!initializedAdapter || !isDbConnected()) {
-      throw new AppError("Database connection not established", 503);
+      const adapterStatus = initializedAdapter ? "exists" : "null";
+      const connectedStatus = isDbConnected() ? "true" : "false";
+      logger.error(`[testing] 503 ERROR: adapter=${adapterStatus}, isConnected=${connectedStatus}`);
+      throw new AppError(
+        `Database connection not established. adapter=${adapterStatus}, isConnected=${connectedStatus}`,
+        503,
+      );
     }
 
     if (action === "ping") {
       return rawResponse({ success: true, message: "Testing API is online" });
+    }
+
+    if (action === "health-deep") {
+      try {
+        const { getDb } = await import("@src/databases/db");
+        const db = getDb();
+        if (!db) throw new Error("DB adapter null");
+
+        // Lightweight checks
+        const checks = await Promise.all([
+          db.crud.count("benchmark_authors", {}).catch(() => ({ data: -1 })),
+          db.crud.count("benchmark_posts", {}).catch(() => ({ data: -1 })),
+        ]);
+        return rawResponse({ success: true, checks });
+      } catch (err: any) {
+        return rawResponse({ success: false, message: err.message }, 500);
+      }
+    }
+
+    if (action === "benchmark-ready") {
+      // Signal that the system is fully warmed and consistent
+      return rawResponse({
+        success: true,
+        ready: true,
+        metrics: {
+          uptime: process.uptime(),
+          memory: process.memoryUsage(),
+        },
+      });
     }
 
     if (action === "create-collection" || action === "bulk-create-collections") {
@@ -179,6 +225,52 @@ export async function handleTestingRoutes(
       await refreshCollectionsCache(tenantId, initializedAdapter);
 
       return rawResponse({ success: results.every((r) => r.success), results });
+    }
+
+    if (action === "clear-collection") {
+      const collectionId = params.collectionId || event.url.searchParams.get("collectionId");
+      if (!collectionId) throw new AppError("collectionId required", 400);
+
+      const db = cms.db || initializedAdapter;
+
+      try {
+        let tableName;
+        try {
+          const schema = await cms.collections.getSchema(collectionId, tenantId);
+          tableName = cms.collections.getCollectionName(schema._id);
+        } catch {
+          // 🚀 RESILIENCE: Fallback to naming convention if schema is missing from cache (common during hot-reloads)
+          tableName = `collection_${collectionId.replace(/-/g, "")}`;
+          if (process.env.BENCHMARK_DEBUG === "true") {
+            process.stderr.write(
+              `[TestingHandler] clear-collection: Schema missing for ${collectionId}, using fallback: ${tableName}\n`,
+            );
+          }
+        }
+
+        // 🛡️ HARDENING: Standardize tenantId for the delete operation
+        const effectiveTenantId = tenantId || "default";
+
+        await db.crud.deleteMany(
+          tableName,
+          {},
+          {
+            tenantId: effectiveTenantId as DatabaseId,
+            permanent: true,
+          },
+        );
+
+        // 🚀 CACHE INVALIDATION: Force SDK to drop any cached schemas or entries for this collection
+        await cms.collections.refresh(effectiveTenantId as DatabaseId, true);
+
+        return rawResponse({
+          success: true,
+          message: `Collection ${collectionId} cleared from ${tableName}.`,
+        });
+      } catch (err: any) {
+        logger.error(`[TestingHandler] clear-collection error for ${collectionId}: ${err.message}`);
+        return rawResponse({ success: false, message: err.message }, 200);
+      }
     }
 
     if (action === "bulk-seed") {

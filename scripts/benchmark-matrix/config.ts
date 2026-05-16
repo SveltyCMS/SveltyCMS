@@ -193,7 +193,7 @@ export const ENCRYPTION_KEY = getSecret(
 
 // --- PATHS & DIRECTORIES ---
 export const ROOT_RESULTS_DIR = path.join(process.cwd(), "tests/benchmarks/results");
-export const BENCHMARKS_DOC = path.join(process.cwd(), "docs/project/benchmarks.mdx");
+export const BENCHMARKS_DOC = path.join(process.cwd(), "docs/project/benchmarks/index.mdx");
 export const CI_SUMMARY_FILE = path.join(ROOT_RESULTS_DIR, "ci-summary.json");
 export const DB_NAME_BASE = "SveltyCMS_audit";
 /** The single, unified database name used for ALL SQL benchmarks to ensure realism. */
@@ -201,9 +201,19 @@ export const DB_NAME_BENCHMARK = process.env.DB_NAME_BENCHMARK || "sveltycms_ben
 
 // --- EXECUTION CONTROL ---
 /**
- * Force serial execution for SQL databases (MAX_CONCURRENCY = 1)
- * to ensure single-database integrity and avoid lock contention on SQLite/MariaDB.
+ * 🚀 DYNAMIC CONCURRENCY THROTTLE
+ * SQL databases like PostgreSQL and MariaDB are designed for high-concurrency,
+ * while SQLite requires serialization (1) to prevent file lock contention.
  */
+export const getConcurrencyForDb = (dbType: string): number => {
+  const type = dbType.toLowerCase();
+  if (type.includes("postgres") || type.includes("mariadb") || type.includes("mongodb")) {
+    return 4; // High-concurrency for enterprise engines
+  }
+  return 1; // Serial execution for SQLite / Edge
+};
+
+/** @deprecated Use getConcurrencyForDb(type) for engine-aware throttling */
 export const MAX_CONCURRENCY = 1;
 
 // --- EXPORTS ---

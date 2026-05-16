@@ -4,17 +4,17 @@
  * Measures the speed and integrity of deep-deletion across all linked repositories.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   setupBenchmarkServer,
   ensureStableTestData,
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET,
+  TEST_API_SECRET
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;

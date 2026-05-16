@@ -4,9 +4,8 @@
  * Measures the overhead of tenant isolation and context switching.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   setupBenchmarkServer,
@@ -14,8 +13,9 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType,
+  getDbType
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 
 const TENANT_COUNT = 50;

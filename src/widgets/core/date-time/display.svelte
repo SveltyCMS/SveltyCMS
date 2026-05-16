@@ -1,14 +1,14 @@
 <!--
-@file src/widgets/custom/Date/Display.svelte
+@file src/widgets/core/date-time/display.svelte
 @component
-**Date Widget Display Component**
+**DateTime Widget Display Component**
 
 Renders ISO 8601 date values in localized format using the browser's language settings.
 Part of the Three Pillars Architecture for widget system.
 
 @example
-<DateDisplay value="2025-09-24T00:00:00.000Z" />
-<DateDisplay value="2025-09-24T00:00:00.000Z" format="long" showRelative={true} />
+<DateTimeDisplay value="2025-09-24T00:00:00.000Z" />
+<DateTimeDisplay value="2025-09-24T00:00:00.000Z" format="long" showRelative={true} />
 
 #### Props
 - `value: DateWidgetData` - ISO 8601 date string from validated input

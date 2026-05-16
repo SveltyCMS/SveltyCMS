@@ -166,11 +166,11 @@ export const contentNodes = pgTable(
     ...timestamps,
   },
   (table) => ({
-    pathIdx: unique("content_nodes_path_unique").on(table.path),
     parentIdx: index("content_nodes_parent_idx").on(table.parentId),
     nodeTypeIdx: index("content_nodes_nodeType_idx").on(table.nodeType),
     statusIdx: index("content_nodes_status_idx").on(table.status),
     tenantIdx: index("content_nodes_tenant_idx").on(table.tenantId),
+    pathTenantUnique: unique("content_nodes_path_tenant_unique").on(table.path, table.tenantId),
   }),
 );
 

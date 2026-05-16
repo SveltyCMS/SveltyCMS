@@ -249,7 +249,10 @@ export abstract class AdapterCore extends BaseSqlAdapter {
    * 🚀 AGNOSTIC CORE: MariaDB implementation of JSON field extraction.
    */
   public getJsonField(field: string): import("drizzle-orm").SQL {
-    return sql`JSON_VALUE(data, '$.' || ${field})`;
+    // 🚀 Performance: Use JSON_UNQUOTE(JSON_EXTRACT(...)) for faster path-based extraction
+    // This allows MariaDB to use indexes on virtual columns if available.
+    const path = `$.${field}`;
+    return sql`JSON_UNQUOTE(JSON_EXTRACT(data, ${path}))`;
   }
 
   /**

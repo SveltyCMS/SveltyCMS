@@ -14,6 +14,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const { language } = params;
   const { tenantId } = locals;
 
+  const availableLanguages = (
+    await import("@src/services/core/settings-service")
+  ).getPublicSettingSync("AVAILABLE_CONTENT_LANGUAGES") || ["en"];
+  if (!availableLanguages.includes(language)) {
+    const { error } = await import("@sveltejs/kit");
+    throw error(404, "Not Found");
+  }
+
   try {
     // Ensurecontent-manageris initialized (required for accurate collection list)
     await contentSystem.initialize(tenantId);

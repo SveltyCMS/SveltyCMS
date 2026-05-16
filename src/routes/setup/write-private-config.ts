@@ -82,20 +82,25 @@ export const privateEnv = {
     // Validate written file to ensure integrity
     const writtenContent = await fs.readFile(privateConfigPath, "utf-8");
 
-    // Check that critical fields are present in the written file
-    const requiredFields = [
-      "JWT_SECRET_KEY",
-      "ENCRYPTION_KEY",
-      `DB_HOST: '${escape(dbConfig.host)}'`,
-      `DB_NAME: '${escape(dbConfig.name)}'`,
-      `DB_TYPE: '${escape(dbConfig.type)}'`,
+    // Robust validation using Regex to ignore quoting styles and whitespace
+    const checks = [
+      { name: "JWT_SECRET_KEY", regex: /\bJWT_SECRET_KEY\s*:\s*['"][^'"]{32,}['"]/ },
+      { name: "ENCRYPTION_KEY", regex: /\bENCRYPTION_KEY\s*:\s*['"][^'"]{32,}['"]/ },
+      { name: "DB_HOST", regex: new RegExp(`\\bDB_HOST\\s*:\\s*['"]${escape(dbConfig.host)}['"]`) },
+      { name: "DB_NAME", regex: new RegExp(`\\bDB_NAME\\s*:\\s*['"]${escape(dbConfig.name)}['"]`) },
+      { name: "DB_TYPE", regex: new RegExp(`\\bDB_TYPE\\s*:\\s*['"]${escape(dbConfig.type)}['"]`) },
     ];
 
-    const missingFields = requiredFields.filter((field) => !writtenContent.includes(field));
+    const missingFields = checks
+      .filter((check) => !check.regex.test(writtenContent))
+      .map((c) => c.name);
 
     if (missingFields.length > 0) {
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        logger.error("Validation failed. Written content:", writtenContent);
+      }
       throw new Error(
-        `Private config validation failed - missing fields: ${missingFields.join(", ")}`,
+        `Private config validation failed - missing or malformed fields: ${missingFields.join(", ")}`,
       );
     }
 

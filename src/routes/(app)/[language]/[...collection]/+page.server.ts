@@ -44,7 +44,7 @@ import { contentSystem } from "@src/content/index.server";
 import type { User } from "@src/databases/auth/types";
 import { collectionService } from "@src/services/core/collection-service";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
-import { isRedirect, redirect } from "@sveltejs/kit";
+import { error, isRedirect, redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
 
@@ -60,13 +60,17 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     throw redirect(302, "/login");
   }
 
+  const availableLanguages = getPublicSettingSync("AVAILABLE_CONTENT_LANGUAGES") || ["en"];
+  if (!availableLanguages.includes(language)) {
+    throw error(404, "Not Found");
+  }
+
   const collectionNameOnly = collection?.split("/").pop();
   const systemPages = ["config", "user", "dashboard", "imageEditor", "email-previews"];
   if (collectionNameOnly && systemPages.includes(collectionNameOnly)) {
     throw redirect(302, `/${collectionNameOnly}${url.search}`);
   }
 
-  const availableLanguages = getPublicSettingSync("AVAILABLE_CONTENT_LANGUAGES") || ["en"];
   if (
     typedUser?.locale &&
     typedUser.locale !== language &&
@@ -138,11 +142,12 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
         }
         throw redirect(302, "/user/profile");
       }
-      logger.warn(`Collection not found: ${collection}, redirecting to root.`, {
+      logger.warn(`Collection not found: ${collection}, returning 404.`, {
         tenantId,
         isUUID,
       });
-      throw redirect(302, "/");
+      const { error } = await import("@sveltejs/kit");
+      throw error(404, "Not Found");
     }
 
     // If accessed via a non-canonical path, it will be handled by the client-side to update the URL,

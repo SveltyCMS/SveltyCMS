@@ -181,6 +181,8 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(
   widgetFactoryFunction.GuiSchema = config.GuiSchema;
   widgetFactoryFunction.GraphqlSchema = config.GraphqlSchema;
   widgetFactoryFunction.aggregations = config.aggregations as WidgetDefinition["aggregations"];
+  widgetFactoryFunction.modifyRequest = config.modifyRequest;
+  widgetFactoryFunction.modifyRequestBatch = config.modifyRequestBatch;
   widgetFactoryFunction.__inputComponentPath = config.inputComponentPath || "";
   widgetFactoryFunction.__displayComponentPath = config.displayComponentPath || "";
   widgetFactoryFunction.toString = () => "";

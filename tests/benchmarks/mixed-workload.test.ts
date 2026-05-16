@@ -4,9 +4,8 @@
  * Simulates real-world traffic: 60% Read, 20% Search, 15% GraphQL, 5% Metadata.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   setupBenchmarkServer,
@@ -15,8 +14,9 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType,
+  getDbType
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 
 const ITERATIONS = 1200;

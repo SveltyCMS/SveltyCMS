@@ -3,9 +3,12 @@
  * @description Micro-benchmark for CacheService overhead and invalidation scaling.
  */
 
-import { test } from "bun:test";
+import {
+  test,
+  runBenchmark,
+  printTruthTable
+} from "./benchmark-utils";
 import "../unit/setup.ts";
-import { runBenchmark, printTruthTable } from "./benchmark-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
 
 async function runCacheServiceBenchmark() {

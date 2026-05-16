@@ -4,9 +4,14 @@
  * Measures compilation speed, bundle size trends, and tree-shaking efficiency.
  */
 
-import { test } from "bun:test";
+import {
+  test,
+  exportResult,
+  printTruthTable,
+  printSummaryTable,
+  getDbType
+} from "./benchmark-utils";
 import "../unit/setup.ts";
-import { exportResult, printTruthTable, printSummaryTable, getDbType } from "./benchmark-utils";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execSync } from "node:child_process";
@@ -36,19 +41,21 @@ async function runBuildAnalysis() {
   const startTime = performance.now();
 
   try {
-    // Clean build if needed
-    if (
-      await fs
-        .access(buildDir)
-        .then(() => true)
-        .catch(() => false)
-    ) {
-      await fs.rm(buildDir, { recursive: true, force: true });
-    }
-
     const isSuite = process.env.SVELTY_BENCHMARK_SUITE === "true";
     const passedDuration = process.env.DX_BUILD_DURATION;
     let buildTimeMs: number;
+
+    // Clean build if needed and we are going to build
+    if (!passedDuration && !isSuite) {
+      if (
+        await fs
+          .access(buildDir)
+          .then(() => true)
+          .catch(() => false)
+      ) {
+        await fs.rm(buildDir, { recursive: true, force: true });
+      }
+    }
 
     if (passedDuration) {
       buildTimeMs = parseFloat(passedDuration);

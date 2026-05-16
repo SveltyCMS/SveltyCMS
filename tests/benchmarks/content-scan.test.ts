@@ -4,16 +4,16 @@
  * Measures filesystem + metadata processing performance with realistic multi-extension projects.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   exportMetric,
   stabilize,
   printTruthTable,
-  printSummaryTable,
+  printSummaryTable
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 import fs from "node:fs/promises";
 import path from "node:path";

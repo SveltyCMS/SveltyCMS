@@ -170,7 +170,16 @@ export abstract class BaseAdapter {
       process.env.BENCHMARK_DEBUG === "true";
 
     if (shouldLog) {
-      console.error(`[Adapter Error] Code: ${code}`, error);
+      // 🛡️ NOISE REDUCTION: For benchmarks, don't dump the full error object as it contains massive queries/data
+      const logPayload =
+        process.env.BENCHMARK === "true"
+          ? error instanceof Error
+            ? error.message
+            : typeof error === "object"
+              ? (error as any).message || "Object error"
+              : String(error)
+          : error;
+      logger.error(`[Adapter Error] Code: ${code}`, logPayload);
     }
     let errorString = String(error);
     if (error instanceof Error) {

@@ -144,6 +144,8 @@ export function convertDatesToISO<T extends Record<string, unknown>>(row: T): T 
         // 🚀 HYBRID SCHEMA SUPPORT: Flatten 'data' column without Object.assign
         if (key === "data" && parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
           for (const pKey in parsed) {
+            // 🛡️ HARDENING: Never allow flattened data to overwrite physical ID columns
+            if (pKey === "_id" || pKey === "id") continue;
             result[pKey] = (parsed as any)[pKey];
           }
         }
@@ -269,6 +271,11 @@ export function convertISOToDates<T extends Record<string, unknown>>(data: T): T
           hasChanges = true;
         }
         result[key] = JSON.stringify(value);
+      } else if (typeof value === "string") {
+        // 🚀 HARDENING: If it's already a string, ensure it's copied to result if result was created
+        if (hasChanges && result) {
+          result[key] = value;
+        }
       }
       continue;
     }

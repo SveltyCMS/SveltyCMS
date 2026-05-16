@@ -40,6 +40,7 @@ import {
   generateFinalReport,
   scanResultsDirectory,
 } from "./reporting";
+import { detectRegressions } from "./regression-detector";
 import {
   startServer,
   stopServer,
@@ -53,7 +54,7 @@ import {
   BENCHMARK_SCRIPTS,
   DB_ORDER,
   PORT_BASE,
-  MAX_CONCURRENCY,
+  getConcurrencyForDb,
   ADMIN_PASSWORD,
   TEST_API_SECRET,
   JWT_SECRET_KEY,
@@ -137,15 +138,37 @@ function registerShutdownHandlers() {
 }
 
 /**
- * Purges the results directory before/after a run, but ONLY for the databases currently being audited.
+ * Smart cleanup: Only wipe when doing full or multi-test runs.
+ * Preserve everything in single-test mode.
  */
-async function cleanupResults(activeDatabases: any[], activeScripts?: any[]) {
-  if (activeScripts && activeScripts.length === 1) {
-    log.info("Single benchmark mode — preserving all previous results");
-    return; // ← Critical fix: Don't delete other results when running just one test
+async function cleanupResults(activeDatabases: any[], cfg: any, activeScripts?: any[]) {
+  const isSingleTest = activeScripts && activeScripts.length === 1;
+  const isSingleDb = activeDatabases.length === 1;
+
+  if (cfg.forceClean) {
+    log.warn("Force clean mode — wiping all results for active databases");
+    // do full cleanup regardless of single test
+  } else if (isSingleTest) {
+    log.info(
+      `Single test mode (${activeScripts![0].shortLabel}) — preserving ALL previous results`,
+    );
+    return;
   }
 
-  log.info("Cleaning up session benchmark result files...");
+  if (isSingleDb && activeDatabases[0]) {
+    const dbKey = (activeDatabases[0].label || activeDatabases[0].type)
+      .toLowerCase()
+      .replace("+", "-");
+
+    log.info(`Single database mode (${dbKey}) — selective cleanup`);
+
+    const dbDir = path.join(ROOT_RESULTS_DIR, dbKey);
+    await fs.rm(dbDir, { recursive: true, force: true }).catch(() => {});
+    await fs.mkdir(dbDir, { recursive: true });
+    return;
+  }
+
+  log.info("Full suite — performing selective result cleanup...");
   try {
     const activeKeys = new Set(
       activeDatabases.flatMap((db) => {
@@ -158,10 +181,9 @@ async function cleanupResults(activeDatabases: any[], activeScripts?: any[]) {
 
     const files = await fs.readdir(ROOT_RESULTS_DIR);
     for (const file of files) {
-      // Preserve history and summary files
-      if (file === "history.sqlite" || file === "ci-summary.json") continue;
+      if (file === "history.sqlite" || file === "ci-summary.json" || file === "history.jsonl")
+        continue;
 
-      // Only delete if it matches an active database key
       if (activeKeys.has(file)) {
         log.warn(`Selective Purge: ${file}`);
         await fs
@@ -225,7 +247,7 @@ async function main() {
   const activeDatabases = filterDatabases(cfg);
 
   // Clean up existing results only for the databases we are about to audit
-  await cleanupResults(activeDatabases, activeScripts);
+  await cleanupResults(activeDatabases, cfg, activeScripts);
 
   if (cfg.sectionFilter) log.info(`Section filter: ${cfg.sectionFilter.join(", ")}`);
   if (cfg.levelFilter !== null) log.info(`Level filter: ≤ ${cfg.levelFilter}`);
@@ -348,9 +370,17 @@ async function main() {
       );
     }
   } else {
-    const semaphore = new AsyncSemaphore(MAX_CONCURRENCY);
+    // 🚀 ENGINE-AWARE CONCURRENCY: Limit parallel runs based on database capabilities
+    const semaphores = new Map<string, AsyncSemaphore>();
     const tasks = sortedDbs.map(async (db, _i) => {
       if (isShuttingDown()) return;
+
+      const engine = db.type.toLowerCase().split("-")[0];
+      if (!semaphores.has(engine)) {
+        semaphores.set(engine, new AsyncSemaphore(getConcurrencyForDb(engine)));
+      }
+
+      const semaphore = semaphores.get(engine)!;
       await semaphore.acquire();
       try {
         if (isShuttingDown()) return;
@@ -371,33 +401,63 @@ async function main() {
   }
 
   const regressions = await generateFinalReport(results, cfg);
+  const perfRegressions = await detectRegressions(results);
+  const allRegressions = [
+    ...regressions,
+    ...perfRegressions.map(
+      (r) =>
+        `${r.db} → ${r.metric}: ${r.current.toFixed(2)}ms (${r.changePct > 0 ? "+" : ""}${r.changePct.toFixed(1)}%)`,
+    ),
+  ];
 
   printSummaryTable(results);
 
-  // 🚀 HARDENING: Fail the entire suite if ANY test failed
   const failedTests = results.filter((r) => r.status === "FAILED");
 
   if (cfg.ci) {
-    const summary = await writeCISummary(results, regressions);
+    const summary = await writeCISummary(results, allRegressions);
     if (summary.overall !== "PASS") {
       log.error(
-        `CI check FAILED — ${summary.failed} DB(s) failed, ${regressions.length} regression(s), ${summary.budgetViolations.length} budget violation(s).`,
+        `CI check FAILED — ${summary.failed} DB(s) failed, ${allRegressions.length} regression(s), ${summary.budgetViolations.length} budget violation(s).`,
       );
       await stopServer();
       await ConfigSafeguard.restore();
       process.exit(1);
     }
-  } else if (failedTests.length > 0) {
-    log.error(`\n❌ Audit FAILED — ${failedTests.length} benchmark(s) failed. Check logs above.`);
+  } else if (failedTests.length > 0 || allRegressions.length > 0) {
+    log.warn(
+      `\nSuite completed with ${failedTests.length} failures and ${allRegressions.length} regressions.`,
+    );
 
-    // Log individual failures for visibility
-    for (const failure of failedTests) {
-      log.error(`   ✗ ${failure.db}: ${failure.error || "Unknown error"}`);
+    if (failedTests.length > 0) {
+      log.error(`❌ ${failedTests.length} benchmark(s) failed. Check logs above.`);
+      for (const failure of failedTests) {
+        log.error(`   ✗ ${failure.db}: ${failure.error || "Unknown error"}`);
+      }
     }
 
-    await stopServer();
-    await ConfigSafeguard.restore();
-    process.exit(1);
+    if (perfRegressions.length > 0) {
+      log.warn(`\n⚠️  Detected ${perfRegressions.length} performance regressions:`);
+      for (const r of perfRegressions) {
+        log.warn(
+          `   ${r.db} → ${r.metric}: ${r.current.toFixed(2)}ms (${r.changePct > 0 ? "+" : ""}${r.changePct.toFixed(1)}%)`,
+        );
+      }
+    }
+
+    if (regressions.length > 0) {
+      log.error(`❌ ${regressions.length} historical regression(s) detected.`);
+      for (const r of regressions) {
+        log.error(`   ✗ ${r}`);
+      }
+    }
+
+    // Only exit with 1 if in strict mode or CI, otherwise allow development to continue
+    if (cfg.ci || cfg.failFast) {
+      await stopServer();
+      await ConfigSafeguard.restore();
+      process.exit(1);
+    }
   }
 
   try {

@@ -69,6 +69,7 @@ export function parseArgs(): RunConfig {
     warmup: !hasFlag("--no-warmup"),
     ci: hasFlag("--ci"),
     failFast: !hasFlag("--no-fail-fast"),
+    forceClean: hasFlag("--force-clean") || hasFlag("--clean"),
     list: hasFlag("--list"),
   };
 

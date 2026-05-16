@@ -5,16 +5,16 @@
  * to prove that the CMS engine uses deterministic UTC timing for persistence.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   setupBenchmarkServer,
   ensureStableTestData,
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET,
+  TEST_API_SECRET
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "BenchmarkStable";
@@ -22,14 +22,25 @@ const COLLECTION_ID = "BenchmarkStable";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runTemporalAudit() {
-  console.log("🚀 Starting Enterprise Temporal Integrity Audit...\n");
+  process.stderr.write("🚀 Starting Enterprise Temporal Integrity Audit...\n");
 
   try {
     const server = await setupBenchmarkServer();
     stopServer = server.stop;
     const baseUrl = server.baseUrl;
 
+    process.stderr.write("[DEBUG] Calling ensureStableTestData...\n");
     await ensureStableTestData();
+
+    const listRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}?limit=10`, {
+      headers: {
+        "x-test-mode": "true",
+        "x-test-secret": TEST_API_SECRET,
+        "x-tenant-id": "global",
+      },
+    });
+    const listData = await listRes.json();
+    console.log(`[DEBUG] Initial Collection List (${COLLECTION_ID}):`, JSON.stringify(listData, null, 2));
 
     console.log("   → Testing persistence of ISO Dates from various timezone offsets...");
 
@@ -55,10 +66,8 @@ async function runTemporalAudit() {
     const t0 = performance.now();
 
     for (const td of testDates) {
-      // Create an entry with a specific 'createdAt' or a dummy date field if schema allows.
-      // We'll update the stable entry's arbitrary 'updatedAt' or 'metadata' field to hold the date.
       const payload = {
-        metadata: { testDate: td.input },
+        publishDate: td.input,
       };
 
       const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/bench-shared-001`, {
@@ -67,6 +76,7 @@ async function runTemporalAudit() {
           "Content-Type": "application/json",
           "x-test-mode": "true",
           "x-test-secret": TEST_API_SECRET,
+          "x-tenant-id": "global",
         },
         body: JSON.stringify(payload),
       });
@@ -79,18 +89,25 @@ async function runTemporalAudit() {
 
       // Fetch it back
       const getRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/bench-shared-001`, {
-        headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
+        headers: {
+          "x-test-mode": "true",
+          "x-test-secret": TEST_API_SECRET,
+          "x-tenant-id": "global",
+        },
       });
 
       const data = await getRes.json();
-      const returnedDate = data.metadata?.testDate;
+      const entry = data.data;
+      console.log(`[DEBUG] Entry keys for ${td.name}:`, entry ? Object.keys(entry) : "null");
+      const returnedDate = entry?.publishDate;
 
-      // Some DBs/Drivers return exactly what was input as a string if not strictly typed as Date in DB.
       // In a true Temporal test, we assert that the system normalizes it.
-      // For this audit, we flag it if it's completely mangled.
-      if (!returnedDate) {
-        failures++;
-      }
+      // SveltyCMS should normalize it to the `expected` UTC string.
+      expect(returnedDate).toBe(td.expected);
+    }
+
+    if (failures > 0) {
+      throw new Error(`Temporal Integrity Audit Failed: ${failures} timezones were not normalized properly.`);
     }
 
     const duration = performance.now() - t0;

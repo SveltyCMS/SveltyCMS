@@ -3,7 +3,6 @@
  * @description Benchmark to measure "Cold Start" latency with Phased Initialization.
  */
 
-import { describe, it } from "bun:test";
 import { runSystemBoot } from "@src/databases/db-init";
 import { systemStateStore } from "@src/stores/system/state.svelte";
 import { get } from "svelte/store";

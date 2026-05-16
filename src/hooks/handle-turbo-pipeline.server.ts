@@ -128,7 +128,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
 
   if (isTest && testSecret) {
-    const expected = getTestSecret();
+    const expected = process.env.TEST_API_SECRET || getTestSecret();
 
     if (expected && testSecret === expected) {
       // 🚀 TERMINAL BYPASS: Verified test secret receives full system access.

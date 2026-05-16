@@ -178,7 +178,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
       {
         _id: text("_id").primaryKey(),
         tenantId: text("tenantId"),
-        data: text("data").notNull(),
+        data: text("data").notNull().default("{}"),
         status: text("status").notNull().default("draft"),
         isDeleted: integer("isDeleted", { mode: "boolean" }).notNull().default(false),
         createdAt: integer("createdAt", { mode: "timestamp_ms" })
@@ -534,7 +534,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
         // a transient file lock or path access issue on Windows.
         let sqlite: any;
         let lastErr: any;
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 10; i++) {
           try {
             // On Windows, sometimes file:/// is needed, sometimes not.
             // We'll try the normalizedPath first, then raw dbPath.
@@ -555,7 +555,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
               e.errno === 21;
 
             if (process.platform === "win32" && isRetryable) {
-              await new Promise((r) => setTimeout(r, 100 * (i + 1)));
+              await new Promise((r) => setTimeout(r, 250 * (i + 1)));
               continue;
             }
             throw e;
@@ -634,11 +634,10 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
             // 🚀 WINDOWS HARDENING: Use normalized path (absolute/file URI) for native driver
             const sqlite = new DatabaseSync(normalizedPath);
 
-            // Apply pragmas to the proxy driver as well
-            sqlite.exec("PRAGMA journal_mode=WAL");
-            sqlite.exec("PRAGMA synchronous=NORMAL");
-            sqlite.exec("PRAGMA foreign_keys=ON");
-            sqlite.exec("PRAGMA busy_timeout=30000"); // 30s for setup-phase resilience
+            // 🚀 PERFORMANCE: Apply all pragmas (including mmap_size for Windows) to the proxy driver
+            this.applyPragmas({
+              exec: (cmd: string) => sqlite.exec(cmd),
+            });
 
             // 🚀 Shim node:sqlite using drizzle-orm/sqlite-proxy
             const { drizzle: proxyDrizzle } = await import("drizzle-orm/sqlite-proxy");

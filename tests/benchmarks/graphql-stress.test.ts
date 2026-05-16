@@ -4,9 +4,8 @@
  * Real HTTP + realistic queries + high-concurrency profiles + HDR statistics.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   setupBenchmarkServer,
@@ -14,8 +13,9 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType,
+  getDbType
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 
 const LOAD_PROFILES = {
   TINY: { total: 2000, concurrency: 20, name: "Tiny (CI)", runs: 2 },
@@ -27,8 +27,8 @@ type LoadLevel = keyof typeof LOAD_PROFILES;
 
 const QUERIES = [
   { name: "Health", query: `query { contentSystemHealth { state version } }` },
-  { name: "Collections", query: `query { allCollections { _id name } }` },
-  { name: "Entries", query: `query { BenchmarkStable(limit: 10) { _id title } }` },
+  { name: "Collections", query: `query { allCollectionStats { _id name } }` },
+  { name: "Entries", query: `query { Benchmarkstable(pagination: { limit: 10 }) { _id title } }` },
 ];
 
 let stopServer: (() => Promise<void>) | null = null;

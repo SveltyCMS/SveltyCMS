@@ -4,9 +4,8 @@
  * Measures redirect performance, sitemap generation, robots.txt, and related SEO features.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   setupBenchmarkServer,
@@ -16,8 +15,9 @@ import {
   forceRefreshServer,
   stabilize,
   getDbType,
-  TEST_API_SECRET,
+  TEST_API_SECRET
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
@@ -87,8 +87,9 @@ async function runSeoAudit() {
           });
 
           if (scenario.expectedStatus && res.status !== scenario.expectedStatus) {
+            const loc = res.headers.get("location");
             throw new Error(
-              `${scenario.name} failed: Expected ${scenario.expectedStatus}, got ${res.status}`,
+              `${scenario.name} failed: Expected ${scenario.expectedStatus}, got ${res.status} (Location: ${loc})`,
             );
           }
           await res.text();
@@ -117,6 +118,7 @@ async function runSeoAudit() {
   } catch (err: any) {
     logger.error(`SEO audit failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});

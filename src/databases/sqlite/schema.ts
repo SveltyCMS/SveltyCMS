@@ -174,12 +174,11 @@ export const contentNodes = sqliteTable(
     ...timestamps,
   },
   (table) => ({
-    pathIdx: unique("path_unique").on(table.path),
     parentIdx: index("parent_idx").on(table.parentId),
     nodeTypeIdx: index("nodeType_idx").on(table.nodeType),
     statusIdx: index("status_idx").on(table.status),
     tenantIdx: index("tenant_idx").on(table.tenantId),
-    tenantPathIdx: index("tenant_path_idx").on(table.tenantId, table.path), // 🚀 Optimization
+    pathTenantUnique: unique("path_tenant_unique").on(table.path, table.tenantId), // 🚀 Multi-tenant path uniqueness
   }),
 );
 

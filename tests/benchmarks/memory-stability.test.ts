@@ -205,6 +205,7 @@ export async function runMemoryStabilityAudit() {
   } catch (err: any) {
     logger.error(`Memory stability audit failed: ${err.message}`);
     console.error(err);
+    throw err;
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});

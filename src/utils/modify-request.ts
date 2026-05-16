@@ -99,18 +99,39 @@ export async function modifyRequest({
     const activeWidgets =
       (fields as any)._activeWidgets ||
       fields
-        .map((f) => ({
-          field: f,
-          name: getFieldName(f),
-          widget: widgets.widgetFunctions[f.widget.Name],
-        }))
+        .map((f) => {
+          const wFn = widgets.widgetFunctions[f.widget.Name];
+          if (process.env.BENCHMARK_DEBUG === "true" && !wFn) {
+            console.warn(
+              `[modifyRequest] Missing widget function for: ${f.widget.Name}. Available: ${Object.keys(widgets.widgetFunctions).join(", ")}`,
+            );
+          }
+          return {
+            field: f,
+            name: getFieldName(f),
+            widget: wFn,
+          };
+        })
         .filter((w) => w.widget && (w.widget.modifyRequest || w.widget.modifyRequestBatch));
 
     if (!(fields as any)._activeWidgets) {
       (fields as any)._activeWidgets = activeWidgets;
     }
 
-    if (activeWidgets.length === 0) return data;
+    if (activeWidgets.length === 0) {
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        logger.info(
+          `[modifyRequest] No active widgets found for fields: ${fields.map((f) => getFieldName(f)).join(", ")}`,
+        );
+      }
+      return data;
+    }
+
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      logger.info(
+        `[modifyRequest] Active widgets: ${activeWidgets.map((w: any) => w.name).join(", ")}`,
+      );
+    }
 
     for (const { field, name, widget } of activeWidgets) {
       // 2. Runtime FLAC Check (Skip widget logic if field is blocked)

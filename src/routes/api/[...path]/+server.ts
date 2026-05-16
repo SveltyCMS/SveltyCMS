@@ -98,6 +98,11 @@ export const _handler = async (event: RequestEvent) => {
   if (request.method === "GET") {
     const cached = cacheService.getSync?.(url.pathname + url.search, tenantId);
     if (cached) {
+      if (typeof cached === "string") {
+        return new Response(cached, {
+          headers: { "X-Cache": "HIT-L1", "Content-Type": "application/json" },
+        });
+      }
       return json(cached, {
         headers: { "X-Cache": "HIT-L1", "Content-Type": "application/json" },
       });

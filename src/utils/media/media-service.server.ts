@@ -97,7 +97,26 @@ export class MediaService {
             data: this.enrichMediaWithUrl(existing.data as any) as unknown as MediaItem,
           };
         }
-        return (await this.files.upload({ ...file, hash } as any, tenantId ?? undefined)) as any;
+        return (await this.files.upload(
+          {
+            filename: file.name,
+            originalFilename: file.name,
+            mimeType: file.type,
+            size: file.size,
+            hash,
+            path: `global/${hash}`, // Default path, will be updated by adapter if needed
+            createdBy: _userId,
+            updatedBy: _userId,
+            metadata: {},
+            thumbnails: {},
+            access: _access,
+            tenantId: tenantId ?? undefined,
+            stream: typeof file.stream === "function" ? file.stream.bind(file) : undefined,
+            arrayBuffer:
+              typeof file.arrayBuffer === "function" ? file.arrayBuffer.bind(file) : undefined,
+          } as any,
+          tenantId ?? undefined,
+        )) as any;
       } else {
         // Large file: Stream it!
         // We tee the stream: one for hashing, one for uploading
@@ -122,7 +141,21 @@ export class MediaService {
         }
 
         return (await this.files.upload(
-          { ...file, stream: () => s2, hash } as any,
+          {
+            filename: file.name,
+            originalFilename: file.name,
+            mimeType: file.type,
+            size: file.size,
+            hash,
+            path: `global/${hash}`,
+            createdBy: _userId,
+            updatedBy: _userId,
+            metadata: {},
+            thumbnails: {},
+            access: _access,
+            tenantId: tenantId ?? undefined,
+            stream: () => s2,
+          } as any,
           tenantId ?? undefined,
         )) as any;
       }

@@ -171,7 +171,44 @@ export class RelationalContentModule implements IContentAdapter {
     upsertContentStructureNode: async (
       node: EntityCreate<ContentNode>,
     ): Promise<DatabaseResult<ContentNode>> => {
-      return this.crud.upsert<ContentNode>("content_nodes", { path: node.path } as any, node);
+      const tenantId = (node as any).tenantId;
+
+      // 🚀 NATIVE PERFORMANCE: Use engine-specific upsert if available (SQLite, Postgres, MariaDB)
+      if (this.adapter.type !== "mongodb" && (this.adapter as any).upsertNative) {
+        return this.adapter.wrap(
+          async () => {
+            const now = new Date();
+            const table = this.schema.contentNodes;
+
+            // 🚀 Ensure data is correctly mapped to columns vs JSON data field
+            const preparedValues = (this.adapter as any).prepareValues(
+              table,
+              node,
+              (node as any)._id,
+              now,
+              { tenantId },
+            );
+
+            // Conflict columns for content_nodes are path and tenantId
+            const conflictCols = [table.path, table.tenantId];
+
+            await (this.adapter as any).upsertNative(table, preparedValues, conflictCols);
+
+            return utils.convertDatesToISO(preparedValues) as unknown as ContentNode;
+          },
+          "UPSERT_STRUCTURE_NODE_FAILED",
+          undefined,
+          { isWrite: true },
+        );
+      }
+
+      // Fallback to standard CRUD for MongoDB or non-relational adapters
+      return this.crud.upsert<ContentNode>(
+        "content_nodes",
+        { path: node.path, tenantId } as any,
+        node,
+        { tenantId },
+      );
     },
 
     create: async (node: EntityCreate<ContentNode>): Promise<DatabaseResult<ContentNode>> => {
@@ -189,6 +226,15 @@ export class RelationalContentModule implements IContentAdapter {
       changes: Partial<ContentNode>,
       options: { tx?: any } = {},
     ): Promise<DatabaseResult<ContentNode>> => {
+      // 🛡️ HARDENING: Prevent driver-level crashes if path is accidentally undefined/null
+      if (!path) {
+        return {
+          success: false,
+          message: "Path is required for node update",
+          error: { code: "INVALID_PATH", message: "Path is undefined" },
+        };
+      }
+
       return this.adapter.wrap(
         async () => {
           const db = options.tx || this.db;
@@ -247,6 +293,15 @@ export class RelationalContentModule implements IContentAdapter {
     },
 
     delete: async (path: string): Promise<DatabaseResult<void>> => {
+      // 🛡️ HARDENING: Prevent driver-level crashes if path is accidentally undefined/null
+      if (!path) {
+        return {
+          success: false,
+          message: "Path is required for node delete",
+          error: { code: "INVALID_PATH", message: "Path is undefined" },
+        };
+      }
+
       return this.adapter.wrap(
         async () => {
           await this.db

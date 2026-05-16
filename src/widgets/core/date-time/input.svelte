@@ -1,13 +1,13 @@
 <!--
-@file src/widgets/custom/Date/Input.svelte
+@file src/widgets/core/date-time/input.svelte
 @component
-**Date Widget Input Component**
+**DateTime Widget Input Component**
 
 Provides native HTML date input with automatic ISO 8601 normalization.
 Part of the Three Pillars Architecture for widget system.
 
 @example
-<DateInput bind:value={dateValue} {field} />
+<DateTimeInput bind:value={dateValue} {field} />
 
 #### Props
 - `field: FieldType` - Widget field definition with metadata

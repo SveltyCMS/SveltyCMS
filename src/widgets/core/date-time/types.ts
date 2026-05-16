@@ -1,10 +1,10 @@
 /**
- * @file src/widgets/custom/Date/types.ts
- * @description Type definitions for the Date widget
+ * @file src/widgets/core/date-time/types.ts
+ * @description Type definitions for the DateTime widget
  */
 
-// Defines the properties unique to the Date widget
-export interface DateProps {
+// Defines the properties unique to the DateTime widget
+export interface DateTimeProps {
   // Display format for the date @default 'medium'
   displayFormat?: "short" | "medium" | "long" | "full";
 

@@ -1,7 +1,7 @@
 /**
  * @file src/databases/db.ts
  * @description Core Database system with enhanced resilience and performance optimization.
- * 🚀 V10 UPDATE: Ultra-stable Proxy-based singleton pattern for cross-chunk synchronization.
+ * 🚀 Ultra-stable Proxy-based singleton pattern for cross-chunk synchronization.
  */
 
 import { logger } from "@utils/logger";
@@ -14,9 +14,7 @@ const INIT_PROMISE_KEY = "__DB_INIT_PROMISE__";
 const AUTH_KEY = "__AUTH_INSTANCE__";
 const BOOT_PHASE_KEY = "__BOOT_PHASE__";
 
-/**
- * 🚀 AGNOSTIC CORE: High-performance, safe access to the database adapter.
- */
+// 🚀 AGNOSTIC CORE: High-performance, safe access to the database adapter.
 export async function getDbSafe(): Promise<DatabaseAdapter> {
   const adapter = getGlobal<DatabaseAdapter>(ADAPTER_KEY);
   if (adapter && adapter.isConnected()) return adapter;
@@ -34,9 +32,7 @@ export function getDb(): DatabaseAdapter | null {
   return getGlobal(ADAPTER_KEY);
 }
 
-/**
- * 🚀 COMPATIBILITY: Restore missing exports for build safety.
- */
+// 🚀 COMPATIBILITY: Restore missing exports for build safety.
 export function isDbConnected(): boolean {
   const adapter = getGlobal<IDBAdapter>(ADAPTER_KEY);
   return !!adapter && adapter.isConnected();
@@ -52,25 +48,17 @@ export function getBootPhase(): string {
   return getGlobal(BOOT_PHASE_KEY, "IDLE");
 }
 
-/**
- * Direct access to the current auth service instance.
- */
+// Direct access to the current auth service instance.
 export function getAuth(): any {
   return getGlobal(AUTH_KEY);
 }
 
-/**
- * Returns the global initialization promise.
- */
+// Returns the global initialization promise.
 export function getDbInitPromise(_force = false, _context = "CORE"): Promise<any | null> {
-  const promise = getGlobal<Promise<any>>(INIT_PROMISE_KEY);
-  if (promise) return promise;
   return ensureFullInitialization();
 }
 
-/**
- * 🛡️ THE REACTIVE SHIELD: A Proxy that survives Vite chunking AND wait-for-instance.
- */
+// 🛡️ THE REACTIVE SHIELD: A Proxy that survives Vite chunking AND wait-for-instance.
 const proxyCache = new Map<string, any>();
 const boundFunctionsCache = new WeakMap<any, Map<string | symbol, Function>>();
 
@@ -157,9 +145,7 @@ export const auth: any = new Proxy(
   },
 );
 
-/**
- * Global initialization promise proxy.
- */
+// Global initialization promise proxy.
 export const dbInitPromise: Promise<any | null> = new Proxy(Promise.resolve(null), {
   get(_, prop) {
     const promise = getDbInitPromise();
@@ -179,9 +165,7 @@ async function getDbInit() {
   return _dbInit;
 }
 
-/**
- * Centralized, idempotent system initialization.
- */
+// Centralized, idempotent system initialization.
 export async function ensureFullInitialization(): Promise<any | null> {
   // 🚀 HARDENING: Double-Check Locking with Connectivity Guard
   // If we have an existing promise, we must ensure it still represents a live connection.
@@ -273,16 +257,12 @@ export async function ensureFullInitialization(): Promise<any | null> {
   return initPromise;
 }
 
-/**
- * 🚀 High-level entry point.
- */
+// High-level entry point.
 export async function initializeDatabase(): Promise<void> {
   await ensureFullInitialization();
 }
 
-/**
- * 🚀 AGNOSTIC CORE: Shutdown helper.
- */
+// AGNOSTIC CORE: Shutdown helper.
 export async function shutdownSystem(): Promise<void> {
   const adapter = getGlobal<IDBAdapter>(ADAPTER_KEY);
   if (adapter && typeof adapter.disconnect === "function") {
@@ -300,17 +280,13 @@ export async function shutdownSystem(): Promise<void> {
   setGlobal("__SETTINGS_LOADED__", false);
 }
 
-/**
- * 🚀 AGNOSTIC CORE: Re-initialization helper.
- */
+// AGNOSTIC CORE: Re-initialization helper.
 export async function reinitializeSystem(_force = true): Promise<void> {
   await shutdownSystem();
   await ensureFullInitialization();
 }
 
-/**
- * 🧪 TEST HELPERS: Manual state control for integration suites.
- */
+// TEST HELPERS: Manual state control for integration suites.
 export function resetDbInitPromise(): void {
   setGlobal(INIT_PROMISE_KEY, null);
   setGlobal(BOOT_PHASE_KEY, "IDLE");

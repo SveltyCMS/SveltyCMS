@@ -4,15 +4,15 @@
  * Measures the server-side processing cost of complex Svelte 5 logic for massive forms.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   stabilize,
   printTruthTable,
   printSummaryTable,
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 
 async function runUXAudit() {
   console.log("🚀 Starting Simulated Admin UX Vitality Audit...\n");

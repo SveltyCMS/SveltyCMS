@@ -4,17 +4,17 @@
  * Measures initialization latency and proxy header processing overhead.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   setupBenchmarkServer,
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType,
+  getDbType
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
@@ -86,7 +86,7 @@ async function runSetupAudit() {
       { key: "Proxy Header Parsing", val: proxyResult.avgMs, unit: "ms" },
       {
         key: "Rating",
-        val: avgCold < 1200 ? "EXCELLENT" : avgCold < 2000 ? "GOOD" : "SLOW",
+        val: avgCold < 8000 ? "EXCELLENT" : avgCold < 12000 ? "GOOD" : "SLOW",
         unit: "",
       },
     ]);

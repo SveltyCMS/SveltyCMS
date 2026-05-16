@@ -6,16 +6,47 @@
  */
 import { plugin } from "bun";
 
-// Mock $app/environment for standalone execution
+// 🚀 SvelteKit Mocking Engine (Must be registered BEFORE any other imports)
 plugin({
   name: "svelte-kit-mock",
   setup(build) {
-    build.onResolve({ filter: /^\$/ }, (args) => {
-      if (args.path.startsWith("$app/")) {
-        return { path: args.path, external: false, namespace: "svelte-kit-mock" };
-      }
+    // 1. Mock $app/ modules
+    build.onResolve({ filter: /^\$app\// }, (args) => {
+      return { path: args.path, external: false, namespace: "svelte-kit-mock" };
     });
-    build.onLoad({ filter: /.*/, namespace: "svelte-kit-mock" }, (_args) => {
+
+    // 2. Mock @sveltejs/kit
+    build.onResolve({ filter: /^@sveltejs\/kit$/ }, (args) => {
+      return { path: args.path, external: false, namespace: "svelte-kit-mock" };
+    });
+
+    build.onLoad({ filter: /.*/, namespace: "svelte-kit-mock" }, (args) => {
+      if (args.path === "@sveltejs/kit") {
+        return {
+          contents: `
+            export const error = (status, message) => {
+              const err = new Error(typeof message === 'object' ? message.message : message);
+              err.status = status;
+              return err;
+            };
+            export const json = (data, options) => {
+              return new Response(JSON.stringify(data), {
+                status: options?.status || 200,
+                headers: { 'Content-Type': 'application/json', ...options?.headers }
+              });
+            };
+            export const redirect = (status, location) => {
+              const err = new Error('Redirect');
+              err.status = status;
+              err.location = location;
+              return err;
+            };
+          `,
+          loader: "js",
+        };
+      }
+
+      // Default mock for $app/ environment and navigation
       return {
         contents: `
           export const browser = false; 
@@ -40,11 +71,12 @@ plugin({
 
 import { contentSystem } from "@src/content";
 import { getDefaultRoles } from "@src/databases/auth/default-roles";
+
 import { LocalCMS } from "@src/services/sdk";
 
 export const AUTHOR_COUNT = Number(process.env.AUTHOR_COUNT ?? 10);
 export const POSTS_PER_AUTHOR = Number(process.env.POSTS_PER_AUTHOR ?? 5);
-export const TENANT_ID = process.env.TENANT_ID || "default-tenant";
+export const TENANT_ID = process.env.TENANT_ID || "default";
 
 const COLLECTIONS = {
   AUTHORS: {
@@ -77,12 +109,16 @@ const COLLECTIONS = {
     icon: "mdi:database-check",
     fields: [
       { label: "Title", db_fieldName: "title", widget: { Name: "Input" }, required: true },
+      { label: "Slug", db_fieldName: "slug", widget: { Name: "Input" } },
       { label: "Content", db_fieldName: "content", widget: { Name: "RichText" } },
+      { label: "Count", db_fieldName: "count", widget: { Name: "Number" } },
+      { label: "Author", db_fieldName: "author", widget: { Name: "Relation" }, relation: "benchmark_authors" },
+      { label: "Publish Date", db_fieldName: "publishDate", widget: { Name: "DateTime" } },
     ],
   },
   REDIRECTS: {
-    _id: "bench_redirects",
-    name: "bench_redirects",
+    _id: "redirects",
+    name: "redirects",
     icon: "mdi:link-out",
     fields: [
       { label: "From", db_fieldName: "source", widget: { Name: "Input" }, required: true },
@@ -363,15 +399,15 @@ async function seedData(cms: any, authorsId: string, postsId: string): Promise<v
       const redirects = [
         {
           _id: "bench-redirect-1",
-          from: "/old-path-1",
-          to: "/new-path-1",
+          source: "/old-path-1",
+          target: "/new-path-1",
           type: 301,
           tenantId: "default",
         },
         {
           _id: "bench-redirect-2",
-          from: "/old-path-2",
-          to: "/new-path-2",
+          source: "/old-path-2",
+          target: "/new-path-2",
           type: 301,
           tenantId: "default",
         },
@@ -497,10 +533,13 @@ export async function main(): Promise<void> {
             action: "create-collection",
             schema,
           }),
-          signal: AbortSignal.timeout(10000),
+          signal: AbortSignal.timeout(30000),
         });
         if (res.ok) log(`      ✅ ${schema._id}`);
-        else log(`      ❌ ${schema._id} (${res.status})`);
+        else {
+          log(`      ❌ ${schema._id} (${res.status})`);
+          throw new Error(`Collection provisioning failed for ${schema._id} with status ${res.status}`);
+        }
       }
 
       if (clearOnly) {
@@ -567,20 +606,20 @@ export async function main(): Promise<void> {
       const redirects = [
         {
           _id: "bench-redirect-1",
-          from: "/old-path-1",
-          to: "/new-path-1",
+          source: "/old-path-1",
+          target: "/new-path-1",
           type: 301,
           tenantId: TENANT_ID,
         },
         {
           _id: "bench-redirect-2",
-          from: "/old-path-2",
-          to: "/new-path-2",
+          source: "/old-path-2",
+          target: "/new-path-2",
           type: 301,
           tenantId: TENANT_ID,
         },
       ];
-      await fetch(`${process.env.API_BASE_URL}/api/collections/bench_redirects/bulk`, {
+      await fetch(`${process.env.API_BASE_URL}/api/collections/redirects/bulk`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -771,8 +810,13 @@ export async function main(): Promise<void> {
   }
 }
 
-// Only execute if this is the main entry point
-if (import.meta.main) {
+// 🚀 EXECUTION ENGINE
+if (process.env.BUN_TEST === "true") {
+  const { it } = await import("bun:test");
+  it("Seeds Relational Data", async () => {
+    await main();
+  });
+} else if (import.meta.main) {
   main().catch((err) => {
     console.error("❌ Setup failed:", err);
     process.exit(1);

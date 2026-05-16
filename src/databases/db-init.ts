@@ -21,16 +21,14 @@ export async function loadAdapters(config: any): Promise<IDBAdapter | null> {
     (process.env.TEST_MODE === "true" ? null : "sqlite")
   )?.toLowerCase();
 
-  if (process.env.TEST_MODE === "true" || process.env.BENCHMARK_DEBUG === "true") {
-    const source = config?.DB_TYPE
-      ? "config.DB_TYPE"
-      : config?.type
-        ? "config.type"
-        : process.env.DATABASE_ENGINE
-          ? "DATABASE_ENGINE"
-          : "Default";
-    console.log(`[DB Init] Resolved adapter type: ${type} (Source: ${source})`);
-  }
+  const source = config?.DB_TYPE
+    ? "config.DB_TYPE"
+    : config?.type
+      ? "config.type"
+      : process.env.DATABASE_ENGINE
+        ? "DATABASE_ENGINE"
+        : "Default";
+  logger.debug(`[DB Init] Resolved adapter type: ${type} (Source: ${source})`);
 
   if (!type) {
     throw new Error(

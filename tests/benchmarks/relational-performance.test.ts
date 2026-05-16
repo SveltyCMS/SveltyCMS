@@ -4,9 +4,8 @@
  * Measures GraphQL resolver performance for complex joins and deep relations.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   setupBenchmarkServer,
@@ -15,8 +14,9 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  forceRefreshServer,
+  forceRefreshServer
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;

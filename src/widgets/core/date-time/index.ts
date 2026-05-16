@@ -20,7 +20,8 @@
 import { createWidget } from "@src/widgets/widget-factory";
 import { widget_date_description } from "@src/paraglide/messages";
 import { isoTimestamp, pipe, string, nullable, type InferInput as ValibotInput } from "valibot";
-import type { DateProps } from "./types";
+import type { DateTimeProps } from "./types";
+import { toISOString } from "@src/utils/date";
 
 // Type for aggregation field parameter
 interface AggregationField {
@@ -29,7 +30,7 @@ interface AggregationField {
 }
 
 // Define the validation schema for the data this widget stores.
-const createValidationSchema = (field: DateProps) => {
+const createValidationSchema = (field: DateTimeProps) => {
   const schema = pipe(
     string("A value is required."),
     isoTimestamp("The date must be a valid ISO 8601 string."),
@@ -39,17 +40,33 @@ const createValidationSchema = (field: DateProps) => {
 };
 
 // Create the widget definition using the factory.
-const DateWidget = createWidget<DateProps>({
-  Name: "Date",
-  Icon: "mdi:calendar",
+const DateTimeWidget = createWidget<DateTimeProps>({
+  Name: "DateTime",
+  Icon: "mdi:calendar-clock",
   Description: widget_date_description(),
 
   // Define paths to the dedicated Svelte components.
-  inputComponentPath: "/src/widgets/custom/date/input.svelte",
-  displayComponentPath: "/src/widgets/custom/date/display.svelte",
+  inputComponentPath: "/src/widgets/core/date-time/input.svelte",
+  displayComponentPath: "/src/widgets/core/date-time/display.svelte",
 
   // Assign the validation schema.
   validationSchema: createValidationSchema,
+
+  // 🚀 NORMALIZATION: Ensure all persisted dates are standardized UTC ISO strings
+  modifyRequest: async ({ data, type }: any) => {
+    if (type !== "GET") {
+      const val = data.get();
+      if (val !== undefined && val !== null && val !== "") {
+        const normalized = toISOString(val);
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          // Use console.log for now to be safe, or try to import it properly
+          console.info(`[DEBUG] DateTimeWidget Normalized: from ${val} to ${normalized}`);
+        }
+        data.update(normalized);
+      }
+    }
+    return data;
+  },
 
   // Set widget-specific defaults. A date is typically not translated.
   defaults: {
@@ -126,8 +143,30 @@ const DateWidget = createWidget<DateProps>({
   jsonRender: true,
 });
 
-export default DateWidget;
+export default DateTimeWidget;
+
+// 🚀 CRITICAL: Attach modifyRequest to the factory for the server-side pipeline
+(DateTimeWidget as any).modifyRequest =
+  DateTimeWidget.prototype?.modifyRequest ||
+  (async (args: any) => {
+    // We need a way to call the instance's modifyRequest or implement it here
+    // Since DateTime normalization doesn't depend on instance props (mostly),
+    // we can implement a static version or just reuse the logic.
+    const { data, type } = args;
+    if (type === "GET") return {};
+
+    const val = data.get();
+    if (val !== undefined && val !== null && val !== "") {
+      const { toISOString } = await import("@src/utils/utils");
+      const normalized = toISOString(val);
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        console.info(`[DEBUG] DateTimeWidget Static Normalized: from ${val} to ${normalized}`);
+      }
+      data.update(normalized);
+    }
+    return {};
+  });
 
 // Export helper types for use in Svelte components
-export type FieldType = ReturnType<typeof DateWidget>;
+export type FieldType = ReturnType<typeof DateTimeWidget>;
 export type DateWidgetData = ValibotInput<ReturnType<typeof createValidationSchema>>;

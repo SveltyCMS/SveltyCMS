@@ -483,6 +483,7 @@ export async function generateFinalReport(
     if (hasLock) {
       try {
         await updateDatabaseSpecificReports(db, results, latestMetrics);
+        await updateBenchmarkIndexReport(db, results, latestMetrics);
         log.success("Enterprise Benchmark technical ledgers updated.");
       } finally {
         await releaseLock("mdx_report");
@@ -495,6 +496,79 @@ export async function generateFinalReport(
   } finally {
     db.close();
   }
+}
+
+async function updateBenchmarkIndexReport(
+  db: any,
+  results: BenchmarkResult[],
+  latestMetrics: Record<string, any>,
+) {
+  const indexFilePath = path.join(process.cwd(), "docs/project/benchmarks/index.mdx");
+  let doc = await fs.readFile(indexFilePath, "utf8").catch(() => "");
+  if (!doc) return;
+
+  const START_TAG = "<!-- SUMMARY_MATRIX_START -->";
+  const END_TAG = "<!-- SUMMARY_MATRIX_END -->";
+
+  if (!doc.includes(START_TAG) || !doc.includes(END_TAG)) return;
+
+  let tableMd = `\n### ⚡ Executive Summary Matrix\n\n`;
+  tableMd += `| Database | Status | Cold Start | REST p95 | GQL Avg | CPU | Memory |\n`;
+  tableMd += `| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n`;
+
+  for (const dbConf of ALL_DATABASES) {
+    const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
+    const meta = (DB_METADATA as any)[dbKey] || { label: dbKey.toUpperCase(), icon: "❓" };
+    const label = `${meta.icon} **${meta.label}**`;
+    
+    let curr = results.find((r) => r.db === dbKey);
+    let m: ReturnType<typeof extractMetrics> | null = null;
+    let status = "PENDING";
+
+    if (curr && curr.status !== "PENDING") {
+      m = latestMetrics[dbKey] || null;
+      status = curr.status === "SUCCESS" ? "🟢 PASS" : "🔴 FAIL";
+
+      const last = db
+        .query(
+          `SELECT * FROM runs WHERE db_key = ? AND status = 'SUCCESS' ORDER BY timestamp DESC LIMIT 1`,
+        )
+        .get(dbKey) as any;
+      if (last && curr.status === "FAILED" && m) {
+        const lastM = extractMetrics(JSON.parse(last.metrics_json), dbConf.type);
+        if (!m.collections) m.collections = lastM.collections;
+        if (!m.graphqlAvg) m.graphqlAvg = lastM.graphqlAvg;
+        if (!m.memGrowth) m.memGrowth = lastM.memGrowth;
+        if (!m.systemCpu) m.systemCpu = lastM.systemCpu;
+        if (!curr.coldStartMs && last.cold_start_ms) curr.coldStartMs = last.cold_start_ms;
+      }
+    } else {
+      const last = db
+        .query(
+          `SELECT * FROM runs WHERE db_key = ? AND status = 'SUCCESS' ORDER BY timestamp DESC LIMIT 1`,
+        )
+        .get(dbKey) as any;
+      if (last) {
+        m = extractMetrics(JSON.parse(last.metrics_json), dbConf.type);
+        status = "🟢 PASS (Hist)";
+        curr = { coldStartMs: last.cold_start_ms } as any;
+      }
+    }
+
+    if (m) {
+      tableMd += `| [${label}](./benchmark_${dbKey.replace("-", "_")}.mdx) | ${status} | ${curr?.coldStartMs || 0}ms | ${m.collections.toFixed(3)}ms | ${m.graphqlAvg.toFixed(3)}ms | ${m.systemCpu.toFixed(1)}% | ${m.memGrowth.toFixed(1)}MB |\n`;
+    } else {
+      tableMd += `| [${label}](./benchmark_${dbKey.replace("-", "_")}.mdx) | ⚪ N/A | - | - | - | - | - |\n`;
+    }
+  }
+
+  doc = doc.replace(
+    /<!-- SUMMARY_MATRIX_START -->[\s\S]*?<!-- SUMMARY_MATRIX_END -->/,
+    `${START_TAG}\n${tableMd}\n${END_TAG}`
+  );
+
+  await fs.writeFile(indexFilePath, doc);
+  log.info("Updated index summary matrix in docs/project/benchmarks/index.mdx");
 }
 
 /**

@@ -437,10 +437,20 @@ export const contentService = {
     contentStore.sync(operations);
 
     if (operations.length > 0) {
-      await dbAdapter.content.nodes.bulkUpdate(
-        operations.map((op) => ({ path: op.path!, id: op._id, changes: op })),
-        { tenantId: tenantId as any },
-      );
+      const validUpdates = operations
+        .filter((op) => {
+          if (!op.path && process.env.BENCHMARK_DEBUG === "true") {
+            logger.warn(`[RECONCILE] Skipping DB update for node without path: ${op._id}`);
+          }
+          return !!op.path;
+        })
+        .map((op) => ({ path: op.path!, id: op._id, changes: op }));
+
+      if (validUpdates.length > 0) {
+        await dbAdapter.content.nodes.bulkUpdate(validUpdates, {
+          tenantId: tenantId as any,
+        });
+      }
     }
     if (prunedPaths.length > 0) {
       await dbAdapter.content.nodes.deleteMany(prunedPaths, { tenantId: tenantId as any });

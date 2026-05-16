@@ -1,12 +1,12 @@
 ---
-path: "src/widgets/core/date/date.mdx"
-title: "Date Field"
+path: "src/widgets/core/date-time/date-time.mdx"
+title: "DateTime Field"
 description: "A field for selecting a date, or an exact date and time, from a calendar picker."
 order: 2
-icon: "mdi:calendar"
+icon: "mdi:calendar-clock"
 author: "admin"
 created: "2025-09-29"
-updated: "2025-09-29"
+updated: "2026-05-16"
 tags:
   - "field"
   - "date"
@@ -16,7 +16,7 @@ tags:
 ---
 
 Overview
-The Date field provides a user-friendly calendar interface for selecting a specific date. It can also be configured to include a time picker for situations where the exact time of day is important, such as for an event or a publication schedule.
+The DateTime field provides a user-friendly calendar interface for selecting a specific date. It can also be configured to include a time picker for situations where the exact time of day is important, such as for an event or a publication schedule.
 All dates are stored in a standardized UTC format to ensure there is no confusion between timezones.
 Usage (for Content Editors)
 When editing content, you will see a field that looks like a standard text input but shows a calendar icon. Clicking on the field or the icon will open your browser's native date picker interface.
@@ -24,19 +24,19 @@ When editing content, you will see a field that looks like a standard text input
 - Date-Only Field: A calendar will appear, allowing you to select a year, month, and day.
 - Date & Time Field: After selecting a date, an additional interface will appear allowing you to select the hour and minute.
   Configuration (for Developers)
-  The DateWidget is highly versatile. Its primary configuration option is the timePicker property, which toggles between a date-only and a date-time input.
+  The DateTimeWidget is highly versatile. Its primary configuration option is the timePicker property, which toggles between a date-only and a date-time input.
   Example Configuration
   Here is how you would set up a "Publication Date" (date only) and an "Event Start" (date and time).
-  import { DateWidget } from '@src/widgets';
+  import { DateTimeWidget } from '@src/widgets';
 
 const EventSchema = {
 // ... other fields
-publish_date: DateWidget({
+publish_date: DateTimeWidget({
 label: 'Publication Date',
 required: true,
 helper: 'The date this article will go live.'
 }),
-event_start: DateWidget({
+event_start: DateTimeWidget({
 label: 'Event Start Time',
 timePicker: true, // This enables the time input
 required: true,

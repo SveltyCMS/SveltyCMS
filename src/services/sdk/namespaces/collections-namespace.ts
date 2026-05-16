@@ -99,7 +99,7 @@ export class CollectionsNamespace {
     return this._proxy;
   }
 
-  private getCollectionName(schemaId: string): string {
+  public getCollectionName(schemaId: string): string {
     return `collection_${schemaId.replace(/-/g, "")}`;
   }
 
@@ -113,7 +113,7 @@ export class CollectionsNamespace {
     logger.debug(`[Collections] Manually registered schema: ${schemaKey}`);
   }
 
-  private async getSchema(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema> {
+  public async getSchema(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema> {
     const schemaKey = `${tenantId || "global"}:${collectionId.toLowerCase()}`;
     if (CollectionsNamespace._schemaCache.has(schemaKey)) {
       return CollectionsNamespace._schemaCache.get(schemaKey)!;
@@ -593,6 +593,22 @@ export class CollectionsNamespace {
 
     // 🚀 TITAN TIER: Benchmark Fast Path
     if (process.env.BENCHMARK_MODE === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true") {
+      // 🛡️ SQL GUARD: Relational adapters REQUIRE modifyRequest for data column mapping
+      if (this._dbAdapter.type !== "mongodb") {
+        await modifyRequest({
+          data: entries,
+          fields: schema.fields as FieldInstance[],
+          collection: collectionModel,
+          user: effectiveUser,
+          type: "POST",
+          tenantId,
+          collectionName: schema.name,
+          skipValidation: true,
+          action: "bulkCreate",
+          system: true,
+        });
+      }
+
       let result;
       if (this._dbAdapter.batch && typeof this._dbAdapter.batch.bulkInsert === "function") {
         result = await this._dbAdapter.batch.bulkInsert(

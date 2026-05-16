@@ -4,9 +4,10 @@
  * Validates performance claims by comparing SDK, Middleware, and Real HTTP Stack.
  */
 
-import { test, beforeAll, afterAll } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
+  beforeAll,
+  afterAll,
   runBenchmark,
   runStochasticLoadTest,
   setupBenchmarkServer,
@@ -16,8 +17,9 @@ import {
   exportMetric,
   STABLE_COLLECTION,
   STABLE_ENTRY_ID,
-  ensureStableTestData,
+  ensureStableTestData
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 
 let stopServer: () => Promise<void>;
 let apiBaseUrl: string;

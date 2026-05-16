@@ -4,17 +4,19 @@
  * Measures the system's ability to reject invalid requests quickly (Fail-Fast).
  */
 
-import { test, beforeAll, afterAll } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
+  beforeAll,
+  afterAll,
   runBenchmark,
   exportResult,
   stabilize,
   setupBenchmarkServer,
   printTruthTable,
   printSummaryTable,
-  TEST_API_SECRET,
+  TEST_API_SECRET
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 
 let stopServer: () => Promise<void>;
 let apiBaseUrl: string;
@@ -108,11 +110,11 @@ export async function runFailurePropagationAudit() {
 
   printSummaryTable([
     { key: "Success Latency (Avg)", val: validRes.avgMs, unit: "ms" },
-    { key: "Auth Failure Latency (Avg)", val: failAuthRes.failAvgMs || 0, unit: "ms" },
-    { key: "404 Failure Latency (Avg)", val: failDataRes.failAvgMs || 0, unit: "ms" },
+    { key: "Auth Failure Latency (Avg)", val: failAuthRes.avgMs, unit: "ms" },
+    { key: "404 Failure Latency (Avg)", val: failDataRes.avgMs, unit: "ms" },
     {
       key: "Fast-Fail Efficiency",
-      val: (validRes.avgMs / (failAuthRes.failAvgMs || 1)).toFixed(2),
+      val: (validRes.avgMs / (failAuthRes.avgMs || 1)).toFixed(2),
       unit: "x",
     },
   ]);

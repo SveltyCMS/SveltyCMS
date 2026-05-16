@@ -68,17 +68,17 @@ export async function handleUtilityRoutes(
 
     const specObj = await service.generateFullSpec(tenantId as string);
 
-    // Seed Dispatcher L1 Cache for sub-millisecond future hits
-    const cache = await getCacheService();
-    if (cache?.set) {
-      await cache.set(url.pathname + url.search, specObj, 300, tenantId as string);
-    }
-
     // 🚀 PERFORMANCE: Send raw string directly from internal cache if available, else stringify once.
     // The service now maintains an L1 string representation.
     const l1Key = (tenantId as string) || "global";
     const l1Cached = (service as any).l1Cache?.get(l1Key);
     const bodyStr = l1Cached?.specString || JSON.stringify(specObj);
+
+    // Seed Dispatcher L1 Cache with the RAW STRING to bypass JSON.stringify on future hits
+    const cache = await getCacheService();
+    if (cache?.set) {
+      await cache.set(url.pathname + url.search, bodyStr, 300, tenantId as string);
+    }
 
     return new Response(bodyStr, {
       status: 200,

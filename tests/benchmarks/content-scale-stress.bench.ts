@@ -4,9 +4,14 @@
  * Measures performance at extreme scale (1,000+ collections).
  */
 
-import { test } from "bun:test";
+import {
+  test,
+  runBenchmark,
+  exportResult,
+  printTruthTable,
+  printSummaryTable
+} from "./benchmark-utils";
 import "../unit/setup.ts";
-import { runBenchmark, exportResult, printTruthTable, printSummaryTable } from "./benchmark-utils";
 import fs from "node:fs/promises";
 import path from "node:path";
 

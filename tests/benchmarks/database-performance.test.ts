@@ -4,9 +4,8 @@
  * Measures raw CRUD performance, indexing efficiency, and connection pool resilience at the adapter level.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   exportMetric,
@@ -15,8 +14,9 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType,
+  getDbType
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "benchmark_crud";
@@ -48,11 +48,13 @@ export async function runDatabaseBenchmark() {
       { name: "FIND ONE", fn: createFindOneTest(db) },
       { name: "FIND MANY (limit 50)", fn: createFindManyTest(db) },
       { name: "UPDATE", fn: createUpdateTest(db) },
+      { name: "NATIVE UPSERT", fn: createUpsertNativeTest(db) },
+      { name: "AGGREGATION", fn: db.getCapabilities?.().supportsAggregation ? createAggregationTest(db) : null },
       { name: "DELETE", fn: createDeleteTest(db) },
       { name: "BULK INSERT (100)", fn: createBulkInsertTest(db) },
-    ];
+    ].filter(s => s.fn !== null);
 
-    const results = [];
+    const results: any[] = [];
 
     for (const scenario of scenarios) {
       console.log(`   → ${scenario.name}`);
@@ -73,6 +75,7 @@ export async function runDatabaseBenchmark() {
     }
 
     // Reporting
+    const findResult = (name: string) => results.find(r => r.name === name) || { avgMs: 0, rps: 0 };
     const throughputs = results.map((r) => r.rps);
     const peakThroughput = Math.max(...throughputs);
 
@@ -84,16 +87,17 @@ export async function runDatabaseBenchmark() {
     });
 
     printSummaryTable([
-      { key: "Avg Insert Latency", val: results[0].avgMs, unit: "ms" },
-      { key: "Avg Read Latency (Single)", val: results[1].avgMs, unit: "ms" },
-      { key: "Avg Read Latency (Many)", val: results[2].avgMs, unit: "ms" },
-      { key: "Avg Update Latency", val: results[3].avgMs, unit: "ms" },
-      { key: "Avg Delete Latency", val: results[4].avgMs, unit: "ms" },
+      { key: "Avg Insert Latency", val: findResult("INSERT").avgMs, unit: "ms" },
+      { key: "Avg Read Latency (Single)", val: findResult("FIND ONE").avgMs, unit: "ms" },
+      { key: "Avg Read Latency (Many)", val: findResult("FIND MANY (limit 50)").avgMs, unit: "ms" },
+      { key: "Avg Update Latency", val: findResult("UPDATE").avgMs, unit: "ms" },
+      { key: "Avg Native Upsert", val: findResult("NATIVE UPSERT").avgMs, unit: "ms" },
+      { key: "Avg Delete Latency", val: findResult("DELETE").avgMs, unit: "ms" },
       { key: "Peak CRUD Throughput", val: peakThroughput, unit: "req/s" },
     ]);
 
-    exportMetric("adapter.read.avg", results[1].avgMs, "ms");
-    exportMetric("adapter.write.avg", results[0].avgMs, "ms");
+    exportMetric("adapter.read.avg", findResult("FIND ONE").avgMs, "ms");
+    exportMetric("adapter.write.avg", findResult("INSERT").avgMs, "ms");
     exportMetric("adapter.throughput.peak", peakThroughput, "req/s");
   } catch (err: any) {
     logger.error(`Database benchmark failed: ${err.message}`);
@@ -172,6 +176,29 @@ function createDeleteTest(db: any) {
   };
 }
 
+function createUpsertNativeTest(db: any) {
+  return async () => {
+    if (db.type === 'mongodb') {
+       // MongoDB upsert is already native via its upsert option
+       await db.crud.upsert(COLLECTION_ID, { _id: "bench-shared-001" }, { title: `Native ${Date.now()}` }, { tenantId: TEST_TENANT });
+       return;
+    }
+    const table = db.getTable(COLLECTION_ID);
+    const idCol = db.getColumn(table, "_id");
+    await db.upsertNative(table, { [idCol.name]: "bench-shared-001", title: `Native ${Date.now()}`, tenantId: TEST_TENANT }, [idCol]);
+  };
+}
+
+function createAggregationTest(db: any) {
+  return async () => {
+    // Simple sum/grouping aggregation
+    await db.crud.aggregate(COLLECTION_ID, [
+      { $match: { status: "active" } },
+      { $group: { _id: "$status", total: { $sum: "$value" }, count: { $sum: 1 } } }
+    ], { tenantId: TEST_TENANT });
+  };
+}
+
 function createBulkInsertTest(db: any) {
   return async () => {
     const batch = Array.from({ length: 100 }, () => ({
@@ -195,12 +222,13 @@ async function prepareCollection(db: any) {
           { db_fieldName: "title", widget: { Name: "Input" }, required: true },
           { db_fieldName: "status", widget: { Name: "Input" } },
           { db_fieldName: "value", widget: { Name: "Input" }, type: "number" },
+          { db_fieldName: "tenantId", widget: { Name: "Input" } },
         ],
       })
       .catch(() => {});
   }
 
-  // Clean + seed stable record with permanent delete to prevent E11000 on re-runs
+  // 🛡️ HERMETIC CLEANUP: Use permanent delete to ensure zero collisions with soft-deleted data
   console.log("   [DB Trace] Deleting old records...");
   const delRes = await db.crud.deleteMany(
     COLLECTION_ID,
@@ -210,25 +238,28 @@ async function prepareCollection(db: any) {
   console.log(`   [DB Trace] Deleted ${delRes.data?.deletedCount || 0} records.`);
 
   console.log("   [DB Trace] Seeding stable record...");
-  await db.crud.upsert(
+  await db.crud.insert(
     COLLECTION_ID,
-    { _id: "bench-shared-001" as any },
     {
       _id: "bench-shared-001" as any,
       title: "Stable Benchmark Entry",
       status: "active",
+      value: 100,
       tenantId: TEST_TENANT,
     },
     { tenantId: TEST_TENANT },
   );
 
-  // Pre-populate for Delete benchmark (e.g. 4000 records to accommodate 3 runs of 1200 iterations)
+  // 🚀 ATOMIC SEEDING: Pre-populate for Delete benchmark (4000 records)
   console.log("   [DB Trace] Pre-populating delete batch (4000 records)...");
   const deleteBatch = Array.from({ length: 4000 }, (_, i) => ({
     _id: `del-shared-${i}` as any,
     title: `To remove ${i}`,
+    status: i % 2 === 0 ? "active" : "inactive",
+    value: i,
     tenantId: TEST_TENANT,
   }));
+  
   await db.crud.insertMany(COLLECTION_ID, deleteBatch, { tenantId: TEST_TENANT });
   console.log("   [DB Trace] Collection prepared.");
 }

@@ -4,9 +4,8 @@
  * Measures latency, throughput, and correctness of core REST endpoints.
  */
 
-import { test } from "bun:test";
-import "../unit/setup.ts";
 import {
+  test,
   runBenchmark,
   exportResult,
   exportMetric,
@@ -17,8 +16,9 @@ import {
   printSummaryTable,
   TEST_API_SECRET,
   getDbType,
-  forceRefreshServer,
+  forceRefreshServer
 } from "./benchmark-utils";
+import "../unit/setup.ts";
 import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
