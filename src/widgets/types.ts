@@ -174,6 +174,11 @@ export interface WidgetFactory<TProps extends Record<string, unknown> = Record<s
   (config: FieldConfig<TProps>): FieldInstance;
 }
 
+/**
+ * Registry Record type for widget access (e.g., widgets.Date, widgets.Input)
+ */
+export type WidgetRecord = Record<string, WidgetFactory<any> | WidgetDefinition<any>>;
+
 // ============================================================================
 // Field Configuration (What collection authors provide)
 // ============================================================================

@@ -11,8 +11,9 @@
 
 import type { FieldInstance } from "@src/content/types";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
-import { coreModules, customModules } from "@src/widgets/scanner";
-import type { WidgetDefinition, WidgetFactory } from "@src/widgets/types";
+// Removed static imports to prevent circular dependency with widgets
+// import { coreModules, customModules } from "@src/widgets/scanner";
+import { type WidgetDefinition, type WidgetFactory, type WidgetRecord } from "@src/widgets/types";
 import type { Schema, FieldDefinition } from "@src/content/types";
 import type { WidgetPlaceholder } from "@widgets/placeholder";
 export type { WidgetDefinition, WidgetFactory };
@@ -23,7 +24,7 @@ export type WidgetStatus = "active" | "inactive";
 /**
  * Registry for all available widget functions
  */
-export type WidgetRegistry = Record<string, WidgetFactory | WidgetDefinition>;
+export type WidgetRegistry = WidgetRecord;
 
 export interface CollectionWidgetDependency {
   collectionId: string;
@@ -146,6 +147,8 @@ class WidgetState {
           wsLogger.info(`Initializing for tenant: ${tenantId}`);
         }
         // 1. Load modules from scanner
+        const { coreModules, customModules } = await import("@src/widgets/scanner");
+
         const newWidgetFunctions: WidgetRegistry = {};
         const newCoreWidgets: string[] = [];
         const newCustomWidgets: string[] = [];

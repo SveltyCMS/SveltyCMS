@@ -10,7 +10,7 @@
  * - dashboard configurations
  */
 
-import type { WidgetRegistry as widgets } from "@src/stores/widget-store.svelte.ts";
+import type { WidgetRecord as widgets } from "@src/widgets/types";
 // Note: collectionSchemas may be used in the future for runtime validation
 
 // Auth
