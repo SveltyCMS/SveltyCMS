@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
+import { createMockUser, createMockSuperAdmin, createDbAdapterStub } from "../utils/mock-factories";
 
 let dispatcherPOST: any;
 beforeAll(async () => {
@@ -25,9 +26,11 @@ const getModel = vi.fn();
 // Mock db adapter
 vi.mock("@src/databases/db", () => {
   const db = {
-    auth: { getAllUsers, getUserCount },
+    ...createDbAdapterStub(),
+    auth: { ...createDbAdapterStub().auth, getAllUsers, getUserCount },
     crud: { findOne, insert, update },
     system: {
+      ...createDbAdapterStub().system,
       preferences: { getMany: prefGetMany, set: prefSet, setMany: prefSetMany },
     },
     collection: { getModel },
@@ -62,16 +65,14 @@ vi.mock("@utils/logger", () => ({
 }));
 
 describe("Export/Import API Security - Tenant Isolation", () => {
-  const mockAdmin = {
+  const mockAdmin = createMockUser({
     _id: "admin1",
     role: "admin",
-    email: "admin@tenant1.com",
-  };
-  const mockSuperAdmin = {
+  });
+  const mockSuperAdmin = createMockSuperAdmin({
     _id: "super1",
     role: "super-admin",
-    email: "super@cms.com",
-  };
+  });
   const myTenant = "tenant-1";
   const otherTenant = "tenant-2";
 

@@ -3,13 +3,8 @@
  * @description Benchmark to measure SDK overhead (LocalCMS) vs direct adapter calls.
  */
 
-import {
-  test,
-  runBenchmark,
-  getDbType,
-  printTruthTable
-} from "./benchmark-utils";
-import "../unit/setup.ts";
+import { test, runBenchmark, getDbType, printTruthTable } from "./benchmark-utils";
+import "../unit/bun-preload.ts";
 import { LocalCMS } from "@src/services/sdk";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 

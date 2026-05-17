@@ -5,6 +5,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { traceSpan } from "@utils/context";
 import type {
   DatabaseCapabilities,
   DatabaseError,
@@ -169,6 +170,7 @@ export abstract class BaseAdapter {
       (!options?.suppressErrorLog && process.env.BENCHMARK !== "true") ||
       process.env.BENCHMARK_DEBUG === "true";
 
+    console.error("DEBUG ERROR STACK:", error);
     if (shouldLog) {
       // 🛡️ NOISE REDUCTION: For benchmarks, don't dump the full error object as it contains massive queries/data
       const logPayload =
@@ -230,7 +232,7 @@ export abstract class BaseAdapter {
     const startTime = performance.now();
     try {
       this.metrics.queryCount++;
-      const data = await fn();
+      const data = await traceSpan(`db:${code}`, async () => await fn());
       const latency = performance.now() - startTime;
       this.metrics.lastLatency = latency;
 

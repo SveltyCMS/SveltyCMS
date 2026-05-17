@@ -3,14 +3,14 @@
  * @description Comprehensive tests for handleSetup middleware with proper redirect validation
  */
 
-// --- SvelteKit is globally mocked in tests/unit/setup.ts ---
+// --- SvelteKit is globally mocked in tests/unit/bun-preload.ts ---
 
 import type { RequestEvent } from "@sveltejs/kit";
 import { handleTurboPipeline as handleSetup } from "@src/hooks/handle-turbo-pipeline.server";
 import { invalidateSetupCache } from "@utils/setup-check";
 import { setSystemState } from "@src/stores/system/state.svelte";
 
-// Use global mockSetupCheck from tests/unit/setup.ts
+// Use global mockSetupCheck from tests/unit/bun-preload.ts
 const mockSetupCheck = (globalThis as any).mockSetupCheck;
 
 // --- Test Utilities ---

@@ -9,7 +9,7 @@
  * - Handling relation tokens
  * - Error handling
  */
-import "../../unit/setup.ts";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { handleTokenResolution } from "@src/hooks/handle-token-resolution";
 import { TokenRegistry } from "@src/services/token/engine";
 
@@ -41,7 +41,7 @@ describe("Token Resolution Middleware", () => {
       },
     };
 
-    mockResolve = mock(async () => {
+    mockResolve = vi.fn(async () => {
       return Response.json({
         title: "Hello {{user.name}}",
         content: "Created at {{system.year}}",
@@ -73,7 +73,7 @@ describe("Token Resolution Middleware", () => {
   });
 
   it("should skip non-JSON responses", async () => {
-    mockResolve = mock(async () => {
+    mockResolve = vi.fn(async () => {
       return new Response("<html><body>{{user.email}}</body></html>", {
         headers: { "content-type": "text/html" },
       });
@@ -103,14 +103,14 @@ describe("Token Resolution Middleware", () => {
   it("should handle relation tokens (mocked)", async () => {
     // Mock relation token resolution
     const originalResolve = TokenRegistry.resolve;
-    TokenRegistry.resolve = mock((key) => {
+    TokenRegistry.resolve = vi.fn((key) => {
       if (key === "entry.relation.title") {
         return "Resolved Relation";
       }
       return key;
     });
 
-    mockResolve = mock(async () => {
+    mockResolve = vi.fn(async () => {
       return Response.json({
         relation: "{{entry.relation.title}}",
       });
@@ -130,7 +130,7 @@ describe("Token Resolution Middleware", () => {
 
   it("should handle errors gracefully", async () => {
     // Let's mock resolve to throw
-    mockResolve = mock(async () => {
+    mockResolve = vi.fn(async () => {
       throw new Error("Network error");
     });
 

@@ -14,9 +14,10 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  forceRefreshServer
+  forceRefreshServer,
+  TEST_API_SECRET,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
@@ -36,13 +37,14 @@ const graphqlScenarios = [
   },
   {
     name: "GQL: Entries (Stable Collection)",
-    query: `query { Benchmarkstable(pagination: { limit: 10 }) { _id title content } }`,
+    query: `query { BenchmarkStable(pagination: { limit: 10 }) { _id title content } }`,
+
     shortLabel: "Entries",
     concurrency: 5,
   },
   {
     name: "GQL: Concurrent Load",
-    query: `query { allCollectionStats { _id name } Benchmarkstable(pagination: { limit: 5 }) { _id } }`,
+    query: `query { allCollectionStats { _id name } BenchmarkStable(pagination: { limit: 5 }) { _id } }`,
     shortLabel: "Concurrent",
     concurrency: 12,
   },
@@ -57,6 +59,7 @@ export async function runGraphQLBenchmark() {
     const baseUrl = server.baseUrl;
 
     const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+    if (!secret) console.log("Using default secret");
 
     await ensureStableTestData();
     await forceRefreshServer(baseUrl);
@@ -81,7 +84,8 @@ export async function runGraphQLBenchmark() {
             headers: {
               "Content-Type": "application/json",
               "x-test-mode": "true",
-              "x-test-secret": secret,
+              "x-test-secret": TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+              "x-tenant-id": process.env.TENANT_ID || "global",
             },
             body: JSON.stringify({ query: scenario.query }),
           });

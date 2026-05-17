@@ -173,26 +173,27 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
   }
 
   public createDynamicTableDefinition(name: string) {
-    return sqliteTable(
-      name,
-      {
-        _id: text("_id").primaryKey(),
-        tenantId: text("tenantId"),
-        data: text("data").notNull().default("{}"),
-        status: text("status").notNull().default("draft"),
-        isDeleted: integer("isDeleted", { mode: "boolean" }).notNull().default(false),
-        createdAt: integer("createdAt", { mode: "timestamp_ms" })
-          .notNull()
-          .default(sql`(strftime('%s','now')*1000)`),
-        updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
-          .notNull()
-          .default(sql`(strftime('%s','now')*1000)`),
-      },
-      (t) => ({
-        tenantIdx: index(`${name}_tenant_idx`).on(t.tenantId),
-        statusIdx: index(`${name}_status_idx`).on(t.status),
-      }),
-    );
+    // 🚀 HARDENING: Standardize dynamic columns to ensure text columns like '_id'
+    // are physically selectable in all drivers (especially Bun).
+    const columns = {
+      _id: text("_id").primaryKey().notNull(),
+      tenantId: text("tenantId"),
+      data: text("data").notNull().default("{}"),
+      status: text("status").notNull().default("draft"),
+      isDeleted: integer("isDeleted", { mode: "boolean" }).notNull().default(false),
+      createdAt: integer("createdAt", { mode: "timestamp_ms" })
+        .notNull()
+        .default(sql`(strftime('%s','now')*1000)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+        .notNull()
+        .default(sql`(strftime('%s','now')*1000)`),
+    };
+
+    return sqliteTable(name, columns, (t) => ({
+      tenantIdx: index(`${name}_tenant_idx`).on(t.tenantId),
+      statusIdx: index(`${name}_status_idx`).on(t.status),
+      updatedIdx: index(`${name}_updated_idx`).on(t.updatedAt),
+    }));
   }
 
   protected _sqlite: SQLiteClient | null = null;
@@ -565,8 +566,13 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
 
         const { drizzle } = await import(/* @vite-ignore */ "drizzle-orm/bun-sqlite");
         const db = drizzle(sqlite as any, { schema }) as SQLiteDB;
-        console.log(`[SQLite] 🚀 SUCCESS: Using high-performance 'bun:sqlite' driver.`);
-        logger.info(`[SQLite] 🚀 SUCCESS: Using high-performance 'bun:sqlite' driver.`);
+
+        // 🚀 AGNOSTIC SILENCE: Only log success once per process to keep benchmarks clean
+        if (!(globalThis as any).__SQLITE_DRIVER_LOGGED__) {
+          logger.info(`[SQLite] 🚀 SUCCESS: Using high-performance 'bun:sqlite' driver.`);
+          (globalThis as any).__SQLITE_DRIVER_LOGGED__ = true;
+        }
+
         return { sqlite, db };
       } catch (e: any) {
         logger.warn(`[SQLite] ⚠️ Bun driver probe failed: ${e.message}. Falling back...`);

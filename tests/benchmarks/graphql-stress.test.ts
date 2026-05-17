@@ -13,9 +13,10 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType
+  getDbType,
+  TEST_API_SECRET,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 
 const LOAD_PROFILES = {
   TINY: { total: 2000, concurrency: 20, name: "Tiny (CI)", runs: 2 },
@@ -28,7 +29,7 @@ type LoadLevel = keyof typeof LOAD_PROFILES;
 const QUERIES = [
   { name: "Health", query: `query { contentSystemHealth { state version } }` },
   { name: "Collections", query: `query { allCollectionStats { _id name } }` },
-  { name: "Entries", query: `query { Benchmarkstable(pagination: { limit: 10 }) { _id title } }` },
+  { name: "Entries", query: `query { BenchmarkStable(pagination: { limit: 10 }) { _id title } }` },
 ];
 
 let stopServer: (() => Promise<void>) | null = null;
@@ -47,6 +48,7 @@ async function runProfile(level: LoadLevel) {
   await stabilize(1500);
 
   const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+  if (!secret) console.log("Using default secret");
 
   const result = await runBenchmark({
     name: `GQL Stress: ${level}`,
@@ -58,16 +60,17 @@ async function runProfile(level: LoadLevel) {
     measureMemory: true,
     silent: true,
     onIteration: async (i: number) => {
-      const query = QUERIES[i % QUERIES.length];
+      const q = QUERIES[i % QUERIES.length];
 
       const res = await fetch(`${baseUrl}/api/graphql`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-test-mode": "true",
-          "x-test-secret": secret,
+          "x-test-secret": TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+          "x-tenant-id": "global",
         },
-        body: JSON.stringify({ query: query.query }),
+        body: JSON.stringify({ query: q.query }),
         signal: AbortSignal.timeout(8000),
       });
 

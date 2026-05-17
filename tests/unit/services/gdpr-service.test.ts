@@ -13,7 +13,7 @@
 
 import { gdprService } from "@src/services/security/gdpr-service";
 
-// Access global mocks from setup.ts
+// Access global mocks from bun-preload.ts
 const mockAuditLog = (globalThis as any).mockAuditLog;
 const mockDbAdapter = (globalThis as any).mockDbAdapter;
 

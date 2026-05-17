@@ -110,7 +110,7 @@ export class RelationalContentModule implements IContentAdapter {
           const offset = ((options?.page || 1) - 1) * limit;
 
           const results = await this.getDb(dbOptions)
-            .select()
+            .select(this.adapter.getPhysicalSelection(this.schema.contentDrafts))
             .from(this.schema.contentDrafts)
             .where(eq(this.schema.contentDrafts.contentId, contentId as string))
             .limit(limit)
@@ -192,6 +192,11 @@ export class RelationalContentModule implements IContentAdapter {
             // Conflict columns for content_nodes are path and tenantId
             const conflictCols = [table.path, table.tenantId];
 
+            if (process.env.BENCHMARK_DEBUG === "true") {
+              console.log(
+                `[RelationalContent] Upserting structure node: ${(node as any)._id}, type: ${node.nodeType}, tenant: ${node.tenantId}`,
+              );
+            }
             await (this.adapter as any).upsertNative(table, preparedValues, conflictCols);
 
             return utils.convertDatesToISO(preparedValues) as unknown as ContentNode;
@@ -259,7 +264,7 @@ export class RelationalContentModule implements IContentAdapter {
           // Fallback for MariaDB or missing returning
           await query;
           const [updated] = await this.db
-            .select()
+            .select(this.adapter.getPhysicalSelection(this.schema.contentNodes))
             .from(this.schema.contentNodes)
             .where(eq(this.schema.contentNodes.path, path))
             .limit(1);
@@ -404,7 +409,7 @@ export class RelationalContentModule implements IContentAdapter {
         const offset = ((options?.page || 1) - 1) * limit;
 
         const results = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.contentRevisions))
           .from(this.schema.contentRevisions)
           .where(eq(this.schema.contentRevisions.contentId, contentId as string))
           .limit(limit)

@@ -14,9 +14,9 @@ import {
   setupBenchmarkServer,
   printTruthTable,
   printSummaryTable,
-  TEST_API_SECRET
+  TEST_API_SECRET,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 
 let stopServer: () => Promise<void>;
 let apiBaseUrl: string;

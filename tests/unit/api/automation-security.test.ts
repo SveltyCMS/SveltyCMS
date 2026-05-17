@@ -11,6 +11,7 @@ import {
   DELETE as dispatcherDELETE,
 } from "@src/routes/api/[...path]/+server";
 import { automationService } from "@src/services/background/automation/automation-service";
+import { createMockUser, createMockSuperAdmin } from "../utils/mock-factories";
 
 // Mock automation service
 vi.mock("@src/services/background/automation/automation-service", () => ({
@@ -31,12 +32,11 @@ vi.mock("@src/services/core/settings-service", () => ({
 }));
 
 describe("Automation API Security - IDOR and Tenant Isolation", () => {
-  const mockUser = { _id: "user1", role: "admin", email: "test@example.com" };
-  const mockSuperAdmin = {
+  const mockUser = createMockUser({ _id: "user1", role: "admin" });
+  const mockSuperAdmin = createMockSuperAdmin({
     _id: "admin1",
     role: "super-admin",
-    email: "super@example.com",
-  };
+  });
   const myTenant = "tenant-1";
   const otherTenant = "tenant-2";
 

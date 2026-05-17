@@ -15,7 +15,7 @@
  * - Security best practices
  */
 
-import "../../unit/setup.ts";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { handleSecurityHeaders } from "@src/hooks/handle-security-headers";
 import type { RequestEvent } from "@sveltejs/kit";
 
@@ -38,12 +38,12 @@ function createMockResponse(): Response {
 // --- Tests ---
 
 describe("handleSecurityHeaders Middleware", () => {
-  let mockResolve: ReturnType<typeof mock>;
+  let mockResolve: any;
   let mockResponse: Response;
 
   beforeEach(async () => {
     mockResponse = createMockResponse();
-    mockResolve = mock(() => Promise.resolve(mockResponse));
+    mockResolve = vi.fn(() => Promise.resolve(mockResponse));
   });
 
   describe("X-Frame-Options Header", () => {

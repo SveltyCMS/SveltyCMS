@@ -13,9 +13,9 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType
+  getDbType,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
@@ -40,6 +40,7 @@ async function runChaosAudit() {
       runs: 2,
       concurrency: 6,
       silent: true,
+      abortOnErrors: false,
       onIteration: async () => {
         // Simulate network brownout with jitter
         const jitter = Math.random() < 0.35 ? Math.random() * 600 + 200 : 0;
@@ -58,18 +59,8 @@ async function runChaosAudit() {
           return; // Success (Resilience active)
         }
 
-        if (!res.ok && res.status !== 500) {
-          throw new Error(`Unexpected system failure: ${res.status}`);
-        }
-
-        // If status is 500, we log the failure but allow the benchmark iteration to continue
-        if (res.status === 500) {
-          // Optionally log the 500 error here for better debugging visibility
-          console.warn(
-            `[Chaos Test Warning] Received expected system crash (500) during brownout simulation.`,
-          );
-          // Since it's not 'ok', but we don't want to throw, we just proceed and let the benchmark count the failure implicitly if the calling structure supports it, or we can explicitly return a failure indicator if the benchmark utility supports it. For simplicity and matching the original flow, we just ensure we don't throw.
-          return;
+        if (!res.ok) {
+          throw new Error(`System failure: ${res.status}`);
         }
 
         await res.json().catch(() => ({}));

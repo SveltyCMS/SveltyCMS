@@ -3,46 +3,84 @@
  * @description Whitebox unit tests for Collections API endpoints
  */
 
-import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
-
-let dispatcher: any;
-beforeAll(async () => {
-  const mod = await import("../../../src/routes/api/[...path]/+server");
-  dispatcher = mod._handler;
-});
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { createMockUser } from "../utils/mock-factories";
 
 // Mock all dependencies
 vi.mock("@src/databases/db", () => {
   const adapter = {
-    collection: {
-      getModel: vi.fn().mockResolvedValue({ name: "collection_test" }),
-      createModel: vi.fn().mockResolvedValue({ success: true }),
+    crud: {
+      findOne: vi.fn().mockResolvedValue({ success: true, data: null }),
+      findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      find: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      insert: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      insertMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      update: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      delete: vi.fn().mockResolvedValue({ success: true }),
+      deleteMany: vi.fn().mockResolvedValue({ success: true, deletedCount: 0 }),
+      count: vi.fn().mockResolvedValue({ success: true, data: 0 }),
+      exists: vi.fn().mockResolvedValue({ success: true, data: false }),
     },
     auth: {
+      getUserById: vi.fn().mockResolvedValue({ success: true, data: null }),
+      getUserByEmail: vi.fn().mockResolvedValue({ success: true, data: null }),
+      createUser: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      updateUser: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      updateUserAttributes: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      deleteUser: vi.fn().mockResolvedValue({ success: true }),
+      getAllUsers: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      getUserCount: vi.fn().mockResolvedValue({ success: true, data: 0 }),
+      validateSession: vi.fn().mockResolvedValue({ success: true, user: null }),
+      createSession: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      deleteSession: vi.fn().mockResolvedValue({ success: true }),
+      batchAction: vi.fn().mockResolvedValue({ success: true, data: { modifiedCount: 0 } }),
       getRoles: vi.fn().mockResolvedValue([]),
+    },
+    system: {
+      tenants: {
+        getById: () => Promise.resolve({ success: true, data: {} }),
+        list: () => Promise.resolve({ success: true, data: [] }),
+        create: () => Promise.resolve({ success: true, data: {} }),
+        update: () => Promise.resolve({ success: true, data: {} }),
+        delete: () => Promise.resolve({ success: true }),
+      },
+      preferences: {
+        get: () => Promise.resolve({ success: true, data: null }),
+        set: () => Promise.resolve({ success: true }),
+        getAll: () => Promise.resolve({ success: true, data: {} }),
+        getMany: () => Promise.resolve({ success: true, data: {} }),
+      },
+      widgets: {
+        getActiveWidgets: () => Promise.resolve({ success: true, data: [] }),
+        activate: () => Promise.resolve({ success: true }),
+        deactivate: () => Promise.resolve({ success: true }),
+        findAll: () => Promise.resolve({ success: true, data: [] }),
+      },
+    },
+    collection: {
+      getModel: () => Promise.resolve({ name: "collection_test" }),
+      createModel: () => Promise.resolve({ success: true }),
+      listSchemas: () => Promise.resolve({ success: true, data: [] }),
     },
     media: {},
     widgets: {},
-    system: {
-      preferences: {
-        getMany: vi.fn().mockResolvedValue({ success: true, data: {} }),
-      },
-    },
-    crud: {
-      findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
-      findOne: vi.fn().mockResolvedValue({ success: true, data: {} }),
-      insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-id" } }),
-      update: vi.fn().mockResolvedValue({ success: true, data: { _id: "updated-id" } }),
-      delete: vi.fn().mockResolvedValue({ success: true }),
-    },
     content: {
       nodes: {
-        bulkUpdate: vi.fn().mockResolvedValue({ success: true, data: [] }),
+        bulkUpdate: () => Promise.resolve({ success: true, data: [] }),
       },
     },
-    transaction: vi.fn().mockImplementation((fn: any) => fn()),
-    connected: true, // ADDED: Required for adapterReady check
+    type: "sqlite",
+    isConnected: () => true,
+    ping: () => Promise.resolve(true),
+    transaction: async (fn: any) => fn({}),
+    connected: true,
   };
+
+  adapter.crud.findMany = vi.fn().mockResolvedValue({ success: true, data: [] });
+  adapter.crud.findOne = vi.fn().mockResolvedValue({ success: true, data: {} });
+  adapter.crud.insert = vi.fn().mockResolvedValue({ success: true, data: { _id: "new-id" } });
+  adapter.crud.update = vi.fn().mockResolvedValue({ success: true, data: { _id: "updated-id" } });
+  adapter.crud.delete = vi.fn().mockResolvedValue({ success: true });
 
   return {
     dbAdapter: adapter,
@@ -52,6 +90,7 @@ vi.mock("@src/databases/db", () => {
   };
 });
 
+import { _handler as dispatcher } from "../../../src/routes/api/[...path]/+server";
 import { dbAdapter as mockDbAdapter } from "@src/databases/db";
 // ... in beforeEach, ensure event.locals.dbAdapter = mockDbAdapter;
 
@@ -131,7 +170,7 @@ describe("Collections API Unit Tests", () => {
     method: string,
     path: string,
     body: any = {},
-    user: any = { _id: "user-123", email: "test@example.com", isAdmin: true },
+    user: any = createMockUser({ _id: "user-123", email: "test@example.com" }),
     tenantId: any = "t1",
   ) => {
     const event = createMockRequestEvent({

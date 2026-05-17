@@ -9,9 +9,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // In this case, we rely on setup.ts for global mocks.
 import { GET as dispatcherGET } from "@src/routes/api/[...path]/+server";
 import { eventBus } from "@src/utils/event-bus";
+import { createMockUser } from "../utils/mock-factories";
 
 describe("Events API Security - Tenant Isolation", () => {
-  const mockUser = { _id: "user1", role: "admin", email: "test@example.com" };
+  const mockUser = createMockUser({ _id: "user1", role: "admin" });
   const myTenant = "tenant-1";
   const otherTenant = "tenant-2";
 

@@ -26,7 +26,7 @@ describe("SAML Authentication Service", () => {
   });
 
   it("should initialize Jackson with correct database connection string derived from config", async () => {
-    // The preload setup.ts sets privateEnv.DB_TYPE = 'mongodb' by default.
+    // The preload bun-preload.ts sets privateEnv.DB_TYPE = 'mongodb' by default.
     // saml-auth.ts reads from getPrivateSettingSync which is mocked to return from globalThis.privateEnv.
     // We override to test PostgreSQL path:
     const originalEnv = { ...(globalThis as any).privateEnv };

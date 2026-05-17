@@ -59,6 +59,9 @@ export class SQLiteAdapter extends SQLiteAdapterCore implements IDBAdapter {
           "redirects_mv",
           "workflow_definitions",
           "workflow_instances",
+          "plugin_migrations",
+          "plugin_states",
+          "plugin_pagespeed_results",
         ]);
 
         for (const table of tables) {

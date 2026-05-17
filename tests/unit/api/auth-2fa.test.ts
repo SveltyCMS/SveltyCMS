@@ -7,10 +7,12 @@ const { describe, it, expect, vi, beforeEach } = (globalThis as any).vi
   ? (globalThis as any)
   : await import("vitest");
 import { createMockRequestEvent } from "../utils/mock-event";
+import { createMockUser, createDbAdapterStub } from "../utils/mock-factories";
 
 // Mock all dependencies
 vi.mock("@src/databases/db", () => {
   const dbAdapter = {
+    ...createDbAdapterStub(),
     auth: {
       authInterface: {},
       validateSession: vi.fn(),
@@ -20,9 +22,6 @@ vi.mock("@src/databases/db", () => {
         .fn()
         .mockReturnValue({ name: "session", value: "val", attributes: {} }),
       login: vi.fn(),
-    },
-    collection: {
-      getModel: vi.fn().mockResolvedValue({}),
     },
     collections: {
       list: vi.fn(),
@@ -47,13 +46,6 @@ vi.mock("@src/databases/db", () => {
     system: {
       getHealth: vi.fn(),
       reinitialize: vi.fn(),
-    },
-    crud: {
-      findMany: vi.fn(),
-      findOne: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
     },
   };
   return {
@@ -115,6 +107,7 @@ vi.mock("@utils/security", () => ({
 
 // Removed unused auth import
 import { _handler as dispatcher } from "@src/routes/api/[...path]/+server";
+import { dbAdapter as mockDbAdapter } from "@src/databases/db";
 
 const POST_SETUP = (event: any) => dispatcher(event);
 const POST_VERIFY_SETUP = (event: any) => dispatcher(event);
@@ -181,7 +174,7 @@ describe("2FA API Unit Tests", () => {
 
       const event = createMockEvent(
         { userId: "user-1", code: "123456" },
-        { _id: "user-1", is2FAEnabled: true },
+        createMockUser({ _id: "user-1", is2FAEnabled: true } as any),
         undefined,
         "verify",
         {
@@ -204,7 +197,7 @@ describe("2FA API Unit Tests", () => {
 
       const event = createMockEvent(
         { userId: "user-1", code: "backup-123" },
-        { _id: "user-1", is2FAEnabled: true },
+        createMockUser({ _id: "user-1", is2FAEnabled: true } as any),
         undefined,
         "verify",
         {
@@ -226,7 +219,7 @@ describe("2FA API Unit Tests", () => {
 
       const event = createMockEvent(
         { userId: "user-1", code: "000000" },
-        { _id: "user-1", is2FAEnabled: true },
+        createMockUser({ _id: "user-1", is2FAEnabled: true } as any),
         undefined,
         "verify",
         {
@@ -242,7 +235,7 @@ describe("2FA API Unit Tests", () => {
 
       const event = createMockEvent(
         { userId: "user-1", code: "123456" },
-        { _id: "user-1" },
+        createMockUser({ _id: "user-1" }),
         undefined,
         "verify",
         {
@@ -263,7 +256,7 @@ describe("2FA API Unit Tests", () => {
 
       const event = createMockEvent(
         { userId: "user-1", code: "123456" },
-        { _id: "user-1" },
+        createMockUser({ _id: "user-1" }),
         "tenant-1",
         "verify",
         {
@@ -279,7 +272,7 @@ describe("2FA API Unit Tests", () => {
 
   describe("POST /api/auth/2fa/setup", () => {
     it("should initiate setup for authenticated user", async () => {
-      const user = { _id: "user-1", email: "test@example.com" };
+      const user = createMockUser({ _id: "user-1", email: "test@example.com" });
       mockTwoFactorService.initiate2FASetup.mockResolvedValue({
         success: true,
         data: {
@@ -305,7 +298,7 @@ describe("2FA API Unit Tests", () => {
     });
 
     it("should return success: false if user already has 2FA enabled during setup", async () => {
-      const user = { _id: "user-1", is2FAEnabled: true };
+      const user = createMockUser({ _id: "user-1", is2FAEnabled: true } as any);
       mockTwoFactorService.initiate2FASetup.mockResolvedValue({
         success: false,
         message: "2FA is already enabled",
@@ -324,7 +317,7 @@ describe("2FA API Unit Tests", () => {
 
   describe("POST /api/auth/2fa/verify-setup", () => {
     it("should complete setup with valid code", async () => {
-      const user = { _id: "user-1" };
+      const user = createMockUser({ _id: "user-1" });
       mockTwoFactorService.complete2FASetup.mockResolvedValue(true);
 
       const event = createMockEvent({ code: "123456" }, user, undefined, "verify-setup", {
@@ -338,7 +331,7 @@ describe("2FA API Unit Tests", () => {
     });
 
     it("should return success: false for wrong code", async () => {
-      const user = { _id: "user-1" };
+      const user = createMockUser({ _id: "user-1" });
       mockTwoFactorService.complete2FASetup.mockResolvedValue(false);
 
       const event = createMockEvent({ code: "000000" }, user, undefined, "verify-setup", {
@@ -351,11 +344,11 @@ describe("2FA API Unit Tests", () => {
 
   describe("POST /api/auth/2fa/disable", () => {
     it("should disable 2FA for enabled user", async () => {
-      const user = {
+      const user = createMockUser({
         _id: "user-1",
         is2FAEnabled: true,
         password: "hashed_password",
-      };
+      } as any);
       mockVerifyPassword.mockResolvedValue(true);
       mockTwoFactorService.disable2FA.mockResolvedValue(true);
 
@@ -370,10 +363,10 @@ describe("2FA API Unit Tests", () => {
     });
 
     it("should return success: false if disable fails", async () => {
-      const user = {
+      const user = createMockUser({
         _id: "user-1",
         password: "hashed_password",
-      };
+      } as any);
       mockVerifyPassword.mockResolvedValue(true);
       mockTwoFactorService.disable2FA.mockResolvedValue(false);
 
@@ -387,7 +380,7 @@ describe("2FA API Unit Tests", () => {
 
   describe("Backup Codes Management", () => {
     it("should return 2FA status (GET)", async () => {
-      const user = { _id: "user-1" };
+      const user = createMockUser({ _id: "user-1" });
       mockTwoFactorService.get2FAStatus.mockResolvedValue({
         enabled: true,
         backupCodesRemaining: 5,
@@ -405,7 +398,7 @@ describe("2FA API Unit Tests", () => {
     });
 
     it("should regenerate backup codes (POST)", async () => {
-      const user = { _id: "user-1" };
+      const user = createMockUser({ _id: "user-1" });
       mockTwoFactorService.regenerateBackupCodes.mockResolvedValue(["n1", "n2"]);
 
       const event = createMockEvent({}, user, undefined, "backup-codes", {

@@ -99,7 +99,7 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
 
       CREATE TABLE IF NOT EXISTS "content_nodes" (
         "_id" TEXT PRIMARY KEY,
-        "path" TEXT NOT NULL UNIQUE,
+        "path" TEXT NOT NULL,
         "parentId" TEXT,
         "nodeType" TEXT NOT NULL,
         "status" TEXT NOT NULL DEFAULT 'draft',
@@ -119,7 +119,8 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
         "source" TEXT NOT NULL DEFAULT 'filesystem',
         "tenantId" TEXT,
         "createdAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+        "updatedAt" INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+        UNIQUE("path", "tenantId")
       );
 
       CREATE TABLE IF NOT EXISTS "content_drafts" (
@@ -383,6 +384,7 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
         "updatedAt" INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
       );
 
+      CREATE UNIQUE INDEX IF NOT EXISTS "idx_content_nodes_path_tenant" ON "content_nodes" ("path", "tenantId");
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_system_prefs_key_tenant" ON "system_preferences" ("key", "tenantId");
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_system_themes_name_tenant" ON "themes" ("name", "tenantId");
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_states_unique" ON "plugin_states" ("pluginId", "tenantId");

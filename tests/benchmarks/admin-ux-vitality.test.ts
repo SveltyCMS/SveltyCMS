@@ -12,7 +12,7 @@ import {
   printTruthTable,
   printSummaryTable,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 
 async function runUXAudit() {
   console.log("🚀 Starting Simulated Admin UX Vitality Audit...\n");

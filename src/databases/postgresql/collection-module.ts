@@ -66,7 +66,34 @@ export class CollectionModule implements ICollectionAdapter {
     return { success: true, data: null };
   }
 
-  async listSchemas(_tenantId?: DatabaseId | null): Promise<DatabaseResult<Schema[]>> {
+  async listSchemas(tenantId?: DatabaseId | null): Promise<DatabaseResult<Schema[]>> {
+    try {
+      const filter: Record<string, any> = { nodeType: "collection" };
+      if (tenantId) filter.tenantId = tenantId;
+
+      const res = await this.core.crud.findMany("system_content_structure", filter as any);
+      if (res.success && Array.isArray(res.data)) {
+        const schemas: Schema[] = [];
+        for (const node of res.data) {
+          let def = (node as any).collectionDef;
+          if (def) {
+            if (typeof def === "string") {
+              try {
+                def = JSON.parse(def);
+              } catch {
+                // ignore
+              }
+            }
+            if (def && typeof def === "object") {
+              schemas.push(def as Schema);
+            }
+          }
+        }
+        return { success: true, data: schemas };
+      }
+    } catch {
+      // ignore
+    }
     return { success: true, data: [] };
   }
 }

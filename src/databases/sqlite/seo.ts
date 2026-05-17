@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 
 /**
@@ -15,6 +16,13 @@ export const redirectsMV = sqliteTable(
     isRegex: integer("isRegex", { mode: "boolean" }).notNull().default(false),
     active: integer("active", { mode: "boolean" }).notNull().default(true),
     metadata: text("metadata"),
+
+    createdAt: integer("createdAt", { mode: "timestamp_ms" })
+      .default(sql`(strftime('%s','now')*1000)`)
+      .notNull(),
+    updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+      .default(sql`(strftime('%s','now')*1000)`)
+      .notNull(),
   },
   (table) => ({
     tenantIdx: index("redirects_mv_tenant_idx").on(table.tenantId),

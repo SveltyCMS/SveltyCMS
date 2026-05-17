@@ -1303,7 +1303,7 @@ Located in `tests/unit/`.
 
 - **Engine**: Bun Test runner.
 - **Focus**: Isolated logic, utility functions, state stores, and service layers.
-- **Environment**: Purely in-memory. Uses global mocks (defined in `tests/unit/setup.ts`) for database adapters and configuration.
+- **Environment**: Purely in-memory. Uses global mocks (defined in `tests/unit/bun-preload.ts`) for database adapters and configuration.
 - **Isolation**: Tests **must not** depend on a physical `config/private.ts` or a live database.
 
 ### 2. Integration & E2E Tests (Black-Box)

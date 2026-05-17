@@ -7,6 +7,7 @@
 import { performance } from "node:perf_hooks";
 import fs from "node:fs";
 import path from "node:path";
+import { sql } from "drizzle-orm";
 
 // ── Standalone Shim (Compatibility for 'bun run') ────────────────────────────
 /**
@@ -14,94 +15,164 @@ import path from "node:path";
  * Allows .test.ts files to be run with 'bun run' while maintaining 'bun test' compatibility.
  * Detects if it is being run within a test runner or as a standalone script.
  */
-const isTestRunner = !!process.env.BUN_TEST || (typeof (globalThis as any).test !== "undefined" && !process.env.BENCHMARK_STANDALONE);
+const isTestRunner =
+  !!process.env.BUN_TEST ||
+  (typeof (globalThis as any).test !== "undefined" && !process.env.BENCHMARK_STANDALONE);
 
 // 🚀 Auto-Redirector: Ensures benchmarks always run via 'bun test' engine
 if (!isTestRunner && !process.env.BENCHMARK_REDIRECTED) {
   const filePath = process.argv[1];
   if (filePath && (filePath.endsWith(".test.ts") || filePath.endsWith(".bench.ts"))) {
-    console.log("\n\x1b[33m[NOTICE]\x1b[0m SveltyCMS Benchmarks must be executed via \x1b[1m'bun test'\x1b[0m for maximum precision and automatic resource cleanup.");
-    console.log(`\x1b[36m[AUTO-REDIRECT]\x1b[0m Rerunning \x1b[1m${path.basename(filePath)}\x1b[0m via the Bun Test Engine...\n`);
-    
+    console.log(
+      "\n\x1b[33m[NOTICE]\x1b[0m SveltyCMS Benchmarks must be executed via \x1b[1m'bun test'\x1b[0m for maximum precision and automatic resource cleanup.",
+    );
+    console.log(
+      `\x1b[36m[AUTO-REDIRECT]\x1b[0m Rerunning \x1b[1m${path.basename(filePath)}\x1b[0m via the Bun Test Engine...\n`,
+    );
+
     const { spawnSync } = require("node:child_process");
     const result = spawnSync("bun", ["test", ...process.argv.slice(1)], {
       stdio: "inherit",
       env: { ...process.env, BENCHMARK_REDIRECTED: "true" },
-      shell: process.platform === "win32"
+      shell: process.platform === "win32",
     });
     process.exit(result.status || 0);
   }
 }
 
+let testFn = (globalThis as any).test;
+let describeFn = (globalThis as any).describe;
+let beforeAllFn = (globalThis as any).beforeAll;
+let afterAllFn = (globalThis as any).afterAll;
+let beforeEachFn = (globalThis as any).beforeEach;
+let afterEachFn = (globalThis as any).afterEach;
+
+if (typeof Bun !== "undefined") {
+  try {
+    const bunTest = require("bun:test");
+    testFn = bunTest.test;
+    describeFn = bunTest.describe;
+    beforeAllFn = bunTest.beforeAll;
+    afterAllFn = bunTest.afterAll;
+    beforeEachFn = bunTest.beforeEach;
+    afterEachFn = bunTest.afterEach;
+  } catch {
+    // Ignore
+  }
+}
+
 export const test = (name: string, fn: any, timeout?: number) => {
-  if ((globalThis as any).test) {
+  if (testFn) {
     try {
-        return (globalThis as any).test(name, fn, timeout);
+      return testFn(name, fn, timeout);
     } catch {
-        // Fallback
+      // Fallback
     }
   }
-  
-  // Fallback if not in test runner (should be handled by redirector above)
   return (async () => {
-     await fn();
+    await fn();
   })();
 };
 
-
 export const expect = (val: any) => {
   if (typeof (globalThis as any).expect !== "undefined") return (globalThis as any).expect(val);
-  
+
   return {
-    toBe: (exp: any) => { if (val !== exp) throw new Error(`Expected ${val} to be ${exp}`); },
-    toBeGreaterThan: (exp: any) => { if (val <= exp) throw new Error(`Expected ${val} > ${exp}`); },
-    toBeLessThan: (exp: any) => { if (val >= exp) throw new Error(`Expected ${val} < ${exp}`); },
-    toBeDefined: () => { if (val === undefined) throw new Error(`Expected defined`); },
-    toEqual: (exp: any) => { 
-        const s1 = JSON.stringify(val);
-        const s2 = JSON.stringify(exp);
-        if (s1 !== s2) throw new Error(`Expected ${s1} to equal ${s2}`); 
+    toBe: (exp: any) => {
+      if (val !== exp) throw new Error(`Expected ${val} to be ${exp}`);
     },
-    toBeTruthy: () => { if (!val) throw new Error(`Expected truthy`); },
-    toBeFalsy: () => { if (val) throw new Error(`Expected falsy`); },
-    toContain: (exp: any) => { if (!val.includes(exp)) throw new Error(`Expected to contain ${exp}`); },
+    toBeGreaterThan: (exp: any) => {
+      if (val <= exp) throw new Error(`Expected ${val} > ${exp}`);
+    },
+    toBeLessThan: (exp: any) => {
+      if (val >= exp) throw new Error(`Expected ${val} < ${exp}`);
+    },
+    toBeDefined: () => {
+      if (val === undefined) throw new Error(`Expected defined`);
+    },
+    toEqual: (exp: any) => {
+      const s1 = JSON.stringify(val);
+      const s2 = JSON.stringify(exp);
+      if (s1 !== s2) throw new Error(`Expected ${s1} to equal ${s2}`);
+    },
+    toBeTruthy: () => {
+      if (!val) throw new Error(`Expected truthy`);
+    },
+    toBeFalsy: () => {
+      if (val) throw new Error(`Expected falsy`);
+    },
+    toContain: (exp: any) => {
+      if (!val.includes(exp)) throw new Error(`Expected to contain ${exp}`);
+    },
   };
 };
 
 export const describe = (name: string, fn: any) => {
-  if (typeof (globalThis as any).describe !== "undefined") return (globalThis as any).describe(name, fn);
+  if (describeFn) {
+    try {
+      return describeFn(name, fn);
+    } catch {
+      // Fallback
+    }
+  }
   console.log(`\n\x1b[35m[SUITE]\x1b[0m ${name}`);
   return fn();
 };
 
 export const it = test;
+
 export const beforeAll = (fn: any, timeout?: number) => {
-  if (typeof (globalThis as any).beforeAll !== "undefined") return (globalThis as any).beforeAll(fn, timeout);
+  if (beforeAllFn) {
+    try {
+      return beforeAllFn(fn, timeout);
+    } catch {
+      // Fallback
+    }
+  }
   return fn();
 };
+
 export const afterAll = (fn: any, timeout?: number) => {
-  if (typeof (globalThis as any).afterAll !== "undefined") return (globalThis as any).afterAll(fn, timeout);
+  if (afterAllFn) {
+    try {
+      return afterAllFn(fn, timeout);
+    } catch {
+      // Fallback
+    }
+  }
   return fn();
 };
+
 export const beforeEach = (fn: any, timeout?: number) => {
-  if (typeof (globalThis as any).beforeEach !== "undefined") return (globalThis as any).beforeEach(fn, timeout);
+  if (beforeEachFn) {
+    try {
+      return beforeEachFn(fn, timeout);
+    } catch {
+      // Fallback
+    }
+  }
   return fn();
 };
+
 export const afterEach = (fn: any, timeout?: number) => {
-  if (typeof (globalThis as any).afterEach !== "undefined") return (globalThis as any).afterEach(fn, timeout);
+  if (afterEachFn) {
+    try {
+      return afterEachFn(fn, timeout);
+    } catch {
+      // Fallback
+    }
+  }
   return fn();
 };
 
 // ── silencing noise ─────────────────────────────────────────────────────────
 (globalThis as any).__SVELTY_QUIET__ = true;
 process.env.BENCHMARK = "true";
-process.env.LOG_LEVEL =
-  process.env.BENCHMARK_DEBUG === "true" ? "debug" : process.env.LOG_LEVEL || "error";
+// 🚀 UNIFIED LOGGING: High-frequency benchmarks use 'error' by default, 'debug' only if requested.
+process.env.LOG_LEVEL = process.env.BENCHMARK_DEBUG === "true" ? "debug" : "error";
 process.env.DEBUG = "";
 process.env.QUIET = "true";
 process.env.DB_NAME = process.env.DB_NAME || "bench_parent";
-
-
 
 // Suppress console.info/warn during init
 const originalInfo = console.info;
@@ -140,6 +211,10 @@ export interface BenchmarkResult {
   layer?: string;
   pair?: string;
   overhead?: number;
+  trimmedCount?: number;
+  ci95MarginMs?: number;
+  ci95Ms?: [number, number];
+  [key: string]: any;
 }
 
 // ── configuration ────────────────────────────────────────────────────────────
@@ -204,7 +279,8 @@ export function computeStatistics(
   failTimes: number[] = [],
 ): BenchmarkResult {
   // Apply outlier trimming if requested
-  const processedTimes = config.trimOutliers === "iqr" ? trimOutliersIQR(times) : times;
+  const processedTimes =
+    config.trimOutliers === "iqr" || config.trimOutliers === true ? trimOutliersIQR(times) : times;
 
   const sorted = [...processedTimes].sort((a, b) => a - b);
   const sum = sorted.reduce((a, b) => a + b, 0);
@@ -214,32 +290,43 @@ export function computeStatistics(
   const stdDev = Math.sqrt(variance);
   const cv = avg > 0 ? (stdDev / avg) * 100 : 0;
 
+  // 🚀 Confidence Interval (95%)
+  const n = sorted.length;
+  const z = 1.96; // 95% critical value
+  const marginOfError = n > 0 ? z * (stdDev / Math.sqrt(n)) : 0;
+
   const result: BenchmarkResult = {
     name: config.name,
     db: getDbType(),
-    avgMs: avg,
-    p50Ms: percentile(sorted, 50),
-    p95Ms: percentile(sorted, 95),
-    p99Ms: percentile(sorted, 99),
-    minMs: sorted[0] || 0,
-    maxMs: sorted[sorted.length - 1] || 0,
-    rps,
+    avgMs: Number(avg.toFixed(3)),
+    p50Ms: Number(percentile(sorted, 50).toFixed(3)),
+    p95Ms: Number(percentile(sorted, 95).toFixed(3)),
+    p99Ms: Number(percentile(sorted, 99).toFixed(3)),
+    minMs: Number((sorted[0] || 0).toFixed(3)),
+    maxMs: Number((sorted[sorted.length - 1] || 0).toFixed(3)),
+    rps: Number(rps.toFixed(1)),
     iterations: times.length, // Report original iteration count
     runs: config.runs || 1,
     concurrency: config.concurrency || 1,
-    cv,
-    totalMs: sum,
-    errorRate: config.errorRate || 0,
+    cv: Number(cv.toFixed(2)),
+    totalMs: Number(sum.toFixed(3)),
+    errorRate: Number((config.errorRate || 0).toFixed(4)),
     timestamp: new Date().toISOString(),
     version: "0.0.8-enterprise",
     overhead: times.length - processedTimes.length, // Track how many were trimmed
+    trimmedCount: times.length - processedTimes.length,
+    ci95MarginMs: Number(marginOfError.toFixed(3)),
+    ci95Ms: [
+      Number(Math.max(0, avg - marginOfError).toFixed(3)),
+      Number((avg + marginOfError).toFixed(3)),
+    ],
   };
 
   if (failTimes.length > 0) {
     const sortedFails = [...failTimes].sort((a, b) => a - b);
     const sumFails = sortedFails.reduce((a, b) => a + b, 0);
-    result.failAvgMs = sumFails / sortedFails.length;
-    result.failP95Ms = percentile(sortedFails, 95);
+    result.failAvgMs = Number((sumFails / sortedFails.length).toFixed(3));
+    result.failP95Ms = Number(percentile(sortedFails, 95).toFixed(3));
   }
 
   return result;
@@ -307,7 +394,7 @@ export async function stabilize(ms: number = 150) {
   } else if (typeof (globalThis as any).gc === "function") {
     (globalThis as any).gc();
   }
-  
+
   // 💤 JITTER BUFFER: Windows needs slightly more time to settle file handles
   const waitTime = process.platform === "win32" ? ms * 1.5 : ms;
   await new Promise((r) => setTimeout(r, waitTime));
@@ -338,9 +425,6 @@ export const measureMemory = getMemorySnapshot;
 
 // ── reporting engine ─────────────────────────────────────────────────────────
 
-
-
-
 export function printTruthTable(options: {
   title: string;
   subtitle?: string;
@@ -349,7 +433,6 @@ export function printTruthTable(options: {
   shortLabel?: string;
 }) {
   const dbType = getDbType();
-
 
   for (const r of options.results) if (!r.db) r.db = dbType;
 
@@ -373,7 +456,7 @@ export function printTruthTable(options: {
     outputBuffer += s + "\n";
   };
 
-  const W = 80;
+  const W = 91;
   const h = makeHelpers(W);
   log("\n" + h.bar("╔", "╗"));
   log(h.center(options.title));
@@ -392,7 +475,6 @@ export function printTruthTable(options: {
 
   const tableContent = outputBuffer.trim();
   saveTerminalTable(options.title, tableContent);
-
 
   pushTableToMdx(options.title, tableContent, options.shortLabel);
 }
@@ -556,6 +638,16 @@ export async function runBenchmark(config: any) {
     { ...config, errorRate: totalErrors / totalCompleted },
     failResults,
   );
+
+  // 🛡️ RELIABILITY GUARD: Ensure the benchmark reached an acceptable success rate
+  const reliabilityThreshold = config.reliabilityThreshold ?? 0.99; // Default 99% success required
+  const reliability = 1 - (stats.errorRate || 0);
+  if (reliability < reliabilityThreshold) {
+    throw new Error(
+      `Benchmark Reliability Failure: "${stats.name}" reached only ${(reliability * 100).toFixed(2)}% reliability (Threshold: ${reliabilityThreshold * 100}%).`,
+    );
+  }
+
   if (onSuccess) onSuccess(stats);
   return stats;
 }
@@ -649,7 +741,7 @@ export async function setupBenchmarkServer() {
         [
           "run",
           "--preload",
-          "./tests/unit/setup.ts",
+          "./tests/unit/bun-preload.ts",
           "scripts/benchmark-matrix/setup-benchmarks.ts",
         ],
         {
@@ -728,7 +820,9 @@ export let TEST_API_SECRET = (() => {
 
 export async function ensureStableTestData(db?: any, tenantId: string = "global") {
   if (process.env.BENCHMARK_DEBUG === "true") {
-    process.stderr.write(`\n[DEBUG] ensureStableTestData called. API_BASE_URL: ${process.env.API_BASE_URL}, SECRET: ${TEST_API_SECRET ? "OK" : "NO"}\n`);
+    process.stderr.write(
+      `\n[DEBUG] ensureStableTestData called. API_BASE_URL: ${process.env.API_BASE_URL}, SECRET: ${TEST_API_SECRET ? "OK" : "NO"}\n`,
+    );
   }
   const { getDb, getDbInitPromise } = await import("@src/databases/db");
   if (!db) await getDbInitPromise(false, "CORE").catch(() => {});
@@ -744,8 +838,19 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
       { db_fieldName: "slug", label: "Slug", widget: { Name: "Input" }, type: "string" },
       { db_fieldName: "content", label: "Content", widget: { Name: "RichText" }, type: "string" },
       { db_fieldName: "count", label: "Count", widget: { Name: "Input" }, type: "number" },
-      { db_fieldName: "author", label: "Author", widget: { Name: "Relation" }, type: "string", relation: "BenchmarkAuthors" },
-      { db_fieldName: "publishDate", label: "Publish Date", widget: { Name: "DateTime" }, type: "string" },
+      {
+        db_fieldName: "author",
+        label: "Author",
+        widget: { Name: "Relation" },
+        type: "string",
+        relation: "BenchmarkAuthors",
+      },
+      {
+        db_fieldName: "publishDate",
+        label: "Publish Date",
+        widget: { Name: "DateTime" },
+        type: "string",
+      },
     ],
   };
 
@@ -761,15 +866,19 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
         },
         body: JSON.stringify({ action: "create-collection", schema }),
       });
-      
+
       const createResult = await res.json();
       if (process.env.BENCHMARK_DEBUG === "true") {
-        process.stderr.write(`[DEBUG] create-collection status: ${res.status}, success: ${createResult.success}\n`);
+        process.stderr.write(
+          `[DEBUG] create-collection status: ${res.status}, success: ${createResult.success}\n`,
+        );
       }
-      
+
       if (!res.ok && !createResult.message?.includes("already exists")) {
         if (process.env.BENCHMARK_DEBUG === "true") {
-          process.stderr.write(`[DEBUG] create-collection FAILED: ${res.status} ${JSON.stringify(createResult)}\n`);
+          process.stderr.write(
+            `[DEBUG] create-collection FAILED: ${res.status} ${JSON.stringify(createResult)}\n`,
+          );
         }
         return;
       }
@@ -787,7 +896,9 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
       });
       const clearResult = await clearRes.json();
       if (process.env.BENCHMARK_DEBUG === "true") {
-        process.stderr.write(`[DEBUG] clear-collection status: ${clearRes.status}, success: ${clearResult.success}\n`);
+        process.stderr.write(
+          `[DEBUG] clear-collection status: ${clearRes.status}, success: ${clearResult.success}\n`,
+        );
       }
 
       const bulkData = Array.from({ length: 100 }, (_, i) => ({
@@ -798,22 +909,29 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
         count: i + 1,
       }));
 
-      const bulkRes = await fetch(`${process.env.API_BASE_URL}/api/collections/${STABLE_COLLECTION}/bulk`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-mode": "true",
-          "x-test-secret": TEST_API_SECRET,
-          "x-tenant-id": tenantId,
+      const bulkRes = await fetch(
+        `${process.env.API_BASE_URL}/api/collections/${STABLE_COLLECTION}/bulk`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-test-mode": "true",
+            "x-test-secret": TEST_API_SECRET,
+            "x-tenant-id": tenantId,
+          },
+          body: JSON.stringify(bulkData),
         },
-        body: JSON.stringify(bulkData),
-      });
+      );
 
       const bulkResult = await bulkRes.json();
       if (process.env.BENCHMARK_DEBUG === "true") {
-        process.stderr.write(`[DEBUG] bulk-seed status: ${bulkRes.status}, success: ${bulkResult.success}\n`);
+        process.stderr.write(
+          `[DEBUG] bulk-seed status: ${bulkRes.status}, success: ${bulkResult.success}\n`,
+        );
         if (!bulkRes.ok) {
-          process.stderr.write(`[DEBUG] bulk-seed FAILED: ${bulkRes.status} ${JSON.stringify(bulkResult).substring(0, 100)}...\n`);
+          process.stderr.write(
+            `[DEBUG] bulk-seed FAILED: ${bulkRes.status} ${JSON.stringify(bulkResult).substring(0, 100)}...\n`,
+          );
         } else {
           process.stderr.write(`[DEBUG] Bulk seeded 100 entries into ${STABLE_COLLECTION}.\n`);
         }
@@ -836,6 +954,16 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
   try {
     await activeDb.collection.createModel(schema as any);
     await activeDb.collection.createModel(authorSchema as any);
+
+    // 🚀 PERFECT STORM: Inject physical indices for benchmark collections
+    // This ensures O(1) lookups and O(log N) filtering even for dynamic benchmark tables.
+    if (activeDb.type !== "mongodb") {
+      try {
+        await activeDb.execute(sql.raw(`CREATE INDEX IF NOT EXISTS "idx_bench_stable_slug" ON "${STABLE_COLLECTION}" ("slug")`));
+        await activeDb.execute(sql.raw(`CREATE INDEX IF NOT EXISTS "idx_bench_stable_tenant" ON "${STABLE_COLLECTION}" ("tenantId")`));
+        await activeDb.execute(sql.raw(`CREATE INDEX IF NOT EXISTS "idx_bench_authors_name" ON "BenchmarkAuthors" ("name")`));
+      } catch {}
+    }
   } catch {
     /* ignore */
   }

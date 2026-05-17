@@ -12,29 +12,17 @@ import { dbPluginRegistry } from "./core/plugin-registry";
  * 🚀 AGNOSTIC CORE: Loads the physical database adapter based on config.
  */
 export async function loadAdapters(config: any): Promise<IDBAdapter | null> {
-  // 🚀 HARDENING: Support both UPPER_SNAKE_CASE (Private Config) and camelCase (SDK/Manual)
+  // 🚀 RESILIENT RESOLUTION: Support all casing and environment sources
   const type = (
     config?.DB_TYPE ||
     config?.type ||
     config?.DATABASE_ENGINE ||
     process.env.DATABASE_ENGINE ||
-    (process.env.TEST_MODE === "true" ? null : "sqlite")
-  )?.toLowerCase();
+    process.env.DB_TYPE ||
+    "sqlite"
+  ).toLowerCase();
 
-  const source = config?.DB_TYPE
-    ? "config.DB_TYPE"
-    : config?.type
-      ? "config.type"
-      : process.env.DATABASE_ENGINE
-        ? "DATABASE_ENGINE"
-        : "Default";
-  logger.debug(`[DB Init] Resolved adapter type: ${type} (Source: ${source})`);
-
-  if (!type) {
-    throw new Error(
-      "[DB Init] No database engine type specified (DB_TYPE or DATABASE_ENGINE). Defaulting is disabled in test mode.",
-    );
-  }
+  logger.debug(`[DB Init] Loading ${type} adapter...`);
 
   try {
     if (type === "sqlite") {
@@ -51,8 +39,12 @@ export async function loadAdapters(config: any): Promise<IDBAdapter | null> {
       return new MongoDBAdapter(config);
     }
     throw new Error(`Unsupported database type: ${type}`);
-  } catch (err) {
-    logger.error(`[DB Init] Failed to load adapter for ${type}:`, err);
+  } catch (err: any) {
+    logger.error(`[DB Init] Failed to load adapter for ${type}:`, {
+      message: err.message,
+      stack: err.stack,
+      error: err,
+    });
     return null;
   }
 }

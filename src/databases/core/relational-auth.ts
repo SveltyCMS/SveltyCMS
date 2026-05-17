@@ -184,7 +184,7 @@ export class RelationalAuthModule implements IAuthAdapter {
 
         await db.insert(this.schema.authUsers).values(preparedValues);
         const [result] = await db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
           .from(this.schema.authUsers)
           .where(eq(this.schema.authUsers._id, id))
           .limit(1);
@@ -238,7 +238,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           .where(and(...conditions));
 
         const [result] = await db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
           .from(this.schema.authUsers)
           .where(and(...conditions))
           .limit(1);
@@ -280,7 +280,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           );
         }
         const [result] = await this.getDb(options)
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
           .from(this.schema.authUsers)
           .where(and(...conditions))
           .limit(1);
@@ -309,7 +309,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           );
         }
         const results = await this.getDb()
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
           .from(this.schema.authUsers)
           .where(and(...conditions))
           .limit(1);
@@ -328,7 +328,10 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<User[]>> {
     return this.adapter.wrap(
       async () => {
-        let q = this.getDb(dbOptions).select().from(this.schema.authUsers).$dynamic();
+        let q = this.getDb(dbOptions)
+          .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
+          .from(this.schema.authUsers)
+          .$dynamic();
         const conditions: any[] = [];
         if (dbOptions?.tenantId !== undefined) {
           conditions.push(
@@ -408,7 +411,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           tenantId: (sessionData.tenantId as string) || null,
         });
         const [result] = await db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
           .from(this.schema.authSessions)
           .where(eq(this.schema.authSessions._id, id))
           .limit(1);
@@ -447,8 +450,8 @@ export class RelationalAuthModule implements IAuthAdapter {
         const db = this.getDb(options);
         const [result] = await db
           .select({
-            session: this.schema.authSessions,
-            user: this.schema.authUsers,
+            session: this.adapter.getPhysicalSelection(this.schema.authSessions),
+            user: this.adapter.getPhysicalSelection(this.schema.authUsers),
           })
           .from(this.schema.authSessions)
           .innerJoin(
@@ -529,7 +532,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           .set(preparedUpdate)
           .where(eq(this.schema.authSessions._id, sessionId as string));
         const [res] = await db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
           .from(this.schema.authSessions)
           .where(eq(this.schema.authSessions._id, sessionId as string))
           .limit(1);
@@ -590,7 +593,7 @@ export class RelationalAuthModule implements IAuthAdapter {
               : eq(this.schema.authSessions.tenantId, options.tenantId as string),
           );
         const res = await this.getDb(options)
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
           .from(this.schema.authSessions)
           .where(and(...conditions));
         return utils.convertArrayDatesToISO(res) as unknown as Session[];
@@ -612,7 +615,7 @@ export class RelationalAuthModule implements IAuthAdapter {
               : eq(this.schema.authSessions.tenantId, options.tenantId as string),
           );
         const res = await this.getDb(options)
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
           .from(this.schema.authSessions)
           .where(and(...conditions));
         return utils.convertArrayDatesToISO(res) as unknown as Session[];
@@ -628,7 +631,7 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: DatabaseId } | null>> {
     return this.adapter.wrap(async () => {
       const [res] = await this.getDb()
-        .select()
+        .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
         .from(this.schema.authSessions)
         .where(eq(this.schema.authSessions._id, sessionId as string))
         .limit(1);
@@ -639,7 +642,7 @@ export class RelationalAuthModule implements IAuthAdapter {
   async rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>> {
     return this.adapter.transaction(async (tx: any) => {
       const [old] = await tx.db
-        .select()
+        .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
         .from(this.schema.authSessions)
         .where(eq(this.schema.authSessions._id, oldToken))
         .limit(1);
@@ -705,7 +708,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           .set(preparedUpdate)
           .where(and(...conditions));
         const [res] = await db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.authTokens))
           .from(this.schema.authTokens)
           .where(and(...conditions))
           .limit(1);
@@ -734,7 +737,7 @@ export class RelationalAuthModule implements IAuthAdapter {
               : eq(this.schema.authTokens.tenantId, options.tenantId as string),
           );
         const [t] = await this.getDb(options)
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.authTokens))
           .from(this.schema.authTokens)
           .where(and(...conditions))
           .limit(1);
@@ -841,7 +844,7 @@ export class RelationalAuthModule implements IAuthAdapter {
         await db.insert(this.schema.roles).values(preparedValues);
 
         const [res] = await db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.roles))
           .from(this.schema.roles)
           .where(eq(this.schema.roles._id, id))
           .limit(1);
@@ -871,7 +874,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           .set(preparedUpdate)
           .where(eq(this.schema.roles._id, roleId as string));
         const [res] = await db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.roles))
           .from(this.schema.roles)
           .where(eq(this.schema.roles._id, roleId as string))
           .limit(1);
@@ -903,7 +906,7 @@ export class RelationalAuthModule implements IAuthAdapter {
     return this.adapter.wrap(
       async () => {
         const [res] = await this.getDb(options)
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.roles))
           .from(this.schema.roles)
           .where(eq(this.schema.roles._id, roleId as string))
           .limit(1);
@@ -922,7 +925,7 @@ export class RelationalAuthModule implements IAuthAdapter {
     return this.adapter.wrap(
       async () => {
         const res = await this.getDb(dbOptions)
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.roles))
           .from(this.schema.roles)
           .limit(options?.limit || 100);
         return res.map((r: any) => this.mapRole(r));
@@ -940,7 +943,7 @@ export class RelationalAuthModule implements IAuthAdapter {
     return this.adapter.wrap(
       async () => {
         const res = await this.getDb(options)
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.roles))
           .from(this.schema.roles)
           .where(inArray(this.schema.roles._id, roleIds as string[]));
         return res.map((r: any) => this.mapRole(r));
@@ -1133,7 +1136,10 @@ export class RelationalAuthModule implements IAuthAdapter {
   async getAllTokens(_filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>> {
     return this.adapter.wrap(
       async () => {
-        const res = await this.getDb().select().from(this.schema.authTokens).limit(1000);
+        const res = await this.getDb()
+          .select(this.adapter.getPhysicalSelection(this.schema.authTokens))
+          .from(this.schema.authTokens)
+          .limit(1000);
         return utils.convertArrayDatesToISO(res) as unknown as Token[];
       },
       "GET_ALL_TOKENS_FAILED",
@@ -1148,7 +1154,7 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<Token | null>> {
     return this.adapter.wrap(async () => {
       const [res] = await this.getDb(options)
-        .select()
+        .select(this.adapter.getPhysicalSelection(this.schema.authTokens))
         .from(this.schema.authTokens)
         .where(eq(this.schema.authTokens.token, token))
         .limit(1);
@@ -1162,7 +1168,7 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<Token | null>> {
     return this.adapter.wrap(async () => {
       const [res] = await this.getDb(options)
-        .select()
+        .select(this.adapter.getPhysicalSelection(this.schema.authTokens))
         .from(this.schema.authTokens)
         .where(eq(this.schema.authTokens._id, tokenId as string))
         .limit(1);
@@ -1181,7 +1187,7 @@ export class RelationalAuthModule implements IAuthAdapter {
       if (userId) conditions.push(eq(this.schema.authTokens.user_id, userId as string));
       if (type) conditions.push(eq(this.schema.authTokens.type, type));
       const [res] = await this.getDb(options)
-        .select()
+        .select(this.adapter.getPhysicalSelection(this.schema.authTokens))
         .from(this.schema.authTokens)
         .where(and(...conditions))
         .limit(1);

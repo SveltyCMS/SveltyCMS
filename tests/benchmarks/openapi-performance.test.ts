@@ -14,9 +14,9 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET
+  TEST_API_SECRET,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import { apiSpecService } from "@src/services/system/api-spec-service";
 import { logger } from "@utils/logger";
 
@@ -106,7 +106,11 @@ async function runOpenApiAudit() {
       { key: "Warm Cached Hit", val: warmResult.avgMs, unit: "ms" },
       { key: "Cache Speedup", val: speedup.toFixed(1), unit: "x" },
       { key: "Peak Throughput", val: Math.round(warmResult.rps || 0), unit: "req/s" },
-      { key: "Rating", val: speedup > 4 || warmResult.avgMs < 2.0 ? "EXCELLENT" : speedup > 2 ? "GOOD" : "FAIR", unit: "" },
+      {
+        key: "Rating",
+        val: speedup > 4 || warmResult.avgMs < 2.0 ? "EXCELLENT" : speedup > 2 ? "GOOD" : "FAIR",
+        unit: "",
+      },
     ]);
 
     exportResult(warmResult);

@@ -232,7 +232,25 @@ export const actions: Actions = {
                 break;
               } catch (e: any) {
                 attempts++;
-                if (attempts >= 5) throw e;
+                if (attempts >= 5) {
+                  logger.warn(
+                    `⚠️ SQLite file is locked by Windows OS. Falling back to table-clear serialization...`,
+                  );
+                  try {
+                    const { SQLiteAdapter } = await import("@src/databases/sqlite/sqlite-adapter");
+                    const fallbackAdapter = new SQLiteAdapter(dbConfig);
+                    await fallbackAdapter.connect(dbPath);
+                    await fallbackAdapter.clearDatabase();
+                    await fallbackAdapter.disconnect();
+                    logger.info(
+                      `✅ Successfully cleared SQLite tables via fallback serialization.`,
+                    );
+                    break;
+                  } catch (fallbackErr: any) {
+                    logger.error(`❌ SQLite fallback clear failed: ${fallbackErr.message}`);
+                    throw e; // throw original unlink error if fallback also fails
+                  }
+                }
                 logger.warn(`⚠️ SQLite file busy, retrying in 500ms (Attempt ${attempts}/5)...`);
                 await new Promise((r) => setTimeout(r, 500));
               }

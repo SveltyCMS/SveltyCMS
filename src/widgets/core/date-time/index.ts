@@ -21,8 +21,6 @@ import { createWidget } from "@src/widgets/widget-factory";
 import { widget_date_description } from "@src/paraglide/messages";
 import { isoTimestamp, pipe, string, nullable, type InferInput as ValibotInput } from "valibot";
 import type { DateTimeProps } from "./types";
-import { toISOString } from "@src/utils/date";
-
 // Type for aggregation field parameter
 interface AggregationField {
   db_fieldName: string;
@@ -52,16 +50,13 @@ const DateTimeWidget = createWidget<DateTimeProps>({
   // Assign the validation schema.
   validationSchema: createValidationSchema,
 
-  // 🚀 NORMALIZATION: Ensure all persisted dates are standardized UTC ISO strings
-  modifyRequest: async ({ data, type }: any) => {
-    if (type !== "GET") {
-      const val = data.get();
-      if (val !== undefined && val !== null && val !== "") {
-        const normalized = toISOString(val);
-        if (process.env.BENCHMARK_DEBUG === "true") {
-          // Use console.log for now to be safe, or try to import it properly
-          console.info(`[DEBUG] DateTimeWidget Normalized: from ${val} to ${normalized}`);
-        }
+  // 🚀 NORMALIZATION: Ensure all persisted and returned dates are standardized UTC ISO strings
+  modifyRequest: async ({ data }: any) => {
+    const val = data.get();
+    if (val !== undefined && val !== null && val !== "") {
+      const { toISOString } = await import("@src/utils/date");
+      const normalized = toISOString(val);
+      if (normalized && normalized !== val) {
         data.update(normalized);
       }
     }
@@ -77,6 +72,7 @@ const DateTimeWidget = createWidget<DateTimeProps>({
   GuiSchema: {
     label: { widget: "Input", required: true },
     db_fieldName: { widget: "Input", required: false },
+    default: { widget: "Input", required: false },
     required: { widget: "Toggles", required: false },
     icon: { widget: "IconifyIconsPicker", required: false },
     helper: { widget: "Input", required: false },
@@ -157,7 +153,7 @@ export default DateTimeWidget;
 
     const val = data.get();
     if (val !== undefined && val !== null && val !== "") {
-      const { toISOString } = await import("@src/utils/utils");
+      const { toISOString } = await import("@src/utils/date");
       const normalized = toISOString(val);
       if (process.env.BENCHMARK_DEBUG === "true") {
         console.info(`[DEBUG] DateTimeWidget Static Normalized: from ${val} to ${normalized}`);

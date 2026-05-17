@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { RequestEvent } from "@sveltejs/kit";
+import { createMockSuperAdmin } from "../utils/mock-factories";
 
 // Define the mock service object first
 const mockMediaService = {
@@ -190,7 +191,7 @@ const mediaProcessHandler = {
 };
 
 describe("Media API Security Unit Tests", () => {
-  const user = { _id: "user-1", email: "test@example.com", role: "admin", isAdmin: true };
+  const user = createMockSuperAdmin({ _id: "user-1" });
   const roles = [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }];
   const tenantId = "tenant-A";
 

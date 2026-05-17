@@ -10,6 +10,7 @@ import {
   DELETE as dispatcherDELETE,
 } from "@src/routes/api/[...path]/+server";
 import { webhookService } from "@src/services/background/webhook-service";
+import { createMockUser, createMockSuperAdmin } from "../utils/mock-factories";
 
 // Mock webhook service
 vi.mock("@src/services/background/webhook-service", () => ({
@@ -22,12 +23,12 @@ vi.mock("@src/services/background/webhook-service", () => ({
 }));
 
 describe("Webhook API Security - IDOR and Tenant Isolation", () => {
-  const mockUser = { _id: "user1", role: "admin", email: "test@example.com" };
-  const mockSuperAdmin = {
+  const mockUser = createMockUser({ _id: "user1", role: "admin" });
+  const mockSuperAdmin = createMockSuperAdmin({
     _id: "admin1",
     role: "super-admin",
     email: "super@example.com",
-  };
+  });
   const myTenant = "tenant-1";
   const otherTenant = "tenant-2";
 

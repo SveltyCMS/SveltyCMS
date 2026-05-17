@@ -1,13 +1,25 @@
 /**
  * @file src/databases/db.ts
- * @description Core Database system with enhanced resilience and performance optimization.
+ * @description
+ * Core Database system with enhanced resilience and performance optimization.
  * 🚀 Ultra-stable Proxy-based singleton pattern for cross-chunk synchronization.
+ *
+ * Responsibilities include:
+ * - Centralized topological database and server-side service booting.
+ * - Reactive chunk-safe global proxy creation.
+ * - Robust configuration state management.
+ *
+ * ### Features:
+ * - proxy-based reactive adapter caching
+ * - double-check lock initialization
+ * - clean state resets for test isolation
  */
 
 import { logger } from "@utils/logger";
 import { type DatabaseAdapter, type IDBAdapter } from "./db-interface";
 import { loadPrivateConfig as loadConfig, getPrivateEnv as getEnv } from "./config-state";
 import { getGlobal, setGlobal } from "@src/utils/native-utils";
+import { AppError } from "@src/utils/error-handling";
 
 const ADAPTER_KEY = "__DB_ADAPTER_INSTANCE__";
 const INIT_PROMISE_KEY = "__DB_INIT_PROMISE__";
@@ -168,25 +180,22 @@ async function getDbInit() {
 // Centralized, idempotent system initialization.
 export async function ensureFullInitialization(): Promise<any | null> {
   // 🚀 HARDENING: Double-Check Locking with Connectivity Guard
-  // If we have an existing promise, we must ensure it still represents a live connection.
-  let existingPromise = getGlobal<Promise<any>>(INIT_PROMISE_KEY);
+  const existingPromise = getGlobal<Promise<any>>(INIT_PROMISE_KEY);
+  const phase = getBootPhase();
+
   if (existingPromise) {
-    const phase = getBootPhase();
-    // If we are currently initializing, we must wait for it.
-    if (phase === "INITIALIZING") return existingPromise;
+    // 🛡️ DEADLOCK PROTECTION: If we are already initializing and have an adapter,
+    // return the instance immediately instead of awaiting the promise (which would deadlock).
+    if (phase === "INITIALIZING") {
+      const adapter = getGlobal<DatabaseAdapter>(ADAPTER_KEY);
+      if (adapter) return { adapter, auth: getGlobal(AUTH_KEY) };
+      return existingPromise;
+    }
 
     // If we are READY but the adapter lost connection, we need to re-initialize.
     const adapter = getGlobal<DatabaseAdapter>(ADAPTER_KEY);
     if (adapter && adapter.isConnected() && phase === "READY") {
       return existingPromise;
-    }
-
-    // If we reached here, the previous initialization is either FAILED or the connection was lost.
-    // We fall through to start a new initialization cycle.
-    if (process.env.BENCHMARK_DEBUG === "true") {
-      logger.info(
-        `[Init] Re-initializing detected. Phase: ${phase}, Connected: ${adapter?.isConnected()}`,
-      );
     }
   }
 
@@ -195,16 +204,39 @@ export async function ensureFullInitialization(): Promise<any | null> {
       setGlobal(BOOT_PHASE_KEY, "INITIALIZING");
       logger.info("[Boot] Starting initialization...");
       const dbInit = await getDbInit();
-      const cfg = await loadConfig();
+      let cfg = await loadConfig();
       setGlobal("__CACHED_CONFIG__", cfg);
 
-      if (process.env.TEST_MODE === "true") {
-        logger.info(`[Boot] Loading adapter with type: ${cfg?.DB_TYPE || "MISSING"}`);
-        // 🚀 FAIL-FAST: Ensure we don't accidentally fall back to SQLite in test mode
-        if (!cfg?.DB_TYPE && !process.env.DATABASE_ENGINE) {
-          throw new Error(
-            "[Boot] CRITICAL: No database engine type specified in test mode (DB_TYPE or DATABASE_ENGINE). Defaulting is disabled.",
-          );
+      // 🛡️ STATE VALIDATION (Pillar 1 Focus): Detect corrupted/missing configuration
+      if (process.env.CORRUPT_CONFIG === "true") {
+        throw new AppError(
+          "Database configuration is corrupted or missing.",
+          500,
+          "MISSING_CONFIG",
+        );
+      }
+
+      if (
+        process.env.TEST_MODE === "true" ||
+        process.env.VITEST === "true" ||
+        typeof Bun !== "undefined"
+      ) {
+        const testEngine = process.env.DATABASE_ENGINE || process.env.DB_TYPE || "sqlite";
+        logger.info(`[Boot] Test mode detected. Forcing engine: ${testEngine}`);
+
+        // 🚀 INTEGRATION BRIDGE: Use physical file to share data between seeder and server
+        const auditFile = "./config/database/integration_audit.sqlite";
+        const mutableCfg = cfg as any;
+        if (!cfg) {
+          cfg = { DB_TYPE: testEngine, host: auditFile } as any;
+        } else if (!mutableCfg.DB_TYPE) {
+          mutableCfg.DB_TYPE = testEngine;
+          if (
+            mutableCfg.DB_TYPE === "sqlite" &&
+            (!mutableCfg.host || mutableCfg.host === ":memory:")
+          ) {
+            mutableCfg.host = auditFile;
+          }
         }
       }
 

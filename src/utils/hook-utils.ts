@@ -125,7 +125,7 @@ export function isBootstrapRoute(pathname: string): boolean {
     pathname.startsWith("/assets") ||
     pathname.startsWith("/favicon.ico") ||
     pathname.startsWith("/.well-known") ||
-    pathname.includes(".") // Extension check for other assets
+    /\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map|json|ico|pdf|txt|xml)$/i.test(pathname) // Extension check for other assets
   ) {
     return true;
   }

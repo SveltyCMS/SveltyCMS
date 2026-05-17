@@ -66,10 +66,9 @@ export function checkServiceHealth(type: string): { healthy: boolean; error?: st
     switch (type) {
       case "mariadb":
       case "mysql":
-        execSync(
-          "docker exec mariadb mariadb-admin ping -h 127.0.0.1 -u root --password=mariadb",
-          { stdio: "ignore" },
-        );
+        execSync("docker exec mariadb mariadb-admin ping -h 127.0.0.1 -u root --password=mariadb", {
+          stdio: "ignore",
+        });
         return { healthy: true };
       case "postgresql":
       case "postgres":
@@ -229,33 +228,43 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
       getMetric("api.latency.http") ||
       getMetric("rest.collections.p95") ||
       getMetric("REST p95") ||
+      getMetric("REST (Collections)") ||
       (findResult(m, "truth-rest") as any)?.p95Ms ||
       (findResult(m, "truth-latency") as any)?.p95Ms ||
+      (findResult(m, "api-latency") as any)?.p95Ms ||
+      (findResult(m, "HTTP End-to-End") as any)?.p95Ms ||
       0,
     restAvg:
       getMetric("rest.collections.avg") ||
       getMetric("REST Avg") ||
+      getMetric("truth.http.avg") ||
       (findResult(m, "rest-api-performance") as any)?.avgMs ||
       (findResult(m, "rest-collections") as any)?.avgMs ||
+      (findResult(m, "HTTP End-to-End") as any)?.avgMs ||
       0,
     restRps:
       getMetric("rest.collections.rps") ||
       getMetric("REST RPS") ||
       (findResult(m, "rest-api-performance") as any)?.rps ||
+      (findResult(m, "HTTP End-to-End") as any)?.rps ||
       0,
     dbRaw:
       getMetric("adapter.read.avg") ||
       getMetric("DB Raw p95") ||
+      getMetric("db-raw-p95") ||
       (findResult(m, "database-performance") as any)?.p95Ms ||
       (findResult(m, "DB Baseline") as any)?.p95Ms ||
+      (findResult(m, "FIND ONE") as any)?.p95Ms ||
       0,
     hooks:
       getMetric("middleware.hooks.p95") ||
       getMetric("Hooks p95") ||
+      getMetric("middleware-hooks-p95") ||
       (findResult(m, "hooks-performance") as any)?.avgMs ||
       (findResult(m, "Auth+Security") as any)?.avgMs ||
       (findResult(m, "Turbo") as any)?.avgMs ||
       (findResult(m, "Full Security + Auth Pipeline") as any)?.avgMs ||
+      (findResult(m, "Full Security + Auth Pipeline") as any)?.p95Ms ||
       (findResult(m, "Turbo Pipeline") as any)?.avgMs ||
       0,
     graphqlAvg:
@@ -263,8 +272,10 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
       getMetric("graphql.query.avg") ||
       getMetric("GQL Stress") ||
       getMetric("graphql-stress") ||
+      getMetric("GraphQL API Performance") ||
       (findResult(m, "graphql-api-performance") as any)?.avgMs ||
       (findResult(m, "graphql-stress") as any)?.avgMs ||
+      (findResult(m, "GQL Stress: TINY") as any)?.avgMs ||
       0,
     gqlRps:
       getMetric("api.graphql.rps") ||
@@ -284,7 +295,9 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
     relationalAvg:
       getMetric("logic.relational.avg") ||
       getMetric("Relational p95") ||
+      getMetric("relational-performance") ||
       (findResult(m, "relational-performance") as any)?.avgMs ||
+      (findResult(m, "relational-performance") as any)?.p95Ms ||
       (findResult(m, "Deep Relational Query") as any)?.p95Ms ||
       (findResult(m, "Deep Relational Query") as any)?.avgMs ||
       0,
@@ -345,6 +358,7 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
     tenancyAvg:
       getMetric("scale.tenancy.avg") ||
       getMetric("Tenancy p95") ||
+      getMetric("multi-tenant-performance") ||
       (findResult(m, "multi-tenant-performance") as any)?.avgMs ||
       (findResult(m, "Multi-Tenant Context Switching") as any)?.p95Ms ||
       (findResult(m, "Multi-Tenant Context Switching") as any)?.avgMs ||
@@ -352,11 +366,15 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
     mixedAvg:
       getMetric("scale.mixed.avg") ||
       getMetric("Mixed Workload Avg") ||
+      getMetric("Mixed Workload") ||
       (findResult(m, "mixed-workload") as any)?.avgMs ||
+      (findResult(m, "Mixed Workload") as any)?.p95Ms ||
+      (findResult(m, "Mixed Workload") as any)?.avgMs ||
       0,
     telemetryAvg:
       getMetric("internals.telemetry.avg") ||
       getMetric("Telemetry p95") ||
+      getMetric("telemetry-performance") ||
       (findResult(m, "telemetry-performance") as any)?.avgMs ||
       (findResult(m, "Happy") as any)?.p95Ms ||
       (findResult(m, "Happy") as any)?.avgMs ||
@@ -534,16 +552,34 @@ const NOISY_SERVER_PATTERNS: RegExp[] = [
   /\[Boot\]/i,
   /\[TestingHandler\]/i,
   /BenchmarkStable/i,
+  /Plugin '.*' is already registered/i,
+  /Plugin .* is already registered/i,
 ];
 
 // eslint-disable-next-line no-control-regex
 const ANSI_STRIP = /[\u001b\u009b]\[[0-9;]*[JKmsu]/g;
 
 export function isNoisyLine(line: string): boolean {
+  return false; // 🚀 DEBUG: Show all lines
   const clean = line.replace(ANSI_STRIP, "");
   const isQuiet = process.env.QUIET === "true";
 
-  if (isQuiet && (clean.includes("[INFO ]") || clean.includes("[DEBUG]"))) {
+  if (
+    isQuiet &&
+    (clean.includes("[INFO]") ||
+      clean.includes("[INFO ]") ||
+      clean.includes("[DEBUG]") ||
+      clean.includes("ℹ️") ||
+      clean.includes("🐛") ||
+      clean.includes("Migration") ||
+      clean.includes("Connected ->") ||
+      clean.includes("Adapter Connected") ||
+      clean.includes("System state changed") ||
+      clean.includes("bootAll") ||
+      clean.includes("Initializing service") ||
+      clean.includes("Initialized:") ||
+      clean.includes("Service database initialized"))
+  ) {
     return true;
   }
 

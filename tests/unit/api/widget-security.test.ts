@@ -5,49 +5,26 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { RequestEvent } from "@sveltejs/kit";
+import { createMockUser, createDbAdapterStub } from "../utils/mock-factories";
 
 // Mock SvelteKit environment
-
-// Mock all dependencies
 
 // Mock all dependencies
 vi.mock("@utils/api-handler", () => ({
   apiHandler: (fn: any) => fn,
 }));
 
-vi.mock("@src/databases/db", () => ({
-  dbAdapter: {
-    collection: {
-      getModel: vi.fn(),
-    },
-    system: {
-      widgets: {
-        getActiveWidgets: vi.fn().mockResolvedValue({ success: true, data: [] }),
-        activate: vi.fn().mockResolvedValue({ success: true }),
-        deactivate: vi.fn().mockResolvedValue({ success: true }),
-        findAll: vi.fn().mockResolvedValue({ success: true, data: [{ name: "test-widget" }] }),
-      },
-    },
-    isConnected: vi.fn().mockReturnValue(true),
-  },
-  getDb: vi.fn().mockReturnValue({
-    collection: {
-      getModel: vi.fn(),
-    },
-    system: {
-      widgets: {
-        getActiveWidgets: vi.fn().mockResolvedValue({ success: true, data: [] }),
-        activate: vi.fn().mockResolvedValue({ success: true }),
-        deactivate: vi.fn().mockResolvedValue({ success: true }),
-      },
-    },
-    isConnected: vi.fn().mockReturnValue(true),
-  }),
-  isDbConnected: vi.fn().mockReturnValue(true),
-  dbInitPromise: Promise.resolve(),
-  getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-  getAuth: vi.fn(),
-}));
+vi.mock("@src/databases/db", () => {
+  const mockDb = createDbAdapterStub();
+  return {
+    dbAdapter: mockDb,
+    getDb: vi.fn().mockReturnValue(mockDb),
+    isDbConnected: vi.fn().mockReturnValue(true),
+    dbInitPromise: Promise.resolve(),
+    getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+    getAuth: vi.fn(),
+  };
+});
 
 vi.mock("@src/stores/widget-store.svelte.ts", () => ({
   widgets: {
@@ -106,7 +83,7 @@ describe("Widget API Security - Tenant Isolation", () => {
       locals: {
         __testBypass: true,
         dbAdapter: mockDbAdapter,
-        user: { _id: "u1", email: "admin@test.com", role: "admin", isAdmin: true },
+        user: createMockUser({ _id: "u1", email: "admin@test.com", role: "admin", isAdmin: true }),
         roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
         ...locals,
       },

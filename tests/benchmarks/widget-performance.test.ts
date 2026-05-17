@@ -4,7 +4,6 @@
  * Measures the "Middleware Tax" of widget transformations and validation.
  */
 
-
 // 🚀 Direct mock to ensure widgets are available in this isolated run
 mock.module("@src/widgets/scanner", () => {
   const names = ["Input", "RichText", "Relation", "Select", "DateTime", "Group", "Repeater", "Seo"];
@@ -34,9 +33,9 @@ import {
   printSummaryTable,
   STABLE_COLLECTION,
   ensureStableTestData,
-  getRecommendedConcurrency
+  getRecommendedConcurrency,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 
 async function runWidgetAudit() {
   console.log("🚀 Starting SveltyCMS Widget Performance Audit...\n");

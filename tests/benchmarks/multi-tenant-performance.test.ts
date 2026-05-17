@@ -13,9 +13,9 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType
+  getDbType,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
 const TENANT_COUNT = 50;

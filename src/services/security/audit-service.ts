@@ -65,6 +65,7 @@ export class AuditService {
   private buffer: any[] = [];
   private flushTimer: any = null;
   private readonly MAX_BUFFER_SIZE = 50;
+  private readonly MAX_TOTAL_BUFFER = 200; // 🛡️ HARD CAP: Lowered from 500 to 200 for stability
   private readonly FLUSH_INTERVAL_MS = 5000;
   private initialized = false;
 
@@ -75,6 +76,8 @@ export class AuditService {
 
   private startFlushTimer() {
     if (this.flushTimer) clearInterval(this.flushTimer);
+    // 🧪 PERFORMANCE: During benchmarks, we don't even need the timer if logs are disabled
+    if (process.env.DISABLE_AUDIT_LOGS === "true") return;
     this.flushTimer = setInterval(() => this.flush(), this.FLUSH_INTERVAL_MS);
   }
 
@@ -105,11 +108,12 @@ export class AuditService {
     } catch (error) {
       logger.error("[Audit] Flush failed, restoring buffer", error);
       // 🛡️ MEMORY LEAK FIX: Cap the restoration to prevent unbounded growth
-      // If we already have 500+ items, we must drop the oldest ones.
       const combined = [...entriesToFlush, ...this.buffer];
-      if (combined.length > 500) {
-        logger.warn(`[Audit] Buffer overflow, dropping ${combined.length - 500} logs`);
-        this.buffer = combined.slice(-500);
+      if (combined.length > this.MAX_TOTAL_BUFFER) {
+        logger.warn(
+          `[Audit] Buffer overflow, dropping ${combined.length - this.MAX_TOTAL_BUFFER} logs`,
+        );
+        this.buffer = combined.slice(-this.MAX_TOTAL_BUFFER);
       } else {
         this.buffer = combined;
       }

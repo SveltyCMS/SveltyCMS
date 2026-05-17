@@ -190,15 +190,13 @@ export function printSummaryTable(results: BenchmarkResult[]) {
  * 🚀 Reconstructs high-fidelity ASCII tables for MDX.
  */
 function buildAsciiTable(title: string, subtitle: string, scenarios: any[]): string {
-  const SC_COL = 30;
-  const AVG_COL = 14;
-  const P95_COL = 14;
-  const RPS_COL = 14;
-  const W = 2 + SC_COL + 3 + AVG_COL + 3 + P95_COL + 3 + RPS_COL + 2;
+  const NAME_W = 30;
+  const VAL_W = 12;
+  const W = 2 + NAME_W + 3 + VAL_W + 10 + VAL_W + 10 + 10 + 2; // = 91
 
   const bar = (l: string, _m: string, r: string) => l + "═".repeat(W - 2).replace(/ /g, "═") + r;
   const row = (sc: string, avg: string, p95: string, rps: string) =>
-    `║ ${sc.padEnd(SC_COL)} │ ${avg.padEnd(AVG_COL)} │ ${p95.padEnd(P95_COL)} │ ${rps.padEnd(RPS_COL)} ║`;
+    `║ ${sc.padEnd(NAME_W)} │ ${avg.padStart(VAL_W)} ms │ p95: ${p95.padStart(VAL_W)} ms │ RPS: ${rps.padStart(10)} ║`;
 
   let md = "```text\n";
   md += bar("╔", "═", "╗") + "\n";
@@ -212,19 +210,13 @@ function buildAsciiTable(title: string, subtitle: string, scenarios: any[]): str
   md += "║" + " ".repeat(subPad) + subtitle + " ".repeat(W - 2 - subtitle.length - subPad) + "║\n";
 
   md += bar("╠", "═", "╣") + "\n";
-  md += row("Scenario", "Avg latency", "p95", "RPS") + "\n";
-  md += bar("╠", "═", "╣") + "\n";
 
   for (const s of scenarios) {
-    const isMs = !s.name.toLowerCase().includes("size") && !s.name.toLowerCase().includes("count");
-    const suffix = isMs ? " ms" : "";
-    md +=
-      row(
-        s.name,
-        `${s.avgMs.toFixed(3)}${suffix}`,
-        `${s.p95Ms.toFixed(3)}${suffix}`,
-        Math.round(s.rps).toLocaleString(),
-      ) + "\n";
+    const avg = typeof s.avgMs === "number" ? s.avgMs.toFixed(3) : "0.000";
+    const p95 = typeof s.p95Ms === "number" ? s.p95Ms.toFixed(3) : avg;
+    const rps = typeof s.rps === "number" ? Math.round(s.rps).toLocaleString() : "0";
+
+    md += row(s.name, avg, p95, rps) + "\n";
   }
 
   md += bar("╚", "═", "╝") + "\n";
@@ -520,7 +512,7 @@ async function updateBenchmarkIndexReport(
     const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
     const meta = (DB_METADATA as any)[dbKey] || { label: dbKey.toUpperCase(), icon: "❓" };
     const label = `${meta.icon} **${meta.label}**`;
-    
+
     let curr = results.find((r) => r.db === dbKey);
     let m: ReturnType<typeof extractMetrics> | null = null;
     let status = "PENDING";
@@ -564,7 +556,7 @@ async function updateBenchmarkIndexReport(
 
   doc = doc.replace(
     /<!-- SUMMARY_MATRIX_START -->[\s\S]*?<!-- SUMMARY_MATRIX_END -->/,
-    `${START_TAG}\n${tableMd}\n${END_TAG}`
+    `${START_TAG}\n${tableMd}\n${END_TAG}`,
   );
 
   await fs.writeFile(indexFilePath, doc);
@@ -686,8 +678,8 @@ tags:
     headerMd += `### ⚡ Executive Latency Matrix\n`;
     headerMd += `| Scenario | Avg Latency | Trend | Target Budget | Result |\n`;
     headerMd += `| :--- | :--- | :--- | :--- | :--- |\n`;
-    headerMd += `| **Cold Start** | ${curr?.coldStartMs || 0}ms | ${coldTrend.icon} (${coldTrend.pct}) | < 5000ms | ${curr?.coldStartMs && curr.coldStartMs <= 5000 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
-    headerMd += `| **REST (Collections)** | ${m.collections.toFixed(3)}ms | ${restTrend.icon} (${restTrend.pct}) | < 5ms | ${m.collections <= 5 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
+    headerMd += `| **Cold Start** | ${curr?.coldStartMs || 0}ms | ${coldTrend.icon} (${coldTrend.pct}) | < 5000ms | ${(curr?.coldStartMs || 0) <= 5000 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
+    headerMd += `| **REST (Collections)** | ${(m.collections || m.restAvg).toFixed(3)}ms | ${restTrend.icon} (${restTrend.pct}) | < 5ms | ${(m.collections || m.restAvg) <= 5 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
     headerMd += `| **Middleware Hooks** | ${m.hooks.toFixed(3)}ms | ⚪ | < 1.5ms | ${m.hooks <= 1.5 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
     headerMd += `| **GraphQL (Avg)** | ${m.graphqlAvg.toFixed(3)}ms | ${gqlTrend.icon} (${gqlTrend.pct}) | < 5ms | ${m.graphqlAvg <= 5 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
     headerMd += `| **Million-Row Index** | ${m.indexPressure === 0 ? "FAILED" : m.indexPressure.toFixed(3) + "ms"} | ⚪ | < 250ms | ${m.indexPressure > 0 && m.indexPressure <= 250 ? "🟢 PASS" : dbKey === "sqlite" ? "🔴 LOCK WALL" : "🔴 FAIL"} |\n`;
@@ -830,16 +822,18 @@ tags:
       const timing = curr?.scriptTimings?.[script.shortLabel] || 0;
       const trend = await getScriptTrend(db, dbKey, script.shortLabel, timing);
 
-      const tag = script.shortLabel.split(" ")[0].toUpperCase() + "_TABLE";
-      const START_TAG = `<!-- ${tag}_START -->`;
-      const END_TAG = `<!-- ${tag}_END -->`;
+      // 🚀 Standardized Tag Generation: use slugified shortLabel for stability
+      const tagSlug = script.shortLabel
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "_")
+        .toUpperCase();
+      const START_TAG = `<!-- ${tagSlug}_TABLE_START -->`;
+      const END_TAG = `<!-- ${tagSlug}_TABLE_END -->`;
 
       // Check if we have new data in ROOT_RESULTS_DIR
       let tableContent = "";
       try {
         const dbResultsDir = path.join(ROOT_RESULTS_DIR, dbKey);
-
-        // 🚀 Recursive search for table files
         const allFiles = await findFilesRecursive(dbResultsDir, ".table.txt");
 
         const tableFile = allFiles.find((f) => {
@@ -855,11 +849,20 @@ tags:
         }
       } catch {}
 
-      // If no new data, try to extract from current document
-      if (!tableContent && doc.includes(START_TAG) && doc.includes(END_TAG)) {
-        const existing = doc.split(START_TAG)[1].split(END_TAG)[0].trim();
-        if (existing && !existing.includes("Pending execution")) {
-          tableContent = existing;
+      // If no new data, try to extract from current document (handling both old and new tag styles)
+      if (!tableContent) {
+        const oldTagSlug = script.shortLabel.split(" ")[0].toUpperCase();
+        const OLD_START_TAG = `<!-- ${oldTagSlug}_TABLE_START -->`;
+        const OLD_END_TAG = `<!-- ${oldTagSlug}_TABLE_END -->`;
+
+        if (doc.includes(START_TAG) && doc.includes(END_TAG)) {
+          tableContent = doc.split(START_TAG)[1].split(END_TAG)[0].trim();
+        } else if (doc.includes(OLD_START_TAG) && doc.includes(OLD_END_TAG)) {
+          tableContent = doc.split(OLD_START_TAG)[1].split(OLD_END_TAG)[0].trim();
+        }
+
+        if (tableContent && tableContent.includes("Pending execution")) {
+          tableContent = "";
         }
       }
 
@@ -879,8 +882,6 @@ tags:
 
           if (historical) {
             const metrics = JSON.parse(historical.metrics_json);
-            // We can't easily reconstruct the ASCII table from raw JSON here without full metadata,
-            // but we can at least show the script's summary or mark it as historical.
             const scriptMetric = Object.values(metrics).find(
               (v: any) => v.name === script.shortLabel,
             ) as any;

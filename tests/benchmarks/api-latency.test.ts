@@ -18,9 +18,9 @@ import {
   STABLE_COLLECTION,
   STABLE_ENTRY_ID,
   ensureStableTestData,
-  TEST_API_SECRET
+  TEST_API_SECRET,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 
 let stopServer: () => Promise<void>;
 let apiBaseUrl: string;

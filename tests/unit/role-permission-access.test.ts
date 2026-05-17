@@ -1,5 +1,5 @@
 /**
- * @file tests/bun/RolePermissionAccess.test.ts
+ * @file tests/unit/role-permission-access.test.ts
  * @description Tests for role and permission management in the Auth system
  *
  * This test file validates:
@@ -12,7 +12,7 @@
  * Tests the permission checking logic that works with database-stored roles.
  *
  * **DOES NOT require a running application** - all dependencies are mocked via:
- * - tests/bun/mocks/setup.ts (preloaded via bunfig.toml)
+ * - tests/unit/bun-preload.ts (preloaded via bunfig.toml)
  * - Mock roles defined in this file
  *
  * This allows the tests to run in CI/CD environments (like GitHub Actions)

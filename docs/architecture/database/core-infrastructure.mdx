@@ -106,6 +106,8 @@ Instead of forcing database adapters (MongoDB, PostgreSQL, etc.) to handle secur
 - **Security Injection**: A centralized, hook-based system to inject mandatory filters (e.g., `tenantId`, `isDeleted`, `visibilityStatus`) before the query ever hits the adapter.
 - **Platinum Fast-Path**: Supports `bypassSafeQuery` for internal lookups, eliminating middleware overhead where security is already guaranteed (e.g., Auth verification).
 - **Transformation Pipeline**: Automatic conversion of application-level data models into engine-specific formats, ensuring that developers write code once and deploy across any database.
+- **Explicit Physical Selection**: For core system tables, `core` explicitly defines literal selection maps (e.g., `_id`, `path`, `translations`) rather than relying on ORM reflection, preventing "Ghost Columns" during production bundle minification.
+- **Topological Date Stabilization**: `core` enforces cross-chunk Date prototype regeneration, intercepting `timestamp_ms` from raw database results and re-wrapping them into `new Date()`. This guarantees sitemaps and cache handlers don't crash from plain objects imitating dates.
 
 ---
 

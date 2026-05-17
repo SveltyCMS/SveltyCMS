@@ -110,8 +110,64 @@ export class CollectionModule extends DatabaseModule<BaseSqlAdapter> implements 
     return { success: true, data: null };
   }
 
-  async listSchemas(): Promise<DatabaseResult<Schema[]>> {
+  async listSchemas(tenantId?: string | null): Promise<DatabaseResult<Schema[]>> {
+    const tid = tenantId || "global";
+    if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+      logger.info(`[CollectionModule] listSchemas called for tenant: ${tid}`);
+    }
+
     return this.adapter.wrap(async () => {
+      // 🚀 Query system_content_structure first to get full schemas with fields
+      try {
+        const filter: Record<string, any> = { nodeType: "collection" };
+        if (tenantId) filter.tenantId = tenantId;
+
+        const res = await this.crud.findMany("system_content_structure", filter as any);
+        if (process.env.BENCHMARK === "true") {
+          const count = res.success ? (res.data as any[]).length : 0;
+          process.stderr.write(
+            `[DEBUG] listSchemas query success: ${res.success}, count: ${count}\n`,
+          );
+          if (res.success && (res.data as any[]).length > 0) {
+            process.stderr.write(
+              `[DEBUG] Sample node collectionDef keys: ${Object.keys((res.data as any[])[0].collectionDef || {}).join(", ")}\n`,
+            );
+          }
+        }
+        if (res.success && Array.isArray(res.data)) {
+          const schemas: Schema[] = [];
+          for (const node of res.data) {
+            let def = (node as any).collectionDef;
+            if (def) {
+              if (typeof def === "string") {
+                try {
+                  def = JSON.parse(def);
+                } catch {
+                  /* ignore */
+                }
+              }
+              if (def && typeof def === "object") {
+                schemas.push(def as Schema);
+              }
+            }
+          }
+          if (schemas.length > 0) {
+            if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+              logger.info(
+                `[listSchemas] Found ${schemas.length} collections in DB for tenant ${tid}: ${schemas.map((s) => s._id).join(", ")}`,
+              );
+            }
+            return schemas;
+          }
+        }
+      } catch (err: any) {
+        logger.warn(`[listSchemas] Failed to query system_content_structure: ${err.message}`);
+      }
+
+      // Fallback to table listing if content nodes table is empty/errors out
+      if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+        logger.info(`[listSchemas] Falling back to table listing for tenant: ${tid}`);
+      }
       let tables: any[] = [];
 
       if (this.adapter.type === "sqlite") {

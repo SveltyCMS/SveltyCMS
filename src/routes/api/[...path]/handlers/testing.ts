@@ -10,6 +10,7 @@ import type { DatabaseId } from "@src/databases/db-interface";
 import type { RequestEvent } from "@sveltejs/kit";
 import fs from "node:fs";
 import path from "node:path";
+import { generateUUID } from "@utils/native-utils";
 
 /**
  * Standard testing response helper
@@ -32,6 +33,9 @@ export async function handleTestingRoutes(
   tenantId: DatabaseId,
   _segments: string[],
 ) {
+  process.stderr.write(
+    `🚀🚀🚀 handleTestingRoutes ENTERED: ${event.url.searchParams.get("action")}\n`,
+  );
   const { request } = event;
 
   try {
@@ -201,6 +205,11 @@ export async function handleTestingRoutes(
           await initializedAdapter.collection.createModel(schema);
 
           if (initializedAdapter.content?.nodes?.upsertContentStructureNode) {
+            if (process.env.BENCHMARK_DEBUG === "true") {
+              console.log(
+                `[testing] Upserting collection node for ${collectionId} (tenant: ${tenantId})`,
+              );
+            }
             const node: any = {
               _id: collectionId,
               path: `/collection/${(schema.name || collectionId).toLowerCase()}`,
@@ -224,7 +233,38 @@ export async function handleTestingRoutes(
       const { refreshCollectionsCache } = await import("@src/content/content-service.server");
       await refreshCollectionsCache(tenantId, initializedAdapter);
 
+      // 🚀 SDK CACHE CLEAR: Force the shared CMS instance to drop stale schemas
+      if (cms.collections?.refresh) {
+        await cms.collections.refresh(tenantId as any, true);
+      }
+
       return rawResponse({ success: results.every((r) => r.success), results });
+    }
+
+    if (action === "create-redirect") {
+      const { from, to, status } = params;
+      const source = from || params.source;
+      const target = to || params.target;
+      if (!source || !target) throw new AppError("source and target required", 400);
+
+      try {
+        await initializedAdapter.crud.insert("redirectsMV", {
+          _id: (source.replace(/\//g, "_") || generateUUID()) as any,
+          source,
+          target,
+          type: status || params.type || 301,
+          active: true,
+          tenantId,
+        } as any);
+
+        // Clear redirect cache
+        const { invalidateRedirectCache } = await import("@src/hooks/handle-redirects");
+        invalidateRedirectCache(tenantId);
+
+        return rawResponse({ success: true });
+      } catch (err: any) {
+        return rawResponse({ success: false, message: err.message }, 500);
+      }
     }
 
     if (action === "clear-collection") {

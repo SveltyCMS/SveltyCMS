@@ -22,6 +22,70 @@ import type {
   AutomationNamespace,
   WebsiteTokensNamespace,
 } from "./namespaces/misc-namespaces";
+import { traceSpan } from "@utils/context";
+
+const ASYNC_METHODS: Record<string, Set<string>> = {
+  collections: new Set([
+    "list",
+    "search",
+    "find",
+    "findStreaming",
+    "count",
+    "getSchema",
+    "getStructure",
+    "reorderContentNodes",
+    "getRevisions",
+    "bulkCreate",
+    "bulkUpdate",
+    "bulkDelete",
+    "findById",
+    "executeBatch",
+    "create",
+    "update",
+    "delete",
+  ]),
+  auth: new Set(["login", "logout", "me", "validateToken", "getPermissions"]),
+  system: new Set([
+    "getHealth",
+    "reinitialize",
+    "refresh",
+    "getPreferences",
+    "setPreference",
+    "sendMail",
+  ]),
+  media: new Set(["list", "upload", "delete", "getMetadata"]),
+};
+
+/**
+ * Dynamically wraps all methods of a namespace instance inside high-resolution tracing spans.
+ * Short-circuits with absolute zero overhead if tracing is not active.
+ */
+function instrumentNamespace<T extends object>(name: string, instance: T): T {
+  const proto = Object.getPrototypeOf(instance);
+  if (!proto) return instance;
+
+  const asyncSet = ASYNC_METHODS[name];
+  if (!asyncSet) return instance;
+
+  const keys = Object.getOwnPropertyNames(proto);
+  for (const key of keys) {
+    if (!asyncSet.has(key)) continue;
+
+    const original = (instance as any)[key];
+    if (typeof original === "function") {
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        console.log(`[SDK] Instrumenting async method ${name}:${key}`);
+      }
+
+      (instance as any)[key] = async function (this: any, ...args: any[]) {
+        return await traceSpan(`sdk:${name}:${key}`, async () => {
+          return await original.apply(this, args);
+        });
+      };
+    }
+  }
+  return instance;
+}
 
 /**
  * Defines a lazy-loaded namespace using Object.defineProperty.
@@ -146,29 +210,32 @@ export class LocalCMS {
       "auth",
       async () => {
         const { AuthNamespace } = await import("./namespaces/auth-namespace");
-        return new AuthNamespace(this._dbAdapter);
+        return instrumentNamespace("auth", new AuthNamespace(this._dbAdapter));
       },
       { tokens: true },
     );
 
     defineLazyNamespace(this, "tokens", async () => {
       const { TokensNamespace } = await import("./namespaces/auth-namespace");
-      return new TokensNamespace(this._dbAdapter);
+      return instrumentNamespace("tokens", new TokensNamespace(this._dbAdapter));
     });
 
     defineLazyNamespace(this, "collections", async () => {
       const { CollectionsNamespace } = await import("./namespaces/collections-namespace");
-      return new CollectionsNamespace(this._dbAdapter, this._contentSystem);
+      return instrumentNamespace(
+        "collections",
+        new CollectionsNamespace(this._dbAdapter, this._contentSystem),
+      );
     });
 
     defineLazyNamespace(this, "media", async () => {
       const { MediaNamespace } = await import("./namespaces/media-namespace");
-      return new MediaNamespace(this._dbAdapter);
+      return instrumentNamespace("media", new MediaNamespace(this._dbAdapter));
     });
 
     defineLazyNamespace(this, "widgets", async () => {
       const { WidgetsNamespace } = await import("./namespaces/misc-namespaces");
-      return new WidgetsNamespace(this._dbAdapter);
+      return instrumentNamespace("widgets", new WidgetsNamespace(this._dbAdapter));
     });
 
     defineLazyNamespace(
@@ -176,24 +243,24 @@ export class LocalCMS {
       "system",
       async () => {
         const { SystemNamespace } = await import("./namespaces/misc-namespaces");
-        return new SystemNamespace(this._dbAdapter);
+        return instrumentNamespace("system", new SystemNamespace(this._dbAdapter));
       },
       { settings: true, importer: true },
     );
 
     defineLazyNamespace(this, "automation", async () => {
       const { AutomationNamespace } = await import("./namespaces/misc-namespaces");
-      return new AutomationNamespace(this._dbAdapter);
+      return instrumentNamespace("automation", new AutomationNamespace(this._dbAdapter));
     });
 
     defineLazyNamespace(this, "telemetry", async () => {
       const { TelemetryNamespace } = await import("./namespaces/misc-namespaces");
-      return new TelemetryNamespace(this._dbAdapter);
+      return instrumentNamespace("telemetry", new TelemetryNamespace(this._dbAdapter));
     });
 
     defineLazyNamespace(this, "websiteTokens", async () => {
       const { WebsiteTokensNamespace } = await import("./namespaces/misc-namespaces");
-      return new WebsiteTokensNamespace(this._dbAdapter);
+      return instrumentNamespace("websiteTokens", new WebsiteTokensNamespace(this._dbAdapter));
     });
   }
 

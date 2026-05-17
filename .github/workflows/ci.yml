@@ -389,7 +389,7 @@ jobs:
           if [ -f tests/e2e/.auth/test-secret.txt ]; then
             export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
           fi
-          
+
           # Ensure clean state for wizard
           rm -rf config/private.ts config/database/* tests/e2e/.auth/user.json logs/* || true
 
@@ -402,7 +402,7 @@ jobs:
           # Increase timeout and add explicit logging
           echo "Waiting for preview server on http://127.0.0.1:4173..."
           bun x wait-on http://127.0.0.1:4173 --timeout 180000 --interval 2000 || (cat preview.log && exit 1)
-          
+
           # Run the consolidated Wizard suite
           bun x playwright test tests/e2e/setup-wizard.spec.ts --project=wizard
 

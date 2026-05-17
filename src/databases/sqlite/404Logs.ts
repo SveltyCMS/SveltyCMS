@@ -40,6 +40,13 @@ export const fourOhFourLogs = sqliteTable(
      * Optional metadata regarding the source of the request (e.g., IP, user agent).
      */
     metadata: text("metadata"),
+
+    createdAt: integer("createdAt", { mode: "timestamp_ms" })
+      .default(sql`(strftime('%s','now')*1000)`)
+      .notNull(),
+    updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+      .default(sql`(strftime('%s','now')*1000)`)
+      .notNull(),
   },
   (table) => ({
     pathIdx: index("four_oh_four_path_idx").on(table.path),

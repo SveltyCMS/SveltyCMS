@@ -12,9 +12,9 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET
+  TEST_API_SECRET,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "BenchmarkStable";
@@ -32,15 +32,21 @@ async function runTemporalAudit() {
     process.stderr.write("[DEBUG] Calling ensureStableTestData...\n");
     await ensureStableTestData();
 
-    const listRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}?limit=10`, {
-      headers: {
-        "x-test-mode": "true",
-        "x-test-secret": TEST_API_SECRET,
-        "x-tenant-id": "global",
+    const listRes = await fetch(
+      `${baseUrl}/api/collections/${COLLECTION_ID}?limit=10&bypassCache=true`,
+      {
+        headers: {
+          "x-test-mode": "true",
+          "x-test-secret": TEST_API_SECRET,
+          "x-tenant-id": "global",
+        },
       },
-    });
+    );
     const listData = await listRes.json();
-    console.log(`[DEBUG] Initial Collection List (${COLLECTION_ID}):`, JSON.stringify(listData, null, 2));
+    console.log(
+      `[DEBUG] Initial Collection List (${COLLECTION_ID}):`,
+      JSON.stringify(listData, null, 2),
+    );
 
     console.log("   → Testing persistence of ISO Dates from various timezone offsets...");
 
@@ -107,7 +113,9 @@ async function runTemporalAudit() {
     }
 
     if (failures > 0) {
-      throw new Error(`Temporal Integrity Audit Failed: ${failures} timezones were not normalized properly.`);
+      throw new Error(
+        `Temporal Integrity Audit Failed: ${failures} timezones were not normalized properly.`,
+      );
     }
 
     const duration = performance.now() - t0;

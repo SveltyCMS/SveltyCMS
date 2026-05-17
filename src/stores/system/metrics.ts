@@ -340,9 +340,7 @@ export function updateUptimeMetrics(
 export async function loadHistoricalMetrics(store: Writable<SystemStateStore>): Promise<void> {
   if (browser) return;
   try {
-    const { performanceService } = await import(
-      /* @vite-ignore */ "@src/services/observability/performance-service"
-    );
+    const { performanceService } = await import("@src/services/observability/performance-service");
     const historicalMetrics = await performanceService.loadMetrics();
     if (Object.keys(historicalMetrics).length === 0) {
       return;
@@ -381,9 +379,7 @@ export async function loadHistoricalMetrics(store: Writable<SystemStateStore>): 
 export async function saveCurrentMetrics(store: Writable<SystemStateStore>): Promise<void> {
   if (browser) return;
   try {
-    const { performanceService } = await import(
-      /* @vite-ignore */ "@src/services/observability/performance-service"
-    );
+    const { performanceService } = await import("@src/services/observability/performance-service");
     const state = getSystemStateForSaving(store);
     if (!state) {
       return;

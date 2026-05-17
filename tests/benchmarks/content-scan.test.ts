@@ -11,9 +11,9 @@ import {
   exportMetric,
   stabilize,
   printTruthTable,
-  printSummaryTable
+  printSummaryTable,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 import fs from "node:fs/promises";
 import path from "node:path";

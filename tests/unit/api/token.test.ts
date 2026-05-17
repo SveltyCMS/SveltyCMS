@@ -5,14 +5,18 @@
 
 import { describe, it, expect, vi } from "vitest";
 import type { RequestEvent } from "@sveltejs/kit";
+import { createMockSuperAdmin, createDbAdapterStub } from "../utils/mock-factories";
 
 // Mock dependencies
 
 // Mock dependencies
 // Mock dependencies
 vi.mock("@src/databases/db", () => {
+  const dbStub = createDbAdapterStub();
   const adapter = {
+    ...dbStub,
     auth: {
+      ...dbStub.auth,
       getAllTokens: vi.fn().mockResolvedValue({ success: true, data: [] }),
       getTokenById: vi.fn().mockResolvedValue({ success: true, data: {} }),
       updateToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "token-id" } }),
@@ -20,9 +24,11 @@ vi.mock("@src/databases/db", () => {
       deleteTokens: vi.fn().mockResolvedValue({ success: true, data: { deletedCount: 1 } }),
     },
     collection: {
+      ...dbStub.collection,
       getModel: vi.fn().mockResolvedValue({}),
     },
     crud: {
+      ...dbStub.crud,
       findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
       insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
       update: vi.fn().mockResolvedValue({ success: true }),
@@ -56,9 +62,10 @@ describe("Token API Unit Tests", () => {
     method: string,
     path: string,
     body: any = {},
-    user: any = { _id: "u1", role: "admin" },
+    user: any = createMockSuperAdmin({ _id: "u1" }),
     tenantId?: string,
   ) => {
+    const dbStub = createDbAdapterStub();
     return {
       url: new URL(`http://localhost/api/${path}`),
       params: { path },
@@ -73,7 +80,9 @@ describe("Token API Unit Tests", () => {
         tenantId: tenantId ?? "t1",
         roles: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
         dbAdapter: {
+          ...dbStub,
           auth: {
+            ...dbStub.auth,
             getAllTokens: vi.fn().mockResolvedValue({ success: true, data: [] }),
             getTokenById: vi.fn().mockResolvedValue({ success: true, data: {} }),
             updateToken: vi.fn().mockResolvedValue({ success: true, data: { _id: "token-id" } }),
@@ -82,6 +91,7 @@ describe("Token API Unit Tests", () => {
             getUserByEmail: vi.fn().mockResolvedValue({ success: true, data: null }),
           },
           collection: {
+            ...dbStub.collection,
             getModel: vi.fn().mockResolvedValue({}),
           },
           collections: {},
@@ -89,6 +99,7 @@ describe("Token API Unit Tests", () => {
           widgets: {},
           system: {},
           crud: {
+            ...dbStub.crud,
             findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
             insert: vi.fn().mockResolvedValue({ success: true, data: { _id: "new-token" } }),
             count: vi.fn().mockResolvedValue({ success: true, data: 0 }),

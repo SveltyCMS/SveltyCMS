@@ -49,7 +49,7 @@ Our API tests operate at the **Integration** level. Unlike unit tests, these int
 
 1.  **Fail-Closed Gatekeeper (`+server.ts`)**: Central dispatcher that enforces mandatory authorization for EVERY endpoint. Unmapped routes are denied by default (403 Forbidden).
 2.  **God-Mode API (`/api/testing`)**: Allows tests to programmatically reset the database and seed specific fixtures without direct DB access.
-3.  **Mock Isolation**: Integration tests use real databases (isolated per run) while Unit tests use `tests/unit/setup.ts` for deep internal mocking.
+3.  **Mock Isolation**: Integration tests use real databases (isolated per run) while Unit tests use `tests/unit/bun-preload.ts` for deep internal mocking.
 4.  **Authentication Helpers**: Programmatic login and session management via `tests/unit/api/rbac.test.ts`.
 
 ---

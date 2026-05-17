@@ -87,6 +87,7 @@ let sharedCMS: LocalCMS | null = null;
  * Main API Dispatcher - Exported for internal testing only
  */
 export const _handler = async (event: RequestEvent) => {
+  if (process.env.BENCHMARK === "true") console.log(`🔥 Dispatcher: ${event.url.pathname}`);
   const { request, url, params, locals, cookies } = event;
 
   // 🚀 RESILIENCE: Derive path from URL if params are missing (common in Hook Bypasses)

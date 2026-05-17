@@ -11,11 +11,12 @@ import {
   setupBenchmarkServer,
   ensureStableTestData,
   stabilize,
+  exportMetric,
   printTruthTable,
   printSummaryTable,
-  getDbType
+  getDbType,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
@@ -113,16 +114,18 @@ async function runHooksAudit() {
       exportResult(enriched);
     }
 
+    const turbo = results[0];
+    const full = results[1];
+    const audit = results[2];
+
+    exportMetric("middleware.hooks.p95", full.p95Ms, "ms");
+
     printTruthTable({
       title: "SVELTYCMS — MIDDLEWARE & HOOKS AUDIT",
       shortLabel: "Hooks",
       subtitle: `Turbo • Security • Auth • Audit • ${getDbType().toUpperCase()}`,
       results,
     });
-
-    const turbo = results[0];
-    const full = results[1];
-    const audit = results[2];
 
     printSummaryTable([
       { key: "Turbo Pipeline", val: turbo.avgMs, unit: "ms" },

@@ -17,9 +17,9 @@ import {
   exportMetric,
   STABLE_COLLECTION,
   STABLE_ENTRY_ID,
-  ensureStableTestData
+  ensureStableTestData,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 
 let stopServer: () => Promise<void>;
 let apiBaseUrl: string;
@@ -160,7 +160,9 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
     }
 
     exportMetric("truth.http.p95", httpRes.p95Ms, "ms");
+    exportMetric("api.latency.http", httpRes.p95Ms, "ms");
     exportMetric("truth.sdk.avg", sdkRes.avgMs, "ms");
+    exportMetric("rest.collections.rps", httpRes.rps, "req/s");
 
     for (const r of allResults) exportResult(r);
   } finally {

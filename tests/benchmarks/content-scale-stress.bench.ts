@@ -9,9 +9,9 @@ import {
   runBenchmark,
   exportResult,
   printTruthTable,
-  printSummaryTable
+  printSummaryTable,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import fs from "node:fs/promises";
 import path from "node:path";
 

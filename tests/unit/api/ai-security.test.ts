@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { POST as dispatcher } from "@src/routes/api/[...path]/+server";
 import { aiService } from "@src/services/core/ai-service";
+import { createMockUser } from "../utils/mock-factories";
 
 // Mock AI service
 vi.mock("@src/services/core/ai-service", () => ({
@@ -34,7 +35,7 @@ vi.mock("@utils/logger", () => ({
 }));
 
 describe("AI API Security - Authentication and Tenant Isolation", () => {
-  const mockUser = { _id: "user1", role: "admin", email: "test@example.com" };
+  const mockUser = createMockUser({ _id: "user1", role: "admin" });
   const myTenant = "tenant-1";
 
   beforeEach(() => {

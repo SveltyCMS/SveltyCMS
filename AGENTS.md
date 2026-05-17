@@ -428,11 +428,15 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
    - **Current Time**: Always use `nowISODateString()` instead of `new Date().toISOString()`.
    - **Drizzle Consistency**: When assigning to Drizzle `Date` columns (MariaDB/SQLite), wrap ISO strings in `isoDateStringToDate()`: `updatedAt: isoDateStringToDate(nowISODateString())`.
    - **Database Agnostic**: Use `toISOString(value)` when reading from any database to ensure a consistent `ISODateString`.
-4. **Type Safety & Validation**: Valibot schemas.
-5. **Error Handling & Logging**: Try-catch with structured logger.
-6. **Permissions**: `hasPermissionWithRoles()`.
-7. **i18n**: Paraglide messages.
-8. **API Responses**: Consistent `{ data, message }` or `{ error, code }`.
+4. **Explicit Physical Selection (Enterprise Boundary)**:
+   - **Hardening**: For core system tables (e.g., `content_nodes`, `audit_logs`), always use explicit literal selection in the DB adapter.
+   - **Why**: Prevents "Ghost Column" bugs where minifiers mangle property names and ORM reflection fails in production chunks.
+   - **Pattern**: `const columns = new Set(["_id", "path", "translations", ...])`.
+5. **Type Safety & Validation**: Valibot schemas.
+6. **Error Handling & Logging**: Try-catch with structured logger.
+7. **Permissions**: `hasPermissionWithRoles()`.
+8. **i18n**: Paraglide messages.
+9. **API Responses**: Consistent `{ data, message }` or `{ error, code }`.
 
 ## Common Pitfalls
 
@@ -440,7 +444,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 2.  **HMR Reloads**: Expected for collections/widgets. Full page reload is normal.
 3.  **Setup Wizard**: Let it generate `config/private.ts`. Do NOT create manually.
 4.  **Black-Box Testing (CI/CD)**: In E2E and integration test workflows, DO NOT manually create or bypass the configuration logic with fake `private.test.ts` files. Always orchestrate the tests to hit the Setup Wizard natively using Playwright, thereby letting the CMS naturally generate `config/private.ts` just like a real user. This ensures the entire system lifecycle is validated.
-5.  **White-Box Unit Testing**: Use purely in-memory mocks (configured in `tests/unit/setup.ts`) for configuration and database adapters. Unit tests must remain decoupled from the physical filesystem and should not depend on a pre-existing `config/private.ts`.
+5.  **White-Box Unit Testing**: Use purely in-memory mocks (configured in `tests/unit/bun-preload.ts`) for configuration and database adapters. Unit tests must remain decoupled from the physical filesystem and should not depend on a pre-existing `config/private.ts`.
 6.  **Strict Case-Sensitivity (Linux/CI)**: ALL `.svelte` files and ALL widget folders MUST be strictly lowercase (kebab-case). Linux-based CI runners will fail with "Module not found" or "404" errors if imports or glob patterns do not match the exact casing on disk. Standardize all imports to lowercase.
 7.  **Robust Path Aliases**: Always use standard path aliases (`@src`, `@widgets`, `@utils`, etc.) instead of fragile relative paths like `../../../src/...`. Ensure aliases are synchronized via `bun x svelte-kit sync` before running checks.
 8.  **DB Seeding**: Safety checks prevent accidental production seeding.

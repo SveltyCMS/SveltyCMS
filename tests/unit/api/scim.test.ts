@@ -11,6 +11,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { RequestEvent } from "@sveltejs/kit";
+import { createDbAdapterStub } from "../utils/mock-factories";
 
 // Mock dependencies
 vi.mock("@src/databases/db", () => {
@@ -29,19 +30,25 @@ vi.mock("@src/databases/db", () => {
       getAllUsers: vi.fn(),
     },
   };
+
+  const dbStub = createDbAdapterStub();
   const dbAdapter = {
+    ...dbStub,
     auth: {
+      ...dbStub.auth,
       getUserCount: vi.fn(),
       getAllUsers: vi.fn(),
       getRoleById: vi.fn(),
       getAllRoles: vi.fn(),
     },
     crud: {
+      ...dbStub.crud,
       updateMany: vi.fn().mockResolvedValue({ success: true, data: { modifiedCount: 1 } }),
       findMany: vi.fn(),
       findOne: vi.fn(),
     },
     collection: {
+      ...dbStub.collection,
       getModel: vi.fn(),
     },
   };

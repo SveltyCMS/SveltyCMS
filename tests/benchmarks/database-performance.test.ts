@@ -4,6 +4,8 @@
  * Measures raw CRUD performance, indexing efficiency, and connection pool resilience at the adapter level.
  */
 
+import { sql } from "drizzle-orm";
+
 import {
   test,
   runBenchmark,
@@ -14,9 +16,9 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType
+  getDbType,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "benchmark_crud";
@@ -49,10 +51,13 @@ export async function runDatabaseBenchmark() {
       { name: "FIND MANY (limit 50)", fn: createFindManyTest(db) },
       { name: "UPDATE", fn: createUpdateTest(db) },
       { name: "NATIVE UPSERT", fn: createUpsertNativeTest(db) },
-      { name: "AGGREGATION", fn: db.getCapabilities?.().supportsAggregation ? createAggregationTest(db) : null },
+      {
+        name: "AGGREGATION",
+        fn: db.getCapabilities?.().supportsAggregation ? createAggregationTest(db) : null,
+      },
       { name: "DELETE", fn: createDeleteTest(db) },
       { name: "BULK INSERT (100)", fn: createBulkInsertTest(db) },
-    ].filter(s => s.fn !== null);
+    ].filter((s) => s.fn !== null);
 
     const results: any[] = [];
 
@@ -75,7 +80,8 @@ export async function runDatabaseBenchmark() {
     }
 
     // Reporting
-    const findResult = (name: string) => results.find(r => r.name === name) || { avgMs: 0, rps: 0 };
+    const findResult = (name: string) =>
+      results.find((r) => r.name === name) || { avgMs: 0, rps: 0 };
     const throughputs = results.map((r) => r.rps);
     const peakThroughput = Math.max(...throughputs);
 
@@ -178,24 +184,37 @@ function createDeleteTest(db: any) {
 
 function createUpsertNativeTest(db: any) {
   return async () => {
-    if (db.type === 'mongodb') {
-       // MongoDB upsert is already native via its upsert option
-       await db.crud.upsert(COLLECTION_ID, { _id: "bench-shared-001" }, { title: `Native ${Date.now()}` }, { tenantId: TEST_TENANT });
-       return;
+    if (db.type === "mongodb") {
+      // MongoDB upsert is already native via its upsert option
+      await db.crud.upsert(
+        COLLECTION_ID,
+        { _id: "bench-shared-001" },
+        { title: `Native ${Date.now()}` },
+        { tenantId: TEST_TENANT },
+      );
+      return;
     }
     const table = db.getTable(COLLECTION_ID);
     const idCol = db.getColumn(table, "_id");
-    await db.upsertNative(table, { [idCol.name]: "bench-shared-001", title: `Native ${Date.now()}`, tenantId: TEST_TENANT }, [idCol]);
+    await db.upsertNative(
+      table,
+      { [idCol.name]: "bench-shared-001", title: `Native ${Date.now()}`, tenantId: TEST_TENANT },
+      [idCol],
+    );
   };
 }
 
 function createAggregationTest(db: any) {
   return async () => {
     // Simple sum/grouping aggregation
-    await db.crud.aggregate(COLLECTION_ID, [
-      { $match: { status: "active" } },
-      { $group: { _id: "$status", total: { $sum: "$value" }, count: { $sum: 1 } } }
-    ], { tenantId: TEST_TENANT });
+    await db.crud.aggregate(
+      COLLECTION_ID,
+      [
+        { $match: { status: "active" } },
+        { $group: { _id: "$status", total: { $sum: "$value" }, count: { $sum: 1 } } },
+      ],
+      { tenantId: TEST_TENANT },
+    );
   };
 }
 
@@ -226,6 +245,14 @@ async function prepareCollection(db: any) {
         ],
       })
       .catch(() => {});
+
+    // 🚀 PERFECT STORM: Inject physical indices for benchmark_crud
+    if (db.type !== "mongodb") {
+      try {
+        await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS "idx_bench_crud_status" ON "${COLLECTION_ID}" ("status")`));
+        await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS "idx_bench_crud_tenant" ON "${COLLECTION_ID}" ("tenantId")`));
+      } catch {}
+    }
   }
 
   // 🛡️ HERMETIC CLEANUP: Use permanent delete to ensure zero collisions with soft-deleted data
@@ -259,7 +286,7 @@ async function prepareCollection(db: any) {
     value: i,
     tenantId: TEST_TENANT,
   }));
-  
+
   await db.crud.insertMany(COLLECTION_ID, deleteBatch, { tenantId: TEST_TENANT });
   console.log("   [DB Trace] Collection prepared.");
 }

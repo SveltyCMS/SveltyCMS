@@ -19,7 +19,7 @@ import { building } from "$app/environment";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import os from "node:os";
-import { runWithContext } from "@utils/context";
+import { runWithContext, runWithTrace, getTrace, traceSpan } from "@utils/context";
 // ESM Shims for legacy CJS compatibility in production build
 if (typeof (globalThis as any).__filename === "undefined") {
   (globalThis as any).__filename = fileURLToPath(import.meta.url);
@@ -308,31 +308,43 @@ if (!building) {
   });
 }
 
+// Helper to dynamically wrap SvelteKit middleware inside a high-resolution tracing span
+function wrapHandle(name: string, handleFn: Handle): Handle {
+  return async (input) => {
+    return await traceSpan(`hook:${name}`, async () => await handleFn(input));
+  };
+}
+
 // 🚀 DYNAMIC PIPELINE DISPATCHER
 // We don't pre-compile the sequence into a single const, instead we build it
 // based on the current system state.
 const getPipeline = () => {
   const middleware: Handle[] = setupComplete
     ? [
-        handleHyperTurbo,
-        handleTurboPipeline,
-        handleSecurityHeaders,
-        handleTestIsolation,
-        handleStaticAssetCaching,
-        handleSecurity,
-        handleSystemState,
-        handleRedirects,
-        handleCompression,
-        handleUserPreferences,
-        handleAuthentication,
-        handleAuthorization,
-        handleLocalSdk,
-        handleContentInitialization,
-        handleAuditLogging,
-        handleApiRequests,
-        handleTokenResolution,
+        wrapHandle("hyper-turbo", handleHyperTurbo),
+        wrapHandle("turbo-pipeline", handleTurboPipeline),
+        wrapHandle("security-headers", handleSecurityHeaders),
+        wrapHandle("test-isolation", handleTestIsolation),
+        wrapHandle("static-asset-caching", handleStaticAssetCaching),
+        wrapHandle("security", handleSecurity),
+        wrapHandle("system-state", handleSystemState),
+        wrapHandle("redirects", handleRedirects),
+        wrapHandle("compression", handleCompression),
+        wrapHandle("user-preferences", handleUserPreferences),
+        wrapHandle("authentication", handleAuthentication),
+        wrapHandle("authorization", handleAuthorization),
+        wrapHandle("local-sdk", handleLocalSdk),
+        wrapHandle("content-initialization", handleContentInitialization),
+        wrapHandle("audit-logging", handleAuditLogging),
+        wrapHandle("api-requests", handleApiRequests),
+        wrapHandle("token-resolution", handleTokenResolution),
       ]
-    : [handleHyperTurbo, handleTurboPipeline, handleSecurityHeaders, handleCompression];
+    : [
+        wrapHandle("hyper-turbo", handleHyperTurbo),
+        wrapHandle("turbo-pipeline", handleTurboPipeline),
+        wrapHandle("security-headers", handleSecurityHeaders),
+        wrapHandle("compression", handleCompression),
+      ];
 
   return sequence(...middleware);
 };
@@ -344,43 +356,68 @@ const getPipeline = () => {
  */
 export const handle: Handle = async ({ event, resolve }) => {
   inFlightRequests++;
+  const traceId = (event.locals as any).requestId || crypto.randomUUID();
+  const traceHeader = event.request.headers.get("x-svelty-trace");
+  const isBenchmark =
+    process.env.BENCHMARK === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true";
+  const traceEnabled =
+    traceHeader === "true" || (isBenchmark && !!event.request.headers.get("x-test-secret"));
+
   return runWithContext(
     {
-      requestId: (event.locals as any).requestId || crypto.randomUUID(),
+      requestId: traceId,
       abortSignal: event.request.signal,
     },
-    async () => {
-      // 🚀 HOT-SWAP CHECK: If not setup yet, check if it just finished
-      if (!setupComplete && isSetupComplete()) {
-        logger.info("🔄 System setup detected. Hot-swapping to READY pipeline...");
-        setupComplete = true;
-        await ensureFullMiddleware();
-      }
-
-      try {
-        const pipeline = getPipeline();
-        const response = await pipeline({ event, resolve });
-        return response;
-      } catch (err: any) {
-        if (isRedirect(err)) {
-          throw err;
+    () => {
+      return runWithTrace(traceId, traceEnabled, async () => {
+        // 🚀 HOT-SWAP CHECK: If not setup yet, check if it just finished
+        if (!setupComplete && isSetupComplete()) {
+          logger.info("🔄 System setup detected. Hot-swapping to READY pipeline...");
+          setupComplete = true;
+          await ensureFullMiddleware();
         }
 
-        logger.error(`[Guard] Unhandled error in middleware chain:`, err);
+        try {
+          const pipeline = getPipeline();
+          const response = await pipeline({ event, resolve });
 
-        const errorResponse = handleApiError(err, event);
+          if (traceEnabled) {
+            const trace = getTrace();
+            if (trace) {
+              response.headers.set("x-svelty-trace-id", trace.traceId);
+              response.headers.set("x-svelty-trace-spans", JSON.stringify(trace.spans));
+            }
+          }
+          return response;
+        } catch (err: any) {
+          if (isRedirect(err)) {
+            throw err;
+          }
 
-        applyAllSecurityHeaders(
-          errorResponse.headers,
-          event.url.protocol === "https:",
-          event.request.headers.get("Origin"),
-          event.url.pathname,
-        );
+          logger.error(`[Guard] Unhandled error in middleware chain:`, err);
 
-        return errorResponse;
-      } finally {
-        inFlightRequests--;
-      }
+          const errorResponse = handleApiError(err, event);
+
+          applyAllSecurityHeaders(
+            errorResponse.headers,
+            event.url.protocol === "https:",
+            event.request.headers.get("Origin"),
+            event.url.pathname,
+          );
+
+          if (traceEnabled) {
+            const trace = getTrace();
+            if (trace) {
+              errorResponse.headers.set("x-svelty-trace-id", trace.traceId);
+              errorResponse.headers.set("x-svelty-trace-spans", JSON.stringify(trace.spans));
+            }
+          }
+
+          return errorResponse;
+        } finally {
+          inFlightRequests--;
+        }
+      });
     },
   );
 };

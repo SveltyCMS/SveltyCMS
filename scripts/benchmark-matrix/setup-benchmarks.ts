@@ -69,7 +69,7 @@ plugin({
   },
 });
 
-import { contentSystem } from "@src/content";
+import { contentSystem } from "@src/content/index.server";
 import { getDefaultRoles } from "@src/databases/auth/default-roles";
 
 import { LocalCMS } from "@src/services/sdk";
@@ -112,7 +112,12 @@ const COLLECTIONS = {
       { label: "Slug", db_fieldName: "slug", widget: { Name: "Input" } },
       { label: "Content", db_fieldName: "content", widget: { Name: "RichText" } },
       { label: "Count", db_fieldName: "count", widget: { Name: "Number" } },
-      { label: "Author", db_fieldName: "author", widget: { Name: "Relation" }, relation: "benchmark_authors" },
+      {
+        label: "Author",
+        db_fieldName: "author",
+        widget: { Name: "Relation" },
+        relation: "benchmark_authors",
+      },
       { label: "Publish Date", db_fieldName: "publishDate", widget: { Name: "DateTime" } },
     ],
   },
@@ -384,6 +389,8 @@ async function seedData(cms: any, authorsId: string, postsId: string): Promise<v
         _id: "bench-shared-001",
         title: "Stable Benchmark Entry",
         content: "This is a stable entry for REST and API performance testing.",
+        status: "publish",
+        publishDate: new Date().toISOString(),
       };
 
       const stableResult = await cms.collections.create(COLLECTIONS.STABLE._id, stableEntry, {
@@ -538,7 +545,9 @@ export async function main(): Promise<void> {
         if (res.ok) log(`      ✅ ${schema._id}`);
         else {
           log(`      ❌ ${schema._id} (${res.status})`);
-          throw new Error(`Collection provisioning failed for ${schema._id} with status ${res.status}`);
+          throw new Error(
+            `Collection provisioning failed for ${schema._id} with status ${res.status}`,
+          );
         }
       }
 
@@ -811,12 +820,14 @@ export async function main(): Promise<void> {
 }
 
 // 🚀 EXECUTION ENGINE
-if (process.env.BUN_TEST === "true") {
+// Detect if running under bun test
+if (process.env.BUN_TEST || (globalThis as any).it) {
   const { it } = await import("bun:test");
   it("Seeds Relational Data", async () => {
     await main();
   });
-} else if (import.meta.main) {
+} else {
+  // Direct execution or via bun run
   main().catch((err) => {
     console.error("❌ Setup failed:", err);
     process.exit(1);

@@ -217,13 +217,18 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
  * 🚀 Fast-path for benchmarks.
  */
 export async function refreshCollectionsCache(tenantId?: string | null, db?: IDBAdapter) {
+  if (process.env.BENCHMARK === "true") {
+    process.stderr.write(
+      `[DEBUG] refreshCollectionsCache Called for tenant: ${tenantId}, db exists: ${!!db}\n`,
+    );
+  }
   markFileDirty();
   const fileSchemas = await scanCompiledCollections();
   let dbSchemas: Schema[] = [];
 
   if (db?.collection?.listSchemas) {
     try {
-      const res = await db.collection.listSchemas();
+      const res = await db.collection.listSchemas(tenantId as DatabaseId);
       if (res.success && res.data) {
         dbSchemas = res.data;
       }
@@ -235,20 +240,17 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
   // Merge schemas (file-based takes precedence, but DB-only ones are kept)
   const schemaMap = new Map<string, Schema>();
 
-  // 🚀 Standardize IDs to lowercase for case-insensitive system mapping
+  // 🚀 Standardize mapping keys to lowercase, but PRESERVE original schema ID casing
+  // to avoid breaking case-sensitive consumers like GraphQL.
   for (const s of dbSchemas) {
     if (s._id) {
-      const lowerId = s._id.toLowerCase();
-      s._id = lowerId; // Standardize original object as well
-      schemaMap.set(lowerId, s);
+      schemaMap.set(s._id.toLowerCase(), s);
     }
   }
 
   for (const s of fileSchemas) {
     if (s._id) {
-      const lowerId = s._id.toLowerCase();
-      s._id = lowerId; // Standardize original object as well
-      schemaMap.set(lowerId, s);
+      schemaMap.set(s._id.toLowerCase(), s);
     }
   }
 
@@ -258,6 +260,9 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
     ...schema,
     nodeType: "collection",
     collectionDef: schema,
+    path:
+      schema.path ||
+      `/collection/${(schema.slug || schema.name || schema._id || "").toLowerCase()}`,
     tenantId: tenantId || "global",
   }));
 
@@ -277,6 +282,7 @@ export const contentService = {
     adapter?: IDBAdapter,
     changedFile?: string | null,
   ): Promise<void> {
+    markFileDirty(changedFile);
     if (process.env.BENCHMARK_DEBUG === "true") {
       logger.info(
         `[RECONCILE] fullReload triggered. Tenant: ${tenantId}, target: ${changedFile || "ALL"}`,
@@ -352,16 +358,26 @@ export const contentService = {
   ) {
     const operations: ContentNode[] = [];
     const processedPaths = new Set<string>();
-    const dbMapByPath = new Map(dbNodes.map((n) => [n.path!, n]));
-    const categoryIdMap = new Map(categoryNodes.map((c) => [c.path!, c._id]));
+
+    // 🛡️ HARDENING: Ensure we only map nodes with valid paths
+    const dbMapByPath = new Map(dbNodes.filter((n) => !!n.path).map((n) => [n.path!, n]));
+
+    const categoryIdMap = new Map(
+      categoryNodes.filter((c) => !!c.path).map((c) => [c.path!, c._id]),
+    );
 
     operations.push(...categoryNodes);
-    for (const cat of categoryNodes) processedPaths.add(cat.path!);
+    for (const cat of categoryNodes) if (cat.path) processedPaths.add(cat.path);
 
     const now = dateToISODateString(new Date());
 
     for (const schema of schemas) {
-      let existing = dbMapByPath.get(schema.path!);
+      // 🚀 PATH RECOVERY: Ensure schema has a valid path derived from ID if missing
+      const schemaPath =
+        schema.path ||
+        `/collection/${(schema.slug || schema.name || schema._id || "").toLowerCase()}`;
+
+      let existing = dbMapByPath.get(schemaPath);
       if (!existing && schema.name) {
         const potentialDuplicates = Array.from(dbMapByPath.values()).filter(
           (n) => n.name === schema.name,
@@ -374,8 +390,7 @@ export const contentService = {
         }
       }
 
-      const parentId =
-        categoryIdMap.get(schema.path!.split("/").slice(0, -1).join("/")) || undefined;
+      const parentId = categoryIdMap.get(schemaPath.split("/").slice(0, -1).join("/")) || undefined;
       const hasChanged =
         !existing ||
         existing.source !== "filesystem" ||
@@ -385,7 +400,7 @@ export const contentService = {
       const node: ContentNode = {
         ...existing,
         _id: (schema._id || existing?._id || schema.name || "unknown") as DatabaseId,
-        path: schema.path,
+        path: schemaPath,
         name: String(schema.name),
         icon: schema.icon || "bi:file",
         nodeType: "collection",
@@ -408,16 +423,20 @@ export const contentService = {
     const prunedPaths: string[] = [];
     for (const [path, dbNode] of dbMapByPath.entries()) {
       if (processedPaths.has(path)) continue;
-      if (dbNode.source === "filesystem" || (!dbNode.source && dbNode.nodeType === "collection")) {
+
+      // 🚀 SMART PRUNING: Only prune filesystem nodes that are no longer on disk.
+      const source = dbNode.source || "filesystem";
+
+      if (source === "filesystem") {
         if (process.env.BENCHMARK_DEBUG === "true") {
-          console.log(
-            `[Reconcile] Pruning node: ${path} (source: ${dbNode.source}, type: ${dbNode.nodeType})`,
+          logger.info(
+            `[Reconcile] Pruning stale filesystem node: ${path} (type: ${dbNode.nodeType})`,
           );
         }
-        prunedPaths.push(path);
+        if (path) prunedPaths.push(path);
       } else {
         if (process.env.BENCHMARK_DEBUG === "true") {
-          console.log(`[Reconcile] Preserving node: ${path} (source: ${dbNode.source})`);
+          logger.info(`[Reconcile] Preserving API/Internal node: ${path} (source: ${source})`);
         }
         preservedNodes.push(dbNode);
       }
@@ -433,6 +452,12 @@ export const contentService = {
     tenantId: string | null,
     dbAdapter: IDBAdapter,
   ) {
+    if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+      logger.info(
+        `[RECONCILE] Syncing ${operations.length} nodes and pruning ${prunedPaths.length} paths for tenant: ${tenantId || "global"}`,
+      );
+    }
+
     contentStore.clear(tenantId as string);
     contentStore.sync(operations);
 

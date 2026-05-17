@@ -5,7 +5,7 @@
  */
 
 import { test } from "vitest";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import {
   exportResult,
   setupBenchmarkServer,

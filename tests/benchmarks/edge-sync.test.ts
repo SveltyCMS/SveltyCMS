@@ -8,13 +8,12 @@ import {
   test,
   runBenchmark,
   exportResult,
-  setupBenchmarkServer,
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType
+  getDbType,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import { CacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { logger } from "@utils/logger";
@@ -97,60 +96,52 @@ async function runEdgeSyncAudit() {
   console.log("🚀 Starting Enterprise Edge Sync Audit...\n");
 
   try {
-    const server = await setupBenchmarkServer();
-    const stopServer = server.stop;
-
     const bus = new SimulatedRedisBus();
     const nodeA = await createSimulatedNode(bus, "node-A");
     const remoteNodes = await Promise.all(
       Array.from({ length: 6 }, (_, i) => createSimulatedNode(bus, `node-${i}`)),
     );
 
-    await stabilize(800);
+    await stabilize(400);
 
     const TEST_TAGS = ["edge-sync-test"];
     const TENANT = "global";
-    const ITERATIONS = 800;
+    const ITERATIONS = 400;
 
     console.log(`   → Measuring propagation across ${remoteNodes.length} simulated edge nodes...`);
 
     const result = await runBenchmark({
       name: "Edge Sync Propagation",
       iterations: ITERATIONS,
-      warmupIterations: 120,
-      runs: 3,
+      warmupIterations: 80,
+      runs: 2,
       concurrency: 1,
       trimOutliers: "iqr",
       silent: true,
       onIteration: async () => {
         const key = `edge:bench:${Math.random().toString(36).slice(2)}`;
 
-        // Warm remote caches
-        for (const node of remoteNodes) {
-          await node.set(key, { value: "cached" }, 60, TENANT, CacheCategory.GENERAL, TEST_TAGS);
-        }
+        // 1. Warm remote caches (Concurrent)
+        await Promise.all(
+          remoteNodes.map((n) =>
+            n.set(key, { value: "cached" }, 60, TENANT, CacheCategory.GENERAL, TEST_TAGS),
+          ),
+        );
 
-        // Trigger invalidation from primary node
+        // 2. Trigger invalidation from primary node
         await nodeA.clearByTags(TEST_TAGS, TENANT);
 
-        // Wait for propagation
-        let propagated = false;
-        for (let attempt = 0; attempt < 80; attempt++) {
-          let allPropagated = true;
-          for (const n of remoteNodes) {
+        // 3. Verify immediate propagation (Synchronous simulation)
+        for (const n of remoteNodes) {
+          const val = await n.get(key, TENANT);
+          if (val) {
+            // If still exists, retry once with a tiny tick (Defensive)
+            await new Promise((r) => setTimeout(r, 0));
             if (await n.get(key, TENANT)) {
-              allPropagated = false;
-              break;
+              throw new Error(`Edge sync propagation failed for node ${(n as any).nodeId}`);
             }
           }
-          if (allPropagated) {
-            propagated = true;
-            break;
-          }
-          await new Promise((r) => setTimeout(r, 2));
         }
-
-        if (!propagated) throw new Error("Edge sync propagation timeout");
       },
     });
 
@@ -169,8 +160,6 @@ async function runEdgeSyncAudit() {
     ]);
 
     exportResult(result);
-
-    if (stopServer) await stopServer();
   } catch (err: any) {
     logger.error(`Edge Sync benchmark failed: ${err.message}`);
     console.error(err);

@@ -15,15 +15,17 @@ import {
   forceRefreshServer,
   stabilize,
   getDbType,
-  TEST_API_SECRET
+  TEST_API_SECRET,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runSeoAudit() {
-  console.log(`🚀 Starting Enterprise SEO Suite Audit (${getDbType().toUpperCase()})...\n`);
+  console.log(
+    `🚀 Starting Enterprise SEO Suite Audit (${getDbType().toUpperCase()})...\n`,
+  );
 
   try {
     const server = await setupBenchmarkServer();
@@ -31,6 +33,24 @@ async function runSeoAudit() {
     const baseUrl = server.baseUrl;
 
     await ensureStableTestData();
+
+    // Setup test redirect
+    await fetch(`${baseUrl}/api/testing`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-test-mode": "true",
+        "x-test-secret": TEST_API_SECRET,
+        "x-tenant-id": "global",
+      },
+      body: JSON.stringify({
+        action: "create-redirect",
+        from: "/old-path-1",
+        to: "/api/system/health",
+        status: 301,
+      }),
+    });
+
     await forceRefreshServer(baseUrl);
 
     // Warm up server and ensure test redirects are loaded
@@ -79,24 +99,39 @@ async function runSeoAudit() {
         silent: true,
         onIteration: async () => {
           const res = await fetch(`${baseUrl}${scenario.path}`, {
-            ...(scenario.options as any),
+            redirect: "manual",
             headers: {
               "x-test-mode": "true",
               "x-test-secret": TEST_API_SECRET,
+              "x-tenant-id": process.env.TENANT_ID || "global",
             },
           });
 
-          if (scenario.expectedStatus && res.status !== scenario.expectedStatus) {
+          if (
+            scenario.expectedStatus &&
+            res.status !== scenario.expectedStatus
+          ) {
             const loc = res.headers.get("location");
+            const locationInfo = loc ? ` (Location: ${loc})` : "";
+
+            if (process.env.BENCHMARK_DEBUG === "true") {
+              console.error(
+                `[SEO Debug] Fail: ${scenario.name}, Status: ${res.status}${locationInfo}`,
+              );
+            }
             throw new Error(
-              `${scenario.name} failed: Expected ${scenario.expectedStatus}, got ${res.status} (Location: ${loc})`,
+              `${scenario.name} failed: Expected ${scenario.expectedStatus}, got ${res.status}${locationInfo}`,
             );
           }
           await res.text();
         },
       });
 
-      results.push({ ...result, layer: scenario.layer, shortLabel: scenario.name });
+      results.push({
+        ...result,
+        layer: scenario.layer,
+        shortLabel: scenario.name,
+      });
     }
 
     printTruthTable({

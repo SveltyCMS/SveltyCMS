@@ -16,9 +16,9 @@ import {
   generateRealisticEntry,
   printTruthTable,
   printSummaryTable,
-  getDbLabel
+  getDbLabel,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 
 let stopServer: (() => Promise<void>) | null = null;
 let apiBaseUrl: string;

@@ -194,34 +194,51 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
     // --- Phase 3: Restricted Access Handling ---
 
     // Explicit wait if system is still initializing or transitioning from SETUP
-    const isTransitioning = systemState.overallState === "SETUP" && setupComplete;
+    const freshStateBeforeWait = getSystemState();
+    const isTransitioning = freshStateBeforeWait.overallState === "SETUP" && setupComplete;
     if (
-      systemState.overallState === "INITIALIZING" ||
+      freshStateBeforeWait.overallState === "INITIALIZING" ||
       initializationState === "in-progress" ||
       isTransitioning
     ) {
       await waitForInitialization();
     }
 
+    // 🚀 CRITICAL: Re-query system state after waiting for initialization to avoid stale snapshot bugs!
+    const activeSystemState = getSystemState();
+
     // Block non-bootstrap routes if system is not in a 'Ready' state
     const restricted: SystemState[] = ["IDLE", "INITIALIZING", "SETUP", "MAINTENANCE", "FAILED"];
-    if (restricted.includes(systemState.overallState as any)) {
+    if (restricted.includes(activeSystemState.overallState as any)) {
       // If we are actually finished with setup but the state hasn't updated yet, allow a retry or wait
-      if (setupComplete && systemState.overallState === "SETUP") {
+      if (setupComplete && activeSystemState.overallState === "SETUP") {
         logger.debug(
           "[handleSystemState] Setup complete but state still SETUP - awaiting one more time",
         );
         await waitForInitialization();
+        // Re-query one more time after secondary wait
+        const postWaitState = getSystemState();
+        if (restricted.includes(postWaitState.overallState as any)) {
+          const msg =
+            postWaitState.overallState === "SETUP"
+              ? "System is in Setup Mode. Please complete configuration."
+              : `System is currently in ${postWaitState.overallState} mode. Non-bootstrap access is restricted.`;
+
+          logger.warn(
+            `[handleSystemState] Request blocked: ${pathname} | System state: ${postWaitState.overallState}`,
+          );
+          throw new AppError(msg, 503, `SYSTEM_${postWaitState.overallState}`);
+        }
       } else {
         const msg =
-          systemState.overallState === "SETUP"
+          activeSystemState.overallState === "SETUP"
             ? "System is in Setup Mode. Please complete configuration."
-            : `System is currently in ${systemState.overallState} mode. Non-bootstrap access is restricted.`;
+            : `System is currently in ${activeSystemState.overallState} mode. Non-bootstrap access is restricted.`;
 
         logger.warn(
-          `[handleSystemState] Request blocked: ${pathname} | System state: ${systemState.overallState}`,
+          `[handleSystemState] Request blocked: ${pathname} | System state: ${activeSystemState.overallState}`,
         );
-        throw new AppError(msg, 503, `SYSTEM_${systemState.overallState}`);
+        throw new AppError(msg, 503, `SYSTEM_${activeSystemState.overallState}`);
       }
     }
 
@@ -235,8 +252,8 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
     }
 
     // --- Phase 4: State Enrichment (Degraded Service Detection) ---
-    if (systemState.overallState === "DEGRADED") {
-      const unhealthyServices = Object.entries(systemState.services)
+    if (activeSystemState.overallState === "DEGRADED") {
+      const unhealthyServices = Object.entries(activeSystemState.services)
         .filter(([, service]) => service.status === "unhealthy")
         .map(([name]) => name);
 

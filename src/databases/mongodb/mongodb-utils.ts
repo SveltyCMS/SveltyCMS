@@ -127,7 +127,11 @@ export function processDates<T>(data: T): T {
 
   // Handle Dates
   if (isDateLike(data)) {
-    return data.toISOString() as unknown as T;
+    // 🚀 CROSS-CONTEXT FIX: Always re-wrap if it looks like a Date.
+    // This handles cases where 'instanceof Date' fails due to multiple constructor instances (cross-chunk).
+    const realDate =
+      (data as any) instanceof Date ? (data as any) : new Date((data as any).getTime());
+    return realDate.toISOString() as unknown as T;
   }
 
   // Handle ObjectIDs

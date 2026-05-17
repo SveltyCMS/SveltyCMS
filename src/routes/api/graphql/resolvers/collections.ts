@@ -67,7 +67,7 @@ export function createCleanTypeName(collection: { _id?: string; name?: string | 
   const cleanName = baseName
     .split(/[^a-zA-Z0-9]/)
     .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join("");
 
   // GraphQL identifiers cannot start with a digit
@@ -127,6 +127,12 @@ export async function registerCollections(tenantId?: string | null) {
   await widgets.initialize(tenantId || "default");
   const collections: Schema[] = await contentSystem.getCollections(tenantId);
 
+  if (process.env.BENCHMARK_DEBUG === "true") {
+    console.log(
+      `[GraphQL Debug] registerCollections found ${collections.length} collections for tenant ${tenantId || "global"}: ${collections.map((c) => c._id || c.name).join(", ")}`,
+    );
+  }
+
   const typeIDs = new Set<string>();
   const typeDefsSet = new Set<string>();
   const resolvers: ResolverContext = { Query: {} };
@@ -139,6 +145,11 @@ export async function registerCollections(tenantId?: string | null) {
   >();
 
   for (const collection of collections) {
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      console.log(
+        `[GraphQL Debug] Processing collection: id=${collection._id}, name=${collection.name}`,
+      );
+    }
     const name = typeof collection.name === "string" ? collection.name : "";
     if (!name) {
       logger.trace(`[GraphQL] Skipping collection without name: ${collection._id}`);
@@ -166,6 +177,11 @@ export async function registerCollections(tenantId?: string | null) {
   }
 
   for (const collection of collections) {
+    if (process.env.BENCHMARK_DEBUG === "true") {
+      console.log(
+        `[GraphQL Debug] Processing collection: id=${collection._id}, name=${collection.name}`,
+      );
+    }
     const name = typeof collection.name === "string" ? collection.name : "";
     if (!name) continue;
     const cleanTypeName = createCleanTypeName({ _id: collection._id, name });
@@ -316,6 +332,12 @@ export async function registerCollections(tenantId?: string | null) {
     queryFields.push(`${cleanTypeName}(pagination: PaginationInput): [${cleanTypeName}]`);
   }
 
+  if (process.env.BENCHMARK_DEBUG === "true") {
+    console.log(
+      `[GraphQL Debug] Registered query fields: ${queryFields.map((f) => f.split("(")[0]).join(", ")}`,
+    );
+  }
+
   const finalTypeDefs = Array.from(typeDefsSet).join("\n") + collectionSchemas.join("\n");
 
   return {
@@ -396,7 +418,15 @@ export async function collectionsResolvers(
           query.tenantId = ctx.tenantId;
         }
 
-        const collectionName = `collection_${collection._id}`;
+        // 🚀 SMART RESOLUTION: Try resolving physical name via adapter first
+        const collectionName = collection._id?.startsWith("collection_")
+          ? collection._id
+          : `collection_${collection._id}`;
+
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          console.log(`[GraphQL Resolver] Querying ${collectionName} for tenant ${ctx.tenantId}`);
+        }
+
         const queryBuilder = dbAdapter
           .queryBuilder(collectionName)
           .where(Object.keys(query).length ? query : {})

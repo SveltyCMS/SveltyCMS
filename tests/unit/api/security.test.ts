@@ -2,16 +2,9 @@
  * @file tests/unit/api/security.test.ts
  * @description Unit tests for unified security API endpoints, focusing on stats and reporting.
  */
-/**
- * @file tests/unit/api/security.test.ts
- */
-
-import type {} from "vitest";
-
-const vi = (globalThis as any).vi;
-
-// 2. Import handlers and services dynamically AFTER mocks
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GET as dispatcherGET, POST as dispatcherPOST } from "@src/routes/api/[...path]/+server";
+import { createMockUser } from "../utils/mock-factories";
 
 // Import services for verification in tests - dynamic for mocking
 const { metricsService: testMetricsService } =
@@ -46,7 +39,7 @@ describe("Security API Unit Tests", () => {
       const event = {
         params: { path: "security/stats" },
         locals: {
-          user: { _id: "admin1", role: "admin" },
+          user: createMockUser({ _id: "admin1", role: "admin" }),
         },
         request: { method: "GET", headers: new Headers() },
         url: new URL("http://localhost/api/security/stats"),
@@ -65,7 +58,7 @@ describe("Security API Unit Tests", () => {
       const event = {
         params: { path: "security/stats" },
         locals: {
-          user: { _id: "user1", role: "user" },
+          user: createMockUser({ _id: "user1", role: "user" }),
         },
         request: { method: "GET", headers: new Headers() },
         url: new URL("http://localhost/api/security/stats"),

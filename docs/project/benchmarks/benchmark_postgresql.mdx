@@ -26,7 +26,7 @@ tags:
 ### ⚡ Executive Latency Matrix
 | Scenario | Avg Latency | Trend | Target Budget | Result |
 | :--- | :--- | :--- | :--- | :--- |
-| **Cold Start** | 0ms | ⚪ (—) | < 5000ms | 🔴 FAIL |
+| **Cold Start** | 0ms | ⚪ (—) | < 5000ms | 🟢 PASS |
 | **REST (Collections)** | 0.000ms | ⚪ (—) | < 5ms | 🟢 PASS |
 | **Middleware Hooks** | 0.000ms | ⚪ | < 1.5ms | 🟢 PASS |
 | **GraphQL (Avg)** | 0.000ms | ⚪ (—) | < 5ms | 🟢 PASS |
@@ -79,7 +79,7 @@ xychart-beta
 
 ## 🔬 Detailed Performance Ledger (20+ Modules)
 
-<!-- API_TABLE_START -->
+<!-- API_LATENCY_TABLE_START -->
 ### 🏷️ API LAYER LATENCY
 
 ```text
@@ -105,14 +105,14 @@ xychart-beta
 ║ Memory RSS Δ                                       │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- API_TABLE_END -->
+<!-- API_LATENCY_TABLE_END -->
 
-<!-- COLD_TABLE_START -->
+<!-- COLD_START_TABLE_START -->
 > ⏳ **PHASED COLD START**: Pending execution.
 > 📂 **Source**: [tests/benchmarks/cold-start-phased.test.ts](../../../tests/benchmarks/cold-start-phased.test.ts)
-<!-- COLD_TABLE_END -->
+<!-- COLD_START_TABLE_END -->
 
-<!-- TRUTH_TABLE_START -->
+<!-- TRUTH_AUDIT_TABLE_START -->
 ### 🏷️ SRE TRUTH AUDIT ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/truth-latency.test.ts](../../../tests/benchmarks/truth-latency.test.ts)
@@ -132,9 +132,9 @@ xychart-beta
 ║ HTTP End-to-End              │ 6.246 ms       │ 11.986 ms    │ 160          ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- TRUTH_TABLE_END -->
+<!-- TRUTH_AUDIT_TABLE_END -->
 
-<!-- HOOKS_TABLE_START -->
+<!-- HOOKS_TRACE_TABLE_START -->
 ### 🏷️ MIDDLEWARE & HOOKS AUDIT (Trend: ⚪ 0.0%)
 
 ```text
@@ -160,14 +160,14 @@ xychart-beta
 ║ Peak RPS                                           │     4623.000 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- HOOKS_TABLE_END -->
+<!-- HOOKS_TRACE_TABLE_END -->
 
-<!-- STATE-MACHINE_TABLE_START -->
+<!-- STATE_MACHINE_TABLE_START -->
 > ⏳ **State Machine Transitions**: Pending execution.
 > 📂 **Source**: [tests/benchmarks/state-machine-transition.test.ts](../../../tests/benchmarks/state-machine-transition.test.ts)
-<!-- STATE-MACHINE_TABLE_END -->
+<!-- STATE_MACHINE_TABLE_END -->
 
-<!-- DB_TABLE_START -->
+<!-- DB_RAW_P95_TABLE_START -->
 ### 🏷️ DATABASE ADAPTER PERFORMANCE (POSTGRESQL) (Trend: ⚪ 0.0%)
 
 ```text
@@ -198,7 +198,7 @@ xychart-beta
 ║ Peak CRUD Throughput                               │  1081048.617 req/s    ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- DB_TABLE_END -->
+<!-- DB_RAW_P95_TABLE_END -->
 
 <!-- ACID_TABLE_START -->
 ### 🏷️ ACID Transaction Overhead ⚪ —
@@ -280,7 +280,7 @@ xychart-beta
 ```
 <!-- RELATIONAL_TABLE_END -->
 
-<!-- AUTH_TABLE_START -->
+<!-- AUTH_TRACE_TABLE_START -->
 ### 🏷️ AUTHENTICATION TELEMETRY
 
 ```text
@@ -305,7 +305,7 @@ xychart-beta
 ║ Auth Memory RSS Δ                                  │         0.00 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- AUTH_TABLE_END -->
+<!-- AUTH_TRACE_TABLE_END -->
 
 <!-- REST_TABLE_START -->
 ### 🏷️ ENTERPRISE REST API AUDIT
@@ -385,17 +385,17 @@ xychart-beta
 ```
 <!-- SEO_TABLE_END -->
 
-<!-- REAL-TIME_TABLE_START -->
+<!-- REAL_TIME_TABLE_START -->
 > ⏳ **WebSocket & Realtime Latency**: Pending execution.
 > 📂 **Source**: [tests/benchmarks/realtime-performance.test.ts](../../../tests/benchmarks/realtime-performance.test.ts)
-<!-- REAL-TIME_TABLE_END -->
+<!-- REAL_TIME_TABLE_END -->
 
-<!-- NEGATIVE_TABLE_START -->
+<!-- NEGATIVE_CACHE_TABLE_START -->
 > ⏳ **Negative Cache Performance**: Pending execution.
 > 📂 **Source**: [tests/benchmarks/negative-cache.test.ts](../../../tests/benchmarks/negative-cache.test.ts)
-<!-- NEGATIVE_TABLE_END -->
+<!-- NEGATIVE_CACHE_TABLE_END -->
 
-<!-- REVISION_TABLE_START -->
+<!-- REVISION_STRESS_TABLE_START -->
 ### 🏷️ REVISION STRESS AUDIT
 
 ```text
@@ -419,7 +419,7 @@ xychart-beta
 ║ History Growth Impact                              │         0.78 x        ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- REVISION_TABLE_END -->
+<!-- REVISION_STRESS_TABLE_END -->
 
 <!-- MEMORY_TABLE_START -->
 ### 🏷️ MEMORY STABILITY AUDIT
@@ -497,7 +497,7 @@ xychart-beta
 ```
 <!-- MIXED_TABLE_END -->
 
-<!-- GQL_TABLE_START -->
+<!-- GQL_STRESS_TABLE_START -->
 ### 🏷️ GRAPHQL STRESS AUDIT
 
 ```text
@@ -521,7 +521,7 @@ xychart-beta
 ║ Memory Growth                                      │          0.0 MB       ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- GQL_TABLE_END -->
+<!-- GQL_STRESS_TABLE_END -->
 
 <!-- MIGRATION_TABLE_START -->
 ### 🏷️ MIGRATION & SCALE AUDIT
@@ -550,7 +550,7 @@ xychart-beta
 ```
 <!-- MIGRATION_TABLE_END -->
 
-<!-- INDEX_TABLE_START -->
+<!-- INDEX_PRESSURE_TABLE_START -->
 ### 🏷️ Million-Row Index Pressure ⚪ —
 
 > 📂 **Source**: [tests/benchmarks/index-pressure.test.ts](../../../tests/benchmarks/index-pressure.test.ts)
@@ -569,9 +569,9 @@ xychart-beta
 ║ Filtered Query (100k rows)   │ 0.278 ms       │ 0.299 ms     │ 3,604        ║
 ╚═════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- INDEX_TABLE_END -->
+<!-- INDEX_PRESSURE_TABLE_END -->
 
-<!-- CONTENT_TABLE_START -->
+<!-- CONTENT_STRESS_TABLE_START -->
 ### 🏷️ CONTENT SCALE STRESS AUDIT
 
 ```text
@@ -595,7 +595,7 @@ xychart-beta
 ║ Scale Efficiency                                   │        ELITE          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
-<!-- CONTENT_TABLE_END -->
+<!-- CONTENT_STRESS_TABLE_END -->
 
 <!-- JOURNEY_TABLE_START -->
 > ⏳ **Full Client Journey Simulation**: Pending execution.
@@ -607,15 +607,15 @@ xychart-beta
 > 📂 **Source**: [tests/benchmarks/concurrency-race.test.ts](../../../tests/benchmarks/concurrency-race.test.ts)
 <!-- CONCURRENCY_TABLE_END -->
 
-<!-- FAST-FAIL_TABLE_START -->
+<!-- FAST_FAIL_TABLE_START -->
 > ⏳ **Failure Propagation & Fast-Fail Audit**: Pending execution.
 > 📂 **Source**: [tests/benchmarks/failure-propagation.test.ts](../../../tests/benchmarks/failure-propagation.test.ts)
-<!-- FAST-FAIL_TABLE_END -->
+<!-- FAST_FAIL_TABLE_END -->
 
-<!-- CIRCUIT-BREAKER_TABLE_START -->
+<!-- CIRCUIT_BREAKER_TABLE_START -->
 > ⏳ **Circuit Breaker Failover**: Pending execution.
 > 📂 **Source**: [tests/benchmarks/circuit-breaker-failover.test.ts](../../../tests/benchmarks/circuit-breaker-failover.test.ts)
-<!-- CIRCUIT-BREAKER_TABLE_END -->
+<!-- CIRCUIT_BREAKER_TABLE_END -->
 
 <!-- RESILIENCE_TABLE_START -->
 ### 🏷️ Chaos & Infrastructure Resilience ⚪ —

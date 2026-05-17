@@ -50,46 +50,23 @@ function testBackdoorStripperPlugin(): Plugin {
     name: "test-backdoor-stripper",
     enforce: "pre",
     resolveId(id, importer, options) {
-      // 1. FAST BYPASS: Most modules don't need stripping (Vite 8 optimization)
-      if (
-        !id.includes("testing") &&
-        !id.includes("tiptap") &&
-        !id.includes("prosemirror") &&
-        !id.includes("handle-test-isolation")
-      )
-        return null;
+      // 1. Ultra-fast bypass (Rolldown optimization)
+      if (!id.includes("/") && !id.includes("\\")) return null;
 
-      const normalizedId = id.replace(/\\/g, "/");
+      const norm = id.replace(/\\/g, "/");
 
-      if (options?.ssr) {
-        if (
-          id.includes("tiptap") ||
-          id.includes("prosemirror") ||
-          normalizedId.includes("tiptap") ||
-          normalizedId.includes("prosemirror")
-        ) {
-          return `\0virtual:ssr-stub:${id}`;
-        }
+      // 2. SSR Stubbing (Performance: only check if SSR is active)
+      if (options?.ssr && (norm.includes("tiptap") || norm.includes("prosemirror"))) {
+        return `\0virtual:ssr-stub:${id}`;
       }
 
+      // 3. Production Test Backdoor Removal
       if (process.env.NODE_ENV === "production" && !process.env.TEST_MODE) {
         if (
-          normalizedId.includes("src/routes/api/testing") ||
-          normalizedId.includes("src/hooks/handle-test-isolation")
+          norm.includes("src/routes/api/testing") ||
+          norm.includes("src/hooks/handle-test-isolation")
         ) {
-          log.warn(`[Stripper] Physically removing test module from production build: ${id}`);
           return "\0virtual:test-noop";
-        }
-      }
-
-      // Stub Tiptap and Prosemirror during SSR builds to prevent resolution errors
-      if (options?.ssr) {
-        if (
-          id.startsWith("@tiptap/") ||
-          id.startsWith("prosemirror-") ||
-          id.includes("tiptap.client")
-        ) {
-          return `\0virtual:ssr-stub:${id}`;
         }
       }
 

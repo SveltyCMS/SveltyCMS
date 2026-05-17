@@ -11,6 +11,7 @@ import os from "node:os";
 import { getCollectionsPath, getCompiledCollectionsPath, isValidTenantId } from "../tenant.ts";
 import {
   addJsExtensionTransformer,
+  aliasResolverTransformer,
   commonjsToEsModuleTransformer,
   schemaTransformer,
   widgetTransformer,
@@ -113,6 +114,7 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
 
           const transformers: ts.CustomTransformers = {
             before: [
+              aliasResolverTransformer,
               widgetTransformer,
               schemaTransformer(options.tenantId),
               commonjsToEsModuleTransformer,

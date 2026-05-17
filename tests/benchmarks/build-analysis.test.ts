@@ -9,9 +9,9 @@ import {
   exportResult,
   printTruthTable,
   printSummaryTable,
-  getDbType
+  getDbType,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execSync } from "node:child_process";

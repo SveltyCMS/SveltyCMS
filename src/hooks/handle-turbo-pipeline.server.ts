@@ -15,7 +15,7 @@
 import { dev } from "$app/environment";
 import { getSetupState, SetupState, isSetupComplete, getTestSecret } from "@src/utils/setup-check";
 import { getSystemState } from "@src/stores/system/state.svelte";
-import { isRedirect, type Handle } from "@sveltejs/kit";
+import { isRedirect, isHttpError, type Handle } from "@sveltejs/kit";
 import {
   isApiLike,
   isBootstrapRoute,
@@ -536,7 +536,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     if (dev) logRequest(event, performance.now() - requestStart, response.status);
     return response;
   } catch (err: any) {
-    if (isRedirect(err)) throw err;
+    if (isRedirect(err) || isHttpError(err)) throw err;
     logger.error(`[Turbo] Pipeline error:`, err);
     const fallback = boundaryResponse(err, isHttps);
     fallback.headers.set("X-Request-ID", requestId.toString());

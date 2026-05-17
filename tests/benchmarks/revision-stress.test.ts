@@ -14,9 +14,9 @@ import {
   printTruthTable,
   printSummaryTable,
   TEST_API_SECRET,
-  getDbType
+  getDbType,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
 const REVISION_COLLECTION = "bench_revisions";

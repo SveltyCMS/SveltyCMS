@@ -4,6 +4,7 @@
  */
 
 import * as ts from "typescript";
+import path from "node:path";
 import { generateUUID } from "../native-utils.ts";
 
 // Transformer factory for widget-related changes
@@ -215,6 +216,64 @@ export const commonjsToEsModuleTransformer: ts.TransformerFactory<ts.SourceFile>
       ]);
     }
     return transformedFile;
+  };
+// Transformer factory for resolving aliases to relative paths
+export const aliasResolverTransformer: ts.TransformerFactory<ts.SourceFile> =
+  (context) => (sourceFile) => {
+    const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
+      if (
+        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+        node.moduleSpecifier &&
+        ts.isStringLiteral(node.moduleSpecifier)
+      ) {
+        const specifier = node.moduleSpecifier.text;
+        const aliases: Record<string, string> = {
+          "@src": "src",
+          "@utils": "src/utils",
+          "@stores": "src/stores",
+          "@widgets": "src/widgets",
+          "@databases": "src/databases",
+          "@components": "src/components",
+          "@config": "config",
+        };
+
+        for (const [alias, target] of Object.entries(aliases)) {
+          if (specifier.startsWith(alias)) {
+            const cwd = process.cwd();
+            // Source file is in config/collections/... or similar
+            // We need to resolve relative to the source file's directory
+            const sourceDir = path.dirname(path.resolve(sourceFile.fileName));
+            const targetDir = path.resolve(cwd, target);
+
+            let relativePath = path.relative(sourceDir, targetDir).replace(/\\/g, "/");
+            if (!relativePath.startsWith(".")) relativePath = "./" + relativePath;
+
+            const remaining = specifier.slice(alias.length);
+            const newSpecifier = ts.factory.createStringLiteral(relativePath + remaining);
+
+            if (ts.isImportDeclaration(node)) {
+              return ts.factory.updateImportDeclaration(
+                node,
+                node.modifiers,
+                node.importClause,
+                newSpecifier,
+                node.assertClause,
+              );
+            }
+            return ts.factory.updateExportDeclaration(
+              node,
+              node.modifiers,
+              node.isTypeOnly,
+              node.exportClause,
+              newSpecifier,
+              node.assertClause,
+            );
+          }
+        }
+      }
+      return ts.visitEachChild(node, visitor, context);
+    };
+    return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
   };
 
 /**

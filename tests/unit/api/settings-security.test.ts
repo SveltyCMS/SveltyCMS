@@ -4,35 +4,28 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-// Removed unused RequestEvent import
+import { createMockSuperAdmin, createDbAdapterStub } from "../utils/mock-factories";
 
 // Mock dependencies
 
 // Mock dependencies
 // Mock dependencies
-vi.mock("@src/databases/db", () => ({
-  dbAdapter: {
-    system: { preferences: { getMany: vi.fn(), set: vi.fn() } },
-    settings: {
-      get: vi.fn().mockResolvedValue({}),
-      getAll: vi.fn().mockResolvedValue({}),
-      getPublic: vi.fn().mockResolvedValue({}),
-    },
-    collection: { getModel: vi.fn().mockResolvedValue({}) },
-  },
-  getDb: vi.fn().mockReturnValue({
-    system: { preferences: { getMany: vi.fn(), set: vi.fn() } },
-    settings: {
-      get: vi.fn().mockResolvedValue({}),
-      getAll: vi.fn().mockResolvedValue({}),
-      getPublic: vi.fn().mockResolvedValue({}),
-    },
-    collection: { getModel: vi.fn().mockResolvedValue({}) },
-  }),
-  getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-  isDbConnected: vi.fn().mockReturnValue(true),
-  getAuth: vi.fn(),
-}));
+vi.mock("@src/databases/db", () => {
+  const dbAdapter = createDbAdapterStub();
+
+  // Custom overrides for settings tests
+  (dbAdapter.system.preferences.get as any) = vi
+    .fn()
+    .mockResolvedValue({ success: true, data: {} });
+
+  return {
+    dbAdapter,
+    getDb: vi.fn().mockReturnValue(dbAdapter),
+    getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+    isDbConnected: vi.fn().mockReturnValue(true),
+    getAuth: vi.fn().mockReturnValue(dbAdapter.auth),
+  };
+});
 
 vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
@@ -61,7 +54,7 @@ describe("Settings API Security Unit Tests", () => {
 
   it("should allow authenticated users with tenantId", async () => {
     const event = {
-      locals: { user: { _id: "u1", role: "admin" }, tenantId: "t1" },
+      locals: { user: createMockSuperAdmin({ _id: "u1" }), tenantId: "t1" },
       params: { path: "settings" },
       request: { method: "GET", headers: new Headers() },
       url: new URL("http://localhost/api/settings"),

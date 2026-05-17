@@ -106,6 +106,8 @@ class RedirectIndexService {
 
 const redirectIndexService = new RedirectIndexService();
 
+import { getTenantIdFromHostname } from "@utils/tenant";
+
 export const handleRedirects: Handle = async ({ event, resolve }) => {
   const url = new URL(event.url);
   const path = url.pathname;
@@ -121,7 +123,13 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
-  const tenantId = (event.locals as any).tenantId || "default";
+  // 🚀 SMART TENANT RESOLUTION: Ensure we have a tenant ID even if auth hook hasn't run yet.
+  const tenantId =
+    (event.locals as any).tenantId ||
+    event.request.headers.get("x-tenant-id") ||
+    getTenantIdFromHostname(event.url.hostname, true) ||
+    "default";
+
   const cacheKey = `redirect:${path}`;
 
   // 1. Synchronous L1 Check (Zero Micro-task Overhead for hot paths)
@@ -134,7 +142,7 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
 
   if (cached) {
     if (cached.isNegative) return resolve(event);
-    logger.debug(`[handleRedirects] Cache HIT for ${path}: ${cached.to}`);
+    logger.debug(`[handleRedirects] Cache HIT for ${path}: ${cached.target}`);
     return applyRedirect(path, cached);
   }
 
@@ -150,7 +158,7 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
       if (result.success && result.data && result.data.length > 0) {
         const redirectEntry = result.data[0];
         logger.debug(
-          `[handleRedirects] Match found for ${path}: ${redirectEntry.to} (${redirectEntry.type})`,
+          `[handleRedirects] Match found for ${path}: ${redirectEntry.target} (${redirectEntry.type})`,
         );
         // Store in cache for 1 hour
         await cacheService.set(cacheKey, redirectEntry, 3600, tenantId, CacheCategory.API);
@@ -199,11 +207,11 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
  * Helper to apply the redirect response
  */
 function applyRedirect(path: string, redirect: any) {
-  logger.debug(`[RedirectManager] Redirecting ${path} -> ${redirect.to} (${redirect.type})`);
+  logger.debug(`[RedirectManager] Redirecting ${path} -> ${redirect.target} (${redirect.type})`);
   return new Response(null, {
     status: redirect.type || 301,
     headers: {
-      location: redirect.to,
+      location: redirect.target,
     },
   });
 }

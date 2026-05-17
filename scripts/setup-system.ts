@@ -90,6 +90,7 @@ async function postAction(action: string, payload: Record<string, any>) {
         headers: {
           "x-sveltekit-action": "true",
           "x-test-secret": cfg.apiSecret,
+          "x-tenant-id": "global",
           Origin: cfg.apiBase,
           Referer: `${cfg.apiBase}/setup`,
         },

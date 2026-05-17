@@ -66,49 +66,49 @@ export function securityCheckPlugin(options: SecurityCheckOptions = {}): Plugin 
   ];
 
   function checkFile(id: string, code: string) {
-    const ext = path.extname(id);
-    if (!extensions.includes(ext)) {
+    // 1. Ultra-fast path/extension check (Rolldown optimization)
+    if (!id.includes(".") || !extensions.some((ext) => id.endsWith(ext))) {
       return;
     }
 
-    // Skip server-side files - these are ONLY run on the server, never bundled for client
+    // 2. Early-exit for known server-only paths (High RPS builds)
+    const normalizedId = id.replace(/\\/g, "/");
     if (
-      id.includes("+page.server.") ||
-      id.includes("+layout.server.") ||
-      id.includes("+server.") ||
-      id.includes("/hooks.server.") ||
-      id.includes("/hooks/") || // All files in src/hooks/ are server-only
-      id.includes("/routes/api/") || // All API routes are server-only
-      id.includes("/auth/") || // Auth modules are server-only
-      id.includes("/databases/") || // Database code is server-only
-      id.includes("/src/stores/global-settings.ts") || // The store itself needs these functions
-      (id.includes("/src/widgets/") && id.includes(".ts") && !id.includes(".svelte")) // Widget .ts files are typically server-only utilities
+      normalizedId.includes("/.svelte-kit/") ||
+      normalizedId.includes("/node_modules/") ||
+      normalizedId.includes("+page.server.") ||
+      normalizedId.includes("+layout.server.") ||
+      normalizedId.includes("+server.") ||
+      normalizedId.includes("/hooks.server.") ||
+      normalizedId.includes("/hooks/") ||
+      normalizedId.includes("/routes/api/") ||
+      normalizedId.includes("/auth/") ||
+      normalizedId.includes("/databases/") ||
+      normalizedId.includes("/src/stores/global-settings.ts") ||
+      (normalizedId.includes("/src/widgets/") &&
+        normalizedId.endsWith(".ts") &&
+        !normalizedId.endsWith(".svelte"))
     ) {
       return;
     }
 
-    // Additional check: if file is a .ts file (not .svelte), check if it's imported by client code
-    // For now, we'll primarily focus on .svelte files which are definitely client-side
-    if (ext === ".svelte") {
-      // This is definitely client-side code - check thoroughly
-    } else if (ext === ".ts" || ext === ".js") {
-      // .ts/.js files might be server-only or shared
-      // Only check if they're in client-facing directories
+    // 3. Client-side directory enforcement for .ts/.js files
+    if (normalizedId.endsWith(".ts") || normalizedId.endsWith(".js")) {
       const clientDirs = ["/src/components/", "/src/routes/(app)", "/src/routes/(unauthenticated)"];
-      const isClientDir = clientDirs.some((dir) => id.includes(dir));
-      if (!isClientDir) {
-        return; // Skip server-only .ts files
+      if (!clientDirs.some((dir) => normalizedId.includes(dir))) {
+        return;
       }
     }
 
-    // Optimization: Quick check for pattern keywords before doing full regex
-    const hasSuspiciousKeywords =
-      code.includes("privateEnv") ||
-      code.includes("getPrivateSetting") ||
-      code.includes("getAllSettings") ||
-      code.includes("getUntypedSetting");
-
-    if (!hasSuspiciousKeywords) return;
+    // 4. Keyword pre-scan (Avoids heavy regex if no match possible)
+    if (
+      !code.includes("privateEnv") &&
+      !code.includes("getPrivateSetting") &&
+      !code.includes("getAllSettings") &&
+      !code.includes("getUntypedSetting")
+    ) {
+      return;
+    }
 
     const lines = code.split("\n");
 

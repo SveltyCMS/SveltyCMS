@@ -13,6 +13,7 @@ beforeAll(async () => {
   dispatcherPOST = mod.POST;
 });
 import { createMockRequestEvent } from "../utils/mock-event";
+import { createMockSuperAdmin, createDbAdapterStub } from "../utils/mock-factories";
 
 describe("SAML API Unit Tests", () => {
   const createMockEvent = (
@@ -22,6 +23,10 @@ describe("SAML API Unit Tests", () => {
     user: any = null,
     tenantId?: string,
   ) => {
+    const dbStub = createDbAdapterStub();
+    dbStub.auth.getUserById = vi.fn();
+    dbStub.collection.getModel = vi.fn().mockResolvedValue({});
+
     return {
       ...createMockRequestEvent({
         method,
@@ -29,10 +34,7 @@ describe("SAML API Unit Tests", () => {
         body,
         user,
         tenantId,
-        dbAdapter: {
-          auth: { getUserById: vi.fn() },
-          collection: { getModel: vi.fn().mockResolvedValue({}) },
-        },
+        dbAdapter: dbStub,
         roles: user ? [] : [{ _id: "admin", name: "Admin", isAdmin: true, permissions: [] }],
       }),
       params: { path },
@@ -40,7 +42,7 @@ describe("SAML API Unit Tests", () => {
   };
 
   it("should return SAML config", async () => {
-    const admin = { _id: "admin1", role: "admin", isAdmin: true };
+    const admin = createMockSuperAdmin({ _id: "admin1" });
     const event = createMockEvent("GET", "auth/saml/config", {}, admin, "t1");
     (event as any).request = { method: "GET", headers: new Headers() };
     (event as any).cookies = { get: vi.fn() };

@@ -115,11 +115,17 @@ let lastSchemaVersion: number | null = null;
 
 async function getYogaApp(dbAdapter: any, tenantId?: string | null) {
   const currentVersion = contentSystem.version;
+  const isBenchmark = process.env.BENCHMARK_MODE === "true" || process.env.BENCHMARK === "true";
 
-  if (!yogaAppPromise || lastSchemaVersion !== currentVersion) {
-    if (lastSchemaVersion !== null) {
-      console.error(
-        `[GraphQL] Version change detected: ${lastSchemaVersion} -> ${currentVersion}. Rebuilding schema...`,
+  // 🚀 HOT RELOAD: Rebuild if version changed OR if in benchmark mode and first request
+  if (
+    !yogaAppPromise ||
+    lastSchemaVersion !== currentVersion ||
+    (isBenchmark && lastSchemaVersion === null)
+  ) {
+    if ((process.env.BENCHMARK_DEBUG === "true" || isBenchmark) && lastSchemaVersion !== null) {
+      console.log(
+        `[GraphQL] 🔄 Hot-Reload Triggered: ${lastSchemaVersion} -> ${currentVersion}. Rebuilding schema...`,
       );
     }
     lastSchemaVersion = currentVersion;
@@ -127,6 +133,18 @@ async function getYogaApp(dbAdapter: any, tenantId?: string | null) {
       try {
         const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
         if (!typeDefs) throw new Error("GraphQL typeDefs are empty");
+
+        // Debug: Log registered collections in benchmark mode
+        if (isBenchmark) {
+          const collections = await contentSystem.getCollections(tenantId);
+          const debugData = collections
+            .map((c) => `[${c._id}: fields=${Array.isArray(c.fields) ? c.fields.length : "NO"}]`)
+            .join(", ");
+          console.log(`🚀🚀🚀 GraphQL Rebuild Detail: ${debugData}`);
+          console.log(
+            `[GraphQL] Schema rebuilt with ${collections.length} collections: ${collections.map((c) => c._id).join(", ")}`,
+          );
+        }
 
         const schema = createSchema({ typeDefs, resolvers });
 
@@ -141,7 +159,6 @@ async function getYogaApp(dbAdapter: any, tenantId?: string | null) {
               ? [useGraphQlJit()]
               : [],
           context: async (serverContext: any) => ({
-            // Pull from SvelteKit locals passed via serverContext
             user: serverContext.user,
             tenantId: serverContext.tenantId,
             dbAdapter: serverContext.dbAdapter,
@@ -150,13 +167,6 @@ async function getYogaApp(dbAdapter: any, tenantId?: string | null) {
           }),
         });
       } catch (err: any) {
-        const msg = err instanceof Error ? err.message : String(err);
-        const stack = err instanceof Error ? err.stack : "";
-        logger.error(`[GraphQL] Yoga Init Error: ${msg}`, { stack });
-        if (process.env.BENCHMARK_DEBUG === "true") {
-          console.error(`[GraphQL] Schema build failed: ${msg}`);
-          if (stack) console.error(stack);
-        }
         yogaAppPromise = null;
         throw err;
       }

@@ -30,7 +30,9 @@ class WidgetRegistryService {
 
   public async initialize(force = false): Promise<void> {
     if (this.isInitialized && !force) return;
-    if (this.initializationPromise) return this.initializationPromise;
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
 
     this.initStartTime = performance.now();
     this.initializationPromise = this._doInitialize();
@@ -90,9 +92,16 @@ class WidgetRegistryService {
   }
 
   private _processWidgetModule(path: string, module: WidgetModule, type: WidgetType) {
-    if (typeof module.default !== "function") return null;
+    // 🚀 Robustness: Support both ESM (.default) and CJS/Function style modules
+    const originalFn =
+      module.default && typeof module.default === "function"
+        ? module.default
+        : typeof module === "function"
+          ? (module as any)
+          : null;
 
-    const originalFn = module.default;
+    if (!originalFn) return null;
+
     const name = originalFn.Name || path.split("/").at(-2) || "unknown";
 
     const widgetFn: WidgetFactory = Object.assign((config: any) => originalFn(config), {
@@ -101,6 +110,9 @@ class WidgetRegistryService {
       Icon: originalFn.Icon,
       Description: originalFn.Description,
       aggregations: originalFn.aggregations,
+      modifyRequest: originalFn.modifyRequest,
+      modifyRequestBatch: originalFn.modifyRequestBatch,
+      validationSchema: originalFn.validationSchema,
       __widgetType: type,
       __dependencies: originalFn.__dependencies || [],
       __inputComponentPath: originalFn.__inputComponentPath || "",

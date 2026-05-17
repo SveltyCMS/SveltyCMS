@@ -14,11 +14,11 @@ import {
   STABLE_COLLECTION,
   printTruthTable,
   printSummaryTable,
-  TEST_API_SECRET,
   getDbType,
-  forceRefreshServer
+  forceRefreshServer,
+  TEST_API_SECRET,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
@@ -74,6 +74,7 @@ async function runRestAudit() {
             headers: {
               "x-test-mode": "true",
               "x-test-secret": TEST_API_SECRET,
+              "x-tenant-id": "global",
             },
           });
           if (!res.ok) {

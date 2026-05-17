@@ -68,7 +68,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         }
 
         const [result] = await this.getDb(options as any)
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.systemPreferences))
           .from(this.schema.systemPreferences)
           .where(and(...conditions))
           .limit(1);
@@ -106,7 +106,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         }
 
         const results = await this.getDb(options as any)
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.systemPreferences))
           .from(this.schema.systemPreferences)
           .where(and(...conditions));
 
@@ -145,7 +145,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         }
 
         const results = await this.getDb(options as any)
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.systemPreferences))
           .from(this.schema.systemPreferences)
           .where(and(...conditions));
 
@@ -326,7 +326,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           const db = this.getDb(options);
           await db.insert(this.schema.sveltyJobs).values(utils.convertISOToDates(values));
           const [result] = await db
-            .select()
+            .select(this.adapter.getPhysicalSelection(this.schema.sveltyJobs))
             .from(this.schema.sveltyJobs)
             .where(eq(this.schema.sveltyJobs._id, id));
           return result as unknown as Job;
@@ -344,7 +344,7 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(
         async () => {
           const [result] = await this.getDb(options)
-            .select()
+            .select(this.adapter.getPhysicalSelection(this.schema.sveltyJobs))
             .from(this.schema.sveltyJobs)
             .where(eq(this.schema.sveltyJobs._id, jobId as string));
           return (result as unknown as Job) || null;
@@ -357,14 +357,17 @@ export class RelationalSystemModule implements ISystemAdapter {
 
     getNextReady: async (limit = 10, tenantId?: string | null): Promise<DatabaseResult<Job[]>> => {
       return this.adapter.wrap(async () => {
+        // 🚀 CROSS-CONTEXT FIX: Use a number (ms) instead of a Date object
+        // to bypass Drizzle's 'instanceof Date' checks which may fail in cross-chunk scenarios.
+        const nowMs = Date.now();
         const conditions = [
           eq(this.schema.sveltyJobs.status, "pending"),
-          lte(this.schema.sveltyJobs.nextRunAt, new Date()),
+          lte(this.schema.sveltyJobs.nextRunAt, nowMs as any),
         ];
         if (tenantId) conditions.push(eq(this.schema.sveltyJobs.tenantId, tenantId));
 
         const results = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.sveltyJobs))
           .from(this.schema.sveltyJobs)
           .where(and(...conditions))
           .orderBy(this.schema.sveltyJobs.nextRunAt)
@@ -377,7 +380,10 @@ export class RelationalSystemModule implements ISystemAdapter {
       options?: PaginationOption & { status?: string; taskType?: string },
     ): Promise<DatabaseResult<Job[]>> => {
       return this.adapter.wrap(async () => {
-        let q = this.db.select().from(this.schema.sveltyJobs).$dynamic();
+        let q = this.db
+          .select(this.adapter.getPhysicalSelection(this.schema.sveltyJobs))
+          .from(this.schema.sveltyJobs)
+          .$dynamic();
         const conditions = [];
         if (options?.status) conditions.push(eq(this.schema.sveltyJobs.status, options.status));
         if (options?.taskType)
@@ -424,7 +430,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           .where(eq(this.schema.sveltyJobs._id, jobId as string));
 
         const [result] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.sveltyJobs))
           .from(this.schema.sveltyJobs)
           .where(eq(this.schema.sveltyJobs._id, jobId as string));
         return result as unknown as Job;
@@ -468,7 +474,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         };
         await this.db.insert(this.schema.tenants).values(utils.convertISOToDates(values) as any);
         const [created] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.tenants))
           .from(this.schema.tenants)
           .where(eq(this.schema.tenants._id, id));
         return utils.convertDatesToISO(created) as unknown as Tenant;
@@ -478,7 +484,7 @@ export class RelationalSystemModule implements ISystemAdapter {
     getById: async (tenantId: DatabaseId): Promise<DatabaseResult<Tenant | null>> => {
       return this.adapter.wrap(async () => {
         const [tenant] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.tenants))
           .from(this.schema.tenants)
           .where(eq(this.schema.tenants._id, tenantId))
           .limit(1);
@@ -501,7 +507,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           )
           .where(eq(this.schema.tenants._id, tenantId));
         const [updated] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.tenants))
           .from(this.schema.tenants)
           .where(eq(this.schema.tenants._id, tenantId))
           .limit(1);
@@ -517,7 +523,10 @@ export class RelationalSystemModule implements ISystemAdapter {
 
     list: async (options: any = {}): Promise<DatabaseResult<Tenant[]>> => {
       return this.adapter.wrap(async () => {
-        let q = this.db.select().from(this.schema.tenants).$dynamic();
+        let q = this.db
+          .select(this.adapter.getPhysicalSelection(this.schema.tenants))
+          .from(this.schema.tenants)
+          .$dynamic();
         if (options.limit) q = q.limit(options.limit);
         if (options.offset) q = q.offset(options.offset);
 
@@ -538,7 +547,7 @@ export class RelationalSystemModule implements ISystemAdapter {
     getActive: async (): Promise<DatabaseResult<Theme | null>> => {
       return this.adapter.wrap(async () => {
         const [theme] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.themes))
           .from(this.schema.themes)
           .where(eq(this.schema.themes.isActive, true))
           .limit(1);
@@ -568,7 +577,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         };
         await this.db.insert(this.schema.themes).values(utils.convertISOToDates(values) as any);
         const [inserted] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.themes))
           .from(this.schema.themes)
           .where(eq(this.schema.themes._id, id));
         return utils.convertDatesToISO(inserted) as unknown as Theme;
@@ -596,7 +605,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           )
           .where(eq(this.schema.themes._id, themeId));
         const [updated] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.themes))
           .from(this.schema.themes)
           .where(eq(this.schema.themes._id, themeId));
         return utils.convertDatesToISO(updated) as unknown as Theme;
@@ -605,7 +614,9 @@ export class RelationalSystemModule implements ISystemAdapter {
 
     getAllThemes: async (options?: BaseQueryOptions): Promise<Theme[]> => {
       try {
-        const results = await this.getDb(options).select().from(this.schema.themes);
+        const results = await this.getDb(options)
+          .select(this.adapter.getPhysicalSelection(this.schema.themes))
+          .from(this.schema.themes);
         return utils.convertArrayDatesToISO(results) as unknown as Theme[];
       } catch {
         return [];
@@ -658,7 +669,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           );
         }
         const [theme] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.themes))
           .from(this.schema.themes)
           .where(and(...conditions))
           .limit(1);
@@ -691,7 +702,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         );
 
         const [result] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.widgets))
           .from(this.schema.widgets)
           .where(eq(this.schema.widgets.name, widget.name))
           .limit(1);
@@ -701,7 +712,9 @@ export class RelationalSystemModule implements ISystemAdapter {
 
     findAll: async (): Promise<DatabaseResult<Widget[]>> => {
       return this.adapter.wrap(async () => {
-        const results = await this.db.select().from(this.schema.widgets);
+        const results = await this.db
+          .select(this.adapter.getPhysicalSelection(this.schema.widgets))
+          .from(this.schema.widgets);
         return utils.convertArrayDatesToISO(results) as unknown as Widget[];
       }, "FIND_ALL_WIDGETS_FAILED");
     },
@@ -709,7 +722,7 @@ export class RelationalSystemModule implements ISystemAdapter {
     getActiveWidgets: async (): Promise<DatabaseResult<Widget[]>> => {
       return this.adapter.wrap(async () => {
         const results = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.widgets))
           .from(this.schema.widgets)
           .where(eq(this.schema.widgets.isActive, true));
         return utils.convertArrayDatesToISO(results) as unknown as Widget[];
@@ -749,7 +762,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           )
           .where(eq(this.schema.widgets._id, widgetId));
         const [updated] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.widgets))
           .from(this.schema.widgets)
           .where(eq(this.schema.widgets._id, widgetId));
         return utils.convertDatesToISO(updated) as unknown as Widget;
@@ -783,7 +796,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           .insert(this.schema.websiteTokens)
           .values(utils.convertISOToDates(values) as any);
         const [result] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
           .where(eq(this.schema.websiteTokens._id, id));
         return utils.convertDatesToISO(result) as unknown as import("../db-interface").WebsiteToken;
@@ -799,7 +812,10 @@ export class RelationalSystemModule implements ISystemAdapter {
       DatabaseResult<{ data: import("../db-interface").WebsiteToken[]; total: number }>
     > => {
       return this.adapter.wrap(async () => {
-        let q = this.db.select().from(this.schema.websiteTokens).$dynamic();
+        let q = this.db
+          .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
+          .from(this.schema.websiteTokens)
+          .$dynamic();
         if (options.sort) {
           const orderFn = options.order === "desc" ? desc : asc;
           const column = (this.schema.websiteTokens as any)[options.sort];
@@ -826,7 +842,7 @@ export class RelationalSystemModule implements ISystemAdapter {
     ): Promise<DatabaseResult<import("../db-interface").WebsiteToken | null>> => {
       return this.adapter.wrap(async () => {
         const [result] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
           .where(eq(this.schema.websiteTokens.name, name))
           .limit(1);
@@ -841,7 +857,7 @@ export class RelationalSystemModule implements ISystemAdapter {
     ): Promise<DatabaseResult<import("../db-interface").WebsiteToken | null>> => {
       return this.adapter.wrap(async () => {
         const [result] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
           .where(eq(this.schema.websiteTokens.token, token))
           .limit(1);
@@ -881,7 +897,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           }) as any,
         );
         const [created] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
           .where(eq(this.schema.systemVirtualFolders._id, id));
         return utils.convertDatesToISO(created) as unknown as SystemVirtualFolder;
@@ -897,7 +913,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         if (tenantId)
           conditions.push(eq(this.schema.systemVirtualFolders.tenantId, tenantId as string));
         const [folder] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
           .where(and(...conditions))
           .limit(1);
@@ -916,7 +932,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         if (tenantId)
           conditions.push(eq(this.schema.systemVirtualFolders.tenantId, tenantId as string));
         const results = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
           .where(and(...conditions));
         return utils.convertArrayDatesToISO(results) as unknown as SystemVirtualFolder[];
@@ -927,7 +943,10 @@ export class RelationalSystemModule implements ISystemAdapter {
       tenantId?: DatabaseId | null,
     ): Promise<DatabaseResult<SystemVirtualFolder[]>> => {
       return this.adapter.wrap(async () => {
-        let q = this.db.select().from(this.schema.systemVirtualFolders).$dynamic();
+        let q = this.db
+          .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
+          .from(this.schema.systemVirtualFolders)
+          .$dynamic();
         if (tenantId)
           q = q.where(eq(this.schema.systemVirtualFolders.tenantId, tenantId as string));
         const results = await q;
@@ -954,7 +973,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           )
           .where(and(...conditions));
         const [updated] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
           .where(eq(this.schema.systemVirtualFolders._id, folderId as string));
         return utils.convertDatesToISO(updated) as unknown as SystemVirtualFolder;
@@ -982,7 +1001,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         if (tenantId)
           conditions.push(eq(this.schema.systemVirtualFolders.tenantId, tenantId as string));
         const [folder] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
           .where(and(...conditions))
           .limit(1);
@@ -999,18 +1018,18 @@ export class RelationalSystemModule implements ISystemAdapter {
         if (tenantId)
           conditions.push(eq(this.schema.systemVirtualFolders.tenantId, tenantId as string));
         const [folder] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
           .where(and(...conditions))
           .limit(1);
         if (!folder) throw new Error("Folder not found");
 
         const subQuery = this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
           .where(eq(this.schema.systemVirtualFolders.parentId, folder._id));
         const fileQuery = this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.mediaItems))
           .from(this.schema.mediaItems)
           .where(eq(this.schema.mediaItems.folderId, folder._id));
         const [subfolders, files] = await Promise.all([subQuery, fileQuery]);
@@ -1039,7 +1058,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         if (tenantId)
           conditions.push(eq(this.schema.systemVirtualFolders.tenantId, tenantId as string));
         const [f] = await this.db
-          .select()
+          .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
           .where(and(...conditions))
           .limit(1);

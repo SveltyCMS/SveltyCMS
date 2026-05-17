@@ -29,11 +29,12 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
     const wrappedMethods: Partial<ICrudAdapter> = {
       insert: async (...args) => {
         const res = await capturedCrud.insert(...args);
-        const collection = args[0] as string;
+        const collection = args[0];
         const options = args[2] as any;
         const tenantId = options?.tenantId;
         if (
           res.success &&
+          typeof collection === "string" &&
           (collection.startsWith(CONTENT_COLLECTION_PREFIX) || collection === "MediaItem")
         ) {
           const event: WebhookEvent = collection === "MediaItem" ? "media:upload" : "entry:create";
@@ -44,10 +45,14 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       },
       insertMany: async (...args) => {
         const res = await capturedCrud.insertMany(...args);
-        const collection = args[0] as string;
+        const collection = args[0];
         const options = args[2] as any;
         const tenantId = options?.tenantId;
-        if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
+        if (
+          res.success &&
+          typeof collection === "string" &&
+          collection.startsWith(CONTENT_COLLECTION_PREFIX)
+        ) {
           for (const item of res.data) {
             webhookService.trigger("entry:create", { collection, data: item as any }, tenantId);
             eventBus.emit("entry:create", { collection, data: item as any, tenantId });
@@ -57,12 +62,16 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       },
       update: async (...args) => {
         const res = await capturedCrud.update(...args);
-        const collection = args[0] as string;
+        const collection = args[0];
         const id = args[1] as any;
         const data = args[2] as any;
         const options = args[3] as any;
         const tenantId = options?.tenantId;
-        if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
+        if (
+          res.success &&
+          typeof collection === "string" &&
+          collection.startsWith(CONTENT_COLLECTION_PREFIX)
+        ) {
           let event: WebhookEvent = "entry:update";
           if ("status" in (data as any)) {
             if ((data as any).status === "publish") event = "entry:publish";
@@ -84,12 +93,16 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       },
       updateMany: async (...args) => {
         const res = await capturedCrud.updateMany(...args);
-        const collection = args[0] as string;
+        const collection = args[0];
         const query = args[1] as any;
         const data = args[2] as any;
         const options = args[3] as any;
         const tenantId = options?.tenantId;
-        if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
+        if (
+          res.success &&
+          typeof collection === "string" &&
+          collection.startsWith(CONTENT_COLLECTION_PREFIX)
+        ) {
           webhookService.trigger(
             "entry:update",
             {
@@ -110,12 +123,13 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       },
       delete: async (...args) => {
         const res = await capturedCrud.delete(...args);
-        const collection = args[0] as string;
+        const collection = args[0];
         const id = args[1] as any;
         const options = args[2] as any;
         const tenantId = options?.tenantId;
         if (
           res.success &&
+          typeof collection === "string" &&
           (collection.startsWith(CONTENT_COLLECTION_PREFIX) || collection === "MediaItem")
         ) {
           const event: WebhookEvent = collection === "MediaItem" ? "media:delete" : "entry:delete";
@@ -126,11 +140,15 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       },
       deleteMany: async (...args) => {
         const res = await capturedCrud.deleteMany(...args);
-        const collection = args[0] as string;
+        const collection = args[0];
         const query = args[1] as any;
         const options = args[2] as any;
         const tenantId = options?.tenantId;
-        if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
+        if (
+          res.success &&
+          typeof collection === "string" &&
+          collection.startsWith(CONTENT_COLLECTION_PREFIX)
+        ) {
           webhookService.trigger(
             "entry:delete",
             { collection, query: query as any, deletedCount: res.data.deletedCount },
@@ -146,11 +164,15 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       },
       upsert: async (...args) => {
         const res = await capturedCrud.upsert(...args);
-        const collection = args[0] as string;
+        const collection = args[0];
         const query = args[1] as any;
         const options = args[3] as any;
         const tenantId = options?.tenantId;
-        if (res.success && collection.startsWith(CONTENT_COLLECTION_PREFIX)) {
+        if (
+          res.success &&
+          typeof collection === "string" &&
+          collection.startsWith(CONTENT_COLLECTION_PREFIX)
+        ) {
           webhookService.trigger(
             "entry:update",
             { collection, query: query as any, data: res.data },

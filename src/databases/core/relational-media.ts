@@ -110,7 +110,10 @@ export class RelationalMediaModule implements IMediaAdapter {
               }
             }
 
-            let q = this.getDb(dbOptions).select().from(this.schema.mediaItems).$dynamic();
+            let q = this.getDb(dbOptions)
+              .select(this.adapter.getPhysicalSelection(this.schema.mediaItems))
+              .from(this.schema.mediaItems)
+              .$dynamic();
             if (conditions.length > 0) q = q.where(and(...conditions));
 
             if (options?.sortField) {
@@ -175,7 +178,10 @@ export class RelationalMediaModule implements IMediaAdapter {
             }
           }
 
-          let q = this.db.select().from(this.schema.mediaItems).$dynamic();
+          let q = this.db
+            .select(this.adapter.getPhysicalSelection(this.schema.mediaItems))
+            .from(this.schema.mediaItems)
+            .$dynamic();
           q = q.where(and(...conditions));
 
           if (options?.sortField) {
@@ -300,7 +306,7 @@ export class RelationalMediaModule implements IMediaAdapter {
           const conditions = [eq(this.schema.mediaItems.hash, hash)];
           if (tenantId) conditions.push(eq(this.schema.mediaItems.tenantId, tenantId));
           const [item] = await this.db
-            .select()
+            .select(this.adapter.getPhysicalSelection(this.schema.mediaItems))
             .from(this.schema.mediaItems)
             .where(and(...conditions))
             .limit(1);
@@ -339,7 +345,7 @@ export class RelationalMediaModule implements IMediaAdapter {
             if (tenantId) conditions.push(eq(this.schema.mediaItems.tenantId, tenantId));
 
             const [existing] = await this.db
-              .select()
+              .select(this.adapter.getPhysicalSelection(this.schema.mediaItems))
               .from(this.schema.mediaItems)
               .where(and(...conditions))
               .limit(1);
@@ -415,7 +421,7 @@ export class RelationalMediaModule implements IMediaAdapter {
           const conditions = [eq(this.schema.systemVirtualFolders.type, "folder")];
           if (tenantId) conditions.push(eq(this.schema.systemVirtualFolders.tenantId, tenantId));
           const results = await this.db
-            .select()
+            .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
             .from(this.schema.systemVirtualFolders)
             .where(and(...conditions));
           return utils.convertArrayDatesToISO(results) as unknown as MediaFolder[];
@@ -446,11 +452,11 @@ export class RelationalMediaModule implements IMediaAdapter {
           if (tenantId) fileConditions.push(eq(this.schema.mediaItems.tenantId, tenantId));
 
           const folders = await this.db
-            .select()
+            .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
             .from(this.schema.systemVirtualFolders)
             .where(and(...folderConditions));
           const files = await this.db
-            .select()
+            .select(this.adapter.getPhysicalSelection(this.schema.mediaItems))
             .from(this.schema.mediaItems)
             .where(and(...fileConditions));
 

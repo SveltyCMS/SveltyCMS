@@ -176,7 +176,7 @@ const SeoWidget = createWidget({
       (value.title && value.title.includes("{{")) ||
       (value.description && value.description.includes("{{"))
     ) {
-      const { replaceTokens } = await import(/* @vite-ignore */ "@src/services/token/engine");
+      const { replaceTokens } = await import("@src/services/token/engine");
 
       if (value.title && value.title.includes("{{")) {
         value.title = await replaceTokens(value.title, context);

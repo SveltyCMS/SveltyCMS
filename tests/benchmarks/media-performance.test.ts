@@ -13,9 +13,9 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-  getDbType
+  getDbType,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 import sharp from "sharp";
 
@@ -104,7 +104,7 @@ async function runMediaAudit() {
           headers: {
             "x-test-mode": "true",
             "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
-            "Origin": baseUrl, // 🛡️ Bypasses SvelteKit CSRF check
+            Origin: baseUrl, // 🛡️ Bypasses SvelteKit CSRF check
           },
           body: formData,
         });

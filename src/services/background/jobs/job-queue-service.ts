@@ -221,6 +221,13 @@ class JobQueueService {
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
     }
+
+    // 🧪 PERFORMANCE: Disable background jobs during benchmarks to reduce noise and resource contention
+    if (process.env.BENCHMARK_MODE === "true" || process.env.DISABLE_JOBS === "true") {
+      logger.info("[JobQueue] Background worker disabled (Benchmark Mode)");
+      return;
+    }
+
     logger.debug(`[JobQueue] Starting background worker (interval: ${intervalMs}ms)`);
     this.pollInterval = setInterval(() => {
       // 1. Process jobs

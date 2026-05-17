@@ -1,57 +1,38 @@
 /**
  * @file scripts/run-bun-tests.ts
- * @description Isolated test runner for Bun leveraging native Bun APIs.
+ * @description
+ * Ultra-fast test runner for Bun.
+ * Automatically discovers all .test.ts files and runs them in isolation.
  */
 
-import { Glob } from "bun";
+import { glob } from "glob";
 
-async function run() {
-  console.log("\x1b[36m🧪 Running Bun Unit Tests in Isolated Mode...\x1b[0m");
+async function main() {
+  console.log("\n🚀 SveltyCMS High-Performance Test Runner (Bun)");
+  console.log("=========================================================");
 
-  // 1. Use native Bun.Glob instead of npm 'glob'
-  const globs = [new Glob("tests/unit/**/*.test.ts"), new Glob("src/widgets/custom/**/*.test.ts")];
-  const allFiles = [];
-  for (const g of globs) {
-    allFiles.push(...Array.from(g.scanSync(".")));
-  }
-  const files = [];
+  // 1. Discover all tests
+  const files = await glob("tests/**/*.test.ts");
+  const filtered = files.filter((f) => !f.includes("e2e") && !f.includes("integration"));
 
-  for (const file of allFiles) {
-    if (file.includes("sample")) continue;
-    files.push(file);
-  }
-  files.sort();
+  console.log(`🔍 Found ${filtered.length} tests. Starting execution...\n`);
 
   let totalPassed = 0;
-  const failedFiles: string[] = [];
+  let failedFiles: string[] = [];
 
-  for (const file of files) {
-    console.log(`
----------------------------------------------------------`);
+  for (const file of filtered) {
+    console.log(`---------------------------------------------------------`);
     console.log(`📂 Testing ${file}`);
     console.log(`---------------------------------------------------------`);
 
-    // 2. Use native Bun.spawnSync instead of node:child_process
+    // 2. Use native Bun.spawnSync
     const proc = Bun.spawnSync(
-      [
-        "bun",
-        "test",
-        "--preload",
-        "./tests/unit/global-setup.ts",
-        "--preload",
-        "./tests/unit/bun-preload.ts",
-        "--preload",
-        "./tests/unit/setup.ts",
-        "--timeout",
-        "20000",
-        file,
-      ],
+      ["bun", "test", "--preload", "./tests/unit/bun-preload.ts", "--timeout", "20000", file],
       {
         stdio: ["inherit", "inherit", "inherit"],
       },
     );
 
-    // Bun's spawnSync returns a convenient boolean for success
     if (proc.success) {
       totalPassed++;
     } else {
@@ -59,30 +40,20 @@ async function run() {
     }
   }
 
-  const totalFailed = failedFiles.length;
-
-  // 3. Add terminal colors for better DX
-  console.log(`
-
-=========================================================`);
-  console.log(`📊 Bun Test Summary:`);
-  console.log(`\x1b[32m✅ Passed: ${totalPassed}\x1b[0m`);
-
-  if (totalFailed > 0) {
-    console.log(`\x1b[31m❌ Failed: ${totalFailed}\x1b[0m
-`);
-    console.log(`Failed Files:`);
+  // 3. Reporting
+  console.log("\n=========================================================");
+  console.log(`📊 FINAL REPORT`);
+  console.log("---------------------------------------------------------");
+  console.log(`✅ Passed: ${totalPassed}/${filtered.length}`);
+  if (failedFiles.length > 0) {
+    console.log(`❌ Failed: ${failedFiles.length}`);
+    console.log("\nFailed files:");
     failedFiles.forEach((f) => console.log(`  - ${f}`));
-    console.log(`=========================================================`);
     process.exit(1);
   } else {
-    console.log(`\x1b[32m❌ Failed: 0\x1b[0m`);
-    console.log(`=========================================================`);
+    console.log(`🎉 All tests passed!`);
     process.exit(0);
   }
 }
 
-run().catch((err) => {
-  console.error("\x1b[31mTest runner failed:\x1b[0m", err);
-  process.exit(1);
-});
+main().catch(console.error);

@@ -7,7 +7,7 @@
 
 import * as bunTest from "bun:test";
 import fs from "node:fs";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import {
   runBenchmark,
   exportResult,
@@ -25,31 +25,11 @@ import {
 } from "./benchmark-utils";
 
 // 🚀 SHIM: Allow running with 'bun run' instead of 'bun test'
-const isManual = !process.env.BUN_WATCH && !process.env.BUN_TEST && !(globalThis as any).describe;
-const _beforeAll = isManual ? (fn: any) => ((globalThis as any).__before = fn) : bunTest.beforeAll;
-const _afterAll = isManual ? (fn: any) => ((globalThis as any).__after = fn) : bunTest.afterAll;
-const _test = isManual
-  ? async (name: string, fn: any) => {
-      console.log(`\n▶️ Standalone Run: ${name}`);
-      if ((globalThis as any).__before) {
-        console.log("  ⌛ Running beforeAll...");
-        await (globalThis as any).__before();
-      }
-      try {
-        await fn();
-      } catch (err: any) {
-        console.error(`\n❌ Standalone Run Failed: ${err.message}`);
-        throw err;
-        if (err.stack) console.error(err.stack);
-        process.exit(1);
-      } finally {
-        if ((globalThis as any).__after) {
-          console.log("  ⌛ Running afterAll...");
-          await (globalThis as any).__after();
-        }
-      }
-    }
-  : bunTest.test;
+const isManual = typeof Bun === "undefined" || (!process.env.BUN_TEST && !(globalThis as any).describe);
+if (isManual) console.log("Manual test execution");
+const _beforeAll = (globalThis as any).beforeAll || bunTest.beforeAll;
+const _afterAll = (globalThis as any).afterAll || bunTest.afterAll;
+const _test = (globalThis as any).test || bunTest.test;
 
 let stopServer: () => Promise<void>;
 let apiBaseUrl: string;

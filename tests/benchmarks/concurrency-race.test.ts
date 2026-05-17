@@ -12,9 +12,9 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET
+  TEST_API_SECRET,
 } from "./benchmark-utils";
-import "../unit/setup.ts";
+import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "BenchmarkStable";

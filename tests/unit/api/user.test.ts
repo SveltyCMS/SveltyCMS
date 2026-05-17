@@ -5,35 +5,19 @@
 
 import { describe, it, expect, vi } from "vitest";
 import type { RequestEvent } from "@sveltejs/kit";
+import { createMockUser, createDbAdapterStub } from "../utils/mock-factories";
 
 // Mock dependencies
-
-// Mock dependencies
-// Mock dependencies
-vi.mock("@src/databases/db", () => ({
-  dbAdapter: {
-    auth: {
-      getAllUsers: vi.fn().mockResolvedValue({ success: true, data: [] }),
-      getUserCount: vi.fn().mockResolvedValue({ success: true, data: 0 }),
-      updateUserAttributes: vi.fn().mockResolvedValue({ success: true, data: { _id: "u1" } }),
-      batchAction: vi.fn().mockResolvedValue({ success: true, data: { modifiedCount: 1 } }),
-    },
-  },
-  getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-  getDb: vi.fn().mockReturnValue({
-    auth: {
-      getAllUsers: vi.fn().mockResolvedValue({ success: true, data: [] }),
-      getUserCount: vi.fn().mockResolvedValue({ success: true, data: 0 }),
-      updateUserAttributes: vi.fn().mockResolvedValue({ success: true, data: { _id: "u1" } }),
-      batchAction: vi.fn().mockResolvedValue({ success: true, data: { modifiedCount: 1 } }),
-    },
-    isConnected: vi.fn().mockReturnValue(true),
-    isDbConnected: vi.fn().mockReturnValue(true),
+vi.mock("@src/databases/db", () => {
+  const dbAdapter = createDbAdapterStub();
+  return {
+    dbAdapter,
     getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-  }),
-  isDbConnected: vi.fn().mockReturnValue(true),
-  getAuth: vi.fn(),
-}));
+    getDb: vi.fn().mockReturnValue(dbAdapter),
+    isDbConnected: vi.fn().mockReturnValue(true),
+    getAuth: vi.fn().mockReturnValue(dbAdapter.auth),
+  };
+});
 
 vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn().mockReturnValue(false),
@@ -57,7 +41,7 @@ describe("User API Unit Tests", () => {
     method: string,
     path: string,
     body: any = {},
-    user: any = { _id: "u1", role: "admin" },
+    user: any = createMockUser({ _id: "u1", role: "admin" }),
     tenantId?: string,
   ) => {
     return {
@@ -71,7 +55,7 @@ describe("User API Unit Tests", () => {
       },
       locals: {
         __testBypass: true,
-        user: { ...user, role: "admin", isAdmin: true },
+        user: { ...user, isAdmin: true },
         tenantId: tenantId ?? "t1",
         roles: [
           {
@@ -81,22 +65,7 @@ describe("User API Unit Tests", () => {
             permissions: ["user:read", "user:update", "api:user"],
           },
         ],
-        dbAdapter: {
-          auth: {
-            getAllUsers: vi.fn().mockResolvedValue({ success: true, data: [] }),
-            getUserCount: vi.fn().mockResolvedValue({ success: true, data: 0 }),
-            updateUserAttributes: vi.fn().mockResolvedValue({ success: true, data: { _id: "u1" } }),
-            batchAction: vi.fn().mockResolvedValue({ success: true, data: { modifiedCount: 1 } }),
-          },
-          collection: {
-            getModel: vi.fn().mockResolvedValue({}),
-          },
-          collections: {},
-          media: {},
-          widgets: {},
-          system: {},
-          crud: {},
-        },
+        dbAdapter: createDbAdapterStub(),
       },
       cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
     } as unknown as RequestEvent;

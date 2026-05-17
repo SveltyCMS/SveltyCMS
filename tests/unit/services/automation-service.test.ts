@@ -12,7 +12,7 @@ import { automationService } from "@src/services/background/automation/automatio
 import { TokenRegistry } from "@src/services/token/engine";
 import * as TokenEngine from "@src/services/token/engine";
 
-// Access global mocks from setup.ts
+// Access global mocks from bun-preload.ts
 const mockDbAdapter = (globalThis as any).mockDbAdapter;
 const mockEventBus = (globalThis as any).mockEventBus;
 
