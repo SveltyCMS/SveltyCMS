@@ -109,8 +109,11 @@ export class Auth {
           userData.password = await cryptoHashPassword(password);
         }
 
-        // 🚀 CRITICAL: Use the transaction-scoped 'tx' adapter
-        return await tx.auth.createUserAndSession(userData, sessionData, options);
+        // 🚀 CRITICAL: Use the transaction-scoped 'tx' adapter, passing the transaction context
+        return await tx.auth.createUserAndSession(userData, sessionData, {
+          ...options,
+          transaction: tx,
+        });
       } catch (err: any) {
         throw new Error(err.message || "Failed to create user and session");
       }
@@ -522,12 +525,13 @@ export class Auth {
     userId?: DatabaseId,
     type = "access",
     options?: BaseQueryOptions,
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<{ success: boolean; message: string; data?: any }> {
     const result = await this.db.auth.validateToken(token, userId, type, options);
     if (result?.success && result.data) {
       return {
         success: true,
         message: result.data.message ?? "Token validated",
+        data: result.data,
       };
     }
     return {

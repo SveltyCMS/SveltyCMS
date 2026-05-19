@@ -4,7 +4,12 @@
  */
 
 import type { Token } from "@src/databases/auth/types";
-import type { DatabaseId, DatabaseResult, ISODateString } from "@src/databases/db-interface";
+import type {
+  DatabaseId,
+  DatabaseResult,
+  ISODateString,
+  BaseQueryOptions,
+} from "@src/databases/db-interface";
 import mongoose, { Schema, type Model } from "mongoose";
 import { generateId, getOrCreateModel } from "./mongodb-utils";
 import { generateRandomToken } from "@src/databases/auth/constants";
@@ -88,9 +93,12 @@ export class TokenAdapter {
     token: string,
     userId?: DatabaseId,
     type?: string,
-    tenantId?: DatabaseId | null,
-  ): Promise<DatabaseResult<{ email: string }>> {
+    options?: BaseQueryOptions,
+  ): Promise<
+    DatabaseResult<{ success: boolean; message: string; email?: string; details?: Token }>
+  > {
     try {
+      const tenantId = options?.tenantId;
       const filter = safeQuery({ token } as any, tenantId as string);
       if (userId) filter.user_id = userId;
       if (type) filter.type = type;
@@ -103,7 +111,15 @@ export class TokenAdapter {
           error: { code: "TOKEN_INVALID", message: "Token not found or expired" },
         };
       }
-      return { success: true, data: { email: found.email } as any };
+      return {
+        success: true,
+        data: {
+          success: true,
+          message: "Valid",
+          email: found.email,
+          details: found as any,
+        },
+      };
     } catch (err) {
       const message = "Token validation error";
       logger.error(message, err);
@@ -119,9 +135,10 @@ export class TokenAdapter {
     token: string,
     userId?: DatabaseId,
     type?: string,
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<void>> {
     try {
+      const tenantId = options?.tenantId;
       // Atomic findOneAndDelete fixes TOCTOU race condition
       const filter = safeQuery({ token } as any, tenantId as string);
       if (userId) filter.user_id = userId;
@@ -151,9 +168,10 @@ export class TokenAdapter {
 
   async getTokenByValue(
     token: string,
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Token | null>> {
     try {
+      const tenantId = options?.tenantId;
       const filter: any = { token };
       if (tenantId) filter.tenantId = tenantId;
       const found = await this.TokenModel.findOne(filter).lean();
@@ -169,9 +187,10 @@ export class TokenAdapter {
 
   async getTokenById(
     tokenId: DatabaseId,
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Token | null>> {
     try {
+      const tenantId = options?.tenantId;
       const filter: any = { _id: tokenId };
       if (tenantId) filter.tenantId = tenantId;
       const found = await this.TokenModel.findOne(filter).lean();
@@ -185,9 +204,13 @@ export class TokenAdapter {
     }
   }
 
-  async getAllTokens(tenantId: string, filter: any = {}): Promise<DatabaseResult<Token[]>> {
+  async getAllTokens(
+    options?: BaseQueryOptions,
+    filter: any = {},
+  ): Promise<DatabaseResult<Token[]>> {
     try {
-      const safeFilter = safeQuery(filter, tenantId);
+      const tenantId = options?.tenantId;
+      const safeFilter = safeQuery(filter, tenantId as string);
       const tokens = await this.TokenModel.find(safeFilter).lean();
       return { success: true, data: tokens as Token[] };
     } catch (err) {
@@ -204,9 +227,10 @@ export class TokenAdapter {
   async updateToken(
     tokenId: DatabaseId,
     tokenData: Partial<Token>,
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Token>> {
     try {
+      const tenantId = options?.tenantId;
       const filter = safeQuery({ _id: tokenId } as any, tenantId as string);
 
       // Prevent token value from being updated
@@ -230,9 +254,10 @@ export class TokenAdapter {
 
   async deleteTokens(
     tokenIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
     try {
+      const tenantId = options?.tenantId;
       const filter: any = { _id: { $in: tokenIds } };
       if (tenantId) filter.tenantId = tenantId;
       const res = await this.TokenModel.deleteMany(filter);
@@ -248,9 +273,10 @@ export class TokenAdapter {
 
   async blockTokens(
     tokenIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     try {
+      const tenantId = options?.tenantId;
       const filter: any = { _id: { $in: tokenIds } };
       if (tenantId) filter.tenantId = tenantId;
       const res = await this.TokenModel.updateMany(filter, { blocked: true });
@@ -266,9 +292,10 @@ export class TokenAdapter {
 
   async unblockTokens(
     tokenIds: DatabaseId[],
-    tenantId?: DatabaseId | null,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     try {
+      const tenantId = options?.tenantId;
       const filter: any = { _id: { $in: tokenIds } };
       if (tenantId) filter.tenantId = tenantId;
       const res = await this.TokenModel.updateMany(filter, { blocked: false });

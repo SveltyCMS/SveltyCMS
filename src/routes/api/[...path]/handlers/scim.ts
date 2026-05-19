@@ -42,13 +42,14 @@ export async function handleScimRoutes(
   // segments: ["scim", "v2", "Users", ...] or ["scim", "v2", "Groups", ...]
   if (segments[1] !== "v2") throw new AppError("Only SCIM v2.0 is supported", 400);
 
-  const resourceType = segments[2]; // "Users", "Groups", "Schemas", "ServiceProviderConfig"
+  const resourceType = segments[2]; // "Users", "Groups", "Schemas", "ServiceProviderConfig", "Bulk"
   const resourceId = segments[3];
 
   if (resourceType === "Users")
     return handleScimUsers(event, cms, activeTenantId, resourceId, baseUrl);
   if (resourceType === "Groups")
     return handleScimGroups(event, cms, activeTenantId, resourceId, baseUrl);
+  if (resourceType === "Bulk") return handleScimBulk(event, cms, activeTenantId, baseUrl);
   if (resourceType === "Schemas") return handleScimSchemas(event, baseUrl);
   if (resourceType === "ServiceProviderConfig") return handleScimConfig(event, baseUrl);
 
@@ -72,7 +73,7 @@ async function handleScimConfig(_event: RequestEvent, _baseUrl: string) {
   return json({
     schemas: ["urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"],
     patch: { supported: true },
-    bulk: { supported: false, maxOperations: 1000, maxPayloadSize: 1048576 },
+    bulk: { supported: true, maxOperations: 100, maxPayloadSize: 1048576 },
     filter: { supported: true, maxResults: 200 },
     changePassword: { supported: false },
     sort: { supported: true },
@@ -210,4 +211,132 @@ async function handleScimGroups(
   }
 
   throw new AppError("Method Not Allowed", 405);
+}
+
+/**
+ * Handle SCIM Bulk operations (RFC 7644 §3.7)
+ */
+async function handleScimBulk(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  baseUrl: string,
+) {
+  const { request } = event;
+  if (request.method !== "POST") {
+    throw new AppError("Method Not Allowed", 405);
+  }
+
+  const body = await request.json();
+  const operations = body.Operations || [];
+  const results: any[] = [];
+  const bulkIdMap = new Map<string, string>();
+
+  for (const op of operations) {
+    try {
+      const opPath = op.path || "";
+      const pathSegments = opPath.split("/").filter(Boolean);
+      const resourceType = pathSegments[0];
+      const resourceId = pathSegments[1];
+
+      // Resolve bulkId references in data
+      const resolvedData = resolveBulkIdReferences(op.data || {}, bulkIdMap);
+
+      // Construct simulated request event
+      const simulatedRequest = {
+        method: op.method,
+        json: async () => resolvedData,
+        formData: async () => {
+          throw new Error("FormData not supported in Bulk");
+        },
+      } as unknown as Request;
+
+      const simulatedUrl = new URL(`${baseUrl}/api/scim/v2${opPath}`);
+      const simulatedEvent = {
+        request: simulatedRequest,
+        url: simulatedUrl,
+      } as unknown as RequestEvent;
+
+      let response: Response;
+      if (resourceType === "Users") {
+        response = await handleScimUsers(simulatedEvent, cms, tenantId, resourceId, baseUrl);
+      } else if (resourceType === "Groups") {
+        response = await handleScimGroups(simulatedEvent, cms, tenantId, resourceId, baseUrl);
+      } else {
+        throw new AppError(`Unsupported bulk resource type: ${resourceType}`, 400);
+      }
+
+      const status = response.status;
+      const resJson = status !== 204 ? await response.json() : null;
+
+      const opResult: any = {
+        method: op.method,
+        status: { code: String(status) },
+      };
+
+      if (op.bulkId) {
+        opResult.bulkId = op.bulkId;
+        if (resJson && resJson.id && op.method === "POST") {
+          bulkIdMap.set(op.bulkId, resJson.id);
+        }
+      }
+
+      if (resJson && resJson.id) {
+        opResult.location = `${baseUrl}/api/scim/v2/${resourceType}/${resJson.id}`;
+      }
+
+      if (resJson) {
+        opResult.response = resJson;
+      }
+
+      results.push(opResult);
+    } catch (err: any) {
+      const status = err.status || 500;
+      const opResult: any = {
+        method: op.method,
+        status: { code: String(status) },
+        response: {
+          schemas: ["urn:ietf:params:scim:api:messages:2.0:Error"],
+          status: String(status),
+          detail: err.message || "Bulk operation failed",
+        },
+      };
+      if (op.bulkId) {
+        opResult.bulkId = op.bulkId;
+      }
+      results.push(opResult);
+
+      if (body.failOnErrors && results.length >= body.failOnErrors) {
+        break;
+      }
+    }
+  }
+
+  return json({
+    schemas: ["urn:ietf:params:scim:api:messages:2.0:BulkResponse"],
+    Operations: results,
+  });
+}
+
+/**
+ * Recursively resolves bulkId:<id> references in object/array hierarchies.
+ */
+function resolveBulkIdReferences(data: any, bulkIdMap: Map<string, string>): any {
+  if (typeof data !== "object" || data === null) {
+    if (typeof data === "string" && data.startsWith("bulkId:")) {
+      const bulkId = data.slice(7);
+      return bulkIdMap.get(bulkId) || data;
+    }
+    return data;
+  }
+
+  if (Array.isArray(data)) {
+    return data.map((item) => resolveBulkIdReferences(item, bulkIdMap));
+  }
+
+  const resolved: any = {};
+  for (const [key, val] of Object.entries(data)) {
+    resolved[key] = resolveBulkIdReferences(val, bulkIdMap);
+  }
+  return resolved;
 }

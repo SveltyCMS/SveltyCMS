@@ -450,9 +450,10 @@ export class CollectionsNamespace {
     if (!bypassCache && cacheKey) {
       try {
         const cached = await cacheService.get(cacheKey, (tenantId || undefined) as string);
-        if (cached) {
-          CollectionsNamespace._requestCache.set(cacheKey, cached);
-          return cached;
+        if (cached !== undefined) {
+          const result = cached === null ? { success: true, data: [] } : cached;
+          CollectionsNamespace._requestCache.set(cacheKey, result);
+          return result;
         }
       } catch {}
     }
@@ -836,9 +837,10 @@ export class CollectionsNamespace {
     if (!bypassCache) {
       try {
         const cached = await cacheService.get(cacheKey, (tenantId || undefined) as string);
-        if (cached) {
-          CollectionsNamespace._requestCache.set(cacheKey, cached);
-          return cached;
+        if (cached !== undefined) {
+          const result = cached === null ? { success: true, data: null } : cached;
+          CollectionsNamespace._requestCache.set(cacheKey, result);
+          return result;
         }
       } catch {}
     }

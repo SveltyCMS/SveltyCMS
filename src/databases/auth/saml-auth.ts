@@ -31,16 +31,33 @@ export async function getJackson() {
   connectionPromise = (async () => {
     try {
       const dbConnection = getJacksonDBConnection();
-      const samlConfig = {
+      const samlConfig: any = {
         externalUrl: getPrivateSettingSync("HOST_PROD") || "http://localhost:5173",
         samlAudience: "sveltycms",
         samlPath: "/api/auth/saml/acs",
+        clientSecretVerifier:
+          getPrivateSettingSync("SAML_CLIENT_SECRET_VERIFIER") ||
+          "dummy_verifier_secret_at_least_32_chars",
         db: {
           engine: getJacksonEngine(),
           url: dbConnection,
           type: getJacksonDBType(),
+          encryptionKey:
+            getPrivateSettingSync("SAML_ENCRYPTION_KEY") ||
+            "dummy_encryption_key_at_least_32_chars",
         },
       };
+
+      const privateKey = getPrivateSettingSync("SAML_JWT_SIGNING_PRIVATE_KEY");
+      const publicKey = getPrivateSettingSync("SAML_JWT_SIGNING_PUBLIC_KEY");
+      if (privateKey && publicKey) {
+        samlConfig.openid = {
+          jwtSigningKeys: {
+            private: privateKey,
+            public: publicKey,
+          },
+        };
+      }
 
       jacksonInstance = await jackson(samlConfig as any);
       return jacksonInstance;
@@ -155,10 +172,22 @@ export async function processSAMLResponse(samlResponse: string, relayState: stri
 /**
  * ACS Endpoint Handler for SAML
  */
-export async function handleSAMLACS(request: Request) {
+export async function handleSAMLACS(request: Request, cookies?: any) {
   const formData = await request.formData();
   const SAMLResponse = formData.get("SAMLResponse") as string;
   const RelayState = formData.get("RelayState") as string;
+
+  // Validate state to prevent CSRF attacks (if cookie is present)
+  const stateCookie = cookies?.get("saml_state");
+  if (stateCookie && stateCookie !== RelayState) {
+    logger.error("SAML Authentication Failed: CSRF State mismatch");
+    return json({ success: false, message: "CSRF State mismatch" }, { status: 403 });
+  }
+
+  // Clear state cookie once consumed
+  if (cookies) {
+    cookies.delete("saml_state", { path: "/" });
+  }
 
   try {
     const { user, session } = await processSAMLResponse(SAMLResponse, RelayState);
@@ -181,20 +210,24 @@ export async function handleSAMLACS(request: Request) {
  * Public wrapper for ACS Handler (Expected by router)
  */
 export async function handleSAMLResponse(event: any) {
-  return handleSAMLACS(event.request);
+  return handleSAMLACS(event.request, event.cookies);
 }
 
 /**
  * Public wrapper for Auth URL Generation (Expected by router)
  */
-export async function generateSAMLAuthUrl(tenant?: string | null, product?: string | null) {
+export async function generateSAMLAuthUrl(
+  tenant?: string | null,
+  product?: string | null,
+  state?: string,
+) {
   const api = await getJackson();
   // Standard Jackson API uses oauthController.authorize
   const result = await api.oauthController.authorize({
     tenant: tenant || "sveltycms",
     product: product || "sveltycms",
     redirect_uri: "/api/auth/saml/callback",
-    state: "default",
+    state: state || "default",
   });
   return result.redirect_url || result.authorizeUrl;
 }

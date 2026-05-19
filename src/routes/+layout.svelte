@@ -74,9 +74,109 @@ const { children }: Props = $props();
 let currentLocale = $state(getLocale());
 let isMounted = $state(false);
 
+// ============================================================================
+// Cognitive Session & Focus State Management
+// ============================================================================
+let sessionRemainingTime = $state(900); // 15 minutes (900s) default session length
+let sessionPhase = $state<"normal" | "warning" | "critical" | "expired">("normal");
+let lastInteractionTime = $state(Date.now());
+let sessionInterval: ReturnType<typeof setInterval> | undefined;
+
+// Focus coordinates tracking for state restoration
+let lastFocusedSelector = $state<string | null>(null);
+
+function resetSessionTimer() {
+	if (sessionPhase === "expired") return;
+	lastInteractionTime = Date.now();
+	sessionRemainingTime = 900;
+	if (sessionPhase !== "normal") {
+		sessionPhase = "normal";
+		// Focus restoration after extending session
+		setTimeout(() => {
+			if (lastFocusedSelector) {
+				const target = document.querySelector(lastFocusedSelector) as HTMLElement;
+				target?.focus();
+			}
+		}, 100);
+	}
+}
+
+// Global window event listener to track user activity and focus coordinate changes
+function handleUserActivity(e: Event) {
+	resetSessionTimer();
+	
+	// Track the selector of the active element to restore it on mount/navigation boundaries
+	const target = e.target as HTMLElement;
+	if (target) {
+		if (target.id) {
+			lastFocusedSelector = `#${target.id}`;
+		} else if (target.getAttribute("data-testid")) {
+			lastFocusedSelector = `[data-testid="${target.getAttribute("data-testid")}"]`;
+		} else if (target.getAttribute("name")) {
+			const name = target.getAttribute("name");
+			lastFocusedSelector = `${target.tagName.toLowerCase()}[name="${name}"]`;
+		}
+	}
+}
+
 // Navigation-aware toast handling
 beforeNavigate(() => toast.handleBeforeNavigate());
-afterNavigate(() => toast.handleAfterNavigate());
+afterNavigate(() => {
+	toast.handleAfterNavigate();
+	
+	// State-Bound Focus Restoration
+	setTimeout(() => {
+		if (lastFocusedSelector) {
+			const target = document.querySelector(lastFocusedSelector) as HTMLElement;
+			if (target) {
+				console.log(`[A11y] Restoring focus to state-bound selector: ${lastFocusedSelector}`);
+				target.focus();
+			}
+		}
+	}, 150);
+});
+
+// Reactively run countdown timer
+$effect(() => {
+	const user = page.data.user;
+	if (browser && user) {
+		resetSessionTimer();
+		sessionInterval = setInterval(() => {
+			const idleSeconds = Math.floor((Date.now() - lastInteractionTime) / 1000);
+			sessionRemainingTime = Math.max(0, 900 - idleSeconds);
+
+			if (sessionRemainingTime <= 0) {
+				sessionPhase = "expired";
+				clearInterval(sessionInterval);
+				window.location.href = "/login?timeout=true";
+			} else if (sessionRemainingTime <= 120) {
+				if (sessionPhase !== "critical") {
+					sessionPhase = "critical";
+					setTimeout(() => {
+						const warnBtn = document.getElementById("extend-session-btn");
+						warnBtn?.focus();
+					}, 100);
+				}
+			} else if (sessionRemainingTime <= 300) {
+				sessionPhase = "warning";
+			} else {
+				sessionPhase = "normal";
+			}
+		}, 1000);
+	} else {
+		if (sessionInterval) {
+			clearInterval(sessionInterval);
+			sessionInterval = undefined;
+		}
+		sessionPhase = "normal";
+	}
+
+	return () => {
+		if (sessionInterval) {
+			clearInterval(sessionInterval);
+		}
+	};
+});
 
 // ============================================================================
 // Initialization
@@ -286,8 +386,20 @@ onMount(() => {
 			}
 
 			window.addEventListener("keydown", handleGlobalKeydown);
+			
+			if (browser) {
+				window.addEventListener("click", handleUserActivity, { passive: true });
+				window.addEventListener("keydown", handleUserActivity, { passive: true });
+				window.addEventListener("focusin", handleUserActivity, { passive: true });
+			}
+
 			controller.signal.addEventListener("abort", () => {
 				window.removeEventListener("keydown", handleGlobalKeydown);
+				if (browser) {
+					window.removeEventListener("click", handleUserActivity);
+					window.removeEventListener("keydown", handleUserActivity);
+					window.removeEventListener("focusin", handleUserActivity);
+				}
 			});
 		} catch (err) {
 			console.error("Failed to setup global keyboard shortcuts:", err);
@@ -334,3 +446,65 @@ onMount(() => {
 </svelte:boundary>
 
 <CookieConsent />
+
+<!-- Progressive Session Timeout Warning Overlay/Banners -->
+{#if sessionPhase === 'warning'}
+	<div 
+		class="fixed bottom-4 right-4 z-50 flex max-w-sm items-center justify-between gap-4 rounded-xl border border-warning-500/30 bg-surface-100/80 p-4 shadow-xl backdrop-blur-md dark:bg-surface-800/80 text-surface-900 dark:text-surface-100"
+		role="status"
+		aria-live="polite"
+	>
+		<div class="flex items-center gap-3">
+			<span class="flex h-8 w-8 items-center justify-center rounded-full bg-warning-500/20 text-warning-500">
+				<iconify-icon icon="mdi:alert-circle-outline" width="20"></iconify-icon>
+			</span>
+			<div>
+				<p class="text-sm font-semibold">Inactivity Timeout Warning</p>
+				<p class="text-xs text-surface-600 dark:text-surface-400">Session expires in {Math.floor(sessionRemainingTime / 60)}m {sessionRemainingTime % 60}s</p>
+			</div>
+		</div>
+		<button 
+			class="btn btn-sm variant-filled-warning"
+			onclick={resetSessionTimer}
+		>
+			Extend
+		</button>
+	</div>
+{:else if sessionPhase === 'critical'}
+	<div 
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-lg"
+		role="alertdialog"
+		aria-modal="true"
+		aria-labelledby="critical-timeout-title"
+		aria-describedby="critical-timeout-desc"
+	>
+		<div class="max-w-md w-full rounded-2xl border border-error-500/40 bg-surface-100 p-6 shadow-2xl dark:bg-surface-900 text-surface-900 dark:text-surface-100">
+			<div class="flex flex-col items-center text-center space-y-4">
+				<span class="flex h-16 w-16 items-center justify-center rounded-full bg-error-500/20 text-error-500">
+					<iconify-icon icon="mdi:clock-alert-outline" width="36"></iconify-icon>
+				</span>
+				
+				<div class="space-y-1">
+					<h2 id="critical-timeout-title" class="text-xl font-bold text-error-500">Critical Session Timeout</h2>
+					<p id="critical-timeout-desc" class="text-sm text-surface-600 dark:text-surface-400">
+						Your session is about to expire due to inactivity. Please extend your session now to avoid losing unsaved data.
+					</p>
+				</div>
+
+				<div class="text-3xl font-black font-mono tracking-wider text-error-500 animate-pulse">
+					{Math.floor(sessionRemainingTime / 60)}:{(sessionRemainingTime % 60).toString().padStart(2, '0')}
+				</div>
+
+				<div class="flex gap-4 w-full">
+					<button 
+						id="extend-session-btn"
+						class="btn variant-filled-error w-full py-3 text-base font-bold shadow-lg"
+						onclick={resetSessionTimer}
+					>
+						Extend Session Now
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}

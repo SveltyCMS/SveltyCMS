@@ -34,7 +34,7 @@ describe("LocalCMS - Server-Side SDK Bridge", () => {
     };
 
     const sdk = new LocalCMS(mockAdapter, contentMock);
-    const result = await sdk.collections.find("posts", { tenantId: "tenant-1" });
+    const result = await sdk.collections.find("posts", { tenantId: "tenant-1", bypassCache: true });
 
     // SDK prepends 'collection_' to the ID
     expect(mockAdapter.crud.findMany).toHaveBeenCalledWith(
@@ -62,7 +62,7 @@ describe("LocalCMS - Server-Side SDK Bridge", () => {
     };
 
     const locals = LocalCMS.getLocals(mockAdapter, eventLocals, contentMock);
-    await locals.find("pages");
+    await locals.find("pages", { bypassCache: true });
 
     expect(mockAdapter.crud.findMany).toHaveBeenCalledWith(
       "collection_pages",

@@ -1341,7 +1341,9 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
         const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
-        if (options.permanent) {
+        const hasIsDeleted = !!this.getColumn(table, "isDeleted");
+
+        if (options.permanent || !hasIsDeleted) {
           await this.getDrizzleInstance(options)
             .delete(table)
             .where(eq(idCol, id as any));

@@ -26,6 +26,22 @@ export async function writePrivateConfig(
   // Generate random keys
   const jwtSecret = generateSecureToken(32);
   const encryptionKey = generateSecureToken(32);
+  const samlClientSecretVerifier = generateSecureToken(32);
+  const samlEncryptionKey = generateSecureToken(32);
+
+  // Generate RSA-2048 keys for JWT signing
+  const { generateKeyPairSync } = await import("node:crypto");
+  const { publicKey, privateKey } = generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+    publicKeyEncoding: {
+      type: "spki",
+      format: "pem",
+    },
+    privateKeyEncoding: {
+      type: "pkcs8",
+      format: "pem",
+    },
+  });
 
   // Sanitization helper to prevent code injection via single quotes
   const escape = (val: string | number | undefined) => {
@@ -66,6 +82,12 @@ export const privateEnv = {
 	JWT_SECRET_KEY: '${jwtSecret}',
 	ENCRYPTION_KEY: '${encryptionKey}',
 
+	// --- SAML / SSO Security Keys ---
+	SAML_CLIENT_SECRET_VERIFIER: '${samlClientSecretVerifier}',
+	SAML_ENCRYPTION_KEY: '${samlEncryptionKey}',
+	SAML_JWT_SIGNING_PRIVATE_KEY: '${escape(privateKey)}',
+	SAML_JWT_SIGNING_PUBLIC_KEY: '${escape(publicKey)}',
+
 	// --- Fundamental Architectural Mode ---
 	MULTI_TENANT: ${system.multiTenant ? "true" : "false"},
 	DEMO: ${system.demoMode ? "true" : "false"},
@@ -86,6 +108,11 @@ export const privateEnv = {
     const checks = [
       { name: "JWT_SECRET_KEY", regex: /\bJWT_SECRET_KEY\s*:\s*['"][^'"]{32,}['"]/ },
       { name: "ENCRYPTION_KEY", regex: /\bENCRYPTION_KEY\s*:\s*['"][^'"]{32,}['"]/ },
+      {
+        name: "SAML_CLIENT_SECRET_VERIFIER",
+        regex: /\bSAML_CLIENT_SECRET_VERIFIER\s*:\s*['"][^'"]{32,}['"]/,
+      },
+      { name: "SAML_ENCRYPTION_KEY", regex: /\bSAML_ENCRYPTION_KEY\s*:\s*['"][^'"]{32,}['"]/ },
       { name: "DB_HOST", regex: new RegExp(`\\bDB_HOST\\s*:\\s*['"]${escape(dbConfig.host)}['"]`) },
       { name: "DB_NAME", regex: new RegExp(`\\bDB_NAME\\s*:\\s*['"]${escape(dbConfig.name)}['"]`) },
       { name: "DB_TYPE", regex: new RegExp(`\\bDB_TYPE\\s*:\\s*['"]${escape(dbConfig.type)}['"]`) },

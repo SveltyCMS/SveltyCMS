@@ -1,7 +1,31 @@
 <!-- 
- @src/routes/api/cms.ts src/components/ui/tree-view.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 TreeView Primitive
+@file src/components/ui/tree-view.svelte
+@component
+**Superior Svelte 5 TreeView Primitive with multi-density support and keyboard navigation**
+
+### Props
+- `items` (TreeItem[]): Array of tree items to render.
+- `selectedId` (string | null): The ID of the currently selected tree item.
+- `search` (string): Search filter string to filter items.
+- `expandedIds` (Set<string>): Set of expanded node IDs (bindable).
+- `allowDragDrop` (boolean): Whether drag and drop reordering is enabled.
+- `compact` (boolean): Backward-compatible shorthand for compact density.
+- `density` ('compact' | 'comfortable' | 'spacious'): Density control for layout spacing.
+- `dir` ('ltr' | 'rtl' | 'auto'): Directionality.
+- `class` (string): Additional CSS classes.
+
+### Callbacks
+- `onselect` (function): Callback when a node is selected.
+- `onreorder` (function): Callback when a node is reordered via drag-and-drop.
+- `onhover` (function): Callback when a node is hovered.
+- `onexpand` (function): Callback when a node is expanded.
+
+### Features:
+- multi-density styling support (compact, comfortable, spacious)
+- standard keyboard navigation (arrows, space, enter, home, end)
+- drag and drop reordering
+- automatic filtering and auto-expanding during search
+- vertical guide lines matching node depth
 -->
 
 <script module lang="ts">
@@ -28,6 +52,7 @@ interface Props {
     expandedIds?: Set<string>;
     allowDragDrop?: boolean;
     compact?: boolean;
+    density?: 'compact' | 'comfortable' | 'spacious';
     dir?: 'ltr' | 'rtl' | 'auto';
     class?: string;
     // Callbacks
@@ -44,6 +69,7 @@ let {
     expandedIds = $bindable(new SvelteSet()),
     allowDragDrop = false,
     compact = false,
+    density = 'comfortable',
     dir = 'ltr',
     class: className,
     onselect,
@@ -51,6 +77,72 @@ let {
     onhover,
     onexpand
 }: Props = $props();
+
+// --- DENSITY SYSTEM DERIVATIONS ---
+const computedDensity = $derived(compact ? 'compact' : density);
+
+const paddingClass = $derived.by(() => {
+    switch (computedDensity) {
+        case 'compact': return 'py-1 gap-1.5';
+        case 'spacious': return 'py-2.5 gap-2.5';
+        case 'comfortable':
+        default: return 'py-1.5 gap-2';
+    }
+});
+
+const fontClass = $derived.by(() => {
+    switch (computedDensity) {
+        case 'compact': return 'text-xs';
+        case 'spacious': return 'text-base';
+        case 'comfortable':
+        default: return 'text-sm';
+    }
+});
+
+const chevronSize = $derived.by(() => {
+    switch (computedDensity) {
+        case 'compact': return '16';
+        case 'spacious': return '20';
+        case 'comfortable':
+        default: return '18';
+    }
+});
+
+const iconSize = $derived.by(() => {
+    switch (computedDensity) {
+        case 'compact': return '16';
+        case 'spacious': return '22';
+        case 'comfortable':
+        default: return '20';
+    }
+});
+
+const dummySizeClass = $derived.by(() => {
+    switch (computedDensity) {
+        case 'compact': return 'size-4';
+        case 'spacious': return 'size-5';
+        case 'comfortable':
+        default: return 'size-[18px]';
+    }
+});
+
+function getIndentLeft(depth: number) {
+    switch (computedDensity) {
+        case 'compact': return depth * 0.75 + 0.5;
+        case 'spacious': return depth * 1.75 + 0.75;
+        case 'comfortable':
+        default: return depth * 1.25 + 0.5;
+    }
+}
+
+function getGuideLineLeft(depth: number) {
+    switch (computedDensity) {
+        case 'compact': return depth * 0.75 + 0.5 + 0.5;
+        case 'spacious': return depth * 1.75 + 0.75 + 0.7;
+        case 'comfortable':
+        default: return depth * 1.25 + 0.5 + 0.6;
+    }
+}
 
 // --- STATE ---
 let focusedNodeId = $state<string | null>(null);
@@ -236,8 +328,8 @@ $effect(() => {
             type="button"
             id={`treenode-${node.id}`}
             class={cn(
-                "flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all cursor-pointer group focus:outline-none text-left border border-transparent",
-                compact ? "py-1 gap-1.5" : "py-1.5 gap-2",
+                "flex items-center rounded-lg transition-all cursor-pointer group focus:outline-none text-left border border-transparent px-2",
+                paddingClass,
                 isSelected ? "bg-primary-500/10 border-primary-500/30 text-primary-700 dark:text-primary-300 shadow-xs" : 
                              "hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-900 dark:text-surface-100",
                 isFocused && "ring-2 ring-primary-500/50 shadow-sm",
@@ -245,7 +337,7 @@ $effect(() => {
                 dragOverNode?.id === node.id && dropPosition === 'inside' && "bg-primary-500/20 border-primary-500",
                 node.disabled && "opacity-50 cursor-not-allowed"
             )}
-            style="padding-left: {depth * (compact ? 0.75 : 1.25) + 0.5}rem"
+            style="padding-left: {getIndentLeft(depth)}rem"
             onclick={() => toggleNode(node)}
             onkeydown={(e) => handleKeyDown(e, node)}
             onmouseenter={() => onhover?.(node)}
@@ -263,22 +355,22 @@ $effect(() => {
             {#if hasChildren}
                 <iconify-icon 
                     icon="mdi:chevron-right" 
-                    width={compact ? "16" : "18"} 
+                    width={chevronSize} 
                     class={cn("transition-transform duration-200 opacity-60", expanded && "rotate-90", dir === 'rtl' && "rotate-180")}
                 ></iconify-icon>
             {:else}
-                <div class={compact ? "size-4" : "size-[18px]"}></div>
+                <div class={dummySizeClass}></div>
             {/if}
 
             <!-- Icon -->
             {#if node.icon}
-                <iconify-icon icon={node.icon} width={compact ? "16" : "20"} class={cn(isSelected ? "text-primary-500" : "text-surface-400")}></iconify-icon>
+                <iconify-icon icon={node.icon} width={iconSize} class={cn(isSelected ? "text-primary-500" : "text-surface-400")}></iconify-icon>
             {/if}
 
             <!-- Label -->
             <span class={cn(
                 "truncate transition-colors",
-                compact ? "text-xs" : "text-sm",
+                fontClass,
                 isSelected ? "font-bold text-primary-600 dark:text-primary-400" : "font-medium text-surface-900 dark:text-surface-100"
             )}>
                 {node.label}
@@ -301,7 +393,7 @@ $effect(() => {
             <div class="relative flex flex-col pt-0.5">
                 <div 
                     class="absolute left-0 top-0 w-px bg-linear-to-b from-surface-200 to-transparent dark:from-surface-700"
-                    style="margin-left: {depth * (compact ? 0.75 : 1.25) + 0.5 + (compact ? 0.5 : 0.6)}rem; height: 100%"
+                    style="margin-left: {getGuideLineLeft(depth)}rem; height: 100%"
                 ></div>
                 {#each node.children! as child (child.id)}
                     {@render treeNode(child, depth + 1)}

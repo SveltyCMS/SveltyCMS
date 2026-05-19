@@ -107,6 +107,19 @@ While **WCAG 2.2 AA** is our current strict compliance target, SveltyCMS aspires
 - **Cognitive Accessibility**: Pay extra attention to clear language, consistent navigation, and error prevention, which are emphasized more heavily in WCAG 3.0.
 - **Holistic Rating**: We aim for an overall accessible experience, prioritizing critical user flows (Login, Content Creation, Setup).
 
+## Progressive Timeout Warning System (Cognitive Load Mitigation)
+
+To prevent cognitive strain and anxiety caused by time constraints (e.g., security session expirations or setup wizard steps), SveltyCMS implements a **Progressive Timeout Warning System**:
+
+1. **Phase 1 (Pre-expiry Warning):** Warns the user when 25% of the session time remains (e.g., "Your session will expire in 15 minutes. Save your changes to avoid losing progress.").
+2. **Phase 2 (Critical Alert):** Shows a persistent alert modal at 5 minutes remaining, allowing the user to extend the session with a single click or keyboard shortcut.
+3. **Phase 3 (Graceful Termination):** Gracefully redirects the user to the log-out screen, preserving any local drafts where possible.
+
+### Implementation Checklist:
+
+- Communicate time-remaining alerts programmatically via `aria-live="polite"` or `aria-live="assertive"`.
+- Buttons to extend timeouts must be keyboard-accessible (reachable via `Tab` and triggerable via `Enter`/`Space`).
+
 ## ATAG 2.0 (Authoring Tool) Requirements
 
 Since SveltyCMS is an authoring tool (CMS), we must support authors with disabilities:

@@ -119,7 +119,7 @@ export default defineConfig({
     },
     {
       name: "system",
-      testMatch: [/language\.spec\.ts/, /user\.spec\.ts/],
+      testMatch: [/language\.spec\.ts/, /user\.spec\.ts/, /accessibility\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
       dependencies: ["auth-setup"],
     },

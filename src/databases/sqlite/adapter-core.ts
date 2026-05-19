@@ -746,7 +746,12 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
   } {
     return {
       execute: async (sqlText: string, params: any[] = []) => {
-        return this.prepareAndExecute(sqlText, "all", ...params);
+        const isNonSelect =
+          /^\s*(create|drop|alter|insert|update|delete|replace|pragma|begin|commit|rollback|savepoint)/i.test(
+            sqlText,
+          );
+        const method = isNonSelect ? "run" : "all";
+        return this.prepareAndExecute(sqlText, method, ...params);
       },
       client: this.sqlite,
     };

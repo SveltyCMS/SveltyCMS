@@ -86,6 +86,71 @@ export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
 }
 
 /**
+ * Statically analyzes Svelte widget input components to enforce WCAG 3.0 / ATAG 2.0 best practices.
+ */
+async function validateWidgetAccessibility(name: string, componentPath: string) {
+  if (typeof process === "undefined" || !componentPath) return;
+  try {
+    const fs = await import(/* @vite-ignore */ "node:fs").catch(() => null);
+    const path = await import(/* @vite-ignore */ "node:path").catch(() => null);
+    if (!fs || !path) return;
+
+    // SvelteKit path starts with /src/... make it relative to root
+    const normalizedPath = componentPath.startsWith("/") ? componentPath.slice(1) : componentPath;
+    const absolutePath = path.join(process.cwd(), normalizedPath);
+
+    if (!fs.existsSync(absolutePath)) {
+      return;
+    }
+
+    const content = fs.readFileSync(absolutePath, "utf8");
+    const inputMatches = content.match(/<input[^>]*>/gi) || [];
+    const buttonMatches = content.match(/<button[^>]*>/gi) || [];
+    const selectMatches = content.match(/<select[^>]*>/gi) || [];
+    const textareaMatches = content.match(/<textarea[^>]*>/gi) || [];
+
+    const issues: string[] = [];
+
+    for (const match of [...inputMatches, ...selectMatches, ...textareaMatches]) {
+      if (!/aria-label=/i.test(match) && !/aria-labelledby=/i.test(match) && !/id=/i.test(match)) {
+        issues.push(
+          `Interactive element '${match.trim()}' lacks 'aria-label', 'aria-labelledby', or 'id'.`,
+        );
+      }
+    }
+
+    for (const match of buttonMatches) {
+      if (
+        !/aria-label=/i.test(match) &&
+        !/aria-labelledby=/i.test(match) &&
+        !/onclick=/i.test(match) &&
+        !/disabled=/i.test(match)
+      ) {
+        if (
+          !/aria-label=/i.test(match) &&
+          !/aria-labelledby=/i.test(match) &&
+          /class="[^"]*icon[^"]*"/i.test(match)
+        ) {
+          issues.push(
+            `Icon-like button '${match.trim()}' lacks an accessible name ('aria-label' or 'aria-labelledby').`,
+          );
+        }
+      }
+    }
+
+    if (issues.length > 0) {
+      console.warn(
+        `\x1b[33m[Accessibility Warning] Widget '${name}' has potential WCAG compliance issues in '${componentPath}':\n` +
+          issues.map((i) => `  - ${i}`).join("\n") +
+          `\x1b[0m`,
+      );
+    }
+  } catch {
+    // Ignore static analysis errors during bundling
+  }
+}
+
+/**
  * Creates a new SveltyCMS widget factory.
  * @param config The static definition of the widget (its blueprint).
  * @returns A function that can be called to create type-safe field instances.
@@ -93,6 +158,10 @@ export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
 export function createWidget<TProps extends WidgetProps = WidgetProps>(
   config: WidgetConfig<TProps>,
 ): WidgetFactory<TProps> {
+  if (config.inputComponentPath) {
+    validateWidgetAccessibility(config.Name, config.inputComponentPath);
+  }
+
   // 1. Create the immutable widget definition once.
   // This now includes all the "Three Pillars" information.
   const widgetDefinition: WidgetDefinition = {

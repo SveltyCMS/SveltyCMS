@@ -21,24 +21,21 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (19/05/2026, 07:00:49)
+## 📊 Latest Performance Audit (19/05/2026, 20:12:58)
 
-**Status:** ❌ FAIL
-
-> [!CAUTION]
-> **Anomalies Detected**: Seeding failed See console for stack trace.
+**Status:** ✅ PASS
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend      | Target Budget | Result  |
-| :--------------------- | :---------- | :--------- | :------------ | :------ |
-| **Cold Start**         | 1605ms      | ⚪ (+0.1%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 0.000ms     | ⚪ (—)     | < 5ms         | 🟢 PASS |
-| **Middleware Hooks**   | 0.000ms     | ⚪         | < 1.5ms       | 🟢 PASS |
-| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—)     | < 5ms         | 🟢 PASS |
-| **Million-Row Index**  | FAILED      | ⚪         | < 250ms       | 🔴 FAIL |
-| **DB Raw (p95)**       | 0.000ms     | ⚪         | < 50ms        | 🟢 PASS |
-| **Setup Quality**      | 🔴 DEGRADED | ⚪         | 100%          | 🔴 FAIL |
+| Scenario               | Avg Latency | Trend       | Target Budget | Result  |
+| :--------------------- | :---------- | :---------- | :------------ | :------ |
+| **Cold Start**         | 336ms       | 🟢 (-77.4%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 0.000ms     | ⚪ (—)      | < 5ms         | 🟢 PASS |
+| **Middleware Hooks**   | 0.000ms     | ⚪          | < 1.5ms       | 🟢 PASS |
+| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—)      | < 5ms         | 🟢 PASS |
+| **Million-Row Index**  | FAILED      | ⚪          | < 250ms       | 🔴 FAIL |
+| **DB Raw (p95)**       | 0.000ms     | ⚪          | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | 🟢 HEALTHY  | ⚪          | 100%          | 🟢 PASS |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -214,13 +211,13 @@ xychart-beta
 > 🎯 **Proves**: Audits the performance gain of the 2-layer Hybrid Cache across various system modules.
 
 ```text
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                       NEGATIVE CACHE PERFORMANCE AUDIT                       ║
-║                File: tests/benchmarks/negative-cache.test.ts                 ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║ First Miss (DB)                │      435.826 ms │ p95:      435.826 ms │ RPS:          2 ║
-║ Cached Miss (Negative Cache)   │        0.099 ms │ p95:        0.176 ms │ RPS:     10,097 ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                            NEGATIVE CACHE PERFORMANCE AUDIT                             ║
+║                      File: tests/benchmarks/negative-cache.test.ts                      ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ First Miss (DB)                │      300.455 ms │ p95:      300.455 ms │ RPS:          3 ║
+║ Cached Miss (Negative Cache)   │        0.003 ms │ p95:        0.005 ms │ RPS:    350,357 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- CACHE_TABLE_END -->
@@ -335,6 +332,13 @@ xychart-beta
 
 <!-- SEO_TABLE_END -->
 
+<!-- BROADCAST_TABLE_START -->
+
+> ⏳ **REAL-TIME BROADCAST AUDIT**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/websocket-broadcast.test.ts](../../../tests/benchmarks/websocket-broadcast.test.ts)
+
+<!-- BROADCAST_TABLE_END -->
+
 <!-- REAL_TIME_TABLE_START -->
 
 ### 🏷️ WebSocket & Realtime Latency ⚪ —
@@ -363,13 +367,13 @@ xychart-beta
 > 🎯 **Proves**: Benchmarks 404-miss response times and cache lookup speedup.
 
 ```text
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                       NEGATIVE CACHE PERFORMANCE AUDIT                       ║
-║                File: tests/benchmarks/negative-cache.test.ts                 ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║ First Miss (DB)                │      435.826 ms │ p95:      435.826 ms │ RPS:          2 ║
-║ Cached Miss (Negative Cache)   │        0.099 ms │ p95:        0.176 ms │ RPS:     10,097 ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                            NEGATIVE CACHE PERFORMANCE AUDIT                             ║
+║                      File: tests/benchmarks/negative-cache.test.ts                      ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ First Miss (DB)                │      300.455 ms │ p95:      300.455 ms │ RPS:          3 ║
+║ Cached Miss (Negative Cache)   │        0.003 ms │ p95:        0.005 ms │ RPS:    350,357 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- NEGATIVE_CACHE_TABLE_END -->

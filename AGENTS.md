@@ -269,6 +269,7 @@ From the 2026 roadmap (v0.0.6, target A+ grade), prioritize these for parity/lea
 - [x] **Enterprise SEO Suite (v1.6)**: High-performance multi-tenant Redirect Manager and Dynamic Sitemap.xml with i18n/hreflang support.
 - [x] **Negative Caching Engine (v1.7)**: Implemented Bloom-filter style missing-key cache achieving a verified **2392x speedup** for repeated misses.
 - [x] **Zero-Tax SDK Dispatcher (v1.7)**: Refactored `LocalCMS` with Hot-Swap self-overwriting getters, achieving **0% middleware overhead**.
+- [x] **Universal Accessibility Auditing (v1.8)**: Implemented automated Axe-Core E2E test suites, RTL directionality layout mirroring audits, build-time Widget Accessibility Static Analysis Validator, and documented State-Bound Focus Restoration.
 
 ## Upgrading SveltyCMS
 
@@ -487,7 +488,8 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 - **Commit Attribution**: **NEVER** include `Co-Authored-By` or any AI-attribution lines in commit messages unless explicitly requested by the USER for a specific commit. All work should appear as the USER's own work for seamless integration into enterprise workflows.
 - Commits: Conventional (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `security:`, `perf:`).
 - Pre-commit: `bun run format && bun run lint && bun run check && bun run test:unit && bun run test:unit:bun` (100% CI parity).
+- **Roadmap Checklist**: Add Universal Accessibility Auditing to CI/CD pipeline.
 
 ---
 
-_Last Updated: 2026-05-08_
+_Last Updated: 2026-05-19_

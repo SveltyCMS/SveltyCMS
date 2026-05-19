@@ -22,6 +22,7 @@ import { verifyPassword } from "@src/databases/auth";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { generateCsrfToken } from "@utils/security/csrf-utils";
 import { dev } from "$app/environment";
+import { generateSecureToken } from "@utils/native-utils";
 
 export async function handleAuthUserRoutes(
   event: RequestEvent,
@@ -395,7 +396,23 @@ export async function handleSAMLRoutes(
   if (action === "login" && (event.request.method === "GET" || event.request.method === "POST")) {
     const tenant = event.url.searchParams.get("tenant") || (tenantId as string);
     const product = event.url.searchParams.get("product") || "sveltycms";
-    const url = await generateSAMLAuthUrl(tenant, product);
+
+    // Generate secure state and store in cookie to prevent CSRF attacks
+    const state = generateSecureToken(16);
+    const isTest = process.env.TEST_MODE === "true";
+    const isProd = !dev && !isTest;
+    const isSecure =
+      event.url.protocol === "https:" || (event.url.hostname !== "localhost" && isProd);
+
+    event.cookies.set("saml_state", state, {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax", // Must be lax to survive external IdP redirection back to ACS endpoint
+      secure: isSecure,
+      maxAge: 300, // 5 minutes
+    });
+
+    const url = await generateSAMLAuthUrl(tenant, product, state);
     return successResponse(event, { url });
   }
 

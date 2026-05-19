@@ -266,4 +266,88 @@ describe("SCIM API Unit Tests", () => {
       );
     });
   });
+
+  describe("SCIM Bulk Operations", () => {
+    it("POST /Bulk should run bulk operations and resolve bulkId references", async () => {
+      const { dbAdapter } = await import("@src/databases/db");
+      mockAuth.checkUser.mockResolvedValue(null);
+      mockAuth.createUser.mockResolvedValue({
+        _id: "new-user-123",
+        email: "bulkuser@t1.com",
+      });
+      mockAuth.authInterface.getRoleById.mockResolvedValue({
+        success: true,
+        data: { _id: "r1", name: "Role 1" },
+      });
+
+      const bulkPayload = {
+        schemas: ["urn:ietf:params:scim:api:messages:2.0:BulkRequest"],
+        Operations: [
+          {
+            method: "POST",
+            path: "/Users",
+            bulkId: "user_bulk_1",
+            data: {
+              userName: "bulkuser@t1.com",
+              displayName: "Bulk User",
+            },
+          },
+          {
+            method: "PATCH",
+            path: "/Groups/r1",
+            bulkId: "group_bulk_1",
+            data: {
+              schemas: ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+              Operations: [
+                {
+                  op: "add",
+                  path: "members",
+                  value: [{ value: "bulkId:user_bulk_1" }],
+                },
+              ],
+            },
+          },
+        ],
+      };
+
+      const event = {
+        params: { path: "scim/v2/Bulk" },
+        request: {
+          method: "POST",
+          headers: new Headers([["authorization", "Bearer token"]]),
+          json: vi.fn().mockResolvedValue(bulkPayload),
+        },
+        url: new URL("http://localhost/api/scim/v2/Bulk"),
+        locals: { user: { isAdmin: true }, __testBypass: true },
+        cookies: { get: vi.fn() },
+      } as unknown as RequestEvent;
+
+      const response = await dispatcherPOST(event);
+      expect(response.status).toBe(200);
+
+      const data = await response!.json();
+      expect(data.schemas).toContain("urn:ietf:params:scim:api:messages:2.0:BulkResponse");
+      expect(data.Operations).toHaveLength(2);
+
+      // Verify the POST user operation succeeded and got the bulkId
+      const op1 = data.Operations[0];
+      expect(op1.method).toBe("POST");
+      expect(op1.bulkId).toBe("user_bulk_1");
+      expect(op1.status.code).toBe("201");
+      expect(op1.response.id).toBe("new-user-123");
+
+      // Verify the PATCH group operation succeeded and resolved the bulkId to new-user-123
+      const op2 = data.Operations[1];
+      expect(op2.method).toBe("PATCH");
+      expect(op2.bulkId).toBe("group_bulk_1");
+      expect(op2.status.code).toBe("200");
+
+      expect(dbAdapter!.crud.updateMany).toHaveBeenCalledWith(
+        "users",
+        expect.objectContaining({ _id: { $in: ["new-user-123"] } }),
+        expect.objectContaining({ role: "Role 1" }),
+        { tenantId: "tenant-1" },
+      );
+    });
+  });
 });

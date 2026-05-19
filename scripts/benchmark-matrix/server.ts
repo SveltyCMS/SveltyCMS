@@ -268,7 +268,7 @@ export async function startServer(
   const start = performance.now();
 
   const isDev = serverPath.endsWith(".ts") || !fs.existsSync(serverPath);
-  
+
   // Use Node.js for production execution (Required for uWS native bindings)
   const cmd = isDev ? "bun" : "node";
   const args = isDev

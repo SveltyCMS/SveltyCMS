@@ -45,7 +45,7 @@ describe("SAML API Unit Tests", () => {
     const admin = createMockSuperAdmin({ _id: "admin1" });
     const event = createMockEvent("GET", "auth/saml/config", {}, admin, "t1");
     (event as any).request = { method: "GET", headers: new Headers() };
-    (event as any).cookies = { get: vi.fn() };
+    (event as any).cookies = { get: vi.fn(), set: vi.fn() };
 
     const response = await dispatcherGET(event as any);
     const result = await response!.json();
@@ -65,11 +65,73 @@ describe("SAML API Unit Tests", () => {
       headers: new Headers(),
       json: vi.fn().mockResolvedValue({ email: "test@example.com" }),
     };
-    (event as any).cookies = { get: vi.fn() };
+    (event as any).cookies = { get: vi.fn(), set: vi.fn() };
 
     const response = await dispatcherPOST(event as any);
     const result = await response!.json();
     expect(result.success).toBe(true);
     expect(result.data.url).toBeDefined();
+  });
+
+  it("should process SAML ACS callback successfully when state matches", async () => {
+    const event = createMockEvent("POST", "auth/saml/acs");
+    const formData = new Map<string, string>();
+    formData.set("SAMLResponse", "mock-saml-response-xml");
+    formData.set("RelayState", "valid-state-token");
+
+    (event as any).request = {
+      method: "POST",
+      headers: new Headers([["content-type", "application/x-www-form-urlencoded"]]),
+      formData: vi.fn().mockResolvedValue(formData),
+    };
+    (event as any).cookies = {
+      get: vi.fn((name) => (name === "saml_state" ? "valid-state-token" : null)),
+      delete: vi.fn(),
+    };
+
+    // Mock parseSAMLResponse behavior
+    const jacksonModule = await import("@src/databases/auth/saml-auth");
+    const jacksonApi = await jacksonModule.getJackson();
+    jacksonApi.saml = {
+      parseSAMLResponse: vi.fn().mockResolvedValue({
+        profile: { email: "user@test.com", firstName: "Test", lastName: "User" },
+      }),
+    };
+
+    // Mock DB operations using the global mock adapter
+    const db = (globalThis as any).mockDbAdapter;
+    db.auth.getUserByEmail.mockResolvedValue({
+      success: true,
+      data: { _id: "user123", email: "user@test.com" },
+    });
+    db.auth.createSession.mockResolvedValue({ success: true, data: { _id: "session123" } });
+
+    const response = await dispatcherPOST(event as any);
+    const result = await response!.json();
+    expect(result.success).toBe(true);
+    expect(event.cookies.delete).toHaveBeenCalledWith("saml_state", { path: "/" });
+  });
+
+  it("should block SAML ACS callback with 403 when state mismatched (CSRF Protection)", async () => {
+    const event = createMockEvent("POST", "auth/saml/acs");
+    const formData = new Map<string, string>();
+    formData.set("SAMLResponse", "mock-saml-response-xml");
+    formData.set("RelayState", "attacker-state");
+
+    (event as any).request = {
+      method: "POST",
+      headers: new Headers([["content-type", "application/x-www-form-urlencoded"]]),
+      formData: vi.fn().mockResolvedValue(formData),
+    };
+    (event as any).cookies = {
+      get: vi.fn((name) => (name === "saml_state" ? "victim-state" : null)),
+      delete: vi.fn(),
+    };
+
+    const response = await dispatcherPOST(event as any);
+    const result = await response!.json();
+    expect(response!.status).toBe(403);
+    expect(result.success).toBe(false);
+    expect(result.message).toContain("CSRF State mismatch");
   });
 });

@@ -40,6 +40,10 @@ jobs:
         with:
           fetch-depth: 1
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -92,6 +96,9 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
@@ -112,6 +119,9 @@ jobs:
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
@@ -132,6 +142,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
@@ -158,6 +171,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
@@ -187,6 +203,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
@@ -258,6 +277,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
@@ -358,6 +380,9 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
@@ -432,6 +457,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
@@ -556,6 +584,9 @@ jobs:
         project: [signup, content, system]
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
@@ -665,6 +696,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
       - uses: oven-sh/setup-bun@v2
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }

@@ -27,8 +27,8 @@ Real-time GraphQL subscriptions allow clients to receive instant updates when da
 
 | Feature                     | Details                                                                |
 | :-------------------------- | :--------------------------------------------------------------------- |
-| **Endpoint**                | `ws://[domain]/live` (Managed by svelte-realtime)                       |
-| **Protocol**                | `svelte-realtime` RPC                                                   |
+| **Endpoint**                | `ws://[domain]/live` (Managed by svelte-realtime)                      |
+| **Protocol**                | `svelte-realtime` RPC                                                  |
 | **Auth Methods**            | Session ID, Cookie, or secure query parameter                          |
 | **Server-Side Alternative** | [**Real-Time Events API (SSE)**](./content.mdx#3-real-time-events-sse) |
 
@@ -58,24 +58,24 @@ const eventStream = realtime(events);
 const latestEvent = $derived(eventStream.value?.at(-1));
 ```
 
-
 onMount(() => {
-  const client = createClient({
-    url: "ws://localhost:3001/api/graphql",
-    connectionParams: { cookie: document.cookie }, // Use cookies for auth
-  });
-
-  const unsubscribe = client.subscribe(
-    { query: "subscription { postAdded { title } }" },
-    { next: (res) => (latestPost = res.data.postAdded) },
-  );
-
-  return () => {
-    unsubscribe();
-    client.dispose();
-  };
+const client = createClient({
+url: "ws://localhost:3001/api/graphql",
+connectionParams: { cookie: document.cookie }, // Use cookies for auth
 });
-```
+
+const unsubscribe = client.subscribe(
+{ query: "subscription { postAdded { title } }" },
+{ next: (res) => (latestPost = res.data.postAdded) },
+);
+
+return () => {
+unsubscribe();
+client.dispose();
+};
+});
+
+````
 
 ### Authentication and Connection
 
@@ -89,7 +89,7 @@ const client = createClient({
     authorization: "Bearer your-api-token-here",
   },
 });
-```
+````
 
 ---
 
@@ -109,7 +109,7 @@ sequenceDiagram
     Auth-->>UWS: Accept & Inject Context
 
     Client->>Live: Subscribe (Topic)
-    
+
     Note over Live: Data Mutation in CMS
     Live->>Live: live.publish(topic, payload)
     Live-->>Client: Real-time Update
@@ -128,4 +128,3 @@ sequenceDiagram
 - [GraphQL API Reference](./graphql.mdx)
 - [Content, Search & Events Reference](./content.mdx)
 - [Security Architecture](../architecture/security/index.mdx)
-

@@ -35,7 +35,7 @@ eventBus.on("*", (payload: any) => {
   const topic = `system_events:${tenantId}`;
 
   if (globalPlatform) {
-    globalPlatform.publish(topic, "create", {
+    (globalPlatform as any).publish(topic, "create", {
       id: crypto.randomUUID(),
       event,
       data,

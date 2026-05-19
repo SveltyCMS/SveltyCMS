@@ -299,7 +299,7 @@ export class CacheService {
 
     this.stats.misses++;
     this.recordMetricSync("cache:miss", 1);
-    return null;
+    return undefined;
   }
 
   /**

@@ -120,6 +120,10 @@ export const privateConfigSchema = object({
   TWITCH_TOKEN: optional(string()),
   TIKTOK_TOKEN: optional(string()),
   SAML_JIT_PROVISIONING: optional(coercedBoolean),
+  SAML_CLIENT_SECRET_VERIFIER: optional(string()),
+  SAML_ENCRYPTION_KEY: optional(string()),
+  SAML_JWT_SIGNING_PRIVATE_KEY: optional(string()),
+  SAML_JWT_SIGNING_PUBLIC_KEY: optional(string()),
 
   // --- Common Public/Private Overlaps (Required for some services) ---
   HOST_PROD: optional(string()),

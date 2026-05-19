@@ -1,0 +1,242 @@
+---
+path: "docs/tests/accessibility-audit.mdx"
+title: "Accessibility Audit Guide"
+description: "Detailed instructions, methodologies, and automated scripts for verifying WCAG 3.0 and ATAG 2.0 compliance in SveltyCMS."
+order: 3
+icon: "mdi:accessibility"
+author: "SveltyCMS Team"
+created: "2026-05-19"
+updated: "2026-05-19"
+tags:
+  - "testing"
+  - "accessibility"
+  - "wcag"
+  - "axe"
+---
+
+# Accessibility Audit Guide (WCAG 3.0 & ATAG 2.0)
+
+SveltyCMS is committed to universal accessibility, targeting **WCAG 2.2 AA** strict compliance while proactively adopting the functional performance principles of **WCAG 3.0 (Draft)** and **ATAG 2.0 (Authoring Tool Accessibility Guidelines)**.
+
+To ensure our application meets these standards, this guide details how accessibility is checked, audited, and tested within the SveltyCMS quality assurance pipeline.
+
+---
+
+## 1. The WCAG 3.0 Paradigm Shift: Functional Outcomes
+
+Unlike WCAG 2.x, which follows a rigid success-criteria checkbox approach, WCAG 3.0 focuses on **Functional Outcomes** and uses a points-based system. We evaluate accessibility against the following core human capabilities:
+
+| Functional Category | Focus Area in SveltyCMS                                  | Validation Method                                               |
+| :------------------ | :------------------------------------------------------- | :-------------------------------------------------------------- |
+| **Vision**          | Text contrast, zoom reflow, non-color status signals     | Axe-core automated contrast + Manual zoom (200%) checks         |
+| **Cognitive**       | Error prevention, Setup Wizard instructions, clear forms | Validation helper text, form builders, hotkey cheatsheets       |
+| **Motor/Physical**  | Focus targets, zero keyboard-traps, hotkey triggers      | Playwright tab-sequence validation + manual keyboard traversal  |
+| **Speech**          | No mandatory voice-only controls                         | UI design review (all voice/audio features have text fallbacks) |
+
+---
+
+## 2. Automated E2E Auditing with Axe-Core
+
+We integrate automated accessibility audits into our Playwright E2E test suites via `@axe-core/playwright`.
+
+### Playwright Integration Example
+
+We write dedicated accessibility specs (e.g., `tests/e2e/accessibility.spec.ts`) to audit critical user flows:
+
+```typescript
+import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+
+test.describe("Accessibility Audits", () => {
+  test("Setup Wizard should have no detectable violations", async ({ page }) => {
+    // Navigate to the Setup Wizard
+    await page.goto("/setup");
+    await page.waitForSelector("#step-content");
+
+    // Initialize AxeBuilder and configure it
+    const accessibilityScanResults = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"])
+      .analyze();
+
+    // Assert that there are zero violations
+    expect(accessibilityScanResults.violations).toEqual([]);
+  });
+
+  test("Content Builder should contain no critical accessibility errors", async ({ page }) => {
+    await page.goto("/admin/collections/new");
+    await page.waitForLoadState("networkidle");
+
+    const accessibilityScanResults = await new AxeBuilder({ page })
+      .exclude(".visual-preview-canvas") // Exclude dynamic user-rendered previews if needed
+      .analyze();
+
+    expect(accessibilityScanResults.violations).toEqual([]);
+  });
+});
+```
+
+### CI Failure Criteria
+
+- **P1 Severity:** Any violation tagged `critical` or `serious` automatically fails the CI build.
+- **P2 Severity:** Violations tagged `moderate` or `minor` are logged as warnings but must be resolved before releasing to production.
+
+---
+
+## 3. Right-to-Left (RTL) & Internationalization (i18n) Audits
+
+Accessibility requires not only textual translation, but directionality adaptation. When the locale or layout flows RTL (e.g., for Arabic, Hebrew, or Persian scripts), visual layout grids, icons, and keyboard tab orders must mirror accordingly.
+
+### RTL Test Audit Pattern
+
+Our Playwright accessibility suite includes a dedicated `rtl-audit` that dynamically sets the layout direction on the page and verifies compatibility:
+
+```typescript
+test("RTL Audit - Verify LTR to RTL Mirroring Stability", async ({ page }) => {
+  await loginAsAdmin(page);
+  await page.waitForURL(/\/(Collections|admin|dashboard|collectionbuilder)/);
+
+  // Set HTML dir="rtl" to simulate RTL layout (Arabic/Hebrew locale flow)
+  await page.evaluate(() => {
+    document.documentElement.setAttribute("dir", "rtl");
+    document.documentElement.lang = "ar";
+  });
+
+  // Let Svelte 5 process the DOM updates and mirror the components
+  await page.waitForTimeout(500);
+
+  // Run accessibility audit against the RTL layout
+  const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
+
+  const criticalViolations = results.violations.filter(
+    (v) => v.impact === "critical" || v.impact === "serious",
+  );
+  expect(criticalViolations.length).toBe(0);
+});
+```
+
+### Key RTL Guidelines for Component Developers
+
+1. **Never Hardcode Directional Styles:** Avoid `pl-4` or `pr-2`. Instead, leverage Tailwind v4's logical utility properties (e.g., `ps-4` and `pe-2` for padding-start and padding-end).
+2. **Reverse Flex Direction:** Ensure layout grids use CSS flex/grid rules that adapt dynamically to `dir="rtl"` (e.g., utilizing `flex-row-reverse` or standard flex behaviors that respect CSS writing modes).
+3. **Mirror Visual Cues:** Navigation arrows (e.g., `next` / `previous` buttons) must point to the left in RTL layouts.
+
+---
+
+## 4. Programmatic Keyboard Traversal Verification
+
+Automated scans cannot easily verify the logic of focus order. We write Playwright tests to ensure interactive elements are traversed in a logical order, focus rings are visible, and no focus traps exist.
+
+### Focus Order Test Snippet
+
+```typescript
+test("Keyboard Navigation - Dialog Focus Trap", async ({ page }) => {
+  await page.goto("/admin/media");
+
+  // Open the upload modal
+  await page.click("button[aria-label='Upload media']");
+  const modal = page.locator("[role='dialog']");
+  await expect(modal).toBeVisible();
+
+  // Verify focus is trapped in modal:
+  // Tab through all inputs and ensure it wraps back to the first interactive element
+  const firstInput = modal.locator("input").first();
+  await expect(firstInput).toBeFocused();
+
+  // Keep tabbing
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+
+  // Verify focus is still inside the modal
+  const activeElementId = await page.evaluate(() => document.activeElement?.id);
+  expect(activeElementId).not.toBeNull();
+});
+```
+
+---
+
+## 5. Widget Accessibility Validator (Build-time Static Analysis)
+
+To prevent developers from accidentally introducing accessibility regressions when writing custom widgets, the SveltyCMS Widget Factory (`widget-factory.ts`) features an integrated **Widget Accessibility Validator** that scans widget source templates at boot/build time.
+
+### How it Works
+
+When a widget registers using `createWidget()`, the factory statically inspects the `.svelte` template defined by `inputComponentPath`. It runs checks to ensure:
+
+- **Interactive elements** (`<input>`, `<select>`, `<textarea>`) have explicit accessible names (`aria-label`, `aria-labelledby`, or an `id` that matches a label).
+- **Icon buttons** (or buttons with SVG icons inside) have descriptive labels or aria attributes to provide screen reader feedback.
+
+If any issues are found, the factory prints compile-time accessibility warnings to help developers fix them immediately:
+
+```bash
+[Accessibility Warning] Widget 'ColorPicker' has potential WCAG compliance issues:
+  - Interactive element '<input type="text" ...>' lacks 'aria-label', 'aria-labelledby', or 'id'.
+```
+
+---
+
+## 6. State-Bound Focus Restoration
+
+In SveltyCMS, users frequently edit deeply nested models, open relations dropdowns, or navigate between collections. Accessibility demands that when a user completes a modal workflow or returns to a previous view, their **focus must be programmatically restored** to the initiating element to prevent the screen reader context from dropping to the top of the body.
+
+### Writing Focus Restoration E2E Tests
+
+We write spec files that trace focus boundaries:
+
+```typescript
+test("Focus Restoration - Relations Widget modal close", async ({ page }) => {
+  await page.goto("/admin/collections/posts/new");
+
+  // Focus relation field picker trigger
+  const relationTrigger = page.locator("button[data-testid='relation-picker-trigger']");
+  await relationTrigger.focus();
+  await expect(relationTrigger).toBeFocused();
+
+  // Open the relations selection modal via keyboard
+  await page.keyboard.press("Enter");
+  const modal = page.locator("[role='dialog']");
+  await expect(modal).toBeVisible();
+
+  // Close the modal
+  await page.keyboard.press("Escape");
+  await expect(modal).not.toBeVisible();
+
+  // Focus must return to the trigger element
+  await expect(relationTrigger).toBeFocused();
+});
+```
+
+---
+
+## 7. Cognitive Load & Error Recovery Audits
+
+To satisfy WCAG 3.0's emphasis on cognitive accessibility, our design checks must verify:
+
+1. **Explicit Error Explanations:**
+   - Instead of generic errors like `"Validation failed"`, forms must output `"The Title field must be between 3 and 100 characters."`.
+   - Error logs must be visually and programmatically linked using `aria-describedby`.
+2. **Context Persistence:**
+   - Multi-step operations (like the Setup Wizard or schema modifications) must allow authors to save drafts or go back to previous steps without losing input data.
+3. **No Timing Pressures:**
+   - Sessions or wizard steps must not contain arbitrary timeouts. If timeouts exist (e.g. for security tokens), a warning must appear allowing users to extend their session.
+
+---
+
+## 8. ATAG 2.0 (Authoring Tool Accessibility) Checks
+
+As a CMS, SveltyCMS is also an authoring tool. This means we must check:
+
+- **Accessible Output Generation:** SveltyCMS widgets must output semantic markup by default. For example, the **RichText widget** must output proper headers (`<h1>`–`<h6>`), lists, and tables.
+- **Author Guidance:** When uploading an image via the **Media Widget**, SveltyCMS must prompt the author for an alternative text description (`alt` text) and explain its importance.
+- **Interface Flexibility:** Admin users must be able to resize text up to 200% without vertical scrolling breaking the utility of sidebar configurations.
+
+---
+
+## 9. How to Run Accessibility Tests Locally
+
+You can execute accessibility checks locally using the following workflows:
+
+```bash
+# Run the E2E accessibility suite (automated axe, keyboard, and RTL checks)
+npx playwright test tests/e2e/accessibility.spec.ts
+```
