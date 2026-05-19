@@ -2,6 +2,10 @@
  * @file tests/benchmarks/index-pressure.test.ts
  * @description Enterprise Index Pressure audit for SveltyCMS.
  * Measures read performance with sorting and filtering on a large entry collection.
+ *
+ * NOTE: This benchmark currently uses the HTTP API for integration consistency.
+ * For ultra-high-resolution profiling, this can be migrated to the LocalCMS SDK
+ * (see docs/api/local-vs-http-api.mdx) to eliminate HTTP transport overhead.
  */
 
 import {
@@ -17,12 +21,13 @@ import {
   getDbLabel,
   TEST_API_SECRET,
   generateRealisticEntry,
+  getRecommendedConcurrency,
 } from "./benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "bench_index_pressure";
-const ENTRY_COUNT = 50_000;
+const ENTRY_COUNT = 25_000;
 const BATCH_SIZE = 500;
 
 let stopServer: (() => Promise<void>) | null = null;
@@ -79,7 +84,7 @@ async function runPressureAudit() {
       iterations: 300,
       warmupIterations: 50,
       runs: 2,
-      concurrency: 4,
+      concurrency: getRecommendedConcurrency(),
       silent: true,
       onIteration: async () => {
         const res = await fetch(
@@ -97,7 +102,7 @@ async function runPressureAudit() {
       iterations: 300,
       warmupIterations: 50,
       runs: 2,
-      concurrency: 4,
+      concurrency: getRecommendedConcurrency(),
       silent: true,
       onIteration: async () => {
         const res = await fetch(

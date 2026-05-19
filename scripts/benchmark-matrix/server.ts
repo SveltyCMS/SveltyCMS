@@ -4,7 +4,7 @@
  */
 
 import { spawn, execSync, type ChildProcess } from "node:child_process";
-import fs, { existsSync } from "node:fs";
+import fs from "node:fs";
 import path, { join, relative } from "node:path";
 import type { DatabaseConfig, RunConfig } from "./types";
 import { log } from "./logger";
@@ -101,7 +101,7 @@ export function buildServerEnv(
     HOST: "127.0.0.1",
     ORIGIN: `http://127.0.0.1:${port}`,
     NODE_ENV: "production",
-    SKIP_GRAPHQL_WS: "true",
+    SKIP_GRAPHQL_WS: process.env.SKIP_GRAPHQL_WS || "true",
     BENCHMARK: "true",
     LOG_LEVEL: process.env.LOG_LEVEL || "info",
     VERBOSE_STDOUT: process.env.VERBOSE_STDOUT || "false",
@@ -112,9 +112,9 @@ export function buildServerEnv(
     BENCHMARK_STABLE: "true",
     SVELTY_BENCHMARK_SUITE: "true",
     SVELTY_AUDIT_ACTIVE: process.env.SVELTY_AUDIT_ACTIVE || "false",
-    DISABLE_AUDIT_LOGS:
-      process.env.SVELTY_AUDIT_ACTIVE === "true" ? "false" : "true",
+    DISABLE_AUDIT_LOGS: process.env.SVELTY_AUDIT_ACTIVE === "true" ? "false" : "true",
     QUIET: process.env.QUIET || "true",
+    BODY_SIZE_LIMIT: "104857600", // 100MB (Infinity causes error)
   };
 
   // 🚀 HARDENING: Prevent :memory: fallback in SveltyCMS configuration loading
@@ -129,9 +129,7 @@ export function buildServerEnv(
     console.log(
       `[server.ts] buildServerEnv: TEST_API_SECRET resolved to ${env.TEST_API_SECRET?.substring(0, 4)}...`,
     );
-    console.log(
-      `[server.ts] buildServerEnv: BENCHMARK_DEBUG is ${env.BENCHMARK_DEBUG}`,
-    );
+    console.log(`[server.ts] buildServerEnv: BENCHMARK_DEBUG is ${env.BENCHMARK_DEBUG}`);
   }
   return env;
 }
@@ -146,12 +144,25 @@ export async function getServerEntryPoint(): Promise<string> {
     return join(ROOT, "src", "hooks.server.ts"); // Dummy path that exists and ends in .ts
   }
 
-  const entryPoint = [
+  function safeExistsSync(p: string): boolean {
+    try {
+      return fs.statSync(p).isFile();
+    } catch {
+      return false;
+    }
+  }
+
+  console.log(`[getServerEntryPoint] ROOT is: "${ROOT}"`);
+  const paths = [
     join(ROOT, "build", "index.js"),
     join(ROOT, "build", "server", "index.js"),
     join(ROOT, ".svelte-kit", "adapter-node", "index.js"),
     join(ROOT, ".svelte-kit", "output", "server", "index.js"),
-  ].find((p) => existsSync(p));
+  ];
+  for (const p of paths) {
+    console.log(`[getServerEntryPoint] Check path: "${p}" -> exists: ${safeExistsSync(p)}`);
+  }
+  const entryPoint = paths.find((p) => safeExistsSync(p));
 
   if (!entryPoint) {
     throw new Error(
@@ -159,16 +170,12 @@ export async function getServerEntryPoint(): Promise<string> {
     );
   }
 
+  console.log(`[getServerEntryPoint] Selected entry point: "${entryPoint}"`);
   log.info(`🚀 Entry Point: Found at ${relative(ROOT, entryPoint)}`);
 
   // 🚀 DEBUG: Ensure we are NOT picking the module export by mistake
-  if (
-    entryPoint.includes(".svelte-kit") &&
-    !entryPoint.includes("adapter-node")
-  ) {
-    log.warn(
-      "⚠️ Warning: Entry point looks like a module export, not a standalone server.",
-    );
+  if (entryPoint.includes(".svelte-kit") && !entryPoint.includes("adapter-node")) {
+    log.warn("⚠️ Warning: Entry point looks like a module export, not a standalone server.");
   }
 
   return entryPoint;
@@ -192,9 +199,7 @@ export async function waitForHealthCheck(
   let healthy = false;
   let version = "unknown";
 
-  log.info(
-    `Waiting for health check via Unified Dispatcher on port ${port}...`,
-  );
+  log.info(`Waiting for health check via Unified Dispatcher on port ${port}...`);
 
   for (let i = 0; i < 60; i++) {
     if (isShuttingDown()) break;
@@ -212,15 +217,12 @@ export async function waitForHealthCheck(
       if (r.ok) {
         const body = await r.json();
         const data = body?.data ?? body ?? {};
-        const status =
-          data?.status ?? data?.overallStatus ?? data?.health ?? "";
+        const status = data?.status ?? data?.overallStatus ?? data?.health ?? "";
         version = data.dbVersion ?? data.version ?? "unknown";
 
         if (ACCEPTABLE.has(status) || ACCEPTABLE.has(status.toUpperCase())) {
           healthy = true;
-          log.success(
-            `[HealthCheck] Server is ${status.toUpperCase()} at ${url}`,
-          );
+          log.success(`[HealthCheck] Server is ${status.toUpperCase()} at ${url}`);
           break;
         } else {
           log.warn(
@@ -266,24 +268,14 @@ export async function startServer(
   const start = performance.now();
 
   const isDev = serverPath.endsWith(".ts") || !fs.existsSync(serverPath);
-  const cmd = "bun";
+  
+  // Use Node.js for production execution (Required for uWS native bindings)
+  const cmd = isDev ? "bun" : "node";
   const args = isDev
-    ? [
-        "--bun",
-        "x",
-        "vite",
-        "dev",
-        "--port",
-        port.toString(),
-        "--host",
-        "127.0.0.1",
-      ]
-    : ["x", "vp", "preview", "--port", port.toString(), "--host", "127.0.0.1"];
+    ? ["--bun", "x", "vite", "dev", "--port", port.toString(), "--host", "127.0.0.1"]
+    : [serverPath];
 
-  log.db(
-    db.type,
-    `Launching SveltyCMS instance (${isDev ? "DEV" : "PROD"}) on port ${port}...`,
-  );
+  log.db(db.type, `Launching SveltyCMS instance (${isDev ? "DEV" : "PROD"}) on port ${port}...`);
 
   const workerProcess = spawn(cmd, args, {
     cwd: process.cwd(),
@@ -350,10 +342,7 @@ export async function startServer(
           resolved = true;
           clearTimeout(timeout);
           const coldStartMs = Math.round(performance.now() - start);
-          log.db(
-            db.type,
-            `Cold Start: ${coldStartMs}ms (PID: ${workerProcess.pid})`,
-          );
+          log.db(db.type, `Cold Start: ${coldStartMs}ms (PID: ${workerProcess.pid})`);
 
           const { healthy, version } = await waitForHealthCheck(port);
 
@@ -380,18 +369,10 @@ export async function startServer(
         resolved = true;
         clearTimeout(timeout);
         cleanupListeners();
-        // Only reject if the exit code is non-zero AND it's not a known expected exit (like the Windows case).
-        if (code !== 0 && !(process.platform === "win32" && code === 1)) {
-          reject(new Error(`Server process exited early with code ${code}`));
-        }
-      } else if (
-        !isNoisyLine("") &&
-        !isShuttingDown() &&
-        code !== 0 &&
-        !(process.platform === "win32" && code === 1)
-      ) {
-        // This block likely handles reporting/logging, but the core logic needs adjustment here
-        // since the rejection logic above handles the primary failure path.
+        reject(new Error(`Server process exited early with code ${code}`));
+      } else if (!isNoisyLine("") && !isShuttingDown() && code !== 0) {
+        // Log post-resolved crash
+        log.db(db.type, `\x1b[91mServer process crashed with code ${code}\x1b[0m`);
       }
     });
 
@@ -436,13 +417,10 @@ export async function warmupServer(cfg: RunConfig, port: number) {
       }),
       signal: AbortSignal.timeout(5000),
     });
-    if (loginRes.ok)
-      log.success("Auth pipeline warmed up (Admin login successful)");
+    if (loginRes.ok) log.success("Auth pipeline warmed up (Admin login successful)");
     else {
       const body = await loginRes.text();
-      log.warn(
-        `Auth warmup failed (Status ${loginRes.status}): ${body.substring(0, 100)}`,
-      );
+      log.warn(`Auth warmup failed (Status ${loginRes.status}): ${body.substring(0, 100)}`);
     }
   } catch (err: any) {
     log.warn(`Auth warmup skipped: ${err.message}`);
@@ -475,10 +453,7 @@ export async function verifyOpenAPI(port: number): Promise<void> {
 /**
  * Writes a temporary private.test.ts config for the server.
  */
-export async function writeTestConfig(
-  db: DatabaseConfig,
-  dbName: string,
-): Promise<void> {
+export async function writeTestConfig(db: DatabaseConfig, dbName: string): Promise<void> {
   const configDir = path.join(process.cwd(), "config");
   await fs.promises.mkdir(configDir, { recursive: true });
   const dbHost = db.type === "sqlite" ? "config/database" : db.host;
@@ -504,10 +479,7 @@ export async function writeTestConfig(
     `  MULTI_TENANT: false,`,
     `};`,
   ];
-  await fs.promises.writeFile(
-    path.join(configDir, "private.test.ts"),
-    lines.join("\n") + "\n",
-  );
+  await fs.promises.writeFile(path.join(configDir, "private.test.ts"), lines.join("\n") + "\n");
 }
 
 /**
@@ -541,19 +513,14 @@ export async function ensureDatabaseExists(db: DatabaseConfig) {
       let conn: any;
       try {
         conn = await (mysql as any).createConnection({
-          host:
-            db.host === "localhost" || db.host === "127.0.0.1"
-              ? "127.0.0.1"
-              : db.host,
+          host: db.host === "localhost" || db.host === "127.0.0.1" ? "127.0.0.1" : db.host,
           port: db.port,
           user: db.user || "root",
           password: db.password || "mariadb",
         });
       } catch (e: any) {
         if (e.code === "ER_ACCESS_DENIED_ERROR") {
-          log.warn(
-            `MariaDB access denied for ${db.user}. Trying no-password fallback...`,
-          );
+          log.warn(`MariaDB access denied for ${db.user}. Trying no-password fallback...`);
           conn = await (mysql as any).createConnection({
             host: db.host === "localhost" ? "127.0.0.1" : db.host,
             port: db.port,

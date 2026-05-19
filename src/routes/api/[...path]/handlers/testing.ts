@@ -33,11 +33,8 @@ export async function handleTestingRoutes(
   tenantId: DatabaseId,
   _segments: string[],
 ) {
-  process.stderr.write(
-    `🚀🚀🚀 handleTestingRoutes ENTERED: ${event.url.searchParams.get("action")}\n`,
-  );
+  process.stderr.write(`🚀 handleTestingRoutes ENTERED: ${event.url.searchParams.get("action")}\n`);
   const { request } = event;
-
   try {
     const params = await request.json().catch(() => ({}));
     const action = params.action || event.url.searchParams.get("action");
@@ -362,6 +359,25 @@ export async function handleTestingRoutes(
         message: result.success ? "User created" : (result as any).message,
         data: result.success ? result.data : undefined,
       });
+    }
+
+    if (action === "emit-event") {
+      const { event: eventName, data } = params;
+      if (!eventName) throw new AppError("Event name required", 400);
+
+      const { eventBus } = await import("@utils/event-bus");
+      eventBus.emit(eventName, { ...data, tenantId });
+      return rawResponse({ success: true });
+    }
+
+    if (action === "emit-ping") {
+      const { pubSub } = await import("@src/services/background/pub-sub");
+      pubSub.publish("entryUpdated", {
+        type: "ping",
+        timestamp: new Date().toISOString(),
+        tenantId,
+      } as any);
+      return rawResponse({ success: true });
     }
 
     if (action === "wipe-user" || action === "gdpr-wipe") {

@@ -1,4 +1,4 @@
-import adapter from "@sveltejs/adapter-node"; // To generate a standalone Node server
+import adapter from "svelte-adapter-uws"; // To generate a high-performance uWebSockets.js server
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -16,8 +16,7 @@ const config = {
       out: "build", // default: true | The directory to build the server to
       precompress: true, // ✅ Enables precompressing using gzip & brotli
       envPrefix: "", // default: ''
-      // ❌ REMOVED: external (handled in vite.config.ts)
-      // ❌ REMOVED: polyfill (no longer supported/needed)
+      websocket: true, // ✅ Enable uWebSockets.js support for svelte-realtime
     }),
 
     alias: {

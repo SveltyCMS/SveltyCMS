@@ -50,8 +50,22 @@ async function runCacheAudit() {
     const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
     const results = [];
 
+    // Check if L2 is actually active via health check
+    const healthRes = await fetch(`${baseUrl}/api/system/health`, {
+      headers: { "x-test-secret": secret },
+    });
+    const healthData = await healthRes.json();
+    const isRedisActive =
+      healthData.redis === true ||
+      (healthData.services && healthData.services.redis === "connected");
+
     for (const scenario of CACHE_SCENARIOS) {
-      console.log(`   → Measuring ${scenario.name}...`);
+      if (scenario.shortLabel === "Hit" && !isRedisActive) {
+        console.log(`   → Skipping ${scenario.name} (L2/Redis inactive)...`);
+        continue;
+      }
+
+      console.log(`   → Measuring ${scenario.name}${!isRedisActive ? " (L1 Only)" : ""}...`);
 
       const result = await runBenchmark({
         name: scenario.name,
@@ -89,9 +103,13 @@ async function runCacheAudit() {
       exportResult(enriched);
     }
 
-    const miss = results[0];
-    const hit = results[1];
-    const efficiency = miss.avgMs > 0 ? ((miss.avgMs - hit.avgMs) / miss.avgMs) * 100 : 0;
+    const miss = results.find((r) => r.shortLabel === "Miss");
+    const hit = results.find((r) => r.shortLabel === "Hit");
+
+    let efficiency = 0;
+    if (miss && hit) {
+      efficiency = ((miss.avgMs - hit.avgMs) / miss.avgMs) * 100;
+    }
 
     printTruthTable({
       title: "SVELTYCMS — CACHE EFFICIENCY AUDIT",
@@ -100,12 +118,14 @@ async function runCacheAudit() {
       results,
     });
 
-    printSummaryTable([
-      { key: "Cache Miss", val: miss.avgMs, unit: "ms" },
-      { key: "Cache Hit", val: hit.avgMs, unit: "ms" },
-      { key: "Cache Efficiency", val: efficiency.toFixed(1), unit: "%" },
-      { key: "Peak Hit RPS", val: Math.round(hit.rps || 0), unit: "req/s" },
-    ]);
+    const summary = [{ key: "Cache Miss", val: miss?.avgMs || 0, unit: "ms" }];
+    if (hit) {
+      summary.push({ key: "Cache Hit", val: hit.avgMs, unit: "ms" });
+      summary.push({ key: "Cache Efficiency", val: parseFloat(efficiency.toFixed(1)), unit: "%" });
+      summary.push({ key: "Peak Hit RPS", val: Math.round(hit.rps || 0), unit: "req/s" });
+    }
+
+    printSummaryTable(summary);
   } catch (err: any) {
     logger.error(`Cache benchmark failed: ${err.message}`);
     console.error(err);

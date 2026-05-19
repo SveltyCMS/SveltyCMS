@@ -23,6 +23,8 @@ import {
   getTableColumns,
   getTableName,
   sql,
+  asc,
+  desc,
 } from "drizzle-orm";
 import { BaseAdapter } from "../core/base-adapter";
 import type {
@@ -748,7 +750,18 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
         if (isPhysical) {
           // 🚀 HARDENING: Never overwrite explicit ID with payload ID during updates/inserts
           if ((k === "_id" || k === "id") && id) continue;
-          if (data[k] !== undefined) values[k] = data[k];
+          if (data[k] !== undefined) {
+            let val = data[k];
+            if (
+              this.type === "sqlite" &&
+              typeof val === "object" &&
+              val !== null &&
+              !(val instanceof Date)
+            ) {
+              val = JSON.stringify(val);
+            }
+            values[k] = val;
+          }
         } else {
           dynamicData[k] = data[k];
         }
@@ -757,7 +770,18 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     } else {
       for (const k in data) {
         if (Object.hasOwn(data, k) && (schemaCols?.[k] || this.getColumn(table, k))) {
-          if (data[k] !== undefined) values[k] = data[k];
+          if (data[k] !== undefined) {
+            let val = data[k];
+            if (
+              this.type === "sqlite" &&
+              typeof val === "object" &&
+              val !== null &&
+              !(val instanceof Date)
+            ) {
+              val = JSON.stringify(val);
+            }
+            values[k] = val;
+          }
         }
       }
     }
@@ -801,7 +825,7 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     const systemName = this.resolveSystemTableName(tableName);
     const isSystem = this.isSystemTable(tableName);
 
-    if (process.env.BENCHMARK === "true") {
+    if (process.env.BENCHMARK_DEBUG === "true") {
       console.log(
         `[getPhysicalSelection] tableName: ${tableName}, systemName: ${systemName}, isSystem: ${isSystem}, isDynamic: ${isDynamic}`,
       );
@@ -898,7 +922,7 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     query: QueryFilter<T>,
     options: FindOptions<T> = {},
   ): Promise<DatabaseResult<T[]>> {
-    if (process.env.BENCHMARK === "true") {
+    if (process.env.BENCHMARK_DEBUG === "true") {
       console.log(`[findMany] collection: ${collection}`);
     }
     if (typeof collection !== "string") {
@@ -967,11 +991,12 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
           .select(this.getPhysicalSelection(table))
           .from(table)
           .where(where);
+        builder = this.applyOrderBy(builder, table, options);
         if (options.limit) builder = builder.limit(options.limit);
         if (options.offset) builder = builder.offset(options.offset);
         results = await builder;
 
-        if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+        if (process.env.BENCHMARK_DEBUG === "true") {
           if (collection === "content_nodes" && results.length > 0) {
             logger.info(
               `[findMany] TRACE: Found ${results.length} nodes. Keys of first: ${Object.keys(results[0]).join(", ")}. Raw: ${JSON.stringify(results[0]).substring(0, 200)}`,
@@ -1006,6 +1031,7 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
         .select(this.getPhysicalSelection(table))
         .from(table)
         .where(where);
+      builder = this.applyOrderBy(builder, table, options);
       if (options.limit) builder = builder.limit(options.limit);
       if (options.offset) builder = builder.offset(options.offset);
 
@@ -1583,26 +1609,29 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
 
         for (const col of columns) {
           try {
-            const alterSql =
-              this.type === "mariadb"
-                ? `ALTER TABLE \`${physicalName}\` ADD COLUMN \`${col.name}\` ${col.type}`
-                : `ALTER TABLE "${physicalName}" ADD COLUMN "${col.name}" ${col.type}`;
-            await this.raw.execute(alterSql);
-            // Optionally log on success, but keep console clean for benchmarks
-            if (process.env.BENCHMARK_DEBUG === "true" && !process.env.SVELTY_BENCHMARK_SUITE) {
-              logger.debug(`[DB Provision] Added column: ${col.name} in ${physicalName}`);
+            // 🚀 AGNOSTIC SCHEMAS: Use dialect-specific metadata lookups
+            let exists = false;
+            if (this.type === "sqlite") {
+              const tableInfo = await this.raw.execute(`PRAGMA table_info("${physicalName}")`);
+              exists = tableInfo.some((c: any) => c.name === col.name);
+            } else {
+              // Postgres / MariaDB
+              const query =
+                this.type === "postgresql"
+                  ? `SELECT 1 FROM information_schema.columns WHERE table_name='${physicalName}' AND column_name='${col.name}'`
+                  : `SHOW COLUMNS FROM \`${physicalName}\` LIKE '${col.name}'`;
+              const res = await this.raw.execute(query);
+              exists = res.length > 0;
             }
-          } catch (e: any) {
-            // Log only if it's NOT a "duplicate column" error
-            if (
-              !e.message.toLowerCase().includes("duplicate") &&
-              !e.message.toLowerCase().includes("already exists")
-            ) {
-              logger.warn(
-                `[DB Provision] Failed to add column ${col.name} to ${physicalName}: ${e.message}`,
-              );
+
+            if (!exists) {
+              const alterSql =
+                this.type === "mariadb"
+                  ? `ALTER TABLE \`${physicalName}\` ADD COLUMN \`${col.name}\` ${col.type}`
+                  : `ALTER TABLE "${physicalName}" ADD COLUMN "${col.name}" ${col.type}`;
+              await this.raw.execute(alterSql);
             }
-          }
+          } catch {}
         }
 
         logger.info(`[${this.type.toUpperCase()} Adapter] Provisioned table: ${physicalName}`);
@@ -1682,12 +1711,21 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   protected translateCondition(col: Column, cond: QueryCondition): SQL {
     let val = cond.value;
 
-    // 🚀 CROSS-CONTEXT DATE FIX: Ensure Date objects are real instances
-    // so Drizzle's 'instanceof Date' checks pass in mapToDriverValue.
-    if (val && typeof val === "object" && typeof (val as any).getTime === "function") {
+    // 🚀 ROBUST DATE HYDRATION: Ensure any object with a getTime method is a proper Date instance.
+    // This prevents 'TypeError: value.getTime is not a function' in Drizzle's integer-core.js
+    if (val !== null && typeof val === "object" && typeof (val as any).getTime === "function") {
       if (!(val instanceof Date)) {
         val = new Date((val as any).getTime());
       }
+    } else if (Array.isArray(val)) {
+      val = val.map((v) =>
+        v !== null &&
+        typeof v === "object" &&
+        typeof (v as any).getTime === "function" &&
+        !(v instanceof Date)
+          ? new Date((v as any).getTime())
+          : v,
+      );
     }
 
     switch (cond.operator) {
@@ -1708,5 +1746,57 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       default:
         return eq(col, val);
     }
+  }
+
+  protected applyOrderBy(builder: any, table: any, options: FindOptions<any>): any {
+    if (options.sort) {
+      const sortConditions: any[] = [];
+      const normalizedSorts: { field: string; direction: "asc" | "desc" }[] = [];
+      if (Array.isArray(options.sort)) {
+        for (const item of options.sort) {
+          if (Array.isArray(item) && item.length >= 2) {
+            normalizedSorts.push({ field: item[0], direction: item[1] as "asc" | "desc" });
+          } else if (typeof item === "object" && item !== null) {
+            const keys = Object.keys(item);
+            if (keys.length > 0) {
+              const field = keys[0];
+              const direction = (item as any)[field];
+              normalizedSorts.push({ field, direction });
+            }
+          }
+        }
+      } else if (typeof options.sort === "object") {
+        for (const field of Object.keys(options.sort)) {
+          const direction = (options.sort as any)[field];
+          normalizedSorts.push({ field, direction });
+        }
+      }
+
+      for (const s of normalizedSorts) {
+        let sortCol: any;
+        const column = this.getColumn(table, s.field);
+        if (column) {
+          sortCol = column;
+        } else {
+          const dataCol = this.getColumn(table, "data");
+          if (dataCol) {
+            sortCol = this.getJsonField(s.field);
+          }
+        }
+
+        if (sortCol) {
+          if (s.direction === "asc") {
+            sortConditions.push(asc(sortCol));
+          } else {
+            sortConditions.push(desc(sortCol));
+          }
+        }
+      }
+
+      if (sortConditions.length > 0) {
+        return builder.orderBy(...sortConditions);
+      }
+    }
+    return builder;
   }
 }

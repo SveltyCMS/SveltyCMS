@@ -49,8 +49,29 @@ export async function handleCollectionsRoutes(
 
     const limit = Number(url.searchParams.get("limit")) || 50;
     const offset = Number(url.searchParams.get("offset")) || 0;
-    const sortField = url.searchParams.get("sortField") || undefined;
-    const sortDirection = (url.searchParams.get("sortDirection") as "asc" | "desc") || "desc";
+    const sortField =
+      url.searchParams.get("sortField") || url.searchParams.get("sort") || undefined;
+    const sortDirection =
+      url.searchParams.get("sortDirection") ||
+      (url.searchParams.get("order") as "asc" | "desc") ||
+      "desc";
+
+    // Parse filters: support both filter[field]=value and filter={"field":"value"}
+    const filter: Record<string, any> = {};
+    for (const [key, value] of url.searchParams.entries()) {
+      if (key.startsWith("filter[")) {
+        const field = key.slice(7, -1);
+        filter[field] = value;
+      }
+    }
+    const filterJson = url.searchParams.get("filter");
+    if (filterJson) {
+      try {
+        Object.assign(filter, JSON.parse(filterJson));
+      } catch {
+        // If not valid JSON, ignore
+      }
+    }
 
     // 🚀 Performance: Use Streaming for large datasets (>500 items) or if explicitly requested
     const isLargeRequest = limit > 500;
@@ -61,7 +82,8 @@ export async function handleCollectionsRoutes(
         limit,
         offset,
         sortField,
-        sortDirection,
+        sortDirection: sortDirection as "desc" | "asc" | undefined,
+        filter,
       });
 
       // Get total count for metadata if requested
@@ -81,7 +103,8 @@ export async function handleCollectionsRoutes(
         limit,
         offset,
         sortField,
-        sortDirection,
+        sortDirection: sortDirection as "desc" | "asc" | undefined,
+        filter,
       }),
     );
   }

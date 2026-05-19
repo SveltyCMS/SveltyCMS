@@ -11,7 +11,7 @@ import type { IDBAdapter } from "@src/databases/db-interface";
 
 const getDbAdapter = async () => (await import("@src/databases/db")).dbAdapter as IDBAdapter;
 
-export const load = async ({ locals }) => {
+export const load = async ({ locals }: { locals: App.Locals }) => {
   const { user, tenantId } = locals;
 
   // Admin only access

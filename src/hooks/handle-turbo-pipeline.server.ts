@@ -155,7 +155,8 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       }
 
       // 🛡️ HARDENING: Resolve real user from session if possible to maintain test state
-      const sessionId = event.cookies.get("auth_sessions");
+      const sessionId =
+        event.cookies.get("auth_sessions") || event.cookies.get("__Host-auth_sessions");
       if (sessionId) {
         // Using globalThis access for the auth service to ensure we don't trigger recursive imports
         const authService = (globalThis as any).__AUTH_INSTANCE__;

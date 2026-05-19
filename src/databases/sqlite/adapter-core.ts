@@ -471,7 +471,8 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
     let stmt = this._statementCache.get(sqlText);
     if (!stmt) {
       stmt = client.prepare(sqlText);
-      if (this._statementCache.size < 500) {
+      // Cap cache size to 1000 to prevent memory exhaustion
+      if (this._statementCache.size < 1000) {
         this._statementCache.set(sqlText, stmt);
       }
     }
@@ -480,22 +481,16 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
     this.metrics.queryCount++;
 
     // Driver-specific execution
-    if (client.query) {
-      // bun:sqlite
+    try {
       if (method === "all") return stmt.all(...params);
       if (method === "get") return stmt.get(...params);
       if (method === "run") return stmt.run(...params);
       if (method === "values") return stmt.values(...params);
-    } else {
-      // better-sqlite3 or node:sqlite
-      if (method === "all") return stmt.all(...params);
-      if (method === "get") return stmt.get(...params);
-      if (method === "run") return stmt.run(...params);
-      // node:sqlite doesn't have .values(), fallback to all()
-      if (method === "values") return stmt.all(...params);
+      return stmt.all(...params);
+    } catch (err: any) {
+      logger.error(`[SQLite] Execution error: ${sqlText}`, err);
+      throw err;
     }
-
-    return stmt.all(...params);
   }
 
   private async createDriver(dbPath: string) {
@@ -528,7 +523,8 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
     // 🚀 If in Bun, use Bun's native driver exclusively.
     if (isBun) {
       try {
-        const { Database } = await import(/* @vite-ignore */ "bun:sqlite");
+        const driverName = "bun" + ":sqlite";
+        const { Database } = await import(/* @vite-ignore */ driverName);
         logger.debug(`[SQLite] Bun detected. Attempting to use native 'bun:sqlite'...`);
 
         // 🚀 WINDOWS RESILIENCE: Retry on "SQLITE_MISUSE" or "busy" which often indicates
@@ -663,21 +659,34 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
 
                 const execute = async () => {
                   const stmt = sqlite.prepare(sqlText);
-                  let result: any;
 
                   try {
                     if (method === "all") {
-                      result = stmt.all(...serializedParams);
+                      const result = stmt.all(...serializedParams);
+                      const rows = (result || []).map((row: any) => Object.values(row));
+                      return { rows };
                     } else if (method === "get") {
-                      result = stmt.get(...serializedParams);
+                      const result = stmt.get(...serializedParams);
+                      const rows = result ? Object.values(result) : undefined;
+                      return { rows };
                     } else if (method === "run") {
-                      result = stmt.run(...serializedParams);
+                      const result = stmt.run(...serializedParams);
+                      return {
+                        rows: [],
+                        lastInsertRowid: result.lastInsertRowid,
+                        changes: result.changes,
+                      };
                     } else if (method === "values") {
-                      result = stmt.values
-                        ? stmt.values(...serializedParams)
-                        : stmt.all(...serializedParams);
+                      const result = stmt.all(...serializedParams);
+                      const rows = (result || []).map((row: any) => Object.values(row));
+                      return { rows };
                     } else {
-                      result = stmt.run(...serializedParams);
+                      const result = stmt.run(...serializedParams);
+                      return {
+                        rows: [],
+                        lastInsertRowid: result.lastInsertRowid,
+                        changes: result.changes,
+                      };
                     }
                   } catch (execErr: any) {
                     logger.error(
@@ -686,19 +695,6 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
                     );
                     throw execErr;
                   }
-
-                  if (!result && (method === "all" || method === "values")) {
-                    result = [];
-                  }
-
-                  if (method === "run") {
-                    return {
-                      rows: [],
-                      lastInsertRowid: result.lastInsertRowid,
-                      changes: result.changes,
-                    };
-                  }
-                  return { rows: result };
                 };
 
                 if (isWrite) {
@@ -727,25 +723,21 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
     // Tuning - wrapped in try-catch to be safe
     const safeExec = (cmd: string) => {
       try {
-        logger.debug(`[SQLite] Executing PRAGMA: ${cmd}`);
         client.exec(cmd);
-      } catch (e) {
-        // Only log warning, don't crash
-        if (process.env.BENCHMARK_DEBUG === "true") {
-          logger.warn(`[SQLite] Pragma failed: ${cmd}`, e);
-        }
+      } catch {
+        // Only log on critical error
       }
     };
 
     safeExec("PRAGMA journal_mode=WAL");
     safeExec("PRAGMA synchronous=NORMAL");
     safeExec("PRAGMA foreign_keys=ON");
-    safeExec("PRAGMA busy_timeout=15000"); // Standardized high timeout for Windows resilience
+    safeExec("PRAGMA page_size=8192");
+    safeExec("PRAGMA busy_timeout=30000");
     safeExec("PRAGMA temp_store=MEMORY");
-    safeExec("PRAGMA mmap_size=268435456"); // 256MB
-    safeExec("PRAGMA cache_size=-64000"); // 64MB
-    safeExec("PRAGMA journal_size_limit=67108864"); // 64MB WAL limit
-    safeExec("PRAGMA wal_autocheckpoint=10000"); // Tune up to 10k to smooth out p95 spikes during bulk inserts
+    safeExec("PRAGMA mmap_size=536870912"); // Increased to 512MB for heavy sorts
+    safeExec("PRAGMA cache_size=-128000"); // 128MB RAM cache
+    safeExec("PRAGMA wal_autocheckpoint=1000");
   }
 
   public override get raw(): {

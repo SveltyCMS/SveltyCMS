@@ -244,6 +244,14 @@ export class DatabaseResilience {
       );
     } else if (state === "CLOSED") {
       updateServiceHealth("database", "healthy", "Circuit breaker reset - database recovered");
+      // 🚀 ADAPTIVE: Shrink cooldown window if recovery was rapid
+      if (this.metrics.lastRecoveryTime && this.lastFailureTimestamp) {
+        const recoverySpeed = this.metrics.lastRecoveryTime - this.lastFailureTimestamp;
+        if (recoverySpeed < 5000) {
+          logger.info("[Resilience] Rapid recovery detected. Shrinking cooldown...");
+          this.circuitConfig.cooldownMs = Math.max(10000, this.circuitConfig.cooldownMs * 0.8);
+        }
+      }
     }
   }
 

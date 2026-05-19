@@ -286,13 +286,28 @@ export async function handleSystemMgmtRoutes(
   }
   if (action === "refresh" && event.request.method === "POST") {
     const body = await event.request.json().catch(() => ({}));
-    return successResponse(
-      event,
-      await cms.system.refresh({
-        tenantId: body.tenantId,
-        skipReconciliation: body.skipReconciliation ?? false,
-      }),
-    );
+    const refreshResult = await cms.system.refresh({
+      tenantId: body.tenantId,
+      skipReconciliation: body.skipReconciliation ?? false,
+    });
+
+    // 🚀 SYNCHRONOUS GRAPHQL SCHEMA WARMUP: Rebuild Yoga schema immediately
+    // so that subsequent benchmark requests hit a fully ready schema.
+    try {
+      const { _getYogaApp } = await import("@src/routes/api/graphql/+server");
+      if (_getYogaApp) {
+        await _getYogaApp(cms.db, body.tenantId);
+        const { logger } = await import("@utils/logger");
+        if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+          logger.info(`[System Refresh] Successfully warmed up GraphQL Yoga Schema.`);
+        }
+      }
+    } catch (err: any) {
+      const { logger } = await import("@utils/logger");
+      logger.warn(`[System Refresh] GraphQL warmup skipped or failed: ${err.message}`);
+    }
+
+    return successResponse(event, refreshResult);
   }
   throw new AppError(`System action ${action} not implemented`, 404);
 }

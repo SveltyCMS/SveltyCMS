@@ -1,6 +1,6 @@
 /**
  * @file tests/unit/auth/saml.test.ts
- * @description SAML Authentication Service Unit Tests (Bun Test Runner)
+ * @description SAML Authentication Service Unit Tests (Dual Bun/Vitest Runner Support)
  *
  * Tests:
  * - should initialize Jackson with correct database connection string derived from config
@@ -9,58 +9,80 @@
  *
  */
 
-// which mock @boxyhq/saml-jackson, @src/services/core/settings-service, etc.
+import { describe, it, expect, beforeAll } from "vitest";
+
+// ============================================================================
+// 1. Vitest Mock Registrations (Static / Hoisted)
+// ============================================================================
+import { vi } from "vitest";
+
+vi.mock("@src/services/core/settings-service", () => ({
+  getPrivateSettingSync: (key: string) => {
+    if (key === "DB_TYPE") return "postgresql";
+    return undefined;
+  },
+}));
+
+vi.mock("@boxyhq/saml-jackson", () => ({
+  default: () =>
+    Promise.resolve({
+      oauthController: {
+        authorize: () => Promise.resolve({ redirect_url: "https://idp.example.com/sso" }),
+      },
+      connectionAPIController: {
+        createSAMLConnection: () => Promise.resolve({ id: "conn_123" }),
+      },
+    }),
+}));
+
+// ============================================================================
+// 2. Bun Mock Registrations (Dynamic / Runtime conditional)
+// ============================================================================
+const isBun = typeof Bun !== "undefined";
+if (isBun) {
+  const bunTestName = "bun:test";
+  const { mock } = await import(bunTestName);
+  mock.module("@src/services/core/settings-service", () => ({
+    getPrivateSettingSync: (key: string) => {
+      if (key === "DB_TYPE") return "postgresql";
+      return undefined;
+    },
+  }));
+  mock.module("@boxyhq/saml-jackson", () => ({
+    default: mock(() =>
+      Promise.resolve({
+        oauthController: {
+          authorize: mock(() => Promise.resolve({ redirect_url: "https://idp.example.com/sso" })),
+        },
+        connectionAPIController: {
+          createSAMLConnection: mock(() => Promise.resolve({ id: "conn_123" })),
+        },
+      }),
+    ),
+  }));
+}
 
 describe("SAML Authentication Service", () => {
-  let originalEnv: any;
-  beforeEach(() => {
-    originalEnv = { ...(globalThis as any).privateEnv };
-    // Reset Jackson module cache
-    const modPath = require.resolve(process.cwd() + "/src/databases/auth/saml-auth.ts");
-    if (require.cache[modPath]) {
-      delete require.cache[modPath];
-    }
-  });
-  afterEach(() => {
-    (globalThis as any).privateEnv = originalEnv;
+  let samlModule: any;
+
+  beforeAll(async () => {
+    // Dynamic import to allow mocks to be registered first in both runners
+    samlModule = await import("@src/databases/auth/saml-auth");
   });
 
   it("should initialize Jackson with correct database connection string derived from config", async () => {
-    // The preload bun-preload.ts sets privateEnv.DB_TYPE = 'mongodb' by default.
-    // saml-auth.ts reads from getPrivateSettingSync which is mocked to return from globalThis.privateEnv.
-    // We override to test PostgreSQL path:
-    const originalEnv = { ...(globalThis as any).privateEnv };
-    (globalThis as any).privateEnv = {
-      ...originalEnv,
-      DB_TYPE: "postgresql",
-      DB_USER: "testuser",
-      DB_PASSWORD: "testpassword",
-      DB_HOST: "localhost",
-      DB_PORT: 5432,
-      DB_NAME: "testdb",
-    };
-
-    // Force re-import to get fresh module state (clear cached Jackson instance)
-    // Use dynamic import to avoid stale module cache
-    const samlModule = await import("@src/databases/auth/saml-auth?bun-unmock=" + Date.now());
-
     const instance = await samlModule.getJackson();
     expect(instance).toBeDefined();
     expect(instance.oauthController).toBeDefined();
     expect(instance.connectionAPIController).toBeDefined();
-
-    // Restore
-    (globalThis as any).privateEnv = originalEnv;
   });
 
   it("should generate SAML redirect URL correctly", async () => {
-    const samlModule = await import("@src/databases/auth/saml-auth?bun-unmock=" + Date.now());
     const url = await samlModule.generateSAMLAuthUrl("acme-corp", "sveltycms");
     expect(url).toBe("https://idp.example.com/sso");
   });
 
   it("should create SAML connections via admin controller", async () => {
-    const samlModule = await import("@src/databases/auth/saml-auth?bun-unmock=" + Date.now());
     const mockPayload = {
       rawMetadata: "<xml></xml>",
       defaultRedirectUrl: "http://localhost:5173/admin",

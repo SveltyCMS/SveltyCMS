@@ -4,19 +4,15 @@
  */
 
 import type { RequestEvent } from "@sveltejs/kit";
-import { building } from "$app/environment";
 
 import { createYoga, createSchema } from "graphql-yoga";
 import { useGraphQlJit } from "@envelop/graphql-jit";
 import { pubSub } from "@src/services/background/pub-sub";
-import { contentSystem } from "@src/content/index.server";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
 import { mediaResolvers, mediaTypeDefs } from "./resolvers/media";
 import { systemResolvers, systemTypeDefs } from "./resolvers/system";
 import { userResolvers, userTypeDefs } from "./resolvers/users";
 import { seoResolvers, seoTypeDefs } from "./resolvers/seo";
-import { useServer } from "graphql-ws/use/ws";
-import { WebSocketServer } from "ws";
 
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
@@ -43,7 +39,6 @@ registerPermission(accessManagementPermission as any);
 // Schema Construction
 // ---------------------------------------------------------------------------
 async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
-  // We need to fetch the dynamic schemas which includes their types and queries
   const { typeDefs: collectionTypeDefs, queryFields } = await registerCollections(tenantId);
   const collectionResolversMap = await collectionsResolvers(dbAdapter, null, tenantId);
 
@@ -79,6 +74,11 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
     type Subscription {
       contentStructureUpdated: String
       entryUpdated: String
+      onPing: PingPayload
+    }
+
+    type PingPayload {
+      timestamp: Float
     }
   `;
 
@@ -104,6 +104,10 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
         subscribe: (_: any, __: any, { pubSub }: any) => pubSub.subscribe("entryUpdated"),
         resolve: (payload: any) => payload,
       },
+      onPing: {
+        subscribe: (_: any, __: any, { pubSub }: any) => pubSub.subscribe("entryUpdated"),
+        resolve: (payload: any) => ({ timestamp: payload.timestamp || Date.now() }),
+      },
     },
   };
 
@@ -113,47 +117,27 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
 let yogaAppPromise: Promise<any> | null = null;
 let lastSchemaVersion: number | null = null;
 
-async function getYogaApp(dbAdapter: any, tenantId?: string | null) {
+export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
+  const { contentSystem } = await import("@src/content/index.server");
   const currentVersion = contentSystem.version;
   const isBenchmark = process.env.BENCHMARK_MODE === "true" || process.env.BENCHMARK === "true";
 
-  // 🚀 HOT RELOAD: Rebuild if version changed OR if in benchmark mode and first request
   if (
     !yogaAppPromise ||
     lastSchemaVersion !== currentVersion ||
     (isBenchmark && lastSchemaVersion === null)
   ) {
-    if ((process.env.BENCHMARK_DEBUG === "true" || isBenchmark) && lastSchemaVersion !== null) {
-      console.log(
-        `[GraphQL] 🔄 Hot-Reload Triggered: ${lastSchemaVersion} -> ${currentVersion}. Rebuilding schema...`,
-      );
-    }
     lastSchemaVersion = currentVersion;
     yogaAppPromise = (async () => {
       try {
         const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
-        if (!typeDefs) throw new Error("GraphQL typeDefs are empty");
-
-        // Debug: Log registered collections in benchmark mode
-        if (isBenchmark) {
-          const collections = await contentSystem.getCollections(tenantId);
-          const debugData = collections
-            .map((c) => `[${c._id}: fields=${Array.isArray(c.fields) ? c.fields.length : "NO"}]`)
-            .join(", ");
-          console.log(`🚀🚀🚀 GraphQL Rebuild Detail: ${debugData}`);
-          console.log(
-            `[GraphQL] Schema rebuilt with ${collections.length} collections: ${collections.map((c) => c._id).join(", ")}`,
-          );
-        }
-
         const schema = createSchema({ typeDefs, resolvers });
 
-        return createYoga({
+        const app = createYoga({
           schema: schema as any,
           graphqlEndpoint: "/api/graphql",
           landingPage: true,
           cors: false,
-          graphiql: { subscriptionsProtocol: "WS" },
           plugins:
             process.env.USE_GRAPHQL_JIT === "true" || process.env.BENCHMARK === "true"
               ? [useGraphQlJit()]
@@ -166,6 +150,8 @@ async function getYogaApp(dbAdapter: any, tenantId?: string | null) {
             pubSub,
           }),
         });
+
+        return app;
       } catch (err: any) {
         yogaAppPromise = null;
         throw err;
@@ -175,45 +161,9 @@ async function getYogaApp(dbAdapter: any, tenantId?: string | null) {
   return yogaAppPromise;
 }
 
-// ---------------------------------------------------------------------------
-// WebSocket Server Initialization
-// ---------------------------------------------------------------------------
-const globalWithWs = globalThis as any;
-let wsServerInitialized = false;
-
-async function initializeWebSocketServer(dbAdapter: any, tenantId?: string | null) {
-  if (
-    wsServerInitialized ||
-    building ||
-    globalWithWs.__SVELTY_GRAPHQL_WS__ ||
-    process.env.BUN_TEST_MOCKS === "false" ||
-    process.env.SKIP_GRAPHQL_WS === "true"
-  )
-    return;
-
-  try {
-    const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
-    const schema = createSchema({ typeDefs, resolvers });
-
-    const wsServer = new WebSocketServer({ port: 3001, path: "/api/graphql" });
-    globalWithWs.__SVELTY_GRAPHQL_WS__ = wsServer;
-
-    useServer(
-      {
-        schema,
-        context: async (_ctx) => {
-          // Add your WS auth logic here (token from connectionParams)
-          return { pubSub, tenantId };
-        },
-      },
-      wsServer,
-    );
-
-    wsServerInitialized = true;
-    logger.info("GraphQL WebSocket Server running on ws://localhost:3001/api/graphql");
-  } catch (err) {
-    logger.error("Failed to start GraphQL WS server", err);
-  }
+export async function _refreshSchema(dbAdapter: any, tenantId?: string | null) {
+  lastSchemaVersion = -1;
+  return await _getYogaApp(dbAdapter, tenantId);
 }
 
 // ---------------------------------------------------------------------------
@@ -228,21 +178,10 @@ async function handleRequest(event: RequestEvent) {
     throw new AppError("Unauthorized: Login required for GraphQL", 401);
   }
 
-  // 🛡️ Gating: Wait for any pending content reloads (especially on SQLite during benchmarks)
+  const { contentSystem } = await import("@src/content/index.server");
   await contentSystem.waitForReload();
 
-  if (contentSystem.isReloading) {
-    return new Response(
-      JSON.stringify({ errors: [{ message: "CMS is currently reloading. Please retry." }] }),
-      {
-        status: 503,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
-
   let adapter = locals.dbAdapter;
-
   if (!adapter) {
     const { getDb } = await import("@src/databases/db");
     adapter = getDb();
@@ -252,29 +191,13 @@ async function handleRequest(event: RequestEvent) {
     throw new AppError("Database unavailable: Adapter not initialized", 503);
   }
 
-  // 🚀 PERFORMANCE: Reuse CMS instance to prevent object churn
   if (!(locals as any).sharedCMS || (locals as any).sharedCMS.db !== adapter) {
     (locals as any).sharedCMS = new LocalCMS(adapter);
   }
   const cms = (locals as any).sharedCMS;
 
   try {
-    const yogaApp = await getYogaApp(adapter, locals.tenantId);
-    if (!yogaApp) {
-      throw new AppError(
-        "GraphQL Yoga is currently unavailable (initialization failed)",
-        503,
-        "GRAPHQL_UNAVAILABLE",
-      );
-    }
-
-    // Lazy WS init (fire-and-forget)
-    if (!wsServerInitialized) {
-      initializeWebSocketServer(adapter, locals.tenantId).catch((err) => {
-        logger.error("Lazy GraphQL WS initialization failed:", err);
-      });
-    }
-
+    const yogaApp = await _getYogaApp(adapter, locals.tenantId);
     const yogaResponse = await yogaApp.handleRequest(request, {
       user: locals.user,
       tenantId: locals.tenantId,
@@ -288,7 +211,6 @@ async function handleRequest(event: RequestEvent) {
       headers: yogaResponse.headers,
     });
   } catch (err: any) {
-    console.error("GraphQL Request Error STACK:", err.stack || err);
     logger.error("GraphQL Request Error:", err);
     return new Response(JSON.stringify({ errors: [{ message: err.message }] }), {
       status: err.status || 500,

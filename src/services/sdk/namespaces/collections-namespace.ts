@@ -421,17 +421,23 @@ export class CollectionsNamespace {
     const normalizedFilter = this.normalizeRelationshipFilter(filter);
     const query = { ...normalizedFilter, ...(tenantId && { tenantId: tenantId as DatabaseId }) };
 
+    const sort =
+      options.sort ||
+      (options.sortField
+        ? ([[options.sortField, options.sortDirection || "desc"]] as [string, "asc" | "desc"][])
+        : undefined);
+
     let cacheKey: string | null = null;
     const skipRequestCache = bypassCache || options.bypassRequestCache;
 
     if (!skipRequestCache || !bypassCache) {
       const tenantPrefix = tenantId ? `${tenantId}:` : "global:";
-      if (query._id && Object.keys(query).length === 1 && limit === 50 && offset === 0) {
+      if (query._id && Object.keys(query).length === 1 && limit === 50 && offset === 0 && !sort) {
         cacheKey = `${tenantPrefix}collection:${schema._id}:find:id:${query._id}`;
       } else {
         const queryHash = crypto
           .createHash("md5")
-          .update(JSON.stringify({ query, limit, offset }))
+          .update(JSON.stringify({ query, limit, offset, sort }))
           .digest("hex");
         cacheKey = `${tenantPrefix}collection:${schema._id}:find:${queryHash}`;
       }
@@ -457,6 +463,8 @@ export class CollectionsNamespace {
       {
         limit,
         offset,
+        sort,
+        fields: options.fields,
         tenantId: tenantId as DatabaseId,
       },
     );

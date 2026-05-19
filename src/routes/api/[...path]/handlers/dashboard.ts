@@ -217,6 +217,7 @@ export async function handleDashboardRoutes(
         throw new AppError(`Dashboard action '${method}' not implemented`, 404);
     }
   } catch (err: any) {
+    console.error("[DashboardRoute Error]:", err);
     if (err instanceof AppError) throw err;
     throw new AppError(err.message || "Dashboard operation failed", 500);
   }

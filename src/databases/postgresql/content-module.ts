@@ -153,7 +153,7 @@ export class ContentModule {
       options: { tx?: any } = {},
     ): Promise<DatabaseResult<ContentNode>> => {
       return this.core.wrap(async () => {
-        const db = options.tx || this.db;
+        const db = options.tx?.db || options.tx || this.db;
         // Explicitly map properties to avoid sending non-column props to Drizzle
         const c = changes as any;
         const updateData: any = {
@@ -187,7 +187,7 @@ export class ContentModule {
       return this.core.transaction(async (tx: any) => {
         const results: ContentNode[] = [];
         for (const update of updates) {
-          const res = await this.nodes.update(update.path, update.changes, { tx });
+          const res = await this.nodes.update(update.path, update.changes, { tx: tx.db || tx });
           if (res.success && res.data) results.push(res.data);
         }
         return { success: true, data: results };

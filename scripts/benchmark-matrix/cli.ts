@@ -44,8 +44,11 @@ export function parseArgs(): RunConfig {
   const parallelMode: "off" | "safe" | "full" =
     parallelRaw === "full" ? "full" : parallelRaw === "safe" ? "safe" : "off";
 
-  const dbRaw = getArg("--db");
-  const sqlFlag = hasFlag("--sql") || hasFlag("--sqlite");
+  let dbRaw = getArg("--db");
+  if (dbRaw) {
+    dbRaw = dbRaw.replace(/sqllite/gi, "sqlite");
+  }
+  const sqlFlag = hasFlag("--sql") || hasFlag("--sqlite") || hasFlag("--sqllite");
   const finalDbRaw = dbRaw || (sqlFlag ? "sqlite" : null);
 
   const sectionRaw = getArg("--section");

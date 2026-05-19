@@ -22,6 +22,8 @@ import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { svelteInspector } from "@sveltejs/vite-plugin-svelte-inspector";
 import tailwindcss from "@tailwindcss/vite";
+import uws from "svelte-adapter-uws/vite";
+import realtime from "svelte-realtime/vite";
 import type { Plugin, ViteDevServer } from "vite";
 import { defineConfig } from "vitest/config";
 import { compile } from "./src/utils/compilation/compile.ts";
@@ -619,6 +621,8 @@ export default defineConfig((): any => {
       privateConfigFallbackPlugin(),
       stubServerModulesPlugin(),
       sveltekit(),
+      uws(),
+      realtime(),
       svelteInspector(),
       sveltyCmsPlugin(),
       securityCheckPlugin(),

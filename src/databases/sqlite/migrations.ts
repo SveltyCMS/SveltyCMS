@@ -13,11 +13,8 @@ import type { DatabaseResult } from "../db-interface";
 // 🚀 AGNOSTIC CORE: Standardized SQLite migrations.
 export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
   logger.info("🚀 [SQLite] Running system migrations...");
-
   const execute = (sql: string) => {
     try {
-      const snippet = sql.trim().substring(0, 50).replace(/\n/g, " ");
-      logger.debug(`[SQLite Migration] Executing: ${snippet}...`);
       if (typeof db.exec === "function") db.exec(sql);
       else if (typeof db.run === "function") db.run(sql);
       else if (typeof db.query === "function") db.query(sql).run();
@@ -391,15 +388,6 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_plugin_migrations_unique" ON "plugin_migrations" ("pluginId", "migrationId", "tenantId");
     `);
 
-    // Helper to safely add columns
-    const addColumn = (table: string, col: string, type: string) => {
-      try {
-        execute(`ALTER TABLE "${table}" ADD COLUMN "${col}" ${type}`);
-      } catch {
-        // Column already exists or table doesn't exist yet
-      }
-    };
-
     // 🚀 MIGRATION: Rename 'security' to 'password' if needed
     try {
       const tableInfo = (db as any).prepare
@@ -415,15 +403,6 @@ export async function runMigrations(db: any): Promise<DatabaseResult<void>> {
     } catch {
       // Ignore
     }
-
-    addColumn("auth_users", "isRegistered", "INTEGER DEFAULT 0");
-    addColumn("auth_users", "isAdmin", "INTEGER DEFAULT 0");
-    addColumn("auth_users", "role", "TEXT NOT NULL DEFAULT 'user'");
-    addColumn("auth_users", "is2FAEnabled", "INTEGER DEFAULT 0");
-    addColumn("auth_users", "totpSecret", "TEXT");
-    addColumn("auth_users", "backupCodes", "TEXT");
-    addColumn("auth_users", "last2FAVerification", "INTEGER");
-    addColumn("content_nodes", "source", "TEXT NOT NULL DEFAULT 'filesystem'");
 
     logger.info("SQLite migrations completed successfully.");
     return { success: true, data: undefined };

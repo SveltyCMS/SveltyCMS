@@ -4,9 +4,9 @@
  * Tracks RSS, Heap, and External memory growth under sustained load with leak detection.
  */
 
-import { test } from "vitest";
 import "../unit/bun-preload.ts";
 import {
+  test,
   exportResult,
   setupBenchmarkServer,
   ensureStableTestData,

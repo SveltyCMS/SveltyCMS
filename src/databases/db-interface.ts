@@ -180,6 +180,17 @@ export interface DatabaseCapabilities {
   supportsConflictTargets?: boolean;
 }
 
+export interface IDialectProvider {
+  /** Apply database-specific performance pragmas or settings */
+  applyOptimizations(): Promise<void>;
+
+  /** Handle dialect-specific schema/migration tweaks */
+  normalizeSchema(schema: any): any;
+
+  /** Execute raw commands with dialect-specific syntax (e.g. pragma vs set) */
+  executeTuningCommand(cmd: string): Promise<void>;
+}
+
 export interface PerformanceMetrics {
   averageQueryTime: number;
   cacheHitRate: number;

@@ -35,7 +35,7 @@ test("DX Toolchain Performance (Sync + Format + Lint)", async () => {
     { Task: "Total Toolchain Overhead", Latency: `${totalDuration.toFixed(2)}ms` },
   ]);
 
-  expect(totalDuration).toBeLessThan(60000); // 60s limit for DX gate (adjusted for Windows/codebase scale)
+  expect(totalDuration).toBeLessThan(60000); // 60s limit for DX gate
 
   console.log("\n✅ DX toolchain audit completed.");
 }, 60000);

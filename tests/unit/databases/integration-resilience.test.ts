@@ -9,7 +9,8 @@
  * - Proving dynamic document fields serialize/deserialize perfectly when missing physically.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+vi.unmock("@src/databases/db");
 import { ensureFullInitialization, resetDbInitPromise } from "@src/databases/db";
 import { SQLiteAdapter } from "@src/databases/sqlite/sqlite-adapter";
 import { generateUUID } from "@src/utils/native-utils";
@@ -19,6 +20,8 @@ describe("SveltyCMS Integration Resilience & Boundary Audits", () => {
     it("should reject corrupted configurations with a controlled MISSING_CONFIG error", async () => {
       // 1. Simulate corrupted configuration flag
       process.env.CORRUPT_CONFIG = "true";
+      const originalBooted = (globalThis as any).__SVELTY_CMS_BOOTED__;
+      (globalThis as any).__SVELTY_CMS_BOOTED__ = false;
       resetDbInitPromise();
 
       try {
@@ -27,11 +30,14 @@ describe("SveltyCMS Integration Resilience & Boundary Audits", () => {
         expect.unreachable("Boot sequence should have failed for corrupted configuration.");
       } catch (err: any) {
         expect(err).toBeInstanceOf(Error);
-        expect(err.code).toBe("MISSING_CONFIG");
+        // Unwrap AppError code if present, or fallback to error message check
+        const errorCode = (err as any).code || (err as any).body?.code;
+        expect(errorCode).toBe("MISSING_CONFIG");
         expect(err.message).toContain("corrupted or missing");
       } finally {
         // 3. Revert state and clear environment
         delete process.env.CORRUPT_CONFIG;
+        (globalThis as any).__SVELTY_CMS_BOOTED__ = originalBooted;
         resetDbInitPromise();
       }
     });
@@ -97,7 +103,8 @@ describe("SveltyCMS Integration Resilience & Boundary Audits", () => {
 
   describe("Pillar 3: Distributed Tracing & High-Resolution Observability", () => {
     it("should accumulate spans inside runWithTrace and short-circuit when disabled", async () => {
-      const { runWithTrace, traceSpan, traceSpanSync, getTrace } = await import("@src/utils/context");
+      const { runWithTrace, traceSpan, traceSpanSync, getTrace } =
+        await import("@src/utils/context");
 
       // 1. Tracing disabled - should not record any spans (zero overhead)
       const resDisabled = await runWithTrace("test-trace-disabled", false, async () => {
@@ -133,4 +140,3 @@ describe("SveltyCMS Integration Resilience & Boundary Audits", () => {
     });
   });
 });
-

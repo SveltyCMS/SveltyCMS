@@ -34,9 +34,9 @@ const createMockUIStore = () => {
     toggleUIElement: (element: string, visibility: string) => {
       state[element] = visibility;
     },
-    updateLayout: mock(),
-    initialize: mock(),
-    destroy: mock(),
+    updateLayout: vi.fn(),
+    initialize: vi.fn(),
+    destroy: vi.fn(),
   };
 };
 

@@ -1,72 +1,43 @@
 /**
- * @file src/stores/screenSizeStore.svelte.ts
- * @description Reactive screen size tracking using Svelte 5 runes
- *
- * Features:
- * - Class-based singleton with $state properties
- * - matchMedia for efficient breakpoint detection
- * - requestAnimationFrame for smooth resize updates
- * - prefers-reduced-motion accessibility support
+ * @file src/stores/screen-size-store.svelte.ts
+ * @description Reactive screen size tracking using Svelte 5 runes.
+ * Optimized for SSR-safety.
  */
 
-// Import for internal use
 import { BREAKPOINTS, getScreenSize, ScreenSize } from "@utils/screen-size";
 
-// Re-export utilities for backwards compatibility
 export { ScreenSize, BREAKPOINTS, getScreenSize };
 
-/**
- * ScreenSizeStore - Reactive screen size management
- *
- * Usage:
- * - screen.size - Current ScreenSize enum value
- * - screen.width / screen.height - Current dimensions
- * - screen.isMobile / screen.isTablet / screen.isDesktop - Boolean helpers
- * - screen.prefersReducedMotion - Accessibility preference
- */
 class ScreenSizeStore {
-  // Core reactive state
-  width = $state(typeof window !== "undefined" ? window.innerWidth : 1024);
-  height = $state(typeof window !== "undefined" ? window.innerHeight : 768);
+  width = $state(1024);
+  height = $state(768);
+  prefersReducedMotion = $state(false);
 
-  // Accessibility: detect reduced motion preference
-  prefersReducedMotion = $state(
-    typeof window !== "undefined"
-      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      : false,
-  );
-
-  // Computed screen size
   get size(): ScreenSize {
     return getScreenSize(this.width);
   }
 
-  // Convenience getters for common checks
   get isMobile(): boolean {
-    return this.size === ScreenSize.XS || this.size === ScreenSize.SM;
+    return this.width < BREAKPOINTS[ScreenSize.MD]; // < 768px
   }
 
   get isTablet(): boolean {
-    return this.size === ScreenSize.MD;
+    return this.width >= BREAKPOINTS[ScreenSize.MD] && this.width < BREAKPOINTS[ScreenSize.LG];
   }
 
   get isDesktop(): boolean {
-    const s = this.size;
-    return s === ScreenSize.LG || s === ScreenSize.XL || s === ScreenSize.XXL;
+    return this.width >= BREAKPOINTS[ScreenSize.LG]; // >= 1024px
   }
 
-  get isLargeScreen(): boolean {
-    return this.size === ScreenSize.XL || this.size === ScreenSize.XXL;
-  }
-
-  // Internal state
   private rafId: number | null = null;
-  private readonly cleanup?: () => void;
+  private cleanup?: () => void;
 
   constructor() {
-    if (typeof window === "undefined" || typeof window.addEventListener === "undefined") {
-      return;
-    }
+    // Inert constructor for SSR safety
+  }
+
+  mount() {
+    if (typeof window === "undefined" || !window.matchMedia) return;
 
     const update = () => {
       this.width = window.innerWidth;
@@ -75,38 +46,32 @@ class ScreenSizeStore {
     };
 
     const handleResize = () => {
-      if (this.rafId) {
-        cancelAnimationFrame(this.rafId);
-      }
+      if (this.rafId) cancelAnimationFrame(this.rafId);
       this.rafId = requestAnimationFrame(update);
     };
 
-    // Listen for reduced motion preference changes
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    this.prefersReducedMotion = motionQuery.matches;
+
     const handleMotionChange = (e: MediaQueryListEvent) => {
       this.prefersReducedMotion = e.matches;
     };
 
-    // Set up listeners
-    window.addEventListener("resize", handleResize);
     motionQuery.addEventListener("change", handleMotionChange);
+    window.addEventListener("resize", handleResize);
+
     update();
 
-    // Store cleanup for disposal
     this.cleanup = () => {
-      if (this.rafId) {
-        cancelAnimationFrame(this.rafId);
-      }
+      if (this.rafId) cancelAnimationFrame(this.rafId);
       window.removeEventListener("resize", handleResize);
       motionQuery.removeEventListener("change", handleMotionChange);
     };
   }
 
-  // Manual cleanup method
   destroy() {
     this.cleanup?.();
   }
 }
 
-// Singleton instance - the main export
 export const screen = new ScreenSizeStore();

@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:speedometer"
 author: "SveltyCMS Team"
 created: "2026-05-11"
-updated: "2026-05-11"
+updated: "2026-05-19"
 tags:
   - "benchmarks"
   - "performance"
@@ -21,16 +21,16 @@ SveltyCMS delivers consistent, sub-millisecond performance across all supported 
 
 ### ⚡ Executive Summary Matrix
 
-| Database | Status | Cold Start | REST p95 | GQL Avg | CPU | Memory |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| [🗄️  **SQLITE**](./benchmark_sqlite.mdx) | 🔴 FAIL | 1667ms | 0.000ms | 0.000ms | 0.0% | 0.0MB |
-| [⚡ **SQLITE+REDIS**](./benchmark_sqlite_redis.mdx) | 🟢 PASS (Hist) | 1605ms | 0.000ms | 0.000ms | 0.0% | 0.0MB |
-| [🍃 **MONGODB**](./benchmark_mongodb.mdx) | 🟢 PASS (Hist) | 1424ms | 7.411ms | 0.000ms | 0.0% | 0.0MB |
-| [🔥 **MONGODB+REDIS**](./benchmark_mongodb_redis.mdx) | ⚪ N/A | - | - | - | - | - |
-| [🐘 **POSTGRESQL**](./benchmark_postgresql.mdx) | 🟢 PASS (Hist) | 1348ms | 0.000ms | 0.000ms | 0.0% | 0.0MB |
-| [💎 **POSTGRESQL+REDIS**](./benchmark_postgresql_redis.mdx) | 🟢 PASS (Hist) | 1334ms | 0.000ms | 0.000ms | 0.0% | 0.0MB |
-| [🐬 **MARIADB**](./benchmark_mariadb.mdx) | ⚪ N/A | - | - | - | - | - |
-| [🔱 **MARIADB+REDIS**](./benchmark_mariadb_redis.mdx) | ⚪ N/A | - | - | - | - | - |
+| Database                                                    | Status         | Cold Start | REST p95 | GQL Avg | CPU  | Memory  |
+| :---------------------------------------------------------- | :------------- | :--------- | :------- | :------ | :--- | :------ |
+| [🗄️ **SQLITE**](./benchmark_sqlite.mdx)                     | 🔴 FAIL        | 0ms        | 0.570ms  | 1.574ms | 0.0% | 148.6MB |
+| [⚡ **SQLITE+REDIS**](./benchmark_sqlite_redis.mdx)         | 🔴 FAIL        | 1605ms     | 0.000ms  | 0.000ms | 0.0% | 0.0MB   |
+| [🍃 **MONGODB**](./benchmark_mongodb.mdx)                   | 🟢 PASS (Hist) | 1424ms     | 7.411ms  | 0.000ms | 0.0% | 0.0MB   |
+| [🔥 **MONGODB+REDIS**](./benchmark_mongodb_redis.mdx)       | ⚪ N/A         | -          | -        | -       | -    | -       |
+| [🐘 **POSTGRESQL**](./benchmark_postgresql.mdx)             | 🟢 PASS (Hist) | 1348ms     | 0.000ms  | 0.000ms | 0.0% | 0.0MB   |
+| [💎 **POSTGRESQL+REDIS**](./benchmark_postgresql_redis.mdx) | 🟢 PASS (Hist) | 1334ms     | 0.000ms  | 0.000ms | 0.0% | 0.0MB   |
+| [🐬 **MARIADB**](./benchmark_mariadb.mdx)                   | ⚪ N/A         | -          | -        | -       | -    | -       |
+| [🔱 **MARIADB+REDIS**](./benchmark_mariadb_redis.mdx)       | ⚪ N/A         | -          | -        | -       | -    | -       |
 
 <!-- SUMMARY_MATRIX_END -->
 
@@ -49,5 +49,18 @@ Select a database engine to view detailed latency splits, client journey simulat
 
 ## 🚀 Methodology
 
-All benchmarks are executed using the integrated `bun run tests/benchmarks/database-performance.ts` harness.
+All benchmarks are executed using the integrated high-fidelity benchmark matrix runner. You can execute the full suite or target specific databases directly from the root of the project:
+
+```bash
+# Run the full benchmark matrix across all database engines and variants
+bun run benchmark
+
+# Target a specific database engine (e.g. SQLite, MongoDB, PostgreSQL, MariaDB)
+bun run benchmark --db=sqlite
+bun run benchmark --db=mongodb
+
+# Skip Redis-backed caching variants to only benchmark raw database adapters
+bun run benchmark --db=sqlite --skip-redis
+```
+
 For more details on the testing environment, see the [Project Infrastructure](../../architecture/database/core-infrastructure.mdx).

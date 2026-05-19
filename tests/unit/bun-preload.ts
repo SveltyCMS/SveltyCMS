@@ -37,26 +37,57 @@ mock.module("$app/state", () => svelteKitMock.state);
 mock.module("$app/stores", () => svelteKitMock.stores);
 
 // 2. GLOBAL SHIMS
-(globalThis as any).vi = {
-  fn: (impl?: any) => {
-    const m = mock(impl || (() => {}));
-    (m as any).mockResolvedValue = (v: any) => m.mockImplementation(() => Promise.resolve(v));
-    (m as any).mockReturnValue = (v: any) => m.mockImplementation(() => v);
-    return m;
-  },
-  spyOn: (obj: any, method: string) => spyOn(obj, method),
-  mock: (path: string, factory?: any) => {
-    if (factory) mock.module(path, () => factory(() => import(path)));
-  },
-  stubGlobal: (name: string, value: any) => {
-    (globalThis as any)[name] = value;
-  },
-  mocked: (v: any) => v,
-  hoisted: (f: any) => f(),
-};
-(globalThis as any).vitest = (globalThis as any).vi;
+if (!(globalThis as any).vi) {
+  const mockProto = Object.getPrototypeOf(mock(() => {}));
 
-// 3. SVELTE RUNES
+  const descResolved = Object.getOwnPropertyDescriptor(mockProto, "mockResolvedValue");
+  if (!descResolved || descResolved.configurable) {
+    Object.defineProperty(mockProto, "mockResolvedValue", {
+      value: function (this: any, v: any) {
+        this.mockImplementation(() => Promise.resolve(v));
+        return this;
+      },
+      writable: true,
+      configurable: true,
+      enumerable: true,
+    });
+  }
+
+  const descReturn = Object.getOwnPropertyDescriptor(mockProto, "mockReturnValue");
+  if (!descReturn || descReturn.configurable) {
+    Object.defineProperty(mockProto, "mockReturnValue", {
+      value: function (this: any, v: any) {
+        this.mockImplementation(() => v);
+        return this;
+      },
+      writable: true,
+      configurable: true,
+      enumerable: true,
+    });
+  }
+
+  (globalThis as any).vi = {
+    fn: (impl?: any) => {
+      return mock(impl || (() => {}));
+    },
+    spyOn: (obj: any, method: string) => spyOn(obj, method),
+    mock: (path: string, factory?: any) => {
+      if (factory) mock.module(path, () => factory(() => import(path)));
+    },
+    stubGlobal: (name: string, value: any) => {
+      (globalThis as any)[name] = value;
+    },
+    mocked: (v: any) => v,
+    hoisted: (f: any) => f(),
+  };
+  (globalThis as any).vitest = (globalThis as any).vi;
+}
+
+// 3. SVELTE RUNES & BROWSER SHIMS
+(globalThis as any).window = globalThis;
+(globalThis as any).location = new URL("http://localhost");
+(globalThis as any).document = { createElement: () => ({}) };
+
 const rune = (v: any) => v;
 (globalThis as any).$state = rune;
 (globalThis as any).$state.raw = rune;

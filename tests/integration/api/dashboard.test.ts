@@ -355,10 +355,9 @@ describe("Dashboard API - Last 5 Media Endpoint", () => {
       headers: { Cookie: authCookie },
     });
 
-    expect(response.ok).toBe(true);
-    const data = await response.json();
-
-    expect(Array.isArray(data)).toBe(true);
+    const status = response.status;
+    const text = await response.text();
+    expect(status + " | " + text).toBe("200 | []");
   });
 
   test("should have valid media item structure", async () => {

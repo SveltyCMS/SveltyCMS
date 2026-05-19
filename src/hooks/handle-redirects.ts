@@ -140,36 +140,44 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
     cached = await cacheService.get<any>(cacheKey, tenantId);
   }
 
-  if (cached) {
-    if (cached.isNegative) return resolve(event);
-    logger.debug(`[handleRedirects] Cache HIT for ${path}: ${cached.target}`);
-    return applyRedirect(path, cached);
-  }
-
   const state = getSystemState().overallState;
   const ready = isSystemReady() || state === "SETUP";
   const connected = isDbConnected();
 
-  // 2. DB Lookup
-  if (connected && ready) {
-    try {
-      const result = await redirectIndexService.getRedirects(tenantId, path);
+  let hasRedirect = false;
+  let redirectEntry = null;
 
-      if (result.success && result.data && result.data.length > 0) {
-        const redirectEntry = result.data[0];
-        logger.debug(
-          `[handleRedirects] Match found for ${path}: ${redirectEntry.target} (${redirectEntry.type})`,
-        );
-        // Store in cache for 1 hour
-        await cacheService.set(cacheKey, redirectEntry, 3600, tenantId, CacheCategory.API);
-        return applyRedirect(path, redirectEntry);
-      } else {
-        // Negative cache for 5 minutes to prevent DB hammering on 404s
-        await cacheService.set(cacheKey, { isNegative: true }, 300, tenantId, CacheCategory.API);
-      }
-    } catch (err) {
-      logger.error(`[handleRedirects] Lookup error for ${path}:`, err);
+  if (cached) {
+    if (!cached.isNegative) {
+      hasRedirect = true;
+      redirectEntry = cached;
     }
+  } else {
+    // 2. DB Lookup
+    if (connected && ready) {
+      try {
+        const result = await redirectIndexService.getRedirects(tenantId, path);
+
+        if (result.success && result.data && result.data.length > 0) {
+          redirectEntry = result.data[0];
+          hasRedirect = true;
+          logger.debug(
+            `[handleRedirects] Match found for ${path}: ${redirectEntry.target} (${redirectEntry.type})`,
+          );
+          // Store in cache for 1 hour
+          await cacheService.set(cacheKey, redirectEntry, 3600, tenantId, CacheCategory.API);
+        } else {
+          // Negative cache for 5 minutes to prevent DB hammering on 404s
+          await cacheService.set(cacheKey, { isNegative: true }, 300, tenantId, CacheCategory.API);
+        }
+      } catch (err) {
+        logger.error(`[handleRedirects] Lookup error for ${path}:`, err);
+      }
+    }
+  }
+
+  if (hasRedirect && redirectEntry) {
+    return applyRedirect(path, redirectEntry);
   }
 
   // 1b. Check Regex Redirects (If we wanted to support them via the same service)
@@ -197,6 +205,77 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
         flushTimer = null;
         flush404Logs();
       }, LOG_FLUSH_INTERVAL_MS);
+    }
+  }
+
+  // 4. Validate if path is a valid route to prevent 200 OK on 404 SPA fallback
+  const pathSegments = path.split("/").filter(Boolean);
+
+  if (pathSegments.length > 0) {
+    const firstSegment = pathSegments[0];
+    const availableLanguages = (
+      await import("@src/services/core/settings-service")
+    ).getPublicSettingSync("AVAILABLE_CONTENT_LANGUAGES") || ["en"];
+    const hasLangPrefix = availableLanguages.includes(firstSegment);
+
+    // List of allowed root-level folders/routes
+    const allowedRoots = new Set([
+      "login",
+      "setup",
+      "robots.txt",
+      "sitemap.xml",
+      "favicon.ico",
+      "api",
+      "cms",
+      "static",
+      "files",
+      "email-previews",
+      "ui-test",
+      "admin",
+      "config",
+      "dashboard",
+      "mediagallery",
+      "user",
+    ]);
+
+    const isAllowedRoot = allowedRoots.has(firstSegment);
+    console.log(
+      `[handleRedirects Debug] path: ${path}, firstSegment: ${firstSegment}, hasLangPrefix: ${hasLangPrefix}, isAllowedRoot: ${isAllowedRoot}`,
+    );
+
+    if (hasLangPrefix) {
+      if (pathSegments.length > 1) {
+        const collectionPath = "/" + pathSegments.slice(1).join("/");
+        if (connected && ready) {
+          try {
+            const { contentSystem } = await import("@src/content/index.server");
+            await contentSystem.initialize(tenantId);
+            const exists = contentSystem.getCollection(collectionPath, tenantId);
+            if (!exists) {
+              return new Response("Not Found", {
+                status: 404,
+                headers: {
+                  "Content-Type": "text/plain",
+                  "X-Robots-Tag": "none",
+                },
+              });
+            }
+          } catch {
+            // Fallback to SvelteKit resolve on error
+          }
+        }
+      }
+    } else {
+      if (!isAllowedRoot) {
+        console.log(`[handleRedirects Debug] BLOCKING path: ${path} with 404!`);
+        return new Response("Not Found", {
+          status: 404,
+          headers: {
+            "Content-Type": "text/plain",
+            "X-Robots-Tag": "none",
+          },
+        });
+      }
     }
   }
 

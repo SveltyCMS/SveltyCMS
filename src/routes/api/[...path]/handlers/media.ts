@@ -259,6 +259,9 @@ export async function handleMediaManipulate(
   if (!result.success) {
     // 🚀 UNWRAP ERROR: If the namespace returns a 404/403 error, we MUST propagate it.
     if (result.error instanceof AppError) throw result.error;
+    if (result.message && result.message.toLowerCase().includes("not found")) {
+      throw new AppError(result.message, 404);
+    }
     throw new AppError(result.message || "Manipulation failed", 500);
   }
 

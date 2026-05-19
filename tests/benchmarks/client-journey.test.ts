@@ -25,7 +25,8 @@ import {
 } from "./benchmark-utils";
 
 // 🚀 SHIM: Allow running with 'bun run' instead of 'bun test'
-const isManual = typeof Bun === "undefined" || (!process.env.BUN_TEST && !(globalThis as any).describe);
+const isManual =
+  typeof Bun === "undefined" || (!process.env.BUN_TEST && !(globalThis as any).describe);
 if (isManual) console.log("Manual test execution");
 const _beforeAll = (globalThis as any).beforeAll || bunTest.beforeAll;
 const _afterAll = (globalThis as any).afterAll || bunTest.afterAll;

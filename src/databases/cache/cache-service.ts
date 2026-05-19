@@ -262,29 +262,29 @@ export class CacheService {
   ): Promise<T | null | undefined> {
     const fullKey = this.generateKey(key, tenantId);
 
-    const start = performance.now();
-
-    // 🚀 Performance: Check L1 first to handle "stale" negative cache hits
+    // 🚀 FAST PATH: Check L1 memory cache (Sync)
     const l1Value = this.l1.get(fullKey);
     if (l1Value !== undefined) {
-      this.recordLatency(performance.now() - start);
       this.stats.hits++;
       this.stats.l1Hits++;
       this.recordMetricSync("cache:hit:l1", 1);
       return l1Value as T;
     }
 
-    // 0. Check Negative Cache (Hybrid)
+    // 0. Check Negative Cache (Bloom)
     if (!this.negativeInvalidated.has(fullKey) && this.negativeBloom.has(fullKey)) {
       this.stats.hits++;
       return null;
     }
 
+    // 🚀 L2 PATH: If L1 miss, query Redis
     if (this.isL2Ready()) {
       try {
+        const start = performance.now();
         const l2Value = await this.l2.get(fullKey);
         if (l2Value) {
-          const parsed = JSON.parse(l2Value);
+          const parsed = typeof l2Value === "string" ? JSON.parse(l2Value) : l2Value;
+
           this.recordLatency(performance.now() - start);
           this.l1.set(fullKey, parsed);
           this.stats.hits++;

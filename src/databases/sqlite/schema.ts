@@ -158,7 +158,9 @@ export const contentNodes = sqliteTable(
     slug: text("slug", { length: 500 }),
     icon: text("icon", { length: 100 }),
     description: text("description"),
-    collectionDef: text("collectionDef").$type<import("@src/content/types").Schema>(),
+    collectionDef: text("collectionDef", { mode: "json" }).$type<
+      import("@src/content/types").Schema
+    >(),
     data: text("data"),
     metadata: text("metadata"),
     translations: text("translations")

@@ -1,6 +1,8 @@
 /**
  * @file scripts/quality-gate.ts
  * @description Fast, incremental pre-commit quality gate.
+ *
+ *  This script performs a series of automated checks on staged files before allowing a commit.
  */
 
 import { spawn } from "node:child_process";

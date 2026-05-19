@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:database-settings"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-03-27"
+updated: "2026-05-19"
 tags:
   - "database"
   - "infrastructure"
@@ -620,6 +620,44 @@ export interface QueryMeta {
 
 **Step 1**: Application code (no changes needed)
 
+```typescript
+// This code works with ANY database
+const users = await dbAdapter.findMany("users", {
+  filter: { equals: { status: "active" } },
+  sort: { createdAt: "desc" },
+  limit: 20,
+});
+```
+
+**Step 2**: Change configuration
+
+```typescript
+// Before (MongoDB)
+DB_TYPE=mongodb
+DB_HOST=mongodb://localhost:27017
+
+// After (PostgreSQL)
+DB_TYPE=postgresql
+DB_HOST=postgresql://localhost:5432
+```
+
+**Step 3**: That's it! Application works identically.
+
+The adapter translates the generic query to database-specific syntax:
+
+```typescript
+// MongoDB Adapter
+db.collection("users").find({ status: "active" }).sort({ createdAt: -1 }).limit(20);
+
+// PostgreSQL Adapter
+db.query(`
+  SELECT * FROM users 
+  WHERE status = 'active' 
+  ORDER BY created_at DESC 
+  LIMIT 20
+`);
+```
+
 ---
 
 ## 📁 File 3: `src/services/sdk/index.ts` (LocalCMS)
@@ -693,47 +731,9 @@ const posts = await cms.collections.find("posts", { tenantId });
 - **Negative Caching**: Integrated with `CacheService` to skip database roundtrips for known non-existent records.
 - **Lifecycle Hooks**: Automatically triggers `beforeSave` and `afterSave` logic without requiring manual orchestration.
 
-```typescript
-// This code works with ANY database
-const users = await dbAdapter.findMany("users", {
-  filter: { equals: { status: "active" } },
-  sort: { createdAt: "desc" },
-  limit: 20,
-});
-```
-
-**Step 2**: Change configuration
-
-```typescript
-// Before (MongoDB)
-DB_TYPE=mongodb
-DB_HOST=mongodb://localhost:27017
-
-// After (PostgreSQL)
-DB_TYPE=postgresql
-DB_HOST=postgresql://localhost:5432
-```
-
-**Step 3**: That's it! Application works identically.
-
-The adapter translates the generic query to database-specific syntax:
-
-```typescript
-// MongoDB Adapter
-db.collection("users").find({ status: "active" }).sort({ createdAt: -1 }).limit(20);
-
-// PostgreSQL Adapter
-db.query(`
-  SELECT * FROM users 
-  WHERE status = 'active' 
-  ORDER BY created_at DESC 
-  LIMIT 20
-`);
-```
-
 ---
 
-## 📁 File 3: `src/databases/theme-manager.ts`
+## 📁 File 5: `src/databases/theme-manager.ts`
 
 **Purpose**: Theme loading, caching, and management service
 

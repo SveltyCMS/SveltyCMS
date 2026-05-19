@@ -119,6 +119,14 @@ class ToastStore {
     // Navigation handlers are now set up in +layout.svelte to avoid lifecycle errors
   }
 
+  private get safeSessionStorage(): Storage | null {
+    try {
+      return typeof sessionStorage !== "undefined" ? sessionStorage : null;
+    } catch {
+      return null;
+    }
+  }
+
   // ==========================================
   // RESPONSIVE POSITION LOGIC
   // ==========================================
@@ -231,24 +239,32 @@ class ToastStore {
 
   flash(options: Omit<ToastOptions, "createdAt" | "remainingTime">): void {
     if (!isBrowser) return;
+    const storage = this.safeSessionStorage;
+    if (!storage) return;
 
     const flashData = {
       ...options,
       timestamp: Date.now(),
     };
 
-    globalThis.sessionStorage.setItem(FLASH_KEY, JSON.stringify(flashData));
+    try {
+      storage.setItem(FLASH_KEY, JSON.stringify(flashData));
+    } catch (e) {
+      console.warn("[ToastStore] Flash persist failed:", e);
+    }
   }
 
   checkFlash(): void {
     if (!isBrowser) return;
-
-    const raw = globalThis.sessionStorage.getItem(FLASH_KEY);
-    if (!raw) return;
-
-    globalThis.sessionStorage.removeItem(FLASH_KEY);
+    const storage = this.safeSessionStorage;
+    if (!storage) return;
 
     try {
+      const raw = storage.getItem(FLASH_KEY);
+      if (!raw) return;
+
+      storage.removeItem(FLASH_KEY);
+
       const flash = JSON.parse(raw);
       if (Date.now() - flash.timestamp < 10000) {
         this.show({
@@ -446,6 +462,8 @@ class ToastStore {
 
   private persist(): void {
     if (!isBrowser) return;
+    const storage = this.safeSessionStorage;
+    if (!storage) return;
 
     const savable = this.toasts
       .filter((t) => t.persistent || t.remainingTime > 1000)
@@ -462,15 +480,18 @@ class ToastStore {
       }));
 
     try {
-      globalThis.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(savable));
+      storage.setItem(STORAGE_KEY, JSON.stringify(savable));
     } catch (e) {
       console.warn("[ToastStore] Failed to persist:", e);
     }
   }
 
   private hydrate(): void {
+    const storage = this.safeSessionStorage;
+    if (!storage) return;
+
     try {
-      const raw = globalThis.sessionStorage.getItem(STORAGE_KEY);
+      const raw = storage.getItem(STORAGE_KEY);
       if (!raw) return;
 
       const parsed: Toast[] = JSON.parse(raw);
@@ -501,7 +522,9 @@ class ToastStore {
       }, 0);
     } catch (e) {
       console.error("[ToastStore] Hydration failed:", e);
-      globalThis.sessionStorage.removeItem(STORAGE_KEY);
+      try {
+        storage.removeItem(STORAGE_KEY);
+      } catch {}
     }
   }
 

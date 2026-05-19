@@ -269,6 +269,17 @@ export const BENCHMARK_SCRIPTS: BenchmarkScript[] = [
     strategy: "all",
   },
   {
+    path: "tests/benchmarks/websocket-broadcast.test.ts",
+    label: "REAL-TIME BROADCAST AUDIT",
+    shortLabel: "Broadcast",
+    level: 4,
+    section: "api",
+    intensity: "medium",
+    estimatedMs: 20_000,
+    desc: "Benchmarks network-layer broadcast latency (SSE vs WebSocket).",
+    strategy: "all",
+  },
+  {
     path: "tests/benchmarks/realtime-performance.test.ts",
     label: "WebSocket & Realtime Latency",
     shortLabel: "Real-Time",

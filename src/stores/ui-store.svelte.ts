@@ -94,7 +94,11 @@ class UIStore {
   }
 
   constructor() {
-    if (typeof window === "undefined") {
+    if (
+      typeof window === "undefined" ||
+      !(globalThis as any).$effect ||
+      !(globalThis as any).$effect.root
+    ) {
       return;
     }
 

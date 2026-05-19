@@ -249,8 +249,16 @@ async function prepareCollection(db: any) {
     // 🚀 PERFECT STORM: Inject physical indices for benchmark_crud
     if (db.type !== "mongodb") {
       try {
-        await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS "idx_bench_crud_status" ON "${COLLECTION_ID}" ("status")`));
-        await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS "idx_bench_crud_tenant" ON "${COLLECTION_ID}" ("tenantId")`));
+        await db.execute(
+          sql.raw(
+            `CREATE INDEX IF NOT EXISTS "idx_bench_crud_status" ON "${COLLECTION_ID}" ("status")`,
+          ),
+        );
+        await db.execute(
+          sql.raw(
+            `CREATE INDEX IF NOT EXISTS "idx_bench_crud_tenant" ON "${COLLECTION_ID}" ("tenantId")`,
+          ),
+        );
       } catch {}
     }
   }

@@ -23,9 +23,7 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runSeoAudit() {
-  console.log(
-    `🚀 Starting Enterprise SEO Suite Audit (${getDbType().toUpperCase()})...\n`,
-  );
+  console.log(`🚀 Starting Enterprise SEO Suite Audit (${getDbType().toUpperCase()})...\n`);
 
   try {
     const server = await setupBenchmarkServer();
@@ -79,7 +77,7 @@ async function runSeoAudit() {
       },
       {
         name: "Missing Path (404 Log)",
-        path: "/non-existent-path-" + Math.random(),
+        path: "/non-existent-path-" + Math.floor(Math.random() * 1000000),
         expectedStatus: 404,
         layer: "Analytics",
       },
@@ -107,18 +105,9 @@ async function runSeoAudit() {
             },
           });
 
-          if (
-            scenario.expectedStatus &&
-            res.status !== scenario.expectedStatus
-          ) {
+          if (scenario.expectedStatus && res.status !== scenario.expectedStatus) {
             const loc = res.headers.get("location");
             const locationInfo = loc ? ` (Location: ${loc})` : "";
-
-            if (process.env.BENCHMARK_DEBUG === "true") {
-              console.error(
-                `[SEO Debug] Fail: ${scenario.name}, Status: ${res.status}${locationInfo}`,
-              );
-            }
             throw new Error(
               `${scenario.name} failed: Expected ${scenario.expectedStatus}, got ${res.status}${locationInfo}`,
             );

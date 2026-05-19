@@ -323,7 +323,11 @@ async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: bo
     return;
   }
 
-  if (cookies.get(SESSION_COOKIE_NAME) && !isUserPresent) return;
+  if (
+    (cookies.get(SESSION_COOKIE_NAME) || cookies.get(`__Host-${SESSION_COOKIE_NAME}`)) &&
+    !isUserPresent
+  )
+    return;
 
   const sessionKey = url.hostname;
   const existing = pendingDemoTenants.get(sessionKey);
@@ -418,7 +422,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
     const authHeader = event.request.headers.get("Authorization");
-    const sessionId = cookies.get(cookieName) || cookies.get(SESSION_COOKIE_NAME);
+    const sessionId =
+      cookies.get(cookieName) ||
+      cookies.get(SESSION_COOKIE_NAME) ||
+      cookies.get(`__Host-${SESSION_COOKIE_NAME}`);
     if (sessionId) {
       metricsService.incrementAuthValidations();
       if (!auth) {

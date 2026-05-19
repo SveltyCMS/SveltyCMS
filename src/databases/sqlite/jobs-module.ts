@@ -17,6 +17,27 @@ import * as utils from "./utils";
 
 import { DatabaseModule } from "../core/base-adapter";
 
+function ensureNativeDate(val: any): any {
+  if (!val) return val;
+  if (val instanceof Date) {
+    if (isNaN(val.getTime())) return new Date();
+    return new Date(val.getTime());
+  }
+  if (typeof val === "object" && typeof val.getTime === "function") {
+    const t = val.getTime();
+    return isNaN(t) ? new Date() : new Date(t);
+  }
+  if (typeof val === "string" || typeof val === "number") {
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? new Date() : d;
+  }
+  return val;
+}
+
+function toJob(item: any): Job {
+  return utils.convertDatesToISO(item) as unknown as Job;
+}
+
 export class JobsModule extends DatabaseModule<SQLiteAdapterCore> {
   constructor(core: SQLiteAdapterCore) {
     super(core);
@@ -30,19 +51,22 @@ export class JobsModule extends DatabaseModule<SQLiteAdapterCore> {
     return this.core.wrap(async () => {
       const id = utils.generateId();
       const now = new Date();
-      const values: typeof schema.sveltyJobs.$inferInsert = {
+
+      const insertData = {
         ...(job as any),
         _id: id,
         payload: job.payload as any,
+        nextRunAt: job.nextRunAt ? ensureNativeDate(job.nextRunAt) : now,
         createdAt: now,
         updatedAt: now,
       };
-      await this.db.insert(schema.sveltyJobs).values(values);
+
+      await this.db.insert(schema.sveltyJobs).values(insertData);
       const [result] = await this.db
         .select()
         .from(schema.sveltyJobs)
         .where(eq(schema.sveltyJobs._id, id));
-      return result as unknown as Job;
+      return toJob(result);
     }, "JOB_CREATE_FAILED");
   }
 
@@ -52,7 +76,7 @@ export class JobsModule extends DatabaseModule<SQLiteAdapterCore> {
         .select()
         .from(schema.sveltyJobs)
         .where(eq(schema.sveltyJobs._id, jobId as string));
-      return (result as unknown as Job) || null;
+      return result ? toJob(result) : null;
     }, "JOB_GET_FAILED");
   }
 
@@ -60,7 +84,7 @@ export class JobsModule extends DatabaseModule<SQLiteAdapterCore> {
     return this.core.wrap(async () => {
       const conditions = [
         eq(schema.sveltyJobs.status, "pending"),
-        lte(schema.sveltyJobs.nextRunAt, new Date()),
+        lte(schema.sveltyJobs.nextRunAt, ensureNativeDate(new Date())),
       ];
       if (tenantId) {
         conditions.push(eq(schema.sveltyJobs.tenantId, tenantId));
@@ -73,7 +97,7 @@ export class JobsModule extends DatabaseModule<SQLiteAdapterCore> {
         .orderBy(schema.sveltyJobs.nextRunAt)
         .limit(limit);
 
-      return results as unknown as Job[];
+      return (results || []).map(toJob);
     }, "JOB_FETCH_READY_FAILED");
   }
 
@@ -101,7 +125,7 @@ export class JobsModule extends DatabaseModule<SQLiteAdapterCore> {
       if (options?.offset) q = q.offset(options.offset);
 
       const results = await q;
-      return results as unknown as Job[];
+      return (results || []).map(toJob);
     }, "JOB_LIST_FAILED");
   }
 
@@ -132,16 +156,21 @@ export class JobsModule extends DatabaseModule<SQLiteAdapterCore> {
   async update(jobId: DatabaseId, data: Partial<EntityCreate<Job>>): Promise<DatabaseResult<Job>> {
     return this.core.wrap(async () => {
       const now = new Date();
+      const updateData = { ...data, updatedAt: now } as any;
+      if (updateData.nextRunAt) {
+        updateData.nextRunAt = ensureNativeDate(updateData.nextRunAt);
+      }
+
       await this.db
         .update(schema.sveltyJobs)
-        .set({ ...data, updatedAt: now } as any)
+        .set(updateData)
         .where(eq(schema.sveltyJobs._id, jobId as string));
 
       const [result] = await this.db
         .select()
         .from(schema.sveltyJobs)
         .where(eq(schema.sveltyJobs._id, jobId as string));
-      return result as unknown as Job;
+      return toJob(result);
     }, "JOB_UPDATE_FAILED");
   }
 
@@ -155,7 +184,7 @@ export class JobsModule extends DatabaseModule<SQLiteAdapterCore> {
     return this.core.wrap(async () => {
       const result = await this.db
         .delete(schema.sveltyJobs)
-        .where(lte(schema.sveltyJobs.createdAt, olderThan));
+        .where(lte(schema.sveltyJobs.createdAt, ensureNativeDate(olderThan)));
       return (result as any).changes || 0;
     }, "JOB_CLEANUP_FAILED");
   }

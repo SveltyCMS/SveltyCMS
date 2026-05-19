@@ -16,6 +16,7 @@ import {
   getDbType,
   forceRefreshServer,
   TEST_API_SECRET,
+  waitForCollection,
 } from "./benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -37,7 +38,7 @@ const graphqlScenarios = [
   },
   {
     name: "GQL: Entries (Stable Collection)",
-    query: `query { BenchmarkStable(pagination: { limit: 10 }) { _id title content } }`,
+    query: `query { BenchmarkStable(pagination: { limit: 10 }) { _id title content { title content } } }`,
 
     shortLabel: "Entries",
     concurrency: 5,
@@ -63,6 +64,7 @@ export async function runGraphQLBenchmark() {
 
     await ensureStableTestData();
     await forceRefreshServer(baseUrl);
+    await waitForCollection(baseUrl, "BenchmarkStable");
     await stabilize(1200);
 
     const results = [];
@@ -79,6 +81,9 @@ export async function runGraphQLBenchmark() {
         measureMemory: true,
         silent: true,
         onIteration: async () => {
+          if (process.env.BENCHMARK_DEBUG === "true") {
+            console.log(`[Fetch Debug] Query: "${scenario.query}"`);
+          }
           const res = await fetch(`${baseUrl}/api/graphql`, {
             method: "POST",
             headers: {

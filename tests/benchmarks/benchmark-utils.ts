@@ -168,7 +168,15 @@ export const afterEach = (fn: any, timeout?: number) => {
 // ── silencing noise ─────────────────────────────────────────────────────────
 (globalThis as any).__SVELTY_QUIET__ = true;
 process.env.BENCHMARK = "true";
+
+// 🛡️ AUTO-CLEANUP: Global hook to prevent connection leaks
+afterAll(async () => {
+  const { shutdownSystem } = await import("@src/databases/db");
+  await shutdownSystem().catch(() => {});
+});
+
 // 🚀 UNIFIED LOGGING: High-frequency benchmarks use 'error' by default, 'debug' only if requested.
+
 process.env.LOG_LEVEL = process.env.BENCHMARK_DEBUG === "true" ? "debug" : "error";
 process.env.DEBUG = "";
 process.env.QUIET = "true";
@@ -856,6 +864,47 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
 
   if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
     try {
+      // If system is already seeded (e.g. from a previous task), skip redundant seeding
+      const authorCheck = await fetch(
+        `${process.env.API_BASE_URL}/api/collections/BenchmarkAuthors`,
+        {
+          headers: { "x-test-secret": TEST_API_SECRET },
+        },
+      );
+      if (authorCheck.ok) {
+        if (process.env.BENCHMARK_DEBUG === "true")
+          process.stderr.write(`[DEBUG] Collections already seeded, skipping.\n`);
+        return;
+      }
+
+      const authorSchema = {
+        _id: "BenchmarkAuthors",
+        name: "BenchmarkAuthors",
+        fields: [
+          { db_fieldName: "_id", label: "ID", widget: { Name: "Input" }, type: "string" },
+          { db_fieldName: "name", label: "Name", widget: { Name: "Input" }, type: "string" },
+        ],
+      };
+
+      // 1. Create BenchmarkAuthors Collection
+      const resAuthor = await fetch(`${process.env.API_BASE_URL}/api/testing`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-mode": "true",
+          "x-test-secret": TEST_API_SECRET,
+          "x-tenant-id": tenantId,
+        },
+        body: JSON.stringify({ action: "create-collection", schema: authorSchema }),
+      });
+      const createAuthorResult = await resAuthor.json();
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        process.stderr.write(
+          `[DEBUG] create-collection (Authors) status: ${resAuthor.status}, success: ${createAuthorResult.success}\n`,
+        );
+      }
+
+      // 2. Create BenchmarkStable Collection
       const res = await fetch(`${process.env.API_BASE_URL}/api/testing`, {
         method: "POST",
         headers: {
@@ -870,7 +919,7 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
       const createResult = await res.json();
       if (process.env.BENCHMARK_DEBUG === "true") {
         process.stderr.write(
-          `[DEBUG] create-collection status: ${res.status}, success: ${createResult.success}\n`,
+          `[DEBUG] create-collection (Stable) status: ${res.status}, success: ${createResult.success}\n`,
         );
       }
 
@@ -883,7 +932,18 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
         return;
       }
 
-      // 2. Clear Collection (to prevent PK collisions)
+      // 3. Clear Collections (to prevent PK collisions)
+      await fetch(`${process.env.API_BASE_URL}/api/testing`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-mode": "true",
+          "x-test-secret": TEST_API_SECRET,
+          "x-tenant-id": tenantId,
+        },
+        body: JSON.stringify({ action: "clear-collection", collectionId: "BenchmarkAuthors" }),
+      });
+
       const clearRes = await fetch(`${process.env.API_BASE_URL}/api/testing`, {
         method: "POST",
         headers: {
@@ -901,12 +961,36 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
         );
       }
 
+      // 4. Seed Authors via API
+      const authors = Array.from({ length: 10 }, (_, i) => ({
+        _id: `author-${(i + 1).toString().padStart(3, "0")}`,
+        name: `Author ${i + 1}`,
+      }));
+      const bulkAuthorRes = await fetch(
+        `${process.env.API_BASE_URL}/api/collections/BenchmarkAuthors/bulk`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-test-mode": "true",
+            "x-test-secret": TEST_API_SECRET,
+            "x-tenant-id": tenantId,
+          },
+          body: JSON.stringify(authors),
+        },
+      );
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        process.stderr.write(`[DEBUG] bulk-seed (Authors) status: ${bulkAuthorRes.status}\n`);
+      }
+
+      // 5. Seed Stable entries via API with author relations
       const bulkData = Array.from({ length: 100 }, (_, i) => ({
         _id: `bench-shared-${(i + 1).toString().padStart(3, "0")}`,
         title: `Stable Entry ${i + 1}`,
         content: "Enterprise benchmark data chunk ".repeat(10),
         status: "published",
         count: i + 1,
+        author: `author-${((i % 10) + 1).toString().padStart(3, "0")}`,
       }));
 
       const bulkRes = await fetch(
@@ -959,9 +1043,21 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     // This ensures O(1) lookups and O(log N) filtering even for dynamic benchmark tables.
     if (activeDb.type !== "mongodb") {
       try {
-        await activeDb.execute(sql.raw(`CREATE INDEX IF NOT EXISTS "idx_bench_stable_slug" ON "${STABLE_COLLECTION}" ("slug")`));
-        await activeDb.execute(sql.raw(`CREATE INDEX IF NOT EXISTS "idx_bench_stable_tenant" ON "${STABLE_COLLECTION}" ("tenantId")`));
-        await activeDb.execute(sql.raw(`CREATE INDEX IF NOT EXISTS "idx_bench_authors_name" ON "BenchmarkAuthors" ("name")`));
+        await activeDb.execute(
+          sql.raw(
+            `CREATE INDEX IF NOT EXISTS "idx_bench_stable_slug" ON "${STABLE_COLLECTION}" ("slug")`,
+          ),
+        );
+        await activeDb.execute(
+          sql.raw(
+            `CREATE INDEX IF NOT EXISTS "idx_bench_stable_tenant" ON "${STABLE_COLLECTION}" ("tenantId")`,
+          ),
+        );
+        await activeDb.execute(
+          sql.raw(
+            `CREATE INDEX IF NOT EXISTS "idx_bench_authors_name" ON "BenchmarkAuthors" ("name")`,
+          ),
+        );
       } catch {}
     }
   } catch {
@@ -1016,6 +1112,38 @@ export async function forceRefreshServer(baseUrl: string, tenantId: string = "gl
       await new Promise((r) => setTimeout(r, 1000));
     }
   }
+}
+
+/**
+ * 🛡️ SCHEMA SYNC GUARD: Poll GraphQL __schema until dynamic collection is visible.
+ */
+export async function waitForCollection(
+  baseUrl: string,
+  collectionId: string,
+  tenantId: string = "global",
+) {
+  const query = `query { __schema { types { name } } }`;
+  for (let i = 0; i < 20; i++) {
+    try {
+      const res = await fetch(`${baseUrl}/api/graphql`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-mode": "true",
+          "x-test-secret": TEST_API_SECRET,
+          "x-tenant-id": tenantId,
+        },
+        body: JSON.stringify({ query }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const types = data.data.__schema.types.map((t: any) => t.name);
+        if (types.includes(collectionId)) return;
+      }
+    } catch {}
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  throw new Error(`Timeout waiting for collection ${collectionId} in GraphQL schema.`);
 }
 
 export function generateRealisticEntry(

@@ -36,7 +36,6 @@
 		userpage_user_id
 	} from '@src/paraglide/messages';
 	// Stores
-	import { collaboration } from '@src/stores/collaboration-store.svelte';
 	import { avatarSrc, normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
@@ -104,12 +103,6 @@
 			if (res.ok) {
 				toast.success('Preferences updated');
 				await invalidateAll();
-				// If RTC was disabled, close connection
-				if (key === 'enabled' && !value) {
-					collaboration.close();
-				} else if (key === 'enabled' && value) {
-					collaboration.connect();
-				}
 			} else {
 				toast.error('Failed to update preferences');
 			}

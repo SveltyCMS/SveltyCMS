@@ -189,8 +189,8 @@ export class RelationalContentModule implements IContentAdapter {
               { tenantId },
             );
 
-            // Conflict columns for content_nodes are path and tenantId
-            const conflictCols = [table.path, table.tenantId];
+            // Conflict columns for content_nodes is the primary key _id
+            const conflictCols = [table._id];
 
             if (process.env.BENCHMARK_DEBUG === "true") {
               console.log(
@@ -242,7 +242,7 @@ export class RelationalContentModule implements IContentAdapter {
 
       return this.adapter.wrap(
         async () => {
-          const db = options.tx || this.db;
+          const db = options.tx?.db || options.tx || this.db;
           const now = isoDateStringToDate(nowISODateString());
 
           // Use dialect-specific returning if supported

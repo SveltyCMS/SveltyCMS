@@ -123,15 +123,22 @@ interface CacheClient {
 
 // Registers collection schemas dynamically, now tenant-aware
 export async function registerCollections(tenantId?: string | null) {
+  console.log(
+    `[DEBUG] Executing registerCollections in ${import.meta.url} for tenant: ${tenantId}`,
+  );
+
   await contentSystem.initialize(tenantId);
   await widgets.initialize(tenantId || "default");
-  const collections: Schema[] = await contentSystem.getCollections(tenantId);
 
-  if (process.env.BENCHMARK_DEBUG === "true") {
-    console.log(
-      `[GraphQL Debug] registerCollections found ${collections.length} collections for tenant ${tenantId || "global"}: ${collections.map((c) => c._id || c.name).join(", ")}`,
-    );
+  // 🚀 BENCHMARK HARDENING: Force collection list refresh if in benchmark mode
+  if (process.env.BENCHMARK === "true") {
+    await contentSystem.refresh(tenantId, false, false);
   }
+
+  const collections: Schema[] = await contentSystem.getCollections(tenantId);
+  console.log(
+    `[DEBUG] Collections list count: ${collections.length}. IDs: ${collections.map((c) => c._id).join(", ")}`,
+  );
 
   const typeIDs = new Set<string>();
   const typeDefsSet = new Set<string>();

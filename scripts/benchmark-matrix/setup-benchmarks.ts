@@ -324,14 +324,15 @@ async function notifyServer() {
   if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
     log(`   → Notifying server at ${process.env.API_BASE_URL}...`);
     try {
-      const res = await fetch(`${process.env.API_BASE_URL}/api/system/refresh`, {
+      // 🚀 CORRECTED ENDPOINT: Using /api/content/refresh
+      const res = await fetch(`${process.env.API_BASE_URL}/api/content`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-test-secret": process.env.TEST_API_SECRET,
         },
-        body: JSON.stringify({ tenantId: TENANT_ID, skipReconciliation: false }),
-        signal: AbortSignal.timeout(60000), // Increased to 60s
+        body: JSON.stringify({ method: "refresh", tenantId: TENANT_ID }),
+        signal: AbortSignal.timeout(60000),
       });
       if (res.ok) log("   → Server refresh successful.");
       else log(`   → Server refresh failed: ${res.status} ${res.statusText}`);

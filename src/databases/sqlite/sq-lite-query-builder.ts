@@ -312,7 +312,8 @@ export class SQLiteQueryBuilder<T extends BaseEntity> implements QueryBuilder<T>
             fieldName.replace(/^_/, "")
           ];
         if (!column) {
-          throw new Error(`Unknown sort field: ${fieldName}`);
+          // 🚀 HYBRID SCHEMA SUPPORT: Fallback to JSON sorting for dynamic fields
+          return order(sql`json_extract(data, '$.' || ${fieldName})`);
         }
         return order(column);
       });

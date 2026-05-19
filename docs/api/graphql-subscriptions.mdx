@@ -1,20 +1,23 @@
 ---
 path: "docs/api/graphql-subscriptions.mdx"
 title: "GraphQL Subscriptions Reference"
-description: "Real-time GraphQL subscriptions with secure WebSocket authentication, JIT optimization, and Svelte 5 integration."
+description: "Real-time GraphQL subscriptions with secure WebSocket authentication, JIT optimization, and Svelte 5 integration via svelte-realtime."
 order: 8
 icon: "mdi:websocket"
 author: "SveltyCMS Team"
 created: "2025-10-29"
-updated: "2026-04-01"
+updated: "2026-05-19"
 tags:
   - "graphql"
   - "websocket"
   - "subscriptions"
   - "real-time"
+  - "uWebSockets"
 ---
 
 # GraphQL Subscriptions Reference
+
+> **Note:** As of May 2026, SveltyCMS has migrated its real-time infrastructure to a unified **`svelte-realtime`** backend powered by **`uWebSockets.js`**. The previous separate GraphQL WebSocket server on port 3001 has been deprecated in favor of a single, high-performance port architecture.
 
 Real-time GraphQL subscriptions allow clients to receive instant updates when data changes. This guide covers the secure WebSocket implementation, JIT-optimized resolvers, and seamless Svelte 5 integration.
 
@@ -24,9 +27,9 @@ Real-time GraphQL subscriptions allow clients to receive instant updates when da
 
 | Feature                     | Details                                                                |
 | :-------------------------- | :--------------------------------------------------------------------- |
-| **Endpoint**                | `ws://[domain]:3001/api/graphql`                                       |
-| **Protocol**                | `graphql-ws`                                                           |
-| **Auth Methods**            | Session ID, Cookie, or Bearer Token                                    |
+| **Endpoint**                | `ws://[domain]/live` (Managed by svelte-realtime)                       |
+| **Protocol**                | `svelte-realtime` RPC                                                   |
+| **Auth Methods**            | Session ID, Cookie, or secure query parameter                          |
 | **Server-Side Alternative** | [**Real-Time Events API (SSE)**](./content.mdx#3-real-time-events-sse) |
 
 ---
@@ -41,13 +44,20 @@ Maintain a live, reactive UI (like a collaborative editor or a real-time dashboa
 
 ### Svelte 5 Integration (Client Side)
 
-Using `graphql-ws` to create a reactive state from a subscription. This leverages Svelte 5's fine-grained reactivity to ensure only the necessary parts of the UI re-render.
+With the migration to `svelte-realtime`, setting up reactive subscriptions on the client is drastically simplified. You no longer need to manage complex WebSocket connection states manually.
 
 ```typescript
-import { createClient } from "graphql-ws";
-import { onMount, onDestroy } from "svelte";
+// Example: Using svelte-realtime to subscribe to the global event stream
+import { realtime } from "svelte-realtime/client";
+import { events } from "$live/system";
 
-let latestPost = $state(null);
+// 1. Initialize the live stream (automatically manages connection and state)
+const eventStream = realtime(events);
+
+// 2. Derive reactive state directly from the stream using Svelte 5 runes
+const latestEvent = $derived(eventStream.value?.at(-1));
+```
+
 
 onMount(() => {
   const client = createClient({
@@ -85,34 +95,31 @@ const client = createClient({
 
 ## 3. The Mechanics (Server-Side)
 
-SveltyCMS utilizes a **Dual-Port Architecture** to separate high-frequency WebSocket traffic from standard HTTP requests, ensuring stability and security.
+SveltyCMS utilizes a **Unified Port Architecture** where `svelte-adapter-uws` manages both HTTP endpoints and WebSockets efficiently.
 
 ```mermaid
 sequenceDiagram
     participant Client
-    participant WS as WS Server (Port 3001)
-    participant JIT as JIT Compiler
-    participant PubSub as Redis/In-Memory PubSub
+    participant UWS as uWebSockets (Port 5173)
+    participant Auth as WS Upgrade Hook
+    participant Live as svelte-realtime
 
-    Client->>WS: Connection Init (Auth Params)
-    WS->>WS: Validate Session/Token
-    WS-->>Client: Connection Ack
+    Client->>UWS: Connection Init
+    UWS->>Auth: Validate Session/Token (hooks.ws.ts)
+    Auth-->>UWS: Accept & Inject Context
 
-    Client->>WS: Subscribe (Query)
-    WS->>JIT: Compile Subscription Resolver
-    JIT-->>WS: Optimized JS Function
-
-    Note over PubSub: Data Mutation in CMS
-    PubSub->>WS: Publish "postAdded"
-    WS->>WS: Check User Permissions
-    WS-->>Client: Next (Data Payload)
+    Client->>Live: Subscribe (Topic)
+    
+    Note over Live: Data Mutation in CMS
+    Live->>Live: live.publish(topic, payload)
+    Live-->>Client: Real-time Update
 ```
 
 ### Performance & Security
 
-- **JIT Execution**: Subscription resolvers are compiled into optimized machine-ready code, ensuring the fastest possible broadcast performance.
-- **Tenant Isolation**: Subscription streams are strictly filtered by `tenantId` at the PubSub layer.
-- **Depth Limiting**: The native AST validator blocks subscriptions deeper than **8 levels** to prevent Denial of Service (DoS) attacks.
+- **uWebSockets.js Engine**: C++ powered WebSocket execution handles tens of thousands of concurrent connections with minimal memory overhead.
+- **Tenant Isolation**: Subscription streams are strictly filtered by `tenantId` natively in the `svelte-realtime` implementation.
+- **Batched Delivery**: High-frequency updates are automatically batched by `svelte-realtime/client` within `requestAnimationFrame`, rendering thousands of changes efficiently in Svelte 5 without locking the main thread.
 
 ---
 
@@ -121,3 +128,4 @@ sequenceDiagram
 - [GraphQL API Reference](./graphql.mdx)
 - [Content, Search & Events Reference](./content.mdx)
 - [Security Architecture](../architecture/security/index.mdx)
+

@@ -317,9 +317,15 @@ export class RelationalSystemModule implements ISystemAdapter {
         async () => {
           const id = utils.generateId();
           const now = new Date();
+          const nextRunAt = job.nextRunAt
+            ? job.nextRunAt instanceof Date
+              ? new Date(job.nextRunAt.getTime())
+              : new Date(job.nextRunAt)
+            : now;
           const values = {
             ...(job as any),
             _id: id,
+            nextRunAt,
             createdAt: now,
             updatedAt: now,
           };
@@ -357,12 +363,12 @@ export class RelationalSystemModule implements ISystemAdapter {
 
     getNextReady: async (limit = 10, tenantId?: string | null): Promise<DatabaseResult<Job[]>> => {
       return this.adapter.wrap(async () => {
-        // 🚀 CROSS-CONTEXT FIX: Use a number (ms) instead of a Date object
-        // to bypass Drizzle's 'instanceof Date' checks which may fail in cross-chunk scenarios.
-        const nowMs = Date.now();
+        // 🚀 CROSS-CONTEXT FIX: Always use a clean Date instance
+        // instantiated in the current context to ensure Drizzle checks pass.
+        const cleanNow = new Date();
         const conditions = [
           eq(this.schema.sveltyJobs.status, "pending"),
-          lte(this.schema.sveltyJobs.nextRunAt, nowMs as any),
+          lte(this.schema.sveltyJobs.nextRunAt, cleanNow),
         ];
         if (tenantId) conditions.push(eq(this.schema.sveltyJobs.tenantId, tenantId));
 
@@ -424,9 +430,16 @@ export class RelationalSystemModule implements ISystemAdapter {
     ): Promise<DatabaseResult<Job>> => {
       return this.adapter.wrap(async () => {
         const now = new Date();
+        const updateValues = { ...data, updatedAt: now } as any;
+        if (updateValues.nextRunAt) {
+          updateValues.nextRunAt =
+            updateValues.nextRunAt instanceof Date
+              ? new Date(updateValues.nextRunAt.getTime())
+              : new Date(updateValues.nextRunAt);
+        }
         await this.db
           .update(this.schema.sveltyJobs)
-          .set(utils.convertISOToDates({ ...data, updatedAt: now }) as any)
+          .set(utils.convertISOToDates(updateValues) as any)
           .where(eq(this.schema.sveltyJobs._id, jobId as string));
 
         const [result] = await this.db
@@ -447,9 +460,11 @@ export class RelationalSystemModule implements ISystemAdapter {
 
     cleanup: async (olderThan: Date): Promise<DatabaseResult<number>> => {
       return this.adapter.wrap(async () => {
+        const cleanOlder =
+          olderThan instanceof Date ? new Date(olderThan.getTime()) : new Date(olderThan);
         const result = await this.db
           .delete(this.schema.sveltyJobs)
-          .where(lte(this.schema.sveltyJobs.createdAt, olderThan));
+          .where(lte(this.schema.sveltyJobs.createdAt, cleanOlder));
         return (result as any).changes || (result as any).count || 0;
       }, "JOB_CLEANUP_FAILED");
     },

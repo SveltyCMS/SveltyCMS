@@ -44,23 +44,19 @@ async function runConcurrencyAudit() {
     console.log(`   → Initial count: ${initialCount}`);
     console.log("   → Blasting 100 concurrent increments...");
 
-    // 2. Blast 100 concurrent PATCH requests
+    // 2. Blast 100 concurrent atomic increments
     const CONCURRENCY = 100;
     const t0 = performance.now();
 
-    // We send raw increment commands if supported, or read-modify-writes to trigger conflicts
-    const promises = Array.from({ length: CONCURRENCY }).map(async (_, i) => {
-      // Small random jitter to maximize collision probability
-      await new Promise((r) => setTimeout(r, Math.random() * 50));
-
-      const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`, {
-        method: "PATCH",
+    const promises = Array.from({ length: CONCURRENCY }).map(async () => {
+      const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}/increment`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-test-mode": "true",
           "x-test-secret": TEST_API_SECRET,
         },
-        body: JSON.stringify({ count: initialCount + 1 + i }), // Intentional race condition setup if not atomic
+        body: JSON.stringify({ field: "count", amount: 1 }),
       });
       return res.ok;
     });
@@ -69,21 +65,22 @@ async function runConcurrencyAudit() {
     const duration = performance.now() - t0;
     const successCount = results.filter(Boolean).length;
 
-    // 3. Verify Final State
-    const finalRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`, {
-      headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
-    });
-    const finalData = await finalRes.json();
-    const finalCount = finalData.count;
+    // 3. Verify Final State (Retry-backed to ensure atomic commit flush)
+    let finalCount = 0;
+    for (let i = 0; i < 3; i++) {
+      const finalRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`, {
+        headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
+      });
+      const finalData = await finalRes.json();
+      finalCount = finalData.count;
+      if (finalCount === initialCount + CONCURRENCY) break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
 
     console.log(`   → Final count: ${finalCount}`);
 
-    // In a perfectly atomic system with last-write-wins or locking, the system shouldn't crash.
-    // However, if we do a true atomic increment (e.g. $inc in Mongo, count = count + 1 in SQL),
-    // it would be exactly initial + 100.
-    // For this generic PATCH test, we primarily verify that the DB didn't lock up and all requests succeeded (or threw expected 409 Conflict).
-
-    const lockUpDetected = successCount < CONCURRENCY && duration > 5000;
+    const isPerfect = finalCount === initialCount + CONCURRENCY;
+    const lockUpDetected = !isPerfect || (successCount < CONCURRENCY && duration > 5000);
 
     printTruthTable({
       title: "SVELTYCMS — CONCURRENCY AUDIT",

@@ -27,7 +27,10 @@ export async function handleContentRoutes(
     }
     if (method === "refresh") {
       await cms.collections.refresh(tenantId);
-      return json({ success: true, message: "Content system refreshed" });
+      // Synchronous Schema Refresh
+      const { _refreshSchema } = await import("../../graphql/+server");
+      await _refreshSchema(cms.db, tenantId);
+      return json({ success: true, message: "Content system and GraphQL schema refreshed" });
     }
     if (method === "collections") {
       // 🚀 SMART REFRESH: Use refreshCollectionsCache instead of cms.collections.refresh.

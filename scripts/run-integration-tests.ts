@@ -18,14 +18,25 @@ import {
 } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createServer } from "node:net";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ROOT = join(__dirname, "..");
 
-const PORT = process.env.PORT ?? "4173";
+let PORT = process.env.PORT ?? "4173";
 const HOST = process.env.HOST ?? "127.0.0.1";
-const API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
+let API_BASE_URL = process.env.API_BASE_URL ?? `http://${HOST}:${PORT}`;
+
+function getFreePort(): Promise<number> {
+  return new Promise((resolve) => {
+    const server = createServer();
+    server.listen(0, () => {
+      const port = (server.address() as any).port;
+      server.close(() => resolve(port));
+    });
+  });
+}
 
 type IntegrationSuite = "all" | "db" | "api";
 
@@ -158,6 +169,21 @@ function filterTestsBySuite(testFiles: string[], suite: IntegrationSuite, dbType
   return filtered;
 }
 
+async function waitForPortToBeFree(port: number, maxAttempts = 30) {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      await fetch(`http://127.0.0.1:${port}/api/system/health`, {
+        signal: AbortSignal.timeout(1000),
+      });
+      // If it responded, it's still alive. Wait.
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    } catch {
+      // Connection refused/Failed to fetch means it is fully freed!
+      return;
+    }
+  }
+}
+
 async function freePort(port: number) {
   console.log(`🧹 Freeing port ${port}...`);
 
@@ -175,6 +201,7 @@ async function freePort(port: number) {
   } catch {
     // Non-fatal. The port may already be free.
   }
+  await waitForPortToBeFree(port);
 }
 
 async function waitForServerReady(maxAttempts = 60) {
@@ -225,6 +252,7 @@ function getTestEnv(db: any) {
     TEST_MODE: "true",
     SKIP_GATEKEEPER: "true",
     PORT: PORT,
+    API_BASE_URL: API_BASE_URL,
     DB_TYPE: db.type,
     DB_HOST: db.host,
     DB_PORT: db.port,
@@ -259,7 +287,7 @@ async function startPreviewServer() {
 
   console.log(`🚀 Starting preview server with entry point: ${relative(ROOT, entryPoint)}`);
 
-  previewProcess = spawn("bun", [entryPoint], {
+  previewProcess = spawn("node", [entryPoint], {
     cwd: ROOT,
     stdio: "inherit",
     shell: process.platform === "win32",
@@ -303,6 +331,7 @@ async function prepareIsolatedServerForTestFile(filePath: string) {
 async function stopPreviewServer() {
   if (!previewProcess) {
     await freePort(Number(PORT));
+    await waitForPortToBeFree(Number(PORT));
     return;
   }
 
@@ -327,6 +356,7 @@ async function stopPreviewServer() {
   previewProcess = null;
   await new Promise((resolve) => setTimeout(resolve, 1500));
   await freePort(Number(PORT));
+  await waitForPortToBeFree(Number(PORT));
 }
 
 function generatePrivateTestConfig(privateTestPath: string) {
@@ -617,8 +647,13 @@ async function main() {
     const relPath = relative(ROOT, file);
     const start = Date.now();
 
+    // 🚀 DYNAMIC PORT RESOLUTION: Avoid port collisions by selecting a fresh port
+    const freePortNum = await getFreePort();
+    PORT = String(freePortNum);
+    API_BASE_URL = `http://${HOST}:${PORT}`;
+
     console.log("\n" + "-".repeat(80));
-    console.log(`🧪 Preparing isolated environment for ${relPath}`);
+    console.log(`🧪 Preparing isolated environment on port ${PORT} for ${relPath}`);
     console.log("-".repeat(80));
 
     await prepareIsolatedServerForTestFile(file);

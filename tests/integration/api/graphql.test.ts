@@ -6,7 +6,7 @@
  * for collections, users, and media.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
 import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
 
@@ -42,14 +42,11 @@ describe("GraphQL API Endpoint", () => {
 
   beforeAll(async () => {
     await waitForServer();
+    authCookie = await prepareAuthenticatedContext();
   });
 
   afterAll(async () => {
     await cleanupTestDatabase();
-  });
-
-  beforeEach(async () => {
-    authCookie = await prepareAuthenticatedContext();
   });
 
   describe("Authentication & Authorization", () => {

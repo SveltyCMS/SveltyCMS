@@ -15,6 +15,20 @@ class EventBus extends EventEmitter {
   }
 
   /**
+   * Overridden emit to support wildcard '*' listeners.
+   */
+  emit(event: string | symbol, ...args: any[]): boolean {
+    const wasHandled = super.emit(event, ...args);
+
+    // Also trigger wildcard listeners if any
+    if (event !== "*") {
+      super.emit("*", { event, data: args[0], args });
+    }
+
+    return wasHandled;
+  }
+
+  /**
    * Broadcast an event to all local listeners.
    * If Redis is enabled, this should be preceded by a Redis publish.
    */
