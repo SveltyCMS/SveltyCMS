@@ -95,6 +95,7 @@ xychart-beta
 ## 🔬 Detailed Performance Ledger (20+ Modules)
 
 <!-- SDK_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — SDK OVERHEAD TELEMETRY
 
 ```text
@@ -106,9 +107,11 @@ xychart-beta
 ║ LocalCMS SDK Call              │        0.021 ms │ p95:        0.026 ms │ RPS:     47,644 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- SDK_TABLE_END -->
 
 <!-- MULTI-TENANT_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — MULTI-TENANCY PERFORMANCE AUDIT
 
 ```text
@@ -120,9 +123,11 @@ xychart-beta
 ║ Multi-Tenant Context Switching │        1.423 ms │ p95:        3.119 ms │ RPS:        703 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- MULTI-TENANT_TABLE_END -->
 
 <!-- UNKNOWN_TABLE_START -->
+
 ### 🏷️ NEGATIVE CACHE PERFORMANCE AUDIT
 
 ```text
@@ -134,9 +139,11 @@ xychart-beta
 ║ Cached Miss (Negative Cache)   │        0.004 ms │ p95:        0.007 ms │ RPS:    268,540 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- UNKNOWN_TABLE_END -->
 
 <!-- DAY_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — PRODUCTION DAY AUDIT
 
 ```text
@@ -147,9 +154,11 @@ xychart-beta
 ║ Production Day @ 8c            │        2.910 ms │ p95:        5.741 ms │ RPS:        344 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- DAY_TABLE_END -->
 
 <!-- REALTIME_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — REAL-TIME EVENT BUS AUDIT
 
 ```text
@@ -162,9 +171,11 @@ xychart-beta
 ║ 50 Listeners                   │        0.001 ms │ p95:        0.003 ms │ RPS:    514,172 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- REALTIME_TABLE_END -->
 
 <!-- REVISION_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — REVISION STRESS AUDIT
 
 ```text
@@ -176,9 +187,11 @@ xychart-beta
 ║ History List Retrieval         │        0.535 ms │ p95:        0.758 ms │ RPS:      1,869 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- REVISION_TABLE_END -->
 
 <!-- COMPLIANCE_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — GDPR COMPLIANCE AUDIT
 
 ```text
@@ -189,9 +202,11 @@ xychart-beta
 ║ Deep Deletion Speed            │        0.816 ms │ p95:        0.961 ms │ RPS:      1,226 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- COMPLIANCE_TABLE_END -->
 
 <!-- SETUP_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — INFRASTRUCTURE BOOT & ROUTING AUDIT
 
 ```text
@@ -199,13 +214,15 @@ xychart-beta
 ║                     SVELTYCMS — INFRASTRUCTURE BOOT & ROUTING AUDIT                     ║
 ║                       File: tests/benchmarks/setup-proxy.test.ts                        ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Start                     │     3196.838 ms │ p95:     3268.752 ms │ RPS:          0 ║
-║ Proxy Header Parsing           │        0.433 ms │ p95:        0.740 ms │ RPS:      2,219 ║
+║ Cold Start                     │     3166.711 ms │ p95:     3285.869 ms │ RPS:          0 ║
+║ Proxy Header Parsing           │        0.461 ms │ p95:        0.791 ms │ RPS:      2,081 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- SETUP_TABLE_END -->
 
 <!-- STATE_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — STATE MACHINE INTEGRITY
 
 ```text
@@ -213,12 +230,14 @@ xychart-beta
 ║                           SVELTYCMS — STATE MACHINE INTEGRITY                           ║
 ║                 File: tests/benchmarks/state-machine-transition.test.ts                 ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ State Transition (READY -> IDLE -> READY) │       25.980 ms │ p95:       37.758 ms │ RPS:         39 ║
+║ State Transition (READY -> IDLE -> READY) │       25.857 ms │ p95:       32.029 ms │ RPS:         39 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- STATE_TABLE_END -->
 
 <!-- LIMITER_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — THROTTLING AUDIT
 
 ```text
@@ -226,12 +245,14 @@ xychart-beta
 ║                              SVELTYCMS — THROTTLING AUDIT                               ║
 ║                File: tests/benchmarks/throttling-backoff-stress.test.ts                 ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Throttling Enforcement         │        1.872 ms │ p95:        3.486 ms │ RPS:        534 ║
+║ Throttling Enforcement         │        2.244 ms │ p95:        5.541 ms │ RPS:        446 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- LIMITER_TABLE_END -->
 
 <!-- SRE_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — SRE TRUTH AUDIT
 
 ```text
@@ -239,26 +260,29 @@ xychart-beta
 ║                               SVELTYCMS — SRE TRUTH AUDIT                               ║
 ║                      File: tests/benchmarks/truth-latency.test.ts                       ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline                 │        0.001 ms │ p95:        0.001 ms │ RPS:  1,729,107 ║
-║ Local SDK (Full)               │        0.004 ms │ p95:        0.008 ms │ RPS:    250,355 ║
-║ HTTP End-to-End                │        0.307 ms │ p95:        0.433 ms │ RPS:      3,257 ║
+║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,525,253 ║
+║ Local SDK (Full)               │        0.004 ms │ p95:        0.008 ms │ RPS:    231,535 ║
+║ HTTP End-to-End                │        0.360 ms │ p95:        0.446 ms │ RPS:      2,776 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- SRE_TABLE_END -->
 
 <!-- WIDGET_TABLE_START -->
-### 🏷️ SVELTYCMS  —  WIDGET PIPELINE TELEMETRY
+
+### 🏷️ SVELTYCMS — WIDGET PIPELINE TELEMETRY
 
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                         SVELTYCMS  —  WIDGET PIPELINE TELEMETRY                         ║
 ║                    File: tests/benchmarks/widget-performance.test.ts                    ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ DB Baseline (No Widgets)       │        0.292 ms │ p95:        0.458 ms │ RPS:      3,215 ║
-║ Widget Pipeline (Local SDK)    │        0.286 ms │ p95:        0.490 ms │ RPS:      3,117 ║
-║ Heavy Widget (RichText Parse)  │        0.000 ms │ p95:        0.001 ms │ RPS:  2,453,386 ║
+║ DB Baseline (No Widgets)       │        0.240 ms │ p95:        0.373 ms │ RPS:      3,922 ║
+║ Widget Pipeline (Local SDK)    │        0.175 ms │ p95:        0.218 ms │ RPS:      5,095 ║
+║ Heavy Widget (RichText Parse)  │        0.000 ms │ p95:        0.001 ms │ RPS:  3,015,682 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- WIDGET_TABLE_END -->
 
 <!-- API_LATENCY_TABLE_START -->
@@ -354,6 +378,7 @@ xychart-beta
 <!-- EDGE_SYNC_TABLE_END -->
 
 <!-- TELEMETRY_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — TELEMETRY & UPDATE PERFORMANCE
 
 ```text
@@ -361,10 +386,11 @@ xychart-beta
 ║                       SVELTYCMS — TELEMETRY & UPDATE PERFORMANCE                        ║
 ║                  File: tests/benchmarks/telemetry-performance.test.ts                   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Telemetry (Happy Path)         │        0.001 ms │ p95:        0.001 ms │ RPS:  1,162,003 ║
-║ Telemetry (Failure Path)       │        0.001 ms │ p95:        0.004 ms │ RPS:    902,935 ║
+║ Telemetry (Happy Path)         │        0.001 ms │ p95:        0.001 ms │ RPS:    873,235 ║
+║ Telemetry (Failure Path)       │        0.001 ms │ p95:        0.004 ms │ RPS:    882,223 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- TELEMETRY_TABLE_END -->
 
 <!-- STATE_MACHINE_TABLE_START -->
@@ -408,6 +434,7 @@ xychart-beta
 <!-- DB_RAW_P95_TABLE_END -->
 
 <!-- ACID_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — ACID INTEGRITY AUDIT
 
 ```text
@@ -415,10 +442,11 @@ xychart-beta
 ║                            SVELTYCMS — ACID INTEGRITY AUDIT                             ║
 ║                     File: tests/benchmarks/transaction-acid.test.ts                     ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ TX Commit                      │        0.405 ms │ p95:        0.873 ms │ RPS:      1,521 ║
-║ TX Rollback Integrity          │        0.239 ms │ p95:        0.318 ms │ RPS:      4,185 ║
+║ TX Commit                      │        0.454 ms │ p95:        0.934 ms │ RPS:      1,372 ║
+║ TX Rollback Integrity          │        0.240 ms │ p95:        0.316 ms │ RPS:      4,163 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- ACID_TABLE_END -->
 
 <!-- CACHE_TABLE_START -->
@@ -457,6 +485,7 @@ xychart-beta
 <!-- AI_OVERHEAD_TABLE_END -->
 
 <!-- TEMPORAL_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — TEMPORAL INTEGRITY
 
 ```text
@@ -464,9 +493,10 @@ xychart-beta
 ║                             SVELTYCMS — TEMPORAL INTEGRITY                              ║
 ║                    File: tests/benchmarks/temporal-integrity.test.ts                    ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Timezone Ingestion             │        1.590 ms │ p95:        1.590 ms │ RPS:        629 ║
+║ Timezone Ingestion             │        1.954 ms │ p95:        1.954 ms │ RPS:        512 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- TEMPORAL_TABLE_END -->
 
 <!-- WIDGETS_TABLE_START -->
@@ -496,6 +526,7 @@ xychart-beta
 <!-- UX_VITALITY_TABLE_END -->
 
 <!-- MEDIA_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — MEDIA PIPELINE AUDIT
 
 ```text
@@ -507,9 +538,11 @@ xychart-beta
 ║ HTTP: Media Upload             │        1.736 ms │ p95:        2.683 ms │ RPS:        500 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- MEDIA_TABLE_END -->
 
 <!-- RELATIONAL_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — RELATIONAL RESOLVER AUDIT
 
 ```text
@@ -521,9 +554,11 @@ xychart-beta
 ║ Deep Relational Query          │        1.314 ms │ p95:        2.305 ms │ RPS:        750 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- RELATIONAL_TABLE_END -->
 
 <!-- OPENAPI_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — OPENAPI SPEC GENERATION AUDIT
 
 ```text
@@ -535,6 +570,7 @@ xychart-beta
 ║ Warm OpenAPI Hit (Cached)      │        0.717 ms │ p95:        0.938 ms │ RPS:      1,369 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- OPENAPI_TABLE_END -->
 
 <!-- AUTH_TRACE_TABLE_START -->
@@ -554,6 +590,7 @@ xychart-beta
 <!-- AUTH_TRACE_TABLE_END -->
 
 <!-- SECURITY_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — SECURITY INFRASTRUCTURE AUDIT
 
 ```text
@@ -566,9 +603,11 @@ xychart-beta
 ║ Argon2id Password Hashing      │       26.472 ms │ p95:       28.363 ms │ RPS:         38 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- SECURITY_TABLE_END -->
 
 <!-- REST_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — ENTERPRISE REST API AUDIT
 
 ```text
@@ -582,6 +621,7 @@ xychart-beta
 ║ Collection Search              │        6.821 ms │ p95:       13.614 ms │ RPS:        147 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- REST_TABLE_END -->
 
 <!-- GRAPHQL_TABLE_START -->
@@ -603,6 +643,7 @@ xychart-beta
 <!-- GRAPHQL_TABLE_END -->
 
 <!-- SEO_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — ENTERPRISE SEO AUDIT
 
 ```text
@@ -616,6 +657,7 @@ xychart-beta
 ║ Missing Path (404 Log)         │        1.130 ms │ p95:        1.997 ms │ RPS:        885 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- SEO_TABLE_END -->
 
 <!-- BROADCAST_TABLE_START -->
@@ -693,6 +735,7 @@ xychart-beta
 <!-- REVISION_STRESS_TABLE_END -->
 
 <!-- MEMORY_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — MEMORY STABILITY AUDIT
 
 ```text
@@ -703,6 +746,7 @@ xychart-beta
 ║ Memory Profile                 │        0.000 ms │ p95:        0.000 ms │ RPS:     15,922 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- MEMORY_TABLE_END -->
 
 <!-- TENANCY_TABLE_START -->
@@ -725,6 +769,7 @@ xychart-beta
 <!-- TENANCY_TABLE_END -->
 
 <!-- MIXED_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — MIXED WORKLOAD AUDIT
 
 ```text
@@ -735,6 +780,7 @@ xychart-beta
 ║ Mixed Workload                 │        1.462 ms │ p95:        2.986 ms │ RPS:        584 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- MIXED_TABLE_END -->
 
 <!-- GQL_STRESS_TABLE_START -->
@@ -753,6 +799,7 @@ xychart-beta
 <!-- GQL_STRESS_TABLE_END -->
 
 <!-- MIGRATION_TABLE_START -->
+
 ### 🏷️ SVELTYCMS — MIGRATION & SCALE AUDIT
 
 ```text
@@ -764,6 +811,7 @@ xychart-beta
 ║ Post-Migration Random Lookup   │        2.200 ms │ p95:        4.047 ms │ RPS:        455 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- MIGRATION_TABLE_END -->
 
 <!-- INDEX_PRESSURE_TABLE_START -->

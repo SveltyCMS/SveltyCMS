@@ -1,12 +1,12 @@
 ---
 path: "src/widgets/custom/address/address.mdx"
 title: "Address Widget"
-description: "Comprehensive address input with Mapbox integration, geocoding, and structured data storage for SveltyCMS"
+description: "Comprehensive address input with MapLibre GL JS (free default) or Google Maps API integration, geocoding, and structured data storage for SveltyCMS"
 order: 304
 icon: "mdi:home-map-marker"
 author: "admin"
 created: "2025-01-15"
-updated: "2026-02-03"
+updated: "2026-05-20"
 tags:
   - widget
   - custom
@@ -14,34 +14,41 @@ tags:
   - location
   - map
   - geocoding
-  - mapbox
-  - geolocation
+  - maplibre
+  - openfreemap
+  - photon
+  - google-maps
 ---
 
 # Address Widget
 
 <blockquote>
-  **Address input widget** with optional Mapbox integration for interactive mapping, geocoding, and
-  structured address data storage.
+  **Address input widget** with dual-mode interactive mapping: a completely free, zero-config
+  OpenStreetMap-based stack by default, or an enterprise-grade Google Maps integration.
 </blockquote>
 
 ## Overview
 
-The **Address widget** provides a comprehensive solution for capturing structured address information. It combines form fields for street address, postal code, city, and country with an optional interactive Mapbox map for visual location selection and geocoding.
+The **Address widget** captures and stores structured address data (street, house number, postal code, city, country, and latitude/longitude coordinates). It features a visual map interface with a draggable locator marker and address search autocomplete.
+
+The widget dynamically supports two mapping engines:
+
+1. **Default Mode (Free & Open Source)**: Uses **MapLibre GL JS** for rendering, **OpenFreeMap** for high-resolution vector tiles, and **Photon (Komoot)** for address search autocomplete and reverse geocoding. Requires no API keys or accounts.
+2. **Enterprise Mode (Google Maps)**: Activates automatically when `publicEnv.GOOGLE_MAPS_API_KEY` is configured. Uses the **Google Maps JavaScript API**, **Google Places Autocomplete**, and **Google Geocoding**.
+
+---
 
 ### Key Features
 
-- ✅ **Structured Data**: Stores complete address object with all components
-- ✅ **Mapbox Integration**: Optional interactive map with draggable markers
-- ✅ **Geocoding**: Convert addresses to coordinates and vice versa
-- ✅ **Country Selection**: Multilingual country dropdown with ISO codes
+- ✅ **Structured Data**: Stores complete address object with separate fields for querying
+- ✅ **Dual-Mode Mapping**: Fallback to MapLibre GL JS & OpenFreeMap if Google API key is absent
+- ✅ **Geocoding & Autocomplete**: Autocomplete via Photon API (default) or Google Places
+- ✅ **Draggable Marker**: Drags to pinpoint coordinates; automatically reverse-geocodes to fill in form inputs
+- ✅ **Country Selection**: Multilingual country dropdown with ISO codes and localizations
 - ✅ **Coordinate Capture**: Automatic latitude/longitude tracking
 - ✅ **Field Visibility**: Configurable hidden fields for flexible layouts
-- ✅ **Default Values**: Smart defaults from field configuration
-- ✅ **Validation**: Valibot schema ensures complete, valid addresses with required field checks
-- ✅ **Unified Error Handler**: Uses `handleWidgetValidation` for consistent error management
-- ✅ **Non-Translatable**: Addresses are universal (not language-specific)
-- ✅ **Autocomplete**: HTML5 address autocomplete for better UX
+- ✅ **Validation**: Valibot schema validation ensures completeness of required address fields
+- ✅ **Universal Accessibility**: Keyboard navigable search suggestions and fully ARIA-compliant inputs
 
 ---
 
@@ -52,40 +59,42 @@ The **Address widget** provides a comprehensive solution for capturing structure
 - **Business Locations**: Store locations, branch offices, warehouses
 - **Customer Data**: Shipping addresses, billing addresses
 - **Event Management**: Venue addresses, meeting locations
-- **Real Estate**: Property addresses with map visualization
+- **Real Estate**: Property listings with map visualization
 - **Delivery Services**: Pickup and delivery address management
 - **Directory Listings**: Business directories, location finders
-- **Multi-Location Apps**: Apps with multiple physical locations
-- **Mapping Applications**: Any app requiring address-to-coordinate conversion
 
 ### ❌ Don't Use Address When:
 
 - **Simple Text**: Use Input widget for unstructured address text
-- **Coordinates Only**: Use Number widgets for just lat/lng
-- **Non-Physical Locations**: Virtual addresses, P.O. boxes without coordinates
+- **Coordinates Only**: Use Number widgets for just raw lat/lng
 - **Regions Only**: Use Select widget for country/state selection without full address
 
 ---
 
-## Installation
+## Configuration & Setup
 
-### Prerequisites
+### 1. Default (Free) Mode
 
-For full functionality with interactive maps, you need a **Mapbox API token**:
+No configuration is required! The widget uses the following open-source resources out-of-the-box:
 
-1. Sign up at [mapbox.com](https://www.mapbox.com/)
-2. Get your API token from the dashboard
-3. Add to your environment configuration:
+- **Tiles**: `https://tiles.openfreemap.org/styles/bright/style.json`
+- **Geocoding**: `https://photon.komoot.io/api/`
+- **Reverse Geocoding**: `https://photon.komoot.io/reverse`
+
+### 2. Google Maps Mode
+
+If you prefer to use Google Maps (enterprise geocoding, street view, google autocomplete), simply configure your API key:
+
+1. Obtain a Google Maps API Key from the [Google Cloud Console](https://console.cloud.google.com/).
+2. Enable **Maps JavaScript API**, **Places API**, and **Geocoding API**.
+3. Add the key to your SveltyCMS public configuration:
 
 ```typescript
-// config/private.ts
-export const privateEnv = {
-  MAPBOX_API_TOKEN: "pk.eyJ1IjoieW91cnVzZXJuYW1lIiwi...",
-  USE_MAPBOX: true,
-};
+// .env or configuration files
+publicEnv.GOOGLE_MAPS_API_KEY = "AIzaSy...";
 ```
 
-**Note**: The widget works without Mapbox (form-only mode) but map features will be disabled.
+When SveltyCMS detects this key at runtime, the Address widget switches its entire map, search, and reverse-geocoding systems to Google Maps.
 
 ---
 
@@ -111,60 +120,22 @@ export const businessesCollection = {
 };
 ```
 
-### Multiple Addresses
+### Omit coordinates or specific fields from UI
 
 ```typescript
-import Address from "@src/widgets/custom/Address";
-
-export const customersCollection = {
-  name: "Customers",
-  fields: [
-    Address({
-      label: "Billing Address",
-      db_fieldName: "billingAddress",
-      required: true,
-      defaultCountry: "US",
-    }),
-
-    Address({
-      label: "Shipping Address",
-      db_fieldName: "shippingAddress",
-      required: false,
-      defaultCountry: "US",
-      helper: "Leave empty to use billing address",
-    }),
-  ],
-};
+Address({
+  label: "Delivery Address",
+  db_fieldName: "deliveryAddress",
+  hiddenFields: ["latitude", "longitude", "houseNumber"],
+  // Users won't see coordinate fields or house number
+});
 ```
 
-### Real Estate Listings
+Available fields to hide:
 
-```typescript
-import Address from "@src/widgets/custom/Address";
-import Currency from "@src/widgets/custom/Currency";
-
-export const propertiesCollection = {
-  name: "Properties",
-  fields: [
-    Address({
-      label: "Property Location",
-      db_fieldName: "location",
-      required: true,
-      defaultCountry: "US",
-      mapCenter: { lat: 34.0522, lng: -118.2437 }, // Los Angeles
-      zoom: 15, // Closer zoom for precise location
-      hiddenFields: [], // Show all fields including coordinates
-    }),
-
-    Currency({
-      label: "Price",
-      db_fieldName: "price",
-      currencyCode: "USD",
-      required: true,
-    }),
-  ],
-};
-```
+- `'latitude'`
+- `'longitude'`
+- `'houseNumber'`
 
 ---
 
@@ -182,54 +153,29 @@ export const propertiesCollection = {
 | `width`          | `number`     | ❌ No     | `undefined`               | Field width in collection builder         |
 | `translated`     | `boolean`    | 🔒 Locked | `false`                   | Always false (addresses are universal)    |
 
-### Hidden Fields
-
-You can hide specific fields from the UI:
-
-```typescript
-Address({
-  label: "Delivery Address",
-  db_fieldName: "deliveryAddress",
-  hiddenFields: ["latitude", "longitude", "houseNumber"],
-  // Users won't see coordinate fields or house number
-});
-```
-
-Available fields to hide:
-
-- `'latitude'`
-- `'longitude'`
-- `'houseNumber'`
-- `'name'` (location name)
-- `'map'` (hide entire map)
-
 ---
 
 ## Data Structure
 
-### Storage Format
-
 Address data is stored as a **structured object** with all components:
 
-```typescript
-// MongoDB Document
+```json
 {
   "_id": "business_123",
   "name": "Acme Corp",
   "address": {
-    "street": "123 Main Street",
+    "street": "Main Street",
     "houseNumber": "123",
     "postalCode": "90210",
     "city": "Beverly Hills",
-    "country": "US",              // ISO 3166-1 alpha-2
-    "latitude": 34.0736,          // ✅ Number type
-    "longitude": -118.4004        // ✅ Number type
-  },
-  "createdAt": ISODate("2025-01-15T10:00:00Z")
+    "country": "US",
+    "latitude": 34.0736,
+    "longitude": -118.4004
+  }
 }
 ```
 
-### AddressData Interface
+### TypeScript Interface
 
 ```typescript
 interface AddressData {
@@ -237,70 +183,19 @@ interface AddressData {
   houseNumber: string; // Building/house number
   postalCode: string; // ZIP/postal code
   city: string; // City name
-  country: string; // ISO 3166-1 alpha-2 code (e.g., "US", "DE", "GB")
-  latitude: number; // Decimal degrees (-90 to 90)
-  longitude: number; // Decimal degrees (-180 to 180)
+  country: string; // ISO 3166-1 alpha-2 code (e.g. "US", "DE")
+  latitude: number; // Decimal degrees latitude (-90 to 90)
+  longitude: number; // Decimal degrees longitude (-180 to 180)
 }
 ```
-
-### Why Structured Objects?
-
-**✅ Structured Data Enables**:
-
-- **Component Access**: Query by city, postal code, country individually
-- **Geospatial Queries**: Find addresses within radius of coordinates
-- **Address Formatting**: Display addresses in different formats per country
-- **Validation**: Ensure all required components are present
-- **Internationalization**: Handle different address formats globally
-
----
-
-## Google Maps Integration
-
-### Interactive Map Features
-
-The widget now uses the **Google Maps JavaScript API** via the lightweight `@googlemaps/js-api-loader`.
-
-1.  **Draggable Marker**: Click and drag to set exact location.
-2.  **Place Autocomplete**: Search for addresses globally with Google Places.
-3.  **Locate Me**: Use browser geolocation to find your current position.
-4.  **Draggable Marker**: Updates coordinates automatically.
-
-### Configuration
-
-To enable map features, you must provide a **Google Maps API Key**:
-
-1.  Get an API Key from the [Google Cloud Console](https://console.cloud.google.com/).
-2.  Enable **Maps JavaScript API** and **Places API**.
-3.  Add to your environment configuration:
-
-```typescript
-// .env or config
-publicEnv.GOOGLE_MAPS_API_KEY = "AIzaSy...";
-```
-
-If no API key is present:
-
-- The map container will show a friendly "Map unavailable - API Key missing" message with an icon.
-- Manual address input fields remain fully functional.
-- Console warnings will alert developers to the missing key.
-
-### Without Mapbox
-
-If `USE_MAPBOX` is false or no API token:
-
-- Form-only mode (no map displayed)
-- Manual latitude/longitude input
-- Manual address entry
-- All validation still works
 
 ---
 
 ## Geospatial Queries
 
-MongoDB supports powerful geospatial queries with address coordinates:
+By storing coordinates as numeric fields, SveltyCMS enables high-performance spatial querying (e.g., in MongoDB, PostgreSQL, and MySQL/MariaDB).
 
-### Find Nearby Addresses
+### MongoDB 2dsphere Geospatial Indexing
 
 ```typescript
 // Create geospatial index
@@ -308,7 +203,7 @@ db.businesses.createIndex({
   "address.location": "2dsphere",
 });
 
-// Find businesses within 5km of a point
+// Find businesses within 5km of a coordinate [longitude, latitude]
 db.businesses.find({
   "address.location": {
     $near: {
@@ -322,352 +217,51 @@ db.businesses.find({
 });
 ```
 
-### Find Within Polygon
-
-```typescript
-// Find addresses within city boundaries
-db.businesses.find({
-  "address.location": {
-    $geoWithin: {
-      $geometry: {
-        type: "Polygon",
-        coordinates: [
-          [
-            [-118.5, 34.0],
-            [-118.0, 34.0],
-            [-118.0, 34.5],
-            [-118.5, 34.5],
-            [-118.5, 34.0],
-          ],
-        ],
-      },
-    },
-  },
-});
-```
-
-### Distance Calculation
-
-```typescript
-// Calculate distance between two addresses
-db.businesses.aggregate([
-  {
-    $geoNear: {
-      near: {
-        type: "Point",
-        coordinates: [-118.2437, 34.0522],
-      },
-      distanceField: "distance",
-      spherical: true,
-    },
-  },
-  { $sort: { distance: 1 } },
-  { $limit: 10 },
-]);
-```
-
 ---
 
-## Address Formatting
+## Address Formatting Examples
 
-Different countries have different address formats:
-
-### US Format
-
-```typescript
-function formatAddressUS(address: AddressData): string {
-  return `${address.houseNumber} ${address.street}
-${address.city}, ${address.country} ${address.postalCode}`;
-}
-// Result:
-// 123 Main Street
-// Beverly Hills, US 90210
-```
+Different countries render address lines in varying order. SveltyCMS recommends parsing the structured fields into localized display strings:
 
 ### German Format
 
 ```typescript
-function formatAddressDE(address: AddressData): string {
-  return `${address.street} ${address.houseNumber}
-${address.postalCode} ${address.city}`;
-}
-// Result:
+`${address.street} ${address.houseNumber}\n${address.postalCode} ${address.city}`;
 // Hauptstraße 123
 // 10115 Berlin
 ```
 
-### UK Format
+### US Format
 
 ```typescript
-function formatAddressUK(address: AddressData): string {
-  return `${address.houseNumber} ${address.street}
-${address.city}
-${address.postalCode}`;
-}
-// Result:
-// 10 Downing Street
-// London
-// SW1A 2AA
+`${address.houseNumber} ${address.street}\n${address.city}, ${address.country} ${address.postalCode}`;
+// 123 Main Street
+// Beverly Hills, US 90210
 ```
-
----
-
-## Advanced Examples
-
-### Store Locator
-
-```typescript
-import Address from "@src/widgets/custom/Address";
-import List from "@src/widgets/core/list";
-
-export const storesCollection = {
-  name: "Store Locations",
-  fields: [
-    Address({
-      label: "Store Address",
-      db_fieldName: "address",
-      required: true,
-      defaultCountry: "US",
-      zoom: 15,
-    }),
-
-    List({
-      label: "Opening Hours",
-      db_fieldName: "hours",
-      fields: [
-        Select({
-          label: "Day",
-          db_fieldName: "day",
-          options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
-        }),
-        Input({ label: "Open", db_fieldName: "open", placeholder: "09:00" }),
-        Input({ label: "Close", db_fieldName: "close", placeholder: "17:00" }),
-      ],
-    }),
-  ],
-};
-
-// Query: Find nearest stores
-async function findNearestStores(userLat: number, userLng: number, maxDistance: number) {
-  return await db.stores
-    .find({
-      "address.location": {
-        $near: {
-          $geometry: {
-            type: "Point",
-            coordinates: [userLng, userLat],
-          },
-          $maxDistance: maxDistance,
-        },
-      },
-    })
-    .limit(5);
-}
-```
-
-### Delivery Zones
-
-```typescript
-import Address from "@src/widgets/custom/Address";
-import Currency from "@src/widgets/custom/Currency";
-
-export const deliveryZonesCollection = {
-  name: "Delivery Zones",
-  fields: [
-    Address({
-      label: "Zone Center",
-      db_fieldName: "centerAddress",
-      required: true,
-    }),
-
-    Number({
-      label: "Radius (km)",
-      db_fieldName: "radiusKm",
-      min: 1,
-      max: 100,
-      required: true,
-    }),
-
-    Currency({
-      label: "Delivery Fee",
-      db_fieldName: "deliveryFee",
-      currencyCode: "USD",
-      required: true,
-    }),
-  ],
-};
-
-// Check if address is in delivery zone
-function isInDeliveryZone(
-  deliveryAddress: AddressData,
-  zoneCenter: AddressData,
-  radiusKm: number,
-): boolean {
-  const distance = calculateDistance(
-    deliveryAddress.latitude,
-    deliveryAddress.longitude,
-    zoneCenter.latitude,
-    zoneCenter.longitude,
-  );
-  return distance <= radiusKm * 1000; // Convert km to meters
-}
-```
-
----
-
-## Accessibility
-
-### ARIA Support
-
-```html
-<form>
-  <label for="street">Street</label>
-  <input type="text" id="street" name="street" autocomplete="street-address" aria-required="true" />
-
-  <label for="city">City</label>
-  <input type="text" id="city" name="city" autocomplete="address-level2" aria-required="true" />
-
-  <label for="country">Country</label>
-  <select id="country" name="country" autocomplete="country" aria-required="true">
-    <!-- Country options -->
-  </select>
-</form>
-```
-
-### HTML5 Autocomplete
-
-The widget uses proper autocomplete attributes for browser autofill:
-
-- `street-address` - Street address
-- `postal-code` - ZIP/Postal code
-- `address-level2` - City
-- `country` - Country
-
----
-
-## Best Practices
-
-### ✅ Do's
-
-1. **Use Geospatial Indexes**
-
-   ```typescript
-   db.businesses.createIndex({
-     "address.location": "2dsphere",
-   });
-   ```
-
-2. **Store Coordinates as Numbers**
-
-   ```typescript
-   // ✅ Correct
-   latitude: 34.0522; // Number
-   longitude: -118.2437; // Number
-
-   // ❌ Wrong
-   latitude: "34.0522"; // String
-   ```
-
-3. **Use ISO Country Codes**
-   ```typescript
-   country: "US"; // ✅ ISO 3166-1 alpha-2
-   country: "DE"; // ✅ Germany
-   country: "GB"; // ✅ United Kingdom
-   ```
-
-### ❌ Don'ts
-
-1. **Don't Store as Single String**
-
-   ```typescript
-   // ❌ Wrong
-   address: "123 Main St, Beverly Hills, CA 90210"
-
-   // ✅ Correct
-   address: {
-     street: "Main Street",
-     houseNumber: "123",
-     city: "Beverly Hills",
-     // ...
-   }
-   ```
-
-2. **Don't Mix Coordinate Order**
-   ```typescript
-   // MongoDB/GeoJSON uses [longitude, latitude]
-   coordinates: [-118.2437, 34.0522]; // ✅ [lng, lat]
-   coordinates: [34.0522, -118.2437]; // ❌ [lat, lng] WRONG!
-   ```
-
----
-
-## API Reference
-
-```typescript
-function Address(props: AddressProps): FieldInstance;
-
-interface AddressProps {
-  label: string;
-  db_fieldName: string;
-  required?: boolean;
-  defaultCountry?: string; // ISO alpha-2 code
-  mapCenter?: { lat: number; lng: number };
-  zoom?: number; // 1-20
-  hiddenFields?: Array<keyof AddressData>;
-  width?: number;
-}
-
-interface AddressData {
-  street: string;
-  houseNumber: string;
-  postalCode: string;
-  city: string;
-  country: string; // ISO 3166-1 alpha-2
-  latitude: number; // -90 to 90
-  longitude: number; // -180 to 180
-}
-```
-
----
-
-## Related Widgets
-
-- **[Input Widget](/widgets/core/input)** - For unstructured address text
-- **[Number Widget](/widgets/custom/number)** - For standalone coordinates
-- **[Select Widget](/widgets/core/select)** - For country/region selection
-
----
-
-## Resources
-
-- [Mapbox GL JS Documentation](https://docs.mapbox.com/mapbox-gl-js/)
-- [ISO 3166-1 Country Codes](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2)
-- [MongoDB Geospatial Queries](https://www.mongodb.com/docs/manual/geospatial-queries/)
-- [HTML Autocomplete Attributes](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/autocomplete)
 
 ---
 
 ## Changelog
 
+### Version 1.3.0 (2026-05-20)
+
+- ✅ **Dual-Mode Mapping**: Implemented MapLibre GL JS + OpenFreeMap + Photon (Komoot) fallback when no Google Maps API key is configured.
+- ✅ **Free Geocoding**: Added support for Photon API geocoding and reverse geocoding on marker drag events.
+- ✅ **Draggable Marker updates**: Dragging markers in MapLibre mode now updates coordinates and fetches address data from OSM (via Photon).
+
 ### Version 1.2.0 (2026-02-03)
 
-- ✅ **Validation**: Added unified `handleWidgetValidation` integration
-- ✅ **Required Fields**: Street, city, postal code, country validation when required
-- ✅ **Error Display**: Improved error messaging through `validationStore`
+- ✅ **Validation**: Added unified `handleWidgetValidation` integration.
+- ✅ **Required Fields**: Enforced Valibot validation checks on required street, city, zip, and country fields.
 
 ### Version 1.1.0 (2025-01-25)
 
-- ✅ **Performance**: Implemented hybrid loading strategy (Core 14KB vs Full 160KB lazy loaded)
-- ✅ **Search**: Added client-side country search
-- ✅ **Multilingual**: Strict UI/Data separation using Dual-Language architecture
+- ✅ **Performance**: Implemented hybrid loading strategy for localized country names (Core 14KB vs Full 160KB lazy loaded).
+- ✅ **Search**: Added client-side country selector search.
 
 ### Version 1.0.0 (2025-01-15)
 
-- ✅ Initial release with structured address storage
-- ✅ Optional Mapbox integration
-- ✅ Geospatial query support
-- ✅ Multilingual country selection
-- ✅ Full accessibility support
+- ✅ Initial release with structured address storage, Google Maps, and accessibility support.
 
 ---
 

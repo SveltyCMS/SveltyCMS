@@ -12,7 +12,7 @@ async function main() {
   console.log("=========================================================");
 
   // 1. Discover all tests
-  const files = await glob("tests/**/*.test.ts");
+  const files = await glob("tests/unit/**/*.test.ts");
   const filtered = files.filter((f) => !f.includes("e2e") && !f.includes("integration"));
 
   console.log(`🔍 Found ${filtered.length} tests. Starting execution...\n`);

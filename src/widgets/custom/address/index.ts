@@ -3,12 +3,12 @@
  * @description Address Widget Definition.
  *
  * A comprehensive widget for capturing and displaying structured address data,
- * optionally integrated with an interactive map for geocoding.
+ * supporting MapLibre GL JS + OpenFreeMap + Photon (default, free) or Google Maps API.
  *
  * @features
  * - **Structured Data**: Stores a complete, well-defined address object.
  * - **Configurable GUI**: `GuiSchema` provides a UI for setting widget-specific props.
- * - **Geocoding Support**: Integrates with Mapbox for visual location picking.
+ * - **Geocoding Support**: Integrates with MapLibre (free) or Google Maps (enterprise) for geocoding.
  * - **Valibot Schema**: Ensures all parts of the address are correctly formatted.
  */
 
