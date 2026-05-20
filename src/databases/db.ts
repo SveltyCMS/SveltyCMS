@@ -15,6 +15,11 @@
  * - clean state resets for test isolation
  */
 
+import { createRequire } from "node:module";
+if (typeof (globalThis as any).require === "undefined") {
+  (globalThis as any).require = createRequire(import.meta.url);
+}
+
 import { logger } from "@utils/logger";
 import { type DatabaseAdapter, type IDBAdapter } from "./db-interface";
 import { loadPrivateConfig as loadConfig, getPrivateEnv as getEnv } from "./config-state";

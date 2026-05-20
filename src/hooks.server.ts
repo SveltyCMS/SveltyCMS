@@ -20,7 +20,11 @@ import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import os from "node:os";
 import { runWithContext, runWithTrace, getTrace, traceSpan } from "@utils/context";
+import { createRequire } from "node:module";
 // ESM Shims for legacy CJS compatibility in production build
+if (typeof (globalThis as any).require === "undefined") {
+  (globalThis as any).require = createRequire(import.meta.url);
+}
 if (typeof (globalThis as any).__filename === "undefined") {
   (globalThis as any).__filename = fileURLToPath(import.meta.url);
 }

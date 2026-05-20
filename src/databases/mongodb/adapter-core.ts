@@ -3,6 +3,11 @@
  * @description Core functionality shared across MongoDB adapter modules.
  */
 
+import { createRequire } from "node:module";
+if (typeof (globalThis as any).require === "undefined") {
+  (globalThis as any).require = createRequire(import.meta.url);
+}
+
 import mongoose from "mongoose";
 import { queryTranslator } from "../core/query-ir";
 import { logger } from "@utils/logger";
