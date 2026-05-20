@@ -14,6 +14,7 @@ import MediaTable from "./media-table.svelte";
 import VirtualMediaGrid from "./virtual-media-grid.svelte";
 import { mediaUrl } from "@utils/media/media-utils";
 import ImageEditorModal from "@src/components/image-editor/image-editor-modal.svelte";
+import MediaDetailsModal from "@src/components/media/media-details-modal.svelte";
 import PageTitle from "@src/components/page-title.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { logger } from "@utils/logger";
@@ -237,6 +238,19 @@ async function handleCreateFolder() {
 		},
 	});
 }
+
+async function handleOpenFileDetails(file: any) {
+	modalState.trigger(MediaDetailsModal as any, {
+		file,
+		modalClasses: "max-w-4xl w-full",
+		onUpdate: (updatedFile: any) => {
+			const index = files.findIndex((f) => f._id === updatedFile._id);
+			if (index !== -1) {
+				files[index] = updatedFile;
+			}
+		}
+	});
+}
 </script>
 
 <div class="flex flex-col gap-4">
@@ -330,6 +344,7 @@ async function handleCreateFolder() {
 					{isSelectionMode}
 					bind:selectedFiles={selectedFiles}
 					onEditImage={handleEditImage} 
+					onOpenFileDetails={handleOpenFileDetails}
 				/>
 			{:else}
 				<MediaGrid 
@@ -338,6 +353,7 @@ async function handleCreateFolder() {
 					{isSelectionMode}
 					bind:selectedFiles={selectedFiles}
 					onEditImage={handleEditImage}
+					onOpenFileDetails={handleOpenFileDetails}
 				/>
 			{/if}
 		{:else}
@@ -346,6 +362,7 @@ async function handleCreateFolder() {
 				{isSelectionMode}
 				bind:selectedFiles={selectedFiles}
 				onEditImage={handleEditImage}
+				onOpenFileDetails={handleOpenFileDetails}
 			/>
 		{/if}
 	</div>

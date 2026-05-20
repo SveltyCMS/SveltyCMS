@@ -20,6 +20,7 @@ interface Props {
 	selectedFiles: SvelteSet<string>;
 	ondeleteImage?: (file: MediaBase | MediaImage) => void;
 	onEditImage?: (file: MediaImage) => void;
+	onOpenFileDetails?: (file: MediaBase | MediaImage) => void;
 }
 
 let {
@@ -28,6 +29,7 @@ let {
 	selectedFiles = $bindable(),
 	ondeleteImage = () => {},
 	onEditImage = () => {},
+	onOpenFileDetails = () => {},
 }: Props = $props();
 
 // Pagination
@@ -53,13 +55,19 @@ function toggleSelection(file: MediaBase | MediaImage) {
 function handleRowClick(file: MediaBase | MediaImage) {
 	if (isSelectionMode) {
 		toggleSelection(file);
+	} else {
+		onOpenFileDetails(file);
 	}
 }
 
 function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
 	if (e.key === "Enter" || e.key === " ") {
 		e.preventDefault();
-		toggleSelection(file);
+		if (isSelectionMode) {
+			toggleSelection(file);
+		} else {
+			onOpenFileDetails(file);
+		}
 	}
 }
 </script>

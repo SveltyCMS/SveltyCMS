@@ -185,6 +185,19 @@ export class MediaService {
       }
     }
 
+    // Process versions from metadata
+    if (item.metadata && item.metadata.versions) {
+      item.versions = item.metadata.versions.map((v: any) => {
+        const enriched = { ...v };
+        if (enriched.path && (!enriched.url || !enriched.url.startsWith("http"))) {
+          enriched.url = getUrl(enriched.path, prefix);
+        }
+        return enriched;
+      });
+    } else {
+      item.versions = [];
+    }
+
     return item;
   }
 
@@ -265,5 +278,314 @@ export class MediaService {
     if (mime.startsWith("video/")) return "video";
     if (mime.startsWith("audio/")) return "audio";
     return "document";
+  }
+
+  /**
+   * Scans all collection schemas and returns all database entries referencing a specific mediaId.
+   */
+  public async getMediaReferences(mediaId: string, tenantId?: DatabaseId | null): Promise<any[]> {
+    try {
+      const { scanCompiledCollections } = await import("@src/content/content-service.server");
+      const schemas = await scanCompiledCollections();
+      const references: any[] = [];
+
+      // Get the media item first to check by path/filename as well
+      const mediaRes = await this.db.crud.findOne<DbMediaItem>(
+        "media",
+        { _id: mediaId as DatabaseId },
+        { tenantId: tenantId ?? undefined },
+      );
+      const mediaPath = mediaRes.success && mediaRes.data ? mediaRes.data.path : "";
+
+      for (const schema of schemas) {
+        const collectionName = `collection_${schema._id}`;
+
+        // Fetch all entries in the collection
+        const res = await this.db.crud.findMany(
+          collectionName,
+          {},
+          { tenantId: tenantId ?? undefined },
+        );
+
+        if (res.success && Array.isArray(res.data)) {
+          for (const entry of res.data) {
+            const entryAny = entry as any;
+            // Scan all fields in this entry
+            for (const key of Object.keys(entryAny)) {
+              if (
+                key === "_id" ||
+                key === "createdAt" ||
+                key === "updatedAt" ||
+                key === "tenantId"
+              ) {
+                continue;
+              }
+              const val = entryAny[key];
+
+              // Direct match or embedded match
+              const referenced = this.isMediaReferencedInValue(val, mediaId, mediaPath);
+              if (referenced) {
+                // Find a friendly name/title for the entry if possible
+                const entryName =
+                  entryAny.name || entryAny.title || entryAny.slug || entryAny._id || "Untitled";
+                references.push({
+                  collectionId: schema._id,
+                  collectionName: schema.name || schema._id,
+                  entryId: entryAny._id,
+                  entryName,
+                  fieldName: key,
+                });
+              }
+            }
+          }
+        }
+      }
+
+      return references;
+    } catch (err: any) {
+      logger.error(`[MediaService] Error scanning usage references:`, err);
+      return [];
+    }
+  }
+
+  private isMediaReferencedInValue(val: any, mediaId: string, path: string): boolean {
+    if (val === mediaId || (path && val === path)) {
+      return true;
+    }
+    if (Array.isArray(val)) {
+      return val.some((item) => this.isMediaReferencedInValue(item, mediaId, path));
+    }
+    if (val && typeof val === "object") {
+      if (
+        val._id === mediaId ||
+        val.id === mediaId ||
+        (path && (val.path === path || val.url === path))
+      ) {
+        return true;
+      }
+      return Object.values(val).some((item) => this.isMediaReferencedInValue(item, mediaId, path));
+    }
+    if (typeof val === "string") {
+      return val.includes(mediaId) || !!(path && val.includes(path));
+    }
+    return false;
+  }
+
+  /**
+   * Uploads a new version of an existing file.
+   * Keeps the same mediaId, stores the old file parameters in versions history,
+   * uploads the new file to physical storage, and updates the active DB record.
+   */
+  public async uploadNewVersion(
+    mediaId: string,
+    file:
+      | File
+      | {
+          name: string;
+          type: string;
+          size: number;
+          stream: () => ReadableStream;
+          arrayBuffer?: () => Promise<ArrayBuffer>;
+        },
+    userId: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<DatabaseResult<MediaItem>> {
+    try {
+      // 1. Get the existing media record
+      const res = await this.db.crud.findOne<DbMediaItem>(
+        "media",
+        { _id: mediaId as DatabaseId },
+        { tenantId: tenantId ?? undefined },
+      );
+      if (!res.success || !res.data) {
+        throw new Error("Original media item not found");
+      }
+      const existing = res.data as any;
+
+      // 2. Upload the new file to storage
+      // To bypass hash deduplication returning the existing record, we can temporarily save
+      // the file under a new hash/path.
+      const { hashFileContent } = await import("./media-processing.server");
+      let hash = "";
+      if (file.size < 5 * 1024 * 1024 && typeof file.arrayBuffer === "function") {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        hash = await hashFileContent(buffer);
+      } else {
+        const { hashStream } = await import("./media-processing.server");
+        const [s1] = file.stream().tee();
+        hash = await hashStream(s1);
+      }
+
+      // Check if hash is exactly the same as current: if so, no-op or proceed.
+      const uploadRes = await this.files.upload(
+        {
+          filename: file.name,
+          originalFilename: file.name,
+          mimeType: file.type,
+          size: file.size,
+          hash,
+          path: `global/${hash}`,
+          createdBy: userId,
+          updatedBy: userId,
+          metadata: {},
+          thumbnails: {},
+          access: existing.access || "public",
+          tenantId: tenantId ?? undefined,
+          stream: typeof file.stream === "function" ? file.stream.bind(file) : undefined,
+          arrayBuffer:
+            typeof file.arrayBuffer === "function" ? file.arrayBuffer.bind(file) : undefined,
+        } as any,
+        tenantId ?? undefined,
+      );
+
+      if (!uploadRes.success || !uploadRes.data) {
+        const errMsg =
+          !uploadRes.success && uploadRes.error
+            ? String(uploadRes.error.message || uploadRes.error)
+            : "Failed to upload new version file";
+        throw new Error(errMsg);
+      }
+      const uploadedFile = uploadRes.data as any;
+
+      // 3. Create version record from the OLD properties
+      const versions = existing.metadata?.versions || [];
+      const newVersionNum = versions.length + 1;
+      const oldVersionEntry = {
+        version: newVersionNum,
+        url: existing.url,
+        path: existing.path,
+        hash: existing.hash,
+        size: existing.size,
+        filename: existing.filename,
+        mimeType: existing.mimeType,
+        createdAt: existing.updatedAt || existing.createdAt || new Date().toISOString(),
+        createdBy: existing.updatedBy || existing.createdBy || userId,
+        action: "replace",
+      };
+
+      // Push old version to the history array
+      const updatedVersions = [...versions, oldVersionEntry];
+
+      // 4. Update the existing database record with the new file properties
+      const updatedMetadata = {
+        ...existing.metadata,
+        versions: updatedVersions,
+      };
+
+      const updateData = {
+        filename: file.name,
+        originalFilename: file.name,
+        mimeType: file.type,
+        size: file.size,
+        hash: uploadedFile.hash,
+        path: uploadedFile.path,
+        thumbnails: uploadedFile.thumbnails || {},
+        metadata: updatedMetadata,
+        updatedBy: userId,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await this.updateMedia(mediaId, updateData, tenantId);
+
+      // Return the updated media item enriched
+      const finalRes = await this.db.crud.findOne<DbMediaItem>(
+        "media",
+        { _id: mediaId as DatabaseId },
+        { tenantId: tenantId ?? undefined },
+      );
+      if (finalRes.success && finalRes.data) {
+        return {
+          success: true,
+          data: this.enrichMediaWithUrl(finalRes.data as any) as unknown as MediaItem,
+        };
+      }
+      throw new Error("Failed to retrieve updated media item");
+    } catch (err: any) {
+      logger.error(`[MediaService] Error uploading new version:`, err);
+      return { success: false, message: err.message, error: err };
+    }
+  }
+
+  /**
+   * Restores an existing file version to be the active one.
+   * Creates a new version entry for the currently active state, and updates
+   * the active properties with the restored version properties.
+   */
+  public async restoreVersion(
+    mediaId: string,
+    versionNumber: number,
+    userId: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<DatabaseResult<MediaItem>> {
+    try {
+      // 1. Get the media item
+      const res = await this.db.crud.findOne<DbMediaItem>(
+        "media",
+        { _id: mediaId as DatabaseId },
+        { tenantId: tenantId ?? undefined },
+      );
+      if (!res.success || !res.data) {
+        throw new Error("Media item not found");
+      }
+      const existing = res.data as any;
+
+      const versions = existing.metadata?.versions || [];
+      const targetVersion = versions.find((v: any) => v.version === versionNumber);
+      if (!targetVersion) {
+        throw new Error(`Version ${versionNumber} not found`);
+      }
+
+      // 2. Create a version entry from the CURRENT active state
+      const currentVersionNum = versions.length + 1;
+      const currentVersionEntry = {
+        version: currentVersionNum,
+        url: existing.url,
+        path: existing.path,
+        hash: existing.hash,
+        size: existing.size,
+        filename: existing.filename,
+        mimeType: existing.mimeType,
+        createdAt: existing.updatedAt || existing.createdAt || new Date().toISOString(),
+        createdBy: existing.updatedBy || existing.createdBy || userId,
+        action: "restore",
+      };
+
+      // 3. Update the active record to point back to the restored version
+      const updatedVersions = [...versions, currentVersionEntry];
+      const updatedMetadata = {
+        ...existing.metadata,
+        versions: updatedVersions,
+      };
+
+      const updateData = {
+        filename: targetVersion.filename || existing.filename,
+        originalFilename: targetVersion.filename || existing.filename,
+        mimeType: targetVersion.mimeType || existing.mimeType,
+        size: targetVersion.size || existing.size,
+        hash: targetVersion.hash,
+        path: targetVersion.path,
+        metadata: updatedMetadata,
+        updatedBy: userId,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await this.updateMedia(mediaId, updateData, tenantId);
+
+      const finalRes = await this.db.crud.findOne<DbMediaItem>(
+        "media",
+        { _id: mediaId as DatabaseId },
+        { tenantId: tenantId ?? undefined },
+      );
+      if (finalRes.success && finalRes.data) {
+        return {
+          success: true,
+          data: this.enrichMediaWithUrl(finalRes.data as any) as unknown as MediaItem,
+        };
+      }
+      throw new Error("Failed to retrieve restored media item");
+    } catch (err: any) {
+      logger.error(`[MediaService] Error restoring version:`, err);
+      return { success: false, message: err.message, error: err };
+    }
   }
 }

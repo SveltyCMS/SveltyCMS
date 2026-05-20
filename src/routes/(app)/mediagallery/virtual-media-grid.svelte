@@ -20,6 +20,7 @@ interface Props {
 	isSelectionMode?: boolean;
 	selectedFiles: SvelteSet<string>;
 	onEditImage?: (file: MediaImage) => void;
+	onOpenFileDetails?: (file: MediaBase | MediaImage) => void;
 }
 
 let {
@@ -28,6 +29,7 @@ let {
 	isSelectionMode = false,
 	selectedFiles = $bindable(),
 	onEditImage = () => {},
+	onOpenFileDetails = () => {},
 }: Props = $props();
 
 // Virtual scrolling state
@@ -110,11 +112,15 @@ onMount(() => {
                         hover:z-10 hover:-translate-y-1 hover:shadow-lg focus:ring-4 focus:ring-primary-500 text-left cursor-pointer
                         {isSelected ? 'border-primary-500 ring-2 ring-primary-500/20' : 'border-surface-200 dark:border-surface-800'}"
 					style:height="{itemHeight - 32}px"
-					onclick={() => isSelectionMode ? toggleSelection(file) : null}
+					onclick={() => isSelectionMode ? toggleSelection(file) : onOpenFileDetails(file)}
 					onkeydown={(e) => {
 						if (e.key === 'Enter' || e.key === ' ') {
 							e.preventDefault();
-							if (isSelectionMode) toggleSelection(file);
+							if (isSelectionMode) {
+								toggleSelection(file);
+							} else {
+								onOpenFileDetails(file);
+							}
 						}
 					}}
 					aria-label="{file.filename}, {isSelected ? 'selected' : 'not selected'}"

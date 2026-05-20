@@ -38,6 +38,8 @@ export const PUBLIC_ROUTES = [
   "/api/user/login",
   "/api/auth/login",
   "/api/preview",
+  "/api/media/share",
+  "/share",
 ];
 
 /**

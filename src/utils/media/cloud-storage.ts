@@ -32,7 +32,7 @@ export interface CloudStorageConfig {
 
 // Get cloud storage configuration from settings
 export function getConfig(): CloudStorageConfig {
-  const storageType = getPublicSettingSync("MEDIA_STORAGE_TYPE") as StorageType;
+  const storageType = (getPublicSettingSync("MEDIA_STORAGE_TYPE") || "local") as StorageType;
   const mediaFolder = getPublicSettingSync("MEDIA_FOLDER") || "";
   const normalizedFolder = mediaFolder.replace(/^\.\//, "").replace(/^\/+/, "").replace(/\/+$/, "");
 

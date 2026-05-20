@@ -47,7 +47,9 @@ async function runMediaAudit() {
 
     const { getDb } = await import("@src/databases/db");
     const { LocalCMS } = await import("@src/services/sdk");
+    const { settingsService } = await import("@src/services/core/settings-service");
     const db = getDb();
+    await settingsService.loadSettingsCache();
     const cms = new LocalCMS(db!);
 
     const results: any[] = [];

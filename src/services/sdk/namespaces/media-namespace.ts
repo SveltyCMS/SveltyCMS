@@ -274,4 +274,65 @@ export class MediaNamespace {
       return { success: false, message: err.message, error: err };
     }
   }
+
+  async references(mediaId: string, options: TenantOptions = {}): Promise<DatabaseResult<any[]>> {
+    try {
+      if (!mediaId) throw new AppError("Media ID is required", 400);
+      const refs = await this.mediaService.getMediaReferences(
+        mediaId,
+        options.tenantId as DatabaseId,
+      );
+      return { success: true, data: refs };
+    } catch (err: any) {
+      return { success: false, message: err.message, error: err };
+    }
+  }
+
+  async uploadVersion(
+    mediaId: string,
+    file: File,
+    options: { userId: string; tenantId?: DatabaseId | null },
+  ): Promise<DatabaseResult<MediaItem>> {
+    const { userId, tenantId } = options;
+    try {
+      if (!mediaId) throw new AppError("Media ID is required", 400);
+      if (!userId) throw new AppError("User ID is required", 400);
+      if (!(file instanceof File)) throw new AppError("Valid file is required", 400);
+
+      const result = await this.mediaService.uploadNewVersion(
+        mediaId,
+        file,
+        userId,
+        tenantId as DatabaseId,
+      );
+      this.invalidateCache(tenantId, mediaId);
+      return result;
+    } catch (err: any) {
+      return { success: false, message: err.message, error: err };
+    }
+  }
+
+  async restoreVersion(
+    mediaId: string,
+    versionNumber: number,
+    options: { userId: string; tenantId?: DatabaseId | null },
+  ): Promise<DatabaseResult<MediaItem>> {
+    const { userId, tenantId } = options;
+    try {
+      if (!mediaId) throw new AppError("Media ID is required", 400);
+      if (!versionNumber) throw new AppError("Version number is required", 400);
+      if (!userId) throw new AppError("User ID is required", 400);
+
+      const result = await this.mediaService.restoreVersion(
+        mediaId,
+        versionNumber,
+        userId,
+        tenantId as DatabaseId,
+      );
+      this.invalidateCache(tenantId, mediaId);
+      return result;
+    } catch (err: any) {
+      return { success: false, message: err.message, error: err };
+    }
+  }
 }
