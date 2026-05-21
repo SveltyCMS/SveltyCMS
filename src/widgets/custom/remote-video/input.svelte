@@ -296,7 +296,8 @@ Part of the Three Pillars Architecture for widget system.
 				<div class="flex items-start justify-between gap-2">
 					{#if isEditingManually}
 						<input 
-							type="text" 
+							type="text"
+							aria-label="Video title"
 							class="input text-base font-bold p-1 bg-white dark:bg-surface-700 w-full"
 							value={fetchedMetadata.title}
 							oninput={(e) => updateMetadataField('title', e.currentTarget.value)}
@@ -319,6 +320,7 @@ Part of the Three Pillars Architecture for widget system.
 
 				{#if isEditingManually}
 					<textarea 
+						aria-label="Video description"
 						class="textarea text-xs p-1 bg-white dark:bg-surface-700 w-full"
 						rows="2"
 						value={fetchedMetadata.description || ''}

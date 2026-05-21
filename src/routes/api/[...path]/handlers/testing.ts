@@ -51,7 +51,9 @@ export async function handleTestingRoutes(
       process.stderr.write(`[TestingHandler] RESET TRIGGERED for tenant: ${tenantId}\n`);
 
       // 1. Wipe Database (Collections + Data)
-      if (cms.db?.reset) {
+      if (cms.db?.clearDatabase) {
+        await cms.db.clearDatabase();
+      } else if (cms.db?.reset) {
         await cms.db.reset();
       }
 

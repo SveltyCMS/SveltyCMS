@@ -110,6 +110,7 @@ export class CollectionsNamespace {
   public registerSchema(collectionId: string, schema: Schema, tenantId?: DatabaseId | null): void {
     const schemaKey = `${tenantId || "global"}:${collectionId.toLowerCase()}`;
     CollectionsNamespace._schemaCache.set(schemaKey, schema);
+    CollectionsNamespace._requestCache.clear();
     logger.debug(`[Collections] Manually registered schema: ${schemaKey}`);
   }
 
@@ -252,8 +253,20 @@ export class CollectionsNamespace {
 
     const collections = await this._contentSystem.getCollections(tenantId);
 
+    // Merge in any manually registered schemas from cache
+    const prefix = `${tenantId || "global"}:`;
+    const cachedSchemas: Schema[] = [];
+    for (const [key, schema] of CollectionsNamespace._schemaCache.entries()) {
+      if (key.startsWith(prefix)) {
+        if (!collections.some((c: Schema) => c._id === schema._id)) {
+          cachedSchemas.push(schema);
+        }
+      }
+    }
+    const allCollections = [...collections, ...cachedSchemas];
+
     const processed = await Promise.all(
-      collections.map(async (c: Schema) => {
+      allCollections.map(async (c: Schema) => {
         const col = { ...c } as any;
         if (!includeFields) delete col.fields;
         if (includeStats) col.stats = { count: 0 };

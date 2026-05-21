@@ -101,9 +101,9 @@ const handleHyperTurbo: Handle = async ({ event, resolve }) => {
         response.headers.set("X-Content-Type-Options", "nosniff");
 
         return response;
-      } catch {
-        // logger.error(`[HyperTurbo] Dispatcher failed for ${pathname}:`, err);
-        // Fallback to normal chain
+      } catch (err: any) {
+        logger.error(`[HyperTurbo] Dispatcher failed for ${pathname}:`, err);
+        return handleApiError(err, event);
       }
     }
   }
@@ -313,44 +313,53 @@ if (!building) {
 }
 
 // Helper to dynamically wrap SvelteKit middleware inside a high-resolution tracing span
-function wrapHandle(name: string, handleFn: Handle): Handle {
+function wrapHandle(name: string, handleFnRef: () => Handle): Handle {
   return async (input) => {
-    return await traceSpan(`hook:${name}`, async () => await handleFn(input));
+    return await traceSpan(`hook:${name}`, async () => await handleFnRef()(input));
   };
 }
 
 // 🚀 DYNAMIC PIPELINE DISPATCHER
 // We don't pre-compile the sequence into a single const, instead we build it
 // based on the current system state.
-const getPipeline = () => {
-  const middleware: Handle[] = setupComplete
-    ? [
-        wrapHandle("hyper-turbo", handleHyperTurbo),
-        wrapHandle("turbo-pipeline", handleTurboPipeline),
-        wrapHandle("security-headers", handleSecurityHeaders),
-        wrapHandle("test-isolation", handleTestIsolation),
-        wrapHandle("static-asset-caching", handleStaticAssetCaching),
-        wrapHandle("security", handleSecurity),
-        wrapHandle("system-state", handleSystemState),
-        wrapHandle("redirects", handleRedirects),
-        wrapHandle("compression", handleCompression),
-        wrapHandle("user-preferences", handleUserPreferences),
-        wrapHandle("authentication", handleAuthentication),
-        wrapHandle("authorization", handleAuthorization),
-        wrapHandle("local-sdk", handleLocalSdk),
-        wrapHandle("content-initialization", handleContentInitialization),
-        wrapHandle("audit-logging", handleAuditLogging),
-        wrapHandle("api-requests", handleApiRequests),
-        wrapHandle("token-resolution", handleTokenResolution),
-      ]
-    : [
-        wrapHandle("hyper-turbo", handleHyperTurbo),
-        wrapHandle("turbo-pipeline", handleTurboPipeline),
-        wrapHandle("security-headers", handleSecurityHeaders),
-        wrapHandle("compression", handleCompression),
-      ];
+let cachedPipelineReady: Handle | null = null;
+let cachedPipelineSetup: Handle | null = null;
 
-  return sequence(...middleware);
+const getPipeline = () => {
+  if (setupComplete) {
+    if (!cachedPipelineReady) {
+      cachedPipelineReady = sequence(
+        wrapHandle("hyper-turbo", () => handleHyperTurbo),
+        wrapHandle("turbo-pipeline", () => handleTurboPipeline),
+        wrapHandle("security-headers", () => handleSecurityHeaders),
+        wrapHandle("test-isolation", () => handleTestIsolation),
+        wrapHandle("static-asset-caching", () => handleStaticAssetCaching),
+        wrapHandle("security", () => handleSecurity),
+        wrapHandle("system-state", () => handleSystemState),
+        wrapHandle("redirects", () => handleRedirects),
+        wrapHandle("compression", () => handleCompression),
+        wrapHandle("user-preferences", () => handleUserPreferences),
+        wrapHandle("authentication", () => handleAuthentication),
+        wrapHandle("authorization", () => handleAuthorization),
+        wrapHandle("local-sdk", () => handleLocalSdk),
+        wrapHandle("content-initialization", () => handleContentInitialization),
+        wrapHandle("audit-logging", () => handleAuditLogging),
+        wrapHandle("api-requests", () => handleApiRequests),
+        wrapHandle("token-resolution", () => handleTokenResolution),
+      );
+    }
+    return cachedPipelineReady;
+  } else {
+    if (!cachedPipelineSetup) {
+      cachedPipelineSetup = sequence(
+        wrapHandle("hyper-turbo", () => handleHyperTurbo),
+        wrapHandle("turbo-pipeline", () => handleTurboPipeline),
+        wrapHandle("security-headers", () => handleSecurityHeaders),
+        wrapHandle("compression", () => handleCompression),
+      );
+    }
+    return cachedPipelineSetup;
+  }
 };
 
 /**

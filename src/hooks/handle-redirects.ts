@@ -239,9 +239,6 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
     ]);
 
     const isAllowedRoot = allowedRoots.has(firstSegment);
-    console.log(
-      `[handleRedirects Debug] path: ${path}, firstSegment: ${firstSegment}, hasLangPrefix: ${hasLangPrefix}, isAllowedRoot: ${isAllowedRoot}`,
-    );
 
     if (hasLangPrefix) {
       if (pathSegments.length > 1) {
@@ -267,7 +264,6 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
       }
     } else {
       if (!isAllowedRoot) {
-        console.log(`[handleRedirects Debug] BLOCKING path: ${path} with 404!`);
         return new Response("Not Found", {
           status: 404,
           headers: {

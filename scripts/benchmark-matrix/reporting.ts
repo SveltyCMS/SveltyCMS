@@ -640,6 +640,8 @@ tags:
         if (!m.dbRaw) m.dbRaw = lastM.dbRaw;
         if (!m.memGrowth) m.memGrowth = lastM.memGrowth;
         if (!m.systemCpu) m.systemCpu = lastM.systemCpu;
+        if (!m.hooks) m.hooks = lastM.hooks;
+        if (!m.indexPressure) m.indexPressure = lastM.indexPressure;
         if (!curr.coldStartMs && last.cold_start_ms) curr.coldStartMs = last.cold_start_ms;
       }
     } else {

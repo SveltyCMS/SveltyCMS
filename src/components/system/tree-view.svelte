@@ -47,6 +47,12 @@
 		onClick?: (node: TreeNode) => void;
 		order?: number; // Order of the node
 		path?: string; // Path of the node
+		actions?: {
+			icon: string;
+			label: string;
+			onClick: (node: TreeNode, event: MouseEvent) => void;
+			colorClass?: string;
+		}[];
 	}
 </script>
 
@@ -502,6 +508,26 @@
 					</span>
 				{/if}
 			</button>
+
+			{#if node.actions && !compact}
+				<div class="absolute right-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+					{#each node.actions as act}
+						<button
+							type="button"
+							class="btn-icon btn-icon-xs rounded-full bg-surface-200/85 hover:bg-surface-300 dark:bg-surface-800/85 dark:hover:bg-surface-700 p-0.5"
+							onclick={(e) => {
+								e.stopPropagation();
+								e.preventDefault();
+								act.onClick(node, e);
+							}}
+							title={act.label}
+							aria-label={act.label}
+						>
+							<iconify-icon icon={act.icon} width="16" class={act.colorClass || ''}></iconify-icon>
+						</button>
+					{/each}
+				</div>
+			{/if}
 
 			<!-- Drop indicator: after -->
 			{#if dragOverNode?.id === node.id && dropPosition === 'after'}

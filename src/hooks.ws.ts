@@ -1,96 +1,140 @@
 /**
  * @file src/hooks.ws.ts
- * @description Enhanced WebSocket hooks for svelte-realtime with strong typing and security hardening.
+ * @description
+ * Enhanced WebSocket hooks for svelte-realtime with strong typing and security hardening.
+ *
+ * Responsibilities include:
+ * - Parsing and validating WebSocket upgrade requests.
+ * - Normalizing request URLs from varying contexts.
+ * - Performing session resolution and tenant checks.
+ *
+ * ### Features:
+ * - Session caching using LRU cache
+ * - Test-mode authentication bypass
+ * - Tenant isolation verification
  */
 
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import { getDbInitPromise, dbAdapter } from "@src/databases/db";
 import { getTenantIdFromHostname } from "@utils/tenant";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { getPrivateSettingSync, loadSettingsCache } from "@src/services/core/settings-service";
 import { parseCookies } from "@utils/http/cookie-utils";
 import { LRUCache } from "lru-cache";
 import type { User } from "@src/databases/auth/types";
+import type { DatabaseId } from "@src/content/types";
 
-// Re-export the message hook from svelte-realtime
+// Re-export the message hook
 export { message } from "svelte-realtime/server";
 
-// Strongly typed platform reference
 export let globalPlatform: App.Platform | null = null;
 
-/**
- * 🛰️ WebSocket Initialization
- * Captures the platform object for global event broadcasting.
- */
+/** Initialize platform for global broadcasting */
 export function init({ platform }: { platform: App.Platform }) {
   globalPlatform = platform;
 }
 
-/**
- * 🛡️ Session Validation Cache
- * Prevents database thrashing during high-frequency reconnection storms.
- * Max 500 entries with a short 30s TTL.
- */
+// ==================== CACHE ====================
 const handshakeCache = new LRUCache<string, { profile: User; tenantId: string | null }>({
   max: 500,
-  ttl: 1000 * 30,
+  ttl: 1000 * 30, // 30 seconds
 });
 
-/**
- * Interface representing the WebSocket upgrade context.
- * Normalizes differences between Vite dev mode and production adapters.
- */
+// ==================== TYPES ====================
 export interface WsUpgradeContext {
-  url?: URL | { href: string; pathname: string; hostname: string; protocol: string };
+  url?: URL | string | { href?: string; pathname?: string; hostname?: string };
   cookies?: { get(name: string): string | undefined };
   request?: Request;
-  headers?: Record<string, string>;
-  req?: { headers?: Record<string, string> };
+  headers?: Headers | Record<string, string | string[] | undefined>;
+  req?: { headers?: Record<string, string | string[] | undefined> };
 }
 
-/**
- * 🚀 WebSocket Upgrade Hook
- * Performs authentication, tenant identification, and security gating.
- */
-export async function upgrade(ctx: WsUpgradeContext) {
+interface WsAuthResult {
+  profile: User;
+  tenantId: string;
+  sessionId?: string;
+  connectedAt: number;
+}
+
+// ==================== HELPERS ====================
+
+/** Safely extracts URL from various SvelteKit / adapter contexts */
+function normalizeUrl(ctx: WsUpgradeContext): URL {
   try {
-    // 1. Safe URL normalization
-    let url: URL;
-    try {
-      const u = ctx.url;
-      if (u instanceof URL) {
-        url = u;
-      } else {
-        const urlStr =
-          (u as any)?.href ||
-          ctx.request?.url ||
-          `http://${(ctx.headers as any)?.host || "localhost"}${(u as any)?.pathname || "/"}`;
-        url = new URL(urlStr);
-      }
-    } catch {
-      url = new URL("http://localhost");
+    // Direct URL
+    if (ctx.url instanceof URL) return ctx.url;
+
+    let raw = "/";
+    if (typeof ctx.url === "string") {
+      raw = ctx.url;
+    } else if (ctx.url && typeof ctx.url === "object") {
+      raw = (ctx.url as any).href ?? (ctx.url as any).pathname ?? "/";
+    } else {
+      raw = ctx.request?.url ?? (ctx.req as any)?.url ?? "/";
     }
 
-    // 2. Database readiness check
-    await getDbInitPromise(false, "CORE");
+    if (raw.includes("://")) return new URL(raw);
 
-    // 3. Robust header extraction
-    const getHeader = (name: string): string => {
-      const lower = name.toLowerCase();
-      if (typeof ctx.request?.headers?.get === "function")
-        return ctx.request.headers.get(lower) || "";
-      const h = ctx.headers || ctx.req?.headers || {};
-      return (h as Record<string, string>)[lower] || (h as Record<string, string>)[name] || "";
-    };
+    // Reconstruct
+    const host =
+      ctx.request?.headers?.get("host") ??
+      (ctx.headers as any)?.host ??
+      (ctx.headers as any)?.Host ??
+      (ctx.req?.headers as any)?.host ??
+      (ctx.req?.headers as any)?.Host ??
+      "localhost";
 
-    const cookieHeader = getHeader("cookie");
-    const testSecretHeader = getHeader("x-test-secret");
-    const tenantIdHeader = getHeader("x-tenant-id");
+    const proto =
+      ctx.request?.headers?.get("x-forwarded-proto") ??
+      (ctx.headers as any)?.["x-forwarded-proto"] ??
+      (ctx.req?.headers as any)?.["x-forwarded-proto"] ??
+      "http";
 
-    // 4. Identity & Tenant Extraction
+    return new URL(`${proto}://${host}${raw.startsWith("/") ? raw : `/${raw}`}`);
+  } catch (err) {
+    logger.warn("[WS Upgrade] URL normalization failed, using fallback", err);
+    return new URL("http://localhost");
+  }
+}
+
+/** Robust header getter that works across contexts */
+function getHeader(ctx: WsUpgradeContext, name: string): string {
+  const lower = name.toLowerCase();
+
+  // Request object (preferred)
+  if (ctx.request?.headers?.get) {
+    return ctx.request.headers.get(lower) || "";
+  }
+
+  const headers = ctx.headers || (ctx.req as any)?.headers || {};
+  return (
+    (headers as Record<string, string>)[lower] ?? (headers as Record<string, string>)[name] ?? ""
+  );
+}
+
+// ==================== MAIN UPGRADE HOOK ====================
+
+export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | false> {
+  const start = Date.now();
+
+  try {
+    const url = normalizeUrl(ctx);
+
+    // Ensure DB + settings are ready
+    await Promise.all([
+      getDbInitPromise(false, "CORE"),
+      loadSettingsCache("global").catch((e) => logger.error("Settings cache load failed", e)),
+    ]);
+
+    const cookieHeader = getHeader(ctx, "cookie");
+    const testSecret = getHeader(ctx, "x-test-secret") || url.searchParams.get("secret");
+    const tenantIdHeader = getHeader(ctx, "x-tenant-id");
+
+    // Cookie name handling (secure prefix)
     const isSecure = url.protocol === "https:" || url.hostname !== "localhost";
     const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
+    // Extract session ID
     let sessionId: string | null = null;
     if (typeof ctx.cookies?.get === "function") {
       sessionId = ctx.cookies.get(cookieName) || ctx.cookies.get(SESSION_COOKIE_NAME) || null;
@@ -99,26 +143,27 @@ export async function upgrade(ctx: WsUpgradeContext) {
       sessionId = parsed[cookieName] || parsed[SESSION_COOKIE_NAME] || null;
     }
 
-    // 5. Auth Bypasses (Strictly gated)
-    const testSecret = testSecretHeader || url.searchParams.get("secret");
-    const actualSecret = getPrivateSettingSync("TEST_API_SECRET");
-    const isAuthorizedTest =
-      process.env.TEST_MODE === "true" && testSecret === actualSecret && actualSecret;
+    // ==================== TEST MODE BYPASS ====================
+    const isTestMode = process.env.TEST_MODE === "true";
+    const actualTestSecret =
+      getPrivateSettingSync("TEST_API_SECRET") || process.env.TEST_API_SECRET;
 
-    // 6. Resolve Session & Profile
+    const isAuthorizedTest = Boolean(isTestMode && testSecret && testSecret === actualTestSecret);
+
+    // ==================== SESSION RESOLUTION ====================
     let profile: User | null = null;
     let tenantId: string | null = null;
 
     if (sessionId && dbAdapter) {
-      // Check cache first
       const cached = handshakeCache.get(sessionId);
       if (cached) {
         profile = cached.profile;
         tenantId = cached.tenantId;
       } else {
-        const result = await dbAdapter.auth.validateSession(sessionId as any, {
+        const result = await dbAdapter.auth.validateSession(sessionId as DatabaseId, {
           suppressErrorLog: true,
         });
+
         if (result?.success && result.data) {
           profile = result.data;
           tenantId = profile.tenantId || null;
@@ -127,39 +172,52 @@ export async function upgrade(ctx: WsUpgradeContext) {
       }
     }
 
-    // 7. Apply Tenant Logic
-    const multiTenant = getPrivateSettingSync("MULTI_TENANT") === true;
-    if (multiTenant && !tenantId) {
+    // Multi-tenant fallback
+    const isMultiTenant = getPrivateSettingSync("MULTI_TENANT") === true;
+    if (isMultiTenant && !tenantId) {
       tenantId = getTenantIdFromHostname(url.hostname, true);
     }
 
-    // 8. Security Finalization
+    // ==================== TEST MODE OVERRIDE ====================
     if (isAuthorizedTest) {
-      profile =
-        profile || ({ _id: "system", role: "admin", isAdmin: true, username: "System" } as any);
-      // Only allow tenant override in authorized test mode
+      profile ??= {
+        _id: "system",
+        role: "admin",
+        isAdmin: true,
+        username: "System",
+      } as User;
+
       tenantId = tenantIdHeader || url.searchParams.get("tenantId") || tenantId || "default";
     }
 
-    // Reject unauthenticated connections in production
-    if (!profile) return false;
-
-    // Tenant Isolation Enforcement
-    if (multiTenant && profile.tenantId && tenantId && profile.tenantId !== tenantId) {
-      logger.warn(
-        `[WS Upgrade] Security: Tenant mismatch rejected. user=${profile.tenantId}, host=${tenantId}`,
-      );
+    // Final security checks
+    if (!profile) {
+      logger.info(`[WS Upgrade] Rejected - No profile (session: ${!!sessionId})`);
       return false;
     }
+
+    if (isMultiTenant && profile.tenantId && tenantId && profile.tenantId !== tenantId) {
+      logger.warn(`[WS Upgrade] Tenant mismatch rejected`, {
+        userTenant: profile.tenantId,
+        hostTenant: tenantId,
+      });
+      return false;
+    }
+
+    logger.info(`[WS Upgrade] Successful handshake in ${Date.now() - start}ms`, {
+      tenantId,
+      userId: profile._id,
+      isTest: isAuthorizedTest,
+    });
 
     return {
       profile,
       tenantId: tenantId || "default",
-      sessionId,
+      sessionId: sessionId || undefined,
       connectedAt: Date.now(),
     };
   } catch (err) {
-    logger.error("[WS Upgrade] Handshake failure:", err);
+    logger.error("[WS Upgrade] Unexpected error during handshake", err);
     return false;
   }
 }

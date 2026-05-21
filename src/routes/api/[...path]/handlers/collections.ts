@@ -89,7 +89,9 @@ export async function handleCollectionsRoutes(
       // Get total count for metadata if requested
       let totalCount: number | undefined;
       if (url.searchParams.get("includeCount") === "true") {
-        const countRes = await cms.collections.count(collectionId, { tenantId });
+        const countRes = await cms.collections.count(collectionId, {
+          tenantId,
+        });
         if (countRes.success) totalCount = countRes.data;
       }
 
@@ -116,6 +118,8 @@ export async function handleCollectionsRoutes(
   if (request.method === "DELETE" && entryId === "bulk")
     return handleCollectionBulkDelete(event, cms, tenantId, user, collectionId);
 
+  if (request.method === "POST" && subAction === "increment")
+    return handleCollectionIncrement(event, cms, tenantId, user, collectionId, entryId);
   if (request.method === "POST")
     return handleCollectionCreate(event, cms, tenantId, user, collectionId);
   if (request.method === "PATCH" && entryId)
@@ -180,7 +184,11 @@ export async function handleCollectionList(
 ) {
   const includeFields = url.searchParams.get("includeFields") === "true";
   const includeStats = url.searchParams.get("includeStats") === "true";
-  const result = await cms.collections.list({ tenantId, includeFields, includeStats });
+  const result = await cms.collections.list({
+    tenantId,
+    includeFields,
+    includeStats,
+  });
   return url.searchParams.get("raw") === "true"
     ? rawResponse(event, result)
     : successResponse(event, result);
@@ -285,5 +293,74 @@ export async function handleCollectionBulkDelete(
     user: user!,
     tenantId,
   });
+  return successResponse(event, result);
+}
+
+export async function handleCollectionIncrement(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  _user: any,
+  collectionId: string,
+  entryId: string,
+) {
+  const body = await event.request.json();
+  const { field, amount } = body;
+  if (!field || typeof amount !== "number") {
+    throw new AppError(
+      "Invalid increment payload. Expected { field: string, amount: number }",
+      400,
+    );
+  }
+
+  // 🚀 ATOMIC INCREMENT: Resolve collection name from schema, then call the
+  // adapter's native atomic increment. This uses $inc (MongoDB) or a single
+  // json_set UPDATE (SQL) — no read-modify-write, no lost updates under concurrency.
+  const schema = await (cms.collections as any).getSchema(collectionId, tenantId);
+  const collectionName = `collection_${(schema._id as string).replace(/-/g, "")}`;
+
+  let result: any;
+
+  if (typeof (cms.db.crud as any).atomicIncrement === "function") {
+    // Fast path: native atomic increment via the adapter
+    result = await (cms.db.crud as any).atomicIncrement(collectionName, entryId, field, amount, {
+      tenantId,
+      bypassSafeQuery: true,
+    });
+  } else {
+    // Fallback for adapters that haven't implemented atomicIncrement yet:
+    // use a serialized findById + update with cache bypass.
+    const currentRes = await cms.collections.findById(collectionId, entryId, {
+      tenantId,
+      bypassCache: true,
+    });
+    if (!currentRes.success || !(currentRes as any).data) {
+      throw new AppError(`Entry not found: ${entryId}`, 404);
+    }
+    const currentVal =
+      typeof (currentRes as any).data[field] === "number" ? (currentRes as any).data[field] : 0;
+    result = await cms.collections.update(
+      collectionId,
+      entryId,
+      { [field]: currentVal + amount },
+      {
+        user: _user || { _id: "system", role: "admin" },
+        tenantId,
+      },
+    );
+  }
+
+  if (!result.success) {
+    console.error(`[Increment] failed`, result);
+    throw new AppError(result.message || "Failed to increment field", 500);
+  }
+
+  // Invalidate cache so subsequent reads get the new value
+  try {
+    await cms.db.monitoring.cache.invalidateCollection(collectionId, tenantId);
+  } catch {
+    // ignore
+  }
+
   return successResponse(event, result);
 }

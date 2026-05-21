@@ -963,7 +963,64 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
         }
 
         // 2. Execute raw query
-        const sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(`"${tableName}"`)} WHERE ${where || sql`1=1`}`;
+        let sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(`"${tableName}"`)} WHERE ${where || sql`1=1`}`;
+
+        // 🚀 Apply sort, limit, and offset dynamically
+        if (options.sort) {
+          const sortConditions: any[] = [];
+          const normalizedSorts: { field: string; direction: "asc" | "desc" }[] = [];
+          if (Array.isArray(options.sort)) {
+            for (const item of options.sort) {
+              if (Array.isArray(item) && item.length >= 2) {
+                normalizedSorts.push({ field: item[0], direction: item[1] as "asc" | "desc" });
+              } else if (typeof item === "object" && item !== null) {
+                const keys = Object.keys(item);
+                if (keys.length > 0) {
+                  const field = keys[0];
+                  const direction = (item as any)[field];
+                  normalizedSorts.push({ field, direction });
+                }
+              }
+            }
+          } else if (typeof options.sort === "object") {
+            for (const field of Object.keys(options.sort)) {
+              const direction = (options.sort as any)[field];
+              normalizedSorts.push({ field, direction });
+            }
+          }
+
+          for (const s of normalizedSorts) {
+            let sortCol: any;
+            const column = this.getColumn(table, s.field);
+            if (column) {
+              sortCol = column;
+            } else {
+              const dataCol = this.getColumn(table, "data");
+              if (dataCol) {
+                sortCol = this.getJsonField(s.field);
+              }
+            }
+
+            if (sortCol) {
+              if (s.direction === "asc") {
+                sortConditions.push(asc(sortCol));
+              } else {
+                sortConditions.push(desc(sortCol));
+              }
+            }
+          }
+
+          if (sortConditions.length > 0) {
+            sqlQuery = sql`${sqlQuery} ORDER BY ${sql.join(sortConditions, sql`, `)}`;
+          }
+        }
+
+        if (options.limit !== undefined) {
+          sqlQuery = sql`${sqlQuery} LIMIT ${options.limit}`;
+        }
+        if (options.offset !== undefined) {
+          sqlQuery = sql`${sqlQuery} OFFSET ${options.offset}`;
+        }
 
         const db = this.getDrizzleInstance(options);
         const rawRows = await db.values(sqlQuery);
@@ -1535,6 +1592,112 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   }
 
   /**
+   * 🚀 ATOMIC INCREMENT (SQL): Updates a JSON field atomically in one SQL statement,
+   * preventing lost-update races under concurrent writes.
+   *
+   * ### Strategy by dialect
+   * - **SQLite**:     `SET data = json_set(data, '$.field', json_extract(data, '$.field') + amount)`
+   * - **PostgreSQL**: `SET data = jsonb_set(data, '{field}', ((data->>'field')::numeric + amount)::text::jsonb)`
+   * - **MariaDB**:    `SET data = JSON_SET(data, '$.field', JSON_EXTRACT(data, '$.field') + amount)`
+   *
+   * Falls back to `findOne → update` (application-level) if the dialect is unknown.
+   */
+  async atomicIncrement(
+    collection: string,
+    id: DatabaseId,
+    field: string,
+    amount: number,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<Record<string, unknown>>> {
+    return this.wrap(
+      async () => {
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const tableName = getTableName(table);
+        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+        if (!idCol) throw new Error("ID column not found");
+
+        const now = new Date();
+
+        if (this.type === "sqlite") {
+          // SQLite stores extra fields in the `data` TEXT (JSON) column.
+          // First try the `data` column path; fall back to a top-level numeric column.
+          const dataCol = this.getColumn(table, "data");
+          if (dataCol) {
+            await this.getDrizzleInstance(options).run(
+              sql.raw(
+                `UPDATE "${tableName}" SET "data" = json_set("data", '$.${field}', coalesce(json_extract("data", '$.${field}'), 0) + ${amount}), "updatedAt" = ${now.getTime()} WHERE "_id" = '${String(id)}'`,
+              ),
+            );
+          } else {
+            // Top-level column
+            await this.getDrizzleInstance(options).run(
+              sql.raw(
+                `UPDATE "${tableName}" SET "${field}" = coalesce("${field}", 0) + ${amount}, "updatedAt" = ${now.getTime()} WHERE "_id" = '${String(id)}'`,
+              ),
+            );
+          }
+        } else if (this.type === "postgresql") {
+          const dataCol = this.getColumn(table, "data");
+          if (dataCol) {
+            await this.getDrizzleInstance(options).execute(
+              sql.raw(
+                `UPDATE "${tableName}" SET "data" = jsonb_set("data", '{${field}}', (coalesce(("data"->>'${field}')::numeric, 0) + ${amount})::text::jsonb), "updatedAt" = now() WHERE "_id" = '${String(id)}'`,
+              ),
+            );
+          } else {
+            await this.getDrizzleInstance(options).execute(
+              sql.raw(
+                `UPDATE "${tableName}" SET "${field}" = coalesce("${field}", 0) + ${amount}, "updatedAt" = now() WHERE "_id" = '${String(id)}'`,
+              ),
+            );
+          }
+        } else if (this.type === "mariadb" || this.type === "mysql") {
+          const dataCol = this.getColumn(table, "data");
+          if (dataCol) {
+            await this.getDrizzleInstance(options).execute(
+              sql.raw(
+                `UPDATE \`${tableName}\` SET \`data\` = JSON_SET(\`data\`, '$.${field}', COALESCE(JSON_EXTRACT(\`data\`, '$.${field}'), 0) + ${amount}), \`updatedAt\` = NOW() WHERE \`_id\` = '${String(id)}'`,
+              ),
+            );
+          } else {
+            await this.getDrizzleInstance(options).execute(
+              sql.raw(
+                `UPDATE \`${tableName}\` SET \`${field}\` = COALESCE(\`${field}\`, 0) + ${amount}, \`updatedAt\` = NOW() WHERE \`_id\` = '${String(id)}'`,
+              ),
+            );
+          }
+        } else {
+          // Unknown dialect: fallback to application-level read-modify-write (not ideal but safe)
+          const existing = await this.findOne<any>(collection, { _id: id } as any, options);
+          if (!existing.success || !existing.data) {
+            throw new Error(`Entry not found: ${String(id)}`);
+          }
+          const currentVal = typeof existing.data[field] === "number" ? existing.data[field] : 0;
+          const res = await this.update(
+            collection,
+            id,
+            { [field]: currentVal + amount } as any,
+            options,
+          );
+          if (!res.success) throw new Error((res as any).message || "Update failed");
+          return (res as any).data as Record<string, unknown>;
+        }
+
+        // Re-fetch the updated document to return it
+        const updated = await this.findOne<any>(collection, { _id: id } as any, options);
+        if (!updated.success || !updated.data) {
+          throw new Error(`Entry not found after increment: ${String(id)}`);
+        }
+        return updated.data as Record<string, unknown>;
+      },
+      "ATOMIC_INCREMENT_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
+  }
+
+  /**
    * 🚀 AGNOSTIC CORE: High-level table provisioning.
    */
   public async createModel(schemaData: any): Promise<void> {
@@ -1650,12 +1813,18 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
     options: BaseQueryOptions = {},
   ): SQL | undefined {
     // 🚀 Performance Optimization: Fast-path for simple ID queries
-    if (query && query._id && Object.keys(query).length === 1 && !options.bypassTenantCheck) {
+    if (
+      query &&
+      query._id &&
+      (typeof query._id === "string" || typeof query._id === "number") &&
+      Object.keys(query).length === 1 &&
+      !options.bypassTenantCheck
+    ) {
       const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
       if (idCol) {
-        const conditions = [eq(idCol, query._id as string)];
+        const conditions = [eq(idCol, query._id as any)];
         const tenantCol = this.getColumn(table, "tenantId");
-        if (options.tenantId !== undefined && tenantCol) {
+        if (options.tenantId !== undefined && options.tenantId !== "global" && tenantCol) {
           conditions.push(
             options.tenantId === null
               ? isNull(tenantCol)

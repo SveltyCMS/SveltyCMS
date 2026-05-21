@@ -31,6 +31,7 @@ Provides an organized interface for navigating hierarchical content structures.
 	import { collection_no_collections_found, collections_search } from '@src/paraglide/messages';
 	import { collection, contentStructure, setMode } from '@src/stores/collection-store.svelte.ts';
 	import { app } from '@src/stores/store.svelte';
+	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import { debounce } from '@utils/utils';
@@ -63,6 +64,12 @@ Provides an organized interface for navigating hierarchical content structures.
 		onClick: () => void;
 		order: number;
 		path?: string;
+		actions?: {
+			icon: string;
+			label: string;
+			onClick: (node: any, event: MouseEvent) => void;
+			colorClass?: string;
+		}[];
 	}
 
 	// Mutable state
@@ -166,6 +173,24 @@ Provides an organized interface for navigating hierarchical content structures.
 				};
 			}
 
+			const isPinned = pinnedStore.isPinned(node._id);
+			const actions = isCategory ? undefined : [
+				{
+					icon: isPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
+					label: isPinned ? 'Unpin Collection' : 'Pin Collection',
+					colorClass: isPinned ? 'text-primary-500' : 'text-surface-500',
+					onClick: (_treeNode: any, _event: MouseEvent) => {
+						pinnedStore.togglePin({
+							id: node._id,
+							name: label,
+							type: 'collection',
+							path: `/${currentLanguage}${node.path || `/${node._id}`}`,
+							icon: node.icon || 'bi:collection'
+						});
+					}
+				}
+			];
+
 			return {
 				id: node._id,
 				name: label,
@@ -176,7 +201,8 @@ Provides an organized interface for navigating hierarchical content structures.
 				badge,
 				path: isCategory ? undefined : `/${currentLanguage}${node.path || `/${node._id}`}`,
 				depth,
-				order: node.order ?? 0
+				order: node.order ?? 0,
+				actions
 			};
 		}
 

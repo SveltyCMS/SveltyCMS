@@ -73,6 +73,7 @@
 		</div>
 
 		<textarea
+			aria-label={field.label || fieldName || 'JSON editor'}
 			class="textarea w-full pl-10 pr-4 py-3 font-mono text-sm leading-relaxed bg-surface-50 dark:bg-surface-900 border-none focus:ring-0 resize-y"
 			style="height: {field.height || '300px'};"
 			value={jsonString}

@@ -707,6 +707,19 @@ export interface ICrudAdapter {
     items: Array<{ query: QueryFilter<T>; data: EntityCreate<T> }>,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<T[] | { upsertedCount: number; modifiedCount: number }>>;
+  /**
+   * Atomically increments a numeric field on a document by `amount`.
+   * Uses native DB-level operators ($inc / SET col = col + n) to prevent
+   * lost-update races under concurrent writes.
+   * Returns the updated document on success.
+   */
+  atomicIncrement?(
+    collection: string,
+    id: DatabaseId,
+    field: string,
+    amount: number,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<Record<string, unknown>>>;
 }
 
 export interface IMediaAdapter {

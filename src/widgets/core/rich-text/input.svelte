@@ -613,7 +613,8 @@
 																<iconify-icon icon="mdi:palette" class="text-white drop-shadow-md" width="18"></iconify-icon>
 															</div>
 															<input
-																type="color"
+										type="color"
+										aria-label="Text color"
 																class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
 																onchange={handleColorChange}
 																onclick={(e) => e.stopPropagation()}
@@ -626,7 +627,8 @@
 												<div class="p-2 w-64">
 													<div class="flex flex-col gap-2">
 														<input
-															type="url"
+										type="url"
+										aria-label="Link URL"
 															bind:value={linkUrl}
 															placeholder="https://example.com"
 															class="input input-sm w-full"
@@ -642,7 +644,8 @@
 												<div class="p-2 w-64">
 													<div class="flex flex-col gap-2">
 														<input
-															type="url"
+										type="url"
+										aria-label="Video URL"
 															bind:value={videoUrl}
 															placeholder="YouTube URL"
 															class="input input-sm w-full"
@@ -730,6 +733,7 @@
 	{#if showSource}
 		<textarea
 			class="w-full min-h-96 p-4 font-mono text-sm bg-surface-50 dark:bg-surface-900 text-surface-900 dark:text-gray-200 border-none resize-y outline-none"
+			aria-label={field.label || field.db_fieldName || 'Rich text HTML editor'}
 			value={editor?.getHTML() || ''}
 			oninput={(e) => {
 				const content = (e.target as HTMLTextAreaElement).value;
@@ -876,5 +880,11 @@
 		</div>
 	{/if}
 
-	<input bind:this={colorInput} type="color" class="hidden" onchange={handleColorChange} />
+<input
+	bind:this={colorInput}
+	type="color"
+	aria-label="Text color"
+	class="hidden"
+	onchange={handleColorChange}
+/>
 </div>

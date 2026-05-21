@@ -20,22 +20,24 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (16/05/2026, 00:51:40)
+## 📊 Latest Performance Audit (20/05/2026, 17:12:13)
 
 **Status:** ❌ FAIL
 
 > [!CAUTION]
-> **Anomalies Detected**: Environment unready (Docker services offline) See console for stack trace.
+> **Anomalies Detected**: Environment unready See console for stack trace.
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend  | Target Budget |
-| :--------------------- | :---------- | :----- | :------------ |
-| **Cold Start**         | 0ms         | ⚪ (—) | < 5000ms      |
-| **REST (Collections)** | 0.000ms     | ⚪ (—) | < 5ms         |
-| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—) | < 5ms         |
-| **DB Raw (p95)**       | 0.000ms     | ⚪     | < 50ms        |
-| **Setup Quality**      | 🔴 DEGRADED | ⚪     | 100%          |
+| Scenario               | Avg Latency | Trend  | Target Budget | Result  |
+| :--------------------- | :---------- | :----- | :------------ | :------ |
+| **Cold Start**         | 0ms         | ⚪ (—) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 0.000ms     | ⚪ (—) | < 5ms         | 🟢 PASS |
+| **Middleware Hooks**   | 0.000ms     | ⚪     | < 1.5ms       | 🟢 PASS |
+| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—) | < 5ms         | 🟢 PASS |
+| **Million-Row Index**  | FAILED      | ⚪     | < 250ms       | 🔴 FAIL |
+| **DB Raw (p95)**       | 0.000ms     | ⚪     | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | 🔴 DEGRADED | ⚪     | 100%          | 🔴 FAIL |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -95,7 +97,7 @@ xychart-beta
 
 ## 🔬 Detailed Performance Ledger (20+ Modules)
 
-<!-- API_TABLE_START -->
+<!-- API_LATENCY_TABLE_START -->
 
 ### 🏷️ API LAYER LATENCY
 
@@ -123,16 +125,16 @@ xychart-beta
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
-<!-- API_TABLE_END -->
+<!-- API_LATENCY_TABLE_END -->
 
-<!-- COLD_TABLE_START -->
+<!-- COLD_START_TABLE_START -->
 
 > ⏳ **PHASED COLD START**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/cold-start-phased.test.ts](file:///D:/SveltyCMS/tests/benchmarks/cold-start-phased.test.ts)
+> 📂 **Source**: [tests/benchmarks/cold-start-phased.test.ts](../../../tests/benchmarks/cold-start-phased.test.ts)
 
-<!-- COLD_TABLE_END -->
+<!-- COLD_START_TABLE_END -->
 
-<!-- TRUTH_TABLE_START -->
+<!-- TRUTH_AUDIT_TABLE_START -->
 
 ### 🏷️ SRE TRUTH AUDIT ⚪ —
 
@@ -154,9 +156,46 @@ xychart-beta
 ╚═════════════════════════════════════════════════════════════════════════════╝
 ```
 
-<!-- TRUTH_TABLE_END -->
+<!-- TRUTH_AUDIT_TABLE_END -->
 
-<!-- DB_TABLE_START -->
+<!-- HOOKS_TRACE_TABLE_START -->
+
+### 🏷️ MIDDLEWARE & HOOKS AUDIT (Trend: ⚪ 0.0%)
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                    SVELTYCMS — MIDDLEWARE & HOOKS AUDIT                     ║
+║                  Turbo • Security • Auth • Audit • MARIADB                  ║
+║              File: tests/benchmarks/hooks-performance.test.ts               ║
+║ Proves: High-resolution micro-benchmarks (µs) for individual middleware ... ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Turbo Pipeline (Light)       │ 0.177 ms (⚪ 0.0%) │ 0.224 ms     │ 5,655        ║
+║ Full Security + Auth Pipeline │ 0.301 ms (⚪ 0.0%) │ 0.303 ms     │ 3,318        ║
+║ Mutation + Audit Logging     │ 3.115 ms (⚪ 0.0%) │ 4.986 ms     │ 321          ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ Turbo Pipeline                                     │        0.177 ms       ║
+║ Full Pipeline                                      │        0.301 ms       ║
+║ Audit Overhead                                     │         2.81 ms       ║
+║ Peak RPS                                           │     5655.000 req/s    ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
+
+<!-- HOOKS_TRACE_TABLE_END -->
+
+<!-- STATE_MACHINE_TABLE_START -->
+
+> ⏳ **State Machine Transitions**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/state-machine-transition.test.ts](../../../tests/benchmarks/state-machine-transition.test.ts)
+
+<!-- STATE_MACHINE_TABLE_END -->
+
+<!-- DB_RAW_P95_TABLE_START -->
 
 ### 🏷️ DATABASE ADAPTER PERFORMANCE (MARIADB) (Trend: ⚪ 0.0%)
 
@@ -189,7 +228,7 @@ xychart-beta
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
-<!-- DB_TABLE_END -->
+<!-- DB_RAW_P95_TABLE_END -->
 
 <!-- ACID_TABLE_START -->
 
@@ -237,35 +276,12 @@ xychart-beta
 
 <!-- CACHE_TABLE_END -->
 
-<!-- HOOKS_TABLE_START -->
+<!-- TEMPORAL_TABLE_START -->
 
-### 🏷️ MIDDLEWARE & HOOKS AUDIT (Trend: ⚪ 0.0%)
+> ⏳ **Temporal Integrity Audit**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/temporal-integrity.test.ts](../../../tests/benchmarks/temporal-integrity.test.ts)
 
-```text
-╔═════════════════════════════════════════════════════════════════════════════╗
-║                    SVELTYCMS — MIDDLEWARE & HOOKS AUDIT                     ║
-║                  Turbo • Security • Auth • Audit • MARIADB                  ║
-║              File: tests/benchmarks/hooks-performance.test.ts               ║
-║ Proves: High-resolution micro-benchmarks (µs) for individual middleware ... ║
-╠═════════════════════════════════════════════════════════════════════════════╣
-║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
-╠═════════════════════════════════════════════════════════════════════════════╣
-║ Turbo Pipeline (Light)       │ 0.177 ms (⚪ 0.0%) │ 0.224 ms     │ 5,655        ║
-║ Full Security + Auth Pipeline │ 0.301 ms (⚪ 0.0%) │ 0.303 ms     │ 3,318        ║
-║ Mutation + Audit Logging     │ 3.115 ms (⚪ 0.0%) │ 4.986 ms     │ 321          ║
-╚═════════════════════════════════════════════════════════════════════════════╝
-
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                             FINAL AUDIT SUMMARY                              ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║ Turbo Pipeline                                     │        0.177 ms       ║
-║ Full Pipeline                                      │        0.301 ms       ║
-║ Audit Overhead                                     │         2.81 ms       ║
-║ Peak RPS                                           │     5655.000 req/s    ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-```
-
-<!-- HOOKS_TABLE_END -->
+<!-- TEMPORAL_TABLE_END -->
 
 <!-- RELATIONAL_TABLE_START -->
 
@@ -289,6 +305,35 @@ xychart-beta
 ```
 
 <!-- RELATIONAL_TABLE_END -->
+
+<!-- AUTH_TRACE_TABLE_START -->
+
+### 🏷️ AUTHENTICATION TELEMETRY
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                    SVELTYCMS — AUTHENTICATION TELEMETRY                     ║
+║              Session Verification • RBAC Resolution • MARIADB               ║
+║               File: tests/benchmarks/auth-performance.test.ts               ║
+║ Proves: Measures JWT verification, session retrieval, and permission mat... ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ SDK Session Validation       │ 1.558 ms       │ 2.372 ms     │ 642          ║
+║ HTTP Auth Pipeline @ 8c      │ 0.304 ms       │ 0.322 ms     │ 3,289        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                             FINAL AUDIT SUMMARY                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ SDK Validation Latency                             │        1.558 ms       ║
+║ HTTP Pipeline Latency                              │        0.304 ms       ║
+║ Peak Auth RPS                                      │     3289.000 req/s    ║
+║ Auth Memory RSS Δ                                  │         0.00 MB       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
+
+<!-- AUTH_TRACE_TABLE_END -->
 
 <!-- REST_TABLE_START -->
 
@@ -340,35 +385,6 @@ xychart-beta
 
 <!-- GRAPHQL_TABLE_END -->
 
-<!-- AUTH_TABLE_START -->
-
-### 🏷️ AUTHENTICATION TELEMETRY
-
-```text
-╔═════════════════════════════════════════════════════════════════════════════╗
-║                    SVELTYCMS — AUTHENTICATION TELEMETRY                     ║
-║              Session Verification • RBAC Resolution • MARIADB               ║
-║               File: tests/benchmarks/auth-performance.test.ts               ║
-║ Proves: Measures JWT verification, session retrieval, and permission mat... ║
-╠═════════════════════════════════════════════════════════════════════════════╣
-║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
-╠═════════════════════════════════════════════════════════════════════════════╣
-║ SDK Session Validation       │ 1.558 ms       │ 2.372 ms     │ 642          ║
-║ HTTP Auth Pipeline @ 8c      │ 0.304 ms       │ 0.322 ms     │ 3,289        ║
-╚═════════════════════════════════════════════════════════════════════════════╝
-
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                             FINAL AUDIT SUMMARY                              ║
-╠══════════════════════════════════════════════════════════════════════════════╣
-║ SDK Validation Latency                             │        1.558 ms       ║
-║ HTTP Pipeline Latency                              │        0.304 ms       ║
-║ Peak Auth RPS                                      │     3289.000 req/s    ║
-║ Auth Memory RSS Δ                                  │         0.00 MB       ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-```
-
-<!-- AUTH_TABLE_END -->
-
 <!-- SEO_TABLE_START -->
 
 ### 🏷️ Enterprise SEO Suite Audit ⚪ —
@@ -394,12 +410,71 @@ xychart-beta
 
 <!-- SEO_TABLE_END -->
 
-<!-- REAL-TIME_TABLE_START -->
+<!-- BROADCAST_TABLE_START -->
+
+> ⏳ **REAL-TIME BROADCAST AUDIT**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/websocket-broadcast.test.ts](../../../tests/benchmarks/websocket-broadcast.test.ts)
+
+<!-- BROADCAST_TABLE_END -->
+
+<!-- REAL_TIME_TABLE_START -->
 
 > ⏳ **WebSocket & Realtime Latency**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/realtime-performance.test.ts](file:///D:/SveltyCMS/tests/benchmarks/realtime-performance.test.ts)
+> 📂 **Source**: [tests/benchmarks/realtime-performance.test.ts](../../../tests/benchmarks/realtime-performance.test.ts)
 
-<!-- REAL-TIME_TABLE_END -->
+<!-- REAL_TIME_TABLE_END -->
+
+<!-- NEGATIVE_CACHE_TABLE_START -->
+
+> ⏳ **Negative Cache Performance**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/negative-cache.test.ts](../../../tests/benchmarks/negative-cache.test.ts)
+
+<!-- NEGATIVE_CACHE_TABLE_END -->
+
+<!-- REVISION_STRESS_TABLE_START -->
+
+### 🏷️ Revision & History Growth ⚪ —
+
+> 📂 **Source**: [tests/benchmarks/revision-stress.test.ts](../../../tests/benchmarks/revision-stress.test.ts)
+> 🎯 **Proves**: Benchmarks performance degradation as document history grows to 100+ versions.
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                      SVELTYCMS — REVISION STRESS AUDIT                      ║
+║                           100 Revisions • MARIADB                           ║
+║               File: tests/benchmarks/revision-stress.test.ts                ║
+║ Proves: Benchmarks performance degradation as document history grows to ... ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Latest Read (High Revision Count) │ 1.715 ms       │ 1.829 ms     │ 583          ║
+║ History List Retrieval       │ 0.688 ms       │ 0.766 ms     │ 1,453        ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
+
+<!-- REVISION_STRESS_TABLE_END -->
+
+<!-- MEMORY_TABLE_START -->
+
+### 🏷️ Memory Stability & GC Behavior ⚪ —
+
+> 📂 **Source**: [tests/benchmarks/memory-stability.test.ts](../../../tests/benchmarks/memory-stability.test.ts)
+> 🎯 **Proves**: Long-running soak test to identify memory leaks and GC pressure.
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                     SVELTYCMS — MEMORY STABILITY AUDIT                      ║
+║                        45s Sustained Load • MARIADB                         ║
+║               File: tests/benchmarks/memory-stability.test.ts               ║
+║  Proves: Long-running soak test to identify memory leaks and GC pressure.   ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Memory Profile               │ N/A            │ N/A          │ 10,866       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
+
+<!-- MEMORY_TABLE_END -->
 
 <!-- TENANCY_TABLE_START -->
 
@@ -446,29 +521,7 @@ xychart-beta
 
 <!-- MIXED_TABLE_END -->
 
-<!-- MEMORY_TABLE_START -->
-
-### 🏷️ Memory Stability & GC Behavior ⚪ —
-
-> 📂 **Source**: [tests/benchmarks/memory-stability.test.ts](../../../tests/benchmarks/memory-stability.test.ts)
-> 🎯 **Proves**: Long-running soak test to identify memory leaks and GC pressure.
-
-```text
-╔═════════════════════════════════════════════════════════════════════════════╗
-║                     SVELTYCMS — MEMORY STABILITY AUDIT                      ║
-║                        45s Sustained Load • MARIADB                         ║
-║               File: tests/benchmarks/memory-stability.test.ts               ║
-║  Proves: Long-running soak test to identify memory leaks and GC pressure.   ║
-╠═════════════════════════════════════════════════════════════════════════════╣
-║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
-╠═════════════════════════════════════════════════════════════════════════════╣
-║ Memory Profile               │ N/A            │ N/A          │ 10,866       ║
-╚═════════════════════════════════════════════════════════════════════════════╝
-```
-
-<!-- MEMORY_TABLE_END -->
-
-<!-- GQL_TABLE_START -->
+<!-- GQL_STRESS_TABLE_START -->
 
 ### 🏷️ GRAPHQL STRESS AUDIT
 
@@ -494,7 +547,7 @@ xychart-beta
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
-<!-- GQL_TABLE_END -->
+<!-- GQL_STRESS_TABLE_END -->
 
 <!-- MIGRATION_TABLE_START -->
 
@@ -519,59 +572,7 @@ xychart-beta
 
 <!-- MIGRATION_TABLE_END -->
 
-<!-- REVISION_TABLE_START -->
-
-### 🏷️ Revision & History Growth ⚪ —
-
-> 📂 **Source**: [tests/benchmarks/revision-stress.test.ts](../../../tests/benchmarks/revision-stress.test.ts)
-> 🎯 **Proves**: Benchmarks performance degradation as document history grows to 100+ versions.
-
-```text
-╔═════════════════════════════════════════════════════════════════════════════╗
-║                      SVELTYCMS — REVISION STRESS AUDIT                      ║
-║                           100 Revisions • MARIADB                           ║
-║               File: tests/benchmarks/revision-stress.test.ts                ║
-║ Proves: Benchmarks performance degradation as document history grows to ... ║
-╠═════════════════════════════════════════════════════════════════════════════╣
-║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
-╠═════════════════════════════════════════════════════════════════════════════╣
-║ Latest Read (High Revision Count) │ 1.715 ms       │ 1.829 ms     │ 583          ║
-║ History List Retrieval       │ 0.688 ms       │ 0.766 ms     │ 1,453        ║
-╚═════════════════════════════════════════════════════════════════════════════╝
-```
-
-<!-- REVISION_TABLE_END -->
-
-<!-- NEGATIVE_TABLE_START -->
-
-> ⏳ **Negative Cache Performance**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/negative-cache.test.ts](file:///D:/SveltyCMS/tests/benchmarks/negative-cache.test.ts)
-
-<!-- NEGATIVE_TABLE_END -->
-
-<!-- RESILIENCE_TABLE_START -->
-
-### 🏷️ Chaos & Infrastructure Resilience ⚪ —
-
-> 📂 **Source**: [tests/benchmarks/chaos-resilience.test.ts](../../../tests/benchmarks/chaos-resilience.test.ts)
-> 🎯 **Proves**: Simulates 500ms database brownouts and measures CMS availability and stability.
-
-```text
-╔═════════════════════════════════════════════════════════════════════════════╗
-║                     SVELTYCMS — CHAOS RESILIENCE AUDIT                      ║
-║                 500ms Brownouts • 35% Probability • MARIADB                 ║
-║               File: tests/benchmarks/chaos-resilience.test.ts               ║
-║ Proves: Simulates 500ms database brownouts and measures CMS availability... ║
-╠═════════════════════════════════════════════════════════════════════════════╣
-║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
-╠═════════════════════════════════════════════════════════════════════════════╣
-║ Chaos Resilience (Brownout)  │ 93.268 ms      │ 95.257 ms    │ 11           ║
-╚═════════════════════════════════════════════════════════════════════════════╝
-```
-
-<!-- RESILIENCE_TABLE_END -->
-
-<!-- INDEX_TABLE_START -->
+<!-- INDEX_PRESSURE_TABLE_START -->
 
 ### 🏷️ Million-Row Index Pressure ⚪ —
 
@@ -592,9 +593,9 @@ xychart-beta
 ╚═════════════════════════════════════════════════════════════════════════════╝
 ```
 
-<!-- INDEX_TABLE_END -->
+<!-- INDEX_PRESSURE_TABLE_END -->
 
-<!-- CONTENT_TABLE_START -->
+<!-- CONTENT_STRESS_TABLE_START -->
 
 ### 🏷️ CONTENT SCALE STRESS AUDIT
 
@@ -620,61 +621,69 @@ xychart-beta
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
-<!-- CONTENT_TABLE_END -->
+<!-- CONTENT_STRESS_TABLE_END -->
 
 <!-- JOURNEY_TABLE_START -->
 
 > ⏳ **Full Client Journey Simulation**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/client-journey.test.ts](file:///D:/SveltyCMS/tests/benchmarks/client-journey.test.ts)
+> 📂 **Source**: [tests/benchmarks/client-journey.test.ts](../../../tests/benchmarks/client-journey.test.ts)
 
 <!-- JOURNEY_TABLE_END -->
-
-<!-- FAST-FAIL_TABLE_START -->
-
-> ⏳ **Failure Propagation & Fast-Fail Audit**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/failure-propagation.test.ts](file:///D:/SveltyCMS/tests/benchmarks/failure-propagation.test.ts)
-
-<!-- FAST-FAIL_TABLE_END -->
-
-<!-- CIRCUIT-BREAKER_TABLE_START -->
-
-> ⏳ **Circuit Breaker Failover**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/circuit-breaker-failover.test.ts](file:///D:/SveltyCMS/tests/benchmarks/circuit-breaker-failover.test.ts)
-
-<!-- CIRCUIT-BREAKER_TABLE_END -->
-
-<!-- THROTTLING_TABLE_START -->
-
-> ⏳ **Throttling & Backoff Stress**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/throttling-backoff-stress.test.ts](file:///D:/SveltyCMS/tests/benchmarks/throttling-backoff-stress.test.ts)
-
-<!-- THROTTLING_TABLE_END -->
-
-<!-- STATE-MACHINE_TABLE_START -->
-
-> ⏳ **State Machine Transitions**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/state-machine-transition.test.ts](file:///D:/SveltyCMS/tests/benchmarks/state-machine-transition.test.ts)
-
-<!-- STATE-MACHINE_TABLE_END -->
 
 <!-- CONCURRENCY_TABLE_START -->
 
 > ⏳ **Concurrency & Race Condition**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/concurrency-race.test.ts](file:///D:/SveltyCMS/tests/benchmarks/concurrency-race.test.ts)
+> 📂 **Source**: [tests/benchmarks/concurrency-race.test.ts](../../../tests/benchmarks/concurrency-race.test.ts)
 
 <!-- CONCURRENCY_TABLE_END -->
 
-<!-- TEMPORAL_TABLE_START -->
+<!-- FAST_FAIL_TABLE_START -->
 
-> ⏳ **Temporal Integrity Audit**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/temporal-integrity.test.ts](file:///D:/SveltyCMS/tests/benchmarks/temporal-integrity.test.ts)
+> ⏳ **Failure Propagation & Fast-Fail Audit**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/failure-propagation.test.ts](../../../tests/benchmarks/failure-propagation.test.ts)
 
-<!-- TEMPORAL_TABLE_END -->
+<!-- FAST_FAIL_TABLE_END -->
+
+<!-- CIRCUIT_BREAKER_TABLE_START -->
+
+> ⏳ **Circuit Breaker Failover**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/circuit-breaker-failover.test.ts](../../../tests/benchmarks/circuit-breaker-failover.test.ts)
+
+<!-- CIRCUIT_BREAKER_TABLE_END -->
+
+<!-- RESILIENCE_TABLE_START -->
+
+### 🏷️ Chaos & Infrastructure Resilience ⚪ —
+
+> 📂 **Source**: [tests/benchmarks/chaos-resilience.test.ts](../../../tests/benchmarks/chaos-resilience.test.ts)
+> 🎯 **Proves**: Simulates 500ms database brownouts and measures CMS availability and stability.
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                     SVELTYCMS — CHAOS RESILIENCE AUDIT                      ║
+║                 500ms Brownouts • 35% Probability • MARIADB                 ║
+║               File: tests/benchmarks/chaos-resilience.test.ts               ║
+║ Proves: Simulates 500ms database brownouts and measures CMS availability... ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Scenario                     │ Avg latency    │ p95          │ RPS          ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ Chaos Resilience (Brownout)  │ 93.268 ms      │ 95.257 ms    │ 11           ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
+
+<!-- RESILIENCE_TABLE_END -->
+
+<!-- THROTTLING_TABLE_START -->
+
+> ⏳ **Throttling & Backoff Stress**: Pending execution.
+> 📂 **Source**: [tests/benchmarks/throttling-backoff-stress.test.ts](../../../tests/benchmarks/throttling-backoff-stress.test.ts)
+
+<!-- THROTTLING_TABLE_END -->
 
 <!-- GDPR_TABLE_START -->
 
 > ⏳ **GDPR Compliance Speed**: Pending execution.
-> 📂 **Source**: [tests/benchmarks/right-to-be-forgotten-audit.test.ts](file:///D:/SveltyCMS/tests/benchmarks/right-to-be-forgotten-audit.test.ts)
+> 📂 **Source**: [tests/benchmarks/right-to-be-forgotten-audit.test.ts](../../../tests/benchmarks/right-to-be-forgotten-audit.test.ts)
 
 <!-- GDPR_TABLE_END -->
 

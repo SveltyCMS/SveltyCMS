@@ -384,8 +384,10 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
     indexPressure:
       getMetric("index.pressure.p95") ||
       getMetric("Million-Row Index") ||
+      getMetric("Sorted List") ||
       (findResult(m, "index-pressure") as any)?.p95Ms ||
       (findResult(m, "Sorted List (100k rows)") as any)?.p95Ms ||
+      (findResult(m, "Sorted List (25k rows)") as any)?.p95Ms ||
       0,
   };
 }

@@ -55,7 +55,7 @@ Renders a color input with label, helper, and validation
 
 	function updateColor(newColor: string) {
 		const normalized = newColor.toUpperCase();
-		
+
 		if (field.translated) {
 			value = { ...(typeof value === 'object' ? value : {}), [LANGUAGE]: normalized };
 		} else {
@@ -75,7 +75,7 @@ Renders a color input with label, helper, and validation
 </script>
 
 <div class="color-picker-widget flex flex-col gap-1">
-	<div 
+	<div
 		class="flex items-center gap-2 rounded-lg border p-1 transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
 		class:!border-error-500={!!error}
 		class:ring-2={!!error}
@@ -85,9 +85,10 @@ Renders a color input with label, helper, and validation
 			<input
 				type="color"
 				value={colorValue}
+				id={fieldName + '-color'}
+				aria-label={field.label || 'Pick color'}
 				oninput={(e) => updateColor(e.currentTarget.value)}
 				class="absolute -inset-2 h-[150%] w-[150%] cursor-pointer border-none bg-transparent p-0"
-				aria-label="Pick color"
 			/>
 		</div>
 
@@ -96,16 +97,17 @@ Renders a color input with label, helper, and validation
 			<input
 				type="text"
 				value={colorValue.replace('#', '')}
+				id={fieldName + '-hex'}
+				aria-label={field.label ? field.label + ' hex value' : 'Hex color value'}
 				oninput={(e) => updateColor('#' + e.currentTarget.value)}
 				placeholder="000000"
 				maxlength="6"
 				class="w-full grow border-none bg-transparent font-mono text-sm uppercase outline-none focus:ring-0"
-				aria-label="Hex color value"
 			/>
 		</div>
 
-		<button 
-			type="button" 
+		<button
+			type="button"
 			class="btn btn-sm variant-soft-surface p-1 opacity-60 hover:opacity-100"
 			onclick={handleReset}
 			title="Reset to default"

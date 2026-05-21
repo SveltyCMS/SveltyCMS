@@ -4,7 +4,10 @@
 **Text Input Widget Component**
 
 @example
-<Input field={{ label: "Title", db_fieldName: "title", translated: true, required: true }} />
+<Input
+	aria-label="Title"
+	field={{ label: "Title", db_fieldName: "title", translated: true, required: true }}
+/>
 
 ### Props
 - `field`: FieldType (configuration for the input, e.g., label, required, translated)
@@ -248,6 +251,7 @@
 
 			<input
 				type="text"
+				aria-label={field.label || fieldName || 'Text input'}
 				value={safeValue}
 				oninput={(e) => {
 					updateValue(e.currentTarget.value);

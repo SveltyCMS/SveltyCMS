@@ -38,10 +38,7 @@
 		applayout_signout,
 		applayout_systemconfiguration,
 		applayout_systemlanguage,
-		applayout_userprofile,
-		button_Collections,
-		Collections_MediaGallery,
-		collections_media
+		applayout_userprofile
 	} from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
 	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
@@ -51,12 +48,14 @@
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { avatarSrc, systemLanguage } from '@src/stores/store.svelte';
 	import { themeStore } from '@src/stores/theme-store.svelte';
+	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
 	import { logger } from '@utils/logger';
 	// Removed axios import
 	import { browser } from '$app/environment';
 	// Import necessary utilities and types
 	import { page } from '$app/state';
+	import { scale } from 'svelte/transition';
 
 	// Constants
 	const MOBILE_BREAKPOINT = 768;
@@ -71,15 +70,25 @@
 	const user = $derived(page.data.user);
 	const currentPath = $derived(page.url.pathname);
 	const collections: ContentNode[] = $derived(contentStructure.value || []);
-	// Check if we're in media mode
-	const isMediaMode = $derived(currentPath.includes('/mediagallery'));
-	// Check if we're in settings mode
-	const isSettingsMode = $derived(currentPath.includes('/config/systemsetting'));
-
-	// Language state
-	let languageTag = $state(getLocale() as AvailableLanguage);
 	let searchQuery = $state('');
 	// Removed isDropdownOpen and dropdownRef as Menu handles this
+
+	// Collapsible Sidebar Sections State
+	let isPinnedOpen = $state(true);
+	let isCollectionsOpen = $state(true);
+	let isMediaOpen = $state(false);
+	let isSettingsOpen = $state(false);
+
+	$effect(() => {
+		// Initialize expand states based on current route context on load/navigation
+		if (currentPath.includes('/mediagallery')) {
+			isMediaOpen = true;
+		} else if (currentPath.includes('/config') || currentPath.includes('/user')) {
+			isSettingsOpen = true;
+		} else {
+			isCollectionsOpen = true;
+		}
+	});
 
 	// Derived values
 	const isSidebarFull = $derived(ui.state.leftSidebar === 'full');
@@ -96,6 +105,8 @@
 	const availableLanguages = $derived([...availableLocales].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))));
 
 	const showLanguageDropdown = $derived(availableLanguages.length > LANGUAGE_DROPDOWN_THRESHOLD);
+
+	let languageTag = $state<Locale>('en' as Locale);
 
 	const filteredLanguages = $derived(
 		availableLanguages
@@ -148,7 +159,7 @@
 	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage): void {
 		systemLanguage.set(lang as Locale);
-		languageTag = lang;
+		languageTag = lang as Locale;
 		searchQuery = '';
 	}
 
@@ -192,6 +203,9 @@
 		}
 	}
 
+	$effect(() => {
+		if (firstCollectionPath === undefined) return;
+	});
 </script>
 
 <div class="flex h-full w-full flex-col justify-between bg-transparent">
@@ -237,75 +251,159 @@
 		</button>
 	</SystemTooltip>
 
-	<!-- Navigation: Collections, Media Folders, or Settings -->
-	{#if isSettingsMode}
-		<SettingsMenu isFullSidebar={isSidebarFull} />
+	<!-- Navigation: Collapsible Sections -->
+	<div class="flex-1 overflow-y-auto pr-1 space-y-4 my-4 max-h-[calc(100vh-220px)] navigation-scroll-container">
 
-		<!-- Toggle to Collections Button -->
-		<a
-			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-4 no-underline! transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
-			href={firstCollectionPath}
-			data-sveltekit-preload-data="hover"
-			onclick={() => {
-				setMode('view');
-				if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
-			}}
-			aria-label="Switch to Collections"
-		>
-			<iconify-icon icon="bi:arrow-left" width="18" class="text-error-500"></iconify-icon>
-			{#if isSidebarFull}
-				<iconify-icon icon="bi:collection" width="20" class="text-error-500"></iconify-icon>
-				<span class="">{button_Collections()} </span>
-			{:else}
-				<iconify-icon icon="bi:collection" width="18" class="text-error-500"></iconify-icon>
-			{/if}
-		</a>
-	{:else if isMediaMode}
-		<MediaFolders />
+		<!-- 1. Pinned Items -->
+		{#if pinnedStore.items.length > 0}
+			<div class="space-y-1">
+				<button
+					type="button"
+					onclick={() => isPinnedOpen = !isPinnedOpen}
+					class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
+				>
+					<span class="flex items-center gap-1.5">
+						<iconify-icon icon="bi:pin-angle-fill" width="16" class="text-primary-500"></iconify-icon>
+						{#if isSidebarFull}Pinned{/if}
+					</span>
+					{#if isSidebarFull}
+						<iconify-icon
+							icon="bi:chevron-down"
+							width="12"
+							class="transform transition-transform duration-200 {isPinnedOpen ? '' : '-rotate-90'}"
+						></iconify-icon>
+					{/if}
+				</button>
 
-		<!-- Toggle to Collections Button -->
-		<a
-			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-4 no-underline! transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
-			href={firstCollectionPath}
-			data-sveltekit-preload-data="hover"
-			onclick={() => {
-				setMode('view');
-				if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
-			}}
-			aria-label="Switch to Collections"
-		>
-			<iconify-icon icon="bi:arrow-left" width="18" class="text-error-500"></iconify-icon>
-			{#if isSidebarFull}
-				<iconify-icon icon="bi:collection" width="20" class="text-error-500"></iconify-icon>
-				<span class="">{button_Collections()} </span>
-			{:else}
-				<iconify-icon icon="bi:collection" width="18" class="text-error-500"></iconify-icon>
-			{/if}
-		</a>
-	{:else}
-		<Collections />
+				{#if isPinnedOpen}
+					<div class="space-y-0.5" transition:scale={{ duration: 150, start: 0.95 }}>
+						{#each pinnedStore.items as item (item.id)}
+							<div class="group relative flex items-center justify-between rounded hover:bg-surface-100/50 dark:hover:bg-surface-500/20">
+								<a
+									href={item.path}
+									data-sveltekit-preload-data="hover"
+									class="flex flex-1 items-center gap-2 px-2 py-2 text-sm text-surface-900 dark:text-surface-100 no-underline!"
+									onclick={() => {
+										if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
+									}}
+								>
+									<iconify-icon icon={item.icon || 'bi:pin'} width="16" class="text-primary-500"></iconify-icon>
+									{#if isSidebarFull}
+										<span class="truncate">{item.name}</span>
+									{/if}
+								</a>
+								{#if isSidebarFull}
+									<button
+										type="button"
+										onclick={() => pinnedStore.unpin(item.id)}
+										class="btn-icon btn-icon-xs rounded-full p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-surface-200 dark:hover:bg-surface-800"
+										title="Unpin"
+									>
+										<iconify-icon icon="bi:x" width="16" class="text-surface-500"></iconify-icon>
+									</button>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+			<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
+		{/if}
 
-		<!-- Toggle to Media Gallery Button -->
-		<a
-			class="btn preset-outlined-surface-500 dark:preset-filled-surface-500 mt-2 flex h-14 w-full items-center justify-center gap-2 rounded no-underline!"
-			href="/mediagallery"
-			data-sveltekit-preload-data="hover"
-			onclick={() => {
-				setMode('media');
-				if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
-			}}
-			aria-label="Switch to Media Gallery"
-		>
-			{#if isSidebarFull}
-				<iconify-icon icon="bi:images" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				<span class="">{Collections_MediaGallery()}</span>
-				<iconify-icon icon="bi:arrow-right" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-			{:else}
-				<iconify-icon icon="bi:images" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				<span class="text-sm">{collections_media()}</span>
+		<!-- 2. Collections -->
+		<div class="space-y-1">
+			<button
+				type="button"
+				onclick={() => isCollectionsOpen = !isCollectionsOpen}
+				class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
+			>
+				<span class="flex items-center gap-1.5">
+					<iconify-icon icon="bi:collection" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					{#if isSidebarFull}Collections{/if}
+				</span>
+				{#if isSidebarFull}
+					<iconify-icon
+						icon="bi:chevron-down"
+						width="12"
+						class="transform transition-transform duration-200 {isCollectionsOpen ? '' : '-rotate-90'}"
+					></iconify-icon>
+				{/if}
+			</button>
+			{#if isCollectionsOpen}
+				<div class="px-1">
+					<Collections />
+				</div>
 			{/if}
-		</a>
-	{/if}
+		</div>
+		<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
+
+		<!-- 3. Media Library -->
+		<div class="space-y-1">
+			<button
+				type="button"
+				onclick={() => isMediaOpen = !isMediaOpen}
+				class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
+			>
+				<span class="flex items-center gap-1.5">
+					<iconify-icon icon="bi:images" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					{#if isSidebarFull}Media Library{/if}
+				</span>
+				{#if isSidebarFull}
+					<iconify-icon
+						icon="bi:chevron-down"
+						width="12"
+						class="transform transition-transform duration-200 {isMediaOpen ? '' : '-rotate-90'}"
+					></iconify-icon>
+				{/if}
+			</button>
+			{#if isMediaOpen}
+				<div class="px-1 space-y-2">
+					<!-- Quick link to the main media gallery -->
+					{#if isSidebarFull}
+						<a
+							href="/mediagallery"
+							data-sveltekit-preload-data="hover"
+							class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-primary-500 bg-primary-500/10 hover:bg-primary-500/20 no-underline! transition-colors"
+							onclick={() => {
+								if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
+							}}
+						>
+							<iconify-icon icon="bi:images" width="14"></iconify-icon>
+							Open Media Gallery
+						</a>
+					{/if}
+					<MediaFolders />
+				</div>
+			{/if}
+		</div>
+		<div class="mx-1 border-0 border-t border-surface-200/50 dark:border-surface-700/50"></div>
+
+		<!-- 4. System Settings -->
+		<div class="space-y-1">
+			<button
+				type="button"
+				onclick={() => isSettingsOpen = !isSettingsOpen}
+				class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
+			>
+				<span class="flex items-center gap-1.5">
+					<iconify-icon icon="material-symbols:build-circle" width="16" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					{#if isSidebarFull}System Settings{/if}
+				</span>
+				{#if isSidebarFull}
+					<iconify-icon
+						icon="bi:chevron-down"
+						width="12"
+						class="transform transition-transform duration-200 {isSettingsOpen ? '' : '-rotate-90'}"
+					></iconify-icon>
+				{/if}
+			</button>
+			{#if isSettingsOpen}
+				<div class="px-1">
+					<SettingsMenu isFullSidebar={isSidebarFull} />
+				</div>
+			{/if}
+		</div>
+	</div>
 
 	<!-- Plugin Sidebar Items -->
 	<div class="mt-2 w-full px-1"><Slot name="sidebar" /></div>

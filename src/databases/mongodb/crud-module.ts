@@ -200,4 +200,19 @@ export class MongoCrudModule extends DatabaseModule<MongoAdapterCore> implements
     if (res.success) await this.adapter.invalidateQueryCache(collection, options?.tenantId);
     return res as any;
   }
+
+  /**
+   * 🚀 ATOMIC INCREMENT: Delegates to the repo's native `$inc` implementation.
+   */
+  async atomicIncrement(
+    collection: string,
+    id: DatabaseId,
+    field: string,
+    amount: number,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<Record<string, unknown>>> {
+    const res = await this._getRepo(collection).atomicIncrement(id, field, amount, options);
+    if (res.success) await this.adapter.invalidateQueryCache(collection, options?.tenantId);
+    return res;
+  }
 }

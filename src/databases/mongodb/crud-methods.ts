@@ -962,4 +962,52 @@ export class MongoCrudMethods<T extends BaseEntity> {
       };
     }
   }
+
+  /**
+   * 🚀 ATOMIC INCREMENT: Uses MongoDB's native `$inc` operator for true concurrency safety.
+   * Unlike read-modify-write, this single `findOneAndUpdate` call is guaranteed to be atomic
+   * at the DB level, preventing lost-update races under 100+ concurrent requests.
+   */
+  async atomicIncrement(
+    id: DatabaseId,
+    field: string,
+    amount: number,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<Record<string, unknown>>> {
+    const startTime = performance.now();
+    try {
+      const filter: any = { _id: id };
+      if (options.tenantId) filter.tenantId = options.tenantId;
+
+      const result = await this.model
+        .findOneAndUpdate(
+          filter,
+          {
+            $inc: { [field]: amount } as any,
+            $set: { updatedAt: nowISODateString() },
+          } as any,
+          { returnDocument: "after", lean: true, cloneUpdate: false },
+        )
+        .exec();
+
+      if (!result) {
+        return {
+          success: false,
+          message: `Entry not found: ${String(id)}`,
+          error: { code: "RECORD_NOT_FOUND", message: `Entry not found: ${String(id)}` },
+        };
+      }
+      return {
+        success: true,
+        data: processDates(result) as unknown as Record<string, unknown>,
+        meta: { executionTime: performance.now() - startTime },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: "Atomic increment failed",
+        error: createDatabaseError(error, "ATOMIC_INCREMENT_ERROR", "Atomic increment failed"),
+      };
+    }
+  }
 }

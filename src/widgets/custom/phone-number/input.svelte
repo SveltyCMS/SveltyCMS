@@ -110,6 +110,7 @@
 			<iconify-icon icon="mdi:phone-outline" width="18" class="text-surface-400 mr-2"></iconify-icon>
 			<input
 				type="tel"
+				aria-label={field.label || fieldName || 'Phone number'}
 				value={safeValue}
 				oninput={handleInput}
 				placeholder={(field.placeholder as string) || '+1234567890'}

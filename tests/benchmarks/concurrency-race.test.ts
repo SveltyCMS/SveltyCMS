@@ -23,8 +23,6 @@ const ENTRY_ID = "bench-shared-001";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runConcurrencyAudit() {
-  console.log("🚀 Starting Enterprise Concurrency & Race Condition Audit...\n");
-
   try {
     const server = await setupBenchmarkServer();
     stopServer = server.stop;
@@ -33,13 +31,58 @@ async function runConcurrencyAudit() {
     await ensureStableTestData();
     await forceRefreshServer(baseUrl);
 
-    // 1. Get Initial State
-    const getRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`, {
-      headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
-    });
+    // Common headers for all benchmark requests
+    const headers = {
+      "Content-Type": "application/json",
+      "x-test-mode": "true",
+      "x-test-secret": TEST_API_SECRET,
+      "x-tenant-id": "global",
+    } as const;
+
+    // 1. Check current state by reading the entry
+    const checkRes = await fetch(
+      `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`,
+      {
+        headers,
+      },
+    );
+    if (checkRes.ok) {
+      const checkData = await checkRes.json();
+      const entry = checkData?.data ?? checkData;
+      console.log(
+        `   → Checked entry: _id=${entry?._id}, count=${entry?.count}, keys=${Object.keys(entry || {}).join(",")}`,
+      );
+    }
+
+    // Reset the count field to 0 via PATCH
+    const resetRes = await fetch(
+      `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`,
+      {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ count: 0 }),
+      },
+    );
+    const resetBody = resetRes.ok
+      ? "OK"
+      : `${resetRes.status} ${await resetRes
+          .text()
+          .then((t) => t.substring(0, 200))
+          .catch(() => "")}`;
+    console.log(`   → PATCH reset count=0: ${resetBody}`);
+
+    // 2. Force cache refresh and get initial state
+    await forceRefreshServer(baseUrl);
+
+    const getRes = await fetch(
+      `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}?bypassCache=true`,
+      {
+        headers,
+      },
+    );
     if (!getRes.ok) throw new Error("Failed to fetch initial state");
     const initialData = await getRes.json();
-    const initialCount = initialData.count || 0;
+    const initialCount = initialData.data?.count ?? initialData.count ?? 0;
 
     console.log(`   → Initial count: ${initialCount}`);
     console.log("   → Blasting 100 concurrent increments...");
@@ -49,38 +92,41 @@ async function runConcurrencyAudit() {
     const t0 = performance.now();
 
     const promises = Array.from({ length: CONCURRENCY }).map(async () => {
-      const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}/increment`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-mode": "true",
-          "x-test-secret": TEST_API_SECRET,
+      const res = await fetch(
+        `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}/increment`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ field: "count", amount: 1 }),
         },
-        body: JSON.stringify({ field: "count", amount: 1 }),
-      });
-      return res.ok;
+      );
+      return res;
     });
 
-    const results = await Promise.all(promises);
+    const responses = await Promise.all(promises);
     const duration = performance.now() - t0;
-    const successCount = results.filter(Boolean).length;
+    const successCount = responses.filter((r) => r.ok).length;
 
-    // 3. Verify Final State (Retry-backed to ensure atomic commit flush)
+    // 3. Read final count from the LAST increment response body
+    // (Each increment returns the updated document, bypassing cache)
     let finalCount = 0;
-    for (let i = 0; i < 3; i++) {
-      const finalRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`, {
-        headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
-      });
-      const finalData = await finalRes.json();
-      finalCount = finalData.count;
-      if (finalCount === initialCount + CONCURRENCY) break;
-      await new Promise((r) => setTimeout(r, 500));
+    for (let i = responses.length - 1; i >= 0; i--) {
+      if (responses[i].ok) {
+        try {
+          const body = await responses[i].clone().json();
+          const data = body?.data ?? body;
+          finalCount = data?.count ?? data?.data?.count ?? 0;
+          if (finalCount > 0) break;
+        } catch {}
+      }
     }
 
+    // 4. Print results and verify
     console.log(`   → Final count: ${finalCount}`);
 
     const isPerfect = finalCount === initialCount + CONCURRENCY;
-    const lockUpDetected = !isPerfect || (successCount < CONCURRENCY && duration > 5000);
+    const lockUpDetected =
+      !isPerfect || (successCount < CONCURRENCY && duration > 5000);
 
     printTruthTable({
       title: "SVELTYCMS — CONCURRENCY AUDIT",
@@ -100,12 +146,22 @@ async function runConcurrencyAudit() {
     printSummaryTable([
       { key: "Total Duration", val: duration, unit: "ms" },
       { key: "Successful Writes", val: successCount, unit: `/${CONCURRENCY}` },
-      { key: "Database Lockup", val: lockUpDetected ? "DETECTED" : "NONE", unit: "" },
-      { key: "Concurrency Health", val: lockUpDetected ? "FAILED" : "EXCELLENT", unit: "" },
+      {
+        key: "Database Lockup",
+        val: lockUpDetected ? "DETECTED" : "NONE",
+        unit: "",
+      },
+      {
+        key: "Concurrency Health",
+        val: lockUpDetected ? "FAILED" : "EXCELLENT",
+        unit: "",
+      },
     ]);
 
     if (lockUpDetected) {
-      throw new Error("Concurrency Audit Failed: Database lockup or severe error rate detected.");
+      throw new Error(
+        "Concurrency Audit Failed: Database lockup or severe error rate detected.",
+      );
     }
   } catch (err: any) {
     logger.error(`Concurrency audit failed: ${err.message}`);

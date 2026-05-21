@@ -49,9 +49,9 @@ plugin({
       // Default mock for $app/ environment and navigation
       return {
         contents: `
-          export const browser = false; 
-          export const dev = false; 
-          export const building = false; 
+          export const browser = false;
+          export const dev = false;
+          export const building = false;
           export const version = '1.0.0';
           export const goto = () => Promise.resolve();
           export const invalidate = () => Promise.resolve();
@@ -84,7 +84,12 @@ const COLLECTIONS = {
     name: "benchmark_authors",
     icon: "mdi:account-details",
     fields: [
-      { label: "Name", db_fieldName: "name", widget: { Name: "Input" }, required: true },
+      {
+        label: "Name",
+        db_fieldName: "name",
+        widget: { Name: "Input" },
+        required: true,
+      },
       { label: "Bio", db_fieldName: "bio", widget: { Name: "Input" } },
     ],
   },
@@ -108,9 +113,18 @@ const COLLECTIONS = {
     name: "BenchmarkStable",
     icon: "mdi:database-check",
     fields: [
-      { label: "Title", db_fieldName: "title", widget: { Name: "Input" }, required: true },
+      {
+        label: "Title",
+        db_fieldName: "title",
+        widget: { Name: "Input" },
+        required: true,
+      },
       { label: "Slug", db_fieldName: "slug", widget: { Name: "Input" } },
-      { label: "Content", db_fieldName: "content", widget: { Name: "RichText" } },
+      {
+        label: "Content",
+        db_fieldName: "content",
+        widget: { Name: "RichText" },
+      },
       { label: "Count", db_fieldName: "count", widget: { Name: "Number" } },
       {
         label: "Author",
@@ -118,7 +132,11 @@ const COLLECTIONS = {
         widget: { Name: "Relation" },
         relation: "benchmark_authors",
       },
-      { label: "Publish Date", db_fieldName: "publishDate", widget: { Name: "DateTime" } },
+      {
+        label: "Publish Date",
+        db_fieldName: "publishDate",
+        widget: { Name: "DateTime" },
+      },
     ],
   },
   REDIRECTS: {
@@ -126,10 +144,30 @@ const COLLECTIONS = {
     name: "redirects",
     icon: "mdi:link-out",
     fields: [
-      { label: "From", db_fieldName: "source", widget: { Name: "Input" }, required: true },
-      { label: "To", db_fieldName: "target", widget: { Name: "Input" }, required: true },
-      { label: "Type", db_fieldName: "type", widget: { Name: "Select" }, required: true },
-      { label: "Tenant ID", db_fieldName: "tenantId", widget: { Name: "Text" }, required: true },
+      {
+        label: "From",
+        db_fieldName: "source",
+        widget: { Name: "Input" },
+        required: true,
+      },
+      {
+        label: "To",
+        db_fieldName: "target",
+        widget: { Name: "Input" },
+        required: true,
+      },
+      {
+        label: "Type",
+        db_fieldName: "type",
+        widget: { Name: "Select" },
+        required: true,
+      },
+      {
+        label: "Tenant ID",
+        db_fieldName: "tenantId",
+        widget: { Name: "Text" },
+        required: true,
+      },
     ],
   },
   REVISIONS: {
@@ -144,14 +182,20 @@ const COLLECTIONS = {
         indexed: true,
         required: true,
       },
-      { label: "Content", db_fieldName: "content", widget: { Name: "RichText" } },
+      {
+        label: "Content",
+        db_fieldName: "content",
+        widget: { Name: "RichText" },
+      },
     ],
   },
   ACID: {
     _id: "bench_acid",
     name: "bench_acid",
     icon: "mdi:flask-outline",
-    fields: [{ label: "Title", db_fieldName: "title", widget: { Name: "Input" } }],
+    fields: [
+      { label: "Title", db_fieldName: "title", widget: { Name: "Input" } },
+    ],
   },
   INDEX_PRESSURE: {
     _id: "bench_index_pressure",
@@ -165,7 +209,12 @@ const COLLECTIONS = {
         indexed: true,
         required: true,
       },
-      { label: "Category", db_fieldName: "category", widget: { Name: "Select" }, indexed: true },
+      {
+        label: "Category",
+        db_fieldName: "category",
+        widget: { Name: "Select" },
+        indexed: true,
+      },
       { label: "Count", db_fieldName: "count", widget: { Name: "Number" } },
     ],
   },
@@ -174,7 +223,12 @@ const COLLECTIONS = {
     name: "bench_migration_large",
     icon: "mdi:transfer",
     fields: [
-      { label: "Title", db_fieldName: "title", widget: { Name: "Input" }, required: true },
+      {
+        label: "Title",
+        db_fieldName: "title",
+        widget: { Name: "Input" },
+        required: true,
+      },
       { label: "Data", db_fieldName: "data", widget: { Name: "JSON" } },
     ],
   },
@@ -194,7 +248,9 @@ async function setupCollections(cms: LocalCMS) {
   // 🚀 PREFER HTTP API: Avoid local locks if server is already running
   if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
     try {
-      log(`Registering ${schemas.length} benchmark collections via HTTP API...`);
+      log(
+        `Registering ${schemas.length} benchmark collections via HTTP API...`,
+      );
       const res = await fetch(`${process.env.API_BASE_URL}/api/testing`, {
         method: "POST",
         headers: {
@@ -214,11 +270,15 @@ async function setupCollections(cms: LocalCMS) {
         log("   ✅ Collections provisioned via API.");
       } else {
         const body = await res.text();
-        log(`   ⚠️ API provisioning FAILED (${res.status}): ${body.substring(0, 100)}`);
+        log(
+          `   ⚠️ API provisioning FAILED (${res.status}): ${body.substring(0, 100)}`,
+        );
         // Fall through to local fallback if API failed
       }
     } catch (e: any) {
-      log(`   ⚠️ API connection failed: ${e.message}. Falling back to local SDK...`);
+      log(
+        `   ⚠️ API connection failed: ${e.message}. Falling back to local SDK...`,
+      );
     }
   }
 
@@ -229,7 +289,11 @@ async function setupCollections(cms: LocalCMS) {
       try {
         await cms.db.collection.createModel(schema as any);
         if (typeof (cms.collections as any).registerSchema === "function") {
-          (cms.collections as any).registerSchema(schema._id, schema, TENANT_ID as any);
+          (cms.collections as any).registerSchema(
+            schema._id,
+            schema,
+            TENANT_ID as any,
+          );
         }
       } catch {
         /* ignore duplicates */
@@ -249,13 +313,16 @@ async function setupCollections(cms: LocalCMS) {
     // Ask the server via REST what it sees
     if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
       try {
-        const res = await fetch(`${process.env.API_BASE_URL}/api/content/collections`, {
-          headers: {
-            "x-test-secret": process.env.TEST_API_SECRET,
-            "x-tenant-id": TENANT_ID,
+        const res = await fetch(
+          `${process.env.API_BASE_URL}/api/content/collections`,
+          {
+            headers: {
+              "x-test-secret": process.env.TEST_API_SECRET,
+              "x-tenant-id": TENANT_ID,
+            },
+            signal: AbortSignal.timeout(10000),
           },
-          signal: AbortSignal.timeout(10000),
-        });
+        );
         if (res.ok) {
           const data = await res.json();
           collections = data.success ? data.data : [];
@@ -275,12 +342,24 @@ async function setupCollections(cms: LocalCMS) {
     }
 
     const findCollection = (key: string) => {
-      const search = key.toLowerCase().replace("benchmark_", "").replace("bench_", "");
+      const search = key
+        .toLowerCase()
+        .replace("benchmark_", "")
+        .replace("bench_", "");
       return collections.find((c: any) => {
-        const name = (c.name || "").toLowerCase().replace("benchmark_", "").replace("bench_", "");
-        const id = (c._id || "").toLowerCase().replace("benchmark_", "").replace("bench_", "");
+        const name = (c.name || "")
+          .toLowerCase()
+          .replace("benchmark_", "")
+          .replace("bench_", "");
+        const id = (c._id || "")
+          .toLowerCase()
+          .replace("benchmark_", "")
+          .replace("bench_", "");
         return (
-          name === search || id === search || name === key.toLowerCase() || id === key.toLowerCase()
+          name === search ||
+          id === search ||
+          name === key.toLowerCase() ||
+          id === key.toLowerCase()
         );
       });
     };
@@ -292,9 +371,15 @@ async function setupCollections(cms: LocalCMS) {
     if (authors && posts && acid) {
       // 🚀 PERFECT SETUP VERIFICATION: Ensure tables actually exist in the DB
       try {
-        await cms.db.crud.count(authors._id || "benchmark_authors", { tenantId: TENANT_ID as any });
-        await cms.db.crud.count(posts._id || "benchmark_posts", { tenantId: TENANT_ID as any });
-        await cms.db.crud.count(acid._id || "bench_acid", { tenantId: TENANT_ID as any });
+        await cms.db.crud.count(authors._id || "benchmark_authors", {
+          tenantId: TENANT_ID as any,
+        });
+        await cms.db.crud.count(posts._id || "benchmark_posts", {
+          tenantId: TENANT_ID as any,
+        });
+        await cms.db.crud.count(acid._id || "bench_acid", {
+          tenantId: TENANT_ID as any,
+        });
 
         log(`✅ Collections reconciled on attempt ${attempt}.`);
         break;
@@ -308,7 +393,9 @@ async function setupCollections(cms: LocalCMS) {
 
     if (attempt === MAX_POLL_ATTEMPTS) {
       const available = collections.map((c: any) => c.name || c._id);
-      throw new Error(`Reconciliation timeout. Available: ${available.join(", ")}`);
+      throw new Error(
+        `Reconciliation timeout. Available: ${available.join(", ")}`,
+      );
     }
 
     await new Promise((r) => setTimeout(r, 1000));
@@ -325,11 +412,12 @@ async function notifyServer() {
     log(`   → Notifying server at ${process.env.API_BASE_URL}...`);
     try {
       // 🚀 CORRECTED ENDPOINT: Using /api/content/refresh
-      const res = await fetch(`${process.env.API_BASE_URL}/api/content`, {
+      const res = await fetch(`${process.env.API_BASE_URL}/api/content/refresh`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-test-secret": process.env.TEST_API_SECRET,
+          "x-tenant-id": TENANT_ID,
         },
         body: JSON.stringify({ method: "refresh", tenantId: TENANT_ID }),
         signal: AbortSignal.timeout(60000),
@@ -342,7 +430,11 @@ async function notifyServer() {
   }
 }
 
-async function seedData(cms: any, authorsId: string, postsId: string): Promise<void> {
+async function seedData(
+  cms: any,
+  authorsId: string,
+  postsId: string,
+): Promise<void> {
   const maxRetries = 10;
   let retryCount = 0;
 
@@ -355,14 +447,23 @@ async function seedData(cms: any, authorsId: string, postsId: string): Promise<v
       }));
 
       // 🚀 VERIFY: Ensure tables are actually ready before seeding
-      const collectionIds = [authorsId, postsId, COLLECTIONS.STABLE._id, COLLECTIONS.REDIRECTS._id];
+      const collectionIds = [
+        authorsId,
+        postsId,
+        COLLECTIONS.STABLE._id,
+        COLLECTIONS.REDIRECTS._id,
+      ];
       await verifyTablesExist(cms, collectionIds, TENANT_ID);
 
       log(`   [SEED] Inserting ${authors.length} authors...`);
-      const authorResult = await cms.collections.bulkCreate(authorsId, authors, {
-        system: true,
-        tenantId: TENANT_ID as any,
-      });
+      const authorResult = await cms.collections.bulkCreate(
+        authorsId,
+        authors,
+        {
+          system: true,
+          tenantId: TENANT_ID as any,
+        },
+      );
 
       if (!authorResult.success) {
         throw new Error(`Failed to seed authors: ${authorResult.message}`);
@@ -394,10 +495,14 @@ async function seedData(cms: any, authorsId: string, postsId: string): Promise<v
         publishDate: new Date().toISOString(),
       };
 
-      const stableResult = await cms.collections.create(COLLECTIONS.STABLE._id, stableEntry, {
-        system: true,
-        tenantId: TENANT_ID as any,
-      });
+      const stableResult = await cms.collections.create(
+        COLLECTIONS.STABLE._id,
+        stableEntry,
+        {
+          system: true,
+          tenantId: TENANT_ID as any,
+        },
+      );
 
       if (!stableResult.success) {
         throw new Error(`Failed to seed stable entry: ${stableResult.message}`);
@@ -447,7 +552,9 @@ async function seedData(cms: any, authorsId: string, postsId: string): Promise<v
       ) {
         retryCount++;
         const delay = 1000 * retryCount;
-        log(`   [RETRY] DB Busy/Reconciling (${err.message}). Waiting ${delay}ms...`);
+        log(
+          `   [RETRY] DB Busy/Reconciling (${err.message}). Waiting ${delay}ms...`,
+        );
         await new Promise((r) => setTimeout(r, delay));
         continue;
       }
@@ -460,7 +567,11 @@ async function seedData(cms: any, authorsId: string, postsId: string): Promise<v
  * 🚀 HARDENING: Proactive table existence verification.
  * Prevents race conditions between DDL registration and DML seeding.
  */
-async function verifyTablesExist(cms: any, collectionIds: string[], tenantId: string | null) {
+async function verifyTablesExist(
+  cms: any,
+  collectionIds: string[],
+  tenantId: string | null,
+) {
   for (const id of collectionIds) {
     let exists = false;
     for (let i = 0; i < 20; i++) {
@@ -474,7 +585,10 @@ async function verifyTablesExist(cms: any, collectionIds: string[], tenantId: st
         await new Promise((r) => setTimeout(r, 100));
       }
     }
-    if (!exists) throw new Error(`Collection model not found: ${id} (Verification Timeout)`);
+    if (!exists)
+      throw new Error(
+        `Collection model not found: ${id} (Verification Timeout)`,
+      );
   }
 }
 
@@ -510,11 +624,72 @@ export async function main(): Promise<void> {
     // 🚀 HYPER-ISOLATION: If API_BASE_URL is present, perform ALL setup via HTTP
     // This prevents the setup script from opening the SQLite file while the server is running.
     if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
-      log(`🚀 [HyperIsolation] Using Remote API for setup: ${process.env.API_BASE_URL}`);
+      log(
+        `🚀 [HyperIsolation] Using Remote API for setup: ${process.env.API_BASE_URL}`,
+      );
 
-      if (clearOnly || force) {
+      // 🚀 REMOTE SMART SEEDING: Check if we already have data to avoid redundant setup
+      let hasData = false;
+      if (!clearOnly && !force) {
+        try {
+          const checkAuthor = await fetch(
+            `${process.env.API_BASE_URL}/api/collections/benchmark_authors/author-1`,
+            {
+              headers: {
+                "x-test-secret": process.env.TEST_API_SECRET!,
+                "x-tenant-id": TENANT_ID,
+              },
+            }
+          );
+          const checkStable = await fetch(
+            `${process.env.API_BASE_URL}/api/collections/BenchmarkStable/bench-shared-001`,
+            {
+              headers: {
+                "x-test-secret": process.env.TEST_API_SECRET!,
+                "x-tenant-id": TENANT_ID,
+              },
+            }
+          );
+          const checkRedirect = await fetch(
+            `${process.env.API_BASE_URL}/api/collections/redirects/bench-redirect-1`,
+            {
+              headers: {
+                "x-test-secret": process.env.TEST_API_SECRET!,
+                "x-tenant-id": TENANT_ID,
+              },
+            }
+          );
+
+          if (checkAuthor.ok && checkStable.ok && checkRedirect.ok) {
+            const authorJson = await checkAuthor.json().catch(() => ({}));
+            const stableJson = await checkStable.json().catch(() => ({}));
+            const redirectJson = await checkRedirect.json().catch(() => ({}));
+
+            if (
+              authorJson.success &&
+              authorJson.data?._id === "author-1" &&
+              stableJson.success &&
+              stableJson.data?._id === "bench-shared-001" &&
+              redirectJson.success &&
+              redirectJson.data?._id === "bench-redirect-1"
+            ) {
+              hasData = true;
+            }
+          }
+        } catch (e: any) {
+          log(`   ⚠️ SmartSeed check error: ${e.message}`);
+        }
+      }
+
+      if (hasData) {
+        log("🚀 [SmartSeed] Benchmark data already exists on remote server. Reusing state...");
+        await notifyServer();
+        process.exit(0);
+      }
+
+      if (clearOnly || force || !hasData) {
         log("   → Triggering remote database reset...");
-        await fetch(`${process.env.API_BASE_URL}/api/testing`, {
+        const resetRes = await fetch(`${process.env.API_BASE_URL}/api/testing`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -522,6 +697,9 @@ export async function main(): Promise<void> {
           },
           body: JSON.stringify({ action: "reset" }),
         });
+        if (!resetRes.ok) {
+          throw new Error(`Failed to reset remote database: ${resetRes.status} ${await resetRes.text()}`);
+        }
         // Wait for system to settle after reset
         await new Promise((r) => setTimeout(r, 2000));
       }
@@ -567,15 +745,21 @@ export async function main(): Promise<void> {
         bio: `Bio for author ${i + 1}`,
         tenantId: TENANT_ID,
       }));
-      await fetch(`${process.env.API_BASE_URL}/api/collections/benchmark_authors/bulk`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-secret": process.env.TEST_API_SECRET!,
-          "x-tenant-id": TENANT_ID,
+      const authorsRes = await fetch(
+        `${process.env.API_BASE_URL}/api/collections/benchmark_authors/bulk`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-test-secret": process.env.TEST_API_SECRET!,
+            "x-tenant-id": TENANT_ID,
+          },
+          body: JSON.stringify(authors),
         },
-        body: JSON.stringify(authors),
-      });
+      );
+      if (!authorsRes.ok) {
+        throw new Error(`Failed to seed authors remotely: ${authorsRes.status} ${await authorsRes.text()}`);
+      }
 
       // Posts
       const posts = authors.flatMap((author, ai) =>
@@ -585,32 +769,45 @@ export async function main(): Promise<void> {
           tenantId: TENANT_ID,
         })),
       );
-      await fetch(`${process.env.API_BASE_URL}/api/collections/benchmark_posts/bulk`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-secret": process.env.TEST_API_SECRET!,
-          "x-tenant-id": TENANT_ID,
+      const postsRes = await fetch(
+        `${process.env.API_BASE_URL}/api/collections/benchmark_posts/bulk`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-test-secret": process.env.TEST_API_SECRET!,
+            "x-tenant-id": TENANT_ID,
+          },
+          body: JSON.stringify(posts),
         },
-        body: JSON.stringify(posts),
-      });
+      );
+      if (!postsRes.ok) {
+        throw new Error(`Failed to seed posts remotely: ${postsRes.status} ${await postsRes.text()}`);
+      }
 
       // Stable Entry
       const stableEntry = {
         _id: "bench-shared-001",
         title: "Stable Benchmark Entry",
         content: "This is a stable entry for REST and API performance testing.",
+        count: 1,
         tenantId: TENANT_ID,
       };
-      await fetch(`${process.env.API_BASE_URL}/api/collections/BenchmarkStable`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-secret": process.env.TEST_API_SECRET!,
-          "x-tenant-id": TENANT_ID,
+      const stableRes = await fetch(
+        `${process.env.API_BASE_URL}/api/collections/BenchmarkStable`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-test-secret": process.env.TEST_API_SECRET!,
+            "x-tenant-id": TENANT_ID,
+          },
+          body: JSON.stringify(stableEntry),
         },
-        body: JSON.stringify(stableEntry),
-      });
+      );
+      if (!stableRes.ok) {
+        throw new Error(`Failed to seed stable entry remotely: ${stableRes.status} ${await stableRes.text()}`);
+      }
 
       // Redirects
       const redirects = [
@@ -629,15 +826,21 @@ export async function main(): Promise<void> {
           tenantId: TENANT_ID,
         },
       ];
-      await fetch(`${process.env.API_BASE_URL}/api/collections/redirects/bulk`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-secret": process.env.TEST_API_SECRET!,
-          "x-tenant-id": TENANT_ID,
+      const redirectsRes = await fetch(
+        `${process.env.API_BASE_URL}/api/collections/redirects/bulk`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-test-secret": process.env.TEST_API_SECRET!,
+            "x-tenant-id": TENANT_ID,
+          },
+          body: JSON.stringify(redirects),
         },
-        body: JSON.stringify(redirects),
-      });
+      );
+      if (!redirectsRes.ok) {
+        throw new Error(`Failed to seed redirects remotely: ${redirectsRes.status} ${await redirectsRes.text()}`);
+      }
 
       await notifyServer();
 
@@ -662,7 +865,9 @@ export async function main(): Promise<void> {
     let existingAdmin: any = null;
 
     try {
-      existingAdmin = await db.auth.getUserByEmail({ email: "admin@example.com" });
+      existingAdmin = await db.auth.getUserByEmail({
+        email: "admin@example.com",
+      });
     } catch {
       /* Table missing */
     }
@@ -713,7 +918,10 @@ export async function main(): Promise<void> {
     }
 
     // Clean slate for reproducible benchmarks
-    if (typeof (db as any).clearDatabase === "function" && (clearOnly || force || !hasData)) {
+    if (
+      typeof (db as any).clearDatabase === "function" &&
+      (clearOnly || force || !hasData)
+    ) {
       log("Clearing database for clean benchmark state...");
       const clearResult = await (db as any).clearDatabase();
       if (!clearResult.success) {
@@ -742,10 +950,30 @@ export async function main(): Promise<void> {
       // 🚀 SEED ESSENTIAL SETTINGS: Needed for CMS to function correctly
       log("Seeding essential system settings...");
       const essentialSettings = [
-        { key: "SITE_NAME", value: "SveltyCMS Benchmark", category: "public", scope: "system" },
-        { key: "DEFAULT_CONTENT_LANGUAGE", value: "en", category: "public", scope: "system" },
-        { key: "AVAILABLE_CONTENT_LANGUAGES", value: ["en"], category: "public", scope: "system" },
-        { key: "BASE_LOCALE", value: "en", category: "public", scope: "system" },
+        {
+          key: "SITE_NAME",
+          value: "SveltyCMS Benchmark",
+          category: "public",
+          scope: "system",
+        },
+        {
+          key: "DEFAULT_CONTENT_LANGUAGE",
+          value: "en",
+          category: "public",
+          scope: "system",
+        },
+        {
+          key: "AVAILABLE_CONTENT_LANGUAGES",
+          value: ["en"],
+          category: "public",
+          scope: "system",
+        },
+        {
+          key: "BASE_LOCALE",
+          value: "en",
+          category: "public",
+          scope: "system",
+        },
         { key: "LOCALES", value: ["en"], category: "public", scope: "system" },
       ];
 
@@ -821,8 +1049,8 @@ export async function main(): Promise<void> {
 }
 
 // 🚀 EXECUTION ENGINE
-// Detect if running under bun test
-if (process.env.BUN_TEST || (globalThis as any).it) {
+// Detect if running under bun test (and NOT just preloaded in a runner process)
+if (process.env.BUN_TEST && !process.env.SVELTY_BENCHMARK_SUITE) {
   const { it } = await import("bun:test");
   it("Seeds Relational Data", async () => {
     await main();

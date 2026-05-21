@@ -309,6 +309,8 @@ export async function shutdownSystem(): Promise<void> {
   // 🚀 HARDENING: Clear registries and promises
   const { dbPluginRegistry } = await import("./core/plugin-registry");
   dbPluginRegistry.reset();
+  const { pluginRegistry } = await import("@src/plugins/registry");
+  pluginRegistry.reset();
 
   setGlobal(ADAPTER_KEY, null);
   setGlobal(INIT_PROMISE_KEY, null);

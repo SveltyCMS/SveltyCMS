@@ -77,3 +77,4 @@ project.inlang
 testing-artifacts
 testing-artifacts/
 .playwright-mcp
+.antigravitycli/

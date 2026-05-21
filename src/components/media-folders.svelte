@@ -20,6 +20,9 @@
 	import { logger } from '@utils/logger';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import { goto } from '$app/navigation';
+	import { pinnedStore } from '@src/stores/pinned-store.svelte';
+	import { page } from '$app/state';
 
 	interface RawFolder {
 		_id: string;
@@ -41,12 +44,18 @@
 		order: number;
 		parentId?: string | null;
 		path: string;
+		actions?: {
+			icon: string;
+			label: string;
+			onClick: (node: any, event: MouseEvent) => void;
+			colorClass?: string;
+		}[];
 	}
 
 	// Mutable state
 	let folders = $state<FolderNode[]>([]);
 	let expandedNodes = new SvelteSet<string>();
-	let selectedFolderId = $state<string | null>(null);
+	let selectedFolderId = $derived(page.url.searchParams.get('folderId') || 'root');
 	let isEditMode = $state(false);
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
@@ -82,7 +91,6 @@
 					nodeType: 'virtual' as const,
 					order: f.order ?? 0
 				}));
-			selectedFolderId = null;
 		} catch (err) {
 			error = 'Failed to load folders';
 			logger.error('[MediaFolders] Load error:', err);
@@ -94,6 +102,7 @@
 
 	// Build hierarchical tree
 	let tree = $derived.by(() => {
+		const isRootPinned = pinnedStore.isPinned('root');
 		const root: FolderNode = {
 			id: 'root',
 			name: media_root_title(),
@@ -104,7 +113,23 @@
 			nodeType: 'virtual',
 			order: 0,
 			depth: 0,
-			children: []
+			children: [],
+			actions: [
+				{
+					icon: isRootPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
+					label: isRootPinned ? 'Unpin Folder' : 'Pin Folder',
+					colorClass: isRootPinned ? 'text-primary-500' : 'text-surface-500',
+					onClick: (_treeNode: any, _event: MouseEvent) => {
+						pinnedStore.togglePin({
+							id: 'root',
+							name: media_root_title(),
+							type: 'folder',
+							path: '/mediagallery',
+							icon: 'bi:house-door'
+						});
+					}
+				}
+			]
 		};
 
 		if (folders.length === 0) {
@@ -113,7 +138,28 @@
 
 		const map = new SvelteMap<string, FolderNode>();
 		folders.forEach((f) => {
-			map.set(f.id, { ...f, children: [], depth: 0 });
+			const isPinned = pinnedStore.isPinned(f.id);
+			map.set(f.id, {
+				...f,
+				children: [],
+				depth: 0,
+				actions: [
+					{
+						icon: isPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
+						label: isPinned ? 'Unpin Folder' : 'Pin Folder',
+						colorClass: isPinned ? 'text-primary-500' : 'text-surface-500',
+						onClick: (_treeNode: any, _event: MouseEvent) => {
+							pinnedStore.togglePin({
+								id: f.id,
+								name: f.name,
+								type: 'folder',
+								path: `/mediagallery?folderId=${f.id}`,
+								icon: 'bi:folder'
+							});
+						}
+					}
+				]
+			});
 		});
 
 		const orphans: FolderNode[] = [];
@@ -142,13 +188,14 @@
 	});
 
 	function selectFolder(id: string): void {
-		selectedFolderId = id;
 		if (id !== 'root') {
 			expandedNodes.add(id);
 		}
 		if (isMobile) {
 			ui.toggle('leftSidebar', 'hidden');
 		}
+		const path = id === 'root' ? '/mediagallery' : `/mediagallery?folderId=${id}`;
+		goto(path);
 	}
 
 	// Drag & drop reordering

@@ -66,6 +66,7 @@
 	<div class="flex h-[400px]">
 		{#if previewMode !== 'preview'}
 			<textarea
+				aria-label={field.label || field.db_fieldName || 'Markdown editor'}
 				class="textarea flex-1 p-4 font-mono text-sm border-none focus:ring-0 bg-transparent resize-none"
 				value={rawText}
 				oninput={handleInput}

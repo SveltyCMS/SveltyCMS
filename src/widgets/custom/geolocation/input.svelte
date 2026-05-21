@@ -66,7 +66,8 @@
 			<span class="text-xs font-bold uppercase tracking-widest text-surface-400">Latitude</span>
 			<div class="input-group input-group-divider grid-cols-[1fr_auto]">
 				<input 
-					type="number" 
+					type="number"
+					aria-label="Latitude"
 					step="0.000001" 
 					bind:value={lat} 
 					oninput={updateValue}
@@ -81,7 +82,8 @@
 			<span class="text-xs font-bold uppercase tracking-widest text-surface-400">Longitude</span>
 			<div class="input-group input-group-divider grid-cols-[1fr_auto]">
 				<input 
-					type="number" 
+					type="number"
+					aria-label="Longitude"
 					step="0.000001" 
 					bind:value={lng} 
 					oninput={updateValue}

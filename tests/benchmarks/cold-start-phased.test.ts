@@ -6,6 +6,7 @@
 import { runSystemBoot } from "@src/databases/db-init";
 import { systemStateStore } from "@src/stores/system/state.svelte";
 import { get } from "svelte/store";
+import { describe, it } from "bun:test";
 
 describe("Cold Start Benchmark (Phased)", () => {
   it("should measure phased boot latency", async () => {

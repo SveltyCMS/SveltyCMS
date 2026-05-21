@@ -143,6 +143,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 			<iconify-icon icon="mdi:cash-multiple" width="18" class="text-surface-400 mr-2"></iconify-icon>
 			<input
 				type="text"
+				aria-label={field.label || fieldName || 'Currency amount'}
 				value={displayValue}
 				oninput={handleInput}
 				onfocus={handleFocus}

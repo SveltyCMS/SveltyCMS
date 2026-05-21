@@ -123,7 +123,7 @@ interface CacheClient {
 
 // Registers collection schemas dynamically, now tenant-aware
 export async function registerCollections(tenantId?: string | null) {
-  console.log(
+  logger.debug(
     `[DEBUG] Executing registerCollections in ${import.meta.url} for tenant: ${tenantId}`,
   );
 
@@ -136,7 +136,7 @@ export async function registerCollections(tenantId?: string | null) {
   }
 
   const collections: Schema[] = await contentSystem.getCollections(tenantId);
-  console.log(
+  logger.debug(
     `[DEBUG] Collections list count: ${collections.length}. IDs: ${collections.map((c) => c._id).join(", ")}`,
   );
 

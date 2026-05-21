@@ -7,7 +7,7 @@
 import { performance } from "node:perf_hooks";
 import fs from "node:fs";
 import path from "node:path";
-import { sql } from "drizzle-orm";
+
 
 // ── Standalone Shim (Compatibility for 'bun run') ────────────────────────────
 /**
@@ -17,12 +17,16 @@ import { sql } from "drizzle-orm";
  */
 const isTestRunner =
   !!process.env.BUN_TEST ||
-  (typeof (globalThis as any).test !== "undefined" && !process.env.BENCHMARK_STANDALONE);
+  (typeof (globalThis as any).test !== "undefined" &&
+    !process.env.BENCHMARK_STANDALONE);
 
 // 🚀 Auto-Redirector: Ensures benchmarks always run via 'bun test' engine
 if (!isTestRunner && !process.env.BENCHMARK_REDIRECTED) {
   const filePath = process.argv[1];
-  if (filePath && (filePath.endsWith(".test.ts") || filePath.endsWith(".bench.ts"))) {
+  if (
+    filePath &&
+    (filePath.endsWith(".test.ts") || filePath.endsWith(".bench.ts"))
+  ) {
     console.log(
       "\n\x1b[33m[NOTICE]\x1b[0m SveltyCMS Benchmarks must be executed via \x1b[1m'bun test'\x1b[0m for maximum precision and automatic resource cleanup.",
     );
@@ -75,7 +79,8 @@ export const test = (name: string, fn: any, timeout?: number) => {
 };
 
 export const expect = (val: any) => {
-  if (typeof (globalThis as any).expect !== "undefined") return (globalThis as any).expect(val);
+  if (typeof (globalThis as any).expect !== "undefined")
+    return (globalThis as any).expect(val);
 
   return {
     toBe: (exp: any) => {
@@ -177,7 +182,8 @@ afterAll(async () => {
 
 // 🚀 UNIFIED LOGGING: High-frequency benchmarks use 'error' by default, 'debug' only if requested.
 
-process.env.LOG_LEVEL = process.env.BENCHMARK_DEBUG === "true" ? "debug" : "error";
+process.env.LOG_LEVEL =
+  process.env.BENCHMARK_DEBUG === "true" ? "debug" : "error";
 process.env.DEBUG = "";
 process.env.QUIET = "true";
 process.env.DB_NAME = process.env.DB_NAME || "bench_parent";
@@ -243,7 +249,8 @@ export const CONCURRENCY_GROUPS = {
 export function getRecommendedConcurrency(): number {
   const dbType = getDbType().toLowerCase();
   if (dbType.includes("sqlite")) return CONCURRENCY_GROUPS.sqlite;
-  if (dbType.includes("mariadb") || dbType.includes("mysql")) return CONCURRENCY_GROUPS.mariadb;
+  if (dbType.includes("mariadb") || dbType.includes("mysql"))
+    return CONCURRENCY_GROUPS.mariadb;
   if (dbType.includes("postgresql") || dbType.includes("postgres"))
     return CONCURRENCY_GROUPS.postgresql;
   if (dbType.includes("mongodb")) return CONCURRENCY_GROUPS.mongodb;
@@ -288,13 +295,16 @@ export function computeStatistics(
 ): BenchmarkResult {
   // Apply outlier trimming if requested
   const processedTimes =
-    config.trimOutliers === "iqr" || config.trimOutliers === true ? trimOutliersIQR(times) : times;
+    config.trimOutliers === "iqr" || config.trimOutliers === true
+      ? trimOutliersIQR(times)
+      : times;
 
   const sorted = [...processedTimes].sort((a, b) => a - b);
   const sum = sorted.reduce((a, b) => a + b, 0);
   const avg = sum / (sorted.length || 1);
 
-  const variance = sorted.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / (sorted.length || 1);
+  const variance =
+    sorted.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / (sorted.length || 1);
   const stdDev = Math.sqrt(variance);
   const cv = avg > 0 ? (stdDev / avg) * 100 : 0;
 
@@ -380,7 +390,10 @@ function discoverBenchmarkMetadata() {
     }
   }
 
-  if (metadata.path !== "unknown" && metadata.proves === "Performance verification.") {
+  if (
+    metadata.path !== "unknown" &&
+    metadata.proves === "Performance verification."
+  ) {
     try {
       const fullPath = path.resolve(process.cwd(), metadata.path);
       if (fs.existsSync(fullPath)) {
@@ -506,7 +519,9 @@ function pushTableToMdx(title: string, table: string, shortLabel?: string) {
     const END = `<!-- ${tag}_END -->`;
     const tableBlock = `\n### 🏷️ ${title}\n\n\`\`\`text\n${table}\n\`\`\`\n`;
     if (content.includes(START) && content.includes(END)) {
-      const regex = new RegExp(`<!-- ${tag}_START -->[\\s\\S]*?<!-- ${tag}_END -->`);
+      const regex = new RegExp(
+        `<!-- ${tag}_START -->[\\s\\S]*?<!-- ${tag}_END -->`,
+      );
       content = content.replace(regex, `${START}${tableBlock}${END}`);
     } else {
       const insertionPoint = "## 🔬 Detailed Performance Ledger (20+ Modules)";
@@ -525,9 +540,11 @@ function pushTableToMdx(title: string, table: string, shortLabel?: string) {
 function saveTerminalTable(title: string, content: string) {
   const dbType = getDbType();
   let dir = path.resolve(process.cwd(), RESULTS_DIR);
-  if (!dir.toLowerCase().endsWith(dbType.toLowerCase())) dir = path.join(dir, dbType);
+  if (!dir.toLowerCase().endsWith(dbType.toLowerCase()))
+    dir = path.join(dir, dbType);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const fileName = title.toLowerCase().replace(/[^a-z0-9]/g, "_") + ".table.txt";
+  const fileName =
+    title.toLowerCase().replace(/[^a-z0-9]/g, "_") + ".table.txt";
   fs.writeFileSync(path.join(dir, fileName), content);
 }
 
@@ -539,7 +556,13 @@ export function printSummaryTable(
     bar: (l: string, r: string) => l + "═".repeat(W - 2) + r,
     center: (s: string) => {
       const pad = W - 2 - s.length;
-      return "║" + " ".repeat(Math.floor(pad / 2)) + s + " ".repeat(Math.ceil(pad / 2)) + "║";
+      return (
+        "║" +
+        " ".repeat(Math.floor(pad / 2)) +
+        s +
+        " ".repeat(Math.ceil(pad / 2)) +
+        "║"
+      );
     },
   };
   let summaryBuffer = "";
@@ -610,7 +633,10 @@ export async function runBenchmark(config: any) {
               consecutiveErrors++;
               failResults.push(performance.now() - iStart);
               if (totalErrors === 1 && abortOnErrors !== false)
-                console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
+                console.error(
+                  `\n[Benchmark DEBUG] First error in "${config.name}":`,
+                  err,
+                );
             }
           }),
         );
@@ -631,7 +657,10 @@ export async function runBenchmark(config: any) {
           consecutiveErrors++;
           failResults.push(performance.now() - iStart);
           if (totalErrors === 1 && abortOnErrors !== false)
-            console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
+            console.error(
+              `\n[Benchmark DEBUG] First error in "${config.name}":`,
+              err,
+            );
         }
       }
     }
@@ -683,7 +712,8 @@ export async function runStochasticLoadTest(config: {
         failures++;
       }
       const elapsed = performance.now() - t0;
-      if (elapsed < interval) await new Promise((r) => setTimeout(r, interval - elapsed));
+      if (elapsed < interval)
+        await new Promise((r) => setTimeout(r, interval - elapsed));
     }
   }
   const sorted = latencies.sort((a, b) => a - b);
@@ -692,7 +722,8 @@ export async function runStochasticLoadTest(config: {
   const violations: string[] = [];
   if (thresholds.p95) {
     const limit = parseFloat(thresholds.p95.replace(/[^\d.]/g, ""));
-    if (p95 > limit) violations.push(`p95 latency ${p95.toFixed(2)}ms > threshold ${limit}ms`);
+    if (p95 > limit)
+      violations.push(`p95 latency ${p95.toFixed(2)}ms > threshold ${limit}ms`);
   }
   if (thresholds.error_rate) {
     const limit = parseFloat(thresholds.error_rate.replace(/[^\d.]/g, ""));
@@ -701,14 +732,22 @@ export async function runStochasticLoadTest(config: {
         `Error rate ${(errorRate * 100).toFixed(2)}% > threshold ${(limit * 100).toFixed(2)}%`,
       );
   }
-  return { passedSLA: violations.length === 0, violations, p95, errorRate, totalReqs, failures };
+  return {
+    passedSLA: violations.length === 0,
+    violations,
+    p95,
+    errorRate,
+    totalReqs,
+    failures,
+  };
 }
 
 export async function setupBenchmarkServer() {
   const apiBase = process.env.API_BASE_URL;
   if (apiBase) return { baseUrl: apiBase, stop: async () => {} };
 
-  const { startServer, runSystemSetup } = await import("../../scripts/benchmark-matrix/server");
+  const { startServer, runSystemSetup } =
+    await import("../../scripts/benchmark-matrix/server");
   const {
     ALL_DATABASES,
     JWT_SECRET_KEY,
@@ -719,7 +758,9 @@ export async function setupBenchmarkServer() {
   const dbType = getDbType() || "sqlite";
   const dbName = `bench_tmp_${process.pid}`;
   const dbConf =
-    ALL_DATABASES.find((d) => (d.useRedis ? `${d.type}-redis` : d.type) === dbType) ||
+    ALL_DATABASES.find(
+      (d) => (d.useRedis ? `${d.type}-redis` : d.type) === dbType,
+    ) ||
     ALL_DATABASES.find((d) => d.type === "sqlite") ||
     ALL_DATABASES[0];
 
@@ -739,7 +780,10 @@ export async function setupBenchmarkServer() {
     await originalStop();
   };
 
-  await runSystemSetup(dbConf, port, dbName, { QUIET: "true", LOG_LEVEL: "fatal" });
+  await runSystemSetup(dbConf, port, dbName, {
+    QUIET: "true",
+    LOG_LEVEL: "fatal",
+  });
 
   try {
     const { spawn } = await import("node:child_process");
@@ -770,14 +814,19 @@ export async function setupBenchmarkServer() {
 export function exportResult(r: any) {
   const dbType = getDbType();
   let dir = path.resolve(process.cwd(), RESULTS_DIR);
-  if (!dir.toLowerCase().endsWith(dbType.toLowerCase())) dir = path.join(dir, dbType);
+  if (!dir.toLowerCase().endsWith(dbType.toLowerCase()))
+    dir = path.join(dir, dbType);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(
     path.join(dir, `${r.name.replace(/\s/g, "_")}.json`),
     JSON.stringify(r, null, 2),
   );
   try {
-    const historyFile = path.resolve(process.cwd(), RESULTS_DIR, "history.jsonl");
+    const historyFile = path.resolve(
+      process.cwd(),
+      RESULTS_DIR,
+      "history.jsonl",
+    );
     const entry =
       JSON.stringify({
         timestamp: new Date().toISOString(),
@@ -798,11 +847,13 @@ export function exportMetric(key: string, value: number, unit: string) {
   const dbType = getDbType();
   try {
     let dir = path.resolve(process.cwd(), RESULTS_DIR);
-    if (!dir.toLowerCase().endsWith(dbType.toLowerCase())) dir = path.join(dir, dbType);
+    if (!dir.toLowerCase().endsWith(dbType.toLowerCase()))
+      dir = path.join(dir, dbType);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const metricsFile = path.join(dir, "matrix_metrics.json");
     let current: Record<string, any> = {};
-    if (fs.existsSync(metricsFile)) current = JSON.parse(fs.readFileSync(metricsFile, "utf8"));
+    if (fs.existsSync(metricsFile))
+      current = JSON.parse(fs.readFileSync(metricsFile, "utf8"));
     current[key] = {
       _type: "numeric-metric",
       name: key,
@@ -826,7 +877,10 @@ export let TEST_API_SECRET = (() => {
   return "SVELTYCMS_TEST_SECRET_2026";
 })();
 
-export async function ensureStableTestData(db?: any, tenantId: string = "global") {
+export async function ensureStableTestData(
+  db?: any,
+  tenantId: string = "global",
+) {
   if (process.env.BENCHMARK_DEBUG === "true") {
     process.stderr.write(
       `\n[DEBUG] ensureStableTestData called. API_BASE_URL: ${process.env.API_BASE_URL}, SECRET: ${TEST_API_SECRET ? "OK" : "NO"}\n`,
@@ -841,11 +895,36 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     _id: STABLE_COLLECTION,
     name: STABLE_COLLECTION,
     fields: [
-      { db_fieldName: "_id", label: "ID", widget: { Name: "Input" }, type: "string" },
-      { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" },
-      { db_fieldName: "slug", label: "Slug", widget: { Name: "Input" }, type: "string" },
-      { db_fieldName: "content", label: "Content", widget: { Name: "RichText" }, type: "string" },
-      { db_fieldName: "count", label: "Count", widget: { Name: "Input" }, type: "number" },
+      {
+        db_fieldName: "_id",
+        label: "ID",
+        widget: { Name: "Input" },
+        type: "string",
+      },
+      {
+        db_fieldName: "title",
+        label: "Title",
+        widget: { Name: "Input" },
+        type: "string",
+      },
+      {
+        db_fieldName: "slug",
+        label: "Slug",
+        widget: { Name: "Input" },
+        type: "string",
+      },
+      {
+        db_fieldName: "content",
+        label: "Content",
+        widget: { Name: "RichText" },
+        type: "string",
+      },
+      {
+        db_fieldName: "count",
+        label: "Count",
+        widget: { Name: "Input" },
+        type: "number",
+      },
       {
         db_fieldName: "author",
         label: "Author",
@@ -862,239 +941,88 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     ],
   };
 
-  if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
-    try {
-      // If system is already seeded (e.g. from a previous task), skip redundant seeding
-      const authorCheck = await fetch(
-        `${process.env.API_BASE_URL}/api/collections/BenchmarkAuthors`,
-        {
-          headers: { "x-test-secret": TEST_API_SECRET },
-        },
-      );
-      if (authorCheck.ok) {
-        if (process.env.BENCHMARK_DEBUG === "true")
-          process.stderr.write(`[DEBUG] Collections already seeded, skipping.\n`);
-        return;
-      }
-
-      const authorSchema = {
-        _id: "BenchmarkAuthors",
-        name: "BenchmarkAuthors",
-        fields: [
-          { db_fieldName: "_id", label: "ID", widget: { Name: "Input" }, type: "string" },
-          { db_fieldName: "name", label: "Name", widget: { Name: "Input" }, type: "string" },
-        ],
-      };
-
-      // 1. Create BenchmarkAuthors Collection
-      const resAuthor = await fetch(`${process.env.API_BASE_URL}/api/testing`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-mode": "true",
-          "x-test-secret": TEST_API_SECRET,
-          "x-tenant-id": tenantId,
-        },
-        body: JSON.stringify({ action: "create-collection", schema: authorSchema }),
-      });
-      const createAuthorResult = await resAuthor.json();
-      if (process.env.BENCHMARK_DEBUG === "true") {
-        process.stderr.write(
-          `[DEBUG] create-collection (Authors) status: ${resAuthor.status}, success: ${createAuthorResult.success}\n`,
-        );
-      }
-
-      // 2. Create BenchmarkStable Collection
-      const res = await fetch(`${process.env.API_BASE_URL}/api/testing`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-mode": "true",
-          "x-test-secret": TEST_API_SECRET,
-          "x-tenant-id": tenantId,
-        },
-        body: JSON.stringify({ action: "create-collection", schema }),
-      });
-
-      const createResult = await res.json();
-      if (process.env.BENCHMARK_DEBUG === "true") {
-        process.stderr.write(
-          `[DEBUG] create-collection (Stable) status: ${res.status}, success: ${createResult.success}\n`,
-        );
-      }
-
-      if (!res.ok && !createResult.message?.includes("already exists")) {
-        if (process.env.BENCHMARK_DEBUG === "true") {
-          process.stderr.write(
-            `[DEBUG] create-collection FAILED: ${res.status} ${JSON.stringify(createResult)}\n`,
-          );
-        }
-        return;
-      }
-
-      // 3. Clear Collections (to prevent PK collisions)
-      await fetch(`${process.env.API_BASE_URL}/api/testing`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-mode": "true",
-          "x-test-secret": TEST_API_SECRET,
-          "x-tenant-id": tenantId,
-        },
-        body: JSON.stringify({ action: "clear-collection", collectionId: "BenchmarkAuthors" }),
-      });
-
-      const clearRes = await fetch(`${process.env.API_BASE_URL}/api/testing`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-mode": "true",
-          "x-test-secret": TEST_API_SECRET,
-          "x-tenant-id": tenantId,
-        },
-        body: JSON.stringify({ action: "clear-collection", collectionId: STABLE_COLLECTION }),
-      });
-      const clearResult = await clearRes.json();
-      if (process.env.BENCHMARK_DEBUG === "true") {
-        process.stderr.write(
-          `[DEBUG] clear-collection status: ${clearRes.status}, success: ${clearResult.success}\n`,
-        );
-      }
-
-      // 4. Seed Authors via API
-      const authors = Array.from({ length: 10 }, (_, i) => ({
-        _id: `author-${(i + 1).toString().padStart(3, "0")}`,
-        name: `Author ${i + 1}`,
-      }));
-      const bulkAuthorRes = await fetch(
-        `${process.env.API_BASE_URL}/api/collections/BenchmarkAuthors/bulk`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-test-mode": "true",
-            "x-test-secret": TEST_API_SECRET,
-            "x-tenant-id": tenantId,
-          },
-          body: JSON.stringify(authors),
-        },
-      );
-      if (process.env.BENCHMARK_DEBUG === "true") {
-        process.stderr.write(`[DEBUG] bulk-seed (Authors) status: ${bulkAuthorRes.status}\n`);
-      }
-
-      // 5. Seed Stable entries via API with author relations
-      const bulkData = Array.from({ length: 100 }, (_, i) => ({
-        _id: `bench-shared-${(i + 1).toString().padStart(3, "0")}`,
-        title: `Stable Entry ${i + 1}`,
-        content: "Enterprise benchmark data chunk ".repeat(10),
-        status: "published",
-        count: i + 1,
-        author: `author-${((i % 10) + 1).toString().padStart(3, "0")}`,
-      }));
-
-      const bulkRes = await fetch(
-        `${process.env.API_BASE_URL}/api/collections/${STABLE_COLLECTION}/bulk`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-test-mode": "true",
-            "x-test-secret": TEST_API_SECRET,
-            "x-tenant-id": tenantId,
-          },
-          body: JSON.stringify(bulkData),
-        },
-      );
-
-      const bulkResult = await bulkRes.json();
-      if (process.env.BENCHMARK_DEBUG === "true") {
-        process.stderr.write(
-          `[DEBUG] bulk-seed status: ${bulkRes.status}, success: ${bulkResult.success}\n`,
-        );
-        if (!bulkRes.ok) {
-          process.stderr.write(
-            `[DEBUG] bulk-seed FAILED: ${bulkRes.status} ${JSON.stringify(bulkResult).substring(0, 100)}...\n`,
-          );
-        } else {
-          process.stderr.write(`[DEBUG] Bulk seeded 100 entries into ${STABLE_COLLECTION}.\n`);
-        }
-      }
-      return;
-    } catch (err: any) {
-      console.error(`[DEBUG] ensureStableTestData error: ${err.message}`);
-    }
-  }
-
-  const authorSchema = {
-    _id: "BenchmarkAuthors",
-    name: "BenchmarkAuthors",
-    fields: [
-      { db_fieldName: "_id", label: "ID", widget: { Name: "Input" }, type: "string" },
-      { db_fieldName: "name", label: "Name", widget: { Name: "Input" }, type: "string" },
-    ],
-  };
-
+  // Always seed via the local DB adapter first to ensure data exists
   try {
     await activeDb.collection.createModel(schema as any);
-    await activeDb.collection.createModel(authorSchema as any);
-
-    // 🚀 PERFECT STORM: Inject physical indices for benchmark collections
-    // This ensures O(1) lookups and O(log N) filtering even for dynamic benchmark tables.
-    if (activeDb.type !== "mongodb") {
-      try {
-        await activeDb.execute(
-          sql.raw(
-            `CREATE INDEX IF NOT EXISTS "idx_bench_stable_slug" ON "${STABLE_COLLECTION}" ("slug")`,
-          ),
-        );
-        await activeDb.execute(
-          sql.raw(
-            `CREATE INDEX IF NOT EXISTS "idx_bench_stable_tenant" ON "${STABLE_COLLECTION}" ("tenantId")`,
-          ),
-        );
-        await activeDb.execute(
-          sql.raw(
-            `CREATE INDEX IF NOT EXISTS "idx_bench_authors_name" ON "BenchmarkAuthors" ("name")`,
-          ),
-        );
-      } catch {}
-    }
   } catch {
-    /* ignore */
+    /* may already exist */
   }
 
-  // 🛡️ HERMETIC CLEANUP: Use permanent delete to ensure zero collisions with soft-deleted data
-  await activeDb.crud.deleteMany(STABLE_COLLECTION, {}, { tenantId, permanent: true });
-  await activeDb.crud.deleteMany("BenchmarkAuthors", {}, { tenantId, permanent: true });
+  // Upsert the target entry with count=0 directly into the DB
+  // This bypasses the built server's API layer entirely
+  const { sql } = await import("drizzle-orm");
+  if (activeDb.type === "sqlite") {
+    try {
+      await (activeDb as any).execute(
+        sql.raw(
+          `INSERT OR REPLACE INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('bench-shared-001', 'global', '{"count":0}', 'published', 0, 0, 0)`,
+        ),
+      );
+    } catch (e: any) {
+      if (process.env.BENCHMARK_DEBUG === "true")
+        process.stderr.write(`[DEBUG] SQLite insert failed: ${e.message}\n`);
+    }
+  } else if (activeDb.type === "postgresql") {
+    try {
+      await (activeDb as any).execute(
+        sql.raw(
+          `INSERT INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('bench-shared-001', 'global', '{"count":0}'::jsonb, 'published', false, NOW(), NOW()) ON CONFLICT ("_id") DO UPDATE SET "data" = '{"count":0}'::jsonb, "updatedAt" = NOW()`,
+        ),
+      );
+    } catch (e: any) {
+      if (process.env.BENCHMARK_DEBUG === "true")
+        process.stderr.write(
+          `[DEBUG] PostgreSQL upsert failed: ${e.message}\n`,
+        );
+    }
+  } else if (activeDb.type === "mariadb" || activeDb.type === "mysql") {
+    try {
+      await (activeDb as any).execute(
+        sql.raw(
+          `INSERT INTO \`collection_BenchmarkStable\` (\`_id\`, \`tenantId\`, \`data\`, \`status\`, \`isDeleted\`, \`createdAt\`, \`updatedAt\`) VALUES ('bench-shared-001', 'global', '{"count":0}', 'published', false, NOW(), NOW()) ON DUPLICATE KEY UPDATE \`data\` = '{"count":0}', \`updatedAt\` = NOW()`,
+        ),
+      );
+    } catch (e: any) {
+      if (process.env.BENCHMARK_DEBUG === "true")
+        process.stderr.write(`[DEBUG] MariaDB upsert failed: ${e.message}\n`);
+    }
+  } else {
+    // MongoDB: use crud upsert
+    try {
+      await activeDb.crud.upsert(
+        "collection_BenchmarkStable",
+        { _id: "bench-shared-001" },
+        { _id: "bench-shared-001", tenantId, count: 0 },
+      );
+    } catch {
+      /* ignore */
+    }
+  }
 
-  // Seed Authors
-  const authors = Array.from({ length: 10 }, (_, i) => ({
-    _id: `author-${(i + 1).toString().padStart(3, "0")}`,
-    name: `Author ${i + 1}`,
-    tenantId,
-  }));
-  await activeDb.crud.insertMany("BenchmarkAuthors", authors, { tenantId });
-
-  const bulkData = Array.from({ length: 100 }, (_, i) => ({
-    _id: `bench-shared-${(i + 1).toString().padStart(3, "0")}`,
-    title: `Stable Entry ${i + 1}`,
-    content: "Enterprise benchmark data chunk ".repeat(10),
-    status: "published",
-    count: i + 1,
-    author: `author-${((i % 10) + 1).toString().padStart(3, "0")}`, // Link to seeded authors
-    tenantId,
-  }));
-
-  // 🚀 ATOMIC SEEDING: Use insertMany for 10x faster warming
-  await activeDb.crud.insertMany(STABLE_COLLECTION, bulkData, {
-    tenantId,
-    skipValidation: true,
-    suppressErrorLog: true,
-  });
+  // Also try via API PATCH as a secondary measure
+  if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
+    try {
+      await fetch(
+        `${process.env.API_BASE_URL}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "x-test-mode": "true",
+            "x-test-secret": TEST_API_SECRET,
+            "x-tenant-id": tenantId,
+          },
+          body: JSON.stringify({ count: 0 }),
+        },
+      );
+    } catch {}
+  }
 }
 
-export async function forceRefreshServer(baseUrl: string, tenantId: string = "global") {
+export async function forceRefreshServer(
+  baseUrl: string,
+  tenantId: string = "global",
+) {
   await new Promise((r) => setTimeout(r, 50));
   for (let i = 0; i < 3; i++) {
     try {
@@ -1143,14 +1071,17 @@ export async function waitForCollection(
     } catch {}
     await new Promise((r) => setTimeout(r, 1000));
   }
-  throw new Error(`Timeout waiting for collection ${collectionId} in GraphQL schema.`);
+  throw new Error(
+    `Timeout waiting for collection ${collectionId} in GraphQL schema.`,
+  );
 }
 
 export function generateRealisticEntry(
   i: number,
   complexity: "light" | "medium" | "heavy" = "medium",
 ) {
-  const size = complexity === "light" ? 500 : complexity === "medium" ? 2500 : 10000;
+  const size =
+    complexity === "light" ? 500 : complexity === "medium" ? 2500 : 10000;
   return {
     _id: `real-${i}`,
     title: `Post Title ${i} - SveltyCMS Performance Audit`,

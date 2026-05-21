@@ -1,6 +1,17 @@
 /**
  * @file src/plugins/registry.ts
- * @description Central registry for managing CMS plugins
+ * @description
+ * Central registry for managing CMS plugins.
+ *
+ * Responsibilities include:
+ * - Registering available plugins.
+ * - Initializing settings and running migrations.
+ * - Managing lifecycle and SSR hooks.
+ *
+ * ### Features:
+ * - plugin registration
+ * - migrations management
+ * - hook resolution
  */
 
 import type { DatabaseResult, IDBAdapter } from "@databases/db-interface";
@@ -322,6 +333,13 @@ class PluginRegistry implements IPluginService {
   // Check if registry is initialized
   isInitialized(): boolean {
     return this.initialized;
+  }
+
+  // Reset registry (used for shutdown/reinitialization)
+  reset(): void {
+    this.plugins.clear();
+    this.settingsService = null;
+    this.initialized = false;
   }
 
   // Ensure migration table exists
