@@ -103,7 +103,20 @@ function mask(v: unknown, depth = 0): unknown {
   return o;
 }
 
-// --- Formatting Logic ---
+// --- Masking & Formatting Logic ---
+
+/**
+ * Masks email addresses in a string.
+ * "rkroells@web.de" → "rk***@web.de"
+ */
+function maskEmails(str: string): string {
+  return str.replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, (match) => {
+    const [local, domain] = match.split("@");
+    if (!domain) return match;
+    if (local.length <= 2) return `${local}***@${domain}`;
+    return `${local.slice(0, 2)}***@${domain}`;
+  });
+}
 
 const highlightPatterns = [
   { re: /\b\d+(\.\d+)?(ms|s)\b/g, color: pc.green, css: "color:#22c55e" },
@@ -184,7 +197,10 @@ if (!IS_BROWSER) {
           const files = await promises.readdir(dir);
           const logFiles = files
             .filter((f) => f.startsWith("app.log.") && f.endsWith(".gz"))
-            .map((f) => ({ name: f, time: fs.statSync(path.join(dir, f)).mtime.getTime() }))
+            .map((f) => ({
+              name: f,
+              time: fs.statSync(path.join(dir, f)).mtime.getTime(),
+            }))
             .sort((a, b) => b.time - a.time);
           if (logFiles.length > 5) {
             for (const f of logFiles.slice(5)) await promises.unlink(path.join(dir, f.name));
@@ -253,9 +269,11 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
   const method =
     level === "fatal" || level === "error" ? "error" : level === "warn" ? "warn" : "log";
 
+  const maskedMsg = maskEmails(msg);
+
   if (IS_BROWSER) {
     const styles: string[] = [];
-    const formattedMsg = msg.replace(
+    const formattedMsg = maskedMsg.replace(
       new RegExp(highlightPatterns.map((p) => p.re.source).join("|"), "gi"),
       (m) => {
         const pattern = highlightPatterns.find((p) => m.match(p.re));
@@ -272,7 +290,7 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
       ...maskedArgs,
     );
   } else {
-    const coloredMsg = formatMessage(msg).replace(/\n/g, " ");
+    const coloredMsg = formatMessage(maskedMsg).replace(/\n/g, " ");
     const argsStr = maskedArgs
       .map((a) => {
         if (a instanceof Error) return `\n${pc.red(a.stack || a.message)}`;
@@ -286,7 +304,7 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
     );
 
     // Send to server audit engine
-    serverEngine?.enqueue(level, msg, maskedArgs);
+    serverEngine?.enqueue(level, maskedMsg, maskedArgs);
   }
 }
 

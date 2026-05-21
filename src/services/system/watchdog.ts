@@ -81,7 +81,10 @@ class SystemWatchdog {
    */
   private async attemptRecovery(serviceName: string, _overallState: string) {
     const now = Date.now();
-    const record = this.recoveryAttempts.get(serviceName) || { count: 0, lastAttempt: 0 };
+    const record = this.recoveryAttempts.get(serviceName) || {
+      count: 0,
+      lastAttempt: 0,
+    };
 
     // Calculate backoff: base * 2^count
     const backoff = this.RECOVERY_BACKOFF_BASE * Math.pow(2, record.count);
@@ -138,3 +141,16 @@ class SystemWatchdog {
 }
 
 export const watchdog = new SystemWatchdog();
+
+// 🛡️ HMR SAFETY: Stop the watchdog when Vite hot-reloads this module
+// to prevent stale timers from using the closed module runner.
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    watchdog.stop();
+  });
+  import.meta.hot.accept(() => {
+    // The new module instance must be started since the original
+    // `watchdog.start()` call in hooks.server.ts won't re-trigger.
+    watchdog.start();
+  });
+}

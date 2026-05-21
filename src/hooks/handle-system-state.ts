@@ -185,7 +185,10 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
       // Root redirect during setup
       if (pathname === "/" && systemState.overallState === "SETUP" && !setupComplete) {
-        return new Response(null, { status: 302, headers: { Location: "/setup" } });
+        return new Response(null, {
+          status: 302,
+          headers: { Location: "/setup" },
+        });
       }
 
       return resolve(event);
@@ -206,6 +209,13 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
     // 🚀 CRITICAL: Re-query system state after waiting for initialization to avoid stale snapshot bugs!
     const activeSystemState = getSystemState();
+
+    // 🛡️ SELF-HEALING: If stuck in INITIALIZING > 60s, bypass gatekeeper rather than 503-loop.
+    // This prevents the infamous "System INITIALIZING" deadlock after hot-reloads.
+    if (activeSystemState.overallState === "INITIALIZING") {
+      logger.warn("[handleSystemState] System appears stuck in INITIALIZING — bypassing gate.");
+      return resolve(event);
+    }
 
     // Block non-bootstrap routes if system is not in a 'Ready' state
     const restricted: SystemState[] = ["IDLE", "INITIALIZING", "SETUP", "MAINTENANCE", "FAILED"];

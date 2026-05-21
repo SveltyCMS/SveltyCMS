@@ -101,7 +101,10 @@ export const actions: Actions = {
           error: err.message,
           raw: configRaw,
         });
-        return { success: false, error: `Invalid configuration format: ${err.message}` };
+        return {
+          success: false,
+          error: `Invalid configuration format: ${err.message}`,
+        };
       }
 
       if (process.env.BENCHMARK_DEBUG === "true") {
@@ -198,11 +201,13 @@ export const actions: Actions = {
 
             // 2. Terminate existing sessions
             await sql
-              .unsafe(`
+              .unsafe(
+                `
               SELECT pg_terminate_backend(pid)
               FROM pg_stat_activity
               WHERE datname = '${targetName}' AND pid <> pg_backend_pid()
-            `)
+            `,
+              )
               .catch(() => {});
 
             // Small delay to allow sessions to terminate
@@ -511,7 +516,10 @@ export const actions: Actions = {
         error: err.message,
         raw: configRaw,
       });
-      return { success: false, error: `Invalid configuration format: ${err.message}` };
+      return {
+        success: false,
+        error: `Invalid configuration format: ${err.message}`,
+      };
     }
 
     let systemData: any = {};
@@ -1008,14 +1016,14 @@ export const actions: Actions = {
       // This prevents the 4s blocking delay on the subsequent redirect request.
       // We trust the database state because we just seeded it.
       try {
-        logger.info(
-          "🚀 [completeSetup] Refreshing content-system state (skipping reconciliation)...",
-        );
+        logger.info("🚀 [completeSetup] Refreshing content-system state (full reconciliation)...");
         const { contentSystem } = await import("@src/content/index.server");
-        // skipReconciliation: true is CRITICAL here to prevent the 4s blocking delay
-        await contentSystem.refresh(undefined, true, false, dbAdapter);
+        // Full reconciliation ensures physical models and content nodes are created
+        // in the database. Skipping this causes 500 errors on the collection builder
+        // redirect because the content nodes table/structure doesn't exist yet.
+        await contentSystem.refresh(undefined, false, false, dbAdapter);
         logger.info(
-          "✅ [completeSetup] ContentSystem refreshed successfully (skipped reconciliation).",
+          "✅ [completeSetup] ContentSystem refreshed successfully (full reconciliation).",
         );
       } catch (cmError) {
         logger.warn("⚠️ [completeSetup] ContentSystem init/reconcile failed:", cmError);
@@ -1039,26 +1047,26 @@ export const actions: Actions = {
       }
 
       // --- FINAL STEP: UPDATE PRIVATE CONFIG MODES ---
-      // We do this at the very end because it triggers a Vite restart.
-      // We use setTimeout to allow the HTTP response to be sent to the client FIRST,
-      // preventing "Failed to fetch" errors on the frontend.
-      setTimeout(async () => {
-        try {
-          logger.info("💾 [completeSetup] Updating private configuration modes (deferred)...");
-          const { updatePrivateConfigMode } = await import("./write-private-config");
-          await updatePrivateConfigMode({
-            multiTenant: system.multiTenant,
-            demoMode: system.demoMode,
-          });
+      // We do this synchronously BEFORE the response is sent to ensure
+      // any Vite HMR reload completes before the browser redirects.
+      // If deferred, the file write happens after the user has already
+      // navigated to the next page, causing "Not initialized" errors
+      // when HMR reload kills the database connection mid-request.
+      try {
+        logger.info("💾 [completeSetup] Updating private configuration modes...");
+        const { updatePrivateConfigMode } = await import("./write-private-config");
+        await updatePrivateConfigMode({
+          multiTenant: system.multiTenant,
+          demoMode: system.demoMode,
+        });
 
-          // 🚀 Set global flag to prevent race conditions in the current process
-          (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = true;
+        // 🚀 Set global flag to prevent race conditions in the current process
+        (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = true;
 
-          logger.info("✅ [completeSetup] Private configuration updated successfully.");
-        } catch (configError) {
-          logger.error("❌ [completeSetup] Failed to update private config:", configError);
-        }
-      }, 3000);
+        logger.info("✅ [completeSetup] Private configuration updated successfully.");
+      } catch (configError) {
+        logger.error("❌ [completeSetup] Failed to update private config:", configError);
+      }
 
       // 4. Determine redirect path
       let redirectPath = "/config/collectionbuilder";
@@ -1094,7 +1102,10 @@ export const actions: Actions = {
         (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = true;
         invalidateSetupCache(true, true);
 
-        systemStateStore.update((state) => ({ ...state, overallState: "READY" }));
+        systemStateStore.update((state) => ({
+          ...state,
+          overallState: "READY",
+        }));
         logger.info(
           "✅ [completeSetup] Forced system state to READY and setup to COMPLETE to unblock frontend redirect.",
         );
@@ -1208,13 +1219,21 @@ export const actions: Actions = {
         try {
           const { dbAdapter } = await import("@src/databases/db");
           if (dbAdapter) {
-            await dbAdapter.system.preferences.set("SMTP_HOST", host, { scope: "system" });
+            await dbAdapter.system.preferences.set("SMTP_HOST", host, {
+              scope: "system",
+            });
             await dbAdapter.system.preferences.set("SMTP_PORT", port.toString(), {
               scope: "system",
             });
-            await dbAdapter.system.preferences.set("SMTP_USER", user, { scope: "system" });
-            await dbAdapter.system.preferences.set("SMTP_PASS", password, { scope: "system" });
-            await dbAdapter.system.preferences.set("SMTP_FROM", from, { scope: "system" });
+            await dbAdapter.system.preferences.set("SMTP_USER", user, {
+              scope: "system",
+            });
+            await dbAdapter.system.preferences.set("SMTP_PASS", password, {
+              scope: "system",
+            });
+            await dbAdapter.system.preferences.set("SMTP_FROM", from, {
+              scope: "system",
+            });
             await dbAdapter.system.preferences.set("SMTP_SECURE", secure ? "true" : "false", {
               scope: "system",
             });

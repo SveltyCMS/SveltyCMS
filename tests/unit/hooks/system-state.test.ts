@@ -85,7 +85,12 @@ function setMockState(state: {
   // Then apply overrides
   if (state.services) {
     for (const [service, config] of Object.entries(state.services)) {
-      updateServiceHealth(service as any, config.status, "Mocked", config.error);
+      updateServiceHealth(
+        service as any,
+        config.status,
+        "Mocked",
+        config.error,
+      );
     }
   }
 
@@ -275,18 +280,11 @@ describe("handleSystemState - State Machine Logic", () => {
       expect(response.status).toBe(200);
     });
 
-    it("should block regular routes during INITIALIZING", async () => {
+    it("should allow requests during INITIALIZING via self-healing bypass", async () => {
       const event = createMockEvent("/dashboard");
-
-      try {
-        await handleSystemState({ event, resolve: mockResolve });
-        expect(true).toBe(false);
-      } catch (err: unknown) {
-        const error = err as { status: number; body: { message: string } };
-        expect(error.status).toBe(503);
-        // The hook blocks with either "starting up" or "failed to initialize" or "restricted" message
-        expect(error.body.message).toMatch(/starting up|failed to initialize|restricted/i);
-      }
+      // Self-healing gatekeeper bypasses INITIALIZING blocks to prevent 503 loops
+      await handleSystemState({ event, resolve: mockResolve });
+      expect(mockResolve).toHaveBeenCalled();
     });
   });
 

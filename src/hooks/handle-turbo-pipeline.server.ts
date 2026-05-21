@@ -440,7 +440,12 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         !isTestMode &&
         isSystemOperationallyReady
       ) {
-        if (!(event.request.method === "POST" && pathname.includes("/completeSetup"))) {
+        if (
+          !(
+            event.request.method === "POST" &&
+            (event.url.pathname + event.url.search).includes("/completeSetup")
+          )
+        ) {
           logger.debug(`Blocked request to ${pathname} - setup already complete and system ready`);
           return new Response(null, {
             status: 302,
@@ -488,14 +493,20 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
     // ── 7. SETUP COMPLETENESS GATE (GRANULAR) ───────────────────────────────
     if (setupState !== SetupState.COMPLETE) {
-      const isFinalization = event.request.method === "POST" && pathname.includes("/completeSetup");
+      const isFinalization =
+        event.request.method === "POST" &&
+        (event.url.pathname + event.url.search).includes("/completeSetup");
       if (isFinalization) return await resolve(event);
 
       const destination = setupState === SetupState.MISSING_CONFIG ? "/setup" : "/setup/admin";
 
       if (isApiRoute) {
         return new Response(
-          JSON.stringify({ error: "Setup incomplete", setupState, redirectTo: destination }),
+          JSON.stringify({
+            error: "Setup incomplete",
+            setupState,
+            redirectTo: destination,
+          }),
           {
             status: 503,
             headers: { "Content-Type": "application/json", ...baseHeaderMap },

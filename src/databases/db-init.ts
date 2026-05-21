@@ -202,7 +202,16 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
 
   // 🚀 PERFORMANCE: Reduced sync delay from 50ms to 5ms
   await new Promise((r) => setTimeout(r, 5));
-  const services: any[] = ["cache", "media", "widgets", "themeManager", "search", "contentSystem"];
+  const services: any[] = [
+    "database",
+    "auth",
+    "cache",
+    "media",
+    "widgets",
+    "themeManager",
+    "search",
+    "contentSystem",
+  ];
   for (const s of services) {
     const current = (getSystemState().services as any)[s];
     if (!current || (current.status !== "healthy" && current.status !== "unhealthy")) {

@@ -10,6 +10,7 @@ import PermissionGuard from "@src/components/permission-guard.svelte";
 import { collections } from "@src/stores/collection-store.svelte";
 import { ui } from "@src/stores/ui-store.svelte.ts";
 import { onMount } from "svelte";
+import { fade, fly } from "svelte/transition";
 
 onMount(() => {
 	collections.setCollection(null);
@@ -163,23 +164,23 @@ const configItems = [
 		},
 	},
 	// END: New Configuration Manager Button
-	// START: System Health Monitor
+	// START: System Monitor
 	{
-		id: "systemHealth",
-		href: "/config/system-health",
-		label: "System Health",
-		icon: "mdi:heart-pulse",
+		id: "systemMonitor",
+		href: "/config/monitor",
+		label: "System Monitor",
+		icon: "mdi:shield-check-outline",
 		iconColor: "text-primary-500",
 		permission: {
-			contextId: "config:systemHealth",
-			name: "System Health",
-			description: "Monitor system services and health status",
+			contextId: "config:systemMonitor",
+			name: "System Monitor",
+			description: "Unified security, health, and operations dashboard",
 			requiredRole: "admin",
 			action: "view",
 			contextType: "system",
 		},
 	},
-	// END: System Health Monitor
+	// END: System Monitor
 	{
 		id: "accessManagement",
 		href: "/config/accessManagement",
@@ -229,7 +230,7 @@ const configItems = [
 		id: "queue",
 		href: "/config/queue",
 		label: "Background Queue",
-		icon: "mdi:queue-play-next",
+		icon: "mdi:playlist-play",
 		iconColor: "text-primary-600",
 		permission: {
 			contextId: "config:queue",
@@ -245,14 +246,15 @@ const configItems = [
 
 <PageTitle name="System Configuration" showBackButton={true} backUrl="/" icon="material-symbols:build-circle" />
 
-<div class="wrapper mb-2 max-h-[calc(100vh-65px)] overflow-auto p-2">
-	<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">Manage your system configuration</h2>
+<div class="wrapper mb-2 max-h-[calc(100vh-65px)] overflow-auto p-2" in:fade={{ duration: 300 }}>
+	<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500" in:fly={{ y: -10, duration: 300 }}>Manage your system configuration</h2>
 
 	<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-		{#each configItems as item (item.id || item.label)}
+		{#each configItems as item, idx (item.id || item.label)}
 			{@const usePermissionGuard = !!item.permission}
 
 			{#if usePermissionGuard}
+				<div in:fly={{ y: 20, delay: idx * 50, duration: 300 }}>
 				<PermissionGuard config={item.permission}>
 					<a
 						href={item.href}
@@ -274,7 +276,9 @@ const configItems = [
 						</p>
 					</a>
 				</PermissionGuard>
+				</div>
 			{:else}
+				<div in:fly={{ y: 20, delay: idx * 50, duration: 300 }}>
 				<a
 					href={item.href}
 					class="group flex h-24 flex-col items-center justify-center gap-2 rounded-xl border border-surface-200 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-primary-500 hover:bg-primary-50 hover:shadow-xl dark:border-surface-700 dark:bg-surface-800 dark:hover:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
@@ -294,6 +298,7 @@ const configItems = [
 						{item.label}
 					</p>
 				</a>
+				</div>
 			{/if}
 		{/each}
 	</div>

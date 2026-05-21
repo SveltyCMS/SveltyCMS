@@ -5,9 +5,11 @@ declare module "$live/chat" {
   import type { StreamStore, RpcError } from "svelte-realtime/client";
   import type { Readable } from "svelte/store";
 
-  export const sendMessage: ({ content, room, history = [] }: any) => Promise<any>;
-  export const chat: ((room: string) => StreamStore<any | undefined | { error: RpcError }>) & {
-    load(platform: any, options?: { args?: any[]; user?: any }): Promise<any>;
+  export const sendMessage: (payload: SendMessagePayload) => Promise<any>;
+  export const chat: ((
+    room?: string,
+  ) => StreamStore<ChatMessage[] | undefined | { error: RpcError }>) & {
+    load(platform: any, options?: { args?: any[]; user?: any }): Promise<ChatMessage[]>;
   };
   export const empty: Readable<undefined>;
 }
@@ -16,8 +18,8 @@ declare module "$live/system" {
   import type { StreamStore, RpcError } from "svelte-realtime/client";
   import type { Readable } from "svelte/store";
 
-  export const events: StreamStore<any | undefined | { error: RpcError }> & {
-    load(platform: any, options?: { args?: any[]; user?: any }): Promise<any>;
+  export const events: StreamStore<SystemEvent[] | undefined | { error: RpcError }> & {
+    load(platform: any, options?: { args?: any[]; user?: any }): Promise<SystemEvent[]>;
   };
   export const empty: Readable<undefined>;
 }

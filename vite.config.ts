@@ -622,7 +622,7 @@ export default defineConfig((): any => {
       stubServerModulesPlugin(),
       sveltekit(),
       uws(),
-      realtime(),
+      realtime({ typedImports: !isBuild }),
       svelteInspector(),
       sveltyCmsPlugin(),
       securityCheckPlugin(),
@@ -692,6 +692,8 @@ export default defineConfig((): any => {
         { find: "@utils", replacement: path.resolve(CWD, "./src/utils") },
         { find: "@stores", replacement: path.resolve(CWD, "./src/stores") },
         { find: "@widgets", replacement: path.resolve(CWD, "./src/widgets") },
+        // Polyfill Node.js 'path' for browser-only packages (e.g. @better-svelte-email/preview)
+        { find: "path", replacement: "path-browserify" },
       ],
     },
     define: {

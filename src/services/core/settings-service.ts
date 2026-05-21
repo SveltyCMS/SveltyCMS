@@ -111,11 +111,30 @@ export class SettingsService {
     }
 
     try {
-      const { dbAdapter, getPrivateEnv } = overrides || (await import("@src/databases/db"));
+      const dbModule = overrides || (await import("@src/databases/db"));
+      const { dbAdapter, getPrivateEnv } = dbModule as any;
 
-      if (!dbAdapter?.system.preferences) {
+      // 🚀 WAIT for the database to be fully booted before touching preferences.
+      // During early startup, the adapter exists but the "system" plugin hasn't
+      // mounted preferences yet, causing "getMany is not a function".
+      if (!overrides) {
+        try {
+          const { ensureFullInitialization } = await import("@src/databases/db");
+          await ensureFullInitialization();
+        } catch {
+          // Boot hasn't started yet — use empty cache
+        }
+      }
+
+      // Refresh adapter reference after ensuring initialization
+      const freshAdapter = overrides ? dbAdapter : (await import("@src/databases/db")).dbAdapter;
+
+      if (
+        !freshAdapter?.system?.preferences ||
+        typeof (freshAdapter.system as any).preferences?.getMany !== "function"
+      ) {
         logger.warn(
-          `Database adapter not yet initialized, using empty settings cache for tenant ${tenantId}`,
+          `Database adapter "system.preferences" module not ready, using empty settings cache for tenant ${tenantId}`,
         );
         cache.loaded = true;
         cache.loadedAt = Date.now();
@@ -124,11 +143,11 @@ export class SettingsService {
       }
 
       const [publicResult, privateResult] = await Promise.all([
-        dbAdapter.system.preferences.getMany(KNOWN_PUBLIC_KEYS, {
+        freshAdapter.system.preferences.getMany(KNOWN_PUBLIC_KEYS, {
           scope: "system",
           tenantId: tenantId as any,
         }),
-        dbAdapter.system.preferences.getMany(KNOWN_PRIVATE_KEYS, {
+        freshAdapter.system.preferences.getMany(KNOWN_PRIVATE_KEYS, {
           scope: "system",
           tenantId: tenantId as any,
         }),
@@ -310,7 +329,9 @@ export class SettingsService {
       ops.push({ key, value: v, scope: "system" });
     }
 
-    const res = await dbAdapter.system.preferences.setMany(ops, { tenantId: tenantId as any });
+    const res = await dbAdapter.system.preferences.setMany(ops, {
+      tenantId: tenantId as any,
+    });
     if (!res.success) {
       throw new Error(res.error?.message || "Failed to update settings");
     }

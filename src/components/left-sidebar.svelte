@@ -20,7 +20,7 @@
 
 <script lang="ts">
 	// Skeleton V4
-	import { Avatar, Menu, Portal } from '@skeletonlabs/skeleton-svelte';
+	import { Menu, Portal } from '@skeletonlabs/skeleton-svelte';
 	import Collections from '@src/components/collections.svelte';
 	import MediaFolders from '@src/components/media-folders.svelte';
 	import SettingsMenu from '@src/components/settings-menu.svelte';
@@ -80,13 +80,22 @@
 	let isSettingsOpen = $state(false);
 
 	$effect(() => {
-		// Initialize expand states based on current route context on load/navigation
-		if (currentPath.includes('/mediagallery')) {
-			isMediaOpen = true;
-		} else if (currentPath.includes('/config') || currentPath.includes('/user')) {
+		// Context-aware sidebar: sections are route-specific to match user intent.
+		// - /config/system-settings  → Settings only
+		// - /mediagallery             → Media only
+		// - default (collections)     → Collections only
+		if (currentPath === '/config/system-settings' || currentPath.startsWith('/config/system-settings?')) {
 			isSettingsOpen = true;
+			isCollectionsOpen = false;
+			isMediaOpen = false;
+		} else if (currentPath.includes('/mediagallery')) {
+			isMediaOpen = true;
+			isCollectionsOpen = false;
+			isSettingsOpen = false;
 		} else {
 			isCollectionsOpen = true;
+			isMediaOpen = false;
+			isSettingsOpen = false;
 		}
 	});
 
@@ -314,7 +323,7 @@
 		<div class="space-y-1">
 			<button
 				type="button"
-				onclick={() => isCollectionsOpen = !isCollectionsOpen}
+				onclick={() => { isCollectionsOpen = !isCollectionsOpen; if (isCollectionsOpen) { isMediaOpen = false; isSettingsOpen = false; } }}
 				class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
 			>
 				<span class="flex items-center gap-1.5">
@@ -332,6 +341,20 @@
 			{#if isCollectionsOpen}
 				<div class="px-1">
 					<Collections />
+					<!-- Cross-link to Media Gallery when browsing collections -->
+					{#if isSidebarFull && !currentPath.includes('/mediagallery')}
+						<a
+							href="/mediagallery"
+							data-sveltekit-preload-data="hover"
+							class="mt-3 flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-tertiary-500 bg-tertiary-500/10 hover:bg-tertiary-500/20 no-underline! transition-colors"
+							onclick={() => {
+								if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
+							}}
+						>
+							<iconify-icon icon="bi:images" width="14"></iconify-icon>
+							Open Media Gallery
+						</a>
+					{/if}
 				</div>
 			{/if}
 		</div>
@@ -341,7 +364,7 @@
 		<div class="space-y-1">
 			<button
 				type="button"
-				onclick={() => isMediaOpen = !isMediaOpen}
+				onclick={() => { isMediaOpen = !isMediaOpen; if (isMediaOpen) { isCollectionsOpen = false; isSettingsOpen = false; } }}
 				class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
 			>
 				<span class="flex items-center gap-1.5">
@@ -358,8 +381,20 @@
 			</button>
 			{#if isMediaOpen}
 				<div class="px-1 space-y-2">
-					<!-- Quick link to the main media gallery -->
-					{#if isSidebarFull}
+					<!-- Back to collections link when on media gallery -->
+					{#if isSidebarFull && currentPath.includes('/mediagallery')}
+						<a
+							href={firstCollectionPath}
+							data-sveltekit-preload-data="hover"
+							class="flex items-center gap-2 rounded px-3 py-2 text-xs font-semibold text-primary-500 bg-primary-500/10 hover:bg-primary-500/20 no-underline! transition-colors"
+							onclick={() => {
+								if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
+							}}
+						>
+							<iconify-icon icon="bi:arrow-left" width="14"></iconify-icon>
+							Back to Collections
+						</a>
+					{:else if isSidebarFull}
 						<a
 							href="/mediagallery"
 							data-sveltekit-preload-data="hover"
@@ -382,7 +417,7 @@
 		<div class="space-y-1">
 			<button
 				type="button"
-				onclick={() => isSettingsOpen = !isSettingsOpen}
+				onclick={() => { isSettingsOpen = !isSettingsOpen; if (isSettingsOpen) { isCollectionsOpen = false; isMediaOpen = false; } }}
 				class="flex w-full items-center justify-between py-1.5 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider hover:opacity-85 {isSidebarFull ? 'px-1' : 'justify-center'}"
 			>
 				<span class="flex items-center gap-1.5">
@@ -425,10 +460,7 @@
 							? 'flex w-full flex-col items-center justify-center rounded-lg p-2 hover:bg-surface-500/20'
 							: 'h-10 w-10 rounded-full hover:bg-surface-500/20'} relative flex items-center justify-center text-center no-underline!"
 					>
-						<Avatar class="mx-auto overflow-hidden rounded-full {isSidebarFull ? 'size-10' : 'size-9'}">
-							<Avatar.Image src={avatarUrl} alt="User Avatar" class="h-full w-full object-cover" />
-							<Avatar.Fallback>AV</Avatar.Fallback>
-						</Avatar>
+						<img src={avatarUrl} alt="User Avatar" class="mx-auto h-full w-full overflow-hidden rounded-full object-cover {isSidebarFull ? 'size-10' : 'size-9'}" />
 						{#if isSidebarFull && user?.username}
 							<div
 								class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-[11px] font-medium leading-tight"

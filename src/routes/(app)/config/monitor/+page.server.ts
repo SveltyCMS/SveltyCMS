@@ -1,52 +1,78 @@
 /**
  * @file src/routes/(app)/config/monitor/+page.server.ts
  * @description Server-side data loading for the Enterprise Monitor Dashboard.
+ * Each data source is fetched independently — one failure won't block the rest.
  */
 
 import { error } from "@sveltejs/kit";
-import { securityResponseService } from "@src/services/security/response-service";
-import { metricsService } from "@src/services/observability/metrics-service";
-import { webhookService } from "@src/services/background/webhook-service";
-import type { IDBAdapter } from "@src/databases/db-interface";
-
-const getDbAdapter = async () => (await import("@src/databases/db")).dbAdapter as IDBAdapter;
+import { logger } from "@utils/logger";
 
 export const load = async ({ locals }: { locals: App.Locals }) => {
   const { user, tenantId } = locals;
 
-  // Admin only access
-  if (user?.role !== "admin") {
+  if (!user?.isAdmin) {
     throw error(403, "Access Denied: Admin privileges required");
   }
 
-  const dbAdapter = await getDbAdapter();
+  // --- Fetch each data source independently ---
 
-  // 1. Security Stats
-  const securityStats = await securityResponseService.getSecurityStats(tenantId || undefined);
-
-  // 2. Trash Recovery Count
-  const trashCountRes = await dbAdapter.crud.count(
-    "_trash",
-    {},
-    { tenantId: tenantId || undefined },
-  );
-  const trashCount = trashCountRes.success ? trashCountRes.data : 0;
-
-  // 3. Webhook Health
-  const webhooks = await webhookService.getWebhooks((tenantId as string) || "");
-  const webhookStats = {
-    total: webhooks.length,
-    active: webhooks.filter((w) => w.active).length,
-    failures: 0, // In a real scenario, we'd fetch actual failure metrics
+  let security: any = {
+    incidentCount: 0,
+    blockedIpsCount: 0,
+    recentIncidents: [],
   };
+  try {
+    const { securityResponseService } = await import("@src/services/security/response-service");
+    security = await securityResponseService.getSecurityStats(tenantId || undefined);
+  } catch (e) {
+    logger.warn("[Monitor] Security stats unavailable", e);
+  }
 
-  // 4. System Metrics
-  const metrics = await metricsService.getSystemMetrics();
+  let webhooks = { total: 0, active: 0, failures: 0 };
+  try {
+    const { webhookService } = await import("@src/services/background/webhook-service");
+    const list = await webhookService.getWebhooks((tenantId as string) || "");
+    webhooks = {
+      total: list.length,
+      active: list.filter((w: any) => w.active).length,
+      failures: 0,
+    };
+  } catch (e) {
+    logger.warn("[Monitor] Webhook stats unavailable", e);
+  }
 
-  return {
-    security: securityStats,
-    trash: { count: trashCount },
-    webhooks: webhookStats,
-    system: metrics,
+  let system: any = { memoryUsage: 0, cpuLoad: 0, uptime: 0 };
+  try {
+    const { metricsService } = await import("@src/services/observability/metrics-service");
+    system = await metricsService.getSystemMetrics();
+  } catch (e) {
+    logger.warn("[Monitor] System metrics unavailable", e);
+  }
+
+  let systemState = {
+    overallState: "unknown" as string,
+    services: [] as any[],
   };
+  try {
+    const { getSystemState } = await import("@src/stores/system/state.svelte");
+    const state = getSystemState();
+    systemState = {
+      overallState: state.overallState,
+      services: Object.entries(state.services || {}).map(([name, svc]) => {
+        const s = svc as any;
+        return {
+          name,
+          status: s.status || "unknown",
+          message: s.message || "",
+          lastChecked: s.lastChecked || null,
+          initDuration: s.metrics?.initializationDuration ?? null,
+          failures: s.metrics?.failureCount ?? 0,
+        };
+      }),
+    };
+  } catch (e) {
+    logger.warn("[Monitor] System state unavailable", e);
+  }
+
+  return { security, webhooks, system, systemState };
 };

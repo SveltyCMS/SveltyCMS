@@ -62,7 +62,6 @@ class UIStore {
 
   // Internal state
   private manualTimer: ReturnType<typeof setTimeout> | null = null;
-  private readonly effectCleanup?: () => void;
 
   // Computed visibility getters
   get isLeftSidebarVisible(): boolean {
@@ -94,36 +93,15 @@ class UIStore {
   }
 
   constructor() {
-    if (
-      typeof window === "undefined" ||
-      !(globalThis as any).$effect ||
-      !(globalThis as any).$effect.root
-    ) {
-      return;
-    }
-
-    // Single effect root watches size + mode changes
-    this.effectCleanup = $effect.root(() => {
-      $effect(() => {
-        const size = screen.size;
-        const currentMode = mode.value;
-        // Track route context changes to trigger updates
-        const CTX = this.routeContext.isImageEditor || this.routeContext.isCollectionBuilder;
-        void CTX;
-
-        untrack(() => {
-          if (!this.manualOverrideActive) {
-            this.updateFromContext(size, currentMode);
-          }
-        });
-      });
-    });
+    // No-op: reactive effect is now set up at module level (top-level)
+    // to comply with Svelte 5 rune rules ($effect must be at .svelte.ts top-level,
+    // not inside class constructors).
   }
 
   /**
    * Updates UI state based on screen size and current mode
    */
-  private updateFromContext(size: ScreenSize, currentMode: string): void {
+  updateFromContext(size: ScreenSize, currentMode: string): void {
     const isViewMode = currentMode === "view" || currentMode === "media";
 
     // Special routes
@@ -238,12 +216,37 @@ class UIStore {
       clearTimeout(this.manualTimer);
       this.manualTimer = null;
     }
-    this.effectCleanup?.();
+    moduleEffectCleanup?.();
   }
 }
 
 // Singleton instance - the main export
 export const ui = new UIStore();
+
+// --- Module-level reactive effect (must be at top-level of .svelte.ts file) ---
+// This replaces the constructor-based $effect which violates Svelte 5's
+// rune_outside_svelte rule (runes cannot be used inside class methods/constructors).
+// The browser-only guard is INSIDE the effect callback, since runes cannot be
+// wrapped in conditional blocks (if/else) at the module level either.
+let moduleEffectCleanup: (() => void) | undefined;
+
+moduleEffectCleanup = $effect.root(() => {
+  $effect(() => {
+    // Only activate on the client (SSR-safe)
+    if (typeof window === "undefined") return;
+
+    const size = screen.size;
+    const currentMode = mode.value;
+    const CTX = ui.routeContext.isImageEditor || ui.routeContext.isCollectionBuilder;
+    void CTX;
+
+    untrack(() => {
+      if (!ui.manualOverrideActive) {
+        ui.updateFromContext(size, currentMode);
+      }
+    });
+  });
+});
 
 // Backward compatibility exports for theme branch components
 export function toggleUIElement(element: keyof UIState, visibility: UIVisibility): void {

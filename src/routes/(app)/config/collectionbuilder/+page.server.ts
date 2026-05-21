@@ -47,7 +47,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     // Fetch the initial content structure directly from database for organizational work
     logger.debug("[CollectionBuilder] Fetching content structure from database...");
-    const contentStructure = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
+    let contentStructure = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
+
+    // 🚑 SELF-HEALING: If no content nodes in DB but system was already marked as
+    // initialized (e.g. from a prior skipReconciliation setup), trigger a full refresh.
+    if ((!contentStructure || contentStructure.length === 0) && contentSystem.isInitialized) {
+      logger.warn(
+        "[CollectionBuilder] No content nodes found despite system being initialized. Triggering refresh...",
+      );
+      await contentSystem.refresh(tenantId, false, false);
+      contentStructure = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
+      logger.info(
+        "[CollectionBuilder] After refresh, found",
+        contentStructure?.length || 0,
+        "content nodes",
+      );
+    }
 
     if (!Array.isArray(contentStructure)) {
       logger.error("[CollectionBuilder] contentStructure is not an array!", {
@@ -113,7 +128,9 @@ export const load: PageServerLoad = async ({ locals }) => {
       throw err;
     }
     const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;
-    logger.error(message, { stack: err instanceof Error ? err.stack : undefined });
+    logger.error(message, {
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     throw error(500, message);
   }
 };

@@ -24,13 +24,13 @@ try {
   customModulesRaw = import.meta.glob("./custom/*/index.ts", { eager: true });
   widgetComponentsRaw = import.meta.glob(["./core/*/*.svelte", "./custom/*/*.svelte"]);
 
-  if (process.env.BENCHMARK_DEBUG === "true") {
+  if (typeof process !== "undefined" && process.env.BENCHMARK_DEBUG === "true") {
     console.log(
       `[Scanner Debug] Vite Glob detected ${Object.keys(coreModulesRaw).length} core modules and ${Object.keys(customModulesRaw).length} custom modules.`,
     );
   }
 } catch (err: any) {
-  if (process.env.BENCHMARK_DEBUG === "true") {
+  if (typeof process !== "undefined" && process.env.BENCHMARK_DEBUG === "true") {
     console.error(`[Scanner Debug] Vite Glob failed: ${err.message}`);
   }
 }
@@ -81,7 +81,7 @@ function initBunFallback() {
       return modules;
     };
 
-    const projectRoot = process.cwd();
+    const projectRoot = typeof process !== "undefined" && process.cwd ? process.cwd() : ".";
     const corePath = path.join(projectRoot, "src/widgets/core");
     const customPath = path.join(projectRoot, "src/widgets/custom");
 

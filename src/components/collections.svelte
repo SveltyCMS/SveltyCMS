@@ -252,17 +252,7 @@ Provides an organized interface for navigating hierarchical content structures.
 			return roots;
 		}
 
-		console.log('[Collections] Structure changed, building tree...', {
-			inputSize: structure.length,
-			roots: structure.filter((n) => !n.parentId).map((n) => n.name)
-		});
-
 		const nestedStructure = buildTree(structure as ExtendedContentNode[]);
-
-		console.log('[Collections] Tree results:', {
-			rootCount: nestedStructure.length,
-			roots: nestedStructure.map((n) => n.name)
-		});
 
 		const sorted = [...nestedStructure].sort(sortContentNodes);
 		return sorted.map((n) => mapToTreeNode(n));

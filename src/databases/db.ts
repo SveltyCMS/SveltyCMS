@@ -123,9 +123,19 @@ const createInstanceProxy = (targetProp?: string) => {
         return val;
       }
 
-      // ASYNC RECOVERY
-      return (...args: any[]) => {
-        const inst = getGlobal<IDBAdapter>(ADAPTER_KEY);
+      // ASYNC RECOVERY — auto-heal on HMR reload or connection loss
+      return async (...args: any[]) => {
+        // 🚑 SELF-HEALING: Try to reinitialize if adapter disappeared (e.g. HMR reload)
+        let inst = getGlobal<IDBAdapter>(ADAPTER_KEY);
+        if (!inst || !inst.isConnected()) {
+          try {
+            const { reinitializeSystem } = await import("@src/databases/db");
+            await reinitializeSystem();
+            inst = getGlobal<IDBAdapter>(ADAPTER_KEY);
+          } catch {
+            // Re-initialization failed, report original error below
+          }
+        }
         if (!inst) {
           if (prop === "isConnected" || prop === "connected") return false;
           throw new Error(

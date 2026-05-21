@@ -71,7 +71,7 @@ Sidebar navigation for System Settings
     </div>
 
 	<!-- Search -->
-	<div class="relative mb-2 {isFullSidebar ? 'w-full' : 'max-w-[135px]'}">
+	<div class="relative mb-2 {isFullSidebar ? 'w-full' : 'max-w-33.75'}">
 		<input
 			type="text"
 			bind:value={searchTerm}

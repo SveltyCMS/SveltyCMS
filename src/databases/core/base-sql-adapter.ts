@@ -890,7 +890,10 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       return {
         success: false,
         message: `Invalid collection: expected string, got ${typeof collection}`,
-        error: { code: "INVALID_COLLECTION", message: "Collection name must be a string" },
+        error: {
+          code: "INVALID_COLLECTION",
+          message: "Collection name must be a string",
+        },
       };
     }
     return this.wrap(async () => {
@@ -929,7 +932,10 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       return {
         success: false,
         message: `Invalid collection: expected string, got ${typeof collection}`,
-        error: { code: "INVALID_COLLECTION", message: "Collection name must be a string" },
+        error: {
+          code: "INVALID_COLLECTION",
+          message: "Collection name must be a string",
+        },
       };
     }
     return this.wrap(async () => {
@@ -968,11 +974,17 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
         // 🚀 Apply sort, limit, and offset dynamically
         if (options.sort) {
           const sortConditions: any[] = [];
-          const normalizedSorts: { field: string; direction: "asc" | "desc" }[] = [];
+          const normalizedSorts: {
+            field: string;
+            direction: "asc" | "desc";
+          }[] = [];
           if (Array.isArray(options.sort)) {
             for (const item of options.sort) {
               if (Array.isArray(item) && item.length >= 2) {
-                normalizedSorts.push({ field: item[0], direction: item[1] as "asc" | "desc" });
+                normalizedSorts.push({
+                  field: item[0],
+                  direction: item[1] as "asc" | "desc",
+                });
               } else if (typeof item === "object" && item !== null) {
                 const keys = Object.keys(item);
                 if (keys.length > 0) {
@@ -1109,7 +1121,11 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   async find<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
-    options: FindOptions<T> & { rawSql?: boolean; sql?: string; params?: Record<string, any> } = {},
+    options: FindOptions<T> & {
+      rawSql?: boolean;
+      sql?: string;
+      params?: Record<string, any>;
+    } = {},
   ): Promise<DatabaseResult<T[]>> {
     return this.findMany(collection, query, options);
   }
@@ -1140,11 +1156,26 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       const table = this.getTable(collection);
       const where = this.mapQuery(table, query || {}, options);
 
-      const result = await this.getDrizzleInstance(options)
-        .select({ count: drizzleCount() })
-        .from(table)
-        .where(where);
-      return result[0].count;
+      try {
+        const result = await this.getDrizzleInstance(options)
+          .select({ count: drizzleCount() })
+          .from(table)
+          .where(where);
+        return result[0].count;
+      } catch (err: any) {
+        // If the table doesn't exist (dynamic collection never created), return 0
+        const isMissingTable =
+          err?.code === "SQLITE_ERROR" && err?.message?.includes("no such table");
+        const tableName = getTableName(table);
+        const isDynamic =
+          tableName.startsWith("collection_") ||
+          tableName.toLowerCase().includes("benchmark") ||
+          tableName.toLowerCase().includes("bench_");
+        if (isMissingTable && isDynamic) {
+          return 0;
+        }
+        throw err;
+      }
     }, "COUNT_FAILED");
   }
 
@@ -1157,7 +1188,10 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       return {
         success: false,
         message: `Invalid collection: expected string, got ${typeof collection}`,
-        error: { code: "INVALID_COLLECTION", message: "Collection name must be a string" },
+        error: {
+          code: "INVALID_COLLECTION",
+          message: "Collection name must be a string",
+        },
       };
     }
     return this.wrap(
@@ -1254,7 +1288,10 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       return {
         success: false,
         message: `Invalid collection: expected string, got ${typeof collection}`,
-        error: { code: "INVALID_COLLECTION", message: "Collection name must be a string" },
+        error: {
+          code: "INVALID_COLLECTION",
+          message: "Collection name must be a string",
+        },
       };
     }
 
@@ -1263,7 +1300,10 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       return {
         success: false,
         message: `Update failed: ID is ${id}`,
-        error: { code: "INVALID_ID", message: `Cannot update ${collection} with ${id} ID` },
+        error: {
+          code: "INVALID_ID",
+          message: `Cannot update ${collection} with ${id} ID`,
+        },
       };
     }
 
@@ -1369,13 +1409,19 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   async delete(
     collection: string,
     id: DatabaseId,
-    options: BaseQueryOptions & { permanent?: boolean; userId?: DatabaseId } = {},
+    options: BaseQueryOptions & {
+      permanent?: boolean;
+      userId?: DatabaseId;
+    } = {},
   ): Promise<DatabaseResult<void>> {
     if (typeof collection !== "string") {
       return {
         success: false,
         message: `Invalid collection: expected string, got ${typeof collection}`,
-        error: { code: "INVALID_COLLECTION", message: "Collection name must be a string" },
+        error: {
+          code: "INVALID_COLLECTION",
+          message: "Collection name must be a string",
+        },
       };
     }
     // 🛡️ HARDENING: Prevent driver-level crashes if ID is accidentally undefined/null
@@ -1383,7 +1429,10 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       return {
         success: false,
         message: `Delete failed: ID is ${id}`,
-        error: { code: "INVALID_ID", message: `Cannot delete from ${collection} with ${id} ID` },
+        error: {
+          code: "INVALID_ID",
+          message: `Cannot delete from ${collection} with ${id} ID`,
+        },
       };
     }
 
@@ -1422,7 +1471,10 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
   async deleteMany<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
-    options: BaseQueryOptions & { permanent?: boolean; userId?: DatabaseId } = {},
+    options: BaseQueryOptions & {
+      permanent?: boolean;
+      userId?: DatabaseId;
+    } = {},
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
     return this.wrap(async () => {
       const table = this.getTable(collection);
@@ -1457,7 +1509,10 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       return {
         success: false,
         message: `Restore failed: ID is ${id}`,
-        error: { code: "INVALID_ID", message: `Cannot restore in ${collection} with ${id} ID` },
+        error: {
+          code: "INVALID_ID",
+          message: `Cannot restore in ${collection} with ${id} ID`,
+        },
       };
     }
 
@@ -1751,7 +1806,10 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
             name: "status",
             type: this.type === "mariadb" ? "VARCHAR(255) DEFAULT 'draft'" : "TEXT DEFAULT 'draft'",
           },
-          { name: "tenantId", type: this.type === "mariadb" ? "VARCHAR(36)" : "TEXT" },
+          {
+            name: "tenantId",
+            type: this.type === "mariadb" ? "VARCHAR(36)" : "TEXT",
+          },
           {
             name: "createdAt",
             type:
@@ -1926,7 +1984,10 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
       if (Array.isArray(options.sort)) {
         for (const item of options.sort) {
           if (Array.isArray(item) && item.length >= 2) {
-            normalizedSorts.push({ field: item[0], direction: item[1] as "asc" | "desc" });
+            normalizedSorts.push({
+              field: item[0],
+              direction: item[1] as "asc" | "desc",
+            });
           } else if (typeof item === "object" && item !== null) {
             const keys = Object.keys(item);
             if (keys.length > 0) {

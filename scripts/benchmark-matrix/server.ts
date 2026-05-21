@@ -211,10 +211,7 @@ export async function getServerEntryPoint(): Promise<string> {
   }
 
   console.log(`[getServerEntryPoint] ROOT is: "${ROOT}"`);
-  const paths = [
-    join(ROOT, "build", "index.js"),
-    join(ROOT, "build", "server", "index.js"),
-  ];
+  const paths = [join(ROOT, "build", "index.js"), join(ROOT, "build", "server", "index.js")];
   for (const p of paths) {
     console.log(`[getServerEntryPoint] Check path: "${p}" -> exists: ${safeExistsSync(p)}`);
   }
@@ -253,7 +250,10 @@ async function tryHealthCheck(port: number): Promise<{ healthy: boolean; version
     const status = data?.status ?? data?.overallStatus ?? data?.health ?? "";
     const version = data.dbVersion ?? data.version ?? "unknown";
 
-    if (HEALTH_ACCEPTABLE_STATUSES.has(status) || HEALTH_ACCEPTABLE_STATUSES.has(status.toUpperCase())) {
+    if (
+      HEALTH_ACCEPTABLE_STATUSES.has(status) ||
+      HEALTH_ACCEPTABLE_STATUSES.has(status.toUpperCase())
+    ) {
       log.success(`[HealthCheck] Server is ${status.toUpperCase()} at ${url}`);
       return { healthy: true, version };
     }
@@ -359,7 +359,10 @@ export class SveltyServerInstance {
       ? ["--bun", "x", "vite", "dev", "--port", this.port.toString(), "--host", "127.0.0.1"]
       : [serverPath];
 
-    log.db(this.db.type, `Launching SveltyCMS instance (${isDev ? "DEV" : "PROD"}) on port ${this.port}...`);
+    log.db(
+      this.db.type,
+      `Launching SveltyCMS instance (${isDev ? "DEV" : "PROD"}) on port ${this.port}...`,
+    );
 
     const workerProcess = spawn(cmd, args, {
       cwd: process.cwd(),
@@ -431,7 +434,11 @@ export class SveltyServerInstance {
               resolve({ coldStartMs, version });
             } else {
               await this.stop();
-              reject(new Error(`Server reached but health check timed out [${this.db.type}:${this.port}]`));
+              reject(
+                new Error(
+                  `Server reached but health check timed out [${this.db.type}:${this.port}]`,
+                ),
+              );
             }
           }
         }
@@ -449,7 +456,11 @@ export class SveltyServerInstance {
           this.resolved = true;
           clearTimeout(timeout);
           cleanupListeners();
-          reject(new Error(`Server process exited early with code ${code} [${this.db.type}:${this.port}]`));
+          reject(
+            new Error(
+              `Server process exited early with code ${code} [${this.db.type}:${this.port}]`,
+            ),
+          );
         } else if (!isNoisyLine("") && !isShuttingDown() && code !== 0) {
           // Log post-resolved crash
           log.db(this.db.type, `\x1b[91mServer process crashed with code ${code}\x1b[0m`);

@@ -40,12 +40,9 @@ async function runConcurrencyAudit() {
     } as const;
 
     // 1. Check current state by reading the entry
-    const checkRes = await fetch(
-      `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`,
-      {
-        headers,
-      },
-    );
+    const checkRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`, {
+      headers,
+    });
     if (checkRes.ok) {
       const checkData = await checkRes.json();
       const entry = checkData?.data ?? checkData;
@@ -55,14 +52,11 @@ async function runConcurrencyAudit() {
     }
 
     // Reset the count field to 0 via PATCH
-    const resetRes = await fetch(
-      `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`,
-      {
-        method: "PATCH",
-        headers,
-        body: JSON.stringify({ count: 0 }),
-      },
-    );
+    const resetRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ count: 0 }),
+    });
     const resetBody = resetRes.ok
       ? "OK"
       : `${resetRes.status} ${await resetRes
@@ -92,14 +86,11 @@ async function runConcurrencyAudit() {
     const t0 = performance.now();
 
     const promises = Array.from({ length: CONCURRENCY }).map(async () => {
-      const res = await fetch(
-        `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}/increment`,
-        {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ field: "count", amount: 1 }),
-        },
-      );
+      const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}/increment`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ field: "count", amount: 1 }),
+      });
       return res;
     });
 
@@ -125,8 +116,7 @@ async function runConcurrencyAudit() {
     console.log(`   → Final count: ${finalCount}`);
 
     const isPerfect = finalCount === initialCount + CONCURRENCY;
-    const lockUpDetected =
-      !isPerfect || (successCount < CONCURRENCY && duration > 5000);
+    const lockUpDetected = !isPerfect || (successCount < CONCURRENCY && duration > 5000);
 
     printTruthTable({
       title: "SVELTYCMS — CONCURRENCY AUDIT",
@@ -159,9 +149,7 @@ async function runConcurrencyAudit() {
     ]);
 
     if (lockUpDetected) {
-      throw new Error(
-        "Concurrency Audit Failed: Database lockup or severe error rate detected.",
-      );
+      throw new Error("Concurrency Audit Failed: Database lockup or severe error rate detected.");
     }
   } catch (err: any) {
     logger.error(`Concurrency audit failed: ${err.message}`);

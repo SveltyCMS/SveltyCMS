@@ -1,45 +1,82 @@
 /**
  * @file src/live/system.ts
  * @description Real-time system event stream using svelte-realtime.
- * Bridges the internal EventBus to connected WebSocket clients.
+ * Bridges the internal EventBus to connected WebSocket clients with tenant isolation.
+ *
+ * Handlers have individual access controls via `access` callback.
  */
+// realtime-allow-public
 
 import { live } from "svelte-realtime/server";
 import { eventBus } from "@utils/event-bus";
 import { globalPlatform } from "../hooks.ws";
+import { logger } from "@utils/logger";
+
+// ====================== TYPES ======================
+
+export interface SystemEvent {
+  id: string;
+  event: string;
+  data: any;
+  timestamp: number;
+  tenantId: string;
+}
+
+// ====================== CONSTANTS ======================
+
+const DEFAULT_TENANT_ID = "default";
+
+// ====================== SYSTEM EVENTS STREAM ======================
 
 /**
- * 🚀 System Event Stream
- * Replaces the manual SSE /api/events implementation.
- * Provides filtered, tenant-isolated event broadcasting.
+ * Tenant-isolated real-time system events stream.
+ * Replaces previous SSE-based /api/events endpoint.
  */
 export const events = live.stream(
-  (ctx: any) => `system_events:${ctx.user.tenantId || "default"}`,
-  async () => {
-    // Events are transient, we start with an empty list
-    return [];
+  (ctx: any): string => {
+    const tenantId = ctx.user?.tenantId || DEFAULT_TENANT_ID;
+    return `system_events:${tenantId}`;
+  },
+  async (): Promise<SystemEvent[]> => {
+    return []; // Events are transient (no persistent history)
   },
   {
     merge: "crud",
-    access: (ctx: any) => !!ctx.user?.profile, // Must be logged in
+    access: (ctx: any): boolean => {
+      return !!ctx.user?.profile; // Must be authenticated
+    },
   },
 );
 
+// ====================== EVENTBUS BRIDGE ======================
+
 /**
- * 🛰️ EventBus Bridge
- * Synchronizes internal server events with the WebSocket layer.
+ * Bridges internal EventBus events to all connected WebSocket clients.
+ * Automatically handles tenant isolation.
  */
 eventBus.on("*", (payload: any) => {
-  const { event, data } = payload;
-  const tenantId = data?.tenantId || "default";
-  const topic = `system_events:${tenantId}`;
+  try {
+    if (!globalPlatform) {
+      // This can happen during startup or in certain test environments
+      return;
+    }
 
-  if (globalPlatform) {
-    (globalPlatform as any).publish(topic, "create", {
+    const { event, data } = payload || {};
+    if (!event) return;
+
+    const tenantId = data?.tenantId || DEFAULT_TENANT_ID;
+    const topic = `system_events:${tenantId}`;
+
+    const systemEvent: SystemEvent = {
       id: crypto.randomUUID(),
       event,
-      data,
+      data: data || {},
       timestamp: Date.now(),
-    });
+      tenantId,
+    };
+
+    (globalPlatform as any).publish(topic, "create", systemEvent);
+  } catch (err) {
+    logger.error("Failed to bridge EventBus to WebSocket", err);
   }
 });

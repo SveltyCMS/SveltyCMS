@@ -143,7 +143,7 @@ class WidgetState {
     this.initPromise = (async () => {
       wsLogger.debug(`Starting internal init promise for tenant: ${tenantId}`);
       try {
-        if (process.env.VERBOSE_TESTS === "true") {
+        if (typeof process !== "undefined" && process.env.VERBOSE_TESTS === "true") {
           wsLogger.info(`Initializing for tenant: ${tenantId}`);
         }
         // 1. Load modules from scanner
@@ -175,7 +175,7 @@ class WidgetState {
             }
 
             const widgetName = fn.Name || name;
-            if (process.env.BENCHMARK_DEBUG === "true") {
+            if (typeof process !== "undefined" && process.env.BENCHMARK_DEBUG === "true") {
               console.info(
                 `[WidgetStore] Registered core widget: ${widgetName} (has modifyRequest: ${!!fn.modifyRequest})`,
               );
@@ -291,7 +291,7 @@ class WidgetState {
         this.healthStatus = "healthy";
         this.lastHealthCheck = Date.now();
 
-        if (process.env.VERBOSE_TESTS === "true") {
+        if (typeof process !== "undefined" && process.env.VERBOSE_TESTS === "true") {
           logger.info(
             `[WidgetStore] Initialized: ${this.coreWidgets.length} core, ${this.customWidgets.length} custom widgets.`,
           );
@@ -343,7 +343,7 @@ class WidgetState {
         this.activeWidgets = this.activeWidgets.filter((w) => w !== name);
       }
 
-      if (process.env.VERBOSE_TESTS === "true") {
+      if (typeof process !== "undefined" && process.env.VERBOSE_TESTS === "true") {
         logger.info(`[WidgetStore] Widget '${name}' status changed to '${status}'`);
       }
     } catch (e) {

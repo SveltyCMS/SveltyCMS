@@ -38,6 +38,7 @@
 	// Stores
 	import { avatarSrc, normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
 	import { onMount } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
 	import { invalidateAll } from '$app/navigation';
 	import AdminArea from './components/admin-area.svelte';
 	// Auth
@@ -189,12 +190,12 @@
 <!-- Page Title with Back Button -->
 <PageTitle name={userpage_title()} icon="mdi:account-circle" showBackButton={true} backUrl="/config" />
 
-<div class="max-h-[calc(100vh-65px)] overflow-auto">
+<div class="max-h-[calc(100vh-65px)] overflow-auto" in:fade={{ duration: 300 }}>
 	<h2 class="sr-only">Profile Information</h2>
 	<div class="wrapper mb-2">
 		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 			<!-- Avatar with user info -->
-			<div class="relative flex flex-col items-center justify-center gap-1">
+			<div class="relative flex flex-col items-center justify-center gap-1" in:fly={{ y: 20, delay: 100, duration: 300 }}>
 				<div class="relative group">
 					<Avatar class="w-32 h-32 rounded-full border border-white shadow-lg dark:border-surface-800">
 						<Avatar.Image src={normalizeAvatarUrl(avatarSrc.value)} class="object-cover" />
@@ -244,7 +245,7 @@
 				{/if}
 
 				<!-- Collaboration Settings -->
-				<div class="card p-4 w-full max-w-xs space-y-1 bg-surface-200-700-token border border-surface-500 shadow-sm">
+				<div class="card p-4 w-full max-w-xs space-y-1 bg-surface-200-700-token border border-surface-500 shadow-sm" in:fly={{ y: 10, delay: 300, duration: 300 }}>
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
 							<iconify-icon icon="mdi:forum" class="text-primary-500" width={18}></iconify-icon>
@@ -347,7 +348,7 @@
 		}}
 		silent={true}
 	>
-		<div class="wrapper2">
+		<div class="wrapper2" in:fly={{ y: 20, delay: 200, duration: 300 }}>
 			<AdminArea currentUser={{ ...user } as any} isMultiTenant={isMultiTenant!} roles={data.roles as any} />
 		</div>
 	</PermissionGuard>

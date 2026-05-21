@@ -70,7 +70,7 @@ function isCMSChar(index: number): boolean {
 			<div class="animate-[spin_20s_linear_infinite] absolute inset-0 flex items-center justify-center" style="font-size: {font}em;">
 				{#each array as char, index (index)}
 					<div
-						class="absolute left-1/2 top-0 h-full w-4 -translate-x-1/2 text-center font-bold uppercase leading-none"
+						class="absolute left-1/2 top-0 h-full -translate-x-1/2 text-center font-bold uppercase leading-none"
 						style="transform: translateX(-50%) rotate({(360 / array.length) * index}deg); transform-origin: center {size / 2}px;"
 					>
 						<SiteName {char} textClass={isCMSChar(index) ? 'text-primary-500' : 'text-white'} />
@@ -93,7 +93,7 @@ function isCMSChar(index: number): boolean {
 					class="mt-4 rounded-md bg-error-600/90 px-4 py-2 text-sm font-semibold text-white shadow-lg sm:absolute sm:left-1/2 sm:top-1/2 sm:mt-0 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rotate-12"
 					aria-label="Error type"
 				>
-					<div class="max-w-[280px] truncate" title={page.url.toString()}>{page.url}</div>
+					<div class="max-w-70 truncate" title={page.url.toString()}>{page.url}</div>
 					<div class="whitespace-nowrap">{error_pagenotfound()}</div>
 				</div>
 			</div>
