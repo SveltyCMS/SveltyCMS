@@ -77,6 +77,8 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   "openapi.json": { handler: "utility", fn: "handleUtilityRoutes" },
   webhooks: { handler: "system", fn: "handleWebhookRoutes" },
   "system-webhooks": { handler: "system", fn: "handleWebhookRoutes" },
+  "system-virtual-folder": { handler: "system", fn: "handleSystemVirtualFolderRoutes" },
+  systemVirtualFolder: { handler: "system", fn: "handleSystemVirtualFolderRoutes" },
   graphql: { handler: "content", fn: "handleGraphqlRoutes" },
 };
 

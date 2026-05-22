@@ -428,11 +428,27 @@ export class CollectionsNamespace {
   }
 
   async find(collectionId: string, options: any = {}) {
-    const { tenantId, filter = {}, limit = 50, offset = 0, bypassCache = false } = options;
+    const {
+      tenantId,
+      filter = {},
+      limit = 50,
+      offset = 0,
+      bypassCache = false,
+      publicationFilter = "all",
+    } = options;
     const ttl = options.ttl ? Number(options.ttl) : undefined;
     const schema = await this.getSchema(collectionId, tenantId);
     const normalizedFilter = this.normalizeRelationshipFilter(filter);
-    const query = { ...normalizedFilter, ...(tenantId && { tenantId: tenantId as DatabaseId }) };
+    const query: any = {
+      ...normalizedFilter,
+      ...(tenantId && { tenantId: tenantId as DatabaseId }),
+    };
+
+    if (publicationFilter === "published") {
+      query.status = "publish";
+    } else if (publicationFilter === "draft") {
+      query.status = { $in: ["draft", "unpublish"] };
+    }
 
     const sort =
       options.sort ||
@@ -552,13 +568,23 @@ export class CollectionsNamespace {
       sortDirection?: "asc" | "desc";
       filter?: any;
       skipValidation?: boolean;
+      publicationFilter?: "published" | "draft" | "all";
     } = {},
   ) {
-    const { tenantId, user } = options;
+    const { tenantId, user, publicationFilter = "all" } = options;
     const schema = await contentSystem.getCollectionById(collectionId, tenantId);
     if (!schema) throw new AppError(`Collection ${collectionId} not found`, 404);
 
-    const query = this.normalizeRelationshipFilter({ ...options.filter });
+    const query: any = {
+      ...this.normalizeRelationshipFilter({ ...options.filter }),
+      ...(tenantId && { tenantId: tenantId as DatabaseId }),
+    };
+
+    if (publicationFilter === "published") {
+      query.status = "publish";
+    } else if (publicationFilter === "draft") {
+      query.status = { $in: ["draft", "unpublish"] };
+    }
     const findOptions = {
       limit: options.limit,
       offset: options.offset,

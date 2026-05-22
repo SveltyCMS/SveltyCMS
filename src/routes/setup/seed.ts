@@ -682,7 +682,7 @@ export const defaultPublicSettings: Array<{
   },
   {
     key: "HOST_PROD",
-    value: "https://yourdomain.com",
+    value: "https://sveltycms.com",
     description: "Production server URL",
   },
 
@@ -699,7 +699,14 @@ export const defaultPublicSettings: Array<{
   },
   {
     key: "TIMEZONE",
-    value: "UTC",
+    value: (() => {
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        return tz && tz !== "UTC" ? tz : "Europe/Berlin";
+      } catch {
+        return "Europe/Berlin";
+      }
+    })(),
     description: "Default timezone for the system",
   },
   {

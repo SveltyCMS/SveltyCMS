@@ -51,6 +51,7 @@ class UIStore {
   routeContext = $state({
     isImageEditor: false,
     isCollectionBuilder: false,
+    isSystemSettings: false,
   });
 
   // UI toggles
@@ -105,6 +106,22 @@ class UIStore {
     const isViewMode = currentMode === "view" || currentMode === "media";
 
     // Special routes
+    if (this.routeContext.isSystemSettings) {
+      if (size === ScreenSize.XS || size === ScreenSize.SM) {
+        this.state.leftSidebar = "hidden";
+      } else if (size === ScreenSize.MD) {
+        this.state.leftSidebar = "collapsed";
+      } else {
+        this.state.leftSidebar = "full";
+      }
+      this.state.rightSidebar = "hidden";
+      this.state.pageheader = "hidden";
+      this.state.pagefooter = "hidden";
+      this.state.header = "hidden";
+      this.state.footer = "hidden";
+      return;
+    }
+
     if (this.routeContext.isImageEditor) {
       this.state.leftSidebar = "collapsed";
       this.state.rightSidebar = "hidden";
@@ -189,7 +206,11 @@ class UIStore {
   /**
    * Set route context for special layouts
    */
-  setRouteContext(ctx: { isImageEditor?: boolean; isCollectionBuilder?: boolean }): void {
+  setRouteContext(ctx: {
+    isImageEditor?: boolean;
+    isCollectionBuilder?: boolean;
+    isSystemSettings?: boolean;
+  }): void {
     for (const key in ctx) {
       if (!Object.hasOwn(ctx, key)) {
         continue;
@@ -237,7 +258,10 @@ moduleEffectCleanup = $effect.root(() => {
 
     const size = screen.size;
     const currentMode = mode.value;
-    const CTX = ui.routeContext.isImageEditor || ui.routeContext.isCollectionBuilder;
+    const CTX =
+      ui.routeContext.isImageEditor ||
+      ui.routeContext.isCollectionBuilder ||
+      ui.routeContext.isSystemSettings;
     void CTX;
 
     untrack(() => {

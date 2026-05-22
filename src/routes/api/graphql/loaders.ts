@@ -14,7 +14,11 @@ import { BatchLoader } from "@src/utils/batch-loader";
  * Loaders should not be shared across requests to ensure proper tenant isolation
  * and to keep the per-request cache fresh.
  */
-export function createLoaders(dbAdapter: DatabaseAdapter, tenantId: string | null) {
+export function createLoaders(
+  dbAdapter: DatabaseAdapter,
+  tenantId: string | null,
+  publicationFilter: "published" | "draft" | "all" = "all",
+) {
   // --- 1. User Loader ---
   const userLoader = new BatchLoader<string | DatabaseId, User | null>(async (ids) => {
     try {
@@ -75,7 +79,16 @@ export function createLoaders(dbAdapter: DatabaseAdapter, tenantId: string | nul
             return ids.map(() => null);
           }
 
-          const entryMap = new Map(result.data.map((entry: any) => [entry._id.toString(), entry]));
+          let data = result.data;
+          if (publicationFilter === "published") {
+            data = data.filter((entry: any) => entry.status === "publish");
+          } else if (publicationFilter === "draft") {
+            data = data.filter(
+              (entry: any) => entry.status === "draft" || entry.status === "unpublish",
+            );
+          }
+
+          const entryMap = new Map(data.map((entry: any) => [entry._id.toString(), entry]));
           return ids.map((id) => entryMap.get(id.toString()) || null);
         } catch {
           return ids.map(() => null);

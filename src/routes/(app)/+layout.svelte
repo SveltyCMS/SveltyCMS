@@ -262,7 +262,7 @@ afterNavigate(() => {
 				{#if ui.state.leftSidebar !== 'hidden'}
 					<aside
 						class="max-h-dvh {ui.state.leftSidebar === 'full'
-							? 'w-55'
+							? 'w-60'
 							: 'w-fit'} relative border-r bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900"
 						aria-label="Left sidebar navigation"
 					>
@@ -288,7 +288,7 @@ afterNavigate(() => {
 
 				{#if ui.state.rightSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh w-55 border-l bg-white bg-linear-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+						class="max-h-dvh w-60 border-l bg-white bg-linear-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 						aria-label="Right sidebar"
 					>
 						<RightSidebar />

@@ -19,8 +19,9 @@ All dynamic CMS settings organized into logical groups
 import PageTitle from "@src/components/page-title.svelte";
 import GDPRSettings from "@src/components/system/gdpr-settings.svelte";
 import { groupsNeedingConfig } from "@src/stores/config-store.svelte.ts";
+import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 import { logger } from "@utils/logger";
-import { onMount } from "svelte";
+import { onMount, untrack } from "svelte";
 import { SvelteSet } from "svelte/reactivity";
 import { goto } from "$app/navigation";
 import { enhance } from "$app/forms";
@@ -40,6 +41,8 @@ const isAdmin = $derived(data.isAdmin);
 let availableGroups: SettingGroup[] = $state([]);
 let searchTerm = $state("");
 let hasUnsavedChanges = $state(false);
+let saveTrigger = $state({ fire: () => {} });
+let saving = $state(false);
 
 // Unsaved changes guard
 beforeNavigate(({ cancel }) => {
@@ -158,6 +161,17 @@ onMount(() => {
 
 	checkAllGroupsForEmptyFields();
 });
+
+$effect(() => {
+	untrack(() => {
+		setRouteContext({ isSystemSettings: true });
+	});
+	return () => {
+		untrack(() => {
+			setRouteContext({ isSystemSettings: false });
+		});
+	};
+});
 </script>
 
 <PageTitle
@@ -165,28 +179,46 @@ onMount(() => {
 	icon="mdi:cog"
 	showBackButton={true}
 	backUrl="/config"
+>
+	<div class="flex flex-wrap items-center gap-2">
+		<!-- Save changes button: active/lights up only when modifications are made -->
+		{#if selectedGroupId && selectedGroupId !== 'gdpr'}
+			<button
+				onclick={() => saveTrigger.fire()}
+				class="btn preset-filled-primary-500 flex items-center gap-1.5 min-w-[120px]"
+				disabled={saving || !hasUnsavedChanges}
+			>
+				{#if saving}
+					<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
+					<span>Saving...</span>
+				{:else}
+					<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
+					<span>{hasUnsavedChanges ? 'Save Changes' : 'Saved'}</span>
+				{/if}
+			</button>
+		{/if}
 
-/>
-
-<div class="mb-6 flex flex-col gap-4 px-2 md:flex-row md:items-center md:justify-between">
-	<p class="text-surface-600 dark:text-surface-300">
-		These are critical system settings loaded dynamically from the database. Most changes take effect immediately, though settings marked with
-		"Restart Required" need a server restart. Settings are organized into <span class="font-bold text-primary-500">{availableGroups.length}</span>
-		logical groups for easy management.
-	</p>
-	<div class="flex flex-col gap-2 md:flex-row">
-		<form method="POST" action="?/repairContentCache" use:enhance={handleRepair} class="w-full md:w-auto">
-			<button disabled={isRepairing} class="btn preset-filled-warning-500 w-full md:w-auto">
+		<!-- Global actions: Repair & Export All -->
+		<form method="POST" action="?/repairContentCache" use:enhance={handleRepair} class="w-full sm:w-auto">
+			<button disabled={isRepairing} class="btn preset-filled-warning-500 w-full flex items-center justify-center gap-1.5">
 				<span>{isRepairing ? '⏳' : '🛠️'}</span>
-				<span>{isRepairing ? 'Repairing...' : 'Repair & Rebuild Cache'}</span>
+				<span>{isRepairing ? 'Repairing...' : 'Repair Cache'}</span>
 			</button>
 		</form>
 
-		<button onclick={exportAll} class="btn preset-filled-surface-500 w-full md:w-auto">
+		<button onclick={exportAll} class="btn preset-filled-surface-500 w-full sm:w-auto flex items-center justify-center gap-1.5">
 			<span>📤</span>
 			<span>Export All JSON</span>
 		</button>
 	</div>
+</PageTitle>
+
+<div class="mb-6 px-2">
+	<p class="text-surface-600 dark:text-surface-300 text-sm">
+		These are critical system settings loaded dynamically from the database. Most changes take effect immediately, though settings marked with
+		"Restart Required" need a server restart. Settings are organized into <span class="font-bold text-primary-500">{availableGroups.length}</span>
+		logical groups for easy management.
+	</p>
 </div>
 
 {#if repairResult}
@@ -201,10 +233,10 @@ onMount(() => {
 {/if}
 
 <!-- Mobile Navigation Tabs & Search -->
-<div class="mb-6 space-y-4 px-2">
+<div class="mb-6 space-y-4 px-2 md:hidden">
 	<input bind:value={searchTerm} placeholder="Search settings..." class="input w-full" />
 
-	<div class="flex gap-2 overflow-x-auto pb-2 snap-x scrollbar-hide md:hidden">
+	<div class="flex gap-2 overflow-x-auto pb-2 snap-x scrollbar-hide">
 		{#each filteredGroups as g}
 			<a
 				href={`?group=${g.id}`}
@@ -242,31 +274,40 @@ onMount(() => {
 	</div>
 {/if}
 
-<!-- Settings Panel (Standalone) -->
-<div class="card flex flex-col mb-10">
-	{#if selectedGroupId}
-		{#key selectedGroupId}
-			{@const group = availableGroups.find((g) => g.id === selectedGroupId)}
-			{#if group}
-				<div class="h-full overflow-y-auto p-6">
-					<!-- Use generic component for all groups -->
-					{#if group.id === 'gdpr'}
-						<GDPRSettings {group} />
-					{:else}
-						<GenericSettingsGroup {group} {groupsNeedingConfig} onUnsavedChanges={(val) => (hasUnsavedChanges = val)} />
-					{/if}
-				</div>
-			{:else}
-				<div class="flex h-full items-center justify-center p-6 text-center">
-					<p class="text-surface-500">Selected group not found.</p>
-				</div>
-			{/if}
-		{/key}
-	{:else}
-		<div class="flex h-full items-center justify-center p-6 text-center">
-			<p class="text-surface-500">Select a group to configure.</p>
-		</div>
-	{/if}
+<!-- Settings Layout -->
+<div class="mb-10">
+	<!-- Settings Panel Column -->
+	<div class="card flex flex-col bg-surface-50-950 border border-surface-200/50 dark:border-surface-700/50">
+		{#if selectedGroupId}
+			{#key selectedGroupId}
+				{@const group = availableGroups.find((g) => g.id === selectedGroupId)}
+				{#if group}
+					<div class="h-full overflow-y-auto p-6">
+						<!-- Use generic component for all groups -->
+						{#if group.id === 'gdpr'}
+							<GDPRSettings {group} />
+						{:else}
+							<GenericSettingsGroup
+								{group}
+								{groupsNeedingConfig}
+								bind:saveTrigger
+								bind:saving
+								onUnsavedChanges={(val) => (hasUnsavedChanges = val)}
+							/>
+						{/if}
+					</div>
+				{:else}
+					<div class="flex h-full items-center justify-center p-6 text-center">
+						<p class="text-surface-500">Selected group not found.</p>
+					</div>
+				{/if}
+			{/key}
+		{:else}
+			<div class="flex h-full items-center justify-center p-6 text-center">
+				<p class="text-surface-500">Select a group to configure.</p>
+			</div>
+		{/if}
+	</div>
 </div>
 
 <!-- System Status -->

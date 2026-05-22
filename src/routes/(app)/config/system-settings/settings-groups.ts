@@ -717,7 +717,7 @@ export const settingsGroups: SettingGroup[] = [
         type: "text",
         category: "public",
         required: true,
-        placeholder: "My Awesome Site",
+        placeholder: "SveltyCMS",
       },
       {
         key: "TIMEZONE",
@@ -747,7 +747,7 @@ export const settingsGroups: SettingGroup[] = [
         type: "text",
         category: "public",
         required: true,
-        placeholder: "https://yoursite.com",
+        placeholder: "https://sveltycms.com",
       },
       {
         key: "EXTRACT_DATA_PATH",

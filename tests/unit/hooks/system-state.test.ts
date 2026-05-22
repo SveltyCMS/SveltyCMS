@@ -85,12 +85,7 @@ function setMockState(state: {
   // Then apply overrides
   if (state.services) {
     for (const [service, config] of Object.entries(state.services)) {
-      updateServiceHealth(
-        service as any,
-        config.status,
-        "Mocked",
-        config.error,
-      );
+      updateServiceHealth(service as any, config.status, "Mocked", config.error);
     }
   }
 

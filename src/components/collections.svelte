@@ -72,11 +72,150 @@ Provides an organized interface for navigating hierarchical content structures.
 		}[];
 	}
 
+	// Derived logged-in user ID
+	const userId = $derived(page.data.user?.id || page.data.user?._id || 'guest');
+
 	// Mutable state
 	let search = $state('');
 	let debouncedSearch = $state('');
 	let isSearching = $state(false);
 	let expandedNodes = new SvelteSet<string>();
+
+	let favorites = $state<string[]>([]);
+	let tagMap = $state<Record<string, string[]>>({});
+
+	// Filter state
+	let showOnlyFavorites = $state(false);
+	let selectedTagFilter = $state('');
+
+	// Tag modal state
+	let showTagModal = $state(false);
+	let activeCollectionIdForTagging = $state('');
+	let activeCollectionLabelForTagging = $state('');
+	let currentTagsInput = $state('');
+
+	let previousActiveElement = $state<HTMLElement | null>(null);
+
+	$effect(() => {
+		if (showTagModal) {
+			previousActiveElement = document.activeElement as HTMLElement;
+			setTimeout(() => {
+				const input = document.querySelector('input[aria-describedby="tags-help"]') as HTMLElement;
+				if (input) {
+					input.focus();
+				}
+			}, 50);
+		} else {
+			if (previousActiveElement) {
+				previousActiveElement.focus();
+				previousActiveElement = null;
+			}
+		}
+	});
+
+	function handleModalKeyDown(e: KeyboardEvent) {
+		if (e.key === 'Escape') {
+			showTagModal = false;
+			return;
+		}
+		if (e.key === 'Tab') {
+			const modalEl = document.querySelector('[role="dialog"]') as HTMLElement;
+			if (!modalEl) return;
+			const focusables = modalEl.querySelectorAll(
+				'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+			);
+			if (focusables.length === 0) return;
+			const first = focusables[0] as HTMLElement;
+			const last = focusables[focusables.length - 1] as HTMLElement;
+			if (e.shiftKey) {
+				if (document.activeElement === first) {
+					last.focus();
+					e.preventDefault();
+				}
+			} else {
+				if (document.activeElement === last) {
+					first.focus();
+					e.preventDefault();
+				}
+			}
+		}
+	}
+
+	// Load from local storage when userId changes
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			const favsKey = `sveltycms_favs_${userId}`;
+			const tagsKey = `sveltycms_tags_${userId}`;
+			
+			try {
+				const favsData = localStorage.getItem(favsKey);
+				favorites = favsData ? JSON.parse(favsData) : [];
+			} catch (e) {
+				favorites = [];
+			}
+
+			try {
+				const tagsData = localStorage.getItem(tagsKey);
+				tagMap = tagsData ? JSON.parse(tagsData) : {};
+			} catch (e) {
+				tagMap = {};
+			}
+		}
+	});
+
+	// Save to local storage when favorites changes
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			const favsKey = `sveltycms_favs_${userId}`;
+			localStorage.setItem(favsKey, JSON.stringify(favorites));
+		}
+	});
+
+	// Save to local storage when tagMap changes
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			const tagsKey = `sveltycms_tags_${userId}`;
+			localStorage.setItem(tagsKey, JSON.stringify(tagMap));
+		}
+	});
+
+	// Compute all unique tags for filter dropdown
+	const allTags = $derived.by(() => {
+		const tagsSet = new Set<string>();
+		for (const key in tagMap) {
+			if (tagMap[key]) {
+				tagMap[key].forEach(tag => tagsSet.add(tag));
+			}
+		}
+		return Array.from(tagsSet).sort();
+	});
+
+	function openTagEditor(collectionId: string, label: string) {
+		activeCollectionIdForTagging = collectionId;
+		activeCollectionLabelForTagging = label;
+		const currentTags = tagMap[collectionId] || [];
+		currentTagsInput = currentTags.join(', ');
+		showTagModal = true;
+	}
+
+	function saveTags() {
+		const parsedTags = currentTagsInput
+			.split(',')
+			.map(t => t.trim())
+			.filter(t => t.length > 0);
+		
+		if (parsedTags.length > 0) {
+			tagMap = {
+				...tagMap,
+				[activeCollectionIdForTagging]: parsedTags
+			};
+		} else {
+			const newTagMap = { ...tagMap };
+			delete newTagMap[activeCollectionIdForTagging];
+			tagMap = newTagMap;
+		}
+		showTagModal = false;
+	}
 
 	let updateDebounced = debounce.create((value: unknown) => {
 		debouncedSearch = (value as string).toLowerCase().trim();
@@ -174,12 +313,14 @@ Provides an organized interface for navigating hierarchical content structures.
 			}
 
 			const isPinned = pinnedStore.isPinned(node._id);
+			const isFav = favorites.includes(node._id);
 			const actions = isCategory ? undefined : [
 				{
 					icon: isPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
 					label: isPinned ? 'Unpin Collection' : 'Pin Collection',
 					colorClass: isPinned ? 'text-primary-500' : 'text-surface-500',
-					onClick: (_treeNode: any, _event: MouseEvent) => {
+					onClick: (_treeNode: any, event: MouseEvent) => {
+						event.stopPropagation();
 						pinnedStore.togglePin({
 							id: node._id,
 							name: label,
@@ -187,6 +328,28 @@ Provides an organized interface for navigating hierarchical content structures.
 							path: `/${currentLanguage}${node.path || `/${node._id}`}`,
 							icon: node.icon || 'bi:collection'
 						});
+					}
+				},
+				{
+					icon: isFav ? 'bi:star-fill' : 'bi:star',
+					label: isFav ? 'Remove Favorite' : 'Add Favorite',
+					colorClass: isFav ? 'text-amber-500' : 'text-surface-500',
+					onClick: (_treeNode: any, event: MouseEvent) => {
+						event.stopPropagation();
+						if (isFav) {
+							favorites = favorites.filter(id => id !== node._id);
+						} else {
+							favorites = [...favorites, node._id];
+						}
+					}
+				},
+				{
+					icon: 'bi:tag',
+					label: 'Manage Tags',
+					colorClass: 'text-surface-500 hover:text-primary-500',
+					onClick: (_treeNode: any, event: MouseEvent) => {
+						event.stopPropagation();
+						openTagEditor(node._id, label);
 					}
 				}
 			];
@@ -204,6 +367,37 @@ Provides an organized interface for navigating hierarchical content structures.
 				order: node.order ?? 0,
 				actions
 			};
+		}
+
+		function filterNode(node: ExtendedContentNode): ExtendedContentNode | null {
+			const isCategory = node.nodeType === 'category';
+			if (isCategory) {
+				if (!node.children || node.children.length === 0) {
+					return null;
+				}
+				const filteredChildren = node.children
+					.map(child => filterNode(child))
+					.filter((child): child is ExtendedContentNode => child !== null);
+				
+				if (filteredChildren.length === 0) {
+					return null;
+				}
+				return {
+					...node,
+					children: filteredChildren
+				};
+			} else {
+				if (showOnlyFavorites && !favorites.includes(node._id)) {
+					return null;
+				}
+				if (selectedTagFilter) {
+					const nodeTags = tagMap[node._id] || [];
+					if (!nodeTags.includes(selectedTagFilter)) {
+						return null;
+					}
+				}
+				return node;
+			}
 		}
 
 		function buildTree(nodes: ExtendedContentNode[]): ExtendedContentNode[] {
@@ -254,7 +448,11 @@ Provides an organized interface for navigating hierarchical content structures.
 
 		const nestedStructure = buildTree(structure as ExtendedContentNode[]);
 
-		const sorted = [...nestedStructure].sort(sortContentNodes);
+		const filteredNestedStructure = nestedStructure
+			.map(n => filterNode(n))
+			.filter((n): n is ExtendedContentNode => n !== null);
+
+		const sorted = [...filteredNestedStructure].sort(sortContentNodes);
 		return sorted.map((n) => mapToTreeNode(n));
 	});
 
@@ -344,6 +542,41 @@ Provides an organized interface for navigating hierarchical content structures.
 		</div>
 	</div>
 
+	<!-- Favorites & Tags Filter Controls -->
+	{#if isFullSidebar}
+		<div class="flex items-center gap-2 px-1">
+			<!-- Favorites Pill Toggle -->
+			<button
+				type="button"
+				onclick={() => showOnlyFavorites = !showOnlyFavorites}
+				class="btn btn-sm flex items-center gap-1.5 rounded-full border transition-all text-xs font-semibold py-1 px-3
+					{showOnlyFavorites 
+						? 'bg-amber-500/20 border-amber-500 text-amber-600 dark:text-amber-400' 
+						: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-300'}"
+				aria-label="Filter by Favorites"
+			>
+				<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14" class={showOnlyFavorites ? 'text-amber-500' : ''}></iconify-icon>
+				<span>Favorites</span>
+			</button>
+
+			<!-- Tags Filter Dropdown -->
+			{#if allTags.length > 0}
+				<div class="relative flex-1">
+					<select
+						bind:value={selectedTagFilter}
+						class="w-full rounded-full border border-surface-300 bg-surface-50 dark:border-surface-600 dark:bg-surface-800 py-1 px-3 text-xs outline-none focus:border-tertiary-500 text-surface-700 dark:text-surface-200 cursor-pointer"
+						aria-label="Filter by Tag"
+					>
+						<option value="">All Tags</option>
+						{#each allTags as tag}
+							<option value={tag}>{tag}</option>
+						{/each}
+					</select>
+				</div>
+			{/if}
+		</div>
+	{/if}
+
 	<!-- Tree -->
 	<div class="collections-list" role="tree" aria-label="Collection tree">
 		{#if !widgets.isLoaded}
@@ -360,6 +593,97 @@ Provides an organized interface for navigating hierarchical content structures.
 		{/if}
 	</div>
 </div>
+
+<!-- Premium Tag Editor Modal Dialog Overlay -->
+{#if showTagModal}
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="tag-modal-title"
+		tabindex="-1"
+		onkeydown={handleModalKeyDown}
+	>
+		<div
+			class="card w-full max-w-md p-6 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-2xl relative"
+			role="document"
+		>
+			<button
+				type="button"
+				class="btn-icon btn-icon-xs absolute top-4 right-4 rounded-full hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-500"
+				onclick={() => showTagModal = false}
+				aria-label="Close dialog"
+			>
+				<iconify-icon icon="bi:x" width="20"></iconify-icon>
+			</button>
+
+			<h3 id="tag-modal-title" class="text-lg font-bold text-surface-900 dark:text-white mb-2">
+				Manage Tags
+			</h3>
+			<p class="text-xs text-surface-500 dark:text-surface-400 mb-4">
+				Manage tags for <span class="font-bold text-primary-500">{activeCollectionLabelForTagging}</span>. Use commas to separate multiple tags.
+			</p>
+
+			<div class="space-y-4">
+				<label class="block">
+					<span class="text-sm font-semibold text-surface-700 dark:text-surface-200">Tags</span>
+					<input
+						type="text"
+						bind:value={currentTagsInput}
+						placeholder="e.g. news, features, blog"
+						class="input mt-1 w-full bg-surface-100 dark:bg-surface-800 border border-surface-300 dark:border-surface-700 rounded px-3 py-2 text-sm text-surface-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+						aria-describedby="tags-help"
+					/>
+					<span id="tags-help" class="text-[11px] text-surface-400 mt-1 block">
+						Separate multiple tags with a comma.
+					</span>
+				</label>
+
+				<!-- Current tags preview -->
+				{#if tagMap[activeCollectionIdForTagging] && tagMap[activeCollectionIdForTagging].length > 0}
+					<div class="flex flex-wrap gap-1.5 mt-2">
+						{#each tagMap[activeCollectionIdForTagging] as tag}
+							<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary-500/10 text-primary-500">
+								{tag}
+								<button
+									type="button"
+									class="hover:text-error-500 focus:outline-none"
+									onclick={() => {
+										const currentTags = tagMap[activeCollectionIdForTagging] || [];
+										const updatedTags = currentTags.filter(t => t !== tag);
+										tagMap[activeCollectionIdForTagging] = updatedTags;
+										currentTagsInput = updatedTags.join(', ');
+									}}
+									aria-label={`Remove tag ${tag}`}
+								>
+									&times;
+								</button>
+							</span>
+						{/each}
+					</div>
+				{/if}
+
+				<div class="flex justify-end gap-2 mt-6">
+					<button
+						type="button"
+						class="btn bg-surface-200 dark:bg-surface-800 hover:bg-surface-300 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-200 px-4 py-2 rounded text-sm font-semibold transition-colors"
+						onclick={() => showTagModal = false}
+					>
+						Cancel
+					</button>
+					<button
+						type="button"
+						class="btn preset-filled-primary-500 text-white px-4 py-2 rounded text-sm font-semibold transition-colors"
+						onclick={saveTags}
+					>
+						Save
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style>
 	.collections-list {

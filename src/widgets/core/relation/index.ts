@@ -175,10 +175,21 @@ const RelationWidget = createWidget<RelationProps>({
         graphql: "",
         resolver: {
           [fieldName as string]: async (parent: any, _args: any, context: any) => {
-            const { dbAdapter, cms, tenantId, user } = context;
+            const { dbAdapter, cms, tenantId, user, loaders } = context;
 
             const val = parent[fieldName as string];
             if (!val) return null;
+
+            // 🚀 PERFORMANCE: Use request-scoped batch loader if available in context
+            // This prevents N+1 queries and enforces the publicationFilter on relation lookups.
+            if (loaders?.collectionLoader) {
+              const loader = loaders.collectionLoader.get(targetCollection);
+              if (relProps.multiple && Array.isArray(val)) {
+                const results = await Promise.all(val.map((id) => loader.load(id)));
+                return results.filter(Boolean);
+              }
+              return await loader.load(val);
+            }
 
             // 🚀 PERFORMANCE: Use cms.collections.findById if available (LocalSDK)
             // This leverages the built-in batchLoader to solve the N+1 query problem.

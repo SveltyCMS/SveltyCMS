@@ -13,6 +13,7 @@ import { mediaResolvers, mediaTypeDefs } from "./resolvers/media";
 import { systemResolvers, systemTypeDefs } from "./resolvers/system";
 import { userResolvers, userTypeDefs } from "./resolvers/users";
 import { seoResolvers, seoTypeDefs } from "./resolvers/seo";
+import { createLoaders } from "./loaders";
 
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
@@ -148,6 +149,8 @@ export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
             dbAdapter: serverContext.dbAdapter,
             cms: serverContext.cms,
             pubSub,
+            loaders: serverContext.loaders,
+            publicationFilter: serverContext.publicationFilter || "all",
           }),
         });
 
@@ -196,6 +199,16 @@ async function handleRequest(event: RequestEvent) {
   }
   const cms = (locals as any).sharedCMS;
 
+  const url = new URL(request.url);
+  const publicationFilterParam = url.searchParams.get("publicationFilter");
+  const publicationFilterHeader = request.headers.get("x-publication-filter");
+  const publicationFilter = (publicationFilterParam || publicationFilterHeader || "all") as
+    | "published"
+    | "draft"
+    | "all";
+
+  const loaders = createLoaders(adapter, (locals.tenantId as any) || null, publicationFilter);
+
   try {
     const yogaApp = await _getYogaApp(adapter, locals.tenantId);
     const yogaResponse = await yogaApp.handleRequest(request, {
@@ -203,6 +216,8 @@ async function handleRequest(event: RequestEvent) {
       tenantId: locals.tenantId,
       dbAdapter: adapter,
       cms,
+      loaders,
+      publicationFilter,
     });
 
     return new Response(yogaResponse.body, {

@@ -42,12 +42,19 @@ interface Props {
 	group: SettingGroup;
 	groupsNeedingConfig: SvelteSet<string>;
 	onUnsavedChanges?: (hasChanges: boolean) => void;
+	saveTrigger?: { fire: () => void };
+	saving?: boolean;
 }
 
-const { group, groupsNeedingConfig, onUnsavedChanges }: Props = $props();
+let {
+	group,
+	groupsNeedingConfig,
+	onUnsavedChanges,
+	saveTrigger = $bindable(),
+	saving = $bindable(false)
+}: Props = $props();
 
 let loading = $state(false);
-let saving = $state(false);
 let error = $state<string | null>(null);
 let values = $state<Record<string, unknown>>({});
 let originalValues = $state<Record<string, unknown>>({}); // Track original values
@@ -65,6 +72,13 @@ let hasUnsavedChanges = $derived(
 $effect(() => {
 	if (onUnsavedChanges) {
 		onUnsavedChanges(hasUnsavedChanges);
+	}
+});
+
+// Wire up saveTrigger to expose saveSettings function to parent
+$effect(() => {
+	if (saveTrigger) {
+		saveTrigger.fire = saveSettings;
 	}
 });
 
@@ -144,7 +158,39 @@ async function loadSettings(bypassCache = false) {
 		const data = await response.json();
 
 		if (data.success) {
-			values = data.values || {};
+			const loadedValues = data.values || {};
+			const initializedValues: Record<string, unknown> = {};
+
+			// Initialize every field in this group to prevent Svelte binding mutations on load
+			for (const field of group.fields) {
+				if (loadedValues[field.key] !== undefined && loadedValues[field.key] !== null) {
+					initializedValues[field.key] = loadedValues[field.key];
+				} else {
+					if (field.type === 'boolean') {
+						initializedValues[field.key] = false;
+					} else if (
+						field.type === 'array' ||
+						field.type === 'language-multi' ||
+						field.type === 'loglevel-multi'
+					) {
+						initializedValues[field.key] = [];
+					} else if (field.type === 'number') {
+						initializedValues[field.key] = null;
+					} else {
+						initializedValues[field.key] = '';
+					}
+				}
+			}
+
+			if (group.id === 'site' && (!initializedValues.TIMEZONE || initializedValues.TIMEZONE === '')) {
+				try {
+					initializedValues.TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Berlin';
+				} catch {
+					initializedValues.TIMEZONE = 'Europe/Berlin';
+				}
+			}
+
+			values = initializedValues;
 			// Store a deep copy of original values
 			originalValues = JSON.parse(JSON.stringify(values));
 			checkForEmptyFields(); // Check if configuration is needed
@@ -536,6 +582,63 @@ function formatDuration(seconds: number): string {
 	return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
+// Detect Season Region based on timezone
+function detectSeasonRegion(timezone: string): string {
+	const tz = timezone.toLowerCase();
+	if (
+		tz.includes("amsterdam") ||
+		tz.includes("berlin") ||
+		tz.includes("paris") ||
+		tz.includes("london") ||
+		tz.includes("rome") ||
+		tz.includes("madrid") ||
+		tz.includes("vienna") ||
+		tz.includes("brussels") ||
+		tz.includes("zurich") ||
+		tz.includes("oslo") ||
+		tz.includes("stockholm") ||
+		tz.includes("helsinki") ||
+		tz.includes("copenhagen") ||
+		tz.includes("dublin") ||
+		tz.includes("lisbon") ||
+		tz.includes("athens")
+	) {
+		return "Western_Europe";
+	}
+	if (
+		tz.includes("calcutta") ||
+		tz.includes("kolkata") ||
+		tz.includes("katmandu") ||
+		tz.includes("kathmandu") ||
+		tz.includes("dhaka") ||
+		tz.includes("colombo") ||
+		tz.includes("delhi") ||
+		tz.includes("mumbai") ||
+		tz.includes("karachi") ||
+		tz.includes("chennai") ||
+		tz.includes("bengaluru")
+	) {
+		return "South_Asia";
+	}
+	if (
+		tz.includes("tokyo") ||
+		tz.includes("seoul") ||
+		tz.includes("shanghai") ||
+		tz.includes("hong_kong") ||
+		tz.includes("taipei") ||
+		tz.includes("singapore") ||
+		tz.includes("beijing") ||
+		tz.includes("bangkok") ||
+		tz.includes("jakarta") ||
+		tz.includes("manila") ||
+		tz.includes("hanoi") ||
+		tz.includes("kuala_lumpur")
+	) {
+		return "East_Asia";
+	}
+	return "Global";
+}
+
 // Handle array input (comma-separated)
 function handleArrayInput(field: SettingField, event: Event) {
 	const input = (event.target as HTMLInputElement).value;
@@ -604,7 +707,7 @@ onMount(() => {
 });
 </script>
 
-<div class="space-y-4 max-w-full pb-32">
+<div class="space-y-4 max-w-full pb-6">
 	<!-- Header -->
 	<div class="mb-6">
 		<h2 class="mb-2 text-xl font-bold md:text-2xl">
@@ -1079,11 +1182,19 @@ onMount(() => {
 										class="checkbox w-auto min-w-[20px] min-h-[20px]"
 										checked={!!values[field.key]}
 										onchange={(e) => {
-											values[field.key] = (e.target as HTMLInputElement).checked;
+											const checked = (e.target as HTMLInputElement).checked;
+											values[field.key] = checked;
 											errors[field.key] = '';
+
+											if (field.key === 'SEASONS' && checked) {
+												if (!values.SEASON_REGION) {
+													const tz = (values.TIMEZONE as string) || Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+													values.SEASON_REGION = detectSeasonRegion(tz);
+												}
+											}
 										}}
 									/>
-									<span>Enable {field.label}</span>
+									<span>{field.label}</span>
 								</label>
 								<!-- Select Input -->
 							{:else if field.type === 'select' && field.options}
@@ -1299,46 +1410,27 @@ onMount(() => {
 				</div>
 			{/if}
 
-			<!-- Actions -->
-			<div
-				class="fixed bottom-0 left-0 right-0 z-50 border-t bg-surface-50 p-4 dark:bg-surface-900 md:static md:z-auto md:mb-10 md:border-t-0 md:bg-transparent md:p-0"
-			>
-				<div class="mx-auto flex max-w-4xl flex-col justify-between gap-3 sm:flex-row overflow-visible">
-					<div class="flex flex-1 gap-3">
-						<button
-							type="button"
-							class="preset-filled-surface-500 btn w-full sm:w-auto min-w-fit px-4 sm:min-h-[48px]"
-							onclick={resetToDefaults}
-							disabled={saving}
-						>
-							<span>🔄</span>
-							<span class="hidden sm:inline">Reset to Defaults</span>
-							<span class="sm:hidden">Reset</span>
-						</button>
-
-						<button
-							type="button"
-							class="preset-filled-surface-500 btn w-full sm:w-auto min-w-fit px-4 sm:min-h-[48px]"
-							onclick={exportGroup}
-							disabled={loading}
-						>
-							<span>📤</span>
-							<span class="hidden sm:inline">Export Group</span>
-							<span class="sm:hidden">Export</span>
-						</button>
-					</div>
+			<!-- Local Group Actions -->
+			<div class="mt-8 border-t border-slate-300/30 pt-6 dark:border-slate-700/30">
+				<div class="flex flex-wrap items-center justify-start gap-3">
+					<button
+						type="button"
+						class="btn preset-tonal-error flex items-center gap-1.5"
+						onclick={resetToDefaults}
+						disabled={saving}
+					>
+						<span>🔄</span>
+						<span>Reset to Defaults</span>
+					</button>
 
 					<button
-						type="submit"
-						class="preset-filled-primary-500 btn w-full sm:w-auto min-w-fit px-6 sm:min-h-[48px]"
-						disabled={saving || !hasUnsavedChanges}
+						type="button"
+						class="btn preset-tonal-surface flex items-center gap-1.5"
+						onclick={exportGroup}
+						disabled={loading}
 					>
-						{#if saving}
-							<span>Saving...</span>
-						{:else}
-							<span>💾</span>
-							<span>{hasUnsavedChanges ? 'Save Changes' : 'Saved'}</span>
-						{/if}
+						<span>📤</span>
+						<span>Export Group JSON</span>
 					</button>
 				</div>
 			</div>

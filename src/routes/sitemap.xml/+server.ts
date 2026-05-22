@@ -34,9 +34,9 @@ export const GET: RequestHandler = async ({ locals, url }: { locals: any; url: U
     if (col.name.startsWith("system_") || col.name === "redirects") continue;
 
     const result = await cms.collections.find(col.name, {
-      status: "published",
+      publicationFilter: "published",
       tenantId,
-    } as any);
+    });
 
     if (result.success) {
       entries.push(

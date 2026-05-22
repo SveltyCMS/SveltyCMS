@@ -51,25 +51,6 @@ Sidebar navigation for System Settings
 </script>
 
 <div class="mt-2 flex flex-col h-full bg-transparent">
-    <!-- Enterprise Monitor Button -->
-    <div class="mb-4">
-        <a
-            href="/config/monitor"
-            data-sveltekit-preload-data="hover"
-            class="relative w-full cursor-pointer rounded-lg p-3 transition-all flex items-center shadow-sm border border-primary-500/20
-                {page.url.pathname === '/config/monitor' ? 'bg-primary-500 text-white' : 'bg-primary-500/10 hover:bg-primary-500/20 text-primary-600 dark:text-primary-400'}
-                {isFullSidebar ? 'justify-start gap-3' : 'justify-center'}"
-        >
-            <iconify-icon icon="mdi:shield-check-outline" width="24" class="shrink-0"></iconify-icon>
-            {#if isFullSidebar}
-                <div class="flex flex-col text-left">
-                    <span class="text-sm font-bold leading-tight">Enterprise Monitor</span>
-                    <span class="text-[10px] opacity-70 font-medium">Security & Health</span>
-                </div>
-            {/if}
-        </a>
-    </div>
-
 	<!-- Search -->
 	<div class="relative mb-2 {isFullSidebar ? 'w-full' : 'max-w-33.75'}">
 		<input
@@ -81,7 +62,7 @@ Sidebar navigation for System Settings
 				: 'h-10 py-2'}"
 			aria-label="Search settings"
 		/>
-		<div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400">
+		<div class="absolute right-0 top-0 flex h-full items-center pr-3 pointer-events-none text-surface-400">
 			<iconify-icon icon="ic:outline-search" width="20"></iconify-icon>
 		</div>
 	</div>

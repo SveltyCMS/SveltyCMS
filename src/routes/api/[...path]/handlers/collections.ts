@@ -55,6 +55,9 @@ export async function handleCollectionsRoutes(
       url.searchParams.get("sortDirection") ||
       (url.searchParams.get("order") as "asc" | "desc") ||
       "desc";
+    const publicationFilter =
+      (url.searchParams.get("publicationFilter") as "published" | "draft" | "all" | null) ||
+      undefined;
 
     // Parse filters: support both filter[field]=value and filter={"field":"value"}
     const filter: Record<string, any> = {};
@@ -84,6 +87,7 @@ export async function handleCollectionsRoutes(
         sortField,
         sortDirection: sortDirection as "desc" | "asc" | undefined,
         filter,
+        publicationFilter,
       });
 
       // Get total count for metadata if requested
@@ -107,6 +111,7 @@ export async function handleCollectionsRoutes(
         sortField,
         sortDirection: sortDirection as "desc" | "asc" | undefined,
         filter,
+        publicationFilter,
       }),
     );
   }

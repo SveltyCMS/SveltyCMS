@@ -683,11 +683,13 @@ function modalLoadPreset(): void {
 }
 
 $effect(() => {
-	setRouteContext({ isCollectionBuilder: true });
+	untrack(() => {
+		setRouteContext({ isCollectionBuilder: true });
+	});
 	return () => {
-		if (!page.url.pathname.includes("/config/collectionbuilder")) {
+		untrack(() => {
 			setRouteContext({ isCollectionBuilder: false });
-		}
+		});
 	};
 });
 </script>
