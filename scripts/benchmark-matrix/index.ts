@@ -322,7 +322,10 @@ async function main() {
       log.info("Phase 1: Production build (DX tracking)...");
       const t0 = performance.now();
       try {
-        const buildEnv = { ...process.env };
+        const buildEnv: Record<string, string | undefined> = {
+          ...process.env,
+          COMPILE_ALL_ADAPTERS: "true",
+        };
         delete buildEnv.SVELTY_BENCHMARK_SUITE;
         delete buildEnv.BENCHMARK_MODE;
         delete buildEnv.BENCHMARK;

@@ -119,6 +119,7 @@ async function runHooksAudit() {
     const audit = results[2];
 
     exportMetric("middleware.hooks.p95", full.p95Ms, "ms");
+    exportMetric("middleware.hooks.avg", full.avgMs, "ms");
 
     printTruthTable({
       title: "SVELTYCMS — MIDDLEWARE & HOOKS AUDIT",

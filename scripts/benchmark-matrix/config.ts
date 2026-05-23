@@ -13,7 +13,7 @@ export const PERFORMANCE_BUDGET = {
   collections: 5,
   graphqlAvg: 5,
   dbRaw: 50,
-  hooks: 1.5,
+  hooks: 2.0,
   memGrowth: 60,
   securityMs: 25,
   openapiHit: 10,

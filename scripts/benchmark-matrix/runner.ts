@@ -25,6 +25,7 @@ import {
   ENCRYPTION_KEY,
   ADMIN_PASSWORD,
   TEST_API_SECRET,
+  BENCHMARK_SCRIPTS,
 } from "./config";
 import type {
   BenchmarkScript,
@@ -350,8 +351,52 @@ export async function runAuditForDatabase(
     metrics["cold-start"] = serverInfo.coldStartMs;
 
     const dbDir = path.join(rootResultsDir, dbKey);
-    await fs.rm(dbDir, { recursive: true, force: true }).catch(() => {});
     await fs.mkdir(dbDir, { recursive: true });
+
+    // If not doing a full clean or full suite run, preserve other scripts' results
+    const isFullSuite = activeScripts.length === BENCHMARK_SCRIPTS.length;
+    if (isFullSuite || cfg.forceClean) {
+      const files = await fs.readdir(dbDir).catch(() => []);
+      for (const f of files) {
+        await fs.rm(path.join(dbDir, f), { recursive: true, force: true }).catch(() => {});
+      }
+    } else {
+      // Selective clean: delete only files belonging to activeScripts
+      const files = await fs.readdir(dbDir).catch(() => []);
+      for (const s of activeScripts) {
+        const slug = s.shortLabel.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
+        const tableSlug = s.shortLabel.toLowerCase().replace(/[^a-z0-9]/g, "_");
+        for (const f of files) {
+          const fLower = f.toLowerCase();
+          if (
+            fLower.startsWith(`${slug}-`) ||
+            fLower.includes(tableSlug) ||
+            fLower.startsWith(slug)
+          ) {
+            await fs.rm(path.join(dbDir, f), { recursive: true, force: true }).catch(() => {});
+          }
+        }
+      }
+    }
+
+    // Export cold-start metric to disk so scanResultsDirectory() can find it
+    await fs
+      .writeFile(
+        path.join(dbDir, "cold-start.json"),
+        JSON.stringify(
+          {
+            _type: "numeric-metric",
+            name: "cold-start",
+            value: serverInfo.coldStartMs,
+            unit: "ms",
+            timestamp: new Date().toISOString(),
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      )
+      .catch(() => {});
 
     const env = buildWorkerEnv(dbConf, workerPort, workerDbName, dbDir, buildMetrics?.durationMs);
 
