@@ -21,7 +21,6 @@ on:
 # Set minimal permissions for all jobs in this workflow
 permissions:
   contents: read
-  write: write # Needed if the documentation build generates artifacts/assets
 
 jobs:
   validate-documentation:

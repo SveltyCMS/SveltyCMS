@@ -107,7 +107,6 @@ const confirmPasswordTabIndex = 4;
 const tokenTabIndex = 5;
 
 // Form setup
-// Form setup
 const signUpForm = new Form(
 	{ username: "", email: "", password: "", confirm_password: "", token: "" },
 	signUpFormSchema,
@@ -423,26 +422,29 @@ $effect(() => {
 					<PasswordStrength password={signUpForm.data.password} confirmPassword={signUpForm.data.confirm_password} />
 
 					{#if !isInviteFlow && !pageData.demoMode}
-						<!-- Registration Token (hidden when using invite flow, always required now since first user uses /setup) -->
-						<!-- Registration Token (Optional for new users, required for invites) -->
-						<FloatingInput
-							id="tokensignUp"
-							name="token"
-							type="security"
-							tabindex={tokenTabIndex}
-							bind:value={signUpForm.data.token}
-							label="{registration_token()} (Optional)"
-							minlength={32}
-							maxlength={64}
-							icon="mdi:key-chain"
-							iconColor="white"
-							textColor="white"
-							passwordIconColor="white"
-							inputClass="text-white"
-							autocomplete="one-time-code"
-							invalid={!!signUpForm.errors.token}
-							errorMessage={signUpForm.errors.token?.[0] || ''}
-						/>
+						<!-- Registration Token (Mandatory for new users/invites, optional only in Demo Mode) -->
+						<div class="flex items-center space-x-2">
+							<FloatingInput
+								id="tokensignUp"
+								name="token"
+								type="security"
+								tabindex={tokenTabIndex}
+								required
+								bind:value={signUpForm.data.token}
+								label={registration_token()}
+								minlength={32}
+								maxlength={64}
+								icon="mdi:key-chain"
+								iconColor="white"
+								textColor="white"
+								passwordIconColor="white"
+								inputClass="text-white"
+								autocomplete="one-time-code"
+								invalid={!!signUpForm.errors.token}
+								errorMessage={signUpForm.errors.token?.[0] || ''}
+							/>
+
+						</div>
 						{#if signUpForm.data.token && inviteError}
 							<span class="text-xs text-warning-400">?? Token was pre-filled from URL and will be validated against the server</span>
 						{/if}
@@ -452,6 +454,13 @@ $effect(() => {
 						<span class="text-xs text-primary-400">? Using invitation token</span>
 					{/if}
 
+						{#if !isInviteFlow && !pageData.demoMode}
+							<!-- Password (Mandatory for new users/invites, optional only in Demo Mode) -->
+							<div class="flex items-center space-x-2">
+								<PasswordStrength password={signUpForm.data.password} confirmPassword={signUpForm.data.confirm_password} />
+
+							</div>
+						{/if}
 					{#if response}
 						<span class="text-xs text-error-500">{response}</span>
 					{/if}
