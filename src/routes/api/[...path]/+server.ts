@@ -6,6 +6,7 @@
 
 import { json, type RequestEvent } from "@sveltejs/kit";
 import { dev } from "$app/environment";
+import { createHash } from "node:crypto";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
@@ -29,6 +30,7 @@ const HANDLERS: Record<string, () => Promise<any>> = {
   tokens: () => import("./handlers/tokens"),
   utility: () => import("./handlers/utility"),
   setup: () => import("./handlers/setup"),
+  version: () => import("./handlers/version"),
 };
 
 // Map domain namespaces to the correct handler module
@@ -78,8 +80,15 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   "openapi.json": { handler: "utility", fn: "handleUtilityRoutes" },
   webhooks: { handler: "system", fn: "handleWebhookRoutes" },
   "system-webhooks": { handler: "system", fn: "handleWebhookRoutes" },
-  "system-virtual-folder": { handler: "system", fn: "handleSystemVirtualFolderRoutes" },
-  systemVirtualFolder: { handler: "system", fn: "handleSystemVirtualFolderRoutes" },
+  "system-virtual-folder": {
+    handler: "system",
+    fn: "handleSystemVirtualFolderRoutes",
+  },
+  systemVirtualFolder: {
+    handler: "system",
+    fn: "handleSystemVirtualFolderRoutes",
+  },
+  version: { handler: "version", fn: "handleVersionRoutes" },
   graphql: { handler: "content", fn: "handleGraphqlRoutes" },
 };
 
@@ -127,6 +136,8 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   "system-webhooks": "config:webhooks",
   "system-virtual-folder": "system:settings",
   systemVirtualFolder: "system:settings",
+  version: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
   permission: "system:admin",
 };
 
@@ -203,6 +214,11 @@ export const _handler = async (event: RequestEvent) => {
 
   // 🚀 RESILIENCE: Derive path from URL if params are missing (common in Hook Bypasses)
   const rawPath = params.path || url.pathname.replace(/^\/api\//, "");
+
+  // 🚀 API VERSIONING: Strip /v1/ prefix for backward-compatible routing
+  const versionedPath = rawPath.replace(/^v1\//, "");
+  const segments = versionedPath.split("/").filter(Boolean);
+  const namespace = segments[0];
   const { user } = locals;
   let tenantId = (locals.tenantId as string) || null;
 
@@ -229,10 +245,6 @@ export const _handler = async (event: RequestEvent) => {
       throw new AppError("Forbidden: Cannot override tenantId", 403, "FORBIDDEN");
     }
   }
-
-  // 🚀 PERFORMANCE: Segment parsing
-  const segments = rawPath.split("/").filter(Boolean);
-  const namespace = segments[0];
 
   if (!namespace) return new Response("Not Found", { status: 404 });
 
@@ -315,7 +327,51 @@ export const _handler = async (event: RequestEvent) => {
     );
   }
 
-  return response;
+  // 🚀 ETag SUPPORT: Conditional request handling for cache-efficient GET responses
+  // Skip ETag for streaming responses (SSE) and non-200 responses
+  const contentType = response.headers.get("content-type") || "";
+  const isStreaming = contentType.includes("text/event-stream");
+
+  if (request.method === "GET" && response.status === 200 && !isStreaming && response.body) {
+    try {
+      const responseBody = await response.clone().text();
+      // 🛡️ createHash may not be available in jsdom test environments — fall back gracefully
+      const etag = `"${createHash("sha256").update(responseBody).digest("hex").substring(0, 16)}"`;
+      const ifNoneMatch = request.headers.get("if-none-match");
+
+      if (ifNoneMatch === etag || ifNoneMatch === "*") {
+        return new Response(null, {
+          status: 304,
+          headers: {
+            ETag: etag,
+            "Cache-Control": "private, must-revalidate",
+            "X-API-Version": "1",
+          },
+        });
+      }
+
+      const headers = new Headers(response.headers);
+      headers.set("ETag", etag);
+      headers.set("Cache-Control", "private, must-revalidate");
+      headers.set("X-API-Version", "1");
+      return new Response(responseBody, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    } catch {
+      // Fallback: createHash unavailable (e.g., jsdom) — return response without ETag
+    }
+  }
+
+  // Streaming or non-GET/non-200: add API version header, preserve body as-is
+  const headers = new Headers(response.headers);
+  headers.set("X-API-Version", "1");
+  return new Response(isStreaming ? response.body : response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 };
 
 export const GET = apiHandler(_handler);

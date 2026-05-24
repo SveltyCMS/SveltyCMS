@@ -283,7 +283,7 @@ From the 2026 roadmap (v0.0.6, target A+ grade), prioritize these for parity/lea
 - [x] **99.9% Self-Healing Cache (v0.0.8)**: Incremental file scanning (mtime-hashing) and smart structural reconciliation.
 - [x] **High-Performance Local API (v0.0.8)**: Zero-latency server-side CRUD bridge with full widget logic parity. **Achieved <0.05ms average latency for core operations.**
 - [x] **Enterprise Performance Auditing**: 20+ standardized benchmarks with high-fidelity ASCII telemetry. **Includes 1,000-collection stress audits.**
-- [x] **4-Layer Defense-in-Depth Security (May 2026)**: Cookie prefix hardening, setup completion gating, handler-level admin verification, media permission checks, centralized permission guards, and timing-safe test secret comparison. **849 unit tests, 51 new security tests, 0 regressions.**
+- [x] **4-Layer Defense-in-Depth Security**: Cookie prefix hardening, setup completion gating, handler-level admin verification, media permission checks, centralized permission guards, and timing-safe test secret comparison. **849 unit tests, 51 new security tests, 0 regressions.**
 - [x] **Hardened Relation Token Engine (v0.0.9)**: Resolved field property access bugs and implemented high-performance Bearer token validation with multi-tenant isolation.
 - [x] **Sub-Millisecond Content Scanner (v0.0.8)**: Implemented Persistent Mtime Tree (Dirty Bits), Batch Cache Retrieval (`getMany`), and Worker Thread Pooling.
 - [x] **Image Editor Enhancement**: Current implementation stabilized; adding cropping, filters, and focal point management.

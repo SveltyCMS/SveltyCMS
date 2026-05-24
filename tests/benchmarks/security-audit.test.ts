@@ -106,7 +106,7 @@ async function runSecurityAudit() {
     });
     results.push({ ...hashResult, shortLabel: "Hashing", layer: "Crypto" });
 
-    // 4. Defense-in-Depth Permission Overhead (May 2026)
+    // 4. Defense-in-Depth Permission Overhead
     console.log("   → Measuring Defense-in-Depth Permission Check Overhead...");
     const { hasPermissionWithRoles } =
       await import("@src/databases/auth/permissions");

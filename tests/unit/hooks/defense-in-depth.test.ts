@@ -1,6 +1,6 @@
 /**
  * @file tests/unit/hooks/defense-in-depth.test.ts
- * @description Comprehensive tests for enterprise defense-in-depth security hardening (May 2026).
+ * @description Comprehensive tests for enterprise defense-in-depth security hardening.
  *
  * Features tested:
  * - Cookie __Host- prefix enforcement (secure-only, no insecure fallback)

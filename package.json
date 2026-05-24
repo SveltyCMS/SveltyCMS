@@ -47,6 +47,9 @@
     "url": "https://github.com/SveltyCMS/SveltyCMS"
   },
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "sideEffects": [
     "*.css",
     "*.svelte"

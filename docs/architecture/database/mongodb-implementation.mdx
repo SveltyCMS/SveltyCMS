@@ -118,7 +118,7 @@ SveltyCMS MongoDB implementation is built with **enterprise-scale performance as
 
 - **Native Bulk Operations (NEW)**: Replaced iterative batching with native `bulkWrite`, yielding a ~50% improvement in high-throughput data ingestion and updates.
 
-**Phase 8: Platinum Performance & Zero-Allocation (MAY 2026)**
+**Phase 8: Platinum Performance & Zero-Allocation**
 
 - **Zero-Allocation Dates (`processDates`)**: Implemented a "dirty-bit" check to prevent object cloning when no date transformation is needed.
 - **Security Fast-Path (`bypassSafeQuery`)**: High-performance toggle for internal system lookups, bypassing redundant tenant/security checks.

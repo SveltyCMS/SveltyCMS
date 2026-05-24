@@ -2,9 +2,9 @@
 path: docs/project/competitive-comparison.mdx
 title: Competitive Comparison
 description: A technical comparison of SveltyCMS vs Payload CMS, Strapi, and Directus.
-author: SveltyCMS Team
-created: 2026-03-21
-updated: 2026-03-21
+author SveltyCMS Team
+created 2026-03-21
+updated 2026-05-24
 tags:
   - comparison
   - benchmarks
@@ -87,10 +87,10 @@ timeline
 | Feature                     | SveltyCMS                  | Payload                   | Strapi | Directus            |
 | :-------------------------- | :------------------------- | :------------------------ | :----- | :------------------ |
 | OpenAPI export              | **✅ Yes (3.1.0)\***       | ❌ No (community plugins) | ❌ No  | ❌ No (third‑party) |
-| Conditional requests (ETag) | **✅ Yes**                 | ❌ No                     | ❌ No  | ❌ No               |
+| Conditional requests (ETag) | **✅ Yes (SHA-256)**       | ❌ No                     | ❌ No  | ❌ No               |
 | Batch operations            | **✅ Yes (native)**        | ✅ Yes (via local API)    | ❌ No  | ✅ Yes (via SDK)    |
 | Atomic transactions         | **✅ Yes (via Local SDK)** | ✅ Yes (via local API)    | ❌ No  | ❌ No               |
-| API versioning              | **✅ Yes (v1/v2)**         | ❌ No (breaking changes)  | ❌ No  | ❌ No               |
+| API versioning              | **✅ Yes (X-API-Version)** | ❌ No (breaking changes)  | ❌ No  | ❌ No               |
 | Granular API key scopes     | **✅ Yes**                 | ✅ Yes                    | ✅ Yes | ✅ Yes              |
 
 > \*Verified via automated unit tests in `tests/unit/api/openapi.test.ts`.
@@ -110,7 +110,10 @@ Are we faster? Yes, significantly, but more importantly, we are a **high-frequen
 - **Ultra-Elite Content Scanning**: Using a **Persistent Dirty Bit Tree**, we can scan 1,000 collections in **0.05ms**—a feat previously thought impossible in Node.js.
 - **Enterprise-Grade Monitoring**: By implementing request-level caching for health probes, we reduced monitoring overhead to **0.45ms**, ensuring that frequent K8s/AWS health checks never "tax" your production CPU.
 - **Platinum-Tier Admin UX**: Complex 50-field forms are prepared by the server in just **0.05ms**. The Admin Dashboard feels like a native desktop app, providing instant responsiveness for content editors.
-- **AI-Native Efficiency**: CMS-side AI logic (enrichment, layout generation) adds a negligible **1.3ms tax**. 99.9% of the user's wait time is the LLM itself, ensuring a seamless "Intelligence-first" experience.
+- **AI-Native Efficiency**: CMS-side AI logic (enrichment, layout generation, field suggestions) adds a negligible **1.3ms tax**. 99.9% of the user's wait time is the LLM itself, ensuring a seamless "Intelligence-first" experience.
+- **AI Co-Pilot**: `suggestFields()` for schema-aware field type recommendations, `scoreContent()` for SEO/readability quality scoring. `@sveltycms/ai` scoped package for AI service consumption.
+- **Hybrid Package Model**: Scoped packages `@sveltycms/core`, `@sveltycms/widgets`, `@sveltycms/ai` for modular consumption while maintaining monorepo flexibility.
+- **Version Channels**: LTS/Stable/Next channel detection via `version-service.ts`. API endpoints at `/api/version/channels` and `/api/version/check`.
 
 ### 2. 5-Pillar Architecture & Zero-Runtime Overhead
 
@@ -123,7 +126,7 @@ The architectural move to the **5-Pillar Content Core** and Svelte 5 Runes provi
 
 ### 3. Native Enterprise Security
 
-SveltyCMS treats security as a core feature, not a plugin:
+SveltyCMS treats security as a core architectural feature, not a bolt-on plugin. Unlike competitors that rely on perimeter-only models (authenticate -> trust), SveltyCMS implements **defense-in-depth with zero internal trust**. Most CMS platforms (Payload, Strapi, Directus) authenticate at the gate, then assume internal trust -- SveltyCMS's 4-layer defense-in-depth re-validates permissions at every boundary and fails safely if any check fails.
 
 - **Fail-Closed API Dispatcher**: Exhaustive endpoint registration ensuring 100% security coverage by default. Unmapped routes are denied, eliminating "Shadow API" vulnerabilities.
 - **Crypto-Chained Audit Logs**: Tamper-evident logs (SHA-256) are standard, ensuring compliance with SOC 2 and GDPR. Recently enhanced with strict IP resolution in all authentication flows.
@@ -131,6 +134,9 @@ SveltyCMS treats security as a core feature, not a plugin:
 - **Compartmentalized Secrets**: Rate limiters and internal systems utilize strictly separated, fallback-secured encryption keys (e.g. `RATE_LIMIT_SECRET`), ensuring lateral security breaches are impossible if a single secret is compromised.
 - **SCIM 2.0 & SAML**: Native support for automated user provisioning and enterprise SSO.
 - **Multi-Tenancy**: Native `tenantId` isolation at the database adapter level, preventing cross-tenant data leaks. Includes strict demo capacity limits.
+- **Timing-Safe Cryptography**: All security-sensitive comparisons (test secrets, TOTP codes) use crypto.timingSafeEqual, neutralizing side-channel timing attacks.
+- **Content-Security-Policy**: Strict CSP headers on all responses — `default-src 'self'`, script/style restrictions, `object-src 'none'`. Applied globally via `BASE_HEADERS` in `security-constants.ts`.
+- **Setup Rate Limiting**: `/api/setup/*` endpoints rate-limited at 3-10 req/min to prevent brute-force attacks during initialization.
 
 ### 4. Accessibility & UI Performance
 

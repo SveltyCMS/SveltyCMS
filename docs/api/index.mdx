@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:api"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-04-12"
+updated: "2026-05-24"
 tags:
   - "api"
   - "developer"
@@ -43,6 +43,8 @@ SveltyCMS uses a high-performance **Unified Gatekeeper** (`src/routes/api/[...pa
 - **Zero-Latency Dispatching**: Internal server-to-server calls bypass HTTP overhead via the `LocalCMS` bridge.
 - **Fail-Closed Security**: Every request must pass central authorization before being dispatched.
 - **1:1 Code Alignment**: API endpoints map directly to their respective backend handler files (e.g., `/api/auth/*` maps to `auth.ts`).
+- **ETag Conditional Requests**: All GET 200 responses include SHA-256 ETag headers. Clients sending `If-None-Match` receive `304 Not Modified` with zero body when content hasn't changed.
+- **API Versioning**: All responses include `X-API-Version: 1` header. `/api/v1/` path prefix automatically routes to the current API version.
 
 ---
 
