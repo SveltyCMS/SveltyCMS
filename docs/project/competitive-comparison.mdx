@@ -99,20 +99,20 @@ SveltyCMS's relentless improvement is possible because of a built-in performance
 
 ## Performance Evolution (2024–2026)
 
-The following chart visualizes our journey from a standard SvelteKit CMS to the world's fastest "World Life Data" certified engine.
+The following chart visualizes our journey from a standard SvelteKit CMS to a sub-millisecond full-pipeline engine.
 
 ```mermaid
 timeline
     title SveltyCMS Latency Roadmap
     2024 : v0.0.1 (Baseline) : 120ms REST avg : "Standard SvelteKit"
     2025 : v0.0.5 (Turbo) : 12ms REST avg : "Hydration-Free Architecture"
-    2026 : v0.0.8 (Platinum) : 0.36ms REST avg : "5-Pillar Content Core" : "Local SDK Injection" : "World Life Data Certification"
+    2026 : v0.0.8 : 0.36ms REST avg : "5-Pillar Content Core" : "Local SDK Injection" : "Soak-Test Validated"
 ```
 
 > [!TIP]
-> **World Life Data Certified**: This means SveltyCMS is tested against high-concurrency, cross-service dependency journeys that simulate actual production chaos, not just synthetic point-tests.
+> **Soak-Test Validated**: SveltyCMS is tested against sustained high-concurrency, cross-service dependency journeys that simulate production conditions, not just synthetic point-tests. Verified via `tests/benchmarks/chaos-resilience.test.ts` and `tests/benchmarks/memory-stability.test.ts`.
 
-### API Capabilities Comparison (April 2026 Update)
+### API Capabilities Comparison (May 2026)
 
 | Feature                     | SveltyCMS                  | Payload                   | Strapi | Directus            |
 | :-------------------------- | :------------------------- | :------------------------ | :----- | :------------------ |
@@ -125,8 +125,7 @@ timeline
 
 > \*Verified via automated unit tests in `tests/unit/api/openapi.test.ts`.
 
-> [!SOURCE]
-> Data comes from documented benchmarks (verified April 2026), public competitor claims, community reports, and independent comparisons. SveltyCMS shines in Svelte-native compiled paths, zero-VDOM, and local SDK injection.
+These are implemented features, not roadmap items. Verification: `grep -r "openapi\|ETag\|batch\|atomic\|X-API-Version" src/routes/api/`.
 
 ## Technical Advantages
 
