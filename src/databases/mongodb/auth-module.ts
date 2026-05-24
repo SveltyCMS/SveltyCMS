@@ -120,6 +120,9 @@ export class MongoAuthModule extends DatabaseModule<MongoAdapterCore> implements
   getRoleById(roleId: DatabaseId, options?: BaseQueryOptions) {
     return this._auth.getRoleById(roleId, options);
   }
+  getRoleCount(filter?: Record<string, unknown>, options?: BaseQueryOptions) {
+    return this._auth.getRoleCount!(filter, options);
+  }
   getSessionTokenData(sessionId: DatabaseId) {
     return this._auth.getSessionTokenData(sessionId);
   }

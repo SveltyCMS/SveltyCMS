@@ -7,6 +7,7 @@
  * - Google OAuth client setup
  */
 
+import { createHmac } from "node:crypto";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 // System Logger
@@ -66,6 +67,33 @@ async function setCredentials(credentials: Credentials): Promise<void> {
   }
 }
 
+function signOAuthState(token: string | null | undefined): string | undefined {
+  if (!token) return undefined;
+  const secret = getPrivateSettingSync("JWT_SECRET_KEY") as string;
+  if (!secret) return encodeURIComponent(token);
+  const signature = createHmac("sha256", secret).update(token).digest("hex");
+  return encodeURIComponent(`${token}.${signature}`);
+}
+
+export function verifyOAuthState(state: string | null | undefined): string | null {
+  if (!state) return null;
+  const decoded = decodeURIComponent(state);
+  const parts = decoded.split(".");
+  if (parts.length !== 2) {
+    logger.warn("OAuth state missing HMAC signature");
+    return null;
+  }
+  const [token, signature] = parts;
+  const secret = getPrivateSettingSync("JWT_SECRET_KEY") as string;
+  if (!secret) return token;
+  const expected = createHmac("sha256", secret).update(token).digest("hex");
+  if (signature !== expected) {
+    logger.warn("OAuth state HMAC signature mismatch!");
+    return null;
+  }
+  return token;
+}
+
 async function generateGoogleAuthUrl(
   token?: string | null,
   promptType?: "consent" | "none" | "select_account",
@@ -88,7 +116,7 @@ async function generateGoogleAuthUrl(
     access_type: "online", // Changed from 'offline' to 'online' to disable PKCE
     scope: scopes.join(" "),
     redirect_uri: baseUrl,
-    state: token ? encodeURIComponent(token) : undefined,
+    state: signOAuthState(token),
     include_granted_scopes: true, // Note: Using 'online' access_type prevents PKCE parameters from being auto-added
   }; // Only add prompt if explicitly specified
 
@@ -102,4 +130,4 @@ async function generateGoogleAuthUrl(
   return authUrl;
 }
 
-export { generateGoogleAuthUrl, getOAuthRedirectUri, googleAuth, setCredentials };
+export { generateGoogleAuthUrl, getOAuthRedirectUri, googleAuth, setCredentials, signOAuthState };

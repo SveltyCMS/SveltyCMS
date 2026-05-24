@@ -27,6 +27,9 @@ export class CacheService {
   private keyCache: LRUCache<string, string>; // Memoization for generated keys
   private prefixMap: Map<string, Set<string>> = new Map(); // Buckets for O(1) pattern clearing
 
+  // Single-flight request coalescing
+  private pendingRequests = new Map<string, Promise<any>>();
+
   // 🚀 HYBRID NEGATIVE CACHE (Memory Optimized)
   private negativeBloom: BloomFilter;
   private negativeInvalidated: Set<string>; // Tiny set for immediate overrides
@@ -277,29 +280,40 @@ export class CacheService {
       return null;
     }
 
-    // 🚀 L2 PATH: If L1 miss, query Redis
-    if (this.isL2Ready()) {
-      try {
-        const start = performance.now();
-        const l2Value = await this.l2.get(fullKey);
-        if (l2Value) {
-          const parsed = typeof l2Value === "string" ? JSON.parse(l2Value) : l2Value;
-
-          this.recordLatency(performance.now() - start);
-          this.l1.set(fullKey, parsed);
-          this.stats.hits++;
-          this.stats.l2Hits++;
-          this.recordMetricSync("cache:hit:l2", 1);
-          return parsed as T;
-        }
-      } catch (err) {
-        logger.error(`L2 Cache Get Failure: ${fullKey}`, err);
-      }
+    // Single-flight: coalesce concurrent misses
+    if (this.pendingRequests.has(fullKey)) {
+      return this.pendingRequests.get(fullKey);
     }
 
-    this.stats.misses++;
-    this.recordMetricSync("cache:miss", 1);
-    return undefined;
+    const promise = (async () => {
+      // 🚀 L2 PATH: If L1 miss, query Redis
+      if (this.isL2Ready()) {
+        try {
+          const start = performance.now();
+          const l2Value = await this.l2.get(fullKey);
+          if (l2Value) {
+            const parsed = typeof l2Value === "string" ? JSON.parse(l2Value) : l2Value;
+
+            this.recordLatency(performance.now() - start);
+            this.l1.set(fullKey, parsed);
+            this.stats.hits++;
+            this.stats.l2Hits++;
+            this.recordMetricSync("cache:hit:l2", 1);
+            return parsed as T;
+          }
+        } catch (err) {
+          logger.error(`L2 Cache Get Failure: ${fullKey}`, err);
+        }
+      }
+
+      this.stats.misses++;
+      this.recordMetricSync("cache:miss", 1);
+      return undefined;
+    })();
+
+    this.pendingRequests.set(fullKey, promise);
+    promise.finally(() => this.pendingRequests.delete(fullKey));
+    return promise;
   }
 
   /**

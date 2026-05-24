@@ -119,8 +119,8 @@ function handleCancel() {
 				aria-label={button_send()}
 				class="variant-filled btn items-center"
 			>
-				<iconify-icon icon="flat-color-icons:google" width={24}></iconify-icon>
-				<p>{oauth_signup()}</p>
+				<iconify-icon icon="flat-color-icons:google" width={24} aria-hidden="true"></iconify-icon>
+				<span>{oauth_signup()}</span>
 			</button>
 		</div>
 	</form>

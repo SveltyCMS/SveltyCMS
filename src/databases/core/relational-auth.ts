@@ -954,7 +954,10 @@ export class RelationalAuthModule implements IAuthAdapter {
     );
   }
 
-  async getRoleCount(options?: BaseQueryOptions): Promise<DatabaseResult<number>> {
+  async getRoleCount(
+    _filter?: Record<string, unknown>,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<number>> {
     return this.adapter.wrap(
       async () => {
         const [res] = await this.getDb()

@@ -184,13 +184,24 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       },
     };
 
+    const MAX_PROXY_DEPTH = 5;
+    let depth = 0;
+
     return new Proxy(capturedCrud, {
       get(target, prop, receiver) {
-        if (typeof prop === "string" && prop in wrappedMethods) {
-          return wrappedMethods[prop as keyof ICrudAdapter];
+        if (depth++ > MAX_PROXY_DEPTH) {
+          depth = 0;
+          throw new Error("CRUD proxy depth exceeded");
         }
-        const value = Reflect.get(target, prop, receiver);
-        return typeof value === "function" ? value.bind(target) : value;
+        try {
+          if (typeof prop === "string" && prop in wrappedMethods) {
+            return wrappedMethods[prop as keyof ICrudAdapter];
+          }
+          const value = Reflect.get(target, prop, receiver);
+          return typeof value === "function" ? value.bind(target) : value;
+        } finally {
+          depth--;
+        }
       },
     });
   };
@@ -239,21 +250,41 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       },
     };
 
+    const MAX_PROXY_DEPTH = 5;
+    let filesDepth = 0;
+
     const filesProxy = new Proxy(originalFiles, {
       get(fTarget, fProp, fReceiver) {
-        if (typeof fProp === "string" && fProp in wrappedFiles) {
-          return wrappedFiles[fProp as keyof IMediaAdapter["files"]];
+        if (filesDepth++ > MAX_PROXY_DEPTH) {
+          filesDepth = 0;
+          throw new Error("Files proxy depth exceeded");
         }
-        const fValue = Reflect.get(fTarget, fProp, fReceiver);
-        return typeof fValue === "function" ? fValue.bind(fTarget) : fValue;
+        try {
+          if (typeof fProp === "string" && fProp in wrappedFiles) {
+            return wrappedFiles[fProp as keyof IMediaAdapter["files"]];
+          }
+          const fValue = Reflect.get(fTarget, fProp, fReceiver);
+          return typeof fValue === "function" ? fValue.bind(fTarget) : fValue;
+        } finally {
+          filesDepth--;
+        }
       },
     });
 
+    let mediaDepth = 0;
     return new Proxy(capturedMedia, {
       get(target, prop, receiver) {
-        if (prop === "files") return filesProxy;
-        const value = Reflect.get(target, prop, receiver);
-        return typeof value === "function" ? value.bind(target) : value;
+        if (mediaDepth++ > MAX_PROXY_DEPTH) {
+          mediaDepth = 0;
+          throw new Error("Media proxy depth exceeded");
+        }
+        try {
+          if (prop === "files") return filesProxy;
+          const value = Reflect.get(target, prop, receiver);
+          return typeof value === "function" ? value.bind(target) : value;
+        } finally {
+          mediaDepth--;
+        }
       },
     });
   };
@@ -301,44 +332,55 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
   const crudProxy = originalCrud ? wrapCrud(originalCrud) : undefined;
   const mediaProxy = originalMedia ? wrapMedia(originalMedia) : undefined;
 
+  const MAX_PROXY_DEPTH = 5;
+  let adapterDepth = 0;
+
   return new Proxy(adapter, {
     get(target, prop, receiver) {
-      if (prop === "crud" && crudProxy) return crudProxy;
-      if (prop === "media" && mediaProxy) return mediaProxy;
-      if (prop === "__isSveltyProxy__") return true;
-      if (prop === "constructor") return target.constructor;
+      if (adapterDepth++ > MAX_PROXY_DEPTH) {
+        adapterDepth = 0;
+        throw new Error("Adapter proxy depth exceeded");
+      }
+      try {
+        if (prop === "crud" && crudProxy) return crudProxy;
+        if (prop === "media" && mediaProxy) return mediaProxy;
+        if (prop === "__isSveltyProxy__") return true;
+        if (prop === "constructor") return target.constructor;
 
-      let value = Reflect.get(target, prop, receiver);
+        let value = Reflect.get(target, prop, receiver);
 
-      // Final Resilience: If still missing but is a known critical interface, return empty object to prevent crash
-      if (!value && (prop === "collection" || prop === "batch")) {
-        // Try one last thing: check if it's on the class prototype
-        const protoValue = (target.constructor?.prototype as any)?.[prop];
-        if (protoValue) return protoValue;
-        // 🚀 Self-Healing Dummy: Returns a function that returns null/empty for any method call.
-        // This prevents "is not a function" crashes during high-concurrency bootstrap races.
-        return new Proxy(
-          {},
-          {
-            get: (_, subProp) => {
-              if (subProp === "getModel") {
-                return () => ({
-                  findOne: () => Promise.resolve(null),
-                  aggregate: () => Promise.resolve([]),
-                  find: () => ({ lean: () => ({ exec: () => Promise.resolve([]) }) }),
-                });
-              }
-              return () => Promise.resolve({ success: false, message: "Interface initializing" });
+        // Final Resilience: If still missing but is a known critical interface, return empty object to prevent crash
+        if (!value && (prop === "collection" || prop === "batch")) {
+          // Try one last thing: check if it's on the class prototype
+          const protoValue = (target.constructor?.prototype as any)?.[prop];
+          if (protoValue) return protoValue;
+          // 🚀 Self-Healing Dummy: Returns a function that returns null/empty for any method call.
+          // This prevents "is not a function" crashes during high-concurrency bootstrap races.
+          return new Proxy(
+            {},
+            {
+              get: (_, subProp) => {
+                if (subProp === "getModel") {
+                  return () => ({
+                    findOne: () => Promise.resolve(null),
+                    aggregate: () => Promise.resolve([]),
+                    find: () => ({ lean: () => ({ exec: () => Promise.resolve([]) }) }),
+                  });
+                }
+                return () => Promise.resolve({ success: false, message: "Interface initializing" });
+              },
             },
-          },
-        );
-      }
+          );
+        }
 
-      if (typeof value === "function") {
-        value = value.bind(target);
-      }
+        if (typeof value === "function") {
+          value = value.bind(target);
+        }
 
-      return value;
+        return value;
+      } finally {
+        adapterDepth--;
+      }
     },
     ownKeys(target) {
       const keys = Reflect.ownKeys(target);

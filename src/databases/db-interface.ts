@@ -234,6 +234,19 @@ export interface QueryMeta {
   recordsExamined?: number;
 }
 
+export interface ExplainPlan {
+  raw: unknown; // database specific raw output
+  executionStats?: {
+    executionTimeMillis?: number;
+    totalDocsExamined?: number;
+    totalKeysExamined?: number;
+  };
+  queryPlanner?: {
+    winningPlan?: unknown;
+    indexFilterSet?: boolean;
+  };
+}
+
 export type DatabaseResult<T> =
   | { success: true; data: T; meta?: QueryMeta }
   | { success: false; message: string; error: DatabaseError };
@@ -548,6 +561,10 @@ export interface IAuthAdapter {
     dbOptions?: BaseQueryOptions,
   ): Promise<DatabaseResult<User[]>>;
   getRoleById(roleId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<Role | null>>;
+  getRoleCount(
+    filter?: Record<string, unknown>,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<number>>;
   getSessionTokenData(
     sessionId: DatabaseId,
   ): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: DatabaseId } | null>>;
@@ -1176,6 +1193,13 @@ export interface IDBAdapter {
 
   // Performance and Capabilities
   getCapabilities(): DatabaseCapabilities;
+
+  // Debugging & Observability
+  explainQuery?(
+    collection: string,
+    query: QueryFilter<any>,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<ExplainPlan>>;
 
   // Collection Data Access
   getCollectionData(

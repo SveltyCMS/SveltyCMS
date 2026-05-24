@@ -126,9 +126,11 @@ The architectural move to the **5-Pillar Content Core** and Svelte 5 Runes provi
 SveltyCMS treats security as a core feature, not a plugin:
 
 - **Fail-Closed API Dispatcher**: Exhaustive endpoint registration ensuring 100% security coverage by default. Unmapped routes are denied, eliminating "Shadow API" vulnerabilities.
-- **Crypto-Chained Audit Logs**: Tamper-evident logs (SHA-256) are standard, ensuring compliance with SOC 2 and GDPR.
+- **Crypto-Chained Audit Logs**: Tamper-evident logs (SHA-256) are standard, ensuring compliance with SOC 2 and GDPR. Recently enhanced with strict IP resolution in all authentication flows.
+- **OAuth State Integrity (HMAC)**: Cryptographically guarantees the authenticity of OAuth states, neutralizing authorization code replay attacks.
+- **Compartmentalized Secrets**: Rate limiters and internal systems utilize strictly separated, fallback-secured encryption keys (e.g. `RATE_LIMIT_SECRET`), ensuring lateral security breaches are impossible if a single secret is compromised.
 - **SCIM 2.0 & SAML**: Native support for automated user provisioning and enterprise SSO.
-- **Multi-Tenancy**: Native `tenantId` isolation at the database adapter level, preventing cross-tenant data leaks.
+- **Multi-Tenancy**: Native `tenantId` isolation at the database adapter level, preventing cross-tenant data leaks. Includes strict demo capacity limits.
 
 ### 4. Accessibility & UI Performance
 

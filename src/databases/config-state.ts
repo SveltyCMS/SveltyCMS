@@ -429,3 +429,13 @@ export function clearPrivateConfigCache(keepPrivateEnv = false) {
   dbConfigCache = null;
   redisConfigCache = null;
 }
+
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    logger.info("🔥 HMR: Reloading private configuration");
+    clearPrivateConfigCache();
+    loadPrivateConfig(true).catch((err) => {
+      logger.error("HMR Config Reload Failed:", err);
+    });
+  });
+}

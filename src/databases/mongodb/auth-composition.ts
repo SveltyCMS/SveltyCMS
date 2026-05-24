@@ -247,6 +247,28 @@ export function composeMongoAuthAdapter(): AuthInterface {
       }
     },
 
+    getRoleCount: async (
+      filter?: Record<string, unknown>,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<number>> => {
+      try {
+        const ROLE_MODEL = getRoleModel(activeConnection);
+        const safeFilter = safeQuery(filter || {}, options?.tenantId as string, {
+          bypassTenantCheck: options?.bypassTenantCheck,
+          bypassSafeQuery: options?.bypassSafeQuery,
+        });
+
+        const count = await ROLE_MODEL.countDocuments(safeFilter);
+        return { success: true, data: count };
+      } catch (err) {
+        return {
+          success: false,
+          message: "Count roles failed",
+          error: { code: "ROLE_ERROR", message: String(err) },
+        };
+      }
+    },
+
     updateRole: async (
       roleId: DatabaseId,
       roleData: Partial<Role>,
