@@ -17,7 +17,7 @@
  */
 
 import type { Handle } from "@sveltejs/kit";
-import { isStaticOrInternalRequest } from "@utils/hook-utils";
+import { getRequestFlags } from "@utils/hook-utils";
 
 const MIN_COMPRESSION_SIZE = 1024; // 1KB
 
@@ -96,7 +96,9 @@ function compressWithZlib(
   // Convert Web ReadableStream → Node Readable → zlib Transform → Web ReadableStream
   const nodeReadable = stream!.Readable.fromWeb(body as any);
   const compressed = nodeReadable.pipe(zlibTransform);
-  return stream!.Readable.toWeb(compressed) as unknown as ReadableStream<Uint8Array>;
+  return stream!.Readable.toWeb(
+    compressed,
+  ) as unknown as ReadableStream<Uint8Array>;
 }
 
 /**
@@ -112,11 +114,10 @@ function compressWithWebStreams(
 }
 
 export const handleCompression: Handle = async ({ event, resolve }) => {
-  const pathname = event.url.pathname;
+  const flags = getRequestFlags(event.locals as any);
 
-  if (isStaticOrInternalRequest(pathname)) {
-    return resolve(event);
-  }
+  // 🚀 FAST-PATH: Skip compression for static assets and internal requests
+  if (flags.isStatic) return resolve(event);
 
   // 🧪 TERMINAL BYPASS: Verified benchmarks skip compression overhead
   if ((event.locals as any).__testBypass) return resolve(event);
@@ -144,7 +145,9 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
   }
 
   const contentType = response.headers.get("Content-Type");
-  if (!(contentType && COMPRESSIBLE_TYPES.some((t) => contentType?.includes(t)))) {
+  if (
+    !(contentType && COMPRESSIBLE_TYPES.some((t) => contentType?.includes(t)))
+  ) {
     return response;
   }
 

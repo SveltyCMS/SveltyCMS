@@ -1,6 +1,12 @@
 /**
  * @file src/utils/hook-utils.ts
  * @description High-performance utility for middleware hook short-circuiting and response generation.
+ *
+ * Features:
+ * - Pre-compiled regex patterns for path classification
+ * - One-shot request classifier to avoid redundant checks across hooks
+ * - Security header application
+ * - Standardized error/restricted response generation
  */
 
 import type { RequestEvent } from "@sveltejs/kit";
@@ -21,8 +27,10 @@ export const ASSET_REGEX = STATIC_ASSET_REGEX;
 /**
  * Pre-compiled regex for localized bootstrap and public routes.
  */
-const LOCALIZED_BOOTSTRAP_REGEX = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register)/;
-const LOCALIZED_PUBLIC_REGEX = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register|forgot-password)/;
+const LOCALIZED_BOOTSTRAP_REGEX =
+  /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register)/;
+const LOCALIZED_PUBLIC_REGEX =
+  /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register|forgot-password)/;
 
 /**
  * Common public routes that bypass authentication and authorization.
@@ -42,13 +50,98 @@ export const PUBLIC_ROUTES = [
   "/share",
 ];
 
+// ──────────────────────────────────────────────────────────────
+// ONE-SHOT REQUEST CLASSIFIER (avoids redundant checks across hooks)
+// ──────────────────────────────────────────────────────────────
+
+/**
+ * Flag interface stored on `locals.__flags` after classification.
+ * Every downstream hook reads these pre-computed booleans instead of
+ * re-running regex/prefix checks.
+ */
+export interface RequestFlags {
+  /** True if the pathname matches static assets or internal Vite/SvelteKit routes */
+  isStatic: boolean;
+  /** True if the pathname starts with /api/ */
+  isApi: boolean;
+  /** True if the pathname is a bootstrap route (setup, login, system APIs, assets) */
+  isBootstrap: boolean;
+  /** True if the pathname is a public route */
+  isPublic: boolean;
+  /** The test mode flag resolved once */
+  isTestMode: boolean;
+}
+
+/**
+ * Classifies a request pathname once and caches the result on `locals.__flags`.
+ * Called by handleTurboPipeline at the top of the pipeline. All downstream
+ * hooks read from `locals.__flags` instead of re-computing.
+ *
+ * @returns The populated flags object (also attached to locals).
+ */
+export function classifyRequest(
+  pathname: string,
+  locals: App.Locals,
+): RequestFlags {
+  // Re-use if already computed
+  const existing = (locals as any).__flags as RequestFlags | undefined;
+  if (existing) return existing;
+
+  const flags: RequestFlags = {
+    isStatic: isStaticOrInternalRequest(pathname),
+    isApi: pathname.startsWith("/api/"),
+    isBootstrap: isBootstrapRoute(pathname),
+    isPublic: false, // computed below
+    isTestMode:
+      process.env.TEST_MODE === "true" ||
+      process.env.VITE_TEST_MODE === "true" ||
+      process.env.BENCHMARK === "true",
+  };
+
+  flags.isPublic =
+    flags.isStatic ||
+    flags.isBootstrap ||
+    isPublicRoute(pathname, flags.isTestMode);
+
+  (locals as any).__flags = flags;
+  return flags;
+}
+
+/**
+ * Retrieves pre-computed request flags from locals.
+ * If classification hasn't run (e.g., unit tests bypassing Turbo Pipeline),
+ * computes and caches them on-the-fly.
+ */
+export function getRequestFlags(locals: App.Locals): RequestFlags {
+  const existing = (locals as any).__flags as RequestFlags | undefined;
+  if (existing) return existing;
+  // Fallback: compute on-demand (for unit tests or hooks that run before Turbo Pipeline)
+  // We can't compute here without the pathname, so return a safe default.
+  // Callers can still use the individual functions directly.
+  return {
+    isStatic: false,
+    isApi: false,
+    isBootstrap: false,
+    isPublic: false,
+    isTestMode:
+      process.env.TEST_MODE === "true" ||
+      process.env.VITE_TEST_MODE === "true" ||
+      process.env.BENCHMARK === "true",
+  };
+}
+
+// ──────────────────────────────────────────────────────────────
+// PATH CLASSIFICATION FUNCTIONS
+// ──────────────────────────────────────────────────────────────
+
 /**
  * Checks if a pathname is a static asset or internal system route.
  */
 export function isStaticOrInternalRequest(pathname: string): boolean {
   if (pathname.length < 2) return false;
   if (pathname.startsWith("/api/")) return false; // API routes are never static/internal bypass candidates
-  if (pathname.startsWith("/.well-known/") || pathname.startsWith("/_")) return true;
+  if (pathname.startsWith("/.well-known/") || pathname.startsWith("/_"))
+    return true;
   return STATIC_ASSET_REGEX.test(pathname);
 }
 
@@ -65,7 +158,10 @@ export function isApiLike(pathname: string): boolean {
 export function isAdmin(user: any): boolean {
   if (!user) return false;
   // Check common admin flags and roles
-  const result = user.isAdmin === true || user.role === "admin" || user.role === "super-admin";
+  const result =
+    user.isAdmin === true ||
+    user.role === "admin" ||
+    user.role === "super-admin";
   return result;
 }
 
@@ -77,7 +173,9 @@ export function getClientIp(event: RequestEvent): string {
     return event.getClientAddress();
   } catch (err: any) {
     if (process.env.BENCHMARK_DEBUG === "true") {
-      console.log(`[getClientIp] Failed to get client address: ${err.message}. Using fallback.`);
+      console.log(
+        `[getClientIp] Failed to get client address: ${err.message}. Using fallback.`,
+      );
     }
     return (
       event.request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
@@ -93,7 +191,11 @@ export function getClientIp(event: RequestEvent): string {
  */
 export function isBootstrapRoute(pathname: string): boolean {
   // 1. Setup flow (fresh install)
-  if (pathname === "/" || pathname.startsWith("/setup") || pathname.startsWith("/api/setup")) {
+  if (
+    pathname === "/" ||
+    pathname.startsWith("/setup") ||
+    pathname.startsWith("/api/setup")
+  ) {
     return true;
   }
 
@@ -127,7 +229,9 @@ export function isBootstrapRoute(pathname: string): boolean {
     pathname.startsWith("/assets") ||
     pathname.startsWith("/favicon.ico") ||
     pathname.startsWith("/.well-known") ||
-    /\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map|json|ico|pdf|txt|xml)$/i.test(pathname) // Extension check for other assets
+    /\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map|json|ico|pdf|txt|xml)$/i.test(
+      pathname,
+    ) // Extension check for other assets
   ) {
     return true;
   }
@@ -150,7 +254,8 @@ export function isPublicRoute(pathname: string, testMode = false): boolean {
 
   // Security and Auth Public Endpoints
   if (pathname === "/api/security/csp-report") return true;
-  if (pathname === "/api/auth/saml/acs" || pathname === "/api/auth/saml/login") return true;
+  if (pathname === "/api/auth/saml/acs" || pathname === "/api/auth/saml/login")
+    return true;
 
   // Public Token access (GET specific token validation)
   if (pathname.startsWith("/api/token/")) {
@@ -180,7 +285,10 @@ export function applySecurityHeaders(headers: Headers, isHttps: boolean) {
   }
 
   if (isHttps) {
-    headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload",
+    );
   }
 }
 
@@ -193,7 +301,9 @@ export function restrictedResponse(
   baseHeaders: Record<string, string>,
 ): Response {
   const message =
-    state === "INITIALIZING" ? "System is initializing." : "System error or maintenance.";
+    state === "INITIALIZING"
+      ? "System is initializing."
+      : "System error or maintenance.";
   const status = 503;
 
   if (isApi) {
@@ -222,5 +332,8 @@ export function boundaryResponse(error: any, isHttps: boolean): Response {
   const headers = new Headers({ "Content-Type": "application/json" });
   applySecurityHeaders(headers, isHttps);
 
-  return json({ error: message, code: error.code || "INTERNAL_ERROR" }, { status, headers });
+  return json(
+    { error: message, code: error.code || "INTERNAL_ERROR" },
+    { status, headers },
+  );
 }

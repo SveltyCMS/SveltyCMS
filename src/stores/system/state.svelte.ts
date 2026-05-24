@@ -8,6 +8,7 @@
  * - Performance metrics tracking and anomaly detection
  * - Self-learning state machine with adaptive calibration
  * - Setup benchmarking and performance tracking
+ * - 🚀 Hot-path caching: isSystemReady() result cached until state transitions
  */
 
 import { logger } from "@utils/logger";
@@ -24,7 +25,38 @@ import type {
 export type { ServiceName };
 
 import { initialState, initialServiceMetrics } from "./config";
-import { calibrateAnomalyThresholds, detectAnomalies, saveCurrentMetrics } from "./metrics";
+import {
+  calibrateAnomalyThresholds,
+  detectAnomalies,
+  saveCurrentMetrics,
+} from "./metrics";
+
+// 🚀 MODULE-LEVEL STATE MIRROR: overallState stored as a primitive string.
+// Eliminates getSystemState().overallState property chain on every gatekeeper check.
+// Synchronized on setSystemState() and updateService() calls.
+let _overallState: SystemState = "IDLE";
+
+/** Returns the module-level overall state — zero overhead, no object access */
+export function getOverallState(): SystemState {
+  return _overallState;
+}
+
+/** Returns readiness — single string comparison, no function calls */
+export function isSystemReady(): boolean {
+  if (
+    process.env.TEST_MODE === "true" &&
+    process.env.SKIP_GATEKEEPER === "true"
+  ) {
+    return true;
+  }
+  const s = _overallState;
+  return s === "READY" || s === "WARMED" || s === "WARMING" || s === "DEGRADED";
+}
+
+/** Synchronize module-level mirror after state changes */
+function syncOverallState(newState: SystemState) {
+  _overallState = newState;
+}
 
 // Svelte 5 Reactive Class for Enterprise Performance
 class SystemStateContainer {
@@ -54,6 +86,7 @@ class SystemStateContainer {
 
   set(val: SystemStateStore) {
     this.#state = val;
+    syncOverallState(this.#state.overallState);
     systemStateStore.set(this.#state);
   }
 
@@ -61,18 +94,33 @@ class SystemStateContainer {
   patch(partial: Partial<SystemStateStore>) {
     Object.assign(this.#state, partial);
     this.#state.overallState = deriveOverallState(this.#state.services);
+    syncOverallState(this.#state.overallState);
     systemStateStore.set(this.#state);
   }
 
-  updateService(name: keyof SystemStateStore["services"], health: Partial<ServiceStatus>) {
+  updateService(
+    name: keyof SystemStateStore["services"],
+    health: Partial<ServiceStatus>,
+  ) {
     const current = this.#state.services[name] || {
       status: "initializing",
       message: "Starting...",
       lastChecked: Date.now(),
       metrics: { ...initialServiceMetrics },
     };
-    this.#state.services[name] = { ...current, ...health, lastChecked: Date.now() };
-    this.#state.overallState = deriveOverallState(this.#state.services);
+    this.#state.services[name] = {
+      ...current,
+      ...health,
+      lastChecked: Date.now(),
+    };
+    // 🚀 OPTIMIZATION: Only recalculate overall state if a critical service changed.
+    // Non-critical service changes (widgets, themeManager, contentSystem, cache, media, search)
+    // cannot cause FAILED/INITIALIZING transitions — only database and auth can.
+    const isCritical = name === "database" || name === "auth";
+    if (isCritical || current.status !== health.status) {
+      this.#state.overallState = deriveOverallState(this.#state.services);
+      syncOverallState(this.#state.overallState);
+    }
     systemStateStore.set(this.#state);
   }
 }
@@ -80,7 +128,8 @@ class SystemStateContainer {
 export const system = new SystemStateContainer();
 
 // Keep the legacy store for compatibility with old components
-export const systemStateStore: Writable<SystemStateStore> = writable(initialState);
+export const systemStateStore: Writable<SystemStateStore> =
+  writable(initialState);
 
 /**
  * Centralized helper for transitioning a service's state and updating metrics.
@@ -110,7 +159,8 @@ function transitionServiceState(
   // Log only on transition
   if (service.status !== newStatus) {
     const isQuiet =
-      (typeof globalThis !== "undefined" && (globalThis as any).__SVELTY_QUIET__) ||
+      (typeof globalThis !== "undefined" &&
+        (globalThis as any).__SVELTY_QUIET__) ||
       (typeof process !== "undefined" &&
         (process.env.QUIET === "true" || process.env.BENCHMARK === "true"));
 
@@ -134,7 +184,8 @@ function transitionServiceState(
     // Update running statistics with EMA (Exponential Moving Average)
     const alpha = 0.2; // Fixed smoothing factor for stable long-term behavior
     if (metrics.averageInitTime) {
-      metrics.averageInitTime = alpha * duration + (1 - alpha) * metrics.averageInitTime;
+      metrics.averageInitTime =
+        alpha * duration + (1 - alpha) * metrics.averageInitTime;
       metrics.minInitTime = Math.min(metrics.minInitTime ?? duration, duration);
       metrics.maxInitTime = Math.max(metrics.maxInitTime ?? duration, duration);
     } else {
@@ -204,13 +255,18 @@ function transitionServiceState(
     state.overallState === "INITIALIZING" &&
     state.performanceMetrics.totalInitializations > 0
   ) {
-    const duration = state.initializationStartedAt ? now - state.initializationStartedAt : 0;
+    const duration = state.initializationStartedAt
+      ? now - state.initializationStartedAt
+      : 0;
     updatedState.performanceMetrics = {
       ...state.performanceMetrics,
-      successfulInitializations: state.performanceMetrics.successfulInitializations + 1,
+      successfulInitializations:
+        state.performanceMetrics.successfulInitializations + 1,
       lastInitDuration: duration,
     };
-    logger.info(`✓ System auto-transitioned to READY (initialization completed in ${duration}ms)`);
+    logger.info(
+      `✓ System auto-transitioned to READY (initialization completed in ${duration}ms)`,
+    );
   }
 
   return updatedState;
@@ -219,7 +275,9 @@ function transitionServiceState(
 /**
  * Start tracking initialization for a service
  */
-export function startServiceInitialization(serviceName: keyof SystemStateStore["services"]): void {
+export function startServiceInitialization(
+  serviceName: keyof SystemStateStore["services"],
+): void {
   const now = Date.now();
   system.update((state) => {
     const service = state.services[serviceName];
@@ -234,7 +292,8 @@ export function startServiceInitialization(serviceName: keyof SystemStateStore["
             ...service.metrics,
             initializationStartedAt: now,
             restartCount:
-              service.metrics.restartCount + (service.metrics.initializationStartedAt ? 1 : 0),
+              service.metrics.restartCount +
+              (service.metrics.initializationStartedAt ? 1 : 0),
           },
         },
       },
@@ -253,7 +312,13 @@ export function updateServiceHealth(
 ): void {
   // Use the centralized transition helper
   system.update((state) => {
-    const updatedState = transitionServiceState(state, serviceName, status, message, error);
+    const updatedState = transitionServiceState(
+      state,
+      serviceName,
+      status,
+      message,
+      error,
+    );
 
     // --- Post-transition side effects (now inside update for state consistency) ---
 
@@ -264,7 +329,8 @@ export function updateServiceHealth(
     // Calculate uptime percentage
     if (metrics.healthCheckCount > 0) {
       const healthyChecks = metrics.healthCheckCount - metrics.failureCount;
-      metrics.uptimePercentage = (healthyChecks / metrics.healthCheckCount) * 100;
+      metrics.uptimePercentage =
+        (healthyChecks / metrics.healthCheckCount) * 100;
     }
 
     // Track state transition timing if status changed
@@ -282,7 +348,10 @@ export function updateServiceHealth(
 
   // Auto-calibrate thresholds periodically (every 10 health checks)
   const currentMetrics = updatedService.metrics;
-  if (currentMetrics.healthCheckCount > 0 && currentMetrics.healthCheckCount % 10 === 0) {
+  if (
+    currentMetrics.healthCheckCount > 0 &&
+    currentMetrics.healthCheckCount % 10 === 0
+  ) {
     calibrateAnomalyThresholds(serviceName, systemStateStore);
     saveCurrentMetrics(systemStateStore);
   }
@@ -290,7 +359,9 @@ export function updateServiceHealth(
   // Detect and report anomalies (Only if system is fully ready/warmed to avoid false positives during setup)
   if (state.overallState !== "INITIALIZING" && state.overallState !== "SETUP") {
     const anomalies = detectAnomalies(serviceName, state);
-    if (anomalies.some((a) => a.severity === "critical" || a.severity === "high")) {
+    if (
+      anomalies.some((a) => a.severity === "critical" || a.severity === "high")
+    ) {
       logger.error(
         `🚨 ${anomalies.length} anomal${anomalies.length > 1 ? "ies" : "y"} detected for ${serviceName}`,
       );
@@ -315,7 +386,8 @@ export function updateServiceLatency(
     // Update average latency using EMA (Exponential Moving Average)
     const alpha = 0.1;
     if (metrics.averageLatency && metrics.averageLatency > 0) {
-      metrics.averageLatency = alpha * latency + (1 - alpha) * metrics.averageLatency;
+      metrics.averageLatency =
+        alpha * latency + (1 - alpha) * metrics.averageLatency;
     } else {
       metrics.averageLatency = latency;
     }
@@ -356,9 +428,10 @@ export function setSystemState(state: SystemState, reason?: string): void {
     };
 
     // Keep last 50 transitions for analysis
-    const stateTransitions = [...current.performanceMetrics.stateTransitions, transition].slice(
-      -50,
-    );
+    const stateTransitions = [
+      ...current.performanceMetrics.stateTransitions,
+      transition,
+    ].slice(-50);
 
     // Track initialization metrics
     const performanceMetrics = {
@@ -375,7 +448,9 @@ export function setSystemState(state: SystemState, reason?: string): void {
       current.overallState !== "READY" &&
       performanceMetrics.totalInitializations > 0
     ) {
-      const duration = current.initializationStartedAt ? now - current.initializationStartedAt : 0;
+      const duration = current.initializationStartedAt
+        ? now - current.initializationStartedAt
+        : 0;
       performanceMetrics.successfulInitializations++;
       performanceMetrics.lastInitDuration = duration;
 
@@ -383,7 +458,8 @@ export function setSystemState(state: SystemState, reason?: string): void {
       if (performanceMetrics.averageTotalInitTime) {
         const count = performanceMetrics.successfulInitializations;
         performanceMetrics.averageTotalInitTime =
-          (performanceMetrics.averageTotalInitTime * (count - 1) + duration) / count;
+          (performanceMetrics.averageTotalInitTime * (count - 1) + duration) /
+          count;
         performanceMetrics.minTotalInitTime = Math.min(
           performanceMetrics.minTotalInitTime ?? duration,
           duration,
@@ -424,15 +500,20 @@ export function setSystemState(state: SystemState, reason?: string): void {
         current.initializationStartedAt && { initializationCompletedAt: now }),
     };
   });
+  syncOverallState(state);
 }
 
 // Derive overall system state from individual service statuses
-function deriveOverallState(services: SystemStateStore["services"]): SystemState {
+function deriveOverallState(
+  services: SystemStateStore["services"],
+): SystemState {
   const criticalServices = ["database", "auth"] as const;
   const allServices = Object.keys(services) as ServiceName[];
 
   // 1. Check for MAINTENANCE mode
-  const anyMaintenance = allServices.some((service) => services[service].status === "maintenance");
+  const anyMaintenance = allServices.some(
+    (service) => services[service].status === "maintenance",
+  );
   if (anyMaintenance) {
     return "MAINTENANCE";
   }
@@ -440,7 +521,8 @@ function deriveOverallState(services: SystemStateStore["services"]): SystemState
   // 2. Check for RECOVERY mode (Autonomous healing in progress)
   const anyRecovery = criticalServices.some(
     (service) =>
-      services[service].status === "initializing" && services[service].message.includes("recovery"),
+      services[service].status === "initializing" &&
+      services[service].message.includes("recovery"),
   );
   if (anyRecovery) {
     return "RECOVERY";
@@ -473,14 +555,18 @@ function deriveOverallState(services: SystemStateStore["services"]): SystemState
   // 5. Check if all services are healthy (WARMED)
   // Ignore 'skipped' services for this check unless ALL non-critical are skipped (which is handled by SETUP above)
   const allHealthy = allServices.every(
-    (service) => services[service]?.status === "healthy" || services[service]?.status === "skipped",
+    (service) =>
+      services[service]?.status === "healthy" ||
+      services[service]?.status === "skipped",
   );
   if (allHealthy) {
     return "WARMED";
   }
 
   // 6. Check if some services are unhealthy (DEGRADED)
-  const anyUnhealthy = allServices.some((service) => services[service].status === "unhealthy");
+  const anyUnhealthy = allServices.some(
+    (service) => services[service].status === "unhealthy",
+  );
   if (anyUnhealthy) {
     return "DEGRADED";
   }
@@ -501,19 +587,7 @@ export function getSystemState(): SystemStateStore {
   return system.state;
 }
 
-// Check if the system is ready (synchronous)
-export function isSystemReady(): boolean {
-  if (process.env.TEST_MODE === "true" && process.env.SKIP_GATEKEEPER === "true") {
-    return true;
-  }
-  const state = getSystemState();
-  return (
-    state.overallState === "READY" ||
-    state.overallState === "WARMED" ||
-    state.overallState === "WARMING" ||
-    state.overallState === "DEGRADED"
-  );
-}
+// isSystemReady() is defined at module level (see top of file) for zero-overhead access
 
 // Check if a specific service is healthy (synchronous)
 export function isServiceHealthy(serviceName: ServiceName): boolean {
@@ -531,7 +605,10 @@ export function resetSystemState(): void {
 }
 
 // Get a readable store for the system state (for Svelte components)
-export const systemState: Readable<SystemStateStore> = derived(systemStateStore, (state) => state);
+export const systemState: Readable<SystemStateStore> = derived(
+  systemStateStore,
+  (state) => state,
+);
 
 // Get a readable store for just the overall state (for simple checks)
 export const overallState: Readable<SystemState> = derived(
@@ -553,7 +630,10 @@ export const isReady: Readable<boolean> = derived(
 /**
  * A derived store that returns true if the system is currently initializing.
  */
-export const isInitializing: Readable<boolean> = derived(overallState, (s) => s === "INITIALIZING");
+export const isInitializing: Readable<boolean> = derived(
+  overallState,
+  (s) => s === "INITIALIZING",
+);
 
 /**
  * A derived store that returns true if the system is currently serving traffic (READY, WARMING, or WARMED).
@@ -566,17 +646,26 @@ export const isServing: Readable<boolean> = derived(
 /**
  * A derived store that returns true if the system is fully warmed up.
  */
-export const isWarmed: Readable<boolean> = derived(overallState, (s) => s === "WARMED");
+export const isWarmed: Readable<boolean> = derived(
+  overallState,
+  (s) => s === "WARMED",
+);
 
 /**
  * A derived store that returns true if the system has failed.
  */
-export const isFailed: Readable<boolean> = derived(overallState, (s) => s === "FAILED");
+export const isFailed: Readable<boolean> = derived(
+  overallState,
+  (s) => s === "FAILED",
+);
 
 /**
  * A derived store that returns true if the system is in a degraded state.
  */
-export const isDegraded: Readable<boolean> = derived(overallState, (s) => s === "DEGRADED");
+export const isDegraded: Readable<boolean> = derived(
+  overallState,
+  (s) => s === "DEGRADED",
+);
 
 /**
  * A derived store containing the status of all individual services.
@@ -590,9 +679,18 @@ export const servicesStatus: Readable<SystemStateStore["services"]> = derived(
  * Individual derived stores for each service's status.
  * This allows components to subscribe to only the service they care about.
  */
-export const databaseStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.database);
-export const authStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.auth);
-export const cacheStatus: Readable<ServiceStatus> = derived(servicesStatus, (s) => s.cache);
+export const databaseStatus: Readable<ServiceStatus> = derived(
+  servicesStatus,
+  (s) => s.database,
+);
+export const authStatus: Readable<ServiceStatus> = derived(
+  servicesStatus,
+  (s) => s.auth,
+);
+export const cacheStatus: Readable<ServiceStatus> = derived(
+  servicesStatus,
+  (s) => s.cache,
+);
 export const contentSystemStatus: Readable<ServiceStatus> = derived(
   servicesStatus,
   (s) => s.contentSystem,

@@ -14,10 +14,25 @@ import { logger } from "@utils/logger";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 
+// 🚀 PRE-CACHED IMPORTS: Avoid lazy import overhead in hot validation path
+let cachedContentSystem:
+  | typeof import("@src/content/index.server").contentSystem
+  | null = null;
+async function getContentSystem() {
+  if (!cachedContentSystem) {
+    const mod = await import("@src/content/index.server");
+    cachedContentSystem = mod.contentSystem;
+  }
+  return cachedContentSystem;
+}
+
 // --- 404 Log Buffering (Enterprise Performance) ---
 const LOG_FLUSH_INTERVAL_MS = 10000; // Flush every 10 seconds
 const MAX_LOG_BUFFER_SIZE = 1000; // Force flush if we hit 1k unique 404s
-const logBuffer = new Map<string, { path: string; tenantId: string; hits: number }>();
+const logBuffer = new Map<
+  string,
+  { path: string; tenantId: string; hits: number }
+>();
 let flushTimer: NodeJS.Timeout | null = null;
 
 /**
@@ -50,9 +65,13 @@ function flush404Logs() {
             { tenantId: log.tenantId as any },
           );
         } else {
-          await db.crud.insert(table, { ...log, lastHit: new Date().toISOString() } as any, {
-            tenantId: log.tenantId as any,
-          });
+          await db.crud.insert(
+            table,
+            { ...log, lastHit: new Date().toISOString() } as any,
+            {
+              tenantId: log.tenantId as any,
+            },
+          );
         }
       }
     } catch (err) {
@@ -161,14 +180,32 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
         if (result.success && result.data && result.data.length > 0) {
           redirectEntry = result.data[0];
           hasRedirect = true;
-          logger.debug(
-            `[handleRedirects] Match found for ${path}: ${redirectEntry.target} (${redirectEntry.type})`,
-          );
+          // Debug-level logging; gated to avoid overhead in production
+          if (
+            typeof process !== "undefined" &&
+            process.env.NODE_ENV !== "production"
+          ) {
+            logger.debug(
+              `[handleRedirects] Match found for ${path}: ${redirectEntry.target} (${redirectEntry.type})`,
+            );
+          }
           // Store in cache for 1 hour
-          await cacheService.set(cacheKey, redirectEntry, 3600, tenantId, CacheCategory.API);
+          await cacheService.set(
+            cacheKey,
+            redirectEntry,
+            3600,
+            tenantId,
+            CacheCategory.API,
+          );
         } else {
           // Negative cache for 5 minutes to prevent DB hammering on 404s
-          await cacheService.set(cacheKey, { isNegative: true }, 300, tenantId, CacheCategory.API);
+          await cacheService.set(
+            cacheKey,
+            { isNegative: true },
+            300,
+            tenantId,
+            CacheCategory.API,
+          );
         }
       } catch (err) {
         logger.error(`[handleRedirects] Lookup error for ${path}:`, err);
@@ -245,9 +282,12 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
         const collectionPath = "/" + pathSegments.slice(1).join("/");
         if (connected && ready) {
           try {
-            const { contentSystem } = await import("@src/content/index.server");
+            const contentSystem = await getContentSystem();
             await contentSystem.initialize(tenantId);
-            const exists = contentSystem.getCollection(collectionPath, tenantId);
+            const exists = contentSystem.getCollection(
+              collectionPath,
+              tenantId,
+            );
             if (!exists) {
               return new Response("Not Found", {
                 status: 404,
@@ -282,7 +322,11 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
  * Helper to apply the redirect response
  */
 function applyRedirect(path: string, redirect: any) {
-  logger.debug(`[RedirectManager] Redirecting ${path} -> ${redirect.target} (${redirect.type})`);
+  if (typeof process !== "undefined" && process.env.NODE_ENV !== "production") {
+    logger.debug(
+      `[RedirectManager] Redirecting ${path} -> ${redirect.target} (${redirect.type})`,
+    );
+  }
   return new Response(null, {
     status: redirect.type || 301,
     headers: {

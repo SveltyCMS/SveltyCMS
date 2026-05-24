@@ -97,6 +97,19 @@ xychart-beta
 
 ## 🔬 Detailed Performance Ledger (20+ Modules)
 
+<!-- EDGE_TABLE_START -->
+### 🏷️ SVELTYCMS — EDGE SYNC PROPAGATION AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                         SVELTYCMS — EDGE SYNC PROPAGATION AUDIT                         ║
+║                        File: tests/benchmarks/edge-sync.test.ts                         ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Edge Sync Propagation          │     1022.330 ms │ p95:     1029.547 ms │ RPS:          1 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+<!-- EDGE_TABLE_END -->
+
 <!-- REALTIME_TABLE_START -->
 
 ### 🏷️ SVELTYCMS — REAL-TIME EVENT BUS AUDIT
@@ -259,7 +272,6 @@ xychart-beta
 <!-- SDK_TABLE_END -->
 
 <!-- HOOKS_TABLE_START -->
-
 ### 🏷️ SVELTYCMS — MIDDLEWARE & HOOKS AUDIT
 
 ```text
@@ -267,16 +279,14 @@ xychart-beta
 ║                          SVELTYCMS — MIDDLEWARE & HOOKS AUDIT                           ║
 ║                    File: tests/benchmarks/hooks-performance.test.ts                     ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Turbo Pipeline (Light)         │        1.399 ms │ p95:        2.246 ms │ RPS:        700 ║
-║ Full Security + Auth Pipeline  │        1.424 ms │ p95:        2.435 ms │ RPS:        686 ║
-║ Mutation + Audit Logging       │        1.196 ms │ p95:        1.431 ms │ RPS:        781 ║
+║ Turbo Pipeline (Light)         │        1.067 ms │ p95:        2.111 ms │ RPS:        891 ║
+║ Full Security + Auth Pipeline  │        0.950 ms │ p95:        1.625 ms │ RPS:      1,044 ║
+║ Mutation + Audit Logging       │        0.831 ms │ p95:        1.072 ms │ RPS:      1,098 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
-
 <!-- HOOKS_TABLE_END -->
 
 <!-- DB_TABLE_START -->
-
 ### 🏷️ SVELTYCMS — DATABASE ADAPTER PERFORMANCE (SQLITE)
 
 ```text
@@ -284,17 +294,16 @@ xychart-beta
 ║                    SVELTYCMS — DATABASE ADAPTER PERFORMANCE (SQLITE)                    ║
 ║                   File: tests/benchmarks/database-performance.test.ts                   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ INSERT                         │        0.107 ms │ p95:        0.143 ms │ RPS:      4,016 ║
-║ FIND ONE                       │        0.076 ms │ p95:        0.102 ms │ RPS:     12,194 ║
-║ FIND MANY (limit 50)           │        0.105 ms │ p95:        0.133 ms │ RPS:      8,433 ║
-║ UPDATE                         │        0.101 ms │ p95:        0.131 ms │ RPS:      8,481 ║
-║ NATIVE UPSERT                  │        0.066 ms │ p95:        0.081 ms │ RPS:     13,018 ║
-║ AGGREGATION                    │        0.000 ms │ p95:        0.001 ms │ RPS:  2,320,485 ║
-║ DELETE                         │        0.042 ms │ p95:        0.054 ms │ RPS:     19,625 ║
-║ BULK INSERT (100)              │        2.958 ms │ p95:        4.816 ms │ RPS:        165 ║
+║ INSERT                         │        0.104 ms │ p95:        0.130 ms │ RPS:      4,778 ║
+║ FIND ONE                       │        0.084 ms │ p95:        0.101 ms │ RPS:     10,810 ║
+║ FIND MANY (limit 50)           │        0.109 ms │ p95:        0.137 ms │ RPS:      8,712 ║
+║ UPDATE                         │        0.094 ms │ p95:        0.115 ms │ RPS:      8,993 ║
+║ NATIVE UPSERT                  │        0.067 ms │ p95:        0.082 ms │ RPS:     12,120 ║
+║ AGGREGATION                    │        0.000 ms │ p95:        0.001 ms │ RPS:  2,429,970 ║
+║ DELETE                         │        0.042 ms │ p95:        0.053 ms │ RPS:     17,976 ║
+║ BULK INSERT (100)              │        2.859 ms │ p95:        5.355 ms │ RPS:        171 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
-
 <!-- DB_TABLE_END -->
 
 <!-- CONTENT_TABLE_START -->
@@ -571,7 +580,6 @@ xychart-beta
 <!-- ACID_TABLE_END -->
 
 <!-- CACHE_TABLE_START -->
-
 ### 🏷️ SVELTYCMS — CACHE SERVICE TELEMETRY
 
 ```text
@@ -579,11 +587,10 @@ xychart-beta
 ║                           SVELTYCMS — CACHE SERVICE TELEMETRY                           ║
 ║                      File: tests/benchmarks/cache-service.test.ts                       ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cache L1 Hit                   │        0.000 ms │ p95:        0.001 ms │ RPS:  2,095,865 ║
-║ Pattern Invalidation (1k items @ 200k noise) │       44.085 ms │ p95:       55.810 ms │ RPS:         23 ║
+║ Cache L1 Hit                   │        0.000 ms │ p95:        0.001 ms │ RPS:  2,199,220 ║
+║ Pattern Invalidation (1k items @ 200k noise) │        2.854 ms │ p95:        4.654 ms │ RPS:        350 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
-
 <!-- CACHE_TABLE_END -->
 
 <!-- AI_OVERHEAD_TABLE_START -->
@@ -853,7 +860,6 @@ xychart-beta
 <!-- REVISION_STRESS_TABLE_END -->
 
 <!-- MEMORY_TABLE_START -->
-
 ### 🏷️ SVELTYCMS — MEMORY STABILITY AUDIT
 
 ```text
@@ -861,10 +867,9 @@ xychart-beta
 ║                           SVELTYCMS — MEMORY STABILITY AUDIT                            ║
 ║                     File: tests/benchmarks/memory-stability.test.ts                     ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Memory Profile                 │        0.000 ms │ p95:        0.000 ms │ RPS:     11,767 ║
+║ Memory Profile                 │        0.000 ms │ p95:        0.000 ms │ RPS:     11,008 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
-
 <!-- MEMORY_TABLE_END -->
 
 <!-- TENANCY_TABLE_START -->
