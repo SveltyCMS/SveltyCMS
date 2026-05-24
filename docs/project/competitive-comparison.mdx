@@ -70,8 +70,8 @@ Yes. **SveltyCMS operates in a different performance league.** Here's the eviden
 
 - **SveltyCMS's HTTP API is 5–30× faster** than Payload's typical read times (1.625ms vs 8–25ms).
 - **Local SDK bypasses HTTP entirely** — internal content operations at DB-adapter speed (<0.05ms).
-- **Sub-millisecond p95 latencies** for authenticated reads and writes — no other headless CMS publishes comparable numbers.
-- **Cache invalidation is 35× faster** (2.9ms vs 100ms+) via prefix-map O(bucket) clearing.
+- **Verified sub-millisecond p95 latencies** for authenticated reads and writes — SveltyCMS is the only CMS we know of that publishes these numbers with reproduction commands.
+- **Cache invalidation is 15× faster** (2.9ms vs 44ms) via prefix-map O(bucket) clearing.
 - **Memory stability at 11,008 sustained RPS** with negative leak slope — the system frees memory under sustained load.
 
 ## 🔬 Self-Auditing Performance Culture
@@ -135,11 +135,11 @@ timeline
 Are we faster? Yes, significantly, but more importantly, we are a **high-frequency data engine**.
 
 - **The Zero-Latency Illusion**: With REST entry retrieval at **0.06ms**, the CMS has effectively removed itself as a bottleneck. Latency is now limited by the physical speed of the network, not the application logic.
-- **High-Volume Ingestion**: SveltyCMS handles bulk I/O at **8,223 entries/second**. This allows for the migration of **1 million entries in under 2 minutes**, making legacy system syncs effortless.
+- **High-Volume Ingestion**: SveltyCMS handles bulk I/O at **8,223 entries/second** in benchmark conditions. Real-world throughput varies by schema complexity, index count, and storage hardware.
 - **Infinite History Stability**: Our revision strategy achieves **0% performance degradation** even with 100+ versions of a document. Reading the latest version is just as fast on Day 1000 as it was on Day 1.
-- **Ultra-Elite Content Scanning**: Using a **Persistent Dirty Bit Tree**, we can scan 1,000 collections in **0.05ms**—a feat previously thought impossible in Node.js.
-- **Enterprise-Grade Monitoring**: By implementing request-level caching for health probes, we reduced monitoring overhead to **0.45ms**, ensuring that frequent K8s/AWS health checks never "tax" your production CPU.
-- **Platinum-Tier Admin UX**: Complex 50-field forms are prepared by the server in just **0.05ms**. The Admin Dashboard feels like a native desktop app, providing instant responsiveness for content editors.
+- **Content Scanning**: Using a **Persistent Dirty Bit Tree**, scanning 1,000 collections takes **0.05ms** — the system tracks which collections changed rather than re-scanning everything.
+- **Enterprise-Grade Monitoring**: By implementing request-level caching for health probes, monitoring overhead is **0.45ms**, ensuring frequent health checks don't tax production CPU.
+- **Admin UX**: Complex 50-field forms are prepared by the server in **0.05ms**. The Admin Dashboard responds at native-app speed for content editors.
 - **AI-Native Efficiency**: CMS-side AI logic (enrichment, layout generation, field suggestions) adds a negligible **1.3ms tax**. 99.9% of the user's wait time is the LLM itself, ensuring a seamless "Intelligence-first" experience.
 - **AI Co-Pilot**: `suggestFields()` for schema-aware field type recommendations, `scoreContent()` for SEO/readability quality scoring. `@sveltycms/ai` scoped package for AI service consumption.
 - **Hybrid Package Model**: Scoped packages `@sveltycms/core`, `@sveltycms/widgets`, `@sveltycms/ai` for modular consumption while maintaining monorepo flexibility.
@@ -159,7 +159,7 @@ The architectural move to the **5-Pillar Content Core** and Svelte 5 Runes provi
 SveltyCMS treats security as a core architectural feature, not a bolt-on plugin. Unlike competitors that rely on perimeter-only models (authenticate -> trust), SveltyCMS implements **defense-in-depth with zero internal trust**. Most CMS platforms (Payload, Strapi, Directus) authenticate at the gate, then assume internal trust -- SveltyCMS's 4-layer defense-in-depth re-validates permissions at every boundary and fails safely if any check fails.
 
 - **Fail-Closed API Dispatcher**: Exhaustive endpoint registration ensuring 100% security coverage by default. Unmapped routes are denied, eliminating "Shadow API" vulnerabilities.
-- **Crypto-Chained Audit Logs**: Tamper-evident logs (SHA-256) are standard, ensuring compliance with SOC 2 and GDPR. Recently enhanced with strict IP resolution in all authentication flows.
+- **Crypto-Chained Audit Logs**: Tamper-evident logs (SHA-256) are standard, providing SOC 2-aligned controls and GDPR-ready audit trails. Recently enhanced with strict IP resolution in all authentication flows.
 - **OAuth State Integrity (HMAC)**: Cryptographically guarantees the authenticity of OAuth states, neutralizing authorization code replay attacks.
 - **Compartmentalized Secrets**: Rate limiters and internal systems utilize strictly separated, fallback-secured encryption keys (e.g. `RATE_LIMIT_SECRET`), ensuring lateral security breaches are impossible if a single secret is compromised.
 - **SCIM 2.0 & SAML**: Native support for automated user provisioning and enterprise SSO.
@@ -171,7 +171,7 @@ SveltyCMS treats security as a core architectural feature, not a bolt-on plugin.
 ### 4. Accessibility & UI Performance
 
 - **3-Pillar Performance Shield**: Isolated server-side widget logic protecting the API hot path from UI-driven lag.
-- **WCAG 3.0 Ready**: We prioritize accessibility as a functional requirement, adopting the latest Functional Performance patterns.
+- **WCAG 2.2 AA Compliant**: Full keyboard navigation, ARIA-live regions, screen reader support. Targeting WCAG 3.0 Functional Performance patterns as the draft standard matures.
 
 ### 5. Architectural Immunity to Common CMS Bottlenecks
 
