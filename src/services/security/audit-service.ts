@@ -214,14 +214,16 @@ export class AuditService {
   async queryLogs(options: any = {}): Promise<DatabaseResult<AuditLogEntry[]>> {
     try {
       if (!dbAdapterInstance) throw new Error("Database not initialized");
-      return await dbAdapterInstance.crud.findMany<AuditLogEntry>(
-        this.collectionName,
-        options.filters || {},
-        {
-          limit: options.limit || 100,
-          offset: options.offset || 0,
-        },
-      );
+      // Enforce tenant filtering on audit queries
+      const filters = { ...options.filters };
+      if (options.tenantId) {
+        filters.tenantId = options.tenantId;
+      }
+      return await dbAdapterInstance.crud.findMany<AuditLogEntry>(this.collectionName, filters, {
+        limit: options.limit || 100,
+        offset: options.offset || 0,
+        tenantId: options.tenantId,
+      });
     } catch (error) {
       return { success: false, message: String(error) } as any;
     }

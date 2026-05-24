@@ -217,11 +217,6 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
  * 🚀 Fast-path for benchmarks.
  */
 export async function refreshCollectionsCache(tenantId?: string | null, db?: IDBAdapter) {
-  if (process.env.BENCHMARK === "true") {
-    process.stderr.write(
-      `[DEBUG] refreshCollectionsCache Called for tenant: ${tenantId}, db exists: ${!!db}\n`,
-    );
-  }
   markFileDirty();
   const fileSchemas = await scanCompiledCollections();
   let dbSchemas: Schema[] = [];

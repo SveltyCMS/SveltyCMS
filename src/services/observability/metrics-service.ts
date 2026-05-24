@@ -95,7 +95,16 @@ class MetricsService {
   constructor() {
     // Background pruning of stale tenants
     if (typeof setInterval !== "undefined") {
-      setInterval(() => this.pruneStaleTenants(), this.PRUNE_INTERVAL_MS);
+      this._pruneInterval = setInterval(() => this.pruneStaleTenants(), this.PRUNE_INTERVAL_MS);
+    }
+  }
+
+  private _pruneInterval: ReturnType<typeof setInterval> | null = null;
+
+  public destroy(): void {
+    if (this._pruneInterval) {
+      clearInterval(this._pruneInterval);
+      this._pruneInterval = null;
     }
   }
 
@@ -348,8 +357,6 @@ class MetricsService {
       ].join("\n") + "\n"
     );
   }
-
-  destroy(): void {}
 }
 
 // ── Singleton Export ─────────────────────────────────────

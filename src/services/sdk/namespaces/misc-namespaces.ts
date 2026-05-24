@@ -315,84 +315,6 @@ export class ImporterNamespace {
 }
 
 /**
- * System Namespace
- */
-export class SystemNamespace {
-  public settings: SettingsNamespace;
-  public importer: ImporterNamespace;
-  constructor(private _dbAdapter: IDBAdapter) {
-    this.settings = new SettingsNamespace(this._dbAdapter);
-    this.importer = new ImporterNamespace(this._dbAdapter);
-  }
-  getHealth() {
-    return getHealthCheckReport();
-  }
-  async reinitialize(force: boolean = true) {
-    return reinitializeSystem(force);
-  }
-  async refresh(options: LocalApiOptions & { skipReconciliation?: boolean } = {}) {
-    const { tenantId, skipReconciliation = false } = options;
-    const { contentSystem } = await import("@src/content/index.server");
-    return contentSystem.refresh(tenantId as string, skipReconciliation);
-  }
-  async getPreferences(
-    keys: string[],
-    options: { userId?: string; scope?: "user" | "system"; tenantId?: string } = {},
-  ) {
-    const { userId, scope = "system", tenantId } = options;
-    return this._dbAdapter.system.preferences.getMany(keys, {
-      scope,
-      userId: userId as DatabaseId,
-      tenantId: tenantId as DatabaseId,
-    });
-  }
-  async setPreference(
-    key: string,
-    value: any,
-    options: { userId?: string; scope?: "user" | "system"; tenantId?: string } = {},
-  ) {
-    const { userId, scope = "system", tenantId } = options;
-    return this._dbAdapter.system.preferences.set(key, value, {
-      scope,
-      userId: userId as DatabaseId,
-      tenantId: tenantId as DatabaseId,
-    });
-  }
-  async sendMail(params: {
-    recipientEmail: string;
-    subject: string;
-    templateName: string;
-    props?: any;
-    languageTag?: string;
-  }) {
-    const { sendMail: coreSendMail } = await import("@utils/email.server");
-    return coreSendMail(params);
-  }
-}
-
-/**
- * Automation Namespace
- */
-export class AutomationNamespace extends BaseNamespace {
-  async getFlow(id: string, options: LocalApiOptions = {}) {
-    return automationService.getFlow(id, options.tenantId as string);
-  }
-  async getLogs(flowId: string, options: any = {}) {
-    return automationService.getLogs(flowId, options);
-  }
-  async executeFlow(id: string, triggerData: any = {}, options: LocalApiOptions = {}) {
-    const { tenantId } = options;
-    const flow = await this.getFlow(id, options);
-    if (!flow) throw new Error(`Flow ${id} not found`);
-    return automationService.executeFlow(flow, {
-      event: "manual_trigger",
-      tenantId: tenantId as string,
-      ...triggerData,
-    });
-  }
-}
-
-/**
  * Website Tokens Namespace
  */
 export class WebsiteTokensNamespace extends BaseNamespace {
@@ -462,6 +384,86 @@ export class WebsiteTokensNamespace extends BaseNamespace {
       },
       { collection: "websiteTokens" },
     );
+  }
+}
+
+/**
+ * System Namespace
+ */
+export class SystemNamespace {
+  public settings: SettingsNamespace;
+  public importer: ImporterNamespace;
+  public websiteTokens: WebsiteTokensNamespace;
+  constructor(private _dbAdapter: IDBAdapter) {
+    this.settings = new SettingsNamespace(this._dbAdapter);
+    this.importer = new ImporterNamespace(this._dbAdapter);
+    this.websiteTokens = new WebsiteTokensNamespace(this._dbAdapter);
+  }
+  getHealth() {
+    return getHealthCheckReport();
+  }
+  async reinitialize(force: boolean = true) {
+    return reinitializeSystem(force);
+  }
+  async refresh(options: LocalApiOptions & { skipReconciliation?: boolean } = {}) {
+    const { tenantId, skipReconciliation = false } = options;
+    const { contentSystem } = await import("@src/content/index.server");
+    return contentSystem.refresh(tenantId as string, skipReconciliation);
+  }
+  async getPreferences(
+    keys: string[],
+    options: { userId?: string; scope?: "user" | "system"; tenantId?: string } = {},
+  ) {
+    const { userId, scope = "system", tenantId } = options;
+    return this._dbAdapter.system.preferences.getMany(keys, {
+      scope,
+      userId: userId as DatabaseId,
+      tenantId: tenantId as DatabaseId,
+    });
+  }
+  async setPreference(
+    key: string,
+    value: any,
+    options: { userId?: string; scope?: "user" | "system"; tenantId?: string } = {},
+  ) {
+    const { userId, scope = "system", tenantId } = options;
+    return this._dbAdapter.system.preferences.set(key, value, {
+      scope,
+      userId: userId as DatabaseId,
+      tenantId: tenantId as DatabaseId,
+    });
+  }
+  async sendMail(params: {
+    recipientEmail: string;
+    subject: string;
+    templateName: string;
+    props?: any;
+    languageTag?: string;
+  }) {
+    const { sendMail: coreSendMail } = await import("@utils/email.server");
+    return coreSendMail(params);
+  }
+}
+
+/**
+ * Automation Namespace
+ */
+export class AutomationNamespace extends BaseNamespace {
+  async getFlow(id: string, options: LocalApiOptions = {}) {
+    return automationService.getFlow(id, options.tenantId as string);
+  }
+  async getLogs(flowId: string, options: any = {}) {
+    return automationService.getLogs(flowId, options);
+  }
+  async executeFlow(id: string, triggerData: any = {}, options: LocalApiOptions = {}) {
+    const { tenantId } = options;
+    const flow = await this.getFlow(id, options);
+    if (!flow) throw new Error(`Flow ${id} not found`);
+    return automationService.executeFlow(flow, {
+      event: "manual_trigger",
+      tenantId: tenantId as string,
+      ...triggerData,
+    });
   }
 }
 

@@ -166,7 +166,11 @@ export async function runBenchmarkScript(
     await new Promise((r) => setTimeout(r, 2000));
   }
 
-  return { passed: false, attempts: maxAttempts, elapsedMs: Math.round(performance.now() - t0) };
+  return {
+    passed: false,
+    attempts: maxAttempts,
+    elapsedMs: Math.round(performance.now() - t0),
+  };
 }
 
 async function executeWithTimeout(
@@ -180,7 +184,11 @@ async function executeWithTimeout(
     const args = cmd.split(" ").slice(1);
     const metrics: Record<string, number> = {};
     const proc = spawn("bun", args, {
-      env: { ...process.env, ...env, BENCHMARK_DEBUG: process.env.BENCHMARK_DEBUG || "false" },
+      env: {
+        ...process.env,
+        ...env,
+        BENCHMARK_DEBUG: process.env.BENCHMARK_DEBUG || "false",
+      },
       stdio: ["inherit", "pipe", "pipe"],
       shell: process.platform === "win32",
     });
@@ -301,6 +309,9 @@ export function buildWorkerEnv(
     SUPPRESS_JEST_WARNINGS: "true",
     BENCHMARK_STABLE: "true",
     BENCHMARK: "true",
+    USE_REDIS: dbConf.useRedis ? "true" : "false",
+    REDIS_HOST: "127.0.0.1",
+    REDIS_PORT: "6379",
     DX_BUILD_DURATION: buildDurationMs?.toString(),
   };
 
@@ -321,13 +332,21 @@ export async function runAuditForDatabase(
   rootResultsDir: string,
 ) {
   const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
-  const meta = (DB_METADATA as any)[dbKey] ?? { icon: "❓", label: dbKey.toUpperCase() };
+  const meta = (DB_METADATA as any)[dbKey] ?? {
+    icon: "❓",
+    label: dbKey.toUpperCase(),
+  };
 
   // Environment check
   const envCheck = validateEnvironment(dbConf.type, !!dbConf.useRedis);
   if (!envCheck.success) {
     log.error(`❌ Skipped ${dbKey}: Environment unready.`);
-    results.push({ db: dbKey, status: "FAILED", error: "Environment unready", metrics: {} });
+    results.push({
+      db: dbKey,
+      status: "FAILED",
+      error: "Environment unready",
+      metrics: {},
+    });
     return;
   }
 

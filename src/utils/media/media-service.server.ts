@@ -19,9 +19,30 @@ import type {
 } from "@src/databases/db-interface";
 import type { MediaItem } from "./media-models";
 import { getUrl } from "./cloud-storage";
+import { validateEgressUrl, safeFetch } from "@src/utils/http/egress-guard";
+
+const ALLOWED_MIME_PREFIXES = [
+  "image/",
+  "video/",
+  "audio/",
+  "application/pdf",
+  "text/plain",
+  "text/csv",
+  "application/zip",
+];
+
+function validateMime(mimeType: string, filename: string) {
+  if (!mimeType) throw new Error("Missing MIME type");
+  if (!ALLOWED_MIME_PREFIXES.some((p) => mimeType.startsWith(p))) {
+    const ext = filename.split(".").pop()?.toLowerCase();
+    if (ext && ["svg", "html", "js", "wasm"].includes(ext)) throw new Error("Blocked: ." + ext);
+    throw new Error("MIME not allowed: " + mimeType);
+  }
+}
 
 export class MediaService {
   private readonly db: IDBAdapter;
+  private static hookRegistered = false;
 
   constructor(db: IDBAdapter) {
     this.db = db;
@@ -30,7 +51,8 @@ export class MediaService {
     }
 
     // 🚀  Register automatic cleanup hook
-    if (this.db.registerHook) {
+    if (!MediaService.hookRegistered && this.db.registerHook) {
+      MediaService.hookRegistered = true;
       this.db.registerHook({
         id: "media-cleanup",
         type: "before",
@@ -44,7 +66,7 @@ export class MediaService {
             const id = query?._id;
             if (id) {
               try {
-                await this.deleteMedia(id.toString());
+                await this.deleteMedia(id.toString(), (query as any)?.tenantId);
               } catch (e) {
                 logger.error(`[Hooks] Media cleanup failed:`, e);
               }
@@ -81,6 +103,7 @@ export class MediaService {
     _skipResizing?: boolean,
   ): Promise<DatabaseResult<MediaItem>> {
     try {
+      validateMime(file.type, file.name);
       const { hashFileContent } = await import("./media-processing.server");
 
       // For large files, we use the stream to avoid OOM
@@ -208,9 +231,11 @@ export class MediaService {
     tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<MediaItem>> {
     try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`Failed to fetch remote media: ${response.statusText}`);
-      const blob = await response.blob();
+      validateEgressUrl(url, { allowHttp: process.env.NODE_ENV === "development" });
+      const resp = await safeFetch(url, { timeoutMs: 30000, maxSizeBytes: 100 * 1024 * 1024 });
+      if (!resp.success || !resp.body || (resp.status && resp.status >= 400))
+        throw new Error(`Failed to fetch remote media: ${resp.error || resp.status}`);
+      const blob = new Blob([resp.body], { type: "application/octet-stream" });
       const name = url.split("/").pop() || "remote-file";
       const file = new File([blob], name, { type: blob.type });
 

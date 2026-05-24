@@ -99,6 +99,19 @@ export class CollectionsNamespace {
     return this._proxy;
   }
 
+  private async _getModelResilient(schema: Schema): Promise<any> {
+    const collectionIdToUse = schema._id as string;
+    try {
+      return await this._dbAdapter.collection.getModel(collectionIdToUse);
+    } catch (err) {
+      if (this._dbAdapter.collection?.createModel) {
+        await this._dbAdapter.collection.createModel(schema);
+        return await this._dbAdapter.collection.getModel(collectionIdToUse);
+      }
+      throw err;
+    }
+  }
+
   public getCollectionName(schemaId: string): string {
     return `collection_${schemaId.replace(/-/g, "")}`;
   }
@@ -367,9 +380,7 @@ export class CollectionsNamespace {
           }
 
           if (items.length > 0) {
-            const collectionModel = await this._dbAdapter.collection.getModel(
-              collection._id as string,
-            );
+            const collectionModel = await this._getModelResilient(collection as Schema);
             await modifyRequest({
               data: items as any[],
               fields: collection.fields as FieldInstance[],
@@ -504,7 +515,7 @@ export class CollectionsNamespace {
       if (hasActiveWidgets) {
         let collectionModel = (schema as any)._collectionModel;
         if (!collectionModel) {
-          collectionModel = await this._dbAdapter.collection.getModel(schema._id as string);
+          collectionModel = await this._getModelResilient(schema);
           (schema as any)._collectionModel = collectionModel;
         }
         await modifyRequest({
@@ -603,7 +614,7 @@ export class CollectionsNamespace {
 
     if (!streamResult.success) throw new Error(streamResult.message);
 
-    const collectionModel = await this._dbAdapter.collection.getModel(schema._id as string);
+    const collectionModel = await this._getModelResilient(schema);
 
     return modifyStream(streamResult.data as any as AsyncIterable<EntryData>, {
       collection: collectionModel,
@@ -702,18 +713,7 @@ export class CollectionsNamespace {
     }
     const entries = data as EntryData[];
 
-    const collectionIdToUse = schema._id as string;
-    let collectionModel;
-    try {
-      collectionModel = await this._dbAdapter.collection.getModel(collectionIdToUse);
-    } catch (err) {
-      if (this._dbAdapter.collection?.createModel) {
-        await this._dbAdapter.collection.createModel(schema);
-        collectionModel = await this._dbAdapter.collection.getModel(collectionIdToUse);
-      } else {
-        throw err;
-      }
-    }
+    const collectionModel = await this._getModelResilient(schema);
 
     // 🚀 TITAN TIER: Benchmark Fast Path
     if (process.env.BENCHMARK_MODE === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true") {
@@ -939,7 +939,7 @@ export class CollectionsNamespace {
       const foundItems = (result.success && result.data ? result.data : []) as any[];
 
       if (foundItems.length > 0) {
-        const collectionModel = await this._dbAdapter.collection.getModel(schema._id as string);
+        const collectionModel = await this._getModelResilient(schema);
         await modifyRequest({
           data: foundItems,
           fields: schema.fields as FieldInstance[],
@@ -1020,7 +1020,7 @@ export class CollectionsNamespace {
       schema,
     );
 
-    const collectionModel = await this._dbAdapter.collection.getModel(schema._id as string);
+    const collectionModel = await this._getModelResilient(schema);
     await modifyRequest({
       data: [finalData],
       fields: schema.fields as FieldInstance[],
@@ -1082,7 +1082,7 @@ export class CollectionsNamespace {
       schema,
     );
 
-    const collectionModel = await this._dbAdapter.collection.getModel(schema._id as string);
+    const collectionModel = await this._getModelResilient(schema);
     await modifyRequest({
       data: [finalData],
       fields: schema.fields as FieldInstance[],

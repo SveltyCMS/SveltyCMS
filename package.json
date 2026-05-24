@@ -109,6 +109,7 @@
     "@googlemaps/js-api-loader": "^2.0.2",
     "@inlang/paraglide-js": "^2.18.1",
     "@mcp-b/webmcp-polyfill": "^2.3.2",
+    "@opentelemetry/api": "^1.9.1",
     "@skeletonlabs/skeleton": "^4.15.2",
     "@skeletonlabs/skeleton-svelte": "^4.15.2",
     "@tailwindcss/forms": "^0.5.11",

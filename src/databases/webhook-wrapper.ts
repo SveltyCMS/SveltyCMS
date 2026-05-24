@@ -11,6 +11,10 @@
 import type { WebhookEvent } from "@src/services/background/webhook-service";
 import { logger } from "@utils/logger";
 import type { ICrudAdapter, IDBAdapter, IMediaAdapter } from "./db-interface";
+import { trace, SpanStatusCode } from "@opentelemetry/api";
+import { getRequestContext } from "./request-context";
+
+const tracer = trace.getTracer("sveltycms-database");
 
 // Constants for identifying events
 const CONTENT_COLLECTION_PREFIX = "collection_";
@@ -28,6 +32,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
   const wrapCrud = (capturedCrud: ICrudAdapter): ICrudAdapter => {
     const wrappedMethods: Partial<ICrudAdapter> = {
       insert: async (...args) => {
+        const ctx = getRequestContext();
+        if (ctx?.tenantId && !args[2]) args[2] = { tenantId: ctx.tenantId };
+        else if (ctx?.tenantId && !(args[2] as any).tenantId)
+          (args[2] as any).tenantId = ctx.tenantId;
+
         const res = await capturedCrud.insert(...args);
         const collection = args[0];
         const options = args[2] as any;
@@ -44,6 +53,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         return res;
       },
       insertMany: async (...args) => {
+        const ctx = getRequestContext();
+        if (ctx?.tenantId && !args[2]) args[2] = { tenantId: ctx.tenantId };
+        else if (ctx?.tenantId && !(args[2] as any).tenantId)
+          (args[2] as any).tenantId = ctx.tenantId;
+
         const res = await capturedCrud.insertMany(...args);
         const collection = args[0];
         const options = args[2] as any;
@@ -61,6 +75,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         return res;
       },
       update: async (...args) => {
+        const ctx = getRequestContext();
+        if (ctx?.tenantId && !args[3]) args[3] = { tenantId: ctx.tenantId };
+        else if (ctx?.tenantId && !(args[3] as any).tenantId)
+          (args[3] as any).tenantId = ctx.tenantId;
+
         const res = await capturedCrud.update(...args);
         const collection = args[0];
         const id = args[1] as any;
@@ -92,6 +111,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         return res;
       },
       updateMany: async (...args) => {
+        const ctx = getRequestContext();
+        if (ctx?.tenantId && !args[3]) args[3] = { tenantId: ctx.tenantId };
+        else if (ctx?.tenantId && !(args[3] as any).tenantId)
+          (args[3] as any).tenantId = ctx.tenantId;
+
         const res = await capturedCrud.updateMany(...args);
         const collection = args[0];
         const query = args[1] as any;
@@ -122,6 +146,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         return res;
       },
       delete: async (...args) => {
+        const ctx = getRequestContext();
+        if (ctx?.tenantId && !args[2]) args[2] = { tenantId: ctx.tenantId };
+        else if (ctx?.tenantId && !(args[2] as any).tenantId)
+          (args[2] as any).tenantId = ctx.tenantId;
+
         const res = await capturedCrud.delete(...args);
         const collection = args[0];
         const id = args[1] as any;
@@ -139,6 +168,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         return res;
       },
       deleteMany: async (...args) => {
+        const ctx = getRequestContext();
+        if (ctx?.tenantId && !args[2]) args[2] = { tenantId: ctx.tenantId };
+        else if (ctx?.tenantId && !(args[2] as any).tenantId)
+          (args[2] as any).tenantId = ctx.tenantId;
+
         const res = await capturedCrud.deleteMany(...args);
         const collection = args[0];
         const query = args[1] as any;
@@ -163,6 +197,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         return res;
       },
       upsert: async (...args) => {
+        const ctx = getRequestContext();
+        if (ctx?.tenantId && !args[3]) args[3] = { tenantId: ctx.tenantId };
+        else if (ctx?.tenantId && !(args[3] as any).tenantId)
+          (args[3] as any).tenantId = ctx.tenantId;
+
         const res = await capturedCrud.upsert(...args);
         const collection = args[0];
         const query = args[1] as any;
@@ -194,11 +233,37 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
           throw new Error("CRUD proxy depth exceeded");
         }
         try {
+          let originalFunction: Function | undefined;
+
           if (typeof prop === "string" && prop in wrappedMethods) {
-            return wrappedMethods[prop as keyof ICrudAdapter];
+            originalFunction = wrappedMethods[prop as keyof ICrudAdapter] as Function;
+          } else {
+            const value = Reflect.get(target, prop, receiver);
+            if (typeof value === "function") {
+              originalFunction = value.bind(target);
+            } else {
+              return value;
+            }
           }
-          const value = Reflect.get(target, prop, receiver);
-          return typeof value === "function" ? value.bind(target) : value;
+
+          return async (...args: any[]) => {
+            const ctx = getRequestContext();
+            return tracer.startActiveSpan(`crud.${String(prop)}`, async (span) => {
+              if (ctx?.tenantId) span.setAttribute("tenant.id", ctx.tenantId);
+              if (ctx?.userId) span.setAttribute("user.id", ctx.userId);
+              try {
+                const res = await originalFunction!(...args);
+                span.setStatus({ code: SpanStatusCode.OK });
+                return res;
+              } catch (err: any) {
+                span.recordException(err);
+                span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+                throw err;
+              } finally {
+                span.end();
+              }
+            });
+          };
         } finally {
           depth--;
         }

@@ -723,14 +723,23 @@ export async function setupBenchmarkServer() {
   } = await import("../../scripts/benchmark-matrix/config");
 
   const dbType = getDbType() || "sqlite";
+  const useRedis = process.env.USE_REDIS === "true";
+  const dbKey = useRedis ? `${dbType}-redis` : dbType;
   const dbName = `bench_tmp_${process.pid}`;
   const dbConf =
-    ALL_DATABASES.find((d) => (d.useRedis ? `${d.type}-redis` : d.type) === dbType) ||
+    ALL_DATABASES.find((d) => {
+      const key = d.useRedis ? `${d.type}-redis` : d.type;
+      return key === dbKey;
+    }) ||
     ALL_DATABASES.find((d) => d.type === "sqlite") ||
     ALL_DATABASES[0];
 
   process.env.DB_TYPE = dbType;
   process.env.DB_NAME = dbName;
+  process.env.DB_HOST = dbConf.host;
+  process.env.DB_PORT = String(dbConf.port);
+  process.env.DB_USER = dbConf.user || "";
+  process.env.DB_PASSWORD = dbConf.password || "";
   const port = 4173 + Math.floor(Math.random() * 500);
   process.env.API_BASE_URL = `http://127.0.0.1:${port}`;
   process.env.JWT_SECRET_KEY = JWT_SECRET_KEY;
@@ -841,6 +850,99 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
       `\n[DEBUG] ensureStableTestData called. API_BASE_URL: ${process.env.API_BASE_URL}, SECRET: ${TEST_API_SECRET ? "OK" : "NO"}\n`,
     );
   }
+
+  // 🚀 BENCHMARK MODE: Prefer HTTP API to the running server — avoids needing
+  // DB env vars (MongoDB/PostgreSQL/MariaDB) in the benchmark child process.
+  if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
+    try {
+      const res = await fetch(`${process.env.API_BASE_URL}/api/testing`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-mode": "true",
+          "x-test-secret": TEST_API_SECRET,
+          "x-tenant-id": tenantId,
+        },
+        body: JSON.stringify({
+          action: "create-collection",
+          schema: {
+            _id: STABLE_COLLECTION,
+            name: STABLE_COLLECTION,
+            fields: [
+              {
+                db_fieldName: "_id",
+                label: "ID",
+                widget: { Name: "Input" },
+                type: "string",
+              },
+              {
+                db_fieldName: "title",
+                label: "Title",
+                widget: { Name: "Input" },
+                type: "string",
+              },
+              {
+                db_fieldName: "slug",
+                label: "Slug",
+                widget: { Name: "Input" },
+                type: "string",
+              },
+              {
+                db_fieldName: "content",
+                label: "Content",
+                widget: { Name: "RichText" },
+                type: "string",
+              },
+              {
+                db_fieldName: "count",
+                label: "Count",
+                widget: { Name: "Input" },
+                type: "number",
+              },
+              {
+                db_fieldName: "author",
+                label: "Author",
+                widget: { Name: "Relation" },
+                type: "string",
+                relation: "BenchmarkAuthors",
+              },
+              {
+                db_fieldName: "publishDate",
+                label: "Publish Date",
+                widget: { Name: "DateTime" },
+                type: "string",
+              },
+            ],
+          },
+        }),
+      });
+      if (res.ok && process.env.BENCHMARK_DEBUG === "true") {
+        process.stderr.write(`[DEBUG] Stable collection created via API\n`);
+      }
+
+      // Reset entry count via API PATCH
+      await fetch(
+        `${process.env.API_BASE_URL}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "x-test-mode": "true",
+            "x-test-secret": TEST_API_SECRET,
+            "x-tenant-id": tenantId,
+          },
+          body: JSON.stringify({ count: 0 }),
+        },
+      ).catch(() => {});
+      return;
+    } catch (err: any) {
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        process.stderr.write(`[DEBUG] API-based stable data seeding failed: ${err.message}\n`);
+      }
+    }
+  }
+
+  // 🚀 FALLBACK: Direct DB adapter (only works when DB env vars are available — e.g. SQLite)
   const { getDb, getDbInitPromise } = await import("@src/databases/db");
   if (!db) await getDbInitPromise(false, "CORE").catch(() => {});
   const activeDb = db || getDb();

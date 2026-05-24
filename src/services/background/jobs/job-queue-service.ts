@@ -9,12 +9,16 @@
 import { getDb } from "@src/databases/db";
 import type { Job, DatabaseId } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
-import { processMediaHandler } from "./media-jobs";
-import { webhookDeliveryHandler } from "./webhook-jobs";
-import { importDataHandler } from "./import-jobs";
-import { bulkTranslateHandler } from "./translation-jobs";
 import { cleanupTempStore } from "@utils/temp-store";
-import { scheduledPublishHandler } from "./scheduled-jobs";
+
+/** Lazy-loaded handler registry — avoids importing all job families at module load */
+const HANDLER_IMPORTS: Record<string, () => Promise<JobHandler>> = {
+  "process-media": () => import("./media-jobs").then((m) => m.processMediaHandler),
+  "webhook-delivery": () => import("./webhook-jobs").then((m) => m.webhookDeliveryHandler),
+  "import-data": () => import("./import-jobs").then((m) => m.importDataHandler),
+  "bulk-translate": () => import("./translation-jobs").then((m) => m.bulkTranslateHandler),
+  "publish-scheduled": () => import("./scheduled-jobs").then((m) => m.scheduledPublishHandler),
+};
 
 import os from "node:os";
 
@@ -22,6 +26,7 @@ export type JobHandler = (payload: any, job: Job) => Promise<void>;
 
 class JobQueueService {
   private handlers: Map<string, JobHandler> = new Map();
+  private handlerLoaders: Map<string, () => Promise<JobHandler>> = new Map();
   private isProcessing = false;
   private pollInterval: NodeJS.Timeout | null = null;
   private currentRunning = 0;
@@ -32,11 +37,11 @@ class JobQueueService {
 
   constructor() {
     // Register core handlers
-    this.registerHandler("process-media", processMediaHandler);
-    this.registerHandler("webhook-delivery", webhookDeliveryHandler);
-    this.registerHandler("import-data", importDataHandler);
-    this.registerHandler("bulk-translate", bulkTranslateHandler);
-    this.registerHandler("publish-scheduled", scheduledPublishHandler);
+    this.handlerLoaders.set("process-media", HANDLER_IMPORTS["process-media"]);
+    this.handlerLoaders.set("webhook-delivery", HANDLER_IMPORTS["webhook-delivery"]);
+    this.handlerLoaders.set("import-data", HANDLER_IMPORTS["import-data"]);
+    this.handlerLoaders.set("bulk-translate", HANDLER_IMPORTS["bulk-translate"]);
+    this.handlerLoaders.set("publish-scheduled", HANDLER_IMPORTS["publish-scheduled"]);
   }
 
   /**
@@ -148,7 +153,11 @@ class JobQueueService {
    * Execute a single job and update its state.
    */
   private async executeJob(job: Job, db: any) {
-    const handler = this.handlers.get(job.taskType);
+    let handler = this.handlers.get(job.taskType);
+    if (!handler && this.handlerLoaders.has(job.taskType)) {
+      handler = await this.handlerLoaders.get(job.taskType)!();
+      if (handler) this.handlers.set(job.taskType, handler);
+    }
 
     // Mark as running
     if (!job._id) {
@@ -156,10 +165,9 @@ class JobQueueService {
       return;
     }
 
-    await db.system.jobs.update(job._id, {
-      status: "running",
-      attempts: job.attempts + 1,
-    });
+    // Atomic claim: only take the job if still pending
+    const claimResult = await db.system.jobs.claimIfPending(job._id, job.attempts + 1);
+    if (!claimResult.success) return;
 
     if (!handler) {
       logger.warn(`[JobQueue] No handler found for task type: ${job.taskType}`);

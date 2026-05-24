@@ -372,7 +372,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
           .findOneAndUpdate(
             { _id: id },
             { $set: updateData },
-            { returnDocument: "after", lean: true, runValidators: true, cloneUpdate: false },
+            {
+              returnDocument: "after",
+              lean: true,
+              runValidators: true,
+              cloneUpdate: false,
+            },
           )
           .exec();
         if (!result)
@@ -456,7 +461,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
         secureQuery,
         {
           $set: (() => {
-            const { _id: _, ...d } = { ...data, updatedAt: nowISODateString() } as any;
+            const { _id: _, ...d } = {
+              ...data,
+              updatedAt: nowISODateString(),
+            } as any;
             return d;
           })(),
         },
@@ -525,7 +533,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
   async delete(
     id: DatabaseId,
-    options: BaseQueryOptions & { permanent?: boolean; userId?: DatabaseId } = {},
+    options: BaseQueryOptions & {
+      permanent?: boolean;
+      userId?: DatabaseId;
+    } = {},
   ): Promise<DatabaseResult<void>> {
     // 🛡️ HARDENING: Prevent driver-level crashes if ID is accidentally undefined/null
     if (id === undefined || id === null) {
@@ -621,7 +632,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
   async deleteMany(
     query: QueryFilter<T>,
-    options: BaseQueryOptions & { permanent?: boolean; userId?: DatabaseId } = {},
+    options: BaseQueryOptions & {
+      permanent?: boolean;
+      userId?: DatabaseId;
+    } = {},
   ): Promise<DatabaseResult<{ deletedCount: number; matchedCount: number }>> {
     try {
       const { tenantId, bypassTenantCheck, permanent, userId } = options;
@@ -642,7 +656,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
         const result = await this.model.deleteMany(secureQuery, deleteOptions);
         return {
           success: true,
-          data: { deletedCount: result.deletedCount || 0, matchedCount: result.deletedCount || 0 },
+          data: {
+            deletedCount: result.deletedCount || 0,
+            matchedCount: result.deletedCount || 0,
+          },
         };
       }
 
@@ -650,14 +667,22 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const result = await this.model.updateMany(
         secureQuery,
         {
-          $set: { isDeleted: true, deletedAt: now, deletedBy: userId, updatedAt: now },
+          $set: {
+            isDeleted: true,
+            deletedAt: now,
+            deletedBy: userId,
+            updatedAt: now,
+          },
         },
         deleteOptions,
       );
       // Fix: deleteMany soft-delete correctly returns modifiedCount as deletedCount for interface consistency
       return {
         success: true,
-        data: { deletedCount: result.modifiedCount, matchedCount: result.matchedCount },
+        data: {
+          deletedCount: result.modifiedCount,
+          matchedCount: result.matchedCount,
+        },
       };
     } catch (error) {
       return {
@@ -855,7 +880,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
         }
       }
 
-      const result = await this.model.aggregate(securePipeline).exec();
+      // 🚀 PERFORMANCE: Use allowDiskUse:false to force in-memory pipeline (faster for small datasets)
+      const result = await this.model.aggregate(securePipeline).allowDiskUse(false).exec();
       return { success: true, data: result };
     } catch (error) {
       return {
@@ -905,7 +931,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
       const res = await this.model.bulkWrite(ops as any[], bulkOptions);
       return {
         success: true,
-        data: { upsertedCount: res.upsertedCount, modifiedCount: res.modifiedCount },
+        data: {
+          upsertedCount: res.upsertedCount,
+          modifiedCount: res.modifiedCount,
+        },
       };
     } catch (error) {
       return {
@@ -994,7 +1023,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
         return {
           success: false,
           message: `Entry not found: ${String(id)}`,
-          error: { code: "RECORD_NOT_FOUND", message: `Entry not found: ${String(id)}` },
+          error: {
+            code: "RECORD_NOT_FOUND",
+            message: `Entry not found: ${String(id)}`,
+          },
         };
       }
       return {

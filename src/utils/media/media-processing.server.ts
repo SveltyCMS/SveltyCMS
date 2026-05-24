@@ -10,7 +10,7 @@ import type { CmsMediaMetadata } from "./media-models";
 import { Readable } from "node:stream";
 import { createHash } from "node:crypto";
 
-/** Hash file content (SHA-256, 20-char hex) */
+/** Hash file content (SHA-256, full 64-char hex) */
 export async function hashFileContent(buffer: ArrayBuffer | Buffer): Promise<string> {
   if (!buffer || buffer.byteLength === 0) {
     throw error(400, "Cannot hash empty buffer");
@@ -19,11 +19,11 @@ export async function hashFileContent(buffer: ArrayBuffer | Buffer): Promise<str
   try {
     const arr = (buffer instanceof Buffer ? buffer : new Uint8Array(buffer)) as any;
     const hash = await sha256(arr);
-    const short = hash.slice(0, 20);
+    const display = hash.slice(0, 12);
 
-    logger.debug("File hashed", { size: buffer.byteLength, hash: short });
+    logger.debug("File hashed", { size: buffer.byteLength, hash: display + "..." });
 
-    return short;
+    return hash;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.error("Hashing failed", { size: buffer.byteLength, error: msg });
@@ -31,14 +31,14 @@ export async function hashFileContent(buffer: ArrayBuffer | Buffer): Promise<str
   }
 }
 
-/** Hash a stream (SHA-256) without buffering */
+/** Hash a stream (SHA-256, full digest) without buffering */
 export async function hashStream(stream: ReadableStream | Readable): Promise<string> {
   const hash = createHash("sha256");
   const nodeStream = stream instanceof ReadableStream ? Readable.fromWeb(stream as any) : stream;
 
   return new Promise((resolve, reject) => {
     nodeStream.on("data", (chunk) => hash.update(chunk));
-    nodeStream.on("end", () => resolve(hash.digest("hex").slice(0, 20)));
+    nodeStream.on("end", () => resolve(hash.digest("hex")));
     nodeStream.on("error", (err) => reject(err));
   });
 }
@@ -47,7 +47,8 @@ export async function hashStream(stream: ReadableStream | Readable): Promise<str
 export async function extractMetadata(buffer: Buffer): Promise<any> {
   try {
     const sharp = (await import("sharp")).default;
-    const meta = await sharp(buffer).metadata();
+    const pipeline = sharp(buffer, { limitInputPixels: 100_000_000, failOn: "none" }).rotate();
+    const meta = await pipeline.metadata();
 
     logger.debug("Metadata extracted", {
       format: meta.format,

@@ -6,7 +6,7 @@ order: 7
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2026-02-09"
-updated: "2026-03-27"
+updated: "2026-05-24"
 tags:
   - "database"
   - "sqlite"
@@ -34,14 +34,14 @@ graph TD
 
 ### Current Status
 
-| Feature            | Status      | Notes                                       |
-| :----------------- | :---------- | :------------------------------------------ |
-| **Adapter Class**  | 🟢 Complete | Environment-aware (Bun/Node) implementation |
-| **Schema Mapping** | 🟢 Complete | SQLite-specific type mapping (INTEGER/TEXT) |
-| **Migrations**     | 🟢 Complete | Auto-creation of folders and tables         |
-| **Setup Wizard**   | 🟢 Complete | selection and connection test implemented   |
-| **Seeding**        | 🟢 Complete | Default data injection verified             |
-| **Performance**    | 🟢 Platinum | Sub-0.2ms cached reads; Atomic batching     |
+| Feature            | Status      | Notes                                           |
+| :----------------- | :---------- | :---------------------------------------------- |
+| **Adapter Class**  | 🟢 Complete | Environment-aware (Bun/Node) implementation     |
+| **Schema Mapping** | 🟢 Complete | SQLite-specific type mapping (INTEGER/TEXT)     |
+| **Migrations**     | 🟢 Complete | Auto-creation of folders and tables             |
+| **Setup Wizard**   | 🟢 Complete | selection and connection test implemented       |
+| **Seeding**        | 🟢 Complete | Default data injection verified                 |
+| **Performance**    | 🟢 Platinum | 0.000 ms L1 hit; 0.338 ms miss; Atomic batching |
 
 ---
 
@@ -51,7 +51,7 @@ SQLite delivers exceptional response times for local and edge deployments. For d
 
 Key SQLite highlights:
 
-- **Sub-millisecond latency** for cached reads (~0.2ms).
+- **Cache L1 hit at 0.000 ms**, miss at 0.338 ms. INSERT 0.107 ms, FIND ONE 0.076 ms.
 - **WAL Mode** enabled by default for concurrent read/write performance.
 - **Runtime Agnostic**: Optimized for both `bun:sqlite` and `better-sqlite3`.
 

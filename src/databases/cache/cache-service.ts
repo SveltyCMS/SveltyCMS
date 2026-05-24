@@ -30,6 +30,9 @@ export class CacheService {
   // Single-flight request coalescing
   private pendingRequests = new Map<string, Promise<any>>();
 
+  // 🚀 DISTRIBUTED CACHE STAMPEDE PROTECTION: Lock registry for inter-node coordination
+  private lockedKeys = new Map<string, Promise<boolean>>();
+
   // 🚀 HYBRID NEGATIVE CACHE (Memory Optimized)
   private negativeBloom: BloomFilter;
   private negativeInvalidated: Set<string>; // Tiny set for immediate overrides
@@ -249,6 +252,75 @@ export class CacheService {
     return this.l2 && this.l2.isOpen;
   }
 
+  /**
+   * Attempts to acquire a distributed cache miss lock using the L2 adapter (Redis).
+   * This prevents a cache stampede by serializing access to expensive fetch operations.
+   * @param key The full cache key to lock.
+   * @param ttlMs Lock time-to-live in milliseconds.
+   * @returns The owner ID if lock acquired, or null if lock is already held or L2 unavailable.
+   */
+  private async acquireLock(key: string, ttlMs: number): Promise<string | null> {
+    if (!this.isL2Ready()) return null;
+
+    const lockKey = `lock:${key}`;
+    const ownerId = globalThis.crypto
+      ? globalThis.crypto.randomUUID()
+      : Math.random().toString(36).substring(2);
+
+    try {
+      // SET lockKey ownerId NX PX ttlMs
+      const result = await this.l2.set(lockKey, ownerId, {
+        NX: true,
+        PX: ttlMs,
+      });
+      if (result !== "OK") return null;
+
+      this.lockedKeys.set(lockKey, Promise.resolve(true));
+      return ownerId;
+    } catch (err) {
+      logger.error(`[CacheService] Failed to acquire lock for ${key}`, err);
+      return null;
+    }
+  }
+
+  /**
+   * Releases a cache miss lock that was previously acquired.
+   * Safe to call even if lock wasn't acquired — simply no-ops.
+   * @param key The full cache key to unlock.
+   * @param ownerId The owner ID returned by `acquireLock`.
+   */
+  private async releaseLock(key: string, ownerId: string): Promise<void> {
+    if (!ownerId || !this.isL2Ready()) return;
+
+    const lockKey = `lock:${key}`;
+
+    try {
+      // Only delete if the current value matches our owner ID (prevents premature release)
+      const currentOwner = await this.l2.get(lockKey);
+      if (currentOwner === ownerId) {
+        await this.l2.del(lockKey);
+      }
+    } catch (err) {
+      logger.error(`[CacheService] Failed to release lock for ${key}`, err);
+    } finally {
+      this.lockedKeys.delete(lockKey);
+    }
+  }
+
+  /**
+   * Polls the L1 cache until the winning process has populated the value,
+   * or until the maximum wait time expires.
+   * @param key The full cache key to wait for.
+   * @param maxWaitMs Maximum time to wait in milliseconds.
+   */
+  private async waitForCache(key: string, maxWaitMs: number): Promise<void> {
+    const start = Date.now();
+    while (Date.now() - start < maxWaitMs) {
+      if (this.l1.has(key)) break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  }
+
   setBootstrapping(_val: boolean) {
     this.bootstrapping = _val;
     if (process.env.NODE_ENV === "development") logger.debug(`CacheService bootstrapping: ${_val}`);
@@ -286,29 +358,58 @@ export class CacheService {
     }
 
     const promise = (async () => {
-      // 🚀 L2 PATH: If L1 miss, query Redis
-      if (this.isL2Ready()) {
-        try {
-          const start = performance.now();
-          const l2Value = await this.l2.get(fullKey);
-          if (l2Value) {
-            const parsed = typeof l2Value === "string" ? JSON.parse(l2Value) : l2Value;
+      let lockOwner: string | null = null;
 
-            this.recordLatency(performance.now() - start);
-            this.l1.set(fullKey, parsed);
-            this.stats.hits++;
-            this.stats.l2Hits++;
-            this.recordMetricSync("cache:hit:l2", 1);
-            return parsed as T;
+      try {
+        // 🚀 L2 PATH: If L1 miss, query Redis
+        if (this.isL2Ready()) {
+          try {
+            const start = performance.now();
+            const l2Value = await this.l2.get(fullKey);
+            if (l2Value) {
+              const parsed = typeof l2Value === "string" ? JSON.parse(l2Value) : l2Value;
+
+              this.recordLatency(performance.now() - start);
+              this.l1.set(fullKey, parsed);
+              this.stats.hits++;
+              this.stats.l2Hits++;
+              this.recordMetricSync("cache:hit:l2", 1);
+              return parsed as T;
+            }
+          } catch (err) {
+            logger.error(`L2 Cache Get Failure: ${fullKey}`, err);
           }
-        } catch (err) {
-          logger.error(`L2 Cache Get Failure: ${fullKey}`, err);
+        }
+
+        this.stats.misses++;
+        this.recordMetricSync("cache:miss", 1);
+
+        // 🚀 DISTRIBUTED STAMPEDE PROTECTION
+        // Attempt to acquire a lock to prevent thundering herd on the same key.
+        // If lock is NOT acquired, wait briefly for the winning process to populate the cache.
+        if (this.isL2Ready()) {
+          lockOwner = await this.acquireLock(fullKey, 500); // 500ms TTL
+          if (!lockOwner) {
+            // Another request is already fetching this key. Wait for it.
+            await this.waitForCache(fullKey, 1000); // Wait up to 1s
+          }
+          // If we acquired the lock, the caller is responsible for populating the cache.
+          // The lock will be released:
+          //   a) When the caller calls set() which triggers releaseMissLock below, OR
+          //   b) Automatically after TTL expires (500ms fallback)
+        }
+
+        return undefined;
+      } finally {
+        // 🛡️ CRITICAL: If we acquired a lock but returned undefined (miss),
+        // the external caller will populate the cache via set(). We defer
+        // lock release to there. But if THIS request doesn't call set(),
+        // the lock will naturally expire after TTL.
+        // Mark the lock as pending release via the promise's completion.
+        if (lockOwner) {
+          this.pendingRequests.set(`lockrelease:${fullKey}`, Promise.resolve(lockOwner));
         }
       }
-
-      this.stats.misses++;
-      this.recordMetricSync("cache:miss", 1);
-      return undefined;
     })();
 
     this.pendingRequests.set(fullKey, promise);
@@ -361,24 +462,44 @@ export class CacheService {
 
     // 2. Try L2 (Redis MGET)
     if (this.isL2Ready()) {
-      try {
-        const l2Values = await this.l2.mGet(missingKeys);
-        for (let i = 0; i < l2Values.length; i++) {
-          const val = l2Values[i];
-          if (val) {
-            const parsed = JSON.parse(val);
-            const originalIndex = missingIndices[i];
-            results[originalIndex] = parsed as T;
-            this.l1.set(missingKeys[i], parsed);
-            this.stats.hits++;
-            this.stats.l2Hits++;
-          } else {
-            this.stats.misses++;
-          }
+      const pendingKey = `mget:${missingKeys.join(",")}`;
+      if (this.pendingRequests.has(pendingKey)) {
+        const resolvedResults = await this.pendingRequests.get(pendingKey);
+        for (let i = 0; i < missingIndices.length; i++) {
+          results[missingIndices[i]] = resolvedResults[i];
         }
-      } catch (err) {
-        logger.error("L2 Cache MGet Failure", err);
+        this.recordLatency(performance.now() - start);
+        return results;
       }
+
+      const promise = (async () => {
+        try {
+          const resolvedResults = Array(missingKeys.length).fill(null);
+          const l2Values = await this.l2.mGet(missingKeys);
+          for (let i = 0; i < l2Values.length; i++) {
+            const val = l2Values[i];
+            if (val) {
+              const parsed = JSON.parse(val);
+              resolvedResults[i] = parsed;
+              const originalIndex = missingIndices[i];
+              results[originalIndex] = parsed as T;
+              this.l1.set(missingKeys[i], parsed);
+              this.stats.hits++;
+              this.stats.l2Hits++;
+            } else {
+              this.stats.misses++;
+            }
+          }
+          return resolvedResults;
+        } catch (err) {
+          logger.error("L2 Cache MGet Failure", err);
+          return Array(missingKeys.length).fill(null);
+        }
+      })();
+
+      this.pendingRequests.set(pendingKey, promise);
+      promise.finally(() => this.pendingRequests.delete(pendingKey));
+      await promise;
     } else {
       this.stats.misses += missingKeys.length;
     }
@@ -423,6 +544,17 @@ export class CacheService {
       } catch (err) {
         logger.error(`L2 Cache Set Failure: ${fullKey}`, err);
       }
+    }
+
+    // 🚀 STAMPEDE LOCK RELEASE: If a miss-lock was acquired for this key,
+    // release it immediately since the cache is now populated
+    const lockReleaseKey = `lockrelease:${fullKey}`;
+    const pendingLock = this.pendingRequests.get(lockReleaseKey);
+    if (pendingLock) {
+      this.pendingRequests.delete(lockReleaseKey);
+      pendingLock.then((ownerId) => {
+        if (ownerId) this.releaseLock(fullKey, ownerId).catch(() => {});
+      });
     }
   }
 
@@ -516,7 +648,10 @@ export class CacheService {
         const fullPattern = this.generateKey(pattern, tenantId) + "*";
         let cursor = "0";
         do {
-          const reply = await this.l2.scan(cursor, { MATCH: fullPattern, COUNT: 500 });
+          const reply = await this.l2.scan(cursor, {
+            MATCH: fullPattern,
+            COUNT: 500,
+          });
           cursor = reply.cursor;
           if (reply.keys.length > 0) await this.l2.del(reply.keys);
         } while (cursor !== "0");
@@ -691,7 +826,12 @@ export class CacheService {
       this.latencyBuffer.length > 0
         ? this.latencyBuffer.reduce((a, b) => a + b, 0) / this.latencyBuffer.length
         : 0;
-    return { ...this.stats, avgLatency, l1Size: this.l1.size, tagCount: this.tagMap.size };
+    return {
+      ...this.stats,
+      avgLatency,
+      l1Size: this.l1.size,
+      tagCount: this.tagMap.size,
+    };
   }
 }
 

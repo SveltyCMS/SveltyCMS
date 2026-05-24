@@ -1194,6 +1194,10 @@ export interface IDBAdapter {
   // Performance and Capabilities
   getCapabilities(): DatabaseCapabilities;
 
+  // Row-Level Security (RLS) & Multi-Tenancy
+  enforceTenantPolicy?(collection: string, tenantId: string): Promise<DatabaseResult<void>>;
+  getTenantContext?(): Promise<DatabaseResult<any>>;
+
   // Debugging & Observability
   explainQuery?(
     collection: string,

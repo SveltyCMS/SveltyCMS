@@ -809,6 +809,14 @@ export default defineConfig((): any => {
       minify: "esbuild",
       sourcemap: true,
       chunkSizeWarningLimit: 600, // Increase from 500KB (after optimizations)
+      // Rolldown-specific: suppress informational plugin-timing and known intentional import warnings
+      rolldownOptions: {
+        checks: {
+          // vite-plugin-sveltekit-guard (import graph analysis) and private-config-fallback
+          // are necessary plugins whose timing overhead is expected and acceptable.
+          pluginTimings: false,
+        },
+      },
       rollupOptions: {
         // Tree-shaking with preserved side effects for critical packages
         treeshake: {
@@ -849,6 +857,18 @@ export default defineConfig((): any => {
           if (warning.code === "EVAL" && warning.id?.includes("node_modules")) {
             return;
           }
+          // db.ts is intentionally both statically imported (hooks, auth, core services)
+          // and dynamically imported (setup wizard, background jobs) — it is a core
+          // singleton and chunk-splitting it is not beneficial. Suppress the Rolldown
+          // INEFFECTIVE_DYNAMIC_IMPORT diagnostic for this file.
+          if (
+            warning.code === "INEFFECTIVE_DYNAMIC_IMPORT" &&
+            (warning.id?.includes("databases/db.ts") ||
+              (Array.isArray(warning.ids) &&
+                warning.ids.some((id: string) => id.includes("databases/db.ts"))))
+          ) {
+            return;
+          }
           // Suppress "dynamic import will not move module" warnings for specific files where this is intentional.
           // See /docs/architecture/state-management.mdx for details.
           if (warning.message?.includes("dynamic import will not move module")) {
@@ -856,7 +876,10 @@ export default defineConfig((): any => {
             const isStateStore = warning.id?.includes("state.svelte.ts");
             const isRichTextInput = warning.id?.includes("rich-text/input.svelte");
             const isSettingsService = warning.id?.includes("services/settings-service.ts");
-            const isDb = warning.id?.includes("databases/db.ts");
+            const isDb =
+              warning.id?.includes("databases/db.ts") ||
+              (Array.isArray(warning.ids) &&
+                warning.ids.some((id: string) => id.includes("databases/db.ts")));
             if (isWidgetStore || isStateStore || isRichTextInput || isSettingsService || isDb) {
               return;
             }
