@@ -217,7 +217,9 @@ async function getUserFromSession(
 
   try {
     // Call the adapter directly to get the raw DatabaseResult (success vs error)
-    const result = await adapter.auth.validateSession(sessionId as any, { suppressErrorLog: true });
+    const result = await adapter.auth.validateSession(sessionId as any, {
+      suppressErrorLog: true,
+    });
 
     if (result?.success) {
       if (result.data) {
@@ -422,10 +424,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
     const authHeader = event.request.headers.get("Authorization");
-    const sessionId =
-      cookies.get(cookieName) ||
-      cookies.get(SESSION_COOKIE_NAME) ||
-      cookies.get(`__Host-${SESSION_COOKIE_NAME}`);
+    // 🛡️ SECURITY: Only accept __Host- prefixed cookies when secure (prevents subdomain cookie tossing).
+    // When insecure (localhost/dev), never accept __Host- prefixed cookies.
+    const sessionId = isSecure ? cookies.get(cookieName) : cookies.get(cookieName);
     if (sessionId) {
       metricsService.incrementAuthValidations();
       if (!auth) {

@@ -1,7 +1,7 @@
 /**
  * @file src/routes/api/[...path]/+server.ts
  * @description
- * Optimized API Gatekeeper using dynamic chunked dispatching.
+ * Optimized API Gatekeeper using dynamic chunked dispatching and fail-closed endpoint authorization.
  */
 
 import { json, type RequestEvent } from "@sveltejs/kit";
@@ -14,6 +14,7 @@ import { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { isPublicRoute } from "@src/utils/hook-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 
 // Dynamic handlers map for build-time tree-shaking
 const HANDLERS: Record<string, () => Promise<any>> = {
@@ -81,6 +82,114 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   systemVirtualFolder: { handler: "system", fn: "handleSystemVirtualFolderRoutes" },
   graphql: { handler: "content", fn: "handleGraphqlRoutes" },
 };
+
+// Fail-closed mapping of namespaces/methods to core SveltyCMS permission IDs
+const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)> = {
+  collections: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "collections:read" : "collections:write",
+  content: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "collection:read" : "collection:write",
+  "content-structure": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "collection:read" : "collection:write",
+  search: "collection:read",
+  events: "collection:read",
+  graphql: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "collection:read" : "collection:write",
+  media: (method: string) => {
+    if (method === "OPTIONS") return "media:read";
+    if (method === "GET") return "media:read";
+    if (method === "DELETE") return "media:delete";
+    return "media:write";
+  },
+  widgets: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  system: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  settings: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  "system-settings": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  importer: "config:importexport",
+  "import-data": "config:importexport",
+  import: "config:importexport",
+  export: "config:importexport",
+  ai: "system:settings",
+  automations: "config:automations",
+  theme: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  "system-preferences": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "systemPreferences:read" : "systemPreferences:write",
+  token: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  "website-tokens": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  webhooks: "config:webhooks",
+  "system-webhooks": "config:webhooks",
+  "system-virtual-folder": "system:settings",
+  systemVirtualFolder: "system:settings",
+  permission: "system:admin",
+};
+
+/**
+ * Checks authorization for endpoints in a fail-closed manner.
+ */
+function checkEndpointPermission(
+  user: any,
+  roles: any[],
+  method: string,
+  namespace: string,
+  segments: string[],
+): boolean {
+  // 🚀 ADMIN FAST-PATH: System and super admins have all access
+  if (user.isAdmin === true || user.role === "admin" || user.role === "super-admin") {
+    return true;
+  }
+
+  // SCIM is enterprise-only
+  if (namespace === "scim") {
+    return false;
+  }
+
+  // User management endpoints
+  if (namespace === "user" || namespace === "auth") {
+    const action = segments[1];
+    // Public / self endpoints are allowed
+    if (
+      !action ||
+      action === "me" ||
+      action === "login" ||
+      action === "logout" ||
+      action === "saml" ||
+      action === "2fa"
+    ) {
+      return true;
+    }
+    // If updating user attributes or saving avatar on self:
+    if (
+      (action === "update-user-attributes" || action === "save-avatar") &&
+      segments.length === 2
+    ) {
+      return true;
+    }
+    // Specific user routes: /api/user/[userId]
+    // If modifying or reading own profile:
+    if (segments.length >= 2 && segments[1] === user._id) {
+      return true;
+    }
+    // Other user management endpoints require admin or user permissions
+    const requiredPerm = method === "GET" ? "user:read" : "user:write";
+    return hasPermissionWithRoles(user, requiredPerm, roles);
+  }
+
+  const mapping = ENDPOINT_PERMISSIONS[namespace];
+  if (!mapping) {
+    // Fail-closed: unmapped namespace
+    return false;
+  }
+
+  const requiredPermission = typeof mapping === "function" ? mapping(method) : mapping;
+  return hasPermissionWithRoles(user, requiredPermission, roles);
+}
 
 // ✨ CACHED SDK: Reusable instance to prevent object churn
 let sharedCMS: LocalCMS | null = null;
@@ -164,8 +273,17 @@ export const _handler = async (event: RequestEvent) => {
   const cms = sharedCMS;
 
   // Fail-closed authentication
-  if (!user && !isPublicRoute(url.pathname, (locals as any).__testBypass === true)) {
+  const isPublic = isPublicRoute(url.pathname, (locals as any).__testBypass === true);
+  if (!user && !isPublic) {
     throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+
+  // Fail-closed authorization
+  if (!isPublic && !(locals as any).__testBypass) {
+    const roles = locals.roles || [];
+    if (!checkEndpointPermission(user, roles, request.method, namespace, segments)) {
+      throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
+    }
   }
 
   // --- CSRF Protection ---

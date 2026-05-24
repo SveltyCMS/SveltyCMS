@@ -33,6 +33,35 @@ export async function handleTestingRoutes(
   tenantId: DatabaseId,
   _segments: string[],
 ) {
+  // 🛡️ Strictly enforce environment and cryptographic token verification
+  const isTestMode =
+    process.env.TEST_MODE === "true" ||
+    process.env.BENCHMARK === "true" ||
+    process.env.NODE_ENV === "test";
+
+  const requestSecret =
+    event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
+
+  const { getTestSecret } = await import("@src/utils/setup-check");
+  const expectedSecret = process.env.TEST_API_SECRET || getTestSecret();
+
+  if (!isTestMode || !expectedSecret || !requestSecret) {
+    throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
+  }
+
+  // 🛡️ TIMING-SAFE: Use constant-time comparison to prevent timing side-channel attacks
+  const { timingSafeEqual } = await import("node:crypto");
+  const encoder = new TextEncoder();
+  const secretBuffer = encoder.encode(requestSecret);
+  const expectedBuffer = encoder.encode(expectedSecret);
+
+  if (
+    secretBuffer.length !== expectedBuffer.length ||
+    !timingSafeEqual(secretBuffer, expectedBuffer)
+  ) {
+    throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
+  }
+
   process.stderr.write(`🚀 handleTestingRoutes ENTERED: ${event.url.searchParams.get("action")}\n`);
   const { request } = event;
   try {

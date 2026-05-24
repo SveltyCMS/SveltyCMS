@@ -6,7 +6,11 @@ import type { RequestHandler } from "./$types";
  * @file src/routes/api/remoteVideo/+server.ts
  * @description Secure server-side endpoint for fetching remote video metadata.
  */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+  if (!locals.user) {
+    return json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { url, allowedPlatforms } = await request.json();
 

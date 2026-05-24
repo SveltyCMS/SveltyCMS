@@ -42,16 +42,22 @@ export default async function globalSetup() {
 
     const cleanupPaths = [
       // Database files (may be locked by webServer)
+      join(process.cwd(), "config", "database", "sveltycms_test.sqlite"),
+      join(process.cwd(), "config", "database", "sveltycms_test.sqlite-shm"),
+      join(process.cwd(), "config", "database", "sveltycms_test.sqlite-wal"),
+      join(process.cwd(), "config", "database", "svelty_setup_test.sqlite"),
+      join(process.cwd(), "config", "database", "svelty_setup_test.sqlite-shm"),
+      join(process.cwd(), "config", "database", "svelty_setup_test.sqlite-wal"),
       join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite"),
       join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite-shm"),
       join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite-wal"),
-      join(process.cwd(), "config", "database", "SveltyCMS.db.sqlite"),
-      join(process.cwd(), "config", "database", "SveltyCMS.db.sqlite-shm"),
-      join(process.cwd(), "config", "database", "SveltyCMS.db.sqlite-wal"),
       // Config files (critical - forces setup wizard)
       // ONLY delete in non-CI or if we specifically want a fresh start
       ...(!isCI
-        ? [join(process.cwd(), "config", "private.ts"), join(process.cwd(), "config", "private.js")]
+        ? [
+            join(process.cwd(), "config", "private.test.ts"),
+            join(process.cwd(), "config", "private.test.js"),
+          ]
         : []),
     ];
 

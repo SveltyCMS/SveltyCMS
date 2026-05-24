@@ -72,6 +72,23 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 **Tests**: `tests/benchmarks/security-audit.test.ts` (added April 2026), `tests/unit/hooks/firewall.test.ts`.
 
+### 5. May 2026 Enterprise Security Hardening
+
+**Assessment Outcome**: Defense-in-depth hardening across all API and page action layers.
+
+**Key Implemented Features**:
+
+- ✅ **Cookie Prefix Enforcement**: `__Host-` prefixed cookies only accepted on secure connections. Insecure connections (localhost/dev) never accept prefixed cookies, preventing subdomain cookie tossing (`src/hooks/handle-authentication.ts`).
+- ✅ **Setup Completion Gating**: All `/api/setup` endpoints blocked (403) after setup completes. Bootstrap route redirects enforced at middleware level (`src/hooks/handle-system-state.ts`, `src/routes/api/[...path]/handlers/setup.ts`).
+- ✅ **Handler-Level Admin Verification**: `handleSettingsRoutes`, `handleSystemMgmtRoutes`, and `handleAutomationRoutes` in `system.ts` now verify admin status for all mutating operations.
+- ✅ **Media Mutation Permissions**: Defense-in-depth RBAC checks added to `handleMediaUpload` (`media:write`) and `handleMediaPostDelete` (`media:delete`) in `media.ts`.
+- ✅ **Centralized Permission Guards**: `requireCollectionBuilderPermission()` helper eliminates duplicated authorization logic across all Collection Builder actions (`src/routes/(app)/config/collectionbuilder/+page.server.ts`).
+- ✅ **Critical Bug Fixes**: Restored missing `initSystemFast` import in setup seed flow. Fixed adapter disconnect-before-use race condition in setup completion handler.
+
+**Files Modified**: `src/hooks/handle-authentication.ts`, `src/hooks/handle-system-state.ts`, `src/routes/api/[...path]/handlers/setup.ts`, `src/routes/api/[...path]/handlers/system.ts`, `src/routes/api/[...path]/handlers/media.ts`, `src/routes/(app)/config/collectionbuilder/+page.server.ts`, `src/routes/(admin)/admin/tenants/+page.server.ts`.
+
+**Tests**: `tests/unit/hooks/authentication.test.ts`, `tests/unit/hooks/authorization.test.ts`, `tests/integration/api/dispatcher.test.ts`.
+
 ---
 
 ## No Backdoor Policy

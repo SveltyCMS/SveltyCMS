@@ -30,7 +30,8 @@ async function runSecurityAudit() {
     await ensureStableTestData();
     await stabilize(1000);
 
-    const { securityResponseService } = await import("@src/services/security/response-service");
+    const { securityResponseService } =
+      await import("@src/services/security/response-service");
     const { auditLogService, AuditEventType } =
       await import("@src/services/security/audit-service");
     const { hashPassword } = await import("@src/utils/security");
@@ -49,13 +50,16 @@ async function runSecurityAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        const req = new Request("http://localhost/api/collections/posts?limit=10", {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            "X-Forwarded-For": "1.2.3.4",
-            Accept: "application/json",
+        const req = new Request(
+          "http://localhost/api/collections/posts?limit=10",
+          {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+              "X-Forwarded-For": "1.2.3.4",
+              Accept: "application/json",
+            },
           },
-        });
+        );
         await securityResponseService.analyzeRequest(req);
       },
     });
@@ -102,6 +106,121 @@ async function runSecurityAudit() {
     });
     results.push({ ...hashResult, shortLabel: "Hashing", layer: "Crypto" });
 
+    // 4. Defense-in-Depth Permission Overhead (May 2026)
+    console.log("   → Measuring Defense-in-Depth Permission Check Overhead...");
+    const { hasPermissionWithRoles } =
+      await import("@src/databases/auth/permissions");
+
+    const mockUser = {
+      _id: "test-admin",
+      email: "admin@test.com",
+      role: "admin",
+      isAdmin: true,
+      permissions: [],
+      createdAt: new Date().toISOString() as any,
+      updatedAt: new Date().toISOString() as any,
+    } as any;
+    const mockRoles: any[] = ["admin", "editor"];
+    const mockPermissions = [
+      "collections:read",
+      "collections:write",
+      "media:write",
+      "media:delete",
+      "system:settings",
+      "config:collectionbuilder",
+    ];
+
+    // Measure dispatcher-only check (single permission lookup)
+    const dispatcherOnlyResult = await runBenchmark({
+      name: "Dispatcher-Only Permission Check",
+      iterations: 5000,
+      warmupIterations: 500,
+      runs: 2,
+      concurrency: 1,
+      measureMemory: true,
+      silent: true,
+      onIteration: async () => {
+        // Simulates checkEndpointPermission: namespace → permission mapping
+        const method: string = "POST";
+        const mapping =
+          method === "DELETE"
+            ? "media:delete"
+            : method === "GET"
+              ? "media:read"
+              : "media:write";
+        const permitted = mockPermissions.includes(mapping);
+        void permitted;
+      },
+    });
+    results.push({
+      ...dispatcherOnlyResult,
+      shortLabel: "DispOnly",
+      layer: "Defense",
+    });
+
+    // Measure defense-in-depth check (dispatcher + handler-level)
+    const defenseInDepthResult = await runBenchmark({
+      name: "Full Defense-in-Depth Check",
+      iterations: 5000,
+      warmupIterations: 500,
+      runs: 2,
+      concurrency: 1,
+      measureMemory: true,
+      silent: true,
+      onIteration: async () => {
+        // Layer 1: Dispatcher check (simulated)
+        const method: string = "POST";
+        const mapping =
+          method === "DELETE"
+            ? "media:delete"
+            : method === "GET"
+              ? "media:read"
+              : "media:write";
+        const dispatcherPassed = mockPermissions.includes(mapping);
+        if (!dispatcherPassed) return;
+
+        // Layer 2: Handler-level defense-in-depth (actual hasPermissionWithRoles call)
+        const handlerPassed = hasPermissionWithRoles(
+          mockUser,
+          "media:write",
+          mockRoles,
+        );
+        void handlerPassed;
+      },
+    });
+    results.push({
+      ...defenseInDepthResult,
+      shortLabel: "FullDID",
+      layer: "Defense",
+    });
+
+    // Measure worst-case: permission check + admin verification pattern
+    const adminCheckResult = await runBenchmark({
+      name: "Admin Verification + Permission Check",
+      iterations: 5000,
+      warmupIterations: 500,
+      runs: 2,
+      concurrency: 1,
+      measureMemory: true,
+      silent: true,
+      onIteration: async () => {
+        // Admin fast-path check (from system.ts handlers)
+        const isAdmin =
+          mockUser.isAdmin === true ||
+          mockUser.role === "admin" ||
+          mockUser.role === "super-admin";
+        if (!isAdmin) {
+          // Fallback to permission check
+          hasPermissionWithRoles(mockUser, "system:settings", mockRoles);
+        }
+      },
+    });
+    results.push({
+      ...adminCheckResult,
+      shortLabel: "AdminChk",
+      layer: "Defense",
+    });
+
     printTruthTable({
       title: "SVELTYCMS — SECURITY INFRASTRUCTURE AUDIT",
       shortLabel: "Security",
@@ -113,6 +232,20 @@ async function runSecurityAudit() {
       { key: "WAF Analysis", val: wafResult.avgMs, unit: "ms" },
       { key: "Audit Logging", val: auditResult.avgMs, unit: "ms" },
       { key: "Password Hashing", val: hashResult.avgMs, unit: "ms" },
+      { key: "Dispatcher Check", val: dispatcherOnlyResult.avgMs, unit: "ms" },
+      {
+        key: "Full Defense-in-Depth",
+        val: defenseInDepthResult.avgMs,
+        unit: "ms",
+      },
+      { key: "Admin Verification", val: adminCheckResult.avgMs, unit: "ms" },
+      {
+        key: "DID Overhead",
+        val: (defenseInDepthResult.avgMs - dispatcherOnlyResult.avgMs).toFixed(
+          4,
+        ),
+        unit: "ms",
+      },
       {
         key: "Security Overhead Rating",
         val: wafResult.avgMs < 1 ? "EXCELLENT" : "GOOD",

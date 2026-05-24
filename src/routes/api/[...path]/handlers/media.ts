@@ -12,6 +12,7 @@ import { logger } from "@utils/logger";
 import { successResponse, rawResponse } from "./base";
 import { getPrivateEnv } from "@src/databases/db";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
+import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 
 export async function handleMediaRoutes(
   event: RequestEvent,
@@ -84,7 +85,9 @@ export async function handleMediaRoutes(
 export async function handleMediaExists(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
   const url_param = event.url.searchParams.get("url");
   if (!url_param) throw new AppError("URL parameter is required", 400);
-  return rawResponse(event, { exists: await cms.media.exists(url_param, tenantId) });
+  return rawResponse(event, {
+    exists: await cms.media.exists(url_param, tenantId),
+  });
 }
 
 export async function handleMediaList(
@@ -106,6 +109,12 @@ export async function handleMediaUpload(
   tenantId: DatabaseId,
   user: any,
 ) {
+  // 🛡️ SECURITY: Defense-in-depth permission check for media mutations
+  const { locals } = event;
+  if (!locals.user || !hasPermissionWithRoles(locals.user, "media:write", locals.roles || [])) {
+    throw new AppError("Insufficient permissions for media upload", 403, "FORBIDDEN");
+  }
+
   const contentType = event.request.headers.get("content-type");
   if (!contentType?.includes("multipart/form-data")) {
     throw new AppError("Invalid content type. Expected multipart/form-data", 400);
@@ -217,6 +226,12 @@ export async function handleMediaPostDelete(
   cms: LocalCMS,
   tenantId: DatabaseId,
 ) {
+  // 🛡️ SECURITY: Defense-in-depth permission check for media deletion
+  const { locals } = event;
+  if (!locals.user || !hasPermissionWithRoles(locals.user, "media:delete", locals.roles || [])) {
+    throw new AppError("Insufficient permissions for media deletion", 403, "FORBIDDEN");
+  }
+
   const body = await event.request.json().catch(() => ({}));
   const { id } = body;
   if (!id) throw new AppError("Media ID is required for deletion", 400);

@@ -23,7 +23,23 @@ export async function handleSetupRoutes(
   segments: string[],
 ) {
   const { request, url } = event;
-  const action = segments[1];
+  const action = segments[1] as string;
+
+  // 🛡️ ENHANCEMENT: Check if setup is complete before allowing any API calls.
+  const { isSetupComplete } = await import("@src/utils/setup-check");
+  if (isSetupComplete()) {
+    throw new AppError(
+      "CMS Setup already complete. Please use the Admin panel for configuration.",
+      403,
+      "SETUP_ALREADY_COMPLETE",
+    );
+  }
+
+  // Validate that action is one we handle
+  const validActions = ["status", "test-db", "seed-db", "complete", "reinitialize"];
+  if (!validActions.includes(action)) {
+    throw new AppError(`Setup endpoint /api/setup/${action} requires 'status' check first`, 404);
+  }
 
   // --- GET /api/setup/status ---
   if (action === "status" && request.method === "GET") {
@@ -41,7 +57,7 @@ export async function handleSetupRoutes(
     // Coerce port to number
     if (configData.port === "" || configData.port === null) {
       configData.port = undefined;
-    } else if (configData.port !== undefined) {
+    } else if (configData.port !== undefined && typeof configData.port === "string") {
       configData.port = Number(configData.port);
     }
 
@@ -50,60 +66,101 @@ export async function handleSetupRoutes(
       throw new AppError("Invalid database configuration", 400, "VALIDATION_ERROR", issues);
     }
 
+    // Use the utility function to get an isolated adapter instance
     const { getSetupDatabaseAdapter } = await import("@src/routes/setup/utils");
-    const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, { createIfMissing: true });
+    let adapterWrapper: Awaited<ReturnType<typeof getSetupDatabaseAdapter>> | undefined;
+    try {
+      adapterWrapper = await getSetupDatabaseAdapter(dbConfig, {
+        createIfMissing: true,
+      });
+      const dbAdapter = adapterWrapper.dbAdapter;
 
-    const health = await dbAdapter.getConnectionHealth();
-    await dbAdapter.disconnect();
+      // Test connection health
+      if (!(await dbAdapter.getConnectionHealth())) {
+        throw new AppError("Initial connection test failed.", 400);
+      }
 
-    if (!health.success) {
-      throw new AppError(`Connection failed: ${health.message}`, 400);
+      const healthCheck = await dbAdapter.getConnectionHealth();
+      if (!healthCheck.success) {
+        throw new AppError(`Connection failed: ${healthCheck.message}`, 400, "DB_CONNECT_FAILED");
+      }
+    } catch (e) {
+      if (adapterWrapper?.dbAdapter?.disconnect) {
+        await adapterWrapper.dbAdapter.disconnect();
+      }
+      console.error("Database setup test error:", e);
+      throw new AppError(
+        `Failed to connect/test DB: ${e instanceof Error ? e.message : String(e)}`,
+        400,
+        "DB_CONNECT_ERROR",
+      );
+    } finally {
+      if (adapterWrapper?.dbAdapter?.disconnect) {
+        await adapterWrapper.dbAdapter.disconnect();
+      }
     }
 
-    return successResponse(event, { success: true, message: "Database connected successfully" });
+    return successResponse(event, {
+      success: true,
+      message: "Database connection and schema tested successfully",
+    });
   }
 
   // --- POST /api/setup/seed-db ---
   if (action === "seed-db" && request.method === "POST") {
     const { config: dbConfig } = await request.json();
 
-    // 1. Write private config
+    // 1. Write private config and invalidate cache first
     const { writePrivateConfig } = await import("@src/routes/setup/write-private-config");
     await writePrivateConfig(dbConfig);
 
     const { invalidateSetupCache } = await import("@src/utils/setup-check");
     invalidateSetupCache(true);
 
-    // 2. Start seeding
-    const { initSystemFast } = await import("@src/routes/setup/seed");
+    // 2. Initialize adapter and run seeding
     const { getSetupDatabaseAdapter } = await import("@src/routes/setup/utils");
-    const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, { createIfMissing: true });
+    const { initSystemFast } = await import("@src/routes/setup/seed");
+    const adapterWrapper = await getSetupDatabaseAdapter(dbConfig, {
+      createIfMissing: true,
+    });
+    const dbAdapter = adapterWrapper.dbAdapter;
 
     const { criticalPromise, backgroundTask } = await initSystemFast(dbAdapter);
 
     setupManager.startSeeding(async () => {
+      // Wait for all necessary infrastructure to be seeded before proceeding
       await criticalPromise;
       setupManager.startBackgroundWork(backgroundTask);
     });
 
-    return successResponse(event, { success: true, message: "Seeding started" });
+    return successResponse(event, {
+      success: true,
+      message: "Database seeding process initiated successfully",
+    });
   }
 
   // --- POST /api/setup/complete ---
   if (action === "complete" && request.method === "POST") {
     const { database, admin, system = {} } = await request.json();
 
-    // Wait for critical seeding
+    // 1. Wait for critical seeding to finish before finalizing setup
     await setupManager.waitTillDone();
+
+    // 2. Get adapter and keep it alive for authentication
+    const { getSetupDatabaseAdapter } = await import("@src/routes/setup/utils");
+    const adapterWrapper = await getSetupDatabaseAdapter(database, {
+      createIfMissing: true,
+    });
+    const dbAdapter = adapterWrapper.dbAdapter;
 
     const adminValidation = safeParse(setupAdminSchema, admin);
     if (!adminValidation.success) {
-      throw new AppError("Invalid admin data", 400);
+      // Clean up adapter before throwing
+      await dbAdapter.disconnect();
+      throw new AppError("Invalid administrator data provided", 400, "ADMIN_VALIDATION_FAILED");
     }
 
-    const { getSetupDatabaseAdapter } = await import("@src/routes/setup/utils");
-    const { dbAdapter } = await getSetupDatabaseAdapter(database, { createIfMissing: true });
-
+    // 3. Authentication Setup
     const { Auth } = await import("@src/databases/auth");
     const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
     const setupAuth = new Auth(dbAdapter, getDefaultSessionStore());
@@ -125,7 +182,7 @@ export async function handleSetupRoutes(
     );
 
     if (!authResult.success || !authResult.data) {
-      throw new AppError("Failed to create admin user", 500);
+      throw new AppError("Failed to create admin user during setup", 500, "ADMIN_CREATION_FAILED");
     }
 
     const session = authResult.data.session;
@@ -139,7 +196,7 @@ export async function handleSetupRoutes(
       maxAge: 60 * 60 * 24,
     });
 
-    // Finalize system
+    // Finalize system with configuration and initialize the core DB adapter instance for subsequent requests.
     const { initializeWithConfig } = await import("@src/databases/db");
     await initializeWithConfig({
       DB_TYPE: database.type,
@@ -153,7 +210,10 @@ export async function handleSetupRoutes(
       REDIS_PORT: Number(system.redisPort),
     } as any);
 
-    return successResponse(event, { success: true, message: "Setup complete" });
+    return successResponse(event, {
+      success: true,
+      message: "SveltyCMS setup complete and environment initialized.",
+    });
   }
 
   // --- POST /api/setup/reinitialize ---
@@ -162,5 +222,8 @@ export async function handleSetupRoutes(
     return successResponse(event, await cms.system.reinitialize(body.force ?? true));
   }
 
-  throw new AppError(`Setup endpoint /api/setup/${action} not implemented`, 404);
+  throw new AppError(
+    `Setup endpoint /api/setup/${action} not implemented or method forbidden`,
+    404,
+  );
 }

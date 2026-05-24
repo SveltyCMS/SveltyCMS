@@ -203,6 +203,9 @@ Every request to SveltyCMS passes through an **enterprise-grade pre-compiled pip
 - ✅ **Tenant-Based Access Control (TBAC)**: User roles are dynamically resolved and isolated per `tenantId` during the authentication handshake.
 - ✅ **Informative 403 Feedback**: The Admin Area natively detects authorization failures and provides granular feedback including the specific required permission.
 - ✅ **UUIDv4 Primary Keys Out-of-the-box**: Protects against Cross-Collection IDOR (Insecure Direct Object Reference) vulnerability collision chains.
+- ✅ **Defense-in-Depth Handler Checks (May 2026)**: System handlers (`handleSettingsRoutes`, `handleSystemMgmtRoutes`, `handleAutomationRoutes`) enforce admin verification. Media handlers enforce `media:write` and `media:delete` permissions. Page actions use centralized permission guards.
+- ✅ **Cookie Prefix Hardening (May 2026)**: `__Host-` prefixed session cookies strictly enforced on secure connections; never leaked on insecure connections.
+- ✅ **Setup Completion Gating (May 2026)**: All `/api/setup` endpoints blocked with 403 after initialization; bootstrap routes redirect to login.
 - ✅ Permission-based authorization
 - ✅ Multi-tenant isolation
 - ✅ Resource-level permissions

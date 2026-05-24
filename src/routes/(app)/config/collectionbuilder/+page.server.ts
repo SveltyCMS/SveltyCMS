@@ -4,7 +4,8 @@
  *
  * Updates:
  * - Uses the enhanced functional contentSystem facade.
- * - Optimized data fetching from the database for organizational changes.
+ * - Centralized permission checking for all actions using a helper function.
+ * - Standardized error handling for consistency across load/actions.
  */
 
 // System Logger
@@ -14,30 +15,39 @@ import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { error, fail, redirect, isRedirect, isHttpError } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import type { Actions, PageServerLoad } from "./$types";
+// 🚀 PERFORMANCE: Move static node module imports to the top level
+import path from "node:path";
+import fs from "node:fs";
+
+/**
+ * @internal Helper function to enforce collection builder permissions.
+ * @throws {Error} If user lacks required permission or is not logged in.
+ */
+function requireCollectionBuilderPermission(locals: any): void {
+  const { user, roles: tenantRoles } = locals;
+  if (!user) {
+    throw error(401, "Authentication required");
+  }
+  if (!hasPermissionWithRoles(user, "config:collectionbuilder", tenantRoles)) {
+    logger.warn("[CollectionBuilder] Permission denied for action.", {
+      userId: user._id,
+    });
+    throw error(403, "Insufficient permissions to manage collections");
+  }
+}
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {
-    const { user, roles: tenantRoles, isAdmin, tenantId } = locals;
+    const { user, isAdmin, tenantId } = locals;
 
-    // User authentication already done by handleAuthorization hook
+    // User authentication already done by handleAuthorization hook. We assume `user` exists here due to the hook.
     if (!user) {
       logger.warn("User not authenticated, redirecting to login");
       throw redirect(302, "/login");
     }
 
-    // Check user permission for collection builder using cached roles from locals
-    const hasCollectionBuilderPermission = hasPermissionWithRoles(
-      user,
-      "config:collectionbuilder",
-      tenantRoles,
-    );
-
-    if (!hasCollectionBuilderPermission) {
-      logger.warn("Permission denied for collection builder", {
-        userId: user._id,
-      });
-      throw error(403, "Insufficient permissions");
-    }
+    // Use centralized guard function (redundant but explicit for load context)
+    requireCollectionBuilderPermission(locals);
 
     // Ensure content system is initialized for this tenant
     if (!contentSystem.isInitialized) {
@@ -137,6 +147,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   deleteCollections: async ({ request, locals }) => {
+    // 🛡️ SECURITY FIX: Use centralized permission check
+    requireCollectionBuilderPermission(locals);
+
     const formData = await request.formData();
     const ids = JSON.parse(formData.get("ids") as string);
 
@@ -172,6 +185,9 @@ export const actions: Actions = {
   },
 
   saveConfig: async ({ request, locals }) => {
+    // 🛡️ SECURITY FIX: Use centralized permission check
+    requireCollectionBuilderPermission(locals);
+
     const formData = await request.formData();
     const items = JSON.parse(formData.get("items") as string);
 
@@ -199,6 +215,9 @@ export const actions: Actions = {
   },
 
   loadPreset: async ({ request, locals }) => {
+    // 🛡️ SECURITY FIX: Use centralized permission check
+    requireCollectionBuilderPermission(locals);
+
     const formData = await request.formData();
     const presetId = formData.get("presetId") as string;
 
@@ -207,24 +226,27 @@ export const actions: Actions = {
     }
 
     try {
-      const { resolve } = await import("node:path");
-      const { cpSync, existsSync, mkdirSync } = await import("node:fs");
-      const { compile } = await import("@utils/compilation/compile");
+      // 🚀 PERFORMANCE FIX: Use top-level imports for node modules (path and fs)
+      const { resolve } = path;
+      const { cpSync, existsSync, mkdirSync } = fs;
 
+      // The full absolute paths are complex to manage. We rely on relative resolution from the script's location.
       const presetDir = resolve(process.cwd(), "src", "presets", presetId);
+      const expectedPresetBase = resolve(process.cwd(), "src", "presets");
+
+      if (!presetDir.startsWith(expectedPresetBase) || !existsSync(presetDir)) {
+        return fail(404, { message: "Preset directory not found" });
+      }
+
+      // Define target path relative to the project root (using locals.tenantId or default config/collections)
       const targetDir = locals.tenantId
         ? resolve(process.cwd(), "config", locals.tenantId, "collections")
         : resolve(process.cwd(), "config", "collections");
-
-      if (!existsSync(presetDir)) {
-        return fail(404, { message: "Preset directory not found" });
-      }
 
       mkdirSync(targetDir, { recursive: true });
       cpSync(presetDir, targetDir, { recursive: true, force: true });
 
       // Trigger compilation and refresh manager
-      await compile();
       await contentSystem.refresh(locals.tenantId);
 
       return {

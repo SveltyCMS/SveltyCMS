@@ -165,8 +165,18 @@ class JobQueueService {
       return;
     }
 
-    // Atomic claim: only take the job if still pending
-    const claimResult = await db.system.jobs.claimIfPending(job._id, job.attempts + 1);
+    // Atomic claim: only take the job if still pending, updating attempts count on success.
+    const claimResult = await db.system.jobs.update(
+      job._id,
+      {
+        status: "running",
+        attempts: (job.attempts || 0) + 1,
+      },
+      {
+        filter: { _id: job._id, status: "pending" }, // Only update if still pending
+      },
+    );
+
     if (!claimResult.success) return;
 
     if (!handler) {

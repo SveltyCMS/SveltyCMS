@@ -717,11 +717,26 @@ export const actions: Actions = {
       // 2. Get Database Adapter
       // We prioritize the global initialization if it's already running (due to private.ts write)
       // otherwise we fall back to a manual setup adapter.
-      const { ensureFullInitialization, dbAdapter: globalAdapter } =
-        await import("@src/databases/db");
+      const {
+        ensureFullInitialization,
+        dbAdapter: globalAdapter,
+        getBootPhase,
+        reinitializeSystem,
+      } = await import("@src/databases/db");
 
       let dbAdapter: any;
       try {
+        const bootPhase = getBootPhase();
+        const { getSystemState } = await import("@src/stores/system/state.svelte");
+        const systemState = getSystemState();
+
+        if (bootPhase === "SETUP" || systemState.overallState === "SETUP") {
+          logger.info(
+            "🔄 [completeSetup] System was in SETUP mode. Reinitializing system to load new config...",
+          );
+          await reinitializeSystem();
+        }
+
         logger.info("⏳ [completeSetup] Attempting to use global database instance...");
         const result = await ensureFullInitialization();
         dbAdapter = result?.adapter || globalAdapter;

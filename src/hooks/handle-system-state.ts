@@ -183,6 +183,31 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
         throw new AppError("Access from untrusted host blocked", 403, "UNTRUSTED_HOST");
       }
 
+      // 🛡️ Redirect/Block setup routes if setup is already complete (except in test environment)
+      const isTestMode =
+        process.env.TEST_MODE === "true" ||
+        process.env.VITE_TEST_MODE === "true" ||
+        process.env.BENCHMARK === "true" ||
+        process.env.NODE_ENV === "test" ||
+        process.env.VITEST === "true" ||
+        process.env.BUN_TEST === "true";
+
+      if (
+        !isTestMode &&
+        setupComplete &&
+        (pathname === "/setup" ||
+          pathname.startsWith("/setup/") ||
+          pathname.startsWith("/api/setup"))
+      ) {
+        if (pathname.startsWith("/api/")) {
+          throw new AppError("Setup already complete", 403, "SETUP_ALREADY_COMPLETE");
+        }
+        return new Response(null, {
+          status: 302,
+          headers: { Location: "/login" },
+        });
+      }
+
       // Root redirect during setup
       if (pathname === "/" && systemState.overallState === "SETUP" && !setupComplete) {
         return new Response(null, {
