@@ -17,7 +17,11 @@
  */
 
 import { initPublicEnv } from "@src/stores/global-settings.svelte";
-import { dbConfigSchema, setupAdminSchema, systemSettingsSchema } from "@utils/schemas";
+import {
+  dbConfigSchema,
+  setupAdminSchema,
+  systemSettingsSchema,
+} from "@utils/schemas";
 import { logger } from "@utils/logger";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { safeParse } from "valibot";
@@ -29,9 +33,11 @@ import {
 } from "../routes/setup/setup.remote";
 
 // Compatibility: wrap for the store's object-style call pattern
-const _testDb = (p: any) => testDbRemote(p.configData, p.createIfMissing, p.allowOverwrite);
+const _testDb = (p: any) =>
+  testDbRemote(p.configData, p.createIfMissing, p.allowOverwrite);
 const _seedDb = (p: any) => seedDbRemote(p.configData, p.systemData);
-const _completeSetup = (p: any) => completeSetupRemote(p.database, p.admin, p.system);
+const _completeSetup = (p: any) =>
+  completeSetupRemote(p.database, p.admin, p.system);
 const _testRedis = (p: any) => testRedisRemote(p.host, p.port, p.password);
 
 // --- Types ---
@@ -125,7 +131,7 @@ export interface SetupCompleteResponse {
 
 export interface SeedDatabaseResponse {
   error?: string;
-  firstCollection?: { name: string; path: string } | null;
+  code?: string;
   success: boolean;
 }
 
@@ -229,7 +235,6 @@ function createSetupStore() {
     currentStep: 0,
     highestStepReached: 0,
     dbTestPassed: false,
-    firstCollection: null as { name: string; path: string } | null,
     // Validation state
     validationErrors: {} as ValidationErrors,
     stepErrors: { ...initialStepErrors },
@@ -393,16 +398,22 @@ function createSetupStore() {
     length: wizard.adminUser.password.length >= 8,
     letter: /[a-zA-Z]/.test(wizard.adminUser.password),
     number: /[0-9]/.test(wizard.adminUser.password),
-    special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]/.test(wizard.adminUser.password),
+    special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]/.test(
+      wizard.adminUser.password,
+    ),
     match:
       wizard.adminUser.password === wizard.adminUser.confirmPassword &&
       wizard.adminUser.password !== "",
   }));
 
   // DB config fingerprint for change detection
-  const dbConfigFingerprint = $derived.by<string>(() => JSON.stringify(wizard.dbConfig));
+  const dbConfigFingerprint = $derived.by<string>(() =>
+    JSON.stringify(wizard.dbConfig),
+  );
   const dbConfigChangedSinceTest = $derived.by<boolean>(
-    () => wizard.lastTestFingerprint !== null && wizard.lastTestFingerprint !== dbConfigFingerprint,
+    () =>
+      wizard.lastTestFingerprint !== null &&
+      wizard.lastTestFingerprint !== dbConfigFingerprint,
   );
 
   // --- API METHODS (Remote Functions / Server Functions) ---
@@ -419,7 +430,8 @@ function createSetupStore() {
   ): Promise<boolean> {
     // Validate before testing
     if (!validateStep(0, true)) {
-      wizard.errorMessage = "Please fill in all required fields before testing.";
+      wizard.errorMessage =
+        "Please fill in all required fields before testing.";
       wizard.lastDbTestResult = {
         success: false,
         error: "Client-side validation failed.",
@@ -442,7 +454,8 @@ function createSetupStore() {
       wizard.lastDbTestResult = data;
 
       if (data?.success) {
-        wizard.successMessage = (data as any).message || "Connection successful!";
+        wizard.successMessage =
+          (data as any).message || "Connection successful!";
         wizard.dbTestPassed = true;
         wizard.lastTestFingerprint = dbConfigFingerprint;
         wizard.errorMessage = "";
@@ -476,7 +489,8 @@ function createSetupStore() {
       }
       return false;
     } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : "A server error occurred.";
+      const errorMsg =
+        e instanceof Error ? e.message : "A server error occurred.";
       wizard.errorMessage = `Error: ${errorMsg}`;
       wizard.dbTestPassed = false;
       wizard.successMessage = "";
@@ -523,7 +537,10 @@ function createSetupStore() {
       });
       return false;
     } catch (error) {
-      logger.warn("⚠️  Error during database initialization server function:", error);
+      logger.warn(
+        "⚠️  Error during database initialization server function:",
+        error,
+      );
       return false;
     } finally {
       wizard.isLoading = false;
@@ -535,7 +552,9 @@ function createSetupStore() {
    * @param onSuccess - Optional callback to run on successful completion
    * @returns Promise<boolean> - true if setup completed successfully
    */
-  async function completeSetup(onSuccess?: (redirectPath: string) => void): Promise<boolean> {
+  async function completeSetup(
+    onSuccess?: (redirectPath: string) => void,
+  ): Promise<boolean> {
     logger.debug("[SetupStore] completeSetup starting...");
     if (wizard.isSubmitting) {
       logger.debug("[SetupStore] Already submitting, skipping");
@@ -591,7 +610,9 @@ function createSetupStore() {
       // Update the public settings store instantly for near-zero delay
       if (data.publicSettings) {
         logger.debug("[SetupStore] Initializing public environment...");
-        initPublicEnv(data.publicSettings as any);
+        initPublicEnv(
+          data.publicSettings as unknown as Parameters<typeof initPublicEnv>[0],
+        );
       }
 
       // Success!
@@ -632,7 +653,8 @@ function createSetupStore() {
 
       return true;
     } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : "An unknown error occurred.";
+      const errorMsg =
+        e instanceof Error ? e.message : "An unknown error occurred.";
       wizard.errorMessage = errorMsg;
       toast.error(errorMsg, { duration: 5000 });
       return false;
@@ -677,7 +699,7 @@ function createSetupStore() {
       const data = await _testRedis({
         host: wizard.systemSettings.redisHost,
         port: Number(wizard.systemSettings.redisPort),
-        password: wizard.systemSettings.redisPassword || undefined,
+        password: (wizard.systemSettings.redisPassword || undefined) as string,
       });
       wizard.lastRedisTestResult = data;
 
@@ -686,11 +708,13 @@ function createSetupStore() {
         wizard.redisTestPassed = true;
         return true;
       }
-      wizard.errorMessage = data.error || "Redis connection failed (Non-success result).";
+      wizard.errorMessage =
+        data.error || "Redis connection failed (Non-success result).";
       wizard.redisTestPassed = false;
       return false;
     } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : "A server error occurred.";
+      const errorMsg =
+        e instanceof Error ? e.message : "A server error occurred.";
       wizard.errorMessage = `Redis Error: ${errorMsg}`;
       wizard.redisTestPassed = false;
       return false;
@@ -709,7 +733,6 @@ function createSetupStore() {
       currentStep: 0,
       highestStepReached: 0,
       dbTestPassed: false,
-      firstCollection: null,
       validationErrors: {},
       stepErrors: { ...initialStepErrors },
       isLoading: false,
@@ -779,11 +802,15 @@ function createSetupStore() {
 
       const stepRaw = storage.getItem(KEYS.step);
       wizard.currentStep =
-        stepRaw && stepRaw !== "undefined" && stepRaw !== "null" ? Number.parseInt(stepRaw, 10) : 0;
+        stepRaw && stepRaw !== "undefined" && stepRaw !== "null"
+          ? Number.parseInt(stepRaw, 10)
+          : 0;
 
       const highestStepRaw = storage.getItem(KEYS.highestStep);
       wizard.highestStepReached =
-        highestStepRaw && highestStepRaw !== "undefined" && highestStepRaw !== "null"
+        highestStepRaw &&
+        highestStepRaw !== "undefined" &&
+        highestStepRaw !== "null"
           ? Number.parseInt(highestStepRaw, 10)
           : 0;
 
