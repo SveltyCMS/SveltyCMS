@@ -147,6 +147,7 @@ function filterTestsBySuite(testFiles: string[], suite: IntegrationSuite, dbType
     if (path.endsWith("mariadb-adapter.test.ts")) return dbType === "mariadb";
     if (path.endsWith("postgresql-adapter.test.ts")) return dbType === "postgresql";
     if (path.endsWith("sqlite-adapter.test.ts")) return dbType === "sqlite";
+    // Contract test runs for all DBs (it auto-detects the active adapter internally)
 
     return true;
   });

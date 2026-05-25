@@ -8,6 +8,7 @@ import { contentSystem } from "@src/content/index.server";
 import type { DatabaseId, ISODateString } from "@src/content/types";
 // System Logger
 import { generateGoogleAuthUrl, getOAuthRedirectUri } from "@src/databases/auth/google-auth";
+import { generateGithubAuthUrl } from "@src/databases/auth/github-auth";
 //Db
 import { auth, dbInitPromise } from "@src/databases/db";
 // Cache invalidation
@@ -358,9 +359,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
     // If no code is present, handle initial OAuth flow
     if (!code) {
+      const provider = url.searchParams.get("provider") || "google";
       // For first user (no existing users), redirect directly to OAuth
       if (!firstUserExists) {
-        const authUrl = await generateGoogleAuthUrl(token, "consent");
+        const authUrl =
+          provider === "github"
+            ? await generateGithubAuthUrl(token, "consent")
+            : await generateGoogleAuthUrl(token, "consent");
         redirect(302, authUrl);
       }
 
@@ -371,7 +376,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
       // For non-first users with a token, redirect to OAuth with the token
       if (firstUserExists && token) {
-        const authUrl = await generateGoogleAuthUrl(token, "consent");
+        const authUrl =
+          provider === "github"
+            ? await generateGithubAuthUrl(token, "consent")
+            : await generateGoogleAuthUrl(token, "consent");
         redirect(302, authUrl);
       }
     }
@@ -383,33 +391,87 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
       }
       logger.debug(`Processing OAuth callback with code: ${code.substring(0, 20)}...`);
 
-      // Create a fresh OAuth client instance specifically for token exchange
-      // Use the same environment detection logic as the OAuth URL generation
-      const redirectUri = getOAuthRedirectUri();
-      const googleAuthClient = new OAuth2Client(
-        getPrivateSettingSync("GOOGLE_CLIENT_ID"),
-        getPrivateSettingSync("GOOGLE_CLIENT_SECRET"),
-        redirectUri,
-      );
-      const { tokens } = await googleAuthClient.getToken(code);
-      if (!tokens?.access_token) {
-        throw error(500, "Failed to authenticate with Google");
-      }
+      const provider = url.searchParams.get("provider") || "google";
 
-      logger.debug("Successfully obtained tokens from Google");
-      googleAuthClient.setCredentials(tokens);
+      let googleUser: any;
+      let refresh_token: string | null = null;
 
-      // Fetch Google user profile using native fetch
-      const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-        headers: { Authorization: `Bearer ${tokens.access_token}` },
-      });
-      if (!userInfoResponse.ok) {
-        throw error(500, "Could not retrieve user information");
-      }
+      if (provider === "github") {
+        const githubClientId = getPrivateSettingSync("GITHUB_CLIENT_ID") as string;
+        const githubClientSecret = getPrivateSettingSync("GITHUB_CLIENT_SECRET") as string;
 
-      const googleUser = await userInfoResponse.json();
-      if (!googleUser) {
-        throw error(500, "Could not retrieve user information");
+        const tokenResponse = await fetch("https://github.com/login/oauth/access_token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            client_id: githubClientId,
+            client_secret: githubClientSecret,
+            code,
+          }),
+        });
+
+        const tokenData = await tokenResponse.json();
+        if (!tokenData.access_token) {
+          throw error(500, "Failed to authenticate with GitHub");
+        }
+
+        const userResponse = await fetch("https://api.github.com/user", {
+          headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        });
+
+        if (!userResponse.ok) {
+          throw error(500, "Could not retrieve GitHub user information");
+        }
+
+        const githubUser = await userResponse.json();
+
+        const emailResponse = await fetch("https://api.github.com/user/emails", {
+          headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        });
+        const emails = await emailResponse.json();
+        const primaryEmail = emails.find((e: any) => e.primary)?.email || emails[0]?.email;
+
+        googleUser = {
+          email: primaryEmail,
+          name: githubUser.name || githubUser.login,
+          given_name: githubUser.name?.split(" ")[0] || githubUser.login,
+          family_name: githubUser.name?.split(" ").slice(1).join(" ") || "",
+          picture: githubUser.avatar_url,
+          locale: "en",
+        };
+      } else {
+        // Create a fresh OAuth client instance specifically for token exchange
+        // Use the same environment detection logic as the OAuth URL generation
+        const redirectUri = getOAuthRedirectUri();
+        const googleAuthClient = new OAuth2Client(
+          getPrivateSettingSync("GOOGLE_CLIENT_ID"),
+          getPrivateSettingSync("GOOGLE_CLIENT_SECRET"),
+          redirectUri,
+        );
+        const { tokens } = await googleAuthClient.getToken(code);
+        if (!tokens?.access_token) {
+          throw error(500, "Failed to authenticate with Google");
+        }
+
+        logger.debug("Successfully obtained tokens from Google");
+        googleAuthClient.setCredentials(tokens);
+
+        // Fetch Google user profile using native fetch
+        const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
+        });
+        if (!userInfoResponse.ok) {
+          throw error(500, "Could not retrieve user information");
+        }
+
+        googleUser = await userInfoResponse.json();
+        if (!googleUser) {
+          throw error(500, "Could not retrieve user information");
+        }
+        refresh_token = tokens.refresh_token || null;
       }
 
       // Pass the refresh token from the `tokens` object to the handler function.
@@ -417,7 +479,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
         googleUser as GoogleUserInfo,
         !firstUserExists,
         token,
-        tokens.refresh_token || null,
+        refresh_token,
         cookies,
         fetch,
         request,

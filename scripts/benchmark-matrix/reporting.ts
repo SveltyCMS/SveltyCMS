@@ -417,7 +417,24 @@ export async function generateFinalReport(
   resultsIn: BenchmarkResult[] = [],
   _cfg?: RunConfig,
 ): Promise<string[]> {
-  const results = resultsIn.length > 0 ? resultsIn : await scanResultsDirectory();
+  const scanned = await scanResultsDirectory();
+  const results = [...resultsIn];
+
+  // Merge scanned results to preserve other benchmarks when running a subset of tests
+  for (const s of scanned) {
+    const existingIdx = results.findIndex((r) => r.db === s.db);
+    if (existingIdx === -1) {
+      results.push(s);
+    } else {
+      results[existingIdx] = {
+        ...s,
+        ...results[existingIdx],
+        scriptTimings: { ...s.scriptTimings, ...results[existingIdx].scriptTimings },
+        metrics: { ...s.metrics, ...results[existingIdx].metrics },
+        coldStartMs: results[existingIdx].coldStartMs || s.coldStartMs || 0,
+      };
+    }
+  }
   const now = new Date().toISOString();
 
   const { Database } = await import("bun:sqlite");
@@ -474,7 +491,7 @@ export async function generateFinalReport(
     const hasLock = await acquireLock("mdx_report");
     if (hasLock) {
       try {
-        await updateDatabaseSpecificReports(db, results, latestMetrics);
+        await updateDatabaseSpecificReports(db, results, latestMetrics, resultsIn);
         await updateBenchmarkIndexReport(db, results, latestMetrics);
         log.success("Enterprise Benchmark technical ledgers updated.");
       } finally {
@@ -571,12 +588,18 @@ async function updateDatabaseSpecificReports(
   db: any,
   results: BenchmarkResult[],
   latestMetrics: Record<string, any>,
+  resultsIn: BenchmarkResult[] = [],
 ) {
   const DOCS_DIR = path.join(process.cwd(), "docs/project/benchmarks");
   await fs.mkdir(DOCS_DIR, { recursive: true });
 
   for (const dbConf of ALL_DATABASES) {
     const dbKey = dbConf.useRedis ? `${dbConf.type}-redis` : dbConf.type;
+
+    // Only update databases that were actually part of the current run (if resultsIn is provided and not empty)
+    if (resultsIn.length > 0 && !resultsIn.some((r) => r.db === dbKey)) {
+      continue;
+    }
     const meta = (DB_METADATA as any)[dbKey] || {
       label: dbKey.toUpperCase(),
       icon: "❓",
@@ -682,7 +705,7 @@ tags:
     headerMd += `| :--- | :--- | :--- | :--- | :--- |\n`;
     headerMd += `| **Cold Start** | ${curr?.coldStartMs || 0}ms | ${coldTrend.icon} (${coldTrend.pct}) | < 5000ms | ${(curr?.coldStartMs || 0) <= 5000 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
     headerMd += `| **REST (Collections)** | ${(m.collections || m.restAvg).toFixed(3)}ms | ${restTrend.icon} (${restTrend.pct}) | < 5ms | ${(m.collections || m.restAvg) <= 5 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
-    headerMd += `| **Middleware Hooks** | ${m.hooks.toFixed(3)}ms | ⚪ | < 1.5ms | ${m.hooks <= 1.5 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
+    headerMd += `| **Middleware Hooks** | ${m.hooks.toFixed(3)}ms | ⚪ | < ${PERFORMANCE_BUDGET.hooks}ms | ${m.hooks <= PERFORMANCE_BUDGET.hooks ? "🟢 PASS" : "🔴 FAIL"} |\n`;
     headerMd += `| **GraphQL (Avg)** | ${m.graphqlAvg.toFixed(3)}ms | ${gqlTrend.icon} (${gqlTrend.pct}) | < 5ms | ${m.graphqlAvg <= 5 ? "🟢 PASS" : "🔴 FAIL"} |\n`;
     headerMd += `| **Million-Row Index** | ${m.indexPressure === 0 ? "FAILED" : m.indexPressure.toFixed(3) + "ms"} | ⚪ | < 250ms | ${m.indexPressure > 0 && m.indexPressure <= 250 ? "🟢 PASS" : dbKey === "sqlite" ? "🔴 LOCK WALL" : "🔴 FAIL"} |\n`;
     headerMd += `| **DB Raw (p95)** | ${m.dbRaw.toFixed(3)}ms | ⚪ | < 50ms | ${m.dbRaw <= 50 ? "🟢 PASS" : "🔴 FAIL"} |\n`;

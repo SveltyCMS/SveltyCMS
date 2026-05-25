@@ -33,6 +33,7 @@ export default defineConfig({
       "$app/state": path.resolve(__dirname, "./tests/unit/mocks/$app/state.ts"),
       "$app/paths": path.resolve(__dirname, "./tests/unit/mocks/$app/paths.ts"),
       "$app/forms": path.resolve(__dirname, "./tests/unit/mocks/$app/forms.ts"),
+      "$app/server": path.resolve(__dirname, "./tests/unit/mocks/$app/server.ts"),
       "$env/dynamic/private": path.resolve(__dirname, "./tests/unit/mocks/$env/dynamic/private.ts"),
       "sveltekit-rate-limiter/server": path.resolve(
         __dirname,
@@ -42,11 +43,11 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: "jsdom",
     testTimeout: 15000,
     setupFiles: [path.resolve(__dirname, "tests/unit/setup.ts")],
     include: ["tests/unit/**/*.test.ts"],
     exclude: ["**/*.bun.ts", "**/*.bun.test.ts", "node_modules", ".svelte-kit"],
+    // Default to node for speed. Individual files opt into jsdom via @vitest-environment pragma.
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],

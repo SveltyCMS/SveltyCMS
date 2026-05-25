@@ -74,6 +74,11 @@ const ENDPOINT_RATE_LIMITS: Record<string, number> = {
   "/api/website-tokens": 30,
   "/api/permission/update": 30,
   "/api/collections": 100,
+  "/api/setup": 10,
+  "/api/setup/test-db": 5,
+  "/api/setup/seed-db": 3,
+  "/api/setup/complete": 3,
+  "/api/testing": 100,
 };
 
 const GLOBAL_RATE_LIMIT = 100;
@@ -251,7 +256,9 @@ export class SecurityResponseService {
             maxThreat = this.upgradeThreat(maxThreat, this.checkValue(text));
           }
         } catch (err) {
-          logger.debug("Safe payload scan failed (non-blocking)", { error: err });
+          logger.debug("Safe payload scan failed (non-blocking)", {
+            error: err,
+          });
         }
       }
     }

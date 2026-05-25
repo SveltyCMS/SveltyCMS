@@ -74,14 +74,22 @@ export async function runBroadcastAudit() {
       silent: true,
       onIteration: async () => {
         return new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(() => reject(new Error("Realtime Timeout")), 2000);
+          const timeout = setTimeout(() => {
+            // 🛡️ Clean up listener on timeout to prevent leaks
+            realtimeWs.off("message", handler);
+            reject(new Error("Realtime Timeout"));
+          }, 2000);
           const handler = (data: any) => {
-            const msg = JSON.parse(data.toString());
-            // svelte-realtime message format
-            if (msg.type === "event" && msg.data?.event === "benchmark.ping") {
-              realtimeWs.removeListener("message", handler);
-              clearTimeout(timeout);
-              resolve();
+            try {
+              const msg = JSON.parse(data.toString());
+              // svelte-realtime message format
+              if (msg.type === "event" && msg.data?.event === "benchmark.ping") {
+                clearTimeout(timeout);
+                realtimeWs.off("message", handler); // Clean up on success too
+                resolve();
+              }
+            } catch {
+              // Ignore parse errors from non-JSON messages
             }
           };
           realtimeWs.on("message", handler);
@@ -120,7 +128,11 @@ export async function runBroadcastAudit() {
 
     printSummaryTable([
       { key: "Svelte-Realtime Avg Latency", val: results[0].avgMs, unit: "ms" },
-      { key: "Peak Throughput", val: Math.round(results[0].rps), unit: "events/s" },
+      {
+        key: "Peak Throughput",
+        val: Math.round(results[0].rps),
+        unit: "events/s",
+      },
     ]);
 
     exportResult(results[0]);

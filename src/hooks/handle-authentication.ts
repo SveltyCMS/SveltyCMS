@@ -35,7 +35,7 @@ import { error } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
-import { isStaticOrInternalRequest } from "@utils/hook-utils";
+import { getRequestFlags } from "@utils/hook-utils";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getTenantIdFromHostname } from "@utils/tenant";
 import { dev } from "$app/environment";
@@ -217,7 +217,9 @@ async function getUserFromSession(
 
   try {
     // Call the adapter directly to get the raw DatabaseResult (success vs error)
-    const result = await adapter.auth.validateSession(sessionId as any, { suppressErrorLog: true });
+    const result = await adapter.auth.validateSession(sessionId as any, {
+      suppressErrorLog: true,
+    });
 
     if (result?.success) {
       if (result.data) {
@@ -362,15 +364,15 @@ async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: bo
 
 export const handleAuthentication: Handle = async ({ event, resolve }) => {
   const { locals, url, cookies } = event;
-  const pathname = url.pathname;
 
   // 🧪 TEST MODE BYPASS: Verified early in pipeline, skip everything else
   if ((locals as any).__testBypass === true) {
     return await resolve(event);
   }
 
-  // 🚀 PERFORMANCE: Ultra-fast exit for static assets and internal SvelteKit chunks
-  if (isStaticOrInternalRequest(pathname)) return resolve(event);
+  // 🚀 PERFORMANCE: Ultra-fast exit for static assets using pre-computed flags
+  const flags = getRequestFlags(locals as any);
+  if (flags.isStatic) return resolve(event);
 
   // Initialize tenant context ONLY if not already set
   if (!locals.tenantId) locals.tenantId = null as any;
@@ -422,10 +424,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
     const authHeader = event.request.headers.get("Authorization");
-    const sessionId =
-      cookies.get(cookieName) ||
-      cookies.get(SESSION_COOKIE_NAME) ||
-      cookies.get(`__Host-${SESSION_COOKIE_NAME}`);
+    // 🛡️ SECURITY: Only accept __Host- prefixed cookies when secure (prevents subdomain cookie tossing).
+    // When insecure (localhost/dev), never accept __Host- prefixed cookies.
+    const sessionId = isSecure ? cookies.get(cookieName) : cookies.get(cookieName);
     if (sessionId) {
       metricsService.incrementAuthValidations();
       if (!auth) {

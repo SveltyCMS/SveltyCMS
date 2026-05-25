@@ -129,10 +129,12 @@ Based on `tests/benchmarks/hooks-performance.test.ts`, the setup-aware gating ac
 - **✨ NO SERVER RESTART REQUIRED**: System becomes operational immediately after setup completion
 
 <Callout type="success">
-  **Zero-Restart Architecture**: SveltyCMS uses dynamic in-memory configuration loading
-  (`initializeWithConfig()`). While Vite may perform a hot-restart in development when `private.ts`
-  is written, the production system transitions from `IDLE` → `READY` state instantly without
-  process recycling, ensuring zero downtime.
+  **Process Reinitialization & Vite HMR**: In development, when SveltyCMS writes
+  `config/private.ts`, Vite triggers an asynchronous dev server hot-restart. To prevent database
+  initialization race conditions and ensure setup data is committed to the correct target, SveltyCMS
+  programmatically unlinks config caches and executes `reinitializeSystem()` upon setup completion.
+  In production, SveltyCMS loads configs dynamically on startup, transitioning cleanly without
+  downtime.
 </Callout>
 
 ---
@@ -203,13 +205,13 @@ System Hardening:
 
 This separation prevents the "Initialization Storm" where multiple requests try to boot the database simultaneously. The **Turbo Pipeline** (introduced in v0.0.8) ensures that setup checks consume **zero CPU/IO cycles** once the system is READY.
 
-### Security Hardening (V10)
+### Security Hardening
 
 The setup process includes several enterprise-grade security features:
 
-- **PII Masking**: All logs during setup (account creation, DB connection) are automatically redacted to prevent leaking emails or passwords in terminal outputs.
-- **Secret Redaction**: The configuration loader (`config-state.ts`) prevents character-for-character printing of `private.ts` to any log stream.
-- **Write-Mutex Protection**: SQLite writes during the high-pressure setup phase are serialized via a global mutex to prevent "Database is Locked" errors.
+- **Log Sanitization**: Sensitive values (passwords, connection strings) are excluded from structured log output during setup operations.
+- **Secret Redaction**: The configuration loader (`config-state.ts`) prevents raw `private.ts` content from appearing in log streams.
+- **Write-Mutex Protection**: SQLite writes during high-pressure setup are serialized via transaction management to prevent "Database is Locked" errors.
 
 ### State Management
 
@@ -217,17 +219,14 @@ The setup process includes several enterprise-grade security features:
 // Central state via setup-store (Svelte 5 runes)
 {
   wizard: {
-    currentStep: 0,
-    highestStepReached: 0,
-    dbTestPassed: false,
-
     dbConfig: {
-      type: 'mongodb',
-      host: 'localhost',
-      port: '27017',
-      name: 'SveltyCMS',
+      type: 'sqlite',
+      host: 'config/database',
+      port: '',
+      name: 'sveltycms.db',
       user: '',
-      password: ''
+      password: '',
+      replicaUrls: []
     },
 
     adminUser: {
@@ -239,31 +238,49 @@ The setup process includes several enterprise-grade security features:
 
     systemSettings: {
       siteName: 'SveltyCMS',
-      hostProd: '',
+      hostProd: 'https://localhost:5173',
       defaultSystemLanguage: 'en',
-      systemLanguages: ['en'],
+      systemLanguages: ['en', 'de'],
       defaultContentLanguage: 'en',
-      contentLanguages: ['en'],
+      contentLanguages: ['en', 'de'],
       mediaStorageType: 'local',
-      mediaFolder: './mediaFolder'
+      mediaFolder: './mediaFolder',
+      preset: 'blank',
+      passwordMinLength: 8,
+      timezone: 'UTC',
+      useRedis: false,
+      redisHost: 'localhost',
+      redisPort: '6379',
+      redisPassword: '',
+      multiTenant: false,
+      demoMode: false,
+      cfApiToken: '',
+      cfZoneId: '',
+      cfPurgeMode: 'tags'
     },
 
     emailSettings: {
+      smtpConfigured: false,
       skipWelcomeEmail: true,
       host: '',
-      port: 587,
+      port: '587',
       user: '',
       password: '',
       from: '',
-      secure: true
-    }
+      secure: false
+    },
+
+    currentStep: 0,
+    highestStepReached: 0,
+    dbTestPassed: false,
+    firstCollection: null
   }
 }
 ```
 
 ### Validation Schemas
 
-Located in `src/utils/formSchemas.ts`:
+Located in `src/utils/schemas.ts`:
 
 ```typescript
 import * as v from "valibot";
@@ -617,7 +634,12 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
 - **Best for**: Custom builds, experimental projects.
 - **Includes**: Minimal configuration. No collections.
 
-#### 2. Blog / Editorial
+#### 2. Demo / Test Suite
+
+- **Best for**: Technical evaluations, showcasing all CMS capabilities.
+- **Includes**: All widget types, deep collection nesting, relations, and revision history.
+
+#### 3. Blog / Editorial
 
 - **Best for**: Content-heavy sites, news portals.
 - **Collections**:
@@ -625,7 +647,7 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
   - `Categories`: Hierarchical organization.
   - `Authors`: Contributor profiles.
 
-#### 3. Agency / Portfolio
+#### 4. Agency / Portfolio
 
 - **Best for**: Design agencies, freelancers, creative studios.
 - **Collections**:
@@ -634,7 +656,7 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
   - `Clients`: Client logos and information.
   - `Testimonials`: Social proof and reviews.
 
-#### 4. SaaS Product
+#### 5. SaaS Product
 
 - **Best for**: Software companies, product landing pages.
 - **Collections**:
@@ -643,7 +665,7 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
   - `Docs`: Nested documentation structure.
   - `Changelog`: Product updates.
 
-#### 5. Corporate Site
+#### 6. Corporate Site
 
 - **Best for**: Business websites, company profiles.
 - **Collections**:
@@ -651,7 +673,7 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
   - `Careers`: Job openings and descriptions.
   - `Locations`: Office addresses with map coordinates.
 
-#### 6. E-commerce
+#### 7. E-commerce
 
 - **Best for**: Online stores, catalogs.
 - **Collections**:
@@ -677,7 +699,7 @@ The wizard implements a two-tier validation system:
 ```typescript
 // In each step component (e.g., database-config.svelte)
 import { safeParse } from "valibot";
-import { dbConfigSchema } from "@utils/formSchemas";
+import { dbConfigSchema } from "@utils/schemas";
 
 // Real-time validation state
 let localValidationErrors = $state<Record<string, string>>({});
@@ -986,41 +1008,51 @@ function classifyDatabaseError(error: DatabaseError): string {
 **Pattern**: Svelte 5 class-based store with runes
 
 ```typescript
-class SetupStore {
-  // State
-  wizard = $state({
-    currentStep: 0,
-    highestStepReached: 0,
-    dbTestPassed: false,
+function createSetupStore() {
+  const wizard = $state({
     dbConfig: { ... },
     adminUser: { ... },
     systemSettings: { ... },
     emailSettings: { ... },
-    firstCollection: null
+    currentStep: 0,
+    highestStepReached: 0,
+    dbTestPassed: false,
+    firstCollection: null,
+    validationErrors: {},
+    stepErrors: { ... },
+    isLoading: false,
+    isSubmitting: false,
   });
 
   // Methods
-  load() {
+  function load() {
     const saved = localStorage.getItem('sveltycms_setup');
     if (saved) {
-      Object.assign(this.wizard, JSON.parse(saved));
+      Object.assign(wizard, JSON.parse(saved));
     }
   }
 
-  clear() {
-    this.wizard = { /* defaults */ };
+  function clear() {
+    // reset to defaults
     localStorage.removeItem('sveltycms_setup');
   }
 
-  setupPersistence() {
+  function setupPersistence() {
     $effect(() => {
-      const json = JSON.stringify(this.wizard);
+      const json = JSON.stringify(wizard);
       localStorage.setItem('sveltycms_setup', json);
     });
   }
+
+  return {
+    wizard,
+    load,
+    clear,
+    setupPersistence
+  };
 }
 
-export const setupStore = new SetupStore();
+export const setupStore = createSetupStore();
 ```
 
 ### Persistence Strategy
@@ -1232,7 +1264,7 @@ showToast("Setup will continue, data will be created as needed.", "info", 4000);
 2. **Add Validation Schema**
 
 ```typescript
-// src/utils/formSchemas.ts
+// src/utils/schemas.ts
 export const myStepSchema = v.object({
   field1: v.pipe(v.string(), v.minLength(1, "Field 1 is required")),
   field2: v.pipe(v.string(), v.email("Invalid email")),
@@ -1305,7 +1337,7 @@ class SetupStore {
 **Add Custom Validator**:
 
 ```typescript
-// src/utils/formSchemas.ts
+// src/utils/schemas.ts
 import * as v from "valibot";
 
 // Custom async validator
@@ -1353,7 +1385,7 @@ export const adminSchema = v.object(
 ```typescript
 import { describe, it, expect } from "vitest";
 import { safeParse } from "valibot";
-import { dbConfigSchema } from "@utils/formSchemas";
+import { dbConfigSchema } from "@utils/schemas";
 
 describe("dbConfigSchema", () => {
   it("validates correct database config", () => {

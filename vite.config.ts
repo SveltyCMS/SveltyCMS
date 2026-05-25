@@ -13,7 +13,7 @@
 import { exec } from "node:child_process";
 process.env.ESBUILD_WORKER_THREADS = "0";
 
-import { existsSync, promises as fsPromises } from "node:fs";
+import { existsSync, readFileSync, promises as fsPromises } from "node:fs";
 import { builtinModules } from "node:module";
 import { platform } from "node:os";
 import path from "node:path";
@@ -599,6 +599,105 @@ function buildMetadataPlugin(): Plugin {
     },
   };
 }
+function databaseAdapterStripperPlugin(): Plugin {
+  // Only strip adapters in production build and when setup is complete
+  const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
+  const isTest = process.env.TEST_MODE === "true" || process.env.VITEST === "true";
+  const setupComplete = isSetupComplete();
+  const compileAll = process.env.COMPILE_ALL_ADAPTERS === "true";
+
+  if (!isBuild || isTest || !setupComplete || compileAll) {
+    return { name: "database-adapter-stripper" };
+  }
+
+  // 1. Determine the active database type
+  let activeDbType = process.env.DATABASE_ENGINE || process.env.DB_TYPE;
+  if (!activeDbType) {
+    try {
+      const privateConfigPath = path.resolve(process.cwd(), "config/private.ts");
+      if (existsSync(privateConfigPath)) {
+        const content = readFileSync(privateConfigPath, "utf-8");
+        const match = content.match(/DB_TYPE\s*:\s*['"`](.*?)['"`]/);
+        if (match) {
+          activeDbType = match[1];
+        }
+      }
+    } catch {
+      // Ignore reading error
+    }
+  }
+
+  const dbType = activeDbType?.toLowerCase() || "sqlite";
+
+  log.info(`Active DB Type for Stripper: \x1b[32m${dbType}\x1b[0m`);
+
+  return {
+    name: "database-adapter-stripper",
+    enforce: "pre",
+    async resolveId(id, importer) {
+      if (!importer) return null;
+
+      // Only resolve paths inside our databases folder to avoid resolving every node_module
+      if (
+        !id.includes("databases") &&
+        !id.startsWith(".") &&
+        !id.startsWith("@databases") &&
+        !id.startsWith("@src")
+      ) {
+        return null;
+      }
+
+      const resolved = await this.resolve(id, importer, { skipSelf: true });
+      if (!resolved) return null;
+
+      const normalizedId = resolved.id.replace(/\\/g, "/");
+
+      if (dbType !== "sqlite" && normalizedId.endsWith("src/databases/sqlite/sqlite-adapter.ts")) {
+        return "\0virtual:db-stub:sqlite";
+      }
+      if (dbType !== "sqlite" && normalizedId.endsWith("src/databases/sqlite/migrations.ts")) {
+        return "\0virtual:db-stub:sqlite-migrations";
+      }
+      if (
+        dbType !== "postgresql" &&
+        normalizedId.endsWith("src/databases/postgresql/postgres-adapter.ts")
+      ) {
+        return "\0virtual:db-stub:postgresql";
+      }
+      if (
+        dbType !== "mariadb" &&
+        normalizedId.endsWith("src/databases/mariadb/mariadb-adapter.ts")
+      ) {
+        return "\0virtual:db-stub:mariadb";
+      }
+      if (
+        dbType !== "mongodb" &&
+        normalizedId.endsWith("src/databases/mongodb/mongo-db-adapter.ts")
+      ) {
+        return "\0virtual:db-stub:mongodb";
+      }
+      return null;
+    },
+    load(id) {
+      if (id === "\0virtual:db-stub:sqlite") {
+        return `export class SQLiteAdapter { constructor() { throw new Error("SQLite adapter is disabled in this build configuration."); } }`;
+      }
+      if (id === "\0virtual:db-stub:sqlite-migrations") {
+        return `export async function runMigrations() { return { success: true }; }`;
+      }
+      if (id === "\0virtual:db-stub:postgresql") {
+        return `export class PostgreSQLAdapter { constructor() { throw new Error("PostgreSQL adapter is disabled in this build configuration."); } }`;
+      }
+      if (id === "\0virtual:db-stub:mariadb") {
+        return `export class MariaDBAdapter { constructor() { throw new Error("MariaDB adapter is disabled in this build configuration."); } }`;
+      }
+      if (id === "\0virtual:db-stub:mongodb") {
+        return `export class MongoDBAdapter { constructor() { throw new Error("MongoDB adapter is disabled in this build configuration."); } }`;
+      }
+      return null;
+    },
+  };
+}
 
 // --- Main Vite Configuration ---
 const setupComplete = isSetupComplete();
@@ -616,6 +715,7 @@ export default defineConfig((): any => {
 
   return {
     plugins: [
+      databaseAdapterStripperPlugin(),
       testBackdoorStripperPlugin(),
       testConfigAliasPlugin(),
       privateConfigFallbackPlugin(),
@@ -709,6 +809,14 @@ export default defineConfig((): any => {
       minify: "esbuild",
       sourcemap: true,
       chunkSizeWarningLimit: 600, // Increase from 500KB (after optimizations)
+      // Rolldown-specific: suppress informational plugin-timing and known intentional import warnings
+      rolldownOptions: {
+        checks: {
+          // vite-plugin-sveltekit-guard (import graph analysis) and private-config-fallback
+          // are necessary plugins whose timing overhead is expected and acceptable.
+          pluginTimings: false,
+        },
+      },
       rollupOptions: {
         // Tree-shaking with preserved side effects for critical packages
         treeshake: {
@@ -749,6 +857,18 @@ export default defineConfig((): any => {
           if (warning.code === "EVAL" && warning.id?.includes("node_modules")) {
             return;
           }
+          // db.ts is intentionally both statically imported (hooks, auth, core services)
+          // and dynamically imported (setup wizard, background jobs) — it is a core
+          // singleton and chunk-splitting it is not beneficial. Suppress the Rolldown
+          // INEFFECTIVE_DYNAMIC_IMPORT diagnostic for this file.
+          if (
+            warning.code === "INEFFECTIVE_DYNAMIC_IMPORT" &&
+            (warning.id?.includes("databases/db.ts") ||
+              (Array.isArray(warning.ids) &&
+                warning.ids.some((id: string) => id.includes("databases/db.ts"))))
+          ) {
+            return;
+          }
           // Suppress "dynamic import will not move module" warnings for specific files where this is intentional.
           // See /docs/architecture/state-management.mdx for details.
           if (warning.message?.includes("dynamic import will not move module")) {
@@ -756,7 +876,10 @@ export default defineConfig((): any => {
             const isStateStore = warning.id?.includes("state.svelte.ts");
             const isRichTextInput = warning.id?.includes("rich-text/input.svelte");
             const isSettingsService = warning.id?.includes("services/settings-service.ts");
-            const isDb = warning.id?.includes("databases/db.ts");
+            const isDb =
+              warning.id?.includes("databases/db.ts") ||
+              (Array.isArray(warning.ids) &&
+                warning.ids.some((id: string) => id.includes("databases/db.ts")));
             if (isWidgetStore || isStateStore || isRichTextInput || isSettingsService || isDb) {
               return;
             }

@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-05-11"
+updated: "2026-05-24"
 tags:
   - "database"
   - "architecture"
@@ -103,9 +103,60 @@ graph TD
 
 ## 📈 Performance Benchmarks
 
-SveltyCMS delivers consistent, sub-millisecond performance across all supported database adapters thanks to our **Unified Caching Layer**. For the full breakdown of response times, cold-start latencies, and scalability metrics, please refer to the [Performance Benchmarks](/docs/project/benchmarks) document.
+All benchmarks measured on `localhost` with 100 iterations, 10 warmup iterations, running the full enterprise benchmark suite. Every adapter runs in Docker on the same machine as SveltyCMS.
+
+### Raw CRUD Latency (Lower = Better)
+
+| Operation         |    SQLite     | MongoDB  |   MariaDB    | PostgreSQL |
+| :---------------- | :-----------: | :------: | :----------: | :--------: |
+| INSERT            | **0.107 ms**  | 0.853 ms |   2.331 ms   |  2.841 ms  |
+| FIND ONE          | **0.076 ms**  | 0.798 ms |   0.698 ms   |  1.178 ms  |
+| FIND MANY (50)    |   0.105 ms    | 1.176 ms | **0.086 ms** |  0.081 ms  |
+| UPDATE            | **0.101 ms**  | 0.938 ms |   2.701 ms   |  2.688 ms  |
+| NATIVE UPSERT     | **0.066 ms**  | 1.083 ms |   0.604 ms   |  0.064 ms  |
+| AGGREGATION       | **<0.001 ms** | 4.438 ms |  <0.001 ms   | <0.001 ms  |
+| DELETE            | **0.042 ms**  | 1.945 ms |   1.927 ms   |  2.459 ms  |
+| BULK INSERT (100) | **2.958 ms**  | 4.317 ms |   6.128 ms   |  7.038 ms  |
+
+### HTTP Pipeline Latency (Lower = Better)
+
+| Endpoint               |    SQLite    | MongoDB  |   MariaDB    | PostgreSQL |
+| :--------------------- | :----------: | :------: | :----------: | :--------: |
+| Auth SDK Session       | **0.366 ms** | 0.960 ms |   0.998 ms   |  1.580 ms  |
+| Auth HTTP Pipeline     |   1.281 ms   | 0.799 ms | **0.728 ms** |  0.949 ms  |
+| API findById           |   1.223 ms   | 1.543 ms | **1.097 ms** |  1.108 ms  |
+| Hooks Turbo            | **0.951 ms** | 1.051 ms |   1.254 ms   |  1.141 ms  |
+| Hooks Full Pipeline    | **0.830 ms** | 0.910 ms |   0.896 ms   |  0.940 ms  |
+| Hooks Mutation + Audit | **0.783 ms** | 2.687 ms |   3.787 ms   |  4.958 ms  |
+| Cache Miss (L1 Only)   | **0.291 ms** | 0.346 ms |      —       |     —      |
+
+### Why SQLite Is Faster (Even on localhost)
+
+All four databases run on the same machine (`localhost`), but they communicate very differently with SveltyCMS:
+
+|                         | SQLite                                  | MongoDB / MariaDB / PostgreSQL                             |
+| :---------------------- | :-------------------------------------- | :--------------------------------------------------------- |
+| **Runs as**             | Embedded C library in the Bun process   | Separate OS process in Docker                              |
+| **Communication**       | Direct C function call (`sqlite3_step`) | TCP socket through kernel networking stack                 |
+| **Serialization**       | None — raw memory pointers              | Full wire protocol (BSON, PostgreSQL wire, MySQL protocol) |
+| **Per-operation floor** | ~0.001 ms                               | ~0.5–1.0 ms                                                |
+
+Every TCP round-trip — even to `localhost` — must traverse the kernel networking stack: syscalls, buffer copies, and context switches. SQLite bypasses all of this, executing queries directly in-process via the C ABI.
+
+### Adapter Selection Guide
+
+SQLite is not "cheating" — it is the correct default for the architecture SveltyCMS targets. The network databases are there when you need to scale beyond a single process.
+
+| Use Case                                 | Best Adapter                  | Why                                                           |
+| :--------------------------------------- | :---------------------------- | :------------------------------------------------------------ |
+| Single server, single process, max speed | **SQLite**                    | In-process, zero-network, 8–50× faster raw CRUD               |
+| Single server, high-write concurrency    | **MongoDB**                   | Best network DB CRUD (0.8–1.9 ms). Row-level locking          |
+| Multi-server / Kubernetes / replicas     | **PostgreSQL** or **MariaDB** | Native replication, connection pooling, horizontal scaling    |
+| Fastest HTTP response times              | **MariaDB**                   | 1.097 ms API. 0.728 ms auth. Best connection pooling overhead |
+
+For the full breakdown of response times, cold-start latencies, scalability metrics, and the complete 35-benchmark audit, see the [Performance Benchmarks](/docs/project/benchmarks) document.
 
 ---
 
-**Last Updated**: 2026-05-11  
+**Last Updated**: 2026-05-24
 **Maintained by**: SveltyCMS Team

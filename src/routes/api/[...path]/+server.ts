@@ -1,11 +1,12 @@
 /**
  * @file src/routes/api/[...path]/+server.ts
  * @description
- * Optimized API Gatekeeper using dynamic chunked dispatching.
+ * Optimized API Gatekeeper using dynamic chunked dispatching and fail-closed endpoint authorization.
  */
 
 import { json, type RequestEvent } from "@sveltejs/kit";
 import { dev } from "$app/environment";
+import { createHash } from "node:crypto";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
@@ -14,6 +15,7 @@ import { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { isPublicRoute } from "@src/utils/hook-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 
 // Dynamic handlers map for build-time tree-shaking
 const HANDLERS: Record<string, () => Promise<any>> = {
@@ -28,6 +30,7 @@ const HANDLERS: Record<string, () => Promise<any>> = {
   tokens: () => import("./handlers/tokens"),
   utility: () => import("./handlers/utility"),
   setup: () => import("./handlers/setup"),
+  version: () => import("./handlers/version"),
 };
 
 // Map domain namespaces to the correct handler module
@@ -77,10 +80,127 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   "openapi.json": { handler: "utility", fn: "handleUtilityRoutes" },
   webhooks: { handler: "system", fn: "handleWebhookRoutes" },
   "system-webhooks": { handler: "system", fn: "handleWebhookRoutes" },
-  "system-virtual-folder": { handler: "system", fn: "handleSystemVirtualFolderRoutes" },
-  systemVirtualFolder: { handler: "system", fn: "handleSystemVirtualFolderRoutes" },
+  "system-virtual-folder": {
+    handler: "system",
+    fn: "handleSystemVirtualFolderRoutes",
+  },
+  systemVirtualFolder: {
+    handler: "system",
+    fn: "handleSystemVirtualFolderRoutes",
+  },
+  version: { handler: "version", fn: "handleVersionRoutes" },
   graphql: { handler: "content", fn: "handleGraphqlRoutes" },
 };
+
+// Fail-closed mapping of namespaces/methods to core SveltyCMS permission IDs
+const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)> = {
+  collections: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "collections:read" : "collections:write",
+  content: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "collection:read" : "collection:write",
+  "content-structure": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "collection:read" : "collection:write",
+  search: "collection:read",
+  events: "collection:read",
+  graphql: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "collection:read" : "collection:write",
+  media: (method: string) => {
+    if (method === "OPTIONS") return "media:read";
+    if (method === "GET") return "media:read";
+    if (method === "DELETE") return "media:delete";
+    return "media:write";
+  },
+  widgets: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  system: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  settings: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  "system-settings": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  importer: "config:importexport",
+  "import-data": "config:importexport",
+  import: "config:importexport",
+  export: "config:importexport",
+  ai: "system:settings",
+  automations: "config:automations",
+  theme: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  "system-preferences": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "systemPreferences:read" : "systemPreferences:write",
+  token: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  "website-tokens": (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  webhooks: "config:webhooks",
+  "system-webhooks": "config:webhooks",
+  "system-virtual-folder": "system:settings",
+  systemVirtualFolder: "system:settings",
+  version: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  permission: "system:admin",
+};
+
+/**
+ * Checks authorization for endpoints in a fail-closed manner.
+ */
+function checkEndpointPermission(
+  user: any,
+  roles: any[],
+  method: string,
+  namespace: string,
+  segments: string[],
+): boolean {
+  // 🚀 ADMIN FAST-PATH: System and super admins have all access
+  if (user.isAdmin === true || user.role === "admin" || user.role === "super-admin") {
+    return true;
+  }
+
+  // SCIM is enterprise-only
+  if (namespace === "scim") {
+    return false;
+  }
+
+  // User management endpoints
+  if (namespace === "user" || namespace === "auth") {
+    const action = segments[1];
+    // Public / self endpoints are allowed
+    if (
+      !action ||
+      action === "me" ||
+      action === "login" ||
+      action === "logout" ||
+      action === "saml" ||
+      action === "2fa"
+    ) {
+      return true;
+    }
+    // If updating user attributes or saving avatar on self:
+    if (
+      (action === "update-user-attributes" || action === "save-avatar") &&
+      segments.length === 2
+    ) {
+      return true;
+    }
+    // Specific user routes: /api/user/[userId]
+    // If modifying or reading own profile:
+    if (segments.length >= 2 && segments[1] === user._id) {
+      return true;
+    }
+    // Other user management endpoints require admin or user permissions
+    const requiredPerm = method === "GET" ? "user:read" : "user:write";
+    return hasPermissionWithRoles(user, requiredPerm, roles);
+  }
+
+  const mapping = ENDPOINT_PERMISSIONS[namespace];
+  if (!mapping) {
+    // Fail-closed: unmapped namespace
+    return false;
+  }
+
+  const requiredPermission = typeof mapping === "function" ? mapping(method) : mapping;
+  return hasPermissionWithRoles(user, requiredPermission, roles);
+}
 
 // ✨ CACHED SDK: Reusable instance to prevent object churn
 let sharedCMS: LocalCMS | null = null;
@@ -94,6 +214,11 @@ export const _handler = async (event: RequestEvent) => {
 
   // 🚀 RESILIENCE: Derive path from URL if params are missing (common in Hook Bypasses)
   const rawPath = params.path || url.pathname.replace(/^\/api\//, "");
+
+  // 🚀 API VERSIONING: Strip /v1/ prefix for backward-compatible routing
+  const versionedPath = rawPath.replace(/^v1\//, "");
+  const segments = versionedPath.split("/").filter(Boolean);
+  const namespace = segments[0];
   const { user } = locals;
   let tenantId = (locals.tenantId as string) || null;
 
@@ -120,10 +245,6 @@ export const _handler = async (event: RequestEvent) => {
       throw new AppError("Forbidden: Cannot override tenantId", 403, "FORBIDDEN");
     }
   }
-
-  // 🚀 PERFORMANCE: Segment parsing
-  const segments = rawPath.split("/").filter(Boolean);
-  const namespace = segments[0];
 
   if (!namespace) return new Response("Not Found", { status: 404 });
 
@@ -164,8 +285,17 @@ export const _handler = async (event: RequestEvent) => {
   const cms = sharedCMS;
 
   // Fail-closed authentication
-  if (!user && !isPublicRoute(url.pathname, (locals as any).__testBypass === true)) {
+  const isPublic = isPublicRoute(url.pathname, (locals as any).__testBypass === true);
+  if (!user && !isPublic) {
     throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+
+  // Fail-closed authorization
+  if (!isPublic && !(locals as any).__testBypass) {
+    const roles = locals.roles || [];
+    if (!checkEndpointPermission(user, roles, request.method, namespace, segments)) {
+      throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
+    }
   }
 
   // --- CSRF Protection ---
@@ -197,7 +327,51 @@ export const _handler = async (event: RequestEvent) => {
     );
   }
 
-  return response;
+  // 🚀 ETag SUPPORT: Conditional request handling for cache-efficient GET responses
+  // Skip ETag for streaming responses (SSE) and non-200 responses
+  const contentType = response.headers.get("content-type") || "";
+  const isStreaming = contentType.includes("text/event-stream");
+
+  if (request.method === "GET" && response.status === 200 && !isStreaming && response.body) {
+    try {
+      const responseBody = await response.clone().text();
+      // 🛡️ createHash may not be available in jsdom test environments — fall back gracefully
+      const etag = `"${createHash("sha256").update(responseBody).digest("hex").substring(0, 16)}"`;
+      const ifNoneMatch = request.headers.get("if-none-match");
+
+      if (ifNoneMatch === etag || ifNoneMatch === "*") {
+        return new Response(null, {
+          status: 304,
+          headers: {
+            ETag: etag,
+            "Cache-Control": "private, must-revalidate",
+            "X-API-Version": "1",
+          },
+        });
+      }
+
+      const headers = new Headers(response.headers);
+      headers.set("ETag", etag);
+      headers.set("Cache-Control", "private, must-revalidate");
+      headers.set("X-API-Version", "1");
+      return new Response(responseBody, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    } catch {
+      // Fallback: createHash unavailable (e.g., jsdom) — return response without ETag
+    }
+  }
+
+  // Streaming or non-GET/non-200: add API version header, preserve body as-is
+  const headers = new Headers(response.headers);
+  headers.set("X-API-Version", "1");
+  return new Response(isStreaming ? response.body : response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 };
 
 export const GET = apiHandler(_handler);

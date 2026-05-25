@@ -1,12 +1,29 @@
 /**
- * @file src/services/preview-service.ts
+ * @file src/services/content/preview-service.ts
  * @description Centralized service for generating authorized live preview URLs using Signed Tokens.
+ *
+ * ### Security Hardening (2026-05-24):
+ * - Fail-closed when PREVIEW_SECRET is missing
+ * - Timing-safe signature comparison via crypto.timingSafeEqual
+ * - Structured signed payload with tenantId, entryId, exp, aud fields
+ * - Full HMAC-SHA256 (no truncation)
+ * - URL-encoded query parameter prevents delimiter injection
  */
 
 import crypto from "node:crypto";
 import type { CollectionEntry, Schema } from "@src/content/types";
 import { getPrivateSettingSync, getPublicSettingSync } from "../core/settings-service";
 import { logger } from "@utils/logger";
+
+const TOKEN_TTL_MS = 1000 * 60 * 30; // 30 minutes
+
+interface PreviewPayload {
+  sub: string; // userId
+  entryId: string;
+  tenantId: string;
+  exp: number; // expiry timestamp (ms)
+  aud: string; // audience = host
+}
 
 export class PreviewService {
   private static instance: PreviewService;
@@ -22,6 +39,7 @@ export class PreviewService {
 
   /**
    * Generates an authorized preview URL using a short-lived Signed Token.
+   * 🛡️ FAIL-CLOSED: Returns empty string if PREVIEW_SECRET is missing.
    */
   public generatePreviewUrl(
     schema: Schema,
@@ -35,57 +53,86 @@ export class PreviewService {
 
     const secret = getPrivateSettingSync("PREVIEW_SECRET");
     if (!secret) {
-      logger.error("PREVIEW_SECRET is not configured. Live preview will be insecure.");
-      return base;
+      logger.error("PREVIEW_SECRET is not configured. Preview URLs disabled for security.");
+      return ""; // 🛡️ FAIL-CLOSED
     }
 
-    // 1. Create Token Payload (Identity + Entry + Expiry)
-    const expires = Date.now() + 1000 * 60 * 30; // 30 minutes
-    const payload = `${userId || "anon"}:${entry._id}:${expires}`;
+    // 1. Create structured signed payload
+    const payload: PreviewPayload = {
+      sub: userId || "anon",
+      entryId: String(entry._id),
+      tenantId: tenantId || "default",
+      exp: Date.now() + TOKEN_TTL_MS,
+      aud: this.getAudience(base),
+    };
 
-    // 2. Sign Payload using HMAC-SHA256
+    // 2. Sign with full HMAC-SHA256
+    const payloadJson = JSON.stringify(payload);
     const signature = crypto
       .createHmac("sha256", secret as string)
-      .update(payload)
-      .digest("hex")
-      .slice(0, 32);
+      .update(payloadJson)
+      .digest("hex"); // Full 64-char hex
 
-    // 3. Encode into Base64URL token
-    const token = Buffer.from(`${payload}:${signature}`).toString("base64url");
+    // 3. Encode as Base64URL (payload + signature)
+    const token = Buffer.from(`${payloadJson}.${signature}`).toString("base64url");
 
     // 4. Construct Final URL
     const separator = base.includes("?") ? "&" : "?";
-    return `${base}${separator}preview_token=${token}`;
+    return `${base}${separator}preview_token=${encodeURIComponent(token)}`;
   }
 
   /**
    * Validates a Signed Preview Token.
+   * 🛡️ Uses timingSafeEqual to prevent timing attacks.
    */
-  public validateToken(token: string, entryId?: string): { valid: boolean; userId: string } {
+  public validateToken(
+    token: string,
+    entryId?: string,
+  ): { valid: boolean; userId: string; tenantId: string } {
     try {
-      const decoded = Buffer.from(token, "base64url").toString();
-      const [userId, tEntryId, expires, signature] = decoded.split(":");
-
-      // Check Expiration
-      if (Date.now() > Number(expires)) return { valid: false, userId: "" };
-
-      // Check Entry ID binding (if provided)
-      if (entryId && tEntryId !== entryId) return { valid: false, userId: "" };
-
-      // Re-calculate Signature
       const secret = getPrivateSettingSync("PREVIEW_SECRET") as string;
-      const payload = `${userId}:${tEntryId}:${expires}`;
-      const expectedSignature = crypto
-        .createHmac("sha256", secret)
-        .update(payload)
-        .digest("hex")
-        .slice(0, 32);
+      if (!secret) return { valid: false, userId: "", tenantId: "" };
 
-      if (signature !== expectedSignature) return { valid: false, userId: "" };
+      const decoded = Buffer.from(token, "base64url").toString();
+      const separatorIdx = decoded.lastIndexOf(".");
+      if (separatorIdx === -1) return { valid: false, userId: "", tenantId: "" };
 
-      return { valid: true, userId };
+      const payloadJson = decoded.slice(0, separatorIdx);
+      const providedSig = decoded.slice(separatorIdx + 1);
+
+      // Re-calculate expected signature
+      const expectedSig = crypto.createHmac("sha256", secret).update(payloadJson).digest("hex");
+
+      // 🛡️ TIMING-SAFE comparison
+      const providedBuf = Buffer.from(providedSig, "hex");
+      const expectedBuf = Buffer.from(expectedSig, "hex");
+      if (
+        providedBuf.length !== expectedBuf.length ||
+        !crypto.timingSafeEqual(providedBuf, expectedBuf)
+      ) {
+        return { valid: false, userId: "", tenantId: "" };
+      }
+
+      // Parse payload
+      const payload: PreviewPayload = JSON.parse(payloadJson);
+
+      // Check expiration
+      if (Date.now() > payload.exp) return { valid: false, userId: "", tenantId: "" };
+
+      // Check entry ID binding (if provided)
+      if (entryId && payload.entryId !== entryId) return { valid: false, userId: "", tenantId: "" };
+
+      return { valid: true, userId: payload.sub, tenantId: payload.tenantId };
     } catch {
-      return { valid: false, userId: "" };
+      return { valid: false, userId: "", tenantId: "" };
+    }
+  }
+
+  private getAudience(baseUrl: string): string {
+    try {
+      return new URL(baseUrl).hostname;
+    } catch {
+      return "localhost";
     }
   }
 
@@ -107,25 +154,21 @@ export class PreviewService {
       "http://localhost:5173";
     let resolvedPath = pattern;
 
-    // Resolve Placeholders
     const slugValue = this.getFieldValue(entry, "slug", contentLanguage) || entry._id || "draft";
     resolvedPath = resolvedPath.replace(/{slug}/g, String(slugValue));
     resolvedPath = resolvedPath.replace(/{_id}/g, String(entry._id || "draft"));
     resolvedPath = resolvedPath.replace(/{id}/g, String(entry._id || "draft"));
 
-    // Inject Language if not present
     if (!resolvedPath.includes("lang=")) {
       const separator = resolvedPath.includes("?") ? "&" : "?";
       resolvedPath += `${separator}lang=${contentLanguage}`;
     }
 
-    // Inject Tenant context if multi-tenant
     if (tenantId && !resolvedPath.includes("tenantId=")) {
       const separator = resolvedPath.includes("?") ? "&" : "?";
       resolvedPath += `${separator}tenantId=${tenantId}`;
     }
 
-    // If pattern is already an absolute URL, ignore baseUrl
     if (resolvedPath.startsWith("http://") || resolvedPath.startsWith("https://")) {
       return resolvedPath;
     }

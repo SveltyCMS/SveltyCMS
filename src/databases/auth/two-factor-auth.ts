@@ -26,6 +26,7 @@ import {
   verifyBackupCode,
   verifyTOTPCode,
 } from "./totp";
+import { getTotpReplayRegistry } from "./totp-replay-registry";
 import type { TwoFactorSetupResponse, TwoFactorVerificationResult } from "./two-factor-auth-types";
 import type { User } from "./types";
 
@@ -154,7 +155,9 @@ export class TwoFactorAuthService {
       logger.debug("Verifying 2FA code", { userId, tenantId });
 
       // Get user data
-      const userResult = await this.db.getUserById(userId, { tenantId: tenantId ?? undefined });
+      const userResult = await this.db.getUserById(userId, {
+        tenantId: tenantId ?? undefined,
+      });
       if (!(userResult.success && userResult.data)) {
         return {
           success: false,
@@ -174,6 +177,20 @@ export class TwoFactorAuthService {
 
       // First try TOTP verification (now async)
       if (user.totpSecret && (await verifyTOTPCode(user.totpSecret, code))) {
+        // --- TOTP Replay Protection ---
+        // After math validation passes, check the consumed-codes registry.
+        // This prevents an attacker from replaying an intercepted code within
+        // the 90-second validity window (30s TOTP + ±30s clock skew).
+        const registry = getTotpReplayRegistry();
+        const isFirstUse = await registry.consumeCode(String(userId), code);
+        if (!isFirstUse) {
+          logger.warn("TOTP replay attack blocked", { userId });
+          return {
+            success: false,
+            message: "Invalid or expired code",
+          };
+        }
+
         // Update last verification time
         await this.db.updateUserAttributes(
           userId,
@@ -280,7 +297,9 @@ export class TwoFactorAuthService {
       logger.info("Regenerating backup codes", { userId, tenantId });
 
       // Get user to verify 2FA is enabled
-      const userResult = await this.db.getUserById(userId, { tenantId: tenantId ?? undefined });
+      const userResult = await this.db.getUserById(userId, {
+        tenantId: tenantId ?? undefined,
+      });
       if (!(userResult.success && userResult.data && userResult.data.is2FAEnabled)) {
         throw new Error("2FA is not enabled for this user");
       }
@@ -327,7 +346,9 @@ export class TwoFactorAuthService {
     lastVerification?: ISODateString;
   }> {
     try {
-      const userResult = await this.db.getUserById(userId, { tenantId: tenantId ?? undefined });
+      const userResult = await this.db.getUserById(userId, {
+        tenantId: tenantId ?? undefined,
+      });
       if (!(userResult.success && userResult.data)) {
         throw new Error("User not found");
       }

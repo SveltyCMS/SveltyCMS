@@ -71,9 +71,8 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
     if (locals.user && (isContentRoute || isApi)) {
       logger.info(`[handleContentInitialization] Awaiting content system sync for ${pathname}...`);
       await initPromise;
-    } else {
-      logger.debug(`[handleContentInitialization] Fast-tracking initialization for: ${pathname}`);
     }
+    // else: Fast-tracking initialization (no log in production)
   }
 
   // --- Phase 3: Auth & Fresh Install Redirects ---

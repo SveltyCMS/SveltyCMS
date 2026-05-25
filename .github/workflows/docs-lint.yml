@@ -11,7 +11,8 @@ on:
       # --- Trigger on any component/widget change that impacts docs ---
       - "src/widgets/**/*.svelte"
       - "src/widgets/**/*.ts"
-      # --- Trigger on core logic or utilities that define contracts ---
+      # --- Trigger on any CI/Workflow config change ---
+      - ".github/workflows/**/*.yml"
       - "src/utils/**/*.ts"
       - "src/databases/**.ts"
       - "scripts/**/*.ts"
@@ -20,7 +21,6 @@ on:
 # Set minimal permissions for all jobs in this workflow
 permissions:
   contents: read
-  write: write # Needed if the documentation build generates artifacts/assets
 
 jobs:
   validate-documentation:

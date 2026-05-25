@@ -76,6 +76,13 @@ const DEFAULT_CIRCUIT_CONFIG: CircuitBreakerConfig = {
   halfOpenMaxRequests: 1,
 };
 
+export interface CircuitState {
+  consecutiveFailures: number;
+  lastFailureTimestamp: number;
+  halfOpenRequests: number;
+  circuitState: "CLOSED" | "OPEN" | "HALF_OPEN";
+}
+
 /**
  * Database Resilience Manager
  * Handles automatic retries, reconnection, and health monitoring
@@ -96,9 +103,20 @@ export class DatabaseResilience {
 
   private readonly retryConfig: RetryConfig;
   private readonly circuitConfig: CircuitBreakerConfig;
-  private consecutiveFailures = 0;
-  private lastFailureTimestamp = 0;
-  private halfOpenRequests = 0;
+
+  private circuitStates = new Map<string, CircuitState>();
+
+  private getCircuitState(name: string) {
+    if (!this.circuitStates.has(name)) {
+      this.circuitStates.set(name, {
+        consecutiveFailures: 0,
+        lastFailureTimestamp: 0,
+        halfOpenRequests: 0,
+        circuitState: "CLOSED",
+      });
+    }
+    return this.circuitStates.get(name)!;
+  }
 
   private isReconnecting = false;
   private connectionEstablishedAt?: number;
@@ -116,9 +134,11 @@ export class DatabaseResilience {
     operationName: string,
     onRetry?: (attempt: number, error: Error) => void,
   ): Promise<T> {
+    const circuit = this.getCircuitState(operationName);
+
     // 1. Check Circuit Breaker State
-    if (this.metrics.circuitState === "OPEN") {
-      const timeSinceFailure = Date.now() - this.lastFailureTimestamp;
+    if (circuit.circuitState === "OPEN") {
+      const timeSinceFailure = Date.now() - circuit.lastFailureTimestamp;
       if (timeSinceFailure < this.circuitConfig.cooldownMs) {
         logger.debug(`Circuit breaker is OPEN for ${operationName} - failing fast`);
         throw new Error(
@@ -126,16 +146,16 @@ export class DatabaseResilience {
         );
       }
       // Attempt recovery
-      this.transitionTo("HALF_OPEN");
+      this.transitionTo(operationName, "HALF_OPEN");
     }
 
-    if (this.metrics.circuitState === "HALF_OPEN") {
-      if (this.halfOpenRequests >= this.circuitConfig.halfOpenMaxRequests) {
+    if (circuit.circuitState === "HALF_OPEN") {
+      if (circuit.halfOpenRequests >= this.circuitConfig.halfOpenMaxRequests) {
         throw new Error(
           `Circuit breaker is HALF_OPEN for '${operationName}' - too many test requests`,
         );
       }
-      this.halfOpenRequests++;
+      circuit.halfOpenRequests++;
     }
 
     let lastError: Error | undefined;
@@ -145,7 +165,7 @@ export class DatabaseResilience {
         const result = await operation();
 
         // Success: Reset Circuit Breaker
-        this.onSuccess();
+        this.onSuccess(operationName);
 
         if (attempt > 1) {
           // Operation succeeded after retry
@@ -164,7 +184,7 @@ export class DatabaseResilience {
           lastError.message?.includes("UNSUPPORTED_DB_TYPE");
 
         if (isConfigError) {
-          this.onFailure(lastError);
+          this.onFailure(operationName, lastError);
           throw lastError;
         }
 
@@ -186,7 +206,7 @@ export class DatabaseResilience {
           await this.sleep(delay);
         } else {
           // Final failure: Track for Circuit Breaker
-          this.onFailure(lastError);
+          this.onFailure(operationName, lastError);
           this.metrics.failedRetries++;
           logger.error(
             `Operation '${operationName}' failed after ${this.retryConfig.maxAttempts} attempts`,
@@ -201,52 +221,56 @@ export class DatabaseResilience {
     throw lastError || new Error(`Operation '${operationName}' failed after all retry attempts`);
   }
 
-  private onSuccess() {
-    this.consecutiveFailures = 0;
-    if (this.metrics.circuitState !== "CLOSED") {
-      this.transitionTo("CLOSED");
+  private onSuccess(operationName: string) {
+    const circuit = this.getCircuitState(operationName);
+    circuit.consecutiveFailures = 0;
+    if (circuit.circuitState !== "CLOSED") {
+      this.transitionTo(operationName, "CLOSED");
     }
-    this.halfOpenRequests = 0;
+    circuit.halfOpenRequests = 0;
   }
 
-  private onFailure(_error: Error) {
-    this.consecutiveFailures++;
-    this.lastFailureTimestamp = Date.now();
-    this.metrics.lastFailureTime = this.lastFailureTimestamp;
+  private onFailure(operationName: string, _error: Error) {
+    const circuit = this.getCircuitState(operationName);
+    circuit.consecutiveFailures++;
+    circuit.lastFailureTimestamp = Date.now();
+    this.metrics.lastFailureTime = circuit.lastFailureTimestamp;
 
-    if (this.metrics.circuitState === "HALF_OPEN") {
-      this.transitionTo("OPEN");
+    if (circuit.circuitState === "HALF_OPEN") {
+      this.transitionTo(operationName, "OPEN");
     } else if (
-      this.metrics.circuitState === "CLOSED" &&
-      this.consecutiveFailures >= this.circuitConfig.failureThreshold
+      circuit.circuitState === "CLOSED" &&
+      circuit.consecutiveFailures >= this.circuitConfig.failureThreshold
     ) {
-      this.transitionTo("OPEN");
+      this.transitionTo(operationName, "OPEN");
     }
   }
 
-  private transitionTo(state: "CLOSED" | "OPEN" | "HALF_OPEN") {
-    const oldState = this.metrics.circuitState;
+  private transitionTo(operationName: string, state: "CLOSED" | "OPEN" | "HALF_OPEN") {
+    const circuit = this.getCircuitState(operationName);
+    const oldState = circuit.circuitState;
     if (oldState === state) return;
 
-    this.metrics.circuitState = state;
+    circuit.circuitState = state;
+    this.metrics.circuitState = state; // Keep global metric tracking the latest state change
     this.metrics.circuitBreakerTransitions++;
-    this.halfOpenRequests = 0;
+    circuit.halfOpenRequests = 0;
 
-    logger.warn(`Circuit breaker state transition: ${oldState} -> ${state}`, {
-      consecutiveFailures: this.consecutiveFailures,
+    logger.warn(`Circuit breaker state transition for ${operationName}: ${oldState} -> ${state}`, {
+      consecutiveFailures: circuit.consecutiveFailures,
     });
 
     if (state === "OPEN") {
       updateServiceHealth(
         "database",
         "unhealthy",
-        `Circuit breaker tripped after ${this.consecutiveFailures} failures`,
+        `Circuit breaker tripped for ${operationName} after ${circuit.consecutiveFailures} failures`,
       );
     } else if (state === "CLOSED") {
       updateServiceHealth("database", "healthy", "Circuit breaker reset - database recovered");
       // 🚀 ADAPTIVE: Shrink cooldown window if recovery was rapid
-      if (this.metrics.lastRecoveryTime && this.lastFailureTimestamp) {
-        const recoverySpeed = this.metrics.lastRecoveryTime - this.lastFailureTimestamp;
+      if (this.metrics.lastRecoveryTime && circuit.lastFailureTimestamp) {
+        const recoverySpeed = this.metrics.lastRecoveryTime - circuit.lastFailureTimestamp;
         if (recoverySpeed < 5000) {
           logger.info("[Resilience] Rapid recovery detected. Shrinking cooldown...");
           this.circuitConfig.cooldownMs = Math.max(10000, this.circuitConfig.cooldownMs * 0.8);

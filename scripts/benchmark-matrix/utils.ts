@@ -25,6 +25,28 @@ export function requiresRebuild(): boolean {
   // 🛡️ CRITICAL: If build folder or server entry is missing, we MUST rebuild
   if (!existsSync(buildPath) || !existsSync(serverEntry)) return true;
 
+  // 🛡️ CRITICAL: If the current build contains stripped database stubs, we MUST rebuild to compile all adapters for the benchmark matrix
+  function checkStubs(dir: string): boolean {
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (checkStubs(fullPath)) return true;
+        } else if (entry.name.includes("db-stub")) {
+          return true;
+        }
+      }
+    } catch {
+      return false;
+    }
+    return false;
+  }
+  if (checkStubs(buildPath)) {
+    log.info("Stripped build detected in build/ folder. Forcing full rebuild with all adapters...");
+    return true;
+  }
+
   const buildTime = statSync(serverEntry).mtimeMs;
   const srcPath = path.join(process.cwd(), "src");
 
@@ -55,7 +77,10 @@ export function requiresRebuild(): boolean {
 /**
  * Checks if a Docker container for a specific service is running and responsive.
  */
-export function checkServiceHealth(type: string): { healthy: boolean; error?: string } {
+export function checkServiceHealth(type: string): {
+  healthy: boolean;
+  error?: string;
+} {
   // 🚀 CI RESILIENCE: In GitHub Actions/CI, services are managed by the runner's infrastructure.
   // We assume health as the workflow already performs a 'wait-on' check.
   if (process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true") {
@@ -72,7 +97,9 @@ export function checkServiceHealth(type: string): { healthy: boolean; error?: st
         return { healthy: true };
       case "postgresql":
       case "postgres":
-        execSync("docker exec postgres pg_isready -U postgres", { stdio: "ignore" });
+        execSync("docker exec postgres pg_isready -U postgres", {
+          stdio: "ignore",
+        });
         return { healthy: true };
       case "mongodb":
       case "mongo":
@@ -257,15 +284,15 @@ export function extractMetrics(metrics: Record<string, unknown> = {}, _dbType: s
       (findResult(m, "FIND ONE") as any)?.p95Ms ||
       0,
     hooks:
+      getMetric("middleware.hooks.avg") ||
+      (findResult(m, "hooks-performance") as any)?.avgMs ||
+      (findResult(m, "Auth+Security") as any)?.avgMs ||
+      (findResult(m, "Full Security + Auth Pipeline") as any)?.avgMs ||
+      (findResult(m, "Turbo Pipeline") as any)?.avgMs ||
       getMetric("middleware.hooks.p95") ||
       getMetric("Hooks p95") ||
       getMetric("middleware-hooks-p95") ||
-      (findResult(m, "hooks-performance") as any)?.avgMs ||
-      (findResult(m, "Auth+Security") as any)?.avgMs ||
-      (findResult(m, "Turbo") as any)?.avgMs ||
-      (findResult(m, "Full Security + Auth Pipeline") as any)?.avgMs ||
       (findResult(m, "Full Security + Auth Pipeline") as any)?.p95Ms ||
-      (findResult(m, "Turbo Pipeline") as any)?.avgMs ||
       0,
     graphqlAvg:
       getMetric("api.graphql.avg") ||
@@ -445,7 +472,12 @@ export async function getTrendDetails(
   dbKey: string,
   currentVal: number,
   column: string,
-): Promise<{ icon: string; pct: string; isRegression: boolean; previousAvg: number }> {
+): Promise<{
+  icon: string;
+  pct: string;
+  isRegression: boolean;
+  previousAvg: number;
+}> {
   if (!currentVal) return { icon: "⚪", pct: "—", isRegression: false, previousAvg: 0 };
 
   try {
@@ -562,7 +594,6 @@ const NOISY_SERVER_PATTERNS: RegExp[] = [
 const ANSI_STRIP = /[\u001b\u009b]\[[0-9;]*[JKmsu]/g;
 
 export function isNoisyLine(line: string): boolean {
-  return false; // 🚀 DEBUG: Show all lines
   const clean = line.replace(ANSI_STRIP, "");
   const isQuiet = process.env.QUIET === "true";
 

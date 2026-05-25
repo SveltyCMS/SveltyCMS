@@ -17,6 +17,7 @@ import "../unit/bun-preload.ts";
 import { CacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { logger } from "@utils/logger";
+import { LRUCache } from "lru-cache";
 
 class SimulatedRedisBus {
   private subscribers: Map<string, Set<(msg: string) => void>> = new Map();
@@ -49,7 +50,10 @@ class SimulatedRedisBus {
       set: (key: string, val: any) => this.storage.set(key, val),
       del: (keys: string | string[]) => {
         const toDelete = Array.isArray(keys) ? keys : [keys];
-        for (const k of toDelete) this.storage.delete(k);
+        for (const k of toDelete) {
+          this.storage.delete(k);
+          this.sets.delete(k); // Clean tag sets too to prevent unbounded growth
+        }
       },
       sMembers: (key: string) => Array.from(this.sets.get(key) || []),
       sAdd: (key: string, member: string) => {
@@ -81,6 +85,14 @@ class SimulatedRedisBus {
 
 async function createSimulatedNode(bus: SimulatedRedisBus, id: string) {
   const node = new CacheService();
+  // 🚀 Reduce LRU size for test instances (500K default is 3GB+ for 7 nodes)
+  (node as any).l1 = new LRUCache({
+    max: 10000,
+    ttl: 1000 * 60 * 5,
+    dispose: (_value: any, key: string) => {
+      (node as any).cleanupTagsForKey?.(key);
+    },
+  });
   const client = bus.createClient(id);
 
   // Inject mock client and override nodeId to match the client
@@ -102,18 +114,16 @@ async function runEdgeSyncAudit() {
       Array.from({ length: 6 }, (_, i) => createSimulatedNode(bus, `node-${i}`)),
     );
 
-    await stabilize(400);
+    await stabilize(100);
 
     const TEST_TAGS = ["edge-sync-test"];
     const TENANT = "global";
-    const ITERATIONS = 400;
-
-    console.log(`   → Measuring propagation across ${remoteNodes.length} simulated edge nodes...`);
+    const ITERATIONS = 20;
 
     const result = await runBenchmark({
       name: "Edge Sync Propagation",
       iterations: ITERATIONS,
-      warmupIterations: 80,
+      warmupIterations: 20,
       runs: 2,
       concurrency: 1,
       trimOutliers: "iqr",

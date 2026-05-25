@@ -89,6 +89,9 @@ export const privateConfigSchema = object({
   GOOGLE_API_KEY: optional(pipe(string(), minLength(1))),
   GOOGLE_PAGESPEED_API_KEY: optional(pipe(string(), minLength(1))),
 
+  GITHUB_CLIENT_ID: optional(pipe(string(), minLength(1))),
+  GITHUB_CLIENT_SECRET: optional(pipe(string(), minLength(1))),
+
   TEST_API_SECRET: optional(string()),
 
   // --- External CDN (Optional) ---
@@ -106,6 +109,7 @@ export const privateConfigSchema = object({
   // --- Authentication & Security ---
   PASSWORD_MIN_LENGTH: optional(coercedNumber),
   PREVIEW_SECRET: optional(string()),
+  RATE_LIMIT_SECRET: optional(string()),
 
   // --- CORS Configuration ---
   CORS_ENABLED: optional(coercedBoolean),

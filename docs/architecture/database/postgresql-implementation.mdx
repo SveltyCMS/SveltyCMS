@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:elephant"
 author: "SveltyCMS Team"
 created: "2026-02-04"
-updated: "2026-03-27"
+updated: "2026-05-24"
 tags:
   - "database"
   - "postgresql"
@@ -155,7 +155,7 @@ The PostgreSQL adapter is optimized for relational efficiency and JSONB search p
 
 Key PostgreSQL highlights:
 
-- **JSONB with GIN Indexing**: Sub-10ms search on complex containment queries.
+- **JSONB with GIN Indexing**: 0.063 ms NATIVE UPSERT, 0.083 ms FIND MANY, 1.201 ms FIND ONE.
 - **Partial Indexes**: Optimized performance for active sessions and tokens.
 - **Connection Health**: Robust pooling via `postgres.js` with integrated health checks.
 

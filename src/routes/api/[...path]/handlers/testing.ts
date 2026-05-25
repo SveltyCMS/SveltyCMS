@@ -33,6 +33,35 @@ export async function handleTestingRoutes(
   tenantId: DatabaseId,
   _segments: string[],
 ) {
+  // 🛡️ Strictly enforce environment and cryptographic token verification
+  const isTestMode =
+    process.env.TEST_MODE === "true" ||
+    process.env.BENCHMARK === "true" ||
+    process.env.NODE_ENV === "test";
+
+  const requestSecret =
+    event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
+
+  const { getTestSecret } = await import("@src/utils/setup-check");
+  const expectedSecret = process.env.TEST_API_SECRET || getTestSecret();
+
+  if (!isTestMode || !expectedSecret || !requestSecret) {
+    throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
+  }
+
+  // 🛡️ TIMING-SAFE: Use constant-time comparison to prevent timing side-channel attacks
+  const { timingSafeEqual } = await import("node:crypto");
+  const encoder = new TextEncoder();
+  const secretBuffer = encoder.encode(requestSecret);
+  const expectedBuffer = encoder.encode(expectedSecret);
+
+  if (
+    secretBuffer.length !== expectedBuffer.length ||
+    !timingSafeEqual(secretBuffer, expectedBuffer)
+  ) {
+    throw new AppError("Unauthorized: Testing endpoints are disabled", 401, "UNAUTHORIZED");
+  }
+
   process.stderr.write(`🚀 handleTestingRoutes ENTERED: ${event.url.searchParams.get("action")}\n`);
   const { request } = event;
   try {
@@ -78,7 +107,10 @@ export async function handleTestingRoutes(
       const { resetSystemState } = await import("@src/stores/system/state.svelte");
       resetSystemState();
 
-      return rawResponse({ success: true, message: "System reset successfully" });
+      return rawResponse({
+        success: true,
+        message: "System reset successfully",
+      });
     }
 
     if (action === "seed") {
@@ -126,7 +158,10 @@ export async function handleTestingRoutes(
     if (action === "reinitialize") {
       // Trigger system reload (full crawl/reconciliation)
       await contentSystem.initialize(tenantId, { force: true });
-      return rawResponse({ success: true, message: "System reinitialized successfully" });
+      return rawResponse({
+        success: true,
+        message: "System reinitialized successfully",
+      });
     }
 
     // 🚀 HARDENING: Wait for database to be ready
@@ -367,18 +402,71 @@ export async function handleTestingRoutes(
       const { event: eventName, data } = params;
       if (!eventName) throw new AppError("Event name required", 400);
 
+      const payload = { ...data, tenantId: tenantId || "default" };
+
+      // 🚀 DUEL-PATH: Publish both via EventBus (internal listeners) AND globalPlatform (WebSocket)
+      // This ensures delivery regardless of whether the platform bridge is initialized
       const { eventBus } = await import("@utils/event-bus");
-      eventBus.emit(eventName, { ...data, tenantId });
+      eventBus.emit(eventName, payload);
+
+      // Direct WebSocket broadcast via svelte-realtime platform
+      const { globalPlatform } = await import("@src/hooks.ws");
+      if (globalPlatform) {
+        const topic = `system_events:${tenantId || "default"}`;
+        try {
+          (globalPlatform as any).publish(topic, "create", {
+            id: crypto.randomUUID(),
+            event: eventName,
+            data: payload,
+            timestamp: Date.now(),
+            tenantId: tenantId || "default",
+          });
+        } catch (err: any) {
+          // Non-critical: EventBus path may still work
+          if (process.env.BENCHMARK_DEBUG === "true") {
+            process.stderr.write(
+              `[TestingHandler] globalPlatform.publish failed: ${err.message}\n`,
+            );
+          }
+        }
+      } else if (process.env.BENCHMARK_DEBUG === "true") {
+        process.stderr.write(
+          `[TestingHandler] globalPlatform is null — WebSocket broadcast skipped\n`,
+        );
+      }
+
       return rawResponse({ success: true });
     }
 
     if (action === "emit-ping") {
-      const { pubSub } = await import("@src/services/background/pub-sub");
-      pubSub.publish("entryUpdated", {
+      // 🚀 DUEL-PATH: Both EventBus and direct WebSocket broadcast
+      const payload = {
         type: "ping",
         timestamp: new Date().toISOString(),
-        tenantId,
-      } as any);
+        tenantId: tenantId || "default",
+      };
+
+      // Internal PubSub for service listeners
+      const { pubSub } = await import("@src/services/background/pub-sub");
+      pubSub.publish("entryUpdated", payload as any);
+
+      // Direct WebSocket broadcast for connected clients
+      const { globalPlatform } = await import("@src/hooks.ws");
+      if (globalPlatform) {
+        const topic = `system_events:${tenantId || "default"}`;
+        try {
+          (globalPlatform as any).publish(topic, "update", {
+            id: crypto.randomUUID(),
+            event: "benchmark.ping",
+            data: payload,
+            timestamp: Date.now(),
+            tenantId: tenantId || "default",
+          });
+        } catch {
+          /* non-critical */
+        }
+      }
+
       return rawResponse({ success: true });
     }
 

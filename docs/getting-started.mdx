@@ -6,7 +6,7 @@ order: 0
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-03-27"
+updated: "2026-05-25"
 tags:
   - "getting-started"
   - "quickstart"
@@ -48,12 +48,13 @@ bun run dev
 
 ### The Setup Wizard
 
-Navigate to `http://localhost:5173`. The system will automatically detect the absence of `config/private.ts` and launch the wizard:
+Navigate to `http://localhost:5173`. The system will automatically detect the absence of `config/private.ts` via the TurboPipeline hook and launch the wizard:
 
 1.  **Choose Database**: Support for MongoDB, PostgreSQL, MariaDB, and SQLite (fastest for local).
-2.  **Test Connection**: The wizard auto-installs required drivers.
-3.  **Create Admin**: Set your master credentials.
-4.  **Seed Data**: The system initializes and transitions to the `READY` state.
+2.  **Test Connection**: The wizard auto-installs required drivers and validates connectivity.
+3.  **Create Admin**: Set your master credentials with password complexity validation.
+4.  **Configure System**: Set site name, languages, media storage, and optional Redis.
+5.  **Email & Review**: Optionally configure SMTP, then review all settings and complete setup. The system seeds the database automatically and transitions to `READY`.
 
 ---
 
@@ -132,7 +133,8 @@ For developers needing to understand the system's resilience:
 SveltyCMS transitions through specific states during boot:
 
 - `IDLE`: Initializing memory and checking `config/private.ts`.
-- `SYSTEM_READY`: Core services (Auth, Media, DB) are successfully connected.
+- `READY` / `WARMED`: Core services (Auth, Media, DB) are successfully connected and cache is warm.
+- `DEGRADED`: System is operational but some non-critical services are unhealthy.
 - `FAILED`: A critical path error occurred (Wizard enters recovery mode).
 
 ### Driver Auto-Installation

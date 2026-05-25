@@ -81,8 +81,11 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
 
       if (!result.success) {
         const hasEssentialKeys = !!(config.DB_TYPE || config.DB_HOST || config.JWT_SECRET_KEY);
+        const isBenchmark =
+          process.env.SVELTY_BENCHMARK_SUITE === "true" || process.env.BENCHMARK === "true";
         // Only log error if we actually have some configuration attempted
-        if (hasEssentialKeys || fileConfig) {
+        // 🚀 BENCHMARK: Suppress noise — bench child process uses HTTP API, not direct DB
+        if ((hasEssentialKeys || fileConfig) && !isBenchmark) {
           logger.error("Private config validation failed:", {
             error: result.issues[0]?.message || "Validation failed",
             issues: result.issues.map((i: any) => ({
@@ -124,6 +127,11 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
 /** Helper: Load from config/private.ts or private.test.ts only when necessary */
 async function loadConfigFromFileIfNeeded(svelteEnv: any): Promise<any | null> {
   const isTest = process.env.TEST_MODE === "true" || process.env.NODE_ENV === "test";
+  const isBenchmark =
+    process.env.SVELTY_BENCHMARK_SUITE === "true" || process.env.BENCHMARK === "true";
+
+  // 🚀 BENCHMARK MODE: Skip file-based config entirely — all values come from env vars
+  if (isBenchmark) return null;
 
   if (!isTest && !shouldUseFileConfig(svelteEnv)) {
     return null; // Prefer pure env in normal/prod runs
@@ -148,7 +156,9 @@ async function loadConfigFromFileIfNeeded(svelteEnv: any): Promise<any | null> {
     logger.debug(`[Config] Loaded ${filename} successfully.`);
     return module.privateEnv ?? module; // support both export styles
   } catch (err) {
-    logger.trace(`Failed to load ${filename}`, { error: (err as Error).message });
+    logger.trace(`Failed to load ${filename}`, {
+      error: (err as Error).message,
+    });
     return null;
   }
 }
@@ -428,4 +438,14 @@ export function clearPrivateConfigCache(keepPrivateEnv = false) {
   }
   dbConfigCache = null;
   redisConfigCache = null;
+}
+
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    logger.info("🔥 HMR: Reloading private configuration");
+    clearPrivateConfigCache();
+    loadPrivateConfig(true).catch((err) => {
+      logger.error("HMR Config Reload Failed:", err);
+    });
+  });
 }

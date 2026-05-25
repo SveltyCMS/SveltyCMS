@@ -5,6 +5,10 @@
  * the Bun-specific Svelte component loader.
  */
 
+// Signal to handle-system-state that we're in the Bun test runner.
+// Bun 1.3.x does not set BUN_TEST automatically on Windows.
+process.env.BUN_TEST = "true";
+
 import { plugin } from "bun";
 import { compile } from "svelte/compiler";
 

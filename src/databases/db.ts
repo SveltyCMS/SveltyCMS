@@ -22,7 +22,11 @@ if (typeof (globalThis as any).require === "undefined") {
 
 import { logger } from "@utils/logger";
 import { type DatabaseAdapter, type IDBAdapter } from "./db-interface";
-import { loadPrivateConfig as loadConfig, getPrivateEnv as getEnv } from "./config-state";
+import {
+  loadPrivateConfig as loadConfig,
+  getPrivateEnv as getEnv,
+  setPrivateEnv,
+} from "./config-state";
 import { getGlobal, setGlobal } from "@src/utils/native-utils";
 import { AppError } from "@src/utils/error-handling";
 
@@ -346,7 +350,10 @@ export async function initializeWithConfig(config: any): Promise<any> {
   return ensureFullInitialization();
 }
 
-export function clearPrivateConfigCache(_keepPrivateEnv = false): void {
+export function clearPrivateConfigCache(keepPrivateEnv = false): void {
   setGlobal("__CACHED_CONFIG__", null);
   setGlobal("__SETTINGS_LOADED__", false);
+  if (!keepPrivateEnv) {
+    setPrivateEnv(null);
+  }
 }

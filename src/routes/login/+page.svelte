@@ -277,6 +277,10 @@ function handleSignUpPointerEnter() {
 }
 </script>
 
+<svelte:head>
+	<meta name="robots" content="noindex, nofollow" />
+</svelte:head>
+
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`} role="main" aria-label="Authentication Page">
 	<!-- Seasons (always present, opacity/position managed) -->
 	<div

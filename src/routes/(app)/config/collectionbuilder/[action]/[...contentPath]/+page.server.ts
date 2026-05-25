@@ -200,8 +200,22 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 export const actions: Actions = {
   // Save Collection
-  saveCollection: async ({ request }) => {
+  saveCollection: async ({ request, locals }) => {
     try {
+      const { user, roles: tenantRoles, isAdmin } = locals;
+      if (!user) {
+        return { status: 401, error: "Unauthorized" };
+      }
+      const hasManagePermission = hasPermissionWithRoles(
+        user,
+        "config:collection:manage",
+        tenantRoles,
+      );
+
+      if (!(isAdmin || hasManagePermission)) {
+        return { status: 403, error: "Insufficient permissions" };
+      }
+
       const formData = await request.formData();
       const fieldsData = formData.get("fields") as string;
       const originalName = formData.get("originalName") as string;
@@ -278,8 +292,22 @@ export const actions: Actions = {
   },
 
   // Save config
-  saveConfig: async ({ request }) => {
+  saveConfig: async ({ request, locals }) => {
     try {
+      const { user, roles: tenantRoles, isAdmin } = locals;
+      if (!user) {
+        return { status: 401, error: "Unauthorized" };
+      }
+      const hasManagePermission = hasPermissionWithRoles(
+        user,
+        "config:collection:manage",
+        tenantRoles,
+      );
+
+      if (!(isAdmin || hasManagePermission)) {
+        return { status: 403, error: "Insufficient permissions" };
+      }
+
       const formData = await request.formData();
       const categories = JSON.parse(formData.get("categories") as string);
 
@@ -318,11 +346,35 @@ export const actions: Actions = {
   },
 
   // Delete collection
-  deleteCollections: async ({ request }) => {
+  deleteCollections: async ({ request, locals }) => {
     try {
+      const { user, roles: tenantRoles, isAdmin } = locals;
+      if (!user) {
+        return { status: 401, error: "Unauthorized" };
+      }
+      const hasManagePermission = hasPermissionWithRoles(
+        user,
+        "config:collection:manage",
+        tenantRoles,
+      );
+
+      if (!(isAdmin || hasManagePermission)) {
+        return { status: 403, error: "Insufficient permissions" };
+      }
+
       const formData = await request.formData();
       const contentTypes = JSON.parse(formData.get("contentTypes") as string);
-      fs.unlinkSync(`${userCollectionsPath}/${contentTypes}.ts`);
+
+      // Path traversal check
+      const pathMod = await import("node:path");
+      const safeContentType = pathMod.basename(contentTypes);
+      const targetFile = pathMod.resolve(userCollectionsPath, `${safeContentType}.ts`);
+
+      if (!targetFile.startsWith(userCollectionsPath)) {
+        return { status: 400, error: "Invalid collection ID" };
+      }
+
+      fs.unlinkSync(targetFile);
       await compile({ logger });
       await contentSystem.refresh();
       return { status: 200 };

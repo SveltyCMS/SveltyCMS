@@ -27,6 +27,12 @@ export class CacheService {
   private keyCache: LRUCache<string, string>; // Memoization for generated keys
   private prefixMap: Map<string, Set<string>> = new Map(); // Buckets for O(1) pattern clearing
 
+  // Single-flight request coalescing
+  private pendingRequests = new Map<string, Promise<any>>();
+
+  // 🚀 DISTRIBUTED CACHE STAMPEDE PROTECTION: Lock registry for inter-node coordination
+  private lockedKeys = new Map<string, Promise<boolean>>();
+
   // 🚀 HYBRID NEGATIVE CACHE (Memory Optimized)
   private negativeBloom: BloomFilter;
   private negativeInvalidated: Set<string>; // Tiny set for immediate overrides
@@ -246,6 +252,75 @@ export class CacheService {
     return this.l2 && this.l2.isOpen;
   }
 
+  /**
+   * Attempts to acquire a distributed cache miss lock using the L2 adapter (Redis).
+   * This prevents a cache stampede by serializing access to expensive fetch operations.
+   * @param key The full cache key to lock.
+   * @param ttlMs Lock time-to-live in milliseconds.
+   * @returns The owner ID if lock acquired, or null if lock is already held or L2 unavailable.
+   */
+  private async acquireLock(key: string, ttlMs: number): Promise<string | null> {
+    if (!this.isL2Ready()) return null;
+
+    const lockKey = `lock:${key}`;
+    const ownerId = globalThis.crypto
+      ? globalThis.crypto.randomUUID()
+      : Math.random().toString(36).substring(2);
+
+    try {
+      // SET lockKey ownerId NX PX ttlMs
+      const result = await this.l2.set(lockKey, ownerId, {
+        NX: true,
+        PX: ttlMs,
+      });
+      if (result !== "OK") return null;
+
+      this.lockedKeys.set(lockKey, Promise.resolve(true));
+      return ownerId;
+    } catch (err) {
+      logger.error(`[CacheService] Failed to acquire lock for ${key}`, err);
+      return null;
+    }
+  }
+
+  /**
+   * Releases a cache miss lock that was previously acquired.
+   * Safe to call even if lock wasn't acquired — simply no-ops.
+   * @param key The full cache key to unlock.
+   * @param ownerId The owner ID returned by `acquireLock`.
+   */
+  private async releaseLock(key: string, ownerId: string): Promise<void> {
+    if (!ownerId || !this.isL2Ready()) return;
+
+    const lockKey = `lock:${key}`;
+
+    try {
+      // Only delete if the current value matches our owner ID (prevents premature release)
+      const currentOwner = await this.l2.get(lockKey);
+      if (currentOwner === ownerId) {
+        await this.l2.del(lockKey);
+      }
+    } catch (err) {
+      logger.error(`[CacheService] Failed to release lock for ${key}`, err);
+    } finally {
+      this.lockedKeys.delete(lockKey);
+    }
+  }
+
+  /**
+   * Polls the L1 cache until the winning process has populated the value,
+   * or until the maximum wait time expires.
+   * @param key The full cache key to wait for.
+   * @param maxWaitMs Maximum time to wait in milliseconds.
+   */
+  private async waitForCache(key: string, maxWaitMs: number): Promise<void> {
+    const start = Date.now();
+    while (Date.now() - start < maxWaitMs) {
+      if (this.l1.has(key)) break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  }
+
   setBootstrapping(_val: boolean) {
     this.bootstrapping = _val;
     if (process.env.NODE_ENV === "development") logger.debug(`CacheService bootstrapping: ${_val}`);
@@ -277,29 +352,69 @@ export class CacheService {
       return null;
     }
 
-    // 🚀 L2 PATH: If L1 miss, query Redis
-    if (this.isL2Ready()) {
-      try {
-        const start = performance.now();
-        const l2Value = await this.l2.get(fullKey);
-        if (l2Value) {
-          const parsed = typeof l2Value === "string" ? JSON.parse(l2Value) : l2Value;
-
-          this.recordLatency(performance.now() - start);
-          this.l1.set(fullKey, parsed);
-          this.stats.hits++;
-          this.stats.l2Hits++;
-          this.recordMetricSync("cache:hit:l2", 1);
-          return parsed as T;
-        }
-      } catch (err) {
-        logger.error(`L2 Cache Get Failure: ${fullKey}`, err);
-      }
+    // Single-flight: coalesce concurrent misses
+    if (this.pendingRequests.has(fullKey)) {
+      return this.pendingRequests.get(fullKey);
     }
 
-    this.stats.misses++;
-    this.recordMetricSync("cache:miss", 1);
-    return undefined;
+    const promise = (async () => {
+      let lockOwner: string | null = null;
+
+      try {
+        // 🚀 L2 PATH: If L1 miss, query Redis
+        if (this.isL2Ready()) {
+          try {
+            const start = performance.now();
+            const l2Value = await this.l2.get(fullKey);
+            if (l2Value) {
+              const parsed = typeof l2Value === "string" ? JSON.parse(l2Value) : l2Value;
+
+              this.recordLatency(performance.now() - start);
+              this.l1.set(fullKey, parsed);
+              this.stats.hits++;
+              this.stats.l2Hits++;
+              this.recordMetricSync("cache:hit:l2", 1);
+              return parsed as T;
+            }
+          } catch (err) {
+            logger.error(`L2 Cache Get Failure: ${fullKey}`, err);
+          }
+        }
+
+        this.stats.misses++;
+        this.recordMetricSync("cache:miss", 1);
+
+        // 🚀 DISTRIBUTED STAMPEDE PROTECTION
+        // Attempt to acquire a lock to prevent thundering herd on the same key.
+        // If lock is NOT acquired, wait briefly for the winning process to populate the cache.
+        if (this.isL2Ready()) {
+          lockOwner = await this.acquireLock(fullKey, 500); // 500ms TTL
+          if (!lockOwner) {
+            // Another request is already fetching this key. Wait for it.
+            await this.waitForCache(fullKey, 1000); // Wait up to 1s
+          }
+          // If we acquired the lock, the caller is responsible for populating the cache.
+          // The lock will be released:
+          //   a) When the caller calls set() which triggers releaseMissLock below, OR
+          //   b) Automatically after TTL expires (500ms fallback)
+        }
+
+        return undefined;
+      } finally {
+        // 🛡️ CRITICAL: If we acquired a lock but returned undefined (miss),
+        // the external caller will populate the cache via set(). We defer
+        // lock release to there. But if THIS request doesn't call set(),
+        // the lock will naturally expire after TTL.
+        // Mark the lock as pending release via the promise's completion.
+        if (lockOwner) {
+          this.pendingRequests.set(`lockrelease:${fullKey}`, Promise.resolve(lockOwner));
+        }
+      }
+    })();
+
+    this.pendingRequests.set(fullKey, promise);
+    promise.finally(() => this.pendingRequests.delete(fullKey));
+    return promise;
   }
 
   /**
@@ -347,24 +462,44 @@ export class CacheService {
 
     // 2. Try L2 (Redis MGET)
     if (this.isL2Ready()) {
-      try {
-        const l2Values = await this.l2.mGet(missingKeys);
-        for (let i = 0; i < l2Values.length; i++) {
-          const val = l2Values[i];
-          if (val) {
-            const parsed = JSON.parse(val);
-            const originalIndex = missingIndices[i];
-            results[originalIndex] = parsed as T;
-            this.l1.set(missingKeys[i], parsed);
-            this.stats.hits++;
-            this.stats.l2Hits++;
-          } else {
-            this.stats.misses++;
-          }
+      const pendingKey = `mget:${missingKeys.join(",")}`;
+      if (this.pendingRequests.has(pendingKey)) {
+        const resolvedResults = await this.pendingRequests.get(pendingKey);
+        for (let i = 0; i < missingIndices.length; i++) {
+          results[missingIndices[i]] = resolvedResults[i];
         }
-      } catch (err) {
-        logger.error("L2 Cache MGet Failure", err);
+        this.recordLatency(performance.now() - start);
+        return results;
       }
+
+      const promise = (async () => {
+        try {
+          const resolvedResults = Array(missingKeys.length).fill(null);
+          const l2Values = await this.l2.mGet(missingKeys);
+          for (let i = 0; i < l2Values.length; i++) {
+            const val = l2Values[i];
+            if (val) {
+              const parsed = JSON.parse(val);
+              resolvedResults[i] = parsed;
+              const originalIndex = missingIndices[i];
+              results[originalIndex] = parsed as T;
+              this.l1.set(missingKeys[i], parsed);
+              this.stats.hits++;
+              this.stats.l2Hits++;
+            } else {
+              this.stats.misses++;
+            }
+          }
+          return resolvedResults;
+        } catch (err) {
+          logger.error("L2 Cache MGet Failure", err);
+          return Array(missingKeys.length).fill(null);
+        }
+      })();
+
+      this.pendingRequests.set(pendingKey, promise);
+      promise.finally(() => this.pendingRequests.delete(pendingKey));
+      await promise;
     } else {
       this.stats.misses += missingKeys.length;
     }
@@ -409,6 +544,17 @@ export class CacheService {
       } catch (err) {
         logger.error(`L2 Cache Set Failure: ${fullKey}`, err);
       }
+    }
+
+    // 🚀 STAMPEDE LOCK RELEASE: If a miss-lock was acquired for this key,
+    // release it immediately since the cache is now populated
+    const lockReleaseKey = `lockrelease:${fullKey}`;
+    const pendingLock = this.pendingRequests.get(lockReleaseKey);
+    if (pendingLock) {
+      this.pendingRequests.delete(lockReleaseKey);
+      pendingLock.then((ownerId) => {
+        if (ownerId) this.releaseLock(fullKey, ownerId).catch(() => {});
+      });
     }
   }
 
@@ -502,7 +648,10 @@ export class CacheService {
         const fullPattern = this.generateKey(pattern, tenantId) + "*";
         let cursor = "0";
         do {
-          const reply = await this.l2.scan(cursor, { MATCH: fullPattern, COUNT: 500 });
+          const reply = await this.l2.scan(cursor, {
+            MATCH: fullPattern,
+            COUNT: 500,
+          });
           cursor = reply.cursor;
           if (reply.keys.length > 0) await this.l2.del(reply.keys);
         } while (cursor !== "0");
@@ -580,12 +729,22 @@ export class CacheService {
   private addToPrefixMap(key: string) {
     const segments = key.split(":");
     let currentPrefix = "";
-    for (let i = 0; i < Math.min(segments.length, 3); i++) {
+    // Store ALL prefix levels for pattern matching (not just 3)
+    // Also store single-segment fallback for flat keys (e.g., "bench-key-0")
+    for (let i = 0; i < segments.length; i++) {
       currentPrefix += (i > 0 ? ":" : "") + segments[i];
       if (!this.prefixMap.has(currentPrefix)) {
         this.prefixMap.set(currentPrefix, new Set());
       }
       this.prefixMap.get(currentPrefix)!.add(key);
+    }
+    // Fallback: also index by first 8 chars for flat keys without colons
+    if (segments.length === 1 && key.length > 8) {
+      const shortPrefix = key.substring(0, 8);
+      if (!this.prefixMap.has(shortPrefix)) {
+        this.prefixMap.set(shortPrefix, new Set());
+      }
+      this.prefixMap.get(shortPrefix)!.add(key);
     }
   }
 
@@ -594,24 +753,27 @@ export class CacheService {
   private removeFromPrefixMap(key: string) {
     if (this._isBulkClearing) return;
 
-    let firstColon = key.indexOf(":");
-    if (firstColon === -1) return;
+    // Remove all prefix levels (same levels added by addToPrefixMap)
+    const segments = key.split(":");
 
-    let secondColon = key.indexOf(":", firstColon + 1);
-    let thirdColon = secondColon === -1 ? -1 : key.indexOf(":", secondColon + 1);
-
-    const prefixes = [
-      key.substring(0, firstColon),
-      secondColon === -1 ? null : key.substring(0, secondColon),
-      thirdColon === -1 ? null : key.substring(0, thirdColon),
-    ];
-
-    for (const prefix of prefixes) {
-      if (!prefix) continue;
-      const bucket = this.prefixMap.get(prefix);
+    // Colon-separated prefixes
+    let currentPrefix = "";
+    for (let i = 0; i < segments.length; i++) {
+      currentPrefix += (i > 0 ? ":" : "") + segments[i];
+      const bucket = this.prefixMap.get(currentPrefix);
       if (bucket) {
         bucket.delete(key);
-        if (bucket.size === 0) this.prefixMap.delete(prefix);
+        if (bucket.size === 0) this.prefixMap.delete(currentPrefix);
+      }
+    }
+
+    // Flat key fallback (first 8 chars, added by addToPrefixMap for keys without colons)
+    if (segments.length === 1 && key.length > 8) {
+      const shortPrefix = key.substring(0, 8);
+      const bucket = this.prefixMap.get(shortPrefix);
+      if (bucket) {
+        bucket.delete(key);
+        if (bucket.size === 0) this.prefixMap.delete(shortPrefix);
       }
     }
   }
@@ -619,26 +781,51 @@ export class CacheService {
   private clearLocalL1ByPattern(pattern: string, tenantId: string | null) {
     const fullPattern = this.generateKey(pattern, tenantId);
 
-    // FAST PATH: Use prefixMap if the pattern matches a bucket exactly
-    /*
-    const bucket = this.prefixMap.get(fullPattern);
-    if (bucket) {
-      // Clear the bucket efficiently
-      const keys = Array.from(bucket);
+    // 🚀 PREFIX MAP FAST PATH: Find the deepest matching bucket and scan only its keys.
+    // Instead of O(N) scan over all 500k L1 keys, we narrow to the bucket that
+    // contains all matching keys. For pattern "api:userId:bench", we look up
+    // bucket "api:userId" and scan only those keys (typically <1000).
+    const segments = fullPattern.split(":");
+    let bestBucket: Set<string> | undefined;
+
+    // Walk from longest prefix to shortest to find the best bucket
+    for (let i = segments.length - 1; i >= 0; i--) {
+      const prefix = segments.slice(0, i + 1).join(":");
+      const bucket = this.prefixMap.get(prefix);
+      if (bucket && bucket.size > 0) {
+        bestBucket = bucket;
+        break;
+      }
+    }
+
+    // 🚀 FALLBACK: For flat keys without colons, try first-8-char prefix lookup
+    if (!bestBucket && segments.length === 1 && fullPattern.length > 8) {
+      bestBucket = this.prefixMap.get(fullPattern.substring(0, 8));
+    }
+
+    if (bestBucket) {
+      // O(bucket) scan instead of O(all)
       this._isBulkClearing = true;
       try {
+        const keys = Array.from(bestBucket);
         for (let i = 0; i < keys.length; i++) {
-          this.l1.delete(keys[i]);
+          if (keys[i].startsWith(fullPattern)) {
+            this.l1.delete(keys[i]);
+          }
         }
       } finally {
         this._isBulkClearing = false;
       }
-      this.prefixMap.delete(fullPattern);
+      // Clean up empty buckets
+      for (let i = segments.length - 1; i >= 0; i--) {
+        const prefix = segments.slice(0, i + 1).join(":");
+        const bucket = this.prefixMap.get(prefix);
+        if (bucket && bucket.size === 0) this.prefixMap.delete(prefix);
+      }
       return;
     }
-    */
 
-    // FALLBACK: O(N) scan
+    // FALLBACK: Only used when no prefix bucket exists (should be rare)
     const allKeys = Array.from(this.l1.keys());
     for (let i = 0; i < allKeys.length; i++) {
       if (allKeys[i].startsWith(fullPattern)) {
@@ -677,7 +864,12 @@ export class CacheService {
       this.latencyBuffer.length > 0
         ? this.latencyBuffer.reduce((a, b) => a + b, 0) / this.latencyBuffer.length
         : 0;
-    return { ...this.stats, avgLatency, l1Size: this.l1.size, tagCount: this.tagMap.size };
+    return {
+      ...this.stats,
+      avgLatency,
+      l1Size: this.l1.size,
+      tagCount: this.tagMap.size,
+    };
   }
 }
 

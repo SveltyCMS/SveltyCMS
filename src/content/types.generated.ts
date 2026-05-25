@@ -4,23 +4,17 @@
  * This file is managed by the Vite build plugin and should NOT be edited manually.
  */
 
-import type { DatabaseId, ISODateString, CollectionEntry } from "./types";
+import type { CollectionEntry } from "./types";
 
 /* AUTOGEN_START: ContentTypes */
-export type ContentTypes = "Authors" | "Categories" | "Posts" | (string & {});
+export type ContentTypes = "test_posts" | (string & {});
 
 export interface CollectionMap {
   [key: string]: CollectionEntry & Record<string, any>;
-  Authors: CollectionEntry & { name: string; email: string; bio: string; avatar: string };
-  Categories: CollectionEntry & { name: string; slug: string; description: string };
-  Posts: CollectionEntry & {
+  test_posts: CollectionEntry & {
     title: string;
-    slug: string;
-    author: DatabaseId;
-    categories: DatabaseId;
-    publishedDate: ISODateString;
     content: string;
-    seo: string;
+    status: string;
   };
 }
 /* AUTOGEN_END: ContentTypes */

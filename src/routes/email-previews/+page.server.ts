@@ -57,7 +57,18 @@ export async function load({
   };
 }
 
-export const actions = {
+// Helper to gate actions for administrator use only
+function gateAction(actionFn: any) {
+  return async (event: any) => {
+    const { locals } = event;
+    if (!locals.user || !locals.isAdmin) {
+      throw error(403, "Insufficient permissions - admin access required");
+    }
+    return actionFn(event);
+  };
+}
+
+const rawActions = {
   ...createEmail(),
   ...sendEmail({
     customSendEmailFunction: async ({ to, subject }: { to: string; subject: string }) => {
@@ -112,3 +123,10 @@ export const actions = {
     },
   } as any),
 };
+
+export const actions: any = {};
+for (const [key, fn] of Object.entries(rawActions)) {
+  if (typeof fn === "function") {
+    actions[key] = gateAction(fn);
+  }
+}

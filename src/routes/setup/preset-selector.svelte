@@ -135,7 +135,7 @@ Default value is 'blank'.
 	<!-- Scroll track -->
 	<div class="relative min-w-0">
 		<div
-			class="absolute top-0 bottom-[14px] z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 left-0 bg-linear-to-r from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollLeft
+			class="absolute top-0 bottom-3.5 z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 left-0 bg-linear-to-r from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollLeft
 				? 'opacity-100'
 				: ''}"
 		></div>
@@ -207,7 +207,7 @@ Default value is 'blank'.
 			{/each}
 		</div>
 		<div
-			class="absolute top-0 bottom-[14px] z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 right-0 bg-linear-to-l from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollRight
+			class="absolute top-0 bottom-3.5 z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 right-0 bg-linear-to-l from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollRight
 				? 'opacity-100'
 				: ''}"
 		></div>
@@ -219,7 +219,7 @@ Default value is 'blank'.
 			<button
 				type="button"
 				class="w-1.5 h-1.5 p-0 cursor-pointer border-none rounded-full transition-all duration-250 bg-black/15 dark:bg-white/20 {visibleIndex === i
-					? 'w-[18px]! rounded-[3px]! bg-primary-500! dark:bg-primary-300!'
+					? 'w-4.5! rounded-[3px]! bg-primary-500! dark:bg-primary-300!'
 					: ''}"
 				aria-label={`Select preset ${preset.name || i + 1}`}
 				onclick={() => {

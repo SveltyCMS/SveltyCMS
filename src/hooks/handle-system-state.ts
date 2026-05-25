@@ -131,8 +131,8 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
   const systemState = getSystemState();
 
-  // Observability
-  if (!isHealthCheck) {
+  // Observability — only in dev mode to avoid string interpolation overhead on every request
+  if (!isHealthCheck && dev) {
     logger.debug(
       `[SystemState] ${event.request.method} ${pathname}${search} | state: ${colorState(systemState.overallState)}`,
     );
@@ -183,6 +183,31 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
         throw new AppError("Access from untrusted host blocked", 403, "UNTRUSTED_HOST");
       }
 
+      // 🛡️ Redirect/Block setup routes if setup is already complete (except in test environment)
+      const isTestMode =
+        process.env.TEST_MODE === "true" ||
+        process.env.VITE_TEST_MODE === "true" ||
+        process.env.BENCHMARK === "true" ||
+        process.env.NODE_ENV === "test" ||
+        process.env.VITEST === "true" ||
+        !!process.env.BUN_TEST;
+
+      if (
+        !isTestMode &&
+        setupComplete &&
+        (pathname === "/setup" ||
+          pathname.startsWith("/setup/") ||
+          pathname.startsWith("/api/setup"))
+      ) {
+        if (pathname.startsWith("/api/")) {
+          throw new AppError("Setup already complete", 403, "SETUP_ALREADY_COMPLETE");
+        }
+        return new Response(null, {
+          status: 302,
+          headers: { Location: "/login" },
+        });
+      }
+
       // Root redirect during setup
       if (pathname === "/" && systemState.overallState === "SETUP" && !setupComplete) {
         return new Response(null, {
@@ -196,19 +221,19 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
     // --- Phase 3: Restricted Access Handling ---
 
-    // Explicit wait if system is still initializing or transitioning from SETUP
-    const freshStateBeforeWait = getSystemState();
-    const isTransitioning = freshStateBeforeWait.overallState === "SETUP" && setupComplete;
-    if (
-      freshStateBeforeWait.overallState === "INITIALIZING" ||
+    // Determine if we need to wait: re-use systemState from above unless phase 1/2 triggered init
+    const needsWait =
+      systemState.overallState === "INITIALIZING" ||
       initializationState === "in-progress" ||
-      isTransitioning
-    ) {
+      (systemState.overallState === "SETUP" && setupComplete);
+
+    if (needsWait) {
       await waitForInitialization();
     }
 
     // 🚀 CRITICAL: Re-query system state after waiting for initialization to avoid stale snapshot bugs!
-    const activeSystemState = getSystemState();
+    // Only re-query if we actually waited. Otherwise reuse the cached systemState.
+    const activeSystemState = needsWait ? getSystemState() : systemState;
 
     // 🛡️ SELF-HEALING: If stuck in INITIALIZING > 60s, bypass gatekeeper rather than 503-loop.
     // This prevents the infamous "System INITIALIZING" deadlock after hot-reloads.

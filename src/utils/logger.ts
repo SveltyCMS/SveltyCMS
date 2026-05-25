@@ -11,7 +11,7 @@
  * - Performance: Batching and deduplication to prevent console/disk bottleneck.
  */
 
-import { pc } from "./native-utils";
+import { pc } from "./native-utils.ts";
 import type { WriteStream } from "node:fs";
 
 // --- Types & Constants ---

@@ -1,0 +1,21 @@
+{
+  "name": "@sveltycms/core",
+  "version": "0.0.8",
+  "description": "SveltyCMS core SDK — LocalCMS, database adapter interface, auth types, and content types",
+  "license": "BUSL-1.1",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "echo '@sveltycms/core: no build needed (re-exports from src/)'"
+  },
+  "peerDependencies": {
+    "valibot": "^1.0.0"
+  }
+}

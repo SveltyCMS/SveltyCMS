@@ -10,7 +10,7 @@
  */
 
 import { AuthGuardService } from "@src/services/security/auth-guard";
-import { isAdmin, isStaticOrInternalRequest, isPublicRoute } from "@utils/hook-utils";
+import { isAdmin, getRequestFlags, isPublicRoute } from "@utils/hook-utils";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
 import {
@@ -30,6 +30,19 @@ import { getPrivateSettingSync } from "@src/services/core/settings-service";
 let multiTenantCached: boolean | null = null;
 let userCountCache: { count: number; timestamp: number } | null = null;
 const rolesCache = new Map<string, { data: Role[]; timestamp: number }>();
+
+// 🚀 PRE-CACHED DYNAMIC IMPORTS: Avoid repeated lazy-load overhead
+let cachedSetupCheck: typeof import("@utils/setup-check") | null = null;
+let cachedDefaultRoles: typeof import("@src/databases/auth/default-roles") | null = null;
+
+async function getSetupCheck() {
+  if (!cachedSetupCheck) cachedSetupCheck = await import("@utils/setup-check");
+  return cachedSetupCheck;
+}
+async function getDefaultRoles() {
+  if (!cachedDefaultRoles) cachedDefaultRoles = await import("@src/databases/auth/default-roles");
+  return cachedDefaultRoles;
+}
 
 function getCachedMultiTenant() {
   if (multiTenantCached === null) multiTenantCached = !!getPrivateSettingSync("MULTI_TENANT");
@@ -126,11 +139,12 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
   const pathname = url.pathname;
   const isTestMode = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
 
-  // 1. ULTRA-FAST SHORT-CIRCUIT
-  if (isStaticOrInternalRequest(pathname)) return resolve(event);
+  // 1. ULTRA-FAST SHORT-CIRCUIT using pre-computed flags from Turbo Pipeline
+  const flags = getRequestFlags(locals as any);
+  if (flags.isStatic) return resolve(event);
 
   // --- Phase 1: Gated Initialization ---
-  const { getSetupState, SetupState } = await import("@utils/setup-check");
+  const { getSetupState, SetupState } = await getSetupCheck();
   const setupState = (locals as any).__setupState || (await getSetupState());
   locals.__setupConfigExists = setupState !== SetupState.MISSING_CONFIG;
 
@@ -149,7 +163,9 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
     return await resolve(event);
   }
 
-  const isPublic = isPublicRoute(pathname, isTestMode);
+  // Use pre-computed flags from Turbo Pipeline classifier when available;
+  // fall back to direct computation for unit tests that bypass the pipeline.
+  const isPublic = (locals as any).__flags ? flags.isPublic : isPublicRoute(pathname, isTestMode);
 
   // 2. FIRST-USER CHECK (Optimized setup flow)
   const multiTenant = getCachedMultiTenant();
@@ -176,8 +192,8 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
     !pathname.startsWith("/api/setup")
   ) {
     if (locals.__setupConfigExists === true) {
-      const { getDefaultRoles } = await import("@src/databases/auth/default-roles");
-      locals.roles = getDefaultRoles();
+      const { getDefaultRoles: getDefaultRolesMod } = await getDefaultRoles();
+      locals.roles = getDefaultRolesMod();
     } else {
       if (isApi) throw new AppError("System not initialized", 503, "SYSTEM_NOT_INITIALIZED");
       throw redirect(302, "/setup");

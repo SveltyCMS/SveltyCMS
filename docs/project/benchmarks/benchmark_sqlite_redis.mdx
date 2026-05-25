@@ -21,21 +21,24 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (21/05/2026, 09:15:33)
+## 📊 Latest Performance Audit (24/05/2026, 10:32:02)
 
-**Status:** ✅ PASS
+**Status:** ❌ FAIL
+
+> [!CAUTION]
+> **Anomalies Detected**: Seeding failed See console for stack trace.
 
 ### ⚡ Executive Latency Matrix
 
 | Scenario               | Avg Latency | Trend       | Target Budget | Result  |
 | :--------------------- | :---------- | :---------- | :------------ | :------ |
-| **Cold Start**         | 264ms       | 🟢 (-67.6%) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 0.000ms     | ⚪ (—)      | < 5ms         | 🟢 PASS |
-| **Middleware Hooks**   | 2.122ms     | ⚪          | < 1.5ms       | 🔴 FAIL |
+| **Cold Start**         | 379ms       | 🟢 (-53.5%) | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 0.401ms     | 🟢 (-74.0%) | < 5ms         | 🟢 PASS |
+| **Middleware Hooks**   | 1.325ms     | ⚪          | < 2ms         | 🟢 PASS |
 | **GraphQL (Avg)**      | 0.000ms     | ⚪ (—)      | < 5ms         | 🟢 PASS |
 | **Million-Row Index**  | FAILED      | ⚪          | < 250ms       | 🔴 FAIL |
-| **DB Raw (p95)**       | 0.000ms     | ⚪          | < 50ms        | 🟢 PASS |
-| **Setup Quality**      | 🟢 HEALTHY  | ⚪          | 100%          | 🟢 PASS |
+| **DB Raw (p95)**       | 0.084ms     | ⚪          | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | 🔴 DEGRADED | ⚪          | 100%          | 🔴 FAIL |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -57,13 +60,13 @@ xychart-beta
 
 ### 🏷️ Database Adapter Performance {#dbRaw}
 
-**Raw Adapter p95:** 0.000ms | **Target:** < 50ms | **Trend:** ⚪ (—)
+**Raw Adapter p95:** 0.084ms | **Target:** < 50ms | **Trend:** ⚪ (—)
 
 > Direct database access latency (bypass CMS logic).
 
 ### 🏷️ Middleware & Hooks Audit {#hooks}
 
-**Middleware p95:** 2.122ms | **Target:** < 1.5ms | **Trend:** ⚪ (—)
+**Middleware p95:** 1.325ms | **Target:** < 2ms | **Trend:** ⚪ (—)
 
 > Total overhead of security, logging, and auth hooks.
 
@@ -89,7 +92,7 @@ xychart-beta
 
 ### 🏷️ Telemetry & Update Performance {#telemetryAvg}
 
-**Telemetry p95:** 0.000ms | **Trend:** ⚪ (—)
+**Telemetry p95:** 0.001ms | **Trend:** ⚪ (—)
 
 > Measures overhead of telemetry collection and cryptographic signing.
 
@@ -144,9 +147,9 @@ xychart-beta
 ║                               SVELTYCMS — SRE TRUTH AUDIT                               ║
 ║                      File: tests/benchmarks/truth-latency.test.ts                       ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,248,876 ║
-║ Local SDK (Full)               │        0.008 ms │ p95:        0.011 ms │ RPS:    130,651 ║
-║ HTTP End-to-End                │        0.489 ms │ p95:        0.663 ms │ RPS:      2,046 ║
+║ Logic Baseline                 │        0.000 ms │ p95:        0.001 ms │ RPS:  2,212,389 ║
+║ Local SDK (Full)               │        0.006 ms │ p95:        0.010 ms │ RPS:    176,845 ║
+║ HTTP End-to-End                │        0.281 ms │ p95:        0.401 ms │ RPS:      3,564 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -171,7 +174,7 @@ xychart-beta
 ║                           SVELTYCMS — STATE MACHINE INTEGRITY                           ║
 ║                 File: tests/benchmarks/state-machine-transition.test.ts                 ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ State Transition (READY -> IDLE -> READY) │       36.886 ms │ p95:       47.942 ms │ RPS:         27 ║
+║ State Transition (READY -> IDLE -> READY) │       19.580 ms │ p95:       29.389 ms │ RPS:         51 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -196,8 +199,8 @@ xychart-beta
 ║                            SVELTYCMS — ACID INTEGRITY AUDIT                             ║
 ║                     File: tests/benchmarks/transaction-acid.test.ts                     ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ TX Commit                      │        0.461 ms │ p95:        0.752 ms │ RPS:      2,121 ║
-║ TX Rollback Integrity          │        0.233 ms │ p95:        0.358 ms │ RPS:      4,294 ║
+║ TX Commit                      │        0.466 ms │ p95:        0.737 ms │ RPS:      1,632 ║
+║ TX Rollback Integrity          │        0.280 ms │ p95:        0.419 ms │ RPS:      3,567 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 

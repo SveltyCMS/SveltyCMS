@@ -185,12 +185,13 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
     }
   }
 
-  // 🛡️ SECURITY BYPASS: If local and (dev or test or valid secret), allow with no further checks.
-  // Note: x-test-security header can be used to FORCE checks even in local test mode.
+  // 🛡️ SECURITY BYPASS: Only with explicit test secret or test mode on localhost.
+  // In dev mode, the full security pipeline runs (rate limiting uses generous defaults).
+  // The x-test-security header forces full checks even in bypass-capable environments.
   if (
     isStaticOrInternalRequest(url.pathname) ||
     (isLocal &&
-      (dev || isTestMode || hasValidTestSecret) &&
+      (isTestMode || hasValidTestSecret) &&
       request.headers.get("x-test-security") !== "true")
   ) {
     return await resolve(event);

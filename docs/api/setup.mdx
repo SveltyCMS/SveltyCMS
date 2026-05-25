@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:cog"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-04-12"
+updated: "2026-05-25"
 tags:
   - "api"
   - "setup"
@@ -21,13 +21,15 @@ The Setup API manages the critical initialization phase of SveltyCMS. It handles
 
 ## ⚡ Quick Reference
 
-| Feature             | HTTP Endpoint             | Method | Permission Required |
-| :------------------ | :------------------------ | :----- | :------------------ |
-| **Status Check**    | `/api/setup/status`       | `GET`  | **Public**          |
-| **Test Connection** | `/api/setup/test-db`      | `POST` | **Public**          |
-| **Seed Database**   | `/api/setup/seed-db`      | `POST` | **Public**          |
-| **Complete Setup**  | `/api/setup/complete`     | `POST` | **Public**          |
-| **Reinitialize**    | `/api/setup/reinitialize` | `POST` | `manage:system`     |
+| Feature             | HTTP Endpoint             | Method | Permission Required     |
+| :------------------ | :------------------------ | :----- | :---------------------- |
+| **Status Check**    | `/api/setup/status`       | `GET`  | **Public** (always)     |
+| **Test Connection** | `/api/setup/test-db`      | `POST` | **Pre-setup only**      |
+| **Seed Database**   | `/api/setup/seed-db`      | `POST` | **Pre-setup only**      |
+| **Complete Setup**  | `/api/setup/complete`     | `POST` | **Pre-setup only**      |
+| **Reinitialize**    | `/api/setup/reinitialize` | `POST` | `manage:system` (gated) |
+
+> **Security Gating**: All endpoints except `status` are protected by `isSetupComplete()`. After setup finishes, `/api/setup/test-db`, `/api/setup/seed-db`, `/api/setup/complete`, and `/api/setup/reinitialize` all return `403 SETUP_ALREADY_COMPLETE`. This is enforced at two levels: the `handleSetupRoutes` handler entry check, and the `handle-system-state.ts` middleware. See [Server Hooks](../architecture/server-hooks.mdx).
 
 ---
 
@@ -66,7 +68,7 @@ Triggers the creation of system collections, default roles, and internal configu
 
 ### Finalization
 
-The setup process concludes by creating the admin user and establishing their first session. Once successful, the system is marked as `ready`, and the setup endpoints (except `status`) are strictly protected.
+The setup process concludes by creating the admin user and establishing their first session. Once successful, the system is marked as `ready`, and all setup endpoints (except `status`) are strictly blocked with 403.
 
 ---
 
@@ -96,3 +98,4 @@ sequenceDiagram
 - [Installation Guide](../getting-started.mdx)
 - [System Reference (system.ts)](./system.mdx)
 - [Authentication & Identity (auth.ts)](./auth.mdx)
+- [Server Hooks Architecture](../architecture/server-hooks.mdx)

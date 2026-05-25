@@ -194,7 +194,16 @@ export async function handleSettingsRoutes(
   tenantId: DatabaseId,
   segments: string[],
 ) {
-  const { request } = event;
+  const { request, locals } = event;
+  const { user } = locals;
+
+  // 🛡️ SECURITY: Admin verification for settings mutations
+  if (!["GET", "OPTIONS"].includes(request.method)) {
+    if (!user || (!user.isAdmin && user.role !== "admin")) {
+      throw new AppError("Admin access required for settings management", 403, "FORBIDDEN");
+    }
+  }
+
   const action = segments[1];
   const subAction = segments[2];
 
@@ -279,6 +288,12 @@ export async function handleSystemMgmtRoutes(
   _tenantId: DatabaseId,
   segments: string[],
 ) {
+  // 🛡️ SECURITY: Admin verification for system management
+  const { user } = event.locals;
+  if (!user || (!user.isAdmin && user.role !== "admin")) {
+    throw new AppError("Admin access required for system management", 403, "FORBIDDEN");
+  }
+
   const action = segments[1];
   if (action === "reinitialize" && event.request.method === "POST") {
     const body = await event.request.json().catch(() => ({}));
@@ -391,7 +406,16 @@ export async function handleAutomationRoutes(
   tenantId: DatabaseId,
   segments: string[],
 ) {
-  const { request } = event;
+  const { request, locals } = event;
+  const { user } = locals;
+
+  // 🛡️ SECURITY: Admin verification for automation management
+  if (!["GET", "OPTIONS"].includes(request.method)) {
+    if (!user || (!user.isAdmin && user.role !== "admin")) {
+      throw new AppError("Admin access required for automation management", 403, "FORBIDDEN");
+    }
+  }
+
   if (process.env.VERBOSE_TESTS === "true") {
     console.log(
       `[handleAutomationRoutes] Method: ${request.method}, segments: ${segments.join(",")}, tenantId: ${tenantId}`,
@@ -406,13 +430,17 @@ export async function handleAutomationRoutes(
     if (!id || id === "list")
       return successResponse(
         event,
-        await cms.automation.getFlow(undefined as any, { tenantId: tenantId as any }),
+        await cms.automation.getFlow(undefined as any, {
+          tenantId: tenantId as any,
+        }),
       );
 
     if (segments[2] === "logs")
       return successResponse(event, await cms.automation.getLogs(id, { tenantId }));
 
-    const flow = await cms.automation.getFlow(id, { tenantId: tenantId as any });
+    const flow = await cms.automation.getFlow(id, {
+      tenantId: tenantId as any,
+    });
     if (!flow) throw new AppError("Automation flow not found", 404);
     return successResponse(event, flow);
   }
@@ -434,7 +462,9 @@ export async function handleAutomationRoutes(
   }
 
   if ((request.method === "DELETE" || request.method === "PATCH") && id) {
-    const flow = await cms.automation.getFlow(id, { tenantId: tenantId as any });
+    const flow = await cms.automation.getFlow(id, {
+      tenantId: tenantId as any,
+    });
     if (!flow) throw new AppError("Automation flow not found", 404);
 
     const { automationService: service } =
@@ -572,7 +602,9 @@ export async function handleThemeRoutes(
   if (action === "update-theme" && event.request.method === "POST") {
     const { themeId, customCss } = await event.request.json();
     if (!themeId) throw new AppError("themeId is required", 400);
-    const result = await cms.db.system.themes.update(themeId as DatabaseId, { customCss });
+    const result = await cms.db.system.themes.update(themeId as DatabaseId, {
+      customCss,
+    });
     if (!result.success || !result.data)
       throw new AppError("Theme update failed or theme not found", 404);
     await themeManager.refresh();

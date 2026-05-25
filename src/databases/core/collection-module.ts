@@ -123,17 +123,6 @@ export class CollectionModule extends DatabaseModule<BaseSqlAdapter> implements 
         if (tenantId) filter.tenantId = tenantId;
 
         const res = await this.crud.findMany("system_content_structure", filter as any);
-        if (process.env.BENCHMARK === "true") {
-          const count = res.success ? (res.data as any[]).length : 0;
-          process.stderr.write(
-            `[DEBUG] listSchemas query success: ${res.success}, count: ${count}\n`,
-          );
-          if (res.success && (res.data as any[]).length > 0) {
-            process.stderr.write(
-              `[DEBUG] Sample node collectionDef keys: ${Object.keys((res.data as any[])[0].collectionDef || {}).join(", ")}\n`,
-            );
-          }
-        }
         if (res.success && Array.isArray(res.data)) {
           const schemas: Schema[] = [];
           for (const node of res.data) {

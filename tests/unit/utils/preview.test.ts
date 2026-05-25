@@ -1,4 +1,5 @@
 /**
+ * @vitest-environment jsdom
  * @file tests/unit/utils/livePreview.test.ts
  * @description Unit tests for the Live Preview listener utility
  *

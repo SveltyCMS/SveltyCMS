@@ -12,8 +12,12 @@
  * - Stats & cleanup
  */
 
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import type { DatabaseId, ISODateString } from "@src/content/types";
+
+function hashToken(raw: string): string {
+  return createHash("sha256").update(raw).digest("hex");
+}
 
 export interface ShareLink {
   _id?: DatabaseId;
@@ -61,13 +65,15 @@ export function createLink(
     message?: string;
     notify?: boolean;
   } = {},
-): ShareLink {
+): ShareLink & { rawToken: string } {
   const now = new Date();
   const hours = opts.hours ?? 24;
   const expires = new Date(now.getTime() + hours * 3_600_000);
 
+  const rawToken = newToken();
   return {
-    token: newToken(),
+    token: hashToken(rawToken),
+    rawToken,
     fileId,
     createdBy: userId,
     createdAt: now.toISOString() as ISODateString,
@@ -104,7 +110,13 @@ export function validateLink(
   if (link.allowedIPs?.length && ip && !link.allowedIPs.includes(ip)) {
     return { ok: false, reason: "ip" };
   }
-  if (link.passwordHash && passwordHash !== link.passwordHash) {
+  if (link.passwordHash && passwordHash) {
+    const a = Buffer.from(link.passwordHash);
+    const b = Buffer.from(passwordHash);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      return { ok: false, reason: "security" };
+    }
+  } else if (link.passwordHash !== passwordHash) {
     return { ok: false, reason: "security" };
   }
 

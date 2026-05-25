@@ -20,6 +20,7 @@ import {
   isApiLike,
   isBootstrapRoute,
   isStaticOrInternalRequest,
+  classifyRequest,
   STATIC_ASSET_REGEX,
   restrictedResponse,
   boundaryResponse,
@@ -39,13 +40,63 @@ const generateRequestId = () => {
   return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
 };
 
-/** Logs request performance in development */
+/** Logs request performance — ONLY in development mode to avoid string interpolation overhead in production */
 const logRequest = (event: any, duration: number, status: number) => {
+  if (!dev) return; // No-op in production; avoids string interpolation entirely
   const method = event.request.method;
   const path = event.url.pathname;
   const id = event.locals.requestId;
   logger.debug(`[Turbo] ${method} ${path} (${status}) - ${duration.toFixed(2)}ms [ID:${id}]`);
 };
+
+/**
+ * Builds a health-check response (de-duplicated from test bypass and regular paths).
+ * In benchmark mode without verbose, returns a lean response for high-frequency polling.
+ */
+function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
+  if (!healthHeaders) {
+    healthHeaders = {
+      "Content-Type": "application/json",
+      ...BASE_HEADERS,
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    };
+  }
+
+  const health = {
+    status: db ? "healthy" : "initializing",
+    overallStatus: db ? "READY" : "SETUP",
+    database: !!db,
+    uptime: process.uptime(),
+    timestamp: Date.now(),
+    dbType: DB_TYPE || "unknown",
+    memory: (() => {
+      if (searchParams.has("gc")) {
+        if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
+        if (typeof Bun !== "undefined" && Bun.gc) Bun.gc(true);
+      }
+      return process.memoryUsage();
+    })(),
+  };
+
+  // Fast path for benchmarks: skip memory and extra fields unless verbose
+  if (IS_BENCHMARK && !searchParams.has("verbose")) {
+    return new Response(
+      JSON.stringify({
+        status: health.status,
+        overallStatus: health.overallStatus,
+        database: health.database,
+      }),
+      { status: 200, headers: healthHeaders },
+    );
+  }
+
+  return new Response(JSON.stringify(health), {
+    status: 200,
+    headers: healthHeaders,
+  });
+}
 
 /** Simplified inline getCorsHeaders to avoid circular dependencies */
 async function getCorsHeadersInline(
@@ -120,6 +171,10 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   event.locals.requestId = requestId.toString();
 
   const pathname = event.url.pathname;
+
+  // 🚀 ONE-SHOT CLASSIFICATION: Computes isStatic/isApi/isBootstrap/isPublic once.
+  // All downstream hooks read from locals.__flags via getRequestFlags().
+  classifyRequest(pathname, event.locals as any);
 
   // ── 0a. TERMINAL TEST BYPASS ──────────────────────────────────────────
   const isTest = IS_TEST_MODE;
@@ -215,58 +270,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       (event.locals as any).dbAdapter = db;
       (event.locals as any).__testBypass = true;
 
-      // If it's a health check, we still want to return the health response
-      // but NOW we've triggered the initialization.
-      // If it's a health check, we still want to return the health response
-      // but NOW we've triggered the initialization.
+      // If it's a health check, return the health response (shared builder)
       if (pathname === "/api/system/health" || pathname === "/health") {
-        const health = {
-          status: db ? "healthy" : "initializing",
-          overallStatus: db ? "READY" : "SETUP",
-          database: !!db,
-          uptime: process.uptime(),
-          timestamp: Date.now(),
-          dbType: DB_TYPE || "unknown",
-          memory: (() => {
-            if (event.url.searchParams.has("gc")) {
-              if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
-              if (typeof Bun !== "undefined" && Bun.gc) Bun.gc(true);
-            }
-            return process.memoryUsage();
-          })(),
-        };
-
-        if (IS_BENCHMARK && !event.url.searchParams.has("verbose")) {
-          // Keep it lean for high-frequency benchmark polling but satisfy setup-system.ts
-          return new Response(
-            JSON.stringify({
-              status: health.status,
-              overallStatus: health.overallStatus,
-              database: health.database,
-            }),
-            {
-              status: 200,
-              headers: {
-                "Content-Type": "application/json",
-                ...BASE_HEADERS,
-                "Cache-Control": "no-store, no-cache, must-revalidate",
-                Pragma: "no-cache",
-                Expires: "0",
-              },
-            },
-          );
-        }
-
-        return new Response(JSON.stringify(health), {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            ...BASE_HEADERS,
-            "Cache-Control": "no-store, no-cache, must-revalidate",
-            Pragma: "no-cache",
-            Expires: "0",
-          },
-        });
+        return buildHealthResponse(db, event.url.searchParams);
       }
 
       // For Benchmarks, if it's an API route, we can skip the remaining hooks and go to the dispatcher
@@ -283,52 +289,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       const { getDb } = await import("@src/databases/db");
       cachedDbAdapter = getDb();
     }
-
-    if (!healthHeaders) {
-      healthHeaders = {
-        "Content-Type": "application/json",
-        ...BASE_HEADERS,
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-      };
-    }
-
-    const health = {
-      status: cachedDbAdapter ? "healthy" : "initializing",
-      overallStatus: cachedDbAdapter ? "READY" : "SETUP",
-      database: !!cachedDbAdapter,
-      uptime: process.uptime(),
-      timestamp: Date.now(),
-      dbType: DB_TYPE || "unknown",
-      memory: (() => {
-        if (event.url.searchParams.has("gc")) {
-          if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
-          if (typeof Bun !== "undefined" && Bun.gc) Bun.gc(true);
-        }
-        return process.memoryUsage();
-      })(),
-    };
-
-    // Fast path for benchmarks: skip memory and extra fields unless verbose
-    if (process.env.BENCHMARK === "true" && !event.url.searchParams.has("verbose")) {
-      return new Response(
-        JSON.stringify({
-          status: health.status,
-          overallStatus: health.overallStatus,
-          database: health.database,
-        }),
-        {
-          status: 200,
-          headers: healthHeaders,
-        },
-      );
-    }
-
-    return new Response(JSON.stringify(health), {
-      status: 200,
-      headers: healthHeaders,
-    });
+    return buildHealthResponse(cachedDbAdapter, event.url.searchParams);
   }
 
   const isHttps = event.url.protocol === "https:";

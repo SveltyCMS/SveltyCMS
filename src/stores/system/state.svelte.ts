@@ -8,6 +8,7 @@
  * - Performance metrics tracking and anomaly detection
  * - Self-learning state machine with adaptive calibration
  * - Setup benchmarking and performance tracking
+ * - 🚀 Hot-path caching: isSystemReady() result cached until state transitions
  */
 
 import { logger } from "@utils/logger";
@@ -25,6 +26,30 @@ export type { ServiceName };
 
 import { initialState, initialServiceMetrics } from "./config";
 import { calibrateAnomalyThresholds, detectAnomalies, saveCurrentMetrics } from "./metrics";
+
+// 🚀 MODULE-LEVEL STATE MIRROR: overallState stored as a primitive string.
+// Eliminates getSystemState().overallState property chain on every gatekeeper check.
+// Synchronized on setSystemState() and updateService() calls.
+let _overallState: SystemState = "IDLE";
+
+/** Returns the module-level overall state — zero overhead, no object access */
+export function getOverallState(): SystemState {
+  return _overallState;
+}
+
+/** Returns readiness — single string comparison, no function calls */
+export function isSystemReady(): boolean {
+  if (process.env.TEST_MODE === "true" && process.env.SKIP_GATEKEEPER === "true") {
+    return true;
+  }
+  const s = _overallState;
+  return s === "READY" || s === "WARMED" || s === "WARMING" || s === "DEGRADED";
+}
+
+/** Synchronize module-level mirror after state changes */
+function syncOverallState(newState: SystemState) {
+  _overallState = newState;
+}
 
 // Svelte 5 Reactive Class for Enterprise Performance
 class SystemStateContainer {
@@ -54,6 +79,7 @@ class SystemStateContainer {
 
   set(val: SystemStateStore) {
     this.#state = val;
+    syncOverallState(this.#state.overallState);
     systemStateStore.set(this.#state);
   }
 
@@ -61,6 +87,7 @@ class SystemStateContainer {
   patch(partial: Partial<SystemStateStore>) {
     Object.assign(this.#state, partial);
     this.#state.overallState = deriveOverallState(this.#state.services);
+    syncOverallState(this.#state.overallState);
     systemStateStore.set(this.#state);
   }
 
@@ -71,8 +98,19 @@ class SystemStateContainer {
       lastChecked: Date.now(),
       metrics: { ...initialServiceMetrics },
     };
-    this.#state.services[name] = { ...current, ...health, lastChecked: Date.now() };
-    this.#state.overallState = deriveOverallState(this.#state.services);
+    this.#state.services[name] = {
+      ...current,
+      ...health,
+      lastChecked: Date.now(),
+    };
+    // 🚀 OPTIMIZATION: Only recalculate overall state if a critical service changed.
+    // Non-critical service changes (widgets, themeManager, contentSystem, cache, media, search)
+    // cannot cause FAILED/INITIALIZING transitions — only database and auth can.
+    const isCritical = name === "database" || name === "auth";
+    if (isCritical || current.status !== health.status) {
+      this.#state.overallState = deriveOverallState(this.#state.services);
+      syncOverallState(this.#state.overallState);
+    }
     systemStateStore.set(this.#state);
   }
 }
@@ -424,6 +462,7 @@ export function setSystemState(state: SystemState, reason?: string): void {
         current.initializationStartedAt && { initializationCompletedAt: now }),
     };
   });
+  syncOverallState(state);
 }
 
 // Derive overall system state from individual service statuses
@@ -501,19 +540,7 @@ export function getSystemState(): SystemStateStore {
   return system.state;
 }
 
-// Check if the system is ready (synchronous)
-export function isSystemReady(): boolean {
-  if (process.env.TEST_MODE === "true" && process.env.SKIP_GATEKEEPER === "true") {
-    return true;
-  }
-  const state = getSystemState();
-  return (
-    state.overallState === "READY" ||
-    state.overallState === "WARMED" ||
-    state.overallState === "WARMING" ||
-    state.overallState === "DEGRADED"
-  );
-}
+// isSystemReady() is defined at module level (see top of file) for zero-overhead access
 
 // Check if a specific service is healthy (synchronous)
 export function isServiceHealthy(serviceName: ServiceName): boolean {

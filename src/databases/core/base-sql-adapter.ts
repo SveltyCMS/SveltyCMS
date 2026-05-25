@@ -85,9 +85,6 @@ export const SQL_TABLE_ALIASES: Record<string, string> = {
   contentDrafts: "contentDrafts",
   content_revisions: "contentRevisions",
   contentRevisions: "contentRevisions",
-  redirects: "redirectsMV",
-  system_redirects: "redirectsMV",
-  systemRedirects: "redirectsMV",
   system_content_structure: "contentNodes",
   systemContentStructure: "contentNodes",
   roles: "roles",
@@ -1035,7 +1032,16 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
         }
 
         const db = this.getDrizzleInstance(options);
-        const rawRows = await db.values(sqlQuery);
+        // 🚀 CROSS-DIALECT: MariaDB/MySQL don't support .values() — use .execute() instead
+        let rawRows: any[];
+        if (this.type === "mariadb" || this.type === "mysql") {
+          const execResult = await db.execute(sqlQuery);
+          rawRows = Array.isArray(execResult)
+            ? execResult
+            : (execResult as any).rows || [execResult];
+        } else {
+          rawRows = await (db as any).values(sqlQuery);
+        }
 
         if (process.env.BENCHMARK_DEBUG === "true") {
           logger.debug(`[BaseSqlAdapter] Dynamic findMany returned ${rawRows.length} rows`);
@@ -1610,7 +1616,7 @@ export abstract class BaseSqlAdapter extends BaseAdapter implements ICrudAdapter
         } else if (type === "postgresql") {
           // 🛡️ POSTGRESQL ON CONFLICT: Postgres also does not support table-prefixed columns in conflict targets.
           const rawNames = conflictTarget.map((col: any) =>
-            col && typeof col === "object" && "name" in col ? `"${col.name}"` : `"${String(col)}"`,
+            col && typeof col === "object" && col.name ? `"${col.name}"` : `"${String(col)}"`,
           );
           const rawTarget = sql.raw(rawNames.join(", "));
           // Use the driver's native onConflictDoUpdate via type casting

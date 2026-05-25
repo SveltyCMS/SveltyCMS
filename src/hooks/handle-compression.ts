@@ -17,7 +17,7 @@
  */
 
 import type { Handle } from "@sveltejs/kit";
-import { isStaticOrInternalRequest } from "@utils/hook-utils";
+import { getRequestFlags } from "@utils/hook-utils";
 
 const MIN_COMPRESSION_SIZE = 1024; // 1KB
 
@@ -112,11 +112,10 @@ function compressWithWebStreams(
 }
 
 export const handleCompression: Handle = async ({ event, resolve }) => {
-  const pathname = event.url.pathname;
+  const flags = getRequestFlags(event.locals as any);
 
-  if (isStaticOrInternalRequest(pathname)) {
-    return resolve(event);
-  }
+  // 🚀 FAST-PATH: Skip compression for static assets and internal requests
+  if (flags.isStatic) return resolve(event);
 
   // 🧪 TERMINAL BYPASS: Verified benchmarks skip compression overhead
   if ((event.locals as any).__testBypass) return resolve(event);

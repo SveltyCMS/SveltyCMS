@@ -13,7 +13,8 @@ class SetupWizardPage {
 
   async goto() {
     await this.page.goto("/setup");
-    await this.page.waitForLoadState("networkidle");
+    // Wait for the body element to ensure general DOM content load, improving race condition robustness.
+    await this.page.waitForSelector("body", { timeout: 60000 });
   }
 
   async hardReset() {
@@ -235,7 +236,9 @@ test.describe("Setup Wizard: Navigation & State", () => {
     await resetBtn.click();
     await page.locator("button").filter({ hasText: /yes/i }).first().click();
 
-    await expect(page.locator("#db-host")).not.toHaveValue("DIRTY_STATE", { timeout: 10000 });
+    await expect(page.locator("#db-host")).not.toHaveValue("DIRTY_STATE", {
+      timeout: 10000,
+    });
   });
 });
 
@@ -258,7 +261,11 @@ test.describe("Setup Wizard: Full Provisioning Flow", () => {
         if (dbType === "sqlite") {
           await page.locator("#db-name").fill(`e2e_wizard_${dbType}_${Date.now()}.db.sqlite`);
         } else {
-          const ports = { mongodb: "27017", postgresql: "5432", mariadb: "3306" };
+          const ports = {
+            mongodb: "27017",
+            postgresql: "5432",
+            mariadb: "3306",
+          };
           await page.locator("#db-host").fill("localhost");
           await page.locator("#db-port").fill(ports[dbType as keyof typeof ports]);
           await page.locator("#db-name").fill(`sveltycms_e2e_${dbType}`);
@@ -298,7 +305,9 @@ test.describe("Setup Wizard: Full Provisioning Flow", () => {
       await test.step("Step 5: Review & Finalize", async () => {
         console.log(`[${dbType}] Finalizing...`);
         await wizard.complete();
-        await page.waitForURL((url) => !url.pathname.startsWith("/setup"), { timeout: 90000 });
+        await page.waitForURL((url) => !url.pathname.startsWith("/setup"), {
+          timeout: 90000,
+        });
         await expect(page).not.toHaveURL(/\/setup/);
       });
 

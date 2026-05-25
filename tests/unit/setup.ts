@@ -202,6 +202,22 @@ vi.mock("$app/environment", () => ({
 vi.mock("$app/state", () => ({
   page: { subscribe: vi.fn() },
 }));
+vi.mock("$app/server", () => ({
+  command: vi.fn((_policy: string, handler: any) => handler),
+  query: vi.fn((_policy: string, handler: any) => handler),
+  getRequestEvent: vi.fn(() => ({
+    locals: {
+      cms: {},
+      user: { _id: "test-user-id", role: "admin", username: "admin" },
+      tenantId: "test-tenant-id",
+    },
+    cookies: {
+      get: vi.fn(() => undefined),
+      set: vi.fn(() => {}),
+      delete: vi.fn(() => {}),
+    },
+  })),
+}));
 
 // 1. EARLY DOM SHIMS (Critical for Bun; Vitest uses native jsdom)
 
@@ -514,6 +530,23 @@ moduleMock("$app/forms", () => ({
       return v;
     }
   }),
+}));
+
+moduleMock("$app/server", () => ({
+  command: mock((_policy: string, handler: any) => handler),
+  query: mock((_policy: string, handler: any) => handler),
+  getRequestEvent: mock(() => ({
+    locals: {
+      cms: {},
+      user: { _id: "test-user-id", role: "admin", username: "admin" },
+      tenantId: "test-tenant-id",
+    },
+    cookies: {
+      get: mock(() => undefined),
+      set: mock(() => {}),
+      delete: mock(() => {}),
+    },
+  })),
 }));
 
 moduleMock("$app/paths", () => ({ base: "", assets: "" }));

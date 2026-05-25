@@ -16,13 +16,34 @@ tags:
 
 # Security Testing
 
-**Last Updated:** April 26, 2026
+**Last Updated:** May 24, 2026
 
 SveltyCMS implements rigorous security testing to ensure the highest level of protection. All security tests follow the **no-backdoor policy** - tests must pass through real security guards.
 
 ## Test Categories
 
-### 1. Encryption & Cryptography
+### 1. Defense-in-Depth Security
+
+| Test Suite                              | Tests  | Status      |
+| --------------------------------------- | ------ | ----------- |
+| Cookie Prefix Enforcement (RFC 6265bis) | 6      | ✅ Passing  |
+| Setup Completion Gating                 | 7      | ✅ Passing  |
+| Handler-Level Admin Verification        | 8      | ✅ Passing  |
+| Media Defense-in-Depth Permissions      | 10     | ✅ Passing  |
+| Centralized Permission Guards           | 7      | ✅ Passing  |
+| Fail-Closed API Dispatcher              | 13     | ✅ Passing  |
+| **Total Defense-in-Depth**              | **51** | **✅ 100%** |
+
+**Key Features Verified**:
+
+- ✅ `__Host-` cookie prefix never accepted on insecure connections
+- ✅ `/api/setup/*` endpoints return 403 after initialization
+- ✅ System handler mutations require admin role
+- ✅ Media upload requires `media:write`, deletion requires `media:delete`
+- ✅ `requireCollectionBuilderPermission()` centralized guard pattern
+- ✅ Unmapped API namespaces return 403 by default (fail-closed)
+
+### 2. Encryption & Cryptography
 
 | Test Suite                | Tests | Status     |
 | ------------------------- | ----- | ---------- |
@@ -41,6 +62,7 @@ SveltyCMS implements rigorous security testing to ensure the highest level of pr
 
 ### 3. Authentication & Authorization
 
+| Defense-in-Depth | 51 | ✅ Passing |
 | Account Lockout | 10 | ✅ Passing |
 | Session Management (WeakRef) | 22 | ✅ Passing |
 | Fail-Closed API v2.0 | 45 | ✅ Passing |
@@ -63,8 +85,9 @@ bun test tests/benchmarks/chaos-resilience.test.ts
 | Preview Security    | 4       | 100%      |
 | Account Lockout     | 10      | 100%      |
 | Fail-Closed API 2.0 | 45      | 100%      |
+| Defense-in-Depth    | 51      | 100%      |
 | Session Persistence | 22      | 100%      |
-| **Total Security**  | **113** | **100%**  |
+| **Total Security**  | **164** | **100%**  |
 
 ## Related Documentation
 

@@ -185,8 +185,8 @@ export const hooks: PluginLifecycleHooks = {
         );
 
         await dbAdapter.crud.insert("redirects", {
-          from: oldPath,
-          to: newPath,
+          source: oldPath,
+          target: newPath,
           type: 301,
           tenantId,
           active: true,
@@ -244,8 +244,8 @@ async function syncToEdgeKV(tenantId: string) {
 
     if (result.success && Array.isArray(result.data)) {
       const redirects = result.data.map((r: any) => ({
-        from: r.from,
-        to: r.to,
+        from: r.source || r.from,
+        to: r.target || r.to,
         type: r.type,
         isRegex: r.isRegex,
       }));
@@ -273,63 +273,79 @@ async function syncToEdgeKV(tenantId: string) {
   }
 }
 
+const syncLocks: Record<string, Promise<void>> = {};
+
 /**
  * Syncs redirects for a tenant to the high-performance Materialized View table.
- * 🚀  Uses a transaction to ensure atomic clear-then-insert.
+ * 🚀  Uses a transaction and a Promise lock to ensure atomic clear-then-insert without race conditions.
  */
 async function syncToMaterializedView(tenantId: string, dbAdapter: IDBAdapter) {
   // Only applicable to SQL adapters with the redirects_mv table
   const sqlAdapters = ["sqlite", "postgresql", "mariadb"];
   if (!sqlAdapters.includes(dbAdapter.type)) return;
 
-  try {
-    const result = await dbAdapter.crud.findMany("redirects", {
-      tenantId: tenantId as DatabaseId,
-    } as any);
+  const key = tenantId || "global";
+  if (!syncLocks[key]) {
+    syncLocks[key] = Promise.resolve();
+  }
 
-    if (!result.success) {
-      throw new Error(`Failed to fetch source redirects: ${result.message}`);
-    }
-    if (!Array.isArray(result.data)) {
-      throw new Error(`Failed to fetch source redirects: Data is not an array`);
-    }
+  const next = syncLocks[key].then(async () => {
+    try {
+      const result = await dbAdapter.crud.findMany("redirects", {
+        tenantId: tenantId as DatabaseId,
+      } as any);
 
-    // Atomic update via transaction
-    await dbAdapter.transaction(async (tx: any) => {
-      // 1. Clear existing entries for this tenant in the MV
-      await dbAdapter.crud.deleteMany("redirects_mv", { tenantId: tenantId as DatabaseId } as any, {
-        transaction: tx,
-      });
+      if (!result.success) {
+        throw new Error(`Failed to fetch source redirects: ${result.message}`);
+      }
+      if (!Array.isArray(result.data)) {
+        throw new Error(`Failed to fetch source redirects: Data is not an array`);
+      }
 
-      // 2. Batch insert new entries if any
-      if (result.data.length > 0) {
-        const mvEntries = result.data.map((r: any) => ({
-          _id: r._id,
-          tenantId: r.tenantId,
-          from: r.from,
-          to: r.to,
-          type: r.type || 301,
-          isRegex: r.isRegex ? 1 : 0,
-          active: r.active !== false ? 1 : 0,
-          metadata: JSON.stringify(r.data || {}),
-        }));
+      // Atomic update via transaction
+      await dbAdapter.transaction(async (tx: any) => {
+        // 1. Clear existing entries for this tenant in the MV
+        await dbAdapter.crud.deleteMany(
+          "redirects_mv",
+          { tenantId: tenantId as DatabaseId } as any,
+          {
+            transaction: tx,
+          },
+        );
 
-        // Use the new relational core's insertMany if available, or fallback to sequential
-        if (dbAdapter.crud.insertMany) {
-          await dbAdapter.crud.insertMany("redirects_mv", mvEntries as any, { transaction: tx });
-        } else {
-          for (const entry of mvEntries) {
-            await dbAdapter.crud.insert("redirects_mv", entry as any, { transaction: tx });
+        // 2. Batch insert new entries if any
+        if (result.data.length > 0) {
+          const mvEntries = result.data.map((r: any) => ({
+            _id: r._id,
+            tenantId: r.tenantId,
+            source: r.source || r.from,
+            target: r.target || r.to,
+            type: r.type || 301,
+            isRegex: r.isRegex ? 1 : 0,
+            active: r.active !== false ? 1 : 0,
+            metadata: JSON.stringify(r.data || {}),
+          }));
+
+          // Use the new relational core's insertMany if available, or fallback to sequential
+          if (dbAdapter.crud.insertMany) {
+            await dbAdapter.crud.insertMany("redirects_mv", mvEntries as any, { transaction: tx });
+          } else {
+            for (const entry of mvEntries) {
+              await dbAdapter.crud.insert("redirects_mv", entry as any, { transaction: tx });
+            }
           }
         }
-      }
-      return { success: true, data: undefined };
-    });
+        return { success: true, data: undefined };
+      });
 
-    logger.info(
-      `[RedirectManager] Atomically synced ${result.data.length} redirects to MV for tenant ${tenantId}`,
-    );
-  } catch (err) {
-    logger.error(`[RedirectManager] Materialized View sync error:`, err);
-  }
+      logger.info(
+        `[RedirectManager] Atomically synced ${result.data.length} redirects to MV for tenant ${tenantId}`,
+      );
+    } catch (err) {
+      logger.error(`[RedirectManager] Materialized View sync error:`, err);
+    }
+  });
+
+  syncLocks[key] = next.catch(() => {});
+  return next;
 }

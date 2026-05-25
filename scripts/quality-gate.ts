@@ -62,8 +62,11 @@ async function main() {
 
   // 2. Sequential checks (clearer output)
   const tasks = [
-    { name: "Format", run: () => run("bunx oxfmt src --write") },
-    { name: "Lint", run: () => run("bunx oxlint src --fix --no-error-on-unmatched-pattern") },
+    { name: "Format", run: () => run("vp fmt") },
+    {
+      name: "Lint",
+      run: () => run("vp lint"),
+    },
     {
       name: "Type Check",
       skip: !hasTsOrSvelte,
@@ -94,10 +97,16 @@ async function main() {
     if (task.skip) continue;
 
     console.log(`\n▶️ Running ${task.name}...`);
-    const success = await task.run();
+    let success = false;
+    try {
+      success = await task.run();
+    } catch (e) {
+      console.error(`\n❌ ${task.name} failed with a fatal error:`, e);
+      process.exit(1);
+    }
 
     if (!success) {
-      console.error(`\n❌ ${task.name} failed. Please fix the issues above.\n`);
+      console.error(`\n❌ ${task.name} failed. Please fix the issues above.`);
       process.exit(1);
     }
     console.log(`✅ ${task.name} passed.`);

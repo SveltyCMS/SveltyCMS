@@ -37,7 +37,8 @@ export async function runDatabaseBenchmark() {
     await ensureStableTestData();
     await stabilize(1000);
 
-    const { getDb } = await import("@src/databases/db");
+    const { getDb, getDbInitPromise } = await import("@src/databases/db");
+    await getDbInitPromise(false, "CORE").catch(() => {});
     const db = getDb();
     if (!db) throw new Error("Database not initialized");
 
@@ -93,12 +94,36 @@ export async function runDatabaseBenchmark() {
     });
 
     printSummaryTable([
-      { key: "Avg Insert Latency", val: findResult("INSERT").avgMs, unit: "ms" },
-      { key: "Avg Read Latency (Single)", val: findResult("FIND ONE").avgMs, unit: "ms" },
-      { key: "Avg Read Latency (Many)", val: findResult("FIND MANY (limit 50)").avgMs, unit: "ms" },
-      { key: "Avg Update Latency", val: findResult("UPDATE").avgMs, unit: "ms" },
-      { key: "Avg Native Upsert", val: findResult("NATIVE UPSERT").avgMs, unit: "ms" },
-      { key: "Avg Delete Latency", val: findResult("DELETE").avgMs, unit: "ms" },
+      {
+        key: "Avg Insert Latency",
+        val: findResult("INSERT").avgMs,
+        unit: "ms",
+      },
+      {
+        key: "Avg Read Latency (Single)",
+        val: findResult("FIND ONE").avgMs,
+        unit: "ms",
+      },
+      {
+        key: "Avg Read Latency (Many)",
+        val: findResult("FIND MANY (limit 50)").avgMs,
+        unit: "ms",
+      },
+      {
+        key: "Avg Update Latency",
+        val: findResult("UPDATE").avgMs,
+        unit: "ms",
+      },
+      {
+        key: "Avg Native Upsert",
+        val: findResult("NATIVE UPSERT").avgMs,
+        unit: "ms",
+      },
+      {
+        key: "Avg Delete Latency",
+        val: findResult("DELETE").avgMs,
+        unit: "ms",
+      },
       { key: "Peak CRUD Throughput", val: peakThroughput, unit: "req/s" },
     ]);
 
@@ -130,7 +155,12 @@ function createInsertTest(db: any) {
     const id = `ins-${runId}-${counter++}`;
     await db.crud.insert(
       COLLECTION_ID,
-      { _id: id as any, title: `Insert ${id}`, status: "active", tenantId: TEST_TENANT },
+      {
+        _id: id as any,
+        title: `Insert ${id}`,
+        status: "active",
+        tenantId: TEST_TENANT,
+      },
       { tenantId: TEST_TENANT },
     );
   };
@@ -198,7 +228,11 @@ function createUpsertNativeTest(db: any) {
     const idCol = db.getColumn(table, "_id");
     await db.upsertNative(
       table,
-      { [idCol.name]: "bench-shared-001", title: `Native ${Date.now()}`, tenantId: TEST_TENANT },
+      {
+        [idCol.name]: "bench-shared-001",
+        title: `Native ${Date.now()}`,
+        tenantId: TEST_TENANT,
+      },
       [idCol],
     );
   };
@@ -211,7 +245,13 @@ function createAggregationTest(db: any) {
       COLLECTION_ID,
       [
         { $match: { status: "active" } },
-        { $group: { _id: "$status", total: { $sum: "$value" }, count: { $sum: 1 } } },
+        {
+          $group: {
+            _id: "$status",
+            total: { $sum: "$value" },
+            count: { $sum: 1 },
+          },
+        },
       ],
       { tenantId: TEST_TENANT },
     );
@@ -295,7 +335,9 @@ async function prepareCollection(db: any) {
     tenantId: TEST_TENANT,
   }));
 
-  await db.crud.insertMany(COLLECTION_ID, deleteBatch, { tenantId: TEST_TENANT });
+  await db.crud.insertMany(COLLECTION_ID, deleteBatch, {
+    tenantId: TEST_TENANT,
+  });
   console.log("   [DB Trace] Collection prepared.");
 }
 

@@ -11,6 +11,10 @@
 import type { WebhookEvent } from "@src/services/background/webhook-service";
 import { logger } from "@utils/logger";
 import type { ICrudAdapter, IDBAdapter, IMediaAdapter } from "./db-interface";
+import { trace, SpanStatusCode } from "@opentelemetry/api";
+import { getRequestContext } from "./request-context";
+
+const tracer = trace.getTracer("sveltycms-database");
 
 // Constants for identifying events
 const CONTENT_COLLECTION_PREFIX = "collection_";
@@ -28,6 +32,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
   const wrapCrud = (capturedCrud: ICrudAdapter): ICrudAdapter => {
     const wrappedMethods: Partial<ICrudAdapter> = {
       insert: async (...args) => {
+        const ctx = getRequestContext();
+        if (ctx?.tenantId && !args[2]) args[2] = { tenantId: ctx.tenantId };
+        else if (ctx?.tenantId && !(args[2] as any).tenantId)
+          (args[2] as any).tenantId = ctx.tenantId;
+
         const res = await capturedCrud.insert(...args);
         const collection = args[0];
         const options = args[2] as any;
@@ -44,6 +53,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         return res;
       },
       insertMany: async (...args) => {
+        const ctx = getRequestContext();
+        if (ctx?.tenantId && !args[2]) args[2] = { tenantId: ctx.tenantId };
+        else if (ctx?.tenantId && !(args[2] as any).tenantId)
+          (args[2] as any).tenantId = ctx.tenantId;
+
         const res = await capturedCrud.insertMany(...args);
         const collection = args[0];
         const options = args[2] as any;
@@ -61,6 +75,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         return res;
       },
       update: async (...args) => {
+        const ctx = getRequestContext();
+        if (ctx?.tenantId && !args[3]) args[3] = { tenantId: ctx.tenantId };
+        else if (ctx?.tenantId && !(args[3] as any).tenantId)
+          (args[3] as any).tenantId = ctx.tenantId;
+
         const res = await capturedCrud.update(...args);
         const collection = args[0];
         const id = args[1] as any;
@@ -92,6 +111,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         return res;
       },
       updateMany: async (...args) => {
+        const ctx = getRequestContext();
+        if (ctx?.tenantId && !args[3]) args[3] = { tenantId: ctx.tenantId };
+        else if (ctx?.tenantId && !(args[3] as any).tenantId)
+          (args[3] as any).tenantId = ctx.tenantId;
+
         const res = await capturedCrud.updateMany(...args);
         const collection = args[0];
         const query = args[1] as any;
@@ -122,6 +146,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         return res;
       },
       delete: async (...args) => {
+        const ctx = getRequestContext();
+        if (ctx?.tenantId && !args[2]) args[2] = { tenantId: ctx.tenantId };
+        else if (ctx?.tenantId && !(args[2] as any).tenantId)
+          (args[2] as any).tenantId = ctx.tenantId;
+
         const res = await capturedCrud.delete(...args);
         const collection = args[0];
         const id = args[1] as any;
@@ -139,6 +168,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         return res;
       },
       deleteMany: async (...args) => {
+        const ctx = getRequestContext();
+        if (ctx?.tenantId && !args[2]) args[2] = { tenantId: ctx.tenantId };
+        else if (ctx?.tenantId && !(args[2] as any).tenantId)
+          (args[2] as any).tenantId = ctx.tenantId;
+
         const res = await capturedCrud.deleteMany(...args);
         const collection = args[0];
         const query = args[1] as any;
@@ -163,6 +197,11 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
         return res;
       },
       upsert: async (...args) => {
+        const ctx = getRequestContext();
+        if (ctx?.tenantId && !args[3]) args[3] = { tenantId: ctx.tenantId };
+        else if (ctx?.tenantId && !(args[3] as any).tenantId)
+          (args[3] as any).tenantId = ctx.tenantId;
+
         const res = await capturedCrud.upsert(...args);
         const collection = args[0];
         const query = args[1] as any;
@@ -184,13 +223,50 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       },
     };
 
+    const MAX_PROXY_DEPTH = 5;
+    let depth = 0;
+
     return new Proxy(capturedCrud, {
       get(target, prop, receiver) {
-        if (typeof prop === "string" && prop in wrappedMethods) {
-          return wrappedMethods[prop as keyof ICrudAdapter];
+        if (depth++ > MAX_PROXY_DEPTH) {
+          depth = 0;
+          throw new Error("CRUD proxy depth exceeded");
         }
-        const value = Reflect.get(target, prop, receiver);
-        return typeof value === "function" ? value.bind(target) : value;
+        try {
+          let originalFunction: Function | undefined;
+
+          if (typeof prop === "string" && prop in wrappedMethods) {
+            originalFunction = wrappedMethods[prop as keyof ICrudAdapter] as Function;
+          } else {
+            const value = Reflect.get(target, prop, receiver);
+            if (typeof value === "function") {
+              originalFunction = value.bind(target);
+            } else {
+              return value;
+            }
+          }
+
+          return async (...args: any[]) => {
+            const ctx = getRequestContext();
+            return tracer.startActiveSpan(`crud.${String(prop)}`, async (span) => {
+              if (ctx?.tenantId) span.setAttribute("tenant.id", ctx.tenantId);
+              if (ctx?.userId) span.setAttribute("user.id", ctx.userId);
+              try {
+                const res = await originalFunction!(...args);
+                span.setStatus({ code: SpanStatusCode.OK });
+                return res;
+              } catch (err: any) {
+                span.recordException(err);
+                span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+                throw err;
+              } finally {
+                span.end();
+              }
+            });
+          };
+        } finally {
+          depth--;
+        }
       },
     });
   };
@@ -239,21 +315,41 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
       },
     };
 
+    const MAX_PROXY_DEPTH = 5;
+    let filesDepth = 0;
+
     const filesProxy = new Proxy(originalFiles, {
       get(fTarget, fProp, fReceiver) {
-        if (typeof fProp === "string" && fProp in wrappedFiles) {
-          return wrappedFiles[fProp as keyof IMediaAdapter["files"]];
+        if (filesDepth++ > MAX_PROXY_DEPTH) {
+          filesDepth = 0;
+          throw new Error("Files proxy depth exceeded");
         }
-        const fValue = Reflect.get(fTarget, fProp, fReceiver);
-        return typeof fValue === "function" ? fValue.bind(fTarget) : fValue;
+        try {
+          if (typeof fProp === "string" && fProp in wrappedFiles) {
+            return wrappedFiles[fProp as keyof IMediaAdapter["files"]];
+          }
+          const fValue = Reflect.get(fTarget, fProp, fReceiver);
+          return typeof fValue === "function" ? fValue.bind(fTarget) : fValue;
+        } finally {
+          filesDepth--;
+        }
       },
     });
 
+    let mediaDepth = 0;
     return new Proxy(capturedMedia, {
       get(target, prop, receiver) {
-        if (prop === "files") return filesProxy;
-        const value = Reflect.get(target, prop, receiver);
-        return typeof value === "function" ? value.bind(target) : value;
+        if (mediaDepth++ > MAX_PROXY_DEPTH) {
+          mediaDepth = 0;
+          throw new Error("Media proxy depth exceeded");
+        }
+        try {
+          if (prop === "files") return filesProxy;
+          const value = Reflect.get(target, prop, receiver);
+          return typeof value === "function" ? value.bind(target) : value;
+        } finally {
+          mediaDepth--;
+        }
       },
     });
   };
@@ -301,44 +397,55 @@ export async function wrapAdapterWithWebhooks(adapter: IDBAdapter): Promise<IDBA
   const crudProxy = originalCrud ? wrapCrud(originalCrud) : undefined;
   const mediaProxy = originalMedia ? wrapMedia(originalMedia) : undefined;
 
+  const MAX_PROXY_DEPTH = 5;
+  let adapterDepth = 0;
+
   return new Proxy(adapter, {
     get(target, prop, receiver) {
-      if (prop === "crud" && crudProxy) return crudProxy;
-      if (prop === "media" && mediaProxy) return mediaProxy;
-      if (prop === "__isSveltyProxy__") return true;
-      if (prop === "constructor") return target.constructor;
+      if (adapterDepth++ > MAX_PROXY_DEPTH) {
+        adapterDepth = 0;
+        throw new Error("Adapter proxy depth exceeded");
+      }
+      try {
+        if (prop === "crud" && crudProxy) return crudProxy;
+        if (prop === "media" && mediaProxy) return mediaProxy;
+        if (prop === "__isSveltyProxy__") return true;
+        if (prop === "constructor") return target.constructor;
 
-      let value = Reflect.get(target, prop, receiver);
+        let value = Reflect.get(target, prop, receiver);
 
-      // Final Resilience: If still missing but is a known critical interface, return empty object to prevent crash
-      if (!value && (prop === "collection" || prop === "batch")) {
-        // Try one last thing: check if it's on the class prototype
-        const protoValue = (target.constructor?.prototype as any)?.[prop];
-        if (protoValue) return protoValue;
-        // 🚀 Self-Healing Dummy: Returns a function that returns null/empty for any method call.
-        // This prevents "is not a function" crashes during high-concurrency bootstrap races.
-        return new Proxy(
-          {},
-          {
-            get: (_, subProp) => {
-              if (subProp === "getModel") {
-                return () => ({
-                  findOne: () => Promise.resolve(null),
-                  aggregate: () => Promise.resolve([]),
-                  find: () => ({ lean: () => ({ exec: () => Promise.resolve([]) }) }),
-                });
-              }
-              return () => Promise.resolve({ success: false, message: "Interface initializing" });
+        // Final Resilience: If still missing but is a known critical interface, return empty object to prevent crash
+        if (!value && (prop === "collection" || prop === "batch")) {
+          // Try one last thing: check if it's on the class prototype
+          const protoValue = (target.constructor?.prototype as any)?.[prop];
+          if (protoValue) return protoValue;
+          // 🚀 Self-Healing Dummy: Returns a function that returns null/empty for any method call.
+          // This prevents "is not a function" crashes during high-concurrency bootstrap races.
+          return new Proxy(
+            {},
+            {
+              get: (_, subProp) => {
+                if (subProp === "getModel") {
+                  return () => ({
+                    findOne: () => Promise.resolve(null),
+                    aggregate: () => Promise.resolve([]),
+                    find: () => ({ lean: () => ({ exec: () => Promise.resolve([]) }) }),
+                  });
+                }
+                return () => Promise.resolve({ success: false, message: "Interface initializing" });
+              },
             },
-          },
-        );
-      }
+          );
+        }
 
-      if (typeof value === "function") {
-        value = value.bind(target);
-      }
+        if (typeof value === "function") {
+          value = value.bind(target);
+        }
 
-      return value;
+        return value;
+      } finally {
+        adapterDepth--;
+      }
     },
     ownKeys(target) {
       const keys = Reflect.ownKeys(target);

@@ -2,6 +2,11 @@
  * @file src/hooks/handle-user-preferences.ts
  * @description Synchronizes user preferences (language and theme) from cookies to stores and handles SSR theme rendering.
  * Combining these reduces middleware Promise chain overhead for better performance.
+ *
+ * Performance:
+ * - Uses pre-computed request flags from Turbo Pipeline to skip API/static routes
+ * - Only runs transformPageChunk for dark-mode to prevent FOUC (Flash of Unstyled Content)
+ * - Skips theme retrieval when ThemeManager is not initialized
  */
 
 import { ThemeManager } from "@src/databases/theme-manager";
@@ -11,6 +16,7 @@ import { locales } from "@src/paraglide/runtime";
 import { app } from "@src/stores/store.svelte";
 import type { Handle } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
+import { getRequestFlags } from "@utils/hook-utils";
 
 // --- UTILITY FUNCTIONS ---
 
@@ -52,15 +58,14 @@ function safelySetLanguage(
 // --- MAIN HOOK ---
 
 export const handleUserPreferences: Handle = async ({ event, resolve }) => {
-  const { url, cookies, locals } = event;
+  const { cookies, locals } = event;
 
   // 🧪 TERMINAL BYPASS: Verified benchmarks skip UI preference sync
   if ((locals as any).__testBypass) return resolve(event);
 
-  // Skip for API routes - performance fast-path
-  if (url.pathname.startsWith("/api/")) {
-    return resolve(event);
-  }
+  // 🚀 FAST-PATH: Skip entirely for API routes and static assets using pre-computed flags
+  const flags = getRequestFlags(locals as any);
+  if (flags.isApi || flags.isStatic) return resolve(event);
 
   // --- 1. LOCALE LOGIC ---
   if (app) {
@@ -124,14 +129,16 @@ export const handleUserPreferences: Handle = async ({ event, resolve }) => {
     event.locals.customCss = "";
   }
 
-  // Transform the HTML response to prevent flickering
+  // 🚀 FAST-PATH: Skip transformPageChunk if not dark mode (no HTML transformation needed)
+  if (themePreference !== "dark") {
+    return resolve(event);
+  }
+
+  // Transform the HTML response to prevent dark-mode flickering
   return resolve(event, {
     transformPageChunk: ({ html }) => {
       const htmlTag = '<html lang="en" dir="ltr">';
-      if (themePreference === "dark") {
-        return html.replace(htmlTag, '<html lang="en" dir="ltr" class="dark">');
-      }
-      return html;
+      return html.replace(htmlTag, '<html lang="en" dir="ltr" class="dark">');
     },
   });
 };

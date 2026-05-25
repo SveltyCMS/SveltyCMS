@@ -40,6 +40,7 @@ SveltyCMS security architecture includes:
 ### Authentication & Access Control
 
 - **[Authentication System](/docs/architecture/authentication-system.mdx)** - Enterprise-grade authentication with 3-layer caching, automatic session rotation, and multi-tenancy support
+- **[Login Security](/docs/architecture/security/login-security.mdx)** - Implementation details for IP resolution, rate limiter secrets, OAuth HMAC validation, and accessibility fixes.
 - **[Access Management](/docs/guides/configuration/access-management.mdx)** - Roles, Granular Permissions, and Website Token management
   - Session management
   - Token-based authentication
@@ -202,6 +203,9 @@ Every request to SveltyCMS passes through an **enterprise-grade pre-compiled pip
 - ✅ **Tenant-Based Access Control (TBAC)**: User roles are dynamically resolved and isolated per `tenantId` during the authentication handshake.
 - ✅ **Informative 403 Feedback**: The Admin Area natively detects authorization failures and provides granular feedback including the specific required permission.
 - ✅ **UUIDv4 Primary Keys Out-of-the-box**: Protects against Cross-Collection IDOR (Insecure Direct Object Reference) vulnerability collision chains.
+- ✅ **Defense-in-Depth Handler Checks**: System handlers (`handleSettingsRoutes`, `handleSystemMgmtRoutes`, `handleAutomationRoutes`) enforce admin verification. Media handlers enforce `media:write` and `media:delete` permissions. Page actions use centralized permission guards.
+- ✅ **Cookie Prefix Hardening**: `__Host-` prefixed session cookies strictly enforced on secure connections; never leaked on insecure connections.
+- ✅ **Setup Completion Gating**: All `/api/setup` endpoints blocked with 403 after initialization; bootstrap routes redirect to login.
 - ✅ Permission-based authorization
 - ✅ Multi-tenant isolation
 - ✅ Resource-level permissions

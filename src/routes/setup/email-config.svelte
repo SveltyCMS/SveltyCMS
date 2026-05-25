@@ -82,7 +82,7 @@
 	import { type SmtpConfigSchema, smtpConfigSchema } from '@utils/schemas';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { safeParse } from 'valibot';
-	import { deserialize } from '$app/forms';
+	import { testEmailConnection } from './setup.remote';
 
 	const { wizard } = setupStore;
 
@@ -409,52 +409,31 @@
 		testEmailSent = false;
 
 		try {
-			const formData = new FormData();
-			formData.append('host', wizard.emailSettings.host);
-			formData.append('port', String(effectivePort()));
-			formData.append('user', wizard.emailSettings.user);
-			formData.append('security', wizard.emailSettings.password);
-			formData.append('from', wizard.emailSettings.from || wizard.emailSettings.user);
-			formData.append('secure', String(effectiveSecure()));
-			formData.append('testEmail', wizard.adminUser.email);
-			formData.append('saveToDatabase', 'true');
+			const data = await testEmailConnection({
+					host: wizard.emailSettings.host,
+					port: effectivePort(),
+					user: wizard.emailSettings.user,
+					password: wizard.emailSettings.password,
+					from: wizard.emailSettings.from || wizard.emailSettings.user,
+					secure: effectiveSecure(),
+					testEmail: wizard.adminUser.email
+				});
 
-			const response = await fetch('?/testEmail', {
-				method: 'POST',
-				body: formData
-			});
+			if (data.success) {
+				testSuccess = true;
+				testEmailSent = true;
 
-			const result = deserialize(await response.text());
+				// Mark SMTP as configured in wizard state
+				wizard.emailSettings.smtpConfigured = true;
+				wizard.emailSettings.skipWelcomeEmail = false;
 
-			if (result.type === 'success') {
-				const data = result.data as {
-					success: boolean;
-					testEmailSent?: boolean;
-					error?: string;
-				};
-				if (data.success) {
-					testSuccess = true;
-					testEmailSent = !!data.testEmailSent;
-
-					// Mark SMTP as configured in wizard state
-					wizard.emailSettings.smtpConfigured = true;
-					wizard.emailSettings.skipWelcomeEmail = false;
-
-					const message = testEmailSent
-						? `${setup_email_test_success()} ${setup_email_test_email_sent({ email: wizard.adminUser.email })}`
-						: setup_email_test_success();
-					toast.success(message);
-				} else {
-					testError = data.error || 'Connection failed';
-					toast.error(`${setup_email_test_failed()}: ${testError}`);
-				}
+				const message = `${setup_email_test_success()} ${setup_email_test_email_sent({ email: wizard.adminUser.email })}`;
+				toast.success(message);
 			} else {
-				// Handle failure/error type
-				const errorMsg = (result as { data?: { error?: string } }).data?.error || 'Connection failed'; // Attempt to get error from failure data
-				testError = errorMsg;
+				testError = data.error || 'Connection failed';
 				toast.error(`${setup_email_test_failed()}: ${testError}`);
 			}
-		} catch (error) {
+		} catch (error: any) {
 			testError = error instanceof Error ? error.message : 'Unknown error occurred';
 			toast.error(`${setup_email_test_failed()}: ${testError}`);
 		} finally {

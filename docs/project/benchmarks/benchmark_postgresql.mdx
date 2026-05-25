@@ -20,21 +20,21 @@ tags:
 
 <!-- BENCHMARK_START -->
 
-## 📊 Latest Performance Audit (15/05/2026, 16:29:51)
+## 📊 Latest Performance Audit (23/05/2026, 09:34:40)
 
-**Status:** ✅ PASS _(Historical)_
+**Status:** ✅ PASS
 
 ### ⚡ Executive Latency Matrix
 
-| Scenario               | Avg Latency | Trend  | Target Budget | Result  |
-| :--------------------- | :---------- | :----- | :------------ | :------ |
-| **Cold Start**         | 0ms         | ⚪ (—) | < 5000ms      | 🟢 PASS |
-| **REST (Collections)** | 0.000ms     | ⚪ (—) | < 5ms         | 🟢 PASS |
-| **Middleware Hooks**   | 0.000ms     | ⚪     | < 1.5ms       | 🟢 PASS |
-| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—) | < 5ms         | 🟢 PASS |
-| **Million-Row Index**  | FAILED      | ⚪     | < 250ms       | 🔴 FAIL |
-| **DB Raw (p95)**       | 0.000ms     | ⚪     | < 50ms        | 🟢 PASS |
-| **Setup Quality**      | 🟢 HEALTHY  | ⚪     | 100%          | 🟢 PASS |
+| Scenario               | Avg Latency | Trend      | Target Budget | Result  |
+| :--------------------- | :---------- | :--------- | :------------ | :------ |
+| **Cold Start**         | 0ms         | ⚪ (—)     | < 5000ms      | 🟢 PASS |
+| **REST (Collections)** | 0.468ms     | ⚪ (-0.0%) | < 5ms         | 🟢 PASS |
+| **Middleware Hooks**   | 1.889ms     | ⚪         | < 2ms         | 🟢 PASS |
+| **GraphQL (Avg)**      | 0.000ms     | ⚪ (—)     | < 5ms         | 🟢 PASS |
+| **Million-Row Index**  | FAILED      | ⚪         | < 250ms       | 🔴 FAIL |
+| **DB Raw (p95)**       | 0.000ms     | ⚪         | < 50ms        | 🟢 PASS |
+| **Setup Quality**      | 🟢 HEALTHY  | ⚪         | 100%          | 🟢 PASS |
 
 ### 🏷️ Mixed Workload Performance {#mixedAvg}
 
@@ -49,7 +49,7 @@ xychart-beta
   title "POSTGRESQL Latency Trend (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
-  line "p95 Latency" : []
+  line "p95 Latency" : [0.468, 0.468, 0.468, 0.468, 0.468, 0.468, 0.468, 0.468, 0.468, 0.468]
 ```
 
 ## 📈 Core Infrastructure Trends
@@ -62,7 +62,7 @@ xychart-beta
 
 ### 🏷️ Middleware & Hooks Audit {#hooks}
 
-**Middleware p95:** 0.000ms | **Target:** < 1.5ms | **Trend:** ⚪ (—)
+**Middleware p95:** 1.889ms | **Target:** < 2ms | **Trend:** ⚪ (—)
 
 > Total overhead of security, logging, and auth hooks.
 
@@ -93,6 +93,76 @@ xychart-beta
 > Measures overhead of telemetry collection and cryptographic signing.
 
 ## 🔬 Detailed Performance Ledger (20+ Modules)
+
+<!-- HOOKS_TABLE_START -->
+
+### 🏷️ SVELTYCMS — MIDDLEWARE & HOOKS AUDIT
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                          SVELTYCMS — MIDDLEWARE & HOOKS AUDIT                           ║
+║                    File: tests/benchmarks/hooks-performance.test.ts                     ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ Turbo Pipeline (Light)         │        1.141 ms │ p95:        2.248 ms │ RPS:        819 ║
+║ Full Security + Auth Pipeline  │        0.940 ms │ p95:        1.628 ms │ RPS:      1,059 ║
+║ Mutation + Audit Logging       │        4.958 ms │ p95:        5.645 ms │ RPS:        197 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+<!-- HOOKS_TABLE_END -->
+
+<!-- API_TABLE_START -->
+
+### 🏷️ SVELTYCMS — API LAYER LATENCY
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                             SVELTYCMS  —  API LAYER LATENCY                             ║
+║                       File: tests/benchmarks/api-latency.test.ts                        ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ HTTP: findById @ 8c            │        1.108 ms │ p95:        2.184 ms │ RPS:        876 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+<!-- API_TABLE_END -->
+
+<!-- AUTH_TABLE_START -->
+
+### 🏷️ SVELTYCMS — AUTHENTICATION TELEMETRY
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                          SVELTYCMS — AUTHENTICATION TELEMETRY                           ║
+║                     File: tests/benchmarks/auth-performance.test.ts                     ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ SDK Session Validation         │        1.580 ms │ p95:        1.844 ms │ RPS:        593 ║
+║ HTTP Auth Pipeline @ 8c        │        0.949 ms │ p95:        1.730 ms │ RPS:      1,043 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+<!-- AUTH_TABLE_END -->
+
+<!-- DB_TABLE_START -->
+
+### 🏷️ SVELTYCMS — DATABASE ADAPTER PERFORMANCE (POSTGRESQL)
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                  SVELTYCMS — DATABASE ADAPTER PERFORMANCE (POSTGRESQL)                  ║
+║                   File: tests/benchmarks/database-performance.test.ts                   ║
+╠═════════════════════════════════════════════════════════════════════════════════════════╣
+║ INSERT                         │        3.261 ms │ p95:        4.783 ms │ RPS:        282 ║
+║ FIND ONE                       │        1.201 ms │ p95:        1.440 ms │ RPS:        800 ║
+║ FIND MANY (limit 50)           │        0.083 ms │ p95:        0.099 ms │ RPS:      6,738 ║
+║ UPDATE                         │        2.549 ms │ p95:        2.951 ms │ RPS:        381 ║
+║ NATIVE UPSERT                  │        0.063 ms │ p95:        0.079 ms │ RPS:      4,162 ║
+║ AGGREGATION                    │        0.000 ms │ p95:        0.001 ms │ RPS:  1,675,432 ║
+║ DELETE                         │        2.398 ms │ p95:        2.782 ms │ RPS:        405 ║
+║ BULK INSERT (100)              │        6.722 ms │ p95:        7.616 ms │ RPS:        145 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+<!-- DB_TABLE_END -->
 
 <!-- API_LATENCY_TABLE_START -->
 

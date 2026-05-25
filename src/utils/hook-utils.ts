@@ -1,6 +1,12 @@
 /**
  * @file src/utils/hook-utils.ts
  * @description High-performance utility for middleware hook short-circuiting and response generation.
+ *
+ * Features:
+ * - Pre-compiled regex patterns for path classification
+ * - One-shot request classifier to avoid redundant checks across hooks
+ * - Security header application
+ * - Standardized error/restricted response generation
  */
 
 import type { RequestEvent } from "@sveltejs/kit";
@@ -41,6 +47,84 @@ export const PUBLIC_ROUTES = [
   "/api/media/share",
   "/share",
 ];
+
+// ──────────────────────────────────────────────────────────────
+// ONE-SHOT REQUEST CLASSIFIER (avoids redundant checks across hooks)
+// ──────────────────────────────────────────────────────────────
+
+/**
+ * Flag interface stored on `locals.__flags` after classification.
+ * Every downstream hook reads these pre-computed booleans instead of
+ * re-running regex/prefix checks.
+ */
+export interface RequestFlags {
+  /** True if the pathname matches static assets or internal Vite/SvelteKit routes */
+  isStatic: boolean;
+  /** True if the pathname starts with /api/ */
+  isApi: boolean;
+  /** True if the pathname is a bootstrap route (setup, login, system APIs, assets) */
+  isBootstrap: boolean;
+  /** True if the pathname is a public route */
+  isPublic: boolean;
+  /** The test mode flag resolved once */
+  isTestMode: boolean;
+}
+
+/**
+ * Classifies a request pathname once and caches the result on `locals.__flags`.
+ * Called by handleTurboPipeline at the top of the pipeline. All downstream
+ * hooks read from `locals.__flags` instead of re-computing.
+ *
+ * @returns The populated flags object (also attached to locals).
+ */
+export function classifyRequest(pathname: string, locals: App.Locals): RequestFlags {
+  // Re-use if already computed
+  const existing = (locals as any).__flags as RequestFlags | undefined;
+  if (existing) return existing;
+
+  const flags: RequestFlags = {
+    isStatic: isStaticOrInternalRequest(pathname),
+    isApi: pathname.startsWith("/api/"),
+    isBootstrap: isBootstrapRoute(pathname),
+    isPublic: false, // computed below
+    isTestMode:
+      process.env.TEST_MODE === "true" ||
+      process.env.VITE_TEST_MODE === "true" ||
+      process.env.BENCHMARK === "true",
+  };
+
+  flags.isPublic = flags.isStatic || flags.isBootstrap || isPublicRoute(pathname, flags.isTestMode);
+
+  (locals as any).__flags = flags;
+  return flags;
+}
+
+/**
+ * Retrieves pre-computed request flags from locals.
+ * If classification hasn't run (e.g., unit tests bypassing Turbo Pipeline),
+ * computes and caches them on-the-fly.
+ */
+export function getRequestFlags(locals: App.Locals): RequestFlags {
+  const existing = (locals as any).__flags as RequestFlags | undefined;
+  if (existing) return existing;
+  // Fallback: compute on-demand (for unit tests or hooks that run before Turbo Pipeline)
+  // We can't compute here without the pathname, so return a safe default.
+  // Callers can still use the individual functions directly.
+  return {
+    isStatic: false,
+    isApi: false,
+    isBootstrap: false,
+    isPublic: false,
+    isTestMode:
+      process.env.TEST_MODE === "true" ||
+      process.env.VITE_TEST_MODE === "true" ||
+      process.env.BENCHMARK === "true",
+  };
+}
+
+// ──────────────────────────────────────────────────────────────
+// PATH CLASSIFICATION FUNCTIONS
+// ──────────────────────────────────────────────────────────────
 
 /**
  * Checks if a pathname is a static asset or internal system route.

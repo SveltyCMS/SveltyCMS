@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-03-27"
+updated: "2026-05-25"
 tags:
   - "security"
   - "auth"
@@ -39,8 +39,8 @@ To achieve sub-millisecond authentication checks on every request, SveltyCMS use
 
 SveltyCMS uses high-entropy, cryptographically secure random tokens for session IDs. These IDs are:
 
-- **64 characters long** (hex-encoded)
-- **Hashed (SHA-256)** before storage in the database
+- **32 characters** (alphanumeric), generated via `generateRandomToken()` using `crypto.getRandomValues()`
+- **Stored directly** in cookies and database — no additional hashing required due to CSPRNG source
 - **Rotated automatically** on sensitive actions (login, password change)
 
 ### Multi-Tenancy 2.0
@@ -61,9 +61,9 @@ graph TD
 
 ### AuthService (`auth/index.ts`)
 
-The central API for user authentication (login, register, logout, password reset).
+The central API for user authentication (login, register, logout, password reset). Uses **Argon2id** for password hashing with a 64MB memory cost for quantum resistance.
 
-### SessionManager (`auth/sessionManager.ts`)
+### SessionManager (`auth/session-manager.ts`)
 
 Orchestrates the 3-layer cache and manages the session lifecycle (create, validate, refresh, invalidate).
 
@@ -111,10 +111,10 @@ OOTB support for **Google** and **GitHub** authentication.
 
 SveltyCMS follows industry best practices:
 
-1.  **PBKDF2/Bcrypt** password hashing.
-2.  **ASR Threat Detection**: Real-time analysis for injection attacks.
-3.  **Crypto-Chained Audit Logs**: Tamper-evident trail for all auth events.
-4.  **Secure Headers**: Automatic HSTS, CSP, and X-Frame-Options.
+1.  **Argon2id** password hashing with 64MB memory cost — resistant to GPU/ASIC/quantum speedup.
+2.  **Rate Limiting & Firewall**: Real-time analysis for injection attacks via `handle-security.ts`.
+3.  **Crypto-Chained Audit Logs**: Tamper-evident SHA-256 chaining for all auth events.
+4.  **Secure Headers**: Automatic HSTS, CSP, and X-Frame-Options via `handle-security-headers.ts`.
 
 ---
 
@@ -141,5 +141,6 @@ The token validation system enforces strict metadata checks to prevent exploitat
 
 - [Cache System Architecture](./cache-system.mdx)
 - [Multi-Tenant Isolation](./multi-tenancy.mdx)
-- [Audit Logging & Compliance](./user-management-overview.mdx#4-audit-log-system-auditlogservicets)
-- [Authentication & Identity Reference](../api/auth.mdx)
+- [Audit Logging & Compliance](./user-management-overview.mdx)
+- [Authentication API Reference](../api/auth.mdx)
+- [Login Security](./security/login-security.mdx)

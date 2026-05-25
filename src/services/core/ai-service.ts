@@ -102,7 +102,11 @@ export class AIService {
 
     return this.executeRequest(
       async (client) => {
-        const res = await client.generate({ model: chatModel, prompt: fullPrompt, stream: false });
+        const res = await client.generate({
+          model: chatModel,
+          prompt: fullPrompt,
+          stream: false,
+        });
         const text = res.response;
         const cleanJson = text.replace(/```json|```/g, "").trim();
         return JSON.parse(cleanJson);
@@ -118,8 +122,8 @@ export class AIService {
 
     const model = (await getPrivateSetting("AI_MODEL_VISION")) || "llava:latest";
     const base64 = buffer.toString("base64");
-    const systemPrompt = `Analyze the provided image and generate up to ${limit} descriptive tags. 
-    Return only the tags as a comma-separated list. 
+    const systemPrompt = `Analyze the provided image and generate up to ${limit} descriptive tags.
+    Return only the tags as a comma-separated list.
     Do not include any other text or explanation.`;
 
     return this.executeRequest(
@@ -146,7 +150,7 @@ export class AIService {
     const contextResults = useRemote ? await this.searchContext(userMessage) : [];
     const contextText = contextResults.map((r) => `[From ${r.source}]: ${r.text}`).join("\n\n");
 
-    const systemPrompt = `You are SveltyAgent, the built-in AI for SveltyCMS. 
+    const systemPrompt = `You are SveltyAgent, the built-in AI for SveltyCMS.
     Use the following verified context:\n${contextText}`;
 
     const chatModel = (await getPrivateSetting("AI_MODEL_CHAT")) || "ministral-3:latest";
@@ -224,7 +228,10 @@ export class AIService {
         const res = await client.chat({
           model: chatModel,
           messages: [
-            { role: "system", content: `${prompt}\n\nReturn ONLY processed text.` },
+            {
+              role: "system",
+              content: `${prompt}\n\nReturn ONLY processed text.`,
+            },
             { role: "user", content: text },
           ],
         });
@@ -247,6 +254,52 @@ export class AIService {
     External: ${JSON.stringify(externalSchema)}
     Target: ${JSON.stringify(targetCollection)}
     Return a Record<string, string | { target: string, transform?: string }>.`;
+    return this.generateJSON(systemPrompt);
+  }
+
+  /**
+   * 🚀 AI CO-PILOT: Schema-aware field suggestions.
+   * Given a collection name and description, suggests optimal widget types,
+   * field names, and validation rules based on the available widget registry.
+   */
+  public async suggestFields(
+    collectionName: string,
+    description: string,
+    availableWidgets: string[],
+  ): Promise<
+    Array<{
+      name: string;
+      widget: string;
+      required: boolean;
+      translated: boolean;
+    }>
+  > {
+    const systemPrompt = `You are a schema designer for SveltyCMS. Given a collection name and description,
+    suggest an optimal field schema using ONLY these available widgets: ${availableWidgets.join(", ")}.
+    Collection: ${collectionName}
+    Description: ${description}
+    Return a JSON array of fields with: name (camelCase), widget (one of the available widgets),
+    required (boolean), translated (boolean). Include at minimum: title, slug.`;
+    return this.generateJSON(systemPrompt);
+  }
+
+  /**
+   * 🚀 AI CO-PILOT: Content quality scoring.
+   * Evaluates content for SEO, readability, completeness and returns actionable suggestions.
+   */
+  public async scoreContent(
+    content: Record<string, any>,
+    collectionName: string,
+  ): Promise<{
+    score: number;
+    suggestions: string[];
+    seoScore: number;
+    readabilityScore: number;
+  }> {
+    const systemPrompt = `Evaluate this ${collectionName} content for quality:
+    ${JSON.stringify(content)}
+    Return JSON with: score (0-100), suggestions (string array of improvements),
+    seoScore (0-100), readabilityScore (0-100).`;
     return this.generateJSON(systemPrompt);
   }
 }

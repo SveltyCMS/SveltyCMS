@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:leaf"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-03-27"
+updated: "2026-05-24"
 tags:
   - database
   - mongodb
@@ -118,7 +118,7 @@ SveltyCMS MongoDB implementation is built with **enterprise-scale performance as
 
 - **Native Bulk Operations (NEW)**: Replaced iterative batching with native `bulkWrite`, yielding a ~50% improvement in high-throughput data ingestion and updates.
 
-**Phase 8: Platinum Performance & Zero-Allocation (MAY 2026)**
+**Phase 8: Platinum Performance & Zero-Allocation**
 
 - **Zero-Allocation Dates (`processDates`)**: Implemented a "dirty-bit" check to prevent object cloning when no date transformation is needed.
 - **Security Fast-Path (`bypassSafeQuery`)**: High-performance toggle for internal system lookups, bypassing redundant tenant/security checks.
@@ -1527,7 +1527,7 @@ The MongoDB implementation provides:
 
 ### Performance Summary
 
-MongoDB delivers **enterprise-ready performance** with sub-10ms response times for cached operations and significant optimizations for large-scale content management. For the full breakdown of metrics, see the [Performance Benchmarks](/docs/project/benchmarks) page.
+MongoDB delivers **enterprise-ready performance** with sub-1ms CRUD (0.798 ms FIND ONE, 0.853 ms INSERT) and significant optimizations for large-scale content management. For the full breakdown of metrics, see the [Performance Benchmarks](/docs/project/benchmarks) page.
 
 For detailed implementation information, see:
 
@@ -1545,7 +1545,7 @@ For detailed implementation information, see:
 1. **Dual-Layer Caching**: Redis + MongoDB cache with 85-95% hit rate
 2. **Dynamic Collection Indexing**: Every collection gets optimized indexes automatically
 3. **Field Selection**: Smart payload optimization (50-80% reduction)
-4. **Combined Performance**: Sub-10ms response for cached operations
+4. **Combined Performance**: Sub-1ms CRUD: 0.798 ms FIND ONE, 0.853 ms INSERT
 
 For complete architecture details, see:
 

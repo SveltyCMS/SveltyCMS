@@ -1,991 +1,400 @@
 /**
  * @file src/routes/login/+page.server.ts
- * @description Server-side logic for the login page.
+ * @description Server-side logic for the login page — load function, OAuth, 2FA, recovery, and form action wrappers.
  *
- * @example
- * <PermissionSettings />
- *
- * ### Props
- * - `user`: The authenticated user data.
- *
- * ### Features
- * - User authentication and authorization
- * - Proper typing for user data
+ * Core auth logic lives in auth.remote.ts as type-safe Remote Functions.
+ * The form actions below parse formData and delegate to those functions.
  */
 
 import fs from "node:fs/promises";
 import path from "node:path";
-// Auth
 import { generateGoogleAuthUrl, googleAuth } from "@src/databases/auth/google-auth";
-import type { User } from "@src/databases/auth/types";
+import { generateGithubAuthUrl } from "@src/databases/auth/github-auth";
 import { auth, dbInitPromise } from "@src/databases/db";
-// Cache invalidation
-import { invalidateUserCountCache } from "@src/hooks/handle-authorization";
-import { type Actions, type Cookies, fail, redirect } from "@sveltejs/kit";
-// valibot schemas
-import {
-  forgotFormSchema,
-  loginFormSchema,
-  resetFormSchema,
-  signUpFormSchema,
-} from "@utils/schemas";
+import { isHttpError, isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
 import { invalidateSetupCache } from "@utils/setup-check";
-// Rate Limiter
 import { RateLimiter } from "sveltekit-rate-limiter/server";
-import { flatten, safeParse } from "valibot";
-import { dev } from "$app/environment";
 import type { PageServerLoad } from "./$types";
-
-// Removed googleapis import
-
-// Content Manager for redirects
-import { contentSystem } from "@src/content/index.server";
-// Utils
 import type { ISODateString, DatabaseId } from "@src/content/types";
-// Stores
-import type { Locale } from "@src/paraglide/runtime";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
-// Tenant Service
-import { tenantService } from "@src/services/core/tenant-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
-import { app } from "@src/stores/store.svelte";
-// System Logger
 import { logger } from "@utils/logger";
-// Email Utility
 import { sendMail } from "@utils/email.server";
+import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.server";
+import { getSystemState, isServiceHealthy } from "@src/stores/system/state.svelte";
+
+// Auth actions delegate to auth.remote.ts
+import {
+  signIn as signInFn,
+  signUp as signUpFn,
+  forgotPW as forgotPWFn,
+  resetPW as resetPWFn,
+  prefetch as prefetchFn,
+} from "./auth.remote";
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const AUTH_SERVICE_TIMEOUT_MS = 10_000;
+const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
+const DB_HEALTH_CACHE_TTL_MS = 30_000;
+
+const rateLimitSecret = process.env.RATE_LIMIT_SECRET || process.env.JWT_SECRET_KEY + "-ratelimit";
 
 const limiter = new RateLimiter({
-  IP: [200, "h"], // 200 requests per hour per IP
-  IPUA: [100, "m"], // 100 requests per minute per IP+User-Agent
+  IP: [10, "m"],
+  IPUA: [10, "m"],
   cookie: {
     name: "ratelimit",
-    secret: getPrivateSettingSync("JWT_SECRET_KEY"),
-    rate: [50, "m"], // 50 requests per minute per cookie
+    secret: rateLimitSecret,
+    rate: [10, "m"],
     preflight: true,
   },
 });
 
-// Password strength configuration
-const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_MIN_LENGTH || 8;
-const YELLOW_LENGTH = MIN_PASSWORD_LENGTH + 3;
-const GREEN_LENGTH = YELLOW_LENGTH + 4;
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-// Function to calculate password strength (matches the logic in PasswordStrength.svelte)
-function calculatePasswordStrength(password: string): number {
-  if (password.length >= GREEN_LENGTH) {
-    return 3;
-  }
-  if (password.length >= YELLOW_LENGTH) {
-    return 2;
-  }
-  if (password.length >= MIN_PASSWORD_LENGTH) {
-    return 1;
-  }
-  return 0;
+function getUserLanguage(): string {
+  try {
+    const langFromStore = (globalThis as any).__app?.systemLanguage;
+    if (langFromStore) return langFromStore;
+  } catch {}
+  return "en";
 }
 
-// Helper function to check database health by querying system state
+let _dbHealthCache: {
+  healthy: boolean;
+  reason?: string;
+  timestamp: number;
+} | null = null;
+
 async function checkDatabaseHealth(): Promise<{
   healthy: boolean;
   reason?: string;
 }> {
+  const now = Date.now();
+  if (_dbHealthCache && now - _dbHealthCache.timestamp < DB_HEALTH_CACHE_TTL_MS) {
+    return { healthy: _dbHealthCache.healthy, reason: _dbHealthCache.reason };
+  }
+
   try {
-    // First check system state - leverage existing state management
-    const { getSystemState, isServiceHealthy } = await import("@src/stores/system/state.svelte");
-    const systemState = getSystemState();
-
-    // If database service is explicitly unhealthy in state management, return early
     if (!isServiceHealthy("database")) {
-      const dbStatus = systemState.services.database;
-      return {
-        healthy: false,
-        reason: dbStatus.message || dbStatus.error || "Database service is unhealthy",
-      };
+      const reason = "Database service is unavailable";
+      _dbHealthCache = { healthy: false, reason, timestamp: now };
+      return { healthy: false, reason };
     }
 
-    // If system is in FAILED state, check if it's database-related
-    if (systemState.overallState === "FAILED") {
-      const lastFailure = systemState.performanceMetrics.stateTransitions
-        .slice()
-        .reverse()
-        .find((t) => t.to === "FAILED");
-      if (lastFailure?.reason) {
-        return { healthy: false, reason: lastFailure.reason };
+    if (auth) {
+      const roleCount = await auth.getUserCount({}, { bypassTenantCheck: true });
+      if (roleCount === 0) {
+        const reason = "Database is empty — setup may not have completed";
+        _dbHealthCache = { healthy: false, reason, timestamp: now };
+        return { healthy: false, reason };
       }
     }
 
-    // State looks good, verify database actually has data (setup completion check)
-    await dbInitPromise;
-
-    const { auth } = await import("@src/databases/db");
-    if (!auth) {
-      return {
-        healthy: false,
-        reason: "Authentication service not initialized",
-      };
-    }
-
-    // Lightweight check: verify database has roles (indicates setup was completed)
-    try {
-      const roles = await auth.getAllRoles({
-        bypassTenantCheck: true,
-      });
-      if (!roles || roles.length === 0) {
-        return {
-          healthy: false,
-          reason: "Database is empty - no roles found. Setup may not have completed successfully.",
-        };
-      }
-    } catch (error) {
-      return {
-        healthy: false,
-        reason: `Failed to query roles: ${error instanceof Error ? error.message : String(error)}`,
-      };
-    }
-
+    _dbHealthCache = { healthy: true, timestamp: now };
     return { healthy: true };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return {
-      healthy: false,
-      reason: `Database connection error: ${errorMessage}`,
-    };
+  } catch (err: any) {
+    _dbHealthCache = { healthy: false, reason: err.message, timestamp: now };
+    return { healthy: false, reason: err.message };
   }
 }
 
-// Helper function to wait for auth service to be ready
-async function waitForAuthService(maxWaitMs = 10_000): Promise<boolean> {
+async function waitForAuthService(): Promise<boolean> {
   const startTime = Date.now();
-  logger.debug(`Waiting for auth service to be ready (timeout: ${maxWaitMs}ms)...`);
-
-  while (Date.now() - startTime < maxWaitMs) {
-    try {
-      // Check if database initialization is complete
-      if (dbInitPromise) {
-        // Check if the promise is still pending
-        const dbStatus = await Promise.race([
-          dbInitPromise.then(() => "ready"),
-          new Promise((resolve) => setTimeout(() => resolve("timeout"), 100)),
-        ]);
-
-        if (dbStatus === "timeout") {
-          // Database initialization is still in progress
-          logger.debug("Database initialization still in progress...");
-        }
-      }
-
-      // Check if auth service is ready
-      if (auth && typeof auth.validateSession === "function") {
-        logger.debug(`Auth service ready after ${Date.now() - startTime}ms`);
-        return true;
-      }
-
-      // Log progress every 5 seconds
-      const elapsed = Date.now() - startTime;
-      if (elapsed % 5000 < 100) {
-        logger.debug(
-          `Auth service not ready yet, elapsed: ${elapsed}ms, auth: ${!!auth}, validateSession: ${auth && typeof auth.validateSession === "function"}`,
-        );
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 100)); // Wait 100ms before checking again
-    } catch (error) {
-      logger.error(
-        `Error while waiting for auth service: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      // Continue waiting even if there's an error
-    }
+  while (Date.now() - startTime < AUTH_SERVICE_TIMEOUT_MS) {
+    if (auth) return true;
+    await new Promise((r) => setTimeout(r, 200));
   }
-
-  logger.error(`Auth service not ready after ${maxWaitMs}ms timeout`);
-  return false;
+  return !!auth;
 }
 
-import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.server";
-
-// Helper function to check if OAuth should be available
-async function shouldShowOAuth(hasInviteToken: boolean): Promise<boolean> {
-  // If Google OAuth is not enabled, never show it
-  if (!publicEnv.USE_GOOGLE_OAUTH) {
+async function shouldShowGoogleOAuth(hasInvite?: boolean): Promise<boolean> {
+  if (!getPrivateSettingSync("GOOGLE_CLIENT_ID")) return false;
+  if (!auth) return false;
+  if (hasInvite) return true;
+  try {
+    const count = await auth.getUserCount({}, { bypassTenantCheck: true });
+    return count > 0;
+  } catch {
     return false;
   }
+}
 
-  // If there's an invite token, show OAuth (invited user can choose OAuth)
-  if (hasInviteToken) {
-    return true;
-  }
-
-  // Optimization: If OAuth is enabled, we generally want to show it.
-  // The previous check for existing users was redundant because it returned true regardless.
-  // We just verify auth service is available.
+async function shouldShowGithubOAuth(hasInvite?: boolean): Promise<boolean> {
+  if (!getPrivateSettingSync("GITHUB_CLIENT_ID")) return false;
+  if (!auth) return false;
+  if (hasInvite) return true;
   try {
-    await dbInitPromise;
-    if (!auth) {
-      logger.warn("Auth service not available for OAuth user check");
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    logger.error("Error checking for OAuth availability:", error);
-    return true; // Fail open to allow login attempts
+    const count = await auth.getUserCount({}, { bypassTenantCheck: true });
+    return count > 0;
+  } catch {
+    return false;
   }
 }
 
-// Define wrapped schemas for caching
-// Schemas are imported directly
+// ---------------------------------------------------------------------------
+// Load
+// ---------------------------------------------------------------------------
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
   const demoMode = getPrivateSettingSync("DEMO");
-  // --- START: Language Validation Logic ---
-  const langFromStore = app.systemLanguage as Locale | null;
-  // Use PUBLIC_ENV.LOCALES for validation, fallback to BASE_LOCALE
-  const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-  const userLanguage =
-    (langFromStore && supportedLocales.includes(langFromStore)
-      ? langFromStore
-      : (publicEnv.BASE_LOCALE as Locale)) || "en";
-  // --- END: Language Validation Logic ---
+  const multiTenant = getPrivateSettingSync("MULTI_TENANT");
+  const userLanguage = getUserLanguage();
+  const isOpenSignup = !!(multiTenant && demoMode);
+
+  const errorDefaults = {
+    firstUserExists: true,
+    showGoogleOAuth: false,
+    showGithubOAuth: false,
+    hasExistingOAuthUsers: false,
+    isOpenSignup,
+    loginForm: {},
+    forgotForm: {},
+    resetForm: {},
+    signUpForm: {},
+    demoMode,
+  } as const;
 
   try {
-    // Check system state first - leverage existing state management for performance
-    const { getSystemState } = await import("@src/stores/system/state.svelte");
     const systemState = getSystemState();
 
-    // If system is FAILED, provide detailed error immediately without waiting
     if (systemState.overallState === "FAILED") {
-      logger.error("System is in FAILED state, cannot proceed with login");
       const lastFailure = systemState.performanceMetrics.stateTransitions
         .slice()
         .reverse()
-        .find((t) => t.to === "FAILED");
-
+        .find((t: any) => t.to === "FAILED");
       return {
-        firstUserExists: true,
-        showOAuth: false,
-        hasExistingOAuthUsers: false,
-        loginForm: {},
-        forgotForm: {},
-        resetForm: {},
-        signUpForm: {},
+        ...errorDefaults,
         showDatabaseError: true,
-        errorReason:
-          lastFailure?.reason ||
-          "System initialization failed. Please check the database connection and configuration.",
-        canReset: true,
         authNotReady: true,
-        authNotReadyMessage:
-          lastFailure?.reason ||
-          "System initialization failed. Please check the database connection and configuration.",
-        demoMode,
+        errorReason: lastFailure?.reason || "System initialisation failed.",
+        authNotReadyMessage: lastFailure?.reason || "System initialisation failed.",
+        canReset: true,
       };
     }
 
-    // Ensure initialization is complete
     await dbInitPromise;
-
-    // Fast health check using state management + database verification
     const dbHealth = await checkDatabaseHealth();
     if (!dbHealth.healthy) {
-      logger.error(`Database health check failed: ${dbHealth.reason}`);
       return {
-        firstUserExists: true,
-        showOAuth: false,
-        hasExistingOAuthUsers: false,
-        loginForm: {},
-        forgotForm: {},
-        resetForm: {},
-        signUpForm: {},
+        ...errorDefaults,
         showDatabaseError: true,
-        errorReason: dbHealth.reason,
-        canReset: true,
         authNotReady: true,
+        errorReason: dbHealth.reason,
         authNotReadyMessage: dbHealth.reason,
+        canReset: true,
       };
     }
 
-    // Database is healthy, now check auth service (reduced timeout from 30s to 10s)
     const authReady = await waitForAuthService();
     if (!(authReady && auth)) {
-      logger.warn("Authentication system is not ready yet, checking if database is empty");
-
-      // Check if this is a "database empty" scenario
       const { isSetupCompleteAsync } = await import("@utils/setup-check");
       const setupComplete = await isSetupCompleteAsync();
-
       if (!setupComplete) {
-        logger.error(
-          "Database is empty but config exists. This typically means the database was manually dropped.",
-        );
         return {
-          firstUserExists: true,
-          showOAuth: false,
-          hasExistingOAuthUsers: false,
-          loginForm: {},
-          forgotForm: {},
-          resetForm: {},
-          signUpForm: {},
+          ...errorDefaults,
           authNotReady: true,
-          authNotReadyMessage:
-            "Database is empty. Please restore your database from backup or delete config/private.ts to run setup again.",
-          demoMode,
+          authNotReadyMessage: "Database is empty. Please run setup.",
         };
       }
-
-      // Return fallback data instead of throwing error
       return {
-        firstUserExists: true,
-        showOAuth: false, // Don't show OAuth if auth system isn't ready
-        hasExistingOAuthUsers: false,
-        loginForm: {},
-        forgotForm: {},
-        resetForm: {},
-        signUpForm: {},
+        ...errorDefaults,
         authNotReady: true,
-        authNotReadyMessage: "System is still initializing. Please wait a moment and try again.",
-        demoMode,
+        authNotReadyMessage: "System is still initialising.",
       };
     }
 
-    if (!locals) {
-      locals = {} as App.Locals;
-    }
+    if (!locals) locals = {} as App.Locals;
 
-    // Check if user is already authenticated
     if (locals.user) {
-      logger.debug("User is already authenticated in load, attempting to redirect to collection");
-
       let finalCollectionPath: string | null = null;
       try {
-        finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
-      } catch (e) {
-        logger.error("Error detecting first collection, falling back to root", e);
+        finalCollectionPath = await getCachedFirstCollectionPath(userLanguage as any);
+      } catch {
         throw redirect(302, "/");
       }
-
-      let redirectPath: string;
-      if (finalCollectionPath) {
-        // Collections exist - redirect to first collection
-        redirectPath = finalCollectionPath;
-        logger.debug(`Authenticated user redirect to collection: ${redirectPath}`);
-      } else {
-        // No collections available - go to collection builder
-        redirectPath = "/config/collectionbuilder";
-      }
-
-      throw redirect(302, redirectPath);
+      throw redirect(302, finalCollectionPath ?? "/config/collectionbuilder");
     }
 
-    // Rate limiter preflight check
     if (limiter.cookieLimiter?.preflight) {
       await limiter.cookieLimiter.preflight({ request, cookies } as any);
     }
 
-    // THE NEW "INTELLIGENT LOADER" LOGIC
+    // Invite flow
     const inviteToken = url.searchParams.get("invite_token");
-
     if (inviteToken) {
-      // This is an invite flow!
       const tokenData = await auth.validateRegistrationToken(inviteToken);
-
       if (tokenData.isValid && tokenData.details) {
-        // Token is valid! Prepare the page for invite-based signup.
-        logger.info("Valid invite token detected. Preparing invite signup form.");
-
-        // Check firstUserExists for consistency
-        const firstUserExists = locals.isFirstUser === false;
-
-        // Check if OAuth should be shown (with invite token)
-        const showOAuth = await shouldShowOAuth(true);
-
         return {
-          firstUserExists,
+          ...errorDefaults,
+          firstUserExists: locals.isFirstUser === false,
+          showGoogleOAuth: await shouldShowGoogleOAuth(true),
+          showGithubOAuth: await shouldShowGithubOAuth(true),
           isInviteFlow: true,
-          showOAuth,
-          hasExistingOAuthUsers: false, // Not relevant for invite flow
           token: inviteToken,
           invitedEmail: tokenData.details.email,
-          roleId: tokenData.details.role, // Pass the roleId from the token
-          loginForm: {},
-          forgotForm: {},
-          resetForm: {},
-          signUpForm: {},
-          demoMode,
+          roleId: tokenData.details.role,
         };
       }
-      // Token is invalid, expired, or already used.
-      // Instead of completely blocking, let the user access the form
-      // and pre-fill the token so they can see what's wrong or enter a different one
-      logger.warn("Invalid invite token detected, but allowing form access with pre-filled token.");
-
-      // Check firstUserExists for consistency
-      const firstUserExists = locals.isFirstUser === false;
-
-      // Check if OAuth should be shown (invalid invite, but has token)
-      const showOAuth = await shouldShowOAuth(true);
-
-      // Pre-fill the form with the invalid token and show a warning
-      const signUpForm = { token: inviteToken }; // Pre-fill with the invalid token
-
       return {
-        firstUserExists,
-        isInviteFlow: false, // Not a proper invite flow since token is invalid
-        showOAuth,
-        hasExistingOAuthUsers: false,
-        inviteError:
-          "This invitation token appears to be invalid, expired, or already used. Please check with your administrator or enter a different token.",
-        loginForm: {},
-        forgotForm: {},
-        resetForm: {},
-        signUpForm,
-        demoMode,
+        ...errorDefaults,
+        firstUserExists: locals.isFirstUser === false,
+        showGoogleOAuth: await shouldShowGoogleOAuth(true),
+        showGithubOAuth: await shouldShowGithubOAuth(true),
+        inviteError: "This invitation token appears to be invalid, expired, or already used.",
+        signUpForm: { token: inviteToken },
       };
     }
 
-    // Use the firstUserExists value from locals (set by hooks)
     const firstUserExists = locals.isFirstUser === false;
-    logger.debug(
-      `In load: firstUserExists determined as: ${firstUserExists} (based on locals.isFirstUser: ${locals.isFirstUser})`,
-    );
 
-    // Note: If no users exist, handleSetup hook will redirect to /setup before this code runs
-
+    // Google OAuth callback
     const code = url.searchParams.get("code");
-    logger.debug(`Authorization code from URL: ${code ?? "none"}`);
-
-    // Handle Google OAuth flow if code is present
     if (publicEnv.USE_GOOGLE_OAUTH && code) {
-      logger.debug("Entering Google OAuth flow in load function");
       try {
         const googleAuthInstance = await googleAuth();
-        if (!googleAuthInstance) {
-          throw new Error("Google OAuth client is not initialized");
-        }
-
-        logger.debug("Fetching tokens using authorization code...");
+        if (!googleAuthInstance) throw new Error("Google OAuth client is not initialised");
         const { tokens } = await googleAuthInstance.getToken(code);
-        if (!tokens) {
-          throw new Error("Failed to retrieve Google OAuth tokens.");
-        }
-
+        if (!tokens) throw new Error("Failed to retrieve Google OAuth tokens.");
         googleAuthInstance.setCredentials(tokens);
 
-        // Use native fetch to get user info instead of heavy googleapis
         const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
           headers: { Authorization: `Bearer ${tokens.access_token}` },
         });
-
-        if (!userInfoResponse.ok) {
-          throw new Error("Failed to retrieve Google user information.");
-        }
-
+        if (!userInfoResponse.ok) throw new Error("Failed to retrieve Google user information.");
         const googleUser = await userInfoResponse.json();
-        logger.debug(`Google user information: ${JSON.stringify(googleUser)}`);
 
-        // Invite token comes back via OAuth state param
+        const { verifyOAuthState } = await import("@src/databases/auth/google-auth");
         const stateParam = url.searchParams.get("state");
-        const inviteToken = stateParam ? decodeURIComponent(stateParam) : null;
-        if (!auth) {
-          throw new Error("Auth service is not initialized");
+        const oauthInviteToken = verifyOAuthState(stateParam);
+        if (stateParam && !oauthInviteToken)
+          throw new Error("Invalid or tampered OAuth state parameter.");
+        if (!auth) throw new Error("Auth service is not initialised");
+
+        const email = googleUser.email;
+        if (!email) throw new Error("Google did not return an email address.");
+        const existingUser = await auth.checkUser({ email });
+
+        if (!existingUser && oauthInviteToken) {
+          const tokenData: any = await auth.validateRegistrationToken(oauthInviteToken);
+          if (
+            tokenData.isValid &&
+            tokenData.details &&
+            tokenData.details.email.toLowerCase() === email.toLowerCase()
+          ) {
+            const newUser = await auth.createUser({
+              email,
+              username: googleUser.name || email.split("@")[0],
+              role: tokenData.details.role || "user",
+              permissions: [],
+              isRegistered: true,
+              lastAuthMethod: "google",
+            });
+            await auth.consumeRegistrationToken(oauthInviteToken);
+
+            const hostLink = publicEnv.HOST_PROD || `https://${request.headers.get("host")}`;
+            const sitename = publicEnv.SITE_NAME || "SveltyCMS";
+            sendMail({
+              recipientEmail: email,
+              subject: `Welcome to ${sitename}`,
+              templateName: "welcomeUser",
+              props: {
+                username: googleUser.name || newUser?.username || "",
+                email,
+                hostLink,
+                sitename,
+              },
+              languageTag: userLanguage,
+            }).catch(() => {});
+          }
         }
 
-        const getUser = async (): Promise<[User | null, boolean]> => {
-          const email = googleUser.email;
-          if (!email) {
-            throw new Error("Google did not return an email address.");
-          }
-
-          const existingUser = await auth?.checkUser({ email });
-          if (existingUser) {
-            return [existingUser, false];
-          }
-
-          // For non-first users (or any users), allow only invite-based registration
-          if (!inviteToken) {
-            logger.warn("OAuth registration attempt without invite token in state");
-            return [null, false];
-          }
-
-          const tokenData: any = await auth?.validateRegistrationToken(inviteToken);
-          if (!(tokenData.isValid && tokenData.details)) {
-            logger.warn("Invalid/expired invite token used in OAuth registration");
-            return [null, false];
-          }
-
-          // Ensure email matches invitation
-          if (tokenData.details.email.toLowerCase() !== email.toLowerCase()) {
-            logger.warn("Invite token email mismatch in OAuth registration", {
-              tokenEmail: tokenData.details.email,
-              googleEmail: email,
-            });
-            return [null, false];
-          }
-
-          const roleId = tokenData.details.role || "user";
-
-          const newUser = await auth?.createUser({
-            email,
-            username: googleUser.name || email.split("@")[0],
-            role: roleId,
-            permissions: [],
-            isRegistered: true,
-            lastAuthMethod: "google",
+        if (existingUser) {
+          const session = await auth.createSession({
+            user_id: existingUser._id as DatabaseId,
+            expires: new Date(Date.now() + SESSION_DURATION_MS).toISOString() as ISODateString,
+          });
+          const sessionCookie = auth.createSessionCookie(session._id as DatabaseId);
+          cookies.set(sessionCookie.name, sessionCookie.value, {
+            ...(sessionCookie.attributes as Record<string, unknown>),
+            path: "/",
           });
 
-          // Consume the invitation token after successful registration
-          await auth?.consumeRegistrationToken(inviteToken);
+          auth
+            .updateUserAttributes(
+              existingUser._id as any,
+              {
+                lastAuthMethod: "google",
+                lastActiveAt: new Date().toISOString() as any,
+              },
+              { bypassTenantCheck: true },
+            )
+            .catch(() => {});
 
-          logger.info(`OAuth: Invited user created: ${newUser?.username}`);
-          const emailProps = {
-            username: googleUser.name || newUser?.username || "",
-            email,
-            hostLink: publicEnv.HOST_PROD || `https://${request.headers.get("host")}`,
-            sitename: publicEnv.SITE_NAME || "SveltyCMS",
-          };
-          await import("@src/services/core/settings-service");
-          try {
-            const mailResult = await sendMail({
-              recipientEmail: email,
-              subject: `Welcome to ${emailProps.sitename}`,
-              templateName: "welcomeUser",
-              props: emailProps,
-              languageTag: app.systemLanguage as string,
-            });
-
-            if (mailResult.success) {
-              logger.info("OAuth: Welcome email sent directly to invited user", { email });
-            } else {
-              logger.error("OAuth: Failed to send welcome email directly to invited user", {
-                email,
-                message: mailResult.message,
-              });
-            }
-          } catch (emailError) {
-            logger.error("OAuth: Error calling sendMail for invited user", {
-              email,
-              error: emailError,
-            });
-          }
-          return [newUser ?? null, false];
-        };
-
-        const [user] = await getUser();
-
-        if (user?._id) {
-          await createSessionAndSetCookie(user._id, cookies);
-          await auth?.updateUserAttributes(user._id, {
-            lastAuthMethod: "google",
-          });
-
-          // Determine redirect path based on collections
           let finalCollectionPath: string | null = null;
           try {
-            finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
-          } catch (e) {
-            logger.error("Error detecting first collection in OAuth, falling back to root", e);
-            throw redirect(303, "/");
-          }
-
-          let redirectPath: string;
-          if (finalCollectionPath) {
-            // Collections exist - redirect to first collection
-            redirectPath = finalCollectionPath;
-            logger.debug(`OAuth login redirect to collection: ${redirectPath}`);
-          } else {
-            // No collections available - go to collection builder
-            redirectPath = "/config/collectionbuilder";
-          }
-
-          throw redirect(303, redirectPath);
+            finalCollectionPath = await getCachedFirstCollectionPath(userLanguage as any);
+          } catch {}
+          throw redirect(303, finalCollectionPath ?? "/config/collectionbuilder");
         }
-
-        logger.warn(
-          `OAuth: User processing ended without session creation for ${googleUser.email}.`,
-        );
-        // Check if OAuth should be shown for error case
-        const showOAuth = await shouldShowOAuth(false);
+      } catch (err: any) {
+        if (isRedirect(err)) throw err;
+        logger.error("OAuth error:", err.message);
         return {
-          isInviteFlow: false,
-          firstUserExists,
-          showOAuth,
-          hasExistingOAuthUsers: false, // Not relevant for error case
-          loginForm: {},
-          forgotForm: {},
-          resetForm: {},
-          signUpForm: {},
-          oauthError:
-            "OAuth processing failed. Please try signing in with email or contact support.",
-          demoMode,
-        };
-      } catch (oauthError) {
-        // Check if this is a SvelteKit redirect (which is expected)
-        if (oauthError instanceof Response && oauthError.status >= 300 && oauthError.status < 400) {
-          throw oauthError; // Re-throw redirects
-        }
-
-        const err = oauthError as Error;
-        logger.error(`Error during Google OAuth login process: ${err.message}`, {
-          stack: err.stack,
-        });
-        // Check if OAuth should be shown for error case
-        const showOAuth = await shouldShowOAuth(false);
-        return {
-          isInviteFlow: false,
-          firstUserExists,
-          showOAuth,
-          hasExistingOAuthUsers: false, // Not relevant for error case
-          loginForm: {},
-          forgotForm: {},
-          resetForm: {},
-          signUpForm: {},
-          oauthError: `OAuth failed: ${err.message}. Please try again or use email login.`,
-          demoMode,
+          ...errorDefaults,
+          showGoogleOAuth: await shouldShowGoogleOAuth(),
+          showGithubOAuth: await shouldShowGithubOAuth(),
+          oauthError: "OAuth authentication failed. Please try again.",
         };
       }
     }
 
-    // This is a normal login flow (no invite token) - return standard forms
-    const loginForm = {};
-    const forgotForm = {};
-    const resetForm = {};
-    const signUpForm = {};
+    const showGoogleOAuth = await shouldShowGoogleOAuth();
+    const showGithubOAuth = await shouldShowGithubOAuth();
 
-    // Check if OAuth should be shown
-    const showOAuth = await shouldShowOAuth(false);
-
-    // Check if there are existing OAuth users (for better UX messaging)
-    let hasExistingOAuthUsers = false;
+    let firstCollectionPath: string | null = null;
     try {
-      if (auth) {
-        // Optimization: Use count instead of fetching all users
-        const count = await auth.getUserCount(undefined, {
-          bypassTenantCheck: true,
-        });
-        hasExistingOAuthUsers = count > 0;
-      }
-    } catch (error) {
-      logger.error("Error checking for existing OAuth users:", error);
-    }
+      firstCollectionPath = await getCachedFirstCollectionPath(userLanguage as any);
+    } catch {}
 
-    // Calculate first collection path for client-side optimization (prefetching)
-    const firstCollectionPath = await getCachedFirstCollectionPath(userLanguage);
+    const pkgVersion = (await import("../../../package.json")).version;
 
     return {
-      isInviteFlow: false,
+      ...errorDefaults,
       firstUserExists,
-      showOAuth,
-      hasExistingOAuthUsers,
-      loginForm,
-      forgotForm,
-      resetForm,
-      signUpForm,
-      pkgVersion: publicEnv.PKG_VERSION || "0.0.0",
-      demoMode,
-      firstCollectionPath,
-    };
-  } catch (initialError) {
-    const { isRedirect, isHttpError } = await import("@sveltejs/kit");
-    if (isRedirect(initialError) || isHttpError(initialError)) {
-      throw initialError;
-    }
-
-    const err =
-      initialError instanceof Error
-        ? initialError
-        : new Error(String(initialError || "Unknown error"));
-
-    logger.error(`Critical error in load function: ${err.message}`, {
-      stack: err.stack,
-    });
-    return {
-      isInviteFlow: false,
-      firstUserExists: true,
-      showOAuth: false, // Don't show OAuth in error case
+      showGoogleOAuth,
+      showGithubOAuth,
       hasExistingOAuthUsers: false,
-      firstCollection: null, // No collection info in error case
-      loginForm: {},
-      forgotForm: {},
-      resetForm: {},
-      signUpForm: {},
-      error: "The login system encountered an unexpected error. Please try again later.",
-      pkgVersion: publicEnv.PKG_VERSION || "0.0.0",
-      demoMode,
+      firstCollectionPath,
+      pkgVersion,
     };
+  } catch (err: any) {
+    if (isRedirect(err)) throw err;
+    logger.error("Load error:", err.message);
+    return { ...errorDefaults, error: err.message };
   }
 };
 
-// Actions for SignIn and SignUp a user with form data
+// ---------------------------------------------------------------------------
+// Actions (OAuth, 2FA, Recovery — auth actions in auth.server.ts)
+// ---------------------------------------------------------------------------
+
 export const actions: Actions = {
-  signUp: async (event) => {
-    // --- START: Language Validation Logic ---
-    const langFromStore = app.systemLanguage as Locale | null;
-    const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || "en"]) as Locale[];
-    const userLanguage =
-      langFromStore && supportedLocales.includes(langFromStore)
-        ? langFromStore
-        : (publicEnv.BASE_LOCALE as Locale) || "en";
-    logger.debug(`Validated user language for sign-up: ${userLanguage}`);
-    // --- END: Language Validation Logic ---
-
-    // Note: First-user registration is handled by /setup (enforced by handleSetup hook)
-    // This action only handles invited user registration
-
-    const isTestSecurity = event.request.headers.get("x-test-security") === "true";
-    if ((process.env.TEST_MODE !== "true" || isTestSecurity) && (await limiter.isLimited(event))) {
-      return fail(429, {
-        message: "Too many requests. Please try again later.",
-      });
-    }
-
-    // Ensure database initialization is complete
-    try {
-      await dbInitPromise;
-      logger.debug("Database initialization completed for signUp");
-    } catch (error) {
-      logger.error("Database initialization failed for signUp:", error);
-      return fail(503, { message: "Database system is not ready." });
-    }
-
-    // Wait for auth service to be ready
-    const authReady = await waitForAuthService(10_000);
-    if (!(authReady && auth)) {
-      logger.error("Authentication system is not ready for signUp action");
-      return fail(503, { message: "Authentication system is not ready." });
-    }
-
-    logger.debug("Auth service is ready for signUp action");
-
-    const formData = await event.request.formData();
-    const form = Object.fromEntries(formData);
-    const result = safeParse(signUpFormSchema, form);
-
-    if (!result.success) {
-      logger.warn("SignUp form invalid:", { errors: result.issues });
-      return fail(400, { form, errors: flatten(result.issues).nested });
-    }
-
-    const { email, username, password, token } = result.output;
-
-    const multiTenant = getPrivateSettingSync("MULTI_TENANT");
-    const demoMode = getPrivateSettingSync("DEMO");
-    let role = "user";
-    let isInvited = false;
-    let tenantId: string | undefined;
-
-    // --- Scenario 1: Multi-Tenant Demo Mode (Open Signup) ---
-    if (multiTenant && demoMode && !token) {
-      // In demo mode, users can sign up without a token to create their own isolated tenant.
-      // They become the 'admin' of that tenant.
-      role = "admin";
-      tenantId = crypto.randomUUID();
-      logger.info(`Starting demo signup for new tenant: ${tenantId}`);
-    }
-    // --- Scenario 2: Invited User (Token Required) ---
-    else {
-      // Security: If not in open multi-tenant mode, OR if a token IS provided,
-      // we strictly enforce token validation.
-      if (!token) {
-        return fail(403, {
-          message: "A valid invitation is required to create an account.",
-          form,
-        });
-      }
-
-      const tokenData = await auth.validateRegistrationToken(token);
-      if (!(tokenData.isValid && tokenData.details)) {
-        return fail(403, {
-          message: "This invitation is invalid, expired, or has already been used.",
-          form,
-        });
-      }
-
-      // Security: Check that the email in the form matches the one in the token record
-      if (email.toLowerCase() !== tokenData.details.email.toLowerCase()) {
-        return fail(403, {
-          message: "The provided email does not match the invitation.",
-          form,
-        });
-      }
-
-      // Use the role from the token
-      role = tokenData.details.role || "user";
-      // Use the tenantId from the token (if any)
-      tenantId = tokenData.details.tenantId ?? undefined;
-      isInvited = true;
-
-      // Debug: Log the token details
-      logger.debug("Token validation result:", {
-        tokenData: tokenData.details,
-        role,
-        email: tokenData.details.email,
-        tenantId,
-      });
-    }
-
-    // 🚀 Explicitly determine admin status based on role
-    const isAdminUser = role === "admin";
-
-    // --- CHECK FOR EXISTING USER ---
-    try {
-      const existingUser = await auth.getUserByEmail({ email, tenantId: tenantId as DatabaseId });
-      if (existingUser) {
-        logger.warn("SignUp attempt for existing user", { email, tenantId });
-        return fail(400, {
-          message: "An account with this email already exists. Please sign in instead.",
-          form,
-        });
-      }
-    } catch (checkErr) {
-      // Ignore errors in existence check, allow creation to attempt and handle database-level constraints
-      logger.debug("Error during user existence check (non-fatal)", checkErr);
-    }
-
-    try {
-      // Use optimized createUserAndSession for single database transaction
-      const sessionExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-      const userAndSessionResult = await auth.createUserAndSession(
-        {
-          email,
-          username,
-          password,
-          role, // Use determined role
-          isAdmin: isAdminUser, // 🚀 Pass explicit admin status
-          tenantId: tenantId as DatabaseId, // Assign tenantId (new for demo, or from token)
-          isRegistered: true,
-          lastAuthMethod: "security",
-          lastActiveAt: new Date().toISOString() as ISODateString,
-        },
-        {
-          expires: sessionExpires.toISOString() as ISODateString,
-          tenantId: tenantId as DatabaseId, // Ensure session is also scoped to tenant if applicable
-        },
-      );
-
-      if (!(userAndSessionResult.success && userAndSessionResult.data)) {
-        const errorMessage =
-          !userAndSessionResult.success && "error" in userAndSessionResult
-            ? userAndSessionResult.error?.message
-            : "Failed to create user and session";
-        throw new Error(errorMessage);
-      }
-      const { user: newUser, session: newSession } = userAndSessionResult.data;
-
-      // --- CRITICAL FIX: Set session cookie after signup ---
-      if (auth && newSession) {
-        const sessionCookie = auth.createSessionCookie(newSession._id as DatabaseId);
-        const attributes = sessionCookie.attributes as Record<string, unknown>;
-        event.cookies.set(sessionCookie.name, sessionCookie.value, {
-          ...attributes,
-          path: "/",
-        });
-        logger.debug(`Session cookie set for new user: ${newUser._id}`);
-      }
-
-      logger.info(
-        `User and session created successfully via ${isInvited ? "token" : "open demo"} registration`,
-        {
-          userId: newUser._id,
-          sessionId: newSession._id,
-          email,
-          tenantId: newUser.tenantId,
-        },
-      );
-
-      // Invalidate user count cache so the system knows a new user now exists
-      invalidateUserCountCache();
-
-      // [NEW] Create Tenant Entity if this was a new tenant signup
-      if (multiTenant && !token && tenantId) {
-        logger.info(`Creating Tenant entity for new sign-up: ${tenantId}`);
-        try {
-          await tenantService.createTenant(username || "My Organization", newUser._id, tenantId);
-        } catch (tenantErr) {
-          logger.error("Failed to create Tenant entity after user signup", tenantErr);
-          // Non-fatal? Or should we rollback? For now, log it.
-        }
-      }
-
-      // Consume the invitation token if one was used
-      if (isInvited && token) {
-        await auth?.consumeRegistrationToken(token);
-      }
-
-      // Send welcome email (best-effort; do not fail signup on email issues)
-      try {
-        const emailProps = {
-          username: username || email,
-          email,
-          hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get("host")}`,
-          sitename: publicEnv.SITE_NAME || "SveltyCMS",
-        };
-        const mailResult = await sendMail({
-          recipientEmail: email,
-          subject: `Welcome to ${emailProps.sitename}`,
-          templateName: "welcome-user",
-          props: emailProps,
-          languageTag: userLanguage,
-        });
-
-        if (mailResult.success) {
-          logger.info("Welcome email sent directly", { email });
-        } else {
-          logger.error(`Failed to send welcome email directly.`, {
-            email,
-            message: mailResult.message,
-          });
-        }
-      } catch (emailError) {
-        logger.error("Error calling sendMail for invited user", {
-          email,
-          error: emailError,
-        });
-      }
-
-      // Redirect to first collection
-      let finalCollectionPath: string | null = null;
-      try {
-        finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
-      } catch (e) {
-        logger.error("Error detecting first collection in signUp, falling back to root", e);
-        throw redirect(303, "/");
-      }
-
-      let redirectPath: string;
-      if (finalCollectionPath) {
-        // Collections exist - redirect to first collection
-        redirectPath = finalCollectionPath;
-        logger.debug(`SignUp redirect to collection: ${redirectPath}`);
-      } else {
-        // No collections available - go to collection builder
-        redirectPath = "/config/collectionbuilder";
-      }
-      throw redirect(303, redirectPath);
-    } catch (error) {
-      // CRITICAL: SvelteKit's redirect() and error() throw special objects
-      // that must be re-thrown. Catching them converts a successful redirect into a 500 error.
-      const isRedirectOrHttpError =
-        error instanceof Response ||
-        (typeof error === "object" && error !== null && "status" in error && "location" in error);
-      if (isRedirectOrHttpError) {
-        throw error;
-      }
-
-      const err = error as Error;
-      logger.error("Error during invited user signup", {
-        email,
-        message: err.message,
-        stack: err.stack,
-      });
-      return fail(500, {
-        message: "Failed to create account. Please try again later.",
-        form,
-      });
-    }
-  },
+  // Auth actions delegate to auth.remote.ts
+  signIn: signInFn,
+  signUp: signUpFn,
+  forgotPW: forgotPWFn,
+  resetPW: resetPWFn,
+  prefetch: prefetchFn,
 
   signInOAuth: async (event) => {
-    // Rate-limit and kickoff OAuth with optional invite_token in state
     if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
+      event.setHeaders({ "Retry-After": "60" });
       return fail(429, { message: "Too many requests." });
     }
     const inviteToken = event.url.searchParams.get("invite_token");
@@ -993,539 +402,103 @@ export const actions: Actions = {
     throw redirect(303, authUrl);
   },
 
-  signIn: async (event) => {
-    // --- START: Language Validation Logic ---
-    const langFromStore = app.systemLanguage as Locale | null;
-    const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || "en"]) as Locale[];
-    const userLanguage =
-      langFromStore && supportedLocales.includes(langFromStore)
-        ? langFromStore
-        : (publicEnv.BASE_LOCALE as Locale) || "en";
-    logger.debug(`Validated user language for sign-in: ${userLanguage}`);
-    // --- END: Language Validation Logic ---
-
-    const startTime = performance.now();
-
-    const isTestSecurity = event.request.headers.get("x-test-security") === "true";
-    if ((process.env.TEST_MODE !== "true" || isTestSecurity) && (await limiter.isLimited(event))) {
-      return fail(429, {
-        message: "Too many requests. Please try again later.",
-      });
+  signInOAuthGithub: async (event) => {
+    if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
+      event.setHeaders({ "Retry-After": "60" });
+      return fail(429, { message: "Too many requests." });
     }
-
-    // Wait for database initialization first
-    try {
-      await dbInitPromise;
-      logger.debug("Database initialization completed for signIn");
-    } catch (error) {
-      logger.error("Database initialization failed for signIn:", error);
-      return fail(503, { message: "Database system is not ready." });
-    }
-
-    // Wait for auth service to be ready (with timeout)
-    const authReady = await waitForAuthService(10_000); // 10 second timeout for sign-in
-    if (!(authReady && auth)) {
-      logger.error("Authentication system is not ready for signIn action after waiting");
-      return fail(503, {
-        message: "Authentication system is not ready. Please wait a moment and try again.",
-      });
-    }
-
-    logger.debug("Auth service is ready for signIn action");
-
-    // Validate form
-    const formData = await event.request.formData();
-    const emailRaw = formData.get("email")?.toString() ?? "";
-    const passwordRaw = formData.get("security")?.toString() ?? "";
-    const isTokenRaw = formData.get("isToken");
-    const isToken = isTokenRaw === "true" || isTokenRaw === "on";
-
-    const form = { email: emailRaw, password: passwordRaw, isToken };
-    const result = safeParse(loginFormSchema, form);
-
-    if (!result.success) {
-      return fail(400, { form, errors: flatten(result.issues).nested });
-    }
-
-    const { email, password } = result.output;
-    // isToken is already boolean from our manual parsing, but let's use result.output if schema didn't transform it weirdly
-    // actually result.output.isToken should be boolean because schema says boolean() and we passed a boolean
-
-    let resp: any;
-    let redirectPath: string | undefined;
-
-    try {
-      // Run authentication (collection path will be determined after auth success)
-      const authResult = await signInUser(email, password, isToken, event.cookies);
-
-      resp = authResult;
-
-      if (resp?.requires2FA) {
-        // User needs 2FA verification - return fail() instead of message()
-        logger.debug("2FA verification required for user", {
-          userId: resp.userId,
-        });
-        return fail(401, {
-          requires2FA: true,
-          userId: resp.userId,
-          message: "Please enter your 2FA code to continue.",
-        });
-      }
-      if (resp?.status) {
-        // message(signInForm, 'Sign-in successful!'); // No need to send message on success redirect
-
-        // Check if collections exist in the database (runtime-created collections)
-        let finalCollectionPath: string | null = null;
-        try {
-          finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
-        } catch (e) {
-          logger.error("Error detecting first collection in signIn, falling back to root", e);
-          throw redirect(303, "/");
-        }
-
-        if (finalCollectionPath) {
-          // Collections exist - redirect to first collection
-          redirectPath = finalCollectionPath;
-          logger.debug(`Login redirect to collection: ${redirectPath}`);
-        } else {
-          // No collections available - go to collection builder
-          redirectPath = "/config/collectionbuilder";
-        }
-        const endTime = performance.now();
-        logger.debug(`SignIn completed in ${(endTime - startTime).toFixed(2)}ms`);
-      } else {
-        const errorMessage = resp?.message || "Invalid credentials or an error occurred.";
-        logger.warn("Sign-in failed", { email, errorMessage });
-        const errorMsg = resp?.message || "Invalid credentials or an error occurred.";
-        logger.warn("Sign-in failed", { email, errorMsg });
-        return fail(401, { message: errorMessage, form });
-      }
-    } catch (e) {
-      const err = e as Error;
-      logger.error("Unexpected error in signIn action", {
-        email,
-        message: err.message,
-        stack: err.stack,
-      });
-      return fail(500, {
-        message: "An unexpected server error occurred.",
-        form,
-      });
-    }
-
-    // Handle redirect outside try-catch
-    if (redirectPath) {
-      throw redirect(303, redirectPath);
-    }
+    const inviteToken = event.url.searchParams.get("invite_token");
+    const authUrl = await generateGithubAuthUrl(inviteToken, undefined);
+    throw redirect(303, authUrl);
   },
 
   verify2FA: async (event) => {
-    // --- START: Language Validation Logic ---
-    const langFromStore = app.systemLanguage as Locale | null;
-    const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-    const userLanguage =
-      langFromStore && supportedLocales.includes(langFromStore)
-        ? langFromStore
-        : (publicEnv.BASE_LOCALE as Locale);
-    // --- END: Language Validation Logic ---
-
     const isTestSecurity = event.request.headers.get("x-test-security") === "true";
     if ((process.env.TEST_MODE !== "true" || isTestSecurity) && (await limiter.isLimited(event))) {
-      return fail(429, {
-        message: "Too many requests. Please try again later.",
-      });
+      event.setHeaders({ "Retry-After": "60" });
+      return fail(429, { message: "Too many requests." });
     }
-
-    // Ensure database initialization is complete
     try {
       await dbInitPromise;
-      logger.debug("Database initialization completed for verify2FA");
-    } catch (error) {
-      logger.error("Database initialization failed for verify2FA:", error);
+    } catch {
       return fail(503, { message: "Database system is not ready." });
     }
-
-    // Wait for auth service to be ready
-    const authReady = await waitForAuthService(10_000);
-    if (!(authReady && auth)) {
-      logger.error("Authentication system is not ready for verify2FA action");
+    if (!(await waitForAuthService()) || !auth)
       return fail(503, { message: "Authentication system is not ready." });
-    }
 
-    logger.debug("Auth service is ready for verify2FA action");
+    const formData = await event.request.formData();
+    const userId = (formData.get("userId") as string) || "";
+    const code = (formData.get("code") as string) || "";
+    if (!userId || !code) return fail(400, { message: "User ID and code required." });
 
+    const { getDefaultTwoFactorAuthService } = await import("@src/databases/auth/two-factor-auth");
     try {
-      const formData = await event.request.formData();
-      const userId = formData.get("userId") as string;
-      const code = formData.get("code") as string;
-
-      if (!(userId && code)) {
-        return fail(400, { message: "Missing required fields." });
-      }
-
-      const { getDefaultTwoFactorAuthService } =
-        await import("@src/databases/auth/two-factor-auth");
-      if (!auth) {
-        return fail(500, { message: "Auth service is not initialized" });
-      }
-      const twoFactorService = getDefaultTwoFactorAuthService(
-        auth as unknown as import("@src/databases/db-interface").IAuthAdapter,
-      ); // Verify 2FA code
-      const result = await twoFactorService.verify2FA(userId as any, code);
-      if (!result.success) {
-        logger.warn("2FA verification failed during login", {
-          userId,
-          reason: result.message,
+      const twoFactorService = getDefaultTwoFactorAuthService(auth as any);
+      if (!twoFactorService) return fail(503, { message: "2FA service unavailable." });
+      const twoFaResult = await twoFactorService.verify2FA(userId as any as DatabaseId, code);
+      if (!twoFaResult.success) {
+        return fail(400, {
+          message: twoFaResult.message || "Invalid 2FA code.",
         });
-        return fail(400, { message: result.message });
-      } // 2FA verification successful - get user and create session
-      const user = await auth.getUserById(userId as DatabaseId);
-      if (!user) {
-        logger.error("User not found after successful 2FA verification", {
-          userId,
-        });
-        return fail(500, { message: "User not found." });
       }
 
-      // Create session
-      await createSessionAndSetCookie(userId as DatabaseId, event.cookies);
+      const user = await auth.getUserById(userId);
+      if (!user) return fail(400, { message: "User not found." });
 
-      // Update user attributes
-      const updatePromise = auth.updateUserAttributes(userId as DatabaseId, {
-        lastAuthMethod: "password+2fa",
-        lastActiveAt: new Date().toISOString() as ISODateString,
-      });
-      updatePromise.catch((err: any) => {
-        logger.error(`Failed to update user attributes after 2FA login for ${userId}:`, err);
+      const sessionCookie = auth.createSessionCookie(userId as any as DatabaseId);
+      event.cookies.set(sessionCookie.name, sessionCookie.value, {
+        ...(sessionCookie.attributes as Record<string, unknown>),
+        path: "/",
       });
 
-      logger.info(`User logged in successfully with 2FA: ${user.username} (${userId})`);
+      auth
+        .updateUserAttributes(
+          userId as any,
+          {
+            lastAuthMethod: "security",
+            lastActiveAt: new Date().toISOString() as any,
+          },
+          { bypassTenantCheck: true },
+        )
+        .catch(() => {});
 
-      // Determine redirect path based on collections
       let finalCollectionPath: string | null = null;
       try {
-        finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
-      } catch (e) {
-        logger.error("Error detecting first collection in 2FA, falling back to root", e);
-        throw redirect(303, "/");
-      }
-
-      let redirectPath: string;
-      if (finalCollectionPath) {
-        // Collections exist - redirect to first collection
-        redirectPath = finalCollectionPath;
-        logger.debug(`2FA login redirect to collection: ${redirectPath}`);
-      } else {
-        // No collections available - go to collection builder
-        redirectPath = "/config/collectionbuilder";
-      }
-      throw redirect(303, redirectPath);
-    } catch (e) {
-      if (e instanceof Response) {
-        throw e; // Re-throw redirect
-      }
-      const err = e as Error;
-      logger.error("Unexpected error in verify2FA action", {
-        message: err.message,
-        stack: err.stack,
-      });
-      return fail(500, { message: "An unexpected server error occurred." });
-    }
-  },
-
-  forgotPW: async (event) => {
-    // --- START: Language Validation Logic ---
-    const langFromStore = app.systemLanguage as Locale | null;
-    const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || "en"]) as Locale[];
-    const userLanguage =
-      langFromStore && supportedLocales.includes(langFromStore)
-        ? langFromStore
-        : (publicEnv.BASE_LOCALE as Locale) || "en";
-    // --- END: Language Validation Logic ---
-
-    if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
-      return fail(429, { message: "Too many requests." });
-    }
-    // Ensure database initialization is complete
-    try {
-      await dbInitPromise;
-      logger.debug("Database initialization completed for forgotPW");
-    } catch (error) {
-      logger.error("Database initialization failed for forgotPW:", error);
-      return fail(503, { message: "Database system is not ready." });
-    }
-
-    // Wait for auth service to be ready
-    const authReady = await waitForAuthService(10_000);
-    if (!(authReady && auth)) {
-      logger.error("Authentication system is not ready for forgotPW action");
-      return fail(503, { message: "Authentication system is not ready." });
-    }
-
-    logger.debug("Auth service is ready for forgotPW action");
-
-    const formData = await event.request.formData();
-    const form = Object.fromEntries(formData);
-    const result = safeParse(forgotFormSchema, form);
-
-    if (!result.success) {
-      return fail(400, { form, errors: flatten(result.issues).nested });
-    }
-
-    const email = result.output.email.toLowerCase().trim();
-    let checkMail: ForgotPWCheckResult;
-
-    try {
-      checkMail = await forgotPWCheck(email);
-
-      if (checkMail.success && checkMail.token && checkMail.expiresIn) {
-        const baseUrl = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
-        const resetLink = `${baseUrl}/login?token=${checkMail.token}&email=${encodeURIComponent(email)}`;
-        logger.debug(`Reset link generated: ${resetLink}`);
-
-        const emailProps = {
-          email,
-          token: checkMail.token,
-          expiresIn: checkMail.expiresIn,
-          resetLink,
-          username: checkMail.username || email,
-          sitename: publicEnv.SITE_NAME || "SveltyCMS",
-        };
-
-        const mailResult = await sendMail({
-          recipientEmail: email,
-          subject: `Password Reset Request for ${emailProps.sitename}`,
-          templateName: "forgottenPassword",
-          props: emailProps,
-          languageTag: userLanguage,
-        });
-
-        if (mailResult.success) {
-          logger.info("Forgotten password email sent directly", {
-            email,
-          });
-          return fail(400, {
-            message: "Password reset email sent successfully.",
-            userExists: true,
-            emailSent: true,
-          });
-        }
-        // Still return success but with emailSent: false to handle on frontend
-        return fail(400, {
-          message: "Password reset email sent successfully.",
-          userExists: true,
-          emailSent: false,
-        });
-      }
-      logger.warn("Forgotten password check failed", {
-        email,
-        message: checkMail.message,
-      });
-      // Return different response for user not found to allow frontend distinction
-      return fail(400, { message: "User does not exist.", userExists: false });
-    } catch (e) {
-      const err = e as Error;
-      logger.error("Error in forgotPW action", {
-        email,
-        message: err.message,
-        stack: err.stack,
-      });
-      return fail(500, {
-        message: "An error occurred. Please try again.",
-        form,
-      });
-    }
-  },
-
-  resetPW: async (event) => {
-    // --- START: Language Validation Logic ---
-    const langFromStore = app.systemLanguage as Locale | null;
-    const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || "en"]) as Locale[];
-    const userLanguage =
-      langFromStore && supportedLocales.includes(langFromStore)
-        ? langFromStore
-        : (publicEnv.BASE_LOCALE as Locale) || "en";
-    // --- END: Language Validation Logic ---
-
-    if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
-      return fail(429, { message: "Too many requests." });
-    }
-    // Ensure database initialization is complete
-    try {
-      await dbInitPromise;
-      logger.debug("Database initialization completed for resetPW");
-    } catch (error) {
-      logger.error("Database initialization failed for resetPW:", error);
-      return fail(503, { message: "Database system is not ready." });
-    }
-
-    // Wait for auth service to be ready
-    const authReady = await waitForAuthService(10_000);
-    if (!(authReady && auth)) {
-      logger.error("Authentication system is not ready for resetPW action");
-      return fail(503, { message: "Authentication system is not ready." });
-    }
-
-    logger.debug("Auth service is ready for resetPW action");
-
-    const formData = await event.request.formData();
-    const form = Object.fromEntries(formData);
-    const result = safeParse(resetFormSchema, form);
-
-    if (!result.success) {
-      return fail(400, { form, errors: flatten(result.issues).nested });
-    }
-
-    const { password, token, email } = result.output;
-
-    try {
-      const resp = await resetPWCheck(password, token, email);
-      logger.debug("Password reset check response", {
-        email,
-        response: JSON.stringify(resp),
-      });
-
-      if (resp.status) {
-        const emailProps = {
-          username: resp.username || email,
-          email,
-          hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get("host")}`,
-          sitename: publicEnv.SITE_NAME || "SveltyCMS",
-        };
-        try {
-          const mailResult = await sendMail({
-            recipientEmail: email,
-            subject: `Your Password for ${emailProps.sitename} Has Been Updated`,
-            templateName: "updatedPassword", // Ensure this template exists
-            props: emailProps,
-            languageTag: userLanguage,
-          });
-          if (mailResult.success) {
-            logger.info("Password updated confirmation email sent directly", {
-              email,
-            });
-          } else {
-            logger.error(`Failed to send password updated email directly.`, {
-              email,
-              message: mailResult.message,
-            });
-          }
-        } catch (emailError) {
-          logger.error("Error calling sendMail for password updated confirmation", {
-            email,
-            error: emailError,
-          });
-        }
-
-        // message(pwresetForm, 'Password reset successfully. You can now log in.');
-        throw redirect(303, "/login?reset=success");
-      }
-      logger.warn("Password reset failed", { email, message: resp.message });
-      return fail(400, {
-        message: resp.message || "Password reset failed. The link may be invalid or expired.",
-        form,
-      });
-    } catch (e) {
-      // Check if this is a redirect (which is expected and successful)
-      if (e && typeof e === "object" && "status" in e && (e.status === 302 || e.status === 303)) {
-        // Re-throw the redirect - this is the expected flow
-        throw e;
-      }
-
-      const err = e as Error;
-      logger.error("Error in resetPW action", {
-        email,
-        message: err.message,
-        stack: err.stack,
-      });
-      return fail(500, {
-        message: "An unexpected error occurred during password reset.",
-        form,
-      });
-    }
-  },
-
-  prefetch: async () => {
-    // --- START: Language Validation Logic ---
-    const langFromStore = app.systemLanguage as Locale | null;
-    const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-    const userLanguage =
-      (langFromStore && supportedLocales.includes(langFromStore)
-        ? langFromStore
-        : (publicEnv.BASE_LOCALE as Locale)) || "en";
-    // --- END: Language Validation Logic ---
-
-    // This action is called when user switches to SignIn/SignUp components
-    // to get collection info for later data fetching after authentication
-    try {
-      logger.info(`Collection lookup triggered for language: ${userLanguage}`);
-
-      // Get first collection fromcontent-manager(cached lookup)
-      const firstCollectionSchema = contentSystem.collections.getSmartFirst();
-      const collectionInfo = firstCollectionSchema
-        ? {
-            collectionId: firstCollectionSchema._id,
-            name: firstCollectionSchema.name,
-            path: firstCollectionSchema.path,
-          }
-        : null;
-
-      if (collectionInfo) {
-        logger.info(`Collection lookup completed successfully: ${collectionInfo.name}`);
-        return { success: true, collection: collectionInfo };
-      }
-      logger.debug("No collection found");
-      return { success: false, error: "No collection available" };
+        finalCollectionPath = await getCachedFirstCollectionPath("en" as any);
+      } catch {}
+      throw redirect(303, finalCollectionPath ?? "/config/collectionbuilder");
     } catch (err) {
-      logger.debug("Collection lookup failed:", err);
-      return { success: false, error: "Collection lookup failed" };
+      if (isRedirect(err) || isHttpError(err)) throw err;
+      logger.error("2FA verification error:", (err as Error).message);
+      return fail(500, { message: "2FA verification failed." });
     }
   },
 
   resetSetup: async ({ locals }) => {
     try {
-      // Security check: Only allow reset if user is admin OR system is in failed state
-      const { getSystemState } = await import("@src/stores/system/state.svelte");
       const systemState = getSystemState();
 
       const isAdmin = locals.user?.role === "admin";
       const isSystemFailed = systemState.overallState === "FAILED";
       const isTestMode = process.env.TEST_MODE === "true";
-
-      // Check database health - if DB is down, admin can't login, so we must allow reset
-      // to recover from bad configuration.
       const dbHealth = await checkDatabaseHealth();
       const isDbUnhealthy = !dbHealth.healthy;
 
       if (!(isAdmin || isSystemFailed || isTestMode || isDbUnhealthy)) {
-        logger.warn("Unauthorized setup reset attempt", {
-          userRole: locals.user?.role,
-          systemState: systemState.overallState,
-          dbHealthy: dbHealth.healthy,
-        });
         return fail(403, {
           message: "You do not have permission to reset the setup.",
         });
       }
 
-      // In TEST_MODE, skip deletion
-      if (isTestMode) {
-        logger.info("Setup reset: Skipping file deletion in TEST_MODE");
-      } else {
+      if (!isTestMode) {
         const configPath = path.join(process.cwd(), "config", "private.ts");
-        try {
-          await fs.unlink(configPath);
-          logger.info("Setup reset: config/private.ts deleted successfully");
-        } catch (fsError: any) {
-          if (fsError.code !== "ENOENT") {
-            throw fsError;
-          }
-        }
+        await fs.unlink(configPath).catch((e: any) => {
+          if (e.code !== "ENOENT") throw e;
+        });
       }
 
-      // Invalidate caches
+      _dbHealthCache = null;
       invalidateSetupCache(true);
-
       return { success: true, message: "Setup has been reset." };
     } catch (error) {
       logger.error("Failed to reset setup:", error);
@@ -1533,297 +506,3 @@ export const actions: Actions = {
     }
   },
 };
-
-// Helper functions (createSessionAndSetCookie, signInUser, finishRegistration, forgotPWCheck, resetPWCheck)
-// remain largely the same as your provided code, with minor logging/error handling adjustments.
-// Ensure they are robust and correctly interact with your `auth` service.
-
-async function createSessionAndSetCookie(userId: DatabaseId, cookies: Cookies): Promise<void> {
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-  if (!auth) {
-    throw new Error("Auth service is not initialized when creating session.");
-  }
-  const session = await auth.createSession({
-    user_id: userId,
-    expires: expiresAt.toISOString() as ISODateString,
-  });
-  logger.debug(`Session created: ${session._id} for user ${userId}`);
-  const sessionCookie = auth.createSessionCookie(session._id as DatabaseId);
-  const attributes = sessionCookie.attributes as Record<string, unknown>;
-  cookies.set(sessionCookie.name, sessionCookie.value, {
-    ...attributes,
-    path: "/",
-  });
-}
-
-async function signInUser(
-  email: string,
-  password: string,
-  isToken: boolean,
-  cookies: Cookies,
-): Promise<{
-  status: boolean;
-  message?: string;
-  user?: User;
-  requires2FA?: boolean;
-  userId?: string;
-}> {
-  logger.debug("signInUser called", { email, isToken });
-  if (!auth) {
-    logger.error("Auth system not initialized for signInUser");
-    return { status: false, message: "Authentication system unavailable." };
-  }
-  try {
-    let user: User | null = null;
-    let authSuccess = false;
-
-    if (isToken) {
-      const tokenValue = password;
-      const tempUser = await auth.checkUser({ email }, { bypassTenantCheck: true });
-      if (!tempUser) {
-        logger.warn("Token login attempt for non-existent user", { email });
-        return { status: false, message: "User does not exist." };
-      }
-      const result = await auth.consumeToken(tokenValue, tempUser._id);
-      if (result.status) {
-        user = tempUser;
-        authSuccess = true;
-      } else {
-        logger.warn("Token consumption failed", {
-          email,
-          message: result.message,
-        });
-        return {
-          status: false,
-          message: result.message || "Invalid or expired token.",
-        };
-      }
-    } else {
-      // Fix: Pass null instead of undefined for tenantId in non-multi-tenant setup
-      // This ensures the database adapter correctly queries the global tenant
-      const authResult = await auth.authenticate(email, password, null, {
-        bypassTenantCheck: true,
-      });
-      if (authResult?.user) {
-        user = authResult.user;
-
-        // Check if user has 2FA enabled
-        if (user!.is2FAEnabled) {
-          logger.debug("User has 2FA enabled, requiring 2FA verification", {
-            userId: user!._id,
-          });
-          // Don't create session yet - wait for 2FA verification
-          return {
-            status: false,
-            message: "2FA verification required",
-            requires2FA: true,
-            userId: user!._id,
-          };
-        }
-
-        authSuccess = true;
-        // Use the session that authenticate() already created
-        const sessionCookie = auth.createSessionCookie(authResult.sessionId!);
-        cookies.set(sessionCookie.name, sessionCookie.value, {
-          ...(sessionCookie.attributes as Record<string, unknown>),
-          path: "/",
-        });
-      } else {
-        logger.warn("Password authentication failed", { email });
-      }
-    }
-
-    if (!(authSuccess && user && user._id)) {
-      return {
-        status: false,
-        message: "Invalid credentials or authentication failed.",
-      };
-    }
-
-    // For token-based authentication, we need to create a session manually
-    // For password authentication, the session was already created by authenticate()
-    if (isToken) {
-      await createSessionAndSetCookie(user._id as any, cookies);
-    }
-
-    // Parallelize user attribute update for better performance
-    const updatePromise = auth.updateUserAttributes(
-      user._id as any,
-      {
-        lastAuthMethod: isToken ? "token" : "security",
-        lastActiveAt: new Date().toISOString() as any,
-      },
-      { bypassTenantCheck: true },
-    ); // Don't wait for attribute update to complete - fire and forget for better UX
-    updatePromise.catch((err: any) => {
-      logger.error(`Failed to update user attributes for ${user!._id}:`, err);
-    });
-
-    logger.info(`User logged in successfully: ${user.username} (${user._id})`);
-
-    // Audit Log
-    const { auditLogService, AuditEventType } =
-      await import("@src/services/security/audit-service");
-    await auditLogService.log(
-      "User logged in successfully",
-      { id: user._id as any, email: user.email, ip: "N/A" },
-      { type: "user", id: user._id as any },
-      AuditEventType.USER_LOGIN,
-      "medium",
-      { method: isToken ? "token" : "security" },
-    );
-
-    return { status: true, message: "Login successful", user };
-  } catch (error) {
-    const err = error as Error;
-    logger.error("Error in signInUser", {
-      email,
-      message: err.message,
-      stack: err.stack,
-    });
-    return {
-      status: false,
-      message: "An internal error occurred during sign-in.",
-    };
-  }
-}
-
-interface ForgotPWCheckResult {
-  expiresIn?: Date;
-  message: string;
-  success: boolean;
-  token?: string;
-  username?: string;
-}
-
-async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
-  logger.debug("forgotPWCheck called", { email });
-  if (!auth) {
-    logger.error("Auth system not initialized for forgotPWCheck");
-    return { success: false, message: "Authentication system unavailable." };
-  }
-  try {
-    const user = await auth.checkUser({ email });
-    if (!user?._id) {
-      logger.warn("forgotPWCheck: User not found", { email });
-      return { success: false, message: "User does not exist." };
-    }
-    const expiresInMs = 1 * 60 * 60 * 1000;
-    const expiresAt = new Date(Date.now() + expiresInMs);
-    const token = await auth.createToken({
-      user_id: user._id,
-      expires: expiresAt.toISOString() as ISODateString,
-      type: "password_reset",
-    });
-    logger.info("Password reset token created", { email });
-
-    // Audit Log
-    const { auditLogService, AuditEventType } =
-      await import("@src/services/security/audit-service");
-    await auditLogService.log(
-      "Password reset requested",
-      { id: user._id as any, email: user.email, ip: "N/A" },
-      { type: "user", id: user._id as any },
-      AuditEventType.PASSWORD_RESET_REQUESTED,
-    );
-
-    return {
-      success: true,
-      message: "Password reset token generated.",
-      token,
-      expiresIn: expiresAt,
-      username: user.username,
-    };
-  } catch (error) {
-    const err = error as Error;
-    logger.error("Error in forgotPWCheck", {
-      email,
-      message: err.message,
-      stack: err.stack,
-    });
-    return {
-      success: false,
-      message: "An internal error occurred generating password reset token.",
-    };
-  }
-}
-
-interface ResetPWResult {
-  message?: string;
-  status: boolean;
-  username?: string;
-}
-
-async function resetPWCheck(
-  password: string,
-  token: string,
-  email: string,
-): Promise<ResetPWResult> {
-  logger.debug("resetPWCheck called", { email });
-  if (!auth) {
-    logger.error("Auth system not initialized for resetPWCheck");
-    return { status: false, message: "Authentication system unavailable." };
-  }
-  try {
-    const user = await auth.checkUser({ email });
-    if (!user?._id) {
-      logger.warn("resetPWCheck: User not found for token validation", {
-        email,
-      });
-      return {
-        status: false,
-        message: "Invalid or expired reset link (user not found).",
-      };
-    }
-    const validate = await auth.consumeToken(token, user._id, "password_reset");
-    if (!validate.status) {
-      logger.warn("resetPWCheck: Token consumption failed", {
-        email,
-        message: validate.message,
-      });
-      return {
-        status: false,
-        message: validate.message || "Invalid or expired reset link.",
-      };
-    }
-    if (calculatePasswordStrength(password) < 1) {
-      return { status: false, message: "Password is too weak." };
-    }
-    await auth.invalidateAllUserSessions(user._id);
-    const updateResult = await auth.updateUserPassword(email, password);
-    if (!updateResult.status) {
-      logger.warn("resetPWCheck: Password update failed", {
-        email,
-        message: updateResult.message,
-      });
-      return {
-        status: false,
-        message: updateResult.message || "Failed to update password.",
-      };
-    }
-    logger.info("Password reset successfully", { email });
-
-    // Audit Log
-    const { auditLogService, AuditEventType } =
-      await import("@src/services/security/audit-service");
-    await auditLogService.log(
-      "Password reset success",
-      { id: user._id as any, email: user.email, ip: "N/A" },
-      { type: "user", id: user._id as any },
-      AuditEventType.PASSWORD_RESET_SUCCESS,
-    );
-
-    return { status: true, username: user.username };
-  } catch (error) {
-    const err = error as Error;
-    logger.error("Error in resetPWCheck", {
-      email,
-      message: err.message,
-      stack: err.stack,
-    });
-    return {
-      status: false,
-      message: "An internal error occurred during password reset.",
-    };
-  }
-}
