@@ -12,9 +12,6 @@
  * - generateTags() — AI image tagging
  */
 
-export {
-  AIService,
-  aiService,
-} from "../../../src/services/core/ai-service";
+export { AIService, aiService } from "../../../src/services/core/ai-service";
 
 export type { KnowledgeResult } from "../../../src/services/core/ai-service";

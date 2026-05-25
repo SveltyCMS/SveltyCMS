@@ -23,6 +23,9 @@ import { showConfirm } from "@utils/modal.svelte";
 import { onMount } from "svelte";
 import type { SvelteSet } from "svelte/reactivity";
 
+// Remote Functions
+import { loadSettingsGroup, saveSettingsGroup, resetSettingsGroup } from "./settings.remote";
+
 // Types and Utilities
 import type { SettingField, SettingGroup } from "./settings-groups";
 
@@ -150,14 +153,10 @@ async function loadSettings(bypassCache = false) {
 	error = null;
 
 	try {
-		// Load values from API with optional cache bypass
-		const url = bypassCache
-			? `/api/settings/${group.id}?refresh=true`
-			: `/api/settings/${group.id}`;
-		const response = await fetch(url);
-		const data = await response.json();
+		// Load values via Remote Function
+		const data = await loadSettingsGroup(group.id, bypassCache);
 
-		if (data.success) {
+		if (data.success && data.values) {
 			const loadedValues = data.values || {};
 			const initializedValues: Record<string, unknown> = {};
 
@@ -456,15 +455,7 @@ async function saveSettings() {
 	error = null;
 
 	try {
-		const response = await fetch(`/api/settings/${group.id}`, {
-			method: "PUT",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(values),
-		});
-
-		const data = await response.json();
+		const data = await saveSettingsGroup(group.id, values);
 
 		if (data.success) {
 			let message = `${group.name} settings saved successfully!`;
@@ -542,16 +533,12 @@ async function resetToDefaults() {
 		body: `Are you sure you want to reset all <strong>${group.name}</strong> settings to their default values? This action cannot be undone.`,
 		onConfirm: async () => {
 			saving = true;
-			error = null;
+				error = null;
 
-			try {
-				const response = await fetch(`/api/settings/${group.id}`, {
-					method: "DELETE",
-				});
+				try {
+					const data = await resetSettingsGroup(group.id);
 
-				const data = await response.json();
-
-				if (data.success) {
+					if (data.success) {
 					toast.success(`${group.name} settings reset to defaults!`);
 					await loadSettings(true); // Bypass cache after reset
 					checkForEmptyFields(); // Re-check after reset
@@ -1113,7 +1100,7 @@ onMount(() => {
 									type={field.key.toLowerCase().includes('email') || field.key === 'SMTP_USER' || field.label.toLowerCase().includes('email')
 										? 'email'
 										: 'text'}
-									class="input w-full max-w-full min-h-[44px]"
+									class="input w-full max-w-full min-h-11"
 									bind:value={values[field.key]}
 									placeholder={field.placeholder}
 									required={field.required}
@@ -1127,7 +1114,7 @@ onMount(() => {
 									<input
 										id={field.key}
 										type="number"
-										class="input w-full max-w-full min-h-[44px]"
+										class="input w-full max-w-full min-h-11"
 										bind:value={values[field.key]}
 										placeholder={field.placeholder}
 										required={field.required}
@@ -1151,7 +1138,7 @@ onMount(() => {
 									<input
 										id={field.key}
 										type={showPassword[field.key] ? 'text' : 'security'}
-										class="input w-full max-w-full min-h-[44px] pr-10"
+										class="input w-full max-w-full min-h-11 pr-10"
 										bind:value={values[field.key]}
 										placeholder={field.sensitive ? '********' : field.placeholder}
 										required={field.required}
@@ -1179,7 +1166,7 @@ onMount(() => {
 									<input
 										id={field.key}
 										type="checkbox"
-										class="checkbox w-auto min-w-[20px] min-h-[20px]"
+										class="checkbox w-auto min-w-5 min-h-5"
 										checked={!!values[field.key]}
 										onchange={(e) => {
 											const checked = (e.target as HTMLInputElement).checked;
@@ -1200,7 +1187,7 @@ onMount(() => {
 							{:else if field.type === 'select' && field.options}
 								<select
 									id={field.key}
-									class="select w-full max-w-full min-h-[44px]"
+									class="select w-full max-w-full min-h-11"
 									bind:value={values[field.key]}
 									required={field.required}
 									onchange={() => (errors[field.key] = '')}
@@ -1216,7 +1203,7 @@ onMount(() => {
 								<input
 									id={field.key}
 									type="text"
-									class="input w-full max-w-full min-h-[44px]"
+									class="input w-full max-w-full min-h-11"
 									value={getArrayValue(field.key)}
 									placeholder={field.placeholder}
 									required={field.required}

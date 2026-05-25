@@ -10,8 +10,8 @@
  */
 
 import path from "node:path";
-import { logger } from "./logger";
-import { AppError } from "./error-handling";
+import { logger } from "./logger.ts";
+import { AppError } from "./error-handling.ts";
 
 // --- Path Resolution (Merged from tenant-paths.ts) ---
 

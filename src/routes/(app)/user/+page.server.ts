@@ -30,13 +30,17 @@ export const load: PageServerLoad = async (event) => {
     const user: User | null = event.locals.user;
     const roles: Role[] = event.locals.roles || [];
     const isFirstUser: boolean = event.locals.isFirstUser;
-    const hasManageUsersPermission: boolean = event.locals.hasManageUsersPermission;
+    const hasManageUsersPermission: boolean =
+      event.locals.hasManageUsersPermission;
 
     // If user or roles are missing, log details and return fallback response
     if (!user) {
-      logger.warn("User object missing in event.locals. Returning fallback response.", {
-        request: event.request.url,
-      });
+      logger.warn(
+        "User object missing in event.locals. Returning fallback response.",
+        {
+          request: event.request.url,
+        },
+      );
       return {
         user: null,
         roles: [],

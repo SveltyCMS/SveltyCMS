@@ -7,10 +7,7 @@ const { describe, it, expect, beforeEach, vi } = (globalThis as any).vi
   ? (globalThis as any)
   : await import("vitest");
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
-import {
-  handleAuthentication,
-  clearAllSessionCaches,
-} from "@src/hooks/handle-authentication";
+import { handleAuthentication, clearAllSessionCaches } from "@src/hooks/handle-authentication";
 import { auth } from "@src/databases/db";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { DatabaseId } from "@databases/db-interface";
@@ -42,9 +39,7 @@ function createMockEvent(
     url,
     request: new Request(url.toString()),
     cookies: {
-      get: vi.fn((name: string) =>
-        name === SESSION_COOKIE_NAME ? sessionCookie : null,
-      ),
+      get: vi.fn((name: string) => (name === SESSION_COOKIE_NAME ? sessionCookie : null)),
       set: vi.fn(),
       delete: vi.fn(),
     },
@@ -70,9 +65,7 @@ describe("handleAuthentication Middleware", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearAllSessionCaches(); // Clear memory cache between tests
-    mockResolve = vi.fn(() =>
-      Promise.resolve(new Response("OK", { status: 200 })),
-    );
+    mockResolve = vi.fn(() => Promise.resolve(new Response("OK", { status: 200 })));
 
     // Default auth mock behavior
     if (auth) {
@@ -124,10 +117,7 @@ describe("handleAuthentication Middleware", () => {
       const event = createMockEvent("/dashboard", "invalid-session");
       await handleAuthentication({ event, resolve: mockResolve });
 
-      expect(event.cookies.delete).toHaveBeenCalledWith(
-        SESSION_COOKIE_NAME,
-        expect.anything(),
-      );
+      expect(event.cookies.delete).toHaveBeenCalledWith(SESSION_COOKIE_NAME, expect.anything());
     });
   });
 
@@ -146,11 +136,7 @@ describe("handleAuthentication Middleware", () => {
         Promise.resolve({ success: true, data: mockUser }),
       );
 
-      const event = createMockEvent(
-        "/dashboard",
-        "session-t1",
-        "tenant2.example.com",
-      );
+      const event = createMockEvent("/dashboard", "session-t1", "tenant2.example.com");
       event.locals.tenantId = "tenant2" as DatabaseId;
 
       try {
@@ -168,11 +154,7 @@ describe("handleAuthentication Middleware", () => {
         Promise.resolve({ success: true, data: mockUser }),
       );
 
-      const event = createMockEvent(
-        "/dashboard",
-        "session-global",
-        "tenant2.example.com",
-      );
+      const event = createMockEvent("/dashboard", "session-global", "tenant2.example.com");
       event.locals.tenantId = "tenant2" as DatabaseId;
 
       await handleAuthentication({ event, resolve: mockResolve });
@@ -203,11 +185,7 @@ describe("handleAuthentication Middleware", () => {
 
     it("should not accept __Host- cookie on insecure connection", async () => {
       // Simulates insecure connection trying to use a __Host- cookie
-      const event = createMockEvent(
-        "/dashboard",
-        "stolen-session",
-        "localhost",
-      );
+      const event = createMockEvent("/dashboard", "stolen-session", "localhost");
       // On insecure connection, the __Host- prefix cookie should NOT be accepted
       // The handler should look for the non-prefixed cookie name only
       event.cookies.get = vi.fn((name: string) => {

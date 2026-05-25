@@ -82,7 +82,7 @@ export const widgetMeta = {
 <BaseWidget
 	{label}
 	{theme}
-	endpoint="/api/dashboard/online_user"
+	endpoint="/api/dashboard/online-user"
 	pollInterval={60000}
 	{icon}
 	{widgetId}

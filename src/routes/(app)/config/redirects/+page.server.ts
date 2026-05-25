@@ -7,7 +7,7 @@ import type { RequestEvent, Actions } from "@sveltejs/kit";
 import { LocalCMS } from "@src/services/sdk";
 import { dbAdapter } from "@src/databases/db";
 import { error } from "@sveltejs/kit";
-import { invalidateRedirectCache } from "@src/hooks/handle-redirects";
+import { saveRedirect, deleteRedirect } from "./redirects.remote";
 
 export const load = async ({ locals }: RequestEvent) => {
   const { user, tenantId } = locals;
@@ -27,48 +27,19 @@ export const load = async ({ locals }: RequestEvent) => {
 
 export const actions: Actions = {
   save: async ({ request, locals }) => {
-    const { user, tenantId } = locals;
-    if (!user) throw error(401, "Unauthorized");
-
-    if (!dbAdapter) throw error(500, "Database not initialized");
-
-    const formData = await request.formData();
-    const id = formData.get("id")?.toString();
-    const from = formData.get("from")?.toString();
-    const to = formData.get("to")?.toString();
-    const type = parseInt(formData.get("type")?.toString() || "301");
-    const active = formData.get("active") === "true";
-    const isRegex = formData.get("isRegex") === "on";
-
-    const cms = new LocalCMS(dbAdapter, { user, tenantId });
-
-    if (id) {
-      await cms.collections.update("redirects", id, { from, to, type, active, isRegex });
-    } else {
-      await cms.collections.create("redirects", { from, to, type, active, isRegex, tenantId });
-    }
-
-    invalidateRedirectCache(tenantId as string);
-
-    return { success: true };
+    const fd = await request.formData();
+    return saveRedirect(locals as any, {
+      id: fd.get("id")?.toString(),
+      from: fd.get("from")?.toString() || "",
+      to: fd.get("to")?.toString() || "",
+      type: parseInt(fd.get("type")?.toString() || "301"),
+      active: fd.get("active") === "true",
+      isRegex: fd.get("isRegex") === "on",
+    });
   },
 
   delete: async ({ request, locals }) => {
-    const { user, tenantId } = locals;
-    if (!user) throw error(401, "Unauthorized");
-
-    if (!dbAdapter) throw error(500, "Database not initialized");
-
-    const formData = await request.formData();
-    const id = formData.get("id")?.toString();
-
-    if (!id) return { success: false };
-
-    const cms = new LocalCMS(dbAdapter, { user, tenantId });
-    await cms.collections.delete("redirects", id);
-
-    invalidateRedirectCache(tenantId as string);
-
-    return { success: true };
+    const fd = await request.formData();
+    return deleteRedirect(locals as any, fd.get("id")?.toString() || "");
   },
 };

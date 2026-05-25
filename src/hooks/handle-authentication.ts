@@ -27,10 +27,7 @@ import { generateCsrfToken, ensureCsrfToken } from "@utils/security/csrf-utils";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
-import {
-  cacheService,
-  SESSION_CACHE_TTL_MS,
-} from "@src/databases/cache/cache-service";
+import { cacheService, SESSION_CACHE_TTL_MS } from "@src/databases/cache/cache-service";
 import { getDbInitPromise, auth, dbAdapter } from "@src/databases/db";
 import { metricsService } from "@src/services/observability/metrics-service";
 import type { Handle, RequestEvent } from "@sveltejs/kit";
@@ -79,8 +76,7 @@ function initRotationRateLimiter() {
     IP: [100, "m"],
     cookie: {
       name: "session_rotation_limit",
-      secret:
-        secret || (dev ? "dev-only-secret-rotation" : crypto.randomUUID()),
+      secret: secret || (dev ? "dev-only-secret-rotation" : crypto.randomUUID()),
       rate: [100, "m"],
       preflight: true,
     },
@@ -162,8 +158,7 @@ if (typeof setInterval !== "undefined") {
     () => {
       const now = Date.now();
       for (const [sessionId, data] of strongRefs.entries()) {
-        if (now - data.timestamp > SESSION_CACHE_TTL_MS)
-          strongRefs.delete(sessionId);
+        if (now - data.timestamp > SESSION_CACHE_TTL_MS) strongRefs.delete(sessionId);
       }
       for (const [sessionId, timestamp] of lastRefreshAttempt.entries()) {
         if (now - timestamp > 300_000) lastRefreshAttempt.delete(sessionId);
@@ -196,21 +191,14 @@ async function getUserFromSession(
   }
 
   try {
-    const cacheKey = tenantId
-      ? `session:${tenantId}:${sessionId}`
-      : `session:${sessionId}`;
-    const redisCached = await cacheService.get<SessionCacheEntry>(
-      cacheKey,
-      tenantId ?? undefined,
-    );
+    const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
+    const redisCached = await cacheService.get<SessionCacheEntry>(cacheKey, tenantId ?? undefined);
     if (redisCached && now - redisCached.timestamp < SESSION_CACHE_TTL_MS) {
       setSessionInCache(sessionId, redisCached);
       return redisCached.user;
     }
   } catch (err) {
-    logger.warn(
-      `Redis session read failed: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    logger.warn(`Redis session read failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   const lastAttempt = lastRefreshAttempt.get(sessionId);
@@ -238,19 +226,10 @@ async function getUserFromSession(
         const user = result.data;
         const sessionData: SessionCacheEntry = { user, timestamp: now };
         setSessionInCache(sessionId, sessionData);
-        const cacheKey = tenantId
-          ? `session:${tenantId}:${sessionId}`
-          : `session:${sessionId}`;
+        const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
         await cacheService
-          .set(
-            cacheKey,
-            sessionData,
-            Math.ceil(SESSION_CACHE_TTL_MS / 1000),
-            tenantId as any,
-          )
-          .catch((err: any) =>
-            logger.warn(`Session cache set failed: ${err.message}`),
-          );
+          .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as any)
+          .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
         return user;
       } else {
         // Definitive: Session not found or expired.
@@ -267,9 +246,7 @@ async function getUserFromSession(
     }
   } catch (err) {
     lastRefreshAttempt.delete(sessionId);
-    logger.error(
-      `Session validation crashed: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    logger.error(`Session validation crashed: ${err instanceof Error ? err.message : String(err)}`);
   }
   return null;
 }
@@ -305,9 +282,7 @@ async function handleSessionRotation(
 
     const newSession = await auth.createSession({
       user_id: user._id as DatabaseId,
-      expires: new Date(
-        Date.now() + 30 * 24 * 60 * 60 * 1000,
-      ).toISOString() as ISODateString,
+      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() as ISODateString,
       tenantId: event.locals.tenantId as DatabaseId,
     });
 
@@ -315,11 +290,8 @@ async function handleSessionRotation(
       const newSessionId = newSession._id;
       const isProd = !dev && process.env.TEST_MODE !== "true";
       const isSecure =
-        event.url.protocol === "https:" ||
-        (event.url.hostname !== "localhost" && isProd);
-      const cookieName = isSecure
-        ? `__Host-${SESSION_COOKIE_NAME}`
-        : SESSION_COOKIE_NAME;
+        event.url.protocol === "https:" || (event.url.hostname !== "localhost" && isProd);
+      const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
       event.cookies.set(cookieName, newSessionId, {
         path: "/",
@@ -337,19 +309,14 @@ async function handleSessionRotation(
       event.locals.session_id = newSessionId;
     }
   } catch (err) {
-    logger.error(
-      `Session rotation failed: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    logger.error(`Session rotation failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
 /**
  * Handles automatic demo tenant generation and seeding.
  */
-async function handleDemoTenantAssignment(
-  event: RequestEvent,
-  isUserPresent: boolean,
-) {
+async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: boolean) {
   const { cookies, url, locals } = event;
   const tenantIdFromCookie = cookies.get("demo_tenant_id") || null;
 
@@ -359,8 +326,7 @@ async function handleDemoTenantAssignment(
   }
 
   if (
-    (cookies.get(SESSION_COOKIE_NAME) ||
-      cookies.get(`__Host-${SESSION_COOKIE_NAME}`)) &&
+    (cookies.get(SESSION_COOKIE_NAME) || cookies.get(`__Host-${SESSION_COOKIE_NAME}`)) &&
     !isUserPresent
   )
     return;
@@ -416,8 +382,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   const setupState = (locals as any).__setupState || (await getSetupState());
 
   if (setupState !== SetupState.COMPLETE) {
-    if (setupState === SetupState.MISSING_CONFIG)
-      locals.__setupConfigExists = false;
+    if (setupState === SetupState.MISSING_CONFIG) locals.__setupConfigExists = false;
     return await resolve(event);
   }
 
@@ -425,8 +390,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   const authHeader = event.request.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     const isProd = !dev && process.env.TEST_MODE !== "true";
-    const isSecure =
-      url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
+    const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
     ensureCsrfToken(cookies, isSecure);
   }
 
@@ -446,10 +410,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       if (isDemoMode) {
         await handleDemoTenantAssignment(event, false);
       } else {
-        locals.tenantId = getTenantIdFromHostname(
-          url.hostname,
-          true,
-        ) as DatabaseId;
+        locals.tenantId = getTenantIdFromHostname(url.hostname, true) as DatabaseId;
       }
 
       const workerIndex = event.request.headers.get("x-test-worker-index");
@@ -459,31 +420,21 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     }
 
     const isProd = !dev && process.env.TEST_MODE !== "true";
-    const isSecure =
-      url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
-    const cookieName = isSecure
-      ? `__Host-${SESSION_COOKIE_NAME}`
-      : SESSION_COOKIE_NAME;
+    const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && isProd);
+    const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
     const authHeader = event.request.headers.get("Authorization");
     // 🛡️ SECURITY: Only accept __Host- prefixed cookies when secure (prevents subdomain cookie tossing).
     // When insecure (localhost/dev), never accept __Host- prefixed cookies.
-    const sessionId = isSecure
-      ? cookies.get(cookieName)
-      : cookies.get(cookieName);
+    const sessionId = isSecure ? cookies.get(cookieName) : cookies.get(cookieName);
     if (sessionId) {
       metricsService.incrementAuthValidations();
       if (!auth) {
-        logger.warn(
-          `[Auth] Auth service NOT initialized! (sessionId: ${sessionId})`,
-        );
+        logger.warn(`[Auth] Auth service NOT initialized! (sessionId: ${sessionId})`);
         return await resolve(event);
       }
 
-      const user = await getUserFromSession(
-        sessionId as string,
-        locals.tenantId as DatabaseId,
-      );
+      const user = await getUserFromSession(sessionId as string, locals.tenantId as DatabaseId);
 
       if (isDemoMode && !locals.tenantId && !user) {
         await handleDemoTenantAssignment(event, !!user);
@@ -500,19 +451,12 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           user.tenantId &&
           user.tenantId !== locals.tenantId
         ) {
-          logger.warn(
-            `[Auth] Tenant mismatch: local=${locals.tenantId}, user=${user.tenantId}`,
-            {
-              sessionId,
-            },
-          );
+          logger.warn(`[Auth] Tenant mismatch: local=${locals.tenantId}, user=${user.tenantId}`, {
+            sessionId,
+          });
           metricsService.incrementAuthFailures();
           cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
-          throw new AppError(
-            "Tenant isolation violation",
-            403,
-            "FORBIDDEN_TENANT",
-          );
+          throw new AppError("Tenant isolation violation", 403, "FORBIDDEN_TENANT");
         }
         locals.user = user;
         locals.session_id = sessionId as DatabaseId;
@@ -553,11 +497,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
             const tokenType = token.type || "content-api";
 
             // 3. Tenant Isolation Check
-            if (
-              token.tenantId &&
-              locals.tenantId &&
-              token.tenantId !== locals.tenantId
-            ) {
+            if (token.tenantId && locals.tenantId && token.tenantId !== locals.tenantId) {
               logger.warn(`[Auth] API Token tenant mismatch: ${token.name}`);
               metricsService.incrementAuthFailures();
               return await resolve(event);
@@ -579,9 +519,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
             locals.permissions = token.permissions || [];
             locals.tenantId = (token.tenantId as DatabaseId) || locals.tenantId;
 
-            logger.debug(
-              `[Auth] Authenticated via API Token: ${token.name} (${tokenType})`,
-            );
+            logger.debug(`[Auth] Authenticated via API Token: ${token.name} (${tokenType})`);
           }
         } else {
           negativeCache.add(tokenValue);
@@ -609,18 +547,13 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
 // --- UTILITY EXPORTS ---
 
-export function invalidateSessionCache(
-  sessionId: string,
-  tenantId?: DatabaseId | null,
-): void {
+export function invalidateSessionCache(sessionId: string, tenantId?: DatabaseId | null): void {
   sessionCache.delete(sessionId);
   strongRefs.delete(sessionId);
   lastRefreshAttempt.delete(sessionId);
   lastRotationAttempt.delete(sessionId);
 
-  const cacheKey = tenantId
-    ? `session:${tenantId}:${sessionId}`
-    : `session:${sessionId}`;
+  const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
   cacheService.delete(cacheKey, tenantId ?? undefined).catch(() => {});
 }
 

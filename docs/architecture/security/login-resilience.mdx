@@ -1,6 +1,6 @@
 ---
-path: "docs/architecture/login-error-handling.mdx"
-title: Login Error Handling & Recovery
+path: "docs/architecture/security/login-resilience.mdx"
+title: Login Resilience & Recovery
 description: How SveltyCMS handles database errors and provides recovery options for users
 author: "SveltyCMS Team"
 created: "2025-12-16"
@@ -174,22 +174,22 @@ When configuration is corrupted or database was manually deleted:
 **Implementation:**
 
 ```typescript
-// /src/routes/setup/reset/+server.ts
-export const POST: RequestHandler = async ({ locals }) => {
+// In login/+page.server.ts — form action, not standalone endpoint
+resetSetup: async ({ locals }) => {
   // Security check
   const systemState = getSystemState();
   const isAdmin = locals.user?.role === "admin";
   const isSystemFailed = systemState.overallState === "FAILED";
 
   if (!isAdmin && !isSystemFailed) {
-    return json({ error: "Unauthorized" }, { status: 403 });
+    return fail(403, { message: "You do not have permission to reset the setup." });
   }
 
   // Delete config and clear cache
-  await unlink("config/private.ts");
-  clearPrivateConfigCache();
+  await fs.unlink(path.join(process.cwd(), "config", "private.ts"));
+  invalidateSetupCache(true);
 
-  return json({ success: true });
+  return { success: true, message: "Setup has been reset." };
 };
 ```
 
@@ -277,8 +277,8 @@ await expect(page.getByRole("heading", { name: /database/i })).toBeVisible({ tim
 
 ## Related Documentation
 
-- [State Management Architecture](./state-management.mdx)
-- [Database Health Checks](./database/database-resilience.mdx)
+- [State Management Architecture](../state-management.mdx)
+- [Database Health Checks](../database/database-resilience.mdx)
 - [Setup Wizard](../guides/configuration/setup-wizard.mdx)
 - [Troubleshooting Guide](../troubleshooting.mdx)
 

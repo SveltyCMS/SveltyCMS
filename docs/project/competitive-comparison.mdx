@@ -33,20 +33,20 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 > [!IMPORTANT]
 > **Methodology**: All SveltyCMS figures are measured via `bun test tests/benchmarks/` on an Intel i7-13700H, 32GB RAM, Windows 11, NVMe SSD, SQLite WAL mode. Reproduce with: `bun run benchmark`. Competitor values are approximate ranges from publicly documented framework overhead (React hydration, Express/Koa middleware, VDOM reconciliation) — not side-by-side benchmarks. We encourage independent verification.
 
-| Metric | SveltyCMS (measured p95) | How to reproduce |
-| :--- | :--- | :--- |
-| **REST Read (auth+RBAC+cache)** | **1.625 ms** | `bun test tests/benchmarks/hooks-performance.test.ts` |
-| **REST Write (auth+audit)** | **1.072 ms** | `bun test tests/benchmarks/hooks-performance.test.ts` |
-| **DB Raw Read (SQLite)** | **0.084 ms** | `bun test tests/benchmarks/database-performance.test.ts` |
-| **DB Raw Write (SQLite)** | **0.104 ms** | `bun test tests/benchmarks/database-performance.test.ts` |
-| **DB Raw Upsert (SQLite)** | **0.067 ms** | `bun test tests/benchmarks/database-performance.test.ts` |
-| **Cache L1 Hit** | **<0.001 ms** (2.2M RPS) | `bun test tests/benchmarks/cache-service.test.ts` |
-| **Cache Invalidation** | **2.854 ms** (1k out of 200k) | `bun test tests/benchmarks/cache-service.test.ts` |
-| **Bulk Insert (100 rows)** | **2.9 ms** | `bun test tests/benchmarks/database-performance.test.ts` |
-| **Cold Start (to READY)** | **120–210 ms** | `bun test tests/benchmarks/cold-start-phased.test.ts` |
-| **Memory Stability** | **11,008 RPS**, STABLE, -19 MB/min | `bun test tests/benchmarks/memory-stability.test.ts` |
-| **Middleware Pipeline** | **0.06 ms/hook** (17 hooks) | `bun test tests/benchmarks/hooks-performance.test.ts` |
-| **Content Scan (1k)** | **0.05 ms** (dirty-bit tree) | `bun test tests/benchmarks/content-scale-stress.bench.ts` |
+| Metric                          | SveltyCMS (measured p95)           | How to reproduce                                          |
+| :------------------------------ | :--------------------------------- | :-------------------------------------------------------- |
+| **REST Read (auth+RBAC+cache)** | **1.625 ms**                       | `bun test tests/benchmarks/hooks-performance.test.ts`     |
+| **REST Write (auth+audit)**     | **1.072 ms**                       | `bun test tests/benchmarks/hooks-performance.test.ts`     |
+| **DB Raw Read (SQLite)**        | **0.084 ms**                       | `bun test tests/benchmarks/database-performance.test.ts`  |
+| **DB Raw Write (SQLite)**       | **0.104 ms**                       | `bun test tests/benchmarks/database-performance.test.ts`  |
+| **DB Raw Upsert (SQLite)**      | **0.067 ms**                       | `bun test tests/benchmarks/database-performance.test.ts`  |
+| **Cache L1 Hit**                | **<0.001 ms** (2.2M RPS)           | `bun test tests/benchmarks/cache-service.test.ts`         |
+| **Cache Invalidation**          | **2.854 ms** (1k out of 200k)      | `bun test tests/benchmarks/cache-service.test.ts`         |
+| **Bulk Insert (100 rows)**      | **2.9 ms**                         | `bun test tests/benchmarks/database-performance.test.ts`  |
+| **Cold Start (to READY)**       | **120–210 ms**                     | `bun test tests/benchmarks/cold-start-phased.test.ts`     |
+| **Memory Stability**            | **11,008 RPS**, STABLE, -19 MB/min | `bun test tests/benchmarks/memory-stability.test.ts`      |
+| **Middleware Pipeline**         | **0.06 ms/hook** (17 hooks)        | `bun test tests/benchmarks/hooks-performance.test.ts`     |
+| **Content Scan (1k)**           | **0.05 ms** (dirty-bit tree)       | `bun test tests/benchmarks/content-scale-stress.bench.ts` |
 
 > **Competitive context**: Typical headless CMS REST reads range from 8–50ms (Payload, Strapi, Directus) due to React hydration, Express/Koa middleware overhead, and lack of compiled Svelte 5 runes. SveltyCMS achieves 1.6ms by eliminating VDOM, using compiled reactivity, and caching path classification at the pipeline entry. No side-by-side benchmarks against competitors have been published. We encourage the community to run comparative tests on identical hardware.
 
@@ -56,15 +56,15 @@ SveltyCMS is designed for developers who prioritize performance, security, and a
 
 Yes. **SveltyCMS operates in a different performance league.** Here's the evidence from our May 2026 benchmark matrix:
 
-| CMS | Auth+REST Read (p95) | Auth+REST Write (p95) | Notes |
-|---|---|---|---|
-| **SveltyCMS (Local SDK)** | **<0.05 ms** | **<0.05 ms** | Compiled Svelte 5, zero-HTTP internal API |
-| **SveltyCMS (HTTP)** | **1.625 ms** | **1.072 ms** | Full pipeline: 17 hooks, RBAC, audit, cache |
-| Payload CMS 3.x | 8–25 ms | 15–40 ms | React/Next.js, VDOM hydration tax |
-| Strapi 5 | 15–50 ms | 20–60 ms | Koa-based, plugin middleware overhead |
-| Directus 11 | 8–30 ms | 12–35 ms | Express-based |
-| Sanity (hosted) | 30–80 ms | 40–100 ms | Includes network latency to hosted API |
-| WordPress REST | 80–300 ms | 100–500 ms | PHP, no persistent connection pooling |
+| CMS                       | Auth+REST Read (p95) | Auth+REST Write (p95) | Notes                                       |
+| ------------------------- | -------------------- | --------------------- | ------------------------------------------- |
+| **SveltyCMS (Local SDK)** | **<0.05 ms**         | **<0.05 ms**          | Compiled Svelte 5, zero-HTTP internal API   |
+| **SveltyCMS (HTTP)**      | **1.625 ms**         | **1.072 ms**          | Full pipeline: 17 hooks, RBAC, audit, cache |
+| Payload CMS 3.x           | 8–25 ms              | 15–40 ms              | React/Next.js, VDOM hydration tax           |
+| Strapi 5                  | 15–50 ms             | 20–60 ms              | Koa-based, plugin middleware overhead       |
+| Directus 11               | 8–30 ms              | 12–35 ms              | Express-based                               |
+| Sanity (hosted)           | 30–80 ms             | 40–100 ms             | Includes network latency to hosted API      |
+| WordPress REST            | 80–300 ms            | 100–500 ms            | PHP, no persistent connection pooling       |
 
 ### Key Takeaways
 

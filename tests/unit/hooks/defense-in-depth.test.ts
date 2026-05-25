@@ -24,9 +24,7 @@ describe("Cookie Prefix Security (RFC 6265bis)", () => {
     sessionCookieName: string,
     cookies: Map<string, string>,
   ): string | null {
-    const cookieName = isSecure
-      ? `__Host-${sessionCookieName}`
-      : sessionCookieName;
+    const cookieName = isSecure ? `__Host-${sessionCookieName}` : sessionCookieName;
 
     if (isSecure) {
       // Secure: ONLY accept __Host- prefixed cookies
@@ -158,9 +156,7 @@ describe("Handler-Level Admin Verification (system.ts)", () => {
   }
 
   it("should allow admin user for settings mutation (POST)", () => {
-    expect(
-      verifyAdminAccess({ isAdmin: true, role: "admin" }, "POST", true),
-    ).toBe(true);
+    expect(verifyAdminAccess({ isAdmin: true, role: "admin" }, "POST", true)).toBe(true);
   });
 
   it("should allow super-admin for system management mutation", () => {
@@ -213,45 +209,29 @@ describe("Media Handler Defense-in-Depth Permissions", () => {
   }
 
   it("should allow user with media:write to upload", () => {
-    expect(
-      checkMediaPermission({ permissions: ["media:write"] }, "media:write"),
-    ).toBe(true);
+    expect(checkMediaPermission({ permissions: ["media:write"] }, "media:write")).toBe(true);
   });
 
   it("should block user without media:write from uploading", () => {
-    expect(
-      checkMediaPermission({ permissions: ["media:read"] }, "media:write"),
-    ).toBe(false);
+    expect(checkMediaPermission({ permissions: ["media:read"] }, "media:write")).toBe(false);
   });
 
   it("should allow user with media:delete to delete media", () => {
-    expect(
-      checkMediaPermission({ permissions: ["media:delete"] }, "media:delete"),
-    ).toBe(true);
+    expect(checkMediaPermission({ permissions: ["media:delete"] }, "media:delete")).toBe(true);
   });
 
   it("should block user without media:delete from deleting media", () => {
-    expect(
-      checkMediaPermission({ permissions: ["media:read"] }, "media:delete"),
-    ).toBe(false);
+    expect(checkMediaPermission({ permissions: ["media:read"] }, "media:delete")).toBe(false);
   });
 
   it("should allow admin to upload even without explicit media:write", () => {
-    expect(
-      checkMediaPermission(
-        { roles: ["admin"], permissions: [] },
-        "media:write",
-      ),
-    ).toBe(true);
+    expect(checkMediaPermission({ roles: ["admin"], permissions: [] }, "media:write")).toBe(true);
   });
 
   it("should allow super-admin to delete even without explicit media:delete", () => {
-    expect(
-      checkMediaPermission(
-        { roles: ["super-admin"], permissions: [] },
-        "media:delete",
-      ),
-    ).toBe(true);
+    expect(checkMediaPermission({ roles: ["super-admin"], permissions: [] }, "media:delete")).toBe(
+      true,
+    );
   });
 
   it("should block null/undefined user from uploading", () => {
@@ -263,15 +243,11 @@ describe("Media Handler Defense-in-Depth Permissions", () => {
   });
 
   it("should not confuse media:read with media:write permission", () => {
-    expect(
-      checkMediaPermission({ permissions: ["media:read"] }, "media:write"),
-    ).toBe(false);
+    expect(checkMediaPermission({ permissions: ["media:read"] }, "media:write")).toBe(false);
   });
 
   it("should not confuse media:read with media:delete permission", () => {
-    expect(
-      checkMediaPermission({ permissions: ["media:read"] }, "media:delete"),
-    ).toBe(false);
+    expect(checkMediaPermission({ permissions: ["media:read"] }, "media:delete")).toBe(false);
   });
 });
 
@@ -289,8 +265,7 @@ describe("Centralized Permission Guard (Collection Builder)", () => {
     }
 
     // Simulate hasPermissionWithRoles check for config:collectionbuilder
-    const hasPermission =
-      roles.includes("admin") || roles.includes("collection-builder");
+    const hasPermission = roles.includes("admin") || roles.includes("collection-builder");
 
     if (!hasPermission) {
       return {
@@ -362,10 +337,7 @@ describe("Centralized Permission Guard (Collection Builder)", () => {
 
 describe("Fail-Closed API Dispatcher (ENDPOINT_PERMISSIONS)", () => {
   // Simulates ENDPOINT_PERMISSIONS mapping behavior
-  const ENDPOINT_PERMISSIONS: Record<
-    string,
-    string | ((method: string) => string)
-  > = {
+  const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)> = {
     collections: (m: string) =>
       ["GET", "OPTIONS"].includes(m) ? "collections:read" : "collections:write",
     content: (m: string) =>
@@ -375,10 +347,8 @@ describe("Fail-Closed API Dispatcher (ENDPOINT_PERMISSIONS)", () => {
       if (m === "GET" || m === "OPTIONS") return "media:read";
       return "media:write";
     },
-    system: (m: string) =>
-      ["GET", "OPTIONS"].includes(m) ? "system:read" : "system:settings",
-    settings: (m: string) =>
-      ["GET", "OPTIONS"].includes(m) ? "system:read" : "system:settings",
+    system: (m: string) => (["GET", "OPTIONS"].includes(m) ? "system:read" : "system:settings"),
+    settings: (m: string) => (["GET", "OPTIONS"].includes(m) ? "system:read" : "system:settings"),
     automations: "config:automations",
     permission: "system:admin",
   };
@@ -389,11 +359,7 @@ describe("Fail-Closed API Dispatcher (ENDPOINT_PERMISSIONS)", () => {
     namespace: string,
   ): boolean {
     // Admin fast-path
-    if (
-      user?.isAdmin ||
-      user?.role === "admin" ||
-      user?.role === "super-admin"
-    ) {
+    if (user?.isAdmin || user?.role === "admin" || user?.role === "super-admin") {
       return true;
     }
 
@@ -403,129 +369,76 @@ describe("Fail-Closed API Dispatcher (ENDPOINT_PERMISSIONS)", () => {
       return false;
     }
 
-    const requiredPermission =
-      typeof mapping === "function" ? mapping(method) : mapping;
+    const requiredPermission = typeof mapping === "function" ? mapping(method) : mapping;
     const userPerms = user?.permissions ?? [];
 
     return userPerms.includes(requiredPermission);
   }
 
   it("should allow admin for any namespace", () => {
-    expect(checkEndpointPermission({ isAdmin: true }, "POST", "system")).toBe(
-      true,
-    );
-    expect(checkEndpointPermission({ role: "admin" }, "DELETE", "media")).toBe(
-      true,
-    );
-    expect(
-      checkEndpointPermission({ role: "super-admin" }, "POST", "collections"),
-    ).toBe(true);
+    expect(checkEndpointPermission({ isAdmin: true }, "POST", "system")).toBe(true);
+    expect(checkEndpointPermission({ role: "admin" }, "DELETE", "media")).toBe(true);
+    expect(checkEndpointPermission({ role: "super-admin" }, "POST", "collections")).toBe(true);
   });
 
   it("should deny unmapped namespace (fail-closed)", () => {
-    expect(
-      checkEndpointPermission(
-        { permissions: ["system:read"] },
-        "GET",
-        "unknown-ns",
-      ),
-    ).toBe(false);
-    expect(
-      checkEndpointPermission({ permissions: [] }, "POST", "unmapped"),
-    ).toBe(false);
+    expect(checkEndpointPermission({ permissions: ["system:read"] }, "GET", "unknown-ns")).toBe(
+      false,
+    );
+    expect(checkEndpointPermission({ permissions: [] }, "POST", "unmapped")).toBe(false);
     expect(checkEndpointPermission(null, "GET", "undefined-ns")).toBe(false);
   });
 
   it("should grant media:read for GET on media namespace", () => {
-    expect(
-      checkEndpointPermission({ permissions: ["media:read"] }, "GET", "media"),
-    ).toBe(true);
+    expect(checkEndpointPermission({ permissions: ["media:read"] }, "GET", "media")).toBe(true);
   });
 
   it("should deny GET on media without media:read", () => {
-    expect(
-      checkEndpointPermission(
-        { permissions: ["collection:read"] },
-        "GET",
-        "media",
-      ),
-    ).toBe(false);
+    expect(checkEndpointPermission({ permissions: ["collection:read"] }, "GET", "media")).toBe(
+      false,
+    );
   });
 
   it("should grant media:write for POST on media namespace", () => {
-    expect(
-      checkEndpointPermission(
-        { permissions: ["media:write"] },
-        "POST",
-        "media",
-      ),
-    ).toBe(true);
+    expect(checkEndpointPermission({ permissions: ["media:write"] }, "POST", "media")).toBe(true);
   });
 
   it("should grant media:delete for DELETE on media namespace", () => {
-    expect(
-      checkEndpointPermission(
-        { permissions: ["media:delete"] },
-        "DELETE",
-        "media",
-      ),
-    ).toBe(true);
+    expect(checkEndpointPermission({ permissions: ["media:delete"] }, "DELETE", "media")).toBe(
+      true,
+    );
   });
 
   it("should deny DELETE on media without media:delete permission", () => {
     expect(
-      checkEndpointPermission(
-        { permissions: ["media:read", "media:write"] },
-        "DELETE",
-        "media",
-      ),
+      checkEndpointPermission({ permissions: ["media:read", "media:write"] }, "DELETE", "media"),
     ).toBe(false);
   });
 
   it("should grant collections:read for GET on collections", () => {
     expect(
-      checkEndpointPermission(
-        { permissions: ["collections:read"] },
-        "GET",
-        "collections",
-      ),
+      checkEndpointPermission({ permissions: ["collections:read"] }, "GET", "collections"),
     ).toBe(true);
   });
 
   it("should deny POST on collections without collections:write", () => {
     expect(
-      checkEndpointPermission(
-        { permissions: ["collections:read"] },
-        "POST",
-        "collections",
-      ),
+      checkEndpointPermission({ permissions: ["collections:read"] }, "POST", "collections"),
     ).toBe(false);
   });
 
   it("should require system:admin for permission namespace", () => {
-    expect(
-      checkEndpointPermission(
-        { permissions: ["system:admin"] },
-        "GET",
-        "permission",
-      ),
-    ).toBe(true);
-    expect(
-      checkEndpointPermission(
-        { permissions: ["system:settings"] },
-        "GET",
-        "permission",
-      ),
-    ).toBe(false);
+    expect(checkEndpointPermission({ permissions: ["system:admin"] }, "GET", "permission")).toBe(
+      true,
+    );
+    expect(checkEndpointPermission({ permissions: ["system:settings"] }, "GET", "permission")).toBe(
+      false,
+    );
   });
 
   it("should grant config:automations for automations namespace", () => {
     expect(
-      checkEndpointPermission(
-        { permissions: ["config:automations"] },
-        "POST",
-        "automations",
-      ),
+      checkEndpointPermission({ permissions: ["config:automations"] }, "POST", "automations"),
     ).toBe(true);
   });
 
@@ -537,14 +450,8 @@ describe("Fail-Closed API Dispatcher (ENDPOINT_PERMISSIONS)", () => {
   });
 
   it("should deny user with no permissions for any namespace", () => {
-    expect(
-      checkEndpointPermission({ permissions: [] }, "GET", "collections"),
-    ).toBe(false);
-    expect(checkEndpointPermission({ permissions: [] }, "POST", "media")).toBe(
-      false,
-    );
-    expect(checkEndpointPermission({ permissions: [] }, "GET", "system")).toBe(
-      false,
-    );
+    expect(checkEndpointPermission({ permissions: [] }, "GET", "collections")).toBe(false);
+    expect(checkEndpointPermission({ permissions: [] }, "POST", "media")).toBe(false);
+    expect(checkEndpointPermission({ permissions: [] }, "GET", "system")).toBe(false);
   });
 });

@@ -19,9 +19,9 @@ This document outlines the remaining high-priority tasks and strategic objective
 
 ## 🚀 Phase 5: Secure Upgrade & Cloud Strategy
 
-- 🏗️ **Phase 2: Hybrid Package Model** — *In Progress*: Scoped packages `packages/core` (`@sveltycms/core`) and `packages/widgets` (`@sveltycms/widgets`) created with barrel exports to existing `src/`. Monorepo workspace configured. Pending: npm publishing pipeline, CI integration, consumer documentation.
+- 🏗️ **Phase 2: Hybrid Package Model** — _In Progress_: Scoped packages `packages/core` (`@sveltycms/core`) and `packages/widgets` (`@sveltycms/widgets`) created with barrel exports to existing `src/`. Monorepo workspace configured. Pending: npm publishing pipeline, CI integration, consumer documentation.
 - 🚀 **Phase 3: Intelligence & Rollbacks**: Automated visual regression diffs before upgrades and one-click database/code rollbacks.
-  - 🏗️ **Version Channels (LTS, Stable, Next)** — *In Progress*: Core service (`src/services/core/version-service.ts`) and API endpoints (`/api/version/channels`, `/api/version/check`) implemented. Pending: UI dashboard integration and upgrade CLI channel selection.
+  - 🏗️ **Version Channels (LTS, Stable, Next)** — _In Progress_: Core service (`src/services/core/version-service.ts`) and API endpoints (`/api/version/channels`, `/api/version/check`) implemented. Pending: UI dashboard integration and upgrade CLI channel selection.
 - 🚀 **Svelty Managed Cloud**: Optional managed Postgres + Redis tier (Fly.io/Cloudflare) for zero-ops enterprise deployments.
 
 ## 🎯 Gap Analysis (Priority Todo)
@@ -35,7 +35,7 @@ These items are required to achieve total feature parity with enterprise competi
 
 Strategic features designed to push SveltyCMS ahead of the 2026 market:
 
-1. 🏗️ **Autonomous Schema-Aware AI Co-Pilot** — *In Progress*: `@sveltycms/ai` package created with `suggestFields()` (schema suggestions), `scoreContent()` (quality scoring), and `suggestMapping()` (import field mapping). Core AIService extended with Co-Pilot methods. Pending: MCP client-side UI block spawning, Ghost data structure generation from Valibot schemas.
+1. 🏗️ **Autonomous Schema-Aware AI Co-Pilot** — _In Progress_: `@sveltycms/ai` package created with `suggestFields()` (schema suggestions), `scoreContent()` (quality scoring), and `suggestMapping()` (import field mapping). Core AIService extended with Co-Pilot methods. Pending: MCP client-side UI block spawning, Ghost data structure generation from Valibot schemas.
 2. **Bulk AI Content Localization**: Background service for high-volume automated translation of existing entries while respecting brand-voice guidelines.
 3. **AI-Verified Zero-Downtime Deployments**: Self-healing pipelines with automated visual regression and performance audits (Lighthouse CI) before final production promote.
 4. **Autonomous Import Optimization**: Dynamic concurrency and TTL-backed background imports for 30k+ row datasets.

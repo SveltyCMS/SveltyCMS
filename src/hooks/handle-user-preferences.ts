@@ -91,18 +91,12 @@ export const handleUserPreferences: Handle = async ({ event, resolve }) => {
       cookies.delete("contentLanguage", { path: "/" });
     }
   } else {
-    logger.warn(
-      "Language stores not available on server, skipping locale sync",
-    );
+    logger.warn("Language stores not available on server, skipping locale sync");
   }
 
   // --- 2. THEME LOGIC ---
   const themeManager = ThemeManager.getInstance();
-  const themePreference = cookies.get("theme") as
-    | "system"
-    | "light"
-    | "dark"
-    | undefined;
+  const themePreference = cookies.get("theme") as "system" | "light" | "dark" | undefined;
 
   let isDarkMode = false;
   if (themePreference === "dark") {
@@ -122,14 +116,8 @@ export const handleUserPreferences: Handle = async ({ event, resolve }) => {
       event.locals.customCss = currentTheme?.customCss || "";
     } catch (err) {
       const sysState = getSystemState();
-      if (
-        sysState.overallState === "READY" ||
-        sysState.overallState === "DEGRADED"
-      ) {
-        logger.error(
-          "Error retrieving custom CSS in handleUserPreferences hook:",
-          err,
-        );
+      if (sysState.overallState === "READY" || sysState.overallState === "DEGRADED") {
+        logger.error("Error retrieving custom CSS in handleUserPreferences hook:", err);
       } else {
         logger.debug("ThemeManager not ready, skipping custom CSS.");
       }

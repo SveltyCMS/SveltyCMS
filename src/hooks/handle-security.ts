@@ -29,14 +29,7 @@ const MAX_DEPTH = 12;
 /** Max complexity score before rejection */
 const MAX_COMPLEXITY = 1000;
 /** Argument names that indicate list pagination/multiplier */
-const LIST_SIZE_ARGS = new Set([
-  "first",
-  "last",
-  "limit",
-  "pageSize",
-  "take",
-  "count",
-]);
+const LIST_SIZE_ARGS = new Set(["first", "last", "limit", "pageSize", "take", "count"]);
 /** Query length below which we skip expensive AST parsing */
 const FAST_PATH_MAX_LENGTH = 256;
 
@@ -101,22 +94,15 @@ function calculateGraphqlComplexity(query: string): number {
           let fieldMultiplier = 1;
           if (node.arguments && node.arguments.length > 0) {
             for (const arg of node.arguments) {
-              if (
-                LIST_SIZE_ARGS.has(arg.name.value) &&
-                arg.value.kind === Kind.INT
-              ) {
-                fieldMultiplier = Math.max(
-                  fieldMultiplier,
-                  parseInt(arg.value.value, 10),
-                );
+              if (LIST_SIZE_ARGS.has(arg.name.value) && arg.value.kind === Kind.INT) {
+                fieldMultiplier = Math.max(fieldMultiplier, parseInt(arg.value.value, 10));
               }
             }
           }
 
           // If the field has a selection set (sub-fields), it's a resolver
           // that multiplies downstream cost by the list size.
-          const parentMultiplier =
-            multiplierStack[multiplierStack.length - 1] || 1;
+          const parentMultiplier = multiplierStack[multiplierStack.length - 1] || 1;
           const cumulativeMultiplier = parentMultiplier * fieldMultiplier;
 
           // Each field costs 1 × cumulative multiplier from all ancestor list sizes
@@ -169,9 +155,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
     process.env.BENCHMARK === "true" ||
     (globalThis as any).process?.env?.TEST_MODE === "true";
   const isLocal =
-    isLocalhost(clientIp) ||
-    url.hostname === "localhost" ||
-    url.hostname === "127.0.0.1";
+    isLocalhost(clientIp) || url.hostname === "localhost" || url.hostname === "127.0.0.1";
 
   // Allow bypass when a valid x-test-secret is present (Playwright sends this via extraHTTPHeaders).
   // This works regardless of how the server was started (dev, preview, or build).
@@ -179,8 +163,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
   // 🚀 ROBUST SECRET RESOLUTION: Check process.env first, then falling back to getPrivateSettingSync
   // We use the helper getTestSecret() from setup-check if possible for consistency.
-  let masterSecret =
-    process.env.TEST_API_SECRET || process.env.VITE_TEST_API_SECRET;
+  let masterSecret = process.env.TEST_API_SECRET || process.env.VITE_TEST_API_SECRET;
   if (!masterSecret) {
     try {
       masterSecret = getPrivateSettingSync("TEST_API_SECRET");
@@ -189,11 +172,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
     }
   }
 
-  const hasValidTestSecret = !!(
-    incomingSecret &&
-    masterSecret &&
-    incomingSecret === masterSecret
-  );
+  const hasValidTestSecret = !!(incomingSecret && masterSecret && incomingSecret === masterSecret);
 
   if (process.env.BENCHMARK_DEBUG === "true") {
     console.log(
@@ -275,10 +254,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
   let tenantId: string | undefined = undefined;
   try {
-    if (
-      getPrivateSettingSync("MULTI_TENANT") &&
-      !getPrivateSettingSync("DEMO")
-    ) {
+    if (getPrivateSettingSync("MULTI_TENANT") && !getPrivateSettingSync("DEMO")) {
       tenantId = getTenantIdFromHostname(url.hostname, true) || undefined;
     }
   } catch {
@@ -295,14 +271,8 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
         // Reject queries with an excessively high complexity score (e.g. > 1000)
         if (complexity > 1000) {
           metricsService.incrementSecurityViolations(tenantId);
-          logger.warn(
-            `GraphQL Complexity Limit Exceeded: Score ${complexity}`,
-            { ip: clientIp },
-          );
-          return handleApiError(
-            new AppError("GraphQL Query too complex", 400),
-            event,
-          );
+          logger.warn(`GraphQL Complexity Limit Exceeded: Score ${complexity}`, { ip: clientIp });
+          return handleApiError(new AppError("GraphQL Query too complex", 400), event);
         }
       }
     }
@@ -318,9 +288,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
       "/wp-login.php",
     ];
     if (HONEYPOT_ROUTES.some((route) => url.pathname.startsWith(route))) {
-      logger.warn(
-        `[Security] AI Crawler Honeypot triggered on ${url.pathname} by IP: ${clientIp}`,
-      );
+      logger.warn(`[Security] AI Crawler Honeypot triggered on ${url.pathname} by IP: ${clientIp}`);
 
       // Auto-ban IP by triggering a manual block in the response service logic
       // By forcing a violation, the rate limiter or blocklist will trap the IP
@@ -364,10 +332,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
       if (url.pathname.startsWith("/api/")) {
         return handleApiError(
-          new AppError(
-            securityStatus.reason || "Security violation",
-            statusCode,
-          ),
+          new AppError(securityStatus.reason || "Security violation", statusCode),
           event,
         );
       }

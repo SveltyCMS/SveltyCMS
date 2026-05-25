@@ -94,7 +94,7 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
     - **Layer 2 — Dispatcher**: Fail-closed `ENDPOINT_PERMISSIONS` mapping; unmapped namespaces return 403 by default.
     - **Layer 3 — Handler**: Admin verification for system mutations, `media:write`/`media:delete` permission checks.
     - **Layer 4 — Page Action**: Centralized permission guards (e.g., `requireCollectionBuilderPermission`).
-    Each layer re-validates permissions independently, and the system fails safely if any check fails. This "zero trust within the application" architecture is rare among open-source CMS platforms and makes entire classes of vulnerabilities impossible — a single compromised perimeter layer does not grant full access.
+      Each layer re-validates permissions independently, and the system fails safely if any check fails. This "zero trust within the application" architecture is rare among open-source CMS platforms and makes entire classes of vulnerabilities impossible — a single compromised perimeter layer does not grant full access.
   - **ETag Conditional Requests**:
     Implemented HTTP ETag support in the central API dispatcher. Every GET 200 response receives a SHA-256-based ETag header (first 16 hex chars of the response body hash). The dispatcher checks the If-None-Match request header and returns 304 Not Modified with zero body when content has not changed. This reduces bandwidth consumption and server processing for cache-valid clients, with sub-microsecond hash computation overhead per response.
   - **API Versioning**:
@@ -249,6 +249,7 @@ In direct response to rapid iterations from Sveltia CMS and Directus 11, SveltyC
 - **Managed Cloud Tier:** Collaborative infrastructure offering managed Postgres/Redis via Fly.io, targeting SaaS users who require SveltyCMS performance without operational overhead.
 
 **May 2026 Additions — Security & API Hardening:**
+
 - **4-Layer Defense-in-Depth Authorization**: Zero-trust re-validation at Middleware, Dispatcher, Handler, and Page Action layers. Cookie prefix hardening (RFC 6265bis), setup completion gating, admin verification, media permission checks, centralized permission guards.
 - **Timing-Safe Cryptography**: `crypto.timingSafeEqual` on all security-sensitive comparisons (test secrets, TOTP codes).
 - **ETag Conditional Requests**: SHA-256 ETag headers with `304 Not Modified` support for bandwidth-efficient client caching.

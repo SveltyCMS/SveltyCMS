@@ -96,9 +96,7 @@ function compressWithZlib(
   // Convert Web ReadableStream → Node Readable → zlib Transform → Web ReadableStream
   const nodeReadable = stream!.Readable.fromWeb(body as any);
   const compressed = nodeReadable.pipe(zlibTransform);
-  return stream!.Readable.toWeb(
-    compressed,
-  ) as unknown as ReadableStream<Uint8Array>;
+  return stream!.Readable.toWeb(compressed) as unknown as ReadableStream<Uint8Array>;
 }
 
 /**
@@ -145,9 +143,7 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
   }
 
   const contentType = response.headers.get("Content-Type");
-  if (
-    !(contentType && COMPRESSIBLE_TYPES.some((t) => contentType?.includes(t)))
-  ) {
+  if (!(contentType && COMPRESSIBLE_TYPES.some((t) => contentType?.includes(t)))) {
     return response;
   }
 

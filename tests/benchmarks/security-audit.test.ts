@@ -30,8 +30,7 @@ async function runSecurityAudit() {
     await ensureStableTestData();
     await stabilize(1000);
 
-    const { securityResponseService } =
-      await import("@src/services/security/response-service");
+    const { securityResponseService } = await import("@src/services/security/response-service");
     const { auditLogService, AuditEventType } =
       await import("@src/services/security/audit-service");
     const { hashPassword } = await import("@src/utils/security");
@@ -50,16 +49,13 @@ async function runSecurityAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        const req = new Request(
-          "http://localhost/api/collections/posts?limit=10",
-          {
-            headers: {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-              "X-Forwarded-For": "1.2.3.4",
-              Accept: "application/json",
-            },
+        const req = new Request("http://localhost/api/collections/posts?limit=10", {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "X-Forwarded-For": "1.2.3.4",
+            Accept: "application/json",
           },
-        );
+        });
         await securityResponseService.analyzeRequest(req);
       },
     });
@@ -108,8 +104,7 @@ async function runSecurityAudit() {
 
     // 4. Defense-in-Depth Permission Overhead
     console.log("   → Measuring Defense-in-Depth Permission Check Overhead...");
-    const { hasPermissionWithRoles } =
-      await import("@src/databases/auth/permissions");
+    const { hasPermissionWithRoles } = await import("@src/databases/auth/permissions");
 
     const mockUser = {
       _id: "test-admin",
@@ -143,11 +138,7 @@ async function runSecurityAudit() {
         // Simulates checkEndpointPermission: namespace → permission mapping
         const method: string = "POST";
         const mapping =
-          method === "DELETE"
-            ? "media:delete"
-            : method === "GET"
-              ? "media:read"
-              : "media:write";
+          method === "DELETE" ? "media:delete" : method === "GET" ? "media:read" : "media:write";
         const permitted = mockPermissions.includes(mapping);
         void permitted;
       },
@@ -171,20 +162,12 @@ async function runSecurityAudit() {
         // Layer 1: Dispatcher check (simulated)
         const method: string = "POST";
         const mapping =
-          method === "DELETE"
-            ? "media:delete"
-            : method === "GET"
-              ? "media:read"
-              : "media:write";
+          method === "DELETE" ? "media:delete" : method === "GET" ? "media:read" : "media:write";
         const dispatcherPassed = mockPermissions.includes(mapping);
         if (!dispatcherPassed) return;
 
         // Layer 2: Handler-level defense-in-depth (actual hasPermissionWithRoles call)
-        const handlerPassed = hasPermissionWithRoles(
-          mockUser,
-          "media:write",
-          mockRoles,
-        );
+        const handlerPassed = hasPermissionWithRoles(mockUser, "media:write", mockRoles);
         void handlerPassed;
       },
     });
@@ -206,9 +189,7 @@ async function runSecurityAudit() {
       onIteration: async () => {
         // Admin fast-path check (from system.ts handlers)
         const isAdmin =
-          mockUser.isAdmin === true ||
-          mockUser.role === "admin" ||
-          mockUser.role === "super-admin";
+          mockUser.isAdmin === true || mockUser.role === "admin" || mockUser.role === "super-admin";
         if (!isAdmin) {
           // Fallback to permission check
           hasPermissionWithRoles(mockUser, "system:settings", mockRoles);
@@ -241,9 +222,7 @@ async function runSecurityAudit() {
       { key: "Admin Verification", val: adminCheckResult.avgMs, unit: "ms" },
       {
         key: "DID Overhead",
-        val: (defenseInDepthResult.avgMs - dispatcherOnlyResult.avgMs).toFixed(
-          4,
-        ),
+        val: (defenseInDepthResult.avgMs - dispatcherOnlyResult.avgMs).toFixed(4),
         unit: "ms",
       },
       {

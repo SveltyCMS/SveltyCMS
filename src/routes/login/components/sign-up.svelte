@@ -49,8 +49,8 @@ import { Form } from "@utils/form.svelte.ts";
 import { signUpFormSchema } from "@utils/schemas";
 import { logger } from "@utils/logger";
 import { browser } from "$app/environment";
-import { enhance } from "$app/forms";
 import { preloadData } from "$app/navigation";
+import { signUp as remoteSignUp } from "../auth.remote";
 // Stores
 import { page } from "$app/state";
 import type { PageData } from "../$types";
@@ -117,54 +117,58 @@ const signUpForm = new Form(
 	signUpFormSchema,
 );
 
-const signUpSubmit = signUpForm.enhance({
-	onSubmit: ({ cancel }) => {
-		if (Object.keys(signUpForm.errors).length > 0) {
-			cancel();
-			return;
-		}
-		isSubmitting = true;
-	},
+async function handleSignUpSubmit(event: Event) {
+	event.preventDefault();
+	if (Object.keys(signUpForm.errors).length > 0) {
+		formElement?.classList.add("wiggle");
+		setTimeout(() => {
+			formElement?.classList.remove("wiggle");
+		}, 300);
+		return;
+	}
+	isSubmitting = true;
 
-	onResult: async ({ result, update }) => {
+	try {
+		const result = (await remoteSignUp({
+			email: signUpForm.data.email,
+			username: signUpForm.data.username,
+			password: signUpForm.data.password,
+			token: signUpForm.data.token
+		})) as any;
+
 		isSubmitting = false;
 
-		if (result.type === "redirect") {
+		if (result.success && result.redirectPath) {
 			isRedirecting = true;
-
 			toast.success({
 				title: "Account Created!",
 				description: "Welcome to SveltyCMS. Redirecting to your dashboard...",
 			});
-
-			setTimeout(() => {
-				isRedirecting = false;
-			}, 100);
+			window.location.href = result.redirectPath;
 			return;
 		}
 
+		toast.error({
+			title: "Sign Up Failed",
+			description: result.message || "Failed to create account",
+		});
+		formElement?.classList.add("wiggle");
+		setTimeout(() => {
+			formElement?.classList.remove("wiggle");
+		}, 300);
+	} catch (error: any) {
+		isSubmitting = false;
 		isRedirecting = false;
-
-		if (result.type === "failure" || result.type === "error") {
-			const errorMessage =
-				result.type === "failure"
-					? result.data?.message || "Failed to create account"
-					: result.error?.message || "An unexpected error occurred";
-
-			toast.error({
-				title: "Sign Up Failed",
-				description: errorMessage,
-			});
-
-			formElement?.classList.add("wiggle");
-			setTimeout(() => {
-				formElement?.classList.remove("wiggle");
-			}, 300);
-		}
-
-		await update();
-	},
-});
+		toast.error({
+			title: "Sign Up Failed",
+			description: error?.message || "An unexpected error occurred",
+		});
+		formElement?.classList.add("wiggle");
+		setTimeout(() => {
+			formElement?.classList.remove("wiggle");
+		}, 300);
+	}
+}
 
 // Reactive form values for easier access
 const currentFormToken = $derived(signUpForm.data.token);
@@ -316,9 +320,7 @@ $effect(() => {
 				<!-- <SuperDebug data={$form} display={dev} /> -->
 				<form
 					id="signup-form"
-					method="post"
-					action="?/signUp"
-					use:enhance={signUpSubmit}
+					onsubmit={handleSignUpSubmit}
 					bind:this={formElement}
 					class="items flex flex-col gap-3"
 					class:hide={active !== 1}

@@ -62,7 +62,7 @@ async function main() {
 
   // 2. Sequential checks (clearer output)
   const tasks = [
-    { name: "Format", run: () => run("bunx oxfmt src --write") },
+    { name: "Format", run: () => run("vp fmt") },
     {
       name: "Lint",
       run: () => run("bunx oxlint src --fix --no-error-on-unmatched-pattern"),

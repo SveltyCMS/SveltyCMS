@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/routes/(app)/user/components/modal-edit-avatar.svelte
 @component
 **Modal for editing user avatar thumbnail image**
@@ -24,8 +24,6 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import { showConfirm } from '@utils/modal.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-
-	// Removed axios import
 
 	let files = $state<File[]>([]);
 	let isUploading = $state(false);
@@ -250,30 +248,28 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 		try {
 			// Compress large files first
-			const processedFile = await compressFile(file);
+				const processedFile = await compressFile(file);
 
-			// Create FormData
-			const formData = new FormData();
-			formData.append('avatar', processedFile);
+				// Create FormData
+				const formData = new FormData();
+				formData.append('avatar', processedFile);
 
-			// Upload with fetch
-			const response = await fetch('/api/user/save-avatar', {
-				method: 'POST',
-				headers: {
-					'X-CSRF-Token': page.data.csrfToken || ''
-				},
-				body: formData
-			});
+				// Upload with fetch
+				const response = await fetch('/api/user/save-avatar', {
+					method: 'POST',
+					headers: { 'X-CSRF-Token': page.data.csrfToken || '' },
+					body: formData
+				});
 
-			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
-			}
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
 
-			const result = await response.json();
+				const result = await response.json();
 
-			// Update the avatar store with the new URL from API
-			if (result.avatarUrl) {
-				avatarSrc.value = result.avatarUrl;
+				// Update the avatar store
+				if (result.avatarUrl) {
+					avatarSrc.value = result.avatarUrl;
 				logger.info('Avatar store updated', { avatarUrl: result.avatarUrl });
 			}
 
@@ -283,10 +279,10 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			// Show success toast
 			toast.success('Avatar updated successfully!');
 			modalState.close();
-		} catch (error) {
+		} catch (error: any) {
 			console.error('Avatar upload failed:', error);
 			imageLoadError = true;
-			toast.error('Failed to update avatar');
+			toast.error(error.message || 'Failed to update avatar');
 			// Revert preview on error
 			previewUrl = null;
 		} finally {
@@ -315,16 +311,11 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 					const response = await fetch('/api/user/delete-avatar', {
 						method: 'DELETE',
-						headers: {
-							'Content-Type': 'application/json',
-							'X-CSRF-Token': page.data.csrfToken || ''
-						},
+						headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': page.data.csrfToken || '' },
 						body: JSON.stringify({ avatarUrl: currentAvatar })
 					});
 
 					const result = await response.json();
-
-					logger.info('Delete response:', result);
 
 					if (response.ok && result.success) {
 						// Update the avatar store
@@ -342,9 +333,9 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 						// Reload page data
 						await invalidateAll();
 					} else {
-						throw new Error(result.message || 'Delete failed');
+						throw new Error(result.error || 'Delete failed');
 					}
-				} catch (error) {
+				} catch (error: any) {
 					logger.error('Error deleting avatar:', error);
 
 					const msg = error instanceof Error ? error.message : 'Failed to delete avatar';

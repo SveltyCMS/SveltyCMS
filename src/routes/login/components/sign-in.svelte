@@ -60,11 +60,12 @@ import { toast } from "@src/stores/toast.svelte.ts";
 import { Form } from "@utils/form.svelte.ts";
 import { forgotFormSchema, loginFormSchema, resetFormSchema } from "@utils/schemas";
 import { browser } from "$app/environment";
-import { enhance } from "$app/forms";
 import { goto, preloadData } from "$app/navigation";
+import { signIn as remoteSignIn, forgotPW as remoteForgotPW, resetPW as remoteResetPW } from "../auth.remote";
 import type { ActionResult } from "@sveltejs/kit";
 // Stores
 import { page } from "$app/state";
+import { enhance } from "$app/forms";
 import type { PageData } from "../$types";
 import SigninIcon from "./icons/signin-icon.svelte";
 import OauthLogin from "./oauth-login.svelte";
@@ -151,53 +152,33 @@ function wiggle(el: HTMLFormElement | null) {
 
 const loginForm = new Form({ email: "", password: "", isToken: false }, loginFormSchema);
 
-const loginSubmit = loginForm.enhance({
-	onSubmit: ({ cancel }) => {
-		if (loginForm.data.email) {
-			loginForm.data.email = loginForm.data.email.toLowerCase();
-		}
+async function handleLoginSubmit(event: Event) {
+	event.preventDefault();
+	if (loginForm.data.email) {
+		loginForm.data.email = loginForm.data.email.toLowerCase();
+	}
 
-		if (Object.keys(loginForm.errors).length > 0) {
-			cancel();
-			wiggle(loginFormElement);
-			return;
-		}
+	if (!loginForm.validate()) {
+		wiggle(loginFormElement);
+		return;
+	}
 
-		isSubmitting = true;
-		isAuthenticating = true;
-		globalLoadingStore.startLoading(loadingOperations.authentication);
-	},
+	isSubmitting = true;
+	isAuthenticating = true;
+	globalLoadingStore.startLoading(loadingOperations.authentication);
 
-	onResult: async ({ result, update }) => {
+	try {
+		const result = (await remoteSignIn({
+			email: loginForm.data.email,
+			password: loginForm.data.password,
+			isToken: loginForm.data.isToken
+		})) as any;
+
 		isSubmitting = false;
 
-		if (result.type === "redirect") {
-			// Keep authenticating state through the redirect phase.
-			// globalLoadingStore is stopped by the new page's lifecycle;
-			// we intentionally leave it running here so the spinner persists during
-			// navigation. If navigation fails (e.g. network error) the store will
-			// be cleaned up by the error boundary.
-			isAuthenticating = true;
-
-			sessionStorage.setItem(
-				"flashMessage",
-				JSON.stringify({
-					type: "success",
-					title: "Welcome Back!",
-					description: `<iconify-icon icon="mdi:party-popper" width="24" class="mr-2 inline-block text-white"></iconify-icon> Successfully signed in.`,
-					duration: 4000,
-				}),
-			);
-
-			window.location.href = (result.location as string) || "/";
-			return;
-		}
-
-		// FIX: Redirect to 2FA panel correctly — the sign-in form is now
-		// conditionally hidden when requires2FA is true (see template).
-		if (result.type === "failure" && result.data?.requires2FA) {
+		if (result.requires2FA) {
 			requires2FA = true;
-			twoFAUserId = result.data.userId || "";
+			twoFAUserId = result.userId || "";
 			isAuthenticating = false;
 			globalLoadingStore.stopLoading(loadingOperations.authentication);
 			toast.warning({
@@ -210,22 +191,34 @@ const loginSubmit = loginForm.enhance({
 			return;
 		}
 
-		isAuthenticating = false;
-		globalLoadingStore.stopLoading(loadingOperations.authentication);
-
-		if (result.type === "failure" || result.type === "error") {
-			const errorMessage =
-				result.type === "failure"
-					? result.data?.message || "Invalid email or password"
-					: result.error?.message || "An unexpected error occurred";
-
-			toast.error({ title: "Sign In Failed", description: errorMessage });
-			wiggle(loginFormElement);
+		if (result.success && result.redirectPath) {
+			isAuthenticating = true;
+			sessionStorage.setItem(
+				"flashMessage",
+				JSON.stringify({
+					type: "success",
+					title: "Welcome Back!",
+					description: `<iconify-icon icon="mdi:party-popper" width="24" class="mr-2 inline-block text-white"></iconify-icon> Successfully signed in.`,
+					duration: 4000,
+				})
+			);
+			window.location.href = result.redirectPath;
+			return;
 		}
 
-		await update();
-	},
-});
+		isAuthenticating = false;
+		globalLoadingStore.stopLoading(loadingOperations.authentication);
+		toast.error({ title: "Sign In Failed", description: result.message || "Invalid email or password" });
+		wiggle(loginFormElement);
+	} catch (error: any) {
+		isSubmitting = false;
+		isAuthenticating = false;
+		globalLoadingStore.stopLoading(loadingOperations.authentication);
+		const errorMessage = error?.message || "An unexpected error occurred";
+		toast.error({ title: "Sign In Failed", description: errorMessage });
+		wiggle(loginFormElement);
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Forgot password form
@@ -233,47 +226,29 @@ const loginSubmit = loginForm.enhance({
 
 const forgotForm = new Form({ email: "" }, forgotFormSchema);
 
-const forgotSubmit = forgotForm.enhance({
-	onSubmit: ({ cancel }) => {
-		if (forgotForm.data.email) {
-			forgotForm.data.email = forgotForm.data.email.toLowerCase();
-		}
-		if (Object.keys(forgotForm.errors).length > 0) {
-			cancel();
-			wiggle(forgotFormElement);
-			return;
-		}
-		isSubmitting = true;
-	},
+async function handleForgotSubmit(event: Event) {
+	event.preventDefault();
+	if (forgotForm.data.email) {
+		forgotForm.data.email = forgotForm.data.email.toLowerCase();
+	}
+	if (!forgotForm.validate()) {
+		wiggle(forgotFormElement);
+		return;
+	}
+	isSubmitting = true;
 
-	onResult: async ({ result, update }) => {
+	try {
+		await remoteForgotPW({ email: forgotForm.data.email });
 		isSubmitting = false;
-
-		// FIX: Server now returns the same generic message regardless of whether
-		// the user exists (anti-enumeration). We no longer branch on userExists —
-		// success always moves to the reset step; failure shows the error.
-		if (result.type === "success") {
-			P_WRESET = true;
-			toast.success({ description: signin_forgottontoast() });
-			await update();
-			return;
-		}
-
-		if (result.type === "failure") {
-			toast.error({
-				title: "Reset Failed",
-				description: result.data?.message || "Password reset failed",
-			});
-			wiggle(forgotFormElement);
-		}
-
-		if (result.type === "error") {
-			toast.error({ description: result.error?.message || "An unexpected error occurred" });
-		}
-
-		await update();
-	},
-});
+		P_WRESET = true;
+		toast.success({ description: signin_forgottontoast() });
+	} catch (error: any) {
+		isSubmitting = false;
+		const errorMessage = error?.message || "Password reset failed";
+		toast.error({ title: "Reset Failed", description: errorMessage });
+		wiggle(forgotFormElement);
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Reset password form
@@ -284,38 +259,40 @@ const resetForm = new Form(
 	resetFormSchema,
 );
 
-const resetSubmit = resetForm.enhance({
-	onSubmit: ({ cancel }) => {
-		if (Object.keys(resetForm.errors).length > 0) {
-			cancel();
-			return;
-		}
-		isSubmitting = true;
-	},
-
-	onResult: async ({ result, update }) => {
+async function handleResetSubmit(event: Event) {
+	event.preventDefault();
+	if (!resetForm.validate()) {
+		wiggle(resetFormElement);
+		return;
+	}
+	isSubmitting = true;
+	globalLoadingStore.startLoading(loadingOperations.authentication);
+	try {
+		const result = (await remoteResetPW({
+			password: resetForm.data.password,
+			token: resetForm.data.token,
+			email: resetForm.data.email
+		})) as any;
 		isSubmitting = false;
 		P_WRESET = false;
 		P_WFORGOT = false;
 
-		if (result.type === "success" || result.type === "redirect") {
-			toast.success({
-				title: "Password Reset Successful",
-				description: "You can now sign in with your new password",
-			});
-			if (result.type === "redirect" && result.location) {
-				goto(result.location);
-				return;
-			}
+		toast.success({
+			title: "Password Reset Successful",
+			description: "You can now sign in with your new password",
+		});
+		if (result.success && result.redirectPath) {
+			goto(result.redirectPath);
 		}
-
-		await update();
-
-		if (result.type === "failure") {
-			wiggle(resetFormElement);
-		}
-	},
-});
+	} catch (error: any) {
+		isSubmitting = false;
+		toast.error({
+			title: "Reset Failed",
+			description: error?.message || "Failed to reset password."
+		});
+		wiggle(resetFormElement);
+	}
+}
 
 // ---------------------------------------------------------------------------
 // 2FA — uses a hidden form with use:enhance for CSRF safety.
@@ -512,9 +489,7 @@ $effect(() => {
 					<div class:hidden={requires2FA}>
 						<form
 							id="signin-form"
-							method="POST"
-							action="?/signIn"
-							use:enhance={loginSubmit}
+							onsubmit={handleLoginSubmit}
 							bind:this={loginFormElement}
 							class="flex w-full flex-col gap-3"
 							class:hide={active !== 0}
@@ -709,9 +684,7 @@ $effect(() => {
 				<!-- --------------------------------------------------------- -->
 				{#if P_WFORGOT && !P_WRESET}
 					<form
-						method="POST"
-						action="?/forgotPW"
-						use:enhance={forgotSubmit}
+						onsubmit={handleForgotSubmit}
 						bind:this={forgotFormElement}
 						class="flex w-full flex-col gap-3"
 						class:hide={active !== 0}
@@ -766,9 +739,7 @@ $effect(() => {
 				<!-- --------------------------------------------------------- -->
 				{#if P_WFORGOT && P_WRESET}
 					<form
-						method="POST"
-						action="?/resetPW"
-						use:enhance={resetSubmit}
+						onsubmit={handleResetSubmit}
 						bind:this={resetFormElement}
 						class="flex w-full flex-col gap-3"
 						class:hide={active !== 0}

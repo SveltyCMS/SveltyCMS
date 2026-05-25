@@ -9,7 +9,7 @@ Features:
 - Media storage configuration
 - Language preferences
 - Performance & Mode toggles
-	
+
 -->
 <script lang="ts">
 	import Autocomplete from '@src/components/autocomplete.svelte';
@@ -495,7 +495,7 @@ Features:
 							</SystemTooltip>
 						</div>
 
-						<div class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border border-surface-200 dark:border-white/5 p-2 pr-16">
+						<div class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-surface-200 dark:border-white/5 p-2 pr-16">
 							{#each systemSettings.systemLanguages as lang (lang)}
 								<span
 									class="group badge preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white"
@@ -601,7 +601,7 @@ Features:
 						</div>
 
 						<div
-							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border p-2 pr-16 {displayErrors.contentLanguages
+							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border p-2 pr-16 {displayErrors.contentLanguages
 								? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 								: 'border-surface-200 dark:border-white/5 '}"
 						>
@@ -676,7 +676,7 @@ Features:
 				</div>
 			</div>
 		</section>
- 
+
 		<!-- System Infrastructure / Mode -->
 		<section id="infrastructure-section" class="mt-4 border-t border-surface-200 dark:border-white/10 pt-4">
 			<h4 class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-400 mb-4">

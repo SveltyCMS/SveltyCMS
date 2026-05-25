@@ -1,17 +1,18 @@
 ---
 path: "docs/api/index.mdx"
 title: "API Reference"
-description: "The complete technical surface of SveltyCMS — REST, GraphQL, and Real-Time Event Streams for standard and multi-tenant setups."
+description: "The complete technical surface of SveltyCMS — Remote Functions, REST, GraphQL, Real-Time Event Streams, and Local SDK for standard and multi-tenant setups."
 order: 1
 icon: "mdi:api"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-05-24"
+updated: "2026-05-25"
 tags:
   - "api"
   - "developer"
   - "rest"
   - "graphql"
+  - "remote-functions"
   - "reference"
 ---
 
@@ -23,14 +24,59 @@ SveltyCMS provides a comprehensive programmatic surface for building custom fron
 
 ## ⚡ Core Access Patterns
 
-Choose the access pattern that best fits your development environment.
+| Pattern                                      | Context                          | Latency     | Best For                            |
+| -------------------------------------------- | -------------------------------- | ----------- | ----------------------------------- |
+| [🎯 **Remote Functions**](#remote-functions) | **Client→Server** (`.server.ts`) | **Typed**   | Auth, Setup, User profile forms     |
+| [⚡ **Local SDK**](./local-vs-http-api.mdx)  | **Server-side** (`.server.ts`)   | **0–5ms**   | Native SvelteKit, high-throughput   |
+| [🌐 **REST API**](./collections.mdx)         | **External** (Mobile, Apps)      | 50–150ms    | Simple CRUD & Integrations          |
+| [📊 **GraphQL API**](./graphql.mdx)          | **Frontend** (React, Vue, SPA)   | 50–200ms    | Complex data fetching               |
+| [📖 **OpenAPI Spec**](./openapi-spec.mdx)    | **Documentation & SDKs**         | **Unified** | Fastest automated client generation |
 
-| Pattern                                     | Context                        | Latency     | Best For                             |
-| :------------------------------------------ | :----------------------------- | :---------- | :----------------------------------- |
-| [⚡ **Local SDK**](./local-vs-http-api.mdx) | **Server-side** (`.server.ts`) | **0–5ms**   | Native SvelteKit, high-throughput.   |
-| [🌐 **REST API**](./collections.mdx)        | **External** (Mobile, Apps)    | 50–150ms    | Simple CRUD & Integrations.          |
-| [📊 **GraphQL API**](./graphql.mdx)         | **Frontend** (React, Vue, SPA) | 50–200ms    | Complex data fetching.               |
-| [📖 **OpenAPI Spec**](./openapi-spec.mdx)   | **Documentation & SDKs**       | **Unified** | Fastest automated client generation. |
+---
+
+## 🎯 Remote Functions (2026 Architecture)
+
+SveltyCMS uses **SvelteKit Remote Functions** (`.server.ts` files) for type-safe client-to-server communication. These replace traditional form actions and manual `fetch()` calls with fully typed async functions that provide complete TypeScript inference between components and server logic.
+
+### File Structure
+
+```
+src/routes/
+├── login/
+│   ├── +page.server.ts     ← load, OAuth redirects, 2FA, resetSetup
+│   └── auth.server.ts      ← signIn, signUp, forgotPW, resetPW, prefetch (592 lines)
+├── setup/
+│   ├── +page.server.ts     ← load, installDriver (~200 lines)
+│   └── setup.server.ts     ← testDatabaseConnection, seedDatabase, completeSetup, testEmailConnection, testRedisConnection (665 lines)
+└── (app)/user/
+    ├── +page.server.ts     ← load
+    └── user.server.ts      ← uploadAvatar, updateUserProfile, createToken, exportUserData, anonymizeAccount
+```
+
+### Enterprise Gains (Measured)
+
+| Metric                   | Before (Form Actions)               | After (Remote Functions)                                      |
+| ------------------------ | ----------------------------------- | ------------------------------------------------------------- |
+| `login/+page.server.ts`  | 1,625 lines                         | **310 lines (-81%)**                                          |
+| `setup/+page.server.ts`  | 1,345 lines                         | ~200 lines (-85%)                                             |
+| Type safety              | `formData.get("email")?.toString()` | `signIn(email: string, password: string, event)`              |
+| Rate limiting            | Embedded in monolithic file         | Explicit `RateLimiter` per function — auditable               |
+| Timing-attack mitigation | Buried in 1,625-line file           | Explicit argon2 verify visible in `signIn`                    |
+| Audit logging            | Interleaved with form parsing       | Fire-and-forget at function boundaries                        |
+| Testability              | Requires full SvelteKit event mock  | Plain async functions with typed params                       |
+| Security audit surface   | 2,970 lines across 2 monoliths      | 510 lines (page servers) + 1,524 lines (organized .server.ts) |
+
+### Available Remote Functions
+
+| Module                      | Functions                                                                                                                                                                   | Security Preserved                                               |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `login/auth.server.ts`      | `signIn`, `signUp`, `forgotPW`, `resetPW`, `prefetchFirstCollection`                                                                                                        | Rate limiting, Argon2id, timing-attack mitigation, audit logging |
+| `setup/setup.server.ts`     | `testDatabaseConnection`, `seedDatabase`, `completeSetup`, `testEmailConnection`, `testRedisConnection`                                                                     | Valibot validation, setup gating, preset-based seeding           |
+| `(app)/user/user.server.ts` | `uploadAvatar`, `deleteAvatar`, `updateUserProfile`, `verifyPassword`, `batchUserAction`, `createToken`, `updateToken`, `deleteToken`, `exportUserData`, `anonymizeAccount` | CSRF tokens, RBAC                                                |
+
+### What Stays as Form Actions
+
+OAuth redirects (`signInOAuth`, `signInOAuthGithub`), 2FA verification (`verify2FA` — hidden form for CSRF), setup reset (`resetSetup` — disk I/O), and driver installation (`installDriver` — spawn-based) remain as traditional form actions because they involve browser redirects, hidden form patterns, or OS-level operations.
 
 ---
 
@@ -42,15 +88,12 @@ SveltyCMS uses a high-performance **Unified Gatekeeper** (`src/routes/api/[...pa
 
 - **Zero-Latency Dispatching**: Internal server-to-server calls bypass HTTP overhead via the `LocalCMS` bridge.
 - **Fail-Closed Security**: Every request must pass central authorization before being dispatched.
-- **1:1 Code Alignment**: API endpoints map directly to their respective backend handler files (e.g., `/api/auth/*` maps to `auth.ts`).
 - **ETag Conditional Requests**: All GET 200 responses include SHA-256 ETag headers. Clients sending `If-None-Match` receive `304 Not Modified` with zero body when content hasn't changed.
 - **API Versioning**: All responses include `X-API-Version: 1` header. `/api/v1/` path prefix automatically routes to the current API version.
 
 ---
 
 ## 📚 Complete API Reference (Handler Based)
-
-The API is organized around specialized backend handlers. Each document provides detailed reference for its endpoints and SDK equivalents.
 
 ### Content & Data
 
@@ -74,27 +117,20 @@ The API is organized around specialized backend handlers. Each document provides
 
 ## 📡 Response Strategy
 
-All REST endpoints follow a unified response shape to ensure consistent client-side handling.
+All REST endpoints follow a unified response shape:
 
-### Success Format (200 OK / 201 Created)
+### Success (200 / 201)
 
 ```json
-{
-  "success": true,
-  "data": { ... }
-}
+{ "success": true, "data": { ... } }
 ```
 
-### Error Format (4xx / 5xx)
+### Error (4xx / 5xx)
 
 ```json
-{
-  "success": false,
-  "error": "UNAUTHORIZED",
-  "message": "Invalid Bearer token provided."
-}
+{ "success": false, "error": "UNAUTHORIZED", "message": "Invalid Bearer token." }
 ```
 
 ---
 
-**Next Steps**: If you're building a custom frontend, we recommend starting with the [Collections Reference](./collections.mdx) for basic data fetching. For real-time updates, explore [Content & Search](./content.mdx).
+**Next Steps**: Start with the [Collections Reference](./collections.mdx) for data fetching. For real-time updates, see [Content & Search](./content.mdx). For type-safe client-server calls, use [Remote Functions](#remote-functions).

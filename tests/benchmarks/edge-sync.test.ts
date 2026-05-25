@@ -36,8 +36,7 @@ class SimulatedRedisBus {
   }
 
   subscribe(channel: string, callback: (msg: string) => void) {
-    if (!this.subscribers.has(channel))
-      this.subscribers.set(channel, new Set());
+    if (!this.subscribers.has(channel)) this.subscribers.set(channel, new Set());
     this.subscribers.get(channel)!.add(callback);
   }
 
@@ -46,8 +45,7 @@ class SimulatedRedisBus {
       nodeId,
       isOpen: true,
       publish: (chan: string, msg: string) => this.publish(chan, msg),
-      subscribe: (chan: string, cb: (msg: string) => void) =>
-        this.subscribe(chan, cb),
+      subscribe: (chan: string, cb: (msg: string) => void) => this.subscribe(chan, cb),
       get: (key: string) => this.storage.get(key) ?? null,
       set: (key: string, val: any) => this.storage.set(key, val),
       del: (keys: string | string[]) => {
@@ -113,9 +111,7 @@ async function runEdgeSyncAudit() {
     const bus = new SimulatedRedisBus();
     const nodeA = await createSimulatedNode(bus, "node-A");
     const remoteNodes = await Promise.all(
-      Array.from({ length: 6 }, (_, i) =>
-        createSimulatedNode(bus, `node-${i}`),
-      ),
+      Array.from({ length: 6 }, (_, i) => createSimulatedNode(bus, `node-${i}`)),
     );
 
     await stabilize(100);
@@ -138,14 +134,7 @@ async function runEdgeSyncAudit() {
         // 1. Warm remote caches (Concurrent)
         await Promise.all(
           remoteNodes.map((n) =>
-            n.set(
-              key,
-              { value: "cached" },
-              60,
-              TENANT,
-              CacheCategory.GENERAL,
-              TEST_TAGS,
-            ),
+            n.set(key, { value: "cached" }, 60, TENANT, CacheCategory.GENERAL, TEST_TAGS),
           ),
         );
 
@@ -159,9 +148,7 @@ async function runEdgeSyncAudit() {
             // If still exists, retry once with a tiny tick (Defensive)
             await new Promise((r) => setTimeout(r, 0));
             if (await n.get(key, TENANT)) {
-              throw new Error(
-                `Edge sync propagation failed for node ${(n as any).nodeId}`,
-              );
+              throw new Error(`Edge sync propagation failed for node ${(n as any).nodeId}`);
             }
           }
         }

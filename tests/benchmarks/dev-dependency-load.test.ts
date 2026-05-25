@@ -16,9 +16,9 @@ test("DX Toolchain Performance (Sync + Format + Lint)", async () => {
   spawnSync("bun", ["run", "check"], { shell: true });
   const syncDuration = performance.now() - syncStart;
 
-  // 2. Format check (oxfmt is extremely fast)
+  // 2. Format check (vp fmt is used)
   const fmtStart = performance.now();
-  spawnSync("bunx", ["oxfmt", "src", "--check"], { shell: true });
+  spawnSync("bunx", ["vp", "fmt", "--check"], { shell: true });
   const fmtDuration = performance.now() - fmtStart;
 
   // 3. Lint check (oxlint is extremely fast)

@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:server-network"
 author: "SveltyCMS Team"
 created: "2025-10-12"
-updated: "2026-05-24"
+updated: "2026-05-25"
 tags:
   - "architecture"
   - "hooks"
@@ -47,29 +47,30 @@ SveltyCMS implements a **Top-Level Security Guard** in `hooks.server.ts` that wr
 ## 🏗️ Middleware Pipeline (2026 Optimized)
 
 The pipeline is **dynamically dispatched** based on system state, with **two cached sequences**:
+
 - **READY pipeline** (17 hooks): Full production middleware chain
 - **SETUP pipeline** (4 hooks): Minimal bootstrap chain during installation
 
 ```typescript
 // READY Pipeline (production order):
 const pipeline = [
-  handleHyperTurbo,          //  1. ✨ BENCHMARK FAST-PATH (Bypasses all hooks for verified benchmarks)
-  handleTurboPipeline,       //  2. CONSOLIDATED GATEWAY (Classify, State, Setup, Health, CORS)
-  handleSecurityHeaders,     //  3. DEFENSE-IN-DEPTH (Essential Security Headers)
-  handleTestIsolation,       //  4. CI ISOLATION (Triple-lock: env + localhost + crypto secret)
-  handleStaticAssetCaching,  //  5. Dedicated Asset Cache Layer (1-year immutable)
-  handleSecurity,            //  6. Firewall, Rate Limit, GraphQL Shield, Load Shedding
-  handleSystemState,         //  7. AUTHORITATIVE GATEKEEPER (Boot, Setup, MAINTENANCE)
-  handleRedirects,           //  8. SEO Redirects (Materialized View + Negative Cache)
-  handleCompression,         //  9. ESM-Native Streaming (zlib + Web Streams fallback)
-  handleUserPreferences,     // 10. i18n + SSR Theme (skip transformPageChunk for non-dark)
-  handleAuthentication,      // 11. Identity, Sessions, API Tokens, Multi-Tenancy
-  handleAuthorization,       // 12. Role-Based Access Control (cached dynamic imports)
-  handleLocalSdk,            // 13. Zero-Latency CMS Bridge (LocalCMS injection)
+  handleHyperTurbo, //  1. ✨ BENCHMARK FAST-PATH (Bypasses all hooks for verified benchmarks)
+  handleTurboPipeline, //  2. CONSOLIDATED GATEWAY (Classify, State, Setup, Health, CORS)
+  handleSecurityHeaders, //  3. DEFENSE-IN-DEPTH (Essential Security Headers)
+  handleTestIsolation, //  4. CI ISOLATION (Triple-lock: env + localhost + crypto secret)
+  handleStaticAssetCaching, //  5. Dedicated Asset Cache Layer (1-year immutable)
+  handleSecurity, //  6. Firewall, Rate Limit, GraphQL Shield, Load Shedding
+  handleSystemState, //  7. AUTHORITATIVE GATEKEEPER (Boot, Setup, MAINTENANCE)
+  handleRedirects, //  8. SEO Redirects (Materialized View + Negative Cache)
+  handleCompression, //  9. ESM-Native Streaming (zlib + Web Streams fallback)
+  handleUserPreferences, // 10. i18n + SSR Theme (skip transformPageChunk for non-dark)
+  handleAuthentication, // 11. Identity, Sessions, API Tokens, Multi-Tenancy
+  handleAuthorization, // 12. Role-Based Access Control (cached dynamic imports)
+  handleLocalSdk, // 13. Zero-Latency CMS Bridge (LocalCMS injection)
   handleContentInitialization, // 14. Content Manager per Tenant + Fresh Install Redirects
-  handleAuditLogging,        // 15. Async Audit Trails (mutation-only)
-  handleApiRequests,         // 16. API Caching (ETags, 2-Layer Cache, SWR Pre-warming)
-  handleTokenResolution,     // 17. RBAC Token Replacement in API responses
+  handleAuditLogging, // 15. Async Audit Trails (mutation-only)
+  handleApiRequests, // 16. API Caching (ETags, 2-Layer Cache, SWR Pre-warming)
+  handleTokenResolution, // 17. RBAC Token Replacement in API responses
 ];
 ```
 
@@ -302,15 +303,26 @@ if (flags.isStatic) return resolve(event); // 0 redundant computes
 - **Cached dynamic imports**: `handleAuthorization` and `handleRedirects` now pre-cache their lazy imports, eliminating repeated `await import()` overhead in hot paths.
 - **Logger hot-path optimization**: `logger.debug` and `logger.info` calls removed from request-hot paths; remaining calls gated with `if (dev)` or `NODE_ENV !== "production"` to prevent argument-evaluation overhead.
 
-### Middleware Pipeline Overhead (µs)
+### Middleware Pipeline Overhead
 
-Measured overhead per request type (100k iteration average):
+**Classification Overhead** (one-shot flag computation, no downstream work):
 
-| Scenario                   | Avg Overhead | Optimization Strategy             |
-| :------------------------- | :----------- | :-------------------------------- |
-| **Static Asset Fast-Path** | **0.02 µs**  | Regex short-circuit (Early Exit)  |
-| **API Request Fast-Path**  | **0.05 µs**  | Locale/Theme/Auth validation skip |
-| **Dynamic Page Full-Path** | **0.06 µs**  | Optimized sequence (Runes-based)  |
+| Scenario                   | Overhead    | Optimization Strategy            |
+| :------------------------- | :---------- | :------------------------------- |
+| **Static Asset Fast-Path** | **0.02 µs** | Regex short-circuit (Early Exit) |
+| **API Request Fast-Path**  | **0.05 µs** | Single-pass flag cache           |
+| **Dynamic Page Full-Path** | **0.06 µs** | Optimized sequence (Runes-based) |
+
+**Full Pipeline End-to-End** (measured via `tests/benchmarks/hooks-performance.test.ts` on SQLite):
+
+| Scenario                          | Avg Latency | p95 Latency  | RPS   |
+| :-------------------------------- | :---------- | :----------- | :---- |
+| **Turbo Pipeline (Light)**        | 1.067 ms    | 2.111 ms     | 891   |
+| **Full Security + Auth Pipeline** | 0.950 ms    | 1.625 ms     | 1,044 |
+| **Mutation + Audit Logging**      | 0.831 ms    | 1.072 ms     | 1,098 |
+| **Combined Middleware p95**       | —           | **1.214 ms** | —     |
+
+> **Benchmark**: `bun test tests/benchmarks/hooks-performance.test.ts` — measures full HTTP round-trip through the middleware chain including Turbo, Security (firewall + rate limit), Auth, Authorization, and Audit logging. Raw DB adapter latency is ~0.089ms p95, so the total middleware tax is ~1.1ms.
 
 ### Competitive Comparison (2026)
 
@@ -326,23 +338,33 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 
 ### Optimization Impact
 
-- **API Request Savings**: Skipping non-essential logic for API paths saves approximately **80–150 µs** per request compared to standard middleware patterns.
-- **Throughput Increase**: This positions SveltyCMS to handle significantly higher request volumes on "hot" paths without increasing CPU utilization.
+- **Classification Efficiency**: One-shot flag computation saves ~5-15 regex/prefix evaluations per request across 15+ downstream hooks.
+- **Full Pipeline Throughput**: The production middleware chain sustains **1,044 RPS** (Full Auth+Security) and **1,098 RPS** (Mutation+Audit) on SQLite, per the [Hooks Performance Benchmark](../project/benchmarks/benchmark_sqlite.mdx#hooks).
+- **Middleware Tax**: Total middleware overhead is ~1.1ms on top of raw DB adapter latency (~0.089ms p95), well within the <2ms enterprise target.
 
 ---
 
 ### ✨ handleTurboPipeline - Consolidated Gateway
 
 **File**: `src/hooks/handle-turbo-pipeline.server.ts`
-**Purpose**: Consolidates essential, performance-critical gateway logic.
+**Purpose**: First-line consolidated gateway handling classification, state gating, health checks, and CORS in a single pass for minimal overhead.
+
+**Pipeline Order** (within the hook itself):
+
+1. **One-Shot Request Classifier** — Computes `isStatic`/`isApi`/`isBootstrap`/`isPublic` once, stored in `locals.__flags` for all downstream hooks.
+2. **Terminal Test Bypass** — Cryptographic `x-test-secret` verification; resolves real user from session for test isolation.
+3. **Terminal Health Check Bypass** — `/health` and `/api/system/health` return instantly with DB + memory diagnostics.
+4. **Static Asset Delegation** — Regex short-circuit for `/_app/`, `/static/`, `/files/` paths.
+5. **System State Gate** — Blocks when `INITIALIZING` (waits for CORE boot) or `FAILED` (returns 503).
+6. **Setup Completeness Gate** — Redirects to `/setup` if config missing; blocks `/setup` if already complete.
+7. **Bootstrap Route Bypass** — `/setup` and `/login` skip remaining middleware during installation.
+8. **CORS Preflight Fast-Exit** — Handles `OPTIONS` with pre-compiled CORS headers.
 
 **Key Features**:
 
-- **System State Gate**: Enforces `503 Service Unavailable` when the system is in `INITIALIZING` or `FAILED`.
-- **Setup Completeness Gate**: Redirects to `/setup` if the configuration is missing (`config/private.ts`).
-- **CORS Preflight Fast-Exit**: Handles `OPTIONS` requests early with pre-compiled CORS headers.
-- **Request Tracing**: Injects a unique `X-Request-ID` into `event.locals` and all early-exit responses for enterprise observability.
-- **Test Isolation Bypass**: Uses `crypto.timingSafeEqual` for cryptographic bypass in CI, preventing timing side-channel attacks.
+- **Zero-Latency Health Checks**: Cached DB adapter reference avoids import overhead on every health poll.
+- **Request Tracing**: Injects a unique `X-Request-ID` into `event.locals` and all early-exit responses.
+- **Localized Setup Support**: Handles `/en-US/setup` and other i18n-prefixed bootstrap routes.
 
 ---
 
@@ -359,42 +381,46 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 
 ---
 
-### 2. handleSecurity - Unified Threat Protection
+### 2. handleSecurity - Unified Threat Protection (Firewall + Rate Limiting + GraphQL Shield)
 
 **File**: `src/hooks/handle-security.ts`
-**Purpose**: High-performance, consolidated security layer combining firewall, rate limiting, and payload analysis.
+**Purpose**: High-performance, consolidated security layer combining firewall, distributed rate limiting, payload analysis, GraphQL complexity shielding, and load shedding.
 
 **Core Responsibilities**:
 
-- **AI Crawler Honeypot (Tarpit)**: Detects and traps automated reconnaissance bots hitting common shadow routes (e.g., `/wp-admin`, `/.env`). These bots are redirected to a high-latency "tarpit" while their IP is automatically flagged for a manual block.
-- **Payload Inspection**: ReDoS-safe scanning of JSON, Forms, and URLs for SQLi/XSS/Command Injection.
-- **Persistent State**: Maintains tamper-evident incidents and IP blocks across server restarts via `securityStore`.
+- **Rate Limiting (Global)**: All requests pass through `securityResponseService.analyzeRequest()` which performs IP-based, IP+UA, and cookie-based rate limiting with Redis-backed distributed state. Returns `action: "block"` (403) or `action: "challenge"` (429 with `Retry-After` header) when limits are exceeded.
+- **Firewall & Payload Inspection**: ReDoS-safe scanning of JSON, Forms, and URLs for SQLi/XSS/Command Injection. Large bodies (>10MB) rejected before memory allocation.
+- **AST-Level GraphQL Complexity Shield**: 2-phase analysis — ultra-fast string pre-filter (<0.01ms) catches obvious recursion bombs; full AST parser calculates `depth × fieldCost × listMultiplier` to block queries exceeding `MAX_COMPLEXITY` (1000). This prevents attacks like `users(first: 99999) { posts(first: 99999) { ... } }`.
+- **Load Shedding (Memory Pressure)**: When heap usage exceeds 98%, mutation requests (POST/PUT/PATCH/DELETE) are rejected with 503 + `Retry-After: 30` to protect read availability. System-critical routes (`/api/system`, `/setup`) are exempt.
+- **AI Crawler Honeypot (Tarpit)**: Detects and traps automated reconnaissance bots hitting common shadow routes (e.g., `/wp-admin`, `/.env`). Returns misleading 200 OK while flagging the IP for automatic blocking.
 
-**Performance Optimization**:
+**Test Mode Bypass**: Only `TEST_MODE=true` with a valid `x-test-secret` header on localhost bypasses security. The `x-test-security: true` header forces full checks even in bypass-capable environments. In production, the full security pipeline always runs.
 
-- **Early Exit**: Large bodies (>10MB) are rejected before memory allocation.
-- **Value-Only Scanning**: Only user-submitted values are scanned, not structure keys, reducing CPU overhead.
-- **Distributed State**: Real-time synchronization across clusters using `ioredis`.
+**Rate Limiting Implementation**:
+
+Rate limiting is handled at two levels for defense-in-depth:
+
+1. **Global** (in `handle-security.ts`): `securityResponseService.analyzeRequest()` applies IP/IPUA/cookie rate limits to all requests via the centralized security pipeline.
+2. **Per-endpoint** (e.g., auth actions in `login/+page.server.ts`): Critical endpoints apply additional `RateLimiter` instances from `sveltekit-rate-limiter` for targeted protection.
 
 ```typescript
 export const handleSecurity: Handle = async ({ event, resolve }) => {
-  const status = await securityResponseService.analyzeRequest(
-    event.request,
-    event.getClientAddress(),
-  );
+  // ... test mode bypass, memory load shedding, GraphQL complexity check ...
 
-  if (status.action === "block" || status.action === "challenge") {
-    return new Response(status.reason, {
-      status: status.action === "block" ? 403 : 429,
-      headers: status.retryAfter ? { "Retry-After": status.retryAfter.toString() } : {},
-    });
+  // 1. Analyze request for threats (Firewall + Payload Scan + Rate Limiting)
+  const securityStatus = await securityResponseService.analyzeRequest(request, clientIp, tenantId);
+
+  if (securityStatus.action !== "allow") {
+    const statusCode = securityStatus.action === "block" ? 403 : 429;
+    // Returns structured error with Retry-After for 429 responses
+    throw error(statusCode, securityStatus.reason || "Forbidden");
   }
 
   return resolve(event);
 };
 ```
 
-**Performance**: ~1-2ms overhead per request, early exit for legitimate traffic
+**Performance**: Full pipeline p95 is **1.214ms** (measured via `tests/benchmarks/hooks-performance.test.ts`). Early exit for legitimate traffic skips payload scanning; GraphQL complexity pre-filter catches attacks in <0.01ms. See [SQLite Benchmark Ledger](../project/benchmarks/benchmark_sqlite.mdx#hooks) for historical trends.
 
 **Legitimate Bots Allowed**:
 
@@ -404,51 +430,26 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 3. handleSetup - Installation Gateway
+### 3. Setup Completeness Gating (TurboPipeline + SystemState)
 
-**File**: `src/hooks/handleSetup.ts`
-**Purpose**: Ensures CMS installation is complete
+**Files**: `src/hooks/handle-turbo-pipeline.server.ts` + `src/hooks/handle-system-state.ts`
+**Purpose**: Ensures CMS installation is complete before serving application routes. There is no standalone `handleSetup.ts` — setup gating is split across two hooks for defense-in-depth.
 
-**Flow**: `Config Missing → Setup → Configured → Normal Operation`
+**Flow**: `Config Missing → /setup redirect → Wizard Complete → Normal Operation`
 
-```typescript
-export const handleSetup: Handle = async ({ event, resolve }) => {
-  const { pathname } = event.url;
+**Two-Layer Gating**:
 
-  // Quick config check (cached per request)
-  if (event.locals.__setupConfigExists === undefined) {
-    event.locals.__setupConfigExists = isSetupComplete();
-  }
+1. **TurboPipeline (Early)** — Checks `isSetupComplete()` at the gateway level. If `config/private.ts` is missing, redirects all non-setup routes to `/setup` with a 302. If setup IS complete, blocks `/setup` page requests by redirecting to `/login`.
 
-  const configExists = event.locals.__setupConfigExists;
-
-  // Config missing - redirect to setup
-  if (!configExists) {
-    const allowedDuringSetup = pathname.startsWith("/setup") || ASSET_REGEX.test(pathname);
-
-    if (allowedDuringSetup) {
-      return resolve(event, createSetupResolver());
-    }
-
-    throw redirect(302, "/setup");
-  }
-
-  // Config exists - block access to setup routes
-  if (pathname.startsWith("/setup")) {
-    throw redirect(302, "/login");
-  }
-
-  return resolve(event);
-};
-```
+2. **SystemState (Later)** — Acts as the authoritative gatekeeper. Verifies system state transitions (IDLE → SETUP → READY). Blocks `/api/setup` with 403 after setup completes. Handles the `INITIALIZING` wait with a 60s timeout.
 
 **Key Features**:
 
 - **Config Validation**: Checks both existence and content of `config/private.ts`
-- **Smart Redirects**: Empty config values treated as "not configured"
+- **Zero-Restart Switching**: Dynamic setup state tracked via `__SVELTY_SETUP_COMPLETE__` global flag
 - **Asset Allowance**: Static assets allowed during setup for UI rendering
-- **Special Response Filter**: Allows setup API to set cookies before redirect
-- **One-Time Setup**: Blocks setup routes after completion
+- **Localized Setup Support**: Handles `/en-US/setup` and other i18n-prefixed bootstrap routes
+- **Test Mode Exemption**: `TEST_MODE=true` bypasses the "setup complete" block for integration tests
 
 ---
 
@@ -516,95 +517,47 @@ Blocking `/` during initialization would prevent these essential flows from work
 
 ---
 
-### 4. handleLocale - Language Management
+### 4. handleUserPreferences - i18n & SSR Theme (Consolidated)
 
-**File**: `src/hooks/handleLocale.ts`
-**Purpose**: Synchronizes language preferences from cookies to stores
+**File**: `src/hooks/handle-user-preferences.ts`
+**Purpose**: Synchronizes language and theme preferences from cookies to stores, and applies SSR theme class to prevent FOUC.
 
-```typescript
-export const handleLocale: Handle = async ({ event, resolve }) => {
-  const { cookies } = event;
-
-  // Safety check: Ensure stores are available
-  if (!systemLanguage || !contentLanguage) {
-    logger.warn("Language stores not available on server, skipping handleLocale");
-    return resolve(event);
-  }
-
-  // Sync system language from cookie
-  const systemLangCookie = cookies.get("systemLanguage");
-  const systemLangSet = safelySetLanguage("systemLanguage", systemLangCookie, (value) =>
-    systemLanguage.set(value),
-  );
-
-  // Clean up invalid cookies
-  if (systemLangCookie && !systemLangSet) {
-    cookies.delete("systemLanguage", { path: "/" });
-  }
-
-  // Sync content language from cookie
-  const contentLangCookie = cookies.get("contentLanguage");
-  const contentLangSet = safelySetLanguage("contentLanguage", contentLangCookie, (value) =>
-    contentLanguage.set(value),
-  );
-
-  // Clean up invalid cookies
-  if (contentLangCookie && !contentLangSet) {
-    cookies.delete("contentLanguage", { path: "/" });
-  }
-
-  return resolve(event);
-};
-```
+**Why consolidated**: Previously two separate hooks (`handleLocale` and `handleTheme`) — merged into one to reduce Promise chain overhead in the middleware pipeline.
 
 **Key Features**:
 
-- Dual language support (system UI + content)
-- Cookie validation against supported locales
-- Store synchronization for SSR consistency
-- Automatic cleanup of invalid cookies
-
----
-
-### 5. handleTheme - SSR Theme Management
-
-**File**: `src/hooks/handleTheme.ts`
-**Purpose**: Prevents theme flickering with server-side injection
+- **Dual Language Support**: Syncs `systemLanguage` (UI) and `contentLanguage` (content) cookies to Paraglide stores.
+- **Cookie Validation**: Validates against supported locales; auto-deletes invalid cookies.
+- **SSR Theme Injection**: Injects `class="dark"` into `<html>` tag via `transformPageChunk` only when needed, preventing Flash Of Unstyled Content (FOUC).
+- **ThemeManager Integration**: Loads custom CSS from DB-based ThemeManager for white-label tenants.
+- **Fast-Path for API/Static**: Skips entirely for API routes and static assets using pre-computed flags.
 
 ```typescript
-export const handleTheme: Handle = async ({ event, resolve }) => {
-  // Read single 'theme' cookie as source of truth
-  const theme = event.cookies.get("theme") as "dark" | "light" | undefined;
-  const isDarkMode = theme === "dark";
+export const handleUserPreferences: Handle = async ({ event, resolve }) => {
+  // Skip for API/static routes via pre-computed flags
+  const flags = getRequestFlags(locals);
+  if (flags.isApi || flags.isStatic) return resolve(event);
 
-  // Set locals for use in load functions
-  event.locals.darkMode = isDarkMode;
-  event.locals.theme = null; // Theme entity from DB (not a simple string)
+  // 1. Sync language cookies to stores
+  const systemLangCookie = cookies.get("systemLanguage");
+  if (isValidLocale(systemLangCookie)) app.systemLanguage = systemLangCookie;
 
-  // Transform HTML to inject dark class before browser sees it
+  // 2. Load theme from DB (custom CSS for white-label)
+  const themeManager = ThemeManager.getInstance();
+  event.locals.customCss = (await themeManager.getTheme(tenantId)?.customCss) || "";
+
+  // 3. Inject dark class only when needed (skip transformPageChunk otherwise)
+  if (themePreference !== "dark") return resolve(event);
   return resolve(event, {
-    transformPageChunk: ({ html }) => {
-      const htmlTag = '<html lang="en" dir="ltr">';
-      if (isDarkMode) {
-        return html.replace(htmlTag, '<html lang="en" dir="ltr" class="dark">');
-      }
-      return html;
-    },
+    transformPageChunk: ({ html }) =>
+      html.replace('<html lang="en" dir="ltr">', '<html lang="en" dir="ltr" class="dark">'),
   });
 };
 ```
 
-**Key Features**:
-
-- Zero-flash theme application (applied before HTML reaches browser)
-- SSR optimization for immediate correct theme
-- `locals.darkMode` boolean for theme state
-- `locals.theme` reserved for DB Theme entities
-- Cookie as single source of truth
-
 ---
 
-### 6. Authentication & Multi-Tenancy (`handleAuthentication`)
+### 5. Authentication & Multi-Tenancy (`handleAuthentication`)
 
 **File**: `src/hooks/handleAuthentication.ts`
 **Purpose**: Manages user identity, session security, and tenant isolation.
@@ -657,7 +610,7 @@ if (multiTenant) {
 
 ---
 
-### 7. handleAuthorization - Role-Based Access Control
+### 6. handleAuthorization - Role-Based Access Control
 
 **File**: `src/hooks/handleAuthorization.ts`
 **Purpose**: Enforces granular permissions and protects routes based on user roles.
@@ -717,39 +670,16 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 8. handleApiRequests - Modular Dispatcher & Caching
+### 7. handleApiRequests - API Authorization & Caching
 
 **File**: `src/hooks/handle-api-requests.ts`
-**Purpose**: Advanced API orchestration layer providing unified error handling, high-performance caching (ETags), and domain routing.
+**Purpose**: Authorizes API requests and caches GET responses with ETag-based conditional revalidation.
 
-**Core Responsibilities**:
-
-- **Modular Delegation**: Routes non-cachable API traffic to specialized handlers (`auth.ts`, `collections.ts`, `media.ts`, etc.) for better maintainability.
-- **ETag / 304 Support**: Automatically computes content hashes for `GET` requests. Returns `304 Not Modified` if the client holds a current version, saving significant bandwidth.
-- **Non-Blocking Cache Invalidation**: Asynchronous cache purging on mutation (`POST`, `PATCH`, `DELETE`) to ensure zero-latency writes.
-- **Unified Error Normalization**: Wraps all downstream handler errors into consistent JSON envelopes using the `handleApiError` utility.
-
-**Caching Strategy**:
-
-| Request Type | Strategy                     | Cache Duration |
-| :----------- | :--------------------------- | :------------- |
-| `GET` (List) | Tenant-isolated Memory Cache | 60s (Default)  |
-| `GET` (Item) | Strong ETag Validation       | Browser-side   |
-| Mutations    | Instant Cache Purge          | N/A            |
+> See [Standard Middleware: handleApiRequests](#handleapirequests---api-authorization-caching--etags) below for full implementation details including ETag generation, `apiData` fast path, SWR pre-warming, and X-Cache header values.
 
 ---
 
-- **RBAC Enforcement**: Validates `apiEndpoint` permissions against `locals.user.role`.
-- **Intelligent Caching**: Implements per-user, per-tenant caching for GET requests (except GraphQL).
-- **Auto-Invalidation**: Automatically clears relevant cache patterns on `POST`, `PUT`, `DELETE`, or `PATCH` mutations.
-- **Streaming Safe**: Uses `response.clone()` for background cache population without delaying the client.
-- **Cache Bypass**: Supports `?refresh=true` or `?nocache=true` via query parameters.
-
----
-
----
-
-### 9. handleLocalSdk - Zero-Latency CMS Bridge
+### 8. handleLocalSdk - Zero-Latency CMS Bridge
 
 **File**: `src/hooks/handle-local-sdk.ts`
 **Service**: `@src/services/local-cms`
@@ -778,7 +708,7 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 10. handleTokenResolution - RBAC Token Replacement
+### 9. handleTokenResolution - RBAC Token Replacement
 
 **File**: `src/hooks/handle-token-resolution.ts`
 **Purpose**: Processes JSON API responses to replace secure placeholders with actual data based on user permissions.
@@ -815,138 +745,52 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
 
 ---
 
-## Optional Middleware
+## Standard Middleware (Always Active)
 
-### handleRateLimit - DDoS Protection
+### handleApiRequests - API Authorization, Caching & ETags
 
-**File**: `src/hooks/handleRateLimit.ts`
-**Use Case**: Add to pipeline when rate limiting is needed
+**File**: `src/hooks/handle-api-requests.ts`
+**Purpose**: Authorizes API requests and intelligently caches GET responses with ETag-based conditional revalidation.
+
+**Core Responsibilities**:
+
+- **Role-Based Authorization**: Validates the user's role against the requested API endpoint via `hasApiPermission()`.
+- **ETag-Based Conditional Caching**: Generates SHA1 ETags from response bodies. Returns `304 Not Modified` when `if-none-match` matches.
+- **2-Layer Cache (L1 + L2)**: Memory-hot cache hits return instantly; misses are background-populated.
+- **SWR (Stale-While-Revalidate) Pre-warming**: After mutations, asynchronously fetches the updated resource to pre-warm the cache.
+- **`apiData` Fast Path**: If the handler stores response data in `locals.apiData`, skips `response.clone()` entirely (<10µs vs ~200µs).
+- **Automatic Invalidation**: Clears user-scoped cache entries on `POST`/`PUT`/`DELETE`/`PATCH`.
+
+**X-Cache Header Values**:
+
+| Value     | Meaning                             |
+| --------- | ----------------------------------- |
+| `HIT`     | Served from cache (L1 or L2)        |
+| `MISS`    | Cache miss, populated in background |
+| `NOCACHE` | `?nocache=true` bypassed cache      |
+| `REFRESH` | `?refresh=true` forced revalidation |
+| `BYPASS`  | GraphQL endpoint (never cached)     |
+
+**ETag Implementation**:
 
 ```typescript
-// Distributed store for clustered environments
-const distributedStore = {
-  async get(key: string): Promise<number | undefined> {
-    const data = await cacheService.get<{ count: number; expires: number }>(`ratelimit:${key}`);
-    return data && data.expires > Date.now() ? data.count : undefined;
-  },
-  async increment(key: string, ttlSeconds: number): Promise<number> {
-    const existing = await this.get(key);
-    const newCount = (existing || 0) + 1;
-    await cacheService.set(
-      `ratelimit:${key}`,
-      { count: newCount, expires: Date.now() + ttlSeconds * 1000 },
-      ttlSeconds,
-    );
-    return newCount;
-  },
-};
+// SHA1 ETag (hardware-accelerated on modern CPUs)
+etag = `"${crypto.createHash("sha1").update(responseBody).digest("hex").substring(0, 16)}"`;
 
-const generalLimiter = new RateLimiter({
-  IP: [500, "m"],
-  IPUA: [500, "m"],
-  cookie: { name: "ratelimit", secret: JWT_SECRET, rate: [500, "m"] },
-  store: cacheService ? distributedStore : undefined, // Redis support
-});
-
-export const handleRateLimit: Handle = async ({ event, resolve }) => {
-  if (building || (dev && isLocalhost(getClientIp(event)))) {
-    return resolve(event);
-  }
-
-  if (isStaticAsset(url.pathname)) {
-    return resolve(event);
-  }
-
-  const limiter = url.pathname.startsWith("/api/") ? apiLimiter : generalLimiter;
-
-  if (await limiter.isLimited(event)) {
-    metricsService.incrementRateLimitViolations();
-    throw error(429, "Too Many Requests");
-  }
-
-  return resolve(event);
-};
+// Conditional request: return 304 if unchanged
+if (request.headers.get("if-none-match") === etag) {
+  return new Response(null, { status: 304, headers: { etag } });
+}
 ```
 
 **Key Features**:
 
-- Redis-backed distributed rate limiting for clustered deployments
-- Automatic fallback to in-memory for single instance
-- Static asset exemption (skips rate limiting for CDN content)
-- Separate limits for API vs general routes
+- **`apiData` Fast Path**: Avoids `response.clone()` overhead when handlers pre-store data
+- **SWR Pre-warming**: Background cache refresh after mutations (disabled in `BENCHMARK_MODE`)
+- **GraphQL Bypass**: GraphQL responses are never cached (dynamic queries)
+- **Tenant-Scoped Keys**: Cache keys include `tenantId` for multi-tenant isolation
 
 ---
-
-### handleApiRequests - API Caching & Permissions (Optional)
-
-**File**: `src/hooks/handleApiRequests.ts`
-**Features**: Streaming optimization with non-blocking cache population
-
-````typescript
-export const handleApiRequests: Handle = async ({ event, resolve }) => {
-	if (!url.pathname.startsWith('/api/') || !locals.user) {
-		return resolve(event);
-	}
-
-	const apiEndpoint = getApiEndpoint(url.pathname);
-
-	// Authorization check
-	if (!hasApiPermission(locals.user.role, apiEndpoint)) {
-		throw error(403, 'Forbidden');
-	}
-
-	// GET requests with caching
-	if (request.method === 'GET') {
-		const cached = await cacheService.get(cacheKey, locals.tenantId);
-		if (cached) {
-			metricsService.recordApiCacheHit();
-			return new Response(JSON.stringify(cached.data), {
-				status: 200,
-				headers: { ...cached.headers, 'X-Cache': 'HIT' }
-			});
-		}
-
-		const response = await resolve(event);
-
-		// GraphQL bypass
-		if (apiEndpoint === 'graphql') {
-			response.headers.set('X-Cache', 'BYPASS');
-			return response;
-		}
-
-		// Streaming optimization: clone for background caching
-		if (response.ok) {
-			const responseClone = response.clone();
-			response.headers.set('X-Cache', 'MISS');
-
-			// Cache in background without blocking response
-			(async () => {
-				try {
-					const responseBody = await responseClone.text();
-					const responseData = JSON.parse(responseBody);
-					await cacheService.set(cacheKey, { data: responseData, headers: {...} }, TTL, tenantId);
-				} catch (err) {
-					logger.error(`Error caching: ${err}`);
-				}
-			})();
-
-			return response;
-		}
-	}
-
-	// Mutations: invalidate cache
-	const response = await resolve(event);
-	if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method) && response.ok) {
-		await cacheService.clearByPattern(`api:${locals.user._id}:/api/${apiEndpoint}*`, locals.tenantId);
-	}
-
-	return response;
-};
-
-**Key Features**:
--   **Streaming Optimization**: Uses `response.clone()` for background cache population.
--   **GraphQL Bypass**: Efficiently handles complex queries without redundant caching.
--   **Automatic Invalidation**: Clears cache on data mutations (`POST`, `PUT`, `DELETE`).
 
 ---
 
@@ -1114,13 +958,13 @@ Simpler hooks with straightforward logic are tested through integration and API 
 | -------------------------- | -------------------------------- | ---------- | ----------------------------------------------------- |
 | `handleAuthentication`     | User API tests                   | 47         | Session validation tested via authenticated API calls |
 | `handleAuthorization`      | Collections API tests            | 19         | RBAC tested via role-specific endpoints               |
-| `handleRateLimit`          | Setup API & stress tests         | 20+        | Rate limiting validated under load                    |
-| `handleSetup`              | Setup API tests                  | 20         | Installation flow tested end-to-end                   |
-| `handleLocale`             | UI rendering & i18n tests        | 5+         | Language sync tested in component tests               |
-| `handleTheme`              | UI rendering tests               | 5+         | Theme injection tested in SSR tests                   |
+| `handleSecurity`           | Firewall + security unit tests   | 27+        | Rate limiting, payload scanning, GraphQL shield       |
+| `handleSystemState`        | System state unit tests          | 26         | Full state machine (IDLE to READY to FAILED)          |
+| `handleUserPreferences`    | UI rendering & i18n tests        | 5+         | Language + theme sync tested in SSR tests             |
 | `handleStaticAssetCaching` | Static asset integration tests   | Implicit   | Simple regex matching, validated via asset requests   |
-| `addSecurityHeaders`       | Security & CSP integration tests | 8          | Header validation in security service tests           |
+| `handleSecurityHeaders`    | Security & CSP integration tests | 8          | Header validation in security service tests           |
 | `handleApiRequests`        | All API endpoint tests           | 80+        | API authorization/caching tested across APIs          |
+| `handleTurboPipeline`      | Hooks performance benchmark      | 1          | Full pipeline latency measured in benchmark           |
 
 ### Testing Philosophy
 
@@ -1163,12 +1007,12 @@ export const getHealthMetrics = () => metricsService.getReport();
 
 // Session management
 export {
-	invalidateSessionCache,
-	clearAllSessionCaches,
-	clearSessionRefreshAttempt,
-	forceSessionRotation,
-	getSessionCacheStats
-} from './hooks/handleAuthentication';
+  invalidateSessionCache,
+  clearAllSessionCaches,
+  clearSessionRefreshAttempt,
+  forceSessionRotation,
+  getSessionCacheStats,
+} from "./hooks/handleAuthentication";
 ```
 
 ---
@@ -1189,4 +1033,7 @@ The middleware architecture provides:
 - [Cache System](./cache-system.mdx) - CacheService implementation details
 - [Security Plugin](./security-plugin.mdx) - SecurityResponseService integration
 - [Initialization Workflow](./initialization-workflow.mdx) - System startup sequence
-````
+
+```
+
+```

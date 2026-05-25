@@ -17,11 +17,28 @@
  */
 
 import { initPublicEnv } from "@src/stores/global-settings.svelte";
-import { dbConfigSchema, setupAdminSchema, systemSettingsSchema } from "@utils/schemas";
+import {
+  dbConfigSchema,
+  setupAdminSchema,
+  systemSettingsSchema,
+} from "@utils/schemas";
 import { logger } from "@utils/logger";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { safeParse } from "valibot";
-import { deserialize } from "$app/forms";
+import {
+  testDatabaseConnection as testDbRemote,
+  seedDatabase as seedDbRemote,
+  completeSetup as completeSetupRemote,
+  testRedisConnection as testRedisRemote,
+} from "../routes/setup/setup.remote";
+
+// Compatibility: wrap for the store's object-style call pattern
+const _testDb = (p: any) =>
+  testDbRemote(p.configData, p.createIfMissing, p.allowOverwrite);
+const _seedDb = (p: any) => seedDbRemote(p.configData, p.systemData);
+const _completeSetup = (p: any) =>
+  completeSetupRemote(p.database, p.admin, p.system);
+const _testRedis = (p: any) => testRedisRemote(p.host, p.port, p.password);
 
 // --- Types ---
 export type SupportedDbType =
@@ -382,16 +399,22 @@ function createSetupStore() {
     length: wizard.adminUser.password.length >= 8,
     letter: /[a-zA-Z]/.test(wizard.adminUser.password),
     number: /[0-9]/.test(wizard.adminUser.password),
-    special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]/.test(wizard.adminUser.password),
+    special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]/.test(
+      wizard.adminUser.password,
+    ),
     match:
       wizard.adminUser.password === wizard.adminUser.confirmPassword &&
       wizard.adminUser.password !== "",
   }));
 
   // DB config fingerprint for change detection
-  const dbConfigFingerprint = $derived.by<string>(() => JSON.stringify(wizard.dbConfig));
+  const dbConfigFingerprint = $derived.by<string>(() =>
+    JSON.stringify(wizard.dbConfig),
+  );
   const dbConfigChangedSinceTest = $derived.by<boolean>(
-    () => wizard.lastTestFingerprint !== null && wizard.lastTestFingerprint !== dbConfigFingerprint,
+    () =>
+      wizard.lastTestFingerprint !== null &&
+      wizard.lastTestFingerprint !== dbConfigFingerprint,
   );
 
   // --- API METHODS (Remote Functions / Server Functions) ---
@@ -408,7 +431,8 @@ function createSetupStore() {
   ): Promise<boolean> {
     // Validate before testing
     if (!validateStep(0, true)) {
-      wizard.errorMessage = "Please fill in all required fields before testing.";
+      wizard.errorMessage =
+        "Please fill in all required fields before testing.";
       wizard.lastDbTestResult = {
         success: false,
         error: "Client-side validation failed.",
@@ -423,69 +447,51 @@ function createSetupStore() {
     wizard.lastDbTestResult = null;
 
     try {
-      // Call the SvelteKit Action
-      const formData = new FormData();
-      formData.append("config", JSON.stringify(wizard.dbConfig));
-      if (createIfMissing) {
-        formData.append("createIfMissing", "true");
-      }
-      if (allowOverwrite) {
-        formData.append("allowOverwrite", "true");
-      }
-
-      // Use fetch to call the named action
-      const response = await fetch("?/testDatabase", {
-        method: "POST",
-        body: formData,
+      const data = await _testDb({
+        configData: wizard.dbConfig,
+        createIfMissing,
+        allowOverwrite,
       });
+      wizard.lastDbTestResult = data;
 
-      const result = deserialize(await response.text());
-      logger.info("🔍 DB Test Action Result:", result);
+      if (data?.success) {
+        wizard.successMessage =
+          (data as any).message || "Connection successful!";
+        wizard.dbTestPassed = true;
+        wizard.lastTestFingerprint = dbConfigFingerprint;
+        wizard.errorMessage = "";
+        wizard.showDbDetails = false;
+        wizard.validationErrors = {};
 
-      // Handle both success and failure results from the action
-      if (result.type === "success" || result.type === "failure") {
-        const data = result.data as any;
-        wizard.lastDbTestResult = data;
+        // ✨ TRIGGER BACKGROUND SEEDING & CONFIG WRITING
+        // This allows the user to continue to Step 1 while the database initializes
+        seedDatabase();
 
-        if (data?.success) {
-          wizard.successMessage = data.message || "Connection successful!";
-          wizard.dbTestPassed = true;
-          wizard.lastTestFingerprint = dbConfigFingerprint;
-          wizard.errorMessage = "";
-          wizard.showDbDetails = false;
-          wizard.validationErrors = {};
-
-          // ✨ TRIGGER BACKGROUND SEEDING & CONFIG WRITING
-          // This allows the user to continue to Step 1 while the database initializes
-          seedDatabase();
-
-          return true;
-        }
-        wizard.errorMessage = data?.error || "Database connection failed.";
-        wizard.dbTestPassed = false;
-        wizard.successMessage = "";
-        wizard.showDbDetails = true;
-
-        // Map server-side validation errors back to the UI
-        if (data?.details && Array.isArray(data.details)) {
-          const newErrors: Record<string, string> = {};
-          for (const issue of data.details as any[]) {
-            const path = issue.path?.[0]?.key as string;
-            if (path) {
-              newErrors[path] = issue.message;
-            }
-          }
-          wizard.validationErrors = {
-            ...wizard.validationErrors,
-            ...newErrors,
-          };
-        }
-        return false;
+        return true;
       }
+      wizard.errorMessage = data?.error || "Database connection failed.";
+      wizard.dbTestPassed = false;
+      wizard.successMessage = "";
+      wizard.showDbDetails = true;
 
+      // Map server-side validation errors back to the UI
+      if ((data as any)?.details && Array.isArray((data as any).details)) {
+        const newErrors: Record<string, string> = {};
+        for (const issue of (data as any).details as any[]) {
+          const path = issue.path?.[0]?.key as string;
+          if (path) {
+            newErrors[path] = issue.message;
+          }
+        }
+        wizard.validationErrors = {
+          ...wizard.validationErrors,
+          ...newErrors,
+        };
+      }
       return false;
     } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : "A server error occurred.";
+      const errorMsg =
+        e instanceof Error ? e.message : "A server error occurred.";
       wizard.errorMessage = `Error: ${errorMsg}`;
       wizard.dbTestPassed = false;
       wizard.successMessage = "";
@@ -509,29 +515,13 @@ function createSetupStore() {
     wizard.isLoading = true;
 
     try {
-      // Call the SvelteKit Action
-      const formData = new FormData();
-      formData.append("config", JSON.stringify(wizard.dbConfig));
-      formData.append("system", JSON.stringify(wizard.systemSettings));
-
-      const response = await fetch("?/seedDatabase", {
-        method: "POST",
-        body: formData,
+      const data = await _seedDb({
+        configData: wizard.dbConfig,
+        systemData: wizard.systemSettings,
       });
-
-      const result = deserialize(await response.text());
-      if (result.type !== "success") {
-        toast.error(`Seeding failed: ${(result as any).data?.error}`);
-        return false;
-      }
-      const data = result.data as any;
 
       if (data.success) {
         logger.debug("✅ Database initialization started");
-
-        if (data.firstCollection) {
-          wizard.firstCollection = data.firstCollection;
-        }
 
         // The seeding is now parallelized on backend, no polling needed
         wizard.isSeeding = false;
@@ -548,7 +538,10 @@ function createSetupStore() {
       });
       return false;
     } catch (error) {
-      logger.warn("⚠️  Error during database initialization server function:", error);
+      logger.warn(
+        "⚠️  Error during database initialization server function:",
+        error,
+      );
       return false;
     } finally {
       wizard.isLoading = false;
@@ -560,7 +553,9 @@ function createSetupStore() {
    * @param onSuccess - Optional callback to run on successful completion
    * @returns Promise<boolean> - true if setup completed successfully
    */
-  async function completeSetup(onSuccess?: (redirectPath: string) => void): Promise<boolean> {
+  async function completeSetup(
+    onSuccess?: (redirectPath: string) => void,
+  ): Promise<boolean> {
     logger.debug("[SetupStore] completeSetup starting...");
     if (wizard.isSubmitting) {
       logger.debug("[SetupStore] Already submitting, skipping");
@@ -591,37 +586,20 @@ function createSetupStore() {
     wizard.errorMessage = "";
 
     try {
-      // Call the SvelteKit Action
-      const payloadData = {
+      logger.debug("[SetupStore] Calling completeSetup remote function...");
+      const data = await _completeSetup({
         database: wizard.dbConfig,
         admin: wizard.adminUser,
-        system: wizard.systemSettings,
-        firstCollection: wizard.firstCollection,
-        skipWelcomeEmail: wizard.emailSettings.skipWelcomeEmail,
-      };
-      logger.debug("[SetupStore] Sending payload:", JSON.stringify(payloadData, null, 2));
-
-      // Call the SvelteKit Action
-      const formData = new FormData();
-      formData.append("data", JSON.stringify(payloadData));
-
-      logger.debug("[SetupStore] Calling ?/completeSetup action...");
-      const response = await fetch("?/completeSetup", {
-        method: "POST",
-        body: formData,
+        system: {
+          ...wizard.systemSettings,
+          preset: wizard.systemSettings.preset || "blank",
+          cfPurgeMode: wizard.systemSettings.cfPurgeMode || "tags",
+        },
+        emailSettings: {
+          ...wizard.emailSettings,
+          skipWelcomeEmail: wizard.emailSettings.skipWelcomeEmail,
+        },
       });
-      logger.debug("[SetupStore] ?/completeSetup fetch finished, status:", response.status);
-
-      const responseText = await response.text();
-      logger.debug("[SetupStore] ?/completeSetup response received");
-      const result = deserialize(responseText);
-      if (result.type !== "success") {
-        const errorMsg = (result as any).data?.error || "Failed to finalize setup.";
-        toast.error(errorMsg, { duration: 5000 });
-        wizard.errorMessage = errorMsg;
-        return false;
-      }
-      const data = result.data as any;
 
       if (!data.success) {
         const errorMsg = data.error || "Failed to finalize setup.";
@@ -633,7 +611,7 @@ function createSetupStore() {
       // Update the public settings store instantly for near-zero delay
       if (data.publicSettings) {
         logger.debug("[SetupStore] Initializing public environment...");
-        initPublicEnv(data.publicSettings);
+        initPublicEnv(data.publicSettings as any);
       }
 
       // Success!
@@ -660,7 +638,7 @@ function createSetupStore() {
       }
 
       // Clear store state locally
-      const targetPath = data.redirectPath || "/en/collections";
+      const targetPath = (data as any).redirectPath || "/en/collections";
 
       // Success! Give the toast a moment and then redirect hard to ensure clean slate after restart
       setTimeout(() => {
@@ -674,7 +652,8 @@ function createSetupStore() {
 
       return true;
     } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : "An unknown error occurred.";
+      const errorMsg =
+        e instanceof Error ? e.message : "An unknown error occurred.";
       wizard.errorMessage = errorMsg;
       toast.error(errorMsg, { duration: 5000 });
       return false;
@@ -716,36 +695,25 @@ function createSetupStore() {
     wizard.lastRedisTestResult = null;
 
     try {
-      const formData = new FormData();
-      formData.append("host", wizard.systemSettings.redisHost);
-      formData.append("port", wizard.systemSettings.redisPort);
-      if (wizard.systemSettings.redisPassword) {
-        formData.append("security", wizard.systemSettings.redisPassword);
-      }
-
-      const response = await fetch("?/testRedis", {
-        method: "POST",
-        body: formData,
+      const data = await _testRedis({
+        host: wizard.systemSettings.redisHost,
+        port: Number(wizard.systemSettings.redisPort),
+        password: wizard.systemSettings.redisPassword || undefined,
       });
+      wizard.lastRedisTestResult = data;
 
-      const result = deserialize(await response.text());
-      if (result.type === "success") {
-        const data = result.data as any;
-        wizard.lastRedisTestResult = data;
-
-        if (data.success) {
-          wizard.successMessage = data.message;
-          wizard.redisTestPassed = true;
-          return true;
-        }
-        wizard.errorMessage = data.error || "Redis connection failed (Non-success result).";
-        wizard.redisTestPassed = false;
-        return false;
+      if (data.success) {
+        wizard.successMessage = data.message || "";
+        wizard.redisTestPassed = true;
+        return true;
       }
-      wizard.errorMessage = "Redis test action failed unexpectedly.";
+      wizard.errorMessage =
+        data.error || "Redis connection failed (Non-success result).";
+      wizard.redisTestPassed = false;
       return false;
     } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : "A server error occurred.";
+      const errorMsg =
+        e instanceof Error ? e.message : "A server error occurred.";
       wizard.errorMessage = `Redis Error: ${errorMsg}`;
       wizard.redisTestPassed = false;
       return false;
@@ -834,11 +802,15 @@ function createSetupStore() {
 
       const stepRaw = storage.getItem(KEYS.step);
       wizard.currentStep =
-        stepRaw && stepRaw !== "undefined" && stepRaw !== "null" ? Number.parseInt(stepRaw, 10) : 0;
+        stepRaw && stepRaw !== "undefined" && stepRaw !== "null"
+          ? Number.parseInt(stepRaw, 10)
+          : 0;
 
       const highestStepRaw = storage.getItem(KEYS.highestStep);
       wizard.highestStepReached =
-        highestStepRaw && highestStepRaw !== "undefined" && highestStepRaw !== "null"
+        highestStepRaw &&
+        highestStepRaw !== "undefined" &&
+        highestStepRaw !== "null"
           ? Number.parseInt(highestStepRaw, 10)
           : 0;
 

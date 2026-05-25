@@ -2,8 +2,8 @@
   "name": "@sveltycms/core",
   "version": "0.0.8",
   "description": "SveltyCMS core SDK — LocalCMS, database adapter interface, auth types, and content types",
-  "type": "module",
   "license": "BUSL-1.1",
+  "type": "module",
   "sideEffects": false,
   "exports": {
     ".": {

@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @files src/routes/(app)/mediagallery/uploadMedia/RemoteUpload.svelte
 @component
 **This page is used to Remote Urls to the media gallery**

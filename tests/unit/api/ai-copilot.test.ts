@@ -63,10 +63,7 @@ describe("AI Co-Pilot — suggestFields", () => {
       });
     }
 
-    if (
-      description.toLowerCase().includes("date") ||
-      description.toLowerCase().includes("event")
-    ) {
+    if (description.toLowerCase().includes("date") || description.toLowerCase().includes("event")) {
       fields.push({
         name: "publishedDate",
         widget: "DateTime",
@@ -79,10 +76,7 @@ describe("AI Co-Pilot — suggestFields", () => {
   }
 
   it("should always include title and slug", () => {
-    const fields = simulateSuggestFields("Products", "Product catalog", [
-      "Input",
-      "Slug",
-    ]);
+    const fields = simulateSuggestFields("Products", "Product catalog", ["Input", "Slug"]);
     const names = fields.map((f) => f.name);
     expect(names).toContain("title");
     expect(names).toContain("slug");
@@ -102,22 +96,22 @@ describe("AI Co-Pilot — suggestFields", () => {
   });
 
   it("should suggest MediaUpload for image/media descriptions", () => {
-    const fields = simulateSuggestFields(
-      "Gallery",
-      "Image gallery collection",
-      ["Input", "Slug", "MediaUpload"],
-    );
+    const fields = simulateSuggestFields("Gallery", "Image gallery collection", [
+      "Input",
+      "Slug",
+      "MediaUpload",
+    ]);
     const imageField = fields.find((f) => f.name === "featuredImage");
     expect(imageField).toBeDefined();
     expect(imageField!.widget).toBe("MediaUpload");
   });
 
   it("should suggest DateTime for event/date descriptions", () => {
-    const fields = simulateSuggestFields(
-      "Events",
-      "Event calendar with dates",
-      ["Input", "Slug", "DateTime"],
-    );
+    const fields = simulateSuggestFields("Events", "Event calendar with dates", [
+      "Input",
+      "Slug",
+      "DateTime",
+    ]);
     const dateField = fields.find((f) => f.name === "publishedDate");
     expect(dateField).toBeDefined();
     expect(dateField!.widget).toBe("DateTime");
@@ -126,21 +120,14 @@ describe("AI Co-Pilot — suggestFields", () => {
 
   it("should return only fields with available widgets", () => {
     const availableWidgets = ["Input", "Slug"];
-    const fields = simulateSuggestFields(
-      "Simple",
-      "Basic list",
-      availableWidgets,
-    );
+    const fields = simulateSuggestFields("Simple", "Basic list", availableWidgets);
     for (const field of fields) {
       expect(availableWidgets).toContain(field.widget);
     }
   });
 
   it("should mark title as required and translated", () => {
-    const fields = simulateSuggestFields("Pages", "Static pages", [
-      "Input",
-      "Slug",
-    ]);
+    const fields = simulateSuggestFields("Pages", "Static pages", ["Input", "Slug"]);
     const titleField = fields.find((f) => f.name === "title")!;
     expect(titleField.required).toBe(true);
     expect(titleField.translated).toBe(true);
@@ -176,14 +163,10 @@ describe("AI Co-Pilot — scoreContent", () => {
     // Check for keywords
     if (
       content.title &&
-      !content.title
-        .toLowerCase()
-        .includes(content.collection?.toLowerCase() || "")
+      !content.title.toLowerCase().includes(content.collection?.toLowerCase() || "")
     ) {
       seoScore -= 10;
-      suggestions.push(
-        "Consider including the collection name in the title for SEO",
-      );
+      suggestions.push("Consider including the collection name in the title for SEO");
     }
 
     return {

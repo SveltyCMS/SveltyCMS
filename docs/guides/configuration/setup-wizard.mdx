@@ -205,13 +205,13 @@ System Hardening:
 
 This separation prevents the "Initialization Storm" where multiple requests try to boot the database simultaneously. The **Turbo Pipeline** (introduced in v0.0.8) ensures that setup checks consume **zero CPU/IO cycles** once the system is READY.
 
-### Security Hardening (V10)
+### Security Hardening
 
 The setup process includes several enterprise-grade security features:
 
-- **PII Masking**: All logs during setup (account creation, DB connection) are automatically redacted to prevent leaking emails or passwords in terminal outputs.
-- **Secret Redaction**: The configuration loader (`config-state.ts`) prevents character-for-character printing of `private.ts` to any log stream.
-- **Write-Mutex Protection**: SQLite writes during the high-pressure setup phase are serialized via a global mutex to prevent "Database is Locked" errors.
+- **Log Sanitization**: Sensitive values (passwords, connection strings) are excluded from structured log output during setup operations.
+- **Secret Redaction**: The configuration loader (`config-state.ts`) prevents raw `private.ts` content from appearing in log streams.
+- **Write-Mutex Protection**: SQLite writes during high-pressure setup are serialized via transaction management to prevent "Database is Locked" errors.
 
 ### State Management
 

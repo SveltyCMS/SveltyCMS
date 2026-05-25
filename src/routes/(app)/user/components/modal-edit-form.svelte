@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/routes/(app)/user/components/modal-edit-form.svelte
 @component
 **A modal for editing user data like username, email, password, and role**
@@ -30,6 +30,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	const isFirstUser = page.data.isFirstUser;
 
 	import { Form } from '@root/src/utils/form.svelte.ts';
+	import { updateProfile, verifyPassword as verifyPw, deleteUser as deleteUserRemote } from '../user.remote';
 
 	// Config for the general edit form permissions
 	const modaleEditFormConfig = {
@@ -143,22 +144,10 @@ Efficiently manages user data updates with validation, role selection, and delet
 		}
 
 		try {
-			const response = await fetch('/api/user/update-user-attributes', {
-				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRF-Token': page.data.csrfToken
-				},
-				body: JSON.stringify({
-					user_id: editForm.data.user_id,
-					newUserData: submitData
-				})
-			});
+			const result = await updateProfile(submitData);
 
-			const result = await response.json();
-
-			if (!response.ok) {
-				throw new Error(result.message || 'Failed to update user.');
+			if (!result.success) {
+				throw new Error(result.error || result.message || 'Failed to update user.');
 			}
 
 			toast.success({
@@ -197,16 +186,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 			return;
 		}
 		try {
-			const res = await fetch('/api/user/verify-password', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRF-Token': page.data.csrfToken
-				},
-				body: JSON.stringify({ password: editForm.data.currentPassword })
-			});
-			const data = await res.json();
-			if (data.valid) {
+			const pwResult = await verifyPw(editForm.data.currentPassword);
+			if (pwResult.valid) {
 				isCurrentPasswordValidated = true;
 				editForm.errors.currentPassword = [];
 				toast.success({ description: 'Password verified', duration: 5000 });
@@ -225,25 +206,14 @@ Efficiently manages user data updates with validation, role selection, and delet
 			return;
 		}
 		try {
-			const response = await fetch('/api/user/batch', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRF-Token': page.data.csrfToken
-				},
-				body: JSON.stringify({
-					userIds: [editForm.data.user_id],
-					action: 'delete'
-				})
-			});
-			const data = await response.json();
+			const delResult = await deleteUserRemote([editForm.data.user_id]);
 
-			if (!response.ok) {
-				throw new Error(data.message || 'Failed to delete user.');
+			if (!delResult.success) {
+				throw new Error(delResult.message || delResult.error || 'Failed to delete user.');
 			}
 
 			// Use the success message from the API response
-			const successMessage = data.message || 'User deleted successfully.';
+			const successMessage = delResult.message || delResult.error || 'User deleted successfully.';
 			toast.success({
 				description: `<iconify-icon icon="mdi:alert-circle" width={24}></iconify-icon> ${successMessage}`
 			});

@@ -17,10 +17,7 @@ const WHITELIST_REGEX =
 // Module-level cache for initialization promises to prevent "storms"
 const initPromises = new Map<string | null, Promise<void>>();
 
-export const handleContentInitialization: Handle = async ({
-  event,
-  resolve,
-}) => {
+export const handleContentInitialization: Handle = async ({ event, resolve }) => {
   const { locals, url } = event;
   const { pathname } = url;
   const tenantId = locals.tenantId ?? null;
@@ -53,10 +50,7 @@ export const handleContentInitialization: Handle = async ({
           await getDbInitPromise(false, "CORE");
           await contentSystem.initialize(tenantId, false);
         } catch (err) {
-          logger.error(
-            `[handleContentInitialization] Init failed for tenant ${tenantId}:`,
-            err,
-          );
+          logger.error(`[handleContentInitialization] Init failed for tenant ${tenantId}:`, err);
           initPromises.delete(tenantId); // Allow retry on failure
           throw err;
         }
@@ -71,14 +65,11 @@ export const handleContentInitialization: Handle = async ({
 
     // Await initialization ONLY for content-specific routes or API calls
     // Dashboard and Config Builder are fast-tracked to improve perceived performance
-    const isContentRoute =
-      pathname.includes("/[language]/") || pathname.includes("/content");
+    const isContentRoute = pathname.includes("/[language]/") || pathname.includes("/content");
     const isApi = pathname.startsWith("/api") && !pathname.includes("/system/");
 
     if (locals.user && (isContentRoute || isApi)) {
-      logger.info(
-        `[handleContentInitialization] Awaiting content system sync for ${pathname}...`,
-      );
+      logger.info(`[handleContentInitialization] Awaiting content system sync for ${pathname}...`);
       await initPromise;
     }
     // else: Fast-tracking initialization (no log in production)
@@ -89,10 +80,7 @@ export const handleContentInitialization: Handle = async ({
     let collections = contentSystem.getCollections(tenantId);
 
     // 🛡️ RECOVERY: If no collections found, double check if we are still initializing
-    if (
-      collections.length === 0 &&
-      !contentSystem.isInitializedForTenant(tenantId)
-    ) {
+    if (collections.length === 0 && !contentSystem.isInitializedForTenant(tenantId)) {
       logger.info(
         `[handleContentInitialization] No collections found yet for ${pathname}. Awaiting sync...`,
       );
@@ -104,14 +92,9 @@ export const handleContentInitialization: Handle = async ({
     if (pathname === "/") {
       if (collections.length > 0) {
         const lang = (locals as any).language || app?.contentLanguage || "en";
-        const firstUrl = await contentSystem.getFirstCollectionRedirectUrl(
-          lang,
-          tenantId,
-        );
+        const firstUrl = await contentSystem.getFirstCollectionRedirectUrl(lang, tenantId);
         if (firstUrl) {
-          logger.info(
-            `[handleContentInitialization] Root -> first collection: ${firstUrl}`,
-          );
+          logger.info(`[handleContentInitialization] Root -> first collection: ${firstUrl}`);
           throw redirect(302, firstUrl);
         }
       }

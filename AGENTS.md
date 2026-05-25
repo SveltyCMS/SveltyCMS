@@ -359,23 +359,23 @@ All `bun run` commands (dev, check, test, etc.) work normally after `npm install
 
 ## Development Commands
 
-| Category      | Command                                                                                         | Description                                                |
-| ------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Daily Dev     | `bun run dev`                                                                                   | Dev server (auto-setup wizard)                             |
-|               | `bun run build`                                                                                 | Production build                                           |
-|               | `bun run preview`                                                                               | Preview on 127.0.0.1:4173                                  |
-| Code Quality  | `bun run check`                                                                                 | Type checking                                              |
-|               | `bun run lint`                                                                                  | Fast Lint (oxlint)                                         |
-|               | `bun run format`                                                                                | Fast Format (oxfmt)                                        |
-| Testing       | `bun run test:unit`                                                                             | Unit tests (Vitest/jsdom) — 854 tests                      |
-|               | `bun run test:unit:bun`                                                                         | Unit tests (Bun Native)                                    |
-|               | `bun run test:integration`                                                                      | Integration (DB required)                                  |
-|               | `bun run test:e2e`                                                                              | E2E (Playwright)                                           |
+| Category      | Command                                                                                                                             | Description                                                |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Daily Dev     | `bun run dev`                                                                                                                       | Dev server (auto-setup wizard)                             |
+|               | `bun run build`                                                                                                                     | Production build                                           |
+|               | `bun run preview`                                                                                                                   | Preview on 127.0.0.1:4173                                  |
+| Code Quality  | `bun run check`                                                                                                                     | Type checking                                              |
+|               | `bun run lint`                                                                                                                      | Fast Lint (oxlint)                                         |
+|               | `bun run format`                                                                                                                    | Fast Format (oxfmt)                                        |
+| Testing       | `bun run test:unit`                                                                                                                 | Unit tests (Vitest/jsdom) — 854 tests                      |
+|               | `bun run test:unit:bun`                                                                                                             | Unit tests (Bun Native)                                    |
+|               | `bun run test:integration`                                                                                                          | Integration (DB required)                                  |
+|               | `bun run test:e2e`                                                                                                                  | E2E (Playwright)                                           |
 | **Security**  | `bun test tests/unit/hooks/defense-in-depth.test.ts tests/unit/hooks/authentication.test.ts tests/unit/hooks/authorization.test.ts` | Fast security regression check (69 tests)                  |
-| DB Operations | `bun run db:push`                                                                               | Push schema changes (Drizzle)                              |
-| i18n          | `bun run paraglide`                                                                             | Compile messages                                           |
-| Diagnostics   | `bun run check:mongodb`                                                                         | Test MongoDB connection                                    |
-| **CI Parity** | `bun run format && bun run lint && bun run check && bun run test:unit && bun run test:unit:bun` | **Mandatory before commit** (performs full local CI check) |
+| DB Operations | `bun run db:push`                                                                                                                   | Push schema changes (Drizzle)                              |
+| i18n          | `bun run paraglide`                                                                                                                 | Compile messages                                           |
+| Diagnostics   | `bun run check:mongodb`                                                                                                             | Test MongoDB connection                                    |
+| **CI Parity** | `bun run format && bun run lint && bun run check && bun run test:unit && bun run test:unit:bun`                                     | **Mandatory before commit** (performs full local CI check) |
 
 ## Architecture Overview
 
@@ -486,31 +486,31 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 > [!TIP]
 > Every test suite has corresponding documentation. When modifying tests, update the linked docs.
 
-| Test File | Documentation |
-|-----------|--------------|
-| `tests/unit/hooks/defense-in-depth.test.ts` | `docs/architecture/security/index.mdx`, `docs/tests/security-testing.mdx` |
-| `tests/unit/hooks/authentication.test.ts` | `docs/architecture/security/login-security.mdx`, `docs/tests/hook-test-coverage.mdx` |
-| `tests/unit/hooks/authorization.test.ts` | `docs/tests/rbac-testing.mdx`, `docs/architecture/security/index.mdx` |
-| `tests/unit/hooks/system-state.test.ts` | `docs/tests/hook-test-coverage.mdx`, `docs/architecture/state-management.mdx` |
-| `tests/unit/hooks/setup.test.ts` | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx` |
-| `tests/unit/hooks/security-headers.test.ts` | `docs/tests/hook-test-coverage.mdx`, `docs/architecture/security/index.mdx` |
-| `tests/unit/role-permission-access.test.ts` | `docs/tests/rbac-testing.mdx` |
-| `tests/unit/api/media-security.test.ts` | `docs/architecture/security/widget-security.mdx` |
-| `tests/benchmarks/security-audit.test.ts` | `docs/architecture/security/quantum-security.mdx`, `docs/project/benchmarks.mdx` |
-| `tests/e2e/accessibility.spec.ts` | `docs/tests/accessibility-audit.mdx` |
-| `tests/unit/widgets/core/*.test.ts` | `docs/tests/widget-test-coverage.mdx` |
+| Test File                                   | Documentation                                                                        |
+| ------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `tests/unit/hooks/defense-in-depth.test.ts` | `docs/architecture/security/index.mdx`, `docs/tests/security-testing.mdx`            |
+| `tests/unit/hooks/authentication.test.ts`   | `docs/architecture/security/login-security.mdx`, `docs/tests/hook-test-coverage.mdx` |
+| `tests/unit/hooks/authorization.test.ts`    | `docs/tests/rbac-testing.mdx`, `docs/architecture/security/index.mdx`                |
+| `tests/unit/hooks/system-state.test.ts`     | `docs/tests/hook-test-coverage.mdx`, `docs/architecture/state-management.mdx`        |
+| `tests/unit/hooks/setup.test.ts`            | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx`    |
+| `tests/unit/hooks/security-headers.test.ts` | `docs/tests/hook-test-coverage.mdx`, `docs/architecture/security/index.mdx`          |
+| `tests/unit/role-permission-access.test.ts` | `docs/tests/rbac-testing.mdx`                                                        |
+| `tests/unit/api/media-security.test.ts`     | `docs/architecture/security/widget-security.mdx`                                     |
+| `tests/benchmarks/security-audit.test.ts`   | `docs/architecture/security/quantum-security.mdx`, `docs/project/benchmarks.mdx`     |
+| `tests/e2e/accessibility.spec.ts`           | `docs/tests/accessibility-audit.mdx`                                                 |
+| `tests/unit/widgets/core/*.test.ts`         | `docs/tests/widget-test-coverage.mdx`                                                |
 
 ## Key Files Reference
 
-| Category      | Key Files                                                                    |
-| :------------ | :--------------------------------------------------------------------------- |
-| **DB & Auth** | `db.ts`, `dbInterface.ts`, database adapters like mongo, drizzle, etc.        |
+| Category      | Key Files                                                                                               |
+| :------------ | :------------------------------------------------------------------------------------------------------ |
+| **DB & Auth** | `db.ts`, `dbInterface.ts`, database adapters like mongo, drizzle, etc.                                  |
 | **Security**  | `+server.ts`, `handle-authentication.ts`, `handle-system-state.ts`, `system.ts`, `media.ts`, `setup.ts` |
-| **Content**   | `types.ts`, `collectionScanner.ts`, `config/collections/`                    |
-| **Widgets**   | `widget-factory.ts`, `widget-store.svelte.ts`                                |
-| **API**       | `routes/api/`, `hooks.server.ts`                                             |
-| **Services**  | `settingsService.ts`, `scheduler/`, `AuditLogService.ts`,`MetricsService.ts` |
-| **Build**     | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                   |
+| **Content**   | `types.ts`, `collectionScanner.ts`, `config/collections/`                                               |
+| **Widgets**   | `widget-factory.ts`, `widget-store.svelte.ts`                                                           |
+| **API**       | `routes/api/`, `hooks.server.ts`                                                                        |
+| **Services**  | `settingsService.ts`, `scheduler/`, `AuditLogService.ts`,`MetricsService.ts`                            |
+| **Build**     | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                                              |
 
 ## Path Aliases
 
