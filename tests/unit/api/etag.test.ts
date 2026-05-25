@@ -32,7 +32,7 @@ function createEvent(
     request: new Request(`http://localhost/api/${path}`, {
       method,
       headers,
-      body: opts.body || undefined,
+      ...(method !== "GET" && method !== "HEAD" ? { body: opts.body || undefined } : {}),
     }),
     locals: {
       user: { _id: "u1", role: "admin", isAdmin: true, permissions: [] },

@@ -48,19 +48,14 @@ export async function testDatabaseConnection(
   createIfMissing = false,
   allowOverwrite = false,
 ) {
-  if (configData.port === "" || configData.port === null)
-    (configData as any).port = undefined;
+  if (configData.port === "" || configData.port === null) (configData as any).port = undefined;
   else if (configData.port !== undefined) {
     const n = Number(configData.port);
     if (!Number.isNaN(n)) (configData as any).port = n;
   }
 
-  const { success, output: dbConfig } = safeParse(
-    databaseConfigSchema,
-    configData,
-  );
-  if (!(success && dbConfig))
-    return { success: false, error: "Invalid configuration" };
+  const { success, output: dbConfig } = safeParse(databaseConfigSchema, configData);
+  if (!(success && dbConfig)) return { success: false, error: "Invalid configuration" };
 
   const start = performance.now();
   try {
@@ -68,15 +63,13 @@ export async function testDatabaseConnection(
     if (allowOverwrite) await dropDatabase(dbConfig);
 
     const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, {
-      createIfMissing:
-        createIfMissing || allowOverwrite || dbConfig.type === "sqlite",
+      createIfMissing: createIfMissing || allowOverwrite || dbConfig.type === "sqlite",
     });
 
     const health = await dbAdapter.getConnectionHealth();
     if (!health.success) {
       await dbAdapter.disconnect();
-      const { classifyDatabaseError, SetupDatabaseError } =
-        await import("./error-classifier");
+      const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
       return new SetupDatabaseError(
         classifyDatabaseError(health.message, dbConfig.type as any, dbConfig),
       ).toClientPayload();
@@ -86,14 +79,9 @@ export async function testDatabaseConnection(
       const isEmptyRes = await dbAdapter.isEmpty();
       if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite) {
         await dbAdapter.disconnect();
-        const { classifyDatabaseError, SetupDatabaseError } =
-          await import("./error-classifier");
+        const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
         return new SetupDatabaseError(
-          classifyDatabaseError(
-            new Error("Database not empty"),
-            dbConfig.type as any,
-            dbConfig,
-          ),
+          classifyDatabaseError(new Error("Database not empty"), dbConfig.type as any, dbConfig),
         ).toClientPayload();
       }
     }
@@ -129,8 +117,7 @@ export async function testDatabaseConnection(
         return { success: false, error: ce.message };
       }
     }
-    const { classifyDatabaseError, SetupDatabaseError } =
-      await import("./error-classifier");
+    const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
     return new SetupDatabaseError(
       classifyDatabaseError(err, dbConfig.type as any, dbConfig),
       err,
@@ -138,23 +125,15 @@ export async function testDatabaseConnection(
   }
 }
 
-export async function seedDatabase(
-  configData: DbConfig,
-  systemData: SystemSettings = {},
-) {
-  if (configData.port === "" || configData.port === null)
-    (configData as any).port = undefined;
+export async function seedDatabase(configData: DbConfig, systemData: SystemSettings = {}) {
+  if (configData.port === "" || configData.port === null) (configData as any).port = undefined;
   else if (configData.port !== undefined) {
     const n = Number(configData.port);
     if (!Number.isNaN(n)) (configData as any).port = n;
   }
 
-  const { success, output: dbConfig } = safeParse(
-    databaseConfigSchema,
-    configData,
-  );
-  if (!(success && dbConfig))
-    return { success: false, error: "Invalid configuration" };
+  const { success, output: dbConfig } = safeParse(databaseConfigSchema, configData);
+  if (!(success && dbConfig)) return { success: false, error: "Invalid configuration" };
 
   try {
     if (systemData.preset && systemData.preset !== "blank") {
@@ -193,9 +172,7 @@ export async function seedDatabase(
     return {
       success: false,
       error: err.message,
-      code: err.message?.includes("Cannot overwrite")
-        ? "SETUP_ALREADY_COMPLETE"
-        : undefined,
+      code: err.message?.includes("Cannot overwrite") ? "SETUP_ALREADY_COMPLETE" : undefined,
     };
   }
 }
@@ -218,8 +195,7 @@ export async function completeSetup(
   try {
     if (
       getBootPhase() === "SETUP" ||
-      (await import("@src/stores/system/state.svelte")).getSystemState()
-        .overallState === "SETUP"
+      (await import("@src/stores/system/state.svelte")).getSystemState().overallState === "SETUP"
     )
       await reinitializeSystem();
     dbAdapter = (await ensureFullInitialization())?.adapter || ga;
@@ -232,8 +208,7 @@ export async function completeSetup(
   }
 
   const { Auth } = await import("@src/databases/auth");
-  const { getDefaultSessionStore } =
-    await import("@src/databases/auth/session-manager");
+  const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
   const auth = new Auth(dbAdapter, getDefaultSessionStore());
 
   const existing = await auth.getUserByEmail(
@@ -334,11 +309,7 @@ export async function testEmailConnection(cfg: {
   }
 }
 
-export async function testRedisConnection(
-  host = "localhost",
-  port = 6379,
-  password?: string,
-) {
+export async function testRedisConnection(host = "localhost", port = 6379, password?: string) {
   const start = performance.now();
   try {
     const { createClient } = await import("redis");
@@ -386,9 +357,7 @@ async function dropDatabase(db: any) {
       database: "postgres",
     });
     await s
-      .unsafe(
-        `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${db.name}'`,
-      )
+      .unsafe(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${db.name}'`)
       .catch(() => {});
     try {
       await s.unsafe(`DROP DATABASE IF EXISTS "${db.name}" WITH (FORCE)`);

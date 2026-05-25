@@ -190,7 +190,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
         process.env.BENCHMARK === "true" ||
         process.env.NODE_ENV === "test" ||
         process.env.VITEST === "true" ||
-        process.env.BUN_TEST === "true";
+        !!process.env.BUN_TEST;
 
       if (
         !isTestMode &&

@@ -37,10 +37,7 @@ function requirePermission(event: RequestEvent) {
     throw error(403, "Insufficient permissions");
 }
 
-export async function saveContentStructure(
-  event: RequestEvent,
-  operations: UpsertOperation[],
-) {
+export async function saveContentStructure(event: RequestEvent, operations: UpsertOperation[]) {
   requirePermission(event);
   const tenantId = (event.locals as any).tenantId;
 
@@ -88,8 +85,7 @@ export async function installPreset(event: RequestEvent, presetId: string) {
   requirePermission(event);
   const tenantId = (event.locals as any).tenantId;
 
-  if (!presetId || presetId === "blank")
-    return fail(400, { message: "Invalid preset ID" });
+  if (!presetId || presetId === "blank") return fail(400, { message: "Invalid preset ID" });
 
   const presetDir = path.resolve(process.cwd(), "src", "presets", presetId);
   const expectedBase = path.resolve(process.cwd(), "src", "presets");

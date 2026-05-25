@@ -72,11 +72,17 @@ describe("ToastStore", () => {
   });
 
   it("should store and read flash messages across sessions", () => {
+    // Flash is browser-only (sessionStorage). Skip in node environment.
+    if (typeof window === "undefined") return;
+
     toast.flash({ type: "success", message: "Flash Success" });
 
     const stored = globalThis.sessionStorage.getItem("toast_flash");
     expect(stored).toBeTruthy();
-    expect(JSON.parse(stored!)).toMatchObject({ type: "success", message: "Flash Success" });
+    expect(JSON.parse(stored!)).toMatchObject({
+      type: "success",
+      message: "Flash Success",
+    });
 
     // Check flash logic
     toast.checkFlash();

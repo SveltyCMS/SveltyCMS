@@ -8,19 +8,10 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import {
-  generateGoogleAuthUrl,
-  googleAuth,
-} from "@src/databases/auth/google-auth";
+import { generateGoogleAuthUrl, googleAuth } from "@src/databases/auth/google-auth";
 import { generateGithubAuthUrl } from "@src/databases/auth/github-auth";
 import { auth, dbInitPromise } from "@src/databases/db";
-import {
-  isHttpError,
-  isRedirect,
-  type Actions,
-  fail,
-  redirect,
-} from "@sveltejs/kit";
+import { isHttpError, isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
 import { invalidateSetupCache } from "@utils/setup-check";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import type { PageServerLoad } from "./$types";
@@ -30,10 +21,7 @@ import { publicEnv } from "@src/stores/global-settings.svelte";
 import { logger } from "@utils/logger";
 import { sendMail } from "@utils/email.server";
 import { getCachedFirstCollectionPath } from "@utils/server/collection-utils.server";
-import {
-  getSystemState,
-  isServiceHealthy,
-} from "@src/stores/system/state.svelte";
+import { getSystemState, isServiceHealthy } from "@src/stores/system/state.svelte";
 
 // Auth actions delegate to auth.remote.ts
 import {
@@ -52,8 +40,7 @@ const AUTH_SERVICE_TIMEOUT_MS = 10_000;
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 const DB_HEALTH_CACHE_TTL_MS = 30_000;
 
-const rateLimitSecret =
-  process.env.RATE_LIMIT_SECRET || process.env.JWT_SECRET_KEY + "-ratelimit";
+const rateLimitSecret = process.env.RATE_LIMIT_SECRET || process.env.JWT_SECRET_KEY + "-ratelimit";
 
 const limiter = new RateLimiter({
   IP: [10, "m"],
@@ -89,10 +76,7 @@ async function checkDatabaseHealth(): Promise<{
   reason?: string;
 }> {
   const now = Date.now();
-  if (
-    _dbHealthCache &&
-    now - _dbHealthCache.timestamp < DB_HEALTH_CACHE_TTL_MS
-  ) {
+  if (_dbHealthCache && now - _dbHealthCache.timestamp < DB_HEALTH_CACHE_TTL_MS) {
     return { healthy: _dbHealthCache.healthy, reason: _dbHealthCache.reason };
   }
 
@@ -104,10 +88,7 @@ async function checkDatabaseHealth(): Promise<{
     }
 
     if (auth) {
-      const roleCount = await auth.getUserCount(
-        {},
-        { bypassTenantCheck: true },
-      );
+      const roleCount = await auth.getUserCount({}, { bypassTenantCheck: true });
       if (roleCount === 0) {
         const reason = "Database is empty — setup may not have completed";
         _dbHealthCache = { healthy: false, reason, timestamp: now };
@@ -160,13 +141,7 @@ async function shouldShowGithubOAuth(hasInvite?: boolean): Promise<boolean> {
 // Load
 // ---------------------------------------------------------------------------
 
-export const load: PageServerLoad = async ({
-  url,
-  cookies,
-  fetch,
-  request,
-  locals,
-}) => {
+export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
   const demoMode = getPrivateSettingSync("DEMO");
   const multiTenant = getPrivateSettingSync("MULTI_TENANT");
   const userLanguage = getUserLanguage();
@@ -198,8 +173,7 @@ export const load: PageServerLoad = async ({
         showDatabaseError: true,
         authNotReady: true,
         errorReason: lastFailure?.reason || "System initialisation failed.",
-        authNotReadyMessage:
-          lastFailure?.reason || "System initialisation failed.",
+        authNotReadyMessage: lastFailure?.reason || "System initialisation failed.",
         canReset: true,
       };
     }
@@ -240,9 +214,7 @@ export const load: PageServerLoad = async ({
     if (locals.user) {
       let finalCollectionPath: string | null = null;
       try {
-        finalCollectionPath = await getCachedFirstCollectionPath(
-          userLanguage as any,
-        );
+        finalCollectionPath = await getCachedFirstCollectionPath(userLanguage as any);
       } catch {
         throw redirect(302, "/");
       }
@@ -274,8 +246,7 @@ export const load: PageServerLoad = async ({
         firstUserExists: locals.isFirstUser === false,
         showGoogleOAuth: await shouldShowGoogleOAuth(true),
         showGithubOAuth: await shouldShowGithubOAuth(true),
-        inviteError:
-          "This invitation token appears to be invalid, expired, or already used.",
+        inviteError: "This invitation token appears to be invalid, expired, or already used.",
         signUpForm: { token: inviteToken },
       };
     }
@@ -287,24 +258,18 @@ export const load: PageServerLoad = async ({
     if (publicEnv.USE_GOOGLE_OAUTH && code) {
       try {
         const googleAuthInstance = await googleAuth();
-        if (!googleAuthInstance)
-          throw new Error("Google OAuth client is not initialised");
+        if (!googleAuthInstance) throw new Error("Google OAuth client is not initialised");
         const { tokens } = await googleAuthInstance.getToken(code);
         if (!tokens) throw new Error("Failed to retrieve Google OAuth tokens.");
         googleAuthInstance.setCredentials(tokens);
 
-        const userInfoResponse = await fetch(
-          "https://www.googleapis.com/oauth2/v2/userinfo",
-          {
-            headers: { Authorization: `Bearer ${tokens.access_token}` },
-          },
-        );
-        if (!userInfoResponse.ok)
-          throw new Error("Failed to retrieve Google user information.");
+        const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
+        });
+        if (!userInfoResponse.ok) throw new Error("Failed to retrieve Google user information.");
         const googleUser = await userInfoResponse.json();
 
-        const { verifyOAuthState } =
-          await import("@src/databases/auth/google-auth");
+        const { verifyOAuthState } = await import("@src/databases/auth/google-auth");
         const stateParam = url.searchParams.get("state");
         const oauthInviteToken = verifyOAuthState(stateParam);
         if (stateParam && !oauthInviteToken)
@@ -316,8 +281,7 @@ export const load: PageServerLoad = async ({
         const existingUser = await auth.checkUser({ email });
 
         if (!existingUser && oauthInviteToken) {
-          const tokenData: any =
-            await auth.validateRegistrationToken(oauthInviteToken);
+          const tokenData: any = await auth.validateRegistrationToken(oauthInviteToken);
           if (
             tokenData.isValid &&
             tokenData.details &&
@@ -333,8 +297,7 @@ export const load: PageServerLoad = async ({
             });
             await auth.consumeRegistrationToken(oauthInviteToken);
 
-            const hostLink =
-              publicEnv.HOST_PROD || `https://${request.headers.get("host")}`;
+            const hostLink = publicEnv.HOST_PROD || `https://${request.headers.get("host")}`;
             const sitename = publicEnv.SITE_NAME || "SveltyCMS";
             sendMail({
               recipientEmail: email,
@@ -354,13 +317,9 @@ export const load: PageServerLoad = async ({
         if (existingUser) {
           const session = await auth.createSession({
             user_id: existingUser._id as DatabaseId,
-            expires: new Date(
-              Date.now() + SESSION_DURATION_MS,
-            ).toISOString() as ISODateString,
+            expires: new Date(Date.now() + SESSION_DURATION_MS).toISOString() as ISODateString,
           });
-          const sessionCookie = auth.createSessionCookie(
-            session._id as DatabaseId,
-          );
+          const sessionCookie = auth.createSessionCookie(session._id as DatabaseId);
           cookies.set(sessionCookie.name, sessionCookie.value, {
             ...(sessionCookie.attributes as Record<string, unknown>),
             path: "/",
@@ -379,14 +338,9 @@ export const load: PageServerLoad = async ({
 
           let finalCollectionPath: string | null = null;
           try {
-            finalCollectionPath = await getCachedFirstCollectionPath(
-              userLanguage as any,
-            );
+            finalCollectionPath = await getCachedFirstCollectionPath(userLanguage as any);
           } catch {}
-          throw redirect(
-            303,
-            finalCollectionPath ?? "/config/collectionbuilder",
-          );
+          throw redirect(303, finalCollectionPath ?? "/config/collectionbuilder");
         }
       } catch (err: any) {
         if (isRedirect(err)) throw err;
@@ -405,9 +359,7 @@ export const load: PageServerLoad = async ({
 
     let firstCollectionPath: string | null = null;
     try {
-      firstCollectionPath = await getCachedFirstCollectionPath(
-        userLanguage as any,
-      );
+      firstCollectionPath = await getCachedFirstCollectionPath(userLanguage as any);
     } catch {}
 
     const pkgVersion = (await import("../../../package.json")).version;
@@ -461,12 +413,8 @@ export const actions: Actions = {
   },
 
   verify2FA: async (event) => {
-    const isTestSecurity =
-      event.request.headers.get("x-test-security") === "true";
-    if (
-      (process.env.TEST_MODE !== "true" || isTestSecurity) &&
-      (await limiter.isLimited(event))
-    ) {
+    const isTestSecurity = event.request.headers.get("x-test-security") === "true";
+    if ((process.env.TEST_MODE !== "true" || isTestSecurity) && (await limiter.isLimited(event))) {
       event.setHeaders({ "Retry-After": "60" });
       return fail(429, { message: "Too many requests." });
     }
@@ -481,19 +429,13 @@ export const actions: Actions = {
     const formData = await event.request.formData();
     const userId = (formData.get("userId") as string) || "";
     const code = (formData.get("code") as string) || "";
-    if (!userId || !code)
-      return fail(400, { message: "User ID and code required." });
+    if (!userId || !code) return fail(400, { message: "User ID and code required." });
 
-    const { getDefaultTwoFactorAuthService } =
-      await import("@src/databases/auth/two-factor-auth");
+    const { getDefaultTwoFactorAuthService } = await import("@src/databases/auth/two-factor-auth");
     try {
       const twoFactorService = getDefaultTwoFactorAuthService(auth as any);
-      if (!twoFactorService)
-        return fail(503, { message: "2FA service unavailable." });
-      const twoFaResult = await twoFactorService.verify2FA(
-        userId as any as DatabaseId,
-        code,
-      );
+      if (!twoFactorService) return fail(503, { message: "2FA service unavailable." });
+      const twoFaResult = await twoFactorService.verify2FA(userId as any as DatabaseId, code);
       if (!twoFaResult.success) {
         return fail(400, {
           message: twoFaResult.message || "Invalid 2FA code.",
@@ -503,9 +445,7 @@ export const actions: Actions = {
       const user = await auth.getUserById(userId);
       if (!user) return fail(400, { message: "User not found." });
 
-      const sessionCookie = auth.createSessionCookie(
-        userId as any as DatabaseId,
-      );
+      const sessionCookie = auth.createSessionCookie(userId as any as DatabaseId);
       event.cookies.set(sessionCookie.name, sessionCookie.value, {
         ...(sessionCookie.attributes as Record<string, unknown>),
         path: "/",

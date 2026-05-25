@@ -87,7 +87,7 @@
     "benchmark": "bun run scripts/benchmark-matrix/index.ts",
     "benchmark:ci": "bun run scripts/benchmark-matrix/index.ts --ci",
     "-- LINT & FORMAT -------------------------------------": "",
-    "lint": "oxlint",
+    "lint": "vp lint",
     "lint:docs": "bun ./tests/lint-docs.ts",
     "format": "vp fmt",
     "check:all": "vp check",

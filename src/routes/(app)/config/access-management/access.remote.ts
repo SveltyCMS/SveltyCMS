@@ -3,7 +3,11 @@
  * @description Access Management Remote Functions — token CRUD without manual fetch boilerplate.
  */
 
-export interface TokenResult { success: boolean; message?: string; error?: string; }
+export interface TokenResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
 
 export async function generateToken(data: {
   name: string;
@@ -26,8 +30,14 @@ export async function deleteWebsiteToken(id: string): Promise<TokenResult> {
   return r.ok ? { success: true, message: "Token deleted" } : { success: false, error: d.message };
 }
 
-export async function bulkDeleteTokens(ids: string[]): Promise<{ success: boolean; deleted: number; error?: string }> {
-  const results = await Promise.all(ids.map((id) => fetch(`/api/website-tokens/${id}`, { method: "DELETE" })));
+export async function bulkDeleteTokens(
+  ids: string[],
+): Promise<{ success: boolean; deleted: number; error?: string }> {
+  const results = await Promise.all(
+    ids.map((id) => fetch(`/api/website-tokens/${id}`, { method: "DELETE" })),
+  );
   const deleted = results.filter((r) => r.ok).length;
-  return deleted > 0 ? { success: true, deleted } : { success: false, deleted: 0, error: "Failed to delete tokens" };
+  return deleted > 0
+    ? { success: true, deleted }
+    : { success: false, deleted: 0, error: "Failed to delete tokens" };
 }

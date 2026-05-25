@@ -65,7 +65,7 @@ async function main() {
     { name: "Format", run: () => run("vp fmt") },
     {
       name: "Lint",
-      run: () => run("bunx oxlint src --fix --no-error-on-unmatched-pattern"),
+      run: () => run("vp lint"),
     },
     {
       name: "Type Check",

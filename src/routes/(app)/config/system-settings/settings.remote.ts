@@ -17,9 +17,7 @@ export async function loadSettingsGroup(
   groupId: string,
   bypassCache = false,
 ): Promise<SettingsResult> {
-  const url = bypassCache
-    ? `/api/settings/${groupId}?refresh=true`
-    : `/api/settings/${groupId}`;
+  const url = bypassCache ? `/api/settings/${groupId}?refresh=true` : `/api/settings/${groupId}`;
   const r = await fetch(url);
   const d = await r.json();
   return d.success
@@ -42,9 +40,7 @@ export async function saveSettingsGroup(
     : { success: false, error: d.message };
 }
 
-export async function resetSettingsGroup(
-  groupId: string,
-): Promise<SettingsResult> {
+export async function resetSettingsGroup(groupId: string): Promise<SettingsResult> {
   const r = await fetch(`/api/settings/${groupId}`, { method: "DELETE" });
   const d = await r.json();
   return d.success

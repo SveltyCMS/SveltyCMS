@@ -77,7 +77,10 @@ export function requiresRebuild(): boolean {
 /**
  * Checks if a Docker container for a specific service is running and responsive.
  */
-export function checkServiceHealth(type: string): { healthy: boolean; error?: string } {
+export function checkServiceHealth(type: string): {
+  healthy: boolean;
+  error?: string;
+} {
   // 🚀 CI RESILIENCE: In GitHub Actions/CI, services are managed by the runner's infrastructure.
   // We assume health as the workflow already performs a 'wait-on' check.
   if (process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true") {
@@ -94,7 +97,9 @@ export function checkServiceHealth(type: string): { healthy: boolean; error?: st
         return { healthy: true };
       case "postgresql":
       case "postgres":
-        execSync("docker exec postgres pg_isready -U postgres", { stdio: "ignore" });
+        execSync("docker exec postgres pg_isready -U postgres", {
+          stdio: "ignore",
+        });
         return { healthy: true };
       case "mongodb":
       case "mongo":
@@ -467,7 +472,12 @@ export async function getTrendDetails(
   dbKey: string,
   currentVal: number,
   column: string,
-): Promise<{ icon: string; pct: string; isRegression: boolean; previousAvg: number }> {
+): Promise<{
+  icon: string;
+  pct: string;
+  isRegression: boolean;
+  previousAvg: number;
+}> {
   if (!currentVal) return { icon: "⚪", pct: "—", isRegression: false, previousAvg: 0 };
 
   try {
@@ -584,7 +594,6 @@ const NOISY_SERVER_PATTERNS: RegExp[] = [
 const ANSI_STRIP = /[\u001b\u009b]\[[0-9;]*[JKmsu]/g;
 
 export function isNoisyLine(line: string): boolean {
-  return false; // 🚀 DEBUG: Show all lines
   const clean = line.replace(ANSI_STRIP, "");
   const isQuiet = process.env.QUIET === "true";
 

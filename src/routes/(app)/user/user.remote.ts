@@ -21,18 +21,14 @@ export interface TokenResult {
   error?: string;
 }
 
-export async function updateProfile(
-  data: Record<string, unknown>,
-): Promise<UpdateResult> {
+export async function updateProfile(data: Record<string, unknown>): Promise<UpdateResult> {
   const r = await fetch("/api/user/update-user-attributes", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user_id: data.user_id, newUserData: data }),
   });
   const d = await r.json();
-  return r.ok
-    ? { success: true, message: "Updated" }
-    : { success: false, error: d.message };
+  return r.ok ? { success: true, message: "Updated" } : { success: false, error: d.message };
 }
 
 export async function verifyPassword(password: string): Promise<VerifyResult> {
@@ -57,13 +53,9 @@ export async function deleteUser(userIds: string[]): Promise<UpdateResult> {
     : { success: false, error: d.message };
 }
 
-export async function saveToken(
-  data: Record<string, unknown>,
-): Promise<TokenResult> {
+export async function saveToken(data: Record<string, unknown>): Promise<TokenResult> {
   const isEdit = !!data.token;
-  const endpoint = isEdit
-    ? `/api/token/${data.token}`
-    : "/api/token/createToken";
+  const endpoint = isEdit ? `/api/token/${data.token}` : "/api/token/createToken";
   const method = isEdit ? "PUT" : "POST";
   const body = isEdit
     ? {
@@ -96,7 +88,5 @@ export async function deleteTokenAction(token: string): Promise<UpdateResult> {
     headers: { "Content-Type": "application/json" },
   });
   const d = await r.json();
-  return r.ok
-    ? { success: true, message: "Deleted" }
-    : { success: false, error: d.message };
+  return r.ok ? { success: true, message: "Deleted" } : { success: false, error: d.message };
 }

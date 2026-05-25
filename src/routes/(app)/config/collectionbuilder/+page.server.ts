@@ -51,35 +51,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     // Ensure content system is initialized for this tenant
     if (!contentSystem.isInitialized) {
-      logger.debug(
-        "[CollectionBuilder] System not initialized, initializing now...",
-      );
+      logger.debug("[CollectionBuilder] System not initialized, initializing now...");
       await contentSystem.initialize(tenantId, true);
     }
 
     // Fetch the initial content structure directly from database for organizational work
-    logger.debug(
-      "[CollectionBuilder] Fetching content structure from database...",
-    );
-    let contentStructure = await contentSystem.getContentStructureFromDatabase(
-      "flat",
-      tenantId,
-    );
+    logger.debug("[CollectionBuilder] Fetching content structure from database...");
+    let contentStructure = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
 
     // 🚑 SELF-HEALING: If no content nodes in DB but system was already marked as
     // initialized (e.g. from a prior skipReconciliation setup), trigger a full refresh.
-    if (
-      (!contentStructure || contentStructure.length === 0) &&
-      contentSystem.isInitialized
-    ) {
+    if ((!contentStructure || contentStructure.length === 0) && contentSystem.isInitialized) {
       logger.warn(
         "[CollectionBuilder] No content nodes found despite system being initialized. Triggering refresh...",
       );
       await contentSystem.refresh(tenantId, false, false);
-      contentStructure = await contentSystem.getContentStructureFromDatabase(
-        "flat",
-        tenantId,
-      );
+      contentStructure = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
       logger.info(
         "[CollectionBuilder] After refresh, found",
         contentStructure?.length || 0,
@@ -107,9 +94,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         return {
           ...sanitizedNode,
           _id: sanitizedNode._id?.toString() || "missing-id",
-          ...(sanitizedNode.parentId
-            ? { parentId: sanitizedNode.parentId.toString() }
-            : {}),
+          ...(sanitizedNode.parentId ? { parentId: sanitizedNode.parentId.toString() } : {}),
         };
       } catch (mapErr) {
         logger.error("[CollectionBuilder] Error mapping node:", {
@@ -174,11 +159,10 @@ export const actions: Actions = {
 
     try {
       // Find paths for IDs to handle deletion via reconciler
-      const currentStructure =
-        await contentSystem.getContentStructureFromDatabase(
-          "flat",
-          locals.tenantId,
-        );
+      const currentStructure = await contentSystem.getContentStructureFromDatabase(
+        "flat",
+        locals.tenantId,
+      );
       const pathsToDelete = currentStructure
         .filter((node: any) => ids.includes(node._id.toString()))
         .map((node: any) => node.path);
@@ -213,11 +197,10 @@ export const actions: Actions = {
 
     try {
       await contentSystem.upsertContentNodes(items, locals.tenantId);
-      const updatedStructure =
-        await contentSystem.getContentStructureFromDatabase(
-          "flat",
-          locals.tenantId,
-        );
+      const updatedStructure = await contentSystem.getContentStructureFromDatabase(
+        "flat",
+        locals.tenantId,
+      );
       const serializedStructure = updatedStructure.map((node: any) => ({
         ...node,
         _id: node._id.toString(),
