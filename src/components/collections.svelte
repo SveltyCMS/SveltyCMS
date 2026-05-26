@@ -503,6 +503,41 @@ Provides an organized interface for navigating hierarchical content structures.
 </script>
 
 <div class="mt-2 space-y-2" role="navigation" aria-label="Collections">
+	<!-- Favorites & Tags Filter Controls -->
+	{#if isFullSidebar}
+		<div class="flex items-center gap-2 px-1">
+			<!-- Favorites Pill Toggle -->
+			<button
+				type="button"
+				onclick={() => showOnlyFavorites = !showOnlyFavorites}
+				class="btn btn-sm flex items-center gap-1.5 rounded-full border transition-all text-xs font-semibold py-1 px-3
+					{showOnlyFavorites 
+						? 'bg-amber-500/20 border-amber-500 text-amber-600 dark:text-amber-400' 
+						: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-300'}"
+				aria-label="Filter by Favorites"
+			>
+				<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14" class={showOnlyFavorites ? 'text-amber-500' : ''}></iconify-icon>
+				<span>Favorites</span>
+			</button>
+
+			<!-- Tags Filter Dropdown -->
+			{#if allTags.length > 0}
+				<div class="relative flex-1">
+					<select
+						bind:value={selectedTagFilter}
+						class="w-full rounded-full border border-surface-300 bg-surface-50 dark:border-surface-600 dark:bg-surface-800 py-1 px-3 text-xs outline-none focus:border-tertiary-500 text-surface-700 dark:text-surface-200 cursor-pointer"
+						aria-label="Filter by Tag"
+					>
+						<option value="">All Tags</option>
+						{#each allTags as tag}
+							<option value={tag}>{tag}</option>
+						{/each}
+					</select>
+				</div>
+			{/if}
+		</div>
+	{/if}
+
 	<!-- Search -->
 	<div class="relative {isFullSidebar ? 'w-full' : 'w-12'}">
 		<input
@@ -541,41 +576,6 @@ Provides an organized interface for navigating hierarchical content structures.
 			{/if}
 		</div>
 	</div>
-
-	<!-- Favorites & Tags Filter Controls -->
-	{#if isFullSidebar}
-		<div class="flex items-center gap-2 px-1">
-			<!-- Favorites Pill Toggle -->
-			<button
-				type="button"
-				onclick={() => showOnlyFavorites = !showOnlyFavorites}
-				class="btn btn-sm flex items-center gap-1.5 rounded-full border transition-all text-xs font-semibold py-1 px-3
-					{showOnlyFavorites 
-						? 'bg-amber-500/20 border-amber-500 text-amber-600 dark:text-amber-400' 
-						: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-300'}"
-				aria-label="Filter by Favorites"
-			>
-				<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14" class={showOnlyFavorites ? 'text-amber-500' : ''}></iconify-icon>
-				<span>Favorites</span>
-			</button>
-
-			<!-- Tags Filter Dropdown -->
-			{#if allTags.length > 0}
-				<div class="relative flex-1">
-					<select
-						bind:value={selectedTagFilter}
-						class="w-full rounded-full border border-surface-300 bg-surface-50 dark:border-surface-600 dark:bg-surface-800 py-1 px-3 text-xs outline-none focus:border-tertiary-500 text-surface-700 dark:text-surface-200 cursor-pointer"
-						aria-label="Filter by Tag"
-					>
-						<option value="">All Tags</option>
-						{#each allTags as tag}
-							<option value={tag}>{tag}</option>
-						{/each}
-					</select>
-				</div>
-			{/if}
-		</div>
-	{/if}
 
 	<!-- Tree -->
 	<div class="collections-list" role="tree" aria-label="Collection tree">

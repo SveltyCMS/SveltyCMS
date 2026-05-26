@@ -331,6 +331,7 @@ Features:
 						bind:value={systemSettings.siteName}
 						onblur={() => handleBlur('siteName')}
 						type="text"
+						data-1p-ignore
 						placeholder={setup_system_site_name_placeholder?.() || 'My SveltyCMS Site'}
 						class="input w-full rounded border border-slate-300 dark:border-surface-600  {displayErrors.siteName ? 'border-error-500' : ''}"
 						aria-invalid={!!displayErrors.siteName}
@@ -357,6 +358,7 @@ Features:
 						id="host-prod"
 						bind:value={systemSettings.hostProd}
 						type="url"
+						data-1p-ignore
 						onblur={() => handleBlur('hostProd')}
 						placeholder={setup_system_host_prod_placeholder?.() || 'https://mysite.com'}
 						class="input w-full rounded border border-slate-300 dark:border-surface-600 {displayErrors.hostProd ? 'border-error-500' : ''}"
@@ -444,6 +446,7 @@ Features:
 						id="media-folder"
 						bind:value={systemSettings.mediaFolder}
 						type="text"
+						data-1p-ignore
 						placeholder={systemSettings.mediaStorageType === 'local'
 							? setup_system_media_path_placeholder?.() || './mediaFolder'
 							: setup_system_bucket_placeholder?.() || 'my-bucket-name'}
@@ -757,18 +760,19 @@ Features:
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3 animate-in fade-in slide-in-from-top-2 duration-300">
 						<div class="space-y-1.5 text-black dark:text-white">
 							<label for="redis-host" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Host</label>
-							<input id="redis-host" bind:value={systemSettings.redisHost} type="text" placeholder="localhost" class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  " />
+							<input id="redis-host" bind:value={systemSettings.redisHost} type="text" data-1p-ignore placeholder="localhost" class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  " />
 						</div>
 						<div class="space-y-1.5 text-black dark:text-white">
 							<label for="redis-port" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Port</label>
-							<input id="redis-port" bind:value={systemSettings.redisPort} type="text" placeholder="6379" class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  " />
+							<input id="redis-port" bind:value={systemSettings.redisPort} type="text" data-1p-ignore placeholder="6379" class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  " />
 						</div>
 						<div class="space-y-1.5 text-black dark:text-white">
 							<label for="redis-password" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Password (Optional)</label>
 							<input
 								id="redis-password"
 								bind:value={systemSettings.redisPassword}
-								type="security"
+								type="password"
+								data-1p-ignore
 								placeholder="••••••••"
 								class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  "
 							/>

@@ -6,7 +6,7 @@
  * Type definitions are in setup-types.ts to avoid exporting plain interfaces here.
  */
 
-import { query } from "$app/server";
+import { query, command, getRequestEvent } from "$app/server";
 
 export const testDatabaseConnection = query(
   "unchecked",
@@ -38,7 +38,7 @@ export const seedDatabase = query(
   },
 );
 
-export const completeSetup = query(
+export const completeSetup = command(
   "unchecked",
   async ({
     database,
@@ -50,7 +50,24 @@ export const completeSetup = query(
     system?: import("./setup-types").SystemSettings;
   }) => {
     const { completeSetup: fn } = await import("./setup.server");
-    return fn(database, admin, system);
+    const result = await fn(database, admin, system);
+
+    if (result.success && result.sessionCookie) {
+      try {
+        const event = getRequestEvent();
+        const isSecure = event.url.protocol === "https:" || event.url.hostname !== "localhost";
+        event.cookies.set(result.sessionCookie.name, result.sessionCookie.value, {
+          ...result.sessionCookie.attributes,
+          secure: isSecure,
+          path: "/",
+        } as any);
+      } catch (err) {
+        const { logger } = await import("@src/utils/logger");
+        logger.error("Failed to set session cookie in setup.remote.ts:", err);
+      }
+    }
+
+    return result;
   },
 );
 

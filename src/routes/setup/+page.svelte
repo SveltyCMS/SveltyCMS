@@ -291,7 +291,7 @@
 
 			<!-- Scrollable Step Content -->
 			<div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 scroll-smooth" id="step-content" tabindex="-1">
-				<div class="mx-auto max-w-4xl">
+				<div class="mx-auto max-w-8xl">
 					<div class="mb-8">
 						<SetupCardHeader
 							currentStep={wizard.currentStep}
@@ -456,7 +456,7 @@
 
 			<!-- Fixed Navigation Footer -->
 			<footer class="shrink-0 border-t border-surface-200/50 dark:border-surface-700/50 bg-white dark:bg-surface-800 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-				<div class="mx-auto max-w-4xl">
+				<div class="mx-auto max-w-6xl">
 					<SetupNavigation
 						currentStep={wizard.currentStep}
 						{totalSteps}

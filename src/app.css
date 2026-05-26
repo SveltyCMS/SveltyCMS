@@ -517,3 +517,9 @@ select:focus {
     scroll-behavior: auto !important;
   }
 }
+
+/* Ensure Svelte Inspector is always accessible above all elements and modals */
+#svelte-inspector-host {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+}

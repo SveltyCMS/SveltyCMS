@@ -200,6 +200,11 @@ async function signInInternal(event: RequestEvent, input: any) {
     )
     .catch(() => {});
 
+  // Trigger telemetry check in background (non-blocking)
+  import("@src/services/observability/telemetry-service")
+    .then(({ telemetryService }) => telemetryService.checkUpdateStatus())
+    .catch(() => {});
+
   const path = await getCachedFirstCollectionPath("en" as any).catch(() => null);
   throw redirect(303, path ?? "/config/collectionbuilder");
 }

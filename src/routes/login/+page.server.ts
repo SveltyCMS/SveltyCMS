@@ -10,7 +10,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { generateGoogleAuthUrl, googleAuth } from "@src/databases/auth/google-auth";
 import { generateGithubAuthUrl } from "@src/databases/auth/github-auth";
-import { auth, dbInitPromise } from "@src/databases/db";
+import { auth, dbInitPromise, shutdownSystem } from "@src/databases/db";
 import { isHttpError, isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
 import { invalidateSetupCache } from "@utils/setup-check";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
@@ -492,9 +492,26 @@ export const actions: Actions = {
 
       if (!isTestMode) {
         const configPath = path.join(process.cwd(), "config", "private.ts");
-        await fs.unlink(configPath).catch((e: any) => {
-          if (e.code !== "ENOENT") throw e;
-        });
+        try {
+          await fs.unlink(configPath);
+        } catch (e: any) {
+          if (e.code !== "ENOENT") {
+            logger.warn(`Could not delete private.ts (${e.code}). Attempting to clear it instead.`);
+            try {
+              // On Windows, if Vite locks the file, we can sometimes still truncate it
+              await fs.writeFile(configPath, "");
+            } catch (writeErr) {
+              throw e; // throw the original error if both fail
+            }
+          }
+        }
+      }
+
+      // Shut down database system completely in memory and clear registries
+      try {
+        await shutdownSystem();
+      } catch (shutdownErr) {
+        logger.error("Failed to shutdown database system during setup reset:", shutdownErr);
       }
 
       _dbHealthCache = null;

@@ -775,7 +775,12 @@ export default defineConfig((): any => {
       sveltekit(),
       uws(),
       realtime({ typedImports: !isBuild }),
-      svelteInspector(),
+      svelteInspector({
+        toggleKeyCombo: "meta-shift",
+        holdMode: true,
+        showToggleButton: "always",
+        toggleButtonPos: "bottom-right",
+      }),
       sveltyCmsPlugin(),
       securityCheckPlugin(),
       suppressThirdPartyWarningsPlugin(),

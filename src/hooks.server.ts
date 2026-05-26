@@ -388,6 +388,9 @@ export const handle: Handle = async ({ event, resolve }) => {
           logger.info("🔄 System setup detected. Hot-swapping to READY pipeline...");
           setupComplete = true;
           await ensureFullMiddleware();
+        } else if (setupComplete && !isSetupComplete()) {
+          logger.info("🔄 System setup reset detected. Hot-swapping back to SETUP pipeline...");
+          setupComplete = false;
         }
 
         try {

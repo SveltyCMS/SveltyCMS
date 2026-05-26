@@ -58,12 +58,14 @@ export class TelemetryService {
     }
 
     // Check opt-out settings
-    let isTelemetryEnabled = false;
+    let isTelemetryEnabled = true;
     try {
       const setting = await getPrivateSetting("SVELTYCMS_TELEMETRY");
-      isTelemetryEnabled = setting === true;
+      if ((setting as any) === false || (setting as any) === "false") {
+        isTelemetryEnabled = false;
+      }
     } catch (err) {
-      logger.debug("[Telemetry] Could not check opt-out setting, defaulting to disabled", err);
+      logger.debug("[Telemetry] Could not check opt-out setting, defaulting to enabled", err);
     }
 
     if (!isTelemetryEnabled) {

@@ -114,7 +114,7 @@
 			onpaste={onPaste}
 			{onkeydown}
 			type={effectiveType}
-			style={!isTextColorClass && textColor ? `color: ${textColor};` : ''}
+			style="--input-text-color: {isTextColorClass ? 'currentColor' : textColor}; {!isTextColorClass && textColor ? `color: ${textColor};` : ''}"
 			class="peer block h-12 w-full appearance-none border-0 border-b-2 border-surface-300 bg-transparent pl-8 pr-6 pb-1 pt-5 text-base focus:border-tertiary-600 focus:outline-none focus:ring-0 disabled:opacity-50 dark:border-surface-400 dark:focus:border-tertiary-500 {inputClass} {isTextColorClass
 				? textColor
 				: ''}"
@@ -186,5 +186,11 @@
 		pointer-events: none;
 		position: absolute;
 		right: 0;
+	}
+
+	/* Overrides global dark-mode focus styles that force a black background and white text */
+	input:focus {
+		background-color: transparent !important;
+		color: var(--input-text-color, inherit) !important;
 	}
 </style>

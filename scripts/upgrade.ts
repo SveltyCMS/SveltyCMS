@@ -19,7 +19,7 @@
 import { spawn, type SpawnOptions } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import pc from "picocolors";
+import { pc } from "../src/utils/native-utils";
 
 // ---------------------------------------------------------------------------
 // Constants

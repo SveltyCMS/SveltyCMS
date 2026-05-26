@@ -103,17 +103,6 @@ const config = {
 
   // plugin options
   vitePlugin: {
-    // remove inspector for production
-    inspector: {
-      // change shortcut
-      toggleKeyCombo: "meta-shift",
-      // hold and release key to toggle inspector mode
-      holdMode: true,
-      // show or hide the inspector option
-      showToggleButton: "always",
-      // inspector position
-      toggleButtonPos: "bottom-right",
-    },
     // experimental options
     experimental: {},
   },

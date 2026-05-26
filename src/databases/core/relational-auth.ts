@@ -56,17 +56,7 @@ export class RelationalAuthModule implements IAuthAdapter {
   protected mapUser(dbUser: any): User {
     if (!dbUser) throw new Error("User not found");
 
-    // Diagnostic Logging for specific user
-    if (dbUser.email?.toLowerCase().includes("kroells") && process.env.BENCHMARK !== "true") {
-      logger.info(`[Auth] mapUser raw data for ${dbUser.email}:`, {
-        role: dbUser.role,
-        roleIds: dbUser.roleIds,
-        roleIdsType: typeof dbUser.roleIds,
-        isAdmin: dbUser.isAdmin,
-        permissions: (dbUser as any).permissions,
-        permissionsType: typeof (dbUser as any).permissions,
-      });
-    }
+    // Diagnostic Logging for specific user removed to clean up noisy logs
 
     // 🚀 Optimized mapper to bypass generic column scanning
     const converted = utils.convertUserToISO(dbUser);
@@ -81,16 +71,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           ? dbUser.role
           : "user";
 
-    if (process.env.BENCHMARK !== "true") {
-      logger.info(`[Auth] mapUser call for ${dbUser.email || "unknown"}:`, {
-        id: dbUser._id,
-        role: dbUser.role,
-        roleIds: dbUser.roleIds,
-        isAdmin: dbUser.isAdmin,
-        activeRole,
-        finalRoleIds,
-      });
-    }
+    // mapUser call logging removed to clean up noisy logs
 
     return {
       ...converted,
@@ -169,14 +150,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           values.isAdmin = true;
         }
 
-        // Diagnostic Logging
-        if (process.env.BENCHMARK !== "true") {
-          logger.info(`[Auth] createUser: values before preparation for ${values.email}:`, {
-            role: values.role,
-            roleIds: values.roleIds,
-            isAdmin: values.isAdmin,
-          });
-        }
+        // Diagnostic Logging removed to clean up noisy logs
 
         const db = this.getDb(options);
 
@@ -444,20 +418,13 @@ export class RelationalAuthModule implements IAuthAdapter {
     sessionId: DatabaseId,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<User | null>> {
-    // 🚀 Using Fast path JOIN and bypassSafeQuery to eliminate sequential lookup overhead.
+    // 🚀 Retrieve the session and user sequentially to avoid duplicate column name collisions under node:sqlite
     return this.adapter.wrap(
       async () => {
         const db = this.getDb(options);
-        const [result] = await db
-          .select({
-            session: this.adapter.getPhysicalSelection(this.schema.authSessions),
-            user: this.adapter.getPhysicalSelection(this.schema.authUsers),
-          })
+        const [session] = await db
+          .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
           .from(this.schema.authSessions)
-          .innerJoin(
-            this.schema.authUsers,
-            eq(this.schema.authSessions.user_id, this.schema.authUsers._id),
-          )
           .where(
             and(
               eq(this.schema.authSessions._id, sessionId as string),
@@ -466,20 +433,13 @@ export class RelationalAuthModule implements IAuthAdapter {
           )
           .limit(1);
 
-        if (!result) return null;
+        if (!session) return null;
 
-        // Map the user directly from the joined result to bypass the second getUserById roundtrip
-        try {
-          return this.mapUser(result.user);
-        } catch (mapErr: any) {
-          logger.error(
-            `[Auth] validateSession mapping failed for user ${result.user._id}: ${mapErr.message}`,
-            {
-              userRaw: result.user,
-            },
-          );
-          throw mapErr;
+        const userRes = await this.getUserById(session.user_id, options);
+        if (!userRes.success) {
+          throw new Error(userRes.message);
         }
+        return userRes.data;
       },
       "VALIDATE_SESSION_FAILED",
       undefined,
