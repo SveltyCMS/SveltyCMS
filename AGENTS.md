@@ -351,6 +351,44 @@ All `bun run` commands (dev, check, test, etc.) work normally after `npm install
 
 **Note**: This only affects the Bun installer on Windows; Bun's runtime remains fully functional.
 
+### 4. Deleting `node_modules` + `bun.lock` Together on Windows
+
+**The Problem**: Deleting both `node_modules` and `bun.lock` forces a fresh resolution. On Windows, this fails because:
+- `better-sqlite3` can't compile without Python/build tools, halting the entire install
+- Bun may corrupt transitive dependencies (e.g., missing `drizzle-orm/sql/`, empty `@zag-js/` directories)
+
+**Symptoms**:
+
+- `bun install` dies with `gyp ERR! find Python` at `better-sqlite3`
+- After recovery, `bun install` says "no changes" but packages are missing
+- `bun run check` fails with "Module has no exported member" from `drizzle-orm`
+- `@zag-js/tabs` and other skeleton transitive deps not installed
+
+**Fix — NEVER do this**:
+
+```bash
+# ❌ DON'T
+rm -rf node_modules bun.lock && bun install
+
+# ✅ DO — incremental install
+bun install
+```
+
+**If already corrupted**: Restore `bun.lock` from git and run incremental install:
+
+```bash
+git checkout HEAD -- bun.lock
+bun install
+```
+
+**If a single package is corrupted** (e.g., drizzle-orm missing `sql/`):
+
+```bash
+bun remove drizzle-orm && bun add drizzle-orm
+```
+
+**Note**: The `repair:drizzle` script automates this for drizzle-orm specifically.
+
 ## Project Structure
 
 - **CMS (`/src`)**: Core logic, adapters, services, widgets (each with `.mdx` docs).
