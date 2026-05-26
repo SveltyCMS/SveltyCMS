@@ -60,7 +60,7 @@ jobs:
           TEST_MODE: true
         run: |
           # 1. Start preview server in background
-          bun run preview > preview.log 2>&1 &
+          HOST=127.0.0.1 PORT=4173 node build/index.js > preview.log 2>&1 &
           bun x wait-on http://localhost:4173/api/system/health --timeout 60000
 
           # 2. Run Setup Wizard via Playwright to generate config/private.test.ts naturally

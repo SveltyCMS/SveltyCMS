@@ -61,12 +61,12 @@ const pendingPromises = new Map<
 async function getWorker(): Promise<any> {
   if (!IS_SERVER) throw new Error("Security workers are only available on the server");
 
-  const { Worker } = await import("node:worker_threads");
-  const path = await import("node:path");
+  const { Worker } = await import(/* @vite-ignore */ "node:worker_threads");
+  const path = await import(/* @vite-ignore */ "node:path");
 
   if (!_isMaxWorkersInitialized) {
     try {
-      const os = await import("node:os");
+      const os = await import(/* @vite-ignore */ "node:os");
       _maxWorkers = Math.max(2, Math.floor((os.cpus?.().length || 4) / 2));
     } catch {
       _maxWorkers = 2;
@@ -140,7 +140,7 @@ export async function deriveKey(password: string, salt: Buffer): Promise<Buffer>
 }
 
 export async function encryptData(data: any, password: string): Promise<string> {
-  const crypto = await import("node:crypto");
+  const crypto = await import(/* @vite-ignore */ "node:crypto");
   const salt = crypto.randomBytes(ENCRYPTION_CONFIG.saltLength);
   const iv = crypto.randomBytes(ENCRYPTION_CONFIG.ivLength);
   const key = await deriveKey(password, salt);
@@ -153,7 +153,7 @@ export async function encryptData(data: any, password: string): Promise<string> 
 }
 
 export async function decryptData(encryptedData: string, password: string): Promise<any> {
-  const crypto = await import("node:crypto");
+  const crypto = await import(/* @vite-ignore */ "node:crypto");
   const combined = Buffer.from(encryptedData, "base64");
 
   let offset = 0;
@@ -192,6 +192,6 @@ export async function generateUUID(): Promise<string> {
  * Creates a SHA-256 checksum for the provided data.
  */
 export async function createChecksum(data: any): Promise<string> {
-  const { createHash } = await import("node:crypto");
+  const { createHash } = await import(/* @vite-ignore */ "node:crypto");
   return createHash("sha256").update(JSON.stringify(data)).digest("hex");
 }

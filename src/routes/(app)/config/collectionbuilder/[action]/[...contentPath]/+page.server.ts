@@ -32,7 +32,7 @@ import { compile } from "@src/utils/compilation/compile";
 import { type Actions, error, redirect } from "@sveltejs/kit";
 // System Logger
 import { logger } from "@utils/logger";
-import { getCollectionDisplayPath, getCollectionFilePath } from "@utils/tenant";
+import { getCollectionDisplayPath, getCollectionFilePath } from "@utils/tenant.server";
 import prettier from "prettier";
 import * as ts from "typescript";
 import type { PageServerLoad } from "./$types";

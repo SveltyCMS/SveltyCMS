@@ -58,8 +58,6 @@ import {
 	themeStore,
 } from "@src/stores/theme-store.svelte";
 
-// Components
-// import TokenPicker from '@components/token-picker.svelte';
 
 // Props
 interface Props {

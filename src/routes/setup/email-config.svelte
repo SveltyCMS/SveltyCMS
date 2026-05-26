@@ -82,7 +82,17 @@
 	import { type SmtpConfigSchema, smtpConfigSchema } from '@utils/schemas';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { safeParse } from 'valibot';
-	import { testEmailConnection } from './setup.remote';
+	async function testEmailConnection(cfg: {
+		host: string; port: number; user: string; password: string; from: string; secure: boolean; testEmail: string;
+	}): Promise<{ success: boolean; error?: string }> {
+		const fd = new FormData();
+		fd.set('config', JSON.stringify(cfg));
+		const r = await fetch('?/testEmail', { method: 'POST', body: fd });
+		const d = await r.json().catch(() => ({}));
+		// SvelteKit action responses are wrapped in { type, data }
+		const payload = d?.data ?? d;
+		return r.ok && payload?.success ? { success: true } : { success: false, error: payload?.error ?? 'Connection failed' };
+	}
 
 	const { wizard } = setupStore;
 

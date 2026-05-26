@@ -8,7 +8,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import * as ts from "typescript";
 import os from "node:os";
-import { getCollectionsPath, getCompiledCollectionsPath, isValidTenantId } from "../tenant.ts";
+import { isValidTenantId } from "../tenant.ts";
+import { getCollectionsPath, getCompiledCollectionsPath } from "../tenant.server.ts";
 import {
   addJsExtensionTransformer,
   aliasResolverTransformer,

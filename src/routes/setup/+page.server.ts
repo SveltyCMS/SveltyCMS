@@ -21,7 +21,7 @@ import {
   completeSetup,
   testEmailConnection,
   testRedisConnection,
-} from "./setup.remote";
+} from "./setup.server";
 
 const execAsync = promisify(exec);
 

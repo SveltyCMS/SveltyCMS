@@ -122,7 +122,7 @@ export async function verifyPreviewToken(
   secret: string,
 ): Promise<VerificationResult> {
   try {
-    const { createHmac } = await import("node:crypto");
+    const { createHmac } = await import(/* @vite-ignore */ "node:crypto");
     const decoded = Buffer.from(token, "base64url").toString();
     const [userId, entryId, expiresStr, signature] = decoded.split(":");
     const expires = Number(expiresStr);

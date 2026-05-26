@@ -1,63 +1,45 @@
 /**
  * @file src/routes/(app)/config/redirects/redirects.remote.ts
- * @description Redirect Manager Remote Functions — typed CRUD without FormData boolean casting.
+ * @description Redirect Manager Remote Functions — isomorphic fetch wrappers for client-side use.
  *
- * Replaces: isRegex = formData.get("isRegex") === "on" → direct boolean parameter.
+ * ### Features:
+ * - save (upsert) a redirect rule via SvelteKit form action
+ * - delete a redirect rule via SvelteKit form action
+ *
+ * @remarks All exports must be plain async functions (no RequestEvent, no server imports).
  */
 
-import type { RequestEvent } from "@sveltejs/kit";
-import { error } from "@sveltejs/kit";
-import { LocalCMS } from "@src/services/sdk";
-import { dbAdapter } from "@src/databases/db";
-import { invalidateRedirectCache } from "@src/hooks/handle-redirects";
+export interface RedirectResult {
+  success: boolean;
+  error?: string;
+}
 
-export interface RedirectRule {
+export async function saveRedirectRemote(rule: {
   id?: string;
   from: string;
   to: string;
-  type: number; // 301 | 302 | 307 | 308
+  type: number;
   active: boolean;
   isRegex: boolean;
+}): Promise<RedirectResult> {
+  const fd = new FormData();
+  if (rule.id) fd.set("id", rule.id);
+  fd.set("from", rule.from);
+  fd.set("to", rule.to);
+  fd.set("type", String(rule.type));
+  fd.set("active", String(rule.active));
+  if (rule.isRegex) fd.set("isRegex", "on");
+
+  const r = await fetch("?/save", { method: "POST", body: fd });
+  const d = await r.json().catch(() => ({}));
+  return r.ok ? { success: true } : { success: false, error: d?.message ?? "Save failed" };
 }
 
-export async function saveRedirect(event: RequestEvent, rule: RedirectRule) {
-  const { user, tenantId } = event.locals as any;
-  if (!user) throw error(401, "Unauthorized");
-  if (!dbAdapter) throw error(500, "Database not initialized");
+export async function deleteRedirectRemote(id: string): Promise<RedirectResult> {
+  const fd = new FormData();
+  fd.set("id", id);
 
-  const cms = new LocalCMS(dbAdapter, { user, tenantId });
-
-  if (rule.id) {
-    await cms.collections.update("redirects", rule.id, {
-      from: rule.from,
-      to: rule.to,
-      type: rule.type,
-      active: rule.active,
-      isRegex: rule.isRegex,
-    });
-  } else {
-    await cms.collections.create("redirects", {
-      from: rule.from,
-      to: rule.to,
-      type: rule.type,
-      active: rule.active,
-      isRegex: rule.isRegex,
-      tenantId,
-    });
-  }
-
-  invalidateRedirectCache(tenantId as string);
-  return { success: true };
-}
-
-export async function deleteRedirect(event: RequestEvent, id: string) {
-  const { user, tenantId } = event.locals as any;
-  if (!user) throw error(401, "Unauthorized");
-  if (!dbAdapter) throw error(500, "Database not initialized");
-
-  const cms = new LocalCMS(dbAdapter, { user, tenantId });
-  await cms.collections.delete("redirects", id);
-  invalidateRedirectCache(tenantId as string);
-
-  return { success: true };
+  const r = await fetch("?/delete", { method: "POST", body: fd });
+  const d = await r.json().catch(() => ({}));
+  return r.ok ? { success: true } : { success: false, error: d?.message ?? "Delete failed" };
 }

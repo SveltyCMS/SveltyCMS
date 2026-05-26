@@ -154,7 +154,7 @@ async function loadSettings(bypassCache = false) {
 
 	try {
 		// Load values via Remote Function
-		const data = await loadSettingsGroup(group.id, bypassCache);
+		const data = await loadSettingsGroup({ groupId: group.id, bypassCache });
 
 		if (data.success && data.values) {
 			const loadedValues = data.values || {};
@@ -455,7 +455,7 @@ async function saveSettings() {
 	error = null;
 
 	try {
-		const data = await saveSettingsGroup(group.id, values);
+		const data = await saveSettingsGroup({ groupId: group.id, values });
 
 		if (data.success) {
 			let message = `${group.name} settings saved successfully!`;

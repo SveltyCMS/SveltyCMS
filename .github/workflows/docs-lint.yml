@@ -29,8 +29,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
       - name: Setup Bun Runtime
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
 
       - name: Install Dependencies
         run: bun install --frozen-lockfile
@@ -58,4 +63,4 @@ jobs:
       # After documenting the system, we must prove the system works.
       - name: Run Core Integration Sanity Checks
         # Run a limited, fast subset of integration tests to ensure the core API is functional.
-        run: bun run scripts/run-integration-tests.ts --filter=sqlite --no-build
+        run: bun run scripts/run-integration-tests.ts --db=sqlite --no-build

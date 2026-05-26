@@ -39,6 +39,8 @@ describeSQLite("SQLite Adapter Integration", () => {
       if (!result.success) {
         throw new Error(result.message);
       }
+      // Provision database to create system tables (like system_preferences)
+      await (db as any).provision();
     } catch (err: any) {
       console.warn("SQLite adapter setup failed. Skipping functional tests.", err.message);
       db = null;

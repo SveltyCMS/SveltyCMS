@@ -341,6 +341,18 @@ function stubServerModulesPlugin(): Plugin {
   const serverOnlyRegex =
     /\.(server\.|mongodb|mariadb|postgresql|sqlite|redis|argon2|mongoose|better-sqlite3|mysql2|pg|aws-sdk|googleapis)/i;
 
+  const serverOnlyPackages = [
+    "argon2",
+    "redis",
+    "mongoose",
+    "mongodb",
+    "postgres",
+    "mysql2",
+    "better-sqlite3",
+    "bun:sqlite",
+    "node-os-utils",
+  ];
+
   // Directories/files that must NEVER appear in the client bundle.
   const serverOnlyFiles = new Set([
     "/src/databases/db.ts",
@@ -370,7 +382,24 @@ function stubServerModulesPlugin(): Plugin {
   return {
     name: "stub-server-modules",
     enforce: "pre",
+    resolveId(id, importer, options) {
+      if (options?.ssr || process.env.TEST_MODE === "true") return null;
+
+      if (serverOnlyPackages.includes(id)) {
+        return `\0virtual:stub:${id}`;
+      }
+      return null;
+    },
     load(id, options) {
+      if (id.startsWith("\0virtual:stub:")) {
+        return `export default {};
+export const logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
+export const verify = async () => false;
+export const hash = async () => "";
+export const needsRehash = () => false;
+`;
+      }
+
       // 1. Fast-path: Skip stubbing for SSR or Unit Tests
       if (options?.ssr || process.env.TEST_MODE === "true") return null;
 
@@ -699,6 +728,28 @@ function databaseAdapterStripperPlugin(): Plugin {
   };
 }
 
+function browserShimsPlugin(): Plugin {
+  return {
+    name: "browser-shims-plugin",
+    enforce: "pre",
+    resolveId(id, importer, options) {
+      if (options?.ssr) {
+        return null;
+      }
+      if (id === "fs" || id === "node:fs" || id === "fs/promises" || id === "node:fs/promises") {
+        return path.resolve(CWD, "./src/utils/fs-mock.ts");
+      }
+      if (id === "path" || id === "node:path") {
+        return path.resolve(CWD, "./src/utils/path-mock.ts");
+      }
+      if (id === "async_hooks" || id === "node:async_hooks") {
+        return path.resolve(CWD, "./src/utils/fs-mock.ts");
+      }
+      return null;
+    },
+  };
+}
+
 // --- Main Vite Configuration ---
 const setupComplete = isSetupComplete();
 const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
@@ -720,6 +771,7 @@ export default defineConfig((): any => {
       testConfigAliasPlugin(),
       privateConfigFallbackPlugin(),
       stubServerModulesPlugin(),
+      browserShimsPlugin(),
       sveltekit(),
       uws(),
       realtime({ typedImports: !isBuild }),
@@ -792,8 +844,6 @@ export default defineConfig((): any => {
         { find: "@utils", replacement: path.resolve(CWD, "./src/utils") },
         { find: "@stores", replacement: path.resolve(CWD, "./src/stores") },
         { find: "@widgets", replacement: path.resolve(CWD, "./src/widgets") },
-        // Polyfill Node.js 'path' for browser-only packages (e.g. @better-svelte-email/preview)
-        { find: "path", replacement: "path-browserify" },
       ],
     },
     define: {
@@ -815,6 +865,19 @@ export default defineConfig((): any => {
           // vite-plugin-sveltekit-guard (import graph analysis) and private-config-fallback
           // are necessary plugins whose timing overhead is expected and acceptable.
           pluginTimings: false,
+        },
+        onLog(level: any, log: any, defaultHandler: any) {
+          if (log.code === "INEFFECTIVE_DYNAMIC_IMPORT") {
+            const hasDb = log.message?.includes("databases/db.ts");
+            const isWidgetStore = log.message?.includes("widget-store.svelte.ts");
+            const isStateStore = log.message?.includes("state.svelte.ts");
+            const isRichTextInput = log.message?.includes("rich-text/input.svelte");
+            const isSettingsService = log.message?.includes("services/settings-service.ts");
+            if (hasDb || isWidgetStore || isStateStore || isRichTextInput || isSettingsService) {
+              return;
+            }
+          }
+          defaultHandler(level, log);
         },
       },
       rollupOptions: {
@@ -861,26 +924,31 @@ export default defineConfig((): any => {
           // and dynamically imported (setup wizard, background jobs) — it is a core
           // singleton and chunk-splitting it is not beneficial. Suppress the Rolldown
           // INEFFECTIVE_DYNAMIC_IMPORT diagnostic for this file.
-          if (
-            warning.code === "INEFFECTIVE_DYNAMIC_IMPORT" &&
-            (warning.id?.includes("databases/db.ts") ||
-              (Array.isArray(warning.ids) &&
-                warning.ids.some((id: string) => id.includes("databases/db.ts"))))
-          ) {
-            return;
-          }
-          // Suppress "dynamic import will not move module" warnings for specific files where this is intentional.
-          // See /docs/architecture/state-management.mdx for details.
-          if (warning.message?.includes("dynamic import will not move module")) {
-            const isWidgetStore = warning.id?.includes("widget-store.svelte.ts");
-            const isStateStore = warning.id?.includes("state.svelte.ts");
-            const isRichTextInput = warning.id?.includes("rich-text/input.svelte");
-            const isSettingsService = warning.id?.includes("services/settings-service.ts");
-            const isDb =
+          // db.ts is intentionally both statically imported and dynamically imported.
+          // Suppress the INEFFECTIVE_DYNAMIC_IMPORT diagnostic for this file.
+          const isIneffectiveImport =
+            warning.code === "INEFFECTIVE_DYNAMIC_IMPORT" ||
+            warning.message?.includes("INEFFECTIVE_DYNAMIC_IMPORT") ||
+            warning.message?.includes("dynamic import will not move module");
+          if (isIneffectiveImport) {
+            const hasDb =
+              warning.message?.includes("databases/db.ts") ||
               warning.id?.includes("databases/db.ts") ||
               (Array.isArray(warning.ids) &&
                 warning.ids.some((id: string) => id.includes("databases/db.ts")));
-            if (isWidgetStore || isStateStore || isRichTextInput || isSettingsService || isDb) {
+            const isWidgetStore =
+              warning.id?.includes("widget-store.svelte.ts") ||
+              warning.message?.includes("widget-store.svelte.ts");
+            const isStateStore =
+              warning.id?.includes("state.svelte.ts") ||
+              warning.message?.includes("state.svelte.ts");
+            const isRichTextInput =
+              warning.id?.includes("rich-text/input.svelte") ||
+              warning.message?.includes("rich-text/input.svelte");
+            const isSettingsService =
+              warning.id?.includes("services/settings-service.ts") ||
+              warning.message?.includes("services/settings-service.ts");
+            if (hasDb || isWidgetStore || isStateStore || isRichTextInput || isSettingsService) {
               return;
             }
           }

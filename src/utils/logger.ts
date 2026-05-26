@@ -149,12 +149,12 @@ if (!IS_BROWSER) {
   // Use a self-invoking async function to initialize server-side deps
   (async () => {
     try {
-      const crypto = await import("node:crypto");
-      const fs = await import("node:fs");
-      const promises = await import("node:fs/promises");
-      const path = await import("node:path");
-      const sp = await import("node:stream/promises");
-      const zlib = await import("node:zlib");
+      const crypto = await import(/* @vite-ignore */ "node:crypto");
+      const fs = await import(/* @vite-ignore */ "node:fs");
+      const promises = await import(/* @vite-ignore */ "node:fs/promises");
+      const path = await import(/* @vite-ignore */ "node:path");
+      const sp = await import(/* @vite-ignore */ "node:stream/promises");
+      const zlib = await import(/* @vite-ignore */ "node:zlib");
 
       let stream: WriteStream | null = null;
       let lastHash = "";

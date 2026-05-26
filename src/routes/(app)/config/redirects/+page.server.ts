@@ -7,7 +7,7 @@ import type { RequestEvent, Actions } from "@sveltejs/kit";
 import { LocalCMS } from "@src/services/sdk";
 import { dbAdapter } from "@src/databases/db";
 import { error } from "@sveltejs/kit";
-import { saveRedirect, deleteRedirect } from "./redirects.remote";
+import { saveRedirect, deleteRedirect } from "./redirects.server";
 
 export const load = async ({ locals }: RequestEvent) => {
   const { user, tenantId } = locals;

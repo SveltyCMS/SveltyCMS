@@ -171,7 +171,7 @@
     "sharp": "^0.34.5",
     "svelte-adapter-uws": "^0.5.8",
     "svelte-canvas": "^2.1.0",
-    "svelte-realtime": "^0.5.8",
+    "svelte-realtime": "^0.5.10",
     "tailwind-merge": "^3.6.0",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",
@@ -222,7 +222,6 @@
     "playwright": "^1.60.0",
     "postgres": "^3.4.8",
     "semantic-release": "^25.0.3",
-    "shiki": "^4.1.0",
     "svelte": "^5.55.9",
     "svelte-awesome-color-picker": "^4.1.2",
     "svelte-check": "^4.4.8",
@@ -252,6 +251,6 @@
     "vite": "$vite"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24.0.0"
   }
 }
