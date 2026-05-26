@@ -89,7 +89,7 @@ onMount(() => {
         <p class="text-xl text-surface-600 dark:text-surface-400 max-w-2xl mx-auto">Comparing Legacy Skeleton v4 strictly verified components against our Native Svelte 5 Custom Primitives</p>
     </header>
 
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 max-w-[1600px] mx-auto items-start">
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 max-w-400 mx-auto items-start">
 
         <!-- ==============================
            COLUMN 1: SKELETON v4 (LEGACY)
