@@ -169,6 +169,7 @@
     "redis": "^5.12.1",
     "sanitize-filename": "^1.6.4",
     "sharp": "^0.34.5",
+    "shiki": "^1.27.2",
     "svelte-adapter-uws": "^0.5.8",
     "svelte-canvas": "^2.1.0",
     "svelte-realtime": "^0.5.10",

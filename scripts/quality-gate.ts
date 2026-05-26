@@ -73,12 +73,22 @@ async function main() {
       run: () => run("bun run check"),
     },
     {
-      name: "Unit Tests",
+      name: "Unit Tests (Vitest)",
       skip: !hasTsOrSvelte,
       run: () =>
         stagedFiles.join(" ").length > 6000
           ? run("bun run test:unit")
           : run("bun vitest related", [...stagedFiles, "--run", "--reporter=dot"]),
+    },
+    {
+      name: "Unit Tests (Bun Native)",
+      skip: !hasTsOrSvelte,
+      run: () => run("bun run test:unit:bun"),
+    },
+    {
+      name: "Production Build",
+      skip: !hasTsOrSvelte,
+      run: () => run("bun run build"),
     },
     {
       name: "Integration Tests (SQLite)",

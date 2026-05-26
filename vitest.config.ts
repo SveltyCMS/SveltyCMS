@@ -54,11 +54,7 @@ export default defineConfig({
       include: ["src/**/*.ts", "src/**/*.svelte"],
       exclude: ["src/paraglide/**", "src/**/*.d.ts"],
     },
-    pool: "threads",
-    // @ts-ignore - Vitest 4 top-level pool options
-    threads: {
-      singleThread: false,
-    },
+    pool: "forks",
     server: {
       deps: {
         inline: [/@sveltejs\/kit/, /sveltekit-rate-limiter/, /@skeletonlabs\/skeleton-svelte/],

@@ -18,7 +18,8 @@ const IS_TEST =
   typeof process !== "undefined" &&
   (process.env.NODE_ENV === "test" ||
     process.env.TEST_MODE === "true" ||
-    process.env.VITEST === "true");
+    process.env.VITEST === "true" ||
+    process.env.BUN_TEST === "true");
 
 export const ARGON2_CONFIG = IS_TEST
   ? ({
@@ -96,6 +97,14 @@ async function getWorker(): Promise<any> {
 
 async function runSecurityTask(action: string, payload: any): Promise<any> {
   if (!IS_SERVER) {
+    const argon2 = await import("argon2");
+    if (action === "hash") return argon2.hash(payload.password, payload.config);
+    if (action === "verify") return argon2.verify(payload.hash, payload.password);
+  }
+
+  // In Bun's test environment, worker threads may not be reliable.
+  // Fall back to direct argon2 import for robustness.
+  if (typeof process !== "undefined" && process.env.BUN_TEST === "true") {
     const argon2 = await import("argon2");
     if (action === "hash") return argon2.hash(payload.password, payload.config);
     if (action === "verify") return argon2.verify(payload.hash, payload.password);
