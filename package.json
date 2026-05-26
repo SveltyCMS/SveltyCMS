@@ -141,7 +141,6 @@
     "@tiptap/pm": "^3.23.6",
     "@tiptap/starter-kit": "^3.23.6",
     "@types/serialize-javascript": "^5.0.4",
-    "@zag-js/tabs": "1.39.1",
     "argon2": "^0.44.0",
     "buffer": "^6.0.3",
     "chart.js": "^4.5.1",
