@@ -451,10 +451,21 @@ Security issues should be reported to:
 1. **Use HTTPS everywhere** - Encrypt all traffic
 2. **Enable security headers** - CSP, HSTS, etc.
 3. **Configure CORS properly** - Restrict origins
-4. **Implement rate limiting** - Prevent abuse
-5. **Monitor security logs** - Real-time alerts
-6. **Regular security audits** - Quarterly reviews
-7. **Backup encryption** - Protect data at rest
+4. **Implement rate limiting** - Prevent abuse at both app and edge
+5. **Place behind a WAF** — Cloudflare, AWS WAF, or similar for edge protection
+6. **Monitor security logs** - Real-time alerts
+7. **Regular security audits** - Quarterly reviews, annual pentests
+8. **Backup encryption** - Protect data at rest
+
+### Edge Protection Checklist
+
+For production, layer these in front of SveltyCMS:
+
+- [ ] Cloudflare / AWS WAF with managed OWASP + bot control rule sets
+- [ ] DDoS Protection (Cloudflare Magic Transit / AWS Shield)
+- [ ] IP allowlisting for admin panel access
+- [ ] Edge rate limiting before origin
+- [ ] Geo-IP filtering for high-risk regions
 
 ### Operations
 

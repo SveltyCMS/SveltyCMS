@@ -64,6 +64,20 @@ async function main() {
   const tasks = [
     { name: "Format", run: () => run("vp fmt") },
     {
+      name: "Dependency Audit (warn-only)",
+      run: async () => {
+        console.log("  (non-blocking — CI enforces audit compliance)");
+        const ok = await run("bun audit --level critical", [], {
+          silent: true,
+        });
+        if (!ok) {
+          console.warn("  ⚠️  Critical vulnerabilities found. CI will block the PR.");
+          console.warn("  Run 'bun audit' to review and 'bun update' to patch.");
+        }
+        return true; // never block commits for transitive dep vulns
+      },
+    },
+    {
       name: "Lint",
       run: () => run("vp lint"),
     },

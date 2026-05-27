@@ -1,0 +1,25 @@
+# SveltyCMS Security Policy
+# https://securitytxt.org/
+
+Contact: mailto:security@sveltycms.com
+Contact: https://github.com/SveltyCMS/SveltyCMS/security/advisories
+Expires: 2027-05-27T00:00:00Z
+
+Preferred-Languages: en
+
+Canonical: https://github.com/SveltyCMS/SveltyCMS/blob/next/SECURITY.md
+Canonical: https://sveltycms.com/.well-known/security.txt
+
+Policy: https://github.com/SveltyCMS/SveltyCMS/blob/next/SECURITY.md
+
+# Security Architecture
+# - 4-Layer Defense-in-Depth (Middleware → Dispatcher → Handler → Page Action)
+# - AI Bot Defense: 28 UA patterns, 45 honeypot routes, progressive tarpit
+# - Zero-Bias CSPRNG: rejection-sampling token generation
+# - Cross-Origin Isolation: COOP + COEP + CORP on all API responses
+# - Argon2id password hashing (64MB), AES-256-GCM encryption
+# - 280+ automated security tests, 134 regression tests
+
+Acknowledgments: https://github.com/SveltyCMS/SveltyCMS/security/advisories
+
+Hiring: https://sveltycms.com/careers
