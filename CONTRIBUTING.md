@@ -465,12 +465,14 @@ export async function GET() {
 SveltyCMS enforces **4-layer defense-in-depth** across all code paths.
 
 ### Cryptographic Randomness (CSPRNG)
+
 - **NEVER** use `Math.random()` for security-sensitive tokens (sessions, resets, API keys, UUIDs).
 - **ALWAYS** use `globalThis.crypto.getRandomValues()` or `globalThis.crypto.randomUUID()`.
 - Use `generateSecureToken`/`generateUUID` from `@src/utils/native-utils.ts`.
 - Zero-bias tokens: `generateRandomToken` uses rejection sampling for uniform CSPRNG distribution.
 
 ### Authentication & Authorization
+
 - **Never commit secrets** or credentials — all secrets go through `config/private.ts`.
 - **Validate all user input** on the server using Valibot schemas.
 - **Use parameterized queries** — Drizzle ORM provides native parameterization; never concatenate user input.
@@ -480,10 +482,12 @@ SveltyCMS enforces **4-layer defense-in-depth** across all code paths.
 - **Handler Defense-in-Depth**: Media handlers check `media:write`/`media:delete`; system handlers verify admin; page actions use centralized permission guards.
 
 ### AI Bot Defense
+
 - New endpoints must consider bot detection. Known AI crawler/reconnaissance UAs are blocked in `src/hooks/handle-security.ts`.
 - Extend `HONEYPOT_ROUTES` when new common exploit paths emerge.
 
 ### Reporting Security Issues
+
 - **DO NOT** open public issues for security vulnerabilities.
 - Report privately via [GitHub Security tab](https://github.com/SveltyCMS/SveltyCMS/security/advisories) or security@sveltycms.com.
 - See [SECURITY.md](./SECURITY.md) for full policy.

@@ -70,10 +70,7 @@ function testBackdoorStripperPlugin(): Plugin {
       const norm = id.replace(/\\/g, "/");
 
       // 2. SSR Stubbing (Performance: only check if SSR is active)
-      if (
-        options?.ssr &&
-        (norm.includes("tiptap") || norm.includes("prosemirror"))
-      ) {
+      if (options?.ssr && (norm.includes("tiptap") || norm.includes("prosemirror"))) {
         return `\0virtual:ssr-stub:${id}`;
       }
 
@@ -147,9 +144,7 @@ function testConfigAliasPlugin(): Plugin {
         const testConfigPath = path.resolve(cwd, "config/private.test.ts");
         // Only alias if the test config actually exists
         if (existsSync(testConfigPath)) {
-          log.info(
-            "Test Mode: Aliasing @config/private to config/private.test.ts",
-          );
+          log.info("Test Mode: Aliasing @config/private to config/private.test.ts");
           return testConfigPath;
         }
       }
@@ -175,11 +170,7 @@ function privateConfigFallbackPlugin(): Plugin {
     enforce: "pre",
     resolveId(id) {
       // 1. Aggressive Early Exit: Check keywords FIRST before any logic
-      if (
-        !id.includes("config/private") &&
-        id !== virtualModuleId &&
-        id !== virtualTestModuleId
-      )
+      if (!id.includes("config/private") && id !== virtualModuleId && id !== virtualTestModuleId)
         return null;
 
       // 2. Cache check
@@ -193,10 +184,7 @@ function privateConfigFallbackPlugin(): Plugin {
       let result: string | null = null;
 
       // Check for production config
-      if (
-        normalizedId.endsWith("config/private") ||
-        normalizedId.endsWith("config/private.ts")
-      ) {
+      if (normalizedId.endsWith("config/private") || normalizedId.endsWith("config/private.ts")) {
         const prodPath = path.resolve(cwd, "config/private.ts");
         result = existsSync(prodPath) ? null : resolvedVirtualModuleId;
       }
@@ -213,10 +201,7 @@ function privateConfigFallbackPlugin(): Plugin {
       return result;
     },
     load(id) {
-      if (
-        id === resolvedVirtualModuleId ||
-        id === resolvedVirtualTestModuleId
-      ) {
+      if (id === resolvedVirtualModuleId || id === resolvedVirtualTestModuleId) {
         // Provide fallback that reads from environment variables
         return `
 export const privateEnv = {
@@ -244,10 +229,7 @@ const CWD = process.cwd();
 const paths = {
   configDir: path.resolve(CWD, "config"),
   privateConfig: path.resolve(CWD, "config/private.ts"),
-  userCollections: path.resolve(
-    CWD,
-    process.env.COLLECTIONS_DIR || "config/collections",
-  ),
+  userCollections: path.resolve(CWD, process.env.COLLECTIONS_DIR || "config/collections"),
   compiledCollections: path.resolve(
     CWD,
     process.env.COMPILED_COLLECTIONS_DIR || ".compiledCollections",
@@ -296,19 +278,14 @@ async function initializeCollectionsStructure() {
   await fsPromises.mkdir(paths.userCollections, { recursive: true });
   await fsPromises.mkdir(paths.compiledCollections, { recursive: true });
 
-  const sourceFiles = (
-    await fsPromises.readdir(paths.userCollections, { recursive: true })
-  ).filter(
+  const sourceFiles = (await fsPromises.readdir(paths.userCollections, { recursive: true })).filter(
     (file): file is string =>
-      typeof file === "string" &&
-      (file.endsWith(".ts") || file.endsWith(".js")),
+      typeof file === "string" && (file.endsWith(".ts") || file.endsWith(".js")),
   );
 
   if (sourceFiles.length > 0) {
     if (process.env.BENCHMARK_DEBUG === "true") {
-      log.info(
-        `Found \x1b[32m${sourceFiles.length}\x1b[0m collection(s), compiling...`,
-      );
+      log.info(`Found \x1b[32m${sourceFiles.length}\x1b[0m collection(s), compiling...`);
     }
     await compile({
       userCollections: paths.userCollections,
@@ -356,14 +333,12 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
         originalConsoleWarn = console.warn;
         originalStderrWrite = process.stderr.write.bind(process.stderr);
         console.warn = (...args: unknown[]) => {
-          const msg =
-            typeof args[0] === "string" ? args[0] : String(args[0] ?? "");
+          const msg = typeof args[0] === "string" ? args[0] : String(args[0] ?? "");
           if (shouldSuppress(msg)) return;
           (originalConsoleWarn as typeof console.warn).apply(console, args);
         };
         process.stderr.write = (chunk: any, ...rest: any[]): boolean => {
-          const msg =
-            typeof chunk === "string" ? chunk : (chunk?.toString() ?? "");
+          const msg = typeof chunk === "string" ? chunk : (chunk?.toString() ?? "");
           if (shouldSuppress(msg)) return true;
           return originalStderrWrite!(chunk, ...rest);
         };
@@ -450,8 +425,7 @@ export const needsRehash = () => false;
       if (options?.ssr || process.env.TEST_MODE === "true") return null;
 
       // 2. Optimization: If the ID doesn't contain a dot or slash, it's likely not a file path we care about
-      if (!id.includes(".") && !id.includes("/") && !id.includes("\\"))
-        return null;
+      if (!id.includes(".") && !id.includes("/") && !id.includes("\\")) return null;
 
       // 3. Regex check (High-performance combined pattern matching)
       if (serverOnlyRegex.test(id)) {
@@ -538,29 +512,19 @@ function sveltyCmsPlugin(): Plugin {
               );
               if (dbAdapter?.collection) {
                 const { scanCompiledCollections } = await server.ssrLoadModule(
-                  path.join(
-                    CWD,
-                    "src/content/content-reconciler/scan-files.server.ts",
-                  ),
+                  path.join(CWD, "src/content/content-reconciler/scan-files.server.ts"),
                 );
                 const collections = await scanCompiledCollections();
-                log.info(
-                  `Found ${collections.length} collections, registering models...`,
-                );
+                log.info(`Found ${collections.length} collections, registering models...`);
 
                 for (const schema of collections) {
                   await dbAdapter.collection.createModel(schema);
                   await new Promise((resolve) => setTimeout(resolve, 50));
                 }
-                log.success(
-                  `Collection models registered! (${collections.length} total)`,
-                );
+                log.success(`Collection models registered! (${collections.length} total)`);
               }
             } catch (dbError) {
-              log.error(
-                "Failed to register collection models (non-fatal):",
-                dbError,
-              );
+              log.error("Failed to register collection models (non-fatal):", dbError);
             }
           }
 
@@ -624,8 +588,7 @@ function sveltyCmsPlugin(): Plugin {
           result.then(() => {
             setTimeout(() => {
               const address = server.httpServer?.address();
-              const resolvedPort =
-                typeof address === "object" && address ? address.port : 5173;
+              const resolvedPort = typeof address === "object" && address ? address.port : 5173;
               const setupUrl = `http://127.0.0.1:${resolvedPort}/setup`;
               openUrl(setupUrl);
             }, 1000);
@@ -688,10 +651,8 @@ function buildMetadataPlugin(): Plugin {
 }
 function databaseAdapterStripperPlugin(): Plugin {
   // Only strip adapters in production build and when setup is complete
-  const isBuild =
-    process.env.NODE_ENV === "production" || process.argv.includes("build");
-  const isTest =
-    process.env.TEST_MODE === "true" || process.env.VITEST === "true";
+  const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
+  const isTest = process.env.TEST_MODE === "true" || process.env.VITEST === "true";
   const setupComplete = isSetupComplete();
   const compileAll = process.env.COMPILE_ALL_ADAPTERS === "true";
 
@@ -703,10 +664,7 @@ function databaseAdapterStripperPlugin(): Plugin {
   let activeDbType = process.env.DATABASE_ENGINE || process.env.DB_TYPE;
   if (!activeDbType) {
     try {
-      const privateConfigPath = path.resolve(
-        process.cwd(),
-        "config/private.ts",
-      );
+      const privateConfigPath = path.resolve(process.cwd(), "config/private.ts");
       if (existsSync(privateConfigPath)) {
         const content = readFileSync(privateConfigPath, "utf-8");
         const match = content.match(/DB_TYPE\s*:\s*['"`](.*?)['"`]/);
@@ -744,16 +702,10 @@ function databaseAdapterStripperPlugin(): Plugin {
 
       const normalizedId = resolved.id.replace(/\\/g, "/");
 
-      if (
-        dbType !== "sqlite" &&
-        normalizedId.endsWith("src/databases/sqlite/sqlite-adapter.ts")
-      ) {
+      if (dbType !== "sqlite" && normalizedId.endsWith("src/databases/sqlite/sqlite-adapter.ts")) {
         return "\0virtual:db-stub:sqlite";
       }
-      if (
-        dbType !== "sqlite" &&
-        normalizedId.endsWith("src/databases/sqlite/migrations.ts")
-      ) {
+      if (dbType !== "sqlite" && normalizedId.endsWith("src/databases/sqlite/migrations.ts")) {
         return "\0virtual:db-stub:sqlite-migrations";
       }
       if (
@@ -805,12 +757,7 @@ function browserShimsPlugin(): Plugin {
       if (options?.ssr) {
         return null;
       }
-      if (
-        id === "fs" ||
-        id === "node:fs" ||
-        id === "fs/promises" ||
-        id === "node:fs/promises"
-      ) {
+      if (id === "fs" || id === "node:fs" || id === "fs/promises" || id === "node:fs/promises") {
         return path.resolve(CWD, "./src/utils/fs-mock.ts");
       }
       if (id === "path" || id === "node:path") {
@@ -826,8 +773,7 @@ function browserShimsPlugin(): Plugin {
 
 // --- Main Vite Configuration ---
 const setupComplete = isSetupComplete();
-const isBuild =
-  process.env.NODE_ENV === "production" || process.argv.includes("build");
+const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
 
 export default defineConfig((): any => {
   // Only log during dev mode, not during builds
@@ -931,8 +877,7 @@ export default defineConfig((): any => {
       __SVELTY_SETUP_COMPLETE__: setupComplete,
       global: "globalThis", // `global` polyfill for libraries that expect it (e.g., older crypto libs)
       "import.meta.env.VITE_LOG_LEVELS": JSON.stringify(
-        process.env.LOG_LEVELS ||
-          (isBuild ? "info,warn,error" : "info,warn,error,debug"),
+        process.env.LOG_LEVELS || (isBuild ? "info,warn,error" : "info,warn,error,debug"),
       ),
     },
     build: {
@@ -950,23 +895,11 @@ export default defineConfig((): any => {
         onLog(level: any, log: any, defaultHandler: any) {
           if (log.code === "INEFFECTIVE_DYNAMIC_IMPORT") {
             const hasDb = log.message?.includes("databases/db.ts");
-            const isWidgetStore = log.message?.includes(
-              "widget-store.svelte.ts",
-            );
+            const isWidgetStore = log.message?.includes("widget-store.svelte.ts");
             const isStateStore = log.message?.includes("state.svelte.ts");
-            const isRichTextInput = log.message?.includes(
-              "rich-text/input.svelte",
-            );
-            const isSettingsService = log.message?.includes(
-              "services/settings-service.ts",
-            );
-            if (
-              hasDb ||
-              isWidgetStore ||
-              isStateStore ||
-              isRichTextInput ||
-              isSettingsService
-            ) {
+            const isRichTextInput = log.message?.includes("rich-text/input.svelte");
+            const isSettingsService = log.message?.includes("services/settings-service.ts");
+            if (hasDb || isWidgetStore || isStateStore || isRichTextInput || isSettingsService) {
               return;
             }
           }
@@ -995,34 +928,24 @@ export default defineConfig((): any => {
             if (id.includes("node_modules/svelte")) {
               return "vendor-svelte";
             }
-            if (
-              id.includes("node_modules/@tiptap") ||
-              id.includes("node_modules/prosemirror")
-            ) {
+            if (id.includes("node_modules/@tiptap") || id.includes("node_modules/prosemirror")) {
               return "vendor-editor";
             }
             // Force AWS SDK + Smithy into one chunk to avoid re-export chunk-split warnings
-            if (
-              id.includes("node_modules/@aws-sdk") ||
-              id.includes("node_modules/@smithy")
-            ) {
+            if (id.includes("node_modules/@aws-sdk") || id.includes("node_modules/@smithy")) {
               return "vendor-aws";
             }
           },
         },
         onwarn(warning: any, warn: any) {
           // Suppress circular dependency warnings from third-party libraries
-          if (
-            warning.code === "CIRCULAR_DEPENDENCY" &&
-            warning.message.includes("node_modules")
-          ) {
+          if (warning.code === "CIRCULAR_DEPENDENCY" && warning.message.includes("node_modules")) {
             return;
           }
           // Suppress AWS SDK / Smithy re-export chunk-split warnings (harmless, third-party)
           if (
             warning.message?.includes("will end up in different chunks") &&
-            (warning.message?.includes("@aws-sdk") ||
-              warning.message?.includes("@smithy"))
+            (warning.message?.includes("@aws-sdk") || warning.message?.includes("@smithy"))
           ) {
             return;
           }
@@ -1049,9 +972,7 @@ export default defineConfig((): any => {
               warning.message?.includes("databases/db.ts") ||
               warning.id?.includes("databases/db.ts") ||
               (Array.isArray(warning.ids) &&
-                warning.ids.some((id: string) =>
-                  id.includes("databases/db.ts"),
-                ));
+                warning.ids.some((id: string) => id.includes("databases/db.ts")));
             const isWidgetStore =
               warning.id?.includes("widget-store.svelte.ts") ||
               warning.message?.includes("widget-store.svelte.ts");
@@ -1064,13 +985,7 @@ export default defineConfig((): any => {
             const isSettingsService =
               warning.id?.includes("services/settings-service.ts") ||
               warning.message?.includes("services/settings-service.ts");
-            if (
-              hasDb ||
-              isWidgetStore ||
-              isStateStore ||
-              isRichTextInput ||
-              isSettingsService
-            ) {
+            if (hasDb || isWidgetStore || isStateStore || isRichTextInput || isSettingsService) {
               return;
             }
           }

@@ -76,9 +76,13 @@ export const actions: Actions = {
     const result = await completeSetup(payload.database, payload.admin, payload.system || {});
     if (result.sessionCookie) {
       const isSecure = url.protocol === "https:" || url.hostname !== "localhost";
-      cookies.set(result.sessionCookie.name, result.sessionCookie.value, {
+      const cookieName = isSecure
+        ? `__Host-${result.sessionCookie.name}`
+        : result.sessionCookie.name;
+      cookies.set(cookieName, result.sessionCookie.value, {
         ...result.sessionCookie.attributes,
         secure: isSecure,
+        sameSite: isSecure ? "strict" : (result.sessionCookie.attributes as any).sameSite || "lax",
       } as any);
     }
     return result;
