@@ -166,6 +166,9 @@ export class ContentModule {
         if (c.description !== undefined) updateData.description = c.description;
         if (c.data !== undefined) updateData.data = c.data;
         if (c.parentId !== undefined) updateData.parentId = c.parentId;
+        if (c.position !== undefined) updateData.position = c.position;
+        if (c.isDeleted !== undefined) updateData.isDeleted = c.isDeleted;
+        if (c.deletedAt !== undefined) updateData.deletedAt = c.deletedAt;
 
         const [updated] = await db
           .update(schema.contentNodes)
@@ -220,7 +223,7 @@ export class ContentModule {
     ): Promise<DatabaseResult<ContentNode[]>> => {
       return this.core.wrap(async () => {
         for (const update of nodeUpdates) {
-          await this.nodes.update(update.path, { order: update.newOrder });
+          await this.nodes.update(update.path, { position: update.newOrder });
         }
         return [];
       }, "REORDER_NODES_FAILED");
@@ -241,7 +244,7 @@ export class ContentModule {
             .update(schema.contentNodes)
             .set({
               parentId: item.parentId,
-              order: item.order,
+              position: item.order,
               path: item.path,
             })
             .where(eq(schema.contentNodes._id, item.id));

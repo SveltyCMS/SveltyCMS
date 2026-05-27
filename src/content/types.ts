@@ -90,6 +90,7 @@ export interface ContentNode extends BaseEntity {
   name: string;
   nodeType: "category" | "collection";
   order: number;
+  position?: number;
   parentId?: DatabaseId;
   path?: string;
   slug?: string;

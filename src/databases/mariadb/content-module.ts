@@ -206,7 +206,7 @@ export class ContentModule {
     ): Promise<DatabaseResult<ContentNode[]>> =>
       this.adapter.wrap(async () => {
         for (const update of nodeUpdates) {
-          await this.nodes.update(update.path, { order: update.newOrder });
+          await this.nodes.update(update.path, { position: update.newOrder });
         }
         return [];
       }, "REORDER_NODES_FAILED"),
@@ -226,7 +226,7 @@ export class ContentModule {
             .update(this.adapter.getTable("system_content_structure") as any)
             .set({
               parentId: item.parentId as DatabaseId | null,
-              order: item.order,
+              position: item.order,
               path: item.path,
             })
             .where(

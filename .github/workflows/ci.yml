@@ -424,8 +424,8 @@ jobs:
           node build/index.js > preview.log 2>&1 &
 
           # Increase timeout and add explicit logging
-          echo "Waiting for preview server on http://127.0.0.1:4173..."
-          bun x wait-on http://127.0.0.1:4173 --timeout 180000 --interval 2000 || (cat preview.log && exit 1)
+          echo "Waiting for preview server on port 4173..."
+          bun x wait-on tcp:127.0.0.1:4173 --timeout 180000 --interval 2000 || (cat preview.log && exit 1)
 
           # Run the consolidated Wizard suite
           bun x playwright test tests/e2e/setup-wizard.spec.ts --project=wizard
@@ -629,7 +629,7 @@ jobs:
           TEST_API_SECRET="$TEST_API_SECRET" \
           node build/index.js > preview.log 2>&1 &
 
-          bun x wait-on http://127.0.0.1:4173 --timeout 120000 --interval 2000
+          bun x wait-on tcp:127.0.0.1:4173 --timeout 120000 --interval 2000
           bun x playwright test --project=${{ matrix.project }}
 
       - uses: actions/upload-artifact@v7

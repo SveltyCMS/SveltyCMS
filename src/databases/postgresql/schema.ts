@@ -158,9 +158,11 @@ export const contentNodes = pgTable(
     translations: jsonb("translations")
       .$type<{ languageTag: string; translationName: string }[]>()
       .default([]),
-    order: integer("order").notNull().default(0),
+    position: integer("position").notNull().default(0),
     isPublished: boolean("isPublished").notNull().default(false),
     publishedAt: timestamp("publishedAt"),
+    isDeleted: boolean("isDeleted").notNull().default(false),
+    deletedAt: timestamp("deletedAt"),
     source: varchar("source", { length: 50 }).notNull().default("filesystem"),
     tenantId: tenantField(),
     ...timestamps,
@@ -316,7 +318,7 @@ export const systemVirtualFolders = pgTable(
     path: varchar("path", { length: 1000 }).notNull(),
     parentId: varchar("parentId", { length: 36 }),
     icon: varchar("icon", { length: 100 }),
-    order: integer("order").notNull().default(0),
+    position: integer("position").notNull().default(0),
     type: varchar("type", { length: 50 }).notNull().default("folder"),
     metadata: jsonb("metadata"),
     tenantId: tenantField(),

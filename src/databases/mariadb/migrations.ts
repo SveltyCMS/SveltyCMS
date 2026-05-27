@@ -132,9 +132,11 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			data JSON,
 			metadata JSON,
 			translations JSON,
-			\`order\` INT NOT NULL DEFAULT 0,
+			position INT NOT NULL DEFAULT 0,
 			isPublished BOOLEAN NOT NULL DEFAULT FALSE,
 			publishedAt DATETIME,
+			isDeleted BOOLEAN NOT NULL DEFAULT FALSE,
+			deletedAt DATETIME,
 			source VARCHAR(50) NOT NULL DEFAULT 'filesystem',
 			tenantId VARCHAR(36),
 			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -245,7 +247,7 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			path VARCHAR(1000) NOT NULL,
 			parentId VARCHAR(36),
 			icon VARCHAR(100),
-			\`order\` INT NOT NULL DEFAULT 0,
+			position INT NOT NULL DEFAULT 0,
 			type VARCHAR(50) NOT NULL DEFAULT 'folder',
 			metadata JSON,
 			tenantId VARCHAR(36),
@@ -478,6 +480,16 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
     await connection.query(`ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS collectionDef JSON`);
     await connection.query(
       `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'filesystem'`,
+    );
+    await connection.query(
+      `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS position INT NOT NULL DEFAULT 0`,
+    );
+    await connection.query(
+      `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS isDeleted BOOLEAN NOT NULL DEFAULT FALSE`,
+    );
+    await connection.query(`ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS deletedAt DATETIME`);
+    await connection.query(
+      `ALTER TABLE system_virtual_folders ADD COLUMN IF NOT EXISTS position INT NOT NULL DEFAULT 0`,
     );
 
     // 🚀 MIGRATION: Rename 'security' to 'password' if needed (v0.0.8 compatibility)

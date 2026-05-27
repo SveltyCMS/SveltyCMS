@@ -109,7 +109,7 @@ export async function seedDatabase(
       name: "mediaFolder",
       path: "mediaFolder",
       parentId: null,
-      order: 0,
+      position: 0,
       type: "folder",
       createdAt: new Date(),
       updatedAt: new Date(),

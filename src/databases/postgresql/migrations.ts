@@ -140,9 +140,12 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"data" JSONB,
 			"metadata" JSONB,
 			"translations" JSONB,
-			"order" INT NOT NULL DEFAULT 0,
+			"position" INT NOT NULL DEFAULT 0,
 			"isPublished" BOOLEAN NOT NULL DEFAULT FALSE,
 			"publishedAt" TIMESTAMP WITH TIME ZONE,
+			"isDeleted" BOOLEAN NOT NULL DEFAULT FALSE,
+			"deletedAt" TIMESTAMP WITH TIME ZONE,
+			"source" VARCHAR(50) NOT NULL DEFAULT 'filesystem',
 			"tenantId" VARCHAR(36),
 			"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -252,7 +255,7 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
 			"path" VARCHAR(1000) NOT NULL,
 			"parentId" VARCHAR(36),
 			"icon" VARCHAR(100),
-			"order" INT NOT NULL DEFAULT 0,
+			"position" INT NOT NULL DEFAULT 0,
 			"type" VARCHAR(50) NOT NULL DEFAULT 'folder',
 			"metadata" JSONB,
 			"tenantId" VARCHAR(36),
@@ -497,6 +500,21 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
       `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "last2FAVerification" TIMESTAMP WITH TIME ZONE`,
     );
     await sql.unsafe(`ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS "collectionDef" JSONB`);
+    await sql.unsafe(
+      `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS "position" INT NOT NULL DEFAULT 0`,
+    );
+    await sql.unsafe(
+      `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS "isDeleted" BOOLEAN NOT NULL DEFAULT FALSE`,
+    );
+    await sql.unsafe(
+      `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP WITH TIME ZONE`,
+    );
+    await sql.unsafe(
+      `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS "source" VARCHAR(50) NOT NULL DEFAULT 'filesystem'`,
+    );
+    await sql.unsafe(
+      `ALTER TABLE system_virtual_folders ADD COLUMN IF NOT EXISTS "position" INT NOT NULL DEFAULT 0`,
+    );
 
     // 🚀 MIGRATION: Rename 'security' to 'password' if needed (v0.0.8 compatibility)
     try {
