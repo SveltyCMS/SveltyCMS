@@ -9,13 +9,14 @@
 
 // Defines the properties unique to the Rating widget, configured in the collection builder
 export interface RatingProps {
-  max?: number; // Maximum value (default 5)
-  step?: 0.5 | 1; // Step value (default 1)
-  iconFull?: string; // Icon for full rating
-  iconHalf?: string; // Icon for half rating
-  iconEmpty?: string; // Icon for empty rating
-  showValue?: boolean; // Whether to show the numeric value
-  color?: string; // Optional theme color
-  // Index signature to satisfy WidgetProps constraint
-  [key: string]: unknown;
+	// The icon to use for an empty star @default 'material-symbols:star-outline'
+	iconEmpty?: string;
+
+	// The icon to use for a full star @default 'material-symbols:star'
+	iconFull?: string;
+	// The maximum rating value (e.g., number of stars) @default 5
+	max?: number;
+
+	// Index signature to satisfy WidgetProps constraint
+	[key: string]: unknown;
 }

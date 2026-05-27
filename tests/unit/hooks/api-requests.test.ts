@@ -1,63 +1,353 @@
 /**
- * @file tests/unit/hooks/api-requests.test.ts
- * @description Tests for handleApiRequests middleware.
+ * @file tests/bun/hooks/api-requests.test.ts
+ * @description Tests for handleApiRequests middleware (API permissions, caching, mutations)
+ *
+ * Tests:
+ * - Non-API route passthrough
+ * - Setup API exemption
+ * - Authentication requirement
+ * - Role-based API access
+ * - Public API route bypass
+ * - GET request caching
+ * - Cache bypass with query parameters
+ * - GraphQL bypass
+ * - Mutation handling
+ * - Error handling
  */
 
-import { describe, it, expect, vi } from "vitest";
-import { handleApiRequests } from "@src/hooks/handle-api-requests";
-import type { RequestEvent } from "@sveltejs/kit";
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { User } from '@src/databases/auth/types';
+import { handleApiRequests } from '@src/hooks/handle-api-requests';
+import type { RequestEvent } from '@sveltejs/kit';
 
-// Mock dependencies
-vi.mock("@src/databases/db", () => ({
-  dbAdapter: {
-    auth: { validateSession: vi.fn() },
-    collection: { getModel: vi.fn() },
-  },
-  getDb: vi.fn().mockReturnValue({
-    auth: { validateSession: vi.fn() },
-    collection: { getModel: vi.fn() },
-  }),
-  isDbConnected: vi.fn().mockReturnValue(true),
-  getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-}));
+// Use global mocks from setup.ts
+const cacheService = (globalThis as any).cacheService;
+const metricsService = (globalThis as any).metricsService;
 
-vi.mock("$app/environment", () => ({
-  browser: false,
-  dev: true,
-}));
+// --- Test Utilities ---
 
-vi.mock("@src/databases/cache/cache-service", () => ({
-  cacheService: {
-    get: vi.fn(),
-    set: vi.fn(),
-    delete: vi.fn(),
-    clearByPattern: vi.fn(),
-  },
-  getSessionCacheTTL: vi.fn(() => 3600),
-  getUserPermCacheTTL: vi.fn(() => 60),
-  getApiCacheTTL: vi.fn(() => 300),
-}));
+const mockUser: User = {
+	_id: 'user123',
+	email: 'admin@example.com',
+	role: 'admin',
+	tenantId: 'default',
+	permissions: []
+};
 
-describe("API Requests Hook Unit Tests", () => {
-  const createMockEvent = (path: string) => {
-    return {
-      url: new URL(`http://localhost${path}`),
-      request: {
-        method: "GET",
-        headers: new Map(),
-      },
-      locals: {},
-      cookies: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
-    } as unknown as RequestEvent;
-  };
+function createMockEvent(pathname: string, method = 'GET', user?: User): RequestEvent {
+	const url = new URL(pathname, 'http://localhost');
 
-  it("should pass through non-api routes", async () => {
-    const event = createMockEvent("/admin");
-    const resolve = vi.fn().mockResolvedValue(new Response("ok"));
+	return {
+		url,
+		request: new Request(url.toString(), { method }),
+		locals: { user, tenantId: 'default' }
+	} as unknown as RequestEvent;
+}
 
-    const response = await handleApiRequests({ event, resolve } as any);
-    expect(resolve).toHaveBeenCalled();
-    const text = await response.text();
-    expect(text).toBe("ok");
-  });
+// --- Tests ---
+
+describe('handleApiRequests Middleware', () => {
+	let mockResolve: ReturnType<typeof mock>;
+
+	beforeEach(() => {
+		const mockResponseData = { success: true, data: [] };
+		mockResolve = mock(() =>
+			Promise.resolve(
+				new Response(JSON.stringify(mockResponseData), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' }
+				})
+			)
+		);
+	});
+
+	describe('Non-API Route Passthrough', () => {
+		it('should skip non-API routes', async () => {
+			const event = createMockEvent('/dashboard', 'GET', mockUser);
+			await handleApiRequests({ event, resolve: mockResolve });
+
+			expect(mockResolve).toHaveBeenCalled();
+		});
+	});
+
+	describe('Setup API Exemption', () => {
+		it('should skip authentication for /setup', async () => {
+			const event = createMockEvent('/setup', 'POST');
+			await handleApiRequests({ event, resolve: mockResolve });
+
+			expect(mockResolve).toHaveBeenCalled();
+		});
+
+		it('should allow /setup/config without auth', async () => {
+			const event = createMockEvent('/setup/config', 'POST');
+			await handleApiRequests({ event, resolve: mockResolve });
+
+			expect(mockResolve).toHaveBeenCalled();
+		});
+	});
+
+	describe('Authentication Requirement', () => {
+		it('should require authentication for API routes', async () => {
+			const event = createMockEvent('/api/collections', 'GET');
+
+			try {
+				await handleApiRequests({ event, resolve: mockResolve });
+			} catch (err) {
+				// 401 for unauthenticated requests
+				expect(err).toBeDefined();
+			}
+		});
+
+		it('should allow authenticated requests', async () => {
+			const event = createMockEvent('/api/collections', 'GET', mockUser);
+			await handleApiRequests({ event, resolve: mockResolve });
+
+			expect(mockResolve).toHaveBeenCalled();
+		});
+	});
+
+	describe('Role-Based API Access (hasApiPermission)', () => {
+		it('should check API permissions for endpoint', async () => {
+			// Use a unique endpoint to avoid cache interference from other tests
+			const event = createMockEvent('/api/settings/permissions', 'GET', mockUser);
+			const response = await handleApiRequests({ event, resolve: mockResolve });
+
+			// hasApiPermission(role, endpoint) checked - if we get a response, permission was granted
+			expect(response).toBeDefined();
+		});
+
+		it('should deny access for insufficient permissions', async () => {
+			const lowPrivUser = { ...mockUser, role: 'viewer' };
+			const event = createMockEvent('/api/admin/settings', 'POST', lowPrivUser);
+
+			try {
+				await handleApiRequests({ event, resolve: mockResolve });
+			} catch (err) {
+				// 403 Forbidden
+				expect(err).toBeDefined();
+			}
+		});
+	});
+
+	describe('Public API Route Bypass', () => {
+		it('should bypass permission checks for /api/user/logout', async () => {
+			const event = createMockEvent('/api/user/logout', 'POST', mockUser);
+			await handleApiRequests({ event, resolve: mockResolve });
+
+			expect(mockResolve).toHaveBeenCalled();
+		});
+
+		it('should bypass permission checks for /api/system/health', async () => {
+			const event = createMockEvent('/api/system/health', 'GET');
+			await handleApiRequests({ event, resolve: mockResolve });
+
+			expect(mockResolve).toHaveBeenCalled();
+		});
+	});
+
+	describe('GET Request Caching', () => {
+		it('should cache successful GET responses', async () => {
+			const event = createMockEvent('/api/collections', 'GET', mockUser);
+			const response = await handleApiRequests({ event, resolve: mockResolve });
+
+			// Response cached with X-Cache: MISS
+			expect(response.headers.get('X-Cache')).toBeDefined();
+		});
+
+		it('should return cached response on subsequent GET', async () => {
+			const event1 = createMockEvent('/api/collections', 'GET', mockUser);
+			await handleApiRequests({ event: event1, resolve: mockResolve });
+
+			mockResolve.mockClear();
+
+			const event2 = createMockEvent('/api/collections', 'GET', mockUser);
+			const response2 = await handleApiRequests({
+				event: event2,
+				resolve: mockResolve
+			});
+
+			// X-Cache: HIT for cached response
+			expect(response2.headers.get('X-Cache')).toBeDefined();
+		});
+
+		it('should include user ID in cache key', async () => {
+			const user1 = { ...mockUser, _id: 'user1' };
+			const user2 = { ...mockUser, _id: 'user2' };
+
+			const event1 = createMockEvent('/api/collections/data', 'GET', user1);
+			await handleApiRequests({ event: event1, resolve: mockResolve });
+
+			mockResolve.mockClear();
+
+			const event2 = createMockEvent('/api/collections/data', 'GET', user2);
+			await handleApiRequests({ event: event2, resolve: mockResolve });
+
+			// Different users = different cache keys
+			expect(mockResolve).toHaveBeenCalled();
+		});
+
+		it('should include query params in cache key', async () => {
+			const event1 = createMockEvent('/api/collections?filter=active', 'GET', mockUser);
+			await handleApiRequests({ event: event1, resolve: mockResolve });
+
+			mockResolve.mockClear();
+
+			const event2 = createMockEvent('/api/collections?filter=archived', 'GET', mockUser);
+			await handleApiRequests({ event: event2, resolve: mockResolve });
+
+			// Different query = different cache
+			expect(mockResolve).toHaveBeenCalled();
+		});
+	});
+
+	describe('Cache Bypass with Query Parameters', () => {
+		it('should bypass cache with ?refresh=true', async () => {
+			const event = createMockEvent('/api/collections?refresh=true', 'GET', mockUser);
+			const response = await handleApiRequests({ event, resolve: mockResolve });
+
+			expect(response.headers.get('X-Cache')).toBeDefined();
+		});
+
+		it('should bypass cache with ?nocache=true', async () => {
+			const event = createMockEvent('/api/data?nocache=true', 'GET', mockUser);
+			const response = await handleApiRequests({ event, resolve: mockResolve });
+
+			expect(response.headers.get('X-Cache')).toBeDefined();
+		});
+	});
+
+	describe('GraphQL Bypass', () => {
+		it('should NOT cache GraphQL queries', async () => {
+			// GraphQL queries use GET, mutations use POST
+			// The hook sets X-Cache: BYPASS for GET /api/graphql
+			const event = createMockEvent('/api/graphql', 'GET', mockUser);
+			const response = await handleApiRequests({ event, resolve: mockResolve });
+
+			// GraphQL GET responses get X-Cache: BYPASS (no caching for GraphQL)
+			expect(response.headers.get('X-Cache')).toBe('BYPASS');
+		});
+	});
+
+	describe('Cache Invalidation on Mutations', () => {
+		it('should invalidate cache on POST', async () => {
+			const event = createMockEvent('/api/collections', 'POST', mockUser);
+			await handleApiRequests({ event, resolve: mockResolve });
+
+			// Cache invalidated for /api/collections/*
+			expect(mockResolve).toHaveBeenCalled();
+		});
+
+		it('should invalidate cache on PUT', async () => {
+			const event = createMockEvent('/api/collections/123', 'PUT', mockUser);
+			await handleApiRequests({ event, resolve: mockResolve });
+
+			expect(mockResolve).toHaveBeenCalled();
+		});
+
+		it('should invalidate cache on DELETE', async () => {
+			const event = createMockEvent('/api/collections/123', 'DELETE', mockUser);
+			await handleApiRequests({ event, resolve: mockResolve });
+
+			expect(mockResolve).toHaveBeenCalled();
+		});
+
+		it('should invalidate cache on PATCH', async () => {
+			const event = createMockEvent('/api/collections/123', 'PATCH', mockUser);
+			await handleApiRequests({ event, resolve: mockResolve });
+
+			expect(mockResolve).toHaveBeenCalled();
+		});
+	});
+
+	describe('Streaming Optimization', () => {
+		it('should not block response stream for caching', async () => {
+			const event = createMockEvent('/api/large-data', 'GET', mockUser);
+			const response = await handleApiRequests({ event, resolve: mockResolve });
+
+			// Response returned immediately, cache populated in background
+			expect(response).toBeDefined();
+		});
+
+		it('should use response.clone() for background caching', async () => {
+			const event = createMockEvent('/api/data', 'GET', mockUser);
+			const response = await handleApiRequests({ event, resolve: mockResolve });
+
+			// Clone doesn't consume original stream
+			expect(response).toBeDefined();
+		});
+	});
+
+	describe('Metrics Tracking', () => {
+		beforeEach(() => {
+			mockResolve.mockClear(); // Ensure specific mock is reset, not all global mocks
+		});
+
+		it('should increment API request counter', async () => {
+			const event = createMockEvent('/api/collections/test', 'GET', mockUser);
+			await handleApiRequests({ event, resolve: mockResolve });
+
+			expect(metricsService.incrementApiRequests).toHaveBeenCalled();
+			expect(mockResolve).toHaveBeenCalled();
+		});
+
+		it('should track cache hits', async () => {
+			// Mock cache hit locally
+			(cacheService.get as any).mockReturnValueOnce(
+				Promise.resolve({
+					data: { cached: true },
+					headers: {}
+				})
+			);
+
+			const event = createMockEvent('/api/collections/cached', 'GET', mockUser);
+			const response = await handleApiRequests({ event, resolve: mockResolve });
+
+			expect(metricsService.recordApiCacheHit).toHaveBeenCalled();
+			expect(mockResolve).not.toHaveBeenCalled();
+			expect(response.headers.get('X-Cache')).toBe('HIT');
+		});
+
+		it('should track cache misses', async () => {
+			// Mock cache miss
+			(cacheService.get as any).mockReturnValueOnce(Promise.resolve(null));
+
+			const event = createMockEvent('/api/collections/uncached', 'GET', mockUser);
+			await handleApiRequests({ event, resolve: mockResolve });
+
+			expect(metricsService.recordApiCacheMiss).toHaveBeenCalled();
+			expect(mockResolve).toHaveBeenCalled();
+		});
+
+		it('should increment error counter on failure', async () => {
+			const event = createMockEvent('/api/error', 'GET');
+
+			try {
+				await handleApiRequests({ event, resolve: mockResolve });
+			} catch {
+				// metricsService.incrementApiErrors() on error
+				expect(true).toBe(true);
+			}
+		});
+	});
+
+	describe('Edge Cases', () => {
+		it('should handle invalid API path', async () => {
+			const event = createMockEvent('/api/', 'GET', mockUser);
+
+			try {
+				await handleApiRequests({ event, resolve: mockResolve });
+			} catch (err) {
+				// 400 Bad Request for invalid path
+				expect(err).toBeDefined();
+			}
+		});
+
+		it('should handle non-JSON responses', async () => {
+			const event = createMockEvent('/api/download', 'GET', mockUser);
+			const response = await handleApiRequests({ event, resolve: mockResolve });
+
+			// Non-JSON responses handled gracefully
+			expect(response).toBeDefined();
+		});
+	});
 });

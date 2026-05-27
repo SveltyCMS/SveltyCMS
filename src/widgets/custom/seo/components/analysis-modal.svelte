@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 @file src/widgets/custom/Seo/components/AnalysisModal.svelte
 @component
 **Analysis Modal for SEO Widget**

@@ -1,4 +1,4 @@
-<!-- 
+﻿<!-- 
 @file src/components/autocomplete.svelte
 @description
 Advanced autocomplete component with fuzzy search, keyboard navigation, and accessibility.
@@ -68,7 +68,6 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 		placeholder?: string;
 		showCreateOption?: boolean;
 		value?: string;
-		className?: string;
 	}
 
 	let {
@@ -81,8 +80,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 		fuzzySearch = true,
 		caseSensitive = false,
 		maxResults = 50,
-		onSelect = () => {},
-		className = ''
+		onSelect = () => {}
 	}: Props = $props();
 
 	// State
@@ -403,7 +401,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 			bind:value={keyword}
 			{placeholder}
 			{disabled}
-			class="input {className} px-3 py-1.5 pr-20 transition-all duration-200 placeholder:text-surface-400 focus:border-tertiary-500 focus:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+			class="input w-full rounded border-surface-200 px-3 py-1.5 pr-20 transition-all duration-200 placeholder:text-surface-400 focus:border-tertiary-500 focus:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-surface-800"
 			oninput={handleInput}
 			onfocus={handleFocus}
 			onblur={handleBlur}

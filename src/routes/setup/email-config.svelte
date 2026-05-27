@@ -79,20 +79,10 @@
 		setup_email_why_title
 	} from '@src/paraglide/messages';
 	import { setupStore } from '@src/stores/setup-store.svelte.ts';
-	import { type SmtpConfigSchema, smtpConfigSchema } from '@utils/schemas';
+	import { type SmtpConfigSchema, smtpConfigSchema } from '@utils/form-schemas';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { safeParse } from 'valibot';
-	async function testEmailConnection(cfg: {
-		host: string; port: number; user: string; password: string; from: string; secure: boolean; testEmail: string;
-	}): Promise<{ success: boolean; error?: string }> {
-		const fd = new FormData();
-		fd.set('config', JSON.stringify(cfg));
-		const r = await fetch('?/testEmail', { method: 'POST', body: fd });
-		const d = await r.json().catch(() => ({}));
-		// SvelteKit action responses are wrapped in { type, data }
-		const payload = d?.data ?? d;
-		return r.ok && payload?.success ? { success: true } : { success: false, error: payload?.error ?? 'Connection failed' };
-	}
+	import { deserialize } from '$app/forms';
 
 	const { wizard } = setupStore;
 
@@ -103,20 +93,12 @@
 	let testEmailSent = $state(false);
 	let showSuccessDetails = $state(true);
 	let showWhySmtp = $state(false);
-	import { SvelteSet } from 'svelte/reactivity';
-
 	const validationErrors = $state<Record<string, string>>({});
-	let touchedFields = $state(new SvelteSet<string>());
+	let touchedFields = $state(new Set<string>());
 	let localValidationErrors = $derived(() => validationResult().errors);
 
 	// SMTP Configuration is now bound to wizard.emailSettings
 	let useCustomPort = $state(false);
-
-	$effect(() => {
-		if (!wizard.emailSettings.port) {
-			wizard.emailSettings.port = '587';
-		}
-	});
 
 	let showPassword = $state(false);
 
@@ -340,6 +322,7 @@
 	// Mark field as touched on blur
 	function handleBlur(fieldName: string) {
 		touchedFields.add(fieldName);
+		touchedFields = touchedFields;
 	}
 
 	// Legacy hostname validation for UI feedback
@@ -399,8 +382,7 @@
 		if (preset) {
 			selectedPreset = presetName;
 			wizard.emailSettings.host = preset.host;
-			// Default to '587' if host is empty (custom) or use preset value
-			wizard.emailSettings.port = preset.port ? String(preset.port) : '587';
+			wizard.emailSettings.port = String(preset.port);
 			useCustomPort = false;
 			testSuccess = false;
 			testError = '';
@@ -419,31 +401,52 @@
 		testEmailSent = false;
 
 		try {
-			const data = await testEmailConnection({
-					host: wizard.emailSettings.host,
-					port: effectivePort(),
-					user: wizard.emailSettings.user,
-					password: wizard.emailSettings.password,
-					from: wizard.emailSettings.from || wizard.emailSettings.user,
-					secure: effectiveSecure(),
-					testEmail: wizard.adminUser.email
-				});
+			const formData = new FormData();
+			formData.append('host', wizard.emailSettings.host);
+			formData.append('port', String(effectivePort()));
+			formData.append('user', wizard.emailSettings.user);
+			formData.append('password', wizard.emailSettings.password);
+			formData.append('from', wizard.emailSettings.from || wizard.emailSettings.user);
+			formData.append('secure', String(effectiveSecure()));
+			formData.append('testEmail', wizard.adminUser.email);
+			formData.append('saveToDatabase', 'true');
 
-			if (data.success) {
-				testSuccess = true;
-				testEmailSent = true;
+			const response = await fetch('?/testEmail', {
+				method: 'POST',
+				body: formData
+			});
 
-				// Mark SMTP as configured in wizard state
-				wizard.emailSettings.smtpConfigured = true;
-				wizard.emailSettings.skipWelcomeEmail = false;
+			const result = deserialize(await response.text());
 
-				const message = `${setup_email_test_success()} ${setup_email_test_email_sent({ email: wizard.adminUser.email })}`;
-				toast.success(message);
+			if (result.type === 'success') {
+				const data = result.data as {
+					success: boolean;
+					testEmailSent?: boolean;
+					error?: string;
+				};
+				if (data.success) {
+					testSuccess = true;
+					testEmailSent = !!data.testEmailSent;
+
+					// Mark SMTP as configured in wizard state
+					wizard.emailSettings.smtpConfigured = true;
+					wizard.emailSettings.skipWelcomeEmail = false;
+
+					const message = testEmailSent
+						? `${setup_email_test_success()} ${setup_email_test_email_sent({ email: wizard.adminUser.email })}`
+						: setup_email_test_success();
+					toast.success(message);
+				} else {
+					testError = data.error || 'Connection failed';
+					toast.error(`${setup_email_test_failed()}: ${testError}`);
+				}
 			} else {
-				testError = data.error || 'Connection failed';
+				// Handle failure/error type
+				const errorMsg = (result as { data?: { error?: string } }).data?.error || 'Connection failed'; // Attempt to get error from failure data
+				testError = errorMsg;
 				toast.error(`${setup_email_test_failed()}: ${testError}`);
 			}
-		} catch (error: any) {
+		} catch (error) {
 			testError = error instanceof Error ? error.message : 'Unknown error occurred';
 			toast.error(`${setup_email_test_failed()}: ${testError}`);
 		} finally {
@@ -513,7 +516,7 @@
 					</button>
 				</SystemTooltip>
 			</div>
-			<select class="select w-full rounded border border-slate-300 dark:border-surface-600  " bind:value={selectedPreset} onchange={() => applyPreset(selectedPreset)} aria-label="Select an SMTP provider preset">
+			<select class="select" bind:value={selectedPreset} onchange={() => applyPreset(selectedPreset)} aria-label="Select an SMTP provider preset">
 				{#each presets as preset, index (index)}
 					<option value={preset.name}>{preset.name}</option>
 				{/each}
@@ -550,7 +553,7 @@
 			</div>
 			<input
 				type="text"
-				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
+				class="input"
 				class:input-error={displayErrors.host || (wizard.emailSettings.host.trim() && !isValidHostname())}
 				bind:value={wizard.emailSettings.host}
 				placeholder={setup_email_host_placeholder()}
@@ -598,13 +601,13 @@
 			</div>
 
 			{#if useCustomPort}
+				<!-- Custom port input -->
 				<div class="flex gap-2">
 					<input
 						type="number"
-						class="input w-full rounded border border-slate-300 dark:border-surface-600  "
+						class="input flex-1"
 						class:input-error={displayErrors.port}
-						value={Number(wizard.emailSettings.port)}
-						oninput={(e) => (wizard.emailSettings.port = e.currentTarget.value)}
+						bind:value={wizard.emailSettings.port}
 						placeholder={setup_email_port_custom()}
 						min="1"
 						max="65535"
@@ -615,10 +618,9 @@
 							testError = '';
 						}}
 					/>
-
 					<button
 						type="button"
-						class="preset-outlined-surface-500 btn btn-sm whitespace-nowrap border border-slate-300 dark:border-surface-600"
+						class="preset-outlined-surface-500btn btn-sm"
 						aria-label={setup_email_aria_switch_standard()}
 						onclick={() => {
 							useCustomPort = false;
@@ -641,23 +643,21 @@
 				<!-- Standard port dropdown -->
 				<div class="flex gap-2">
 					<select
-						class="select w-full rounded border border-slate-300 dark:border-surface-600  "
-						value={String(wizard.emailSettings.port)}
-						onchange={(e) => {
-							wizard.emailSettings.port = e.currentTarget.value;
+						class="select flex-1"
+						bind:value={wizard.emailSettings.port}
+						aria-label="Select a standard SMTP port"
+						onchange={() => {
 							testSuccess = false;
 							testError = '';
 						}}
-						aria-label="Select a standard SMTP port"
 					>
 						{#each commonPorts as port, index (index)}
-							<option value={String(port.value)}>{port.label}</option>
+							<option value={port.value}>{port.label}</option>
 						{/each}
 					</select>
-
 					<button
 						type="button"
-						class="preset-outlined dark:border-surface-600 btn btn-sm whitespace-nowrap"
+						class="preset-outlined btn btn-sm whitespace-nowrap"
 						aria-label="Enter a custom SMTP port"
 						onclick={() => {
 							useCustomPort = true;
@@ -700,7 +700,7 @@
 			</div>
 			<input
 				type="text"
-				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
+				class="input"
 				class:input-error={displayErrors.user}
 				bind:value={wizard.emailSettings.user}
 				placeholder={setup_email_user_placeholder()}
@@ -744,8 +744,8 @@
 			</div>
 			<div class="relative">
 				<input
-					type={showPassword ? 'text' : 'security'}
-					class="input w-full rounded border border-slate-300 dark:border-surface-600   pr-10"
+					type={showPassword ? 'text' : 'password'}
+					class="input pr-10"
 					class:input-error={displayErrors.password}
 					bind:value={wizard.emailSettings.password}
 					placeholder={setup_email_password_placeholder()}
@@ -756,7 +756,7 @@
 						if (trimmed !== wizard.emailSettings.password) {
 							wizard.emailSettings.password = trimmed;
 						}
-						handleBlur('security');
+						handleBlur('password');
 					}}
 					onchange={() => {
 						testSuccess = false;
@@ -788,7 +788,7 @@
 			</div>
 			<input
 				type="email"
-				class="input w-full rounded border border-slate-300 dark:border-surface-600  "
+				class="input"
 				bind:value={wizard.emailSettings.from}
 				placeholder={wizard.emailSettings.user || 'noreply@example.com'}
 				onblur={() => {

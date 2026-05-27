@@ -28,152 +28,172 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 -->
 
 <script lang="ts">
+	// Components
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { tokenTarget } from '@src/services/token/token-target';
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
+
+	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
-	import { maxValue, minValue, nullable, number as numberSchema, parse, pipe } from 'valibot';
+
+	// Valibot validation
+	import { maxValue, minValue, number as numberSchema, optional, parse, pipe } from 'valibot';
 	import type { FieldType } from './';
 
 	let {
 		field,
-		value = $bindable(),
+		value,
 		error
 	}: {
 		field: FieldType;
-		value?: number | null | undefined;
+		value: number | null | undefined;
 		error?: string | null;
 	} = $props();
 
+	// Get the user's current UI language.
 	const lang = $derived(app.systemLanguage);
-	const currencyCode = $derived(field.currencyCode || 'EUR');
-	
+
+	// Create a memoized number formatter for the specified currency.
 	const formatter = $derived(
 		new Intl.NumberFormat(lang as string, {
 			style: 'currency',
-			currency: currencyCode as string,
-			minimumFractionDigits: 2
+			currency: (field.currencyCode as string) || 'EUR'
 		})
 	);
 
-	// Local state for raw input string while typing
-	let displayValue = $state('');
-	let isFocused = $state(false);
+	// Local state for the displayed, formatted string.
+	let formattedValue = $state('');
 
-	// Sync local display when not focused or when value changes externally
+	// Effect 1: When the parent `value` (number) changes, update the local formatted string.
 	$effect(() => {
-		if (!isFocused) {
-			displayValue = typeof value === 'number' ? formatter.format(value) : '';
+		// Only update if the number is valid and different from what the input already represents.
+		const currentNumericValue = parseLocalizedNumber(formattedValue, lang);
+		if (typeof value === 'number' && value !== currentNumericValue) {
+			formattedValue = formatter.format(value);
+		} else if (value === null || value === undefined) {
+			formattedValue = '';
 		}
 	});
 
-	function handleInput(e: Event & { currentTarget: HTMLInputElement }) {
-		displayValue = e.currentTarget.value;
-		const numeric = parseLocalizedNumber(displayValue, lang as string);
-		value = Number.isNaN(numeric) ? null : numeric;
+	// This function is called when the user types in the input.
+	function handleInput(event: Event & { currentTarget: HTMLInputElement }) {
+		const inputString = event.currentTarget.value;
+		// Parse the localized string back into a number.
+		const numericValue = parseLocalizedNumber(inputString, lang);
+		// Update the parent's `value` with the clean number.
+		value = Number.isNaN(numericValue) ? null : numericValue;
 	}
 
+	// This function is called when the user leaves the input field.
 	function handleBlur() {
-		isFocused = false;
+		// Re-format the input to a clean, canonical currency format.
 		if (typeof value === 'number') {
-			displayValue = formatter.format(value);
+			formattedValue = formatter.format(value);
 		}
+		// Validate on blur
 		validateCurrency(value);
-	}
-
-	function handleFocus() {
-		isFocused = true;
-		if (typeof value === 'number') {
-			// Show number without currency symbol and grouping for easier editing
-			displayValue = new Intl.NumberFormat(lang as string, { 
-				useGrouping: false, 
-				minimumFractionDigits: 0,
-				maximumFractionDigits: 10 
-			}).format(value);
-		}
-	}
-
-	function handleClear() {
-		value = null;
-		displayValue = '';
-		validationStore.clearError(fieldName);
 	}
 
 	// Validation
 	const fieldName = $derived(getFieldName(field));
+
+	// Currency validation schema
 	const currencySchema = $derived.by(() => {
-		const min = (field as any).minValue ?? (field as any).min;
-		const max = (field as any).maxValue ?? (field as any).max;
-		let schema: any = numberSchema('Amount must be a number');
-		if (typeof min === 'number') schema = pipe(schema, minValue(min, `Min: ${formatter.format(min)}`));
-		if (typeof max === 'number') schema = pipe(schema, maxValue(max, `Max: ${formatter.format(max)}`));
-		return field.required ? schema : nullable(schema);
+		const rules: any[] = [];
+
+		if (typeof field.min === 'number') {
+			rules.push(minValue(field.min, `Amount must be at least ${formatter.format(field.min)}`));
+		}
+		if (typeof field.max === 'number') {
+			rules.push(maxValue(field.max, `Amount must not exceed ${formatter.format(field.max)}`));
+		}
+
+		const schema = rules.length > 0 ? pipe(numberSchema('Amount must be a number'), ...(rules as [])) : numberSchema('Amount must be a number');
+
+		return field.required ? schema : optional(schema);
 	});
 
-	function validateCurrency(val: any) {
-		handleWidgetValidation(() => parse(currencySchema, val), { fieldName, updateStore: true });
+	function validateCurrency(currencyValue: number | null | undefined) {
+		if ((currencyValue === null || currencyValue === undefined) && !field?.required) {
+			validationStore.clearError(fieldName);
+			return;
+		}
+		if (field?.required && (currencyValue === null || currencyValue === undefined)) {
+			validationStore.setError(fieldName, 'This field is required');
+			return;
+		}
+		handleWidgetValidation(() => parse(currencySchema, currencyValue), {
+			fieldName,
+			updateStore: true
+		});
 	}
 
+	// A helper function to parse a localized number string (e.g., "1.234,56") into a JS number.
 	function parseLocalizedNumber(str: string, locale: string): number {
-		const parts = new Intl.NumberFormat(locale).formatToParts(123456.789);
-		const group = parts.find(p => p.type === 'group')?.value || '';
-		const decimal = parts.find(p => p.type === 'decimal')?.value || '.';
-		const normalized = str
-			.replace(new RegExp(`\\${group}`, 'g'), '')
-			.replace(decimal, '.')
-			.replace(/[^\d.-]/g, '');
-		return parseFloat(normalized);
+		const parts = new Intl.NumberFormat(locale).formatToParts(1234.5);
+		const group = parts.find((p) => p.type === 'group')?.value || ',';
+		const decimal = parts.find((p) => p.type === 'decimal')?.value || '.';
+		const cleaned = str.replace(new RegExp(`\\${group}`, 'g'), '').replace(decimal, '.');
+		return Number.parseFloat(cleaned.replace(/[^\d.-]/g, ''));
 	}
 </script>
 
-<div class="currency-widget flex flex-col gap-1">
-	<div 
-		class="flex items-center rounded-lg border transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
-		class:!border-error-500={!!error}
-		class:ring-2={!!error}
-		class:ring-error-500={!!error}
-	>
-		{#if field.prefix}
-			<span class="px-3 py-2 bg-surface-100 dark:bg-surface-800 border-r border-surface-300 dark:border-surface-700 text-surface-500 text-sm font-medium">
-				{field.prefix}
-			</span>
-		{/if}
+<div class="input-container relative mb-4 min-h-10 w-full">
+	<SystemTooltip title={error || ''} wFull={true}>
+		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600" role="group">
+			{#if field?.prefix}
+				<div
+					class="flex items-center bg-surface-200 px-3 text-surface-700 dark:bg-surface-800 dark:text-surface-200"
+					aria-label={`${field.prefix} prefix`}
+				>
+					{field?.prefix}
+				</div>
+			{/if}
 
-		<div class="relative grow flex items-center px-3">
-			<iconify-icon icon="mdi:cash-multiple" width="18" class="text-surface-400 mr-2"></iconify-icon>
-			<input
-				type="text"
-				aria-label={field.label || fieldName || 'Currency amount'}
-				value={displayValue}
-				oninput={handleInput}
-				onfocus={handleFocus}
-				onblur={handleBlur}
-				placeholder={typeof field.placeholder === 'string' ? field.placeholder : formatter.format(0)}
-				class="w-full border-none bg-transparent py-2 text-sm font-semibold outline-none focus:ring-0 text-surface-900 dark:text-surface-50"
-				inputmode="decimal"
-				use:tokenTarget={{ name: fieldName, label: field.label, collection: (field as any).collection }}
-			/>
+			<div class="relative w-full flex-1">
+				<input
+					type="text"
+					bind:value={formattedValue}
+					oninput={handleInput}
+					onblur={handleBlur}
+					oninvalid={(e) => e.preventDefault()}
+					use:tokenTarget={{
+						name: field.db_fieldName,
+						label: field.label,
+						collection: (field as any).collection
+					}}
+					name={field?.db_fieldName}
+					id={field?.db_fieldName}
+					placeholder={typeof field?.placeholder === 'string' && field.placeholder !== '' ? field.placeholder : String(field?.db_fieldName ?? '')}
+					required={field?.required as boolean | undefined}
+					readonly={field?.readonly as boolean | undefined}
+					disabled={field?.disabled as boolean | undefined}
+					class="input w-full rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {error
+						? 'bg-error-500-10!'
+						: ''}"
+					aria-invalid={!!error}
+					aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
+					aria-required={field?.required}
+					data-testid="currency-input"
+				/>
+			</div>
+
+			{#if field?.suffix}
+				<div
+					class="flex items-center bg-surface-200 px-3 text-surface-700 dark:bg-surface-800 dark:text-surface-200"
+					aria-label={`${field.suffix} suffix`}
+				>
+					{field?.suffix}
+				</div>
+			{/if}
 		</div>
+	</SystemTooltip>
 
-		{#if field.suffix}
-			<span class="px-3 py-2 bg-surface-100 dark:bg-surface-800 border-l border-surface-300 dark:border-surface-700 text-surface-500 text-sm font-medium">
-				{field.suffix}
-			</span>
-		{/if}
-
-		{#if !field.required || value !== null}
-			<button 
-				type="button" 
-				class="btn btn-sm variant-soft-surface p-1 mr-1 opacity-60 hover:opacity-100"
-				onclick={handleClear}
-				title="Clear value"
-			>
-				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
-			</button>
-		{/if}
-	</div>
-
+	<!-- Error Message -->
 	{#if error}
-		<p class="text-[10px] font-medium text-error-500 px-1" role="alert">{error}</p>
+		<p id={`${field.db_fieldName}-error`} class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
+			{error}
+		</p>
 	{/if}
 </div>

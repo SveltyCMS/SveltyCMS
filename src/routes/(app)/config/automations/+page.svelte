@@ -1,196 +1,280 @@
-<!-- 
+﻿<!--
 @files src/routes/(app)/config/automations/+page.svelte
 @component
-**Automation Management Page**
-Lists all configured workflow automations with status, trigger, and operation summaries.
+**Automation Flows — List Page**
+Displays all configured automation flows with status badges, trigger info,
+and CRUD actions. Enterprise-grade workflow management GUI.
+
+### Features
+- Grid view of all automation flows
+- Create / Edit / Delete / Duplicate / Toggle / Test actions
+- Real-time status badges (active, paused, errored)
+- Last triggered timestamp and execution count
 -->
 
 <script lang="ts">
-import PageTitle from "@src/components/page-title.svelte";
-import type { AutomationFlow } from "@src/services/background/automation/types";
-import { AUTOMATION_EVENTS } from "@src/services/background/automation/types";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { onMount } from "svelte";
-import { slide } from "svelte/transition";
+	import PageTitle from '@src/components/page-title.svelte';
+	import type { AutomationFlow } from '@src/services/automation/types';
+	import { AUTOMATION_EVENTS, OPERATION_TYPES } from '@src/services/automation/types';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { onMount } from 'svelte';
+	import { slide } from 'svelte/transition';
+	import { goto } from '$app/navigation';
 
-let flows: AutomationFlow[] = $state([]);
-let isLoading = $state(true);
-let searchQuery = $state("");
-let selectedIds: string[] = $state([]);
+	let flows: AutomationFlow[] = $state([]);
+	let isLoading = $state(true);
+	let searchQuery = $state('');
+	let selectedIds = $state<string[]>([]);
 
-let filteredFlows = $derived(
-	flows.filter(f => 
-		f.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-		f.description?.toLowerCase().includes(searchQuery.toLowerCase())
-	)
-);
+	let filteredFlows = $derived(
+		flows.filter((f) => f.name.toLowerCase().includes(searchQuery.toLowerCase()) || f.description?.toLowerCase().includes(searchQuery.toLowerCase()))
+	);
 
-let allSelected = $derived(filteredFlows.length > 0 && selectedIds.length === filteredFlows.length);
-let someSelected = $derived(selectedIds.length > 0 && selectedIds.length < filteredFlows.length);
+	let allSelected = $derived(filteredFlows.length > 0 && selectedIds.length === filteredFlows.length);
+	let someSelected = $derived(selectedIds.length > 0 && !allSelected);
 
-async function loadFlows() {
-	isLoading = true;
-	try {
-		const res = await fetch("/api/automations");
-		const result = await res.json();
-		if (result.success) {
-			flows = result.data;
+	async function loadFlows() {
+		isLoading = true;
+		try {
+			const res = await fetch('/api/automations');
+			const result = await res.json();
+			if (result.success) {
+				flows = result.data;
+			} else {
+				toast.error(result.error || 'Failed to load automations');
+			}
+		} catch (_err) {
+			toast.error('Error loading automations');
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	async function toggleFlow(flow: AutomationFlow) {
+		try {
+			const res = await fetch(`/api/automations/${flow.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ active: !flow.active })
+			});
+			const result = await res.json();
+			if (result.success) {
+				flow.active = !flow.active;
+				toast.success(`${flow.name} ${flow.active ? 'activated' : 'paused'}`);
+			}
+		} catch (_err) {
+			toast.error('Failed to toggle automation');
+		}
+	}
+
+	async function deleteFlow(flow: AutomationFlow) {
+		if (!confirm(`Delete "${flow.name}"? This cannot be undone.`)) {
+			return;
+		}
+
+		try {
+			const res = await fetch(`/api/automations/${flow.id}`, {
+				method: 'DELETE'
+			});
+			const result = await res.json();
+			if (result.success) {
+				flows = flows.filter((f) => f.id !== flow.id);
+				toast.success('Automation deleted');
+			}
+		} catch (_err) {
+			toast.error('Failed to delete automation');
+		}
+	}
+
+	async function duplicateFlow(flow: AutomationFlow) {
+		try {
+			const res = await fetch('/api/automations', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					name: `${flow.name} (Copy)`,
+					description: flow.description,
+					active: false,
+					trigger: flow.trigger,
+					operations: flow.operations
+				})
+			});
+			const result = await res.json();
+			if (result.success) {
+				flows = [...flows, result.data];
+				toast.success('Automation duplicated');
+			}
+		} catch (_err) {
+			toast.error('Failed to duplicate');
+		}
+	}
+
+	async function bulkToggle(active: boolean) {
+		if (selectedIds.length === 0) return;
+		const count = selectedIds.length;
+		toast.info(`Updating ${count} automations...`);
+
+		try {
+			await Promise.all(
+				selectedIds.map((id) =>
+					fetch(`/api/automations/${id}`, {
+						method: 'PATCH',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ active })
+					})
+				)
+			);
+			flows = flows.map((f) => (selectedIds.includes(f.id) ? { ...f, active } : f));
+			toast.success(`${count} automations ${active ? 'activated' : 'paused'}`);
+			selectedIds = [];
+		} catch (_err) {
+			toast.error('Failed to update some automations');
+		}
+	}
+
+	async function bulkDelete() {
+		if (selectedIds.length === 0) return;
+		if (!confirm(`Delete ${selectedIds.length} automations? This cannot be undone.`)) return;
+
+		const count = selectedIds.length;
+		try {
+			await Promise.all(
+				selectedIds.map((id) =>
+					fetch(`/api/automations/${id}`, {
+						method: 'DELETE'
+					})
+				)
+			);
+			flows = flows.filter((f) => !selectedIds.includes(f.id));
+			toast.success(`${count} automations deleted`);
+			selectedIds = [];
+		} catch (_err) {
+			toast.error('Failed to delete some automations');
+		}
+	}
+
+	function toggleSelectAll() {
+		if (allSelected) {
+			selectedIds = [];
 		} else {
-			toast.error(result.error || "Failed to load automations");
+			selectedIds = filteredFlows.map((f) => f.id);
 		}
-	} catch (_err) {
-		toast.error("Error loading automations");
-	} finally {
-		isLoading = false;
 	}
-}
 
-async function toggleFlow(flow: AutomationFlow) {
-	try {
-		const res = await fetch(`/api/automations/${flow.id}`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ active: !flow.active }),
-		});
-		const result = await res.json();
-		if (result.success) {
-			toast.success(`Automation ${!flow.active ? "activated" : "paused"}`);
-			await loadFlows();
-		}
-	} catch (_err) {
-		toast.error("Error toggling automation");
-	}
-}
-
-async function deleteFlow(flow: AutomationFlow) {
-	if (!confirm(`Are you sure you want to delete "${flow.name}"?`)) return;
-	try {
-		const res = await fetch(`/api/automations/${flow.id}`, { method: "DELETE" });
-		const result = await res.json();
-		if (result.success) {
-			toast.success("Automation deleted");
-			await loadFlows();
-		}
-	} catch (_err) {
-		toast.error("Error deleting automation");
-	}
-}
-
-
-async function testFlow(flow: AutomationFlow) {
-	toast.info(`Executing test run for "${flow.name}"...`);
-	try {
-		const res = await fetch(`/api/automations/${flow.id}/test`, { method: "POST" });
-		const result = await res.json();
-		if (result.success && result.data.status === "success") {
-			toast.success(`Test successful (${result.data.duration}ms)`);
+	function toggleSelect(id: string) {
+		if (selectedIds.includes(id)) {
+			selectedIds = selectedIds.filter((i) => i !== id);
 		} else {
-			toast.error(result.error || "Test failed");
+			selectedIds = [...selectedIds, id];
 		}
-	} catch (_err) {
-		toast.error("Error testing automation");
 	}
-}
 
-function getTriggerIcon(flow: AutomationFlow) {
-	if (flow.trigger.type === 'event') {
-		const firstEvent = flow.trigger.events?.[0];
-		return AUTOMATION_EVENTS.find(e => e.event === firstEvent)?.icon || 'mdi:flash';
+	async function testFlow(flow: AutomationFlow) {
+		toast.info(`Testing "${flow.name}"...`);
+		try {
+			const res = await fetch(`/api/automations/${flow.id}/test`, {
+				method: 'POST'
+			});
+			const result = await res.json();
+			if (result.success) {
+				const s = result.data;
+				toast[s.status === 'success' ? 'success' : 'warning'](`Test ${s.status}: ${s.operationResults.length} operations in ${s.duration}ms`);
+			} else {
+				toast.error(result.error || 'Test failed');
+			}
+		} catch (_err) {
+			toast.error('Test execution error');
+		}
 	}
-	return flow.trigger.type === 'schedule' ? 'mdi:clock-outline' : 'mdi:gesture-tap';
-}
 
-function getTriggerLabel(flow: AutomationFlow) {
-	if (flow.trigger.type === 'event') {
-		const count = flow.trigger.events?.length || 0;
-		return count === 1 ? flow.trigger.events?.[0] : `${count} Events`;
+	function createNew() {
+		goto('/config/automations/new');
 	}
-	return flow.trigger.type === 'schedule' ? 'Schedule' : 'Manual';
-}
 
-function getOperationsSummary(flow: AutomationFlow) {
-	if (!flow.operations.length) return "No operations";
-	const types = flow.operations.map(op => op.type);
-	const uniqueTypes = [...new Set(types)];
-	if (uniqueTypes.length === 1) return `${flow.operations.length} ${uniqueTypes[0]} ops`;
-	return `${flow.operations.length} operations`;
-}
-
-function toggleSelect(id: string) {
-	if (selectedIds.includes(id)) {
-		selectedIds = selectedIds.filter(i => i !== id);
-	} else {
-		selectedIds = [...selectedIds, id];
+	function editFlow(flow: AutomationFlow) {
+		goto(`/config/automations/${flow.id}`);
 	}
-}
 
-function toggleSelectAll() {
-	if (allSelected) {
-		selectedIds = [];
-	} else {
-		selectedIds = filteredFlows.map(f => f.id);
+	function getTriggerLabel(flow: AutomationFlow): string {
+		if (flow.trigger.type === 'event') {
+			const events = flow.trigger.events || [];
+			if (events.length === 0) {
+				return 'No events';
+			}
+			if (events.length === 1) {
+				const meta = AUTOMATION_EVENTS.find((e) => e.event === events[0]);
+				return meta?.label || events[0];
+			}
+			return `${events.length} events`;
+		}
+		if (flow.trigger.type === 'schedule') {
+			return flow.trigger.cronLabel || flow.trigger.cron || 'Schedule';
+		}
+		return 'Manual';
 	}
-}
 
-async function bulkToggle(active: boolean) {
-	toast.info(`${active ? 'Activating' : 'Pausing'} ${selectedIds.length} automations...`);
-	// Simple sequential for now, can be optimized later
-	for (const id of selectedIds) {
-		await fetch(`/api/automations/${id}`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ active }),
-		});
+	function getTriggerIcon(flow: AutomationFlow): string {
+		if (flow.trigger.type === 'event') {
+			const events = flow.trigger.events || [];
+			if (events.length === 1) {
+				const meta = AUTOMATION_EVENTS.find((e) => e.event === events[0]);
+				return meta?.icon || 'mdi:flash-outline';
+			}
+			return 'mdi:flash-outline';
+		}
+		if (flow.trigger.type === 'schedule') {
+			return 'mdi:clock-outline';
+		}
+		return 'mdi:gesture-tap';
 	}
-	toast.success("Bulk update complete");
-	selectedIds = [];
-	await loadFlows();
-}
 
-async function bulkDelete() {
-	if (!confirm(`Delete ${selectedIds.length} automations?`)) return;
-	for (const id of selectedIds) {
-		await fetch(`/api/automations/${id}`, { method: "DELETE" });
+	function getOperationsSummary(flow: AutomationFlow): string {
+		if (flow.operations.length === 0) {
+			return 'No operations';
+		}
+		return flow.operations
+			.map((op) => {
+				const meta = OPERATION_TYPES.find((t) => t.type === op.type);
+				return meta?.label || op.type;
+			})
+			.join(' → ');
 	}
-	toast.success("Bulk delete complete");
-	selectedIds = [];
-	await loadFlows();
-}
 
-function timeAgo(dateStr: string | undefined) {
-	if (!dateStr) return "Never";
-	const date = new Date(dateStr);
-	const now = new Date();
-	const diff = (now.getTime() - date.getTime()) / 1000;
-	if (diff < 60) return "Just now";
-	if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-	if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-	return date.toLocaleDateString();
-}
+	function timeAgo(dateStr?: string): string {
+		if (!dateStr) {
+			return 'Never';
+		}
+		const diff = Date.now() - new Date(dateStr).getTime();
+		if (diff < 60_000) {
+			return 'Just now';
+		}
+		if (diff < 3_600_000) {
+			return `${Math.floor(diff / 60_000)}m ago`;
+		}
+		if (diff < 86_400_000) {
+			return `${Math.floor(diff / 3_600_000)}h ago`;
+		}
+		return `${Math.floor(diff / 86_400_000)}d ago`;
+	}
 
-onMount(loadFlows);
+	onMount(loadFlows);
 </script>
 
-<PageTitle
-	name="Automations"
-	icon="mdi:robot-outline"
-	showBackButton={true}
-	backUrl="/config"
-/>
+<PageTitle name="Automations" icon="mdi:robot-outline" showBackButton={true} backUrl="/config" />
 
-<div class="wrapper mx-auto max-w-[1100px] p-4">
+<div class="wrapper p-4">
 	<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
 		<div class="flex-1 min-w-0">
 			<h2 class="h2 font-bold">Workflow Automations</h2>
 			<p class="text-surface-600 dark:text-surface-200 truncate">
-				Automate actions when content changes - send emails, call webhooks, update fields.
+				Automate actions when content changes — send emails, call webhooks, update fields.
 			</p>
 		</div>
 		<div class="flex items-center gap-2">
-			<a class="preset-filled-primary-500 btn" href="/config/automations/new" data-sveltekit-preload-data="hover">
+			<button class="preset-filled-primary-500 btn" onclick={createNew}>
 				<iconify-icon icon="mdi:plus"></iconify-icon>
 				<span>New Automation</span>
-			</a>
+			</button>
 		</div>
 	</div>
 
@@ -239,10 +323,10 @@ onMount(loadFlows);
 			<h3 class="h3 font-bold">No Automations Yet</h3>
 			<p class="mb-2 opacity-60">Create your first automation to start streamlining workflows.</p>
 			<p class="mb-6 text-sm opacity-40">Example: Send an email when a new article is published.</p>
-			<a class="preset-filled-primary-500 btn" href="/config/automations/new" data-sveltekit-preload-data="hover">
+			<button class="btn preset-filled-primary-500" onclick={createNew}>
 				<iconify-icon icon="mdi:plus"></iconify-icon>
 				Get Started
-			</a>
+			</button>
 		</div>
 	{:else}
 		<div class="grid gap-4">
@@ -277,9 +361,9 @@ onMount(loadFlows);
 
 							<div class="flex-1 min-w-0">
 								<div class="flex items-center gap-2 mb-0.5">
-									<a class="font-bold text-lg truncate hover:text-primary-600 transition-colors text-left" href={`/config/automations/${flow.id}`} data-sveltekit-preload-data="hover">
+									<button class="font-bold text-lg truncate hover:text-primary-600 transition-colors text-left" onclick={() => editFlow(flow)}>
 										{flow.name}
-									</a>
+									</button>
 									{#if flow.active}
 										<span class="badge preset-filled-success-500 text-[10px] uppercase">Active</span>
 									{:else}
@@ -335,18 +419,17 @@ onMount(loadFlows);
 								>
 									<iconify-icon icon={flow.active ? 'mdi:pause' : 'mdi:play'}></iconify-icon>
 								</button>
-								<a class="btn btn-sm preset-tonal-surface flex items-center justify-center" href={`/config/automations/${flow.id}`} title="Edit" aria-label="Edit Automation" data-sveltekit-preload-data="hover">
+								<button class="btn btn-sm preset-tonal-surface" onclick={() => editFlow(flow)} title="Edit" aria-label="Edit Automation">
 									<iconify-icon icon="mdi:pencil-outline"></iconify-icon>
-								</a>
-								<a
-									class="btn btn-sm preset-tonal-surface flex items-center justify-center"
-									href={`/config/automations/${flow.id}?duplicate=true`}
+								</button>
+								<button
+									class="btn btn-sm preset-tonal-surface"
+									onclick={() => duplicateFlow(flow)}
 									title="Duplicate"
 									aria-label="Duplicate Automation"
-									data-sveltekit-preload-data="hover"
 								>
 									<iconify-icon icon="mdi:content-copy"></iconify-icon>
-								</a>
+								</button>
 								<button class="btn btn-sm preset-tonal-error" onclick={() => deleteFlow(flow)} title="Delete" aria-label="Delete Automation">
 									<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
 								</button>
@@ -359,3 +442,9 @@ onMount(loadFlows);
 	{/if}
 </div>
 
+<style>
+	.wrapper {
+		max-width: 1100px;
+		margin: 0 auto;
+	}
+</style>

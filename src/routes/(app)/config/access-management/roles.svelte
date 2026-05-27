@@ -17,198 +17,178 @@ It provides the following functionality:
 -->
 
 <script lang="ts">
-// Store
-import { toast } from "@src/stores/toast.svelte.ts";
-// Auth
-import type { Role } from "@src/databases/auth/types";
-import type { DatabaseId, ISODateString } from "@src/databases/db-interface";
-// Skeleton
-import { modalState } from "@utils/modal.svelte";
-import { SvelteSet } from "svelte/reactivity";
-import { dndzone } from "svelte-dnd-action";
-// Components
-import RoleModal from "./role-modal.svelte";
+	// Store
+	import { toast } from '@src/stores/toast.svelte.ts';
+	// Auth
+	import type { Role } from '@src/databases/auth/types';
+	// Skeleton
+	import { modalState } from '@utils/modal-state.svelte';
+	import { SvelteSet } from 'svelte/reactivity';
+	import { dndzone } from 'svelte-dnd-action';
+	// Components
+	import RoleModal from './role-modal.svelte';
 
-const flipDurationMs = 100;
+	const flipDurationMs = 100;
 
-interface Props {
-	roleData: any;
-	setRoleData: (data: any) => void;
-	updateModifiedCount?: (count: number) => void;
-	permissions?: import("@src/databases/auth/types").Permission[];
-}
-
-let {
-	roleData,
-	setRoleData,
-	updateModifiedCount,
-	permissions = [],
-}: Props = $props();
-
-// Roles State
-let roles: (Role & { id: string })[] = $state([]);
-let roleSearchTerm = $state("");
-let error = $state<string | null>(null);
-
-// Derived items for display (filtering)
-const filteredRoles = $derived(
-	roles.filter(
-		(r) =>
-			r.name.toLowerCase().includes(roleSearchTerm.toLowerCase()) ||
-			r.description?.toLowerCase().includes(roleSearchTerm.toLowerCase()),
-	),
-);
-
-// Tracking changes
-const modifiedRoles = new SvelteSet<string>();
-let selectedRoles = new SvelteSet<string>();
-
-// Modal state
-let isEditMode = $state(false);
-let currentRoleId: string | null = $state(null);
-let currentGroupName = $state("");
-
-// Initialize data when component mounts (run once)
-$effect(() => {
-	// Only initialize if data hasn't been loaded yet
-	if (roles.length === 0 && roleData.length > 0) {
-		const rolesWithId = roleData.map((role: Role) => ({
-			...role,
-			id: role._id,
-		}));
-		roles = rolesWithId;
+	interface Props {
+		roleData: any;
+		setRoleData: (data: any) => void;
+		updateModifiedCount?: (count: number) => void;
+		permissions?: import('@src/databases/auth/types').Permission[];
 	}
-});
 
-const openModal = (role: Role | null = null, groupName = "") => {
-	isEditMode = !!role;
-	currentRoleId = role ? role._id : null;
-	currentGroupName = groupName || "";
+	let { roleData, setRoleData, updateModifiedCount, permissions = [] }: Props = $props();
 
-	modalState.trigger(RoleModal as any, {
-		isEditMode,
-		currentRoleId,
-		roleName: role?.name || "",
-		roleDescription: role?.description || "",
-		currentGroupName,
-		selectedPermissions: role?.permissions || [],
-		permissions, // Pass available permissions to the modal
-		roles, // Pass available roles to copy from
-		response: (formData: any) => {
-			if (formData) {
-				saveRole(formData);
-			}
-		},
-		title: isEditMode ? "Edit Role" : "Create Role",
+	// Roles State
+	let roles: (Role & { id: string })[] = $state([]);
+	let roleSearchTerm = $state('');
+	let error = $state<string | null>(null);
+
+	// Derived items for display (filtering)
+	const filteredRoles = $derived(
+		roles.filter(
+			(r) => r.name.toLowerCase().includes(roleSearchTerm.toLowerCase()) || r.description?.toLowerCase().includes(roleSearchTerm.toLowerCase())
+		)
+	);
+
+	// Tracking changes
+	const modifiedRoles = new SvelteSet<string>();
+	let selectedRoles = new SvelteSet<string>();
+
+	// Modal state
+	let isEditMode = $state(false);
+	let currentRoleId: string | null = $state(null);
+	let currentGroupName = $state('');
+
+	// Initialize data when component mounts (run once)
+	$effect(() => {
+		// Only initialize if data hasn't been loaded yet
+		if (roles.length === 0 && roleData.length > 0) {
+			const rolesWithId = roleData.map((role: Role) => ({
+				...role,
+				id: role._id
+			}));
+			roles = rolesWithId;
+		}
 	});
-};
 
-const saveRole = async (role: {
-	roleName: string;
-	roleDescription: string;
-	currentGroupName: string;
-	selectedPermissions: string[];
-	currentRoleId: string | null;
-}) => {
-	const {
-		roleName,
-		roleDescription,
-		currentGroupName,
-		selectedPermissions,
-		currentRoleId,
-	} = role;
-	if (!roleName) {
-		return;
-	}
+	const openModal = (role: Role | null = null, groupName = '') => {
+		isEditMode = !!role;
+		currentRoleId = role ? role._id : null;
+		currentGroupName = groupName || '';
 
-	const roleId = currentRoleId ?? crypto.randomUUID().replace(/-/g, "");
-	const newRole = {
-		_id: roleId as DatabaseId,
-		id: roleId,
-		name: roleName,
-		description: roleDescription,
-		groupName: currentGroupName,
-		permissions: selectedPermissions,
-		createdAt: new Date().toISOString() as ISODateString,
-		updatedAt: new Date().toISOString() as ISODateString,
+		modalState.trigger(RoleModal as any, {
+			isEditMode,
+			currentRoleId,
+			roleName: role?.name || '',
+			roleDescription: role?.description || '',
+			currentGroupName,
+			selectedPermissions: role?.permissions || [],
+			permissions, // Pass available permissions to the modal
+			roles, // Pass available roles to copy from
+			response: (formData: any) => {
+				if (formData) {
+					saveRole(formData);
+				}
+			},
+			title: isEditMode ? 'Edit Role' : 'Create Role'
+		});
 	};
 
-	if (!isEditMode) {
-		roles = [...roles, newRole];
-		modifiedRoles.add(roleId);
-		toast.info("Role added. Save to apply.");
-	} else if (currentRoleId) {
-		const index = roles.findIndex((r) => r._id === currentRoleId);
-		roles[index] = newRole;
-		roles = [...roles];
-		modifiedRoles.add(currentRoleId);
-		toast.info("Role updated. Save to apply.");
-	}
-
-	// Sync to parent
-	const cleanedRoles = roles.map(({ id, ...rest }) => rest);
-	setRoleData(cleanedRoles);
-
-	if (updateModifiedCount) {
-		updateModifiedCount(modifiedRoles.size);
-	}
-};
-
-const deleteSelectedRoles = async () => {
-	for (const roleId of selectedRoles) {
-		const index = roles.findIndex((cur: { _id: string }) => cur._id === roleId);
-		if (index !== -1) {
-			roles.splice(index, 1);
-			modifiedRoles.add(roleId);
+	const saveRole = async (role: {
+		roleName: string;
+		roleDescription: string;
+		currentGroupName: string;
+		selectedPermissions: string[];
+		currentRoleId: string | null;
+	}) => {
+		const { roleName, roleDescription, currentGroupName, selectedPermissions, currentRoleId } = role;
+		if (!roleName) {
+			return;
 		}
+
+		const roleId = currentRoleId ?? crypto.randomUUID().replace(/-/g, '');
+		const newRole = {
+			_id: roleId,
+			id: roleId,
+			name: roleName,
+			description: roleDescription,
+			groupName: currentGroupName,
+			permissions: selectedPermissions
+		};
+
+		if (!isEditMode) {
+			roles = [...roles, newRole];
+			modifiedRoles.add(roleId);
+			toast.info('Role added. Save to apply.');
+		} else if (currentRoleId) {
+			const index = roles.findIndex((r) => r._id === currentRoleId);
+			roles[index] = newRole;
+			roles = [...roles];
+			modifiedRoles.add(currentRoleId);
+			toast.info('Role updated. Save to apply.');
+		}
+
+		// Sync to parent
+		const cleanedRoles = roles.map(({ id, ...rest }) => rest);
+		setRoleData(cleanedRoles);
+
+		if (updateModifiedCount) {
+			updateModifiedCount(modifiedRoles.size);
+		}
+	};
+
+	const deleteSelectedRoles = async () => {
+		for (const roleId of selectedRoles) {
+			const index = roles.findIndex((cur: { _id: string }) => cur._id === roleId);
+			if (index !== -1) {
+				roles.splice(index, 1);
+				modifiedRoles.add(roleId);
+			}
+		}
+		roles = [...roles];
+		selectedRoles.clear();
+		toast.info('Roles deleted. Save to apply.');
+
+		// Sync to parent
+		const cleanedRoles = roles.map(({ id, ...rest }) => rest);
+		setRoleData(cleanedRoles);
+
+		// Notify the parent about the number of changes
+		if (updateModifiedCount) {
+			updateModifiedCount(modifiedRoles.size);
+		}
+	};
+
+	const toggleRoleSelection = (roleId: string) => {
+		if (selectedRoles.has(roleId)) {
+			selectedRoles.delete(roleId);
+		} else {
+			selectedRoles.add(roleId);
+		}
+	};
+
+	// DndItem type already defined above
+
+	function handleSort(e: CustomEvent) {
+		roles = [...e.detail.items];
+		const movedItem = e.detail.items.find((item: any) => item.id === e.detail.info.id);
+		if (movedItem) modifiedRoles.add(movedItem._id);
+
+		const cleanedRoles = roles.map(({ id, ...rest }) => rest);
+		setRoleData(cleanedRoles);
+		if (updateModifiedCount) updateModifiedCount(modifiedRoles.size);
 	}
-	roles = [...roles];
-	selectedRoles.clear();
-	toast.info("Roles deleted. Save to apply.");
 
-	// Sync to parent
-	const cleanedRoles = roles.map(({ id, ...rest }) => rest);
-	setRoleData(cleanedRoles);
+	function handleFinalize(e: CustomEvent) {
+		roles = [...e.detail.items];
+		const movedItem = e.detail.items.find((item: any) => item.id === e.detail.info.id);
+		if (movedItem) modifiedRoles.add(movedItem._id);
 
-	// Notify the parent about the number of changes
-	if (updateModifiedCount) {
-		updateModifiedCount(modifiedRoles.size);
+		const cleanedRoles = roles.map(({ id, ...rest }) => rest);
+		setRoleData(cleanedRoles);
+		if (updateModifiedCount) updateModifiedCount(modifiedRoles.size);
 	}
-};
-
-const toggleRoleSelection = (roleId: string) => {
-	if (selectedRoles.has(roleId)) {
-		selectedRoles.delete(roleId);
-	} else {
-		selectedRoles.add(roleId);
-	}
-};
-
-// DndItem type already defined above
-
-function handleSort(e: CustomEvent) {
-	roles = [...e.detail.items];
-	const movedItem = e.detail.items.find(
-		(item: any) => item.id === e.detail.info.id,
-	);
-	if (movedItem) modifiedRoles.add(movedItem._id);
-
-	const cleanedRoles = roles.map(({ id, ...rest }) => rest);
-	setRoleData(cleanedRoles);
-	if (updateModifiedCount) updateModifiedCount(modifiedRoles.size);
-}
-
-function handleFinalize(e: CustomEvent) {
-	roles = [...e.detail.items];
-	const movedItem = e.detail.items.find(
-		(item: any) => item.id === e.detail.info.id,
-	);
-	if (movedItem) modifiedRoles.add(movedItem._id);
-
-	const cleanedRoles = roles.map(({ id, ...rest }) => rest);
-	setRoleData(cleanedRoles);
-	if (updateModifiedCount) updateModifiedCount(modifiedRoles.size);
-}
 </script>
 
 {#if error}

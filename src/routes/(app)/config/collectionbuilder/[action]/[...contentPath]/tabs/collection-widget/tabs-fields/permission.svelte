@@ -9,157 +9,150 @@ Features: Visibility (public/private), requiredAuth, readRoles, writeRoles (mult
 -->
 
 <script lang="ts">
-import { SvelteSet } from "svelte/reactivity";
-import type { Role } from "@src/databases/auth/types";
-import type { WidgetFieldPermissions } from "@src/content/types";
-import { collections } from "@src/stores/collection-store.svelte";
-import { modalState } from "@utils/modal.svelte";
+	import { SvelteSet } from 'svelte/reactivity';
+	import type { Role } from '@src/databases/auth/types';
+	import type { WidgetFieldPermissions } from '@src/content/types';
+	import { collections } from '@src/stores/collection-store.svelte';
+	import { modalState } from '@utils/modal-state.svelte';
 
-interface Props {
-	/** Roles for role-based access (e.g. from edit page data). Used when not in modal. */
-	roles?: Role[];
-}
-
-const { roles: rolesProp = [] }: Props = $props();
-
-const DEFAULT_PERMISSIONS: WidgetFieldPermissions = {
-	visibility: "public",
-	requiredAuth: false,
-	readRoles: [],
-	writeRoles: [],
-};
-
-function isWidgetFieldPermissions(p: unknown): p is WidgetFieldPermissions {
-	if (!p || typeof p !== "object") return false;
-	const o = p as Record<string, unknown>;
-	return (
-		("visibility" in o &&
-			(o.visibility === "public" || o.visibility === "private")) ||
-		("requiredAuth" in o && typeof o.requiredAuth === "boolean") ||
-		Array.isArray(o.readRoles) ||
-		Array.isArray(o.writeRoles)
-	);
-}
-
-/** Normalize raw permissions (legacy matrix or new shape) to WidgetFieldPermissions */
-function normalizePermissions(raw: unknown): WidgetFieldPermissions {
-	if (isWidgetFieldPermissions(raw)) {
-		return {
-			visibility: raw.visibility ?? DEFAULT_PERMISSIONS.visibility,
-			requiredAuth: raw.requiredAuth ?? DEFAULT_PERMISSIONS.requiredAuth,
-			readRoles: Array.isArray(raw.readRoles) ? [...raw.readRoles] : [],
-			writeRoles: Array.isArray(raw.writeRoles) ? [...raw.writeRoles] : [],
-		};
+	interface Props {
+		/** Roles for role-based access (e.g. from edit page data). Used when not in modal. */
+		roles?: Role[];
 	}
-	if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-		const matrix = raw as Record<string, Record<string, boolean>>;
-		const readRoles: string[] = [];
-		const writeRoles: string[] = [];
-		for (const [roleId, perms] of Object.entries(matrix)) {
-			if (perms?.read) readRoles.push(roleId);
-			if (perms?.write || perms?.update) writeRoles.push(roleId);
-		}
-		return {
-			visibility: "public",
-			requiredAuth: false,
-			readRoles,
-			writeRoles,
-		};
-	}
-	return { ...DEFAULT_PERMISSIONS };
-}
 
-// Prefer store target (has __fieldIndex for persistence); fall back to modal value when adding new field
-const inModal = $derived(!!modalState.active);
-const target = $derived(
-	(collections.targetWidget as Record<string, unknown> | undefined) ??
-		(inModal
-			? (modalState.active?.props?.value as Record<string, unknown> | undefined)
-			: undefined),
-);
-const roles = $derived(
-	inModal
-		? ((modalState.active?.props as { roles?: Role[] })?.roles ?? rolesProp)
-		: rolesProp,
-);
-const permissions = $derived(normalizePermissions(target?.permissions));
+	const { roles: rolesProp = [] }: Props = $props();
 
-function updatePermissions(next: Partial<WidgetFieldPermissions>) {
-	const merged: WidgetFieldPermissions = {
-		...permissions,
-		...next,
+	const DEFAULT_PERMISSIONS: WidgetFieldPermissions = {
+		visibility: 'public',
+		requiredAuth: false,
+		readRoles: [],
+		writeRoles: []
 	};
-	if (!target) return;
-	const updatedTarget = { ...target, permissions: merged };
-	collections.setTargetWidget(updatedTarget as any);
-	// Store merges into active.fields when __fieldIndex is set; no need to call setCollection here
-}
 
-function toggleVisibility() {
-	updatePermissions({
-		visibility: permissions.visibility === "public" ? "private" : "public",
-	});
-}
+	function isWidgetFieldPermissions(p: unknown): p is WidgetFieldPermissions {
+		if (!p || typeof p !== 'object') return false;
+		const o = p as Record<string, unknown>;
+		return (
+			('visibility' in o && (o.visibility === 'public' || o.visibility === 'private')) ||
+			('requiredAuth' in o && typeof o.requiredAuth === 'boolean') ||
+			Array.isArray(o.readRoles) ||
+			Array.isArray(o.writeRoles)
+		);
+	}
 
-function toggleRoleRead(roleId: string) {
-	const set = new SvelteSet(permissions.readRoles ?? []);
-	if (set.has(roleId)) set.delete(roleId);
-	else set.add(roleId);
-	updatePermissions({ readRoles: [...set] });
-}
+	/** Normalize raw permissions (legacy matrix or new shape) to WidgetFieldPermissions */
+	function normalizePermissions(raw: unknown): WidgetFieldPermissions {
+		if (isWidgetFieldPermissions(raw)) {
+			return {
+				visibility: raw.visibility ?? DEFAULT_PERMISSIONS.visibility,
+				requiredAuth: raw.requiredAuth ?? DEFAULT_PERMISSIONS.requiredAuth,
+				readRoles: Array.isArray(raw.readRoles) ? [...raw.readRoles] : [],
+				writeRoles: Array.isArray(raw.writeRoles) ? [...raw.writeRoles] : []
+			};
+		}
+		if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+			const matrix = raw as Record<string, Record<string, boolean>>;
+			const readRoles: string[] = [];
+			const writeRoles: string[] = [];
+			for (const [roleId, perms] of Object.entries(matrix)) {
+				if (perms?.read) readRoles.push(roleId);
+				if (perms?.write || perms?.update) writeRoles.push(roleId);
+			}
+			return {
+				visibility: 'public',
+				requiredAuth: false,
+				readRoles,
+				writeRoles
+			};
+		}
+		return { ...DEFAULT_PERMISSIONS };
+	}
 
-function toggleRoleWrite(roleId: string) {
-	const set = new SvelteSet(permissions.writeRoles ?? []);
-	if (set.has(roleId)) set.delete(roleId);
-	else set.add(roleId);
-	updatePermissions({ writeRoles: [...set] });
-}
+	// Prefer store target (has __fieldIndex for persistence); fall back to modal value when adding new field
+	const inModal = $derived(!!modalState.active);
+	const target = $derived(
+		(collections.targetWidget as Record<string, unknown> | undefined) ??
+			(inModal ? (modalState.active?.props?.value as Record<string, unknown> | undefined) : undefined)
+	);
+	const roles = $derived(inModal ? ((modalState.active?.props as { roles?: Role[] })?.roles ?? rolesProp) : rolesProp);
+	const permissions = $derived(normalizePermissions(target?.permissions));
+
+	function updatePermissions(next: Partial<WidgetFieldPermissions>) {
+		const merged: WidgetFieldPermissions = {
+			...permissions,
+			...next
+		};
+		if (!target) return;
+		const updatedTarget = { ...target, permissions: merged };
+		collections.setTargetWidget(updatedTarget as any);
+		// Store merges into active.fields when __fieldIndex is set; no need to call setCollection here
+	}
+
+	function toggleVisibility() {
+		updatePermissions({
+			visibility: permissions.visibility === 'public' ? 'private' : 'public'
+		});
+	}
+
+	function toggleRoleRead(roleId: string) {
+		const set = new SvelteSet(permissions.readRoles ?? []);
+		if (set.has(roleId)) set.delete(roleId);
+		else set.add(roleId);
+		updatePermissions({ readRoles: [...set] });
+	}
+
+	function toggleRoleWrite(roleId: string) {
+		const set = new SvelteSet(permissions.writeRoles ?? []);
+		if (set.has(roleId)) set.delete(roleId);
+		else set.add(roleId);
+		updatePermissions({ writeRoles: [...set] });
+	}
 </script>
 
 {#if target}
-	<div class="space-y-5 text-surface-100">
-		<div class="rounded-2xl border border-surface-200-800 bg-surface-100-900 p-4 shadow-sm">
-			<h4 class="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-surface-400">Visibility</h4>
+	<div class="space-y-6">
+		<div>
+			<h4 class="mb-2 text-xs font-bold uppercase tracking-wider text-surface-500">Visibility</h4>
 			<button
 				type="button"
 				role="switch"
 				aria-checked={permissions.visibility === 'private'}
-				class="flex w-full items-center justify-between rounded-xl border border-surface-200-800 bg-surface-50-950 px-4 py-3 text-left transition-colors hover:border-primary-500/60 hover:bg-surface-100-900"
+				class="flex w-full items-center justify-between rounded-lg border border-surface-200-800 bg-surface-100-900 px-4 py-3 text-left transition-colors hover:border-primary-500/50"
 				onclick={toggleVisibility}
 			>
-				<span class="font-semibold text-surface-100">{permissions.visibility === 'public' ? 'Public' : 'Private'}</span>
-				<iconify-icon icon={permissions.visibility === 'public' ? 'mdi:eye' : 'mdi:eye-off'} width="20" class="text-surface-400"></iconify-icon>
+				<span class="font-medium">{permissions.visibility === 'public' ? 'Public' : 'Private'}</span>
+				<iconify-icon icon={permissions.visibility === 'public' ? 'mdi:eye' : 'mdi:eye-off'} width="20" class="text-surface-500"></iconify-icon>
 			</button>
-			<p class="mt-2 text-xs leading-5 text-surface-400">
+			<p class="mt-1 text-xs text-surface-500">
 				{permissions.visibility === 'public' ? 'Field is visible to everyone by default.' : 'Field is restricted; only allowed roles can access.'}
 			</p>
 		</div>
 
-		<div class="rounded-2xl border border-surface-200-800 bg-surface-100-900 p-4 shadow-sm">
-			<label class="flex cursor-pointer items-center gap-3 rounded-xl border border-surface-200-800 bg-surface-50-950 p-3">
+		<div>
+			<label class="flex cursor-pointer items-center gap-3 rounded-lg border border-surface-200-800 bg-surface-100-900 p-3">
 				<input
 					type="checkbox"
 					class="input checkbox-primary"
 					checked={permissions.requiredAuth ?? false}
 					onchange={(e) => updatePermissions({ requiredAuth: (e.currentTarget as HTMLInputElement).checked })}
 				/>
-				<span class="text-sm font-semibold text-surface-100">Require authentication</span>
+				<span class="text-sm font-medium">Require authentication</span>
 			</label>
-			<p class="mt-2 text-xs leading-5 text-surface-400">When enabled, user must be logged in to access this field.</p>
+			<p class="mt-1 text-xs text-surface-500">When enabled, user must be logged in to access this field.</p>
 		</div>
 
 		{#if roles.length > 0}
-			<div class="rounded-2xl border border-surface-200-800 bg-surface-100-900 p-4 shadow-sm">
-				<h4 class="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-surface-400">Read access</h4>
-				<p class="mb-3 text-xs leading-5 text-surface-400">Roles that can read this field. Empty = no role restriction (follows visibility).</p>
+			<div>
+				<h4 class="mb-2 text-xs font-bold uppercase tracking-wider text-surface-500">Read access</h4>
+				<p class="mb-2 text-xs text-surface-500">Roles that can read this field. Empty = no role restriction (follows visibility).</p>
 				<div class="flex flex-wrap gap-2">
 					{#each roles as role (role._id)}
 						{#if !role.isAdmin}
 							<button
 								type="button"
-								class="rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors {(permissions.readRoles ?? []).includes(role._id)
+								class="rounded-full px-3 py-1.5 text-xs font-medium transition-colors {(permissions.readRoles ?? []).includes(role._id)
 									? 'preset-filled-primary-500'
-									: 'border-surface-200-800 bg-surface-50-950 text-surface-200 hover:border-primary-500/60 hover:bg-surface-100-900'}"
+									: 'preset-ghost-surface-500'}"
 								onclick={() => toggleRoleRead(role._id)}
 							>
 								{role.name ?? role._id}
@@ -168,17 +161,17 @@ function toggleRoleWrite(roleId: string) {
 					{/each}
 				</div>
 			</div>
-			<div class="rounded-2xl border border-surface-200-800 bg-surface-100-900 p-4 shadow-sm">
-				<h4 class="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-surface-400">Write access</h4>
-				<p class="mb-3 text-xs leading-5 text-surface-400">Roles that can edit this field.</p>
+			<div>
+				<h4 class="mb-2 text-xs font-bold uppercase tracking-wider text-surface-500">Write access</h4>
+				<p class="mb-2 text-xs text-surface-500">Roles that can edit this field.</p>
 				<div class="flex flex-wrap gap-2">
 					{#each roles as role (role._id)}
 						{#if !role.isAdmin}
 							<button
 								type="button"
-								class="rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors {(permissions.writeRoles ?? []).includes(role._id)
+								class="rounded-full px-3 py-1.5 text-xs font-medium transition-colors {(permissions.writeRoles ?? []).includes(role._id)
 									? 'preset-filled-primary-500'
-									: 'border-surface-200-800 bg-surface-50-950 text-surface-200 hover:border-primary-500/60 hover:bg-surface-100-900'}"
+									: 'preset-ghost-surface-500'}"
 								onclick={() => toggleRoleWrite(role._id)}
 							>
 								{role.name ?? role._id}
@@ -188,11 +181,9 @@ function toggleRoleWrite(roleId: string) {
 				</div>
 			</div>
 		{:else}
-			<div class="rounded-2xl border border-dashed border-surface-200-800 bg-surface-100-900 p-4 text-sm text-surface-400">
-				No roles defined. Configure roles in Access Management to restrict by role.
-			</div>
+			<p class="text-sm text-surface-500">No roles defined. Configure roles in Access Management to restrict by role.</p>
 		{/if}
 	</div>
 {:else}
-	<p class="text-sm text-surface-400">Select a field to configure permissions.</p>
+	<p class="text-sm text-surface-500">Select a field to configure permissions.</p>
 {/if}

@@ -18,240 +18,206 @@ It provides the following functionality:
 -->
 
 <script lang="ts">
-// Auth
-import type { Permission, Role } from "@src/databases/auth/types";
-import { PermissionType } from "@src/databases/auth/permission-constants";
-// Stores
-import { page } from "$app/state";
+	// Auth
+	import type { Permission, Role } from '@src/databases/auth/types';
+	import { PermissionType } from '@src/databases/auth/types';
+	// Stores
+	import { page } from '$app/state';
 
-interface Props {
-	// Props passed from +page.svelte
-	roleData: any;
-	setRoleData: any;
-	updateModifiedCount: any;
-}
+	interface Props {
+		// Props passed from +page.svelte
+		roleData: any;
+		setRoleData: any;
+		updateModifiedCount: any;
+	}
 
-const { roleData, setRoleData, updateModifiedCount }: Props = $props();
+	const { roleData, setRoleData, updateModifiedCount }: Props = $props();
 
-// Reactive state
-let permissionsList: Permission[] = $state([]);
-let roles: Role[] = $state([]);
-const error = $state(null);
-let searchTerm = $state("");
-const modifiedPermissions = $state(new Set());
+	// Reactive state
+	let permissionsList: Permission[] = $state([]);
+	let roles: Role[] = $state([]);
+	const error = $state(null);
+	let searchTerm = $state('');
+	const modifiedPermissions = $state(new Set());
 
-// Sorting state
-type SortKey = "name" | "action" | "type";
-let sortBy = $state("name");
-let sortOrder = $state(0);
+	// Sorting state
+	type SortKey = 'name' | 'action' | 'type';
+	let sortBy = $state('name');
+	let sortOrder = $state(0);
 
-// Function to get groups of permissions
-const getGroups = (filteredPermissions: Permission[]) => {
-	const groups: string[] = [];
-	filteredPermissions.forEach((cur) => {
-		let group = "";
-		if (cur.type === PermissionType.COLLECTION) {
-			group = "Collection Entries";
-		} else if (cur.type === PermissionType.USER) {
-			group = "User Management";
-		} else if (cur.type === PermissionType.CONFIGURATION) {
-			group = "Configuration";
-		} else if (cur.type === PermissionType.SYSTEM) {
-			// Group system permissions by their prefix
-			const prefix = cur._id.split(":")[0];
-			if (prefix === "system") {
-				group = "System";
-			} else if (prefix === "api") {
-				group = "API Access";
-			} else if (prefix === "content") {
-				group = "Content Management";
-			} else if (prefix === "media") {
-				group = "Media Management";
-			} else if (prefix === "config") {
-				group = "Configuration";
-			} else if (prefix === "admin") {
-				group = "Admin";
-			} else {
-				group = "System";
+	// Function to get groups of permissions
+	const getGroups = (filteredPermissions: Permission[]) => {
+		const groups: string[] = [];
+		filteredPermissions.forEach((cur) => {
+			let group = '';
+			if (cur.type === PermissionType.COLLECTION) {
+				group = 'Collection Entries';
+			} else if (cur.type === PermissionType.USER) {
+				group = 'User Management';
+			} else if (cur.type === PermissionType.CONFIGURATION) {
+				group = 'Configuration';
+			} else if (cur.type === PermissionType.SYSTEM) {
+				// Group system permissions by their prefix
+				const prefix = cur._id.split(':')[0];
+				if (prefix === 'system') {
+					group = 'System';
+				} else if (prefix === 'api') {
+					group = 'API Access';
+				} else if (prefix === 'content') {
+					group = 'Content Management';
+				} else if (prefix === 'media') {
+					group = 'Media Management';
+				} else if (prefix === 'config') {
+					group = 'Configuration';
+				} else if (prefix === 'admin') {
+					group = 'Admin';
+				} else {
+					group = 'System';
+				}
 			}
-		}
-		if (group && !groups.includes(group)) {
-			groups.push(group);
-		}
-	});
-	return groups;
-};
+			if (group && !groups.includes(group)) {
+				groups.push(group);
+			}
+		});
+		return groups;
+	};
 
-// Handle column header click for sorting
-const handleSort = (column: SortKey) => {
-	if (sortBy === column) {
-		// Cycle through: ascending (1) -> descending (-1) -> unsorted (0)
-		sortOrder = sortOrder === 1 ? -1 : sortOrder === -1 ? 0 : 1;
+	// Handle column header click for sorting
+	const handleSort = (column: SortKey) => {
+		if (sortBy === column) {
+			// Cycle through: ascending (1) -> descending (-1) -> unsorted (0)
+			sortOrder = sortOrder === 1 ? -1 : sortOrder === -1 ? 0 : 1;
+			if (sortOrder === 0) {
+				sortBy = 'name'; // Reset to default when unsorted
+			}
+		} else {
+			sortBy = column;
+			sortOrder = 1; // Start with ascending
+		}
+	};
+
+	// Sort permissions based on current sort settings
+	const sortPermissions = (permissions: Permission[]): Permission[] => {
 		if (sortOrder === 0) {
-			sortBy = "name"; // Reset to default when unsorted
-		}
-	} else {
-		sortBy = column;
-		sortOrder = 1; // Start with ascending
-	}
-};
-
-// Sort permissions based on current sort settings
-const sortPermissions = (permissions: Permission[]): Permission[] => {
-	if (sortOrder === 0) {
-		return permissions;
-	}
-
-	return [...permissions].sort((a, b) => {
-		let aVal: string | number = "";
-		let bVal: string | number = "";
-
-		if (sortBy === "name") {
-			aVal = a.name.toLowerCase();
-			bVal = b.name.toLowerCase();
-		} else if (sortBy === "action") {
-			aVal = a.action.toLowerCase();
-			bVal = b.action.toLowerCase();
-		} else if (sortBy === "type") {
-			aVal = a.type.toLowerCase();
-			bVal = b.type.toLowerCase();
+			return permissions;
 		}
 
-		if (aVal < bVal) {
-			return sortOrder === 1 ? -1 : 1;
-		}
-		if (aVal > bVal) {
-			return sortOrder === 1 ? 1 : -1;
-		}
-		return 0;
-	});
-};
+		return [...permissions].sort((a, b) => {
+			let aVal: string | number = '';
+			let bVal: string | number = '';
 
-// Derived reactive values
-const filteredPermissions = $derived(
-	permissionsList.filter(
-		(permission) =>
-			permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false,
-	),
-);
-const groups = $derived(getGroups(filteredPermissions));
-const adminRole = $derived(roles.find((role) => role.isAdmin));
-const nonAdminRolesCount = $derived(
-	roles.filter((role) => !role.isAdmin).length,
-);
-
-// Initialize data when component mounts (run once)
-$effect(() => {
-	// Only initialize if data hasn't been loaded yet
-	if (permissionsList.length === 0 && page.data.permissions.length > 0) {
-		roles = roleData;
-		permissionsList = page.data.permissions;
-	}
-});
-
-// Function to filter permissions by group (with sorting applied)
-const filterGroups = (
-	permissions: Permission[],
-	group: string,
-): Permission[] => {
-	let filtered: Permission[] = [];
-
-	if (group === "Collection Entries") {
-		filtered = permissions.filter(
-			(cur) => cur.type === PermissionType.COLLECTION,
-		);
-	} else if (group === "User Management") {
-		filtered = permissions.filter((cur) => cur.type === PermissionType.USER);
-	} else if (group === "Configuration") {
-		filtered = permissions.filter(
-			(cur) =>
-				cur.type === PermissionType.CONFIGURATION ||
-				(cur.type === PermissionType.SYSTEM && cur._id.startsWith("config:")),
-		);
-	} else if (group === "System") {
-		filtered = permissions.filter(
-			(cur) =>
-				cur.type === PermissionType.SYSTEM && cur._id.startsWith("system:"),
-		);
-	} else if (group === "API Access") {
-		filtered = permissions.filter(
-			(cur) => cur.type === PermissionType.SYSTEM && cur._id.startsWith("api:"),
-		);
-	} else if (group === "Content Management") {
-		filtered = permissions.filter(
-			(cur) =>
-				cur.type === PermissionType.SYSTEM && cur._id.startsWith("content:"),
-		);
-	} else if (group === "Media Management") {
-		filtered = permissions.filter(
-			(cur) =>
-				cur.type === PermissionType.SYSTEM && cur._id.startsWith("media:"),
-		);
-	} else if (group === "Admin") {
-		filtered = permissions.filter(
-			(cur) =>
-				cur.type === PermissionType.SYSTEM && cur._id.startsWith("admin:"),
-		);
-	} else {
-		filtered = permissions.filter(
-			(cur) => cur._id.split(":")[0] === group.toLowerCase(),
-		);
-	}
-
-	// Apply sorting to the filtered group
-	return sortPermissions(filtered);
-};
-
-// Toggle role assignment for a permission
-const toggleRole = (permission: string, roleId: string) => {
-	const updatedRoles = roles.map((role) => {
-		if (role._id === roleId) {
-			const permissions = [...role.permissions];
-			const pIndex = permissions.indexOf(permission);
-			if (pIndex === -1) {
-				permissions.push(permission);
-			} else {
-				permissions.splice(pIndex, 1);
+			if (sortBy === 'name') {
+				aVal = a.name.toLowerCase();
+				bVal = b.name.toLowerCase();
+			} else if (sortBy === 'action') {
+				aVal = a.action.toLowerCase();
+				bVal = b.action.toLowerCase();
+			} else if (sortBy === 'type') {
+				aVal = a.type.toLowerCase();
+				bVal = b.type.toLowerCase();
 			}
-			return { ...role, permissions };
-		}
-		return role;
-	});
 
-	modifiedPermissions.add(permission);
-	roles = updatedRoles;
-	setRoleData(updatedRoles);
-	updateModifiedCount(modifiedPermissions.size);
-};
-
-// Bulk toggle for a role
-const toggleAllForRole = (roleId: string, checked: boolean) => {
-	const updatedRoles = roles.map((role) => {
-		if (role._id === roleId) {
-			if (checked) {
-				// Add all filtered permissions
-				const newPerms = new Set([
-					...role.permissions,
-					...filteredPermissions.map((p) => p._id),
-				]);
-				return { ...role, permissions: Array.from(newPerms) };
-			} else {
-				// Remove all filtered permissions
-				const filteredIds = new Set(filteredPermissions.map((p) => p._id as string));
-				return {
-					...role,
-					permissions: role.permissions.filter((p) => !filteredIds.has(p as string)),
-				};
+			if (aVal < bVal) {
+				return sortOrder === 1 ? -1 : 1;
 			}
+			if (aVal > bVal) {
+				return sortOrder === 1 ? 1 : -1;
+			}
+			return 0;
+		});
+	};
+
+	// Derived reactive values
+	const filteredPermissions = $derived(
+		permissionsList.filter((permission) => permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+	);
+	const groups = $derived(getGroups(filteredPermissions));
+	const adminRole = $derived(roles.find((role) => role.isAdmin));
+	const nonAdminRolesCount = $derived(roles.filter((role) => !role.isAdmin).length);
+
+	// Initialize data when component mounts (run once)
+	$effect(() => {
+		// Only initialize if data hasn't been loaded yet
+		if (permissionsList.length === 0 && page.data.permissions.length > 0) {
+			roles = roleData;
+			permissionsList = page.data.permissions;
 		}
-		return role;
 	});
 
-	filteredPermissions.forEach((p) => modifiedPermissions.add(p._id));
-	roles = updatedRoles;
-	setRoleData(updatedRoles);
-	updateModifiedCount(modifiedPermissions.size);
-};
+	// Function to filter permissions by group (with sorting applied)
+	const filterGroups = (permissions: Permission[], group: string): Permission[] => {
+		let filtered: Permission[] = [];
+
+		if (group === 'Collection Entries') {
+			filtered = permissions.filter((cur) => cur.type === PermissionType.COLLECTION);
+		} else if (group === 'User Management') {
+			filtered = permissions.filter((cur) => cur.type === PermissionType.USER);
+		} else if (group === 'Configuration') {
+			filtered = permissions.filter(
+				(cur) => cur.type === PermissionType.CONFIGURATION || (cur.type === PermissionType.SYSTEM && cur._id.startsWith('config:'))
+			);
+		} else if (group === 'System') {
+			filtered = permissions.filter((cur) => cur.type === PermissionType.SYSTEM && cur._id.startsWith('system:'));
+		} else if (group === 'API Access') {
+			filtered = permissions.filter((cur) => cur.type === PermissionType.SYSTEM && cur._id.startsWith('api:'));
+		} else if (group === 'Content Management') {
+			filtered = permissions.filter((cur) => cur.type === PermissionType.SYSTEM && cur._id.startsWith('content:'));
+		} else if (group === 'Media Management') {
+			filtered = permissions.filter((cur) => cur.type === PermissionType.SYSTEM && cur._id.startsWith('media:'));
+		} else if (group === 'Admin') {
+			filtered = permissions.filter((cur) => cur.type === PermissionType.SYSTEM && cur._id.startsWith('admin:'));
+		} else {
+			filtered = permissions.filter((cur) => cur._id.split(':')[0] === group.toLowerCase());
+		}
+
+		// Apply sorting to the filtered group
+		return sortPermissions(filtered);
+	};
+
+	// Toggle role assignment for a permission
+	const toggleRole = (permission: string, roleId: string) => {
+		const updatedRoles = roles.map((role) => {
+			if (role._id === roleId) {
+				const permissions = [...role.permissions];
+				const pIndex = permissions.indexOf(permission);
+				if (pIndex === -1) {
+					permissions.push(permission);
+				} else {
+					permissions.splice(pIndex, 1);
+				}
+				return { ...role, permissions };
+			}
+			return role;
+		});
+
+		modifiedPermissions.add(permission);
+		roles = updatedRoles;
+		setRoleData(updatedRoles);
+		updateModifiedCount(modifiedPermissions.size);
+	};
+
+	// Bulk toggle for a role
+	const toggleAllForRole = (roleId: string, checked: boolean) => {
+		const updatedRoles = roles.map((role) => {
+			if (role._id === roleId) {
+				if (checked) {
+					// Add all filtered permissions
+					const newPerms = new Set([...role.permissions, ...filteredPermissions.map((p) => p._id)]);
+					return { ...role, permissions: Array.from(newPerms) };
+				} else {
+					// Remove all filtered permissions
+					const filteredIds = new Set(filteredPermissions.map((p) => p._id));
+					return { ...role, permissions: role.permissions.filter((p) => !filteredIds.has(p)) };
+				}
+			}
+			return role;
+		});
+
+		filteredPermissions.forEach((p) => modifiedPermissions.add(p._id));
+		roles = updatedRoles;
+		setRoleData(updatedRoles);
+		updateModifiedCount(modifiedPermissions.size);
+	};
 </script>
 
 {#if error}

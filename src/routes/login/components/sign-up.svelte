@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 @file src/routes/login/components/SignUp.svelte
 @component
 **SignUP with optional OAuth support**
@@ -16,261 +16,251 @@
 
 ### Features:
  - Dynamic language selection with a debounced input field or dropdown for multiple languages
- - Demo mode support with auto-reset timer
+ - Demo mode support with auto-reset timer 
  - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `firstUserExists`)
  - Reset state functionality for easy return to initial screen
  - Accessibility features for language selection and form navigation
 -->
 
 <script lang="ts">
-import PasswordStrength from "@src/components/password-strength.svelte";
-import SiteName from "@src/components/site-name.svelte";
-// Components
-import FloatingPaths from "@src/components/system/floating-paths.svelte";
-import SveltyCMSLogo from "@src/components/system/icons/svelty-cms-logo.svelte";
-import SveltyCMSLogoFull from "@src/components/system/icons/svelty-cms-logo-full.svelte";
-import FloatingInput from "@src/components/system/inputs/floating-input.svelte";
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-// ParaglideJS
-import {
-	confirm_password,
-	email,
-	form_confirmpassword,
-	form_password,
-	form_required,
-	form_signup,
-	registration_token,
-	username,
-} from "@src/paraglide/messages";
-import { publicEnv } from "@src/stores/global-settings.svelte";
-import { screen } from "@src/stores/screen-size-store.svelte";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { Form } from "@utils/form.svelte.ts";
-import { signUpFormSchema } from "@utils/schemas";
-import { logger } from "@utils/logger";
-import { browser } from "$app/environment";
-import { preloadData } from "$app/navigation";
-import { signUp as remoteSignUp } from "../auth.remote";
-// Stores
-import { page } from "$app/state";
-import type { PageData } from "../$types";
-import SignupIcon from "./icons/signup-icon.svelte";
+	import PasswordStrength from '@src/components/password-strength.svelte';
+	import SiteName from '@src/components/site-name.svelte';
+	// Components
+	import FloatingPaths from '@src/components/system/floating-paths.svelte';
+	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
+	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
+	import FloatingInput from '@src/components/system/inputs/floating-input.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	// ParaglideJS
+	import {
+		confirm_password,
+		email,
+		form_confirmpassword,
+		form_password,
+		form_required,
+		form_signup,
+		registration_token,
+		username
+	} from '@src/paraglide/messages';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { screen } from '@src/stores/screen-size-store.svelte';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { Form } from '@utils/form.svelte.ts';
+	import { signUpFormSchema } from '@utils/form-schemas';
+	import { logger } from '@utils/logger';
+	import { browser } from '$app/environment';
+	import { enhance } from '$app/forms';
+	import { preloadData } from '$app/navigation';
+	// Stores
+	import { page } from '$app/state';
+	import type { PageData } from '../$types';
+	import SignupIcon from './icons/signup-icon.svelte';
 
-// Props
-const {
-	active = $bindable(undefined),
-	isInviteFlow = false,
-	token = "",
-	invitedEmail = "",
-	inviteError = "",
-	onClick = () => {},
-	onPointerEnter = () => {},
-	onBack = () => {},
-	firstCollectionPath = "",
-} = $props();
+	// Props
+	const {
+		active = $bindable(undefined),
+		isInviteFlow = false,
+		token = '',
+		invitedEmail = '',
+		inviteError = '',
+		onClick = () => {},
+		onPointerEnter = () => {},
+		onBack = () => {},
+		firstCollectionPath = ''
+	} = $props();
 
-const siteName = $derived(publicEnv.SITE_NAME || "SveltyCMS");
+	const siteName = $derived(publicEnv.SITE_NAME || 'SveltyCMS');
 
-const pageData = page.data as PageData;
-const firstUserExists = pageData.firstUserExists;
-const showGoogleOAuth = pageData.showGoogleOAuth;
-const showGithubOAuth = pageData.showGithubOAuth;
-const hasExistingOAuthUsers = pageData.hasExistingOAuthUsers;
+	const pageData = page.data as PageData;
+	const firstUserExists = pageData.firstUserExists;
+	const showOAuth = pageData.showOAuth;
+	const hasExistingOAuthUsers = pageData.hasExistingOAuthUsers;
 
-// isOpenSignup: true only when multiTenant AND demoMode are both active.
-// This is the only scenario where a registration token is not required.
-// Requires +page.server.ts load to return: isOpenSignup: !!(multiTenant && demoMode)
-const isOpenSignup = pageData.isOpenSignup ?? false;
+	// State management
+	const tabIndex = $state(1);
+	let response = $state(undefined);
+	let formElement: HTMLFormElement | null = $state(null);
+	let showPassword = $state(false);
+	let isSubmitting = $state(false);
+	let isRedirecting = $state(false);
 
-// State management
-const tabIndex = $state(1);
-let formElement: HTMLFormElement | null = $state(null);
-let showPassword = $state(false);
-let isSubmitting = $state(false);
-let isRedirecting = $state(false);
+	let prefetched = $state(false);
 
-let prefetched = $state(false);
+	async function prefetchFirstCollection() {
+		if (prefetched || !firstCollectionPath) {
+			return;
+		}
+		prefetched = true;
 
-async function prefetchFirstCollection() {
-	if (prefetched || !firstCollectionPath) {
-		return;
+		try {
+			await preloadData(firstCollectionPath);
+		} catch (error) {
+			console.error('Prefetch failed:', error);
+		}
 	}
-	prefetched = true;
 
-	try {
-		await preloadData(firstCollectionPath);
-	} catch (error) {
-		console.error("Prefetch failed:", error);
-	}
-}
+	// Pre-calculate tab indices
+	const usernameTabIndex = 1;
+	const emailTabIndex = 2;
+	const passwordTabIndex = 3;
+	const confirmPasswordTabIndex = 4;
+	const tokenTabIndex = 5;
 
-// Pre-calculate tab indices
-const usernameTabIndex = 1;
-const emailTabIndex = 2;
-const passwordTabIndex = 3;
-const confirmPasswordTabIndex = 4;
-const tokenTabIndex = 5;
+	// Form setup
+	// Form setup
+	const signUpForm = new Form({ username: '', email: '', password: '', confirm_password: '', token: '' }, signUpFormSchema);
 
-// Form setup
-const signUpForm = new Form(
-	{ username: "", email: "", password: "", confirm_password: "", token: "" },
-	signUpFormSchema,
-);
+	const signUpSubmit = signUpForm.enhance({
+		onSubmit: ({ cancel }) => {
+			if (Object.keys(signUpForm.errors).length > 0) {
+				cancel();
+				return;
+			}
+			isSubmitting = true;
+		},
 
-async function handleSignUpSubmit(event: Event) {
-	event.preventDefault();
-	if (Object.keys(signUpForm.errors).length > 0) {
-		formElement?.classList.add("wiggle");
-		setTimeout(() => {
-			formElement?.classList.remove("wiggle");
-		}, 300);
-		return;
-	}
-	isSubmitting = true;
+		onResult: async ({ result, update }) => {
+			isSubmitting = false;
 
-	try {
-		const result = (await remoteSignUp({
-			email: signUpForm.data.email,
-			username: signUpForm.data.username,
-			password: signUpForm.data.password,
-			token: signUpForm.data.token
-		})) as any;
+			if (result.type === 'redirect') {
+				isRedirecting = true;
 
-		isSubmitting = false;
+				toast.success({
+					title: 'Account Created!',
+					description: 'Welcome to SveltyCMS. Redirecting to your dashboard...'
+				});
 
-		if (result.success && result.redirectPath) {
-			isRedirecting = true;
-			toast.success({
-				title: "Account Created!",
-				description: "Welcome to SveltyCMS. Redirecting to your dashboard...",
-			});
-			window.location.href = result.redirectPath;
+				setTimeout(() => {
+					isRedirecting = false;
+				}, 100);
+				return;
+			}
+
+			isRedirecting = false;
+
+			if (result.type === 'failure' || result.type === 'error') {
+				const errorMessage =
+					result.type === 'failure' ? result.data?.message || 'Failed to create account' : result.error?.message || 'An unexpected error occurred';
+
+				toast.error({
+					title: 'Sign Up Failed',
+					description: errorMessage
+				});
+
+				formElement?.classList.add('wiggle');
+				setTimeout(() => {
+					formElement?.classList.remove('wiggle');
+				}, 300);
+			}
+
+			if (result.type === 'success') {
+				response = result.data?.message;
+				toast.success({
+					title: 'Account Created',
+					description: result.data?.message || 'Your account has been successfully created'
+				});
+			}
+
+			await update();
+		}
+	});
+
+	// Reactive form values for easier access
+	const currentFormToken = $derived(signUpForm.data.token);
+
+	// URL parameter handling - update params when URL changes
+	const params = $derived(browser ? new URL(window.location.href).searchParams : new URLSearchParams(''));
+
+	// Initialize form with invite data when in invite flow
+	$effect(() => {
+		if (isInviteFlow && invitedEmail && signUpForm.data.email !== invitedEmail) {
+			signUpForm.data.email = invitedEmail;
+		}
+		if (isInviteFlow && token && signUpForm.data.token !== token) {
+			signUpForm.data.token = token;
+		}
+		// Handle URL parameters for invite tokens (both new and legacy formats)
+		if (browser && !isInviteFlow) {
+			const inviteToken = params.get('invite_token') || params.get('regToken');
+			if (inviteToken && inviteToken !== signUpForm.data.token) {
+				signUpForm.data.token = inviteToken;
+			}
+		}
+		// Also check if the form was pre-filled by the server (invalid token case)
+		if (browser && signUpForm.data.token && !isInviteFlow) {
+			logger.debug('Form token pre-filled by server:', signUpForm.data.token);
+		}
+	});
+
+	// Event handlers
+	function handleOAuth() {
+		// Check if user needs an invitation token
+		// All users now require invite tokens (first user goes through /setup)
+		if (!(isInviteFlow || hasExistingOAuthUsers || currentFormToken)) {
+			// Show a helpful message
+			alert(
+				'⚠️ Please enter your invitation token first before using Google OAuth signup. OAuth registration requires an invitation from an administrator.'
+			);
 			return;
 		}
 
-		toast.error({
-			title: "Sign Up Failed",
-			description: result.message || "Failed to create account",
-		});
-		formElement?.classList.add("wiggle");
-		setTimeout(() => {
-			formElement?.classList.remove("wiggle");
-		}, 300);
-	} catch (error: any) {
-		isSubmitting = false;
-		isRedirecting = false;
-		toast.error({
-			title: "Sign Up Failed",
-			description: error?.message || "An unexpected error occurred",
-		});
-		formElement?.classList.add("wiggle");
-		setTimeout(() => {
-			formElement?.classList.remove("wiggle");
-		}, 300);
-	}
-}
+		const form = document.createElement('form');
+		form.method = 'post';
 
-// Reactive form values for easier access
-const currentFormToken = $derived(signUpForm.data.token);
-
-// URL parameter handling - update params when URL changes
-const params = $derived(
-	browser
-		? new URL(window.location.href).searchParams
-		: new URLSearchParams(""),
-);
-
-// Initialize form with invite data when in invite flow
-$effect(() => {
-	if (isInviteFlow && invitedEmail && signUpForm.data.email !== invitedEmail) {
-		signUpForm.data.email = invitedEmail;
-	}
-	if (isInviteFlow && token && signUpForm.data.token !== token) {
-		signUpForm.data.token = token;
-	}
-	// Handle URL parameters for invite tokens (both new and legacy formats)
-	if (browser && !isInviteFlow) {
-		const inviteToken = params.get("invite_token") || params.get("regToken");
-		if (inviteToken && inviteToken !== signUpForm.data.token) {
-			signUpForm.data.token = inviteToken;
+		// Use signInOAuth action when in invite flow to preserve invite token
+		if (isInviteFlow && token) {
+			// Build the action URL with the invite token as a query parameter
+			form.action = `?/signInOAuth&invite_token=${encodeURIComponent(token)}`;
+		} else if (currentFormToken) {
+			// User has entered a token in the form, pass it along
+			form.action = `?/signInOAuth&invite_token=${encodeURIComponent(currentFormToken)}`;
+		} else {
+			form.action = '?/signInOAuth';
 		}
-	}
-	// Also check if the form was pre-filled by the server (invalid token case)
-	if (browser && signUpForm.data.token && !isInviteFlow) {
-		logger.debug("Form token pre-filled by server:", signUpForm.data.token);
-	}
-});
 
-// Event handlers
-function handleOAuth(provider: "google" | "github") {
-	// All users require invite tokens (first user goes through /setup).
-	// In open-signup demo mode (multiTenant + demoMode), OAuth is also permitted without a token.
-	if (!(isInviteFlow || isOpenSignup || hasExistingOAuthUsers || currentFormToken)) {
-		toast.error({
-			title: "Invitation Required",
-			description:
-				"Please enter your invitation token before using Google OAuth. OAuth registration requires an invitation from an administrator.",
-		});
-		return;
+		document.body.appendChild(form);
+		form.submit();
+		document.body.removeChild(form);
+		setTimeout(() => {}, 300);
 	}
 
-	const form = document.createElement("form");
-	form.method = "post";
-
-	// Use signInOAuth action when in invite flow to preserve invite token
-	const actionBase = provider === "github" ? "?/signInOAuthGithub" : "?/signInOAuth";
-	if (isInviteFlow && token) {
-		// Build the action URL with the invite token as a query parameter
-		form.action = `${actionBase}&invite_token=${encodeURIComponent(token)}`;
-	} else if (currentFormToken) {
-		// User has entered a token in the form, pass it along
-		form.action = `${actionBase}&invite_token=${encodeURIComponent(currentFormToken)}`;
-	} else {
-		form.action = actionBase;
+	function handleBack(event: Event) {
+		event.stopPropagation();
+		onBack();
 	}
 
-	document.body.appendChild(form);
-	form.submit();
-	document.body.removeChild(form);
-}
-
-function handleBack(event: Event) {
-	event.stopPropagation();
-	onBack();
-}
-
-function handlePointerEnter() {
-	onPointerEnter();
-}
-
-function handleFormClick(event: Event) {
-	event.stopPropagation();
-	onClick();
-}
-
-// Class computations
-const isActive = $derived(active === 1);
-const isInactive = $derived(active !== undefined && active !== 1);
-const isHover = $derived(active === undefined || active === 0);
-
-const baseClasses = "hover relative flex items-center overflow-y-auto";
-
-// Prefetch first collection data when active
-$effect(() => {
-	if (active === 1) {
-		prefetchFirstCollection();
+	function handlePointerEnter() {
+		onPointerEnter();
 	}
-});
+
+	function handleFormClick(event: Event) {
+		event.stopPropagation();
+		onClick();
+	}
+
+	// Class computations
+	const isActive = $derived(active === 1);
+	const isInactive = $derived(active !== undefined && active !== 1);
+	const isHover = $derived(active === undefined || active === 0);
+
+	const baseClasses = 'hover relative flex items-center overflow-y-auto';
+
+	// Prefetch first collection data when active
+	$effect(() => {
+		if (active === 1) {
+			prefetchFirstCollection();
+		}
+	});
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
 <section
 	onclick={handleFormClick}
 	onkeydown={(e) => e.key === 'Enter' && onClick?.()}
 	onpointerenter={handlePointerEnter}
+	role="button"
 	tabindex={tabIndex}
-	class="{baseClasses} focus-visible:outline-2 focus-visible:outline-primary-500"
+	data-testid="signup-section"
+	class={baseClasses}
 	class:active={isActive}
 	class:inactive={isInactive}
 	class:hover={isHover}
@@ -284,9 +274,8 @@ $effect(() => {
 				</div>
 			{/if}
 			<!-- CSS Logo -->
-			<div class="absolute left-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
+			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
 			<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-surface-900/0 p-6 backdrop-blur lg:w-4/5" class:hide={active !== 1}>
-				<a href="#signup-form" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-black">Skip to sign-up form</a>
 				<div class="-mb-4 flex flex-row gap-2">
 					<SveltyCMSLogo className="w-14" fill="red" />
 
@@ -319,8 +308,9 @@ $effect(() => {
 
 				<!-- <SuperDebug data={$form} display={dev} /> -->
 				<form
-					id="signup-form"
-					onsubmit={handleSignUpSubmit}
+					method="post"
+					action="?/signUp"
+					use:enhance={signUpSubmit}
 					bind:this={formElement}
 					class="items flex flex-col gap-3"
 					class:hide={active !== 1}
@@ -369,7 +359,7 @@ $effect(() => {
 						errorMessage={signUpForm.errors.email?.[0] || ''}
 					/>
 					{#if isInviteFlow}
-						<span class="text-xs text-primary-400">? Email pre-filled from invitation</span>
+						<span class="text-xs text-primary-400">✓ Email pre-filled from invitation</span>
 					{/if}
 
 					<!-- Hidden email input to ensure form submission when disabled -->
@@ -381,14 +371,14 @@ $effect(() => {
 					<FloatingInput
 						id="passwordsignUp"
 						name="password"
-						type="security"
+						type="password"
 						tabindex={passwordTabIndex}
 						required
 						bind:value={signUpForm.data.password}
 						bind:showPassword
 						label={form_password()}
 						minlength={8}
-						maxlength={64}
+						maxlength={50}
 						icon="mdi:password"
 						iconColor="white"
 						textColor="white"
@@ -403,14 +393,14 @@ $effect(() => {
 					<FloatingInput
 						id="confirm_passwordsignUp"
 						name="confirm_password"
-						type="security"
+						type="password"
 						tabindex={confirmPasswordTabIndex}
 						required
 						bind:value={signUpForm.data.confirm_password}
 						bind:showPassword
 						label={confirm_password?.() || form_confirmpassword?.()}
 						minlength={8}
-						maxlength={64}
+						maxlength={50}
 						icon="mdi:password"
 						iconColor="white"
 						textColor="white"
@@ -423,45 +413,45 @@ $effect(() => {
 					<!-- Password Strength Indicator -->
 					<PasswordStrength password={signUpForm.data.password} confirmPassword={signUpForm.data.confirm_password} />
 
-					<!-- Registration Token
-						 Hidden only in open-signup mode (multiTenant + demoMode).
-						 Single-tenant demo mode still requires a token and will render this field. -->
-					{#if !isInviteFlow && !isOpenSignup}
-						<div class="flex items-center space-x-2">
-							<FloatingInput
-								id="tokensignUp"
-								name="token"
-								type="security"
-								tabindex={tokenTabIndex}
-								required
-								bind:value={signUpForm.data.token}
-								label={registration_token()}
-								minlength={32}
-								maxlength={64}
-								icon="mdi:key-chain"
-								iconColor="white"
-								textColor="white"
-								passwordIconColor="white"
-								inputClass="text-white"
-								autocomplete="one-time-code"
-								invalid={!!signUpForm.errors.token}
-								errorMessage={signUpForm.errors.token?.[0] || ''}
-							/>
-						</div>
+					{#if !isInviteFlow && !pageData.demoMode}
+						<!-- Registration Token (hidden when using invite flow, always required now since first user uses /setup) -->
+						<!-- Registration Token (Optional for new users, required for invites) -->
+						<FloatingInput
+							id="tokensignUp"
+							name="token"
+							type="password"
+							tabindex={tokenTabIndex}
+							bind:value={signUpForm.data.token}
+							label="{registration_token()} (Optional)"
+							minlength={32}
+							maxlength={36}
+							icon="mdi:key-chain"
+							iconColor="white"
+							textColor="white"
+							passwordIconColor="white"
+							inputClass="text-white"
+							autocomplete="one-time-code"
+							invalid={!!signUpForm.errors.token}
+							errorMessage={signUpForm.errors.token?.[0] || ''}
+						/>
 						{#if signUpForm.data.token && inviteError}
-							<span class="text-xs text-warning-400">Token was pre-filled from URL and will be validated against the server</span>
+							<span class="text-xs text-warning-400">⚠️ Token was pre-filled from URL and will be validated against the server</span>
 						{/if}
 					{:else if isInviteFlow}
 						<!-- Hidden token field for invite flow -->
 						<input type="hidden" name="token" value={token} />
-						<span class="text-xs text-primary-400">Using invitation token</span>
+						<span class="text-xs text-primary-400">✓ Using invitation token</span>
+					{/if}
+
+					{#if response}
+						<span class="text-xs text-error-500">{response}</span>
 					{/if}
 
 					{#if inviteError && !signUpForm.data.token}
 						<span class="text-xs text-error-500">{inviteError}</span>
 					{/if}
 
-					{#if !showGoogleOAuth && !showGithubOAuth}
+					{#if !showOAuth}
 						<!-- Email SignIn only -->
 						<button type="submit" class="btn bg-white text-black mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : form_signup()}>
 							{isInviteFlow ? 'Accept Invitation & Create Account' : form_signup()}
@@ -471,10 +461,10 @@ $effect(() => {
 						</button>
 						<!-- Email + OAuth signin  -->
 					{:else}
-						<div class="btn-group mt-4 flex border border-secondary-500 text-white [&>*+*]:border-secondary-500">
+						<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
 							<button
 								type="submit"
-								class="btn flex-1 rounded-none bg-surface-200 text-black hover:text-white"
+								class="btn w-3/4 rounded-none bg-surface-200 text-black hover:text-white"
 								aria-label={isInviteFlow ? 'Accept Invitation' : form_signup()}
 							>
 								<span class="w-full text-black hover:text-white"> {isInviteFlow ? 'Accept Invitation' : form_signup()} </span>
@@ -484,25 +474,18 @@ $effect(() => {
 								{/if}
 							</button>
 
-							{#if showGoogleOAuth}
-								<button type="button" onclick={() => handleOAuth("google")} aria-label="Google OAuth" class="btn flex flex-none items-center justify-center px-4 py-2">
-									<iconify-icon icon="flat-color-icons:google" width={24}></iconify-icon>
-								</button>
-							{/if}
-
-							{#if showGithubOAuth}
-								<button type="button" onclick={() => handleOAuth("github")} aria-label="GitHub OAuth" class="btn flex flex-none items-center justify-center px-4 py-2">
-									<iconify-icon icon="mdi:github" width={24}></iconify-icon>
-								</button>
-							{/if}
+							<button type="button" onclick={handleOAuth} aria-label="OAuth" class="btn flex w-1/4 items-center justify-center">
+								<iconify-icon icon="flat-color-icons:google" width={24}></iconify-icon>
+								<span class="">OAuth</span>
+							</button>
 						</div>
 
 						{#if !isInviteFlow && firstUserExists && !hasExistingOAuthUsers}
 							<p class="mt-2 text-xs text-surface-400">
-								?? Note: Both email/password and Google OAuth registration require an invitation token from an administrator.
+								💡 Note: Both email/password and Google OAuth registration require an invitation token from an administrator.
 							</p>
 						{:else if !isInviteFlow && hasExistingOAuthUsers}
-							<p class="mt-2 text-xs text-surface-400">?? Note: New user registration requires an invitation token from an administrator.</p>
+							<p class="mt-2 text-xs text-surface-400">💡 Note: New user registration requires an invitation token from an administrator.</p>
 						{/if}
 					{/if}
 				</form>
@@ -556,10 +539,5 @@ $effect(() => {
 		100% {
 			transform: translateX(0px);
 		}
-	}
-	@media (prefers-reduced-motion: reduce) {
-		:global(.wiggle) { animation: none !important; }
-		section { transition: none !important; }
-		.hover:hover { width: var(--width) !important; border-radius: 0 !important; }
 	}
 </style>

@@ -218,7 +218,7 @@ Features:
 		<div class="flex items-center gap-3">
 			<span class="text-2xl {state === 'testing' ? 'animate-pulse' : ''}" aria-hidden="true"> {getStatusIcon(state)} </span>
 			<div class="flex-1">
-				<p class="font-semibold {getStatusColor(state)}">{@html getStatusText(state, result)}</p>
+				<p class="font-semibold {getStatusColor(state)}">{getStatusText(state, result)}</p>
 				{#if result?.latencyMs && state === 'success'}
 					<p class="text-sm text-surface-600 dark:text-surface-50">{setup_connection_latency({ ms: result.latencyMs })}</p>
 				{/if}

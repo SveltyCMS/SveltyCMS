@@ -15,11 +15,11 @@
 - Integrates with BaseWidget for common widget functionalities.
 -->
 <script lang="ts" module>
-export const widgetMeta = {
-	name: "Logs",
-	icon: "mdi:text-box-outline",
-	defaultSize: { w: 2, h: 2 },
-};
+	export const widgetMeta = {
+		name: 'Logs',
+		icon: 'mdi:text-box-outline',
+		defaultSize: { w: 2, h: 2 }
+	};
 </script>
 
 <script lang="ts">

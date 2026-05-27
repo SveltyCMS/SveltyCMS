@@ -1,95 +1,106 @@
 /**
- * @file src/plugins/pagespeed/url-utils.ts
- * @description URL derivation and validation utilities for PageSpeed plugin.
- * Handles localization and prevents SSRF attacks.
+ * @file src/plugins/pagespeed/urlUtils.ts
+ * @description URL derivation utilities for PageSpeed plugin
  */
 
-import type { Schema } from "@content/types";
-import { logger } from "@utils/logger";
+import type { Schema } from '@content/types';
+import { logger } from '@utils/logger.server';
 
 /**
- * Derive the public URL for an entry using schema definitions and localization rules.
+ * Derive the public URL for an entry
+ *
+ * @param baseUrl - System base URL (e.g., 'https://example.com')
+ * @param language - Content language (e.g., 'en', 'de')
+ * @param baseLocale - Base locale from settings (e.g., 'en')
+ * @param entry - Entry data containing slug
+ * @param schema - Collection schema to find slug field
+ * @returns Full URL or null if cannot be derived
  */
-export function deriveEntryUrl(
-  baseUrl: string,
-  language: string,
-  baseLocale: string,
-  entry: Record<string, unknown>,
-  schema: Schema,
-): string | null {
-  try {
-    // 1. Identify slug field from schema metadata or naming conventions
-    const slugField = schema.fields.find(
-      (f: any) =>
-        f.widget === "slug" ||
-        f.name === "slug" ||
-        f.db_fieldName === "slug" ||
-        f.db_fieldName === "path",
-    );
+export function deriveEntryUrl(baseUrl: string, language: string, baseLocale: string, entry: Record<string, unknown>, schema: Schema): string | null {
+	try {
+		// Find slug field in schema
+		const slugField = schema.fields.find((f: any) => f.widget === 'slug' || f.name === 'slug' || f.db_fieldName === 'slug');
 
-    if (!slugField) {
-      logger.warn("PageSpeed: No slug/path field found in schema", { collection: schema.name });
-      return null;
-    }
+		if (!slugField) {
+			logger.warn('No slug field found in schema', { schemaId: schema._id });
+			return null;
+		}
 
-    const fieldName = (slugField as any).db_fieldName || (slugField as any).name;
-    let slug = entry[fieldName];
+		// Get slug value from entry
+		const fieldName = (slugField as any).db_fieldName || (slugField as any).name || 'slug';
+		let slug = entry[fieldName];
 
-    // 2. Handle localization (SveltyCMS translated field structure)
-    if (slug && typeof slug === "object" && !Array.isArray(slug)) {
-      slug =
-        (slug as Record<string, unknown>)[language] ||
-        (slug as Record<string, unknown>)[baseLocale];
-    }
+		// Handle translated slug fields
+		if (slug && typeof slug === 'object' && !Array.isArray(slug)) {
+			slug = (slug as Record<string, unknown>)[language];
+		}
 
-    if (!slug || typeof slug !== "string") {
-      return null;
-    }
+		if (!slug || typeof slug !== 'string') {
+			logger.warn('No slug value found for entry', { entryId: entry._id });
+			return null;
+		}
 
-    // 3. Construct absolute URL
-    const cleanBase = baseUrl.replace(/\/$/, "");
-    const cleanSlug = slug.startsWith("/") ? slug : `/${slug}`;
+		// Clean base URL (remove trailing slash)
+		const cleanBaseUrl = baseUrl.replace(/\/$/, '');
 
-    // Root locale usually doesn't have a prefix (e.g. /about)
-    // Other locales use prefix (e.g. /de/about)
-    const prefix = language === baseLocale ? "" : `/${language}`;
+		// Build URL based on language prefix rules
+		// BASE_LOCALE: no prefix (e.g., /about)
+		// Other languages: prefixed (e.g., /de/about)
+		const languagePrefix = language === baseLocale ? '' : `/${language}`;
 
-    const finalUrl = `${cleanBase}${prefix}${cleanSlug}`;
+		// Ensure slug starts with /
+		const cleanSlug = slug.startsWith('/') ? slug : `/${slug}`;
 
-    return finalUrl;
-  } catch (error) {
-    logger.error("PageSpeed: URL derivation failed", { error, entryId: entry._id });
-    return null;
-  }
+		const fullUrl = `${cleanBaseUrl}${languagePrefix}${cleanSlug}`;
+
+		logger.debug('Derived entry URL', {
+			entryId: entry._id,
+			language,
+			baseLocale,
+			slug,
+			url: fullUrl
+		});
+
+		return fullUrl;
+	} catch (error) {
+		logger.error('Failed to derive entry URL', { error, entryId: entry._id });
+		return null;
+	}
 }
 
 /**
- * 🛡️ Security: Validate URL to prevent SSRF (Server-Side Request Forgery).
- * Ensures the target URL belongs to the allowed system domain.
+ * Generate cache key for PageSpeed results
+ */
+export function generateCacheKey(entryId: string, language: string, device: 'mobile' | 'desktop', tenantId: string): string {
+	return `pagespeed:${tenantId}:${entryId}:${language}:${device}`;
+}
+
+/**
+ * Validate URL to prevent SSRF attacks
  */
 export function validateUrl(url: string, allowedBaseUrl: string): boolean {
-  try {
-    const target = new URL(url);
-    const allowed = new URL(allowedBaseUrl);
+	try {
+		const urlObj = new URL(url);
+		const baseObj = new URL(allowedBaseUrl);
 
-    // Protocol check
-    if (target.protocol !== "https:") {
-      logger.warn("PageSpeed Security: Non-HTTPS URL rejected", { url });
-      return false;
-    }
+		// Check protocol (only https)
+		if (urlObj.protocol !== 'https:') {
+			logger.warn('Invalid URL protocol', { url, protocol: urlObj.protocol });
+			return false;
+		}
 
-    // Hostname check (Strict)
-    if (target.hostname !== allowed.hostname) {
-      logger.warn("PageSpeed Security: Cross-domain analysis rejected", {
-        target: target.hostname,
-        allowed: allowed.hostname,
-      });
-      return false;
-    }
+		// Check hostname matches base URL
+		if (urlObj.hostname !== baseObj.hostname) {
+			logger.warn('URL hostname does not match base URL', {
+				url: urlObj.hostname,
+				base: baseObj.hostname
+			});
+			return false;
+		}
 
-    return true;
-  } catch (error) {
-    logger.error("PageSpeed: URL validation exception", { error, url });
-    return false;
-  }
+		return true;
+	} catch (error) {
+		logger.error('URL validation failed', { error, url });
+		return false;
+	}
 }

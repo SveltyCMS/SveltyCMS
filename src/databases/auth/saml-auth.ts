@@ -9,234 +9,114 @@
  * - JIT provisioning configuration handling.
  */
 
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
-import { logger } from "@utils/logger";
-import jackson from "@boxyhq/saml-jackson";
-import { dbAdapter } from "@src/databases/db";
-import type { DatabaseId } from "@src/databases/db-interface";
-import { json } from "@sveltejs/kit";
-import { dateToISODateString } from "@utils/date";
+import { getPrivateSettingSync, getPublicSettingSync } from '@src/services/settings-service';
+import { logger } from '@utils/logger';
+import jackson from '@boxyhq/saml-jackson';
 
 // Use any for Jackson instance to avoid version-specific type mismatches in build environments
 let jacksonInstance: any = null;
-let connectionPromise: Promise<any> | null = null;
+let connectionStringCache = '';
 
-/**
- * Dynamically initializes the Jackson instance based on SveltyCMS database configuration.
- */
-export async function getJackson() {
-  if (jacksonInstance) return jacksonInstance;
-  if (connectionPromise) return connectionPromise;
-
-  connectionPromise = (async () => {
-    try {
-      const dbConnection = getJacksonDBConnection();
-      const samlConfig: any = {
-        externalUrl: getPrivateSettingSync("HOST_PROD") || "http://localhost:5173",
-        samlAudience: "sveltycms",
-        samlPath: "/api/auth/saml/acs",
-        clientSecretVerifier:
-          getPrivateSettingSync("SAML_CLIENT_SECRET_VERIFIER") ||
-          "dummy_verifier_secret_at_least_32_chars",
-        db: {
-          engine: getJacksonEngine(),
-          url: dbConnection,
-          type: getJacksonDBType(),
-          encryptionKey:
-            getPrivateSettingSync("SAML_ENCRYPTION_KEY") ||
-            "dummy_encryption_key_at_least_32_chars",
-        },
-      };
-
-      const privateKey = getPrivateSettingSync("SAML_JWT_SIGNING_PRIVATE_KEY");
-      const publicKey = getPrivateSettingSync("SAML_JWT_SIGNING_PUBLIC_KEY");
-      if (privateKey && publicKey) {
-        samlConfig.openid = {
-          jwtSigningKeys: {
-            private: privateKey,
-            public: publicKey,
-          },
-        };
-      }
-
-      jacksonInstance = await jackson(samlConfig as any);
-      return jacksonInstance;
-    } catch (err) {
-      logger.error("Failed to initialize SAML Jackson", err);
-      connectionPromise = null;
-      throw err;
-    }
-  })();
-
-  return connectionPromise;
-}
-
-function getJacksonDBType(): string {
-  const type = getPrivateSettingSync("DB_TYPE") || "mongodb";
-  if (type.startsWith("mongodb")) return "mongodb";
-  if (type === "postgresql") return "postgres";
-  if (type === "mariadb") return "mysql";
-  return type;
-}
-
-function getJacksonEngine(): "mongodb" | "sql" {
-  const type = getJacksonDBType();
-  return type === "mongodb" ? "mongodb" : "sql";
-}
-
+// Derives the database connection URL for Jackson based on SveltyCMS's privateEnv.
 function getJacksonDBConnection(): string {
-  const config = getPrivateSettingSync("DB_TYPE")
-    ? {
-        DB_TYPE: getPrivateSettingSync("DB_TYPE"),
-        DB_USER: getPrivateSettingSync("DB_USER"),
-        DB_PASSWORD: getPrivateSettingSync("DB_PASSWORD"),
-        DB_HOST: getPrivateSettingSync("DB_HOST"),
-        DB_PORT: getPrivateSettingSync("DB_PORT"),
-        DB_NAME: getPrivateSettingSync("DB_NAME"),
-      }
-    : null;
+	const config = getPrivateSettingSync('DB_TYPE')
+		? {
+				DB_TYPE: getPrivateSettingSync('DB_TYPE'),
+				DB_USER: getPrivateSettingSync('DB_USER'),
+				DB_PASSWORD: getPrivateSettingSync('DB_PASSWORD'),
+				DB_HOST: getPrivateSettingSync('DB_HOST'),
+				DB_PORT: getPrivateSettingSync('DB_PORT'),
+				DB_NAME: getPrivateSettingSync('DB_NAME')
+			}
+		: null;
 
-  if (!config) return "";
+	if (!config || !config.DB_TYPE) {
+		throw new Error('SveltyCMS private configuration is not loaded yet.');
+	}
 
-  const { DB_TYPE, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME } = config;
-  const authPart = DB_USER ? `${DB_USER}:${DB_PASSWORD}@` : "";
+	const hasAuth = config.DB_USER && config.DB_PASSWORD;
+	const authPart = hasAuth ? `${encodeURIComponent(config.DB_USER!)}:${encodeURIComponent(config.DB_PASSWORD!)}@` : '';
 
-  switch (DB_TYPE) {
-    case "mongodb":
-    case "mongodb+srv": {
-      const protocol = DB_TYPE === "mongodb" ? "mongodb" : "mongodb+srv";
-      return `${protocol}://${authPart}${DB_HOST}${DB_PORT ? `:${DB_PORT}` : ""}/${DB_NAME}`;
-    }
-    case "postgresql":
-      return `postgres://${authPart}${DB_HOST}:${DB_PORT || 5432}/${DB_NAME}`;
-    case "mariadb":
-      return `mysql://${authPart}${DB_HOST}:${DB_PORT || 3306}/${DB_NAME}`;
-    case "sqlite":
-      return `sqlite://config/database/${DB_NAME}.sqlite`;
-    default:
-      return "";
-  }
+	switch (config.DB_TYPE) {
+		case 'postgresql':
+			return `postgresql://${authPart}${config.DB_HOST}:${config.DB_PORT}/${config.DB_NAME}`;
+		case 'mariadb':
+			return `mysql://${authPart}${config.DB_HOST}:${config.DB_PORT}/${config.DB_NAME}`;
+		case 'mongodb':
+			return `mongodb://${authPart}${config.DB_HOST}:${config.DB_PORT}/${config.DB_NAME}${hasAuth ? '?authSource=admin' : ''}`;
+		case 'mongodb+srv':
+			return `mongodb+srv://${authPart}${config.DB_HOST}/${config.DB_NAME}?retryWrites=true&w=majority`;
+		// Note: SQLite isn't natively supported out of the box in the same string format by Jackson right now unless wrapping,
+		// but SveltyCMS primarily uses Postgres, Mongo, and MariaDB for prod.
+		default:
+			throw new Error(
+				`SAML Jackson database initialization failed: DB_TYPE '${config.DB_TYPE}' is currently unsupported by SAML Jackson integration.`
+			);
+	}
 }
 
-/**
- * Logic for processing SAML Authentication Result and JIT Provisioning.
- */
-export async function processSAMLResponse(samlResponse: string, relayState: string) {
-  const api = await getJackson();
-  const { profile } = await api.saml.parseSAMLResponse({
-    samlResponse,
-    relayState,
-  });
+// Initializes and caches the SAML Jackson instance.
+export async function getJackson(): Promise<any> {
+	if (jacksonInstance) {
+		return jacksonInstance;
+	}
 
-  if (!profile || !profile.email) {
-    throw new Error("Invalid SAML profile or missing email");
-  }
+	logger.debug('Initializing SAML Jackson...');
+	try {
+		const dbUrl = getJacksonDBConnection();
+		const internalUrl = getPublicSettingSync('HOST_PROD') || getPublicSettingSync('HOST_DEV') || 'http://localhost:5173';
 
-  // JIT Provisioning
-  // 1. Find user by email
-  const authAdapter = dbAdapter!.auth;
-  const findResult = await authAdapter.getUserByEmail({ email: profile.email, tenantId: null });
+		const opts = {
+			externalUrl: internalUrl,
+			samlAudience: 'sveltycms',
+			samlPath: '/api/auth/saml/acs',
+			db: {
+				engine: 'sql', // Jackson auto-detects based on connection string for sql vs mongo
+				type: getPrivateSettingSync('DB_TYPE') === 'mongodb' || getPrivateSettingSync('DB_TYPE') === 'mongodb+srv' ? 'mongo' : 'sql',
+				url: dbUrl
+			},
+			clientSecretVerifier: 'sveltycms-jackson-secret',
+			openid: {
+				jwtSigningKeys: { private: 'private-key', public: 'public-key' } // Needed to boot jackson but we rely on its core SAML ACS.
+			}
+		};
 
-  let user = findResult.success ? findResult.data : null;
+		// If DB string changed (unlikely in prod, but possible in dev), reinit
+		if (dbUrl !== connectionStringCache && jacksonInstance !== null) {
+			logger.warn('Database connection string changed, re-initializing SAML Jackson');
+			// In a real scenario we'd teardown, Jackson doesn't have a clean explicit teardown sync.
+		}
 
-  if (!user && getPrivateSettingSync("SAML_JIT_PROVISIONING")) {
-    // Create new user via JIT
-    const newUserResult = await authAdapter.createUser({
-      email: profile.email,
-      username: profile.email.split("@")[0],
-      firstName: (profile as any).firstName || "",
-      lastName: (profile as any).lastName || "",
-      role: "user",
-      lastAuthMethod: "saml",
-    });
+		const instance = await jackson(opts as any);
+		jacksonInstance = instance;
+		connectionStringCache = dbUrl;
 
-    if (!newUserResult.success) throw new Error("Failed to provision SAML user");
-    user = newUserResult.data;
-  }
-
-  if (!user) {
-    throw new Error("Access denied: User not found and JIT provisioning disabled.");
-  }
-
-  // 2. Create Session
-  const sessionResult = await authAdapter.createSession({
-    user_id: user._id as DatabaseId,
-    expires: dateToISODateString(new Date(Date.now() + 1000 * 60 * 60 * 24)), // 24hr
-  });
-
-  if (!sessionResult.success) throw new Error("Failed to create SSO session");
-
-  return { user, session: sessionResult.data };
+		logger.info('✅ SAML Jackson successfully initialized');
+		return instance;
+	} catch (error) {
+		const errMsg = error instanceof Error ? error.message : String(error);
+		logger.error(`SAML Jackson initialization error: ${errMsg}`);
+		throw new Error(`Failed to boot SAML Single Sign-On module: ${errMsg}`);
+	}
 }
 
-/**
- * ACS Endpoint Handler for SAML
- */
-export async function handleSAMLACS(request: Request, cookies?: any) {
-  const formData = await request.formData();
-  const SAMLResponse = formData.get("SAMLResponse") as string;
-  const RelayState = formData.get("RelayState") as string;
-
-  // Validate state to prevent CSRF attacks (if cookie is present)
-  const stateCookie = cookies?.get("saml_state");
-  if (stateCookie && stateCookie !== RelayState) {
-    logger.error("SAML Authentication Failed: CSRF State mismatch");
-    return json({ success: false, message: "CSRF State mismatch" }, { status: 403 });
-  }
-
-  // Clear state cookie once consumed
-  if (cookies) {
-    cookies.delete("saml_state", { path: "/" });
-  }
-
-  try {
-    const { user, session } = await processSAMLResponse(SAMLResponse, RelayState);
-
-    // Set Session Cookie
-    const response = json({ success: true, user });
-    response.headers.append(
-      "Set-Cookie",
-      `auth_session=${session._id}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`,
-    );
-
-    return response;
-  } catch (err: any) {
-    logger.error("SAML Authentication Failed", err);
-    return json({ success: false, message: err.message }, { status: 401 });
-  }
+// Creates a SAML connection (useful for an admin endpoint or script).
+export async function createSAMLConnection(params: any): Promise<any> {
+	const j = await getJackson();
+	return j.connectionAPIController.createSAMLConnection(params);
 }
 
-/**
- * Public wrapper for ACS Handler (Expected by router)
- */
-export async function handleSAMLResponse(event: any) {
-  return handleSAMLACS(event.request, event.cookies);
-}
-
-/**
- * Public wrapper for Auth URL Generation (Expected by router)
- */
-export async function generateSAMLAuthUrl(
-  tenant?: string | null,
-  product?: string | null,
-  state?: string,
-) {
-  const api = await getJackson();
-  // Standard Jackson API uses oauthController.authorize
-  const result = await api.oauthController.authorize({
-    tenant: tenant || "sveltycms",
-    product: product || "sveltycms",
-    redirect_uri: "/api/auth/saml/callback",
-    state: state || "default",
-  });
-  return result.redirect_url || result.authorizeUrl;
-}
-
-/**
- * Public wrapper for SAML Connection creation (Expected by router)
- */
-export async function createSAMLConnection(params: any) {
-  const api = await getJackson();
-  // Standard Jackson API uses connectionAPIController.createSAMLConnection
-  return api.connectionAPIController.createSAMLConnection(params);
+// Generates the redirect URL pointing to the IdP.
+export async function generateSAMLAuthUrl(tenant: string, product: string): Promise<string> {
+	const j = await getJackson();
+	const redirect_uri = `${getPublicSettingSync('HOST_DEV') || getPublicSettingSync('HOST_PROD') || 'http://localhost:5173'}/api/auth/saml/acs`;
+	const { redirect_url } = await j.oauthController.authorize({
+		tenant,
+		product,
+		client_id: `tenant=${tenant}&product=${product}`, // Jackson defaults to this mapping
+		redirect_uri,
+		response_type: 'code',
+		state: 'sveltycms'
+	});
+	return redirect_url as string;
 }

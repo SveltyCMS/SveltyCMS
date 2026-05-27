@@ -1,19 +1,19 @@
 ---
-path: "docs/architecture/ui-and-screen-state.mdx"
-title: "UI & Screen State Architecture"
-description: "Technical documentation of the SveltyCMS UI visibility and screen size management systems built with Svelte 5 runes."
+path: 'docs/architecture/ui-and-screen-state.mdx'
+title: 'UI & Screen State Architecture'
+description: 'Technical documentation of the SveltyCMS UI visibility and screen size management systems built with Svelte 5 runes.'
 order: 35
-icon: "mdi:monitor-screenshot"
-author: "SveltyCMS Team"
-created: "2025-12-26"
-updated: "2026-03-27"
+icon: 'mdi:monitor-screenshot'
+author: 'admin'
+created: '2025-12-26'
+updated: '2025-12-26'
 tags:
-  - "architecture"
-  - "state-management"
-  - "svelte5"
-  - "runes"
-  - "ui"
-  - "responsive"
+  - 'architecture'
+  - 'state-management'
+  - 'svelte5'
+  - 'runes'
+  - 'ui'
+  - 'responsive'
 ---
 
 # UI & Screen State Architecture
@@ -144,11 +144,11 @@ Deleting over **400 lines** of legacy boilerplate and compatibility logic reduce
 ### Layout Logic
 
 ```typescript
-import { screen } from "@stores/screen-size-store.svelte";
-import { ui } from "@stores/UIStore.svelte";
+import { screen } from '@stores/screen-size-store.svelte';
+import { ui } from '@stores/UIStore.svelte';
 
 // Derived logic in scripts
-const isCompact = $derived(screen.isMobile || ui.state.leftSidebar === "collapsed");
+const isCompact = $derived(screen.isMobile || ui.state.leftSidebar === 'collapsed');
 ```
 
 ---

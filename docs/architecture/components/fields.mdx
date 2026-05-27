@@ -1,18 +1,18 @@
 ---
-path: "docs/architecture/components/fields.mdx"
-title: "fields Component"
-description: "Documentation for the dynamic field renderer with widget loading, validation store integration, and revision history."
+path: 'docs/architecture/components/fields.mdx'
+title: 'fields Component'
+description: 'Documentation for the dynamic field renderer with widget loading, validation store integration, and revision history.'
 order: 3
-icon: "mdi:form-textbox"
-author: "SveltyCMS Team"
-created: "2026-01-04"
-updated: "2026-03-27"
+icon: 'mdi:form-textbox'
+author: 'admin'
+created: '2026-01-04'
+updated: '2026-02-03'
 tags:
-  - "components"
-  - "fields"
-  - "widgets"
-  - "validation"
-  - "revisions"
+  - 'components'
+  - 'fields'
+  - 'widgets'
+  - 'validation'
+  - 'revisions'
 ---
 
 # fields Component
@@ -65,70 +65,15 @@ flowchart TB
 
 ### Component Roles
 
-| Component              | Path                                                          | Role                                                 |
-| ---------------------- | ------------------------------------------------------------- | ---------------------------------------------------- |
-| **header-edit**        | `src/components/header-edit.svelte`                           | Mobile save/cancel/delete actions, validation gating |
-| **right-sidebar**      | `src/components/right-sidebar.svelte`                         | Desktop save/status/scheduling actions               |
-| **fields**             | `src/components/collection-display/fields.svelte`             | Dynamic field rendering, validation                  |
-| **widget-loader**      | `src/components/collection-display/widget-loader.svelte`      | Async widget loading with error handling             |
-| **translation-status** | `src/components/collection-display/translation-status.svelte` | Translation progress per language                    |
-| **TokenPicker**        | `src/components/TokenPicker.svelte`                           | Dynamic token insertion for fields                   |
-| **Revisions**          | (within fields)                                               | Historical snapshots with revert capability          |
-
----
-
-## 👥 Collaborative Editing (Phase 2 - Yjs Integration)
-
-SveltyCMS implements real-time collaborative editing using **Yjs CRDTs**. This ensures that multiple users can edit the same entry simultaneously without data loss or conflicts.
-
-### Collaborative Architecture
-
-The collaborative system uses a **Single Source of Truth (SSoT)** model during the editing session, synchronized via a WebSocket provider (e.g., Hocuspocus).
-
-```mermaid
-flowchart TB
-    subgraph Clients["Concurrent Editors"]
-        C1[User A]
-        C2[User B]
-    end
-
-    subgraph Sync["Synchronization Layer"]
-        P[Yjs Provider<br/>WebSocket/Hocuspocus]
-        YD[Y.Doc<br/>Shared Document State]
-        AW[Awareness<br/>Cursors/Presence]
-    end
-
-    subgraph CMS["SveltyCMS Core"]
-        F[fields Component]
-        CV[collectionValue Store]
-        DB[(Database)]
-    end
-
-    C1 <--> P
-    C2 <--> P
-    P <--> YD
-    YD <--> AW
-    YD --"Reconciles"--> F
-    F --"Updates"--> CV
-    CV --"Saves (Debounced)"--> DB
-```
-
-### Key Components of Collaboration
-
-| Feature            | Implementation | Description                                                                                                    |
-| :----------------- | :------------- | :------------------------------------------------------------------------------------------------------------- |
-| **Shared State**   | `Y.Doc`        | A Conflict-free Replicated Data Type (CRDT) document that holds all entry fields.                              |
-| **Presence**       | `Awareness`    | Tracks remote cursors, active users, and field-level focus highlights.                                         |
-| **Sync Provider**  | `Hocuspocus`   | The recommended enterprise WebSocket provider for synchronizing Yjs docs with the server.                      |
-| **Widget Binding** | `y-svelte`     | Widgets bind their inputs directly to the `Y.Doc` sub-types (e.g., `Y.Text` for inputs, `Y.Xml` for RichText). |
-
-### Data Flow for Real-time Sync
-
-1. **Initialization**: When an entry is opened, `fields.svelte` initializes a `Y.Doc` and connects to the provider.
-2. **Local Change**: A user types in a widget. The widget updates its corresponding sub-type in the `Y.Doc`.
-3. **Propagation**: Yjs automatically propagates the delta to all other connected clients and the server.
-4. **Reconciliation**: `fields.svelte` watches the `Y.Doc` for changes and updates the global `collectionValue` store to maintain compatibility with non-collaborative parts of the system (like Save actions).
-5. **Awareness**: Remote cursors are rendered using absolute positioning relative to the field containers, providing visual feedback of where others are working.
+| Component              | Path                                                         | Role                                                 |
+| ---------------------- | ------------------------------------------------------------ | ---------------------------------------------------- |
+| **header-edit**        | `src/components/header-edit.svelte`                          | Mobile save/cancel/delete actions, validation gating |
+| **right-sidebar**      | `src/components/right-sidebar.svelte`                        | Desktop save/status/scheduling actions               |
+| **fields**             | `src/components/collectionDisplay/fields.svelte`             | Dynamic field rendering, validation                  |
+| **widget-loader**      | `src/components/collectionDisplay/widget-loader.svelte`      | Async widget loading with error handling             |
+| **translation-status** | `src/components/collectionDisplay/translation-status.svelte` | Translation progress per language                    |
+| **TokenPicker**        | `src/components/TokenPicker.svelte`                          | Dynamic token insertion for fields                   |
+| **Revisions**          | (within fields)                                              | Historical snapshots with revert capability          |
 
 ---
 
@@ -237,8 +182,8 @@ flowchart LR
 ```typescript
 // Translation progress per language
 translationProgress[language] = {
-  total: new SvelteSet<string>(), // All translatable fields
-  translated: new SvelteSet<string>(), // Completed translations
+	total: new SvelteSet<string>(), // All translatable fields
+	translated: new SvelteSet<string>() // Completed translations
 };
 
 // Progress percentage
@@ -265,19 +210,19 @@ Tokens are inserted with `{{ }}` syntax:
 
 ```typescript
 {
-  {
-    entry: title;
-  }
+	{
+		entry: title;
+	}
 } // Simple token
 {
-  {
-    entry: date | date(short);
-  }
+	{
+		entry: date | date(short);
+	}
 } // With modifier
 {
-  {
-    user: displayName | upper;
-  }
+	{
+		user: displayName | upper;
+	}
 } // Uppercase modifier
 ```
 
@@ -314,26 +259,23 @@ The component automatically validates required fields:
 
 ```typescript
 $effect(() => {
-  const values = currentCollectionValue;
+	const values = currentCollectionValue;
 
-  filteredfields.forEach((field) => {
-    if (field.required) {
-      const fieldName = getFieldName(field, false);
-      const value = values[fieldName];
+	filteredfields.forEach((field) => {
+		if (field.required) {
+			const fieldName = getFieldName(field, false);
+			const value = values[fieldName];
 
-      const isEmpty =
-        value === null ||
-        value === undefined ||
-        (typeof value === "string" && value.trim() === "") ||
-        (Array.isArray(value) && value.length === 0);
+			const isEmpty =
+				value === null || value === undefined || (typeof value === 'string' && value.trim() === '') || (Array.isArray(value) && value.length === 0);
 
-      if (isEmpty) {
-        validationStore.setError(fieldName, `${field.label || fieldName} is required`);
-      } else {
-        validationStore.clearError(fieldName);
-      }
-    }
-  });
+			if (isEmpty) {
+				validationStore.setError(fieldName, `${field.label || fieldName} is required`);
+			} else {
+				validationStore.clearError(fieldName);
+			}
+		}
+	});
 });
 ```
 
@@ -343,17 +285,17 @@ Individual widgets can implement their own validation using Valibot schemas:
 
 ```typescript
 // In widget input.svelte
-import { validationStore } from "@stores/store.svelte";
-import { parse } from "valibot";
+import { validationStore } from '@stores/store.svelte';
+import { parse } from 'valibot';
 
 function validateInput() {
-  try {
-    parse(validationSchema, currentValue);
-    validationStore.clearError(fieldName);
-  } catch (error) {
-    const message = error.issues?.[0]?.message || "Invalid input";
-    validationStore.setError(fieldName, message);
-  }
+	try {
+		parse(validationSchema, currentValue);
+		validationStore.clearError(fieldName);
+	} catch (error) {
+		const message = error.issues?.[0]?.message || 'Invalid input';
+		validationStore.setError(fieldName, message);
+	}
 }
 ```
 
@@ -365,12 +307,12 @@ function validateInput() {
 sequenceDiagram
     participant F as fields
     participant WL as widget-loader
-    participant CL as ComponentLoader (import)
-    participant W as Widget Component
+    participant I as import.meta.glob
+    participant W as Widget
 
     F->>WL: Render field
-    WL->>CL: Execute dynamic import()
-    CL-->>WL: Resolve Svelte Component
+    WL->>I: Load widget module
+    I-->>WL: Widget component
     WL->>W: Mount with props
     W->>F: bind:value updates
 ```
@@ -389,13 +331,13 @@ The `widget-loader` component handles loading failures gracefully:
 
 ```typescript
 interface fieldsProps {
-  fields: FieldDefinition[];
-  collection: Collection;
-  entry: Entry;
-  entryId: string;
-  collectionValue: ValueStore;
-  revisions?: Revision[];
-  contentLanguage?: string;
+	fields: FieldDefinition[];
+	collection: Collection;
+	entry: Entry;
+	entryId: string;
+	collectionValue: ValueStore;
+	revisions?: Revision[];
+	contentLanguage?: string;
 }
 ```
 
@@ -441,7 +383,7 @@ sequenceDiagram
 - **Sandboxed iframe** with `allow-same-origin allow-scripts allow-forms allow-popups`
 
 > [!NOTE]
-> For the full handshake architecture (cookies, security, multi-tenancy), see [Live Preview Architecture](/docs/architecture/live-preview-architecture.mdx).
+> For the full handshake architecture (cookies, security, multi-tenancy), see [Live Preview Architecture](/docs/guides/live-preview-architecture.mdx).
 
 ### Tab 3: API (Admin Only)
 
@@ -469,26 +411,26 @@ Plugins can register components in the `entry_edit` zone to:
 
 ```typescript
 // Plugin registering a custom SEO tab
-import type { Plugin } from "@src/plugins/types";
-import SEOTab from "./SEOTab.svelte";
+import type { Plugin } from '@src/plugins/types';
+import SEOTab from './SEOTab.svelte';
 
 export const seoPlugin: Plugin = {
-  metadata: {
-    id: "seo-optimizer",
-    name: "SEO Optimizer",
-    version: "1.0.0",
-    enabled: true,
-  },
-  ui: {
-    slots: [
-      {
-        zone: "entry_edit",
-        slot: "tabs",
-        component: SEOTab,
-        order: 100,
-      },
-    ],
-  },
+	metadata: {
+		id: 'seo-optimizer',
+		name: 'SEO Optimizer',
+		version: '1.0.0',
+		enabled: true
+	},
+	ui: {
+		slots: [
+			{
+				zone: 'entry_edit',
+				slot: 'tabs',
+				component: SEOTab,
+				order: 100
+			}
+		]
+	}
 };
 ```
 
@@ -501,7 +443,7 @@ export const seoPlugin: Plugin = {
 | `field_extensions` | Below field groups                           | Field-level enhancements       |
 
 > [!TIP]
-> For complete plugin development guide, see [Plugin Architecture](/docs/architecture/plugin-architecture.mdx).
+> For complete plugin development guide, see [Plugin Architecture](/docs/guides/plugin-architecture.mdx).
 
 ---
 
@@ -519,8 +461,8 @@ export const seoPlugin: Plugin = {
 ## Related Documentation
 
 - [widget-loader Component](/docs/architecture/components/widget-loader.mdx) - Async widget loading
-- [Widget System Overview](/docs/guides/development/widgets/widget-system-overview.mdx) - Widget architecture
+- [Widget System Overview](/docs/widgets/widget-system-overview.mdx) - Widget architecture
 - [Unified Error Handling](/docs/guides/development/error-handling.mdx) - Error handling patterns
-- [Live Preview Architecture](/docs/architecture/live-preview-architecture.mdx) - Preview system
+- [Live Preview Architecture](/docs/guides/live-preview-architecture.mdx) - Preview system
 - [Validation Instant Feedback](/docs/architecture/validation-instant-feedback.mdx) - Validation UX
 - [Multilingual Data Loading](/docs/architecture/multilingual-data-loading.mdx) - Translation handling

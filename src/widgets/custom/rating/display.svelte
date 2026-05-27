@@ -26,48 +26,35 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 -->
 
 <script lang="ts">
+	// Using iconify-icon web component
 	import type { FieldType } from './';
 
 	const { field, value }: { field: FieldType; value: number | null | undefined } = $props();
 
-	// Derived configuration
-	const max = $derived(Math.max(1, Number(field.max) || 5));
-	const showValue = $derived(field.showValue !== false);
-	const iconFull = $derived((field.iconFull as string) || 'material-symbols:star');
-	const iconHalf = $derived((field.iconHalf as string) || 'material-symbols:star-half');
-	const iconEmpty = $derived((field.iconEmpty as string) || 'material-symbols:star-outline');
-
-	// Create an array for looping
-	const stars = $derived(Array.from({ length: max }, (_, i) => i + 1));
+	// Create an array to easily loop for displaying stars.
+	const stars = $derived.by(() => new Array(field.max || 5).fill(0));
 </script>
 
-{#if typeof value === 'number' && value >= 0}
-	<div class="rating-display" title="{value} out of {max} stars">
-		<div class="flex items-center gap-0.5">
-			{#each stars as starIndex}
-				{#if starIndex <= Math.floor(value)}
-					<iconify-icon icon={iconFull} width="20" class="text-warning-500"></iconify-icon>
-				{:else if starIndex - 0.5 <= value}
-					<iconify-icon icon={iconHalf} width="20" class="text-warning-500"></iconify-icon>
-				{:else}
-					<iconify-icon icon={iconEmpty} width="20" class="text-surface-300 dark:text-surface-600"></iconify-icon>
-				{/if}
-			{/each}
-		</div>
-		
-		{#if showValue}
-			<span class="ml-2 text-sm font-bold text-surface-700 dark:text-surface-300">
-				{value.toFixed(value % 1 !== 0 ? 1 : 0)}
-			</span>
-		{/if}
+{#if typeof value === 'number' && value > 0}
+	{@const iconFull = ((field.iconFull as string) || 'star').replace('material-symbols:', '')}
+	{@const iconEmpty = ((field.iconEmpty as string) || 'star-outline').replace('material-symbols:', '').replace('-outline', '')}
+	<div class="rating-display" title="{value} out of {field.max || 5} stars">
+		{#each stars as _, i (i)}
+			{#if i < value}
+				<iconify-icon icon={iconFull} width="24" class="text-warning-500"></iconify-icon>
+			{:else}
+				<iconify-icon icon={iconEmpty} width="24" class="text-gray-300"></iconify-icon>
+			{/if}
+		{/each}
 	</div>
 {:else}
-	<span class="text-surface-400 dark:text-surface-600">–</span>
+	<span>–</span>
 {/if}
 
 <style>
 	.rating-display {
 		display: inline-flex;
+		gap: 0.25rem;
 		align-items: center;
 		font-family: inherit;
 	}

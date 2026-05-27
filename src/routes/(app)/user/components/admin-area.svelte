@@ -14,10 +14,10 @@
 <script lang="ts">
 	// Type guards for template and logic
 	function isToken(row: User | Token): row is Token {
-		return !!row && 'token' in row && typeof row.token === 'string';
+		return 'token' in row && typeof row.token === 'string';
 	}
 	function isUser(row: User | Token): row is User {
-		return !!row && '_id' in row && !('token' in row);
+		return '_id' in row && typeof row._id === 'string';
 	}
 
 	function getDisplayValue(row: TableDataType, header: TableHeader): string {
@@ -57,7 +57,6 @@
 		adminarea_activesession,
 		adminarea_adminarea,
 		adminarea_blocked,
-		adminarea_consumed,
 		adminarea_createat,
 		adminarea_emailtoken,
 		adminarea_expiresin,
@@ -88,13 +87,12 @@
 	import { toast } from '@src/stores/toast.svelte.ts';
 	// Stores
 	import { logger } from '@utils/logger';
-	import { modalState } from '@utils/modal.svelte';
-	import { showConfirm } from '@utils/modal.svelte';
+	import { modalState } from '@utils/modal-state.svelte';
+	import { showConfirm } from '@utils/modal-utils';
 	import { debounce } from '@utils/utils';
 	import { untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
-	import { page } from '$app/state';
 	import Multibutton from './multibutton.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';
 
@@ -142,7 +140,6 @@
 					}
 					const result = await response.json();
 					if (result.success) {
-						// Standardized API returns { success: true, data: Array, pagination: { totalItems: number } }
 						tableData = result.data;
 						totalItems = result.pagination.totalItems;
 					}
@@ -152,7 +149,6 @@
 					toast.error(`Error fetching data: ${errorMessage}`);
 					tableData = [];
 					totalItems = 0;
-					throw err; // Re-throw to be caught by effect
 				}
 			},
 			'Fetching admin data'
@@ -162,15 +158,14 @@
 	// Custom event handler for updates from Multibutton
 	function handleBatchUpdate(data: { ids: string[]; action: string; type: 'user' | 'token' }) {
 		const { ids, action, type } = data;
-		console.log(`[AdminArea] handleBatchUpdate: ${action} on ${type}`, ids);
 
 		if (action === 'refresh') {
-			fetchData().catch(() => {});
+			fetchData();
 			return;
 		}
 
 		// Update the tableData instead of adminData for scalability
-		if (tableData && tableData.length > 0) {
+		if (tableData) {
 			let updated = false;
 
 			if (action === 'delete') {
@@ -213,10 +208,7 @@
 				});
 
 				if (updated) {
-					console.log(`[AdminArea] Updating tableData locally for ${action}`);
-					tableData = [...updatedData]; // Ensure new array reference for Svelte 5
-				} else {
-					console.warn(`[AdminArea] No items matched for ${action} in current tableData`);
+					tableData = updatedData;
 				}
 			}
 
@@ -304,9 +296,7 @@
 		void currentUser; // Watch for changes to current user (triggers refresh after user update)
 
 		untrack(() => {
-			fetchData().catch((err) => {
-				logger.error('AdminArea effect fetchData error:', err);
-			});
+			fetchData();
 		});
 	});
 
@@ -330,7 +320,7 @@
 			},
 			(result: any) => {
 				if (result?.success) {
-					fetchData().catch(() => {});
+					fetchData();
 				} else if (result?.success === false) {
 					toast.error({
 						description: result.error || 'Failed to update token'
@@ -427,12 +417,6 @@
 			return;
 		}
 
-		// System protection: admins cannot be blocked
-		if (user.role === 'admin' || user.isAdmin) {
-			toast.warning('System admins cannot be blocked.');
-			return;
-		}
-
 		// Prevent admins from blocking themselves
 		if (currentUser && user._id === currentUser._id) {
 			toast.warning('You cannot block your own account');
@@ -445,12 +429,11 @@
 		// Always show confirmation modal (same logic as Multibutton) with enhanced styling using theme colors
 		const actionColor = user.blocked ? 'text-success-500' : 'text-error-500';
 		const actionWord = user.blocked ? 'Unblock' : 'Block';
-		const identifier = user.username || user.email || user._id;
 
 		const modalTitle = `Please Confirm User <span class="${actionColor} font-bold">${actionWord}</span>`;
 		const modalBody = user.blocked
-			? `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> user <span class="text-tertiary-500 font-medium">${identifier}</span>? This will allow them to access the system again.`
-			: `Are you sure you want to <span class="text-error-500 font-semibold">block</span> user <span class="text-tertiary-500 font-medium">${identifier}</span>? This will prevent them from accessing the system.`;
+			? `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will allow them to access the system again.`
+			: `Are you sure you want to <span class="text-error-500 font-semibold">block</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will prevent them from accessing the system.`;
 
 		showConfirm({
 			title: modalTitle,
@@ -462,14 +445,11 @@
 	}
 
 	async function performBlockAction(user: User, action: string, actionPastTense: string) {
-		if (!user._id) return;
-
 		try {
 			const response = await fetch('/api/user/batch', {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRF-Token': page.data.csrfToken || ''
+					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
 					userIds: [user._id],
@@ -477,16 +457,14 @@
 				})
 			});
 
-			if (!response.ok) {
-				const errText = await response.text();
-				throw new Error(errText || `Failed to ${action} user (Status: ${response.status})`);
-			}
-
 			const result = await response.json();
 
 			if (result.success) {
 				// Update the user in tableData to reflect changes immediately
-				tableData = tableData.map((item) => (isUser(item) && item._id === user._id ? { ...item, blocked: !item.blocked } : item));
+				const updatedData = tableData.map((item: User | Token) =>
+					'_id' in item && (item as User)._id === user._id ? { ...item, blocked: !item.blocked } : item
+				);
+				tableData = updatedData;
 				toast.success(`User ${actionPastTense} successfully`);
 			} else {
 				throw new Error(result.message || `Failed to ${action} user`);
@@ -509,12 +487,11 @@
 		// Show confirmation modal with enhanced styling using theme colors
 		const actionColor = token.blocked ? 'text-success-500' : 'text-error-500';
 		const actionWord = token.blocked ? 'Unblock' : 'Block';
-		const identifier = token.email || token._id;
 
 		const modalTitle = `Please Confirm Token <span class="${actionColor} font-bold">${actionWord}</span>`;
 		const modalBody = token.blocked
-			? `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> token for <span class="text-tertiary-500 font-medium">${identifier}</span>? This will allow the token to be used again.`
-			: `Are you sure you want to <span class="text-error-500 font-semibold">block</span> token for <span class="text-tertiary-500 font-medium">${identifier}</span>? This will prevent the token from being used.`;
+			? `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will allow the token to be used again.`
+			: `Are you sure you want to <span class="text-error-500 font-semibold">block</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will prevent the token from being used.`;
 
 		showConfirm({
 			title: modalTitle,
@@ -526,14 +503,11 @@
 	}
 
 	async function performTokenBlockAction(token: Token, action: string, actionPastTense: string) {
-		if (!token.token) return;
-
 		try {
 			const response = await fetch('/api/token/batch', {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRF-Token': page.data.csrfToken || ''
+					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
 					tokenIds: [token.token],
@@ -541,16 +515,15 @@
 				})
 			});
 
-			if (!response.ok) {
-				const errText = await response.text();
-				throw new Error(errText || `Failed to ${action} token (Status: ${response.status})`);
-			}
-
 			const result = await response.json();
 
 			if (result.success) {
 				// Update the token in tableData to reflect changes immediately
-				tableData = tableData.map((item) => (isToken(item) && item.token === token.token ? { ...item, blocked: !item.blocked } : item));
+				const updatedData = tableData.map((item: User | Token) => {
+					const isTokenItem = 'token' in item && item.token !== undefined;
+					return isTokenItem && item.token === token.token ? { ...item, blocked: !item.blocked } : item;
+				});
+				tableData = updatedData;
 				toast.success(`Token ${actionPastTense} successfully`);
 			} else {
 				throw new Error(result.message || `Failed to ${action} token`);
@@ -582,10 +555,7 @@
 			(result: any) => {
 				// Refresh data if token was created
 				if (result?.success) {
-					// Automatically switch to Token view so the user can copy the newly generated token
-					showUsertoken = true;
-					showUserList = false;
-					fetchData().catch(() => {});
+					fetchData();
 				}
 			}
 		);
@@ -665,13 +635,12 @@
 	<p class="h2 mb-2 text-center text-3xl font-bold dark:text-white">{adminarea_adminarea()}</p>
 
 	<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
-		<button type="button" onclick={modalTokenUser} aria-label={adminarea_emailtoken()} class="gradient-primary btn w-full text-white sm:max-w-xs">
+		<button onclick={modalTokenUser} aria-label={adminarea_emailtoken()} class="gradient-primary btn w-full text-white sm:max-w-xs">
 			<iconify-icon icon="material-symbols:mail" width={24}></iconify-icon>
 			<span class="whitespace-normal wrap-break-word">{adminarea_emailtoken()}</span>
 		</button>
 
 		<button
-			type="button"
 			onclick={toggleUserToken}
 			aria-label={showUsertoken ? adminarea_hideusertoken() : adminarea_showtoken()}
 			class="gradient-secondary btn w-full text-white sm:max-w-xs"
@@ -687,7 +656,6 @@
 			)}
 			{#if expiredTokens.length > 0}
 				<button
-					type="button"
 					onclick={() => (showExpiredTokens = !showExpiredTokens)}
 					aria-label={showExpiredTokens ? 'Hide Expired Tokens' : 'Show Expired Tokens'}
 					class="gradient-secondary btn w-full text-white sm:max-w-xs"
@@ -699,7 +667,6 @@
 		{/if}
 
 		<button
-			type="button"
 			onclick={toggleUserList}
 			aria-label={showUserList ? adminarea_hideuserlist() : adminarea_showuserlist()}
 			class="gradient-tertiary btn w-full text-white sm:max-w-xs"
@@ -744,7 +711,6 @@
 						>
 							{#each displayTableHeaders as header (header.id)}
 								<button
-									type="button"
 									class="chip {header.visible
 										? 'preset-filled-secondary-500'
 										: 'preset-ghost-secondary-500'} w-100 mr-2 flex items-center justify-center"
@@ -774,7 +740,7 @@
 							<tr class="divide-x divide-surface-200/50 dark:divide-surface-700/50">
 								<th>
 									{#if Object.keys(filters).length > 0}
-										<button type="button" onclick={() => (filters = {})} aria-label="Clear All Filters" class="preset-outline btn-icon">
+										<button onclick={() => (filters = {})} aria-label="Clear All Filters" class="preset-outline btn-icon">
 											<iconify-icon icon="material-symbols:close" width={24}></iconify-icon>
 										</button>
 									{/if}
@@ -838,14 +804,11 @@
 					<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
 						{#each tableData as row, index (row._id || index)}
 							{@const expiresVal: string | Date | null = isToken(row) ? row.expires : null}
-							{@const isConsumed = isToken(row) && row.consumed}
 							{@const isExpired = showUsertoken && expiresVal && new Date(expiresVal) < new Date()}
 							<tr
-								class="divide-x divide-surface-200/50 dark:divide-surface-50 {isExpired || isConsumed
-									? 'bg-surface-50 opacity-60 dark:bg-surface-900/20'
-									: ''} {isExpired ? 'bg-error-50 dark:bg-error-900/10' : ''} {showUsertoken
-									? 'cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800'
-									: ''}"
+								class="divide-x divide-surface-200/50 dark:divide-surface-50 {isExpired
+									? 'bg-error-50 opacity-60 dark:bg-error-900/20'
+									: ''} {showUsertoken ? 'cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800' : ''}"
 								onclick={(event) => {
 									// Only handle click if it's on a token row and not on the checkbox
 									if (showUsertoken && !(event.target as HTMLElement)?.closest('td:first-child')) {
@@ -864,7 +827,6 @@
 										{#if header.key === 'blocked'}
 											{#if showUserList}
 												<button
-													type="button"
 													onclick={() => isUser(row) && toggleUserBlocked(row)}
 													class="btn-sm cursor-pointer rounded-md p-1 transition-all duration-200 hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600"
 													aria-label={row.blocked ? 'Click to unblock user' : 'Click to block user'}
@@ -874,7 +836,6 @@
 												</button>
 											{:else}
 												<button
-													type="button"
 													onclick={(event) => {
 														event.stopPropagation();
 														if (isToken(row)) toggleTokenBlocked(row);
@@ -909,7 +870,6 @@
 												<span class="font-mono text-sm">{isUser(row) ? row._id : isToken(row) ? row._id : '-'}</span>
 												<SystemTooltip title="Copy User ID to clipboard">
 													<button
-														type="button"
 														class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500 hover:dark:preset-filled-primary-500"
 														aria-label="Copy User ID"
 														onclick={(event) => {
@@ -935,7 +895,6 @@
 												<span class="max-w-50 truncate font-mono text-sm">{isToken(row) && header.key === 'token' ? row.token : '-'}</span>
 												<SystemTooltip title="Copy Token to clipboard">
 													<button
-														type="button"
 														class="preset-ghost btn-icon btn-icon-sm hover:preset-filled-tertiary-500 hover:dark:preset-filled-primary-500"
 														aria-label="Copy Token"
 														onclick={(event) => {
@@ -958,24 +917,15 @@
 										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(header.key)}
 											{formatDate(isUser(row) ? row[header.key as keyof User] : isToken(row) ? row[header.key as keyof Token] : undefined)}
 										{:else if header.key === 'expires'}
-											{#if isToken(row)}
-												{#if row.consumed}
-													<span class="font-bold text-primary-500 flex items-center justify-center gap-1">
-														<iconify-icon icon="mdi:check-circle" width={18}></iconify-icon>
-														{adminarea_consumed()}
-													</span>
-												{:else if row.expires}
-													{@const isTokenExpired = checkTokenExpired(row)}
-													{@const remainingTime = getRemainingTime(row.expires)}
-													<span class={isTokenExpired ? 'font-semibold text-error-500' : ''}>
-														{remainingTime}
-														{#if isTokenExpired}
-															<iconify-icon icon="material-symbols:warning" width={24} class="ml-1 text-error-500"></iconify-icon>
-														{/if}
-													</span>
-												{:else}
-													-
-												{/if}
+											{#if isToken(row) && row.expires}
+												{@const isTokenExpired = checkTokenExpired(row)}
+												{@const remainingTime = getRemainingTime(row.expires)}
+												<span class={isTokenExpired ? 'font-semibold text-error-500' : ''}>
+													{remainingTime}
+													{#if isTokenExpired}
+														<iconify-icon icon="material-symbols:warning" width={24} class="ml-1 text-error-500"></iconify-icon>
+													{/if}
+												</span>
 											{:else}
 												-
 											{/if}
@@ -992,7 +942,7 @@
 			</div>
 
 			<!-- Pagination  -->
-			<div class="mt-4 flex flex-col items-center justify-between px-2 md:flex-row md:p-4">
+			<div class="mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
 				<TablePagination
 					bind:currentPage
 					bind:rowsPerPage

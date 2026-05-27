@@ -1,13 +1,14 @@
 <!--
-@file src/widgets/custom/address/input.svelte
+@file src/widgets/custom/Address/Input.svelte
 @component
 **Address Widget Input Component**
 
-Provides comprehensive address input with a dual-mode mapping system:
-1. MapLibre GL JS + OpenFreeMap tiles + Photon (Komoot) search (default, 100% free)
-2. Google Maps API Map + Autocomplete + Geocoding (activated when Google API key is configured)
+Provides comprehensive address input with interactive Mapbox integration and geocoding.
+Part of the Three Pillars Architecture for widget system.
 
-Part of the Three Pillars Architecture for the widget system.
+@example
+<AddressInput bind:value={addressData} field={fieldDefinition} />
+Interactive form with map, country selector, and address validation
 
 ### Props
 - `field: FieldType` - Widget field definition with map settings and configuration
@@ -15,26 +16,35 @@ Part of the Three Pillars Architecture for the widget system.
 - `error?: string | null` - Validation error message for display
 
 ### Features
-- **Dual-Mode Mapping**: Fallback to MapLibre GL JS & OpenFreeMap if Google API key is absent.
-- **Geocoding & Search**: Autocomplete via Photon API (default) or Google Places.
-- **Draggable Marker**: Updates coordinates automatically; triggers reverse geocoding to auto-fill address inputs.
-- **Coordinate Tracking**: Captures exact latitude/longitude.
-- **Accessibility**: Full ARIA labels, semantic structure, and error feedback.
+- **Interactive Mapping**: Mapbox GL JS integration with draggable markers
+- **Geocoding Support**: Address lookup and coordinate resolution
+- **Country Selection**: Multilingual country dropdown with ISO codes and SEARCH
+- **Field Visibility**: Configurable hidden fields for flexible layouts
+- **Default Values**: Smart defaults from field configuration
+- **Coordinate Tracking**: Automatic latitude/longitude capture
+- **Responsive Design**: Grid-based form layout for optimal UX
+- **Error Handling**: Accessible error display with ARIA attributes
+- **Language Support**: Localized UI based on system language settings
 -->
 
 <script lang="ts">
-	import { browser } from '$app/environment';
 	import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
+	import { tokenTarget } from '@src/services/token/token-target';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	/* global google */
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
+	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { onMount } from 'svelte';
+	// Valibot validation
 	import { minLength, object, optional, parse, pipe, string } from 'valibot';
 	import type { FieldType } from './';
 	import { countryStore } from './country-store.svelte';
 	import type { AddressData } from './types';
+
+	// Define google namespace for TypeScript if not globally available
+	/// <reference types="google.maps" />
 
 	let {
 		field,
@@ -46,22 +56,27 @@ Part of the Three Pillars Architecture for the widget system.
 		error?: string | null;
 	} = $props();
 
-	// Feature Toggles from Props
-	const showMap = $derived((field as any).defaults?.showMap ?? true);
-	const enableGeocoding = $derived((field as any).defaults?.enableGeocoding ?? true);
-	const showCoordinates = $derived((field as any).defaults?.showCoordinates ?? false);
+	// --- 1. Language Handling (Architecture Compliance) ---
 
-	// Language Handling
+	// Data Language: Which language version of the address are we editing?
+	// If field is translated, align with contentLanguage. Otherwise use default.
 	const DATA_LANGUAGE = $derived(field.translated ? app.contentLanguage : (publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en').toLowerCase());
+
+	// UI Language: Which language should the Country Dropdown LABELS be in?
+	// Always use systemLanguage for UI elements.
 	const UI_LANGUAGE = $derived(app.systemLanguage);
 
+	// Safe Value Access: Get the address object for the current data language
 	let safeValue = $derived.by(() => {
 		if (field.translated && value && typeof value === 'object') {
+			// It's a multilingual object { en: {...}, de: {...} }
 			return (value as Record<string, AddressData>)[DATA_LANGUAGE] as AddressData | undefined;
 		}
+		// It's a single address object
 		return value as AddressData | undefined;
 	});
 
+	// Value Updater: Helper to update specific fields while preserving multilingual structure
 	function updateAddressField(key: keyof AddressData, newValue: any) {
 		const currentAddress = safeValue || {
 			street: '',
@@ -76,15 +91,24 @@ Part of the Three Pillars Architecture for the widget system.
 		const updatedAddress = { ...currentAddress, [key]: newValue };
 
 		if (field.translated) {
-			value = { ...(typeof value === 'object' ? value : {}), [DATA_LANGUAGE]: updatedAddress } as Record<string, AddressData>;
+			// Merge into multilingual object
+			value = {
+				...(typeof value === 'object' ? value : {}),
+				[DATA_LANGUAGE]: updatedAddress
+			} as Record<string, AddressData>;
 		} else {
+			// Direct update
 			value = updatedAddress;
 		}
+
+		// Validate after update
 		validateAddress(updatedAddress);
 	}
 
 	// Validation
 	const fieldName = $derived(getFieldName(field));
+
+	// Address validation schema
 	const addressSchema = $derived(
 		field?.required
 			? object({
@@ -93,7 +117,14 @@ Part of the Three Pillars Architecture for the widget system.
 					postalCode: pipe(string(), minLength(1, 'Postal code is required')),
 					country: pipe(string(), minLength(2, 'Country is required'))
 				})
-			: optional(object({ street: string(), city: string(), postalCode: string(), country: string() }))
+			: optional(
+					object({
+						street: optional(string()),
+						city: optional(string()),
+						postalCode: optional(string()),
+						country: optional(string())
+					})
+				)
 	);
 
 	function validateAddress(addressData: AddressData | undefined) {
@@ -101,467 +132,311 @@ Part of the Three Pillars Architecture for the widget system.
 			validationStore.clearError(fieldName);
 			return;
 		}
-		handleWidgetValidation(() => parse(addressSchema, addressData), { fieldName, updateStore: true });
+		if (!addressData && field?.required) {
+			validationStore.setError(fieldName, 'Address is required');
+			return;
+		}
+		handleWidgetValidation(() => parse(addressSchema, addressData), {
+			fieldName,
+			updateStore: true
+		});
 	}
 
-	// Maps Elements and State
-	let mapElement = $state<HTMLElement>();
-	let map = $state<any>(null);
-	let marker = $state<any>(null);
-	let googleMapsApiKey = $derived(publicEnv.GOOGLE_MAPS_API_KEY as string);
-	let activeMapType = $state<'google' | 'maplibre' | null>(null);
+	// --- 2. Country Data & Search ---
 
-	// Search & Autocomplete State for Photon (MapLibre mode)
-	let searchQuery = $state('');
-	let suggestions = $state<Array<{ label: string; sublabel: string; data: any }>>([]);
-	let showSuggestions = $state(false);
-	let isLoadingSearch = $state(false);
-	let searchTimeout: any;
+	let countrySearch = $state('');
 
-	// Synchronize the search box text with the current street address
+	// Reactive list of countries from store
+	const countries = $derived(countryStore.countries);
+
+	// Ensure full country list is loaded if UI language needs it
 	$effect(() => {
-		if (safeValue?.street) {
-			const num = safeValue.houseNumber ? ` ${safeValue.houseNumber}` : '';
-			searchQuery = `${safeValue.street}${num}`;
-		} else {
-			searchQuery = '';
+		if (UI_LANGUAGE) {
+			countryStore.ensureLanguageLoaded(UI_LANGUAGE);
 		}
 	});
 
-	onMount(() => {
-		if (!browser) return;
+	// Filtered countries for the dropdown
+	const filteredCountries = $derived(
+		countries.filter((c) => {
+			if (!countrySearch) {
+				return true;
+			}
+			const term = countrySearch.toLowerCase();
+			const name = countryStore.getCountryName(c.alpha2, UI_LANGUAGE).toLowerCase();
+			return name.includes(term) || c.alpha2.toLowerCase().includes(term);
+		})
+	);
 
-		// Mount appropriate map system asynchronously
-		const initMap = async () => {
-			if (googleMapsApiKey) {
-				activeMapType = 'google';
-				if (showMap) await initGoogleMap();
+	// --- 3. Google Maps Integration ---
+
+	let mapElement = $state<HTMLElement>();
+	let searchInput = $state<HTMLInputElement>();
+	let map = $state<google.maps.Map | null>(null);
+	let marker = $state<google.maps.Marker | null>(null);
+	let autocomplete = $state<google.maps.places.Autocomplete | null>(null);
+	let googleMapsApiKey = $derived(publicEnv.GOOGLE_MAPS_API_KEY as string);
+
+	onMount(async () => {
+		// Initialize value if completely missing
+		if (!value) {
+			const initialAddress = {
+				street: '',
+				houseNumber: '',
+				postalCode: '',
+				city: '',
+				country: (field.defaultCountry as string) || 'DE',
+				latitude: (field.mapCenter as { lat: number; lng: number })?.lat || 0,
+				longitude: (field.mapCenter as { lat: number; lng: number })?.lng || 0
+			};
+
+			if (field.translated) {
+				value = { [DATA_LANGUAGE]: initialAddress };
 			} else {
-				activeMapType = 'maplibre';
-				if (showMap) await initMapLibre();
+				value = initialAddress;
 			}
-		};
-		initMap();
+		}
 
-		// Close suggestions dropdown when clicking outside
-		const handleClickOutside = (e: MouseEvent) => {
-			const target = e.target as HTMLElement;
-			if (!target.closest('.autocomplete-container')) {
-				showSuggestions = false;
-			}
-		};
-		document.addEventListener('click', handleClickOutside);
-
-		return () => {
-			document.removeEventListener('click', handleClickOutside);
-			if (map) {
-				if (activeMapType === 'maplibre') {
-					map.remove();
-				}
-				map = null;
-			}
-		};
+		if (googleMapsApiKey && !(field.hiddenFields as string[])?.includes('map')) {
+			await initMap();
+		}
 	});
 
-	// --- 1. GOOGLE MAPS IMPLEMENTATION ---
-	async function initGoogleMap() {
-		setOptions({ key: googleMapsApiKey, v: 'weekly', libraries: ['places'] });
+	async function initMap() {
+		if (!googleMapsApiKey) {
+			console.warn('Google Maps API Key is missing. Map functionality disabled.');
+			return;
+		}
+
+		setOptions({
+			key: googleMapsApiKey,
+			v: 'weekly',
+			libraries: ['places']
+		});
+
 		try {
 			const { Map } = (await importLibrary('maps')) as google.maps.MapsLibrary;
 			const { Marker } = (await importLibrary('marker')) as google.maps.MarkerLibrary;
 			const { Autocomplete } = (await importLibrary('places')) as google.maps.PlacesLibrary;
-			const { Geocoder } = (await importLibrary('geocoding')) as google.maps.GeocodingLibrary;
 
-			if (!mapElement) return;
-
-			const center = {
-				lat: safeValue?.latitude || (field.mapCenter as any)?.lat || 51.1657,
-				lng: safeValue?.longitude || (field.mapCenter as any)?.lng || 10.4515
-			};
-
-			map = new Map(mapElement, {
-				center,
-				zoom: safeValue?.latitude ? 15 : (field.zoom as number) || 6,
-				mapTypeControl: false,
-				streetViewControl: false
-			});
-
-			marker = new Marker({ position: center, map, draggable: true });
-			
-			const geocoder = new Geocoder();
-			marker.addListener('dragend', async () => {
-				const pos = marker?.getPosition();
-				if (pos) {
-					const lat = pos.lat();
-					const lng = pos.lng();
-					updateAddressField('latitude', lat);
-					updateAddressField('longitude', lng);
-					
-					try {
-						const response = await geocoder.geocode({ location: { lat, lng } });
-						if (response.results && response.results[0]) {
-							fillInGoogleAddress(response.results[0]);
-						}
-					} catch (err) {
-						console.error('Google reverse geocoding failed', err);
-					}
-				}
-			});
-
-			if (enableGeocoding) {
-				const inputEl = document.getElementById('search-address') as HTMLInputElement;
-				if (inputEl) {
-					const autocomplete = new Autocomplete(inputEl, {
-						fields: ['address_components', 'geometry', 'formatted_address'],
-						types: ['address']
-					});
-
-					autocomplete.addListener('place_changed', () => {
-						const place = autocomplete.getPlace();
-						if (place.geometry?.location) {
-							fillInGoogleAddress(place);
-							map?.setCenter(place.geometry.location);
-							map?.setZoom(17);
-							marker?.setPosition(place.geometry.location);
-						}
-					});
-				}
-			}
-		} catch (e) {
-			console.error('Google Map init failed', e);
-		}
-	}
-
-	function fillInGoogleAddress(place: google.maps.places.PlaceResult | google.maps.GeocoderResult) {
-		const components: any = {
-			street: '',
-			houseNumber: '',
-			postalCode: '',
-			city: '',
-			country: ''
-		};
-		
-		for (const comp of place.address_components || []) {
-			const type = comp.types[0];
-			if (type === 'route') components.street = comp.long_name;
-			if (type === 'street_number') components.houseNumber = comp.long_name;
-			if (type === 'postal_code') components.postalCode = comp.long_name;
-			if (type === 'locality') components.city = comp.long_name;
-			if (type === 'country') components.country = comp.short_name.toUpperCase();
-		}
-		
-		Object.entries(components).forEach(([k, v]) => {
-			if (v) updateAddressField(k as any, v);
-		});
-		
-		const loc = place.geometry?.location;
-		if (loc) {
-			updateAddressField('latitude', typeof loc.lat === 'function' ? loc.lat() : loc.lat);
-			updateAddressField('longitude', typeof loc.lng === 'function' ? loc.lng() : loc.lng);
-		}
-	}
-
-	// --- 2. MAPLIBRE & PHOTON IMPLEMENTATION ---
-	async function initMapLibre() {
-		try {
-			if (!mapElement) return;
-
-			const maplibregl = (await import('maplibre-gl')).default;
-
-			// Add MapLibre styles dynamically to head if not present
-			if (!document.getElementById('maplibre-style')) {
-				const link = document.createElement('link');
-				link.id = 'maplibre-style';
-				link.rel = 'stylesheet';
-				link.href = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css';
-				document.head.appendChild(link);
-			}
-
-			const center: [number, number] = [
-				safeValue?.longitude || (field.mapCenter as any)?.lng || 10.4515,
-				safeValue?.latitude || (field.mapCenter as any)?.lat || 51.1657
-			];
-
-			map = new maplibregl.Map({
-				container: mapElement,
-				style: 'https://tiles.openfreemap.org/styles/bright/style.json',
-				center,
-				zoom: safeValue?.latitude ? 15 : (field.zoom as number) || 6
-			});
-
-			map.addControl(new maplibregl.NavigationControl(), 'top-right');
-
-			marker = new maplibregl.Marker({ draggable: true })
-				.setLngLat(center)
-				.addTo(map);
-
-			marker.on('dragend', async () => {
-				const lngLat = marker.getLngLat();
-				updateAddressField('latitude', lngLat.lat);
-				updateAddressField('longitude', lngLat.lng);
-				await reverseGeocodePhoton(lngLat.lat, lngLat.lng);
-			});
-		} catch (e) {
-			console.error('MapLibre init failed', e);
-		}
-	}
-
-	function handleSearchInput(e: Event) {
-		const target = e.currentTarget as HTMLInputElement;
-		const query = target.value;
-		searchQuery = query;
-
-		if (searchTimeout) clearTimeout(searchTimeout);
-
-		if (!query.trim()) {
-			suggestions = [];
-			showSuggestions = false;
-			return;
-		}
-
-		searchTimeout = setTimeout(async () => {
-			isLoadingSearch = true;
-			try {
-				const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`);
-				const data = await res.json();
-				if (data && data.features) {
-					suggestions = data.features.map((f: any) => {
-						const p = f.properties;
-						
-						const parts = [];
-						if (p.name) parts.push(p.name);
-						if (p.street) {
-							if (p.housenumber) parts.push(`${p.street} ${p.housenumber}`);
-							else parts.push(p.street);
-						}
-						const label = parts.length > 0 ? parts.join(', ') : (p.city || p.country || 'Location');
-						
-						const subparts = [];
-						if (p.postcode) subparts.push(p.postcode);
-						if (p.city) subparts.push(p.city);
-						if (p.country) subparts.push(p.country);
-						const sublabel = subparts.join(' ') || '';
-
-						return { label, sublabel, data: f };
-					});
-					showSuggestions = true;
-				}
-			} catch (err) {
-				console.error('Photon autocomplete failed', err);
-			} finally {
-				isLoadingSearch = false;
-			}
-		}, 350);
-	}
-
-	function selectSuggestion(suggestion: any) {
-		const feature = suggestion.data;
-		const p = feature.properties;
-		const coords = feature.geometry.coordinates; // [lng, lat]
-
-		const updatedFields = {
-			street: p.street || p.name || '',
-			houseNumber: p.housenumber || '',
-			postalCode: p.postcode || '',
-			city: p.city || p.town || p.village || '',
-			country: (p.countrycode || 'DE').toUpperCase(),
-			latitude: coords[1],
-			longitude: coords[0]
-		};
-
-		Object.entries(updatedFields).forEach(([k, v]) => {
-			updateAddressField(k as any, v);
-		});
-
-		if (map && marker) {
-			if (activeMapType === 'google') {
-				const googleCoords = { lat: coords[1], lng: coords[0] };
-				map.setCenter(googleCoords);
-				map.setZoom(17);
-				marker.setPosition(googleCoords);
-			} else {
-				map.flyTo({ center: coords, zoom: 16 });
-				marker.setLngLat(coords);
-			}
-		}
-
-		searchQuery = suggestion.label;
-		showSuggestions = false;
-	}
-
-	async function reverseGeocodePhoton(lat: number, lng: number) {
-		try {
-			const res = await fetch(`https://photon.komoot.io/reverse?lon=${lng}&lat=${lat}`);
-			const data = await res.json();
-			if (data && data.features && data.features.length > 0) {
-				const p = data.features[0].properties;
-				
-				const updatedFields = {
-					street: p.street || p.name || '',
-					houseNumber: p.housenumber || '',
-					postalCode: p.postcode || '',
-					city: p.city || p.town || p.village || '',
-					country: (p.countrycode || 'DE').toUpperCase(),
-					latitude: lat,
-					longitude: lng
+			// Initialize Map
+			if (mapElement) {
+				const center = {
+					lat: safeValue?.latitude || (field.mapCenter as any)?.lat || 51.1657,
+					lng: safeValue?.longitude || (field.mapCenter as any)?.lng || 10.4515
 				};
 
-				Object.entries(updatedFields).forEach(([k, v]) => {
-					updateAddressField(k as any, v);
+				map = new Map(mapElement, {
+					center,
+					zoom: safeValue?.latitude ? 15 : (field.zoom as number) || 6,
+					mapTypeControl: false,
+					streetViewControl: false,
+					fullscreenControl: true
 				});
 
-				const parts = [];
-				if (p.street) {
-					if (p.housenumber) parts.push(`${p.street} ${p.housenumber}`);
-					else parts.push(p.street);
-				} else if (p.name) {
-					parts.push(p.name);
-				}
-				if (p.city) parts.push(p.city);
-				searchQuery = parts.join(', ');
+				// Initialize Marker
+				marker = new Marker({
+					position: center,
+					map,
+					draggable: true,
+					title: 'Location'
+				});
+
+				marker.addListener('dragend', () => {
+					const pos = marker?.getPosition();
+					if (pos) {
+						updateAddressField('latitude', pos.lat());
+						updateAddressField('longitude', pos.lng());
+					}
+				});
+
+				// Locate Me Button
+				const locationButton = document.createElement('button');
+				locationButton.textContent = 'Locate Me';
+				locationButton.classList.add('btn', 'variant-filled-primary', 'btn-sm', 'm-2', 'absolute', 'bottom-0', 'left-0');
+				locationButton.type = 'button';
+
+				locationButton.addEventListener('click', () => {
+					if (navigator.geolocation) {
+						navigator.geolocation.getCurrentPosition(
+							(position) => {
+								const pos = {
+									lat: position.coords.latitude,
+									lng: position.coords.longitude
+								};
+								map?.setCenter(pos);
+								map?.setZoom(17);
+								marker?.setPosition(pos);
+								updateAddressField('latitude', pos.lat);
+								updateAddressField('longitude', pos.lng);
+							},
+							() => {
+								// handleLocationError(true, infoWindow, map.getCenter()!);
+							}
+						);
+					}
+				});
+				map.controls[google.maps.ControlPosition.LEFT_BOTTOM].push(locationButton);
 			}
-		} catch (err) {
-			console.error('Photon reverse geocoding failed', err);
+
+			// Initialize Autocomplete
+			if (searchInput) {
+				autocomplete = new Autocomplete(searchInput, {
+					fields: ['address_components', 'geometry', 'formatted_address'],
+					types: ['address']
+				});
+
+				autocomplete.addListener('place_changed', () => {
+					const place = autocomplete?.getPlace();
+					if (!place?.geometry?.location) {
+						return;
+					}
+
+					// Fill Form
+					fillInAddress(place);
+
+					// Update Map
+					if (map && marker) {
+						map.setCenter(place.geometry.location);
+						map.setZoom(17);
+						marker.setPosition(place.geometry.location);
+					}
+				});
+			}
+		} catch (e) {
+			console.error('Google Maps Load Error:', e);
 		}
 	}
 
-	function handleClear() {
-		value = null;
-		searchQuery = '';
-		validationStore.clearError(fieldName);
-		
-		const defaultCenter = {
-			lat: (field.mapCenter as any)?.lat || 51.1657,
-			lng: (field.mapCenter as any)?.lng || 10.4515
-		};
-		if (map && marker) {
-			if (activeMapType === 'google') {
-				map.setCenter(defaultCenter);
-				map.setZoom((field.zoom as number) || 6);
-				marker.setPosition(defaultCenter);
-			} else if (activeMapType === 'maplibre') {
-				map.flyTo({ center: [defaultCenter.lng, defaultCenter.lat], zoom: (field.zoom as number) || 6 });
-				marker.setLngLat([defaultCenter.lng, defaultCenter.lat]);
+	function fillInAddress(place: google.maps.places.PlaceResult) {
+		let street = '';
+		let houseNumber = '';
+		let postalCode = '';
+		let city = '';
+		let country = '';
+
+		for (const component of place.address_components || []) {
+			const type = component.types[0];
+			switch (type) {
+				case 'route':
+					street = component.long_name;
+					break;
+				case 'street_number':
+					houseNumber = component.long_name;
+					break;
+				case 'postal_code':
+					postalCode = component.long_name;
+					break;
+				case 'locality':
+					city = component.long_name;
+					break;
+				case 'country':
+					country = component.short_name; // ISO 2 code
+					break;
 			}
+		}
+
+		updateAddressField('street', street);
+		updateAddressField('houseNumber', houseNumber);
+		updateAddressField('postalCode', postalCode);
+		updateAddressField('city', city);
+		updateAddressField('country', country);
+
+		if (place.geometry?.location) {
+			updateAddressField('latitude', place.geometry.location.lat());
+			updateAddressField('longitude', place.geometry.location.lng());
 		}
 	}
 </script>
 
-<div class="address-widget flex flex-col gap-4 rounded-xl border p-4 border-surface-300 dark:border-surface-600 bg-surface-50/30 dark:bg-surface-800/20">
-	<div class="flex items-center justify-between">
-		<div class="flex items-center gap-2 font-bold text-surface-900 dark:text-surface-50">
-			<iconify-icon icon="mdi:map-marker-radius" width="20"></iconify-icon>
-			{field.label}
-		</div>
-		<button type="button" class="btn btn-sm variant-soft-surface gap-1" onclick={handleClear}>
-			<iconify-icon icon="mdi:close-circle-outline" width="16"></iconify-icon>
-			Clear
-		</button>
-	</div>
-
-	<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-		<!-- Left: Form Fields -->
-		<div class="lg:col-span-7 flex flex-col gap-4">
-			{#if enableGeocoding}
-				<div class="relative autocomplete-container">
-					<label class="label text-xs uppercase font-bold text-surface-500" for="search-address">Address Search</label>
-					<div class="relative">
-						<input 
-							id="search-address"
-							type="text" 
-							class="input pr-10" 
-							value={searchQuery}
-							oninput={googleMapsApiKey ? undefined : handleSearchInput}
-							onfocus={googleMapsApiKey ? undefined : () => showSuggestions = true}
-							placeholder={googleMapsApiKey ? "Search address via Google Places..." : "Type to search address (Photon)..."}
-						/>
-						{#if isLoadingSearch}
-							<div class="absolute right-3 top-1/2 -translate-y-1/2">
-								<iconify-icon icon="line-md:loading-loop" width="18"></iconify-icon>
-							</div>
-						{/if}
-					</div>
-					
-					{#if !googleMapsApiKey && showSuggestions && suggestions.length > 0}
-						<div class="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-lg border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 shadow-xl">
-							<ul class="list-none p-0 m-0">
-								{#each suggestions as sug}
-									<li>
-										<button 
-											type="button" 
-											class="w-full text-left px-4 py-2 text-sm hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors flex flex-col gap-0.5 border-b border-surface-200/50 dark:border-surface-700/50"
-											onclick={() => selectSuggestion(sug)}
-										>
-											<span class="font-medium text-surface-900 dark:text-surface-50">{sug.label}</span>
-											<span class="text-xs text-surface-500 dark:text-surface-400">{sug.sublabel}</span>
-										</button>
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
+<div class="address-container" class:invalid={error}>
+	{#if !(field.hiddenFields as string[])?.includes('map')}
+		<div
+			class="map-container relative h-[300px] w-full rounded-md border border-surface-300 bg-surface-100 dark:border-surface-600 dark:bg-surface-800"
+			bind:this={mapElement}
+		>
+			{#if !googleMapsApiKey}
+				<div class="flex h-full flex-col items-center justify-center gap-2 text-surface-500">
+					<iconify-icon icon="mdi:map-marker-off" width="32"></iconify-icon>
+					<span class="text-sm">Map unavailable (API Key missing)</span>
 				</div>
-			{/if}
-
-			<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-				<div class="md:col-span-3">
-					<label class="label text-xs uppercase font-bold text-surface-500" for="street">Street</label>
-					<input 
-						id="street"
-						type="text" 
-						class="input" 
-						value={safeValue?.street || ''} 
-						oninput={e => updateAddressField('street', e.currentTarget.value)}
-						placeholder="Street name"
-					/>
-				</div>
-				<div>
-					<label class="label text-xs uppercase font-bold text-surface-500" for="hn">No.</label>
-					<input id="hn" type="text" class="input" value={safeValue?.houseNumber || ''} oninput={e => updateAddressField('houseNumber', e.currentTarget.value)} placeholder="123" />
-				</div>
-				
-				<div class="md:col-span-1">
-					<label class="label text-xs uppercase font-bold text-surface-500" for="pc">Postal Code</label>
-					<input id="pc" type="text" class="input" value={safeValue?.postalCode || ''} oninput={e => updateAddressField('postalCode', e.currentTarget.value)} placeholder="12345" />
-				</div>
-				<div class="md:col-span-2">
-					<label class="label text-xs uppercase font-bold text-surface-500" for="city">City</label>
-					<input id="city" type="text" class="input" value={safeValue?.city || ''} oninput={e => updateAddressField('city', e.currentTarget.value)} placeholder="Berlin" />
-				</div>
-				<div class="md:col-span-1">
-					<label class="label text-xs uppercase font-bold text-surface-500" for="country">Country</label>
-					<select id="country" class="select" value={safeValue?.country || 'DE'} onchange={e => updateAddressField('country', e.currentTarget.value)}>
-						{#each countryStore.countries as c}
-							<option value={c.alpha2}>{countryStore.getCountryName(c.alpha2, UI_LANGUAGE)}</option>
-						{/each}
-					</select>
-				</div>
-			</div>
-
-			{#if showCoordinates && safeValue?.latitude}
-				<div class="flex items-center gap-4 p-2 bg-surface-100 dark:bg-surface-800 rounded text-xs font-mono">
-					<div class="flex items-center gap-1"><span class="text-surface-400">Lat:</span> {safeValue.latitude.toFixed(6)}</div>
-					<div class="flex items-center gap-1"><span class="text-surface-400">Lng:</span> {safeValue.longitude.toFixed(6)}</div>
-				</div>
-			{/if}
-
-			{#if error}
-				<p class="text-xs text-error-500 font-medium" role="alert">{error}</p>
 			{/if}
 		</div>
+	{/if}
 
-		<!-- Right: Map Container -->
-		{#if showMap}
-			<div class="lg:col-span-5 flex flex-col gap-2">
-				<div class="label text-xs uppercase font-bold text-surface-500 flex items-center justify-between">
-					<span>Interactive Map</span>
-					<span class="badge variant-soft-primary uppercase text-[9px] font-mono tracking-wider px-1.5 py-0.5">
-						{googleMapsApiKey ? 'Google Maps' : 'MapLibre Free'}
-					</span>
-				</div>
-				<div bind:this={mapElement} class="h-80 lg:h-full min-h-[300px] w-full rounded-lg border border-surface-300 bg-surface-100 dark:border-surface-700 relative overflow-hidden">
-				</div>
+	{#if safeValue}
+		<div class="form-grid mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+			<!-- Street / Autocomplete -->
+			<div class="field relative md:col-span-2">
+				<label for="{field.db_fieldName}-street" class="label">Street / Search</label>
+				<input
+					type="text"
+					id="{field.db_fieldName}-street"
+					value={safeValue.street}
+					oninput={(e) => updateAddressField('street', e.currentTarget.value)}
+					class="input"
+					bind:this={searchInput}
+					placeholder="Search address or enter street"
+					use:tokenTarget={{
+						name: field.db_fieldName,
+						label: field.label,
+						collection: (field as any).collection
+					}}
+				/>
 			</div>
-		{/if}
-	</div>
+
+			<div class="field">
+				<label for="{field.db_fieldName}-houseNumber">House Number</label>
+				<input
+					type="text"
+					id="{field.db_fieldName}-houseNumber"
+					value={safeValue.houseNumber}
+					oninput={(e) => updateAddressField('houseNumber', e.currentTarget.value)}
+					class="input"
+				/>
+			</div>
+			<div class="field">
+				<label for="{field.db_fieldName}-postalCode">Postal Code</label>
+				<input
+					type="text"
+					id="{field.db_fieldName}-postalCode"
+					value={safeValue.postalCode}
+					oninput={(e) => updateAddressField('postalCode', e.currentTarget.value)}
+					class="input"
+				/>
+			</div>
+			<div class="field">
+				<label for="{field.db_fieldName}-city">City</label>
+				<input
+					type="text"
+					id="{field.db_fieldName}-city"
+					value={safeValue.city}
+					oninput={(e) => updateAddressField('city', e.currentTarget.value)}
+					class="input"
+				/>
+			</div>
+			<div class="field">
+				<label for="{field.db_fieldName}-country">Country</label>
+
+				<!-- Country Search Filter -->
+				<input type="text" bind:value={countrySearch} placeholder="Search countries..." class="input mb-2 text-sm" />
+
+				<select
+					id="{field.db_fieldName}-country"
+					value={safeValue.country}
+					onchange={(e) => updateAddressField('country', e.currentTarget.value)}
+					class="input"
+				>
+					<option value="" disabled>Select a country</option>
+					{#each filteredCountries as country (country.alpha2)}
+						<option value={country.alpha2}>{countryStore.getCountryName(country.alpha2, UI_LANGUAGE)}</option>
+					{/each}
+				</select>
+			</div>
+		</div>
+	{/if}
+
+	{#if error}
+		<p class="error-message" role="alert">{error}</p>
+	{/if}
 </div>

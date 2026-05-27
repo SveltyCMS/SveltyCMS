@@ -16,838 +16,767 @@
  * - Simplified components (pure UI, no fetch calls)
  */
 
-import { initPublicEnv } from "@src/stores/global-settings.svelte";
-import { dbConfigSchema, setupAdminSchema, systemSettingsSchema } from "@utils/schemas";
-import { logger } from "@utils/logger";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { safeParse } from "valibot";
-import {
-  testDatabaseConnection as testDbRemote,
-  seedDatabase as seedDbRemote,
-  completeSetup as completeSetupRemote,
-  testRedisConnection as testRedisRemote,
-} from "../routes/setup/setup.remote";
-
-// Compatibility: wrap for the store's object-style call pattern
-const _testDb = (p: any) =>
-  testDbRemote({
-    configData: p.configData,
-    createIfMissing: p.createIfMissing,
-    allowOverwrite: p.allowOverwrite,
-  });
-const _seedDb = (p: any) => seedDbRemote({ configData: p.configData, systemData: p.systemData });
-const _completeSetup = (p: any) =>
-  completeSetupRemote({
-    database: p.database,
-    admin: p.admin,
-    system: p.system,
-  });
-const _testRedis = (p: any) =>
-  testRedisRemote({ host: p.host, port: p.port, password: p.password });
+import { updatePublicEnv } from '@src/stores/global-settings.svelte';
+import { dbConfigSchema, setupAdminSchema, systemSettingsSchema } from '@utils/form-schemas';
+import { logger } from '@utils/logger';
+import { toast } from '@src/stores/toast.svelte.ts';
+import { safeParse } from 'valibot';
+import { deserialize } from '$app/forms';
+import { goto } from '$app/navigation';
 
 // --- Types ---
-export type SupportedDbType =
-  | "mongodb"
-  | "mongodb+srv"
-  | "postgresql"
-  | "mysql"
-  | "mariadb"
-  | "sqlite"
-  | "";
+export type SupportedDbType = 'mongodb' | 'mongodb+srv' | 'postgresql' | 'mysql' | 'mariadb' | 'sqlite' | '';
 export type ValidationErrors = Record<string, string>;
 
 export interface PasswordRequirements {
-  length: boolean;
-  letter: boolean;
-  match: boolean;
-  number: boolean;
-  special: boolean;
+	length: boolean;
+	letter: boolean;
+	match: boolean;
+	number: boolean;
+	special: boolean;
 }
 
 export interface DbConfig {
-  host: string;
-  name: string;
-  password: string;
-  port: string;
-  type: SupportedDbType;
-  user: string;
-  replicaUrls: string[]; // Read Replicas
+	host: string;
+	name: string;
+	password: string;
+	port: string;
+	type: SupportedDbType;
+	user: string;
+	authSource?: string;
 }
 export interface AdminUser {
-  confirmPassword: string;
-  email: string;
-  password: string;
-  username: string;
+	confirmPassword: string;
+	email: string;
+	password: string;
+	username: string;
 }
 export interface SystemSettings {
-  contentLanguages: string[];
-  defaultContentLanguage: string;
-  defaultSystemLanguage: string;
-  demoMode: boolean;
-  hostProd: string;
-  mediaFolder: string;
-  mediaStorageType: "local" | "s3" | "r2" | "cloudinary";
-  multiTenant: boolean;
-  passwordMinLength: number;
-  preset: string | null;
-  redisHost: string;
-  redisPassword?: string;
-  redisPort: string;
-  siteName: string;
-  systemLanguages: string[];
-  timezone: string;
-  useRedis: boolean;
-  // Cloudflare CDN
-  cfApiToken: string;
-  cfZoneId: string;
-  cfPurgeMode: "tags" | "all";
+	contentLanguages: string[];
+	defaultContentLanguage: string;
+	defaultSystemLanguage: string;
+	demoMode: boolean;
+	hostProd: string;
+	mediaFolder: string;
+	mediaStorageType: 'local' | 's3' | 'r2' | 'cloudinary';
+	multiTenant: boolean;
+	preset: string | null;
+	redisHost: string;
+	redisPassword?: string;
+	redisPort: string;
+	siteName: string;
+	systemLanguages: string[];
+	timezone: string;
+	useRedis: boolean;
 }
 export interface EmailSettings {
-  skipWelcomeEmail: boolean;
-  smtpConfigured: boolean;
-  host: string;
-  port: string;
-  user: string;
-  password: string;
-  from: string;
-  secure: boolean;
+	skipWelcomeEmail: boolean;
+	smtpConfigured: boolean;
+	host: string;
+	port: string;
+	user: string;
+	password: string;
+	from: string;
+	secure: boolean;
 }
 
 // --- API Response Types ---
 export interface DatabaseTestResult {
-  classification?: string;
-  canOverwrite?: boolean;
-  dbDoesNotExist?: boolean;
-  details?: unknown;
-  error?: string;
-  hint?: string;
-  latencyMs?: number;
-  message?: string;
-  success: boolean;
-  userFriendly?: string;
+	classification?: string;
+	dbDoesNotExist?: boolean;
+	details?: unknown;
+	error?: string;
+	latencyMs?: number;
+	message?: string;
+	success: boolean;
+	userFriendly?: string;
 }
 
 export interface SetupCompleteResponse {
-  error?: string;
-  loggedIn?: boolean;
-  redirectPath?: string;
-  success: boolean;
+	error?: string;
+	loggedIn?: boolean;
+	redirectPath?: string;
+	success: boolean;
 }
 
 export interface SeedDatabaseResponse {
-  error?: string;
-  code?: string;
-  success: boolean;
+	error?: string;
+	firstCollection?: { name: string; path: string } | null;
+	success: boolean;
 }
 
 // --- Initial State Constants ---
 const initialDbConfig: DbConfig = {
-  type: "sqlite",
-  host: "config/database",
-  port: "",
-  name: "sveltycms.db",
-  user: "",
-  password: "",
-  replicaUrls: [],
+	type: 'mongodb',
+	host: 'localhost',
+	port: '27017',
+	name: 'SveltyCMS',
+	user: '',
+	password: '',
+	authSource: 'admin'
 };
 const initialAdminUser: AdminUser = {
-  username: "",
-  email: "",
-  password: "",
-  confirmPassword: "",
+	username: '',
+	email: '',
+	password: '',
+	confirmPassword: ''
 };
 const initialSystemSettings: SystemSettings = {
-  siteName: "SveltyCMS",
-  hostProd: "https://localhost:5173",
-  defaultSystemLanguage: "en",
-  systemLanguages: ["en", "de"], // Will be populated from DB after seeding (reads from settings.json)
-  defaultContentLanguage: "en",
-  contentLanguages: ["en", "de"], // Will be populated from DB after seeding (reads from settings.json)
-  mediaStorageType: "local",
-  mediaFolder: "./mediaFolder",
-  preset: "blank",
-  passwordMinLength: 8,
-  timezone: "UTC",
-  useRedis: false,
-  redisHost: "localhost",
-  redisPort: "6379",
-  redisPassword: "",
-  multiTenant: false,
-  demoMode: false,
-  cfApiToken: "",
-  cfZoneId: "",
-  cfPurgeMode: "tags",
+	siteName: 'SveltyCMS',
+	hostProd: 'https://localhost:5173',
+	defaultSystemLanguage: 'en',
+	systemLanguages: ['en', 'de'], // Will be populated from DB after seeding (reads from settings.json)
+	defaultContentLanguage: 'en',
+	contentLanguages: ['en', 'de'], // Will be populated from DB after seeding (reads from settings.json)
+	mediaStorageType: 'local',
+	mediaFolder: './mediaFolder',
+	preset: 'blank',
+	timezone: 'UTC',
+	useRedis: false,
+	redisHost: 'localhost',
+	redisPort: '6379',
+	redisPassword: '',
+	multiTenant: false,
+	demoMode: false
 };
 const initialEmailSettings: EmailSettings = {
-  smtpConfigured: false,
-  skipWelcomeEmail: true,
-  host: "",
-  port: "587",
-  user: "",
-  password: "",
-  from: "",
-  secure: false,
+	smtpConfigured: false,
+	skipWelcomeEmail: true,
+	host: '',
+	port: '587',
+	user: '',
+	password: '',
+	from: '',
+	secure: false
 };
 // Explicitly type initialStepErrors as a Record<number, string[]>
 const initialStepErrors: Record<number, string[]> = {
-  0: [], // Database config errors
-  1: [], // Admin user errors
-  2: [], // System settings errors
-  3: [], // Email (no validation errors expected)
-  4: [], // Complete (no validation errors expected)
+	0: [], // Database config errors
+	1: [], // Admin user errors
+	2: [], // System settings errors
+	3: [], // Email (no validation errors expected)
+	4: [] // Complete (no validation errors expected)
 };
 
 // --- Persistence Keys ---
-const KEY_PREFIX = "setupWizard:";
+const KEY_PREFIX = 'setupWizard:';
 const KEYS = {
-  db: `${KEY_PREFIX}dbConfig`,
-  admin: `${KEY_PREFIX}adminUser`,
-  system: `${KEY_PREFIX}systemSettings`,
-  email: `${KEY_PREFIX}emailSettings`,
-  step: `${KEY_PREFIX}currentStep`,
-  highestStep: `${KEY_PREFIX}highestStep`,
-  dbTest: `${KEY_PREFIX}dbTestPassed`,
+	db: `${KEY_PREFIX}dbConfig`,
+	admin: `${KEY_PREFIX}adminUser`,
+	system: `${KEY_PREFIX}systemSettings`,
+	email: `${KEY_PREFIX}emailSettings`,
+	step: `${KEY_PREFIX}currentStep`,
+	highestStep: `${KEY_PREFIX}highestStep`,
+	dbTest: `${KEY_PREFIX}dbTestPassed`
 } as const;
 
 // --- Storage Utility ---
 function getStorage(): Storage | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  try {
-    // Test and return localStorage
-    localStorage.setItem("__test", "1");
-    localStorage.removeItem("__test");
-    return localStorage;
-  } catch {
-    logger.warn(
-      "localStorage is not available. Setup state will not be persisted across sessions.",
-    );
-    return null; // Don't fall back to sessionStorage, it's better to be explicit.
-  }
+	if (typeof window === 'undefined') {
+		return null;
+	}
+	try {
+		// Test and return localStorage
+		localStorage.setItem('__test', '1');
+		localStorage.removeItem('__test');
+		return localStorage;
+	} catch {
+		logger.warn('localStorage is not available. Setup state will not be persisted across sessions.');
+		return null; // Don't fall back to sessionStorage, it's better to be explicit.
+	}
 }
 
 // --- Store Implementation ---
 function createSetupStore() {
-  const storage = getStorage();
-  let isLoaded = false;
-
-  const wizard = $state({
-    dbConfig: { ...initialDbConfig },
-    adminUser: { ...initialAdminUser },
-    systemSettings: { ...initialSystemSettings },
-    emailSettings: { ...initialEmailSettings },
-    currentStep: 0,
-    highestStepReached: 0,
-    dbTestPassed: false,
-    // Validation state
-    validationErrors: {} as ValidationErrors,
-    stepErrors: { ...initialStepErrors },
-    // API Loading states
-    isLoading: false,
-    isSubmitting: false,
-    // UI state for database test
-    lastDbTestResult: null as DatabaseTestResult | null,
-    lastTestFingerprint: null as string | null,
-    errorMessage: "",
-    successMessage: "",
-    showDbDetails: false,
-    // Seeding status
-    isSeeding: false,
-    seedingProgress: 0,
-    seedingError: null as string | null,
-    // Redis test state
-    redisTestPassed: false,
-    lastRedisTestResult: null as any | null,
-  });
-
-  // --- Validation Logic ---
-  const validationMap: Record<number, { schema: any; data: () => any }> = {
-    0: { schema: dbConfigSchema, data: () => wizard.dbConfig },
-    1: { schema: setupAdminSchema, data: () => wizard.adminUser },
-    2: { schema: systemSettingsSchema, data: () => wizard.systemSettings },
-    // Steps 3 (Email) and 4 (Review) have no validation, so they are omitted
-  };
-
-  function validateStep(step: number, mutateErrors = true): boolean {
-    const validationEntry = validationMap[step];
-
-    // If no entry, the step is valid (e.g., Email or Review)
-    if (!validationEntry) {
-      if (mutateErrors) {
-        // Ensure the step index exists before assigning
-        if (step in wizard.stepErrors) {
-          wizard.stepErrors[step] = [];
-        }
-      }
-      return true;
-    }
-
-    const { schema, data: getData } = validationEntry;
-    const data = getData();
-    const result = safeParse(schema, data);
-
-    // Get a fresh copy of current errors
-    const currentErrors = { ...wizard.validationErrors };
-
-    // Get the keys for the data we are validating (e.g., 'host', 'port', 'name')
-    const dataKeys = Object.keys(data);
-
-    // Clear only the errors for the fields we are about to validate
-    if (mutateErrors) {
-      for (const key of dataKeys) {
-        delete currentErrors[key];
-      }
-    }
-
-    if (result.success) {
-      if (mutateErrors) {
-        if (step in wizard.stepErrors) {
-          wizard.stepErrors[step] = [];
-        }
-        wizard.validationErrors = currentErrors; // Save the cleared state
-      }
-      return true;
-    }
-
-    // Handle validation failure
-    const newErrors: ValidationErrors = {};
-    const errorMessages: string[] = [];
-
-    for (const issue of result.issues) {
-      const path = issue.path?.[0]?.key as string;
-      if (path) {
-        newErrors[path] = issue.message;
-        errorMessages.push(`${path}: ${issue.message}`);
-      }
-    }
-
-    if (mutateErrors) {
-      // Merge the new errors with the (now-cleared) existing errors
-      wizard.validationErrors = { ...currentErrors, ...newErrors };
-      if (step in wizard.stepErrors) {
-        wizard.stepErrors[step] = errorMessages;
-      }
-    }
-
-    return false;
-  }
-
-  // Function to setup persistence effect - will be called from component
-  function setupPersistence() {
-    $effect(() => {
-      if (!isLoaded) {
-        return;
-      }
-      if (!storage) {
-        return;
-      }
-      try {
-        storage.setItem(KEYS.db, JSON.stringify(wizard.dbConfig));
-        storage.setItem(KEYS.admin, JSON.stringify(wizard.adminUser));
-        storage.setItem(KEYS.system, JSON.stringify(wizard.systemSettings));
-        storage.setItem(KEYS.email, JSON.stringify(wizard.emailSettings));
-        storage.setItem(KEYS.step, String(wizard.currentStep));
-        storage.setItem(KEYS.highestStep, String(wizard.highestStepReached));
-        storage.setItem(KEYS.dbTest, String(wizard.dbTestPassed));
-      } catch (e) {
-        logger.error("Failed to persist setup state:", e);
-      }
-    });
-  }
-
-  // --- Derived State ---
-  const stepCompleted = $derived.by<boolean[]>(() => [
-    wizard.dbTestPassed || wizard.highestStepReached > 0,
-    wizard.highestStepReached > 1 && validateStep(1, false),
-    wizard.highestStepReached > 2 && validateStep(2, false),
-    wizard.highestStepReached > 3, // Email is optional, always considered complete
-    false,
-  ]);
-
-  const stepClickable = $derived.by<boolean[]>(() => [
-    true, // Step 0 (Database) is always clickable
-    wizard.highestStepReached >= 1, // Step 1 (Admin) is clickable if we've reached it
-    wizard.highestStepReached >= 2, // Step 2 (System) is clickable if we've reached it
-    wizard.highestStepReached >= 3, // Step 3 (Email) is clickable if we've reached it
-    wizard.highestStepReached >= 4, // Step 4 (Complete) is clickable if we've reached it
-  ]);
-
-  const canProceed = $derived.by<boolean>(() => {
-    if (wizard.currentStep === 0) {
-      return wizard.dbTestPassed;
-    }
-    if (wizard.currentStep === 1) {
-      return validateStep(wizard.currentStep, false);
-    }
-    if (wizard.currentStep === 2) {
-      const isValid = validateStep(wizard.currentStep, false);
-      if (!isValid) return false;
-      // Enforce Redis test if enabled
-      if (wizard.systemSettings.useRedis && !wizard.redisTestPassed) {
-        return false;
-      }
-      return true;
-    }
-    if (wizard.currentStep === 3) {
-      return true; // Email step is optional, always can proceed
-    }
-    if (wizard.currentStep === 4) {
-      return !wizard.isSeeding; // Block completion if still seeding
-    }
-    return false;
-  });
-
-  // Password requirements checker for admin password
-  const passwordRequirements = $derived.by(() => ({
-    length: wizard.adminUser.password.length >= 8,
-    letter: /[a-zA-Z]/.test(wizard.adminUser.password),
-    number: /[0-9]/.test(wizard.adminUser.password),
-    special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]/.test(wizard.adminUser.password),
-    match:
-      wizard.adminUser.password === wizard.adminUser.confirmPassword &&
-      wizard.adminUser.password !== "",
-  }));
-
-  // DB config fingerprint for change detection
-  const dbConfigFingerprint = $derived.by<string>(() => JSON.stringify(wizard.dbConfig));
-  const dbConfigChangedSinceTest = $derived.by<boolean>(
-    () => wizard.lastTestFingerprint !== null && wizard.lastTestFingerprint !== dbConfigFingerprint,
-  );
-
-  // --- API METHODS (Remote Functions / Server Functions) ---
-
-  /**
-   * Test database connection - Uses SvelteKit Form Actions
-   * @param createIfMissing - If true, attempt to create the database if it doesn't exist
-   * @param allowOverwrite - If true, attempt to drop conflicting database (case mismatch)
-   * @returns Promise<boolean> - true if connection successful
-   */
-  async function testDatabaseConnection(
-    createIfMissing = false,
-    allowOverwrite = false,
-  ): Promise<boolean> {
-    // Validate before testing
-    if (!validateStep(0, true)) {
-      wizard.errorMessage = "Please fill in all required fields before testing.";
-      wizard.lastDbTestResult = {
-        success: false,
-        error: "Client-side validation failed.",
-      };
-      wizard.showDbDetails = true;
-      return false;
-    }
-
-    wizard.isLoading = true;
-    wizard.errorMessage = "";
-    wizard.successMessage = "";
-    wizard.lastDbTestResult = null;
-
-    try {
-      const data = await _testDb({
-        configData: wizard.dbConfig,
-        createIfMissing,
-        allowOverwrite,
-      });
-      wizard.lastDbTestResult = data;
-
-      if (data?.success) {
-        wizard.successMessage = (data as any).message || "Connection successful!";
-        wizard.dbTestPassed = true;
-        wizard.lastTestFingerprint = dbConfigFingerprint;
-        wizard.errorMessage = "";
-        wizard.showDbDetails = false;
-        wizard.validationErrors = {};
-
-        // ✨ TRIGGER BACKGROUND SEEDING & CONFIG WRITING
-        // This allows the user to continue to Step 1 while the database initializes
-        seedDatabase();
-
-        return true;
-      }
-      wizard.errorMessage = data?.error || "Database connection failed.";
-      wizard.dbTestPassed = false;
-      wizard.successMessage = "";
-      wizard.showDbDetails = true;
-
-      // Map server-side validation errors back to the UI
-      if ((data as any)?.details && Array.isArray((data as any).details)) {
-        const newErrors: Record<string, string> = {};
-        for (const issue of (data as any).details as any[]) {
-          const path = issue.path?.[0]?.key as string;
-          if (path) {
-            newErrors[path] = issue.message;
-          }
-        }
-        wizard.validationErrors = {
-          ...wizard.validationErrors,
-          ...newErrors,
-        };
-      }
-      return false;
-    } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : "A server error occurred.";
-      wizard.errorMessage = `Error: ${errorMsg}`;
-      wizard.dbTestPassed = false;
-      wizard.successMessage = "";
-      logger.error("Error during database test server function:", e);
-      return false;
-    } finally {
-      wizard.isLoading = false;
-    }
-  }
-
-  /**
-   * Seed database with initial data
-   * @returns Promise<boolean> - true if seeding successful
-   */
-  async function seedDatabase(): Promise<boolean> {
-    if (!wizard.dbTestPassed) {
-      logger.warn("Cannot seed database: connection not tested");
-      return false;
-    }
-
-    wizard.isLoading = true;
-
-    try {
-      const data = await _seedDb({
-        configData: wizard.dbConfig,
-        systemData: wizard.systemSettings,
-      });
-
-      if (data.success) {
-        logger.debug("✅ Database initialization started");
-
-        // The seeding is now parallelized on backend, no polling needed
-        wizard.isSeeding = false;
-        wizard.seedingProgress = 100;
-
-        return true;
-      }
-      logger.warn("⚠️  Database initialization had issues:", data.error);
-      if (data.code === "SETUP_ALREADY_COMPLETE") {
-        wizard.errorMessage = data.error || "";
-      }
-      toast.error(data.error || "Seeding failed.", {
-        duration: data.code === "SETUP_ALREADY_COMPLETE" ? 8000 : 4000,
-      });
-      return false;
-    } catch (error) {
-      logger.warn("⚠️  Error during database initialization server function:", error);
-      return false;
-    } finally {
-      wizard.isLoading = false;
-    }
-  }
-
-  /**
-   * Complete setup process
-   * @param onSuccess - Optional callback to run on successful completion
-   * @returns Promise<boolean> - true if setup completed successfully
-   */
-  async function completeSetup(onSuccess?: (redirectPath: string) => void): Promise<boolean> {
-    logger.debug("[SetupStore] completeSetup starting...");
-    if (wizard.isSubmitting) {
-      logger.debug("[SetupStore] Already submitting, skipping");
-      return false;
-    }
-
-    // Final validation of all steps
-    const step0Valid = validateStep(0, true);
-    const step1Valid = validateStep(1, true);
-    const step2Valid = validateStep(2, true);
-
-    if (!(step0Valid && step1Valid && step2Valid)) {
-      toast.error("Please fix validation errors before completing setup.");
-
-      // Navigate to first invalid step
-      if (!step0Valid) {
-        wizard.currentStep = 0;
-      } else if (!step1Valid) {
-        wizard.currentStep = 1;
-      } else if (!step2Valid) {
-        wizard.currentStep = 2;
-      }
-      return false;
-    }
-
-    wizard.isSubmitting = true;
-    wizard.isLoading = true;
-    wizard.errorMessage = "";
-
-    try {
-      logger.debug("[SetupStore] Calling completeSetup remote function...");
-      const data = await _completeSetup({
-        database: wizard.dbConfig,
-        admin: wizard.adminUser,
-        system: {
-          ...wizard.systemSettings,
-          preset: wizard.systemSettings.preset || "blank",
-          cfPurgeMode: wizard.systemSettings.cfPurgeMode || "tags",
-        },
-        emailSettings: {
-          ...wizard.emailSettings,
-          skipWelcomeEmail: wizard.emailSettings.skipWelcomeEmail,
-        },
-      });
-
-      if (!data.success) {
-        const errorMsg = data.error || "Failed to finalize setup.";
-        toast.error(errorMsg, { duration: 5000 });
-        wizard.errorMessage = errorMsg;
-        return false;
-      }
-
-      // Update the public settings store instantly for near-zero delay
-      if (data.publicSettings) {
-        logger.debug("[SetupStore] Initializing public environment...");
-        initPublicEnv(data.publicSettings as unknown as Parameters<typeof initPublicEnv>[0]);
-      }
-
-      // Success!
-      logger.info("Setup completed successfully", {
-        username: wizard.adminUser.username,
-        email: wizard.adminUser.email,
-      });
-
-      toast.success("Setup complete! Redirecting...", { duration: 2000 });
-      logger.info("Toast triggered for setup completion");
-
-      // Use flash message for seamless transition to the dashboard
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem(
-          "flashMessage",
-          JSON.stringify({
-            type: "success",
-            title: "Welcome", // Changed title to differentiate
-            description: "Welcome to SveltyCMS! 🎉",
-            duration: 3000,
-          }),
-        );
-        logger.debug("[SetupStore] Flash message set in sessionStorage");
-      }
-
-      // Clear store state locally
-      const targetPath = (data as any).redirectPath || "/en/collections";
-
-      // Success! Give the toast a moment and then redirect hard to ensure clean slate after restart
-      setTimeout(() => {
-        if (onSuccess) {
-          onSuccess(targetPath);
-        } else {
-          // Use hard redirect for the very final step to ensure system state is fully re-synced in browser
-          window.location.href = targetPath;
-        }
-      }, 500);
-
-      return true;
-    } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : "An unknown error occurred.";
-      wizard.errorMessage = errorMsg;
-      toast.error(errorMsg, { duration: 5000 });
-      return false;
-    } finally {
-      wizard.isLoading = false;
-      wizard.isSubmitting = false;
-    }
-  }
-
-  /**
-   * Clear database test error and reset UI state
-   */
-  function clearDbTestError() {
-    wizard.errorMessage = "";
-    wizard.successMessage = "";
-    wizard.lastDbTestResult = null;
-    wizard.lastTestFingerprint = null;
-    wizard.dbTestPassed = false;
-    wizard.showDbDetails = false;
-
-    // Clear field-specific validation errors
-    const clearedErrors: ValidationErrors = {};
-    for (const key in wizard.validationErrors) {
-      if (!["host", "port", "name", "user", "security"].includes(key)) {
-        clearedErrors[key] = wizard.validationErrors[key];
-      }
-    }
-    wizard.validationErrors = clearedErrors;
-  }
-
-  /**
-   * Test Redis connection - Uses SvelteKit Form Actions
-   * @returns Promise<boolean> - true if connection successful
-   */
-  async function testRedisConnection(): Promise<boolean> {
-    wizard.isLoading = true;
-    wizard.errorMessage = "";
-    wizard.successMessage = "";
-    wizard.lastRedisTestResult = null;
-
-    try {
-      const data = await _testRedis({
-        host: wizard.systemSettings.redisHost,
-        port: Number(wizard.systemSettings.redisPort),
-        password: (wizard.systemSettings.redisPassword || undefined) as string,
-      });
-      wizard.lastRedisTestResult = data;
-
-      if (data.success) {
-        wizard.successMessage = data.message || "";
-        wizard.redisTestPassed = true;
-        return true;
-      }
-      wizard.errorMessage = data.error || "Redis connection failed (Non-success result).";
-      wizard.redisTestPassed = false;
-      return false;
-    } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : "A server error occurred.";
-      wizard.errorMessage = `Redis Error: ${errorMsg}`;
-      wizard.redisTestPassed = false;
-      return false;
-    } finally {
-      wizard.isLoading = false;
-    }
-  }
-
-  // --- CLEAR METHOD ---
-  function clear() {
-    const initialState = {
-      dbConfig: { ...initialDbConfig },
-      adminUser: { ...initialAdminUser },
-      systemSettings: { ...initialSystemSettings },
-      emailSettings: { ...initialEmailSettings },
-      currentStep: 0,
-      highestStepReached: 0,
-      dbTestPassed: false,
-      validationErrors: {},
-      stepErrors: { ...initialStepErrors },
-      isLoading: false,
-      isSubmitting: false,
-      lastDbTestResult: null,
-      lastTestFingerprint: null,
-      errorMessage: "",
-      successMessage: "",
-      showDbDetails: false,
-    };
-
-    Object.assign(wizard, initialState);
-
-    if (storage) {
-      for (const key of Object.values(KEYS)) {
-        storage.removeItem(key);
-      }
-    }
-  }
-
-  // --- LOAD METHOD ---
-  function load() {
-    if (isLoaded || !storage) {
-      return;
-    }
-    try {
-      const rawDb = storage.getItem(KEYS.db);
-      if (rawDb && rawDb !== "undefined" && rawDb !== "null") {
-        wizard.dbConfig = { ...initialDbConfig, ...JSON.parse(rawDb) };
-      }
-
-      const rawAdmin = storage.getItem(KEYS.admin);
-      if (rawAdmin && rawAdmin !== "undefined" && rawAdmin !== "null") {
-        wizard.adminUser = { ...initialAdminUser, ...JSON.parse(rawAdmin) };
-      }
-
-      const rawSystem = storage.getItem(KEYS.system);
-      if (rawSystem && rawSystem !== "undefined" && rawSystem !== "null") {
-        const loadedSystem = JSON.parse(rawSystem);
-
-        // Migration: If old data only has ['en'], upgrade to ['en', 'de']
-        if (
-          Array.isArray(loadedSystem.systemLanguages) &&
-          loadedSystem.systemLanguages.length === 1 &&
-          loadedSystem.systemLanguages[0] === "en"
-        ) {
-          loadedSystem.systemLanguages = ["en", "de"];
-        }
-        if (
-          Array.isArray(loadedSystem.contentLanguages) &&
-          loadedSystem.contentLanguages.length === 1 &&
-          loadedSystem.contentLanguages[0] === "en"
-        ) {
-          loadedSystem.contentLanguages = ["en", "de"];
-        }
-
-        wizard.systemSettings = { ...initialSystemSettings, ...loadedSystem };
-      }
-
-      const rawEmail = storage.getItem(KEYS.email);
-      if (rawEmail && rawEmail !== "undefined" && rawEmail !== "null") {
-        wizard.emailSettings = {
-          ...initialEmailSettings,
-          ...JSON.parse(rawEmail),
-        };
-      }
-
-      const stepRaw = storage.getItem(KEYS.step);
-      wizard.currentStep =
-        stepRaw && stepRaw !== "undefined" && stepRaw !== "null" ? Number.parseInt(stepRaw, 10) : 0;
-
-      const highestStepRaw = storage.getItem(KEYS.highestStep);
-      wizard.highestStepReached =
-        highestStepRaw && highestStepRaw !== "undefined" && highestStepRaw !== "null"
-          ? Number.parseInt(highestStepRaw, 10)
-          : 0;
-
-      wizard.dbTestPassed = storage.getItem(KEYS.dbTest) === "true";
-
-      // Sanity check
-      if (wizard.currentStep > 0 && !wizard.dbTestPassed) {
-        wizard.currentStep = 0;
-        wizard.highestStepReached = 0;
-      }
-    } catch (e) {
-      logger.error("Failed to load persisted state, clearing for safety:", e);
-      clear();
-    } finally {
-      isLoaded = true;
-    }
-  }
-
-  return {
-    // Export the writable $state rune directly
-    wizard,
-
-    // Core methods
-    setupPersistence,
-    validateStep,
-    load,
-    clear,
-
-    // API methods (Enterprise Service Store)
-    testDatabaseConnection,
-    seedDatabase,
-    completeSetup,
-    testRedisConnection,
-    clearDbTestError,
-
-    // Derived state as getters
-    get stepCompleted() {
-      return stepCompleted;
-    },
-    get stepClickable() {
-      return stepClickable;
-    },
-    get canProceed() {
-      return canProceed;
-    },
-    get passwordRequirements() {
-      return passwordRequirements;
-    },
-    get dbConfigFingerprint() {
-      return dbConfigFingerprint;
-    },
-    get dbConfigChangedSinceTest() {
-      return dbConfigChangedSinceTest;
-    },
-  };
+	const storage = getStorage();
+	let isLoaded = false;
+
+	const wizard = $state({
+		dbConfig: { ...initialDbConfig },
+		adminUser: { ...initialAdminUser },
+		systemSettings: { ...initialSystemSettings },
+		emailSettings: { ...initialEmailSettings },
+		currentStep: 0,
+		highestStepReached: 0,
+		dbTestPassed: false,
+		firstCollection: null as { name: string; path: string } | null,
+		// Validation state
+		validationErrors: {} as ValidationErrors,
+		stepErrors: { ...initialStepErrors },
+		// API Loading states
+		isLoading: false,
+		isSubmitting: false,
+		// UI state for database test
+		lastDbTestResult: null as DatabaseTestResult | null,
+		lastTestFingerprint: null as string | null,
+		errorMessage: '',
+		successMessage: '',
+		showDbDetails: false,
+		// Seeding status
+		isSeeding: false,
+		seedingProgress: 0,
+		seedingError: null as string | null
+	});
+
+	// --- Validation Logic ---
+	const validationMap: Record<number, { schema: any; data: () => any }> = {
+		0: { schema: dbConfigSchema, data: () => wizard.dbConfig },
+		1: { schema: setupAdminSchema, data: () => wizard.adminUser },
+		2: { schema: systemSettingsSchema, data: () => wizard.systemSettings }
+		// Steps 3 (Email) and 4 (Review) have no validation, so they are omitted
+	};
+
+	function validateStep(step: number, mutateErrors = true): boolean {
+		const validationEntry = validationMap[step];
+
+		// If no entry, the step is valid (e.g., Email or Review)
+		if (!validationEntry) {
+			if (mutateErrors) {
+				// Ensure the step index exists before assigning
+				if (step in wizard.stepErrors) {
+					wizard.stepErrors[step] = [];
+				}
+			}
+			return true;
+		}
+
+		const { schema, data: getData } = validationEntry;
+		const data = getData();
+		const result = safeParse(schema, data);
+
+		// Get a fresh copy of current errors
+		const currentErrors = { ...wizard.validationErrors };
+
+		// Get the keys for the data we are validating (e.g., 'host', 'port', 'name')
+		const dataKeys = Object.keys(data);
+
+		// Clear only the errors for the fields we are about to validate
+		if (mutateErrors) {
+			for (const key of dataKeys) {
+				delete currentErrors[key];
+			}
+		}
+
+		if (result.success) {
+			if (mutateErrors) {
+				if (step in wizard.stepErrors) {
+					wizard.stepErrors[step] = [];
+				}
+				wizard.validationErrors = currentErrors; // Save the cleared state
+			}
+			return true;
+		}
+
+		// Handle validation failure
+		const newErrors: ValidationErrors = {};
+		const errorMessages: string[] = [];
+
+		for (const issue of result.issues) {
+			const path = issue.path?.[0]?.key as string;
+			if (path) {
+				newErrors[path] = issue.message;
+				errorMessages.push(`${path}: ${issue.message}`);
+			}
+		}
+
+		if (mutateErrors) {
+			// Merge the new errors with the (now-cleared) existing errors
+			wizard.validationErrors = { ...currentErrors, ...newErrors };
+			if (step in wizard.stepErrors) {
+				wizard.stepErrors[step] = errorMessages;
+			}
+		}
+
+		return false;
+	}
+
+	// Function to setup persistence effect - will be called from component
+	function setupPersistence() {
+		$effect(() => {
+			if (!isLoaded) {
+				return;
+			}
+			if (!storage) {
+				return;
+			}
+			try {
+				storage.setItem(KEYS.db, JSON.stringify(wizard.dbConfig));
+				storage.setItem(KEYS.admin, JSON.stringify(wizard.adminUser));
+				storage.setItem(KEYS.system, JSON.stringify(wizard.systemSettings));
+				storage.setItem(KEYS.email, JSON.stringify(wizard.emailSettings));
+				storage.setItem(KEYS.step, String(wizard.currentStep));
+				storage.setItem(KEYS.highestStep, String(wizard.highestStepReached));
+				storage.setItem(KEYS.dbTest, String(wizard.dbTestPassed));
+			} catch (e) {
+				logger.error('Failed to persist setup state:', e);
+			}
+		});
+	}
+
+	// --- Derived State ---
+	const stepCompleted = $derived.by<boolean[]>(() => [
+		wizard.dbTestPassed || wizard.highestStepReached > 0,
+		wizard.highestStepReached > 1 && validateStep(1, false),
+		wizard.highestStepReached > 2 && validateStep(2, false),
+		wizard.highestStepReached > 3, // Email is optional, always considered complete
+		false
+	]);
+
+	const stepClickable = $derived.by<boolean[]>(() => [
+		true, // Step 0 (Database) is always clickable
+		wizard.highestStepReached >= 1, // Step 1 (Admin) is clickable if we've reached it
+		wizard.highestStepReached >= 2, // Step 2 (System) is clickable if we've reached it
+		wizard.highestStepReached >= 3, // Step 3 (Email) is clickable if we've reached it
+		wizard.highestStepReached >= 4 // Step 4 (Complete) is clickable if we've reached it
+	]);
+
+	const canProceed = $derived.by<boolean>(() => {
+		if (wizard.currentStep === 0) {
+			return wizard.dbTestPassed;
+		}
+		if (wizard.currentStep === 1 || wizard.currentStep === 2) {
+			return validateStep(wizard.currentStep, false);
+		}
+		if (wizard.currentStep === 3) {
+			return true; // Email step is optional, always can proceed
+		}
+		if (wizard.currentStep === 4) {
+			return !wizard.isSeeding; // Block completion if still seeding
+		}
+		return false;
+	});
+
+	// Password requirements checker for admin password
+	const passwordRequirements = $derived.by(() => ({
+		length: wizard.adminUser.password.length >= 8,
+		letter: /[a-zA-Z]/.test(wizard.adminUser.password),
+		number: /[0-9]/.test(wizard.adminUser.password),
+		special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]/.test(wizard.adminUser.password),
+		match: wizard.adminUser.password === wizard.adminUser.confirmPassword && wizard.adminUser.password !== ''
+	}));
+
+	// DB config fingerprint for change detection
+	const dbConfigFingerprint = $derived.by<string>(() => JSON.stringify(wizard.dbConfig));
+	const dbConfigChangedSinceTest = $derived.by<boolean>(
+		() => wizard.lastTestFingerprint !== null && wizard.lastTestFingerprint !== dbConfigFingerprint
+	);
+
+	// --- API METHODS (Remote Functions / Server Functions) ---
+
+	/**
+	 * Test database connection - Uses SvelteKit Form Actions
+	 * @param createIfMissing - If true, attempt to create the database if it doesn't exist
+	 * @returns Promise<boolean> - true if connection successful
+	 */
+	async function testDatabaseConnection(createIfMissing = false): Promise<boolean> {
+		// Validate before testing
+		if (!validateStep(0, true)) {
+			wizard.errorMessage = 'Please fill in all required fields before testing.';
+			wizard.lastDbTestResult = {
+				success: false,
+				error: 'Client-side validation failed.'
+			};
+			wizard.showDbDetails = true;
+			return false;
+		}
+
+		wizard.isLoading = true;
+		wizard.errorMessage = '';
+		wizard.successMessage = '';
+		wizard.lastDbTestResult = null;
+
+		try {
+			// Call the SvelteKit Action
+			const formData = new FormData();
+			formData.append('config', JSON.stringify(wizard.dbConfig));
+			if (createIfMissing) {
+				formData.append('createIfMissing', 'true');
+			}
+
+			// Use fetch to call the named action
+			const response = await fetch('?/testDatabase', {
+				method: 'POST',
+				body: formData
+			});
+
+			const result = deserialize(await response.text());
+			logger.info('🔍 DB Test Action Result:', result);
+
+			// Handle both success and failure results from the action
+			if (result.type === 'success' || result.type === 'failure') {
+				const data = result.data as any;
+				wizard.lastDbTestResult = data;
+
+				if (data?.success) {
+					wizard.successMessage = data.message || 'Connection successful!';
+					wizard.dbTestPassed = true;
+					wizard.lastTestFingerprint = dbConfigFingerprint;
+					wizard.errorMessage = '';
+					wizard.showDbDetails = false;
+					wizard.validationErrors = {};
+					return true;
+				}
+				wizard.errorMessage = data?.error || 'Database connection failed.';
+				wizard.dbTestPassed = false;
+				wizard.successMessage = '';
+				wizard.showDbDetails = true;
+
+				// Map server-side validation errors back to the UI
+				if (data?.details && Array.isArray(data.details)) {
+					const newErrors: Record<string, string> = {};
+					for (const issue of data.details as any[]) {
+						const path = issue.path?.[0]?.key as string;
+						if (path) {
+							newErrors[path] = issue.message;
+						}
+					}
+					wizard.validationErrors = {
+						...wizard.validationErrors,
+						...newErrors
+					};
+				}
+				return false;
+			}
+
+			return false;
+		} catch (e) {
+			const errorMsg = e instanceof Error ? e.message : 'A server error occurred.';
+			wizard.errorMessage = `Error: ${errorMsg}`;
+			wizard.dbTestPassed = false;
+			wizard.successMessage = '';
+			logger.error('Error during database test server function:', e);
+			return false;
+		} finally {
+			wizard.isLoading = false;
+		}
+	}
+
+	/**
+	 * Seed database with initial data
+	 * @returns Promise<boolean> - true if seeding successful
+	 */
+	async function seedDatabase(): Promise<boolean> {
+		if (!wizard.dbTestPassed) {
+			logger.warn('Cannot seed database: connection not tested');
+			return false;
+		}
+
+		wizard.isLoading = true;
+
+		try {
+			// Call the SvelteKit Action
+			const formData = new FormData();
+			formData.append('config', JSON.stringify(wizard.dbConfig));
+			formData.append('system', JSON.stringify(wizard.systemSettings));
+
+			const response = await fetch('?/seedDatabase', {
+				method: 'POST',
+				body: formData
+			});
+
+			const result = deserialize(await response.text());
+			if (result.type !== 'success') {
+				toast.error(`Seeding failed: ${(result as any).data?.error}`);
+				return false;
+			}
+			const data = result.data as any;
+
+			if (data.success) {
+				logger.debug('✅ Database initialization started');
+
+				if (data.firstCollection) {
+					wizard.firstCollection = data.firstCollection;
+				}
+
+				// The seeding is now parallelized on backend, no polling needed
+				wizard.isSeeding = false;
+				wizard.seedingProgress = 100;
+
+				return true;
+			}
+			logger.warn('⚠️  Database initialization had issues:', data.error);
+			if (data.code === 'SETUP_ALREADY_COMPLETE') {
+				wizard.errorMessage = data.error || '';
+			}
+			toast.error(data.error || 'Seeding failed.', { duration: data.code === 'SETUP_ALREADY_COMPLETE' ? 8000 : 4000 });
+			return false;
+		} catch (error) {
+			logger.warn('⚠️  Error during database initialization server function:', error);
+			return false;
+		} finally {
+			wizard.isLoading = false;
+		}
+	}
+
+	/**
+	 * Complete setup process
+	 * @param onSuccess - Optional callback to run on successful completion
+	 * @returns Promise<boolean> - true if setup completed successfully
+	 */
+	async function completeSetup(onSuccess?: (redirectPath: string) => void): Promise<boolean> {
+		logger.debug('[SetupStore] completeSetup starting...');
+		if (wizard.isSubmitting) {
+			logger.debug('[SetupStore] Already submitting, skipping');
+			return false;
+		}
+
+		// Final validation of all steps
+		const step0Valid = validateStep(0, true);
+		const step1Valid = validateStep(1, true);
+		const step2Valid = validateStep(2, true);
+
+		if (!(step0Valid && step1Valid && step2Valid)) {
+			toast.error('Please fix validation errors before completing setup.');
+
+			// Navigate to first invalid step
+			if (!step0Valid) {
+				wizard.currentStep = 0;
+			} else if (!step1Valid) {
+				wizard.currentStep = 1;
+			} else if (!step2Valid) {
+				wizard.currentStep = 2;
+			}
+			return false;
+		}
+
+		wizard.isSubmitting = true;
+		wizard.isLoading = true;
+		wizard.errorMessage = '';
+
+		try {
+			// Call the SvelteKit Action
+			const payloadData = {
+				database: wizard.dbConfig,
+				admin: wizard.adminUser,
+				system: wizard.systemSettings,
+				firstCollection: wizard.firstCollection,
+				skipWelcomeEmail: wizard.emailSettings.skipWelcomeEmail
+			};
+			logger.debug('[SetupStore] Sending payload:', JSON.stringify(payloadData, null, 2));
+
+			// Call the SvelteKit Action
+			const formData = new FormData();
+			formData.append('data', JSON.stringify(payloadData));
+
+			logger.debug('[SetupStore] Calling ?/completeSetup action...');
+			const response = await fetch('?/completeSetup', {
+				method: 'POST',
+				body: formData
+			});
+
+			const responseText = await response.text();
+			logger.debug('[SetupStore] ?/completeSetup response received');
+			const result = deserialize(responseText);
+			if (result.type !== 'success') {
+				const errorMsg = (result as any).data?.error || 'Failed to finalize setup.';
+				toast.error(errorMsg, { duration: 5000 });
+				wizard.errorMessage = errorMsg;
+				return false;
+			}
+			const data = result.data as any;
+
+			if (!data.success) {
+				const errorMsg = data.error || 'Failed to finalize setup.';
+				toast.error(errorMsg, { duration: 5000 });
+				wizard.errorMessage = errorMsg;
+				return false;
+			}
+
+			// Update the public settings store instantly for near-zero delay
+			if (data.publicSettings) {
+				logger.debug('[SetupStore] Updating public environment...');
+				updatePublicEnv(data.publicSettings);
+			}
+
+			// Success!
+			logger.info('Setup completed successfully', {
+				username: wizard.adminUser.username,
+				email: wizard.adminUser.email
+			});
+
+			toast.success('Setup complete! Redirecting...', { duration: 2000 });
+			logger.info('Toast triggered for setup completion');
+
+			// Use flash message for seamless transition to the dashboard
+			if (typeof window !== 'undefined') {
+				sessionStorage.setItem(
+					'flashMessage',
+					JSON.stringify({
+						type: 'success',
+						title: 'Welcome', // Changed title to differentiate
+						description: 'Welcome to SveltyCMS! 🎉',
+						duration: 3000
+					})
+				);
+				logger.debug('[SetupStore] Flash message set in sessionStorage');
+			}
+
+			// Clear store state locally
+			const targetPath = data.redirectPath || '/en/collections';
+
+			// Call the onSuccess callback with redirect path
+			if (onSuccess) {
+				onSuccess(targetPath);
+			} else {
+				goto(targetPath);
+			}
+
+			return true;
+		} catch (e) {
+			const errorMsg = e instanceof Error ? e.message : 'An unknown error occurred.';
+			wizard.errorMessage = errorMsg;
+			toast.error(errorMsg, { duration: 5000 });
+			return false;
+		} finally {
+			wizard.isLoading = false;
+			wizard.isSubmitting = false;
+		}
+	}
+
+	/**
+	 * Clear database test error and reset UI state
+	 */
+	function clearDbTestError() {
+		wizard.errorMessage = '';
+		wizard.successMessage = '';
+		wizard.lastDbTestResult = null;
+		wizard.lastTestFingerprint = null;
+		wizard.dbTestPassed = false;
+		wizard.showDbDetails = false;
+
+		// Clear field-specific validation errors
+		const clearedErrors: ValidationErrors = {};
+		for (const key in wizard.validationErrors) {
+			if (!['host', 'port', 'name', 'user', 'password'].includes(key)) {
+				clearedErrors[key] = wizard.validationErrors[key];
+			}
+		}
+		wizard.validationErrors = clearedErrors;
+	}
+
+	// --- CLEAR METHOD ---
+	function clear() {
+		const initialState = {
+			dbConfig: { ...initialDbConfig },
+			adminUser: { ...initialAdminUser },
+			systemSettings: { ...initialSystemSettings },
+			emailSettings: { ...initialEmailSettings },
+			currentStep: 0,
+			highestStepReached: 0,
+			dbTestPassed: false,
+			firstCollection: null,
+			validationErrors: {},
+			stepErrors: { ...initialStepErrors },
+			isLoading: false,
+			isSubmitting: false,
+			lastDbTestResult: null,
+			lastTestFingerprint: null,
+			errorMessage: '',
+			successMessage: '',
+			showDbDetails: false
+		};
+
+		Object.assign(wizard, initialState);
+
+		if (storage) {
+			for (const key of Object.values(KEYS)) {
+				storage.removeItem(key);
+			}
+		}
+	}
+
+	// --- LOAD METHOD ---
+	function load() {
+		if (isLoaded || !storage) {
+			return;
+		}
+		try {
+			const rawDb = storage.getItem(KEYS.db);
+			if (rawDb) {
+				wizard.dbConfig = { ...initialDbConfig, ...JSON.parse(rawDb) };
+			}
+
+			const rawAdmin = storage.getItem(KEYS.admin);
+			if (rawAdmin) {
+				wizard.adminUser = { ...initialAdminUser, ...JSON.parse(rawAdmin) };
+			}
+
+			const rawSystem = storage.getItem(KEYS.system);
+			if (rawSystem) {
+				const loadedSystem = JSON.parse(rawSystem);
+
+				// Migration: If old data only has ['en'], upgrade to ['en', 'de']
+				if (Array.isArray(loadedSystem.systemLanguages) && loadedSystem.systemLanguages.length === 1 && loadedSystem.systemLanguages[0] === 'en') {
+					loadedSystem.systemLanguages = ['en', 'de'];
+				}
+				if (Array.isArray(loadedSystem.contentLanguages) && loadedSystem.contentLanguages.length === 1 && loadedSystem.contentLanguages[0] === 'en') {
+					loadedSystem.contentLanguages = ['en', 'de'];
+				}
+
+				wizard.systemSettings = { ...initialSystemSettings, ...loadedSystem };
+			}
+
+			const rawEmail = storage.getItem(KEYS.email);
+			if (rawEmail) {
+				wizard.emailSettings = {
+					...initialEmailSettings,
+					...JSON.parse(rawEmail)
+				};
+			}
+
+			wizard.currentStep = Number.parseInt(storage.getItem(KEYS.step) || '0', 10);
+			wizard.highestStepReached = Number.parseInt(storage.getItem(KEYS.highestStep) || '0', 10);
+			wizard.dbTestPassed = storage.getItem(KEYS.dbTest) === 'true';
+
+			// Sanity check
+			if (wizard.currentStep > 0 && !wizard.dbTestPassed) {
+				wizard.currentStep = 0;
+				wizard.highestStepReached = 0;
+			}
+		} catch (e) {
+			logger.error('Failed to load persisted state, clearing for safety:', e);
+			clear();
+		} finally {
+			isLoaded = true;
+		}
+	}
+
+	return {
+		// Export the writable $state rune directly
+		wizard,
+
+		// Core methods
+		setupPersistence,
+		validateStep,
+		load,
+		clear,
+
+		// API methods (Enterprise Service Store)
+		testDatabaseConnection,
+		seedDatabase,
+		completeSetup,
+		clearDbTestError,
+
+		// Derived state as getters
+		get stepCompleted() {
+			return stepCompleted;
+		},
+		get stepClickable() {
+			return stepClickable;
+		},
+		get canProceed() {
+			return canProceed;
+		},
+		get passwordRequirements() {
+			return passwordRequirements;
+		},
+		get dbConfigFingerprint() {
+			return dbConfigFingerprint;
+		},
+		get dbConfigChangedSinceTest() {
+			return dbConfigChangedSinceTest;
+		}
+	};
 }
 
 // Create and export the singleton store instance

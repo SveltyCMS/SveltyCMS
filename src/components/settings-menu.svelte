@@ -8,10 +8,11 @@ Sidebar navigation for System Settings
 <script lang="ts">
 	// Components
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import type { SettingGroup } from '@src/routes/(app)/config/system-settings/settings-groups';
-	import { getSettingGroupsByRole } from '@src/routes/(app)/config/system-settings/settings-groups';
+	import type { SettingGroup } from '@src/routes/(app)/config/systemsetting/settings-groups';
+	import { getSettingGroupsByRole } from '@src/routes/(app)/config/systemsetting/settings-groups';
 	// Stores
 	import { groupsNeedingConfig } from '@src/stores/config-store.svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
 	// Props
@@ -48,11 +49,18 @@ Sidebar navigation for System Settings
 		});
 	});
 
+	function handleGroupClick(groupId: string) {
+		// Update URL query param to switch groups
+		const url = new URL(page.url);
+		url.searchParams.set('group', groupId);
+
+		goto(url.toString());
+	}
 </script>
 
 <div class="mt-2 flex flex-col h-full bg-transparent">
 	<!-- Search -->
-	<div class="relative mb-2 {isFullSidebar ? 'w-full' : 'max-w-33.75'}">
+	<div class="relative mb-2 {isFullSidebar ? 'w-full' : 'max-w-[135px]'}">
 		<input
 			type="text"
 			bind:value={searchTerm}
@@ -62,7 +70,7 @@ Sidebar navigation for System Settings
 				: 'h-10 py-2'}"
 			aria-label="Search settings"
 		/>
-		<div class="absolute right-0 top-0 flex h-full items-center pr-3 pointer-events-none text-surface-400">
+		<div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400">
 			<iconify-icon icon="ic:outline-search" width="20"></iconify-icon>
 		</div>
 	</div>
@@ -71,14 +79,13 @@ Sidebar navigation for System Settings
 	<div class="flex-1 overflow-y-auto px-1 space-y-1 flex flex-col settings-list">
 		{#each filteredGroups as group (group.id)}
 			<SystemTooltip title={group.name} positioning={{ placement: 'right', gutter: 15 }} contentClass="!text-sm" triggerClass="block w-full">
-				<a
-					href={`/config/system-settings?group=${group.id}`}
-					data-sveltekit-preload-data="hover"
+				<button
 					class="relative w-full cursor-pointer rounded-lg p-2 transition-colors flex items-center {isFullSidebar
 						? 'justify-between text-left'
 						: 'justify-center text-center'} {selectedGroupId === group.id
 						? 'bg-primary-500 text-white'
 						: 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
+					onclick={() => handleGroupClick(group.id)}
 				>
 					<div class="flex items-center {isFullSidebar ? 'gap-3' : 'gap-0'} overflow-hidden">
 						<span class="text-xl shrink-0">{group.icon}</span>
@@ -97,7 +104,7 @@ Sidebar navigation for System Settings
 						<!-- Dot for collapsed state -->
 						<div class="w-2 h-2 rounded-full bg-warning-500 absolute top-1 right-1"></div>
 					{/if}
-				</a>
+				</button>
 			</SystemTooltip>
 		{/each}
 

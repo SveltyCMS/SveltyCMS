@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 @file src/components/system/confirm-dialog.svelte
 @component
 **ConfirmDialog**

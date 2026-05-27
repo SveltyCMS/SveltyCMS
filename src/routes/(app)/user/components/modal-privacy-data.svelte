@@ -6,8 +6,8 @@
 
 <script lang="ts">
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { modalState } from '@utils/modal.svelte';
-	import { showConfirm } from '@utils/modal.svelte';
+	import { modalState } from '@utils/modal-state.svelte';
+	import { showConfirm } from '@utils/modal-utils';
 	import { page } from '$app/state';
 
 	// Props
@@ -66,15 +66,8 @@
 					const result = await res.json();
 					if (result.success) {
 						toast.success('Account anonymized successfully');
-						// Force logout by calling API with POST
-						await fetch('/api/user/logout', {
-							method: 'POST',
-							headers: {
-								'Content-Type': 'application/json',
-								'X-CSRF-Token': page.data.csrfToken
-							}
-						});
-						window.location.href = '/login';
+						// Force logout by redirecting to logout
+						window.location.href = '/api/user/logout';
 					} else {
 						toast.error(result.error || 'Anonymization failed');
 					}

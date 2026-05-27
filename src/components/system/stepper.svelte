@@ -113,7 +113,7 @@
 						</div>
 					</button>
 					{#if i !== steps.length - 1}
-						<div class="absolute left-[1.35rem] top-10 h-6 w-0.5 bg-surface-200 dark:bg-surface-700"></div>
+						<div class="absolute left-[1.35rem] top-10 h-6 w-[2px] bg-surface-200 dark:bg-surface-700"></div>
 					{/if}
 				</div>
 			{/each}

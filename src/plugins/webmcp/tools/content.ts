@@ -1,118 +1,78 @@
 /**
  * @file src/plugins/webmcp/tools/content.ts
- * @description Secure, schema-aware content tools for WebMCP.
+ * @description Exposes Content Management tools to WebMCP
  */
 
-import { contentStore } from "@src/stores/content-store.svelte";
-import { logger } from "@utils/logger";
-
-function getModelContext() {
-  return (window.navigator as any)?.modelContext;
-}
+import { collections } from '@src/stores/collection-store.svelte';
 
 export function registerContentTools() {
-  const modelContext = getModelContext();
-  if (!modelContext) return;
+	const modelContext = window.navigator.modelContext;
 
-  // ── Get Collections ─────────────────────────────────────
-  modelContext.registerTool({
-    name: "get_collections",
-    description: "Returns all content collections with their schemas and field definitions.",
-    parameters: { type: "object", properties: {}, required: [] },
-    execute: async () => {
-      try {
-        const collections = contentStore.getAllCollections();
-        const list = collections.map((c: any) => ({
-          id: c._id,
-          name: c.name,
-          description: c.description || "",
-          fields: c.fields?.map((f: any) => ({
-            name: f.db_fieldName || f.name,
-            label: f.label,
-            type: f.widget?.Name || f.type,
-            required: !!f.required,
-          })),
-        }));
+	if (!modelContext) {
+		return;
+	}
 
-        return {
-          content: [{ type: "text", text: JSON.stringify(list, null, 2) }],
-        };
-      } catch (err: any) {
-        logger.error("[WebMCP] get_collections failed", { error: err });
-        return { isError: true, content: [{ type: "text", text: err.message }] };
-      }
-    },
-  });
+	// Tool: get_collections
+	modelContext.registerTool({
+		name: 'get_collections',
+		description: 'Get a list of all available content collections and their schemas.',
+		parameters: {
+			type: 'object',
+			properties: {},
+			required: []
+		},
+		execute: async () => {
+			const collectionList = Object.values(collections.all).map((c: any) => ({
+				name: c.name,
+				icon: c.icon,
+				fields: c.fields
+			}));
+			return {
+				content: [
+					{
+						type: 'text',
+						text: JSON.stringify(collectionList, null, 2)
+					}
+				]
+			};
+		}
+	} as any);
 
-  // ── Create Entry (Draft-by-Default Airgap) ───────────────
-  modelContext.registerTool({
-    name: "create_entry",
-    description:
-      "Create a new content entry. ALWAYS saves as 'draft' to prevent unauthorized publishing by AI agents.",
-    parameters: {
-      type: "object",
-      properties: {
-        collectionId: { type: "string", description: "Collection ID or slug" },
-        data: { type: "object", description: "Entry data payload" },
-      },
-      required: ["collectionId", "data"],
-    },
-    execute: async ({ collectionId, data }: { collectionId: string; data: any }) => {
-      try {
-        // Enforce Draft-by-Default Airgap
-        const safeData = { ...data, status: "draft" };
-
-        const res = await fetch(`/api/collections/${collectionId}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(safeData),
-          credentials: "include",
-        });
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-
-        const responseData = await res.json();
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Success: Entry created in DRAFT mode. JSON: ${JSON.stringify(responseData)}`,
-            },
-          ],
-        };
-      } catch (err: any) {
-        logger.error("[WebMCP] create_entry failed", { collectionId, error: err });
-        return { isError: true, content: [{ type: "text", text: err.message }] };
-      }
-    },
-  });
-
-  // ── Get Entry ───────────────────────────────────────────
-  modelContext.registerTool({
-    name: "get_entry",
-    description: "Retrieve a single content entry by collection and ID.",
-    parameters: {
-      type: "object",
-      properties: {
-        collectionId: { type: "string", description: "Collection ID or slug" },
-        entryId: { type: "string", description: "Entry ID" },
-      },
-      required: ["collectionId", "entryId"],
-    },
-    execute: async ({ collectionId, entryId }: { collectionId: string; entryId: string }) => {
-      try {
-        const res = await fetch(`/api/collections/${collectionId}/${entryId}`, {
-          credentials: "include",
-        });
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-
-        const data = await res.json();
-        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
-      } catch (err: any) {
-        logger.error("[WebMCP] get_entry failed", { collectionId, entryId, error: err });
-        return { isError: true, content: [{ type: "text", text: err.message }] };
-      }
-    },
-  });
+	// Tool: search_content
+	modelContext.registerTool({
+		name: 'search_content',
+		description: 'Search for content entries in a specific collection.',
+		parameters: {
+			type: 'object',
+			properties: {
+				collectionName: {
+					type: 'string',
+					description: 'The name of the collection to search'
+				},
+				query: { type: 'string', description: 'Search query' }
+			},
+			required: ['collectionName']
+		},
+		execute: async ({ collectionName, query }: { collectionName: string; query: string }) => {
+			// In a real app, this would call the internal API
+			// using fetch to /api/graphql or /api/rest
+			try {
+				const response = await fetch(`/api/collections/${collectionName}?search=${encodeURIComponent(query || '')}`);
+				const data = await response.json();
+				return {
+					content: [
+						{
+							type: 'text',
+							text: JSON.stringify(data, null, 2)
+						}
+					]
+				};
+			} catch (e: any) {
+				return {
+					isError: true,
+					content: [{ type: 'text', text: `Failed to fetch content: ${e.message}` }]
+				};
+			}
+		}
+	} as any);
 }

@@ -12,279 +12,274 @@ and preview/test functionality. Reuses TokenPicker patterns.
 -->
 
 <script lang="ts">
-import PageTitle from "@src/components/page-title.svelte";
-import type {
-	AutomationEvent,
-	AutomationFlow,
-	AutomationOperation,
-	ConditionOperationConfig,
-	EmailOperationConfig,
-	LogOperationConfig,
-	OperationType,
-	SetFieldOperationConfig,
-	WebhookOperationConfig,
-} from "@src/services/background/automation/types";
-import {
-	AUTOMATION_EVENTS,
-	OPERATION_TYPES,
-} from "@src/services/background/automation/types";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { onMount } from "svelte";
-import { fade, slide } from "svelte/transition";
-import { generateUUID as uuidv4 } from "@utils/native-utils";
-import { dndzone } from "svelte-dnd-action";
-import { goto } from "$app/navigation";
-import { page } from "$app/state";
+	import PageTitle from '@src/components/page-title.svelte';
+	import type {
+		AutomationEvent,
+		AutomationFlow,
+		AutomationOperation,
+		ConditionOperationConfig,
+		EmailOperationConfig,
+		LogOperationConfig,
+		OperationType,
+		SetFieldOperationConfig,
+		WebhookOperationConfig
+	} from '@src/services/automation/types';
+	import { AUTOMATION_EVENTS, OPERATION_TYPES } from '@src/services/automation/types';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { onMount } from 'svelte';
+	import { fade, slide } from 'svelte/transition';
+	import { v4 as uuidv4 } from 'uuid';
+	import { dndzone } from 'svelte-dnd-action';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 
-// ── State ──
+	// ── State ──
 
-let isNew = $derived(page.params.id === "new");
-let isLoading = $state(true);
-let isSaving = $state(false);
-let isTesting = $state(false);
-let activeStep = $state(1);
-let testResult: {
-	status: string;
-	duration: number;
-	operationResults: {
-		type: string;
+	let isNew = $derived(page.params.id === 'new');
+	let isLoading = $state(true);
+	let isSaving = $state(false);
+	let isTesting = $state(false);
+	let activeStep = $state(1);
+	let testResult: {
 		status: string;
 		duration: number;
-		error?: string;
-	}[];
-} | null = $state(null);
+		operationResults: {
+			type: string;
+			status: string;
+			duration: number;
+			error?: string;
+		}[];
+	} | null = $state(null);
 
-let flow: AutomationFlow = $state({
-	id: "",
-	name: "",
-	description: "",
-	active: true,
-	trigger: { type: "event", events: [], collections: [] },
-	operations: [],
-	createdAt: "",
-	updatedAt: "",
-	tenantId: "",
-});
-// ── Lifecycle ──
+	let flow: AutomationFlow = $state({
+		id: '',
+		name: '',
+		description: '',
+		active: true,
+		trigger: { type: 'event', events: [], collections: [] },
+		operations: [],
+		createdAt: '',
+		updatedAt: ''
+	});
 
-onMount(async () => {
-	if (!isNew) {
-		try {
-			const res = await fetch(`/api/automations/${page.params.id}`);
-			const result = await res.json();
-			if (result.success) {
-				flow = result.data;
-			} else {
-				toast.error("Automation not found");
-				goto("/config/automations");
+	// ── Lifecycle ──
+
+	onMount(async () => {
+		if (!isNew) {
+			try {
+				const res = await fetch(`/api/automations/${page.params.id}`);
+				const result = await res.json();
+				if (result.success) {
+					flow = result.data;
+				} else {
+					toast.error('Automation not found');
+					goto('/config/automations');
+					return;
+				}
+			} catch (_err) {
+				toast.error('Failed to load automation');
+				goto('/config/automations');
 				return;
 			}
-		} catch (_err) {
-			toast.error("Failed to load automation");
-			goto("/config/automations");
+		}
+		isLoading = false;
+	});
+
+	// ── Save & Test ──
+
+	async function save() {
+		if (!flow.name.trim()) {
+			toast.warning('Name is required');
+			activeStep = 1;
 			return;
 		}
-	}
-	isLoading = false;
-});
 
-// ── Save & Test ──
+		isSaving = true;
+		try {
+			const method = isNew ? 'POST' : 'PATCH';
+			const url = isNew ? '/api/automations' : `/api/automations/${flow.id}`;
 
-async function save() {
-	if (!flow.name.trim()) {
-		toast.warning("Name is required");
-		activeStep = 1;
-		return;
-	}
+			const res = await fetch(url, {
+				method,
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(flow)
+			});
+			const result = await res.json();
 
-	isSaving = true;
-	try {
-		const method = isNew ? "POST" : "PATCH";
-		const url = isNew ? "/api/automations" : `/api/automations/${flow.id}`;
-
-		const res = await fetch(url, {
-			method,
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(flow),
-		});
-		const result = await res.json();
-
-		if (result.success) {
-			toast.success(`Automation ${isNew ? "created" : "updated"}`);
-			goto("/config/automations");
-		} else {
-			toast.error(result.error || "Save failed");
+			if (result.success) {
+				toast.success(`Automation ${isNew ? 'created' : 'updated'}`);
+				goto('/config/automations');
+			} else {
+				toast.error(result.error || 'Save failed');
+			}
+		} catch (_err) {
+			toast.error('Error saving automation');
+		} finally {
+			isSaving = false;
 		}
-	} catch (_err) {
-		toast.error("Error saving automation");
-	} finally {
-		isSaving = false;
-	}
-}
-
-async function testFlow() {
-	if (isNew) {
-		toast.warning("Save the automation first to test it");
-		return;
 	}
 
-	isTesting = true;
-	testResult = null;
-	try {
-		const res = await fetch(`/api/automations/${flow.id}/test`, {
-			method: "POST",
-		});
-		const result = await res.json();
-		if (result.success) {
-			testResult = result.data;
-			toast[result.data.status === "success" ? "success" : "warning"](
-				`Test ${result.data.status} in ${result.data.duration}ms`,
-			);
-		} else {
-			toast.error(result.error || "Test failed");
+	async function testFlow() {
+		if (isNew) {
+			toast.warning('Save the automation first to test it');
+			return;
 		}
-	} catch (_err) {
-		toast.error("Test error");
-	} finally {
-		isTesting = false;
+
+		isTesting = true;
+		testResult = null;
+		try {
+			const res = await fetch(`/api/automations/${flow.id}/test`, {
+				method: 'POST'
+			});
+			const result = await res.json();
+			if (result.success) {
+				testResult = result.data;
+				toast[result.data.status === 'success' ? 'success' : 'warning'](`Test ${result.data.status} in ${result.data.duration}ms`);
+			} else {
+				toast.error(result.error || 'Test failed');
+			}
+		} catch (_err) {
+			toast.error('Test error');
+		} finally {
+			isTesting = false;
+		}
 	}
-}
 
-function handleDnd(e: CustomEvent<{ items: AutomationOperation[] }>) {
-	flow.operations = e.detail.items;
-}
-
-function insertToken(opIndex: number, field: string, token: string) {
-	const op = flow.operations[opIndex] as any;
-	if (op && op.config) {
-		const currentVal = op.config[field] || "";
-		op.config[field] = currentVal + token;
-		toast.info(`Inserted ${token}`);
+	function handleDnd(e: CustomEvent<{ items: AutomationOperation[] }>) {
+		flow.operations = e.detail.items;
 	}
-}
 
-const availableTokens = [
-	{ value: "{{ entry.title }}", label: "Entry Title" },
-	{ value: "{{ entry.status }}", label: "Entry Status" },
-	{ value: "{{ entry.slug }}", label: "Entry Slug" },
-	{ value: "{{ trigger.event }}", label: "Trigger Event" },
-	{ value: "{{ trigger.collection }}", label: "Collection Name" },
-	{ value: "{{ user.email }}", label: "Actor Email" },
-	{ value: "{{ system.now }}", label: "Current Timestamp" },
-];
-
-function handleKeydown(e: KeyboardEvent) {
-	if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-		e.preventDefault();
-		save();
+	function insertToken(opIndex: number, field: string, token: string) {
+		const op = flow.operations[opIndex] as any;
+		if (op && op.config) {
+			const currentVal = op.config[field] || '';
+			op.config[field] = currentVal + token;
+			toast.info(`Inserted ${token}`);
+		}
 	}
-	if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && activeStep === 3) {
-		e.preventDefault();
-		testFlow();
+
+	const availableTokens = [
+		{ value: '{{ entry.title }}', label: 'Entry Title' },
+		{ value: '{{ entry.status }}', label: 'Entry Status' },
+		{ value: '{{ entry.slug }}', label: 'Entry Slug' },
+		{ value: '{{ trigger.event }}', label: 'Trigger Event' },
+		{ value: '{{ trigger.collection }}', label: 'Collection Name' },
+		{ value: '{{ user.email }}', label: 'Actor Email' },
+		{ value: '{{ system.now }}', label: 'Current Timestamp' }
+	];
+
+	function handleKeydown(e: KeyboardEvent) {
+		if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+			e.preventDefault();
+			save();
+		}
+		if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && activeStep === 3) {
+			e.preventDefault();
+			testFlow();
+		}
 	}
-}
 
-// ── Trigger Helpers ──
+	// ── Trigger Helpers ──
 
-function toggleEvent(event: AutomationEvent) {
-	if (!flow.trigger.events) {
-		flow.trigger.events = [];
+	function toggleEvent(event: AutomationEvent) {
+		if (!flow.trigger.events) {
+			flow.trigger.events = [];
+		}
+		if (flow.trigger.events.includes(event)) {
+			flow.trigger.events = flow.trigger.events.filter((e) => e !== event);
+		} else {
+			flow.trigger.events = [...flow.trigger.events, event];
+		}
 	}
-	if (flow.trigger.events.includes(event)) {
-		flow.trigger.events = flow.trigger.events.filter((e) => e !== event);
-	} else {
-		flow.trigger.events = [...flow.trigger.events, event];
+
+	function setTriggerType(type: 'event' | 'schedule' | 'manual') {
+		flow.trigger.type = type;
 	}
-}
 
-function setTriggerType(type: "event" | "schedule" | "manual") {
-	flow.trigger.type = type;
-}
+	// ── Operation Helpers ──
 
-// ── Operation Helpers ──
+	function addOperation(type: OperationType) {
+		const defaults: Record<OperationType, () => AutomationOperation> = {
+			webhook: () => ({
+				id: uuidv4(),
+				type: 'webhook',
+				config: {
+					url: '',
+					method: 'POST',
+					body: '{{ JSON.stringify(entry) }}'
+				} as WebhookOperationConfig
+			}),
+			email: () => ({
+				id: uuidv4(),
+				type: 'email',
+				config: {
+					to: '',
+					subject: 'Notification: {{ entry.title }}',
+					body: '<p>Entry <strong>{{ entry.title }}</strong> was {{ trigger.event }}.</p>'
+				} as EmailOperationConfig
+			}),
+			log: () => ({
+				id: uuidv4(),
+				type: 'log',
+				config: {
+					message: '{{ trigger.event }}: {{ entry.title }}',
+					level: 'info'
+				} as LogOperationConfig
+			}),
+			set_field: () => ({
+				id: uuidv4(),
+				type: 'set_field',
+				config: { field: '', value: '' } as SetFieldOperationConfig
+			}),
+			condition: () => ({
+				id: uuidv4(),
+				type: 'condition',
+				config: {
+					field: 'status',
+					operator: 'equals',
+					value: 'publish'
+				} as ConditionOperationConfig
+			})
+		};
 
-function addOperation(type: OperationType) {
-	const defaults: Record<OperationType, () => AutomationOperation> = {
-		webhook: () => ({
-			id: uuidv4(),
-			type: "webhook",
-			config: {
-				url: "",
-				method: "POST",
-				body: "{{ JSON.stringify(entry) }}",
-			} as WebhookOperationConfig,
-		}),
-		email: () => ({
-			id: uuidv4(),
-			type: "email",
-			config: {
-				to: "",
-				subject: "Notification: {{ entry.title }}",
-				body: "<p>Entry <strong>{{ entry.title }}</strong> was {{ trigger.event }}.</p>",
-			} as EmailOperationConfig,
-		}),
-		log: () => ({
-			id: uuidv4(),
-			type: "log",
-			config: {
-				message: "{{ trigger.event }}: {{ entry.title }}",
-				level: "info",
-			} as LogOperationConfig,
-		}),
-		set_field: () => ({
-			id: uuidv4(),
-			type: "set_field",
-			config: { field: "", value: "" } as SetFieldOperationConfig,
-		}),
-		condition: () => ({
-			id: uuidv4(),
-			type: "condition",
-			config: {
-				field: "status",
-				operator: "equals",
-				value: "publish",
-			} as ConditionOperationConfig,
-		}),
-	};
-
-	flow.operations = [...flow.operations, defaults[type]()];
-}
-
-function removeOperation(index: number) {
-	flow.operations = flow.operations.filter((_, i) => i !== index);
-}
-
-function moveOperation(index: number, direction: -1 | 1) {
-	const newIndex = index + direction;
-	if (newIndex < 0 || newIndex >= flow.operations.length) {
-		return;
+		flow.operations = [...flow.operations, defaults[type]()];
 	}
-	const ops = [...flow.operations];
-	[ops[index], ops[newIndex]] = [ops[newIndex], ops[index]];
-	flow.operations = ops;
-}
 
-function getOperationMeta(type: OperationType) {
-	return OPERATION_TYPES.find((t) => t.type === type);
-}
-
-// ── Step validation ──
-
-let canProceed = $derived.by(() => {
-	if (activeStep === 1) {
-		return flow.name.trim().length > 0;
+	function removeOperation(index: number) {
+		flow.operations = flow.operations.filter((_, i) => i !== index);
 	}
-	if (activeStep === 2) {
-		return flow.operations.length > 0;
-	}
-	return true;
-});
 
-const steps = [
-	{ number: 1, label: "Trigger", icon: "mdi:flash-outline" },
-	{ number: 2, label: "Operations", icon: "mdi:cog-outline" },
-	{ number: 3, label: "Preview", icon: "mdi:eye-outline" },
-];
+	function moveOperation(index: number, direction: -1 | 1) {
+		const newIndex = index + direction;
+		if (newIndex < 0 || newIndex >= flow.operations.length) {
+			return;
+		}
+		const ops = [...flow.operations];
+		[ops[index], ops[newIndex]] = [ops[newIndex], ops[index]];
+		flow.operations = ops;
+	}
+
+	function getOperationMeta(type: OperationType) {
+		return OPERATION_TYPES.find((t) => t.type === type);
+	}
+
+	// ── Step validation ──
+
+	let canProceed = $derived.by(() => {
+		if (activeStep === 1) {
+			return flow.name.trim().length > 0;
+		}
+		if (activeStep === 2) {
+			return flow.operations.length > 0;
+		}
+		return true;
+	});
+
+	const steps = [
+		{ number: 1, label: 'Trigger', icon: 'mdi:flash-outline' },
+		{ number: 2, label: 'Operations', icon: 'mdi:cog-outline' },
+		{ number: 3, label: 'Preview', icon: 'mdi:eye-outline' }
+	];
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -294,7 +289,7 @@ const steps = [
 {#if isLoading}
 	<div class="flex items-center justify-center py-20"><iconify-icon icon="mdi:loading" class="text-4xl animate-spin opacity-50"></iconify-icon></div>
 {:else}
-	<div class="wrapper mx-auto max-w-[900px] p-4">
+	<div class="wrapper p-4">
 		<!-- Stepper Header -->
 		<div class="flex flex-col sm:flex-row items-center justify-center gap-2 mb-8">
 			{#each steps as step (step.number)}
@@ -550,7 +545,7 @@ const steps = [
 											{#if cfg.url?.startsWith('https')}
 												<label class="label" transition:slide>
 													<span class="text-sm">Secret (HMAC-SHA256)</span>
-													<input type="security" class="input font-mono text-xs" placeholder="Optional signing secret" bind:value={cfg.secret} />
+													<input type="password" class="input font-mono text-xs" placeholder="Optional signing secret" bind:value={cfg.secret} />
 												</label>
 											{/if}
 										</div>
@@ -994,3 +989,9 @@ const steps = [
 	</div>
 {/if}
 
+<style>
+	.wrapper {
+		max-width: 900px;
+		margin: 0 auto;
+	}
+</style>

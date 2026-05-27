@@ -1,9 +1,3 @@
-<!--
-@file src/widgets/custom/Seo/input.svelte
-@description SEO Widget Input Component.
-Handles meta tags, social previews, and schema markup with multi-language support and SEO analysis.
--->
-
 <script lang="ts">
 	import { publicEnv } from '@src/stores/global-settings.svelte.ts';
 	// Stores & Props
@@ -22,7 +16,6 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 	import SocialPreview from './components/social-preview.svelte';
 	// Logic
 	import { analyzeSeo } from './seo-analyzer';
-	import { collections } from '@src/stores/collection-store.svelte';
 
 	interface Props {
 		field: any;
@@ -41,25 +34,10 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 
 	// Multi-language handling
 	let availableLanguages = $state<string[]>([]);
-	const lang = $derived(app.contentLanguage || 'en');
-	const langData = $derived(value?.[lang]);
-
-	// Optimized features lookup
-	const enabledFeatures = $derived(new Set((field as any).defaults?.features || []));
-	const hasFeature = (f: string) => enabledFeatures.has(f);
-
-	// Pre-compute translation percentages
-	const translationStats = $derived.by(() => {
-		if (!value || availableLanguages.length === 0) return {};
-		const stats: Record<string, number> = {};
-		const fields: Array<keyof SeoWidgetData> = ['title', 'description', 'focusKeyword', 'ogTitle', 'ogDescription', 'twitterTitle', 'twitterDescription', 'schemaMarkup'];
-		
-		for (const f of fields) {
-			const populated = availableLanguages.filter(l => value && value[l]?.[f]?.trim()).length;
-			stats[f] = Math.round((populated / availableLanguages.length) * 100);
-		}
-		return stats;
-	});
+	// Use contentLanguage store value
+	const currentLang = $derived(app.contentLanguage);
+	// Fallback to 'en' if no language selected
+	let lang = $derived(currentLang || 'en');
 
 	// --- Lifecycle ---
 	onMount(() => {
@@ -96,6 +74,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 	// --- Analysis Trigger Optimization ---
 	// Only run analysis when relevant fields change to improve performance
 	$effect(() => {
+		const langData = value?.[lang];
 		if (!langData) {
 			return;
 		}
@@ -118,14 +97,16 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 	// --- Actions ---
 
 	async function runAnalysis() {
-		if (!langData) return;
+		if (!value?.[lang]) {
+			return;
+		}
 		isAnalyzing = true;
 
-		const activeValue = collections.activeValue as any;
-		const contentBody = String(activeValue?.content || activeValue?.body || '');
+		// TODO: Connect to actual content store when available
+		const contentBody = '';
 
 		try {
-			analysisResults = await analyzeSeo(langData, contentBody);
+			analysisResults = await analyzeSeo(value[lang], contentBody);
 		} catch (e) {
 			console.error('SEO Analysis failed', e);
 		} finally {
@@ -133,13 +114,40 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 		}
 	}
 
-	// --- Actions ---
+	function hasFeature(feature: string): boolean {
+		return (field as any).defaults?.features?.includes(feature) ?? true;
+	}
+
+	// --- Helper: Translation Percentage ---
+	function getFieldTranslationPercentage(fieldName: string): number {
+		if (!value || availableLanguages.length === 0) {
+			return 0;
+		}
+		const safeValue = value; // Capture for closure safety
+		const populatedCount = availableLanguages.filter((l) => {
+			const langData = safeValue[l];
+			if (!langData) {
+				return false;
+			}
+			const fieldData = langData[fieldName as keyof SeoWidgetData];
+			return typeof fieldData === 'string' && fieldData.trim() !== '';
+		}).length;
+		return Math.round((populatedCount / availableLanguages.length) * 100);
+	}
+
+	// --- UI Helpers ---
+	// Update wrapper for SeoField to bind back to the deeply nested value
 	const updateField = (fieldName: keyof SeoWidgetData, newVal: string) => {
-		if (!langData) return;
-		(langData as any)[fieldName] = newVal;
+		if (!value?.[lang]) {
+			return;
+		}
+		// Cast to any to allow updating union types like twitterCard with strict string
+		(value[lang] as any)[fieldName] = newVal;
 	};
 
-	const isTranslated = $derived(!!field.translated);
+	// Determine if field is translated based on widget config
+	const isTranslated = $derived(field.translated);
+
 	const placeholder = '{"@context": "https://schema.org", "@type": "Article", ...}';
 </script>
 
@@ -149,24 +157,15 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 		<!-- Left: Preview (Main) -->
 		<div class="lg:col-span-2 space-y-4">
 			<SeoPreview
-				title={langData?.title || ''}
-				description={langData?.description || ''}
-				hostUrl={`${publicEnv.HOST_PROD}/${langData?.canonicalUrl || ''}`}
+				title={value?.[lang]?.title || ''}
+				description={value?.[lang]?.description || ''}
+				hostUrl={`${publicEnv.HOST_PROD}/${value?.[lang]?.canonicalUrl || ''}`}
 				bind:SeoPreviewToggle={seoPreviewMobile}
 			/>
 		</div>
 
 		<!-- Right: Analysis Panel -->
-		<div class="lg:col-span-1">
-			<SeoAnalysisPanel 
-				analysisResult={analysisResults} 
-				{isAnalyzing} 
-				bind:expanded={showAnalysis} 
-				content={typeof (collections.activeValue as any)?.content === 'string' ? (collections.activeValue as any).content : (typeof (collections.activeValue as any)?.body === 'string' ? (collections.activeValue as any).body : '')}
-				currentId={String(collections.activeValue?._id || '')}
-				collectionId={String(collections.active?._id || '')}
-			/>
-		</div>
+		<div class="lg:col-span-1"><SeoAnalysisPanel analysisResult={analysisResults} {isAnalyzing} bind:expanded={showAnalysis} /></div>
 	</div>
 
 	<!-- Bottom Area: Tabs & Inputs -->
@@ -204,18 +203,18 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 		</div>
 
 		<div class="mt-4 space-y-4" transition:slide>
-			{#if langData}
+			{#if value && value[lang]}
 				{#if activeTab === 0}
 					<!-- Basic Tab -->
 
 					<SeoField
 						id="seo-title"
 						label="Title"
-						value={langData.title}
+						value={value[lang].title}
 						{field}
 						{lang}
 						translated={isTranslated}
-						translationPct={translationStats.title || 0}
+						translationPct={getFieldTranslationPercentage('title')}
 						onUpdate={(v: string) => updateField('title', v)}
 						maxLength={60}
 						optimalMin={50}
@@ -227,11 +226,11 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 						id="seo-description"
 						label="Description"
 						type="textarea"
-						value={langData.description}
+						value={value[lang].description}
 						{field}
 						{lang}
 						translated={isTranslated}
-						translationPct={translationStats.description || 0}
+						translationPct={getFieldTranslationPercentage('description')}
 						onUpdate={(v: string) => updateField('description', v)}
 						maxLength={160}
 						optimalMin={150}
@@ -242,11 +241,11 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 					<SeoField
 						id="seo-focusKeyword"
 						label="Focus Keyword"
-						value={langData.focusKeyword}
+						value={value[lang].focusKeyword}
 						{field}
 						{lang}
 						translated={isTranslated}
-						translationPct={translationStats.focusKeyword || 0}
+						translationPct={getFieldTranslationPercentage('focusKeyword')}
 						onUpdate={(v: string) => updateField('focusKeyword', v)}
 						placeholder="Main keyword"
 					>
@@ -261,11 +260,11 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 							<SeoField
 								id="seo-ogTitle"
 								label="OG Title"
-								value={langData.ogTitle || ''}
+								value={value[lang].ogTitle || ''}
 								{field}
 								{lang}
 								translated={isTranslated}
-								translationPct={translationStats.ogTitle || 0}
+								translationPct={getFieldTranslationPercentage('ogTitle')}
 								onUpdate={(v: string) => updateField('ogTitle', v)}
 								placeholder="Open Graph Title (same as Title if empty)"
 							/>
@@ -274,11 +273,11 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 								id="seo-ogDescription"
 								label="OG Description"
 								type="textarea"
-								value={langData.ogDescription || ''}
+								value={value[lang].ogDescription || ''}
 								{field}
 								{lang}
 								translated={isTranslated}
-								translationPct={translationStats.ogDescription || 0}
+								translationPct={getFieldTranslationPercentage('ogDescription')}
 								onUpdate={(v: string) => updateField('ogDescription', v)}
 								placeholder="Open Graph Description"
 							/>
@@ -290,11 +289,11 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 							<SeoField
 								id="seo-twitterTitle"
 								label="Twitter Title"
-								value={langData.twitterTitle || ''}
+								value={value[lang].twitterTitle || ''}
 								{field}
 								{lang}
 								translated={isTranslated}
-								translationPct={translationStats.twitterTitle || 0}
+								translationPct={getFieldTranslationPercentage('twitterTitle')}
 								onUpdate={(v: string) => updateField('twitterTitle', v)}
 								placeholder="Twitter Title"
 							/>
@@ -303,11 +302,11 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 								id="seo-twitterDescription"
 								label="Twitter Description"
 								type="textarea"
-								value={langData.twitterDescription || ''}
+								value={value[lang].twitterDescription || ''}
 								{field}
 								{lang}
 								translated={isTranslated}
-								translationPct={translationStats.twitterDescription || 0}
+								translationPct={getFieldTranslationPercentage('twitterDescription')}
 								onUpdate={(v: string) => updateField('twitterDescription', v)}
 								placeholder="Twitter Description"
 							/>
@@ -316,10 +315,10 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 
 					<div class="mt-6 pt-4 border-t border-surface-500/30">
 						<SocialPreview
-							ogTitle={langData.ogTitle || langData.title}
-							ogDescription={langData.ogDescription || langData.description}
-							twitterTitle={langData.twitterTitle || langData.title}
-							twitterDescription={langData.twitterDescription || langData.description}
+							ogTitle={value[lang].ogTitle || value[lang].title}
+							ogDescription={value[lang].ogDescription || value[lang].description}
+							twitterTitle={value[lang].twitterTitle || value[lang].title}
+							twitterDescription={value[lang].twitterDescription || value[lang].description}
 							hostUrl={publicEnv.HOST_PROD}
 						/>
 					</div>
@@ -329,11 +328,11 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 					<SeoField
 						id="seo-robotsMeta"
 						label="Robots Meta"
-						value={langData.robotsMeta || ''}
+						value={value[lang].robotsMeta || ''}
 						{field}
 						{lang}
 						translated={isTranslated}
-						translationPct={translationStats.robotsMeta || 0}
+						translationPct={getFieldTranslationPercentage('robotsMeta')}
 						onUpdate={(v: string) => updateField('robotsMeta', v)}
 						placeholder="index, follow"
 					>
@@ -345,11 +344,11 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 					<SeoField
 						id="seo-canonicalUrl"
 						label="Canonical URL"
-						value={langData.canonicalUrl || ''}
+						value={value[lang].canonicalUrl || ''}
 						{field}
 						{lang}
 						translated={isTranslated}
-						translationPct={translationStats.canonicalUrl || 0}
+						translationPct={getFieldTranslationPercentage('canonicalUrl')}
 						onUpdate={(v: string) => updateField('canonicalUrl', v)}
 						placeholder="https://example.com/slug"
 					>
@@ -369,7 +368,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 								<div class="flex items-center gap-1 text-xs">
 									<iconify-icon icon="bi:translate" width="24"></iconify-icon>
 									<span class="font-medium text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
-									<span class="font-medium text-surface-400 dark:text-surface-300">({translationStats.schemaMarkup || 0}%)</span>
+									<span class="font-medium text-surface-400 dark:text-surface-300">({getFieldTranslationPercentage('schemaMarkup')}%)</span>
 								</div>
 							{/if}
 						</div>
@@ -379,7 +378,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 								class="textarea font-mono text-xs"
 								rows="10"
 								{placeholder}
-								value={langData.schemaMarkup || ''}
+								value={value[lang].schemaMarkup || ''}
 								oninput={(e) => updateField('schemaMarkup', (e.currentTarget as HTMLTextAreaElement).value)}
 								use:tokenTarget={{ name: field.db_fieldName, label: field.label, collection: field.collection }}
 							></textarea>

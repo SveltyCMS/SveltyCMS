@@ -4,7 +4,7 @@
 **Component for file input**
 
 ### Props:
-- `type`: 'text' | 'security' | 'email' - Type of the input field.
+- `type`: 'text' | 'password' | 'email' - Type of the input field.
 - `label`: string - Label for the input field.
 - `labelClass`: string - Additional classes for the label.
 - `inputClass`: string - Additional classes for the input field.
@@ -23,7 +23,7 @@
 		label?: string;
 		labelClass?: string;
 		placeholder?: string;
-		type: 'text' | 'security' | 'email';
+		type: 'text' | 'password' | 'email';
 		value?: string;
 	}
 

@@ -40,209 +40,193 @@
  */
 
 // Core SveltyCMS services
-import { contentSystem } from "@src/content/index.server";
-import type { User } from "@src/databases/auth/types";
-import { collectionService } from "@src/services/core/collection-service";
-import { getPublicSettingSync } from "@src/services/core/settings-service";
-import { error, isRedirect, redirect } from "@sveltejs/kit";
-import { logger } from "@utils/logger";
-import type { PageServerLoad } from "./$types";
+import { contentManager } from '@src/content/content-manager';
+import type { User } from '@src/databases/auth/types';
+import { collectionService } from '@src/services/collection-service';
+import { getPublicSettingSync } from '@src/services/settings-service';
+import { isRedirect, redirect } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
+import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
-  const { user, tenantId } = locals;
-  const typedUser = user as User; // Explicitly cast user to User type
-  const { language, collection } = params;
+	const { user, tenantId } = locals;
+	const typedUser = user as User; // Explicitly cast user to User type
+	const { language, collection } = params;
 
-  // =================================================================
-  // 1. PRE-FLIGHT CHECKS & REDIRECTS (moved outside try-catch)
-  // =================================================================
-  if (!user) {
-    throw redirect(302, "/login");
-  }
+	// =================================================================
+	// 1. PRE-FLIGHT CHECKS & REDIRECTS (moved outside try-catch)
+	// =================================================================
+	if (!user) {
+		throw redirect(302, '/login');
+	}
 
-  const availableLanguages = getPublicSettingSync("AVAILABLE_CONTENT_LANGUAGES") || ["en"];
-  if (!availableLanguages.includes(language)) {
-    throw error(404, "Not Found");
-  }
+	const collectionNameOnly = collection?.split('/').pop();
+	const systemPages = ['config', 'user', 'dashboard', 'imageEditor', 'email-previews'];
+	if (collectionNameOnly && systemPages.includes(collectionNameOnly)) {
+		throw redirect(302, `/${collectionNameOnly}${url.search}`);
+	}
 
-  const collectionNameOnly = collection?.split("/").pop();
-  const systemPages = ["config", "user", "dashboard", "imageEditor", "email-previews"];
-  if (collectionNameOnly && systemPages.includes(collectionNameOnly)) {
-    throw redirect(302, `/${collectionNameOnly}${url.search}`);
-  }
+	const availableLanguages = getPublicSettingSync('AVAILABLE_CONTENT_LANGUAGES') || ['en'];
+	if (typedUser?.locale && typedUser.locale !== language && availableLanguages.includes(typedUser.locale)) {
+		const newPath = url.pathname.replace(`/${language}/`, `/${typedUser.locale}/`);
+		throw redirect(302, newPath);
+	}
 
-  if (
-    typedUser?.locale &&
-    typedUser.locale !== language &&
-    availableLanguages.includes(typedUser.locale)
-  ) {
-    const newPath = url.pathname.replace(`/${language}/`, `/${typedUser.locale}/`);
-    throw redirect(302, newPath);
-  }
+	if (typedUser.lastAuthMethod === 'token') {
+		// Token users go to root on error, or builder if no collections (though they likely shouldn't be in the builder)
+		throw redirect(302, '/');
+	}
 
-  if (typedUser.lastAuthMethod === "token") {
-    // Token users go to root on error, or builder if no collections (though they likely shouldn't be in the builder)
-    throw redirect(302, "/");
-  }
+	try {
+		// =================================================================
+		// 2. GET COLLECTION SCHEMA
+		// =================================================================
+		// Ensurecontent-manageris initialized before use
+		await contentManager.initialize(tenantId ?? undefined);
 
-  try {
-    // =================================================================
-    // 2. GET COLLECTION SCHEMA
-    // =================================================================
-    // Ensurecontent-manageris initialized before use
-    await contentSystem.initialize(tenantId ?? undefined);
+		// Check if collection param is a UUID (32 char hex) or a path
+		const isUUID = /^[a-f0-9]{32}$/i.test(collection || '');
+		let currentCollection: any;
+		if (isUUID) {
+			// Direct UUID lookup
+			logger.debug(`Loading collection by UUID: \x1b[33m${collection}\x1b[0m`);
+			currentCollection = contentManager.getCollectionById(collection!, tenantId);
 
-    // Check if collection param is a UUID (32 char hex) or a path
-    const isUUID = /^[a-f0-9]{32}$/i.test(collection || "");
-    let currentCollection: any;
-    if (isUUID) {
-      // Direct UUID lookup
-      logger.debug(`Loading collection by UUID: \x1b[33m${collection}\x1b[0m`);
-      currentCollection = contentSystem.getCollectionById(collection!, tenantId);
+			// SELF-HEALING: If not found, it might be a stalecontent-managerafter setup
+			if (!currentCollection) {
+				logger.warn(`Collection UUID ${collection} not found. Triggeringcontent-managerrefresh...`);
+				await contentManager.refresh(tenantId);
+				currentCollection = contentManager.getCollectionById(collection!, tenantId);
+			}
 
-      // SELF-HEALING: If not found, it might be a stalecontent-managerafter setup
-      if (!currentCollection) {
-        logger.warn(`Collection UUID ${collection} not found. Triggeringcontent-managerrefresh...`);
-        await contentSystem.refresh(tenantId);
-        currentCollection = contentSystem.getCollectionById(collection!, tenantId);
-      }
+			// Redirect to pretty path if available (Prevents UUID -> Path flicker on client)
+			if (currentCollection?.path) {
+				const newPath = `/${language}${currentCollection.path}${url.search}`;
+				logger.debug(`Redirecting UUID to canonical path: ${newPath}`);
+				throw redirect(302, newPath);
+			}
+		} else {
+			// Path-based lookup (backward compatibility)
+			const collectionPath = `/${collection}`;
+			logger.debug(`Loading collection by path: \x1b[34m${collectionPath}\x1b[0m`);
+			currentCollection = contentManager.getCollection(collectionPath, tenantId);
 
-      // Redirect to pretty path if available (Prevents UUID -> Path flicker on client)
-      if (currentCollection?.path) {
-        const newPath = `/${language}${currentCollection.path}${url.search}`;
-        logger.debug(`Redirecting UUID to canonical path: ${newPath}`);
-        throw redirect(302, newPath);
-      }
-    } else {
-      // Path-based lookup (backward compatibility)
-      const collectionPath = `/${collection}`;
-      logger.debug(`Loading collection by path: \x1b[34m${collectionPath}\x1b[0m`);
-      currentCollection = contentSystem.getCollection(collectionPath, tenantId);
+			// SELF-HEALING: If not found, it might be a stalecontent-managerafter setup
+			// Optimization: Skip refresh for "Collections" root, as it will be handled by redirect logic below
+			if (!currentCollection && collectionNameOnly?.toLowerCase() !== 'collections') {
+				logger.warn(`Collection path ${collectionPath} not found. Triggeringcontent-managerrefresh...`);
+				await contentManager.refresh(tenantId);
+				currentCollection = contentManager.getCollection(collectionPath, tenantId);
+			}
+		}
 
-      // SELF-HEALING: If not found, it might be a stalecontent-managerafter setup
-      // Optimization: Skip refresh for "Collections" root, as it will be handled by redirect logic below
-      if (!currentCollection && collectionNameOnly?.toLowerCase() !== "collections") {
-        logger.warn(
-          `Collection path ${collectionPath} not found. Triggeringcontent-managerrefresh...`,
-        );
-        await contentSystem.refresh(tenantId);
-        currentCollection = contentSystem.getCollection(collectionPath, tenantId);
-      }
-    }
+		if (!currentCollection) {
+			if (collectionNameOnly?.toLowerCase() === 'collections') {
+				const allCollections = await contentManager.getCollections(tenantId);
+				if (allCollections.length > 0) {
+					throw redirect(302, `/${language}${allCollections[0].path}`);
+				}
+				// FRESH INSTALL: If no collections exist, send admins to the builder
+				if (locals.isAdmin) {
+					throw redirect(302, '/config/collectionbuilder');
+				}
+				throw redirect(302, '/dashboard');
+			}
+			logger.warn(`Collection not found: ${collection}, redirecting to root.`, { tenantId, isUUID });
+			throw redirect(302, '/');
+		}
 
-    if (!currentCollection) {
-      if (collectionNameOnly?.toLowerCase() === "collections") {
-        const allCollections = await contentSystem.getCollections(tenantId);
-        if (allCollections.length > 0) {
-          throw redirect(302, `/${language}${allCollections[0].path}`);
-        }
-        // FRESH INSTALL: If no collections exist, send admins to the builder
-        if (locals.isAdmin) {
-          throw redirect(302, "/config/collectionbuilder");
-        }
-        throw redirect(302, "/user/profile");
-      }
-      logger.warn(`Collection not found: ${collection}, returning 404.`, {
-        tenantId,
-        isUUID,
-      });
-      const { error } = await import("@sveltejs/kit");
-      throw error(404, "Not Found");
-    }
+		// If accessed via a non-canonical path, it will be handled by the client-side to update the URL,
+		// but the server will still serve the content to avoid a redirect.
+		// This check is to prevent potential redirect loops if client-side logic fails.
+		if (!isUUID && currentCollection.path && `/${collection}` !== currentCollection.path) {
+			logger.warn(`Serving content from non-canonical path: /${collection}. Canonical is ${currentCollection.path}`);
+		}
 
-    // If accessed via a non-canonical path, it will be handled by the client-side to update the URL,
-    // but the server will still serve the content to avoid a redirect.
-    // This check is to prevent potential redirect loops if client-side logic fails.
-    if (!isUUID && currentCollection.path && `/${collection}` !== currentCollection.path) {
-      logger.warn(
-        `Serving content from non-canonical path: /${collection}. Canonical is ${currentCollection.path}`,
-      );
-    }
+		// =================================================================
+		// 3. DEFINE CACHE KEY & CHECK CACHE
+		// =================================================================
+		const page = Number(url.searchParams.get('page') ?? 1);
+		const pageSize = Number(url.searchParams.get('pageSize') ?? 10);
+		const sortField = url.searchParams.get('sort') || '_createdAt';
+		const sortOrder = url.searchParams.get('order') || 'desc';
+		const sortParams = {
+			field: sortField,
+			direction: sortOrder as 'asc' | 'desc'
+		};
+		const editEntryId = url.searchParams.get('edit');
+		const globalSearch = url.searchParams.get('search') || '';
 
-    // =================================================================
-    // 3. DEFINE CACHE KEY & CHECK CACHE
-    // =================================================================
-    const page = Number(url.searchParams.get("page") ?? 1);
-    const pageSize = Number(url.searchParams.get("pageSize") ?? 10);
-    const sortField = url.searchParams.get("sort") || "_createdAt";
-    const sortOrder = url.searchParams.get("order") || "desc";
-    const sortParams = {
-      field: sortField,
-      direction: sortOrder as "asc" | "desc",
-    };
-    const editEntryId = url.searchParams.get("edit");
-    const globalSearch = url.searchParams.get("search") || "";
+		const filterParams: Record<string, { contains: string }> = {};
 
-    const filterParams: Record<string, { contains: string }> = {};
+		for (const [key, value] of url.searchParams.entries()) {
+			if (key.startsWith('filter_')) {
+				const filterKey = key.substring(7); // remove "filter_"
+				if ((filterKey === 'createdAt' || filterKey === 'updatedAt') && value) {
+					// Check for "asda" type garbage. Valid dates or partial headers (numbers) allow pass.
+					if (Number.isNaN(Date.parse(value)) && !/^\d+$/.test(value)) {
+						// Invalid date filter - ignore/empty logic handled in service now
+					}
+				}
+				filterParams[filterKey] = { contains: value }; // Assuming a 'contains' filter strategy
+			}
+		}
 
-    for (const [key, value] of url.searchParams.entries()) {
-      if (key.startsWith("filter_")) {
-        const filterKey = key.substring(7); // remove "filter_"
-        if ((filterKey === "createdAt" || filterKey === "updatedAt") && value) {
-          // Check for "asda" type garbage. Valid dates or partial headers (numbers) allow pass.
-          if (Number.isNaN(Date.parse(value)) && !/^\d+$/.test(value)) {
-            // Invalid date filter - ignore/empty logic handled in service now
-          }
-        }
-        filterParams[filterKey] = { contains: value }; // Assuming a 'contains' filter strategy
-      }
-    }
+		// =================================================================
+		// 3. LOAD COLLECTION DATA (via CollectionService)
+		// =================================================================
+		// Use the centralized service for data loading to enable pre-warming and consistent caching.
+		const { entries, pagination, revisions, contentLanguage, collectionSchema } = await collectionService.getCollectionData({
+			collection: currentCollection,
+			page,
+			pageSize,
+			sort: sortParams,
+			filter: filterParams,
+			search: globalSearch,
+			language,
+			user: typedUser,
+			tenantId,
+			editEntryId: editEntryId || undefined
+		});
 
-    // =================================================================
-    // 3. LOAD COLLECTION DATA (via CollectionService)
-    // =================================================================
-    // Use the centralized service for data loading to enable pre-warming and consistent caching.
-    const { entries, pagination, revisions, contentLanguage, collectionSchema } =
-      await collectionService.getCollectionData({
-        collection: currentCollection,
-        page,
-        pageSize,
-        sort: sortParams,
-        filter: filterParams,
-        search: globalSearch,
-        language,
-        user: typedUser,
-        tenantId,
-        editEntryId: editEntryId || undefined,
-      });
+		// =================================================================
+		// 4. PREPARE FINAL RESPONSE
+		// =================================================================
 
-    // =================================================================
-    // 4. PREPARE FINAL RESPONSE
-    // =================================================================
+		const returnData = {
+			theme: locals.theme,
+			user: {
+				_id: typedUser?._id,
+				username: typedUser?.username,
+				email: typedUser?.email,
+				role: typedUser?.role,
+				avatar: typedUser?.avatar,
+				locale: typedUser?.locale
+			},
+			isAdmin: locals.isAdmin,
+			hasManageUsersPermission: locals.hasManageUsersPermission,
+			roles: locals.roles,
+			siteName: getPublicSettingSync('SITE_NAME') || 'SveltyCMS',
+			contentLanguage,
+			collectionSchema,
+			entries,
+			pagination,
+			revisions
+		};
 
-    const returnData = {
-      user: {
-        _id: typedUser?._id,
-        username: typedUser?.username,
-        email: typedUser?.email,
-        role: typedUser?.role,
-        avatar: typedUser?.avatar,
-        locale: typedUser?.locale,
-      },
-      isAdmin: locals.isAdmin,
-      hasManageUsersPermission: locals.hasManageUsersPermission,
-      roles: locals.roles,
-      siteName: getPublicSettingSync("SITE_NAME") || "SveltyCMS",
-      contentLanguage,
-      collectionSchema,
-      entries,
-      pagination,
-      revisions,
-    };
+		return returnData;
+	} catch (err) {
+		// If it's a redirect (SvelteKit standard behavior), just rethrow it without logging an error
+		if (isRedirect(err)) {
+			throw err;
+		}
 
-    return returnData;
-  } catch (err) {
-    // If it's a redirect (SvelteKit standard behavior), just rethrow it without logging an error
-    if (isRedirect(err)) {
-      throw err;
-    }
-
-    logger.error("Error loading collection page", {
-      error: err,
-      collection,
-      language,
-      url: url.pathname,
-    });
-    throw err;
-  }
+		logger.error('Error loading collection page', {
+			error: err,
+			collection,
+			language,
+			url: url.pathname
+		});
+		throw err;
+	}
 };

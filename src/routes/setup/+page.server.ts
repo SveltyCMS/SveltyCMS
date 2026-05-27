@@ -4,164 +4,922 @@
  * Note: Route protection is handled by the handleSetup middleware in hooks.server.ts
  */
 
-import { exec } from "node:child_process";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-import { promisify } from "node:util";
-import { version as pkgVersion } from "../../../package.json";
-import { logger } from "@utils/logger";
-import type { Actions, PageServerLoad } from "./$types";
-import { checkRedis } from "./utils";
-import inlangSettings from "../../../project.inlang/settings.json";
-
-// Delegate core setup logic to setup.remote.ts
-import {
-  testDatabaseConnection,
-  seedDatabase,
-  completeSetup,
-  testEmailConnection,
-  testRedisConnection,
-} from "./setup.server";
+import { exec } from 'node:child_process';
+import { cpSync, existsSync, mkdirSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { promisify } from 'node:util';
+import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
+import type { ISODateString } from '@src/databases/db-interface';
+import { databaseConfigSchema } from '@src/databases/schemas';
+import { invalidateUserCountCache } from '@src/hooks/handle-authorization';
+import { setupAdminSchema, smtpConfigSchema } from '@utils/form-schemas';
+import { logger } from '@utils/logger.server';
+import nodemailer from 'nodemailer';
+import { safeParse } from 'valibot';
+import { version as pkgVersion } from '../../../package.json';
+import type { Actions, PageServerLoad } from './$types';
+import { checkRedis } from './utils';
 
 const execAsync = promisify(exec);
 
 // Database driver mapping (MongoDB is default, others are optional)
 const DRIVER_PACKAGES = {
-  mongodb: "mongoose",
-  "mongodb+srv": "mongoose",
-  postgresql: "postgres",
-  mysql: "mysql2",
-  mariadb: "mysql2",
-  sqlite: "bun:sqlite",
+	mongodb: 'mongoose',
+	'mongodb+srv': 'mongoose',
+	postgresql: 'postgres',
+	mysql: 'mysql2',
+	mariadb: 'mysql2',
+	sqlite: 'bun:sqlite'
 } as const;
 
 type DatabaseType = keyof typeof DRIVER_PACKAGES;
 
+// Import inlang settings directly (TypeScript/SvelteKit handles JSON imports)
+import inlangSettings from '../../../project.inlang/settings.json';
+
 export const load: PageServerLoad = async ({ locals, cookies }) => {
-  // Clear any existing session cookies to ensure fresh start
-  const { SESSION_COOKIE_NAME } = await import("@src/databases/auth/constants");
-  cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
+	// --- SECURITY ---
+	// Note: The handleSetup middleware already checks if setup is complete
+	// and blocks access to /setup routes if config has valid values.
 
-  const availableLanguages: string[] = inlangSettings.locales || ["en", "de"];
+	// Clear any existing session cookies to ensure fresh start
+	// This prevents issues when doing a fresh database setup
+	cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 
-  return {
-    theme: locals.theme,
-    darkMode: locals.darkMode,
-    availableLanguages,
-    redisAvailable: await checkRedis(),
-    settings: {
-      PKG_VERSION: pkgVersion,
-    },
-  };
+	// Get available system languages from inlang settings (direct import, no parsing needed)
+	const availableLanguages: string[] = inlangSettings.locales || ['en', 'de'];
+
+	// pass theme data and PKG_VERSION from server to client
+	return {
+		theme: locals.theme,
+		darkMode: locals.darkMode,
+		availableLanguages, // Pass the languages from settings.json
+		redisAvailable: await checkRedis(),
+		settings: {
+			PKG_VERSION: pkgVersion
+		}
+	};
 };
 
+/**
+ * ACTIONS
+ * Standard SvelteKit 5 actions for setup operations
+ */
 export const actions: Actions = {
-  // Setup actions delegate to setup.remote.ts
-  testDatabase: async ({ request }) => {
-    const fd = await request.formData();
-    const config = JSON.parse(fd.get("config") as string);
-    const createIfMissing = fd.get("createIfMissing") === "true";
-    const allowOverwrite = fd.get("allowOverwrite") === "true";
-    return testDatabaseConnection(config, createIfMissing, allowOverwrite);
-  },
-  seedDatabase: async ({ request }) => {
-    const fd = await request.formData();
-    const config = JSON.parse(fd.get("config") as string);
-    const system = JSON.parse((fd.get("system") as string) || "{}");
-    return seedDatabase(config, system);
-  },
-  completeSetup: async ({ request, cookies, url }) => {
-    const fd = await request.formData();
-    const payload = JSON.parse(fd.get("data") as string);
-    const result = await completeSetup(payload.database, payload.admin, payload.system || {});
-    if (result.sessionCookie) {
-      const isSecure = url.protocol === "https:" || url.hostname !== "localhost";
-      const cookieName = isSecure
-        ? `__Host-${result.sessionCookie.name}`
-        : result.sessionCookie.name;
-      cookies.set(cookieName, result.sessionCookie.value, {
-        ...result.sessionCookie.attributes,
-        secure: isSecure,
-        sameSite: isSecure ? "strict" : (result.sessionCookie.attributes as any).sameSite || "lax",
-      } as any);
-    }
-    return result;
-  },
-  testEmail: async ({ request }) => {
-    const fd = await request.formData();
-    const config = JSON.parse(fd.get("config") as string);
-    return testEmailConnection(config);
-  },
-  testRedis: async ({ request }) => {
-    const fd = await request.formData();
-    const host = (fd.get("host") as string) || "localhost";
-    const port = parseInt((fd.get("port") as string) || "6379", 10);
-    const password = fd.get("security") as string;
-    return testRedisConnection(host, port, password);
-  },
+	/**
+	 * Tests the database connection
+	 */
+	testDatabase: async ({ request }) => {
+		logger.info('🚀 Action: VerifyDatabaseConfig starting...');
+		try {
+			const formData = await request.formData();
+			const configRaw = formData.get('config') as string;
+			const createIfMissing = formData.get('createIfMissing') === 'true';
+			logger.info('📦 Received config raw:', configRaw ? `Yes (length: ${configRaw.length})` : 'No');
+			logger.info('🛠 Create missing DB if needed:', createIfMissing);
 
-  /**
-   * Installs database drivers (optional)
-   */
-  installDriver: async ({ request }) => {
-    logger.info("🚀 Action: installDriver called");
-    const formData = await request.formData();
-    const dbType = formData.get("dbType") as DatabaseType;
+			if (!configRaw) {
+				logger.error('❌ Action: No config data provided in form');
+				return { success: false, error: 'No configuration data provided' };
+			}
 
-    if (!(dbType && DRIVER_PACKAGES[dbType]) || dbType === "sqlite") {
-      return {
-        success: true,
-        message: "No driver installation needed (or invalid type).",
-      };
-    }
+			const configData = JSON.parse(configRaw);
+			logger.info('🔍 Parsed config for type:', configData?.type);
 
-    const packageName = DRIVER_PACKAGES[dbType];
+			// Coerce port to number for validation (Frontend sends string "27017" or "")
+			if (configData.port === '' || configData.port === null) {
+				configData.port = undefined;
+			} else if (configData.port !== undefined) {
+				const portNum = Number(configData.port);
+				if (!Number.isNaN(portNum)) {
+					configData.port = portNum;
+				}
+			}
 
-    try {
-      // Check if already installed
-      try {
-        await import(/* @vite-ignore */ packageName);
-        return {
-          success: true,
-          message: `Driver ${packageName} is already installed.`,
-          alreadyInstalled: true,
-          package: packageName,
-        };
-      } catch {
-        // Install needed
-      }
+			const { success, issues, output: dbConfig } = safeParse(databaseConfigSchema, configData);
+			if (!(success && dbConfig)) {
+				logger.error('❌ Action: Validation failed', { issues });
+				return {
+					success: false,
+					error: 'Invalid configuration',
+					details: issues
+				};
+			}
 
-      // Detect package manager
-      const cwd = process.cwd();
-      let pm = "npm";
-      if (existsSync(join(cwd, "bun.lock"))) {
-        pm = "bun";
-      } else if (existsSync(join(cwd, "yarn.lock"))) {
-        pm = "yarn";
-      } else if (existsSync(join(cwd, "pnpm-lock.yaml"))) {
-        pm = "pnpm";
-      }
+			logger.info('✅ Action: Configuration validated successfully');
 
-      const cmd =
-        pm === "bun" || pm === "yarn" || pm === "pnpm"
-          ? `${pm} add ${packageName}`
-          : `npm install ${packageName}`;
+			const start = performance.now();
+			const { getSetupDatabaseAdapter } = await import('./utils');
 
-      logger.info(`Installing ${packageName} using ${pm}...`);
-      const { stdout, stderr } = await execAsync(cmd, {
-        cwd,
-        timeout: 120_000,
-      });
-      logger.info("Installation output:", stdout + stderr);
+			try {
+				logger.info(`🔌 Attempting to connect to ${dbConfig.type} at ${dbConfig.host}...`);
+				const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, { createIfMissing });
 
-      return {
-        success: true,
-        message: `Successfully installed ${packageName}.`,
-        package: packageName,
-      };
-    } catch (error: any) {
-      logger.error("Driver installation failed:", error);
-      return { success: false, error: `Installation failed: ${error.message}` };
-    }
-  },
+				logger.info('📡 Connection established, sending ping...');
+				const health = await dbAdapter.getConnectionHealth();
+
+				if (!health.success) {
+					logger.error('❌ Database ping failed:', health.message);
+					await dbAdapter.disconnect();
+					return {
+						success: false,
+						error: health.message || 'Database ping failed'
+					};
+				}
+
+				logger.info('✅ Ping successful!');
+				await dbAdapter.disconnect();
+
+				const latencyMs = Math.round(performance.now() - start);
+				return {
+					success: true,
+					message: 'Database connected successfully! ✨',
+					latencyMs
+				};
+			} catch (err: any) {
+				logger.error('❌ Connection attempt failed:', err.message, err.code);
+				// Handle SQLite/SQL "database does not exist" for auto-creation
+				if (
+					err.message?.includes('does not exist') ||
+					err.message?.includes('Unknown database') ||
+					err.code === 'ER_BAD_DB_ERROR' ||
+					err.code === '3D000'
+				) {
+					if (createIfMissing) {
+						try {
+							logger.info('🛠 Attempting to create missing database:', dbConfig.name);
+							if (dbConfig.type === 'sqlite') {
+								const { buildDatabaseConnectionString } = await import('./utils');
+								const dbPath = buildDatabaseConnectionString(dbConfig);
+								mkdirSync(dirname(dbPath), { recursive: true });
+							} else if (dbConfig.type === 'postgresql') {
+								const postgres = (await import('postgres')).default;
+								const sql = postgres({
+									host: dbConfig.host,
+									port: dbConfig.port,
+									user: dbConfig.user,
+									password: dbConfig.password,
+									database: 'postgres'
+								});
+								await sql.unsafe(`CREATE DATABASE "${dbConfig.name}"`);
+								await sql.end();
+							} else if (dbConfig.type === 'mariadb' || (dbConfig.type as any) === 'mysql') {
+								const mysql = await import('mysql2/promise');
+								const connection = await mysql.createConnection({
+									host: dbConfig.host,
+									port: dbConfig.port,
+									user: dbConfig.user,
+									password: dbConfig.password
+								});
+								await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.name}\``);
+								await connection.end();
+							}
+
+							// Retry connection now that DB/file exists
+							const retry = await getSetupDatabaseAdapter(dbConfig, { createIfMissing: true });
+							const health = await retry.dbAdapter.getConnectionHealth();
+							if (health.success) {
+								await retry.dbAdapter.disconnect();
+								return {
+									success: true,
+									message: 'Database created and connected successfully! ✨',
+									latencyMs: Math.round(performance.now() - start)
+								};
+							}
+						} catch (createErr: any) {
+							logger.error('❌ Database creation failed:', createErr.message);
+							return { success: false, error: 'Could not create database: ' + createErr.message };
+						}
+					}
+					return {
+						success: false,
+						dbDoesNotExist: true,
+						error: err.message
+					};
+				}
+				throw err;
+			}
+		} catch (err: any) {
+			logger.error('❌ Database test failed critically:', err);
+			return { success: false, error: err.message || String(err) };
+		}
+	},
+
+	/**
+	 * Seeds the database
+	 */
+	seedDatabase: async ({ request }) => {
+		logger.info('🚀 Action: seedDatabase called');
+		const formData = await request.formData();
+		const configRaw = formData.get('config') as string;
+		const systemRaw = formData.get('system') as string;
+
+		if (!configRaw) {
+			return { success: false, error: 'No configuration data provided' };
+		}
+
+		const configData = JSON.parse(configRaw);
+		const systemData = systemRaw ? JSON.parse(systemRaw) : {};
+
+		// Coerce port to number for validation
+		if (configData.port === '' || configData.port === null) {
+			configData.port = undefined;
+		} else if (configData.port !== undefined) {
+			const portNum = Number(configData.port);
+			if (!Number.isNaN(portNum)) {
+				configData.port = portNum;
+			}
+		}
+
+		const { success, issues, output: dbConfig } = safeParse(databaseConfigSchema, configData);
+		if (!(success && dbConfig)) {
+			logger.error('❌ Action: seedDatabase Validation failed', { issues });
+			return {
+				success: false,
+				error: 'Invalid configuration',
+				details: issues
+			};
+		}
+
+		logger.info('DEBUG: [seedDatabase] dbConfig details:', {
+			type: dbConfig.type,
+			host: dbConfig.host,
+			port: dbConfig.port,
+			name: dbConfig.name,
+			hasUser: !!dbConfig.user,
+			hasPassword: !!dbConfig.password,
+			userLength: dbConfig.user?.length,
+			passLength: dbConfig.password?.length
+		});
+
+		try {
+			// 0. Copy Preset Files Before Anything compile triggers
+			if (systemData.preset && systemData.preset !== 'blank') {
+				logger.info(`✨ Copying preset files for: ${systemData.preset}`);
+				try {
+					const { compile } = await import('@utils/compilation/compile');
+
+					const sourceDir = resolve(process.cwd(), 'src', 'presets', systemData.preset);
+					const targetDir = resolve(process.cwd(), 'src', 'collections');
+
+					if (existsSync(sourceDir)) {
+						// Copy recursive
+						cpSync(sourceDir, targetDir, { recursive: true, force: true });
+						logger.info(`✅ Copied preset ${systemData.preset} to src/collections`);
+
+						// Force compilation of new preset files
+						try {
+							await compile();
+							logger.info(`✅ Compiled preset collections successfully`);
+						} catch (e) {
+							logger.error(`❌ Failed to compile newly copied preset files`, e);
+						}
+					} else {
+						logger.warn(`⚠️ Preset directory not found: ${sourceDir}`);
+					}
+				} catch (presetError) {
+					logger.error('Failed to copy preset files:', presetError);
+					// Non-fatal, continue with DB setup
+				}
+			}
+
+			// 1. Write private config
+			const { writePrivateConfig } = await import('./write-private-config');
+			await writePrivateConfig(dbConfig);
+
+			const { invalidateSetupCache } = await import('@utils/setup-check');
+			invalidateSetupCache(true);
+
+			// 2. Start background seeding (Split Strategy)
+			// Critical phases (roles/settings) are tracked by startSeeding (blocking completeSetup)
+			// Content phases are tracked by startBackgroundWork (non-blocking)
+			const { setupManager } = await import('./setup-manager');
+			const { initSystemFast } = await import('./seed');
+			const { getSetupDatabaseAdapter } = await import('./utils');
+
+			const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, { createIfMissing: true });
+
+			// Get split promises
+			const { criticalPromise, backgroundTask } = await initSystemFast(dbAdapter);
+
+			// Track critical seeding (blocking)
+			setupManager.startSeeding(async () => {
+				await criticalPromise;
+
+				// Queue background content seeding (non-blocking)
+				// This allows completeSetup to return immediately after critical data is ready
+				setupManager.startBackgroundWork(backgroundTask);
+			});
+
+			return {
+				success: true,
+				message: 'Database configuration saved. Seeding started! 🚀'
+			};
+		} catch (err) {
+			logger.error('Database config save failed:', err);
+			const message = err instanceof Error ? err.message : String(err);
+			const isSetupComplete = message.includes('Cannot overwrite private.ts') || message.includes('setup already completed');
+			return {
+				success: false,
+				error: isSetupComplete
+					? 'Setup is already complete. To change database configuration, go to the login page and use "Reset setup" when a database error is shown, or remove config/private.ts and restart the app.'
+					: message,
+				code: isSetupComplete ? 'SETUP_ALREADY_COMPLETE' : undefined
+			};
+		}
+	},
+
+	/**
+	 * Completes the setup
+	 */
+	completeSetup: async ({ request, cookies, url }) => {
+		const setupStartTime = performance.now();
+		logger.info('🚀 Action: completeSetup called');
+
+		// Await CRITICAL seeding only (roles/settings/themes)
+		// Background content seeding continues independently
+		try {
+			const { setupManager } = await import('./setup-manager');
+			const seedingPromise = setupManager.waitTillDone();
+			if (seedingPromise) {
+				logger.info('⏳ completeSetup: Waiting for critical seeding...');
+				await seedingPromise;
+				logger.info('✅ completeSetup: Critical seeding finished');
+			}
+		} catch (seedError) {
+			logger.error('❌ completeSetup: Seeding failed:', seedError);
+			// Continue, as retry logic or partial state might allow completion
+		}
+
+		const formData = await request.formData();
+		const dataRaw = formData.get('data') as string;
+		logger.info('DEBUG: [completeSetup] data raw length:', dataRaw?.length);
+
+		const { database, admin, system = {} } = JSON.parse(dataRaw);
+
+		logger.info('DEBUG: [completeSetup] database details:', {
+			type: database?.type,
+			host: database?.host,
+			hasUser: !!database?.user,
+			hasPassword: !!database?.password,
+			userLength: database?.user?.length
+		});
+		logger.info('DEBUG: extracted system data:', JSON.stringify(system, null, 2));
+
+		try {
+			const adminValidation = safeParse(setupAdminSchema, admin);
+			if (!adminValidation.success) {
+				return { success: false, error: 'Invalid admin user data' };
+			}
+
+			const { getSetupDatabaseAdapter } = await import('./utils');
+			const { dbAdapter } = await getSetupDatabaseAdapter(database, { createIfMissing: true });
+
+			const { Auth } = await import('@src/databases/auth');
+			const { getDefaultSessionStore } = await import('@src/databases/auth/session-manager');
+			const setupAuth = new Auth(dbAdapter, getDefaultSessionStore());
+
+			// Check if user already exists
+			const existingUser = await setupAuth.getUserByEmail(
+				{
+					email: admin.email,
+					tenantId: undefined
+				},
+				{ bypassTenantCheck: true }
+			);
+			let session: any;
+
+			if (existingUser) {
+				logger.info('Admin user already exists, updating credentials...');
+
+				// Update password
+				await setupAuth.updateUserPassword(admin.email, admin.password, undefined);
+
+				// Update other attributes
+				await setupAuth.updateUser(
+					existingUser._id,
+					{
+						username: admin.username,
+						role: 'admin',
+						isRegistered: true
+					},
+					undefined,
+					{ bypassTenantCheck: true }
+				);
+
+				// Create new session
+				session = await setupAuth.createSession(
+					{
+						user_id: existingUser._id,
+						expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString,
+						tenantId: undefined
+					},
+					{ bypassTenantCheck: true }
+				);
+			} else {
+				// Create new user
+				const authResult = await setupAuth.createUserAndSession(
+					{
+						username: admin.username,
+						email: admin.email,
+						password: admin.password,
+						role: 'admin',
+						isRegistered: true
+					},
+					{
+						expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString
+					},
+					{ bypassTenantCheck: true }
+				);
+
+				if (!(authResult.success && authResult.data)) {
+					return { success: false, error: 'Failed to create user' };
+				}
+				session = authResult.data.session;
+			}
+
+			// Ensure /login page shows the sign-in form (not sign-up) by invalidating
+			// the user-count cache, which seedDatabase doesn't clear on its own.
+			invalidateUserCountCache();
+
+			if (!session) {
+				return { success: false, error: 'Failed to create session' };
+			}
+
+			logger.info('DEBUG: Session created:', {
+				sessionId: session._id,
+				userId: session.user_id
+			});
+
+			// Safer secure flag logic (matches handleAuthentication)
+			const { dev } = await import('$app/environment');
+			const isSecure = url.protocol === 'https:' || (url.hostname !== 'localhost' && !dev && process.env.TEST_MODE !== 'true');
+
+			logger.info('DEBUG: Setting cookie:', {
+				name: SESSION_COOKIE_NAME,
+				value: session._id,
+				secure: isSecure
+			});
+
+			// Set session cookie
+			cookies.set(SESSION_COOKIE_NAME, session._id, {
+				path: '/',
+				httpOnly: true,
+				sameSite: 'lax',
+				secure: isSecure,
+				maxAge: 60 * 60 * 24 // 1 day
+			});
+			logger.info(`Set ${SESSION_COOKIE_NAME} cookie for new admin user`);
+
+			// 3. Parallel Execution: Update private config & Persist system settings
+			const updatePrivateConfigPromise = (async () => {
+				try {
+					// Optimization: Check if values actually changed to avoid unnecessary restart
+					let privateConfigModule: any;
+					try {
+						privateConfigModule = await import('@config/private');
+					} catch (_e) {
+						logger.debug('Private config not found, proceeding with creation.');
+					}
+
+					if (privateConfigModule) {
+						const privateEnv = privateConfigModule.privateEnv as any;
+						// Use loose equality to handle string/boolean differences if any
+						if (privateEnv.MULTI_TENANT === system.multiTenant && privateEnv.DEMO === system.demoMode) {
+							logger.info('DEBUG: Private config unchanged, skipping update to prevent restart.');
+							return;
+						}
+					}
+
+					console.log('DEBUG: Updating private config with modes:', {
+						multiTenant: system.multiTenant,
+						demoMode: system.demoMode
+					});
+					const { updatePrivateConfigMode } = await import('./write-private-config');
+					await updatePrivateConfigMode({
+						multiTenant: system.multiTenant,
+						demoMode: system.demoMode
+					});
+					console.log('DEBUG: Private config update completed');
+				} catch (configError) {
+					console.error('ERROR: Failed to update private config (NON-FATAL):', configError);
+					logger.error('Failed to update private config modes:', configError);
+					// Do not throw, allow setup to complete even if this file update fails
+				}
+			})();
+
+			const persistSettingsPromise = (async () => {
+				try {
+					console.log('DEBUG: Persisting system settings to DB...');
+					const settingsToPersist = [
+						// Redis & Arch Mode (Private)
+						{
+							key: 'USE_REDIS',
+							value: system.useRedis,
+							category: 'private',
+							scope: 'system'
+						},
+						{
+							key: 'REDIS_HOST',
+							value: system.redisHost,
+							category: 'private',
+							scope: 'system'
+						},
+						{
+							key: 'REDIS_PORT',
+							value: Number(system.redisPort),
+							category: 'private',
+							scope: 'system'
+						},
+						{
+							key: 'REDIS_PASSWORD',
+							value: system.redisPassword,
+							category: 'private',
+							scope: 'system'
+						},
+						{
+							key: 'MULTI_TENANT',
+							value: system.multiTenant,
+							category: 'private',
+							scope: 'system'
+						},
+						{
+							key: 'DEMO',
+							value: system.demoMode,
+							category: 'private',
+							scope: 'system'
+						},
+
+						// General Site Settings (Public)
+						{
+							key: 'SITE_NAME',
+							value: system.siteName,
+							category: 'public',
+							scope: 'system'
+						},
+						{
+							key: 'HOST_PROD',
+							value: system.hostProd,
+							category: 'public',
+							scope: 'system'
+						},
+						{
+							key: 'TIMEZONE',
+							value: system.timezone,
+							category: 'public',
+							scope: 'system'
+						},
+
+						// Language Settings (Public)
+						// Note: validation should ideally ensure defaults are in the arrays
+						{
+							key: 'DEFAULT_CONTENT_LANGUAGE',
+							value: system.defaultContentLanguage,
+							category: 'public',
+							scope: 'system'
+						},
+						{
+							key: 'AVAILABLE_CONTENT_LANGUAGES',
+							value: system.contentLanguages,
+							category: 'public',
+							scope: 'system'
+						},
+						{
+							key: 'BASE_LOCALE',
+							value: system.defaultSystemLanguage,
+							category: 'public',
+							scope: 'system'
+						},
+						{
+							key: 'LOCALES',
+							value: system.systemLanguages,
+							category: 'public',
+							scope: 'system'
+						},
+
+						// Media Settings (Public)
+						{
+							key: 'MEDIA_STORAGE_TYPE',
+							value: system.mediaStorageType,
+							category: 'public',
+							scope: 'system'
+						},
+						{
+							key: 'MEDIA_FOLDER',
+							value: system.mediaFolder,
+							category: 'public',
+							scope: 'system'
+						}
+					];
+
+					// Cast to any to bypass strict type check for now, or define a proper interface for the array item
+					await dbAdapter.system.preferences.setMany(settingsToPersist as any);
+					logger.info('System settings persisted to database successfully');
+				} catch (dbError) {
+					logger.warn('Failed to persist some system settings to DB:', dbError);
+				}
+			})();
+
+			await Promise.all([updatePrivateConfigPromise, persistSettingsPromise]);
+
+			// 3.2 Invalidate setup cache
+			const { invalidateSetupCache } = await import('@src/utils/setup-check');
+			invalidateSetupCache(true);
+
+			// Initialize global system
+			const { initializeWithConfig } = await import('@src/databases/db');
+			await initializeWithConfig(
+				{
+					DB_TYPE: database.type,
+					DB_HOST: database.host,
+					DB_PORT: Number(database.port),
+					DB_NAME: database.name,
+					DB_USER: database.user || '',
+					DB_PASSWORD: database.password || '',
+					DB_AUTH_SOURCE: database.authSource || 'admin',
+					JWT_SECRET_KEY: 'temp_secret',
+					ENCRYPTION_KEY: 'temp_key',
+					USE_REDIS: system.useRedis,
+					REDIS_HOST: system.redisHost,
+					REDIS_PORT: Number(system.redisPort),
+					REDIS_PASSWORD: system.redisPassword
+				} as any,
+				{
+					multiTenant: system.multiTenant,
+					demoMode: system.demoMode,
+					awaitBackground: true
+				}
+			);
+
+			// OPTIMIZATION: Initializecontent-managerIMMEDIATELY with skipReconciliation: true
+			// This prevents the 4s blocking delay on the subsequent redirect request.
+			// We trust the database state because we just seeded it.
+			try {
+				logger.info('🚀 [completeSetup] Refreshing content-manager state (skipping reconciliation)...');
+				const { contentManager } = await import('@src/content/content-manager');
+				// skipReconciliation: true is CRITICAL here to prevent the 4s blocking delay
+				await contentManager.refresh(undefined, true);
+				logger.info('✅ [completeSetup] ContentManager refreshed successfully (skipped reconciliation).');
+			} catch (cmError) {
+				logger.warn('⚠️ [completeSetup]ContentManager init/reconcile failed:', cmError);
+			}
+
+			// PRE-WARM CACHE REMOVED (Caused Race Conditions)
+			// We effectively rely on lazy loading upon the first request to /Collections
+			// The background content seeding (setupManager) handles the data.
+
+			// --- PRESET INSTALLATION ---
+			if (system.preset && system.preset !== 'blank') {
+				logger.info(`📦 Installing preset: ${system.preset}`);
+				try {
+					const { compile } = await import('@utils/compilation/compile');
+
+					// Source: src/presets/[preset]
+					const presetDir = resolve(process.cwd(), 'src', 'presets', system.preset);
+
+					// Target: config/collections
+					const targetDir = resolve(process.cwd(), 'config', 'collections');
+
+					// Ensure target exists
+					mkdirSync(targetDir, { recursive: true });
+
+					try {
+						if (existsSync(presetDir)) {
+							// Use cpSync with recursive option for simplified and efficient copying
+							cpSync(presetDir, targetDir, { recursive: true, force: true });
+							logger.info(`✅ Copied preset ${system.preset} to config/collections`);
+
+							// Trigger compilation to register new collections
+							logger.info('🔄 Compiling new collections...');
+							await compile();
+							logger.info('✅ Preset installation complete.');
+						} else {
+							logger.warn(`⚠️ Preset directory not found: ${presetDir}`);
+						}
+					} catch (presetError) {
+						logger.warn(`⚠️ Preset directory not found or empty: ${presetDir}`, presetError);
+					}
+				} catch (err) {
+					logger.error('❌ Failed to install preset:', err);
+					// Non-fatal, continue setup
+				}
+			}
+
+			// 4. Determine redirect path
+			let redirectPath = '/config/collectionbuilder';
+
+			// Use provided firstCollection if valid
+			if (system.firstCollection?.path) {
+				redirectPath = `/${system.defaultContentLanguage || 'en'}${system.firstCollection.path}`;
+			} else {
+				// Fallback: Querycontent-managerfor smart first collection
+				try {
+					const { contentManager } = await import('@src/content/content-manager');
+					// Clear cache to ensure we see the newly initialized collections
+					contentManager.clearFirstCollectionCache();
+
+					const smartRedirect = await contentManager.getFirstCollectionRedirectUrl(system.defaultContentLanguage || 'en');
+					if (smartRedirect) {
+						redirectPath = smartRedirect;
+					}
+				} catch (e) {
+					logger.warn('Could not determine first collection for redirect:', e);
+				}
+			}
+
+			const setupDuration = performance.now() - setupStartTime;
+			logger.info(`🎊 [completeSetup] Setup logic finished in ${Math.round(setupDuration)}ms. Redirecting to: ${redirectPath}`);
+
+			return {
+				success: true,
+				message: 'Setup complete! 🎉',
+				redirectPath,
+				sessionId: session._id,
+				publicSettings: {
+					SITE_NAME: system.siteName || 'SveltyCMS',
+					DEFAULT_LANGUAGE: 'en',
+					MULTI_TENANT: system.multiTenant,
+					DEMO: system.demoMode,
+					USE_REDIS: system.useRedis,
+					PKG_VERSION: pkgVersion
+				}
+			};
+		} catch (err) {
+			console.error('Setup completion failed detailed:', err);
+			logger.error('Setup completion failed:', err);
+			return {
+				success: false,
+				error: err instanceof Error ? err.message : String(err)
+			};
+		}
+	},
+
+	// Tests Email Configuration
+	testEmail: async ({ request }) => {
+		logger.info('🚀 Action: testEmail called');
+		const formData = await request.formData();
+		const rawData = Object.fromEntries(formData.entries());
+
+		// Map formData to schema expected types (booleans/numbers)
+		const config = {
+			host: rawData.host as string,
+			port: Number(rawData.port),
+			user: rawData.user as string,
+			password: rawData.password as string,
+			from: (rawData.from as string) || (rawData.user as string),
+			secure: rawData.secure === 'true',
+			testEmail: rawData.testEmail as string,
+			saveToDatabase: rawData.saveToDatabase === 'true'
+		};
+
+		const { host, port, user, password, from, secure, testEmail, saveToDatabase } = config;
+
+		try {
+			// Validation
+			const validationResult = safeParse(smtpConfigSchema, {
+				host,
+				port,
+				user,
+				password,
+				from,
+				secure
+			});
+
+			if (!validationResult.success) {
+				const errors = validationResult.issues.map((issue) => `${issue.path?.[0]?.key}: ${issue.message}`).join(', ');
+				return {
+					success: false,
+					error: `Invalid SMTP configuration: ${errors}`
+				};
+			}
+
+			// Create transporter
+			const transporter = nodemailer.createTransport({
+				host,
+				port,
+				secure: port === 465 ? true : secure,
+				auth: { user, pass: password },
+				connectionTimeout: 10_000,
+				greetingTimeout: 10_000,
+				socketTimeout: 10_000
+			});
+
+			// Verify connection
+			await transporter.verify();
+			logger.info('✅ SMTP connection successful');
+
+			// Send test email
+			await transporter.sendMail({
+				from,
+				to: testEmail,
+				subject: 'SveltyCMS SMTP Test Email',
+				text: `This is a test email from SveltyCMS.\n\nYour SMTP configuration is working correctly!\n\nHost: ${host}\nTimestamp: ${new Date().toISOString()}`,
+				html: `
+					<div style="font-family: Arial, sans-serif; padding: 20px;">
+						<h2 style="color: #2563eb;">SveltyCMS SMTP Test</h2>
+						<p><strong>Your SMTP configuration is working correctly! ✅</strong></p>
+						<p>Host: ${host}</p>
+					</div>
+				`
+			});
+
+			// Save to database only if explicitly requested
+			let saved = false;
+			if (saveToDatabase) {
+				try {
+					const { dbAdapter } = await import('@src/databases/db');
+					if (dbAdapter) {
+						await dbAdapter.system.preferences.set('SMTP_HOST', host, 'system');
+						await dbAdapter.system.preferences.set('SMTP_PORT', port.toString(), 'system');
+						await dbAdapter.system.preferences.set('SMTP_USER', user, 'system');
+						await dbAdapter.system.preferences.set('SMTP_PASS', password, 'system');
+						await dbAdapter.system.preferences.set('SMTP_FROM', from, 'system');
+						await dbAdapter.system.preferences.set('SMTP_SECURE', secure ? 'true' : 'false', 'system');
+						saved = true;
+					}
+				} catch (e) {
+					logger.warn('Could not save SMTP settings (DB might not be ready):', e);
+				}
+			}
+
+			return {
+				success: true,
+				message: `SMTP test successful! Email sent to ${testEmail}.${saved ? ' Settings saved.' : ''}`,
+				testEmailSent: true
+			};
+		} catch (error: any) {
+			logger.error('SMTP test failed:', error);
+			// User friendly error mapping
+			let msg = error.message;
+			if (error.code === 'EAUTH') {
+				msg = 'Authentication failed. Check credentials.';
+			}
+			if (error.code === 'ECONNREFUSED') {
+				msg = 'Connection refused. Check host/port.';
+			}
+			return { success: false, error: msg };
+		}
+	},
+
+	/**
+	 * Installs database drivers (optional)
+	 */
+	installDriver: async ({ request }) => {
+		logger.info('🚀 Action: installDriver called');
+		const formData = await request.formData();
+		const dbType = formData.get('dbType') as DatabaseType;
+
+		if (!(dbType && DRIVER_PACKAGES[dbType]) || dbType === 'sqlite') {
+			return {
+				success: true,
+				message: 'No driver installation needed (or invalid type).'
+			};
+		}
+
+		const packageName = DRIVER_PACKAGES[dbType];
+
+		try {
+			// Check if already installed
+			try {
+				await import(/* @vite-ignore */ packageName);
+				return {
+					success: true,
+					message: `Driver ${packageName} is already installed.`,
+					alreadyInstalled: true,
+					package: packageName
+				};
+			} catch {
+				// Install needed
+			}
+
+			// Detect package manager
+			const cwd = process.cwd();
+			let pm = 'npm';
+			if (existsSync(join(cwd, 'bun.lock'))) {
+				pm = 'bun';
+			} else if (existsSync(join(cwd, 'yarn.lock'))) {
+				pm = 'yarn';
+			} else if (existsSync(join(cwd, 'pnpm-lock.yaml'))) {
+				pm = 'pnpm';
+			}
+
+			const cmd = pm === 'bun' || pm === 'yarn' || pm === 'pnpm' ? `${pm} add ${packageName}` : `npm install ${packageName}`;
+
+			logger.info(`Installing ${packageName} using ${pm}...`);
+			const { stdout, stderr } = await execAsync(cmd, {
+				cwd,
+				timeout: 120_000
+			});
+			logger.info('Installation output:', stdout + stderr);
+
+			return {
+				success: true,
+				message: `Successfully installed ${packageName}.`,
+				package: packageName
+			};
+		} catch (error: any) {
+			logger.error('Driver installation failed:', error);
+			return { success: false, error: `Installation failed: ${error.message}` };
+		}
+	}
 };

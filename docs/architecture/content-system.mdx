@@ -1,157 +1,86 @@
 ---
-path: "docs/architecture/content-system.mdx"
-title: "Content System Architecture"
-description: "The 5-pillar content architecture: Reactive, Incremental, and Real-time."
-order: 1
-icon: "mdi:file-tree"
-author: "SveltyCMS Team"
-created: "2026-03-15"
-updated: "2026-04-02"
+path: 'docs/architecture/content-system.mdx'
+title: 'Content System Architecture'
+description: 'Detailed overview of the SveltyCMS Content System, including the Content Manager, Scanner, Index, and Reactivity model.'
+order: 5
+icon: 'mdi:database-sync'
+author: 'admin'
+created: '2025-12-02'
+updated: '2026-03-05'
 tags:
-  - "architecture"
-  - "performance"
-  - "reactivity"
-  - "sse"
+  - 'architecture'
+  - 'content-system'
+  - 'reactivity'
+  - 'svelte5'
+  - 'multi-tenancy'
 ---
 
-# Content System Architecture (2026 Edition)
+# Content System Architecture
 
-The SveltyCMS Content System is a high-performance, reactive engine responsible for managing collection schemas and the content navigation tree. The 2026 refactor emphasizes **incremental updates**, **zero-restart development**, and **real-time synchronization** while maintaining strong separation of concerns.
+The Content System is the core of SveltyCMS, responsible for managing, indexing, and serving content and collections. It leverages Svelte 5 runes for fine-grained reactivity and supports multi-tenant isolation at the filesystem level.
 
-## 🏗️ The 5 Pillars
+## Core Components
 
-### 1. Reactive Store (Client)
+### 1. Content Manager (`src/content/content-manager.ts`)
 
-**File**: `src/stores/content-store.svelte.ts`  
-Uses **Svelte 5 Runes** (`$state`, `$derived`) as the single source of truth for the content tree. Provides instant, granular UI updates when nodes change.
+The `ContentManager` is a singleton class that orchestrates the entire content lifecycle. It serves as the central point of access for:
 
-### 2. Public API Facade (Universal)
+- **Initialization**: Bootstrapping the content management system on server start.
+- **Multi-Tenant Isolation**: Manages collection structures per tenant using `.compiledCollections/{tenantId}/`.
+- **Reactivity (Svelte 5)**: Uses `$state()` to track `contentVersion` and navigation structures.
+- **Access Control**: Dynamic filtering of collections based on user permissions and roles.
 
-**File**: `src/content/index.ts`  
-Exposes `contentSystem` (with `contentSystem` as backward-compatible alias). Handles initialization, context (`useContent`), caching, and delegates to server services. Fully integrated with the **Local SDK** (`locals.cms`).
+**Key Features:**
 
-### 3. Incremental Reconciliation (Server)
+- **Singleton Pattern**: Ensures a single source of truth for content state across the server.
+- **Svelte 5 Runes**: Uses `$state()` for deep reactivity and `$derived()` for computed navigation trees.
+- **Multi-Tenant Folders**: Compiled collection JS files are stored in `.compiledCollections/{tenantId}/` to ensure strict isolation.
+- **Progressive Loading**: Navigation nodes are fetched incrementally to support massive sites (>10k categories).
+- **Diagnostics**: Built-in health checks (`getHealthStatus`) monitor cache performance and system health.
+- **Stable ID Generation**: Deterministic hashing prevents hydration mismatches between SSR and client.
 
-**File**: `src/content/content-service.server.ts`  
-The intelligent core. Uses **mtime-based scanning** + **schema diffing** (`schemasAreEqual`) to skip unchanged files and minimize database writes (up to 90% reduction in I/O).
+### 2. Content Index (`src/content/index.ts`)
 
-#### Vectorized Processing & API Optimization
+This module handles the low-level details of content loading and processing.
 
-SveltyCMS utilizes a **Vectorized `modifyRequest` pipeline** to handle large data batches. This refactor moved the system from sequential object spreading to chunked parallel execution:
+- **Dynamic Imports**: Uses `import.meta.glob` (dev) and filesystem scanning (prod) to load collections.
+- **Batch Processing**: Processes collections in concurrent batches to maximize startup speed.
+- **Polling**: Lightweight client-side polling checks for `contentVersion` updates.
 
-- **Scalability**: Handles 10,000+ item imports without blocking the event loop.
-- **Memory Efficiency**: Reduced object allocations by ~90% for standard fields.
-- **Relational Performance**: Achieved a ~28% boost in relational averages (5.29ms → 3.81ms) by removing redundant processing in hot paths.
+### 3. Collection Scanner (`src/content/collectionScanner.ts`)
 
-#### Self-Healing & Native Introspection
+A utility for production that scans `.compiledCollections/` for tenant-specific definitions. This bypasses dynamic imports in the built application.
 
-SveltyCMS utilizes native database introspection via the unified `listSchemas` SDK method to maintain parity and recover from drift. While the interface is standardized, we use different mechanisms internally to ensure we are **fully optimized** for each platform:
+### 4. Migration Engine (`src/services/MigrationEngine.ts`)
 
-1.  **MongoDB (`listCollections`)**: Since MongoDB is a document store, it doesn't have "tables." Its native command is `listCollections`. Using this is much faster and more reliable than trying to simulate a SQL-style query.
-2.  **PostgreSQL/MariaDB (`information_schema`)**: These follow the ANSI SQL standard. The `information_schema` is a virtual database that exists specifically to allow tools to "ask" the database what tables exist. It is the most robust way to handle introspection in a multi-tenant SQL environment.
-3.  **SQLite (`sqlite_master`)**: SQLite is a serverless, file-based engine. It doesn't support the heavy `information_schema` by default to keep the file size small. Instead, it stores everything in a special internal table called `sqlite_master`. Scanning this is the high-performance way to find tables in SQLite.
+A database-agnostic service that synchronizes Code Definitions with the Database Schema.
 
-##### The "Self-Healing" Benefit
-
-By using these native methods instead of a generic abstraction, SveltyCMS achieves:
-
-- **Detect Drift**: If a table is manually deleted in the database, the CMS detects it instantly via native introspection and triggers automated "Repair" workflows.
-- **Zero-Overhead**: We don't need to maintain a redundant "registry" table; we ask the database for the single source of truth directly.
-- **Security**: System tables (like `pg_` or `mongodb.`) are filtered at the database level before the data reaches the application logic.
-
-### 4. Smart Module Processing (Server)
-
-**File**: `src/content/module-processor.server.ts` (or inline in service)  
-Safe sandboxed parsing of compiled collection modules with widget proxy support. Only executed when mtime changes.
-
-### 5. Real-time Synchronization
-
-**Files**:
-
-- `src/content/content-watcher.server.ts` (dev-only, chokidar)
-- `src/content/content-sse.svelte.ts` (client-side SSE)
-
-In development: file changes → instant incremental reload.  
-In production: Server-Sent Events push updates to connected clients, replacing polling.
+- **Drift Detection**: Identifies changes between TypeScript schemas and DB collections.
+- **Safe Mode**: Prevents accidental data loss during schema migrations.
 
 ---
 
-## 🔄 Data Flow & Lifecycle
+## Reactivity Model (Svelte 5)
 
-```mermaid
-graph TD
-    subgraph Filesystem
-        SC[config/collections/*.ts]
-        CP[.compiledCollections/*.js]
-    end
-    subgraph Server["Server Tier"]
-        WS[Watcher (dev)]
-        RS[content-service.server.ts]
-        DB[(Database)]
-    end
-    subgraph Client["Client Tier"]
-        SSE[SSE Connection]
-        CS[content-store.svelte.ts (Runes)]
-        UI[UI Components]
-    end
+SveltyCMS uses a **Signal-based Reactivity Model**:
 
-    SC -->|Build| CP
-    CP -->|mtime + cache| RS
-    WS -->|Change detected| RS
-    RS -->|Schema diff + upsert| DB
-    RS -->|Broadcast (eventBus + Redis)| SSE
-    SSE -->|Push update| CS
-    CS -->|Reactive update| UI
-```
+1.  **State Tracking**: The `ContentManager` exposes reactive state via Svelte 5 runes.
+2.  **Version Propagation**: When content is modified, `contentVersion` ($state) increments.
+3.  **Fine-Grained Updates**: Components using `collections` or `contentStructure` re-render only for the specific pieces of data that changed.
+4.  **Client Polling**: The client polls `/api/content/version` every 10s. If it detects a mismatch, it triggers a reactive update of the local state.
 
 ---
 
-## 🚀 Performance Architecture
+## Caching & Performance
 
-The 2026 update introduced a massive architectural leap in content processing, achieving **sub-millisecond (0.04ms)** scan latencies for 1,000+ collections.
-
-### 🧵 1. Worker Thread Pooling
-
-To prevent event-loop blocking during massive schema reloads, SveltyCMS now offloads module parsing and widget proxy creation to a **dedicated pool of background workers** (`module-worker.server.ts`). This ensures the main UI thread remains responsive even when thousands of schemas are being processed simultaneously.
-
-### 🌳 2. Persistent Mtime Tree (Dirty Bits)
-
-The scanner now maintains a persistent, in-memory **"Dirty Bit" tree**.
-
-- **Steady State**: If the `ContentWatcher` hasn't flagged any changes, the scanner skips `fs.readdir` and `fs.stat` entirely, returning the cached schema map instantly.
-- **Micro-Surgical Invalidation**: When a file changes, only that specific node in the tree is marked dirty, triggering a single `fs.stat` and a single cache refresh.
-
-### 📦 3. Batch Cache Retrieval (`getMany`)
-
-Individual cache lookups for every file have been replaced by a **Vectorized Batching** pattern. The system fetches all 1,000+ schema metadata blocks in a single `O(1)` trip to Redis/Memory using the new `CacheService.getMany` method.
-
-### 🔢 4. Fast Deterministic Hashing
-
-Replaced heavy cryptographic MD5 with a lightweight, numeric string hash in `module-processor.server.ts`. This reduces reconciliation time for unchanged schemas by ~40%.
+- **Layered Caching**: Combines Redis (L1) and Database (L2) for sub-ms schema lookups.
+- **Prefetching**: Automatically warms collection caches on system start.
+- **Hydration**: SSR transfers the initial state to the client, preventing initial layout shifts.
 
 ---
 
-## 🚀 Performance Benchmarks
+## Future Improvements
 
-| Metric                      | Baseline (v0.0.7) | Ultra-Elite (v0.0.8) | Status             |
-| :-------------------------- | :---------------- | :------------------- | :----------------- |
-| **Warm Scan (120 files)**   | 2.46ms            | **0.014ms**          | 🟢 **ULTRA ELITE** |
-| **Warm Scan (1,000 files)** | 14.23ms           | **0.048ms**          | 🟢 **ULTRA ELITE** |
-| **Cold Scan (1,000 files)** | 23.76ms           | **9.16ms**           | 🟢 **-61.4%**      |
-
----
-
-## 🛠️ Developer Experience
-
-- **Zero Restart**: Adding a new collection file in `config/collections` triggers the watcher, which reconciles the DB and updates the UI instantly.
-- **Strong Typing**: The `LocalCMS` SDK provides full TypeScript types for all collection operations, from creation to complex joins.
-- **Tenant Isolation**: All content operations automatically respect the `tenantId` context provided by the middleware.
-
----
-
-## Related Documentation
-
-- [Local SDK vs HTTP API](../api/local-vs-http-api.mdx)
-- [Server Hooks](./server-hooks.mdx)
-- [State Management & Readiness](./state-management.mdx)
-- [Cache System](./cache-system.mdx)
+- **WebSocket Real-time**: Moving from polling to push-based updates.
+- **Granular Permissions**: Per-field access control within the `ContentManager`.
+- **Edge-Compiled Schemas**: Pre-compiling schemas to WASM for even faster execution.

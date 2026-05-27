@@ -1,0 +1,57 @@
+/**
+ * @file src/databases/postgresql/operations/transaction-module.ts
+ * @description Transaction module for PostgreSQL
+ */
+
+import type { DatabaseResult, DatabaseTransaction } from '../../db-interface';
+import type { AdapterCore } from '../adapter/adapter-core';
+
+export class TransactionModule {
+	private readonly core: AdapterCore;
+
+	constructor(core: AdapterCore) {
+		this.core = core;
+	}
+
+	private get db() {
+		return this.core.db!;
+	}
+
+	async execute<T>(
+		fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
+		_options?: {
+			isolationLevel?: 'read uncommitted' | 'read committed' | 'repeatable read' | 'serializable';
+		}
+	): Promise<DatabaseResult<T>> {
+		if (!this.db) {
+			return this.core.notConnectedError();
+		}
+
+		try {
+			// postgres.js transactions via drizzle
+			return await this.db.transaction(async () => {
+				const dbTransaction: DatabaseTransaction = {
+					commit: async () => ({ success: true, data: undefined }),
+					rollback: async () => {
+						throw new Error('ROLLBACK_TRANSACTION');
+					}
+				};
+
+				const result = await fn(dbTransaction);
+				if (!result.success) {
+					throw new Error(result.message || 'Transaction failed');
+				}
+				return result;
+			});
+		} catch (error) {
+			if ((error as Error).message === 'ROLLBACK_TRANSACTION') {
+				return {
+					success: false,
+					message: 'Transaction rolled back',
+					error: { code: 'TRANSACTION_ROLLED_BACK', message: 'Transaction rolled back' }
+				};
+			}
+			return this.core.handleError(error, 'TRANSACTION_FAILED');
+		}
+	}
+}

@@ -58,10 +58,6 @@ Part of the Three Pillars Architecture for widget system.
 	let fetchedMetadata = $state<RemoteVideoData | null>(null);
 	let isLoading = $state(false);
 	let fetchError = $state<string | null>(null);
-	let isEditingManually = $state(false);
-
-	// Props-driven features
-	const allowManualEdit = $derived((field as any).defaults?.allowManualEdit ?? true);
 
 	// Effect to update local `urlInput` when parent `value` changes externally.
 	$effect(() => {
@@ -77,23 +73,11 @@ Part of the Three Pillars Architecture for widget system.
 		if (extracted?.url && extracted.url !== urlInput) {
 			urlInput = extracted.url;
 			fetchedMetadata = extracted;
-		} else if (!extracted && urlInput !== '') {
+		} else if (!extracted) {
 			urlInput = '';
 			fetchedMetadata = null;
-			isEditingManually = false;
 		}
 	});
-
-	// Platform Icons mapping
-	const PLATFORM_ICONS: Record<string, string> = {
-		youtube: 'logos:youtube-icon',
-		vimeo: 'logos:vimeo-icon',
-		twitch: 'logos:twitch',
-		tiktok: 'logos:tiktok-icon',
-		other: 'mdi:video'
-	};
-
-	const currentPlatform = $derived(fetchedMetadata?.platform || 'other');
 
 	// Validation
 	const fieldName = $derived(getFieldName(field));
@@ -151,26 +135,6 @@ Part of the Three Pillars Architecture for widget system.
 		} else {
 			value = newData;
 		}
-	}
-
-	function handleClear() {
-		urlInput = '';
-		fetchedMetadata = null;
-		fetchError = null;
-		isEditingManually = false;
-		updateParent(null);
-	}
-
-	function toggleManualEdit() {
-		if (!allowManualEdit) return;
-		isEditingManually = !isEditingManually;
-	}
-
-	function updateMetadataField(key: keyof RemoteVideoData, val: string) {
-		if (!fetchedMetadata) return;
-		const updated = { ...fetchedMetadata, [key]: val };
-		fetchedMetadata = updated;
-		updateParent(updated);
 	}
 
 	// Debounced function to fetch video metadata from the server.
@@ -235,12 +199,7 @@ Part of the Three Pillars Architecture for widget system.
 
 <div class="input-container relative mb-4">
 	<SystemTooltip title={error || fetchError || ''} wFull={true}>
-		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 bg-white dark:bg-surface-900" role="group">
-			<!-- Platform Icon -->
-			<div class="flex items-center px-3 border-r border-surface-400/30">
-				<iconify-icon icon={PLATFORM_ICONS[currentPlatform]} width="20"></iconify-icon>
-			</div>
-
+		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600" role="group">
 			<input
 				type="url"
 				id={field.db_fieldName}
@@ -250,29 +209,18 @@ Part of the Three Pillars Architecture for widget system.
 				bind:value={urlInput}
 				oninput={handleUrlInput}
 				oninvalid={(e) => e.preventDefault()}
-				class="input w-full rounded-none border-none bg-transparent font-medium text-black outline-none focus:ring-0 dark:text-primary-500 {error ||
+				class="input w-full rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {error ||
 				fetchError
-					? 'bg-error-500/10!'
+					? 'bg-error-500-10!'
 					: ''} {isLoading ? 'opacity-50' : ''}"
 				aria-invalid={!!error || !!fetchError}
 				aria-describedby={error || fetchError ? `${field.db_fieldName}-error` : undefined}
 			/>
 
 			{#if isLoading}
-				<div class="flex items-center px-3" aria-label="Loading">
+				<div class="flex items-center bg-white px-2 dark:bg-surface-900" aria-label="Loading">
 					<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
 				</div>
-			{/if}
-
-			{#if urlInput && !isLoading}
-				<button 
-					type="button" 
-					class="flex items-center px-3 text-surface-400 hover:text-error-500 transition-colors"
-					onclick={handleClear}
-					aria-label="Clear input"
-				>
-					<iconify-icon icon="mdi:close-circle" width="20"></iconify-icon>
-				</button>
 			{/if}
 		</div>
 	</SystemTooltip>
@@ -284,87 +232,24 @@ Part of the Three Pillars Architecture for widget system.
 	{/if}
 
 	{#if fetchedMetadata && !isLoading && !fetchError}
-		<div class="mt-4 flex flex-col gap-4 rounded-lg border border-surface-200 p-4 sm:flex-row sm:items-start dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30">
-			<div class="relative group shrink-0">
-				<img src={fetchedMetadata.thumbnailUrl} alt={fetchedMetadata.title} class="h-auto w-full max-w-[160px] rounded shadow-sm object-cover aspect-video" />
-				<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
-					<iconify-icon icon="mdi:play-circle" width="40" class="text-white"></iconify-icon>
-				</div>
-			</div>
-			
-			<div class="flex-1 space-y-2 min-w-0">
-				<div class="flex items-start justify-between gap-2">
-					{#if isEditingManually}
-						<input 
-							type="text"
-							aria-label="Video title"
-							class="input text-base font-bold p-1 bg-white dark:bg-surface-700 w-full"
-							value={fetchedMetadata.title}
-							oninput={(e) => updateMetadataField('title', e.currentTarget.value)}
-						/>
-					{:else}
-						<h3 class="text-base font-bold text-surface-900 dark:text-surface-50 truncate">{fetchedMetadata.title}</h3>
-					{/if}
-
-					{#if allowManualEdit}
-						<button 
-							type="button" 
-							class="btn btn-sm variant-soft-surface p-1"
-							onclick={toggleManualEdit}
-							title={isEditingManually ? 'Save' : 'Edit Metadata'}
-						>
-							<iconify-icon icon={isEditingManually ? 'mdi:check' : 'mdi:pencil'} width="16"></iconify-icon>
-						</button>
-					{/if}
-				</div>
-
-				{#if isEditingManually}
-					<textarea 
-						aria-label="Video description"
-						class="textarea text-xs p-1 bg-white dark:bg-surface-700 w-full"
-						rows="2"
-						value={fetchedMetadata.description || ''}
-						oninput={(e) => updateMetadataField('description', e.currentTarget.value)}
-						placeholder="Add description..."
-					></textarea>
-				{:else if fetchedMetadata.description}
-					<p class="text-xs text-surface-600 dark:text-surface-400 line-clamp-2">{fetchedMetadata.description}</p>
+		<div class="mt-4 flex flex-col gap-4 rounded-lg border border-surface-200 p-4 sm:flex-row sm:items-start dark:border-surface-700">
+			<img src={fetchedMetadata.thumbnailUrl} alt={fetchedMetadata.title} class="h-auto w-full max-w-[120px] shrink-0 rounded object-cover" />
+			<div class="flex-1 space-y-1">
+				<h3 class="text-base font-bold text-surface-900 dark:text-surface-50">{fetchedMetadata.title}</h3>
+				{#if fetchedMetadata.channelTitle}
+					<p class="text-sm text-surface-600 dark:text-surface-400">By: {fetchedMetadata.channelTitle}</p>
 				{/if}
-
-				<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-surface-500 dark:text-surface-400">
-					{#if fetchedMetadata.channelTitle}
-						<span class="flex items-center gap-1">
-							<iconify-icon icon="mdi:account" width="14"></iconify-icon>
-							{fetchedMetadata.channelTitle}
-						</span>
-					{/if}
-					{#if fetchedMetadata.duration}
-						<span class="flex items-center gap-1">
-							<iconify-icon icon="mdi:clock-outline" width="14"></iconify-icon>
-							{fetchedMetadata.duration}
-						</span>
-					{/if}
-				</div>
-
-				<div class="flex items-center gap-3 pt-1">
-					<a
-						href={fetchedMetadata.url}
-						target="_blank"
-						rel="noopener noreferrer"
-						class="btn btn-sm variant-soft-primary gap-1 text-xs"
-					>
-						<iconify-icon icon="mdi:open-in-new" width="14"></iconify-icon>
-						Watch
-					</a>
-					<button 
-						type="button"
-						class="btn btn-sm variant-soft-surface gap-1 text-xs"
-						onclick={() => fetchedMetadata && navigator.clipboard.writeText(fetchedMetadata.url)}
-					>
-						<iconify-icon icon="mdi:content-copy" width="14"></iconify-icon>
-						Link
-					</button>
-				</div>
+				{#if fetchedMetadata.duration}
+					<p class="text-sm text-surface-600 dark:text-surface-400">Duration: {fetchedMetadata.duration}</p>
+				{/if}
+				<a
+					href={fetchedMetadata.url}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="mt-1 inline-block text-sm font-medium text-primary-500 hover:text-primary-600 hover:underline dark:text-primary-400"
+				>
+					Watch on {fetchedMetadata.platform}
+				</a>
 			</div>
 		</div>
 	{/if}

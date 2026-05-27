@@ -9,7 +9,7 @@ Features:
 - Media storage configuration
 - Language preferences
 - Performance & Mode toggles
-
+	
 -->
 <script lang="ts">
 	import Autocomplete from '@src/components/autocomplete.svelte';
@@ -42,7 +42,6 @@ Features:
 		setup_system_demo_mode_desc,
 		setup_system_host_prod,
 		setup_system_host_prod_placeholder,
-		setup_system_infrastructure_mode,
 		setup_system_intro,
 		setup_system_media_folder_cloud,
 		setup_system_media_folder_local,
@@ -52,15 +51,12 @@ Features:
 		setup_system_multi_tenant_desc,
 		setup_system_site_name,
 		setup_system_site_name_placeholder,
-		setup_system_timezone,
-		setup_db_test_redis_button,
-		setup_db_test_redis_success
+		setup_system_timezone
 	} from '@src/paraglide/messages';
 	import { locales as systemLocales } from '@src/paraglide/runtime';
 	//  Import types from the store
 	import type { ValidationErrors } from '@src/stores/setup-store.svelte.ts';
-	import { setupStore } from '@src/stores/setup-store.svelte.ts';
-	import { systemSettingsSchema } from '@utils/schemas';
+	import { systemSettingsSchema } from '@utils/form-schemas';
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/language-utils';
 	import { safeParse } from 'valibot';
@@ -71,15 +67,13 @@ Features:
 	const presets = PRESETS;
 
 	// --- PROPS ---
-	let { systemSettings = $bindable(), validationErrors, redisAvailable } = $props();
+	let { systemSettings = $bindable(), validationErrors, redisAvailable = $bindable() } = $props();
 
 	const availableLanguages: string[] = [...systemLocales];
 
-	import { SvelteSet } from 'svelte/reactivity';
-
 	// Real-time validation state
 	let localValidationErrors = $state<Record<string, string>>({});
-	let touchedFields = $state(new SvelteSet<string>());
+	let touchedFields = $state(new Set<string>());
 
 	const validationResult = $derived(
 		safeParse(systemSettingsSchema, {
@@ -112,6 +106,7 @@ Features:
 
 	function handleBlur(fieldName: string) {
 		touchedFields.add(fieldName);
+		touchedFields = touchedFields;
 	}
 
 	function displayLang(code: string) {
@@ -241,7 +236,7 @@ Features:
 				}
 			} catch (e) {
 				// Fallback to UTC if detection fails
-				logger.warn('Timezone detection failed', e);
+				console.warn('Timezone detection failed', e);
 			}
 		}
 	});
@@ -270,7 +265,6 @@ Features:
 
 	// Options for Autocomplete
 	const allTimezones = Intl.supportedValuesOf('timeZone');
-	let showScaling = $state(false);
 </script>
 
 <form onsubmit={(e) => e.preventDefault()} class="fade-in w-full min-w-0">
@@ -331,9 +325,8 @@ Features:
 						bind:value={systemSettings.siteName}
 						onblur={() => handleBlur('siteName')}
 						type="text"
-						data-1p-ignore
 						placeholder={setup_system_site_name_placeholder?.() || 'My SveltyCMS Site'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600  {displayErrors.siteName ? 'border-error-500' : ''}"
+						class="input w-full rounded {displayErrors.siteName ? 'border-error-500' : 'border-slate-200'}"
 						aria-invalid={!!displayErrors.siteName}
 						aria-describedby={displayErrors.siteName ? 'site-name-error' : undefined}
 					/>
@@ -358,10 +351,9 @@ Features:
 						id="host-prod"
 						bind:value={systemSettings.hostProd}
 						type="url"
-						data-1p-ignore
 						onblur={() => handleBlur('hostProd')}
 						placeholder={setup_system_host_prod_placeholder?.() || 'https://mysite.com'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600 {displayErrors.hostProd ? 'border-error-500' : ''}"
+						class="input w-full rounded {displayErrors.hostProd ? 'border-error-500' : 'border-slate-200'}"
 						aria-invalid={!!displayErrors.hostProd}
 						aria-describedby={displayErrors.hostProd ? 'host-prod-error' : undefined}
 					/>
@@ -387,21 +379,10 @@ Features:
 						bind:value={systemSettings.timezone}
 						placeholder="Search timezone..."
 						onSelect={() => handleBlur('timezone')}
-						className="w-full rounded border border-slate-300 dark:border-surface-600  "
 					/>
 					{#if displayErrors.timezone}
 						<div id="timezone-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.timezone}</div>
 					{/if}
-				</div>
-
-				<!-- Password Minimum Length -->
-				<!-- Min Password Length moved to system settings page -->
-				<div class="hidden">
-					<input
-						id="password-min-length"
-						bind:value={systemSettings.passwordMinLength}
-						type="number"
-					/>
 				</div>
 			</div>
 
@@ -418,7 +399,7 @@ Features:
 						</SystemTooltip>
 					</label>
 
-					<select id="media-storage-type" bind:value={systemSettings.mediaStorageType} class="input w-full rounded border border-slate-300 dark:border-surface-600  ">
+					<select id="media-storage-type" bind:value={systemSettings.mediaStorageType} class="input w-full rounded">
 						<option value="local">{setup_media_type_local?.() || '📁 Local Storage'}</option>
 						<option value="s3">{setup_media_type_s3?.() || '☁️ Amazon S3'}</option>
 						<option value="r2">{setup_media_type_r2?.() || '☁️ Cloudflare R2'}</option>
@@ -446,11 +427,10 @@ Features:
 						id="media-folder"
 						bind:value={systemSettings.mediaFolder}
 						type="text"
-						data-1p-ignore
 						placeholder={systemSettings.mediaStorageType === 'local'
 							? setup_system_media_path_placeholder?.() || './mediaFolder'
 							: setup_system_bucket_placeholder?.() || 'my-bucket-name'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600  "
+						class="input w-full rounded"
 					/>
 
 					{#if systemSettings.mediaStorageType !== 'local'}
@@ -482,7 +462,7 @@ Features:
 
 					<p class="text-[10px] text-slate-500 dark:text-white/40" id="system-lang-help">Select the primary language for the admin interface.</p>
 
-					<select id="default-system-lang" bind:value={systemSettings.defaultSystemLanguage} class="input w-full rounded border border-slate-300 dark:border-surface-600  ">
+					<select id="default-system-lang" bind:value={systemSettings.defaultSystemLanguage} class="input w-full rounded">
 						{#each systemSettings.systemLanguages as lang (lang)}
 							<option value={lang}>{displayLang(lang)}</option>
 						{/each}
@@ -498,7 +478,7 @@ Features:
 							</SystemTooltip>
 						</div>
 
-						<div class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-surface-200 dark:border-white/5 p-2 pr-16">
+						<div class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border border-surface-200 dark:border-white/5 p-2 pr-16">
 							{#each systemSettings.systemLanguages as lang (lang)}
 								<span
 									class="group badge preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white"
@@ -604,7 +584,7 @@ Features:
 						</div>
 
 						<div
-							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border p-2 pr-16 {displayErrors.contentLanguages
+							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border p-2 pr-16 {displayErrors.contentLanguages
 								? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 								: 'border-surface-200 dark:border-white/5 '}"
 						>
@@ -680,62 +660,6 @@ Features:
 			</div>
 		</section>
 
-		<!-- System Infrastructure / Mode -->
-		<section id="infrastructure-section" class="mt-4 border-t border-surface-200 dark:border-white/10 pt-4">
-			<h4 class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-400 mb-4">
-				<iconify-icon icon="mdi:server-network" width="18"></iconify-icon>
-				{setup_system_infrastructure_mode?.() || 'System Infrastructure / Mode'}
-			</h4>
-
-			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-				<!-- Multi-Tenant Toggle -->
-				<div class="flex items-center gap-3 rounded border border-surface-200 dark:border-white/5 p-3">
-					<input
-						id="multi-tenant-mode"
-						type="checkbox"
-						bind:checked={systemSettings.multiTenant}
-						class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-					/>
-					<div class="flex items-center gap-2">
-						<iconify-icon icon="mdi:domain" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<label for="multi-tenant-mode" class="font-medium text-black dark:text-white text-sm">
-							{setup_system_multi_tenant?.() || 'Multi-Tenant Mode'}
-						</label>
-						<SystemTooltip title={setup_system_multi_tenant_desc?.() || 'Enables support for multiple isolated tenants...'}>
-							<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500"></iconify-icon>
-						</SystemTooltip>
-					</div>
-				</div>
-
-				<!-- Demo Mode Toggle -->
-				<div class="flex items-center gap-3 rounded border border-surface-200 dark:border-white/5 p-3">
-					<input
-						id="demo-mode"
-						type="checkbox"
-						bind:checked={systemSettings.demoMode}
-						class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-					/>
-					<div class="flex items-center gap-2">
-						<iconify-icon icon="mdi:test-tube" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<label for="demo-mode" class="font-medium text-black dark:text-white text-sm">
-							{setup_system_demo_mode?.() || 'Demo Mode'}
-						</label>
-						<SystemTooltip
-							title={(setup_system_demo_mode_desc?.() || 'Warning: Creates ephemeral environments for visitors.').replace(/<\/?[^>]+(>|$)/g, '')}
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500"></iconify-icon>
-						</SystemTooltip>
-						{#if systemSettings.demoMode && !systemSettings.multiTenant}
-							<span class="text-xs font-bold text-amber-600 dark:text-amber-400">
-								({setup_note_demo_requires_multitenant?.() || 'Enables Multi-Tenant'})
-							</span>
-						{/if}
-					</div>
-				</div>
-			</div>
-		</section>
-
-
 		<!-- Optimization (Redis, Multi-Tenant, Demo) -->
 		<section id="redis-section" class="space-y-2 border-t border-surface-200 dark:border-white/10 pt-2">
 			<div class="rounded border border-surface-200 dark:border-white/5 p-3">
@@ -756,15 +680,16 @@ Features:
 						</SystemTooltip>
 					</div>
 				</div>
+
 				{#if systemSettings.useRedis}
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3 animate-in fade-in slide-in-from-top-2 duration-300">
 						<div class="space-y-1.5 text-black dark:text-white">
 							<label for="redis-host" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Host</label>
-							<input id="redis-host" bind:value={systemSettings.redisHost} type="text" data-1p-ignore placeholder="localhost" class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  " />
+							<input id="redis-host" bind:value={systemSettings.redisHost} type="text" placeholder="localhost" class="input text-sm py-1.5 rounded" />
 						</div>
 						<div class="space-y-1.5 text-black dark:text-white">
 							<label for="redis-port" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Port</label>
-							<input id="redis-port" bind:value={systemSettings.redisPort} type="text" data-1p-ignore placeholder="6379" class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  " />
+							<input id="redis-port" bind:value={systemSettings.redisPort} type="text" placeholder="6379" class="input text-sm py-1.5 rounded" />
 						</div>
 						<div class="space-y-1.5 text-black dark:text-white">
 							<label for="redis-password" class="text-xs font-semibold text-slate-500 dark:text-white/40">Redis Password (Optional)</label>
@@ -772,98 +697,59 @@ Features:
 								id="redis-password"
 								bind:value={systemSettings.redisPassword}
 								type="password"
-								data-1p-ignore
 								placeholder="••••••••"
-								class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  "
+								class="input text-sm py-1.5 rounded"
 							/>
 						</div>
-					</div>
-
-					<div class="mt-4 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between border-t border-surface-100 dark:border-white/5 pt-4">
-						<button
-							type="button"
-							class="btn preset-filled-tertiary-500 dark:preset-filled-primary-500 rounded flex items-center gap-2"
-							onclick={setupStore.testRedisConnection}
-							disabled={setupStore.wizard.isLoading}
-						>
-							{#if setupStore.wizard.isLoading}
-								<iconify-icon icon="line-md:loading-twotone-loop" width="20"></iconify-icon>
-							{:else}
-								<iconify-icon icon="mdi:connection" width="20"></iconify-icon>
-							{/if}
-							{setup_db_test_redis_button?.() || 'Test Redis Connection'}
-						</button>
-
-						{#if setupStore.wizard.redisTestPassed}
-							<div class="flex items-center gap-2 text-primary-500 text-sm font-medium animate-in fade-in zoom-in duration-300">
-								<iconify-icon icon="mdi:check-circle" width="20"></iconify-icon>
-								<span>{setup_db_test_redis_success?.() || 'Connected successfully!'}</span>
-							</div>
-						{:else if setupStore.wizard.errorMessage && !setupStore.wizard.redisTestPassed}
-							<div class="flex items-center gap-2 text-error-600 dark:text-error-400 text-sm font-medium animate-in fade-in slide-in-from-left-2 duration-300">
-								<iconify-icon icon="mdi:alert-circle" width="20"></iconify-icon>
-								<span>{setupStore.wizard.errorMessage}</span>
-							</div>
-						{/if}
 					</div>
 				{/if}
 			</div>
 		</section>
 
-		<!-- Enterprise Scaling & performance -->
-		<div class="mt-4 border-t border-surface-200 dark:border-white/10 pt-4">
-			<button
-				type="button"
-				class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-400 hover:text-tertiary-500 transition-colors"
-				onclick={() => (showScaling = !showScaling)}
-			>
-				<iconify-icon icon={showScaling ? 'mdi:cloud-sync' : 'mdi:cloud-cog'} width="18"></iconify-icon>
-				Advanced: Enterprise Scaling (Cloudflare CDN)
-			</button>
-
-			{#if showScaling}
-				<div class="mt-4 space-y-4 rounded-lg border border-surface-200 dark:border-white/10 p-4 transition-all duration-300">
-					<p class="text-xs text-slate-500 dark:text-white/40">
-						Configure native CDN purging to synchronize global edge nodes instantly upon content updates.
-					</p>
-
-					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-						<div class="space-y-1">
-							<label for="cf-token" class="text-xs font-bold uppercase tracking-wider text-slate-400">Cloudflare API Token</label>
-							<input
-								id="cf-token"
-								bind:value={systemSettings.cfApiToken}
-								type="security"
-								placeholder="Enter API Token"
-								class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  "
-							/>
-						</div>
-						<div class="space-y-1">
-							<label for="cf-zone" class="text-xs font-bold uppercase tracking-wider text-slate-400">Cloudflare Zone ID</label>
-							<input
-								id="cf-zone"
-								bind:value={systemSettings.cfZoneId}
-								type="text"
-								placeholder="Enter Zone ID"
-								class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  "
-							/>
-						</div>
-					</div>
-
-					<div class="space-y-1">
-						<label for="cf-purge" class="text-xs font-bold uppercase tracking-wider text-slate-400">Purge Strategy</label>
-						<select id="cf-purge" bind:value={systemSettings.cfPurgeMode} class="input text-sm py-1.5 rounded border border-slate-300 dark:border-surface-600  ">
-							<option value="tags">Surgical (Tag-based - Recommended)</option>
-							<option value="all">Full Purge (Everything)</option>
-						</select>
-						<p class="text-[10px] text-amber-500 italic mt-1">
-							* Surgical purging requires a Cloudflare Enterprise plan or specific Cache Tag support.
-						</p>
-					</div>
+		<!-- System Infrastructure / Mode -->
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 pb-4">
+			<!-- Multi-Tenant Toggle -->
+			<div class="input flex items-center gap-3 rounded border border-surface-200 dark:border-white/5 p-3">
+				<input
+					id="multi-tenant-mode"
+					type="checkbox"
+					bind:checked={systemSettings.multiTenant}
+					class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+				/>
+				<div class="flex items-center gap-2">
+					<iconify-icon icon="mdi:domain" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<label for="multi-tenant-mode" class="font-medium text-black dark:text-white">
+						{setup_system_multi_tenant?.() || 'Multi-Tenant Mode'}
+					</label>
+					<SystemTooltip title={setup_system_multi_tenant_desc?.() || 'Enables support for multiple isolated tenants...'}>
+						<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500"></iconify-icon>
+					</SystemTooltip>
 				</div>
-			{/if}
+			</div>
+
+			<!-- Demo Mode Toggle -->
+			<div class="input flex items-center gap-3 rounded border border-surface-200 dark:border-white/5 p-3">
+				<input
+					id="demo-mode"
+					type="checkbox"
+					bind:checked={systemSettings.demoMode}
+					class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+				/>
+				<div class="flex items-center gap-2">
+					<iconify-icon icon="mdi:test-tube" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<label for="demo-mode" class="font-medium text-black dark:text-white"> {setup_system_demo_mode?.() || 'Demo Mode'} </label>
+					<SystemTooltip
+						title={(setup_system_demo_mode_desc?.() || 'Warning: Creates ephemeral environments for visitors.').replace(/<\/?[^>]+(>|$)/g, '')}
+					>
+						<iconify-icon icon="mdi:help-circle-outline" width="16" class="text-slate-400 hover:text-tertiary-500"></iconify-icon>
+					</SystemTooltip>
+					{#if systemSettings.demoMode && !systemSettings.multiTenant}
+						<span class="text-xs font-bold text-amber-600 dark:text-amber-400">
+							({setup_note_demo_requires_multitenant?.() || 'Enables Multi-Tenant'})
+						</span>
+					{/if}
+				</div>
+			</div>
 		</div>
-
-
 	</div>
 </form>

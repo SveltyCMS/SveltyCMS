@@ -15,7 +15,7 @@
 
 <script lang="ts">
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import type { SettingGroup } from '../../routes/(app)/config/system-settings/settings-groups';
+	import type { SettingGroup } from '../../routes/(app)/config/systemsetting/settings-groups';
 
 	interface Props {
 		group: SettingGroup;

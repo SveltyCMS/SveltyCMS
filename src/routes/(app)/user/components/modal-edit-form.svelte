@@ -1,4 +1,4 @@
-<!--
+﻿<!-- 
 @file src/routes/(app)/user/components/modal-edit-form.svelte
 @component
 **A modal for editing user data like username, email, password, and role**
@@ -20,8 +20,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 	// Paraglide Messages
 	import { button_cancel, button_delete, button_save, form_confirmpassword, modaleditform_newpassword } from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { editUserSchema } from '@utils/schemas';
-	import { modalState } from '@utils/modal.svelte';
+	import { editUserSchema } from '@utils/form-schemas';
+	import { modalState } from '@utils/modal-state.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 
@@ -30,7 +30,6 @@ Efficiently manages user data updates with validation, role selection, and delet
 	const isFirstUser = page.data.isFirstUser;
 
 	import { Form } from '@root/src/utils/form.svelte.ts';
-	import { updateProfile, verifyPassword as verifyPw, deleteUser as deleteUserRemote } from '../user.remote';
 
 	// Config for the general edit form permissions
 	const modaleEditFormConfig = {
@@ -121,7 +120,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			changes.push(`role (${oldRole} → ${newRole})`);
 		}
 		if (editForm.data.password && editForm.data.password.trim() !== '') {
-			changes.push('security');
+			changes.push('password');
 		}
 
 		// Create a clean data object for the API call (just the user fields)
@@ -144,10 +143,19 @@ Efficiently manages user data updates with validation, role selection, and delet
 		}
 
 		try {
-			const result = await updateProfile(submitData);
+			const response = await fetch('/api/user/update-user-attributes', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					user_id: editForm.data.user_id,
+					newUserData: submitData
+				})
+			});
 
-			if (!result.success) {
-				throw new Error(result.error || result.message || 'Failed to update user.');
+			const result = await response.json();
+
+			if (!response.ok) {
+				throw new Error(result.message || 'Failed to update user.');
 			}
 
 			toast.success({
@@ -186,8 +194,13 @@ Efficiently manages user data updates with validation, role selection, and delet
 			return;
 		}
 		try {
-			const pwResult = await verifyPw(editForm.data.currentPassword);
-			if (pwResult.valid) {
+			const res = await fetch('/api/user/verify-password', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ password: editForm.data.currentPassword })
+			});
+			const data = await res.json();
+			if (data.valid) {
 				isCurrentPasswordValidated = true;
 				editForm.errors.currentPassword = [];
 				toast.success({ description: 'Password verified', duration: 5000 });
@@ -206,14 +219,22 @@ Efficiently manages user data updates with validation, role selection, and delet
 			return;
 		}
 		try {
-			const delResult = await deleteUserRemote([editForm.data.user_id]);
+			const response = await fetch('/api/user/batch', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					userIds: [editForm.data.user_id],
+					action: 'delete'
+				})
+			});
+			const data = await response.json();
 
-			if (!delResult.success) {
-				throw new Error(delResult.message || delResult.error || 'Failed to delete user.');
+			if (!response.ok) {
+				throw new Error(data.message || 'Failed to delete user.');
 			}
 
 			// Use the success message from the API response
-			const successMessage = delResult.message || delResult.error || 'User deleted successfully.';
+			const successMessage = data.message || 'User deleted successfully.';
 			toast.success({
 				description: `<iconify-icon icon="mdi:alert-circle" width={24}></iconify-icon> ${successMessage}`
 			});
@@ -231,7 +252,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-xl';
 </script>
 
-<div class="modal-example-form space-y-4 text-surface-900 dark:text-surface-100">
+<div class="modal-example-form space-y-4 text-black dark:text-white">
 	<form class="modal-form {cForm} grid grid-cols-1 gap-4" id="change_user_form" onsubmit={onFormSubmit}>
 		<!-- Username -->
 		<FloatingInput
@@ -282,7 +303,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			{#if isOwnProfile}
 				<!-- Current Password (Required for own profile password change) -->
 				<FloatingInput
-					type="security"
+					type="password"
 					name="current_password"
 					id="current_password"
 					label="Current Password"
@@ -306,9 +327,9 @@ Efficiently manages user data updates with validation, role selection, and delet
 			<!-- Password field -->
 			<div class:opacity-50={isOwnProfile && !isCurrentPasswordValidated} class="transition-opacity duration-200">
 				<FloatingInput
-					type="security"
-					name="security"
-					id="security"
+					type="password"
+					name="password"
+					id="password"
 					label={isOwnProfile ? modaleditform_newpassword() : 'Set New Password'}
 					bind:value={editForm.data.password}
 					bind:showPassword
@@ -326,7 +347,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			<!-- Password Confirm -->
 			<div class:opacity-50={isOwnProfile && !isCurrentPasswordValidated} class="transition-opacity duration-200">
 				<FloatingInput
-					type="security"
+					type="password"
 					name="confirm_password"
 					id="confirm_password"
 					label={form_confirmpassword()}

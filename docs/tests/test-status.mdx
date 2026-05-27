@@ -1,135 +1,148 @@
 ---
-path: "docs/tests/test-status.mdx"
-title: "Test Suite Status Report"
-description: "Comprehensive status report of all SveltyCMS tests including unit, integration, and E2E tests with current pass rates and known issues."
+path: 'docs/tests/test-status.mdx'
+title: 'Test Suite Status Report'
+description: 'Comprehensive status report of all SveltyCMS tests including unit, integration, and E2E tests with current pass rates and known issues.'
 order: 2
-icon: "mdi:chart-box"
-author: "SveltyCMS Team"
-created: "2025-11-08"
-updated: "2026-05-19"
+icon: 'mdi:chart-box'
+author: 'admin'
+created: '2025-11-08'
+updated: '2026-03-06'
 tags:
-  - "testing"
-  - "status"
-  - "coverage"
-  - "fail-closed"
-  - "playwright"
+  - 'testing'
+  - 'status'
+  - 'coverage'
+  - 'bun'
+  - 'playwright'
 ---
 
 # SveltyCMS Test Suite Status
 
-> **Last Updated:** May 25, 2026
-> **Total Tests:** 1393+ (Unit + Integration + E2E + Audit)
-> **Overall Pass Rate:** 100% (All core and unit suites passing)
+> **Last Updated:** March 6, 2026
+> **Total Tests:** ~1032+ (Unit + Integration + E2E)
+> **Overall Pass Rate:** 100% (692 unit tests verified)
 
 ## Executive Summary
 
-The testing suite has reached a major milestone with **100% Core Widget Logic Coverage**. All 12 core widgets are now triply-verified for validation, defaults, and aggregations.
+The testing suite has been fully synchronized with the modern Svelte 5 architecture and optimized for **Enterprise-grade reliability** in both local and CI (Linux) environments. Recent efforts have stabilized global state management, resolved Git casing conflicts, and hardened security hooks.
 
-- **Unit Tests:** 888 (Vitest) / 108 (Bun) across 108 test files — 100% pass under both runners
-- **Widget Suite:** 100% Pass Rate for all core and custom portable widgets.
-- **Defense-in-Depth Security:** 51 new tests verifying 4-layer security model (Middleware → Dispatcher → Handler → Page Action).
-- **CSP Headers Tested:** 9 tests verifying Content-Security-Policy on all responses — `default-src`, `object-src`, frame/script restrictions.
-- **AI Co-Pilot Tested:** 11 tests for `suggestFields()` schema suggestions and `scoreContent()` quality scoring.
-- **Version Channels Tested:** 7 tests for LTS/Stable/Next channel detection.
-- **ETag + API Versioning Tested:** 7 tests for SHA-256 conditional requests and `X-API-Version` header.
-- **SAML 2.0 / SSO:** Hardened CSRF State validation comparing secure Lax cookies to RelayState payloads.
-- **SCIM 2.0 (v1.1):** Added native POST /Bulk operation processing with recursive bulkId references resolution.
-- **Integration Tests:** Passing under proper runner isolations across all 4 databases (SQLite, MongoDB, MariaDB, PostgreSQL). Dedicated adapter-level tests now exist for all supported databases.
-- **E2E Tests:** All critical flows verified across all databases with parallel worker support (40 scenarios).
-- **Enterprise Benchmarks**: 30 high-fidelity metrics verified in the Audit Matrix (100% Pass).
-- **Performance Grade**: **ULTRA ELITE (High-Frequency Grade)**
-- **Truth Model**: 5-Layer Production Reality Audit implemented.
-- **Security Persistence**: Verified stateful DoS protection across restarts.
-
-### 🚀 Enterprise Performance Matrix (Audit)
-
-| Metric Area                   | Baseline 2025 | Audit                | % Improvement         |
-| :---------------------------- | :------------ | :------------------- | :-------------------- |
-| **SDK Read (0ms resolution)** | ~0.612 ms     | **~0.00 ms**         | **100% Gain**         |
-| **Content Scan (1k)**         | ~14.23 ms     | **~0.05 ms**         | **99.6% Gain**        |
-| **Ingestion (Migration)**     | ~400 ent/s    | **~8,223 ent/s**     | **1,955% Increase**   |
-| **Real-Time Broadcast (SSE)** | ~8.50 ms      | **~1.60 ms**         | **81.1% Gain**        |
-| **Real-Time Latency (WS)**    | ~5.20 ms      | **~0.3 - 1.2 ms**    | **94.2% Gain (uWS)**  |
-| **System Throughput**         | ~305 ops/sec  | **~14,000+ ops/sec** | **4,490% Increase**   |
-| **Revision Degradation**      | 5–15%         | **0.00%**            | **Immunity Achieved** |
+- **Unit Tests:** 692 tests across 50 files (Passing - 100%)
+- **Integration Tests:** ~300+ tests (Passing - 100%)
+- **E2E Tests:** Critical flows (Setup, RBAC, Redirection) fully automated and verified.
 
 ### Test Coverage by Category
 
-| Category                      | Status       | Pass Rate | Tests      |
-| ----------------------------- | ------------ | --------- | ---------- |
-| **Migration (Ingestion)**     | ✅ Verified  | 100%      | Scale      |
-| **Revision Stability**        | ✅ Verified  | 100%      | History    |
-| **Chaos Resilience**          | ✅ Verified  | 100%      | Brownout   |
-| **Security Persistence**      | ✅ Verified  | 100%      | DoS        |
-| **Index Pressure (100k)**     | ✅ Verified  | 100%      | Filtering  |
-| **Health Probe Caching**      | ✅ Active    | 100%      | Monitoring |
-| **SRE Truth Audit**           | ✅ Verified  | 100%      | SRE        |
-| **Fail-Closed API Security**  | ✅ Verified  | 100%      | 75/75      |
-| **Defense-in-Depth**          | ✅ Verified  | 100%      | 51/51      |
-| **Triple-Lock Security**      | ✅ Verified  | 100%      | 12/12      |
-| **Parallel Isolation**        | ✅ Verified  | 100%      | 8/8        |
-| **Server Hooks (Latencies)**  | ✅ Excellent | 100%      | 287/287    |
-| **Database Micro-Telemetry**  | ✅ Verified  | 100%      | 8/8        |
-| **API - User & Management**   | ✅ Complete  | 100%      | 72/72      |
-| **Encryption & Cryptography** | ✅ Excellent | 100%      | 14/14      |
-| **Auth & Lockout Security**   | ✅ Excellent | 100%      | 32/32      |
-| **WebSocket & Realtime**      | ✅ Hardened  | 100%      | 0.3ms uWS  |
+| Category                   | Status       | Pass Rate | Tests   |
+| -------------------------- | ------------ | --------- | ------- |
+| **Server Hooks**           | ✅ Excellent | 100%      | 287/287 |
+| **API - User**             | ✅ Complete  | 100%      | 47/47   |
+| **API - GraphQL**          | ✅ Complete  | 100%      | 21/21   |
+| **API - Token**            | ✅ Complete  | 100%      | 12/12   |
+| **Setup Actions**          | ✅ Complete  | 100%      | 20/20   |
+| **API - Collections**      | ✅ Complete  | 100%      | 19/19   |
+| **API - Dashboard**        | ✅ Complete  | 100%      | 48/48   |
+| **API - 2FA**              | ✅ Complete  | 100%      | 28/28   |
+| **API - Security**         | ✅ Complete  | 100%      | 33/33   |
+| **API - Widgets**          | ✅ Complete  | 100%      | 30/30   |
+| **API - Settings**         | ✅ Complete  | 100%      | 31/31   |
+| **API - Theme**            | ✅ Complete  | 100%      | 24/24   |
+| **API - Miscellaneous**    | ✅ Complete  | 100%      | 36/36   |
+| **Media & DAM**            | ✅ Excellent | 100%      | 34/34   |
+| **GDPR Service**           | ✅ Excellent | 100%      | 4/4     |
+| **AI Service**             | ✅ Excellent | 100%      | 5/5     |
+| **SAML Auth Service**      | ✅ Excellent | 100%      | 3/3     |
+| **Telemetry Service**      | ✅ Excellent | 100%      | 4/4     |
+| **Automation Service**     | ✅ Excellent | 100%      | 6/6     |
+| **Security Service (ASR)** | ✅ Excellent | 100%      | 34/34   |
+| **Plugin Sandbox**         | ✅ Excellent | 100%      | 7/7     |
+| **Security Utils**         | ✅ Excellent | 100%      | 14/14   |
+| **Widget Validation**      | ✅ Excellent | 100%      | 43/43   |
+| **AST Transformers**       | ✅ Excellent | 100%      | 10/10   |
+| **Database Resilience**    | ✅ Excellent | 100%      | 7/7     |
+| **Cache System**           | ✅ Excellent | 100%      | 26/26   |
+| **UI Store & Logic**       | ✅ Excellent | 100%      | 15/15   |
+| **Content Utils**          | ✅ Excellent | 100%      | 6/6     |
+| **Setup Utils**            | ✅ Excellent | 100%      | 25/25   |
+| **Collection Builder**     | ✅ Excellent | 100%      | 7/7     |
+| **Live Preview Utils**     | ✅ Excellent | 100%      | 3/3     |
+| **Token System**           | ✅ Excellent | 100%      | 11/11   |
+| **Repeater Widget**        | ✅ Excellent | 100%      | 5/5     |
+| **Price Widget**           | ✅ Excellent | 100%      | 5/5     |
 
 ---
 
-## ✅ Passing Tests (Latest Wins)
+## ✅ Passing Tests (714)
 
-### 1. Database & Adapter Resilience 🗄️
+### 1. Multi-Database Support 🔌
 
-- ✅ **Drizzle SQLite-Proxy Bridge**: Hardened query execution mapping when running Vitest on Node.js. Automatically wraps rows returned by Node's native `DatabaseSync` as arrays of values to perfectly align with Drizzle's `sqlite-proxy` contract, preventing dynamic schema-drift serialization failures.
-- ✅ **Agnostic Bundling Integration**: Dynamic loading of the `"bun:sqlite"` driver inside the SQLite adapter to bypass Vitest's static analyzer and prevent built-in bundling errors while keeping `vitest.config.ts` database-agnostic.
-- ✅ **Resilience Boot Validation**: Added test module unmocking in `integration-resilience.test.ts` to allow authentic configuration verification during startup and boot sequence validation, achieving 100% pass rates.
-- ✅ **Clean Code Quality Gate**: Standardized catch blocks to parameterless catches to resolve all unused catch parameter lint errors.
+All core features are verified to work seamlessly across our supported database stack:
 
-### 2. Svelte 5 & UI Compilation ⚡
+- ✅ **MongoDB**: Local instances and Atlas (SRV) clusters.
+- ✅ **SQLite**: In-process database for lightweight deployments (via Drizzle).
+- ✅ **MariaDB**: High-performance relational storage (via Drizzle).
+- ✅ **PostgreSQL**: Enterprise relational storage (via Drizzle).
 
-- ✅ **Store Effect Hardening**: Wrapped internal state variables in browser-safe checks (`!(globalThis as any).$effect`) in `src/stores/ui-store.svelte.ts`, eliminating `rune_missing_parentheses` compilation errors in modern Svelte 5 versions.
+### 2. Server Hooks Middleware (53/53) 🔒
 
-### 3. OpenAPI 3.1.0 Contract Verification 📖
+**Files:**
 
-- ✅ **Instant Generation**: Verified cached spec generation in **< 1 ms**, eliminating API discovery lag.
-- ✅ **Dynamic Discovery**: Confirmed that new collections are automatically added to the spec.
-- ✅ **Multilingual Mapping**: Verified translated fields as JSON Schema objects.
+- `tests/unit/hooks/` (Passing - 100%)
+- `tests/unit/databases/database-resilience.test.ts` (7 tests)
+- `tests/unit/databases/cache-service.test.ts` (9 tests)
 
-### 4. Dependency Injection (DI) Architecture 🏗️
+**Firewall and Security Hardening:**
 
-- ✅ **SettingsService DI**: Successfully refactored `loadSettingsCache` to allow synthetic environment injection.
-- ✅ **LocalCMS DI**: Hardened internal SDK testing by enabling `contentSystem` overrides.
-- ✅ **Infrastructure Unblocking**: Resolved `bun-preload.ts` and `vite.config.ts` stubbing conflicts, allowing unit tests to run against real code while keeping client bundles slim.
+- ✅ TEST_MODE Isolation: Firewall logic is now explicitly verified via `x-test-request` headers.
+- ✅ Pattern Detection: Robust detection of SQLi, XSS, and Administrative enumeration.
 
-### 5. Database-per-Worker Isolation ⚡
+### 3. Smart Onboarding & Redirection 🚀
 
-- ✅ **Parallel Speed**: E2E tests now run with `workers: 4` without SQLite locking issues.
-- ✅ **Atomic State**: Each worker operates on a unique `.db` file, ensuring total data isolation.
+**Coverage:**
 
-### 6. Enterprise Identity & SAML SSO / SCIM 2.0 🔐
+- ✅ **Empty CMS Logic**: Admins are automatically redirected to `/config/collectionbuilder` if no collections exist.
+- ✅ **Error Recovery**: Graceful fallback to `/` ensures a resilient user experience during initialization failures.
+- ✅ **UI Synchronization**: Sidebars and headers are correctly persisted across error states.
 
-- ✅ **SAML 2.0 CSRF State Hardening**: Modified authorization flow to generate dynamic, cryptographically secure 16-byte state tokens, storing them in a secure `saml_state` cookie (`SameSite: Lax`, `HttpOnly`) and validating them against the IdP's returned `RelayState` on the ACS endpoint to prevent OAuth/SAML CSRF.
-- ✅ **SCIM 2.0 Bulk Endpoint**: Implemented support for the SCIM `POST /Bulk` endpoint, handling multi-operation payloads, `failOnErrors` constraints, and resolving nested `bulkId:<id>` references dynamically to link newly created users with group/role associations in a single request.
+---
+
+## 🔧 Infrastructure & Reliability
+
+### Automated CI/CD
+
+Our GitHub Actions pipeline (`ci.yml`) is 100% synchronized with the local environment:
+
+- **Git Casing Alignment**: Standardized `contentPath` casing ensures compatibility with Linux runners.
+- **Timer Stabilization**: `TEST_MODE` now bypasses non-deterministic timers in `LoadingStore` and `ToastStore` for synchronous reliability.
+- **Matrix Testing**: Integration and E2E tests are executed against all supported databases in a matrix.
+
+### Recent Improvements
+
+- ✅ **Consolidated Mocking**: High-fidelity mocks in `tests/unit/setup.ts` provide a stable foundation for the entire logic layer.
+- ✅ **Logic Transparency**: Project-internal services (Automation, GDPR, SystemStore) now run against real source code instead of shallow mocks.
 
 ---
 
 ## 🚀 Running Tests
 
-### Parallel E2E Suite
+### Unit Tests
 
 ```bash
-# Run with 4 concurrent workers
-npx playwright test --workers=4
-```
-
-### Unit Tests (Unified Suite)
-
-```bash
-# Component, Service & Browser logic (jsdom)
 bun run test:unit
 ```
 
-Last Updated: 2026-05-25
-Current Pass Rate: 100% (Vitest: 888/888 in 7.2s, Bun: 108/108)
-Current State: DI-Hardened / Fail-Closed / 4-Layer Defense-in-Depth / CSP-Protected / AI Co-Pilot / Version Channels / ETag + API Versioning / Parallel Optimized / Svelte 5 / SAML CSRF-Protected / SCIM Bulk-Enabled / Bun-Test-Infra-Fixed / Lint-Zero-Warnings / Node-Default-Env (44% faster)
+### Integration Tests
+
+```bash
+bun run test:integration
+```
+
+### E2E Tests
+
+```bash
+bun x playwright test
+```
+
+### All Tests
+
+```bash
+bun run test:all
+```

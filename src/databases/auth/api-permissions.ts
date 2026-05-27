@@ -14,114 +14,93 @@
  * - Only listed roles can access the endpoint
  */
 
-import { Trie } from "@utils/trie";
-
 export const API_PERMISSIONS: Record<string, string[]> = {
-  // System Administration - Admin only
-  "api:config": ["admin"], // System configuration
-  "api:token": ["admin"], // Token management (user invitations)
-  "api:permission": ["admin"], // Permission management
-  "api:settings": ["admin"], // System settings (database-driven configuration)
-  "api:system-preferences": ["admin"], // System preferences (user dashboard layout/sizes)
-  "api:system-settings": ["admin"], // System settings export/import
-  "api:config-sync": ["admin"], // Configuration sync (import/export)
-  "api:export": ["admin"], // Full system export
-  "api:import": ["admin"], // Full system import
-  "api:export-data": ["admin"], // Collection export
-  "api:import-data": ["admin"], // Collection import
-  "api:system": ["admin", "editor"], // System status (version, health)
-  "api:system/health": ["*"], // Public health check
-  "api:telemetry": ["admin", "developer", "editor"], // System telemetry
+	// System Administration - Admin only
+	'api:config': ['admin'], // System configuration
+	'api:token': ['admin'], // Token management (user invitations)
+	'api:permission': ['admin'], // Permission management
+	'api:settings': ['admin'], // System settings (database-driven configuration)
+	'api:systemPreferences': ['admin'], // System preferences (user dashboard layout/sizes)
+	'api:systemsetting': ['admin'], // System settings export/import
+	'api:config_sync': ['admin'], // Configuration sync (import/export)
+	'api:export': ['admin'], // Full system export
+	'api:import': ['admin'], // Full system import
+	'api:exportData': ['admin'], // Collection export
+	'api:importData': ['admin'], // Collection import
+	'api:system': ['admin', 'editor'], // System status (version, health)
+	'api:system/health': ['*'], // Public health check
+	'api:telemetry': ['admin', 'developer', 'editor'], // System telemetry
 
-  // Admin area - Admin only
-  "api:admin": ["admin"],
+	// Admin area - Admin only
+	'api:admin': ['admin'],
 
-  // Website Tokens - Admin only
-  "api:website-tokens": ["admin"],
+	// Website Tokens - Admin only
+	'api:website-tokens': ['admin'],
 
-  // Authentication & Security - All authenticated users can manage their own auth/2FA
-  "api:auth": ["*"], // Authentication endpoints (2FA setup, disable, backup codes, etc.)
-  "api:events": ["*"], // Real-time collaboration stream
+	// Authentication & Security - All authenticated users can manage their own auth/2FA
+	'api:auth': ['*'], // Authentication endpoints (2FA setup, disable, backup codes, etc.)
+	'api:events': ['*'], // Real-time collaboration stream
 
-  // User Management - Admin and Editor
-  "api:user": ["admin", "editor"], // User management (includes profile updates)
+	// User Management - Admin and Editor
+	'api:user': ['admin', 'editor'], // User management (includes profile updates)
 
-  // Content Management - Admin and Editor
-  "api:collections": ["admin", "editor"], // Collection/content management
-  "api:media": ["admin", "editor"], // Media management
-  "api:system-virtual-folder": ["admin", "editor"], // System virtual folders
+	// Content Management - Admin and Editor
+	'api:collections': ['admin', 'editor'], // Collection/content management
+	'api:media': ['admin', 'editor'], // Media management
+	'api:systemVirtualFolder': ['admin', 'editor'], // System virtual folders
 
-  // Dashboard & Analytics - Admin and Editor
-  "api:dashboard": ["admin", "editor"], // Dashboard data
-  "api:security": ["admin"], // Security monitoring and incident management
-  "api:search": ["admin", "editor"], // Search functionality
-  "api:index": ["admin", "editor"], // Index/search operations
-  "api:metrics": ["admin"], // Performance metrics
-  "api:cache": ["admin"], // Cache management
-  "api:version-check": ["admin"], // Version/updates
+	// Dashboard & Analytics - Admin and Editor
+	'api:dashboard': ['admin', 'editor'], // Dashboard data
+	'api:security': ['admin'], // Security monitoring and incident management
+	'api:search': ['admin', 'editor'], // Search functionality
+	'api:index': ['admin', 'editor'], // Index/search operations
+	'api:metrics': ['admin'], // Performance metrics
+	'api:cache': ['admin'], // Cache management
+	'api:version-check': ['admin'], // Version/updates
 
-  // Content Structure - Admin and Editor
-  "api:content-structure": ["admin", "editor"], // Content structure management
-  "api:content": ["admin", "editor"], // Content version and management
+	// Content Structure - Admin and Editor
+	'api:content-structure': ['admin', 'editor'], // Content structure management
 
-  // Theme Management - Admin and Editor (content creators need themes)
-  "api:theme": ["admin", "editor"], // Theme management
+	// Theme Management - Admin and Editor (content creators need themes)
+	'api:theme': ['admin', 'editor'], // Theme management
 
-  // Video/Media Processing - Admin and Editor
-  "api:video": ["admin", "editor"], // Video processing
+	// Video/Media Processing - Admin and Editor
+	'api:video': ['admin', 'editor'], // Video processing
 
-  // GraphQL - Admin and Editor (for complex queries)
-  "api:graphql": ["admin", "editor"], // GraphQL endpoint
+	// GraphQL - Admin and Editor (for complex queries)
+	'api:graphql': ['admin', 'editor'], // GraphQL endpoint
 
-  // Widget Management - Admin and Developer
-  "api:widgets": ["admin", "developer"], // Widget management and marketplace
-  "api:marketplace": ["admin"], // Marketplace access
+	// Widget Management - Admin and Developer
+	'api:widgets': ['admin', 'developer'], // Widget management and marketplace
+	'api:marketplace': ['admin'], // Marketplace access
 
-  // Public/Semi-public endpoints (authenticated users)
-  "api:testing": ["*"], // Integration testing endpoints
-  "api:settings/public": ["*"], // Public system settings (version, etc.)
-  "api:send-mail": ["admin"], // Email sending (used internally, but needs auth)
-  "api:get-tokens-provided": ["admin"], // Token information - admin only
+	// Public/Semi-public endpoints (authenticated users)
+	'api:settings/public': ['*'], // Public system settings (version, etc.)
+	'api:sendMail': ['admin'], // Email sending (used internally, but needs auth)
+	'api:getTokensProvided': ['admin'] // Token information - admin only
 };
-
-// Pre-compiled Trie for O(L) lookups
-const PERMISSION_TRIE = new Trie<string[]>();
-
-// Initialize the trie once at startup
-for (const [endpoint, roles] of Object.entries(API_PERMISSIONS)) {
-  // Support both 'api:endpoint' and 'api:parent/child' formats
-  const path = endpoint.replace(":", "/").split("/");
-  PERMISSION_TRIE.insert(path, roles);
-}
 
 /**
  * Check if a user role has permission to access an API endpoint
  * @param userRole - The user's role
  * @param apiEndpoint - The API endpoint (e.g., 'token', 'user', 'collections')
- * @param isAdmin - Whether the user is an admin
  * @returns boolean - true if access is allowed
  */
-export function hasApiPermission(userRole: string, apiEndpoint: string, isAdmin = false): boolean {
-  // Full access for administrators
-  if (isAdmin || userRole === "admin") {
-    return true;
-  }
+export function hasApiPermission(userRole: string, apiEndpoint: string): boolean {
+	const allowedRoles = API_PERMISSIONS[`api:${apiEndpoint}`];
 
-  // O(L) Trie Lookup instead of object property check
-  const allowedRoles = PERMISSION_TRIE.find(["api", ...apiEndpoint.split("/")], { fallback: true });
+	if (!allowedRoles) {
+		// If endpoint is not defined, deny access by default (secure by default)
+		return false;
+	}
 
-  if (!allowedRoles) {
-    // If endpoint is not defined, deny access by default (secure by default)
-    return false;
-  }
+	// Check for wildcard (all authenticated users)
+	if (allowedRoles.includes('*')) {
+		return true;
+	}
 
-  // Check for wildcard (all authenticated users)
-  if (allowedRoles.includes("*")) {
-    return true;
-  }
-
-  // Check if user's role is in the allowed roles
-  return allowedRoles.includes(userRole);
+	// Check if user's role is in the allowed roles
+	return allowedRoles.includes(userRole);
 }
 
 /**
@@ -130,13 +109,13 @@ export function hasApiPermission(userRole: string, apiEndpoint: string, isAdmin 
  * @returns string[] - Array of API endpoints the role can access
  */
 export function getApiPermissionsForRole(userRole: string): string[] {
-  const endpoints: string[] = [];
+	const endpoints: string[] = [];
 
-  for (const [endpoint, roles] of Object.entries(API_PERMISSIONS)) {
-    if (roles.includes("*") || roles.includes(userRole)) {
-      endpoints.push(endpoint.replace("api:", ""));
-    }
-  }
+	for (const [endpoint, roles] of Object.entries(API_PERMISSIONS)) {
+		if (roles.includes('*') || roles.includes(userRole)) {
+			endpoints.push(endpoint.replace('api:', ''));
+		}
+	}
 
-  return endpoints;
+	return endpoints;
 }

@@ -27,46 +27,31 @@ Renders: Thumbnail + title + duration in compact horizontal layout
 
 <script lang="ts">
 	import type { RemoteVideoData } from './types';
-	import ResponsiveEmbed from './components/responsive-embed.svelte';
 
-	interface Props {
-		value: RemoteVideoData | null | undefined;
-		mode?: 'compact' | 'embed';
-	}
+	const { value }: { value: RemoteVideoData | null | undefined } = $props();
 
-	let { value, mode = 'compact' }: Props = $props();
+	// Construct the embed URL and iframe HTML based on the platform.
+	// Note: For now we just display thumbnail and metadata, embed logic available if needed
 </script>
 
 {#if value?.thumbnailUrl}
-	{#if mode === 'embed'}
-		<ResponsiveEmbed video={value} />
-	{:else}
-		<div class="flex w-full max-w-full items-center gap-2.5" title={value.title ?? ''}>
-			<div class="relative shrink-0">
-				<img
-					src={value.thumbnailUrl}
-					alt={value.title || 'Video thumbnail'}
-					class="h-auto w-[60px] rounded object-cover aspect-video"
-					loading="lazy"
-					decoding="async"
-				/>
-				<div class="absolute inset-0 flex items-center justify-center bg-black/20 rounded">
-					<iconify-icon icon="mdi:play" width="16" class="text-white"></iconify-icon>
-				</div>
-			</div>
+	<div class="flex w-full max-w-full items-center gap-2.5" title={value.title ?? ''}>
+		<img
+			src={value.thumbnailUrl}
+			alt={value.title || 'Video thumbnail'}
+			class="h-auto w-[60px] shrink-0 rounded-md object-cover"
+			loading="lazy"
+			decoding="async"
+		/>
 
-			<div class="flex min-w-0 flex-col justify-center overflow-hidden">
-				<span class="truncate text-sm font-bold text-surface-900 dark:text-surface-50"> {value.title} </span>
+		<div class="flex min-w-0 flex-wrap items-center gap-x-2">
+			<span class="max-w-48 truncate text-sm font-medium"> {value.title} </span>
 
-				<div class="flex items-center gap-2 text-[10px] text-surface-500">
-					<span class="uppercase">{value.platform}</span>
-					{#if value.duration}
-						<span>• {value.duration}</span>
-					{/if}
-				</div>
-			</div>
+			{#if value.duration}
+				<span class="shrink-0 text-xs text-gray-500"> {value.duration} </span>
+			{/if}
 		</div>
-	{/if}
+	</div>
 {:else}
 	<span class="text-gray-400">–</span>
 {/if}

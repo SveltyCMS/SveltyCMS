@@ -1,22 +1,22 @@
 ---
-path: "docs/architecture/system-settings-architecture.mdx"
-title: "SveltyCMS: System Settings Architecture"
-description: "An overview of how dynamic settings are managed, cached, and synchronized, including language configuration and data preservation."
+path: 'docs/architecture/system-settings-architecture.mdx'
+title: 'SveltyCMS: System Settings Architecture'
+description: 'An overview of how dynamic settings are managed, cached, and synchronized, including language configuration and data preservation.'
 order: 2
-icon: "mdi:tune"
-author: "SveltyCMS Team"
-created: "2025-10-09"
-updated: "2026-03-27"
+icon: 'mdi:tune'
+author: 'admin'
+created: '2025-10-09'
+updated: '2025-11-02'
 tags:
-  - "architecture"
-  - "settings"
-  - "system"
-  - "cache"
-  - "languages"
-  - "i18n"
+  - 'architecture'
+  - 'settings'
+  - 'system'
+  - 'cache'
+  - 'languages'
+  - 'i18n'
 ---
 
-import { Callout } from "nextra/components";
+import { Callout } from 'nextra/components';
 
 # System Settings Architecture
 
@@ -33,49 +33,40 @@ This document details the architecture of the SveltyCMS System Settings. The sys
 
 ## The Data Flow
 
-SveltyCMS utilizes a two-tier data flow for settings: a high-frequency polling mechanism for public settings and a secure, batch-loading mechanism for the administrative dashboard.
-
 ```mermaid
 sequenceDiagram
     participant User
-    participant UI as Settings Dashboard
-    participant API as /api/settings/all
+    participant UI as Settings Page
+    participant API as Settings API
     participant ServerCache as In-Memory Cache
     participant DB as Database
     participant ClientStore as global-settings.svelte.ts
 
-    Note over UI, API: Dashboard Initialization (Batch)
-    UI->>API: GET /api/settings/all
-    API->>ServerCache: Fetch All Authorized Groups
-    ServerCache-->>API: Merged Settings Object
-    API-->>UI: Optimized JSON Response
-
-    Note over User, DB: Individual Group Update
-    User->>UI: Changes a setting (e.g., SMTP_HOST)
-    UI->>API: PUT /api/settings/[group]
-    API->>DB: Updates database record
+    User->>UI: Changes a setting (e.g., Site Name)
+    UI->>API: PUT /api/settings/site { SITE_NAME: "New Name" }
+    API->>DB: Updates the setting in the database
     DB-->>API: Success
-    API->>ServerCache: Invalidate & Reload Cache
-    API->>API: Increment Settings Version
-    API-->>UI: 200 OK
+    API->>ServerCache: Invalidates and reloads settings cache
+    API->>API: Updates settings version
+    API-->>UI: Returns success message
 
-    loop Every 5 seconds (Public Sync)
+    loop Every 5 seconds
         ClientStore->>API: GET /api/settings/public/version
-        API-->>ClientStore: New Version Detected
+        API-->>ClientStore: Returns new version
+        ClientStore->>ClientStore: Version has changed!
         ClientStore->>API: GET /api/settings/public
-        API-->>ClientStore: Refreshed Public Settings
-        ClientStore->>UI: Global UI elements update
+        API-->>ClientStore: Returns new public settings
+        ClientStore->>UI: Store updates, UI refreshes automatically
     end
 ```
 
 ### Server-Side
 
-1.  **Batch Aggregation:** The `/api/settings/all` endpoint aggregates settings from all authorized groups into a single payload, reducing HTTP overhead during dashboard initialization.
-2.  **Server Startup:** The application loads all settings from the database into a fast, in-memory cache.
-3.  **Admin Update:** An admin uses the UI to change a setting. The UI sends a `PUT` request to the `/api/settings/[group]` endpoint.
-4.  **Database Update:** The API updates the setting in the database.
-5.  **Cache Invalidation:** The API calls `invalidateSettingsCache()` and `loadSettingsFromDB()` to immediately refresh the server-side cache with the new value.
-6.  **Version Update:** The API calls `updateVersion()` to bump the settings version number. This signals to clients that settings have changed.
+1.  **Server Startup:** The application loads all settings from the database into a fast, in-memory cache.
+2.  **Admin Update:** An admin uses the UI to change a setting. The UI sends a `PUT` request to the `/api/settings/[group]` endpoint.
+3.  **Database Update:** The API updates the setting in the database.
+4.  **Cache Invalidation:** The API calls `invalidateSettingsCache()` and `loadSettingsFromDB()` to immediately refresh the server-side cache with the new value.
+5.  **Version Update:** The API calls `updateVersion()` to bump the settings version number. This signals to clients that settings have changed.
 
 ### Client-Side (Public Settings)
 
@@ -85,14 +76,12 @@ sequenceDiagram
 
 ## The User Interface
 
-The main UI for managing settings is located at `/config/system-settings`. It features:
+The main UI for managing settings is located at `/config/systemsetting`. It features:
 
-- **Optimized Batch Loading:** Uses a single API call to load all authorized settings groups.
-- **Mobile-First Navigation:** Horizontal scrolling tabs for small viewports.
-- **Sticky Action Bar:** Floating footer providing "Save", "Reset", and "Export" actions.
-- **Sensitive Data Masking:** Automatic masking of passwords and API keys.
-- **Searchable Interface:** Filter settings groups by name or description.
-- **Real-time validation** and unsaved changes indicators.
+- A tabbed interface for each settings group.
+- A generic component (`generic-settings-group.svelte`) that dynamically renders the fields for any group.
+- Real-time validation and unsaved changes indicators.
+- A search bar to quickly find settings.
 
 ## "Restart Required" Workflow
 
@@ -104,30 +93,6 @@ For critical settings that require a server restart, a clear workflow is impleme
 4.  **Admin Action:** For administrators, this banner includes a "Restart Now" button. Clicking this button sends a `POST` request to the secure `/api/system/restart` endpoint.
 5.  **Graceful Restart:** This endpoint is designed to integrate with a process manager like `pm2`. It creates a `restart.txt` file in the project root, which can be watched by the process manager to trigger a graceful restart of the application (e.g., `pm2 reload <app_name>`).
 
-## Enterprise Scaling & Infrastructure
-
-For high-traffic enterprise deployments, SveltyCMS utilizes a **"Minimum Bootstrap"** philosophy. This separates critical startup parameters from flexible runtime scaling settings.
-
-### "Minimum Bootstrap" Pattern
-
-- **Bootstrap Layer (`/config/private.ts`)**: Reserved exclusively for the primary database connection strings and security essential (JWT secrets). This is the "static" foundation required for the CMS to boot.
-- **Runtime Layer (`system_preferences` DB Table)**: Infrastructure scaling parameters like **Read Replica URLs** and **Cloudflare CDN tokens** are managed dynamically in the database.
-
-This separation ensures that scaling operations (like adding a new geographic database replica) can be performed via the Admin Dashboard without touching environment variables or performing a full server restart.
-
-### Zero-Restart Hot Loading
-
-SveltyCMS adapters support a `configureReplicas()` interface. When the `SettingsService` loads infrastructure settings from the database:
-
-1.  It detects changes in the `DB_REPLICA_URLS` JSON array.
-2.  It calls the database adapter's `configureReplicas()` method.
-3.  The adapter gracefully closes old connections and initializes new regional connection pools.
-4.  The system immediately begins routing read queries to the new replicas based on the `x-svelty-region` header.
-
-### Cloudflare CDN Integration
-
-Scaling settings also include the **SveltyCore CDN Bridge**, which manages Cloudflare Cache Purging (Tag-based or Full). These tokens are stored securely in the `private` category of system settings, ensuring they are excluded from public API responses while remaining available to the `CdnService` on the server.
-
 ## AI Configuration
 
 SveltyCMS integrates with local and remote AI models to power advanced features like automated image tagging and the SveltyAgent assistant. These are configured in the **AI** group in System Settings.
@@ -138,8 +103,8 @@ SveltyCMS integrates with local and remote AI models to power advanced features 
 - **`AI_MODEL_VISION`**: The model used for vision tasks, such as `llava` or `moondream`.
 
 <Callout type="info">
-  **Note:** AI features require an active connection to the configured provider. If using Ollama,
-  ensure the server is running and the specified vision model is pulled (`ollama pull llava`).
+	**Note:** AI features require an active connection to the configured provider. If using Ollama, ensure the server is running and the specified
+	vision model is pulled (`ollama pull llava`).
 </Callout>
 
 ## API Endpoints
@@ -157,9 +122,8 @@ SveltyCMS integrates with local and remote AI models to power advanced features 
 ### Language Configuration Warnings
 
 <Callout type="error">
-  **CRITICAL: Data Loss Risk When Removing Content Languages** Removing a language from
-  `AVAILABLE_CONTENT_LANGUAGES` after content has been created can result in **permanent data loss**
-  for translations in that language.
+	**CRITICAL: Data Loss Risk When Removing Content Languages** Removing a language from `AVAILABLE_CONTENT_LANGUAGES` after content has been created
+	can result in **permanent data loss** for translations in that language.
 </Callout>
 
 **The Problem:**
@@ -227,31 +191,31 @@ AVAILABLE_CONTENT_LANGUAGES: ['en', 'de', 'fr']
    ```typescript
    // Remove Spanish translations from all entries
    async function removeLanguageTranslations(languageToRemove: string) {
-     const collections = await db.content.nodes.getStructure("flat");
+   	const collections = await db.content.nodes.getStructure('flat');
 
-     for (const collection of collections) {
-       const entries = await db.crud.findMany(collection.id, {});
+   	for (const collection of collections) {
+   		const entries = await db.crud.findMany(collection.id, {});
 
-       for (const entry of entries) {
-         const updatedEntry = { ...entry };
+   		for (const entry of entries) {
+   			const updatedEntry = { ...entry };
 
-         // Remove language key from all translated fields
-         for (const [key, value] of Object.entries(updatedEntry)) {
-           if (typeof value === "object" && value !== null && languageToRemove in value) {
-             delete value[languageToRemove];
-             updatedEntry[key] = value;
-           }
-         }
+   			// Remove language key from all translated fields
+   			for (const [key, value] of Object.entries(updatedEntry)) {
+   				if (typeof value === 'object' && value !== null && languageToRemove in value) {
+   					delete value[languageToRemove];
+   					updatedEntry[key] = value;
+   				}
+   			}
 
-         await db.crud.update(collection.id, entry._id, updatedEntry);
-       }
-     }
+   			await db.crud.update(collection.id, entry._id, updatedEntry);
+   		}
+   	}
 
-     console.log(`Removed all ${languageToRemove} translations`);
+   	console.log(`Removed all ${languageToRemove} translations`);
    }
 
    // Usage:
-   await removeLanguageTranslations("es");
+   await removeLanguageTranslations('es');
    // Now safe to remove 'es' from AVAILABLE_CONTENT_LANGUAGES
    ```
 
@@ -311,19 +275,15 @@ If translations were accidentally deleted:
 7. ✅ **Monitor** for issues after deployment
 8. ✅ **Keep backups** for at least 30 days
 
-<Callout type="info">
-  **Adding languages is always safe** - no existing data is affected. Only **removing** languages
-  poses data loss risks.
-</Callout>
+<Callout type="info">**Adding languages is always safe** - no existing data is affected. Only **removing** languages poses data loss risks.</Callout>
 
 ### Exporting (`config:export`)
 
 When a full configuration export is run, the `ConfigExporter` service queries the `system_preferences` table and saves all non-secret settings to a file like `/config/sync/system/system.settings.json`.
 
 <Callout type="warning">
-  **Security:** The export process must be configured to **exclude** secrets like `SMTP_PASSWORD`.
-  The `category: 'private'` property on a setting field ensures it is not included in public
-  exports.
+	**Security:** The export process must be configured to **exclude** secrets like `SMTP_PASSWORD`. The `category: 'private'` property on a setting
+	field ensures it is not included in public exports.
 </Callout>
 
 ### Importing (`config:import`)

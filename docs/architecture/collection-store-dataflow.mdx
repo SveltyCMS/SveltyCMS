@@ -1,18 +1,18 @@
 ---
-path: "docs/architecture/collection-store-dataflow.mdx"
-title: "Collection Store Data Flow"
-description: "How SveltyCMS loads, manages, and synchronizes collection/entry data using SSR and the collection store"
+path: 'docs/architecture/collection-store-dataflow.mdx'
+title: 'Collection Store Data Flow'
+description: 'How SveltyCMS loads, manages, and synchronizes collection/entry data using SSR and the collection store'
 order: 51
-icon: "mdi:database-sync"
-author: "SveltyCMS Team"
-created: "2025-08-11"
-updated: "2026-03-27"
+icon: 'mdi:database-sync'
+author: 'admin'
+created: '2025-08-11'
+updated: '2025-11-01'
 tags:
-  - "developer"
-  - "collections"
-  - "data-flow"
-  - "architecture"
-  - "ssr"
+  - 'developer'
+  - 'collections'
+  - 'data-flow'
+  - 'architecture'
+  - 'ssr'
 ---
 
 # Collection Store Data Flow (SSR Architecture)
@@ -21,10 +21,13 @@ This document describes the **canonical data flow** for loading, editing, and sa
 
 ## 🏗️ Store Architecture (Consolidated)
 
-This consolidation replaces the previous fragmented approach (`status-store`, `modeStateMachine`) to provide a single source of truth for **active collection data**.
+As of late 2025, the content state management has been consolidated into a single **`collection-store`** (`src/stores/collection-store.svelte.ts`). This unified store manages:
 
-> [!NOTE]
-> **Distinction**: The `collection-store` manages the lifecycle of the _currently viewed/edited_ collection and its entries. The **Content System (5-Pillar Architecture)** manages the global tree of all collections and their metadata, orchestrated via `src/content/index.ts`.
+1.  **Content State**: The current collection schema, entry data, and content structure.
+2.  **Status Logic**: Entry publication status (`publish`, `unpublish`, `schedule`, etc.) and toggling logic.
+3.  **View Mode**: The current UI mode (`view`, `edit`, `create`, `media`) and valid transitions.
+
+This consolidation replaces the previous fragmented approach (`status-store`, `modeStateMachine`) to provide a single source of truth and reduce circular dependencies. All consumers should import directly from `@stores/collection-store.svelte`.
 
 ## 🎯 Architecture: The "SvelteKit Way"
 
@@ -55,7 +58,6 @@ sequenceDiagram
     participant User
     participant Browser
     participant PageServer as +page.server.ts
-    participant CS as Content Manager (index.ts)
     participant Store as collection-store
     participant Cache as Redis Cache
     participant DB as Database
@@ -64,8 +66,7 @@ sequenceDiagram
 
     Note over User,PageServer: Initial Handshake (First Load after Setup/Login)
     Browser->>PageServer: GET /
-    PageServer->>CS: getFirstCollection()
-    CS-->>PageServer: Target Collection URL
+    PageServer->>DB: Get Smart First Collection
     PageServer-->>Browser: Redirect to FIRST_COLLECTION_REDIRECT_URL
 
     User->>Browser: Navigate to /en/Collections/Posts?page=1
@@ -283,7 +284,7 @@ This ensures that the next SSR load will always fetch fresh data after any data 
 
 - `src/routes/(app)/[language]/[...collection]/+page.server.ts` - SSR load function
 - `src/databases/cache-service.ts` - Redis caching layer
-- `src/utils/modify-request.ts` - Data enrichment
+- `src/routes/api/collections/modifyRequest.ts` - Data enrichment
 
 **Client-Side:**
 
@@ -296,7 +297,6 @@ This ensures that the next SSR load will always fetch fresh data after any data 
 **API Endpoints:**
 
 - `src/routes/api/collections/[collectionId]/[entryId]/revisions/+server.ts` - Revision history endpoint
-- `src/content/index.ts` - Content Manager facade
 - `src/utils/server/collection-utils.server.ts` - Server-side collection utilities
 
 ## Related Architecture

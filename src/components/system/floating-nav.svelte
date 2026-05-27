@@ -1,4 +1,4 @@
-<!-- 
+﻿<!-- 
 @file src/components/system/floating-nav.svelte
 @component
 **Floating navigation component for quick access to different pages**
@@ -25,7 +25,7 @@
 	import { motion } from '@src/utils/utils';
 	import { logger } from '@utils/logger';
 	// Modals/Tooltips
-	import { modalState } from '@utils/modal.svelte';
+	import { modalState } from '@utils/modal-state.svelte';
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { linear } from 'svelte/easing';
 	import { browser } from '$app/environment';

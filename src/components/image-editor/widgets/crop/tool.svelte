@@ -39,49 +39,19 @@ Orchestrates crop state using svelte-canvas compatible state.
 		imageEditorStore.setToolbarControls({
 			component: CropControls,
 			props: {
-				crop: storeState.crop ?? {
-					x: 0,
-					y: 0,
-					width: storeState.imageElement?.width ?? 0,
-					height: storeState.imageElement?.height ?? 0
-				},
 				cropShape,
 				onRotateLeft: () => (storeState.rotation -= 90),
 				onRotateRight: () => (storeState.rotation += 90),
 				onFlipHorizontal: () => (storeState.flipH = !storeState.flipH),
-				onFlipVertical: () => (storeState.flipV = !storeState.flipV),
-				onCropChange: (nextCrop: { x: number; y: number; width: number; height: number }) => {
-					storeState.crop = {
-						x: Math.max(0, Math.round(nextCrop.x)),
-						y: Math.max(0, Math.round(nextCrop.y)),
-						width: Math.max(MIN_CROP_SIZE, Math.round(nextCrop.width)),
-						height: Math.max(MIN_CROP_SIZE, Math.round(nextCrop.height))
-					};
-					normalizeCropRect();
-					imageEditorStore.takeSnapshot();
-				},
 				onCropShapeChange: (s: CropShape) => {
 					cropShape = s;
-					if (s === 'rectangle') {
-						normalizeCropRect();
-						return;
-					}
-					resizeCropRectToRatio(1, s);
 				},
 				onAspectRatio: (r: number | null) => {
-					if (r === null || r === 0) {
-						cropShape = 'rectangle';
-						normalizeCropRect();
-						return;
-					}
-
 					if (r === 1) {
 						cropShape = cropShape === 'circular' ? 'circular' : 'square';
 					} else {
 						cropShape = 'rectangle';
 					}
-
-					resizeCropRectToRatio(r, cropShape);
 				}
 			}
 		});
@@ -89,14 +59,6 @@ Orchestrates crop state using svelte-canvas compatible state.
 
 	$effect(() => {
 		if (imageEditorStore.state.activeState === 'crop') {
-			if (!storeState.crop && storeState.imageElement) {
-				storeState.crop = {
-					x: Math.round(storeState.imageElement.width * 0.1),
-					y: Math.round(storeState.imageElement.height * 0.1),
-					width: Math.round(storeState.imageElement.width * 0.8),
-					height: Math.round(storeState.imageElement.height * 0.8)
-				};
-			}
 			updateToolbar();
 		}
 	});
@@ -107,102 +69,6 @@ Orchestrates crop state using svelte-canvas compatible state.
 	let lastPointerPos = { x: 0, y: 0 };
 
 	const HANDLE_SIZE = 12;
-	const MIN_CROP_SIZE = 20;
-
-	function normalizeCropRect() {
-		const { crop, imageElement } = storeState;
-		if (!(crop && imageElement)) {
-			return;
-		}
-
-		let x = Number.isFinite(crop.x) ? crop.x : 0;
-		let y = Number.isFinite(crop.y) ? crop.y : 0;
-		let width = Number.isFinite(crop.width) ? crop.width : imageElement.width;
-		let height = Number.isFinite(crop.height) ? crop.height : imageElement.height;
-
-		if (width < 0) {
-			x += width;
-			width = Math.abs(width);
-		}
-
-		if (height < 0) {
-			y += height;
-			height = Math.abs(height);
-		}
-
-		width = Math.max(MIN_CROP_SIZE, width);
-		height = Math.max(MIN_CROP_SIZE, height);
-
-		if (x < 0) {
-			width += x;
-			x = 0;
-		}
-		if (y < 0) {
-			height += y;
-			y = 0;
-		}
-
-		if (x + width > imageElement.width) {
-			width = imageElement.width - x;
-		}
-		if (y + height > imageElement.height) {
-			height = imageElement.height - y;
-		}
-
-		width = Math.max(MIN_CROP_SIZE, Math.min(width, imageElement.width));
-		height = Math.max(MIN_CROP_SIZE, Math.min(height, imageElement.height));
-
-		storeState.crop = {
-			x: Math.round(x),
-			y: Math.round(y),
-			width: Math.round(width),
-			height: Math.round(height)
-		};
-	}
-
-	function resizeCropRectToRatio(ratio: number, shape: CropShape) {
-		const { crop, imageElement } = storeState;
-		if (!imageElement) {
-			return;
-		}
-
-		if (!crop) {
-			return;
-		}
-
-		const sourceWidth = Math.max(MIN_CROP_SIZE, Number.isFinite(crop.width) ? crop.width : imageElement.width);
-		const sourceHeight = Math.max(MIN_CROP_SIZE, Number.isFinite(crop.height) ? crop.height : imageElement.height);
-		const centerX = crop.x + sourceWidth / 2;
-		const centerY = crop.y + sourceHeight / 2;
-
-		let width = sourceWidth;
-		let height = sourceHeight;
-		const targetRatio = ratio > 0 ? ratio : 1;
-
-		if (width / height > targetRatio) {
-			width = height * targetRatio;
-		} else {
-			height = width / targetRatio;
-		}
-
-		width = Math.max(MIN_CROP_SIZE, Math.min(width, imageElement.width));
-		height = Math.max(MIN_CROP_SIZE, Math.min(height, imageElement.height));
-
-		let x = centerX - width / 2;
-		let y = centerY - height / 2;
-
-		x = Math.max(0, Math.min(x, Math.max(0, imageElement.width - width)));
-		y = Math.max(0, Math.min(y, Math.max(0, imageElement.height - height)));
-
-		storeState.crop = {
-			x: Math.round(x),
-			y: Math.round(y),
-			width: Math.round(width),
-			height: Math.round(height)
-		};
-
-		cropShape = shape;
-	}
 
 	// Helper to convert screen to image coordinates
 	function screenToImage(screenX: number, screenY: number, width: number, height: number) {
@@ -293,21 +159,18 @@ Orchestrates crop state using svelte-canvas compatible state.
 			crop.height += dy;
 		}
 
-		normalizeCropRect();
 		lastPointerPos = pos;
 	}
 
 	export function handleMouseUp() {
-		normalizeCropRect();
 		activeHandle = null;
 		isDraggingCrop = false;
-		imageEditorStore.takeSnapshot();
 	}
 
 	// Render function for the crop overlay
 	const renderCropUI = ({ context, width, height }: { context: CanvasRenderingContext2D; width: number; height: number }) => {
 		const { crop, zoom, translateX, translateY, imageElement } = storeState;
-		if (imageEditorStore.state.activeState !== 'crop' || !(crop && imageElement)) {
+		if (!(crop && imageElement)) {
 			return;
 		}
 
@@ -379,10 +242,7 @@ Orchestrates crop state using svelte-canvas compatible state.
 	};
 
 	export function saveState() {}
-	export function beforeExit() {
-		activeHandle = null;
-		isDraggingCrop = false;
-	}
+	export function beforeExit() {}
 </script>
 
 <Layer render={renderCropUI} />

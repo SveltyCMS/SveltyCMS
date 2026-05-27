@@ -33,112 +33,216 @@
 -->
 
 <script lang="ts">
+	// Components
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { tokenTarget } from '@src/services/token/token-target';
-	import { app, validationStore } from '@src/stores/store.svelte';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	// Stores
+	import { app, validationStore } from '@src/stores/store.svelte.ts';
 	import { getFieldName } from '@utils/utils';
+	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
+	import { onDestroy, onMount } from 'svelte';
+
+	// Valibot validation
 	import { minLength, optional, parse, pipe, regex, string } from 'valibot';
 	import type { FieldType } from '.';
 
-	let { 
-		field, 
-		value = $bindable(),
-		error 
-	}: { 
-		field: FieldType; 
-		value?: string | Record<string, string> | null | undefined;
-		error?: string | null;
-	} = $props();
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
 
-	const LANGUAGE = $derived(field.translated ? app.contentLanguage : 'en');
+	let { field, value = $bindable() }: Props = $props();
+
 	const fieldName = $derived(getFieldName(field));
+	// Use current content language for translated fields, default for non-translated
+	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
-	const safeValue = $derived.by(() => {
-		if (field.translated && value && typeof value === 'object') {
-			return (value as Record<string, string>)[LANGUAGE] || '';
+	// Initialize value if null/undefined
+	$effect(() => {
+		if (value === undefined || value === null) {
+			value = field.translated ? { [LANGUAGE]: '' } : '';
 		}
-		return typeof value === 'string' ? value : '';
 	});
 
-	const phoneSchema = $derived.by(() => {
-		const defaultPattern = /^\+?[1-9]\d{1,14}$/;
-		const pattern = field.pattern ? new RegExp(field.pattern as string) : defaultPattern;
-		const message = 'Invalid phone number format (e.g., +1234567890)';
-		const base = pipe(string(), regex(pattern, message));
-		return field.required ? pipe(string(), minLength(1, 'Phone number is required'), base) : optional(base, '');
+	const safeValue = $derived(value?.[LANGUAGE] ?? '');
+	const validationError = $derived(validationStore.getError(fieldName));
+	let debounceTimeout: number | undefined;
+	let inputElement = $state<HTMLInputElement | null>(null);
+	let isTouched = $state(false);
+	let isValidating = $state(false);
+
+	// Create validation schema for phone number
+	// Default E.164 pattern unless a custom pattern is provided
+	const defaultPattern = /^\+?[1-9]\d{1,14}$/;
+	const validationPattern = $derived(typeof field.pattern === 'string' && field.pattern.trim() !== '' ? new RegExp(field.pattern) : defaultPattern);
+
+	const phoneSchema = $derived(
+		field?.required
+			? pipe(
+					string(),
+					minLength(1, 'This field is required'),
+					regex(validationPattern, 'Invalid phone number format. Please use international format (e.g., +1234567890)')
+				)
+			: optional(pipe(string(), regex(validationPattern, 'Invalid phone number format. Please use international format (e.g., +1234567890)')), '')
+	);
+
+	// Validation function with debounce
+	function validateInput(immediate = false) {
+		if (debounceTimeout) {
+			clearTimeout(debounceTimeout);
+		}
+
+		const doValidation = () => {
+			isValidating = true;
+			try {
+				const currentValue = safeValue;
+
+				// First validate if required
+				if (field?.required && (!currentValue || currentValue.trim() === '')) {
+					validationStore.setError(fieldName, 'This field is required');
+					return;
+				}
+
+				// Then validate phone format if value exists
+				if (currentValue && currentValue.trim() !== '') {
+					// ✅ UNIFIED: Use handleWidgetValidation for standardized error handling
+					handleWidgetValidation(() => parse(phoneSchema, currentValue), {
+						fieldName,
+						updateStore: true
+					});
+					return;
+				}
+
+				validationStore.clearError(fieldName);
+			} finally {
+				isValidating = false;
+			}
+		};
+
+		if (immediate) {
+			doValidation();
+		} else {
+			debounceTimeout = window.setTimeout(doValidation, 300);
+		}
+	}
+
+	// Handle input changes
+	function handleInput(e: Event) {
+		const target = e.currentTarget as HTMLInputElement;
+		if (field.translated) {
+			if (!value || typeof value !== 'object') {
+				value = {};
+			}
+			value = { ...value, [LANGUAGE]: target.value };
+		} else {
+			value = target.value;
+		}
+	}
+
+	// Handle blur
+	function handleBlur() {
+		isTouched = true;
+		validateInput(true);
+	}
+
+	// Focus management
+	onMount(() => {
+		if (field?.required && !safeValue) {
+			inputElement?.focus();
+		}
 	});
 
-	function handleInput(e: Event & { currentTarget: HTMLInputElement }) {
-		const raw = e.currentTarget.value.trim();
-		
-		if (field.translated) {
-			value = { ...(typeof value === 'object' ? value : {}), [LANGUAGE]: raw };
-		} else {
-			value = raw;
+	// Cleanup
+	onDestroy(() => {
+		if (debounceTimeout) {
+			clearTimeout(debounceTimeout);
 		}
+	});
 
-		handleWidgetValidation(() => parse(phoneSchema, raw), {
-			fieldName,
-			updateStore: true
-		});
-	}
-
-	function handleClear() {
-		if (field.translated) {
-			value = { ...(typeof value === 'object' ? value : {}), [LANGUAGE]: '' };
-		} else {
-			value = '';
-		}
-		validationStore.clearError(fieldName);
-	}
+	// Export WidgetData for data binding with Fields.svelte
+	export const WidgetData = async () => value;
 </script>
 
-<div class="phone-widget flex flex-col gap-1">
-	<div 
-		class="flex items-center rounded-lg border transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
-		class:!border-error-500={!!error}
-		class:ring-2={!!error}
-		class:ring-error-500={!!error}
-	>
-		{#if field.prefix}
-			<span class="px-3 py-2 bg-surface-100 dark:bg-surface-800 border-r border-surface-300 dark:border-surface-700 text-surface-500 text-sm font-medium">
-				{field.prefix}
-			</span>
-		{/if}
+<div class="input-container relative mb-4">
+	<SystemTooltip title={validationError || ''} wFull={true}>
+		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600" role="group">
+			{#if field?.prefix}
+				<div
+					class="flex items-center bg-surface-200 px-3 text-surface-700 dark:bg-surface-800 dark:text-surface-200"
+					aria-label={`${field.prefix} prefix`}
+				>
+					{field?.prefix}
+				</div>
+			{/if}
 
-		<div class="relative grow flex items-center px-3">
-			<iconify-icon icon="mdi:phone-outline" width="18" class="text-surface-400 mr-2"></iconify-icon>
-			<input
-				type="tel"
-				aria-label={field.label || fieldName || 'Phone number'}
-				value={safeValue}
-				oninput={handleInput}
-				placeholder={(field.placeholder as string) || '+1234567890'}
-				class="w-full border-none bg-transparent py-2 text-sm font-medium outline-none focus:ring-0 text-surface-900 dark:text-surface-50"
-				disabled={field.readonly as boolean}
-				use:tokenTarget={{ name: fieldName, label: field.label, collection: (field as any).collection }}
-			/>
+			<div class="relative w-full flex-1">
+				<input
+					type="tel"
+					value={safeValue || ''}
+					oninput={handleInput}
+					onblur={handleBlur}
+					oninvalid={(e) => e.preventDefault()}
+					use:tokenTarget={{
+						name: field.db_fieldName,
+						label: field.label,
+						collection: (field as any).collection
+					}}
+					name={field?.db_fieldName}
+					id={field?.db_fieldName}
+					placeholder={typeof field?.placeholder === 'string' && field.placeholder !== '' ? field.placeholder : String(field?.db_fieldName ?? '')}
+					required={field?.required as boolean | undefined}
+					readonly={field?.readonly as boolean | undefined}
+					disabled={field?.disabled as boolean | undefined}
+					class="input w-full rounded-none border-none bg-white font-medium text-black outline-none focus:ring-0 dark:bg-surface-900 dark:text-primary-500 {validationError
+						? 'bg-error-500-10!'
+						: ''}"
+					aria-invalid={!!validationError}
+					aria-describedby={validationError ? `${fieldName}-error` : undefined}
+					aria-required={field?.required}
+					data-testid="phone-input"
+				/>
+			</div>
+
+			{#if field?.suffix}
+				<div
+					class="flex items-center bg-surface-200 px-3 text-surface-700 dark:bg-surface-800 dark:text-surface-200"
+					aria-label={`${field.suffix} suffix`}
+				>
+					{field?.suffix}
+				</div>
+			{/if}
+
+			<!-- Validation indicator -->
+			{#if isValidating}
+				<div class="flex items-center bg-white px-2 dark:bg-surface-900" aria-label="Validating">
+					<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+				</div>
+			{/if}
 		</div>
+	</SystemTooltip>
 
-		{#if field.suffix}
-			<span class="px-3 py-2 bg-surface-100 dark:bg-surface-800 border-l border-surface-300 dark:border-surface-700 text-surface-500 text-sm font-medium">
-				{field.suffix}
-			</span>
-		{/if}
-
-		{#if safeValue}
-			<button 
-				type="button" 
-				class="btn btn-sm variant-soft-surface p-1 mr-1 opacity-60 hover:opacity-100"
-				onclick={handleClear}
-				title="Clear"
-			>
-				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
-			</button>
-		{/if}
-	</div>
-
-	{#if error}
-		<p class="text-[10px] font-medium text-error-500 px-1" role="alert">{error}</p>
+	<!-- Error Message -->
+	{#if validationError && isTouched}
+		<p id={`${field.db_fieldName}-error`} class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
+			{validationError}
+		</p>
 	{/if}
 </div>
+
+<style>
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.animate-spin {
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+</style>

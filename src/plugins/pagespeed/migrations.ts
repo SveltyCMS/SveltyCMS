@@ -1,52 +1,33 @@
 /**
  * @file src/plugins/pagespeed/migrations.ts
- * @description Database migrations for PageSpeed plugin.
- * Ensures the persistent cache table is ready for use.
+ * @description Database migrations for PageSpeed plugin
  */
 
-import type { IDBAdapter } from "@databases/db-interface";
-import { logger } from "@utils/logger";
-import type { PluginMigration } from "../types";
+import type { IDBAdapter } from '@databases/db-interface';
+import { logger } from '@utils/logger.server';
+import type { PluginMigration } from '../types';
+import type { PageSpeedResult } from './types';
 
-/**
- * Migration 001: Validate/Initialize PageSpeed Results table.
- * SveltyCMS uses Drizzle for schema management; this migration ensures the
- * underlying database is synchronized with the plugin requirements.
- */
+// Validate plugin_pagespeed_results table exists (created via db:push from Drizzle schema)
 export const createPageSpeedResultsTable: PluginMigration = {
-  id: "001_create_pagespeed_results_table",
-  pluginId: "pagespeed",
-  version: 1,
-  description: "Ensure plugin_pagespeed_results collection exists",
+	id: '001_create_pagespeed_results_table',
+	pluginId: 'pagespeed',
+	version: 1,
+	description: 'Validate plugin_pagespeed_results table exists',
 
-  async up(dbAdapter: IDBAdapter) {
-    logger.info(
-      "PageSpeed Migration: Ensuring collection 'pluginPagespeedResults' is available...",
-    );
+	async up(dbAdapter: IDBAdapter) {
+		logger.info('Validating plugin_pagespeed_results table...');
 
-    try {
-      // 1. Probe for the collection/table
-      const probe = await dbAdapter.crud.findMany(
-        "pluginPagespeedResults",
-        {},
-        { limit: 1, bypassTenantCheck: true },
-      );
+		// Read-based validation: check the table exists by querying it
+		const result = await dbAdapter.crud.findMany<PageSpeedResult>('pluginPagespeedResults', {});
 
-      if (probe.success) {
-        logger.info("✅ PageSpeed: pluginPagespeedResults validated.");
-      } else {
-        // If probing fails, it might mean the table doesn't exist yet.
-        // In SveltyCMS, we recommend running 'db:push' or 'db:generate'
-        // when adding new plugins that define schemas.
-        logger.warn(
-          "⚠ PageSpeed: Collection 'pluginPagespeedResults' not detected. " +
-            "Please ensure your database is synchronized (run 'bun run db:push').",
-        );
-      }
-    } catch (err) {
-      logger.error("PageSpeed Migration Failed during probe", { error: err });
-    }
-  },
+		if (result.success) {
+			logger.info('✅ plugin_pagespeed_results table validated');
+		} else {
+			logger.warn('⚠ plugin_pagespeed_results table not found. Run `bun run db:push` to create it from the Drizzle schema.');
+		}
+	}
 };
 
+// All PageSpeed plugin migrations
 export const migrations: PluginMigration[] = [createPageSpeedResultsTable];

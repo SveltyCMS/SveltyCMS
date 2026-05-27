@@ -9,12 +9,12 @@
 -->
 
 <script lang="ts" module>
-export const widgetMeta = {
-	name: "Identity Sync",
-	icon: "mdi:cloud-sync",
-	description: "Monitor SCIM identity synchronization status",
-	defaultSize: { w: 1, h: 2 },
-};
+	export const widgetMeta = {
+		name: 'Identity Sync',
+		icon: 'mdi:cloud-sync',
+		description: 'Monitor SCIM identity synchronization status',
+		defaultSize: { w: 1, h: 2 }
+	};
 </script>
 
 <script lang="ts">

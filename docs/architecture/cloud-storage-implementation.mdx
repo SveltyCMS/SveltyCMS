@@ -1,20 +1,20 @@
 ---
-path: "docs/architecture/cloud-storage-implementation.mdx"
-title: "Cloud Storage Implementation"
-description: "Technical documentation of the cloud storage architecture and implementation details"
+path: 'docs/architecture/cloud-storage-implementation.mdx'
+title: 'Cloud Storage Implementation'
+description: 'Technical documentation of the cloud storage architecture and implementation details'
 order: 35
-icon: "mdi:cloud-cog"
-author: "SveltyCMS Team"
-created: "2025-11-05"
-updated: "2026-03-27"
+icon: 'mdi:cloud-cog'
+author: 'admin'
+created: '2025-11-05'
+updated: '2025-11-05'
 tags:
-  - "architecture"
-  - "cloud-storage"
-  - "s3"
-  - "r2"
-  - "cloudinary"
-  - "media"
-  - "storage"
+  - 'architecture'
+  - 'cloud-storage'
+  - 's3'
+  - 'r2'
+  - 'cloudinary'
+  - 'media'
+  - 'storage'
 ---
 
 # Cloud Storage Implementation
@@ -128,7 +128,7 @@ export async function cloudFileExists(relativePath: string): Promise<boolean>;
 
 ```typescript
 // Added
-export type StorageType = "local" | "s3" | "r2" | "cloudinary";
+export type StorageType = 'local' | 's3' | 'r2' | 'cloudinary';
 ```
 
 #### `src/routes/files/[...path]/+server.ts`
@@ -136,38 +136,26 @@ export type StorageType = "local" | "s3" | "r2" | "cloudinary";
 **Changes**:
 
 - Added cloud storage check at the beginning of GET handler
-- **Performance**: Implemented ETag caching. Uses `getMetadata` to fetch the ETag from cloud storage.
-- Returns **304 Not Modified** if the request's `If-None-Match` header matches the cloud asset's ETag, saving significant bandwidth and latency.
-- Constructs full cloud URL with MEDIA_FOLDER prefix and returns a **307 redirect** if the cache is stale or missing.
-- Falls through to local file serving if not cloud (also supports ETags via file stats).
+- Constructs full cloud URL with MEDIA_FOLDER prefix
+- Returns 307 redirect to cloud URL
+- Falls through to local file serving if not cloud
 
 **Flow**:
 
 ```typescript
-GET /files/avatars/image.avif (If-None-Match: "etag-value")
+GET /files/avatars/image.avif
 ↓
 if (isCloudStorage())
   ↓
-  metadata = await getMetadata('avatars/image.avif')
+  MEDIA_FOLDER = getPublicSettingSync('MEDIA_FOLDER') // 'cms-media'
   ↓
-  if (metadata.etag === "etag-value")
-    ↓
-    return 304 Not Modified (DONE)
-  else
-    ↓
-    MEDIA_FOLDER = getPublicSettingSync('MEDIA_FOLDER') // 'cms-media'
-    ↓
-    cloudUrl = getCloudUrl('avatars/image.avif')
-    // Returns: https://cdn.example.com/cms-media/avatars/image.avif
-    ↓
-    return new Response(null, {
-      status: 307,
-      location: cloudUrl,
-      headers: { 'ETag': metadata.etag }
-    })
+  cloudUrl = getCloudUrl('avatars/image.avif')
+  // Returns: https://cdn.example.com/cms-media/avatars/image.avif
+  ↓
+  return new Response(null, { status: 307, location: cloudUrl })
 else
   ↓
-  Serve from local filesystem (with local ETag validation)
+  Serve from local filesystem
 ```
 
 #### `src/utils/media/mediaStorage.ts`
@@ -177,13 +165,7 @@ else
 1. **Imports**: Added cloud storage functions
 
    ```typescript
-   import {
-     isCloudStorage,
-     uploadToCloud,
-     deleteFromCloud,
-     getCloudUrl,
-     cloudFileExists,
-   } from "./cloudStorage";
+   import { isCloudStorage, uploadToCloud, deleteFromCloud, getCloudUrl, cloudFileExists } from './cloudStorage';
    ```
 
 2. **`saveFileToDisk()`**: Now returns URL instead of void
@@ -197,8 +179,8 @@ else
 
    // Implementation
    if (isCloudStorage()) {
-     const publicUrl = await uploadToCloud(buffer, relativePath);
-     return publicUrl; // Cloud URL
+   	const publicUrl = await uploadToCloud(buffer, relativePath);
+   	return publicUrl; // Cloud URL
    }
    // Local save...
    return `/files/${relativePath}`; // Local URL
@@ -208,13 +190,13 @@ else
 
    ```typescript
    if (isCloudStorage()) {
-     // Extract relative path from URL
-     let relativePath = url.replace(/^https?:\/\/[^/]+/i, "").replace(/^\/+/, "");
-     if (relativePath.startsWith("files/")) {
-       relativePath = relativePath.slice("files/".length);
-     }
-     await deleteFromCloud(relativePath);
-     return;
+   	// Extract relative path from URL
+   	let relativePath = url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '');
+   	if (relativePath.startsWith('files/')) {
+   		relativePath = relativePath.slice('files/'.length);
+   	}
+   	await deleteFromCloud(relativePath);
+   	return;
    }
    // Local deletion...
    ```
@@ -223,10 +205,10 @@ else
 
    ```typescript
    if (isCloudStorage()) {
-     // Extract relative path...
-     const cloudUrl = getCloudUrl(relativePath);
-     const response = await fetch(cloudUrl);
-     return Buffer.from(await response.arrayBuffer());
+   	// Extract relative path...
+   	const cloudUrl = getCloudUrl(relativePath);
+   	const response = await fetch(cloudUrl);
+   	return Buffer.from(await response.arrayBuffer());
    }
    // Local read...
    ```
@@ -235,8 +217,8 @@ else
 
    ```typescript
    if (isCloudStorage()) {
-     // Extract relative path...
-     return await cloudFileExists(relativePath);
+   	// Extract relative path...
+   	return await cloudFileExists(relativePath);
    }
    // Local check...
    ```
@@ -245,9 +227,9 @@ else
 
    ```typescript
    if (isCloudStorage()) {
-     // Extract relative path...
-     await deleteFromCloud(relativePath);
-     return; // No trash folder in cloud
+   	// Extract relative path...
+   	await deleteFromCloud(relativePath);
+   	return; // No trash folder in cloud
    }
    // Local trash logic...
    ```
@@ -265,17 +247,39 @@ else
    return publicUrl; // Cloud URL or /files/ URL
    ```
 
-#### `src/routes/api/[...path]/handlers/system.ts`
+#### `src/routes/api/user/save-avatar/+server.ts`
 
 **Changes**:
 
-- Consolidated `save-avatar` and `delete-avatar` into the system handler.
+- Removed 15+ lines of manual URL normalization
 - Now trusts `saveAvatarImage()` to return correct URL
-- Simplified logic by delegating to the unified dispatcher.
+- Simplified from ~155 lines to ~140 lines
 
-#### `src/routes/api/[...path]/handlers/media.ts`
+**Before**:
 
-**Changes**: Unified media handling for delete, exists, and get operations.
+```typescript
+const avatarUrl = await saveAvatarImage(...);
+// Complex normalization logic (15+ lines)
+const normalizedUrl = ...;
+user.avatar = normalizedUrl;
+```
+
+**After**:
+
+```typescript
+const avatarUrl = await saveAvatarImage(...);
+user.avatar = avatarUrl; // Already correct
+```
+
+#### `src/routes/api/user/delete-avatar/+server.ts`
+
+**Changes**: None needed - already uses `moveMediaToTrash()` which is now cloud-aware
+
+#### `src/routes/api/media/delete/+server.ts`
+
+#### `src/routes/api/media/exists/+server.ts`
+
+#### `src/routes/api/media/get/+server.ts`
 
 **Changes**: None needed - already use updated `deleteFile()`, `fileExists()`, and `getFile()` functions
 
@@ -312,13 +316,13 @@ else
 
 ```typescript
 interface MediaSettings {
-  MEDIA_STORAGE_TYPE: "local" | "s3" | "r2" | "cloudinary";
-  MEDIA_FOLDER: string; // Local path OR cloud prefix
+	MEDIA_STORAGE_TYPE: 'local' | 's3' | 'r2' | 'cloudinary';
+	MEDIA_FOLDER: string; // Local path OR cloud prefix
 
-  // Cloud-specific (optional)
-  MEDIA_CLOUD_REGION?: string;
-  MEDIA_CLOUD_ENDPOINT?: string;
-  MEDIA_CLOUD_PUBLIC_URL?: string;
+	// Cloud-specific (optional)
+	MEDIA_CLOUD_REGION?: string;
+	MEDIA_CLOUD_ENDPOINT?: string;
+	MEDIA_CLOUD_PUBLIC_URL?: string;
 }
 ```
 
@@ -532,14 +536,14 @@ async function getS3Client() {
 
 ```typescript
 interface StorageStrategy {
-  primary: StorageConfig;
-  backup?: StorageConfig;
-  rules?: {
-    fileType?: string[];
-    minSize?: number;
-    maxSize?: number;
-    storage: StorageType;
-  }[];
+	primary: StorageConfig;
+	backup?: StorageConfig;
+	rules?: {
+		fileType?: string[];
+		minSize?: number;
+		maxSize?: number;
+		storage: StorageType;
+	}[];
 }
 ```
 
@@ -573,16 +577,16 @@ interface StorageStrategy {
 
    ```typescript
    const config = getCloudStorageConfig();
-   console.log("Storage Type:", config.storageType);
-   console.log("Media Folder:", config.mediaFolder);
+   console.log('Storage Type:', config.storageType);
+   console.log('Media Folder:', config.mediaFolder);
    ```
 
 2. **Test Cloud Operations**:
 
    ```typescript
-   const testPath = "test/file.txt";
-   console.log("Cloud Path:", getCloudPath(testPath));
-   console.log("Cloud URL:", getCloudUrl(testPath));
+   const testPath = 'test/file.txt';
+   console.log('Cloud Path:', getCloudPath(testPath));
+   console.log('Cloud URL:', getCloudUrl(testPath));
    ```
 
 3. **Verify Credentials**:
@@ -603,53 +607,53 @@ interface StorageStrategy {
 ### Custom Upload Handler
 
 ```typescript
-import { uploadToCloud, getCloudUrl } from "@utils/media/cloud-storage";
+import { uploadToCloud, getCloudUrl } from '@utils/media/cloud-storage';
 
 export async function uploadCustomFile(file: File, folder: string) {
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const filename = `${folder}/${Date.now()}-${file.name}`;
+	const buffer = Buffer.from(await file.arrayBuffer());
+	const filename = `${folder}/${Date.now()}-${file.name}`;
 
-  const publicUrl = await uploadToCloud(buffer, filename);
+	const publicUrl = await uploadToCloud(buffer, filename);
 
-  return {
-    url: filename, // For database
-    publicUrl, // For API response
-  };
+	return {
+		url: filename, // For database
+		publicUrl // For API response
+	};
 }
 ```
 
 ### Batch Delete
 
 ```typescript
-import { deleteFromCloud } from "@utils/media/cloud-storage";
+import { deleteFromCloud } from '@utils/media/cloud-storage';
 
 export async function batchDelete(files: string[]) {
-  const results = await Promise.allSettled(files.map((file) => deleteFromCloud(file)));
+	const results = await Promise.allSettled(files.map((file) => deleteFromCloud(file)));
 
-  return results.map((result, i) => ({
-    file: files[i],
-    success: result.status === "fulfilled",
-    error: result.status === "rejected" ? result.reason : null,
-  }));
+	return results.map((result, i) => ({
+		file: files[i],
+		success: result.status === 'fulfilled',
+		error: result.status === 'rejected' ? result.reason : null
+	}));
 }
 ```
 
 ### Signed URL Generation (S3)
 
 ```typescript
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
 
 export async function getPrivateFileUrl(relativePath: string, expiresIn = 3600) {
-  const config = getCloudStorageConfig();
-  const s3Client = await getS3Client();
+	const config = getCloudStorageConfig();
+	const s3Client = await getS3Client();
 
-  const command = new GetObjectCommand({
-    Bucket: config.bucket,
-    Key: getCloudPath(relativePath),
-  });
+	const command = new GetObjectCommand({
+		Bucket: config.bucket,
+		Key: getCloudPath(relativePath)
+	});
 
-  return await getSignedUrl(s3Client, command, { expiresIn });
+	return await getSignedUrl(s3Client, command, { expiresIn });
 }
 ```
 

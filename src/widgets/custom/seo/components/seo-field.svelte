@@ -45,16 +45,17 @@
 	}: Props = $props();
 
 	// Element references
-	let inputRef = $state<HTMLInputElement | HTMLTextAreaElement | undefined>();
+	let inputRef = $state<HTMLInputElement | HTMLTextAreaElement | undefined>(undefined);
 
-	// Reactive — recalculates whenever value/maxLength/optimalMin/optimalMax change
-	const lengthClass = $derived(
-		maxLength && value.length > maxLength
-			? 'text-error-500'
-			: value.length >= optimalMin && value.length <= optimalMax
-				? 'text-success-500'
-				: 'text-surface-400 dark:text-surface-300'
-	);
+	const getLengthClass = () => {
+		if (maxLength && value.length > maxLength) {
+			return 'text-error-500';
+		}
+		if (value.length >= optimalMin && value.length <= optimalMax) {
+			return 'text-success-500';
+		}
+		return 'text-surface-400 dark:text-surface-300';
+	};
 </script>
 
 <div class="space-y-2">
@@ -68,23 +69,26 @@
 				</span>
 			</SystemTooltip>
 		</div>
-
 		<div class="flex items-center gap-3 text-xs">
 			<SystemTooltip title="Insert Token">
 				<button
 					type="button"
+					class=""
 					aria-label="Insert Token"
-					onclick={() => inputRef?.focus()}
+					onclick={() => {
+						inputRef?.focus();
+					}}
 				>
 					<iconify-icon icon="mdi:code-braces" width={16} class="dark:text-primary-500"></iconify-icon>
 				</button>
 			</SystemTooltip>
-
 			{#if maxLength}
-				<!-- Identical output for both types — no branch needed -->
-				<span class={lengthClass}>({value.length}/{maxLength})</span>
+				{#if type === 'input'}
+					<span class={getLengthClass()}>({value.length}/{maxLength})</span>
+				{:else}
+					<span class={getLengthClass()}>({value.length}/{maxLength})</span>
+				{/if}
 			{/if}
-
 			{#if translated}
 				<div class="flex items-center gap-1 text-xs">
 					<iconify-icon icon="bi:translate" width={16}></iconify-icon>

@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/Checkbox/Input.svelte
+@file src/widgets/core/Checkbox/Input.svelte
 @component
 **Checkbox Widget Input Component**
 

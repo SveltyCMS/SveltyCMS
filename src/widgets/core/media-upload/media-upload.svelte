@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/MediaUpload/MediaUpload.svelte
+@file src/widgets/core/MediaUpload/MediaUpload.svelte
 @component
 **Media Upload Widget Component**
 
@@ -39,12 +39,11 @@ functionality for image editing and basic file information display.
 	import { collectionValue } from '@src/stores/collection-store.svelte.ts';
 	// Stores
 	import { validationStore } from '@src/stores/store.svelte.ts';
-	import { isoDateStringToDate } from '@utils/date';
+	import { isoDateStringToDate } from '@utils/date-utils';
 	import { logger } from '@utils/logger';
 	import { updateMediaMetadata } from '@utils/media/api';
 	import type { MediaImage, WatermarkOptions } from '@utils/media/media-models';
-	import { getFieldName } from '@utils/utils';
-	import { formatDateString } from '@utils/date';
+	import { convertTimestampToDateString, getFieldName } from '@utils/utils';
 
 	// Define reactive state
 	let isFlipped = $state(false);
@@ -123,22 +122,35 @@ functionality for image editing and basic file information display.
 		}, 300);
 	}
 
-	async function handleEditorSave(detail: any) {
-		const { mediaId, manipulations } = detail;
+	async function handleEditorSave(detail: {
+		dataURL: string;
+		file: File;
+		operations?: unknown;
+		focalPoint?: unknown;
+		mediaId?: string;
+		saveBehavior?: 'new' | 'overwrite';
+	}) {
+		const { file, operations, focalPoint, mediaId, saveBehavior } = detail;
 
-		if (!mediaId) {
-			logger.error('Cannot save edits: Media ID is missing');
-			return;
+		const formData = new FormData();
+		formData.append('file', file);
+		if (mediaId) {
+			formData.append('mediaId', mediaId);
+		}
+		if (operations) {
+			formData.append('operations', JSON.stringify(operations));
+		}
+		if (focalPoint) {
+			formData.append('focalPoint', JSON.stringify(focalPoint));
+		}
+		if (saveBehavior) {
+			formData.append('saveBehavior', saveBehavior);
 		}
 
 		try {
-			// --- SERVER-SIDE BAKING ---
-			const response = await fetch(`/api/media/manipulate/${mediaId}`, {
+			const response = await fetch('/api/media/edit', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(manipulations)
+				body: formData
 			});
 
 			if (!response.ok) {
@@ -152,7 +164,7 @@ functionality for image editing and basic file information display.
 			}
 
 			// Update the widget data with the new persisted image data
-			value = result.data;
+			value = result.data; // Assign directly to the bindable prop
 			showEditor = false;
 		} catch (error) {
 			logger.error('Error saving edited image:', error);
@@ -303,11 +315,11 @@ functionality for image editing and basic file information display.
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">{(value as Any).path}</p>
 							<p class="">{widget_ImageUpload_Uploaded()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">
-								{formatDateString(getTimestamp((value as Any) instanceof File ? (value as Any).lastModified : (value as Any).createdAt))}
+								{convertTimestampToDateString(getTimestamp((value as Any) instanceof File ? (value as Any).lastModified : (value as Any).createdAt))}
 							</p>
 							<p class="">{widget_ImageUpload_LastModified()}</p>
 							<p class="font-bold text-tertiary-500 dark:text-primary-500">
-								{formatDateString(getTimestamp((value as Any) instanceof File ? (value as Any).lastModified : (value as Any).updatedAt))}
+								{convertTimestampToDateString(getTimestamp((value as Any) instanceof File ? (value as Any).lastModified : (value as Any).updatedAt))}
 							</p>
 
 							{#if !(value instanceof File) && value.metadata?.aiTags?.length}

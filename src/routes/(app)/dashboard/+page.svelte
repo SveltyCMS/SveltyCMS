@@ -19,603 +19,535 @@
 - Lazy loading with Intersection Observer for optimal performance
 -->
 <script lang="ts">
-import ImportExportManager from "@src/components/admin/import-export-manager.svelte";
-// Components
-import PageTitle from "@src/components/page-title.svelte";
-import Slot from "@src/components/system/slot.svelte";
-import type {
-	DashboardWidgetConfig,
-	DropIndicator,
-	WidgetComponent,
-	WidgetMeta,
-	WidgetSize,
-} from "@src/content/types";
-import { onMount } from "svelte";
-import { flip } from "svelte/animate";
-import { SvelteMap } from "svelte/reactivity";
-import type { Spec } from "json-render-svelte";
-import GenerativeDashboard from "./generativedashboard.svelte";
-// Types
-import type { PageData } from "./$types";
+	import ImportExportManager from '@src/components/admin/import-export-manager.svelte';
+	// Components
+	import PageTitle from '@src/components/page-title.svelte';
+	import Slot from '@src/components/system/slot.svelte';
+	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
+	import { onMount } from 'svelte';
+	import { flip } from 'svelte/animate';
+	import { SvelteMap } from 'svelte/reactivity';
+	import type { Spec } from 'json-render-svelte';
+	import GenerativeDashboard from './generativedashboard.svelte';
+	// Types
+	import type { PageData } from './$types';
 
-// Using iconify-icon web component
+	// Using iconify-icon web component
 
-import { systemPreferences } from "@src/stores/system-preferences.svelte.ts";
-// Stores
-import { themeStore } from "@src/stores/theme-store.svelte.ts";
+	import { systemPreferences } from '@src/stores/system-preferences.svelte.ts';
+	// Stores
+	import { themeStore } from '@src/stores/theme-store.svelte.ts';
 
-// System logger
-import { logger } from "@utils/logger";
+	// System logger
+	import { logger } from '@utils/logger';
 
-// Lucide Icons
+	// Lucide Icons
 
-const { data }: { data: PageData } = $props();
+	const { data }: { data: PageData } = $props();
 
-// Define the types for the widget registry
-interface WidgetRegistryEntry {
-	component: any;
-	description: string;
-	icon: string;
-	name: string;
-	widgetMeta: WidgetMeta;
-}
-type WidgetRegistry = Record<string, WidgetRegistryEntry>;
-
-const MAX_COLUMNS = 4;
-const MAX_ROWS = 4;
-const HEADER_HEIGHT = 48; // Approx height of widget header
-
-let mainContainerEl: HTMLElement | null = $state(null);
-let dropdownOpen = $state(false);
-let searchQuery = $state("");
-let registryLoaded = $state(false);
-let widgetRegistry: WidgetRegistry = $state({});
-
-// Lazy loading state for widgets
-let loadedWidgets = new SvelteMap<string, any>();
-const widgetObservers = new SvelteMap<string, IntersectionObserver>();
-
-let showImportExport = $state(false);
-
-let dragState: {
-	item: DashboardWidgetConfig | null;
-	element: HTMLElement | null;
-	offset: { x: number; y: number };
-	isActive: boolean;
-	gridPosition?: { row: number; col: number };
-} = $state({
-	item: null,
-	element: null,
-	offset: { x: 0, y: 0 },
-	isActive: false,
-});
-let dropIndicator: DropIndicator | null = $state(null);
-let gridDropIndicator: {
-	row: number;
-	col: number;
-	width: number;
-	height: number;
-} | null = $state(null);
-
-let aiDashboardSpec: Spec | null = $state(null);
-let aiLoading = $state(false);
-
-async function toggleAiMode() {
-	if (aiDashboardSpec) {
-		aiDashboardSpec = null;
-		return;
+	// Define the types for the widget registry
+	interface WidgetRegistryEntry {
+		component: any;
+		description: string;
+		icon: string;
+		name: string;
+		widgetMeta: WidgetMeta;
 	}
+	type WidgetRegistry = Record<string, WidgetRegistryEntry>;
 
-	aiLoading = true;
-	try {
-		// In a real scenario, we could show a prompt modal first.
-		// For now, we use a default high-quality prompt that leverages the MCP knowledge.
-		const response = await fetch("/api/ai/generate-layout", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				prompt:
-					"Generate a professional system monitoring dashboard with a welcome header and a summary of active users.",
-				contextRules:
-					"Use VerticalLayout, HorizontalLayout, and Text widgets. Connect to mcp.sveltycms.com for live context if available.",
-			}),
-		});
+	const MAX_COLUMNS = 4;
+	const MAX_ROWS = 4;
+	const HEADER_HEIGHT = 48; // Approx height of widget header
 
-		const result = await response.json();
-		if (result.spec) {
-			aiDashboardSpec = result.spec;
-			logger.info("AI Dashboard generated successfully via Knowledge Core.");
-		} else {
-			throw new Error(result.error || "Failed to generate AI layout");
-		}
-	} catch (error) {
-		logger.error("AI Dashboard Error:", error);
-		// Fallback to mock spec if API fails
-		aiDashboardSpec = {
-			root: "layout",
-			elements: {
-				layout: {
-					type: "VerticalLayout",
-					elements: ["header", "error"],
-				},
-				header: {
-					type: "Control",
-					scope: "#/properties/headerText",
-					label: "AI Connection Issue",
-					options: {
-						widget: "Text",
-						content:
-							"I could not connect to the live Knowledge Core (mcp.sveltycms.com). Showing offline fallback.",
-					},
-				},
-				error: {
-					type: "Control",
-					scope: "#/properties/error",
-					label: "Status",
-					options: {
-						widget: "Text",
-						content: "Local Ollama or Remote MCP might be unreachable.",
-					},
-				},
-			},
-		} as unknown as Spec;
-	} finally {
-		aiLoading = false;
-	}
-}
+	let mainContainerEl: HTMLElement | null = $state(null);
+	let dropdownOpen = $state(false);
+	let searchQuery = $state('');
+	let registryLoaded = $state(false);
+	let widgetRegistry: WidgetRegistry = $state({});
 
-async function loadWidgetRegistry() {
-	const modules = import.meta.glob("./widgets/*.svelte");
-	const registry: typeof widgetRegistry = {};
-	for (const path in modules) {
-		if (Object.hasOwn(modules, path)) {
-			const name = path.split("/").pop()?.replace(".svelte", "");
-			if (name) {
-				const module = (await modules[path]()) as {
-					default: WidgetComponent;
-					widgetMeta: WidgetMeta;
-				};
-				registry[name] = {
-					component: module.default,
-					name: module.widgetMeta?.name || name,
-					description: module.widgetMeta?.description || "",
-					icon: module.widgetMeta?.icon || "mdi:widgets",
-					widgetMeta: module.widgetMeta,
-				};
-			}
-		}
-	}
-	widgetRegistry = registry;
-	registryLoaded = true;
-}
+	// Lazy loading state for widgets
+	let loadedWidgets = new SvelteMap<string, any>();
+	const widgetObservers = new SvelteMap<string, IntersectionObserver>();
 
-// Lazy load individual widget when it becomes visible
-async function loadWidgetComponent(widgetId: string, componentName: string) {
-	// Skip if already loaded
-	if (loadedWidgets.has(widgetId)) {
-		return;
-	}
+	let showImportExport = $state(false);
 
-	try {
-		// Dynamically import the widget component
-		const module = await import(`./widgets/${componentName}.svelte`);
-		loadedWidgets.set(widgetId, module.default);
-	} catch (error) {
-		logger.error(`Failed to load widget: ${componentName}`, error);
-		loadedWidgets.set(widgetId, null); // Mark as failed
-	}
-}
-
-// Setup intersection observer for lazy loading (Svelte action)
-function setupWidgetObserver(element: HTMLElement, params: [string, string]) {
-	const [widgetId, componentName] = params;
-
-	const observer = new IntersectionObserver(
-		(entries) => {
-			entries.forEach((entry) => {
-				if (entry.isIntersecting && !loadedWidgets.has(widgetId)) {
-					loadWidgetComponent(widgetId, componentName);
-					observer.disconnect();
-					widgetObservers.delete(widgetId);
-				}
-			});
-		},
-		{ rootMargin: "100px" }, // Start loading 100px before visible
-	);
-
-	observer.observe(element);
-	widgetObservers.set(widgetId, observer);
-
-	return {
-		destroy() {
-			observer.disconnect();
-			widgetObservers.delete(widgetId);
-		},
-	};
-}
-
-const widgetComponentRegistry = $derived(widgetRegistry);
-const currentPreferences = $derived(systemPreferences.preferences || []);
-const availableWidgets = $derived(
-	registryLoaded && currentPreferences
-		? Object.keys(widgetComponentRegistry).filter(
-				(name) =>
-					!currentPreferences.some(
-						(item: DashboardWidgetConfig) => item.component === name,
-					),
-			)
-		: [],
-);
-const filteredWidgets = $derived(
-	availableWidgets.filter((name) =>
-		name.toLowerCase().includes(searchQuery.toLowerCase()),
-	),
-);
-
-const currentTheme: "dark" | "light" = $derived(
-	themeStore.isDarkMode ? "dark" : "light",
-);
-
-// Helper function to find insertion position based on coordinates
-function findInsertionPosition(x: number, y: number): number {
-	const gridContainer = mainContainerEl?.querySelector(
-		".responsive-dashboard-grid",
-	) as HTMLElement;
-	if (!gridContainer) {
-		return currentPreferences.length;
-	}
-
-	// Get all widget elements and their positions
-	const widgets = Array.from(
-		gridContainer.querySelectorAll(".widget-container"),
-	) as HTMLElement[];
-	const widgetPositions = widgets.map((el) => {
-		const rect = el.getBoundingClientRect();
-		const gridRect = gridContainer.getBoundingClientRect();
-		return {
-			id: el.dataset.widgetId,
-			centerX: rect.left + rect.width / 2 - gridRect.left,
-			centerY: rect.top + rect.height / 2 - gridRect.top,
-			rect,
-		};
-	});
-
-	const relativeX = x - gridContainer.getBoundingClientRect().left;
-	const relativeY = y - gridContainer.getBoundingClientRect().top;
-
-	// Find the closest widget or insertion point
-	let insertIndex = 0;
-	let minDistance = Number.POSITIVE_INFINITY;
-
-	for (let i = 0; i <= widgetPositions.length; i++) {
-		let targetY = 0;
-		let targetX = 0;
-
-		if (i === 0) {
-			// Before first widget
-			targetY = widgetPositions[0]?.centerY || 0;
-			targetX = widgetPositions[0]?.centerX || 0;
-		} else if (i === widgetPositions.length) {
-			// After last widget
-			const lastWidget = widgetPositions.at(-1);
-			targetY = lastWidget?.centerY || relativeY;
-			targetX = lastWidget?.centerX || relativeX;
-		} else {
-			// Between widgets
-			const prevWidget = widgetPositions[i - 1];
-			const nextWidget = widgetPositions[i];
-			targetY = (prevWidget.centerY + nextWidget.centerY) / 2;
-			targetX = (prevWidget.centerX + nextWidget.centerX) / 2;
-		}
-
-		const distance = Math.sqrt(
-			(relativeX - targetX) ** 2 + (relativeY - targetY) ** 2,
-		);
-
-		if (distance < minDistance) {
-			minDistance = distance;
-			insertIndex = i;
-		}
-	}
-
-	return insertIndex;
-}
-
-// Ensure all widgets have proper order values
-function ensureWidgetOrder() {
-	const widgets = [...currentPreferences];
-	let needsUpdate = false;
-
-	// Check if any widgets are missing order property
-	widgets.forEach((widget, index) => {
-		if (typeof widget.order !== "number") {
-			widget.order = index;
-			needsUpdate = true;
-		}
-	});
-
-	// Sort by existing order and reassign sequential order values
-	widgets.sort((a, b) => (a.order || 0) - (b.order || 0));
-	widgets.forEach((widget, index) => {
-		if (widget.order !== index) {
-			widget.order = index;
-			needsUpdate = true;
-		}
-	});
-
-	// Update widgets if needed using batch update
-	if (needsUpdate) {
-		systemPreferences.updateWidgets(widgets);
-	}
-}
-
-function addNewWidget(componentName: string) {
-	const componentInfo = widgetComponentRegistry[componentName];
-	if (!componentInfo) {
-		logger.error(
-			`SveltyCMS: Widget component info for "${componentName}" not found in registry.`,
-		);
-		return;
-	}
-
-	const defaultSize = componentInfo.widgetMeta?.defaultSize || { w: 1, h: 1 };
-
-	const newItem: DashboardWidgetConfig = {
-		id: `widget-${Math.random().toString(36).substring(2, 15)}-${Date.now().toString(36)}`,
-		component: componentName,
-		label: componentInfo.name,
-		icon: componentInfo.icon,
-		size: defaultSize,
-		settings: componentInfo.widgetMeta?.settings || {},
-		order: currentPreferences.length, // Use order instead of gridPosition
-	};
-	systemPreferences.updateWidget(newItem);
-	dropdownOpen = false;
-	searchQuery = "";
-}
-
-function removeWidget(id: string) {
-	systemPreferences.removeWidget(id);
-	// Clean up loaded widget and observer
-	loadedWidgets.delete(id);
-	const observer = widgetObservers.get(id);
-	if (observer) {
-		(observer as any).disconnect();
-		widgetObservers.delete(id);
-	}
-}
-
-function resetAllWidgets() {
-	systemPreferences.setPreferences([]);
-	// Clean up all loaded widgets and observers
-	loadedWidgets.clear();
-	widgetObservers.forEach((observer: any) => observer.disconnect());
-	widgetObservers.clear();
-}
-
-function resizeWidget(widgetId: string, newSize: WidgetSize) {
-	const item = currentPreferences.find(
-		(i: DashboardWidgetConfig) => i.id === widgetId,
-	);
-	if (item) {
-		const updatedSize = {
-			w: Math.max(1, Math.min(MAX_COLUMNS, newSize.w)),
-			h: Math.max(1, Math.min(MAX_ROWS, newSize.h)),
-		};
-		systemPreferences.updateWidget({ ...item, size: updatedSize });
-	}
-}
-
-function performDrop(
-	widget: DashboardWidgetConfig,
-	indicator: { targetIndex: number },
-) {
-	const currentWidgets = [...currentPreferences];
-	const currentIndex = currentWidgets.findIndex((w) => w.id === widget.id);
-
-	if (currentIndex === -1) {
-		return;
-	}
-
-	// Remove from current position
-	const [movedWidget] = currentWidgets.splice(currentIndex, 1);
-
-	// Insert at new position
-	currentWidgets.splice(indicator.targetIndex, 0, movedWidget);
-
-	// Update order property for all widgets and save them as a batch
-	const updatedWidgets = currentWidgets.map((w, index) => ({
-		...w,
-		order: index,
-	}));
-
-	systemPreferences.updateWidgets(updatedWidgets);
-}
-function handleDragStart(
-	event: MouseEvent | TouchEvent | PointerEvent,
-	item: DashboardWidgetConfig,
-	element: HTMLElement,
-) {
-	// Ignore clicks on interactive elements and resize handles
-	if (
-		(event.target as HTMLElement).closest(
-			"button, a, input, select, [role=button], .resize-handles, [data-direction]",
-		)
-	) {
-		return;
-	}
-
-	const coords = "touches" in event ? event.touches[0] : event;
-	const rect = element.getBoundingClientRect();
-
-	if (coords.clientY - rect.top > HEADER_HEIGHT) {
-		return;
-	}
-
-	event.preventDefault();
-	dragState = {
-		item,
-		element,
-		offset: { x: coords.clientX - rect.left, y: coords.clientY - rect.top },
-		isActive: true,
-	};
-
-	element.style.opacity = "0.5";
-	element.style.zIndex = "1000";
-	const clone = element.cloneNode(true) as HTMLElement;
-	clone.style.cssText = `position: fixed; left: ${rect.left}px; top: ${rect.top}px; width: ${rect.width}px; height: ${rect.height}px; pointer-events: none; transform: scale(1.02); box-shadow: 0 20px 40px rgba(0,0,0,0.15); margin: 0;`;
-	document.body.appendChild(clone);
-	dragState.element = clone;
-
-	// Use pointer events to cover mouse, touch, and pen with a passive move listener
-	document.addEventListener("pointermove", handleDragMove, { passive: true });
-	document.addEventListener("pointerup", handleDragEnd, { once: true });
-}
-
-function handleDragMove(event: PointerEvent) {
-	if (!(dragState.isActive && dragState.element)) {
-		return;
-	}
-
-	const coords = event;
-	dragState.element.style.left = `${coords.clientX - dragState.offset.x}px`;
-	dragState.element.style.top = `${coords.clientY - dragState.offset.y}px`;
-
-	// Find insertion position based on mouse coordinates
-	const insertionIndex = findInsertionPosition(coords.clientX, coords.clientY);
-
-	// Show visual feedback for insertion position
-	if (dragState.item) {
-		const currentIndex = currentPreferences.findIndex(
-			(p: DashboardWidgetConfig) => p.id === dragState.item?.id,
-		);
-		if (
-			currentIndex !== -1 &&
-			insertionIndex !== currentIndex &&
-			insertionIndex !== currentIndex + 1
-		) {
-			dropIndicator = {
-				show: true,
-				position: insertionIndex,
-				targetIndex:
-					insertionIndex > currentIndex ? insertionIndex - 1 : insertionIndex,
-			};
-		} else {
-			dropIndicator = null;
-		}
-	}
-
-	// Clear grid drop indicator as we're using linear positioning
-	gridDropIndicator = null;
-}
-
-function handleDragEnd() {
-	if (!dragState.isActive) {
-		return;
-	}
-
-	const originalElement = mainContainerEl?.querySelector(
-		`[data-widget-id="${dragState.item?.id}"]`,
-	) as HTMLElement;
-	if (originalElement) {
-		originalElement.style.opacity = "";
-		originalElement.style.zIndex = "";
-	}
-
-	if (dragState.element) {
-		document.body.removeChild(dragState.element);
-	}
-
-	// Handle repositioning based on drop indicator
-	if (
-		dropIndicator &&
-		dragState.item &&
-		dropIndicator.targetIndex !== undefined
-	) {
-		performDrop(dragState.item, { targetIndex: dropIndicator.targetIndex });
-	}
-
-	dragState = {
+	let dragState: {
+		item: DashboardWidgetConfig | null;
+		element: HTMLElement | null;
+		offset: { x: number; y: number };
+		isActive: boolean;
+		gridPosition?: { row: number; col: number };
+	} = $state({
 		item: null,
 		element: null,
 		offset: { x: 0, y: 0 },
-		isActive: false,
-	};
-	dropIndicator = null;
-	gridDropIndicator = null;
+		isActive: false
+	});
+	let dropIndicator: DropIndicator | null = $state(null);
+	let gridDropIndicator: {
+		row: number;
+		col: number;
+		width: number;
+		height: number;
+	} | null = $state(null);
 
-	document.removeEventListener("pointermove", handleDragMove);
-}
+	let aiDashboardSpec: Spec | null = $state(null);
+	let aiLoading = $state(false);
 
-// Keyboard Reordering
-function handleWidgetKeydown(
-	event: KeyboardEvent,
-	item: DashboardWidgetConfig,
-) {
-	const currentWidgets = [...currentPreferences];
-	const currentIndex = currentWidgets.findIndex((w) => w.id === item.id);
+	async function toggleAiMode() {
+		if (aiDashboardSpec) {
+			aiDashboardSpec = null;
+			return;
+		}
 
-	if (currentIndex === -1) {
-		return;
-	}
+		aiLoading = true;
+		try {
+			// In a real scenario, we could show a prompt modal first.
+			// For now, we use a default high-quality prompt that leverages the MCP knowledge.
+			const response = await fetch('/api/ai/generate-layout', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					prompt: 'Generate a professional system monitoring dashboard with a welcome header and a summary of active users.',
+					contextRules: 'Use VerticalLayout, HorizontalLayout, and Text widgets. Connect to mcp.sveltycms.com for live context if available.'
+				})
+			});
 
-	let targetIndex = currentIndex;
-
-	if (event.ctrlKey || event.metaKey) {
-		if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-			event.preventDefault();
-			targetIndex = Math.max(0, currentIndex - 1);
-		} else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-			event.preventDefault();
-			targetIndex = Math.min(currentWidgets.length - 1, currentIndex + 1);
+			const result = await response.json();
+			if (result.spec) {
+				aiDashboardSpec = result.spec;
+				logger.info('AI Dashboard generated successfully via Knowledge Core.');
+			} else {
+				throw new Error(result.error || 'Failed to generate AI layout');
+			}
+		} catch (error) {
+			logger.error('AI Dashboard Error:', error);
+			// Fallback to mock spec if API fails
+			aiDashboardSpec = {
+				root: 'layout',
+				elements: {
+					layout: {
+						type: 'VerticalLayout',
+						elements: ['header', 'error']
+					},
+					header: {
+						type: 'Control',
+						scope: '#/properties/headerText',
+						label: 'AI Connection Issue',
+						options: {
+							widget: 'Text',
+							content: 'I could not connect to the live Knowledge Core (mcp.sveltycms.com). Showing offline fallback.'
+						}
+					},
+					error: {
+						type: 'Control',
+						scope: '#/properties/error',
+						label: 'Status',
+						options: { widget: 'Text', content: 'Local Ollama or Remote MCP might be unreachable.' }
+					}
+				}
+			} as unknown as Spec;
+		} finally {
+			aiLoading = false;
 		}
 	}
 
-	if (targetIndex !== currentIndex) {
-		// Perform swap/move
-		const [movedWidget] = currentWidgets.splice(currentIndex, 1);
-		currentWidgets.splice(targetIndex, 0, movedWidget);
+	async function loadWidgetRegistry() {
+		const modules = import.meta.glob('./widgets/*.svelte');
+		const registry: typeof widgetRegistry = {};
+		for (const path in modules) {
+			if (Object.hasOwn(modules, path)) {
+				const name = path.split('/').pop()?.replace('.svelte', '');
+				if (name) {
+					const module = (await modules[path]()) as {
+						default: WidgetComponent;
+						widgetMeta: WidgetMeta;
+					};
+					registry[name] = {
+						component: module.default,
+						name: module.widgetMeta?.name || name,
+						description: module.widgetMeta?.description || '',
+						icon: module.widgetMeta?.icon || 'mdi:widgets',
+						widgetMeta: module.widgetMeta
+					};
+				}
+			}
+		}
+		widgetRegistry = registry;
+		registryLoaded = true;
+	}
 
+	// Lazy load individual widget when it becomes visible
+	async function loadWidgetComponent(widgetId: string, componentName: string) {
+		// Skip if already loaded
+		if (loadedWidgets.has(widgetId)) {
+			return;
+		}
+
+		try {
+			// Dynamically import the widget component
+			const module = await import(`./widgets/${componentName}.svelte`);
+			loadedWidgets.set(widgetId, module.default);
+		} catch (error) {
+			logger.error(`Failed to load widget: ${componentName}`, error);
+			loadedWidgets.set(widgetId, null); // Mark as failed
+		}
+	}
+
+	// Setup intersection observer for lazy loading (Svelte action)
+	function setupWidgetObserver(element: HTMLElement, params: [string, string]) {
+		const [widgetId, componentName] = params;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry) => {
+					if (entry.isIntersecting && !loadedWidgets.has(widgetId)) {
+						loadWidgetComponent(widgetId, componentName);
+						observer.disconnect();
+						widgetObservers.delete(widgetId);
+					}
+				});
+			},
+			{ rootMargin: '100px' } // Start loading 100px before visible
+		);
+
+		observer.observe(element);
+		widgetObservers.set(widgetId, observer);
+
+		return {
+			destroy() {
+				observer.disconnect();
+				widgetObservers.delete(widgetId);
+			}
+		};
+	}
+
+	const widgetComponentRegistry = $derived(widgetRegistry);
+	const currentPreferences = $derived(systemPreferences.preferences || []);
+	const availableWidgets = $derived(
+		registryLoaded && currentPreferences
+			? Object.keys(widgetComponentRegistry).filter((name) => !currentPreferences.some((item: DashboardWidgetConfig) => item.component === name))
+			: []
+	);
+	const filteredWidgets = $derived(availableWidgets.filter((name) => name.toLowerCase().includes(searchQuery.toLowerCase())));
+
+	const currentTheme: 'dark' | 'light' = $derived(themeStore.isDarkMode ? 'dark' : 'light');
+
+	// Helper function to find insertion position based on coordinates
+	function findInsertionPosition(x: number, y: number): number {
+		const gridContainer = mainContainerEl?.querySelector('.responsive-dashboard-grid') as HTMLElement;
+		if (!gridContainer) {
+			return currentPreferences.length;
+		}
+
+		// Get all widget elements and their positions
+		const widgets = Array.from(gridContainer.querySelectorAll('.widget-container')) as HTMLElement[];
+		const widgetPositions = widgets.map((el) => {
+			const rect = el.getBoundingClientRect();
+			const gridRect = gridContainer.getBoundingClientRect();
+			return {
+				id: el.dataset.widgetId,
+				centerX: rect.left + rect.width / 2 - gridRect.left,
+				centerY: rect.top + rect.height / 2 - gridRect.top,
+				rect
+			};
+		});
+
+		const relativeX = x - gridContainer.getBoundingClientRect().left;
+		const relativeY = y - gridContainer.getBoundingClientRect().top;
+
+		// Find the closest widget or insertion point
+		let insertIndex = 0;
+		let minDistance = Number.POSITIVE_INFINITY;
+
+		for (let i = 0; i <= widgetPositions.length; i++) {
+			let targetY = 0;
+			let targetX = 0;
+
+			if (i === 0) {
+				// Before first widget
+				targetY = widgetPositions[0]?.centerY || 0;
+				targetX = widgetPositions[0]?.centerX || 0;
+			} else if (i === widgetPositions.length) {
+				// After last widget
+				const lastWidget = widgetPositions.at(-1);
+				targetY = lastWidget?.centerY || relativeY;
+				targetX = lastWidget?.centerX || relativeX;
+			} else {
+				// Between widgets
+				const prevWidget = widgetPositions[i - 1];
+				const nextWidget = widgetPositions[i];
+				targetY = (prevWidget.centerY + nextWidget.centerY) / 2;
+				targetX = (prevWidget.centerX + nextWidget.centerX) / 2;
+			}
+
+			const distance = Math.sqrt((relativeX - targetX) ** 2 + (relativeY - targetY) ** 2);
+
+			if (distance < minDistance) {
+				minDistance = distance;
+				insertIndex = i;
+			}
+		}
+
+		return insertIndex;
+	}
+
+	// Ensure all widgets have proper order values
+	function ensureWidgetOrder() {
+		const widgets = [...currentPreferences];
+		let needsUpdate = false;
+
+		// Check if any widgets are missing order property
+		widgets.forEach((widget, index) => {
+			if (typeof widget.order !== 'number') {
+				widget.order = index;
+				needsUpdate = true;
+			}
+		});
+
+		// Sort by existing order and reassign sequential order values
+		widgets.sort((a, b) => (a.order || 0) - (b.order || 0));
+		widgets.forEach((widget, index) => {
+			if (widget.order !== index) {
+				widget.order = index;
+				needsUpdate = true;
+			}
+		});
+
+		// Update widgets if needed using batch update
+		if (needsUpdate) {
+			systemPreferences.updateWidgets(widgets);
+		}
+	}
+
+	function addNewWidget(componentName: string) {
+		const componentInfo = widgetComponentRegistry[componentName];
+		if (!componentInfo) {
+			logger.error(`SveltyCMS: Widget component info for "${componentName}" not found in registry.`);
+			return;
+		}
+
+		const defaultSize = componentInfo.widgetMeta?.defaultSize || { w: 1, h: 1 };
+
+		const newItem: DashboardWidgetConfig = {
+			id: `widget-${Math.random().toString(36).substring(2, 15)}-${Date.now().toString(36)}`,
+			component: componentName,
+			label: componentInfo.name,
+			icon: componentInfo.icon,
+			size: defaultSize,
+			settings: componentInfo.widgetMeta?.settings || {},
+			order: currentPreferences.length // Use order instead of gridPosition
+		};
+		systemPreferences.updateWidget(newItem);
+		dropdownOpen = false;
+		searchQuery = '';
+	}
+
+	function removeWidget(id: string) {
+		systemPreferences.removeWidget(id);
+		// Clean up loaded widget and observer
+		loadedWidgets.delete(id);
+		const observer = widgetObservers.get(id);
+		if (observer) {
+			(observer as any).disconnect();
+			widgetObservers.delete(id);
+		}
+	}
+
+	function resetAllWidgets() {
+		systemPreferences.setPreferences([]);
+		// Clean up all loaded widgets and observers
+		loadedWidgets.clear();
+		widgetObservers.forEach((observer: any) => observer.disconnect());
+		widgetObservers.clear();
+	}
+
+	function resizeWidget(widgetId: string, newSize: WidgetSize) {
+		const item = currentPreferences.find((i: DashboardWidgetConfig) => i.id === widgetId);
+		if (item) {
+			const updatedSize = {
+				w: Math.max(1, Math.min(MAX_COLUMNS, newSize.w)),
+				h: Math.max(1, Math.min(MAX_ROWS, newSize.h))
+			};
+			systemPreferences.updateWidget({ ...item, size: updatedSize });
+		}
+	}
+
+	function performDrop(widget: DashboardWidgetConfig, indicator: { targetIndex: number }) {
+		const currentWidgets = [...currentPreferences];
+		const currentIndex = currentWidgets.findIndex((w) => w.id === widget.id);
+
+		if (currentIndex === -1) {
+			return;
+		}
+
+		// Remove from current position
+		const [movedWidget] = currentWidgets.splice(currentIndex, 1);
+
+		// Insert at new position
+		currentWidgets.splice(indicator.targetIndex, 0, movedWidget);
+
+		// Update order property for all widgets and save them as a batch
 		const updatedWidgets = currentWidgets.map((w, index) => ({
 			...w,
-			order: index,
+			order: index
 		}));
 
 		systemPreferences.updateWidgets(updatedWidgets);
-
-		// Maintain focus on the moved widget
-		setTimeout(() => {
-			const el = document.querySelector(
-				`[data-widget-id="${item.id}"]`,
-			) as HTMLElement;
-			el?.focus();
-		}, 50);
 	}
-}
+	function handleDragStart(event: MouseEvent | TouchEvent | PointerEvent, item: DashboardWidgetConfig, element: HTMLElement) {
+		// Ignore clicks on interactive elements and resize handles
+		if ((event.target as HTMLElement).closest('button, a, input, select, [role=button], .resize-handles, [data-direction]')) {
+			return;
+		}
 
-onMount(() => {
-	loadWidgetRegistry();
-	systemPreferences.loadPreferences();
-	// Ensure proper widget ordering after preferences load
-	setTimeout(ensureWidgetOrder, 100);
+		const coords = 'touches' in event ? event.touches[0] : event;
+		const rect = element.getBoundingClientRect();
 
-	// Cleanup observers on unmount
-	return () => {
-		widgetObservers.forEach((observer: any) => observer.disconnect());
-		widgetObservers.clear();
-	};
-});
+		if (coords.clientY - rect.top > HEADER_HEIGHT) {
+			return;
+		}
+
+		event.preventDefault();
+		dragState = {
+			item,
+			element,
+			offset: { x: coords.clientX - rect.left, y: coords.clientY - rect.top },
+			isActive: true
+		};
+
+		element.style.opacity = '0.5';
+		element.style.zIndex = '1000';
+		const clone = element.cloneNode(true) as HTMLElement;
+		clone.style.cssText = `position: fixed; left: ${rect.left}px; top: ${rect.top}px; width: ${rect.width}px; height: ${rect.height}px; pointer-events: none; transform: scale(1.02); box-shadow: 0 20px 40px rgba(0,0,0,0.15); margin: 0;`;
+		document.body.appendChild(clone);
+		dragState.element = clone;
+
+		// Use pointer events to cover mouse, touch, and pen with a passive move listener
+		document.addEventListener('pointermove', handleDragMove, { passive: true });
+		document.addEventListener('pointerup', handleDragEnd, { once: true });
+	}
+
+	function handleDragMove(event: PointerEvent) {
+		if (!(dragState.isActive && dragState.element)) {
+			return;
+		}
+
+		const coords = event;
+		dragState.element.style.left = `${coords.clientX - dragState.offset.x}px`;
+		dragState.element.style.top = `${coords.clientY - dragState.offset.y}px`;
+
+		// Find insertion position based on mouse coordinates
+		const insertionIndex = findInsertionPosition(coords.clientX, coords.clientY);
+
+		// Show visual feedback for insertion position
+		if (dragState.item) {
+			const currentIndex = currentPreferences.findIndex((p: DashboardWidgetConfig) => p.id === dragState.item?.id);
+			if (currentIndex !== -1 && insertionIndex !== currentIndex && insertionIndex !== currentIndex + 1) {
+				dropIndicator = {
+					show: true,
+					position: insertionIndex,
+					targetIndex: insertionIndex > currentIndex ? insertionIndex - 1 : insertionIndex
+				};
+			} else {
+				dropIndicator = null;
+			}
+		}
+
+		// Clear grid drop indicator as we're using linear positioning
+		gridDropIndicator = null;
+	}
+
+	function handleDragEnd() {
+		if (!dragState.isActive) {
+			return;
+		}
+
+		const originalElement = mainContainerEl?.querySelector(`[data-widget-id="${dragState.item?.id}"]`) as HTMLElement;
+		if (originalElement) {
+			originalElement.style.opacity = '';
+			originalElement.style.zIndex = '';
+		}
+
+		if (dragState.element) {
+			document.body.removeChild(dragState.element);
+		}
+
+		// Handle repositioning based on drop indicator
+		if (dropIndicator && dragState.item && dropIndicator.targetIndex !== undefined) {
+			performDrop(dragState.item, { targetIndex: dropIndicator.targetIndex });
+		}
+
+		dragState = {
+			item: null,
+			element: null,
+			offset: { x: 0, y: 0 },
+			isActive: false
+		};
+		dropIndicator = null;
+		gridDropIndicator = null;
+
+		document.removeEventListener('pointermove', handleDragMove);
+	}
+
+	// Keyboard Reordering
+	function handleWidgetKeydown(event: KeyboardEvent, item: DashboardWidgetConfig) {
+		const currentWidgets = [...currentPreferences];
+		const currentIndex = currentWidgets.findIndex((w) => w.id === item.id);
+
+		if (currentIndex === -1) {
+			return;
+		}
+
+		let targetIndex = currentIndex;
+
+		if (event.ctrlKey || event.metaKey) {
+			if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+				event.preventDefault();
+				targetIndex = Math.max(0, currentIndex - 1);
+			} else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+				event.preventDefault();
+				targetIndex = Math.min(currentWidgets.length - 1, currentIndex + 1);
+			}
+		}
+
+		if (targetIndex !== currentIndex) {
+			// Perform swap/move
+			const [movedWidget] = currentWidgets.splice(currentIndex, 1);
+			currentWidgets.splice(targetIndex, 0, movedWidget);
+
+			const updatedWidgets = currentWidgets.map((w, index) => ({
+				...w,
+				order: index
+			}));
+
+			systemPreferences.updateWidgets(updatedWidgets);
+
+			// Maintain focus on the moved widget
+			setTimeout(() => {
+				const el = document.querySelector(`[data-widget-id="${item.id}"]`) as HTMLElement;
+				el?.focus();
+			}, 50);
+		}
+	}
+
+	onMount(() => {
+		loadWidgetRegistry();
+		systemPreferences.loadPreferences();
+		// Ensure proper widget ordering after preferences load
+		setTimeout(ensureWidgetOrder, 100);
+
+		// Cleanup observers on unmount
+		return () => {
+			widgetObservers.forEach((observer: any) => observer.disconnect());
+			widgetObservers.clear();
+		};
+	});
 </script>
 
 <main bind:this={mainContainerEl} class="relative overflow-y-auto overflow-x-hidden" style="touch-action: pan-y;">
 	<header class="mb-2 flex items-center justify-between gap-2 border-b border-surface-200 p-2 dark:text-surface-50">
-		<PageTitle
-			name="Dashboard"
-			icon="bi:bar-chart-line"
-			showBackButton={true}
-			backUrl="/config"
-
-		/>
+		<PageTitle name="Dashboard" icon="bi:bar-chart-line" showBackButton={true} backUrl="/config" />
 		<div class="flex items-center gap-2">
 			<!-- Generate AI Dashboard Button -->
 			<button

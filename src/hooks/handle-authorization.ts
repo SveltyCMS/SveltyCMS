@@ -3,240 +3,271 @@
  * @description Lightweight authorization middleware for user role and route protection
  *
  * ### Improvements
- * - Centered around high-performance hook-utils for short-circuiting
- * - Cached multi-tenant resolution
- * - Optimized first-user check logic
- * - Removed redundant role deduplication
+ * - Removed setup guard (redundant)
+ * - Removed heavy global data loading (users/tokens)
+ * - Simplified redirect logic for authenticated users
+ * - Public and static routes skip database access entirely
  */
 
-import { AuthGuardService } from "@src/services/security/auth-guard";
-import { isAdmin, getRequestFlags, isPublicRoute } from "@utils/hook-utils";
-import type { Role } from "@src/databases/auth/types";
-import type { DatabaseId } from "../content/types";
+import { hasPermissionByAction } from '@src/databases/auth/permissions';
+import type { Role } from '@src/databases/auth/types';
 import {
-  cacheService,
-  USER_COUNT_CACHE_TTL_MS,
-  USER_COUNT_CACHE_TTL_S,
-  USER_PERM_CACHE_TTL_MS,
-  USER_PERM_CACHE_TTL_S,
-} from "@src/databases/cache/cache-service";
-import { auth } from "@src/databases/db";
-import { error, type Handle, redirect } from "@sveltejs/kit";
-import { AppError, handleApiError } from "@utils/error-handling";
-import { logger } from "@utils/logger";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
+	cacheService,
+	USER_COUNT_CACHE_TTL_MS,
+	USER_COUNT_CACHE_TTL_S,
+	USER_PERM_CACHE_TTL_MS,
+	USER_PERM_CACHE_TTL_S
+} from '@src/databases/cache-service';
+import { auth } from '@src/databases/db';
+import { error, type Handle, redirect } from '@sveltejs/kit';
+import { AppError, handleApiError } from '@utils/error-handling';
+import { logger } from '@utils/logger.server';
 
-// --- MODULE-LEVEL CACHES ---
-let multiTenantCached: boolean | null = null;
+// --- SIMPLE IN-MEMORY CACHE ---
+
 let userCountCache: { count: number; timestamp: number } | null = null;
-const rolesCache = new Map<string, { data: Role[]; timestamp: number }>();
-
-// 🚀 PRE-CACHED DYNAMIC IMPORTS: Avoid repeated lazy-load overhead
-let cachedSetupCheck: typeof import("@utils/setup-check") | null = null;
-let cachedDefaultRoles: typeof import("@src/databases/auth/default-roles") | null = null;
-
-async function getSetupCheck() {
-  if (!cachedSetupCheck) cachedSetupCheck = await import("@utils/setup-check");
-  return cachedSetupCheck;
-}
-async function getDefaultRoles() {
-  if (!cachedDefaultRoles) cachedDefaultRoles = await import("@src/databases/auth/default-roles");
-  return cachedDefaultRoles;
-}
-
-function getCachedMultiTenant() {
-  if (multiTenantCached === null) multiTenantCached = !!getPrivateSettingSync("MULTI_TENANT");
-  return multiTenantCached;
-}
+// In TEST_MODE we use a no-op stub so every request reads fresh from DB.
+const rolesCache: Map<string, { data: Role[]; timestamp: number }> =
+	process.env.TEST_MODE === 'true'
+		? ({
+				get: () => undefined,
+				set: () => undefined,
+				delete: () => false,
+				clear: () => undefined
+			} as unknown as Map<string, { data: Role[]; timestamp: number }>)
+		: new Map<string, { data: Role[]; timestamp: number }>();
 
 // --- UTILITIES ---
 
-/** Get cached user count with fallback (optimized) */
-async function getCachedUserCount(
-  tenantId?: DatabaseId | null,
-  multiTenant?: boolean,
-): Promise<number> {
-  const now = Date.now();
+function isPublicRoute(pathname: string, method: string | undefined, testMode: string | undefined): boolean {
+	const publicRoutes = [
+		'/login',
+		'/register',
+		'/forgot-password',
+		'/setup',
+		'/api/system/version',
+		'/api/user/login',
+		'/api/settings/public',
+		'/api/preview',
+		'/api/system/health'
+	];
 
-  // 1. In-memory check
-  if (
-    !process.env.BUN_TEST &&
-    userCountCache &&
-    now - userCountCache.timestamp < USER_COUNT_CACHE_TTL_MS
-  ) {
-    return userCountCache.count;
-  }
+	if (testMode === 'true') {
+		publicRoutes.push('/api/testing');
+	}
 
-  // 2. Distributed check
-  try {
-    const cached = await cacheService.get<{ count: number; timestamp: number }>(
-      "userCount",
-      tenantId ?? undefined,
-    );
-    if (cached && now - cached.timestamp < USER_COUNT_CACHE_TTL_MS) {
-      userCountCache = cached;
-      return cached.count;
-    }
+	// Token validation endpoint is public (GET only) for registration flow
+	if (method === 'GET' && pathname.startsWith('/api/token/') && pathname.length > 11) {
+		return true;
+	}
 
-    // 3. Database source of truth
-    if (!auth) return -1;
-    const filter = multiTenant && tenantId ? { tenantId: tenantId as DatabaseId } : {};
-    const bypassOpts = !tenantId
-      ? { bypassTenantCheck: true }
-      : { tenantId: tenantId as DatabaseId };
-    const count = await auth.getUserCount(filter, bypassOpts);
-    const cacheData = { count, timestamp: now };
-    userCountCache = cacheData;
-    await cacheService.set("userCount", cacheData, USER_COUNT_CACHE_TTL_S, tenantId ?? undefined);
-    return count;
-  } catch (err) {
-    logger.warn(
-      `User count cache or query failed: ${err instanceof Error ? err.message : String(err)}`,
-    );
-    return -1;
-  }
+	return publicRoutes.some((route) => pathname.startsWith(route));
 }
 
-/** Get cached roles for access checks (database-only) */
-async function getCachedRoles(tenantId?: DatabaseId | null): Promise<Role[]> {
-  const now = Date.now();
-  const key = tenantId || "global";
+function isOAuthRoute(pathname: string): boolean {
+	return pathname.startsWith('/login') && pathname.includes('OAuth');
+}
 
-  const cached = rolesCache.get(key.toString());
-  if (cached && now - cached.timestamp < USER_PERM_CACHE_TTL_MS) return cached.data;
+/** Get cached user count with fallback */
+async function getCachedUserCount(tenantId?: string | null, multiTenant?: boolean): Promise<number> {
+	const now = Date.now();
+	if (userCountCache && now - userCountCache.timestamp < USER_COUNT_CACHE_TTL_MS) {
+		return userCountCache.count;
+	}
 
-  try {
-    if (!auth) return [];
-    const bypassOpts =
-      !tenantId || tenantId === "global"
-        ? { bypassTenantCheck: true }
-        : { tenantId: tenantId as DatabaseId };
-    const data = await auth.getAllRoles(bypassOpts);
-    if (!data || data.length === 0) return [];
+	try {
+		const cached = await cacheService.get<{ count: number; timestamp: number }>('userCount', tenantId);
+		if (cached && now - cached.timestamp < USER_COUNT_CACHE_TTL_MS) {
+			userCountCache = cached;
+			return cached.count;
+		}
+	} catch {
+		// ignore cache errors
+	}
 
-    const cacheData = { data, timestamp: now };
-    rolesCache.set(key.toString(), cacheData);
-    await cacheService.set(`roles:${key}`, cacheData, USER_PERM_CACHE_TTL_S, tenantId ?? undefined);
-    return data;
-  } catch (err) {
-    logger.error(`Failed to fetch roles: ${err instanceof Error ? err.message : String(err)}`);
-    return [];
-  }
+	try {
+		if (!auth) {
+			return -1;
+		}
+		const filter = multiTenant && tenantId ? { tenantId } : {};
+		const bypassOpts = !tenantId ? { bypassTenantCheck: true } : undefined;
+		const count = await auth.getUserCount(filter, bypassOpts);
+		const cacheData = { count, timestamp: now };
+		userCountCache = cacheData;
+		await cacheService.set('userCount', cacheData, USER_COUNT_CACHE_TTL_S, tenantId);
+		return count;
+	} catch (err) {
+		logger.warn(`User count query failed: ${err instanceof Error ? err.message : String(err)}`);
+		return -1;
+	}
+}
+
+/**
+ * Get cached roles for access checks (database-only)
+ * Returns empty array if database is unavailable - caller should handle setup redirect
+ */
+async function getCachedRoles(tenantId?: string | null): Promise<Role[]> {
+	const now = Date.now();
+	const key = tenantId || 'global';
+
+	// In TEST_MODE, bypass the in-memory TTL so role changes take effect immediately.
+	if (process.env.TEST_MODE !== 'true') {
+		const cached = rolesCache.get(key);
+		if (cached && now - cached.timestamp < USER_PERM_CACHE_TTL_MS) {
+			return cached.data;
+		}
+	}
+
+	try {
+		if (!auth) {
+			logger.debug('Database adapter not initialized - roles unavailable');
+			return [];
+		}
+
+		const bypassOpts = !tenantId ? { bypassTenantCheck: true } : undefined;
+		const data = await auth.getAllRoles(tenantId, bypassOpts);
+		if (!data || data.length === 0) {
+			logger.debug('No roles found in database', { tenantId });
+			return [];
+		}
+
+		const cacheData = { data, timestamp: now };
+		rolesCache.set(key, cacheData);
+		await cacheService.set(`roles:${key}`, cacheData, USER_PERM_CACHE_TTL_S, tenantId);
+		return data;
+	} catch (err) {
+		logger.error(`Failed to fetch roles from database: ${err instanceof Error ? err.message : String(err)}`);
+		return [];
+	}
 }
 
 // --- MAIN HANDLE ---
 
 export const handleAuthorization: Handle = async ({ event, resolve }) => {
-  const { url, locals } = event;
-  const { user } = locals;
+	const { url, locals, request } = event;
+	const { user } = locals;
 
-  // 🧪 TEST MODE BYPASS: If cryptographic handshake verified, skip auth logic
-  if ((locals as any).__testBypass) {
-    locals.isAdmin = isAdmin(user);
-    return resolve(event);
-  }
+	// Dynamic imports for settings to avoid circular dependencies in hooks
+	const { getPrivateSettingSync } = await import('@src/services/settings-service');
 
-  const pathname = url.pathname;
-  const isTestMode = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
+	const pathname = url.pathname;
+	const isApi = pathname.startsWith('/api/');
+	const isPublic = isPublicRoute(pathname, request.method, process.env.TEST_MODE);
 
-  // 1. ULTRA-FAST SHORT-CIRCUIT using pre-computed flags from Turbo Pipeline
-  const flags = getRequestFlags(locals as any);
-  if (flags.isStatic) return resolve(event);
+	// --- Skip static or internal routes early ---
+	const ASSET_REGEX =
+		/^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|favicon\.ico|\.svelte-kit\/generated\/client\/nodes|.*\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map|json))/;
+	if (pathname.startsWith('/.well-known/') || pathname.startsWith('/_') || ASSET_REGEX.test(pathname)) {
+		return resolve(event);
+	}
 
-  // --- Phase 1: Gated Initialization ---
-  const { getSetupState, SetupState } = await getSetupCheck();
-  const setupState = (locals as any).__setupState || (await getSetupState());
-  locals.__setupConfigExists = setupState !== SetupState.MISSING_CONFIG;
+	// --- Public routes require no auth ---
+	if (isPublic) {
+		locals.isAdmin = false;
+		locals.hasManageUsersPermission = false;
+		locals.isFirstUser = false;
+		return resolve(event);
+	}
 
-  if (setupState !== SetupState.COMPLETE) {
-    logger.debug(
-      `[handleAuthorization] System in SETUP mode (${setupState}). Skipping authorization.`,
-    );
-    locals.isAdmin = false;
-    locals.hasManageUsersPermission = false;
-    return await resolve(event);
-  }
+	// --- Check if first user (for setup flow) ---
+	const multiTenant = getPrivateSettingSync('MULTI_TENANT');
+	const userCount = await getCachedUserCount(locals.tenantId, !!multiTenant);
+	locals.isFirstUser = userCount === 0;
 
-  const isApi = pathname.startsWith("/api/");
-  if (isTestMode && (pathname.startsWith("/api/testing") || isApi)) {
-    locals.isAdmin = isAdmin(user);
-    return await resolve(event);
-  }
+	// --- Load cached roles (database-only) ---
+	const rolesData = await getCachedRoles(locals.tenantId);
+	locals.roles = rolesData;
 
-  // Use pre-computed flags from Turbo Pipeline classifier when available;
-  // fall back to direct computation for unit tests that bypass the pipeline.
-  const isPublic = (locals as any).__flags ? flags.isPublic : isPublicRoute(pathname, isTestMode);
+	// --- Redirect to setup if database not initialized (no roles found) ---
+	const isLocalizedSetup = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
+	if (
+		rolesData.length === 0 &&
+		!pathname.startsWith('/setup') &&
+		!isLocalizedSetup &&
+		!pathname.startsWith('/api/system') &&
+		!pathname.startsWith('/api/setup')
+	) {
+		// If handleSetup already declared setup complete, don't redirect
+		// back to /setup — use fallback roles instead to prevent a redirect loop
+		if (locals.__setupConfigExists === true) {
+			logger.warn('No roles in DB but setup marked complete — using fallback roles to prevent redirect loop');
+			const { getDefaultRoles } = await import('@src/databases/auth/default-roles');
+			locals.roles = getDefaultRoles();
+		} else {
+			logger.warn('No roles found in database - redirecting to setup', {
+				pathname,
+				tenantId: locals.tenantId
+			});
+			if (isApi) {
+				const errorMsg = 'Service Unavailable: System not initialized. Please run setup.';
+				throw new AppError(errorMsg, 503, 'SYSTEM_NOT_INITIALIZED');
+			}
+			throw redirect(302, '/setup');
+		}
+	}
 
-  // 2. FIRST-USER CHECK (Optimized setup flow)
-  const multiTenant = getCachedMultiTenant();
-  if (locals.isFirstUser === undefined) {
-    const userCount = await getCachedUserCount(locals.tenantId as DatabaseId, multiTenant);
-    locals.isFirstUser = userCount === 0;
-  }
+	// --- Handle authenticated users ---
+	try {
+		if (user) {
+			const userRole = rolesData.find((r) => r._id === user.role);
+			// Derive isAdmin ONLY from fresh DB role data — never from a cached user mutation.
+			// The (user as any).isAdmin fallback can propagate stale true values across requests.
+			const isAdmin = !!userRole?.isAdmin;
 
-  if (isPublic) {
-    locals.isAdmin = false;
-    locals.hasManageUsersPermission = false;
-    return resolve(event);
-  }
+			// Make isAdmin available on user object for downstream code that expects it.
+			(user as any).isAdmin = isAdmin;
+			locals.isAdmin = isAdmin;
+			locals.hasAdminPermission = isAdmin;
+			locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(user, 'manage', 'user', undefined, rolesData);
 
-  // 3. ROLES LOAD
-  const roles = await getCachedRoles(locals.tenantId as DatabaseId);
-  locals.roles = roles;
+			// Redirect authenticated users away from public routes
+			if (isPublic && !isOAuthRoute(pathname) && !isApi) {
+				throw redirect(302, '/');
+			}
+		} else {
+			// --- Handle unauthenticated users ---
+			locals.isAdmin = false;
+			locals.hasManageUsersPermission = false;
 
-  // Setup guard
-  if (
-    roles.length === 0 &&
-    !pathname.startsWith("/setup") &&
-    !pathname.startsWith("/api/system") &&
-    !pathname.startsWith("/api/setup")
-  ) {
-    if (locals.__setupConfigExists === true) {
-      const { getDefaultRoles: getDefaultRolesMod } = await getDefaultRoles();
-      locals.roles = getDefaultRolesMod();
-    } else {
-      if (isApi) throw new AppError("System not initialized", 503, "SYSTEM_NOT_INITIALIZED");
-      throw redirect(302, "/setup");
-    }
-  }
+			// Block access to protected pages
+			if (!(isPublic || locals.isFirstUser)) {
+				if (isApi) {
+					throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+				}
+				throw redirect(302, '/login');
+			}
+		}
 
-  // 4. AUTH CHECKS
-  try {
-    if (user) {
-      const userRole = roles.find((r) => r._id.toString() === user.role?.toString());
-      const isAdminUser = !!userRole?.isAdmin || isAdmin(user);
+		// --- Allow OAuth routes to pass through ---
+		if (isOAuthRoute(pathname)) {
+			logger.trace('OAuth route detected, passing through');
+		}
 
-      (user as any).isAdmin = isAdminUser;
-      locals.isAdmin = isAdminUser;
-      locals.hasAdminPermission = isAdminUser;
-      locals.hasManageUsersPermission =
-        isAdminUser || AuthGuardService.checkPermissions(user, "manage", "user", undefined, roles);
+		return await resolve(event);
+	} catch (err) {
+		if (isApi) {
+			return handleApiError(err, event);
+		}
 
-      if (isPublic && !isApi) throw redirect(302, "/");
-    } else if (!(isPublic || locals.isFirstUser)) {
-      if (isApi) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
-      throw redirect(302, "/login");
-    }
+		if (err instanceof AppError) {
+			throw error(err.status, err.message);
+		}
 
-    const response = await resolve(event);
-
-    return response;
-  } catch (err) {
-    if (isApi) return handleApiError(err, event);
-    if (err instanceof AppError) throw error(err.status, err.message);
-    throw err;
-  }
+		throw err;
+	}
 };
 
-// --- CACHE INVALIDATION ---
+// --- CACHE INVALIDATION UTILITIES ---
 
-export async function invalidateUserCountCache(tenantId?: string | null): Promise<void> {
-  userCountCache = null;
-  cacheService.delete("userCount", tenantId).catch(() => {});
+export function invalidateUserCountCache(tenantId?: string | null): void {
+	userCountCache = null;
+	cacheService.delete('userCount', tenantId).catch((err) => logger.error(`Failed to invalidate user count: ${err.message}`));
+	logger.debug('User count cache invalidated');
 }
 
-export async function invalidateRolesCache(tenantId?: string | null): Promise<void> {
-  const key = tenantId || "global";
-  rolesCache.delete(key);
-  cacheService.delete(`roles:${key}`, tenantId).catch(() => {});
+export function invalidateRolesCache(tenantId?: string | null): void {
+	const key = tenantId || 'global';
+	rolesCache.delete(key);
+	cacheService.delete(`roles:${key}`, tenantId).catch((err) => logger.error(`Failed to invalidate roles cache: ${err.message}`));
+	logger.debug(`Roles cache invalidated (tenant: ${tenantId || 'global'})`);
 }

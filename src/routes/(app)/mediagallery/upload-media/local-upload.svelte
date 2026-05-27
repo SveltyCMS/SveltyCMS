@@ -16,360 +16,317 @@
 	
 -->
 <script lang="ts">
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import { toast } from "@src/stores/toast.svelte.ts";
-// Using iconify-icon web component
-import { logger } from "@utils/logger";
-import { SvelteMap, SvelteSet } from "svelte/reactivity";
-import { goto } from "$app/navigation";
-import { optimizeImage } from "@src/utils/media/webgpu-processor";
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	// Using iconify-icon web component
+	import { logger } from '@utils/logger';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import { goto } from '$app/navigation';
 
-interface Props {
-	folder?: string;
-	onUploadComplete?: () => void;
-	redirectOnSuccess?: boolean;
-}
+	interface Props {
+		folder?: string;
+		onUploadComplete?: () => void;
+		redirectOnSuccess?: boolean;
+	}
 
-const {
-	onUploadComplete = () => {},
-	redirectOnSuccess = true,
-	folder = "global",
-}: Props = $props();
+	const { onUploadComplete = () => {}, redirectOnSuccess = true, folder = 'global' }: Props = $props();
 
-let files: File[] = $state([]);
-let input: HTMLInputElement | null = $state(null);
-let dropZone: HTMLDivElement | null = $state(null);
-let uploadProgress = $state(0);
-let uploadSpeed = $state(0);
-let isUploading = $state(false);
-let optimizeBeforeUpload = $state(true); // Default to on for 2026 performance
-let optimizationStats = $state({ saved: 0, count: 0 });
+	let files: File[] = $state([]);
+	let input: HTMLInputElement | null = $state(null);
+	let dropZone: HTMLDivElement | null = $state(null);
+	let uploadProgress = $state(0);
+	let uploadSpeed = $state(0);
+	let isUploading = $state(false);
 
-// Internal state moved from ModalUploadMedia
-// eslint-disable-next-line svelte/no-unnecessary-state-wrap
-let fileSet = $state(new SvelteSet<string>());
+	// Internal state moved from ModalUploadMedia
+	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+	let fileSet = $state(new SvelteSet<string>());
 
-// eslint-disable-next-line svelte/no-unnecessary-state-wrap
-let objectUrls = $state(new SvelteMap<string, string>());
+	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+	let objectUrls = $state(new SvelteMap<string, string>());
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-const ALLOWED_TYPES = [
-	"image/jpeg",
-	"image/png",
-	"image/gif",
-	"image/webp",
-	"image/svg+xml",
-	"video/mp4",
-	"video/webm",
-	"audio/mpeg",
-	"audio/wav",
-	"application/pdf",
-	"application/msword",
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-];
+	const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+	const ALLOWED_TYPES = [
+		'image/jpeg',
+		'image/png',
+		'image/gif',
+		'image/webp',
+		'image/svg+xml',
+		'video/mp4',
+		'video/webm',
+		'audio/mpeg',
+		'audio/wav',
+		'application/pdf',
+		'application/msword',
+		'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+	];
 
-// Async Thumbnail Generation Effect
-$effect(() => {
-	const currentFiles = files;
-	let isActive = true;
+	// Async Thumbnail Generation Effect
+	$effect(() => {
+		const currentFiles = files;
+		let isActive = true;
 
-	async function generateThumbnails() {
-		for (const file of currentFiles) {
-			if (!isActive) {
-				return;
-			}
+		async function generateThumbnails() {
+			for (const file of currentFiles) {
+				if (!isActive) {
+					return;
+				}
 
-			const fileKey = `${file.name}-${file.size}`;
+				const fileKey = `${file.name}-${file.size}`;
 
-			// Skip if we already have a URL for this file
-			if (
-				!objectUrls.has(fileKey) &&
-				(file.type?.startsWith("image/") || file.type?.startsWith("audio/"))
-			) {
-				const url = URL.createObjectURL(file);
-				objectUrls.set(fileKey, url);
+				// Skip if we already have a URL for this file
+				if (!objectUrls.has(fileKey) && (file.type?.startsWith('image/') || file.type?.startsWith('audio/'))) {
+					const url = URL.createObjectURL(file);
+					objectUrls.set(fileKey, url);
 
-				// Yield to main thread to allow UI rendering
-				await new Promise((resolve) => requestAnimationFrame(resolve));
-			}
-		}
-
-		// Cleanup phase: Remove URLs for files that are no longer present
-		if (isActive) {
-			const currentFileKeys = new Set(
-				currentFiles.map((f) => `${f.name}-${f.size}`),
-			);
-			for (const [key, url] of objectUrls) {
-				if (!currentFileKeys.has(key)) {
-					URL.revokeObjectURL(url);
-					objectUrls.delete(key);
+					// Yield to main thread to allow UI rendering
+					await new Promise((resolve) => requestAnimationFrame(resolve));
 				}
 			}
-		}
-	}
 
-	generateThumbnails();
-
-	return () => {
-		isActive = false;
-	};
-});
-
-// Cleanup on destroy
-$effect(() => {
-	return () => {
-		objectUrls.forEach((url) => URL.revokeObjectURL(url));
-	};
-});
-
-// Helper: Get icon string
-function getFileIcon(file: File): string {
-	const fileExt = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-	switch (true) {
-		case file.type?.startsWith("image/"):
-			return "fa-solid:image";
-		case file.type?.startsWith("video/"):
-			return "fa-solid:video";
-		case file.type?.startsWith("audio/"):
-			return "fa-solid:play-circle";
-		case fileExt === ".pdf":
-			return "vscode-icons:file-type-pdf2";
-		case fileExt === ".doc" || fileExt === ".docx" || fileExt === ".docm":
-			return "vscode-icons:file-type-word";
-		case fileExt === ".ppt" || fileExt === ".pptx":
-			return "vscode-icons:file-type-powerpoint";
-		case fileExt === ".xls" || fileExt === ".xlsx":
-			return "vscode-icons:file-type-excel";
-		case fileExt === ".txt":
-			return "fa-solid:file-lines";
-		case fileExt === ".zip" || fileExt === ".rar":
-			return "fa-solid:file-zipper";
-		default:
-			return "vscode-icons:file";
-	}
-}
-
-// Format MIME type for display
-function formatMimeType(mime?: string): string {
-	if (!mime) {
-		return "Unknown";
-	}
-	const parts = mime.split("/");
-	return parts[1] ? parts[1].toUpperCase() : parts[0].toUpperCase();
-}
-
-function validateAndAddFiles(newFiles: File[]) {
-	const validFiles: File[] = [];
-	const errors: string[] = [];
-
-	newFiles.forEach((file) => {
-		if (file.size > MAX_FILE_SIZE) {
-			errors.push(`${file.name} exceeds maximum file size of 50MB`);
-		} else if (ALLOWED_TYPES.includes(file.type)) {
-			// Check for duplicates
-			const fileKey = `${file.name}-${file.size}`;
-			if (fileSet.has(fileKey)) {
-				// Silent skip or warn? using simple toast if needed, but usually redundant
-			} else {
-				validFiles.push(file);
-				fileSet.add(fileKey);
-			}
-		} else {
-			errors.push(`${file.name} is not an allowed file type`);
-		}
-	});
-
-	if (errors.length > 0) {
-		toast.error({ description: errors.join("\n") });
-	}
-
-	if (validFiles.length > 0) {
-		files = [...files, ...validFiles];
-	}
-}
-
-function handleFileDrop(event: DragEvent) {
-	event.preventDefault();
-	if (!event.dataTransfer) {
-		return;
-	}
-	validateAndAddFiles(Array.from(event.dataTransfer.files));
-}
-
-function onChange() {
-	if (!input?.files) {
-		return;
-	}
-	validateAndAddFiles(Array.from(input.files));
-	if (input) {
-		input.value = "";
-	}
-}
-
-function handleDragOver(e: DragEvent) {
-	e.preventDefault();
-	e.stopPropagation();
-	if (dropZone) {
-		dropZone.style.borderColor = "#5fd317";
-	}
-}
-
-function handleDragLeave(e: DragEvent) {
-	e.preventDefault();
-	e.stopPropagation();
-	dropZone?.style.removeProperty("border-color");
-}
-
-function handleDeleteFile(file: File) {
-	const fileKey = `${file.name}-${file.size}`;
-	files = files.filter((f) => f !== file);
-	fileSet.delete(fileKey);
-}
-
-function handleCancel() {
-	files = [];
-	fileSet.clear();
-	// Revoke immediately
-	objectUrls.forEach((url) => URL.revokeObjectURL(url));
-	objectUrls.clear();
-}
-
-// Format bytes for display
-function formatBytes(bytes: number): string {
-	if (bytes === 0) {
-		return "0 Bytes";
-	}
-	const k = 1024;
-	const sizes = ["Bytes", "KB", "MB", "GB"];
-	const i = Math.floor(Math.log(bytes) / Math.log(k));
-	return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
-}
-
-async function uploadLocalFiles() {
-	if (files.length === 0) {
-		toast.warning("No files selected for upload");
-		return;
-	}
-
-	isUploading = true;
-	uploadProgress = 0;
-	const startTime = Date.now();
-	let lastLoaded = 0;
-
-    // --- WebGPU OPTIMIZATION STEP ---
-    let filesToUpload = [...files];
-    if (optimizeBeforeUpload) {
-        toast.info("Optimizing media via WebGPU...");
-        const optimized = [];
-        for (const file of files) {
-            if (file.type.startsWith('image/') && file.type !== 'image/svg+xml') {
-                try {
-                    const result = await optimizeImage(file);
-                    optimized.push(result.file);
-                    optimizationStats.saved += (file.size - result.processedSize);
-                    optimizationStats.count++;
-                } catch (err) {
-                    logger.warn(`Optimization failed for ${file.name}, using original.`, err);
-                    optimized.push(file);
-                }
-            } else {
-                optimized.push(file);
-            }
-        }
-        filesToUpload = optimized;
-        if (optimizationStats.count > 0) {
-            toast.success(`Optimized ${optimizationStats.count} images. Saved ${(optimizationStats.saved / 1024).toFixed(2)} KB`);
-        }
-    }
-
-	const formData = new FormData();
-	filesToUpload.forEach((file) => {
-		formData.append("files", file);
-	});
-	formData.append("folder", folder);
-
-	try {
-		const xhr = new XMLHttpRequest();
-
-		// Track upload progress
-		xhr.upload.addEventListener("progress", (e) => {
-			if (e.lengthComputable) {
-				uploadProgress = Math.round((e.loaded * 100) / e.total);
-
-				// Calculate upload speed (bytes per second)
-				const currentTime = Date.now();
-				const timeDiff = (currentTime - startTime) / 1000; // in seconds
-				const loadedDiff = e.loaded - lastLoaded;
-				uploadSpeed = timeDiff > 0 ? loadedDiff / timeDiff : 0;
-				lastLoaded = e.loaded;
-			}
-		});
-
-		// Handle completion
-		const uploadPromise = new Promise((resolve, reject) => {
-			xhr.onload = () => {
-				if (xhr.status >= 200 && xhr.status < 300) {
-					try {
-						const response = JSON.parse(xhr.responseText);
-						let data = response.data;
-
-						// Check if data is a JSON string that needs parsing
-						if (typeof data === "string") {
-							try {
-								data = JSON.parse(data);
-								logger.debug("Parsed stringified data:", data);
-							} catch (_e) {
-								logger.warn("Data is a string but not valid JSON:", data);
-							}
-						}
-						if (response.type === "success" && data) {
-							resolve(data);
-						} else if (response.success !== undefined) {
-							resolve(response);
-						} else {
-							reject(new Error("Invalid response format"));
-						}
-					} catch (_e) {
-						reject(new Error("Invalid response format"));
+			// Cleanup phase: Remove URLs for files that are no longer present
+			if (isActive) {
+				const currentFileKeys = new Set(currentFiles.map((f) => `${f.name}-${f.size}`));
+				for (const [key, url] of objectUrls) {
+					if (!currentFileKeys.has(key)) {
+						URL.revokeObjectURL(url);
+						objectUrls.delete(key);
 					}
-				} else {
-					reject(new Error(`Upload failed: ${xhr.status}`));
 				}
-			};
-			xhr.onerror = () => reject(new Error("Network error"));
-		});
-
-		// Post to the base mediagallery route's upload form action
-		xhr.open("POST", "/mediagallery?/upload");
-		xhr.send(formData);
-
-		const result: any = await uploadPromise;
-		const success = Array.isArray(result)
-			? result[0]?.success
-			: result?.success;
-
-		if (success) {
-			toast.success("Files uploaded successfully");
-			handleCancel();
-			onUploadComplete();
-			if (redirectOnSuccess) {
-				goto("/mediagallery", { invalidateAll: true });
 			}
-		} else {
-			throw new Error(
-				(Array.isArray(result) ? result[0]?.error : result?.error) ||
-					"Upload failed",
-			);
 		}
-	} catch (error) {
-		logger.error("Error uploading files:", error);
-		toast.error({
-			description: `Error uploading files: ${error instanceof Error ? error.message : "Unknown error"}`,
-		});
-	} finally {
-		isUploading = false;
+
+		generateThumbnails();
+
+		return () => {
+			isActive = false;
+		};
+	});
+
+	// Cleanup on destroy
+	$effect(() => {
+		return () => {
+			objectUrls.forEach((url) => URL.revokeObjectURL(url));
+		};
+	});
+
+	// Helper: Get icon string
+	function getFileIcon(file: File): string {
+		const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+		switch (true) {
+			case file.type?.startsWith('image/'):
+				return 'fa-solid:image';
+			case file.type?.startsWith('video/'):
+				return 'fa-solid:video';
+			case file.type?.startsWith('audio/'):
+				return 'fa-solid:play-circle';
+			case fileExt === '.pdf':
+				return 'vscode-icons:file-type-pdf2';
+			case fileExt === '.doc' || fileExt === '.docx' || fileExt === '.docm':
+				return 'vscode-icons:file-type-word';
+			case fileExt === '.ppt' || fileExt === '.pptx':
+				return 'vscode-icons:file-type-powerpoint';
+			case fileExt === '.xls' || fileExt === '.xlsx':
+				return 'vscode-icons:file-type-excel';
+			case fileExt === '.txt':
+				return 'fa-solid:file-lines';
+			case fileExt === '.zip' || fileExt === '.rar':
+				return 'fa-solid:file-zipper';
+			default:
+				return 'vscode-icons:file';
+		}
 	}
-}
+
+	// Format MIME type for display
+	function formatMimeType(mime?: string): string {
+		if (!mime) {
+			return 'Unknown';
+		}
+		const parts = mime.split('/');
+		return parts[1] ? parts[1].toUpperCase() : parts[0].toUpperCase();
+	}
+
+	function validateAndAddFiles(newFiles: File[]) {
+		const validFiles: File[] = [];
+		const errors: string[] = [];
+
+		newFiles.forEach((file) => {
+			if (file.size > MAX_FILE_SIZE) {
+				errors.push(`${file.name} exceeds maximum file size of 50MB`);
+			} else if (ALLOWED_TYPES.includes(file.type)) {
+				// Check for duplicates
+				const fileKey = `${file.name}-${file.size}`;
+				if (fileSet.has(fileKey)) {
+					// Silent skip or warn? using simple toast if needed, but usually redundant
+				} else {
+					validFiles.push(file);
+					fileSet.add(fileKey);
+				}
+			} else {
+				errors.push(`${file.name} is not an allowed file type`);
+			}
+		});
+
+		if (errors.length > 0) {
+			toast.error({ description: errors.join('\n') });
+		}
+
+		if (validFiles.length > 0) {
+			files = [...files, ...validFiles];
+		}
+	}
+
+	function handleFileDrop(event: DragEvent) {
+		event.preventDefault();
+		if (!event.dataTransfer) {
+			return;
+		}
+		validateAndAddFiles(Array.from(event.dataTransfer.files));
+	}
+
+	function onChange() {
+		if (!input?.files) {
+			return;
+		}
+		validateAndAddFiles(Array.from(input.files));
+		if (input) {
+			input.value = '';
+		}
+	}
+
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		if (dropZone) {
+			dropZone.style.borderColor = '#5fd317';
+		}
+	}
+
+	function handleDragLeave(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		dropZone?.style.removeProperty('border-color');
+	}
+
+	function handleDeleteFile(file: File) {
+		const fileKey = `${file.name}-${file.size}`;
+		files = files.filter((f) => f !== file);
+		fileSet.delete(fileKey);
+	}
+
+	function handleCancel() {
+		files = [];
+		fileSet.clear();
+		// Revoke immediately
+		objectUrls.forEach((url) => URL.revokeObjectURL(url));
+		objectUrls.clear();
+	}
+
+	// Format bytes for display
+	function formatBytes(bytes: number): string {
+		if (bytes === 0) {
+			return '0 Bytes';
+		}
+		const k = 1024;
+		const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
+	}
+
+	async function uploadLocalFiles() {
+		if (files.length === 0) {
+			toast.warning('No files selected for upload');
+			return;
+		}
+
+		isUploading = true;
+		uploadProgress = 0;
+		const startTime = Date.now();
+		let lastLoaded = 0;
+
+		const formData = new FormData();
+		files.forEach((file) => {
+			formData.append('files', file);
+		});
+		formData.append('folder', folder);
+
+		try {
+			const xhr = new XMLHttpRequest();
+
+			// Track upload progress
+			xhr.upload.addEventListener('progress', (e) => {
+				if (e.lengthComputable) {
+					uploadProgress = Math.round((e.loaded * 100) / e.total);
+
+					// Calculate upload speed (bytes per second)
+					const currentTime = Date.now();
+					const timeDiff = (currentTime - startTime) / 1000; // in seconds
+					const loadedDiff = e.loaded - lastLoaded;
+					uploadSpeed = timeDiff > 0 ? loadedDiff / timeDiff : 0;
+					lastLoaded = e.loaded;
+				}
+			});
+
+			// Handle completion
+			const uploadPromise = new Promise((resolve, reject) => {
+				xhr.onload = () => {
+					if (xhr.status >= 200 && xhr.status < 300) {
+						try {
+							const response = JSON.parse(xhr.responseText);
+							let data = response.data;
+
+							// Check if data is a JSON string that needs parsing
+							if (typeof data === 'string') {
+								try {
+									data = JSON.parse(data);
+									logger.debug('Parsed stringified data:', data);
+								} catch (_e) {
+									logger.warn('Data is a string but not valid JSON:', data);
+								}
+							}
+							if (response.type === 'success' && data) {
+								resolve(data);
+							} else if (response.success !== undefined) {
+								resolve(response);
+							} else {
+								reject(new Error('Invalid response format'));
+							}
+						} catch (_e) {
+							reject(new Error('Invalid response format'));
+						}
+					} else {
+						reject(new Error(`Upload failed: ${xhr.status}`));
+					}
+				};
+				xhr.onerror = () => reject(new Error('Network error'));
+			});
+
+			// Post to the base mediagallery route's upload form action
+			xhr.open('POST', '/mediagallery?/upload');
+			xhr.send(formData);
+
+			const result: any = await uploadPromise;
+			const success = Array.isArray(result) ? result[0]?.success : result?.success;
+
+			if (success) {
+				toast.success('Files uploaded successfully');
+				handleCancel();
+				onUploadComplete();
+				if (redirectOnSuccess) {
+					goto('/mediagallery', { invalidateAll: true });
+				}
+			} else {
+				throw new Error((Array.isArray(result) ? result[0]?.error : result?.error) || 'Upload failed');
+			}
+		} catch (error) {
+			logger.error('Error uploading files:', error);
+			toast.error({
+				description: `Error uploading files: ${error instanceof Error ? error.message : 'Unknown error'}`
+			});
+		} finally {
+			isUploading = false;
+		}
+	}
 </script>
 
 {#if files.length === 0}
@@ -391,11 +348,6 @@ async function uploadLocalFiles() {
 					<span class="text-tertiary-500 dark:text-primary-500">Media Upload</span>
 					Drag files here to upload
 				</p>
-
-                <label class="flex items-center gap-2 cursor-pointer justify-center mt-2">
-                    <input type="checkbox" bind:checked={optimizeBeforeUpload} class="checkbox checkbox-sm" />
-                    <span class="text-xs font-bold opacity-75">Optimize Images before upload (WebGPU)</span>
-                </label>
 
 				<p class="text-sm opacity-75">Multiple files allowed</p>
 

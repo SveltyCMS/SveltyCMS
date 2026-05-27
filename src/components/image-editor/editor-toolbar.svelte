@@ -1,309 +1,154 @@
-<!--
+﻿<!--
 @file: src/components/image-editor/editor-toolbar.svelte
 @component
-**Pintura-style professional bottom toolbar**
-
-Features:
-- Dynamic controls based on active tool
-- Clean tool grouping with visual hierarchy
-- Keyboard shortcuts support
-- Responsive layout (mobile + desktop)
-- Smooth animations and transitions
+The new single, intelligent bottom toolbar for the image editor.
+It dynamically renders controls based on the active tool.
 -->
 <script lang="ts">
-	import { fade } from 'svelte/transition';
 	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { fade, slide } from 'svelte/transition';
 
 	let {
 		onsave,
-		isSaving,
-		onZoomIn = () => {},
-		onZoomOut = () => {},
-		onZoomReset = () => {},
-		onCompareToggle = () => {},
-		isComparing = false
+		oncancel,
+		isSaving
 	}: {
 		onsave: () => void;
+		oncancel: () => void;
 		isSaving: boolean;
-		onZoomIn?: () => void;
-		onZoomOut?: () => void;
-		onZoomReset?: () => void;
-		onCompareToggle?: () => void;
-		isComparing?: boolean;
 	} = $props();
+
+	/* Restore Tool Icons Logic */
+	import { editorWidgets } from './widgets/registry';
+
+	const activeState = $derived(imageEditorStore.state.activeState);
+	const hasImage = $derived(!!imageEditorStore.state.imageElement);
+	const toolbarControls = $derived(imageEditorStore.state.toolbarControls);
 
 	const canUndo = $derived(imageEditorStore.canUndoState);
 	const canRedo = $derived(imageEditorStore.canRedoState);
 
-	// Keyboard shortcuts
-	function handleKeyDown(e: KeyboardEvent) {
-		const target = e.target as HTMLElement;
-		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-
-		const cmdOrCtrl = e.metaKey || e.ctrlKey;
-
-		// Ctrl/Cmd+S: Save
-		if (cmdOrCtrl && e.key === 's') {
-			e.preventDefault();
-			onsave();
-		}
-
-		// Ctrl/Cmd+Z: Undo
-		if (cmdOrCtrl && !e.shiftKey && e.key === 'z') {
-			e.preventDefault();
-			imageEditorStore.handleUndo();
-		}
-
-		// Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z: Redo
-		if ((cmdOrCtrl && e.shiftKey && e.key === 'z') || (cmdOrCtrl && e.key === 'y')) {
-			e.preventDefault();
-			imageEditorStore.handleRedo();
-		}
-	}
+	// Get active widget title
+	const activeWidget = $derived(editorWidgets.find((w) => w.key === activeState));
 </script>
 
-<svelte:window onkeydown={handleKeyDown} />
-
 <div
-	class="editor-toolbar relative z-10 flex flex-col border-t border-white/10 bg-[linear-gradient(180deg,rgba(27,27,27,0.98),rgba(12,12,12,0.98))] backdrop-blur-xl shadow-[0_-8px_24px_rgba(0,0,0,0.18)] shrink-0"
+	class="fixed bottom-0 left-0 right-0 z-40 flex flex-col bg-surface-900 border-t border-surface-700 shadow-2xl"
 	role="toolbar"
-	aria-label="Image editor"
+	aria-label="Editor properties"
 >
-	<!-- Footer actions -->
-	<div class="footer-actions flex items-center justify-between gap-3 px-4 py-3 max-md:flex-col max-md:items-stretch max-md:gap-2">
-		<div class="shortcut-hint flex items-center gap-1 text-xs text-surface-400">
-			<iconify-icon icon="mdi:keyboard" width="16"></iconify-icon>
-			<span>Ctrl+S save, Esc cancel, Ctrl+Z or Ctrl+Y redo</span>
+	<!-- Drawer: Tool Controls (Slides up from within the dock) -->
+	{#if toolbarControls?.component}
+		{@const Component = toolbarControls.component}
+		<div class="flex flex-col border-b border-surface-700 bg-surface-800/50 backdrop-blur-md" transition:slide={{ axis: 'y', duration: 250 }}>
+			<!-- Optional: Tool Title Header in Drawer -->
+			{#if activeWidget}
+				<div class="flex items-center justify-between px-4 py-2 border-b border-surface-700/50">
+					<span class="text-xs font-bold uppercase tracking-wider text-surface-400">{activeWidget.title}</span>
+					<div class="flex gap-2">
+						<!-- Inline Undo/Redo for precision editing -->
+						<button
+							class="text-surface-400 hover:text-white disabled:opacity-30"
+							onclick={() => imageEditorStore.handleUndo()}
+							disabled={!canUndo}
+							aria-label="Undo"
+						>
+							<iconify-icon icon="mdi:undo" width="16"></iconify-icon>
+						</button>
+						<button
+							class="text-surface-400 hover:text-white disabled:opacity-30"
+							onclick={() => imageEditorStore.handleRedo()}
+							disabled={!canRedo}
+							aria-label="Redo"
+						>
+							<iconify-icon icon="mdi:redo" width="16"></iconify-icon>
+						</button>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Controls Container -->
+			<div class="flex items-center justify-center p-3 sm:p-4 overflow-x-auto"><Component {...toolbarControls.props} /></div>
 		</div>
-		<div class="action-group flex items-center gap-2 max-md:w-full max-md:flex-wrap max-md:justify-between">
-			<button
-				type="button"
-				class="toolbar-btn toolbar-btn-compare"
-				onclick={onCompareToggle}
-				title="Compare before / after"
-				aria-pressed={isComparing}
-				aria-label="Compare original and edited version"
-			>
-				<iconify-icon icon="mdi:compare" width="16"></iconify-icon>
-				<span class="text-xs font-medium">{isComparing ? 'After' : 'Before'}</span>
-			</button>
-			<div class="mr-2 flex items-center gap-1 rounded-full border border-white/10 bg-black/40 px-2 py-1 max-md:mr-0 max-md:flex-1 max-md:justify-between">
-				<button
-					type="button"
-					class="toolbar-icon-btn"
-					onclick={onZoomOut}
-					title="Zoom out (-)"
-					aria-label="Zoom out"
-					aria-keyshortcuts="-"
-				>
-					<iconify-icon icon="mdi:magnify-minus" width="16"></iconify-icon>
-				</button>
-				<button
-					type="button"
-					class="toolbar-icon-btn"
-					onclick={onZoomReset}
-					title="Reset zoom (0)"
-					aria-label="Reset zoom"
-					aria-keyshortcuts="0"
-				>
-					<iconify-icon icon="mdi:magnify" width="16"></iconify-icon>
-				</button>
-				<button
-					type="button"
-					class="toolbar-icon-btn"
-					onclick={onZoomIn}
-					title="Zoom in (+)"
-					aria-label="Zoom in"
-					aria-keyshortcuts="+"
-				>
-					<iconify-icon icon="mdi:magnify-plus" width="16"></iconify-icon>
-				</button>
-			</div>
-			<button
-				type="button"
-				class="toolbar-btn"
-				onclick={() => imageEditorStore.handleUndo()}
-				disabled={!canUndo}
-				title="Undo (Mod+Z)"
-				aria-label="Undo last change"
-				aria-keyshortcuts="Mod+Z"
-			>
-				<iconify-icon icon="mdi:undo" width="18"></iconify-icon>
-			</button>
-			<button
-				type="button"
-				class="toolbar-btn"
-				onclick={() => imageEditorStore.handleRedo()}
-				disabled={!canRedo}
-				title="Redo (Mod+Shift+Z)"
-				aria-label="Redo last undone change"
-				aria-keyshortcuts="Mod+Shift+Z"
-			>
-				<iconify-icon icon="mdi:redo" width="18"></iconify-icon>
-			</button>
-			<button
-				type="button"
-				class="toolbar-btn toolbar-btn-primary"
-				onclick={onsave}
-				disabled={isSaving}
-				title="Save changes (Mod+S)"
-				aria-label="Save edited image"
-				aria-keyshortcuts="Mod+S"
-			>
-				{#if isSaving}
-					<iconify-icon icon="mdi:loading" width="18" class="animate-spin" aria-hidden="true"></iconify-icon>
-				{:else}
-					<iconify-icon icon="mdi:check" width="18" aria-hidden="true"></iconify-icon>
-				{/if}
-				<span class="text-xs font-medium">Save</span>
-			</button>
+	{/if}
+
+	<!-- Main Dock: Navigation & Actions -->
+	<div class="flex h-16 items-center justify-between px-2 sm:px-4">
+		<!-- Left: Cancel -->
+		<button
+			class="flex flex-col items-center justify-center rounded-lg px-2 py-1 text-surface-400 transition-colors hover:text-white hover:bg-surface-800"
+			onclick={oncancel}
+			title="Cancel"
+		>
+			<iconify-icon icon="mdi:close" width="24"></iconify-icon>
+			<span class="text-[10px] font-medium mt-0.5 max-sm:hidden">Cancel</span>
+		</button>
+
+		<!-- Center: Tool Strip (Scrollable) -->
+		<div class="no-scrollbar mx-2 flex flex-1 items-center justify-center gap-1 overflow-x-auto sm:gap-2">
+			{#if hasImage}
+				{#each editorWidgets as widget (widget.key)}
+					<button
+						class="group relative flex flex-col items-center justify-center gap-1 rounded-xl p-2 transition-all duration-200"
+						class:text-primary-400={activeState === widget.key}
+						class:text-surface-400={activeState !== widget.key}
+						onclick={() => imageEditorStore.switchTool(widget.key)}
+						aria-label={widget.title}
+						aria-pressed={activeState === widget.key}
+						title={widget.title}
+					>
+						<div
+							class="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 {activeState === widget.key
+								? 'bg-primary-500/20 text-primary-400'
+								: 'group-hover:bg-surface-800'}"
+						>
+							<iconify-icon icon={widget.icon} width="20"></iconify-icon>
+						</div>
+						<span class="text-[10px] font-medium whitespace-nowrap {activeState === widget.key ? 'text-primary-400' : ''}">{widget.title}</span>
+
+						{#if activeState === widget.key}
+							<div class="absolute -bottom-1 h-1 w-1 rounded-full bg-primary-500"></div>
+						{/if}
+					</button>
+				{/each}
+			{:else}
+				<span class="text-sm text-surface-500">No image loaded</span>
+			{/if}
 		</div>
+
+		<!-- Right: Save -->
+		<button
+			class="flex flex-col items-center justify-center rounded-lg px-2 py-1 text-primary-400 transition-colors hover:text-primary-300 hover:bg-primary-500/10 min-w-[50px]"
+			onclick={onsave}
+			disabled={isSaving}
+			title="Done"
+		>
+			{#if isSaving}
+				<iconify-icon icon="mdi:loading" width="24" class="animate-spin"></iconify-icon>
+			{:else}
+				<iconify-icon icon="mdi:check" width="24"></iconify-icon>
+			{/if}
+			<span class="text-[10px] font-medium mt-0.5 max-sm:hidden">Done</span>
+		</button>
 	</div>
 
-	<!-- Mobile Safe Area -->
-	<div class="h-[env(safe-area-inset-bottom)] bg-surface-900"></div>
+	<!-- System Bar Spacer (for mobile gestures) -->
+	<div class="h-[env(safe-area-inset-bottom)] w-full bg-surface-900"></div>
 
-	<!-- Error Toast -->
+	<!-- Validation Error Toast -->
 	{#if imageEditorStore.state.error}
 		<div
-			class="absolute bottom-full left-1/2 mb-4 -translate-x-1/2 flex items-center gap-2 rounded-full bg-error-500/95 px-5 py-2.5 text-sm font-medium text-white shadow-xl backdrop-blur-sm"
+			class="absolute bottom-full left-1/2 mb-4 flex -translate-x-1/2 items-center justify-center rounded-full bg-error-500/90 px-4 py-2 text-sm font-medium text-white shadow-lg backdrop-blur-sm"
 			transition:fade={{ duration: 200 }}
 		>
-			<iconify-icon icon="mdi:alert-circle" width="18"></iconify-icon>
-			<span>{imageEditorStore.state.error}</span>
-			<button
-				type="button"
-				class="ml-2 rounded-full p-1 hover:bg-white/20"
-				onclick={() => imageEditorStore.setError(null)}
-				aria-label="Dismiss"
-			>
-				<iconify-icon icon="mdi:close" width="14"></iconify-icon>
-			</button>
+			<iconify-icon icon="mdi:alert-circle" width={16} class="mr-2"></iconify-icon>
+			{imageEditorStore.state.error}
 		</div>
 	{/if}
 </div>
 
 <style>
-	.editor-toolbar {
-		animation: slideUp 0.3s ease-out;
-	}
-
-	@keyframes slideUp {
-		from {
-			transform: translateY(100%);
-		}
-		to {
-			transform: translateY(0);
-		}
-	}
-
-	.toolbar-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		min-width: 2.5rem;
-		height: 2.5rem;
-		padding: 0 0.75rem;
-		color: #9ca3af;
-		cursor: pointer;
-		background: transparent;
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-radius: 0.5rem;
-		transition: all 0.15s ease;
-	}
-
-	.toolbar-icon-btn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 2rem;
-		height: 2rem;
-		color: #d1d5db;
-		background: transparent;
-		border: 1px solid transparent;
-		border-radius: 9999px;
-		transition: all 0.15s ease;
-	}
-
-	.toolbar-icon-btn:hover {
-		color: #ffffff;
-		background: rgba(255, 255, 255, 0.06);
-		border-color: rgba(255, 255, 255, 0.08);
-	}
-
-	.toolbar-btn:hover:not(:disabled) {
-		color: #e5e7eb;
-		background: rgba(255, 255, 255, 0.05);
-	}
-
-	.toolbar-btn:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
-	}
-
-	.toolbar-btn-primary {
-		color: #60a5fa;
-		border-color: rgba(59, 130, 246, 0.3);
-		background: rgba(59, 130, 246, 0.1);
-	}
-
-	.toolbar-btn-primary:hover:not(:disabled) {
-		color: #93c5fd;
-		background: rgba(59, 130, 246, 0.2);
-	}
-
-	.toolbar-btn-compare {
-		min-width: auto;
-		padding-inline: 0.9rem;
-	}
-
-	/* Mobile optimizations */
-	@media (max-width: 640px) {
-		.editor-toolbar {
-			font-size: 0.875rem;
-			border-radius: 1rem 1rem 0 0;
-		}
-
-		.footer-actions {
-			justify-content: flex-start;
-			padding-inline: 0.75rem;
-			padding-block: 0.6rem;
-		}
-
-		.shortcut-hint {
-			display: none;
-		}
-
-		.action-group {
-			width: 100%;
-			flex-wrap: wrap;
-			justify-content: flex-end;
-			gap: 0.375rem;
-		}
-
-		.toolbar-btn,
-		.toolbar-btn-compare {
-			padding-inline: 0.6rem;
-			min-width: 2.25rem;
-		}
-
-		.toolbar-btn-compare span {
-			display: none;
-		}
-
-		.action-group :global(.toolbar-btn),
-		.action-group :global(.toolbar-icon-btn) {
-			flex: 1 1 auto;
-		}
-
-		.toolbar-icon-btn {
-			width: 1.9rem;
-			height: 1.9rem;
-		}
-
-		.toolbar-btn-primary span {
-			display: none;
-		}
+	:global(.dark) .border-t {
+		border-color: rgb(var(--color-surface-700) / 1);
 	}
 </style>

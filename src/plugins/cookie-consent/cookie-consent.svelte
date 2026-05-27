@@ -1,189 +1,119 @@
-<!--
- @file src/plugins/cookie-consent/cookie-consent.svelte
- @component Cookie Consent Banner – GDPR compliant.
- Displays a granular cookie selection UI with accessibility and Svelte 5 runes.
+﻿<!--
+@file src\plugins\cookie-consent\cookie-consent.svelte
+@component
+**Cookie Consent Banner**
+Displays a GDPR-compliant cookie consent banner.
 -->
-
 <script lang="ts">
-  import Toggles from "@src/components/system/inputs/toggles.svelte";
-  import {
-    cookie_analytics_desc,
-    cookie_analytics_title,
-    cookie_button_accept,
-    cookie_button_customize,
-    cookie_button_reject,
-    cookie_button_save,
-    cookie_description,
-    cookie_heading,
-    cookie_marketing_desc,
-    cookie_marketing_title,
-    cookie_necessary_desc,
-    cookie_necessary_title,
-  } from "@src/paraglide/messages";
-  import { consentStore } from "@src/stores/consent-store.svelte";
-  import { fade, slide } from "svelte/transition";
+	import Toggles from '@src/components/system/inputs/toggles.svelte';
+	import {
+		cookie_analytics_desc,
+		cookie_analytics_title,
+		cookie_button_accept,
+		cookie_button_customize,
+		cookie_button_reject,
+		cookie_button_save,
+		cookie_description,
+		cookie_heading,
+		cookie_marketing_desc,
+		cookie_marketing_title,
+		cookie_necessary_desc,
+		cookie_necessary_title
+	} from '@src/paraglide/messages';
+	import { consentStore } from '@src/stores/consent-store.svelte';
+	import { onMount } from 'svelte';
+	import { fade, slide } from 'svelte/transition';
 
-  // Banner and detail visibility state
-  let showBanner = $state(false);
-  let showDetails = $state(false);
+	let showBanner = $state(false);
+	let showDetails = $state(false);
 
-  // Local "draft" preferences for the customization view
-  let preferences = $state({
-    analytics: consentStore.analytics,
-    marketing: consentStore.marketing,
-  });
+	// Local state for the details view before saving
+	let preferences = $state({
+		analytics: consentStore.analytics,
+		marketing: consentStore.marketing
+	});
 
-  // Trigger banner appearance after a short delay if no response yet
-  $effect(() => {
-    if (!consentStore.responded) {
-      const timer = setTimeout(() => {
-        showBanner = true;
-      }, 600);
-      return () => clearTimeout(timer);
-    }
-  });
+	onMount(() => {
+		// Show banner if user hasn't responded yet
+		if (!consentStore.responded) {
+			// Small delay for animation
+			setTimeout(() => {
+				showBanner = true;
+			}, 500);
+		}
+	});
 
-  // Update local state if the store changes (e.g., from another component)
-  $effect(() => {
-    preferences.analytics = consentStore.analytics;
-    preferences.marketing = consentStore.marketing;
-  });
+	function handleAcceptAll() {
+		consentStore.acceptAll();
+		showBanner = false;
+	}
 
-  function handleAcceptAll() {
-    consentStore.acceptAll();
-    showBanner = false;
-  }
+	function handleRejectAll() {
+		consentStore.rejectAll();
+		showBanner = false;
+	}
 
-  function handleRejectAll() {
-    consentStore.rejectAll();
-    showBanner = false;
-  }
-
-  function handleSavePreferences() {
-    consentStore.update({
-      analytics: preferences.analytics,
-      marketing: preferences.marketing,
-    });
-    showBanner = false;
-  }
-
-  /**
-   * Allows re-opening the banner from an external component (like a footer link)
-   */
-  export function openConsentBanner() {
-    showDetails = false;
-    showBanner = true;
-  }
+	function handleSavePreferences() {
+		consentStore.update(preferences);
+		showBanner = false;
+	}
 </script>
 
 {#if showBanner && !consentStore.responded}
-  <div
-    transition:fade={{ duration: 300 }}
-    class="fixed inset-x-0 bottom-0 `z-9999 p-4 md:bottom-6 md:left-6 md:right-auto md:w-full md:max-w-md"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="cookie-heading"
-    aria-describedby="cookie-description"
-  >
-    <div
-      class="rounded-2xl border border-surface-200 bg-white p-6 shadow-2xl dark:border-surface-700 dark:bg-surface-900"
-    >
-      <!-- Header -->
-      <div class="flex items-start gap-4">
-        <div class="text-4xl" aria-hidden="true">🍪</div>
-        <div class="flex-1">
-          <h2
-            id="cookie-heading"
-            class="text-xl font-bold text-gray-900 dark:text-white"
-          >
-            {cookie_heading()}
-          </h2>
-          <p
-            id="cookie-description"
-            class="mt-2 text-sm text-gray-600 dark:text-gray-300"
-          >
-            {cookie_description()}
-          </p>
-        </div>
-      </div>
+	<div
+		transition:fade={{ duration: 300 }}
+		class="fixed bottom-0 left-0 right-0 z-9999 bg-white p-4 shadow-2xl dark:bg-surface-800 md:bottom-4 md:left-4 md:right-auto md:max-w-lg md:rounded-lg border-t md:border border-surface-200 dark:border-surface-700"
+		role="dialog"
+		aria-labelledby="cookie-heading"
+	>
+		<div class="flex flex-col gap-4">
+			<!-- Header -->
+			<div class="flex items-start gap-4">
+				<div class="text-3xl">🍪</div>
+				<div>
+					<h2 id="cookie-heading" class="text-lg font-bold text-gray-900 dark:text-white">{cookie_heading()}</h2>
+					<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{cookie_description()}</p>
+				</div>
+			</div>
 
-      {#if showDetails}
-        <div
-          transition:slide
-          class="mt-6 space-y-5 border-t border-surface-200 py-5 dark:border-surface-700"
-        >
-          <!-- Necessary (always on) -->
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="font-medium text-gray-900 dark:text-white">
-                {cookie_necessary_title()}
-              </div>
-              <div class="text-xs text-gray-500">{cookie_necessary_desc()}</div>
-            </div>
-            <Toggles value={true} disabled />
-          </div>
+			{#if showDetails}
+				<div transition:slide class="border-t border-surface-200 py-4 dark:border-surface-700 space-y-3">
+					<div class="flex items-center justify-between">
+						<div>
+							<div class="font-semibold text-sm">{cookie_necessary_title()}</div>
+							<div class="text-xs text-gray-500">{cookie_necessary_desc()}</div>
+						</div>
+						<Toggles value={true} disabled={true} />
+					</div>
 
-          <!-- Analytics -->
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="font-medium text-gray-900 dark:text-white">
-                {cookie_analytics_title()}
-              </div>
-              <div class="text-xs text-gray-500">{cookie_analytics_desc()}</div>
-            </div>
-            <Toggles bind:value={preferences.analytics} />
-          </div>
+					<div class="flex items-center justify-between">
+						<div>
+							<div class="font-semibold text-sm">{cookie_analytics_title()}</div>
+							<div class="text-xs text-gray-500">{cookie_analytics_desc()}</div>
+						</div>
+						<Toggles bind:value={preferences.analytics} />
+					</div>
 
-          <!-- Marketing -->
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="font-medium text-gray-900 dark:text-white">
-                {cookie_marketing_title()}
-              </div>
-              <div class="text-xs text-gray-500">{cookie_marketing_desc()}</div>
-            </div>
-            <Toggles bind:value={preferences.marketing} />
-          </div>
-        </div>
-      {/if}
+					<div class="flex items-center justify-between">
+						<div>
+							<div class="font-semibold text-sm">{cookie_marketing_title()}</div>
+							<div class="text-xs text-gray-500">{cookie_marketing_desc()}</div>
+						</div>
+						<Toggles bind:value={preferences.marketing} />
+					</div>
+				</div>
+			{/if}
 
-      <!-- Actions -->
-      <div class="mt-6 flex flex-col gap-3 sm:flex-row">
-        {#if showDetails}
-          <button
-            onclick={handleSavePreferences}
-            class="btn preset-filled-primary flex-1"
-          >
-            {cookie_button_save()}
-          </button>
-        {:else}
-          <button
-            onclick={() => (showDetails = true)}
-            class="btn preset-tonal-secondary flex-1"
-          >
-            {cookie_button_customize()}
-          </button>
-          <button
-            onclick={handleRejectAll}
-            class="btn preset-tonal-secondary flex-1"
-          >
-            {cookie_button_reject()}
-          </button>
-          <button
-            onclick={handleAcceptAll}
-            class="btn preset-filled-primary flex-1"
-          >
-            {cookie_button_accept()}
-          </button>
-        {/if}
-      </div>
-
-      <!-- Privacy Link -->
-      <p class="mt-4 text-center text-xs text-gray-500">
-        <a href="/privacy-policy" class="hover:underline hover:text-primary-500"
-          >Privacy Policy</a
-        >
-      </p>
-    </div>
-  </div>
+			<!-- Actions -->
+			<div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
+				{#if showDetails}
+					<button onclick={handleSavePreferences} class="btn preset-filled-primary flex-1">{cookie_button_save()}</button>
+				{:else}
+					<button onclick={() => (showDetails = true)} class="btn preset-tonal-secondary flex-1">{cookie_button_customize()}</button>
+					<button onclick={handleRejectAll} class="btn preset-tonal-secondary flex-1">{cookie_button_reject()}</button>
+					<button onclick={handleAcceptAll} class="btn preset-outlined-primary-500 flex-1">{cookie_button_accept()}</button>
+				{/if}
+			</div>
+		</div>
+	</div>
 {/if}

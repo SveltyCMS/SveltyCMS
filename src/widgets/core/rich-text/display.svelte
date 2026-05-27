@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 @file src/widgets/core/RichText/Display.svelte
 @component
 **RichText Widget Display Component**
@@ -17,7 +17,7 @@ Renders: Title heading + XSS-protected HTML in prose container
 - **XSS Protection**: Sanitized HTML rendering via Sanitize component
 - **Prose Styling**: Semantic typography with proper line-height and spacing
 - **Title Support**: Optional heading display with structured hierarchy
-- **Null Handling**: Graceful fallback to "�" for empty content
+- **Null Handling**: Graceful fallback to "–" for empty content
 - **Content Display**: Renders HTML content with DOMPurify sanitization
 -->
 
@@ -34,5 +34,5 @@ Renders: Title heading + XSS-protected HTML in prose container
 	{/if}
 	<Sanitize html={value.content} profile="rich-text" class="prose" />
 {:else}
-	<span>�</span>
+	<span>–</span>
 {/if}

@@ -1,14 +1,14 @@
 ---
-path: "docs/architecture/compilation-pipeline.mdx"
+path: 'docs/architecture/compilation-pipeline.mdx'
 title: Compilation Pipeline
 description: Detailed architecture of the SveltyCMS compilation system, explaining how TypeScript collections are transformed into runtime-ready JavaScript with UUID syncing and robust validation.
-author: "SveltyCMS Team"
-created: "2025-12-29"
-updated: "2026-03-27"
+author: 'admin'
+created: '2025-12-29'
+updated: '2025-12-29'
 tags:
-  - "architecture"
-  - "compilation"
-  - "pipeline"
+  - 'architecture'
+  - 'compilation'
+  - 'pipeline'
 ---
 
 # Compilation Pipeline
@@ -65,14 +65,14 @@ In development mode, the `cmsWatcherPlugin` invokes the compiler on file changes
 
 ```typescript
 // vite.config.ts leverage the shared compile utility
-import { compile } from "./src/utils/compilation/compile";
+import { compile } from './src/utils/compilation/compile';
 
 // ... inside watcher
 await compile({
-  userCollections: paths.userCollections,
-  compiledCollections: paths.compiledCollections,
-  targetFile: file, // Incremental compilation
-  logger: log, // Injects the Vite logger
+	userCollections: paths.userCollections,
+	compiledCollections: paths.compiledCollections,
+	targetFile: file, // Incremental compilation
+	logger: log // Injects the Vite logger
 });
 ```
 
@@ -82,7 +82,7 @@ The Collection Builder UI triggers compilation when you save a collection:
 
 ```typescript
 // src/routes/(app)/config/collectionbuilder/.../+page.server.ts
-import { compile } from "@src/utils/compilation/compile";
+import { compile } from '@src/utils/compilation/compile';
 
 // ... inside save action
 await compile({ logger }); // Trigger full or partial compile
@@ -102,23 +102,22 @@ While the compilation pipeline handles the _transformation_ of code to checks, t
 - **Post-Compile Check**: After compilation, the system can compare the new `compiledCollections` (Code Truth) against the database state.
 - **Safety**: This ensures that changes made in code (e.g., removing a field) are flagged if they pose a risk to existing data in the database.
 
+## Usage Guide
+
 To manually trigger compilation or use it in a script:
 
 ```typescript
-import { compile } from "@src/utils/compilation/compile";
+import { compile } from '@src/utils/compilation/compile';
 
 await compile({
-  userCollections: "./config/collections",
-  compiledCollections: "./compiledCollections",
-  concurrency: 10,
+	userCollections: './config/collections',
+	compiledCollections: './compiledCollections',
+	concurrency: 10 // Optional: speed up for large projects
 });
 ```
-
-The output of this pipeline is monitored by the **Content System (`src/content/content-service.server.ts`)**, which reconciles the compiled JavaScript modules into the live system state.
 
 ## Related Documentation
 
 - [Collection Builder Guide](/docs/guides/development/collection-builder) - Visual collection builder with data loss warnings
-- [Initialization Workflow](./initialization-workflow.mdx) - How compilation fits into system startup
-- [Content System Architecture](./content-system.mdx) - Consumption of compiled modules
-- [Widget Architecture](/docs/architecture/widgets/architecture) - Understanding widget transformation
+- [Initialization Workflow](/docs/architecture/initialization-workflow) - How compilation fits into system startup
+- [Widget Architecture](/docs/widgets/widget-architecture) - Understanding widget transformation

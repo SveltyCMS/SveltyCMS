@@ -7,59 +7,59 @@ Features:
 - Configure plugin
 -->
 <script lang="ts">
-// Using iconify-icon web component
-/**
- * @file src/routes/(app)/config/extensions/PluginsView.svelte
- */
-// import { toast } from '@src/stores/toast.svelte.ts'; // Need to check if this exists in current codebase
+	// Using iconify-icon web component
+	/**
+	 * @file src/routes/(app)/config/extensions/PluginsView.svelte
+	 */
+	// import { toast } from '@src/stores/toast.svelte.ts'; // Need to check if this exists in current codebase
 
-interface Props {
-	data: {
-		plugins: any[];
-		[key: string]: any;
-	};
-}
+	interface Props {
+		data: {
+			plugins: any[];
+			[key: string]: any;
+		};
+	}
 
-let { data }: Props = $props();
+	let { data }: Props = $props();
 
-async function handleToggle(plugin: any) {
-	const newEnabledState = !plugin.enabled;
+	async function handleToggle(plugin: any) {
+		const newEnabledState = !plugin.enabled;
 
-	// Optimistic UI update
-	plugin.enabled = newEnabledState;
+		// Optimistic UI update
+		plugin.enabled = newEnabledState;
 
-	try {
-		const response = await fetch("/api/plugins/toggle", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ pluginId: plugin.name, enabled: newEnabledState }),
-		});
+		try {
+			const response = await fetch('/api/plugins/toggle', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ pluginId: plugin.name, enabled: newEnabledState })
+			});
 
-		const result = await response.json();
+			const result = await response.json();
 
-		if (!result.success) {
-			// Revert on failure
+			if (!result.success) {
+				// Revert on failure
+				plugin.enabled = !newEnabledState;
+				alert(result.message || 'Failed to toggle plugin');
+			}
+		} catch (error) {
+			// Revert on error
 			plugin.enabled = !newEnabledState;
-			alert(result.message || "Failed to toggle plugin");
+			alert('An error occurred while communicating with the server');
+			console.error(error);
 		}
-	} catch (error) {
-		// Revert on error
-		plugin.enabled = !newEnabledState;
-		alert("An error occurred while communicating with the server");
-		console.error(error);
-	}
-}
-
-function handleConfigure(plugin: any) {
-	if (plugin.missingConfig && plugin.configUrl) {
-		window.location.href = plugin.configUrl;
-		return;
 	}
 
-	console.log("Configure plugin:", plugin);
-	// Future: Open configuration modal
-	alert(`Configuration for ${plugin.displayName} coming soon!`);
-}
+	function handleConfigure(plugin: any) {
+		if (plugin.missingConfig && plugin.configUrl) {
+			window.location.href = plugin.configUrl;
+			return;
+		}
+
+		console.log('Configure plugin:', plugin);
+		// Future: Open configuration modal
+		alert(`Configuration for ${plugin.displayName} coming soon!`);
+	}
 </script>
 
 <div class="mb-6 text-center text-surface-500 dark:text-surface-50">Manage installed plugins to extend your CMS functionality.</div>

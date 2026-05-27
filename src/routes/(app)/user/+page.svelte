@@ -1,4 +1,4 @@
-<!--
+<!-- 
 @file src/routes/(app)/user/+page.svelte
 @component
 **This file sets up and displays the user page, providing a streamlined interface for managing user accounts and settings**
@@ -36,9 +36,9 @@
 		userpage_user_id
 	} from '@src/paraglide/messages';
 	// Stores
+	import { collaboration } from '@src/stores/collaboration-store.svelte';
 	import { avatarSrc, normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
 	import { onMount } from 'svelte';
-	import { fade, fly } from 'svelte/transition';
 	import { invalidateAll } from '$app/navigation';
 	import AdminArea from './components/admin-area.svelte';
 	// Auth
@@ -47,8 +47,8 @@
 	import { setCollection } from '@src/stores/collection-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { triggerActionStore } from '@utils/global-search-index';
-	import { modalState } from '@utils/modal.svelte';
-	import { showConfirm } from '@utils/modal.svelte';
+	import { modalState } from '@utils/modal-state.svelte';
+	import { showConfirm } from '@utils/modal-utils';
 	import ModalEditAvatar from './components/modal-edit-avatar.svelte';
 	import ModalEditForm from './components/modal-edit-form.svelte';
 	import ModalPrivacyData from './components/modal-privacy-data.svelte';
@@ -66,7 +66,6 @@
 		avatar: serverUser?.avatar ?? '/Default_User.svg',
 		tenantId: serverUser?.tenantId ?? '', // Add tenantId
 		is2FAEnabled: serverUser?.is2FAEnabled ?? false,
-		isAdmin: serverUser?.isAdmin ?? false, // Add isAdmin property
 		permissions: []
 	});
 
@@ -104,6 +103,12 @@
 			if (res.ok) {
 				toast.success('Preferences updated');
 				await invalidateAll();
+				// If RTC was disabled, close connection
+				if (key === 'enabled' && !value) {
+					collaboration.close();
+				} else if (key === 'enabled' && value) {
+					collaboration.connect();
+				}
 			} else {
 				toast.error('Failed to update preferences');
 			}
@@ -190,12 +195,12 @@
 <!-- Page Title with Back Button -->
 <PageTitle name={userpage_title()} icon="mdi:account-circle" showBackButton={true} backUrl="/config" />
 
-<div class="max-h-[calc(100vh-65px)] overflow-auto" in:fade={{ duration: 300 }}>
+<div class="max-h-[calc(100vh-65px)] overflow-auto">
 	<h2 class="sr-only">Profile Information</h2>
 	<div class="wrapper mb-2">
 		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 			<!-- Avatar with user info -->
-			<div class="relative flex flex-col items-center justify-center gap-1" in:fly={{ y: 20, delay: 100, duration: 300 }}>
+			<div class="relative flex flex-col items-center justify-center gap-1">
 				<div class="relative group">
 					<Avatar class="w-32 h-32 rounded-full border border-white shadow-lg dark:border-surface-800">
 						<Avatar.Image src={normalizeAvatarUrl(avatarSrc.value)} class="object-cover" />
@@ -245,7 +250,7 @@
 				{/if}
 
 				<!-- Collaboration Settings -->
-				<div class="card p-4 w-full max-w-xs space-y-1 bg-surface-200-700-token border border-surface-500 shadow-sm" in:fly={{ y: 10, delay: 300, duration: 300 }}>
+				<div class="card p-4 w-full max-w-xs space-y-1 bg-surface-200-700-token border border-surface-500 shadow-sm">
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
 							<iconify-icon icon="mdi:forum" class="text-primary-500" width={18}></iconify-icon>
@@ -303,10 +308,9 @@
 						<iconify-icon icon="mdi:lock" class="text-primary-500" width={20}></iconify-icon>
 						<span class="text-sm font-bold">{form_password()}:</span>
 					</div>
-					<input bind:value={password} name="security" type="security" autocomplete="current-password" disabled class="input" />
+					<input bind:value={password} name="password" type="password" autocomplete="current-password" disabled class="input" />
 
-
-					<div class="mt-4 flex flex-col items-center justify-center gap-2">
+					<div class="mt-4 flex flex-col gap-2">
 						<!-- Edit Modal Button -->
 						<button onclick={modalUserForm} aria-label={userpage_edit_usersetting()} class="gradient-tertiary btn w-full max-w-sm text-white">
 							<iconify-icon icon="bi:pencil-fill" width={24}></iconify-icon>
@@ -348,8 +352,8 @@
 		}}
 		silent={true}
 	>
-		<div class="wrapper2" in:fly={{ y: 20, delay: 200, duration: 300 }}>
-			<AdminArea currentUser={{ ...user } as any} isMultiTenant={isMultiTenant!} roles={data.roles as any} />
+		<div class="wrapper2">
+			<AdminArea currentUser={{ ...user }} isMultiTenant={isMultiTenant!} roles={data.roles} />
 		</div>
 	</PermissionGuard>
 </div>

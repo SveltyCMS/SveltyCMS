@@ -17,105 +17,78 @@
 // import Input from '@components/system/inputs/input.svelte';
 // import Toggles from '@components/system/inputs/toggles.svelte';
 
-import type { FieldInstance } from "@src/content/types";
-import { widget_rating_description } from "@src/paraglide/messages";
-import { createWidget } from "@src/widgets/widget-factory";
-import {
-  maxValue,
-  minValue,
-  nullable,
-  number,
-  pipe,
-  type InferInput as ValibotInput,
-} from "valibot";
-import type { RatingProps } from "./types";
+import type { FieldInstance } from '@src/content/types';
+import { widget_rating_description } from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/widget-factory';
+import { maxValue, minValue, number, optional, pipe, type InferInput as ValibotInput } from 'valibot';
+import type { RatingProps } from './types';
 
 // Helper type for aggregation field parameter
 interface AggregationField {
-  db_fieldName: string;
-  [key: string]: unknown;
+	db_fieldName: string;
+	[key: string]: unknown;
 }
 
 // The validation schema is a function to create rules based on the field config.
 const validationSchema = (field: FieldInstance) => {
-  const max = Math.max(1, Number(field.max) || 5);
-  const min = field.required ? 1 : 0;
-  const message = field.required ? "A rating is required." : "Rating cannot be negative.";
+	// The maximum value is determined by the field's config, defaulting to 5.
+	const max = (field.max || 5) as number;
 
-  const schema = pipe(
-    number("Rating must be a number."),
-    minValue(min, message),
-    maxValue(max, `Rating cannot exceed ${max}.`),
-  );
+	// Start with a base number schema.
+	const schema = pipe(number('Rating must be a number.'), minValue(1, 'A rating is required.'), maxValue(max, `Rating cannot exceed ${max}.`));
 
-  return field.required ? schema : nullable(schema);
+	// If the field is not required, wrap the schema to allow it to be undefined.
+	return field.required ? schema : optional(schema);
 };
 
 // Create the widget definition using the factory.
 const RatingWidget = createWidget<RatingProps>({
-  Name: "Rating",
-  Icon: "material-symbols:star-outline",
-  Description: widget_rating_description(),
-  inputComponentPath: "/src/widgets/custom/rating/input.svelte",
-  displayComponentPath: "/src/widgets/custom/rating/display.svelte",
-  validationSchema,
+	Name: 'Rating',
+	Icon: 'material-symbols:star-outline',
+	Description: widget_rating_description(),
+	inputComponentPath: '/src/widgets/custom/rating/input.svelte',
+	displayComponentPath: '/src/widgets/custom/rating/display.svelte',
+	validationSchema,
 
-  // Set widget-specific defaults.
-  defaults: {
-    max: 5,
-    step: 1,
-    showValue: true,
-    iconFull: "material-symbols:star",
-    iconHalf: "material-symbols:star-half",
-    iconEmpty: "material-symbols:star-outline",
-    translated: false,
-  },
+	// Set widget-specific defaults.
+	defaults: {
+		max: 5,
+		iconFull: 'material-symbols:star',
+		iconEmpty: 'material-symbols:star-outline',
+		translated: false
+	},
 
-  // GuiSchema allows configuration in the collection builder.
-  GuiSchema: {
-    label: { widget: "Input", required: true },
-    db_fieldName: { widget: "Input", required: false },
-    required: { widget: "Toggles", required: false },
-    max: {
-      widget: "Input",
-      required: false,
-      helper: "Maximum number of stars.",
-    },
-    step: {
-      widget: "Select",
-      required: false,
-      options: [1, 0.5],
-      helper: "Rating step (1 or 0.5 for half stars).",
-    },
-    showValue: { widget: "Toggles", required: false },
-    iconFull: { widget: "IconifyIconsPicker", required: false },
-    iconHalf: { widget: "IconifyIconsPicker", required: false },
-    iconEmpty: { widget: "IconifyIconsPicker", required: false },
-  },
+	// GuiSchema allows configuration in the collection builder.
+	GuiSchema: {
+		label: { widget: 'Input', required: true },
+		db_fieldName: { widget: 'Input', required: false },
+		required: { widget: 'Toggles', required: false },
+		max: {
+			widget: 'Input',
+			required: false,
+			helper: 'Maximum number of stars.'
+		},
+		iconFull: { widget: 'IconifyIconsPicker', required: false },
+		iconEmpty: { widget: 'IconifyIconsPicker', required: false }
+	},
 
-  // Aggregations perform numeric comparisons.
-  aggregations: {
-    filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
-      {
-        $match: { [field.db_fieldName]: { $eq: Number.parseInt(filter, 10) } },
-      },
-    ],
-    sorts: async ({
-      field,
-      sortDirection,
-    }: {
-      field: AggregationField;
-      sortDirection: number;
-    }) => ({
-      [field.db_fieldName]: sortDirection,
-    }),
-  },
+	// Aggregations perform numeric comparisons.
+	aggregations: {
+		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
+			{
+				$match: { [field.db_fieldName]: { $eq: Number.parseInt(filter, 10) } }
+			}
+		],
+		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
+			[field.db_fieldName]: sortDirection
+		})
+	},
 
-  // GraphQL schema for rating
-  GraphqlSchema: () => ({
-    typeID: "Int", // Use Int for rating values
-    graphql: "", // No custom type definition needed
-  }),
+	// GraphQL schema for rating
+	GraphqlSchema: () => ({
+		typeID: 'Int', // Use Int for rating values
+		graphql: '' // No custom type definition needed
+	})
 });
 
 export default RatingWidget;

@@ -3,7 +3,7 @@
 <script lang="ts">
 	// Skeleton V4
 	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
-	import { modalState } from '@utils/modal.svelte';
+	import { modalState } from '@utils/modal-state.svelte';
 	import { tick } from 'svelte';
 
 	// Handle closing via the Store
@@ -24,14 +24,13 @@
 
 <Dialog open={modalState.isOpen} {onOpenChange}>
 	<Portal>
-		<Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-900/40 backdrop-blur-sm transition-opacity" />
+		<Dialog.Backdrop class="fixed inset-0 z-50 bg-black/40 transition-opacity" />
 
 		<Dialog.Positioner class="fixed inset-0 z-50 flex items-center justify-center {isFullscreen ? 'p-0' : 'p-4'}">
 			<Dialog.Content
 				class="card w-full shadow-xl bg-surface-100-900 border border-surface-300 dark:border-surface-50 
 				{isFullscreen ? 'h-full rounded-none border-0 flex flex-col' : 'space-y-4 p-4'} 
-				{modalState.active?.props?.modalClasses?.includes('max-w-') ? '' : 'max-w-lg'}
-				{modalState.active?.props?.modalClasses ?? ''}"
+				{modalState.active?.props?.modalClasses ?? 'max-w-lg'}"
 			>
 				{#if modalState.active}
 					{#if modalState.active.props?.title}

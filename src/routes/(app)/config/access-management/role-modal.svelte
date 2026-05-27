@@ -21,89 +21,85 @@
 -->
 
 <script lang="ts">
-// Stores
+	// Stores
 
-import { button_cancel } from "@src/paraglide/messages";
-import { modalState } from "@utils/modal.svelte";
-import type { SvelteComponent } from "svelte";
+	import { button_cancel } from '@src/paraglide/messages';
+	import { modalState } from '@utils/modal-state.svelte';
+	import type { SvelteComponent } from 'svelte';
 
-// Props
-interface Props {
-	currentGroupName: string;
-	currentRoleId: string;
-	isEditMode: boolean;
-	/** Exposes parent props to this component. */
-	parent: SvelteComponent;
-	roleDescription: string;
-	roleName: string;
-	selectedPermissions?: string[];
-	permissions?: import("@src/databases/auth/types").Permission[];
-	roles?: import("@src/databases/auth/types").Role[];
-}
-
-const {
-	parent,
-	isEditMode,
-	currentRoleId,
-	roleName,
-	roleDescription,
-	currentGroupName,
-	selectedPermissions = [],
-	permissions = [],
-	roles = [],
-}: Props = $props();
-
-// Local form state
-let formName = $state("");
-let formDescription = $state("");
-let localSelectedPermissions = $state<string[]>([]);
-let permSearch = $state("");
-
-$effect(() => {
-	formName = roleName;
-	formDescription = roleDescription;
-	localSelectedPermissions = [...selectedPermissions];
-});
-
-const filteredPermissions = $derived(
-	permissions.filter(
-		(p) =>
-			p.name.toLowerCase().includes(permSearch.toLowerCase()) ||
-			p._id.toLowerCase().includes(permSearch.toLowerCase()),
-	),
-);
-
-function togglePermission(id: string) {
-	if (localSelectedPermissions.includes(id)) {
-		localSelectedPermissions = localSelectedPermissions.filter((p) => p !== id);
-	} else {
-		localSelectedPermissions = [...localSelectedPermissions, id];
+	// Props
+	interface Props {
+		currentGroupName: string;
+		currentRoleId: string;
+		isEditMode: boolean;
+		/** Exposes parent props to this component. */
+		parent: SvelteComponent;
+		roleDescription: string;
+		roleName: string;
+		selectedPermissions?: string[];
+		permissions?: import('@src/databases/auth/types').Permission[];
+		roles?: import('@src/databases/auth/types').Role[];
 	}
-}
 
-function handleCopyPermissions(event: Event) {
-	const targetId = (event.target as HTMLSelectElement).value;
-	if (!targetId) return;
-
-	const sourceRole = roles.find((r) => r._id === targetId);
-	if (sourceRole) {
-		localSelectedPermissions = [...sourceRole.permissions];
-	}
-	// Reset the select element to "Copy permissions from..."
-	(event.target as HTMLSelectElement).value = "";
-}
-
-function onFormSubmit(event: SubmitEvent): void {
-	event.preventDefault();
-
-	modalState.close({
-		roleName: formName,
-		roleDescription: formDescription,
-		currentGroupName,
-		selectedPermissions: localSelectedPermissions,
+	const {
+		parent,
+		isEditMode,
 		currentRoleId,
+		roleName,
+		roleDescription,
+		currentGroupName,
+		selectedPermissions = [],
+		permissions = [],
+		roles = []
+	}: Props = $props();
+
+	// Local form state
+	let formName = $state('');
+	let formDescription = $state('');
+	let localSelectedPermissions = $state<string[]>([]);
+	let permSearch = $state('');
+
+	$effect(() => {
+		formName = roleName;
+		formDescription = roleDescription;
+		localSelectedPermissions = [...selectedPermissions];
 	});
-}
+
+	const filteredPermissions = $derived(
+		permissions.filter((p) => p.name.toLowerCase().includes(permSearch.toLowerCase()) || p._id.toLowerCase().includes(permSearch.toLowerCase()))
+	);
+
+	function togglePermission(id: string) {
+		if (localSelectedPermissions.includes(id)) {
+			localSelectedPermissions = localSelectedPermissions.filter((p) => p !== id);
+		} else {
+			localSelectedPermissions = [...localSelectedPermissions, id];
+		}
+	}
+
+	function handleCopyPermissions(event: Event) {
+		const targetId = (event.target as HTMLSelectElement).value;
+		if (!targetId) return;
+
+		const sourceRole = roles.find((r) => r._id === targetId);
+		if (sourceRole) {
+			localSelectedPermissions = [...sourceRole.permissions];
+		}
+		// Reset the select element to "Copy permissions from..."
+		(event.target as HTMLSelectElement).value = '';
+	}
+
+	function onFormSubmit(event: SubmitEvent): void {
+		event.preventDefault();
+
+		modalState.close({
+			roleName: formName,
+			roleDescription: formDescription,
+			currentGroupName,
+			selectedPermissions: localSelectedPermissions,
+			currentRoleId
+		});
+	}
 </script>
 
 <div class="card w-modal space-y-4 p-4 shadow-xl">

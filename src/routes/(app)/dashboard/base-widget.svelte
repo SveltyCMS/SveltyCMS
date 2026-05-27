@@ -12,364 +12,355 @@ New Features:
 - All features opt-in and backward compatible
 -->
 <script lang="ts">
-import type { WidgetSize } from "@src/content/types";
-import { logger } from "@utils/logger";
+	import type { WidgetSize } from '@src/content/types';
+	import { logger } from '@utils/logger';
 
-// Lucide icons
+	// Lucide icons
 
-type Snippet<T = any> = (args: T) => any;
+	type Snippet<T = any> = (args: T) => any;
 
-interface ChildSnippetProps {
-	data: any;
-	error?: string | null;
-	getWidgetState: (key: string) => any;
-	isLoading?: boolean;
-	refresh?: () => Promise<void>;
-	updateWidgetState: (key: string, value: any) => void;
-}
-
-const {
-	label = "Widget",
-	theme = "light",
-	endpoint = undefined,
-	pollInterval = 0,
-	widgetId = undefined,
-	children = undefined as Snippet<ChildSnippetProps> | undefined,
-	size = { w: 1, h: 1 } as WidgetSize,
-	onSizeChange = (_newSize: WidgetSize) => {},
-	resizable = true,
-	onCloseRequest = () => {},
-	initialData: passedInitialData = undefined,
-	onDataLoaded = (_fetchedData: any) => {},
-	// Enhanced features (all optional)
-	showRefreshButton = false,
-	cacheKey = undefined as string | undefined,
-	cacheTTL = 300_000,
-	retryCount = 3,
-	retryDelay = 1000,
-} = $props<{
-	label: string;
-	theme?: "light" | "dark";
-	endpoint?: string;
-	pollInterval?: number;
-	widgetId?: string;
-	children?: Snippet<ChildSnippetProps>;
-	size?: WidgetSize;
-	onSizeChange?: (newSize: WidgetSize) => void;
-	resizable?: boolean;
-	onCloseRequest?: () => void;
-	initialData?: any;
-	onDataLoaded?: (fetchedData: any) => void;
-	showRefreshButton?: boolean;
-	cacheKey?: string;
-	cacheTTL?: number;
-	retryCount?: number;
-	retryDelay?: number;
-	[key: string]: any;
-}>();
-
-let widgetState = $state<Record<string, any>>({});
-let loading = $state(false);
-let error = $state<string | null>(null);
-let internalData = $state(undefined);
-let lastFetchTime = $state<number>(0);
-let currentRetry = $state(0);
-
-$effect(() => {
-	if (passedInitialData !== undefined) {
-		internalData = passedInitialData;
+	interface ChildSnippetProps {
+		data: any;
+		error?: string | null;
+		getWidgetState: (key: string) => any;
+		isLoading?: boolean;
+		refresh?: () => Promise<void>;
+		updateWidgetState: (key: string, value: any) => void;
 	}
-});
 
-// Cache management (localStorage)
-function getCachedData(): any | null {
-	if (!cacheKey || typeof window === "undefined") {
-		return null;
-	}
-	try {
-		const cached = localStorage.getItem(`widget_cache_${cacheKey}`);
-		if (!cached) {
+	const {
+		label = 'Widget',
+		theme = 'light',
+		endpoint = undefined,
+		pollInterval = 0,
+		widgetId = undefined,
+		children = undefined as Snippet<ChildSnippetProps> | undefined,
+		size = { w: 1, h: 1 } as WidgetSize,
+		onSizeChange = (_newSize: WidgetSize) => {},
+		resizable = true,
+		onCloseRequest = () => {},
+		initialData: passedInitialData = undefined,
+		onDataLoaded = (_fetchedData: any) => {},
+		// Enhanced features (all optional)
+		showRefreshButton = false,
+		cacheKey = undefined as string | undefined,
+		cacheTTL = 300_000,
+		retryCount = 3,
+		retryDelay = 1000
+	} = $props<{
+		label: string;
+		theme?: 'light' | 'dark';
+		endpoint?: string;
+		pollInterval?: number;
+		widgetId?: string;
+		children?: Snippet<ChildSnippetProps>;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
+		resizable?: boolean;
+		onCloseRequest?: () => void;
+		initialData?: any;
+		onDataLoaded?: (fetchedData: any) => void;
+		showRefreshButton?: boolean;
+		cacheKey?: string;
+		cacheTTL?: number;
+		retryCount?: number;
+		retryDelay?: number;
+		[key: string]: any;
+	}>();
+
+	let widgetState = $state<Record<string, any>>({});
+	let loading = $state(false);
+	let error = $state<string | null>(null);
+	let internalData = $state(undefined);
+	let lastFetchTime = $state<number>(0);
+	let currentRetry = $state(0);
+
+	$effect(() => {
+		if (passedInitialData !== undefined) {
+			internalData = passedInitialData;
+		}
+	});
+
+	// Cache management (localStorage)
+	function getCachedData(): any | null {
+		if (!cacheKey || typeof window === 'undefined') {
 			return null;
 		}
+		try {
+			const cached = localStorage.getItem(`widget_cache_${cacheKey}`);
+			if (!cached) {
+				return null;
+			}
 
-		const { data, timestamp } = JSON.parse(cached);
-		if (Date.now() - timestamp > cacheTTL) {
-			localStorage.removeItem(`widget_cache_${cacheKey}`);
+			const { data, timestamp } = JSON.parse(cached);
+			if (Date.now() - timestamp > cacheTTL) {
+				localStorage.removeItem(`widget_cache_${cacheKey}`);
+				return null;
+			}
+			return data;
+		} catch {
 			return null;
 		}
-		return data;
-	} catch {
-		return null;
-	}
-}
-
-function setCachedData(data: any) {
-	if (!cacheKey || typeof window === "undefined") {
-		return;
-	}
-	try {
-		localStorage.setItem(
-			`widget_cache_${cacheKey}`,
-			JSON.stringify({
-				data,
-				timestamp: Date.now(),
-			}),
-		);
-	} catch (err) {
-		logger.warn(`Failed to cache widget data for ${label}:`, err);
-	}
-}
-
-// Enhanced fetch with retry logic
-async function fetchData(retryAttempt = 0): Promise<void> {
-	if (!endpoint) {
-		loading = false;
-		return;
 	}
 
-	// Check cache first on initial load
-	if (retryAttempt === 0) {
-		const cached = getCachedData();
-		if (cached) {
-			internalData = cached;
-			onDataLoaded(cached);
+	function setCachedData(data: any) {
+		if (!cacheKey || typeof window === 'undefined') {
+			return;
+		}
+		try {
+			localStorage.setItem(
+				`widget_cache_${cacheKey}`,
+				JSON.stringify({
+					data,
+					timestamp: Date.now()
+				})
+			);
+		} catch (err) {
+			logger.warn(`Failed to cache widget data for ${label}:`, err);
+		}
+	}
+
+	// Enhanced fetch with retry logic
+	async function fetchData(retryAttempt = 0): Promise<void> {
+		if (!endpoint) {
 			loading = false;
 			return;
 		}
-	}
 
-	loading = true;
-	error = null;
-	currentRetry = retryAttempt;
-
-	try {
-		// Add cache-busting param, use & if endpoint already has query params
-		const separator = endpoint.includes("?") ? "&" : "?";
-		const res = await fetch(`${endpoint}${separator}_=${Date.now()}`);
-		if (!res.ok) {
-			throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-		}
-
-		const newData = await res.json();
-		internalData = newData;
-		lastFetchTime = Date.now();
-		onDataLoaded(newData);
-		setCachedData(newData);
-		currentRetry = 0;
-		error = null;
-	} catch (err) {
-		const errorMsg =
-			err instanceof Error ? err.message : "Failed to fetch data";
-
-		// Retry logic with exponential backoff
-		if (retryAttempt < retryCount) {
-			logger.warn(
-				`[${label}] Retry ${retryAttempt + 1}/${retryCount}:`,
-				errorMsg,
-			);
-			const delay = retryDelay * 2 ** retryAttempt; // Exponential backoff
-			await new Promise((resolve) => setTimeout(resolve, delay));
-			return fetchData(retryAttempt + 1);
-		}
-
-		error = errorMsg;
-		logger.error(`[${label}] Failed after ${retryCount} attempts:`, error);
-	} finally {
-		loading = false;
-	}
-}
-
-// Manual refresh function
-async function refresh() {
-	// Clear cache on manual refresh
-	if (cacheKey && typeof window !== "undefined") {
-		localStorage.removeItem(`widget_cache_${cacheKey}`);
-	}
-	currentRetry = 0;
-	await fetchData();
-}
-
-// Effect for fetching data with polling
-$effect(() => {
-	if (!endpoint) {
-		loading = false;
-		return;
-	}
-
-	let isActive = true;
-	let timerId: NodeJS.Timeout;
-
-	// Initial fetch
-	(async () => {
-		if (isActive) {
-			await fetchData();
-		}
-	})();
-
-	// Setup polling if interval specified
-	if (pollInterval > 0) {
-		timerId = setInterval(() => {
-			if (isActive) {
-				fetchData();
+		// Check cache first on initial load
+		if (retryAttempt === 0) {
+			const cached = getCachedData();
+			if (cached) {
+				internalData = cached;
+				onDataLoaded(cached);
+				loading = false;
+				return;
 			}
-		}, pollInterval);
-	}
-
-	return () => {
-		isActive = false;
-		clearInterval(timerId);
-	};
-});
-
-// Widget state management
-function updateWidgetState(key: string, value: any) {
-	widgetState = { ...widgetState, [key]: value };
-}
-
-function getWidgetState(key: string) {
-	return widgetState[key];
-}
-
-// UI helpers
-function getSizeLabel(s: WidgetSize): string {
-	return `${s.w}×${s.h}`;
-}
-
-function getLastUpdateText(): string {
-	if (!lastFetchTime) {
-		return "";
-	}
-	const seconds = Math.floor((Date.now() - lastFetchTime) / 1000);
-	if (seconds < 60) {
-		return `${seconds}s ago`;
-	}
-	const minutes = Math.floor(seconds / 60);
-	if (minutes < 60) {
-		return `${minutes}m ago`;
-	}
-	const hours = Math.floor(minutes / 60);
-	return `${hours}h ago`;
-}
-
-// Resize and menu logic
-let widgetEl: HTMLElement | undefined = $state();
-let showSizeMenu = $state(false);
-let isResizing = $state(false);
-let previewSize = $state<WidgetSize | null>(null);
-
-const availableSizes: WidgetSize[] = [
-	{ w: 1, h: 1 },
-	{ w: 2, h: 1 },
-	{ w: 3, h: 1 },
-	{ w: 4, h: 1 },
-	{ w: 1, h: 2 },
-	{ w: 2, h: 2 },
-	{ w: 3, h: 2 },
-	{ w: 4, h: 2 },
-	{ w: 1, h: 3 },
-	{ w: 2, h: 3 },
-	{ w: 3, h: 3 },
-	{ w: 4, h: 3 },
-	{ w: 1, h: 4 },
-	{ w: 2, h: 4 },
-	{ w: 3, h: 4 },
-	{ w: 4, h: 4 },
-];
-
-function handleResizePointerDown(e: PointerEvent) {
-	if (!(resizable && widgetEl)) {
-		return;
-	}
-	e.preventDefault();
-	e.stopPropagation();
-
-	const target = e.target as HTMLElement;
-	const direction =
-		target.dataset.direction ||
-		target.closest("[data-direction]")?.getAttribute("data-direction");
-
-	isResizing = true;
-	const startX = e.clientX;
-	const startY = e.clientY;
-	const gridContainer = widgetEl.closest(
-		".responsive-dashboard-grid",
-	) as HTMLElement;
-
-	if (!gridContainer) {
-		isResizing = false;
-		return;
-	}
-
-	const gridGap = Number.parseFloat(getComputedStyle(gridContainer).gap) || 16;
-	const gridCols = 4;
-	const totalGapWidth = gridGap * (gridCols - 1);
-	const singleColumnWidth =
-		(gridContainer.offsetWidth - totalGapWidth) / gridCols;
-	const singleRowHeight = 180;
-
-	const currentColumns = size.w;
-	const currentRows = size.h;
-
-	const handlePointerMove = (moveEvent: PointerEvent) => {
-		const deltaX = moveEvent.clientX - startX;
-		const deltaY = moveEvent.clientY - startY;
-
-		let columnChange = 0;
-		if (direction?.includes("e")) {
-			columnChange = deltaX / (singleColumnWidth + gridGap);
-		} else if (direction?.includes("w")) {
-			columnChange = -deltaX / (singleColumnWidth + gridGap);
 		}
 
-		let rowChange = 0;
-		if (direction?.includes("s")) {
-			rowChange = deltaY / (singleRowHeight + gridGap);
-		} else if (direction?.includes("n")) {
-			rowChange = -deltaY / (singleRowHeight + gridGap);
+		loading = true;
+		error = null;
+		currentRetry = retryAttempt;
+
+		try {
+			// Add cache-busting param, use & if endpoint already has query params
+			const separator = endpoint.includes('?') ? '&' : '?';
+			const res = await fetch(`${endpoint}${separator}_=${Date.now()}`);
+			if (!res.ok) {
+				throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+			}
+
+			const newData = await res.json();
+			internalData = newData;
+			lastFetchTime = Date.now();
+			onDataLoaded(newData);
+			setCachedData(newData);
+			currentRetry = 0;
+			error = null;
+		} catch (err) {
+			const errorMsg = err instanceof Error ? err.message : 'Failed to fetch data';
+
+			// Retry logic with exponential backoff
+			if (retryAttempt < retryCount) {
+				logger.warn(`[${label}] Retry ${retryAttempt + 1}/${retryCount}:`, errorMsg);
+				const delay = retryDelay * 2 ** retryAttempt; // Exponential backoff
+				await new Promise((resolve) => setTimeout(resolve, delay));
+				return fetchData(retryAttempt + 1);
+			}
+
+			error = errorMsg;
+			logger.error(`[${label}] Failed after ${retryCount} attempts:`, error);
+		} finally {
+			loading = false;
+		}
+	}
+
+	// Manual refresh function
+	async function refresh() {
+		// Clear cache on manual refresh
+		if (cacheKey && typeof window !== 'undefined') {
+			localStorage.removeItem(`widget_cache_${cacheKey}`);
+		}
+		currentRetry = 0;
+		await fetchData();
+	}
+
+	// Effect for fetching data with polling
+	$effect(() => {
+		if (!endpoint) {
+			loading = false;
+			return;
 		}
 
-		const targetColumns = Math.round(currentColumns + columnChange);
-		const targetRows = Math.round(currentRows + rowChange);
+		let isActive = true;
+		let timerId: NodeJS.Timeout;
 
-		const newColumns = Math.max(1, Math.min(4, targetColumns));
-		const newRows = Math.max(1, Math.min(4, targetRows));
+		// Initial fetch
+		(async () => {
+			if (isActive) {
+				await fetchData();
+			}
+		})();
 
-		previewSize = { w: newColumns, h: newRows };
-	};
-
-	const handlePointerUp = () => {
-		window.removeEventListener("pointermove", handlePointerMove);
-		window.removeEventListener("pointerup", handlePointerUp);
-		isResizing = false;
-		if (previewSize && (previewSize.w !== size.w || previewSize.h !== size.h)) {
-			onSizeChange(previewSize);
+		// Setup polling if interval specified
+		if (pollInterval > 0) {
+			timerId = setInterval(() => {
+				if (isActive) {
+					fetchData();
+				}
+			}, pollInterval);
 		}
-		previewSize = null;
-	};
 
-	window.addEventListener("pointermove", handlePointerMove);
-	window.addEventListener("pointerup", handlePointerUp, { once: true });
-}
+		return () => {
+			isActive = false;
+			clearInterval(timerId);
+		};
+	});
 
-function handleMenuSizeChange(newSize: WidgetSize) {
-	onSizeChange(newSize);
-	showSizeMenu = false;
-}
+	// Widget state management
+	function updateWidgetState(key: string, value: any) {
+		widgetState = { ...widgetState, [key]: value };
+	}
 
-function handleClickOutside(event: MouseEvent) {
-	if (showSizeMenu && widgetEl && !widgetEl.contains(event.target as Node)) {
+	function getWidgetState(key: string) {
+		return widgetState[key];
+	}
+
+	// UI helpers
+	function getSizeLabel(s: WidgetSize): string {
+		return `${s.w}×${s.h}`;
+	}
+
+	function getLastUpdateText(): string {
+		if (!lastFetchTime) {
+			return '';
+		}
+		const seconds = Math.floor((Date.now() - lastFetchTime) / 1000);
+		if (seconds < 60) {
+			return `${seconds}s ago`;
+		}
+		const minutes = Math.floor(seconds / 60);
+		if (minutes < 60) {
+			return `${minutes}m ago`;
+		}
+		const hours = Math.floor(minutes / 60);
+		return `${hours}h ago`;
+	}
+
+	// Resize and menu logic
+	let widgetEl: HTMLElement | undefined = $state();
+	let showSizeMenu = $state(false);
+	let isResizing = $state(false);
+	let previewSize = $state<WidgetSize | null>(null);
+
+	const availableSizes: WidgetSize[] = [
+		{ w: 1, h: 1 },
+		{ w: 2, h: 1 },
+		{ w: 3, h: 1 },
+		{ w: 4, h: 1 },
+		{ w: 1, h: 2 },
+		{ w: 2, h: 2 },
+		{ w: 3, h: 2 },
+		{ w: 4, h: 2 },
+		{ w: 1, h: 3 },
+		{ w: 2, h: 3 },
+		{ w: 3, h: 3 },
+		{ w: 4, h: 3 },
+		{ w: 1, h: 4 },
+		{ w: 2, h: 4 },
+		{ w: 3, h: 4 },
+		{ w: 4, h: 4 }
+	];
+
+	function handleResizePointerDown(e: PointerEvent) {
+		if (!(resizable && widgetEl)) {
+			return;
+		}
+		e.preventDefault();
+		e.stopPropagation();
+
+		const target = e.target as HTMLElement;
+		const direction = target.dataset.direction || target.closest('[data-direction]')?.getAttribute('data-direction');
+
+		isResizing = true;
+		const startX = e.clientX;
+		const startY = e.clientY;
+		const gridContainer = widgetEl.closest('.responsive-dashboard-grid') as HTMLElement;
+
+		if (!gridContainer) {
+			isResizing = false;
+			return;
+		}
+
+		const gridGap = Number.parseFloat(getComputedStyle(gridContainer).gap) || 16;
+		const gridCols = 4;
+		const totalGapWidth = gridGap * (gridCols - 1);
+		const singleColumnWidth = (gridContainer.offsetWidth - totalGapWidth) / gridCols;
+		const singleRowHeight = 180;
+
+		const currentColumns = size.w;
+		const currentRows = size.h;
+
+		const handlePointerMove = (moveEvent: PointerEvent) => {
+			const deltaX = moveEvent.clientX - startX;
+			const deltaY = moveEvent.clientY - startY;
+
+			let columnChange = 0;
+			if (direction?.includes('e')) {
+				columnChange = deltaX / (singleColumnWidth + gridGap);
+			} else if (direction?.includes('w')) {
+				columnChange = -deltaX / (singleColumnWidth + gridGap);
+			}
+
+			let rowChange = 0;
+			if (direction?.includes('s')) {
+				rowChange = deltaY / (singleRowHeight + gridGap);
+			} else if (direction?.includes('n')) {
+				rowChange = -deltaY / (singleRowHeight + gridGap);
+			}
+
+			const targetColumns = Math.round(currentColumns + columnChange);
+			const targetRows = Math.round(currentRows + rowChange);
+
+			const newColumns = Math.max(1, Math.min(4, targetColumns));
+			const newRows = Math.max(1, Math.min(4, targetRows));
+
+			previewSize = { w: newColumns, h: newRows };
+		};
+
+		const handlePointerUp = () => {
+			window.removeEventListener('pointermove', handlePointerMove);
+			window.removeEventListener('pointerup', handlePointerUp);
+			isResizing = false;
+			if (previewSize && (previewSize.w !== size.w || previewSize.h !== size.h)) {
+				onSizeChange(previewSize);
+			}
+			previewSize = null;
+		};
+
+		window.addEventListener('pointermove', handlePointerMove);
+		window.addEventListener('pointerup', handlePointerUp, { once: true });
+	}
+
+	function handleMenuSizeChange(newSize: WidgetSize) {
+		onSizeChange(newSize);
 		showSizeMenu = false;
 	}
-}
 
-$effect(() => {
-	if (showSizeMenu) {
-		document.addEventListener("click", handleClickOutside);
-	} else {
-		document.removeEventListener("click", handleClickOutside);
+	function handleClickOutside(event: MouseEvent) {
+		if (showSizeMenu && widgetEl && !widgetEl.contains(event.target as Node)) {
+			showSizeMenu = false;
+		}
 	}
-	return () => document.removeEventListener("click", handleClickOutside);
-});
+
+	$effect(() => {
+		if (showSizeMenu) {
+			document.addEventListener('click', handleClickOutside);
+		} else {
+			document.removeEventListener('click', handleClickOutside);
+		}
+		return () => document.removeEventListener('click', handleClickOutside);
+	});
 </script>
 
 <article

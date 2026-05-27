@@ -9,6 +9,8 @@
 - `passwordRequirements`
 - `showAdminPassword`
 - `showConfirmPassword`
+- `toggleAdminPassword`
+- `toggleConfirmPassword`
 - `checkPasswordRequirements`
 
 ### Features
@@ -41,7 +43,7 @@
 		setup_help_admin_username
 	} from '@src/paraglide/messages';
 	import type { ValidationErrors } from '@src/stores/setup-store.svelte.ts';
-	import { setupAdminSchema } from '@utils/schemas';
+	import { setupAdminSchema } from '@utils/form-schemas';
 	import { safeParse } from 'valibot';
 
 	// Props from parent
@@ -51,13 +53,13 @@
 		passwordRequirements,
 		showAdminPassword = $bindable(),
 		showConfirmPassword = $bindable(),
+		toggleAdminPassword,
+		toggleConfirmPassword,
 		checkPasswordRequirements // This is still called by oninput
 	} = $props(); // Now uses imported type
 
-	import { SvelteSet } from 'svelte/reactivity';
-
 	// Local real-time validation state
-	let touchedFields = $state(new SvelteSet<string>());
+	let touchedFields = $state(new Set<string>());
 	let localValidationErrors = $state<Record<string, string>>({});
 
 	const validationResult = $derived(
@@ -98,6 +100,7 @@
 
 	function handleBlur(fieldName: string) {
 		touchedFields.add(fieldName);
+		touchedFields = touchedFields; // Trigger reactivity
 	}
 </script>
 
@@ -120,7 +123,7 @@
 							type="button"
 							tabindex="-1"
 							aria-label={setup_help_admin_username?.() || 'Help: Username'}
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500 "
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
@@ -140,7 +143,7 @@
 					type="text"
 					autocomplete="username"
 					placeholder={setup_admin_placeholder_username?.() || 'Enter username'}
-					class="input w-full rounded border border-slate-300 dark:border-surface-600   {displayErrors.username ? 'border-error-500' : ''}"
+					class="input w-full rounded {displayErrors.username ? 'border-error-500' : 'border-slate-200'}"
 					aria-invalid={!!displayErrors.username}
 					aria-describedby={displayErrors.username ? 'admin-username-error' : undefined}
 					aria-required="true"
@@ -180,7 +183,7 @@
 					type="email"
 					autocomplete="email"
 					placeholder={setup_admin_placeholder_email?.() || 'admin@example.com'}
-					class="input w-full rounded border border-slate-300 dark:border-surface-600   {displayErrors.email ? 'border-error-500' : ''}"
+					class="input w-full rounded {displayErrors.email ? 'border-error-500' : 'border-slate-200'}"
 					aria-invalid={!!displayErrors.email}
 					aria-describedby={displayErrors.email ? 'admin-email-error' : undefined}
 					aria-required="true"
@@ -216,7 +219,7 @@
 						type={showAdminPassword ? 'text' : 'password'}
 						autocomplete="new-password"
 						placeholder={setup_admin_placeholder_password?.() || 'Enter secure password'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600 pr-8 {displayErrors.password ? 'border-error-500' : ''}"
+						class="input w-full rounded {displayErrors.password ? 'border-error-500' : 'border-slate-200'}"
 						aria-invalid={!!displayErrors.password}
 						aria-describedby={displayErrors.password ? 'admin-password-error' : undefined}
 						aria-required="true"
@@ -224,8 +227,8 @@
 					<button
 						type="button"
 						tabindex="-1"
-						onclick={() => (showAdminPassword = !showAdminPassword)}
-						class="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+						onclick={toggleAdminPassword}
+						class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
 						aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
 					>
 						<iconify-icon icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
@@ -282,7 +285,7 @@
 						type={showConfirmPassword ? 'text' : 'password'}
 						autocomplete="new-password"
 						placeholder={setup_admin_placeholder_confirm_password?.() || 'Confirm your password'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600 pr-8 {displayErrors.confirmPassword ? 'border-error-500' : ''}"
+						class="input w-full rounded {displayErrors.confirmPassword ? 'border-error-500' : 'border-slate-200'}"
 						aria-invalid={!!displayErrors.confirmPassword}
 						aria-describedby={displayErrors.confirmPassword ? 'admin-confirm-password-error' : undefined}
 						aria-required="true"
@@ -290,8 +293,8 @@
 					<button
 						type="button"
 						tabindex="-1"
-						onclick={() => (showConfirmPassword = !showConfirmPassword)}
-						class="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+						onclick={toggleConfirmPassword}
+						class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
 						aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
 					>
 						<iconify-icon icon={showConfirmPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>

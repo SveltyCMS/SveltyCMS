@@ -1,142 +1,122 @@
 /**
  * @file tests/e2e/global.setup.ts
- * @description Global setup for Playwright E2E tests
+ * @description Playwright global setup — initialises the test database via API calls.
  *
- * Ensures clean state and required directories before tests run.
- * Critical for CI environments where gitignored folders don't exist.
+ * Handles two scenarios:
+ *   A) Fresh run: private.test.ts has empty values → seedDatabase writes config + seeds DB
+ *   B) Repeat run: private.test.ts already has valid values → seedDatabase returns 403
+ *      In both cases completeSetup creates/refreshes the admin session.
  *
- * Cleanup strategy:
- * - LOCAL: Clean DB files if not locked, always clean config
- * - CI: Skip if fresh runner, clean if cached
+ * Must run with TEST_MODE=true so the server reads/writes config/private.test.ts.
  */
 
-import { mkdirSync, existsSync, writeFileSync, unlinkSync, rmSync, readdirSync } from "node:fs";
-import { join } from "node:path";
-import { randomUUID } from "node:crypto";
+import { request, test as setup } from '@playwright/test';
 
-export default async function globalSetup() {
-  console.log("[Global Setup] Starting...");
+const BASE = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5173';
 
-  const authDir = join(process.cwd(), "tests/e2e/.auth");
-  if (!existsSync(authDir)) {
-    mkdirSync(authDir, { recursive: true });
-  }
+const dbType = process.env.DB_TYPE || 'sqlite';
 
-  // STEP 1: Ensure test-secret.txt exists for all workers (Synchronized across processes)
-  const secretPath = join(authDir, "test-secret.txt");
-  if (!existsSync(secretPath) && !process.env.TEST_API_SECRET) {
-    const defaultSecret = `SVELTYCMS_TEST_SECRET_${Date.now()}_${randomUUID().slice(0, 8)}`;
-    process.env.TEST_API_SECRET = defaultSecret;
-    writeFileSync(secretPath, defaultSecret);
-    console.log(`[Global Setup] ✓ Created new test secret in ${secretPath}`);
-  }
+// buildDatabaseConnectionString (utils.ts) for SQLite builds `{host}/{name}`.
+// host='.' gives path './{name}' relative to process CWD.
+const DB_CONFIG = {
+	type: dbType,
+	host: process.env.DB_HOST || (dbType === 'sqlite' ? '.' : 'localhost'),
+	port: Number(process.env.DB_PORT) || (dbType === 'mariadb' ? 3306 : dbType === 'postgresql' ? 5432 : 27017),
+	name: process.env.DB_NAME || (dbType === 'sqlite' ? 'sveltycms-test.db' : 'sveltycms_test'),
+	user: process.env.DB_USER || (dbType === 'sqlite' ? '' : 'test'),
+	password: process.env.DB_PASSWORD || (dbType === 'sqlite' ? '' : 'test')
+};
 
-  // STEP 2: Clean up old test data (unless skipped)
-  const isCI = process.env.CI === "true";
-  const skipCleanup = process.env.SKIP_TEST_CLEANUP === "true";
+const ADMIN = {
+	username: process.env.ADMIN_USER || 'admin',
+	email: process.env.ADMIN_EMAIL || 'admin@example.com',
+	password: process.env.ADMIN_PASS || 'Admin123!'
+};
 
-  if (skipCleanup) {
-    console.log("[Global Setup] Cleanup skipped (SKIP_TEST_CLEANUP=true)");
-  } else {
-    console.log("[Global Setup] Cleaning old test data...");
+setup('Initialise test database via setup API', async () => {
+	const ctx = await request.newContext({
+		baseURL: BASE,
+		// Same-origin Origin header so SvelteKit's CSRF check passes
+		extraHTTPHeaders: { Origin: BASE }
+	});
 
-    const cleanupPaths = [
-      // Database files (may be locked by webServer)
-      join(process.cwd(), "config", "database", "sveltycms_test.sqlite"),
-      join(process.cwd(), "config", "database", "sveltycms_test.sqlite-shm"),
-      join(process.cwd(), "config", "database", "sveltycms_test.sqlite-wal"),
-      join(process.cwd(), "config", "database", "svelty_setup_test.sqlite"),
-      join(process.cwd(), "config", "database", "svelty_setup_test.sqlite-shm"),
-      join(process.cwd(), "config", "database", "svelty_setup_test.sqlite-wal"),
-      join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite"),
-      join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite-shm"),
-      join(process.cwd(), "config", "database", "SveltyCMS_test.db.sqlite-wal"),
-      // Config files (critical - forces setup wizard)
-      // ONLY delete in non-CI or if we specifically want a fresh start
-      ...(!isCI
-        ? [
-            join(process.cwd(), "config", "private.test.ts"),
-            join(process.cwd(), "config", "private.test.js"),
-          ]
-        : []),
-    ];
+	// ── 1. Seed the database (writes config/private.test.ts + creates schema) ──
+	// Returns 403 if setup is already complete (private.test.ts has valid values).
+	console.log(`[setup] Seeding database (type=${DB_CONFIG.type}, host=${DB_CONFIG.host}, name=${DB_CONFIG.name})...`);
+	const seedResp = await ctx.post('/setup?/seedDatabase', {
+		form: {
+			config: JSON.stringify(DB_CONFIG),
+			system: JSON.stringify({ preset: 'blank' })
+		}
+	});
+	const seedStatus = seedResp.status();
+	const seedBody = await seedResp.text();
+	console.log('[setup] seedDatabase status:', seedStatus);
+	console.log('[setup] seedDatabase body:', seedBody.slice(0, 400));
 
-    let deletedCount = 0;
-    for (const path of cleanupPaths) {
-      if (existsSync(path)) {
-        try {
-          unlinkSync(path);
-          console.log(`[Global Setup] ✓ Deleted: ${path}`);
-          deletedCount++;
-        } catch (err: any) {
-          // Ignore EBUSY errors (file locked by webServer)
-          if (err.code !== "EBUSY") {
-            console.warn(`[Global Setup] ⚠️ Failed to delete ${path}: ${err.code}`);
-          }
-        }
-      }
-    }
+	if (seedStatus === 200) {
+		// Seeding started — wait for critical phases (roles/settings) to complete
+		console.log('[setup] Waiting for background seeding...');
+		await new Promise((r) => setTimeout(r, 8000));
+	} else if (seedStatus === 403) {
+		// Setup is already complete (private.test.ts has valid values from a previous run).
+		// The DB is already seeded; completeSetup below will refresh the admin session.
+		console.log('[setup] seedDatabase blocked (403 — setup already marked complete). Proceeding to completeSetup.');
+	} else {
+		console.warn('[setup] seedDatabase unexpected status:', seedStatus, seedBody.slice(0, 400));
+	}
 
-    // Clean media folder (keep directory but remove files)
-    const mediaFolder = join(process.cwd(), "mediaFolder");
-    if (existsSync(mediaFolder)) {
-      try {
-        const files = readdirSync(mediaFolder);
-        for (const file of files) {
-          if (file !== ".gitkeep") {
-            const filePath = join(mediaFolder, file);
-            rmSync(filePath, { recursive: true, force: true });
-            console.log(`[Global Setup] ✓ Deleted media: ${file}`);
-            deletedCount++;
-          }
-        }
-      } catch (err: any) {
-        console.warn(`[Global Setup] ⚠️ Failed to clean mediaFolder: ${err.message}`);
-      }
-    }
+	// ── 2. Complete setup (creates/refreshes admin user + session) ────────────────
+	// completeSetup is always allowed (even when setup is complete) so this is idempotent.
+	console.log('[setup] Completing setup...');
+	const completeResp = await ctx.post('/setup?/completeSetup', {
+		form: {
+			data: JSON.stringify({
+				database: DB_CONFIG,
+				admin: {
+					username: ADMIN.username,
+					email: ADMIN.email,
+					password: ADMIN.password,
+					confirmPassword: ADMIN.password
+				},
+				system: {
+					preset: 'blank',
+					siteName: 'SveltyCMS Test',
+					multiTenant: false,
+					demoMode: false,
+					useRedis: false,
+					redisHost: 'localhost',
+					redisPort: 6379,
+					redisPassword: '',
+					defaultContentLanguage: 'en',
+					contentLanguages: ['en'],
+					defaultSystemLanguage: 'en',
+					systemLanguages: ['en'],
+					hostProd: '',
+					timezone: 'UTC',
+					mediaStorageType: 'local',
+					mediaFolder: 'media'
+				}
+			})
+		}
+	});
+	console.log('[setup] completeSetup status:', completeResp.status());
+	const completeBody = await completeResp.text();
+	console.log('[setup] completeSetup body:', completeBody.slice(0, 400));
 
-    console.log(`[Global Setup] Cleanup completed (${deletedCount} items removed)`);
-  }
+	// ── 3. Confirm server is now out of setup mode ─────────────────────────────
+	await new Promise((r) => setTimeout(r, 2000));
 
-  // STEP 3: Ensure required directories exist
-  const requiredDirs = [
-    join(process.cwd(), "config", "database"),
-    join(process.cwd(), "tests", "e2e", ".auth"),
-    join(process.cwd(), "logs"),
-    join(process.cwd(), "mediaFolder"),
-  ];
+	const homeResp = await ctx.get('/');
+	const finalUrl = homeResp.url();
+	console.log('[setup] Home redirect after setup:', finalUrl);
 
-  for (const dir of requiredDirs) {
-    if (!existsSync(dir)) {
-      console.log(`[Global Setup] Creating directory: ${dir}`);
-      mkdirSync(dir, { recursive: true });
+	if (finalUrl.includes('/setup')) {
+		console.error('[setup] ❌ Server is still in setup mode after initialisation.');
+		console.error('[setup]    Authenticated tests will fail. Check server logs.');
+	} else {
+		console.log('[setup] ✅ Server is in normal mode — database ready for tests.');
+	}
 
-      // Verify directory was actually created
-      if (!existsSync(dir)) {
-        throw new Error(`Failed to create required directory: ${dir}`);
-      }
-    } else {
-      console.log(`[Global Setup] Directory already exists: ${dir}`);
-    }
-  }
-
-  // Create .gitkeep files to ensure directories are tracked
-  const gitkeepMapping = [
-    {
-      dir: join(process.cwd(), "config", "database"),
-      content: "# Database files directory for tests",
-    },
-    { dir: join(process.cwd(), "logs"), content: "# Test logs directory" },
-    { dir: join(process.cwd(), "mediaFolder"), content: "# Test media directory" },
-  ];
-
-  for (const { dir, content } of gitkeepMapping) {
-    const gitkeepPath = join(dir, ".gitkeep");
-    if (!existsSync(gitkeepPath)) {
-      console.log(`[Global Setup] Creating .gitkeep in: ${dir}`);
-      writeFileSync(gitkeepPath, content);
-    }
-  }
-
-  console.log("[Global Setup] All required directories verified ✓");
-}
+	await ctx.dispose();
+});

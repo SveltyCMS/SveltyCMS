@@ -16,26 +16,26 @@
 -->
 
 <script lang="ts">
-import { browser } from "$app/environment";
-import type { PageData } from "./$types";
+	import { browser } from '$app/environment';
+	import type { PageData } from './$types';
 
-// props
-interface Props {
-	data: PageData;
-}
+	// props
+	interface Props {
+		data: PageData;
+	}
 
-const { data }: Props = $props();
+	const { data }: Props = $props();
 
-// Use $derived to ensure reactivity
-const emailList = $derived({
-	...data,
-	path: data.path ?? null,
-});
+	// Use $derived to ensure reactivity
+	const emailList = $derived({
+		...data,
+		path: data.path ?? null
+	});
 </script>
 
 {#if emailList.files && emailList.files.length}
 	{#if browser}
-		{#await import('@better-svelte-email/preview')}
+		{#await import('better-svelte-email/preview')}
 			<!-- Loading State -->
 			<div class="flex h-full items-center justify-center p-10">
 				<div class="text-center">

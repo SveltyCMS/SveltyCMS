@@ -50,27 +50,4 @@ Renders: "1.234,56 €" (German) or "$1,234.56" (US) based on system language
 	});
 </script>
 
-<div class="currency-display inline-flex items-center gap-1.5 font-semibold text-surface-900 dark:text-surface-50">
-	{#if typeof value === 'number'}
-		<iconify-icon icon="mdi:currency-eur" width="16" class="text-surface-400 dark:text-surface-500"></iconify-icon>
-		
-		{#if field.prefix}
-			<span class="text-xs text-surface-400 font-normal">{field.prefix}</span>
-		{/if}
-
-		<span>{formattedCurrency}</span>
-
-		{#if field.suffix}
-			<span class="text-xs text-surface-400 font-normal">{field.suffix}</span>
-		{/if}
-	{:else}
-		<span class="text-surface-400 dark:text-surface-600">–</span>
-	{/if}
-</div>
-
-<style>
-	.currency-display {
-		font-family: inherit;
-		letter-spacing: -0.01em;
-	}
-</style>
+<span>{formattedCurrency}</span>

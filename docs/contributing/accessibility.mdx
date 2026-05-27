@@ -4,9 +4,9 @@ title: Accessibility Guide
 description: Validating and maintaining accessibility standards in SveltyCMS.
 order: 3
 icon: mdi:human-wheelchair
-author: "SveltyCMS Team"
+author: admin
 created: 2026-01-27
-updated: "2026-05-27"
+updated: 2026-01-27
 tags:
   - accessibility
   - wcag
@@ -34,62 +34,6 @@ When developing new features, ensure:
 - [ ] **Keyboard Navigation**: All interactive elements are reachable and operable via keyboard.
   - Focus order is logical.
   - Focus indicators are visible (do not remove `outline` without replacement).
-
-### Keyboard Navigation and Hotkeys
-
-SveltyCMS includes a global hotkey system built into `src/utils/hotkeys.ts` to improve navigation and task efficiency, especially for power users and those relying on keyboard navigation.
-
-### Guidelines for Hotkeys
-
-- **Discoverability**: When implementing a hotkey for a specific action (like Save or Delete), ensure the corresponding button indicates the shortcut via the `aria-keyshortcuts` attribute or in a tooltip.
-- **Cross-Platform**: The `Mod` modifier automatically maps to `Ctrl` on Windows/Linux and `Cmd` (⌘) on macOS.
-- **Conflict Prevention**: Global hotkeys must not interfere with native browser commands or typing in form fields. The hotkey system automatically ignores events originating from `INPUT`, `TEXTAREA`, `SELECT`, and `contenteditable` elements.
-
-#### Common Standard Shortcuts
-
-Please adhere to the following standard patterns when adding new hotkeys to SveltyCMS:
-
-| Action             | Shortcut(s)       | Platforms | Notes / Rationale                        |
-| :----------------- | :---------------- | :-------- | :--------------------------------------- |
-| **Save**           | `Mod + S`         | All       | Universal save (Global, Editor, Builder) |
-| **Cancel / Close** | `Escape`          | All       | Standard for modals, dialogs, and tools  |
-| **Delete**         | `Delete`          | All       | Remove selected items or fields          |
-| **Undo**           | `Mod + Z`         | All       | Native browser + Image Editor standard   |
-| **Redo**           | `Mod + Shift + Z` | All       | Standard pairing with undo               |
-| **Duplicate**      | `Mod + D`         | All       | Clone selected field (BuzzForm)          |
-| **Next Step**      | `Mod + Enter`     | All       | Advance in Steppers / Finish Widget      |
-| **Search**         | `Mod + F`         | All       | Focus search input (Media Gallery)       |
-| **Select All**     | `Mod + A`         | All       | Select all items in current view         |
-| **Open Library**   | `Mod + O`         | All       | Open Media Library (Upload Widget)       |
-| **Help**           | `?`               | All       | Open hotkey cheatsheet                   |
-
-Example usage:
-
-```svelte
-<button
-	onclick={handleSave}
-	aria-keyshortcuts="Mod+S"
-	aria-label="Save changes (Mod+S)"
->
-	Save
-</button>
-```
-
-```typescript
-import { registerHotkey } from "@src/utils/hotkeys";
-import { onMount } from "svelte";
-
-onMount(() => {
-  registerHotkey(
-    "mod+s",
-    () => {
-      handleSave();
-    },
-    "Save changes",
-  );
-});
-```
-
 - [ ] **Screen Reader Support**:
   - Interactive elements have accessible names (`aria-label`, `aria-labelledby`, or visible text).
   - Status changes are announced via `aria-live` regions.
@@ -106,19 +50,6 @@ While **WCAG 2.2 AA** is our current strict compliance target, SveltyCMS aspires
 - **Focus on functional outcomes**, not just technical pass/fail. Does the feature _work_ for users with disabilities?
 - **Cognitive Accessibility**: Pay extra attention to clear language, consistent navigation, and error prevention, which are emphasized more heavily in WCAG 3.0.
 - **Holistic Rating**: We aim for an overall accessible experience, prioritizing critical user flows (Login, Content Creation, Setup).
-
-## Progressive Timeout Warning System (Cognitive Load Mitigation)
-
-To prevent cognitive strain and anxiety caused by time constraints (e.g., security session expirations or setup wizard steps), SveltyCMS implements a **Progressive Timeout Warning System**:
-
-1. **Phase 1 (Pre-expiry Warning):** Warns the user when 25% of the session time remains (e.g., "Your session will expire in 15 minutes. Save your changes to avoid losing progress.").
-2. **Phase 2 (Critical Alert):** Shows a persistent alert modal at 5 minutes remaining, allowing the user to extend the session with a single click or keyboard shortcut.
-3. **Phase 3 (Graceful Termination):** Gracefully redirects the user to the log-out screen, preserving any local drafts where possible.
-
-### Implementation Checklist:
-
-- Communicate time-remaining alerts programmatically via `aria-live="polite"` or `aria-live="assertive"`.
-- Buttons to extend timeouts must be keyboard-accessible (reachable via `Tab` and triggerable via `Enter`/`Space`).
 
 ## ATAG 2.0 (Authoring Tool) Requirements
 
@@ -149,12 +80,12 @@ Use `aria-live="polite"` for status messages that appear dynamically without pag
 When using multi-step forms or wizards, move focus programmatically to the new content container when the step changes. This ensures screen reader users are aware of the new context.
 
 ```typescript
-import { tick } from "svelte";
+import { tick } from 'svelte';
 
 async function nextStep() {
-  currentStep++;
-  await tick();
-  document.getElementById("step-content")?.focus();
+	currentStep++;
+	await tick();
+	document.getElementById('step-content')?.focus();
 }
 ```
 

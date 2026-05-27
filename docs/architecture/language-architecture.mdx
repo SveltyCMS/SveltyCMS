@@ -1,21 +1,21 @@
 ---
-path: "docs/architecture/language-architecture.mdx"
-title: "Language & Internationalization Architecture"
-description: "Comprehensive guide to SveltyCMS multilingual system including UI languages, content languages, and translation workflows"
+path: 'docs/architecture/language-architecture'
+title: 'Language & Internationalization Architecture'
+description: 'Comprehensive guide to SveltyCMS multilingual system including UI languages, content languages, and translation workflows'
 order: 8
-icon: "mdi:translate"
-author: "SveltyCMS Team"
-created: "2025-11-02"
-updated: "2026-03-27"
+icon: 'mdi:translate'
+author: 'SveltyCMS Team'
+created: '2025-11-02'
+updated: '2025-11-02'
 tags:
-  - "architecture"
-  - "i18n"
-  - "multilingual"
-  - "languages"
-  - "translation"
+  - 'architecture'
+  - 'i18n'
+  - 'multilingual'
+  - 'languages'
+  - 'translation'
 ---
 
-import { Callout } from "nextra/components";
+import { Callout } from 'nextra/components';
 
 # Language & Internationalization Architecture
 
@@ -76,8 +76,8 @@ graph TB
 ```json
 // project.inlang/settings.json
 {
-  "languageTags": ["en", "de", "fr", "es"],
-  "baseLanguageTag": "en"
+	"languageTags": ["en", "de", "fr", "es"],
+	"baseLanguageTag": "en"
 }
 ```
 
@@ -136,28 +136,28 @@ src/
 ```json
 // src/paraglide/messages/en.json
 {
-  "dashboard_title": "Dashboard",
-  "collections_menu": "Collections",
-  "media_menu": "Media Library",
-  "settings_menu": "Settings",
-  "user_greeting": "Hello, {name}!",
-  "save_button": "Save Changes",
-  "cancel_button": "Cancel",
-  "delete_confirm": "Are you sure you want to delete {itemName}?"
+	"dashboard_title": "Dashboard",
+	"collections_menu": "Collections",
+	"media_menu": "Media Library",
+	"settings_menu": "Settings",
+	"user_greeting": "Hello, {name}!",
+	"save_button": "Save Changes",
+	"cancel_button": "Cancel",
+	"delete_confirm": "Are you sure you want to delete {itemName}?"
 }
 ```
 
 ```json
 // src/paraglide/messages/de.json
 {
-  "dashboard_title": "Übersicht",
-  "collections_menu": "Sammlungen",
-  "media_menu": "Medienbibliothek",
-  "settings_menu": "Einstellungen",
-  "user_greeting": "Hallo, {name}!",
-  "save_button": "Änderungen speichern",
-  "cancel_button": "Abbrechen",
-  "delete_confirm": "Sind Sie sicher, dass Sie {itemName} löschen möchten?"
+	"dashboard_title": "Übersicht",
+	"collections_menu": "Sammlungen",
+	"media_menu": "Medienbibliothek",
+	"settings_menu": "Einstellungen",
+	"user_greeting": "Hallo, {name}!",
+	"save_button": "Änderungen speichern",
+	"cancel_button": "Abbrechen",
+	"delete_confirm": "Sind Sie sicher, dass Sie {itemName} löschen möchten?"
 }
 ```
 
@@ -202,8 +202,8 @@ src/
 3. **Parameter Validation:** Type-checked parameters
 
    ```typescript
-   m.user_greeting({ name: "Alice" }); // ✅ Valid
-   m.user_greeting({ wrongParam: "Bob" }); // ❌ TypeScript error
+   m.user_greeting({ name: 'Alice' }); // ✅ Valid
+   m.user_greeting({ wrongParam: 'Bob' }); // ❌ TypeScript error
    ```
 
 4. **Build-Time Compilation:** No runtime parsing overhead
@@ -215,8 +215,8 @@ src/
    ```json
    // project.inlang/settings.json
    {
-     "languageTags": ["en", "de", "fr", "es", "it"], // Added 'it'
-     "baseLanguageTag": "en"
+   	"languageTags": ["en", "de", "fr", "es", "it"], // Added 'it'
+   	"baseLanguageTag": "en"
    }
    ```
 
@@ -259,7 +259,7 @@ System Settings → Database → Cache → contentLanguage Store → Widgets
 
 ### Configuration Location
 
-**Admin Interface:** `/config/system-settings` → Languages & Localization tab
+**Admin Interface:** `/config/systemsetting` → Languages & Localization tab
 
 **System Settings Schema:**
 
@@ -287,9 +287,9 @@ System Settings → Database → Cache → contentLanguage Store → Widgets
 ```typescript
 // src/stores/store.svelte.ts
 let initialContentLanguage =
-  getCookie("contentLanguage") ?? // User's last selection
-  publicEnv.DEFAULT_CONTENT_LANGUAGE ?? // System default
-  "en"; // Fallback
+	getCookie('contentLanguage') ?? // User's last selection
+	publicEnv.DEFAULT_CONTENT_LANGUAGE ?? // System default
+	'en'; // Fallback
 
 let _contentLanguage = $state<Locale>(initialContentLanguage);
 ```
@@ -346,22 +346,22 @@ let _contentLanguage = $state<Locale>(initialContentLanguage);
 ```typescript
 // src/routes/(app)/[language]/[...collection]/+page.server.ts
 export async function load({ params }) {
-  const { language } = params;
+	const { language } = params;
 
-  // Validate language
-  if (!AVAILABLE_CONTENT_LANGUAGES.includes(language)) {
-    throw error(404, `Language '${language}' not configured`);
-  }
+	// Validate language
+	if (!AVAILABLE_CONTENT_LANGUAGES.includes(language)) {
+		throw error(404, `Language '${language}' not configured`);
+	}
 
-  // Language-specific cache key
-  const cacheKey = `entries:${collectionId}:lang:${language}`;
+	// Language-specific cache key
+	const cacheKey = `entries:${collectionId}:lang:${language}`;
 
-  const entries = await db.crud.findMany("entries", { collectionId });
+	const entries = await db.crud.findMany('entries', { collectionId });
 
-  return {
-    entries,
-    contentLanguage: language, // Passed to client
-  };
+	return {
+		entries,
+		contentLanguage: language // Passed to client
+	};
 }
 ```
 
@@ -386,13 +386,11 @@ export async function load({ params }) {
 
 ### Adding New Content Language
 
-<Callout type="info">
-  Unlike system languages, content languages can be added **without rebuilding** the application.
-</Callout>
+<Callout type="info">Unlike system languages, content languages can be added **without rebuilding** the application.</Callout>
 
 **Step 1: Add to System Settings** (Admin UI)
 
-1. Navigate to `/config/system-settings`
+1. Navigate to `/config/systemsetting`
 2. Go to "Languages & Localization" tab
 3. Add language code to `AVAILABLE_CONTENT_LANGUAGES` array
 4. Example: Add Japanese `'ja'`
@@ -437,38 +435,38 @@ The component automatically reads from `AVAILABLE_CONTENT_LANGUAGES`, so no code
 
 ```typescript
 // config/collections/Posts/fields.ts
-import type { FieldInstance } from "@src/content/types";
+import type { FieldInstance } from '@src/content/types';
 
 const fields: FieldInstance[] = [
-  {
-    widget: "input",
-    label: "Title",
-    db_fieldName: "title",
-    translated: true, // ← Multilingual field
-    required: true,
-  },
-  {
-    widget: "richText",
-    label: "Content",
-    db_fieldName: "content",
-    translated: true, // ← Multilingual field
-    required: true,
-  },
-  {
-    widget: "input",
-    label: "Slug",
-    db_fieldName: "slug",
-    translated: false, // ← Single value across all languages
-    unique: true,
-    required: true,
-  },
-  {
-    widget: "select",
-    label: "Status",
-    db_fieldName: "status",
-    translated: false, // ← Technical field, not translated
-    options: ["draft", "published", "archived"],
-  },
+	{
+		widget: 'input',
+		label: 'Title',
+		db_fieldName: 'title',
+		translated: true, // ← Multilingual field
+		required: true
+	},
+	{
+		widget: 'richText',
+		label: 'Content',
+		db_fieldName: 'content',
+		translated: true, // ← Multilingual field
+		required: true
+	},
+	{
+		widget: 'input',
+		label: 'Slug',
+		db_fieldName: 'slug',
+		translated: false, // ← Single value across all languages
+		unique: true,
+		required: true
+	},
+	{
+		widget: 'select',
+		label: 'Status',
+		db_fieldName: 'status',
+		translated: false, // ← Technical field, not translated
+		options: ['draft', 'published', 'archived']
+	}
 ];
 ```
 
@@ -478,21 +476,21 @@ const fields: FieldInstance[] = [
 
 ```typescript
 const blogPost = {
-  _id: "post_123",
-  title: {
-    en: "Understanding Async/Await",
-    de: "Async/Await verstehen",
-    fr: "Comprendre Async/Await",
-  },
-  content: {
-    en: "<p>Async/await makes asynchronous code...</p>",
-    de: "<p>Async/await macht asynchronen Code...</p>",
-    fr: "<p>Async/await rend le code asynchrone...</p>",
-  },
-  slug: "understanding-async-await", // Not translated
-  status: "published", // Not translated
-  createdAt: "2025-11-02T10:00:00Z",
-  updatedAt: "2025-11-02T15:30:00Z",
+	_id: 'post_123',
+	title: {
+		en: 'Understanding Async/Await',
+		de: 'Async/Await verstehen',
+		fr: 'Comprendre Async/Await'
+	},
+	content: {
+		en: '<p>Async/await makes asynchronous code...</p>',
+		de: '<p>Async/await macht asynchronen Code...</p>',
+		fr: '<p>Async/await rend le code asynchrone...</p>'
+	},
+	slug: 'understanding-async-await', // Not translated
+	status: 'published', // Not translated
+	createdAt: '2025-11-02T10:00:00Z',
+	updatedAt: '2025-11-02T15:30:00Z'
 };
 ```
 
@@ -556,27 +554,24 @@ CREATE TABLE post_translations (
 ```typescript
 // Drizzle adapter reads from SQL
 async function findOne(collection: string, id: string) {
-  // Query main table
-  const mainRecord = await db.select().from(posts).where(eq(posts.id, id)).get();
+	// Query main table
+	const mainRecord = await db.select().from(posts).where(eq(posts.id, id)).get();
 
-  // Query translations
-  const translations = await db
-    .select()
-    .from(postTranslations)
-    .where(eq(postTranslations.post_id, id));
+	// Query translations
+	const translations = await db.select().from(postTranslations).where(eq(postTranslations.post_id, id));
 
-  // Reconstruct nested structure
-  const reconstructed = { ...mainRecord };
+	// Reconstruct nested structure
+	const reconstructed = { ...mainRecord };
 
-  for (const trans of translations) {
-    if (!reconstructed[trans.field_name]) {
-      reconstructed[trans.field_name] = {};
-    }
-    reconstructed[trans.field_name][trans.language] = trans.value;
-  }
+	for (const trans of translations) {
+		if (!reconstructed[trans.field_name]) {
+			reconstructed[trans.field_name] = {};
+		}
+		reconstructed[trans.field_name][trans.language] = trans.value;
+	}
 
-  // Returns: { title: { en: "...", de: "...", fr: "..." }, ... }
-  return reconstructed;
+	// Returns: { title: { en: "...", de: "...", fr: "..." }, ... }
+	return reconstructed;
 }
 ```
 
@@ -640,11 +635,11 @@ Widgets always work with the normalized format, regardless of database:
 
 ```json
 {
-  "_id": "post_456",
-  "title": { "en": "My First Post" },
-  "content": { "en": "This is amazing content..." },
-  "slug": "my-first-post",
-  "status": "draft"
+	"_id": "post_456",
+	"title": { "en": "My First Post" },
+	"content": { "en": "This is amazing content..." },
+	"slug": "my-first-post",
+	"status": "draft"
 }
 ```
 
@@ -665,17 +660,17 @@ Widgets always work with the normalized format, regardless of database:
 
 ```json
 {
-  "_id": "post_456",
-  "title": {
-    "en": "My First Post",
-    "de": "Mein erster Beitrag"
-  },
-  "content": {
-    "en": "This is amazing content...",
-    "de": "Das ist toller Inhalt..."
-  },
-  "slug": "my-first-post",
-  "status": "draft"
+	"_id": "post_456",
+	"title": {
+		"en": "My First Post",
+		"de": "Mein erster Beitrag"
+	},
+	"content": {
+		"en": "This is amazing content...",
+		"de": "Das ist toller Inhalt..."
+	},
+	"slug": "my-first-post",
+	"status": "draft"
 }
 ```
 
@@ -691,19 +686,19 @@ Same process:
 
 ```json
 {
-  "_id": "post_456",
-  "title": {
-    "en": "My First Post",
-    "de": "Mein erster Beitrag",
-    "fr": "Mon premier article"
-  },
-  "content": {
-    "en": "This is amazing content...",
-    "de": "Das ist toller Inhalt...",
-    "fr": "C'est un contenu incroyable..."
-  },
-  "slug": "my-first-post",
-  "status": "draft"
+	"_id": "post_456",
+	"title": {
+		"en": "My First Post",
+		"de": "Mein erster Beitrag",
+		"fr": "Mon premier article"
+	},
+	"content": {
+		"en": "This is amazing content...",
+		"de": "Das ist toller Inhalt...",
+		"fr": "C'est un contenu incroyable..."
+	},
+	"slug": "my-first-post",
+	"status": "draft"
 }
 ```
 
@@ -726,13 +721,13 @@ The `translation-status` component shows completion percentage:
 
 ```typescript
 function calculateCompletionPercentage(entry: any, language: string): number {
-  const translatedfields = schema.fields.filter((f) => f.translated);
-  const filledfields = translatedfields.filter((f) => {
-    const value = entry[f.db_fieldName];
-    return value && typeof value === "object" && value[language];
-  });
+	const translatedfields = schema.fields.filter((f) => f.translated);
+	const filledfields = translatedfields.filter((f) => {
+		const value = entry[f.db_fieldName];
+		return value && typeof value === 'object' && value[language];
+	});
 
-  return (filledfields.length / translatedfields.length) * 100;
+	return (filledfields.length / translatedfields.length) * 100;
 }
 ```
 
@@ -772,7 +767,7 @@ const cacheKey = `entries:${id}:lang:${language}`; // ✅
 
 ```typescript
 if (!AVAILABLE_CONTENT_LANGUAGES.includes(params.language)) {
-  throw error(404, "Language not available");
+	throw error(404, 'Language not available');
 }
 ```
 
@@ -825,11 +820,11 @@ const displayValue = field.translated ? value[contentLanguage.value] : value;
 
 ```typescript
 // Set system language to German
-systemLanguage.set("de");
+systemLanguage.set('de');
 // Admin UI now shows: "Übersicht", "Sammlungen", "Einstellungen"
 
 // Set content language to English
-contentLanguage.set("en");
+contentLanguage.set('en');
 // Navigate to: /en/blog-posts
 // Editing fields shows English content
 
@@ -860,10 +855,7 @@ contentLanguage.set("en");
 
 ### Scenario 3: Removing a Content Language
 
-<Callout type="error">
-  ⚠️ **WARNING:** Removing a language from `AVAILABLE_CONTENT_LANGUAGES` can cause **permanent data
-  loss**!
-</Callout>
+<Callout type="error">⚠️ **WARNING:** Removing a language from `AVAILABLE_CONTENT_LANGUAGES` can cause **permanent data loss**!</Callout>
 
 **Before Removal:**
 
@@ -907,12 +899,12 @@ contentLanguage.set("en");
 // Widget only knows about ['en', 'de', 'fr']
 // On save, it might replace entire object:
 {
-  "title": {
-    "en": "Hello",
-    "de": "Hallo",
-    "fr": "Bonjour"
-    // ❌ Spanish translation LOST forever!
-  }
+	"title": {
+		"en": "Hello",
+		"de": "Hallo",
+		"fr": "Bonjour"
+		// ❌ Spanish translation LOST forever!
+	}
 }
 ```
 
@@ -927,40 +919,36 @@ contentLanguage.set("en");
 **1. Data Transformation Script:**
 
 ```typescript
-import { db as mongoDb } from "./databases/mongodb";
-import { db as sqlDb } from "./databases/drizzle";
+import { db as mongoDb } from './databases/mongodb';
+import { db as sqlDb } from './databases/drizzle';
 
 async function migrateMultilingualData() {
-  const collections = await mongoDb.content.nodes.getStructure("flat");
+	const collections = await mongoDb.content.nodes.getStructure('flat');
 
-  for (const collection of collections) {
-    const entries = await mongoDb.crud.findMany(collection.id, {});
+	for (const collection of collections) {
+		const entries = await mongoDb.crud.findMany(collection.id, {});
 
-    for (const entry of entries) {
-      // Insert main record (untranslated fields)
-      const mainData = Object.fromEntries(
-        Object.entries(entry).filter(([key, value]) => typeof value !== "object" || value === null),
-      );
+		for (const entry of entries) {
+			// Insert main record (untranslated fields)
+			const mainData = Object.fromEntries(Object.entries(entry).filter(([key, value]) => typeof value !== 'object' || value === null));
 
-      await sqlDb.insert(collection.id).values(mainData);
+			await sqlDb.insert(collection.id).values(mainData);
 
-      // Insert translations (translated fields)
-      const translatedfields = Object.entries(entry).filter(
-        ([key, value]) => typeof value === "object" && value !== null,
-      );
+			// Insert translations (translated fields)
+			const translatedfields = Object.entries(entry).filter(([key, value]) => typeof value === 'object' && value !== null);
 
-      for (const [fieldName, translations] of translatedfields) {
-        for (const [lang, value] of Object.entries(translations)) {
-          await sqlDb.insert(`${collection.id}_translations`).values({
-            entity_id: entry._id,
-            field_name: fieldName,
-            language: lang,
-            value: value,
-          });
-        }
-      }
-    }
-  }
+			for (const [fieldName, translations] of translatedfields) {
+				for (const [lang, value] of Object.entries(translations)) {
+					await sqlDb.insert(`${collection.id}_translations`).values({
+						entity_id: entry._id,
+						field_name: fieldName,
+						language: lang,
+						value: value
+					});
+				}
+			}
+		}
+	}
 }
 ```
 
@@ -969,76 +957,72 @@ async function migrateMultilingualData() {
 ```typescript
 // src/databases/drizzle/adapter.ts
 export class DrizzleAdapter implements IDBAdapter {
-  async findOne(collection: string, id: string) {
-    // Fetch main record
-    const main = await this.db
-      .select()
-      .from(getTable(collection))
-      .where(eq(getTable(collection).id, id))
-      .get();
+	async findOne(collection: string, id: string) {
+		// Fetch main record
+		const main = await this.db
+			.select()
+			.from(getTable(collection))
+			.where(eq(getTable(collection).id, id))
+			.get();
 
-    // Fetch translations
-    const translations = await this.db
-      .select()
-      .from(getTranslationTable(collection))
-      .where(eq(getTranslationTable(collection).entity_id, id));
+		// Fetch translations
+		const translations = await this.db
+			.select()
+			.from(getTranslationTable(collection))
+			.where(eq(getTranslationTable(collection).entity_id, id));
 
-    // Reconstruct nested structure
-    const result = { ...main };
+		// Reconstruct nested structure
+		const result = { ...main };
 
-    for (const trans of translations) {
-      if (!result[trans.field_name]) result[trans.field_name] = {};
-      result[trans.field_name][trans.language] = trans.value;
-    }
+		for (const trans of translations) {
+			if (!result[trans.field_name]) result[trans.field_name] = {};
+			result[trans.field_name][trans.language] = trans.value;
+		}
 
-    return { success: true, data: result };
-  }
+		return { success: true, data: result };
+	}
 
-  async update(collection: string, id: string, data: any) {
-    // Split data into main and translations
-    const mainfields = {};
-    const translatedfields = {};
+	async update(collection: string, id: string, data: any) {
+		// Split data into main and translations
+		const mainfields = {};
+		const translatedfields = {};
 
-    for (const [key, value] of Object.entries(data)) {
-      if (typeof value === "object" && value !== null) {
-        translatedfields[key] = value;
-      } else {
-        mainfields[key] = value;
-      }
-    }
+		for (const [key, value] of Object.entries(data)) {
+			if (typeof value === 'object' && value !== null) {
+				translatedfields[key] = value;
+			} else {
+				mainfields[key] = value;
+			}
+		}
 
-    // Update main table
-    if (Object.keys(mainfields).length > 0) {
-      await this.db
-        .update(getTable(collection))
-        .set(mainfields)
-        .where(eq(getTable(collection).id, id));
-    }
+		// Update main table
+		if (Object.keys(mainfields).length > 0) {
+			await this.db
+				.update(getTable(collection))
+				.set(mainfields)
+				.where(eq(getTable(collection).id, id));
+		}
 
-    // Update translations
-    for (const [fieldName, translations] of Object.entries(translatedfields)) {
-      for (const [lang, value] of Object.entries(translations as any)) {
-        await this.db
-          .insert(getTranslationTable(collection))
-          .values({
-            entity_id: id,
-            field_name: fieldName,
-            language: lang,
-            value,
-          })
-          .onConflictDoUpdate({
-            target: [
-              getTranslationTable(collection).entity_id,
-              getTranslationTable(collection).field_name,
-              getTranslationTable(collection).language,
-            ],
-            set: { value },
-          });
-      }
-    }
+		// Update translations
+		for (const [fieldName, translations] of Object.entries(translatedfields)) {
+			for (const [lang, value] of Object.entries(translations as any)) {
+				await this.db
+					.insert(getTranslationTable(collection))
+					.values({
+						entity_id: id,
+						field_name: fieldName,
+						language: lang,
+						value
+					})
+					.onConflictDoUpdate({
+						target: [getTranslationTable(collection).entity_id, getTranslationTable(collection).field_name, getTranslationTable(collection).language],
+						set: { value }
+					});
+			}
+		}
 
-    return this.findOne(collection, id);
-  }
+		return this.findOne(collection, id);
+	}
 }
 ```
 
@@ -1324,22 +1308,22 @@ const safeValue = value?.[_language];
 // IDBAdapter abstracts the storage format
 
 // MongoDB (current implementation)
-await mongoAdapter.crud.updateOne("posts", id, {
-  title: {
-    en: "Hello World",
-    de: "Hallo Welt",
-    fr: "Bonjour le monde",
-  },
+await mongoAdapter.crud.updateOne('posts', id, {
+	title: {
+		en: 'Hello World',
+		de: 'Hallo Welt',
+		fr: 'Bonjour le monde'
+	}
 });
 // Stored as: { title: { en: "...", de: "...", fr: "..." } }
 
 // DrizzleORM SQL (future implementation)
-await drizzleAdapter.crud.updateOne("posts", id, {
-  title: {
-    en: "Hello World",
-    de: "Hallo Welt",
-    fr: "Bonjour le monde",
-  },
+await drizzleAdapter.crud.updateOne('posts', id, {
+	title: {
+		en: 'Hello World',
+		de: 'Hallo Welt',
+		fr: 'Bonjour le monde'
+	}
 });
 // Stored as:
 // posts table: { id: "123", slug: "hello-world" }
@@ -1349,7 +1333,7 @@ await drizzleAdapter.crud.updateOne("posts", id, {
 //   { post_id: "123", field: "title", lang: "fr", value: "Bonjour le monde" }
 
 // Application receives SAME format from both adapters
-const post = await db.crud.findOne("posts", id);
+const post = await db.crud.findOne('posts', id);
 console.log(post.title); // { en: "...", de: "...", fr: "..." }
 ```
 
@@ -1363,19 +1347,19 @@ For large multilingual datasets, load translations on demand:
 
 ```typescript
 // Only load current language
-const entry = await db.crud.findOne("posts", id);
+const entry = await db.crud.findOne('posts', id);
 const currentTranslations = {
-  title: entry.title[contentLanguage.value],
-  content: entry.content[contentLanguage.value],
+	title: entry.title[contentLanguage.value],
+	content: entry.content[contentLanguage.value]
 };
 
 // Load other languages when user switches
 async function loadLanguage(lang: string) {
-  const translations = {
-    title: entry.title[lang],
-    content: entry.content[lang],
-  };
-  return translations;
+	const translations = {
+		title: entry.title[lang],
+		content: entry.content[lang]
+	};
+	return translations;
 }
 ```
 
@@ -1395,84 +1379,24 @@ For lists, fetch translations in bulk:
 ```typescript
 // ❌ N+1 query problem
 for (const entry of entries) {
-  entry.title = await getTranslation(entry.id, "title", lang);
+	entry.title = await getTranslation(entry.id, 'title', lang);
 }
 
 // ✅ Single bulk query
 const entryIds = entries.map((e) => e.id);
-const translations = await getTranslationsBulk(entryIds, ["title", "description"], lang);
+const translations = await getTranslationsBulk(entryIds, ['title', 'description'], lang);
 ```
-
----
-
-## 🚀 Why SveltyCMS Localization is Superior
-
-SveltyCMS 2026 goes beyond basic i18n to offer **Agentic Localization**. This system understands the cultural and regulatory context of your target market.
-
-### 1. Agentic AI Co-Pilot
-
-While competitors rely on static integrations with external translation tools, SveltyCMS embeds an **AI Translation Brain** directly into the entry editor.
-
-- **Cultural Context Awareness**: The AI doesn't just swap words; it adapts idioms and tone based on the target region's cultural nuances.
-- **Brand Consistency**: The AI is trained on your existing content via the **Knowledge Core (MCP)**, ensuring the German version of your "About" page sounds exactly like your English one.
-- **One-Click Localize**: Instantly translate entire entries while maintaining complex JSON structures (e.g., in Repeater fields).
-
-### 2. Regional Logic & Overrides
-
-SveltyCMS supports **Structural Localization**. This means a "Post" entry in the US might have a different structure than the same entry in the EU.
-
-- **Regulatory Fields**: Use the `RegionalOverride` pattern to automatically inject mandatory GDPR disclosures for EU locales while hiding them for the US.
-- **Dynamic Pricing**: Link pricing models to locales at the field level, allowing "19.99 USD" to become "18,50 EUR" with proper regional formatting and tax inclusion.
-- **Visual Context**: Translators can work directly in the **Live Preview**, clicking on a website component to instantly jump to the corresponding translation field.
-
-### 3. Integrated Lix/Inlang Workflow
-
-We utilize **Paraglide-JS** and the **Inlang Ecosystem** for high-performance, type-safe translations.
-
-- **Type-Safety**: Your frontend code (Svelte 5) receives full TypeScript definitions for all translated strings, preventing "Missing Translation" errors at compile time.
-- **Lix Versioning**: Every translation change is tracked as a "Change Request" in the Lix versioning system, allowing for professional audit trails.
-
----
-
-## 🛠 Developer Blueprint: Regional Logic
-
-To implement a locale-specific field, use the following pattern in your collection schema:
-
-```typescript
-// config/collections/products.ts
-export const schema: Schema = {
-  name: "Products",
-  fields: [
-    {
-      db_fieldName: "price",
-      widget: widgets.Number,
-      label: "Price",
-    },
-    {
-      db_fieldName: "eu_tax_info",
-      widget: widgets.Textarea,
-      label: "EU Regulatory Info",
-      // Logic: Only show this field if the editor is working in an EU locale
-      display: {
-        condition: (data, locale) => ["de-DE", "fr-FR", "it-IT"].includes(locale),
-      },
-    },
-  ],
-};
-```
-
-This ensures the UI remains clean for US editors while being functionally complete for EU legal compliance.
 
 ---
 
 ## Related Documentation
 
 - **[Code Structure](./code-structure.mdx)** - Overview of multilingual widget system
-- **[Database Methods](./database/database-methods.mdx)** - Multilingual data handling
+- **[Database Methods](./database-methods.mdx)** - Multilingual data handling
 - **[System Settings](./system-settings-architecture.mdx)** - Dynamic language configuration
-- **[Widget Development](../guides/development/widgets/index.mdx)** - Creating multilingual widgets
+- **[Widget Development](../widgets/widget-development-guide.mdx)** - Creating multilingual widgets
 
 ---
 
-_Last Updated: March 17, 2026_  
-_Architecture Version: 4.0_
+_Last Updated: November 2, 2025_  
+_Architecture Version: 3.0_

@@ -1,20 +1,20 @@
 ---
-path: "docs/architecture/authentication-system.mdx"
-title: "Authentication & Authorization"
-description: "SveltyCMS 3-layer session caching, secure rotation, RBAC, Multi-Tenancy 2.0, 2FA, and Enterprise SSO (SAML 2.0)."
+path: 'docs/architecture/authentication-system.mdx'
+title: 'Authentication & Authorization'
+description: 'SveltyCMS 3-layer session caching, secure rotation, RBAC, Multi-Tenancy 2.0, 2FA, and Enterprise SSO (SAML 2.0).'
 order: 6
-icon: "mdi:shield-lock"
-author: "SveltyCMS Team"
-created: "2025-10-05"
-updated: "2026-05-25"
+icon: 'mdi:shield-lock'
+author: 'admin'
+created: '2025-10-05'
+updated: '2026-03-05'
 tags:
-  - "security"
-  - "auth"
-  - "sessions"
-  - "multi-tenancy"
-  - "rbac"
-  - "2fa"
-  - "sso"
+  - 'security'
+  - 'auth'
+  - 'sessions'
+  - 'multi-tenancy'
+  - 'rbac'
+  - '2fa'
+  - 'sso'
 ---
 
 # Authentication & Authorization System
@@ -39,8 +39,8 @@ To achieve sub-millisecond authentication checks on every request, SveltyCMS use
 
 SveltyCMS uses high-entropy, cryptographically secure random tokens for session IDs. These IDs are:
 
-- **32 characters** (alphanumeric), generated via `generateRandomToken()` using `crypto.getRandomValues()`
-- **Stored directly** in cookies and database — no additional hashing required due to CSPRNG source
+- **64 characters long** (hex-encoded)
+- **Hashed (SHA-256)** before storage in the database
 - **Rotated automatically** on sensitive actions (login, password change)
 
 ### Multi-Tenancy 2.0
@@ -61,9 +61,9 @@ graph TD
 
 ### AuthService (`auth/index.ts`)
 
-The central API for user authentication (login, register, logout, password reset). Uses **Argon2id** for password hashing with a 64MB memory cost for quantum resistance.
+The central API for user authentication (login, register, logout, password reset).
 
-### SessionManager (`auth/session-manager.ts`)
+### SessionManager (`auth/sessionManager.ts`)
 
 Orchestrates the 3-layer cache and manages the session lifecycle (create, validate, refresh, invalidate).
 
@@ -86,7 +86,7 @@ Implements complex permission checks against roles and explicit user permissions
 
 ### Enterprise SSO (SAML 2.0)
 
-Integrated via **BoxyHQ Jackson (latest)**, supporting:
+Integrated via **BoxyHQ Jackson**, supporting:
 
 - **JIT (Just-In-Time) Provisioning**: Automatic user creation on first login.
 - **Multiple IdPs**: Okta, Azure AD, Auth0, etc.
@@ -111,29 +111,10 @@ OOTB support for **Google** and **GitHub** authentication.
 
 SveltyCMS follows industry best practices:
 
-1.  **Argon2id** password hashing with 64MB memory cost — resistant to GPU/ASIC/quantum speedup.
-2.  **Rate Limiting & Firewall**: Real-time analysis for injection attacks via `handle-security.ts`.
-3.  **Crypto-Chained Audit Logs**: Tamper-evident SHA-256 chaining for all auth events.
-4.  **Secure Headers**: Automatic HSTS, CSP, and X-Frame-Options via `handle-security-headers.ts`.
-
----
-
-## 7. Data Integrity & Lifecycle
-
-### Cascading User Deletion
-
-To ensure comprehensive access termination and prevent orphaned data, SveltyCMS implements cascading logic during user deletion:
-
-- **Session Invalidation**: All active sessions (L0, L1, and L2) are immediately purged from memory, Redis, and the database.
-- **Token Cleanup**: All pending cryptographic tokens (invites, resets, API keys) associated with the user are permanently deleted to prevent unauthorized reuse.
-
-### Hardened Token Validation
-
-The token validation system enforces strict metadata checks to prevent exploitation:
-
-- **Purpose Mapping**: Tokens are validated against their intended `type` (e.g., `invite-token` vs `reset`).
-- **Consumption State**: Tokens marked as `consumed` are rejected even if they are within their expiry window.
-- **Atomic Retrieval**: Retrieval via API is gated by a full validation check, preventing metadata leakage for invalid or expired tokens.
+1.  **PBKDF2/Bcrypt** password hashing.
+2.  **ASR Threat Detection**: Real-time analysis for injection attacks.
+3.  **Crypto-Chained Audit Logs**: Tamper-evident trail for all auth events.
+4.  **Secure Headers**: Automatic HSTS, CSP, and X-Frame-Options.
 
 ---
 
@@ -141,6 +122,5 @@ The token validation system enforces strict metadata checks to prevent exploitat
 
 - [Cache System Architecture](./cache-system.mdx)
 - [Multi-Tenant Isolation](./multi-tenancy.mdx)
-- [Audit Logging & Compliance](./user-management-overview.mdx)
-- [Authentication API Reference](../api/auth.mdx)
-- [Login Security](./security/login-security.mdx)
+- [Audit Logging & Compliance](../guides/audit-logs.mdx)
+- [Access Management API](../api/access-management.mdx)

@@ -1,116 +1,213 @@
 /**
  * @file src/utils/global-search-index.ts
  * @description
- * Global Search Index for managing searchable CMS content.
+ * This file implements a global search index functionality for a web application.
+ * It provides a centralized search mechanism across various parts of the application.
+ * Key features include:
  *
- * Features:
- * - **Local State**: Maintains the index in a reactive writable store.
+ * - Creation and management of a global search index using Svelte stores
+ * - Predefined search data for common application areas (Home, Marketplace, User Profile, etc.)
+ * - Support for search triggers with associated actions and paths
+ * - Functions to add new items to the search index
+ * - Search functionality to query the global index
+ * - Integration with system logging for tracking search-related activities
+ * - Initialization function for setting up the global search functionality
  *
- * ### Refactoring Note:
- * This currently uses a client-side `writable` store which is suitable for small-to-medium datasets.
- * **Technical Debt**: If server-side search is implemented, this module must be refactored to support
- * asynchronous remote indexing and pagination to maintain "sub-millisecond" goals at enterprise scale.
- */
+ * The global search index is designed to improve navigation and discoverability
+ * within the application, allowing users to quickly find and access different
+ * features and content areas.
+ *
+ * @moduleglobal-search-index */
 
-import ModalEditAvatar from "@src/routes/(app)/user/components/modal-edit-avatar.svelte";
-import { logger } from "@utils/logger";
-import { modalState } from "@utils/modal.svelte";
-import { writable } from "svelte/store";
+import ModalEditAvatar from '@src/routes/(app)/user/components/modal-edit-avatar.svelte';
+import ModalEditForm from '@src/routes/(app)/user/components/modal-edit-form.svelte';
+// System Logs
+import { logger } from '@utils/logger';
+import { modalState } from '@utils/modal-state.svelte';
+import { writable } from 'svelte/store';
 
 export const isSearchVisible = writable(false);
 export const triggerActionStore = writable<(() => void | Promise<void>)[]>([]);
 
+// Create a writable store for the global search index
 export interface SearchData {
-  description: string;
-  keywords: string[];
-  title: string;
-  triggers: {
-    [title: string]: {
-      path: string;
-      action?: (() => void | Promise<void>)[];
-    };
-  };
+	description: string;
+	keywords: string[];
+	title: string;
+	triggers: {
+		[title: string]: {
+			path: string;
+			action?: (() => void | Promise<void>)[];
+		};
+	};
 }
 
+// Initialize the global search index with predefined data
 export const globalSearchIndex = writable<SearchData[]>([
-  {
-    title: "Home",
-    description: "System Overview and Activity.",
-    keywords: ["home", "dashboard"],
-    triggers: { "Go to Home Page": { path: "/" } },
-  },
-  {
-    title: "Media Gallery",
-    description: "DAM Engine with AI Tagging & Batch Editing.",
-    keywords: ["media", "gallery", "images", "batch", "processing", "transcode"],
-    triggers: {
-      "Go to Media Gallery": { path: "/mediagallery" },
-      "Batch Image Processor": { path: "/mediagallery?mode=batch" },
-      "Video Transcoding Hub": { path: "/mediagallery?mode=transcode" },
-    },
-  },
-  {
-    title: "Collection Builder",
-    description: "Build schemas with Visual Logic and BuzzForms.",
-    keywords: ["builder", "collection", "logic", "conditional", "schema"],
-    triggers: {
-      "Go to System Builder": { path: "/config/collectionbuilder" },
-      "Create New Collection": { path: "/config/collectionbuilder/new" },
-      "Manage Field Logic": { path: "/config/collectionbuilder?tab=logic" },
-    },
-  },
-  {
-    title: "Workflow Engine",
-    description: "Visual State Machine for Content Lifecycles.",
-    keywords: ["workflow", "automation", "state", "approval", "publishing"],
-    triggers: {
-      "Go to Workflow Builder": { path: "/config/workflows" },
-    },
-  },
-  {
-    title: "User Profile",
-    description: "Account and Security settings.",
-    keywords: ["user", "avatar", "profile", "security"],
-    triggers: {
-      "Show User Profile": { path: "/user" },
-      "Edit Avatar": {
-        path: "/user",
-        action: [() => modalState.trigger(ModalEditAvatar, { title: "Edit Avatar" })],
-      },
-    },
-  },
-  {
-    title: "System Dashboard",
-    description: "Global analytics and health.",
-    keywords: ["dashboard", "analytics", "health"],
-    triggers: { "Go to Dashboard": { path: "/dashboard" } },
-  },
-  {
-    title: "Configuration",
-    description: "Global system and plugin settings.",
-    keywords: ["config", "settings", "setup"],
-    triggers: { "Go to Configuration": { path: "/config" } },
-  },
+	{
+		title: 'Home',
+		description: 'The home page of the blog.',
+		keywords: ['home', 'dashboard'],
+		triggers: { 'Go to Home Page': { path: '/' } }
+	},
+	{
+		title: 'Marketplace',
+		description: 'SveltCMS Widget Marketplace.',
+		keywords: ['widget', 'marketplace', 'plugins', 'extensions'],
+		triggers: { 'Go to Marketplace': { path: 'https://www.sveltycms.com' } }
+	},
+	{
+		title: 'GraphQL Yoga',
+		description: 'GraphQL Explorer',
+		keywords: ['graphQL', 'Explorer', 'Yoga', 'API', 'query'],
+		triggers: { 'Go to GraphQL Explorer': { path: '/api/graphql' } }
+	},
+	{
+		title: 'User Profile',
+		description: 'View and edit your user profile.',
+		keywords: ['user', 'avatar', 'profile', 'settings', 'account', 'password', 'delete'],
+		triggers: {
+			'Show User Profile': { path: '/user' },
+			'Edit Avatar Image': {
+				path: '/user',
+				action: [
+					() => {
+						modalState.trigger(ModalEditAvatar, {
+							title: 'Edit Avatar',
+							body: 'Upload or change your avatar image'
+						});
+					}
+				]
+			},
+			'Edit User Profile': {
+				path: '/user',
+				action: [
+					() => {
+						modalState.trigger(ModalEditForm, {
+							title: 'Edit Profile',
+							body: 'Modify your data and then press Save.'
+						});
+					}
+				]
+			}
+		}
+	},
+	{
+		title: 'User Admin Area',
+		description: 'View and edit users in the user admin area.',
+		keywords: ['user', 'role', 'profile', 'settings', 'account', 'password', 'token', 'admin'],
+		triggers: {
+			'Show User Admin': { path: '/user' }
+		}
+	},
+	{
+		title: 'Media Gallery',
+		description: 'View and edit your media gallery.',
+		keywords: ['media', 'gallery', 'images', 'videos', 'documents', 'files'],
+		triggers: {
+			'Go to Media Gallery': { path: '/mediagallery' }
+		}
+	},
+	{
+		title: 'Add Media',
+		description: 'Add new media to gallery.',
+		keywords: ['add', 'media', 'gallery', 'images', 'videos', 'documents', 'upload'],
+		triggers: {
+			'Go to Add Media': { path: '/mediagallery/uploadMedia' }
+		}
+	},
+	{
+		title: 'Image Editor',
+		description: 'Edit and manage images with the image editor.',
+		keywords: ['image', 'editor', 'edit', 'photos', 'media', 'crop', 'resize'],
+		triggers: {
+			'Go to Image Editor': { path: '/imageEditor' }
+		}
+	},
+	{
+		title: 'System Dashboard',
+		description: 'View and manage your dashboard.',
+		keywords: ['dashboard', 'profile', 'settings', 'load', 'system', 'overview'],
+		triggers: { 'Go to Dashboard': { path: '/dashboard' } }
+	},
+	{
+		title: 'Configuration',
+		description: 'Configure the system settings.',
+		keywords: ['configuration', 'settings', 'system', 'setup'],
+		triggers: { 'Go to Configuration': { path: '/config' } }
+	},
+	{
+		title: 'System Builder',
+		description: 'Build and customize your collections.',
+		keywords: ['builder', 'category', 'collection', 'configuration', 'settings', 'system', 'permissions'],
+		triggers: { 'Go to System Builder': { path: '/config/collectionbuilder' } }
+	},
+	{
+		title: 'Access Management',
+		description: 'Manage user access and permissions.',
+		keywords: ['access', 'management', 'permissions', 'roles', 'users', 'security'],
+		triggers: {
+			'Go to Access Management': { path: '/config/accessManagement' }
+		}
+	},
+	{
+		title: 'Roles',
+		description: 'Manage user roles in the system.',
+		keywords: ['roles', 'user roles', 'permissions', 'access', 'security'],
+		triggers: {
+			'Manage Roles': { path: '/config/accessManagement/roles' }
+		}
+	},
+	{
+		title: 'Permissions',
+		description: 'Configure and manage system permissions.',
+		keywords: ['permissions', 'access control', 'security', 'roles'],
+		triggers: {
+			'Manage Permissions': { path: '/config/accessManagement/permissions' }
+		}
+	},
+	{
+		title: 'Theme Management',
+		description: 'Customize the look and feel of your site.',
+		keywords: ['theme', 'appearance', 'design', 'colors', 'layout', 'customize'],
+		triggers: {
+			'Customize Theme': { path: '/config/themeManagement' }
+		}
+	},
+	{
+		title: 'Widget Management',
+		description: 'Extend the functionality of your site.',
+		keywords: ['widget', 'extension', 'customization', 'plugins'],
+		triggers: {
+			'Customize Widget': { path: '/config/widgetManagement' }
+		}
+	}
 ]);
 
+logger.info('Global search index initialized');
+
+// Function to add new items to the global search index
 export function addToglobalSearchIndex(newItem: SearchData) {
-  globalSearchIndex.update((currentIndex) => [...currentIndex, newItem]);
+	globalSearchIndex.update((currentIndex) => [...currentIndex, newItem]);
+	logger.info(`Added new item to global search index: ${newItem.title}`);
 }
 
+// Function to search the global index
 export function searchGlobalIndex(query: string): SearchData[] {
-  let results: SearchData[] = [];
-  globalSearchIndex.subscribe((index) => {
-    const q = query.toLowerCase();
-    results = index.filter(
-      (item) =>
-        item.title.toLowerCase().includes(q) ||
-        item.description.toLowerCase().includes(q) ||
-        item.keywords.some((k) => k.toLowerCase().includes(q)),
-    );
-  })();
-  return results;
+	let results: SearchData[] = [];
+	globalSearchIndex.subscribe((index) => {
+		results = index.filter(
+			(item) =>
+				item.title.toLowerCase().includes(query.toLowerCase()) ||
+				item.description.toLowerCase().includes(query.toLowerCase()) ||
+				item.keywords.some((keyword) => keyword.toLowerCase().includes(query.toLowerCase()))
+		);
+	})();
+	return results;
 }
 
+// Initialize the global search functionality
 export function initializeGlobalSearch() {
-  logger.info("Global search initialized with Workflow and Batch engines.");
+	// This function can be called to set up any necessary event listeners or initial state
+	logger.info('Global search functionality initialized');
 }

@@ -1,16 +1,14 @@
 <script lang="ts">
-import type { ComponentRenderProps } from "json-render-svelte";
+	import type { ComponentRenderProps } from 'json-render-svelte';
 
-let props: ComponentRenderProps = $props();
-let element = $derived(props.element);
+	let props: ComponentRenderProps = $props();
+	let element = $derived(props.element);
 
-const elementProps = $derived(
-	(element?.props as Record<string, unknown>) || {},
-);
-const content = $derived(elementProps.content as string);
-const label = $derived(elementProps.label as string);
-const value = $derived(elementProps.value as string);
-const displayValue = $derived(content || value || "");
+	const elementProps = $derived((element?.props as Record<string, unknown>) || {});
+	const content = $derived(elementProps.content as string);
+	const label = $derived(elementProps.label as string);
+	const value = $derived(elementProps.value as string);
+	const displayValue = $derived(content || value || '');
 </script>
 
 <div class="p-2">

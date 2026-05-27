@@ -37,11 +37,10 @@
 
 	// Utils
 	import { logger } from '@utils/logger';
-	import { showScheduleModal } from '@utils/modal.svelte';
-	import { navigationManager } from '@utils/navigation';
+	import { showScheduleModal } from '@utils/modal-utils';
+	import { navigationManager } from '@utils/navigation-manager';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { page } from '$app/state';
-	import Slot from '@src/components/system/slot.svelte';
 	// Utils
 	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entry-actions';
 
@@ -191,7 +190,7 @@
 		if (currentMode === 'edit' && !hasChanges) {
 			logger.debug('[RightSidebar] No changes – navigating to list');
 			ui.forceUpdate();
-			await navigationManager.toList();
+			await navigationManager.navigateToList();
 			return;
 		}
 
@@ -222,7 +221,7 @@
 		}
 
 		ui.forceUpdate();
-		await navigationManager.toList();
+		await navigationManager.navigateToList();
 	}
 </script>
 
@@ -282,8 +281,6 @@
 					</div>
 				{/if}
 			</header>
-
-			<Slot name="entry_edit_sidebar" props={{ collection, currentEntry }} />
 
 			<main class="mt-6 flex w-full flex-col gap-4 text-left">
 				<div class="border-b border-surface-300 pb-2 dark:border-surface-600">

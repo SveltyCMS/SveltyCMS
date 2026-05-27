@@ -1,18 +1,18 @@
 ---
-path: "docs/architecture/cryptography-module.mdx"
-title: "Cryptography Module Reference"
-description: "Enterprise-grade cryptography using Argon2id and AES-256-GCM for password hashing, key derivation, and data encryption."
+path: 'docs/dev-guide/cryptography-module.mdx'
+title: 'Cryptography Module Reference'
+description: 'Enterprise-grade cryptography using Argon2id and AES-256-GCM for password hashing, key derivation, and data encryption.'
 order: 9
-icon: "mdi:lock-check"
-author: "SveltyCMS Team"
-created: "2025-10-03"
-updated: "2026-03-27"
+icon: 'mdi:lock-check'
+author: 'admin'
+created: '2025-10-03'
+updated: '2025-10-03'
 tags:
-  - "security"
-  - "cryptography"
-  - "argon2"
-  - "aes-256"
-  - "encryption"
+  - 'security'
+  - 'cryptography'
+  - 'argon2'
+  - 'aes-256'
+  - 'encryption'
 ---
 
 # Cryptography Module Reference
@@ -122,16 +122,16 @@ async function hashPassword(password: string): Promise<string>;
 **Example:**
 
 ```typescript
-import { hashPassword } from "@utils/crypto";
+import { hashPassword } from '@utils/crypto';
 
 // Registration - hash user password
-const plainPassword = "MySecurePassword123!";
+const plainPassword = 'MySecurePassword123!';
 const hashedPassword = await hashPassword(plainPassword);
 
 // Store in database
 await db.users.create({
-  email: "user@example.com",
-  password: hashedPassword, // $argon2id$v=19$m=65536,t=3,p=4$...
+	email: 'user@example.com',
+	password: hashedPassword // $argon2id$v=19$m=65536,t=3,p=4$...
 });
 ```
 
@@ -175,18 +175,18 @@ async function verifyPassword(password: string, hash: string): Promise<boolean>;
 **Example:**
 
 ```typescript
-import { verifyPassword } from "@utils/crypto";
+import { verifyPassword } from '@utils/crypto';
 
 // Login - verify user password
-const user = await db.users.findByEmail("user@example.com");
+const user = await db.users.findByEmail('user@example.com');
 const isValid = await verifyPassword(plainPassword, user.password);
 
 if (isValid) {
-  // Password correct - create session
-  const session = await createSession(user._id);
+	// Password correct - create session
+	const session = await createSession(user._id);
 } else {
-  // Password incorrect - reject login
-  throw new Error("Invalid credentials");
+	// Password incorrect - reject login
+	throw new Error('Invalid credentials');
 }
 ```
 
@@ -195,7 +195,6 @@ if (isValid) {
 - ⏱️ Constant-time comparison (prevents timing attacks)
 - 🔒 Automatically extracts parameters from hash (memory, time, parallelism)
 - 🛡️ Resistant to timing side-channel attacks
-- 🧪 **Timing-Safe Test Bypass**: CI/CD test secrets are verified using `crypto.timingSafeEqual` (via `@src/hooks/handle-turbo-pipeline.server.ts`) to prevent side-channel leaks of administrative test credentials.
 
 ---
 
@@ -223,16 +222,16 @@ async function encryptData(data: Record<string, unknown>, password: string): Pro
 **Example:**
 
 ```typescript
-import { encryptData } from "@utils/crypto";
+import { encryptData } from '@utils/crypto';
 
 // Encrypt sensitive configuration data
 const sensitiveData = {
-  apiKey: "sk_live_abc123...",
-  dbPassword: "secretPassword",
-  jwtSecret: "myJWTSecret",
+	apiKey: 'sk_live_abc123...',
+	dbPassword: 'secretPassword',
+	jwtSecret: 'myJWTSecret'
 };
 
-const encrypted = await encryptData(sensitiveData, "UserPassword123!");
+const encrypted = await encryptData(sensitiveData, 'UserPassword123!');
 
 // encrypted = "A1B2C3...base64-encoded-blob"
 // Safe to store or transfer
@@ -267,10 +266,7 @@ Decrypts data encrypted by `encryptData()`.
 **Signature:**
 
 ```typescript
-async function decryptData(
-  encryptedData: string,
-  password: string,
-): Promise<Record<string, unknown>>;
+async function decryptData(encryptedData: string, password: string): Promise<Record<string, unknown>>;
 ```
 
 **Parameters:**
@@ -291,24 +287,24 @@ async function decryptData(
 **Example:**
 
 ```typescript
-import { decryptData } from "@utils/crypto";
+import { decryptData } from '@utils/crypto';
 
 // Decrypt sensitive configuration
 try {
-  const decrypted = await decryptData(encrypted, "UserPassword123!");
+	const decrypted = await decryptData(encrypted, 'UserPassword123!');
 
-  console.log(decrypted);
-  // {
-  //   apiKey: 'sk_live_abc123...',
-  //   dbPassword: 'secretPassword',
-  //   jwtSecret: 'myJWTSecret'
-  // }
+	console.log(decrypted);
+	// {
+	//   apiKey: 'sk_live_abc123...',
+	//   dbPassword: 'secretPassword',
+	//   jwtSecret: 'myJWTSecret'
+	// }
 } catch (error) {
-  console.error("Decryption failed:", error.message);
-  // Possible reasons:
-  // - Wrong password
-  // - Data tampered with
-  // - Data corrupted
+	console.error('Decryption failed:', error.message);
+	// Possible reasons:
+	// - Wrong password
+	// - Data tampered with
+	// - Data corrupted
 }
 ```
 
@@ -356,17 +352,17 @@ async function deriveKey(password: string, salt: Buffer): Promise<Buffer>;
 **Example:**
 
 ```typescript
-import crypto from "crypto";
-import { deriveKey } from "@utils/crypto";
+import crypto from 'crypto';
+import { deriveKey } from '@utils/crypto';
 
 // Generate random salt
 const salt = crypto.randomBytes(32);
 
 // Derive key from password
-const key = await deriveKey("UserPassword123!", salt);
+const key = await deriveKey('UserPassword123!', salt);
 
 // Use key for custom encryption
-const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
+const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
 ```
 
 **Use Cases:**
@@ -394,7 +390,7 @@ const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
 
 | Password Strength          | Keyspace          | Time to Crack (Argon2) |
 | -------------------------- | ----------------- | ---------------------- |
-| 8 chars (mixed)            | 62^8 = 2.2×10^14  | ~70 years              |
+| 8 chars (lowercase)        | 26^8 = 2.1×10^11  | ~24 days               |
 | 12 chars (mixed)           | 62^12 = 3.2×10^21 | **10 billion years**   |
 | 16 chars (mixed + symbols) | 95^16 = 4.4×10^31 | **10^23 years**        |
 
@@ -528,19 +524,19 @@ For maximum security during the quantum transition, implement **hybrid cryptogra
 ```typescript
 // Future hybrid encryption example (conceptual)
 async function hybridEncrypt(data: string, publicKey: string) {
-  // Step 1: Use classical AES-256-GCM (current system)
-  const classicalKey = generateRandomKey(32);
-  const classicalCiphertext = await aesEncrypt(data, classicalKey);
+	// Step 1: Use classical AES-256-GCM (current system)
+	const classicalKey = generateRandomKey(32);
+	const classicalCiphertext = await aesEncrypt(data, classicalKey);
 
-  // Step 2: Use post-quantum key encapsulation (future)
-  const pqCiphertext = await kyberEncapsulate(classicalKey, publicKey);
+	// Step 2: Use post-quantum key encapsulation (future)
+	const pqCiphertext = await kyberEncapsulate(classicalKey, publicKey);
 
-  // Step 3: Combine both
-  return {
-    ciphertext: classicalCiphertext,
-    encapsulatedKey: pqCiphertext,
-    algorithm: "AES-256-GCM + Kyber-1024",
-  };
+	// Step 3: Combine both
+	return {
+		ciphertext: classicalCiphertext,
+		encapsulatedKey: pqCiphertext,
+		algorithm: 'AES-256-GCM + Kyber-1024'
+	};
 }
 ```
 
@@ -618,133 +614,133 @@ async function hybridEncrypt(data: string, publicKey: string) {
 ### User Authentication System
 
 ```typescript
-import { hashPassword, verifyPassword } from "@utils/crypto";
+import { hashPassword, verifyPassword } from '@utils/crypto';
 
 // User Registration
 export async function registerUser(email: string, password: string) {
-  // Hash password with Argon2id
-  const hashedPassword = await hashPassword(password);
+	// Hash password with Argon2id
+	const hashedPassword = await hashPassword(password);
 
-  // Store in database
-  const user = await db.users.create({
-    email,
-    password: hashedPassword,
-    createdAt: new Date(),
-  });
+	// Store in database
+	const user = await db.users.create({
+		email,
+		password: hashedPassword,
+		createdAt: new Date()
+	});
 
-  return user;
+	return user;
 }
 
 // User Login
 export async function loginUser(email: string, password: string) {
-  // Find user
-  const user = await db.users.findByEmail(email);
-  if (!user) {
-    throw new Error("Invalid credentials");
-  }
+	// Find user
+	const user = await db.users.findByEmail(email);
+	if (!user) {
+		throw new Error('Invalid credentials');
+	}
 
-  // Verify password
-  const isValid = await verifyPassword(password, user.password);
-  if (!isValid) {
-    throw new Error("Invalid credentials");
-  }
+	// Verify password
+	const isValid = await verifyPassword(password, user.password);
+	if (!isValid) {
+		throw new Error('Invalid credentials');
+	}
 
-  // Create session
-  const session = await createSession(user._id);
-  return { user, session };
+	// Create session
+	const session = await createSession(user._id);
+	return { user, session };
 }
 ```
 
 ### Secure Configuration Export/Import
 
 ```typescript
-import { encryptData, decryptData } from "@utils/crypto";
+import { encryptData, decryptData } from '@utils/crypto';
 
 // Export sensitive configuration
 export async function exportConfig(password: string) {
-  const config = {
-    database: {
-      host: "localhost",
-      password: "dbPassword123",
-    },
-    api: {
-      key: "sk_live_abc123",
-      secret: "secret_xyz789",
-    },
-    jwt: {
-      secret: "myJWTSecret",
-    },
-  };
+	const config = {
+		database: {
+			host: 'localhost',
+			password: 'dbPassword123'
+		},
+		api: {
+			key: 'sk_live_abc123',
+			secret: 'secret_xyz789'
+		},
+		jwt: {
+			secret: 'myJWTSecret'
+		}
+	};
 
-  // Encrypt with password
-  const encrypted = await encryptData(config, password);
+	// Encrypt with password
+	const encrypted = await encryptData(config, password);
 
-  // Save to file
-  await fs.writeFile("config.encrypted", encrypted);
+	// Save to file
+	await fs.writeFile('config.encrypted', encrypted);
 
-  return { success: true };
+	return { success: true };
 }
 
 // Import configuration
 export async function importConfig(password: string) {
-  // Read encrypted file
-  const encrypted = await fs.readFile("config.encrypted", "utf8");
+	// Read encrypted file
+	const encrypted = await fs.readFile('config.encrypted', 'utf8');
 
-  try {
-    // Decrypt with password
-    const config = await decryptData(encrypted, password);
+	try {
+		// Decrypt with password
+		const config = await decryptData(encrypted, password);
 
-    // Apply configuration
-    await applyConfig(config);
+		// Apply configuration
+		await applyConfig(config);
 
-    return { success: true, config };
-  } catch (error) {
-    throw new Error("Invalid password or corrupted file");
-  }
+		return { success: true, config };
+	} catch (error) {
+		throw new Error('Invalid password or corrupted file');
+	}
 }
 ```
 
 ### API Token Encryption
 
 ```typescript
-import { encryptData, decryptData } from "@utils/crypto";
+import { encryptData, decryptData } from '@utils/crypto';
 
 // Store encrypted API token
 export async function storeApiToken(userId: string, token: string, masterPassword: string) {
-  const tokenData = {
-    token,
-    createdAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-  };
+	const tokenData = {
+		token,
+		createdAt: new Date().toISOString(),
+		expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+	};
 
-  // Encrypt token
-  const encrypted = await encryptData(tokenData, masterPassword);
+	// Encrypt token
+	const encrypted = await encryptData(tokenData, masterPassword);
 
-  // Store in database
-  await db.apiTokens.create({
-    userId,
-    encryptedToken: encrypted,
-  });
+	// Store in database
+	await db.apiTokens.create({
+		userId,
+		encryptedToken: encrypted
+	});
 }
 
 // Retrieve and decrypt API token
 export async function getApiToken(userId: string, masterPassword: string) {
-  const record = await db.apiTokens.findByUserId(userId);
-  if (!record) return null;
+	const record = await db.apiTokens.findByUserId(userId);
+	if (!record) return null;
 
-  try {
-    // Decrypt token
-    const tokenData = await decryptData(record.encryptedToken, masterPassword);
+	try {
+		// Decrypt token
+		const tokenData = await decryptData(record.encryptedToken, masterPassword);
 
-    // Check expiration
-    if (new Date(tokenData.expiresAt) < new Date()) {
-      throw new Error("Token expired");
-    }
+		// Check expiration
+		if (new Date(tokenData.expiresAt) < new Date()) {
+			throw new Error('Token expired');
+		}
 
-    return tokenData.token;
-  } catch (error) {
-    throw new Error("Failed to decrypt token");
-  }
+		return tokenData.token;
+	} catch (error) {
+		throw new Error('Failed to decrypt token');
+	}
 }
 ```
 
@@ -758,23 +754,22 @@ For maximum security with Argon2id:
 
 ```typescript
 export function validatePassword(password: string): { valid: boolean; message: string } {
-  // Default minimum length is 8, but 12+ is recommended for enterprise security
-  if (password.length < 8) {
-    return { valid: false, message: "Password must be at least 8 characters" };
-  }
-  if (!/[A-Z]/.test(password)) {
-    return { valid: false, message: "Password must contain uppercase letter" };
-  }
-  if (!/[a-z]/.test(password)) {
-    return { valid: false, message: "Password must contain lowercase letter" };
-  }
-  if (!/[0-9]/.test(password)) {
-    return { valid: false, message: "Password must contain number" };
-  }
-  if (!/[^A-Za-z0-9]/.test(password)) {
-    return { valid: false, message: "Password must contain special character" };
-  }
-  return { valid: true, message: "Password is strong" };
+	if (password.length < 12) {
+		return { valid: false, message: 'Password must be at least 12 characters' };
+	}
+	if (!/[A-Z]/.test(password)) {
+		return { valid: false, message: 'Password must contain uppercase letter' };
+	}
+	if (!/[a-z]/.test(password)) {
+		return { valid: false, message: 'Password must contain lowercase letter' };
+	}
+	if (!/[0-9]/.test(password)) {
+		return { valid: false, message: 'Password must contain number' };
+	}
+	if (!/[^A-Za-z0-9]/.test(password)) {
+		return { valid: false, message: 'Password must contain special character' };
+	}
+	return { valid: true, message: 'Password is strong' };
 }
 ```
 
@@ -783,7 +778,7 @@ export function validatePassword(password: string): { valid: boolean; message: s
 Always use cryptographically secure random salts:
 
 ```typescript
-import crypto from "crypto";
+import crypto from 'crypto';
 
 // ✅ GOOD: Cryptographically secure
 const salt = crypto.randomBytes(32);
@@ -817,16 +812,16 @@ Never reveal detailed cryptographic errors to users:
 ```typescript
 // ✅ GOOD: Generic error message
 try {
-  const decrypted = await decryptData(encrypted, password);
+	const decrypted = await decryptData(encrypted, password);
 } catch (error) {
-  throw new Error("Authentication failed"); // Don't reveal why
+	throw new Error('Authentication failed'); // Don't reveal why
 }
 
 // ❌ BAD: Reveals information
 try {
-  const decrypted = await decryptData(encrypted, password);
+	const decrypted = await decryptData(encrypted, password);
 } catch (error) {
-  throw new Error("Wrong password"); // Reveals password was incorrect
+	throw new Error('Wrong password'); // Reveals password was incorrect
 }
 ```
 
@@ -873,44 +868,44 @@ Typical performance on modern hardware:
 ### Unit Tests
 
 ```typescript
-import { hashPassword, verifyPassword, encryptData, decryptData } from "@utils/crypto";
-import { describe, it, expect } from "vitest";
+import { hashPassword, verifyPassword, encryptData, decryptData } from '@utils/crypto';
+import { describe, it, expect } from 'vitest';
 
-describe("Cryptography Module", () => {
-  describe("Password Hashing", () => {
-    it("should hash and verify password", async () => {
-      const password = "MySecurePassword123!";
-      const hash = await hashPassword(password);
+describe('Cryptography Module', () => {
+	describe('Password Hashing', () => {
+		it('should hash and verify password', async () => {
+			const password = 'MySecurePassword123!';
+			const hash = await hashPassword(password);
 
-      expect(hash).toMatch(/^\$argon2id\$/);
+			expect(hash).toMatch(/^\$argon2id\$/);
 
-      const isValid = await verifyPassword(password, hash);
-      expect(isValid).toBe(true);
+			const isValid = await verifyPassword(password, hash);
+			expect(isValid).toBe(true);
 
-      const isInvalid = await verifyPassword("wrongpassword", hash);
-      expect(isInvalid).toBe(false);
-    });
-  });
+			const isInvalid = await verifyPassword('wrongpassword', hash);
+			expect(isInvalid).toBe(false);
+		});
+	});
 
-  describe("Data Encryption", () => {
-    it("should encrypt and decrypt data", async () => {
-      const data = { secret: "mySecret", apiKey: "key123" };
-      const password = "EncryptionPassword123!";
+	describe('Data Encryption', () => {
+		it('should encrypt and decrypt data', async () => {
+			const data = { secret: 'mySecret', apiKey: 'key123' };
+			const password = 'EncryptionPassword123!';
 
-      const encrypted = await encryptData(data, password);
-      expect(encrypted).toBeTypeOf("string");
+			const encrypted = await encryptData(data, password);
+			expect(encrypted).toBeTypeOf('string');
 
-      const decrypted = await decryptData(encrypted, password);
-      expect(decrypted).toEqual(data);
-    });
+			const decrypted = await decryptData(encrypted, password);
+			expect(decrypted).toEqual(data);
+		});
 
-    it("should fail with wrong password", async () => {
-      const data = { secret: "mySecret" };
-      const encrypted = await encryptData(data, "password1");
+		it('should fail with wrong password', async () => {
+			const data = { secret: 'mySecret' };
+			const encrypted = await encryptData(data, 'password1');
 
-      await expect(decryptData(encrypted, "wrongpassword")).rejects.toThrow();
-    });
-  });
+			await expect(decryptData(encrypted, 'wrongpassword')).rejects.toThrow();
+		});
+	});
 });
 ```
 

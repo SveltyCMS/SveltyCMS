@@ -1,84 +1,33 @@
 ---
-path: "docs/guides/configuration/system-settings.mdx"
-title: "System Settings - User Guide"
-description: "Managing CMS configuration through the System Settings GUI interface - 13 groups controlling cache, security, email, and more."
+path: 'docs/user-guide/system-settings.mdx'
+title: 'System Settings - User Guide'
+description: 'Managing CMS configuration through the System Settings GUI interface - 13 groups controlling cache, security, email, and more.'
 order: 10
-icon: "mdi:cog"
-author: "SveltyCMS Team"
-created: "2025-10-03"
-updated: "2026-03-27"
+icon: 'mdi:cog'
+author: 'admin'
+created: '2025-10-03'
+updated: '2025-10-03'
 tags:
-  - "settings"
-  - "configuration"
-  - "admin"
-  - "gui"
-  - "cache"
+  - 'settings'
+  - 'configuration'
+  - 'admin'
+  - 'gui'
+  - 'cache'
 ---
 
 # System Settings - User Guide
 
 ## Overview
 
-The System Settings page provides a user-friendly interface for managing all dynamic CMS settings. Settings are stored in the database and take effect immediately without requiring a server restart.
+The System Settings page provides a user-friendly interface for managing all dynamic CMS settings. Settings are stored in the database and take effect immediately without requiring a server restart. Settings are organized into logical categories with clear explanations and real-time updates.
 
-```mermaid
-mindmap
-  root((System Settings))
-    General
-      Site Identity
-      Localization
-      Maintenance
-    Email
-      SMTP Config
-      Authentication
-      Templates
-    Security
-      JWT Keys
-      2FA / TOTP
-      CSP Headers
-    Storage
-      Upload Limits
-      Cloud Setup
-      Quotas
-    Performance
-      Cache TTLs
-      Redis Config
-      Optimization
-```
+**Access:** Navigate to **Config → System Settings** (`/config/systemsetting`)
 
-**Access:** Navigate to **Config → System Settings** (`/config/system-settings`)
+**Required Permission:** Administrator access
 
-## Data Flow & Performance
-
-SveltyCMS uses an optimized batch loading mechanism to ensure the dashboard remains responsive even on high-latency connections.
-
-```mermaid
-sequenceDiagram
-    participant Browser
-    participant API as /api/settings/all
-    participant RBAC as Permission Layer
-    participant DB as Database
-
-    Browser->>API: GET Request
-    API->>RBAC: Validate User & Role
-    RBAC-->>API: Authorized Groups
-    API->>DB: Fetch All Authorized Settings
-    DB-->>API: Data Payload
-    API-->>Browser: Optimized JSON Response
-```
+---
 
 ## Interface Layout
-
-### Search & Navigation
-
-#### Global Search
-
-A search bar at the top allows you to filter setting groups by name or description, helping you quickly find relevant configurations.
-
-#### Responsive Tabs
-
-- **Desktop:** Vertical sidebar for group selection.
-- **Mobile/Tablet:** Horizontal scrolling tabs at the top for quick switching between categories.
 
 ### Warning Banners
 
@@ -465,21 +414,17 @@ After changing TTL settings, monitor:
 
 ### Viewing Settings
 
-1. Navigate to `/config/system-settings`.
-2. Use the **Search Bar** at the top to filter groups if needed.
-3. Click on any tab (sidebar on desktop, horizontal tabs on mobile) to view that group's settings.
-4. Current values are displayed with descriptions.
+1. Navigate to `/config/systemsetting`
+2. Click on any tab to view that group's settings
+3. Current values are displayed with descriptions
 
 ### Editing Settings
 
-1. Select the settings group tab.
-2. Modify values in the input fields.
-   - **Sensitive Fields:** Fields like passwords or API keys are masked with `********`.
-   - **Unsaved Changes:** A "Save Changes" button will activate in the sticky action bar if modifications are detected.
-3. Click **"Save Changes"** in the sticky action bar at the bottom.
-4. An **Unsaved Changes Guard** will warn you if you attempt to navigate away with unsaved modifications.
-5. Success message confirms update.
-6. Changes take effect immediately.
+1. Select the settings group tab
+2. Modify values in the input fields
+3. Click **"Save Changes"** button
+4. Success message confirms update
+5. Changes take effect immediately
 
 ### Resetting to Defaults
 
@@ -490,25 +435,9 @@ After changing TTL settings, monitor:
 
 ---
 
-## Action Bars
+## Quick Actions Panel
 
-### Global Action Bar
-
-Located at the top, provides global actions:
-
-- **Export All JSON:** Downloads a complete snapshot of all accessible system settings.
-
-### Sticky Group Action Bar
-
-Located at the bottom of each settings group, provides contextual actions:
-
-- **Reset to Defaults:** Restores the current group's settings to system defaults.
-- **Export Group:** Downloads a JSON snapshot of only the currently selected group.
-- **Save Changes:** Commits your changes to the database (only active when changes are detected).
-
----
-
-## Quick Actions Panel (Legacy/Bottom)
+Located at the bottom of the page, provides quick access to common tasks:
 
 ### 1. Reload Page
 

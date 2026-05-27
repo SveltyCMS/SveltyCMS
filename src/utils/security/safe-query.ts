@@ -6,76 +6,52 @@
  * when running in Multi-Tenant mode.
  */
 
-import { getPrivateEnv } from "@src/databases/config-state";
-import { AppError } from "@utils/error-handling";
-import { logger } from "@utils/logger";
+import { getPrivateEnv } from '@src/databases/config-state';
+import { AppError } from '@utils/error-handling';
+import { logger } from '@utils/logger';
 
 interface SafeQueryOptions {
-  bypassTenantCheck?: boolean; // Bypass check (e.g. for System Admin queries)
-  includeDeleted?: boolean; // Whether to include soft-deleted items
-  bypassSafeQuery?: boolean; // 🚀 ULTRA FAST PATH: Skip all checks and allocations
+	bypassTenantCheck?: boolean; // Bypass check (e.g. for System Admin queries)
 }
-
-let cachedIsMultiTenant: boolean | null = null;
 
 /**
  * Validates that a query object includes a tenantId if Multi-Tenancy is enabled.
- * Also enforces Soft Delete boundaries by default.
+ * Throws an error if validation fails.
  *
  * @param query - The query object (e.g. Mongoose filter)
  * @param tenantId - The tenantId from the context (Event/Session)
- * @param options - Options to bypass checks
+ * @param options - Options to bypass check
  */
-export function safeQuery<T extends Record<string, any>>(
-  query: T,
-  tenantId?: string | null,
-  options: SafeQueryOptions = {},
-): T {
-  // 🚀 ULTRA FAST PATH: If bypassed, return immediately without any allocations
-  if (options.bypassSafeQuery) return query;
+export function safeQuery<T extends Record<string, any>>(query: T, tenantId?: string | null | null, options: SafeQueryOptions = {}): T {
+	// 1. Get private config
+	const privateEnv = getPrivateEnv();
 
-  // 1. Get private config (Cached for performance, but bypassed in TEST_MODE)
-  if (cachedIsMultiTenant === null || process.env.TEST_MODE === "true") {
-    const privateEnv = getPrivateEnv() as any;
-    cachedIsMultiTenant = privateEnv?.MULTI_TENANT === true || privateEnv?.MULTI_TENANT === "true";
-  }
+	// 2. Skip if Multi-Tenancy is disabled
+	const isMultiTenant = (privateEnv as any)?.MULTI_TENANT === true || (privateEnv as any)?.MULTI_TENANT === 'true';
+	if (!isMultiTenant) {
+		return query;
+	}
 
-  const isMultiTenant = cachedIsMultiTenant;
+	// 3. Skip if bypassTenantCheck mode (System Admin)
+	if (options.bypassTenantCheck) {
+		return query;
+	}
 
-  // 🛡️ SECURITY: If multi-tenancy is enabled but no tenantId provided, it's a violation
-  if (isMultiTenant && !tenantId && !options.bypassTenantCheck) {
-    // Redact PII fields before logging
-    const PII_KEYS = new Set(["email", "security", "username", "name", "phone", "token", "secret"]);
-    const redactedQuery = Object.fromEntries(
-      Object.entries(query).map(([k, v]) => [k, PII_KEYS.has(k.toLowerCase()) ? "[REDACTED]" : v]),
-    );
-    logger.error(
-      `[SafeQuery] Security Violation! Query: ${JSON.stringify(redactedQuery)}, Options: ${JSON.stringify(options)}, MultiTenant: true`,
-    );
-    throw new AppError(
-      "Security Violation: Attempted to execute query without tenant context in Multi-Tenant mode.",
-      500,
-      "TENANT_CONTEXT_MISSING",
-    );
-  }
+	// 4. Strict Check
+	if (!tenantId) {
+		// Redact PII fields before logging
+		const PII_KEYS = new Set(['email', 'password', 'username', 'name', 'phone', 'token', 'secret']);
+		const redactedQuery = Object.fromEntries(Object.entries(query).map(([k, v]) => [k, PII_KEYS.has(k.toLowerCase()) ? '[REDACTED]' : v]));
+		logger.error(
+			`[SafeQuery] Security Violation! Query: ${JSON.stringify(redactedQuery)}, Options: ${JSON.stringify(options)}, MultiTenant: ${privateEnv?.MULTI_TENANT}`
+		);
+		throw new AppError('Security Violation: Attempted to execute query without tenant context in Multi-Tenant mode.', 500, 'TENANT_CONTEXT_MISSING');
+	}
 
-  // 2. Prepare the base query with tenantId if needed
-  // We only clone if we actually need to change something
-  let secureQuery: any = query;
-  let hasChanges = false;
-
-  if (tenantId !== undefined && !options.bypassTenantCheck && query.tenantId !== tenantId) {
-    secureQuery = { ...query };
-    secureQuery.tenantId = tenantId;
-    hasChanges = true;
-  }
-
-  // 3. Enforce Soft Delete boundary
-  if (!options.includeDeleted && query.isDeleted === undefined) {
-    if (!hasChanges) secureQuery = { ...query };
-    // MongoDB syntax: match where isDeleted is not true (exists and is false, or doesn't exist)
-    secureQuery.isDeleted = { $ne: true };
-  }
-
-  return secureQuery;
+	// 5. Force inject tenantId into query (Mutation or new object)
+	// We return a new object to be safe
+	return {
+		...query,
+		tenantId
+	};
 }

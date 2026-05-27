@@ -1,17 +1,17 @@
 ---
-path: "docs/guides/legal/gdpr-compliance.mdx"
-title: "GDPR Compliance Suite"
-description: "Handling Right to Erasure and Data Portability in SveltyCMS."
+path: 'docs/guides/legal/gdpr-compliance.mdx'
+title: 'GDPR Compliance Suite'
+description: 'Handling Right to Erasure and Data Portability in SveltyCMS.'
 order: 10
-icon: "mdi:shield-lock"
-author: "SveltyCMS Team"
-created: "2026-02-10"
-updated: "2026-05-05"
+icon: 'mdi:shield-lock'
+author: 'admin'
+created: '2026-02-10'
+updated: '2026-02-10'
 tags:
-  - "gdpr"
-  - "compliance"
-  - "legal"
-  - "security"
+  - 'gdpr'
+  - 'compliance'
+  - 'legal'
+  - 'security'
 ---
 
 # GDPR Compliance Suite
@@ -47,7 +47,7 @@ System Administrators can generate a full JSON export of all data associated wit
   - Metadata (Export timestamp)
 
 ```typescript
-import { gdprService } from "@src/services/security/gdpr-service";
+import { gdprService } from '$services/GDPRService';
 
 // Generates a JSON export of all user data
 const userData = await gdprService.exportUserData(userId);
@@ -67,10 +67,10 @@ Permanently remove a user's Personal Identifiable Information (PII) without brea
   6.  **Logs:** Audit logs are cryptographically immutable but the actor's mapping is anonymized.
 
 ```typescript
-import { gdprService } from "@src/services/security/gdpr-service";
+import { gdprService } from '$services/GDPRService';
 
 // Anonymizes user and logs the erasure request
-await gdprService.anonymizeUser(userId, "User initiated deletion");
+await gdprService.anonymizeUser(userId, 'User initiated deletion');
 ```
 
 ## Privacy & Cookies

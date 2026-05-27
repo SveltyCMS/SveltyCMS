@@ -1,165 +1,151 @@
 /**
  * @file src/utils/setup-check.ts
- * @description
- * **System State Discovery**: The authoritative utility for detecting if the CMS is initialized.
+ * @description Centralized and memoized setup completion check utility.
  *
- * This utility handles both "Shallow" (file existence) and "Deep" (DB content) checks.
- *
- * ### responsibilities:
- * - Checking for config/private.ts (Vite & Middleware).
- * - Verifying DB connectivity and core records (Users, Roles).
- * - Memoizing status to minimize I/O.
- *
- * ### SECURITY:
- * This file is imported by vite.config.ts (Node environment).
- * DO NOT add top-level imports that trigger SvelteKit runtime or project side-effects.
+ * @improvements
+ * - **Relative Imports:** Uses `../databases/db` instead of aliases to ensure safety when running inside `vite.config.ts`.
+ * - **Namespace Imports:** Uses `fs` and `path` namespaces for consistency with other server utilities.
+ * - **Robustness:** Stronger checks during dynamic imports.
  */
 
-import fs from "node:fs";
-import path from "node:path";
+import fs from 'node:fs';
+import path from 'node:path';
 
-/**
- * ⚡️ FAST SHALLOW CHECK
- * Checks if config/private.ts exists.
- * Safe to call from anywhere (middleware, Vite, etc.)
- */
-import { isSetupComplete } from "./setup-check-fast";
-export { isSetupComplete };
-
-// Memoization
-let setupDbStatus: boolean | null = null;
+// Memoization variable to cache the setup status.
+let setupStatus: boolean | null = null;
 let setupStatusCheckedDb = false;
 
-export enum SetupState {
-  MISSING_CONFIG = "MISSING_CONFIG", // config/private.ts not found
-  MISSING_ADMIN = "MISSING_ADMIN", // Config exists but DB is empty
-  COMPLETE = "COMPLETE", // Everything ready
+export function isSetupComplete(): boolean {
+	if (setupStatus !== null) {
+		return setupStatus;
+	}
+
+	try {
+		// Use process.cwd() to ensure we look at the project root
+		// Support TEST_MODE for isolated testing without affecting live config
+		const configFileName = process.env.TEST_MODE ? 'private.test.ts' : 'private.ts';
+		const privateConfigPath = path.join(process.cwd(), 'config', configFileName);
+
+		if (!fs.existsSync(privateConfigPath)) {
+			if (process.env.TEST_MODE) {
+				console.log(`[setupCheck] ${configFileName} NOT FOUND`);
+			}
+			setupStatus = false;
+			return setupStatus;
+		}
+		if (process.env.TEST_MODE) {
+			console.log(`[setupCheck] ${configFileName} FOUND`);
+		}
+
+		const configContent = fs.readFileSync(privateConfigPath, 'utf8');
+
+		// Regex checks to ensure keys are not set to empty strings
+		// Supports both Object property style (Key: "Value") and Variable assignment style (Key = "Value")
+		const hasJwtSecret = !/JWT_SECRET_KEY[:=]\s*(""|''|``)/.test(configContent);
+		const hasDbHost = !/DB_HOST[:=]\s*(""|''|``)/.test(configContent);
+		const hasDbName = !/DB_NAME[:=]\s*(""|''|``)/.test(configContent);
+
+		// Config file exists and has values - assume setup complete for now
+		// Database validation will happen asynchronously in isSetupCompleteAsync()
+		setupStatus = hasJwtSecret && hasDbHost && hasDbName;
+		return setupStatus;
+	} catch (error) {
+		// Log error here as it's an exceptional case during a critical check
+		console.error('[SveltyCMS] ❌ Error during setup check:', error);
+		setupStatus = false;
+		return setupStatus;
+	}
 }
 
 /**
- * 🔎 DEEP ASYNC CHECK
- * Checks if database has admin users and roles.
+ * Async version that also checks if database has admin users.
+ * This is called from hooks after config check passes and database is initialized.
  */
 export async function isSetupCompleteAsync(): Promise<boolean> {
-  // 1. Fast fail: Check config first
-  if (!isSetupComplete()) return false;
+	// 1. Fast fail: Check config file first
+	if (!isSetupComplete()) {
+		return false;
+	}
 
-  // 2. Cache hit
-  if (setupStatusCheckedDb || (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ === true) {
-    return (
-      (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ === true || (setupDbStatus ?? false)
-    );
-  }
+	// 2. Cache hit: If we've already checked the database, return cached result
+	if (setupStatusCheckedDb) {
+		return setupStatus ?? true; // Default to true if config exists
+	}
 
-  try {
-    // Dynamic imports to avoid Vite/SSR side-effects at top-level
-    // Vite will resolve these during the main app build and bundle them correctly.
-    const { logger } = await import("./logger");
-    const db = await import("../databases/db");
+	try {
+		// 3. Dynamic Import: Use relative path to avoid alias resolution issues in vite.config.ts
+		// We perform this check lazily to prevent circular dependencies during boot
+		const db = await import('../databases/db');
+		const dbAdapter = db.dbAdapter;
 
-    // Wait for DB boot
-    if (typeof db.getDbInitPromise === "function") {
-      await db.getDbInitPromise(false, "CORE");
-    }
+		// Guard against uninitialized adapter
+		if (!dbAdapter) {
+			// If adapter isn't ready but config exists, we stay in setup mode to allow finalization
+			return false;
+		}
 
-    const dbAdapter = db.dbAdapter;
-    if (!dbAdapter) return false;
+		// Check if database is connected before trying to access auth
+		if (typeof dbAdapter.isConnected === 'function' && !dbAdapter.isConnected()) {
+			// If DB not connected but config exists, stay in setup mode
+			return false;
+		}
 
-    if (typeof dbAdapter.isConnected === "function" && !dbAdapter.isConnected()) return false;
+		// Ensure auth is initialized before access
+		if (dbAdapter.ensureAuth) {
+			await dbAdapter.ensureAuth();
+		}
 
-    // Check Users/Roles
-    const [userResult, roles] = await Promise.all([
-      dbAdapter.auth.getAllUsers({ limit: 1 }, { bypassTenantCheck: true }),
-      dbAdapter.auth.getAllRoles({ bypassTenantCheck: true }),
-    ]);
+		if (!dbAdapter.auth) {
+			console.log('[setupCheck] Auth module not ready after initialization');
+			// Return true to avoid blocking if config exists
+			return true;
+		}
 
-    const hasUsers = userResult.success && userResult.data && userResult.data.length > 0;
-    const hasRoles = Array.isArray(roles) && roles.length > 0;
+		// 4. Data Verification: Check if admin users exist
+		const result = await dbAdapter.auth.getAllUsers({ limit: 1 }, { bypassTenantCheck: true });
+		// console.log('[setupCheck] User check result:', JSON.stringify(result)); // Uncomment for deep debugging
 
-    if (!hasUsers || !hasRoles) {
-      logger.channel("setupCheck").warn("Config exists but DB is missing USERS/ROLES");
-      setupDbStatus = false;
-      setupStatusCheckedDb = true;
-      return false;
-    }
+		const hasUsers = result.success && result.data && result.data.length > 0;
+		if (!hasUsers) {
+			console.warn('[setupCheck] Config exists but NO USERS found in DB. System will stay in setup mode.');
+			setupStatus = false;
+			setupStatusCheckedDb = true;
+			return false;
+		}
 
-    setupDbStatus = true;
-    setupStatusCheckedDb = true;
-    return true;
-  } catch {
-    // Fail safe to false to stay in setup mode if DB is unreachable
-    return false;
-  }
+		// Update cache
+		setupStatus = true;
+		setupStatusCheckedDb = true;
+		return true;
+	} catch (error) {
+		console.error('[SveltyCMS] ❌ Database validation failed during setup check:', error);
+		// If config exists but DB check fails, we return false to stay in setup mode
+		// This prevents blocking setup actions during transition.
+		return false;
+	}
 }
 
 /**
- * Returns the current SetupState enum.
+ * Invalidates the cached setup status, forcing a recheck on the next call.
+ * @param clearPrivateEnv - Whether to clear private environment config (default: false)
  */
-export async function getSetupState(): Promise<SetupState> {
-  // 🚀 BENCHMARK OPTIMIZATION: Avoid deep checks during high-frequency audits
-  if (process.env.BENCHMARK === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true") {
-    return SetupState.COMPLETE;
-  }
+export function invalidateSetupCache(clearPrivateEnv = false): void {
+	setupStatus = null;
+	setupStatusCheckedDb = false;
 
-  if (!isSetupComplete()) return SetupState.MISSING_CONFIG;
-  const isDeepComplete = await isSetupCompleteAsync();
-  return isDeepComplete ? SetupState.COMPLETE : SetupState.MISSING_ADMIN;
-}
-
-/**
- * Sync check for fully complete system (memoized).
- */
-export function isSetupFullyComplete(): boolean {
-  return (
-    (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ === true ||
-    (setupStatusCheckedDb && setupDbStatus === true)
-  );
-}
-
-let cachedTestSecret: string | null = null;
-
-/**
- * Robustly retrieves the test API secret with memoization to prevent per-request disk I/O.
- */
-export function getTestSecret(): string {
-  if (cachedTestSecret) return cachedTestSecret;
-
-  const envSecret = process.env.TEST_API_SECRET || process.env.VITE_TEST_API_SECRET;
-  if (envSecret) {
-    cachedTestSecret = envSecret;
-    return envSecret;
-  }
-
-  try {
-    const secretPath = path.join(process.cwd(), "tests", "e2e", ".auth", "test-secret.txt");
-    if (fs.existsSync(secretPath)) {
-      cachedTestSecret = fs.readFileSync(secretPath, "utf8").trim();
-      return cachedTestSecret!;
-    }
-  } catch {}
-
-  cachedTestSecret = "SVELTYCMS_TEST_SECRET_2026";
-  return cachedTestSecret;
-}
-
-/**
- * Invalidates cache.
- */
-export function invalidateSetupCache(
-  clearPrivateEnv = false,
-  forceStatus: boolean | null = null,
-): void {
-  setupDbStatus = forceStatus;
-  setupStatusCheckedDb = forceStatus !== null;
-  if (typeof globalThis !== "undefined") {
-    (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = forceStatus;
-  }
-
-  if (clearPrivateEnv) {
-    import("../databases/db").then((db) => {
-      if (typeof db.clearPrivateConfigCache === "function") {
-        db.clearPrivateConfigCache(false);
-      }
-    });
-  }
+	if (clearPrivateEnv) {
+		// Use relative import here as well for consistency
+		import('../databases/db')
+			.then((db) => {
+				if (typeof db.clearPrivateConfigCache === 'function') {
+					db.clearPrivateConfigCache(false);
+				}
+			})
+			.catch((err) => {
+				// Ignore module load errors during invalidation, just log warning in dev
+				if (process.env.NODE_ENV === 'development') {
+					console.warn('[setupCheck] Could not clear private config cache:', err);
+				}
+			});
+	}
 }

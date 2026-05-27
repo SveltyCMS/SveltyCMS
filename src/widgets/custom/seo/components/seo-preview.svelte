@@ -16,33 +16,28 @@
 - Translatable
 -->
 
-<script module lang="ts">
+<script lang="ts">
 	// ParaglideJS
 	import { widget_seo_powerwords } from '@src/paraglide/messages';
+	import { publicEnv } from '@src/stores/global-settings.svelte';
+	import { fade } from 'svelte/transition';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
-	// Logic for Heatmap - defined once in module scope
-	// Note: Paraglide messages are reactive, but for module constants they use the initial locale.
-	// In SveltyCMS, this is acceptable for power word lists which rarely change mid-session.
+	// Logic for Heatmap
 	const POWER_WORDS = new Set(
 		widget_seo_powerwords()
 			.split(',')
 			.map((w: string) => w.trim().toLowerCase())
 	);
-</script>
 
-<script lang="ts">
-	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { fade } from 'svelte/transition';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-
-	function getHeatColor(word: string, index: number, keywords: string[] = []): string {
+	function getHeatColor(word: string, index: number): string {
 		const lower = word.toLowerCase().replace(/[^a-z0-9]/g, '');
 		if (!lower) {
 			return 'transparent';
 		}
 
 		// 1. Keyword match (Highest - Red)
-		if (keywords.some((k) => lower.includes(k.toLowerCase()) || k.toLowerCase().includes(lower))) {
+		if (keywords?.some((k) => lower.includes(k.toLowerCase()) || k.toLowerCase().includes(lower))) {
 			return 'rgba(239, 68, 68, 0.8)';
 		}
 
@@ -65,9 +60,9 @@
 		return 'rgba(59, 130, 246, 0.3)';
 	}
 
-	function renderHeatmap(text: string, keywords: string[] = []) {
+	function renderHeatmap(text: string) {
 		return text.split(' ').map((word, i) => {
-			const color = getHeatColor(word, i, keywords);
+			const color = getHeatColor(word, i);
 			return { word, color };
 		});
 	}
@@ -84,20 +79,8 @@
 
 	let heatmapMode = $state(false);
 
-	// Debounce heatmap updates to improve typing performance
-	let debouncedTitle = $state('');
-	let debouncedDesc = $state('');
-
-	$effect(() => {
-		const t = setTimeout(() => {
-			debouncedTitle = title;
-			debouncedDesc = description;
-		}, 300);
-		return () => clearTimeout(t);
-	});
-
-	let heatmapDataTitle = $derived(renderHeatmap(debouncedTitle || 'Page Title', keywords));
-	let heatmapDataDesc = $derived(renderHeatmap(debouncedDesc || 'Page description goes here...', keywords));
+	let heatmapDataTitle = $derived(renderHeatmap(title || 'Page Title'));
+	let heatmapDataDesc = $derived(renderHeatmap(description || 'Page description goes here...'));
 </script>
 
 <div class="mt-1 border-t border-surface-500 dark:text-surface-50">

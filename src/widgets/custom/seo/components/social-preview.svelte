@@ -5,16 +5,6 @@
 Displays a preview of the shared link for different platforms.
 -->
 
-<script module lang="ts">
-	const PLATFORMS = [
-		{ id: 'facebook', icon: 'mdi:facebook', color: 'text-blue-600', label: 'Facebook' },
-		{ id: 'whatsapp', icon: 'mdi:whatsapp', color: 'text-green-500', label: 'WhatsApp' },
-		{ id: 'twitter', icon: 'mdi:twitter', color: 'text-black dark:text-white', label: 'X (Twitter)' },
-		{ id: 'linkedin', icon: 'mdi:linkedin', color: 'text-blue-700', label: 'LinkedIn' },
-		{ id: 'discord', icon: 'mdi:discord', color: 'text-indigo-500', label: 'Discord' }
-	] as const;
-</script>
-
 <script lang="ts">
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	// Using iconify-icon web component
@@ -38,7 +28,7 @@ Displays a preview of the shared link for different platforms.
 		hostUrl = ''
 	}: Props = $props();
 
-	let activePlatform = $state<(typeof PLATFORMS)[number]['id']>('facebook');
+	let activePlatform = $state<'facebook' | 'whatsapp' | 'twitter' | 'linkedin' | 'discord'>('facebook');
 
 	// Fallback logic
 	let displayTitle = $derived(activePlatform === 'twitter' ? twitterTitle || ogTitle || 'Page Title' : ogTitle || 'Page Title');
@@ -48,6 +38,39 @@ Displays a preview of the shared link for different platforms.
 
 	// Image placeholder if no image provided
 	let displayImage = $derived(activePlatform === 'twitter' && twitterImage ? twitterImage : ogImage);
+
+	const platforms = [
+		{
+			id: 'facebook',
+			icon: 'mdi:facebook',
+			color: 'text-blue-600',
+			label: 'Facebook'
+		},
+		{
+			id: 'whatsapp',
+			icon: 'mdi:whatsapp',
+			color: 'text-green-500',
+			label: 'WhatsApp'
+		},
+		{
+			id: 'twitter',
+			icon: 'mdi:twitter',
+			color: 'text-black dark:text-white',
+			label: 'X (Twitter)'
+		},
+		{
+			id: 'linkedin',
+			icon: 'mdi:linkedin',
+			color: 'text-blue-700',
+			label: 'LinkedIn'
+		},
+		{
+			id: 'discord',
+			icon: 'mdi:discord',
+			color: 'text-indigo-500',
+			label: 'Discord'
+		}
+	] as const;
 </script>
 
 <div class="card preset-tonal-surface p-4 rounded-container-token mb-6">
@@ -58,7 +81,7 @@ Displays a preview of the shared link for different platforms.
 
 	<!-- Platform Tabs -->
 	<div class="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
-		{#each PLATFORMS as platform (platform.id)}
+		{#each platforms as platform (platform.id)}
 			<SystemTooltip title={platform.label}>
 				<button
 					type="button"

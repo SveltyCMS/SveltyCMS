@@ -1,28 +1,24 @@
 ---
-path: "docs/tests/utility-test-coverage.mdx"
-title: "Utility Function Test Coverage"
-description: "Comprehensive test coverage documentation for SveltyCMS utility functions"
+path: 'docs/tests/utility-test-coverage.mdx'
+title: 'Utility Function Test Coverage'
+description: 'Comprehensive test coverage documentation for SveltyCMS utility functions'
 order: 7
-icon: "mdi:tools"
-author: "Test Suite"
-created: "2025-01-20"
-updated: "2026-04-03"
-tags: ["testing", "utilities", "coverage", "unit-tests", "vitest"]
+icon: 'mdi:tools'
+author: 'Test Suite'
+created: '2025-01-20'
+updated: '2025-01-20'
+tags: ['testing', 'utilities', 'coverage', 'unit-tests']
 ---
 
 # Utility Function Test Coverage
 
 ## Executive Summary
 
-**Total Tests:** 753 unit tests (consolidated)
-**Test Files:** 91 files
-**Coverage:** Services, Utilities, Stores, Widgets, Hooks
-**Status:** ✅ All tests passing
-**Framework**: Vitest 4.0 / Bun 1.3.11
-
-### ⚡ High-Performance Quality Gate
-
-Verified via `scripts/quality-gate.ts`, achieving a **4.4x speedup** in local verification cycles.
+**Total Tests:** 76 tests  
+**Test Files:** 4 files  
+**Coverage:** Core utility functions  
+**Status:** ✅ All tests passing  
+**Framework:** Bun Test v1.3.1
 
 This document provides comprehensive test coverage information for SveltyCMS utility functions.
 
@@ -30,7 +26,7 @@ This document provides comprehensive test coverage information for SveltyCMS uti
 
 ## Test Coverage by Category
 
-### 1. Date Utilities (`date.ts`)
+### 1. Date Utilities (`dateUtils.ts`)
 
 **Tests:** 18 | **Status:** ✅ Passing
 
@@ -66,7 +62,7 @@ This document provides comprehensive test coverage information for SveltyCMS uti
 
 ---
 
-### 2. Cryptography (`security.ts`)
+### 2. Cryptography (`crypto.ts`)
 
 **Tests:** 25 | **Status:** ✅ Passing
 
@@ -109,7 +105,7 @@ This document provides comprehensive test coverage information for SveltyCMS uti
 
 ---
 
-### 3. Error Handling (`error-handling.ts`)
+### 3. Error Handling (`errorHandling.ts`)
 
 **Tests:** 22 | **Status:** ✅ Passing
 
@@ -180,13 +176,13 @@ This document provides comprehensive test coverage information for SveltyCMS uti
 
 ## Test File Summary
 
-| File                                      | Tests  | Categories                                       | Status             |
-| ----------------------------------------- | ------ | ------------------------------------------------ | ------------------ |
-| `tests/unit/utils/date.test.ts`           | 18     | Type Guards, Conversions, Formatting, Edge Cases | ✅ Passing         |
-| `tests/unit/utils/security.test.ts`       | 25     | Password Hashing, Tokens, Checksums, Security    | ✅ Passing         |
-| `tests/unit/utils/error-handling.test.ts` | 22     | AppError, Type Guards, Messages, Wrapping        | ✅ Passing         |
-| `tests/unit/utils/language-utils.test.ts` | 11     | Basic, Common Languages, Edge Cases              | ✅ Passing         |
-| **Total**                                 | **76** | **15 categories**                                | **✅ All Passing** |
+| File                                     | Tests  | Categories                                       | Status             |
+| ---------------------------------------- | ------ | ------------------------------------------------ | ------------------ |
+| `tests/bun/utils/date-utils.test.ts`     | 18     | Type Guards, Conversions, Formatting, Edge Cases | ✅ Passing         |
+| `tests/bun/utils/crypto.test.ts`         | 25     | Password Hashing, Tokens, Checksums, Security    | ✅ Passing         |
+| `tests/bun/utils/error-handling.test.ts` | 22     | AppError, Type Guards, Messages, Wrapping        | ✅ Passing         |
+| `tests/bun/utils/language-utils.test.ts` | 11     | Basic, Common Languages, Edge Cases              | ✅ Passing         |
+| **Total**                                | **76** | **15 categories**                                | **✅ All Passing** |
 
 ---
 
@@ -195,14 +191,16 @@ This document provides comprehensive test coverage information for SveltyCMS uti
 ### Run All Utility Tests
 
 ```bash
-bun run test:unit -- utils
+bun test tests/bun/utils/
 ```
 
 ### Run Specific Utility Test File
 
 ```bash
-bun run test:unit -- security
-bun run test:unit -- date
+bun test tests/bun/utils/crypto.test.ts
+bun test tests/bun/utils/date-utils.test.ts
+bun test tests/bun/utils/error-handling.test.ts
+bun test tests/bun/utils/language-utils.test.ts
 ```
 
 ### Run with Coverage
@@ -244,23 +242,23 @@ bun test --watch tests/bun/utils/
 
 ```typescript
 -isISODateString() -
-  dateToISODateString() -
-  stringToISODateString() -
-  toISOString() -
-  normalizeDateInput() -
-  nowISODateString() -
-  isoDateStringToDate() -
-  formatDisplayDate() -
-  formatRelativeDate();
+	dateToISODateString() -
+	stringToISODateString() -
+	toISOString() -
+	normalizeDateInput() -
+	nowISODateString() -
+	isoDateStringToDate() -
+	formatDisplayDate() -
+	formatRelativeDate();
 ```
 
 ### Cryptography
 
 ```typescript
 -hashPassword() - // Argon2id
-  verifyPassword() - // Argon2id verification
-  generateRandomToken() - // Secure random tokens
-  createChecksum(); // SHA-256 checksums
+	verifyPassword() - // Argon2id verification
+	generateRandomToken() - // Secure random tokens
+	createChecksum(); // SHA-256 checksums
 ```
 
 ### Error Handling
@@ -289,19 +287,17 @@ The following utilities still need test coverage:
 
 #### High Priority
 
-- [x] `utils.ts` - General utilities, form data conversion
-- [x] `password.ts` - Quantum-resistant password hashing
-- [x] `cn.ts` - High-performance Tailwind merging (Verified 2026)
-- [x] `slugify.ts` - Unicode-aware URL normalization (Verified 2026)
-- [x] `widgetValidation.ts` - Widget schema validation
-- [x] `api-client.ts` - API CRUD operations
+- [ ] `utils.ts` - General utilities, form data conversion
+- [ ] `password.ts` - Quantum-resistant password hashing
+- [ ] `widgetValidation.ts` - Widget schema validation
+- [ ] `apiClient.ts` - API CRUD operations
 
 #### Medium Priority
 
-- [x] `toast.ts` - Toast notifications
-- [x] `modalUtils.ts` - Modal management
-- [x] `statusToggle.ts` - Entry status toggling
-- [x] `fileUploading.ts` - File upload management
+- [ ] `toast.ts` - Toast notifications
+- [ ] `modalUtils.ts` - Modal management
+- [ ] `statusToggle.ts` - Entry status toggling
+- [ ] `fileUploading.ts` - File upload management
 
 #### Lower Priority
 
@@ -336,7 +332,7 @@ The following utilities still need test coverage:
 
 ```typescript
 // Always verify type guards
-expect(isISODateString("2025-01-20T12:00:00.000Z")).toBe(true);
+expect(isISODateString('2025-01-20T12:00:00.000Z')).toBe(true);
 expect(isAppError(appError)).toBe(true);
 ```
 
@@ -344,27 +340,27 @@ expect(isAppError(appError)).toBe(true);
 
 ```typescript
 // Test boundary conditions
-expect(hashPassword("")).resolves.toBeTruthy(); // Empty
-expect(hashPassword("a".repeat(1000))).resolves.toBeTruthy(); // Long
-expect(hashPassword("🔒密码")).resolves.toBeTruthy(); // Unicode
+expect(hashPassword('')).resolves.toBeTruthy(); // Empty
+expect(hashPassword('a'.repeat(1000))).resolves.toBeTruthy(); // Long
+expect(hashPassword('🔒密码')).resolves.toBeTruthy(); // Unicode
 ```
 
 ### 3. Security Properties
 
 ```typescript
 // Verify security guarantees
-const hash1 = await hashPassword("test");
-const hash2 = await hashPassword("test");
+const hash1 = await hashPassword('test');
+const hash2 = await hashPassword('test');
 expect(hash1).not.toBe(hash2); // Different salts
-expect(hash.startsWith("$argon2id$")).toBe(true); // Correct algorithm
+expect(hash.startsWith('$argon2id$')).toBe(true); // Correct algorithm
 ```
 
 ### 4. Error Handling
 
 ```typescript
 // Test both success and failure paths
-expect(() => stringToISODateString("invalid")).toThrow();
-expect(getLanguageName("invalid-code")).toBeTruthy(); // Graceful fallback
+expect(() => stringToISODateString('invalid')).toThrow();
+expect(getLanguageName('invalid-code')).toBeTruthy(); // Graceful fallback
 ```
 
 ---
@@ -417,5 +413,5 @@ All utility tests run automatically on:
 ## Related Documentation
 
 - [Test Status Overview](./test-status.mdx)
-- [API Test Coverage](./api-testing.mdx)
+- [API Test Coverage](./api-test-coverage.mdx)
 - [Architecture: Code Structure](../architecture/code-structure.mdx)

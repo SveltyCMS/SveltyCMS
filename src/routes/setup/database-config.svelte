@@ -7,7 +7,6 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import {
 		common_confirm_no,
-		common_confirm_overwrite,
 		common_confirm_yes,
 		setup_button_test_connection,
 		setup_database_host,
@@ -21,8 +20,6 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		setup_database_port_placeholder,
 		setup_database_user,
 		setup_database_user_placeholder,
-		setup_db_already_exists_desc,
-		setup_db_already_exists_title,
 		setup_db_coming_soon,
 		setup_db_not_found_desc,
 		setup_db_not_found_title,
@@ -38,9 +35,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	} from '@src/paraglide/messages';
 	import type { ValidationErrors } from '@src/stores/setup-store.svelte';
 	import { setupStore } from '@src/stores/setup-store.svelte.ts';
-	import { dbConfigSchema } from '@utils/schemas';
+	import { dbConfigSchema } from '@utils/form-schemas';
 	import { logger } from '@utils/logger';
-	import { showConfirm } from '@utils/modal.svelte';
+	import { showConfirm } from '@utils/modal-utils';
 	import { safeParse } from 'valibot';
 	import { deserialize } from '$app/forms';
 
@@ -55,22 +52,21 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		toggleDbPassword,
 		testDatabaseConnection,
 		dbConfigChangedSinceTest,
-		clearDbTestError
+		clearDbTestError,
+		errorMessage,
+		successMessage
 	} = $props();
 
 	let unsupportedDbSelected = $state(false);
-	let isAtlas = $derived(dbConfig.type === 'mongodb+srv');
+	const isAtlas = $derived(dbConfig.type === 'mongodb+srv');
 	let isInstallingDriver = $state(false);
 	let installError = $state('');
 	let installSuccess = $state('');
 	let showConnectionStringHelper = $state(false);
 	let showAtlasHelper = $state(true); // Collapsible Atlas helper
-	let showAdvanced = $state(false); // Collapsible Advanced options
-
-	import { SvelteSet } from 'svelte/reactivity';
 
 	// Track which fields have been touched (blurred)
-	let touchedFields = $state(new SvelteSet<string>());
+	let touchedFields = $state(new Set<string>());
 
 	// Real-time validation state (always computed, but only shown for touched fields)
 	let localValidationErrors = $state<ValidationErrors>({});
@@ -120,10 +116,11 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	}); // Handle field blur to mark as touched
 	function handleBlur(fieldName: string) {
 		touchedFields.add(fieldName);
+		touchedFields = touchedFields; // Trigger reactivity
 	} // Parse MongoDB connection string (Atlas or standard)
 	function parseMongoConnectionString(
 		connStr: string
-	): { host: string; user: string; password: string; database?: string } | null {
+	): { host: string; user: string; password: string; database?: string; authSource?: string } | null {
 		try {
 			// Built-in URL parser is more robust for MongoDB URIs
 			const url = new URL(connStr.replace('mongodb+srv://', 'http://').replace('mongodb://', 'http://'));
@@ -132,12 +129,14 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			const password = url.password ? decodeURIComponent(url.password) : '';
 			const host = url.host;
 			const database = url.pathname.slice(1);
+			const authSource = url.searchParams.get('authSource') || (connStr.startsWith('mongodb+srv') ? undefined : 'admin');
 
 			return {
 				host,
 				user,
 				password: password === '<db_password>' || password === '<password>' ? '' : password,
-				database: database || ''
+				database: database || '',
+				authSource
 			};
 		} catch (error) {
 			logger.error('Error parsing connection string:', error);
@@ -233,17 +232,6 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					await testDatabaseConnection(true);
 				}
 			});
-		} else if (!success && setupStore.wizard.lastDbTestResult?.canOverwrite) {
-			showConfirm({
-				title: setup_db_already_exists_title({ dbName: dbConfig.name }),
-				body: setup_db_already_exists_desc({ dbName: dbConfig.name }),
-				confirmText: common_confirm_overwrite(),
-				cancelText: common_confirm_no(),
-				onConfirm: async () => {
-					// Use allowOverwrite=true to drop and recreate the database
-					await testDatabaseConnection(false, true);
-				}
-			});
 		}
 	}
 
@@ -263,20 +251,20 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		switch (dbConfig.type) {
 			case 'mongodb':
 				dbConfig.port = '27017';
-				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
-					dbConfig.name = 'sveltycms';
+				if (!dbConfig.name) {
+					dbConfig.name = 'SveltyCMS';
 				}
 				break;
 			case 'mariadb':
 				dbConfig.port = '3306';
-				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
-					dbConfig.name = 'sveltycms';
+				if (!dbConfig.name) {
+					dbConfig.name = 'SveltyCMS';
 				}
 				break;
 			case 'postgresql':
 				dbConfig.port = '5432';
-				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
-					dbConfig.name = 'sveltycms';
+				if (!dbConfig.name) {
+					dbConfig.name = 'SveltyCMS';
 				}
 				break;
 			case 'sqlite':
@@ -284,13 +272,13 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				dbConfig.host = 'config/database';
 				dbConfig.port = '';
 				if (!dbConfig.name || dbConfig.name === 'SveltyCMS' || dbConfig.name === 'SveltyCMS.db') {
-					dbConfig.name = 'sveltycms.db';
+					dbConfig.name = 'SveltyCMS.db';
 				}
 				break;
 			case 'mongodb+srv':
 				dbConfig.port = '';
-				if (!dbConfig.name || dbConfig.name === 'SveltyCMS') {
-					dbConfig.name = 'sveltycms';
+				if (!dbConfig.name) {
+					dbConfig.name = 'SveltyCMS';
 				}
 				break;
 		}
@@ -299,7 +287,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	$effect(() => {
 		// Set default database name if empty
 		if (!dbConfig.name) {
-			dbConfig.name = 'sveltycms';
+			dbConfig.name = 'SveltyCMS';
 		}
 
 		unsupportedDbSelected = false; // All database types are now supported
@@ -353,7 +341,31 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		</div>
 	{/if}
 
-	{#if dbConfig.type === 'mysql'}
+	{#if dbConfig.type === 'postgresql'}
+		<div class="mb-6 rounded p-4 bg-warning-500 text-white">
+			<div class="flex items-center gap-2">
+				<iconify-icon icon="mdi:flask-outline" width="20" class="text-error-500"></iconify-icon>
+				<p class="font-semibold">PostgreSQL - Beta</p>
+			</div>
+			<p class="mt-1 text-sm">PostgreSQL support via Drizzle is in beta. Please report any issues on GitHub.</p>
+		</div>
+	{:else if dbConfig.type === 'mariadb'}
+		<div class="mb-6 rounded p-4 bg-warning-500 text-white">
+			<div class="flex items-center gap-2">
+				<iconify-icon icon="mdi:flask-outline" width="20" class="text-error-500"></iconify-icon>
+				<p class="font-semibold">MariaDB - Beta</p>
+			</div>
+			<p class="mt-1 text-sm">MariaDB support via Drizzle is in beta. Please report any issues on GitHub.</p>
+		</div>
+	{:else if dbConfig.type === 'sqlite'}
+		<div class="mb-6 rounded p-4 bg-warning-500 text-white">
+			<div class="flex items-center gap-2">
+				<iconify-icon icon="mdi:flask-outline" width="20" class="text-error-500"></iconify-icon>
+				<p class="font-semibold">SQLite - Beta</p>
+			</div>
+			<p class="mt-1 text-sm">SQLite support via Drizzle is in beta. Perfect for local dev and edge. Please report any issues on GitHub.</p>
+		</div>
+	{:else if dbConfig.type === 'mysql'}
 		<div class="mb-6 rounded border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
 			<p class="font-semibold">{setup_db_coming_soon()}</p>
 			<p class="mt-1">{setup_db_postgres_mysql_note()}</p>
@@ -377,19 +389,19 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							type="button"
 							tabindex="-1"
 							aria-label="Help: Database Type"
-							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500  "
+							class="ml-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
 					</SystemTooltip>
 				</label>
 
-				<select id="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input w-full rounded border dark:border-surface-600">
-					<option value="sqlite">SQLite (via Drizzle) - RECOMMENDED</option>
+				<select id="db-type" bind:value={dbConfig.type} onchange={handleTypeChange} class="input rounded">
 					<option value="mongodb">MongoDB (localhost/Docker)</option>
 					<option value="mongodb+srv">MongoDB Atlas (SRV)</option>
-					<option value="mariadb">MariaDB (via Drizzle)</option>
-					<option value="postgresql">PostgreSQL (via Drizzle)</option>
+					<option value="mariadb">MariaDB (via Drizzle) (Beta)</option>
+					<option value="postgresql">PostgreSQL (via Drizzle) (Beta)</option>
+					<option value="sqlite">SQLite (via Drizzle) (Beta)</option>
 				</select>
 			</div>
 
@@ -450,7 +462,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					}}
 					onpaste={handleHostPaste}
 					placeholder={isAtlas ? 'cluster0.abcde.mongodb.net' : setup_database_host_placeholder?.() || 'localhost'}
-					class="input w-full rounded border  dark:border-surface-600 {displayErrors.host ? 'border-error-500' : ''}"
+					class="input w-full rounded {displayErrors.host ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
 					aria-invalid={!!displayErrors.host}
 					aria-describedby={displayErrors.host ? 'db-host-error' : undefined}
 					aria-required="true"
@@ -500,7 +512,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						onchange={clearDbTestError}
 						onblur={() => handleBlur('port')}
 						placeholder={setup_database_port_placeholder?.() || '27017'}
-						class="input w-full rounded border border-slate-300 dark:border-surface-600 dark:bg-surface-900 {displayErrors.port ? 'border-error-500' : ''}"
+						class="input w-full rounded {displayErrors.port ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
 						aria-invalid={!!displayErrors.port}
 						aria-describedby={displayErrors.port ? 'db-port-error' : undefined}
 						aria-required="true"
@@ -539,7 +551,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						handleBlur('name');
 					}}
 					placeholder={setup_database_name_placeholder?.() || 'SveltyCMS'}
-					class="input w-full rounded border dark:border-surface-600 {displayErrors.name ? 'border-error-500' : ''}"
+					class="input w-full rounded {displayErrors.name ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
 					aria-invalid={!!displayErrors.name}
 					aria-describedby={displayErrors.name ? 'db-name-error' : undefined}
 					aria-required="true"
@@ -580,7 +592,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							handleBlur('user');
 						}}
 						placeholder={setup_database_user_placeholder?.() || 'Database username'}
-						class="input w-full rounded border  dark:border-surface-600 dark:bg-surface-900 {displayErrors.user ? 'border-error-500' : ''}"
+						class="input rounded {displayErrors.user ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
 						aria-invalid={!!displayErrors.user}
 						aria-describedby={displayErrors.user ? 'db-user-error' : undefined}
 					/>
@@ -607,7 +619,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					<div class="relative">
 						<input
 							id="db-password"
-							name="security"
+							name="password"
 							bind:value={dbConfig.password}
 							onchange={clearDbTestError}
 							onblur={() => {
@@ -615,12 +627,14 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 								if (trimmed !== dbConfig.password) {
 									dbConfig.password = trimmed;
 								}
-								handleBlur('security');
+								handleBlur('password');
 							}}
-							type={showDbPassword ? 'text' : 'security'}
+							type={showDbPassword ? 'text' : 'password'}
 							autocomplete="current-password"
 							placeholder={setup_database_password_placeholder?.() || 'Leave blank if none'}
-							class="input w-full rounded border border-slate-300 dark:border-surface-600 dark:bg-surface-900 {displayErrors.password ? 'border-error-500' : ''}"
+							class="input w-full rounded {displayErrors.password
+								? 'border-error-500 focus:border-error-500 focus:ring-error-500'
+								: 'border-slate-200'}"
 							aria-invalid={!!displayErrors.password}
 							aria-describedby={displayErrors.password ? 'db-password-error' : undefined}
 						/>
@@ -639,63 +653,6 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				</div>
 			{/if}
 		</div>
-		<div class="mb-4">
-			<button
-				type="button"
-				class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-400 hover:text-tertiary-500 transition-colors"
-				onclick={() => (showAdvanced = !showAdvanced)}
-			>
-				<iconify-icon icon={showAdvanced ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="18"></iconify-icon>
-				Advanced Database Options (Clustering & Scaling)
-			</button>
-
-			{#if showAdvanced}
-				<div class="mt-4 space-y-4 rounded-lg border border-surface-200 dark:border-white/10 p-4 transition-all duration-300">
-					<div class="flex flex-col gap-2">
-						<label for="replica-urls" class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-							<iconify-icon icon="mdi:database-import" width="16"></iconify-icon>
-							Regional Read Replicas (Optional)
-						</label>
-						<p class="text-xs text-slate-500 dark:text-white/40 mb-2">
-							Add full connection strings for regional read-only replicas (PostgreSQL/MongoDB).
-						</p>
-
-						{#each dbConfig.replicaUrls as _, index}
-							<div class="flex gap-2 mb-2 animate-in fade-in slide-in-from-left-2 duration-200">
-								<input
-									type="text"
-									bind:value={dbConfig.replicaUrls[index]}
-									placeholder="postgresql://user:pass@replica-host:5432/db?region=us-east"
-									class="input text-sm py-1.5 rounded"
-								/>
-								<button
-									type="button"
-									class="btn-icon rounded-full bg-error-500/10 text-error-500 hover:bg-error-500 hover:text-white transition-all"
-									aria-label="Remove replica"
-									onclick={() => {
-										dbConfig.replicaUrls = dbConfig.replicaUrls.filter((_: string, i: number) => i !== index);
-									}}
-								>
-									<iconify-icon icon="mdi:close" width="16"></iconify-icon>
-								</button>
-							</div>
-						{/each}
-
-						<button
-							type="button"
-							class="btn btn-sm variant-soft-tertiary dark:variant-soft-primary w-fit mt-2"
-							onclick={() => {
-								dbConfig.replicaUrls = [...dbConfig.replicaUrls, ''];
-							}}
-						>
-							<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
-							Add Replica Node
-						</button>
-					</div>
-				</div>
-			{/if}
-		</div>
-
 		{#if !unsupportedDbSelected}
 			<button
 				type="submit"
@@ -721,6 +678,24 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				role="alert"
 			>
 				{setup_help_database_type?.() || 'Database settings changed since last successful test. Please re-test to proceed.'}
+			</div>
+		{/if}
+		{#if errorMessage && !dbConfigChangedSinceTest}
+			<div class="mt-4 rounded-md bg-error-500 p-4 text-sm text-white" role="alert">
+				<div class="flex items-center gap-2 font-bold">
+					<iconify-icon icon="mdi:alert-circle" width="24"></iconify-icon>
+					Connection Failed
+				</div>
+				<div class="mt-1">{errorMessage}</div>
+			</div>
+		{/if}
+		{#if successMessage && !dbConfigChangedSinceTest}
+			<div class="mt-4 rounded-md bg-primary-500 p-4 text-sm text-white shadow-lg" role="alert">
+				<div class="flex items-center gap-2 font-bold">
+					<iconify-icon icon="mdi:check-circle" width="20" class="text-white"></iconify-icon>
+					Success!
+				</div>
+				<div class="mt-1 text-white/90 font-medium">{successMessage}</div>
 			</div>
 		{/if}
 	</form>

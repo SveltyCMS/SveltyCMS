@@ -26,171 +26,139 @@ Structure optimized for LLM integration and AI-powered search.
 -->
 
 <script lang="ts">
-import type { SearchCriteria } from "@utils/media/advanced-search";
-import type { MediaBase } from "@utils/media/media-models";
-import { SvelteDate, SvelteSet } from "svelte/reactivity";
+	import type { SearchCriteria } from '@utils/media/advanced-search';
+	import type { MediaBase } from '@utils/media/media-models';
+	import { SvelteDate, SvelteSet } from 'svelte/reactivity';
 
-interface Props {
-	files: MediaBase[];
-	onClose: () => void;
-	onSearch: (criteria: SearchCriteria) => void;
-}
+	interface Props {
+		files: MediaBase[];
+		onClose: () => void;
+		onSearch: (criteria: SearchCriteria) => void;
+	}
 
-const { files, onSearch, onClose }: Props = $props();
+	const { files, onSearch, onClose }: Props = $props();
 
-// Search criteria state (not used directly, converted from formValues)
-// let criteria = $state<SearchCriteria>({...});
+	// Search criteria state (not used directly, converted from formValues)
+	// let criteria = $state<SearchCriteria>({...});
 
-// Form input values (separate from criteria for easier binding)
-let formValues = $state({
-	filename: "",
-	tagsInput: "",
-	minWidth: "",
-	maxWidth: "",
-	minHeight: "",
-	maxHeight: "",
-	aspectRatio: "any",
-	minSize: "",
-	maxSize: "",
-	fileTypesInput: "",
-	uploadedAfter: "",
-	uploadedBefore: "",
-	hasEXIF: "any",
-	camera: "",
-	location: "",
-	dominantColor: "",
-	showDuplicatesOnly: false,
-	hashMatch: "",
-});
-
-// Search suggestions (computed from files)
-const suggestions = $derived.by(() => {
-	const tags = new SvelteSet<string>();
-	const cameras = new SvelteSet<string>();
-	const dimensions = new SvelteSet<string>();
-
-	files.forEach((file) => {
-		// Extract tags - handle type safety
-		if (
-			file.metadata &&
-			typeof file.metadata === "object" &&
-			"tags" in file.metadata
-		) {
-			const fileTags = file.metadata.tags as string[] | undefined;
-			if (Array.isArray(fileTags)) {
-				fileTags.forEach((tag) => tags.add(tag));
-			}
-		}
-
-		// Extract camera info - handle type safety
-		if (
-			file.metadata &&
-			typeof file.metadata === "object" &&
-			"exif" in file.metadata
-		) {
-			const exif = file.metadata.exif as Record<string, unknown> | undefined;
-			if (exif && "camera" in exif && typeof exif.camera === "string") {
-				cameras.add(exif.camera);
-			}
-		}
-
-		// Extract common dimensions - use MediaImage type
-		const imageFile = file as { width?: number; height?: number };
-		if (imageFile.width && imageFile.height) {
-			dimensions.add(`${imageFile.width}x${imageFile.height}`);
-		}
+	// Form input values (separate from criteria for easier binding)
+	let formValues = $state({
+		filename: '',
+		tagsInput: '',
+		minWidth: '',
+		maxWidth: '',
+		minHeight: '',
+		maxHeight: '',
+		aspectRatio: 'any',
+		minSize: '',
+		maxSize: '',
+		fileTypesInput: '',
+		uploadedAfter: '',
+		uploadedBefore: '',
+		hasEXIF: 'any',
+		camera: '',
+		location: '',
+		dominantColor: '',
+		showDuplicatesOnly: false,
+		hashMatch: ''
 	});
 
-	return {
-		tags: Array.from(tags).slice(0, 10),
-		cameras: Array.from(cameras).slice(0, 10),
-		dimensions: Array.from(dimensions).slice(0, 10),
-	};
-});
+	// Search suggestions (computed from files)
+	const suggestions = $derived.by(() => {
+		const tags = new SvelteSet<string>();
+		const cameras = new SvelteSet<string>();
+		const dimensions = new SvelteSet<string>();
 
-// Handle search
-function handleSearch() {
-	// Convert form values to criteria
-	const searchCriteria: SearchCriteria = {
-		filename: formValues.filename || undefined,
-		tags: formValues.tagsInput
-			? formValues.tagsInput.split(",").map((t) => t.trim())
-			: undefined,
-		minWidth: formValues.minWidth
-			? Number.parseInt(formValues.minWidth, 10)
-			: undefined,
-		maxWidth: formValues.maxWidth
-			? Number.parseInt(formValues.maxWidth, 10)
-			: undefined,
-		minHeight: formValues.minHeight
-			? Number.parseInt(formValues.minHeight, 10)
-			: undefined,
-		maxHeight: formValues.maxHeight
-			? Number.parseInt(formValues.maxHeight, 10)
-			: undefined,
-		aspectRatio:
-			formValues.aspectRatio !== "any"
-				? (formValues.aspectRatio as "landscape" | "portrait" | "square")
-				: undefined,
-		minSize: formValues.minSize
-			? Number.parseInt(formValues.minSize, 10) * 1024 * 1024
-			: undefined, // Convert MB to bytes
-		maxSize: formValues.maxSize
-			? Number.parseInt(formValues.maxSize, 10) * 1024 * 1024
-			: undefined,
-		fileTypes: formValues.fileTypesInput
-			? formValues.fileTypesInput.split(",").map((t) => t.trim())
-			: undefined,
-		uploadedAfter: formValues.uploadedAfter
-			? new Date(formValues.uploadedAfter)
-			: undefined,
-		uploadedBefore: formValues.uploadedBefore
-			? new Date(formValues.uploadedBefore)
-			: undefined,
-		hasEXIF:
-			formValues.hasEXIF !== "any" ? formValues.hasEXIF === "yes" : undefined,
-		camera: formValues.camera || undefined,
-		location: formValues.location || undefined,
-		dominantColor: formValues.dominantColor || undefined,
-		showDuplicatesOnly: formValues.showDuplicatesOnly,
-		hashMatch: formValues.hashMatch || undefined,
-	};
+		files.forEach((file) => {
+			// Extract tags - handle type safety
+			if (file.metadata && typeof file.metadata === 'object' && 'tags' in file.metadata) {
+				const fileTags = file.metadata.tags as string[] | undefined;
+				if (Array.isArray(fileTags)) {
+					fileTags.forEach((tag) => tags.add(tag));
+				}
+			}
 
-	onSearch(searchCriteria);
-}
+			// Extract camera info - handle type safety
+			if (file.metadata && typeof file.metadata === 'object' && 'exif' in file.metadata) {
+				const exif = file.metadata.exif as Record<string, unknown> | undefined;
+				if (exif && 'camera' in exif && typeof exif.camera === 'string') {
+					cameras.add(exif.camera);
+				}
+			}
 
-// Reset form
-function resetForm() {
-	formValues = {
-		filename: "",
-		tagsInput: "",
-		minWidth: "",
-		maxWidth: "",
-		minHeight: "",
-		maxHeight: "",
-		aspectRatio: "any",
-		minSize: "",
-		maxSize: "",
-		fileTypesInput: "",
-		uploadedAfter: "",
-		uploadedBefore: "",
-		hasEXIF: "any",
-		camera: "",
-		location: "",
-		dominantColor: "",
-		showDuplicatesOnly: false,
-		hashMatch: "",
-	};
-}
+			// Extract common dimensions - use MediaImage type
+			const imageFile = file as { width?: number; height?: number };
+			if (imageFile.width && imageFile.height) {
+				dimensions.add(`${imageFile.width}x${imageFile.height}`);
+			}
+		});
 
-// Keyboard shortcuts
-function handleKeydown(e: KeyboardEvent) {
-	if (e.key === "Escape") {
-		onClose();
-	} else if (e.key === "Enter" && e.ctrlKey) {
-		handleSearch();
+		return {
+			tags: Array.from(tags).slice(0, 10),
+			cameras: Array.from(cameras).slice(0, 10),
+			dimensions: Array.from(dimensions).slice(0, 10)
+		};
+	});
+
+	// Handle search
+	function handleSearch() {
+		// Convert form values to criteria
+		const searchCriteria: SearchCriteria = {
+			filename: formValues.filename || undefined,
+			tags: formValues.tagsInput ? formValues.tagsInput.split(',').map((t) => t.trim()) : undefined,
+			minWidth: formValues.minWidth ? Number.parseInt(formValues.minWidth, 10) : undefined,
+			maxWidth: formValues.maxWidth ? Number.parseInt(formValues.maxWidth, 10) : undefined,
+			minHeight: formValues.minHeight ? Number.parseInt(formValues.minHeight, 10) : undefined,
+			maxHeight: formValues.maxHeight ? Number.parseInt(formValues.maxHeight, 10) : undefined,
+			aspectRatio: formValues.aspectRatio !== 'any' ? (formValues.aspectRatio as 'landscape' | 'portrait' | 'square') : undefined,
+			minSize: formValues.minSize ? Number.parseInt(formValues.minSize, 10) * 1024 * 1024 : undefined, // Convert MB to bytes
+			maxSize: formValues.maxSize ? Number.parseInt(formValues.maxSize, 10) * 1024 * 1024 : undefined,
+			fileTypes: formValues.fileTypesInput ? formValues.fileTypesInput.split(',').map((t) => t.trim()) : undefined,
+			uploadedAfter: formValues.uploadedAfter ? new Date(formValues.uploadedAfter) : undefined,
+			uploadedBefore: formValues.uploadedBefore ? new Date(formValues.uploadedBefore) : undefined,
+			hasEXIF: formValues.hasEXIF !== 'any' ? formValues.hasEXIF === 'yes' : undefined,
+			camera: formValues.camera || undefined,
+			location: formValues.location || undefined,
+			dominantColor: formValues.dominantColor || undefined,
+			showDuplicatesOnly: formValues.showDuplicatesOnly,
+			hashMatch: formValues.hashMatch || undefined
+		};
+
+		onSearch(searchCriteria);
 	}
-}
+
+	// Reset form
+	function resetForm() {
+		formValues = {
+			filename: '',
+			tagsInput: '',
+			minWidth: '',
+			maxWidth: '',
+			minHeight: '',
+			maxHeight: '',
+			aspectRatio: 'any',
+			minSize: '',
+			maxSize: '',
+			fileTypesInput: '',
+			uploadedAfter: '',
+			uploadedBefore: '',
+			hasEXIF: 'any',
+			camera: '',
+			location: '',
+			dominantColor: '',
+			showDuplicatesOnly: false,
+			hashMatch: ''
+		};
+	}
+
+	// Keyboard shortcuts
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') {
+			onClose();
+		} else if (e.key === 'Enter' && e.ctrlKey) {
+			handleSearch();
+		}
+	}
 </script>
 
 <!-- Modal Content Wrapper -->

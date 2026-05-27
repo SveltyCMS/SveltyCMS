@@ -28,24 +28,18 @@ Renders: <a href="tel:+49 30 12345678">+49 30 12345678</a>
 	const { value }: { value: string | null | undefined } = $props();
 </script>
 
-<div class="phone-display inline-flex items-center gap-1.5">
-	{#if value}
-		<iconify-icon icon="mdi:phone-outline" width="16" class="text-surface-400 dark:text-surface-500"></iconify-icon>
-		<a 
-			href="tel:{value.replace(/\s/g, '')}" 
-			class="text-primary-600 dark:text-primary-400 hover:underline font-medium transition-colors"
-			title="Call: {value}"
-		>
-			{value}
-		</a>
-	{:else}
-		<span class="text-surface-400 dark:text-surface-600">–</span>
-	{/if}
-</div>
+{#if value}
+	<a href="tel:{value}" class="tel-link" title="Call {value}">{value}</a>
+{:else}
+	<span>–</span>
+{/if}
 
 <style>
-	.phone-display {
-		font-family: inherit;
-		letter-spacing: -0.01em;
+	.tel-link {
+		color: #007bff;
+		text-decoration: underline;
+	}
+	.tel-link:hover {
+		color: #0056b3;
 	}
 </style>

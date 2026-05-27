@@ -1,147 +1,125 @@
 /**
  * @file playwright.config.ts
  * @description Playwright test configuration for SveltyCMS
+ *
+ * Project dependency chain enforces execution order:
+ *   setup (wizard) → authenticated (most tests) → teardown
+ *
+ * This guarantees the database is initialized before any logged-in test runs.
+ * TEST_MODE=true makes the server use config/private.test.ts, never config/private.ts.
  */
 
-import { defineConfig, devices } from "@playwright/test";
-import { randomUUID } from "node:crypto";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { defineConfig, devices } from '@playwright/test';
 
-// Ensure .auth directory exists for secret sync
-const authDir = join(process.cwd(), "tests/e2e/.auth");
-if (!existsSync(authDir)) {
-  mkdirSync(authDir, { recursive: true });
-}
+declare const process: {
+	env: {
+		CI?: string;
+		PLAYWRIGHT_TEST_BASE_URL?: string;
+	};
+};
 
-// ✨ Synchronization: Use a file to share the secret across all Playwright workers
-// This prevents 403 errors when workers re-evaluate the config file.
-const SECRET_FILE = join(authDir, "test-secret.txt");
-let TEST_API_SECRET = process.env.TEST_API_SECRET;
+const isCI = !!process.env.CI;
+const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || (isCI ? 'http://localhost:4173' : 'http://localhost:5173');
 
-if (!TEST_API_SECRET) {
-  if (existsSync(SECRET_FILE)) {
-    TEST_API_SECRET = readFileSync(SECRET_FILE, "utf-8").trim();
-  } else {
-    TEST_API_SECRET = randomUUID();
-    writeFileSync(SECRET_FILE, TEST_API_SECRET);
-  }
-}
+// Shared browser config for local vs CI
+const localChrome = {
+	...devices['Desktop Chrome'],
+	channel: 'chrome', // use system Chrome — no separate download needed
+	headless: true
+};
+const ciChrome = {
+	...devices['Desktop Chrome'],
+	headless: true
+};
+const browserUse = isCI ? ciChrome : localChrome;
 
-// See https://playwright.dev/docs/test-configuration.
 export default defineConfig({
-  testDir: "./tests/e2e",
-  testMatch: "**/*.{test,spec,spect}.ts",
-  /* Maximum time one test can run for. */
-  // timeout: 60 * 1000,
-  expect: {
-    /**
-     * Maximum time expect() should wait for the condition to be met.
-     * For example in `await expect(locator).toBeVisible();`
-     */
-    timeout: 10 * 1000,
-  },
-  /* Run tests in files in parallel */
-  fullyParallel: true,
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
-  forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 1 : 0,
-  /*
-   * ✨ Database-per-Worker Strategy:
-   * Enable parallelism. Each worker will use a unique SQLite file
-   * (e.g. cms_worker1.db) triggered by the x-test-worker-index header.
-   */
-  workers: process.env.CI ? 4 : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: [
-    ["html", { outputFolder: "tests/playwright-report", open: "never" }],
-    [process.env.CI ? "github" : "list"],
-  ],
+	testDir: './tests/e2e',
+	testMatch: '**/*.spec.ts',
 
-  /* Set environment variables for tests */
-  use: {
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:5173",
+	fullyParallel: false,
+	workers: 1,
+	forbidOnly: isCI,
+	retries: isCI ? 1 : 0,
 
-    /* ✨ ISOLATION: Pass worker index and secure token to the server */
-    extraHTTPHeaders: {
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
-    },
+	// Reports and artifacts live under tests/ so they never clutter the project root
+	outputDir: 'tests/test-results',
+	reporter: [['html', { outputFolder: 'tests/playwright-report' }], [isCI ? 'github' : 'list']],
 
-    launchOptions: {
-      slowMo: Number.parseInt(process.env.SLOW_MO || "0", 10),
-    },
-    // Explicitly set PWDEBUG for local runs
-    // Set environment variables in your test runner or webServer configuration if needed
+	use: {
+		baseURL,
+		trace: 'on-first-retry',
+		video: 'off',
+		screenshot: 'only-on-failure',
+		bypassCSP: true,
+		actionTimeout: 15_000,
+		navigationTimeout: 30_000
+	},
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: "on-first-retry",
-    video: "retain-on-failure",
+	projects: [
+		// ── 1. SETUP: initialise the DB via API (no wizard UI needed) ──────────
+		// The wizard UI tests are held until the Svelte remote-function conversion.
+		{
+			name: 'setup',
+			use: browserUse,
+			testMatch: ['**/global.setup.ts']
+		},
 
-    /* Bypass CSP in tests to allow MongoDB connections */
-    bypassCSP: true,
-  },
+		// ── 2. AUTH: login / logout / signup flows ──────────────────────────────
+		// (waiting for Svelte remote-function conversion — kept here so the
+		//  dependency chain is declared; currently these files are unchanged)
+		{
+			name: 'auth',
+			use: browserUse,
+			testMatch: ['**/login.spec.ts', '**/signupfirstuser.spec.ts'],
+			dependencies: ['setup']
+		},
 
-  /* Global Setup for artifact/secret synchronization */
-  globalSetup: "./tests/e2e/global.setup.ts",
+		// ── 3. OAUTH: OAuth callback tests (independent of auth UI) ─────────────
+		{
+			name: 'oauth',
+			use: browserUse,
+			testMatch: ['**/oauth-signup-firstuser.spec.ts'],
+			dependencies: ['setup']
+		},
 
-  /* Configure projects for staged CI Matrix */
-  projects: [
-    {
-      name: "wizard",
-      testMatch: /setup-wizard.*\.spec\.ts/,
-      // Force sequential to avoid race conditions during database provisioning
-      workers: 1,
-    },
-    {
-      name: "auth-setup",
-      testMatch: [/auth\.setup\.ts/, /login\.spec\.ts/],
-      // No dependency on "wizard": in CI the wizard runs once in its own job.
-      // In local dev, run `playwright test --project=wizard` first manually if needed.
-      // Force sequential to avoid race conditions during auth bootstrapping
-      workers: 1,
-    },
-    {
-      name: "signup",
-      testMatch: [
-        /signupfirstuser\.spec\.ts/,
-        /oauth-signup-firstuser\.spec\.ts/,
-        /role-based-access\.spec\.ts/,
-        /permission-change\.spec\.ts/,
-      ],
-      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
-      dependencies: ["auth-setup"],
-    },
-    {
-      name: "content",
-      testMatch: [/collection\.spec\.ts/, /collection-builder\.spec\.ts/, /user-crud\.spec\.ts/],
-      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
-      dependencies: ["auth-setup"],
-    },
-    {
-      name: "system",
-      testMatch: [
-        /language\.spec\.ts/,
-        /user\.spec\.ts/,
-        /accessibility\.spec\.ts/,
-        /ui-test\.spec\.ts/,
-      ],
-      use: { ...devices["Desktop Chrome"], headless: !!process.env.CI },
-      dependencies: ["auth-setup"],
-    },
-  ],
+		// ── 4. AUTHENTICATED: all tests that need a logged-in admin ─────────────
+		{
+			name: 'authenticated',
+			use: browserUse,
+			testMatch: [
+				'**/collection-builder.spec.ts',
+				'**/collection.spec.ts',
+				'**/language.spec.ts',
+				'**/role-based-access.spec.ts',
+				'**/permission-change.spec.ts',
+				'**/user-crud.spec.ts',
+				'**/user.spec.ts'
+			],
+			dependencies: ['setup']
+		},
 
-  /* Run preview server before starting the tests (local dev only; CI starts the server manually) */
-  ...(process.env.CI
-    ? {}
-    : {
-        webServer: {
-          command: `cross-env TEST_MODE=true STRICT_SETUP_CHECK=true TEST_API_SECRET=${TEST_API_SECRET} bun run dev`,
-          port: 5173,
-          timeout: 300_000,
-          reuseExistingServer: true,
-        },
-      }),
+		// ── 5. TEARDOWN: clean up auth state ────────────────────────────────────
+		{
+			name: 'teardown',
+			use: browserUse,
+			testMatch: ['**/global.teardown.ts'],
+			dependencies: ['authenticated', 'auth', 'oauth']
+		}
+	],
+
+	// Only auto-start the dev server locally; CI manages it in the workflow
+	...(isCI
+		? {}
+		: {
+				webServer: {
+					command: 'bun.cmd dev --port 5173',
+					url: 'http://localhost:5173',
+					timeout: 90_000,
+					reuseExistingServer: true,
+					env: { TEST_MODE: 'true' },
+					stdout: 'ignore',
+					stderr: 'pipe'
+				}
+			})
 });

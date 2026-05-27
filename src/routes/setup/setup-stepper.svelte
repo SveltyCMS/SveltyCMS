@@ -21,8 +21,8 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 	}
 </script>
 
-<div class="w-full shrink-0 h-full lg:w-80 xl:w-96">
-	<div class="flex flex-col h-full bg-white dark:bg-surface-800">
+<div class="w-full shrink-0 lg:w-80 xl:w-96">
+	<div class="flex flex-col rounded-xl border border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800">
 		<!-- Mobile: Horizontal step indicator -->
 		<div class="relative flex items-start justify-between p-4 lg:hidden" role="list" aria-label="Setup progress">
 			{#each steps as step, i (i)}
@@ -79,70 +79,68 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 		</div>
 
 		<!-- Desktop: Vertical step indicator -->
-		<div class="hidden flex-1 flex-col overflow-hidden p-6 lg:flex">
-			<div class="flex-1 overflow-y-auto overflow-x-hidden pr-2 [scrollbar:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-				{#each steps as step, i (i)}
-					<div class="relative last:pb-0">
-						<button
-							class="flex w-full items-start gap-4 rounded-lg p-4 transition-all {stepClickable[i] || i === currentStep
-								? 'hover:bg-slate-50 dark:hover:bg-slate-800/70'
-								: 'cursor-not-allowed opacity-50'}"
-							disabled={!(stepClickable[i] || i === currentStep)}
-							onmouseenter={() => handleStepHover(i)}
-							onfocus={() => handleStepHover(i)}
-							onclick={() => handleStepClick(i)}
-							onkeydown={(e) => {
-								if (e.key === 'Enter' || e.key === ' ') {
-									e.preventDefault();
-									handleStepClick(i);
-								}
-							}}
-							tabindex={stepClickable[i] || i === currentStep ? 0 : -1}
+		<div class="hidden p-6 lg:block">
+			{#each steps as step, i (i)}
+				<div class="relative last:pb-0">
+					<button
+						class="flex w-full items-start gap-4 rounded-lg p-4 transition-all {stepClickable[i] || i === currentStep
+							? 'hover:bg-slate-50 dark:hover:bg-slate-800/70'
+							: 'cursor-not-allowed opacity-50'}"
+						disabled={!(stepClickable[i] || i === currentStep)}
+						onmouseenter={() => handleStepHover(i)}
+						onfocus={() => handleStepHover(i)}
+						onclick={() => handleStepClick(i)}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								handleStepClick(i);
+							}
+						}}
+						tabindex={stepClickable[i] || i === currentStep ? 0 : -1}
+					>
+						<div
+							class="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold ring-2 ring-white transition-all {stepCompleted[
+								i
+							]
+								? 'bg-primary-500 text-white'
+								: i === currentStep
+									? 'bg-error-500 text-white shadow-xl'
+									: 'bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600'}"
 						>
+							<span class="text-[0.65rem]"> {stepCompleted[i] ? '✓' : i === currentStep ? '●' : '•'} </span>
+						</div>
+						<div class="text-left">
 							<div
-								class="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold ring-2 ring-white transition-all {stepCompleted[
-									i
-								]
-									? 'bg-primary-500 text-white'
+								class="text-base font-medium {i < currentStep
+									? 'text-slate-800 dark:text-slate-200'
 									: i === currentStep
-										? 'bg-error-500 text-white shadow-xl'
-										: 'bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600'}"
+										? 'text-slate-900 dark:text-white'
+										: 'text-slate-400 dark:text-slate-600'}"
 							>
-								<span class="text-[0.65rem]"> {stepCompleted[i] ? '✓' : i === currentStep ? '●' : '•'} </span>
+								{step.label}
 							</div>
-							<div class="text-left">
-								<div
-									class="text-base font-medium {i < currentStep
-										? 'text-slate-800 dark:text-slate-200'
-										: i === currentStep
-											? 'text-slate-900 dark:text-white'
-											: 'text-slate-400 dark:text-slate-600'}"
-								>
-									{step.label}
-								</div>
-								<div
-									class="mt-1 text-sm {i < currentStep
-										? 'text-slate-500 dark:text-slate-400'
-										: i === currentStep
-											? 'text-slate-600 dark:text-slate-300'
-											: 'text-slate-400 dark:text-slate-600'}"
-								>
-									{step.shortDesc}
-								</div>
-							</div>
-						</button>
-						{#if i !== steps.length - 1}
 							<div
-								class="absolute left-[1.65rem] top-14 h-[calc(100%-3.5rem)] w-[2px] {stepCompleted[i]
-									? 'bg-primary-500'
-									: 'border-l-2 border-dashed border-slate-200'}"
-							></div>
-						{/if}
-					</div>
-				{/each}
-			</div>
+								class="mt-1 text-sm {i < currentStep
+									? 'text-slate-500 dark:text-slate-400'
+									: i === currentStep
+										? 'text-slate-600 dark:text-slate-300'
+										: 'text-slate-400 dark:text-slate-600'}"
+							>
+								{step.shortDesc}
+							</div>
+						</div>
+					</button>
+					{#if i !== steps.length - 1}
+						<div
+							class="absolute left-[1.65rem] top-14 h-[calc(100%-3.5rem)] w-[2px] {stepCompleted[i]
+								? 'bg-primary-500'
+								: 'border-l-2 border-dashed border-slate-200'}"
+						></div>
+					{/if}
+				</div>
+			{/each}
 			<!-- Setup Steps Legend -->
-			<div class="mt-auto flex items-end gap-6 border-t border-surface-200 dark:border-surface-700 pt-6">
+			<div class="mt-6 flex items-end gap-6 border-t pt-6">
 				<div class="flex-1">
 					<h4 class="mb-4 text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-200">Legend</h4>
 					<ul class="space-y-2 text-xs">

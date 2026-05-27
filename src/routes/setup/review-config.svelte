@@ -46,9 +46,7 @@ This component presents a summary of all configuration steps before finalizing t
 		setup_review_section_database,
 		setup_review_section_media,
 		setup_review_section_system,
-		setup_system_demo_mode,
 		setup_system_demo_mode_desc,
-		setup_system_multi_tenant,
 		setup_system_multi_tenant_desc,
 		setup_email_from,
 		setup_email_host,
@@ -460,7 +458,7 @@ This component presents a summary of all configuration steps before finalizing t
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{systemSettings.timezone}</dd>
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
-							{setup_system_multi_tenant?.() || 'Multi-Tenant Mode'}:
+							Multi-Tenant Mode:
 							<SystemTooltip title={setup_system_multi_tenant_desc?.() || 'Enables support for multiple isolated tenants on a single installation.'}>
 								<button
 									type="button"
@@ -475,7 +473,7 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{systemSettings.multiTenant ? 'Enabled' : 'Disabled'}</dd>
 
 						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
-							{setup_system_demo_mode?.() || 'Demo Mode'}:
+							Demo Mode:
 							<SystemTooltip
 								title={setup_system_demo_mode_desc?.() || 'Warning: Creates ephemeral environments for visitors. Data is wiped automatically.'}
 							>
@@ -525,39 +523,6 @@ This component presents a summary of all configuration steps before finalizing t
 								</SystemTooltip>
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{systemSettings.redisHost}:{systemSettings.redisPort}</dd>
-						{/if}
-
-						{#if systemSettings.cfApiToken}
-							<dt
-								class="flex items-center justify-between font-medium text-black dark:text-white border-t border-slate-100 dark:border-slate-800 pt-1 mt-1"
-							>
-								Cloudflare CDN:
-								<SystemTooltip title="Native Cloudflare CDN integration for edge purging.">
-									<button
-										type="button"
-										tabindex="-1"
-										class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-										aria-label="Help for Cloudflare CDN"
-									>
-										<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-									</button>
-								</SystemTooltip>
-							</dt>
-							<dd class="text-tertiary-500 dark:text-primary-500 border-t border-slate-100 dark:border-slate-800 pt-1 mt-1 font-semibold">
-								🚀 {systemSettings.cfZoneId ? 'Active' : 'Partial (Missing Zone ID)'}
-							</dd>
-							{#if systemSettings.cfZoneId}
-								<dt class="flex items-center justify-between font-medium text-black dark:text-white pl-4 text-xs opacity-70">
-									Zone ID:
-								</dt>
-								<dd class="text-tertiary-500 dark:text-primary-500 font-mono text-xs">{redact(systemSettings.cfZoneId)}</dd>
-							{/if}
-							<dt class="flex items-center justify-between font-medium text-black dark:text-white pl-4 text-xs opacity-70">
-								Purge Strategy:
-							</dt>
-							<dd class="text-tertiary-500 dark:text-primary-500 text-xs">
-								{systemSettings.cfPurgeMode === 'tags' ? 'Surgical (Cache Tags)' : 'Full Purge (Everything)'}
-							</dd>
 						{/if}
 					</dl>
 				</div>

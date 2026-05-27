@@ -32,10 +32,12 @@ Renders: SEO icon + "Keyword: svelte cms" with hover tooltip showing full meta d
 
 	// Note: The score is not stored with the data, so we can't display it here.
 	// A more advanced implementation might store the score, or we can just show the keyword.
-	// $derived is sufficient — no multi-statement block needed
-	const displayText = $derived(
-		value?.focusKeyword ? `Keyword: ${value.focusKeyword}` : 'No SEO data'
-	);
+	const displayText = $derived.by(() => {
+		if (!value?.focusKeyword) {
+			return 'No SEO data';
+		}
+		return `Keyword: ${value.focusKeyword}`;
+	});
 </script>
 
 {#if value}

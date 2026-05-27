@@ -5,63 +5,63 @@
 -->
 
 <script lang="ts">
-import { onDestroy, onMount } from "svelte";
-import BaseWidget from "../base-widget.svelte";
+	import { onDestroy, onMount } from 'svelte';
+	import BaseWidget from '../base-widget.svelte';
 
-interface CacheStats {
-	hitRate: number;
-	hits: number;
-	items: number;
-	misses: number;
-	size: number;
-}
+	interface CacheStats {
+		hitRate: number;
+		hits: number;
+		items: number;
+		misses: number;
+		size: number;
+	}
 
-function formatNumber(num: number): string {
-	return new Intl.NumberFormat("en-US").format(num);
-}
+	function formatNumber(num: number): string {
+		return new Intl.NumberFormat('en-US').format(num);
+	}
 
-interface Props {
-	config: any;
-	widgetId: string;
-}
+	interface Props {
+		config: any;
+		widgetId: string;
+	}
 
-let { widgetId, config }: Props = $props();
+	let { widgetId, config }: Props = $props();
 
-let stats = $state<Record<string, CacheStats>>({});
-let isLoading = $state(true);
-let interval: any;
+	let stats = $state<Record<string, CacheStats>>({});
+	let isLoading = $state(true);
+	let interval: any;
 
-async function fetchStats() {
-	try {
-		const response = await fetch("/api/metrics/cache");
-		if (response.ok) {
-			stats = await response.json();
+	async function fetchStats() {
+		try {
+			const response = await fetch('/api/metrics/cache');
+			if (response.ok) {
+				stats = await response.json();
+			}
+		} catch (error) {
+			console.error('Failed to fetch cache stats:', error);
+		} finally {
+			isLoading = false;
 		}
-	} catch (error) {
-		console.error("Failed to fetch cache stats:", error);
-	} finally {
-		isLoading = false;
 	}
-}
 
-onMount(() => {
-	fetchStats();
-	interval = setInterval(fetchStats, 30_000);
-});
+	onMount(() => {
+		fetchStats();
+		interval = setInterval(fetchStats, 30_000);
+	});
 
-onDestroy(() => {
-	clearInterval(interval);
-});
+	onDestroy(() => {
+		clearInterval(interval);
+	});
 
-function getHitRateColor(rate: number) {
-	if (rate >= 90) {
-		return "text-success-500";
+	function getHitRateColor(rate: number) {
+		if (rate >= 90) {
+			return 'text-success-500';
+		}
+		if (rate >= 70) {
+			return 'text-warning-500';
+		}
+		return 'text-error-500';
 	}
-	if (rate >= 70) {
-		return "text-warning-500";
-	}
-	return "text-error-500";
-}
 </script>
 
 <BaseWidget {widgetId} {config} title="Cache Performance" label="Cache Performance" icon="mdi:cached">

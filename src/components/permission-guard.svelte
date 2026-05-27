@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 @file src/components/permission-guard.svelte
 @component
 **Enhanced PermissionGuard - Svelte 5 Optimized**
@@ -161,15 +161,15 @@ Permission-based access control component with advanced features and security.
 	// Determine icon for error state
 	const errorIcon = $derived.by(() => {
 		if (!config) {
-			return '??';
+			return '⚙️';
 		}
 		if (isRateLimited) {
-			return '??';
+			return '⏱️';
 		}
 		if (!hasPermission) {
-			return '??';
+			return '🔒';
 		}
-		return '?';
+		return '❌';
 	});
 
 	// ARIA role for error messages

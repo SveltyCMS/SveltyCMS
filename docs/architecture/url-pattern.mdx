@@ -1,16 +1,16 @@
 ---
-path: "docs/architecture/url-pattern.mdx"
+path: 'docs/architecture/url-pattern.mdx'
 title: URL Pattern for Collection Editing
 description: Clean, semantic URL structure that reflects internal UUID-based operations
 category: architecture
 order: 5
-author: "SveltyCMS Team"
-created: "2025-12-16"
-updated: "2026-03-27"
+author: 'SveltyCMS Team'
+created: '2025-12-16'
+updated: '2025-12-16'
 tags:
-  - "architecture"
-  - "url-patterns"
-  - "navigation"
+  - 'architecture'
+  - 'url-patterns'
+  - 'navigation'
 ---
 
 # GUI-First Navigation Architecture
@@ -168,56 +168,52 @@ const entryCache = new Map<string, CachedEntry>();
 
 // Preload on hover (300ms delay)
 export function preloadEntry(entryId: string, collectionId: string): void {
-  // Check cache first
-  if (getCachedEntry(entryId)) return;
+	// Check cache first
+	if (getCachedEntry(entryId)) return;
 
-  // Fetch after delay
-  setTimeout(async () => {
-    const response = await fetch(`/api/collections/${collectionId}/entries/${entryId}`);
-    if (response.ok) {
-      setCachedEntry(entryId, await response.json(), collectionId);
-    }
-  }, 300);
+	// Fetch after delay
+	setTimeout(async () => {
+		const response = await fetch(`/api/collections/${collectionId}/entries/${entryId}`);
+		if (response.ok) {
+			setCachedEntry(entryId, await response.json(), collectionId);
+		}
+	}, 300);
 }
 
 // Mode switch with cache check
-export async function switchMode(
-  mode: ModeType,
-  entryId: string | undefined,
-  collectionId: string,
-): Promise<ModeChangeResult> {
-  if (mode === "edit" && entryId) {
-    // Check cache first (FAST)
-    const cached = getCachedEntry(entryId);
-    if (cached) {
-      return { success: true, fromCache: true, data: cached };
-    }
+export async function switchMode(mode: ModeType, entryId: string | undefined, collectionId: string): Promise<ModeChangeResult> {
+	if (mode === 'edit' && entryId) {
+		// Check cache first (FAST)
+		const cached = getCachedEntry(entryId);
+		if (cached) {
+			return { success: true, fromCache: true, data: cached };
+		}
 
-    // Not in cache, fetch now (SLOWER)
-    const response = await fetch(`/api/collections/${collectionId}/entries/${entryId}`);
-    const data = await response.json();
-    setCachedEntry(entryId, data, collectionId);
-    return { success: true, fromCache: false, data };
-  }
+		// Not in cache, fetch now (SLOWER)
+		const response = await fetch(`/api/collections/${collectionId}/entries/${entryId}`);
+		const data = await response.json();
+		setCachedEntry(entryId, data, collectionId);
+		return { success: true, fromCache: false, data };
+	}
 
-  return { success: true, fromCache: false };
+	return { success: true, fromCache: false };
 }
 
 // Passive URL reflection (no reload)
 export function reflectModeInURL(mode: ModeType, entryId?: string): void {
-  const url = new URL(window.location.href);
+	const url = new URL(window.location.href);
 
-  url.searchParams.delete("edit");
-  url.searchParams.delete("create");
+	url.searchParams.delete('edit');
+	url.searchParams.delete('create');
 
-  if (mode === "edit" && entryId) {
-    url.searchParams.set("edit", entryId);
-  } else if (mode === "create") {
-    url.searchParams.set("create", "true");
-  }
+	if (mode === 'edit' && entryId) {
+		url.searchParams.set('edit', entryId);
+	} else if (mode === 'create') {
+		url.searchParams.set('create', 'true');
+	}
 
-  // Update URL without reload
-  window.history.pushState({}, "", url.toString());
+	// Update URL without reload
+	window.history.pushState({}, '', url.toString());
 }
 ```
 
@@ -228,48 +224,48 @@ export function reflectModeInURL(mode: ModeType, entryId?: string): void {
 ```typescript
 // Hover handler - Preload data
 function handleRowHoverStart(entryId: string) {
-  const collId = collection.value?._id;
-  if (collId) {
-    preloadEntry(entryId, collId); // Background fetch
-  }
+	const collId = collection.value?._id;
+	if (collId) {
+		preloadEntry(entryId, collId); // Background fetch
+	}
 }
 
 // Click handler - Instant mode switch
 async function handleRowClick(entry: Entry) {
-  const collId = collection.value?._id;
-  if (!collId) return;
+	const collId = collection.value?._id;
+	if (!collId) return;
 
-  // 1. Check cache & load if needed
-  const result = await switchMode("edit", entry._id, collId);
+	// 1. Check cache & load if needed
+	const result = await switchMode('edit', entry._id, collId);
 
-  if (result.success) {
-    // 2. Update stores INSTANTLY (no waiting)
-    setMode("edit");
-    if (result.data) {
-      setCollectionValue(result.data);
-    }
+	if (result.success) {
+		// 2. Update stores INSTANTLY (no waiting)
+		setMode('edit');
+		if (result.data) {
+			setCollectionValue(result.data);
+		}
 
-    // 3. Reflect in URL (passive, no reload)
-    reflectModeInURL("edit", entry._id);
+		// 3. Reflect in URL (passive, no reload)
+		reflectModeInURL('edit', entry._id);
 
-    // 4. Toggle UI
-    handleUILayoutToggle();
+		// 4. Toggle UI
+		handleUILayoutToggle();
 
-    console.log(`${result.fromCache ? "INSTANT (cached)" : "LOADED"}`);
-  }
+		console.log(`${result.fromCache ? 'INSTANT (cached)' : 'LOADED'}`);
+	}
 }
 
 // Create handler - Instant mode switch
 function onCreate() {
-  // 1. Update stores INSTANTLY
-  setMode("create");
-  setCollectionValue(newEntry);
+	// 1. Update stores INSTANTLY
+	setMode('create');
+	setCollectionValue(newEntry);
 
-  // 2. Reflect in URL (passive, no reload)
-  reflectModeInURL("create");
+	// 2. Reflect in URL (passive, no reload)
+	reflectModeInURL('create');
 
-  // 3. Toggle UI
-  handleUILayoutToggle();
+	// 3. Toggle UI
+	handleUILayoutToggle();
 }
 ```
 
@@ -278,25 +274,25 @@ function onCreate() {
 ```typescript
 // Save handler
 async function handleSave() {
-  await saveEntry(data); // Save to database
+	await saveEntry(data); // Save to database
 
-  // 1. Update mode INSTANTLY
-  setMode("view");
+	// 1. Update mode INSTANTLY
+	setMode('view');
 
-  // 2. Reflect in URL (passive, no reload)
-  reflectModeInURL("view");
+	// 2. Reflect in URL (passive, no reload)
+	reflectModeInURL('view');
 
-  // 3. Invalidate cache (list will refresh on next view)
-  invalidateCollectionEntries(collectionId);
+	// 3. Invalidate cache (list will refresh on next view)
+	invalidateCollectionEntries(collectionId);
 }
 
 // Cancel handler
 function handleCancel() {
-  // 1. Update mode INSTANTLY
-  setMode("view");
+	// 1. Update mode INSTANTLY
+	setMode('view');
 
-  // 2. Reflect in URL (passive, no reload)
-  reflectModeInURL("view");
+	// 2. Reflect in URL (passive, no reload)
+	reflectModeInURL('view');
 }
 ```
 
@@ -351,21 +347,21 @@ $effect(() => {
 ```typescript
 // Server detects URL change and translates to UUID operation
 // +page.server.ts
-const editEntryId = url.searchParams.get("edit");
-const createParam = url.searchParams.get("create");
+const editEntryId = url.searchParams.get('edit');
+const createParam = url.searchParams.get('create');
 
 if (editEntryId) {
-  // User navigated to ?edit=UUID
-  // Translate to: Filter by UUID
-  finalFilter._id = editEntryId;
+	// User navigated to ?edit=UUID
+	// Translate to: Filter by UUID
+	finalFilter._id = editEntryId;
 } else if (createParam) {
-  // User navigated to ?create=true
-  // Translate to: Empty entry initialization
-  setMode("create");
+	// User navigated to ?create=true
+	// Translate to: Empty entry initialization
+	setMode('create');
 } else {
-  // User navigated to base URL
-  // Translate to: List view with pagination
-  setMode("view");
+	// User navigated to base URL
+	// Translate to: List view with pagination
+	setMode('view');
 }
 ```
 
@@ -376,13 +372,13 @@ if (editEntryId) {
 ```typescript
 // Populate collectionValue when editing an entry
 $effect(() => {
-  const editParam = page.url.searchParams.get("edit");
-  if (editParam && entries.length > 0) {
-    // Server loaded the specific entry by UUID
-    untrack(() => {
-      collectionValue.value = entries[0];
-    });
-  }
+	const editParam = page.url.searchParams.get('edit');
+	if (editParam && entries.length > 0) {
+		// Server loaded the specific entry by UUID
+		untrack(() => {
+			collectionValue.value = entries[0];
+		});
+	}
 });
 ```
 
@@ -447,19 +443,19 @@ dbAdapter.queryBuilder('collection_xyz').where({ _id: editId })
 // http://localhost:5173/de/Collections/Names?edit=abc123
 
 // 2. Server receives request
-const editId = url.searchParams.get("edit"); // "abc123"
+const editId = url.searchParams.get('edit'); // "abc123"
 
 // 3. Server validates UUID format
 const isValidUUID = /^[a-f0-9]{32}$/i.test(editId);
 
 // 4a. Valid UUID: Translate to filter
 if (isValidUUID) {
-  finalFilter._id = editId;
+	finalFilter._id = editId;
 }
 
 // 4b. Invalid UUID: Return 400 error
 else {
-  throw error(400, "Invalid entry ID format");
+	throw error(400, 'Invalid entry ID format');
 }
 
 // 5. Rest of flow identical to button click
@@ -480,7 +476,7 @@ const newUUID = result.data._id; // New UUID from database
 
 // 4. External: Navigate to list
 const url = new URL(page.url);
-url.searchParams.delete("create");
+url.searchParams.delete('create');
 await goto(url);
 
 // 5. Browser URL changes
@@ -497,17 +493,17 @@ The URL pattern enables **intelligent hover preloading**:
 ```typescript
 // entry-list.svelte - Hover handler
 function handleRowHoverStart(entryId: string) {
-  setTimeout(async () => {
-    // Build preload URL
-    const preloadUrl = new URL(page.url);
-    preloadUrl.searchParams.set("edit", entryId);
+	setTimeout(async () => {
+		// Build preload URL
+		const preloadUrl = new URL(page.url);
+		preloadUrl.searchParams.set('edit', entryId);
 
-    // Prefetch data (600ms hover delay)
-    await fetch(preloadUrl.toString(), {
-      credentials: "include",
-      headers: { "X-Preload": "true" },
-    });
-  }, 600);
+		// Prefetch data (600ms hover delay)
+		await fetch(preloadUrl.toString(), {
+			credentials: 'include',
+			headers: { 'X-Preload': 'true' }
+		});
+	}, 600);
 }
 ```
 
@@ -576,7 +572,7 @@ If `?edit=UUID` references non-existent entry:
 ```typescript
 // Server returns empty entries array
 if (editEntryId && entries.length === 0) {
-  throw error(404, "Entry not found");
+	throw error(404, 'Entry not found');
 }
 ```
 
@@ -587,7 +583,7 @@ Server validates UUID format:
 ```typescript
 const isValidUUID = /^[a-f0-9]{32}$/i.test(editEntryId);
 if (editEntryId && !isValidUUID) {
-  throw error(400, "Invalid entry ID format");
+	throw error(400, 'Invalid entry ID format');
 }
 ```
 
@@ -645,20 +641,20 @@ const newPath = `/${selectedLanguage}/${collectionId}${page.url.search}`;
 
 ```typescript
 // Example test
-describe("URL Pattern", () => {
-  it("sets edit parameter on entry click", async () => {
-    const { page } = await render(entry - list);
-    await page.click('[data-entry-id="123"]');
-    expect(page.url.search).toContain("?edit=123");
-  });
+describe('URL Pattern', () => {
+	it('sets edit parameter on entry click', async () => {
+		const { page } = await render(entry - list);
+		await page.click('[data-entry-id="123"]');
+		expect(page.url.search).toContain('?edit=123');
+	});
 
-  it("loads single entry when edit param present", async () => {
-    const response = await load({
-      url: new URL("?edit=123", base),
-      params: { language: "en", collection: "Names" },
-    });
-    expect(response.entries).toHaveLength(1);
-  });
+	it('loads single entry when edit param present', async () => {
+		const response = await load({
+			url: new URL('?edit=123', base),
+			params: { language: 'en', collection: 'Names' }
+		});
+		expect(response.entries).toHaveLength(1);
+	});
 });
 ```
 

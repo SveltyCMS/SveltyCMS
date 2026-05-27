@@ -22,11 +22,15 @@ Renders a color input with label, helper, and validation
 - **Screen Reader Support**: Proper ARIA attributes and semantic markup
 -->
 <script lang="ts">
+	import { colorPicker_hex } from '@src/paraglide/messages';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { app } from '@src/stores/store.svelte';
+	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
+	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
-	import { parse, pipe, regex, string, optional } from 'valibot';
+
+	// Valibot validation
+	import { optional, parse, pipe, regex, string } from 'valibot';
 	import type { FieldType } from './';
 
 	let {
@@ -41,82 +45,92 @@ Renders a color input with label, helper, and validation
 
 	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
-	// Derived current color value
-	const colorValue = $derived.by(() => {
-		if (field.translated && value && typeof value === 'object') {
-			return (value as Record<string, string>)[LANGUAGE] || (field as any).defaultColor || '#000000';
+	// Local state for the hex value
+	let localValue = $state<string>('');
+
+	// Sync localValue from parent value
+	$effect(() => {
+		const parentVal = value;
+		let extracted = '#000000'; // Default
+
+		if (field.translated && typeof parentVal === 'object' && parentVal !== null) {
+			extracted = (parentVal as Record<string, any>)[LANGUAGE] ?? '#000000';
+		} else if (!field.translated && typeof parentVal === 'string') {
+			extracted = parentVal;
+		} else if (!parentVal) {
+			// Initialize if empty
+			updateParent('#000000');
+			return;
 		}
-		return typeof value === 'string' ? value : (field as any).defaultColor || '#000000';
+
+		if (extracted !== localValue) {
+			localValue = extracted;
+		}
 	});
+
+	// Update parent value when localValue changes
+	function updateParent(newVal: string) {
+		if (field.translated) {
+			if (!value || typeof value !== 'object') {
+				value = {};
+			}
+			value = { ...(value as object), [LANGUAGE]: newVal };
+		} else {
+			value = newVal;
+		}
+		// Validate hex color format
+		validateColor(newVal);
+	}
 
 	// Validation
 	const fieldName = $derived(getFieldName(field));
-	const hexSchema = pipe(string(), regex(/^#[0-9a-f]{6}$/i, 'Must be a valid 6-digit hex code'));
+	const validationError = $derived(validationStore.getError(fieldName));
 
-	function updateColor(newColor: string) {
-		const normalized = newColor.toUpperCase();
+	// Hex color schema (accepts #RGB, #RRGGBB, #RGBA, #RRGGBBAA)
+	const hexColorSchema = $derived(
+		field?.required
+			? pipe(string(), regex(/^#([0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/, 'Invalid hex color format (e.g., #FFF or #FFFFFF)'))
+			: optional(pipe(string(), regex(/^#([0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/, 'Invalid hex color format')), '')
+	);
 
-		if (field.translated) {
-			value = { ...(typeof value === 'object' ? value : {}), [LANGUAGE]: normalized };
-		} else {
-			value = normalized;
+	function validateColor(colorValue: string) {
+		if (!(colorValue || field?.required)) {
+			validationStore.clearError(fieldName);
+			return;
 		}
-
-		// Immediate validation
-		handleWidgetValidation(() => parse(field.required ? hexSchema : optional(hexSchema), normalized), {
+		handleWidgetValidation(() => parse(hexColorSchema, colorValue), {
 			fieldName,
 			updateStore: true
 		});
 	}
-
-	function handleReset() {
-		updateColor((field as any).defaultColor || '#000000');
-	}
 </script>
 
-<div class="color-picker-widget flex flex-col gap-1">
-	<div
-		class="flex items-center gap-2 rounded-lg border p-1 transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
-		class:!border-error-500={!!error}
-		class:ring-2={!!error}
-		class:ring-error-500={!!error}
-	>
-		<div class="relative h-10 w-10 shrink-0 overflow-hidden rounded border border-surface-200 dark:border-surface-700">
-			<input
-				type="color"
-				value={colorValue}
-				id={fieldName + '-color'}
-				aria-label={field.label || 'Pick color'}
-				oninput={(e) => updateColor(e.currentTarget.value)}
-				class="absolute -inset-2 h-[150%] w-[150%] cursor-pointer border-none bg-transparent p-0"
-			/>
-		</div>
+<div class="relative rounded p-1" class:invalid={error || validationError}>
+	<div class="flex items-center rounded gap-0.5 border border-surface-400 pr-1">
+		<input
+			type="color"
+			id="{field.db_fieldName}-picker"
+			name="{field.db_fieldName}-picker"
+			value={localValue}
+			oninput={(e) => updateParent(e.currentTarget.value)}
+			class="pl-2 h-9 w-9 shrink-0 cursor-pointer border-none bg-transparent p-0"
+			aria-label="{field.label} Color Picker"
+		/>
 
-		<div class="flex grow items-center gap-2 px-2">
-			<span class="text-surface-400 font-mono">#</span>
+		<div class="relative grow">
 			<input
 				type="text"
-				value={colorValue.replace('#', '')}
-				id={fieldName + '-hex'}
-				aria-label={field.label ? field.label + ' hex value' : 'Hex color value'}
-				oninput={(e) => updateColor('#' + e.currentTarget.value)}
-				placeholder="000000"
-				maxlength="6"
-				class="w-full grow border-none bg-transparent font-mono text-sm uppercase outline-none focus:ring-0"
+				id={field.db_fieldName}
+				name={field.db_fieldName}
+				value={localValue}
+				oninput={(e) => updateParent(e.currentTarget.value)}
+				placeholder={colorPicker_hex()}
+				class="w-full grow border-none bg-transparent font-mono outline-none focus:outline-none"
+				aria-label="{field.label} Hex Value"
 			/>
 		</div>
-
-		<button
-			type="button"
-			class="btn btn-sm variant-soft-surface p-1 opacity-60 hover:opacity-100"
-			onclick={handleReset}
-			title="Reset to default"
-		>
-			<iconify-icon icon="mdi:refresh" width="18"></iconify-icon>
-		</button>
 	</div>
-
-	{#if error}
-		<p class="text-[10px] font-medium text-error-500 px-1" role="alert">{error}</p>
+	{#if error || validationError}
+		<p class="absolute bottom-0 left-0 w-full text-center text-xs text-error-500" role="alert">{error || validationError}</p>
 	{/if}
 </div>

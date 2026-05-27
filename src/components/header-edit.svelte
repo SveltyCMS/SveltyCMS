@@ -39,18 +39,17 @@
 	import { statusStore } from '@src/stores/status-store.svelte';
 	import { app, dataChangeStore, validationStore } from '@src/stores/store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
-	import { createEntry, invalidateCollectionCache } from '@utils/api';
+	import { createEntry, invalidateCollectionCache } from '@utils/api-client';
 	import { deleteCurrentEntry, saveEntry } from '@utils/entry-actions';
 	// --- Derived from page & stores ---
 	import { logger } from '@utils/logger';
-	import { showCloneModal, showScheduleModal } from '@utils/modal.svelte';
-	import { navigationManager } from '@utils/navigation';
+	import { showCloneModal, showScheduleModal } from '@utils/modal-utils';
+	import { navigationManager } from '@utils/navigation-manager';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { untrack } from 'svelte';
 	// Modal types import
 	// Stores
 	import { page } from '$app/state';
-	import Slot from '@src/components/system/slot.svelte';
 
 	// --- Derived from page & stores ---
 	let user = $derived(page.data.user);
@@ -159,7 +158,7 @@
 
 		if (currentMode === 'edit' && !hasChanges) {
 			logger.debug('[HeaderEdit] No changes – returning to list');
-			await navigationManager.toList();
+			await navigationManager.navigateToList();
 			return;
 		}
 
@@ -184,7 +183,7 @@
 			return;
 		}
 
-		await navigationManager.toList();
+		await navigationManager.navigateToList();
 	}
 
 	function cancel(): void {
@@ -193,7 +192,7 @@
 		ui.toggle('rightSidebar', 'hidden');
 		ui.toggle('leftSidebar', isDesktop ? 'full' : 'collapsed');
 		ui.toggle('pageheader', 'hidden');
-		navigationManager.toList();
+		navigationManager.navigateToList();
 	}
 
 	function openDelete(): void {
@@ -359,9 +358,6 @@
 				</div>
 			{/if}
 		</div>
-
-		<Slot name="entry_edit_header" props={{ collection, currentEntry }} />
-
 		<!-- User -->
 		<div class="space-y-1 text-xs">
 			<p>Created by: <span class="text-tertiary-500 dark:text-primary-500 font-bold">{getDisplayName(currentEntry?.createdBy)}</span></p>

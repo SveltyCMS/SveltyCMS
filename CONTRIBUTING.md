@@ -134,7 +134,7 @@ git checkout -b fix/issue-123
 **Guidelines:**
 
 - ✅ **One feature/fix per pull request**
-- ✅ **Follow the existing code style** (`oxlint` will help)
+- ✅ **Follow the existing code style** (Hybrid Biome/ESLint will help)
 - ✅ **Write meaningful commit messages**
 - ✅ **Add tests** for new features
 - ✅ **Update documentation** if needed
@@ -143,8 +143,8 @@ git checkout -b fix/issue-123
 **Code Style:**
 
 - Use TypeScript for all `.ts` files
-- Follow Hybrid rules: `bun run lint` (oxlint)
-- Format code: `bun run format` (oxfmt)
+- Follow Hybrid rules: `bun run lint` (ESLint)
+- Format code: `bun run format` (Prettier)
 - Use meaningful variable names
 - Add JSDoc comments for complex functions
 - Ensure database-agnostic patterns (see [API Documentation](docs/api/Database_Agnostic_Verification.mdx))
@@ -339,55 +339,34 @@ Improving documentation? See:
 
 ## 🧪 Testing Guidelines
 
-### CI Architecture
-
-SveltyCMS uses a performance-optimized GitHub Actions workflow designed for fast feedback and comprehensive coverage.
-
-1.  **Parallel Quality Gate**: Static analysis (`lint`, `svelte-check`) and `unit tests` run in parallel to minimize wait times.
-2.  **Consolidated Database Matrix**: Integration and E2E tests are grouped by database (MongoDB, MariaDB, PostgreSQL, SQLite). Each database leg starts its service once and runs all relevant tests sequentially.
-3.  **Cross-Browser E2E**: Playwright validates the UI across Chromium, Firefox, and Webkit.
-
 ### Writing Tests
 
 ```typescript
 // Example test structure (Bun Test)
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect } from 'bun:test';
 
-describe("Collection API", () => {
-  it("should create a new collection", async () => {
-    // Test logic here
-    expect(true).toBe(true);
-  });
+describe('Collection API', () => {
+	it('should create a new collection', async () => {
+		// Test logic here
+		expect(true).toBe(true);
+	});
 });
 ```
 
-### Running Tests Locally
-
-Before pushing, ensure your changes pass all local checks:
+### Running Tests
 
 ```bash
-# Full local verification (Linter, Typecheck, Build, Unit Tests)
-bun run lint && bun run check && bun run build && bun run test:unit
-```
+# All unit tests
+bun run test
 
-Individual commands:
+# Run specific file
+bun test path/to/test.test.ts
 
-```bash
-# Integration tests (runs against a live system)
+# Integration tests
 bun run test:integration
-
-# Integration tests for a specific database (if you have it running)
-bun run test:integration --filter=mongodb
-
-# E2E tests (Playwright)
-bun run test:e2e
 ```
 
 See [Testing Guide](docs/TESTING_GUIDE.md) for comprehensive testing documentation.
-
-### 🔐 CI Security Note
-
-The credentials used in the CI environment (e.g., `test`/`test` for MariaDB/Postgres) are hardcoded for **automated testing only**. They must never be used in a production environment. SveltyCMS forces a secure setup wizard on first run to ensure unique, secure credentials for every installation.
 
 ---
 
@@ -399,17 +378,17 @@ When updating documentation:
 2. **Include frontmatter** with required fields:
    ```mdx
    ---
-   path: "docs/your-doc"
-   title: "Your Title"
-   description: "Brief description"
+   path: 'docs/your-doc'
+   title: 'Your Title'
+   description: 'Brief description'
    order: 1
-   icon: "mdi:icon-name"
-   author: "Your Name"
-   created: "2025-01-01"
-   updated: "2025-01-01"
+   icon: 'mdi:icon-name'
+   author: 'Your Name'
+   created: '2025-01-01'
+   updated: '2025-01-01'
    tags:
-     - "tag1"
-     - "tag2"
+     - 'tag1'
+     - 'tag2'
    ---
    ```
 3. **Use clear headings** and structure
@@ -441,20 +420,20 @@ All database queries must be database-agnostic:
 
 ```typescript
 // ✅ Correct - Uses adapter pattern
-import { getDB } from "$databases";
+import { getDB } from '$databases';
 
 export async function GET({ locals }) {
-  const db = getDB(locals.dbType);
-  const items = await db.find("collection_name", {});
-  return json(items);
+	const db = getDB(locals.dbType);
+	const items = await db.find('collection_name', {});
+	return json(items);
 }
 
 // ❌ Wrong - Direct database access
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 export async function GET() {
-  const items = await mongoose.model("Collection").find();
-  return json(items);
+	const items = await mongoose.model('Collection').find();
+	return json(items);
 }
 ```
 
@@ -462,35 +441,12 @@ export async function GET() {
 
 ## 🔐 Security Guidelines
 
-SveltyCMS enforces **4-layer defense-in-depth** across all code paths.
-
-### Cryptographic Randomness (CSPRNG)
-
-- **NEVER** use `Math.random()` for security-sensitive tokens (sessions, resets, API keys, UUIDs).
-- **ALWAYS** use `globalThis.crypto.getRandomValues()` or `globalThis.crypto.randomUUID()`.
-- Use `generateSecureToken`/`generateUUID` from `@src/utils/native-utils.ts`.
-- Zero-bias tokens: `generateRandomToken` uses rejection sampling for uniform CSPRNG distribution.
-
-### Authentication & Authorization
-
-- **Never commit secrets** or credentials — all secrets go through `config/private.ts`.
-- **Validate all user input** on the server using Valibot schemas.
-- **Use parameterized queries** — Drizzle ORM provides native parameterization; never concatenate user input.
-- **Sanitize output** — use DOMPurify for HTML, `textContent` instead of `innerHTML`, the `<Sanitize>` component.
-- **CSRF Protection**: All POST/PUT/PATCH/DELETE endpoints gated via double-submit cookie with constant-time comparison.
-- **Fail-Closed API Dispatch**: Every namespace must have an `ENDPOINT_PERMISSIONS` entry. Unmapped routes → 403.
-- **Handler Defense-in-Depth**: Media handlers check `media:write`/`media:delete`; system handlers verify admin; page actions use centralized permission guards.
-
-### AI Bot Defense
-
-- New endpoints must consider bot detection. Known AI crawler/reconnaissance UAs are blocked in `src/hooks/handle-security.ts`.
-- Extend `HONEYPOT_ROUTES` when new common exploit paths emerge.
-
-### Reporting Security Issues
-
-- **DO NOT** open public issues for security vulnerabilities.
-- Report privately via [GitHub Security tab](https://github.com/SveltyCMS/SveltyCMS/security/advisories) or security@sveltycms.com.
-- See [SECURITY.md](./SECURITY.md) for full policy.
+- **Never commit secrets** or credentials
+- **Validate all user input** on the server
+- **Use parameterized queries** to prevent SQL injection
+- **Sanitize output** to prevent XSS
+- **Follow OWASP** best practices
+- **Report security issues** privately to security@sveltycms.com
 
 ---
 

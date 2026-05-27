@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/MediaUpload/Input.svelte
+@file src/widgets/core/MediaUpload/Input.svelte
 @component
 **Media Upload Widget Component**
 
@@ -20,11 +20,9 @@
 
 <script lang="ts">
 	import MediaLibraryModal from '@components/media-library-modal.svelte';
-	import { collectionValue, setCollectionValue } from '@src/stores/collection-store.svelte';
 	import { logger } from '@utils/logger';
-	import { getFieldName } from '@utils/utils';
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
-	import { Portal } from '@skeletonlabs/skeleton-svelte';
+	import { modalState } from '@utils/modal-state.svelte';
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 	import { page } from '$app/state';
@@ -34,6 +32,7 @@
 
 	const tenantId = $derived(page.data?.tenantId);
 
+	// SECURITY: File validation constants
 	const ALLOWED_MIME_TYPES = [
 		'image/jpeg',
 		'image/png',
@@ -47,29 +46,29 @@
 		'audio/mpeg',
 		'audio/wav'
 	];
-	const MAX_FILE_SIZE = 10 * 1024 * 1024;
+	const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 	const VALID_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp4', 'webm', 'ogg', 'pdf', 'mp3', 'wav'];
 
 	function validateFile(file: { name: string; type: string; size: number }): {
 		valid: boolean;
 		error?: string;
 	} {
+		// Check MIME type
 		if (!ALLOWED_MIME_TYPES.includes(file.type)) {
 			return { valid: false, error: `Invalid file type: ${file.type}` };
 		}
-
+		// Check file size
 		if (file.size > MAX_FILE_SIZE) {
 			return {
 				valid: false,
 				error: `File too large (max 10MB): ${(file.size / 1024 / 1024).toFixed(2)}MB`
 			};
 		}
-
+		// Check file extension
 		const ext = file.name.split('.').pop()?.toLowerCase();
 		if (!(ext && VALID_EXTENSIONS.includes(ext))) {
 			return { valid: false, error: `Invalid file extension: ${ext}` };
 		}
-
 		return { valid: true };
 	}
 
@@ -85,45 +84,20 @@
 		collectionName?: string;
 	} = $props();
 
+	// A local, reactive array of the full, resolved media file objects for display.
 	let selectedFiles = $state<MediaFile[]>([]);
-	let showMediaLibrary = $state(false);
-	const dndItems = $derived(
-		selectedFiles.map((file) => ({
-			...file,
-			id: file._id
-		}))
-	);
-	const fieldKey = $derived(getFieldName(field, false));
 
-	function syncCollectionValue(nextValue: string | string[] | null) {
-		value = nextValue;
-
-		if (!fieldKey) {
-			return;
-		}
-
-		const current = (collectionValue.value as Record<string, unknown> | undefined) ?? {};
-		if (current[fieldKey] !== nextValue) {
-			setCollectionValue({
-				...current,
-				[fieldKey]: nextValue
-			});
-		}
-	}
-
+	// Helper function to fetch full media data from an array of IDs.
 	async function fetchMediaData(ids: string[]): Promise<MediaFile[]> {
 		logger.debug('Fetching data for IDs:', ids);
 		try {
 			const fetchedFiles: MediaFile[] = [];
 
-			// Normalize path to ensure consistent `/files/` prefix without duplicates
-			const normalizePath = (p: string | undefined | null): string => {
-				if (!p) return '';
-				// If already normalized with /files/, return as-is
-				if (p.startsWith('/files/')) return p;
-				// If it's an absolute URL, return as-is
-				if (p.startsWith('http://') || p.startsWith('https://')) return p;
-				// Remove any existing prefix and normalize
+			// Helper to map DB path to URL path
+			const normalizePath = (p: string) => {
+				if (!p) {
+					return '';
+				}
 				let path = p.replace(/^mediaFolder\//, '').replace(/^files\//, '');
 				path = path.replace(/^\/+/, '');
 				return `/files/${path}`;
@@ -140,7 +114,7 @@
 							type: found.mimeType,
 							size: found.size,
 							url: normalizePath(found.path),
-							thumbnailUrl: normalizePath(found.thumbnails?.md?.url) || normalizePath(found.thumbnails?.sm?.url) || normalizePath(found.path),
+							thumbnailUrl: found.thumbnails?.md?.url ? normalizePath(found.thumbnails.md.url) : normalizePath(found.path),
 							aiTags: found.metadata?.aiTags || []
 						} as any);
 					}
@@ -180,17 +154,14 @@
 		return 'vscode-icons:file';
 	}
 
+	// Effect 1: When the parent `value` (the IDs) changes, fetch the full data.
 	$effect(() => {
 		const ids = Array.isArray(value) ? value : value ? [value] : [];
 		if (ids.length > 0) {
-			// Check if we need to fetch - either missing IDs or selectedFiles is empty
 			const missingIds = ids.filter((id) => !selectedFiles.some((f) => f._id === id));
-			if (missingIds.length > 0 || selectedFiles.length === 0) {
+			if (missingIds.length > 0) {
 				fetchMediaData(ids).then((files) => {
-					// Merge with existing files, avoiding duplicates
-					const existingIds = new Set(selectedFiles.map((f) => f._id));
-					const newFiles = files.filter((f) => !existingIds.has(f._id));
-					selectedFiles = [...selectedFiles, ...newFiles];
+					selectedFiles = files;
 				});
 			}
 		} else {
@@ -198,86 +169,83 @@
 		}
 	});
 
+	// Effect 2: When the local `selectedFiles` array changes (e.g., reordering), update the parent `value`.
 	$effect(() => {
 		const newIds = selectedFiles.map((file) => file._id);
 		if (field.multiupload) {
-			syncCollectionValue(newIds);
+			value = newIds;
 		} else {
-			syncCollectionValue(newIds[0] || null);
+			value = newIds[0] || null;
 		}
 	});
 
 	function openMediaLibrary() {
-		showMediaLibrary = true;
-	}
+		// DYNAMIC FOLDER:
+		// 1. Explicitly configured field.folder
+		// 2. Default to collection/[name] if available
+		// 3. Fallback to tenantId or 'global'
+		const dynamicFolder = (field as any).folder || (collectionName ? `collections/${collectionName.toLowerCase()}` : tenantId || 'global');
 
-	function closeMediaLibrary() {
-		showMediaLibrary = false;
-	}
+		modalState.trigger(
+			MediaLibraryModal as any,
+			{
+				selectionMode: field.multiupload ? 'multiple' : 'single',
+				allowedTypes: field.allowedTypes || [],
+				folder: dynamicFolder,
+				size: 'fullscreen',
+				modalClasses: 'w-full h-full max-w-none max-h-none'
+			},
+			(files: (MediaBase | MediaImage)[]) => {
+				if (files && Array.isArray(files)) {
+					const mappedFiles: MediaFile[] = files.map((f) => ({
+						_id: f._id as string,
+						name: f.filename,
+						type: f.mimeType,
+						size: f.size,
+						url: (f as any).url,
+						thumbnailUrl: (f as any).thumbnails?.md?.url || (f as any).url
+					}));
 
-	function handleMediaSelection(files: (MediaBase | MediaImage)[]) {
-		if (!(files && Array.isArray(files))) {
-			return;
-		}
+					const validFiles = mappedFiles.filter((file) => {
+						const validation = validateFile(file);
+						if (!validation.valid) {
+							logger.warn(`Rejected file ${file.name}: ${validation.error}`);
+							return false;
+						}
+						return true;
+					});
 
-		const mappedFiles: MediaFile[] = files.map((f) => ({
-			_id: f._id as string,
-			name: f.filename,
-			type: f.mimeType,
-			size: f.size,
-			url: (f as any).url,
-			thumbnailUrl: (f as any).thumbnails?.md?.url || (f as any).url
-		}));
-
-		const validFiles = mappedFiles.filter((file) => {
-			const validation = validateFile(file);
-			if (!validation.valid) {
-				logger.warn(`Rejected file ${file.name}: ${validation.error}`);
-				return false;
+					if (field.multiupload) {
+						selectedFiles = [...selectedFiles, ...validFiles];
+					} else if (validFiles.length > 0) {
+						selectedFiles = [validFiles[0]];
+					}
+				}
 			}
-			return true;
-		});
-
-		if (field.multiupload) {
-			selectedFiles = [...selectedFiles, ...validFiles];
-		} else if (validFiles.length > 0) {
-			selectedFiles = [validFiles[0]];
-		}
-
-		showMediaLibrary = false;
+		);
 	}
 
 	function removeFile(fileId: string) {
 		selectedFiles = selectedFiles.filter((file) => file._id !== fileId);
 	}
-
-	function syncDndItems(items: Array<MediaFile & { id: string }>) {
-		selectedFiles = items.map(({ id, ...rest }) => ({
-			...rest,
-			_id: id
-		}));
-	}
 </script>
 
 <div class="min-h-[120px] rounded-lg border-2 border-dashed border-surface-300 p-4 dark:border-surface-600" class:!border-error-500={error}>
 	{#if selectedFiles.length > 0}
-		<div class="mb-4 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4" use:dndzone={{ items: dndItems }} onconsider={(e) => syncDndItems(e.detail.items)}>
+		<div
+			class="mb-4 grid gap-4 [grid-cols-[repeat(auto-fill,minmax(100px,1fr))]"
+			use:dndzone={{ items: selectedFiles }}
+			onconsider={(e) => (selectedFiles = e.detail.items)}
+		>
 			{#each selectedFiles as file (file._id)}
 				<div class="relative overflow-hidden rounded border border-surface-200 dark:text-surface-50" animate:flip>
-					<button
-						type="button"
-						class="block w-full cursor-pointer text-left"
-						onclick={openMediaLibrary}
-						aria-label={`Change media for ${file.name}`}
-					>
-						{#if file.type?.startsWith('image/') || (file.thumbnailUrl && !file.thumbnailUrl.endsWith('.pdf'))}
-							<img src={file.thumbnailUrl} alt={file.name} class="h-[120px] w-full object-cover" />
-						{:else}
-							<div class="flex h-[120px] w-full items-center justify-center bg-surface-100 dark:bg-surface-800">
-								<iconify-icon icon={getFileIcon(file)} width="48"></iconify-icon>
-							</div>
-						{/if}
-					</button>
+					{#if file.type?.startsWith('image/') || (file.thumbnailUrl && !file.thumbnailUrl.endsWith('.pdf'))}
+						<img src={file.thumbnailUrl} alt={file.name} class="h-[100px] w-full object-cover" />
+					{:else}
+						<div class="flex h-[100px] w-full items-center justify-center bg-surface-100 dark:bg-surface-800">
+							<iconify-icon icon={getFileIcon(file)} width="48"></iconify-icon>
+						</div>
+					{/if}
 					<div class="p-1">
 						<span class="block truncate text-center text-xs font-bold">{file.name}</span>
 						{#if (file as any).aiTags?.length}
@@ -292,11 +260,9 @@
 						{/if}
 					</div>
 					<button
-						type="button"
 						onclick={() => removeFile(file._id)}
 						class="absolute right-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
 						aria-label="Remove"
-						title="Remove"
 					>
 						×
 					</button>
@@ -305,33 +271,17 @@
 		</div>
 	{/if}
 
-	<button
-		type="button"
-		onclick={openMediaLibrary}
-		class="w-full cursor-pointer rounded border-none bg-surface-100 p-3 text-left transition-colors hover:bg-surface-200 dark:bg-surface-700 dark:hover:bg-surface-600"
-	>
-		<span class="block text-center font-medium">
-			{selectedFiles.length > 0 ? field.placeholder || 'Change Media' : field.placeholder || '+ Add Media'}
-		</span>
-	</button>
+	{#if field.multiupload || selectedFiles.length === 0}
+		<button
+			type="button"
+			onclick={openMediaLibrary}
+			class="w-full cursor-pointer rounded border-none bg-surface-100 p-3 transition-colors hover:bg-surface-200 dark:bg-surface-700 dark:hover:bg-surface-600"
+		>
+			{field.placeholder || '+ Add Media'}
+		</button>
+	{/if}
 
 	{#if error}
 		<p class="absolute -bottom-4 left-0 w-full text-center text-xs text-error-500" role="alert">{error}</p>
 	{/if}
 </div>
-
-{#if showMediaLibrary}
-	<Portal>
-		<div class="fixed inset-0 z-[99999] bg-black/70 p-4 backdrop-blur-sm">
-			<div class="flex h-full w-full overflow-hidden rounded-2xl border border-surface-500 bg-surface-100 shadow-2xl dark:bg-surface-900">
-				<MediaLibraryModal
-					standalone={true}
-					allowedTypes={(field.allowedTypes as string[] | undefined) ?? []}
-					folder={((field as { folder?: string }).folder ?? (collectionName ? `collections/${collectionName.toLowerCase()}` : tenantId || 'global')) as string}
-					onConfirm={handleMediaSelection}
-					onClose={closeMediaLibrary}
-				/>
-			</div>
-		</div>
-	</Portal>
-{/if}

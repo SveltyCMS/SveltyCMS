@@ -18,9 +18,9 @@ Displays real-time system state and individual service health with comprehensive
 -->
 
 <script lang="ts">
-	import { systemState } from '@src/stores/system/state.svelte';
+	import { systemState } from '@src/stores/system/state';
 	import type { ServiceHealth, SystemState } from '@src/stores/system/types';
-	import { formatDisplayDate } from '@utils/date';
+	import { formatDisplayDate } from '@utils/date-utils';
 	import { logger } from '@utils/logger';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { onDestroy, onMount } from 'svelte';
@@ -263,15 +263,15 @@ Displays real-time system state and individual service health with comprehensive
 
 	// Helper functions
 	function getStateColor(state: SystemState): string {
-		return (STATE_CONFIG as any)[state]?.color || STATE_CONFIG.IDLE.color;
+		return STATE_CONFIG[state]?.color || STATE_CONFIG.IDLE.color;
 	}
 
 	function getStateIcon(state: SystemState): string {
-		return (STATE_CONFIG as any)[state]?.icon || '❓';
+		return STATE_CONFIG[state]?.icon || '❓';
 	}
 
 	function getStateLabel(state: SystemState): string {
-		return (STATE_CONFIG as any)[state]?.label || 'Unknown';
+		return STATE_CONFIG[state]?.label || 'Unknown';
 	}
 
 	function getServiceColor(status: ServiceHealth): string {

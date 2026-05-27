@@ -4,116 +4,111 @@
 -->
 
 <script lang="ts">
-import type { DatabaseId } from "@src/content/types";
-import type { Theme } from "@src/databases/db-interface";
-import { marketplace } from "@src/paraglide/messages";
-import { themeStore, updateTheme } from "@src/stores/theme-store.svelte";
-import { dateToISODateString } from "@utils/date";
+	import type { DatabaseId } from '@src/content/types';
+	import type { Theme } from '@src/databases/db-interface';
+	import { marketplace } from '@src/paraglide/messages';
+	import { themeStore, updateTheme } from '@src/stores/theme-store.svelte';
+	import { dateToISODateString } from '@utils/date-utils';
 
-let selectedTheme = $state<any | null>(null);
-let livePreviewTheme = $state<any | null>(null);
+	let selectedTheme = $state<any | null>(null);
+	let livePreviewTheme = $state<any | null>(null);
 
-// This will hold the custom themes
-let customThemes = $state<Theme[]>([]);
+	// This will hold the custom themes
+	let customThemes = $state<Theme[]>([]);
 
-// Load custom themes dynamically
-loadCustomThemes();
+	// Load custom themes dynamically
+	loadCustomThemes();
 
-async function loadCustomThemes() {
-	// Use Vite's glob feature to load all theme.css files from the custom themes directory
-	// Path adjusted relative to this file: ../themes/custom -> ../../themes/custom ?
-	// Actually import.meta.glob is relative to the file.
-	// Originally: ../themes/custom/*/theme.css from src/routes/(app)/config/themeManagement/+page.svelte
-	// Now: src/routes/(app)/config/extensions/ThemesView.svelte
-	// Need to go up one more level: ../../themes/custom or better use absolute path if possible or adjust relative
-	// The custom themes seem to be in src/routes/(app)/config/themes/custom ?? No, likely src/themes ?
-	// Let's use the same relative path structure as before but adjusted.
-	// Previous: ../themes/custom -> src/routes/(app)/config/themes/custom (unlikely) or src/themes?
-	// Usually themes are in src/themes.
-	// If original file was in src/routes/(app)/config/themeManagement
-	// Then ../themes equal src/routes/(app)/config/themes.
-	// If I'm in src/routes/(app)/config/extensions
-	// I need ../themes/custom as well if themes are in src/routes/(app)/config/themes
+	async function loadCustomThemes() {
+		// Use Vite's glob feature to load all theme.css files from the custom themes directory
+		// Path adjusted relative to this file: ../themes/custom -> ../../themes/custom ?
+		// Actually import.meta.glob is relative to the file.
+		// Originally: ../themes/custom/*/theme.css from src/routes/(app)/config/themeManagement/+page.svelte
+		// Now: src/routes/(app)/config/extensions/ThemesView.svelte
+		// Need to go up one more level: ../../themes/custom or better use absolute path if possible or adjust relative
+		// The custom themes seem to be in src/routes/(app)/config/themes/custom ?? No, likely src/themes ?
+		// Let's use the same relative path structure as before but adjusted.
+		// Previous: ../themes/custom -> src/routes/(app)/config/themes/custom (unlikely) or src/themes?
+		// Usually themes are in src/themes.
+		// If original file was in src/routes/(app)/config/themeManagement
+		// Then ../themes equal src/routes/(app)/config/themes.
+		// If I'm in src/routes/(app)/config/extensions
+		// I need ../themes/custom as well if themes are in src/routes/(app)/config/themes
 
-	const customThemesFiles = import.meta.glob(
-		"../../themes/custom/*/theme.css",
-		{ eager: true },
-	);
+		const customThemesFiles = import.meta.glob('../../themes/custom/*/theme.css', { eager: true });
 
-	// Convert the imported files to Theme objects
-	customThemes = Object.entries(customThemesFiles).map(
-		([key, value], index) => {
+		// Convert the imported files to Theme objects
+		customThemes = Object.entries(customThemesFiles).map(([key, value], index) => {
 			const nowIso = dateToISODateString(new Date());
 			return {
 				_id: `custom-theme-${index}` as unknown as DatabaseId,
-				name: key.split("/")[3],
+				name: key.split('/')[3],
 				path: value as string,
 				isDefault: false,
 				isActive: false,
-				config: { tailwindConfigPath: "", assetsPath: "" },
+				config: { tailwindConfigPath: '', assetsPath: '' },
 				createdAt: nowIso,
-				updatedAt: nowIso,
+				updatedAt: nowIso
 			} as Theme;
-		},
-	);
-}
-
-// Combine default theme with dynamically loaded custom themes
-const themes = $derived([
-	{
-		_id: "default-theme" as unknown as DatabaseId,
-		name: "SveltyCMSTheme",
-		path: "/path/to/default/theme.css",
-		isDefault: true,
-		isActive: true,
-		config: { tailwindConfigPath: "", assetsPath: "" },
-		createdAt: dateToISODateString(new Date()),
-		updatedAt: dateToISODateString(new Date()),
-	} as Theme,
-	...customThemes,
-]);
-
-// Effects for theme changes
-$effect.root(() => {
-	if (selectedTheme) {
-		updateTheme(selectedTheme.name);
+		});
 	}
-});
 
-$effect.root(() => {
-	if (livePreviewTheme) {
-		updateTheme(livePreviewTheme.name);
+	// Combine default theme with dynamically loaded custom themes
+	const themes = $derived([
+		{
+			_id: 'default-theme' as unknown as DatabaseId,
+			name: 'SveltyCMSTheme',
+			path: '/path/to/default/theme.css',
+			isDefault: true,
+			isActive: true,
+			config: { tailwindConfigPath: '', assetsPath: '' },
+			createdAt: dateToISODateString(new Date()),
+			updatedAt: dateToISODateString(new Date())
+		} as Theme,
+		...customThemes
+	]);
+
+	// Effects for theme changes
+	$effect.root(() => {
+		if (selectedTheme) {
+			updateTheme(selectedTheme.name);
+		}
+	});
+
+	$effect.root(() => {
+		if (livePreviewTheme) {
+			updateTheme(livePreviewTheme.name);
+		}
+	});
+
+	// Initialize selectedTheme with current theme
+	$effect.root(() => {
+		if (themeStore.currentTheme) {
+			selectedTheme = themeStore.currentTheme;
+		}
+	});
+
+	function applyTheme(theme: Theme) {
+		selectedTheme = theme;
+		livePreviewTheme = null;
 	}
-});
 
-// Initialize selectedTheme with current theme
-$effect.root(() => {
-	if (themeStore.currentTheme) {
-		selectedTheme = themeStore.currentTheme;
+	function previewThemeChange(theme: Theme) {
+		livePreviewTheme = theme;
 	}
-});
 
-function applyTheme(theme: Theme) {
-	selectedTheme = theme;
-	livePreviewTheme = null;
-}
-
-function previewThemeChange(theme: Theme) {
-	livePreviewTheme = theme;
-}
-
-function resetPreview() {
-	livePreviewTheme = null;
-	if (selectedTheme) {
-		updateTheme(selectedTheme.name);
+	function resetPreview() {
+		livePreviewTheme = null;
+		if (selectedTheme) {
+			updateTheme(selectedTheme.name);
+		}
 	}
-}
 
-function handleThemeChange() {
-	if (selectedTheme) {
-		applyTheme(selectedTheme);
+	function handleThemeChange() {
+		if (selectedTheme) {
+			applyTheme(selectedTheme);
+		}
 	}
-}
 </script>
 
 <div class="space-y-6">

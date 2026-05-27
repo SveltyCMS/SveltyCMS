@@ -1,0 +1,104 @@
+---
+path: 'docs/api/api-access-tokens.mdx'
+title: 'API & Website Tokens'
+description: 'Secure programmatic access to SveltyCMS APIs via Website Tokens and Access Tokens with Multi-Tenancy 2.0 support.'
+author: 'SveltyCMS Team'
+created: '2025-12-16'
+updated: '2026-03-05'
+tags:
+  - 'api'
+  - 'security'
+  - 'tokens'
+  - 'multi-tenancy'
+---
+
+# API & Website Tokens
+
+SveltyCMS provides robust mechanisms for programmatic access, ensuring that external applications and integrations can interact with the CMS securely and with proper tenant isolation.
+
+## Token Types
+
+1.  **Website Tokens (Long-Lived)**: Designed for frontend applications (e.g., a SvelteKit or Next.js site fetching content). These are managed in **Config > Access Management**.
+2.  **API Access Tokens (Short/Medium-Lived)**: Designed for CI/CD pipelines, one-off scripts, or developer integrations.
+3.  **Invitation Tokens**: Single-use tokens for onboarding new users.
+
+---
+
+## 🛡️ Website Tokens (Recommended)
+
+Website tokens are the primary way to connect headlessly. They are **Tenant-Aware** and **Scoped**.
+
+### Scoping
+
+When creating a Website Token, you can define exactly what it can access:
+
+- **Collection-Level**: Restrict to specific collections (e.g., only `Posts` and `Products`).
+- **Action-Level**: Restrict to `Read-Only` or `Read/Write`.
+- **Environment**: Scoped to a specific `tenantId`.
+
+### Header Usage
+
+```bash
+# Authorization Header
+GET /api/collections/posts
+Authorization: Bearer st_live_abc123...
+```
+
+---
+
+## 🔑 Technical Implementation
+
+### Multi-Tenancy 2.0 Integration
+
+Tokens are validated by the `handleTokenResolution` middleware. The process is:
+
+1.  **Extract**: Middleware identifies the token from the `Authorization` header.
+2.  **Verify**: Token is checked against the database for the current `tenantId` (resolved via hostname).
+3.  **Hydrate**: If valid, `event.locals.user` is populated with a "Token User" object containing the associated role and permissions.
+4.  **Sandbox**: The request proceeds within the strict security boundaries of the resolved role.
+
+### Security Features
+
+- **SHA-256 Hashing**: Token values are never stored in plain text.
+- **Nonce-Based Validation**: Prevents replay attacks for sensitive operations.
+- **Audit Logging**: Every API request authenticated via token is logged with its unique token ID.
+
+---
+
+## Accessing Tokens via API
+
+### List All Tokens
+
+**Endpoint:** `GET /api/token`
+**Auth:** Admin only (Tenant-scoped)
+
+### Create a Token
+
+**Endpoint:** `POST /api/token/createToken`
+**Auth:** Admin only
+
+```json
+{
+	"name": "Production Frontend",
+	"role": "editor",
+	"expiresAt": "2026-12-31T23:59:59Z"
+}
+```
+
+---
+
+## Performance Metrics
+
+| Metric               | Performance                            |
+| :------------------- | :------------------------------------- |
+| **Token Validation** | < 1ms (Redis Cached)                   |
+| **RBAC Overhead**    | Negligible                             |
+| **Database Load**    | 0 (per request, after initial caching) |
+
+---
+
+## Troubleshooting
+
+- **401 Unauthorized**: Token mismatch, expired token, or token deactivated.
+- **403 Forbidden**: Token is valid but lacks permissions for the requested collection/action.
+- **404 Not Found**: Token ID does not exist in the current tenant's space.

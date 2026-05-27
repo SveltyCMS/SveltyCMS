@@ -1,63 +1,73 @@
 /**
  * @file src/plugins/webmcp/tools/navigation.ts
- * @description Admin navigation tools for WebMCP.
+ * @description Exposes Navigation tools to WebMCP
  */
 
-import { goto } from "$app/navigation";
-import { page } from "$app/state";
-import { logger } from "@utils/logger";
+import { goto } from '$app/navigation';
+import { page } from '$app/state';
 
 export function registerNavigationTools() {
-  const modelContext = (window.navigator as any)?.modelContext;
-  if (!modelContext) return;
+	const modelContext = window.navigator.modelContext;
 
-  modelContext.registerTool({
-    name: "navigate_to",
-    description: "Navigate to a specific path inside the SveltyCMS admin dashboard.",
-    parameters: {
-      type: "object",
-      properties: {
-        path: {
-          type: "string",
-          description: "Admin path starting with / (e.g. /collections/posts)",
-        },
-      },
-      required: ["path"],
-    },
-    execute: async ({ path }: { path: string }) => {
-      if (!path.startsWith("/")) {
-        return { isError: true, content: [{ type: "text", text: "Path must start with /" }] };
-      }
+	if (!modelContext) {
+		return;
+	}
 
-      try {
-        await goto(path);
-        return { content: [{ type: "text", text: `Successfully navigated to ${path}` }] };
-      } catch (err: any) {
-        logger.error("[WebMCP] navigate_to failed", { path, error: err });
-        return { isError: true, content: [{ type: "text", text: err.message }] };
-      }
-    },
-  });
+	// Tool: navigate_to
+	modelContext.registerTool({
+		name: 'navigate_to',
+		description: 'Navigate to a specific path in the Admin Dashboard.',
+		parameters: {
+			type: 'object',
+			properties: {
+				path: {
+					type: 'string',
+					description: 'The URL path to navigate to (must start with /)'
+				}
+			},
+			required: ['path']
+		},
+		execute: async ({ path }: { path: string }) => {
+			try {
+				await goto(path);
+				return {
+					content: [{ type: 'text', text: `Navigated to ${path}` }]
+				};
+			} catch (e: any) {
+				return {
+					isError: true,
+					content: [{ type: 'text', text: `Failed to navigate: ${e.message}` }]
+				};
+			}
+		}
+	} as any);
 
-  modelContext.registerTool({
-    name: "get_current_route",
-    description: "Returns current admin route and query parameters.",
-    parameters: { type: "object", properties: {}, required: [] },
-    execute: async () => ({
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(
-            {
-              pathname: page.url.pathname,
-              params: page.params,
-              query: Object.fromEntries(page.url.searchParams),
-            },
-            null,
-            2,
-          ),
-        },
-      ],
-    }),
-  });
+	// Tool: get_current_route
+	modelContext.registerTool({
+		name: 'get_current_route',
+		description: 'Get the current URL path and parameters.',
+		parameters: {
+			type: 'object',
+			properties: {},
+			required: []
+		},
+		execute: async () => {
+			return {
+				content: [
+					{
+						type: 'text',
+						text: JSON.stringify(
+							{
+								path: page.url.pathname,
+								params: page.params,
+								query: Object.fromEntries(page.url.searchParams)
+							},
+							null,
+							2
+						)
+					}
+				]
+			};
+		}
+	} as any);
 }

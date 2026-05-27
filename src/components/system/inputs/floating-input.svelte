@@ -18,7 +18,7 @@
  - `required` {boolean}: Whether input is required (default: false)
  - `showPasswordBackgroundColor` {'light' | 'dark'}: Password toggle color (default: 'light')
  - `textColor` {string}: Text color class (default: '!text-error-500')
- - `type` {'text' | 'email' | 'security'}: Input type (default: 'text')
+ - `type` {'text' | 'email' | 'password'}: Input type (default: 'text')
  - `tabindex` {number}: Input tabindex (default: 0)
  - `id` {string}: Input ID (default: derived from label or 'defaultInputId')
  - `autocomplete` {string}: Autocomplete attribute (default: null)
@@ -71,7 +71,7 @@
 	let inputElement = $state<HTMLInputElement | null>(null);
 	const currentId = $derived(id || (label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId'));
 	const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
-	const effectiveType = $derived(type === 'security' ? (showPassword ? 'text' : 'password') : type);
+	const effectiveType = $derived(showPassword && type === 'password' ? 'text' : type);
 	const isTextColorClass = $derived(textColor.includes('text-') || textColor.includes(' '));
 
 	$effect(() => {
@@ -114,13 +114,13 @@
 			onpaste={onPaste}
 			{onkeydown}
 			type={effectiveType}
-			style="--input-text-color: {isTextColorClass ? 'currentColor' : textColor}; {!isTextColorClass && textColor ? `color: ${textColor};` : ''}"
+			style={!isTextColorClass && textColor ? `color: ${textColor};` : ''}
 			class="peer block h-12 w-full appearance-none border-0 border-b-2 border-surface-300 bg-transparent pl-8 pr-6 pb-1 pt-5 text-base focus:border-tertiary-600 focus:outline-none focus:ring-0 disabled:opacity-50 dark:border-surface-400 dark:focus:border-tertiary-500 {inputClass} {isTextColorClass
 				? textColor
 				: ''}"
 			class:!border-error-500={invalid}
 			class:dark:!border-error-500={invalid}
-			class:pr-10={type === 'security'}
+			class:pr-10={type === 'password'}
 			placeholder=" "
 			id={currentId}
 			{...rest}
@@ -131,12 +131,12 @@
 				{icon}
 				width="18"
 				class="absolute left-0 top-3 {iconColor === 'gray' ? 'text-surface-500 dark:text-surface-50' : ''}"
-				style={iconColor !== 'gray' ? `--icon-color: ${iconColor}; color: var(--icon-color);` : ''}
+				style={iconColor !== 'gray' ? `color: ${iconColor};` : ''}
 				aria-hidden="true"
 			></iconify-icon>
 		{/if}
 
-		{#if type === 'security'}
+		{#if type === 'password'}
 			{@const passwordIcon = showPassword ? 'mdi:eye' : 'mdi:eye-off'}
 			<iconify-icon
 				tabindex={0}
@@ -146,7 +146,7 @@
 				aria-pressed={showPassword}
 				class="absolute right-2 top-3 cursor-pointer hover:opacity-75 focus:outline-none text-surface-500 dark:text-surface-50"
 				width="24"
-				style={passwordIconColor !== 'gray' ? `--icon-color: ${passwordIconColor}; color: var(--icon-color);` : ''}
+				style={passwordIconColor !== 'gray' ? `color: ${passwordIconColor};` : ''}
 				onkeydown={handleIconKeyDown}
 				onclick={togglePasswordVisibility}
 			></iconify-icon>
@@ -172,25 +172,3 @@
 		<p id={errorId} class="mt-1 text-xs text-error-500" role="alert">{errorMessage}</p>
 	{/if}
 </div>
-
-<style>
-	/* Hide native browser password reveal button in Chrome/Edge/Safari */
-	input::-ms-reveal,
-	input::-ms-clear {
-		display: none;
-	}
-
-	input::-webkit-contacts-auto-fill-button,
-	input::-webkit-credentials-auto-fill-button {
-		visibility: hidden;
-		pointer-events: none;
-		position: absolute;
-		right: 0;
-	}
-
-	/* Overrides global dark-mode focus styles that force a black background and white text */
-	input:focus {
-		background-color: transparent !important;
-		color: var(--input-text-color, inherit) !important;
-	}
-</style>

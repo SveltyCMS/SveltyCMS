@@ -190,7 +190,7 @@ This component provides a user interface for managing 2FA settings:
 		}
 
 		// Show verification modal first
-		const { modalState } = await import('@utils/modal.svelte');
+		const { modalState } = await import('@utils/modal-state.svelte');
 
 		modalState.trigger(
 			TwoFactorVerifyModal as any,

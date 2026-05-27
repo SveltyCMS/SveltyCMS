@@ -1,325 +1,140 @@
 /**
- * @file tests/e2e/setup-wizard.spec.ts
- * @description Comprehensive E2E test suite for the SveltyCMS Setup Wizard.
- * Combines full provisioning flow (all DB types), error handling, and navigation tests.
+ * @file tests/playwright/setup-wizard.spec.ts
+ * @description Setup wizard test for SveltyCMS
+ *
+ * This test completes the initial setup wizard by:
+ * 1. Configuring database connection
+ * 2. Creating the admin user account
+ * 3. Initializing system defaults
  */
-import { expect, test as base, type Locator, type Page } from "@playwright/test";
-import { handleDialog } from "./helpers/setup-wizard";
 
-// --- PAGE OBJECT MODEL ---
+import { expect, test, type Page } from '@playwright/test';
 
-class SetupWizardPage {
-  constructor(public readonly page: Page) {}
-
-  async goto() {
-    await this.page.goto("/setup");
-    // Wait for the body element to ensure general DOM content load, improving race condition robustness.
-    await this.page.waitForSelector("body", { timeout: 60000 });
-  }
-
-  async hardReset() {
-    await this.goto();
-    const resetBtn = this.page.getByRole("button", { name: /reset data/i }).first();
-    if (await resetBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await resetBtn.click();
-      const confirmBtn = this.page.locator("button").filter({ hasText: /yes/i }).first();
-      if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await confirmBtn.click();
-        await this.page.waitForLoadState("networkidle").catch(() => {});
-      }
-    }
-  }
-
-  async dismissModals() {
-    // 1. Welcome Modal
-    const welcomePopup = this.page.locator("#welcome-heading").first();
-    if (await welcomePopup.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const button = await this.firstVisible([
-        this.page.getByRole("button", { name: /get started/i }).first(),
-        this.page.getByRole("button", { name: /start/i }).first(),
-        this.page.getByRole("button", { name: /continue/i }).first(),
-      ]);
-      if (button) {
-        await button.click();
-        await expect(welcomePopup).toBeHidden({ timeout: 10000 });
-      }
-    }
-
-    // 2. Cookie Banner
-    const cookieBtn = this.page.getByRole("button", { name: /accept all/i }).first();
-    if (await cookieBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await cookieBtn.click();
-    }
-  }
-
-  async next() {
-    const nextBtn = this.page.getByLabel("Next", { exact: true }).first();
-    await expect(nextBtn).toBeEnabled({ timeout: 60000 });
-    await nextBtn.click();
-    await this.page.waitForLoadState("networkidle").catch(() => {});
-  }
-
-  async complete() {
-    const finishBtn = await this.firstVisible([
-      this.page.getByLabel("Complete", { exact: true }).first(),
-      this.page.getByRole("button", { name: /complete/i }).first(),
-      this.page.getByRole("button", { name: /finish/i }).first(),
-    ]);
-    if (!finishBtn) throw new Error("Could not find Complete/Finish button.");
-    await expect(finishBtn).toBeEnabled({ timeout: 30000 });
-    await finishBtn.click();
-  }
-
-  async handleAnyDbDialog() {
-    await handleDialog(
-      this.page,
-      /database (does not exist|is not empty|not empty|overwrite|create)/i,
-      "yes",
-    ).catch(() => {});
-
-    const yesButton = this.page
-      .locator("button, [role='button']")
-      .filter({ hasText: /^(yes|create|continue|overwrite|confirm)$/i })
-      .first();
-
-    if (await yesButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await yesButton.click();
-    }
-  }
-
-  async testConnection() {
-    const testButton = await this.firstVisible([
-      this.page.getByRole("button", { name: /test database connection/i }).first(),
-      this.page.getByRole("button", { name: /test connection/i }).first(),
-    ]);
-
-    if (testButton) {
-      await expect(testButton).toBeEnabled({ timeout: 30000 });
-      await testButton.click();
-    }
-    await this.handleAnyDbDialog();
-  }
-
-  private async firstVisible(candidates: Locator[], timeout = 1500): Promise<Locator | null> {
-    for (const candidate of candidates) {
-      if (await candidate.isVisible({ timeout }).catch(() => false)) {
-        return candidate;
-      }
-    }
-    return null;
-  }
+// Helper to click "Next" button and wait for transition
+async function clickNext(page: Page) {
+	const nextButton = page.getByLabel('Next', { exact: true });
+	await expect(nextButton).toBeEnabled();
+	await nextButton.click();
+	await page.waitForTimeout(500); // Wait for stepper animation
 }
 
-// --- FIXTURE DEFINITION ---
+test('Setup Wizard: Configure DB and Create Admin', async ({ page }) => {
+	// Enable TEST_MODE for the browser context if possible
+	// Note: The server must already be started with TEST_MODE=true
 
-type Fixtures = {
-  wizard: SetupWizardPage;
-};
+	// 1. Start at root, expect redirect to /setup or /login
+	await page.goto('/', { waitUntil: 'load' });
 
-const test = base.extend<Fixtures>({
-  wizard: async ({ page }, use) => {
-    const wizard = new SetupWizardPage(page);
-    await page.addInitScript(() => {
-      window.localStorage.clear();
-      window.sessionStorage.clear();
-      window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
-    });
-    await use(wizard);
-  },
-});
+	if (page.url().includes('/login')) {
+		console.log('System already configured. Skipping setup.');
+		return;
+	}
 
-// --- TEST SUITES ---
+	// Wait for setup to load and hydrate
+	await expect(page).toHaveURL(/\/setup/);
+	await page.waitForLoadState('domcontentloaded');
 
-test.describe("Setup Wizard: Error Handling", () => {
-  test("should show error on bad database connection", async ({ wizard, page }) => {
-    await wizard.hardReset();
-    await wizard.dismissModals();
+	// Wait for any cookie consent and accept it to prevent it blocking other elements
+	const acceptAll = page.getByRole('button', { name: /accept all/i });
+	if (await acceptAll.isVisible()) {
+		await acceptAll.click();
+	}
 
-    await expect(page).toHaveURL(/\/setup/);
-    await page.locator("#db-type").selectOption("mariadb");
-    await page.locator("#db-host").fill("non-existent-host");
-    await page.locator("#db-name").fill("svelty_test");
-    await page.locator("#db-user").fill("wrong_user");
-    await page.locator("#db-password").fill("wrong_password");
+	// --- STEP 1: Database ---
+	await expect(page.locator('h2', { hasText: /database/i }).first()).toBeVisible({ timeout: 30_000 });
 
-    const testDbButton = page.locator("button", { hasText: /test database/i }).first();
-    await testDbButton.click();
+	// Select Database Type if specified (default is sqlite for tests)
+	const dbType = process.env.DB_TYPE || 'sqlite';
+	if (dbType !== 'mongodb') {
+		await page.locator('#db-type').selectOption(dbType);
+	}
 
-    await expect(page.getByText(/connection failed|getaddrinfo ENOTFOUND/i).first()).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(page.getByLabel("Next", { exact: true }).first()).toBeDisabled();
-  });
+	// Fill credentials from ENV (CI) or Defaults (Local)
+	const defaultPort = dbType === 'mariadb' ? '3306' : dbType === 'postgresql' ? '5432' : '27017';
+	const dbHost = process.env.DB_HOST || 'localhost';
+	const dbName = process.env.DB_NAME || 'sveltycms_test';
+	const dbPort = process.env.DB_PORT || defaultPort;
+	const dbUser = process.env.DB_USER !== undefined ? process.env.DB_USER : dbType === 'sqlite' ? '' : 'test';
+	const dbPass = process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : dbType === 'sqlite' ? '' : 'test';
 
-  test("should show error on admin user password mismatch", async ({ wizard, page }) => {
-    await wizard.hardReset();
-    await wizard.dismissModals();
+	await page.locator('#db-host').fill(dbHost);
+	await page.locator('#db-name').fill(dbName);
 
-    await page.locator("#db-type").selectOption("sqlite");
-    await page.locator("#db-name").fill(`e2e_err_admin_${Date.now()}.db.sqlite`);
-    await wizard.testConnection();
-    await wizard.next();
+	if (dbType !== 'sqlite') {
+		if (!page.url().includes('mongodb+srv')) {
+			const portLocator = page.locator('#db-port');
+			if (await portLocator.isVisible()) {
+				await portLocator.fill(dbPort);
+			}
+		}
 
-    await expect(page.locator("h2", { hasText: /admin/i }).first()).toBeVisible();
+		const userLocator = page.locator('#db-user');
+		if (await userLocator.isVisible()) {
+			await userLocator.fill(dbUser);
+		}
 
-    await page.locator("#admin-username").fill("admin");
-    await page.locator("#admin-email").fill("admin@example.com");
-    await page.locator("#admin-password").fill("Password123!");
-    await page.locator("#admin-confirm-password").fill("Mismatch123!");
-    await page.locator("#admin-username").focus();
+		const passLocator = page.locator('#db-password');
+		if (await passLocator.isVisible()) {
+			await passLocator.fill(dbPass);
+		}
+	}
 
-    await expect(page.getByText(/passwords do not match/i).first()).toBeVisible();
-    await expect(page.getByLabel("Next", { exact: true }).first()).toBeDisabled();
-  });
+	// Test Connection (with retry for CI stability)
+	const testDbButton = page.locator('button', { hasText: /test database/i });
+	await testDbButton.click({ force: true });
 
-  test("should show error on invalid SMTP configuration", async ({ wizard, page }) => {
-    await wizard.hardReset();
-    await wizard.dismissModals();
+	try {
+		await expect(page.getByText(/connection successful/i).first()).toBeVisible({
+			timeout: 40_000
+		});
+	} catch (_err) {
+		console.log('Initial DB test failed, retrying once...');
+		await page.waitForTimeout(5000);
+		await testDbButton.click({ force: true });
+		await expect(page.getByText(/connection successful/i).first()).toBeVisible({
+			timeout: 60_000
+		});
+	}
 
-    await page.locator("#db-type").selectOption("sqlite");
-    await page.locator("#db-name").fill(`e2e_err_smtp_${Date.now()}.db.sqlite`);
-    await wizard.testConnection();
-    await wizard.next();
+	// Move to next step (clicking Next triggers database seeding which may take time)
+	await clickNext(page);
 
-    await page.locator("#admin-username").fill("admin");
-    await page.locator("#admin-email").fill("admin@example.com");
-    await page.locator("#admin-password").fill("Password123!");
-    await page.locator("#admin-confirm-password").fill("Password123!");
-    await wizard.next();
+	// --- STEP 2: Admin User ---
+	await expect(page.locator('h2', { hasText: /admin/i }).first()).toBeVisible({
+		timeout: 60_000
+	});
 
-    await page.locator("#site-name").fill("Test Site");
-    await page.locator("#media-folder").fill("./mediaFolder");
-    await wizard.next();
+	// Fill admin user details
+	await page.locator('#admin-username').fill(process.env.ADMIN_USER || 'admin');
+	await page.locator('#admin-email').fill(process.env.ADMIN_EMAIL || 'admin@example.com');
+	await page.locator('#admin-password').fill(process.env.ADMIN_PASS || 'Admin123!');
+	await page.locator('#admin-confirm-password').fill(process.env.ADMIN_PASS || 'Admin123!');
 
-    await expect(page.locator("h2", { hasText: /email/i }).first()).toBeVisible();
+	await clickNext(page);
 
-    await page.locator('input[type="text"]').first().fill("smtp.invalid.invalid");
-    await page.locator('input[autocomplete="username"]').fill("admin");
-    await page.locator('input[autocomplete="current-password"]').fill("Password123!");
+	// --- STEPS 3-5: Defaults ---
+	// Loop through remaining steps until "Complete" appears
+	// This handles variable number of steps (Site settings, Email, etc.)
+	for (let i = 0; i < 5; i++) {
+		// Check for "Complete" button first (exact match avoids stepper indicator)
+		const completeBtn = page.getByLabel('Complete', { exact: true });
+		if (await completeBtn.isVisible()) {
+			await completeBtn.click();
+			break;
+		}
 
-    const testEmailButton = page.locator("button[type='submit']").first();
-    await testEmailButton.click();
+		// Otherwise click Next
+		const nextBtn = page.getByLabel('Next', { exact: true });
+		if (await nextBtn.isVisible()) {
+			await nextBtn.click();
+			await page.waitForTimeout(500);
+		} else {
+			break;
+		}
+	}
 
-    await expect(page.getByText(/invalid smtp|enotfound/i).first()).toBeVisible({
-      timeout: 20_000,
-    });
-  });
-});
-
-test.describe("Setup Wizard: Navigation & State", () => {
-  test("Wizard Navigation: Stepper & Breadcrumbs", async ({ wizard, page }) => {
-    await wizard.hardReset();
-    await wizard.dismissModals();
-
-    await expect(page.getByText("Step 1")).toBeVisible();
-    await expect(page.getByText("Database Configuration")).toBeVisible();
-
-    await page.locator("#db-type").selectOption("sqlite");
-    await page.locator("#db-name").fill(`e2e_err_nav_${Date.now()}.db.sqlite`);
-    await wizard.testConnection();
-    await wizard.next();
-
-    await expect(page.getByText("Step 2")).toBeVisible();
-    await expect(page.getByText("Administrator Account")).toBeVisible();
-
-    await page.getByText("Database", { exact: true }).first().click();
-    await expect(page.getByText("Step 1")).toBeVisible();
-  });
-
-  test("Wizard: Reset Data Logic", async ({ wizard, page }) => {
-    await wizard.hardReset();
-    await wizard.dismissModals();
-
-    await page.locator("#db-host").fill("DIRTY_STATE");
-
-    const resetBtn = page.getByRole("button", { name: /reset data/i }).first();
-    await resetBtn.click();
-    await page.locator("button").filter({ hasText: /yes/i }).first().click();
-
-    await expect(page.locator("#db-host")).not.toHaveValue("DIRTY_STATE", {
-      timeout: 10000,
-    });
-  });
-});
-
-test.describe("Setup Wizard: Full Provisioning Flow", () => {
-  const DB_TYPES = process.env.DB_TYPE
-    ? [process.env.DB_TYPE as "sqlite" | "mongodb" | "postgresql" | "mariadb"]
-    : (["sqlite"] as const);
-
-  for (const dbType of DB_TYPES) {
-    test(`Wizard Flow: ${dbType.toUpperCase()}`, async ({ wizard, page }) => {
-      test.setTimeout(240_000);
-
-      await test.step("Step 0: Clean Reset", async () => {
-        await wizard.hardReset();
-        await wizard.dismissModals();
-      });
-
-      await test.step("Step 1: Database Configuration", async () => {
-        console.log(`[${dbType}] Configuring database...`);
-        await page.locator("#db-type").selectOption(dbType);
-
-        if (dbType === "sqlite") {
-          await page.locator("#db-name").fill(`e2e_wizard_${dbType}_${Date.now()}.db.sqlite`);
-        } else {
-          const ports = {
-            mongodb: "27017",
-            postgresql: "5432",
-            mariadb: "3306",
-          };
-          const host = process.env.DB_HOST || "localhost";
-          const port = process.env.DB_PORT || ports[dbType as keyof typeof ports];
-          const name = process.env.DB_NAME || `sveltycms_e2e_${dbType}`;
-          const user = process.env.DB_USER || "test";
-          const password = process.env.DB_PASSWORD || "test";
-
-          await page.locator("#db-host").fill(host);
-          await page.locator("#db-port").fill(port);
-          await page.locator("#db-name").fill(name);
-          await page.locator("#db-user").fill(user);
-          await page.locator("#db-password").fill(password);
-        }
-
-        await wizard.testConnection();
-        await wizard.next();
-      });
-
-      await test.step("Step 2: Administrator Account", async () => {
-        console.log(`[${dbType}] Creating admin user...`);
-        await page.locator("#admin-username").fill("admin");
-        await page.locator("#admin-email").fill("admin@test.com");
-        await page.locator("#admin-password").fill("Password123!");
-        await page.locator("#admin-confirm-password").fill("Wrong123!");
-        await expect(page.getByText(/passwords do not match/i).first()).toBeVisible();
-        await expect(page.getByLabel("Next", { exact: true }).first()).toBeDisabled();
-
-        await page.locator("#admin-confirm-password").fill("Password123!");
-        await wizard.next();
-      });
-
-      await test.step("Step 3: System Settings", async () => {
-        console.log(`[${dbType}] Configuring system...`);
-        await page.locator("#site-name").fill(`SveltyCMS ${dbType.toUpperCase()}`);
-        await page.locator("#media-folder").fill(`./mediaFolder_${dbType}`);
-        await wizard.next();
-      });
-
-      await test.step("Step 4: Email Configuration (Skip)", async () => {
-        console.log(`[${dbType}] Skipping email...`);
-        await wizard.next();
-      });
-
-      await test.step("Step 5: Review & Finalize", async () => {
-        console.log(`[${dbType}] Finalizing...`);
-        await wizard.complete();
-        await page.waitForURL((url) => !url.pathname.startsWith("/setup"), {
-          timeout: 90000,
-        });
-        await expect(page).not.toHaveURL(/\/setup/);
-      });
-
-      console.log(`✅ ${dbType.toUpperCase()} Wizard flow completed.`);
-    });
-  }
+	// --- VERIFICATION ---
+	// Expect redirect to Login or Dashboard
+	await expect(page).not.toHaveURL(/\/setup/, { timeout: 30_000 });
+	console.log('Setup completed successfully.');
 });

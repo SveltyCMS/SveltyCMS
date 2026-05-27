@@ -1,301 +1,133 @@
 /**
- * @file tests/playwright/helpers/auth.ts
- * @description Shared authentication helper for Playwright tests
- * Uses the same credentials as setup-wizard to ensure consistency
+ * @file tests/e2e/helpers/auth.ts
+ * @description Shared authentication helpers for Playwright E2E tests.
+ *
+ * All selectors use data-testid so they survive UI/theme refactors.
+ * The server must be started with TEST_MODE=true so it uses config/private.test.ts.
  */
 
-import { expect, type Page } from "@playwright/test";
+import { expect, type Page } from '@playwright/test';
 
-/**
- * Login credentials that match the setup wizard defaults
- */
 export const ADMIN_CREDENTIALS = {
-  email: process.env.ADMIN_EMAIL || "admin@example.com",
-  password: process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS || "Admin123!",
+	email: process.env.ADMIN_EMAIL || 'admin@example.com',
+	password: process.env.ADMIN_PASS || 'Admin123!'
 };
 
 /**
- * Generic login function for any user
- * @param page - Playwright page object
- * @param email - User email
- * @param password - User password
- * @param waitForUrl - URL pattern to wait for after login (default: not /login)
- */
-export async function loginAs(
-  page: Page,
-  email: string,
-  password: string,
-  waitForUrl?: string | RegExp,
-) {
-  // Atomic Auth: Clear all previous session state to prevent session bleed
-  console.log(`[Auth] Logging in as ${email}...`);
-  await page.context().clearCookies();
-
-  // Navigate first to ensure we have a valid origin for localStorage access
-  await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
-
-  // Now safe to clear storage (we're on the domain)
-  await page
-    .evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    })
-    .catch(() => {
-      // Ignore errors if localStorage is restricted
-      console.log("[Auth] Could not clear storage (might be restricted)");
-    });
-
-  // Inject storage to bypass ALL modals (welcome, cookie consent, first login)
-  await page.addInitScript(() => {
-    // Setup wizard welcome modal
-    window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
-
-    // Cookie consent
-    window.localStorage.setItem(
-      "sveltycms_consent",
-      JSON.stringify({ responded: true, necessary: true }),
-    );
-
-    // First login welcome for admin
-    window.localStorage.setItem("sveltycms-welcome-seen", "true");
-    window.localStorage.setItem(
-      "sveltycms-welcome-progress",
-      JSON.stringify(["data-management", "collections", "users", "settings"]),
-    );
-  });
-
-  // Navigate to login page (reload to apply init scripts)
-  console.log("[Auth] Navigating to /login...");
-  await page.goto("/login", { waitUntil: "networkidle", timeout: 30_000 });
-
-  // Check if we got redirected to setup (config incomplete)
-  if (page.url().includes("/setup")) {
-    throw new Error(`Setup is not complete. Cannot login - redirected to: ${page.url()}`);
-  }
-
-  // CRITICAL: Dismiss ALL blocking modals that might interfere with login
-  console.log("[Auth] Checking for blocking modals...");
-
-  // Strategy 1: Database Error Modal (HIGHEST PRIORITY - completely blocks login)
-  // Check for the exact error modal structure from error-context.md
-  const dbErrorHeading = page.locator(
-    'h2:has-text("Database Connection Error"), h2:has-text("Database Error")',
-  );
-  if (await dbErrorHeading.isVisible({ timeout: 2000 }).catch(() => false)) {
-    console.log("[Auth] ⚠️ Database Error Modal detected! Database empty - auto-seeding...");
-
-    // CRITICAL FIX: Seed database via Testing API when empty
-    try {
-      await page.request.post("/api/testing", {
-        data: {
-          action: "seed",
-          email: ADMIN_CREDENTIALS.email,
-          password: ADMIN_CREDENTIALS.password,
-        },
-      });
-      console.log("[Auth] ✓ Database seeded successfully");
-    } catch (seedError) {
-      console.log("[Auth] ⚠️ Seeding failed, trying reset first...", seedError);
-      await page.request.post("/api/testing", { data: { action: "reset" } });
-      await page.request.post("/api/testing", {
-        data: {
-          action: "seed",
-          email: ADMIN_CREDENTIALS.email,
-          password: ADMIN_CREDENTIALS.password,
-        },
-      });
-      console.log("[Auth] ✓ Database reset and seeded");
-    }
-
-    // Reload login page with seeded database
-    await page.goto("/login", { waitUntil: "networkidle", timeout: 100000 });
-    await page.waitForTimeout(1000);
-  }
-
-  // Strategy 2: First Login Welcome Modal
-  const welcomeModal = page.locator('div.fixed.inset-0.z-50:has-text("Welcome")').first();
-  if (await welcomeModal.isVisible({ timeout: 1000 }).catch(() => false)) {
-    console.log("[Auth] First Login Welcome Modal detected, dismissing...");
-    const skipBtn = page
-      .locator('button:has-text("Skip"), button:has-text("Close"), button:has-text("Get Started")')
-      .first();
-    if (await skipBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await skipBtn.click();
-      await page.waitForTimeout(500);
-    }
-  }
-
-  // Strategy 3: General modal dismissal (any other blocking modals)
-  const genericModal = page.locator("div.fixed.inset-0.z-50").first();
-  if (await genericModal.isVisible({ timeout: 1000 }).catch(() => false)) {
-    console.log("[Auth] Generic modal detected, attempting to dismiss...");
-    const anyCloseBtn = page
-      .locator(
-        'button:has-text("Close"), button:has-text("OK"), button:has-text("Accept"), [aria-label*="close" i]',
-      )
-      .first();
-    if (await anyCloseBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await anyCloseBtn.click();
-      await page.waitForTimeout(500);
-    }
-  }
-
-  console.log("[Auth] Modal dismissal complete.");
-
-  // Check if we're on the login selection page (SIGN IN / SIGN UP buttons)
-  // Try data-testid first, then fallback to previous locators
-  const signInIcon = page.getByTestId("signin-icon");
-  const signInButton = page
-    .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
-    .first();
-
-  const signInIconVisible = await signInIcon.isVisible({ timeout: 2000 }).catch(() => false);
-  const signInButtonVisible =
-    !signInIconVisible && (await signInButton.isVisible({ timeout: 2000 }).catch(() => false));
-
-  if (signInIconVisible) {
-    console.log("[Auth] Clicking SIGN IN icon...");
-    // Use force click with retry to bypass any transient overlays
-    await signInIcon.click({ force: true, timeout: 10000 });
-    await page.waitForTimeout(1000);
-  } else if (signInButtonVisible) {
-    console.log("[Auth] Clicking SIGN IN button (fallback)...");
-    await signInButton.click({ force: true, timeout: 10000 });
-    await page.waitForTimeout(1000);
-  } else {
-    // If neither is visible, we might already be on the form, or on the SIGN UP only page (First User)
-    const signUpIcon = page.getByTestId("signup-icon");
-    if (await signUpIcon.isVisible()) {
-      console.log(
-        "[Auth] WARNING: Only SIGN UP icon visible. DB might not be seeded or isFirstUser=true.",
-      );
-      // In first user mode, we'll try to click signup and fill it, but expect error later
-      await signUpIcon.click({ force: true });
-      await page.waitForTimeout(1000);
-    }
-  }
-
-  // Wait for login form to be visible - use data-testid
-  console.log("[Auth] Waiting for signin-email field...");
-  await page
-    .waitForSelector('[data-testid="signin-email"]', {
-      timeout: 15_000,
-      state: "visible",
-    })
-    .catch(async (e) => {
-      console.error("[Auth] ERROR: signin-email field not found!");
-      // Provide debug info about available inputs
-      const inputs = await page.locator("input").all();
-      for (let i = 0; i < inputs.length; i++) {
-        const input = inputs[i];
-        const name = await input.getAttribute("name");
-        const testId = await input.getAttribute("data-testid");
-        console.error(`[Auth]   Input ${i}: name=${name}, data-testid=${testId}`);
-      }
-      throw e;
-    });
-
-  // Fill login form using data-testid selectors
-  console.log(`[Auth] Filling email: ${email}`);
-  await page.getByTestId("signin-email").fill(email);
-  await page.getByTestId("signin-password").fill(password);
-
-  // Submit form using data-testid
-  console.log("[Auth] Submitting login form...");
-  await page.getByTestId("signin-submit").click();
-
-  if (waitForUrl) {
-    await page.waitForURL(waitForUrl, { timeout: 15_000 });
-  } else {
-    await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
-  }
-}
-
-/**
- * Login as admin user (uses default ADMIN_CREDENTIALS)
- * @param page - Playwright page object
- * @param waitForUrl - URL pattern to wait for after login (default: Collections/Names page)
+ * Login as admin. Waits for the redirect away from /login before returning.
+ * Pass `waitForUrl` to wait for a specific URL pattern instead.
  */
 export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
-  await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password, waitForUrl);
+	await loginAs(page, ADMIN_CREDENTIALS, waitForUrl);
 }
 
 /**
- * Logout current user
- * @param page - Playwright page object
+ * Login as any user by email/password.
+ */
+export async function loginAs(
+	page: Page,
+	credentials: { email: string; password: string },
+	waitForUrl?: string | RegExp
+) {
+	// If already logged in, log out first
+	await logout(page);
+
+	// ?mode=signin tells the login page to open the sign-in panel immediately,
+	// bypassing the click chain that depends on Svelte hydration timing.
+	await page.goto('/login?mode=signin', { waitUntil: 'load', timeout: 15_000 });
+
+	// Pre-accept cookie consent so the banner never blocks clicks in tests.
+	// The consent store reads localStorage on boot; setting it before Svelte
+	// hydrates prevents the 500ms-delayed banner from appearing.
+	await page.evaluate(() => {
+		localStorage.setItem(
+			'sveltycms_consent',
+			JSON.stringify({ necessary: true, analytics: false, marketing: false, responded: true })
+		);
+	});
+
+	if (page.url().includes('/setup')) {
+		throw new Error(`Setup is not complete. Cannot login — redirected to: ${page.url()}`);
+	}
+
+	// Wait for the form fields — the ?mode=signin param expands the panel on load.
+	await page.waitForSelector('[data-testid="signin-email"]', {
+		state: 'visible',
+		timeout: 15_000
+	});
+
+	await page.getByTestId('signin-email').fill(credentials.email);
+	await page.getByTestId('signin-password').fill(credentials.password);
+	await page.getByTestId('signin-submit').click();
+
+	if (waitForUrl) {
+		await page.waitForURL(waitForUrl, { timeout: 20_000 });
+	} else {
+		await expect(page).not.toHaveURL(/\/login/, { timeout: 20_000 });
+	}
+}
+
+/**
+ * Log out the current session.
+ * Tries data-testid first, then aria-label, then clears cookies as a last resort.
  */
 export async function logout(page: Page) {
-  try {
-    // Try to navigate to home/dashboard first to check if logged in
-    await page.goto("/", { timeout: 10_000, waitUntil: "domcontentloaded" });
+	try {
+		await page.goto('/', { timeout: 15_000, waitUntil: 'domcontentloaded' });
 
-    // If we're on setup or login page, we're not logged in
-    if (page.url().includes("/setup") || page.url().includes("/login")) {
-      console.log("[Auth] Not logged in, skipping logout");
-      return;
-    }
+		if (page.url().includes('/setup') || page.url().includes('/login')) {
+			return; // Already logged out
+		}
 
-    // Look for logout button or menu - try multiple selectors
-    const logoutSelectors = [
-      '[data-testid="sign-out-button"]',
-      'button:has-text("Logout")',
-      'button:has-text("Sign out")',
-      'button:has-text("Log out")',
-      'a:has-text("Logout")',
-      'a:has-text("Sign out")',
-      '[aria-label*="logout" i]',
-      '[aria-label*="sign out" i]',
-    ];
+		// Prefer data-testid; fall back to aria-label
+		const candidates = [
+			page.getByTestId('signout-button'),
+			page.getByTestId('logout-button'),
+			page.locator('[aria-label*="sign out" i]').first(),
+			page.locator('[aria-label*="logout" i]').first(),
+			page.getByRole('button', { name: /^sign out$/i }).first(),
+			page.getByRole('button', { name: /^log out$/i }).first()
+		];
 
-    for (const selector of logoutSelectors) {
-      const button = page.locator(selector).first();
-      if (await button.isVisible({ timeout: 1000 }).catch(() => false)) {
-        console.log(`[Auth] Logging out using selector: ${selector}`);
-        await button.click();
-        await page.waitForURL(/\/(login|signup)/, { timeout: 5000 }).catch(() => {});
-        return;
-      }
-    }
+		for (const btn of candidates) {
+			if (await btn.isVisible({ timeout: 1_000 }).catch(() => false)) {
+				await btn.click();
+				await page.waitForURL(/\/(login|signup)/, { timeout: 10_000 }).catch(() => {});
+				break; // fall through to cookie-clear if redirect didn't happen
+			}
+		}
 
-    console.log("[Auth] No logout button found, clearing cookies and localStorage");
-    // If no logout button found, clear session manually
-    await page.context().clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
-
-    // Navigate to login to confirm logout
-    await page.goto("/login", { timeout: 10_000, waitUntil: "domcontentloaded" });
-  } catch (error) {
-    console.log("[Auth] Error during logout, continuing anyway:", error);
-  }
+		// Ensure we're at /login — clear cookies and navigate if still authenticated
+		if (!page.url().match(/\/(login|signup)/)) {
+			await page.context().clearCookies();
+			await page.evaluate(() => {
+				localStorage.clear();
+				sessionStorage.clear();
+			});
+			await page.goto('/login', { waitUntil: 'domcontentloaded', timeout: 10_000 }).catch(() => {});
+		}
+	} catch {
+		// Never let logout failures block test setup
+	}
 }
 
 /**
- * Ensure sidebar is visible on mobile viewports
- * On mobile (<768px), the sidebar is hidden by default
- * @param page - Playwright page object
+ * On mobile viewports the sidebar is collapsed — open it before clicking sidebar links.
  */
-export async function ensureSidebarVisible(page: Page) {
-  const viewport = page.viewportSize();
-  const isMobile = viewport && viewport.width < 768;
+export async function ensureSidebarVisible(page: Page): Promise<boolean> {
+	const viewport = page.viewportSize();
+	if (!viewport || viewport.width >= 768) return false;
 
-  if (isMobile) {
-    // Try to find and click the menu/hamburger button to open sidebar
-    const menuButton = page
-      .locator(
-        'button[aria-label*="menu" i], button[aria-label*="sidebar" i], button[aria-label="Open Sidebar"]',
-      )
-      .first();
-    const menuVisible = await menuButton.isVisible().catch(() => false);
+	const menuButton = page
+		.getByTestId('sidebar-toggle')
+		.or(page.locator('[aria-label*="menu" i]').first())
+		.or(page.locator('[aria-label*="sidebar" i]').first())
+		.first();
 
-    if (menuVisible) {
-      await menuButton.click();
-      await page.waitForTimeout(500);
-      console.log("✓ Opened sidebar on mobile viewport");
-      return true;
-    }
-  }
-  return false;
+	if (await menuButton.isVisible({ timeout: 2_000 }).catch(() => false)) {
+		await menuButton.click();
+		await page.waitForTimeout(400);
+		return true;
+	}
+	return false;
 }

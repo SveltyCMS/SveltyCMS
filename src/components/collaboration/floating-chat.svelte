@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 @file src/components/collaboration/floating-chat.svelte
 @component
 **Draggable Floating Button for Collaboration and AI Assistant**

@@ -1,101 +1,138 @@
 /**
  * @file src/app.d.ts
  * @description This file defines the types for the app.
+ *
+ * See https://kit.svelte.dev/docs/types#app
+ * for information about these interfaces
+ * and what to do when importing types
  */
 
-import type { Role, Token, User } from "@src/databases/auth/types";
-import type { DatabaseAdapter, Theme, DatabaseId } from "@src/databases/db-interface";
+import type { Role, Token, User } from '@src/databases/auth/types'; // Import the actual types
+import type { DatabaseAdapter, Theme } from '@src/databases/db-interface'; // Ensure correct import path
 
 declare global {
-  namespace App {
-    interface Locals {
-      // Setup hook caching
-      __setupConfigExists?: boolean;
-      __setupLogged?: boolean;
-      __setupLoginRedirectLogged?: boolean;
-      __setupRedirectLogged?: boolean;
-      allTokens: Token[];
-      allUsers: User[];
-      collections?: unknown;
+	/// <reference path="./types/**/*.d.ts" />
 
-      // High-performance Local API (Payload style)
-      cms?: {
-        auth: any;
-        collections: {
-          list: (options?: any) => Promise<any[]>;
-          search: (query: string, options?: any) => Promise<any>;
-          find: (
-            collection: string,
-            options?: any,
-          ) => Promise<import("@src/databases/db-interface").DatabaseResult<any[]>>;
-          findById: (
-            collection: string,
-            id: string,
-            options?: any,
-          ) => Promise<import("@src/databases/db-interface").DatabaseResult<any | null>>;
-          getNodeChildren: (parentId: string, tenantId?: any) => Promise<any>;
-          create: (
-            collection: string,
-            data: any,
-            options?: any,
-          ) => Promise<import("@src/databases/db-interface").DatabaseResult<any>>;
-          getRevisions: (collection: string, id: string, tenantId?: any) => Promise<any>;
-          update: (
-            collection: string,
-            id: string,
-            data: any,
-            options?: any,
-          ) => Promise<import("@src/databases/db-interface").DatabaseResult<any>>;
-          delete: (
-            collection: string,
-            id: string,
-            options?: any,
-          ) => Promise<import("@src/databases/db-interface").DatabaseResult<any>>;
-          bulkCreate: (collection: string, data: any[], options?: any) => Promise<any>;
-          bulkUpdate: (collection: string, updates: any[], options?: any) => Promise<any>;
-          bulkDelete: (collection: string, ids: string[], options?: any) => Promise<any>;
-          queryBuilder: (collection: string, options?: any) => any;
-          modifyRequest: (params: any) => Promise<any>;
-          refresh: (tId?: string) => Promise<any>;
-          reorderContentNodes: (items: any[], tId?: string) => Promise<any>;
-        };
-        media: any;
-        widgets: any;
-        system: any;
-        websiteTokens: any;
-        db: import("@src/databases/db-interface").IDBAdapter;
-        [key: string]: any;
-      };
+	// Vite global variables
+	const __FRESH_INSTALL__: boolean;
 
-      cspNonce?: string;
-      customCss: string;
-      darkMode: boolean;
-      dbAdapter?: DatabaseAdapter | null;
-      degradedServices?: string[];
-      getSession: () => Promise<import("@auth/core/types").Session | null>;
-      hasManageUsersPermission: boolean;
-      hasAdminPermission: boolean;
-      isAdmin: boolean;
-      isFirstUser: boolean;
-      language: string;
-      permissions: string[];
-      roles: Role[];
-      session_id?: DatabaseId;
-      tenantId?: DatabaseId | null;
-      theme: Theme | null;
-      user: User | null;
+	declare type Item = import('svelte-dnd-action').Item;
+	declare type DndEvent<ItemType = Item> = import('svelte-dnd-action').DndEvent<ItemType>;
+	declare namespace svelteHTML {
+		interface HTMLAttributes<T> {
+			'on:consider'?: (event: CustomEvent<DndEvent<ItemType>> & { target: EventTarget & T }) => void;
+			'on:finalize'?: (event: CustomEvent<DndEvent<ItemType>> & { target: EventTarget & T }) => void;
+		}
+	}
 
-      // Tracing and Metrics
-      requestStart: number;
-      requestId: string;
-    }
-  }
+	namespace App {
+		// interface Error {}
+		// interface PageData {}
+		// interface Platform {}
+		interface Locals {
+			// Setup hook caching - prevents duplicate checks/logs per request
+			__setupConfigExists?: boolean; // Caches isSetupComplete() result per request
+			__setupLogged?: boolean; // Prevents duplicate "config missing" warnings
+			__setupLoginRedirectLogged?: boolean; // Prevents duplicate login redirect logs
+			__setupRedirectLogged?: boolean; // Prevents duplicate setup redirect logs
+			allTokens: Token[]; // Using imported Token type
+			allUsers: User[]; // Using imported User type
+			collections?: unknown; // Replace with your actual Collections type if available
+			cspNonce?: string; // CSP nonce for this request (managed by SvelteKit)
+			customCss: string; // The active theme's custom CSS
+			darkMode: boolean; // Dark mode preference from cookies
+			dbAdapter?: DatabaseAdapter | null; // Database adapter for adapter-agnostic operations
+			degradedServices?: string[]; // List of unhealthy services (populated by handleSystemState in DEGRADED state)
+			getSession: () => Promise<import('@auth/core/types').Session | null>;
+			hasManageUsersPermission: boolean; // True when user is admin OR has "manage user" permission
+			isAdmin: boolean; // True when user's role has admin privileges
+			// Authorization flags
+			isFirstUser: boolean; // True when no users exist in database (setup flow)
+			permissions: string[]; // Array of user permissions
+			// Data loaded by authorization hook
+			roles: Role[]; // Using imported Role type
+			session_id?: string;
+			tenantId?: string | null; // Added for multi-tenancy support
+			theme: Theme | null; // Ensure 'theme' is correctly typed
+			user: User | null;
+		}
+	}
 
-  // Common interfaces
-  interface Result {
-    data: unknown;
-    errors: string[];
-    message: string;
-    success: boolean;
-  }
+	type tokenTypes = 'register' | 'resetPassword' | 'emailVerification';
+
+	// Defines the Result type, which represents an object with errors, success, message, and data properties.
+	interface Result {
+		data: unknown;
+		errors: string[];
+		message: string;
+		success: boolean;
+	}
+
+	type AggregationFilterStage = Record<string, unknown>;
+	type AggregationSortStage = Record<string, unknown>;
+
+	// Defines the DISPLAY type, which represents a function that takes an object with data, collection, field, entry, and contentLanguage properties and returns a promise of any.
+	type DISPLAY = ((params: { data: unknown; collection: unknown; field: unknown; entry: unknown; contentLanguage: string }) => Promise<unknown>) & {
+		default?: boolean;
+	};
+
+	// Defines a type for the GraphqlSchema function, which takes an object with field, label, collection, and optional collectionNameMapping properties and returns an object with typeID, graphql, and optional resolver properties.
+	type GraphqlSchema = ({
+		field,
+		label,
+		collection,
+		collectionNameMapping
+	}: {
+		field: unknown;
+		label: string;
+		collection: unknown;
+		collectionNameMapping?: Map<string, string>;
+	}) => {
+		typeID: string | null;
+		graphql: string;
+		resolver?: { [key: string]: unknown };
+	};
+
+	/**
+	 * Defines the Aggregations type, which represents an object with optional methods for performing transformations, filters, and sorts on data.
+	 * The filters method takes a field, content language, and filter, and returns a promise of an array of aggregation stages.
+	 * The sorts method takes a field, content language, and sort value, and returns a promise of an aggregation stage object.
+	 */
+	interface Aggregations {
+		filters?: ({ field, contentLanguage, filter }: { field: unknown; contentLanguage: string; filter: string }) => Promise<AggregationFilterStage[]>;
+		sorts?: ({
+			field,
+			contentLanguage,
+			sort,
+			sortDirection
+		}: {
+			field: unknown;
+			contentLanguage: string;
+			sort?: number;
+			sortDirection?: 1 | -1 | 'asc' | 'desc';
+		}) => Promise<AggregationSortStage | AggregationSortStage[]>;
+	}
+
+	// Defines the File type, which represents an object with an optional path property.
+	interface File {
+		path?: string;
+	}
+
+	/** Experimental Web AI / Model Context Protocol (MCP) API. Not yet standardized. */
+	interface ModelContext {
+		registerTool(config: {
+			name: string;
+			description: string;
+			parameters: Record<string, unknown>;
+			execute: (...args: unknown[]) => unknown | Promise<unknown>;
+		}): void;
+	}
+
+	interface Navigator {
+		modelContext?: ModelContext;
+	}
+
+	interface RegExpConstructor {
+		escape(str: string): string;
+	}
 }

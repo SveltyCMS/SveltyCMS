@@ -28,12 +28,12 @@ and automated response visualization for enterprise security operations.
 -->
 
 <script lang="ts" module>
-export const widgetMeta = {
-	name: "Security Monitor",
-	icon: "mdi:shield-alert",
-	description: "Advanced security threat monitoring and incident response",
-	defaultSize: { w: 3, h: 3 },
-};
+	export const widgetMeta = {
+		name: 'Security Monitor',
+		icon: 'mdi:shield-alert',
+		description: 'Advanced security threat monitoring and incident response',
+		defaultSize: { w: 3, h: 3 }
+	};
 </script>
 
 <script lang="ts">

@@ -1,77 +1,108 @@
 /**
- * @file src/stores/screen-size-store.svelte.ts
- * @description Reactive screen size tracking using Svelte 5 runes.
- * Optimized for SSR-safety.
+ * @file src/stores/screenSizeStore.svelte.ts
+ * @description Reactive screen size tracking using Svelte 5 runes
+ *
+ * Features:
+ * - Class-based singleton with $state properties
+ * - matchMedia for efficient breakpoint detection
+ * - requestAnimationFrame for smooth resize updates
+ * - prefers-reduced-motion accessibility support
  */
 
-import { BREAKPOINTS, getScreenSize, ScreenSize } from "@utils/screen-size";
+// Import for internal use
+import { BREAKPOINTS, getScreenSize, ScreenSize } from '@utils/screen-size';
 
+// Re-export utilities for backwards compatibility
 export { ScreenSize, BREAKPOINTS, getScreenSize };
 
+/**
+ * ScreenSizeStore - Reactive screen size management
+ *
+ * Usage:
+ * - screen.size - Current ScreenSize enum value
+ * - screen.width / screen.height - Current dimensions
+ * - screen.isMobile / screen.isTablet / screen.isDesktop - Boolean helpers
+ * - screen.prefersReducedMotion - Accessibility preference
+ */
 class ScreenSizeStore {
-  width = $state(1024);
-  height = $state(768);
-  prefersReducedMotion = $state(false);
+	// Core reactive state
+	width = $state(typeof window !== 'undefined' ? window.innerWidth : 1024);
+	height = $state(typeof window !== 'undefined' ? window.innerHeight : 768);
 
-  get size(): ScreenSize {
-    return getScreenSize(this.width);
-  }
+	// Accessibility: detect reduced motion preference
+	prefersReducedMotion = $state(typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false);
 
-  get isMobile(): boolean {
-    return this.width < BREAKPOINTS[ScreenSize.MD]; // < 768px
-  }
+	// Computed screen size
+	get size(): ScreenSize {
+		return getScreenSize(this.width);
+	}
 
-  get isTablet(): boolean {
-    return this.width >= BREAKPOINTS[ScreenSize.MD] && this.width < BREAKPOINTS[ScreenSize.LG];
-  }
+	// Convenience getters for common checks
+	get isMobile(): boolean {
+		return this.size === ScreenSize.XS || this.size === ScreenSize.SM;
+	}
 
-  get isDesktop(): boolean {
-    return this.width >= BREAKPOINTS[ScreenSize.LG]; // >= 1024px
-  }
+	get isTablet(): boolean {
+		return this.size === ScreenSize.MD;
+	}
 
-  private rafId: number | null = null;
-  private cleanup?: () => void;
+	get isDesktop(): boolean {
+		const s = this.size;
+		return s === ScreenSize.LG || s === ScreenSize.XL || s === ScreenSize.XXL;
+	}
 
-  constructor() {
-    // Inert constructor for SSR safety
-  }
+	get isLargeScreen(): boolean {
+		return this.size === ScreenSize.XL || this.size === ScreenSize.XXL;
+	}
 
-  mount() {
-    if (typeof window === "undefined" || !window.matchMedia) return;
+	// Internal state
+	private rafId: number | null = null;
+	private readonly cleanup?: () => void;
 
-    const update = () => {
-      this.width = window.innerWidth;
-      this.height = window.innerHeight;
-      this.rafId = null;
-    };
+	constructor() {
+		if (typeof window === 'undefined') {
+			return;
+		}
 
-    const handleResize = () => {
-      if (this.rafId) cancelAnimationFrame(this.rafId);
-      this.rafId = requestAnimationFrame(update);
-    };
+		const update = () => {
+			this.width = window.innerWidth;
+			this.height = window.innerHeight;
+			this.rafId = null;
+		};
 
-    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    this.prefersReducedMotion = motionQuery.matches;
+		const handleResize = () => {
+			if (this.rafId) {
+				cancelAnimationFrame(this.rafId);
+			}
+			this.rafId = requestAnimationFrame(update);
+		};
 
-    const handleMotionChange = (e: MediaQueryListEvent) => {
-      this.prefersReducedMotion = e.matches;
-    };
+		// Listen for reduced motion preference changes
+		const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		const handleMotionChange = (e: MediaQueryListEvent) => {
+			this.prefersReducedMotion = e.matches;
+		};
 
-    motionQuery.addEventListener("change", handleMotionChange);
-    window.addEventListener("resize", handleResize);
+		// Set up listeners
+		window.addEventListener('resize', handleResize);
+		motionQuery.addEventListener('change', handleMotionChange);
+		update();
 
-    update();
+		// Store cleanup for disposal
+		this.cleanup = () => {
+			if (this.rafId) {
+				cancelAnimationFrame(this.rafId);
+			}
+			window.removeEventListener('resize', handleResize);
+			motionQuery.removeEventListener('change', handleMotionChange);
+		};
+	}
 
-    this.cleanup = () => {
-      if (this.rafId) cancelAnimationFrame(this.rafId);
-      window.removeEventListener("resize", handleResize);
-      motionQuery.removeEventListener("change", handleMotionChange);
-    };
-  }
-
-  destroy() {
-    this.cleanup?.();
-  }
+	// Manual cleanup method
+	destroy() {
+		this.cleanup?.();
+	}
 }
 
+// Singleton instance - the main export
 export const screen = new ScreenSizeStore();

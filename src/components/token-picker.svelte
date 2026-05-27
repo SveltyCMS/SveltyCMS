@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 @file src/components/token-picker.svelte
 @component TokenPicker – Floating token selector and configurator for input fields
 
@@ -19,7 +19,7 @@
 	import { collection, collectionValue } from '@src/stores/collection-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
-	import { nowISODateString } from '@utils/date';
+	import { nowISODateString } from '@utils/date-utils';
 	import { fade, slide } from 'svelte/transition';
 
 	import { page } from '$app/state';
@@ -278,7 +278,7 @@
 			window.removeEventListener('mousemove', move);
 			window.removeEventListener('mouseup', stop);
 		};
-		const onMouseDown = (e: MouseEvent) => {
+		node.addEventListener('mousedown', (e) => {
 			if ((e.target as HTMLElement).closest('button')) {
 				return;
 			}
@@ -286,9 +286,8 @@
 			y = e.clientY;
 			window.addEventListener('mousemove', move);
 			window.addEventListener('mouseup', stop);
-		};
-		node.addEventListener('mousedown', onMouseDown);
-		return { destroy: () => node.removeEventListener('mousedown', onMouseDown) };
+		});
+		return { destroy: () => node.removeEventListener('mousedown', () => {}) };
 	}
 </script>
 

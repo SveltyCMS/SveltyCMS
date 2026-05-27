@@ -1,222 +1,232 @@
 <!--
 @file src/routes/(app)/+layout.svelte
-@component
-**Authenticated Admin Layout**: Wraps all core CMS views (Collections, Media, User Settings).
+@component Main application layout with comprehensive state management
 
-This layout provides the administrative shell, including sidebars and header controls.
+## Features
+- Type-safe props and state management
+- Centralized theme initialization and management
+- Performance-optimized loading states with granular control
+- Accessibility-compliant keyboard shortcuts
+- SEO optimization with dynamic meta tags
+- Modular component architecture
+- Memory leak prevention with proper cleanup
+- Content structure synchronization
+- Restart polling for dev/production hot-reload notifications
+- CSP-compliant nonce handling for inline scripts
 
-### Responsibilities:
-- Managing admin-specific UI state (Sidebar expansion, Mode switching).
-- Initializing Widgets and Theme in the authenticated context.
-- Providing navigation guards and auto-save draft functionality.
+## Architecture
+- Separation of concerns: UI state, loading state, theme state
+- Reactive data synchronization with microtask deferral
+- Event listener lifecycle management
+- Progressive enhancement strategy
 
-### Next Steps & Options:
-- Expand/Collapse sidebars for more horizontal space.
-- Use Command Bar (Mod+K) for quick navigation.
-- Switch between Content (Collections) and Media Gallery modes.
+## Props
+@prop {Snippet} children - Page content slot
+@prop {LayoutData} data - Server-provided data (user, contentStructure, nonce)
 -->
 
 <script lang="ts">
-import FloatingChat from "@src/components/collaboration/floating-chat.svelte";
-import FloatingNav from "@src/components/system/floating-nav.svelte";
-import HeaderEdit from "@src/components/header-edit.svelte";
-import LeftSidebar from "@src/components/left-sidebar.svelte";
-import PageFooter from "@src/components/page-footer.svelte";
-import RightSidebar from "@src/components/right-sidebar.svelte";
-import SearchComponent from "@src/components/search-component.svelte";
-// Type Imports
-import type { User } from "@src/databases/auth/types";
-// Stores
-import {
-	setMode,
-} from "@src/stores/collection-store.svelte.ts";
-import {
-	globalLoadingStore,
-	loadingOperations,
-} from "@src/stores/loading-store.svelte.ts";
-import { screen } from "@src/stores/screen-size-store.svelte";
-import { app } from "@src/stores/store.svelte";
-import { initializeDarkMode } from "@src/stores/theme-store.svelte.ts";
-import { ui } from "@src/stores/ui-store.svelte";
-import { widgets } from "@src/stores/widget-store.svelte.ts";
-import { Portal } from "@skeletonlabs/skeleton-svelte";
-// Utils
-import { isSearchVisible } from "@utils/global-search-index";
-import { getTextDirection } from "@utils/utils";
-import { onMount, untrack } from "svelte";
-import { registerHotkey } from "@src/utils/hotkeys";
-import CommandBar from "@src/components/command-bar.svelte";
-// SvelteKit Navigation
-import { afterNavigate, beforeNavigate } from "$app/navigation";
-import { page } from "$app/state";
-import type { Schema, ContentNode } from "../../content/types";
-import { setContentContext } from "@src/content";
+	import FloatingChat from '@src/components/collaboration/floating-chat.svelte';
+	import FloatingNav from '@src/components/system/floating-nav.svelte';
+	import HeaderEdit from '@src/components/header-edit.svelte';
+	import LeftSidebar from '@src/components/left-sidebar.svelte';
+	import PageFooter from '@src/components/page-footer.svelte';
+	import RightSidebar from '@src/components/right-sidebar.svelte';
+	import SearchComponent from '@src/components/search-component.svelte';
+	// Type Imports
+	import type { User } from '@src/databases/auth/types';
+	// Stores
+	import { setCollection, setContentStructure, setMode } from '@src/stores/collection-store.svelte.ts';
+	import { publicEnv } from '@src/stores/global-settings.svelte.ts';
+	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
+	import { screen } from '@src/stores/screen-size-store.svelte';
+	import { app } from '@src/stores/store.svelte';
+	import { initializeDarkMode } from '@src/stores/theme-store.svelte.ts';
+	import { ui } from '@src/stores/ui-store.svelte';
+	import { widgets } from '@src/stores/widget-store.svelte.ts';
+	import { Portal } from '@skeletonlabs/skeleton-svelte';
+	// Utils
+	import { isSearchVisible } from '@utils/global-search-index';
+	import { getTextDirection } from '@utils/utils';
+	import { onDestroy, onMount } from 'svelte';
+	// SvelteKit Navigation
+	import { afterNavigate, beforeNavigate } from '$app/navigation';
+	import { page } from '$app/state';
+	import type { ContentNode, Schema } from '../../content/types';
 
-// =============================================
-// TYPE DEFINITIONS
-// =============================================
+	// =============================================
+	// TYPE DEFINITIONS
+	// =============================================
 
-interface LayoutData {
-	contentStructure: Promise<ContentNode[]>;
-	firstCollection: Promise<Schema | null>;
-	settings: Record<string, any>;
-	user: User | null;
-	tenantId?: string | null;
-	darkMode: boolean;
-	nonce: string;
-	theme: import("@src/databases/db-interface").Theme;
-}
-
-interface Props {
-	children?: import("svelte").Snippet;
-	data: LayoutData;
-}
-
-// =============================================
-// STATE & DERIVED
-// =============================================
-
-const { children, data }: Props = $props();
-
-// Initialize Content Context
-setContentContext(untrack(() => data.tenantId) || null);
-
-// Component State
-let loadError = $state<Error | null>(null);
-
-// =============================================
-// DERIVED STATE
-// =============================================
-
-// seoDescription logic
-const siteName = $derived(data.settings?.siteName || "SveltyCMS");
-const seoDescription = $derived(`${siteName} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`);
-
-// =============================================
-// REACTIVE EFFECTS
-// =============================================
-
-// Sync mode from URL (helps UI store show/hide sidebars even on error pages)
-$effect(() => {
-	const isCreate = page.url.searchParams.get("create") === "true";
-	const isEdit = page.url.searchParams.get("edit") === "true";
-
-	if (isCreate) {
-		setMode("create");
-	} else if (isEdit) {
-		setMode("edit");
-	} else if (page.url.pathname.includes("/mediagallery")) {
-		setMode("media");
-	}
-});
-
-
-// Effect: Handle system language changes
-$effect(() => {
-	const lang = app.systemLanguage;
-	if (!lang) {
-		return;
+	interface LayoutData {
+		contentStructure: ContentNode[] | Promise<ContentNode[]>;
+		firstCollection?: Schema | null | Promise<Schema | null>;
+		nonce: string;
+		publicSettings?: Record<string, any>;
+		theme?: string;
+		user: User | null;
 	}
 
-	const dir = getTextDirection(lang);
-	if (!dir) {
-		return;
+	interface Props {
+		children?: import('svelte').Snippet;
+		data: LayoutData;
 	}
 
-	document.documentElement.dir = dir;
-	document.documentElement.lang = lang;
-});
+	// =============================================
+	// STATE & DERIVED
+	// =============================================
 
-// 🔥 SYNC: Connect streamed content structure to global stores for sidebar/navigation reactivity
-$effect(() => {
-	data.contentStructure.then((nodes) => {
-		untrack(() => {
-			import("@src/stores/collection-store.svelte").then(({ setContentStructure }) => {
-				setContentStructure(nodes);
+	const { children, data }: Props = $props();
+
+	// Component State
+	let loadError = $state<Error | null>(null);
+
+	// =============================================
+	// DERIVED STATE
+	// =============================================
+
+	// seoDescription logic
+	const siteName = publicEnv?.SITE_NAME || 'SveltyCMS';
+	const seoDescription = `${siteName} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
+
+	// =============================================
+	// REACTIVE EFFECTS
+	// =============================================
+
+	// Sync mode from URL (helps UI store show/hide sidebars even on error pages)
+	$effect(() => {
+		const isCreate = page.url.searchParams.get('create') === 'true';
+		const isEdit = page.url.searchParams.get('edit') === 'true';
+
+		if (isCreate) {
+			setMode('create');
+		} else if (isEdit) {
+			setMode('edit');
+		} else if (page.url.pathname.includes('/mediagallery')) {
+			setMode('media');
+		}
+	});
+
+	// Effect: Synchronize content structure with store (sidebar reads from this on all pages, including edit/create collection)
+	$effect(() => {
+		// Defer store updates to next microtask to prevent UpdatedAtError
+		const defer = (fn: () => void): void => {
+			if (typeof queueMicrotask === 'function') {
+				queueMicrotask(fn);
+			} else {
+				Promise.resolve().then(fn);
+			}
+		};
+
+		// Handle streaming promises or direct data
+		Promise.resolve(data.contentStructure)
+			.then((structure) => {
+				if (Array.isArray(structure)) {
+					defer(() => {
+						setContentStructure(structure);
+						globalLoadingStore.stopLoading(loadingOperations.initialization);
+					});
+				}
+			})
+			.catch((err) => {
+				console.error('Failed to load content structure', err);
+				loadError = err;
 			});
+
+		// Hydrate first collection if available and no collection is currently set
+		Promise.resolve(data.firstCollection).then((first) => {
+			if (first !== undefined && first !== null) {
+				defer(() => setCollection(first));
+			}
 		});
 	});
-});
 
-// =============================================
-// EVENT HANDLERS
-// =============================================
-
-// Initialize avatar from user data
-function initializeUserAvatar(user: User | null): void {
-	console.log(
-		"[AppLayout] initializeUserAvatar for user:",
-		user?.username || "Guest",
-	);
-	if (!user) {
-		app.avatarSrc = "/Default_User.svg";
-		return;
-	}
-
-	if (user.avatar && user.avatar !== "/Default_User.svg") {
-		app.avatarSrc = user.avatar;
-	} else {
-		app.avatarSrc = "/Default_User.svg";
-	}
-	console.log("[AppLayout] Avatar source set to:", app.avatarSrc);
-}
-
-// =============================================
-// LIFECYCLE HOOKS
-// =============================================
-
-onMount(() => {
-	console.log("[AppLayout] Mounted. User:", data.user?.username || "None");
-
-
-	widgets.initialize();
-	initializeDarkMode(data.theme as any);
-	initializeUserAvatar(data.user);
-
-	registerHotkey(
-		"mod+k",
-		() => {
-			ui.isCommandBarVisible = !ui.isCommandBarVisible;
-		},
-		"Open command palette (AI-powered)",
-	);
-
-	registerHotkey(
-		"mod+s",
-		() => {
-			window.dispatchEvent(new CustomEvent("global-save-request"));
-		},
-		"Save (global)",
-	);
-
-	registerHotkey(
-		"escape",
-		() => {
-			ui.isCommandBarVisible = false;
-			isSearchVisible.set(false);
-		},
-		"Close Overlays/Command Palette",
-		false,
-	);
-});
-
-beforeNavigate(({ from, to }) => {
-	if (from && to && from.route.id !== to.route.id) {
-		globalLoadingStore.startLoading(loadingOperations.navigation);
-	}
-});
-
-afterNavigate(() => {
-	globalLoadingStore.stopLoading(loadingOperations.navigation);
-	setTimeout(() => {
-		if (
-			globalLoadingStore.loadingStack.size === 1 &&
-			globalLoadingStore.isLoadingReason(loadingOperations.navigation)
-		) {
-			globalLoadingStore.stopLoading(loadingOperations.navigation);
+	// Effect: Handle system language changes
+	$effect(() => {
+		const lang = app.systemLanguage;
+		if (!lang) {
+			return;
 		}
-	}, 100);
-});
+
+		const dir = getTextDirection(lang);
+		if (!dir) {
+			return;
+		}
+
+		document.documentElement.dir = dir;
+		document.documentElement.lang = lang;
+	});
+
+	// =============================================
+	// EVENT HANDLERS
+	// =============================================
+
+	// Global keyboard shortcuts handler
+	function handleKeyDown(event: KeyboardEvent): void {
+		if (event.altKey && event.key === 's') {
+			event.preventDefault();
+			isSearchVisible.update((visible) => !visible);
+		}
+	}
+
+	// Initialize avatar from user data
+	function initializeUserAvatar(user: User | null): void {
+		console.log('[AppLayout] initializeUserAvatar for user:', user?.username || 'Guest');
+		if (!user) {
+			app.avatarSrc = '/Default_User.svg';
+			return;
+		}
+
+		if (user.avatar && user.avatar !== '/Default_User.svg') {
+			app.avatarSrc = user.avatar;
+		} else {
+			app.avatarSrc = '/Default_User.svg';
+		}
+		console.log('[AppLayout] Avatar source set to:', app.avatarSrc);
+	}
+
+	// =============================================
+	// LIFECYCLE HOOKS
+	// =============================================
+
+	onMount(() => {
+		console.log('[AppLayout] Mounted. User:', data.user?.username || 'None');
+
+		// Start loading if content structure isn't ready yet
+		Promise.resolve(data.contentStructure).then((_) => {
+			// Already handled in effect, but if we wanted to check initial state:
+			// If it resolves immediately, we're good.
+		});
+
+		// Always ensure loading is started if we don't have data yet.
+		// Since we are streaming, we assume it's loading effectively.
+		// We rely on the effect to clear it.
+		globalLoadingStore.startLoading(loadingOperations.initialization);
+
+		widgets.initialize();
+		initializeDarkMode(data.theme as any);
+		initializeUserAvatar(data.user);
+		window.addEventListener('keydown', handleKeyDown);
+	});
+
+	beforeNavigate(({ from, to }) => {
+		if (from && to && from.route.id !== to.route.id) {
+			globalLoadingStore.startLoading(loadingOperations.navigation);
+		}
+	});
+
+	afterNavigate(() => {
+		globalLoadingStore.stopLoading(loadingOperations.navigation);
+		setTimeout(() => {
+			if (globalLoadingStore.loadingStack.size === 1 && globalLoadingStore.isLoadingReason(loadingOperations.navigation)) {
+				globalLoadingStore.stopLoading(loadingOperations.navigation);
+			}
+		}, 100);
+	});
+
+	onDestroy(() => {
+		window.removeEventListener('keydown', handleKeyDown);
+	});
 </script>
 
 <svelte:head>
@@ -249,10 +259,6 @@ afterNavigate(() => {
 			<SearchComponent />
 		{/if}
 
-		{#if ui.isCommandBarVisible}
-			<CommandBar />
-		{/if}
-
 		<div class="flex h-lvh flex-col overflow-hidden">
 			{#if ui.state.header !== 'hidden'}
 				<header class="sticky top-0 z-10 bg-tertiary-500"></header>
@@ -262,7 +268,7 @@ afterNavigate(() => {
 				{#if ui.state.leftSidebar !== 'hidden'}
 					<aside
 						class="max-h-dvh {ui.state.leftSidebar === 'full'
-							? 'w-60'
+							? 'w-[220px]'
 							: 'w-fit'} relative border-r bg-white px-2! text-center dark:border-surface-500 dark:bg-linear-to-r dark:from-surface-700 dark:to-surface-900"
 						aria-label="Left sidebar navigation"
 					>
@@ -281,14 +287,14 @@ afterNavigate(() => {
 
 					{#if ui.state.pagefooter !== 'hidden'}
 						<footer class="mt-auto w-full bg-surface-50 bg-linear-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
-								<PageFooter />
+							<PageFooter />
 						</footer>
 					{/if}
 				</main>
 
 				{#if ui.state.rightSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh w-60 border-l bg-white bg-linear-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+						class="max-h-dvh w-[220px] border-l bg-white bg-linear-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 						aria-label="Right sidebar"
 					>
 						<RightSidebar />

@@ -10,252 +10,224 @@
  * - Error handling
  */
 
+import { beforeEach, describe, expect, it } from 'bun:test';
+
 import {
-  getSystemState,
-  isServiceHealthy,
-  isSystemReady,
-  resetSystemState,
-  type ServiceName,
-  setSystemState,
-  startServiceInitialization,
-  updateServiceHealth,
-} from "@src/stores/system/state.svelte";
+	getSystemState,
+	isServiceHealthy,
+	isSystemReady,
+	resetSystemState,
+	type ServiceName,
+	setSystemState,
+	startServiceInitialization,
+	updateServiceHealth
+} from '@src/stores/system/state';
 
-describe("System Store - Service Health Management", () => {
-  beforeEach(() => {
-    resetSystemState();
-  });
+describe('System Store - Service Health Management', () => {
+	beforeEach(() => {
+		resetSystemState();
+	});
 
-  it("should initialize with default state", () => {
-    const state = getSystemState();
+	it('should initialize with default state', () => {
+		const state = getSystemState();
 
-    expect(state.overallState).toBe("IDLE");
-    expect(state.services.database.status).toBe("initializing");
-    expect(state.services.auth.status).toBe("initializing");
-    expect(state.services.cache.status).toBe("initializing");
-    expect(state.services.media.status).toBe("initializing");
-    expect(state.services.contentSystem.status).toBe("initializing");
-    expect(state.services.themeManager.status).toBe("initializing");
-    expect(state.services.widgets.status).toBe("initializing");
-    expect(state.services.search.status).toBe("initializing");
-  });
+		expect(state.overallState).toBe('IDLE');
+		expect(state.services.database.status).toBe('initializing');
+		expect(state.services.auth.status).toBe('initializing');
+		expect(state.services.cache.status).toBe('initializing');
+		expect(state.services.contentManager.status).toBe('initializing');
+		expect(state.services.themeManager.status).toBe('initializing');
+		expect(state.services.widgets.status).toBe('initializing');
+	});
 
-  it("should update service health status", () => {
-    updateServiceHealth("database", "healthy", "Database connected");
+	it('should update service health status', () => {
+		updateServiceHealth('database', 'healthy', 'Database connected');
 
-    const state = getSystemState();
-    expect(state.services.database.status).toBe("healthy");
-    expect(state.services.database.message).toBe("Database connected");
-  });
+		const state = getSystemState();
+		expect(state.services.database.status).toBe('healthy');
+		expect(state.services.database.message).toBe('Database connected');
+	});
 
-  it("should track service initialization timing", () => {
-    startServiceInitialization("database");
+	it('should track service initialization timing', () => {
+		startServiceInitialization('database');
 
-    const stateBefore = getSystemState();
-    expect(stateBefore.services.database.metrics.initializationStartedAt).toBeDefined();
+		const stateBefore = getSystemState();
+		expect(stateBefore.services.database.metrics.initializationStartedAt).toBeDefined();
 
-    updateServiceHealth("database", "healthy", "Connected");
+		updateServiceHealth('database', 'healthy', 'Connected');
 
-    const stateAfter = getSystemState();
-    // initializationDuration is set in transitionServiceState
-    expect(stateAfter.services.database.metrics.initializationDuration).toBeDefined();
-  });
+		const stateAfter = getSystemState();
+		// initializationDuration is set in transitionServiceState
+		expect(stateAfter.services.database.metrics.initializationDuration).toBeDefined();
+	});
 
-  it("should track consecutive failures", () => {
-    updateServiceHealth("database", "unhealthy", "Connection failed");
-    updateServiceHealth("database", "unhealthy", "Connection failed");
-    updateServiceHealth("database", "unhealthy", "Connection failed");
+	it('should track consecutive failures', () => {
+		updateServiceHealth('database', 'unhealthy', 'Connection failed');
+		updateServiceHealth('database', 'unhealthy', 'Connection failed');
+		updateServiceHealth('database', 'unhealthy', 'Connection failed');
 
-    const state = getSystemState();
-    expect(state.services.database.metrics.consecutiveFailures).toBe(3);
-    expect(state.services.database.metrics.failureCount).toBe(3);
-  });
+		const state = getSystemState();
+		expect(state.services.database.metrics.consecutiveFailures).toBe(3);
+		expect(state.services.database.metrics.failureCount).toBe(3);
+	});
 
-  it("should reset consecutive failures on success", () => {
-    updateServiceHealth("database", "unhealthy", "Failed");
-    updateServiceHealth("database", "unhealthy", "Failed");
-    updateServiceHealth("database", "healthy", "Connected");
+	it('should reset consecutive failures on success', () => {
+		updateServiceHealth('database', 'unhealthy', 'Failed');
+		updateServiceHealth('database', 'unhealthy', 'Failed');
+		updateServiceHealth('database', 'healthy', 'Connected');
 
-    const state = getSystemState();
-    expect(state.services.database.metrics.consecutiveFailures).toBe(0);
-    expect(state.services.database.metrics.failureCount).toBe(2);
-  });
+		const state = getSystemState();
+		expect(state.services.database.metrics.consecutiveFailures).toBe(0);
+		expect(state.services.database.metrics.failureCount).toBe(2);
+	});
 });
 
-describe("System Store - Overall State Management", () => {
-  beforeEach(() => {
-    resetSystemState();
-  });
+describe('System Store - Overall State Management', () => {
+	beforeEach(() => {
+		resetSystemState();
+	});
 
-  it("should transition to WARMED when all services are healthy", () => {
-    const services: ServiceName[] = [
-      "database",
-      "auth",
-      "cache",
-      "media",
-      "contentSystem",
-      "themeManager",
-      "widgets",
-      "search",
-    ];
+	it('should transition to WARMED when all services are healthy', () => {
+		const services: ServiceName[] = ['database', 'auth', 'cache', 'contentManager', 'themeManager', 'widgets'];
 
-    services.forEach((service) => {
-      updateServiceHealth(service, "healthy", "OK");
-    });
+		services.forEach((service) => {
+			updateServiceHealth(service, 'healthy', 'OK');
+		});
 
-    // WARMED is the state when all services are healthy/skipped
-    expect(getSystemState().overallState).toBe("WARMED");
-    expect(isSystemReady()).toBe(true);
-  });
+		// WARMED is the state when all services are healthy/skipped
+		expect(getSystemState().overallState).toBe('WARMED');
+		expect(isSystemReady()).toBe(true);
+	});
 
-  it("should transition to DEGRADED when some services fail", () => {
-    updateServiceHealth("database", "healthy", "OK");
-    updateServiceHealth("auth", "healthy", "OK");
-    updateServiceHealth("cache", "unhealthy", "Failed");
-    updateServiceHealth("contentSystem", "healthy", "OK");
-    updateServiceHealth("themeManager", "healthy", "OK");
-    updateServiceHealth("widgets", "healthy", "OK");
+	it('should transition to DEGRADED when some services fail', () => {
+		updateServiceHealth('database', 'healthy', 'OK');
+		updateServiceHealth('auth', 'healthy', 'OK');
+		updateServiceHealth('cache', 'unhealthy', 'Failed');
+		updateServiceHealth('contentManager', 'healthy', 'OK');
+		updateServiceHealth('themeManager', 'healthy', 'OK');
+		updateServiceHealth('widgets', 'healthy', 'OK');
 
-    const state = getSystemState();
-    expect(state.overallState).toBe("DEGRADED");
-  });
+		const state = getSystemState();
+		expect(state.overallState).toBe('DEGRADED');
+	});
 
-  it("should transition to FAILED when critical services fail", () => {
-    updateServiceHealth("database", "unhealthy", "Connection failed");
-    updateServiceHealth("auth", "unhealthy", "Auth unavailable");
+	it('should transition to FAILED when critical services fail', () => {
+		updateServiceHealth('database', 'unhealthy', 'Connection failed');
+		updateServiceHealth('auth', 'unhealthy', 'Auth unavailable');
 
-    const state = getSystemState();
-    expect(state.overallState).toBe("FAILED");
-    expect(isSystemReady()).toBe(false);
-  });
+		const state = getSystemState();
+		expect(state.overallState).toBe('FAILED');
+		expect(isSystemReady()).toBe(false);
+	});
 
-  it("should track state transitions", () => {
-    setSystemState("INITIALIZING");
-    setSystemState("READY");
-    setSystemState("MAINTENANCE");
+	it('should track state transitions', () => {
+		setSystemState('INITIALIZING');
+		setSystemState('READY');
+		setSystemState('MAINTENANCE');
 
-    const state = getSystemState();
-    // transitions are tracked in setSystemState
-    expect(state.performanceMetrics.stateTransitions.length).toBeGreaterThanOrEqual(3);
-  });
+		const state = getSystemState();
+		// transitions are tracked in setSystemState
+		expect(state.performanceMetrics.stateTransitions.length).toBeGreaterThanOrEqual(3);
+	});
 });
 
-describe("System Store - Performance Metrics", () => {
-  beforeEach(() => {
-    resetSystemState();
-  });
+describe('System Store - Performance Metrics', () => {
+	beforeEach(() => {
+		resetSystemState();
+	});
 
-  it("should track uptime percentage", () => {
-    updateServiceHealth("database", "healthy", "OK");
-    updateServiceHealth("database", "healthy", "OK");
-    updateServiceHealth("database", "unhealthy", "Failed");
+	it('should track uptime percentage', () => {
+		updateServiceHealth('database', 'healthy', 'OK');
+		updateServiceHealth('database', 'healthy', 'OK');
+		updateServiceHealth('database', 'unhealthy', 'Failed');
 
-    const state = getSystemState();
-    expect(state.services.database.metrics.healthCheckCount).toBe(3);
-    expect(state.services.database.metrics.uptimePercentage).toBeLessThan(100);
-  });
+		const state = getSystemState();
+		expect(state.services.database.metrics.healthCheckCount).toBe(3);
+		expect(state.services.database.metrics.uptimePercentage).toBeLessThan(100);
+	});
 
-  it("should track restart count", () => {
-    startServiceInitialization("database");
-    updateServiceHealth("database", "healthy", "OK");
+	it('should track restart count', () => {
+		startServiceInitialization('database');
+		updateServiceHealth('database', 'healthy', 'OK');
 
-    startServiceInitialization("database");
-    updateServiceHealth("database", "healthy", "OK");
+		startServiceInitialization('database');
+		updateServiceHealth('database', 'healthy', 'OK');
 
-    const state = getSystemState();
-    expect(state.services.database.metrics.restartCount).toBeGreaterThan(0);
-  });
+		const state = getSystemState();
+		expect(state.services.database.metrics.restartCount).toBeGreaterThan(0);
+	});
 
-  it("should track initialization attempts", () => {
-    setSystemState("IDLE");
-    setSystemState("INITIALIZING");
-    const services: ServiceName[] = [
-      "database",
-      "auth",
-      "cache",
-      "media",
-      "contentSystem",
-      "themeManager",
-      "widgets",
-      "search",
-    ];
+	it('should track initialization attempts', () => {
+		setSystemState('INITIALIZING');
+		const services: ServiceName[] = ['database', 'auth', 'cache', 'contentManager', 'themeManager', 'widgets'];
 
-    services.forEach((service) => {
-      startServiceInitialization(service);
-      updateServiceHealth(service, "healthy", "OK");
-    });
+		services.forEach((service) => {
+			startServiceInitialization(service);
+			updateServiceHealth(service, 'healthy', 'OK');
+		});
 
-    const state = getSystemState();
-    expect(state.performanceMetrics.totalInitializations).toBeGreaterThan(0);
-  });
+		const state = getSystemState();
+		expect(state.performanceMetrics.totalInitializations).toBeGreaterThan(0);
+	});
 });
 
-describe("System Store - Service Health Checks", () => {
-  beforeEach(() => {
-    resetSystemState();
-  });
+describe('System Store - Service Health Checks', () => {
+	beforeEach(() => {
+		resetSystemState();
+	});
 
-  it("should check individual service health", () => {
-    updateServiceHealth("database", "healthy", "OK");
-    updateServiceHealth("auth", "unhealthy", "Failed");
+	it('should check individual service health', () => {
+		updateServiceHealth('database', 'healthy', 'OK');
+		updateServiceHealth('auth', 'unhealthy', 'Failed');
 
-    expect(isServiceHealthy("database")).toBe(true);
-    expect(isServiceHealthy("auth")).toBe(false);
-  });
+		expect(isServiceHealthy('database')).toBe(true);
+		expect(isServiceHealthy('auth')).toBe(false);
+	});
 
-  it("should handle all services", () => {
-    const services: ServiceName[] = [
-      "database",
-      "auth",
-      "cache",
-      "media",
-      "contentSystem",
-      "themeManager",
-      "widgets",
-      "search",
-    ];
+	it('should handle all services', () => {
+		const services: ServiceName[] = ['database', 'auth', 'cache', 'contentManager', 'themeManager', 'widgets'];
 
-    services.forEach((service) => {
-      updateServiceHealth(service, "healthy", `${service} OK`);
-      expect(isServiceHealthy(service)).toBe(true);
-    });
-  });
+		services.forEach((service) => {
+			updateServiceHealth(service, 'healthy', `${service} OK`);
+			expect(isServiceHealthy(service)).toBe(true);
+		});
+	});
 });
 
-describe("System Store - Error Handling", () => {
-  beforeEach(() => {
-    resetSystemState();
-  });
+describe('System Store - Error Handling', () => {
+	beforeEach(() => {
+		resetSystemState();
+	});
 
-  it("should store error messages", () => {
-    const errorMessage = "Database connection timeout";
-    updateServiceHealth("database", "unhealthy", errorMessage, errorMessage);
+	it('should store error messages', () => {
+		const errorMessage = 'Database connection timeout';
+		updateServiceHealth('database', 'unhealthy', errorMessage, errorMessage);
 
-    const state = getSystemState();
-    expect(state.services.database.error).toBe(errorMessage);
-    expect(state.services.database.message).toBe(errorMessage);
-  });
+		const state = getSystemState();
+		expect(state.services.database.error).toBe(errorMessage);
+		expect(state.services.database.message).toBe(errorMessage);
+	});
 
-  it("should clear error on recovery", () => {
-    updateServiceHealth("database", "unhealthy", "Failed", "Connection error");
-    updateServiceHealth("database", "healthy", "Recovered");
+	it('should clear error on recovery', () => {
+		updateServiceHealth('database', 'unhealthy', 'Failed', 'Connection error');
+		updateServiceHealth('database', 'healthy', 'Recovered');
 
-    const state = getSystemState();
-    expect(state.services.database.status).toBe("healthy");
-    expect(state.services.database.message).toBe("Recovered");
-  });
+		const state = getSystemState();
+		expect(state.services.database.status).toBe('healthy');
+		expect(state.services.database.message).toBe('Recovered');
+	});
 });
 
-describe("System Store - State Reset", () => {
-  it("should reset to initial state", () => {
-    updateServiceHealth("database", "healthy", "OK");
-    setSystemState("READY");
+describe('System Store - State Reset', () => {
+	it('should reset to initial state', () => {
+		updateServiceHealth('database', 'healthy', 'OK');
+		setSystemState('READY');
 
-    resetSystemState();
+		resetSystemState();
 
-    const state = getSystemState();
-    expect(state.overallState).toBe("IDLE");
-    expect(state.services.database.status).toBe("initializing");
-    expect(state.performanceMetrics.totalInitializations).toBe(0);
-  });
+		const state = getSystemState();
+		expect(state.overallState).toBe('IDLE');
+		expect(state.services.database.status).toBe('initializing');
+		expect(state.performanceMetrics.totalInitializations).toBe(0);
+	});
 });

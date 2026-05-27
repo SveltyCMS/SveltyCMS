@@ -28,28 +28,28 @@ canManage: boolean;
 - Uninstall widget
 -->
 <script lang="ts">
-// Using iconify-icon web component
-interface Props {
-	canManage: boolean;
-	onToggle: (name: string) => void;
-	onUninstall?: (name: string) => void;
-	widget: {
-		name: string;
-		icon: string;
-		description?: string;
-		isCore: boolean;
-		isActive: boolean;
-		dependencies: string[];
-		canDisable: boolean;
-		pillar?: {
-			input?: { exists: boolean };
-			display?: { exists: boolean };
+	// Using iconify-icon web component
+	interface Props {
+		canManage: boolean;
+		onToggle: (name: string) => void;
+		onUninstall?: (name: string) => void;
+		widget: {
+			name: string;
+			icon: string;
+			description?: string;
+			isCore: boolean;
+			isActive: boolean;
+			dependencies: string[];
+			canDisable: boolean;
+			pillar?: {
+				input?: { exists: boolean };
+				display?: { exists: boolean };
+			};
+			hasValidation?: boolean;
 		};
-		hasValidation?: boolean;
-	};
-}
+	}
 
-const { widget, onToggle, onUninstall, canManage }: Props = $props();
+	const { widget, onToggle, onUninstall, canManage }: Props = $props();
 </script>
 
 <div class="card border border-surface-200 dark:text-surface-50 transition-shadow hover:shadow-lg">

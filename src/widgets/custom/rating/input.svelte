@@ -41,92 +41,48 @@ Interactive star rating with hover states and click selection
 		error?: string | null;
 	} = $props();
 
-	// Derived properties from field config
-	const max = $derived(Math.max(1, Number(field.max) || 5));
-	const step = $derived(Number(field.step) || 1);
-	const showValue = $derived(field.showValue !== false);
-	
-	// Direct binding with proper null handling
-	const ratingValue = $derived(typeof value === 'number' ? value : 0);
+	// Handle undefined/null value by defaulting to 0 for the component, but strictly binding back
+	// However, if we want to allow "no selection", we might need to handle undefined.
+	// Skeleton Ratings usually binds to a number.
+	let ratingValue = $state(value ?? 0);
 
-	function handleChange(e: { value: number }) {
-		// Allow clearing if not required and clicking the same value (or 0)
-		if (e.value === 0 && !field.required) {
-			value = null;
-		} else {
-			value = e.value;
+	$effect(() => {
+		if (value !== undefined && value !== null) {
+			ratingValue = value;
 		}
-	}
+	});
 
-	function handleClear() {
-		value = field.required ? 1 : null;
-	}
-
-	// Icon handling - support full names or legacy material-symbols stripping
-	const iconFull = $derived((field.iconFull as string) || 'material-symbols:star');
-	const iconHalf = $derived((field.iconHalf as string) || 'material-symbols:star-half');
-	const iconEmpty = $derived((field.iconEmpty as string) || 'material-symbols:star-outline');
+	// Sync ratingValue back to prop value
+	$effect(() => {
+		value = ratingValue;
+	});
 </script>
 
 <div
-	class="relative flex flex-col gap-2 rounded-lg border p-3 border-surface-400 dark:border-surface-600 bg-white dark:bg-surface-900 transition-all"
-	class:ring-2={!!error}
-	class:ring-error-500={!!error}
-	class:border-error-500={!!error}
+	class="relative inline-block w-full rounded border p-2 border-surface-400 dark:border-surface-400"
+	class:!border-error-500={!!error}
+	class:invalid={!!error}
 >
-	<div class="flex items-center justify-between">
-		<div class="flex items-center gap-3">
-			<RatingGroup 
-				value={ratingValue} 
-				onValueChange={handleChange} 
-				aria-label={field.label}
-				class={error ? 'text-error-500' : ''}
-			>
-				<RatingGroup.Control class="flex gap-0.5">
-					{#each { length: max } as _, i}
-						<RatingGroup.Item index={i + 1}>
-							{#snippet empty()}
-								<iconify-icon icon={iconEmpty} width="28" class="text-surface-300 dark:text-surface-600"></iconify-icon>
-							{/snippet}
-							{#snippet half()}
-								<iconify-icon icon={iconHalf} width="28" class="text-warning-500"></iconify-icon>
-							{/snippet}
-							{#snippet full()}
-								<iconify-icon icon={iconFull} width="28" class={error ? 'text-error-500' : 'text-warning-500'}></iconify-icon>
-							{/snippet}
-						</RatingGroup.Item>
-					{/each}
-				</RatingGroup.Control>
-			</RatingGroup>
-
-			{#if showValue}
-				<span class="text-lg font-bold text-surface-900 dark:text-surface-50 min-w-8 text-center">
-					{value?.toFixed(step === 0.5 ? 1 : 0) || '0'}
-				</span>
-			{/if}
-		</div>
-
-		{#if !field.required || (value !== null && value !== undefined)}
-			<button 
-				type="button" 
-				class="btn btn-sm variant-soft-surface p-1 opacity-60 hover:opacity-100 transition-opacity"
-				onclick={handleClear}
-				title="Reset Rating"
-			>
-				<iconify-icon icon="mdi:refresh" width="18"></iconify-icon>
-			</button>
-		{/if}
+	<div class={error ? ' text-error-500' : ''}>
+		<RatingGroup value={ratingValue} onValueChange={(e) => (ratingValue = e.value)} aria-label={field.label}>
+			<RatingGroup.Control>
+				{@const iconFull = ((field.iconFull as string) || 'star').replace('material-symbols:', '')}
+				{@const iconEmpty = ((field.iconEmpty as string) || 'star-outline').replace('material-symbols:', '').replace('-outline', '')}
+				{#each { length: Number(field.max) || 5 } as _, i (i)}
+					<RatingGroup.Item index={i + 1}>
+						{#snippet empty()}
+							<iconify-icon icon={iconEmpty} width="24" class="text-surface-400"></iconify-icon>
+						{/snippet}
+						{#snippet full()}
+							<iconify-icon icon={iconFull} width="24" class={error ? 'text-error-500' : 'text-warning-500'}></iconify-icon>
+						{/snippet}
+					</RatingGroup.Item>
+				{/each}
+			</RatingGroup.Control>
+		</RatingGroup>
 	</div>
 
 	{#if error}
-		<p class="text-xs text-error-500 font-medium" role="alert">{error}</p>
+		<p class="absolute bottom-0 left-0 w-full text-center text-xs text-error-500" role="alert">{error}</p>
 	{/if}
 </div>
-
-<style>
-	/* Custom styles to ensure RatingGroup looks good with our theme */
-	:global(.rating-group-control) {
-		display: flex;
-		gap: 0.125rem;
-	}
-</style>

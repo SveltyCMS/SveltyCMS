@@ -1,20 +1,20 @@
 ---
-path: "docs/guides/deployment/production-deployment.mdx"
-title: "Production Deployment & Optimization"
-description: "Complete guide for deploying SveltyCMS in production with Nginx, Redis, and enterprise-grade optimization strategies."
+path: 'docs/guides/production-deployment.mdx'
+title: 'Production Deployment & Optimization'
+description: 'Complete guide for deploying SveltyCMS in production with Nginx, Redis, and enterprise-grade optimization strategies.'
 order: 10
-icon: "mdi:rocket-launch"
-author: "SveltyCMS Team"
-created: "2025-10-30"
-updated: "2026-03-27"
+icon: 'mdi:rocket-launch'
+author: 'admin'
+created: '2025-10-30'
+updated: '2025-10-30'
 tags:
-  - "production"
-  - "deployment"
-  - "nginx"
-  - "redis"
-  - "optimization"
-  - "performance"
-  - "security"
+  - 'production'
+  - 'deployment'
+  - 'nginx'
+  - 'redis'
+  - 'optimization'
+  - 'performance'
+  - 'security'
 ---
 
 # Production Deployment & Optimization
@@ -382,65 +382,64 @@ PM2 provides cluster mode, auto-restart, and zero-downtime deployments.
 
 ```javascript
 module.exports = {
-  apps: [
-    {
-      name: "sveltycms",
-      script: "build/index.js",
+	apps: [
+		{
+			name: 'sveltycms',
+			script: 'build/index.js',
 
-      // Cluster mode (uses all CPU cores)
-      instances: "max",
-      exec_mode: "cluster",
+			// Cluster mode (uses all CPU cores)
+			instances: 'max',
+			exec_mode: 'cluster',
 
-      // Environment variables
-      env: {
-        NODE_ENV: "production",
-        PORT: 3000,
-        HOST: "127.0.0.1",
-      },
+			// Environment variables
+			env: {
+				NODE_ENV: 'production',
+				PORT: 3000,
+				HOST: '127.0.0.1'
+			},
 
-      // Memory management
-      max_memory_restart: "500M",
+			// Memory management
+			max_memory_restart: '500M',
 
-      // Logging
-      error_file: "logs/error.log",
-      out_file: "logs/out.log",
-      merge_logs: true,
-      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+			// Logging
+			error_file: 'logs/error.log',
+			out_file: 'logs/out.log',
+			merge_logs: true,
+			log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
 
-      // Restart behavior
-      autorestart: true,
-      max_restarts: 10,
-      min_uptime: "10s",
-      restart_delay: 4000,
+			// Restart behavior
+			autorestart: true,
+			max_restarts: 10,
+			min_uptime: '10s',
+			restart_delay: 4000,
 
-      // Graceful shutdown
-      kill_timeout: 5000,
-      listen_timeout: 3000,
-      shutdown_with_message: true,
+			// Graceful shutdown
+			kill_timeout: 5000,
+			listen_timeout: 3000,
+			shutdown_with_message: true,
 
-      // Watch options (disabled in production)
-      watch: false,
-      ignore_watch: ["node_modules", "logs", ".git"],
+			// Watch options (disabled in production)
+			watch: false,
+			ignore_watch: ['node_modules', 'logs', '.git'],
 
-      // Environment-specific overrides
-      env_development: {
-        NODE_ENV: "development",
-        watch: true,
-      },
-    },
-  ],
+			// Environment-specific overrides
+			env_development: {
+				NODE_ENV: 'development',
+				watch: true
+			}
+		}
+	],
 
-  deploy: {
-    production: {
-      user: "deploy",
-      host: "your-server.com",
-      ref: "origin/main",
-      repo: "git@github.com:yourorg/sveltycms.git",
-      path: "/var/www/sveltycms",
-      "post-deploy":
-        "bun install && bun run build && pm2 reload ecosystem.config.js --env production",
-    },
-  },
+	deploy: {
+		production: {
+			user: 'deploy',
+			host: 'your-server.com',
+			ref: 'origin/main',
+			repo: 'git@github.com:yourorg/sveltycms.git',
+			path: '/var/www/sveltycms',
+			'post-deploy': 'bun install && bun run build && pm2 reload ecosystem.config.js --env production'
+		}
+	}
 };
 ```
 
@@ -498,24 +497,24 @@ Since Nginx now handles static assets, you can optionally remove `handleStaticAs
 ```typescript
 // Before (with static middleware)
 export const handle: Handle = sequence(
-  handleStaticAssetCaching, // ← Remove this (Nginx handles it)
-  handleSystemState,
-  handleRateLimit,
-  handleFirewall,
-  // ... rest of middleware
+	handleStaticAssetCaching, // ← Remove this (Nginx handles it)
+	handleSystemState,
+	handleRateLimit,
+	handleFirewall
+	// ... rest of middleware
 );
 
 // After (optimized for Nginx)
 export const handle: Handle = sequence(
-  handleSystemState,
-  handleRateLimit,
-  handleFirewall,
-  handleSetup,
-  handleLocale,
-  handleTheme,
-  handleAuthentication,
-  handleAuthorization,
-  addSecurityHeaders,
+	handleSystemState,
+	handleRateLimit,
+	handleFirewall,
+	handleSetup,
+	handleLocale,
+	handleTheme,
+	handleAuthentication,
+	handleAuthorization,
+	addSecurityHeaders
 );
 ```
 
@@ -551,16 +550,16 @@ const SESSION_CACHE_TTL_MS = 15 * 60 * 1000;
 #### MongoDB
 
 ```typescript
-import { MongoClient } from "mongodb";
+import { MongoClient } from 'mongodb';
 
 const client = new MongoClient(process.env.MONGODB_URI, {
-  maxPoolSize: 50, // Maximum connections
-  minPoolSize: 10, // Minimum connections
-  maxIdleTimeMS: 60000, // Close idle connections after 60s
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-  retryWrites: true,
-  w: "majority",
+	maxPoolSize: 50, // Maximum connections
+	minPoolSize: 10, // Minimum connections
+	maxIdleTimeMS: 60000, // Close idle connections after 60s
+	serverSelectionTimeoutMS: 5000,
+	socketTimeoutMS: 45000,
+	retryWrites: true,
+	w: 'majority'
 });
 
 await client.connect();
@@ -569,14 +568,14 @@ await client.connect();
 #### PostgreSQL
 
 ```typescript
-import { Pool } from "pg";
+import { Pool } from 'pg';
 
 const pool = new Pool({
-  max: 50, // Maximum connections
-  min: 10, // Minimum connections
-  idleTimeoutMillis: 60000, // Close idle connections
-  connectionTimeoutMillis: 5000,
-  allowExitOnIdle: false,
+	max: 50, // Maximum connections
+	min: 10, // Minimum connections
+	idleTimeoutMillis: 60000, // Close idle connections
+	connectionTimeoutMillis: 5000,
+	allowExitOnIdle: false
 });
 ```
 
@@ -637,36 +636,36 @@ CREATE INDEX idx_media_uploaded ON media(uploaded_at DESC);
 **File**: `src/routes/api/health/+server.ts`
 
 ```typescript
-import { json } from "@sveltejs/kit";
-import type { RequestHandler } from "./$types";
-import { getSystemState } from "@stores/system";
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { getSystemState } from '@stores/system';
 
 export const GET: RequestHandler = async () => {
-  const systemState = getSystemState();
-  const isHealthy = systemState.overallState === "READY";
+	const systemState = getSystemState();
+	const isHealthy = systemState.overallState === 'READY';
 
-  const health = {
-    status: isHealthy ? "ok" : "degraded",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    memory: {
-      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
-      external: Math.round(process.memoryUsage().external / 1024 / 1024),
-    },
-    system: {
-      state: systemState.overallState,
-      setup: systemState.setupComplete,
-      database: systemState.databaseConnected,
-    },
-  };
+	const health = {
+		status: isHealthy ? 'ok' : 'degraded',
+		timestamp: new Date().toISOString(),
+		uptime: process.uptime(),
+		memory: {
+			used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+			total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+			external: Math.round(process.memoryUsage().external / 1024 / 1024)
+		},
+		system: {
+			state: systemState.overallState,
+			setup: systemState.setupComplete,
+			database: systemState.databaseConnected
+		}
+	};
 
-  return json(health, {
-    status: isHealthy ? 200 : 503,
-    headers: {
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-    },
-  });
+	return json(health, {
+		status: isHealthy ? 200 : 503,
+		headers: {
+			'Cache-Control': 'no-cache, no-store, must-revalidate'
+		}
+	});
 };
 ```
 
@@ -675,43 +674,43 @@ export const GET: RequestHandler = async () => {
 **File**: `src/routes/api/metrics/+server.ts`
 
 ```typescript
-import { metricsService } from "@src/services/metrics-service";
-import type { RequestHandler } from "./$types";
+import { metricsService } from '@src/services/metrics-service';
+import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async () => {
-  const metrics = metricsService.getReport();
+	const metrics = metricsService.getReport();
 
-  // Convert to Prometheus format
-  const prometheus = [
-    `# HELP sveltycms_requests_total Total HTTP requests`,
-    `# TYPE sveltycms_requests_total counter`,
-    `sveltycms_requests_total ${metrics.requests.total}`,
-    ``,
-    `# HELP sveltycms_errors_total Total errors`,
-    `# TYPE sveltycms_errors_total counter`,
-    `sveltycms_errors_total ${metrics.requests.errors}`,
-    ``,
-    `# HELP sveltycms_cache_hits_total Cache hit count`,
-    `# TYPE sveltycms_cache_hits_total counter`,
-    `sveltycms_cache_hits_total ${metrics.cache.hits}`,
-    ``,
-    `# HELP sveltycms_cache_misses_total Cache miss count`,
-    `# TYPE sveltycms_cache_misses_total counter`,
-    `sveltycms_cache_misses_total ${metrics.cache.misses}`,
-    ``,
-    `# HELP sveltycms_security_violations_total Security violation count by type`,
-    `# TYPE sveltycms_security_violations_total counter`,
-    `sveltycms_security_violations_total{type="rate_limit"} ${metrics.security.rateLimitViolations}`,
-    `sveltycms_security_violations_total{type="firewall"} ${metrics.security.firewallBlocks}`,
-    `sveltycms_security_violations_total{type="auth_failure"} ${metrics.security.authFailures}`,
-  ].join("\n");
+	// Convert to Prometheus format
+	const prometheus = [
+		`# HELP sveltycms_requests_total Total HTTP requests`,
+		`# TYPE sveltycms_requests_total counter`,
+		`sveltycms_requests_total ${metrics.requests.total}`,
+		``,
+		`# HELP sveltycms_errors_total Total errors`,
+		`# TYPE sveltycms_errors_total counter`,
+		`sveltycms_errors_total ${metrics.requests.errors}`,
+		``,
+		`# HELP sveltycms_cache_hits_total Cache hit count`,
+		`# TYPE sveltycms_cache_hits_total counter`,
+		`sveltycms_cache_hits_total ${metrics.cache.hits}`,
+		``,
+		`# HELP sveltycms_cache_misses_total Cache miss count`,
+		`# TYPE sveltycms_cache_misses_total counter`,
+		`sveltycms_cache_misses_total ${metrics.cache.misses}`,
+		``,
+		`# HELP sveltycms_security_violations_total Security violation count by type`,
+		`# TYPE sveltycms_security_violations_total counter`,
+		`sveltycms_security_violations_total{type="rate_limit"} ${metrics.security.rateLimitViolations}`,
+		`sveltycms_security_violations_total{type="firewall"} ${metrics.security.firewallBlocks}`,
+		`sveltycms_security_violations_total{type="auth_failure"} ${metrics.security.authFailures}`
+	].join('\n');
 
-  return new Response(prometheus, {
-    headers: {
-      "Content-Type": "text/plain; version=0.0.4",
-      "Cache-Control": "no-cache",
-    },
-  });
+	return new Response(prometheus, {
+		headers: {
+			'Content-Type': 'text/plain; version=0.0.4',
+			'Cache-Control': 'no-cache'
+		}
+	});
 };
 ```
 
@@ -891,27 +890,27 @@ ab -n 1000 -c 50 https://your-domain.com/api/collections
 **File**: `load-test.js`
 
 ```javascript
-import http from "k6/http";
-import { check, sleep } from "k6";
+import http from 'k6/http';
+import { check, sleep } from 'k6';
 
 export const options = {
-  stages: [
-    { duration: "2m", target: 100 }, // Ramp up to 100 users
-    { duration: "5m", target: 100 }, // Stay at 100 users
-    { duration: "2m", target: 0 }, // Ramp down
-  ],
-  thresholds: {
-    http_req_duration: ["p(95)<500"], // 95% of requests under 500ms
-  },
+	stages: [
+		{ duration: '2m', target: 100 }, // Ramp up to 100 users
+		{ duration: '5m', target: 100 }, // Stay at 100 users
+		{ duration: '2m', target: 0 } // Ramp down
+	],
+	thresholds: {
+		http_req_duration: ['p(95)<500'] // 95% of requests under 500ms
+	}
 };
 
 export default function () {
-  const res = http.get("https://your-domain.com");
-  check(res, {
-    "status is 200": (r) => r.status === 200,
-    "response time < 500ms": (r) => r.timings.duration < 500,
-  });
-  sleep(1);
+	const res = http.get('https://your-domain.com');
+	check(res, {
+		'status is 200': (r) => r.status === 200,
+		'response time < 500ms': (r) => r.timings.duration < 500
+	});
+	sleep(1);
 }
 ```
 
@@ -1050,10 +1049,10 @@ curl http://127.0.0.1:3000/api/health
 
 ## Related Documentation
 
-- [Server Hooks Architecture](../../architecture/server-hooks.mdx) - Middleware system
-- [Cache System](../../architecture/cache-system.mdx) - Caching strategies
-- [Security Plugin](../../architecture/security-plugin.mdx) - Security implementation
-- [Database Methods](../../architecture/database/database-methods.mdx) - Database optimization
+- [Server Hooks Architecture](../architecture/server-hooks.mdx) - Middleware system
+- [Cache System](../architecture/cache-system.mdx) - Caching strategies
+- [Security Plugin](../architecture/security-plugin.mdx) - Security implementation
+- [Database Methods](../architecture/database-methods.mdx) - Database optimization
 
 ---
 

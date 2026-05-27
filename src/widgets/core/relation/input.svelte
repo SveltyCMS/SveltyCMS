@@ -28,7 +28,7 @@ Interactive selector with "Select" button and clear functionality
 
 <script lang="ts">
 	import { app } from '@src/stores/store.svelte';
-	import { showModal } from '@utils/modal.svelte';
+	import { showModal } from '@utils/modal-utils';
 	import type { FieldType } from './';
 
 	let {
@@ -46,24 +46,13 @@ Interactive selector with "Select" button and clear functionality
 	const lang = $derived(app.contentLanguage);
 
 	// Stub function for fetching entry data - implement with your API
-	// Fetches full entry data for display preview.
 	async function fetchEntryData(ids: string[]): Promise<Record<string, any>[]> {
-		if (!field.collection) return [];
-		try {
-			// Optimized bulk fetch if the API supports it, or individual fetches
-			const results = await Promise.all(
-				ids.map(async (id) => {
-					const res = await fetch(`/api/collections/${field.collection}/${id}`);
-					if (!res.ok) return null;
-					const result = await res.json();
-					return result.data || result;
-				})
-			);
-			return results.filter(Boolean) as Record<string, any>[];
-		} catch (e) {
-			console.error('[RelationInput] Failed to fetch entries:', e);
-			return [];
-		}
+		// TODO: Implement API call to fetch entries by IDs
+		// This should return an array of entry objects
+		return ids.map((id) => ({
+			_id: id,
+			[field.displayField as string]: `Entry ${id}`
+		}));
 	}
 
 	// Fetch the full entry data when the ID `value` changes.

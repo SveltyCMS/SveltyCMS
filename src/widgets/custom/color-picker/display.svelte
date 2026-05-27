@@ -27,27 +27,28 @@ Renders: color swatch or hex value
 		return /^#[0-9a-f]{6}$/i.test(color);
 	};
 
-	const colorValue = $derived(value && isValidHex(value) ? value : '#000000');
+	const safeColor = $derived(value && isValidHex(value) ? value : '#000000');
 </script>
 
 {#if value && isValidHex(value)}
-	<div class="color-display flex items-center gap-2" title={colorValue}>
-		<div 
-			class="h-5 w-5 rounded-full border border-surface-200 dark:border-surface-700 shadow-sm" 
-			style="background-color: {colorValue}"
-		></div>
-		<span class="font-mono text-xs text-surface-600 dark:text-surface-400 uppercase tracking-tight">
-			{colorValue}
-		</span>
+	<div class="inline-fex items-center gap-0.5" title={value}>
+		<div class="swatch-preview" style:background-color={safeColor}></div>
+		<span class="hex-code">{value}</span>
 	</div>
 {:else}
 	<span>–</span>
 {/if}
 
 <style>
-	.color-display {
-		display: inline-flex;
-		align-items: center;
-		font-family: inherit;
+	.swatch-preview {
+		flex-shrink: 0;
+		width: 1rem;
+		height: 1rem;
+		border: 1px solid #ccc;
+		border-radius: 2px;
+	}
+	.hex-code {
+		font-family: monospace;
+		font-size: 0.875rem;
 	}
 </style>

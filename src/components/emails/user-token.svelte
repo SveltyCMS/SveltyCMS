@@ -1,7 +1,7 @@
 <!--
 @file src/components/emails/user-token.svelte
 @component
-**userToken Email component to send invite-token to email**
+**userToken Email component to send user token invite to email**
 -->
 
 <script lang="ts">
@@ -10,7 +10,7 @@
 	import { usertoken_button, usertoken_email, usertoken_role, usertoken_token, usertoken_valid } from '@src/paraglide/messages';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app } from '@src/stores/store.svelte';
-	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from '@better-svelte-email/components';
+	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
 	import { dev } from '$app/environment';
 
 	interface Props {

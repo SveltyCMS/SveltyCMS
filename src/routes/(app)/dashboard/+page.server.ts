@@ -13,13 +13,13 @@
  * - Support for dynamic width and height sizing
  */
 
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
-import { error, json, redirect } from "@sveltejs/kit";
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { error, json, redirect } from '@sveltejs/kit';
 // System Logger
-import { logger } from "@utils/logger";
-import { generateUUID as uuidv4 } from "@utils/native-utils";
-import type { Actions, PageServerLoad } from "./$types";
+import { logger } from '@utils/logger.server';
+import { v4 as uuidv4 } from 'uuid';
+import type { Actions, PageServerLoad } from './$types';
 
 // Cache for discovered widgets
 let cachedWidgets: WidgetInfo[] | null = null;
@@ -27,154 +27,144 @@ const WIDGET_CACHE_TTL = 1000 * 60 * 5; // 5 minutes
 let lastCacheTime = 0;
 
 interface WidgetInfo {
-  componentName: string;
-  description?: string;
-  icon: string;
-  name: string;
+	componentName: string;
+	description?: string;
+	icon: string;
+	name: string;
 }
 
 async function getWidgetMetadata(componentName: string): Promise<WidgetInfo> {
-  try {
-    const widgetModule = await import(`./widgets/${componentName}.svelte`);
-    if (widgetModule.widgetMeta) {
-      return {
-        componentName,
-        name: widgetModule.widgetMeta.name,
-        icon: widgetModule.widgetMeta.icon,
-        description: widgetModule.widgetMeta.description,
-      };
-    }
-    logger.warn(`Widget ${componentName} has no widgetMeta export, using fallback`);
-  } catch (err) {
-    logger.error(`Failed to load metadata for widget ${componentName}:`, err);
-  }
+	try {
+		const widgetModule = await import(`./widgets/${componentName}.svelte`);
+		if (widgetModule.widgetMeta) {
+			return {
+				componentName,
+				name: widgetModule.widgetMeta.name,
+				icon: widgetModule.widgetMeta.icon,
+				description: widgetModule.widgetMeta.description
+			};
+		}
+		logger.warn(`Widget ${componentName} has no widgetMeta export, using fallback`);
+	} catch (err) {
+		logger.error(`Failed to load metadata for widget ${componentName}:`, err);
+	}
 
-  return {
-    componentName,
-    name: componentName
-      .replace("Widget", "")
-      .replace(/([A-Z])/g, " $1")
-      .trim(),
-    icon: "mdi:widgets",
-    description: "Custom dashboard widget",
-  };
+	return {
+		componentName,
+		name: componentName
+			.replace('Widget', '')
+			.replace(/([A-Z])/g, ' $1')
+			.trim(),
+		icon: 'mdi:widgets',
+		description: 'Custom dashboard widget'
+	};
 }
 
 async function discoverWidgets(): Promise<WidgetInfo[]> {
-  // Return cached widgets if valid
-  if (
-    cachedWidgets &&
-    Date.now() - lastCacheTime < WIDGET_CACHE_TTL &&
-    process.env.NODE_ENV === "production"
-  ) {
-    return cachedWidgets;
-  }
+	// Return cached widgets if valid
+	if (cachedWidgets && Date.now() - lastCacheTime < WIDGET_CACHE_TTL && process.env.NODE_ENV === 'production') {
+		return cachedWidgets;
+	}
 
-  try {
-    const widgetsPath = join(process.cwd(), "src/routes/(app)/dashboard/widgets");
-    const files = readdirSync(widgetsPath, { withFileTypes: true });
+	try {
+		const widgetsPath = join(process.cwd(), 'src/routes/(app)/dashboard/widgets');
+		const files = readdirSync(widgetsPath, { withFileTypes: true });
 
-    const widgetPromises = files
-      .filter((file) => file.isFile() && file.name.endsWith("Widget.svelte"))
-      .map(async (file) => {
-        const componentName = file.name.replace(".svelte", "");
-        return await getWidgetMetadata(componentName);
-      });
+		const widgetPromises = files
+			.filter((file) => file.isFile() && file.name.endsWith('Widget.svelte'))
+			.map(async (file) => {
+				const componentName = file.name.replace('.svelte', '');
+				return await getWidgetMetadata(componentName);
+			});
 
-    const widgets = await Promise.all(widgetPromises);
-    const sortedWidgets = widgets.sort((a, b) => a.name.localeCompare(b.name));
+		const widgets = await Promise.all(widgetPromises);
+		const sortedWidgets = widgets.sort((a, b) => a.name.localeCompare(b.name));
 
-    logger.trace(`Discovered ${sortedWidgets.length} dashboard widgets`);
+		logger.trace(`Discovered ${sortedWidgets.length} dashboard widgets`);
 
-    // Update cache
-    cachedWidgets = sortedWidgets;
-    lastCacheTime = Date.now();
+		// Update cache
+		cachedWidgets = sortedWidgets;
+		lastCacheTime = Date.now();
 
-    return sortedWidgets;
-  } catch (err) {
-    logger.error("Failed to discover widgets:", err);
-    return [];
-  }
+		return sortedWidgets;
+	} catch (err) {
+		logger.error('Failed to discover widgets:', err);
+		return [];
+	}
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
-  const { user, isAdmin, roles: tenantRoles } = locals;
-  if (!user) {
-    logger.warn("User not authenticated, redirecting to login.");
-    throw redirect(301, "/login");
-  }
+	const { user, isAdmin, roles: tenantRoles } = locals;
+	if (!user) {
+		logger.warn('User not authenticated, redirecting to login.');
+		throw redirect(301, '/login');
+	}
 
-  // Check if user has permission to access dashboard
-  const hasDashboardPermission =
-    isAdmin ||
-    tenantRoles.some((role) =>
-      role.permissions?.some((p) => {
-        const [resource, action] = p.split(":");
-        return resource === "dashboard" && action === "read";
-      }),
-    );
+	// Check if user has permission to access dashboard
+	const hasDashboardPermission =
+		isAdmin ||
+		tenantRoles.some((role) =>
+			role.permissions?.some((p) => {
+				const [resource, action] = p.split(':');
+				return resource === 'dashboard' && action === 'read';
+			})
+		);
 
-  if (!hasDashboardPermission) {
-    logger.warn(
-      `User ${user._id} (${user.email}) does not have permission to access dashboard. Redirecting.`,
-    );
-    throw error(403, "Insufficient permissions to access dashboard");
-  }
+	if (!hasDashboardPermission) {
+		logger.warn(`User ${user._id} (${user.email}) does not have permission to access dashboard. Redirecting.`);
+		throw error(403, 'Insufficient permissions to access dashboard');
+	}
 
-  logger.trace(`User authenticated successfully for dashboard: ${user._id}`);
+	logger.trace(`User authenticated successfully for dashboard: ${user._id}`);
 
-  const { _id, ...rest } = user;
-  const availableWidgets = await discoverWidgets();
+	const { _id, ...rest } = user;
+	const availableWidgets = await discoverWidgets();
 
-  return {
-    pageData: {
-      user: {
-        id: _id.toString(),
-        ...rest,
-      },
-      isAdmin,
-    },
-    availableWidgets,
-  };
+	return {
+		pageData: {
+			user: {
+				id: _id.toString(),
+				...rest
+			},
+			isAdmin
+		},
+		availableWidgets
+	};
 };
 
 export const actions: Actions = {
-  default: async ({ request, locals }) => {
-    const user = locals.user;
-    if (!user) {
-      logger.warn("Unauthorized attempt to add widget");
-      throw error(401, "Unauthorized");
-    }
+	default: async ({ request, locals }) => {
+		const user = locals.user;
+		if (!user) {
+			logger.warn('Unauthorized attempt to add widget');
+			throw error(401, 'Unauthorized');
+		}
 
-    const data = await request.json();
-    const { userId, component, label, icon, size } = data;
+		const data = await request.json();
+		const { userId, component, label, icon, size } = data;
 
-    if (userId !== user._id.toString()) {
-      logger.warn(`User ID mismatch: ${userId} vs ${user._id}`);
-      throw error(403, "Forbidden");
-    }
+		if (userId !== user._id.toString()) {
+			logger.warn(`User ID mismatch: ${userId} vs ${user._id}`);
+			throw error(403, 'Forbidden');
+		}
 
-    if (
-      !(component && label && icon && size) ||
-      typeof size.w !== "number" ||
-      typeof size.h !== "number"
-    ) {
-      logger.error("Invalid widget data:", data);
-      throw error(400, "Invalid widget data");
-    }
+		if (!(component && label && icon && size) || typeof size.w !== 'number' || typeof size.h !== 'number') {
+			logger.error('Invalid widget data:', data);
+			throw error(400, 'Invalid widget data');
+		}
 
-    const widget = {
-      id: uuidv4(),
-      component,
-      label,
-      icon,
-      size,
-      gridPosition: 0,
-      movable: true,
-      resizable: true,
-    };
+		const widget = {
+			id: uuidv4(),
+			component,
+			label,
+			icon,
+			size,
+			gridPosition: 0,
+			movable: true,
+			resizable: true
+		};
 
-    logger.trace(`Created widget ${widget.id} for user ${userId}`);
-    return json(widget);
-  },
+		logger.trace(`Created widget ${widget.id} for user ${userId}`);
+		return json(widget);
+	}
 };

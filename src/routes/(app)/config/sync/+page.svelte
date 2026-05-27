@@ -1,107 +1,101 @@
-<!--
+﻿<!--
 @files src/routes/(app)/config/sync/+page.svelte
 @component
 **Configuration Sync & Backup Manager**
 Allows synchronization between filesystem and database, and full system backup/restore.
 -->
 <script lang="ts">
-import ImportExportManager from "@src/components/admin/import-export-manager.svelte";
-import PageTitle from "@src/components/page-title.svelte";
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import { toast } from "@src/stores/toast.svelte.ts";
-import { onMount } from "svelte";
-import { fade, slide } from "svelte/transition";
+	import ImportExportManager from '@src/components/admin/import-export-manager.svelte';
+	import PageTitle from '@src/components/page-title.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { onMount } from 'svelte';
+	import { fade, slide } from 'svelte/transition';
 
-type ConfigStatus = {
-	status: "in_sync" | "changes_detected" | "error";
-	changes: {
-		new?: { name: string; uuid: string; type: string }[];
-		updated?: { name: string; uuid: string; type: string }[];
-		deleted?: { name: string; uuid: string; type: string }[];
-	};
-	unmetRequirements: { name: string; type: string; requirement: string }[];
-} | null;
+	type ConfigStatus = {
+		status: 'in_sync' | 'changes_detected' | 'error';
+		changes: {
+			new?: { name: string; uuid: string; type: string }[];
+			updated?: { name: string; uuid: string; type: string }[];
+			deleted?: { name: string; uuid: string; type: string }[];
+		};
+		unmetRequirements: { name: string; type: string; requirement: string }[];
+	} | null;
 
-let status: ConfigStatus = $state(null);
-let isLoading = $state(true);
-let isProcessing = $state(false);
-let activeTab: "sync" | "backups" | "debug" = $state("sync");
+	let status: ConfigStatus = $state(null);
+	let isLoading = $state(true);
+	let isProcessing = $state(false);
+	let activeTab: 'sync' | 'backups' | 'debug' = $state('sync');
 
-// prettier counts
-const changeSummary = $derived(() => ({
-	new: status?.changes?.new?.length || 0,
-	updated: status?.changes?.updated?.length || 0,
-	deleted: status?.changes?.deleted?.length || 0,
-}));
+	// prettier counts
+	const changeSummary = $derived(() => ({
+		new: status?.changes?.new?.length || 0,
+		updated: status?.changes?.updated?.length || 0,
+		deleted: status?.changes?.deleted?.length || 0
+	}));
 
-async function loadStatus() {
-	isLoading = true;
-	try {
-		const res = await fetch("/api/config_sync");
-		if (!res.ok) {
-			throw new Error(`HTTP ${res.status}`);
+	async function loadStatus() {
+		isLoading = true;
+		try {
+			const res = await fetch('/api/config_sync');
+			if (!res.ok) {
+				throw new Error(`HTTP ${res.status}`);
+			}
+			status = await res.json();
+			console.debug('[Config Sync] Received status:', status);
+		} catch (err) {
+			const errorMsg = err instanceof Error ? err.message : String(err);
+			toast.error(`Failed to fetch status: ${errorMsg}`);
+			status = null;
+		} finally {
+			isLoading = false;
 		}
-		status = await res.json();
-		console.debug("[Config Sync] Received status:", status);
-	} catch (err) {
-		const errorMsg = err instanceof Error ? err.message : String(err);
-		toast.error(`Failed to fetch status: ${errorMsg}`);
-		status = null;
-	} finally {
-		isLoading = false;
-	}
-}
-
-async function performSync() {
-	if (!status || status.unmetRequirements.length > 0) {
-		toast.warning("Sync blocked due to unmet requirements.");
-		return;
 	}
 
-	isProcessing = true;
-	try {
-		// Standard filesystem sync
-		const payload = { action: "import" };
-		toast.info("Performing standard filesystem sync...");
-
-		const res = await fetch("/api/config_sync", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(payload),
-		});
-
-		const result = await res.json();
-		if (!res.ok) {
-			throw new Error(result.message || `HTTP ${res.status}`);
+	async function performSync() {
+		if (!status || status.unmetRequirements.length > 0) {
+			toast.warning('Sync blocked due to unmet requirements.');
+			return;
 		}
 
-		toast.success(result.message || "Sync successful!");
-		await loadStatus(); // Refresh status after sync
-	} catch (err) {
-		const errorMsg = err instanceof Error ? err.message : String(err);
-		toast.error(`Sync failed: ${errorMsg}`);
-	} finally {
-		isProcessing = false;
+		isProcessing = true;
+		try {
+			// Standard filesystem sync
+			const payload = { action: 'import' };
+			toast.info('Performing standard filesystem sync...');
+
+			const res = await fetch('/api/config_sync', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+
+			const result = await res.json();
+			if (!res.ok) {
+				throw new Error(result.message || `HTTP ${res.status}`);
+			}
+
+			toast.success(result.message || 'Sync successful!');
+			await loadStatus(); // Refresh status after sync
+		} catch (err) {
+			const errorMsg = err instanceof Error ? err.message : String(err);
+			toast.error(`Sync failed: ${errorMsg}`);
+		} finally {
+			isProcessing = false;
+		}
 	}
-}
 
-function syncAllChanges() {
-	performSync();
-}
+	function syncAllChanges() {
+		performSync();
+	}
 
-onMount(() => {
-	loadStatus();
-});
+	onMount(() => {
+		loadStatus();
+	});
 </script>
 
 <!-- Page Title and Back Button -->
-<PageTitle
-	name="Config Sync & Backup"
-	icon="mdi:sync-circle"
-	showBackButton={true}
-	backUrl="/config"
-
-/>
+<PageTitle name="Config Sync & Backup" icon="mdi:sync-circle" showBackButton={true} backUrl="/config" />
 
 <div class="wrapper">
 	<!-- Description -->

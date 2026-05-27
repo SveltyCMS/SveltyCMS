@@ -1,19 +1,19 @@
 ---
-path: "docs/architecture/dashboard-system.mdx"
-title: "Dashboard System Architecture"
-description: "Comprehensive guide to the SveltyCMS dashboard system including widget architecture, customization, and audit log monitoring."
+path: 'docs/architecture/dashboard-system.mdx'
+title: 'Dashboard System Architecture'
+description: 'Comprehensive guide to the SveltyCMS dashboard system including widget architecture, customization, and audit log monitoring.'
 order: 5
-icon: "mdi:view-dashboard"
-author: "SveltyCMS Team"
-created: "2025-10-17"
-updated: "2026-05-05"
+icon: 'mdi:view-dashboard'
+author: 'admin'
+created: '2025-10-17'
+updated: '2025-10-17'
 tags:
-  - "dashboard"
-  - "widgets"
-  - "monitoring"
-  - "audit-logs"
-  - "architecture"
-  - "customization"
+  - 'dashboard'
+  - 'widgets'
+  - 'monitoring'
+  - 'audit-logs'
+  - 'architecture'
+  - 'customization'
 ---
 
 # Dashboard System Architecture
@@ -97,23 +97,23 @@ Widgets are automatically discovered and registered using Vite's glob import sys
 ```typescript
 // Automatic widget discovery in +page.svelte
 async function loadWidgetRegistry() {
-  const modules = import.meta.glob("./widgets/*.svelte");
-  const registry = {};
+	const modules = import.meta.glob('./widgets/*.svelte');
+	const registry = {};
 
-  for (const path in modules) {
-    const name = path.split("/").pop()?.replace(".svelte", "");
-    const module = await modules[path]();
+	for (const path in modules) {
+		const name = path.split('/').pop()?.replace('.svelte', '');
+		const module = await modules[path]();
 
-    registry[name] = {
-      component: module.default,
-      name: module.widgetMeta?.name || name,
-      description: module.widgetMeta?.description || "",
-      icon: module.widgetMeta?.icon || "mdi:widgets",
-      widgetMeta: module.widgetMeta,
-    };
-  }
+		registry[name] = {
+			component: module.default,
+			name: module.widgetMeta?.name || name,
+			description: module.widgetMeta?.description || '',
+			icon: module.widgetMeta?.icon || 'mdi:widgets',
+			widgetMeta: module.widgetMeta
+		};
+	}
 
-  return registry;
+	return registry;
 }
 ```
 
@@ -123,11 +123,11 @@ Each widget exports metadata for dashboard integration:
 
 ```typescript
 export const widgetMeta = {
-  name: "Widget Display Name",
-  icon: "mdi:icon-name",
-  description: "Brief description for widget picker",
-  defaultSize: { w: 2, h: 2 }, // Grid units
-  category: "monitoring" | "logs" | "content" | "static",
+	name: 'Widget Display Name',
+	icon: 'mdi:icon-name',
+	description: 'Brief description for widget picker',
+	defaultSize: { w: 2, h: 2 }, // Grid units
+	category: 'monitoring' | 'logs' | 'content' | 'static'
 };
 ```
 
@@ -289,22 +289,22 @@ Users can customize their dashboard through intuitive drag-and-drop:
 ```typescript
 // Drag and drop implementation highlights
 let dragState = $state({
-  item: null,
-  element: null,
-  offset: { x: 0, y: 0 },
-  isActive: false,
-  gridPosition: { row: number, col: number },
+	item: null,
+	element: null,
+	offset: { x: 0, y: 0 },
+	isActive: false,
+	gridPosition: { row: number, col: number }
 });
 
 function handleDragStart(event, widget) {
-  dragState.item = widget;
-  dragState.isActive = true;
-  // Calculate grid position and visual feedback
+	dragState.item = widget;
+	dragState.isActive = true;
+	// Calculate grid position and visual feedback
 }
 
 function handleDrop(event) {
-  // Update widget positions in system-preferences
-  // Persist new layout configuration
+	// Update widget positions in system-preferences
+	// Persist new layout configuration
 }
 ```
 
@@ -328,31 +328,31 @@ Each widget follows a standardized data loading pattern:
 ```typescript
 // Widget data loading lifecycle
 async function loadWidgetData() {
-  isLoading = true;
-  error = null;
+	isLoading = true;
+	error = null;
 
-  try {
-    // 1. Check cache (if enabled)
-    const cachedData = getCache(cacheKey);
-    if (cachedData && !isExpired(cachedData)) {
-      return cachedData.data;
-    }
+	try {
+		// 1. Check cache (if enabled)
+		const cachedData = getCache(cacheKey);
+		if (cachedData && !isExpired(cachedData)) {
+			return cachedData.data;
+		}
 
-    // 2. Fetch fresh data
-    const response = await fetch(endpoint);
-    const data = await response.json();
+		// 2. Fetch fresh data
+		const response = await fetch(endpoint);
+		const data = await response.json();
 
-    // 3. Update cache
-    setCache(cacheKey, data, cacheTTL);
+		// 3. Update cache
+		setCache(cacheKey, data, cacheTTL);
 
-    return data;
-  } catch (err) {
-    // 4. Handle errors with retry logic
-    error = err.message;
-    scheduleRetry();
-  } finally {
-    isLoading = false;
-  }
+		return data;
+	} catch (err) {
+		// 4. Handle errors with retry logic
+		error = err.message;
+		scheduleRetry();
+	} finally {
+		isLoading = false;
+	}
 }
 ```
 
@@ -376,23 +376,23 @@ let widgetObservers = new Map<string, IntersectionObserver>();
 
 // Load widget when it becomes visible
 function setupWidgetObserver(element: HTMLElement, params: [string, string]) {
-  const [widgetId, componentName] = params;
+	const [widgetId, componentName] = params;
 
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting && !loadedWidgets.has(widgetId)) {
-          // Dynamic import when visible
-          loadWidgetComponent(widgetId, componentName);
-          observer.disconnect();
-        }
-      });
-    },
-    { rootMargin: "100px" }, // Preload 100px before visible
-  );
+	const observer = new IntersectionObserver(
+		(entries) => {
+			entries.forEach((entry) => {
+				if (entry.isIntersecting && !loadedWidgets.has(widgetId)) {
+					// Dynamic import when visible
+					loadWidgetComponent(widgetId, componentName);
+					observer.disconnect();
+				}
+			});
+		},
+		{ rootMargin: '100px' } // Preload 100px before visible
+	);
 
-  observer.observe(element);
-  return { destroy: () => observer.disconnect() };
+	observer.observe(element);
+	return { destroy: () => observer.disconnect() };
 }
 ```
 
@@ -420,30 +420,30 @@ Widgets are categorized for optimal performance configuration:
 
 ```typescript
 export const WIDGET_DEFAULTS = {
-  // Real-time monitoring (no cache, frequent updates)
-  monitoring: {
-    showRefreshButton: true,
-    cacheKey: undefined,
-    retryCount: 3,
-    retryDelay: 1000,
-  },
+	// Real-time monitoring (no cache, frequent updates)
+	monitoring: {
+		showRefreshButton: true,
+		cacheKey: undefined,
+		retryCount: 3,
+		retryDelay: 1000
+	},
 
-  // Activity logs (auto-poll, moderate caching)
-  logs: {
-    showRefreshButton: false,
-    cacheKey: undefined,
-    retryCount: 2,
-    retryDelay: 1000,
-  },
+	// Activity logs (auto-poll, moderate caching)
+	logs: {
+		showRefreshButton: false,
+		cacheKey: undefined,
+		retryCount: 2,
+		retryDelay: 1000
+	},
 
-  // Content listings (cached, manual refresh)
-  content: {
-    showRefreshButton: false,
-    cacheKey: (id: string) => `content-${id}`,
-    cacheTTL: 120000, // 2 minutes
-    retryCount: 3,
-    retryDelay: 1000,
-  },
+	// Content listings (cached, manual refresh)
+	content: {
+		showRefreshButton: false,
+		cacheKey: (id: string) => `content-${id}`,
+		cacheTTL: 120000, // 2 minutes
+		retryCount: 3,
+		retryDelay: 1000
+	}
 };
 ```
 
@@ -460,14 +460,14 @@ The new **audit-log-widget** represents the latest advancement in dashboard secu
 ```typescript
 // Admin users see comprehensive security overview
 if (isAdmin && !showPersonalOnly) {
-  // System-wide statistics
-  const stats = await getAuditStatistics(7); // Last 7 days
+	// System-wide statistics
+	const stats = await getAuditStatistics(7); // Last 7 days
 
-  // Suspicious activity detection
-  const suspicious = await getSuspiciousActivities(5);
+	// Suspicious activity detection
+	const suspicious = await getSuspiciousActivities(5);
 
-  // All system events
-  const events = await queryAuditLogs({ limit: 10 });
+	// All system events
+	const events = await queryAuditLogs({ limit: 10 });
 }
 ```
 
@@ -476,8 +476,8 @@ if (isAdmin && !showPersonalOnly) {
 ```typescript
 // Regular users see personal activity only
 const personalEvents = await queryAuditLogs({
-  actorId: currentUser.id,
-  limit: 10,
+	actorId: currentUser.id,
+	limit: 10
 });
 ```
 
@@ -497,9 +497,9 @@ Critical security events trigger immediate visual alerts:
 ```typescript
 // Suspicious activity alert system
 if (suspiciousEvents.length > 0) {
-  // Show prominent alert banner
-  // Highlight critical events in timeline
-  // Trigger browser notifications (if permitted)
+	// Show prominent alert banner
+	// Highlight critical events in timeline
+	// Trigger browser notifications (if permitted)
 }
 ```
 
@@ -526,7 +526,7 @@ All dashboard endpoints use session-based authentication:
 // Authentication check in endpoints
 const session = await locals.auth();
 if (!session?.user) {
-  return json({ error: "Unauthorized" }, { status: 401 });
+	return json({ error: 'Unauthorized' }, { status: 401 });
 }
 
 // Tenant-scoped queries
@@ -579,15 +579,15 @@ Performance metrics from the MetricsService.
 
 ```json
 {
-  "requests": { "total": 1523, "success": 1498, "errors": 25 },
-  "auth": { "logins": 342, "failures": 12, "logouts": 298 },
-  "cache": { "hits": 8543, "misses": 432 },
-  "sessions": { "active": 23, "total": 342 },
-  "system": {
-    // Only if detailed=true
-    "memory": { "used": 2147483648, "total": 8589934592 },
-    "uptime": 3600000
-  }
+	"requests": { "total": 1523, "success": 1498, "errors": 25 },
+	"auth": { "logins": 342, "failures": 12, "logouts": 298 },
+	"cache": { "hits": 8543, "misses": 432 },
+	"sessions": { "active": 23, "total": 342 },
+	"system": {
+		// Only if detailed=true
+		"memory": { "used": 2147483648, "total": 8589934592 },
+		"uptime": 3600000
+	}
 }
 ```
 
@@ -611,33 +611,33 @@ Comprehensive system information: CPU, memory, disk, network, OS, processes.
 
 ```json
 {
-  "cpuInfo": {
-    "model": "Intel Core i7-9750H",
-    "cores": 12,
-    "speed": 2600,
-    "usage": 45.3,
-    "loadAverage": [2.1, 1.8, 1.5],
-    "history": [42.1, 43.5, 45.3]
-  },
-  "memoryInfo": {
-    "total": 17179869184,
-    "used": 12884901888,
-    "free": 4294967296,
-    "swapTotal": 2147483648,
-    "swapUsed": 1073741824
-  },
-  "diskInfo": {
-    "mounts": [
-      {
-        "filesystem": "/dev/sda1",
-        "size": 512110190592,
-        "used": 256055095296,
-        "available": 256055095296,
-        "capacity": 50,
-        "mounted": "/"
-      }
-    ]
-  }
+	"cpuInfo": {
+		"model": "Intel Core i7-9750H",
+		"cores": 12,
+		"speed": 2600,
+		"usage": 45.3,
+		"loadAverage": [2.1, 1.8, 1.5],
+		"history": [42.1, 43.5, 45.3]
+	},
+	"memoryInfo": {
+		"total": 17179869184,
+		"used": 12884901888,
+		"free": 4294967296,
+		"swapTotal": 2147483648,
+		"swapUsed": 1073741824
+	},
+	"diskInfo": {
+		"mounts": [
+			{
+				"filesystem": "/dev/sda1",
+				"size": 512110190592,
+				"used": 256055095296,
+				"available": 256055095296,
+				"capacity": 50,
+				"mounted": "/"
+			}
+		]
+	}
 }
 ```
 
@@ -671,17 +671,17 @@ System logs with ANSI color conversion to HTML.
 
 ```json
 {
-  "logs": [
-    {
-      "timestamp": "2025-01-20T10:30:15",
-      "level": "info",
-      "message": "User logged in",
-      "messageHtml": "<span style='color:#00ff00'>User logged in</span>"
-    }
-  ],
-  "total": 1523,
-  "page": 1,
-  "totalPages": 31
+	"logs": [
+		{
+			"timestamp": "2025-01-20T10:30:15",
+			"level": "info",
+			"message": "User logged in",
+			"messageHtml": "<span style='color:#00ff00'>User logged in</span>"
+		}
+	],
+	"total": 1523,
+	"page": 1,
+	"totalPages": 31
 }
 ```
 
@@ -689,7 +689,7 @@ System logs with ANSI color conversion to HTML.
 
 ---
 
-#### 5. **GET /api/dashboard/last5-content**
+#### 5. **GET /api/dashboard/last5Content**
 
 Recent content from all collections.
 
@@ -710,14 +710,14 @@ Recent content from all collections.
 
 ```json
 [
-  {
-    "id": "post-123",
-    "title": "Latest Blog Post",
-    "collection": "posts",
-    "createdAt": "2025-01-20T10:00:00Z",
-    "createdBy": "john.doe",
-    "status": "published"
-  }
+	{
+		"id": "post-123",
+		"title": "Latest Blog Post",
+		"collection": "posts",
+		"createdAt": "2025-01-20T10:00:00Z",
+		"createdBy": "john.doe",
+		"status": "published"
+	}
 ]
 ```
 
@@ -741,13 +741,13 @@ Recent media files from the media library.
 
 ```json
 [
-  {
-    "name": "hero-image.jpg",
-    "size": 2457600,
-    "modified": "2025-01-20T09:45:00Z",
-    "type": "image/jpeg",
-    "url": "/media/hero-image.jpg"
-  }
+	{
+		"name": "hero-image.jpg",
+		"size": 2457600,
+		"modified": "2025-01-20T09:45:00Z",
+		"type": "image/jpeg",
+		"url": "/media/hero-image.jpg"
+	}
 ]
 ```
 
@@ -755,7 +755,7 @@ Recent media files from the media library.
 
 ---
 
-#### 7. **GET /api/dashboard/online-user**
+#### 7. **GET /api/dashboard/online_user**
 
 Currently online users with session duration.
 
@@ -772,15 +772,15 @@ Currently online users with session duration.
 
 ```json
 {
-  "onlineUsers": [
-    {
-      "id": "user-123",
-      "name": "John Doe",
-      "avatarUrl": "/avatars/john.jpg",
-      "onlineTime": "2h 15m",
-      "onlineMinutes": 135
-    }
-  ]
+	"onlineUsers": [
+		{
+			"id": "user-123",
+			"name": "John Doe",
+			"avatarUrl": "/avatars/john.jpg",
+			"onlineTime": "2h 15m",
+			"onlineMinutes": 135
+		}
+	]
 }
 ```
 
@@ -809,14 +809,14 @@ System messages from log files.
 
 ```json
 [
-  {
-    "id": "msg-1",
-    "title": "System Update",
-    "message": "New version deployed successfully",
-    "level": "info",
-    "timestamp": "2025-01-20T10:30:00Z",
-    "type": "system"
-  }
+	{
+		"id": "msg-1",
+		"title": "System Update",
+		"message": "New version deployed successfully",
+		"level": "info",
+		"timestamp": "2025-01-20T10:30:00Z",
+		"type": "system"
+	}
 ]
 ```
 
@@ -839,23 +839,23 @@ Cache performance metrics from CacheMetrics service.
 
 ```json
 {
-  "overall": {
-    "hits": 8543,
-    "misses": 432,
-    "hitRate": 95.2,
-    "size": 2147483648
-  },
-  "byCategory": {
-    "content": { "hits": 5234, "misses": 123 },
-    "media": { "hits": 2109, "misses": 234 },
-    "system": { "hits": 1200, "misses": 75 }
-  },
-  "byTenant": {
-    "tenant-1": { "hits": 4321, "misses": 198 },
-    "tenant-2": { "hits": 4222, "misses": 234 }
-  },
-  "recentMisses": [{ "key": "content:post-123", "timestamp": "2025-01-20T10:30:00Z" }],
-  "timestamp": "2025-01-20T10:30:15Z"
+	"overall": {
+		"hits": 8543,
+		"misses": 432,
+		"hitRate": 95.2,
+		"size": 2147483648
+	},
+	"byCategory": {
+		"content": { "hits": 5234, "misses": 123 },
+		"media": { "hits": 2109, "misses": 234 },
+		"system": { "hits": 1200, "misses": 75 }
+	},
+	"byTenant": {
+		"tenant-1": { "hits": 4321, "misses": 198 },
+		"tenant-2": { "hits": 4222, "misses": 234 }
+	},
+	"recentMisses": [{ "key": "content:post-123", "timestamp": "2025-01-20T10:30:00Z" }],
+	"timestamp": "2025-01-20T10:30:15Z"
 }
 ```
 
@@ -894,12 +894,12 @@ bun test tests/bun/api/dashboard.test.ts  # In terminal 2
 ```typescript
 // All tests use authenticated session
 beforeAll(async () => {
-  const loginRes = await fetch("http://localhost:5173/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email: "admin@example.com", password: "admin123" }),
-  });
-  const cookies = loginRes.headers.get("set-cookie");
-  authCookie = cookies?.split(";")[0] || "";
+	const loginRes = await fetch('http://localhost:5173/api/auth/login', {
+		method: 'POST',
+		body: JSON.stringify({ email: 'admin@example.com', password: 'admin123' })
+	});
+	const cookies = loginRes.headers.get('set-cookie');
+	authCookie = cookies?.split(';')[0] || '';
 });
 ```
 

@@ -1,16 +1,16 @@
 ---
-path: "docs/architecture/hover-preloading.mdx"
+path: 'docs/architecture/hover-preloading.mdx'
 title: Hover Preloading for Edit Mode
 description: Intelligent speculative loading strategy for enterprise CMS performance optimization
 category: architecture
 order: 6
-author: "SveltyCMS Team"
-created: "2025-12-16"
-updated: "2026-03-27"
+author: 'SveltyCMS Team'
+created: '2025-12-16'
+updated: '2025-12-16'
 tags:
-  - "architecture"
-  - "performance"
-  - "preloading"
+  - 'architecture'
+  - 'performance'
+  - 'preloading'
 ---
 
 # Hover Preloading for Edit Mode
@@ -50,23 +50,23 @@ const PRELOAD_CACHE_TTL = 30000; // ms - 30 second freshness window
 
 ```typescript
 function handleRowHoverStart(entryId: string) {
-  hoverPreloadTimeout = setTimeout(async () => {
-    // Preload after 600ms
-    await fetch(preloadUrl.toString(), {
-      method: "GET",
-      credentials: "include",
-      headers: {
-        "X-Preload": "true",
-      },
-    });
-  }, PRELOAD_HOVER_DELAY);
+	hoverPreloadTimeout = setTimeout(async () => {
+		// Preload after 600ms
+		await fetch(preloadUrl.toString(), {
+			method: 'GET',
+			credentials: 'include',
+			headers: {
+				'X-Preload': 'true'
+			}
+		});
+	}, PRELOAD_HOVER_DELAY);
 }
 
 function handleRowHoverEnd() {
-  // Cancel if user moves away quickly
-  if (hoverPreloadTimeout) {
-    clearTimeout(hoverPreloadTimeout);
-  }
+	// Cancel if user moves away quickly
+	if (hoverPreloadTimeout) {
+		clearTimeout(hoverPreloadTimeout);
+	}
 }
 ```
 
@@ -78,17 +78,17 @@ function handleRowHoverEnd() {
 
 ```typescript
 const preloadedEntries = new Map<
-  string,
-  {
-    data: any;
-    timestamp: number;
-  }
+	string,
+	{
+		data: any;
+		timestamp: number;
+	}
 >();
 
 // Check if already preloaded and still fresh
 const cached = preloadedEntries.get(entryId);
 if (cached && Date.now() - cached.timestamp < PRELOAD_CACHE_TTL) {
-  return; // Skip preload
+	return; // Skip preload
 }
 ```
 
@@ -116,16 +116,16 @@ const cachedData = await cacheService.get(cacheKey);
 
 ```typescript
 $effect(() => {
-  const cleanupInterval = setInterval(() => {
-    const now = Date.now();
-    for (const [entryId, cached] of preloadedEntries.entries()) {
-      if (now - cached.timestamp > PRELOAD_CACHE_TTL) {
-        preloadedEntries.delete(entryId);
-      }
-    }
-  }, 10000); // Cleanup every 10 seconds
+	const cleanupInterval = setInterval(() => {
+		const now = Date.now();
+		for (const [entryId, cached] of preloadedEntries.entries()) {
+			if (now - cached.timestamp > PRELOAD_CACHE_TTL) {
+				preloadedEntries.delete(entryId);
+			}
+		}
+	}, 10000); // Cleanup every 10 seconds
 
-  return () => clearInterval(cleanupInterval);
+	return () => clearInterval(cleanupInterval);
 });
 ```
 
@@ -188,14 +188,10 @@ const PRELOAD_CACHE_TTL = 30000; // 30 seconds
 ```typescript
 // Detect slow connections (future implementation)
 const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-const isSlowConnection =
-  connection &&
-  (connection.effectiveType === "slow-2g" ||
-    connection.effectiveType === "2g" ||
-    connection.saveData === true);
+const isSlowConnection = connection && (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g' || connection.saveData === true);
 
 if (isSlowConnection) {
-  return; // Skip preload on slow connections
+	return; // Skip preload on slow connections
 }
 ```
 
@@ -207,60 +203,28 @@ The preload integrates seamlessly with existing SSR:
 
 ```typescript
 // +page.server.ts detects edit parameter
-const editEntryId = url.searchParams.get("edit");
+const editEntryId = url.searchParams.get('edit');
 
 if (editEntryId) {
-  // Load single entry for editing
-  finalFilter._id = editEntryId;
+	// Load single entry for editing
+	finalFilter._id = editEntryId;
 
-  // Skip language projection (need full multilingual data)
-  // Cache with edit-specific key
+	// Skip language projection (need full multilingual data)
+	// Cache with edit-specific key
 }
 ```
 
-### Client-Side Navigation (Standardized)
+### Client-Side Navigation
 
-SveltyCMS mandates the **"Anchor-First"** pattern for all internal navigation to ensure consistent sub-50ms perceived latency.
-
-#### 1. Core Collection Lists
-
-Recommended for table rows and entry lists:
+**Recommended**: Use `<a>` tags with `data-sveltekit-preload-data="hover"` for automatic preloading:
 
 ```svelte
-<!-- entry-list.svelte -->
+<!-- entry-list.svelte - Recommended approach -->
 <a href={`?edit=${originalEntry._id}`} data-sveltekit-preload-data="hover" class="table-row">
 	<!-- Row content -->
 </a>
-```
 
-#### 2. Dashboard Widgets (Speculative)
-
-For "At-a-glance" productivity, dashboard widgets use semantic links to prefetch content before the user clicks:
-
-```svelte
-<!-- last5-content-widget.svelte -->
-<li role="listitem">
-    <a href="/en/posts?edit=123" data-sveltekit-preload-data="hover">
-        <!-- Content preview -->
-    </a>
-</li>
-```
-
-> [!IMPORTANT]
-> **Accessibility (A11y)**: When using anchors within a list, always wrap the `<a>` tag inside an `<li>` element. Avoid applying `role="listitem"` directly to the anchor, as it conflicts with its interactive nature.
-
-#### 3. Configuration & Builders
-
-Even complex builders like the **Collection Builder** utilize anchor preloading for editing schemas:
-
-```svelte
-<!-- tree-view-node.svelte -->
-<a
-    href={`/config/collectionbuilder/edit/${item.id}`}
-    data-sveltekit-preload-data="hover"
->
-    <iconify-icon icon="mdi:pencil"></iconify-icon>
-</a>
+<!-- SvelteKit automatically preloads on hover! -->
 ```
 
 **Alternative**: Programmatic navigation (when needed for complex interactions):
@@ -268,7 +232,7 @@ Even complex builders like the **Collection Builder** utilize anchor preloading 
 ```typescript
 // Only use goto() when you need to combine navigation with other logic
 const newUrl = new URL(page.url);
-newUrl.searchParams.set("edit", originalEntry._id);
+newUrl.searchParams.set('edit', originalEntry._id);
 goto(newUrl, { keepFocus: true });
 ```
 
@@ -295,27 +259,28 @@ console.log(`[Preload] Entry ${entryId.substring(0, 8)} preloaded`);
 
 - Preload hit rate: 60-80%
 - Cache hit rate: 85-95%
-- Edit mode load: **< 50ms (Perceived)**
+- Edit mode load: < 50ms
 
-### Best Practices
+## Best Practices
 
 ### Do's ✅
 
-- ✅ **Standardize on `<a>` tags** with `data-sveltekit-preload-data="hover"`.
-- ✅ **Wrap anchors in `<li>`** when building list-based widgets.
-- ✅ Use intent detection (hover delay) for custom preload logic.
-- ✅ Deduplicate preload requests.
-- ✅ Clean up stale cache entries.
-- ✅ Leverage SvelteKit's built-in fetch caching.
-- ✅ Monitor server load impact.
+- ✅ **Use `<a>` tags with `data-sveltekit-preload-data="hover"`** for navigation links
+- ✅ Use intent detection (hover delay) for custom preload logic
+- ✅ Deduplicate preload requests
+- ✅ Clean up stale cache entries
+- ✅ Mark custom preload requests with header (`X-Preload: true`)
+- ✅ Leverage SvelteKit's built-in fetch caching
+- ✅ Monitor server load impact
 
 ### Don'ts ❌
 
-- ❌ **Avoid `goto()` for primary navigation** (it bypasses speculative preloading).
-- ❌ **Don't apply `role="listitem"` to `<a>` tags** (use proper `<li>` nesting).
-- ❌ Preload on short hovers (< 300ms) with custom logic.
-- ❌ Keep preload cache indefinitely.
-- ❌ Ignore server load metrics.
+- ❌ Use `<button onclick={() => goto(url)}>` for navigation (prevents preloading)
+- ❌ Preload on short hovers (< 300ms) with custom logic
+- ❌ Preload same entry repeatedly
+- ❌ Keep preload cache indefinitely
+- ❌ Preload on mobile/slow connections (future)
+- ❌ Ignore server load metrics
 
 ## Alternatives Considered
 
@@ -371,7 +336,7 @@ console.log(`[Preload] Entry ${entryId.substring(0, 8)} preloaded`);
 
 ## Related Documentation
 
-- [URL Pattern Implementation](./url-pattern.mdx): Edit URL structure
+- [URL Pattern Simplification](./url-pattern-simplification.mdx): Edit URL structure
 - [Multilingual Data Loading](./multilingual-data-loading.mdx): Two-tier SSR strategy
 - [Cache System](./cache-system.mdx): Dual-layer caching architecture
 - [Collection Store Dataflow](./collection-store-dataflow.mdx): Data flow patterns

@@ -9,58 +9,17 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 <script lang="ts">
 	import { slide } from 'svelte/transition';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	// Using iconify-icon web component
 	import type { SeoAnalysisResult } from '../seo-types';
-	import { getReadingEaseDescription } from '@src/utils/seo/readability';
+
 	interface Props {
 		analysisResult: SeoAnalysisResult | null;
-		content?: string;
-		currentId?: string;
-		collectionId?: string;
 		class?: string;
 		expanded?: boolean;
 		isAnalyzing?: boolean;
 	}
 
-	let { analysisResult, content = '', currentId = '', collectionId = '', class: className = '', expanded = $bindable(false), isAnalyzing = false }: Props = $props();
-
-	let linkSuggestions = $state<Array<{ title: string; url: string; score: number }>>([]);
-	let isFetchingLinks = $state(false);
-	let abortController: AbortController | null = null;
-
-	async function fetchLinkSuggestions() {
-		if (!content) return;
-
-		// Cancel any in-flight request
-		if (abortController) {
-			abortController.abort();
-		}
-
-		abortController = new AbortController();
-		isFetchingLinks = true;
-
-		try {
-			const response = await fetch('/api/seo/link-suggestions', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ content, currentId, collectionId }),
-				signal: abortController.signal
-			});
-
-			if (!response.ok) throw new Error('Network response was not ok');
-
-			const data = await response.json();
-			linkSuggestions = data.suggestions || [];
-		} catch (err: any) {
-			if (err.name === 'AbortError') {
-				console.log('Fetch aborted');
-			} else {
-				console.error('Failed to fetch link suggestions', err);
-			}
-		} finally {
-			isFetchingLinks = false;
-			abortController = null;
-		}
-	}
+	let { analysisResult, class: className = '', expanded = $bindable(false), isAnalyzing = false }: Props = $props();
 </script>
 
 <div class="card pt-1 preset-tonal-surface flex flex-col overflow-hidden {className} transition-all duration-300 {expanded ? 'h-[500px]' : 'h-16'}">
@@ -118,25 +77,8 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 				<span class="text-xs">Analyzing...</span>
 			</div>
 		{:else if analysisResult}
-			<!-- Metrics Summary -->
-			<div class="grid grid-cols-2 gap-2 p-3 bg-surface-50/5 border-b border-surface-500/10">
-				<div class="card p-2 variant-soft">
-					<div class="text-[10px] uppercase opacity-50 font-bold">Readability</div>
-					<div class="text-sm font-bold">{analysisResult.readability.fleschKincaidScore}</div>
-					<div class="text-[9px] opacity-70 leading-tight">{getReadingEaseDescription(analysisResult.readability.fleschKincaidScore)}</div>
-				</div>
-				<div class="card p-2 variant-soft">
-					<div class="text-[10px] uppercase opacity-50 font-bold">Word Count</div>
-					<div class="text-sm font-bold">{analysisResult.readability.wordCount}</div>
-					<div class="text-[9px] opacity-70">~{analysisResult.readability.readingTime} min read</div>
-				</div>
-			</div>
-
 			<!-- Scrollable Suggestions -->
-			<div class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar" transition:slide>
-				<div>
-					<h4 class="text-xs font-bold uppercase opacity-50 mb-2">Suggestions</h4>
-					<div class="space-y-2">
+			<div class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar border-t border-surface-500/20" transition:slide>
 				{#if analysisResult.suggestions.length > 0}
 					{#each analysisResult.suggestions as suggestion (suggestion.id)}
 						{@const suggestionIcon =
@@ -183,47 +125,6 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 						<span class="text-sm">No issues found!</span>
 					</div>
 				{/if}
-				</div>
-				</div>
-
-				<!-- Internal Link Suggestions -->
-				<div class="pt-2 border-t border-surface-500/10">
-					<div class="flex items-center justify-between mb-2">
-						<h4 class="text-xs font-bold uppercase opacity-50">Internal Linking</h4>
-						<button 
-							class="btn btn-sm variant-soft-primary py-0.5 px-2 text-[10px]" 
-							onclick={fetchLinkSuggestions}
-							disabled={isFetchingLinks}
-						>
-							{isFetchingLinks ? 'Searching...' : 'Find Suggestions'}
-						</button>
-					</div>
-
-					{#if linkSuggestions.length > 0}
-						<div class="space-y-2">
-							{#each linkSuggestions as link}
-								<div class="card p-2 variant-soft-surface text-xs flex items-center justify-between gap-2 group">
-									<div class="truncate flex-1">
-										<div class="font-bold truncate">{link.title}</div>
-										<div class="opacity-50 text-[10px] truncate">{link.url}</div>
-									</div>
-									<button 
-										class="btn btn-sm variant-ghost-surface p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-										title="Copy relative URL"
-										onclick={() => {
-											navigator.clipboard.writeText(link.url);
-											// Show toast or simple feedback
-										}}
-									>
-										<iconify-icon icon="mdi:content-copy" width="14"></iconify-icon>
-									</button>
-								</div>
-							{/each}
-						</div>
-					{:else if !isFetchingLinks}
-						<p class="text-[10px] opacity-40 italic text-center py-2">Click button to discover internal link opportunities.</p>
-					{/if}
-				</div>
 			</div>
 		{:else}
 			<div class="flex-1 flex flex-col items-center justify-center text-surface-400 opacity-50 p-4">

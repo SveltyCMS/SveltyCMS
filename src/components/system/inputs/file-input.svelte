@@ -1,4 +1,4 @@
-<!--
+<!-- 
 @file src/components/system/inputs/file-input.svelte
 @component
 **FileInput component**
@@ -10,7 +10,7 @@
 - `className`: string - Additional CSS classes for styling.
 
 ### Features
-- File input
+- File input 
 - Multiple file input
 - Drag and drop
 -->
@@ -104,7 +104,7 @@
 		role="cell"
 		tabindex="0"
 		class={twMerge(
-			'relative mt-2 flex h-50 w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700',
+			'relative mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700',
 			className
 		)}
 	>

@@ -1,72 +1,143 @@
 ---
-path: "docs/getting-started.mdx"
-title: "Getting Started"
-description: "Quick start guide to begin using SveltyCMS - from installation to creating your first content for all personas."
+path: 'docs/getting-started'
+title: 'Getting Started'
+description: 'Quick start guide to begin using SveltyCMS - from installation to creating your first content.'
 order: 0
-icon: "mdi:rocket-launch"
-author: "SveltyCMS Team"
-created: "2025-10-05"
-updated: "2026-05-25"
+icon: 'mdi:rocket-launch'
+author: 'SveltyCMS Team'
+created: '2025-10-05'
+updated: '2026-03-04'
 tags:
-  - "getting-started"
-  - "quickstart"
-  - "tutorial"
+  - 'getting-started'
+  - 'quickstart'
+  - 'tutorial'
 ---
 
 # Getting Started with SveltyCMS
 
-Welcome to SveltyCMS! This guide will help you get up and running in under 10 minutes, whether you are a **Developer** installing the system, an **Administrator** configuring permissions, or a **Content Creator** building your first site.
+Welcome to SveltyCMS! This guide will help you get up and running in under 10 minutes.
+
+## What is SveltyCMS?
+
+SveltyCMS is a **modern headless CMS** built with SvelteKit that provides:
+
+- ⚡ **Lightning Fast** - Built on SvelteKit 2 with Svelte 5
+- 🗄️ **Database Agnostic** - Production-ready support for MongoDB, PostgreSQL, MariaDB, and SQLite
+- 🌐 **Multi-Tenant** - Optional tenant isolation
+- 🔌 **Widget System** - Extensible with plugins
+- 🔒 **Secure** - Built-in authentication, 2FA, role-based access
+- 🌍 **Multilingual** - i18n support with Paraglide JS
+- 📊 **GraphQL & REST** - Flexible API options
+- 🎨 **Customizable** - Tailwind CSS + Skeleton UI
 
 ---
 
-## 👥 Choose Your Path
+## Quick Start (5 Minutes)
 
-- 🛠️ **[Installation Guide](#1-installation-for-developers)** — For developers and DevOps engineers.
-- 🎨 **[First Steps](#2-first-steps-for-admins--editors)** — For administrators and content editors.
-- 📚 **[Common Workflows](#3-common-workflow-templates)** — Examples for blogs, e-commerce, and more.
-
----
-
-## 1. Installation (For Developers)
-
-SveltyCMS features a **Self-Healing Setup Wizard** that automates database configuration and environment setup.
-
-### Quick Install
+### 1. Install SveltyCMS
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/SveltyCMS/SveltyCMS.git
 cd SveltyCMS
 
-# 2. Install dependencies (Bun recommended)
+# 2. Install dependencies
+# We recommend Bun (3-4x faster), but npm/pnpm also work
 bun install
-#   Note for Windows users: If bun install fails, use npm install instead
 
 # 3. Start development server
+# The interactive CLI Setup Wizard will launch automatically
 bun run dev
 ```
 
-### The Setup Wizard
+### 2. Complete Setup Wizard
 
-Navigate to `http://localhost:5173`. The system will automatically detect the absence of `config/private.ts` via the TurboPipeline hook and launch the wizard:
+The CLI installer guides you through:
 
-1.  **Choose Database**: Support for MongoDB, PostgreSQL, MariaDB, and SQLite (fastest for local).
-2.  **Test Connection**: The wizard auto-installs required drivers and validates connectivity.
-3.  **Create Admin**: Set your master credentials with password complexity validation.
-4.  **Configure System**: Set site name, languages, media storage, and optional Redis.
-5.  **Email & Review**: Optionally configure SMTP, then review all settings and complete setup. The system seeds the database automatically and transitions to `READY`.
+1. ✅ **Choose Database**
+   - **NoSQL**: MongoDB (Local or Atlas Atlas)
+   - **SQL**: SQLite (fastest for local), PostgreSQL, MariaDB, or MySQL
+2. ✅ **Enter Connection Details** (Wizard validates automatically)
+3. ✅ **Test Connection** (Driver auto-installation if needed)
+4. ✅ **Create Admin User** (Your secure credentials)
+5. ✅ **Seed Initial Data** (System readiness in <1s)
+
+### 3. Access Admin Panel
+
+Once setup completes:
+
+```
+🎉 Setup Complete!
+
+📍 Admin Panel: http://localhost:5173/admin
+📍 API Endpoint: http://localhost:5173/api
+📍 GraphQL: http://localhost:5173/api/graphql
+
+👤 Login with your admin credentials
+```
 
 ---
 
-## 2. First Steps (For Admins & Editors)
+## First Steps After Installation
 
-### Access the Admin Studio
+### 1. Login
 
-Once setup completes, navigate to `http://localhost:5173/admin` and login with your admin credentials.
+1. Navigate to `http://localhost:5173/admin`
+2. Enter your admin email and password
+3. You're in! 🎉
 
-### Understanding the Dashboard Layout
+### 2. Configure Settings
 
-The Studio is designed for clarity and speed.
+Navigate to **⚙️ Settings** and configure:
+
+- **Site Name** - Your CMS name
+- **Site URL** - Your production URL
+- **Default Language** - Choose your language
+- **Theme** - Light/Dark mode
+- **Date Format** - YYYY-MM-DD, MM/DD/YYYY, etc.
+
+### 3. Create Your First Collection
+
+Collections define your content structure (like tables in a database).
+
+**Example: Create a "Blog Posts" collection**
+
+1. Navigate to **📚 Collections** → **+ New Collection**
+2. Fill in details:
+   ```
+   Name: posts
+   Display Name: Blog Posts
+   Icon: mdi:post
+   ```
+3. Add fields:
+   - **Title** (text, required)
+   - **Content** (richtext)
+   - **Author** (relation to users)
+   - **Status** (select: draft, published, archived)
+   - **Featured Image** (media)
+   - **Published Date** (datetime)
+
+4. Click **Save Collection**
+
+### 4. Create Your First Entry
+
+1. Navigate to **📚 Collections** → **Blog Posts**
+2. Click **+ New Post**
+3. Fill in:
+   ```
+   Title: My First Post
+   Content: Hello, SveltyCMS!
+   Status: published
+   ```
+4. Click **Save**
+
+Congratulations! You've created your first content entry! 🎊
+
+---
+
+## Understanding the Dashboard
+
+### Admin Panel Layout
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -83,64 +154,325 @@ The Studio is designed for clarity and speed.
 └──────────┴──────────────────────────────────┘
 ```
 
-### Key Editorial Tasks
+### Key Sections
 
-1.  **Configure Settings**: Go to **⚙️ Settings** to set your Site Name, Default Language, and Theme.
-2.  **Create a Collection**: Collections define your content structure. Go to **📚 Collections** → **+ New Collection**.
-    - _Example_: Create a "posts" collection with fields for Title (text), Content (richtext), and Status (select).
-3.  **Add Your First Entry**: Open your new collection and click **+ New Entry**. Fill in the fields and click **Save**.
+#### Dashboard
+
+- System metrics and health
+- Recent content activity
+- Online users
+- Quick actions
+
+#### Collections
+
+- Manage content types
+- Create/edit/delete entries
+- Import/export data
+- View revisions
+
+#### Media
+
+- Upload files
+- Organize in folders
+- Process images
+- Manage assets
+
+#### Users
+
+- Create user accounts
+- Assign roles
+- Manage permissions
+- View activity
+
+#### Widgets
+
+- Install extensions
+- Activate/deactivate
+- Configure settings
+- Browse marketplace
+
+#### Settings
+
+- System configuration
+- Theme preferences
+- Email setup
+- Cache management
 
 ---
 
-## 3. Common Workflow Templates
+## Working with the API
+
+SveltyCMS provides both REST and GraphQL APIs.
+
+### REST API Example
+
+**Fetch all posts:**
+
+```javascript
+const response = await fetch('http://localhost:5173/api/collections/posts', {
+	credentials: 'include'
+});
+const { data } = await response.json();
+console.log(data);
+```
+
+**Create a new post:**
+
+```javascript
+const response = await fetch('http://localhost:5173/api/collections/posts', {
+	method: 'POST',
+	credentials: 'include',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+		title: 'New Post',
+		content: 'Content here...',
+		status: 'published'
+	})
+});
+```
+
+### GraphQL Example
+
+**Query posts:**
+
+```graphql
+query GetPosts {
+	posts(limit: 10) {
+		_id
+		title
+		content
+		author {
+			username
+		}
+		createdAt
+	}
+}
+```
+
+**Access GraphQL Playground:**
+
+```
+http://localhost:5173/api/graphql
+```
+
+---
+
+## Common Workflows
 
 ### Workflow 1: Blog Setup
 
-1.  **Collections**: Create `Posts`, `Categories`, and `Tags`.
-2.  **Relationships**: Link `Posts` to `Categories` (Multi-select) and `Users` (Author).
-3.  **Publishing**: Use the built-in `Status` field to manage Draft vs. Published states.
+1. **Create Collections**
+   - Posts (title, content, author, status)
+   - Categories (name, slug, description)
+   - Tags (name, slug)
 
-### Workflow 2: E-Commerce Catalog
+2. **Set Up Relationships**
+   - Posts → Users (author)
+   - Posts → Categories (many-to-many)
+   - Posts → Tags (many-to-many)
 
-1.  **Collections**: Create `Products` (Price, SKU, Description) and `Inventory`.
-2.  **Media**: Upload product images to the **📁 Media Hub** and link them to product entries.
-3.  **API**: Query products via `/api/collections/products` for your frontend.
+3. **Create Content**
+   - Add categories
+   - Add tags
+   - Write posts
 
-### Workflow 3: Multi-Language Sites
+4. **Configure Frontend**
+   - Query posts via API
+   - Display on your website
+   - Implement pagination
 
-1.  **Enable i18n**: Go to **⚙️ Settings** → **Languages** and add your target languages.
-2.  **Translate**: Open any entry and use the language switcher to enter localized content. Paraglide JS handles the compile-time switching.
+### Workflow 2: E-Commerce Product Management
+
+1. **Create Collections**
+   - Products (name, price, description, sku)
+   - Categories (name, parent)
+   - Inventory (product_id, quantity, location)
+
+2. **Add Media**
+   - Upload product images
+   - Organize in folders
+   - Link to products
+
+3. **Manage Products**
+   - Create product entries
+   - Assign categories
+   - Upload images
+   - Track inventory
+
+### Workflow 3: Multi-Language Site
+
+1. **Enable Multi-Language**
+   - Go to Settings → Languages
+   - Add languages (English, German, French, etc.)
+
+2. **Create Translatable fields**
+   - Mark fields as "translatable"
+   - Enter content in each language
+
+3. **Query by Language**
+   ```javascript
+   fetch('/api/collections/posts?lang=de');
+   ```
 
 ---
 
-## 🛡️ User Roles & Permissions
+## User Roles & Permissions
 
-SveltyCMS uses a granular **Role-Based Access Control (RBAC)** system.
+SveltyCMS includes built-in role-based access control.
 
-- **Admin**: Full access.
-- **Editor**: Can manage all content and media.
-- **Contributor**: Can create content but cannot publish without approval.
-- **Custom Roles**: Create these in **⚙️ Settings** → **Roles & Permissions** to define field-level access.
+### Default Roles
+
+**Admin**
+
+- Full system access
+- Manage users and settings
+- Install widgets
+- All permissions
+
+**Editor**
+
+- Create/edit/delete content
+- Upload media
+- Manage own posts
+- Cannot access system settings
+
+**Contributor**
+
+- Create/edit own content
+- Upload media
+- Cannot publish content
+- Limited access
+
+**Viewer**
+
+- Read-only access
+- View published content
+- No edit permissions
+
+### Creating Custom Roles
+
+1. Navigate to **⚙️ Settings** → **Roles & Permissions**
+2. Click **+ New Role**
+3. Define permissions:
+   - `content:read`
+   - `content:write`
+   - `content:delete`
+   - `media:read`
+   - `media:write`
+   - `user:read`
+   - etc.
 
 ---
 
-## ⚙️ How it Works (The Mechanics)
+## Extending with Widgets
 
-For developers needing to understand the system's resilience:
+Widgets add functionality to SveltyCMS.
 
-### The State Machine
+### Core Widgets (Pre-installed)
 
-SveltyCMS transitions through specific states during boot:
+- **Media Upload** - File management
+- **Rich Text Editor** - WYSIWYG editing
+- **Image Gallery** - Image display
+- **User Management** - User CRUD
+- **Collection Builder** - Dynamic schemas
 
-- `IDLE`: Initializing memory and checking `config/private.ts`.
-- `READY` / `WARMED`: Core services (Auth, Media, DB) are successfully connected and cache is warm.
-- `DEGRADED`: System is operational but some non-critical services are unhealthy.
-- `FAILED`: A critical path error occurred (Wizard enters recovery mode).
+### Installing Widgets
 
-### Driver Auto-Installation
+1. Navigate to **🔌 Widgets** → **Marketplace**
+2. Browse available widgets
+3. Click **Install** on desired widget
+4. Activate the widget
+5. Configure settings
 
-During the Setup Wizard, SveltyCMS uses `spawn` to dynamically install database drivers (e.g., `mongoose`, `mariadb`) based on your selection, ensuring a lean initial footprint.
+### Creating Custom Widgets
+
+See [Widget Development Guide](/docs/widgets/development) for details.
 
 ---
 
-**Next Steps**: Dive into the [API Reference](./api/index.mdx) or learn about [Widget Development](./guides/development/widgets/index.mdx).
+- 👥 [User Management](/docs/api/user-management-api.mdx)
+- 🛡️ [Security Best Practices](/docs/dev-guide/security-plugin)
+
+### Development
+
+- 🔌 [Widget System](/docs/widgets/)
+- 📊 [GraphQL API](/docs/api/graphql-api.mdx)
+- 🗄️ [Database Architecture](/docs/dev-guide/database-methods-architecture)
+
+### Deployment
+
+- 🚀 [Production Deployment](/docs/installation#deployment)
+- ⚙️ [Setup Actions](/docs/api/setup-actions-api.mdx)
+- 📈 [Performance Optimization](/docs/architecture/cache-system)
+
+---
+
+## Getting Help
+
+### Documentation
+
+- 📚 [Full Documentation](/docs)
+- 🔍 [API Reference](/docs/api)
+- 🎨 [Widget Documentation](/docs/widgets)
+
+### Community
+
+- 💬 [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
+- 🐛 [Report Issues](https://github.com/SveltyCMS/SveltyCMS/issues)
+- 📧 [Email Support](mailto:support@sveltycms.com)
+
+### Contributing
+
+- 🤝 [Contributing Guide](/docs/contributing/contributing-docs.mdx)
+- 🔧 [Development Setup](/docs/dev-guide)
+- 📝 [Code of Conduct](/CODE-OF-CONDUCT.md)
+
+---
+
+## Quick Reference
+
+### Useful Commands
+
+```bash
+# Development
+bun run dev          # Start dev server
+bun run build        # Build for production
+bun run preview      # Preview production build
+
+# Database
+bun run seed         # Seed initial data
+bun run migrate      # Run migrations
+
+# Testing & Quality (CI Parity)
+bun run lint && bun run check && bun run test
+
+# Individual Commands
+bun run test         # Run unit tests
+bun run test:e2e     # End-to-end tests
+
+# Maintenance
+bun run lint         # Lint code
+bun run format       # Format code
+bun run typecheck    # Type checking
+```
+
+### Default URLs
+
+- Admin: `http://localhost:5173/admin`
+- API: `http://localhost:5173/api`
+- GraphQL: `http://localhost:5173/api/graphql`
+- Frontend: `http://localhost:5173`
+
+### Important Files
+
+- `config/private.ts` - Database connection configuration (created during setup)
+- `config/collections/` - Collection schemas
+- `src/routes/api/` - API endpoints
+- `src/databases/` - Database adapters
+- Roles are managed in the database via `/config/accessManagement`
+
+---
+
+**Ready to build something amazing?** 🚀
+
+Start creating content, or dive deeper into the [full documentation](/docs).

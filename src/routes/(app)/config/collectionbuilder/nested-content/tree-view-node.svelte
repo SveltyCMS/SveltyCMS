@@ -13,114 +13,113 @@ Features:
 - Roving tabindex for accessibility
 -->
 <script lang="ts">
-import SystemTooltip from "@src/components/system/system-tooltip.svelte";
-import { screen } from "@src/stores/screen-size-store.svelte.ts";
-import type { TreeViewItem } from "./tree-view-board.svelte";
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { screen } from '@src/stores/screen-size-store.svelte.ts';
+	import { goto } from '$app/navigation';
+	import type { TreeViewItem } from './tree-view-board.svelte';
 
-interface Props {
-	isOpen?: boolean;
-	item: TreeViewItem & { hasChildren?: boolean };
-	/** When true, this category is the one selected for "add collection" (visual highlight). */
-	isSelectedCategory?: boolean;
-	// Keyboard reordering props
-	keyboardReorderMode?: boolean;
-	onDelete?: (item: TreeViewItem) => void;
-	onDuplicate?: (item: TreeViewItem) => void;
-	onEditCategory: (item: TreeViewItem) => void;
-	onEnterReorderMode?: () => void;
-	onExitReorderMode?: () => void;
-	onMoveDown?: () => void;
-	onMoveToParent?: () => void;
-	onMoveUp?: () => void;
-	/** Called when category row is clicked (toggle selection for add-collection target). */
-	onSelectCategory?: () => void;
-	// Roving tabindex for keyboard navigation
-	tabindex?: number;
-	toggle?: () => void;
-}
-
-let {
-	item,
-	isOpen,
-	isSelectedCategory = false,
-	toggle,
-	onEditCategory,
-	onDelete,
-	onDuplicate,
-	onSelectCategory,
-	keyboardReorderMode = false,
-	onMoveUp,
-	onMoveDown,
-	onMoveToParent,
-	onEnterReorderMode,
-	onExitReorderMode,
-	tabindex = -1,
-}: Props = $props();
-
-// Computed properties
-const name = $derived(item.name || "Untitled");
-const icon = $derived(
-	item.icon || (item.nodeType === "category" ? "bi:folder" : "bi:collection"),
-);
-const isCategory = $derived(item.nodeType === "category");
-
-// Enhanced styling with better visual hierarchy; selected category = primary highlight (one at a time)
-const containerClass = $derived(
-	keyboardReorderMode
-		? "group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-primary-500/20 to-primary-600/10 border-2 border-primary-500 ring-2 ring-primary-500/50 flex items-center gap-2 sm:gap-3 cursor-pointer transition-all duration-300 ease-out min-w-0 overflow-hidden"
-		: isCategory && isSelectedCategory
-			? "group w-full min-h-[48px] p-2 sm:p-3 rounded bg-primary-500/20 dark:bg-primary-600/25 border-2 border-primary-500 ring-2 ring-primary-500/50 flex items-center gap-2 sm:gap-3 cursor-pointer transition-all duration-300 ease-out min-w-0 overflow-hidden"
-			: isCategory
-				? "group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-tertiary-500/10 to-tertiary-600/5 border-2 border-l-4 border-l-tertiary-500 border-tertiary-500/30 flex items-center gap-2 sm:gap-3 cursor-pointer hover:border-tertiary-500 hover:shadow-lg hover:from-tertiary-500/20 hover:to-tertiary-600/10 transition-all duration-300 ease-out min-w-0 overflow-hidden"
-				: "group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-surface-100 to-surface-50 dark:from-surface-700 dark:to-surface-800 border-2 border-l-4 border-l-primary-500 border-surface-500/40 flex items-center gap-2 sm:gap-3 cursor-pointer hover:border-surface-500 hover:shadow-lg hover:translate-x-1 transition-all duration-300 ease-out min-w-0 overflow-hidden",
-);
-
-const iconClass = $derived(
-	isCategory
-		? "text-tertiary-500 group-hover:text-tertiary-600 transition-colors duration-200"
-		: "text-error-500 group-hover:text-error-600 transition-colors duration-200",
-);
-
-function handleClick(e: MouseEvent) {
-	if ((e.target as HTMLElement).closest("button, .drag-handle")) {
-		return;
-	}
-	// Category row click = toggle selection (highlight); expand/collapse via chevron only
-	if (isCategory && onSelectCategory) {
-		onSelectCategory();
-		return;
-	}
-	toggle?.();
-}
-
-function handleKeyDown(e: KeyboardEvent) {
-	if (!keyboardReorderMode) {
-		return;
+	interface Props {
+		isOpen?: boolean;
+		item: TreeViewItem & { hasChildren?: boolean };
+		/** When true, this category is the one selected for "add collection" (visual highlight). */
+		isSelectedCategory?: boolean;
+		// Keyboard reordering props
+		keyboardReorderMode?: boolean;
+		onDelete?: (item: TreeViewItem) => void;
+		onDuplicate?: (item: TreeViewItem) => void;
+		onEditCategory: (item: TreeViewItem) => void;
+		onEnterReorderMode?: () => void;
+		onExitReorderMode?: () => void;
+		onMoveDown?: () => void;
+		onMoveToParent?: () => void;
+		onMoveUp?: () => void;
+		/** Called when category row is clicked (toggle selection for add-collection target). */
+		onSelectCategory?: () => void;
+		// Roving tabindex for keyboard navigation
+		tabindex?: number;
+		toggle?: () => void;
 	}
 
-	switch (e.key) {
-		case "ArrowUp":
-			e.preventDefault();
-			onMoveUp?.();
-			break;
-		case "ArrowDown":
-			e.preventDefault();
-			onMoveDown?.();
-			break;
-		case "ArrowLeft":
-			e.preventDefault();
-			onMoveToParent?.();
-			break;
-		case "Escape":
-			e.preventDefault();
-			onExitReorderMode?.();
-			break;
-		case "Enter":
-			e.preventDefault();
-			onExitReorderMode?.();
-			break;
+	let {
+		item,
+		isOpen,
+		isSelectedCategory = false,
+		toggle,
+		onEditCategory,
+		onDelete,
+		onDuplicate,
+		onSelectCategory,
+		keyboardReorderMode = false,
+		onMoveUp,
+		onMoveDown,
+		onMoveToParent,
+		onEnterReorderMode,
+		onExitReorderMode,
+		tabindex = -1
+	}: Props = $props();
+
+	// Computed properties
+	const name = $derived(item.name || 'Untitled');
+	const icon = $derived(item.icon || (item.nodeType === 'category' ? 'bi:folder' : 'bi:collection'));
+	const isCategory = $derived(item.nodeType === 'category');
+
+	// Enhanced styling with better visual hierarchy; selected category = primary highlight (one at a time)
+	const containerClass = $derived(
+		keyboardReorderMode
+			? 'group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-primary-500/20 to-primary-600/10 border-2 border-primary-500 ring-2 ring-primary-500/50 flex items-center gap-2 sm:gap-3 cursor-pointer transition-all duration-300 ease-out min-w-0 overflow-hidden'
+			: isCategory && isSelectedCategory
+				? 'group w-full min-h-[48px] p-2 sm:p-3 rounded bg-primary-500/20 dark:bg-primary-600/25 border-2 border-primary-500 ring-2 ring-primary-500/50 flex items-center gap-2 sm:gap-3 cursor-pointer transition-all duration-300 ease-out min-w-0 overflow-hidden'
+				: isCategory
+					? 'group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-tertiary-500/10 to-tertiary-600/5 border-2 border-l-4 border-l-tertiary-500 border-tertiary-500/30 flex items-center gap-2 sm:gap-3 cursor-pointer hover:border-tertiary-500 hover:shadow-lg hover:from-tertiary-500/20 hover:to-tertiary-600/10 transition-all duration-300 ease-out min-w-0 overflow-hidden'
+					: 'group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-surface-100 to-surface-50 dark:from-surface-700 dark:to-surface-800 border-2 border-l-4 border-l-primary-500 border-surface-500/40 flex items-center gap-2 sm:gap-3 cursor-pointer hover:border-surface-500 hover:shadow-lg hover:translate-x-1 transition-all duration-300 ease-out min-w-0 overflow-hidden'
+	);
+
+	const iconClass = $derived(
+		isCategory
+			? 'text-tertiary-500 group-hover:text-tertiary-600 transition-colors duration-200'
+			: 'text-error-500 group-hover:text-error-600 transition-colors duration-200'
+	);
+
+	function handleClick(e: MouseEvent) {
+		if ((e.target as HTMLElement).closest('button, .drag-handle')) {
+			return;
+		}
+		// Category row click = toggle selection (highlight); expand/collapse via chevron only
+		if (isCategory && onSelectCategory) {
+			onSelectCategory();
+			return;
+		}
+		toggle?.();
 	}
-}
+
+	function handleKeyDown(e: KeyboardEvent) {
+		if (!keyboardReorderMode) {
+			return;
+		}
+
+		switch (e.key) {
+			case 'ArrowUp':
+				e.preventDefault();
+				onMoveUp?.();
+				break;
+			case 'ArrowDown':
+				e.preventDefault();
+				onMoveDown?.();
+				break;
+			case 'ArrowLeft':
+				e.preventDefault();
+				onMoveToParent?.();
+				break;
+			case 'Escape':
+				e.preventDefault();
+				onExitReorderMode?.();
+				break;
+			case 'Enter':
+				e.preventDefault();
+				onExitReorderMode?.();
+				break;
+		}
+	}
 </script>
 
 <div
@@ -156,10 +155,10 @@ function handleKeyDown(e: KeyboardEvent) {
 	<!-- Icon -->
 	<div class="relative"><iconify-icon {icon} width="24" class={iconClass} aria-hidden="true"></iconify-icon></div>
 
-	<!-- Name & Badge: flexible width for responsiveness -->
-	<div class="flex flex-1 flex-col gap-1 min-w-0">
+	<!-- Name & Badge: min width so category/collection names are not squeezed -->
+	<div class="flex flex-col gap-1 min-w-[300px] sm:min-w-[500px] shrink-0">
 		<div class="flex items-center gap-1 sm:gap-2 flex-wrap">
-			<span class="font-bold text-sm sm:text-base leading-none truncate max-w-[150px] sm:max-w-[380px]" title={name}>{name}</span>
+			<span class="font-bold text-sm sm:text-base leading-none truncate max-w-[280px] sm:max-w-[380px]" title={name}>{name}</span>
 			{#if isCategory}
 				<span
 					class="badge font-semibold bg-tertiary-500 text-white text-[9px] sm:text-[10px] px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-sm uppercase shadow-sm"
@@ -173,51 +172,43 @@ function handleKeyDown(e: KeyboardEvent) {
 					Collection
 				</span>
 			{/if}
-
-			<!-- Slug - Hidden on mobile to save space -->
-			{#if item.slug}
-				<span class="hidden sm:inline-block badge bg-surface-500 dark:bg-surface-600 text-white px-2 py-1 rounded font-mono text-[10px] shadow-sm ml-auto opacity-80" aria-label="URL slug">
-					{item.slug}
-				</span>
-			{/if}
 		</div>
 	</div>
 
-	<!-- Description: hidden on small screens -->
+	<!-- Description: wider max so more text is visible before truncation -->
 	{#if screen.isDesktop && item.description}
-		<div class="flex-1 px-4 min-w-0 hidden md:flex justify-start">
-			<span class="italic text-sm opacity-70 truncate w-full max-w-[640px] md:max-w-[1200px] text-left" title={item.description}>
+		<div class="flex-1 px-4 min-w-[320px] sm:min-w-[400px] flex justify-start">
+			<span class="italic text-sm opacity-70 truncate w-full max-w-[640px] sm:max-w-[800px] md:max-w-[1200px] text-left" title={item.description}>
 				{item.description}
 			</span>
 		</div>
 	{/if}
 
+	<!-- Spacer to push slug and actions to the right -->
+	<div class="flex-1 min-w-0"></div>
+
+	<!-- Slug -->
+	{#if item.slug}
+		<span class="badge bg-surface-500 dark:bg-surface-600 text-white px-2 py-1 rounded font-mono text-xs shadow-sm mr-2" aria-label="URL slug">
+			{item.slug}
+		</span>
+	{/if}
+
 	<!-- Action Buttons -->
 	<div class="flex gap-1 ml-auto shrink-0 transition-opacity duration-200">
 		<SystemTooltip title="Edit">
-			{#if isCategory}
-				<button
-					type="button"
-					class="btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 rounded transition-all duration-200 hover:scale-110"
-					onclick={(e) => {
-						e.stopPropagation();
-						onEditCategory(item);
-					}}
-					aria-label="Edit {name}"
-				>
-					<iconify-icon icon="mdi:pencil" width={24} aria-hidden="true" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				</button>
-			{:else}
-				<a
-					href={`/config/collectionbuilder/edit/${item.id}`}
-					data-sveltekit-preload-data="hover"
-					class="btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 rounded transition-all duration-200 hover:scale-110 flex items-center justify-center"
-					onclick={(e) => e.stopPropagation()}
-					aria-label="Edit {name}"
-				>
-					<iconify-icon icon="mdi:pencil" width={24} aria-hidden="true" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				</a>
-			{/if}
+			<button
+				type="button"
+				class="btn-icon preset-tonal-surface-500 hover:preset-filled-surface-500 rounded transition-all duration-200 hover:scale-110"
+				onclick={(e) => {
+					e.stopPropagation();
+					if (isCategory) onEditCategory(item);
+					else goto(`/config/collectionbuilder/edit/${item.id}`);
+				}}
+				aria-label="Edit {name}"
+			>
+				<iconify-icon icon="mdi:pencil" width={24} aria-hidden="true" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			</button>
 		</SystemTooltip>
 
 		<!-- Duplicate -->

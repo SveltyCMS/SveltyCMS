@@ -42,7 +42,7 @@ This modal			class="input text-center font-mono tracking-wider"
 		twofa_verify_title,
 		twofa_verifying
 	} from '@src/paraglide/messages';
-	import { modalState } from '@utils/modal.svelte';
+	import { modalState } from '@utils/modal-state.svelte';
 
 	// Props
 	const { parent, title = '', description = '' } = $props();

@@ -1,52 +1,178 @@
 ---
-path: "docs/guides/index.mdx"
-title: "User Guides"
-description: "The complete roadmap to using SveltyCMS — from content creation to advanced automation."
+path: 'docs/guides'
+title: 'User Guides'
+description: 'Comprehensive guides for using SveltyCMS features and functionality'
 order: 2
-icon: "mdi:book-open-page-variant"
-author: "SveltyCMS Team"
-created: "2025-10-05"
-updated: "2026-03-27"
+icon: 'mdi:book-open-page-variant'
+author: 'SveltyCMS Team'
+created: '2025-10-05'
+updated: '2025-10-05'
 tags:
-  - "guides"
-  - "tutorials"
-  - "how-to"
+  - 'guides'
+  - 'tutorials'
+  - 'how-to'
 ---
 
-# User & Developer Guides
+# SveltyCMS User Guides
 
-Welcome! Whether you're a content editor building your first news feed or a developer extending the CMS with custom widgets, our guides are designed to be **persona-first**.
-
----
-
-## 👥 For Content Creators & Editors
-
-Master the day-to-day operations of managing your digital experiences.
-
-- [🖼️ Image Editor Workflow](./workflows/image-editor.mdx) — Non-destructive canvas editing and server-side baking of media assets.
-- [🔄 Smart Importer Workflow](./workflows/smart-importer.mdx) — AI-powered migration from legacy platforms like Drupal, WordPress, etc.
-- [📅 **Editorial Workflows**](./development/workflow-engine.mdx) — Managing drafts, reviews, and publishing states.
+Comprehensive guides for using SveltyCMS features effectively.
 
 ---
 
-## 🛠️ For Developers & Site Builders
+## 👤 Configuration
 
-Configure and extend the SveltyCMS engine for your specific project needs.
+### [Setup Wizard](./configuration/setup-wizard.mdx)
 
-- [🚀 **Setup Wizard**](./configuration/setup-wizard.mdx) — Cluster setups, env overrides, and custom drivers.
-- [🔌 **Widget Development**](./development/widgets/index.mdx) — Building custom 3-Pillar UI components.
-- [🛡️ **Access Management**](./configuration/access-management.mdx) — RBAC, custom roles, and tenant isolation.
-- [⚙️ **Settings Reference**](./configuration/system-settings.mdx) — Global configuration for email, cache, and security.
+Complete the initial setup process:
+
+- Database configuration
+- Admin account creation
+- System preferences
+- First-time setup guide
+
+### [System Settings](./configuration/system-settings.mdx)
+
+Configure your CMS:
+
+- General settings and preferences
+- Media upload configuration
+- Email and notification settings
+- Appearance and branding
+- Security settings
+
+### [User Registration](./configuration/user-registration.mdx)
+
+Configure and manage user registration:
+
+- Self-service registration setup
+- Email verification workflows
+- Account approval process
+- Registration form customization
 
 ---
 
-## ⚙️ Automation & Workflows
+## 📝 Content Management
 
-SveltyCMS includes a powerful event-driven automation engine to speed up your digital operations.
+### [Media Gallery Guide](./content/media-gallery-guide.mdx)
 
-- [🤖 **Automation System**](./development/automation-system.mdx) — Using the GUI to trigger webhooks, emails, and field updates.
-- [🧪 **Testing Strategy**](../tests/index.mdx) — E2E and unit testing your CMS implementations.
+User guide for the media gallery:
+
+- Browsing and organizing media
+- Uploading and editing files
+- Media metadata and tags
+- Folder management
+
+### [Token System](./content/token-system.mdx)
+
+Master the dynamic token engine:
+
+- Using the Token Builder UI
+- Creating dynamic content patterns
+- Automating SEO and emails
+- Using modifiers and logic
 
 ---
 
-**Next Steps**: If you're a first-time user, we recommend starting with the [Getting Started Guide](../getting-started.mdx).
+## 💻 Development
+
+### [Collection Builder](./development/collection-builder.mdx)
+
+Master the collection builder:
+
+- Creating custom content types
+- Configuring fields and validation
+- Setting up relationships
+- Advanced collection features
+
+### [Media Gallery Architecture](./development/media-gallery.mdx)
+
+Complete technical reference for the media system:
+
+- Multi-tenant isolation & security
+- File upload and processing pipeline
+- Image optimization and resizing
+- API endpoints and database schema
+- Advanced search and bulk operations
+
+---
+
+## 🚀 Deployment
+
+### [Production Deployment & Optimization](./deployment/production-deployment.mdx)
+
+Deploy SveltyCMS in production with enterprise-grade configuration:
+
+- Nginx reverse proxy setup with static asset optimization
+- Redis configuration for distributed caching
+- PM2 cluster mode for multi-core utilization
+- Security hardening (SSL/TLS, Fail2Ban, firewall)
+- Database optimization and indexing
+- Monitoring and observability setup
+- Performance benchmarking and tuning
+- Backup strategies
+
+### [Cloud Storage](./deployment/cloud-storage.mdx)
+
+Configure cloud storage providers:
+
+- AWS S3 integration
+- Google Cloud Storage
+- Azure Blob Storage
+- Local filesystem storage
+- CDN configuration
+
+---
+
+## 👤 User Management
+
+### [Admin User Management](/docs/architecture/admin-user-management.mdx)
+
+Learn how to manage users in your CMS:
+
+- Creating and managing user accounts
+- Assigning roles and permissions
+- Monitoring user activity
+- User account security
+
+---
+
+## 🚀 Quick Links
+
+- **[Installation Guide](../installation.mdx)** - Set up SveltyCMS
+- **[Getting Started](../getting-started.mdx)** - First steps
+- **[Troubleshooting](../troubleshooting.mdx)** - Common issues
+- **[API Documentation](../api/)** - Developer reference
+
+---
+
+## 💡 Best Practices
+
+### Security
+
+- Always use strong passwords (12+ characters)
+- Enable 2FA for admin accounts
+- Review user permissions regularly
+- Keep SveltyCMS updated
+
+### Content Management
+
+- Use descriptive collection names
+- Set appropriate field validation
+- Organize content with categories/tags
+- Regular content backups
+
+### Performance
+
+- Optimize images before upload
+- Use pagination for large lists
+- Clear cache after major changes
+- Monitor storage usage
+
+---
+
+## 🆘 Need Help?
+
+- 📖 Check the [Troubleshooting Guide](../troubleshooting.mdx)
+- 💬 Visit [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
+- 🐛 Report issues on [GitHub](https://github.com/SveltyCMS/SveltyCMS/issues)
+- 📧 Email support: info@sveltycms.com

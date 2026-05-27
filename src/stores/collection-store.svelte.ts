@@ -1,32 +1,19 @@
-/**
- * @file src/stores/collection-store.svelte.ts
- * @description
- * **Active Context Store**: Reactive state for the current collection, mode, and entry values.
- *
- * This store dictates what the user is currently looking at (View, Edit, Create) and holds the reactive transient state of any entry being modified.
- *
- * ### Responsibilities:
- * - Managing the Active Collection Schema.
- * - Mode Switching (View/Edit/Create/Media).
- * - Holding the `activeValue` (Svelte 5 $state) for forms.
- * - Guarding against redundant content structure updates (Circuit Breaker).
- */
-import type { ContentNode, Schema, WidgetFieldPermissions } from "@src/content/types";
-import { logger } from "@utils/logger";
+import type { ContentNode, Schema, WidgetFieldPermissions } from '@src/content/types';
+import { logger } from '@utils/logger';
 
 // Types
-export type ModeType = "view" | "edit" | "create" | "delete" | "modify" | "media";
+export type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 
 export interface Widget {
-  permissions?: Record<string, Record<string, boolean>> | WidgetFieldPermissions;
-  [key: string]: Record<string, Record<string, boolean>> | WidgetFieldPermissions | unknown;
+	permissions?: Record<string, Record<string, boolean>> | WidgetFieldPermissions;
+	[key: string]: Record<string, Record<string, boolean>> | WidgetFieldPermissions | unknown;
 }
 
 export const statusMap = {
-  publish: "publish",
-  unpublish: "unpublish",
-  draft: "draft",
-  archived: "archived",
+	publish: 'publish',
+	unpublish: 'unpublish',
+	draft: 'draft',
+	archived: 'archived'
 } as const;
 
 /**
@@ -34,136 +21,111 @@ export const statusMap = {
  * Consolidates all collection-related reactivity into a single class.
  */
 class CollectionState {
-  // Record of all collections indexed by UUID
-  all = $state<Record<string, Schema>>({});
+	// Record of all collections indexed by UUID
+	all = $state<Record<string, Schema>>({});
 
-  // Active collection being viewed or edited
-  active = $state<Schema | null>(null);
+	// Active collection being viewed or edited
+	active = $state<Schema | null>(null);
 
-  // Data value of the currently active entry (e.g. form data)
-  activeValue = $state<Record<string, unknown>>({});
+	// Data value of the currently active entry (e.g. form data)
+	activeValue = $state<Record<string, unknown>>({});
 
-  // Operational mode (view, edit, etc.)
-  mode = $state<ModeType>("view");
+	// Operational mode (view, edit, etc.)
+	mode = $state<ModeType>('view');
 
-  loading = $state(false);
-  error = $state<string | null>(null);
+	loading = $state(false);
+	error = $state<string | null>(null);
 
-  // Miscellaneous state
-  currentId = $state<string | null>(null);
-  unassigned = $state<Schema>({} as Schema);
-  modifyEntry = $state<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());
-  targetWidget = $state<Widget>({ permissions: {} });
-  contentStructure = $state<ContentNode[]>([]);
-  selectedEntries = $state<string[]>([]);
+	// Miscellaneous state
+	currentId = $state<string | null>(null);
+	unassigned = $state<Schema>({} as Schema);
+	modifyEntry = $state<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());
+	targetWidget = $state<Widget>({ permissions: {} });
+	contentStructure = $state<ContentNode[]>([]);
+	selectedEntries = $state<string[]>([]);
 
-  // Stepper state for Studio Mode Sidebar Integration
-  stepper = $state({
-    activeStep: 1,
-    completedSteps: new Set<number>(),
-    steps: [
-      { label: "General Setup", description: "Collection basics" },
-      {
-        label: "Field Configuration",
-        description: "Add and configure widgets",
-      },
-    ],
-  });
+	// --- Derived Properties ---
 
-  // --- Derived Properties ---
+	get total() {
+		return Object.keys(this.all).length;
+	}
 
-  get total() {
-    return Object.keys(this.all).length;
-  }
+	get hasSelected() {
+		return this.selectedEntries.length > 0;
+	}
 
-  get hasSelected() {
-    return this.selectedEntries.length > 0;
-  }
+	get activeName() {
+		return this.active?.name;
+	}
 
-  get activeName() {
-    return this.active?.name;
-  }
+	// --- Actions ---
 
-  // --- Actions ---
+	setCollection(newCollection: Schema | null) {
+		this.active = newCollection;
+	}
 
-  setCollection(newCollection: Schema | null) {
-    this.active = newCollection;
-  }
+	setMode(newMode: ModeType) {
+		logger.debug(`CollectionState: mode changed from ${this.mode} to ${newMode}`);
+		this.mode = newMode;
+	}
 
-  setMode(newMode: ModeType) {
-    logger.debug(`CollectionState: mode changed from ${this.mode} to ${newMode}`);
-    this.mode = newMode;
-  }
+	setCollectionValue(newValue: Record<string, unknown>) {
+		this.activeValue = newValue;
+		// Business logic: ensure status is set if not present
+		if (this.activeValue && !('status' in this.activeValue)) {
+			this.activeValue.status = this.active?.status ?? 'unpublish';
+		}
+	}
 
-  setCollectionValue(newValue: Record<string, unknown>) {
-    this.activeValue = newValue;
-    // Business logic: ensure status is set if not present
-    if (this.activeValue && !("status" in this.activeValue)) {
-      this.activeValue.status = this.active?.status ?? "unpublish";
-    }
-  }
+	setModifyEntry(newFn: (status?: keyof typeof statusMap) => Promise<void>) {
+		this.modifyEntry = newFn;
+	}
 
-  setModifyEntry(newFn: (status?: keyof typeof statusMap) => Promise<void>) {
-    this.modifyEntry = newFn;
-  }
+	setContentStructure(newContentStructure: ContentNode[]) {
+		this.contentStructure = newContentStructure;
+	}
 
-  private lastStructureHash = "";
+	setTargetWidget(newWidget: Widget) {
+		this.targetWidget = newWidget;
+		// Sync into active.fields so Save persists label, db_fieldName, required, icon, etc.
+		const idx = (newWidget as { __fieldIndex?: number }).__fieldIndex;
+		if (typeof idx === 'number' && this.active?.fields && idx >= 0 && idx < this.active.fields.length) {
+			const nextFields = [...this.active.fields];
+			const existing = nextFields[idx];
+			if (existing != null) {
+				const merged = { ...existing, ...newWidget };
+				delete (merged as Record<string, unknown>).__fieldIndex;
+				nextFields[idx] = merged;
+				this.active = { ...this.active, fields: nextFields };
+			}
+		}
+	}
 
-  setContentStructure(newContentStructure: ContentNode[]) {
-    // Prevent redundant syncs that trigger reactivity loops
-    const currentHash = JSON.stringify(newContentStructure);
-    if (currentHash === this.lastStructureHash) return;
-    this.lastStructureHash = currentHash;
+	// Entry selection management
+	addEntry(entryId: string) {
+		if (!this.selectedEntries.includes(entryId)) {
+			this.selectedEntries.push(entryId);
+		}
+	}
 
-    this.contentStructure = newContentStructure;
-  }
+	removeEntry(entryId: string) {
+		const index = this.selectedEntries.indexOf(entryId);
+		if (index > -1) {
+			this.selectedEntries.splice(index, 1);
+		}
+	}
 
-  setTargetWidget(newWidget: Widget) {
-    this.targetWidget = newWidget;
-    // Sync into active.fields so Save persists label, db_fieldName, required, icon, etc.
-    const idx = (newWidget as { __fieldIndex?: number }).__fieldIndex;
-    if (
-      typeof idx === "number" &&
-      this.active?.fields &&
-      idx >= 0 &&
-      idx < this.active.fields.length
-    ) {
-      const nextFields = [...this.active.fields];
-      const existing = nextFields[idx];
-      if (existing != null) {
-        const merged = { ...existing, ...newWidget };
-        delete (merged as Record<string, unknown>).__fieldIndex;
-        nextFields[idx] = merged;
-        this.active = { ...this.active, fields: nextFields };
-      }
-    }
-  }
+	clearSelected() {
+		this.selectedEntries.length = 0;
+	}
 
-  // Entry selection management
-  addEntry(entryId: string) {
-    if (!this.selectedEntries.includes(entryId)) {
-      this.selectedEntries.push(entryId);
-    }
-  }
-
-  removeEntry(entryId: string) {
-    const index = this.selectedEntries.indexOf(entryId);
-    if (index > -1) {
-      this.selectedEntries.splice(index, 1);
-    }
-  }
-
-  clearSelected() {
-    this.selectedEntries.length = 0;
-  }
-
-  // Legacy compatibility getters/setters for smooth migration
-  get current() {
-    return this.active;
-  }
-  set current(v) {
-    this.active = v;
-  }
+	// Legacy compatibility getters/setters for smooth migration
+	get current() {
+		return this.active;
+	}
+	set current(v) {
+		this.active = v;
+	}
 }
 
 // Singleton instances
@@ -183,65 +145,64 @@ export const collections = new CollectionState();
 // Actually, let's keep the discrete exports for now but wire them to the singleton.
 
 export const collection = {
-  get value() {
-    return collections.active;
-  },
-  set value(v) {
-    collections.active = v;
-  },
+	get value() {
+		return collections.active;
+	},
+	set value(v) {
+		collections.active = v;
+	}
 };
 
 export const collectionValue = {
-  get value() {
-    return collections.activeValue;
-  },
-  set value(v) {
-    collections.setCollectionValue(v);
-  },
+	get value() {
+		return collections.activeValue;
+	},
+	set value(v) {
+		collections.setCollectionValue(v);
+	}
 };
 
 export const mode = {
-  get value() {
-    return collections.mode;
-  },
-  set value(v) {
-    collections.setMode(v);
-  },
+	get value() {
+		return collections.mode;
+	},
+	set value(v) {
+		collections.setMode(v);
+	}
 };
 
 export const contentStructure = {
-  get value() {
-    return collections.contentStructure;
-  },
-  set value(v) {
-    collections.contentStructure = v;
-  },
+	get value() {
+		return collections.contentStructure;
+	},
+	set value(v) {
+		collections.contentStructure = v;
+	}
 };
 
 export const modifyEntry = {
-  get value() {
-    return collections.modifyEntry;
-  },
-  set value(v) {
-    collections.modifyEntry = v;
-  },
+	get value() {
+		return collections.modifyEntry;
+	},
+	set value(v) {
+		collections.modifyEntry = v;
+	}
 };
 
 export const targetWidget = {
-  get value() {
-    return collections.targetWidget;
-  },
-  set value(v) {
-    collections.targetWidget = v;
-  },
+	get value() {
+		return collections.targetWidget;
+	},
+	set value(v) {
+		collections.targetWidget = v;
+	}
 };
 
 // Action functions
 export const setCollection = (v: Schema | null) => collections.setCollection(v);
 export const setMode = (v: ModeType) => collections.setMode(v);
 export const setCollectionValue = (v: Record<string, unknown>) => collections.setCollectionValue(v);
-export const setModifyEntry = (v: (status?: keyof typeof statusMap) => Promise<void>) =>
-  collections.setModifyEntry(v);
+export const setModifyEntry = (v: (status?: keyof typeof statusMap) => Promise<void>) => collections.setModifyEntry(v);
 export const setContentStructure = (v: ContentNode[]) => collections.setContentStructure(v);
 export const setTargetWidget = (v: Widget) => collections.setTargetWidget(v);
 
@@ -251,9 +212,9 @@ export const getHasSelectedEntries = () => collections.hasSelected;
 export const getCurrentCollectionName = () => collections.activeName;
 
 export const entryActions = {
-  addEntry: (id: string) => collections.addEntry(id),
-  removeEntry: (id: string) => collections.removeEntry(id),
-  clear: () => collections.clearSelected(),
+	addEntry: (id: string) => collections.addEntry(id),
+	removeEntry: (id: string) => collections.removeEntry(id),
+	clear: () => collections.clearSelected()
 };
 
 // Direct state exports for legacy components that don't use the objects

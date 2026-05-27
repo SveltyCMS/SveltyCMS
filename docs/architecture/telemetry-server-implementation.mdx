@@ -1,40 +1,34 @@
 ---
-path: "docs/architecture/telemetry-server-implementation.mdx"
-title: "Telemetry Server Implementation"
-description: "Technical specification for implementing the SveltyCMS telemetry receiver."
+path: 'docs/architecture/telemetry-server-implementation.mdx'
+title: 'Telemetry Server Implementation'
+description: 'Technical specification for implementing the SveltyCMS telemetry receiver.'
 order: 6
-icon: "mdi:server-network"
-author: "SveltyCMS Team"
-created: "2025-12-02"
-updated: "2026-03-27"
+icon: 'mdi:server-network'
+author: 'SveltyCMS Team'
+created: '2025-12-02'
+updated: '2025-12-02'
 tags:
-  - "telemetry"
-  - "server"
-  - "api"
+  - 'telemetry'
+  - 'server'
+  - 'api'
 ---
 
 # Telemetry Server Implementation Guide
 
 This document outlines the technical specifications for the **SveltyCMS Telemetry Receiver**. This server is responsible for receiving health checks from SveltyCMS instances, aggregating anonymous usage data, and returning security status updates.
 
-## 1. Registration Flow
+## 1. HMAC Authentication
 
-Before a client can send telemetry data, it must first register to receive a unique secret.
+To reduce fake data and ensure authenticity, all telemetry requests must be signed using HMAC-SHA256 with a shared salt.
 
-### Registration Endpoint
+### Salt Configuration
 
-- **URL:** `https://telemetry.sveltycms.com/api/register`
-- **Method:** `POST`
-- **Payload:** `{ "installation_id": string }`
-- **Response:** `{ "success": true, "secret": string }`
-
-### HMAC Authentication
-
-All telemetry requests (`/api/check-update`) must then be signed using this secret via HMAC-SHA256.
+The `TELEMETRY_SALT` must be identical on both the SveltyCMS package and the telemetry server.
+Default value: `sveltycms-telemetry`
 
 ### Replay Protection
 
-Requests must include a `timestamp` (Unix milliseconds). The server MUST reject any request where the timestamp is older than 5 minutes or more than 1 minute in the future.
+Requests must include a `timestamp` (Unix milliseconds). The server should reject any request where the timestamp is older than 5 minutes or more than 1 minute in the future.
 
 ## 2. API Specification
 
@@ -46,28 +40,34 @@ Requests must include a `timestamp` (Unix milliseconds). The server MUST reject 
 
 ```typescript
 interface TelemetryPayload {
-  // Required fields
-  current_version: string; // "0.9.0"
-  node_version: string; // "v20.10.0"
-  environment: string; // "production"
-  os: string; // "linux"
-  installation_id: string; // SHA256 hash of JWT_SECRET_KEY
+	// Required fields
+	current_version: string; // "0.9.0"
+	node_version: string; // "v20.10.0"
+	environment: string; // "production"
+	os: string; // "linux"
+	installation_id: string; // SHA256 hash of JWT_SECRET_KEY
 
-  // Authentication fields (REQUIRED)
-  timestamp: number; // Unix timestamp in milliseconds
-  signature: string; // HMAC-SHA256 signature (hex)
+	// Authentication fields (REQUIRED)
+	timestamp: number; // Unix timestamp in milliseconds
+	signature: string; // HMAC-SHA256 signature (hex)
 
-  // ... rest of payload
+	// Optional fields
+	stable_id?: string;
+	db_type?: string; // "mongodb" | "mariadb" | "postgres"
+	location?: { ... };
+	usage_metrics?: { ... };
+	system_info?: { ... };
+	widgets?: string[];
 }
 ```
 
 ### Signature Generation
 
-The signature is computed over the string: `installation_id:current_version:timestamp` using the secret obtained during registration.
+The signature is computed over the string: `installation_id:current_version:timestamp`
 
 ```typescript
 const data = `${payload.installation_id}:${payload.current_version}:${payload.timestamp}`;
-const signature = crypto.createHmac("sha256", clientSecret).update(data).digest("hex");
+const signature = crypto.createHmac('sha256', TELEMETRY_SALT).update(data).digest('hex');
 ```
 
 ## 3. Implementation Logic
@@ -75,29 +75,28 @@ const signature = crypto.createHmac("sha256", clientSecret).update(data).digest(
 A robust telemetry server should perform the following steps:
 
 1.  **Validate Timestamp**: Ensure the request is not a replay (5-minute window).
-2.  **Fetch Secret**: Look up the secret for the given `installation_id`.
-3.  **Validate Signature**: Recompute the HMAC and use `crypto.timingSafeEqual` for comparison.
-4.  **Data Ingestion**: Log the anonymous data to your analytics database.
-5.  **Version Check**: Compare `current_version` against the latest release and known vulnerabilities.
+2.  **Validate Signature**: Recompute the HMAC and use `crypto.timingSafeEqual` for comparison.
+3.  **Data Ingestion**: Log the anonymous data to your analytics database.
+4.  **Version Check**: Compare `current_version` against the latest release and known vulnerabilities.
 
 ### Signature Validation Code (Example)
 
 ```typescript
-function validateSignature(payload: TelemetryPayload, clientSecret: string): boolean {
-  const { installation_id, current_version, timestamp, signature } = payload;
+function validateSignature(payload: TelemetryPayload, salt: string): boolean {
+	const { installation_id, current_version, timestamp, signature } = payload;
 
-  // 1. Check timestamp (5-minute window)
-  const age = Date.now() - timestamp;
-  if (age > 5 * 60 * 1000 || age < -60 * 1000) {
-    return false;
-  }
+	// 1. Check timestamp (5-minute window)
+	const age = Date.now() - timestamp;
+	if (age > 5 * 60 * 1000 || age < -60 * 1000) {
+		return false;
+	}
 
-  // 2. Recompute expected signature
-  const data = `${installation_id}:${current_version}:${timestamp}`;
-  const expected = crypto.createHmac("sha256", clientSecret).update(data).digest("hex");
+	// 2. Recompute expected signature
+	const data = `${installation_id}:${current_version}:${timestamp}`;
+	const expected = crypto.createHmac('sha256', salt).update(data).digest('hex');
 
-  // 3. Constant-time comparison
-  return crypto.timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expected, "hex"));
+	// 3. Constant-time comparison
+	return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'));
 }
 ```
 

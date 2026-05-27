@@ -13,10 +13,6 @@ Professional watermark controls with text, image, and advanced options
 		onSizeChange,
 		onTileToggle,
 		hasSelection,
-		selectedType = null,
-		textDraft = 'Watermark',
-		onTextDraftChange,
-		onApplyText,
 		currentOpacity = 0.8,
 		currentSize = 100,
 		isTiled = false,
@@ -30,10 +26,6 @@ Professional watermark controls with text, image, and advanced options
 		onSizeChange?: (size: number) => void;
 		onTileToggle?: () => void;
 		hasSelection: boolean;
-		selectedType?: 'text' | 'image' | null;
-		textDraft?: string;
-		onTextDraftChange?: (value: string) => void;
-		onApplyText?: () => void;
 		currentOpacity?: number;
 		currentSize?: number;
 		isTiled?: boolean;
@@ -103,13 +95,13 @@ Professional watermark controls with text, image, and advanced options
 	<!-- Group 1: Add Controls -->
 	<div class="control-group">
 		<div class="add-buttons">
-			<button type="button" class="btn btn-sm preset-filled-primary-500" onclick={onAddImage} title="Add Image Watermark (I)">
+			<button class="btn btn-sm preset-filled-primary-500" onclick={onAddImage} title="Add Image Watermark (I)">
 				<iconify-icon icon="mdi:image-plus" width="18"></iconify-icon>
 				<span class="hidden sm:inline">Add Image</span>
 			</button>
 
 			{#if onAddText}
-				<button type="button" class="btn btn-sm preset-outlined-primary-500" onclick={onAddText} title="Add Text Watermark (T)">
+				<button class="btn btn-sm preset-outlined-primary-500" onclick={onAddText} title="Add Text Watermark (T)">
 					<iconify-icon icon="mdi:text-box-plus" width="18"></iconify-icon>
 					<span class="hidden sm:inline">Add Text</span>
 				</button>
@@ -121,23 +113,6 @@ Professional watermark controls with text, image, and advanced options
 		{/if}
 	</div>
 
-	{#if selectedType === 'text' && onTextDraftChange}
-		<div class="text-editor">
-			<label class="text-label" for="watermark-text">Text</label>
-			<input
-				id="watermark-text"
-				type="text"
-				class="text-input"
-				value={textDraft}
-				placeholder="Watermark text"
-				oninput={(e) => onTextDraftChange(e.currentTarget.value)}
-			/>
-			<button type="button" class="text-apply-btn" onclick={onApplyText || (() => undefined)}>
-				Apply
-			</button>
-		</div>
-	{/if}
-
 	{#if hasSelection}
 		<div class="divider"></div>
 
@@ -146,7 +121,7 @@ Professional watermark controls with text, image, and advanced options
 			<span class="control-label hidden md:flex">Position:</span>
 			<div class="position-grid">
 				{#each positions as pos (pos.value)}
-					<button type="button" class="position-btn" onclick={() => onPositionChange(pos.value)} title={pos.title} aria-label={pos.title}>{pos.label}</button>
+					<button class="position-btn" onclick={() => onPositionChange(pos.value)} title={pos.title} aria-label={pos.title}>{pos.label}</button>
 				{/each}
 			</div>
 		</div>
@@ -177,7 +152,6 @@ Professional watermark controls with text, image, and advanced options
 				<div class="size-presets hidden sm:flex">
 					{#each sizePresets as preset (preset.value)}
 						<button
-							type="button"
 							class="size-btn"
 							class:active={Math.abs(currentSize - preset.value) < 5}
 							onclick={() => onSizeChange(preset.value)}
@@ -192,7 +166,6 @@ Professional watermark controls with text, image, and advanced options
 			{#if onTileToggle}
 				<button
 					class="btn btn-icon btn-sm"
-					type="button"
 					class:preset-filled-primary-500={isTiled}
 					class:preset-outlined-surface-500={!isTiled}
 					onclick={onTileToggle}
@@ -206,7 +179,7 @@ Professional watermark controls with text, image, and advanced options
 		<div class="divider hidden lg:block"></div>
 
 		<!-- Group 4: Actions (Delete) -->
-		<button type="button" class="btn btn-icon btn-sm preset-outlined-error-500" onclick={onDeleteWatermark} title="Delete Watermark (Delete)">
+		<button class="btn btn-icon btn-sm preset-outlined-error-500" onclick={onDeleteWatermark} title="Delete Watermark (Delete)">
 			<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
 		</button>
 	{/if}
@@ -256,48 +229,6 @@ Professional watermark controls with text, image, and advanced options
 	.add-buttons {
 		display: flex;
 		gap: 0.5rem;
-	}
-
-	.text-editor {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.35rem 0.5rem;
-		background: rgba(0, 0, 0, 0.2);
-		border-radius: 0.75rem;
-	}
-
-	.text-label {
-		font-size: 0.7rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: #9ca3af;
-	}
-
-	.text-input {
-		min-width: 180px;
-		padding: 0.4rem 0.6rem;
-		color: #fff;
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.12);
-		border-radius: 0.5rem;
-		outline: none;
-	}
-
-	.text-input:focus {
-		border-color: rgb(var(--color-primary-500) / 1);
-		box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
-	}
-
-	.text-apply-btn {
-		padding: 0.4rem 0.75rem;
-		font-size: 0.75rem;
-		font-weight: 700;
-		color: #fff;
-		background: rgb(var(--color-primary-500) / 1);
-		border: 1px solid rgb(var(--color-primary-600) / 1);
-		border-radius: 0.5rem;
 	}
 
 	.position-grid {

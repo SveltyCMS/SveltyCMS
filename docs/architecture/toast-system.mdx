@@ -4,9 +4,9 @@ title: Toast Notification System
 description: Architecture and API guide for the SveltyCMS Toast Notification System
 order: 6
 icon: mdi:bell-ring
-author: "SveltyCMS Team"
+author: admin
 created: 2026-03-02
-updated: "2026-03-27"
+updated: 2026-03-02
 tags:
   - architecture
   - ui
@@ -46,32 +46,32 @@ During a transition (captured via `$app/navigation` `beforeNavigate`), the Store
 Toasts are triggered by importing the `toast` singleton into your components or scripts.
 
 ```typescript
-import { toast } from "@src/stores/toast.svelte.ts";
+import { toast } from '@src/stores/toast.svelte.ts';
 
 // 1. Basic Messages
-toast.success("Settings saved successfully!");
-toast.error("Connection timeout.");
-toast.warning("Storage limit approaching.");
-toast.info("New updates available.");
+toast.success('Settings saved successfully!');
+toast.error('Connection timeout.');
+toast.warning('Storage limit approaching.');
+toast.info('New updates available.');
 
 // 2. Complex Configurations
 toast.info({
-  title: "Update Required",
-  message: "Please restart the application.",
-  duration: 10000,
-  position: "top-center",
-  action: {
-    label: "Restart Now",
-    onClick: () => restartApp(),
-  },
+	title: 'Update Required',
+	message: 'Please restart the application.',
+	duration: 10000,
+	position: 'top-center',
+	action: {
+		label: 'Restart Now',
+		onClick: () => restartApp()
+	}
 });
 
 // 3. Persistent Notifications (Manual Dismissal Required)
 toast.warning({
-  title: "Sync Offline",
-  message: "Background sync is currently disabled.",
-  duration: Infinity,
-  persistent: true,
+	title: 'Sync Offline',
+	message: 'Background sync is currently disabled.',
+	duration: Infinity,
+	persistent: true
 });
 ```
 
@@ -80,18 +80,18 @@ toast.warning({
 The toast system supports automated asynchronous promise resolving. It displays a loading notification while waiting for the promise queue, and triggers corresponding `success` or `error` messages upon fulfillment.
 
 ```typescript
-import { toast } from "@src/stores/toast.svelte.ts";
+import { toast } from '@src/stores/toast.svelte.ts';
 
 async function updateProfile() {
-  const request = fetch("/api/user/profile", { method: "POST" });
+	const request = fetch('/api/user/profile', { method: 'POST' });
 
-  await toast.promise(request, {
-    loading: "Updating profile...",
-    // Triggered natively when promise fulfills
-    success: "Profile has been updated!",
-    // Triggered automatically if promise rejects/throws error
-    error: (err) => `Update failed: ${err.message}`,
-  });
+	await toast.promise(request, {
+		loading: 'Updating profile...',
+		// Triggered natively when promise fulfills
+		success: 'Profile has been updated!',
+		// Triggered automatically if promise rejects/throws error
+		error: (err) => `Update failed: ${err.message}`
+	});
 }
 ```
 
@@ -103,21 +103,21 @@ SveltyCMS resolves this through **Flash Messages**.
 
 ```typescript
 // Example: src/routes/login/+page.server.ts
-import { redirect } from "@sveltejs/kit";
-import { toast } from "@src/stores/toast.svelte.ts";
+import { redirect } from '@sveltejs/kit';
+import { toast } from '@src/stores/toast.svelte.ts';
 
 export const actions = {
-  default: async () => {
-    // ... internal logic
+	default: async () => {
+		// ... internal logic
 
-    // Inform the user in the upcoming tick
-    toast.flash({
-      type: "success",
-      message: "Log in successful.",
-    });
+		// Inform the user in the upcoming tick
+		toast.flash({
+			type: 'success',
+			message: 'Log in successful.'
+		});
 
-    throw redirect(303, "/dashboard");
-  },
+		throw redirect(303, '/dashboard');
+	}
 };
 ```
 

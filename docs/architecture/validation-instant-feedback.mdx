@@ -1,17 +1,17 @@
 ---
-path: "docs/architecture/validation-instant-feedback.mdx"
-title: "Instant Validation Feedback System"
-description: "How SveltyCMS achieves instant save button disabling for required fields without manual intervention."
+path: 'docs/architecture/validation-instant-feedback.mdx'
+title: 'Instant Validation Feedback System'
+description: 'How SveltyCMS achieves instant save button disabling for required fields without manual intervention.'
 order: 16
-icon: "mdi:lightning-bolt"
-author: "SveltyCMS Team"
-created: "2025-11-14"
-updated: "2026-03-27"
+icon: 'mdi:lightning-bolt'
+author: 'admin'
+created: '2025-11-14'
+updated: '2025-11-14'
 tags:
-  - "validation"
-  - "ux"
-  - "reactive"
-  - "architecture"
+  - 'validation'
+  - 'ux'
+  - 'reactive'
+  - 'architecture'
 ---
 
 # Instant Validation Feedback System
@@ -64,22 +64,22 @@ Save button becomes ENABLED ✅
 
 ```typescript
 interface Props {
-  field: FieldType;
-  value?: Record<string, string> | null | undefined;
-  validateOnMount?: boolean; // Optional override
-  validateOnChange?: boolean;
-  validateOnBlur?: boolean;
-  debounceMs?: number;
+	field: FieldType;
+	value?: Record<string, string> | null | undefined;
+	validateOnMount?: boolean; // Optional override
+	validateOnChange?: boolean;
+	validateOnBlur?: boolean;
+	debounceMs?: number;
 }
 
 // ✅ ENHANCEMENT: Auto-enable validateOnMount for required fields
 let {
-  field,
-  value = $bindable(),
-  validateOnMount = field.required ?? false, // Smart default!
-  validateOnChange = true,
-  validateOnBlur = true,
-  debounceMs = 300,
+	field,
+	value = $bindable(),
+	validateOnMount = field.required ?? false, // Smart default!
+	validateOnChange = true,
+	validateOnBlur = true,
+	debounceMs = 300
 }: Props = $props();
 ```
 
@@ -345,15 +345,15 @@ Time to feedback: 0 seconds ✅
 ```typescript
 // Collection schema
 widgets.Input({
-  label: "Optional Bio",
-  required: false,
-  validateOnMount: true, // ✅ Override: Validate even if not required
+	label: 'Optional Bio',
+	required: false,
+	validateOnMount: true // ✅ Override: Validate even if not required
 });
 
 widgets.Input({
-  label: "Title",
-  required: true,
-  validateOnMount: false, // ✅ Override: Don't validate on mount
+	label: 'Title',
+	required: true,
+	validateOnMount: false // ✅ Override: Don't validate on mount
 });
 ```
 
@@ -373,36 +373,36 @@ widgets.Input({
 
 ```typescript
 export const validationStore = (() => {
-  let errors = $state<Record<string, string>>({});
+	let errors = $state<Record<string, string>>({});
 
-  return {
-    // Computed validity
-    get isValid() {
-      return Object.keys(errors).length === 0;
-    },
+	return {
+		// Computed validity
+		get isValid() {
+			return Object.keys(errors).length === 0;
+		},
 
-    // Error management
-    get errors() {
-      return errors;
-    },
+		// Error management
+		get errors() {
+			return errors;
+		},
 
-    setError(fieldName: string, message: string) {
-      errors = { ...errors, [fieldName]: message };
-    },
+		setError(fieldName: string, message: string) {
+			errors = { ...errors, [fieldName]: message };
+		},
 
-    clearError(fieldName: string) {
-      const { [fieldName]: _, ...rest } = errors;
-      errors = rest;
-    },
+		clearError(fieldName: string) {
+			const { [fieldName]: _, ...rest } = errors;
+			errors = rest;
+		},
 
-    getError(fieldName: string) {
-      return errors[fieldName] || null;
-    },
+		getError(fieldName: string) {
+			return errors[fieldName] || null;
+		},
 
-    reset() {
-      errors = {};
-    },
-  };
+		reset() {
+			errors = {};
+		}
+	};
 })();
 ```
 
@@ -465,95 +465,95 @@ export const validationStore = (() => {
 **File:** `tests/bun/widgets/input-validation.test.ts`
 
 ```typescript
-import { describe, it, expect } from "bun:test";
-import { mount } from "@testing-library/svelte";
-import input from "@widgets/core/input/input.svelte";
-import { validationStore } from "@stores/store.svelte";
+import { describe, it, expect } from 'bun:test';
+import { mount } from '@testing-library/svelte';
+import input from '@widgets/core/input/input.svelte';
+import { validationStore } from '@stores/store.svelte';
 
-describe("Input Widget - Instant Validation", () => {
-  it("should validate required field on mount", async () => {
-    // Reset validation store
-    validationStore.reset();
+describe('Input Widget - Instant Validation', () => {
+	it('should validate required field on mount', async () => {
+		// Reset validation store
+		validationStore.reset();
 
-    // Mount component with required field
-    const { component } = mount(input, {
-      props: {
-        field: {
-          label: "Title",
-          db_fieldName: "title",
-          required: true,
-        },
-        value: { en: "" }, // Empty value
-      },
-    });
+		// Mount component with required field
+		const { component } = mount(input, {
+			props: {
+				field: {
+					label: 'Title',
+					db_fieldName: 'title',
+					required: true
+				},
+				value: { en: '' } // Empty value
+			}
+		});
 
-    // Wait for mount effect to run
-    await new Promise((resolve) => setTimeout(resolve, 10));
+		// Wait for mount effect to run
+		await new Promise((resolve) => setTimeout(resolve, 10));
 
-    // Validation should have run and set error
-    expect(validationStore.isValid).toBe(false);
-    expect(validationStore.getError("title")).toBe("This field is required.");
-  });
+		// Validation should have run and set error
+		expect(validationStore.isValid).toBe(false);
+		expect(validationStore.getError('title')).toBe('This field is required.');
+	});
 
-  it("should NOT validate optional field on mount", async () => {
-    validationStore.reset();
+	it('should NOT validate optional field on mount', async () => {
+		validationStore.reset();
 
-    const { component } = mount(input, {
-      props: {
-        field: {
-          label: "Bio",
-          db_fieldName: "bio",
-          required: false, // Optional field
-        },
-        value: { en: "" },
-      },
-    });
+		const { component } = mount(input, {
+			props: {
+				field: {
+					label: 'Bio',
+					db_fieldName: 'bio',
+					required: false // Optional field
+				},
+				value: { en: '' }
+			}
+		});
 
-    await new Promise((resolve) => setTimeout(resolve, 10));
+		await new Promise((resolve) => setTimeout(resolve, 10));
 
-    // No validation error (optional field can be empty)
-    expect(validationStore.isValid).toBe(true);
-    expect(validationStore.getError("bio")).toBeNull();
-  });
+		// No validation error (optional field can be empty)
+		expect(validationStore.isValid).toBe(true);
+		expect(validationStore.getError('bio')).toBeNull();
+	});
 
-  it("should debounce validation on input", async () => {
-    validationStore.reset();
+	it('should debounce validation on input', async () => {
+		validationStore.reset();
 
-    const { getByRole } = mount(input, {
-      props: {
-        field: {
-          label: "Title",
-          db_fieldName: "title",
-          required: true,
-          minLength: 5,
-        },
-        value: { en: "" },
-      },
-    });
+		const { getByRole } = mount(input, {
+			props: {
+				field: {
+					label: 'Title',
+					db_fieldName: 'title',
+					required: true,
+					minLength: 5
+				},
+				value: { en: '' }
+			}
+		});
 
-    const inputField = getByRole("textbox");
+		const inputField = getByRole('textbox');
 
-    // Type "H"
-    inputField.value = "H";
-    inputField.dispatchEvent(new Event("input"));
+		// Type "H"
+		inputField.value = 'H';
+		inputField.dispatchEvent(new Event('input'));
 
-    // Validation should NOT run immediately (debounce)
-    expect(validationStore.getError("title")).toBe("This field is required.");
+		// Validation should NOT run immediately (debounce)
+		expect(validationStore.getError('title')).toBe('This field is required.');
 
-    // Wait for debounce (300ms)
-    await new Promise((resolve) => setTimeout(resolve, 350));
+		// Wait for debounce (300ms)
+		await new Promise((resolve) => setTimeout(resolve, 350));
 
-    // Now validation should run
-    expect(validationStore.getError("title")).toBe("Must be at least 5 characters.");
+		// Now validation should run
+		expect(validationStore.getError('title')).toBe('Must be at least 5 characters.');
 
-    // Type more
-    inputField.value = "Hello";
-    inputField.dispatchEvent(new Event("input"));
-    await new Promise((resolve) => setTimeout(resolve, 350));
+		// Type more
+		inputField.value = 'Hello';
+		inputField.dispatchEvent(new Event('input'));
+		await new Promise((resolve) => setTimeout(resolve, 350));
 
-    // Validation passes
-    expect(validationStore.isValid).toBe(true);
-  });
+		// Validation passes
+		expect(validationStore.isValid).toBe(true);
+	});
 });
 ```
 
@@ -684,11 +684,11 @@ Total: 30 validations ✅ (73% reduction)
 ```typescript
 // Custom async validation (e.g., check username availability)
 const validationSchema = pipe(
-  string(),
-  custom(async (input) => {
-    const available = await checkUsernameAvailability(input);
-    return available;
-  }, "Username already taken"),
+	string(),
+	custom(async (input) => {
+		const available = await checkUsernameAvailability(input);
+		return available;
+	}, 'Username already taken')
 );
 ```
 
@@ -768,6 +768,6 @@ The **Instant Validation Feedback System** provides:
 
 ## Related Documentation
 
-- [Enterprise Widget System Architecture](../guides/development/widgets/architecture.mdx)
-- [Validation Store API](../api/index.mdx)
-- [Widget Development Guide](../guides/development/widgets/development.mdx)
+- [Enterprise Widget System Architecture](./enterprise-widget-system.mdx)
+- [Validation Store API](../api/validation-store-api.mdx)
+- [Widget Development Guide](../widgets/widget-development-guide.mdx)

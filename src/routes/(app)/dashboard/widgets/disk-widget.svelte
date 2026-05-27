@@ -20,11 +20,11 @@ This widget fetches and displays real-time disk usage data, including:
 - Theme-aware rendering (light/dark mode support)
 -->
 <script lang="ts" module>
-export const widgetMeta = {
-	name: "Disk Usage",
-	icon: "mdi:disk",
-	defaultSize: { w: 1, h: 2 },
-};
+	export const widgetMeta = {
+		name: 'Disk Usage',
+		icon: 'mdi:disk',
+		defaultSize: { w: 1, h: 2 }
+	};
 </script>
 
 <script lang="ts">

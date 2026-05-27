@@ -1,32 +1,31 @@
 ---
-path: "docs/tests/database-tests.mdx"
-title: "Database & Authentication Testing Guide"
-description: "Comprehensive guide for testing the database layer, authentication system, and multi-database support in SveltyCMS."
+path: 'docs/tests/database-tests.mdx'
+title: 'Database & Authentication Testing Guide'
+description: 'Comprehensive guide for testing the database layer, authentication system, and multi-database support in SveltyCMS.'
 order: 4
-icon: "mdi:database-check"
-author: "SveltyCMS Team"
-created: "2025-11-08"
-updated: "2026-03-27"
+icon: 'mdi:database-check'
+author: 'admin'
+created: '2025-11-08'
+updated: '2026-03-06'
 tags:
-  - "testing"
-  - "database"
-  - "authentication"
-  - "sqlite"
-  - "mongodb"
+  - 'testing'
+  - 'database'
+  - 'authentication'
+  - 'sqlite'
+  - 'mongodb'
 ---
 
 # Database & Authentication Testing Guide
 
 ## Overview
 
-SveltyCMS uses a **database-agnostic architecture** via the `IDBAdapter` interface. In 2026, we enhanced our strategy with **Parallel Worker Isolation** and **Triple-Lock Security** to ensure high performance and zero production risk.
+SveltyCMS uses a **database-agnostic architecture** via the `IDBAdapter` interface. In 2026, we standardized on a **SQLite-First** local testing strategy to ensure 100% deterministic results across all environments (Windows, SSH, CI).
 
 This guide covers:
 
 - **SQLite (Default)**: Primary driver for unit and integration tests.
-- **Parallel Worker Isolation**: How we run concurrent tests without database locks.
-- **Strict Isolation**: How we protect production data from test interference.
-- **Network Standardization**: Why we use `127.0.0.1` exclusively for testing.
+- **MongoDB / Postgres / MariaDB**: Verified via CI matrix testing.
+- **Strict Isolation**: How we protect production data.
 
 ## The SQLite-First Strategy (2026)
 
@@ -36,19 +35,7 @@ Previously, local testing required a running MongoDB instance, which often led t
 
 1. **Zero Latency**: No network overhead; tests run in milliseconds.
 2. **Zero Config**: No Docker or local Mongo service required.
-3. **Deterministic**: Every test run starts with a fresh database.
-
----
-
-## ⚡ Parallel Worker Isolation
-
-To maximize performance, SveltyCMS supports parallel E2E testing using a **Database-per-Worker** strategy.
-
-### How it Works:
-
-1.  **Header-Based Routing**: Playwright workers include an `x-test-worker-index` header in every request.
-2.  **Dynamic Connection Map**: The SQLite adapter maintains a map of worker-specific connections.
-3.  **Isolated Files**: Each worker operates on its own dedicated file (e.g., `cms_worker1.db`), eliminating "Database is locked" errors and allowing 4+ concurrent workers.
+3. **Deterministic**: Every test run starts with a fresh file-based database (`sveltycms_test.db`).
 
 ---
 
@@ -61,21 +48,20 @@ SveltyCMS enforces a hard boundary between production and testing:
 1. **TEST_MODE**: Automatically enabled during `bun run test:*`.
 2. **Config Redirect**: The system is hard-coded to look for `config/private.test.ts` when testing.
 3. **Safety Guard**: `src/databases/db.ts` will throw a fatal error if it detects `config/private.ts` (Live) being loaded while in test mode.
-4. **Triple-Lock Security**: Testing routes are physically removed from production builds and require a cryptographic handshake for activation.
 
 ### Database Test Sequence
 
 ```mermaid
 sequenceDiagram
-    participant Runner as Playwright Worker
+    participant Runner as Bun Test Runner
     participant Server as Preview Server
-    participant DB as SQLite (worker_X.db)
+    participant DB as SQLite (test.db)
 
-    Runner->>Server: POST /api/testing (Action: reset, Header: index=X, secret=UUID)
-    Server->>DB: Delete/Recreate worker_X.db
-    Runner->>Server: POST /api/testing (Action: seed, Header: index=X)
+    Runner->>Server: GET /api/testing/reset
+    Server->>DB: Delete test.db file
+    Runner->>Server: POST /api/testing/seed
     Server->>DB: Initialize schema & Insert Admin
-    Note over Runner,DB: Execute Isolated Parallel Tests
+    Note over Runner,DB: Execute Black-Box Tests
 ```
 
 ---
@@ -97,9 +83,10 @@ sequenceDiagram
 - ✅ Session rotation on privilege change.
 - ✅ Automatic cleanup of expired sessions.
 
-#### 3. Atomic Authentication
+#### 3. SAML 2.0 / Enterprise SSO
 
-- ✅ **Clean Slate**: Every test starts with `page.context().clearCookies()` and `localStorage.clear()` to prevent Admin -> Restricted role session bleed.
+- ✅ Verified via BoxyHQ Jackson.
+- ✅ Tests mock connection strings and IdP redirects.
 
 ---
 
@@ -113,12 +100,14 @@ This is the recommended way to test locally:
 bun run test:integration
 ```
 
-### 2. Parallel E2E Testing
+The script will automatically set `DB_TYPE=sqlite` and run the suite.
 
-Run the full browser suite with 4 workers:
+### 2. Testing Other Adapters
+
+To verify MongoDB or PostgreSQL locally:
 
 ```bash
-npx playwright test --workers=4
+DB_TYPE=mongodb DB_HOST=localhost bun run test:integration
 ```
 
 ---
@@ -127,26 +116,12 @@ npx playwright test --workers=4
 
 ### "UNIQUE constraint failed: roles.\_id"
 
-This usually happens if multiple workers share the same database file.
-**Fix**: Ensure your request includes the `x-test-worker-index` and `x-test-secret` headers.
+This usually happens if multiple Playwright workers try to seed the database at once.
+**Fix**: I updated `playwright.config.ts` to use `workers: 1` for setup-related tests.
 
 ### "Database connection failed"
 
-Ensure your `config/private.test.ts` has the correct credentials. Always use `127.0.0.1` instead of `localhost` to avoid IPv6 resolution issues.
-
----
-
-## Performance & Relational Integrity (Audit)
-
-We use the **Enterprise Benchmark Matrix** to validate database adapter performance under stress. The 2026 Audit update introduced:
-
-- **Unified Seeding Contract**: Implemented `ensureAuth()` and `ensureSystem()` across all adapters, ensuring roles and settings are consistent across SQLite, MariaDB, Postgres, and MongoDB.
-- **Relational Benchmarks**: Tests the overhead of JOINs and populations.
-- **Index Pressure**: Verified sub-millisecond lookups on **100,000+ entry** collections.
-- **Migration & Ingestion**: Verified stable ingestion at **6,625 entries/s**.
-- **Cross-Database Leaderboard**: Aggregated metrics in `docs/project/benchmarks/README.mdx` for side-by-side "Showdown" analysis.
-
-**Tools**: `scripts/benchmark-matrix/index.ts`, `tests/benchmarks/migration-scale.test.ts`, `tests/benchmarks/index-pressure.test.ts`
+Ensure your `config/private.test.ts` has the correct credentials. If using SQLite, ensure the process has write permissions to the project root.
 
 ---
 
@@ -155,4 +130,3 @@ We use the **Enterprise Benchmark Matrix** to validate database adapter performa
 - [Test Status Report](./test-status.mdx)
 - [Testing Index](./index.mdx)
 - [API Testing](./api-testing.mdx)
-- [Black-Box Testing Architecture](./black-box-testing.mdx)

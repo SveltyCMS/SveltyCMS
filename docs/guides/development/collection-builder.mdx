@@ -1,20 +1,20 @@
 ---
-path: "docs/guides/development/collection-builder.mdx"
-title: "Collection Builder Guide"
-description: "Complete guide to creating and managing content collections using the visual collection builder in SveltyCMS"
-icon: "mdi:view-grid-plus"
+path: 'docs/guides/collection-builder.mdx'
+title: 'Collection Builder Guide'
+description: 'Complete guide to creating and managing content collections using the visual collection builder in SveltyCMS'
+icon: 'mdi:view-grid-plus'
 published: true
 order: 5
-status: "beta"
-author: "SveltyCMS Team"
-created: "2025-10-05"
-updated: "2026-03-27"
+status: 'beta'
+author: 'admin'
+created: '2025-10-05'
+updated: '2025-10-05'
 tags:
-  - "collection"
-  - "builder"
-  - "content"
-  - "cms"
-  - "widgets"
+  - 'collection'
+  - 'builder'
+  - 'content'
+  - 'cms'
+  - 'widgets'
 ---
 
 # Collection Builder Guide
@@ -223,10 +223,6 @@ This tab manages the fields (widgets) that make up your collection's content str
 
 - Visual list of all fields
 - Drag-and-drop field reordering
-- **Visual Logic Builder**: Configure complex `showIf` and `requiredIf` dependencies.
-  - **Recursive Engine**: Supports nested AND/OR groups.
-  - **Operator Catalog**: `eq`, `neq`, `gt`, `lt`, `contains`, `in`.
-  - **Live Validation**: Instantly verifies logic syntax during configuration.
 - Add/edit/delete fields
 - Field preview
 
@@ -472,19 +468,19 @@ SveltyCMS uses a **modern widget architecture** with three pillars:
 Widgets are created using the factory pattern:
 
 ```typescript
-import { createWidget } from "@widgets/widget-factory";
+import { createWidget } from '@widgets/widgetFactory';
 
 const widget = createWidget({
-  Name: "my-widget",
-  Icon: "mdi:my-icon",
-  Description: "My custom widget",
-  GuiSchema: {
-    /* configuration */
-  },
+	Name: 'my-widget',
+	Icon: 'mdi:my-icon',
+	Description: 'My custom widget',
+	GuiSchema: {
+		/* configuration */
+	}
 });
 ```
 
-See [Widget Architecture](/docs/architecture/widgets/architecture) for details.
+See [Widget Architecture](/docs/widgets/widget-architecture) for details.
 
 ## Best Practices
 
@@ -572,7 +568,7 @@ See [Widget Architecture](/docs/architecture/widgets/architecture) for details.
 - Ensure widgets are activated in Widget Management
 - Check widget store initialization
 - Verify widget imports
-- See [Widget Management](/docs/guides/development/widgets/index)
+- See [Widget Management](/docs/widgets/widget-management-system)
 
 ### Debug Information
 
@@ -639,26 +635,26 @@ Content-Type: application/json
 
 ```typescript
 interface Schema {
-  _id: string;
-  name: string;
-  slug: string;
-  icon: string;
-  description?: string;
-  status: "published" | "unpublished" | "draft";
-  fields: FieldInstance[];
-  permissions?: PermissionConfig;
-  createdAt: Date;
-  updatedAt: Date;
+	_id: string;
+	name: string;
+	slug: string;
+	icon: string;
+	description?: string;
+	status: 'published' | 'unpublished' | 'draft';
+	fields: FieldInstance[];
+	permissions?: PermissionConfig;
+	createdAt: Date;
+	updatedAt: Date;
 }
 
 interface FieldInstance {
-  widget: WidgetDefinition;
-  label: string;
-  db_fieldName: string;
-  required?: boolean;
-  translated?: boolean;
-  permissions?: FieldPermissions;
-  // Widget-specific properties...
+	widget: WidgetDefinition;
+	label: string;
+	db_fieldName: string;
+	required?: boolean;
+	translated?: boolean;
+	permissions?: FieldPermissions;
+	// Widget-specific properties...
 }
 ```
 
@@ -690,11 +686,11 @@ When saving a collection with breaking changes, a **confirmation modal** display
 The schema comparison engine (`collectionSchemaWarnings.ts`) can be used programmatically:
 
 ```typescript
-import { analyzeSchemaChanges } from "@utils/collectionSchemaWarnings";
+import { analyzeSchemaChanges } from '@utils/collectionSchemaWarnings';
 
 const result = analyzeSchemaChanges(oldSchema, newSchema);
 if (result.hasDataLoss) {
-  console.warn("⚠️ Data loss detected:", result.summary);
+	console.warn('⚠️ Data loss detected:', result.summary);
 }
 ```
 
@@ -731,7 +727,6 @@ SveltyCMS uses a 3-pillar widget architecture:
 | **TypeScript Native**  | ✅        | ❌           | ❌     | ✅        | ✅     | ✅         | ✅     |
 | **Headless**           | ✅        | Plugin       | Plugin | ✅        | ✅     | ✅         | ✅     |
 | **Visual Builder**     | ✅        | ✅           | ✅     | ✅        | ✅     | ❌         | ✅     |
-| **Automated Upgrades** | ✅ (AST)  | ⚠️           | ⚠️     | ⚠️        | ❌     | ❌         | ❌     |
 | **Data Loss Warnings** | ✅        | ❌           | ❌     | ✅        | ⚠️     | ⚠️         | ⚠️     |
 | **Widget System**      | 3-Pillar  | Plugin-based | Module | Interface | Plugin | Field      | Schema |
 | **Self-Hosted**        | ✅        | ✅           | ✅     | ✅        | ✅     | ✅         | Cloud  |
@@ -739,10 +734,6 @@ SveltyCMS uses a 3-pillar widget architecture:
 | **Modern Framework**   | SvelteKit | PHP          | PHP    | Vue       | React  | React      | React  |
 
 ### Key Differentiators
-
-**🚀 Automated Upgrades (Codemods):**
-
-SveltyCMS is the only CMS that uses **AST-based codemods** (`ts-morph`) to automatically migrate your custom TypeScript schemas when you upgrade. If a new version introduces a breaking change, our upgrade tool "performs surgery" on your source code to keep it compatible, preserving your comments and formatting.
 
 **vs WordPress/Drupal** (Traditional CMS):
 
@@ -785,14 +776,14 @@ SveltyCMS is the only CMS that uses **AST-based codemods** (`ts-morph`) to autom
 
 ### Widgets
 
-- [Widget Architecture](/docs/architecture/widgets/architecture) - Modern widget system design
-- [Widget Management](/docs/guides/development/widgets/index) - Managing widgets
+- [Widget Architecture](/docs/widgets/widget-architecture) - Modern widget system design
+- [Widget Management](/docs/widgets/widget-management-system) - Managing widgets
 
 ### Guides
 
-- [Smart Importer](/docs/guides/content/smart-importer) - Migrating legacy content into collections
-- [Permission System](/docs/guides/configuration/access-management) - Roles and permissions
-- [Multi-Tenant Setup](/docs/architecture/multi-tenancy) - Tenant configuration
+- [Content Management](/docs/guides/content-management) - Working with collections
+- [Permission System](/docs/guides/access-management) - Roles and permissions
+- [Multi-Tenant Setup](/docs/architecture/multi-tenant) - Tenant configuration
 
 ---
 

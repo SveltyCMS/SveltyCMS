@@ -1,412 +1,322 @@
 /**
  * @file src/plugins/registry.ts
- * @description
- * Central registry for managing CMS plugins.
- *
- * Responsibilities include:
- * - Registering available plugins.
- * - Initializing settings and running migrations.
- * - Managing lifecycle and SSR hooks.
- *
- * ### Features:
- * - plugin registration
- * - migrations management
- * - hook resolution
+ * @description Central registry for managing CMS plugins
  */
 
-import type { DatabaseResult, IDBAdapter } from "@databases/db-interface";
-import { nowISODateString } from "@utils/date";
-import { logger } from "@utils/logger";
-import { PluginSettingsService } from "./settings";
-import type {
-  IPluginService,
-  Plugin,
-  PluginMigrationRecord,
-  PluginRegistryEntry,
-  PluginSSRHook,
-} from "./types";
+import type { DatabaseResult, IDBAdapter } from '@databases/db-interface';
+import { nowISODateString } from '@utils/date-utils';
+import { logger } from '@utils/logger.server';
+import { PluginSettingsService } from './settings';
+import type { IPluginService, Plugin, PluginMigrationRecord, PluginRegistryEntry, PluginSSRHook } from './types';
 
 class PluginRegistry implements IPluginService {
-  private readonly plugins: Map<string, PluginRegistryEntry> = new Map();
-  private settingsService: PluginSettingsService | null = null;
-  private initialized = false;
+	private readonly plugins: Map<string, PluginRegistryEntry> = new Map();
+	private settingsService: PluginSettingsService | null = null;
+	private initialized = false;
 
-  // Register a new plugin
-  async register(plugin: Plugin): Promise<DatabaseResult<void>> {
-    try {
-      if (this.plugins.has(plugin.metadata.id)) {
-        logger.warn(`Plugin ${plugin.metadata.id} is already registered. Overwriting.`);
-      }
+	// Register a new plugin
+	async register(plugin: Plugin): Promise<DatabaseResult<void>> {
+		try {
+			if (this.plugins.has(plugin.metadata.id)) {
+				logger.warn(`Plugin ${plugin.metadata.id} is already registered. Overwriting.`);
+			}
 
-      this.plugins.set(plugin.metadata.id, {
-        plugin,
-        registeredAt: nowISODateString(),
-      });
+			this.plugins.set(plugin.metadata.id, {
+				plugin,
+				registeredAt: nowISODateString()
+			});
 
-      logger.debug(
-        `🔌 Plugin registered: ${plugin.metadata.name} (${plugin.metadata.id}) v${plugin.metadata.version}`,
-      );
+			logger.debug(`🔌 Plugin registered: ${plugin.metadata.name} (${plugin.metadata.id}) v${plugin.metadata.version}`);
 
-      return { success: true, data: undefined };
-    } catch (error) {
-      logger.error(`Failed to register plugin ${plugin.metadata.id}`, {
-        error,
-      });
-      return {
-        success: false,
-        message: `Failed to register plugin ${plugin.metadata.id}`,
-        error: {
-          code: "REGISTRATION_ERROR",
-          message: error instanceof Error ? error.message : "Unknown error",
-        },
-      };
-    }
-  }
+			return { success: true, data: undefined };
+		} catch (error) {
+			logger.error(`Failed to register plugin ${plugin.metadata.id}`, {
+				error
+			});
+			return {
+				success: false,
+				message: `Failed to register plugin ${plugin.metadata.id}`,
+				error: {
+					code: 'REGISTRATION_ERROR',
+					message: error instanceof Error ? error.message : 'Unknown error'
+				}
+			};
+		}
+	}
 
-  // Get all registered plugins
-  getAll(): Plugin[] {
-    return Array.from(this.plugins.values()).map((entry) => entry.plugin);
-  }
+	// Get all registered plugins
+	getAll(): Plugin[] {
+		return Array.from(this.plugins.values()).map((entry) => entry.plugin);
+	}
 
-  // Get a specific plugin by ID
-  get(pluginId: string): Plugin | undefined {
-    return this.plugins.get(pluginId)?.plugin;
-  }
+	// Get a specific plugin by ID
+	get(pluginId: string): Plugin | undefined {
+		return this.plugins.get(pluginId)?.plugin;
+	}
 
-  // Initialize the plugin settings service
-  async initializeSettings(dbAdapter: IDBAdapter): Promise<void> {
-    this.settingsService = new PluginSettingsService(dbAdapter);
-    await this.settingsService.initialize();
-  }
+	// Initialize the plugin settings service
+	async initializeSettings(dbAdapter: IDBAdapter): Promise<void> {
+		this.settingsService = new PluginSettingsService(dbAdapter);
+		await this.settingsService.initialize();
+	}
 
-  // Run pending migrations for a specific plugin
-  async runMigrations(
-    pluginId: string,
-    dbAdapter: IDBAdapter,
-    tenantId: string,
-  ): Promise<DatabaseResult<void>> {
-    try {
-      const entry = this.plugins.get(pluginId);
-      if (!entry) {
-        return {
-          success: false,
-          message: `Plugin ${pluginId} not found`,
-          error: { code: "NOT_FOUND", message: `Plugin ${pluginId} not found` },
-        };
-      }
+	// Run pending migrations for a specific plugin
+	async runMigrations(pluginId: string, dbAdapter: IDBAdapter, tenantId: string): Promise<DatabaseResult<void>> {
+		try {
+			const entry = this.plugins.get(pluginId);
+			if (!entry) {
+				return {
+					success: false,
+					message: `Plugin ${pluginId} not found`,
+					error: { code: 'NOT_FOUND', message: `Plugin ${pluginId} not found` }
+				};
+			}
 
-      const plugin = entry.plugin;
+			const plugin = entry.plugin;
+			if (!plugin.migrations || plugin.migrations.length === 0) {
+				return { success: true, data: undefined };
+			}
 
-      // 🚀 DYNAMIC RESOLUTION: If migrations aren't static, try to resolve via .server module
-      let migrations = plugin.migrations;
-      if (!migrations || migrations.length === 0) {
-        try {
-          const serverMod = await import(`./${pluginId}/index.server`);
-          migrations = serverMod.migrations || [];
-        } catch {
-          // No server module for this plugin, normal if plugin is UI-only
-        }
-      }
+			// Ensure metadata/migrations table exists
+			await this.ensureMigrationTable(dbAdapter);
 
-      if (!migrations || migrations.length === 0) {
-        return { success: true, data: undefined };
-      }
+			// Get applied migrations
+			const appliedResult = await this.getAppliedMigrations(dbAdapter, pluginId, tenantId);
+			const appliedIds = new Set(appliedResult.success ? appliedResult.data.map((m) => m.migrationId) : []);
 
-      // Ensure metadata/migrations table exists
-      await this.ensureMigrationTable(dbAdapter);
+			// Sort and run pending migrations
+			const pending = plugin.migrations.filter((m) => !appliedIds.has(m.id)).sort((a, b) => a.version - b.version);
 
-      // Get applied migrations
-      const appliedResult = await this.getAppliedMigrations(dbAdapter, pluginId, tenantId);
-      const appliedIds = new Set(
-        appliedResult.success ? appliedResult.data.map((m) => m.migrationId) : [],
-      );
+			for (const migration of pending) {
+				logger.info(`📝 Running plugin migration: ${pluginId} -> ${migration.id} (v${migration.version})`);
+				await migration.up(dbAdapter);
+				await this.recordMigration(dbAdapter, pluginId, migration.id, migration.version, tenantId);
+			}
 
-      // Sort and run pending migrations
-      const pending = migrations
-        .filter((m) => !appliedIds.has(m.id))
-        .sort((a, b) => a.version - b.version);
+			return { success: true, data: undefined };
+		} catch (error) {
+			logger.error(`Failed to run migrations for plugin ${pluginId}`, {
+				error
+			});
+			return {
+				success: false,
+				message: `Failed to run migrations for plugin ${pluginId}`,
+				error: {
+					code: 'MIGRATION_ERROR',
+					message: error instanceof Error ? error.message : 'Unknown error'
+				}
+			};
+		}
+	}
 
-      for (const migration of pending) {
-        logger.info(
-          `📝 Running plugin migration: ${pluginId} -> ${migration.id} (v${migration.version})`,
-        );
-        await migration.up(dbAdapter);
-        await this.recordMigration(dbAdapter, pluginId, migration.id, migration.version, tenantId);
-      }
+	// Run migrations for all registered plugins
+	async runAllMigrations(dbAdapter: IDBAdapter, tenantId: string): Promise<DatabaseResult<void>> {
+		try {
+			logger.debug('🚀 Running all pending plugin migrations...');
 
-      return { success: true, data: undefined };
-    } catch (error) {
-      logger.error(`Failed to run migrations for plugin ${pluginId}`, {
-        error,
-      });
-      return {
-        success: false,
-        message: `Failed to run migrations for plugin ${pluginId}`,
-        error: {
-          code: "MIGRATION_ERROR",
-          message: error instanceof Error ? error.message : "Unknown error",
-        },
-      };
-    }
-  }
+			for (const pluginId of this.plugins.keys()) {
+				const result = await this.runMigrations(pluginId, dbAdapter, tenantId);
+				if (!result.success) {
+					logger.error(`Migration failed for plugin ${pluginId}`, {
+						error: result.error
+					});
+				}
+			}
 
-  // Run migrations for all registered plugins
-  async runAllMigrations(dbAdapter: IDBAdapter, tenantId: string): Promise<DatabaseResult<void>> {
-    try {
-      logger.debug("🚀 Running all pending plugin migrations...");
+			logger.info('✅ All plugin migrations checked/completed');
+			return { success: true, data: undefined };
+		} catch (error) {
+			logger.error('Failed to run all plugin migrations', { error });
+			return {
+				success: false,
+				message: 'Failed to run all migrations',
+				error: {
+					code: 'MIGRATION_RUNNER_ERROR',
+					message: error instanceof Error ? error.message : 'Unknown error'
+				}
+			};
+		}
+	}
 
-      for (const pluginId of this.plugins.keys()) {
-        const result = await this.runMigrations(pluginId, dbAdapter, tenantId);
-        if (!result.success) {
-          logger.error(`Migration failed for plugin ${pluginId}`, {
-            error: result.error,
-          });
-        }
-      }
+	// Get SSR hooks for plugins enabled on a collection
+	async getSSRHooks(collectionId: string, tenantId?: string | null, schema?: any): Promise<PluginSSRHook[]> {
+		const hooks: PluginSSRHook[] = [];
+		const activeTenantId = tenantId || 'default';
 
-      logger.info("✅ All plugin migrations checked/completed");
-      return { success: true, data: undefined };
-    } catch (error) {
-      logger.error("Failed to run all plugin migrations", { error });
-      return {
-        success: false,
-        message: "Failed to run all migrations",
-        error: {
-          code: "MIGRATION_RUNNER_ERROR",
-          message: error instanceof Error ? error.message : "Unknown error",
-        },
-      };
-    }
-  }
+		for (const entry of this.plugins.values()) {
+			const plugin = entry.plugin;
 
-  // Get SSR hooks for plugins enabled on a collection
-  async getSSRHooks(
-    collectionId: string,
-    tenantId?: string | null,
-    schema?: any,
-  ): Promise<PluginSSRHook[]> {
-    const hooks: PluginSSRHook[] = [];
-    const activeTenantId = tenantId || "default";
+			// Check if plugin is enabled for this collection
+			if (!(await this.isEnabledForCollection(plugin.metadata.id, collectionId, activeTenantId, schema))) {
+				continue;
+			}
 
-    for (const entry of this.plugins.values()) {
-      const plugin = entry.plugin;
+			if (!plugin.ssrHook) {
+				continue;
+			}
 
-      // Check if plugin is enabled for this collection
-      if (
-        !(await this.isEnabledForCollection(
-          plugin.metadata.id,
-          collectionId,
-          activeTenantId,
-          schema,
-        ))
-      ) {
-        continue;
-      }
+			hooks.push(plugin.ssrHook);
+		}
 
-      let ssrHook = plugin.ssrHook;
-      if (!ssrHook) {
-        try {
-          const serverMod = await import(`./${plugin.metadata.id}/index.server`);
-          ssrHook = serverMod.ssrHook;
-        } catch {
-          // No server hook
-        }
-      }
+		return hooks;
+	}
 
-      if (!ssrHook) {
-        continue;
-      }
+	// Get Lifecycle hooks for enabled plugins on a collection
+	async getLifecycleHooks<K extends keyof import('./types').PluginLifecycleHooks>(
+		collectionId: string,
+		hookName: K,
+		tenantId?: string | null,
+		schema?: any
+	): Promise<Exclude<import('./types').PluginLifecycleHooks[K], undefined>[]> {
+		const hooks: Exclude<import('./types').PluginLifecycleHooks[K], undefined>[] = [];
+		const activeTenantId = tenantId || 'default';
 
-      hooks.push(ssrHook);
-    }
+		for (const entry of this.plugins.values()) {
+			const plugin = entry.plugin;
 
-    return hooks;
-  }
+			// Check if plugin is enabled for this collection
+			if (!(await this.isEnabledForCollection(plugin.metadata.id, collectionId, activeTenantId, schema))) {
+				continue;
+			}
 
-  // Get Lifecycle hooks for enabled plugins on a collection
-  async getLifecycleHooks<K extends keyof import("./types").PluginLifecycleHooks>(
-    collectionId: string,
-    hookName: K,
-    tenantId?: string | null,
-    schema?: any,
-  ): Promise<Exclude<import("./types").PluginLifecycleHooks[K], undefined>[]> {
-    const hooks: Exclude<import("./types").PluginLifecycleHooks[K], undefined>[] = [];
-    const activeTenantId = tenantId || "default";
+			if (plugin.hooks?.[hookName]) {
+				hooks.push(plugin.hooks[hookName] as Exclude<import('./types').PluginLifecycleHooks[K], undefined>);
+			}
+		}
 
-    for (const entry of this.plugins.values()) {
-      const plugin = entry.plugin;
+		return hooks;
+	}
 
-      // Check if plugin is enabled for this collection
-      if (
-        !(await this.isEnabledForCollection(
-          plugin.metadata.id,
-          collectionId,
-          activeTenantId,
-          schema,
-        ))
-      ) {
-        continue;
-      }
+	// Check if a plugin is enabled for a specific collection and tenant
+	async isEnabledForCollection(pluginId: string, collectionId: string, tenantId?: string | null, schema?: any): Promise<boolean> {
+		const plugin = this.get(pluginId);
+		if (!plugin) {
+			return false;
+		}
 
-      if (plugin.hooks?.[hookName]) {
-        hooks.push(
-          plugin.hooks[hookName] as Exclude<import("./types").PluginLifecycleHooks[K], undefined>,
-        );
-      }
-    }
+		// 1. Check persistent state
+		let enabled = plugin.metadata.enabled; // Default from metadata
 
-    return hooks;
-  }
+		if (this.settingsService && tenantId) {
+			const state = await this.settingsService.getPluginState(pluginId, tenantId);
+			if (state) {
+				enabled = state.enabled;
+			}
+		}
 
-  // Check if a plugin is enabled for a specific collection and tenant
-  async isEnabledForCollection(
-    pluginId: string,
-    collectionId: string,
-    tenantId?: string | null,
-    schema?: any,
-  ): Promise<boolean> {
-    const plugin = this.get(pluginId);
-    if (!plugin) {
-      return false;
-    }
+		if (!enabled) {
+			return false;
+		}
 
-    // 1. Check persistent state
-    let enabled = plugin.metadata.enabled; // Default from metadata
+		// 2. Check enabledCollections whitelist in plugin metadata (global lock)
+		if (plugin.enabledCollections && plugin.enabledCollections.length > 0 && !plugin.enabledCollections.includes(collectionId)) {
+			return false;
+		}
 
-    if (this.settingsService && tenantId) {
-      const state = await this.settingsService.getPluginState(pluginId, tenantId);
-      if (state) {
-        enabled = state.enabled;
-      }
-    }
+		// 3. Check schema-level overrides if provided (granular override)
+		if (schema?.plugins) {
+			return schema.plugins.includes(pluginId);
+		}
 
-    if (!enabled) {
-      return false;
-    }
+		return true;
+	}
 
-    // 2. Check enabledCollections whitelist in plugin metadata (global lock)
-    if (
-      plugin.enabledCollections &&
-      plugin.enabledCollections.length > 0 &&
-      !plugin.enabledCollections.includes(collectionId)
-    ) {
-      return false;
-    }
+	// Get state for a specific plugin and tenant
+	async getPluginState(pluginId: string, tenantId: string) {
+		if (!this.settingsService) {
+			logger.warn('PluginSettingsService not initialized');
+			return null;
+		}
+		return await this.settingsService.getPluginState(pluginId, tenantId);
+	}
 
-    // 3. Check schema-level overrides if provided (granular override)
-    if (schema?.plugins) {
-      return schema.plugins.includes(pluginId);
-    }
+	// Toggle a plugin's enabled state
+	async togglePlugin(pluginId: string, enabled: boolean, tenantId: string, userId?: string): Promise<boolean> {
+		if (!this.settingsService) {
+			logger.warn('PluginSettingsService not initialized');
+			return false;
+		}
 
-    return true;
-  }
+		return await this.settingsService.setPluginState(pluginId, tenantId, enabled, userId);
+	}
 
-  // Get state for a specific plugin and tenant
-  async getPluginState(pluginId: string, tenantId: string) {
-    if (!this.settingsService) {
-      logger.warn("PluginSettingsService not initialized");
-      return null;
-    }
-    return await this.settingsService.getPluginState(pluginId, tenantId);
-  }
+	// Mark registry as initialized
+	markInitialized() {
+		this.initialized = true;
+	}
 
-  // Toggle a plugin's enabled state
-  async togglePlugin(
-    pluginId: string,
-    enabled: boolean,
-    tenantId: string,
-    userId?: string,
-  ): Promise<boolean> {
-    if (!this.settingsService) {
-      logger.warn("PluginSettingsService not initialized");
-      return false;
-    }
+	// Check if registry is initialized
+	isInitialized(): boolean {
+		return this.initialized;
+	}
 
-    return await this.settingsService.setPluginState(pluginId, tenantId, enabled, userId);
-  }
+	// Ensure migration table exists
+	private async ensureMigrationTable(dbAdapter: IDBAdapter): Promise<void> {
+		const table = 'pluginMigrations';
+		try {
+			const count = await dbAdapter.crud.count(table, undefined, undefined, true);
+			if (count.success) {
+				return;
+			}
+		} catch (_error) {
+			// Expected if table doesn't exist
+		}
 
-  // Mark registry as initialized
-  markInitialized() {
-    this.initialized = true;
-  }
+		logger.info(`Creating ${table} database collection...`);
+		await dbAdapter.crud.insert(
+			table,
+			{
+				pluginId: '__INIT__',
+				migrationId: '__INIT__',
+				version: 0,
+				appliedAt: new Date(),
+				tenantId: 'system'
+			} as any,
+			undefined,
+			true
+		);
+		await dbAdapter.crud.deleteMany(table, { pluginId: '__INIT__' } as any, undefined, true);
+	}
 
-  // Check if registry is initialized
-  isInitialized(): boolean {
-    return this.initialized;
-  }
+	// Get applied migrations from database
+	private async getAppliedMigrations(dbAdapter: IDBAdapter, pluginId: string, tenantId: string): Promise<DatabaseResult<PluginMigrationRecord[]>> {
+		try {
+			const result = await dbAdapter.crud.findMany<PluginMigrationRecord>(
+				'pluginMigrations',
+				{
+					pluginId,
+					tenantId
+				} as any,
+				{ bypassTenantCheck: true }
+			);
+			return result as DatabaseResult<PluginMigrationRecord[]>;
+		} catch (error) {
+			return {
+				success: false,
+				message: 'Failed to get applied migrations',
+				error: {
+					code: 'QUERY_ERROR',
+					message: error instanceof Error ? error.message : 'Unknown error'
+				}
+			};
+		}
+	}
 
-  // Reset registry (used for shutdown/reinitialization)
-  reset(): void {
-    this.plugins.clear();
-    this.settingsService = null;
-    this.initialized = false;
-  }
-
-  // Ensure migration table exists
-  private async ensureMigrationTable(dbAdapter: IDBAdapter): Promise<void> {
-    const table = "pluginMigrations";
-    try {
-      // Use createModel to ensure physical table exists in SQL adapters
-      await dbAdapter.collection.createModel({
-        _id: table,
-        name: table,
-        slug: table,
-        fields: [],
-        status: "publish",
-      } as any);
-    } catch (error) {
-      logger.error(`[PluginRegistry] Failed to ensure migration table:`, error);
-    }
-  }
-
-  // Get applied migrations from database
-  private async getAppliedMigrations(
-    dbAdapter: IDBAdapter,
-    pluginId: string,
-    tenantId: string,
-  ): Promise<DatabaseResult<PluginMigrationRecord[]>> {
-    try {
-      const result = await dbAdapter.crud.findMany<PluginMigrationRecord>(
-        "pluginMigrations",
-        {
-          pluginId,
-          tenantId,
-        } as any,
-        { bypassTenantCheck: true },
-      );
-      return result as DatabaseResult<PluginMigrationRecord[]>;
-    } catch (error) {
-      return {
-        success: false,
-        message: "Failed to get applied migrations",
-        error: {
-          code: "QUERY_ERROR",
-          message: error instanceof Error ? error.message : "Unknown error",
-        },
-      };
-    }
-  }
-
-  // Record a successful migration
-  private async recordMigration(
-    dbAdapter: IDBAdapter,
-    pluginId: string,
-    migrationId: string,
-    version: number,
-    tenantId: string,
-  ): Promise<void> {
-    await dbAdapter.crud.insert(
-      "pluginMigrations",
-      {
-        pluginId,
-        migrationId,
-        version,
-        tenantId,
-        appliedAt: new Date(),
-      } as any,
-      { bypassTenantCheck: true },
-    );
-  }
+	// Record a successful migration
+	private async recordMigration(dbAdapter: IDBAdapter, pluginId: string, migrationId: string, version: number, tenantId: string): Promise<void> {
+		await dbAdapter.crud.insert(
+			'pluginMigrations',
+			{
+				pluginId,
+				migrationId,
+				version,
+				tenantId,
+				appliedAt: new Date()
+			} as any,
+			undefined,
+			true
+		);
+	}
 }
 
 export const pluginRegistry = new PluginRegistry();

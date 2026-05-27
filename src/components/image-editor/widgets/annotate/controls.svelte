@@ -10,48 +10,26 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 		currentTool,
 		strokeColor,
 		fillColor,
-		textDraft = 'Text',
 		onSetTool,
 		onStrokeColorChange,
-		onFillColorChange,
-		onTextDraftChange,
-		hasSelection = false,
-		onDeleteAnnotation
+		onFillColorChange
 	}: {
 		currentTool: ToolType;
 		strokeColor: string;
 		fillColor: string;
-		textDraft?: string;
 		onSetTool: (tool: ToolType) => void;
 		onStrokeColorChange: (color: string) => void;
 		onFillColorChange: (color: string) => void;
-		onTextDraftChange?: (text: string) => void;
-		hasSelection?: boolean;
-		onDeleteAnnotation?: () => void;
 	} = $props();
-
-	function handleKeyDown(e: KeyboardEvent) {
-		if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') {
-			return;
-		}
-
-		if ((e.key === 'Delete' || e.key === 'Backspace') && hasSelection && onDeleteAnnotation) {
-			e.preventDefault();
-			onDeleteAnnotation();
-		}
-	}
 </script>
-
-<svelte:window onkeydown={handleKeyDown} />
 
 <div class="annotate-controls">
 	<!-- Tool Selection Group -->
 	<div class="tool-group">
-		<button type="button" class="tool-btn" class:active={currentTool === 'text'} onclick={() => onSetTool(currentTool === 'text' ? null : 'text')} title="Add Text">
+		<button class="tool-btn" class:active={currentTool === 'text'} onclick={() => onSetTool(currentTool === 'text' ? null : 'text')} title="Add Text">
 			<iconify-icon icon="mdi:format-text" width="20"></iconify-icon>
 		</button>
 		<button
-			type="button"
 			class="tool-btn"
 			class:active={currentTool === 'arrow'}
 			onclick={() => onSetTool(currentTool === 'arrow' ? null : 'arrow')}
@@ -60,7 +38,6 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 			<iconify-icon icon="mdi:arrow-top-right" width="20"></iconify-icon>
 		</button>
 		<button
-			type="button"
 			class="tool-btn"
 			class:active={currentTool === 'rectangle'}
 			onclick={() => onSetTool(currentTool === 'rectangle' ? null : 'rectangle')}
@@ -69,7 +46,6 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 			<iconify-icon icon="mdi:rectangle-outline" width="20"></iconify-icon>
 		</button>
 		<button
-			type="button"
 			class="tool-btn"
 			class:active={currentTool === 'circle'}
 			onclick={() => onSetTool(currentTool === 'circle' ? null : 'circle')}
@@ -78,23 +54,6 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 			<iconify-icon icon="mdi:circle-outline" width="20"></iconify-icon>
 		</button>
 	</div>
-
-	{#if currentTool === 'text' && onTextDraftChange}
-		<div class="text-panel">
-			<label class="text-label" for="annotation-text">Text</label>
-			<input
-				id="annotation-text"
-				class="text-input"
-				type="text"
-				value={textDraft}
-				placeholder="Enter annotation text"
-				oninput={(e) => onTextDraftChange(e.currentTarget.value)}
-			/>
-			<button type="button" class="text-place-btn" onclick={() => onSetTool('text')} title="Click canvas to place text">
-				Place text
-			</button>
-		</div>
-	{/if}
 
 	<div class="divider"></div>
 
@@ -112,22 +71,14 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 			<iconify-icon icon="mdi:format-color-fill" class="picker-icon" width="12"></iconify-icon>
 		</label>
 	</div>
-
-	{#if hasSelection && onDeleteAnnotation}
-		<button type="button" class="delete-btn" onclick={onDeleteAnnotation} title="Delete selected annotation">
-			<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
-			<span>Delete</span>
-		</button>
-	{/if}
 </div>
 
 <style>
 	.annotate-controls {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.9rem;
+		gap: 1rem;
 		align-items: center;
-		justify-content: flex-start;
+		justify-content: center;
 		width: 100%;
 		padding: 0;
 	}
@@ -176,50 +127,6 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 		gap: 0.75rem;
 	}
 
-	.text-panel {
-		display: flex;
-		align-items: center;
-		flex: 1 1 18rem;
-		gap: 0.5rem;
-		padding: 0.35rem 0.5rem;
-		background: rgba(0, 0, 0, 0.2);
-		border-radius: 0.75rem;
-	}
-
-	.text-label {
-		font-size: 0.7rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: #9ca3af;
-	}
-
-	.text-input {
-		min-width: 0;
-		flex: 1 1 auto;
-		padding: 0.45rem 0.65rem;
-		color: #fff;
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.12);
-		border-radius: 0.5rem;
-		outline: none;
-	}
-
-	.text-input:focus {
-		border-color: rgb(var(--color-primary-500) / 1);
-		box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
-	}
-
-	.text-place-btn {
-		padding: 0.45rem 0.75rem;
-		font-size: 0.75rem;
-		font-weight: 700;
-		color: #e5e7eb;
-		background: rgba(59, 130, 246, 0.2);
-		border: 1px solid rgba(59, 130, 246, 0.5);
-		border-radius: 0.5rem;
-	}
-
 	.color-picker-label {
 		position: relative;
 		width: 2rem;
@@ -254,70 +161,5 @@ Controls for the Annotate tool: tool selection (text, arrow, shapes) and styling
 		background: #1f2937;
 		border: 1px solid rgba(255, 255, 255, 0.1);
 		border-radius: 50%;
-	}
-
-	.delete-btn {
-		display: inline-flex;
-		gap: 0.35rem;
-		align-items: center;
-		padding: 0.45rem 0.75rem;
-		font-size: 0.75rem;
-		font-weight: 700;
-		color: #fecaca;
-		background: rgba(239, 68, 68, 0.16);
-		border: 1px solid rgba(239, 68, 68, 0.45);
-		border-radius: 0.5rem;
-	}
-
-	@media (max-width: 768px) {
-		.annotate-controls {
-			align-items: stretch;
-			gap: 0.7rem;
-			padding: 0.1rem;
-		}
-
-		.tool-group {
-			order: 1;
-			width: fit-content;
-			max-width: 100%;
-			overflow-x: auto;
-		}
-
-		.text-panel {
-			order: 2;
-			flex-basis: 100%;
-			flex-wrap: wrap;
-			align-items: stretch;
-			padding: 0.5rem;
-			border: 1px solid rgba(255, 255, 255, 0.08);
-		}
-
-		.text-label {
-			width: 100%;
-		}
-
-		.text-input {
-			width: 100%;
-		}
-
-		.text-place-btn {
-			width: 100%;
-			justify-content: center;
-		}
-
-		.divider {
-			display: none;
-		}
-
-		.color-group {
-			order: 3;
-			gap: 0.55rem;
-		}
-
-		.delete-btn {
-			order: 4;
-			width: 100%;
-			justify-content: center;
-		}
 	}
 </style>

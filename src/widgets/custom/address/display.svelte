@@ -61,34 +61,19 @@ Renders: "Main St 123, 12345 Berlin, Germany"
 
 	// UI Language for country name translation
 	const uiLang = $derived(app.systemLanguage);
+
+	// Create a formatted address string from the data object.
+	const formattedAddress = $derived.by(() => {
+		if (!safeValue?.street) {
+			return '–';
+		}
+
+		// Resolve country name from store using UI language
+		const countryName = safeValue.country ? countryStore.getCountryName(safeValue.country, uiLang) : '';
+
+		const parts = [`${safeValue.street} ${safeValue.houseNumber}`, `${safeValue.postalCode} ${safeValue.city}`, countryName];
+		return parts.filter(Boolean).join(', ');
+	});
 </script>
 
-{#if safeValue?.street}
-	<div class="address-display flex flex-col text-sm leading-relaxed" title="{safeValue.street} {safeValue.houseNumber}, {safeValue.postalCode} {safeValue.city}">
-		<div class="font-bold text-surface-900 dark:text-surface-50">
-			{safeValue.street} {safeValue.houseNumber}
-		</div>
-		<div class="text-surface-600 dark:text-surface-400">
-			{safeValue.postalCode} {safeValue.city}
-		</div>
-		<div class="flex items-center gap-1 text-xs text-surface-500">
-			<iconify-icon icon="mdi:earth" width="12"></iconify-icon>
-			{safeValue.country ? countryStore.getCountryName(safeValue.country, uiLang) : ''}
-		</div>
-		
-		{#if (field as any).showCoordinates && safeValue.latitude !== undefined && safeValue.longitude !== undefined}
-			<div class="mt-1 flex items-center gap-1 text-[10px] text-surface-400 font-mono italic">
-				<iconify-icon icon="mdi:map-marker-outline" width="10"></iconify-icon>
-				{safeValue.latitude.toFixed(5)}, {safeValue.longitude.toFixed(5)}
-			</div>
-		{/if}
-	</div>
-{:else}
-	<span class="text-surface-400 dark:text-surface-600">–</span>
-{/if}
-
-<style>
-	.address-display {
-		min-width: 120px;
-	}
-</style>
+<span title={formattedAddress}>{formattedAddress}</span>

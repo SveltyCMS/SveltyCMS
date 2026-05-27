@@ -1,18 +1,18 @@
 ---
-path: "docs/architecture/components/entrylist-multibutton.mdx"
-title: "Enterprise MultiButton Component"
-description: "Complete documentation for the enterprise-grade MultiButton with action queue, retry mechanism, and keyboard navigation."
+path: 'docs/architecture/components/entry-list-multibutton.mdx'
+title: 'Enterprise MultiButton Component'
+description: 'Complete documentation for the enterprise-grade MultiButton with action queue, retry mechanism, and keyboard navigation.'
 order: 1
-icon: "mdi:lightning-bolt"
-author: "SveltyCMS Team"
-created: "2026-01-04"
-updated: "2026-03-27"
+icon: 'mdi:lightning-bolt'
+author: 'admin'
+created: '2026-01-04'
+updated: '2026-01-04'
 tags:
-  - "components"
-  - "enterprise"
-  - "multibutton"
-  - "accessibility"
-  - "bulk-actions"
+  - 'components'
+  - 'enterprise'
+  - 'multibutton'
+  - 'accessibility'
+  - 'bulk-actions'
 ---
 
 # Enterprise MultiButton Component
@@ -95,16 +95,16 @@ Real-time progress tracking for batch operations with visual feedback.
 
 ```typescript
 interface QueuedAction {
-  id: string;
-  type: ActionType;
-  count: number;
-  status: "pending" | "processing" | "success" | "error" | "retrying";
-  progress: number; // 0-100%
-  error?: string;
-  timestamp: number;
-  retryCount?: number;
-  maxRetries?: number; // Default: 3
-  optimisticId?: string; // Links to optimistic update
+	id: string;
+	type: ActionType;
+	count: number;
+	status: 'pending' | 'processing' | 'success' | 'error' | 'retrying';
+	progress: number; // 0-100%
+	error?: string;
+	timestamp: number;
+	retryCount?: number;
+	maxRetries?: number; // Default: 3
+	optimisticId?: string; // Links to optimistic update
 }
 ```
 
@@ -251,18 +251,18 @@ sequenceDiagram
 
 ```typescript
 interface Props {
-  isCollectionEmpty?: boolean; // Default: false
-  hasSelections?: boolean; // Default: false
-  selectedCount?: number; // Default: 0
-  selectedItems?: any[]; // Default: []
-  showDeleted?: boolean; // Default: false (bindable)
-  create: () => void;
-  publish: () => Promise<void> | void;
-  unpublish: () => Promise<void> | void;
-  draft: () => Promise<void> | void;
-  schedule: (date: string, action: string) => void;
-  clone: () => Promise<void> | void;
-  delete: (permanent: boolean) => Promise<void> | void;
+	isCollectionEmpty?: boolean; // Default: false
+	hasSelections?: boolean; // Default: false
+	selectedCount?: number; // Default: 0
+	selectedItems?: any[]; // Default: []
+	showDeleted?: boolean; // Default: false (bindable)
+	create: () => void;
+	publish: () => Promise<void> | void;
+	unpublish: () => Promise<void> | void;
+	draft: () => Promise<void> | void;
+	schedule: (date: string, action: string) => void;
+	clone: () => Promise<void> | void;
+	delete: (permanent: boolean) => Promise<void> | void;
 }
 ```
 
