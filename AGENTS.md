@@ -354,6 +354,7 @@ All `bun run` commands (dev, check, test, etc.) work normally after `npm install
 ### 4. Deleting `node_modules` + `bun.lock` Together on Windows
 
 **The Problem**: Deleting both `node_modules` and `bun.lock` forces a fresh resolution. On Windows, this fails because:
+
 - `better-sqlite3` can't compile without Python/build tools, halting the entire install
 - Bun may corrupt transitive dependencies (e.g., missing `drizzle-orm/sql/`, empty `@zag-js/` directories)
 

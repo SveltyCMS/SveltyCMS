@@ -97,13 +97,10 @@
     "repair:drizzle": "node -e \"try{require('fs').accessSync('node_modules/drizzle-orm/sql/index.js');process.exit(0)}catch(e){process.exit(1)}\" || (npm remove drizzle-orm 2>/dev/null; npm install drizzle-orm)",
     "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide",
     "translate": "npx @inlang/cli machine translate --project ./project.inlang",
-    "upgrade": "npx tsx scripts/upgrade.ts",
-    "db:push": "drizzle-kit push",
-    "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "upgrade": "npx tsx scripts/upgrade.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1053.0",
+    "@aws-sdk/client-s3": "^3.1054.0",
     "@better-svelte-email/components": "^2.1.1",
     "@better-svelte-email/preview": "^2.1.1",
     "@better-svelte-email/server": "^2.1.1",
@@ -170,7 +167,7 @@
     "redis": "^5.12.1",
     "sanitize-filename": "^1.6.4",
     "sharp": "^0.34.5",
-    "shiki": "^1.27.2",
+    "shiki": "^1.29.2",
     "svelte-adapter-uws": "^0.5.8",
     "svelte-canvas": "^2.1.0",
     "svelte-realtime": "^0.5.10",
@@ -215,7 +212,6 @@
     "autoprefixer": "^10.5.0",
     "chalk": "^5.6.2",
     "concurrently": "^9.2.1",
-    "drizzle-kit": "^0.31.10",
     "glob": "^13.0.6",
     "globals": "^17.6.0",
     "jsdom": "^29.1.1",
@@ -241,7 +237,7 @@
   "optionalDependencies": {
     "better-sqlite3": "^12.10.0",
     "mongoose": "^9.6.2",
-    "mysql2": "^3.22.3",
+    "mysql2": "^3.22.4",
     "postgres": "^3.4.9"
   },
   "overrides": {

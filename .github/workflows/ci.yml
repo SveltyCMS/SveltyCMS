@@ -405,8 +405,6 @@ jobs:
 
       - name: Run Wizard E2E tests
         env:
-          DB_TYPE: sqlite
-          DB_HOST: 127.0.0.1
           PASSWORD_MIN_LENGTH: 8
           TEST_API_SECRET: ${{ secrets.TEST_API_SECRET }}
           ADMIN_PASSWORD: ${{ secrets.BENCHMARK_ADMIN_PASSWORD || 'Password123!' }}
@@ -416,9 +414,8 @@ jobs:
           fi
 
           # Ensure clean state for wizard
-          rm -rf config/private.ts config/database/* tests/e2e/.auth/user.json logs/* || true
+          rm -rf config/private.ts config/private.test.ts config/database/* tests/e2e/.auth/user.json logs/* || true
 
-          DB_HOST=127.0.0.1 \
           HOST=127.0.0.1 \
           PORT=4173 \
           PASSWORD_MIN_LENGTH=8 \

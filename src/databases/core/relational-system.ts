@@ -192,14 +192,32 @@ export class RelationalSystemModule implements ISystemAdapter {
           updatedAt: now,
         };
 
-        // Now handled by upsertNative
+        const conditions = [eq(this.schema.systemPreferences.key, String(key))];
+        if (tid) conditions.push(eq(this.schema.systemPreferences.tenantId, tid));
+        else conditions.push(isNull(this.schema.systemPreferences.tenantId));
 
-        await this.adapter.upsertNative(
-          this.schema.systemPreferences,
-          { ...data, _id: String(utils.generateId()), createdAt: now },
-          [this.schema.systemPreferences.key, this.schema.systemPreferences.tenantId],
-          options as any,
-        );
+        const exists = await this.getDb(options as any)
+          .select({ _id: this.schema.systemPreferences._id })
+          .from(this.schema.systemPreferences)
+          .where(and(...conditions))
+          .limit(1);
+
+        if (exists[0]) {
+          await this.getDb(options as any)
+            .update(this.schema.systemPreferences)
+            .set({
+              value: data.value,
+              scope: data.scope,
+              userId: data.userId,
+              visibility: data.visibility,
+              updatedAt: now,
+            })
+            .where(eq(this.schema.systemPreferences._id, exists[0]._id));
+        } else {
+          await this.getDb(options as any)
+            .insert(this.schema.systemPreferences)
+            .values({ ...data, _id: String(utils.generateId()), createdAt: now });
+        }
       }, "SET_PREFERENCE_FAILED");
     },
 
@@ -640,22 +658,33 @@ export class RelationalSystemModule implements ISystemAdapter {
 
     storeThemes: async (themes: Theme[], options?: BaseQueryOptions): Promise<void> => {
       const now = isoDateStringToDate(nowISODateString());
-      // Now handled by upsertNative
-
       for (const theme of themes) {
         const values = utils.convertISOToDates({
           ...theme,
-          _id: theme._id || utils.generateId(),
-          createdAt: now,
           updatedAt: now,
         }) as any;
 
-        await this.adapter.upsertNative(
-          this.schema.themes,
-          values,
-          [this.schema.themes.name, this.schema.themes.tenantId],
-          options,
-        );
+        const tid = theme.tenantId || null;
+        const conditions = [eq(this.schema.themes.name, theme.name)];
+        if (tid) conditions.push(eq(this.schema.themes.tenantId, tid as string));
+        else conditions.push(isNull(this.schema.themes.tenantId));
+
+        const exists = await this.getDb(options as any)
+          .select({ _id: this.schema.themes._id })
+          .from(this.schema.themes)
+          .where(and(...conditions))
+          .limit(1);
+
+        if (exists[0]) {
+          await this.getDb(options as any)
+            .update(this.schema.themes)
+            .set(values)
+            .where(eq(this.schema.themes._id, exists[0]._id));
+        } else {
+          await this.getDb(options as any)
+            .insert(this.schema.themes)
+            .values({ ...values, _id: theme._id || utils.generateId(), createdAt: now });
+        }
       }
     },
 
@@ -704,17 +733,27 @@ export class RelationalSystemModule implements ISystemAdapter {
     register: async (widget: EntityCreate<Widget>): Promise<DatabaseResult<Widget>> => {
       return this.adapter.wrap(async () => {
         const now = isoDateStringToDate(nowISODateString());
-        // Now handled by upsertNative
         const values = utils.convertISOToDates({
           ...widget,
           updatedAt: now,
         }) as any;
 
-        await this.adapter.upsertNative(
-          this.schema.widgets,
-          { ...values, _id: utils.generateId(), createdAt: now },
-          [this.schema.widgets.name],
-        );
+        const exists = await this.db
+          .select({ _id: this.schema.widgets._id })
+          .from(this.schema.widgets)
+          .where(eq(this.schema.widgets.name, widget.name))
+          .limit(1);
+
+        if (exists[0]) {
+          await this.db
+            .update(this.schema.widgets)
+            .set(values)
+            .where(eq(this.schema.widgets._id, exists[0]._id));
+        } else {
+          await this.db
+            .insert(this.schema.widgets)
+            .values({ ...values, _id: utils.generateId(), createdAt: now });
+        }
 
         const [result] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.widgets))

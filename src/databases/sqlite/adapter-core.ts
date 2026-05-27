@@ -153,21 +153,13 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
 
     // 3. Normalized CamelCase check (e.g. 'workflow_definitions' -> 'workflowDefinitions')
     // This is where most system tables live in the Drizzle schema export
-    const camelName = physicalName.replace(/_([a-z])/g, (g) =>
-      g[1].toUpperCase(),
-    );
+    const camelName = physicalName.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
     if (schemaAny[camelName]) return schemaAny[camelName];
 
     // 🛡️ HARDENING: Explicit fallback for workflow tables if naming normalization fails
-    if (
-      physicalName.includes("workflow_definitions") &&
-      schemaAny.workflowDefinitions
-    )
+    if (physicalName.includes("workflow_definitions") && schemaAny.workflowDefinitions)
       return schemaAny.workflowDefinitions;
-    if (
-      physicalName.includes("workflow_instances") &&
-      schemaAny.workflowInstances
-    )
+    if (physicalName.includes("workflow_instances") && schemaAny.workflowInstances)
       return schemaAny.workflowInstances;
 
     // 4. Final fallback: try raw collection name
@@ -188,9 +180,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
       tenantId: text("tenantId"),
       data: text("data").notNull().default("{}"),
       status: text("status").notNull().default("draft"),
-      isDeleted: integer("isDeleted", { mode: "boolean" })
-        .notNull()
-        .default(false),
+      isDeleted: integer("isDeleted", { mode: "boolean" }).notNull().default(false),
       createdAt: integer("createdAt", { mode: "timestamp_ms" })
         .notNull()
         .default(sql`(strftime('%s','now')*1000)`),
@@ -214,15 +204,12 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
   >();
   protected _statementCache = new Map<string, any>();
 
-  protected state: "idle" | "connecting" | "connected" | "closing" | "closed" =
-    "idle";
+  protected state: "idle" | "connecting" | "connected" | "closing" | "closed" = "idle";
   protected config: string | SQLiteConfig = "";
 
   public get sqlite(): SQLiteClient {
     if (!this._sqlite) {
-      throw new Error(
-        `[SQLite] Database client not initialized (state: ${this.state})`,
-      );
+      throw new Error(`[SQLite] Database client not initialized (state: ${this.state})`);
     }
     const worker = testWorkerContext.getStore();
     if (worker && process.env.TEST_MODE === "true") {
@@ -241,9 +228,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
     if (!this.isConnected()) {
       const worker = testWorkerContext.getStore();
       if (!(worker && process.env.TEST_MODE === "true")) {
-        throw new Error(
-          `[SQLite] Database connection not established (state: ${this.state})`,
-        );
+        throw new Error(`[SQLite] Database connection not established (state: ${this.state})`);
       }
     }
     const worker = testWorkerContext.getStore();
@@ -267,18 +252,12 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
   /* CONNECT                                          */
   /* ------------------------------------------------ */
 
-  async connect(
-    connectionString: string,
-    options?: unknown,
-  ): Promise<DatabaseResult<void>>;
+  async connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;
   async connect(
     poolOptions: import("../db-interface").ConnectionPoolOptions,
   ): Promise<DatabaseResult<void>>;
   public async connect(
-    config?:
-      | string
-      | SQLiteConfig
-      | import("../db-interface").ConnectionPoolOptions,
+    config?: string | SQLiteConfig | import("../db-interface").ConnectionPoolOptions,
     _options?: any,
   ): Promise<DatabaseResult<void>> {
     let finalConfig = config;
@@ -394,9 +373,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
   }
 
   public async transaction<T>(
-    fn: (
-      transaction: import("../db-interface").DatabaseTransaction,
-    ) => Promise<DatabaseResult<T>>,
+    fn: (transaction: import("../db-interface").DatabaseTransaction) => Promise<DatabaseResult<T>>,
     options?: { timeout?: number; isolationLevel?: string },
   ): Promise<DatabaseResult<T>> {
     const module = new TransactionModule(this as any);
@@ -473,10 +450,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
 
   public async getVersion(): Promise<DatabaseResult<string>> {
     return this.wrap(async () => {
-      const row = this.prepareAndExecute(
-        "SELECT sqlite_version() as version",
-        "get",
-      );
+      const row = this.prepareAndExecute("SELECT sqlite_version() as version", "get");
       return row.version as string;
     }, "GET_VERSION_FAILED");
   }
@@ -533,27 +507,17 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
       const normLower = normalizedPath.toLowerCase();
 
       if (normLower.startsWith(root)) {
-        normalizedPath = normalizedPath
-          .substring(root.length)
-          .replace(/^\//, "");
-      } else if (
-        normalizedPath.includes(":/") &&
-        !normalizedPath.startsWith("file:")
-      ) {
+        normalizedPath = normalizedPath.substring(root.length).replace(/^\//, "");
+      } else if (normalizedPath.includes(":/") && !normalizedPath.startsWith("file:")) {
         // Absolute path on Windows but not in CWD, use file URI
         normalizedPath = `file:///${normalizedPath}`;
       }
     }
 
     // ALWAYS log this to server-debug.log for diagnosis
-    logger.info(
-      `[SQLite] Opening database at: ${normalizedPath} (Original: ${dbPath})`,
-    );
+    logger.info(`[SQLite] Opening database at: ${normalizedPath} (Original: ${dbPath})`);
 
-    const readonly =
-      (this.config as SQLiteConfig)?.readonly ||
-      dbPath.includes("mode=ro") ||
-      false;
+    const readonly = (this.config as SQLiteConfig)?.readonly || dbPath.includes("mode=ro") || false;
     const options = readonly ? { readonly } : {};
 
     // 🚀 If in Bun, use Bun's native driver exclusively.
@@ -561,9 +525,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
       try {
         const driverName = "bun" + ":sqlite";
         const { Database } = await import(/* @vite-ignore */ driverName);
-        logger.debug(
-          `[SQLite] Bun detected. Attempting to use native 'bun:sqlite'...`,
-        );
+        logger.debug(`[SQLite] Bun detected. Attempting to use native 'bun:sqlite'...`);
 
         // 🚀 WINDOWS RESILIENCE: Retry on "SQLITE_MISUSE" or "busy" which often indicates
         // a transient file lock or path access issue on Windows.
@@ -598,40 +560,30 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
         }
         if (!sqlite) throw lastErr;
 
-        const { drizzle } = await import(
-          /* @vite-ignore */ "drizzle-orm/bun-sqlite"
-        );
+        const { drizzle } = await import(/* @vite-ignore */ "drizzle-orm/bun-sqlite");
         const db = drizzle(sqlite as any, { schema }) as SQLiteDB;
 
         // 🚀 AGNOSTIC SILENCE: Only log success once per process to keep benchmarks clean
         if (!(globalThis as any).__SQLITE_DRIVER_LOGGED__) {
-          logger.info(
-            `[SQLite] 🚀 SUCCESS: Using high-performance 'bun:sqlite' driver.`,
-          );
+          logger.info(`[SQLite] 🚀 SUCCESS: Using high-performance 'bun:sqlite' driver.`);
           (globalThis as any).__SQLITE_DRIVER_LOGGED__ = true;
         }
 
         return { sqlite, db };
       } catch (e: any) {
-        logger.warn(
-          `[SQLite] ⚠️ Bun driver probe failed: ${e.message}. Falling back...`,
-        );
+        logger.warn(`[SQLite] ⚠️ Bun driver probe failed: ${e.message}. Falling back...`);
 
         // 🚀 WINDOWS OPTIMIZATION: On Windows Bun, if bun:sqlite fails,
         // we likely have a serious environment issue. better-sqlite3 is
         // even more likely to fail due to native bindings.
         if (process.platform === "win32") {
           const isMisuse =
-            e.message?.includes("misuse") ||
-            e.code === "SQLITE_MISUSE" ||
-            e.errno === 21;
+            e.message?.includes("misuse") || e.code === "SQLITE_MISUSE" || e.errno === 21;
 
           if (isMisuse && process.env.BENCHMARK_DEBUG !== "true") {
             // Silently continue to fallbacks if misuse (expected in some path formats)
           } else {
-            logger.error(
-              `[SQLite] Native 'bun:sqlite' failed on Windows: ${e.message}`,
-            );
+            logger.error(`[SQLite] Native 'bun:sqlite' failed on Windows: ${e.message}`);
           }
 
           // Don't fall through to better-sqlite3 on Windows Bun to avoid extreme noise
@@ -653,10 +605,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
           logger.info(`[SQLite] Using 'better-sqlite3' driver.`);
           return { sqlite, db };
         } catch (bindingError: any) {
-          if (
-            process.platform === "win32" &&
-            bindingError.message.includes("bindings")
-          ) {
+          if (process.platform === "win32" && bindingError.message.includes("bindings")) {
             throw new Error("BETTER_SQLITE3_BINDINGS_MISSING");
           }
           throw bindingError;
@@ -682,8 +631,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
         if (major > 22 || (major === 22 && minor >= 5)) {
           try {
             const req = await getRequire();
-            if (!req)
-              throw new Error("requireFunc not available for node:sqlite");
+            if (!req) throw new Error("requireFunc not available for node:sqlite");
             const { DatabaseSync } = req("node:sqlite");
             // 🚀 WINDOWS HARDENING: Use normalized path (absolute/file URI) for native driver
             const sqlite = new DatabaseSync(normalizedPath);
@@ -694,16 +642,13 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
             });
 
             // 🚀 Shim node:sqlite using drizzle-orm/sqlite-proxy
-            const { drizzle: proxyDrizzle } =
-              await import("drizzle-orm/sqlite-proxy");
+            const { drizzle: proxyDrizzle } = await import("drizzle-orm/sqlite-proxy");
 
             const db = proxyDrizzle(
               async (sqlText, params = [], method) => {
                 const serializedParams = (params || []).map((p) => {
                   if (typeof p === "boolean") return p ? 1 : 0;
-                  return p !== null && typeof p === "object"
-                    ? JSON.stringify(p)
-                    : p;
+                  return p !== null && typeof p === "object" ? JSON.stringify(p) : p;
                 });
 
                 // 🚀 HARDENING: Detect transactions as writes to prevent mutex deadlocks
@@ -718,9 +663,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
                   try {
                     if (method === "all") {
                       const result = stmt.all(...serializedParams);
-                      const rows = (result || []).map((row: any) =>
-                        Object.values(row),
-                      );
+                      const rows = (result || []).map((row: any) => Object.values(row));
                       return { rows };
                     } else if (method === "get") {
                       const result = stmt.get(...serializedParams);
@@ -735,9 +678,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
                       };
                     } else if (method === "values") {
                       const result = stmt.all(...serializedParams);
-                      const rows = (result || []).map((row: any) =>
-                        Object.values(row),
-                      );
+                      const rows = (result || []).map((row: any) => Object.values(row));
                       return { rows };
                     } else {
                       const result = stmt.run(...serializedParams);
@@ -764,14 +705,10 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
               { schema },
             );
 
-            logger.info(
-              `[SQLite] Using native 'node:sqlite' driver (Shimmed).`,
-            );
+            logger.info(`[SQLite] Using native 'node:sqlite' driver (Shimmed).`);
             return { sqlite: sqlite as any, db };
           } catch (nodeSqliteErr: any) {
-            logger.error(
-              `[SQLite] node:sqlite fallback failed: ${nodeSqliteErr.message}`,
-            );
+            logger.error(`[SQLite] node:sqlite fallback failed: ${nodeSqliteErr.message}`);
           }
         }
       }
@@ -828,9 +765,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
 
     if (!dbPath) {
       const { isSetupComplete } = await import("@utils/setup-check-fast");
-      dbPath =
-        process.env.DB_PATH ||
-        (isSetupComplete() ? "config/database/data.db" : ":memory:");
+      dbPath = process.env.DB_PATH || (isSetupComplete() ? "config/database/data.db" : ":memory:");
     }
 
     // 🚀 HARDENING: Don't treat URIs as local paths
@@ -841,11 +776,7 @@ export abstract class SQLiteAdapterCore extends BaseSqlAdapter {
     }
 
     // Handle standard relative paths
-    if (
-      dbPath !== ":memory:" &&
-      !path.isAbsolute(dbPath) &&
-      !dbPath.startsWith("file:")
-    ) {
+    if (dbPath !== ":memory:" && !path.isAbsolute(dbPath) && !dbPath.startsWith("file:")) {
       dbPath = path.resolve(process.cwd(), dbPath);
     }
 

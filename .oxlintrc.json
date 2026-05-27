@@ -1,10 +1,10 @@
 {
-  "plugins": null,
+  "plugins": [],
   "categories": {},
   "rules": {},
   "settings": {
     "jsx-a11y": {
-      "polymorphicPropName": null,
+      "polymorphicPropName": "",
       "components": {},
       "attributes": {}
     },
@@ -14,7 +14,7 @@
     "react": {
       "formComponents": [],
       "linkComponents": [],
-      "version": null,
+      "version": "18.2.0",
       "componentWrapperFunctions": []
     },
     "jsdoc": {
