@@ -50,6 +50,15 @@ export class TransactionModule {
               transaction: { db: _tx },
             }),
           db: _tx,
+
+          // 🛡️ Domain Support: Injecting domain modules into the transaction object
+          // This allows tx.auth, tx.content, etc. to be used within TransactionManager.runAtomic blocks.
+          auth: this.core.auth,
+          content: this.core.content,
+          media: this.core.media,
+          system: this.core.system,
+          batch: this.core.batch,
+          collection: this.core.collection,
         };
 
         const result = await fn(dbTransaction);
