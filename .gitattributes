@@ -1,6 +1,10 @@
 # Force LF line endings for all text files
 * text=auto eol=lf
 
+# Force LF endings for git hook shell scripts
+.githooks/* text eol=lf
+
+
 # Explicitly handle common web files
 *.js text eol=lf
 *.ts text eol=lf

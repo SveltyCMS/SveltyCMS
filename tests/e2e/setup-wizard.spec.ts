@@ -243,7 +243,9 @@ test.describe("Setup Wizard: Navigation & State", () => {
 });
 
 test.describe("Setup Wizard: Full Provisioning Flow", () => {
-  const DB_TYPES = ["sqlite", "mongodb", "postgresql", "mariadb"] as const;
+  const DB_TYPES = process.env.DB_TYPE
+    ? [process.env.DB_TYPE as "sqlite" | "mongodb" | "postgresql" | "mariadb"]
+    : (["sqlite"] as const);
 
   for (const dbType of DB_TYPES) {
     test(`Wizard Flow: ${dbType.toUpperCase()}`, async ({ wizard, page }) => {
@@ -266,11 +268,17 @@ test.describe("Setup Wizard: Full Provisioning Flow", () => {
             postgresql: "5432",
             mariadb: "3306",
           };
-          await page.locator("#db-host").fill("localhost");
-          await page.locator("#db-port").fill(ports[dbType as keyof typeof ports]);
-          await page.locator("#db-name").fill(`sveltycms_e2e_${dbType}`);
-          await page.locator("#db-user").fill("test");
-          await page.locator("#db-password").fill("test");
+          const host = process.env.DB_HOST || "localhost";
+          const port = process.env.DB_PORT || ports[dbType as keyof typeof ports];
+          const name = process.env.DB_NAME || `sveltycms_e2e_${dbType}`;
+          const user = process.env.DB_USER || "test";
+          const password = process.env.DB_PASSWORD || "test";
+
+          await page.locator("#db-host").fill(host);
+          await page.locator("#db-port").fill(port);
+          await page.locator("#db-name").fill(name);
+          await page.locator("#db-user").fill(user);
+          await page.locator("#db-password").fill(password);
         }
 
         await wizard.testConnection();

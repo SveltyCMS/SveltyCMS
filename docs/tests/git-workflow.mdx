@@ -44,21 +44,24 @@ git config core.hooksPath .githooks
 
 ### 🛡️ High-Performance Quality Gate (`scripts/quality-gate.ts`)
 
-In April 2026, the pre-commit chain was upgraded from serial shell scripts to a **Parallel TypeScript Orchestrator**. This achieved a **4.4x speedup**, reducing commit validation from ~150s to **~34s**.
+In April 2026, the pre-commit chain was upgraded to a **Parallel TypeScript Orchestrator**, reducing validation from ~150s to **~34s**.
+
+In May 2026, the gate was further optimized for local development by introducing **Tired Check Routing** using the `PRE_COMMIT="true"` environment flag. This achieves an ultra-fast commit feedback loop of **under 10 seconds** locally.
 
 Key features:
 
 - **Parallel Execution**: Linting, Type-Checking, and Testing run simultaneously.
-- **Related Test Filtering**: Uses `vitest related` to only run tests affected by your staged changes.
-- **Rust-Powered Linting**: Global `oxlint` and `oxfmt` passes on the entire codebase (1000+ files in <100ms).
+- **Related Test Filtering**: Uses `vitest related` to only run tests affected by staged changes.
+- **Selective Local Runs**: Automatically skips heavy operations (Production Build, Bun Native Unit Tests, and SQLite Integration Tests) during local commits, delegating them to the robust GitHub Actions CI workflows.
+- **Safe Staging Isolation**: The hook only re-stages files that were **already staged** before formatting/linting auto-fixes ran, respecting the developer's selective staging (e.g. `git commit -p`) instead of blindly staging everything.
 
-#### Pre-commit Steps:
+#### Local Pre-commit Steps:
 
-The hook orchestrates the following in parallel:
+The hook orchestrates the following checks:
 
-1.  **Global Lint & Format**: `oxfmt` + `oxlint` on `src/`.
-2.  **Incremental Unit Testing**: `vitest related` on staged files.
-3.  **Mandatory Codegen & Check**: `paraglide` + `svelte-check`.
+1.  **Global Lint & Format**: Fast `oxfmt` + `oxlint` check.
+2.  **Incremental Unit Testing**: `vitest related` run on staged files.
+3.  **Mandatory Codegen & Check**: `paraglide` compilation and type-checking via `svelte-check`.
 
 ---
 

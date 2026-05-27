@@ -44,8 +44,25 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Cache Bun dependencies
+        id: bun-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Verify Codegen
+        run: |
+          bun run paraglide
+          bun x svelte-kit sync
+
+      - name: Build project
+        run: bun run build
 
       - name: Install Playwright Browsers
         run: bun x playwright install --with-deps chromium
@@ -59,15 +76,19 @@ jobs:
           DB_PASSWORD: admin
           TEST_MODE: true
         run: |
-          # 1. Start preview server in background
-          HOST=127.0.0.1 PORT=4173 node build/index.js > preview.log 2>&1 &
-          bun x wait-on http://localhost:4173/api/system/health --timeout 60000
+          # 1. Generate E2E Test Secret dynamically and save it for process sync
+          mkdir -p tests/e2e/.auth
+          echo "SVELTYCMS_E2E_RELEASE_SECRET_$(date +%s)" > tests/e2e/.auth/test-secret.txt
+          export TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
 
-          # 2. Run Setup Wizard via Playwright to generate config/private.test.ts naturally
-          bun x playwright install --with-deps chromium
+          # 2. Start preview server in background
+          HOST=127.0.0.1 PORT=4173 TEST_API_SECRET="$TEST_API_SECRET" node build/index.js > preview.log 2>&1 &
+          bun x wait-on http://127.0.0.1:4173/api/system/health --timeout 60000
+
+          # 3. Run Setup Wizard via Playwright to generate config/private.test.ts naturally
           bun x playwright test tests/e2e/setup-wizard.spec.ts
 
-          # 3. Run remaining Playwright tests
+          # 4. Run remaining Playwright tests
           bun x playwright test
         timeout-minutes: 15
 

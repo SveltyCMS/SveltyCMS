@@ -144,6 +144,13 @@ export async function handleTestingRoutes(
       const safeTheme = JSON.parse(JSON.stringify(DEFAULT_THEME));
       await cms.db.system.themes.ensure(safeTheme);
 
+      // Seed dynamic collection schemas from the filesystem into the database
+      try {
+        await contentSystem.initialize(tenantId, { force: true });
+      } catch (err: any) {
+        logger.warn(`[TestingHandler] Non-fatal collection seeding error: ${err.message}`);
+      }
+
       // ✨ Fix: Invalidate setup cache so the system recognizes it is now COMPLETE
       const { invalidateSetupCache } = await import("@src/utils/setup-check");
       invalidateSetupCache(false, true);

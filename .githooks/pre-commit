@@ -8,10 +8,19 @@ if [ "$CI" = "true" ]; then
 fi
 
 # Run the high-performance parallel quality gate
+export PRE_COMMIT="true"
 bun run scripts/quality-gate.ts
 
 # Run the documentation linter
 bun run lint:docs
 
-# Ensure any automatic fixes (fmt/lint) are added to the commit
-git add src tests docs scripts
+# Ensure only already staged files that got modified by fixes are re-staged
+staged_files=$(git diff --cached --name-only)
+if [ -n "$staged_files" ]; then
+    for file in $staged_files; do
+        if [ -f "$file" ]; then
+            git add "$file"
+        fi
+    done
+fi
+

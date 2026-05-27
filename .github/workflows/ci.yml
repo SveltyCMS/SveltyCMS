@@ -434,7 +434,7 @@ jobs:
         if: always()
         with:
           name: playwright-report-Wizard
-          path: playwright-report
+          path: tests/playwright-report
           if-no-files-found: ignore
           retention-days: 14
 
@@ -558,7 +558,7 @@ jobs:
         if: always()
         with:
           name: playwright-report-Auth
-          path: playwright-report
+          path: tests/playwright-report
           if-no-files-found: ignore
           retention-days: 7
 
@@ -636,7 +636,7 @@ jobs:
         if: always()
         with:
           name: playwright-report-${{ matrix.project }}
-          path: playwright-report
+          path: tests/playwright-report
           if-no-files-found: ignore
           retention-days: 14
 

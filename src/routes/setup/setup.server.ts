@@ -185,6 +185,10 @@ export async function completeSetup(
   if (!safeParse(setupAdminSchema, admin).success)
     return { success: false, error: "Invalid admin data" };
 
+  // Wait for critical background seeding to complete
+  const { setupManager } = await import("./setup-manager");
+  await setupManager.waitTillDone();
+
   const {
     ensureFullInitialization,
     dbAdapter: ga,

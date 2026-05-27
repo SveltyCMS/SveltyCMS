@@ -88,6 +88,7 @@ describe("User API Integration", () => {
       const response = await safeFetch(`${API_BASE_URL}/api/user/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        skipTestSecret: true,
         body: JSON.stringify({
           email: testFixtures.users.admin.email,
           password: testFixtures.users.admin.password,
@@ -102,6 +103,7 @@ describe("User API Integration", () => {
       const response = await safeFetch(`${API_BASE_URL}/api/user/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        skipTestSecret: true,
         body: JSON.stringify({
           email: testFixtures.users.admin.email,
           password: "WrongPassword123!",

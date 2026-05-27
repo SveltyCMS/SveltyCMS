@@ -17,7 +17,7 @@ const { privateEnv } = (await import("../../../config/private.test").catch(() =>
 const isSQLite = privateEnv?.DB_TYPE === "sqlite";
 const describeSQLite = isSQLite ? describe : describe.skip;
 
-const TEST_DB_PATH = "sveltycms_test_integration.sqlite";
+const TEST_DB_PATH = "config/database/sveltycms_test_integration.sqlite";
 
 describeSQLite("SQLite Adapter Integration", () => {
   let db: IDBAdapter | null = null;

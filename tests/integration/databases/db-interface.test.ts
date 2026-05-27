@@ -197,7 +197,12 @@ describe("Database Interface Contract Tests", () => {
           privateConfig.database?.name ||
           "sveltycms_test.db";
 
-        await db.connect(sqliteDbName);
+        const finalPath =
+          sqliteDbName.includes("/") || sqliteDbName.includes("\\")
+            ? sqliteDbName
+            : `config/database/${sqliteDbName}`;
+
+        await db.connect(finalPath);
       }
 
       console.log("DB Interface Test: Initializing features...");

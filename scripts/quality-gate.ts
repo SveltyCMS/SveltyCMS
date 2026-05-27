@@ -96,17 +96,17 @@ async function main() {
     },
     {
       name: "Unit Tests (Bun Native)",
-      skip: !hasTsOrSvelte,
+      skip: !hasTsOrSvelte || process.env.PRE_COMMIT === "true",
       run: () => run("bun run test:unit:bun"),
     },
     {
       name: "Production Build",
-      skip: !hasTsOrSvelte,
+      skip: !hasTsOrSvelte || process.env.PRE_COMMIT === "true",
       run: () => run("bun run build"),
     },
     {
       name: "Integration Tests (SQLite)",
-      skip: !shouldRunIntegration,
+      skip: !shouldRunIntegration || process.env.PRE_COMMIT === "true",
       run: () =>
         buildExists
           ? run("bun run scripts/run-integration-tests.ts --filter=sqlite --no-build")

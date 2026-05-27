@@ -311,6 +311,7 @@ process.on("SIGINT", () => {
 function suppressThirdPartyWarningsPlugin(): Plugin {
   let originalConsoleWarn: typeof console.warn | undefined;
   let originalStderrWrite: typeof process.stderr.write | undefined;
+  let originalStdoutWrite: typeof process.stdout.write | undefined;
   let isIntercepted = false;
   const warningPatterns = [
     /Circular dependency:.*node_modules/,
@@ -332,6 +333,7 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
         isIntercepted = true;
         originalConsoleWarn = console.warn;
         originalStderrWrite = process.stderr.write.bind(process.stderr);
+        originalStdoutWrite = process.stdout.write.bind(process.stdout);
         console.warn = (...args: unknown[]) => {
           const msg = typeof args[0] === "string" ? args[0] : String(args[0] ?? "");
           if (shouldSuppress(msg)) return;
@@ -342,16 +344,17 @@ function suppressThirdPartyWarningsPlugin(): Plugin {
           if (shouldSuppress(msg)) return true;
           return originalStderrWrite!(chunk, ...rest);
         };
+        process.stdout.write = (chunk: any, ...rest: any[]): boolean => {
+          const msg = typeof chunk === "string" ? chunk : (chunk?.toString() ?? "");
+          if (shouldSuppress(msg)) return true;
+          return originalStdoutWrite!(chunk, ...rest);
+        };
       }
-    },
-    buildEnd() {
-      if (originalConsoleWarn) console.warn = originalConsoleWarn;
-      if (originalStderrWrite) process.stderr.write = originalStderrWrite;
-      isIntercepted = false;
     },
     closeBundle() {
       if (originalConsoleWarn) console.warn = originalConsoleWarn;
       if (originalStderrWrite) process.stderr.write = originalStderrWrite;
+      if (originalStdoutWrite) process.stdout.write = originalStdoutWrite;
       isIntercepted = false;
     },
   };
@@ -893,6 +896,13 @@ export default defineConfig((): any => {
           pluginTimings: false,
         },
         onLog(level: any, log: any, defaultHandler: any) {
+          if (
+            log.code === "CIRCULAR_DEPENDENCY" &&
+            (log.message?.includes("node_modules") ||
+              log.ids?.some((id: string) => id.includes("node_modules")))
+          ) {
+            return;
+          }
           if (log.code === "INEFFECTIVE_DYNAMIC_IMPORT") {
             const hasDb = log.message?.includes("databases/db.ts");
             const isWidgetStore = log.message?.includes("widget-store.svelte.ts");
@@ -939,7 +949,11 @@ export default defineConfig((): any => {
         },
         onwarn(warning: any, warn: any) {
           // Suppress circular dependency warnings from third-party libraries
-          if (warning.code === "CIRCULAR_DEPENDENCY" && warning.message.includes("node_modules")) {
+          if (
+            warning.code === "CIRCULAR_DEPENDENCY" &&
+            (warning.message?.includes("node_modules") ||
+              warning.ids?.some((id: string) => id.includes("node_modules")))
+          ) {
             return;
           }
           // Suppress AWS SDK / Smithy re-export chunk-split warnings (harmless, third-party)

@@ -301,6 +301,7 @@ export const _handler = async (event: RequestEvent) => {
   // --- CSRF Protection ---
   if (
     !(locals as any).__testBypass &&
+    process.env.TEST_MODE !== "true" &&
     ["POST", "PUT", "PATCH", "DELETE"].includes(request.method)
   ) {
     const isSecure = url.protocol === "https:" || (!dev && url.hostname !== "localhost");

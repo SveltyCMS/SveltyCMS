@@ -54,7 +54,10 @@ export default defineConfig({
    */
   workers: process.env.CI ? 4 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: [["html"], [process.env.CI ? "github" : "list"]],
+  reporter: [
+    ["html", { outputFolder: "tests/playwright-report", open: "never" }],
+    [process.env.CI ? "github" : "list"],
+  ],
 
   /* Set environment variables for tests */
   use: {

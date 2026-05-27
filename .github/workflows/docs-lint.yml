@@ -37,8 +37,16 @@ jobs:
       - name: Setup Bun Runtime
         uses: oven-sh/setup-bun@v2
 
+      - name: Cache Bun dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Install Dependencies
-        run: bun install --frozen-lockfile
+        run: bun install --frozen-lockfile --prefer-offline --cache-dir ~/.bun/install/cache
 
       # === STEP 1: LINTING (The quick check) ===
       - name: Run Documentation Linter (Semantic Check)
