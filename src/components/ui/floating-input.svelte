@@ -1,7 +1,29 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/floating-input.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 FloatingInput Primitive
+<!--
+@file src/components/ui/floating-input.svelte
+@component
+**SveltyCMS Floating Input — WCAG 3.0 Ready**
+
+Material-style floating label input with password visibility toggle, icon support,
+full ARIA validation linkage, and transparent background support for overlays.
+
+### Props
+- `value` (string): Bindable input value.
+- `showPassword` (boolean): Bindable password visibility toggle.
+- `label` (string): Floating label text.
+- `type` ('text' | 'email' | 'security'): Input type.
+- `icon` (string): Iconify icon next to the input.
+- `required` (boolean): Required field indicator.
+- `invalid` (boolean): Error state with red border.
+- `errorMessage` (string): Error text with `role="alert"`.
+- `disabled` (boolean): Disable interaction.
+- `autofocus` (boolean): Auto-focus on mount.
+- `class` (string): Additional CSS classes.
+
+### Features:
+- floating label with peer-focus animation
+- password visibility toggle with aria-pressed state
+- WCAG 3.0 ready with aria-required, aria-invalid, aria-describedby
+- full Svelte 5 runes: $props, $bindable, $derived, $state, $effect
 -->
 
 <script lang="ts">
@@ -122,10 +144,10 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 			type={effectiveType}
 			class={cn(
 				'peer block h-12 w-full appearance-none border-0 border-b-2 bg-transparent pl-8 pr-6 pb-1 pt-5 text-base focus:outline-none focus:ring-0 disabled:opacity-50 transition-all duration-200',
-				bgTransparent 
-					? 'border-white/50 text-white focus:border-white' 
+				bgTransparent
+					? 'border-white/50 text-white focus:border-white'
 					: 'border-surface-300 focus:border-tertiary-600 dark:border-surface-400 dark:focus:border-tertiary-500 text-surface-900 dark:text-white',
-				invalid && '!border-error-500 dark:!border-error-500',
+				invalid && 'border-error-500! dark:border-error-500!',
 				type === 'security' && 'pr-10',
 				inputClass
 			)}
@@ -170,8 +192,8 @@ function handleIconKeyDown(event: KeyboardEvent): void {
 					"pointer-events-none absolute left-8 top-1.5 origin-left -translate-y-3 scale-75 transform text-base transition-all duration-200 ease-in-out",
 					"peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:text-base",
 					"peer-focus:-translate-y-3 peer-focus:scale-75",
-					bgTransparent 
-						? "text-white/80 peer-focus:text-white" 
+					bgTransparent
+						? "text-white/80 peer-focus:text-white"
 						: "text-surface-500 peer-focus:text-tertiary-500",
 					value && "-translate-y-3 scale-75",
 					value && !bgTransparent && "text-tertiary-500",

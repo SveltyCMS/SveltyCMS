@@ -1,4 +1,4 @@
-<!-- 
+<!--
  @file src/components/system/buttons/check-box.svelte
  @component
  **CheckBox component**
@@ -33,7 +33,7 @@
 </script>
 
 <div
-	class="flex h-[28px] w-[28px] items-center justify-center rounded-md border-2 border-surface-800 dark:border-surface-500 {className}"
+	class="flex h-7 w-7 items-center justify-center rounded-md border-2 border-surface-800 dark:border-surface-500 {className}"
 	role="checkbox"
 	aria-checked={checked}
 	tabindex="0"

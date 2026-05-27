@@ -1,7 +1,22 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/card.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Card Primitive
+<!--
+@file src/components/ui/card.svelte
+@component
+**SveltyCMS Card — WCAG 3.0 Ready**
+
+Versatile content container with header/footer snippets, preset variants,
+and neutral fallback styling when no variant is specified.
+
+### Props
+- `variant` ('primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error' | 'surface'): Auto-detects preset.
+- `preset` ('filled' | 'tonal' | 'outlined'): Visual style override.
+- `header` / `footer` / `children` (Snippet): Content slots.
+- `class` (string): Additional CSS classes.
+
+### Features:
+- header, body, and footer snippet slots
+- neutral border+shadow card when no variant/preset set
+- filled, tonal, and outlined presets
+- full Svelte 5 runes: $props, $derived
 -->
 
 <script lang="ts">

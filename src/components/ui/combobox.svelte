@@ -1,7 +1,29 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/combobox.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Combobox Primitive
+<!--
+@file src/components/ui/combobox.svelte
+@component
+**SveltyCMS Combobox — WCAG 3.0 Ready**
+
+Searchable autocomplete dropdown with fuzzy filtering, keyboard navigation
+(Arrow keys, Enter, Escape), custom option snippets, and click-outside dismissal.
+
+### Props
+- `value` (any): Bindable selected value.
+- `options` (Option[]): Array of { label, value, icon?, disabled? }.
+- `placeholder` (string): Input placeholder text.
+- `disabled` (boolean): Disable interaction.
+- `allowCustom` (boolean): Allow free-text values not in options.
+- `label` (string): Accessible label.
+- `error` (string): Error message with aria-describedby linkage.
+- `class` (string): Additional CSS classes.
+- `onchange` (function): Callback with selected value.
+- `option` (Snippet): Custom option rendering.
+
+### Features:
+- fuzzy search with scoring (exact > prefix > contains)
+- auto-deduplication of duplicate option values
+- WCAG 3.0 ready with aria-expanded, aria-label, keyboard nav
+- slide transition animation on dropdown
+- full Svelte 5 runes: $props, $bindable, $derived, $state, $effect
 -->
 
 <script lang="ts">
@@ -92,7 +114,7 @@ function selectOption(opt: Option) {
 
 function handleKeydown(e: KeyboardEvent) {
 	if (disabled) return;
-	
+
 	if (e.key === 'ArrowDown') {
 		e.preventDefault();
 		isOpen = true;
@@ -169,7 +191,7 @@ const id = Math.random().toString(36).substring(7);
 			onkeydown={handleKeydown}
 			oninput={() => (isOpen = true)}
 		/>
-		
+
 		<button
 			type="button"
 			class="absolute right-2 top-1/2 -translate-y-1/2 p-1 opacity-50 hover:opacity-100 transition-opacity"
@@ -178,9 +200,9 @@ const id = Math.random().toString(36).substring(7);
 			aria-label={isOpen ? "Close selection" : "Open selection"}
 			aria-expanded={isOpen}
 		>
-			<iconify-icon 
-				icon="mdi:chevron-down" 
-				width="20" 
+			<iconify-icon
+				icon="mdi:chevron-down"
+				width="20"
 				class={cn("transition-transform duration-200", isOpen && "rotate-180")}
 			></iconify-icon>
 		</button>
@@ -200,7 +222,7 @@ const id = Math.random().toString(36).substring(7);
 				{#each filteredOptions as opt, i (opt.value)}
 					{@const active = i === activeIndex}
 					{@const selected = opt.value === value}
-					
+
 					<button
 						type="button"
 						class={cn(

@@ -1,7 +1,24 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/input.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Input Primitive
+<!--
+@file src/components/ui/input.svelte
+@component
+**SveltyCMS Input — WCAG 3.0 Ready**
+
+Standard text input with label, error state, `aria-invalid`/`aria-describedby` linkage,
+and `crypto.randomUUID()` for accessible ID generation.
+
+### Props
+- `value` (string | number | string[]): Bindable input value.
+- `label` (string): Label text above the input.
+- `error` (string): Error message with red border and alert text.
+- `type` (string): HTML input type (default: 'text').
+- `class` / `inputClass` / `labelClass` (string): CSS classes.
+- `id` (string): Custom ID (auto-generated UUID otherwise).
+
+### Features:
+- WCAG 3.0 ready with `aria-invalid`, `aria-describedby`, label/ID `for` linkage
+- `crypto.randomUUID()` for collision-free accessible IDs
+- error message with `role="alert"` live region
+- full Svelte 5 runes: $props, $bindable, $derived
 -->
 
 <script lang="ts">

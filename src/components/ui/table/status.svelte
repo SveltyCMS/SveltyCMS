@@ -1,7 +1,19 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/table/status.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Status Primitive
+<!--
+@file src/components/ui/table/status.svelte
+@component
+**SveltyCMS Table Status Cell — WCAG 3.0 Ready**
+
+Auto-coloring status indicator for table cells. Detects variant from status
+strings (published/draft/scheduled/archived/deleted) and renders a tonal badge.
+
+### Props
+- `value` (string | number): Status value — auto-maps to color + icon.
+- `class` (string): Additional CSS classes.
+
+### Features:
+- auto-detects status from common string patterns
+- tonal-preset badge with matching icon per status
+- full Svelte 5 runes: $props, $derived
 -->
 
 <script lang="ts">

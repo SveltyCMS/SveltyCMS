@@ -1,7 +1,22 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/tabs/tabs.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Tabs Primitive
+<!--
+@file src/components/ui/tabs/tabs.svelte
+@component
+**SveltyCMS Tabs — WCAG 3.0 Ready**
+
+Compound tab container providing Svelte context (value + setTab) to child
+Trigger and Content components. Supports fluid width and onValueChange callback.
+
+### Props
+- `value` (any): Bindable active tab value.
+- `onValueChange` (function): Callback with `{ value }` on tab change.
+- `fluid` (boolean): Stretch to full container width.
+- `class` (string): Additional CSS classes.
+- `children` (Snippet): Tab List, Trigger, and Content children.
+
+### Features:
+- WCAG 3.0 ready with context-based tab state management
+- compound component pattern (Tabs + Tabs.List + Tabs.Trigger + Tabs.Content)
+- full Svelte 5 runes: $props, $bindable, setContext
 -->
 <script lang="ts">
 	import { setContext, type Snippet } from 'svelte';

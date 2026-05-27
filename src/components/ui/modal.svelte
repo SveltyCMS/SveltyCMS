@@ -1,7 +1,26 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/modal.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Modal Primitive
+<!--
+@file src/components/ui/modal.svelte
+@component
+**SveltyCMS Modal Dialog — WCAG 3.0 Ready**
+
+Native `<dialog>` modal with backdrop blur, zoom-in animation, configurable size
+(sm/md/lg/xl/fullscreen), color themes, and header/footer snippet slots.
+
+### Props
+- `open` (boolean): Bindable open state.
+- `title` (string): Header title (used if no header snippet).
+- `size` ('sm' | 'md' | 'lg' | 'xl' | 'fullscreen'): Modal width.
+- `color` ('surface' | 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error'): Background theme.
+- `header` / `footer` / `children` (Snippet): Content slots.
+- `class` (string): Additional CSS classes.
+
+### Features:
+- native `<dialog>` with backdrop blur and fade animation
+- zoom-in entrance animation with spring easing
+- backdrop click to dismiss
+- fullscreen mode for immersive workflows
+- WCAG 3.0 ready with aria-label close button
+- full Svelte 5 runes: $props, $bindable, $derived, $state, $effect
 -->
 
 <script lang="ts">
@@ -21,16 +40,16 @@
 		[key: string]: any;
 	}
 
-	let { 
-		open = $bindable(false), 
-		title, 
-		size = 'md', 
+	let {
+		open = $bindable(false),
+		title,
+		size = 'md',
 		color = 'surface',
 		class: className,
-		header, 
-		footer, 
+		header,
+		footer,
 		children,
-		...rest 
+		...rest
 	}: Props = $props();
 
 	let dialogEl = $state<HTMLDialogElement | null>(null);
@@ -106,8 +125,8 @@
 							{title}
 						</h3>
 					{/if}
-					
-					<button 
+
+					<button
 						type="button"
 						onclick={() => (open = false)}
 						class="p-2 rounded-full hover:bg-surface-200 dark:hover:bg-surface-800 transition-colors"

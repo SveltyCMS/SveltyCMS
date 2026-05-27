@@ -1,7 +1,17 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/accordion.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Accordion Primitive
+<!--
+@file src/components/ui/accordion.svelte
+@component
+**SveltyCMS Accordion Primitive**
+
+### Props
+- `autoclose` (boolean): Whether to close others when one opens (default: true).
+- `class` (string): Additional CSS classes.
+- `children` (Snippet): AccordionItem children.
+
+### Features:
+- WCAG 3.0 compliant accordion container
+- Context-based state management for child AccordionItems
+- Auto-close behavior for single-expand mode
 -->
 
 <script lang="ts">

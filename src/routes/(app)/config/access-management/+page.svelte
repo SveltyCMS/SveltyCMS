@@ -16,7 +16,7 @@
 -->
 
 <script lang="ts">
-import { Tabs } from "@skeletonlabs/skeleton-svelte";
+import Tabs from "@components/ui/tabs";
 import PageTitle from "@src/components/page-title.svelte";
 import { system_permission, system_roles } from "@src/paraglide/messages";
 import {

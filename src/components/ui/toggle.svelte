@@ -1,7 +1,26 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/toggle.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Toggle Primitive
+<!--
+@file src/components/ui/toggle.svelte
+@component
+**SveltyCMS Toggle Switch — WCAG 3.0 Ready**
+
+iOS-style toggle switch with on/off icons, three sizes, label, description,
+and `role="switch"` with `aria-checked` for maximum screen reader support.
+
+### Props
+- `value` (boolean): Bindable toggle state.
+- `label` (string): Label text next to the toggle.
+- `description` (string): Helper text below the label.
+- `size` ('sm' | 'md' | 'lg'): Size variant.
+- `iconOn` / `iconOff` (string): Iconify icons for each state.
+- `disabled` (boolean): Disable interaction.
+- `class` (string): Additional CSS classes.
+- `onToggle` (function): Callback with new boolean state.
+
+### Features:
+- WCAG 3.0 ready with `role="switch"`, `aria-checked`, and `<label>` association
+- green (on) / red (off) color transition on track
+- sm/md/lg sizes with proportional thumb and icons
+- full Svelte 5 runes: $props, $bindable, $derived
 -->
 
 <script lang="ts">

@@ -1,7 +1,22 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/rating.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Rating Primitive
+<!--
+@file src/components/ui/rating.svelte
+@component
+**SveltyCMS Rating Primitive**
+
+### Props
+- `value` (number): Current rating value (bindable).
+- `count` (number): Maximum rating value (default: 5).
+- `icon` (string): Iconify-icon name for filled state.
+- `iconEmpty` (string): Iconify-icon name for empty state.
+- `disabled` (boolean): Whether input is disabled.
+- `readonly` (boolean): Whether input is read-only.
+- `color` (string): Text color class.
+- `class` (string): Additional CSS classes.
+
+### Features:
+- WCAG 3.0 compliant role="slider"
+- keyboard accessibility (arrow keys, home, end)
+- hover state preview
 -->
 
 <script lang="ts">
@@ -19,16 +34,16 @@ type Props = Omit<HTMLAttributes<HTMLDivElement>, 'value'> & {
 	class?: string;
 };
 
-let { 
-	value = $bindable(0), 
-	count = 5, 
-	icon = 'mdi:star', 
-	iconEmpty = 'mdi:star-outline', 
-	disabled = false, 
-	readonly = false, 
+let {
+	value = $bindable(0),
+	count = 5,
+	icon = 'mdi:star',
+	iconEmpty = 'mdi:star-outline',
+	disabled = false,
+	readonly = false,
 	color = 'text-warning-500',
 	class: className,
-	...rest 
+	...rest
 }: Props = $props();
 
 let hoveredValue = $state(0);
@@ -41,12 +56,13 @@ function setValue(val: number) {
 const displayValue = $derived(hoveredValue || value);
 </script>
 
-<div 
-	class={cn('flex items-center gap-1', className)} 
-	role="slider" 
-	aria-valuemin={0} 
-	aria-valuemax={count} 
+<div
+	class={cn('flex items-center gap-1', className)}
+	role="slider"
+	aria-valuemin={0}
+	aria-valuemax={count}
 	aria-valuenow={value}
+	aria-label={rest['aria-label'] || 'Rating'}
 	tabindex={disabled || readonly ? -1 : 0}
 	onkeydown={(e) => {
 		if (disabled || readonly) return;
@@ -69,10 +85,8 @@ const displayValue = $derived(hoveredValue || value);
 	{#each Array(count) as _, i}
 		{@const index = i + 1}
 		{@const active = index <= displayValue}
-		<button
-			type="button"
-			tabindex={-1}
-			disabled={disabled || readonly}
+		<span
+			role="presentation"
 			class={cn(
 				'transition-all duration-150',
 				active ? color : 'text-surface-300 dark:text-surface-600',
@@ -81,12 +95,11 @@ const displayValue = $derived(hoveredValue || value);
 			onclick={() => setValue(index)}
 			onmouseenter={() => !disabled && !readonly && (hoveredValue = index)}
 			onmouseleave={() => (hoveredValue = 0)}
-			aria-label={`Rate ${index} out of ${count}`}
 		>
-			<iconify-icon 
-				icon={active ? icon : iconEmpty} 
+			<iconify-icon
+				icon={active ? icon : iconEmpty}
 				width="24"
 			></iconify-icon>
-		</button>
+		</span>
 	{/each}
 </div>

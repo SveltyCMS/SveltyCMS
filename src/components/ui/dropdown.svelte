@@ -1,7 +1,26 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/dropdown.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Dropdown Primitive
+<!--
+@file src/components/ui/dropdown.svelte
+@component
+**SveltyCMS Dropdown Menu — WCAG 3.0 Ready**
+
+Popover-based selection menu with configurable position, option highlighting,
+check mark on selected item, and optional custom content via snippet.
+
+### Props
+- `value` (any): Bindable selected value.
+- `options` (Option[]): Array of { label, value, icon?, disabled? }.
+- `onchange` (function): Callback with selected value.
+- `closeOnSelect` (boolean): Auto-close after selection (default: true).
+- `position` (Placement): FloatingUI placement.
+- `trigger` (Snippet): Trigger button/icon content.
+- `children` (Snippet): Custom dropdown content (replaces options).
+- `option` (Snippet): Custom option rendering.
+
+### Features:
+- wraps native Popover for floating position management
+- selected item check mark and highlight
+- keyboard support via Popover
+- full Svelte 5 runes: $props, $bindable, $derived, $state
 -->
 
 <script lang="ts">

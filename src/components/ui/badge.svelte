@@ -1,7 +1,24 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/badge.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Badge Primitive
+<!--
+@file src/components/ui/badge.svelte
+@component
+**SveltyCMS Badge — WCAG 3.0 Ready**
+
+Compact label for status indicators, counts, and metadata. Supports legacy variant
+mapping for backward compatibility and filled/tonal/outlined presets.
+
+### Props
+- `variant` ('primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error' | 'surface' | 'outline'): Legacy variant with auto preset/color mapping.
+- `preset` ('filled' | 'tonal' | 'outlined'): Override visual style.
+- `size` ('sm' | 'md' | 'lg'): Size variant (default: 'md').
+- `rounded` (boolean): Full rounded pill shape (default: true).
+- `class` (string): Additional CSS classes.
+- `children` (Snippet): Badge content.
+
+### Features:
+- backward-compatible variant mapping for test compatibility
+- filled, tonal, and outlined preset variants
+- three size densities with proportional padding
+- full Svelte 5 runes: $props, $derived
 -->
 
 <script lang="ts">

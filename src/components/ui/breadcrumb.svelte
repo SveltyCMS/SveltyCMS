@@ -1,7 +1,21 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/breadcrumb.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Breadcrumb Primitive
+<!--
+@file src/components/ui/breadcrumb.svelte
+@component
+**SveltyCMS Breadcrumb — WCAG 3.0 Ready**
+
+Accessible breadcrumb navigation trail with configurable separator, home icon,
+and aria-current page indicator.
+
+### Props
+- `items` (Crumb[]): Array of { label, icon?, href? }.
+- `separator` (string): Iconify separator icon (default: 'mdi:chevron-right').
+- `class` (string): Additional CSS classes.
+
+### Features:
+- WCAG 3.0 ready with `aria-label="Breadcrumb"` and `aria-current="page"`
+- automatic home icon on first crumb
+- link vs. span rendering based on href presence
+- full Svelte 5 runes: $props, $derived
 -->
 
 <script lang="ts">
@@ -19,10 +33,10 @@ interface Props {
 	class?: string;
 }
 
-let { 
-	items = [], 
+let {
+	items = [],
 	separator = 'mdi:chevron-right',
-	class: className 
+	class: className
 }: Props = $props();
 </script>
 
@@ -36,7 +50,7 @@ let {
 				{/if}
 
 				{#if item.href && !isLast}
-					<a 
+					<a
 						href={item.href}
 						class="flex items-center gap-1.5 text-surface-500 hover:text-primary-500 transition-colors font-medium"
 					>
@@ -46,7 +60,7 @@ let {
 						<span>{item.label}</span>
 					</a>
 				{:else}
-					<span 
+					<span
 						class={cn(
 							"flex items-center gap-1.5 font-bold",
 							isLast ? "text-surface-900 dark:text-white" : "text-surface-500"

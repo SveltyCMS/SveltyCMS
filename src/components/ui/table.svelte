@@ -1,7 +1,31 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/table.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Table Primitive
+<!--
+@file src/components/ui/table.svelte
+@component
+**SveltyCMS Table — WCAG 3.0 Ready**
+
+Full-featured data table with sorting, selection (checkboxes), row expansion,
+pagination, density control, loading skeletons, and empty state.
+
+### Props
+- `data` (any[]): Row data array.
+- `columns` (Column[]): Array of { key, label, sortable?, class?, width? }.
+- `sortKey` / `sortOrder` (string, 'asc'|'desc'): Bindable sort state.
+- `selectable` (boolean): Enable row checkboxes with select all.
+- `selectedIds` (Set<any>): Bindable selected row IDs.
+- `loading` (boolean): Show skeleton loading rows.
+- `density` ('compact' | 'normal' | 'comfortable'): Row density.
+- `totalItems` / `currentPage` / `rowsPerPage`: Pagination state.
+- `header` / `footer` / `cell` / `row` / `expand` (Snippet): Custom render slots.
+- `onrowclick` / `onselect` (function): Event callbacks.
+
+### Features:
+- sortable columns with direction indicator
+- multi-select with select-all indeterminate state
+- row expansion with expand snippet
+- pagination integration via Pagination subcomponent
+- loading skeleton rows (5 placeholders)
+- WCAG 3.0 ready with semantic `<table>`, `<thead>`, `<tbody>`
+- full Svelte 5 runes: $props, $bindable, $derived, $state
 -->
 
 <script lang="ts">
@@ -42,10 +66,10 @@ interface Props {
     onselect?: (selectedIds: Set<any>) => void;
 }
 
-let { 
-    data = [], 
-    columns = [], 
-    sortKey = $bindable(), 
+let {
+    data = [],
+    columns = [],
+    sortKey = $bindable(),
     sortOrder = $bindable('asc'),
     selectable = false,
     selectedIds = $bindable(new Set()),
@@ -112,14 +136,14 @@ const densityClass = $derived.by(() => {
         </div>
     {/if}
 
-    <div class="overflow-x-auto relative min-h-[300px]">
+    <div class="overflow-x-auto relative min-h-75">
         <table class="w-full text-left border-collapse min-w-full table-fixed">
             <thead class="sticky top-0 z-10">
                 <tr class="bg-surface-100/90 dark:bg-surface-800/90 backdrop-blur-md border-b border-surface-200 dark:border-surface-800">
                     {#if selectable}
                         <th class="w-12 p-4">
-                            <input 
-                                type="checkbox" 
+                            <input
+                                type="checkbox"
                                 class="size-4 rounded border-surface-300 dark:border-surface-600 accent-primary-500 cursor-pointer transition-all"
                                 checked={allSelected}
                                 indeterminate={someSelected}
@@ -127,9 +151,9 @@ const densityClass = $derived.by(() => {
                             />
                         </th>
                     {/if}
-                    
+
                     {#each columns as col}
-                        <th 
+                        <th
                             class={cn(
                                 'font-bold uppercase tracking-widest text-[10px] text-surface-700 dark:text-surface-200 select-none transition-colors',
                                 densityClass,
@@ -142,7 +166,7 @@ const densityClass = $derived.by(() => {
                             <div class="flex items-center gap-2">
                                 <span>{col.label}</span>
                                 {#if col.sortable && sortKey === col.key}
-                                    <iconify-icon 
+                                    <iconify-icon
                                         icon={sortOrder === 'asc' ? 'mingcute:arrow-up-line' : 'mingcute:arrow-down-line'}
                                         class="text-primary-500 animate-in fade-in zoom-in duration-300"
                                     ></iconify-icon>
@@ -152,7 +176,7 @@ const densityClass = $derived.by(() => {
                     {/each}
                 </tr>
             </thead>
-            
+
             <tbody class="divide-y divide-surface-100 dark:divide-surface-800">
                 {#if loading}
                     {#each Array(5) as _}
@@ -178,7 +202,7 @@ const densityClass = $derived.by(() => {
                         {#if rowSnippet}
                             {@render rowSnippet({ row, index })}
                         {:else}
-                            <tr 
+                            <tr
                                 class={cn(
                                     'group transition-all duration-200 hover:bg-primary-500/3 dark:hover:bg-primary-500/5',
                                     selectedIds.has(row._id || row.id) && 'bg-primary-500/5 dark:bg-primary-500/8',
@@ -188,15 +212,15 @@ const densityClass = $derived.by(() => {
                             >
                                 {#if selectable}
                                     <td class="p-4" onclick={(e) => e.stopPropagation()}>
-                                        <input 
-                                            type="checkbox" 
+                                        <input
+                                            type="checkbox"
                                             class="size-4 rounded border-surface-300 accent-primary-500 cursor-pointer transition-all hover:scale-110"
                                             checked={selectedIds.has(row._id || row.id)}
                                             onchange={() => toggleSelectRow(row._id || row.id)}
                                         />
                                     </td>
                                 {/if}
-                                
+
                                 {#each columns as col}
                                     <td class={cn('text-surface-700 dark:text-surface-300 font-medium whitespace-nowrap overflow-hidden text-ellipsis', densityClass, col.class)}>
                                         {#if cell}
@@ -225,10 +249,10 @@ const densityClass = $derived.by(() => {
     {#if footer}
         {@render footer()}
     {:else if totalItems > 0}
-        <Pagination 
-            bind:currentPage 
-            bind:rowsPerPage 
-            {totalItems} 
+        <Pagination
+            bind:currentPage
+            bind:rowsPerPage
+            {totalItems}
         />
     {/if}
 </div>

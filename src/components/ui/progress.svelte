@@ -1,11 +1,25 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/progress.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Progress Primitive
+<!--
+@file src/components/ui/progress.svelte
+@component
+**SveltyCMS Progress Primitive**
+
+### Props
+- `value` (number): Current progress value.
+- `max` (number): Maximum value (default: 100).
+- `min` (number): Minimum value (default: 0).
+- `indeterminate` (boolean): Whether the progress is indeterminate (animated).
+- `color` (string): The color theme of the progress bar.
+- `height` (string): Height class of the progress bar (default: 'h-2').
+- `class` (string): Additional CSS classes.
+
+### Features:
+- WCAG 3.0 compliant role="progressbar"
+- Indeterminate state support with CSS animation (respects prefers-reduced-motion)
 -->
 
 <script lang="ts">
 import { cn } from '@utils/cn';
+import { onMount } from 'svelte';
 import type { HTMLAttributes } from 'svelte/elements';
 
 type Props = HTMLAttributes<HTMLDivElement> & {
@@ -18,16 +32,26 @@ type Props = HTMLAttributes<HTMLDivElement> & {
 	class?: string;
 };
 
-let { 
-	value = 0, 
-	max = 100, 
-	min = 0, 
-	indeterminate = false, 
-	color = 'primary', 
+let {
+	value = 0,
+	max = 100,
+	min = 0,
+	indeterminate = false,
+	color = 'primary',
 	height = 'h-2',
 	class: className,
-	...rest 
+	...rest
 }: Props = $props();
+
+let prefersReducedMotion = $state(false);
+
+onMount(() => {
+	const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+	prefersReducedMotion = mq.matches;
+	const handler = (e: MediaQueryListEvent) => { prefersReducedMotion = e.matches; };
+	mq.addEventListener('change', handler);
+	return () => mq.removeEventListener('change', handler);
+});
 
 const percentage = $derived(indeterminate ? 100 : Math.min(Math.max(((value - min) / (max - min)) * 100, 0), 100));
 
@@ -40,20 +64,21 @@ const classes = $derived(cn(
 const rangeClasses = $derived(cn(
 	'h-full w-full flex-1 transition-all duration-500 ease-in-out',
 	`bg-${color}-500`,
-	indeterminate && 'animate-progress-indeterminate'
+	indeterminate && !prefersReducedMotion && 'animate-progress-indeterminate'
 ));
 </script>
 
-<div 
-	class={classes} 
-	role="progressbar" 
-	aria-valuemin={min} 
-	aria-valuemax={max} 
+<div
+	class={classes}
+	role="progressbar"
+	aria-valuemin={min}
+	aria-valuemax={max}
 	aria-valuenow={indeterminate ? undefined : value}
+	aria-label={rest['aria-label'] || 'Progress'}
 	{...rest}
 >
-	<div 
-		class={rangeClasses} 
+	<div
+		class={rangeClasses}
 		style={!indeterminate ? `transform: translateX(-${100 - percentage}%)` : ''}
 	></div>
 </div>

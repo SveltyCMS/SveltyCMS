@@ -1,7 +1,24 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/popover.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Popover Primitive
+<!--
+@file src/components/ui/popover.svelte
+@component
+**SveltyCMS Popover — WCAG 3.0 Ready**
+
+FloatingUI-powered popover with auto-positioning, arrow indicator, click-outside
+dismissal, and configurable placement. Used as the base for Dropdown and Tooltip.
+
+### Props
+- `open` (boolean): Bindable open state.
+- `position` (Placement): FloatingUI placement (default: 'bottom').
+- `arrow` (boolean): Show directional arrow (default: true).
+- `trigger` / `children` (Snippet): Trigger and content slots.
+- `class` (string): Additional CSS classes.
+
+### Features:
+- FloatingUI autoUpdate for scroll/resize repositioning
+- flip and shift middleware for viewport-aware placement
+- directional arrow indicator
+- click-outside dismissal
+- full Svelte 5 runes: $props, $bindable, $derived, $state, $effect
 -->
 
 <script lang="ts">
@@ -21,14 +38,14 @@
 		[key: string]: any;
 	}
 
-	let { 
+	let {
 		open = $bindable(false),
-		position = 'bottom', 
-		arrow = true, 
+		position = 'bottom',
+		arrow = true,
 		class: className,
-		trigger, 
+		trigger,
 		children,
-		...rest 
+		...rest
 	}: Props = $props();
 
 	let referenceEl = $state<HTMLElement | null>(null);
@@ -57,7 +74,7 @@
 				x = nextX;
 				y = nextY;
 				actualPlacement = finalPlacement;
-				
+
 				if (arrow) {
 					const { x: ax, y: ay } = middlewareData.arrow || {};
 					arrowX = ax;
@@ -71,8 +88,8 @@
 
 	// Handle click outside
 	function handleClickOutside(event: MouseEvent) {
-		if (open && referenceEl && floatingEl && 
-			!referenceEl.contains(event.target as Node) && 
+		if (open && referenceEl && floatingEl &&
+			!referenceEl.contains(event.target as Node) &&
 			!floatingEl.contains(event.target as Node)) {
 			open = false;
 		}
@@ -96,7 +113,7 @@
 	}[actualPlacement.split('-')[0]] as string);
 </script>
 
-<div 
+<div
 	bind:this={referenceEl}
 	class="inline-block"
 	onclick={(e) => { e.stopPropagation(); open = !open; }}
@@ -132,7 +149,7 @@
 					"
 				></div>
 			{/if}
-			
+
 			{#if children}
 				{@render children()}
 			{/if}

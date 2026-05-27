@@ -1,7 +1,24 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/tooltip.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Tooltip Primitive
+<!--
+@file src/components/ui/tooltip.svelte
+@component
+**SveltyCMS Tooltip — WCAG 3.0 Ready**
+
+FloatingUI-powered tooltip with show-on-hover/focus, directional arrow, delayed
+reveal after position calculation (prevents layout flash), and dark/light theme.
+
+### Props
+- `title` (string): Tooltip text (used if no content snippet).
+- `positioning` ({ placement, gutter }): FloatingUI placement options.
+- `triggerClass` (string): CSS class for the trigger wrapper.
+- `class` (string): Additional CSS classes on the tooltip.
+- `content` / `children` (Snippet): Custom tooltip/trigger content.
+
+### Features:
+- FloatingUI autoUpdate with offset, flip, shift, arrow middleware
+- delayed visibility until position calculated (opacity-0 trick)
+- show on mouseenter/focus, hide on mouseleave/blur
+- dark background with light arrow (auto-inverts in light mode)
+- full Svelte 5 runes: $props, $derived, $state, $effect
 -->
 
 <script lang="ts">

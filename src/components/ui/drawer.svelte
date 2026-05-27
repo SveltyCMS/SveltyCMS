@@ -1,7 +1,26 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/drawer.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Drawer Primitive
+<!--
+@file src/components/ui/drawer.svelte
+@component
+**SveltyCMS Drawer — WCAG 3.0 Ready**
+
+Slide-out panel using native `<dialog>` with backdrop blur, fly transition,
+configurable position (left/right/top/bottom), and color themes.
+
+### Props
+- `open` (boolean): Bindable open state.
+- `position` ('left' | 'right' | 'top' | 'bottom'): Slide direction (default: 'right').
+- `size` (string): CSS width/height override.
+- `color` ('surface' | 'primary' | 'secondary' | 'tertiary'): Background theme.
+- `title` (string): Header title.
+- `class` (string): Additional CSS classes.
+- `children` / `footer` (Snippet): Content slots.
+
+### Features:
+- native `<dialog>` with backdrop blur and fade animation
+- fly transition matching slide direction
+- backdrop click to dismiss
+- WCAG 3.0 ready with aria-label close button
+- full Svelte 5 runes: $props, $bindable, $derived, $state, $effect
 -->
 
 <script lang="ts">
@@ -22,16 +41,16 @@
 		[key: string]: any;
 	}
 
-	let { 
-		open = $bindable(false), 
-		position = 'right', 
-		size, 
+	let {
+		open = $bindable(false),
+		position = 'right',
+		size,
 		color = 'surface',
 		title,
 		class: className,
-		children, 
+		children,
 		footer,
-		...rest 
+		...rest
 	}: Props = $props();
 
 	let dialogEl = $state<HTMLDialogElement | null>(null);
@@ -109,7 +128,7 @@
 							<h3 class="text-lg font-bold text-surface-900 dark:text-white">{title}</h3>
 						{/if}
 					</div>
-					<button 
+					<button
 						type="button"
 						onclick={() => (open = false)}
 						class="p-2 rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"

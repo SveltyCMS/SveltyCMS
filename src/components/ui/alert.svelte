@@ -1,7 +1,24 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/alert.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Alert Primitive
+<!--
+@file src/components/ui/alert.svelte
+@component
+**SveltyCMS Alert — WCAG 3.0 Ready**
+
+A context-sensitive alert banner with auto-detected variants (info/success/warning/error/surface),
+icon support, and filled/tonal/outlined presets.
+
+### Props
+- `variant` ('info' | 'success' | 'warning' | 'error' | 'surface'): Auto-detects color and icon.
+- `preset` ('filled' | 'tonal' | 'outlined'): Visual style (default: 'tonal').
+- `icon` (string): Override the auto-detected icon.
+- `title` (string): Bold heading above the message.
+- `class` (string): Additional CSS classes.
+- `children` (Snippet): Alert message content.
+
+### Features:
+- WCAG 3.0 ready with `role="alert"` for screen reader announcement
+- Auto-mapping of variant to semantic color + icon
+- Filled, tonal, and outlined preset variants
+- full Svelte 5 runes: $props, $derived
 -->
 
 <script lang="ts">
@@ -17,14 +34,14 @@ interface Props {
     children?: import('svelte').Snippet;
 }
 
-const { 
+const {
     variant,
-    color: propColor, 
-    preset = 'tonal', 
-    icon: propIcon, 
+    color: propColor,
+    preset = 'tonal',
+    icon: propIcon,
     title,
-    class: className, 
-    children 
+    class: className,
+    children
 }: Props = $props();
 
 const variantMap = {
@@ -45,7 +62,7 @@ const presetClass = $derived.by(() => {
 });
 </script>
 
-<div 
+<div
     class={cn(
         'flex items-start gap-4 p-4 rounded-2xl border border-transparent shadow-sm transition-all duration-200',
         presetClass,
@@ -58,7 +75,7 @@ const presetClass = $derived.by(() => {
             <iconify-icon icon={finalIcon} width="24"></iconify-icon>
         </div>
     {/if}
-    
+
     <div class="flex-1 space-y-1">
         {#if title}
             <h4 class="font-bold leading-tight">{title}</h4>

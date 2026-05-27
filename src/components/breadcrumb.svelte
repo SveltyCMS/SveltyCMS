@@ -3,7 +3,7 @@
 @description
 Accessible breadcrumb navigation with icons, keyboard support, and visual feedback.
 
-@component 
+@component
 **Enhanced Breadcrumb - Svelte 5 Optimized**
 
 @example
@@ -148,11 +148,11 @@ Accessible breadcrumb navigation with icons, keyboard support, and visual feedba
 						{#if actualIndex === 0}
 							<!-- Home icon -->
 							<iconify-icon icon="mdi:home" width="18" class="shrink-0 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-							<span class="max-w-[150px] truncate">{crumb}</span>
+							<span class="max-w-37.5 truncate">{crumb}</span>
 						{:else}
 							<!-- Folder icon -->
 							<iconify-icon icon="mdi:folder" width="18" class="shrink-0 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-							<span class="max-w-[150px] truncate">{crumb}</span>
+							<span class="max-w-37.5 truncate">{crumb}</span>
 						{/if}
 					</button>
 				{/if}

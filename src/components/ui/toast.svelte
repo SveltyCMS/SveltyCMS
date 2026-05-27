@@ -1,7 +1,24 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/toast.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Toast Primitive
+<!--
+@file src/components/ui/toast.svelte
+@component
+**SveltyCMS Toast Notification — WCAG 3.0 Ready**
+
+Animated notification toast with success/error/warning/info/loading variants,
+dismiss button, action button, shrink timer bar, and pause-on-hover.
+
+### Props
+- `toast` (Toast): Toast object from `@src/stores/toast.svelte.ts`.
+- `onClose` (function): Dismiss callback.
+- `onPause` (function): Pause timer on hover.
+- `onResume` (function): Resume timer on leave.
+
+### Features:
+- WCAG 3.0 ready with `role="alert"` and `aria-atomic="true"`
+- fly-in/fade-out svelte transitions
+- shrink animation timer bar with pause-on-hover
+- optional action button within the toast
+- sanitized HTML message rendering
+- full Svelte 5 runes: $props, $derived
 -->
 
 <script lang="ts">
@@ -51,8 +68,8 @@ const icons = {
 >
 	<div class="p-4 sm:p-5">
 		<div class="flex items-start gap-4">
-			<iconify-icon 
-				icon={icons[t.type]} 
+			<iconify-icon
+				icon={icons[t.type]}
 				class={cn('shrink-0 text-2xl', t.type === 'loading' && 'animate-spin')}
 			></iconify-icon>
 
@@ -90,8 +107,8 @@ const icons = {
 
 	{#if t.duration !== Infinity}
 		<div class="h-1 bg-black/10">
-			<div 
-				class="h-full bg-white/30 origin-left" 
+			<div
+				class="h-full bg-white/30 origin-left"
 				style="animation: toast-shrink {t.remainingTime}ms linear forwards"
 			></div>
 		</div>

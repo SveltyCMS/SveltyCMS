@@ -225,7 +225,7 @@ onMount(() => {
                     </div>
                     <NativeSegmentedControl bind:value={segmentValue} options={[{label: 'Day', value: 'day'}, {label: 'Week', value: 'week'}]} />
                     <div class="space-y-1">
-                        <div class="flex gap-4 items-center"><input type="range" class="flex-1" bind:value={sliderValue} min={0} max={100} /><span class="font-mono text-xs opacity-70">{sliderValue}%</span></div>
+                        <div class="flex gap-4 items-center"><input type="range" class="flex-1" bind:value={sliderValue} min={0} max={100} aria-label="Demo slider value input" /><span class="font-mono text-xs opacity-70">{sliderValue}%</span></div>
                         <NativeProgress value={sliderValue} color="success" />
                     </div>
 

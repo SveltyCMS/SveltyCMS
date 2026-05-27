@@ -1,7 +1,22 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/slider.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Slider Primitive
+<!--
+@file src/components/ui/slider.svelte
+@component
+**SveltyCMS Slider Primitive**
+
+### Props
+- `value` (number): Bindable current value of the slider.
+- `min` (number): Minimum value (default: 0).
+- `max` (number): Maximum value (default: 100).
+- `step` (number): Incremental step value (default: 1).
+- `disabled` (boolean): Disable slider interaction.
+- `class` (string): Additional CSS classes.
+- `onchange` (function): Triggered when value changes.
+- `aria-label` (string): Screen reader accessible name (default: 'Range Slider').
+- `aria-labelledby` (string): Associated element ID for naming.
+
+### Features:
+- WCAG 3.0 compliant range input
+- Premium look with custom webkit and moz range thumb styling
 -->
 
 <script lang="ts">
@@ -15,6 +30,8 @@ interface Props {
 	disabled?: boolean;
 	class?: string;
 	onchange?: (value: number) => void;
+	'aria-label'?: string;
+	'aria-labelledby'?: string;
 }
 
 let {
@@ -24,7 +41,9 @@ let {
 	step = 1,
 	disabled = false,
 	class: className = '',
-	onchange
+	onchange,
+	'aria-label': ariaLabel = 'Range Slider',
+	'aria-labelledby': ariaLabelledby,
 }: Props = $props();
 
 const percentage = $derived(((value - min) / (max - min)) * 100);
@@ -44,6 +63,8 @@ function handleInput(e: Event) {
 		{step}
 		{disabled}
 		value={value}
+		aria-label={ariaLabel}
+		aria-labelledby={ariaLabelledby}
 		oninput={handleInput}
 		class="h-2 w-full cursor-pointer appearance-none rounded-lg bg-surface-200 dark:bg-surface-700 accent-primary-500 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:opacity-50"
 		style="--progress: {percentage}%"

@@ -1,7 +1,25 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/stepper.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Stepper Primitive
+<!--
+@file src/components/ui/stepper.svelte
+@component
+**SveltyCMS Stepper — WCAG 3.0 Ready**
+
+Multi-step progress indicator with vertical/horizontal orientation, completion
+checkmarks, connecting lines, and clickable step navigation.
+
+### Props
+- `steps` (Step[]): Array of { label, description?, icon? }.
+- `currentStep` (number): Zero-based active step index.
+- `completedSteps` (Set<number>): Set of completed step indices.
+- `orientation` ('horizontal' | 'vertical'): Layout direction.
+- `compact` (boolean): Reduced spacing mode.
+- `onStepClick` (function): Callback with clicked step index.
+
+### Features:
+- WCAG 3.0 ready with `aria-current="step"` and disabled step buttons
+- check icon for completed steps
+- connecting progress lines between steps
+- horizontal and vertical layout modes
+- full Svelte 5 runes: $props, $derived
 -->
 <script lang="ts">
 interface Step {
@@ -46,8 +64,8 @@ function isClickable(index: number) {
 			>
 				<!-- Step Indicator -->
 				<div class="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all
-					{completedSteps.has(i) ? 'bg-success-500 text-white' : 
-					 i === currentStep ? 'bg-primary-500 text-white shadow-lg scale-110' : 
+					{completedSteps.has(i) ? 'bg-success-500 text-white' :
+					 i === currentStep ? 'bg-primary-500 text-white shadow-lg scale-110' :
 					 'bg-surface-200 dark:bg-surface-700 text-surface-500'}">
 					{#if completedSteps.has(i)}
 						<iconify-icon icon="mdi:check" width="20"></iconify-icon>
@@ -73,7 +91,7 @@ function isClickable(index: number) {
 
 			<!-- Connecting Line -->
 			{#if i < steps.length - 1}
-				<div class="{orientation === 'vertical' ? 'absolute left-7 top-11 w-0.5 h-6' : 'hidden'} 
+				<div class="{orientation === 'vertical' ? 'absolute left-7 top-11 w-0.5 h-6' : 'hidden'}
 					-z-10 {completedSteps.has(i) ? 'bg-success-500' : 'bg-surface-200 dark:bg-surface-700'}"></div>
 			{/if}
 		</div>

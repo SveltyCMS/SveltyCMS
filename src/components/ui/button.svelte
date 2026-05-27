@@ -1,7 +1,29 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/button.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Button Primitive
+<!--
+@file src/components/ui/button.svelte
+@component
+**SveltyCMS Button — WCAG 3.0 Ready**
+
+Polymorphic button/a element with 9 variants, 4 sizes, loading state, icon support,
+and full ARIA accessibility. Premium gradient overlay on hover.
+
+### Props
+- `variant` ('primary' | 'secondary' | 'tertiary' | 'surface' | 'success' | 'warning' | 'error' | 'ghost' | 'outline'): Visual style.
+- `size` ('sm' | 'md' | 'lg' | 'xl'): Size variant.
+- `href` (string): Render as anchor link.
+- `type` ('button' | 'submit' | 'reset'): Button type attribute.
+- `loading` (boolean): Show loading spinner.
+- `disabled` (boolean): Disable interaction.
+- `leadingIcon` / `trailingIcon` (string): Iconify icons.
+- `rounded` (boolean): Full rounded pill shape.
+- `aria-label` / `labelledBy` / `describedBy`: ARIA attributes.
+- `children` (Snippet): Button content.
+
+### Features:
+- polymorphic (button or anchor via href)
+- premium gradient overlay on hover
+- loading state with configurable spinner
+- WCAG 3.0 ready with full ARIA label/description support
+- full Svelte 5 runes: $props, $derived
 -->
 
 <script lang="ts">
@@ -113,7 +135,7 @@
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-surface-500 dark:focus-visible:ring-surface-300',
     variantClass,
     sizeClass,
-    rounded ? 'rounded-full' : 'rounded-[2px]',
+    rounded ? 'rounded-full' : 'rounded-xs',
     isDisabled && 'opacity-60 cursor-not-allowed',
     className
   )}

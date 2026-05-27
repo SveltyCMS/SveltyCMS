@@ -1,7 +1,21 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/status-badge.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 StatusBadge Primitive
+<!--
+@file src/components/ui/status-badge.svelte
+@component
+**SveltyCMS Status Badge — WCAG 3.0 Ready**
+
+Auto-coloring status indicator pill with pulsing dot. Auto-detects variant from
+common status strings (published/draft/scheduled/error/active).
+
+### Props
+- `status` (string | number | boolean): Status value — auto-maps to color.
+- `variant` ('default' | 'success' | 'warning' | 'error' | 'info' | 'ghost'): Override auto-detection.
+- `class` (string): Additional CSS classes.
+
+### Features:
+- auto-detects semantic status from string values (e.g., 'draft' → info)
+- boolean values map to Active/Inactive
+- animated pulsing indicator dot
+- full Svelte 5 runes: $props, $derived
 -->
 
 <script lang="ts">
@@ -42,7 +56,7 @@ const themeClasses = $derived.by(() => {
 });
 </script>
 
-<span 
+<span
     class={cn(
         'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider border transition-all duration-300',
         themeClasses,

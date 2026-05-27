@@ -1,7 +1,13 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/tabs/indicator.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Indicator Primitive
+<!--
+@file src/components/ui/tabs/indicator.svelte
+@component
+**SveltyCMS Tabs Indicator — WCAG 3.0 Ready**
+
+Placeholder for future animated active-tab indicator. Currently hidden;
+the active state is rendered via border-b on Trigger instead.
+
+### Features:
+- reserved for future animated indicator implementation
 -->
 <script lang="ts">
 	// Placeholder for Tabs.Indicator if needed for specific animations or layouts.

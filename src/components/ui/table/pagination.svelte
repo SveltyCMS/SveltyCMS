@@ -1,7 +1,24 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/table/pagination.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Pagination Primitive
+<!--
+@file src/components/ui/table/pagination.svelte
+@component
+**SveltyCMS Table Pagination — WCAG 3.0 Ready**
+
+Data table pagination footer with previous/next buttons, page indicator,
+rows-per-page selector, and "Showing X to Y of Z" summary.
+
+### Props
+- `currentPage` (number): Bindable current page.
+- `rowsPerPage` (number): Bindable rows per page.
+- `totalItems` (number): Total number of items across all pages.
+- `rowsPerPageOptions` (number[]): Available page size options.
+- `onchange` / `onUpdatePage` / `onUpdateRowsPerPage` (function): Callbacks.
+
+### Features:
+- auto-computed page count from totalItems and rowsPerPage
+- "Showing 1 to 10 of 42" item range summary
+- rows-per-page select dropdown
+- WCAG 3.0 ready with aria-label on prev/next buttons
+- full Svelte 5 runes: $props, $bindable, $derived
 -->
 
 <script lang="ts">
@@ -44,14 +61,14 @@ function setPage(page: number) {
         <span class="whitespace-nowrap">
             Showing <span class="font-bold text-surface-900 dark:text-surface-100">{startItem}</span> to <span class="font-bold text-surface-900 dark:text-surface-100">{endItem}</span> of <span class="font-bold text-surface-900 dark:text-surface-100">{totalItems}</span>
         </span>
-        
+
         <div class="flex items-center gap-2">
             <span class="hidden sm:inline">Rows:</span>
-            <select 
+            <select
                 bind:value={rowsPerPage}
-                onchange={() => { 
-                    currentPage = 1; 
-                    onchange?.(); 
+                onchange={() => {
+                    currentPage = 1;
+                    onchange?.();
                     onUpdateRowsPerPage?.(rowsPerPage);
                 }}
                 class="bg-surface-100 dark:bg-surface-800 border-none rounded-lg py-1 px-2 text-xs font-bold focus:ring-1 focus:ring-primary-500 cursor-pointer"
@@ -64,25 +81,25 @@ function setPage(page: number) {
     </div>
 
     <div class="flex items-center gap-1">
-        <Button 
-            variant="ghost" 
-            size="sm" 
-            leadingIcon="mingcute:arrow-left-line" 
+        <Button
+            variant="ghost"
+            size="sm"
+            leadingIcon="mingcute:arrow-left-line"
             disabled={currentPage === 1}
             onclick={() => setPage(currentPage - 1)}
             aria-label="Previous page"
         />
-        
+
         <div class="flex items-center gap-1 px-2">
             <span class="font-bold text-primary-500">{currentPage}</span>
             <span class="opacity-50">/</span>
             <span>{computedPagesCount}</span>
         </div>
 
-        <Button 
-            variant="ghost" 
-            size="sm" 
-            leadingIcon="mingcute:arrow-right-line" 
+        <Button
+            variant="ghost"
+            size="sm"
+            leadingIcon="mingcute:arrow-right-line"
             disabled={currentPage === computedPagesCount}
             onclick={() => setPage(currentPage + 1)}
             aria-label="Next page"

@@ -1,7 +1,25 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/avatar.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Avatar Primitive
+<!--
+@file src/components/ui/avatar.svelte
+@component
+**SveltyCMS Avatar — WCAG 3.0 Ready**
+
+Image avatar with fallback to initials or default icon. Supports loading state tracking
+and configurable size/rounded shape.
+
+### Props
+- `src` (string): Image source URL.
+- `alt` (string): Alt text for the image.
+- `initials` (string): Fallback initials when no image loads.
+- `size` (string): CSS size class (default: 'size-10').
+- `rounded` (string): Border radius class (default: 'rounded-full').
+- `class` (string): Additional CSS classes.
+- `fallback` (Snippet): Custom fallback content when image fails.
+
+### Features:
+- image load state machine (loading → loaded → error)
+- automatic fallback to initials or default account icon
+- WCAG 3.0 ready with `role="img"` and `aria-label`
+- full Svelte 5 runes: $props, $state, $derived, $effect
 -->
 
 <script lang="ts">

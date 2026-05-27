@@ -23,7 +23,7 @@ Provides an organized interface for navigating hierarchical content structures.
 
 <script lang="ts">
 	// Components
-	import TreeView from '@src/components/system/tree-view.svelte';
+	import TreeView from '@components/ui/tree-view.svelte';
 	import type { ContentNode, Schema } from '@src/content/types';
 	import { type StatusType, StatusTypes } from '@src/content/types';
 	import { sortContentNodes } from '@src/content/content-utils';
@@ -146,7 +146,7 @@ Provides an organized interface for navigating hierarchical content structures.
 		if (typeof window !== 'undefined') {
 			const favsKey = `sveltycms_favs_${userId}`;
 			const tagsKey = `sveltycms_tags_${userId}`;
-			
+
 			try {
 				const favsData = localStorage.getItem(favsKey);
 				favorites = favsData ? JSON.parse(favsData) : [];
@@ -203,7 +203,7 @@ Provides an organized interface for navigating hierarchical content structures.
 			.split(',')
 			.map(t => t.trim())
 			.filter(t => t.length > 0);
-		
+
 		if (parsedTags.length > 0) {
 			tagMap = {
 				...tagMap,
@@ -378,7 +378,7 @@ Provides an organized interface for navigating hierarchical content structures.
 				const filteredChildren = node.children
 					.map(child => filterNode(child))
 					.filter((child): child is ExtendedContentNode => child !== null);
-				
+
 				if (filteredChildren.length === 0) {
 					return null;
 				}
@@ -511,8 +511,8 @@ Provides an organized interface for navigating hierarchical content structures.
 				type="button"
 				onclick={() => showOnlyFavorites = !showOnlyFavorites}
 				class="btn btn-sm flex items-center gap-1.5 rounded-full border transition-all text-xs font-semibold py-1 px-3
-					{showOnlyFavorites 
-						? 'bg-amber-500/20 border-amber-500 text-amber-600 dark:text-amber-400' 
+					{showOnlyFavorites
+						? 'bg-amber-500/20 border-amber-500 text-amber-600 dark:text-amber-400'
 						: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-300'}"
 				aria-label="Filter by Favorites"
 			>

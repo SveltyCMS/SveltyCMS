@@ -1,7 +1,27 @@
-<!-- 
- @src/routes/api/cms.ts src/components/ui/tags.svelte
- @src/components/system/admin-component-registry.ts
- Superior Svelte 5 Tags Primitive
+<!--
+@file src/components/ui/tags.svelte
+@component
+**SveltyCMS Tags Input — WCAG 3.0 Ready**
+
+Multi-value tag input with Enter/comma to add, Backspace to remove, duplicate
+detection, max tag limit, and configurable Badge preset/color.
+
+### Props
+- `tags` (string[]): Bindable array of tag values.
+- `placeholder` (string): Input placeholder (default: 'Add tag...').
+- `allowDuplicates` (boolean): Allow duplicate tags.
+- `validation` (function): Custom tag validation callback.
+- `maxTags` (number): Maximum number of tags allowed.
+- `variant` ('filled' | 'tonal' | 'outlined' | 'glass'): Tag Badge preset.
+- `color` ('primary' | 'secondary' | ...): Tag Badge color.
+- `label` (string): Label text above the input.
+- `onchange` (function): Callback with updated tags array.
+
+### Features:
+- Enter or comma to add, Backspace on empty to remove last
+- scale-in/fade-out transitions on tag add/remove
+- individual tag removal buttons with aria-label
+- full Svelte 5 runes: $props, $bindable, $derived, $state
 -->
 
 <script lang="ts">
@@ -44,13 +64,13 @@ const id = Math.random().toString(36).substring(7);
 function addTag(tag: string) {
 	if (disabled || !tag.trim()) return;
 	if (maxTags && tags.length >= maxTags) return;
-	
+
 	const trimmed = tag.trim();
 	if (!allowDuplicates && tags.includes(trimmed)) {
 		inputValue = '';
 		return;
 	}
-	
+
 	if (validation && !validation(trimmed)) return;
 
 	tags = [...tags, trimmed];
@@ -66,7 +86,7 @@ function removeTag(index: number) {
 
 function handleKeydown(e: KeyboardEvent) {
 	if (disabled) return;
-	
+
 	if (e.key === 'Enter' || e.key === ',') {
 		e.preventDefault();
 		addTag(inputValue);
@@ -122,7 +142,7 @@ function handleKeydown(e: KeyboardEvent) {
 			bind:value={inputValue}
 			{placeholder}
 			{disabled}
-			class="flex-1 bg-transparent border-none focus:ring-0 min-w-[120px] text-sm py-1"
+			class="flex-1 bg-transparent border-none focus:ring-0 min-w-30 text-sm py-1"
 			onkeydown={handleKeydown}
 			onblur={() => inputValue.trim() && addTag(inputValue)}
 		/>
