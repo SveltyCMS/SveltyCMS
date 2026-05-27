@@ -52,6 +52,15 @@ export class MongoTransactionModule {
 
         findById: async (collection: string, id: any, options: any = {}) =>
           this.adapter.crud.findOne(collection, { _id: id } as any, { ...options, session }),
+
+        // 🛡️ Domain Support: Injecting domain modules into the transaction object
+        // This allows tx.auth, tx.content, etc. to be used within TransactionManager.runAtomic blocks.
+        auth: this.adapter.auth,
+        content: this.adapter.content,
+        media: this.adapter.media,
+        system: this.adapter.system,
+        batch: this.adapter.batch,
+        collection: this.adapter.collection,
       };
 
       const result = await fn(dbTransaction);
