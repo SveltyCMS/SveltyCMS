@@ -45,7 +45,15 @@ export function applyAllSecurityHeaders(
   headers.set("X-Permitted-Cross-Domain-Policies", "none");
   headers.set("Permissions-Policy", PERMISSIONS_POLICY);
 
-  // 3. API-specific CORS
+  // 3. Cross-Origin Isolation (prevents Spectre-style side-channel attacks)
+  // API routes get stricter isolation; page routes get same-origin defaults
+  if (pathname.startsWith("/api/")) {
+    headers.set("Cross-Origin-Opener-Policy", "same-origin");
+    headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+    headers.set("Cross-Origin-Resource-Policy", "same-origin");
+  }
+
+  // 4. API-specific CORS
   if (pathname.startsWith("/api/")) {
     const corsHeaders = getCorsHeaders(origin, true);
     if (corsHeaders) {

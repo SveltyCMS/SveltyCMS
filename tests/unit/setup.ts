@@ -949,7 +949,9 @@ for (const name of CORE_WIDGETS) {
 for (const name of CUSTOM_WIDGETS) {
   const factory = createWidgetFactory(name, "custom");
   widgetMap.set(name, factory);
-  customModules[`./custom/${name.toLowerCase()}/index.ts`] = { default: factory };
+  customModules[`./custom/${name.toLowerCase()}/index.ts`] = {
+    default: factory,
+  };
 }
 
 const allWidgetModules = { ...coreModules, ...customModules };
@@ -1385,7 +1387,7 @@ const dbFactory = () => ({
   loadPrivateConfig: mock(() => Promise.resolve({})),
   reinitializeSystem: mock(() => Promise.resolve({})),
   resetDbInitPromise: mock(() => {}),
-  dbInitPromise: mock(() => Promise.resolve({})),
+  dbInitPromise: Promise.resolve({}),
   isDbConnected: mock(() => true),
   default: dbMock,
 });

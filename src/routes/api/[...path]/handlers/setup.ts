@@ -187,11 +187,13 @@ export async function handleSetupRoutes(
 
     const session = authResult.data.session;
     const isSecure = url.protocol === "https:" || (url.hostname !== "localhost" && !dev);
+    // 🛡️ Prefix consistency: use __Host- on secure connections (prevents subdomain cookie tossing)
+    const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
-    event.cookies.set(SESSION_COOKIE_NAME, session._id as string, {
+    event.cookies.set(cookieName, session._id as string, {
       path: "/",
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: isSecure ? "strict" : "lax",
       secure: isSecure,
       maxAge: 60 * 60 * 24,
     });

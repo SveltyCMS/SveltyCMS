@@ -278,35 +278,159 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
     }
 
     // ──────────────────────────────────────────────────────────────
-    // AI Crawler / Reconnaissance Honeypot (Tarpit)
+    // 🛡️ AI Bot / Reconnaissance Defense (Multi-Layer)
     // ──────────────────────────────────────────────────────────────
+
+    // Layer 1: Known AI Crawler & Bot User-Agent Detection
+    const userAgent = (request.headers.get("user-agent") || "").toLowerCase();
+    const AI_BOT_PATTERNS = [
+      // AI Crawlers
+      "gptbot",
+      "chatgpt-user",
+      "anthropic-ai",
+      "claude-web",
+      "claudebot",
+      "cohere-ai",
+      "perplexitybot",
+      "google-extended",
+      "omgili",
+      "omgilibot",
+      "ccbot",
+      "commoncrawl",
+      "bytespider",
+      "petalbot",
+      "facebookbot",
+      // Scrapers & Recon Tools
+      "zgrab",
+      "masscan",
+      "nmap",
+      "sqlmap",
+      "nikto",
+      "acunetix",
+      "burpsuite",
+      "gobuster",
+      "dirbuster",
+      "wfuzz",
+      "feroxbuster",
+      "rustscan",
+      "nessus",
+      // Aggressive Scrapers
+      "scrapy",
+      "python-requests/2",
+      "curl/",
+      "wget/",
+      "axios/",
+      "node-fetch",
+      "l9explore",
+      "l9tcpid",
+      "libwww-perl",
+      "go-http-client",
+    ];
+    const isKnownBot = AI_BOT_PATTERNS.some((pattern) => userAgent.includes(pattern));
+
+    // Layer 2: Expanded Honeypot Route Detection
     const HONEYPOT_ROUTES = [
+      // WordPress / PHP reconnaissance targets
       "/wp-admin",
-      "/api/legacy-v1-debug",
+      "/wp-login.php",
+      "/wp-content",
+      "/wp-includes",
+      "/wp-json",
+      "/xmlrpc.php",
+      "/wp-cron.php",
+      // Sensitive file probes
       "/.env",
       "/.git/config",
-      "/wp-login.php",
+      "/.git/HEAD",
+      "/.svn/entries",
+      "/.DS_Store",
+      "/robots.txt",
+      "/sitemap.xml",
+      // Common exploit probes
+      "/api/legacy-v1-debug",
+      "/api/debug",
+      "/api/v1/debug",
+      "/actuator/health",
+      "/actuator/env",
+      "/actuator/gateway",
+      "/.well-known/security.txt",
+      "/.well-known/acme-challenge/",
+      "/vendor/phpunit",
+      "/console/",
+      "/adminer.php",
+      "/phpinfo.php",
+      // CMS recon probes
+      "/drupal",
+      "/joomla",
+      "/typo3",
+      "/magento",
+      "/craft",
+      // AWS / Cloud metadata probes (SSRF)
+      "/latest/meta-data",
+      "/latest/user-data",
+      // Config file probes
+      "/.env.local",
+      "/.env.production",
+      "/.env.backup",
+      "/config.yml",
+      "/config.yaml",
+      "/docker-compose.yml",
+      "/docker-compose.yaml",
+      // Backup file probes
+      "/backup",
+      "/backups",
+      "/dump.sql",
+      "/database.sql",
+      "/db.sql",
+      "/admin.sql",
+      "/backup.zip",
+      "/site.zip",
+      "/wwwroot.zip",
     ];
-    if (HONEYPOT_ROUTES.some((route) => url.pathname.startsWith(route))) {
-      logger.warn(`[Security] AI Crawler Honeypot triggered on ${url.pathname} by IP: ${clientIp}`);
+    const hitHoneypot = HONEYPOT_ROUTES.some((route) =>
+      url.pathname.toLowerCase().startsWith(route),
+    );
 
-      // Auto-ban IP by triggering a manual block in the response service logic
-      // By forcing a violation, the rate limiter or blocklist will trap the IP
+    if (hitHoneypot || (isKnownBot && !isLocal)) {
+      const triggerType = hitHoneypot ? `route:${url.pathname}` : `UA:${userAgent}`;
+      logger.warn(`[Security] AI/Bot Defense triggered [${triggerType}] by IP: ${clientIp}`);
+
+      // Auto-ban IP via the security response service
       metricsService.incrementSecurityViolations(tenantId);
       await securityResponseService.analyzeRequest(
         new Request("http://localhost/api/honeypot", {
           method: "POST",
           body: "SQL INJECTION STRING ' OR 1=1 --",
+          headers: { "user-agent": userAgent || "unknown-scanner" },
         }),
         clientIp,
         tenantId,
       );
 
-      // Return a misleading 200 OK or hanging response to waste crawler time (Tarpitting)
-      return new Response("OK", {
-        status: 200,
-        headers: { "Content-Type": "text/plain", "X-Robots-Tag": "none" },
-      });
+      // Progressive Tarpit: random delay to waste bot resources
+      const tarpitDelay = Math.min(5000 + Math.floor(Math.random() * 10000), 15000);
+      await new Promise((resolve) => setTimeout(resolve, tarpitDelay));
+
+      // Response poisoning: return fake data to poison scrapers
+      return new Response(
+        JSON.stringify({
+          status: "ok",
+          data: {
+            users: [],
+            config: { debug: false, environment: "production" },
+            version: "1.0.0",
+          },
+          timestamp: new Date().toISOString(),
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
+            "Cache-Control": "no-store",
+          },
+        },
+      );
     }
 
     // 1. Analyze request for threats (Firewall + Payload Scan + Rate Limiting)

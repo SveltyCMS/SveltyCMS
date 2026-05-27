@@ -1,5 +1,9 @@
 # Security Policy
 
+SveltyCMS is built with an **A++ enterprise security grade** featuring 4-layer defense-in-depth, AI bot defense, zero-bias cryptography, and cross-origin isolation.
+
+📖 **Full Security Docs**: [docs/architecture/security/index.mdx](./docs/architecture/security/index.mdx)
+
 ## Supported Versions
 
 Only the latest release on the `next` branch is supported.  

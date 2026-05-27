@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-05-24"
+updated: "2026-05-27"
 tags:
   - "evaluation"
   - "technical"
@@ -88,6 +88,13 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
     - **L0 Session Memory Stability**: Refactored the `InMemorySessionManager` to utilize `WeakRef` for cached User objects. This allows the V8 engine to immediately garbage-collect inactive sessions, eliminating memory bloat and preventing OOM crashes during high-concurrency traffic spikes.
     - **TOTP Timing Attack Mitigation**: Replaced standard string comparisons in the 2FA layer with `crypto.timingSafeEqual`, mathematically neutralizing nanosecond-level side-channel attacks on TOTP code verification.
     - **Fallback Garbage Collection Resilience**: Hardened the session cleanup loop to guarantee that in-memory fallback caches are continuously pruned even when a `RedisSessionManager` is actively managing the primary connection, ensuring zero memory leaks during Redis outages.
+  - **May 2026 AI Bot Defense & Crypto Hardening**:
+    - **AI Bot Detection & Blocking**: Proactive User-Agent fingerprinting detects and blocks 28 known AI crawler patterns (GPTBot, Claude, Perplexity, CommonCrawl, Bytespider) and reconnaissance tools (Nmap, SQLMap, Nikto, Burp Suite, Zgrab, Masscan, Nessus).
+    - **Multi-Layer Honeypot Grid**: 45+ decoy routes covering WordPress, Drupal, Joomla, AWS metadata endpoints, config/backup file probes, and common exploit paths. Any probe triggers immediate IP blacklisting.
+    - **Progressive Tarpit & Response Poisoning**: Randomized 5–15 second response delays waste bot resources. Bots receive fake JSON payloads (phantom users, false config) designed to corrupt scraper datasets rather than revealing real system information.
+    - **Cross-Origin Isolation Headers**: All API responses enforce `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`, and `Cross-Origin-Resource-Policy: same-origin`, preventing Spectre/Meltdown side-channel attacks.
+    - **Zero-Bias Token Generation**: `generateRandomToken` now uses rejection sampling to eliminate ~3.125% modulo bias, guaranteeing uniform CSPRNG distribution for session tokens and API keys.
+    - **Setup Cookie Prefix Consistency**: Setup handler now uses consistent `__Host-` cookie prefix logic, closing the gap between runtime and initialization session cookie naming.
   - **4-Layer Defense-in-Depth Authorization**:
     Most CMS platforms (Payload, Strapi, Directus) rely on a **perimeter security model**: authenticate at the gate, then assume internal trust. This creates dangerous gaps where an authenticated user with low privileges can exploit deeper vulnerabilities. SveltyCMS eliminates this assumption through **4-layer zero-trust re-validation**:
     - **Layer 1 — Middleware**: `__Host-` cookie prefix enforcement (RFC 6265bis), setup completion gating, CSRF protection.

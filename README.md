@@ -41,7 +41,7 @@ All widget fields support localization, validation using [Valibot](https://valib
 
 System localization uses [Inlang Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs), a lightweight, type-safe i18n library. English is the default; additional languages are bundled and can be extended.
 
-We use the latest [tailwindcss v4](https://tailwindcss.com) and a [skeleton UI toolkit v4](https://www.skeleton.dev), so the CMS can be quickly optimized to your personal needs.
+We use the latest [tailwindcss v4](https://tailwindcss.com), so the CMS can be quickly optimized to your personal needs.
 
 Backend data is available via REST API or [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server) for fast, flexible frontends.
 
@@ -206,15 +206,32 @@ See our `package.json` for all available commands.
 
 ## 🔒 Authentication & Security
 
-We want to keep your data Private and Secure.
+SveltyCMS implements **A++ enterprise-grade security** with 4-layer defense-in-depth architecture.
 
-Our extensive Authentication allows us to stay flexible for the future and adapt to changing security needs.
+**Multi-Layer Protection:**
 
-You can log in with email/password or Google OAuth. Role- and field-based access control lets you define precisely who can view, edit, or delete content. Sensitive data is masked in logs; admin-only endpoints protect operational features.
+- **AI Bot Defense Shield** — Proactive detection blocks 28 AI crawler patterns (GPTBot, Claude, Perplexity) and reconnaissance tools (Nmap, SQLMap, Burp Suite). A 45-route honeypot grid with progressive tarpit delays and response poisoning wastes attacker resources.
+- **4-Layer Defense-in-Depth** — Middleware → Dispatcher → Handler → Page Action; every layer re-validates permissions independently with fail-closed defaults.
+- **Enterprise SSO** — Native SAML 2.0 and SCIM 2.0 support for automated user provisioning (Okta, Azure AD).
+- **Zero-Bias Cryptography** — CSPRNG token generation with rejection sampling, Argon2id password hashing (64MB memory-hard), AES-256-GCM encryption, SHA-256 crypto-chained audit logs.
+- **Cross-Origin Isolation** — COOP, COEP, and CORP headers on all API responses prevent Spectre/Meltdown side-channel attacks.
+- **Multi-Tenancy** — Native `tenantId` isolation at the database adapter level with TBAC role scoping.
+- **Granular RBAC** — Role-based and field-level access control; OAuth HMAC state integrity; timing-safe cryptographic comparisons; `__Host-` cookie prefix enforcement (RFC 6265bis).
 
-## 🎨 Easy Theme Adaptions to your needs
+You can log in with email/password, Google OAuth, or GitHub OAuth. Role- and field-based access control lets you define precisely who can view, edit, or delete content.
 
-If you require a different look, use the [skeleton theme generator](https://www.skeleton.dev/docs/generator) and modify the `svelty-cms-theme.ts` to your needs
+📖 **[Full Security Documentation](./docs/architecture/security/index.mdx)**
+
+## 🎨 Modern Theming & Design System
+
+SveltyCMS features a **native Svelte 5 component library** (42+ primitives) built on Tailwind 4 CSS variables with zero third-party UI dependencies.
+
+- **Swappable Admin Themes** — Centralized `app.css` using Tailwind 4 `@theme` blocks. Replace the default color palette to give your CMS a corporate brand identity — from startup purple to enterprise blue in minutes.
+- **Dark Mode** — Native support via `media` and `class` selectors.
+- **Accessibility-First** — All components verified for WCAG 2.2 AA compliance in the Kitchen Sink validation lab.
+- **Zero Runtime Overhead** — Components use Svelte 5 Runes (`$state`, `$props`) with Svelte `use:action` patterns instead of heavy state machines.
+
+📖 **[UI Migration Roadmap](./docs/project/ui_migration_roadmap.mdx)**
 
 ## 🌍 Great System Localization i18n infrastructure
 

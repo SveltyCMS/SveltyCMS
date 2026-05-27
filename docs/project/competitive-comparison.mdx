@@ -4,7 +4,7 @@ title: Competitive Comparison
 description: A technical comparison of SveltyCMS vs Payload CMS, Strapi, and Directus.
 author SveltyCMS Team
 created 2026-03-21
-updated 2026-05-24
+updated 2026-05-27
 tags:
   - comparison
   - benchmarks
@@ -153,10 +153,13 @@ The architectural move to the **5-Pillar Content Core** and Svelte 5 Runes provi
 - **No Hydration Tax**: SveltyCMS minimizes the JavaScript sent to the client, leading to faster Time-to-Interactive.
 - **Fine-Grained Reactivity**: State updates are surgical, avoiding the "re-rendering everything" problem common in React/Vue platforms.
 
-### 3. Native Enterprise Security
+### 3. Native Enterprise Security (Enhanced May 2026)
 
 SveltyCMS treats security as a core architectural feature, not a bolt-on plugin. Unlike competitors that rely on perimeter-only models (authenticate -> trust), SveltyCMS implements **defense-in-depth with zero internal trust**. Most CMS platforms (Payload, Strapi, Directus) authenticate at the gate, then assume internal trust -- SveltyCMS's 4-layer defense-in-depth re-validates permissions at every boundary and fails safely if any check fails.
 
+- **AI Bot Defense Shield**: Proactive User-Agent fingerprinting detects and blocks 28 known AI crawler patterns (GPTBot, Claude, Perplexity, CommonCrawl) and reconnaissance tools (Nmap, SQLMap, Burp Suite, Nessus). A 45-route honeypot grid traps automated scanners with progressive tarpit delays (5-15s) and response poisoning (fake JSON payloads).
+- **Cross-Origin Isolation**: All API responses enforce `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`, and `Cross-Origin-Resource-Policy: same-origin`, preventing Spectre/Meltdown side-channel attacks — a protection level absent in Payload, Strapi, and Directus.
+- **Zero-Bias Cryptographic Tokens**: Session and API key tokens use rejection-sampling CSPRNG with mathematically uniform distribution, eliminating the ~3.125% modulo bias found in naive implementations used by most competitors.
 - **Fail-Closed API Dispatcher**: Exhaustive endpoint registration ensuring 100% security coverage by default. Unmapped routes are denied, eliminating "Shadow API" vulnerabilities.
 - **Crypto-Chained Audit Logs**: Tamper-evident logs (SHA-256) are standard, providing SOC 2-aligned controls and GDPR-ready audit trails. Recently enhanced with strict IP resolution in all authentication flows.
 - **OAuth State Integrity (HMAC)**: Cryptographically guarantees the authenticity of OAuth states, neutralizing authorization code replay attacks.
@@ -164,8 +167,7 @@ SveltyCMS treats security as a core architectural feature, not a bolt-on plugin.
 - **SCIM 2.0 & SAML**: Native support for automated user provisioning and enterprise SSO.
 - **Multi-Tenancy**: Native `tenantId` isolation at the database adapter level, preventing cross-tenant data leaks. Includes strict demo capacity limits.
 - **Timing-Safe Cryptography**: All security-sensitive comparisons (test secrets, TOTP codes) use crypto.timingSafeEqual, neutralizing side-channel timing attacks.
-- **Content-Security-Policy**: Strict CSP headers on all responses — `default-src 'self'`, script/style restrictions, `object-src 'none'`. Applied globally via `BASE_HEADERS` in `security-constants.ts`.
-- **Setup Rate Limiting**: `/api/setup/*` endpoints rate-limited at 3-10 req/min to prevent brute-force attacks during initialization.
+- **Consistent Cookie Prefixing**: `__Host-` prefixed session cookies enforced at both setup and runtime, closing the prefix inconsistency gap present in fragmented implementations.
 
 ### 4. Accessibility & UI Performance
 

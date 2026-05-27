@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:check-circle"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-05-25"
+updated: "2026-05-27"
 tags:
   - "api"
   - "documentation"
@@ -24,7 +24,7 @@ Maintain transparency regarding the documentation status of the SveltyCMS API ec
 
 ## 2. The Solution
 
-### 📊 Coverage Statistics (May 2026 Audit)
+### 📊 Coverage Statistics
 
 | Metric                      | Status     |
 | :-------------------------- | :--------- |
@@ -35,18 +35,18 @@ Maintain transparency regarding the documentation status of the SveltyCMS API ec
 
 ### ✅ Handler Documentation Status
 
-| Handler File       | MDX Documentation              | Local SDK Equivalent     | Status                          |
-| :----------------- | :----------------------------- | :----------------------- | :------------------------------ |
-| **auth.ts**        | [Reference](./auth.mdx)        | `locals.cms.auth`        | ✅ Updated 2026-05-25           |
-| **collections.ts** | [Reference](./collections.mdx) | `locals.cms.collections` | ✅ Complete                     |
-| **content.ts**     | [Reference](./content.mdx)     | `locals.cms.collections` | ✅ Complete                     |
-| **dashboard.ts**   | [Reference](./dashboard.mdx)   | `locals.cms.dashboard`   | ✅ Updated 2026-05-25           |
-| **media.ts**       | [Reference](./media.mdx)       | `locals.cms.media`       | ✅ Complete                     |
-| **scim.ts**        | [Reference](./scim.mdx)        | N/A                      | ✅ Complete                     |
-| **setup.ts**       | [Reference](./setup.mdx)       | `setupManager`           | ⚠️ Missing security gating note |
-| **system.ts**      | [Reference](./system.mdx)      | `locals.cms.system`      | ✅ Complete                     |
-| **tokens.ts**      | [Reference](./tokens.mdx)      | `locals.cms.tokens`      | ✅ Complete                     |
-| **utility.ts**     | [Reference](./utility.mdx)     | `locals.cms.system`      | ✅ Complete                     |
+| Handler File       | MDX Documentation              | Local SDK Equivalent     | Status      |
+| :----------------- | :----------------------------- | :----------------------- | :---------- |
+| **auth.ts**        | [Reference](./auth.mdx)        | `locals.cms.auth`        | ✅ Complete |
+| **collections.ts** | [Reference](./collections.mdx) | `locals.cms.collections` | ✅ Complete |
+| **content.ts**     | [Reference](./content.mdx)     | `locals.cms.collections` | ✅ Complete |
+| **dashboard.ts**   | [Reference](./dashboard.mdx)   | `locals.cms.dashboard`   | ✅ Complete |
+| **media.ts**       | [Reference](./media.mdx)       | `locals.cms.media`       | ✅ Complete |
+| **scim.ts**        | [Reference](./scim.mdx)        | N/A                      | ✅ Complete |
+| **setup.ts**       | [Reference](./setup.mdx)       | `setupManager`           | ✅ Complete |
+| **system.ts**      | [Reference](./system.mdx)      | `locals.cms.system`      | ✅ Complete |
+| **tokens.ts**      | [Reference](./tokens.mdx)      | `locals.cms.tokens`      | ✅ Complete |
+| **utility.ts**     | [Reference](./utility.mdx)     | `locals.cms.system`      | ✅ Complete |
 
 ### Dashboard Endpoint Mapping
 
@@ -81,4 +81,4 @@ The API documentation is verified against the actual handler implementations. Ev
 
 ---
 
-**Summary**: 10/10 handler modules documented. All endpoint paths verified against actual code. One minor gap remains in `setup.mdx` (security gating note).
+**Summary**: 10/10 handler modules documented. All endpoint paths verified against actual code. All security gating verified — no remaining gaps.

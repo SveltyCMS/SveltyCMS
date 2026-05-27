@@ -30,7 +30,7 @@ The system state is managed by a reactive class (`SystemStateContainer`) utilizi
 2.  **Fine-Grained Reactivity**: UI components only re-render when the specific service they are watching (e.g., `databaseStatus`) changes, rather than on every system update.
 3.  **Derived Intelligence**: The `overallState` is a `$derived` rune, ensuring it is always calculated on-demand with zero computation tax when idle.
 4.  **Backward Compatibility**: The system maintains a legacy `systemStateStore` (Writable) that is automatically synchronized with the reactive class.
-5.  **🚀 Hot-Path Readiness Cache (May 2026)**: `isSystemReady()` now uses a module-level cache that is invalidated only on state transitions. The gatekeeper hook (`handleSystemState`) and all other hooks benefit from zero-overhead readiness checks without recomputing `deriveOverallState()` on every request.
+5.  **🚀 Hot-Path Readiness Cache**: `isSystemReady()` now uses a module-level cache that is invalidated only on state transitions. The gatekeeper hook (`handleSystemState`) and all other hooks benefit from zero-overhead readiness checks without recomputing `deriveOverallState()` on every request.
 
 The state is enforced by the `handleSystemState` server hook, which gates all incoming requests based on the reactive status.
 

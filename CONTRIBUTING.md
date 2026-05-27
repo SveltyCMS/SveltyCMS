@@ -462,12 +462,31 @@ export async function GET() {
 
 ## 🔐 Security Guidelines
 
-- **Never commit secrets** or credentials
-- **Validate all user input** on the server
-- **Use parameterized queries** to prevent SQL injection
-- **Sanitize output** to prevent XSS
-- **Follow OWASP** best practices
-- **Report security issues** privately to security@sveltycms.com
+SveltyCMS enforces **4-layer defense-in-depth** across all code paths.
+
+### Cryptographic Randomness (CSPRNG)
+- **NEVER** use `Math.random()` for security-sensitive tokens (sessions, resets, API keys, UUIDs).
+- **ALWAYS** use `globalThis.crypto.getRandomValues()` or `globalThis.crypto.randomUUID()`.
+- Use `generateSecureToken`/`generateUUID` from `@src/utils/native-utils.ts`.
+- Zero-bias tokens: `generateRandomToken` uses rejection sampling for uniform CSPRNG distribution.
+
+### Authentication & Authorization
+- **Never commit secrets** or credentials — all secrets go through `config/private.ts`.
+- **Validate all user input** on the server using Valibot schemas.
+- **Use parameterized queries** — Drizzle ORM provides native parameterization; never concatenate user input.
+- **Sanitize output** — use DOMPurify for HTML, `textContent` instead of `innerHTML`, the `<Sanitize>` component.
+- **CSRF Protection**: All POST/PUT/PATCH/DELETE endpoints gated via double-submit cookie with constant-time comparison.
+- **Fail-Closed API Dispatch**: Every namespace must have an `ENDPOINT_PERMISSIONS` entry. Unmapped routes → 403.
+- **Handler Defense-in-Depth**: Media handlers check `media:write`/`media:delete`; system handlers verify admin; page actions use centralized permission guards.
+
+### AI Bot Defense
+- New endpoints must consider bot detection. Known AI crawler/reconnaissance UAs are blocked in `src/hooks/handle-security.ts`.
+- Extend `HONEYPOT_ROUTES` when new common exploit paths emerge.
+
+### Reporting Security Issues
+- **DO NOT** open public issues for security vulnerabilities.
+- Report privately via [GitHub Security tab](https://github.com/SveltyCMS/SveltyCMS/security/advisories) or security@sveltycms.com.
+- See [SECURITY.md](./SECURITY.md) for full policy.
 
 ---
 

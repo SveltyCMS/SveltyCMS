@@ -4,7 +4,7 @@ title: "Tested Security Features"
 description: "Comprehensive list of security features covered by automated tests"
 author: "SveltyCMS Team"
 created: "2026-03-13"
-updated: "2026-04-10"
+updated: "2026-05-27"
 tags:
   - security
   - testing
@@ -88,6 +88,21 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 **Files Modified**: `src/hooks/handle-authentication.ts`, `src/hooks/handle-system-state.ts`, `src/routes/api/[...path]/handlers/setup.ts`, `src/routes/api/[...path]/handlers/system.ts`, `src/routes/api/[...path]/handlers/media.ts`, `src/routes/(app)/config/collectionbuilder/+page.server.ts`, `src/routes/(admin)/admin/tenants/+page.server.ts`.
 
 **Tests**: `tests/unit/hooks/authentication.test.ts`, `tests/unit/hooks/authorization.test.ts`, `tests/integration/api/dispatcher.test.ts`.
+
+### 6. AI Bot Defense & Crypto Hardening
+
+**Assessment Outcome**: Enhanced AI crawler defenses, zero-bias tokens, and cross-origin isolation headers.
+
+- **AI Bot Detection**: Proactive User-Agent fingerprinting blocks 28 known AI crawler/reconnaissance bot patterns in `src/hooks/handle-security.ts`.
+- **Expanded Honeypot Grid**: 45+ decoy routes (WordPress, Drupal, AWS metadata, config files) trigger IP blacklisting.
+- **Progressive Tarpit + Response Poisoning**: Randomized 5-15s delays + fake JSON payloads waste bot resources.
+- **Cross-Origin Isolation Headers**: `Cross-Origin-Opener-Policy`, `Cross-Origin-Embedder-Policy`, `Cross-Origin-Resource-Policy` on all API responses in `src/hooks/handle-security-headers.ts`.
+- **Zero-Bias Token Generation**: `generateRandomToken` uses rejection sampling eliminating modulo bias in `src/databases/auth/constants.ts`.
+- **Setup Session Cookie Fix**: Consistent `__Host-` prefix logic in setup handler (`src/routes/api/[...path]/handlers/setup.ts`).
+
+**Files**: `src/hooks/handle-security.ts`, `src/hooks/handle-security-headers.ts`, `src/databases/auth/constants.ts`, `src/routes/api/[...path]/handlers/setup.ts`.
+
+**Tests**: All 134 security regression tests pass.
 
 ---
 

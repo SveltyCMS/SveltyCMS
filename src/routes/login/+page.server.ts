@@ -500,7 +500,7 @@ export const actions: Actions = {
             try {
               // On Windows, if Vite locks the file, we can sometimes still truncate it
               await fs.writeFile(configPath, "");
-            } catch (writeErr) {
+            } catch {
               throw e; // throw the original error if both fail
             }
           }

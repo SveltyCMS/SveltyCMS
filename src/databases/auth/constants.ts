@@ -9,17 +9,16 @@
 export const SESSION_COOKIE_NAME = "auth_sessions";
 
 /**
- * Generates a cryptographically secure random alphanumeric token.
+ * Generates a cryptographically secure random alphanumeric token with zero bias.
  *
- * Uses `crypto.getRandomValues` (available globally in modern browsers and Node.js)
- * with simple modulo mapping for efficiency. The minimal bias (8/256 ≈ 3.125%) is
- * acceptable for authentication tokens while providing excellent performance.
+ * Uses rejection sampling to eliminate the modulo bias present in simpler
+ * implementations. Random bytes above 256 - (256 % charset.length) are discarded
+ * and re-sampled, guaranteeing uniform distribution across all characters.
  *
- * For maximum security with zero bias, consider using `crypto.randomUUID()` from
- * `@utils/native-utils.ts` for UUID-based tokens.
+ * For UUID-based tokens, consider `crypto.randomUUID()` from `@utils/native-utils.ts`.
  *
- * @param length - Desired token length (default: 32)
- * @returns Secure random token
+ * @param length - Desired token length (default: 32, providing ~190 bits of entropy)
+ * @returns Cryptographically secure random token with uniform distribution
  * @throws {Error} If crypto.getRandomValues is not available
  */
 export function generateRandomToken(length = 32): string {
@@ -31,14 +30,22 @@ export function generateRandomToken(length = 32): string {
   }
 
   const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  const bytes = crypto.getRandomValues(new Uint8Array(length));
+  const charsetLength = charset.length;
+  // Maximum value that is a multiple of charsetLength (rejection sampling threshold)
+  const maxValidByte = 256 - (256 % charsetLength);
   let result = "";
 
-  for (let i = 0; i < length; i++) {
-    // Simple modulo is acceptable for real-world security:
-    // Bias is minimal (8/256 ≈ 3.125% extra probability for first 8 characters).
-    // For a 32-character token, this bias is negligible for authentication tokens.
-    result += charset[bytes[i] % charset.length];
+  while (result.length < length) {
+    // Generate a batch of random bytes
+    const batchSize = Math.min(64, (length - result.length) * 2);
+    const bytes = crypto.getRandomValues(new Uint8Array(batchSize));
+
+    for (let i = 0; i < batchSize && result.length < length; i++) {
+      // Rejection sampling: discard biased values to ensure uniform distribution
+      if (bytes[i] < maxValidByte) {
+        result += charset[bytes[i] % charsetLength];
+      }
+    }
   }
   return result;
 }

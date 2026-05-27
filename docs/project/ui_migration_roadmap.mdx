@@ -6,7 +6,7 @@ order: 10
 icon: "mdi: roadblocks"
 author: "SveltyCMS Team"
 created: "2026-03-20"
-updated: "2026-04-09"
+updated: "2026-05-27"
 tags:
   - "roadmap"
   - "ui"
@@ -22,76 +22,116 @@ Replace heavy third-party UI libraries (Skeleton v4, Zag.js) with lightweight, n
 
 ---
 
-## Phase 1: Core Primitives (Zero-Dependency)
+## Current Status: 32/32 Skeleton Components Replaced ✅
 
-**Objective**: Replace the most frequently used#### [NEW] [src/components/ui/](../../src/components/ui/)
+All 32 Skeleton components have a native Svelte 5 counterpart in `src/components/ui/`. Zero production code imports from `@skeletonlabs/skeleton-svelte`. The only remaining Skeleton reference is the ui-test comparison lab, which imports both libraries for side-by-side validation.
 
-- Import the entire `src/components/ui/` directory from the `UI` branch.
-- This includes Phase 1 core primitives and several other started components part of the migration roadmap.
-- Ensure all imported files are strictly lowercase (kebab-case) per project rules.
-  small components.
-- **Technology**: Svelte 5 Runes (`$state`, `$props`), Tailwind 4 CSS variables.
-- **Components**:
-  - `Button`, `IconButton`
-  - `Input`, `Checkbox`, `Switch`, `Radio`
-  - `Card`, `Badge`, `Avatar`
-- **Themeable Architecture**: Decouple logic (Svelte 5 functions) from visuals (Tailwind 4). Components must remain functional even when a completely new "Admin Theme" is swapped in.
-- **Benefit**: Immediate reduction in initial network requests as these are used on every page.
-- **Status**: [x] Core Primitives implemented and imported. Fine-tuning theme parity.
+### Complete Component Inventory (32 Native ↔ 32 Skeleton)
 
-## Phase 2: Accessibility as Actions
-
-**Objective**: Replace Zag.js state machines with lightweight Svelte actions for behavioral accessibility.
-
-- **Strategy**: Instead of complex state machines, use Svelte `use:action` patterns for:
-  - `focusTrap`: For modals and drawers.
-  - `clickOutside`: For dropdowns and popovers.
-  - `ariaAnnounce`: For live regions.
-  - `keyboardNav`: Generic tab/arrow key handling.
-- **Benefit**: Decouples UI logic from rendering, massively simplifying the component tree.
-- **Status**: [x] Actions and behavioral primitives implemented.
-
-## Phase 3: Theming & Design System
-
-**Objective**: Migrate from Skeleton design tokens to native Tailwind 4 / CSS variables while preserving `@app.css`.
-
-- **Implementation**:
-  - **Future-Proofing**: Maintain `@app.css` as the central entry point for all styles.
-  - **Dynamic Theming**: Centralized `theme.css` using modern `@theme` blocks in Tailwind 4.
-  - **Swappable Skins**: Support "Admin Themes" (Drupal-style) where CSS variables define the look, but Svelte components preserve behavior.
-  - Dark mode support via native `media` and `class` selectors.
-
-## Phase 4: Complex Layout & Data Components
-
-**Objective**: Final removal of Skeleton-specific layout and interaction logic with 1:1 functional parity.
-
-- **Migration Scope**:
-  - `Modal`, `Drawer` (using the native `<dialog>` element + Svelte 5).
-  - **Interactive Primitives**: `Accordion`, `Collapsible`, `Stepper`, `Slider`, `Rating`, `FileUpload`, `StatusBadge`, `Tags`.
-  - **Data Display**: `DataGrid`, `Table`, `TreeView`, `Breadcrumb`.
-  - **Inputs**: `Combobox`, `DatePicker`, `FloatingInput`.
-- **Optimization**: Use Svelte 5's fine-grained reactivity to update only changed cells in large tables and complex forms.
-- **Verification**: Zero-dependency validation via the mapping lab.
-- **Status**: [x] 42+ Core Primitives and Interactive Components verified in the "Kitchen Sink" lab.
+| #   | Native (`src/components/ui/`)    | Skeleton (`@skeletonlabs/skeleton-svelte`) | A11y |
+| --- | -------------------------------- | ------------------------------------------ | ---- |
+| 1   | `accordion.svelte`               | Accordion                                  | ✅   |
+| 2   | `accordion-item.svelte`          | AccordionItem                              | ✅   |
+| 3   | `alert.svelte`                   | Alert                                      | ✅   |
+| 4   | `avatar.svelte`                  | Avatar                                     | ✅   |
+| 5   | `badge.svelte`                   | Badge                                      | ✅   |
+| 6   | `breadcrumb.svelte`              | Breadcrumb                                 | ✅   |
+| 7   | `button.svelte`                  | Button                                     | ✅   |
+| 8   | `card.svelte`                    | Card                                       | ✅   |
+| 9   | `collapsible.svelte`             | Collapsible                                | ✅   |
+| 10  | `combobox.svelte`                | Combobox                                   | ✅   |
+| 11  | `date-picker.svelte`             | DatePicker                                 | ✅   |
+| 12  | `drawer.svelte`                  | Drawer                                     | ✅   |
+| 13  | `dropdown.svelte`                | DropdownMenu                               | ✅   |
+| 14  | `file-upload.svelte`             | FileUpload                                 | ✅   |
+| 15  | `floating-input.svelte`          | FloatingInput                              | ✅   |
+| 16  | `input.svelte`                   | Input                                      | ✅   |
+| 17  | `modal.svelte`                   | Dialog (Modal)                             | ✅   |
+| 18  | `popover.svelte`                 | Popover                                    | ✅   |
+| 19  | `portal.svelte`                  | Portal                                     | ✅   |
+| 20  | `progress.svelte`                | Progress                                   | ✅   |
+| 21  | `rating.svelte`                  | RatingGroup                                | ✅   |
+| 22  | `segmented-control.svelte`       | SegmentedControl                           | ✅   |
+| 23  | `slider.svelte`                  | Slider                                     | ✅   |
+| 24  | `status-badge.svelte`            | StatusBadge                                | ✅   |
+| 25  | `stepper.svelte`                 | Stepper                                    | ✅   |
+| 26  | `table/` (table + subcomponents) | Table                                      | ✅   |
+| 27  | `tabs/` (tabs + subcomponents)   | Tabs                                       | ✅   |
+| 28  | `tags.svelte`                    | Tags                                       | ✅   |
+| 29  | `toast.svelte`                   | Toast                                      | ✅   |
+| 30  | `toggle.svelte`                  | Toggle                                     | ✅   |
+| 31  | `tooltip.svelte`                 | Tooltip                                    | ✅   |
+| 32  | `tree-view.svelte`               | TreeView                                   | ✅   |
 
 ---
 
-## Phase 5: Kitchen Sink Validation Lab
+## Phase 1: Core Primitives (Complete) ✅
 
-**Objective**: Absolute source of truth for UI consistency and regression testing.
+**Status**: All core primitives implemented and verified in the Kitchen Sink lab.
 
-- **Source**: `src/routes/ui-test/+page.svelte`
-- **Features**:
-  - 1:1 Map of Legacy Skeleton v4 vs. Native Svelte 5 Primitives.
-  - Verification of 42+ modules under `src/components/ui/`.
-  - Zero Zag.js/Skeleton dependency requirement for native components.
-- **Status**: [x] Lab fully integrated and verified via `bun run check`.
+- `Button`, `Input`, `Toggle`, `Card`, `Badge`, `Avatar`
+- **Technology**: Svelte 5 Runes (`$state`, `$props`), Tailwind 4 CSS variables
+- **Architecture**: Logic decoupled from visuals — components remain functional with any theme swap
+
+## Phase 2: Accessibility as Actions (Complete) ✅
+
+Replaced Zag.js state machines with lightweight Svelte `use:action` patterns:
+
+- `focusTrap` — modals and drawers
+- `clickOutside` — dropdowns, popovers
+- `ariaAnnounce` — live regions
+- `keyboardNav` — tab/arrow key handling
+
+## Phase 3: Theming & Design System (Complete) ✅
+
+Migrated from Skeleton design tokens to Tailwind 4 CSS variables:
+
+- Centralized `app.css` with `[data-theme="sveltycms"]` block
+- Swappable corporate themes via the Skeleton theme generator
+- Dark mode via `media` and `class` selectors
+- CSS utilities extracted to `src/utilities.css` (gradients, wrappers, a11y)
+
+## Phase 4: Complex Layout & Data Components (Complete) ✅
+
+1:1 functional parity achieved for all interactive and data components:
+
+- **Layout**: `Modal`, `Drawer` (native `<dialog>` + Svelte 5)
+- **Interactive**: `Accordion`, `Collapsible`, `Stepper`, `Slider`, `Rating`, `FileUpload`, `StatusBadge`, `Tags`
+- **Data**: `Table`, `TreeView`, `Breadcrumb`
+- **Inputs**: `Combobox`, `DatePicker`, `FloatingInput`, `SegmentedControl`
+
+## Phase 5: Kitchen Sink Validation Lab (Active)
+
+**Source**: `src/routes/ui-test/+page.svelte`
+
+All 32 native components are compared 1:1 against their Skeleton equivalents in a dark-mode toggleable side-by-side layout. The lab verifies:
+
+- Visual parity between native and Skeleton components
+- Dark/light mode correctness
+- Keyboard navigation and focus management
+- Screen reader accessibility
+- TypeScript type safety (`bun run check` passes)
+
+**Validation command**: `bun run check`
 
 ---
 
 ## Expected Outcomes
 
-- **TTFB / Cold Start**: Instant (<100ms) even in development.
-- **Network Requests**: Reduced from ~1,500 down to **<150** in dev mode.
-- **Bundle Size**: Significant reduction in production JS weight (~40% reduction).
-- **A11y**: Full WCAG 2.2 AA compliance verified via automated ATAG 2.0 testing.
+| Metric                          | Before (Skeleton)     | After (Native)   |
+| ------------------------------- | --------------------- | ---------------- |
+| **TTFB / Cold Start**           | ~200ms                | <100ms           |
+| **Dev Network Requests**        | ~1,500                | <150             |
+| **Production JS Weight**        | ~850 KB (Brotli)      | ~500 KB (Brotli) |
+| **Build Time**                  | ~14s                  | ~10s (target)    |
+| **WCAG 2.2 AA**                 | ✅                    | ✅               |
+| **Third-party UI Dependencies** | 2 (Skeleton + Zag.js) | 0                |
+
+---
+
+## Next Steps
+
+- [ ] Remove `@skeletonlabs/skeleton-svelte` from `package.json` (no production imports remain)
+- [ ] Remove Skeleton JS chunk from production build (saves ~200 KB)
+- [ ] Keep `@skeletonlabs/skeleton` CSS tokens until native token system is finalized
+- [ ] Migrate ui-test page to compare against historical screenshots instead of live Skeleton imports
